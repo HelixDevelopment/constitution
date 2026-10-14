@@ -45,7 +45,9 @@
 #                     PRE-PLANTED by the foreign uid -> the replay's locks are taken in $HOME/.cache/fc_baseline_replay/
 #                     locks (proved, this user's alone), not BLIND 4 forever; the planted file untouched.
 # [R14LOCK-own]       a lock directory of this user's alone is used as it is ($HOME/.cache not created).
-# [R14LOCK-nohome]    the stated BOUNDARY: no usable $HOME + a pre-planted name -> BLIND 4 (never runs unlocked).
+# [R14LOCK-nohome]    the stated BOUNDARY: no home (round 15: no PASSWORD-DATABASE home, FAKE_PWHOME="" in the driver)
+#                     + a pre-planted name -> BLIND 4 (never runs unlocked). Round 15: these rows give the driver
+#                     FAKE_PWHOME (the password-database home stands in for $HOME, V4R15-1; test_fc_safepath_v4r15.sh).
 # [R14LOCK-0640]      NIT-A (RV7-06): an old 0640 / 0660 lock file (group bits only) is REPLACED while held.
 # [R14SAMPLE-wtroot-sticky] NIT-B (RV7-10): replay-sample with a --worktree-root of ours that is 1777 -> BLIND 4,
 #                     nothing made in it (behavioural: the --exclusive proof of replay-sample's own site).
@@ -344,6 +346,8 @@ spec = importlib.util.spec_from_file_location("fcsup", sys.argv[1]); m = importl
 spec.loader.exec_module(m)
 mode, lock_dir, fspath = sys.argv[2], sys.argv[3], sys.argv[4]
 m.say = lambda msg: sys.stderr.write("say: %s\n" % msg)
+if "FAKE_PWHOME" in os.environ:          # round 15 (V4R15-1): the home is read from the PASSWORD DATABASE; this driver
+    m._passwd_home = lambda: os.environ["FAKE_PWHOME"]   # seam stands in for it (the supervisor has no env input)
 if mode == "take":
     try:
         fds = m._take_locks(types.SimpleNamespace(lock=[], lock_fs=[fspath], lock_dir=lock_dir))
@@ -363,13 +367,13 @@ PY
     SH1="$L/shared"; mkdir "$SH1"; chmod 1777 "$SH1"
     FX sh -c ': >"$1/$2"' sh "$SH1" "$lname" 2>/dev/null
     H="$L/home"; mkdir "$H"; chmod 700 "$H"
-    out="$(HOME="$H" python3 -I "$WORK/lock.py" "$SUP" take "$SH1" "$WORK" 2>"$L/p.err")"
+    out="$(HOME="$H" FAKE_PWHOME="$H" python3 -I "$WORK/lock.py" "$SUP" take "$SH1" "$WORK" 2>"$L/p.err")"
     want_path="$H/.cache/fc_baseline_replay/locks/$lname"
     [ "$(stat -c %u "$SH1/$lname" 2>/dev/null)" = "$FUID" ] && grep -qx "LOCKED $want_path" <<<"$out" \
       && [ "$(stat -c '%u %a' "$want_path")" = "$(id -u) 600" ] \
       && ok "[R14LOCK-preplant] the per-filesystem lock name PRE-PLANTED by uid $FUID in a 1777 lock directory: the lock is taken in \$HOME/.cache/fc_baseline_replay/locks (ours, 0600), not BLIND 4; the planted file untouched" \
       || bad "[R14LOCK-preplant] out=[$out] planted-owner=$(stat -c %u "$SH1/$lname" 2>/dev/null) $(head -c 200 "$L/p.err")"
-    out="$(env -u HOME python3 -I "$WORK/lock.py" "$SUP" take "$SH1" "$WORK" 2>"$L/n.err")"
+    out="$(env -u HOME FAKE_PWHOME= python3 -I "$WORK/lock.py" "$SUP" take "$SH1" "$WORK" 2>"$L/n.err")"
     [ "$out" = "EXIT 4" ] && grep -q "cannot open the replay lock file" "$L/n.err" \
       && ok "[R14LOCK-nohome] the stated boundary: no \$HOME and the name pre-planted -> BLIND 4 (refused, never run unlocked)" \
       || bad "[R14LOCK-nohome] out=[$out] $(head -c 200 "$L/n.err")"
@@ -377,7 +381,7 @@ PY
     echo "SKIP [R14LOCK-preplant / R14LOCK-nohome] no subordinate uid -- not counted"
   fi
   OWN="$L/own"; mkdir "$OWN"; chmod 700 "$OWN"; H2="$L/home2"; mkdir "$H2"; chmod 700 "$H2"
-  out="$(HOME="$H2" python3 -I "$WORK/lock.py" "$SUP" take "$OWN" "$WORK" 2>"$L/o.err")"
+  out="$(HOME="$H2" FAKE_PWHOME="$H2" python3 -I "$WORK/lock.py" "$SUP" take "$OWN" "$WORK" 2>"$L/o.err")"
   grep -qx "LOCKED $OWN/$lname" <<<"$out" && [ ! -e "$H2/.cache" ] \
     && ok "[R14LOCK-own] a lock directory of this user's alone is used as it is (\$HOME/.cache not created)" \
     || bad "[R14LOCK-own] out=[$out] cache=$([ -e "$H2/.cache" ] && echo made || echo no) $(head -c 200 "$L/o.err")"

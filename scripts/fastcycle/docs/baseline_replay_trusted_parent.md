@@ -62,7 +62,7 @@ directory of this user's alone under a trusted chain (the trusted-parent rule; t
 
 ## Lock files
 
-The replay locks (`FC_REPLAY_LOCK_DIR`, else `XDG_RUNTIME_DIR`, else `/tmp`) are files made `0600`, so another user
+The replay locks (`FC_REPLAY_LOCK_DIR`, else `/tmp` — see below) are files made `0600`, so another user
 cannot OPEN a lock file made by this version (`flock` needs only a read descriptor). A lock file with any group or
 other permission bit (versions before round 13 made them `0644`) is **replaced** with a private one while its lock is
 held — automatically, nothing to do.
@@ -70,14 +70,26 @@ held — automatically, nothing to do.
 When the lock directory is one other users may create names in (the `/tmp` fallback, mode `1777`), the
 per-filesystem lock name (`fc_baseline_replay.fs-<dev>.lock`) is predictable, so anyone could create it first and make
 every replay refuse. Such a directory is therefore **not used**: the locks are taken in
-`$HOME/.cache/fc_baseline_replay/locks` (created `0700`, proved by the trusted-parent rule). A lock directory that is
-yours alone (`$XDG_RUNTIME_DIR`, an `FC_REPLAY_LOCK_DIR` of yours) is used as it is.
+`<home>/.cache/fc_baseline_replay/locks` (created `0700`, proved by the trusted-parent rule), where `<home>` is your
+home directory **from the password database** (`getent passwd $(id -u)`), never the environment's `$HOME`: two
+replays of the same user must find the same lock file whatever environment each runs in (cron, `env -i`, a
+sudo-preserved environment — round 14 read `$HOME`, and two replays with different `$HOME` ran at once). For the same
+reason `$XDG_RUNTIME_DIR` is no longer a default (cron does not set it). If that directory cannot be used (an untrusted
+home, a shared directory made there, an I/O error) the replay **refuses** (exit 4) rather than lock elsewhere. A lock
+directory that is yours alone (an `FC_REPLAY_LOCK_DIR` of yours) is used as it is.
+
+Upgrade window: a replay of an older version (locks in `$XDG_RUNTIME_DIR` or `$HOME/.cache/...`) and one of this
+version running at the same moment do not see each other's per-filesystem lock — finish or stop older replays before
+the first run of this version. (The per-repository lock, in the repository's git directory, is unchanged and still
+excludes them.)
 
 What these measures do **not** cover (stated, not closed):
 
-- with no usable `$HOME` (unset, relative, or failing the rule) the shared directory stays in use: a pre-planted lock
-  name then makes the replay refuse (BLIND 4) — it never runs without its lock. Remedy: set `FC_REPLAY_LOCK_DIR` or
-  `XDG_RUNTIME_DIR` to a directory of yours;
+- with no home directory in the password database for your uid (or a relative one) the shared directory stays in
+  use: a pre-planted lock name then makes the replay refuse (BLIND 4) — it never runs without its lock. Remedy: set
+  `FC_REPLAY_LOCK_DIR` to a directory of yours;
+- two replays given different `FC_REPLAY_LOCK_DIR` values are two lock domains (your explicit choice) and do not wait
+  for each other on the per-filesystem lock;
 - a user who already holds `LOCK_EX` on an old readable lock file when this version first runs keeps that lock busy
   (the replacement happens only after this replay's own lock succeeds): the replay refuses as "already running";
 - lock files are per user: two different users' replays on one file system do not wait for each other.

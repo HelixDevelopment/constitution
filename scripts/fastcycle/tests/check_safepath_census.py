@@ -45,10 +45,24 @@ Shell (a lexer, _ShLex):
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
                '/...' -- the greatest fixed point; read / for targets are never proved; round 14: `printf -v V` or
                `unset V` of a PROVED V, and any nameref declaration (local / declare / typeset -n), -> VIOLATION
-  NOT CHECKED  (stated, round 14) a proved variable CLEARED to "" (a modelled form: `_FC_WT_PATH=""` after a
-               removal) expands empty at a later use ("$v/x" -> "/x"); the census is flow-insensitive and does not
-               prove the `[ -n "$v" ]` guard at each use -- a residual tracked in docs/qa/v4_round8_20261013/
-               CONVERGENCE.md
+  ROUND 15     (V4R15-2, §11.4.276(E) structural -- the CLASS "a proved variable changed or emptied outside the
+               provenance model", closed by rules, not by needles; enumeration: docs/qa/v4_round9_20261014/
+               CONVERGENCE.md):
+               (a) a NAME is read through quote removal ('_X', "_X", backslash-_X, -v"_X" name _X), and a NAME holding an
+                   expansion ("$n", ${n}, $(..), `..`) in ANY variable-name position of printf -v / unset / read
+                   [-a] / wait -p / local / declare / typeset / export / readonly -> VIOLATION (an option word holding
+                   an expansion too); every other name-taking builtin is outside the tables (let, mapfile,
+                   readarray, getopts, select, coproc, builtin, ...: an unknown command);
+               (b) a PROVED V assigned by printf -v / wait -p / unset, or given an attribute (-i -l -u -c -a -A -t)
+                   -> VIOLATION; typeset and quoted NAME=VALUE words are MODELLED (provenance), read's targets too;
+               (c) in the EXPANDED text (unquoted here-documents included): ${V=..} / ${V:=..} of a proved V,
+                   ${!R=..} / ${!R:=..} always, an arithmetic assignment (= op= ++ --) to a proved V inside (( )),
+                   $(( )), $[ ], [[ ]], a NAME[..] subscript or a ${X:offset}, and a {V}> fd redirection -> VIOLATION;
+               (d) EMPTY: every expansion of a proved variable in a path operand (and in a derived value with a
+                   suffix) must be ${V:?} -- bash aborts the command when V is empty or unset -- so no form of
+                   emptying (V="", local V, unset, a function that never assigns its local) can make an operand
+                   "/suffix" or "" (`cp -r d ""` copies into the cwd; `awk 1 ""` reads stdin -- measured). The
+                   round-14 "cleared to ''" residual is CLOSED by (d).
   python3      "$_FC_SUPERVISOR" -> ROUTED (censused as Python); `python3 - <<'X'` -> its program must be READ-ONLY
                (_heredoc_py_bad); SH_PROGRAMS / SH_EXEMPT rows; anything else (python3 -c ...) -> VIOLATION
   git          GIT_RO sub-commands, `config --get*`, `worktree list`, `worktree prune` (TAGGED); add/remove/unlock and
@@ -111,7 +125,8 @@ METHOD_OPS = {"unlink", "rmdir", "mkdir", "touch", "write_text", "write_bytes", 
               "link_to", "open_text"}
 FS_MODULE_NAMES = {"pathlib", "io", "codecs", "glob", "shutil", "tempfile", "sqlite3", "fileinput", "posix", "mmap",
                    "zipfile", "tarfile", "gzip", "bz2", "lzma", "dbm", "shelve", "runpy", "pty", "socket"}
-PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars"}
+PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars",
+              "breakpoint"}   # round 15: breakpoint() calls the hook an environment variable names (fail-closed)
 PY_TAGS = {"procfs", "devnull", "probe"}
 # round 14 (V4R14-2): EVERY attribute of a permitted module that is NOT one of the os / subprocess / ctypes /
 # importlib families above is MODELLED here (the names fc_supervisor.py uses, each reviewed: none takes a path); any
@@ -607,6 +622,155 @@ def _unq(w):
     return w[1:-1] if len(w) >= 2 and w[0] == w[-1] == '"' else w
 
 
+# round 15 (V4R15-2, §11.4.276(E) structural): the census no longer matches a variable NAME as the literal word the
+# script wrote. A NAME goes through the shell's QUOTE REMOVAL first ('_X', "_X", \_X, -v"_X" all name _X), and a
+# NAME any part of which is an EXPANSION ("$n", ${n}, $(..), `..`, $'..') is a name the census cannot know -- a
+# VIOLATION in every variable-name position, whatever variable it would turn out to be.
+# an expansion of a variable: ${V} / ${V:?msg} (group 2 = the :? guard) / $V
+_EXP_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:\?[^}]*)?\}|\$([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def _dq_chars(w):
+    """quote removal, char by char: [(char, from_expansion)]; an expansion ($x ${..} $(..) $((..)) `..` $'..' $"..")
+    is ONE ('$', True) item (its value is unknown to the census)"""
+    out, i, n, q = [], 0, len(w), None
+
+    def skip_exp(i):
+        if w[i] == "`":
+            k = i + 1
+            while k < n and w[k] != "`":
+                k += 2 if w[k] == "\\" else 1
+            return k + 1
+        if w.startswith(("$'", '$"'), i):
+            k = i + 2
+            while k < n and w[k] != w[i + 1]:
+                k += 2 if w[k] == "\\" else 1
+            return k + 1
+        if w.startswith(("${", "$("), i):
+            op = w[i + 1]
+            cl = "}" if op == "{" else ")"
+            d, k = 1, i + 2
+            while k < n and d:
+                if w[k] == "\\":
+                    k += 2
+                    continue
+                if w[k] == op:
+                    d += 1
+                elif w[k] == cl:
+                    d -= 1
+                k += 1
+            return k
+        m = re.match(r"\$([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-])", w[i:])
+        return i + (m.end() if m else 1)
+    while i < n:
+        c = w[i]
+        if q == "'":
+            if c == "'":
+                q = None
+            else:
+                out.append((c, False))
+            i += 1
+            continue
+        if c == "\\":
+            if i + 1 < n and (q is None or w[i + 1] in '$`"\\'):
+                out.append((w[i + 1], False))
+                i += 2
+            else:
+                out.append((c, False))
+                i += 1
+            continue
+        if q == '"' and c == '"':
+            q = None
+            i += 1
+            continue
+        if q is None and c in "'\"":
+            q = c
+            i += 1
+            continue
+        if c == "`" or (c == "$" and i + 1 < n):
+            out.append(("$", True))
+            i = max(skip_exp(i), i + 1)
+            continue
+        out.append((c, False))
+        i += 1
+    return out
+
+
+def _lit(w):
+    """the literal text of word w after quote removal, or None when any part of it is an expansion"""
+    ch = _dq_chars(w)
+    return None if [1 for _c, d in ch if d] else "".join(c for c, _d in ch)
+
+
+def _options(args, valued=""):
+    """(the option letters, {letter: the chars of its value}, the operands) of a builtin's arguments, after quote
+    removal: an option is a word starting with a literal - or + (before the first operand or '--'); a letter in
+    `valued` takes the rest of its word (-v"_X") or the next word. A +X option REMOVES attribute X (its letter is not
+    recorded). An EXPANSION where an option letter should be adds the letter '$' (the caller refuses it)."""
+    letters, vals, i = set(), {}, 0
+    while i < len(args):
+        ch = _dq_chars(args[i])
+        if len(ch) < 2 or ch[0] not in (("-", False), ("+", False)):
+            break
+        if [c for c, _d in ch] == ["-", "-"] and not ch[1][1]:
+            i += 1
+            break
+        j = 1
+        while j < len(ch):
+            c, dyn = ch[j]
+            if dyn:
+                letters.add("$")
+                break
+            if ch[0][0] == "-":
+                letters.add(c)
+            if c in valued:
+                if j + 1 < len(ch):
+                    vals[c] = ch[j + 1:]
+                else:
+                    vals[c] = _dq_chars(args[i + 1]) if i + 1 < len(args) else []
+                    i += 1
+                break
+            j += 1
+        i += 1
+    return letters, vals, args[i:]
+
+
+# the builtins (in SH_NOOP) that take a variable NAME, and where (round 15, the closed list -- every other name-taking
+# builtin of bash is outside the census's tables and refused as an unknown command: let, mapfile, readarray, getopts,
+# select, coproc, builtin, enable, compgen, source, eval)
+NAME_BUILTINS = {"printf": "printf -v NAME", "unset": "unset NAME...", "read": "read [-a NAME] NAME...",
+                 "wait": "wait -p NAME", "local": "local NAME[=V]...", "declare": "declare NAME[=V]...",
+                 "typeset": "typeset NAME[=V]...", "export": "export NAME[=V]...", "readonly": "readonly NAME[=V]..."}
+DECLARE_FAMILY = ("local", "declare", "typeset", "export", "readonly")
+
+
+def _name_words(w0, args):
+    """[(chars of a NAME, role)] of every word of command w0 in a variable-NAME position, and the option letters: role
+    'set' (the command assigns or unsets it: printf -v, read, wait -p, unset) or 'decl' (a declare-family operand,
+    NAME or NAME=VALUE -- the provenance pass models its value)"""
+    if w0 == "printf":
+        letters, vals, _ops = _options(args, "v")
+        return ([(vals["v"], "set")] if "v" in vals else []), letters
+    if w0 == "unset":
+        letters, _vals, ops = _options(args)
+        return ([] if letters & {"f"} else [(_dq_chars(a), "set") for a in ops]), letters
+    if w0 == "read":
+        letters, vals, ops = _options(args, "adinNptu")
+        return ([(vals["a"], "set")] if "a" in vals else []) + [(_dq_chars(a), "set") for a in ops], letters
+    if w0 == "wait":
+        letters, vals, _ops = _options(args, "p")
+        return ([(vals["p"], "set")] if "p" in vals else []), letters
+    if w0 in DECLARE_FAMILY:
+        letters, _vals, ops = _options(args)
+        out = []
+        for a in ops:
+            ch = _dq_chars(a)
+            k = next((i for i, (c, d) in enumerate(ch) if c == "=" and not d), None)
+            out.append((ch if k is None else ch[:k], "decl"))
+        return out, letters
+    return [], set()
+
+
 def sh_census(path):
     lines = open(path).read().split("\n")
     cmds, funcs, extents = sh_commands(lines)
@@ -622,15 +786,20 @@ def sh_census(path):
         for w, _ln in cm["assigns"]:
             nm, val = w.split("=", 1)
             note(cm["func"], nm.rstrip("+").split("[")[0], val)
-        if cm["cmd"] in ("local", "declare", "export", "readonly"):
-            for w in cm["args"]:
-                if _ASSIGN_RE.match(w):
-                    nm, val = w.split("=", 1)
-                    note(cm["func"], nm.rstrip("+").split("[")[0], val)
+        if cm["cmd"] in DECLARE_FAMILY:                   # round 15: typeset too; NAMEs after quote removal
+            for w in _options(cm["args"])[2]:
+                ch = _dq_chars(w)
+                k = next((i for i, (c, d) in enumerate(ch) if c == "=" and not d), None)
+                if k is None or [1 for _c, d in ch[:k] if d]:
+                    continue                              # no value / a non-literal NAME (refused by classify)
+                nm = "".join(c for c, _d in ch[:k]).rstrip("+").split("[")[0]
+                # a quoted NAME=VALUE word ("X=/etc") is an assignment the raw value split cannot read: unproved
+                note(cm["func"], nm, w.split("=", 1)[1] if _ASSIGN_RE.match(w) else "<quoted assignment>")
         if cm["cmd"] == "read":                           # read's targets: values from input, never proved
-            for w in cm["args"]:
-                if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", w):
-                    note(cm["func"], w, "<read>")
+            for ch, _role in _name_words("read", cm["args"])[0]:
+                lit = None if [1 for _c, d in ch if d] else "".join(c for c, _d in ch)
+                if lit and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", lit):
+                    note(cm["func"], lit, "<read>")
         if cm["cmd"] == "for" and cm["args"]:
             note(cm["func"], cm["args"][0], "<for>")
     roots = ("$(_fc_safe mkdtemp ", "$(_fc_safe mkdir --exclusive ", "$(_fc_mktemp)")
@@ -645,7 +814,7 @@ def sh_census(path):
 
     def is_file_rhs(func, rhs):
         r = _unq(rhs.strip())
-        return r == "$(_fc_mktemp)" or bool(re.match(r'^\$\(mktemp "\$_FC_TMPDIR/[^"/]*"\)$', r))
+        return r == "$(_fc_mktemp)" or bool(re.match(r'^\$\(mktemp "(\$_FC_TMPDIR|\$\{_FC_TMPDIR:\?[^}]*\})/[^"/]*"\)$', r))
 
     def rhs_proved(rhs, known, func="<top>"):
         r = _unq(rhs.strip())
@@ -657,27 +826,41 @@ def sh_census(path):
             return True
         if r in ("${FC_BR_TMPDIR}", "$FC_BR_TMPDIR", "${FC_BR_TMPDIR:-}"):
             return True                                   # proved --exclusive at worker start (_fc_worker_init)
-        m = re.match(r'^\$\(mktemp (-d )?"\$_FC_TMPDIR/([^"/]*)"\)$', r)
+        m = re.match(r'^\$\(mktemp (-d )?"(?:\$_FC_TMPDIR|\$\{_FC_TMPDIR:\?[^}]*\})/([^"/]*)"\)$', r)
         if m:
             return "_FC_TMPDIR" in known and mktemp_name_ok(m.group(2), func)
-        return word_proved(r, known)
+        return word_proved(r, known, copy_ok=True)
 
-    def word_proved(r, known):
+    def word_proved(r, known, copy_ok=False, guard=True):
         """the word starts with a proved variable and every other expansion in it is a proved variable; no '..'
         component, no '~'; a FILE variable (a $(_fc_mktemp) / mktemp result) may carry a plain suffix ($marker.t: a
-        sibling in the same proved directory) -- a directory variable may not ($dir.x is outside it)"""
-        m = re.match(r"^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?", r)
-        if not m or (r.startswith("${") and not re.match(r"^\$\{[A-Za-z_][A-Za-z0-9_]*\}", r)):
+        sibling in the same proved directory) -- a directory variable may not ($dir.x is outside it).
+        ROUND 15 (V4R15-2, the CLEARED / emptied class -- §11.4.276(E) structural): every expansion of a proved
+        variable in it must be ${V:?...} (bash aborts the command when V is empty or unset), so NO way of emptying a
+        proved variable (V="", local V, unset V, a function that never assigns its local, ...) can make a path
+        operand "/suffix" or ""  -- measured: `cp -r d ""` copies into the CWD, `awk 1 ""` reads stdin
+        (v4_round9_20261014/logs/empty_operand_probe.log). copy_ok: a provenance RIGHT-HAND side that is exactly
+        $V / ${V} (a copy: an empty value stays empty and is guarded where IT is used). guard=False: the round-14
+        test, used only to word the refusal reason."""
+        m = _EXP_RE.match(r)
+        if not m:
             return False
-        if m.group(1) not in known:
+        var = m.group(1) or m.group(3)
+        if var not in known:
             return False
         rest = r[m.end():]
+        if guard and not m.group(2) and not (copy_ok and rest == ""):
+            return False
         if rest and not rest.startswith("/"):
-            return m.group(1) in files and bool(re.match(r"^[A-Za-z0-9_.+-]+$", rest))
+            return var in files and bool(re.match(r"^[A-Za-z0-9_.+-]+$", rest))
         if re.search(r"(^|/)\.\.(/|$)", rest) or "~" in rest or "`" in rest or "$(" in rest:
             return False
-        for v in re.findall(r"\$\{?([^}/\"$]*)\}?", rest):
-            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", v) or v not in known:
+        exps = list(_EXP_RE.finditer(rest))
+        if rest.count("$") != len(exps):
+            return False                                  # an expansion of another form (${v:-x}, $1, ...)
+        for e in exps:
+            v = e.group(1) or e.group(3)
+            if v not in known or (guard and not e.group(2)):
                 return False
         return True
     proved = set(gassigns) | {"_FC_TMPDIR"}
@@ -740,6 +923,9 @@ def sh_census(path):
             vs = re.findall(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)", u)
             ps = [v for v in vs if (func, v) in PARAMS]
             rest = [v for v in vs if (func, v) not in PARAMS and not proved_in(func, v)]
+            # round 15: a proved variable in a param-tagged operand is ${V:?}-guarded like any other
+            rest += [v for v in vs if (func, v) not in PARAMS and proved_in(func, v) and
+                     not re.search(r"\$\{%s:\?" % re.escape(v), u)]
             if ps and not rest and ".." not in u and "~" not in u:
                 return "TAGGED", "param: " + "; ".join(PARAMS[(func, v)] for v in ps)
             return "VIOLATION", "tagged param but %r is not a listed parameter of %s" % (rest or vs, func)
@@ -748,6 +934,9 @@ def sh_census(path):
         if word_proved(u, known_in(func)):
             return "PRIVATE", "inside a proved directory (%s)" % ", ".join(
                 sorted(set(re.findall(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)", u))))
+        if word_proved(u, known_in(func), guard=False):
+            return "VIOLATION", ("%s on %s: a proved variable expanded WITHOUT ${V:?} may expand EMPTY (V=\"\", local "
+                                 "V, unset V) -- \"/suffix\" or \"\" (round 15, V4R15-2)" % (kind, w[:60]))
         return "VIOLATION", "%s on an operand that is not proved (%s)" % (kind, w[:60])
 
     def add(cm, kind, verdict, why):
@@ -828,25 +1017,42 @@ def sh_census(path):
                     return
             classify(cm, rest, depth + 1)
             return
-        # round 14 (V4R14-2): assignments the provenance pass does not see -- each a VIOLATION at its own line
-        if w0 in ("local", "declare", "typeset") and [a for a in args if re.match(r"^-[A-Za-z]*n[A-Za-z]*$", a)]:
-            add(cm, w0 + " -n", "VIOLATION", "a NAMEREF: an assignment through it changes another variable the "
-                                            "provenance pass cannot follow (fail-closed, round 14)")
-            return
-        if w0 == "printf":
-            tg = [args[i + 1] for i, a in enumerate(args[:-1]) if a == "-v"] + \
-                 [a[2:] for a in args if a.startswith("-v") and len(a) > 2]
-            hit = [t for t in tg if t.split("[")[0] in proved]
-            if hit:
-                add(cm, "printf -v", "VIOLATION", "printf -v assigns the PROVED variable %s outside the provenance "
-                                                  "model (fail-closed, round 14)" % hit[0])
+        # round 14 (V4R14-2) -> round 15 (V4R15-2, the CLASS): every variable-NAME position of every name-taking
+        # builtin the tables admit (NAME_BUILTINS), after quote removal; each a VIOLATION at its own line
+        if w0 in NAME_BUILTINS:
+            words, letters = _name_words(w0, args)
+            if "$" in letters:
+                add(cm, w0 + " -$X", "VIOLATION", "an option word of %s holds an expansion: the census cannot know "
+                    "which option (or which NAME) it is (fail-closed, round 15)" % w0)
                 return
-        if w0 == "unset" and not [a for a in args if a in ("-f", "-F")]:
-            hit = [a for a in args if not a.startswith("-") and a.split("[")[0] in proved]
-            if hit:
-                add(cm, "unset", "VIOLATION", "unset of the PROVED variable %s: it would expand EMPTY ($v/x -> /x; "
-                                              "fail-closed, round 14)" % hit[0])
+            if w0 in ("local", "declare", "typeset") and "n" in letters and \
+                    [a for a in args if (_lit(a) or "").startswith("-") and "n" in (_lit(a) or "")]:
+                add(cm, w0 + " -n", "VIOLATION", "a NAMEREF: an assignment through it changes another variable the "
+                                                "provenance pass cannot follow (fail-closed, round 14)")
                 return
+            what = {"printf": "printf -v assigns", "unset": "unset of", "wait": "wait -p assigns"}
+            for ch, role in words:
+                if [1 for _c, d in ch if d]:
+                    add(cm, w0 + " $NAME", "VIOLATION", "a non-literal variable NAME (%s) in a name position of %s: "
+                        "the census cannot know which variable it changes (fail-closed, round 15)"
+                        % ("".join(c for c, _d in ch)[:30], NAME_BUILTINS[w0]))
+                    return
+                nm = "".join(c for c, _d in ch).rstrip("+").split("[")[0]
+                if nm not in proved:
+                    continue
+                if role == "set" and w0 == "read":
+                    continue                              # MODELLED: read's targets are un-proved ('<read>')
+                if role == "set":
+                    add(cm, w0 if w0 not in ("printf", "wait") else w0 + (" -v" if w0 == "printf" else " -p"),
+                        "VIOLATION", "%s the PROVED variable %s outside the provenance model -- it would expand to a "
+                        "value the census never proved, or EMPTY (fail-closed, round 14/15)" % (what[w0], nm))
+                    return
+                attrs = letters & set("ilucaAt")
+                if attrs:
+                    add(cm, w0 + " -" + "".join(sorted(attrs)), "VIOLATION", "an attribute (-%s) on the PROVED variable "
+                        "%s changes every later value given to it (-i arithmetic, -l/-u/-c case, -a/-A array): "
+                        "outside the provenance model (fail-closed, round 15)" % ("".join(sorted(attrs)), nm))
+                    return
         if w0 in SH_NOOP:
             if w0 == "trap" or (w0 == "command" and args[:1] != ["-v"]):
                 pass
@@ -986,7 +1192,106 @@ def sh_census(path):
         if m and m.group(1) == "msg" and no not in oplines:
             rows.append((os.path.basename(path), no, func_at(extents, no), "(message)", "TAGGED",
                          "msg: the keyword appears only inside quoted text"))
+    rows += sh_assign_scan(path, lines, proved, extents)
     return rows, proved
+
+
+# round 15 (V4R15-2): the assignment forms that are not a command's NAME operand -- found in the script's EXPANDED
+# text (comments removed; a here-document body kept when its delimiter is UNQUOTED: the shell expands it; trap
+# actions and `"$BASH" -c '...'` programs are in the text too), so a context the lexer does not model (a case
+# subject or pattern, a here-document, an arithmetic command) cannot hide one:
+#   ${V=..} ${V:=..} ${V[i]:=..}   assign V when unset / empty            -> VIOLATION for a PROVED V
+#   ${!R=..} ${!R:=..}            assign the variable R NAMES             -> VIOLATION always (unknown target)
+#   arithmetic: (( )), $(( )), $[ ], [[ ]], a NAME[..] subscript, a ${V:offset:length}
+#               V = .. / V op= .. / V++ / ++V / V-- / --V                -> VIOLATION for a PROVED V
+#   {V}>file / {V}<file           a redirection that stores an fd in V  -> VIOLATION for a PROVED V
+_ARITH_OPS = r"(?:=(?!=)|[-+*/%&|^]=|<<=|>>=|\+\+|--)"
+
+
+def _sh_text_lines(lines):
+    """[(line number, text)] of the script as the shell EXPANDS it (see above)"""
+    out, end, quoted = [], None, False
+    for no, raw in enumerate(lines, 1):
+        if end is not None:
+            if raw.strip() == end:
+                end = None
+            elif not quoted:
+                out.append((no, raw))
+            continue
+        if raw.lstrip().startswith("#"):
+            continue
+        code = code_part(raw)
+        out.append((no, code))
+        m = HEREDOC_RE.search(code)
+        if m:
+            end, quoted = m.group(2), bool(m.group(1))
+    return out
+
+
+def _balanced(t, i, opener, closer, depth=1):
+    """the text from index i to the matching closer (exclusive)"""
+    k = i
+    while k < len(t) and depth:
+        if t.startswith(closer, k):
+            depth -= 1
+            if not depth:
+                break
+            k += len(closer)
+            continue
+        if t.startswith(opener, k):
+            depth += 1
+            k += len(opener)
+            continue
+        k += 1
+    return t[i:k]
+
+
+def _arith_spans(t):
+    """the ARITHMETIC texts of one line (see above)"""
+    spans = []
+    for m in re.finditer(r"\(\(", t):
+        spans.append(_balanced(t, m.end(), "(", ")", 2))
+    for m in re.finditer(r"\$\[", t):
+        spans.append(_balanced(t, m.end(), "[", "]"))
+    for m in re.finditer(r"\[\[", t):
+        k = t.find("]]", m.end())
+        spans.append(t[m.end():k if k >= 0 else len(t)])
+    for m in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*\[", t):
+        spans.append(_balanced(t, m.end(), "[", "]"))
+    for m in re.finditer(r"\$\{[A-Za-z_][A-Za-z0-9_]*:(?![-=?+])", t):
+        spans.append(_balanced(t, m.end(), "{", "}"))
+    return spans
+
+
+def sh_assign_scan(path, lines, proved, extents):
+    """census rows for the assignment forms above (each a VIOLATION at its own line)"""
+    rows, seen = [], set()
+    name = os.path.basename(path)
+
+    def add(no, kind, why):
+        if (no, kind) not in seen:
+            seen.add((no, kind))
+            rows.append((name, no, func_at(extents, no), kind, "VIOLATION", why))
+    pats = {v: re.compile(r"(?<![\w$])%s\s*(?:\[[^\]]*\])?\s*%s|(?:\+\+|--)\s*%s(?!\w)"
+                          % (re.escape(v), _ARITH_OPS, re.escape(v))) for v in proved}
+    for no, t in _sh_text_lines(lines):
+        for m in re.finditer(r"\$\{(!?)([A-Za-z_][A-Za-z0-9_]*)(\[[^\]]*\])?:?=", t):
+            if m.group(1):
+                add(no, "${!R:=}", "an INDIRECT default assignment ${!%s=...}: it assigns whatever variable %s names "
+                    "-- the census cannot know which (fail-closed, round 15)" % (m.group(2), m.group(2)))
+            elif m.group(2) in proved:
+                add(no, "${V:=}", "a default assignment ${%s:=...} of the PROVED variable %s outside the provenance "
+                    "model (fail-closed, round 15)" % (m.group(2), m.group(2)))
+        spans = _arith_spans(t)
+        for v, pat in pats.items():
+            if [sp for sp in spans if pat.search(sp)]:
+                add(no, "arith " + v, "an ARITHMETIC assignment to the PROVED variable %s (( ), $(( )), [[ ]], a "
+                    "subscript or an offset): outside the provenance model (fail-closed, round 15)" % v)
+        for m in re.finditer(r"\{([A-Za-z_][A-Za-z0-9_]*)\}\s*(?:[<>]|&>)", t):
+            if m.group(1) in proved:
+                add(no, "{V}>", "a {%s}> redirection stores an fd NUMBER in the PROVED variable %s (fail-closed, "
+                    "round 15)" % (m.group(1), m.group(1)))
+    return rows
 
 
 def _heredoc_py_bad(body):
@@ -1451,7 +1756,12 @@ SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p
            'os.unlink.__call__(p)', 'type(os).__getattribute__(os, "unlink")(p)', 'select.__builtins__["open"](p, "w")',
            'argparse.FileType("w")(p)', 'signal.signal.__globals__["os"].unlink(p)', 'time.__loader__',
            'sys.modules["os"].unlink(p)', 'fcntl.ioctl(fd, 0)', 'json.dump({}, m)', 'x = os', 'os.unlink.func(p)',
-           'os.setxattr("/proc/self/fd/%d" % fd, "user.x", b"1")  # safepath:procfs']
+           'os.setxattr("/proc/self/fd/%d" % fd, "user.x", b"1")  # safepath:procfs',
+           # round 15: the round-8 reviewer's Python census probe (rv8_review/cen/py_needles.txt), VERBATIM -- the
+           # needles the census refuses (the rest are SELF_PY_OK rows below, each with the reason it is harmless)
+           'locals()["os"].unlink(p)', 'dir(os)', 'help(os)', 'breakpoint()', '(lambda: 0).__code__', 'os.fspath(p)',
+           'os.path.join(p, "x").__len__', 'time.sleep.__self__', 'importlib.util.spec_from_file_location("x", p)',
+           'subprocess.run(["true"])']
 # needles that must be refused for a SPECIFIC reason (the rule that is meant to catch them, not a later fallback)
 SELF_REASON = {'\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
                'eval "rm -rf $u/l"': "eval runs text", 'install -d "$u/a"': "not in the census's tables",
@@ -1466,11 +1776,56 @@ SELF_REASON = {'\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${
                'os.unlink.func(p)': "an attribute OF a path operation",
                'printf -v _wr %s /etc; rm -rf "$_wr/x"': "printf -v", 'printf -v_wr %s /etc': "printf -v",
                'local -n _rvref=_wr; _rvref=/etc; rm -rf "$_wr"': "NAMEREF", 'declare -n _rv2=_wr': "NAMEREF",
-               'unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"': "unset of the PROVED", 'unset -v _wr': "unset of the PROVED"}
+               'unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"': "unset of the PROVED", 'unset -v _wr': "unset of the PROVED",
+               # round 15: the class members, each by its own rule
+               'rm -f "$_FC_TMPDIR/x"': "may expand EMPTY", 'local _wr; rm -rf "$_wr/x"': "may expand EMPTY",
+               '_FC_TMPDIR=""; rm -rf "$_FC_TMPDIR/x"': "may expand EMPTY",
+               '(( _FC_TMPDIR = 0 ))': "ARITHMETIC assignment", '(( _wr++ ))': "ARITHMETIC assignment",
+               '(( ++_wr ))': "ARITHMETIC assignment", 'x=$(( _wr += 1 ))': "ARITHMETIC assignment",
+               '[[ _wr=1 -eq 1 ]]': "ARITHMETIC assignment", 'a[_wr=1]=x': "ARITHMETIC assignment",
+               'echo "${a[_wr=2]}"': "ARITHMETIC assignment", 'echo "${HOME:_wr=1:2}"': "ARITHMETIC assignment",
+               'echo $[ _wr = 1 ]': "ARITHMETIC assignment", ': "${_wr:=/etc}"': "default assignment",
+               ': "${_wr=/etc}"': "default assignment", ': "${_FC_TMPDIR[0]:=/etc}"': "default assignment",
+               'r=_wr; : "${!r:=/etc}"': "INDIRECT default", 'case "${_wr:=/etc}" in x) ;; esac': "default assignment",
+               'exec {_wr}>/dev/null': "stores an fd", 'wait -n -p _FC_TMPDIR': "wait -p assigns",
+               'wait -p "$n"': "non-literal variable NAME", "unset '_wr'": "unset of", 'unset \\_wr': "unset of",
+               'unset "$n"': "non-literal variable NAME", 'printf -v "$n" %s x': "non-literal variable NAME",
+               'printf -v"$n" %s x': "non-literal variable NAME",
+               'IFS= read -r "$n"': "non-literal variable NAME", 'read -a "$n"': "non-literal variable NAME",
+               'declare -g "$n=/etc"': "non-literal variable NAME", 'local "$n"': "non-literal variable NAME",
+               'export "$n=/etc"': "non-literal variable NAME", 'readonly "$n"': "non-literal variable NAME",
+               'typeset "$n"': "non-literal variable NAME", 'declare -i _wr': "an attribute",
+               'local -l _wr': "an attribute", 'declare -u _FC_TMPDIR': "an attribute", 'typeset -a _wr': "an attribute",
+               'declare -A _wr': "an attribute", 'rm -rf "${_wr:?}/$_wr"': "may expand EMPTY", 'read "-$o" x': "option word", 'mapfile -t _wr': "not in the census",
+               'readarray _wr': "not in the census", 'getopts ab _wr': "not in the census", 'let "_wr=1"': "not in the census",
+               'declare -gn _r=_wr; _r=/etc; rm -rf "$_wr"': "NAMEREF", 'local -rn _r2=_FC_TMPDIR': "NAMEREF",
+               "printf -v '_FC_TMPDIR' %s /etc; rm -rf \"$_FC_TMPDIR/x\"": "printf -v assigns",
+               'printf -v"_FC_TMPDIR" %s /etc; rm -rf "$_FC_TMPDIR/x"': "printf -v assigns",
+               'unset "_FC_TMPDIR"; rm -rf "$_FC_TMPDIR/x"': "unset of the PROVED",
+               'n=_FC_TMPDIR; printf -v "$n" %s /etc; rm -rf "$_FC_TMPDIR/x"': "non-literal variable NAME",
+               'n=_FC_TMPDIR; unset "$n"; rm -rf "$_FC_TMPDIR/x"': "non-literal variable NAME",
+               'n=_FC_TMPDIR; declare -g "$n=/etc"; rm -rf "$_FC_TMPDIR/x"': "non-literal variable NAME",
+               'n=_FC_TMPDIR; read -r "$n" <<<"/etc"; rm -rf "$_FC_TMPDIR/x"': "non-literal variable NAME",
+               '(( _FC_TMPDIR = 0 )); rm -rf "$_FC_TMPDIR/x"': "ARITHMETIC assignment",
+               ': "${_wr:=/etc}"; rm -rf "$_wr/x"': "default assignment",
+               'wait -n -p _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"': "wait -p assigns"}
+# needles that UN-PROVE a variable (an assignment the provenance pass MODELS: an array element, read's targets): the
+# variable -- and every variable derived from it -- loses its proof, so every later path use is refused ELSEWHERE.
+# Such a needle passes when at least one row refuses it (here or elsewhere) and every row elsewhere is a provenance
+# refusal ("not proved" / "not a listed parameter"), never an unrelated one.
+SELF_UNPROVES = {'_FC_TMPDIR[0]=/etc; rm -rf "$_FC_TMPDIR/x"', 'read -r -a _FC_TMPDIR', 'IFS= read -r _FC_TMPDIR',
+                 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc'}
 SELF_PY_OK = ['os.listxattr("/proc/self/fd/%d" % fd)  # safepath:procfs', 'os.environ.get("HOME", "")',  # round 14
               'sys.stderr.write("x")', 'json.dumps({})',
               'os.unlink("x", dir_fd=open_owned_dir(p))', 'os.path.join(p, "x")', 'os.close(fd)',
-              'n = os.fstat(fd).st_size']
+              'n = os.fstat(fd).st_size',
+              # round 15: the round-8 reviewer's probe needles the census ACCEPTS, verbatim -- none names, opens,
+              # creates or removes a path: an fd close, attributes of the already-open std streams, a signal
+              # disposition, json from a string, mode arithmetic, a comprehension, print to stderr, a memoryview of
+              # bytes, the name `super`, a yield
+              'sys.stderr.buffer.raw', 'sys.stdout.reconfigure()', 'signal.signal(signal.SIGTERM, lambda *a: None)',
+              'json.loads(p, object_hook=None)', '_st.S_IMODE(0)', '[o for o in (1,)]', 'print("x", file=sys.stderr)',
+              'memoryview(b"x")', 'super', '(yield)']
 SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
            'truncate -s0 "$u/f"', 'sed -i s/a/b/ "$u/g"', 'echo x >| "$u/h"', 'exec 3<> "$u/i"', '\\rm -rf "$u/j"',
            '"rm" -rf "$u/k"', 'eval "rm -rf $u/l"', '${RMCMD:-rm} -rf "$u/m"', "python3 -c 'import os; os.unlink(\"/x\")'",
@@ -1487,10 +1842,44 @@ SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "
            # round 14 (V4R14-2): the round-7 reviewer's 3 shell escapes (assignments the provenance pass did not see)
            'printf -v _wr %s /etc; rm -rf "$_wr/x"', 'local -n _rvref=_wr; _rvref=/etc; rm -rf "$_wr"',
            'unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"', 'declare -n _rv2=_wr', 'printf -v_wr %s /etc',
-           'unset -v _wr']
+           'unset -v _wr',
+           # round 15 (V4R15-2, RV8-07): the round-8 reviewer's shell census probe (rv8_review/cen/sh_needles.txt +
+           # n2.txt), VERBATIM
+           'rm -f "$_FC_TMPDIR/x"', 'local _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"', 'local _wr; rm -rf "$_wr/x"',
+           '(( _FC_TMPDIR = 0 )); rm -rf "$_FC_TMPDIR/x"', 'let _FC_TMPDIR=0; rm -rf "$_FC_TMPDIR/x"',
+           ': "${_wr:=/etc}"; rm -rf "$_wr/x"', 'wait -n -p _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"',
+           'select _FC_TMPDIR in /etc; do break; done; rm -rf "$_FC_TMPDIR/x"', '_FC_TMPDIR[0]=/etc; rm -rf "$_FC_TMPDIR/x"',
+           "printf -v '_FC_TMPDIR' %s /etc; rm -rf \"$_FC_TMPDIR/x\"", 'n=_FC_TMPDIR; printf -v "$n" %s /etc; rm -rf "$_FC_TMPDIR/x"',
+           'n=_FC_TMPDIR; unset "$n"; rm -rf "$_FC_TMPDIR/x"', 'n=_FC_TMPDIR; declare -g "$n=/etc"; rm -rf "$_FC_TMPDIR/x"',
+           'n=_FC_TMPDIR; read -r "$n" <<<"/etc"; rm -rf "$_FC_TMPDIR/x"', 'coproc _FC_TMPDIR { :; }; rm -rf "$_FC_TMPDIR/x"',
+           'unset "_FC_TMPDIR"; rm -rf "$_FC_TMPDIR/x"', 'unset -v -- _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"',
+           'declare +n _x; typeset -n _y=_wr; _y=/etc; rm -rf "$_wr"', 'local -- _FC_TMPDIR=""; rm -rf "$_FC_TMPDIR/x"',
+           '_FC_TMPDIR=""; rm -rf "$_FC_TMPDIR/x"', 'printf -v"_FC_TMPDIR" %s /etc; rm -rf "$_FC_TMPDIR/x"',
+           'command printf -v _FC_TMPDIR %s /etc; rm -rf "$_FC_TMPDIR/x"', 'builtin unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"',
+           'declare -gn _r=_wr; _r=/etc; rm -rf "$_wr"', 'local -rn _r2=_FC_TMPDIR',
+           # round 15: the CLASS, each member ALONE (no trailing operand that would be refused anyway), so each one is
+           # refused by the rule written for it -- the enumeration (closed list) is in CONVERGENCE.md of round 9
+           '(( _FC_TMPDIR = 0 ))', '(( _wr++ ))', '(( ++_wr ))', 'x=$(( _wr += 1 ))', '[[ _wr=1 -eq 1 ]]',
+           'a[_wr=1]=x', 'echo "${a[_wr=2]}"', 'echo "${HOME:_wr=1:2}"', 'echo $[ _wr = 1 ]',
+           ': "${_wr:=/etc}"', ': "${_wr=/etc}"', ': "${_FC_TMPDIR[0]:=/etc}"', 'r=_wr; : "${!r:=/etc}"',
+           'case "${_wr:=/etc}" in x) ;; esac', 'exec {_wr}>/dev/null', 'wait -n -p _FC_TMPDIR', 'wait -p "$n"',
+           "unset '_wr'", 'unset \\_wr', 'unset "$n"', 'printf -v "$n" %s x', 'printf -v"$n" %s x',
+           'read -r -a _FC_TMPDIR', 'IFS= read -r _FC_TMPDIR', 'IFS= read -r "$n"', 'read -a "$n"',
+           'declare -g "$n=/etc"', 'local "$n"', 'export "$n=/etc"', 'readonly "$n"', 'typeset "$n"',
+           'declare -i _wr', 'local -l _wr', 'declare -u _FC_TMPDIR', 'typeset -a _wr', 'declare -A _wr',
+           'read "-$o" x', 'mapfile -t _wr', 'readarray _wr', 'getopts ab _wr', 'let "_wr=1"',
+           'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc']
 SELF_SH_OK = ['printf -v _intr %s x', 'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
-              'rm -f "$_FC_TMPDIR/x"', 'printf x >"$_FC_TMPDIR/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
-              'm="$(_fc_mktemp)"; rm -f "$m.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null']
+              'rm -f "${_FC_TMPDIR:?}/x"', 'printf x >"${_FC_TMPDIR:?}/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
+              'm="$(_fc_mktemp)"; rm -f "${m:?}.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null',
+              # round 15 controls (no false refusal): the same forms on variables that are NOT proved, a literal
+              # quoted NAME that is not proved, emptying a proved variable WITHOUT a later unguarded use, reads
+              'printf -v "_intr" %s x', "unset 'FC_OUT'", '(( n = 1 ))', 'x=$(( 1 + 2 ))', ': "${FC_X:=1}"',
+              'read -r line', 'read -ra parts', 'wait -n', 'wait -n -p _pid', 'declare -r _ro2=1', 'export FC_X=1',
+              'local _wr', '_FC_TMPDIR=""', 'declare -i n=1', '[[ -d "${_wr:?}" ]]',
+              # read's targets are MODELLED (un-proved, '<read>'): _wr has no path use, so nothing is refused
+              'read -r _wr', 'read -ra _wr',
+              'rm -rf "${_wr:?}/x/${_wr:?}"', 'echo "${a[1]}"', 'echo "${HOME:0:2}"', 'case "$x" in a) ;; esac']
 
 
 def self_test(sup, br):
@@ -1528,6 +1917,9 @@ def self_test(sup, br):
             if want and text in SELF_REASON:
                 hits = [r for r in hits if SELF_REASON[text] in r[5]]
             other = [r for r in rows if r[4] == "VIOLATION" and r[1] != at]
+            if text in SELF_UNPROVES:                 # elsewhere rows expected: provenance refusals only
+                hits = hits + [r for r in other if "not proved" in r[5] or "not a listed parameter" in r[5]]
+                other = [r for r in other if not ("not proved" in r[5] or "not a listed parameter" in r[5])]
             good = bool(hits) == want and not other
             bad += 0 if good else 1
             out.append("%s %s %-9s %s%s" % ("ok" if good else "NOT-ok", lang, "REFUSES" if want else "ACCEPTS",

@@ -1962,7 +1962,7 @@ def _take_locks(a):
         fds.append(_lock_one(path, "against this repository"))
     if a.lock_fs:
         if not os.path.isdir(a.lock_dir or ""):    # safepath:probe (a precondition message; the lock is opened by _lock_one)
-            say("BLIND: lock directory %r is not a directory (FC_REPLAY_LOCK_DIR / XDG_RUNTIME_DIR)" % a.lock_dir)
+            say("BLIND: lock directory %r is not a directory (FC_REPLAY_LOCK_DIR)" % a.lock_dir)
             sys.exit(4)
         lock_dir = _private_lock_dir(a.lock_dir)
         devs = []
@@ -1980,16 +1980,38 @@ def _take_locks(a):
     return fds
 
 
+def _passwd_home():
+    """V4R15-1 (round 15): this user's home directory from the PASSWORD DATABASE (pwd.getpwuid(os.geteuid()).pw_dir) --
+    never the environment's $HOME. The per-filesystem lock must be the SAME file for every replay of this user on a
+    file system, whatever environment each one runs in (cron, `env -i HOME=...`, a sudo-preserved environment): round
+    14 read $HOME, so two replays of one user with different $HOME took their locks in two directories and ran at once
+    (the very thing the lock exists to prevent). '' when the database has no entry for this uid or the entry is not an
+    absolute path (a stated boundary: _private_lock_dir then keeps the given directory -- the SAME answer for every
+    replay of this uid)."""
+    import pwd
+    try:
+        home = pwd.getpwuid(os.geteuid()).pw_dir
+    except (KeyError, OSError):
+        return ""
+    return home if isinstance(home, str) and home.startswith("/") else ""
+
+
 def _private_lock_dir(lock_dir):
-    """V4R14-3 (round 14): the per-filesystem lock name is PREDICTABLE (fc_baseline_replay.fs-<dev>.lock), so in a
-    lock directory others may create names in -- the /tmp fallback (1777) -- any user could pre-plant it: open_owned_file
-    then refuses a file another uid owns and EVERY replay ends BLIND 4 (a denial of service; a per-user subdirectory in
-    /tmp is just as predictable). Such a directory is therefore replaced by one that is this user's ALONE:
-    $HOME/.cache/fc_baseline_replay/locks, made and proved by ensure_dir(exclusive=True). A lock directory that is this
-    user's alone ($XDG_RUNTIME_DIR, an FC_REPLAY_LOCK_DIR of ours) is used as it is. BOUNDARY (§11.4.6): with no usable
-    $HOME (unset, relative, or failing the trusted-parent rule) the shared directory stays in use -- and with it the
-    pre-plant DoS (the replay refuses, BLIND 4, it never runs unlocked); since the lock files are 0600 (round 13), two
-    DIFFERENT users never serialise on one lock (each keeps their own)."""
+    """V4R14-3 (round 14), V4R15-1 (round 15): the per-filesystem lock name is PREDICTABLE
+    (fc_baseline_replay.fs-<dev>.lock), so in a lock directory others may create names in -- the /tmp default (1777) --
+    any user could pre-plant it: open_owned_file then refuses a file another uid owns and EVERY replay ends BLIND 4 (a
+    denial of service; a per-user subdirectory in /tmp is just as predictable). Such a directory is therefore replaced
+    by one that is this user's ALONE: <home>/.cache/fc_baseline_replay/locks, <home> read from the PASSWORD DATABASE
+    (_passwd_home -- never $HOME: the lock location must not depend on the environment, V4R15-1), made and proved by
+    ensure_dir(exclusive=True). A lock directory that is this user's alone (an FC_REPLAY_LOCK_DIR of ours) is used as it
+    is. The location is therefore a function of FC_REPLAY_LOCK_DIR and the password database ONLY (baseline_replay.sh
+    no longer falls back to $XDG_RUNTIME_DIR, which cron does not set: V4R15-1 class). When <home>'s lock directory
+    cannot be used (an untrusted home, a pre-made shared directory, an I/O error) the replay REFUSES (BLIND 4) -- it
+    never falls back to another directory, which a concurrent replay would not see. BOUNDARY (§11.4.6): with no
+    password-database home for this uid the given directory stays in use -- and with it the pre-plant DoS (the replay
+    refuses, BLIND 4, it never runs unlocked); since the lock files are 0600 (round 13), two DIFFERENT users never
+    serialise on one lock (each keeps their own); an explicit FC_REPLAY_LOCK_DIR is the operator's choice of lock
+    domain (two replays given two different ones are not serialised)."""
     try:
         fd, real = _walk(lock_dir)
     except OSError:
@@ -1999,13 +2021,17 @@ def _private_lock_dir(lock_dir):
             return real
     finally:
         os.close(fd)
-    home = os.environ.get("HOME", "")
-    if not home.startswith("/"):
+    home = _passwd_home()
+    if not home:
         return lock_dir
+    path = home.rstrip("/") + "/.cache/fc_baseline_replay/locks"
     try:
-        return ensure_dir(home.rstrip("/") + "/.cache/fc_baseline_replay/locks", exclusive=True)
-    except OSError:
-        return lock_dir
+        return ensure_dir(path, exclusive=True)
+    except OSError as e:
+        say("BLIND: the per-user lock directory %s cannot be used (%s) -- refusing: a lock taken anywhere else would "
+            "not exclude a replay that uses it (remedy: make it a directory of yours alone, mode 0700, or set "
+            "FC_REPLAY_LOCK_DIR to one)" % (path, e))
+        sys.exit(4)
 
 
 _OLD_LOCKS = []
@@ -2059,8 +2085,8 @@ def _lock_one(path, scope):
             # BOUNDARY (V4R14-3, stated -- not closed by 0600): another user who ALREADY holds LOCK_EX on an old
             # readable file when this version first runs keeps it busy (the replacement happens only after OUR flock
             # succeeds: busy -> BLIND 4, never two replays); a lock name PRE-PLANTED by another user in a shared lock
-            # directory is avoided by _private_lock_dir ($HOME/.cache), and remains a refusal (BLIND 4) without a
-            # usable $HOME.
+            # directory is avoided by _private_lock_dir (<passwd home>/.cache), and remains a refusal (BLIND 4) with
+            # no password-database home.
             _OLD_LOCKS.append(fd)
             fd = nfd
     except BlockingIOError:

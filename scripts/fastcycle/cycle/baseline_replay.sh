@@ -362,7 +362,7 @@ _FC_TMPDIR=""
 _FC_STATEDIR=""
 _FC_SUPERVISOR="$SCRIPT_DIR/fc_supervisor.py"
 _FC_ENTRY_SIGIGN=0
-_fc_mktemp() { mktemp "$_FC_TMPDIR/f.XXXXXX"; }
+_fc_mktemp() { mktemp "${_FC_TMPDIR:?}/f.XXXXXX"; }
 # _fc_safe OP ARGS... -- THE trusted-parent rule (T048 V4 round 12, V4R12-1, §11.4.276(E) STRUCTURAL): every
 # directory this script creates, writes a fixed name into, or removes OUTSIDE the private temp directory goes through
 # the SAME implementation the supervisor uses (fc_supervisor.py safepath: check / mkdir / mkdtemp / write / rmtree).
@@ -401,9 +401,13 @@ isnum "$_FC_GRACE" || die "FC_BR_STOP_GRACE_S must be a non-negative integer"
 #  - per filesystem: <lock-dir>/fc_baseline_replay.fs-<st_dev>.lock for the
 #    worktree root's filesystem and the object store's, so two DIFFERENT
 #    repositories cannot both pass the free-space checks of one filesystem.
-#    <lock-dir> is $FC_REPLAY_LOCK_DIR, else $XDG_RUNTIME_DIR, else /tmp -- per
-#    user (HONEST BOUNDARY §11.4.6: replays by different users, or with
-#    different lock dirs, are not serialised against each other).
+#    <lock-dir> is $FC_REPLAY_LOCK_DIR, else /tmp -- which the supervisor
+#    replaces by <home>/.cache/fc_baseline_replay/locks, <home> read from the
+#    PASSWORD DATABASE (V4R15-1, round 15: never $HOME, and no longer
+#    $XDG_RUNTIME_DIR -- cron sets neither the same way as a login shell, and two
+#    replays of one user must find ONE lock file per filesystem). Per user
+#    (HONEST BOUNDARY §11.4.6: replays by different users, or given different
+#    FC_REPLAY_LOCK_DIR values, are not serialised against each other).
 # The lock file descriptions are O_CLOEXEC in the supervisor: no worker, gate
 # or hook process ever holds them (V4R3-5).
 _FC_IS_WORKER=0
@@ -417,7 +421,7 @@ _fc_supervise() {
   if [ -n "$1" ]; then
     common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
     { [ -n "$common" ] && [ -d "$common" ]; } || blind "cannot resolve the git directory of --repo-root $1"
-    lockdir="${FC_REPLAY_LOCK_DIR:-${XDG_RUNTIME_DIR:-/tmp}}"
+    lockdir="${FC_REPLAY_LOCK_DIR:-/tmp}"
     args+=(--lock "$common/fc_baseline_replay.lock" --lock-dir "$lockdir" --lock-fs "$2" --lock-fs "$common")
   fi
   # The signals the CALLER ignored (nohup, ...) stay ignored everywhere. Read from
@@ -513,8 +517,8 @@ _fc_ledger_add() {
   local kind="$1"
   shift
   # safepath:param ($kind is a NAME component inside the private temp directory: the literal wt / pend / logs)
-  _FC_LEDGER_FILE="$(mktemp "$_FC_TMPDIR/ledger.$kind.XXXXXX")" || return 1
-  printf '%s\0' "$@" >"$_FC_LEDGER_FILE" || return 1
+  _FC_LEDGER_FILE="$(mktemp "${_FC_TMPDIR:?}/ledger.$kind.XXXXXX")" || return 1
+  printf '%s\0' "$@" >"${_FC_LEDGER_FILE:?}" || return 1
 }
 # _fc_ledger_pend PARENT PREFIX -> a `pend` entry (sets _FC_LEDGER_FILE), written
 # BEFORE `mktemp -d PARENT/PREFIX...` creates a directory that is not registered
@@ -599,12 +603,12 @@ run_gate_once() {
   [ "${1:-}" = -- ] && shift
   local marker
   marker="$(_fc_mktemp)" || { echo "baseline_replay: mktemp failed (temp directory unusable)" >&2; return 4; }
-  RG_START_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
-  _FC_RUN_TIMING="$marker.t"
+  RG_START_NS="$(now_ns)" || { rm -f "${marker:?}"; return 4; }
+  _FC_RUN_TIMING="${marker:?}.t"
   _fc_run_child "$log" "$tmo" "$marker" "$cwd" -- "$@"
   RG_RC=$?
   _FC_RUN_TIMING=""
-  RG_END_NS="$(now_ns)" || { rm -f "$marker" "$marker.t"; return 4; }
+  RG_END_NS="$(now_ns)" || { rm -f "${marker:?}" "${marker:?}.t"; return 4; }
   RG_LEFT_N=0
   RG_LEFT_MS=0
   if [ -s "$marker.t" ]; then
@@ -616,14 +620,14 @@ run_gate_once() {
         leftover_processes) RG_LEFT_N="$_v" ;;
         leftover_stop_ms) RG_LEFT_MS="$_v" ;;
       esac
-    done <"$marker.t"
+    done <"${marker:?}.t"
     [ -n "$_exit_ns" ] && [ "$_exit_ns" -ge "$RG_START_NS" ] && [ "$_exit_ns" -le "$RG_END_NS" ] && RG_END_NS="$_exit_ns"
   fi
   RG_DURATION_MS=$(( (RG_END_NS - RG_START_NS) / 1000000 ))
   [ "$RG_DURATION_MS" -ge 0 ] || RG_DURATION_MS=0
   local mk=""
-  [ -s "$marker" ] && mk="$(cat "$marker")"
-  rm -f "$marker" "$marker.t"
+  [ -s "$marker" ] && mk="$(cat "${marker:?}")"
+  rm -f "${marker:?}" "${marker:?}.t"
   local cls
   cls="$(classify_run "$RG_RC" "$mk" "$((tmo * 1000))")"
   RG_VERDICT="${cls%%|*}"
@@ -648,7 +652,7 @@ run_gate_once() {
 run_selfcheck() {
   SC_CHECKS=""
   local d all_ok=1
-  d="$(mktemp -d "$_FC_TMPDIR/selfcheck.XXXXXX")" || { echo "baseline_replay: selfcheck: mktemp -d failed" >&2; return 1; }
+  d="$(mktemp -d "${_FC_TMPDIR:?}/selfcheck.XXXXXX")" || { echo "baseline_replay: selfcheck: mktemp -d failed" >&2; return 1; }
   _sc_one() { # name want timeout cmd...
     local name="$1" want="$2" tmo="$3"
     shift 3
@@ -703,14 +707,14 @@ git_subject_freeze() {
   fi
   local errf raw rc
   errf="$(_fc_mktemp)" || { FZ_ERR="mktemp failed"; return 4; }
-  raw="$(git -C "$root" log --all -i -F --grep="$item_id" --pretty=format:'%H%x1f%at%x1f%aI%x1f%s' 2>"$errf")"
+  raw="$(git -C "$root" log --all -i -F --grep="$item_id" --pretty=format:'%H%x1f%at%x1f%aI%x1f%s' 2>"${errf:?}")"
   rc=$?
   if [ "$rc" -ne 0 ]; then
-    FZ_ERR="git log failed (exit $rc): $(head -c 500 "$errf")"
-    rm -f "$errf"
+    FZ_ERR="git log failed (exit $rc): $(head -c 500 "${errf:?}")"
+    rm -f "${errf:?}"
     return 4
   fi
-  rm -f "$errf"
+  rm -f "${errf:?}"
   # T043 round-4 finding B2 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
   # a plain substring case-match (`*"$item_id"*`) makes ATM-95 match
   # ATM-953, ATM-103 match ATM-1038, etc. -- reproduced on this project's
@@ -981,8 +985,8 @@ _fc_submodule_reference_update() {
 
   local list_file
   [ -n "$_FC_TMPDIR" ] || return 1   # round 12: only ever inside the proved private temp directory (no TMPDIR fallback)
-  list_file="$(mktemp "$_FC_TMPDIR/sm.XXXXXX")" || return 1
-  git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"$list_file" 2>/dev/null
+  list_file="$(mktemp "${_FC_TMPDIR:?}/sm.XXXXXX")" || return 1
+  git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"${list_file:?}" 2>/dev/null
 
   local key path name ref_path rc=0
   # shellcheck disable=SC2094 # false positive: the loop only reads list_file via the redirect; rm -f merely unlinks it on early return, nothing is written through it
@@ -1012,15 +1016,15 @@ _fc_submodule_reference_update() {
         -C "$tgt" submodule update --init --quiet -- "$path"
     fi
     rc=$?
-    [ "$rc" -eq 0 ] || { rm -f "$list_file"; return "$rc"; }
+    [ "$rc" -eq 0 ] || { rm -f "${list_file:?}"; return "$rc"; }
 
     if [ -f "$tgt/$path/.gitmodules" ]; then
       _fc_submodule_reference_update "$src/$path" "$tgt/$path"
       rc=$?
-      [ "$rc" -eq 0 ] || { rm -f "$list_file"; return "$rc"; }
+      [ "$rc" -eq 0 ] || { rm -f "${list_file:?}"; return "$rc"; }
     fi
-  done <"$list_file"
-  rm -f "$list_file"
+  done <"${list_file:?}"
+  rm -f "${list_file:?}"
   return 0
 }
 
@@ -1060,8 +1064,8 @@ _fc_wt_listed() { # REPO PATH -> 0 listed, 1 not listed, 2 the list cannot be re
 _fc_wt_cleanup() {
   local rc=0 listed
   if [ -n "$_FC_WT_PATH" ]; then
-    git -C "$_FC_WT_REPO" worktree unlock "$_FC_WT_PATH" >/dev/null 2>&1
-    git -C "$_FC_WT_REPO" worktree remove -f -f "$_FC_WT_PATH" >/dev/null 2>&1
+    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1
+    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null 2>&1
     _fc_safe rmtree "$_FC_WT_PATH" >/dev/null 2>&1   # through fds, never by path (round 12, rule 4)
     git -C "$_FC_WT_REPO" worktree prune >/dev/null 2>&1
     _fc_wt_listed "$_FC_WT_REPO" "$_FC_WT_PATH"
@@ -1072,7 +1076,7 @@ _fc_wt_cleanup() {
     fi
   fi
   if [ "$rc" = 0 ] && [ -n "$_FC_WT_LEDGER" ]; then
-    rm -f "$_FC_WT_LEDGER"
+    rm -f "${_FC_WT_LEDGER:?}"
   fi
   _FC_WT_PATH=""; _FC_WT_LEDGER=""
   return "$rc"
@@ -1097,7 +1101,7 @@ do_one_replay() {
         printf -v _intr 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc"
         _fc_safe write --text "$_intr" "$_FC_LOG_DIR" INTERRUPTED >/dev/null 2>&1
       fi
-      rm -f "$_FC_LOG_LEDGER"
+      rm -f "${_FC_LOG_LEDGER:?}"
     fi
   fi
   # rc 0: the run-log ledger entry is KEPT until the worker exits -- the supervisor drops it, and marks the directory INTERRUPTED only when no report exists (V4R8-2)
@@ -1145,7 +1149,7 @@ _do_one_replay_body() {
   _fc_ledger_pend "$worktree_root" "replay." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   wt_pend="$_FC_LEDGER_FILE"
   wt_path="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root" replay.)" || { echo "baseline_replay: mktemp -d under $worktree_root failed (or it is not this user's alone: the trusted-parent rule)" >&2; return 4; }
-  rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
+  rmdir "${wt_path:?}" 2>/dev/null  # git worktree add requires the target NOT already exist
 
   # Registered in the ledger BEFORE `git worktree add`, so a stop at any moment
   # from here on is cleaned up by the supervisor (T048 restart round 3).
@@ -1153,22 +1157,22 @@ _do_one_replay_body() {
   _FC_WT_PATH="$wt_path"
   _fc_ledger_add wt "$repo_root" "$wt_path" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   _FC_WT_LEDGER="$_FC_LEDGER_FILE"
-  rm -f "$wt_pend"
+  rm -f "${wt_pend:?}"
   # `git worktree add` runs the repository's post-checkout hook. It runs under
   # the run supervisor, so a process the hook leaves running is stopped as soon
   # as the add returns (V4R3-5's hook `sleep &` used to outlive the tool and
   # hold the replay lock).
   local _wa_log _wa_mk _wa_rc
   _wa_log="$(_fc_mktemp)" || { echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
-  _wa_mk="$(_fc_mktemp)" || { rm -f "$_wa_log"; echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
-  _fc_run_child "$_wa_log" "$timeout_s" "$_wa_mk" "$repo_root" -- git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit"
+  _wa_mk="$(_fc_mktemp)" || { rm -f "${_wa_log:?}"; echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
+  _fc_run_child "$_wa_log" "$timeout_s" "$_wa_mk" "$repo_root" -- git -C "$repo_root" worktree add --detach --quiet "${wt_path:?}" "$commit"
   _wa_rc=$?
   if [ "$_wa_rc" -ne 0 ]; then
-    echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path (exit $_wa_rc, outcome $(cat "$_wa_mk" 2>/dev/null)): $(head -c 500 "$_wa_log" 2>/dev/null)" >&2
-    rm -f "$_wa_log" "$_wa_mk"
+    echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path (exit $_wa_rc, outcome $(cat "${_wa_mk:?}" 2>/dev/null)): $(head -c 500 "${_wa_log:?}" 2>/dev/null)" >&2
+    rm -f "${_wa_log:?}" "${_wa_mk:?}"
     return 4
   fi
-  rm -f "$_wa_log" "$_wa_mk"
+  rm -f "${_wa_log:?}" "${_wa_mk:?}"
 
   # T048 restart round 1 (R6-F3, same class): a failed rev-parse used to leave
   # actual_tree empty and the report then carried an empty tree; a frozen tree of
@@ -1402,11 +1406,11 @@ _do_one_replay_body() {
   submodule_rc=$?
   export -fn _fc_submodule_reference_update
   if [ "$submodule_rc" -ne 0 ]; then
-    echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$(cat "$_sm_mk" 2>/dev/null)" = timed_out ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
-    rm -f "$_sm_mk"
+    echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$(cat "${_sm_mk:?}" 2>/dev/null)" = timed_out ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
+    rm -f "${_sm_mk:?}"
     return 4
   fi
-  rm -f "$_sm_mk"
+  rm -f "${_sm_mk:?}"
 
   # T048 remediation (finding F9 continued): after the submodule fix above,
   # a SECOND, DISTINCT missing-prerequisite class was independently
@@ -1516,7 +1520,7 @@ _do_one_replay_body() {
   _FC_LOG_DIR="$run_log_dir"
   _fc_ledger_add logs "$run_log_dir" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   _FC_LOG_LEDGER="$_FC_LEDGER_FILE"
-  rm -f "$log_pend"
+  rm -f "${log_pend:?}"
 
   local rows='[]' harness_error=0
   local phase run_idx n_runs run_log
@@ -1709,7 +1713,7 @@ cmd_replay() {
   local body1 body2
   body1="$(_fc_mktemp)" || blind "mktemp failed"
   run_replay_isolated "$body1" "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-    "$timeout_s" "$cold_runs" "$warm_runs" "$min_free_kb_objects" "${GATE_ARGV[@]}" || { rm -f "$body1"; return 4; }
+    "$timeout_s" "$cold_runs" "$warm_runs" "$min_free_kb_objects" "${GATE_ARGV[@]}" || { rm -f "${body1:?}"; return 4; }
 
   if [ "$determinism_check" = 1 ]; then
     # DETERMINISM (C-003). `replay`'s report embeds real wall-clock timing, so
@@ -1728,7 +1732,7 @@ cmd_replay() {
     #    cannot fail).
     body2="$(_fc_mktemp)" || blind "mktemp failed"
     run_replay_isolated "$body2" "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-      "$timeout_s" "$cold_runs" "$warm_runs" "$min_free_kb_objects" "${GATE_ARGV[@]}" || { rm -f "$body1" "$body2"; return 4; }
+      "$timeout_s" "$cold_runs" "$warm_runs" "$min_free_kb_objects" "${GATE_ARGV[@]}" || { rm -f "${body1:?}" "${body2:?}"; return 4; }
     local det_body det_rc emit_rc
     det_body="$(python3 - "$body1" "$body2" <<'PY'
 import json, sys
@@ -1753,7 +1757,7 @@ sys.exit(0 if det else 1)
 PY
 )"
     det_rc=$?
-    rm -f "$body1" "$body2"
+    rm -f "${body1:?}" "${body2:?}"
     # T048 V4 round 8 (V4R8-1): the mandatory --out report FIRST, the verdict on stdout after it -- a dead stdout
     # reader (an EPIPE, SIGPIPE being ignored) can never cost the report.
     # T043 round-3 review finding F3(c): a --out write failure is always
@@ -1770,9 +1774,9 @@ PY
   fi
 
   local body herr
-  body="$(cat "$body1")"
+  body="$(cat "${body1:?}")"
   herr="$(body_field "$body1" harness_error)"
-  rm -f "$body1"
+  rm -f "${body1:?}"
   local rc_written=0
   [ "$herr" = true ] && rc_written=4
   emit_doc "baseline-replay/v1" "$body" "$out" "$rc_written" || return $?
@@ -1834,7 +1838,7 @@ cmd_replay_sample() {
   local ids_file entries_file
   ids_file="$(_fc_mktemp)" || blind "mktemp failed"
   entries_file="$(_fc_mktemp)" || blind "mktemp failed"
-  python3 - "$sample" >"$ids_file" <<'PY' || { rm -f "$ids_file" "$entries_file"; blind "--sample is not a readable select_sample.py output doc (an object with an 'items' list of {item_id: <non-empty string without whitespace>})"; }
+  python3 - "$sample" >"${ids_file:?}" <<'PY' || { rm -f "${ids_file:?}" "${entries_file:?}"; blind "--sample is not a readable select_sample.py output doc (an object with an 'items' list of {item_id: <non-empty string without whitespace>})"; }
 import json, sys
 doc = json.load(open(sys.argv[1]))
 items = doc.get("items") if isinstance(doc, dict) else None
@@ -1867,7 +1871,7 @@ PY
       fi
     fi
     [ "$entry_kind" = harness ] && n_harness=$((n_harness + 1))
-    python3 - "$entry_kind" "$item_id" "$commit" "$tree" "$reason" "$body_file" >>"$entries_file" <<'PY' || blind "cannot record the replay-sample entry for an item"
+    python3 - "$entry_kind" "$item_id" "$commit" "$tree" "$reason" "$body_file" >>"${entries_file:?}" <<'PY' || blind "cannot record the replay-sample entry for an item"
 import json, sys
 kind, iid, commit, tree, reason, body_file = sys.argv[1:7]
 e = {"item_id": iid}
@@ -1885,9 +1889,9 @@ PY
     if [ "$entry_kind" = replayed ] && [ "$(body_field "$body_file" harness_error)" = true ]; then
       n_harness=$((n_harness + 1))
     fi
-    [ -n "$body_file" ] && rm -f "$body_file"
-  done <"$ids_file"
-  rm -f "$ids_file"
+    [ -n "$body_file" ] && rm -f "${body_file:?}"
+  done <"${ids_file:?}"
+  rm -f "${ids_file:?}"
 
   local body
   body="$(python3 - "$sample" "$cold_runs" "$warm_runs" "$entries_file" "${GATE_ARGV[@]}" <<'PY'
@@ -1897,8 +1901,8 @@ items = [json.loads(l) for l in open(a[4]) if l.strip()]
 print(json.dumps({"sample_path": a[1], "gate_cmd": a[5:], "cold_runs": int(a[2]),
                   "warm_runs": int(a[3]), "items": items}))
 PY
-)" || { rm -f "$entries_file"; blind "cannot assemble the replay-sample report"; }
-  rm -f "$entries_file"
+)" || { rm -f "${entries_file:?}"; blind "cannot assemble the replay-sample report"; }
+  rm -f "${entries_file:?}"
   local rc_written=0
   [ "$n_harness" -gt 0 ] && rc_written=4
   emit_doc "baseline-replay-sample/v1" "$body" "$out" "$rc_written" || return $?
