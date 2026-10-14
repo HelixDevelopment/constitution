@@ -74,7 +74,7 @@ deps:
 
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: v3.2.1              # pinned tag (commit db07bd5628ee1bd5c56ff30fe35c4d631acb59fa); exists on the remote
+    ref: v3.2.2              # pinned tag (commit 5c3dea57fb35215cdaa4b7412da438e7a8d96d86); exists on the remote
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. NOTE: llmctl vendors this constitution as its own `constitution` submodule (mutual reference); depth-1 hub entry, non-recursive init per the operator decision recorded in the header and §11.4.277(B)."
     layout: grouped
     recursive_init: false    # operator decision: NEVER `--recursive` for this path (mutual reference with this constitution); gate CM-LLMCTL-SUBMODULE-NONRECURSIVE
