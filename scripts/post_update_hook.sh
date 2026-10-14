@@ -402,11 +402,16 @@ install_action_plugins() {
         return 0
     fi
 
+    # NOTE (§11.4.201, same class as step 4's review finding 6): this step
+    # NEVER returns non-zero. The script runs under `set -e`, so a non-zero
+    # return here aborted the WHOLE hook before step 4c (label-sync) and
+    # step 5 ever ran. A missing installer is surfaced as a WARNING (shown
+    # in the step-6 summary), never as a silent success and never as an abort.
     local installer="${CONST_DIR}/scripts/install_cli_agent_plugins.sh"
     if [ ! -f "$installer" ]; then
         warn "installer missing: $installer — action directives NOT re-wired."
         WARNINGS+=("install_cli_agent_plugins.sh missing — slash commands may be stale")
-        return 1
+        return 0
     fi
 
     info "Running: $installer $PROJECT_ROOT"

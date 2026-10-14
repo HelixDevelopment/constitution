@@ -755,6 +755,25 @@ BADC="$T/badcons"; mkdir -p "$BADC/.claude"; printf '{ broken' >"$BADC/.claude/s
 ( cd "$BADC" && CONST_DIR="$FC6" PROJECT_ROOT="$BADC" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph8.out" 2>&1; rc=$?
 check "F6 installer refusal inside step 4c is reported as a warning" grep -q 'install_label_sync.sh exited' "$T/ph8.out"
 check "F6 ...and the hook still reaches step 5 (step 4c never aborts the run)" grep -q 'STEP 5' "$T/ph8.out"
+# step 4b (action-plugin wiring) with its installer ABSENT must never abort the
+# hook before step 4c: under `set -e` a non-zero return from step 4b used to
+# end the WHOLE run, so label-sync was never (re-)wired (FIX-B2 finding).
+FC4B="$T/fakeconst4b"; mkdir -p "$FC4B/scripts/label-sync/hooks" "$FC4B/scripts/label-sync/render" "$FC4B/actions"
+cp "$POSTHOOK" "$FC4B/scripts/post_update_hook.sh"
+cp -r "$LS/hooks/." "$FC4B/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC4B/scripts/label-sync/install_label_sync.sh"
+cp "$FIXREND" "$FC4B/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC4B/Constitution.md"
+( cd "$FC4B" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
+  && echo 'row: x' >actions/registry.yaml && echo '# touched' >>scripts/label-sync/hooks/label-sync-lib.sh \
+  && git add -A && git -c user.email=t@t -c user.name=t commit -q -m change )
+check "4b fixture: install_cli_agent_plugins.sh is ABSENT" test ! -e "$FC4B/scripts/install_cli_agent_plugins.sh"
+C4B="$T/cons4b"; mkdir -p "$C4B/.claude"; echo '{}' >"$C4B/.claude/settings.json"
+( cd "$C4B" && CONST_DIR="$FC4B" PROJECT_ROOT="$C4B" LABEL_SYNC_AUTOWIRE=apply bash "$FC4B/scripts/post_update_hook.sh" ) >"$T/ph9.out" 2>&1; rc=$?
+check "4b missing installer: step 4b actually ran (control needle)" grep -q 'STEP 4b' "$T/ph9.out"
+check "4b missing installer is reported as a warning" grep -q 'install_cli_agent_plugins.sh missing' "$T/ph9.out"
+eq "4b missing installer: post_update_hook exits 0" "$rc" 0
+check "4b missing installer: step 4c STILL ran" grep -q 'STEP 4c' "$T/ph9.out"
+check "4b missing installer: label-sync hooks were still wired by step 4c" jq -e '.hooks.SessionStart' "$C4B/.claude/settings.json"
+check "4b missing installer: the run reached step 5" grep -q 'STEP 5' "$T/ph9.out"
 
 # =========================================================================
 echo "== 18. F8/F5/F7: installer edge cases =="
