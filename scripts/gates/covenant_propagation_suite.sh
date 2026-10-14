@@ -7,7 +7,10 @@
 # or every paired §1.1 mutation test (mode `mutations`) and prints one
 # `<gate> <exit-code> <verdict>` line per entry plus a summary. Exists so the
 # family can be exercised and evidenced in one shot (§11.4.262 machine-created
-# evidence) without hand-listing 29 script names anywhere.
+# evidence) without hand-listing 29 script names anywhere. In `gates` mode it
+# also runs the shared engine's own self-test
+# (covenant_propagation_engine_compact_mutation_test.sh) as one extra entry,
+# CM-COVENANT-PROPAGATION-ENGINE-SELFTEST.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   covenant_propagation_suite.sh gates [--root <consumer-root>]
@@ -93,6 +96,30 @@ fi
 total=0; bad=0
 printf '%-36s %-5s %s\n' "GATE" "EXIT" "VERDICT"
 printf '%-36s %-5s %s\n' "------------------------------------" "-----" "----------------------------------"
+# ENGINE SELF-TEST (gates mode). The engine's compact-index PASS path and H2 boundary
+# are guarded by covenant_propagation_engine_compact_mutation_test.sh (six reviewer-
+# authored engine mutants, each must flip a named fixture). Running it HERE puts it on
+# the seam the consumer's pre-build already runs (CM-COVENANT-PROPAGATION-SUITE), so the
+# guard is executed, not merely present on disk (§11.4.205). It is one extra entry; a
+# failure counts as a non-zero entry like any gate. It runs only where the shared engine
+# sits beside this suite (a sandbox that stubs the gates without the engine has nothing
+# to self-test, and every real gate needs the engine, so its absence already FAILs them).
+# A present engine with an ABSENT self-test is a FAIL, never a skip.
+if [ "$MODE" = "gates" ] && [ -f "${HERE}/lib/covenant_propagation_engine.sh" ]; then
+    _st="${HERE}/covenant_propagation_engine_compact_mutation_test.sh"
+    if [ -f "$_st" ]; then
+        out="$(env -u COVENANT_PROPAGATION_CARRIERS bash "$_st" 2>&1)"; rc=$?
+        verdict="$(printf '%s\n' "$out" | grep -E '^=== MUTATION PAIR' | tail -1)"
+        [ -n "$verdict" ] || verdict="$(printf '%s\n' "$out" | tail -1)"
+    else
+        rc=2; verdict="engine self-test missing: $_st"
+    fi
+    total=$((total+1))
+    # (written as an if, not the `[ ] || bad=` form the gate loop uses, so a consumer's
+    # paired mutation that rewrites the loop's single accounting line still finds it once)
+    if [ "$rc" -ne 0 ]; then bad=$((bad+1)); fi
+    printf '%-36s %-5s %s\n' "CM-COVENANT-PROPAGATION-ENGINE-SELFTEST" "$rc" "$verdict"
+fi
 while IFS=$'\t' read -r gate anchor; do
     [ -n "$gate" ] || continue
     slug="${anchor#11.4.}"
@@ -106,7 +133,9 @@ while IFS=$'\t' read -r gate anchor; do
     else
         script="${HERE}/cm_covenant_114_${slug}_propagation_mutation_test.sh"
         out="$(bash "$script" 2>&1)"; rc=$?
-        verdict="$(printf '%s\n' "$out" | grep -cE '^✅ META OK') of 8 fixtures correct"
+        _ok_n="$(printf '%s\n' "$out" | grep -cE '^✅ META OK')"
+        _fx_n="$(printf '%s\n' "$out" | grep -E '^(✅ META OK|❌ META FAIL):' | grep -vc 'failed the §1.1 discriminator')"
+        verdict="${_ok_n} of ${_fx_n} fixtures correct"
     fi
     total=$((total+1))
     [ "$rc" -eq 0 ] || bad=$((bad+1))
