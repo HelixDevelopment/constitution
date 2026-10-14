@@ -6,18 +6,30 @@
 #           (one per scratch copy), runs `go test` and REQUIRES the suite to
 #           FAIL; a control run of the unmutated copy REQUIRES it to pass. A
 #           mutant that survives means the tests do not guard that behaviour.
-#           Mutants (37): the original six, the review's SURVIVING mutants
+#           Mutants (48): the original six, the review's SURVIVING mutants
 #           (seq-before-snapshot, TTL >=, inheritance depth, following-ancestor
 #           leak, started_at, heartbeat revive, verify fold/seq/snapshot,
 #           fsync removal) and one per new mechanism (derived binding,
 #           sanitising, compaction, reaping, pid start-time, lock timeout,
-#           owner/orphan checks, socket fallback/umask, hub ring, --clear).
-# Usage   : bash scripts/label-sync/prove_mutations.sh [--only <mutant-name>]
+#           owner/orphan checks, socket fallback/umask, hub ring, --clear) and
+#           the second review's (bus.addr after bind, exit 3, hello limit,
+#           stale sweeper age/liveness/batch, patch-id checks in prepare AND
+#           fold (reviewer R1), pid range, explicit-alias pin on register and
+#           update).
+#           KILL CRITERION (review-2 finding 5): a mutant is KILLED only when
+#           it COMPILES (`go test -run '^$' ./...` builds every test binary)
+#           and the suite reports at least one `--- FAIL:` line. A mutant that
+#           does not compile, or fails without any `--- FAIL:` (panic, timeout,
+#           vet), is UNDETERMINED — it proves nothing — and the proof fails.
+# Usage   : bash scripts/label-sync/prove_mutations.sh [--only <name>[,<name>...]] [--list]
+#           --selftest  run ONE known non-compiling mutant: expected exit 2
 # Inputs  : none (reads the module next to this script).
-# Outputs : one line per mutant: KILLED / SURVIVED / NOT-APPLIED, then a summary.
-# Exit    : 0 every mutant killed and control green | 1 a mutant survived or the
-#           control failed | 2 environment (no go, copy failure, mutation did
-#           not apply) — never a pass.
+# Outputs : one line per mutant: KILLED (with the failing test names) /
+#           SURVIVED / UNDETERMINED / NOT-APPLIED, then a summary.
+# Exit    : 0 every selected mutant killed and control green | 1 a mutant
+#           survived or the control failed | 2 cannot determine (no go, copy
+#           failure, a mutation did not apply, or any mutant UNDETERMINED) —
+#           never a pass.
 # Side-effects: temp dir under $TMPDIR (trap-removed). Never edits the real tree.
 #           Uses `nice` and `go test -p 2`; GOPROXY=off (stdlib only).
 # Deps    : bash, go, sed, cmp, mktemp.
@@ -27,8 +39,9 @@ set -uo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 command -v go >/dev/null 2>&1 || { echo "prove_mutations: go not found" >&2; exit 2; }
-ONLY=""
-[ "${1:-}" = "--only" ] && ONLY="${2:-}"
+ONLY=""; LIST=""
+SELFTEST=""
+case "${1:-}" in --only) ONLY=",${2:-},";; --list) LIST=1;; --selftest) SELFTEST=1;; esac
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/label_sync_mut.XXXXXX")" || exit 2
 trap 'rm -rf "$TMP"' EXIT
@@ -40,7 +53,7 @@ MUTANTS=(
   'alias_switch_ignored|internal/state/fold.go|s|^\t\tr\.Active = model\.Active{.*$|\t\t_ = ev.Active|'
   'non_atomic_write|internal/state/atomic.go|/MUT:atomic/s|os\.CreateTemp(dir, "\."+filepath\.Base(path)+"\.tmp-\*")|os.OpenFile(path, os.O_CREATE\|os.O_WRONLY\|os.O_TRUNC, 0o600)|'
   'followers_inverted|internal/state/fold.go|/MUT:follow/s|if cur\.FollowActive {|if !cur.FollowActive {|'
-  'ttl_never_expires|internal/state/fold.go|/MUT:ttl/s|if !(age > o\.TTL) {|if true {|'
+  'ttl_never_expires|internal/state/fold.go|/MUT:ttl/s|if !(age > o\.TTL) {|if true \|\| !(age > o.TTL) {|'
   'grammar_accepts_bad|internal/label/label.go|s|\^\\(T(\[0-9\]+\|\\?)/|^\\(T(.*)/|'
   'torn_tail_is_corruption|internal/state/store.go|/MUT:torn/s|return res, nil|if badPending { res.corrupt++ }; return res, nil|'
   'seq_written_before_snapshot|internal/state/store.go|/MUT:foldfirst/s|^\tif err := WriteAtomic|\t_ = WriteAtomic(s.p("seq"), []byte(strconv.FormatUint(r.Seq, 10)+"\\n"))\n\tif err := WriteAtomic|'
@@ -60,13 +73,13 @@ MUTANTS=(
   'no_flock|internal/state/flock.go|/MUT:flock/s|syscall\.Flock(int(f\.Fd()), syscall\.LOCK_EX\|syscall\.LOCK_NB)|error(nil)|'
   'lock_timeout_ignored|internal/state/flock.go|/MUT:locktimer/s|time\.NewTimer(timeout)|time.NewTimer(timeout * 20)|'
   'writers_never_reap|internal/state/store.go|/MUT:reap/s|if e\.State == model\.StateDone \&\&|if false \&\&|'
-  'compaction_skips_base|internal/state/store.go|/MUT:compactbase/s|WriteAtomic(s\.p("base\.json"), bb)|error(nil)|'
+  'compaction_skips_base|internal/state/store.go|/MUT:compactbase/s|WriteAtomic(s\.p("base\.json"), bb)|func() error { _ = bb; return nil }()|'
   'no_horizon_marker|internal/state/store.go|/MUT:horizon/s|if !found \&\&|if false \&\& !found \&\&|'
   'sanitize_off|internal/label/label.go|/MUT:sanitize/s|case r < 0x20, r == 0x7f, r >= 0x80 \&\& r <= 0x9f:|case false:|'
   'store_id_validation_off|internal/state/store.go|/MUT:validid/s|if !label\.ValidID(e\.ID) {|if false {|'
   'cli_output_unfiltered|cmd/labelctl/main.go|/MUT:cleanout/s|label\.CleanText(string(p))|string(p)|'
-  'pid_start_ignored|internal/state/flock.go|/MUT:pidstart/s|return start == "" \|\| start == boot+":"+cur|return true|'
-  'owner_check_off|internal/state/store.go|/MUT:owner/s|ok \&\& int(st\.Uid) != currentUID()|false|'
+  'pid_start_ignored|internal/state/flock.go|/MUT:pidstart/s|return start == "" \|\| start == boot+":"+cur|return true \|\| start == boot+":"+cur|'
+  'owner_check_off|internal/state/store.go|/MUT:owner/s|ok \&\& int(st\.Uid) != currentUID()|ok \&\& int(st.Uid) != currentUID() \&\& false|'
   'orphans_kept|internal/state/store.go|/MUT:orphans/s|s\.cleanOrphans()|_ = s|'
   'derive_does_not_pin|cmd/labelctl/main.go|/MUT:derivepin/s|e\.FollowActive = false|e.FollowActive = true|'
   'clear_ignored|cmd/labelctl/main.go|/MUT:clear/s|patch\[key\] = ""|_ = key|'
@@ -74,33 +87,69 @@ MUTANTS=(
   'socket_umask_loose|internal/bus/bus.go|/MUT:umask/s|syscall\.Umask(0o177)|syscall.Umask(0o022)|'
   'hub_ring_ignored|internal/bus/bus.go|/MUT:ring/s|if len(h\.ring) > 0 \&\&|if false \&\& len(h.ring) > 0 \&\&|'
   'seqless_log_never_polled|internal/bus/bus.go|/MUT:peekzero/s| \|\| n == 0||'
+  # --- second review (findings 4, 5, 6, 7, 9, 12, 14) ---
+  'addr_before_listen|cmd/label-busd/main.go|/MUT:listenfirst/s|beforeListen() // MUT:listenfirst|_ = state.WriteAtomic(addrf, []byte(sock+"\\n")); beforeListen()|'
+  'second_instance_rc1|cmd/label-busd/main.go|s|^const exitAlreadyRunning = 3$|const exitAlreadyRunning = 1|'
+  'hello_unlimited|internal/bus/bus.go|/MUT:hellolimit/s|io\.LimitReader(conn, MaxHelloBytes)|conn|'
+  'sweep_ignores_age|internal/state/store.go|/MUT:sweepage/s|if !(now\.Sub(e\.UpdatedAt) > s\.opts\.SweepAfter) {|if false {|'
+  'sweep_ignores_liveness|internal/state/store.go|/MUT:sweepalive/s|return !s\.opts\.Pids\.Alive(e\.PID, e\.PIDStart)|return true|'
+  'sweep_unbounded|internal/state/store.go|/MUT:sweepbatch/s|if len(swept) > s\.opts\.SweepBatch {|if false \&\& len(swept) > s.opts.SweepBatch {|'
+  'patch_id_unchecked_in_prepare|internal/state/store.go|/MUT:patchid/s|if v != "" \&\& !label\.ValidID(v) {|if false {|'
+  'patch_id_unchecked_in_fold_R1|internal/state/fold.go|s|ok \&\& v != "" \&\& !label\.ValidID(v) {|ok \&\& v != "" \&\& false {|'
+  'pid_range_unchecked|internal/state/store.go|/MUT:pidrange/s|if e\.PID < 0 \|\| e\.PID > MaxPID {|if false {|'
+  'explicit_alias_follows|cmd/labelctl/main.go|/MUT:explicitpin/s|e\.FollowActive = false|e.FollowActive = true|'
+  'update_alias_does_not_pin|cmd/labelctl/main.go|/MUT:updatepin/s|patch\["follow_active"\] = "false"|_ = patch|'
 )
+# --selftest: the pre-review mutant that does NOT compile (`bb` unused) must be
+# reported UNDETERMINED and make the proof exit 2 — the build pre-check's own
+# paired proof (it was once counted as KILLED).
+if [ -n "$SELFTEST" ]; then
+  MUTANTS=('selftest_noncompiling|internal/state/store.go|/MUT:compactbase/s|WriteAtomic(s\.p("base\.json"), bb)|error(nil)|')
+fi
+if [ -n "$LIST" ]; then for m in "${MUTANTS[@]}"; do echo "${m%%|*}"; done; exit 0; fi
 
 run_tests() { ( cd "$1" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go test -p 2 -count=1 -timeout 180s ./... >"$2" 2>&1 ); }
+compiles()  { ( cd "$1" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go test -p 2 -count=1 -run '^$' ./... >"$2" 2>&1 ); }
 
-fail=0; killed=0; total=0
+fail=0; undet=0; killed=0; total=0
 # control
 CTL="$TMP/control"; mkdir -p "$CTL" && cp -R "$SELF/." "$CTL/" || exit 2
 if run_tests "$CTL" "$TMP/control.log"; then echo "CONTROL   unmutated module: tests PASS"
 else echo "CONTROL   FAILED — unmutated tests do not pass (see $TMP/control.log)"; tail -20 "$TMP/control.log"; exit 1; fi
+rm -rf "$CTL"
 
 for m in "${MUTANTS[@]}"; do
   name="${m%%|*}"; rest="${m#*|}"; file="${rest%%|*}"; expr="${rest#*|}"
-  [ -z "$ONLY" ] || [ "$ONLY" = "$name" ] || continue
+  [ -z "$ONLY" ] || case "$ONLY" in *",$name,"*) ;; *) continue ;; esac
   total=$((total+1))
   d="$TMP/$name"; mkdir -p "$d" && cp -R "$SELF/." "$d/" || exit 2
   cp "$d/$file" "$d/$file.orig"
   sed -i "$expr" "$d/$file" || exit 2
   if cmp -s "$d/$file" "$d/$file.orig"; then echo "NOT-APPLIED $name — sed did not change $file"; exit 2; fi
   rm -f "$d/$file.orig"
+  if ! compiles "$d" "$TMP/$name.build.log"; then
+    echo "UNDETERMINED $name — the mutant does not compile (a build error kills nothing): $(grep -m1 -E '\.go:[0-9]+' "$TMP/$name.build.log")"
+    undet=$((undet+1)); rm -rf "$d"; continue
+  fi
   if run_tests "$d" "$TMP/$name.log"; then
     echo "SURVIVED  $name — tests still PASS with the mutant (bluff gap)"; fail=1
   else
-    echo "KILLED    $name ($(grep -cE '^(--- FAIL|FAIL)' "$TMP/$name.log") failing marker lines)"; killed=$((killed+1))
+    nf=$(grep -cE '^[[:space:]]*--- FAIL:' "$TMP/$name.log")
+    if [ "$nf" -gt 0 ]; then
+      echo "KILLED    $name ($nf --- FAIL: $(grep -E '^[[:space:]]*--- FAIL:' "$TMP/$name.log" | sed 's/.*--- FAIL: \([^ ]*\).*/\1/' | sort -u | head -4 | tr '\n' ' '))"
+      killed=$((killed+1))
+    else
+      echo "UNDETERMINED $name — tests failed without any '--- FAIL:' (panic/timeout/setup): $(grep -m1 -E 'panic|FAIL' "$TMP/$name.log")"
+      undet=$((undet+1))
+    fi
   fi
+  rm -rf "$d"
 done
 echo "----"
-echo "mutants killed: $killed / $total"
-[ "$fail" -eq 0 ] && [ "$killed" -eq "$total" ] || exit 1
+echo "mutants killed: $killed / $total (undetermined: $undet)"
+[ "$total" -gt 0 ] || { echo "no mutant selected" >&2; exit 2; }
+[ "$fail" -eq 0 ] || exit 1
+[ "$undet" -eq 0 ] || exit 2
+[ "$killed" -eq "$total" ] || exit 1
 echo "label-sync paired-mutation proof: PASS"
 exit 0

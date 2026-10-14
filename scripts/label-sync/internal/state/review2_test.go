@@ -42,7 +42,7 @@ func TestStoreRejectsInvalidPatchIDs(t *testing.T) {
 	seq := s.PeekSeq()
 	for _, k := range []string{"parent_id", "session_id"} {
 		if _, err := s.Apply(model.Event{Type: model.EvUpdate, ID: "e", Patch: map[string]string{k: "bad id"}}); err == nil ||
-			!strings.Contains(err.Error(), "invalid "+k) {
+			!strings.Contains(err.Error(), "update: invalid "+k) { // prepare() message, not the fold's
 			t.Fatalf("store accepted %s with a space (err=%v)", k, err)
 		}
 	}

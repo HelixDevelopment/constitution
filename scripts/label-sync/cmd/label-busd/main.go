@@ -84,7 +84,7 @@ func run(ctx context.Context, args []string, errw io.Writer) int {
 	sock, fallback, perr := bus.SocketPathFor(st.Dir())
 	var ln net.Listener
 	if perr == nil {
-		beforeListen()
+		beforeListen() // MUT:listenfirst
 		ln, perr = bus.Listen(sock)
 		if perr != nil {
 			perr = fmt.Errorf("socket %s: %w", sock, perr)
