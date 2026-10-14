@@ -14,7 +14,7 @@
 #   G3 golden-false: a group .md edited, checksum still fresh -> exit 1 (content drift) + the generate command
 #   G4 BLIND       : Constitution.md absent                  -> exit 2
 # Mutations: GM1 the drift-check branch disabled; GM2 the BLIND branch returning 0; GM3 the repair hint
-# reverted to regenerate_if_stale.sh (which cannot repair a hand-edited group). Each must
+# reverted to a checksum-only refresh script (which cannot repair a hand-edited group). Each must
 # make >= 1 case fail; the identity copy must pass every case.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +34,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 mkroot() { # mkroot <dir>: scratch root with the REAL anchors scripts and a fresh generation
   mkdir -p "$1/scripts/anchors"
-  cp "$ANCHORS"/constitution_generate.py "$ANCHORS"/anchor_lib.py "$ANCHORS"/regenerate_if_stale.sh "$1/scripts/anchors/"
+  cp "$ANCHORS"/constitution_generate.py "$ANCHORS"/anchor_lib.py "$1/scripts/anchors/"
   [ -f "$ANCHORS/__init__.py" ] && cp "$ANCHORS/__init__.py" "$1/scripts/anchors/"
   cp "$REAL_SOURCE" "$1/Constitution.md"
   python3 "$1/scripts/anchors/constitution_generate.py" generate --source "$1/Constitution.md" \
