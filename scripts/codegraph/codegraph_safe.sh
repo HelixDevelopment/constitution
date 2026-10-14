@@ -74,6 +74,14 @@
 #   CG_SAFE_PATCH_TOOL       default fk_index_patch.py beside this script
 #   CG_SAFE_PROBE_TOOL       default fk_cascade_probe.py beside this script
 #   CG_SAFE_MIN_THREAD_HEADROOM  default 1024 free thread slots (§12.12)
+#   CG_SAFE_LIMITS_FILE      consumer-data limits file (key `min_mem_avail_gib: N`, 16 <= N <= 9999) setting the MemAvailable
+#                            floor; default <project>/config/index/writer_limits.yaml when present; set-but-empty / non-regular /
+#                            empty / > 64 KiB / duplicate / nested / non-numeric => preflight REFUSED (exit 6). A limits file is the
+#                            ONLY mechanism that can LOWER the 32 GiB default floor; the convention path is tracked, reviewable
+#                            data, but this variable may point ANYWHERE (an untracked file outside the project lowers it too -
+#                            loudly: the resolved path is printed as min_mem_avail_source= on every run, bulk path included)
+#   CG_SAFE_MIN_MEM_AVAIL_KB MemAvailable floor in kB, plain decimal; may only RAISE the floor (a value below the file/default is
+#                            REFUSED, exit 6). Lower bound of any floor = 16 GiB (2 x the 8192 MiB heap floor, §12.6)
 #   TEST-ONLY overrides (they can only make a resource look SCARCER, never richer):
 #   CG_SAFE_TEST_FREE_BYTES     free = min(measured, value)
 #   CG_SAFE_TEST_MEMAVAIL_KB    MemAvailable = min(measured, value)
@@ -298,6 +306,76 @@ LOCK="$CGD/codegraph.lock"
 EXPECT_ARGS=""
 [ -n "$EXPECTED" ] && EXPECT_ARGS="--expected $EXPECTED --tolerance-pct ${TOL:-0}"
 
+# ================================================== memory-floor resolution ==
+# resolve_mem_floor — sets FLOOR_KB / FLOOR_SRC / FLOOR_KNOB / FLOOR_BAD (non-empty = REFUSE, fail closed). The MemAvailable
+# floor is CONSUMER DATA (§11.4.28/§11.4.35); default 32 GiB. Sources, in order:
+#   (1) limits file: env CG_SAFE_LIMITS_FILE (set-but-empty is refused), else <project>/config/index/writer_limits.yaml when it
+#       exists; key `min_mem_avail_gib: <int>` — the ONLY mechanism that can LOWER the floor. The convention path is tracked,
+#       reviewable data; CG_SAFE_LIMITS_FILE may point at ANY regular file (including an untracked one outside the project) and
+#       lowers it just the same, but never silently: the resolved path is echoed as min_mem_avail_source= on every run;
+#   (2) env CG_SAFE_MIN_MEM_AVAIL_KB — may only RAISE the floor above (1)/the default, so this knob cannot weaken a run (a lower
+#       value is REFUSED, never ignored). Grammar is strict line-based (not a YAML parser): a valid-YAML spelling such as
+#       `min_mem_avail_gib : 20`, a quoted key, a flow mapping or a BOM-prefixed file is NOT recognised and leaves the 32 GiB
+#       default in force (the safe direction) — known limitation, see docs/scripts/codegraph_safe.md.
+# Lower bound = 2 x HEAP_FLOOR_MB (16 GiB): the heap budget is max(HEAP_FLOOR_MB, MemAvailable/2), so a floor below this could
+# PASS with a V8 heap larger than half the available memory (§12.6). Values are validated as plain decimal digits BEFORE any
+# arithmetic (no octal: 010 = 10; no overflow: <= 4 digits GiB / <= 12 digits kB); limits file must be a regular, non-empty file
+# <= 64 KiB (the size of the symlink TARGET: a symlink is an accepted form, so stat -L) with exactly one top-level key (duplicates / indented-nested / empty value / non-numeric are REFUSED). Every
+# untrusted value is sanitised (san) before it is echoed.
+HEAP_FLOOR_MB=8192
+FLOOR_DEFAULT_KB=$((32 * 1048576))
+FLOOR_LOWER_KB=$((2 * HEAP_FLOOR_MB * 1024))
+FLOOR_KEY="min_mem_avail_gib"
+FLOOR_CONV_FILE="config/index/writer_limits.yaml"
+san() { printf '%s' "$1" | LC_ALL=C tr -c '[:print:]' '?' | cut -c1-200; }
+dec_int() {   # dec_int <string> <max-significant-digits> -> prints the base-10 value; rc 1 if not plain digits / too long
+    local v="$1" max="$2"
+    case "$v" in ''|*[!0-9]*) return 1 ;; esac
+    v="${v#"${v%%[!0]*}"}"; [ -n "$v" ] || v=0
+    [ "${#v}" -le "$max" ] || return 1
+    printf '%s' "$v"
+}
+resolve_mem_floor() {
+    FLOOR_KB="$FLOOR_DEFAULT_KB"; FLOOR_SRC="default"; FLOOR_BAD=""; FLOOR_KNOB=0
+    local lf="" size content n val gib ekb
+    if [ "${CG_SAFE_LIMITS_FILE+x}" = x ]; then
+        lf="$CG_SAFE_LIMITS_FILE"
+        [ -n "$lf" ] || { FLOOR_BAD="CG_SAFE_LIMITS_FILE is set but empty"; return 0; }
+    elif [ -e "$P/$FLOOR_CONV_FILE" ] || [ -L "$P/$FLOOR_CONV_FILE" ]; then
+        lf="$P/$FLOOR_CONV_FILE"
+    fi
+    if [ -n "$lf" ]; then
+        [ -f "$lf" ] || { FLOOR_BAD="limits file is not a regular file: $(san "$lf")"; return 0; }
+        [ -r "$lf" ] || { FLOOR_BAD="limits file is not readable: $(san "$lf")"; return 0; }
+        size="$(stat -L -c %s -- "$lf" 2>/dev/null)"   # -L: measure the TARGET (a symlink is accepted, so its link size must never stand in for the file)
+        case "$size" in ''|*[!0-9]*) FLOOR_BAD="cannot stat limits file: $(san "$lf")"; return 0 ;; esac
+        [ "$size" -gt 0 ] || { FLOOR_BAD="limits file is empty: $(san "$lf")"; return 0; }
+        [ "$size" -le 65536 ] || { FLOOR_BAD="limits file larger than 64 KiB: $(san "$lf")"; return 0; }
+        content="$(LC_ALL=C tr -d '\r' < "$lf")" || { FLOOR_BAD="cannot read limits file: $(san "$lf")"; return 0; }
+        n="$(printf '%s\n' "$content" | grep -c "^[[:space:]]\+$FLOOR_KEY:")"
+        [ "${n:-0}" -eq 0 ] || { FLOOR_BAD="$FLOOR_KEY must be a top-level key (indented/nested key found) in $(san "$lf")"; return 0; }
+        n="$(printf '%s\n' "$content" | grep -c "^$FLOOR_KEY:")"
+        if [ "${n:-0}" -gt 1 ]; then FLOOR_BAD="duplicate $FLOOR_KEY keys in $(san "$lf")"; return 0; fi
+        if [ "${n:-0}" -eq 1 ]; then
+            val="$(printf '%s\n' "$content" | sed -n "s/^$FLOOR_KEY:[[:space:]]*//p" | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//')"
+            gib="$(dec_int "$val" 4)" || { FLOOR_BAD="$FLOOR_KEY is empty or not a plain decimal GiB integer (<= 4 digits): '$(san "$val")'"; return 0; }
+            FLOOR_KB=$((10#$gib * 1048576)); FLOOR_SRC="$(san "$lf") $FLOOR_KEY"; FLOOR_KNOB=1
+        fi
+    fi
+    if [ "${CG_SAFE_MIN_MEM_AVAIL_KB+x}" = x ]; then
+        ekb="$(dec_int "$CG_SAFE_MIN_MEM_AVAIL_KB" 12)" || { FLOOR_BAD="CG_SAFE_MIN_MEM_AVAIL_KB is not a plain decimal kB integer (<= 12 digits): '$(san "$CG_SAFE_MIN_MEM_AVAIL_KB")'"; return 0; }
+        if [ "$((10#$ekb))" -lt "$FLOOR_KB" ]; then
+            FLOOR_BAD="env CG_SAFE_MIN_MEM_AVAIL_KB=$ekb kB would LOWER the floor below $FLOOR_KB kB ($FLOOR_SRC); env may only RAISE it — lower it with $FLOOR_KEY in the limits file"; return 0
+        fi
+        FLOOR_KNOB=1
+        [ "$((10#$ekb))" -eq "$FLOOR_KB" ] || { FLOOR_KB=$((10#$ekb)); FLOOR_SRC="env CG_SAFE_MIN_MEM_AVAIL_KB"; }
+    fi
+    if [ "$FLOOR_KB" -lt "$FLOOR_LOWER_KB" ]; then
+        FLOOR_BAD="floor $FLOOR_KB kB ($FLOOR_SRC) is below the $FLOOR_LOWER_KB kB lower bound (2 x the $HEAP_FLOOR_MB MiB heap floor)"
+    fi
+    return 0
+}
+
 # ================================================================ preflight ==
 preflight() {
     # prints measurements; returns 0 PASS / 1 FAIL
@@ -309,7 +387,7 @@ preflight() {
     case "$ov" in ''|*[!0-9]*) ;; *) [ "$ov" -lt "$free" ] && free="$ov" ;; esac
     db_bytes=0
     for f in "$CGD/codegraph.db" "$CGD/codegraph.db-wal"; do
-        [ -f "$f" ] && db_bytes=$((db_bytes + $(stat -c %s "$f")))
+        [ -f "$f" ] && db_bytes=$((db_bytes + $(stat -L -c %s "$f")))
     done
     min_free=$((60 * GIB)); [ $((2 * db_bytes)) -gt "$min_free" ] && min_free=$((2 * db_bytes))
     echo "free_bytes=$free"; echo "db_bytes=$db_bytes"; echo "min_free_bytes=$min_free"
@@ -318,8 +396,23 @@ preflight() {
     case "$mem" in ''|*[!0-9]*) echo "mem_avail_kb=unreadable"; return 1 ;; esac
     ov="${CG_SAFE_TEST_MEMAVAIL_KB:-}"
     case "$ov" in ''|*[!0-9]*) ;; *) [ "$ov" -lt "$mem" ] && mem="$ov" ;; esac
-    echo "mem_avail_kb=$mem"; echo "min_mem_avail_kb=$((32 * 1048576))"
-    [ "$mem" -ge $((32 * 1048576)) ] || { echo "PREFLIGHT FAIL memory: MemAvailable ${mem} kB < 32 GiB"; ok=1; }
+    # MemAvailable floor: 32 GiB default, or consumer DATA via resolve_mem_floor (see its header). With NO knob in play
+    # the lines below are byte-identical to the pre-knob output (only a knob adds the source line / the floor suffix).
+    resolve_mem_floor
+    echo "mem_avail_kb=$mem"
+    if [ -n "$FLOOR_BAD" ]; then
+        echo "min_mem_avail_kb=unresolved"
+        echo "PREFLIGHT FAIL memory-floor: refusing — $FLOOR_BAD"; ok=1
+    else
+        echo "min_mem_avail_kb=$FLOOR_KB"
+        [ "$FLOOR_KNOB" -eq 0 ] || echo "min_mem_avail_source=$FLOOR_SRC"
+        if [ "$mem" -lt "$FLOOR_KB" ]; then
+            if [ "$FLOOR_KNOB" -eq 0 ]; then echo "PREFLIGHT FAIL memory: MemAvailable ${mem} kB < 32 GiB"
+            elif [ $((FLOOR_KB % 1048576)) -eq 0 ]; then echo "PREFLIGHT FAIL memory: MemAvailable ${mem} kB < $((FLOOR_KB / 1048576)) GiB (floor: $FLOOR_SRC)"
+            else echo "PREFLIGHT FAIL memory: MemAvailable ${mem} kB < ${FLOOR_KB} kB (floor: $FLOOR_SRC)"; fi
+            ok=1
+        fi
+    fi
     tl="$(ulimit -u)"
     used="$(ps -L --no-headers -u "$(id -u)" 2>/dev/null | wc -l)"
     ov="${CG_SAFE_TEST_THREADS_USED:-}"
@@ -359,7 +452,7 @@ preflight() {
     case "$total_kb" in ''|*[!0-9]*) total_kb=$((mem * 2)) ;; esac  # unreadable: fall back to 2x available (never crash preflight over this)
     CG_SAFE_HEAP_CAP_MB=$(( total_kb * 60 / 100 / 1024 ))
     CG_SAFE_HEAP_MB=$(( mem / 1024 / 2 ))
-    [ "$CG_SAFE_HEAP_MB" -lt 8192 ] && CG_SAFE_HEAP_MB=8192
+    [ "$CG_SAFE_HEAP_MB" -lt "$HEAP_FLOOR_MB" ] && CG_SAFE_HEAP_MB="$HEAP_FLOOR_MB"
     [ "$CG_SAFE_HEAP_MB" -gt "$CG_SAFE_HEAP_CAP_MB" ] && CG_SAFE_HEAP_MB="$CG_SAFE_HEAP_CAP_MB"
     echo "heap_mb=$CG_SAFE_HEAP_MB"
     echo "heap_cap_mb=$CG_SAFE_HEAP_CAP_MB"

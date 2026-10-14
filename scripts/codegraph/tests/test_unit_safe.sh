@@ -18,6 +18,15 @@
 #              reaps short-lived stub processes (identity-checked before signals)
 # Dependencies bash, node (node:sqlite), python3
 # Cross-refs   ../codegraph_safe.sh, run_all.sh, test_mutation.sh
+# U47-U63     consumer-data MemAvailable floor (limits file key min_mem_avail_gib = the only mechanism that can LOWER it;
+#             env CG_SAFE_MIN_MEM_AVAIL_KB may only RAISE it; lower bound 16 GiB = 2 x heap floor; strict decimal
+#             grammar; regular-file/size/duplicate/nested/empty refusals; sanitised echo; byte-identical default output;
+#             real live-writer refusal). They run against a COPY of the tooling whose /proc/meminfo read is redirected
+#             and with a stub `df`, so the memory dimension is isolated and the result does not depend on the host's
+#             real memory/disk. Paired mutations: test_memfloor_mutations.sh (MF1-MF8 + reviewer-adopted R01-R15, R16-R24 round-2, R26-R29 round-2 re-review, R30-R35 round-2.1 review WF31).
+#             RED-first (round 2: all new cases RED on the round-1 code, recorded in the evidence pack); U48, U49, U50 and U60
+#             pass on the round-1 code by design (golden-TRUE equality, file lowering, env raise, real live-writer refusal): they are
+#             regression guards that must STAY green; the other 11 cases are RED on the round-1 code (U62, added after the round-2 re-review, is a regression guard for already-correct behaviour; U63 and the S-1/T-1..T-3 additions to U56/U58 came with the round-2.1 review WF31, RED on the pre-fix code).
 # U31-U43     BULK-vs-incremental classification of `sync` (pending-refs volume, --bulk,
 #             --pending-threshold, --patches, verify pending_zero); paired mutations in
 #             test_bulk_classify_mutations.sh. Written RED-first.
@@ -70,7 +79,8 @@ PY
     unset STUB_PATCH_RC STUB_PROBE_RC STUB_FILES STUB_STATE STUB_REPORTED STUB_ACCOUNTED \
           STUB_SLEEP_MS STUB_EXIT STUB_RUNNER_VERSION STUB_STATUS_FILES \
           STUB_SYNC_HOLD STUB_RESOLVE_PENDING CG_SAFE_PENDING_BULK_MIN CG_SAFE_PATCHES \
-          CG_SAFE_TEST_FREE_BYTES CG_SAFE_TEST_MEMAVAIL_KB CG_SAFE_TEST_THREADS_USED
+          CG_SAFE_TEST_FREE_BYTES CG_SAFE_TEST_MEMAVAIL_KB CG_SAFE_TEST_THREADS_USED \
+          CG_SAFE_MIN_MEM_AVAIL_KB CG_SAFE_LIMITS_FILE
     export STUB_SLEEP_MS=1500
 }
 
@@ -603,6 +613,262 @@ if t_want U46; then setup u46
     # final heap_mb of 6144 proves the cap is applied AFTER, and overrides, the floor.
     [ "$hc" = "6144" ] && [ "$hm" = "6144" ]
     t_check U46 "heap_mb clamps to §12.6's real 60%-of-MemTotal ceiling (6144 MiB on a 10 GiB host), overriding even the 8192 floor, never a hardcoded number" $? "heap_mb=$hm heap_cap_mb=$hc out=$(printf '%s' "$OUT" | tr '\n' ' ')"
+fi
+
+# ----------------------------------------------------------------------------
+# U47-U63: MemAvailable floor (see header). `rich_pf <MemAvailable-kB> [VAR=VAL ...]` runs the preflight op of a COPY of the tooling whose
+# /proc/meminfo read is redirected to a fake file (MemTotal 64 GiB) and with a stub `df` (disk plentiful) and headroom 0, so the ONLY
+# resource dimension under test is memory. A control proves the redirected copy still reads the real file when no override is given.
+RICH_DIR=""
+GK=1048576
+rich_setup() {
+    [ -n "$RICH_DIR" ] && return 0
+    RICH_DIR="$(t_workdir rich)"; mkdir -p "$RICH_DIR/tool" "$RICH_DIR/bin"
+    cp -r "$CG_DIR"/. "$RICH_DIR/tool/"; rm -rf "$RICH_DIR/tool/__pycache__"
+    sed -i 's#/proc/meminfo#${CG_FAKE_MEMINFO:-/proc/meminfo}#g' "$RICH_DIR/tool/codegraph_safe.sh"
+    printf '#!/bin/sh\nprintf "Avail\\n999999999999\\n"\n' > "$RICH_DIR/bin/df"; chmod +x "$RICH_DIR/bin/df"
+    [ "$(grep -c 'CG_FAKE_MEMINFO' "$RICH_DIR/tool/codegraph_safe.sh")" = "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" ]
+}
+rich_pf() {
+    local kb="$1"; shift
+    printf 'MemTotal: 67108864 kB\nMemAvailable: %s kB\n' "$kb" > "$W/meminfo"
+    OUT="$(env -u CG_SAFE_LIMITS_FILE -u CG_SAFE_MIN_MEM_AVAIL_KB PATH="$RICH_DIR/bin:$PATH" CG_FAKE_MEMINFO="$W/meminfo" CG_SAFE_MIN_THREAD_HEADROOM=0 "$@" \
+        bash "$RICH_DIR/tool/codegraph_safe.sh" --project "$P" preflight 2>&1)"; RC=$?
+}
+pf_val() { printf '%s\n' "$OUT" | sed -n "s/^$1=\(.*\)$/\1/p"; }
+has_line() { printf '%s\n' "$OUT" | grep -qxF -- "$1"; }
+has_txt() { printf '%s\n' "$OUT" | grep -qF -- "$1"; }
+heap_ok() { local hm; hm="$(pf_val heap_mb)"; case "$hm" in ''|*[!0-9]*) return 1 ;; esac; [ $((hm * 1024)) -le $(($1 / 2)) ] && [ "$hm" -ge 8192 ]; }
+no_writer_side_effects() { [ ! -e "$P/.codegraph/.helix_index.flock" ] && [ ! -e "$P/.codegraph/index_runs" ]; }
+no_shell_noise() { ! printf '%s' "$OUT" | grep -qE 'value too great|syntax error|unbound variable|integer expression|invalid arithmetic|unary operator'; }
+refused() {   # refused <label-for-detail> : memory-floor refusal, nothing PASSed, no writer side effects, no shell noise
+    [ "$RC" -ne 0 ] && has_txt 'PREFLIGHT FAIL memory-floor' && ! has_txt 'PREFLIGHT PASS' && [ "$(pf_val min_mem_avail_kb)" = unresolved ] && no_writer_side_effects && no_shell_noise
+}
+lim() { printf '%s' "$2" > "$W/$1"; printf '%s' "$W/$1"; }   # lim <name> <content> -> path
+s200() { printf '%s' "$1" | cut -c1-200; }   # the tool echoes a path through san (cut -c1-200): compare against that, so a deep TMPDIR cannot falsely fail a case
+
+if t_want U47; then setup u47; rich_setup
+    rich_pf $((31 * GK))
+    n="$(printf '%s\n' "$OUT" | grep -cE '^(min_mem_avail_source=|.*\(floor:)')"
+    has_line "mem_avail_kb=$((31 * GK))" && has_line "min_mem_avail_kb=$((32 * GK))" && has_line "PREFLIGHT FAIL memory: MemAvailable $((31 * GK)) kB < 32 GiB" && [ "$n" -eq 0 ] && [ "$RC" -eq 6 ]
+    t_check U47 "no knob: output is the pre-knob output (floor 32 GiB, exact FAIL line, NO source line, NO floor suffix, exit 6)" $? "rc=$RC n=$n out=$(printf '%s' "$OUT" | grep -E 'mem|floor' | tr '\n' ' ')"
+fi
+if t_want U48; then setup u48; rich_setup
+    rich_pf $((32 * GK))
+    [ "$RC" -eq 0 ] && has_line 'PREFLIGHT PASS' && ! has_txt 'PREFLIGHT FAIL memory' && heap_ok $((32 * GK))
+    r1=$?
+    # control: the redirected copy reads the REAL /proc/meminfo when CG_FAKE_MEMINFO is unset
+    real="$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9]*\).*/\1/p' /proc/meminfo)"
+    o2="$(env -u CG_FAKE_MEMINFO PATH="$RICH_DIR/bin:$PATH" bash "$RICH_DIR/tool/codegraph_safe.sh" --project "$P" preflight 2>&1 | sed -n 's/^mem_avail_kb=//p')"
+    d=$((real - o2)); [ "$d" -lt 0 ] && d=$((-d)); [ "$d" -lt $((GK / 2)) ]; r2=$?
+    t_check U48 "golden-TRUE: MemAvailable == default floor (32 GiB) PASSes with heap <= half of available; redirected copy still reads the real meminfo (control)" $((r1 + r2)) "r1=$r1 r2=$r2 real=$real copy=$o2"
+fi
+if t_want U49; then setup u49; rich_setup
+    f="$(lim l.yaml $'# consumer data\nmin_mem_avail_gib: 20\nother: 1\n')"
+    rich_pf $((19 * GK)) CG_SAFE_LIMITS_FILE="$f"; sf="$(s200 "$f")"
+    has_line "min_mem_avail_kb=$((20 * GK))" && has_line "min_mem_avail_source=$sf min_mem_avail_gib" && has_line "PREFLIGHT FAIL memory: MemAvailable $((19 * GK)) kB < 20 GiB (floor: $sf min_mem_avail_gib)" && [ "$RC" -eq 6 ]
+    r1=$?
+    rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    [ "$RC" -eq 0 ] && has_line 'PREFLIGHT PASS' && [ "$(pf_val heap_mb)" = 10240 ] && heap_ok $((20 * GK))
+    r2=$?
+    t_check U49 "limits file min_mem_avail_gib: 20 lowers the floor: 19 GiB refused with exact line, 20 GiB PASS (equality) with heap 10240 <= half" $((r1 + r2)) "r1=$r1 r2=$r2 out=$(printf '%s' "$OUT" | tr '\n' ' ' | cut -c1-300)"
+fi
+if t_want U50; then setup u50; rich_setup
+    f="$(lim l.yaml $'min_mem_avail_gib: 20\n')"
+    rich_pf $((23 * GK)) CG_SAFE_LIMITS_FILE="$f" CG_SAFE_MIN_MEM_AVAIL_KB=$((24 * GK))
+    has_line "min_mem_avail_kb=$((24 * GK))" && has_line 'min_mem_avail_source=env CG_SAFE_MIN_MEM_AVAIL_KB' && has_txt '< 24 GiB (floor: env CG_SAFE_MIN_MEM_AVAIL_KB)' && [ "$RC" -eq 6 ]
+    r1=$?
+    rich_pf $((24 * GK)) CG_SAFE_LIMITS_FILE="$f" CG_SAFE_MIN_MEM_AVAIL_KB=$((24 * GK))
+    [ "$RC" -eq 0 ]; r2=$?
+    rich_pf $((39 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB=$((40 * GK))     # no file: env raises the 32 GiB default
+    has_txt '< 40 GiB (floor: env CG_SAFE_MIN_MEM_AVAIL_KB)' && [ "$RC" -eq 6 ]; r3=$?
+    rich_pf $((32 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB=$((32 * GK))     # env == default: accepted, source stays `default` (not relabelled env)
+    [ "$RC" -eq 0 ] && has_line 'PREFLIGHT PASS' && has_line 'min_mem_avail_source=default' && ! has_txt 'min_mem_avail_source=env'; r4=$?
+    rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f" CG_SAFE_MIN_MEM_AVAIL_KB=$((20 * GK))   # env == file value: source stays the FILE
+    [ "$RC" -eq 0 ] && has_line "min_mem_avail_source=$(s200 "$f") min_mem_avail_gib" && ! has_txt 'min_mem_avail_source=env'; r5=$?
+    t_check U50 "env RAISES the floor (24 GiB over a 20 GiB file; 40 GiB over the default); env == base accepted and the source line is NOT relabelled env" $((r1 + r2 + r3 + r4 + r5)) "r=$r1$r2$r3$r4$r5 out=$(printf '%s' "$OUT" | tr '\n' ' ' | cut -c1-200)"
+fi
+if t_want U51; then setup u51; rich_setup
+    f="$(lim l.yaml $'min_mem_avail_gib: 20\n')"; bad=0; why=""
+    for kb in $((16 * GK)) $((19 * GK)) 20971519 1 0; do
+        rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f" CG_SAFE_MIN_MEM_AVAIL_KB=$kb
+        { [ "$RC" -ne 0 ] && refused && has_txt 'may only RAISE'; } || { bad=1; why="$why [file20 env=$kb rc=$RC]"; }
+    done
+    for kb in $((20 * GK)) $((31 * GK)) 08388608; do                # no file: lowering below the 32 GiB default
+        rich_pf $((64 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB=$kb
+        { refused && has_txt 'may only RAISE'; } || { bad=1; why="$why [nofile env=$kb rc=$RC]"; }
+    done
+    t_check U51 "env may NEVER lower the floor (below a file value or below the default): refused loudly, nothing runs" $bad "$why"
+fi
+if t_want U52; then setup u52; rich_setup
+    bad=0; why=""
+    for v in "" " 20" "abc" "-5" "+5" "1e3" "0x10" "20 GiB" "1234567890123" "99999999999999999999" "20.5"; do
+        rich_pf $((64 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB="$v"
+        { refused && has_txt 'not a plain decimal kB integer'; } || { bad=1; why="$why [env='$v' rc=$RC]"; }
+    done
+    i=0
+    for v in "" "abc" "-5" "12345" "20 x" "'20'" "20.5" "0x14" "1e3" "99999999999999999999" "17592186044421"; do
+        i=$((i + 1)); f="$(lim l$i.yaml "min_mem_avail_gib: $v"$'\n')"
+        rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+        { refused && has_txt 'plain decimal GiB integer'; } || { bad=1; why="$why [file='$v' rc=$RC]"; }
+    done
+    t_check U52 "non-decimal / empty / signed / float / hex / over-long values (env kB and file GiB, incl. 2^44+5 overflow) are REFUSED, no shell noise, no writer side effects" $bad "$why"
+fi
+if t_want U53; then setup u53; rich_setup
+    f="$(lim a.yaml $'min_mem_avail_gib: 010\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    refused && has_txt 'floor 10485760 kB' && ! has_txt '8388608'; r1=$?                         # 010 = 10 (base 10), NOT octal 8
+    f="$(lim b.yaml $'min_mem_avail_gib: 09\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    refused && has_txt 'floor 9437184 kB'; r2=$?                                                  # 09 refused cleanly (below bound), no octal error
+    f="$(lim c.yaml $'min_mem_avail_gib: 0020\n')"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((20 * GK))"; r3=$?
+    f="$(lim d.yaml $'min_mem_avail_gib: 020\n')"; rich_pf $((19 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    has_line "min_mem_avail_kb=$((20 * GK))" && [ "$RC" -eq 6 ]; r4=$?
+    rich_pf $((32 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB=033554432                                       # env leading zero: decimal 33554432 == default -> accepted
+    [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((32 * GK))" && no_shell_noise; r5=$?
+    rich_pf $((64 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB=08388608                                        # decimal 8388608 < default: refused as lowering, no octal arithmetic error
+    refused && has_txt '8388608 kB'; r6=$?
+    t_check U53 "leading zeros are DECIMAL (010=10, 020=20, 0020=20, 09 refused cleanly, env 033554432==32 GiB, env 08388608 refused) - no octal, no arithmetic error, no writer fall-through" $((r1+r2+r3+r4+r5+r6)) "r=$r1$r2$r3$r4$r5$r6 out=$(printf '%s' "$OUT" | tr '\n' ' ' | cut -c1-200)"
+fi
+if t_want U54; then setup u54; rich_setup
+    bad=0; why=""
+    for g in 16 20 32; do      # heap invariant: whenever the floor lets a run PASS, heap_mb <= MemAvailable/2 and >= the heap floor
+        f="$(lim h$g.yaml "min_mem_avail_gib: $g"$'\n')"; rich_pf $((g * GK)) CG_SAFE_LIMITS_FILE="$f"
+        { [ "$RC" -eq 0 ] && heap_ok $((g * GK)); } || { bad=1; why="$why [floor=$g rc=$RC heap=$(pf_val heap_mb)]"; }
+    done
+    for g in 15 8 4 1 0; do    # below 2 x heap floor (16 GiB): refused even when the host has plenty
+        f="$(lim b$g.yaml "min_mem_avail_gib: $g"$'\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+        { refused && has_txt 'lower bound'; } || { bad=1; why="$why [floor=$g rc=$RC]"; }
+    done
+    f="$(lim r.yaml $'min_mem_avail_gib: 4\n')"; rich_pf $((5 * GK)) CG_SAFE_LIMITS_FILE="$f"   # the reviewer's S3 case: floor 4, available 5 -> must NOT PASS
+    { [ "$RC" -ne 0 ] && ! has_txt 'PREFLIGHT PASS'; } || { bad=1; why="$why [S3 floor4/avail5 passed]"; }
+    f="$(lim m.yaml $'min_mem_avail_gib: 9999\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"  # huge but legal floor: plain refusal at the memory check, no overflow
+    { has_txt '< 9999 GiB' && [ "$RC" -eq 6 ] && no_shell_noise; } || { bad=1; why="$why [floor9999 rc=$RC]"; }
+    t_check U54 "lower bound = 16 GiB (2 x heap floor): floors 16/20/32 PASS with heap_mb <= MemAvailable/2; 15/8/4/1/0 refused; floor 4 + 5 GiB never PASSes; 9999 GiB handled" $bad "$why"
+fi
+if t_want U55; then setup u55; rich_setup
+    f="$(lim d1.yaml $'min_mem_avail_gib: 8\nmin_mem_avail_gib: 64\n')"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    refused && has_txt 'duplicate'; r1=$?
+    f="$(lim d2.yaml $'min_mem_avail_gib: 20\nmin_mem_avail_gib: 20\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    refused && has_txt 'duplicate'; r2=$?
+    t_check U55 "duplicate min_mem_avail_gib keys (different or identical values) are REFUSED (no first-wins / last-wins ambiguity)" $((r1 + r2)) "r=$r1$r2"
+fi
+if t_want U56; then setup u56; rich_setup
+    bad=0; why=""
+    chk() { rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$2"; refused && has_txt "$3" || { bad=1; why="$why [$1 rc=$RC]"; }; }
+    mkdir -p "$W/adir"; chk directory "$W/adir" 'not a regular file'
+    chk devnull /dev/null 'not a regular file'
+    chk missing "$W/nope.yaml" 'not a regular file'
+    : > "$W/empty.yaml"; chk empty-file "$W/empty.yaml" 'empty'
+    { printf 'min_mem_avail_gib: 20\n'; head -c 70000 /dev/zero | tr '\0' 'x'; printf '\n'; } > "$W/big.yaml"; chk oversize "$W/big.yaml" '64 KiB'
+    printf '  min_mem_avail_gib: 20\n' > "$W/ind.yaml"; chk indented "$W/ind.yaml" 'top-level'
+    printf 'limits:\n  min_mem_avail_gib: 20\n' > "$W/nest.yaml"; chk nested "$W/nest.yaml" 'top-level'
+    printf 'min_mem_avail_gib:\n' > "$W/ev.yaml"; chk empty-value "$W/ev.yaml" 'plain decimal GiB'
+    printf 'min_mem_avail_gib:   # nothing\n' > "$W/ev2.yaml"; chk empty-value-comment "$W/ev2.yaml" 'plain decimal GiB'
+    rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE=; { refused && has_txt 'set but empty'; } || { bad=1; why="$why [env-empty rc=$RC]"; }
+    mkfifo "$W/fifo"; OUT="$(env CG_FAKE_MEMINFO="$W/meminfo" CG_SAFE_LIMITS_FILE="$W/fifo" PATH="$RICH_DIR/bin:$PATH" timeout 8 bash "$RICH_DIR/tool/codegraph_safe.sh" --project "$P" preflight 2>&1)"; RC=$?
+    { [ "$RC" -ne 124 ] && [ "$RC" -ne 0 ] && has_txt 'not a regular file'; } || { bad=1; why="$why [fifo rc=$RC]"; }
+    if [ "$(id -u)" -ne 0 ]; then printf 'min_mem_avail_gib: 20\n' > "$W/unr.yaml"; chmod 000 "$W/unr.yaml"; chk unreadable "$W/unr.yaml" 'not readable'; chmod 600 "$W/unr.yaml"; fi
+    printf '\tmin_mem_avail_gib: 20\n' > "$W/tab.yaml"; chk tab-indented "$W/tab.yaml" 'top-level'          # T-2: TAB is indentation too ([[:space:]], not a literal blank)
+    printf 'limits:\n\tmin_mem_avail_gib: 20\n' > "$W/tabn.yaml"; chk tab-nested "$W/tabn.yaml" 'top-level'
+    # S-1: the size gates measure the TARGET of a symlink (a symlink to a regular file is an ACCEPTED form, U57), never the link itself
+    ln -s "$W/empty.yaml" "$W/lnk-empty.yaml"; chk symlink-to-empty "$W/lnk-empty.yaml" 'empty'
+    ln -s "$W/big.yaml" "$W/lnk-big.yaml"; chk symlink-to-oversize "$W/lnk-big.yaml" '64 KiB'
+    ln -s "$W/lnk-big.yaml" "$W/lnk-big2.yaml"; chk symlink-chain-to-oversize "$W/lnk-big2.yaml" '64 KiB'
+    mkdir -p "$P/config/index"
+    ln -s "$W/empty.yaml" "$P/config/index/writer_limits.yaml"; rich_pf $((64 * GK))
+    { refused && has_txt 'empty'; } || { bad=1; why="$why [convention-symlink-to-empty rc=$RC]"; }
+    rm -f "$P/config/index/writer_limits.yaml"; ln -s "$W/big.yaml" "$P/config/index/writer_limits.yaml"; rich_pf $((64 * GK))
+    { refused && has_txt '64 KiB'; } || { bad=1; why="$why [convention-symlink-to-oversize rc=$RC]"; }
+    rm -f "$P/config/index/writer_limits.yaml"
+    # T-3: the exact 64 KiB boundary (65536 accepted, 65537 refused), sanity-checked with the byte count itself
+    { printf 'min_mem_avail_gib: 20\n'; head -c 65513 /dev/zero | tr "\0" "x"; printf "\n"; } > "$W/b65536.yaml"
+    { printf 'min_mem_avail_gib: 20\n'; head -c 65514 /dev/zero | tr "\0" "x"; printf "\n"; } > "$W/b65537.yaml"
+    [ "$(wc -c < "$W/b65536.yaml")" -eq 65536 ] && [ "$(wc -c < "$W/b65537.yaml")" -eq 65537 ] || { bad=1; why="$why [boundary fixture sizes wrong]"; }
+    rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$W/b65536.yaml"
+    { [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((20 * GK))"; } || { bad=1; why="$why [65536-accepted rc=$RC]"; }
+    chk boundary-65537 "$W/b65537.yaml" '64 KiB'
+    t_check U56 "limits-file classes REFUSED loudly: directory, /dev/null, missing, FIFO (no hang), empty, >64 KiB (exact boundary 65536 ok / 65537 refused), indented (space + TAB), nested, empty value, set-but-empty env, unreadable; symlink to an empty / oversize file refused via env AND convention path (S-1)" $bad "$why"
+fi
+if t_want U57; then setup u57; rich_setup
+    bad=0; why=""
+    printf 'min_mem_avail_gib: 20 # consumer\r\nother: 1\r\n' > "$W/crlf.yaml"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$W/crlf.yaml"
+    { [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((20 * GK))"; } || { bad=1; why="$why [crlf+comment rc=$RC]"; }
+    printf '# min_mem_avail_gib: 20\nsingle_writer: true\n' > "$W/comm.yaml"; rich_pf $((31 * GK)) CG_SAFE_LIMITS_FILE="$W/comm.yaml"
+    { has_line "min_mem_avail_kb=$((32 * GK))" && has_line "PREFLIGHT FAIL memory: MemAvailable $((31 * GK)) kB < 32 GiB" && ! has_txt 'min_mem_avail_source'; } || { bad=1; why="$why [commented-out honoured]"; }
+    printf 'single_writer: true\n' > "$W/nokey.yaml"; rich_pf $((31 * GK)) CG_SAFE_LIMITS_FILE="$W/nokey.yaml"
+    { has_line "min_mem_avail_kb=$((32 * GK))" && ! has_txt 'min_mem_avail_source' && [ "$RC" -eq 6 ]; } || { bad=1; why="$why [nokey rc=$RC]"; }
+    ln -s "$W/crlf.yaml" "$W/link.yaml"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$W/link.yaml"
+    { [ "$RC" -eq 0 ]; } || { bad=1; why="$why [symlink-to-regular rc=$RC]"; }
+    t_check U57 "accepted forms: CRLF + trailing comment, symlink to a regular file; a commented-out key is NOT honoured; a file without the key leaves the default (no source line)" $bad "$why"
+fi
+if t_want U58; then setup u58; rich_setup
+    bad=0; why=""
+    inj=$'x\nheap_mb=1\nPREFLIGHT PASS\n\033[31m'
+    rich_pf $((64 * GK)) CG_SAFE_MIN_MEM_AVAIL_KB="$inj"
+    { [ "$(printf '%s\n' "$OUT" | grep -c '^PREFLIGHT PASS$')" -eq 0 ] && [ "$(printf '%s\n' "$OUT" | grep -c '^heap_mb=1$')" -eq 0 ] && ! printf '%s' "$OUT" | grep -q "$(printf '\033')"; } || { bad=1; why="$why [env-injection]"; }
+    rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$W/nope"$'\nPREFLIGHT PASS\nheap_mb=1'
+    { [ "$(printf '%s\n' "$OUT" | grep -c '^PREFLIGHT PASS$')" -eq 0 ] && [ "$(printf '%s\n' "$OUT" | grep -c '^heap_mb=1$')" -eq 0 ] && [ "$RC" -ne 0 ]; } || { bad=1; why="$why [path-injection]"; }
+    nlf="$W/ok"$'\nPREFLIGHT PASS\nheap_mb=1\n\033[31m'; printf 'min_mem_avail_gib: 20\n' > "$nlf"       # an EXISTING, VALID file whose NAME carries the injection (T-1): the source echo must be sanitised
+    rich_pf $((19 * GK)) CG_SAFE_LIMITS_FILE="$nlf"
+    { [ "$RC" -eq 6 ] && [ "$(printf '%s\n' "$OUT" | grep -c '^PREFLIGHT PASS$')" -eq 0 ] && [ "$(printf '%s\n' "$OUT" | grep -c '^heap_mb=1$')" -eq 0 ] && ! printf '%s' "$OUT" | grep -q "$(printf '\033')" && has_txt 'min_mem_avail_source='; } || { bad=1; why="$why [existing-file-path-injection rc=$RC]"; }
+    if [ "${#W}" -lt 120 ]; then has_txt '?PREFLIGHT PASS?heap_mb=1?' || { bad=1; why="$why [sanitised-path-not-echoed]"; }; fi
+    printf 'min_mem_avail_gib: x\nPREFLIGHT PASS\n' > "$W/v2.yaml"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$W/v2.yaml"
+    { [ "$(printf '%s\n' "$OUT" | grep -c '^PREFLIGHT PASS$')" -eq 0 ]; } || { bad=1; why="$why [file-value-injection]"; }
+    t_check U58 "untrusted env / path (missing AND existing file) / file values are sanitised before echo: no forged 'PREFLIGHT PASS' / 'heap_mb=' line, no ESC byte" $bad "$why"
+fi
+if t_want U59; then setup u59; rich_setup
+    mkdir -p "$P/config/index"; printf 'min_mem_avail_gib: 20\n' > "$P/config/index/writer_limits.yaml"
+    rich_pf $((19 * GK)); r1=0; has_line "min_mem_avail_kb=$((20 * GK))" && has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' || r1=1
+    printf 'min_mem_avail_gib: 24\n' > "$W/other.yaml"; rich_pf $((23 * GK)) CG_SAFE_LIMITS_FILE="$W/other.yaml"; r2=0; has_line "min_mem_avail_kb=$((24 * GK))" || r2=1
+    rm -f "$P/config/index/writer_limits.yaml"; mkdir "$P/config/index/writer_limits.yaml"; rich_pf $((64 * GK)); r3=0; refused && has_txt 'not a regular file' || r3=1
+    rmdir "$P/config/index/writer_limits.yaml"; r4=0
+    ln -s "$W/no-such-target.yaml" "$P/config/index/writer_limits.yaml" && [ -L "$P/config/index/writer_limits.yaml" ] && [ ! -e "$P/config/index/writer_limits.yaml" ] || r4=1
+    rich_pf $((64 * GK))   # dangling symlink AT the convention path: must be refused, not ignored (a fixture failure is recorded on r4 itself, T-4)
+    { refused && has_txt 'not a regular file'; } || r4=1; rm -f "$P/config/index/writer_limits.yaml"
+    t_check U59 "convention file <project>/config/index/writer_limits.yaml is discovered without any env; an explicit CG_SAFE_LIMITS_FILE overrides it; a non-regular convention path (directory, DANGLING SYMLINK) is refused" $((r1 + r2 + r3 + r4)) "r=$r1$r2$r3$r4"
+fi
+if t_want U60; then setup u60; rich_setup; export STUB_PATCH_RC=0
+    lw() {   # lw <extra env...> : real `init` through the redirected copy; OUT/RC
+        printf 'MemTotal: 67108864 kB\nMemAvailable: %s kB\n' $((64 * GK)) > "$W/meminfo"
+        OUT="$(env PATH="$RICH_DIR/bin:$PATH" CG_FAKE_MEMINFO="$W/meminfo" CG_SAFE_MIN_THREAD_HEADROOM=0 "$@" bash "$RICH_DIR/tool/codegraph_safe.sh" --project "$P" --poll-s 1 --watch-interval 1 --tripwire-interval 1 --wait init 2>&1)"; RC=$?
+    }
+    lw; ctl=$RC; ctlout="$OUT"                                       # control: no live writer, rich host -> NOT refused by the guard and NOT by preflight
+    rm -f "$P/.codegraph/codegraph.lock"; : > "$STUB_CALL_LOG"
+    mkdir -p "$P/.codegraph"; spawn_cg_identity; echo "$LIVE" > "$P/.codegraph/codegraph.lock"
+    lw; a=$RC; lw CG_SAFE_LIMITS_FILE="$(lim lim16.yaml $'min_mem_avail_gib: 16\n')"; b=$RC
+    [ "$ctl" -ne 3 ] && [ "$ctl" -ne 6 ] && [ "$a" -eq 3 ] && [ "$b" -eq 3 ] && no_bulk_calls && [ "$(t_pid_state "$LIVE")" != "-" ]
+    t_check U60 "REAL live writer (lock holder with codegraph identity): init refused with exit 3 both with the default floor and with the lowered floor; control without a writer is neither 3 nor 6" $? "ctl=$ctl a=$a b=$b ctlout=$(printf '%s' "$ctlout" | tail -2 | tr '\n' ' ')"
+    t_kill_codegraph_pid "$LIVE"
+fi
+if t_want U61; then setup u61; rich_setup
+    # the read-only preflight op never reaches writer code on ANY refused/odd value (no flock file, no index_runs, no 'host preflight FAILED' die line)
+    bad=0; why=""
+    for v in 08 09 0 abc "" 17592186044421; do
+        f="$(lim p.yaml "min_mem_avail_gib: $v"$'\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"
+        { no_writer_side_effects && no_shell_noise && ! has_txt 'host preflight FAILED'; } || { bad=1; why="$why [$v]"; }
+    done
+    t_check U61 "preflight op on bad file values creates no flock/index_runs, prints no bulk-path die line (S2)" $bad "$why"
+fi
+
+if t_want U62; then setup u62; rich_setup
+    bad=0; why=""
+    f="$(lim p1.yaml $'min_mem_avail_gib: 20\nmin_mem_avail_gib_x: 5\n')"; rich_pf $((19 * GK)) CG_SAFE_LIMITS_FILE="$f"     # a PREFIX key is not a duplicate of the real key
+    { has_line "min_mem_avail_kb=$((20 * GK))" && [ "$RC" -eq 6 ] && ! has_txt 'duplicate'; } || { bad=1; why="$why [prefix-key rc=$RC]"; }
+    f="$(lim p2.yaml $'min_mem_avail_gib_x: 5\nmin_mem_avail_gib: 20\n')"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f"
+    { [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((20 * GK))"; } || { bad=1; why="$why [prefix-key-first rc=$RC]"; }
+    f="$(lim z.yaml $'min_mem_avail_gib: 00020\n')"; rich_pf $((20 * GK)) CG_SAFE_LIMITS_FILE="$f"                    # zero-padded beyond 4 chars: 5 chars but decimal 20
+    { [ "$RC" -eq 0 ] && has_line "min_mem_avail_kb=$((20 * GK))"; } || { bad=1; why="$why [00020 rc=$RC]"; }
+    f="$(lim z2.yaml $'min_mem_avail_gib: 0000000\n')"; rich_pf $((64 * GK)) CG_SAFE_LIMITS_FILE="$f"                 # all zeros = 0 < bound: refused cleanly
+    { refused && has_txt 'lower bound'; } || { bad=1; why="$why [zeros rc=$RC]"; }
+    t_check U62 "prefix keys (min_mem_avail_gib_x) are not duplicates of the real key; zero-padded values longer than 4 chars are decimal (00020 = 20)" $bad "$why"
+fi
+
+if t_want U63; then setup u63; rich_setup
+    # S-1 class sibling: db_bytes (the free-disk requirement) must measure the TARGET of a symlinked codegraph.db, not the link
+    mkdir -p "$P/.codegraph"; head -c 3145728 /dev/zero > "$W/real.db"; ln -s "$W/real.db" "$P/.codegraph/codegraph.db"
+    rich_pf $((64 * GK))
+    [ "$(pf_val db_bytes)" = 3145728 ]
+    t_check U63 "symlinked .codegraph/codegraph.db: db_bytes is the TARGET size (3145728), not the link size" $? "db_bytes=$(pf_val db_bytes)"
 fi
 
 t_finish

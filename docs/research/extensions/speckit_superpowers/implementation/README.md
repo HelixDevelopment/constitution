@@ -1,26 +1,35 @@
 # Helix Constitution–Powered SpecKit–Superpowers Bridge: Implementation Documentation
 
-**Revision:** 1
-**Last modified:** 2026-07-24T12:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T00:00:00Z
 **Description:** Master index and architecture overview for the Helix Constitution–powered SpecKit–Superpowers Bridge implementation.
 **Maintainer:** HelixDevelopment
 **Scope:** `constitution/docs/research/extensions/speckit_superpowers/implementation/`
+
+> **AMENDED 2026-09-22 (HXC-159 Phase B3).** This document's architecture was
+> originally drawn as 7 layers. Layer 5 ("SuperBridge MCP") does not exist as
+> software and never did. The design is corrected to its true **6-layer**
+> shape below. See [Architecture Amendment](#architecture-amendment-2026-09-22)
+> for the finding, the substitution, and why this is a correction rather than
+> a removal.
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [System Architecture](#system-architecture)
+2. [Architecture Amendment (2026-09-22)](#architecture-amendment-2026-09-22)
+   - [Bridge layer-health (B1 probe result)](#bridge-layer-health-b1-probe-result)
+3. [System Architecture](#system-architecture)
    - [Architecture Diagram](#architecture-diagram)
    - [Layer 1 — Developer Workstation](#layer-1--developer-workstation)
    - [Layer 2 — Spec-Kit Core (Governance Layer)](#layer-2--spec-kit-core-governance-layer)
    - [Layer 3 — SuperSpec Bridge (Orchestration Layer)](#layer-3--superspec-bridge-orchestration-layer)
    - [Layer 4 — SuperB Extension (Discipline Enforcement)](#layer-4--superb-extension-discipline-enforcement)
-   - [Layer 5 — SuperBridge MCP (Execution Layer)](#layer-5--superbridge-mcp-execution-layer)
-   - [Layer 6 — Helix LLM (Inference Layer)](#layer-6--helix-llm-inference-layer)
-   - [Layer 7 — Distributed Host Cluster](#layer-7--distributed-host-cluster)
-3. [Data Flow](#data-flow)
+   - [Layer 5 (retired design) — SuperBridge MCP: never built, superseded](#layer-5-retired-design--superbridge-mcp-never-built-superseded)
+   - [Layer 5 — Helix LLM (Inference Layer)](#layer-5--helix-llm-inference-layer)
+   - [Layer 6 — Distributed Host Cluster](#layer-6--distributed-host-cluster)
+4. [Data Flow](#data-flow)
    - [Feature Lifecycle Through the Layers](#feature-lifecycle-through-the-layers)
    - [Nano-Task Decomposition Flow](#nano-task-decomposition-flow)
 4. [Document Index](#document-index)
@@ -51,11 +60,137 @@ This bridge closes all four gaps by composing Spec-Kit's `specify → plan → t
 
 ### What This Documentation Covers
 
-1. The **7-layer system architecture** with each layer's responsibilities, technologies, and contractual interfaces.
+1. The **6-layer system architecture** (corrected 2026-09-22 — the original design's Layer 5 "SuperBridge MCP" was found not to exist as software; see the [Architecture Amendment](#architecture-amendment-2026-09-22)) with each layer's responsibilities, technologies, and contractual interfaces.
 2. The **data flow** — how a natural-language feature description moves through the layers and emerges as tested, verified, checked-in code.
 3. The **nano-task decomposition engine** — how Helix LLM breaks tasks into sub-100-line units suitable for subagent-driven execution per §11.4.70.
 4. The **constitutional enforcement points** — where the Helix Constitution §11.4 anti-bluff covenant, TDD-fix-discipline, mechanical enforcement, and reporting-directive system plug into the bridge.
 5. The **onboarding path** — how any consuming project (e.g., ATMOSphere) integrates the Constitution submodule, wires its CLI-agent context carriers, installs the bridge extensions, and goes from zero to full autonomous-loop development.
+
+---
+
+## Architecture Amendment (2026-09-22)
+
+**HXC-159 Phase B3 finding.** The original design below (§2026-07-24) drew the Bridge
+as a **7-layer** stack whose middle execution tier, "Layer 5 — SuperBridge MCP", was an
+MCP (Model Context Protocol) server exposing the Superpowers skill suite as callable
+tools. Phase B1's layer-presence probe
+(`constitution/scripts/extensions/probe_bridge_layers.sh`) and Phase B3's independent
+re-derivation both confirm: **"SuperBridge MCP" does not exist as installable software,
+and never did.**
+
+**Two independent derivations (re-verified 2026-09-22, evidence at
+`qa-results/hxc159/l5_finding/20260922T210000Z/`):**
+
+1. **GitHub** — a repository search returns `total_count: 0`. A broader, authenticated
+   code search (reaching further than the original unauthenticated check) returns 17
+   hits, and every single one is inside this project's OWN GitHub mirror
+   (`HelixDevelopment/code`) — our own investigation documents about the non-existence
+   finding, not the software itself. Zero hits from any third-party repository.
+2. **npm** — a fuzzy registry search over 95,472 ranked results contains no package
+   named `superbridge-mcp` or `SuperBridge MCP` (the nearest lexical neighbour,
+   `@chenmk/superflow`, is a *different* tool). A direct exact-name lookup
+   (`GET /superbridge-mcp`) returns **HTTP 404 — package not found**, the strongest
+   single derivation in the set.
+
+**A third finding, from the design itself:** SuperB (Layer 4, the layer immediately
+adjacent to the claimed L5 execution tier) states in its own published README that it
+*"owns no plan, task store, execution lifecycle, completion state, or convergence
+command."* No adjacent, real layer in the original design ever claimed the execution
+role either — L5 was a pure design gap from inception, not a missing installation.
+
+**The substitution (proven by a real worked run, not asserted).** The execution tier
+that actually fills this role — and has been WIRED and available in this repository
+throughout — is **Spec Kit + Superpowers + Claude Code's own skill/subagent
+machinery**. Every responsibility the original design assigned to the phantom MCP
+server has a real owner among the other six layers:
+
+| Original claimed L5 responsibility | Actual owner |
+|---|---|
+| Skill contract exposure (the `superbridge_*` tool list) | Claude Code's own native skill system (`superpowers:*` skills, loaded directly — no MCP indirection needed) |
+| Task decomposition / dispatch loop | `speckit-tasks` (Layer 2), via SuperSpec's (Layer 3) template/preset resolution |
+| Subagent execution of an individual task | Claude Code's native `Agent` tool — a genuine dispatched, isolated-context subagent (§11.4.20/§11.4.70) |
+| Tool-contract verdict emission (PASS/FAIL + evidence path) | The dispatched subagent's own structured report + independent re-verification by the orchestrating session (§11.4.5/§11.4.69) |
+
+This mapping was **proven by running the flow end to end** —
+`/speckit-specify → /speckit-plan → /speckit-tasks → /speckit-implement`, driving a
+real dispatched subagent that wrote a real file with zero MCP calls, in an isolated
+git worktree — captured as a full bidirectional transcript at
+`docs/qa/hxc159_b3_speckit_demo_20260922T211500Z/` per §11.4.83. During that same run,
+`speckit-tasks`'s prerequisite check independently resolved its template file THROUGH
+`.specify/extensions/superspec/` — incidental, real confirmation that Layer 3
+(SuperSpec) is genuinely wired, exactly as this substitution mapping assumes.
+
+**What changed in this document.** The architecture is redrawn below as **6 layers**:
+Layer 1 (Developer Workstation), Layer 2 (Spec-Kit Core), Layer 3 (SuperSpec Bridge),
+Layer 4 (SuperB Extension), Layer 5 (Helix LLM — renumbered from the original Layer 6),
+Layer 6 (Distributed Host Cluster — renumbered from the original Layer 7). The original
+Layer 5 "SuperBridge MCP" design content is **retained below, not deleted** (per
+§11.4.35 no-silent-promotion-or-demotion and §11.4.124 investigate-before-remove
+applied to design content) but is now clearly marked
+**RETIRED DESIGN — never built, superseded by the substitution above** rather than
+presented as part of the live, shipped architecture. Every diagram, data-flow trace,
+directory-structure listing, and cross-reference in this document that assumed the
+7-layer numbering has been corrected to the 6-layer numbering in the same pass. No
+artefact in this corpus references a live "SuperBridge MCP" endpoint after this
+amendment (§11.4.168 exported-document validation confirms the same for the HTML/PDF/
+DOCX exports — see the export-validation record at
+`qa-results/hxc159/bridge_redraw/`).
+
+## Bridge layer-health (B1 probe result)
+
+The corrected 6-layer architecture above is a **design** statement. The
+diagram below is a **measured** one — the real per-layer health verdict from
+Phase B1's layer-presence probe (HXC-159 T-B1.01,
+`constitution/scripts/extensions/probe_bridge_layers.sh`,
+`qa-results/hxc159/bridge_layers/20260922T185455Z/report.json`), colour-coded
+by the closed four-value vocabulary `WIRED / PARTIAL / DESIGNED-ONLY /
+NONEXISTENT` (never a binary present/absent — the remedies differ per class
+and a binary flattens that distinction away):
+
+```mermaid
+flowchart TB
+    subgraph Legend["Legend: measured layer-health verdict (Phase B1 probe)"]
+        direction LR
+        LW["WIRED"]
+        LP["PARTIAL"]
+        LD["DESIGNED-ONLY"]
+        LN["NONEXISTENT"]
+    end
+
+    L1["Layer 1: Developer Workstation"]
+    L2["Layer 2: Spec-Kit Core (Governance)"]
+    L3["Layer 3: SuperSpec Bridge (Orchestration)"]
+    L4["Layer 4: SuperB Extension (Discipline Enforcement)"]
+    L5["Layer 5: Helix LLM (Inference)"]
+    L6["Layer 6: Distributed Host Cluster"]
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6
+
+    classDef wired fill:#90EE90,stroke:#2e7d32,color:#000;
+    classDef partial fill:#FFE082,stroke:#f57f17,color:#000;
+    classDef designedOnly fill:#FFCC80,stroke:#e65100,color:#000;
+    classDef nonexistent fill:#EF9A9A,stroke:#b71c1c,color:#000;
+
+    class LW wired
+    class LP partial
+    class LD designedOnly
+    class LN nonexistent
+    class L1 wired
+    class L2 wired
+    class L3 wired
+    class L4 designedOnly
+    class L5 wired
+    class L6 partial
+```
+
+Reading the diagram against the original (pre-renumbering) B1 probe output:
+Layer 1 = original L1 (**WIRED**), Layer 2 = original L2 (**WIRED**), Layer 3
+= original L3 (**WIRED** — an honest delta from an earlier, more pessimistic
+dated snapshot; see the T-B1.03 evidence for the re-verification), Layer 4 =
+original L4 (**DESIGNED-ONLY**), Layer 5 = original L6 renumbered
+(**WIRED**), Layer 6 = original L7 renumbered (**PARTIAL**). The deleted
+original Layer 5 ("SuperBridge MCP", **NONEXISTENT**) has no surviving row in
+this diagram — it is retired design content (see the Architecture Amendment
+above), not a live layer with a health verdict.
 
 ---
 
@@ -65,7 +200,7 @@ This bridge closes all four gaps by composing Spec-Kit's `specify → plan → t
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Layer 7: Distributed Host Cluster                                           │
+│  Layer 6: Distributed Host Cluster                                           │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │ llama.cpp    │  │ llama.cpp    │  │ llama.cpp    │  │ llama.cpp    │     │
 │  │ RPC Node 1   │  │ RPC Node 2   │  │ RPC Node 3   │  │ RPC Node N   │     │
@@ -75,7 +210,7 @@ This bridge closes all four gaps by composing Spec-Kit's `specify → plan → t
 ├─────────┼─────────────────┼─────────────────┼─────────────────┼──────────────┤
 │         └─────────────────┴────────┬────────┴─────────────────┘              │
 │                                    │                                         │
-│  Layer 6: Helix LLM (Inference Layer)                                        │
+│  Layer 5: Helix LLM (Inference Layer)                                        │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                │   │
 │  │  │ Gateway      │  │ Brain        │  │ Knowledge    │                │   │
@@ -87,19 +222,9 @@ This bridge closes all four gaps by composing Spec-Kit's `specify → plan → t
 │  │  ┌──────────────────────────────────────────────────────────────┐    │   │
 │  │  │ Agents (subagent dispatch, lifecycle, registry, respawn)     │    │   │
 │  │  └──────────────────────────────────────────────────────────────┘    │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                         │
-├────────────────────────────────────┼─────────────────────────────────────────┤
-│                                    │                                         │
-│  Layer 5: SuperBridge MCP (Execution Layer)                                  │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  MCP Server exposing Superpowers skill suite:                        │   │
-│  │  brainstorm │ debug │ review │ test-gen │ red-green-refactor │        │   │
-│  │  analyze-arch │ refactor │ document │ search │ more...               │   │
-│  │                                                                       │   │
-│  │  Tool contracts:    each tool emits structured (PASS/FAIL + evidence  │   │
-│  │                     path) per §11.4.69; self-validated with golden-   │   │
-│  │                     good/golden-bad fixtures per §11.4.107(10)        │   │
+│  │  Execution NOTE (2026-09-22): individual nano-task execution is       │   │
+│  │  carried out by Claude Code's own skill/subagent machinery, not an   │   │
+│  │  MCP server — see the Architecture Amendment above.                  │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                    │                                         │
 ├────────────────────────────────────┼─────────────────────────────────────────┤
@@ -176,7 +301,7 @@ The physical development machine running the CLI agent, git repositories, contai
 | **GPU** | NVIDIA RTX A6000 32 GB VRAM | Local inference for Helix LLM Gateway; offloads smaller models |
 | **Storage** | NVMe RAID, ≥4 TB | btrfs CoW for feature work-streams per §11.4.167 |
 | **Container Runtime** | Podman rootless (§11.4.161) | AOSP 42 GB containerised builds per §12.9 |
-| **MCP Servers** | CodeGraph, SuperBridge, filesystem | Tool-accessible subprocesses providing structured agent capabilities |
+| **MCP Servers** | CodeGraph, filesystem (no "SuperBridge" — see [Architecture Amendment](#architecture-amendment-2026-09-22)) | Tool-accessible subprocesses providing structured agent capabilities |
 | **CLI Agent** | Claude Code / Cursor / Gemini CLI / Qwen Code | The human-facing agent conducting the autonomous loop (§11.4.126) |
 | **Git Layout** | Multi-track with own `.git` per track (§11.4.179) | Isolated concurrent development streams |
 
@@ -231,9 +356,23 @@ The [SuperB](https://speckit-community.github.io/extensions/superb) extension en
 
 **Discipline enforcement is mechanical, not advisory** — per §11.4.205, every gate is a `commit_all.sh`-wrapper refusal, not a prose suggestion. The gate's paired §1.1 mutation MUST FAIL the gate; a gate whose mutation passes is a bluff gate and a release blocker.
 
-### Layer 5 — SuperBridge MCP (Execution Layer)
+### Layer 5 (retired design) — SuperBridge MCP: never built, superseded
 
-An MCP (Model Context Protocol) server that exposes the Superpowers skill suite as tool-callable endpoints consumable by any MCP-compatible CLI agent.
+> **RETIRED DESIGN — 2026-09-22.** Everything in this subsection describes a
+> design that was **never built and does not exist as software** (see the
+> [Architecture Amendment](#architecture-amendment-2026-09-22) above for the
+> two independent derivations proving this: GitHub `total_count: 0` for any
+> real repository, and npm `HTTP 404` for an exact-name package lookup). It is
+> retained here — not deleted — as a historical record of the original design
+> intent, per §11.4.35 (no silent promotion/demotion) and §11.4.124
+> (investigate, never silently remove). **It is NOT part of the live,
+> corrected 6-layer architecture.** The execution role this section describes
+> is actually filled by Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery — see [Layer 5 — Helix LLM](#layer-5--helix-llm-inference-layer)
+> below for the corrected, live Layer 5, and the Architecture Amendment for
+> the full substitution mapping, proven by a real worked run.
+
+An MCP (Model Context Protocol) server that would have exposed the Superpowers skill suite as tool-callable endpoints consumable by any MCP-compatible CLI agent — as originally designed, never implemented.
 
 | Tool | Superpowers Skill | Contract |
 |------|------------------|----------|
@@ -247,13 +386,15 @@ An MCP (Model Context Protocol) server that exposes the Superpowers skill suite 
 | `superbridge_document` | `superpowers:writing-documentation` | Input: code + context. Output: §11.4.44 revision-headed, §11.4.65 four-format-exported doc. |
 | `superbridge_search` | Web research per §11.4.8 / §11.4.99 / §11.4.150 | Input: research question + angle set. Output: cited findings with URLs + access dates. |
 
-**MCP server requirements:**
+**MCP server requirements (as originally designed — never built):**
 - Runs rootless per §11.4.161 (no rootful Docker; podman-compose or systemd user unit)
 - Emits structured `conduit.events.jsonl` per §11.4.116 (append-only event stream)
 - All verdicts carry `evidence_path` per §11.4.69
 - Self-validated with golden-good + golden-bad + negative-control fixtures per §11.4.107(10)
 
-### Layer 6 — Helix LLM (Inference Layer)
+*(End of retired-design subsection. The live, corrected Layer 5 follows.)*
+
+### Layer 5 — Helix LLM (Inference Layer)
 
 The [Helix LLM](https://github.com/HelixDevelopment/helix_llm) distributed inference system provides **local-first, zero-cost-per-token** inference powering the entire bridge pipeline.
 
@@ -282,7 +423,7 @@ Request arrives at Gateway
 - **Opus** (`claude-opus-4-20250514`) — fallback for Fable-only tasks, systematic debugging
 - **Helix-local** (custom fine-tune on RK3588/ATMOSphere corpus) — nano-task implementation, test generation, documentation
 
-### Layer 7 — Distributed Host Cluster
+### Layer 6 — Distributed Host Cluster
 
 A pool of machines running `llama.cpp` in RPC-server mode, providing horizontally-scalable inference capacity.
 
@@ -324,7 +465,7 @@ Operator prompt: "Add multi-channel audio passthrough for Dolby TrueHD"
        │
        ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ L7: Helix LLM Brain classifies intent → "Feature", enriches with│
+│ L5: Helix LLM Brain classifies intent → "Feature", enriches with│
 │     RAG context (existing audio HAL docs, ALSA config, ES8388   │
 │     codec spec, HDMI EDID passthrough constraints)              │
 └──────────────────────────┬───────────────────────────────────────┘
@@ -368,11 +509,14 @@ Operator prompt: "Add multi-channel audio passthrough for Dolby TrueHD"
                            │ tasks.md
                            ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ L3+L4+L5: SuperSpec + SuperB + SuperBridge execute loop:        │
+│ L3+L4: SuperSpec + SuperB + [Claude Code skill/subagent          │
+│         machinery — see Architecture Amendment] execute loop:   │
 │                                                                  │
 │   superb check → superspec status → superspec tasks (nano) →   │
 │   → superb implementation-gate (verify RED tests) →             │
-│   → superspec execute (dispatch nano-subagents per task) →      │
+│   → superspec execute (dispatch nano-subagents per task,        │
+│       via Claude Code's native Agent tool — NOT an MCP server,  │
+│       proven by the T-B3.02 worked run) →                       │
 │   → superb critique (review each subagent output) →             │
 │   → superb debug (fix any findings) →                           │
 │   → superb check (re-verify) → loop until GO                    │
@@ -460,6 +604,25 @@ Step 5 — Merge gate (§11.4.41):
 | **Risk & Mitigation** | `06_risk/` | Risk register, failure-mode analysis, circuit-breaker design, fallback chains, rollback procedures |
 | **Proof-of-Concept** | `poc/` | Working POC walkthrough, sample feature lifecycle trace, benchmark results, known limitations |
 
+The table above describes a planned directory layout; the documents that
+actually ship alongside this README are the flat files in this same
+directory, linked below (§11.4.212 README-reachability):
+
+- [`APPENDIX.md`](APPENDIX.md) — supporting reference material for this corpus.
+- [`CONSTITUTION_INTEGRATION.md`](CONSTITUTION_INTEGRATION.md) — how this
+  Bridge integrates with the Constitution submodule's governance mechanisms.
+- [`EXTENSION_DEVELOPMENT.md`](EXTENSION_DEVELOPMENT.md) — Part A (SpecKit
+  extension), Part B (Superpowers skills), Part C (MCP server), Part D
+  (SuperB integration) implementation reference.
+- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — phased implementation
+  plan for the Bridge.
+- [`NANO_TASK_ENGINE.md`](NANO_TASK_ENGINE.md) — the nano-task dependency-DAG
+  execution engine design.
+- [`SECURITY.md`](SECURITY.md) — the Bridge's security model and threat
+  analysis.
+- [`TDD_INTEGRATION.md`](TDD_INTEGRATION.md) — how the Bridge enforces the
+  RED→GREEN TDD-fix discipline (§11.4.43/§11.4.115) end to end.
+
 ---
 
 ## Quick Start
@@ -510,14 +673,18 @@ Do the same for `QWEN.md`, `GEMINI.md`, and any other LLM-specific context carri
 # From the consuming project root:
 bash constitution/scripts/extensions/install_speckit_superpowers_bridge.sh
 
-# This script:
-#  1. Clones or updates spec-kit, superpowers, superspec, superb as
-#     submodules under constitution/submodules/
-#  2. Builds the SuperBridge MCP server (npm install + build)
-#  3. Registers the MCP server in the CLI agent's MCP config
+# This script (corrected 2026-09-22 to match what it ACTUALLY does —
+# see the Architecture Amendment above; it deliberately has NO L5 step,
+# a step that could never succeed is a defect, not a TODO):
+#  1. Detects and validates the pin for SuperSpec (L3) — idempotent,
+#     already WIRED on a properly-onboarded host
+#  2. Refuses SuperB (L4) by default (HIGH-risk supply-chain dependency;
+#     requires an explicit --superb-from + --superb-vetted-by record)
+#  3. Reconciles with the plugin-sourced Superpowers copy — never
+#     double-installs
 #  4. Installs the Spec-Kit extensions into .claude/skills/
-#  5. Runs self-check: all extensions parse, MCP server health-check
-#     responds, Spec-Kit skills load
+#  5. Runs self-check: `specify extension list` is non-empty after every
+#     run (RS-19)
 ```
 
 ### Step 4 — Run the Self-Validation Suite
@@ -525,17 +692,22 @@ bash constitution/scripts/extensions/install_speckit_superpowers_bridge.sh
 ```bash
 bash constitution/scripts/extensions/validate_bridge.sh
 
-# Expected output:
-#   [PASS] SuperBridge MCP server health-check
+# Corrected 2026-09-22 to match the real, measured output on this host —
+# see the Architecture Amendment above. The validator reports honestly
+# against the LIVE layer-presence report and NEVER claims 8/8 while a
+# layer is absent — this is what it actually printed:
+#   [N/A]  Check 1 — SuperBridge MCP health-check (L5 is a proven
+#          structural impossibility per §11.4.112 — never reported FAIL)
 #   [PASS] speckit-specify extension loads
 #   [PASS] speckit-plan extension loads
 #   [PASS] speckit-tasks extension loads
-#   [PASS] superspec status returns valid JSON
-#   [PASS] superb check passes on constitution files
-#   [PASS] Helix LLM Gateway reachable
-#   [PASS] llama.cpp RPC backend health-check
+#   [PASS] Check 5 — superspec status returns valid JSON (L3 WIRED)
+#   [FAIL] Check 6 — superb check (L4 not installed pending vetting)
+#   [PASS] Check 7 — Helix LLM Gateway reachable (Layer 5 WIRED)
+#   [FAIL] Check 8 — llama.cpp RPC backend health-check (Layer 6
+#          rpc-server not yet built, tracked separately)
 #   ─────────────────────────────────────────
-#   ALL 8/8 CHECKS PASSED — bridge ready
+#   5/7 evaluable checks PASS — bridge NOT fully ready, reported HONESTLY
 ```
 
 ### Step 5 — Create Your First SpecKit Feature
@@ -576,14 +748,20 @@ grep "<feature-slug>" docs/Fixed.md
 
 ## Key Design Decisions
 
-### 1. Seven-Layer Separation (Why Not Monolithic?)
+### 1. Six-Layer Separation (Why Not Monolithic?)
+
+> **Corrected 2026-09-22** — this was originally titled "Seven-Layer Separation"
+> and included a row justifying a Layer 5 "Execution" tier that turned out never
+> to have been built (see the [Architecture Amendment](#architecture-amendment-2026-09-22)).
+> The rationale below is corrected to the real 6-layer shape; the retired row is
+> struck and replaced.
 
 | Decision | Rationale |
 |----------|----------|
 | **Governance (L2) separate from Orchestration (L3)** | Spec-Kit artifacts are static documents; SuperSpec interprets them. Separating lets Spec-Kit evolve independently and lets SuperSpec adapt to different CLI-agent tool shapes without touching governance files. |
-| **Orchestration (L3) separate from Execution (L5)** | SuperSpec manages workflows; SuperBridge MCP manages tool contracts. A new skill added to Superpowers updates only the MCP server, not the orchestration logic. |
+| **Orchestration (L3) separate from execution (Claude Code's own skill/subagent machinery)** | SuperSpec manages workflows; individual nano-task execution is carried out by dispatched Claude Code subagents (§11.4.20/§11.4.70), not by a separate MCP server layer. A new Superpowers skill is available to every subagent directly — no intermediary tool-contract server to update. |
 | **Discipline (L4) is its own layer, not a sub-component of Orchestration** | SuperB's enforcement is adversarial — it MUST refuse work that passes orchestration but fails constitutional invariants. Embedding it in SuperSpec would create the self-review blind spot (§11.4.70). |
-| **Inference (L6) separate from Execution (L5)** | The MCP server calls the Gateway via HTTP; the Gateway abstracts local/remote/cloud routing. Swapping the inference backend (llama.cpp → vLLM → cloud API) changes only Layer 6, nothing above it. |
+| **Inference (L5) separate from the execution mechanism above it** | Dispatched subagents call the Gateway via HTTP; the Gateway abstracts local/remote/cloud routing. Swapping the inference backend (llama.cpp → vLLM → cloud API) changes only Layer 5, nothing above it. |
 
 ### 2. Nano-Tasks as the Atomic Work Unit (Why ≤100 Lines?)
 
@@ -634,7 +812,7 @@ A new constitutional mandate added to the submodule takes effect in every consum
 | **§11.4.65** (universal Markdown export) | Every `.md` produced by Spec-Kit (`spec.md`, `plan.md`, `tasks.md`) gets synchronized `.html` + `.pdf` + `.docx` siblings via `sync_all_markdown_exports.sh`, auto-invoked by the `post-commit` hook (§11.4.75 Layer 4). |
 | **§11.4.74** (catalogue-first) | All extensions, skills, MCP servers, and plugins are registered in `constitution/actions/registry.yaml` via the §11.4.164 `post_update_hook.sh`. No extension is wired ad-hoc. |
 | **§11.4.75** (mechanical enforcement) | Four-layer enforcement: `pre-commit` hook (refuses orphan `.md`), `commit_all.sh` integration (auto-runs exports), `pre-push` hook (re-checks propagation gates), `post-commit` hook (auto-repairs drift). |
-| **§11.4.76** (containers submodule) | All containerized services (Helix LLM Gateway, SuperBridge MCP, ChromaDB, llama.cpp RPC nodes) are defined in `constitution/submodules/containers/compose/` and booted via `pkg/boot`. No ad-hoc `podman run`. |
+| **§11.4.76** (containers submodule) | All containerized services (Helix LLM Gateway, ChromaDB, llama.cpp RPC nodes — no "SuperBridge MCP", see [Architecture Amendment](#architecture-amendment-2026-09-22)) are defined in `constitution/submodules/containers/compose/` and booted via `pkg/boot`. No ad-hoc `podman run`. |
 | **§11.4.202** (reporting directives) | Every intake path (operator prompt, test failure, review finding, HelixQA Challenge verdict) feeds through `report_item.sh`, creating a tracked workable item in the SQLite SSoT (§11.4.93) and pushing to the external tracker (§11.4.148 D5). |
 | **§11.4.43** (TDD-fix-discipline) | The five-step TDD workflow (RED → LIVE-ADB-PROBE → GREEN → VERIFY → DOCUMENT) is mechanically enforced by the SuperB `implementation-gate` + `critique` + `debug` + `finish` gates. No implementation subagent dispatches without a registered RED test. |
 | **§11.4.70** (subagent-driven default) | Every nano-task dispatches as an isolated subagent. The conductor's role is task decomposition + review; the subagent's role is isolated implementation. |
@@ -663,18 +841,17 @@ constitution/docs/research/extensions/speckit_superpowers/implementation/
 │   ├── layer_2_speckit.md             Spec-Kit governance layer details
 │   ├── layer_3_superspec.md           SuperSpec orchestration engine
 │   ├── layer_4_superb.md              SuperB discipline enforcement
-│   ├── layer_5_mcp.md                 SuperBridge MCP server contract
-│   ├── layer_6_helix_llm.md           Helix LLM inference pipeline
-│   ├── layer_7_cluster.md             Distributed inference cluster
+│   ├── layer_5_retired_mcp.md         RETIRED — SuperBridge MCP design (never built; see Architecture Amendment)
+│   ├── layer_5_helix_llm.md           Helix LLM inference pipeline (live Layer 5)
+│   ├── layer_6_cluster.md             Distributed inference cluster (live Layer 6)
 │   └── contracts/                     Interface contracts between layers
 │       ├── spec_to_superspec.md       Spec-Kit → SuperSpec bridge contract
-│       ├── superspec_to_mcp.md        SuperSpec → SuperBridge MCP contract
-│       ├── mcp_to_helix.md            MCP → Helix LLM contract
+│       ├── superspec_to_subagent.md   SuperSpec → Claude Code subagent dispatch contract (was superspec_to_mcp.md)
+│       ├── subagent_to_helix.md       Subagent → Helix LLM contract (was mcp_to_helix.md)
 │       └── helix_to_cluster.md        Helix LLM → llama.cpp RPC contract
 │
 ├── 02_extensions/
 │   ├── README.md                      Extensions overview + installation guide
-│   ├── superbridge_mcp/               SuperBridge MCP server source + config
 │   ├── speckit_bridge_skills/         Extended Spec-Kit skills for bridge integration
 │   ├── skill_manifests/               Per-skill manifest files
 │   └── constitution_registry.yaml     Action registry entries for bridge commands

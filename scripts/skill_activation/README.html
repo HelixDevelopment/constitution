@@ -658,11 +658,11 @@ with <code>HELIX_SKILL_SESSION</code> to separate them.</li>
 absent (macOS) liveness is reported as <em>cannot determine</em>, never
 guessed.</li>
 <li>A skill directory must contain <code>SKILL.md</code> (uppercase).
-Four constitution skills currently use lowercase <code>skill.md</code>
-or have none, so the platform cannot discover them:
+All constitution skills now carry exact-case <code>SKILL.md</code>
+(normalised 2026-09-13, HXC-159 T-P1.01/T-P1.02 —
 <code>media-validator</code>, <code>scheduled-work-queue</code>,
-<code>session-sync</code>, <code>multitrack</code>. Reported, not
-silently renamed (§11.4.124).</li>
+<code>session-sync</code> renamed; <code>multitrack</code> manifest
+authored).</li>
 <li>Demotion makes a directory relocation-safe for
 <strong>symlinks</strong> by re-pointing relative links at their current
 absolute target (same file, new link text). A directory whose content

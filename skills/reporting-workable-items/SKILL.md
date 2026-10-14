@@ -2,6 +2,15 @@
 name: Reporting Workable Items
 description: 'Use whenever anything trackable is reported or discovered — a bug, a defect, a regression, a feature request, an internal task, a gap, "this is broken", "we should add X", "remember to do Y" — or when the operator invokes /issue, /bug, /task (or their /helix: and /default- forms, or the ISSUE/BUG/TASK action prefixes). Use it BEFORE answering a report in prose, and use it to check whether a report you are about to acknowledge has actually been turned into a real tracked item.'
 version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
+# consumers ignore unknown YAML keys. Carried forward verbatim from the
+# pre-superset builtin_skills copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^report (?:a |an )?(?P<kind>bug|issue|defect|regression|task|feature)\\b[\\s:,-]+(?P<summary>.+)$"
+  - "(?i)^(?:file|open|raise|log) (?:a |an )?(?P<kind>bug|issue|defect|ticket|task|feature)\\b[\\s:,-]+(?P<summary>.+)$"
+requires_isolation: false
 ---
 
 # Reporting Workable Items (§11.4.202 · §11.4.148 · §11.4.171)

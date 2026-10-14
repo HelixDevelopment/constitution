@@ -6,11 +6,20 @@
 # consumers can mechanically reconstruct the graph without git-walking.
 #
 # The constitution submodule itself acts as a HUB (§11.4.28(C) carve-out):
-# it hosts 7 own-org depth-1 dependencies — 6 reusable engines under
-# `submodules/` plus the OpenDesign design-toolkit at `design-toolkit/`.
-# NO nested own-org submodule chains exist in any of the 7 engines
-# (each engine has `helix-deps.yaml { deps: [] }` per §11.4.28(C) depth-1
-# invariant).
+# it hosts own-org depth-1 dependencies — the reusable engines under
+# `submodules/` (llmctl added 2026-10-13, §11.4.277) plus the OpenDesign
+# design-toolkit.
+# The depth-1 invariant holds for every engine EXCEPT llmctl: llmctl's own
+# .gitmodules declares own-org submodules (its `constitution` = THIS
+# constitution, and `containers`), so the engines are NOT all leaves.
+# OPERATOR DECISION (explicit, 2026-10-13): submodules/llmctl is kept as a
+# depth-1 hub entry that consumers MUST NOT initialise recursively
+# (`git submodule update --init submodules/llmctl`, WITHOUT --recursive);
+# the entry below carries the marker `recursive_init: false`. The mutual
+# reference is finite only because llmctl's `constitution` pin (4091798 at v3.2.2; 3e8e855 at v3.2.1)
+# contains no submodules/llmctl; bumping that pin to a commit that does
+# contain it MUST be refused. CM-LLMCTL-SUBMODULE-NONRECURSIVE
+# (scripts/gates/cm_llmctl_submodule_nonrecursive.sh) enforces both.
 #
 # Discovered gap: constitution/helix-deps.yaml was MISSING until
 # 2026-08-15 (chain-audit finding, subagent a2cf7f91). Created inline
@@ -63,6 +72,13 @@ deps:
     why: "shared performance cache (build/test/measurement result memoization with fingerprint invalidation) — reduces the §11.4.24 build-resource stats window churn + supports §11.4.230 pipeline-overlap parallelization by caching invariant results across stages"
     layout: grouped
 
+  - name: llmctl
+    ssh_url: git@github.com:vasic-digital/llmctl.git
+    ref: v3.2.2              # pinned tag (commit 5c3dea57fb35215cdaa4b7412da438e7a8d96d86); exists on the remote
+    why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. NOTE: llmctl vendors this constitution as its own `constitution` submodule (mutual reference); depth-1 hub entry, non-recursive init per the operator decision recorded in the header and §11.4.277(B)."
+    layout: grouped
+    recursive_init: false    # operator decision: NEVER `--recursive` for this path (mutual reference with this constitution); gate CM-LLMCTL-SUBMODULE-NONRECURSIVE
+
   # ─── OpenDesign design-toolkit (flat layout, top-level) ──────────────
   - name: design-toolkit
     ssh_url: git@github.com:vasic-digital/design-toolkit.git
@@ -71,10 +87,16 @@ deps:
     layout: flat
 
 transitive_handling:
-  # §11.4.28(C) depth-1 carve-out: constitution IS the hub, its engines
-  # never nest own-org deps. `recursive: true` still declared so consumer
-  # tooling walks the manifest chain; each engine's own helix-deps.yaml
-  # declares `deps: []` (leaf), so the walk terminates naturally.
+  # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Most engines
+  # nest no own-org deps and declare `deps: []` (leaf), but llmctl is NOT a
+  # leaf: its own helix-deps.yaml lists `constitution` (THIS constitution)
+  # and `containers`. `recursive: true` stays the default so tooling walks
+  # the manifest chain, with ONE explicit exception: any dep entry carrying
+  # `recursive_init: false` (llmctl) MUST be neither initialised with
+  # `git submodule update --recursive` nor walked into by manifest-walking
+  # tooling; tooling that ignores the marker would loop through the mutual
+  # reference. CM-LLMCTL-SUBMODULE-NONRECURSIVE checks the marker and that
+  # the loop is finite.
   recursive: true
 
   # §11.4.6 no-guessing: conflicts (two dep entries diverging on ref)

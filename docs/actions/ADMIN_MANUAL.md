@@ -27,7 +27,7 @@ Idempotent. Re-running is always safe. Real output:
 [install-plugins] wired 10 qwen command(s) → .qwen/commands/
 [install-plugins] wired 10 codex command(s) → prompts/
 [install-plugins] wired the UserPromptSubmit prefix hook (free-form 'NAME :: task' forms)
-[install-plugins] linked 3 skill(s) into .claude/skills/ (4 legacy dir(s) without SKILL.md skipped)
+[install-plugins] linked 8 skill(s) into .claude/skills/ (0 legacy dir(s) without SKILL.md skipped — normalised 2026-09-13, HXC-159 T-P1.01/T-P1.02)
 [install-plugins] plugin 'helix@helix-constitution' is INSTALLED (verified via `claude plugin list`)
 [install-plugins] done — action directives + skills are wired for this project
 ```
@@ -252,11 +252,11 @@ and the README warn about it.
 
 ### A skill does not load
 
-- It must have a **`SKILL.md`** (uppercase). Directories with only a lowercase
-  `skill.md` or only a `register.sh` are **legacy** and are deliberately skipped —
-  the installer reports the skipped count. Four such legacy directories exist
-  (`media-validator`, `scheduled-work-queue`, `session-sync`, `multitrack`); they
-  are not part of this system.
+- It must have a **`SKILL.md`** (uppercase). Directories without one are
+  **legacy** and are deliberately skipped — the installer reports the skipped
+  count. All eight constitution skill directories carry exact-case `SKILL.md`
+  (normalised 2026-09-13, HXC-159 T-P1.01/T-P1.02); zero legacy directories
+  remain.
 - Check the symlink: `ls -l .claude/skills/`. If a **real directory** (not a
   symlink) is sitting at that path, the installer refuses to touch it and warns —
   remove it and re-run.

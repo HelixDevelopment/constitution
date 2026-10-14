@@ -99,7 +99,7 @@ cert here.
 - MCP registration: `constitution/mcp/scheduled-work-mcp.json`.
 - Claude Code plugin: `constitution/plugins/scheduled-work/` (`.claude-plugin/plugin.json` +
   `.mcp.json` + `build.sh`).
-- Skill: `constitution/skills/scheduled-work-queue/` (`skill.md` + `register.sh`).
+- Skill: `constitution/skills/scheduled-work-queue/` (`SKILL.md` + `register.sh`).
 
 ## 7. Proposed governance-anchor handoff (for the conductor — NOT applied here)
 

@@ -1,7 +1,22 @@
 # Phased Implementation Plan & Roadmap
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-09-22T00:00:00Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This roadmap's
+> "MCP Server Deployment" phases (Week 3, Week 9, Week 12+) describe building a
+> **"SuperBridge MCP" / `superbridge-mcp` server that was never built and does
+> not exist as software** — independently re-derived twice (GitHub
+> `total_count: 0`; npm exact-name lookup `HTTP 404`). This plan therefore
+> describes an ASPIRATIONAL FUTURE roadmap for a nano-task-engine system this
+> project has not built, distinct from — and not to be confused with — the
+> REAL, live Bridge architecture, which has been corrected to 6 layers with no
+> MCP execution tier. See
+> `../README.md#architecture-amendment-2026-09-22` for the finding, the real
+> substitution (Spec Kit + Superpowers + Claude Code's own skill/subagent
+> machinery), and the worked proof. Content below is retained as historical
+> design intent per §11.4.35/§11.4.124, not deleted, but MUST NOT be read as a
+> description of shipped software.
 
 ---
 

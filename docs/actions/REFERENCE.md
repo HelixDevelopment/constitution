@@ -419,11 +419,9 @@ Three canonical Agent Skills (each a directory with a `SKILL.md` + a
 | `reporting-workable-items` | Anything trackable is reported or discovered — a bug, a regression, a feature request, an internal task, "this is broken", "we should add X" — or `/issue` / `/bug` / `/task` is invoked. Use it **before** answering a report in prose. |
 | `workable-item-lifecycle` | Moving a tracked item through its lifecycle — start, ready-for-testing, close, reopen, obsolete, operator-blocked — or asking which Status/Type is legal, how to close a Feature vs a Bug, or why generated docs must never be hand-edited. |
 
-**Honest boundary (§11.4.6).** `constitution/skills/` also contains four **legacy**
-directories — `media-validator`, `scheduled-work-queue`, `session-sync` (lowercase
-`skill.md`) and `multitrack` (only a `register.sh`). They lack a `SKILL.md`, so
-they are **not discoverable as Agent Skills** and the installer deliberately
-**skips** them, reporting the count. They are not part of this system.
+**Honest boundary (§11.4.6).** All eight directories under
+`constitution/skills/` carry exact-case `SKILL.md` (normalised 2026-09-13,
+HXC-159 T-P1.01/T-P1.02) and are discoverable as Agent Skills.
 
 ---
 

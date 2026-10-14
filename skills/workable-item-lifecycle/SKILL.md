@@ -2,6 +2,16 @@
 name: Workable Item Lifecycle
 description: Use when moving a tracked item through its lifecycle — starting work, marking it ready for testing, closing it, reopening it, marking it obsolete or operator-blocked — or when asked which Status/Type value is legal, how to close a Feature vs a Bug, why the Issues/Fixed docs must be regenerated rather than hand-edited, what a reopen must record, or what belongs in a per-item testing diary.
 version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
+# consumers ignore unknown YAML keys. Carried forward verbatim from the
+# pre-superset builtin_skills copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^how do i (?:properly )?(?:close|reopen|start|finish|block|obsolete)\\b.*\\b(?:workable )?item\\b.*$"
+  - "(?i)^(?:what|which) (?:status|type)\\b.*\\b(?:workable )?items?\\b.*$"
+  - "(?i)^(?:close|reopen|mark)\\b.*\\bworkable item\\b.*$"
+requires_isolation: false
 ---
 
 # Workable Item Lifecycle
