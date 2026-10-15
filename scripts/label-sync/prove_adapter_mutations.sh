@@ -83,10 +83,10 @@ mutant "B4 crush hook emits allow"          crush   crush/crush-hook.sh "printf 
 mutant "B5 wrapper swallows exit code"      run     generic/label-agent-run.sh 'exit "$rc"' 'exit 0'
 mutant "B6 wrapper never marks done"        run     generic/label-agent-run.sh 'cleanup() { [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0; }' 'cleanup() { return 0; }'
 mutant "B7 hostile id not sanitized"        lib     lib/adapter_lib.sh '  local s="${1//[^A-Za-z0-9._-]/_}" max="${2:-64}" h' '  local s="${1}" max="${2:-64}" h'
-mutant "N8 wrapper drops stdin"             run     generic/label-agent-run.sh '( trap - INT QUIT; exec "$@" ) <&0 &' '( trap - INT QUIT; exec "$@" ) </dev/null &'
+mutant "N8 wrapper drops stdin"             run     generic/label-agent-run.sh 'exec "$@" ) <&0 &   # MUT:sigreset' 'exec "$@" ) </dev/null &   # MUT:sigreset'
 mutant "N9a backup takes the config mode"   install _edit_config.py '0o600)  # MUT:bakmode' 'os.stat(path).st_mode & 0o7777)  # MUT:bakmode'
 mutant "N9b backup not 0600 from birth"     install _edit_config.py '            fd = os.open(bak, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # MUT:bakmode' '            fd = os.open(bak, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)  # MUT:bakmode'
-mutant "C1 agent keeps SIGINT ignored"      run     generic/label-agent-run.sh '( trap - INT QUIT; exec "$@" ) <&0 &' '"$@" <&0 &'
+mutant "C1 agent keeps SIGINT ignored"      run     generic/label-agent-run.sh '( trap - INT QUIT TERM HUP USR1; kill -s USR1 $$ 2>/dev/null; exec "$@" ) <&0 &' '"$@" <&0 &'
 mutant "C2 tty INT forwarded twice"         run     generic/label-agent-run.sh 'then return 0; fi  # MUT:fwdtty' 'then :; fi  # MUT:fwdtty'
 mutant "C3 signal before child ignored"     run     generic/label-agent-run.sh '    stop="$1"                                   # before the child exists' '    :'
 mutant "C4 separator not taken back"        install _edit_config.py '    if pre and text[a - pre:a] == "\n" * pre:   # MUT:sepstrip' '    if False:   # MUT:sepstrip'
@@ -96,8 +96,10 @@ mutant "C7 trailing --home hangs"           install install_adapters.sh 'needv()
 mutant "C8 hook path unquoted"              install _edit_config.py '    return " ".join(shlex.quote(a) for a in argv)' '    return " ".join(argv)'
 mutant "C9 JSON original not restored"      install _edit_config.py '                    new = orig  # the user'"'"'s exact original bytes' '                    pass'
 mutant "C10 created config kept"            install _edit_config.py '                delete = True  # created by the installer: rollback = absent again' '                delete = False'
-mutant "C11 spawn-window signal lost"       run     generic/label-agent-run.sh '[ -n "$stop" ] && fwd "$stop"   # MUT:spawnrecheck' ':   # MUT:spawnrecheck'
+mutant "C11 spawn-window signal lost"       run     generic/label-agent-run.sh 'then fwd "$stop"           # arrived before the fork: plain fwd   # MUT:spawnrecheck' 'then :   # MUT:spawnrecheck'
 mutant "C12 spawn seam without test mode"   run     generic/label-agent-run.sh 'if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then' 'if [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then'
+mutant "C13 child never reports ready"     run     generic/label-agent-run.sh 'USR1; kill -s USR1 $$ 2>/dev/null; exec' 'USR1; exec'
+mutant "C14 wait not repeated after USR1"   run     generic/label-agent-run.sh 'while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done' ':'
 restore
 echo "---"; echo "prove_adapter_mutations: $killed/$total mutants killed"
 [ "$undet" = 0 ] || { echo "prove_adapter_mutations: UNDETERMINED mutant(s) — not a pass"; exit 2; }

@@ -65,7 +65,7 @@ done
 # action, leaving a `running` ghost entity. Now it is remembered (stop) and the
 # wrapper exits 128+N right after registering, through the EXIT cleanup —
 # never starting the agent.
-registered=0 id="" child=0 stop=""
+registered=0 id="" child=0 stop="" pend="" ready=0 spawned=0
 # Single child pid only, validated > 1 — never a process group (§11.4.263).
 fwd() { case "$child" in ''|*[!0-9]*) return 0 ;; esac; [ "$child" -gt 1 ] && kill -s "$1" "$child" 2>/dev/null; return 0; }
 # INT/QUIT: NOT forwarded when the child sits in the terminal's foreground
@@ -82,11 +82,29 @@ fwd_tty() {
   fwd "$1"
 }
 on_sig() { # signal
-  if [ "$child" -gt 1 ] 2>/dev/null; then
+  if [ "$ready" = 1 ] && [ "$child" -gt 1 ] 2>/dev/null; then
     case "$1" in INT|QUIT) fwd_tty "$1" ;; *) fwd "$1" ;; esac
+  elif [ "$spawned" = 1 ]; then
+    pend="$1"                                   # child forked, not yet ready (see on_ready)
   else
     stop="$1"                                   # before the child exists
   fi
+  return 0
+}
+# The freshly forked child is a bash subshell that still carries OUR trap
+# handlers until bash resets them; a signal forwarded in that window is caught
+# by the inherited handler and silently dropped (measured: 11 of 300 seam runs
+# lost the TERM and the agent ran to completion). So the child reports USR1
+# right after its own trap reset, and nothing is forwarded before that.
+on_ready() {
+  [ "$spawned" = 1 ] || return 0
+  [ "$child" -gt 1 ] 2>/dev/null || child=$!    # USR1 may run before `child=$!`
+  ready=1
+  if [ -n "$stop" ]; then fwd "$stop"           # arrived before the fork: plain fwd   # MUT:spawnrecheck
+  elif [ -n "$pend" ]; then
+    case "$pend" in INT|QUIT) fwd_tty "$pend" ;; *) fwd "$pend" ;; esac
+  fi
+  pend=""
   return 0
 }
 cleanup() { [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0; }
@@ -94,6 +112,7 @@ trap 'on_sig TERM' TERM
 trap 'on_sig INT' INT
 trap 'on_sig QUIT' QUIT
 trap 'on_sig HUP' HUP
+trap on_ready USR1
 trap cleanup EXIT
 
 if al_init; then
@@ -121,13 +140,19 @@ fi
 if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then
   kill -s "$LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN" "$$" 2>/dev/null || :
 fi
-( trap - INT QUIT; exec "$@" ) <&0 &   # MUT:sigreset
+spawned=1
+# The child resets every trap and only THEN reports ready (USR1 to this
+# wrapper, `$$`), so a forwarded signal meets the DEFAULT action or the agent's
+# own handler, never our inherited one.
+( trap - INT QUIT TERM HUP USR1; kill -s USR1 $$ 2>/dev/null; exec "$@" ) <&0 &   # MUT:sigreset
 child=$!
-# A signal that arrived after the check above but before child=$! was only
-# remembered (on_sig saw no child): deliver it now — to this ONE child pid
-# (re-review finding 7). The child was forked after the signal, so a tty
-# INT/QUIT did not reach it either: plain fwd, not fwd_tty.
-[ -n "$stop" ] && fwd "$stop"   # MUT:spawnrecheck
+# A signal that arrived after the check above but before the child was ready
+# was only remembered (stop / pend): on_ready delivers it — to this ONE child
+# pid (re-review finding 7). One that arrived before the fork did not reach the
+# child through the tty either: plain fwd, not fwd_tty.
+# A trapped signal (the USR1 readiness report, or a forwarded one) makes `wait`
+# return 128+N while the child lives on (a zombie counts): wait again.
+# Measured: 500 of 500 fast-exiting agents gave their own status.
 wait "$child"; rc=$?
 while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done
 exit "$rc"

@@ -3,11 +3,11 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/ADAPTERS.md` |
-| Revision | 3 (2026-10-14) — re-review: a signal in the spawn window reaches the agent (§5); revision 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
+| Revision | 4 (2026-10-15) — re-review 3: a signal is forwarded only after the child reports ready (USR1), so it can no longer be lost in the fork window (§5); revision 3 (2026-10-14) — re-review: a signal in the spawn window reaches the agent (§5); revision 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); capability level per agent below — read it before relying on an agent |
 | Implements | §11.4.182 (label), §11.4.228 (cross-agent extension lifecycle: detect, wire, self-validate, idempotent, dry-run), §11.4.164, §11.4.233 (level-triggered), §11.4.18 |
 | Code | `scripts/label-sync/adapters/` (lib, per-agent adapters, `install_adapters.sh`, `_edit_config.py`) |
-| Tests | `adapters/tests/test_adapters.sh` (hermetic, 189 assertions), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (30 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
+| Tests | `adapters/tests/test_adapters.sh` (hermetic, 191 assertions, measured 2026-10-15), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (32 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
 | Builds on | [`CONTRACT.md`](CONTRACT.md), [`HOOKS.md`](HOOKS.md) (Claude Code), [`RENDERERS.md`](RENDERERS.md) |
 
 ## Contents
@@ -225,9 +225,18 @@ and F):
   cleanup (the entity ends `done`) and the agent is never started — it used to
   die with the default action and leave a `running` ghost entity.
 * a signal that lands AFTER the "signalled while registering" check but
-  before the child pid is known is re-checked right after the spawn and
-  forwarded to that ONE child pid (re-review finding 7; test-only seam
+  before the child is READY is remembered and forwarded to that ONE child pid
+  once the child reports ready (re-review finding 7; test-only seam
   `LABEL_SYNC_TEST_MODE=1` + `LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN`).
+  READY (revision 4, re-review 3): the forked child is a bash subshell that
+  carries the wrapper's trap handlers until bash resets them, and a signal
+  forwarded in that window was caught and dropped — measured 11 of 300 seam
+  runs (and 3 of 100 in the suite) where the TERM was lost and the agent ran to
+  completion with exit 0. The child now resets its traps, sends `USR1` to the
+  wrapper and only then `exec`s the agent; nothing is forwarded before that
+  `USR1`. Measured after the fix: 300 of 300. Tests: the 100-run spawn loop and
+  the 100-run fast-exit status loop (a `USR1` interrupts the wrapper's `wait`,
+  which is repeated while the child lives). Mutants C11, C13, C14.
 
 A parent that itself ignores `SIGINT` (e.g. a job started in the background of
 a non-interactive shell) passes that on to the wrapper — no shell can reset a

@@ -269,6 +269,27 @@ LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" -
 el=$((SECONDS - t0))
 ok "run: a TERM in the spawn window still stops the agent (took ${el}s, rc $rc; the agent sleeps 8)" test "$el" -lt 5
 eq "run: ...the wrapper exits 143 for that TERM" "143" "$rc"
+# re-review 3 (control failure in the prover): the TERM forwarded right after
+# the fork could land in the child bash BEFORE it reset our inherited trap and
+# be dropped — measured 11 lost of 300 seam runs (agent ran to completion, rc 0).
+# The child now reports ready (USR1) after its trap reset; nothing is forwarded
+# before that. A race: repeat it (statistical; 100 runs, each must stop <2.5 s).
+lost=0
+for i in $(seq 1 100); do
+  newstate; t0=$(date +%s%N)
+  LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- sleep 3 </dev/null >/dev/null 2>&1; rc=$?
+  ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+  { [ "$rc" = 143 ] && [ "$ms" -lt 2500 ]; } || { lost=$((lost+1)); echo "  lost: run $i rc $rc ${ms}ms"; break; }   # first loss decides
+done
+eq "run: the spawn-window TERM is never lost (100 runs, stops at the first loss)" "0" "$lost"
+# the USR1 readiness report interrupts the wrapper's `wait`; a child that exits
+# right then must still give the wrapper ITS status (not 138), and fast
+bad=0
+for i in $(seq 1 100); do
+  newstate; bash "$R" --agent codex -- bash -c 'exit 3' </dev/null >/dev/null 2>&1; rc=$?
+  [ "$rc" = 3 ] || { bad=$((bad+1)); echo "  wrong status: run $i rc $rc"; break; }
+done
+eq "run: a fast-exiting agent's status is propagated exactly (100 runs)" "0" "$bad"
 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- true; rc=$?
 eq "run: the spawn seam is inert without LABEL_SYNC_TEST_MODE=1" "0" "$rc"
 # review-2 N8: the agent reads the wrapper's stdin
