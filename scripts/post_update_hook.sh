@@ -136,10 +136,13 @@ detect_changes() {
 
     # List all files that changed (added or modified) in this update.
     # Deleted files are not installed — they stay removed.
-    local changed_files
-    changed_files="$(git -C "$CONST_DIR" diff --name-only --diff-filter=AM "$old_ref"..HEAD 2>/dev/null || true)"
+    # NUL-separated (-z): without it git C-quotes any non-ASCII or special name
+    # ("skills/\303\274/SKILL.md"), which no `case` pattern below matches, so the
+    # change was silently ignored (re-review 3 finding 8, whole path-list class).
+    local changed_files=()
+    mapfile -d '' -t changed_files < <(git -C "$CONST_DIR" diff -z --name-only --diff-filter=AM "$old_ref"..HEAD 2>/dev/null || true)   # MUT:diffz
 
-    if [ -z "$changed_files" ]; then
+    if [ "${#changed_files[@]}" -eq 0 ]; then
         info "No files changed in this update — nothing to propagate."
         return 0
     fi
@@ -150,14 +153,15 @@ detect_changes() {
     # sees EMPTY arrays — the hook then reports "no changes" and installs
     # NOTHING, silently. That was a real, reproduced defect (probe:
     # `AFTER-LOOP count = 0`). Process substitution keeps the loop in THIS shell.
-    while IFS= read -r f; do
+    local f
+    for f in "${changed_files[@]}"; do
         [ -n "$f" ] || continue
         # Classify by path prefix
         case "$f" in
             skills/*)
                 # Extract the skill directory name (skills/<name>/...)
                 local skill_name
-                skill_name="$(echo "$f" | cut -d/ -f2)"
+                skill_name="${f#skills/}"; skill_name="${skill_name%%/*}"   # no echo|cut: a name may hold a newline
                 CHANGED_SKILLS+=("$skill_name")
                 ;;
             mcp/*.json)
@@ -192,20 +196,21 @@ detect_changes() {
                 # Ignore other files (docs, md, etc.)
                 ;;
         esac
-    done < <(printf '%s\n' "$changed_files")
+    done
 
     # Deduplicate arrays (same file may appear multiple times across commits).
+    # NUL-safe and glob-free: the former `ARR=($(… | sort -u))` under IFS=$'\n'
+    # pathname-expanded a name such as `g*` against the consumer's cwd
+    # (re-review 3 finding 8, whole class — step 5 was fixed the same way).
     # Guarded against the empty case: `"${ARR[@]}"` on an empty array is an
     # unbound-variable error under `set -u` on bash < 4.4.
-    local IFS_SAVE="$IFS"
-    IFS=$'\n'
-    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || CHANGED_SKILLS=($(printf "%s\n" "${CHANGED_SKILLS[@]}"  | sort -u))
-    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || CHANGED_MCP=($(printf "%s\n" "${CHANGED_MCP[@]}"        | sort -u))
-    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || CHANGED_HOOKS=($(printf "%s\n" "${CHANGED_HOOKS[@]}"    | sort -u))
-    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || CHANGED_SCRIPTS=($(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u))
-    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || CHANGED_ACTIONS=($(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u))
-    [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ] || CHANGED_LABELSYNC=($(printf "%s\n" "${CHANGED_LABELSYNC[@]}" | sort -u))
-    IFS="$IFS_SAVE"
+    local _arr
+    for _arr in CHANGED_SKILLS CHANGED_MCP CHANGED_HOOKS CHANGED_SCRIPTS CHANGED_ACTIONS CHANGED_LABELSYNC; do
+        [ "$(arr_len "$_arr")" -eq 0 ] && continue
+        local -n _ref="$_arr"
+        mapfile -d '' -t _ref < <(printf '%s\0' "${_ref[@]}" | sort -zu)   # MUT:step1dedupe
+        unset -n _ref
+    done
 
     info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s), $(arr_len CHANGED_LABELSYNC) label-sync file(s) changed."
 }

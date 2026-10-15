@@ -1109,6 +1109,26 @@ check "R3.8 a skill script whose NAME contains a newline is validated as ONE pat
 check "R3.6 control: the hook really was installed on the clean run" test -x "$HD22/post-merge"
 
 # =========================================================================
+echo "== 23. re-review 3 finding 8, whole class: the step-1 changed-file list is NUL-safe (no glob, no quotePath) =="
+# The step-5 dedupe was made NUL-safe; the same path-list class also lived in
+# step 1: `git diff --name-only` C-quotes a non-ASCII name ("skills/\303\274/…",
+# so `case skills/*` never matched), and the IFS-newline dedupe `ARR=($(…))`
+# glob-expanded a name such as `g*` against the CONSUMER's cwd.
+C23="$T/c23"; FC23="$C23/constitution"; mkdir -p "$FC23/scripts/hooks" "$T/home23"
+cp "$POSTHOOK" "$FC23/scripts/post_update_hook.sh"; echo '# c' >"$FC23/Constitution.md"
+( cd "$FC23" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
+  && mkdir -p 'skills/g*' 'skills/ü' skills/plain \
+  && echo '# g' >'skills/g*/SKILL.md' && echo '# u' >'skills/ü/SKILL.md' && echo '# p' >skills/plain/SKILL.md \
+  && git add -A && git -c user.email=t@t -c user.name=t commit -q -m skills )
+git -C "$C23" init -q -b main; mkdir -p "$C23/skills"; : >"$C23/gX"; : >"$C23/gY"   # glob decoys in the consumer cwd
+( cd "$C23" && HOME="$T/home23" CONST_DIR="$FC23" PROJECT_ROOT="$C23" LABEL_SYNC_ADAPTERS=off bash "$FC23/scripts/post_update_hook.sh" ) >"$T/ph23.out" 2>&1; rc=$?
+eq "R3.8b the run with glob/non-ASCII skill names is clean (exit 0)" "$rc" 0
+check "R3.8b a skill named 'g*' is linked under its literal name (not glob-expanded)" test -L "$C23/skills/g*"
+check "R3.8b ...the consumer's cwd files never became skill names" bash -c '! grep -qE "skills/g[XY]. not found|Installing skill: g[XY]" "$1"' _ "$T/ph23.out"
+check "R3.8b a non-ASCII skill name ('ü') is detected and linked (git quotePath not fed to the classifier)" test -L "$C23/skills/ü"
+check "R3.8b control: a plain skill is linked" test -L "$C23/skills/plain"
+
+# =========================================================================
 echo "----------------------------------------------------------------------"
 echo "label-sync hooks suite: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
