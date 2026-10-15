@@ -655,7 +655,23 @@ func (s *Store) reapLocked(r *Raw) ([]string, error) {
 	if err := s.appendEvents(r, evs); err != nil {
 		return nil, err
 	}
+	s.dropShellRefresh(ids...)
 	return ids, nil
+}
+
+// dropShellRefresh removes the per-shell refresh state the shell integration
+// keeps under <dir>/shellrefresh/ (render/shell-hook.sh) for entities that
+// are gone — a shell killed without shell-end left it forever (re-review 3
+// finding 9). Ids that could leave that directory are skipped.
+func (s *Store) dropShellRefresh(ids ...string) {
+	for _, id := range ids {
+		if id == "" || strings.ContainsRune(id, '/') || strings.HasPrefix(id, ".") {
+			continue
+		}
+		for _, suf := range []string{"", ".lock", ".want", ".run", ".wlock"} {
+			_ = os.Remove(filepath.Join(s.dir, "shellrefresh", id+suf)) // MUT:dropshellrefresh
+		}
+	}
 }
 
 // sweepable: see reapLocked. Never true for a live, pid-less, remote, done or
@@ -738,6 +754,9 @@ func (s *Store) Apply(ev model.Event) (model.Event, error) {
 	out, err := s.applyOn(r, ev)
 	if err != nil {
 		return out, err
+	}
+	if out.Type == model.EvReap {
+		s.dropShellRefresh(out.ID)
 	}
 	if _, err := s.reapLocked(r); err != nil {
 		return out, err

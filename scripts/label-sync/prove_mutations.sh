@@ -6,7 +6,7 @@
 #           (one per scratch copy), runs `go test` and REQUIRES the suite to
 #           FAIL; a control run of the unmutated copy REQUIRES it to pass. A
 #           mutant that survives means the tests do not guard that behaviour.
-#           Mutants (48): the original six, the review's SURVIVING mutants
+#           Mutants (59): the original six, the review's SURVIVING mutants
 #           (seq-before-snapshot, TTL >=, inheritance depth, following-ancestor
 #           leak, started_at, heartbeat revive, verify fold/seq/snapshot,
 #           fsync removal) and one per new mechanism (derived binding,
@@ -102,6 +102,7 @@ MUTANTS=(
   'sweep_unknown_never|internal/state/store.go|/MUT:sweepunknown/s|if s\.opts\.SweepUnknownNS < 0 \|\| !(age > s\.opts\.SweepUnknownNS) {|if true {|'
   'entity_drops_unknown_fields|internal/model/model.go|/MUT:extrakeep/s|if !entityKeys\[k\] {|if false {|'
   'repair_trusts_fold|internal/state/store.go|/MUT:repairfull/s|s\.loadOnceFrom(false)|s.loadOnceFrom(true)|'
+  'shellrefresh_files_kept|internal/state/store.go|/MUT:dropshellrefresh/s|_ = os\.Remove(filepath\.Join(s\.dir, "shellrefresh", id+suf))|_ = filepath.Join(s.dir, "shellrefresh", id+suf)|'
   'pid_namespace_not_recorded|internal/state/store.go|/MUT:pidnsrecord/s|e\.PIDNS = pidNS(s\.opts\.Pids)|e.PIDNS = ""|'
   'pid_patch_keeps_namespace|internal/state/fold.go|/MUT:pidnsclear/s|e\.PIDNS = ""|_ = 0|'
   'stale_addr_not_removed|cmd/label-busd/main.go|/MUT:addrstale/s|_ = os\.Remove(addrf)|_ = 0|'

@@ -227,3 +227,44 @@ func TestSweeperBoundsUnknownAndForeignNamespaces(t *testing.T) {
 		t.Fatal("a foreign-namespace entity not updated for > 7 days was never reaped (unbounded growth)")
 	}
 }
+
+// Re-review 3 finding 9: the per-shell refresh files of a shell that died
+// without shell-end go with its entity (sweep or explicit reap); a live
+// shell's files stay.
+func TestReapRemovesShellRefreshFiles(t *testing.T) {
+	dir := t.TempDir()
+	c := &clock{t: time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)}
+	s := openNS(t, dir, c, fakePids{8: true}, nsHost)
+	rd := filepath.Join(dir, "shellrefresh")
+	if err := os.MkdirAll(rd, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mk := func(id string) {
+		for _, suf := range []string{"", ".lock", ".want", ".run", ".wlock"} {
+			if err := os.WriteFile(filepath.Join(rd, id+suf), []byte("1\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	mk("dead-sh")
+	mk("live-sh")
+	mk("reaped-sh")
+	reg(t, s, model.Entity{ID: "dead-sh", Kind: "shell", PID: 7, Host: "h1"})
+	reg(t, s, model.Entity{ID: "live-sh", Kind: "shell", PID: 8, Host: "h1"})
+	reg(t, s, model.Entity{ID: "reaped-sh", Kind: "shell", PID: 8, Host: "h1"})
+	c.Add(DefaultSweepAfter + time.Second)
+	reg(t, s, model.Entity{ID: "w", Kind: "shell", PID: 8, Host: "h1"}) // the sweep runs here
+	if _, err := s.Apply(model.Event{Type: model.EvReap, ID: "reaped-sh"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"dead-sh", "reaped-sh"} {
+		for _, suf := range []string{"", ".lock", ".want", ".run", ".wlock"} {
+			if _, err := os.Stat(filepath.Join(rd, id+suf)); err == nil {
+				t.Fatalf("shellrefresh/%s%s left behind after its entity was removed", id, suf)
+			}
+		}
+	}
+	if _, err := os.Stat(filepath.Join(rd, "live-sh")); err != nil {
+		t.Fatal("a live shell's refresh state was removed")
+	}
+}

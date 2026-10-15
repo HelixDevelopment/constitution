@@ -105,41 +105,59 @@ case "$op" in
     # binding (alias/model/effort) is NOT touched: it was decided at
     # shell-start. A field the labeler reports as `?` is CLEARED, never kept
     # from the previous directory (§11.4.6).
-    # re-review finding 6: refreshes run detached and may finish out of order.
+    # re-review 6 + re-review 3 finding 9: refreshes run detached, may finish
+    # out of order and arrive in storms. Each one PUBLISHES its request
+    # (<id>.want: the newest seq wins) and then tries to become the shell's ONE
+    # worker (<id>.run, non-blocking flock): the worker applies the newest
+    # request until none is newer than the last applied (<id>); a refresh that
+    # cannot become the worker exits at once — the worker will see its request.
     case "$seq" in ''|*[!0-9]*) seq="" ;; esac
     case "$id" in */*|.*) dbg "shell-refresh: bad id"; exit 0 ;; esac
-    last="" seqf=""
-    rdir="$(ls_dir)/shellrefresh"
-    if mkdir -p -m 700 "$rdir" 2>/dev/null; then
-      seqf="$rdir/$id"
-      if command -v flock >/dev/null 2>&1 && { exec 9>>"$seqf.lock"; } 2>/dev/null; then
-        flock -w 5 9 2>/dev/null || dbg "shell-refresh: lock busy, continuing unlocked"
-      fi
-      { IFS= read -r last <"$seqf"; } 2>/dev/null || last=""
-      case "$last" in *[!0-9]*) last="" ;; esac
-    fi
     lb="${LABEL_SYNC_LABELER:-$RDIR/../../multitrack/track_branch_label.sh}"
-    d="${cwd:-$PWD}"
-    lab="$(cd "$d" 2>/dev/null && bash "$lb" 2>/dev/null)" || lab=""
-    lab="${lab%%$'\n'*}"
-    case "$lab" in "(T"*" - "*")") ;; *) dbg "shell-refresh: no label from $lb"; exit 0 ;; esac
-    in="${lab#\(T}"; tr="${in%%/*}"; rest="${in#*/}"; br="${rest%% - *}"
-    up=(update --id "$id" --cwd "$d"); clr=()
-    if [[ $tr =~ ^[0-9]+$ ]]; then up+=(--track "$tr"); else clr+=(track); fi
-    if [ -n "$br" ] && [ "$br" != "?" ]; then up+=(--branch "$br"); else clr+=(branch); fi
-    [ "${#clr[@]}" -gt 0 ] && up+=(--clear "$(IFS=,; echo "${clr[*]}")")
-    # The ordering decision and the update happen under ONE per-shell lock, so a
-    # newer refresh cannot interleave between an older one's check and write.
-    if [ -n "$last" ] && [ -n "$seq" ] && [ "$seq" -le "$last" ]; then   # MUT:refreshorder
-      dbg "shell-refresh: seq $seq <= applied $last — older refresh dropped"; exit 0
+    apply_place() { # dir -> 0 applied | 1 failed
+      local d="$1" lab in tr rest br up clr
+      lab="$(cd "$d" 2>/dev/null && bash "$lb" 2>/dev/null)" || lab=""
+      lab="${lab%%$'\n'*}"
+      case "$lab" in "(T"*" - "*")") ;; *) dbg "shell-refresh: no label from $lb"; return 1 ;; esac
+      in="${lab#\(T}"; tr="${in%%/*}"; rest="${in#*/}"; br="${rest%% - *}"
+      up=(update --id "$id" --cwd "$d"); clr=()
+      if [[ $tr =~ ^[0-9]+$ ]]; then up+=(--track "$tr"); else clr+=(track); fi
+      if [ -n "$br" ] && [ "$br" != "?" ]; then up+=(--branch "$br"); else clr+=(branch); fi
+      [ "${#clr[@]}" -gt 0 ] && up+=(--clear "$(IFS=,; echo "${clr[*]}")")
+      if ! "$LCTL" "${up[@]}" >/dev/null 2>&1; then
+        sleep 1   # the shell-start register may still be in flight: retry ONCE
+        "$LCTL" "${up[@]}" >/dev/null 2>&1 || { dbg "shell-refresh failed"; return 1; }   # MUT:refreshretry
+      fi
+      return 0
+    }
+    rdir="$(ls_dir)/shellrefresh"
+    if [ -z "$seq" ] || ! command -v flock >/dev/null 2>&1 || ! mkdir -p -m 700 "$rdir" 2>/dev/null; then
+      apply_place "${cwd:-$PWD}"; exit 0      # no ordering possible: apply directly
     fi
-    if ! "$LCTL" "${up[@]}" >/dev/null 2>&1; then
-      sleep 1   # the shell-start register may still be in flight: retry ONCE
-      "$LCTL" "${up[@]}" >/dev/null 2>&1 || { dbg "shell-refresh failed"; exit 0; }   # MUT:refreshretry
-    fi
-    [ -n "$seq" ] && [ -n "$seqf" ] && printf '%s\n' "$seq" >"$seqf" 2>/dev/null ;;
+    seqf="$rdir/$id" want="$rdir/$id.want"
+    rd_num() { local v=""; { IFS=$'\t' read -r v _ <"$1"; } 2>/dev/null; case "$v" in ''|*[!0-9]*) v=0 ;; esac; printf '%s' "$v"; }
+    # 1. publish (under a short lock, so two publishers cannot interleave)
+    (
+      flock -w 5 7 2>/dev/null || exit 0           # MUT:refreshpublock
+      [ "$seq" -gt "$(rd_num "$want")" ] || exit 0   # MUT:refreshorder
+      printf '%s\t%s\n' "$seq" "${cwd:-$PWD}" >"$want.tmp" && mv -f "$want.tmp" "$want"
+    ) 7>>"$rdir/$id.wlock"
+    # 2. at most ONE worker per shell
+    while :; do
+      { exec 9>>"$rdir/$id.run"; } 2>/dev/null || exit 0
+      flock -n 9 || exit 0                           # MUT:refreshworker
+      while :; do
+        ws="$(rd_num "$want")"; [ "$ws" -gt "$(rd_num "$seqf")" ] || break
+        wd=""; { IFS=$'\t' read -r _ wd <"$want"; } 2>/dev/null
+        apply_place "$wd" || exit 0                  # MUT:refreshapplied — failed after one retry: a later refresh retries
+        printf '%s\n' "$ws" >"$seqf"                 # applied — written only AFTER the update
+      done
+      flock -u 9; exec 9>&-
+      # a request published between the last check and the unlock: take it
+      [ "$(rd_num "$want")" -gt "$(rd_num "$seqf")" ] || exit 0
+    done ;;
   shell-end)  unreg "$id"
-              case "$id" in */*|.*) ;; *) rm -f -- "$(ls_dir)/shellrefresh/$id" "$(ls_dir)/shellrefresh/$id.lock" 2>/dev/null ;; esac ;;
+              case "$id" in */*|.*) ;; *) r="$(ls_dir)/shellrefresh/$id"; rm -f -- "$r" "$r.lock" "$r.want" "$r.want.tmp" "$r.run" "$r.wlock" 2>/dev/null ;; esac ;;
   cmd-end)    unreg "$id" ;;
   cmd-start)
     a0="$(ls_argv0_clean "$argv0")"

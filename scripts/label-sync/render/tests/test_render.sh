@@ -345,7 +345,12 @@ else echo "SKIP  D10 tty banner (script(1) not installed)"; fi
 # point under test is that labelrun's OWN `&` child must not inherit SIG_IGN.
 env --default-signal=INT,QUIT bash "$LR" --name intr -- sleep 4 &
 LRP=$!
-wait_for 5 pgrep -P "$LRP" >/dev/null
+# wait for the PAYLOAD (sleep), not any child: labelrun's first child is the
+# `$(labelctl register …)` substitution, forked BEFORE its traps exist — a
+# SIGINT then either kills labelrun before it can unregister (D11 left one
+# entity running) or is swallowed by bash's wait-for-substitution rule
+# (exit 0 after 4 s). Both were seen under host load (2026-10-15).
+wait_for 5 pgrep -x -P "$LRP" sleep >/dev/null
 t0="$(now_us)"; kill -INT "$LRP"; wait "$LRP"; RC=$?; t1="$(now_us)"
 DT_MS=$(( (t1 - t0) / 1000 ))
 eq "D12 SIGINT to labelrun => child ends, exit 130" "130" "$RC"
@@ -377,7 +382,8 @@ if command -v script >/dev/null 2>&1; then
 else echo "SKIP  D13 tty Ctrl-C (script(1) not installed)"; fi
 # all runs ended in done
 LEFT="$("$LCTL" list --json | jq -r '.entities | map(select(.state=="running")) | length')"
-eq "D11 no entity left running after all runs" "0" "$LEFT"
+LEFTIDS="$("$LCTL" list --json | jq -r '[.entities[] | select(.state=="running") | "\(.id)/\(.name // "")/\(.source // "")"] | join(",")')"
+eq "D11 no entity left running after all runs (running: ${LEFTIDS:-none})" "0" "$LEFT"
 
 # ───────────────────────── E. watch-labels / F. tmux-status ─────────────────────────
 export LABEL_SYNC_DIR="$TMPD/state_w"; rm -rf "$LABEL_SYNC_DIR"
@@ -628,6 +634,55 @@ sleep 0.15
 (cd "$HR1" && hk shell-start --id h7sh --pid 0 --cwd "$HR1")
 wait "$h7"
 eq "H7 a refresh that ran before shell-start registered the shell is applied (retried once)" "hb2" "$(hget h7sh branch)"
+
+# H8 (re-review 3 finding 9): a cd storm is coalesced — at most one refresh
+# worker per shell applies the NEWEST request; the others exit at once.
+CNT="$TMPD/h8count"; : >"$CNT"
+CLAB="$TMPD/countlab.sh"
+printf '#!/usr/bin/env bash\necho x >>"%s"\nsleep 0.2\nexec bash "%s" "$@"\n' "$CNT" "$REALLAB" >"$CLAB"
+(cd "$HR1" && hk shell-start --id h8sh --pid 0 --cwd "$HR1")
+for i in $(seq 1 30); do
+  d="$HR1"; [ $((i % 2)) = 0 ] && d="$HR2"
+  LABEL_SYNC_LABELER="$CLAB" bash "$HK" shell-refresh --id h8sh --cwd "$d" --seq "$i" 2>/dev/null &
+done
+wait
+eq "H8 the newest of 30 concurrent refreshes (seq 30, repo 2) wins" "hb2" "$(hget h8sh branch)"
+h8n="$(wc -l <"$CNT")"
+eq "H8 the storm was coalesced: derived at most 10 times for 30 requests (measured $h8n)" "yes" "$([ "$h8n" -le 10 ] && echo yes || echo "no ($h8n)")"
+# H10 (re-review 3 finding 9): while the shell's worker is busy, an OLDER
+# request published after a newer one never replaces it — the worker that
+# runs next applies the NEWEST request. The test holds the worker lock itself.
+RD10="$LABEL_SYNC_DIR/shellrefresh"; mkdir -p "$RD10"
+(cd "$HR1" && hk shell-start --id h10sh --pid 0 --cwd "$HR1")
+exec 8>>"$RD10/h10sh.run"; flock 8
+hk shell-refresh --id h10sh --cwd "$HR2" --seq 2
+hk shell-refresh --id h10sh --cwd "$HR1" --seq 1
+flock -u 8; exec 8>&-
+hk shell-refresh --id h10sh --cwd "$HR1" --seq 1
+eq "H10 an older request published while the worker is busy never replaces the newer one (seq 2, repo 2 applied)" "hb2" "$(hget h10sh branch)"
+# H10b: publishing WAITS for the short request lock (it is never skipped):
+# a refresh arriving while another publisher holds it is still applied.
+( exec 7>>"$RD10/h10sh.wlock"; flock 7; sleep 1 ) & h10p=$!
+sleep 0.3
+hk shell-refresh --id h10sh --cwd "$HR1" --seq 3
+wait "$h10p"
+eq "H10b a refresh whose publish had to wait for the request lock is still applied (seq 3, repo 1)" "hb1-next" "$(hget h10sh branch)"
+# H11: the applied seq is recorded only AFTER a successful update — a request
+# whose update failed (shell not registered yet, retried once) is applied by
+# the next refresh, even an older one.
+hk shell-refresh --id h11sh --cwd "$HR2" --seq 5
+(cd "$HR1" && hk shell-start --id h11sh --pid 0 --cwd "$HR1")
+hk shell-refresh --id h11sh --cwd "$HR1" --seq 4
+eq "H11 a request whose update failed is applied by the next refresh (seq 5, repo 2)" "hb2" "$(hget h11sh branch)"
+# H9 (re-review 3 finding 9): a shell killed without shell-end leaves its
+# refresh files; the entity sweeper removes them with the entity.
+sleep 0 & h9p=$!; wait "$h9p"
+LABEL_SYNC_STALE_SWEEP=1s "$LCTL" register --id h9sh --kind shell --pid "$h9p" >/dev/null 2>&1
+RD9="$LABEL_SYNC_DIR/shellrefresh"; mkdir -p "$RD9"; for suf in "" .want .run .wlock .lock; do echo 1 >"$RD9/h9sh$suf"; done
+sleep 1.3
+LABEL_SYNC_STALE_SWEEP=1s "$LCTL" register --id h9w --kind shell >/dev/null 2>&1
+left=""; for suf in "" .want .run .wlock .lock; do [ -e "$RD9/h9sh$suf" ] && left="$left h9sh$suf"; done
+eq "H9 the dead shell's refresh files went with its swept entity" "" "$left"
 
 echo "RESULT pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]

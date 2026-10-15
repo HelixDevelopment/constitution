@@ -6,7 +6,7 @@
 #           tests/test_render.sh against the copy and REQUIRES it to FAIL; a
 #           control run of the unmutated copy REQUIRES it to pass. A surviving
 #           mutant means the tests do not guard that behaviour.
-#           27 mutants: the original 8 (statusline_ignores_snapshot ..
+#           33 mutants: the original 8 (statusline_ignores_snapshot ..
 #           labelrun_no_unregister) plus every mutant the 2026-10-12 review saw
 #           SURVIVE (no sanitise in statusline / tmux, SIGINT not reset, argv0
 #           unrestricted, digest/salt, previous DEBUG trap dropped, PROMPT_COMMAND
@@ -39,8 +39,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 # name|file|sed-expression (must change the file)
 MUTANTS=(
-  'refresh_ignores_order|shell-hook.sh|/MUT:refreshorder/s|if \[ -n "\$last" \] \&\& \[ -n "\$seq" \] \&\& \[ "\$seq" -le "\$last" \]; then|if false; then|'
+  'refresh_ignores_order|shell-hook.sh|/MUT:refreshorder/s|\[ "\$seq" -gt "\$(rd_num "\$want")" \] \|\| exit 0|:|'
   'refresh_never_retries|shell-hook.sh|/MUT:refreshretry/s|"\$LCTL" "\${up\[@\]}" >/dev/null 2>\&1 \|\| {|{|'
+  # --- re-review 3 finding 9 (coalescing) + reviewer R03/R04 ---
+  'refresh_worker_not_exclusive|shell-hook.sh|/MUT:refreshworker/s|flock -n 9 \|\| exit 0|:|'
+  'refresh_publish_lock_nonblocking|shell-hook.sh|/MUT:refreshpublock/s|flock -w 5 7|flock -n 7|'
+  'refresh_applied_before_update|shell-hook.sh|/MUT:refreshapplied/s|apply_place "\$wd" \|\| exit 0|printf "%s\\n" "$ws" >"$seqf"; apply_place "$wd" \|\| exit 0|'
   'integration_omits_seq|shell-integration.bash|s| --seq "\$__ls_rseq"||'
   'statusline_ignores_snapshot|statusline.sh|s|if \[ "\$status" = "ok" \] \&\& \[ -n "\$text" \]; then|if false; then|'
   'title_not_refreshed_on_seq|shell-integration.bash|s|\[ "\$s" != "\$__ls_seen_seq" \]|false|'
