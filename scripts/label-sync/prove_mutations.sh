@@ -91,7 +91,7 @@ MUTANTS=(
   'addr_before_listen|cmd/label-busd/main.go|/MUT:listenfirst/s|beforeListen() // MUT:listenfirst|_ = state.WriteAtomic(addrf, []byte(sock+"\\n")); beforeListen()|'
   'second_instance_rc1|cmd/label-busd/main.go|s|^const exitAlreadyRunning = 3$|const exitAlreadyRunning = 1|'
   'hello_unlimited|internal/bus/bus.go|/MUT:hellolimit/s|io\.LimitReader(conn, MaxHelloBytes)|conn|'
-  'sweep_ignores_age|internal/state/store.go|/MUT:sweepage/s|if !(now\.Sub(e\.UpdatedAt) > s\.opts\.SweepAfter) {|if false {|'
+  'sweep_ignores_age|internal/state/store.go|/MUT:sweepage/s|if !(age > s\.opts\.SweepAfter) {|if false {|'
   'sweep_ignores_liveness|internal/state/store.go|/MUT:sweepalive/s|return !s\.opts\.Pids\.Alive(e\.PID, e\.PIDStart)|return true|'
   'sweep_unbounded|internal/state/store.go|/MUT:sweepbatch/s|if len(swept) > s\.opts\.SweepBatch {|if false \&\& len(swept) > s.opts.SweepBatch {|'
   'patch_id_unchecked_in_prepare|internal/state/store.go|/MUT:patchid/s|if v != "" \&\& !label\.ValidID(v) {|if false {|'
