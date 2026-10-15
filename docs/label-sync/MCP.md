@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/MCP.md` |
-| Revision | 3 (2026-10-14) — re-review: the consumer entry is launched through `sh` and finds the project root from ANY start directory; the prover reports a non-compiling mutant as UNDETERMINED (exit 2). Revision 2 — explicit alias pins, 4 MiB line cap, no guessed `type`, consumer-resolvable path |
+| Revision | 4 (2026-10-15) — re-review 3: the walk-up stops only at a directory holding the prefix AND `.mcp.json`; the sh entry measured with the real client. Revision 3 (2026-10-14) — re-review: the consumer entry is launched through `sh` and finds the project root from ANY start directory; the prover reports a non-compiling mutant as UNDETERMINED (exit 2). Revision 2 — explicit alias pins, 4 MiB line cap, no guessed `type`, consumer-resolvable path |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (bus), §11.4.228(D) (MCP registration seam), §11.4.18 |
 | Code | `scripts/label-sync/mcp/label-mcp/` (Go, stdlib only) + launcher `scripts/label-sync/mcp/label-mcp.sh` |
@@ -42,7 +42,7 @@ alone works only when Claude Code starts at the project root. Step 3 therefore
 writes the consumer entry as
 
     "command": "sh",
-    "args": ["-c", "<walk up from $PWD to the directory holding <prefix>; cd there; exec \"$0\" \"$@\">",
+    "args": ["-c", "<walk up from $PWD to the first directory holding BOTH <prefix> and .mcp.json; cd there; exec \"$0\" \"$@\">",
              "<prefix>/scripts/label-sync/mcp/label-mcp.sh", <original args...>]
 
 which starts the server from any directory inside the project and fails
@@ -50,10 +50,21 @@ loudly (`label-sync MCP launcher: <prefix> not found above <dir>`, exit 127)
 outside it; an absolute constitution path (outside the project) is written
 as is. Proven by `scripts/hooks/test_label_sync_hooks.sh` §20 (R3): the merged
 entry is executed from `<project>/sub/deeper`, from the root and from `/`.
-That Claude Code itself then starts this `sh` entry from a sub-directory was
-NOT re-measured with the client after the change (the suite replays the spawn,
-not the client). Whether it honours `autoApprove`/`disabled`/`description` is
-**UNCONFIRMED** (not documented here).
+The walk requires `.mcp.json` next to the prefix (re-review 3 finding 4): a
+nested directory that merely contains a `<prefix>` (a vendored copy, a test
+fixture) no longer captures the launch (§20 R3.4). Keys are carried as an
+array, so a server key with a space is wrapped as one key (R3.5).
+**Measured with the real client, Claude Code 2.1.300, isolated
+`CLAUDE_CONFIG_DIR`:** by the third reviewer on the previous walk rule — the
+OLD relative entry from `<project>/sub/deeper`: `Failed to connect — ENOENT`;
+the `sh` entry from `<project>/sub/deeper` and from the root: `Connected`, the
+server's cwd the project root — and again on 2026-10-15 for the CURRENT rule
+(`.mcp.json` required), with a decoy `<project>/sub/deeper/constitution/…`
+server present: from `sub/deeper` and from the root `claude mcp list` reports
+`Connected`, the server ran with cwd = the project root and the decoy never
+ran; from `/` the entry exits 127 with `label-sync MCP launcher: constitution
+not found above /`. Whether the client honours
+`autoApprove`/`disabled`/`description` is **UNCONFIRMED** (not documented here).
 `autoApprove` is limited to the read-only tools (`label_get`, `label_list`,
 `label_active`); the mutating tools prompt the operator.
 `post_update_hook.sh` / the §11.4.228(D)(3) MCP-registration seam merges this file

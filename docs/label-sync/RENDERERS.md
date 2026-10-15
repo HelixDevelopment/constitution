@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/RENDERERS.md` |
-| Revision | 4 (2026-10-14) — re-review: shell refreshes are ordered (--seq) and retried once; revision 3 (2026-10-14) — second review: the bash shell entity's track/branch/cwd follow `cd` / `git checkout`; statusline session preference tested; C2 made deterministic. Revision 2 (2026-10-12) — FIX-B1: strict sanitiser, argv0-only secret policy, Ctrl-C reaches labelrun's child, `$_`/errexit-safe hooks, no salt, derived-binding adaptation |
+| Revision | 5 (2026-10-15) — re-review 3: a cd storm is coalesced to ONE refresh worker per shell; a swept shell takes its refresh files with it; revision 4 (2026-10-14) — re-review: shell refreshes are ordered (--seq) and retried once; revision 3 (2026-10-14) — second review: the bash shell entity's track/branch/cwd follow `cd` / `git checkout`; statusline session preference tested; C2 made deterministic. Revision 2 (2026-10-12) — FIX-B1: strict sanitiser, argv0-only secret policy, Ctrl-C reaches labelrun's child, `$_`/errexit-safe hooks, no salt, derived-binding adaptation |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); zsh + fish integrations written but NOT executed (UNCONFIRMED, see §9) |
 | Implements | §11.4.182 (label shown everywhere, real-time, always in sync), §11.4.116, §11.4.18 |
 | Code | `scripts/label-sync/render/` |
@@ -37,8 +37,8 @@ absolute path of the constitution checkout (`…/constitution` or
 | `render/tmux-status.sh` | label for tmux `status-right` / `status-left` |
 | `render/labelrun` | wrapper registering a command/flow entity around any command |
 | `render/watch-labels.sh` | live operator table of all entities, grouped by alias |
-| `render/prove_mutations.sh` | §1.1 paired-mutation proof (30 mutants; a kill needs a `FAIL` assertion line, else UNDETERMINED, exit 2) |
-| `render/tests/test_render.sh` | the test suite (165 cases) |
+| `render/prove_mutations.sh` | §1.1 paired-mutation proof (33 mutants; a kill needs a `FAIL` assertion line, else UNDETERMINED, exit 2) |
+| `render/tests/test_render.sh` | the test suite (185 cases, measured 2026-10-15) |
 | `scripts/gates/cm_label_sync_render.sh` (+ `_mutation_test.sh`) | `CM-LABEL-SYNC-RENDER` gate |
 
 ## 2. Claude Code statusLine (`statusline.sh`)
@@ -183,6 +183,26 @@ last one applied (`<state>/shellrefresh/<id>`), and retries the update once
 (after 1 s) when the shell entity is not registered yet. `shell-end` removes
 the per-shell files. Tests: H6, H6b, H7.
 
+**Coalescing (revision 5, re-review 3 finding 9).** A `cd` storm used to start
+one background derive per prompt. Now each refresh only PUBLISHES its request
+(`seq<TAB>cwd`) into `<state>/shellrefresh/<id>.want` under a short blocking
+lock (`<id>.wlock`, at most 5 s; the newest seq wins, an older one never
+replaces it) and then tries to become the shell's ONE worker (non-blocking
+flock on `<id>.run`). The worker applies the newest request, loops while a
+newer one is pending, and records the applied seq in `<id>` only AFTER the
+update succeeded; a refresh that cannot become the worker exits at once (the
+worker sees its request). Measured: 30 concurrent refreshes -> 2 derives, the
+newest (seq 30) applied (H8). Without a seq or `flock` the direct path runs.
+A shell that dies without `shell-end` leaves these files; the store removes
+`<id>`, `.lock`, `.want`, `.run`, `.wlock` when the sweeper (or `reap`) removes
+the shell entity (H9, Go `TestReapRemovesShellRefreshFiles`). Tests: H8, H9,
+H10 (an older request published while the worker is busy never replaces the
+newer one), H10b (a publish waits for the request lock), H11 (a request whose
+update failed is applied by the next refresh). Mutants:
+`refresh_worker_not_exclusive`, `refresh_publish_lock_nonblocking`,
+`refresh_applied_before_update`, `refresh_ignores_order` (core:
+`shellrefresh_files_kept`).
+
 ### zsh / fish — UNCONFIRMED
 
 `shell-integration.zsh` (precmd/preexec/zshexit via `add-zsh-hook`) and
@@ -286,8 +306,8 @@ Every line is sanitised (§3.1); a newline inside a stored value cannot forge a 
 ## 7. Verification
 
 ```bash
-bash scripts/label-sync/render/tests/test_render.sh          # 165 cases (needs jq, go, python3; script(1) optional)
-bash scripts/label-sync/render/prove_mutations.sh            # 30 mutants + control, all must be KILLED by an assertion
+bash scripts/label-sync/render/tests/test_render.sh          # 185 cases (needs jq, go, python3; script(1) optional)
+bash scripts/label-sync/render/prove_mutations.sh            # 33 mutants + control, all must be KILLED by an assertion
 bash scripts/gates/cm_label_sync_render.sh                   # CM-LABEL-SYNC-RENDER: 0 pass | 1 fail | 2 cannot determine
 bash scripts/gates/cm_label_sync_render_mutation_test.sh     # gate's own paired mutation test (10 mutants + exit-2 case)
 ```

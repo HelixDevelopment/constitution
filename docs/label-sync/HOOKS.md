@@ -3,12 +3,12 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/HOOKS.md` |
-| Revision | 4 (2026-10-14) — re-review: errexit inside every post-update step, MCP launcher walks up to the project root, `<synthetic>` never a model, tree-keyed binary staleness; revision 3 (2026-10-14) — second-review fixes, see [§12](#12-second-review-fixes-revision-3); revision 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
+| Revision | 5 (2026-10-15) — re-review 3: every changed skill attempted and each failed link an ERROR, a failed git-hook copy an ERROR too, MCP walk-up needs `.mcp.json`, array/NUL-safe keys and dedupe, content-digest binary staleness; revision 4 (2026-10-14) — re-review: errexit inside every post-update step, MCP launcher walks up to the project root, `<synthetic>` never a model, tree-keyed binary staleness; revision 3 (2026-10-14) — second-review fixes, see [§12](#12-second-review-fixes-revision-3); revision 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); live delivery inside a real Claude Code session is UNCONFIRMED (see §2) |
 | Implements | §11.4.182 (label), §11.4.208 / §11.4.210 (request ledger auto-capture), §11.4.228(D) / §11.4.164 (auto-wiring on pull), §11.4.233 (level-triggered), §11.4.18 (script docs) |
 | Builds on | [`CONTRACT.md`](CONTRACT.md) (data contract), [`README.md`](README.md) (core quick start) |
 | Code | `scripts/label-sync/hooks/`, `scripts/label-sync/toolkit/`, `scripts/label-sync/install_label_sync.sh` |
-| Tests | `scripts/hooks/test_label_sync_hooks.sh` (506 assertions), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (57 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
+| Tests | `scripts/hooks/test_label_sync_hooks.sh` (525 assertions, measured 2026-10-15), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (67 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
 
 ## Contents
 
@@ -316,8 +316,11 @@ constitution lives outside the project). Because Claude Code spawns the
 command relative to the directory it was started in (measured by the
 re-review with Claude Code 2.1.300; `${CLAUDE_PROJECT_DIR}` is not expanded in
 `.mcp.json`), a relative entry is wrapped in `sh -c` that walks up from `$PWD`
-to the directory holding the vendored constitution, `cd`s there and `exec`s the
-server — see MCP.md. **Step 4d**
+to the first directory holding BOTH the vendored constitution prefix and
+`.mcp.json` (re-review 3 finding 4: a nested copy of the prefix no longer
+captures the launch), `cd`s there and `exec`s the server — see MCP.md. The
+rewritten server keys are an array, so a key containing a space is wrapped as
+one key (finding 5). **Step 4d**
 runs `scripts/label-sync/adapters/install_adapters.sh` when adapter files changed:
 
 | `LABEL_SYNC_ADAPTERS` | Behaviour |
@@ -327,7 +330,20 @@ runs `scripts/label-sync/adapters/install_adapters.sh` when adapter files change
 | `off` | skipped |
 
 Step 5 also syntax-checks every changed `scripts/label-sync/**/*.sh` (they were classified as
-label-sync changes and skipped).
+label-sync changes and skipped). Its path list is deduplicated NUL-safely, so a
+script whose NAME contains a newline is checked as one path (finding 8); a
+syntax error is an ERROR (hook exit 1).
+
+**Per-item failures (re-review 3 finding 6).** Step 2 attempts EVERY changed
+skill: a link that fails (`rm`/`ln`) is printed and recorded as an ERROR
+`skill '<name>': link failed (<dst>)` and the next skill is still tried — the
+step no longer ends at the first. Step 4 classifies the same way: a hook whose
+copy into git's hooks dir fails is an ERROR `git hook <name>: install failed
+(<dst>)` (it used to be a warning). Only "nothing to install into" stays a
+WARNING: a consumer that is not a git work tree, or a hooks dir that cannot be
+created. A command failing OUTSIDE these per-item checks still ends the step
+under errexit (e.g. `skills/` being a file: "step install_skills FAILED").
+Tests: §22 R3.6, R1, R11, R3.8.
 
 ## 8. Rollback
 

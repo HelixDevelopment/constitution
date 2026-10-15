@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/CONTRACT.md` |
-| Revision | 4 (2026-10-14) — re-review: PID-namespace-aware sweeper (§6), tree-keyed binary staleness (§7). Revision 3 (2026-10-14) — review-2 fixes: stale sweeper (§6), explicit alias pins (§4.2), bus.addr only after bind + busd exit 3 + hello limit (§1, §3), pid range + patch ids (§2.1, §7), per-checkout binary cache (§7), same-user trust boundary (§8). Revision 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
+| Revision | 5 (2026-10-15) — re-review 3: unknown fields carried, `labelctl repair`, bounded unknown/foreign-namespace sweep, mixed-version warning (§6); swept shells take their refresh files (§6); content-digest binary staleness (§7). Revision 4 (2026-10-14) — re-review: PID-namespace-aware sweeper (§6), tree-keyed binary staleness (§7). Revision 3 (2026-10-14) — review-2 fixes: stale sweeper (§6), explicit alias pins (§4.2), bus.addr only after bind + busd exit 3 + hello limit (§1, §3), pid range + patch ids (§2.1, §7), per-checkout binary cache (§7), same-user trust boundary (§8). Revision 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
 | Status | CORE implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (event stream + atomic status snapshot), §11.4.233 (level-triggered reconcile) |
 | Code | `scripts/label-sync/` (Go, stdlib only) + `scripts/label-sync/labelctl.sh` |
@@ -301,7 +301,16 @@ child is ever left pinned by a past session binding.
   differs from replay …"); `labelctl repair` re-folds `base.json` +
   `events.jsonl` under the writer lock and rewrites `fold.json`,
   `snapshot.json`, `active.json` and `seq` — restoring `pid_ns` from the
-  events unless an old writer already compacted them into `base.json`. A live process is never swept; a
+  events unless an old writer already compacted them into `base.json`.
+  Measured with rootless podman (2026-10-15, pre-fix binary 6dfc57a + this
+  branch): the pre-fix writer swept a container-registered shell across
+  namespaces and stripped `pid_ns` from `fold.json`; the new `verify` then
+  exited 1 ("fold.json differs …"), `repair` exited 0 and restored `pid_ns`,
+  and `verify` exited 0.
+  **Refresh files go with the shell (re-review 3 finding 9).** When a shell
+  entity is removed (sweeper or explicit `reap`), the store also removes its
+  `shellrefresh/<id>`, `.lock`, `.want`, `.run` and `.wlock` (ids containing
+  `/` or starting with `.` are skipped). A live process is never swept; a
   RECYCLED pid with a recorded start identity is not "alive". At most
   `LABEL_SYNC_SWEEP_BATCH` (default 256) entities go per transaction, appended
   with ONE fsync, so the lock hold stays bounded; later writes continue the
@@ -328,13 +337,19 @@ itself (prepare) AND by the fold (replayed logs). `labelctl.sh` keeps its
 binaries in a PER-CHECKOUT cache (`<cache>/constitution-label-sync/bin-<hash
 of the module path>`, `bincache.sh`) — one shared cache used to let checkout A
 run checkout B's binary (review-2 finding 13). Staleness is ONE rule
-(`bincache.sh ls_bin_stale`, re-review finding 5): the stamp `.source-tree`
-holds the git TREE id of `scripts/label-sync` at build; the same tree with no
-uncommitted change in the module is fresh whatever the mtimes (a commit
-elsewhere, or a checkout that rewrote mtimes, no longer forces a rebuild — and
-a host without Go keeps using identical binaries instead of exiting 2); a
-different tree is stale; with no stamp (e.g. a prebuilt `LABEL_SYNC_BIN`) or
-outside git, a `*.go`/`go.mod` newer than the binary makes it stale.
+(`bincache.sh ls_bin_stale`, re-review finding 5, re-review 3 findings 2/3):
+the stamp `.source-digest` (`.source-digest-mcp` for the MCP server) holds a
+sha256 over the module's Go build inputs — every non-test `*.go` and `go.mod`,
+sorted by path, each with its own sha256 (`ls_src_digest`; content, not git) —
+computed at build. The same digest is fresh whatever the mtimes (a commit
+elsewhere, a checkout or archive extraction that rewrote mtimes, or a shell
+script edit no longer forces a rebuild — and a host without Go keeps using
+identical binaries instead of exiting 2); a different digest is stale, so a
+binary built from UNCOMMITTED sources that were later reverted is stale (the
+former git-tree stamp recorded HEAD's tree for it). With no stamp (e.g. a
+prebuilt `LABEL_SYNC_BIN`) or no `sha256sum`, a `*.go`/`go.mod` newer than the
+binary makes it stale. Measured cost of the check: ~16 ms (the git-tree probe
+it replaces: ~10 ms); the hooks run it at most once per 60 s.
 `LABEL_SYNC_BIN` still overrides.
 
 **Writer lock.** Writers wait at most the lock timeout (a blocking flock in a

@@ -200,6 +200,8 @@ M = {
  # re-retargeted (re-review 3 findings 2/3): staleness is a CONTENT digest now
  "bincache_digest_ignored": (BINC, '    [ "$rec" != "$cur" ]   # MUT:digeststamp', '    false   # MUT:digeststamp',
     "13/R5/R3.2: binaries built from other (or uncommitted, since reverted) sources are stale"),
+ "bincache_always_stale": (BINC, '    [ "$rec" != "$cur" ]   # MUT:digeststamp', '    true   # MUT:digeststamp',
+    "reviewer R05: identical sources are never stale (dirty-always-stale)"),
  "bincache_mtime_only": (BINC, '  if [ -n "$rec" ] && [ -n "$cur" ]; then', '  if false; then',
     "R3.3: identical sources whose mtimes are newer than the binary (archive checkout) stay fresh"),
 }

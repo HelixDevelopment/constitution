@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/REVIEW-FIXES.md` |
-| Revision | 2 (2026-10-14) — third (re-)review round added |
+| Revision | 3 (2026-10-15) — re-review 3 round added (review 4 below) |
 | Branch | `feature/label-sync` (base `c4b7408`, after the merge `3d002e6` of upstream `2e70099`) |
 | Anchors | §11.4.134, §11.4.115, §1.1, §11.4.201, §11.4.6 |
 
@@ -32,7 +32,18 @@ re-derivable by running the named test against the pre-fix revision.
 | `318affb` | core prover: a kill needs a `--- FAIL:` line, non-compiling mutants are UNDETERMINED (finding 5); 48 mutants |
 | `4597875` | MCP: pid range checked at the argument layer (M8 had survived after `89d8f71`); MCP prover 14 mutants |
 | `359db9c` | hook mutants (49), `run_step` isolation proven via a test-only fault seam, two post-hook mutants retargeted, hook prover kills need an assertion |
-| _this commit_ | render / adapter provers (assertion-required kills), docs, this file |
+| `6dfc57a` | render / adapter provers (assertion-required kills), docs, this file |
+| `e41d76d` | re-review findings 2, 9, 10: PID-namespace-aware sweeper, busd address guards tested, gofmt |
+| `4bf3cfc` | re-review findings 1, 3, 4, 5, 11: errexit inside every post-update step, MCP `sh` walk-up launcher, `<synthetic>` never a model, tree-keyed staleness, test-mode-only fault seams |
+| `d7a76bb` | re-review finding 6: shell refreshes ordered (`--seq`) and retried once |
+| `256979b` | re-review finding 7: a signal in the spawn window reaches the agent |
+| `06e2b02` | re-review finding 8: MCP prover reports a non-compiling mutant UNDETERMINED (exit 2) |
+| `32f02a9` | docs: re-review round recorded (review 3 table, finding-12 correction, upstream note) |
+| `720cad8` | step 4c refusal asserted as a warning (kills `posthook_4c_aborts_hook`); adapter prover prints its control FAILs |
+| `9c75e88` | re-review 3 finding 1: unknown entity fields carried, `labelctl repair`, bounded unknown/foreign-namespace sweep, CONTRACT §6 |
+| `53bdf52` | re-review 3 findings 2-6, 8 + reviewer R01/R02/R06: content-digest staleness, `.mcp.json` walk-up, array/NUL-safe keys and dedupe, per-item ERRORs in steps 2 and 4 |
+| `7920cc2` | re-review 3 finding 9 + reviewer R03/R04: refresh coalescing, refresh files swept with the shell, D12 race fixed |
+| _this commit_ | re-review 3 finding 7 (docs) + R05 mutant; review 4 recorded below |
 
 ## Review 1 — core, renderers, hooks
 
@@ -151,3 +162,48 @@ Two things the battery caught and this round closed or recorded:
   print. Not reproduced in 30 suite runs and 8 further control runs; which
   assertions failed is UNKNOWN. The prover now prints its control's FAIL lines
   so a recurrence is attributable; the voided chunk (A1–A7) was re-run: 7/7.
+
+## Review 4 — independent re-review of `e41d76d..720cad8` (conditional NO-GO, 1 MEDIUM)
+
+RED was taken on `git archive` subsets of `9c75e88` (findings 2-9) or of
+`720cad8` (finding 1) with the new tests copied in.
+
+| # | Sev | Finding | Fix | RED on the unfixed tree | Mutant |
+|---|---|---|---|---|---|
+| 1 | MED | upgrade path: a pre-fix writer re-marshals `fold.json`/`snapshot`/`base.json` without `pid_ns`; new verify then exits 1 and the old writer sweeps across namespaces | `9c75e88`: `model.Entity.Extra` carries unknown JSON fields; `labelctl repair` re-folds `base.json`+`events.jsonl`; no-namespace entities with a dead pid swept after `LABEL_SYNC_STALE_SWEEP_UNKNOWN_NS` (24h), foreign-namespace ones after `…_FOREIGN_NS` (7d); CONTRACT §6 states that mixed versions lose the guard | Go: "Store has no Repair route", "an unknown field was dropped by a read/write cycle", "after 25h: the dead no-namespace entity must go", `labelctl repair` "unknown command". Podman (rootless, pre-fix 6dfc57a binary + this branch): old writer swept `ct-shell` and stripped `pid_ns`; verify rc 1; repair rc 0; verify rc 0, `pid_ns` restored; unknown-ns and foreign-ns bounds observed (kept under the defaults, swept at 1s) | `entity_drops_unknown_fields`, `repair_trusts_fold`, `sweep_unknown_like_same`, `sweep_unknown_never`, `sweep_foreign_unbounded`, `sweep_ignores_pid_namespace` |
+| 2 | LOW | the binary stamp was written from uncommitted sources (HEAD's tree) | `53bdf52`: `.source-digest` = sha256 over the Go build inputs | §21 "R3.2 a binary built from uncommitted sources is stale once they are reverted (got '0' want '2')" | `bincache_digest_ignored` |
+| 3 | LOW | an archive checkout (no `.git`) with a prebuilt binary older than its files was STALE (exit 2 without Go) | `53bdf52`: same digest; mtime fallback only without a stamp | §21 "R3.3 identical sources in a checkout without .git stay fresh (got '2' want '0')", "R3.2 a committed SHELL-script edit … (got '2' want '0')" | `bincache_mtime_only`, `bincache_always_stale` (R05) |
+| 4 | LOW | the MCP walk-up stopped at the NEAREST directory holding the prefix | `53bdf52`: requires the prefix AND `.mcp.json`; measured with Claude Code 2.1.300 (decoy never ran, `Connected` from `sub/deeper` and root) | §20 "R3.4 … (got 'nested-ran')" | `mcp_walk_ignores_mcp_json` |
+| 5 | LOW | `for key in $rewrote` word-split keys | `53bdf52`: an array | §20 "R3.5 … (got 'constitution/scripts/…' want 'sh')", "(got '2' want '0')" | `mcp_keys_word_split`, `mcp_not_wrapped` |
+| 6 | LOW | step 2 ended at the first failed `ln`; step 4 called a failed copy a warning | `53bdf52`: every skill attempted, each failure an ERROR; a failed hook copy an ERROR; non-git consumer stays a WARNING | §22 "R3.6 EVERY changed skill is attempted …" x2, "R3.6 … named in the errors", R11 | `skill_failure_not_error`, `skills_stop_at_first_failure`, `skill_link_failure_ignored` (R06), `hook_install_failure_not_error` |
+| 7 | NIT | stale docs: RENDERERS "165 cases", REVIEW-FIXES commits table, MCP.md "NOT re-measured" | _this commit_: 185 cases (measured), commits table above, MCP.md cites both client measurements | — | — |
+| 8 | NIT | step 5 dedupe split a path containing a newline | `53bdf52`: `sort -zu` / `mapfile -d ''` | §22 "R3.8 … (no false SYNTAX ERROR)" | `dedupe_splits_newlines` |
+| 9 | NIT | `shellrefresh/<id>` and `.lock` of dead shells never removed; one derive per `cd` | `7920cc2`: removed with the swept/reaped entity; publish + one worker per shell | render "H8 … (measured 30)", "H9 … got [ h9sh h9sh.want …]"; Go "shellrefresh/dead-sh left behind" | `shellrefresh_files_kept`, `refresh_worker_not_exclusive` |
+
+**Reviewer mutants R01-R06** (`results2.tsv`/`results3.tsv` were empty, so each
+was applied here): R01 dropped step-state save → `step_warnings_lost`, killed
+(plus a new assertion that the step-4c warning reaches the SUMMARY); R02 step-5
+error downgraded → `syntax_error_downgraded`, killed; R03 non-blocking refresh
+lock → `refresh_publish_lock_nonblocking`, killed by H10b; R04 applied seq
+written before the update → `refresh_applied_before_update`, killed by H11;
+R05 dirty-always-stale → `bincache_always_stale`, killed; R06 `ln || true` →
+`skill_link_failure_ignored`, killed.
+
+**Found while re-running.** Render D11/D12 failed twice under host load: D12
+waited for ANY child of `labelrun`, which is its `$(labelctl register)`
+substitution forked before the traps exist; a SIGINT then left the `intr`
+entity running (D11) or was swallowed by bash's wait-for-substitution rule
+(exit 0 after 4 s). The test now waits for the payload; 185/0 three times.
+The hooks latency check failed under load (prompt median 156-170 ms, CPU
+~107 ms); an interleaved A/B of the prompt hook (21 runs each) measured HEAD
+`9c75e88` 135 ms wall / 82 ms CPU and the working tree 134 / 82 — load, not a
+regression.
+
+**Not fixed (cannot be, from the new side).** A pre-fix writer still sweeps
+across namespaces and strips fields; a `base.json` it compacted has lost
+`pid_ns` for good (repair re-folds what the events still hold). A signal can
+still end the post-update hook. zsh/fish still have no place refresh.
+
+**Re-run battery (2026-10-15), on the final tree.** Recorded by the commit
+that follows this one: the battery runs on a `git archive` of the committed
+tree, so it cannot be quoted in the commit it measures.
