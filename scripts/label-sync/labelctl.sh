@@ -16,7 +16,7 @@
 #           env LABEL_SYNC_BIN   binary cache dir (default: PER CHECKOUT,
 #                                ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin-<hash of this
 #                                module's path>, see bincache.sh; staleness: bincache.sh ls_bin_stale —
-#                                keyed on the git TREE of this module recorded in `.source-tree`)
+#                                keyed on a digest of this module's Go sources recorded in `.source-digest`)
 #           env LABEL_SYNC_LABELER canonical labeler (default: sibling
 #                                ../multitrack/track_branch_label.sh)
 # Outputs : whatever the exec'd Go binary prints (see docs/label-sync/).
@@ -36,7 +36,7 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$SELF/bincache.sh" || { echo "labelctl.sh: bincache.sh missing" >&2; exit 2; }
 ls_bincache_into BIN_DIR "$SELF"
 
-stale() { ls_bin_stale "$1" "$BIN_DIR/.source-tree" "$SELF"; }   # rule: bincache.sh
+stale() { ls_bin_stale "$1" "$BIN_DIR/.source-digest" "$SELF"; }   # rule: bincache.sh
 
 build() {
   if ! stale "$BIN_DIR/labelctl" && ! stale "$BIN_DIR/label-busd"; then return 0; fi
@@ -51,7 +51,7 @@ build() {
     # re-check after acquiring the lock (another process may have built)
     if ! stale "$BIN_DIR/labelctl" && ! stale "$BIN_DIR/label-busd"; then exit 0; fi
     cd "$SELF" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN_DIR/" ./cmd/labelctl ./cmd/label-busd \
-      && ls_src_tree "$SELF" >"$BIN_DIR/.source-tree"
+      && ls_src_digest "$SELF" >"$BIN_DIR/.source-digest"
   ) 9>"$lock" || { echo "labelctl.sh: build failed" >&2; return 2; }
 }
 

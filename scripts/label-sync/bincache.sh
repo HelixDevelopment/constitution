@@ -7,10 +7,9 @@
 #           binary). Each checkout gets
 #             ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin-<key>
 #           where <key> is a fork-free 32-bit djb2 hash (hex) of the module
-#           path; the SOURCE is keyed inside that dir by the `.source-tree`
-#           stamp the launchers write at build time: the git TREE id of the
-#           module at HEAD (re-review finding 5 — a commit elsewhere in the
-#           repository must not make identical binaries stale). LABEL_SYNC_BIN
+#           path; the SOURCE is keyed inside that dir by the `.source-digest`
+#           stamp the launchers write at build time: a sha256 over the Go build
+#           inputs (ls_src_digest — re-review findings 5 and 3.2/3.3). LABEL_SYNC_BIN
 #           still overrides the directory.
 #           ls_bin_stale is the ONE staleness rule (labelctl.sh, mcp/label-mcp.sh,
 #           hooks/label-sync-lib.sh).
@@ -37,28 +36,33 @@ ls_bincache_into() {
 }
 ls_bincache_dir() { local __d; ls_bincache_into __d "$1"; printf '%s' "$__d"; }
 
-# ls_src_tree MODULE_DIR : git tree id of MODULE_DIR at HEAD ('' outside git).
-ls_src_tree() { git -C "$1" rev-parse -q --verify 'HEAD:./' 2>/dev/null || :; }
+# ls_src_digest MODULE_DIR : sha256 over the module's Go build inputs — every
+# non-test *.go file and go.mod, sorted by path, each with its own sha256 —
+# or '' when sha256sum is unavailable. Content, not git (re-review 3 findings
+# 2, 3): a binary built from UNCOMMITTED sources is not stamped with HEAD's
+# tree, a tarball (no .git) keeps its stamp, and editing a shell script under
+# scripts/label-sync does not make the Go binaries stale.
+ls_src_digest() {
+  command -v sha256sum >/dev/null 2>&1 || return 0
+  ( cd "$1" 2>/dev/null && find . \( -name '*.go' ! -name '*_test.go' -o -name go.mod \) -type f -print0 \
+      | LC_ALL=C sort -z | xargs -0r sha256sum ) 2>/dev/null | sha256sum | cut -c1-64
+}
 
 # ls_bin_stale BINARY STAMP_FILE MODULE_DIR : exit 0 when BINARY must be rebuilt.
-#   missing / not executable                                   -> stale
-#   stamp == current tree AND no uncommitted change in MODULE -> fresh (any mtimes:
-#       a checkout rewrites mtimes of identical sources; a host without Go then
-#       still uses the binaries instead of exiting 2)
-#   stamp present but != current tree                          -> stale
-#   otherwise (no stamp, e.g. a prebuilt LABEL_SYNC_BIN, or not a git checkout,
-#   or uncommitted changes): stale only when a *.go / go.mod is NEWER than BINARY.
+#   missing / not executable                         -> stale
+#   stamp present and == current ls_src_digest       -> fresh (any mtimes; a host
+#       without Go then keeps using identical binaries instead of exiting 2)
+#   stamp present and != current digest              -> stale
+#   no stamp (e.g. a prebuilt LABEL_SYNC_BIN) or no digest available:
+#       stale only when a *.go / go.mod is NEWER than BINARY.
 ls_bin_stale() {
   local bin="$1" stamp="$2" mod="$3" rec="" cur
   [ -x "$bin" ] || return 0
   { IFS= read -r rec <"$stamp"; } 2>/dev/null || rec=""
-  cur="$(ls_src_tree "$mod")"
+  cur="$(ls_src_digest "$mod")"
   if [ -n "$rec" ] && [ -n "$cur" ]; then
-    if [ "$rec" = "$cur" ]; then                                       # MUT:treestamp
-      [ -z "$(git -C "$mod" status --porcelain -- . 2>/dev/null)" ] && return 1   # MUT:treeclean
-    else
-      return 0
-    fi
+    [ "$rec" != "$cur" ]   # MUT:digeststamp
+    return
   fi
   [ -n "$(find "$mod" \( -name '*.go' -o -name go.mod \) -newer "$bin" -print -quit 2>/dev/null)" ]
 }

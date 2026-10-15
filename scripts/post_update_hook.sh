@@ -240,9 +240,15 @@ install_skills() {
         # any REAL directory a consuming project happened to keep at that path.
         # Never delete an operator's directory to make room for a link.
         if [ -L "$dst" ] || [ ! -e "$dst" ]; then
-            rm -f "$dst"
-            ln -s "$src" "$dst"
-            info "  -> Linked: $dst -> $src"
+            # every changed skill is attempted; each failure is an ERROR
+            # (re-review 3 finding 6 — step 4 classifies a failed hook copy alike)
+            if rm -f "$dst" && ln -s "$src" "$dst"; then   # MUT:skillerr
+                info "  -> Linked: $dst -> $src"
+            else
+                error "  -> skill '${skill_name}': link failed ($dst)"
+                ERRORS+=("skill '${skill_name}': link failed ($dst)")
+                continue
+            fi
         else
             warn "  -> $dst exists and is NOT a symlink — left untouched (remove it yourself to re-link)"
             WARNINGS+=("skill '${skill_name}': $dst is a real path, not a symlink — not replaced")
@@ -312,7 +318,9 @@ install_mcp_configs() {
     # directory IT was started in — from <project>/sub/deeper a relative command
     # fails with ENOENT — and does not expand ${CLAUDE_PROJECT_DIR} in .mcp.json).
     # So such an entry is wrapped:  sh -c '<walk up from $PWD to the directory
-    # holding <prefix>; cd there; exec "$0" "$@">' <command> <args...>
+    # holding BOTH <prefix> and .mcp.json — the file Claude Code read; a nested
+    # directory that merely holds another <prefix> is skipped (re-review 3
+    # finding 4) —; cd there; exec "$0" "$@">' <command> <args...>
     # and fails loudly ("... not found above $PWD", exit 127) outside the project.
     local croot proot cprefix
     croot="$(cd "$CONST_DIR" 2>/dev/null && pwd -P)" || croot="$CONST_DIR"
@@ -337,7 +345,7 @@ install_mcp_configs() {
             warn "  -> $src_file is not valid JSON — skipped."; WARNINGS+=("MCP ${mcp_name}: source not valid JSON")
             rm -f "$frag" "$tmpfile"; continue
         fi
-        local key idx str rewrote=""
+        local key idx str rewrote=() k
         while IFS=$'\t' read -r key idx str; do
             [ -n "$str" ] || continue
             case "$str" in /*|*://*) continue ;; */*) ;; *) continue ;; esac
@@ -348,13 +356,14 @@ install_mcp_configs() {
                 jq --arg k "$key" --argjson i "$((idx - 1))" --arg v "$cprefix/$str" '.mcpServers[$k].args[$i] = $v' "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
             fi
             info "  -> path resolved for the consumer: $str -> $cprefix/$str"
-            case " $rewrote " in *" $key "*) ;; *) rewrote="$rewrote $key" ;; esac
+            for k in ${rewrote[@]+"${rewrote[@]}"}; do [ "$k" = "$key" ] && continue 2; done
+            rewrote+=("$key")   # an ARRAY: a server key may contain spaces (re-review 3 finding 5)
         done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null)
-        if [ "${cprefix#/}" = "$cprefix" ] && [ -n "$rewrote" ]; then
+        if [ "${cprefix#/}" = "$cprefix" ] && [ "${#rewrote[@]}" -gt 0 ]; then
             local qp walk
             qp="'${cprefix//\'/\'\\\'\'}'"     # single-quoted for sh
-            walk="d=\$PWD; while [ ! -d \"\$d\"/$qp ]; do [ \"\$d\" = / ] && { echo \"label-sync MCP launcher: \"$qp\" not found above \$PWD\" >&2; exit 127; }; d=\$(dirname \"\$d\"); done; cd \"\$d\" && exec \"\$0\" \"\$@\""
-            for key in $rewrote; do   # MUT:mcpwrap
+            walk="d=\$PWD; while [ ! -d \"\$d\"/$qp ] || [ ! -f \"\$d\"/.mcp.json ]; do [ \"\$d\" = / ] && { echo \"label-sync MCP launcher: \"$qp\" not found above \$PWD\" >&2; exit 127; }; d=\$(dirname \"\$d\"); done; cd \"\$d\" && exec \"\$0\" \"\$@\""   # MUT:walkmcpjson
+            for key in "${rewrote[@]}"; do   # MUT:mcpwrap
                 jq --arg k "$key" --arg w "$walk" \
                    '.mcpServers[$k] |= (.args = (["-c", $w, .command] + (.args // [])) | .command = "sh")' \
                    "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
@@ -432,8 +441,11 @@ install_hooks() {
         if cp "$src_file" "$dst_file" && chmod +x "$dst_file"; then
             info "  -> Installed: $dst_file"
         else
-            warn "could not install $dst_file"
-            WARNINGS+=("git hook ${hook_name} not installed")
+            # an attempted install that failed is an ERROR, like a failed skill
+            # link (re-review 3 finding 6); a consumer without git hooks at all
+            # stays a WARNING above (nothing to install into).
+            error "git hook ${hook_name}: install failed ($dst_file)"
+            ERRORS+=("git hook ${hook_name}: install failed ($dst_file)")   # MUT:hookerr
         fi
     done
     return 0
@@ -683,12 +695,9 @@ validate_scripts() {
         return 0
     fi
 
-    # Deduplicate
-    local IFS_SAVE="$IFS"
-    IFS=$'\n'
-    local unique_scripts
-    unique_scripts=($(printf "%s\n" "${all_scripts[@]}" | sort -u))
-    IFS="$IFS_SAVE"
+    # Deduplicate NUL-safely: a path may contain a newline (re-review 3 finding 8)
+    local unique_scripts=()
+    mapfile -d '' -t unique_scripts < <(printf '%s\0' "${all_scripts[@]}" | sort -zu)   # MUT:nuldedupe
 
     local validated=0
     for script in "${unique_scripts[@]}"; do

@@ -80,7 +80,7 @@ ls_have_bin() {
     case "$last" in ''|*[!0-9]*) last=0 ;; esac
     if [ $((now - last)) -ge 60 ]; then
       printf '%s\n' "$now" >"$stamp" 2>/dev/null
-      if ls_bin_stale "$LS_CTL_BIN" "$LS_BINDIR/.source-tree" "$LS_DIR"; then ls_kick_build; fi
+      if ls_bin_stale "$LS_CTL_BIN" "$LS_BINDIR/.source-digest" "$LS_DIR"; then ls_kick_build; fi
     fi
     return 0
   fi

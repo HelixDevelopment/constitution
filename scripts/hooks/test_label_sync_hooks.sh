@@ -774,6 +774,7 @@ check "F6 non-git consumer: step 4c still ran" grep -q 'STEP 4c' "$T/ph7.out"
 BADC="$T/badcons"; mkdir -p "$BADC/.claude"; printf '{ broken' >"$BADC/.claude/settings.json"
 ( cd "$BADC" && CONST_DIR="$FC6" PROJECT_ROOT="$BADC" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph8.out" 2>&1; rc=$?
 check "F6 installer refusal inside step 4c is reported as a warning" grep -q 'install_label_sync.sh exited' "$T/ph8.out"
+check "R01 ...and that warning survives the step subshell into the SUMMARY's Warnings list" grep -q -- '^    - install_label_sync.sh exited' "$T/ph8.out"
 check "F6 ...and the hook still reaches step 5 (step 4c never aborts the run)" grep -q 'STEP 5' "$T/ph8.out"
 eq "R1 a refused label-sync install is a WARNING, not a failed step (hook exit 0)" "$rc" 0
 check "R1 ...no 'step install_label_sync FAILED' line" bash -c '! grep -q "step install_label_sync FAILED" "$1"' _ "$T/ph8.out"
@@ -949,6 +950,7 @@ cp "$LS/mcp/label-mcp.sh" "$FC20/scripts/label-sync/mcp/"; cp "$CROOT/mcp/label-
 cp -r "$LS/adapters/." "$FC20/scripts/label-sync/adapters/"
 ( cd "$FC20" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
   && printf '\n' >>mcp/label-sync-mcp.json && echo '# touched' >>scripts/label-sync/adapters/lib/adapter_lib.sh \
+  && printf '{"mcpServers":{"spaced server":{"command":"scripts/label-sync/mcp/label-mcp.sh","args":[]}}}\n' >mcp/spaced.json \
   && printf '#!/usr/bin/env bash\nif then (\n' >scripts/label-sync/broken.sh \
   && printf '#!/usr/bin/env bash\nfi\n' >scripts/label-sync/broken2.sh \
   && git add -A && git -c user.email=t@t -c user.name=t commit -q -m change )
@@ -985,6 +987,16 @@ po="$(cd "$C20/sub/deeper" && "$mc" "${ma[@]}" 2>&1 </dev/null)"
 eq "R3 started from a nested sub-directory the server is found and runs at the project root" "$po" "probe-ran $C20"
 po="$(cd "$C20" && "$mc" "${ma[@]}" 2>&1 </dev/null)"
 eq "R3 started from the project root it runs the same server" "$po" "probe-ran $C20"
+# re-review 3 finding 4: a NESTED directory that also holds a constitution/
+# must not capture the launch — the server is the one next to .mcp.json.
+mkdir -p "$C20/sub/constitution/scripts/label-sync/mcp"
+printf '#!/bin/sh\necho "nested-ran"\n' >"$C20/sub/constitution/scripts/label-sync/mcp/label-mcp.sh"; chmod +x "$C20/sub/constitution/scripts/label-sync/mcp/label-mcp.sh"
+po="$(cd "$C20/sub" && "$mc" "${ma[@]}" 2>&1 </dev/null)"
+eq "R3.4 started below a nested constitution/ the launcher still runs the server next to .mcp.json" "$po" "probe-ran $C20"
+rm -rf "$C20/sub/constitution"
+# re-review 3 finding 5: a server key with a space is wrapped as ONE key
+eq "R3.5 a server key with a space is launched through sh" "$(jq -r '.mcpServers["spaced server"].command // empty' "$C20/.mcp.json")" sh
+eq "R3.5 ...and no word-split garbage keys appear" "$(jq -r '[.mcpServers | keys[] | select(. == "spaced" or . == "server")] | length' "$C20/.mcp.json")" 0
 po="$(cd / && "$mc" "${ma[@]}" 2>&1 </dev/null)"; rc=$?
 case "$po" in *"not found above"*) r=0 ;; *) r=1 ;; esac
 ok "R3 started outside the project it fails loudly instead of running something else (got: ${po:0:80})" $r
@@ -1011,49 +1023,90 @@ bdB="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash "$MB/labelctl.sh" --bi
 [ -n "$bdA" ] && [ "$bdA" != "$bdB" ]; ok "13 two checkouts get two different default caches ($bdA vs $bdB)" $?
 bdH="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash -c '. "$1/hooks/label-sync-lib.sh"; ls_init; printf %s "$LS_BINDIR"' _ "$MA")"
 eq "13 the hooks resolve the SAME cache dir as labelctl.sh (fork-free key)" "$bdH" "$bdA"
-mkdir -p "$bdA"; cp "$LABEL_SYNC_BIN/labelctl" "$LABEL_SYNC_BIN/label-busd" "$bdA/"
-git -C "$MA" rev-parse 'HEAD:./' >"$bdA/.source-tree"
-NOGO="$T/nogo"; mkdir -p "$NOGO"; for t in bash git find dirname env cat; do ln -sf "$(type -P "$t")" "$NOGO/$t"; done
-nogo_build() { env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1; }
-nogo_build; eq "13 control: binaries stamped with THIS source tree are fresh (no go needed)" "$?" 0
+# The launcher builds and stamps the binaries itself (real go build); every
+# later check runs with NO go on PATH, so "stale" shows as exit 2.
+gobuild() { env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash "$1/labelctl.sh" --build >/dev/null 2>&1; }
+gobuild "$MA"; eq "13 fixture: the launcher builds checkout A (go present)" "$?" 0
+NOGO="$T/nogo"; mkdir -p "$NOGO"; for t in bash git find dirname env cat sort xargs sha256sum cut; do ln -sf "$(type -P "$t")" "$NOGO/$t"; done
+nogo_build() { env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "${1:-$MA}/labelctl.sh" --build >/dev/null 2>&1; }
+nogo_build; eq "13 control: binaries the launcher just built are fresh (no go needed)" "$?" 0
 find "$MA" -name '*.go' -exec touch {} +   # a checkout rewrites mtimes; the source is identical
 nogo_build; eq "R5 identical source with newer mtimes is still fresh (no go => used, not exit 2)" "$?" 0
 git -C "$MA" -c user.email=t@t -c user.name=t commit -q --allow-empty -m unrelated
 nogo_build; eq "R5 a commit that does not touch the module keeps the binaries fresh" "$?" 0
+echo '# script edit' >>"$MA/hooks/label-sync-lib.sh"; git -C "$MA" add -A && git -C "$MA" -c user.email=t@t -c user.name=t commit -q -m script
+nogo_build; eq "R3.2 a committed SHELL-script edit under the module does not make the Go binaries stale" "$?" 0
 echo '// edit' >>"$MA/internal/model/model.go"
 nogo_build; eq "R5 an UNCOMMITTED source edit makes them stale (no go => exit 2)" "$?" 2
 git -C "$MA" add -A && git -C "$MA" -c user.email=t@t -c user.name=t commit -q -m src
 nogo_build; eq "R5 a commit that changes the module source makes them stale (no go => exit 2)" "$?" 2
+# re-review 3 finding 2: binaries built from UNCOMMITTED sources, then the edit is reverted
+MC="$T/modC"; mkdir -p "$MC"; cp -a "$MB/." "$MC/"; git -C "$MC" -c user.email=t@t -c user.name=t commit -q --allow-empty -m c
+echo 'var DirtyBuildMarker = 1' >>"$MC/internal/model/model.go"
+gobuild "$MC"; eq "R3.2 fixture: built from a DIRTY tree (go present)" "$?" 0
+git -C "$MC" checkout -q -- internal/model/model.go
+nogo_build "$MC"; eq "R3.2 a binary built from uncommitted sources is stale once they are reverted (exit 2)" "$?" 2
+# re-review 3 finding 3: an archive checkout (no .git) whose files are newer than the binaries
+MD="$T/modD"; mkdir -p "$MD"; ( cd "$MB" && tar -cf - --exclude=.git . ) | tar -xf - -C "$MD"
+gobuild "$MD"; eq "R3.3 fixture: built in an archive checkout without .git" "$?" 0
+find "$MD" -type f -exec touch -d '+1 hour' {} +   # extraction elsewhere: every source newer than the binaries
+nogo_build "$MD"; eq "R3.3 identical sources in a checkout without .git stay fresh (no go => used, not exit 2)" "$?" 0
 PRE="$T/prebuilt"; mkdir -p "$PRE"; cp "$LABEL_SYNC_BIN/labelctl" "$LABEL_SYNC_BIN/label-busd" "$PRE/"
 find "$MB" -name '*.go' -exec touch -d '2000-01-01' {} +; touch "$PRE/labelctl" "$PRE/label-busd"
 env LABEL_SYNC_BIN="$PRE" XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MB/labelctl.sh" --build >/dev/null 2>&1
 eq "R5 a prebuilt LABEL_SYNC_BIN without a stamp and newer than every source is used (no go)" "$?" 0
 
 # =========================================================================
-echo "== 22. re-review 1: errexit applies INSIDE every post-update step; a mid-step failure is an ERROR, exit/set -u are contained =="
-C22="$T/c22"; FC22="$C22/constitution"; mkdir -p "$FC22/scripts" "$T/home22"
+echo "== 22. re-review 1/3: errexit inside every post-update step; per-item failures are ERRORs; exit/set -u contained =="
+C22="$T/c22"; FC22="$C22/constitution"; mkdir -p "$FC22/scripts/hooks" "$T/home22"
 cp "$POSTHOOK" "$FC22/scripts/post_update_hook.sh"; echo '# c' >"$FC22/Constitution.md"
 ( cd "$FC22" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
-  && mkdir -p skills/foo && echo '# foo' >skills/foo/SKILL.md && git add -A && git -c user.email=t@t -c user.name=t commit -q -m skill )
+  && mkdir -p skills/foo skills/bar && echo '# foo' >skills/foo/SKILL.md && echo '# bar' >skills/bar/SKILL.md \
+  && printf '#!/usr/bin/env bash\necho ok\n' >"skills/foo/ok
+name.sh" \
+  && printf '#!/usr/bin/env bash\nexit 0\n' >scripts/hooks/post-merge \
+  && git add -A && git -c user.email=t@t -c user.name=t commit -q -m skill )
 git -C "$C22" init -q -b main; mkdir -p "$C22/skills"; chmod 555 "$C22/skills"
 ph22() { ( cd "$C22" && HOME="$T/home22" CONST_DIR="$FC22" PROJECT_ROOT="$C22" LABEL_SYNC_ADAPTERS=off "$@" bash "$FC22/scripts/post_update_hook.sh" ); }
 ph22 env >"$T/ph22.out" 2>&1; rc=$?
 chmod 755 "$C22/skills"
-eq "R1 ln failing in the MIDDLE of install_skills makes the hook exit 1" "$rc" 1
-check "R1 the failure is reported as a step ERROR" grep -q 'step install_skills FAILED' "$T/ph22.out"
-check "R1 never 'completed successfully' after a failed step" bash -c '! grep -q "completed successfully" "$1"' _ "$T/ph22.out"
-check "R1 the step stopped at the failing command (no 'Linked' line)" bash -c '! grep -q -- "-> Linked:" "$1"' _ "$T/ph22.out"
+eq "R1 skills that cannot be linked make the hook exit 1" "$rc" 1
+check "R3.6 EVERY changed skill is attempted: foo's failure recorded" grep -q "skill 'foo': link failed" "$T/ph22.out"
+check "R3.6 ...and bar's failure recorded too (no stop at the first)" grep -q "skill 'bar': link failed" "$T/ph22.out"
+check "R1 never 'completed successfully' after a failed install" bash -c '! grep -q "completed successfully" "$1"' _ "$T/ph22.out"
+check "R1 no 'Linked' line for a link that failed" bash -c '! grep -q -- "-> Linked:" "$1"' _ "$T/ph22.out"
 check "R1 the link was not created" test ! -e "$C22/skills/foo"
-for st in 'STEP 3' 'STEP 5' 'SUMMARY'; do check "R1 the steps after the failed one still ran: $st" grep -q "$st" "$T/ph22.out"; done
+for st in 'STEP 3' 'STEP 5' 'SUMMARY'; do check "R1 the steps after the failures still ran: $st" grep -q "$st" "$T/ph22.out"; done
+# a GENUINE unhandled mid-step failure: skills/ is a file, so `mkdir -p` fails
+# inside install_skills; errexit must end that step and record it as an ERROR
+rmdir "$C22/skills"; echo notadir >"$C22/skills"
+ph22 env >"$T/ph22m.out" 2>&1; rc=$?
+rm -f "$C22/skills"; mkdir -p "$C22/skills"
+eq "R1 an unhandled command failing inside a step makes the hook exit 1" "$rc" 1
+check "R1 ...the step is reported FAILED" grep -q 'step install_skills FAILED' "$T/ph22m.out"
+check "R1 ...it ended at that command (no skill was attempted)" bash -c '! grep -q "Installing skill:" "$1"' _ "$T/ph22m.out"
+check "R1 ...and the next steps still ran: SUMMARY" grep -q 'SUMMARY' "$T/ph22m.out"
 ph22 env POST_UPDATE_HOOK_TEST_MODE=1 POST_UPDATE_HOOK_FAULT_EXIT=install_skills >"$T/ph22b.out" 2>&1; rc=$?
 eq "R1 an 'exit' inside a step ends only that step (hook exit 1, not aborted)" "$rc" 1
 check "R1 ...recorded with the step's exit code" grep -q 'step install_skills FAILED (exit 7)' "$T/ph22b.out"
 check "R1 ...and the next steps still ran: SUMMARY" grep -q 'SUMMARY' "$T/ph22b.out"
-rm -f "$C22/skills/foo"
+# step 4 classified like step 2 (re-review 3 finding 6): a hook that cannot be copied is an ERROR
+# (the destination is a DANGLING symlink into a missing dir: an earlier run
+# already installed the file, cp overwrites an existing writable file even in a
+# 555 dir, and copies INTO a directory — a dangling link fails for root too)
+HD22="$(git -C "$C22" rev-parse --path-format=absolute --git-path hooks)"; mkdir -p "$HD22"
+rm -f "$HD22/post-merge"; ln -s "$T/no-such-dir/post-merge" "$HD22/post-merge"
+ph22 env >"$T/ph22h.out" 2>&1; rc=$?
+rm -f "$HD22/post-merge"
+eq "R3.6 a git hook that cannot be installed is an ERROR (hook exit 1), like a skill link" "$rc" 1
+check "R3.6 ...named in the errors" grep -q "git hook post-merge: install failed" "$T/ph22h.out"
+rm -f "$C22/skills/foo" "$C22/skills/bar"
 ph22 env POST_UPDATE_HOOK_FAULT_STEP=install_skills POST_UPDATE_HOOK_FAULT_EXIT=install_skills >"$T/ph22c.out" 2>&1; rc=$?
 eq "R11 the fault seams are inert without POST_UPDATE_HOOK_TEST_MODE=1 (clean run exit 0)" "$rc" 0
 check "R11 ...no forced failure appears" bash -c '! grep -qE "FAILED|exit 97|exit 7" "$1"' _ "$T/ph22c.out"
 check "R11 ...and the real step did its work (link created)" test -L "$C22/skills/foo"
+check "R3.8 a skill script whose NAME contains a newline is validated as ONE path (no false SYNTAX ERROR)" bash -c '! grep -q "SYNTAX ERROR" "$1"' _ "$T/ph22c.out"
+check "R3.6 control: the hook really was installed on the clean run" test -x "$HD22/post-merge"
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

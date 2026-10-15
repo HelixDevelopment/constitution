@@ -29,7 +29,7 @@ MOD="$(cd "$SELF/.." && pwd)"   # scripts/label-sync (the Go module root)
 ls_bincache_into BIN_DIR "$MOD"   # per-checkout cache (review-2 finding 13)
 BIN="$BIN_DIR/label-mcp"
 
-stale() { ls_bin_stale "$BIN" "$BIN_DIR/.source-tree-mcp" "$MOD"; }   # rule: ../bincache.sh
+stale() { ls_bin_stale "$BIN" "$BIN_DIR/.source-digest-mcp" "$MOD"; }   # rule: ../bincache.sh
 
 build() {
   stale || return 0
@@ -39,7 +39,7 @@ build() {
     command -v flock >/dev/null 2>&1 && flock 9
     stale || exit 0
     cd "$MOD" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN" ./mcp/label-mcp 1>&2 \
-      && ls_src_tree "$MOD" >"$BIN_DIR/.source-tree-mcp"
+      && ls_src_digest "$MOD" >"$BIN_DIR/.source-digest-mcp"
   ) 9>"$BIN_DIR/.build-mcp.lock" || { echo "label-mcp.sh: build failed" >&2; return 2; }
 }
 
