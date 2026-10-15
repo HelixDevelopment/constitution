@@ -8,7 +8,7 @@
 | Implements | §11.4.182 (label), §11.4.208 / §11.4.210 (request ledger auto-capture), §11.4.228(D) / §11.4.164 (auto-wiring on pull), §11.4.233 (level-triggered), §11.4.18 (script docs) |
 | Builds on | [`CONTRACT.md`](CONTRACT.md) (data contract), [`README.md`](README.md) (core quick start) |
 | Code | `scripts/label-sync/hooks/`, `scripts/label-sync/toolkit/`, `scripts/label-sync/install_label_sync.sh` |
-| Tests | `scripts/hooks/test_label_sync_hooks.sh` (525 assertions, measured 2026-10-15), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (67 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
+| Tests | `scripts/hooks/test_label_sync_hooks.sh` (530 assertions, measured 2026-10-15), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (69 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
 
 ## Contents
 
@@ -332,7 +332,11 @@ runs `scripts/label-sync/adapters/install_adapters.sh` when adapter files change
 Step 5 also syntax-checks every changed `scripts/label-sync/**/*.sh` (they were classified as
 label-sync changes and skipped). Its path list is deduplicated NUL-safely, so a
 script whose NAME contains a newline is checked as one path (finding 8); a
-syntax error is an ERROR (hook exit 1).
+syntax error is an ERROR (hook exit 1). Step 1's changed-file list follows the same rule (re-review 3
+finding 8, whole class): it is read with `git diff -z` (a non-ASCII name is no
+longer C-quoted past the classifier) and deduplicated with `sort -z`, never by
+word-splitting (a skill named `g*` is no longer glob-expanded against the
+consumer's cwd). Tests: §23 R3.8b.
 
 **Per-item failures (re-review 3 finding 6).** Step 2 attempts EVERY changed
 skill: a link that fails (`rm`/`ln`) is printed and recorded as an ERROR

@@ -43,7 +43,11 @@ re-derivable by running the named test against the pre-fix revision.
 | `9c75e88` | re-review 3 finding 1: unknown entity fields carried, `labelctl repair`, bounded unknown/foreign-namespace sweep, CONTRACT §6 |
 | `53bdf52` | re-review 3 findings 2-6, 8 + reviewer R01/R02/R06: content-digest staleness, `.mcp.json` walk-up, array/NUL-safe keys and dedupe, per-item ERRORs in steps 2 and 4 |
 | `7920cc2` | re-review 3 finding 9 + reviewer R03/R04: refresh coalescing, refresh files swept with the shell, D12 race fixed |
-| _this commit_ | re-review 3 finding 7 (docs) + R05 mutant; review 4 recorded below |
+| `7663dda` | re-review 3 finding 7 (docs) + R05 mutant; review 4 recorded below |
+| `cbba977` | re-review 3 finding 8, whole class: step-1 changed-file list NUL-safe (`git diff -z`, `sort -z`, no `echo\|cut`) |
+| `75581fc` | core prover: `sweep_ignores_age` anchor rotted by `9c75e88` (NOT-APPLIED, exit 2) — retargeted |
+| `a4a210e` | adapters: a signal is forwarded only after the child reports ready (USR1) — root cause of the adapter-prover control failure |
+| _this commit_ | re-run battery recorded; counts updated |
 
 ## Review 1 — core, renderers, hooks
 
@@ -162,6 +166,9 @@ Two things the battery caught and this round closed or recorded:
   print. Not reproduced in 30 suite runs and 8 further control runs; which
   assertions failed is UNKNOWN. The prover now prints its control's FAIL lines
   so a recurrence is attributable; the voided chunk (A1–A7) was re-run: 7/7.
+  **Resolved in review 4 (`a4a210e`):** it recurred in the re-run battery
+  with the FAIL lines printed — the spawn-window TERM was lost (agent ran to
+  completion, rc 0). See "Found while re-running" in review 4.
 
 ## Review 4 — independent re-review of `e41d76d..720cad8` (conditional NO-GO, 1 MEDIUM)
 
@@ -176,8 +183,8 @@ RED was taken on `git archive` subsets of `9c75e88` (findings 2-9) or of
 | 4 | LOW | the MCP walk-up stopped at the NEAREST directory holding the prefix | `53bdf52`: requires the prefix AND `.mcp.json`; measured with Claude Code 2.1.300 (decoy never ran, `Connected` from `sub/deeper` and root) | §20 "R3.4 … (got 'nested-ran')" | `mcp_walk_ignores_mcp_json` |
 | 5 | LOW | `for key in $rewrote` word-split keys | `53bdf52`: an array | §20 "R3.5 … (got 'constitution/scripts/…' want 'sh')", "(got '2' want '0')" | `mcp_keys_word_split`, `mcp_not_wrapped` |
 | 6 | LOW | step 2 ended at the first failed `ln`; step 4 called a failed copy a warning | `53bdf52`: every skill attempted, each failure an ERROR; a failed hook copy an ERROR; non-git consumer stays a WARNING | §22 "R3.6 EVERY changed skill is attempted …" x2, "R3.6 … named in the errors", R11 | `skill_failure_not_error`, `skills_stop_at_first_failure`, `skill_link_failure_ignored` (R06), `hook_install_failure_not_error` |
-| 7 | NIT | stale docs: RENDERERS "165 cases", REVIEW-FIXES commits table, MCP.md "NOT re-measured" | _this commit_: 185 cases (measured), commits table above, MCP.md cites both client measurements | — | — |
-| 8 | NIT | step 5 dedupe split a path containing a newline | `53bdf52`: `sort -zu` / `mapfile -d ''` | §22 "R3.8 … (no false SYNTAX ERROR)" | `dedupe_splits_newlines` |
+| 7 | NIT | stale docs: RENDERERS "165 cases", REVIEW-FIXES commits table, MCP.md "NOT re-measured" | `7663dda`: 185 cases (measured), commits table above, MCP.md cites both client measurements | — | — |
+| 8 | NIT | step 5 dedupe split a path containing a newline | `53bdf52`: `sort -zu` / `mapfile -d ''`; the same class in step 1 (`cbba977`): `git diff -z`, glob-free `sort -z` dedupe, no `echo\|cut` | §22 "R3.8 … (no false SYNTAX ERROR)"; §23 "R3.8b a skill named 'g*' is linked under its literal name", "…cwd files never became skill names", "a non-ASCII skill name ('ü') is detected and linked" | `dedupe_splits_newlines`, `step1_diff_quoted_names`, `step1_dedupe_globs` |
 | 9 | NIT | `shellrefresh/<id>` and `.lock` of dead shells never removed; one derive per `cd` | `7920cc2`: removed with the swept/reaped entity; publish + one worker per shell | render "H8 … (measured 30)", "H9 … got [ h9sh h9sh.want …]"; Go "shellrefresh/dead-sh left behind" | `shellrefresh_files_kept`, `refresh_worker_not_exclusive` |
 
 **Reviewer mutants R01-R06** (`results2.tsv`/`results3.tsv` were empty, so each
@@ -204,6 +211,32 @@ across namespaces and strips fields; a `base.json` it compacted has lost
 `pid_ns` for good (repair re-folds what the events still hold). A signal can
 still end the post-update hook. zsh/fish still have no place refresh.
 
-**Re-run battery (2026-10-15), on the final tree.** Recorded by the commit
-that follows this one: the battery runs on a `git archive` of the committed
-tree, so it cannot be quoted in the commit it measures.
+**Found while re-running (this round).** (a) The core prover's
+`sweep_ignores_age` mutant had rotted: `9c75e88` renamed the age expression
+and the prover printed `NOT-APPLIED … sed did not change internal/state/store.go`
+and exited 2 (it fails closed, so no false PASS) — retargeted in `75581fc`,
+killed. (b) The adapter-prover control failure that review 3 left UNKNOWN
+recurred, now attributable: `FAIL run: a TERM in the spawn window still stops
+the agent (took 8s, rc 0)`. Cause: the TERM was forwarded while the freshly
+forked child bash still carried the wrapper's inherited trap handlers, which
+caught and dropped it. Reproduced 11 lost of 300 seam runs on `cbba977`
+(0 of 300 when the forward was delayed 0.2 s — the timing hypothesis); fixed in
+`a4a210e` (the child reports ready with USR1 after its trap reset; nothing is
+forwarded before), 300 of 300 after; the suite's 100-run loop failed 3 of 100
+on the unfixed wrapper. The step-1 changed-file list had the same unsafe
+path-list class as finding 8 (`cbba977`).
+
+**Re-run battery (2026-10-15), on the final tree.** Every step ran alone under
+`bounded-run -m 6G -T 580` on a `git archive` of the committed tree
+(`cbba977` for the full battery; the adapters re-run, core chunk and N8 on
+`cbba977` + the `75581fc`/`a4a210e` changes): `gofmt -l` empty, `go vet` ok,
+`go test -race ./...` 6 packages ok, `label-busd` `-race -count=30 -cpu 1,4` ok;
+hooks suite 530/0, render suite 185/0, adapters suite 191/0 (three runs);
+gates `cm_label_sync_core/render/hooks/adapters/mcp` and
+`cm_helix_deps_ref_matches_gitlink` rc 0, each gate's mutation test rc 0;
+provers — core 59/59 (20 chunks; `sweep_ignores_age` after `75581fc`), MCP
+14/14, hooks 69/69 (12 chunks, every control 530/0), render 33/33 (9 chunks),
+adapters 32/32 (8 chunks after `a4a210e`, N8 after its retarget). One hooks
+suite run under host CPU pressure (cpu psi avg10 23) failed only the prompt
+latency check (CPU-time median 158 ms vs 150 ms); every later run passed it —
+recorded, not re-tuned.
