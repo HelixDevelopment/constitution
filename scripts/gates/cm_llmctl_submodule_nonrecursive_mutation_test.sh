@@ -76,6 +76,27 @@ r="$tmp/rec_dirty"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "$P_PATH" "$P_CLEAN")
 expect "RECORDED-DIRTY-HEAD-CLEAN (recorded llmctl commit re-enters) must FAIL" 1 "$r"
 r="$tmp/rec_clean"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "$P_CLEAN" "$P_CLEAN")"; record "$r" "$L1"; mk_llmctl "$r" "$P_PATH" "$P_CLEAN" >/dev/null
 expect "RECORDED-CLEAN-HEAD-DIRTY (the RECORDED commit governs) must PASS" 0 "$r"
+# LARGE-ENTRY (SIGPIPE x pipefail, §11.4.276(C) class member F1): the marker sits on the FIRST line of a llmctl entry
+# of ~465 KB. A `printf "$entry" | grep -q` under `set -o pipefail` lets grep exit at the first match while printf is
+# still writing; printf takes SIGPIPE and pipefail turns the PRESENT marker into a false "lacks the marker" FAIL.
+# Repeated (the race is deterministic only well above the ~131 KB knee) and paired with the same large entry
+# WITHOUT the marker, which must still FAIL — so the PASS is the marker's, not the size's.
+mk_large() { # <dir> <marker 1|0> ; uninitialised submodule (check (2) SKIPs), one huge llmctl entry
+  local d="$1" i; mkdir -p "$d"
+  { echo "schema_version: 1"; echo "deps:"; echo "  - name: llmctl"
+    [ "$2" = 1 ] && echo "    recursive_init: false    # marker"
+    for i in $(seq 1 6000); do printf '    note_%05d: %s\n' "$i" "padding-padding-padding-padding-padding-padding-padding"; done
+    echo "  - name: other"; echo "    layout: grouped"; } > "$d/helix-deps.yaml"
+}
+r="$tmp/large_marker"; mk_large "$r" 1
+lsz="$(wc -c < "$r/helix-deps.yaml")"
+[ "$lsz" -ge 400000 ] || { echo "❌ META BAD:  LARGE-ENTRY fixture is only $lsz bytes (needs >= 400000 to exercise the race)"; bad=1; }
+for it in 1 2 3 4 5; do
+  out="$(bash "$gate" --root "$r" 2>&1)"; rc=$?
+  if [ "$rc" = 0 ] && grep -q 'marker recursive_init: false present' <<<"$out"; then echo "✅ META OK:   LARGE-ENTRY ($lsz B, marker on line 1) must PASS — iteration $it (rc=$rc)"
+  else echo "❌ META BAD:  LARGE-ENTRY ($lsz B, marker on line 1) iteration $it want rc=0 + marker present, got rc=$rc"; echo "$out" | sed 's/^/    /'; bad=1; fi
+done
+r="$tmp/large_nomarker"; mk_large "$r" 0; expect "LARGE-ENTRY without the marker must FAIL" 1 "$r"
 echo "======================================================================"
 if [ "$bad" = 0 ]; then echo "✅ META PASS: CM-LLMCTL-SUBMODULE-NONRECURSIVE is a genuine (non-bluff) gate"; exit 0; fi
 echo "❌ META FAIL: a fixture was misclassified"; exit 1

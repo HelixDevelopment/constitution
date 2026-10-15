@@ -269,15 +269,44 @@ while read -r id fx prof rc want muts; do
     done
 done <<<"$TABLE"
 # every rule id the checker emits has at least one row (a new rule without a row FAILs here)
-nids=0; RIDS="$(grep -oE 'invalid [A-Z]+-[A-Z0-9]+ ' "$CHK" | awk '{print $2}' | sort -u)"
+# the rule ids a checker emits (one per line), their count, and the control-needle predicate: the SAME functions
+# serve the real checker below and the needle self-fixtures, so a weakened conjunct fails a fixture (F4)
+rule_ids_of() { grep -oE 'invalid [A-Z]+-[A-Z0-9]+ ' "$1" | awk '{print $2}' | sort -u; }
+id_count() { local n=0 r; for r in $1; do n=$((n + 1)); done; echo "$n"; }
+needle_sees() { # $1 newline-separated rule ids -> rc 0 iff at least 10 ids AND R-RC AND S-ZN among them
+    # (here-strings, not `printf | grep -q`: under `set -o pipefail` an early-exiting grep -q can SIGPIPE the producer and read as failure — CM-SIGPIPE-PIPEFAIL-CLASS)
+    [ "$(id_count "$1")" -ge 10 ] && grep -qx R-RC <<<"$1" && grep -qx S-ZN <<<"$1"
+}
+nids=0; RIDS="$(rule_ids_of "$CHK")"
 for rid in $RIDS; do
     nids=$((nids + 1))
     printf '%s\n' "$TABLE" | awk -v r="$rid" '{n = split($5, a, ","); for (i = 1; i <= n; i++) if (a[i] == r) f = 1} END {exit !f}' \
         && ok "rule $rid has a row" || bad "rule $rid has no row in the table — a new rule needs a fixture and a mutant"
 done
+# needle self-fixtures: stub checkers read by the SAME extraction; each case pins one conjunct of needle_sees
+# (count >= 10, R-RC present, S-ZN present) so dropping or loosening any of them FAILs here, not silently (F4)
+NFX="$TMPD/needle_fx"; mkdir -p "$NFX"
+stub_chk() { # $1 name, rest rule ids -> prints the stub checker path
+    local f="$NFX/$1" id; shift; : > "$f"
+    # shellcheck disable=SC2016  # the stub's `$x` is literal checker text, not an expansion here
+    for id in "$@"; do printf '    [ -n "$x" ] || invalid %s "stub rule"\n' "$id" >> "$f"; done
+    echo "$f"
+}
+needle_fx() { # $1 case  $2 expected SEES|BLIND  rest ids
+    local name="$1" want="$2" f ids got; shift 2
+    f="$(stub_chk "$name" "$@")"; ids="$(rule_ids_of "$f")"
+    if needle_sees "$ids"; then got=SEES; else got=BLIND; fi
+    [ "$got" = "$want" ] && ok "needle self-fixture $name: $(id_count "$ids") ids -> $got" \
+        || bad "needle self-fixture $name: $(id_count "$ids") ids -> $got (expected $want) — a needle conjunct is not load-bearing"
+}
+F8=(Q-01 Q-02 Q-03 Q-04 Q-05 Q-06 Q-07 Q-08)
+needle_fx two-ids    BLIND R-RC S-ZN                      # partly blind read: only the two named ids (pins count >= 10)
+needle_fx nine-ids   BLIND R-RC S-ZN "${F8[@]:0:7}"       # 9 ids (pins the threshold at 10, not 9)
+needle_fx no-szn     BLIND R-RC "${F8[@]}" Q-09           # 10 ids, S-ZN missing (pins the S-ZN conjunct)
+needle_fx no-rrc     BLIND S-ZN "${F8[@]}" Q-09           # 10 ids, R-RC missing (pins the R-RC conjunct)
+needle_fx ten-ids    SEES  R-RC S-ZN "${F8[@]}"           # 10 ids with both (positive control: the needle CAN see)
 # control needle: the extraction must see the known rule ids R-RC and S-ZN (one per end of the file) and many more
-# (here-strings, not `printf | grep -q`: under `set -o pipefail` an early-exiting grep -q can SIGPIPE the producer and read as failure — CM-SIGPIPE-PIPEFAIL-CLASS)
-if [ "$nids" -ge 10 ] && grep -qx R-RC <<<"$RIDS" && grep -qx S-ZN <<<"$RIDS"; then
+if needle_sees "$RIDS"; then
     ok "control needle: $nids rule ids read from the checker (R-RC and S-ZN among them)"
 else bad "control needle BLIND: $nids rule id(s) read from the checker"; fi
 

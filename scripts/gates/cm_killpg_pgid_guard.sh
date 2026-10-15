@@ -249,8 +249,11 @@ target_guarded() {
     _tg_window="$1"; _tg_ident="$2"
     [ -n "$_tg_ident" ] || return 1
     _tg_re="$(printf '%s' "$_tg_ident" | sed 's/\./\\./g')"
-    printf '%s\n' "$_tg_window" | grep -qE \
-"(^|[^A-Za-z0-9_])${_tg_re}[^A-Za-z0-9_]*(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|\$)|1[[:space:]]*(<=?|>=?)[^A-Za-z0-9_]*${_tg_re}([^A-Za-z0-9_]|\$)"
+    # here-string, not `printf | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and
+    # read a GUARDED call as unguarded on a large window (SIGPIPE x pipefail class, §11.4.276(C))
+    grep -qE \
+"(^|[^A-Za-z0-9_])${_tg_re}[^A-Za-z0-9_]*(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|\$)|1[[:space:]]*(<=?|>=?)[^A-Za-z0-9_]*${_tg_re}([^A-Za-z0-9_]|\$)" \
+        <<<"$_tg_window"
 }
 
 # ── Numeric-literal target ⇒ ALWAYS unguarded (§11.4.201 false-negative fix) ─
@@ -294,11 +297,12 @@ for f in "${files[@]}"; do
 
         target="$(extract_target "$text")"
 
-        if printf '%s\n' "$text" | grep -qE "$LITERAL_TARGET_ERE"; then
+        # here-strings below, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C))
+        if grep -qE "$LITERAL_TARGET_ERE" <<<"$text"; then
             unguarded=$(( unguarded + 1 ))
             echo "❌ ${GATE}: FAIL — UNGUARDABLE numeric-literal process-group target at ${f}:${lineno}: ${text# }"
             echo "   (a hardcoded numeric pid/pgid can never be guarded — §11.4.263(A): NEVER signal pgid <= 1)"
-        elif printf '%s\n' "$window_text" | grep -qE "$GUARD_ERE" \
+        elif grep -qE "$GUARD_ERE" <<<"$window_text" \
              && target_guarded "$window_text" "$target"; then
             guarded=$(( guarded + 1 ))
             [ "$quiet" -eq 1 ] || echo "✅ ${GATE}: PASS — guarded process-group signal call at ${f}:${lineno}: ${text# }"

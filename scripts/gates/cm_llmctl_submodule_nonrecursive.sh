@@ -56,7 +56,9 @@ fail=0
 entry="$(awk '/^  - name: llmctl[[:space:]]*$/{f=1;next} f&&/^  - name:/{exit} f&&/^[^ #]/{exit} f{print}' "$deps")"
 if [ -z "$entry" ]; then
   echo "$GATE: FAIL — helix-deps.yaml has no llmctl entry"; fail=1
-elif ! printf '%s\n' "$entry" | grep -Eq '^[[:space:]]+recursive_init:[[:space:]]*false([[:space:]]|#|$)'; then
+# here-string, not `printf | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and turn a
+# PRESENT marker into a false FAIL on a large entry (SIGPIPE x pipefail class, §11.4.276(C))
+elif ! grep -Eq '^[[:space:]]+recursive_init:[[:space:]]*false([[:space:]]|#|$)' <<<"$entry"; then
   echo "$GATE: FAIL — helix-deps.yaml llmctl entry lacks the non-recursive marker 'recursive_init: false'"; fail=1
 else
   echo "$GATE: marker recursive_init: false present"

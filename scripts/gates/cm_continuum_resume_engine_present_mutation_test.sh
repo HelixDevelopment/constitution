@@ -121,6 +121,40 @@ printf 'package pkg\n\n// Store path is /mnt/track1/atmosphere-t1 (a project-spe
     > "${MUT4_ROOT}/submodules/continuum/pkg/bad.go"
 expect_fail "project-specific literal planted in engine source" "$MUT4_ROOT"
 
+# LARGE-SELFCHECK — SIGPIPE x pipefail (§11.4.276(C) class member). The three
+# selfcheck markers are on the FIRST lines of a ~400 KB selfcheck output. With
+# `echo "$sc_out" | grep -q` under `set -o pipefail`, each grep exits at its
+# marker while echo is still writing; echo takes SIGPIPE and pipefail turns a
+# PASSING selfcheck into a false FAIL. A stub `go` on PATH supplies the output
+# (no *_test.go in the fixture, so the race-test leg SKIPs). Repeated, and paired
+# with the same large output carrying bad=PASS, which must still FAIL.
+build_large_selfcheck_fixture() { # $1=root  $2=bad-marker value
+    local croot="$1" eng="$1/submodules/continuum" stub="$1/stub_bin"
+    build_clean_fixture "$croot"
+    mkdir -p "${eng}/cmd/continuum" "$stub"
+    printf 'package main\n\nfunc main() {}\n' > "${eng}/cmd/continuum/main.go"
+    head -c 400000 /dev/zero | tr '\0' 'x' | fold -w 79 > "$croot/selfcheck_pad.txt"
+    printf '#!/usr/bin/env bash\nprintf "good=PASS\\nbad=%s\\nnegctrl=PASS\\n"\ncat "%s"\n' "$2" "$croot/selfcheck_pad.txt" > "$stub/go"
+    chmod +x "$stub/go"
+}
+LS_ROOT="$TMP/large_selfcheck"; build_large_selfcheck_fixture "$LS_ROOT" FAIL
+ls_sz="$(PATH="$LS_ROOT/stub_bin:$PATH" go run ./cmd/continuum selfcheck | wc -c)"
+[ "$ls_sz" -ge 300000 ] || { note "❌ META FAIL: LARGE-SELFCHECK stub output is only $ls_sz bytes (needs >= 300000)"; rc=1; }
+for it in 1 2 3 4 5; do
+    if PATH="$LS_ROOT/stub_bin:$PATH" bash "$GATE" --root "$LS_ROOT" --quiet >/dev/null 2>&1; then
+        note "✅ META OK:   LARGE-SELFCHECK ($ls_sz B, markers first) PASSes — iteration $it"
+    else
+        note "❌ META FAIL: LARGE-SELFCHECK ($ls_sz B, markers first) FAILed — iteration $it (SIGPIPE x pipefail false FAIL)"
+        rc=1
+    fi
+done
+LSN_ROOT="$TMP/large_selfcheck_bad"; build_large_selfcheck_fixture "$LSN_ROOT" PASS
+if PATH="$LSN_ROOT/stub_bin:$PATH" bash "$GATE" --root "$LSN_ROOT" --quiet >/dev/null 2>&1; then
+    note "❌ META FAIL: LARGE-SELFCHECK with bad=PASS PASSed (the marker check is not load-bearing)"; rc=1
+else
+    note "✅ META OK:   LARGE-SELFCHECK with bad=PASS correctly FAILs"
+fi
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS: CM-CONTINUUM-RESUME-ENGINE-PRESENT is a genuine (non-bluff) gate"
