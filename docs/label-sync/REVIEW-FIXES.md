@@ -136,3 +136,18 @@ replays the spawn. The labeler's no-jq fallback matches only entries whose
 this host) do not — `model` follows `id` there. A pre-existing limit, not
 changed here; with `jq` installed the structural parse is used.
 
+**Re-run battery (2026-10-15), all on the final tree.** `go test -race ./...`
+ok; label-busd `-count=30 -cpu 1,4` ok; hooks suite 506/0, render 179/0,
+adapters 189/0 (and 30/30 repeated runs); the five `cm_label_sync_*` gates and
+`CM-HELIX-DEPS-REF-MATCHES-GITLINK`, each with its mutation test: exit 0.
+Provers: core 53/53, MCP 14/14 (`--selftest` exit 2 as designed), render
+30/30, adapters 30/30, hooks 57/57 — every kill by a failing assertion.
+Two things the battery caught and this round closed or recorded:
+- hook mutant `posthook_4c_aborts_hook` SURVIVED: with steps in a subshell,
+  `exit 1` in step 4c no longer aborts the hook but turns a recorded warning
+  into a failed step (exit 1). §F6 now asserts the refused install is a
+  WARNING (hook exit 0, no "step … FAILED"); the mutant is killed.
+- one adapter-prover CONTROL run failed with 2 FAILs that the prover did not
+  print. Not reproduced in 30 suite runs and 8 further control runs; which
+  assertions failed is UNKNOWN. The prover now prints its control's FAIL lines
+  so a recurrence is attributable; the voided chunk (A1–A7) was re-run: 7/7.

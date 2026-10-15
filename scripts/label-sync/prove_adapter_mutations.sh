@@ -62,7 +62,7 @@ PY
     echo "UNDETERMINED $name (no FAIL assertion line: $(tail -1 "$S/out.txt" | cut -c1-70))"; undet=1
   else echo "KILLED     $name ($(grep -m1 '^FAIL ' "$S/out.txt" | cut -c1-70))"; killed=$((killed+1)); fi
 }
-if run ""; then echo "CONTROL    unmutated suite passes ($(tail -1 "$S/out.txt"))"; else echo "CONTROL FAILED"; tail -15 "$S/out.txt"; exit 1; fi
+if run ""; then echo "CONTROL    unmutated suite passes ($(tail -1 "$S/out.txt"))"; else echo "CONTROL FAILED"; grep '^FAIL' "$S/out.txt"; tail -3 "$S/out.txt"; exit 1; fi
 
 mutant "A1 dry-run writes"                  install _edit_config.py 'write = a.mode in ("apply", "remove")' 'write = True'
 mutant "A2 clobbers existing JSON config"   install _edit_config.py '    if text is None or text.strip() == "":

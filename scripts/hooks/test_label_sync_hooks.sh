@@ -775,6 +775,8 @@ BADC="$T/badcons"; mkdir -p "$BADC/.claude"; printf '{ broken' >"$BADC/.claude/s
 ( cd "$BADC" && CONST_DIR="$FC6" PROJECT_ROOT="$BADC" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph8.out" 2>&1; rc=$?
 check "F6 installer refusal inside step 4c is reported as a warning" grep -q 'install_label_sync.sh exited' "$T/ph8.out"
 check "F6 ...and the hook still reaches step 5 (step 4c never aborts the run)" grep -q 'STEP 5' "$T/ph8.out"
+eq "R1 a refused label-sync install is a WARNING, not a failed step (hook exit 0)" "$rc" 0
+check "R1 ...no 'step install_label_sync FAILED' line" bash -c '! grep -q "step install_label_sync FAILED" "$1"' _ "$T/ph8.out"
 # step 4b (action-plugin wiring) with its installer ABSENT must never abort the
 # hook before step 4c: under `set -e` a non-zero return from step 4b used to
 # end the WHOLE run, so label-sync was never (re-)wired (FIX-B2 finding).

@@ -86,7 +86,7 @@ M = {
  # which no layer can isolate — and run_step itself (run_step_propagates_failure).
  "posthook_4c_aborts_hook": (POST, '        WARNINGS+=("install_label_sync.sh exited $rc")\n        return 0',
     '        WARNINGS+=("install_label_sync.sh exited $rc")\n        exit 1',
-    "step 4c never aborts post_update_hook.sh"),
+    "step 4c records an installer refusal as a WARNING (hook exit 0), never as a failed step"),
  "run_step_propagates_failure": (POST, '    rc=$?   # MUT:stepsubshell', '    rc=$?; [ "$rc" -eq 0 ] || exit "$rc"   # MUT:stepsubshell',
     "review-2 C: a failing step is recorded and the next steps still run"),
  "step_errexit_disabled": (POST, '        set -e\n        WARNINGS=(); ERRORS=()', '        set +e\n        WARNINGS=(); ERRORS=()',
