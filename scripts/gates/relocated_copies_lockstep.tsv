@@ -1,0 +1,24 @@
+# relocated_copies_lockstep.tsv -- data for CM-RELOCATED-ANCHOR-COPIES-LOCKSTEP (cm_relocated_anchor_copies_lockstep.sh).
+# Each row: <file> TAB <pinned-bytes file> TAB <count> -- <file> must hold the exact bytes of the pinned file exactly
+# <count> times (non-overlapping). Paths are relative to the constitution root. The pinned files under
+# scripts/gates/relocated_copies/ are written byte-exact by the tool that writes the copies; never let an editor
+# add or strip a newline in them. Changing a relocated clause means changing its pinned clause too (§11.4.35).
+#file	pinned	count
+Constitution.md	scripts/gates/relocated_copies/102e_clause.txt	1
+Constitution.md	scripts/gates/relocated_copies/102e_clause_marker.txt	1
+CLAUDE_ANCHORS_FULL.md	scripts/gates/relocated_copies/102e_clause.txt	4
+CLAUDE_ANCHORS_FULL.md	scripts/gates/relocated_copies/102e_clause_marker.txt	4
+groups/project-lifecycle-and-release.md	scripts/gates/relocated_copies/102e_clause.txt	1
+groups/project-lifecycle-and-release.md	scripts/gates/relocated_copies/102e_clause_marker.txt	1
+CLAUDE.md	scripts/gates/relocated_copies/102e_carrier.txt	1
+CLAUDE.md	scripts/gates/relocated_copies/102e_carrier_marker.txt	1
+AGENTS.md	scripts/gates/relocated_copies/102e_carrier.txt	1
+AGENTS.md	scripts/gates/relocated_copies/102e_carrier_marker.txt	1
+QWEN.md	scripts/gates/relocated_copies/102e_carrier.txt	1
+QWEN.md	scripts/gates/relocated_copies/102e_carrier_marker.txt	1
+GEMINI.md	scripts/gates/relocated_copies/102e_carrier.txt	1
+GEMINI.md	scripts/gates/relocated_copies/102e_carrier_marker.txt	1
+scripts/gates/relocated_copies/102e_clause.txt	scripts/gates/relocated_copies/102e_mandate.txt	1
+scripts/gates/relocated_copies/102e_clause.txt	scripts/gates/relocated_copies/102e_mandate_spaced.txt	1
+scripts/gates/relocated_copies/102e_carrier.txt	scripts/gates/relocated_copies/102e_mandate.txt	1
+scripts/gates/relocated_copies/102e_carrier.txt	scripts/gates/relocated_copies/102e_mandate_spaced.txt	1

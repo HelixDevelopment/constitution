@@ -188,7 +188,12 @@ if ! "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t6c.log 2>&1; then
     fail "T6 control: the REAL checked-in inputs did not PASS — T6 cannot attribute a FAIL to the deletion"
     cat /tmp/.cm_gate_ledger_t6c.log >&2
 else
-    t6_victim="$(awk -F'\t' '$2 ~ /^OWED-GATE-[0-9]+$/ {v=$1} END{print v}' "${scratch}/scripts/gates/gate_ledger_deferrals.tsv")"
+    # The victim must be a row the ledger classifies DEFERRED. An implemented gate may keep a deferral
+    # row for remaining wiring debt (e.g. OWED-GATE-057, OWED-GATE-144); deleting such a row changes
+    # nothing, so picking the last TSV row blindly made T6 fail on a correct tree (found 2026-10-15,
+    # issuerule round 4, when OWED-GATE-144 became the last row). Read the classification from the
+    # ledger itself instead of guessing it from the TSV.
+    t6_victim="$("$gate" --root "$scratch" 2>/dev/null | awk -F'\t' '$2=="DEFERRED" && $3 ~ /^OWED-GATE-[0-9]+$/ {v=$1} END{print v}')"
     if [ -z "$t6_victim" ] || ! grep -qF -- "$t6_victim" "${scratch}/Constitution.md"; then
         fail "T6 setup: no registered deferral row whose gate is named in the corpus was found"
     else

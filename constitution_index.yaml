@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-14T16:24:23.242388+00:00'
+generated_at: '2026-10-15T04:17:32.512014+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: eba1ef3765d4f7d0c876b22a97ee4a2fa728c629
-  source_sha256: 512dbbcc03766318fe1d99819bcc933b2d437bbe2259ebdfa24cac6013527e18
+  commit: 36eda364a7066781f21bb265ab5e139b9977c366
+  source_sha256: b99054a9ffc0f896f0422b59cddb2fce74f9d24f46779214d001f2c3e4aad47f
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -2087,11 +2087,43 @@ anchors:
   cross_references:
   - '1.1'
   - 11.4.102
+  - 11.4.106
+  - 11.4.112
+  - 11.4.113
+  - 11.4.115
   - 11.4.126
+  - 11.4.135
+  - 11.4.142
+  - 11.4.146
   - 11.4.17
+  - 11.4.194
+  - 11.4.197
+  - 11.4.199
+  - 11.4.201
+  - 11.4.202
+  - 11.4.21
+  - 11.4.210
+  - 11.4.214
+  - 11.4.224
+  - 11.4.226
+  - 11.4.227
+  - 11.4.232
+  - 11.4.233
+  - 11.4.235
+  - 11.4.238
+  - 11.4.248
+  - 11.4.250
+  - 11.4.260
+  - 11.4.264
+  - 11.4.267
+  - 11.4.273
+  - 11.4.276
+  - 11.4.3
+  - 11.4.33
   - 11.4.35
   - 11.4.4
   - 11.4.43
+  - 11.4.50
   - 11.4.6
   - 11.4.7
   - 11.4.70
@@ -2099,6 +2131,7 @@ anchors:
   - 11.4.80
   - 11.4.81
   - 11.4.82
+  - 11.4.90
   - 11.4.92
 - id: 11.4.103
   title: — Continuous parallel-stream working routine (User mandate, 2026-05-29)

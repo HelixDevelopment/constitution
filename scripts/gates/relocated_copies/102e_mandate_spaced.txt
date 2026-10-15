@@ -1,0 +1,1 @@
+ "Any issues that we face and popup during our work MUST BE fully investigated and root causes properly tackled with addition of full validation and verification fully deterministic tests! THIS RULE MUST BE added into the constitution Submodule if it does not exist there yet!" 
