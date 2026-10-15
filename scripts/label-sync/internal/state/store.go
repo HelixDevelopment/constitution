@@ -37,6 +37,13 @@ const (
 	// DefaultSweepAfter: an entity whose LOCAL process is provably gone is
 	// removed once it has not been updated for this long (CONTRACT §1.3).
 	DefaultSweepAfter = 15 * time.Minute
+	// DefaultSweepUnknownNS: an entity recorded WITHOUT a PID namespace (an
+	// older writer) whose pid is dead in this writer's view goes after this
+	// long without an update (re-review 3 finding 1: bounded growth).
+	DefaultSweepUnknownNS = 24 * time.Hour
+	// DefaultSweepForeignNS: an entity from ANOTHER PID namespace cannot be
+	// judged here at all; it goes after this long without any update.
+	DefaultSweepForeignNS = 7 * 24 * time.Hour
 	// DefaultSweepBatch bounds the entities one transaction sweeps.
 	DefaultSweepBatch = 256
 	// MaxPID is the largest pid accepted (Linux PID_MAX_LIMIT, 2^22).
@@ -57,6 +64,10 @@ type Options struct {
 	KeepTail      int           // events kept in the log after compaction (default 256)
 	SweepAfter    time.Duration // stale-sweep age (default 15m; < 0 disables)
 	SweepBatch    int           // max entities swept per transaction (default 256)
+	// SweepUnknownNS / SweepForeignNS: see DefaultSweepUnknownNS /
+	// DefaultSweepForeignNS (0 = default, < 0 disables that class).
+	SweepUnknownNS time.Duration
+	SweepForeignNS time.Duration
 }
 
 // DefaultDir is ${LABEL_SYNC_DIR:-$HOME/.local/state/constitution-label-sync}.
@@ -121,6 +132,12 @@ func Open(o Options) (*Store, error) {
 	}
 	if o.SweepBatch <= 0 {
 		o.SweepBatch = DefaultSweepBatch
+	}
+	if o.SweepUnknownNS == 0 {
+		o.SweepUnknownNS = DefaultSweepUnknownNS
+	}
+	if o.SweepForeignNS == 0 {
+		o.SweepForeignNS = DefaultSweepForeignNS
 	}
 	if o.KeepTail > o.CompactEvents {
 		o.KeepTail = o.CompactEvents
@@ -285,7 +302,11 @@ func replay(r *Raw, evs []model.Event) {
 // log. FAST PATH: fold.json plus only the events after its recorded offset.
 // FULL PATH: base.json plus the whole (bounded) log. retry=true reports a
 // read that raced a compaction (log newer than base) and must be repeated.
-func (s *Store) loadOnce() (r *Raw, retry bool, err error) {
+func (s *Store) loadOnce() (r *Raw, retry bool, err error) { return s.loadOnceFrom(true) }
+
+// loadOnceFrom: fast=false skips fold.json and re-folds base.json + the whole
+// event log (the repair route).
+func (s *Store) loadOnceFrom(fast bool) (r *Raw, retry bool, err error) {
 	f, ferr := os.Open(s.p("events.jsonl"))
 	if ferr != nil && !errors.Is(ferr, os.ErrNotExist) {
 		return nil, false, ferr
@@ -300,7 +321,7 @@ func (s *Store) loadOnce() (r *Raw, retry bool, err error) {
 		}
 		ino, size = inode(fi), fi.Size()
 	}
-	if fold, _ := s.readJSONRaw("fold.json"); fold != nil && f != nil && fold.Index.Ino == ino && ino != 0 && fold.Index.Off <= size {
+	if fold, _ := s.readJSONRaw("fold.json"); fast && fold != nil && f != nil && fold.Index.Ino == ino && ino != 0 && fold.Index.Off <= size {
 		res, err := scanLog(f, fold.Index.Off)
 		if err == nil && (len(res.evs) == 0 || res.evs[0].Seq == fold.Seq+1) {
 			replay(fold, res.evs)
@@ -646,19 +667,60 @@ func (s *Store) sweepable(e *model.Entity, now time.Time) bool {
 	if e.Host != "" && e.Host != s.opts.LocalHost {
 		return false
 	}
-	if !(now.Sub(e.UpdatedAt) > s.opts.SweepAfter) { // MUT:sweepage
-		return false
-	}
-	// re-review finding 2: a pid is only meaningful inside the PID namespace
-	// that registered it. When this writer knows its namespace, an entity from
-	// another namespace — or with none recorded — is NOT provably dead here.
-	if ns := pidNS(s.opts.Pids); ns != "" && e.PIDNS != ns { // MUT:sweepns
-		return false
+	age := now.Sub(e.UpdatedAt)
+	// A pid is only meaningful inside the PID namespace that registered it
+	// (re-review finding 2), so the rule depends on what was recorded:
+	ns := pidNS(s.opts.Pids)
+	switch {
+	case ns == "" || e.PIDNS == ns: // same namespace (or this writer cannot tell)
+		if !(age > s.opts.SweepAfter) { // MUT:sweepage
+			return false
+		}
+	case e.PIDNS == "": // recorded by an older writer: maybe ours — judged after a LONG age
+		if s.opts.SweepUnknownNS < 0 || !(age > s.opts.SweepUnknownNS) { // MUT:sweepunknown
+			return false
+		}
+	default: // another namespace: liveness unknowable here (re-review 3: bounded)
+		return s.opts.SweepForeignNS >= 0 && age > s.opts.SweepForeignNS // MUT:sweepns
 	}
 	return !s.opts.Pids.Alive(e.PID, e.PIDStart) // MUT:sweepalive
 }
 
 func (s *Store) lock() (*lockFile, error) { return acquire(s.p("lock"), s.opts.LockTimeout) }
+
+// Repair re-folds base.json + the whole events.jsonl under the writer lock
+// and rewrites fold.json / snapshot.json / active.json / seq from that replay
+// (re-review 3 finding 1: a writer built before a field existed re-marshals
+// fold.json without it; the event log still carries it unless it was already
+// compacted). Returns how many local entities with a pid still have NO
+// recorded PID namespace (those follow the bounded unknown-namespace rule).
+func (s *Store) Repair() (int, error) {
+	lk, err := s.lock()
+	if err != nil {
+		return 0, err
+	}
+	defer lk.release()
+	var r *Raw
+	for attempt := 0; attempt < 8; attempt++ {
+		var retry bool
+		if r, retry, err = s.loadOnceFrom(false); err != nil { // MUT:repairfull
+			return 0, err
+		}
+		if !retry {
+			break
+		}
+	}
+	if err := s.persist(r); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range r.Entities {
+		if e.PID > 0 && e.PIDNS == "" && (e.Host == "" || e.Host == s.opts.LocalHost) {
+			n++
+		}
+	}
+	return n, nil
+}
 
 // Apply validates, sequences, logs and folds one event; it assigns Seq and
 // TS. A rejected event is not logged. Past-retention done entities are reaped
@@ -1037,10 +1099,15 @@ func OptionsFromEnv() Options {
 	if n, err := strconv.ParseInt(os.Getenv("LABEL_SYNC_COMPACT_BYTES"), 10, 64); err == nil {
 		o.CompactBytes = n
 	}
-	if v := strings.TrimSpace(os.Getenv("LABEL_SYNC_STALE_SWEEP")); v == "off" {
-		o.SweepAfter = -1
-	} else if d, ok := ParseDuration(v); ok && d > 0 {
-		o.SweepAfter = d
+	for _, kv := range []struct {
+		env string
+		dst *time.Duration
+	}{{"LABEL_SYNC_STALE_SWEEP", &o.SweepAfter}, {"LABEL_SYNC_STALE_SWEEP_UNKNOWN_NS", &o.SweepUnknownNS}, {"LABEL_SYNC_STALE_SWEEP_FOREIGN_NS", &o.SweepForeignNS}} {
+		if v := strings.TrimSpace(os.Getenv(kv.env)); v == "off" {
+			*kv.dst = -1
+		} else if d, ok := ParseDuration(v); ok && d > 0 {
+			*kv.dst = d
+		}
 	}
 	if n, err := strconv.Atoi(os.Getenv("LABEL_SYNC_SWEEP_BATCH")); err == nil {
 		o.SweepBatch = n

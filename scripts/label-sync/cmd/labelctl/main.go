@@ -43,6 +43,7 @@ commands:
   snapshot
   watch       [--since N|now] [--interval-ms 100] [--text] [--socket]
   verify
+  repair      (re-fold base.json+events.jsonl and rewrite fold.json/snapshot.json)
   label       ID
 ids: ^[A-Za-z0-9._:@/-]{1,160}$ (others: exit 1). --lock-timeout / LABEL_SYNC_LOCK_TIMEOUT
 bounds the writer-lock wait (default 2s; timeout = exit 2).
@@ -236,6 +237,18 @@ func run(args []string, out, errw io.Writer) int {
 			return 2
 		}
 		fmt.Fprintf(out, "labelctl verify: OK seq=%d dir=%s\n", seq, st.Dir())
+		return 0
+	case "repair":
+		n, err := st.Repair()
+		if err != nil {
+			fmt.Fprintf(errw, "labelctl repair: cannot determine: %v\n", err)
+			return 2
+		}
+		if err := st.Verify(); err != nil {
+			fmt.Fprintf(errw, "labelctl repair: PROBLEM after re-fold: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(out, "labelctl repair: repaired from base.json+events.jsonl; %d local entit(y/ies) with a pid and no recorded PID namespace (bounded unknown-namespace sweep applies)\n", n)
 		return 0
 	case "-h", "--help", "help":
 		fmt.Fprintln(out, usage)

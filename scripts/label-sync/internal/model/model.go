@@ -2,7 +2,14 @@
 // The authoritative description is docs/label-sync/CONTRACT.md.
 package model
 
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"reflect"
+	"sort"
+	"strings"
+	"time"
+)
 
 // Entity kinds.
 const (
@@ -72,6 +79,77 @@ type Entity struct {
 	// Binding is COMPUTED: where alias/model/effort came from — "own",
 	// "inherited:<ancestor id>", "active" or "unknown" (CONTRACT §4).
 	Binding string `json:"binding,omitempty"`
+	// Extra carries every JSON field this version does not know, so a
+	// read/modify/write by this binary never drops a field a NEWER writer
+	// added (re-review 3 finding 1: a pre-fix writer dropped pid_ns).
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+type entityAlias Entity
+
+// entityKeys are the JSON names this version knows (from the struct tags).
+var entityKeys = func() map[string]bool {
+	m := map[string]bool{}
+	t := reflect.TypeOf(entityAlias{})
+	for i := 0; i < t.NumField(); i++ {
+		n := strings.Split(t.Field(i).Tag.Get("json"), ",")[0]
+		if n != "" && n != "-" {
+			m[n] = true
+		}
+	}
+	return m
+}()
+
+// UnmarshalJSON decodes the known fields and keeps every other one in Extra.
+func (e *Entity) UnmarshalJSON(b []byte) error {
+	var a entityAlias
+	if err := json.Unmarshal(b, &a); err != nil {
+		return err
+	}
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(b, &all); err != nil {
+		return err
+	}
+	for k, v := range all {
+		if !entityKeys[k] { // MUT:extrakeep
+			if a.Extra == nil {
+				a.Extra = map[string]json.RawMessage{}
+			}
+			a.Extra[k] = v
+		}
+	}
+	*e = Entity(a)
+	return nil
+}
+
+// MarshalJSON encodes the known fields, then the carried unknown ones
+// (sorted, never overriding a known field).
+func (e Entity) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(entityAlias(e))
+	if err != nil || len(e.Extra) == 0 {
+		return b, err
+	}
+	keys := make([]string, 0, len(e.Extra))
+	for k := range e.Extra {
+		if !entityKeys[k] && json.Valid(e.Extra[k]) {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return b, nil
+	}
+	sort.Strings(keys)
+	var buf bytes.Buffer
+	buf.Write(b[:len(b)-1])
+	for _, k := range keys {
+		kb, _ := json.Marshal(k)
+		buf.WriteByte(',')
+		buf.Write(kb)
+		buf.WriteByte(':')
+		buf.Write(e.Extra[k])
+	}
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
 
 // Active is the operator's ACTIVE alias/model/effort context.

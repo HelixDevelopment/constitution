@@ -5,6 +5,7 @@ package state
 // writer outside that namespace — its pid means nothing there.
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,5 +111,119 @@ func TestPidPatchClearsRecordedNamespace(t *testing.T) {
 	reg(t, again, model.Entity{ID: "w", Kind: "shell", PID: 9, Host: "h1"})
 	if !ids(t, again)["e"] {
 		t.Fatal("an entity whose pid was set from another namespace was swept on a stale namespace")
+	}
+}
+
+// ---- re-review 3, finding 1: upgrade path and bounded growth -------------
+
+// preFixEntity is the entity struct of a writer built BEFORE pid_ns existed:
+// a pre-fix labelctl decodes fold.json into it and writes it back.
+type preFixEntity struct {
+	ID           string    `json:"id"`
+	Kind         string    `json:"kind"`
+	ParentID     string    `json:"parent_id,omitempty"`
+	SessionID    string    `json:"session_id,omitempty"`
+	PID          int       `json:"pid,omitempty"`
+	PIDStart     string    `json:"pid_start,omitempty"`
+	Host         string    `json:"host,omitempty"`
+	Cwd          string    `json:"cwd,omitempty"`
+	FollowActive bool      `json:"follow_active"`
+	Source       string    `json:"source,omitempty"`
+	StartedAt    time.Time `json:"started_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	State        string    `json:"state"`
+}
+
+type preFixRaw struct {
+	Seq      uint64                   `json:"seq"`
+	Active   model.Active             `json:"active"`
+	Entities map[string]*preFixEntity `json:"entities"`
+	Index    logIndex                 `json:"index"`
+}
+
+func roundTripThroughPreFix(t *testing.T, path string) {
+	t.Helper()
+	var r preFixRaw
+	if err := json.Unmarshal([]byte(readFile(t, path)), &r); err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(&r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A pre-fix writer re-marshals fold.json without pid_ns; `repair` re-folds
+// base.json + events.jsonl and restores it (the events still carry it).
+func TestRepairRestoresNamespaceStrippedByPreFixWriter(t *testing.T) {
+	dir := t.TempDir()
+	c := &clock{t: time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)}
+	s := openNS(t, dir, c, fakePids{7: true}, nsContainer)
+	reg(t, s, model.Entity{ID: "ct-shell", Kind: "shell", PID: 7, Host: "h1"})
+	roundTripThroughPreFix(t, filepath.Join(dir, "fold.json"))
+	if err := s.Verify(); err == nil || !strings.Contains(err.Error(), "fold.json differs") {
+		t.Fatalf("fixture: verify must see the stripped fold (got %v)", err)
+	}
+	rp, ok := any(s).(interface{ Repair() (int, error) })
+	if !ok {
+		t.Fatal("Store has no Repair (re-fold base.json+events.jsonl) route")
+	}
+	if _, err := rp.Repair(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Verify(); err != nil {
+		t.Fatalf("verify after repair: %v", err)
+	}
+	if !strings.Contains(readFile(t, filepath.Join(dir, "fold.json")), `"pid_ns":"`+nsContainer+`"`) {
+		t.Fatal("repair did not restore pid_ns from the event log")
+	}
+}
+
+// Fields this version does not know are carried through a read/write cycle
+// (forward compatibility for the NEXT field).
+func TestEntityCarriesUnknownFields(t *testing.T) {
+	in := `{"id":"x","kind":"shell","follow_active":false,"started_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z","state":"","future_field":{"a":1}}`
+	var e model.Entity
+	if err := json.Unmarshal([]byte(in), &e); err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(&e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"future_field":{"a":1}`) {
+		t.Fatalf("an unknown field was dropped by a read/write cycle: %s", out)
+	}
+}
+
+// Bounded growth: an entity with NO recorded namespace whose pid is dead in
+// this writer's view goes after DefaultSweepUnknownNS; one from ANOTHER
+// namespace (liveness unknowable here) after DefaultSweepForeignNS without
+// any update. Younger ones stay.
+func TestSweeperBoundsUnknownAndForeignNamespaces(t *testing.T) {
+	dir := t.TempDir()
+	c := &clock{t: time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)}
+	old := openNS(t, dir, c, fakePids{}, "")
+	reg(t, old, model.Entity{ID: "legacy", Kind: "shell", PID: 7, Host: "h1"})
+	ct := openNS(t, dir, c, fakePids{8: true}, nsContainer)
+	reg(t, ct, model.Entity{ID: "foreign", Kind: "shell", PID: 8, Host: "h1"})
+	w := openNS(t, dir, c, fakePids{}, nsHost)
+	c.Add(23 * time.Hour)
+	reg(t, w, model.Entity{ID: "w1", Kind: "shell", PID: 9, Host: "h1"})
+	if got := ids(t, w); !got["legacy"] || !got["foreign"] {
+		t.Fatalf("swept too early (23h): %v", got)
+	}
+	c.Add(2 * time.Hour) // 25h
+	reg(t, w, model.Entity{ID: "w2", Kind: "shell", PID: 9, Host: "h1"})
+	if got := ids(t, w); got["legacy"] || !got["foreign"] {
+		t.Fatalf("after 25h: the dead no-namespace entity must go, the foreign one stay: %v", got)
+	}
+	c.Add(6 * 24 * time.Hour) // 7d1h
+	reg(t, w, model.Entity{ID: "w3", Kind: "shell", PID: 9, Host: "h1"})
+	if ids(t, w)["foreign"] {
+		t.Fatal("a foreign-namespace entity not updated for > 7 days was never reaped (unbounded growth)")
 	}
 }

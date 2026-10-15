@@ -281,8 +281,27 @@ child is ever left pinned by a past session binding.
   own — an entity registered inside a container (or recorded without a
   namespace by an older writer) is kept by a writer outside it. A pid change
   through `update` clears the recorded namespace (no new patch key: older
-  readers of the shared state dir reject unknown keys), so that entity is
-  kept too, never swept on a guess. A live process is never swept; a
+  readers of the shared state dir reject unknown keys).
+  **Bounded growth (re-review 3).** An entity with NO recorded namespace
+  (registered by an older writer, or whose pid was changed by `update`) is
+  swept by a namespace-aware writer only when its pid is dead in that writer's
+  view AND it has not been updated for `LABEL_SYNC_STALE_SWEEP_UNKNOWN_NS`
+  (default **24h**). An entity from ANOTHER namespace cannot be judged here at
+  all: it is swept after `LABEL_SYNC_STALE_SWEEP_FOREIGN_NS` (default **7d**)
+  with no update — a live, heartbeating entity never reaches that age. Both
+  accept a Go duration or seconds, `off` disables the class; `reap --id` and
+  `unregister` always work.
+  **Mixed versions on one state dir lose the guard (re-review 3).** A writer
+  built before `pid_ns` existed knows nothing of namespaces: it sweeps across
+  them, and it re-marshals `fold.json` (and `base.json` when it compacts)
+  WITHOUT `pid_ns`. Nothing the new binary does can stop an old one; upgrade
+  every checkout that shares the state dir. Entities now carry every JSON
+  field a binary does not know (`model.Entity.Extra`), so this does not repeat
+  for the NEXT field. `labelctl verify` reports a stripped `fold.json` ("fold.json
+  differs from replay …"); `labelctl repair` re-folds `base.json` +
+  `events.jsonl` under the writer lock and rewrites `fold.json`,
+  `snapshot.json`, `active.json` and `seq` — restoring `pid_ns` from the
+  events unless an old writer already compacted them into `base.json`. A live process is never swept; a
   RECYCLED pid with a recorded start identity is not "alive". At most
   `LABEL_SYNC_SWEEP_BATCH` (default 256) entities go per transaction, appended
   with ONE fsync, so the lock hold stays bounded; later writes continue the

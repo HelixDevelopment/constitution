@@ -4,6 +4,9 @@ package main
 // alias-less roots follow) and finding 12 (negative / out-of-range pids).
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -50,5 +53,39 @@ func TestBadPidsRejectedRC1(t *testing.T) {
 		if rc, _, e := rawCtl(d, "update", "--id", "ok", "--pid", p); rc != 1 {
 			t.Fatalf("update --pid %s rc=%d (%s), want 1", p, rc, e)
 		}
+	}
+}
+
+// Re-review 3 finding 1: `labelctl repair` re-folds base.json+events.jsonl
+// when fold.json was rewritten by a writer that dropped fields.
+func TestRepairCommandRestoresFold(t *testing.T) {
+	d := t.TempDir()
+	if rc, _, e := rawCtl(d, "register", "--id", "r1", "--kind", "shell", "--pid", "1"); rc != 0 {
+		t.Fatalf("register rc=%d %s", rc, e)
+	}
+	fp := filepath.Join(d, "fold.json")
+	b, err := os.ReadFile(fp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// simulate a writer that dropped the entity's cwd field from fold.json
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	ent := m["entities"].(map[string]any)["r1"].(map[string]any)
+	ent["cwd"] = "/dropped-by-old-writer"
+	nb, _ := json.Marshal(m)
+	if err := os.WriteFile(fp, nb, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if rc, _, _ := rawCtl(d, "verify"); rc != 1 {
+		t.Fatalf("fixture: verify must report the tampered fold (rc=%d)", rc)
+	}
+	if rc, out, e := rawCtl(d, "repair"); rc != 0 || !strings.Contains(out, "repaired") {
+		t.Fatalf("repair rc=%d out=%q err=%q", rc, out, e)
+	}
+	if rc, out, e := rawCtl(d, "verify"); rc != 0 {
+		t.Fatalf("verify after repair rc=%d %s %s", rc, out, e)
 	}
 }
