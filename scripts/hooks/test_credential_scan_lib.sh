@@ -1185,6 +1185,57 @@ assert_clean "(w) triply HTML-entity-escaped closing tag decodes (within the bou
 assert_caught "(w-neg) a real secret immediately followed by a triply-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
               "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
 
+# (aa) §11.4.201 carrier-strip #36: a PEM HEADER MARKER written as a COMPLETE
+# string literal (header + literal \n escape + closing quote) carries NO key
+# body — it is a fixture marker, never a key. Forensic FP (2026-10-17, MEASURED,
+# prebuild remedy batch): 5 QA-evidence files (a red-green runner pair, their
+# patches and a copied meta-test) planted exactly this marker to prove
+# "a key-shaped blob was written" and were refused at the commit seam.
+{ printf 'MUT='
+  printf 'printf -- "-----BEGIN RSA PRIVATE KEY-----\\n" >> "$ov/$rel"\n'
+} > "$WORK/good_aa_pem_marker_literal.txt"
+assert_clean "(aa) PEM header marker literal with no key body (fixture marker, not a key)" \
+             "$WORK/good_aa_pem_marker_literal.txt"
+
+# (aa-neg) FALSIFYING CONTROL: the SAME header followed by REAL key material on
+# the same literal (the marker pattern requires the closing quote right after
+# the \n escape, so key material defeats it) must still be CAUGHT.
+{ printf 'printf "-----BEGIN RSA PRIVATE KEY-----'
+  printf '\\nMIIEowIBAAKCAQEA1234abcdEFGH\\n" > k\n'
+} > "$WORK/bad_aa_real_key_literal.txt"
+assert_caught "(aa-neg) PEM header followed by real key material is still caught (strip is body-blind, not header-blind)" \
+              "$WORK/bad_aa_real_key_literal.txt"
+
+# (ab) §11.4.201 carrier-strip #37: an identity at an RFC 2606/6761 RESERVED
+# documentation TLD (.invalid/.test/.example, guaranteed non-resolvable) is not
+# a real identity, so the adjacency premise fails and non-digit fixture
+# punctuation next to it is not password-shaped. Forensic FP (2026-10-17,
+# MEASURED): `GIT="git -c user.name=t -c user.email=t@example.invalid -c
+# commit.gpgsign=false"` (token `commit.gpgsign=false"`) and a synthetic-key
+# printf next to fixture@example.invalid (token `adb_keys"`).
+{ printf 'GIT="git -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false"\n'
+  printf 'printf %s fixture@example.invalid > "$FX/product/etc/security/adb_keys"\n' "'%s\\n'"
+} > "$WORK/good_ab_reserved_tld_identity.txt"
+assert_clean "(ab) reserved-documentation-TLD identity + non-digit config/path token (not password-shaped)" \
+             "$WORK/good_ab_reserved_tld_identity.txt"
+
+# (ab-neg-a) FALSIFYING CONTROL: a REAL password (carries a digit) next to the
+# SAME reserved-TLD identity must still be CAUGHT — the strip requires the
+# absence of a digit, so it cannot widen to real secrets.
+{ printf 'fixture@example.invalid: Hunter2\n'
+} > "$WORK/bad_ab_real_password_reserved_tld.txt"
+assert_caught "(ab-neg-a) a real digit-bearing password next to a reserved-TLD identity is still caught" \
+              "$WORK/bad_ab_real_password_reserved_tld.txt"
+
+# (ab-neg-b) THE LOAD-BEARING NARROWING: the SAME non-digit token next to a REAL
+# (non-reserved) domain must still be CAUGHT. This is what proves #37 is scoped
+# to the reserved documentation TLDs and not to the token shape itself.
+{ printf 'bob@corp.com: my_secret\n'
+} > "$WORK/bad_ab_nondigit_pw_real_domain.txt"
+assert_caught "(ab-neg-b) the same non-digit underscore token next to a REAL domain is still caught (strip is domain-scoped)" \
+              "$WORK/bad_ab_nondigit_pw_real_domain.txt"
+
+
 # ---------------------------------------------------------------------------
 # SUB-SUITES (wired here on purpose, round-2 review F3 of the remedy batch
 # of 2026-10-14). The consumer's CM-CRED-SCAN-LIB-SELF-VALIDATED

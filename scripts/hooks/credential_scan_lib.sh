@@ -246,6 +246,28 @@ HELIX_CRED_PLACEHOLDER_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?
 # (+ / =) and base64url (- _) alphabets. Proven by golden-good (k).
 HELIX_CRED_BASE64_IMAGE_CARRIER='data:image/[^;]*;base64,[A-Za-z0-9+/=_-]+'
 
+# §11.4.201 carrier-strip #36 (PEM HEADER MARKER LITERAL — header with NO key
+# body). A private key is a MULTI-LINE object: the header line, then base64 body
+# lines, then a footer. A test fixture that only needs to ASSERT "a key-shaped
+# blob was planted here" writes the HEADER ALONE and terminates the string
+# immediately (`printf -- "-----BEGIN RSA PRIVATE KEY-----\n" >> "$tree"`), so
+# the literal is a MARKER, not a key: there is no body to leak. Detector-1
+# extracted the bare header token, which is IDENTICAL whether or not a body
+# follows, so this must be blanked at the pre-extraction stage (like #8b),
+# where the surrounding literal is still visible.
+# FORENSIC (2026-10-17, MEASURED, consumer prebuild remedy batch): 5 QA-evidence
+# files (a red-green runner pair, their patches and a copied meta-test) were
+# refused at the commit seam by exactly this marker literal.
+# TIGHTENING (deliberate, golden-bad-proven): the header must be followed by a
+# LITERAL `\n` escape AND the CLOSING QUOTE of the string, i.e. the header is
+# the WHOLE string literal. A real key written with a literal body
+# (`"-----BEGIN RSA PRIVATE KEY-----\nMIIEow..."`) has key material where this
+# pattern requires the closing quote, so it does NOT match and is still
+# refused; a raw key file has a real newline, not the two-character escape, so
+# it does not match either. Proven by golden-good (aa) + golden-bad (aa-neg) in
+# test_credential_scan_lib.sh (§11.4.107(10)).
+HELIX_CRED_PEM_MARKER_CARRIER='-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----\\n["'"'"']'
+
 # §11.4.201 carrier-strip #33 (HTML-RENDERED keyword=value, closing tag
 # absorbed into the extracted value). Forensic FP (2026-10-05, measured):
 # docs/requests/history.html -- the §11.4.65 HTML twin of docs/requests/
@@ -622,6 +644,28 @@ HELIX_CRED_ADJACENCY_AWK='
   # is never a credential — blank $$-bearing tokens outright.
   gsub("[A-Za-z0-9_$.]*\\$\\$[A-Za-z0-9_$.]*", " ", line)
   if (match(line, /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z][A-Za-z]+/)) {
+    # §11.4.201 carrier-strip #37 (RESERVED-DOCUMENTATION-TLD identity).
+    # RFC 2606 / RFC 6761 reserve the top-level names `.invalid`, `.test` and
+    # `.example` for documentation and explicitly guarantee they NEVER resolve.
+    # A matching identity is therefore NOT a real identity: the second half of
+    # this heuristic premise (a real person/account next to its password) does
+    # not hold, and code that sits in the same 48-char window is ordinary
+    # fixture text (a `git -c commit.gpgsign=false` flag, a `security/adb_keys`
+    # path component). FORENSIC (2026-10-17, MEASURED, prebuild remedy batch):
+    # a git identity assignment carrying user.email=t@example.invalid plus a
+    # commit.gpgsign=false flag produced the token `commit.gpgsign=false"`, and
+    # a printf fixture writing a synthetic key produced the token `adb_keys"`
+    # — neither carries a digit, both carry only identifier/config
+    # punctuation (`_`, `.`, `=`), and both were read as password-shaped,
+    # refusing 18 QA-evidence files at the commit seam.
+    # SAFETY (this is a NARROWING, golden-bad-proven): the exemption applies
+    # ONLY when the identity TLD is one of those three reserved names AND the
+    # token carries NO digit. A value with ANY digit (Hunter2, p@ssw0rd1) is
+    # untouched and still refused, and the SAME token next to a real
+    # (non-reserved) domain is untouched and still refused — proven by
+    # golden-bad scenarios (37-neg-a)/(37-neg-b) in test_credential_scan_lib.sh.
+    _hc_ident = substr(line, RSTART, RLENGTH)
+    _hc_synth_ident = (tolower(_hc_ident) ~ /@([A-Za-z0-9_-]+\.)*(invalid|test|example)$/)
     rest = substr(line, RSTART + RLENGTH)
     # §11.4.201 carrier-strip #6: an email-adjacency credential (email:pass,
     # email / pass, email  pass) has the password IMMEDIATELY adjacent to the
@@ -857,6 +901,7 @@ HELIX_CRED_ADJACENCY_AWK='
       hasLetter = (t ~ /[A-Za-z]/)
       hasDigit  = (t ~ /[0-9]/)
       hasSpec   = (t ~ /[!#$%^&*()=+_]/)
+      if (_hc_synth_ident && !hasDigit) continue
       if (hasLetter && (hasDigit || hasSpec)) { found = 1; exit }
     }
   }
@@ -945,7 +990,7 @@ helix_cred_detector1_real_hit_stream() {
   # implementations per §11.4.227 no-drift -- see that comment for the full
   # double-escaping forensic argument, not duplicated here).
   _helix_cred_d1_matches="$(
-    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
+    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g; s#${HELIX_CRED_PEM_MARKER_CARRIER}# #g" 2>/dev/null \
       | grep -Eioa "$HELIX_CRED_VALUE_PATTERN" 2>/dev/null
   )"
   # No detector-1 match at all (after #8b) → not a real hit.
