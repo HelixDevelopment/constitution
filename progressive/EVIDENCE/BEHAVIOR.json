@@ -1,0 +1,71 @@
+{
+ "results": [
+  {
+   "check": "search:11.4.141 token efficiency",
+   "want": "\u00a711.4.141",
+   "top": "\u00a711.4.141",
+   "window": [
+    "\u00a711.4.141",
+    "\u00a711.4.216",
+    "\u00a711.4.221",
+    "\u00a711.4.222",
+    "\u00a711.4.275"
+   ],
+   "ok": true
+  },
+  {
+   "check": "search:11.4.5 captured evidence",
+   "want": "\u00a711.4.5",
+   "top": "\u00a711.4.5",
+   "window": [
+    "\u00a711.4.5",
+    "\u00a711.4.13",
+    "\u00a711.4.169",
+    "\u00a711.4.50",
+    "\u00a711.4.51"
+   ],
+   "ok": true
+  },
+  {
+   "check": "search:12 host session safety",
+   "want": "\u00a712",
+   "top": "\u00a712",
+   "window": [
+    "\u00a712",
+    "\u00a712.1",
+    "\u00a712.2",
+    "\u00a712.3",
+    "\u00a712.6"
+   ],
+   "ok": true
+  },
+  {
+   "check": "search_stability",
+   "ok": true
+  },
+  {
+   "check": "load_rule:\u00a711.4.141",
+   "ok": true,
+   "bytes": 14085
+  },
+  {
+   "check": "list_anchors:token-efficiency",
+   "ok": true,
+   "count": 154
+  },
+  {
+   "check": "test_catalog_description",
+   "ok": true,
+   "bad": []
+  },
+  {
+   "check": "test_load_rule_body",
+   "ok": true
+  },
+  {
+   "check": "verify_anchor:\u00a711.4.141",
+   "ok": true
+  }
+ ],
+ "ok": true
+}

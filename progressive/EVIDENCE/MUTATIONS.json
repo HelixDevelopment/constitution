@@ -1,0 +1,114 @@
+{
+ "mutations": [
+  {
+   "id": "M-01",
+   "gate": "test_core_budget",
+   "injected": "append ~5k-token block to core.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-02",
+   "gate": "test_anchor_integrity",
+   "injected": "delete \u00a711.4.141 from catalog.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-03",
+   "gate": "test_twin_consistency",
+   "injected": "remove \u00a711.4.141 from every twin",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-04",
+   "gate": "test_split_reproducible",
+   "injected": "hand-edit one byte of rules/11.4.141.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-05",
+   "gate": "test_core_budget",
+   "injected": "replace core.md with the full monolith",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-06",
+   "gate": "test_cache_warm",
+   "injected": "inject a volatile token into core.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-07",
+   "gate": "test_catalog_description",
+   "injected": "empty the \u00a711.4.141 one-line description",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-08",
+   "gate": "test_load_rule_body",
+   "injected": "make load_rule return a different anchor body",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-09",
+   "gate": "test_pinned_revision",
+   "injected": "advance the submodule pin without a matching HEAD",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-10",
+   "gate": "test_recursive_fetch",
+   "injected": "introduce an uninitialised nested submodule",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-11",
+   "gate": "test_evidence_presence",
+   "injected": "make the evidence path unwritable",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-12",
+   "gate": "test_no_placeholders",
+   "injected": "plant a placeholder marker in a delivered file",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "ok": true,
+ "count": 12
+}

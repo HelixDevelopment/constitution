@@ -1,0 +1,30 @@
+{
+ "checks": [
+  {
+   "check": "test_catalog_complete",
+   "ok": true,
+   "detail": "289 anchors, catalog entries all hash-verified"
+  },
+  {
+   "check": "test_anchor_integrity",
+   "ok": true,
+   "detail": "289 clause headings == catalog ids"
+  },
+  {
+   "check": "test_twin_consistency",
+   "ok": true,
+   "detail": "twins reference 283 anchors, all resolvable; 20 declared exception(s)"
+  },
+  {
+   "check": "test_split_reproducible",
+   "ok": true,
+   "detail": "check: reproducible (290 artifact(s), byte-identical)"
+  },
+  {
+   "check": "test_no_placeholders",
+   "ok": true,
+   "detail": "no TODO/FIXME/HACK/NotImplementedError in the progressive layer"
+  }
+ ],
+ "ok": true
+}

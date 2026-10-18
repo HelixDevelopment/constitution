@@ -1,0 +1,24 @@
+# Anchors defined in Constitution.md that no twin governance file currently
+# mirrors. GENERATED from the measured gap on 2026-10-18 — regenerate with
+# progressive/validate_structure.py after intentionally changing a twin.
+# Every other defined anchor MUST be referenced by at least one twin.
+§10
+§11
+§11.4.100
+§11.4.104
+§11.4.145
+§11.4.154
+§11.4.155
+§11.4.156
+§11.4.172
+§11.4.173
+§11.4.61
+§11.4.63
+§11.4.68
+§11.4.81
+§11.4.82
+§11.4.83
+§11.4.91
+§8
+§9.3
+§9.4

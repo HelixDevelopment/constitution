@@ -1,0 +1,21 @@
+{
+ "checks": [
+  {
+   "check": "test_pinned_revision",
+   "status": "PASS",
+   "pin": "077ce4cb5381fa1f3be8b43b9cfe57922cd644d7",
+   "head": "077ce4cb5381fa1f3be8b43b9cfe57922cd644d7"
+  },
+  {
+   "check": "test_recursive_fetch",
+   "status": "PASS",
+   "orphans": [],
+   "declared_uninitialised": 5
+  },
+  {
+   "check": "test_deterministic_tree",
+   "status": "PASS",
+   "dirty": []
+  }
+ ]
+}

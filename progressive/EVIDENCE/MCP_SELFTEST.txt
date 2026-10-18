@@ -1,0 +1,10 @@
+PASS: id=1 → 150 chars
+PASS: id=2 → 999 chars
+PASS: id=3 → 975 chars
+PASS: id=4 → 14994 chars
+PASS: id=5 → 7209 chars
+PASS: id=6 → 234 chars
+PASS: id=7 → error unknown tool: no_such_tool
+PASS: search returns §11.4.141 first
+PASS: load_rule returns the verified body
+SELFTEST: PASS
