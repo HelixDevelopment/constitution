@@ -38,13 +38,13 @@ deps:
   # ─── Reusable engines under submodules/ (grouped layout) ────────────
   - name: docs_chain
     ssh_url: git@github.com:vasic-digital/docs_chain.git
-    ref: helixcode-v1.1.0    # §11.4.113 fetch-first pinned tag
+    ref: 8e0abe0             # pinned sha (tag helixcode-v1.1.0 + 12 commits; re-synced 2026-10-19 to the recorded gitlink)
     why: "§11.4.106 canonical mechanical documentation-and-database dependency-propagation engine — content-addressed Merkle sync/verify with atomic-rename commits, honest ToolAbsentError SKIPs, gates docs/DB sync at build/commit/constitution-pull seams"
     layout: grouped
 
   - name: continuum
     ssh_url: git@github.com:vasic-digital/continuum.git
-    ref: d88a007             # pinned sha (no upstream tag yet)
+    ref: 4639347             # pinned sha (no upstream tag yet; re-synced 2026-10-19 to the recorded gitlink, bumped by 427cc34)
     why: "§11.4.207 instant multi-stream resume engine — content-addressed Merkle snapshot + append-only ledger + atomic single-writer refs so a fresh session resumes the WHOLE fleet at O(changed streams), self-validating oracle (golden-good/bad/negative-control)"
     layout: grouped
 
@@ -79,12 +79,12 @@ deps:
     layout: grouped
     recursive_init: false    # operator decision: NEVER `--recursive` for this path (mutual reference with this constitution); gate CM-LLMCTL-SUBMODULE-NONRECURSIVE
 
-  # ─── OpenDesign design-toolkit (flat layout, top-level) ──────────────
+  # ─── OpenDesign design-toolkit (grouped layout since 1c89813, 2026-10-11) ──
   - name: design-toolkit
     ssh_url: git@github.com:vasic-digital/design-toolkit.git
-    ref: 16e4e76             # pinned sha
+    ref: 4ddc964             # pinned sha (tag v0.2.2 + 14 commits; re-synced 2026-10-19 to the recorded gitlink)
     why: "§11.4.162 OpenDesign UI design-system engine — canonical machine-readable design-token source (§11.4.216) + brand contract (§11.4.217) + living design-library catalogue (§11.4.218); consumed by every project that ships a user-facing UI"
-    layout: flat
+    layout: grouped
 
 transitive_handling:
   # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Most engines
@@ -106,7 +106,7 @@ transitive_handling:
 
 # §11.4.28(C) depth-1 invariant applies: no language-specific subtree
 # resolution; consumers reach every engine directly from the parent root
-# per the mandated layout (grouped vs flat as declared per-dep above).
+# per the mandated layout (every current entry is grouped under submodules/).
 language_specific_subtree: false
 
 # ─── Verification recipe (operator-runnable, §11.4.6 anti-bluff) ────
@@ -115,13 +115,15 @@ language_specific_subtree: false
 # manifest:
 #
 #   cd constitution
-#   git submodule update --init --recursive submodules design-toolkit
+#   git submodule update --init submodules/docs_chain submodules/continuum submodules/anti_bluff \
+#       submodules/session_orchestrator submodules/token_optimizer submodules/helix_perf_cache submodules/design-toolkit
+#   # llmctl: depth-1 only, NEVER --recursive (recursive_init: false)
 #   # Verify SSH-only per Hard Stop #2:
 #   git submodule foreach --recursive --quiet 'git remote -v | grep -c https://' | \
 #     paste -sd+ | bc   # MUST be 0
 #   # Verify pins match manifest:
 #   for d in $(yq '.deps[].name' helix-deps.yaml); do
-#     path="submodules/$d"; [ "$d" = "design-toolkit" ] && path="$d"
+#     path="submodules/$d"
 #     want=$(yq ".deps[] | select(.name == \"$d\") | .ref" helix-deps.yaml)
 #     got=$(cd "$path" && git describe --tags --exact-match 2>/dev/null || \
 #           cd "$path" && git rev-parse --short HEAD)

@@ -18,7 +18,7 @@
   "CONSUMERS.json": {
    "bytes": 99586,
    "producer": "gen_evidence.py",
-   "sha256": "4516df226319866510892b149f8c0ac58e1aa8699aa80f817c11b7a1ae4998ac"
+   "sha256": "adcbb245823f09a82b4d73c20c8240cf9d2e8a36b16558657c43980f4f7d87d7"
   },
   "DISCREPANCIES.md": {
    "bytes": 5680,
@@ -41,9 +41,9 @@
    "sha256": "6d02d947583aefa1cca98cd52f5ce44039c0246d81cb79459d432cd7632b5ecd"
   },
   "PREFLIGHT_MANIFEST.json": {
-   "bytes": 3409768,
+   "bytes": 3409962,
    "producer": "gen_evidence.py",
-   "sha256": "c8b0f6189b29ea8667f240e9e36678f823654b2696ed0398dafd520d3783a6bc"
+   "sha256": "544b6fb321859434ad2fd968025a1f360be9bd9dad3b22f8ddeed445f3bb67b9"
   },
   "RISK_REGISTER.md": {
    "bytes": 1312,
@@ -80,6 +80,6 @@
   "INDEX.json": "the index itself",
   "mcp_accounting.jsonl": "append-only server log"
  },
- "generated_at": "2026-10-19T10:40:01Z",
+ "generated_at": "2026-10-19T13:53:30Z",
  "schema_version": 1
 }

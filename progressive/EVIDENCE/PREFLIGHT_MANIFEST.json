@@ -12,7 +12,7 @@
   ],
   "reason": "EVIDENCE/ records this result; .git is VCS metadata"
  },
- "file_count": 23464,
+ "file_count": 23466,
  "files": {
   ".claude-plugin/marketplace.json": "ea686f47f7ecfd8b560759cffbc6ee72e805ec937c2413c2baf78520d33f5398",
   ".codegraph/.gitignore": "47c0dacebca9f56c9020b68584470dfc51f07650a3719904e98f4b447a5dd003",
@@ -62,7 +62,7 @@
   "AGENTS.pdf": "1489c890af36655c3cd5e081c507c66ddd3726c52124ca8f62220d6f2e7cce8a",
   "CHANGELOG.docx": "337ce00f65f84cea5db96d4b1fb20d5858d8e3458aa9821bbced845617b34646",
   "CHANGELOG.html": "332412a2af360bc5bb3064684e9a2cce5245a4fb53df0e5a30125b4dd9ca05f9",
-  "CHANGELOG.md": "c9d4f2cddabb5f846415c4c9050de8716369fead80cbcf4b8722893edb6879d4",
+  "CHANGELOG.md": "66c10e78c15bfeaea4e459e2ac6a81fe7ff207bf2f0f9259e086ab66a158c685",
   "CHANGELOG.pdf": "fbfb61f52fb3149c623c701856605dc7ec635a134f199dec5c69fca00bed4087",
   "CLAUDE.docx": "1eb15b4e2c281418a57cc46bd9d5fad40ac31c4e8732a3f5ef7f31ba49315879",
   "CLAUDE.html": "1ad768dccf4ebc60f7093f00c307293718266ad3bf6aaff60d896344845517d5",
@@ -87,7 +87,7 @@
   "QWEN.pdf": "694c9fed4d6a63c23a987d6bbe26fbff6d8cb2170f5eac5b3b1991ec996cc9e8",
   "README.docx": "26640b0c679dabbd8fa54af7c77cedc1a55ef66db7012d9b5b5d1cc82bed5346",
   "README.html": "3bdad758432db2cceae2dd16f3ea2b8050de9abf2eaf0ec15328515cbf3dee69",
-  "README.md": "685ccb4dc159512342e667618cf9e35a3918b624dafbff63f6733009fce66d76",
+  "README.md": "c85664df51ea81d2cd3609a63c916f2a328f409fb4e2afd99263846247c6b897",
   "README.pdf": "2af86c5a0dac954f7e8ce1465cf1237a9f8fa8662ea6cadf6e49b2682d73d109",
   "actions/generated/README.docx": "6e702f6d8f5e3baaeff5a67c188afcff4b05f41a8e8902d9e5f1157ec5367a53",
   "actions/generated/README.html": "931ab17caf9f1bc4fb7996ae05063dcf9045a1b02ab6384e17081327ebc97e32",
@@ -217,6 +217,7 @@
   "docs/AGENT_GUARDRAILS.html": "fc8296540aaa8426755d666c034494f5c20622d07b4ab6fe5ca62e3c1b441736",
   "docs/AGENT_GUARDRAILS.md": "accaeec02ad6c294ad6999b5444c0f6fd7d76f48e95fbbc62c007fd4aa1ae894",
   "docs/AGENT_GUARDRAILS.pdf": "e57d283fe531254821048b709355fa256891bb18886e64ce5734dde5f9e5c894",
+  "docs/BADGES.md": "eb52a1ab990a11467b7aebd636247fc58c5a38876bb9186efa0d9392a16a69c4",
   "docs/actions/ADMIN_MANUAL.docx": "9ae163b1e3764ffeb5ab62d650bbebe7d584e164162d09851555fcc851cc755e",
   "docs/actions/ADMIN_MANUAL.html": "7deab6c7ee67d82129dfb8d7048064c785672a5f4f63b8c3039f339d6ff3871a",
   "docs/actions/ADMIN_MANUAL.md": "7e386e211bf04ca6b06beff3da478c25b95a3b63808449086959c1da8b6daefd",
@@ -753,7 +754,7 @@
   "groups/workable-items-and-tracking.html": "93bed52a3560f601cbffd9ab967c1e3688964cc26764535bf786683d2aabb61f",
   "groups/workable-items-and-tracking.md": "b81a137dd3bf53086645f45b7b9860d03805ec9dd1eda5826af48cf8bf2435cb",
   "groups/workable-items-and-tracking.pdf": "253a59611142d739057492f6ea117f55b0885ae5d358107dac02c97002c3a00c",
-  "helix-deps.yaml": "02e13cbac244d3ca4203faadebfe1afdbacdcc7b940aa6829792d363d0c73de6",
+  "helix-deps.yaml": "33df9c99f2e966e4d564bc80baf4ea42e1a36fb620eddb411c4ffa7771d8c3f6",
   "install_upstreams.sh": "83ffb94e7ebf833561120905bd7698c2f54cfcb341abafe2f954456941557595",
   "mcp/media-validator-mcp.json": "a45c84de20498bd07be3a5030a23c3c9feaa1afda7767e8400411a74a47750dc",
   "mcp/scheduled-work-mcp.json": "77b85a9e860cdcb6abb1a56b859ece55d65fbe4b1b4c5d0c841d234e6cb31249",
@@ -13338,6 +13339,7 @@
   "scripts/anchors/tests/test_query_us2.py": "fef9707bb80394bf58bdfddad84c328128fbe05b2b3c6e9b271873b786488e2d",
   "scripts/anchors/tests/test_regeneration_matches_committed.py": "446be42466a0a7d208859a07b8a3cb708a9bd5d0415696d3240ea2fd4e3f32f3",
   "scripts/anchors/tests/test_wiring_audit_us4.py": "4bddfe1e13ef1a5c4f85ad08f7e3547119c537e708abe8ad4798becaeb55ac1d",
+  "scripts/badges/compute_badges.sh": "1e4e7e8931a09657d34e36425dacee83062d8429237b92bd63dc1adc852def5e",
   "scripts/catalog-engine/fixtures/golden_bad_test.sh": "b1ffa16c90e7112e362970895da282bbebfbdb93220c4f27c8554efcd9adeefe",
   "scripts/catalog-engine/fixtures/golden_good_test.sh": "6c68584a43680b21d7394410a032439d79cdb0b8682e35d209d412a43c631465",
   "scripts/catalog-engine/generate_catalog.py": "337c3a0d27e56a14589c873c7eef3ab650e5f890f53669935a8ebcf4eeb75f93",
@@ -23481,5 +23483,5 @@
  },
  "schema_version": 1,
  "scope": "every file under the constitution submodule working tree",
- "tree_sha256": "387fce4169a13add4c2149146529c4a3b93a812128f782091d7f251da4a5a4b2"
+ "tree_sha256": "d3ceac76f75834086383585df7c1f8ba845493646ffd56fc4e3676e40b2a2a41"
 }

@@ -20,11 +20,11 @@
      "text": "\"command\": \"sh \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/multitrack/multitrack_conductor_monitor_autoarm.sh\\\" >/dev/null 2>&1 || true\""
     },
     {
-     "line": 19,
+     "line": 23,
      "text": "\"command\": \"bash \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-track-branch-label.sh\\\"\""
     },
     {
-     "line": 23,
+     "line": 27,
      "text": "\"command\": \"bash \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-work-track-binding.sh\\\"\""
     }
    ]
@@ -4000,10 +4000,10 @@
    ".claude/settings.local.json": []
   },
   "constitution_pin": {
-   "ACCOUNT_ISOLATION_ACTIVE": "0",
+   "ACCOUNT_ISOLATION_ACTIVE": "1",
    "BYPASS_PREVENTION_ACTIVE": "0",
    "CACHE_VERIFICATION_ACTIVE": "0",
-   "CCUSAGE_AUDIT_ACTIVE": "0",
+   "CCUSAGE_AUDIT_ACTIVE": "1",
    "CHANGELOG_AUTOMATION_ACTIVE": "1",
    "CONTEXT_PREFLIGHT_ACTIVE": "1",
    "FALLBACK_ISOLATION_ACTIVE": "1",
