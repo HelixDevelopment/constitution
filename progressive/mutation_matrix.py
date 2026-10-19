@@ -33,7 +33,11 @@ def run_validator(sandbox: Path, which: str, extra: list[str] | None = None) -> 
         "tokens": "validate_tokens.py",
         "behavior": "validate_behavior.py",
         "submodule": "validate_submodule.py",
+        "evidence": "validate_evidence.py",
     }[which]
+    if which == "evidence":
+        # the sandbox holds a partial tree and a sandbox parent repository
+        extra = ["--partial-tree"] + (extra or [])
     p = subprocess.run([PY, str(script)] + (extra or []),
                        capture_output=True, text=True, cwd=str(sandbox))
     return p.returncode
@@ -69,6 +73,22 @@ def replace(sandbox: Path, rel: str, text: str) -> None:
     p = sandbox / rel
     p.unlink()
     p.write_text(text, encoding="utf-8")
+
+
+EVD_REL = "constitution/progressive/EVIDENCE"
+
+
+def resync_index(sandbox: Path) -> None:
+    """Rewrite INDEX.json so every recorded sha256 matches the file on disk. Used by
+    mutations that must be caught by a SEMANTIC check, not merely by the index hash."""
+    import hashlib
+    ip = sandbox / EVD_REL / "INDEX.json"
+    idx = json.loads(ip.read_text(encoding="utf-8"))
+    for name, rec in idx["artifacts"].items():
+        data = (sandbox / EVD_REL / name).read_bytes()
+        rec["sha256"] = hashlib.sha256(data).hexdigest()
+        rec["bytes"] = len(data)
+    replace(sandbox, f"{EVD_REL}/INDEX.json", json.dumps(idx, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
 
 
 def main() -> int:
@@ -213,6 +233,98 @@ def main() -> int:
                "FAIL" if run_validator(sb, "structure") == 1 else "PASS",
                "PASS" if (replace(sb, p, core) or run_validator(sb, "structure") == 0) else "FAIL")
         replace(sb, p, core)
+
+        # ---- evidence-artifact gate (validate_evidence.py) -----------------------------
+        ev_base = run_validator(sb, "evidence")
+        print(f"baseline: evidence={ev_base}")
+        index_orig = (sb / EVD_REL / "INDEX.json").read_text(encoding="utf-8")
+
+        # M-13 required artifact present: delete CONSUMERS.json
+        cons_p = f"{EVD_REL}/CONSUMERS.json"
+        cons_orig = (sb / cons_p).read_text(encoding="utf-8")
+        (sb / cons_p).unlink()
+        m13 = run_validator(sb, "evidence")
+        (sb / cons_p).write_text(cons_orig, encoding="utf-8")
+        record("M-13", "test_required_artifacts", "delete EVIDENCE/CONSUMERS.json",
+               "FAIL" if m13 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-14 index integrity: tamper one recorded sha256 in INDEX.json
+        idx = json.loads(index_orig)
+        victim = sorted(idx["artifacts"])[0]
+        idx["artifacts"][victim]["sha256"] = "0" * 64
+        replace(sb, f"{EVD_REL}/INDEX.json", json.dumps(idx, indent=1, sort_keys=True) + "\n")
+        m14 = run_validator(sb, "evidence")
+        replace(sb, f"{EVD_REL}/INDEX.json", index_orig)
+        record("M-14", "test_index_integrity", f"tamper the INDEX.json sha256 of {victim}",
+               "FAIL" if m14 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-15 anchors fresh: drop an anchor from ANCHORS.json (INDEX re-synced so only
+        # the independent re-inventory can catch it)
+        anc_p = f"{EVD_REL}/ANCHORS.json"
+        anc_orig = (sb / anc_p).read_text(encoding="utf-8")
+        anc = json.loads(anc_orig)
+        anc["files"]["Constitution.md"]["definitions"] = [
+            d for d in anc["files"]["Constitution.md"]["definitions"] if d["id"] != "§11.4.141"]
+        replace(sb, anc_p, json.dumps(anc, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+        resync_index(sb)
+        m15 = run_validator(sb, "evidence")
+        replace(sb, anc_p, anc_orig)
+        replace(sb, f"{EVD_REL}/INDEX.json", index_orig)
+        record("M-15", "test_anchors_fresh", "drop §11.4.141 from ANCHORS.json (INDEX re-synced)",
+               "FAIL" if m15 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-16 stale manifest: tamper a recorded file hash (INDEX re-synced)
+        man_p = f"{EVD_REL}/PREFLIGHT_MANIFEST.json"
+        man_orig = (sb / man_p).read_text(encoding="utf-8")
+        man = json.loads(man_orig)
+        man["files"]["progressive/core.md"] = "0" * 64
+        replace(sb, man_p, json.dumps(man, indent=1, sort_keys=True) + "\n")
+        resync_index(sb)
+        m16 = run_validator(sb, "evidence")
+        replace(sb, man_p, man_orig)
+        replace(sb, f"{EVD_REL}/INDEX.json", index_orig)
+        record("M-16", "test_manifest_fresh", "tamper the manifest hash of progressive/core.md (INDEX re-synced)",
+               "FAIL" if m16 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-17 stale manifest, other direction: change a covered file without regenerating
+        core_p = "constitution/progressive/core.md"
+        core_o = (sb / core_p).read_text(encoding="utf-8")
+        replace(sb, core_p, core_o + "\nedited without regenerating the evidence\n")
+        m17 = run_validator(sb, "evidence")
+        replace(sb, core_p, core_o)
+        record("M-17", "test_manifest_fresh", "edit core.md without regenerating the manifest",
+               "FAIL" if m17 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-18 hand-authored artifact: delete RISK_REGISTER.md
+        rr_p = f"{EVD_REL}/RISK_REGISTER.md"
+        rr_o = (sb / rr_p).read_text(encoding="utf-8")
+        (sb / rr_p).unlink()
+        m18 = run_validator(sb, "evidence")
+        (sb / rr_p).write_text(rr_o, encoding="utf-8")
+        record("M-18", "test_required_artifacts", "delete EVIDENCE/RISK_REGISTER.md",
+               "FAIL" if m18 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-19 unrecorded discrepancy: strip the recorded genuine omission from DISCREPANCIES.md
+        dis_p = f"{EVD_REL}/DISCREPANCIES.md"
+        dis_o = (sb / dis_p).read_text(encoding="utf-8")
+        replace(sb, dis_p, dis_o.replace("11.4.10.A", "<removed>"))
+        resync_index(sb)
+        m19 = run_validator(sb, "evidence")
+        replace(sb, dis_p, dis_o)
+        replace(sb, f"{EVD_REL}/INDEX.json", index_orig)
+        record("M-19", "test_anchors_discrepancies", "remove §11.4.10.A from DISCREPANCIES.md (INDEX re-synced)",
+               "FAIL" if m19 == 1 else "PASS", "PASS" if run_validator(sb, "evidence") == 0 else "FAIL")
+
+        # M-20 slim catalog <-> manifest coupling: drop a digest from rules_manifest.json
+        rm_p = "constitution/progressive/rules_manifest.json"
+        rm_o = (sb / rm_p).read_text(encoding="utf-8")
+        rm = json.loads(rm_o)
+        del rm["rules"]["§11.4.141"]
+        replace(sb, rm_p, json.dumps(rm, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+        record("M-20", "test_catalog_complete", "drop §11.4.141 from rules_manifest.json",
+               "FAIL" if run_validator(sb, "structure") == 1 else "PASS",
+               "PASS" if (replace(sb, rm_p, rm_o) or run_validator(sb, "structure") == 0) else "FAIL")
+        replace(sb, rm_p, rm_o)
     finally:
         shutil.rmtree(td_obj, ignore_errors=True)
 

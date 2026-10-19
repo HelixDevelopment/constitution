@@ -4,9 +4,10 @@
 
 1. **Core (`core.md`, 999 tokens)** — covenant, pointers, cross-cutting
    invariants. This is the only constitution text loaded up front.
-2. **Catalog (`catalog.json`)** — one entry per anchor: id, one-line description,
-   tags, file, line range, sha256. Never loaded in full by an agent; queried
-   through the MCP server.
+2. **Catalog (`catalog.json`)** — one entry per anchor: id, title, one-line
+   description, tags, rule path. Never loaded in full by an agent; queried
+   through the MCP server. Digests and line ranges live in `rules_manifest.json`,
+   read only by `verify_anchor` and the validators.
 3. **Rules (`rules/<id>.md`, 289 files)** — the exact clause text, generated from
    `Constitution.md`, loaded by id.
 

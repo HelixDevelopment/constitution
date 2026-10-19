@@ -27,10 +27,9 @@ used and the generated layer is ignored. No file needs to be reverted.
 | evidence | `constitution/progressive/EVIDENCE/` |
 | plan / matrix / risks | `constitution/progressive/docs/` |
 
-## To finish the UNCONFIRMED items
+## Items still open
 
-1. Capture a frozen corpus and real provider `usage` objects →
-   `EVIDENCE/TOKENS_BEFORE.json` / `TOKENS_AFTER.json`; re-run
-   `validate_tokens.py`.
-2. Run the AOSP sandbox comparison and record image/SDK hashes.
-3. Obtain an independent fresh-clone sign-off and commit it under `EVIDENCE/`.
+1. Run the AOSP sandbox comparison and record image/SDK hashes (needs a build).
+2. Obtain an independent fresh-clone sign-off and commit it under `EVIDENCE/`.
+3. Cut the baseline tag for the constitution (naming: the repo's tags are
+   `helixconstitution-vNN`, not `v76-baseline`).

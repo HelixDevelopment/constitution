@@ -70,15 +70,23 @@ def list_anchors(cat: dict, tag: str | None = None) -> list[dict]:
     return sorted(out, key=lambda x: x["id"])
 
 
+def load_manifest() -> dict:
+    return json.loads((PROG / "rules_manifest.json").read_text(encoding="utf-8"))
+
+
 def verify_anchor(cat: dict, anchor_id: str) -> dict:
+    """Digests live in rules_manifest.json (the slim catalog has none)."""
     import hashlib
     for a in cat["anchors"]:
         if a["id"] == anchor_id:
             p = ROOT / a["file"]
             if not p.is_file():
                 return {"ok": False, "reason": "rule file missing"}
+            rec = load_manifest()["rules"].get(anchor_id)
+            if rec is None:
+                return {"ok": False, "reason": "anchor absent from rules_manifest.json"}
             got = "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
-            return {"ok": got == a["hash"], "expected": a["hash"], "got": got}
+            return {"ok": got == rec["hash"], "expected": rec["hash"], "got": got}
     return {"ok": False, "reason": "unknown anchor"}
 
 

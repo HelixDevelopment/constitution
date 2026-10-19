@@ -1,0 +1,105 @@
+{
+ "arms": {
+  "after": "progressive/core.md + progressive/catalog.json",
+  "before": "constitution/CLAUDE.md (monolith)"
+ },
+ "model": "sonnet",
+ "prompts": [
+  {
+   "expected": "\u00a711.4.6",
+   "prompt": "Which constitution anchor id governs this topic? Topic: No-guessing mandate. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.17",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Universal-vs-project classification of new rules (User mandate, 2026-05-14). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.28",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Submodules-As-Equal-Codebase + Decoupling + Dependency-Layout Mandate (User man\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.39",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Per-Feature On-Device End-User Validation Mandate (iter-76, 2026-05-17). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.50",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Deterministic Consistency Mandate (User mandate, 2026-05-18). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.61",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Mandatory Markdown metadata table + structured-doc ToC (User mandate, 2026-05-1\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.74",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Submodule-catalogue-first discovery + extend-don't-reimplement (User mandate, 2\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.85",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Stress + Chaos Test Mandate (User mandate, 2026-05-24). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.96",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Safe-parallel-work-with-long-build catalogue + mandate (User mandate, 2026-05-2\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.107",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Anti-bluff AV/test-validation techniques mandate (User-driven research, 2026-06\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.118",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Discovery-pressure to confirm known-issue-set completeness mandate (1.1.8-dev r\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.129",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Huge-blocker release protocol (User mandate, 2026-06-06). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.140",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Universal action-prefix system (`ACTION_NAME ::`) (User mandate, 2026-06-09). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.151",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Project-prefixed release-tag/version-naming mandate (User mandate, 2026-06-12). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.162",
+   "prompt": "Which constitution anchor id governs this topic? Topic: OpenDesign UI design system mandate (User mandate, 2026-06-21). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.173",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Containerized + distributed build mandate (User mandate, 2026-06-29).. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.185",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Manual QA-team testing as the mandatory FINAL confirmation of done (User mandat\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.196",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Native-alias-first priority + per-alias real-signal limit/subscription tracking\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.211",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Merge-conflict resolution during main\u2192feature/product/flavor merges MUST run on\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.222",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Design-completion export wave: a design is not done until token codegen, the ho\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.233",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Standing anti-mess control plane: a level-triggered, idempotent, invariant-cata\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.244",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Cross-boundary contract tests + can-i-deploy gate (research-derived, 2026-08-15). Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.255",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Mandatory HelixTranslate canonical translation pipeline (User mandate, 2026-06-\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  },
+  {
+   "expected": "\u00a711.4.266",
+   "prompt": "Which constitution anchor id governs this topic? Topic: Claim-vs-reality ledger: every ADVERTISED capability is a row, typed from the c\u2026. Answer with the anchor id only, in the form \u00a711.4.N."
+  }
+ ]
+}

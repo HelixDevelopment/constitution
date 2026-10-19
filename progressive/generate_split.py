@@ -4,8 +4,12 @@
 Reads ``Constitution.md`` and writes, byte-for-byte reproducibly:
 
   progressive/core.md        hand-authored lean core (NOT generated; only checked)
-  progressive/catalog.json   machine-readable anchor index
-  progressive/rules/<id>.md  one file per clause
+  progressive/catalog.json        SLIM layer-2 index: id, title, one-line description,
+                                  tags, rule path (no digests, no line ranges)
+  progressive/rules_manifest.json integrity layer: per-rule sha256 + source line range,
+                                  consumed only by verify/validate, never loaded by
+                                  an agent to find a rule
+  progressive/rules/<id>.md       one file per clause
 
 Guarantees:
   * PURE FUNCTION of Constitution.md — no timestamps, no host paths, sorted keys,
@@ -33,6 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "Constitution.md"
 OUT = ROOT / "progressive"
 CATALOG = OUT / "catalog.json"
+MANIFEST = OUT / "rules_manifest.json"
 RULES = OUT / "rules"
 
 # A clause heading: '### §11.4.141 — Title' / '## §8. Title' / '### §7.1 ...'
@@ -127,6 +132,17 @@ def tags_for(text: str) -> list[str]:
     return out[:3]
 
 
+def render_catalog(cat: dict) -> str:
+    """Valid JSON, one compact anchor per line: sorted keys, no padding. The
+    layer-2 file is read by agents, so whitespace is paid for in tokens."""
+    head = {k: v for k, v in cat.items() if k != "anchors"}
+    lines = [json.dumps(a, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+             for a in cat["anchors"]]
+    top = json.dumps(head, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    # splice the anchors array in (keys stay sorted: "anchors" sorts first)
+    return '{"anchors":[\n' + ",\n".join(lines) + "\n]," + top[1:] + "\n"
+
+
 def build(src: Path, out_dir: Path) -> dict:
     clauses = parse(src)
     rules_dir = out_dir / "rules"
@@ -149,15 +165,28 @@ def build(src: Path, out_dir: Path) -> dict:
             "line_end": c["line_end"],
             "hash": "sha256:" + sha256_bytes(data),
         })
+    src_hash = sha256_bytes(src.read_bytes())
     catalog = {
+        "schema_version": 2,
+        "source": "Constitution.md",
+        "source_sha256": src_hash,
+        "anchor_count": len(entries),
+        "rules_manifest": "progressive/rules_manifest.json",
+        "anchors": [{k: e[k] for k in ("id", "title", "one_line_description", "tags", "file")}
+                    for e in entries],
+    }
+    manifest = {
         "schema_version": 1,
         "source": "Constitution.md",
-        "source_sha256": sha256_bytes(src.read_bytes()),
+        "source_sha256": src_hash,
         "anchor_count": len(entries),
-        "anchors": entries,
+        "rules": {e["id"]: {"file": e["file"], "hash": e["hash"],
+                            "line_start": e["line_start"], "line_end": e["line_end"]}
+                  for e in entries},
     }
-    (out_dir / "catalog.json").write_text(
-        json.dumps(catalog, indent=1, sort_keys=True, ensure_ascii=False) + "\n",
+    (out_dir / "catalog.json").write_text(render_catalog(catalog), encoding="utf-8")
+    (out_dir / "rules_manifest.json").write_text(
+        json.dumps(manifest, indent=1, sort_keys=True, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     return catalog
@@ -189,7 +218,7 @@ def main() -> int:
             build(src, tmp)
             want = file_hashes(tmp)
             have = {}
-            for rel in ("catalog.json",):
+            for rel in ("catalog.json", "rules_manifest.json"):
                 p = out / rel
                 if p.is_file():
                     have[rel] = sha256_bytes(p.read_bytes())
@@ -212,7 +241,7 @@ def main() -> int:
             return 0
 
     cat = build(src, out)
-    print(f"generated: {cat['anchor_count']} anchors -> catalog.json + rules/")
+    print(f"generated: {cat['anchor_count']} anchors -> catalog.json + rules_manifest.json + rules/")
     return 0
 
 

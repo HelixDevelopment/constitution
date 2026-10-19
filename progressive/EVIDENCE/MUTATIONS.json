@@ -107,8 +107,80 @@
    "restored": "PASS",
    "ok": true,
    "detail": ""
+  },
+  {
+   "id": "M-13",
+   "gate": "test_required_artifacts",
+   "injected": "delete EVIDENCE/CONSUMERS.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-14",
+   "gate": "test_index_integrity",
+   "injected": "tamper the INDEX.json sha256 of ANCHORS.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-15",
+   "gate": "test_anchors_fresh",
+   "injected": "drop \u00a711.4.141 from ANCHORS.json (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-16",
+   "gate": "test_manifest_fresh",
+   "injected": "tamper the manifest hash of progressive/core.md (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-17",
+   "gate": "test_manifest_fresh",
+   "injected": "edit core.md without regenerating the manifest",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-18",
+   "gate": "test_required_artifacts",
+   "injected": "delete EVIDENCE/RISK_REGISTER.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-19",
+   "gate": "test_anchors_discrepancies",
+   "injected": "remove \u00a711.4.10.A from DISCREPANCIES.md (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-20",
+   "gate": "test_catalog_complete",
+   "injected": "drop \u00a711.4.141 from rules_manifest.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
   }
  ],
  "ok": true,
- "count": 12
+ "count": 20
 }

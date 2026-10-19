@@ -1,3 +1,9 @@
+[accounting] {"arg_keys": ["limit", "query"], "result_chars": 935, "result_token_estimate": 234, "seq": 1, "tool": "search_constitution"}
+[accounting] {"arg_keys": ["anchor_id"], "result_chars": 14304, "result_token_estimate": 3576, "seq": 2, "tool": "load_rule"}
+[accounting] {"arg_keys": ["tag"], "result_chars": 6734, "result_token_estimate": 1684, "seq": 3, "tool": "list_anchors"}
+[accounting] {"arg_keys": ["anchor_id"], "result_chars": 234, "result_token_estimate": 59, "seq": 4, "tool": "verify_anchor"}
+[accounting] {"arg_keys": ["limit", "query"], "result_chars": 935, "result_token_estimate": 234, "seq": 5, "tool": "search_constitution"}
+[accounting] {"arg_keys": ["anchor_id"], "result_chars": 14304, "result_token_estimate": 3576, "seq": 6, "tool": "load_rule"}
 PASS: id=1 → 150 chars
 PASS: id=2 → 999 chars
 PASS: id=3 → 975 chars

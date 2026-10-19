@@ -3,8 +3,8 @@
   {
    "check": "test_pinned_revision",
    "status": "PASS",
-   "pin": "077ce4cb5381fa1f3be8b43b9cfe57922cd644d7",
-   "head": "077ce4cb5381fa1f3be8b43b9cfe57922cd644d7"
+   "pin": "87e72cc50d62b64b35d91877058b69c99412104c",
+   "head": "87e72cc50d62b64b35d91877058b69c99412104c"
   },
   {
    "check": "test_recursive_fetch",
@@ -14,8 +14,14 @@
   },
   {
    "check": "test_deterministic_tree",
-   "status": "PASS",
-   "dirty": []
+   "status": "FAIL",
+   "dirty": [
+    "M progressive/EVIDENCE/DISCREPANCIES.md",
+    " M progressive/EVIDENCE/MUTATIONS.json",
+    " M progressive/EVIDENCE/STRUCTURE.json",
+    " M progressive/EVIDENCE/SUBMODULE.json",
+    " M progressive/EVIDENCE/TOKENS.json"
+   ]
   }
  ]
 }

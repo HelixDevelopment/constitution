@@ -34,26 +34,46 @@ def load_catalog():
     return json.loads(CATALOG.read_text(encoding="utf-8"))
 
 
+MANIFEST = PROG / "rules_manifest.json"
+
+
+def load_manifest():
+    if not MANIFEST.is_file():
+        return None
+    return json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+
 def test_catalog_complete(cat) -> tuple[bool, str]:
+    """The slim catalog carries no digests; integrity lives in rules_manifest.json.
+    Both must list the same ids, and every digest must match the rule file."""
+    import hashlib
     if cat is None:
         return False, "catalog.json missing"
+    man = load_manifest()
+    if man is None:
+        return False, "rules_manifest.json missing"
     ids = [a["id"] for a in cat["anchors"]]
     if len(ids) != len(set(ids)):
         return False, "catalog contains duplicate anchor ids"
     if cat.get("anchor_count") != len(ids):
         return False, "anchor_count does not match the entry list"
-    missing = [i for i in ids if not (ROOT / cat["source"]).is_file()]
-    if missing:
+    if not (ROOT / cat["source"]).is_file():
         return False, "source missing"
+    rules = man.get("rules", {})
+    if set(rules) != set(ids):
+        miss = sorted(set(ids) - set(rules))[:5]
+        extra = sorted(set(rules) - set(ids))[:5]
+        return False, f"catalog/manifest id mismatch: not-in-manifest={miss} not-in-catalog={extra}"
     for a in cat["anchors"]:
+        r = rules[a["id"]]
+        if r["file"] != a["file"]:
+            return False, f"catalog/manifest path mismatch for {a['id']}"
         p = ROOT / a["file"]
         if not p.is_file():
             return False, f"rule file missing: {a['file']}"
-        body = p.read_bytes()
-        import hashlib
-        if "sha256:" + hashlib.sha256(body).hexdigest() != a["hash"]:
+        if "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest() != r["hash"]:
             return False, f"hash mismatch for {a['id']} ({a['file']})"
-    return True, f"{len(ids)} anchors, catalog entries all hash-verified"
+    return True, f"{len(ids)} anchors, catalog==manifest ids, every rule file hash-verified"
 
 
 def test_anchor_integrity(cat) -> tuple[bool, str]:

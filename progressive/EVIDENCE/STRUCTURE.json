@@ -3,7 +3,7 @@
   {
    "check": "test_catalog_complete",
    "ok": true,
-   "detail": "289 anchors, catalog entries all hash-verified"
+   "detail": "289 anchors, catalog==manifest ids, every rule file hash-verified"
   },
   {
    "check": "test_anchor_integrity",
@@ -18,7 +18,7 @@
   {
    "check": "test_split_reproducible",
    "ok": true,
-   "detail": "check: reproducible (290 artifact(s), byte-identical)"
+   "detail": "check: reproducible (291 artifact(s), byte-identical)"
   },
   {
    "check": "test_no_placeholders",

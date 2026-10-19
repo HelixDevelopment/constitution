@@ -1,0 +1,32 @@
+{
+ "collapse_observed": true,
+ "note": "reuse_ratio of the SECOND run; volatile = unique token prepended to the governance text each run",
+ "stable": [
+  {
+   "cache_creation": 41361,
+   "cache_read": 11237,
+   "prompt_total": 52600,
+   "reuse_ratio": 0.2136
+  },
+  {
+   "cache_creation": 5162,
+   "cache_read": 49129,
+   "prompt_total": 54293,
+   "reuse_ratio": 0.9049
+  }
+ ],
+ "volatile": [
+  {
+   "cache_creation": 43072,
+   "cache_read": 11237,
+   "prompt_total": 54311,
+   "reuse_ratio": 0.2069
+  },
+  {
+   "cache_creation": 43072,
+   "cache_read": 11237,
+   "prompt_total": 54311,
+   "reuse_ratio": 0.2069
+  }
+ ]
+}
