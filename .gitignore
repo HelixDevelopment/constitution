@@ -37,3 +37,5 @@ scripts/doc_integrity/internal/selfcheck/golden/**/*.pdf
 # is a containment measure, not the fix — the invoking documentation must
 # pass ABSOLUTE paths.
 scripts/workable-items/docs/
+
+docs/research/decisions_models
