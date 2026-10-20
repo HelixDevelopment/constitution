@@ -67,3 +67,6 @@
 [submodule "submodules/llmctl"]
 	path = submodules/llmctl
 	url = git@github.com:vasic-digital/llmctl.git
+[submodule "submodules/open_design"]
+	path = submodules/open_design
+	url = git@github.com:nexu-io/open-design.git
