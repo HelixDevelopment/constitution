@@ -1,0 +1,973 @@
+{
+ "arm": "after",
+ "claude_version": "2.1.303 (Claude Code)",
+ "corpus_sha256": "5566abcc1ca2cf6cdbc57043628970d17456aa45d58b31dd77ce3e7f5c3cbfc1",
+ "correct": 24,
+ "detail": [
+  {
+   "answer": "\u00a711.4.6",
+   "correct": true,
+   "expected": "\u00a711.4.6",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 43091,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 43091,
+    "cache_read_input_tokens": 11237,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 43091,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 43091,
+      "cache_read_input_tokens": 11237,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.17",
+   "correct": true,
+   "expected": "\u00a711.4.17",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4094,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4094,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4094,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4094,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.28",
+   "correct": true,
+   "expected": "\u00a711.4.28",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4105,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4105,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4105,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4105,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.39",
+   "correct": true,
+   "expected": "\u00a711.4.39",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 5793,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5793,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 5793,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 5793,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.50",
+   "correct": true,
+   "expected": "\u00a711.4.50",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4093,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4093,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4093,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4093,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.61",
+   "correct": true,
+   "expected": "\u00a711.4.61",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4103,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4103,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4103,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4103,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.74",
+   "correct": true,
+   "expected": "\u00a711.4.74",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 5794,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5794,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 5794,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 5794,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.85",
+   "correct": true,
+   "expected": "\u00a711.4.85",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4094,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4094,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4094,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4094,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.96",
+   "correct": true,
+   "expected": "\u00a711.4.96",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4104,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4104,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4104,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4104,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.107",
+   "correct": true,
+   "expected": "\u00a711.4.107",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4100,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4100,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4100,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4100,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.118",
+   "correct": true,
+   "expected": "\u00a711.4.118",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4102,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4102,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4102,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4102,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.129",
+   "correct": true,
+   "expected": "\u00a711.4.129",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4091,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4091,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4091,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4091,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.140",
+   "correct": true,
+   "expected": "\u00a711.4.140",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 5796,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5796,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 5796,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 5796,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.151",
+   "correct": true,
+   "expected": "\u00a711.4.151",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4099,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4099,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4099,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4099,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.162",
+   "correct": true,
+   "expected": "\u00a711.4.162",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4093,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4093,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4093,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4093,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.173",
+   "correct": true,
+   "expected": "\u00a711.4.173",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4093,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4093,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4093,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4093,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.185",
+   "correct": true,
+   "expected": "\u00a711.4.185",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4098,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4098,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4098,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4098,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.196",
+   "correct": true,
+   "expected": "\u00a711.4.196",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 5788,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5788,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 5788,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 5788,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.211",
+   "correct": true,
+   "expected": "\u00a711.4.211",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4096,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4096,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4096,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4096,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.222",
+   "correct": true,
+   "expected": "\u00a711.4.222",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 5784,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5784,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 5784,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 5784,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.233",
+   "correct": true,
+   "expected": "\u00a711.4.233",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4098,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4098,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4098,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4098,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.244",
+   "correct": true,
+   "expected": "\u00a711.4.244",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4101,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4101,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4101,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4101,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.255",
+   "correct": true,
+   "expected": "\u00a711.4.255",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4101,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4101,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4101,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4101,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  },
+  {
+   "answer": "\u00a711.4.266",
+   "correct": true,
+   "expected": "\u00a711.4.266",
+   "usage": {
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 4100,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 4100,
+    "cache_read_input_tokens": 48560,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+     {
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 4100,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 4100,
+      "cache_read_input_tokens": 48560,
+      "input_tokens": 2,
+      "output_tokens": 8,
+      "type": "message"
+     }
+    ],
+    "output_tokens": 8,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_fetch_requests": 0,
+     "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+   }
+  }
+ ],
+ "model": "sonnet",
+ "prompts": {
+  "Which constitution anchor id governs this topic? Topic: Anti-bluff AV/test-validation techniques mandate (User-driven research, 2026-06\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52670,
+  "Which constitution anchor id governs this topic? Topic: Claim-vs-reality ledger: every ADVERTISED capability is a row, typed from the c\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52670,
+  "Which constitution anchor id governs this topic? Topic: Containerized + distributed build mandate (User mandate, 2026-06-29).. Answer with the anchor id only, in the form \u00a711.4.N.": 52663,
+  "Which constitution anchor id governs this topic? Topic: Cross-boundary contract tests + can-i-deploy gate (research-derived, 2026-08-15). Answer with the anchor id only, in the form \u00a711.4.N.": 52671,
+  "Which constitution anchor id governs this topic? Topic: Design-completion export wave: a design is not done until token codegen, the ho\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 54354,
+  "Which constitution anchor id governs this topic? Topic: Deterministic Consistency Mandate (User mandate, 2026-05-18). Answer with the anchor id only, in the form \u00a711.4.N.": 52663,
+  "Which constitution anchor id governs this topic? Topic: Discovery-pressure to confirm known-issue-set completeness mandate (1.1.8-dev r\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52672,
+  "Which constitution anchor id governs this topic? Topic: Huge-blocker release protocol (User mandate, 2026-06-06). Answer with the anchor id only, in the form \u00a711.4.N.": 52661,
+  "Which constitution anchor id governs this topic? Topic: Mandatory HelixTranslate canonical translation pipeline (User mandate, 2026-06-\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52671,
+  "Which constitution anchor id governs this topic? Topic: Mandatory Markdown metadata table + structured-doc ToC (User mandate, 2026-05-1\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52673,
+  "Which constitution anchor id governs this topic? Topic: Manual QA-team testing as the mandatory FINAL confirmation of done (User mandat\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52668,
+  "Which constitution anchor id governs this topic? Topic: Merge-conflict resolution during main\u2192feature/product/flavor merges MUST run on\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52666,
+  "Which constitution anchor id governs this topic? Topic: Native-alias-first priority + per-alias real-signal limit/subscription tracking\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 54358,
+  "Which constitution anchor id governs this topic? Topic: No-guessing mandate. Answer with the anchor id only, in the form \u00a711.4.N.": 54338,
+  "Which constitution anchor id governs this topic? Topic: OpenDesign UI design system mandate (User mandate, 2026-06-21). Answer with the anchor id only, in the form \u00a711.4.N.": 52663,
+  "Which constitution anchor id governs this topic? Topic: Per-Feature On-Device End-User Validation Mandate (iter-76, 2026-05-17). Answer with the anchor id only, in the form \u00a711.4.N.": 54363,
+  "Which constitution anchor id governs this topic? Topic: Project-prefixed release-tag/version-naming mandate (User mandate, 2026-06-12). Answer with the anchor id only, in the form \u00a711.4.N.": 52669,
+  "Which constitution anchor id governs this topic? Topic: Safe-parallel-work-with-long-build catalogue + mandate (User mandate, 2026-05-2\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52674,
+  "Which constitution anchor id governs this topic? Topic: Standing anti-mess control plane: a level-triggered, idempotent, invariant-cata\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52668,
+  "Which constitution anchor id governs this topic? Topic: Stress + Chaos Test Mandate (User mandate, 2026-05-24). Answer with the anchor id only, in the form \u00a711.4.N.": 52664,
+  "Which constitution anchor id governs this topic? Topic: Submodule-catalogue-first discovery + extend-don't-reimplement (User mandate, 2\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 54364,
+  "Which constitution anchor id governs this topic? Topic: Submodules-As-Equal-Codebase + Decoupling + Dependency-Layout Mandate (User man\u2026. Answer with the anchor id only, in the form \u00a711.4.N.": 52675,
+  "Which constitution anchor id governs this topic? Topic: Universal action-prefix system (`ACTION_NAME ::`) (User mandate, 2026-06-09). Answer with the anchor id only, in the form \u00a711.4.N.": 54366,
+  "Which constitution anchor id governs this topic? Topic: Universal-vs-project classification of new rules (User mandate, 2026-05-14). Answer with the anchor id only, in the form \u00a711.4.N.": 52664
+ },
+ "total": 1274168,
+ "total_cost_usd": 0.6981
+}

@@ -257,7 +257,8 @@ while IFS= read -r row; do
     [ -n "$cap" ] || cap="<row ${rownum}>"
     ch_norm="$(printf '%s' "$ch" | tr '[:upper:]' '[:lower:]')"
 
-    if [ -z "$ch_norm" ] || printf '%s\n' "$CHALLENGE_PLACEHOLDERS" | grep -qxF -- "$ch_norm"; then
+    # here-string, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C); bounded payload, defensive hardening)
+    if [ -z "$ch_norm" ] || grep -qxF -- "$ch_norm" <<<"$CHALLENGE_PLACEHOLDERS"; then
         fails=$((fails + 1))
         echo "${GATE}: FAIL capability='${cap}' reason=CHALLENGE_ABSENT challenge='${ch}'"
         continue

@@ -15,14 +15,14 @@ implementation" was false. This file is that missing implementation.
 
 T085 Round 2 remediation (2026-09-30, B-R2-3, DEVICE-SAFETY CRITICAL): the
 Round 1 implementation above ran EVERY `*.sh` script under
-`--sections-dir` (default `device/rockchip/rk3588/tests/`, 1244 scripts
+`--sections-dir` (in the reference consumer: its device test-section tree, 1244 scripts
 recursively, 475 of which contain `adb`/`rm -rf`/`settings put`/reboot/
 flash/power-cycle commands per a live grep of the real tree) on the HOST
 with NO refusal and NO opt-in -- a real risk to attached physical boards
 (this project's own D1/D2 devices, per CLAUDE.md). Fixed by three
 independent changes, each proven ONLY against a scratch/mock corpus this
 module's own regression test constructs in an isolated tmp dir -- NEVER
-against the real `device/rockchip/rk3588/tests/` tree, per §11.4.199 (the
+against the reference consumer's real device test-section tree, per §11.4.199 (the
 Round 2 reviewer correctly refused to run this against real devices, and
 so does this fix's own verification):
 
@@ -66,8 +66,8 @@ honestly per io_trace.sh's own header -- §11.4.6, never a fabricated
 comparison).
 
 Host-safety (§12 / §11.4.225): `--sections-dir`'s real, current on-disk
-population (device/rockchip/rk3588/tests/) is 1000+ scripts, the large
-majority of which are ON-DEVICE tests (require a physical RK3588 board
+population (the reference consumer's device test-section tree) is 1000+ scripts, the large
+majority of which are ON-DEVICE tests (require a physical target board
 attached over ADB) -- tracing one with no device connected can print a
 usage error, block waiting on a device, or otherwise misbehave in ways
 this tool cannot predict per-script. Every trace attempt is therefore run
@@ -164,7 +164,7 @@ EXIT_BLIND = 4
 DEFAULT_TIMEOUT = 15
 
 # T085 Round 2 B-R2-3: device-mutating pattern set, derived from a live grep
-# of the real device/rockchip/rk3588/tests/*.sh corpus (439/1066 top-level
+# of the real device test-section *.sh corpus of the reference consumer (439/1066 top-level
 # scripts match at least one of these classes as of 2026-09-30). Each
 # pattern is a (name, compiled-regex) pair; a match on ANY pattern flags the
 # script as device-mutating. This is intentionally CONSERVATIVE (broad,
@@ -174,7 +174,7 @@ DEFAULT_TIMEOUT = 15
 # traced on a host with attached boards is a real-hardware safety incident.
 #
 # T085 Round 3 R3-B1 (BLOCKING, 2026-10-02): independently re-measured
-# against the REAL default corpus (device/rockchip/rk3588/tests/, 1244
+# against the REAL default corpus (the reference consumer's device test-section tree, 1244
 # scripts) and confirmed the Round 2 patterns above classified 675/1244 as
 # NOT device-mutating by text alone -- including the project's own real
 # `test_api_proxy_pinning_census.sh`, which reaches `adb` ONLY through a
@@ -324,7 +324,7 @@ def classify_device_mutating(script_text):
 # classify_device_mutating() above is a text-only pattern scan and is
 # therefore NEVER a complete safety mechanism on its own -- confirmed by
 # the Round 3 review: 675/1244 of this project's REAL
-# device/rockchip/rk3588/tests/*.sh corpus classified as NOT
+# device test-section *.sh corpus of the reference consumer classified as NOT
 # device-mutating by text alone, including a real script
 # (test_api_proxy_pinning_census.sh) that reaches `adb` -s <real D1
 # serial> ... shell svc wifi disable / pm clear / force-stop / MITM-CA-

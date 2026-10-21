@@ -132,7 +132,8 @@ while IFS= read -r line; do
         t="$(printf '%s' "$tok" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')"
         [ -n "$t" ] || continue
         alias_seen=$((alias_seen+1))
-        if ! printf '%s' "$t" | grep -Eq '^[A-Z][A-Z0-9_]*$'; then
+        # here-string, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C); bounded payload, defensive hardening)
+        if ! grep -Eq '^[A-Z][A-Z0-9_]*$' <<<"$t"; then
             bad "GRAMMAR-HONOUR: declared alias '${t}' is not an UPPERCASE [A-Z][A-Z0-9_]* grammar token (would never match §11.4.140)"
             alias_bad=$((alias_bad+1))
         fi

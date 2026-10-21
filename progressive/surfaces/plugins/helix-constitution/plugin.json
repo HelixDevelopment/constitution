@@ -1,0 +1,13 @@
+{
+  "name": "helix-constitution",
+  "version": "1.0.0",
+  "description": "Progressive-disclosure access to the Helix Constitution (search, load, verify).",
+  "server": {
+    "command": "python3",
+    "args": ["${HELIX_CONSTITUTION_ROOT}/progressive/mcp_server.py"],
+    "env": {"HELIX_CONSTITUTION_ROOT": "."}
+  },
+  "tools": ["search_constitution", "load_rule", "list_anchors", "verify_anchor"],
+  "defers_to_skill": "helix-constitution",
+  "notes": "The plugin and the skill wrap the SAME server. HELIX_CONSTITUTION_PLUGIN=1 makes the skill defer; the plugin never spawns a second server."
+}

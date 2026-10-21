@@ -231,6 +231,40 @@ stop_one() {
 SH
 expect_pass "negative control: ordinary single-process 'kill -9 \$pid' never flagged" "$NEG1"
 
+# ===================================================================
+# LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
+# an EARLY line of the call's window and a ~350 KB code line follows it. With
+# `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the
+# guard line while printf is still writing; printf takes SIGPIPE and pipefail
+# turns a GUARDED call into a false "UNGUARDED" FAIL (both the GUARD_ERE
+# pre-check and target_guarded read the window). Repeated: the race is
+# deterministic only well above the ~131 KB knee. Paired with the same large
+# window WITHOUT the guard, which must still FAIL — the PASS is the guard's.
+# ===================================================================
+mk_large_window() { # $1=dir  $2=guarded 1|0
+    local d="$1" pad
+    mkdir -p "$d"
+    pad="$(head -c 350000 /dev/zero | tr '\0' 'A')"
+    {
+        echo 'import os, signal'
+        echo 'def stop_group(pgid):'
+        if [ "$2" = 1 ]; then
+            echo '    if not isinstance(pgid, int) or pgid <= 1:'
+            echo '        raise ValueError("refusing to signal an unsafe pgid")'
+        fi
+        printf '    blob = "%s"\n' "$pad"
+        echo '    os.killpg(pgid, signal.SIGKILL)'
+    } > "$d/large_window.py"
+}
+LW="$TMP/large_window"; mk_large_window "$LW" 1
+lw_sz="$(wc -c < "$LW/large_window.py")"
+[ "$lw_sz" -ge 300000 ] || { echo "❌ META FAIL: LARGE-WINDOW fixture is only $lw_sz bytes (needs >= 300000)"; rc=1; }
+for it in 1 2 3 4 5; do
+    expect_pass "LARGE-WINDOW guarded call, $lw_sz B window (SIGPIPE x pipefail) — iteration $it" "$LW"
+done
+LWN="$TMP/large_window_unguarded"; mk_large_window "$LWN" 0
+expect_fail "LARGE-WINDOW same window WITHOUT the guard" "$LWN"
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-KILLPG-PGID-GUARD FAILs-on-mutation AND PASSes-on-clean for every fixture (§1.1 proof holds)"

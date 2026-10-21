@@ -56,7 +56,9 @@ fail=0
 entry="$(awk '/^  - name: llmctl[[:space:]]*$/{f=1;next} f&&/^  - name:/{exit} f&&/^[^ #]/{exit} f{print}' "$deps")"
 if [ -z "$entry" ]; then
   echo "$GATE: FAIL — helix-deps.yaml has no llmctl entry"; fail=1
-elif ! printf '%s\n' "$entry" | grep -Eq '^[[:space:]]+recursive_init:[[:space:]]*false([[:space:]]|#|$)'; then
+# here-string, not `printf | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and turn a
+# PRESENT marker into a false FAIL on a large entry (SIGPIPE x pipefail class, §11.4.276(C))
+elif ! grep -Eq '^[[:space:]]+recursive_init:[[:space:]]*false([[:space:]]|#|$)' <<<"$entry"; then
   echo "$GATE: FAIL — helix-deps.yaml llmctl entry lacks the non-recursive marker 'recursive_init: false'"; fail=1
 else
   echo "$GATE: marker recursive_init: false present"
@@ -87,9 +89,9 @@ else
       echo "$GATE: BLIND — $label pin $c is not resolvable to a commit (fetch it, or init that one submodule level); an unresolved pin is never a PASS" >&2; blind=1; return
     fi
     hit="$(git -C "$st" ls-tree -r -t --name-only "$c" 2>/dev/null | awk -F/ '$NF=="llmctl"')"
-    if [ -n "$hit" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} contains entry named llmctl at: $(echo $hit | tr '\n' ' ')— a recursive init would re-enter this constitution (refuse the pin bump)"; fail=1; return; fi
+    if [ -n "$hit" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} contains entry named llmctl at: $(echo "$hit" | tr '\n' ' ')— a recursive init would re-enter this constitution (refuse the pin bump)"; fail=1; return; fi
     gm="$(git -C "$st" show "$c:.gitmodules" 2>/dev/null | awk -F'= *' '/^[[:space:]]*url[[:space:]]*=/{print $2}' | grep -Ei '(^|[/:])(helixconstitution|constitution|llmctl)(\.git)?$' || true)"
-    if [ -n "$gm" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} .gitmodules names this constitution/llmctl as a dependency: $(echo $gm | tr '\n' ' ')"; fail=1; return; fi
+    if [ -n "$gm" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} .gitmodules names this constitution/llmctl as a dependency: $(echo "$gm" | tr '\n' ' ')"; fail=1; return; fi
     echo "$GATE: $label pin ${c:0:7} does not re-enter this constitution (cycle finite)"
   }
   seen=0

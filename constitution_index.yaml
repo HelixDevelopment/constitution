@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-14T09:07:06.671977+00:00'
+generated_at: '2026-10-17T16:08:36.623624+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: da6b6ec1672112e02f1f5e3071af2f02242b9598
-  source_sha256: 36c127067081a2f8cc6d32cbce55e22b1ed7cb5c792b5b09fa44be63a874e22b
+  commit: f9290df111d09872b2a71358bf9393ec9e78db9a
+  source_sha256: 1667ded1962940faf651a45b261b62e75d831410e805bb6102f9e809f8119d56
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -1010,15 +1010,22 @@ anchors:
   - '1.1'
   - 11.4.12
   - 11.4.15
+  - 11.4.151
   - 11.4.16
   - 11.4.17
   - 11.4.19
+  - 11.4.197
+  - 11.4.202
+  - 11.4.213
+  - 11.4.227
+  - 11.4.26
   - 11.4.33
   - 11.4.44
   - 11.4.53
   - 11.4.54
   - 11.4.55
   - 11.4.57
+  - 11.4.66
 - id: 11.4.55
   title: — Reopens-history tracking + per-item Reopens.md doc (User mandate, 2026-05-19)
   group: workable-items-and-tracking
@@ -3116,10 +3123,19 @@ anchors:
   - 11.4.106
   - 11.4.123
   - 11.4.125
+  - 11.4.127
   - 11.4.128
+  - 11.4.131
   - 11.4.141
   - 11.4.17
+  - 11.4.183
   - 11.4.20
+  - 11.4.201
+  - 11.4.205
+  - 11.4.209
+  - 11.4.231
+  - 11.4.273
+  - 11.4.276
   - 11.4.35
   - 11.4.40
   - 11.4.5
@@ -3132,6 +3148,7 @@ anchors:
   - 11.4.78
   - 11.4.79
   - 11.4.80
+  - '12.10'
   - '12.6'
 - id: 11.4.142
   title: — Universal code-review mandate — every change reviewed, always, no exception

@@ -423,7 +423,7 @@ expect_output_contains() { # $1=desc  $2=needle  $3..=command
     # VERDICT instead of grep's MATCH and fail on correct output
     # (§11.4.201(12): the pipeline exit status is part of the instrument).
     out="$("$@" 2>&1)" || true
-    if printf '%s' "$out" | grep -qF -- "$needle"; then
+    if grep -qF -- "$needle" <<<"$out"; then
         echo "✅ META OK:   ${desc} — expected marker present in gate output"
     else
         echo "❌ META FAIL: ${desc} — expected output to contain: ${needle}"
@@ -441,7 +441,7 @@ expect_output_not_contains() { # $1=desc  $2=needle  $3..=command
     local desc="$1" needle="$2"; shift 2
     local out
     out="$("$@" 2>&1)" || true
-    if printf '%s' "$out" | grep -qF -- "$needle"; then
+    if grep -qF -- "$needle" <<<"$out"; then
         echo "❌ META FAIL: ${desc} — unwanted marker present in gate output: ${needle}"
         rc=1
     else
@@ -2892,7 +2892,7 @@ else
     echo "❌ META FAIL: L80 find-enumeration-failure exited ${_l80_rc}, expected rc=1 (a FINDING) -- a permission-denied subtree must not silently read as an empty/clean scan"
     rc=1
 fi
-if printf '%s' "$_l80_out" | grep -qF -- "scan enumeration failed"; then
+if grep -qF -- "scan enumeration failed" <<<"$_l80_out"; then
     echo "✅ META OK:   L80 the refusal names the unresolved precondition (\"scan enumeration failed\"), never silent"
 else
     echo "❌ META FAIL: L80 expected the find-failure output to contain: scan enumeration failed"

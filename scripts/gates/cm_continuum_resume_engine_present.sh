@@ -168,7 +168,9 @@ fi
 # --- (2f) continuum selfcheck (best-effort, honest SKIP when infeasible) ---
 if [ -d "$engine_dir" ] && [ -f "${engine_dir}/cmd/continuum/main.go" ] && command -v go >/dev/null 2>&1; then
     sc_out="$( cd "$engine_dir" && go run ./cmd/continuum selfcheck 2>&1 || true )"
-    if echo "$sc_out" | grep -q 'good=PASS' && echo "$sc_out" | grep -q 'bad=FAIL' && echo "$sc_out" | grep -q 'negctrl=PASS'; then
+    # here-strings, not `echo | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and turn a
+    # passing selfcheck into a false FAIL on large output (SIGPIPE x pipefail class, §11.4.276(C))
+    if grep -q 'good=PASS' <<<"$sc_out" && grep -q 'bad=FAIL' <<<"$sc_out" && grep -q 'negctrl=PASS' <<<"$sc_out"; then
         say "✅ PASS     continuum selfcheck — good=PASS bad=FAIL negctrl=PASS"
     else
         warn "❌ FAIL     continuum selfcheck did not report good=PASS/bad=FAIL/negctrl=PASS:"

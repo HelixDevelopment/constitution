@@ -1,0 +1,85 @@
+{
+ "artifacts": {
+  "ANCHORS.json": {
+   "bytes": 387125,
+   "producer": "gen_evidence.py",
+   "sha256": "a6319aebede7c6a8df35924932e88f4421591895a028b4413d745138a4141996"
+  },
+  "BEHAVIOR.json": {
+   "bytes": 1184,
+   "producer": "validate_behavior.py --evidence",
+   "sha256": "2cb7dda1b4b4eac1713a3bb941ca22d61070b26f5cdb1774a6271c1550ec91b2"
+  },
+  "CACHE_PROOF.json": {
+   "bytes": 621,
+   "producer": "unknown",
+   "sha256": "28a9a52adb38f06d60a7edf20202f5b20d5db116ec279ac6818fb4476ed110ee"
+  },
+  "CONSUMERS.json": {
+   "bytes": 99586,
+   "producer": "gen_evidence.py",
+   "sha256": "adcbb245823f09a82b4d73c20c8240cf9d2e8a36b16558657c43980f4f7d87d7"
+  },
+  "DISCREPANCIES.md": {
+   "bytes": 5680,
+   "producer": "hand-authored from measured output",
+   "sha256": "44b23100498894970be37cf0ea8b739aa93410abf2cf886cdc972a9ec4ea5f1a"
+  },
+  "KNOWN_ISSUES.md": {
+   "bytes": 933,
+   "producer": "gen_evidence.py",
+   "sha256": "c2fdc609dc8ebd22360b932b4cff5d54ae6f961610f82f323d37c738c2b8ba3e"
+  },
+  "MCP_SELFTEST.txt": {
+   "bytes": 1072,
+   "producer": "mcp_server.py --selftest (stdout)",
+   "sha256": "fe1b006e7c79655d8ca615b50c339d27402d91dae1b47dd3e1f4c7c67c3dc462"
+  },
+  "MUTATIONS.json": {
+   "bytes": 4036,
+   "producer": "mutation_matrix.py --evidence",
+   "sha256": "6d02d947583aefa1cca98cd52f5ce44039c0246d81cb79459d432cd7632b5ecd"
+  },
+  "PREFLIGHT_MANIFEST.json": {
+   "bytes": 3409962,
+   "producer": "gen_evidence.py",
+   "sha256": "544b6fb321859434ad2fd968025a1f360be9bd9dad3b22f8ddeed445f3bb67b9"
+  },
+  "RISK_REGISTER.md": {
+   "bytes": 1312,
+   "producer": "hand-authored",
+   "sha256": "43101097877842f71312ad9c6b8cf46cc9865af96808509be2a40cc822faa3a4"
+  },
+  "STRUCTURE.json": {
+   "bytes": 702,
+   "producer": "validate_structure.py --evidence",
+   "sha256": "d37ed9d1f785fd8e7ce3edc66ac9bb34a7c3c2f0bc1d06463a9d3d34aa1169eb"
+  },
+  "SUBMODULE.json": {
+   "bytes": 623,
+   "producer": "validate_submodule.py --evidence",
+   "sha256": "d55f39d8254abc044e30c8b433e8114b08e1140bf94e391779a3e85270b5603f"
+  },
+  "TOKENS.json": {
+   "bytes": 894,
+   "producer": "validate_tokens.py --evidence",
+   "sha256": "e52824144d0af037e2e02ee31a73bd1b4ccc6e01aa317759708a0e8fd71e8041"
+  },
+  "TOKENS_AFTER.json": {
+   "bytes": 27475,
+   "producer": "unknown",
+   "sha256": "cae93c0919bb3a1f0cf1570960c1a7bc460ea5f4b812ebd40d0825cee7369e76"
+  },
+  "TOKENS_BEFORE.json": {
+   "bytes": 27659,
+   "producer": "unknown",
+   "sha256": "7bf9314748b11d493e22801c410d900972320f2ca7c4b2546f46704953a40ab1"
+  }
+ },
+ "excluded": {
+  "INDEX.json": "the index itself",
+  "mcp_accounting.jsonl": "append-only server log"
+ },
+ "generated_at": "2026-10-19T13:53:30Z",
+ "schema_version": 1
+}

@@ -1,0 +1,186 @@
+{
+ "mutations": [
+  {
+   "id": "M-01",
+   "gate": "test_core_budget",
+   "injected": "append ~5k-token block to core.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-02",
+   "gate": "test_anchor_integrity",
+   "injected": "delete \u00a711.4.141 from catalog.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-03",
+   "gate": "test_twin_consistency",
+   "injected": "remove \u00a711.4.141 from every twin",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-04",
+   "gate": "test_split_reproducible",
+   "injected": "hand-edit one byte of rules/11.4.141.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-05",
+   "gate": "test_core_budget",
+   "injected": "replace core.md with the full monolith",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-06",
+   "gate": "test_cache_warm",
+   "injected": "inject a volatile token into core.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-07",
+   "gate": "test_catalog_description",
+   "injected": "empty the \u00a711.4.141 one-line description",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-08",
+   "gate": "test_load_rule_body",
+   "injected": "make load_rule return a different anchor body",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-09",
+   "gate": "test_pinned_revision",
+   "injected": "advance the submodule pin without a matching HEAD",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-10",
+   "gate": "test_recursive_fetch",
+   "injected": "introduce an uninitialised nested submodule",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-11",
+   "gate": "test_evidence_presence",
+   "injected": "make the evidence path unwritable",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-12",
+   "gate": "test_no_placeholders",
+   "injected": "plant a placeholder marker in a delivered file",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-13",
+   "gate": "test_required_artifacts",
+   "injected": "delete EVIDENCE/CONSUMERS.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-14",
+   "gate": "test_index_integrity",
+   "injected": "tamper the INDEX.json sha256 of ANCHORS.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-15",
+   "gate": "test_anchors_fresh",
+   "injected": "drop \u00a711.4.141 from ANCHORS.json (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-16",
+   "gate": "test_manifest_fresh",
+   "injected": "tamper the manifest hash of progressive/core.md (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-17",
+   "gate": "test_manifest_fresh",
+   "injected": "edit core.md without regenerating the manifest",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-18",
+   "gate": "test_required_artifacts",
+   "injected": "delete EVIDENCE/RISK_REGISTER.md",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-19",
+   "gate": "test_anchors_discrepancies",
+   "injected": "remove \u00a711.4.10.A from DISCREPANCIES.md (INDEX re-synced)",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "id": "M-20",
+   "gate": "test_catalog_complete",
+   "injected": "drop \u00a711.4.141 from rules_manifest.json",
+   "mutated": "FAIL",
+   "restored": "PASS",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "ok": true,
+ "count": 20
+}

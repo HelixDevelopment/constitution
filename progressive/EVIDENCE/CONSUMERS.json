@@ -1,0 +1,4094 @@
+{
+ "patterns": [
+  "path",
+  "canon-file",
+  "pin-file",
+  "helix-name",
+  "import"
+ ],
+ "references": [
+  {
+   "category": "claude-settings",
+   "hit_lines": 9,
+   "kinds": [
+    "path"
+   ],
+   "path": ".claude/settings.json",
+   "samples": [
+    {
+     "line": 8,
+     "text": "\"command\": \"sh \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/multitrack/multitrack_conductor_monitor_autoarm.sh\\\" >/dev/null 2>&1 || true\""
+    },
+    {
+     "line": 23,
+     "text": "\"command\": \"bash \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-track-branch-label.sh\\\"\""
+    },
+    {
+     "line": 27,
+     "text": "\"command\": \"bash \\\"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-work-track-binding.sh\\\"\""
+    }
+   ]
+  },
+  {
+   "category": "codegraph-lsp-config",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": ".codegraph/config.json",
+   "samples": [
+    {
+     "line": 42,
+     "text": "\"constitution/**/*.md\","
+    },
+    {
+     "line": 43,
+     "text": "\"constitution/**/*.yaml\","
+    },
+    {
+     "line": 44,
+     "text": "\"constitution/**/*.yml\","
+    }
+   ]
+  },
+  {
+   "category": "pin",
+   "hit_lines": 1,
+   "kinds": [
+    "helix-name"
+   ],
+   "path": ".constitution-pin",
+   "samples": [
+    {
+     "line": 1,
+     "text": "UPSTREAM=git@github.com:HelixDevelopment/HelixConstitution.git"
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": ".gitignore",
+   "samples": [
+    {
+     "line": 732,
+     "text": "# the repo root (the constitution/Upstreamable toolkit, exported on PATH)."
+    }
+   ]
+  },
+  {
+   "category": "submodule-declaration",
+   "hit_lines": 1,
+   "kinds": [
+    "helix-name"
+   ],
+   "path": ".gitmodules",
+   "samples": [
+    {
+     "line": 62,
+     "text": "url = git@github.com:HelixDevelopment/HelixConstitution.git"
+    }
+   ]
+  },
+  {
+   "category": "codegraph-lsp-config",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": ".helix/reporting.yaml",
+   "samples": [
+    {
+     "line": 3,
+     "text": "# (constitution/scripts/reporting/report_item.sh) is inherited BY REFERENCE and"
+    },
+    {
+     "line": 6,
+     "text": "# Template: constitution/scripts/reporting/reporting.example.yaml"
+    },
+    {
+     "line": 7,
+     "text": "# Guide:    constitution/docs/scripts/report_item.md"
+    }
+   ]
+  },
+  {
+   "category": "mcp-config",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": ".mcp.json",
+   "samples": [
+    {
+     "line": 6,
+     "text": "\"args\": [\"constitution/scripts/codegraph/codegraph_mcp.sh\"]"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260819T153729247Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "submodule at `helixconstitution-v68` / `497c0b1`. No principle removed"
+    },
+    {
+     "line": 57,
+     "text": "⚠ Three submodules are UNINITIALIZED in the tree — constitution/submodules/"
+    },
+    {
+     "line": 78,
+     "text": "> (per §11.4.35): `constitution/Constitution.md` (universal anchors) → project"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260819T153729247Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 23,
+     "text": "**Primary Dependencies**: `docs/workable_items.db` (git-tracked SSoT); the docs_chain bidirectional sync engine; the multitrack orchestratio"
+    },
+    {
+     "line": 130,
+     "text": "constitution/scripts/multitrack/         # orchestration engine (inherited by reference)"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260819T153729247Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 29,
+     "text": "- Engines inherited by reference: `constitution/scripts/**` (never copied — §11.4.177)"
+    },
+    {
+     "line": 219,
+     "text": "- [ ] T090 [US4] **OPERATOR DECISION (§11.4.66)** — the RU→EN status map does not exist (0 files under `scripts/` or `constitution/`, contro"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T114224947Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "submodule at `helixconstitution-v68` / `497c0b1`. No principle removed"
+    },
+    {
+     "line": 57,
+     "text": "⚠ Three submodules are UNINITIALIZED in the tree — constitution/submodules/"
+    },
+    {
+     "line": 78,
+     "text": "> (per §11.4.35): `constitution/Constitution.md` (universal anchors) → project"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T114224947Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 25,
+     "text": "**Layer**: universal governance submodule (`constitution/`), inherited by consuming"
+    },
+    {
+     "line": 146,
+     "text": "constitution/"
+    },
+    {
+     "line": 151,
+     "text": "└── Constitution.md      # anchor text; extended only where a gap is genuinely uncovered"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T114224947Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `.specify/memory/constitution.md`,"
+    },
+    {
+     "line": 12,
+     "text": "`docs/guides/shell_instrument_footguns.md`, `constitution/scripts/gates/`,"
+    },
+    {
+     "line": 13,
+     "text": "`constitution/scripts/hooks/`"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T132638880Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "submodule at `helixconstitution-v68` / `497c0b1`. No principle removed"
+    },
+    {
+     "line": 57,
+     "text": "⚠ Three submodules are UNINITIALIZED in the tree — constitution/submodules/"
+    },
+    {
+     "line": 78,
+     "text": "> (per §11.4.35): `constitution/Constitution.md` (universal anchors) → project"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T132638880Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 29,
+     "text": "**Layer**: universal governance submodule (`constitution/`), inherited by consuming"
+    },
+    {
+     "line": 159,
+     "text": "constitution/"
+    },
+    {
+     "line": 164,
+     "text": "└── Constitution.md      # anchor text; extended only where a gap is genuinely uncovered"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T132638880Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `.specify/memory/constitution.md`,"
+    },
+    {
+     "line": 12,
+     "text": "`docs/guides/shell_instrument_footguns.md`, `constitution/scripts/gates/`,"
+    },
+    {
+     "line": 13,
+     "text": "`constitution/scripts/hooks/`"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 97,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260821T132638880Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 45,
+     "text": "- **The ratchet gate already exists.** `constitution/scripts/gates/cm_gate_ledger_ratchet.sh`"
+    },
+    {
+     "line": 58,
+     "text": "- [ ] T001 Correct the gate-count denominator in `constitution/scripts/gates/gate_ledger.sh` by registering the four gate-directory entries "
+    },
+    {
+     "line": 59,
+     "text": "- [ ] T002 Re-derive the §11.4.227(A) unimplemented-named-gate count against the corrected denominator by running `constitution/scripts/gate"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142635246Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 5,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 9,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 22,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142635246Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 29,
+     "text": "**Layer**: universal governance submodule (`constitution/`), inherited by consuming"
+    },
+    {
+     "line": 159,
+     "text": "constitution/"
+    },
+    {
+     "line": 164,
+     "text": "└── Constitution.md      # anchor text; extended only where a gap is genuinely uncovered"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142635246Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `.specify/memory/constitution.md`,"
+    },
+    {
+     "line": 12,
+     "text": "`docs/guides/shell_instrument_footguns.md`, `constitution/scripts/gates/`,"
+    },
+    {
+     "line": 13,
+     "text": "`constitution/scripts/hooks/`"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 106,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142635246Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 45,
+     "text": "- **The ratchet gate already exists.** `constitution/scripts/gates/cm_gate_ledger_ratchet.sh`"
+    },
+    {
+     "line": 58,
+     "text": "- [x] T001 Correct the gate-count denominator in `constitution/scripts/gates/gate_ledger.sh` by registering the four gate-directory entries "
+    },
+    {
+     "line": 59,
+     "text": "- [x] T002 Re-derive the §11.4.227(A) unimplemented-named-gate count against the corrected denominator. `gate_ledger.sh` is a two-subcommand"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142646680Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 5,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 9,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 22,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 16,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142646680Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "Reorganize the constitution submodule's canonical anchor content (`constitution/Constitution.md`, 243 measured `§11.4.NNN`-pattern anchors, "
+    },
+    {
+     "line": 15,
+     "text": "**Language/Version**: Python 3 for the generator/checker scripts (`argparse`-based CLI tools), matching the existing convention already used"
+    },
+    {
+     "line": 17,
+     "text": "**Primary Dependencies**: PyYAML (`import yaml`) for YAML generation, consistent with the ALREADY-established project convention in `constit"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 5,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142646680Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 23,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `constitution/CLAUDE.md`, `constitution/AGENTS.md`, `constitution/QWEN.md`, `consti"
+    },
+    {
+     "line": 70,
+     "text": "2. **Given** the five lockstep-mirrored governance files (`Constitution.md`, `CLAUDE.md`, `AGENTS.md`, `QWEN.md`, `GEMINI.md`), **When** the"
+    },
+    {
+     "line": 101,
+     "text": "- **FR-001**: Given the current constitution submodule content (`constitution/Constitution.md` and its four lockstep mirrors `CLAUDE.md`/`AG"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 127,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142646680Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 40,
+     "text": "generator itself extracts from the live `constitution/Constitution.md`, never a literal."
+    },
+    {
+     "line": 42,
+     "text": "R2.4 and the existing `constitution/scripts/mechanical/anchor_census.sh` (read this session)"
+    },
+    {
+     "line": 66,
+     "text": "- [ ] T001 Create the tool + test directory skeleton: `mkdir -p constitution/scripts/anchors/tests` and touch `constitution/scripts/anchors/"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142744340Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 5,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 9,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 22,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 16,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142744340Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "Reorganize the constitution submodule's canonical anchor content (`constitution/Constitution.md`, 243 measured `§11.4.NNN`-pattern anchors, "
+    },
+    {
+     "line": 15,
+     "text": "**Language/Version**: Python 3 for the generator/checker scripts (`argparse`-based CLI tools), matching the existing convention already used"
+    },
+    {
+     "line": 17,
+     "text": "**Primary Dependencies**: PyYAML (`import yaml`) for YAML generation, consistent with the ALREADY-established project convention in `constit"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 5,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142744340Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 23,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `constitution/CLAUDE.md`, `constitution/AGENTS.md`, `constitution/QWEN.md`, `consti"
+    },
+    {
+     "line": 70,
+     "text": "2. **Given** the five lockstep-mirrored governance files (`Constitution.md`, `CLAUDE.md`, `AGENTS.md`, `QWEN.md`, `GEMINI.md`), **When** the"
+    },
+    {
+     "line": 101,
+     "text": "- **FR-001**: Given the current constitution submodule content (`constitution/Constitution.md` and its four lockstep mirrors `CLAUDE.md`/`AG"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 127,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T142744340Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 40,
+     "text": "generator itself extracts from the live `constitution/Constitution.md`, never a literal."
+    },
+    {
+     "line": 42,
+     "text": "R2.4 and the existing `constitution/scripts/mechanical/anchor_census.sh` (read this session)"
+    },
+    {
+     "line": 66,
+     "text": "- [ ] T001 Create the tool + test directory skeleton: `mkdir -p constitution/scripts/anchors/tests` and touch `constitution/scripts/anchors/"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T144829505Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 5,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 9,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 22,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 18,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T144829505Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "Reorganize the constitution submodule's canonical anchor content (`constitution/Constitution.md`, 243 measured `§11.4.NNN`-pattern anchors, "
+    },
+    {
+     "line": 15,
+     "text": "**Language/Version**: Python 3 for the generator/checker scripts (`argparse`-based CLI tools), matching the existing convention already used"
+    },
+    {
+     "line": 17,
+     "text": "**Primary Dependencies**: PyYAML (`import yaml`) for YAML generation, consistent with the ALREADY-established project convention in `constit"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 5,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T144829505Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 23,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `constitution/CLAUDE.md`, `constitution/AGENTS.md`, `constitution/QWEN.md`, `consti"
+    },
+    {
+     "line": 70,
+     "text": "2. **Given** the five lockstep-mirrored governance files (`Constitution.md`, `CLAUDE.md`, `AGENTS.md`, `QWEN.md`, `GEMINI.md`), **When** the"
+    },
+    {
+     "line": 101,
+     "text": "- **FR-001**: Given the current constitution submodule content (`constitution/Constitution.md` and its four lockstep mirrors `CLAUDE.md`/`AG"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 152,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260925T144829505Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 41,
+     "text": "generator itself extracts from the live `constitution/Constitution.md`, never a literal."
+    },
+    {
+     "line": 43,
+     "text": "R2.4 and the existing `constitution/scripts/mechanical/anchor_census.sh` (read this session)"
+    },
+    {
+     "line": 72,
+     "text": "- [ ] T001 Create the tool + test directory skeleton: `mkdir -p constitution/scripts/anchors/tests` and touch `constitution/scripts/anchors/"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161904835Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 15,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 28,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 18,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161904835Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "Reorganize the constitution submodule's canonical anchor content (`constitution/Constitution.md`, 243 measured `§11.4.NNN`-pattern anchors, "
+    },
+    {
+     "line": 15,
+     "text": "**Language/Version**: Python 3 for the generator/checker scripts (`argparse`-based CLI tools), matching the existing convention already used"
+    },
+    {
+     "line": 17,
+     "text": "**Primary Dependencies**: PyYAML (`import yaml`) for YAML generation, consistent with the ALREADY-established project convention in `constit"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 6,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161904835Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 23,
+     "text": "- **Related documents**: `constitution/Constitution.md`, `constitution/CLAUDE.md`, `constitution/AGENTS.md`, `constitution/QWEN.md`, `consti"
+    },
+    {
+     "line": 70,
+     "text": "2. **Given** the five lockstep-mirrored governance files (`Constitution.md`, `CLAUDE.md`, `AGENTS.md`, `QWEN.md`, `GEMINI.md`), **When** the"
+    },
+    {
+     "line": 101,
+     "text": "- **FR-001**: Given the current constitution submodule content (`constitution/Constitution.md` and its four lockstep mirrors `CLAUDE.md`/`AG"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 168,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161904835Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "**Revised again**: 2026-09-25, mid-`subagent-driven-development` execution — an independent, read-only census-validation subagent (dispatche"
+    },
+    {
+     "line": 21,
+     "text": "**Revised again**: 2026-09-26, continued mid-execution — T021+T022 (the link-checker, FR-006) landed with a genuine defect found before it e"
+    },
+    {
+     "line": 25,
+     "text": "**Revised again**: 2026-09-26, continued mid-execution — T027 (the live reorganization run) executed for real against the canonical `constit"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161921959Z-ready/constitution.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 15,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 28,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 11,
+   "kinds": [
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161921959Z-ready/plan.md",
+   "samples": [
+    {
+     "line": 65,
+     "text": "**Language/Version**: Bash (POSIX `sh` where a script runs on the device, `bash` 5.x on the host) for gate wrappers, hooks and commit-path i"
+    },
+    {
+     "line": 67,
+     "text": "**Primary Dependencies**: `git`, `sqlite3` (CLI + Python module), `strace` (observed-I/O capture, DEC-08), `pandoc` + `weasyprint` (existing"
+    },
+    {
+     "line": 75,
+     "text": "**Project Type**: development-process tooling inside the universal governance submodule (`constitution/scripts/fastcycle/`, inherited by ref"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161921959Z-ready/spec.md",
+   "samples": [
+    {
+     "line": 24,
+     "text": "- **Related documents**: `constitution/Constitution.md` (§11.4.4, §11.4.40, §11.4.42, §11.4.58, §11.4.82, §11.4.89, §11.4.103, §11.4.135, §1"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 133,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/bridge-snapshots/20260926T161921959Z-ready/tasks.md",
+   "samples": [
+    {
+     "line": 26,
+     "text": "- **[SUBAGENT]** — delegable to a parallel subagent. **Scope partition**: the subagent owns ONLY the files named in its task line (plus its "
+    },
+    {
+     "line": 27,
+     "text": "- **[SERIAL]** — touches a single-owner contention path; executed by the conductor only, one at a time, never concurrently with another `[SE"
+    },
+    {
+     "line": 31,
+     "text": "- **`$FC`** in prose abbreviates `constitution/scripts/fastcycle/` (as in `contracts/common-conventions.md`); every task line spells the ful"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 19,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": ".specify/memory/constitution.md",
+   "samples": [
+    {
+     "line": 47,
+     "text": "(2.1.0 folded in §11.4.239–§11.4.262 from `helixconstitution-v68` /"
+    },
+    {
+     "line": 51,
+     "text": "`Constitution.md` own header: Revision 67 — 13 wholly new anchors"
+    },
+    {
+     "line": 64,
+     "text": "findings are cited by exact `Constitution.md:LINE` / quoted evidence"
+    }
+   ]
+  },
+  {
+   "category": "other-agent-config",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": ".specify/memory/constitution_ingestion_record.md",
+   "samples": [
+    {
+     "line": 9,
+     "text": "**Manifest:** `.specify/memory/constitution_corpus_manifest.tsv` (1,981 markdown files enumerated: 5 root governance files + 172 under `cons"
+    },
+    {
+     "line": 13,
+     "text": "The operator-directed corpus for the speckit constitution is `constitution/**` +"
+    },
+    {
+     "line": 26,
+     "text": "| `constitution/CLAUDE.md` (universal governance mirror, Rev 63 — carries every §11.4.x/§12.x anchor in compact + verbatim form) | (in-conte"
+    }
+   ]
+  },
+  {
+   "category": "instruction-file",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "AGENTS.md",
+   "samples": [
+    {
+     "line": 9,
+     "text": "> Base universal rules: `constitution/AGENTS.md` + `constitution/Constitution.md`"
+    },
+    {
+     "line": 177,
+     "text": "| Universal constitution (authoritative) | `constitution/Constitution.md` |"
+    },
+    {
+     "line": 192,
+     "text": "**When stuck:** read `constitution/Constitution.md`, then the relevant"
+    }
+   ]
+  },
+  {
+   "category": "instruction-file",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "CLAUDE.md",
+   "samples": [
+    {
+     "line": 9,
+     "text": "> Base universal rules: `constitution/CLAUDE.md` + `constitution/Constitution.md`"
+    },
+    {
+     "line": 177,
+     "text": "| Universal constitution (authoritative) | `constitution/Constitution.md` |"
+    },
+    {
+     "line": 192,
+     "text": "**When stuck:** read `constitution/Constitution.md`, then the relevant"
+    }
+   ]
+  },
+  {
+   "category": "instruction-file",
+   "hit_lines": 7,
+   "kinds": [
+    "helix-name",
+    "path",
+    "pin-file"
+   ],
+   "path": "CONSTITUTION_ACTIVATION.md",
+   "samples": [
+    {
+     "line": 10,
+     "text": "| Pin (tag/SHA) | `077ce4c` (no exact tag at the pinned commit; SHA recorded in `.constitution-pin`) |"
+    },
+    {
+     "line": 11,
+     "text": "| Pin file | `.constitution-pin` |"
+    },
+    {
+     "line": 12,
+     "text": "| Upstream | `git@github.com:HelixDevelopment/HelixConstitution.git` |"
+    }
+   ]
+  },
+  {
+   "category": "instruction-file",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "GEMINI.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "> Universal base rules: `constitution/AGENTS.md` + `constitution/Constitution.md`."
+    }
+   ]
+  },
+  {
+   "category": "instruction-file",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "QWEN.md",
+   "samples": [
+    {
+     "line": 7,
+     "text": "> Universal base rules: `constitution/AGENTS.md` + `constitution/Constitution.md`."
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "config/fastcycle/REGENERATION.md",
+   "samples": [
+    {
+     "line": 11,
+     "text": "| `.cache/fastcycle/` | verdict cache, io-trace maps | OWED (not yet built): the gate runner and `io_trace.sh build-map` do not exist yet (`"
+    },
+    {
+     "line": 12,
+     "text": "| `qa-results/fastcycle/` | per-run evidence (RED/GREEN logs, reports) | rerunning the producing tool or `constitution/scripts/fastcycle/tes"
+    },
+    {
+     "line": 18,
+     "text": "- R2-F9 / round-1 F13: CLOSED (implemented). `constitution/scripts/fastcycle/lib/fc_common.py body-hash --doc P --verify` compares the store"
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 11,
+   "kinds": [
+    "path"
+   ],
+   "path": "config/fastcycle/deferral.yaml",
+   "samples": [
+    {
+     "line": 4,
+     "text": "# constitution/scripts/fastcycle/tests/test_tool_deferral_red.sh)."
+    },
+    {
+     "line": 9,
+     "text": "# constitution/scripts/skill_activation/{skill_activate.sh,"
+    },
+    {
+     "line": 13,
+     "text": "# default at constitution/scripts/skill_activation/skill-manifest.default.yaml"
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 7,
+   "kinds": [
+    "path"
+   ],
+   "path": "config/fastcycle/fastcycle.yaml",
+   "samples": [
+    {
+     "line": 2,
+     "text": "# cycles\" fastcycle tool family (constitution/scripts/fastcycle/, consumed"
+    },
+    {
+     "line": 42,
+     "text": "# harness RED-test fixtures under constitution/scripts/fastcycle/tests/"
+    },
+    {
+     "line": 50,
+     "text": "- constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/gates"
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "config/fastcycle/gate_sites.yaml",
+   "samples": [
+    {
+     "line": 12,
+     "text": "path: constitution/scripts/workable-items"
+    }
+   ]
+  },
+  {
+   "category": "other",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "config/state_sync/state_sync.conf",
+   "samples": [
+    {
+     "line": 4,
+     "text": "# The engine (constitution/scripts/state_sync/) is PROJECT-AGNOSTIC (§11.4.28 /"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/gate_atm1118_containerized_fingerprint_vendor.sh",
+   "samples": [
+    {
+     "line": 41,
+     "text": "#   (constitution/scripts/fastcycle/cycle/build_deploy_qa_events.py"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/gate_committed_install_upstreams_artifacts_cleanup.sh",
+   "samples": [
+    {
+     "line": 9,
+     "text": "#   `install_upstreams` utility (from the constitution/Upstreamable toolkit),"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/gate_helixcode_phase1.sh",
+   "samples": [
+    {
+     "line": 261,
+     "text": "# This is what keeps the §11.4.35 promotion to constitution/ a pure `git mv`."
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 5,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/gate_state_sync.sh",
+   "samples": [
+    {
+     "line": 15,
+     "text": "#                                constitution/scripts/gates/cm_git_hooks_installed.sh"
+    },
+    {
+     "line": 55,
+     "text": "# Canonical authority: constitution/Constitution.md §11.4.205 + §11.4.206."
+    },
+    {
+     "line": 61,
+     "text": "ENGINE=\"$REPO/constitution/scripts/state_sync\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/guard_completion_probe_no_complete_before_marker_red.sh",
+   "samples": [
+    {
+     "line": 9,
+     "text": "# constitution/scripts/fastcycle/orchestration/completion_probe.sh, whose"
+    },
+    {
+     "line": 123,
+     "text": "PROBE=\"$REPO_ROOT/constitution/scripts/fastcycle/orchestration/completion_probe.sh\""
+    },
+    {
+     "line": 198,
+     "text": "[ \"$_HAVE_AB\" = \"1\" ] && ab_send_action \"spawn a real OS-level background process performing a genuine dispatched->in-flight->marker->comple"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/guard_fastcycle_affected_set_unmapped_path_red.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "# constitution/scripts/fastcycle/gates/affected_set.py's unmapped-path"
+    },
+    {
+     "line": 27,
+     "text": "# constitution/scripts/fastcycle/tests/test_affected_set_red.sh (T053,"
+    },
+    {
+     "line": 45,
+     "text": "REAL_TEST=\"$REPO_ROOT/constitution/scripts/fastcycle/tests/test_affected_set_red.sh\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/guard_fastcycle_verdict_cache_stale_hit_red.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "# invariant in constitution/scripts/fastcycle/gates/verdict_cache.py's"
+    },
+    {
+     "line": 23,
+     "text": "# constitution/scripts/fastcycle/tests/test_verdict_cache_red.sh (T051,"
+    },
+    {
+     "line": 41,
+     "text": "REAL_TEST=\"$REPO_ROOT/constitution/scripts/fastcycle/tests/test_verdict_cache_red.sh\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file"
+   ],
+   "path": "device/rockchip/rk3588/tests/lib/anti_blind_typing.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "# Authority: constitution submodule Constitution.md §11.4.193 (anti-blind-typing)."
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/lib/anti_bluff.sh",
+   "samples": [
+    {
+     "line": 909,
+     "text": "# constitution/** — that tree is owned by another stream this cycle. Until the"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/lib/gov_anchor_carried.sh",
+   "samples": [
+    {
+     "line": 21,
+     "text": "# A non-root carrier (submodule mirror, constitution/*) is NEVER resolved through"
+    },
+    {
+     "line": 40,
+     "text": "constitution/CLAUDE.md|constitution/AGENTS.md|constitution/QWEN.md|constitution/GEMINI.md)"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/lib/state_sync_test_env.sh",
+   "samples": [
+    {
+     "line": 32,
+     "text": "# Canonical authority: constitution/Constitution.md §11.4.203 + §11.4.204."
+    },
+    {
+     "line": 38,
+     "text": "SSE_ENGINE=\"${SSE_REPO_ROOT}/constitution/scripts/state_sync\""
+    },
+    {
+     "line": 39,
+     "text": "SSE_HOOKS=\"${SSE_REPO_ROOT}/constitution/scripts/hooks\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/regression_guard/emit_atm1025_verdicts.sh",
+   "samples": [
+    {
+     "line": 16,
+     "text": "#   PRODUCER = constitution/scripts/gates/gate_ledger.sh (the artifact under test)"
+    },
+    {
+     "line": 147,
+     "text": "\"artifact\": \"constitution/scripts/gates/gate_ledger.sh@$4\","
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/regression_guard/guard_atm1025_gate_ledger_git_awareness_red.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "#   `constitution/scripts/gates/gate_ledger.sh` classified `CM-*` tokens by a"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/regression_guard/guard_find_av01_needle_sigpipe_pipefail_red.sh",
+   "samples": [
+    {
+     "line": 10,
+     "text": "#   `constitution/scripts/gates/lib/covenant_propagation_engine.sh` tested"
+    },
+    {
+     "line": 114,
+     "text": "GATES_DIR=\"${COVENANT_GATES_DIR:-${_repo}/constitution/scripts/gates}\""
+    },
+    {
+     "line": 147,
+     "text": "printf '## INHERITED FROM constitution/CLAUDE.md\\n' > \"${DEEP}/d${_i}/CLAUDE.md\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/regression_guard/guard_owed78_atomic_hook_install_red.sh",
+   "samples": [
+    {
+     "line": 98,
+     "text": "mkdir -p \"$R/scripts/git_hooks/lib\" \"$R/constitution/scripts/hooks\" \"$R/.git/hooks/lib\" \"$W/base\" \\"
+    },
+    {
+     "line": 110,
+     "text": "printf '#!/bin/sh\\n# SOURCE-NEW-v2 post-merge\\nexit 0\\n' > \"$R/constitution/scripts/hooks/post-merge\""
+    },
+    {
+     "line": 111,
+     "text": "chmod 755 \"$R/constitution/scripts/hooks/post-merge\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_commit_all_cascade_credscan.sh",
+   "samples": [
+    {
+     "line": 32,
+     "text": "# Deps    : bash, git, constitution/scripts/hooks/credential_scan_lib.sh"
+    },
+    {
+     "line": 41,
+     "text": "CRED_LIB=\"$REPO_ROOT/constitution/scripts/hooks/credential_scan_lib.sh\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_commit_all_docs_background.sh",
+   "samples": [
+    {
+     "line": 37,
+     "text": "mkdir -p \"$W/scripts\" \"$W/config\" \"$W/docs\" \"$W/constitution/scripts/hooks\" \"$W/constitution/scripts/multitrack\" \"$W/tools\""
+    },
+    {
+     "line": 42,
+     "text": "git -C \"$REPO/constitution\" show HEAD:scripts/hooks/credential_scan_lib.sh > \"$W/constitution/scripts/hooks/credential_scan_lib.sh\""
+    },
+    {
+     "line": 43,
+     "text": "git -C \"$REPO/constitution\" show HEAD:scripts/multitrack/multitrack_persistent_launch.sh > \"$W/constitution/scripts/multitrack/multitrack_pe"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_commit_docs_all.sh",
+   "samples": [
+    {
+     "line": 57,
+     "text": "mkdir -p \"$w/scripts\" \"$w/config\" \"$w/docs/sub\" \"$w/assets\" \"$w/src\" \"$w/constitution/scripts/hooks\" \"$w/tools\" \"$w/.docs_chain/contexts\""
+    },
+    {
+     "line": 62,
+     "text": "git -C \"$SRC_REPO/constitution\" show HEAD:scripts/hooks/credential_scan_lib.sh > \"$w/constitution/scripts/hooks/credential_scan_lib.sh\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 42,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_constitution_inheritance.sh",
+   "samples": [
+    {
+     "line": 78,
+     "text": "echo \"── Section A — constitution/ submodule presence + content ──\""
+    },
+    {
+     "line": 79,
+     "text": "[[ -d constitution ]] && pass \"constitution/ directory exists\" || fail \"constitution/ missing\""
+    },
+    {
+     "line": 80,
+     "text": "[[ -f constitution/Constitution.md ]] && pass \"Constitution.md present\" || fail \"Constitution.md missing\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 3,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_constitution_mechanical_enforcement.sh",
+   "samples": [
+    {
+     "line": 14,
+     "text": "#   - Section E: Constitution.md + CLAUDE.md + AGENTS.md + QWEN.md carry §11.4.74"
+    },
+    {
+     "line": 21,
+     "text": "# Canonical authority: constitution/Constitution.md §11.4.74"
+    },
+    {
+     "line": 170,
+     "text": "for f in constitution/Constitution.md constitution/CLAUDE.md constitution/AGENTS.md constitution/QWEN.md; do"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_gov_anchor_carried.sh",
+   "samples": [
+    {
+     "line": 40,
+     "text": "printf '<!-- relocated from CLAUDE.md -->\\n§11.4.51 Live-ADB text\\n' > constitution/CLAUDE_ANCHORS_FULL.md"
+    },
+    {
+     "line": 41,
+     "text": "printf 'mirror without the anchor\\n' > constitution/CLAUDE.md"
+    },
+    {
+     "line": 42,
+     "text": "gov_anchor_carried F '§11.4.51 Live-ADB' constitution/CLAUDE.md; chk \"G5 constitution carrier resolves via CLAUDE_ANCHORS_FULL.md\" 0 $?"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_helix_code_phase1_unit.sh",
+   "samples": [
+    {
+     "line": 249,
+     "text": "#      still self-locates. This is what makes \"promotion to constitution/ is a"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 6,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_multitrack_bind_fallback.sh",
+   "samples": [
+    {
+     "line": 103,
+     "text": "#   constitution/scripts/multitrack/multitrack_cwd_hook.sh          (bind-on-start caller)"
+    },
+    {
+     "line": 104,
+     "text": "#   constitution/scripts/multitrack/multitrack_alias_orchestrator.sh (bind command)"
+    },
+    {
+     "line": 105,
+     "text": "#   constitution/scripts/multitrack/multitrack_resolve_worktree.sh   (resolver)"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 8,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_multitrack_conductor.sh",
+   "samples": [
+    {
+     "line": 19,
+     "text": "#       constitution/scripts/multitrack/multitrack_resolve_worktree.sh:262-269"
+    },
+    {
+     "line": 22,
+     "text": "#       constitution/scripts/multitrack/multitrack-up:106-169"
+    },
+    {
+     "line": 24,
+     "text": "#       (constitution/scripts/multitrack/multitrack_cwd_hook.sh:162) — the"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_multitrack_resolve_subdir.sh",
+   "samples": [
+    {
+     "line": 20,
+     "text": "#   the-factory.yaml under constitution/config/multitrack (absent) → config load"
+    },
+    {
+     "line": 65,
+     "text": "#   constitution/scripts/multitrack/multitrack_resolve_worktree.sh (engine)"
+    },
+    {
+     "line": 66,
+     "text": "#   constitution/scripts/multitrack/multitrack_config.sh       (mt_repo_root fix)"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "device/rockchip/rk3588/tests/test_status_truth_layer_red.sh",
+   "samples": [
+    {
+     "line": 108,
+     "text": "WI_DIR=\"$REPO_ROOT/constitution/scripts/workable-items\""
+    },
+    {
+     "line": 121,
+     "text": "CMF_HOOK=\"$REPO_ROOT/constitution/scripts/hooks/commit-msg-format.sh\""
+    },
+    {
+     "line": 524,
+     "text": "#   ./constitution/scripts/workable-items/workable-items add \\"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/agents/agent_liveness.sh",
+   "samples": [
+    {
+     "line": 17,
+     "text": "#   engine home: constitution/scripts/multitrack/ (owed there, not built here)."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/agents/agent_registry.sh",
+   "samples": [
+    {
+     "line": 14,
+     "text": "#   constitution/scripts/multitrack/ (owed there, deliberately NOT built here)."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/build_containerized.sh",
+   "samples": [
+    {
+     "line": 736,
+     "text": "#                 (constitution/scripts/fastcycle/cycle/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/build_resource_monitor.sh",
+   "samples": [
+    {
+     "line": 123,
+     "text": "#   - constitution/Constitution.md §11.4.24      - the universal mandate"
+    },
+    {
+     "line": 705,
+     "text": "# build wrapper, once constitution/scripts/fastcycle/cycle/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 26,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/commit_all.sh",
+   "samples": [
+    {
+     "line": 449,
+     "text": "_FC_TIMER_LIB_REL=\"constitution/scripts/fastcycle/timing/fc_timer.sh\""
+    },
+    {
+     "line": 1346,
+     "text": "resolver=\"$(_ca_trusted_file constitution/scripts/multitrack/multitrack_work_binding.sh 2>/dev/null || true)\""
+    },
+    {
+     "line": 1374,
+     "text": "# sha256 of the Constitution.md it was generated from, and anchor_citations.py refuses a stale"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/commit_docs.sh",
+   "samples": [
+    {
+     "line": 510,
+     "text": "_DI_GATE=\"${AOSP_ROOT}/constitution/scripts/doc_integrity/wire/doc_integrity_gate.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/commit_docs_all.sh",
+   "samples": [
+    {
+     "line": 69,
+     "text": "#          DOCS_COMMIT_CREDSCAN_LIB (default <root>/constitution/scripts/hooks/credential_scan_lib.sh),"
+    },
+    {
+     "line": 166,
+     "text": "CREDLIB=\"${DOCS_COMMIT_CREDSCAN_LIB:-$ROOT/constitution/scripts/hooks/credential_scan_lib.sh}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/commit_docs_all_launch.sh",
+   "samples": [
+    {
+     "line": 30,
+     "text": "#   docs/scripts/commit_docs_all.md, constitution/scripts/multitrack/multitrack_persistent_launch.sh."
+    },
+    {
+     "line": 63,
+     "text": "if [[ -n \"$gl\" && -e \"$ROOT/constitution/.git\" ]]; then"
+    },
+    {
+     "line": 67,
+     "text": "if [[ -z \"$launcher\" && -z \"$gl\" && -f \"$ROOT/constitution/scripts/multitrack/multitrack_persistent_launch.sh\" ]]; then"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 5,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/context_footprint.sh",
+   "samples": [
+    {
+     "line": 55,
+     "text": "\"constitution/AGENTS.md\""
+    },
+    {
+     "line": 56,
+     "text": "\"constitution/CLAUDE.md\""
+    },
+    {
+     "line": 57,
+     "text": "\"constitution/Constitution.md\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/git_hooks/commit-msg",
+   "samples": [
+    {
+     "line": 49,
+     "text": "echo \"Canonical authority: constitution/Constitution.md §11.4.74\" >&2"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/git_hooks/fixtures/credscan_ellipsis_fp_proof.sh",
+   "samples": [
+    {
+     "line": 29,
+     "text": "# Cross-refs    constitution/scripts/hooks/credential_scan_lib.sh (system under"
+    },
+    {
+     "line": 30,
+     "text": "#               test), constitution/scripts/hooks/test_credential_scan_lib.sh"
+    },
+    {
+     "line": 38,
+     "text": "LIB=\"${HELIX_CRED_SCAN_LIB:-$ROOT/constitution/scripts/hooks/credential_scan_lib.sh}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 7,
+   "kinds": [
+    "canon-file",
+    "path",
+    "pin-file"
+   ],
+   "path": "scripts/git_hooks/pre-commit",
+   "samples": [
+    {
+     "line": 99,
+     "text": "ATMO_CREDSCAN_LIB=\"${HELIX_CRED_SCAN_LIB:-$ATMO_REPO_ROOT/constitution/scripts/hooks/credential_scan_lib.sh}\""
+    },
+    {
+     "line": 141,
+     "text": "# in constitution/scripts/hooks/test_credential_scan_lib.sh (§11.4.107(10))."
+    },
+    {
+     "line": 253,
+     "text": "_te_active=\"$(sed -n 's/^TOKEN_EFFICIENCY_ACTIVE=//p' \"$ATMO_REPO_ROOT/.constitution-pin\" 2>/dev/null | head -1)\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/git_hooks/pre-push",
+   "samples": [
+    {
+     "line": 107,
+     "text": "echo \"Canonical authority: constitution/Constitution.md §11.4.74\" >&2"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/git_hooks/test_pre_commit_credscan.sh",
+   "samples": [
+    {
+     "line": 45,
+     "text": "HELIX_CRED_SCAN_LIB=\"$(cd \"$SELF_DIR/../../constitution/scripts/hooks\" 2>/dev/null && pwd)/credential_scan_lib.sh\""
+    },
+    {
+     "line": 256,
+     "text": "#               corpus false-positive: this constitution's own Constitution.md"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/helix_code/helix_code_home.sh",
+   "samples": [
+    {
+     "line": 11,
+     "text": "#           (constitution/scripts/subagent_tier.sh:53-54;"
+    },
+    {
+     "line": 12,
+     "text": "#            constitution/scripts/action_prefix_lib.sh:66-74 function form;"
+    },
+    {
+     "line": 13,
+     "text": "#            constitution/scripts/release_prefix.sh:67-75 3-tier env->.env->derived)."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 6,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/agent_registry_writer.sh",
+   "samples": [
+    {
+     "line": 50,
+     "text": "#   `constitution/scripts/fastcycle/orchestration/limit_class.py`'s job"
+    },
+    {
+     "line": 163,
+     "text": "#         — mirroring `constitution/scripts/multitrack/multitrack_sessions."
+    },
+    {
+     "line": 214,
+     "text": "#       description` this hook already reads, via `constitution/scripts/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/fixtures/agent_registry_writer_pre_t140_i1i2.fixture.sh",
+   "samples": [
+    {
+     "line": 101,
+     "text": "#         — mirroring `constitution/scripts/multitrack/multitrack_sessions."
+    },
+    {
+     "line": 152,
+     "text": "#       description` this hook already reads, via `constitution/scripts/"
+    },
+    {
+     "line": 237,
+     "text": "local hb_sh=\"${REAP_HEARTBEAT_SH:-$REPO_ROOT/constitution/scripts/fastcycle/orchestration/heartbeat.sh}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 6,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/fixtures/agent_registry_writer_pre_t140_r2i4.fixture.sh",
+   "samples": [
+    {
+     "line": 50,
+     "text": "#   `constitution/scripts/fastcycle/orchestration/limit_class.py`'s job"
+    },
+    {
+     "line": 163,
+     "text": "#         — mirroring `constitution/scripts/multitrack/multitrack_sessions."
+    },
+    {
+     "line": 214,
+     "text": "#       description` this hook already reads, via `constitution/scripts/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/review_dispatch_guard.sh",
+   "samples": [
+    {
+     "line": 18,
+     "text": "# constitution/scripts/hooks/guard-track-branch-label.sh):"
+    },
+    {
+     "line": 92,
+     "text": "# scripts/hooks/, not constitution/scripts/hooks/, matching where this"
+    },
+    {
+     "line": 430,
+     "text": "PRECHECK_VERIFIER=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" 2>/dev/null && pwd)/../../constitution/$VERIFIER_REL\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/test_agent_dispatch_guard_probe.sh",
+   "samples": [
+    {
+     "line": 71,
+     "text": "direct=\"$(payload \"$D\" | (cd \"$ROOT\" && CLAUDE_PROJECT_DIR=\"$ROOT\" bash \"$ROOT/constitution/scripts/hooks/guard-track-branch-label.sh\") >/de"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/test_guard_forbidden_commands.sh",
+   "samples": [
+    {
+     "line": 13,
+     "text": "#               located BY REFERENCE at constitution/scripts/hooks/ per §11.4.109"
+    },
+    {
+     "line": 23,
+     "text": "# Cross-refs:   constitution/scripts/hooks/guard-forbidden-commands.sh (SUT),"
+    },
+    {
+     "line": 34,
+     "text": "HOOK=\"$REPO_ROOT/constitution/scripts/hooks/guard-forbidden-commands.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/test_review_dispatch_guard_provenance_red.sh",
+   "samples": [
+    {
+     "line": 43,
+     "text": "FC=\"$ROOT/constitution/scripts/fastcycle\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/hooks/test_review_dispatch_guard_red.sh",
+   "samples": [
+    {
+     "line": 96,
+     "text": "cp -r \"$HERE/../../constitution/scripts/fastcycle/review\" \"$VCONST/scripts/fastcycle/review\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/install_git_hooks.sh",
+   "samples": [
+    {
+     "line": 30,
+     "text": "# Canonical authority: constitution/Constitution.md §11.4.74"
+    },
+    {
+     "line": 133,
+     "text": "if printf '%s' \"$rel\" | grep -q '^constitution/'; then"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/issues01_burndown.py",
+   "samples": [
+    {
+     "line": 2227,
+     "text": "css = os.path.join(repo, \"constitution/styles/default-md.css\")"
+    },
+    {
+     "line": 2228,
+     "text": "pcss = os.path.join(repo, \"constitution/styles/default-pdf.css\")"
+    },
+    {
+     "line": 2320,
+     "text": "for ref in (\"docs/styles/reference.docx\", \"constitution/styles/reference.docx\"):"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/continuum_bridge.sh",
+   "samples": [
+    {
+     "line": 13,
+     "text": "#     [evidence-store] REFUSE binary-absent: .../constitution/submodules/continuum/bin/continuum"
+    },
+    {
+     "line": 77,
+     "text": "# NOTE — `constitution/submodules/continuum` is a gitlink of the CONSTITUTION"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/credscan_seam_exempt.sh",
+   "samples": [
+    {
+     "line": 11,
+     "text": "# `constitution/scripts/hooks/test_credential_scan_lib.sh` carries deliberate"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 8,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/critical_blocker_gate.sh",
+   "samples": [
+    {
+     "line": 562,
+     "text": "# (1) fixed offset from THIS file: <repo>/scripts/lib -> <repo>/constitution/..."
+    },
+    {
+     "line": 585,
+     "text": "_cbg_tl_dir=\"$_cbg_tl_base/constitution/scripts/gates/lib\""
+    },
+    {
+     "line": 591,
+     "text": "_cbg_tl_dir=\"${CBG_REPO_ROOT}/constitution/scripts/gates/lib\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/critical_blocker_gate_critic_ignored_r21_regression.sh",
+   "samples": [
+    {
+     "line": 2828,
+     "text": "R13I_CONST=\"$HERE/../../constitution/scripts/gates/lib\""
+    },
+    {
+     "line": 2907,
+     "text": "# mirror checkout that contains NO constitution/ sibling at all -- so"
+    },
+    {
+     "line": 2930,
+     "text": "# isolated mirror (no constitution/ sibling -- every tier-lib candidate"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/critical_blocker_gate_mutation_test.sh",
+   "samples": [
+    {
+     "line": 153,
+     "text": "CBG_TIER_LIB_DIR=\"$MT_REPO_ROOT/constitution/scripts/gates/lib\" \\"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/evidence_store.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "#   Resolve the `constitution/submodules/continuum` checkout and its built"
+    },
+    {
+     "line": 28,
+     "text": "#                                 $EVIDENCE_STORE_REPO_ROOT/constitution/submodules/continuum"
+    },
+    {
+     "line": 38,
+     "text": "#   (constitution/.gitmodules), NOT of the parent repo (parent .gitmodules"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/lib/flashing.sh",
+   "samples": [
+    {
+     "line": 394,
+     "text": "# build+deploy JOIN constitution/scripts/fastcycle/cycle/"
+    },
+    {
+     "line": 419,
+     "text": "# (constitution/scripts/fastcycle/cycle/build_deploy_qa_events.py kind=join)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_alias_orchestrator.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "#   is the constitution submodule copy at constitution/scripts/multitrack/"
+    },
+    {
+     "line": 42,
+     "text": "#   see constitution/scripts/multitrack/multitrack_alias_orchestrator.sh"
+    },
+    {
+     "line": 48,
+     "text": "#   constitution/scripts/multitrack/multitrack_alias_orchestrator.sh (the engine)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_alias_priority.sh",
+   "samples": [
+    {
+     "line": 130,
+     "text": "#   constitution/Constitution.md §11.4.6 §11.4.28 §11.4.50 §11.4.69 §11.4.176"
+    },
+    {
+     "line": 149,
+     "text": "# _mtph_native_preference_list) and constitution/scripts/multitrack/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_checkout_owner_lock.sh",
+   "samples": [
+    {
+     "line": 82,
+     "text": "#   constitution/scripts/multitrack/multitrack_cwd_hook.sh (consumer: alias path)"
+    },
+    {
+     "line": 88,
+     "text": "#   constitution/scripts/multitrack/. Landing it project-side first avoids a"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_config.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "#   constitution/scripts/multitrack/multitrack_config.sh (engine-in-constitution,"
+    },
+    {
+     "line": 22,
+     "text": "#   see constitution/scripts/multitrack/multitrack_config.sh."
+    },
+    {
+     "line": 25,
+     "text": "#   constitution/scripts/multitrack/multitrack_config.sh   (the authoritative engine)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_cwd_hook.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "#   submodule copy at constitution/scripts/multitrack/multitrack_cwd_hook.sh"
+    },
+    {
+     "line": 20,
+     "text": "#   see constitution/scripts/multitrack/multitrack_cwd_hook.sh"
+    },
+    {
+     "line": 24,
+     "text": "#   constitution/scripts/multitrack/multitrack_cwd_hook.sh          (the engine)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_device_lock.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "#   constitution/scripts/multitrack/multitrack_device_lock.sh (engine-in-"
+    },
+    {
+     "line": 43,
+     "text": "#   constitution/scripts/multitrack/multitrack_device_lock.sh's own header for"
+    },
+    {
+     "line": 47,
+     "text": "#   see constitution/scripts/multitrack/multitrack_device_lock.sh"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_provider_health.sh",
+   "samples": [
+    {
+     "line": 23,
+     "text": "#   PWU-3 llm-alias-health engine (constitution/scripts/llm-alias-health/,"
+    },
+    {
+     "line": 141,
+     "text": "#                              constitution/scripts/llm-alias-health/bin/,"
+    },
+    {
+     "line": 212,
+     "text": "# constitution/scripts/multitrack/multitrack_config.sh so this script has no"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/multitrack_resolve_worktree.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "#   constitution/scripts/multitrack/multitrack_resolve_worktree.sh (engine-in-"
+    },
+    {
+     "line": 18,
+     "text": "#   see constitution/scripts/multitrack/multitrack_resolve_worktree.sh"
+    },
+    {
+     "line": 22,
+     "text": "#   constitution/scripts/multitrack/multitrack_resolve_worktree.sh (the engine)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/rb05_fixtures/mock_claude.sh",
+   "samples": [
+    {
+     "line": 45,
+     "text": "#   constitution/scripts/multitrack/multitrack_sessions.sh (unit under test);"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_alias_failover.sh",
+   "samples": [
+    {
+     "line": 43,
+     "text": "ENGINE_DIR=\"$REPO/constitution/scripts/llm-alias-health\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_alias_orchestrator.sh",
+   "samples": [
+    {
+     "line": 352,
+     "text": "ENGINE_ORCH=\"$REPO/constitution/scripts/multitrack/multitrack_alias_orchestrator.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_alias_priority.sh",
+   "samples": [
+    {
+     "line": 53,
+     "text": "#   constitution/Constitution.md §11.4.1 §11.4.6 §11.4.14 §11.4.50 §11.4.101"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 6,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_balance_reuse.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "#     Units: constitution/scripts/multitrack/multitrack_balance.sh +"
+    },
+    {
+     "line": 7,
+     "text": "#            constitution/scripts/multitrack/multitrack_fallback_monitor.sh."
+    },
+    {
+     "line": 59,
+     "text": "# Cross-references: constitution/scripts/multitrack/multitrack_balance.sh (unit);"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_device_lock.sh",
+   "samples": [
+    {
+     "line": 282,
+     "text": "ENGINE=\"$REPO/constitution/scripts/multitrack/multitrack_device_lock.sh\""
+    },
+    {
+     "line": 292,
+     "text": "cp \"$REPO/constitution/scripts/multitrack/multitrack_config.sh\" \"$WORK/multitrack_config.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_host_budget.sh",
+   "samples": [
+    {
+     "line": 5,
+     "text": "#     (constitution/scripts/multitrack/multitrack_host_budget.sh)."
+    },
+    {
+     "line": 67,
+     "text": "# Cross-references: constitution/scripts/multitrack/multitrack_host_budget.sh"
+    },
+    {
+     "line": 99,
+     "text": "GUARD_FILE=\"$REPO_ROOT/constitution/scripts/multitrack/multitrack_host_budget.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/test_multitrack_sessions_spawn.sh",
+   "samples": [
+    {
+     "line": 5,
+     "text": "#     (constitution/scripts/multitrack/multitrack_sessions.sh)."
+    },
+    {
+     "line": 60,
+     "text": "# Cross-references: constitution/scripts/multitrack/multitrack_sessions.sh (unit"
+    },
+    {
+     "line": 83,
+     "text": "SESSIONS=\"$REPO_ROOT/constitution/scripts/multitrack/multitrack_sessions.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/multitrack/test_track_branch_label.sh",
+   "samples": [
+    {
+     "line": 30,
+     "text": "#   constitution/Constitution.md §11.4.182 · §11.4.178 · §11.4.6 · §11.4.29"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/multitrack/track_branch_label.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "#     constitution/scripts/multitrack/track_branch_label.sh"
+    },
+    {
+     "line": 18,
+     "text": "_canonical=\"$_here/../../constitution/scripts/multitrack/track_branch_label.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/scrcpy/gate_scrcpy_local_only.sh",
+   "samples": [
+    {
+     "line": 15,
+     "text": "#      Out of scope: the scrcpy submodule itself, constitution/, docs/research/, the"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/sync_remote_session.sh",
+   "samples": [
+    {
+     "line": 2,
+     "text": "# sync_remote_session.sh — Delegate to constitution/skills/session-sync/session-sync.sh"
+    },
+    {
+     "line": 5,
+     "text": "#   constitution/skills/session-sync/session-sync.sh"
+    },
+    {
+     "line": 11,
+     "text": "CANONICAL=\"$(dirname \"$0\")/../constitution/skills/session-sync/session-sync.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/fixtures/ref/control_needle_ref.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "# constitution/scripts/gates/lib/control_needle.sh (T219) exists."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/fixtures/ref/trap_scan_ref.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "# gate constitution/scripts/gates/cm_instrument_trap_scan.sh (T231) exists. It is"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/fixtures/ref/union_rule_ref.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "# (constitution/scripts/gates/cm_chain_entry_union_rule.sh, owned by T325/T230)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/lib/us2_assert.sh",
+   "samples": [
+    {
+     "line": 263,
+     "text": "# NOT the same layer as constitution/scripts/gates/cm_chain_entry_union_rule.sh."
+    },
+    {
+     "line": 280,
+     "text": "printf '%s' \"${US2_REPO_ROOT}/constitution/scripts/gates/cm_chain_entry_union_rule.sh\""
+    },
+    {
+     "line": 391,
+     "text": "printf '%s' \"${US2_REPO_ROOT}/constitution/scripts/gates/lib/dependency_register.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/lib/us2_mutate.sh",
+   "samples": [
+    {
+     "line": 260,
+     "text": "# resolver selected constitution/scripts/gates/cm_chain_entry_union_rule.sh — a"
+    },
+    {
+     "line": 297,
+     "text": "US2M_UNION_REAL=\"${US2M_ROOT}/constitution/scripts/gates/cm_chain_entry_union_rule.sh\""
+    },
+    {
+     "line": 421,
+     "text": "_real=\"${US2M_ROOT}/constitution/scripts/gates/lib/dependency_register.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_adoption_gap_mapped_mutation.sh",
+   "samples": [
+    {
+     "line": 7,
+     "text": "# The real table (constitution/scripts/gates/uncovered_capability_gaps.tsv, T223)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_adoption_gap_mapped_red.sh",
+   "samples": [
+    {
+     "line": 10,
+     "text": "# constitution/scripts/gates/uncovered_capability_gaps.tsv (T223) as well as a"
+    },
+    {
+     "line": 38,
+     "text": "REAL_GAPS=\"${US2_GAPS_TSV:-${US2_REPO_ROOT}/constitution/scripts/gates/uncovered_capability_gaps.tsv}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_cited_read_entry_required_mutation.sh",
+   "samples": [
+    {
+     "line": 25,
+     "text": "# constitution/scripts/gates/cm_chain_entry_union_rule.sh EXISTS but is a"
+    },
+    {
+     "line": 79,
+     "text": "T208_REAL=\"${US2M_ROOT}/constitution/scripts/gates/cm_chain_entry_union_rule.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_needle_evaluator_meta_mutation.sh",
+   "samples": [
+    {
+     "line": 17,
+     "text": "# constitution/scripts/gates/lib/control_needle.sh is never created or edited by"
+    },
+    {
+     "line": 24,
+     "text": "REAL=\"${US2M_ROOT}/constitution/scripts/gates/lib/control_needle.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_needle_evaluator_meta_test.sh",
+   "samples": [
+    {
+     "line": 15,
+     "text": "# precondition_provenance: observed — constitution/scripts/gates/lib/control_needle.sh"
+    },
+    {
+     "line": 21,
+     "text": "CN=\"${US2_CN_LIB:-${US2_REPO_ROOT}/constitution/scripts/gates/lib/control_needle.sh}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_trap_scan_red.sh",
+   "samples": [
+    {
+     "line": 23,
+     "text": "# constitution/scripts/gates/cm_instrument_trap_scan_mutation_test.sh and is"
+    },
+    {
+     "line": 24,
+     "text": "# NOT written by this stream (constitution/ is another stream's working set)."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/anti_slop/us2_uncited_read_no_entry_mutation.sh",
+   "samples": [
+    {
+     "line": 19,
+     "text": "# constitution/scripts/gates/cm_chain_entry_union_rule.sh — a DIFFERENT LAYER"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/audit_anti_bluff_compliance.sh",
+   "samples": [
+    {
+     "line": 362,
+     "text": "_MD_CSS=\"$REPO_ROOT/constitution/styles/default-md.css\""
+    },
+    {
+     "line": 364,
+     "text": "[ -f \"$_MD_CSS\" ] && _PANDOC_CSS_FLAG=\"--css=constitution/styles/default-md.css\""
+    },
+    {
+     "line": 375,
+     "text": "_DOCX_REF=\"$REPO_ROOT/constitution/styles/reference.docx\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/classify_fix_rebuild_requirement.sh",
+   "samples": [
+    {
+     "line": 79,
+     "text": "constitution/*.md)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/compact_governance_preamble.py",
+   "samples": [
+    {
+     "line": 11,
+     "text": "--canonical constitution/CLAUDE.md [--min-bytes 1500] [--backup-dir DIR] [--dry-run] [--report out.json]"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 29,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/constitution_anchor_integrity.sh",
+   "samples": [
+    {
+     "line": 5,
+     "text": "# constitution/Constitution.md PLUS the four §11.4.157 lockstep mirrors"
+    },
+    {
+     "line": 25,
+     "text": "#       BYTE-IDENTICAL copies of the block (§11.4.157 lockstep). Constitution.md"
+    },
+    {
+     "line": 39,
+     "text": "#     constitution/scripts/gates/lib/covenant_propagation_engine.sh (the"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 6,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/credscan_challenge_dispatch.sh",
+   "samples": [
+    {
+     "line": 11,
+     "text": "#   credential-scan library (constitution/scripts/hooks/credential_scan_lib.sh)"
+    },
+    {
+     "line": 41,
+     "text": "#   - constitution/scripts/hooks/test_credential_scan_lib.sh           (fixtures)"
+    },
+    {
+     "line": 42,
+     "text": "#   - constitution/scripts/hooks/test_credential_scan_lib_mutations.sh (§1.1)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/diary_add.sh",
+   "samples": [
+    {
+     "line": 28,
+     "text": "BIN=\"${WORKABLE_ITEMS_BIN:-$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items-linux}\""
+    },
+    {
+     "line": 34,
+     "text": "( cd \"$REPO_ROOT/constitution/scripts/workable-items\" && go run ./cmd/workable-items \"$@\" )"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/docs_chain_export_workable_items.sh",
+   "samples": [
+    {
+     "line": 13,
+     "text": "#     `exec: constitution/scripts/workable-items/cmd/workable-items` — which is a"
+    },
+    {
+     "line": 104,
+     "text": "\"constitution/scripts/workable-items/bin/workable-items\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/docs_chain_on_constitution_pull.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "#   doc-integrity gate under `constitution/scripts/doc_integrity/`. After such a"
+    },
+    {
+     "line": 11,
+     "text": "# WHY A CONSUMER WRAPPER (not an edit to constitution/scripts/post_update_hook.sh)"
+    },
+    {
+     "line": 23,
+     "text": "# Cross-references: constitution/scripts/post_update_hook.sh (§11.4.164),"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_canonical_root_clarity_mutation_test.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "# ── Why this file lives project-side, not in constitution/scripts/gates/ ─────"
+    },
+    {
+     "line": 9,
+     "text": "# (§11.4.6): both `constitution/scripts/gates/cm_canonical_root_clarity.sh` and"
+    },
+    {
+     "line": 82,
+     "text": "GATE=\"$REPO/constitution/scripts/gates/cm_canonical_root_clarity.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_covenant_propagation_suite_mutation_test.sh",
+   "samples": [
+    {
+     "line": 25,
+     "text": "# ANDROID_ROOT is a mktemp tree holding constitution/scripts/gates/ with a COPY"
+    },
+    {
+     "line": 88,
+     "text": "SUITE=\"$REPO/constitution/scripts/gates/covenant_propagation_suite.sh\""
+    },
+    {
+     "line": 89,
+     "text": "CHECKER=\"$REPO/constitution/scripts/gates/suite_verdict_set_check.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 16,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_cred_scan_lib_verdict_set_mutation_test.sh",
+   "samples": [
+    {
+     "line": 10,
+     "text": "# credential-scan suite's output through constitution/scripts/gates/"
+    },
+    {
+     "line": 45,
+     "text": "# are paired in constitution/scripts/gates/suite_verdict_set_check_mutation_test.sh."
+    },
+    {
+     "line": 55,
+     "text": "CHECKER=\"$REPO/constitution/scripts/gates/suite_verdict_set_check.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_git_hooks_installed_mutation_test.sh",
+   "samples": [
+    {
+     "line": 6,
+     "text": "# ── Why this file lives project-side, not in constitution/scripts/gates/ ─────"
+    },
+    {
+     "line": 53,
+     "text": "GATE=\"$REPO/constitution/scripts/gates/cm_git_hooks_installed.sh\""
+    },
+    {
+     "line": 54,
+     "text": "FIXTURES=\"$REPO/constitution/scripts/gates/fixtures/cm_git_hooks_installed\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_rule_binds_to_seam_mutation_test.sh",
+   "samples": [
+    {
+     "line": 63,
+     "text": "GATE=\"$REPO/constitution/scripts/gates/cm_rule_binds_to_seam.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/gates/cm_sigpipe_pipefail_class.sh",
+   "samples": [
+    {
+     "line": 33,
+     "text": "CORPUS_DIRS=\"${CM_SPPC_CORPUS:-scripts constitution/scripts device/rockchip/rk3588/tests}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file"
+   ],
+   "path": "scripts/testing/gen_abt_goldens.sh",
+   "samples": [
+    {
+     "line": 51,
+     "text": "#   - constitution Constitution.md §11.4.193 (anti-blind-typing) + §11.4.107(10)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/generate_fixed_summary.sh",
+   "samples": [
+    {
+     "line": 82,
+     "text": "#     constitution/.../workable-items            (md5 0e07cda66cea, Jul 20) -> rc=0 \"in sync\""
+    },
+    {
+     "line": 83,
+     "text": "#     constitution/.../bin/workable-items        (md5 a2992560f0db, Jul 21) -> rc=0 \"in sync\""
+    },
+    {
+     "line": 109,
+     "text": "for cand in \"$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items\" \\"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/generate_issues_summary.sh",
+   "samples": [
+    {
+     "line": 114,
+     "text": "for cand in \"$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items\" \\"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/generate_status_summaries.sh",
+   "samples": [
+    {
+     "line": 105,
+     "text": "printf '%s\\n' '- Cross-reference: [Constitution §11.4.45](../../../constitution/Constitution.md#1145-integration-status-doc-maintenance-mand"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/generate_status_summary.sh",
+   "samples": [
+    {
+     "line": 205,
+     "text": "_md_css=\"$REPO_ROOT/constitution/styles/default-md.css\""
+    },
+    {
+     "line": 213,
+     "text": "_docx_ref=\"$REPO_ROOT/constitution/styles/reference.docx\""
+    },
+    {
+     "line": 223,
+     "text": "_pdf_css=\"$REPO_ROOT/constitution/styles/default-pdf.css\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/guard_fail_writeback.sh",
+   "samples": [
+    {
+     "line": 125,
+     "text": "[ -n \"$WI\" ] && [ -x \"$WI\" ] || blind \"cannot resolve the workable-items binary (set WORKABLE_ITEMS_BIN, or build it under constitution/scri"
+    },
+    {
+     "line": 146,
+     "text": "# §11.4.33/§11.4.90 TERMINAL set — mirrors constitution/scripts/workable-items/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/lib/commit_all_fixture.sh",
+   "samples": [
+    {
+     "line": 19,
+     "text": "# Cross-references: constitution/scripts/fastcycle/tests/test_fc_commit_stage_timer_red.sh (the pattern);"
+    },
+    {
+     "line": 36,
+     "text": "for f in scripts/commit_all.sh scripts/lib/common.sh scripts/push_all.sh constitution/scripts/fastcycle/timing/fc_timer.sh; do"
+    },
+    {
+     "line": 48,
+     "text": "mkdir -p \"$d/proj/scripts/lib\" \"$d/proj/constitution/scripts/fastcycle/timing\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 6,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/mirror_anchor_block.sh",
+   "samples": [
+    {
+     "line": 4,
+     "text": "# constitution/Constitution.md and mirror it byte-identically into the four"
+    },
+    {
+     "line": 10,
+     "text": "# new anchors (§11.4.268-271) are in constitution/Constitution.md. Does NOT"
+    },
+    {
+     "line": 15,
+     "text": "#    constitution/scripts/gates/lib/covenant_propagation_engine.sh — same"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/release_tag.sh",
+   "samples": [
+    {
+     "line": 318,
+     "text": "_ESC_GATE=\"$REPO_ROOT/constitution/scripts/gates/cm_escape_ratchet.sh\""
+    },
+    {
+     "line": 319,
+     "text": "_ESC_BASELINE=\"$REPO_ROOT/constitution/scripts/gates/escape_ratchet_baseline.txt\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/release_tag_escape_ratchet_wiring_test.sh",
+   "samples": [
+    {
+     "line": 28,
+     "text": "GATE=\"$REPO_ROOT/constitution/scripts/gates/cm_escape_ratchet.sh\""
+    },
+    {
+     "line": 29,
+     "text": "BASELINE=\"$REPO_ROOT/constitution/scripts/gates/escape_ratchet_baseline.txt\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/status_custody_sweep.sh",
+   "samples": [
+    {
+     "line": 141,
+     "text": "# Mirrors constitution/scripts/workable-items/schema.sql's CHECK constraint."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/subtask_add.sh",
+   "samples": [
+    {
+     "line": 26,
+     "text": "BIN=\"${WORKABLE_ITEMS_BIN:-$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items-linux}\""
+    },
+    {
+     "line": 37,
+     "text": "( cd \"$REPO_ROOT/constitution/scripts/workable-items\" && go run ./cmd/workable-items \"$@\" )"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/subtask_export.sh",
+   "samples": [
+    {
+     "line": 29,
+     "text": "BIN=\"${WORKABLE_ITEMS_BIN:-$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items-linux}\""
+    },
+    {
+     "line": 36,
+     "text": "( cd \"$REPO_ROOT/constitution/scripts/workable-items\" && go run ./cmd/workable-items \"$@\" )"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/sync_all_docs_chain.sh",
+   "samples": [
+    {
+     "line": 67,
+     "text": "_DI_GATE=\"$REPO_ROOT/constitution/scripts/doc_integrity/wire/doc_integrity_gate.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 23,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/sync_all_markdown_exports.sh",
+   "samples": [
+    {
+     "line": 51,
+     "text": "#   - constitution/**/*.md"
+    },
+    {
+     "line": 168,
+     "text": "_FC_TIMER_LIB=\"${REPO_ROOT}/constitution/scripts/fastcycle/timing/fc_timer.sh\""
+    },
+    {
+     "line": 220,
+     "text": "_RK_MD_CSS_REL=\"constitution/styles/default-md.css\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/sync_issues_docs.sh",
+   "samples": [
+    {
+     "line": 283,
+     "text": "if weasyprint \"$REPO_ROOT/$html_path\" \"$REPO_ROOT/$pdf_path\" --stylesheet \"$REPO_ROOT/constitution/styles/default-pdf.css\" 2>&1 | grep -v -E"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file"
+   ],
+   "path": "scripts/testing/sync_procedure_docs_export.sh",
+   "samples": [
+    {
+     "line": 5,
+     "text": "# Authority: constitution submodule Constitution.md §11.4.63 (workable-"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/test_classify_fix_requirement.sh",
+   "samples": [
+    {
+     "line": 26,
+     "text": "#   constitution/Constitution.md §11.4.51"
+    },
+    {
+     "line": 179,
+     "text": "result=$(classify_one_path \"constitution/CLAUDE.md\")"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 65,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/test_commit_all_constitution_index_seam.sh",
+   "samples": [
+    {
+     "line": 9,
+     "text": "# constitution_generate.py + anchor_lib.py) and the REAL Constitution.md."
+    },
+    {
+     "line": 12,
+     "text": "#   K1 an amendment to Constitution.md in the submodule -> the cascade commit CONTAINS the"
+    },
+    {
+     "line": 14,
+     "text": "#      Constitution.md (the committed pair agrees; the stale-index commit is impossible)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_commit_all_isolated_index_resync.sh",
+   "samples": [
+    {
+     "line": 115,
+     "text": "mkdir -p constitution/scripts/hooks && cp -- \"$CAF_SRC_ROOT/constitution/scripts/hooks/credential_scan_lib.sh\" constitution/scripts/hooks/"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 5,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_commit_all_owned_cascade.sh",
+   "samples": [
+    {
+     "line": 138,
+     "text": "elif [[ -f \"$SCRIPTS_DIR/../constitution/scripts/hooks/credential_scan_lib.sh\" ]]; then"
+    },
+    {
+     "line": 139,
+     "text": "HELIX_CRED_SCAN_LIB=\"$(cd \"$SCRIPTS_DIR/../constitution/scripts/hooks\" && pwd)/credential_scan_lib.sh\""
+    },
+    {
+     "line": 141,
+     "text": "echo \"BLIND: the credential-scan library cannot be found (set HELIX_CRED_SCAN_LIB, or run from a checkout with constitution/ next to scripts"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/test_commit_all_push_failure_signal_red.sh",
+   "samples": [
+    {
+     "line": 60,
+     "text": "#   - constitution/Constitution.md §11.4.88 (background-push mandate)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_commit_all_stderr_after_lock.sh",
+   "samples": [
+    {
+     "line": 95,
+     "text": "constitution/scripts/fastcycle/timing/fc_timer.sh constitution/scripts/hooks/credential_scan_lib.sh"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 7,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_errexit_rc_handler_liveness.sh",
+   "samples": [
+    {
+     "line": 89,
+     "text": "mkdir -p \"$root/constitution/scripts/gates\""
+    },
+    {
+     "line": 90,
+     "text": "cat > \"$root/constitution/scripts/gates/covenant_propagation_suite.sh\" <<'STUB'"
+    },
+    {
+     "line": 96,
+     "text": "chmod +x \"$root/constitution/scripts/gates/covenant_propagation_suite.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_evidence_store_failclosed.sh",
+   "samples": [
+    {
+     "line": 37,
+     "text": "#   NC3 unmutated + REAL constitution/submodules/continuum + a REAL binary the"
+    },
+    {
+     "line": 284,
+     "text": "_t_ok NC3 \"REAL constitution/submodules/continuum + a REAL built binary resolves and reads without refusing (rc=0)\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_expect_fastcycle_mutation_catch_r4_regression.sh",
+   "samples": [
+    {
+     "line": 37,
+     "text": "# scripts/testing/*.sh constitution/scripts/fastcycle/tests/*.sh` outside"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_guard_fail_writeback.sh",
+   "samples": [
+    {
+     "line": 24,
+     "text": "WI_BIN=\"$REPO_ROOT/constitution/scripts/workable-items/bin/workable-items\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 7,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_issues01_burndown.sh",
+   "samples": [
+    {
+     "line": 437,
+     "text": "X=\"$W/x\"; XP=\"$X/docs/planning/2026.09/issues_01/progress\"; mkdir -p \"$XP/burndown\" \"$X/constitution/styles\" \"$X/docs/styles\""
+    },
+    {
+     "line": 440,
+     "text": "cp \"$REPO/constitution/styles/default-md.css\" \"$REPO/constitution/styles/default-pdf.css\" \"$X/constitution/styles/\""
+    },
+    {
+     "line": 569,
+     "text": "\"$WPB\" -s \"$X/constitution/styles/default-pdf.css\" \"$XP/BURNDOWN_HISTORY_DARK.html\" \"$X/gb_digits.pdf\" >/dev/null 2>&1"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_setequal_safe_liverun.sh",
+   "samples": [
+    {
+     "line": 316,
+     "text": "--source-root \"${_ghi_root}/constitution/scripts/hooks\" --quiet 2>&1)\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 8,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/test_sync_all_golden_fixture_exclusion.sh",
+   "samples": [
+    {
+     "line": 10,
+     "text": "#   constitution/scripts/doc_integrity/internal/selfcheck/golden/** is"
+    },
+    {
+     "line": 22,
+     "text": "#     grep -vE '(^\\./)?constitution/scripts/doc_integrity/internal/selfcheck/golden/'"
+    },
+    {
+     "line": 25,
+     "text": "#   constitution/ doc (and any doc merely containing the word \"golden\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/test_version_bump_red.sh",
+   "samples": [
+    {
+     "line": 11,
+     "text": "GATE=\"${VB_GATE:-$HERE/../../constitution/scripts/gates/cm_version_increment_on_deploy.sh}\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 3,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/token_accounting_harness.sh",
+   "samples": [
+    {
+     "line": 42,
+     "text": "# Operation 2: Read constitution/CLAUDE.md"
+    },
+    {
+     "line": 43,
+     "text": "local const_size=$(wc -c < \"$REPO_ROOT/constitution/CLAUDE.md\" 2>/dev/null || echo \"0\")"
+    },
+    {
+     "line": 46,
+     "text": "local grep_results=$(grep -c '§11.4' \"$REPO_ROOT/CLAUDE.md\" \"$REPO_ROOT/constitution/CLAUDE.md\" 2>/dev/null | tail -2)"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/token_optimizer_ws2_logtriage_dispatch.sh",
+   "samples": [
+    {
+     "line": 27,
+     "text": "#   - constitution/submodules/token_optimizer/ (the real engine, resolved"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "canon-file",
+    "path"
+   ],
+   "path": "scripts/testing/trim_claude_md_114141.py",
+   "samples": [
+    {
+     "line": 12,
+     "text": "replaced in CLAUDE.md by:  - **§11.4.N** — <short> (full: docs/PROJECT_GOVERNANCE_ANCHORS.md + constitution/Constitution.md §11.4.N)"
+    },
+    {
+     "line": 100,
+     "text": "\"`constitution/Constitution.md`.\\n\\n---\\n\\n\")"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/us1_scenarios/s09_ordinary_seam_allows.sh",
+   "samples": [
+    {
+     "line": 12,
+     "text": "# The Tier-C table itself lives in constitution/scripts/gates/lib/"
+    },
+    {
+     "line": 57,
+     "text": "US1_TIER_TABLE=\"$US1_REPO_ROOT/constitution/scripts/gates/lib/seam_tier_table.sh\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/us2_t226_reader_union_rule_red.sh",
+   "samples": [
+    {
+     "line": 8,
+     "text": "# (constitution/scripts/gates/cm_chain_entry_union_rule.sh, T325/T329). The"
+    },
+    {
+     "line": 72,
+     "text": "# constitution/docs/guides/shell_instrument_footguns.md)."
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 2,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/validate_exported_docs.sh",
+   "samples": [
+    {
+     "line": 39,
+     "text": "CSS_MD=\"constitution/styles/default-md.css\""
+    },
+    {
+     "line": 40,
+     "text": "CSS_PDF=\"constitution/styles/default-pdf.css\""
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 1,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/version_bump.sh",
+   "samples": [
+    {
+     "line": 14,
+     "text": "#   constitution/scripts/gates/cm_version_increment_on_deploy.sh checks:"
+    }
+   ]
+  },
+  {
+   "category": "script",
+   "hit_lines": 4,
+   "kinds": [
+    "path"
+   ],
+   "path": "scripts/testing/workable_items_sync_all.sh",
+   "samples": [
+    {
+     "line": 90,
+     "text": "#   - constitution/scripts/workable-items/ (the Go binary source)"
+    },
+    {
+     "line": 270,
+     "text": "WI_SRC_DIR=\"$REPO_ROOT/constitution/scripts/workable-items\""
+    },
+    {
+     "line": 429,
+     "text": "printf '[sync-all]          constitution/scripts/workable-items/bin/workable-items diff --db docs/workable_items.db --issues docs/Issues.md "
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 2,
+   "kinds": [
+    "pin-file"
+   ],
+   "path": "tests/lib/speed_checks.sh",
+   "samples": [
+    {
+     "line": 29,
+     "text": "# sp_pin FLAG — value of a .constitution-pin key (empty when absent)."
+    },
+    {
+     "line": 30,
+     "text": "sp_pin() { sed -n \"s/^$1=//p\" \"$ROOT/.constitution-pin\" 2>/dev/null | head -1; }"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 20,
+   "kinds": [
+    "canon-file",
+    "path",
+    "pin-file"
+   ],
+   "path": "tests/lib/token_efficiency_checks.sh",
+   "samples": [
+    {
+     "line": 34,
+     "text": "# te_pin FLAG — value of a .constitution-pin key (empty when absent)."
+    },
+    {
+     "line": 36,
+     "text": "sed -n \"s/^$1=//p\" \"$ROOT/.constitution-pin\" 2>/dev/null | head -1"
+    },
+    {
+     "line": 75,
+     "text": "te_ok \"INV1 constitution/ is a directory AND a git submodule\""
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 7,
+   "kinds": [
+    "pin-file"
+   ],
+   "path": "tests/meta_speed_mutations.sh",
+   "samples": [
+    {
+     "line": 33,
+     "text": "printf 'CACHE_VERIFICATION_ACTIVE=1\\nREBUILD_SCOPE_ACTIVE=1\\nPROGRESSIVE_SCOPE_ACTIVE=1\\nTRUNK_FLOW_ACTIVE=1\\nCHANGELOG_AUTOMATION_ACTIVE=1\\"
+    },
+    {
+     "line": 73,
+     "text": "m_flag_cache()  { sed -i 's/^CACHE_VERIFICATION_ACTIVE=.*/CACHE_VERIFICATION_ACTIVE=0/' \"$1/.constitution-pin\"; }"
+    },
+    {
+     "line": 74,
+     "text": "m_flag_rebuild(){ sed -i 's/^REBUILD_SCOPE_ACTIVE=.*/REBUILD_SCOPE_ACTIVE=0/' \"$1/.constitution-pin\"; }"
+    }
+   ]
+  },
+  {
+   "category": "test",
+   "hit_lines": 29,
+   "kinds": [
+    "canon-file",
+    "helix-name",
+    "path",
+    "pin-file"
+   ],
+   "path": "tests/meta_token_efficiency_mutations.sh",
+   "samples": [
+    {
+     "line": 30,
+     "text": "mkdir -p \"$d\"/{qa-results,constitution/actions,scripts,.claude,.opencode,device/rockchip/rk3588}"
+    },
+    {
+     "line": 31,
+     "text": "cat > \"$d/.constitution-pin\" <<'EOF'"
+    },
+    {
+     "line": 32,
+     "text": "UPSTREAM=git@github.com:HelixDevelopment/HelixConstitution.git"
+    }
+   ]
+  }
+ ],
+ "schema_version": 1,
+ "scope": {
+  "dirs_recursive": [
+   ".claude/skills",
+   ".claude/agents",
+   ".github",
+   ".codegraph",
+   ".gemini",
+   ".helix",
+   ".opencode",
+   ".qwen",
+   ".cursor",
+   ".specify",
+   "scripts",
+   "tests",
+   "config",
+   "docker",
+   "device/rockchip/rk3588/tests"
+  ],
+  "excluded_dir_names": [
+   "external",
+   "prebuilts",
+   "out",
+   ".git",
+   "node_modules",
+   ".backups",
+   "__pycache__",
+   "constitution"
+  ],
+  "files": [
+   ".gitmodules",
+   ".constitution-pin",
+   "CLAUDE.md",
+   "AGENTS.md",
+   "GEMINI.md",
+   "QWEN.md",
+   "CONSTITUTION_ACTIVATION.md",
+   ".mcp.json",
+   ".claude/settings.json",
+   ".claude/settings.local.json",
+   ".gitignore",
+   ".commit_all_exclude"
+  ],
+  "max_file_bytes": 2000000,
+  "note": "read-only, bounded scan of configuration/instruction/script locations; the AOSP tree (external/ prebuilts/ out/ and source trees) is not scanned",
+  "root": "parent repository of the constitution submodule",
+  "suffixes": [
+   "",
+   ".bp",
+   ".cfg",
+   ".conf",
+   ".ini",
+   ".json",
+   ".md",
+   ".mk",
+   ".py",
+   ".rc",
+   ".sh",
+   ".template",
+   ".toml",
+   ".txt",
+   ".yaml",
+   ".yml"
+  ]
+ },
+ "structured": {
+  "claude_hooks_referencing_constitution": {
+   ".claude/settings.json": [
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-track-branch-label.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Agent|Task|TaskCreate"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-work-track-binding.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Agent|Task|TaskCreate"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/fastcycle/tokens/dispatch_stamp.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Agent|Task|TaskCreate"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-forbidden-commands.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Bash"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-branch-consistency.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Bash"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-work-track-binding.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Bash"
+    },
+    {
+     "command": "bash \"$CLAUDE_PROJECT_DIR/constitution/scripts/hooks/guard-evidence-store-write.sh\"",
+     "event": "PreToolUse",
+     "matcher": "Write|Edit|MultiEdit|NotebookEdit"
+    },
+    {
+     "command": "sh \"$CLAUDE_PROJECT_DIR/constitution/scripts/multitrack/multitrack_conductor_monitor_autoarm.sh\" >/dev/null 2>&1 || true",
+     "event": "SessionStart",
+     "matcher": ""
+    },
+    {
+     "command": "constitution/scripts/hooks/action_prefix_expand.sh",
+     "event": "UserPromptSubmit",
+     "matcher": ""
+    }
+   ],
+   ".claude/settings.local.json": []
+  },
+  "constitution_pin": {
+   "ACCOUNT_ISOLATION_ACTIVE": "1",
+   "BYPASS_PREVENTION_ACTIVE": "0",
+   "CACHE_VERIFICATION_ACTIVE": "0",
+   "CCUSAGE_AUDIT_ACTIVE": "1",
+   "CHANGELOG_AUTOMATION_ACTIVE": "1",
+   "CONTEXT_PREFLIGHT_ACTIVE": "1",
+   "FALLBACK_ISOLATION_ACTIVE": "1",
+   "MCP_PROGRESSIVE_DISCOVERY_ACTIVE": "1",
+   "MODEL_TIERING_ACTIVE": "1",
+   "NESTED_CLAUDE_MD_ACTIVE": "1",
+   "OUTPUT_MINIMALISM_ACTIVE": "1",
+   "PIN": "87e72cc50d62b64b35d91877058b69c99412104c",
+   "PINNED_AT": "2026-10-17T22:11:54Z",
+   "PROGRESSIVE_SCOPE_ACTIVE": "0",
+   "QA_HANDOFF_ACTIVE": "0",
+   "REBUILD_SCOPE_ACTIVE": "0",
+   "SESSION_LIFECYCLE_ACTIVE": "1",
+   "SHA": "87e72cc50d62b64b35d91877058b69c99412104c",
+   "SPECKIT_GATING_ACTIVE": "1",
+   "TOKEN_EFFICIENCY_ACTIVE": "0",
+   "TRUNK_FLOW_ACTIVE": "1",
+   "UPSTREAM": "git@github.com:HelixDevelopment/HelixConstitution.git"
+  },
+  "gitmodules_constitution": [
+   {
+    "name": "constitution",
+    "path": "constitution",
+    "url": "git@github.com:HelixDevelopment/HelixConstitution.git"
+   }
+  ],
+  "instruction_file_imports": [],
+  "mcp_servers_referencing_constitution": {
+   "codegraph": {
+    "args": [
+     "constitution/scripts/codegraph/codegraph_mcp.sh"
+    ],
+    "command": "bash",
+    "type": "stdio"
+   }
+  }
+ },
+ "summary": {
+  "by_category": {
+   "claude-settings": {
+    "files": 1,
+    "hit_lines": 9
+   },
+   "codegraph-lsp-config": {
+    "files": 2,
+    "hit_lines": 8
+   },
+   "instruction-file": {
+    "files": 5,
+    "hit_lines": 15
+   },
+   "mcp-config": {
+    "files": 1,
+    "hit_lines": 1
+   },
+   "other": {
+    "files": 6,
+    "hit_lines": 24
+   },
+   "other-agent-config": {
+    "files": 36,
+    "hit_lines": 1198
+   },
+   "pin": {
+    "files": 1,
+    "hit_lines": 1
+   },
+   "script": {
+    "files": 117,
+    "hit_lines": 445
+   },
+   "submodule-declaration": {
+    "files": 1,
+    "hit_lines": 1
+   },
+   "test": {
+    "files": 30,
+    "hit_lines": 174
+   }
+  },
+  "files_with_references": 200,
+  "unreadable_paths_not_scanned": [
+   "scripts/tools/log/log2026-07-12.txt",
+   "scripts/tools/log/log2026-07-14.txt",
+   "scripts/tools/log/log2026-07-16.txt"
+  ]
+ }
+}

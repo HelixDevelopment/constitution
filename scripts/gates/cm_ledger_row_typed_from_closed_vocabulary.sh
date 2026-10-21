@@ -183,7 +183,8 @@ while IFS= read -r row; do
         echo "${GATE}: FAIL capability='${cap}' reason=UNTYPED_ROW"
         continue
     fi
-    if printf '%s\n' "$CLOSED_TYPES" | grep -qxF -- "$norm"; then
+    # here-string, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C); bounded payload, defensive hardening)
+    if grep -qxF -- "$norm" <<<"$CLOSED_TYPES"; then
         [ -n "$quiet" ] || echo "${GATE}: OK capability='${cap}' bluff_type='${norm}'"
         continue
     fi

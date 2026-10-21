@@ -170,7 +170,8 @@ for f in "${scripts[@]}"; do
         trimmed="$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"
         case "$trimmed" in
             '#'*)
-                if printf '%s' "$line" | grep -qi 'literal'; then
+                # here-string, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C); bounded payload, defensive hardening)
+                if grep -qi 'literal' <<<"$line"; then
                     # exempt: comment-only line self-documenting the rule
                     continue
                 fi

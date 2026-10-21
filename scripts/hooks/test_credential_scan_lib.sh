@@ -1076,7 +1076,7 @@ assert_caught "(r-neg) ssh://git@<host>/<secret> with no org/repo split survives
               "$WORK/bad_r_ssh_url_single_segment.txt"
 
 # (s) §11.4.201 carrier-strip #32: this scanner's own documented golden-bad
-# AKIA placeholder literal (`AKIA1234567890123456` -- the same value already
+# AKIA placeholder literal (`AKIA` + `1234567890123456`, written split -- the same value already
 # cited throughout this scanner's own doc comments and quoted, as prose
 # discussing this very detector, inside docs/requests/history.md's §11.4.208
 # ledger) must not itself be flagged as a real hit. Built via printf (split
@@ -1184,6 +1184,142 @@ assert_clean "(w) triply HTML-entity-escaped closing tag decodes (within the bou
 } > "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
 assert_caught "(w-neg) a real secret immediately followed by a triply-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
               "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
+
+# (aa) §11.4.201 carrier-strip #36: a PEM HEADER MARKER written as a COMPLETE
+# string literal (header + literal \n escape + closing quote) carries NO key
+# body — it is a fixture marker, never a key. Forensic FP (2026-10-17, MEASURED,
+# prebuild remedy batch): 5 QA-evidence files (a red-green runner pair, their
+# patches and a copied meta-test) planted exactly this marker to prove
+# "a key-shaped blob was written" and were refused at the commit seam.
+{ printf 'MUT='
+  printf 'printf -- "-----BEGIN RSA PRIVATE KEY-----\\n" >> "$ov/$rel"\n'
+} > "$WORK/good_aa_pem_marker_literal.txt"
+assert_clean "(aa) PEM header marker literal with no key body (fixture marker, not a key)" \
+             "$WORK/good_aa_pem_marker_literal.txt"
+
+# (aa-neg) FALSIFYING CONTROL: the SAME header followed by REAL key material on
+# the same literal (the marker pattern requires the closing quote right after
+# the \n escape, so key material defeats it) must still be CAUGHT.
+{ printf 'printf "-----BEGIN RSA PRIVATE KEY-----'
+  printf '\\nMIIEowIBAAKCAQEA1234abcdEFGH\\n" > k\n'
+} > "$WORK/bad_aa_real_key_literal.txt"
+assert_caught "(aa-neg) PEM header followed by real key material is still caught (strip is body-blind, not header-blind)" \
+              "$WORK/bad_aa_real_key_literal.txt"
+
+# (ab) §11.4.201 carrier-strip #37: an identity at an RFC 2606/6761 RESERVED
+# documentation TLD (.invalid/.test/.example, guaranteed non-resolvable) is not
+# a real identity, so the adjacency premise fails and non-digit fixture
+# punctuation next to it is not password-shaped. Forensic FP (2026-10-17,
+# MEASURED): `GIT="git -c user.name=t -c user.email=t@example.invalid -c
+# commit.gpgsign=false"` (token `commit.gpgsign=false"`) and a synthetic-key
+# printf next to fixture@example.invalid (token `adb_keys"`).
+{ printf 'GIT="git -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false"\n'
+  printf 'printf %s fixture@example.invalid > "$FX/product/etc/security/adb_keys"\n' "'%s\\n'"
+} > "$WORK/good_ab_reserved_tld_identity.txt"
+assert_clean "(ab) reserved-documentation-TLD identity + non-digit config/path token (not password-shaped)" \
+             "$WORK/good_ab_reserved_tld_identity.txt"
+
+# (ab-neg-a) FALSIFYING CONTROL: a REAL password (carries a digit) next to the
+# SAME reserved-TLD identity must still be CAUGHT — the strip requires the
+# absence of a digit, so it cannot widen to real secrets.
+{ printf 'fixture@example.invalid: Hunter2\n'
+} > "$WORK/bad_ab_real_password_reserved_tld.txt"
+assert_caught "(ab-neg-a) a real digit-bearing password next to a reserved-TLD identity is still caught" \
+              "$WORK/bad_ab_real_password_reserved_tld.txt"
+
+# (ab-neg-b) THE LOAD-BEARING NARROWING: the SAME non-digit token next to a REAL
+# (non-reserved) domain must still be CAUGHT. This is what proves #37 is scoped
+# to the reserved documentation TLDs and not to the token shape itself.
+{ printf 'bob@corp.com: my_secret\n'
+} > "$WORK/bad_ab_nondigit_pw_real_domain.txt"
+assert_caught "(ab-neg-b) the same non-digit underscore token next to a REAL domain is still caught (strip is domain-scoped)" \
+              "$WORK/bad_ab_nondigit_pw_real_domain.txt"
+
+
+# ---------------------------------------------------------------------------
+# SUB-SUITES (wired here on purpose, round-2 review F3 of the remedy batch
+# of 2026-10-14). The consumer's CM-CRED-SCAN-LIB-SELF-VALIDATED
+# gate runs THIS suite (invariant 5, exit 0 required) and its meta-test runs
+# it too; nothing else runs the two guards below. A guard no automation runs
+# is the §11.4.205 "on disk, enforced nowhere" pattern. Measured before this
+# wiring: a placeholder carrier widened from the one named constant to a
+# digit-only CLASS (which silently exempts real digit-only AKIA keys) passed
+# every case above and was caught ONLY by the AKIA sub-suite.
+#   (x) test_credential_scan_lib_akia_literal_free.sh -- carrier value exact,
+#       outcome table unchanged, no contiguous AKIA literal in the library.
+#   (y) ../gates/cm_core_scripts_project_literal_free_mutation_test.sh --
+#       the library (and the other genericised constitution scripts) carry no
+#       consumer project literal (CSLV invariant 4's class, widened).
+# Each sub-suite is run against the SAME library this suite tests; its own
+# exit code is read directly (never through a pipe). A missing sub-suite is a
+# FAIL, never a skip.
+# TWO CHANNELS (round-3 review N2): a sub-suite PASSes only when its exit code is
+# 0 AND its output carries no `FAIL` line AND at least one `PASS` line. Reviewer
+# mutant RM4 neutralised the exit-code capture (`|| rc=$?` -> `|| true`); with
+# the exit code as the only channel, MX1b (the carrier widened to a digit class)
+# then scored 95/0. Each channel, and the wiring itself, is held by the paired
+# mutation test (z) below.
+# ---------------------------------------------------------------------------
+_sub_run() { # $1 label  $2.. command
+    local label="$1" rc=0 out npass nfail
+    shift
+    out="$("$@" 2>&1)" || rc=$?
+    # inner-mode lines of the sub-suite are relayed verbatim (round-5 review N17): a sub-suite run in a
+    # shortened inner mode must be visible to the consumer's verdict-set check (rule R-INNER)
+    printf '%s\n' "$out" | grep -E '^INNER-MODE: ' || true
+    npass="$(printf '%s\n' "$out" | grep -c '^PASS')"
+    nfail="$(printf '%s\n' "$out" | grep -c '^FAIL')"
+    if [ "$rc" -eq 0 ] && [ "$nfail" -eq 0 ] && [ "$npass" -ge 1 ]; then
+        echo "PASS: $label (rc=0, $npass sub-checks passed, 0 failed)"
+        pass=$((pass + 1))
+    else
+        echo "FAIL: $label (rc=$rc, $npass PASS / $nfail FAIL line(s)) -- last lines:"
+        printf '%s\n' "$out" | tail -n 6 | sed 's/^/    /'
+        : $((fail += 1))
+    fi
+}
+_sub_akia="$HERE/test_credential_scan_lib_akia_literal_free.sh"
+_sub_core="$HERE/../gates/cm_core_scripts_project_literal_free_mutation_test.sh"
+if [ -f "$_sub_akia" ]; then
+    _sub_run "(x) AKIA-literal-free sub-suite" env CREDSCAN_LIB_UNDER_TEST="$LIB" bash "$_sub_akia"
+else
+    echo "FAIL: (x) AKIA-literal-free sub-suite missing: $_sub_akia"; fail=$((fail + 1))
+fi
+if [ -f "$_sub_core" ]; then
+    _sub_run "(y) core-scripts project-literal-free sub-suite" bash "$_sub_core" --root "$(cd "$HERE/../.." && pwd)"
+else
+    echo "FAIL: (y) core-scripts project-literal-free sub-suite missing: $_sub_core"; fail=$((fail + 1))
+fi
+
+# (z) the paired mutation test of the sub-suite wiring above: it rebuilds this
+# suite's header + sub-suite section in a sandbox, proves each channel catches its
+# own failure shape (MX1b through the real (x), rc-only, FAIL-line-only, no PASS
+# line, missing sub-suite) and that six wiring mutants (RM4 among them) are each
+# seen. Counted with ok/bad, NOT through _sub_run, so a broken _sub_run cannot hide
+# its own meta-test. Its sandbox runs set CREDSCAN_SUBSUITE_META_INNER (no recursion).
+# Its PASS needs exit 0 AND a closing "PAIR VALID" verdict line (round-4 review N7). The
+# consumer reads this suite's output through constitution/scripts/gates/suite_verdict_set_check.sh
+# (profile credscan-suite), which independently requires the (x), (y) and (z) PASS lines with
+# their verdict text and cross-checks the printed PASS/FAIL lines against the RESULT tally.
+_sub_meta="$HERE/test_credential_scan_lib_subsuite_mutation_test.sh"
+if [ -n "${CREDSCAN_SUBSUITE_META_INNER:-}" ]; then
+    echo "INNER-MODE: CREDSCAN_SUBSUITE_META_INNER set — (z) sub-suite wiring meta-test not re-entered inside its own sandbox"
+elif [ -f "$_sub_meta" ]; then
+    _z_rc=0
+    _z_out="$(bash "$_sub_meta" 2>&1)" || _z_rc=$?
+    if [ "$_z_rc" -eq 0 ]; then
+        # round-4 review N7: rc 0 alone is not the verdict; the meta-test's own closing line must say PAIR VALID
+        _z_v="$(printf '%s\n' "$_z_out" | grep -E '^=== ' | tail -1)"
+        case "$_z_v" in
+            *"PAIR VALID"*) ok "(z) sub-suite wiring meta-test: $_z_v" ;;
+            *) bad "(z) sub-suite wiring meta-test exited 0 without a PAIR VALID verdict: ${_z_v:-<no verdict line>}" ;;
+        esac
+    else
+        bad "(z) sub-suite wiring meta-test (rc=$_z_rc) -- last lines: $(printf '%s\n' "$_z_out" | tail -n 4 | tr '\n' ' ')"
+    fi
+else
+    bad "(z) sub-suite wiring meta-test missing: $_sub_meta"
+fi
 
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="

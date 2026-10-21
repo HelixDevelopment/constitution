@@ -1,0 +1,15 @@
+{
+  "schema": "helix-codegraph/1",
+  "corpus": "constitution/progressive",
+  "node_types": {
+    "Anchor": {"source": "progressive/catalog.json", "id_field": "id", "props": ["title", "tags", "file"]},
+    "Section": {"source": "Constitution.md", "match": "^(#{2,6})\\s+(§[0-9.]+)", "props": ["level"]},
+    "Rule": {"source": "progressive/rules/*.md", "id_from": "filename", "props": ["hash"]}
+  },
+  "edges": [
+    {"type": "references", "from": "Rule", "to": "Anchor", "how": "anchor id mentioned in the rule body"},
+    {"type": "part_of", "from": "Anchor", "to": "Section", "how": "bracketing section heading"}
+  ],
+  "entry_points": ["§11.4.141", "§1.1", "§11.4", "§12"],
+  "notes": "Declarative only: an indexer reads it and builds the graph without extra project config."
+}

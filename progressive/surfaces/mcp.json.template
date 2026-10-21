@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "helix-constitution": {
+      "command": "python3",
+      "args": ["${HELIX_CONSTITUTION_ROOT}/progressive/mcp_server.py", "--accounting", "${HELIX_CONSTITUTION_ROOT}/progressive/EVIDENCE/mcp_accounting.jsonl"],
+      "env": {"HELIX_CONSTITUTION_ROOT": "${HELIX_CONSTITUTION_ROOT}"},
+      "description": "Local stdio MCP server: search_constitution, load_rule, list_anchors, verify_anchor. Offline; no network."
+    }
+  }
+}

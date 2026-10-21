@@ -339,7 +339,7 @@ covenant_propagation_main() {
     # a future firing of this needle by weakening it, and do NOT reintroduce
     # a `... | grep -q ...` pipeline here — `pipefail` is load-bearing
     # elsewhere in this engine and must not be relaxed to compensate.
-    # Guard: device/rockchip/rk3588/tests/regression_guard/
+    # Guard: the reference consumer's regression_guard/
     #        guard_find_av01_needle_sigpipe_pipefail_red.sh (>=200 KB fixture).
     local _needle _needle_found=0 _needle_total=0 _needle_missing=""
     # Literal newline sentinel: lets the whole-line match below be written
@@ -368,7 +368,11 @@ covenant_propagation_main() {
 
     # Generic (any-anchor-number) block-start regex — used ONLY to find the END
     # boundary of THIS anchor's block.
-    local GENERIC_BLOCK_RE='^(\*\*|### |- )§11\.4\.[0-9]'
+    # r4 2026-10-14: a block ALSO ends at the next H2 section heading (`^## `) -- a project-specific
+    # section appended after an anchor block in a consumer mirror is NOT part of the anchor (measured: root
+    # AGENTS/GEMINI/QWEN 11.4.267 block swallowed a 75-line `## MANDATORY ISSUES_01 ...` section the
+    # constitution mirrors do not carry -> false DIVERGENT, §11.4.201(1)).
+    local GENERIC_BLOCK_RE='^(\*\*|### |- )§11\.4\.[0-9]|^## '
 
     local pass=0 fail=0 skip=0 f rel count start_line next_line end_line block_text h
     local -a hashes=()
@@ -400,6 +404,51 @@ covenant_propagation_main() {
             fi
             block_text="$(sed -n "${start_line},${end_line}p" "$f")"
             h="$(printf '%s' "$block_text" | _cpe_sha256)"
+            # r4 2026-10-14 COMPACT-INDEX EQUIVALENCE (§11.4.141 compaction vs §11.4.227(B) lockstep). A carrier whose
+            # block is a one-line compact index entry `- §11.4.N ... [full → <path>]` STANDS IN for the full block IFF
+            # <path> (repo-relative, no `..`) exists, holds exactly ONE block for this anchor, and that block's
+            # normalised hash (trailing blank lines / `---` separators stripped) is what is compared. A missing,
+            # absent-block, duplicated-block or divergent target keeps the compact hash => DIVERGENT (fail closed).
+            # The target may NOT be a carrier itself (basename CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md): pointing
+            # at a sibling carrier would compare that carrier's block with itself (a lockstep tautology).
+            # HONEST BOUNDARY (§11.4.6), round-2 review F11 of the 2026-10-14 pre-build remedy batch:
+            #  (a) the compact line's OWN text (title, summary, refs) is replaced, not compared -- a compact summary
+            #      that drifts from its full block is not detected by this gate;
+            #  (b) trailing `---` / blank lines are stripped from the TARGET block only (the full index document
+            #      separates blocks with `---`; carriers do not), so a carrier whose full block itself ends in a
+            #      `---` line does not hash equal to a compact entry for the same text;
+            #  (c) a target reached through a symlink, or a non-carrier copy of a carrier, is not detected as a
+            #      carrier by the basename rule.
+            # Tests: fixtures 9-18 of lib/covenant_propagation_mutation_engine.sh, and the engine mutants of
+            # covenant_propagation_engine_compact_mutation_test.sh.
+            local _cpe_first _cpe_ptr _cpe_t _cpe_tcount _cpe_ts _cpe_tn _cpe_te _cpe_tt
+            IFS= read -r _cpe_first <<< "$block_text" || true
+            if [[ "$_cpe_first" =~ ^-\ §11\.4\.[0-9.]+.*\[full\ →\ ([^]#]+) ]]; then
+                _cpe_ptr="${BASH_REMATCH[1]}"
+                case "$_cpe_ptr" in /*|*..*) _cpe_ptr="" ;; esac
+                case "${_cpe_ptr##*/}" in CLAUDE.md|AGENTS.md|QWEN.md|GEMINI.md) _cpe_ptr="" ;; esac
+                _cpe_t="${root}/${_cpe_ptr}"
+                if [ -n "$_cpe_ptr" ] && [ -f "$_cpe_t" ]; then
+                    _cpe_tcount="$(grep -cE "$BLOCK_RE" "$_cpe_t" || true)"
+                    if [ "${_cpe_tcount:-0}" -eq 1 ]; then
+                        _cpe_ts="$(grep -nE "$BLOCK_RE" "$_cpe_t" | head -1 | cut -d: -f1)"
+                        _cpe_tn="$(awk -v s="$_cpe_ts" 'NR>s && /'"${GENERIC_BLOCK_RE}"'/{print NR; exit}' "$_cpe_t")"
+                        if [ -n "$_cpe_tn" ]; then _cpe_te=$((_cpe_tn - 1)); else _cpe_te="$(wc -l < "$_cpe_t")"; fi
+                        _cpe_tt="$(sed -n "${_cpe_ts},${_cpe_te}p" "$_cpe_t")"
+                        while :; do
+                            case "$_cpe_tt" in
+                                *"${_cpe_nl}---") _cpe_tt="${_cpe_tt%"${_cpe_nl}---"}" ;;
+                                *"${_cpe_nl}")    _cpe_tt="${_cpe_tt%"${_cpe_nl}"}" ;;
+                                *) break ;;
+                            esac
+                        done
+                        # The compact line is replaced by the verified full target; any mirror-resident TRAILER
+                        # (paragraphs after the compact line, up to the next anchor/H2) is compared EXACTLY as-is.
+                        h="$(printf '%s' "${_cpe_tt}${block_text#"$_cpe_first"}" | _cpe_sha256)"
+                        [ -n "$quiet" ] || echo "↪ COMPACT-INDEX ${rel} -> ${_cpe_ptr}: compared via the pointed-to full block"
+                    fi
+                fi
+            fi
             hashes+=("$h")
             hash_owners+=("$rel")
             pass=$((pass + 1))
