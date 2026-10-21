@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-17T16:08:36.623624+00:00'
+generated_at: '2026-10-21T23:37:34.309243+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: f9290df111d09872b2a71358bf9393ec9e78db9a
-  source_sha256: 1667ded1962940faf651a45b261b62e75d831410e805bb6102f9e809f8119d56
+  commit: 4bcb51236115b0592583f5a2f8fa7e33e1a328c3
+  source_sha256: d862c7a856730a127d306e8b30e3cb08fd0de164dbc3e905da796e719b8cc464
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -502,16 +502,22 @@ anchors:
   cross_references:
   - '1.1'
   - '11.4'
+  - 11.4.113
+  - 11.4.164
   - 11.4.17
   - 11.4.20
+  - 11.4.201
   - 11.4.21
   - 11.4.25
   - 11.4.26
   - 11.4.27
   - 11.4.28
   - 11.4.31
+  - 11.4.32
   - 11.4.35
+  - 11.4.6
   - 11.4.74
+  - 11.4.79
   - '2.1'
 - id: 11.4.29
   title: — Lowercase-Snake_Case-Naming Mandate (User mandate, 2026-05-15)
@@ -567,16 +573,23 @@ anchors:
   - '11.4'
   - 11.4.12
   - 11.4.17
+  - 11.4.177
   - 11.4.18
   - 11.4.2
   - 11.4.20
+  - 11.4.215
+  - 11.4.233
   - 11.4.25
+  - 11.4.257
+  - 11.4.258
   - 11.4.26
   - 11.4.27
   - 11.4.28
   - 11.4.29
   - 11.4.30
   - 11.4.31
+  - 11.4.35
+  - 11.4.6
 - id: 11.4.32
   title: — Post-Constitution-Pull Validation Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
@@ -3773,18 +3786,24 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - 11.4.10
   - 11.4.107
   - 11.4.162
   - 11.4.17
+  - 11.4.216
+  - 11.4.218
   - 11.4.25
   - 11.4.27
+  - 11.4.28
   - 11.4.35
   - 11.4.4
   - 11.4.48
   - 11.4.49
   - 11.4.6
+  - 11.4.66
   - 11.4.69
   - 11.4.74
+  - 11.4.79
 - id: 11.4.163
   title: — Universal Media Validation & Verification Mandate (User mandate, 2026-06-21)
   group: anti-bluff-and-evidence

@@ -2,16 +2,19 @@
 # cm_llmctl_submodule_nonrecursive.sh — CM-LLMCTL-SUBMODULE-NONRECURSIVE gate (§11.4.277(B), §11.4.28(C), §11.4.31).
 #
 # ── Purpose ──────────────────────────────────────────────────────────────────
-# llmctl vendors THIS constitution as its own `constitution` submodule, and this
-# constitution vendors llmctl at submodules/llmctl: a mutual reference. The
-# operator decision (2026-10-13) keeps llmctl as a depth-1 hub entry that
-# consumers MUST NOT initialise recursively. The reference is finite only while
-# llmctl's own constitution pin names a commit that contains no
-# submodules/llmctl. This gate fails when:
+# This constitution vendors llmctl at submodules/llmctl as a depth-1 hub engine.
+# Under the §11.4.28(C) EXTENSION (2026-10-21, superseding the 2026-10-13
+# mutual-reference decision) llmctl MUST NOT nest this constitution or any
+# own-org repository; it resolves them via lib/resolve_deps.sh. llmctl still
+# nests third-party repositories (llama.cpp, colibri), so consumers keep it
+# non-recursive (`recursive_init: false`). This narrower re-entry check stays as
+# a backstop to CM-HUB-ENGINE-NO-OWNORG-NESTING. This gate fails when:
 #   (1) helix-deps.yaml has no llmctl entry carrying `recursive_init: false`;
-#   (2) re-entry: starting from the llmctl commit RECORDED in this repo's HEAD
-#       for submodules/llmctl (falling back LOUDLY to the checked-out HEAD only
-#       when the recorded commit is not resolvable), the own-org submodules it
+#   (2) re-entry: starting from the llmctl commit RECORDED for submodules/llmctl
+#       (a STAGED index gitlink that differs from HEAD governs, as in
+#       CM-HUB-ENGINE-NO-OWNORG-NESTING; else the HEAD record; falling back
+#       LOUDLY to the checked-out HEAD only when the recorded commit is not
+#       resolvable), the own-org submodules it
 #       pins (`constitution` and `submodules/containers`) are inspected; a pin
 #       whose tree contains an entry named `llmctl` at ANY path, or a
 #       `.gitmodules` whose url names this constitution or llmctl, re-enters
@@ -45,7 +48,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) root="$(cd "$2" && pwd)" || exit 2; shift 2 ;;
-    -h|--help) sed -n 2,34p "${BASH_SOURCE[0]:-$0}"; exit 0 ;;
+    -h|--help) sed -n 2,44p "${BASH_SOURCE[0]:-$0}"; exit 0 ;;
     *) echo "$GATE: unknown argument $1" >&2; exit 2 ;;
   esac
 done
@@ -74,6 +77,11 @@ else
   [ -e "$sub/submodules/containers/.git" ] && stores+=("$sub/submodules/containers")
   find_store() { local c; for c in "${stores[@]}"; do [ "$(git -C "$c" cat-file -t "$1" 2>/dev/null)" = "commit" ] && { echo "$c"; return 0; }; done; return 1; }
   rec="$(git -C "$root" ls-tree HEAD submodules/llmctl 2>/dev/null | awk '$1=="160000"{print $3}')"
+  rec_idx="$(git -C "$root" ls-files -s -- submodules/llmctl 2>/dev/null | awk '$1=="160000"{print $2}')"
+  if [ -n "$rec_idx" ] && [ "$rec_idx" != "$rec" ]; then
+    echo "$GATE: NOTE — using the STAGED (index) gitlink ${rec_idx:0:7}; HEAD records ${rec:-<none>}" >&2
+    rec="$rec_idx"
+  fi
   L=""
   if [ -n "$rec" ]; then
     if st="$(find_store "$rec")"; then L="$rec"; lstore="$st"; echo "$GATE: using the llmctl commit recorded in this repo: ${rec:0:7}"

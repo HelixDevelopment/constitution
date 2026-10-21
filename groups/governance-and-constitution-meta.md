@@ -299,6 +299,8 @@ flat / grouped layout makes the consuming project's submodule
 graph a tree-of-depth-1, which any developer can audit at a
 glance via `git submodule status` from the project root.
 
+**EXTENSION — one source of truth, resolver instead of nested copies (operator mandate, 2026-10-21, relayed by the coordinating agent, not verbatim).** Reduce redundancy to a minimum; all submodules and modules use ONE source of truth, always the latest codebase; main submodules live in `<root>/submodules` or `<root>/constitution/submodules`, never in nested chains. Consequences, binding every owned repository: (1) an owned submodule — a hub engine included — MUST NOT declare, as its own nested submodule, (a) the constitution (it is the hub or the project root's `constitution/`), (b) the hub itself or any hub engine, or (c) any owned repository that the parent already provides at a canonical flat path; a nested `constitution` inside a hub engine is the canonical forbidden case because it makes the hub reach itself (a mutual reference) and keeps a second, drifting copy of the canon. (2) Such an engine finds the canon and its siblings with ONE documented resolver, in this order: an environment override, then the parent hub when it sits at `<hub>/submodules/<name>` (`../..` is the hub, `../<sibling>` a sibling), then `<project_root>/constitution` and `<project_root>/submodules/<name>`, then a sibling directory, then the host fallback of `find_constitution.sh`; when nothing resolves the resolver exits non-zero with an actionable message and NEVER passes silently (§11.4.201). (3) The version of a shared dependency is the parent's pin — latest by default (§11.4.113 fetch-first) — never a second pin held by a child. (4) Third-party repositories an engine really builds against (for example `llama.cpp`) remain legal nested submodules; they are classified third-party (§11.4.79(6)), are not initialised by consumers that do not build the engine, and are never a reason to initialise anything recursively. (5) Gate `CM-HUB-ENGINE-NO-OWNORG-NESTING` (`scripts/gates/cm_hub_engine_no_ownorg_nesting.sh`, implemented with a paired mutation test) reads each checked-out `constitution/submodules/<engine>`'s `.gitmodules` from the commit the hub records for it (the staged index gitlink when it differs from HEAD's, printed as a note) and FAILs by NAME MATCHING on the nested submodule URLs: an owner segment `vasic-digital` or `HelixDevelopment`, or a repository named `constitution` / `HelixConstitution` under any owner (case-insensitive). A relative nested URL (`./x`, `../x`) is first resolved against the engine's own URL in the hub `.gitmodules`, as git resolves it, so `../Containers.git` under an own-org engine is own-org and an unresolvable one is BLIND. Beyond that it does not resolve URLs or compare trees, so an own-org repository reachable under another name is outside what it can see (§11.4.6). It exits 0 PASS, 1 FAIL, 2 BLIND, and 3 SKIP when no engine was checked out (nothing inspected is never a PASS); it runs on every constitution pull from `scripts/post_update_hook.sh` (§11.4.32 / §11.4.164), together with `CM-LLMCTL-SUBMODULE-NONRECURSIVE`, which it generalises and which stays. A project that vendors the constitution adopts this verbatim in its own Spec Kit layer (§11.4.35).
+
 Third-party submodules (not under our orgs) are exempt — they
 MAY appear at any depth as the upstream's structure dictates.
 The invariant applies only to our owned set.
@@ -640,6 +642,102 @@ matrix), §11.4.28 (this rule is its operational complement),
 §11.4.29 (manifests use snake_case names + canonical paths),
 §11.4.30 (manifest is tracked source — not a build artefact),
 CONST-047 (manifests cascade recursively).
+
+**EXTENSION (2026-10-21) — a manifest in EVERY own-org repository, one canonical engine, one gate, a bootstrap step.**
+Operator mandate (2026-10-21, relayed by the coordinating agent, not
+verbatim): every repository MUST carry the list of its submodule
+dependencies in the §11.4.31 format at the expected locations
+(`<root>/submodules` and `<root>/constitution/submodules`); the
+solution MUST be systematic, documented under the constitution, and
+followed by every existing and new project. Measured gap that this
+closes (2026-10-21, with the engine below): the "Cascade requirement"
+above named a verifier but none was wired at any seam, so nothing
+refused a missing manifest; on the constitution's own tree the engine
+reports pass 9 / fail 2 / skip_third_party 17 (`claude_toolkit` ships no
+manifest; `llmctl` lists the third-party `superspec` without
+`third_party: true`), both owed upstream in those repositories;
+re-measured after the llmctl pin moved to `f42bad6` (which marks
+`superspec` `third_party: true`): pass 10 / fail 1 / skip_third_party 17,
+`claude_toolkit` pending until it stops nesting own-org repositories and ships a manifest upstream, and its pin is then bumped.
+
+(A) SCOPE. A tracked `helix-deps.yaml` MUST exist at the root of: the
+project root (always, whatever its organisation); every own-org
+repository the root declares in `.gitmodules` (whatever its path, the
+`constitution` hub included); every own-org repository the hub declares;
+and every checked-out own-org repository under `<root>/submodules/*` or
+`<root>/constitution/submodules/*` even when no `.gitmodules` declares
+it. Own-org = the organisation of the repository's remote URL is in the
+consumer's own-org list (DATA, §11.4.35; default `vasic-digital`,
+`HelixDevelopment`). A third-party repository needs no manifest and is
+reported `SKIP(third_party)`, never PASS. A manifest that exists but is
+not tracked by git does not count (§11.4.215).
+
+(B) SCHEMA (closed, strings-only). Top level: `schema_version: 1`,
+`deps` (a list; `deps: []` when empty), `transitive_handling`
+(`recursive: true|false`, `conflict_resolution: operator-required`),
+`language_specific_subtree: true|false`; optional identity keys `name`,
+`ssh_url`, `mirrors`, `language`, `project_agnostic`, `carve_out`,
+`third_party_manifest`. Every dep: `name`, `ssh_url`
+(`git@host:org/repo.git`, SSH only), `ref`, `why`, `layout`
+(`flat` | `grouped` | `hub`); optional `path` (relative),
+`recursive_init`, `third_party` (`true|false`), `licence` (REQUIRED when
+`third_party: true`). A dep whose URL organisation is not own-org MUST be
+marked `third_party: true`; an own-org URL marked third-party is a
+contradiction. Unknown keys, duplicate keys, duplicate names or URLs,
+and placeholder values (`why`/`ref` starting with UNKNOWN, TODO, TBD or
+FIXME) are defects. Every scalar is read as a string, so a ref such as
+`0123456` is never turned into a number.
+
+(C) CONSISTENCY WITH `.gitmodules`. The root and the hub MUST declare a
+`deps` entry for every own-org submodule they carry (matched by
+normalised `org/repo`); the root does not list the `constitution` hub,
+which is inherited by reference. A leaf (any repository under
+`submodules/`) MUST NOT nest an own-org or hub repository (§11.4.28(C));
+when its parent's entry carries `recursive_init: false` the nesting is
+reported `KNOWN`, the debt already owned by
+`CM-HUB-ENGINE-NO-OWNORG-NESTING`, never hidden and never a PASS of that
+gate.
+
+(D) ONE CANONICAL ENGINE, CONSUMED BY REFERENCE (§11.4.28 / §11.4.177).
+`scripts/deps_manifest/verify_helix_deps_manifests.sh` (logic in
+`helix_deps_manifest.py`) verifies a tree (`--root <project-root>`),
+validates one file (`--validate-file`), runs its own control needles
+(`--selftest`) and generates a skeleton (`--scaffold <dir> [--write]`)
+from `.gitmodules`, `go.mod` and `package.json`. Scaffold NEVER
+overwrites an existing file and writes placeholders the verifier
+REJECTS until a human fills them (§11.4.6). Exit codes: 0 PASS, 1 FAIL,
+2 BLIND (an own-org repository not checked out, an unreadable root, or a
+failed control needle), 64 usage. A project-level script MAY exist only
+as a thin wrapper that calls this engine; it MUST NOT re-implement the
+schema.
+
+(E) BOOTSTRAP AND CHANGE STEPS. A new project, right after adding the
+constitution submodule: run `--scaffold . --write` at its root, replace
+every placeholder, run `--validate-file helix-deps.yaml`, `git add` it,
+then run the gate. Adding, removing or re-pinning an own-org submodule
+updates the matching `deps` entry in the SAME commit. An own-org
+repository without a manifest gets one in ITS OWN repository (scaffold
+there, commit there, bump the pointer), never a copy kept by the
+parent.
+
+(F) GATE. `CM-HELIX-DEPS-MANIFEST-PRESENT`
+(`scripts/gates/cm_helix_deps_manifest_present.sh`, IMPLEMENTED, with a
+paired mutation test whose fixtures include the third-party golden-FALSE
+and whose seventeen engine mutants must all be killed) runs on every
+constitution pull from `scripts/post_update_hook.sh` against the
+consumer's `PROJECT_ROOT` (FAIL is an error, BLIND a warning, never a
+PASS). Documentation: `docs/guides/dependency_manifest_user_guide.md`,
+`docs/manuals/dependency_manifest_manual.md`,
+`docs/faq/dependency_manifest_faq.md` (§11.4.257 / §11.4.258).
+
+Honest boundary (§11.4.6): the gate proves that each own-org repository
+carries a tracked manifest of the right form and that the root and hub
+manifests cover their own-org submodules. It does not prove that a
+`ref` equals the recorded gitlink (that drift is the job of
+`CM-DEPENDENCY-POINTER-PREFLIGHT-FAIL-CLOSED`, §11.4.233(G)), that the
+`why` text is true, or that the bootstrap Challenge above exists. No
+escape hatch: no `--skip-manifest-check`, `--manifest-optional`,
+`--third-party-as-pass`, `--scaffold-overwrite` flag.
 
 **Classification:** universal (per §11.4.17). No escape hatch.
 Severity-equivalent to a §11.4 PASS-bluff at the dependency-graph

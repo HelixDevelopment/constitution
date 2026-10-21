@@ -73,3 +73,9 @@
 [submodule "submodules/claude_toolkit"]
 	path = submodules/claude_toolkit
 	url = git@github.com:vasic-digital/claude_toolkit.git
+[submodule "submodules/containers"]
+	path = submodules/containers
+	url = git@github.com:vasic-digital/Containers.git
+[submodule "submodules/superspec"]
+	path = submodules/superspec
+	url = git@github.com:WangX0111/superspec.git

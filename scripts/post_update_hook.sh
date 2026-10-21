@@ -485,6 +485,39 @@ validate_scripts() {
 }
 
 # ============================================================================
+# STEP 5b — Hub-structure gates (§11.4.28(C) single source of truth, §11.4.277(B)) + §11.4.31 manifest gate
+# ============================================================================
+# Runs on EVERY pull, changed files or not: a nested own-org/constitution pin can arrive
+# with a submodule bump that touches no skill/hook/script (§11.4.196(F) — a gate nobody
+# invokes is configured, not in use). Verdicts are mapped honestly (§11.4.201):
+#   0 PASS · 1 FAIL -> ERROR (hook exits non-zero) · 2 BLIND -> WARNING · 3 SKIP -> SKIP (never PASS).
+validate_hub_structure() {
+    header "STEP 5b: Hub-structure gates (one source of truth)"
+    local gate tok rc groot
+    # cm_helix_deps_manifest_present.sh (§11.4.31) is pointed at the CONSUMER project root: it walks the
+    # root, <root>/submodules/* and <root>/constitution/submodules/*; the two hub gates inspect the hub itself.
+    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh; do
+        groot="$CONST_DIR"
+        case "$gate" in
+            cm_hub_engine_no_ownorg_nesting.sh)   tok="CM-HUB-ENGINE-NO-OWNORG-NESTING" ;;
+            cm_llmctl_submodule_nonrecursive.sh)  tok="CM-LLMCTL-SUBMODULE-NONRECURSIVE" ;;
+            cm_helix_deps_manifest_present.sh)    tok="CM-HELIX-DEPS-MANIFEST-PRESENT"; groot="$PROJECT_ROOT" ;;
+        esac
+        if [ ! -f "$CONST_DIR/scripts/gates/$gate" ]; then
+            warn "$tok: gate file missing ($gate) — BLIND"; WARNINGS+=("$tok: gate file missing (BLIND)"); continue
+        fi
+        rc=0; bash "$CONST_DIR/scripts/gates/$gate" --root "$groot" || rc=$?
+        case "$rc" in
+            0) info "$tok: PASS" ;;
+            1) error "$tok: FAIL"; ERRORS+=("$tok: FAIL (see its output above)") ;;
+            3) warn "$tok: SKIP (nothing inspected — not a PASS)"; WARNINGS+=("$tok: SKIP (nothing inspected)") ;;
+            *) warn "$tok: BLIND (rc=$rc)"; WARNINGS+=("$tok: BLIND (rc=$rc)") ;;
+        esac
+    done
+    return 0
+}
+
+# ============================================================================
 # STEP 6 — Report summary
 # ============================================================================
 report_summary() {
@@ -549,6 +582,7 @@ main() {
     info "Script dir:        $SCRIPT_DIR"
 
     detect_changes
+    validate_hub_structure
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \
@@ -556,6 +590,10 @@ main() {
        [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
+        if [ "$(arr_len ERRORS)" -gt 0 ]; then
+            report_summary
+            return $?
+        fi
         return 0
     fi
 

@@ -9,7 +9,7 @@
 # against a tracked item in docs/owed_gate_implementations.md, never faked and never deleted.
 #
 # Two ID classes:
-#   OWED-GATE-NNN    a real gate whose harness is genuinely owed (64 rows)
+#   OWED-GATE-NNN    a real gate whose harness is genuinely owed (128 rows on 2026-10-21; re-count, do not trust this figure)
 #   OWED-NAMING-NNN  a token-extraction ARTIFACT, not a real gate name (8 rows) - deferred
 #                    rather than removed because gate_ledger_removals.tsv provably cannot
 #                    cover a token that is still PRESENT in the corpus (removals are only
@@ -171,3 +171,6 @@ CM-UI-EDGE-CASE-MATRIX-COVERED	OWED-GATE-139	asserts (per §11.4.278, added 2026
 CM-UI-ESCAPE-TRIGGERS-REVALIDATION	OWED-GATE-140	asserts (per §11.4.278, added 2026-10-13) an operator-escape on a UI defect triggers the §11.4.138 audit and a §11.4.277(H) re-validation review record; blocked: no escape-record harness exists in-repo (§11.4.278, gate-code declared a separate work item)
 CM-UI-QA-DOCS-DIAGRAMS-SYNC	OWED-GATE-141	asserts (per §11.4.278, added 2026-10-13) every catalogued screen/flow has its manual/guide/FAQ entry and diagram; a change adding a screen without them FAILs; blocked: no doc-vs-catalogue harness exists in-repo (§11.4.278, gate-code declared a separate work item)
 CM-UI-QA-READINESS-GATE	OWED-GATE-142	asserts (per §11.4.278, added 2026-10-13) manual-QA hand-off is blocked until the coverage gates above are GREEN (§11.4.236); blocked: no hand-off gate input harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+CM-VISION-MODEL-IDENTITY-RECORDED	OWED-GATE-143	asserts (per §11.4.278(L), added 2026-10-21) every Vision verdict and run summary carries the full model identity fields and a tier from the declared ladder; a lower-tier PASS presented as a higher-tier one FAILs; blocked: no Vision-verdict record harness exists in-repo (§11.4.278(L), gate-code declared a separate work item)
+CM-CONTEXT-FOOTPRINT-BUDGET	OWED-GATE-144	asserts (per §11.4.141 M2, added 2026-10-17 in f9290df) a declared always-loaded byte budget exists, is mechanically enforced, and its instrument is control-needled (§11.4.273); blocked: no always-loaded-footprint harness exists in-repo (§11.4.141, gate-code declared a separate work item); registered 2026-10-21 - f9290df named the gate without this row, which raised the ledger to 395
+CM-NO-INLINED-GOVERNANCE-IN-ALWAYS-LOADED-FILE	OWED-GATE-145	asserts (per §11.4.141 M3, added 2026-10-17 in f9290df) an always-loaded agent file restating anchor bodies beyond the declared budget FAILs; blocked: no inlined-anchor-body detector exists in-repo (§11.4.141, gate-code declared a separate work item); registered 2026-10-21 - f9290df named the gate without this row, which raised the ledger to 396

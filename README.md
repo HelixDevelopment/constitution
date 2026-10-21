@@ -4,14 +4,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-05-14 |
-| Last modified | 2026-10-19T13:50:14Z |
+| Last modified | 2026-10-21T17:56:25Z |
 | Status | active |
 | Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process) |
+| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31 dependency-manifest section, engine, gate and documentation links) |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -200,7 +200,7 @@ Own-org (declared in `helix-deps.yaml`):
 | `session_orchestrator` | `vasic-digital/session_orchestrator` | `78b77bb` | §11.4.187 multi-track ruler substrate |
 | `token_optimizer` | `vasic-digital/token_optimizer` | `c0591b5` | §11.4.141 token-optimization engine |
 | `helix_perf_cache` | `HelixDevelopment/helix_perf_cache` | `6adcfb2` | shared build/test result cache with fingerprint invalidation |
-| `llmctl` | `vasic-digital/llmctl` | `v3.2.2` (`5c3dea5`) | §11.4.277 model manager and validation gate — depth-1 only, **never** initialised recursively (`recursive_init: false`, enforced by `CM-LLMCTL-SUBMODULE-NONRECURSIVE`) |
+| `llmctl` | `vasic-digital/llmctl` | `f42bad6` (main, describe `helixconstitution-v70-68-gf42bad6`) | §11.4.277 model manager and validation gate — nests no own-org repository (resolves the canon, `containers` and `superspec` via `lib/resolve_deps.sh`); depth-1 only, **never** initialised recursively because it nests third-party `llama.cpp` and `colibri` (`recursive_init: false`, checked by `CM-LLMCTL-SUBMODULE-NONRECURSIVE` and `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
 | `design-toolkit` | `vasic-digital/design-toolkit` | `4ddc964` (tag `v0.2.2` + 14) | §11.4.162 OpenDesign design-token and brand-contract engine |
 
 Third-party (pinned, not modified here): `agentic-validation`
@@ -222,6 +222,25 @@ Third-party (pinned, not modified here): `agentic-validation`
 owned-by-us repository under `vasic-digital` and `HelixDevelopment`
 (§11.4.74), categorised into capability groups.
 
+### Dependency manifests (§11.4.31)
+
+Every own-org repository — your project root, every repository under
+`<root>/submodules/`, the `constitution` hub and every repository under
+`<root>/constitution/submodules/` — carries a tracked `helix-deps.yaml`.
+One engine checks and generates them, by reference from this submodule:
+
+```bash
+bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .            # check the whole tree
+bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --scaffold . --write # first manifest for a new project
+```
+
+The gate `CM-HELIX-DEPS-MANIFEST-PRESENT`
+(`scripts/gates/cm_helix_deps_manifest_present.sh`) runs it on every pull.
+Documentation:
+[user guide](docs/guides/dependency_manifest_user_guide.md) ·
+[manual](docs/manuals/dependency_manifest_manual.md) ·
+[FAQ](docs/faq/dependency_manifest_faq.md).
+
 ## Tooling map
 
 | Path | Contents |
@@ -240,8 +259,9 @@ owned-by-us repository under `vasic-digital` and `HelixDevelopment`
 | `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle` |
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
 | `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`) |
-| `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files |
-| `docs/` | guides (shell-instrument footguns), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
+| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
 
 ## How to consume
 
@@ -266,10 +286,15 @@ git clone --recurse-submodules <your-project-url>
 git submodule update --init --recursive
 ```
 
-`submodules/llmctl` is the one exception: initialise it one level deep
-only (`git submodule update --init submodules/llmctl`), never with
-`--recursive`, or the mutual reference between llmctl and this
-constitution would loop.
+`submodules/llmctl` and `submodules/claude_toolkit` are the exceptions
+(`recursive_init: false` in `helix-deps.yaml`): initialise them one level
+deep only (`git submodule update --init submodules/llmctl
+submodules/claude_toolkit`), never with `--recursive`. llmctl no longer
+vendors this constitution (it resolves it, `containers` and `superspec`
+via `lib/resolve_deps.sh`), but it nests the third-party `llama.cpp` and
+`colibri`, which are never initialised recursively; the recorded
+`claude_toolkit` pin still nests own-org repositories, including this
+constitution, until claude_toolkit removes those nests upstream and its pin is bumped (pending).
 
 ### 2. Wire the inheritance
 
@@ -414,11 +439,11 @@ within a primary version.
 | `constitution_index.yaml`, `groups/` | Generated anchor index and the 12 topical group files. |
 | `progressive/` | The progressive-disclosure layer (see above). |
 | `CHANGELOG.md` | Release notes and version log. |
-| `helix-deps.yaml` | Own-org dependency manifest (§11.4.31). |
+| `helix-deps.yaml` | Own-org dependency manifest (§11.4.31); every own-org repository carries one, checked by `scripts/deps_manifest/verify_helix_deps_manifests.sh`. |
 | `submodules/`, `submodules-catalogue.md` | Dependency submodules and the owned-repository inventory. |
 | `scripts/`, `tests/`, `skills/`, `plugins/`, `mcp/`, `actions/`, `config/` | Tooling, tests, skills, plugins, MCP definitions, prefix-action registry, gate configuration. |
-| `docs/` | Guides, research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
-| `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files. |
+| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md)), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md)), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
+| `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files and `helix-deps.yaml.template` (§11.4.31). |
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
 | `LICENSE` | Apache License 2.0, governing the constitution text itself. |

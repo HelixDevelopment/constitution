@@ -28,6 +28,14 @@ constitution wins.
 
 <project-specific test scripts, gates, suites>
 
+### Dependency manifest (§11.4.31)
+
+`helix-deps.yaml` at the project root and in every own-org submodule
+(`submodules/*`, `constitution/submodules/*`). Adding, removing or
+re-pinning an own-org submodule updates its `deps` entry in the same
+commit. Check: `bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .`
+Guide: `constitution/docs/guides/dependency_manifest_user_guide.md`.
+
 ### Deployment / flash / publish
 
 <project-specific deployment / flash / release scripts>

@@ -37,6 +37,13 @@ explicitly overridden below.
 
 Third-party submodules excluded.
 
+Every own-org repository above — and this project's root — carries a
+tracked `helix-deps.yaml` (Universal §11.4.31). Bootstrap it with
+`bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --scaffold . --write`
+(start from `constitution/templates/helix-deps.yaml.template`), fill every
+placeholder, and keep it green with
+`bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .`.
+
 ---
 
 ## Project-specific remotes
