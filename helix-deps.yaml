@@ -59,7 +59,7 @@ deps:
 
   - name: anti_bluff
     ssh_url: git@github.com:vasic-digital/anti_bluff.git
-    ref: d060d08             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was bcc7f3d, drifted)
+    ref: d060d08             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was bcc7f3d, drifted; main also re-synced it on the label-sync merge after cascade 94b8836, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "shared anti-bluff verification primitives (§11.4 covenant family) — ab_pass_with_evidence / ab_skip_with_reason helpers, sink-side taxonomy per §11.4.69, stress+chaos helpers per §11.4.85; consumed by challenge scripts across the constitution consumer fleet"
     layout: grouped
 
@@ -71,7 +71,7 @@ deps:
 
   - name: token_optimizer
     ssh_url: git@github.com:vasic-digital/token_optimizer.git
-    ref: 2002db5             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was c0591b5, drifted)
+    ref: 2002db5             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was c0591b5, drifted; main also re-synced it on the label-sync merge after cascade 94b8836, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "§11.4.141 heavy token-optimization engine — compact-anchor rewriter, targeted-read planner, evidence-hash reference builder, subagent-context-isolation helpers; always-on default per §11.4.198 (default mechanisms always-on)"
     layout: grouped
 
@@ -83,7 +83,7 @@ deps:
 
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: f42bad6             # pinned sha (commit f42bad68325eb9cd599b55f83b406e581f66fd76 = the staged gitlink; remote main tip on all 5 remotes per `git ls-remote` 2026-10-21; describe: helixconstitution-v70-68-gf42bad6)
+    ref: f42bad6             # pinned sha (commit f42bad68325eb9cd599b55f83b406e581f66fd76 = the staged gitlink, a descendant of main's re-synced 5354354; remote main tip on all 5 remotes per `git ls-remote` 2026-10-21; describe: helixconstitution-v70-68-gf42bad6; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. Hub engine: nests no own-org repository; resolves the canon, containers and superspec via lib/resolve_deps.sh (§11.4.28(C)); its own helix-deps.yaml marks superspec third_party."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at f42bad6

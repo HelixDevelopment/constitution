@@ -175,9 +175,11 @@ _native_model() {
   [[ -r "$transcript" ]] || { printf '%s' '?'; return; }
 
   raw=""
+  # "<synthetic>" assistant entries are written by the client itself (API
+  # errors, isApiErrorMessage) — never a model, skipped (re-review finding 4).
   if command -v jq >/dev/null 2>&1; then
     raw="$(tail -n 500 "$transcript" 2>/dev/null \
-      | jq -r 'select(.type=="assistant") | .message.model // empty' 2>/dev/null \
+      | jq -r 'select(.type=="assistant") | .message.model // empty | select(. != "<synthetic>")' 2>/dev/null \
       | tail -n1)"
   fi
   if [[ -z "$raw" ]]; then
@@ -191,7 +193,7 @@ _native_model() {
     # substring match, not a structural parse — installing `jq` closes this
     # gap entirely (preferred path above).
     raw="$(tail -n 500 "$transcript" 2>/dev/null \
-      | grep '"type":"assistant"' \
+      | grep '"type":"assistant"' | grep -v '"model":"<synthetic>"' \
       | sed -n 's/.*"message":{"model":"\([^"]*\)".*/\1/p' \
       | tail -n1)"
   fi
@@ -263,6 +265,22 @@ for _cand in "${CLAUDE_EFFORT:-}" "${CLAUDE_CODE_EFFORT:-}" "${AGENT_EFFORT:-}" 
     *)                         _ef='?' ;;   # present but out-of-ladder -> honest '?'
   esac
   break                            # the first PRESENT signal is authoritative
+done
+
+# --- field hygiene ------------------------------------------------------------
+# A field must never end the label early or split it: git allows ')' in a
+# branch name (`fix(ui)`), and a ')' or ' - ' inside a field made every parser
+# (the guard hook's LABEL_RE, label-sync's Go grammar and hook parser) reject
+# or mis-split the label — the alias was lost and a pinned session silently
+# followed another alias (label-sync review-2 finding 1). Same substitution as
+# the label-sync renderer (label.Compose): ')' -> '_', ' - ' -> '_', and the
+# line-breaking controls -> '_'. Builtins only (no spawn on the hook path).
+for _v in _br _al _mo; do
+  _x="${!_v}"
+  _x="${_x//)/_}"; _x="${_x// - /_}"
+  _x="${_x//$'\n'/_}"; _x="${_x//$'\r'/_}"; _x="${_x//$'\t'/_}"
+  [[ -n "$_x" ]] || _x='?'
+  printf -v "$_v" '%s' "$_x"
 done
 
 printf '(T%s/%s - %s - %s - %s)\n' "$_n" "$_br" "$_al" "$_mo" "$_ef"
