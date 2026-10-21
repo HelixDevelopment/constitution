@@ -50,7 +50,7 @@ deps:
 
   - name: anti_bluff
     ssh_url: git@github.com:vasic-digital/anti_bluff.git
-    ref: bcc7f3d             # pinned sha
+    ref: d060d08             # pinned sha = the gitlink (main advanced the gitlink in cascade 94b8836 without the manifest; re-synced on the label-sync merge, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "shared anti-bluff verification primitives (§11.4 covenant family) — ab_pass_with_evidence / ab_skip_with_reason helpers, sink-side taxonomy per §11.4.69, stress+chaos helpers per §11.4.85; consumed by challenge scripts across the constitution consumer fleet"
     layout: grouped
 
@@ -62,7 +62,7 @@ deps:
 
   - name: token_optimizer
     ssh_url: git@github.com:vasic-digital/token_optimizer.git
-    ref: c0591b5             # pinned sha
+    ref: 2002db5             # pinned sha = the gitlink (main advanced the gitlink in cascade 94b8836 without the manifest; re-synced on the label-sync merge, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "§11.4.141 heavy token-optimization engine — compact-anchor rewriter, targeted-read planner, evidence-hash reference builder, subagent-context-isolation helpers; always-on default per §11.4.198 (default mechanisms always-on)"
     layout: grouped
 
@@ -74,7 +74,7 @@ deps:
 
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: v3.2.2              # pinned tag (commit 5c3dea57fb35215cdaa4b7412da438e7a8d96d86); exists on the remote
+    ref: 5354354             # pinned sha = the gitlink (main advanced the gitlink 56 commits past tag v3.2.2 = 5c3dea57fb35 in cascade 94b8836 without the manifest; re-synced on the label-sync merge, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. NOTE: llmctl vendors this constitution as its own `constitution` submodule (mutual reference); depth-1 hub entry, non-recursive init per the operator decision recorded in the header and §11.4.277(B)."
     layout: grouped
     recursive_init: false    # operator decision: NEVER `--recursive` for this path (mutual reference with this constitution); gate CM-LLMCTL-SUBMODULE-NONRECURSIVE
