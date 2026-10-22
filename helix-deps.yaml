@@ -19,16 +19,19 @@
 # matching on each engine's nested URLs; CM-LLMCTL-SUBMODULE-NONRECURSIVE
 # (scripts/gates/cm_llmctl_submodule_nonrecursive.sh) stays as a narrower
 # re-entry check. Both run from scripts/post_update_hook.sh on every pull.
-# HONEST STATE (measured 2026-10-21, §11.4.6): llmctl at f42bad6 nests no
+# HONEST STATE (measured 2026-10-22, §11.4.6): llmctl at f42bad6 nests no
 # own-org repository any more (only third-party llama.cpp and colibri; it
 # resolves constitution, containers and superspec via lib/resolve_deps.sh), so
-# both gates PASS for llmctl. The claude_toolkit commit recorded here STILL
-# nests own-org repositories (LLMsVerifier, containers, challenges,
-# claude-code-router, HelixConstitution), so CM-HUB-ENGINE-NO-OWNORG-NESTING
-# FAILs for it until claude_toolkit drops its own-org nests and ships a tracked helix-deps.yaml upstream (its remote HEAD 0fd0c5e still nests LLMsVerifier and claude-code-router), then this pin is bumped (pending, tracked work). Both entries
-# keep the marker `recursive_init: false` — consumers initialise them one level
-# only, WITHOUT --recursive (llmctl: its third-party nests are never initialised
-# recursively; claude_toolkit: its own-org nests).
+# both gates PASS for llmctl. claude_toolkit at 1f6dad3 is flat as well: its
+# only nested submodule is third-party submodules/go (go.googlesource.com), its
+# own-org deps (HelixConstitution, containers, challenges, LLMsVerifier,
+# claude-code-router) resolve flat via scripts/resolve_deps.sh, and it ships a
+# tracked helix-deps.yaml; CM-HUB-ENGINE-NO-OWNORG-NESTING and
+# CM-HELIX-DEPS-MANIFEST-PRESENT PASS for it. Both entries keep the marker
+# `recursive_init: false` — consumers initialise them one level only, WITHOUT
+# --recursive (llmctl: llama.cpp + colibri; claude_toolkit: the Go toolchain
+# checkout under submodules/go — third-party nests are never initialised
+# recursively).
 #
 # Discovered gap: constitution/helix-deps.yaml was MISSING until
 # 2026-08-15 (chain-audit finding, subagent a2cf7f91). Created inline
@@ -96,10 +99,10 @@ deps:
 
   - name: claude_toolkit
     ssh_url: git@github.com:vasic-digital/claude_toolkit.git
-    ref: v1.30.5             # pinned tag (commit 223c7025d250138082b56aaddf6e38ae033c172e = the recorded gitlink; tag present per `git ls-remote` 2026-10-21)
-    why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact"
+    ref: 1f6dad3             # pinned sha (commit 1f6dad3bca8a1a003fce362388f697ff2d9ef3a6 = the staged gitlink; remote main tip on origin/github/gitlab/gitverse/gitflic/upstream per `git ls-remote` 2026-10-22; no release tag points at it, describe: v1.30.5-14-g1f6dad3; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact. Nests no own-org repository; resolves the canon, containers, challenges, LLMsVerifier and claude-code-router flat via scripts/resolve_deps.sh (§11.4.28(C)); ships its own helix-deps.yaml."
     layout: grouped
-    recursive_init: false    # NEVER `--recursive`: the recorded pin still nests own-org repositories incl. HelixConstitution (§11.4.28(C)); gate CM-HUB-ENGINE-NO-OWNORG-NESTING FAILs until claude_toolkit's upstream drops its own-org nests and this pin is bumped to that commit
+    recursive_init: false    # NEVER `--recursive` for this path: claude_toolkit nests the third-party Go toolchain (submodules/go, go.googlesource.com), which is never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-HELIX-DEPS-MANIFEST-PRESENT PASS at 1f6dad3
 
   - name: superspec
     ssh_url: git@github.com:WangX0111/superspec.git
@@ -130,9 +133,8 @@ transitive_handling:
   # leaves for own-org repositories (`deps: []`): they resolve the canon and
   # their siblings through the hub, never by nesting them. `recursive: true`
   # stays the default so tooling walks the manifest chain, with ONE explicit
-  # exception: any dep entry carrying `recursive_init: false` (llmctl — nests
-  # third-party repositories; claude_toolkit — its recorded pin still nests
-  # own-org repositories) MUST
+  # exception: any dep entry carrying `recursive_init: false` (llmctl and
+  # claude_toolkit — both nest third-party repositories only) MUST
   # be neither initialised with `git submodule update --recursive` nor walked
   # into by manifest-walking tooling. Entries with `third_party: true` are not
   # own-org dependencies and are never walked for own-org manifests.

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-21 |
-| Last modified | 2026-10-21T17:56:25Z |
+| Last modified | 2026-10-22T00:34:17Z |
 | Status | active |
 | Status summary | Questions raised while landing the §11.4.31 extension (2026-10-21) and while running the verifier on real trees, with the answers the engine and the constitution give. |
 | Authority | Constitution §11.4.31. The canonical text wins where this FAQ and the constitution disagree. |
@@ -67,7 +67,9 @@ Where the dependency lives at the consuming root: `<root>/<name>/`, `<root>/subm
 
 **12. What is `recursive_init: false` for?**
 It marks an entry that must be initialised one level only, never with `git submodule update --recursive`,
-because its recorded pin still nests own-org repositories. Tooling does not walk into it.
+because its recorded pin nests other repositories. Tooling does not walk into it. On the constitution hub
+(measured 2026-10-22) both such entries, `llmctl` and `claude_toolkit`, nest third-party repositories only; an
+engine that nests an own-org repository is a defect that `CM-HUB-ENGINE-NO-OWNORG-NESTING` reports.
 
 **13. Can I add my own keys, like `owner:`?**
 No. The key sets are closed; an unknown key fails, which is how typos such as `layuot:` are caught.

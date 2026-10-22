@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-21 |
-| Last modified | 2026-10-21T20:13:49Z |
+| Last modified | 2026-10-22T00:34:17Z |
 | Status | active |
 | Status summary | Complete reference for the §11.4.31 manifest: schema, layouts, hub engines, transitive handling, the canonical engine (walk, verdicts, exit codes, control needles, scaffold), the gate, and troubleshooting. |
 | Authority | Constitution §11.4.31 (EXTENSION of 2026-10-21). The canonical text wins where this manual and the constitution disagree. |
@@ -142,8 +142,12 @@ language_specific_subtree: false
 
 The constitution is the one hub (§11.4.28(C) carve-out). It hosts depth-1 engines under its own
 `submodules/`. Engines MUST be leaves: they resolve the canon and their siblings through the hub
-(`find_constitution.sh` / the §11.4.28(C) resolver) and never nest them. An engine whose recorded pin still
-nests own-org repositories keeps `recursive_init: false` on its entry until the engine stops nesting them upstream and its pin is bumped to that commit.
+(`find_constitution.sh` / the §11.4.28(C) resolver) and never nest them. An engine whose recorded pin nests any
+repository (own-org or third-party) keeps `recursive_init: false` on its entry; an own-org nest is a defect
+owned by `CM-HUB-ENGINE-NO-OWNORG-NESTING` until the engine stops nesting it upstream and its pin is bumped
+to that commit. Measured 2026-10-22 on the constitution hub: no engine pin nests an own-org repository
+(`llmctl` at `f42bad6` nests third-party `llama.cpp` and `colibri`; `claude_toolkit` at `1f6dad3` nests
+the third-party Go toolchain), so `recursive_init: false` on both entries now guards third-party nests only.
 
 ## 5. Transitive handling
 

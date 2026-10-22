@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-21 |
-| Last modified | 2026-10-21T17:56:25Z |
+| Last modified | 2026-10-22T00:34:17Z |
 | Status | active |
 | Status summary | Task-oriented guide for the §11.4.31 dependency manifest: bootstrap a project, add a dependency, add a submodule, scaffold, validate, fix every failure the verifier reports. |
 | Authority | Constitution §11.4.31 (EXTENSION of 2026-10-21) — the canonical text wins where this guide and the constitution disagree. |
@@ -159,7 +159,7 @@ instead.
 | `unknown key` / `duplicate key` | Typo or a key written twice | Remove or rename it (see the manual for the closed key set) |
 | `schema_version must be 1` | Wrong version | `schema_version: 1` |
 | `BLIND … not checked out` | An own-org submodule is declared but not initialised | `git submodule update --init -- <path>` (one level, never `--recursive` for entries marked `recursive_init: false`) |
-| `KNOWN … recursive_init: false` | A hub engine still nests own-org repositories; tracked by `CM-HUB-ENGINE-NO-OWNORG-NESTING` | Bump that engine's pin once its upstream stops nesting |
+| `KNOWN … recursive_init: false` | A hub engine nests own-org repositories (none does on the constitution hub as of 2026-10-22); tracked by `CM-HUB-ENGINE-NO-OWNORG-NESTING` | Bump that engine's pin once its upstream stops nesting |
 
 ## Task 7 — use your own organisation list
 

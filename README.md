@@ -185,8 +185,8 @@ is always announced, never silent.
 ## Dependency submodules
 
 The constitution is a hub (the §11.4.28(C) depth-1 carve-out): it hosts
-23 submodules under `submodules/`. Eight are own-org and are declared in
-`helix-deps.yaml` (§11.4.31); fifteen are third-party skill, tool and
+27 submodules under `submodules/`. Ten are own-org and are declared in
+`helix-deps.yaml` (§11.4.31); seventeen are third-party skill, tool and
 reference repositories pinned read-only. Pins below are the recorded
 gitlinks.
 
@@ -196,11 +196,13 @@ Own-org (declared in `helix-deps.yaml`):
 |---|---|---|---|
 | `docs_chain` | `vasic-digital/docs_chain` | `8e0abe0` (tag `helixcode-v1.1.0` + 12) | §11.4.106 documentation-and-database sync/verify engine |
 | `continuum` | `vasic-digital/continuum` | `4639347` | §11.4.207 instant multi-stream resume engine |
-| `anti_bluff` | `vasic-digital/anti_bluff` | `bcc7f3d` | shared anti-bluff verification primitives (§11.4) |
+| `anti_bluff` | `vasic-digital/anti_bluff` | `d060d08` | shared anti-bluff verification primitives (§11.4) |
 | `session_orchestrator` | `vasic-digital/session_orchestrator` | `78b77bb` | §11.4.187 multi-track ruler substrate |
-| `token_optimizer` | `vasic-digital/token_optimizer` | `c0591b5` | §11.4.141 token-optimization engine |
+| `token_optimizer` | `vasic-digital/token_optimizer` | `2002db5` | §11.4.141 token-optimization engine |
 | `helix_perf_cache` | `HelixDevelopment/helix_perf_cache` | `6adcfb2` | shared build/test result cache with fingerprint invalidation |
 | `llmctl` | `vasic-digital/llmctl` | `f42bad6` (main, describe `helixconstitution-v70-68-gf42bad6`) | §11.4.277 model manager and validation gate — nests no own-org repository (resolves the canon, `containers` and `superspec` via `lib/resolve_deps.sh`); depth-1 only, **never** initialised recursively because it nests third-party `llama.cpp` and `colibri` (`recursive_init: false`, checked by `CM-LLMCTL-SUBMODULE-NONRECURSIVE` and `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
+| `containers` | `vasic-digital/Containers` | `919ad1e` (main, describe `helixcode-v1.1.0-159-g919ad1e`) | §11.4.76 / §11.4.161 rootless container orchestration layer, provided flat so engines resolve it instead of nesting it |
+| `claude_toolkit` | `vasic-digital/claude_toolkit` | `1f6dad3` (main, describe `v1.30.5-14-g1f6dad3`) | multi-alias / provider toolkit (§11.4.196 / §11.4.198) — nests no own-org repository (resolves the canon, `containers`, `challenges`, `LLMsVerifier` and `claude-code-router` flat via `scripts/resolve_deps.sh`) and ships its own `helix-deps.yaml`; depth-1 only, **never** initialised recursively because it nests the third-party Go toolchain (`submodules/go`) (`recursive_init: false`, checked by `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
 | `design-toolkit` | `vasic-digital/design-toolkit` | `4ddc964` (tag `v0.2.2` + 14) | §11.4.162 OpenDesign design-token and brand-contract engine |
 
 Third-party (pinned, not modified here): `agentic-validation`
@@ -216,7 +218,10 @@ Third-party (pinned, not modified here): `agentic-validation`
 (ArcBlock/agent-skills), `verify` (KeyValueSoftwareSystems/maestro),
 `video-quality-mcp` (hlpsxc/video-quality-mcp), `watch-skill`
 (oxbshw/watch-skill, `deepwatch-v0.1.4`) and `wave-dpctf`
-(cta-wave/device-observation-framework, `v2.1.0` + 9).
+(cta-wave/device-observation-framework, `v2.1.0` + 9), plus `superspec`
+(WangX0111/superspec, `v1.0.2`, MIT) and `open_design` (nexu-io/open-design,
+Apache-2.0, the §11.4.162 reference checkout), both declared in
+`helix-deps.yaml` with `third_party: true`.
 
 `submodules-catalogue.md` is the separate inventory of every
 owned-by-us repository under `vasic-digital` and `HelixDevelopment`
@@ -292,9 +297,13 @@ deep only (`git submodule update --init submodules/llmctl
 submodules/claude_toolkit`), never with `--recursive`. llmctl no longer
 vendors this constitution (it resolves it, `containers` and `superspec`
 via `lib/resolve_deps.sh`), but it nests the third-party `llama.cpp` and
-`colibri`, which are never initialised recursively; the recorded
-`claude_toolkit` pin still nests own-org repositories, including this
-constitution, until claude_toolkit removes those nests upstream and its pin is bumped (pending).
+`colibri`, which are never initialised recursively. claude_toolkit (pin
+`1f6dad3`) no longer nests any own-org repository either — it resolves this
+constitution and its siblings flat via `scripts/resolve_deps.sh` and ships a
+tracked `helix-deps.yaml` — but it nests the third-party Go toolchain
+(`submodules/go`), which is never initialised recursively. Measured
+2026-10-22: `CM-HUB-ENGINE-NO-OWNORG-NESTING` and
+`CM-HELIX-DEPS-MANIFEST-PRESENT` both PASS for every engine.
 
 ### 2. Wire the inheritance
 
