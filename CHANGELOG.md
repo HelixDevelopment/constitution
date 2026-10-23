@@ -1,8 +1,8 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
-## helixconstitution-v71 — 2026-10-23 — Decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution (UNRELEASED: tag and release-commit hash are filled at tag time)
+## helixconstitution-v71 — 2026-10-23 — Decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution
 
-**Previous tag:** `helixconstitution-v70` (`b95b853cc5c1eb61e6b5b7098026cf2b82c0605f`, 2026-10-19). **Base commit of the pre-existing part of this entry:** `5f8503b` (2026-10-22). 80 commits separate it from v70 (`git rev-list --count helixconstitution-v70..5f8503b`); the diff is 154 files, 22,390 insertions, 679 deletions (`git diff --stat helixconstitution-v70 5f8503b`). The decision-layer addition below is on top of that base and is not yet committed at the time of writing; the tag and the release-commit hash are NOT recorded here because they do not exist yet.
+**Previous tag:** `helixconstitution-v70` (`b95b853cc5c1eb61e6b5b7098026cf2b82c0605f`, 2026-10-19). **Base commit of the pre-existing part of this entry:** `5f8503b` (2026-10-22). 80 commits separate it from v70 (`git rev-list --count helixconstitution-v70..5f8503b`); the diff is 154 files, 22,390 insertions, 679 deletions (`git diff --stat helixconstitution-v70 5f8503b`). The decision-layer addition is two commits on top of that base (`089f789` the Jev layer; the second moves the `claude_toolkit` pin to `adae02d`, tag `claude_toolkit-1.32.0`). The release tag is `helixconstitution-v71`; a tag cannot name its own commit inside the file it tags, so the release commit is whatever `git rev-list -n1 helixconstitution-v71` returns.
 
 ### Added
 

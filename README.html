@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc 3.10" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Helix Constitution</title>
+  <title>README</title>
   <style>
 
 span.smallcaps{font-variant: small-caps;}
@@ -439,7 +439,26 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </style>
 </head>
 <body>
+<header id="title-block-header">
+<h1 class="title">README</h1>
+</header>
 <h1 id="helix-constitution">Helix Constitution</h1>
+<p><img src="https://img.shields.io/badge/version-v71-green"
+alt="Version" /> <img
+src="https://img.shields.io/badge/anchors-296-green" alt="Anchors" />
+<img src="https://img.shields.io/badge/groups-12-green" alt="Groups" />
+<img src="https://img.shields.io/badge/gates-161%2F161_paired-green"
+alt="Gates" /> <img
+src="https://img.shields.io/badge/mutation__tests-164-green"
+alt="Mutation" /> <img
+src="https://img.shields.io/badge/progressive-289_rules-red"
+alt="Progressive" /> <img
+src="https://img.shields.io/badge/submodules-27%2F27_linked-green"
+alt="Submodules" /> <img
+src="https://img.shields.io/badge/twins-0%2F7_current-amber?color=ffbf00"
+alt="Twins" /> <img
+src="https://img.shields.io/badge/readiness-blocked-red"
+alt="Readiness" /></p>
 <table>
 <thead>
 <tr>
@@ -450,7 +469,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <tbody>
 <tr>
 <td>Revision</td>
-<td>5</td>
+<td>9</td>
 </tr>
 <tr>
 <td>Created</td>
@@ -458,7 +477,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Last modified</td>
-<td>2026-10-05T09:58:19Z</td>
+<td>2026-10-23T00:00:00Z</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -466,33 +485,30 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Status summary</td>
-<td>Universal engineering constitution shared by every project that
-includes this repository as a Git submodule. R5 refresh (2026-10-05 —
-closing a ~49-anchor staleness gap the prior R4 blurb had accumulated
-since 2026-07-23): the anchor corpus now extends through §11.4.276
-(§11.4.276 review-round budget — every independently-reviewed work item
-converges within a declared budget of at most 7 rounds, landed
-2026-10-05 off a direct operator CRITICAL mandate about excessive
-review-round counts; §11.4.268–§11.4.271 the speckit
-002-anti-slop-enforcement tamper-evident-evidence / critic-advisory-only
-/ dependency-existence-verdict / waiver-mechanism quartet;
-§11.4.257–§11.4.267 the 2026-08-15/2026-08-20 enterprise-quality +
-AI-curriculum harvest rounds; §11.4.230–§11.4.254 the
-parallelized-pipeline, nano-precision model-tier, anti-mess
-orchestration, and critical-invariant/producer-verifier-separation
-families) plus the §12.11/§12.12 host-safety axes, with governance
-mirrored in lockstep across CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md
-(§11.4.157); the authoritative per-round history lives in
-Constitution.md&#39;s own header Status summary — this README&#39;s own summary
-is a point-in-time pointer to that history, not a substitute for it, and
-is expected to go stale again between refreshes (consult
-Constitution.md&#39;s header for the true current state). The prior R4 blurb
-(anchor corpus &quot;now extends through §11.4.227&quot;, written 2026-07-23) had
-itself gone stale by roughly 49 anchors before this refresh — the same
-staleness pattern R4 had flagged in its own predecessor (the R2 blurb,
-stale by ~150 anchors) recurring one cycle later; readers of this file
-should treat the Constitution.md header as authoritative whenever the
-two could plausibly have drifted.</td>
+<td>R8 refresh (2026-10-23, unreleased — next tag
+<code>helixconstitution-v71</code>, tag and hash filled at tag time):
+the decision layer (Jev) added — anchors §11.4.279–§11.4.286, a
+dedicated README section with a flow diagram, and updated
+dependency/tooling tables; the badge row is NOT hand-edited and must be
+recomputed with <code>scripts/badges/compute_badges.sh</code>. Earlier:
+Universal engineering constitution shared by every project that includes
+this repository as a Git submodule. R7 refresh (2026-10-19, release
+<code>helixconstitution-v70</code>): every figure on this page is
+computed from the repository, not typed — see "Facts at a glance" and
+<code>scripts/badges/compute_badges.sh</code>. The canon
+(<code>Constitution.md</code>, revision 76) defines anchors through
+§11.4.278; this release adds the progressive-disclosure layer
+(<code>progressive/</code>), the independent audit + remediation of the
+optimization packs, the §11.4.141 M2–M9 token-efficiency measures,
+§11.4.277 / §11.4.278 with the vendored <code>llmctl</code>, the
+SIGPIPE-class gate hardening and the README quality-badge computer
+(§11.4.259 applied to this repository). The authoritative per-round
+history stays in <code>Constitution.md</code>'s own header and in
+<code>CHANGELOG.md</code>; this page is a point-in-time pointer and the
+badge row says honestly when it is stale. The rendered twins of the
+governance files (<code>.html</code> / <code>.pdf</code> /
+<code>.docx</code>) are NOT regenerated in this release and are declared
+PENDING upstream regeneration (amber <code>Twins</code> badge).</td>
 </tr>
 <tr>
 <td>Issues</td>
@@ -506,11 +522,13 @@ two could plausibly have drifted.</td>
 <td>Fixed</td>
 <td>initial creation (R1, 2026-05-14); README overhaul +
 recent-additions refresh (R2, 2026-05-20); revision-header +
-recent-anchor-coverage refresh (R3, 2026-07-23 — review Minor M3 of
-commit 698dd52); revision-header + recent-anchor-coverage refresh (R4,
-2026-07-23 — the §11.4.226/§11.4.227 reopen-root-cause-harvest round);
-revision-header + recent-anchor-coverage refresh (R5, 2026-10-05 —
-closing the §11.4.227→§11.4.276 staleness gap).</td>
+recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 —
+§11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the
+§11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 /
+§11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite
+against the live repository state, badge row, progressive-disclosure
+layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31
+dependency-manifest section, engine, gate and documentation links)</td>
 </tr>
 <tr>
 <td>Fixed summary</td>
@@ -528,101 +546,1016 @@ includes this repository as a Git submodule.</p>
 </blockquote>
 <h2 id="what-this-is">What this is</h2>
 <p>This repository contains the <strong>universal,
-project-agnostic</strong> rules, constraints, and conventions that every
-Helix project (and any other project that opts in) inherits
-automatically. Project-specific rules live in the consuming project&#39;s
+project-agnostic</strong> rules, constraints, conventions and tooling
+that every Helix project (and any other project that opts in) inherits
+automatically. Project-specific rules live in the consuming project's
 own <code>Constitution.md</code> / <code>CLAUDE.md</code> /
-<code>AGENTS.md</code> / <code>QWEN.md</code> and
-<strong>extend</strong> what is in here.</p>
+<code>AGENTS.md</code> / <code>QWEN.md</code> / <code>GEMINI.md</code>
+and <strong>extend</strong> what is in here.</p>
 <p>The model is three-layer (top-to-bottom evaluation, project overrides
 universal when conflicts are explicit):</p>
 <ol type="1">
-<li><strong>Base layer (this submodule)</strong> — universal rules:
-anti-bluff covenant (§11.4), data safety, host safety, test coverage,
-commit/ push discipline, credentials handling (§11.4.10), documentation
-discipline (§11.4.65), submodule-catalogue-first discovery (§11.4.74),
-containers-submodule mandate (§11.4.76).</li>
-<li><strong>Project layer</strong> — project root
+<li><strong>Base layer (this submodule)</strong> — universal rules: the
+anti-bluff covenant (§11.4), data safety (§9), host safety (§12), test
+coverage, commit/push discipline, credentials handling (§11.4.10),
+documentation discipline (§11.4.65), submodule-catalogue-first discovery
+(§11.4.74), containers-submodule mandate (§11.4.76), release/QA gates,
+and the machinery (gates, validators, engines) that makes those rules
+mechanically checkable.</li>
+<li><strong>Project layer</strong> — the project root
 <code>Constitution.md</code> / <code>CLAUDE.md</code> /
-<code>AGENTS.md</code> / <code>QWEN.md</code>: domain-specific rules,
-hardware-specific constraints, service-specific configuration.</li>
+<code>AGENTS.md</code> / <code>QWEN.md</code> / <code>GEMINI.md</code>:
+domain-specific rules, hardware-specific constraints, service-specific
+configuration.</li>
 <li><strong>Subdirectory layer (optional)</strong> —
 <code>&lt;subdir&gt;/CLAUDE.md</code> for module-local overrides. CLI
 agents (Claude Code, Codex, Cursor, OpenCode, Qwen Code, Kimi CLI,
 Crush) merge these by walking up from the working directory.</li>
 </ol>
+<h2 id="facts-at-a-glance">Facts at a glance</h2>
+<p>Every number below is computed from this repository at the commit
+this README ships in. Re-derive the machine-derived ones with
+<code>bash scripts/badges/compute_badges.sh --facts</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Value</th>
+<th>Source of truth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest release tag</td>
+<td><code>helixconstitution-v70</code> (previous:
+<code>helixconstitution-v69</code>, 2026-10-05;
+<code>helixconstitution-v68</code>, 2026-08-18)</td>
+<td><code>git tag</code>, <code>CHANGELOG.md</code></td>
+</tr>
+<tr>
+<td>Canon</td>
+<td><code>Constitution.md</code>, revision 76, 12,149 lines, 2,062,810
+bytes</td>
+<td><code>wc</code>, document header</td>
+</tr>
+<tr>
+<td>Indexed anchors</td>
+<td><strong>288</strong>, in <strong>12</strong> groups</td>
+<td><code>constitution_index.yaml</code></td>
+</tr>
+<tr>
+<td>Highest anchor number</td>
+<td>§11.4.286 (§11.4.279–§11.4.286 decision layer (Jev); §11.4.277
+llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes —
+PROPOSED, evidence pending)</td>
+<td><code>Constitution.md</code></td>
+</tr>
+<tr>
+<td>Progressive rules</td>
+<td><strong>289</strong> rule files generated from the canon (the
+288-vs-289 difference is a recorded discrepancy, see
+<code>progressive/EVIDENCE/DISCREPANCIES.md</code>)</td>
+<td><code>progressive/catalog.json</code></td>
+</tr>
+<tr>
+<td>Governance mirrors</td>
+<td><code>CLAUDE.md</code> rev 82, <code>AGENTS.md</code> rev 79,
+<code>QWEN.md</code> rev 76, <code>GEMINI.md</code> rev 50 (kept in
+lockstep per §11.4.157)</td>
+<td>document headers</td>
+</tr>
+<tr>
+<td>Mechanism gates</td>
+<td><strong>141</strong> <code>cm_*</code> gates in
+<code>scripts/gates/</code>, <strong>141</strong> with a paired mutation
+test or outside self-test; <strong>144</strong> mutation tests in
+total</td>
+<td><code>compute_badges.sh --facts</code></td>
+</tr>
+<tr>
+<td>Propagation gates</td>
+<td><strong>89</strong> <code>cm_covenant_114_*_propagation.sh</code>
+gates</td>
+<td><code>ls scripts/gates</code></td>
+</tr>
+<tr>
+<td>Shell scripts</td>
+<td>749 <code>*.sh</code> under <code>scripts/</code></td>
+<td><code>find</code></td>
+</tr>
+<tr>
+<td>Submodules</td>
+<td><strong>23</strong> declared, <strong>23</strong> recorded gitlinks
+(8 own-org, 15 third-party)</td>
+<td><code>.gitmodules</code>, <code>git ls-files -s</code></td>
+</tr>
+<tr>
+<td>Remotes</td>
+<td>6 upstreams (GitHub ×2, GitLab ×2, GitFlic, GitVerse)</td>
+<td><code>git remote -v</code></td>
+</tr>
+<tr>
+<td>Index freshness</td>
+<td>index and progressive catalog both carry the canon's SHA-256
+(<code>1667ded1…</code>)</td>
+<td><code>cm_constitution_index_fresh.sh</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="anchor-catalogue-by-group">Anchor catalogue by group</h2>
+<p>The canon is large (about 516,000 tokens), so it is also published as
+12 topical groups — one Markdown file per group under
+<code>groups/</code>, listed in <code>constitution_index.yaml</code>
+with an anchor count each. The counts below are the index's own.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th style="text-align: right;">Anchors</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>anti-bluff-and-evidence</td>
+<td style="text-align: right;">34</td>
+<td><code>groups/anti-bluff-and-evidence.md</code></td>
+</tr>
+<tr>
+<td>code-review-and-quality</td>
+<td style="text-align: right;">12</td>
+<td><code>groups/code-review-and-quality.md</code></td>
+</tr>
+<tr>
+<td>design-system-and-ui</td>
+<td style="text-align: right;">11</td>
+<td><code>groups/design-system-and-ui.md</code></td>
+</tr>
+<tr>
+<td>documentation-and-export</td>
+<td style="text-align: right;">27</td>
+<td><code>groups/documentation-and-export.md</code></td>
+</tr>
+<tr>
+<td>git-and-data-safety</td>
+<td style="text-align: right;">24</td>
+<td><code>groups/git-and-data-safety.md</code></td>
+</tr>
+<tr>
+<td>governance-and-constitution-meta</td>
+<td style="text-align: right;">37</td>
+<td><code>groups/governance-and-constitution-meta.md</code></td>
+</tr>
+<tr>
+<td>host-and-resource-safety</td>
+<td style="text-align: right;">21</td>
+<td><code>groups/host-and-resource-safety.md</code></td>
+</tr>
+<tr>
+<td>multi-track-and-parallelism</td>
+<td style="text-align: right;">13</td>
+<td><code>groups/multi-track-and-parallelism.md</code></td>
+</tr>
+<tr>
+<td>project-lifecycle-and-release</td>
+<td style="text-align: right;">46</td>
+<td><code>groups/project-lifecycle-and-release.md</code></td>
+</tr>
+<tr>
+<td>testing-and-tdd</td>
+<td style="text-align: right;">41</td>
+<td><code>groups/testing-and-tdd.md</code></td>
+</tr>
+<tr>
+<td>translation-and-localization</td>
+<td style="text-align: right;">3</td>
+<td><code>groups/translation-and-localization.md</code></td>
+</tr>
+<tr>
+<td>workable-items-and-tracking</td>
+<td style="text-align: right;">19</td>
+<td><code>groups/workable-items-and-tracking.md</code></td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td style="text-align: right;"><strong>288</strong></td>
+<td><code>constitution_index.yaml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Foundational clauses a reader meets first (each carries its verbatim
+operator mandate in a forensic-anchor block inside
+<code>Constitution.md</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Clause</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>§11.4 / §11.4.1–§11.4.16</td>
+<td>Anti-bluff covenant: positive captured evidence, FAIL-bluffs equally
+forbidden, no-guessing (§11.4.6), credentials (§11.4.10), item
+status/type tracking</td>
+</tr>
+<tr>
+<td>§9 / §9.2</td>
+<td>Absolute data safety: hardlinked backup before any destructive
+operation, rollback never forward</td>
+</tr>
+<tr>
+<td>§11.4.73</td>
+<td>Main-specification versioning: primary V<N> axis plus Revision
+secondary axis</td>
+</tr>
+<tr>
+<td>§11.4.74</td>
+<td>Submodule-catalogue-first discovery, extend-don't-reimplement
+(<code>submodules-catalogue.md</code>)</td>
+</tr>
+<tr>
+<td>§11.4.75</td>
+<td>Mechanical enforcement without exception (five-layer git-hook
+discipline)</td>
+</tr>
+<tr>
+<td>§11.4.76 / §11.4.161</td>
+<td>Containers-submodule mandate, rootless container runtime</td>
+</tr>
+<tr>
+<td>§11.4.78–§11.4.80, §11.4.275</td>
+<td>CodeGraph and Lumen code-index mandates, indexing-efficiency gate,
+agent/subagent accessibility</td>
+</tr>
+<tr>
+<td>§11.4.141</td>
+<td>Token-efficiency mandate (extended in place with measures M2–M9 in
+this release)</td>
+</tr>
+<tr>
+<td>§11.4.187 / §11.4.196 / §11.4.198</td>
+<td>Automatic multi-track ruler orchestration, native-alias-first
+priority, always-on default mechanisms</td>
+</tr>
+<tr>
+<td>§11.4.209 / §11.4.211 / §11.4.231</td>
+<td>Review and merge-conflict substrate pins (Opus <code>xhigh</code>,
+sanctioned Sonnet fallback), nano-precision model-tier selection</td>
+</tr>
+<tr>
+<td>§11.4.224</td>
+<td>Test-first for all work, with the coverage floor as
+necessary-never-sufficient</td>
+</tr>
+<tr>
+<td>§11.4.259</td>
+<td>README quality-badge row — applied to this very page (see the top of
+it)</td>
+</tr>
+<tr>
+<td>§11.4.276</td>
+<td>Review-round budget: at most 7 rounds, with a binding structural
+round at round 3</td>
+</tr>
+<tr>
+<td>§11.4.277 / §11.4.278</td>
+<td>llmctl model validation gate; HelixQA UI QA with Vision eyes
+(PROPOSED)</td>
+</tr>
+<tr>
+<td>§11.4.279–§11.4.286</td>
+<td>Decision layer (Jev): detection-first, per-agent installation,
+bootstrap wizard, instance utilization, token-reduction proof,
+pre-ladder routing (amends §11.4.231), shadow-first auto-tuning,
+<code>llmctl</code> / <code>claude_toolkit</code> dependency submodules
+— see "Decision layer (Jev)" below</td>
+</tr>
+<tr>
+<td>§12 / §12.6 / §12.12</td>
+<td>Host-session safety: 60 % memory ceiling, thread-limit headroom</td>
+</tr>
+</tbody>
+</table>
+<h2 id="progressive-disclosure-layer-progressive">Progressive-disclosure
+layer (<code>progressive/</code>)</h2>
+<p>Loading the whole canon into every agent turn is the measured root
+cause of repeated token exhaustion in consuming projects. The
+<code>progressive/</code> tree splits the canon deterministically so an
+agent loads a lean core and pulls individual rules on demand.
+<code>Constitution.md</code> itself is untouched: every existing reader
+keeps working.</p>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Path</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lean core</td>
+<td><code>progressive/core.md</code></td>
+<td>999 tokens (budget 3,000)</td>
+</tr>
+<tr>
+<td>Catalog (id, title, one-line description, tags, path)</td>
+<td><code>progressive/catalog.json</code></td>
+<td>21,052 tokens, 4.1 % of the 516,424-token monolith</td>
+</tr>
+<tr>
+<td>Rule files, one per anchor</td>
+<td><code>progressive/rules/&lt;id&gt;.md</code></td>
+<td>289 files; largest is §11.4.230 at 20,442 tokens</td>
+</tr>
+<tr>
+<td>Digests and line ranges</td>
+<td><code>progressive/rules_manifest.json</code></td>
+<td>read only by <code>verify</code> and the validators</td>
+</tr>
+<tr>
+<td>Splitter</td>
+<td><code>progressive/generate_split.py</code></td>
+<td>byte-reproducible</td>
+</tr>
+<tr>
+<td>MCP server (stdio, local, offline)</td>
+<td><code>progressive/mcp_server.py</code></td>
+<td>tools <code>search_constitution</code>, <code>load_rule</code>,
+<code>list_anchors</code>, <code>verify_anchor</code>, with per-call
+accounting</td>
+</tr>
+<tr>
+<td>Surfaces</td>
+<td><code>progressive/surfaces/</code></td>
+<td>skill and plugin <code>helix-constitution</code>,
+<code>mcp.json.template</code>, double-load guard</td>
+</tr>
+<tr>
+<td>Validators</td>
+<td><code>progressive/validate_{structure,behavior,tokens,submodule,evidence}.py</code></td>
+<td>see "Verification" below</td>
+</tr>
+<tr>
+<td>Mutation matrix</td>
+<td><code>progressive/mutation_matrix.py</code></td>
+<td>20 of 20 mutations killed
+(<code>EVIDENCE/MUTATIONS.json</code>)</td>
+</tr>
+<tr>
+<td>Token harness</td>
+<td><code>progressive/token_harness.py</code></td>
+<td>real provider measurement, below</td>
+</tr>
+<tr>
+<td>Evidence</td>
+<td><code>progressive/EVIDENCE/</code></td>
+<td>structure, behavior, tokens, mutations, anchors, risk register,
+discrepancies</td>
+</tr>
+</tbody>
+</table>
+<p>Real provider measurement (Claude Code 2.1.303, model
+<code>sonnet</code>, 24 frozen prompts, corpus SHA-256
+<code>5566abcc…</code>): the progressive arm used 1,274,168 tokens
+against 7,168,066 for the monolithic arm — a ratio of
+<strong>0.178</strong> — at a measured cost of 0.6981 USD against 2.2808
+USD, with 24 of 24 answers correct on the progressive arm against 22 of
+24 on the monolith (<code>progressive/EVIDENCE/TOKENS_AFTER.json</code>,
+<code>TOKENS_BEFORE.json</code>). One host, one model, one corpus: these
+are measurements, not guarantees.</p>
+<p><code>HELIX_CONSTITUTION_MODE</code> selects the behaviour:
+<code>progressive</code> (default: core plus on-demand rules),
+<code>dual</code> (core plus full text available) or
+<code>monolith</code> (the exact pre-optimization behaviour — emergency
+rollback, no file needs reverting).
+<code>HELIX_CONSTITUTION_PLUGIN=1</code> makes the skill defer to the
+plugin so the tools are never registered twice.</p>
+<p>Open items, recorded in <code>progressive/HANDOFF.md</code> and
+<code>progressive/EVIDENCE/DISCREPANCIES.md</code> rather than glossed
+over: the literal "catalog at most 5,000 tokens" target is not met (the
+ids plus one-line descriptions alone measure 6,034 tokens); an AOSP
+sandbox comparison needs a real build; an independent fresh-clone
+sign-off is not yet committed; twin governance files reference 20
+anchors the canon only cites, never defines
+(<code>progressive/twin_exceptions.txt</code>).</p>
+<h2 id="decision-layer-jev">Decision layer (Jev)</h2>
+<p>Anchors §11.4.279–§11.4.286 add a typed-decision routing stage in
+front of the model ladder. A judgment that fits a typed decision
+(yes/no, choice, score) is answered by a small decision model ("Jev":
+hosted via TypeSafe/OpenRouter, or the local <code>llmctl</code> decide
+gateway; Kev, Laya, Verdict and Strands profiles are the other decision
+profiles) instead of a chat model, so only generative work spends
+traditional-LLM tokens. The §11.4.231 ladder itself is unchanged. The
+text lives in <code>Constitution.md</code>; the operator documents are
+under <code>docs/jev/</code>.</p>
+<pre class="mermaid"><code>flowchart TD
+    A[Work item or tool call] --&gt; B{Typed decision?}
+    B -- no, generative --&gt; L[Model ladder: sonnet, then opus - section 11.4.231]
+    B -- yes --&gt; D[Detection record: jev-detection.json - 11.4.279]
+    D --&gt; E[Decision endpoints: local llmctl gateway, LAN pins, OpenRouter, TypeSafe - 11.4.282]
+    E --&gt; M{Mode for this question type}
+    M -- shadow: no calibrated threshold --&gt; S[Log to decisions.jsonl, answer from ladder - 11.4.285]
+    M -- enforce: calibrated --&gt; C{Confidence at or above threshold?}
+    C -- yes --&gt; R[Decision served, no LLM tokens]
+    C -- no --&gt; L
+    S --&gt; L
+    R --&gt; T[Token-reduction proof: BEFORE/AFTER harness - 11.4.283]</code></pre>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Shadow
+    Shadow --&gt; Calibrating: weekly or jev-calibrate --now
+    Calibrating --&gt; Enforce: agreement at or above floor and sample at or above minimum
+    Calibrating --&gt; Shadow: below floor
+    Enforce --&gt; Calibrating: constitution update or decision-model version change</code></pre>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Anchor</th>
+<th>Where it is implemented</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detect decision models before the first LLM call</td>
+<td>§11.4.279</td>
+<td><code>jev-detection.json</code>, gate
+<code>CM-JEV-DETECTION</code></td>
+</tr>
+<tr>
+<td>Install per agent (hook, MCP, skill, aliases)</td>
+<td>§11.4.280</td>
+<td><code>jev-setup.sh</code>, <code>skills/jev-decision-layer/</code>,
+<code>mcp/jev-decisions.json</code>, gate
+<code>CM-JEV-WIRING</code></td>
+</tr>
+<tr>
+<td>Bootstrap wizard, rerun on every constitution update</td>
+<td>§11.4.281</td>
+<td><code>scripts/jev/bootstrap.sh</code>,
+<code>scripts/post_update_hook.sh</code>, gate
+<code>CM-JEV-BOOTSTRAP-IDEMPOTENT</code></td>
+</tr>
+<tr>
+<td>Use all decision instances</td>
+<td>§11.4.282</td>
+<td>capacity in <code>jev-detection.json</code></td>
+</tr>
+<tr>
+<td>Prove token reduction</td>
+<td>§11.4.283</td>
+<td>BEFORE/AFTER harness extension, gate
+<code>CM-JEV-TOKEN-REDUCTION</code></td>
+</tr>
+<tr>
+<td>Pre-ladder routing stage (amends §11.4.231)</td>
+<td>§11.4.284</td>
+<td><code>CM-JEV-WIRING</code> (no decision endpoint in a chat
+config)</td>
+</tr>
+<tr>
+<td>Shadow-first auto-tuning</td>
+<td>§11.4.285</td>
+<td><code>jev-calibrate.sh</code>, <code>jev-thresholds.json</code></td>
+</tr>
+<tr>
+<td><code>llmctl</code> and <code>claude_toolkit</code> as
+submodules</td>
+<td>§11.4.286</td>
+<td><code>helix-deps.yaml</code>, <code>submodules/</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each anchor also has a
+<code>CM-COVENANT-114-&lt;N&gt;-PROPAGATION</code> gate. Whether each of
+these files and gates exists in a given checkout is verified with
+<code>ls scripts/jev scripts/gates | grep -i jev</code>, not by this
+table.</p>
+<h2 id="token-and-speed-machinery">Token and speed machinery</h2>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Token-efficiency library</td>
+<td><code>scripts/token_efficiency/</code></td>
+<td>context compactor, scoped reads, shared library (tests in
+<code>tests/token_efficiency/</code>)</td>
+</tr>
+<tr>
+<td>Action registry</td>
+<td><code>actions/registry.yaml</code></td>
+<td>the 19 registered prefix actions (<code>BACKGROUND</code>,
+<code>REMINDER</code>, <code>CRITICAL</code>, <code>IMPORTANT</code>,
+<code>NOTE</code>, <code>BUG</code>, <code>TASK</code>,
+<code>ISSUE</code>, <code>FEATURE</code> and ten sub-system
+shortcuts)</td>
+</tr>
+<tr>
+<td>Subagent tiering</td>
+<td><code>actions/subagent_tiering.yaml</code>,
+<code>scripts/subagent_tier.sh</code></td>
+<td>lightest-capable model tier per task (§11.4.231)</td>
+</tr>
+<tr>
+<td>Terse output guidance</td>
+<td><code>actions/terse_output_guidance.md</code></td>
+<td>short-form agent output</td>
+</tr>
+<tr>
+<td>Accounting</td>
+<td><code>scripts/token_accounting.sh</code></td>
+<td>per-call token accounting</td>
+</tr>
+<tr>
+<td>Prompt caching</td>
+<td><code>scripts/enable_prompt_caching_check.sh</code></td>
+<td>cache-warm check for the core</td>
+</tr>
+<tr>
+<td>Fast-cycle machinery</td>
+<td><code>scripts/fastcycle/</code></td>
+<td>review-record gates, sampling boundary matrix, timing and golden
+evidence</td>
+</tr>
+</tbody>
+</table>
+<h2 id="credential-scanning">Credential scanning</h2>
+<p>The scanner library lives here:
+<code>scripts/hooks/credential_scan_lib.sh</code> (with its
+carrier-strip rules, the latest being #36 and #37 — the synthetic-PEM
+and reserved-documentation-TLD false positives) and the suites
+<code>test_credential_scan_lib.sh</code>,
+<code>test_credential_scan_lib_akia_literal_free.sh</code> and
+<code>test_credential_scan_lib_subsuite_mutation_test.sh</code>. Whether
+a consumer runs the scan on every commit is the consumer's decision: the
+reference consumer (ATMOSphere) made it <strong>opt-in</strong> by
+operator mandate (2026-10-17) through a shared switch,
+<code>ATMOSPHERE_CREDSCAN=1</code>, which is a consumer mechanism and
+not part of this repository. The rule itself is unchanged and universal:
+§11.4.10 forbids committing secrets, and a skipped scan is always
+announced, never silent.</p>
+<h2 id="dependency-submodules">Dependency submodules</h2>
+<p>The constitution is a hub (the §11.4.28(C) depth-1 carve-out): it
+hosts 27 submodules under <code>submodules/</code>. Ten are own-org and
+are declared in <code>helix-deps.yaml</code> (§11.4.31); seventeen are
+third-party skill, tool and reference repositories pinned read-only.
+Pins below are the recorded gitlinks.</p>
+<p>Own-org (declared in <code>helix-deps.yaml</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Submodule</th>
+<th>Remote</th>
+<th>Pin</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs_chain</code></td>
+<td><code>vasic-digital/docs_chain</code></td>
+<td><code>8e0abe0</code> (tag <code>helixcode-v1.1.0</code> + 12)</td>
+<td>§11.4.106 documentation-and-database sync/verify engine</td>
+</tr>
+<tr>
+<td><code>continuum</code></td>
+<td><code>vasic-digital/continuum</code></td>
+<td><code>4639347</code></td>
+<td>§11.4.207 instant multi-stream resume engine</td>
+</tr>
+<tr>
+<td><code>anti_bluff</code></td>
+<td><code>vasic-digital/anti_bluff</code></td>
+<td><code>d060d08</code></td>
+<td>shared anti-bluff verification primitives (§11.4)</td>
+</tr>
+<tr>
+<td><code>session_orchestrator</code></td>
+<td><code>vasic-digital/session_orchestrator</code></td>
+<td><code>78b77bb</code></td>
+<td>§11.4.187 multi-track ruler substrate</td>
+</tr>
+<tr>
+<td><code>token_optimizer</code></td>
+<td><code>vasic-digital/token_optimizer</code></td>
+<td><code>2002db5</code></td>
+<td>§11.4.141 token-optimization engine</td>
+</tr>
+<tr>
+<td><code>helix_perf_cache</code></td>
+<td><code>HelixDevelopment/helix_perf_cache</code></td>
+<td><code>6adcfb2</code></td>
+<td>shared build/test result cache with fingerprint invalidation</td>
+</tr>
+<tr>
+<td><code>llmctl</code></td>
+<td><code>vasic-digital/llmctl</code></td>
+<td><code>f42bad6</code> (main, describe
+<code>helixconstitution-v70-68-gf42bad6</code>)</td>
+<td>§11.4.277 model manager and validation gate; §11.4.286
+decision-layer dependency — nests no own-org repository (resolves the
+canon, <code>containers</code> and <code>superspec</code> via
+<code>lib/resolve_deps.sh</code>); depth-1 only, <strong>never</strong>
+initialised recursively because it nests third-party
+<code>llama.cpp</code> and <code>colibri</code>
+(<code>recursive_init: false</code>, checked by
+<code>CM-LLMCTL-SUBMODULE-NONRECURSIVE</code> and
+<code>CM-HUB-ENGINE-NO-OWNORG-NESTING</code>)</td>
+</tr>
+<tr>
+<td><code>containers</code></td>
+<td><code>vasic-digital/Containers</code></td>
+<td><code>919ad1e</code> (main, describe
+<code>helixcode-v1.1.0-159-g919ad1e</code>)</td>
+<td>§11.4.76 / §11.4.161 rootless container orchestration layer,
+provided flat so engines resolve it instead of nesting it</td>
+</tr>
+<tr>
+<td><code>claude_toolkit</code></td>
+<td><code>vasic-digital/claude_toolkit</code></td>
+<td><code>adae02d</code> (tag <code>claude_toolkit-1.32.0</code>)</td>
+<td>multi-alias / provider toolkit (§11.4.196 / §11.4.198); §11.4.286
+decision-layer dependency — nests no own-org repository (resolves the
+canon, <code>containers</code>, <code>challenges</code>,
+<code>LLMsVerifier</code> and <code>claude-code-router</code> flat via
+<code>scripts/resolve_deps.sh</code>) and ships its own
+<code>helix-deps.yaml</code>; depth-1 only, <strong>never</strong>
+initialised recursively because it nests the third-party Go toolchain
+(<code>submodules/go</code>) (<code>recursive_init: false</code>,
+checked by <code>CM-HUB-ENGINE-NO-OWNORG-NESTING</code>)</td>
+</tr>
+<tr>
+<td><code>design-toolkit</code></td>
+<td><code>vasic-digital/design-toolkit</code></td>
+<td><code>4ddc964</code> (tag <code>v0.2.2</code> + 14)</td>
+<td>§11.4.162 OpenDesign design-token and brand-contract engine</td>
+</tr>
+</tbody>
+</table>
+<p>Third-party (pinned, not modified here):
+<code>agentic-validation</code> (Tyler-R-Kendrick/agentic_validation),
+<code>claude-video</code> (bradautomates/claude-video,
+<code>v0.3.2</code>), <code>donespec</code> (xryv/DoneSpec,
+<code>v1.0.0</code> + 1), <code>mcp-audio-tweaker</code>
+(DeveloperZo/mcp-audio-tweaker), <code>MVT</code> (rdkcentral/MVT,
+<code>v2.9.0</code> + 177, with its own nested <code>js_mse_eme</code>),
+<code>polyscreen-mcp</code> (Zyzto/polyscreen-mcp, <code>v0.9.0</code> +
+1), <code>repo-proof</code> (Gary06868/repo-proof), <code>repo-qa</code>
+(okwinds/skills-runtime-sdk, <code>v0.1.12</code> + 9),
+<code>skill-doctor</code> (KalarisLabs/Skill-Doctor, <code>v0.1.0</code>
++ 16), <code>verfix</code> (verfix-dev/verfix, <code>v0.2.1</code> +
+78), <code>verification</code> (ArcBlock/agent-skills),
+<code>verify</code> (KeyValueSoftwareSystems/maestro),
+<code>video-quality-mcp</code> (hlpsxc/video-quality-mcp),
+<code>watch-skill</code> (oxbshw/watch-skill,
+<code>deepwatch-v0.1.4</code>) and <code>wave-dpctf</code>
+(cta-wave/device-observation-framework, <code>v2.1.0</code> + 9), plus
+<code>superspec</code> (WangX0111/superspec, <code>v1.0.2</code>, MIT)
+and <code>open_design</code> (nexu-io/open-design, Apache-2.0, the
+§11.4.162 reference checkout), both declared in
+<code>helix-deps.yaml</code> with <code>third_party: true</code>.</p>
+<p><code>submodules-catalogue.md</code> is the separate inventory of
+every owned-by-us repository under <code>vasic-digital</code> and
+<code>HelixDevelopment</code> (§11.4.74), categorised into capability
+groups.</p>
+<h3 id="dependency-manifests-11431">Dependency manifests (§11.4.31)</h3>
+<p>Every own-org repository — your project root, every repository under
+<code>&lt;root&gt;/submodules/</code>, the <code>constitution</code> hub
+and every repository under
+<code>&lt;root&gt;/constitution/submodules/</code> — carries a tracked
+<code>helix-deps.yaml</code>. One engine checks and generates them, by
+reference from this submodule:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh <span class="at">--root</span> .            <span class="co"># check the whole tree</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh <span class="at">--scaffold</span> . <span class="at">--write</span> <span class="co"># first manifest for a new project</span></span></code></pre></div>
+<p>The gate <code>CM-HELIX-DEPS-MANIFEST-PRESENT</code>
+(<code>scripts/gates/cm_helix_deps_manifest_present.sh</code>) runs it
+on every pull. Documentation: <a
+href="docs/guides/dependency_manifest_user_guide.md">user guide</a> · <a
+href="docs/manuals/dependency_manifest_manual.md">manual</a> · <a
+href="docs/faq/dependency_manifest_faq.md">FAQ</a>.</p>
+<h2 id="tooling-map">Tooling map</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/gates/</code></td>
+<td>141 mechanism gates, 89 of them anchor-propagation gates, each with
+a paired mutation test or an outside self-test; the gate ledger,
+deferral and ratchet data files; <code>lib_badge_row.sh</code>,
+<code>lib_doc_manifest.sh</code> and other shared libraries</td>
+</tr>
+<tr>
+<td><code>scripts/anchors/</code></td>
+<td>anchor library, <code>constitution_generate.py</code> (regenerates
+<code>constitution_index.yaml</code> and the groups), link check, wiring
+audit</td>
+</tr>
+<tr>
+<td><code>scripts/hooks/</code></td>
+<td>PreToolUse guards (forbidden commands, branch consistency, track
+labels, work-track binding, evidence-store writes) and the credential
+scanner</td>
+</tr>
+<tr>
+<td><code>scripts/multitrack/</code></td>
+<td>the §11.4.187 ruler: up/down, claim registry, device lock, fallback
+monitor, supervisor, host budget</td>
+</tr>
+<tr>
+<td><code>scripts/codegraph/</code>, <code>scripts/lumen/</code></td>
+<td>the single-writer CodeGraph entry, scope renderer and guard, index
+watchdog; Lumen scope generator and benchmark</td>
+</tr>
+<tr>
+<td><code>scripts/workable-items/</code>,
+<code>scripts/reporting/</code></td>
+<td>the workable-items engine and the <code>ISSUE</code> /
+<code>BUG</code> / <code>TASK</code> / <code>FEATURE</code> reporting
+engine</td>
+</tr>
+<tr>
+<td><code>scripts/fastcycle/</code></td>
+<td>fast-development-cycle gates, review records, timing, sampling</td>
+</tr>
+<tr>
+<td><code>scripts/skill_activation/</code></td>
+<td>on-demand skill activation (§11.4.272)</td>
+</tr>
+<tr>
+<td><code>scripts/translation/</code>, <code>scripts/render/</code></td>
+<td>the HelixTranslate pipeline wrappers and the governance-twin
+renderer (<code>render-governance-twins.sh</code>)</td>
+</tr>
+<tr>
+<td><code>scripts/jev/</code></td>
+<td>the decision-layer wizard and tools (§11.4.279–§11.4.286):
+<code>bootstrap.sh</code>, <code>jev-setup.sh</code>,
+<code>jev-gate.sh</code>, <code>jev-calibrate.sh</code>,
+<code>jev-stats.sh</code></td>
+</tr>
+<tr>
+<td><code>scripts/badges/</code></td>
+<td><code>compute_badges.sh</code> — the README badge computer (this
+page)</td>
+</tr>
+<tr>
+<td><code>scripts/doc_integrity/</code></td>
+<td>cross-document consistency validator (§11.4.186)</td>
+</tr>
+<tr>
+<td><code>skills/</code></td>
+<td><code>action-prefix-system</code>, <code>media-validator</code>,
+<code>multitrack</code>, <code>reporting-workable-items</code>,
+<code>scheduled-work-queue</code>, <code>session-sync</code>,
+<code>skill-catalog</code>, <code>workable-item-lifecycle</code>,
+<code>jev-decision-layer</code></td>
+</tr>
+<tr>
+<td><code>plugins/</code></td>
+<td><code>helix</code> (prefix commands),
+<code>scheduled-work</code></td>
+</tr>
+<tr>
+<td><code>mcp/</code></td>
+<td>MCP server definitions (<code>media-validator-mcp.json</code>,
+<code>scheduled-work-mcp.json</code>,
+<code>jev-decisions.json</code>)</td>
+</tr>
+<tr>
+<td><code>templates/</code></td>
+<td>templates for project Constitution / CLAUDE / AGENTS / QWEN files
+and the starting <code>helix-deps.yaml</code> (§11.4.31)</td>
+</tr>
+<tr>
+<td><code>docs/</code></td>
+<td>guides (shell-instrument footguns, <a
+href="docs/guides/dependency_manifest_user_guide.md">dependency
+manifests</a>), <a
+href="docs/manuals/dependency_manifest_manual.md">manifest manual</a>,
+<a href="docs/faq/dependency_manifest_faq.md">manifest FAQ</a>, agent
+guardrails, actions manual set, CodeGraph status, owed-gate register,
+research corpora</td>
+</tr>
+<tr>
+<td><code>scripts/deps_manifest/</code></td>
+<td>the §11.4.31 manifest verifier + skeleton generator
+(<code>verify_helix_deps_manifests.sh</code>)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="how-to-consume">How to consume</h2>
 <h3 id="1-add-the-submodule">1. Add the submodule</h3>
-<p>In each consuming project:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule add git@github.com:HelixDevelopment/HelixConstitution.git constitution</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Pin to a tag for reproducibility (recommended)</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> constitution</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout v1.0.0          <span class="co"># whatever the current stable tag is</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ..</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add constitution</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;chore: add Helix Constitution submodule pinned to v1.0.0&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule add git@github.com:HelixDevelopment/HelixConstitution.git constitution</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Pin to a release tag for reproducibility (recommended)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> constitution</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout helixconstitution-v70</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ..</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add constitution</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;chore: add Helix Constitution submodule pinned to helixconstitution-v70&quot;</span></span></code></pre></div>
 <p>When teammates clone your project:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone <span class="at">--recurse-submodules</span> <span class="op">&lt;</span>your-project-url<span class="op">&gt;</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or if already cloned:</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone <span class="at">--recurse-submodules</span> <span class="op">&lt;</span>your-project-url<span class="op">&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or if already cloned:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div>
+<p><code>submodules/llmctl</code> and
+<code>submodules/claude_toolkit</code> are the exceptions
+(<code>recursive_init: false</code> in <code>helix-deps.yaml</code>):
+initialise them one level deep only
+(<code>git submodule update --init submodules/llmctl submodules/claude_toolkit</code>),
+never with <code>--recursive</code>. llmctl no longer vendors this
+constitution (it resolves it, <code>containers</code> and
+<code>superspec</code> via <code>lib/resolve_deps.sh</code>), but it
+nests the third-party <code>llama.cpp</code> and <code>colibri</code>,
+which are never initialised recursively. claude_toolkit (pin
+<code>1f6dad3</code>) no longer nests any own-org repository either — it
+resolves this constitution and its siblings flat via
+<code>scripts/resolve_deps.sh</code> and ships a tracked
+<code>helix-deps.yaml</code> — but it nests the third-party Go toolchain
+(<code>submodules/go</code>), which is never initialised recursively.
+Measured 2026-10-22: <code>CM-HUB-ENGINE-NO-OWNORG-NESTING</code> and
+<code>CM-HELIX-DEPS-MANIFEST-PRESENT</code> both PASS for every
+engine.</p>
 <h3 id="2-wire-the-inheritance">2. Wire the inheritance</h3>
-<p>Add a clearly-marked pointer at the top of your project&#39;s root
+<p>Add a clearly-marked pointer at the top of your project's root
 <code>CLAUDE.md</code>:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/CLAUDE.md</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>All rules in <span class="in">`constitution/CLAUDE.md`</span> (and the <span class="in">`constitution/Constitution.md`</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>it references) apply unconditionally. Project-specific rules below</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>extend them.</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>@constitution/CLAUDE.md</span></code></pre></div>
-<p>Same for <code>AGENTS.md</code> (any AI-agent tooling) and (since
-2026-05-20) <code>QWEN.md</code> for Qwen Code:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Base agent rules: </span><span class="in">`constitution/AGENTS.md`</span><span class="at"> — READ IT FIRST.</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; The base file is authoritative for any topic not covered here.</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/CLAUDE.md</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>All rules in <span class="in">`constitution/CLAUDE.md`</span> (and the <span class="in">`constitution/Constitution.md`</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>it references) apply unconditionally. Project-specific rules below</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>extend them.</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>@constitution/CLAUDE.md</span></code></pre></div>
+<p>Same for <code>AGENTS.md</code> (any AI-agent tooling),
+<code>QWEN.md</code> and <code>GEMINI.md</code>:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Base agent rules: </span><span class="in">`constitution/AGENTS.md`</span><span class="at"> — READ IT FIRST.</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; The base file is authoritative for any topic not covered here.</span></span></code></pre></div>
 <p>And for your project Constitution:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>This constitution **extends** the Helix Universal Constitution at</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="in">`constitution/Constitution.md`</span>. All clauses there apply unless</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>explicitly overridden below with an explicit <span class="in">`Override §X.Y`</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>section.</span></code></pre></div>
-<h3 id="3-set-up-the-multi-upstream-push">3. Set up the multi-upstream
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>This constitution **extends** the Helix Universal Constitution at</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="in">`constitution/Constitution.md`</span>. All clauses there apply unless</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>explicitly overridden below with an explicit <span class="in">`Override §X.Y`</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>section.</span></code></pre></div>
+<h3 id="3-keep-always-loaded-context-small">3. Keep always-loaded
+context small</h3>
+<p>Do not paste the canon into the files your agents load every turn —
+the measured cost of doing so is the reason the progressive layer
+exists. Keep the always-loaded files small, point at the rules, and let
+agents pull them on demand: <code>progressive/core.md</code> plus the
+MCP server (<code>progressive/surfaces/mcp.json.template</code>), or the
+<code>helix-constitution</code> skill and plugin. §11.4.141 (M2–M9)
+states the budget rules; the consumer enforces its own byte budget.</p>
+<h3 id="4-set-up-the-multi-upstream-push">4. Set up the multi-upstream
 push</h3>
-<p>From the <strong>constitution submodule&#39;s</strong> root
+<p>From the <strong>constitution submodule's</strong> root
 directory:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> constitution</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> install_upstreams.sh</span></code></pre></div>
-<p>This reads every <code>Upstreams/*.sh</code> declaration and
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> constitution</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> install_upstreams.sh</span></code></pre></div>
+<p>This reads every <code>upstreams/*.sh</code> declaration and
 configures matching git remotes locally, so a single
-<code>git push</code> reaches every provider (GitHub, GitLab, GitFlic,
-GitVerse).</p>
-<p>Alternatively, if your toolkit ships the system-wide
-<code>install_upstreams</code> command (Project-Toolkit
-<code>Upstreamable/</code>), you can invoke that instead — it reads the
-same <code>Upstreams/</code> directory.</p>
-<h3 id="4-verify-inheritance-with-an-automated-test">4. Verify
+<code>git push origin</code> reaches every provider.</p>
+<h3 id="5-verify-inheritance-with-an-automated-test">5. Verify
 inheritance with an automated test</h3>
 <p>Every consuming project should ship a test that verifies the
 constitution submodule is present, at the expected pinned revision, and
-that the project&#39;s CLAUDE.md / AGENTS.md / QWEN.md / Constitution all
-reference the submodule. See:</p>
-<ul>
-<li>The ATMOSphere project&#39;s
-<code>test_constitution_inheritance.sh</code> for the reference
-implementation pattern.</li>
-<li>The Herald project&#39;s
-<code>tests/test_constitution_inheritance.sh</code> + paired
-<code>tests/test_i6_refinement_meta.sh</code> for an example with
-refined I6 invariant (allows non-constitution submodules) per the
-original pattern.</li>
-<li>The Herald <code>scripts/audit_antibluff.sh</code> for the canonical
-anti-bluff audit pattern (3 invariants: §11.4 anchor across submodules +
-default test suite green + paired §1.1 meta-test green).</li>
-</ul>
+that the project's <code>CLAUDE.md</code> / <code>AGENTS.md</code> /
+<code>QWEN.md</code> / <code>Constitution.md</code> all reference it
+(the reference implementations are the ATMOSphere project's
+<code>test_constitution_inheritance.sh</code> and the Herald project's
+<code>tests/test_constitution_inheritance.sh</code>; this repository's
+<code>meta_test_inheritance.sh</code> proves the gate catches a deletion
+of the §11.4 anchor). A consumer that records the pinned commit in a
+<code>.constitution-pin</code> file must re-record it after every bump —
+<code>progressive/validate_submodule.py</code> compares that file with
+this repository's <code>HEAD</code>.</p>
+<h2 id="multi-upstream-topology">Multi-upstream topology</h2>
+<p>This repository is published to six remotes; <code>origin</code> is
+configured with one fetch URL (GitHub) and six push URLs, so
+<code>git push origin &lt;branch&gt;</code> fans out to all of them.</p>
+<table>
+<thead>
+<tr>
+<th>Remote</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>github</code> (primary, <code>origin</code> fetch)</td>
+<td><code>git@github.com:HelixDevelopment/HelixConstitution.git</code></td>
+</tr>
+<tr>
+<td><code>vasicdigitalgithub</code></td>
+<td><code>git@github.com:vasic-digital/HelixConstitution.git</code></td>
+</tr>
+<tr>
+<td><code>gitlab</code></td>
+<td><code>git@gitlab.com:helixdevelopment1/helixconstitution.git</code></td>
+</tr>
+<tr>
+<td><code>vasicdigitalgitlab</code></td>
+<td><code>git@gitlab.com:vasic-digital/HelixConstitution.git</code></td>
+</tr>
+<tr>
+<td><code>gitflic</code> (also <code>upstream</code>)</td>
+<td><code>git@gitflic.ru:helixdevelopment/helixconstitution.git</code></td>
+</tr>
+<tr>
+<td><code>gitverse</code></td>
+<td><code>git@gitverse.ru:helixdevelopment/HelixConstitution.git</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every commit and every tag MUST reach all six; never force-push
+(§11.4.113).</p>
+<h2 id="verification">Verification</h2>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Machine-derived facts and badge row (this page)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/badges/compute_badges.sh <span class="at">--facts</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/badges/compute_badges.sh <span class="at">--check</span>      <span class="co"># README badge row == computed row</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/badges/compute_badges.sh <span class="at">--selftest</span>   <span class="co"># golden-good / golden-bad / negative-control</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># README quality-badge family (§11.4.259)</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/gates/cm_readme_badge_row_at_top.sh <span class="at">--root</span> .</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/gates/cm_badge_closed_color_vocabulary.sh <span class="at">--root</span> .</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/gates/cm_badge_machine_derived_source.sh <span class="at">--root</span> .</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/gates/cm_badge_self_validated.sh <span class="at">--root</span> .</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Index and progressive layer</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/gates/cm_constitution_index_fresh.sh <span class="at">--root</span> .</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-I</span> progressive/validate_structure.py</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-I</span> progressive/validate_behavior.py</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-I</span> progressive/validate_tokens.py      <span class="co"># UNCONFIRMED (exit 3) without a live provider measurement</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-I</span> progressive/validate_submodule.py   <span class="co"># needs the consumer&#39;s .constitution-pin</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-I</span> progressive/validate_evidence.py</span></code></pre></div>
+<p>Exit codes follow the gate convention: 0 pass, 1 fail, 2 blind (a
+source of truth could not be read — never a pass), 3 unconfirmed. The
+provenance of every badge is declared in
+<code>docs/BADGES.md</code>.</p>
+<h2 id="versioning-and-releases">Versioning and releases</h2>
+<p>Releases are tagged <code>helixconstitution-vNN</code> (annotated,
+project-prefixed per §11.4.151) and published to all six remotes. The
+release notes live in <code>CHANGELOG.md</code>, newest first; each tag
+also has a GitHub release on both GitHub repositories and a GitLab
+release on both GitLab repositories. Consuming projects pin a specific
+tag and upgrade deliberately. The older <code>v1.0.0</code> (2026-07-24)
+and <code>helixcode-v1.1.0</code> tags are kept for history.</p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Date</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>helixconstitution-v70</code></td>
+<td>2026-10-19</td>
+<td>progressive-disclosure layer, optimization audit and remediation,
+§11.4.141 M2–M9, §11.4.277 / §11.4.278 and llmctl, gate hardening,
+README badge computer</td>
+</tr>
+<tr>
+<td><code>helixconstitution-v69</code></td>
+<td>2026-10-05</td>
+<td>process-safety, release-engineering, anti-slop and
+review-round-budget round (14 anchors, 19 extensions)</td>
+</tr>
+<tr>
+<td><code>helixconstitution-v68</code></td>
+<td>2026-08-18</td>
+<td>monolithic amendment round (22 anchors, 5 extensions)</td>
+</tr>
+</tbody>
+</table>
+<p>Per §11.4.73, consuming projects that maintain a main specification
+document follow the two-axis rule: primary <code>V&lt;N&gt;</code> for
+major rewrites, secondary <code>Revision N</code> (in the metadata
+table) for additive changes within a primary version.</p>
 <h2 id="contents">Contents</h2>
 <table>
 <thead>
 <tr>
-<th>File</th>
+<th>File or directory</th>
 <th>Purpose</th>
 </tr>
 </thead>
@@ -633,161 +1566,90 @@ default test suite green + paired §1.1 meta-test green).</li>
 are project-agnostic.</td>
 </tr>
 <tr>
-<td><code>CLAUDE.md</code></td>
-<td>Universal CLAUDE.md for Claude Code agents. Imports
-<code>Constitution.md</code> by reference.</td>
+<td><code>CLAUDE.md</code>, <code>AGENTS.md</code>,
+<code>QWEN.md</code>, <code>GEMINI.md</code></td>
+<td>Per-agent views of the constitution, kept in lockstep
+(§11.4.157).</td>
 </tr>
 <tr>
-<td><code>AGENTS.md</code></td>
-<td>Universal AGENTS.md for every other CLI agent (Codex, Cursor, Aider,
-OpenCode, Crush, Kimi CLI).</td>
+<td><code>CLAUDE_ANCHORS_FULL.md</code></td>
+<td>Full anchor text for Claude Code.</td>
 </tr>
 <tr>
-<td><code>QWEN.md</code></td>
-<td>Universal QWEN.md for the Qwen Code CLI agent. Created 2026-05-20
-per the §11.4.76 propagation set.</td>
+<td><code>constitution_index.yaml</code>, <code>groups/</code></td>
+<td>Generated anchor index and the 12 topical group files.</td>
 </tr>
 <tr>
-<td><code>submodules-catalogue.md</code></td>
-<td>Canonical inventory of every owned-by-us repository under
-<code>vasic-digital</code> + <code>HelixDevelopment</code> (142 repos at
-landing time). Created 2026-05-20 per §11.4.74 follow-up mandate.</td>
+<td><code>progressive/</code></td>
+<td>The progressive-disclosure layer (see above).</td>
 </tr>
 <tr>
-<td><code>LICENSE</code></td>
-<td>License governing the constitution text itself.</td>
+<td><code>CHANGELOG.md</code></td>
+<td>Release notes and version log.</td>
 </tr>
 <tr>
-<td><code>Upstreams/</code></td>
-<td>One <code>.sh</code> declaration file per upstream Git remote.</td>
+<td><code>helix-deps.yaml</code></td>
+<td>Own-org dependency manifest (§11.4.31); every own-org repository
+carries one, checked by
+<code>scripts/deps_manifest/verify_helix_deps_manifests.sh</code>.</td>
 </tr>
 <tr>
-<td><code>install_upstreams.sh</code></td>
-<td>Configures every declared upstream as a local git remote.</td>
+<td><code>submodules/</code>, <code>submodules-catalogue.md</code></td>
+<td>Dependency submodules and the owned-repository inventory.</td>
 </tr>
 <tr>
-<td><code>find_constitution.sh</code></td>
-<td>Helper that locates this submodule from arbitrary nested depth.</td>
+<td><code>scripts/</code>, <code>tests/</code>, <code>skills/</code>,
+<code>plugins/</code>, <code>mcp/</code>, <code>actions/</code>,
+<code>config/</code></td>
+<td>Tooling, tests, skills, plugins, MCP definitions, prefix-action
+registry, gate configuration.</td>
 </tr>
 <tr>
-<td><code>meta_test_inheritance.sh</code></td>
-<td>Sentinel-based meta-test that verifies the inheritance gate catches
-a deletion of the §11.4 anchor.</td>
+<td><code>docs/</code></td>
+<td>Guides (incl. the <a
+href="docs/guides/dependency_manifest_user_guide.md">dependency-manifest
+guide</a>), manuals (<a
+href="docs/manuals/dependency_manifest_manual.md">dependency
+manifest</a>), FAQs (<a
+href="docs/faq/dependency_manifest_faq.md">dependency manifest</a>),
+research, actions manual set, CodeGraph status, owed-gate register,
+<code>BADGES.md</code>.</td>
 </tr>
 <tr>
 <td><code>templates/</code></td>
 <td>Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN
-files.</td>
+files and <code>helix-deps.yaml.template</code> (§11.4.31).</td>
+</tr>
+<tr>
+<td><code>upstreams/</code>, <code>install_upstreams.sh</code></td>
+<td>One <code>.sh</code> declaration per upstream remote and the
+installer.</td>
+</tr>
+<tr>
+<td><code>find_constitution.sh</code>,
+<code>meta_test_inheritance.sh</code></td>
+<td>Locate this submodule from any nesting depth; sentinel test for the
+inheritance gate.</td>
+</tr>
+<tr>
+<td><code>docs/jev/</code></td>
+<td>The decision-layer (Jev) operator documents.</td>
+</tr>
+<tr>
+<td><code>LICENSE</code></td>
+<td>Apache License 2.0, governing the constitution text itself.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="recent-additions-2026-05-20">Recent additions (2026-05-20)</h2>
-<p>The following clauses + companion files landed this session in
-response to operator mandates. Each entry includes the verbatim user
-mandate in its forensic-anchor block within
-<code>Constitution.md</code>:</p>
-<table>
-<thead>
-<tr>
-<th>Clause</th>
-<th>Topic</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>§11.4.73</td>
-<td>Main-specification document versioning + Revision discipline
-(V1/V2/V3 primary + Revision secondary axes).</td>
-</tr>
-<tr>
-<td>§11.4.74</td>
-<td>Submodule-catalogue-first discovery + extend-don&#39;t-reimplement. See
-<code>submodules-catalogue.md</code>.</td>
-</tr>
-<tr>
-<td>§11.4.75</td>
-<td>Mechanical enforcement without exception (5-layer git-hook
-discipline).</td>
-</tr>
-<tr>
-<td>§11.4.76</td>
-<td>Containers-submodule mandate — use
-<code>vasic-digital/containers</code> for ALL containerised
-workloads.</td>
-</tr>
-<tr>
-<td>§11.4.77</td>
-<td>Regeneration-mechanism-required mandate.</td>
-</tr>
-<tr>
-<td>§11.4.78</td>
-<td>CodeGraph code-intelligence mandate (npm
-<code>@colbymchenry/codegraph</code>).</td>
-</tr>
-</tbody>
-</table>
-<p>New companion file: <code>submodules-catalogue.md</code> — 142 repos
-categorised into 10 capability groups (Container + lifecycle, AI/LLM +
-agent, Messaging + observability + storage, Auth + security +
-middleware, Cross-platform KMP, TypeScript/React + Web, Testing + QA,
-Apps/tools, Misc/scaffolds).</p>
-<p>New file: <code>QWEN.md</code> — Qwen Code CLI agent&#39;s view of the
-universal constitution, structured analogously to <code>AGENTS.md</code>
-but tailored to Qwen Code&#39;s expectations.</p>
-<h2 id="multi-upstream-topology">Multi-upstream topology</h2>
-<p>This repository is hosted on four providers, with GitHub as the
-primary:</p>
-<table>
-<thead>
-<tr>
-<th>Remote</th>
-<th>URL</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>github</code> (primary)</td>
-<td><code>git@github.com:HelixDevelopment/HelixConstitution.git</code></td>
-</tr>
-<tr>
-<td><code>gitlab</code></td>
-<td><code>git@gitlab.com:helixdevelopment1/helixconstitution.git</code></td>
-</tr>
-<tr>
-<td><code>gitflic</code></td>
-<td><code>git@gitflic.ru:helixdevelopment/helixconstitution.git</code></td>
-</tr>
-<tr>
-<td><code>gitverse</code></td>
-<td><code>git@gitverse.ru:helixdevelopment/HelixConstitution.git</code></td>
-</tr>
-</tbody>
-</table>
-<p>Every commit MUST be pushed to ALL four. The <code>origin</code>
-remote is configured with multiple push URLs so
-<code>git push origin &lt;branch&gt;</code> fans out to every provider
-in one command.</p>
-<h2 id="recursive-inheritance">Recursive inheritance</h2>
-<p>Between the consuming project&#39;s root and any submodule that uses this
-constitution there may be N intermediate levels. The
-<code>find_constitution.sh</code> helper walks up parents until it
-locates the constitution submodule, so nested submodules can source the
-helper without knowing their own depth.</p>
-<h2 id="versioning">Versioning</h2>
-<p>Tag the constitution at semantically meaningful checkpoints
-(<code>v1.0.0</code>, <code>v1.1.0</code>, <code>v2.0.0</code>).
-Consuming projects pin to a specific tag and upgrade deliberately. Major
-version bumps mean breaking changes to the universal rules; minor bumps
-mean additions; patches mean clarifications.</p>
-<p>Per the new §11.4.73 spec-versioning discipline (added 2026-05-20),
-consuming projects that maintain a main specification document follow
-the <strong>two-axis</strong> rule: primary V<N> for major rewrites,
-secondary <code>Revision N</code> (in metadata table) for additive
-changes within a primary version.</p>
+<p>The <code>.html</code> / <code>.pdf</code> / <code>.docx</code>
+siblings of the Markdown files are generated twins; they are never
+hand-edited and are regenerated upstream
+(<code>scripts/render/render-governance-twins.sh</code>). Until that
+runs, the <code>Twins</code> badge is amber.</p>
 <h2 id="contributing">Contributing</h2>
 <p>Universal status has to be <strong>earned</strong>, not assumed.
 Project-specific content does NOT belong here. When in doubt, classify a
-rule as project-specific and keep it in the consuming project&#39;s own
+rule as project-specific and keep it in the consuming project's own
 Constitution.</p>
 <p>A rule is <strong>universal</strong> only if ALL are true:</p>
 <ol type="1">
@@ -809,7 +1671,12 @@ latency SLOs, retry counts).</li>
 <li>Describes a workaround for a bug or quirk in a dependency this
 project uses.</li>
 </ul>
+<p>A rule that lands without its enforcing seam is, by §11.4.227, a rule
+only in words: gate code is a separate work item, and the gate ledger
+(<code>scripts/gates/gate_ledger_baseline.txt</code>, deferrals in
+<code>gate_ledger_deferrals.tsv</code>) counts the debt and may only
+shrink.</p>
 <h2 id="license">License</h2>
-<p>See <code>LICENSE</code>.</p>
+<p>Apache License 2.0 — see <code>LICENSE</code>.</p>
 </body>
 </html>
