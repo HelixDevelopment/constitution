@@ -1997,3 +1997,65 @@ Propagation gate `CM-COVENANT-114-275-PROPAGATION` (literal `11.4.275`, block-st
 
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.275. Non-compliance is a release blocker. No escape hatch — no `--index-partial-ready`, `--enabled-is-declared`, `--main-session-only-index`, `--skip-model-proof`, `--reduction-without-wrong-answers`, `--bulk-by-row-count`, `--lock-age-is-liveness` flag.
 
+### §11.4.282 — Maximal decision-instance utilization (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Use all available model instances to the maximum."
+
+**(A) CAPACITY IS COMPUTED, NOT GUESSED.** Every incorporating project MUST compute its decision capacity from `llmctl plan --json` `decision_instances` (per-profile instance counts under the host's RAM/VRAM headroom rules) and record it in `jev-detection.json`.
+
+**(B) DECISION WORK USES DECISION CAPACITY.** Whenever more than one decision endpoint or instance is available, decision traffic (gates, routing, scoring, calibration probes) MUST be distributed across them — local instances first, then LAN pins, then hosted — with per-endpoint concurrency bounded by the profile's `parallel` slots. A single pinned endpoint used while idle local capacity exists is non-compliant.
+
+**(C) DEGRADATION IS EXPLICIT.** If instance count is 1 or 0, that is recorded with the reason (tier gate, budget refusal, download absent); the ladder of §11.4.231 proceeds unchanged.
+
+**(D) GATE.** Covered by `CM-JEV-DETECTION` (capacity fields present) and a §11.4.283 harness assertion (traffic distribution evidence in `decisions.jsonl` endpoint field). No separate gate-code.
+
+Composes with §11.4.279 / §11.4.141 / §11.4.231 / §9 (host-safety budget rules are never overridden for utilization).
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-282-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.282.
+
+**Non-compliance is a release blocker. No escape hatch — host-safety headroom (§12) is the ONLY legitimate capacity limiter.**
+
+### §11.4.283 — Decision-layer token-reduction proof (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Reduce token consumption of traditional LLMs to the maximum by offloading decisions to the decision layer."
+
+**(A) MEASURED PROOF, NOT ASSERTION.** Every incorporating project MUST extend its §11.4.141 BEFORE/AFTER token-accounting harness with a decision-layer arm: BEFORE = frozen workload executed with the decision layer disabled (`JEV_GATE=off`, no decision routing); AFTER = the identical frozen workload with the decision layer active. Token accounting uses provider `usage` fields exactly as §11.4.141 mandates.
+
+**(B) PASS CRITERION.** Pass = AFTER ≤ BEFORE with the project's declared reduction floor (DATA per §11.4.35; absent declaration resolves to "AFTER ≤ BEFORE, i.e. decision layer never increases traditional-LLM token consumption") AND `decisions.jsonl` showing ≥1 decision served per gated tool-call class. The §11.4.141 aggregate bar (AFTER ≤ 40% of BEFORE) remains in force; the decision layer is one of its mechanisms.
+
+**(C) EVIDENCE FORM.** `tests/jev/fixtures/before.jsonl` / `after.jsonl` per the §11.4.141 harness pattern; `jev-stats.sh` savings estimates are labeled ESTIMATES and never substitute for the measured harness.
+
+**(D) GATE.** Gate `CM-JEV-TOKEN-REDUCTION` asserts: BEFORE/AFTER artifacts exist, parse, differ only in the decision-layer arm, and meet the criterion. Paired §1.1 mutation: `cm_jev_token_reduction_mutation_test.sh` swaps the AFTER artifact for a copy of BEFORE with inflated usage — the gate MUST fail.
+
+Composes with §11.4.141 / §11.4.198 / §11.4.35 / §7.1 / §1.1.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-283-PROPAGATION` + recommended gate `CM-JEV-TOKEN-REDUCTION` + paired §1.1 meta-test mutation. Gate code shipped: `scripts/gates/cm_jev_token_reduction.sh` + paired mutation test `scripts/gates/cm_jev_token_reduction_mutation_test.sh` (§11.4.6 / §11.4.227).
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.283.
+
+**Non-compliance is a release blocker. No escape hatch — no `--skip-token-efficiency` or analogous flag exists (§11.4.141 close inherited in full).**
+
+### §11.4.284 — Decision layer as pre-ladder routing stage (amends §11.4.231) (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Decisions are offloaded before any LLM tier is invoked; the model ladder stays closed and unchanged for generative work."
+
+**(A) PRE-LADDER STAGE.** The decision layer is a routing stage that executes **before** the §11.4.231 ladder is consulted. A judgment expressible as a typed decision (bool/choice/score) MUST be answered by a decision model, not by any ladder rung. Only work that survives this stage — genuinely generative work — enters the ladder.
+
+**(B) THE LADDER IS UNCHANGED.** §11.4.231's closed ladder (`sonnet < opus`; `fable` is not a rung; haiku context-floor prohibition) is neither extended nor weakened: decision models are not a rung, not a tier, and never launchable as chat models. Tier selection for generative work proceeds exactly as §11.4.231 specifies.
+
+**(C) ESCALATION COMPOSITION.** When a decision model's calibrated confidence falls below its §11.4.285 threshold, the decision — and only that decision — escalates to the lightest capable ladder rung (the same dynamic-escalation contract as §11.4.231 mid-flight escalation). The rest of the work item is unaffected.
+
+**(D) DECISION MODELS NEVER GENERATE.** No decision endpoint may be wired as a chat/provider model into any agent's provider configuration (llmctl `decide` capability is excluded from `chat` by construction; toolkit decision records carry `classification: decision` and emit no aliases). A decision endpoint found in a chat-model configuration is a critical defect.
+
+**(E) GATE.** Coverage: `CM-JEV-WIRING` asserts no decision endpoint appears in any chat-model config; the §11.4.231 gates are untouched. No separate gate-code.
+
+Composes with §11.4.231 (amends, does not repeal) / §11.4.196 / §11.4.279 / §11.4.285.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-284-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.284.
+
+**Non-compliance is a release blocker. No escape hatch — the pre-ladder stage has no bypass flag; its absence (zero endpoints) is lawful only via §11.4.279(B)'s reasoned detection record.**
+

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-21 |
-| Last modified | 2026-10-22T00:34:17Z |
+| Last modified | 2026-10-23T00:00:00Z |
 | Status | active |
 | Status summary | Questions raised while landing the §11.4.31 extension (2026-10-21) and while running the verifier on real trees, with the answers the engine and the constitution give. |
 | Authority | Constitution §11.4.31. The canonical text wins where this FAQ and the constitution disagree. |
@@ -142,3 +142,6 @@ first path segment (a single-segment path uses the host), so a URL whose organis
 `SKIP(third_party)`, while an https URL of an own-org repository is still own-org and still needs its manifest. The
 SSH-only rule applies to the `ssh_url` fields of the manifest, not to `.gitmodules`. A URL with another scheme, no
 path, a `..` segment or whitespace stays BLIND: fix it in `.gitmodules`.
+
+**29. Why are `llmctl` and `claude_toolkit` hub engines with `recursive_init: false`?**
+§11.4.286 requires both as submodules at `submodules/llmctl` and `submodules/claude_toolkit`, pinned in this manifest (the manifest is the single source of pin truth). The decision-layer bootstrap (`scripts/jev/bootstrap.sh`, §11.4.281) installs them from those checkouts by calling each tool's own installer, and falls back to a managed clone at the same pinned refs when the submodule is absent. A pin advance marks the bootstrap pending.

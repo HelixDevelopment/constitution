@@ -1,0 +1,6 @@
+{
+  "providers": {
+    "anthropic": {"models": ["sonnet", "opus"]},
+    "openrouter": {"models": ["kimi-latest", "qwen3-coder"]}
+  }
+}

@@ -1,0 +1,3 @@
+{"ts":1760000001,"tool":"Read","usage":{"input_tokens":600,"output_tokens":300}}
+{"ts":1760000002,"tool":"Edit","usage":{"input_tokens":700,"output_tokens":250}}
+{"ts":1760000003,"tool":"Bash","usage":{"input_tokens":500,"output_tokens":200}}

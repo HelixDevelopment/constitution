@@ -1,0 +1,8 @@
+schema_version: 1
+deps:
+  - name: llmctl
+    ssh_url: git@github.com:vasic-digital/llmctl.git
+    ref: fixture-pin-llmctl-1.0.0
+  - name: claude_toolkit
+    ssh_url: git@github.com:vasic-digital/claude_toolkit.git
+    ref: fixture-pin-toolkit-1.0.0

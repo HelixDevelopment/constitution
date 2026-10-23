@@ -1,0 +1,13 @@
+# Fixture helix-deps.yaml — pinned refs for the provision-fallback tests.
+schema_version: 1
+deps:
+  - name: llmctl
+    ssh_url: git@github.com:HelixDevelopment/llmctl.git
+    ref: llmctl-v1.4.0
+    why: "fixture pin for tests/jev"
+    layout: grouped
+  - name: claude_toolkit
+    ssh_url: git@github.com:HelixDevelopment/claude_toolkit.git
+    ref: toolkit-v1.28.0
+    why: "fixture pin for tests/jev"
+    layout: grouped

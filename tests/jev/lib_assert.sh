@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# lib_assert.sh — shared assertion helpers for tests/jev (source, don't exec).
+# Conventions: plain counters, assert_skip for absent deps, finish exits nonzero
+# on any failure.
+
+PASS=0; FAIL=0; SKIPS=0
+
+ok()   { PASS=$((PASS+1)); printf 'ok %d - %s\n' "$PASS" "$1"; }
+fail() { FAIL=$((FAIL+1)); printf 'FAIL - %s\n' "$1"; }
+
+assert_eq() { # assert_eq <expected> <actual> <msg>
+  if [ "$1" = "$2" ]; then ok "$3"; else fail "$3 (expected [$1] got [$2])"; fi
+}
+assert_ne() { # assert_ne <not-expected> <actual> <msg>
+  if [ "$1" != "$2" ]; then ok "$3"; else fail "$3 (both are [$1])"; fi
+}
+assert_file_exists() {
+  if [ -f "$1" ]; then ok "$2"; else fail "$2 (missing file: $1)"; fi
+}
+assert_file_absent() {
+  if [ ! -e "$1" ]; then ok "$2"; else fail "$2 (unexpected file: $1)"; fi
+}
+assert_contains() { # assert_contains <file> <fixed-string> <msg>
+  if [ -f "$1" ] && grep -qF -- "$2" "$1"; then ok "$3"; else fail "$3 (no [$2] in $1)"; fi
+}
+assert_rc() { # assert_rc <expected-rc> <actual-rc> <msg>
+  assert_eq "$1" "$2" "$3"
+}
+assert_not_contains() { # assert_not_contains <file> <fixed-string> <msg>  (file must exist)
+  if [ ! -f "$1" ]; then fail "$3 (file missing: $1)"; return; fi
+  if grep -qF -- "$2" "$1"; then fail "$3 (unexpected [$2] in $1)"; else ok "$3"; fi
+}
+assert_nonzero() { # assert_nonzero <rc> <msg> — a negative control: the thing MUST fail
+  if [ "$1" -ne 0 ] 2>/dev/null; then ok "$2"; else fail "$2 (rc was [$1], expected nonzero)"; fi
+}
+# jqn <file> <jq-path-expr> — numeric-normalising read: jq >= 1.7 keeps the
+# literal spelling of a number (0.9500), so a byte/string compare against 0.95
+# fails for a reason that is not a defect. Arithmetic +0 forces canonical form.
+jqn() {
+  jq -r "($2) | if type==\"number\" then .+0 else . end" "$1"
+}
+assert_skip() { # assert_skip <reason>
+  SKIPS=$((SKIPS+1)); printf 'skip - %s\n' "$1"
+}
+
+finish() {
+  printf '# %s: pass=%d fail=%d skip=%d\n' "$(basename "$0")" "$PASS" "$FAIL" "$SKIPS"
+  [ "$FAIL" -eq 0 ]
+}
+
+# make_fixture_env <name> — sandboxed HOME, stubs on PATH, deterministic clock.
+# Sets: T (tmp root), HOME, PATH, STUB_LOG, JEV_* dirs, JEV_NOW_EPOCH.
+make_fixture_env() {
+  T="$(mktemp -d)"
+  export HOME="$T/home"
+  case "$HOME" in /home/*/.cache/*|/tmp/*|/var/tmp/*|"${TMPDIR:-/tmp}"/*) ;; *) echo "FATAL: refusing to run outside a temp HOME ($HOME)" >&2; exit 2 ;; esac
+  mkdir -p "$HOME" "$T/log"
+  export STUB_LOG="$T/log"
+  export PATH="$FIXTURES/bin:$PATH"
+  export JEV_STATE_DIR="$HOME/.local/state/jev"
+  export JEV_EVIDENCE_DIR="$T/.jev"
+  export JEV_CONFIG_DIR="$HOME/.config/jev"
+  export JEV_BOOTSTRAP_HOME="$HOME/.local/share/helix"
+  export JEV_NOW_EPOCH=1700000000
+  export CMA_PROVIDERS_DIR="$HOME/.local/share/claude-multi-account/providers"
+  export GIT_SSH_COMMAND=/bin/false   # no network, ever
+  unset LLMCTL_STATUS_JSON LLMCTL_CAPACITY_JSON FIXTURE_ENDPOINTS LLMCTL_DIR CLAUDE_TOOLKIT_DIR
+  mkdir -p "$CMA_PROVIDERS_DIR"
+  mkdir -p "$JEV_STATE_DIR" "$JEV_EVIDENCE_DIR" "$JEV_CONFIG_DIR"
+}
+
+# make_fixture_constitution_root — a fake constitution root with fixture
+# helix-deps.yaml; argument "with-submodules" also seeds submodules/{llmctl,
+# claude_toolkit} from fixtures/tools.
+make_fixture_constitution_root() {
+  local root="$T/constitution"
+  mkdir -p "$root"
+  cp "$FIXTURES/helix-deps.yaml" "$root/helix-deps.yaml"
+  if [ "${1:-}" = "with-submodules" ]; then
+    mkdir -p "$root/submodules"
+    cp -r "$FIXTURES/tools/llmctl" "$root/submodules/llmctl"
+    cp -r "$FIXTURES/tools/claude_toolkit" "$root/submodules/claude_toolkit"
+  fi
+  export JEV_CONSTITUTION_ROOT="$root"
+}
+
+# make_hook_host <changed-relpath>... — a throwaway constitution git repo C (real
+# scripts/post_update_hook.sh + the recording bootstrap stub) and a consuming
+# project dir P. Two commits: baseline, then the listed paths created/appended,
+# so `git diff HEAD~1..HEAD` (the hook's baseline when ORIG_HEAD is absent) is
+# exactly the listed paths. Sets HOST_C, HOST_P. No network, no real home.
+make_hook_host() {
+  local base f
+  base="$(mktemp -d)"; HOST_C="$base/const"; HOST_P="$base/proj"
+  mkdir -p "$HOST_C/scripts/jev" "$HOST_P"
+  cp "$REPO/scripts/post_update_hook.sh" "$HOST_C/scripts/post_update_hook.sh"
+  cp "$HERE/fixtures-shared/jev_scripts/bootstrap.sh" "$HOST_C/scripts/jev/bootstrap.sh"
+  printf 'baseline\n' > "$HOST_C/README.md"; printf '# c\n' > "$HOST_C/Constitution.md"
+  export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+  git -C "$HOST_C" init -q && git -C "$HOST_C" add -A && git -C "$HOST_C" commit -q -m base
+  for f in "$@"; do
+    mkdir -p "$HOST_C/$(dirname "$f")"; printf '# change\n' >> "$HOST_C/$f"
+  done
+  git -C "$HOST_C" add -A && git -C "$HOST_C" commit -q -m change
+}
+# run_hook_host [VAR=val ...] — runs the real hook; output in $HOST_P/hook.out, rc in HOOK_RC.
+run_hook_host() {
+  (cd "$HOST_P" && env CONST_DIR="$HOST_C" PROJECT_ROOT="$HOST_P" HOME="$HOST_P/home" \
+     BOOTSTRAP_STUB_LOG="$HOST_P/bootstrap.log" JEV_STATE_DIR="$HOST_P/.jev-state" "$@" \
+     bash "$HOST_C/scripts/post_update_hook.sh" </dev/null >"$HOST_P/hook.out" 2>&1)
+  HOOK_RC=$?
+}

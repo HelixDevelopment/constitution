@@ -84,6 +84,9 @@ deps:
     why: "shared performance cache (build/test/measurement result memoization with fingerprint invalidation) — reduces the §11.4.24 build-resource stats window churn + supports §11.4.230 pipeline-overlap parallelization by caching invariant results across stages"
     layout: grouped
 
+  # Jev decision layer (§11.4.279–§11.4.286): llmctl serves the decision models (decide profiles / systemone gateway) that scripts/jev/bootstrap.sh
+  # detects and validates. Consumed by reference at the pin below; the bootstrap NEVER re-pins it or inits it with --recursive (recursive_init: false
+  # applies to the bootstrap's managed-clone path too). llmctl resolves the canon through lib/resolve_deps.sh, so this hub<->llmctl edge stays non-nesting.
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
     ref: f42bad6             # pinned sha (commit f42bad68325eb9cd599b55f83b406e581f66fd76 = the staged gitlink, a descendant of main's re-synced 5354354; remote main tip on all 5 remotes per `git ls-remote` 2026-10-21; describe: helixconstitution-v70-68-gf42bad6; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
@@ -97,6 +100,8 @@ deps:
     why: "§11.4.76 / §11.4.161 digital.vasic.containers — the sole rootless container orchestration layer (boot / compose / health / remote distribution); provided flat by the hub so engines (llmctl among them) resolve it here instead of nesting it (§11.4.28(C))"
     layout: grouped
 
+  # Jev decision layer (§11.4.279–§11.4.286): claude_toolkit ships the per-agent wiring the bootstrap installs (sync-jev, jev-setup, jev-gate, jev_mcp,
+  # jev-stats). Pin kept at the SHA below, not `main` (§11.4.113 fetch-first); re-pin only with the gitlink (CM-HELIX-DEPS-REF-MATCHES-GITLINK).
   - name: claude_toolkit
     ssh_url: git@github.com:vasic-digital/claude_toolkit.git
     ref: 1f6dad3             # pinned sha (commit 1f6dad3bca8a1a003fce362388f697ff2d9ef3a6 = the staged gitlink; remote main tip on origin/github/gitlab/gitverse/gitflic/upstream per `git ls-remote` 2026-10-22; no release tag points at it, describe: v1.30.5-14-g1f6dad3; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)

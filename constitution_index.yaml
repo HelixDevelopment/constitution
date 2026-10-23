@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-22T00:34:22.586471+00:00'
+generated_at: '2026-10-23T17:32:10.526738+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: a3d80ce94bef04d2fb264c27431ace797877d97b
-  source_sha256: 1c75391f7a52bc6bfa8eaec3e1cfff16bf4478df70968046aed9adc6fe18a58e
+  commit: 5f8503b4f4f0f051b583d447a240c2a2a7ac253a
+  source_sha256: 846fac657171279186f1c67f1b3f98208bc75c3eeb7c0a969ea38d4d9d98f4dd
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -22,7 +22,7 @@ groups:
   anchor_count: 24
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
-  anchor_count: 37
+  anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
   anchor_count: 21
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 46
+  anchor_count: 51
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 41
@@ -5742,6 +5742,7 @@ anchors:
   - 11.4.211
   - 11.4.227
   - 11.4.231
+  - 11.4.284
   - 11.4.35
   - 11.4.5
   - 11.4.6
@@ -7352,6 +7353,138 @@ anchors:
   - 11.4.81
   - 11.4.83
   - 11.4.85
+- id: 11.4.279
+  title: — Decision-model detection-first mandate (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-279-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.141
+  - 11.4.17
+  - 11.4.198
+  - 11.4.227
+  - 11.4.231
+  - 11.4.279
+  - 11.4.286
+  - 11.4.35
+  - 11.4.6
+  - '7.1'
+- id: 11.4.280
+  title: — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-280-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.164
+  - 11.4.17
+  - 11.4.227
+  - 11.4.228
+  - 11.4.272
+  - 11.4.279
+  - 11.4.280
+  - 11.4.281
+  - 11.4.6
+  - '7.1'
+- id: 11.4.281
+  title: — Bootstrap wizard and post-update auto-trigger (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-281-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.164
+  - 11.4.17
+  - 11.4.227
+  - 11.4.228
+  - 11.4.26
+  - 11.4.279
+  - 11.4.281
+  - 11.4.32
+  - 11.4.6
+- id: 11.4.282
+  title: — Maximal decision-instance utilization (User mandate, 2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-282-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.141
+  - 11.4.17
+  - 11.4.231
+  - 11.4.279
+  - 11.4.282
+  - 11.4.283
+- id: 11.4.283
+  title: — Decision-layer token-reduction proof (User mandate, 2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-283-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.141
+  - 11.4.17
+  - 11.4.198
+  - 11.4.227
+  - 11.4.279
+  - 11.4.283
+  - 11.4.35
+  - 11.4.6
+  - '7.1'
+- id: 11.4.284
+  title: — Decision layer as pre-ladder routing stage (amends §11.4.231) (User mandate,
+    2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-284-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.196
+  - 11.4.231
+  - 11.4.279
+  - 11.4.284
+  - 11.4.285
+- id: 11.4.285
+  title: — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-285-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.231
+  - 11.4.279
+  - 11.4.281
+  - 11.4.285
+  - 11.4.35
+  - '7.1'
+- id: 11.4.286
+  title: — Decision-layer dependency submodules (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-286-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.26
+  - 11.4.279
+  - 11.4.28
+  - 11.4.281
+  - 11.4.286
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

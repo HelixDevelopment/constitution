@@ -1,5 +1,36 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v71 — 2026-10-23 — Decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution (UNRELEASED: tag and release-commit hash are filled at tag time)
+
+**Previous tag:** `helixconstitution-v70` (`b95b853cc5c1eb61e6b5b7098026cf2b82c0605f`, 2026-10-19). **Base commit of the pre-existing part of this entry:** `5f8503b` (2026-10-22). 80 commits separate it from v70 (`git rev-list --count helixconstitution-v70..5f8503b`); the diff is 154 files, 22,390 insertions, 679 deletions (`git diff --stat helixconstitution-v70 5f8503b`). The decision-layer addition below is on top of that base and is not yet committed at the time of writing; the tag and the release-commit hash are NOT recorded here because they do not exist yet.
+
+### Added
+
+- **Decision layer (Jev) — eight anchors, §11.4.279–§11.4.286.** Typed decisions (yes/no, choice, score) are answered by decision models (Jev hosted via TypeSafe/OpenRouter, the local `llmctl` decide gateway; Kev, Laya, Verdict and Strands profiles) before the model ladder, so only generative work spends traditional-LLM tokens. §11.4.279 detection-first mandate; §11.4.280 per-agent decision-layer installation; §11.4.281 bootstrap wizard with post-update trigger; §11.4.282 maximal use of decision instances; §11.4.283 token-reduction proof; §11.4.284 pre-ladder routing stage (amends §11.4.231 with a dated paragraph; the ladder is not extended); §11.4.285 shadow-first auto-tuning of thresholds; §11.4.286 `llmctl` and `claude_toolkit` as dependency submodules. The numbers were renumbered from a proof-of-concept that used §11.4.277–§11.4.284, which collide with the live §11.4.277 (llmctl model validation gate) and §11.4.278 (HelixQA UI QA with Vision eyes); the live anchors keep their numbers and text.
+- **Gates:** four `CM-JEV-*` gates (`CM-JEV-DETECTION`, `CM-JEV-WIRING`, `CM-JEV-BOOTSTRAP-IDEMPOTENT`, `CM-JEV-TOKEN-REDUCTION`) and eight propagation gates `CM-COVENANT-114-279-PROPAGATION` to `CM-COVENANT-114-286-PROPAGATION`.
+- **Machinery:** `scripts/jev/` (bootstrap wizard and tools), skill `skills/jev-decision-layer/`, MCP declaration `mcp/jev-decisions.json`, `actions/registry.yaml` rows for `/jev_bootstrap` and `/jev_status`, tests, and operator documents under `docs/jev/`.
+- **Carriers and README:** compact entries for §11.4.279–§11.4.286 and the §11.4.231 amendment paragraph in `CLAUDE.md` (revision 82), `AGENTS.md` (79), `QWEN.md` (76) and `GEMINI.md` (50); README revision 9 with a "Decision layer (Jev)" section (two Mermaid diagrams).
+- **label-sync (67 of the 80 commits, 2026-10-12 to 2026-10-15):** a Go core (`labelctl`, `label-busd`, state store, bus, label grammar), renderers (statusline, title, tmux status, shell integration, `labelrun`), Claude Code hooks, an idempotent `settings.json` installer with `post_update_hook.sh` step 4c, an MCP stdio server, CLI-agent adapters (kimi, opencode, crush, aider, codex, gemini, qwen), the `label-sync` skill, the gates `CM-LABEL-SYNC-CORE`, `CM-LABEL-SYNC-RENDER`, `CM-LABEL-SYNC-HOOKS`, `CM-LABEL-SYNC-MCP` with mutation tests, and the documents under `docs/label-sync/`. The commit history records several independent review rounds and their fixes (`docs/label-sync/REVIEW-FIXES.md`).
+- **Mandatory `helix-deps.yaml` in every own-org repository (`1a21952`, §11.4.31, §11.4.28(C)):** canonical engine, gates and docs; hub engines resolve flat. `CM-HELIX-DEPS-REF-MATCHES-GITLINK` (`fd3f71c`) fails when a recorded ref differs from its gitlink.
+
+### Changed
+
+- **§11.4.231** carries a dated amendment paragraph (ladder governs generative work only); no rung is added.
+- **Pins:** `claude_toolkit` moved to `1f6dad3` (flat, with `helix-deps.yaml`) in `5f8503b`; 12 behind-only submodules fast-forwarded in cascade `94b8836`; `anti_bluff`, `token_optimizer` and `llmctl` refs re-synchronised to their gitlinks in `4c5ae23`; `fd3f71c` makes the `helix-deps.yaml` refs of `docs_chain`, `continuum` and `design-toolkit` equal their gitlinks and adds the gate that enforces it.
+- **`scripts/post_update_hook.sh`:** step 4b never aborts the hook before step 4c, `install_hooks` never aborts the run and uses the real hooks directory, and the step-1 changed-file list is NUL-safe.
+
+### Fixed
+
+- `CM-LABEL-SYNC-CORE` and `CM-LABEL-SYNC-RENDER` exited 0 when `jq`, `go`, `python3`, `grep` or `find` were absent; they now exit 2 (`84d8b48`, `b543400`).
+- The label-sync findings recorded per review round: secret-safe hooks, a stale-process sweeper, signal forwarding in the spawn window, and an adapter-test server leak (see the commit log between `helixconstitution-v70` and `5f8503b`).
+
+### Honest boundaries
+
+- **Rendered twins are NOT regenerated in this entry.** The `.html` / `.pdf` / `.docx` siblings of `CLAUDE`, `AGENTS`, `QWEN`, `GEMINI`, `README`, `CHANGELOG`, `Constitution`, the group files and `CLAUDE_ANCHORS_FULL` are stale until `scripts/render/render-governance-twins.sh` is run upstream; the README `Twins` badge is amber for that reason.
+- **README badge row not hand-edited.** Version, Anchors, Groups, Gates and Mutation badges are computed by `scripts/badges/compute_badges.sh` and show v70 values until it is re-run at tag time.
+- **Decision layer evidence:** the anchors, gates and machinery are new; no end-to-end measured token reduction from a real consumer exists yet (§11.4.283 requires one per consumer).
+- **Five `Auto-commit` commits** (`0876bb2` to `4bcb512`, 2026-10-20) have non-descriptive messages; the last changes `.gitignore` by two lines, the others were not itemised here.
+
 ## helixconstitution-v70 — 2026-10-19 — Progressive-disclosure layer, optimization audit and remediation, §11.4.277 / §11.4.278 + llmctl, gate hardening, README quality-badge computer
 
 **Previous tag:** `helixconstitution-v69` (`4d0172cbf95d8f42a440151cc9ffeb84209d70af`, 2026-10-05). **Base commit of this entry:** `4ca320809665728d8c41012b72bd1a7352348b46` (2026-10-19); the release commit that carries this entry follows it. 69 commits separate the base commit from v69 (`git rev-list --count helixconstitution-v69..4ca3208`).

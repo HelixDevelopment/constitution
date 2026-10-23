@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Fixture git stub - records invocations to $GIT_STUB_LOG, never touches network.
+# Emulates just enough of clone/checkout/rev-parse for BOTH the fixture bootstrap
+# stub and the real scripts/jev/bootstrap.sh (which calls plain `git`):
+#   git clone [--quiet] <url> <dest>   -> mkdir dest (dest = LAST arg), record url
+#   git [-C <dir>] checkout [--quiet] <ref> -> record <ref> in <dir>/.stub_head;
+#       fails (rc 1) when GIT_STUB_KNOWN_REFS (space-separated) is set and <ref>
+#       is not in it - this is how an unreachable pin is emulated.
+#   git [-C <dir>] rev-parse ...        -> prints the recorded ref (or "stubhead")
+#   git [-C <dir>] status|fetch         -> rc 0, no output (clean, nothing to fetch)
+set -u
+: "${GIT_STUB_LOG:=/dev/null}"
+printf '%s\n' "git $*" >> "$GIT_STUB_LOG"
+dir="."
+if [ "${1:-}" = "-C" ]; then dir="${2:-.}"; shift 2; fi
+case "${1:-}" in
+  clone)
+    dest="${!#}"
+    [ -n "$dest" ] && mkdir -p "$dest"
+    ;;
+  checkout)
+    ref=""
+    for a in "${@:2}"; do case "$a" in -*) ;; *) ref="$a" ;; esac; done
+    if [ -n "${GIT_STUB_KNOWN_REFS:-}" ]; then
+      case " $GIT_STUB_KNOWN_REFS " in *" $ref "*) ;; *) echo "stub git: unknown ref $ref" >&2; exit 1;; esac
+    fi
+    [ -d "$dir" ] && printf '%s\n' "$ref" > "$dir/.stub_head"
+    ;;
+  rev-parse)
+    if [ -f "$dir/.stub_head" ]; then cat "$dir/.stub_head"; else echo stubhead; fi
+    ;;
+  diff)
+    # Emit the fixture changed-file list when asked (post_update_hook tests).
+    [ -n "${GIT_STUB_DIFF_OUTPUT:-}" ] && printf '%s\n' "$GIT_STUB_DIFF_OUTPUT"
+    ;;
+esac
+exit 0

@@ -358,7 +358,8 @@ ID_RANGE_GROUPS = [
                                            (173, 173),  # 173 added — T006/T007 283-corpus widening (see report)
                                            (177, 177),  # 177 added — fix round 1, was wrongly reachable via multi-track's over-broad (176,192) (see report)
                                            (184, 184), (196, 198), (227, 227),
-                                           (228, 228), (272, 275)]),
+                                           (228, 228), (272, 275),
+                                           (282, 284)]),  # 282-284 added 2026-10-23 — Jev decision-layer: utilization, token-reduction proof, pre-ladder stage
     ("project-lifecycle-and-release", [(8, 9), (20, 20), (40, 40), (42, 42),
                                         (46, 47), (52, 52), (66, 66), (70, 70),
                                         (72, 72), (82, 82), (87, 87), (89, 89),
@@ -367,7 +368,8 @@ ID_RANGE_GROUPS = [
                                         (129, 133), (150, 152), (172, 172),  # 172 added — T006/T007 283-corpus widening (see report)
                                         (185, 185), (200, 200),
                                         (207, 207), (208, 208), (210, 211), (213, 213),
-                                        (229, 229), (235, 236), (260, 261), (264, 267)]),
+                                        (229, 229), (235, 236), (260, 261), (264, 267),
+                                        (279, 281), (285, 286)]),  # 279-281, 285-286 added 2026-10-23 — Jev decision-layer: detection, wiring, bootstrap, auto-tuning, dependency submodules
 ]
 
 EXPLICIT_ID_GROUPS = {

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Stub: kimi CLI agent. Only records invocation.
+set -euo pipefail
+printf '%s\n' "kimi $*" >> "${STUB_LOG:-/tmp}/kimi.log" 2>/dev/null || true
+[ "${1:-}" = "--version" ] && echo "kimi stub 0.0.0-fixture"
+exit 0

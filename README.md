@@ -4,11 +4,11 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-05-14 |
-| Last modified | 2026-10-21T17:56:25Z |
+| Last modified | 2026-10-23T00:00:00Z |
 | Status | active |
-| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
+| Status summary | R8 refresh (2026-10-23, unreleased — next tag `helixconstitution-v71`, tag and hash filled at tag time): the decision layer (Jev) added — anchors §11.4.279–§11.4.286, a dedicated README section with a flow diagram, and updated dependency/tooling tables; the badge row is NOT hand-edited and must be recomputed with `scripts/badges/compute_badges.sh`. Earlier: Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
 | Issues | none |
 | Issues summary | — |
 | Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31 dependency-manifest section, engine, gate and documentation links) |
@@ -56,9 +56,9 @@ README ships in. Re-derive the machine-derived ones with
 | Latest release tag | `helixconstitution-v70` (previous: `helixconstitution-v69`, 2026-10-05; `helixconstitution-v68`, 2026-08-18) | `git tag`, `CHANGELOG.md` |
 | Canon | `Constitution.md`, revision 76, 12,149 lines, 2,062,810 bytes | `wc`, document header |
 | Indexed anchors | **288**, in **12** groups | `constitution_index.yaml` |
-| Highest anchor number | §11.4.278 (§11.4.277 llmctl model validation gate, §11.4.278 HelixQA UI QA with Vision eyes — the latter PROPOSED, evidence pending) | `Constitution.md` |
+| Highest anchor number | §11.4.286 (§11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
 | Progressive rules | **289** rule files generated from the canon (the 288-vs-289 difference is a recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
-| Governance mirrors | `CLAUDE.md` rev 79, `AGENTS.md` rev 77, `QWEN.md` rev 74, `GEMINI.md` rev 48 (kept in lockstep per §11.4.157) | document headers |
+| Governance mirrors | `CLAUDE.md` rev 82, `AGENTS.md` rev 79, `QWEN.md` rev 76, `GEMINI.md` rev 50 (kept in lockstep per §11.4.157) | document headers |
 | Mechanism gates | **141** `cm_*` gates in `scripts/gates/`, **141** with a paired mutation test or outside self-test; **144** mutation tests in total | `compute_badges.sh --facts` |
 | Propagation gates | **89** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
 | Shell scripts | 749 `*.sh` under `scripts/` | `find` |
@@ -108,6 +108,7 @@ operator mandate in a forensic-anchor block inside `Constitution.md`):
 | §11.4.259 | README quality-badge row — applied to this very page (see the top of it) |
 | §11.4.276 | Review-round budget: at most 7 rounds, with a binding structural round at round 3 |
 | §11.4.277 / §11.4.278 | llmctl model validation gate; HelixQA UI QA with Vision eyes (PROPOSED) |
+| §11.4.279–§11.4.286 | Decision layer (Jev): detection-first, per-agent installation, bootstrap wizard, instance utilization, token-reduction proof, pre-ladder routing (amends §11.4.231), shadow-first auto-tuning, `llmctl` / `claude_toolkit` dependency submodules — see "Decision layer (Jev)" below |
 | §12 / §12.6 / §12.12 | Host-session safety: 60 % memory ceiling, thread-limit headroom |
 
 ## Progressive-disclosure layer (`progressive/`)
@@ -155,6 +156,56 @@ comparison needs a real build; an independent fresh-clone sign-off is
 not yet committed; twin governance files reference 20 anchors the canon
 only cites, never defines (`progressive/twin_exceptions.txt`).
 
+## Decision layer (Jev)
+
+Anchors §11.4.279–§11.4.286 add a typed-decision routing stage in front
+of the model ladder. A judgment that fits a typed decision (yes/no,
+choice, score) is answered by a small decision model ("Jev": hosted via
+TypeSafe/OpenRouter, or the local `llmctl` decide gateway; Kev, Laya,
+Verdict and Strands profiles are the other decision profiles) instead
+of a chat model, so only generative work spends traditional-LLM tokens.
+The §11.4.231 ladder itself is unchanged. The text lives in
+`Constitution.md`; the operator documents are under `docs/jev/`.
+
+```mermaid
+flowchart TD
+    A[Work item or tool call] --> B{Typed decision?}
+    B -- no, generative --> L[Model ladder: sonnet, then opus - section 11.4.231]
+    B -- yes --> D[Detection record: jev-detection.json - 11.4.279]
+    D --> E[Decision endpoints: local llmctl gateway, LAN pins, OpenRouter, TypeSafe - 11.4.282]
+    E --> M{Mode for this question type}
+    M -- shadow: no calibrated threshold --> S[Log to decisions.jsonl, answer from ladder - 11.4.285]
+    M -- enforce: calibrated --> C{Confidence at or above threshold?}
+    C -- yes --> R[Decision served, no LLM tokens]
+    C -- no --> L
+    S --> L
+    R --> T[Token-reduction proof: BEFORE/AFTER harness - 11.4.283]
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Shadow
+    Shadow --> Calibrating: weekly or jev-calibrate --now
+    Calibrating --> Enforce: agreement at or above floor and sample at or above minimum
+    Calibrating --> Shadow: below floor
+    Enforce --> Calibrating: constitution update or decision-model version change
+```
+
+| Concern | Anchor | Where it is implemented |
+|---|---|---|
+| Detect decision models before the first LLM call | §11.4.279 | `jev-detection.json`, gate `CM-JEV-DETECTION` |
+| Install per agent (hook, MCP, skill, aliases) | §11.4.280 | `jev-setup.sh`, `skills/jev-decision-layer/`, `mcp/jev-decisions.json`, gate `CM-JEV-WIRING` |
+| Bootstrap wizard, rerun on every constitution update | §11.4.281 | `scripts/jev/bootstrap.sh`, `scripts/post_update_hook.sh`, gate `CM-JEV-BOOTSTRAP-IDEMPOTENT` |
+| Use all decision instances | §11.4.282 | capacity in `jev-detection.json` |
+| Prove token reduction | §11.4.283 | BEFORE/AFTER harness extension, gate `CM-JEV-TOKEN-REDUCTION` |
+| Pre-ladder routing stage (amends §11.4.231) | §11.4.284 | `CM-JEV-WIRING` (no decision endpoint in a chat config) |
+| Shadow-first auto-tuning | §11.4.285 | `jev-calibrate.sh`, `jev-thresholds.json` |
+| `llmctl` and `claude_toolkit` as submodules | §11.4.286 | `helix-deps.yaml`, `submodules/` |
+
+Each anchor also has a `CM-COVENANT-114-<N>-PROPAGATION` gate. Whether
+each of these files and gates exists in a given checkout is verified
+with `ls scripts/jev scripts/gates | grep -i jev`, not by this table.
+
 ## Token and speed machinery
 
 | Piece | Path | Purpose |
@@ -200,9 +251,9 @@ Own-org (declared in `helix-deps.yaml`):
 | `session_orchestrator` | `vasic-digital/session_orchestrator` | `78b77bb` | §11.4.187 multi-track ruler substrate |
 | `token_optimizer` | `vasic-digital/token_optimizer` | `2002db5` | §11.4.141 token-optimization engine |
 | `helix_perf_cache` | `HelixDevelopment/helix_perf_cache` | `6adcfb2` | shared build/test result cache with fingerprint invalidation |
-| `llmctl` | `vasic-digital/llmctl` | `f42bad6` (main, describe `helixconstitution-v70-68-gf42bad6`) | §11.4.277 model manager and validation gate — nests no own-org repository (resolves the canon, `containers` and `superspec` via `lib/resolve_deps.sh`); depth-1 only, **never** initialised recursively because it nests third-party `llama.cpp` and `colibri` (`recursive_init: false`, checked by `CM-LLMCTL-SUBMODULE-NONRECURSIVE` and `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
+| `llmctl` | `vasic-digital/llmctl` | `f42bad6` (main, describe `helixconstitution-v70-68-gf42bad6`) | §11.4.277 model manager and validation gate; §11.4.286 decision-layer dependency — nests no own-org repository (resolves the canon, `containers` and `superspec` via `lib/resolve_deps.sh`); depth-1 only, **never** initialised recursively because it nests third-party `llama.cpp` and `colibri` (`recursive_init: false`, checked by `CM-LLMCTL-SUBMODULE-NONRECURSIVE` and `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
 | `containers` | `vasic-digital/Containers` | `919ad1e` (main, describe `helixcode-v1.1.0-159-g919ad1e`) | §11.4.76 / §11.4.161 rootless container orchestration layer, provided flat so engines resolve it instead of nesting it |
-| `claude_toolkit` | `vasic-digital/claude_toolkit` | `1f6dad3` (main, describe `v1.30.5-14-g1f6dad3`) | multi-alias / provider toolkit (§11.4.196 / §11.4.198) — nests no own-org repository (resolves the canon, `containers`, `challenges`, `LLMsVerifier` and `claude-code-router` flat via `scripts/resolve_deps.sh`) and ships its own `helix-deps.yaml`; depth-1 only, **never** initialised recursively because it nests the third-party Go toolchain (`submodules/go`) (`recursive_init: false`, checked by `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
+| `claude_toolkit` | `vasic-digital/claude_toolkit` | `1f6dad3` (main, describe `v1.30.5-14-g1f6dad3`) | multi-alias / provider toolkit (§11.4.196 / §11.4.198); §11.4.286 decision-layer dependency — nests no own-org repository (resolves the canon, `containers`, `challenges`, `LLMsVerifier` and `claude-code-router` flat via `scripts/resolve_deps.sh`) and ships its own `helix-deps.yaml`; depth-1 only, **never** initialised recursively because it nests the third-party Go toolchain (`submodules/go`) (`recursive_init: false`, checked by `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
 | `design-toolkit` | `vasic-digital/design-toolkit` | `4ddc964` (tag `v0.2.2` + 14) | §11.4.162 OpenDesign design-token and brand-contract engine |
 
 Third-party (pinned, not modified here): `agentic-validation`
@@ -259,11 +310,12 @@ Documentation:
 | `scripts/fastcycle/` | fast-development-cycle gates, review records, timing, sampling |
 | `scripts/skill_activation/` | on-demand skill activation (§11.4.272) |
 | `scripts/translation/`, `scripts/render/` | the HelixTranslate pipeline wrappers and the governance-twin renderer (`render-governance-twins.sh`) |
+| `scripts/jev/` | the decision-layer wizard and tools (§11.4.279–§11.4.286): `bootstrap.sh`, `jev-setup.sh`, `jev-gate.sh`, `jev-calibrate.sh`, `jev-stats.sh` |
 | `scripts/badges/` | `compute_badges.sh` — the README badge computer (this page) |
 | `scripts/doc_integrity/` | cross-document consistency validator (§11.4.186) |
-| `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle` |
+| `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle`, `jev-decision-layer` |
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
-| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`) |
+| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`, `jev-decisions.json`) |
 | `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
 | `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
 | `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
@@ -455,6 +507,7 @@ within a primary version.
 | `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files and `helix-deps.yaml.template` (§11.4.31). |
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
+| `docs/jev/` | The decision-layer (Jev) operator documents. |
 | `LICENSE` | Apache License 2.0, governing the constitution text itself. |
 
 The `.html` / `.pdf` / `.docx` siblings of the Markdown files are

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-10-21 |
-| Last modified | 2026-10-22T00:34:17Z |
+| Last modified | 2026-10-23T00:00:00Z |
 | Status | active |
 | Status summary | Complete reference for the §11.4.31 manifest: schema, layouts, hub engines, transitive handling, the canonical engine (walk, verdicts, exit codes, control needles, scaffold), the gate, and troubleshooting. |
 | Authority | Constitution §11.4.31 (EXTENSION of 2026-10-21). The canonical text wins where this manual and the constitution disagree. |
@@ -148,6 +148,8 @@ owned by `CM-HUB-ENGINE-NO-OWNORG-NESTING` until the engine stops nesting it ups
 to that commit. Measured 2026-10-22 on the constitution hub: no engine pin nests an own-org repository
 (`llmctl` at `f42bad6` nests third-party `llama.cpp` and `colibri`; `claude_toolkit` at `1f6dad3` nests
 the third-party Go toolchain), so `recursive_init: false` on both entries now guards third-party nests only.
+
+These two hub engines are also the §11.4.286 decision-layer dependencies: the Jev bootstrap wizard reads their pins from this manifest and installs them (§11.4.281).
 
 ## 5. Transitive handling
 

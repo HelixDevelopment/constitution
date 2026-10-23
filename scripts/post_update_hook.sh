@@ -17,6 +17,8 @@
 #   4b/4c/4d. Re-wires action directives, the label-sync Claude Code hooks
 #      (LABEL_SYNC_AUTOWIRE, dry-run default) and the label-sync CLI-agent
 #      adapters (LABEL_SYNC_ADAPTERS, dry-run default)
+#   4e. Fires the Jev decision-layer bootstrap (§11.4.281(C)) when a Jev file
+#      changed — NON-INTERACTIVE only, fail-open (see install_jev_bootstrap)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   5b. Hub-structure + §11.4.31 manifest gates (every pull, changed files or not)
 #   6. Reports a summary of what was installed
@@ -91,6 +93,7 @@ CHANGED_HOOKS=()
 CHANGED_SCRIPTS=()
 CHANGED_ACTIONS=()   # actions/registry.yaml + plugins/** — re-wire slash commands
 CHANGED_LABELSYNC=() # scripts/label-sync/** + the labeler — re-wire the label-sync hooks (§11.4.228(D))
+CHANGED_JEV=()       # Jev decision-layer files — re-fire the bootstrap (§11.4.281(C)); NOT exclusive with the classes below
 ERRORS=()
 WARNINGS=()
 
@@ -157,6 +160,14 @@ detect_changes() {
     local f
     for f in "${changed_files[@]}"; do
         [ -n "$f" ] || continue
+        # Jev trigger set (§11.4.281(C)) — classified SEPARATELY from the exclusive
+        # case below because a path here also belongs to another class
+        # (mcp/jev-decisions.json is an MCP config, actions/registry.yaml an action
+        # file): it must still be installed as such AND re-fire the bootstrap.
+        case "$f" in
+            scripts/jev/*|skills/jev-decision-layer/*|mcp/jev-decisions.json|actions/registry.yaml|submodules/llmctl|submodules/claude_toolkit)
+                CHANGED_JEV+=("$f") ;;
+        esac
         # Classify by path prefix
         case "$f" in
             skills/*)
@@ -206,14 +217,14 @@ detect_changes() {
     # Guarded against the empty case: `"${ARR[@]}"` on an empty array is an
     # unbound-variable error under `set -u` on bash < 4.4.
     local _arr
-    for _arr in CHANGED_SKILLS CHANGED_MCP CHANGED_HOOKS CHANGED_SCRIPTS CHANGED_ACTIONS CHANGED_LABELSYNC; do
+    for _arr in CHANGED_SKILLS CHANGED_MCP CHANGED_HOOKS CHANGED_SCRIPTS CHANGED_ACTIONS CHANGED_LABELSYNC CHANGED_JEV; do
         [ "$(arr_len "$_arr")" -eq 0 ] && continue
         local -n _ref="$_arr"
         mapfile -d '' -t _ref < <(printf '%s\0' "${_ref[@]}" | sort -zu)   # MUT:step1dedupe
         unset -n _ref
     done
 
-    info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s), $(arr_len CHANGED_LABELSYNC) label-sync file(s) changed."
+    info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s), $(arr_len CHANGED_LABELSYNC) label-sync file(s), $(arr_len CHANGED_JEV) jev file(s) changed."
 }
 
 # ============================================================================
@@ -608,6 +619,79 @@ install_label_sync_adapters() {
     return 0
 }
 
+# ============================================================================
+# STEP 4e — Jev decision-layer bootstrap trigger (§11.4.281(C))
+# ============================================================================
+# Fires scripts/jev/bootstrap.sh when a Jev-relevant file changed (CHANGED_JEV).
+# Marker block asserted by gate CM-JEV-BOOTSTRAP-IDEMPOTENT; do not reword the
+# marker lines. Design decisions (each one deliberate):
+#   * ALWAYS --non-interactive. A post-update hook runs inside `git pull` /
+#     `git submodule update`, possibly over ssh or from a script that merely
+#     inherits a TTY; a prompt there blocks the pull on a human who may not be
+#     watching. (An earlier draft ran the INTERACTIVE wizard whenever stdin and
+#     stdout were TTYs and fell back to --defer on any failure, so a declined or
+#     Ctrl-C'd prompt silently became "deferred".) The interactive wizard is the
+#     operator's explicit act: `bash scripts/jev/bootstrap.sh`, or /jev_bootstrap.
+#     bootstrap.sh additionally exits rc 2 on a non-TTY without --non-interactive,
+#     so passing the flag is also what keeps it from refusing here.
+#   * FAIL-OPEN (§9 data safety: a decision-layer provisioning problem must never
+#     break or roll back a constitution pull). A bootstrap failure is first
+#     degraded to `--defer` (writes the pending stamp, exits 0), and is recorded
+#     as a WARNING — never an ERROR — so the hook still exits 0; it is NEVER
+#     silent (a warn line + the WARNINGS summary). rc 3 (operator-required stop:
+#     diverged managed clone) is NOT deferred over — it is surfaced as-is.
+#     Fail-CLOSED would hold a pull hostage to network/model availability.
+#   * Opt-outs, each logged and never silent: marker file
+#     $PROJECT_ROOT/.jev/bootstrap.disabled (per project) and env
+#     CONSTITUTION_JEV_HOOK=off (consumer emergency kill-switch).
+#   * Bounded: `timeout` (JEV_HOOK_TIMEOUT seconds, default 900) when available,
+#     so a hung provisioning step cannot stall the pull forever.
+#   * Idempotent: bootstrap.sh is marker/stamp-guarded and reports "no-change"
+#     on unchanged inputs; this step only fires on a Jev-relevant change.
+install_jev_bootstrap() {
+    header "STEP 4e: Jev decision-layer bootstrap (§11.4.281(C))"
+    if [ "$(arr_len CHANGED_JEV)" -eq 0 ]; then
+        info "No Jev decision-layer changes — nothing to bootstrap."
+        return 0
+    fi
+    # >>> helix-jev-bootstrap >>>
+    local boot="${CONST_DIR}/scripts/jev/bootstrap.sh"
+    if [ -f "${PROJECT_ROOT}/.jev/bootstrap.disabled" ]; then
+        info "jev-bootstrap: SKIPPED — opt-out marker .jev/bootstrap.disabled present (logged per §11.4.281(C))"
+        return 0
+    fi
+    if [ "${CONSTITUTION_JEV_HOOK:-on}" = "off" ]; then
+        info "jev-bootstrap: SKIPPED — CONSTITUTION_JEV_HOOK=off (consumer emergency kill-switch, logged)"
+        return 0
+    fi
+    if [ ! -f "$boot" ]; then
+        warn "jev-bootstrap: scripts/jev/bootstrap.sh not present in this checkout — recorded as pending"
+        WARNINGS+=("jev-bootstrap: scripts/jev/bootstrap.sh missing (pending)")
+        mkdir -p "${PROJECT_ROOT}/.jev" 2>/dev/null && : >"${PROJECT_ROOT}/.jev/bootstrap.pending" 2>/dev/null || :
+        return 0
+    fi
+    local -a runner=(bash)
+    if command -v timeout >/dev/null 2>&1; then runner=(timeout "${JEV_HOOK_TIMEOUT:-900}" bash); fi
+    local rc=0
+    # cd to PROJECT_ROOT: bootstrap.sh writes its evidence to ./.jev (JEV_EVIDENCE_DIR).
+    (cd "$PROJECT_ROOT" && "${runner[@]}" "$boot" --non-interactive) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        info "jev-bootstrap: completed (non-interactive)"
+    elif [ "$rc" -eq 3 ]; then
+        warn "jev-bootstrap: operator action required (rc 3, e.g. diverged managed clone) — nothing overwritten; run it interactively"
+        WARNINGS+=("jev-bootstrap: operator action required (rc 3)")
+    else
+        warn "jev-bootstrap: failed (rc $rc) — degrading to --defer (never breaks the pull)"
+        if (cd "$PROJECT_ROOT" && "${runner[@]}" "$boot" --defer); then
+            WARNINGS+=("jev-bootstrap: failed (rc $rc), deferred — run /jev_bootstrap")
+        else
+            WARNINGS+=("jev-bootstrap: failed (rc $rc) even with --defer")
+        fi
+    fi
+    # <<< helix-jev-bootstrap <<<
+    return 0
+}
+
 # run_step <function> : run one step ISOLATED, with errexit ACTIVE inside it
 # (re-review finding 1: calling the step as `"$fn" || rc=$?` disabled errexit
 # for every command in the step, so a command failing mid-step passed silently
@@ -848,7 +932,8 @@ main() {
        [ "$(arr_len CHANGED_HOOKS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] && \
-       [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ]; then
+       [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ] && \
+       [ "$(arr_len CHANGED_JEV)" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
         if [ "$(arr_len ERRORS)" -gt 0 ]; then
             report_summary
@@ -863,6 +948,7 @@ main() {
     run_step install_action_plugins
     run_step install_label_sync
     run_step install_label_sync_adapters
+    run_step install_jev_bootstrap
     run_step validate_scripts
     report_summary
 }

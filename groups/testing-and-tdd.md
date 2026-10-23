@@ -1722,3 +1722,4 @@ Paired §1.1 mutations (each MUST make its gate FAIL): add a screen to the app w
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.278.
 
 Non-compliance is a release blocker regardless of context. No escape hatch — no `--skip-vision`, `--skip-platform`, `--happy-path-only`, `--screens-subset`, `--ignore-failing-screen`, `--lower-ocr-threshold`, `--accept-model-description`, `--no-recording`, `--fixture-instead-of-live-capture`, `--unvalidated-vision-OK`, `--model-decides-alone`, `--catalogue-by-hand-no-inventory-check`, `--manual-qa-replaces-helixqa` flag exists.
+

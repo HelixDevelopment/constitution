@@ -1728,3 +1728,106 @@ Propagation gate `CM-COVENANT-114-267-PROPAGATION` (literal `11.4.267` present a
 
 ---
 
+### §11.4.279 — Decision-model detection-first mandate (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07), quoted in full as the shared forensic source for §11.4.279–§11.4.286:** "Any project that uses the constitution must: first detect any decision models available (llmctl local instances and providers); install all plugins, skills, and MCPs per agent; auto-tune immediately when the constitution updates; provide interactive-but-automated wizards; use all available model instances to the maximum; reduce token consumption of traditional LLMs to the maximum; trigger out-of-the-box entry points when a new constitution version lands; and make llmctl and claude_toolkit part of the constitution submodule with mechanisms for installing. Traditional LLMs must auto-tune the Jev models." This anchor's operative slice: "Any project that uses the constitution must first detect any decision models available — llmctl local instances and providers — before any other LLM work proceeds."
+
+**(A) DETECTION BEFORE GENERATION.** Every project incorporating this constitution MUST run decision-model detection — `llmctl plan --json` (local `decision_instances`) and `claude-providers sync-jev` (ranked endpoint cache: local decide gateway, LAN pins, OpenRouter, TypeSafe hosted, in that priority order) — before the first generative-LLM invocation of any work item. Detection output MUST be persisted to the project's evidence store as `jev-detection.json` (endpoint list, per-endpoint model IDs, probe timestamps, absence reasons).
+
+**(B) DETECTION IS CHEAP AND ALWAYS-ON.** Detection MUST NOT perform network I/O against hosted providers at work-item time; it reads the toolkit's TTL-guarded cache and llmctl's local plan. Hosted endpoints enter the cache only at explicit sync time. Detection absent any endpoint MUST produce an explicit `{"endpoints": [], "reason": "…"}` record — silent absence is a §7.1 bluff.
+
+**(C) NO DETECTION, NO GENERATION CLAIM.** Any session report, cost report, or token-efficiency claim (§11.4.141) that does not reference the session's `jev-detection.json` is non-compliant. A project with zero detected decision endpoints is compliant only when the detection record proves the absence.
+
+**(D) GATE.** Gate `CM-JEV-DETECTION` asserts: the detection command ran within the work item's evidence window; the output parses; absence is reasoned. Paired §1.1 mutation: `cm_jev_detection_mutation_test.sh` fabricates a detection record while `llmctl` and all endpoints are absent in the sandbox — the gate MUST fail.
+
+Composes with §11.4.141 / §11.4.198 / §11.4.231 / §11.4.35 / §7.1 / §1.1.
+
+Classification: universal (§11.4.17) — the consuming project supplies its keys file, its llmctl host, and its evidence-store path as DATA. Propagation gate `CM-COVENANT-114-279-PROPAGATION` + recommended gate `CM-JEV-DETECTION` + paired §1.1 meta-test mutation. Gate code shipped: `scripts/gates/cm_jev_detection.sh` + paired mutation test `scripts/gates/cm_jev_detection_mutation_test.sh` (§11.4.6 / §11.4.227).
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.279.
+
+**Non-compliance is a release blocker. No escape hatch — no `--skip-jev-detection`, no env kill-switch for detection itself (runtime kill-switch `JEV_GATE=off` governs enforcement only, never detection).**
+
+### §11.4.280 — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Install all the plugins, skills and MCPs per agent so every agent on the host can reach the decision layer."
+
+**(A) EVERY DETECTED AGENT IS WIRED.** For every agent platform detected on the host (Claude Code, Kimi Code, pi, opencode, and any platform declared SUPPORTED in the project's §11.4.228 compatibility matrix), the project MUST install the decision-layer artifacts appropriate to that platform's verified mechanics: PreToolUse/UserPromptSubmit hooks (`jev-gate.sh`), MCP server registration (`jev_mcp.py`), provider-alias env exports, and platform plugins where a plugin mechanism exists. The constitution extension ships these as: skill `skills/jev-decision-layer/`, MCP declaration `mcp/jev-decisions.json`, plugin slash commands in `plugins/helix`, and the per-agent installer `jev-setup.sh` invoked by the bootstrap wizard (§11.4.281).
+
+**(B) LIFECYCLE COMPLIANCE.** Installation, update, and removal of every decision-layer artifact MUST follow §11.4.228 (provenance via `EXTENSION_SOURCE.yaml`, symlink-preferred, closed compatibility vocabulary) and §11.4.272 (on-demand activation, minimum active surface).
+
+**(C) HONEST COVERAGE.** Where a platform's mechanics cannot intercept a call class (e.g. opencode plugin hooks do not intercept MCP-tool or subagent calls), the installation record MUST state the gap verbatim; claiming full coverage is a §7.1 bluff.
+
+**(D) GATE.** Gate `CM-JEV-WIRING` asserts per detected agent: hook entry present, MCP registration present, env exports present in the launch path, coverage-gap notes present where applicable. Paired §1.1 mutation: `cm_jev_wiring_mutation_test.sh` removes the hook block from one sandboxed agent home — the gate MUST fail naming that agent.
+
+Composes with §11.4.228 / §11.4.272 / §11.4.164 / §7.1 / §1.1.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-280-PROPAGATION` + recommended gate `CM-JEV-WIRING` + paired §1.1 meta-test mutation. Gate code shipped: `scripts/gates/cm_jev_wiring.sh` + paired mutation test `scripts/gates/cm_jev_wiring_mutation_test.sh` (§11.4.6 / §11.4.227).
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.280.
+
+**Non-compliance is a release blocker. No escape hatch — no flag skips wiring a detected agent; uninstall is a deliberate, logged operator act (`jev-setup --uninstall`), never a side effect.**
+
+### §11.4.281 — Bootstrap wizard and post-update auto-trigger (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "When a new constitution version lands, entry points must trigger out of the box: a wizard that detects, installs, configures, calibrates and enforces — interactive but fully automatable — and it must run again on every constitution update."
+
+**(A) MASTER WIZARD.** The constitution extension MUST ship `scripts/jev/bootstrap.sh`: a single master wizard that runs the progression **detect → provision (install/update llmctl + claude_toolkit) → detect decision models → install per-agent artifacts → configure → calibrate (shadow) → enforce**, reporting progress to the operator at every stage.
+
+**(B) INTERACTIVE-BUT-AUTOMATED.** The wizard MUST prompt interactively (`read -r -p`, prompts to stderr, TTY-gated) when attached to a terminal, and MUST be fully automatable via `--non-interactive` with sane defaults plus environment overrides (`JEV_BOOTSTRAP_*`). Non-TTY without `--non-interactive` is an error, never a hang. Interactive mode contains no logic beyond prompting; every prompt has a flag/env equivalent.
+
+**(C) OUT-OF-THE-BOX TRIGGER.** `scripts/post_update_hook.sh` MUST invoke the bootstrap wizard on every constitution pull that changes the Jev extension files, guarded (opt-out marker file, per §11.4.164 conventions), idempotent (second run is a byte-stable no-op), and deferrable (`--defer` writes a pending-state stamp honored by the next interactive session).
+
+**(D) CLI-AGENT TRIGGER.** The wizard MUST be triggerable by CLI agents: an action in `actions/registry.yaml` generates `/jev_bootstrap` and `/jev_status` slash commands for every supported platform (data change, never code).
+
+**(E) GATE.** Gate `CM-JEV-BOOTSTRAP-IDEMPOTENT` asserts: two consecutive non-interactive runs produce identical resulting state (filesystem + config digests), the post-update hook invokes the wizard, and `--defer` semantics hold. Paired §1.1 mutation: `cm_jev_bootstrap_idempotent_mutation_test.sh` removes the post-update-hook invocation line — the gate MUST fail.
+
+Composes with §11.4.164 / §11.4.26 / §11.4.32 / §11.4.228(D) / §1.1.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-281-PROPAGATION` + recommended gate `CM-JEV-BOOTSTRAP-IDEMPOTENT` + paired §1.1 meta-test mutation. Gate code shipped: `scripts/gates/cm_jev_bootstrap_idempotent.sh` + paired mutation test `scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh` (§11.4.6 / §11.4.227).
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.281.
+
+**Non-compliance is a release blocker. No escape hatch — deferral is bounded and logged; silent skipping is non-compliance.**
+
+### §11.4.285 — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Traditional LLMs must auto-tune the Jev models: the project's main LLM labels decision samples and calibrates the thresholds the decision layer enforces."
+
+**(A) SHADOW BEFORE ENFORCE.** The decision layer MUST begin in shadow mode (decisions logged, never enforced). Shadow operation appends every decision to `decisions.jsonl` (state hash only, never raw state — secrets hygiene).
+
+**(B) CALIBRATION LOOP.** On a weekly cadence AND on demand (`jev-calibrate.sh --now`), the project MUST run calibration: a deterministic sample of shadow decisions per question type is labeled by the project's main LLM (invoked via the toolkit's provider aliases, at the §11.4.231 lightest-capable tier); agreement between LLM labels and decision-model answers is computed per question type; per-question-type enforcement thresholds are written to the calibration store (`jev-thresholds.json`, DATA per §11.4.35).
+
+**(C) THRESHOLDS ARE EARNED.** A question type enters enforce mode only when its calibrated agreement meets the project's declared floor (absent declaration resolves to 0.90) AND the sample size meets the declared minimum (absent: 30). Question types below floor stay in shadow forever until calibration passes — enforcement without calibration is non-compliance.
+
+**(D) AUTO-TUNING ON UPDATE.** Every constitution update (via §11.4.281's hook) and every decision-model version change (detected via endpoint-cache model-ID diff) MUST trigger recalibration of affected question types before their thresholds remain in force.
+
+**(E) GATE.** Covered by `CM-JEV-WIRING` (thresholds file present and schema-valid when enforce mode is active) plus calibration-fixture tests. No separate gate-code.
+
+Composes with §11.4.231 / §11.4.35 / §11.4.281 / §7.1.
+
+Classification: universal (§11.4.17) — the consuming project supplies its main-LLM alias and its agreement floor as DATA. Propagation gate `CM-COVENANT-114-285-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.285.
+
+**Non-compliance is a release blocker. No escape hatch — enforce-without-calibration has no flag; `JEV_MODE=shadow` is the only lawful alternative to calibrated enforcement.**
+
+### §11.4.286 — Decision-layer dependency submodules (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Make llmctl and claude_toolkit both part of the constitution submodule, with mechanisms for installing them."
+
+**(A) SUBMODULE PRIMACY.** `llmctl` and `claude_toolkit` MUST be present as git submodules of the constitution at `submodules/llmctl` and `submodules/claude_toolkit`, mirrored in `helix-deps.yaml` with pinned refs and `why` entries, SSH-only, per the existing 23-submodule convention and `conflict_resolution: operator-required`.
+
+**(B) INSTALL MECHANISM.** `scripts/jev/bootstrap.sh` MUST install or update the two tools from the submodule checkouts when present (each tool's own installer is invoked; the bootstrap never reimplements their install logic), and MUST fall back to a managed clone into the conventional per-user location when the submodule is absent (consumer did not recurse submodules) — pinned to the same refs recorded in `helix-deps.yaml`.
+
+**(C) UPDATE PROPAGATION.** Constitution pulls that advance either submodule pin MUST mark the bootstrap pending (§11.4.281(C)) so the installed tools are updated before the extension is considered current.
+
+**(D) GATE.** Gate `CM-JEV-DETECTION` asserts the submodule-or-clone provenance record exists (path, ref, source: submodule|clone); ledger conventions for unimplemented pieces apply unchanged.
+
+Composes with §3 (submodule propagation) / §4 (tag mirroring) / §11.4.28(C) / §11.4.26 / §11.4.281.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-286-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.286.
+
+**Non-compliance is a release blocker. No escape hatch — an unpinned, unprovenanced install of either tool is non-compliance.**

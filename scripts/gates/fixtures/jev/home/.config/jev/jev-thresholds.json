@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "calibrated_at": 1760000000,
+  "per_type": {
+    "gate": {"threshold": 0.9, "n": 42, "agreement": 0.93, "floor": 0.9, "promoted": true}
+  }
+}

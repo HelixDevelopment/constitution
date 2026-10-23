@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Stub labeling alias for calibration tests (stands in for the main LLM).
+# Reads the labeling prompt JSON on stdin and emits a structural JSON label.
+# The fixture decisions.jsonl carries a `label_hint` field representing ground
+# truth; the stub returns it. label_hint="INVALID" emits unparsable output so
+# tests can exercise the label_error path.
+set -euo pipefail
+hint="$(cat)"
+if command -v jq >/dev/null 2>&1; then
+  hint="$(printf '%s' "$hint" | jq -r '.label_hint // "INVALID"')"
+else
+  hint="$(printf '%s' "$hint" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("label_hint","INVALID"))')"
+fi
+printf '%s\n' "label-stub $hint" >> "${STUB_LOG:-/tmp}/label-stub.log" 2>/dev/null || true
+if [ "$hint" = "INVALID" ]; then
+  echo "this is not json at all"
+  exit 0
+fi
+printf '{"label": "%s"}\n' "$hint"

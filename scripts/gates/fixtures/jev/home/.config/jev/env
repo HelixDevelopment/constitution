@@ -1,0 +1,3 @@
+JEV_MODE=shadow
+JEV_BASE_URL=http://127.0.0.1:8095
+JEV_MODEL=jev-decide-tiny-q4

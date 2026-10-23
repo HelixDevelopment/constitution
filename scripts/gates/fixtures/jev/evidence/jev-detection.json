@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "generated_at": 1760000000,
+  "endpoints": [
+    {
+      "id": "jev-local-gateway",
+      "source": "local-decide-gateway",
+      "url": "http://127.0.0.1:8095",
+      "model": "jev-decide-tiny-q4",
+      "reachable": true,
+      "probed_at": 1760000000
+    },
+    {
+      "id": "jev-openrouter",
+      "source": "openrouter",
+      "url": "https://openrouter.invalid/api/v1",
+      "model": "jev/jev-hosted-latest",
+      "reachable": true,
+      "probed_at": 1760000000,
+      "key_var": "JEV_API_KEY"
+    },
+    {
+      "id": "jev-toolkit-cache",
+      "source": "toolkit-cache",
+      "model": "jev-latest",
+      "reachable": null,
+      "reachable_basis": "resolution-only",
+      "probed_at": 1760000000
+    }
+  ],
+  "capacity": {
+    "decision_instances": 3,
+    "profiles": [
+      {
+        "profile": "decide-tiny",
+        "instances": 2,
+        "parallel": 4
+      },
+      {
+        "profile": "decide-small",
+        "instances": 1,
+        "parallel": 2
+      }
+    ]
+  },
+  "tools": {
+    "llmctl": {
+      "path": "tools/llmctl",
+      "ref": "main",
+      "source": "submodule"
+    },
+    "claude_toolkit": {
+      "path": "tools/claude_toolkit",
+      "ref": "main",
+      "source": "submodule"
+    }
+  }
+}

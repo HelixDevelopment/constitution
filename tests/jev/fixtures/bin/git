@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Stub: git. Records every invocation to $STUB_LOG/git.log.
+# Supports the subset bootstrap.sh uses: clone, -C <dir> fetch, -C <dir> checkout,
+# -C <dir> status --porcelain, -C <dir> rev-parse HEAD.
+# GIT_STUB_DIRTY=1 makes `status --porcelain` report local modifications.
+set -euo pipefail
+logdir="${STUB_LOG:-/tmp}"
+printf '%s\n' "git $*" >> "$logdir/git.log" 2>/dev/null || true
+
+dir=""
+if [ "${1:-}" = "-C" ]; then
+  dir="$2"; shift 2
+fi
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+  clone)
+    while [ "${1:-}" != "" ] && [ "${1#-}" != "$1" ]; do shift; done
+    url="${1:-}"; dest="${2:-}"
+    mkdir -p "$dest"
+    printf 'url=%s\n' "$url" > "$dest/.stub-clone"
+    printf 'fake-installer for %s\n' "$url" > "$dest/install.sh"
+    chmod +x "$dest/install.sh"
+    ;;
+  fetch)
+    : # no-op
+    ;;
+  checkout)
+    printf '%s\n' "$*" >> "$logdir/git-checkout.log" 2>/dev/null || true
+    ;;
+  status)
+    if [ "${GIT_STUB_DIRTY:-0}" = "1" ]; then
+      echo " M locally-modified-file"
+    fi
+    ;;
+  rev-parse)
+    echo "stubhead00000000000000000000000000000000"
+    ;;
+  *)
+    : # tolerate anything else
+    ;;
+esac

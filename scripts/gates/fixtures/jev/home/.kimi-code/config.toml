@@ -1,0 +1,12 @@
+# Kimi Code config — fixture home
+model = "kimi-latest"
+
+# >>> helix-jev >>>
+[[hooks]]
+event = "PreToolUse"
+command = "bash ${CLAUDE_TOOLKIT_DIR}/scripts/jev-gate.sh"
+
+[mcp_servers.jev]
+command = "python3"
+args = ["${CLAUDE_TOOLKIT_DIR}/scripts/jev_mcp.py"]
+# <<< helix-jev <<<
