@@ -104,7 +104,7 @@ deps:
   # jev-stats). Pin kept at the SHA below, not `main` (§11.4.113 fetch-first); re-pin only with the gitlink (CM-HELIX-DEPS-REF-MATCHES-GITLINK).
   - name: claude_toolkit
     ssh_url: git@github.com:vasic-digital/claude_toolkit.git
-    ref: 1f6dad3             # pinned sha (commit 1f6dad3bca8a1a003fce362388f697ff2d9ef3a6 = the staged gitlink; remote main tip on origin/github/gitlab/gitverse/gitflic/upstream per `git ls-remote` 2026-10-22; no release tag points at it, describe: v1.30.5-14-g1f6dad3; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    ref: adae02d             # pinned sha (commit adae02de1a8ae9ad27bb721ab699c81d5a61f4e2 = the staged gitlink; tag claude_toolkit-1.32.0 (+ v1.32.0) present on github/gitlab/gitflic/gitverse per `git ls-remote --tags` 2026-10-23; ships scripts/jev-{setup,gate,calibrate,stats}.sh, jev_mcp.py, jev-lockdir-lib.sh; still flat: only third-party go + ccusage gitlinks; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact. Nests no own-org repository; resolves the canon, containers, challenges, LLMsVerifier and claude-code-router flat via scripts/resolve_deps.sh (§11.4.28(C)); ships its own helix-deps.yaml."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: claude_toolkit nests the third-party Go toolchain (submodules/go, go.googlesource.com), which is never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-HELIX-DEPS-MANIFEST-PRESENT PASS at 1f6dad3
