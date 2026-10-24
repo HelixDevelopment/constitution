@@ -194,7 +194,7 @@ stateDiagram-v2
 | Concern | Anchor | Where it is implemented |
 |---|---|---|
 | Detect decision models before the first LLM call | §11.4.279 | `jev-detection.json`, gate `CM-JEV-DETECTION` |
-| Install per agent (hook, MCP, skill, aliases) | §11.4.280 | `jev-setup.sh`, `skills/jev-decision-layer/`, `mcp/jev-decisions.json`, gate `CM-JEV-WIRING` |
+| Install per agent (hook, MCP, skill, aliases) | §11.4.280 | `jev-setup.sh`, `skills/jev-decision-layer/`, `mcp/templates/jev-decisions.json.tmpl`, gate `CM-JEV-WIRING` |
 | Bootstrap wizard, rerun on every constitution update | §11.4.281 | `scripts/jev/bootstrap.sh`, `scripts/post_update_hook.sh`, gate `CM-JEV-BOOTSTRAP-IDEMPOTENT` |
 | Use all decision instances | §11.4.282 | capacity in `jev-detection.json` |
 | Prove token reduction | §11.4.283 | BEFORE/AFTER harness extension, gate `CM-JEV-TOKEN-REDUCTION` |
@@ -315,7 +315,7 @@ Documentation:
 | `scripts/doc_integrity/` | cross-document consistency validator (§11.4.186) |
 | `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle`, `jev-decision-layer` |
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
-| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`, `jev-decisions.json`) |
+| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`; `templates/jev-decisions.json.tmpl` is a render template, not a live config) |
 | `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
 | `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md), [destructive-path safeguard](docs/guides/destructive_path_safeguard.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [safeguard manual](docs/manuals/destructive_path_safeguard_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), [safeguard FAQ](docs/faq/destructive_path_safeguard_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
 | `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
