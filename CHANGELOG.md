@@ -1,5 +1,33 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-10-24 — §11.4.287 destructive-path safeguard
+
+Not tagged. Work is staged in the working tree of the `feat/destructive-path-safeguard` branch and is not committed.
+
+### Added
+
+- **§11.4.287 — Destructive-path safeguard (User mandate, 2026-10-23).** No agent, script, hook, test or subagent may recursively delete, re-permission or sync-delete the filesystem root, a system directory, `/home`, a home directory, an ancestor of it or a protected child of it. Trigger: a review subagent ran a scratch script of the shape `W="$2"; export HOME="$W/home"; rm -rf "$HOME"` with empty arguments, so `$HOME` became `/home` and a recursive delete ran until a timeout stopped it (forensic anchor in the canon). The anchor has five clauses: (A) a PreToolUse guard with classes P, X, H, V and U (P and X are never overridable by the audited allow marker), (B) a refusing runtime helper, (C) script hygiene, (D) a brief every script-writing subagent must carry, (E) honest boundary and known limits.
+- **Number.** The anchor is §11.4.287 because §11.4.280 is already the per-agent decision-layer (Jev) installation anchor in this canon.
+- **Machinery:** `scripts/hooks/guard-destructive-paths.py`, `scripts/lib/safe_rm.sh` with `scripts/lib/protected_paths.list`, and the tests `scripts/hooks/test_guard_destructive_paths.sh`, `scripts/hooks/test_guard_bypasses.py`, `scripts/lib/test_safe_rm.sh`.
+- **Gates (with paired mutation tests):** `CM-COVENANT-114-287-PROPAGATION` and `CM-GUARD-CLASS-P-NOT-OVERRIDABLE`. Further checks are owed and listed in `docs/owed_gate_implementations.md`.
+- **Documents:** [guide](docs/guides/destructive_path_safeguard.md), [manual](docs/manuals/destructive_path_safeguard_manual.md) (the decision-path diagram is embedded in the manual) and [FAQ](docs/faq/destructive_path_safeguard_faq.md); linked from `README.md`.
+
+### Changed
+
+- `Constitution.md` (revision 79), the four governance mirrors, `constitution_index.yaml` (297 anchors in 12 groups, group `host-and-resource-safety` 22 anchors), `groups/host-and-resource-safety.md`, `groups/project-lifecycle-and-release.md`, `scripts/anchors/anchor_lib.py` and `scripts/gates/covenant_propagation_anchors.tsv` carry the new anchor.
+
+### Measured (2026-10-24, this working tree)
+
+- `scripts/hooks/test_guard_bypasses.py`: pass=308 fail=0. The anchor text records 305 for this suite, so the figure in the anchor's evidence paragraph is stale by 3 and should be re-checked.
+- `scripts/hooks/test_guard_destructive_paths.sh`: pass=62 fail=0 (it also runs the bypass suite).
+- `scripts/lib/test_safe_rm.sh`: pass=138 fail=0.
+
+### Honest boundaries
+
+- **The hook is shipped, not registered.** It is not registered in any user `settings.json`; until the operator registers it, it protects nothing.
+- **Known limits (from the anchor, not exhaustive):** the guard is a text scan, not a security boundary. A `# guardrails:allow <reason>` marker downgrades every overridable (H/V/U) finding in the same payload. A guard token is accepted without checking its position or reachability. `alias`, `source` of an existing file, namerefs and brace ranges are not modelled. A single-quoted `$VAR` is treated as live (false positive). A command substitution inside a larger value, a heredoc body read into a variable and used as a target, and a script written under a non-script name and run later are not followed. The guard's built-in home-children set and `protected_paths.list` are separate data aligned by a test. `safe_rm_rf` narrows, but does not close, the check-to-use race.
+- Rendered twins (`.html`, `.pdf`, `.docx`) are not regenerated in this entry.
+
 ## helixconstitution-v71 — 2026-10-23 — Decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution
 
 **Previous tag:** `helixconstitution-v70` (`b95b853cc5c1eb61e6b5b7098026cf2b82c0605f`, 2026-10-19). **Base commit of the pre-existing part of this entry:** `5f8503b` (2026-10-22). 80 commits separate it from v70 (`git rev-list --count helixconstitution-v70..5f8503b`); the diff is 154 files, 22,390 insertions, 679 deletions (`git diff --stat helixconstitution-v70 5f8503b`). The decision-layer addition is two commits on top of that base (`089f789` the Jev layer; the second moves the `claude_toolkit` pin to `adae02d`, tag `claude_toolkit-1.32.0`). The release tag is `helixconstitution-v71`; a tag cannot name its own commit inside the file it tags, so the release commit is whatever `git rev-list -n1 helixconstitution-v71` returns.

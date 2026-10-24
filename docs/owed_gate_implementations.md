@@ -886,3 +886,11 @@ missing.
   - **Must assert:** an always-loaded agent instruction file that restates anchor bodies beyond the declared budget FAILs (§11.4.141 M3)
   - **Blocked on:** no inlined-anchor-body detector exists in-repo (§11.4.141, gate-code declared a separate work item; named in f9290df on 2026-10-17 without a deferral row, registered 2026-10-21)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+
+### §11.4.287 destructive-path safeguard (registered 2026-10-24 — checks owed; no gate name is minted until its seam exists)
+
+These three checks are intentionally NOT named as `CM-*` gates yet: naming them would add unimplemented names to the §11.4.227(A) ratchet (baseline 394, monotone-decreasing). They become gates, with a paired §1.1 mutation each, when their harness exists.
+
+- **Guard registered in the live hook path.** Must assert: `scripts/hooks/guard-destructive-paths.py` is registered as a PreToolUse hook for Bash/Write/Edit/MultiEdit in the consumer's settings and answers a class-P probe with exit 2. Blocked on: the consumer settings file location and the operator's consent to register the hook (§11.4.287).
+- **`safe_rm_rf` used for deleting scripts.** Must assert: every shipped script with a recursive delete of a variable uses `safe_rm_rf` or `${VAR:?}`. Blocked on: a classifier over shipped scripts with a ratchet baseline.
+- **Delete-safety text in dispatch briefs.** Must assert: dispatch briefs for script-writing agents carry the §11.4.287(D) text. Blocked on: a dispatch-brief hook and a corpus of briefs to scan.

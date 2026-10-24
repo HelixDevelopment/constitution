@@ -1831,3 +1831,4 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-286-PRO
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.286.
 
 **Non-compliance is a release blocker. No escape hatch — an unpinned, unprovenanced install of either tool is non-compliance.**
+

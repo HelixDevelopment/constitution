@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-23T17:32:10.526738+00:00'
+generated_at: '2026-10-24T16:01:25.185510+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 5f8503b4f4f0f051b583d447a240c2a2a7ac253a
-  source_sha256: 846fac657171279186f1c67f1b3f98208bc75c3eeb7c0a969ea38d4d9d98f4dd
+  commit: 0b94dfce9c46ac997bdc6b4684ae52aae3bcb50a
+  source_sha256: 40bd17fecdf464d7d46215371bb498352d43ec2f8233adadf7355c861f85ee0d
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -25,7 +25,7 @@ groups:
   anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
-  anchor_count: 21
+  anchor_count: 22
 - name: multi-track-and-parallelism
   path: constitution/groups/multi-track-and-parallelism.md
   anchor_count: 13
@@ -7485,6 +7485,36 @@ anchors:
   - 11.4.28
   - 11.4.281
   - 11.4.286
+- id: 11.4.287
+  title: '— Destructive-path safeguard: no agent, script, hook, test or subagent may
+    recursively delete, re-permission or sync-delete the filesystem root, a system
+    directory, /home, a home directory, an ancestor of it or a protected child of
+    it; enforced by a non-overridable PreToolUse guard, a refusing runtime helper
+    and mandatory script hygiene (User mandate, 2026-10-23)'
+  group: host-and-resource-safety
+  location: constitution/groups/host-and-resource-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-287-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.10
+  - 11.4.109
+  - 11.4.113
+  - 11.4.142
+  - 11.4.17
+  - 11.4.20
+  - 11.4.201
+  - 11.4.209
+  - 11.4.224
+  - 11.4.227
+  - 11.4.263
+  - 11.4.287
+  - 11.4.35
+  - 11.4.5
+  - 11.4.6
+  - 11.4.70
+  - '9.2'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

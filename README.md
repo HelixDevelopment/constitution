@@ -54,9 +54,9 @@ README ships in. Re-derive the machine-derived ones with
 | Fact | Value | Source of truth |
 |---|---|---|
 | Latest release tag | `helixconstitution-v70` (previous: `helixconstitution-v69`, 2026-10-05; `helixconstitution-v68`, 2026-08-18) | `git tag`, `CHANGELOG.md` |
-| Canon | `Constitution.md`, revision 76, 12,149 lines, 2,062,810 bytes | `wc`, document header |
-| Indexed anchors | **288**, in **12** groups | `constitution_index.yaml` |
-| Highest anchor number | §11.4.286 (§11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
+| Canon | `Constitution.md`, revision 79, 12,442 lines, 2,108,942 bytes | `wc`, document header |
+| Indexed anchors | **297**, in **12** groups | `constitution_index.yaml` |
+| Highest anchor number | §11.4.287 (§11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
 | Progressive rules | **289** rule files generated from the canon (the 288-vs-289 difference is a recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
 | Governance mirrors | `CLAUDE.md` rev 82, `AGENTS.md` rev 79, `QWEN.md` rev 76, `GEMINI.md` rev 50 (kept in lockstep per §11.4.157) | document headers |
 | Mechanism gates | **141** `cm_*` gates in `scripts/gates/`, **141** with a paired mutation test or outside self-test; **144** mutation tests in total | `compute_badges.sh --facts` |
@@ -303,7 +303,7 @@ Documentation:
 |---|---|
 | `scripts/gates/` | 141 mechanism gates, 89 of them anchor-propagation gates, each with a paired mutation test or an outside self-test; the gate ledger, deferral and ratchet data files; `lib_badge_row.sh`, `lib_doc_manifest.sh` and other shared libraries |
 | `scripts/anchors/` | anchor library, `constitution_generate.py` (regenerates `constitution_index.yaml` and the groups), link check, wiring audit |
-| `scripts/hooks/` | PreToolUse guards (forbidden commands, branch consistency, track labels, work-track binding, evidence-store writes) and the credential scanner |
+| `scripts/hooks/` | PreToolUse guards (forbidden commands, branch consistency, track labels, work-track binding, evidence-store writes, destructive paths — §11.4.287, shipped but not registered in any user settings) and the credential scanner |
 | `scripts/multitrack/` | the §11.4.187 ruler: up/down, claim registry, device lock, fallback monitor, supervisor, host budget |
 | `scripts/codegraph/`, `scripts/lumen/` | the single-writer CodeGraph entry, scope renderer and guard, index watchdog; Lumen scope generator and benchmark |
 | `scripts/workable-items/`, `scripts/reporting/` | the workable-items engine and the `ISSUE` / `BUG` / `TASK` / `FEATURE` reporting engine |
@@ -317,7 +317,7 @@ Documentation:
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
 | `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`, `jev-decisions.json`) |
 | `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
-| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md), [destructive-path safeguard](docs/guides/destructive_path_safeguard.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [safeguard manual](docs/manuals/destructive_path_safeguard_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), [safeguard FAQ](docs/faq/destructive_path_safeguard_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
 | `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
 
 ## How to consume
@@ -503,7 +503,7 @@ within a primary version.
 | `helix-deps.yaml` | Own-org dependency manifest (§11.4.31); every own-org repository carries one, checked by `scripts/deps_manifest/verify_helix_deps_manifests.sh`. |
 | `submodules/`, `submodules-catalogue.md` | Dependency submodules and the owned-repository inventory. |
 | `scripts/`, `tests/`, `skills/`, `plugins/`, `mcp/`, `actions/`, `config/` | Tooling, tests, skills, plugins, MCP definitions, prefix-action registry, gate configuration. |
-| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md)), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md)), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
+| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md) and the [destructive-path safeguard](docs/guides/destructive_path_safeguard.md) guide), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md), [destructive-path safeguard](docs/manuals/destructive_path_safeguard_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md), [destructive-path safeguard](docs/faq/destructive_path_safeguard_faq.md)), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
 | `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files and `helix-deps.yaml.template` (§11.4.31). |
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
