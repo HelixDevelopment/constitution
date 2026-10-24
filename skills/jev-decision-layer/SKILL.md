@@ -31,7 +31,7 @@ bearer key whose variable NAME is `LLMCTL_API_KEY`), LAN pins, OpenRouter, TypeS
 Before invoking any generative-LLM tier for a judgment that is expressible as a
 typed decision, call the decision layer first:
 
-- MCP server `jev` (declaration `mcp/jev-decisions.json`, implemented by
+- MCP server `jev` (declaration `mcp/templates/jev-decisions.json.tmpl`, implemented by
   claude_toolkit `scripts/jev_mcp.py`). Tools: `jev_ask` (choice when `options`
   are given, otherwise a yes/no probability; optional `decision_type` selects a
   route in `JEV_ROUTES_FILE` for failover or multi-candidate voting),

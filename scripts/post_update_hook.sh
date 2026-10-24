@@ -162,10 +162,12 @@ detect_changes() {
         [ -n "$f" ] || continue
         # Jev trigger set (§11.4.281(C)) — classified SEPARATELY from the exclusive
         # case below because a path here also belongs to another class
-        # (mcp/jev-decisions.json is an MCP config, actions/registry.yaml an action
-        # file): it must still be installed as such AND re-fire the bootstrap.
+        # (actions/registry.yaml is also an action file): it must still be installed
+        # as such AND re-fire the bootstrap. mcp/templates/jev-decisions.json.tmpl is
+        # a render TEMPLATE (never a live MCP config, see the mcp/templates/ case
+        # below) that only re-fires the bootstrap.
         case "$f" in
-            scripts/jev/*|skills/jev-decision-layer/*|mcp/jev-decisions.json|actions/registry.yaml|submodules/llmctl|submodules/claude_toolkit)
+            scripts/jev/*|skills/jev-decision-layer/*|mcp/templates/jev-decisions.json.tmpl|actions/registry.yaml|submodules/llmctl|submodules/claude_toolkit)
                 CHANGED_JEV+=("$f") ;;
         esac
         # Classify by path prefix
@@ -175,6 +177,9 @@ detect_changes() {
                 local skill_name
                 skill_name="${f#skills/}"; skill_name="${skill_name%%/*}"   # no echo|cut: a name may hold a newline
                 CHANGED_SKILLS+=("$skill_name")
+                ;;
+            mcp/templates/*)
+                # templates carry unexpanded ${VAR} placeholders: never a live config
                 ;;
             mcp/*.json)
                 local mcp_name

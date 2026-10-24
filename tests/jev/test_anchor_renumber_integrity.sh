@@ -76,7 +76,7 @@ while IFS= read -r f; do
       *) printf '    stale 277/278 reference: %s: %s\n' "${f#"$REPO"/}" "$(printf '%s' "$line" | cut -c1-140)"; stale=$((stale+1)) ;;
     esac
   done < <(grep -nE '11\.4\.27[78]' "$f" 2>/dev/null)
-done < <(find "$REPO/scripts/jev" "$REPO/skills/jev-decision-layer" "$REPO/docs/jev" "$REPO/mcp/jev-decisions.json" \
+done < <(find "$REPO/scripts/jev" "$REPO/skills/jev-decision-layer" "$REPO/docs/jev" "$REPO/mcp/templates" \
               "$REPO/docs/jev-gate-ledger.tsv" "$REPO"/scripts/gates/cm_jev_*.sh "$REPO/scripts/gates/fixtures/jev" \
               "$REPO/tests/jev" -type f ! -name 'test_anchor_renumber_integrity.sh' 2>/dev/null)
 assert_eq "0" "$stale" "no Jev artifact still cites §11.4.277/278 with Jev meaning"

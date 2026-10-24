@@ -4,8 +4,9 @@
 #      commands exist and are drift-free against the registry expansion
 #   B. skills/jev-decision-layer/register.sh run TWICE against a fixture home
 #      yields a single registration per platform (idempotent)
-#   C. mcp/jev-decisions.json is valid JSON, declares mcpServers.jev, and is
-#      documented as a ${VAR} template (materialized at bootstrap)
+#   C. mcp/templates/jev-decisions.json.tmpl is a valid documented template; no
+#      live mcp/*jev*.json (C2); no inline duplicate in register.sh (C2b)
+#   D. register.sh renders the template: no placeholders left, values substituted
 # SKIP-with-reason if python3+PyYAML is absent (used only for the yaml parse).
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -69,14 +70,41 @@ else
 fi
 [ "$b_ok" -eq 1 ] && say "B OK: twice-run = single registration per platform" || fails=$((fails+1))
 
-# ── C. MCP declaration ───────────────────────────────────────────────────────
-m="$REPO/mcp/jev-decisions.json"
-if jq -e '.mcpServers.jev.command == "python3"' "$m" >/dev/null \
-   && jq -e '.mcpServers.jev.args[0] | test("jev_mcp\\.py")' "$m" >/dev/null \
+# ── C. MCP template: lives under mcp/templates/, NOT in the live-merge dir ───
+# name-only find: a checkout under a path containing "jev" must not false-FAIL
+m="$REPO/mcp/templates/jev-decisions.json.tmpl"
+if jq -e '.mcpServers.jev.command == "python3"' "$m" >/dev/null 2>&1 \
+   && jq -e '.mcpServers.jev.args[0] | test("jev_mcp\\.py")' "$m" >/dev/null 2>&1 \
    && grep -q 'TEMPLATE' "$m"; then
-  say "C OK: mcp/jev-decisions.json valid, declares jev server, documented as materialization template"
+  say "C OK: mcp/templates/jev-decisions.json.tmpl valid, declares jev server, documented as template"
 else
-  say "C FAIL: mcp/jev-decisions.json invalid or undocumented"; fails=$((fails+1))
+  say "C FAIL: template missing/invalid/undocumented"; fails=$((fails+1))
+fi
+if [ -z "$(find "$REPO/mcp" -maxdepth 1 -name '*jev*.json' 2>/dev/null)" ]; then
+  say "C2 OK: no live mcp/*jev*.json (unexpanded template cannot be merged as live config)"
+else
+  say "C2 FAIL: mcp/ top level still holds a jev json"; fails=$((fails+1))
+fi
+# C2b: register.sh holds no inline duplicate of the server entry
+if grep -q 'mcpServers.jev = {' "$REPO/skills/jev-decision-layer/register.sh"; then
+  say "C2b FAIL: register.sh still carries an inline copy of the jev entry"; fails=$((fails+1))
+else
+  say "C2b OK: no inline duplicate in register.sh"
+fi
+# D: rendered registration has no unexpanded placeholders and matches template values
+SBX2="$SBX/dhome"; mkdir -p "$SBX2/.claude"
+JEV_HOME="$SBX2" CLAUDE_TOOLKIT_DIR=/opt/tk JEV_BASE_URL=https://h.example:8095 JEV_KEY_VAR=MY_KEY \
+  bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
+mj="$SBX2/.mcp.json"
+if [ -f "$mj" ] && ! grep -q '\${' "$mj" \
+   && [ "$(jq -r '.mcpServers.jev.args[0]' "$mj")" = "/opt/tk/scripts/jev_mcp.py" ] \
+   && [ "$(jq -r '.mcpServers.jev.env.JEV_BASE_URL' "$mj")" = "https://h.example:8095" ] \
+   && [ "$(jq -r '.mcpServers.jev.env.JEV_KEY_VAR' "$mj")" = "MY_KEY" ] \
+   && [ "$(jq -r '.mcpServers.jev.env.JEV_MODE' "$mj")" = "shadow" ] \
+   && [ "$(jq -r '.mcpServers.jev.env | has("JEV_CA_FILE")' "$mj")" = "false" ]; then
+  say "D OK: register.sh renders the template (no placeholders left, values substituted, CA omitted when unset)"
+else
+  say "D FAIL: rendered .mcp.json wrong"; [ -f "$mj" ] && jq -c .mcpServers.jev "$mj"; fails=$((fails+1))
 fi
 
 if [ "$fails" -eq 0 ]; then say "PASS"; exit 0; fi

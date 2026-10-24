@@ -9,6 +9,7 @@
 #
 # Idempotently installs into a sandboxable HOME:
 #   - claude:   .claude/settings.json PreToolUse entry (jq-merge) + .mcp.json jev server
+#               (rendered from mcp/templates/jev-decisions.json.tmpl, the single source)
 #   - kimi:     .kimi-code/config.toml [[hooks]] marker block + mcp_servers.jev
 #   - opencode: plugin copy + opencode.json entries + coverage-gap note
 #   - pi:       package note (documented fallback)
@@ -17,7 +18,7 @@
 # existing file is backed up first as <file>.prejev.<epoch>.
 #
 # Exit codes: 0 done; 2 cannot determine (jq missing while an agent home needs a
-# JSON edit — nothing is half-written).
+# JSON edit, or the MCP template cannot be rendered — nothing is half-written).
 #
 # Env (names only; secrets are never written, only the key variable NAME):
 #   JEV_HOME (target home, default $HOME), CLAUDE_TOOLKIT_DIR (default
@@ -62,10 +63,26 @@ if [ ! -f "$ENVF" ]; then
     [ -n "$CA_FILE" ] && printf 'JEV_CA_FILE=%s\n' "$CA_FILE"; } > "$ENVF"
 fi
 
-mcp_env_json() {
-  jq -n --arg url "$BASE_URL" --arg model "$MODEL" --arg kv "$KEY_VAR" --arg ca "$CA_FILE" \
-    '{"JEV_BASE_URL":$url,"JEV_MODEL":$model,"JEV_MODE":"shadow","JEV_KEY_VAR":$kv}
-     + (if $ca != "" then {"JEV_CA_FILE":$ca} else {} end)'
+# render_mcp_entry : the SINGLE source of truth for the server entry is
+# <constitution>/mcp/templates/jev-decisions.json.tmpl (a template, never a live
+# MCP config). Substitute its ${VAR} / ${VAR:-default} placeholders, drop env
+# entries that end up empty (e.g. JEV_CA_FILE unset), refuse to emit anything
+# that still contains a placeholder.
+MCP_TMPL="$SKILL_DIR/../../mcp/templates/jev-decisions.json.tmpl"
+RENDER_FAILED=0
+render_mcp_entry() {
+  [ -f "$MCP_TMPL" ] || { echo "jev-register: template $MCP_TMPL missing" >&2; return 1; }
+  local out
+  out="$(jq -c --arg tk "$TOOLKIT" --arg url "$BASE_URL" --arg kv "$KEY_VAR" --arg ca "$CA_FILE" --arg model "$MODEL" \
+    '.mcpServers.jev
+     | walk(if type == "string" then
+         gsub("\\$\\{CLAUDE_TOOLKIT_DIR\\}"; $tk) | gsub("\\$\\{JEV_BASE_URL\\}"; $url)
+         | gsub("\\$\\{JEV_KEY_VAR\\}"; $kv) | gsub("\\$\\{JEV_CA_FILE\\}"; $ca)
+         | gsub("\\$\\{JEV_MODEL:-[^}]*\\}"; $model) | gsub("\\$\\{JEV_MODE:-(?<d>[^}]*)\\}"; .d)
+       else . end)
+     | .env |= with_entries(select(.value != ""))' "$MCP_TMPL")" || return 1
+  case "$out" in *'${'*) echo "jev-register: unexpanded placeholder left after render" >&2; return 1 ;; esac
+  printf '%s' "$out"
 }
 
 # ── claude ──
@@ -83,9 +100,12 @@ if [ -d "$JHOME/.claude" ]; then
   m="$JHOME/.mcp.json"
   [ -f "$m" ] || printf '{"mcpServers":{}}\n' > "$m"
   if ! jq -e '.mcpServers.jev' "$m" >/dev/null 2>&1; then
-    jq_edit "$m" --arg tk "$TOOLKIT" --argjson env "$(mcp_env_json)" \
-      '.mcpServers.jev = {"command":"python3","args":[($tk+"/scripts/jev_mcp.py")],"env":$env}' \
-      && log "claude: MCP server 'jev' registered"
+    if entry="$(render_mcp_entry)"; then
+      jq_edit "$m" --argjson e "$entry" '.mcpServers.jev = $e' \
+        && log "claude: MCP server 'jev' registered (rendered from mcp/templates/jev-decisions.json.tmpl)"
+    else
+      log "claude: MCP 'jev' NOT registered: template render failed"; RENDER_FAILED=1
+    fi
   else
     log "claude: MCP 'jev' present (no-change)"
   fi
@@ -166,4 +186,5 @@ STAMP="$JHOME/.config/jev/registration.stamp"
 [ -f "$STAMP" ] || printf 'extension=jev-decision-layer\nsource=%s\n' "$SKILL_DIR" > "$STAMP"
 
 log "done (idempotent — re-run is a no-op)"
+[ "$RENDER_FAILED" -eq 0 ] || { echo "jev-register: MCP template render failed (rc 2)" >&2; exit 2; }
 exit 0
