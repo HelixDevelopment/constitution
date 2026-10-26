@@ -1,14 +1,14 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-v70-green) ![Anchors](https://img.shields.io/badge/anchors-288-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-141%2F141_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-144-green) ![Progressive](https://img.shields.io/badge/progressive-289_rules-green) ![Submodules](https://img.shields.io/badge/submodules-23%2F23_linked-green) ![Twins](https://img.shields.io/badge/twins-0%2F7_current-amber?color=ffbf00) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00)
+![Version](https://img.shields.io/badge/version-v70-green) ![Anchors](https://img.shields.io/badge/anchors-288-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-141%2F141_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-144-green) ![Progressive](https://img.shields.io/badge/progressive-289_rules-green) ![Submodules](https://img.shields.io/badge/submodules-23%2F23_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-ready-green)
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-05-14 |
-| Last modified | 2026-10-19T13:50:14Z |
+| Last modified | 2026-10-26T16:00:00Z |
 | Status | active |
-| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
+| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). R8 (2026-10-26, operator order: agents work only with Markdown): the generated `.html` / `.pdf` / `.docx` exports of tracked Markdown were removed from this repository, the `formats_export` switch (`config/formats_export.conf`, shipped `false`) owns whether twins exist, and the `Twins` badge is gray "markdown only" while it is off (`scripts/badges/test_twins_badge_formats_switch.sh` proves both directions). |
 | Issues | none |
 | Issues summary | — |
 | Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process) |
@@ -423,10 +423,15 @@ within a primary version.
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
 | `LICENSE` | Apache License 2.0, governing the constitution text itself. |
 
-The `.html` / `.pdf` / `.docx` siblings of the Markdown files are
-generated twins; they are never hand-edited and are regenerated upstream
-(`scripts/render/render-governance-twins.sh`). Until that runs, the
-`Twins` badge is amber.
+Agents work only with Markdown (operator order 2026-10-26): the
+`.html` / `.pdf` / `.docx` siblings of the Markdown files are generated
+twins, they are never hand-edited, and they are produced only when the
+`formats_export` switch (`config/formats_export.conf`, shipped `false`) is
+enabled (`DOCS_EXPORT=1`, or `enabled=1` in a consuming repository's
+`docs/context/doc_export.policy`), by `scripts/render/render-governance-twins.sh`.
+With the switch off the `Twins` badge is gray ("markdown only") and no twin
+is produced, demanded or checked; with it on, a stale or missing twin turns
+the badge amber (declared pending in the `Constitution.md` header) or red.
 
 ## Contributing
 

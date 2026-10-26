@@ -30,14 +30,30 @@ def write_landing_doc(md_path, markdown_body):
     return md_path
 
 
+def formats_export_enabled():
+    """True iff the constitution's ONE formats-export switch is ON (operator order 2026-10-26: Markdown is not exported
+    into html/pdf/docx unless explicitly enabled; default false in config/formats_export.conf). Asked of the shared
+    reader scripts/formats_export_lib.sh; a missing/unreadable reader reads as OFF (fail-closed)."""
+    lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "formats_export_lib.sh")
+    if not os.path.isfile(lib):
+        return False
+    rc = subprocess.run(["bash", "-c", '. "$1" && formats_export_enabled "${FORMATS_EXPORT_ROOT:-}"', "_", lib]).returncode
+    return rc == 0
+
+
 def export_html_pdf(md_path):
     """Render <doc>.html (pandoc) + <doc>.pdf (weasyprint) from the Markdown.
     Returns dict {html, pdf, skipped:[...]} — `skipped` enumerates any
-    unavailable tool with an honest reason (never a fabricated artefact)."""
+    unavailable tool with an honest reason (never a fabricated artefact).
+    With the formats-export switch OFF (the default) nothing is rendered and `skipped` says so."""
     base = os.path.splitext(md_path)[0]
     html_path = base + ".html"
     pdf_path = base + ".pdf"
     result = {"html": None, "pdf": None, "skipped": []}
+    if not formats_export_enabled():
+        result["skipped"].append("html+pdf: formats-export switch is OFF (constitution/config/formats_export.conf default false; "
+                                 "enable with DOCS_EXPORT=1) -- Markdown only")
+        return result
 
     doc_dir = os.path.dirname(os.path.abspath(md_path))
     abs_md = os.path.abspath(md_path)

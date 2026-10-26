@@ -181,7 +181,8 @@ def generate(roots_path, taxonomy_path, repo, out_dir, title, check_only=False):
         "markdown": os.path.relpath(md_path, out_dir),
         "interactive_html": os.path.relpath(html_path, out_dir),
         "note_pdf_docx": "ride the shared §11.4.65 export pipeline "
-                         "(sync_all_markdown_exports.sh) on Catalog.md",
+                         "(sync_all_markdown_exports.sh) on Catalog.md, ONLY while the "
+                         "formats-export switch is ON (default OFF, operator order 2026-10-26)",
     })
     return {"summary": summary, "records": records, "meta": meta}
 

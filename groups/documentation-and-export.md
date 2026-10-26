@@ -1018,7 +1018,12 @@ mechanically-enforced composite invariant so the failure mode "one
 per-class gate silently disabled while operator reads a divergent
 HTML/PDF" is structurally impossible.
 
-**Eight bound doc classes (artefact triple — `.md` + `.html` + `.pdf`):**
+**Amendment 2026-10-26 (operator order, call 2026-10-23 task 2).** **Agents work only with Markdown; format exports are off by default (the `formats_export` flag, `config/formats_export.conf`, shipped `false`); a PDF is produced only on request, by one `pandoc` command, via the consuming repository's `scripts/md_to_pdf.sh`.** The covenant's
+"in sync at all times across markdown + HTML + PDF artefacts" is replaced by "the `.md` is the single source of truth and is
+in sync with the project's state"; the HTML/PDF legs bind ONLY while the switch is explicitly on, and `CM-DOCS-COMPOSITE-SYNC`
+then skips with an announced reason (§11.4.106(E)) instead of demanding siblings.
+
+**Eight bound doc classes (artefact triple — `.md` + `.html` + `.pdf` — while the formats-export switch is on; `.md` alone otherwise):**
 
 1. `docs/Issues.md` — open-item tracker (§11.4.12 + §11.4.15 + §11.4.16)
 2. `docs/Issues_Summary.md` — auto-generated short form (§11.4.12)
@@ -1330,6 +1335,20 @@ Non-compliance is a release blocker regardless of context.
 
 ### §11.4.65 — Universal Markdown export mandate (User mandate, 2026-05-19)
 
+**AMENDMENT 2026-10-26 — operator order (call 2026-10-23, task 2); SUPERSEDES the export mandate below.** **Agents work only with Markdown; format exports are off by default (the `formats_export` flag, `config/formats_export.conf`, shipped `false`); a PDF is produced only on request, by one `pandoc` command, via the consuming repository's `scripts/md_to_pdf.sh`.**
+(1) Markdown is the single source of truth; agents read, create and edit documentation only as `.md`. (2) `.html` / `.pdf` /
+`.docx` siblings of Markdown are NOT produced, demanded or checked by default: ONE switch owns that — `config/formats_export.conf`
+(`formats_export=false`) read through `scripts/formats_export_lib.sh` — and a consuming repository may opt IN only explicitly
+(`DOCS_EXPORT=1` for one run, or an `enabled=1` line in its own policy file), never silently. (3) DOCX is not generated at all
+by agent work. (4) A PDF is produced only on request, right before a file is sent, by ONE `pandoc` command with no LLM and no
+network involved; the reference implementation is the consumer's `scripts/md_to_pdf.sh <file.md>`, which writes only under a
+gitignored output tree, is called by no commit path, hook, build or gate, and refuses agent service files. (5) Agent service files
+(`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `QWEN.md` and their kin) are never exported in any format. (6) The former rule "the
+Markdown and every format sibling MUST be in sync at all times" is replaced by "agents work only with Markdown"; a stale or absent
+`.html`/`.pdf`/`.docx` is NOT a violation while the switch is off, and every consumer of the switch announces its skip
+(§11.4.106(E)) — never silent. The verbatim 2026-05-19 mandate and the protections below are kept as the forensic record and bind
+ONLY while the switch is explicitly on.
+
 **Forensic anchor — direct user mandate (verbatim, 2026-05-19):**
 
 > "Any markdown document inside the project and which is not part of
@@ -1386,7 +1405,7 @@ code or third-party trees we do not own):
   (Challenges, Containers, DocProcessor, LLMOrchestrator, LLMProvider,
   VisionEngine)
 
-**Mandatory protections (ALL must hold):**
+**Mandatory protections (ALL must hold — ONLY while `formats_export=true`; with the shipped default `false` none of them applies):**
 
 1. **Every INCLUDED `.md` file has `.html` and `.pdf` siblings.** A
    missing export is a §11.4.65 violation regardless of when the
@@ -1432,7 +1451,7 @@ generalization), §11.4.63 (procedure docs — already always-sync;
 §11.4.64 (topic discoverability — summary docs the universal helper
 exports continue to be post-processed by inject_topic_index.py).
 
-**Pre-build gates:**
+**Pre-build gates (while the switch is off, `CM-UNIVERSAL-MARKDOWN-EXPORT-SYNC` skips with an announced reason and demands no sibling; `CM-COVENANT-114-65-PROPAGATION` keeps counting the anchor block-start):**
 
 - `CM-UNIVERSAL-MARKDOWN-EXPORT-SYNC` — invariants: (a)
   `scripts/testing/sync_all_markdown_exports.sh` exists + executable,

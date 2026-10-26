@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-17T16:08:36.623624+00:00'
+generated_at: '2026-10-26T15:43:04.858577+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: f9290df111d09872b2a71358bf9393ec9e78db9a
-  source_sha256: 1667ded1962940faf651a45b261b62e75d831410e805bb6102f9e809f8119d56
+  commit: 94b8836731939dccbd537e6671db184e9f658ba5
+  source_sha256: 0336c93a44ec0d7072e31043d317d67cf41c525ea88ffa04c3343ab0ac81a0db
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -60,6 +60,7 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - 11.4.65
 - id: '7.1'
   title: NO BLUFF — positive-evidence-only validation
   group: anti-bluff-and-evidence
@@ -1149,6 +1150,7 @@ anchors:
   cross_references:
   - '1.1'
   - '11.4'
+  - 11.4.106
   - 11.4.12
   - 11.4.15
   - 11.4.16
@@ -1218,6 +1220,7 @@ anchors:
   binds_principle: []
   cross_references:
   - '11.4'
+  - 11.4.106
   - 11.4.12
   - 11.4.17
   - 11.4.18

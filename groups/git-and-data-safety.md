@@ -52,7 +52,10 @@ Every tagged release MUST ship:
    changes, developer-visible changes, and known caveats.
 2. Exports of that entry to `docs/changelogs/<tag>.{html,json,txt}`
    so external tooling (release portals, ticketing systems, package
-   indices) can consume without needing a Markdown parser.
+   indices) can consume without needing a Markdown parser. **Amended
+   2026-10-26:** these exports are produced ONLY while the formats-export
+   switch is explicitly on (`formats_export`, shipped `false`; see §11.4.65
+   as amended) — by default the `.md` entry IS the changelog.
 3. An update to a cumulative `docs/changelogs/CHANGELOG.md` (reverse
    chronological).
 

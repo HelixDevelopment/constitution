@@ -38,7 +38,7 @@ Source: scripts/badges/compute_badges.sh (`anchor_count` in progressive/catalog.
 Source: scripts/badges/compute_badges.sh (`path =` entries in .gitmodules against mode 160000 entries in `git ls-files -s`; red when they differ)
 
 ## Twins
-Source: scripts/badges/compute_badges.sh (for Constitution, CLAUDE, AGENTS, QWEN, GEMINI, README and CHANGELOG: stale when the `.md` was last committed after its `.html` / `.pdf` / `.docx` sibling; amber while the Constitution.md header declares the twins stale or pending, red otherwise)
+Source: scripts/badges/compute_badges.sh (switch `formats_export` of config/formats_export.conf, read through scripts/formats_export_lib.sh; shipped `false`: the badge is gray "markdown only" and no sibling is probed, because no twin is produced or demanded and gray never moves the Readiness gauge. Switch on (`DOCS_EXPORT=1`, a repository `enabled=1` policy, or conf `true`): for Constitution, CLAUDE, AGENTS, QWEN, GEMINI, README and CHANGELOG a document is stale when its `.md` was last committed after its `.html` / `.pdf` / `.docx` sibling, or when it has no such sibling at all; amber while the Constitution.md header declares the twins stale or pending, red otherwise. The reader being absent makes the computer BLIND, exit 2)
 
 ## Readiness
 Source: scripts/badges/compute_badges.sh (composite per §11.4.259(D): green only when every other badge is green, amber when any is amber and none red, red when any is red)

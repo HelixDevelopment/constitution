@@ -18,6 +18,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
+# Operator order 2026-10-26 ("stop exporting Markdown docs into other formats"): the constitution's ONE formats-export
+# switch (config/formats_export.conf, default false) gates this exporter. OFF => announced skip, no twin is produced.
+# shellcheck source=../formats_export_lib.sh
+. "$ROOT/scripts/formats_export_lib.sh"
+formats_export_gate render-governance-twins "${FORMATS_EXPORT_ROOT:-$ROOT}" || exit 0
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1785674948}"   # 2026-08-02T12:49:08Z (from historical docx core.xml)
 PANDOC="${PANDOC:-pandoc}"                                    # pandoc 3.10 (3.10.1 is output-equivalent for this corpus)
 TMPL="$ROOT/scripts/render/assets/governance-template.html5"  # operator head + OpenDesign styles, title/body parameterized

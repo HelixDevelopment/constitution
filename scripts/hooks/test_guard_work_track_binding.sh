@@ -44,8 +44,15 @@ fi
 # Throwaway registry (schema-v4 shape: logic_groups.canonical_track + group_paths).
 #   mistiq-vader   -> feature/mistiq-vader / track-2   (the incident group)
 #   token-reduction-> main                / track-1
+#   unified-product-> main                / track-1    (SINGLE-TRACK binding: a group
+#                     whose work lives on trunk + one pinned track, the shape a consumer
+#                     registry takes after an operator ruling that all work happens on one
+#                     track; file-scoped via group_paths so the commit path is exercised too)
 #   roster-2026-07 -> feature/roster-2026-07 / NULL    (branch-enforced-only)
 #   grp-a / grp-b  -> same-length globs claiming one 'ambig/' file (ambiguity probe)
+# The feature-bound 'mistiq-vader' row stays: the multi-track path (a group pinned to a
+# feature branch + track) is still a supported registry shape and keeps its coverage; the
+# group id is test data, not a statement about any consumer's live registry.
 # ---------------------------------------------------------------------------
 TMP="$(mktemp -d)"
 EMPTYDIR="$(mktemp -d)"
@@ -56,6 +63,7 @@ CREATE TABLE logic_groups (group_id TEXT PRIMARY KEY, title TEXT, destination TE
 INSERT INTO logic_groups (group_id,title,destination,priority,state,canonical_track) VALUES
  ('mistiq-vader','t','feature:mistiq-vader',2,'open','track-2'),
  ('token-reduction','t','main',5,'open','track-1'),
+ ('unified-product','t','main',4,'open','track-1'),
  ('roster-2026-07','t','feature:roster-2026-07',6,'open',NULL),
  ('grp-a','t','feature:grp-a',7,'open','track-1'),
  ('grp-b','t','feature:grp-b',8,'open','track-1');
@@ -63,13 +71,15 @@ CREATE TABLE group_paths (id INTEGER PRIMARY KEY AUTOINCREMENT, group_id TEXT NO
 INSERT INTO group_paths (group_id,path_glob) VALUES
  ('mistiq-vader','device/rockchip/atmosphere/remote_host/**'),
  ('mistiq-vader','device/rockchip/rk3588/tests/test_scrcpy_*.sh'),
+ ('unified-product','unified_product/**'),
  ('grp-a','ambig/a*.kt'),
  ('grp-b','ambig/*b.kt');
 CREATE TABLE items (atm_id TEXT, type TEXT, status TEXT, title TEXT, description TEXT, logic_group TEXT, current_location TEXT, PRIMARY KEY(atm_id,current_location));
 INSERT INTO items (atm_id,type,status,title,description,logic_group,current_location) VALUES
  ('ATM-900','Feature','In progress','t','desc','mistiq-vader','Issues'),
  ('ATM-901','Task','In progress','t','desc','token-reduction','Issues'),
- ('ATM-902','Bug','In progress','t','desc',NULL,'Issues');
+ ('ATM-902','Bug','In progress','t','desc',NULL,'Issues'),
+ ('ATM-903','Feature','In progress','t','desc','unified-product','Issues');
 "
 
 # ---------------------------------------------------------------------------
@@ -90,6 +100,8 @@ echo x > "$REPO/device/rockchip/atmosphere/remote_host/Foo.kt"
 echo y > "$REPO/README.md"
 echo z > "$REPO/device/rockchip/rk3588/tests/test_scrcpy_box.sh"
 echo z > "$REPO/device/rockchip/rk3588/tests/test_other.sh"
+mkdir -p "$REPO/unified_product"
+echo u > "$REPO/unified_product/Bar.kt"
 
 assert() { # <name> <want> <got>
   local name="$1" want="$2" got="$3"
@@ -115,7 +127,7 @@ unstage_all() { git -C "$REPO" reset -q; }
 echo "§11.4.191 guard-work-track-binding.sh hermetic test suite"
 echo "hook: $HOOK"
 echo "resolver: $RES"
-echo "registry: $DB (mistiq-vader=feature/mistiq-vader/track-2)"
+echo "registry: $DB (mistiq-vader=feature/mistiq-vader/track-2, unified-product=main/track-1)"
 echo
 
 # ===========================================================================
@@ -133,6 +145,15 @@ assert "Task tool: mistiq ticket onto (T1/main) BLOCKED"       2 "$(run_hook '{"
 assert "TaskCreate: mistiq ticket onto (T2/feature/mistiq-vader)" 0 "$(run_hook '{"tool_name":"TaskCreate","tool_input":{"description":"(T2/feature/mistiq-vader - kimi) ATM-900 scrcpy"}}')"
 assert "dispatch unknown ticket SPK-500 (no item row) allowed" 0 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) SPK-500 unknown"}}')"
 assert "non-Bash non-Agent tool (Read) passes through"         0 "$(run_hook '{"tool_name":"Read","tool_input":{"file_path":"x"}}')"
+# A2. SINGLE-TRACK binding (group -> main / track-1). The registry shape a consumer reaches
+# when an operator rules that all work happens on ONE track: the canonical branch is trunk and
+# the canonical track is pinned, so the guard must ALLOW exactly (T1, main) and refuse every
+# other (track, branch) pair — a pinned track is enforced even on the right branch.
+assert "single-track: ticket onto (T1/main) allowed"               0 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) ATM-903 unified"}}')"
+assert "single-track: ticket onto (T2/main) BLOCKED (pinned track)" 2 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T2/main - x) ATM-903 unified"}}')"
+assert "single-track: ticket onto (T1/feature/mistiq-vader) BLOCKED" 2 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T1/feature/mistiq-vader - x) ATM-903 unified"}}')"
+assert "single-track: ticket onto (T2/feature/mistiq-vader) BLOCKED" 2 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T2/feature/mistiq-vader - x) ATM-903 unified"}}')"
+assert "pinned track enforced for token-reduction (T2/main) BLOCKED" 2 "$(run_hook '{"tool_name":"Agent","tool_input":{"description":"(T2/main - x) ATM-901 token-reduction"}}')"
 
 # ===========================================================================
 # B. COMMIT path (Bash) — file-scope binding via git plumbing.
@@ -164,6 +185,12 @@ assert "dynamic \$(…) pathspec + escape => WARN allowed"       0 "$(commit_hoo
 # has no docs/workable_items.db). A mistiq file is staged so FILESET is non-empty.
 stage device/rockchip/atmosphere/remote_host/Foo.kt
 assert "commit path, registry unreadable => fail-closed BLOCK" 2 "$(commit_hook main '{"tool_name":"Bash","tool_input":{"command":"git commit -m wip"}}' "$TMP/does-not-exist.db")"
+# B2. SINGLE-TRACK commit path: a group bound to trunk is committable on main and BLOCKED on a
+# feature branch (the mirror image of the feature-bound cases above).
+stage unified_product/Bar.kt
+assert "single-track: unified file staged on main allowed"          0 "$(commit_hook main '{"tool_name":"Bash","tool_input":{"command":"git commit -m wip"}}')"
+stage unified_product/Bar.kt
+assert "single-track: unified file staged on feature branch BLOCKED" 2 "$(commit_hook feature/mistiq-vader '{"tool_name":"Bash","tool_input":{"command":"git commit -m wip"}}')"
 
 # ===========================================================================
 # C. RESOLVER-direct — track dimension, glob precision, ambiguity, fail-closed.
@@ -175,6 +202,11 @@ assert "resolver: mistiq file wrong TRACK (branch OK) BLOCKED" 2 "$(rd check --d
 assert "resolver: mistiq file unknown track '?' allowed"       0 "$(rd check --db "$DB" --branch feature/mistiq-vader --track '?' --file "$MF")"
 assert "resolver: ambiguous file scope => fail-closed BLOCK"   2 "$(rd check --db "$DB" --branch main --file ambig/ab.kt)"
 assert "resolver: unreadable DB => fail-closed BLOCK"          2 "$(rd check --db "$TMP/nope.db" --branch main --file "$MF")"
+UF=unified_product/X.kt
+assert "resolver: single-track file on (main, track-1) allowed"      0 "$(rd check --db "$DB" --branch main --track track-1 --file "$UF")"
+assert "resolver: single-track file on (main, track-2) BLOCKED"      2 "$(rd check --db "$DB" --branch main --track track-2 --file "$UF")"
+assert "resolver: single-track file on (feature, track-1) BLOCKED"   2 "$(rd check --db "$DB" --branch feature/mistiq-vader --track track-1 --file "$UF")"
+assert "resolver: single-track file, unknown track '?' on main allowed" 0 "$(rd check --db "$DB" --branch main --track '?' --file "$UF")"
 # Ticket-path injection guard (RV-A' newline-bypass regression, §11.4.6/§11.4.10):
 # single-line AND newline (multi-line) payloads must fail-closed; a valid-format ticket is accepted.
 assert "resolver: single-line injection ticket => fail-closed" 2 "$(rd check --db "$DB" --branch main --ticket "ATM-1'; SELECT x")"

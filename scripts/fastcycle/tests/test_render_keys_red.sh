@@ -76,6 +76,15 @@ REFKEY="$HERE/lib/render_keys_ref.py"
 EXPORTER="$REPO_ROOT/scripts/testing/sync_all_markdown_exports.sh"
 STYLESHEET="constitution/styles/default-md.css"
 
+# Markdown-only order (operator, 2026-10-26): the consumer's exporter is switch-gated (formats_export, shipped default
+# false) and announces a skip without writing a sibling. THIS test exercises the export MECHANICS themselves (C1/C2 drive
+# the real exporter on fixture sources), so it opts in for its own four invocations only, through the documented
+# one-run override (env DOCS_EXPORT=1, resolved first by constitution/scripts/formats_export_lib.sh). Everything it
+# renders under fixtures/render_keys/ is snapshotted/restored or removed by cleanup() below. Without the opt-in C2 fails
+# on the default (flag off) while the same checks pass with the flag on: evidence
+# qa-results/md_only_20261026/submodules/test_logs/render_keys_red_{base,exp}_{off,on}.log in the consuming repository.
+export_run() { DOCS_EXPORT=1 bash "$EXPORTER" "$@"; }
+
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
@@ -454,7 +463,7 @@ fi
 UT_SRC="$FIXDIR/rk_unchanged_today/source.md"
 if [ "$HAVE_PANDOC" = "1" ] && [ "$HAVE_WEASYPRINT" = "1" ] && [ -f "$EXPORTER" ] && [ -f "$UT_SRC" ]; then
     UT_REL="constitution/scripts/fastcycle/tests/fixtures/render_keys/rk_unchanged_today/source.md"
-    ( cd "$REPO_ROOT" && bash "$EXPORTER" --paths "$UT_REL" >/dev/null 2>&1 )
+    ( cd "$REPO_ROOT" && export_run --paths "$UT_REL" >/dev/null 2>&1 )
     C1_BASELINE_RC=$?
     UT_HTML="$FIXDIR/rk_unchanged_today/source.html"
     if [ "$C1_BASELINE_RC" -eq 0 ] && [ -f "$UT_HTML" ]; then
@@ -462,7 +471,7 @@ if [ "$HAVE_PANDOC" = "1" ] && [ "$HAVE_WEASYPRINT" = "1" ] && [ -f "$EXPORTER" 
         C1_HTML_MTIME_BEFORE=$(stat -c '%Y' "$UT_HTML" 2>/dev/null)
         touch -d '+2 seconds' "$UT_SRC" 2>/dev/null || touch "$UT_SRC"
         C1_SHA_AFTER=$(sha256sum "$UT_SRC" | awk '{print $1}')
-        ( cd "$REPO_ROOT" && bash "$EXPORTER" --paths "$UT_REL" >/dev/null 2>&1 )
+        ( cd "$REPO_ROOT" && export_run --paths "$UT_REL" >/dev/null 2>&1 )
         C1_RERENDER_RC=$?
         C1_HTML_MTIME_AFTER=$(stat -c '%Y' "$UT_HTML" 2>/dev/null)
         if [ "$C1_SHA_BEFORE" = "$C1_SHA_AFTER" ] \
@@ -496,7 +505,7 @@ fi
 CA_SRC="$FIXDIR/rk_changed_all_four/source.md"
 if [ "$HAVE_PANDOC" = "1" ] && [ "$HAVE_WEASYPRINT" = "1" ] && [ -f "$EXPORTER" ] && [ -f "$CA_SRC" ]; then
     CA_REL="constitution/scripts/fastcycle/tests/fixtures/render_keys/rk_changed_all_four/source.md"
-    ( cd "$REPO_ROOT" && bash "$EXPORTER" --paths "$CA_REL" >/dev/null 2>&1 )
+    ( cd "$REPO_ROOT" && export_run --paths "$CA_REL" >/dev/null 2>&1 )
     C2_BASELINE_RC=$?
     CA_HTML="$FIXDIR/rk_changed_all_four/source.html"
     CA_PDF="$FIXDIR/rk_changed_all_four/source.pdf"
@@ -508,7 +517,7 @@ if [ "$HAVE_PANDOC" = "1" ] && [ "$HAVE_WEASYPRINT" = "1" ] && [ -f "$EXPORTER" 
         C2_DOCX_MTIME_BEFORE=$(stat -c '%Y' "$CA_DOCX" 2>/dev/null)
         sed -i 's/RK-CHANGED-V1/RK-CHANGED-V2/' "$CA_SRC"
         touch -d '+2 seconds' "$CA_SRC" 2>/dev/null || touch "$CA_SRC"
-        ( cd "$REPO_ROOT" && bash "$EXPORTER" --paths "$CA_REL" >/dev/null 2>&1 )
+        ( cd "$REPO_ROOT" && export_run --paths "$CA_REL" >/dev/null 2>&1 )
         C2_RERENDER_RC=$?
         C2_HTML_MTIME_AFTER=$(stat -c '%Y' "$CA_HTML" 2>/dev/null)
         C2_PDF_MTIME_AFTER=$(stat -c '%Y' "$CA_PDF" 2>/dev/null)

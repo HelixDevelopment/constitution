@@ -84,6 +84,17 @@
 #     and inventing a stricter rule than the spec states would itself be a
 #     guess.
 #
+#   TIER CLASS (optional, operator order 2026-10-26 "no heavy agent on a simple task"): a dispatch may declare
+#     `class=<name>` in its description. When it does, the §11.4.182 label's `<model>` and `<effort>` (and an explicit
+#     `.tool_input.model`) must not exceed that class's caps, else the dispatch is BLOCKED (exit 2). Caps are DATA:
+#     `FC_DISPATCH_TIER_POLICY` (env, a TSV path) > `$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv` > the
+#     built-in table (simple: sonnet/medium; mechanical: sonnet/high; standard: sonnet/xhigh; heavy: opus/max). Rows are
+#     `<class><TAB><max_model><TAB><max_effort>[<TAB>free text]`, `#` comments. A dispatch with NO `class=` is never
+#     refused by this check (a class is a dispatcher's declaration; inventing one would be a guess, §11.4.6); an UNKNOWN
+#     class, an unreadable policy file or a policy row with an unknown cap name is refused (fail closed); a label whose
+#     model/effort is the honest `?` (or unparseable) is allowed. Models rank haiku < sonnet < opus < fable; efforts rank
+#     low < medium < high < xhigh < max. Proof: test_dispatch_stamp_class.sh (positive + refusal matrix + paired mutants).
+#
 # MODE 2 (`--extract-item-id`, EXTRACTION mode) — T037's prerequisite helper:
 #   Reads the SAME stdin JSON shape as MODE 1. tool_name is NOT restricted
 #   in this mode (T037 will call it only from inside the same
@@ -466,6 +477,72 @@ extract_item() {
   fi
 }
 
+# --------------------------------------------------------------------------
+# TIER CLASS check (see the TIER CLASS paragraph in the header). Bash builtins
+# only (the awk-fallback tests restrict PATH to awk + cat). Returns 0 allow,
+# 1 refuse (the reason is already on stderr).
+# --------------------------------------------------------------------------
+_fc_rank_model() {
+  case "${1,,}" in
+    *fable*) printf 4 ;; *opus*) printf 3 ;; *sonnet*) printf 2 ;; *haiku*) printf 1 ;; *) printf 0 ;;
+  esac
+}
+_fc_rank_effort() {
+  case "${1,,}" in
+    max) printf 5 ;; xhigh) printf 4 ;; high) printf 3 ;; medium) printf 2 ;; low) printf 1 ;; *) printf 0 ;;
+  esac
+}
+_fc_tier_check() {
+  local cls_re='(^|[[:space:]])class=([A-Za-z][A-Za-z0-9_-]*)([^[:alnum:]_-]|$)'
+  [[ "$DESCRIPTION" =~ $cls_re ]] || return 0
+  local cls="${BASH_REMATCH[2],,}" pol="" table="" a b c rest known="" hit=0 cap_model="" cap_effort=""
+  if [ -n "${FC_DISPATCH_TIER_POLICY:-}" ]; then
+    pol="$FC_DISPATCH_TIER_POLICY"
+  elif [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv" ]; then
+    pol="$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv"
+  fi
+  if [ -n "$pol" ]; then
+    if [ ! -r "$pol" ]; then
+      echo "guardrails: BLOCKED — dispatch-tier: the tier policy file '$pol' is not readable (fail closed)" >&2
+      return 1
+    fi
+    table="$(cat "$pol")"
+  else
+    table=$'simple\tsonnet\tmedium\nmechanical\tsonnet\thigh\nstandard\tsonnet\txhigh\nheavy\topus\tmax'
+  fi
+  while IFS=$'\t' read -r a b c rest || [ -n "$a" ]; do
+    case "$a" in ''|'#'*) continue ;; esac
+    known="${known:+$known, }$a"
+    if [ "${a,,}" = "$cls" ]; then hit=1; cap_model="$b"; cap_effort="$c"; fi
+  done <<< "$table"
+  if [ "$hit" -ne 1 ]; then
+    echo "guardrails: BLOCKED — dispatch-tier: unknown class=$cls (known classes: ${known:-<none>})" >&2
+    return 1
+  fi
+  local cm ce
+  cm="$(_fc_rank_model "$cap_model")"; ce="$(_fc_rank_effort "$cap_effort")"
+  if [ "$cm" -eq 0 ] || [ "$ce" -eq 0 ]; then
+    echo "guardrails: BLOCKED — dispatch-tier: the policy row for class=$cls has an unknown cap (model='$cap_model' effort='$cap_effort'); fail closed" >&2
+    return 1
+  fi
+  local lab_re='\(T[0-9A-Za-z]+/[^[:space:])]+ - [^[:space:])]+ - ([A-Za-z?]+) - ([A-Za-z?]+)\)'
+  local lm="" le="" tm="" rm re rt
+  if [[ "$DESCRIPTION" =~ $lab_re ]]; then lm="${BASH_REMATCH[1]}"; le="${BASH_REMATCH[2]}"; fi
+  tm="$(json_field .tool_input.model)" || tm=""
+  rm="$(_fc_rank_model "$lm")"; rt="$(_fc_rank_model "$tm")"
+  [ "$rt" -gt "$rm" ] && rm="$rt"
+  re="$(_fc_rank_effort "$le")"
+  if [ "$rm" -gt "$cm" ] || [ "$re" -gt "$ce" ]; then
+    {
+      echo "guardrails: BLOCKED — dispatch-tier: no heavy agent on a simple task. class=$cls allows at most model=$cap_model effort=$cap_effort,"
+      echo "  but this dispatch is model='${lm:-?}${tm:+/$tm}' effort='${le:-?}'."
+      echo "  Dispatch on the default tier, or re-declare the class honestly (known classes: $known)."
+    } >&2
+    return 1
+  fi
+  return 0
+}
+
 # ==========================================================================
 # MODE 2: --extract-item-id (ALWAYS exit 0; stdout is the id / '?' / empty,
 # NO other output).
@@ -503,6 +580,7 @@ esac
 
 FOUND="$(extract_item "$DESCRIPTION")"
 if [[ -n "$FOUND" ]]; then
+  _fc_tier_check || exit 2
   exit 0
 fi
 

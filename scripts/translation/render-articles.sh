@@ -9,6 +9,11 @@
 # Usage: render-articles.sh <site-root> <lang> [<lang> ...]
 # Pipeline: extract frontmatter (title/repo/tech) -> pandoc(body md->html5) -> wrap fragment.
 set -euo pipefail
+# Operator order 2026-10-26 ("stop exporting Markdown docs into other formats"): Markdown -> HTML rendering is gated by the
+# constitution's ONE formats-export switch (config/formats_export.conf, default false). OFF => announced skip, rc 0.
+# shellcheck source=../formats_export_lib.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/formats_export_lib.sh"
+formats_export_gate render-articles "${FORMATS_EXPORT_ROOT:-$PWD}" || exit 0
 command -v pandoc >/dev/null || { echo "pandoc required"; exit 1; }
 
 root="${1:?site-root required}"; shift
