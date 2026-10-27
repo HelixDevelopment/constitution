@@ -1,13 +1,19 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 10
-**Last modified:** 2026-10-21T00:00:00Z
+**Revision:** 11
+**Last modified:** 2026-10-26T17:04:36Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
 **R6 (2026-10-05, currency check):** this document had fallen 8 rows behind `gate_ledger_deferrals.tsv` — `OWED-GATE-106` (§11.4.235(D), registered 2026-10-03) and `OWED-GATE-107` through `OWED-GATE-110` (§11.4.230(D), registered 2026-10-04) were both already in the TSV but documented nowhere in this file; `OWED-GATE-111` through `OWED-GATE-113` (§11.4.276, registered the same session as this currency check) were likewise TSV-only. All 8 are now documented in Section A below (new `### §11.4.235(D)`, `### §11.4.230(D)`, and `### §11.4.276` subsections). Verified by direct diff against the live TSV (`grep -E "OWED-GATE-10[6-9]|OWED-GATE-11[0-3]"`), not assumed.
 
 **R10 (2026-10-21, currency check):** `OWED-GATE-143` (`CM-VISION-MODEL-IDENTITY-RECORDED`, §11.4.278(L)) and `OWED-GATE-144`/`OWED-GATE-145` (§11.4.141 M2/M3) were registered in `gate_ledger_deferrals.tsv` on 2026-10-21; all three are now documented in Section A (new `### §11.4.278(L)` and `### §11.4.141 M2/M3` subsections). Verified by matching every `OWED-GATE-NNN` row of the TSV against a `- **OWED-GATE-NNN** — \`GATE\`` entry here, with a positive and a negative control needle. That check still reports one PRE-EXISTING mismatch it did not introduce: the TSV binds `OWED-GATE-076` to `CM-DEVICE-LOCK-DEADLOCK-FREE`, while this document's `OWED-GATE-076` entry names `CM-UNCHALLENGED-CAPABILITY-BLOCKS-RELEASE`; it is left for the owner of those rows to reconcile (§11.4.6, not guessed here).
+
+**R11 (2026-10-26, §11.4.288):** `OWED-GATE-150` to `OWED-GATE-152` (`CM-ALL-WORK-ON-MAIN`, `CM-SUBMODULE-POINTER-ON-MAIN`, `CM-VEHICLE-MERGED-AND-RETIRED`) were registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.288; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394 (measured before and after).
+
+**R13 (2026-10-26, §11.4.289):** `OWED-GATE-161` to `OWED-GATE-164` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.289; section at the end of this file.
+
+**R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
 ## Why this document exists
 
@@ -886,3 +892,60 @@ missing.
   - **Must assert:** an always-loaded agent instruction file that restates anchor bodies beyond the declared budget FAILs (§11.4.141 M3)
   - **Blocked on:** no inlined-anchor-body detector exists in-repo (§11.4.141, gate-code declared a separate work item; named in f9290df on 2026-10-17 without a deferral row, registered 2026-10-21)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+
+### §11.4.287 destructive-path safeguard (registered 2026-10-24 — checks owed; no gate name is minted until its seam exists)
+
+These three checks are intentionally NOT named as `CM-*` gates yet: naming them would add unimplemented names to the §11.4.227(A) ratchet (baseline 394, monotone-decreasing). They become gates, with a paired §1.1 mutation each, when their harness exists.
+
+- **Guard registered in the live hook path.** Must assert: `scripts/hooks/guard-destructive-paths.py` is registered as a PreToolUse hook for Bash/Write/Edit/MultiEdit in the consumer's settings and answers a class-P probe with exit 2. Blocked on: the consumer settings file location and the operator's consent to register the hook (§11.4.287).
+- **`safe_rm_rf` used for deleting scripts.** Must assert: every shipped script with a recursive delete of a variable uses `safe_rm_rf` or `${VAR:?}`. Blocked on: a classifier over shipped scripts with a ratchet baseline.
+- **Delete-safety text in dispatch briefs.** Must assert: dispatch briefs for script-writing agents carry the §11.4.287(D) text. Blocked on: a dispatch-brief hook and a corpus of briefs to scan.
+
+### §11.4.288 all work on `main`, recursively (registered 2026-10-26)
+
+Unlike the §11.4.287 checks above, the brief that landed §11.4.288 asked for named gates; each name is registered here as a deferral in the same change, so the §11.4.227(A) unimplemented count does not rise (measured: 394 before, 394 after).
+
+- **OWED-GATE-150** — `CM-ALL-WORK-ON-MAIN`
+  - **Must assert:** at release time no ref other than `main` in the project root or in any own repository holds unique commits (`git rev-list --count origin/main..<ref>` greater than 0), except a live vehicle that records its necessity under §11.4.288(B)(2); FAIL lists each ref and its count; golden-FALSE: a third-party submodule's own branches and a fully merged, not yet deleted ref do not fire
+  - **Blocked on:** no own-repository ref walker with an own-org classifier (§11.4.31) and a vehicle-necessity record exists in-repo
+  - **Paired §1.1 mutation:** leave one unique commit on a side branch, the gate MUST FAIL; owed together with the harness (§11.4.115(F) observation-before-trust)
+- **OWED-GATE-151** — `CM-SUBMODULE-POINTER-ON-MAIN`
+  - **Must assert:** every recorded own-org gitlink is reachable from that submodule's upstream `main` on every upstream (§11.4.288(D)); FAIL names the path, the gitlink and the upstream; golden-FALSE: a detached checkout at a commit on `main`, and a third-party pin, do not fire
+  - **Blocked on:** offline-capable remote-ref data for every upstream wired to the §11.4.31 own-org classifier; pointer drift, absence and unfetchability stay `CM-DEPENDENCY-POINTER-PREFLIGHT-FAIL-CLOSED` (§11.4.233(G))
+  - **Paired §1.1 mutation:** point a gitlink at a vehicle-only commit, the gate MUST FAIL
+- **OWED-GATE-152** — `CM-VEHICLE-MERGED-AND-RETIRED`
+  - **Must assert:** a work item reported done whose recorded vehicle (branch, worktree, scratch clone) still exists or still holds unique commits FAILs (§11.4.288(B)(4)/(6)); golden-FALSE: a vehicle landed, confirmed on every upstream and removed
+  - **Blocked on:** no vehicle registry linking work items to their vehicles exists in-repo
+  - **Paired §1.1 mutation:** report done with the vehicle still present, the gate MUST FAIL
+
+### §11.4.288 fix round: default destination and citation gates (registered 2026-10-26)
+
+- **OWED-GATE-153** — `CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`
+  - **Must assert:** the work-binding registry's default destination for a logic group is `main` (§11.4.191 as amended by §11.4.288); a group recorded with a non-`main` destination carries a recorded vehicle-necessity reason.
+  - **Blocked on:** the registry migration (DB `logic_groups.destination`) is a consumer data change not made in this repository
+  - **Paired §1.1 mutation:** record a non-`main` default with no reason, the gate MUST FAIL
+- **OWED-GATE-154** — `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`
+  - **Must assert:** `scripts/hooks/guard-work-track-binding.sh` accepts a commit on `main` for a group whose destination is the `main` default and keeps refusing wrong-track dispatch; a test drives the real hook.
+  - **Blocked on:** the hook change needs its own test-first round and independent review; the hook is unchanged (known gap, interim precedence note in §11.4.191)
+  - **Paired §1.1 mutation:** revert the hook to branch-equals-destination only, the test MUST FAIL
+- **OWED-GATE-155** — `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`
+  - **Must assert:** every `§X(clause)` citation resolves to a clause letter that exists in the cited anchor (the phantom `§11.4.167(I)` class).
+  - **Blocked on:** no clause-letter extractor per anchor exists in-repo
+  - **Paired §1.1 mutation:** cite a nonexistent clause, the gate MUST FAIL
+
+### §11.4.289 no stubs or mocks as evidence (registered 2026-10-26)
+
+The four gates named in §11.4.289 are registered as deferrals in the same change, so the §11.4.227(A) unimplemented count does not rise (baseline 394). `CM-NO-FAKES-BEYOND-UNIT-TESTS` (§11.4.27(A)) is not re-minted; its contract is widened by §11.4.289(F).
+
+- **OWED-GATE-161** — `CM-NO-STUB-IN-LIVE-EVIDENCE`
+  - **Must assert:** (per §11.4.289(B)/(D), added 2026-10-26) that no record labelled live has a test double in its path (loopback fixture server, patched client or base URL, recorded replay, canned-answer mode); golden-FALSE: a unit test with a mock and a gate-logic golden-bad fixture do not fire
+  - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL
+- **OWED-GATE-162** — `CM-LIVE-EVIDENCE-HAS-REAL-TARGET-FIELDS`
+  - **Must assert:** (per §11.4.289(D), added 2026-10-26) that a live-labelled record carries the target fingerprint read from the target, the resolved endpoint identity, provider response ids where a provider is involved, a timestamp and the producing command, and, for an endpoint on loopback, a bridge or a socket, the identity of what answered (pid, executable hash, image digest), the record being reclassified unit-class only when that identity is a registered double, does not match the real artifact or pinned image, is canned or recorded, or is absent (loopback and test-started alone never disqualify); golden-FALSE: a live run against a provider documented test mode with all fields, and a test-booted real container or gateway on loopback with its image digest or executable hash recorded, do not fire
+  - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL
+- **OWED-GATE-163** — `CM-LIVE-DEPENDENCY-ABSENT-IS-SKIP-NOT-STUB`
+  - **Must assert:** (per §11.4.289(E), added 2026-10-26) that a missing real dependency (device, credential, model, quota, network) yields SKIP or not_validated with a closed reason code and a tracked item, never a PASS and never a double; golden-FALSE: an honest SKIP does not fire
+  - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL
+- **OWED-GATE-164** — `CM-FIXTURE-SERVER-CLASSIFIED-UNIT`
+  - **Must assert:** (per §11.4.289(C)/(I), added 2026-10-26) that every fixture server, recorded-replay asset and fixture binary is registered as unit or gate-logic class and is not cited by any live-labelled record or by any decision-layer behaviour claim; golden-FALSE: tests/jev fixtures cited only by gate-logic tests do not fire
+  - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL

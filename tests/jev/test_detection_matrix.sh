@@ -41,7 +41,8 @@ status_json() { # status_json <outfile> <running-profile>...   (stopped: prefix 
   local out="$1"; shift; local items="" p run
   for p in "$@"; do run=true; case "$p" in !*) run=false; p="${p#!}";; esac
     items="${items:+$items,}{\"profile\":\"$p\",\"running\":$run}"; done
-  printf '{"gateway":{"running":true},"profiles":[%s]}\n' "$items" > "$out"
+  # the registry's gateway entry points at the loopback stub, so the probed reachability is real
+  printf '{"gateway":{"running":true},"profiles":[%s],"registry":{"services":[{"name":"decide-gateway","healthy":true,"url":"http://127.0.0.1:%s","labels":{"kind":"gateway"}}]}}\n' "$items" "${PORT:-1}" > "$out"
 }
 
 # ---- M1 ---------------------------------------------------------------------
@@ -116,7 +117,7 @@ no_secret_in_outputs "M3"
 
 # ---- M4 reachability is unknown, never fabricated -----------------------------
 assert_eq "null" "$(jq -r '.endpoints[]|select(.source=="toolkit-cache")|.reachable' "$DET")" "M4 hosted reachable=null (cache records resolution, not a probe)"
-assert_eq "true" "$(jq -r '.endpoints[]|select(.source=="local-llmctl")|.reachable' "$DET")" "M4 local reachable=true only because the gateway reports running"
+assert_eq "true" "$(jq -r '.endpoints[]|select(.source=="local-llmctl")|.reachable' "$DET")" "M4 local reachable=true because the gateway URL really answered /healthz (probed, not claimed)"
 # NEG: gateway not running => local instance not claimed reachable
 echo '{"gateway":{"running":false},"profiles":[{"profile":"decide-kev-08b","running":true}]}' > "$T/status.json"
 run_case m4b

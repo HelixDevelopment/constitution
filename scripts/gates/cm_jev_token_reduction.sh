@@ -8,18 +8,30 @@
 #   5. savings figures in any stats report are labeled ESTIMATES
 #
 # Env overrides:
-#   JEV_BEFORE / JEV_AFTER     jsonl artifacts (default: tests/jev fixtures, else .jev/)
+#   JEV_BEFORE / JEV_AFTER     jsonl artifacts (default: <evidence>/{before,after}.jsonl from the shared resolver)
 #   JEV_BEFORE_CONFIG / JEV_AFTER_CONFIG   run configs for clause 2
-#   JEV_DECISIONS              decisions.jsonl
+#   JEV_DECISIONS              decisions.jsonl. Row schema: ts, question, answer, confidence, state_hash, mode ...
+#                              A row's class is `.class` when present, else `.question` - the claude_toolkit
+#                              jev-gate.sh writes the decision type as `.question` ("gate") and no `.class`.
 #   JEV_STATS_REPORT           optional stats report checked for ESTIMATE labeling
 #   JEV_GATED_CLASSES          comma list (default: gate,routing,score)
 #   JEV_REDUCTION_FLOOR        default 1.0 (AFTER <= BEFORE; §11.4.35 DATA)
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "CM-JEV-TOKEN-REDUCTION CANNOT DETERMINE: jq not installed (rc 2, never a pass)" >&2; exit 2; }
 
-REPO=$(cd "$(dirname "$0")/../.." && pwd)
-BEFORE="${JEV_BEFORE:-$REPO/scripts/gates/fixtures/jev/evidence/before.jsonl}"
-AFTER="${JEV_AFTER:-$REPO/scripts/gates/fixtures/jev/evidence/after.jsonl}"
+# No synthetic default (2026-10-24): a GREEN from bundled fixtures is a verdict about the fixtures, not
+# about this project. The pair comes from JEV_BEFORE/JEV_AFTER, else from <JEV_EVIDENCE_DIR>/{before,after}.jsonl
+# when both exist; otherwise the gate is BLIND (rc 2), never GREEN and never a false RED.
+# shellcheck source=../jev/lib_decide.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../jev/lib_decide.sh"   # THE path resolver (review r6 I6-2): no independent derivation here
+EVD="$(jev_evidence_dir)"
+BEFORE="${JEV_BEFORE:-}"; AFTER="${JEV_AFTER:-}"
+[ -n "$BEFORE" ] || { [ -f "$EVD/before.jsonl" ] && BEFORE="$EVD/before.jsonl"; }
+[ -n "$AFTER" ]  || { [ -f "$EVD/after.jsonl" ]  && AFTER="$EVD/after.jsonl"; }
+if [ -z "$BEFORE" ] || [ -z "$AFTER" ]; then
+  echo "CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in $EVD); no verdict is possible (rc 2, never a pass)" >&2
+  exit 2
+fi
 BCONF="${JEV_BEFORE_CONFIG:-${BEFORE%.jsonl}.config}"
 ACONF="${JEV_AFTER_CONFIG:-${AFTER%.jsonl}.config}"
 DECISIONS="${JEV_DECISIONS:-$(dirname "$BEFORE")/decisions.jsonl}"
@@ -29,8 +41,12 @@ CLASSES="${JEV_GATED_CLASSES:-gate,routing,score}"
 
 fail=0
 err() { printf 'CM-JEV-TOKEN-REDUCTION FAIL: %s\n' "$*" >&2; fail=1; }
-ok()  { printf 'CM-JEV-TOKEN-REDUCTION ok: %s\n' "$*" >&2; }
+# ok prints only when the clause added no FAIL (no "ok" line after a failure of the same clause).
+clause_start() { _f0=$fail; }
+ok()  { [ "$fail" = "$_f0" ] && printf 'CM-JEV-TOKEN-REDUCTION ok: %s\n' "$*" >&2; return 0; }
+_f0=0
 
+clause_start
 # Clause 1 — artifacts exist, parse, usage schema.
 for f in "$BEFORE" "$AFTER"; do
   [ -f "$f" ] || { err "artifact missing: $f"; continue; }
@@ -47,6 +63,7 @@ ok "clause 1: BEFORE/AFTER artifacts parse with usage schema"
 
 total() { jq -s '[.[].usage | .input_tokens + .output_tokens] | add // 0' "$1"; }
 
+clause_start
 # Clause 2 — config digests differ only in the decision-layer arm allowlist.
 if [ -f "$BCONF" ] && [ -f "$ACONF" ]; then
   diff_lines=$(diff <(sort "$BCONF") <(sort "$ACONF") | grep -E '^[<>]' | sed -E 's/^[<>] //' | cut -d= -f1 | sort -u)
@@ -60,6 +77,7 @@ else
   err "clause2: run config(s) missing ($BCONF / $ACONF) — arm isolation unverifiable"
 fi
 
+clause_start
 # Clause 3 — AFTER <= floor * BEFORE (measured).
 if [ -f "$BEFORE" ] && [ -f "$AFTER" ]; then
   b=$(total "$BEFORE"); a=$(total "$AFTER")
@@ -70,11 +88,12 @@ if [ -f "$BEFORE" ] && [ -f "$AFTER" ]; then
   ok "clause 3: AFTER=$a <= $FLOOR x BEFORE=$b"
 fi
 
+clause_start
 # Clause 4 — >=1 decision per gated tool-call class.
 if [ -f "$DECISIONS" ]; then
   IFS=',' read -ra cls <<< "$CLASSES"
   for c in "${cls[@]}"; do
-    n=$(jq -s --arg c "$c" '[.[] | select(.class == $c)] | length' "$DECISIONS" 2>/dev/null || echo 0)
+    n=$(jq -s --arg c "$c" '[.[] | select((.class // .question) == $c)] | length' "$DECISIONS" 2>/dev/null || echo 0)
     [ "${n:-0}" -ge 1 ] || err "clause4: decisions.jsonl shows 0 decisions for gated class '$c'"
   done
   ok "clause 4: decisions recorded for every gated class ($CLASSES)"
@@ -82,6 +101,7 @@ else
   err "clause4: decisions.jsonl missing: $DECISIONS"
 fi
 
+clause_start
 # Clause 5 — stats reports label savings as ESTIMATES.
 if [ -n "$REPORT" ] && [ -f "$REPORT" ]; then
   grep -qi 'ESTIMATE' "$REPORT" \

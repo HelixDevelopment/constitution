@@ -279,7 +279,8 @@ ID_RANGE_GROUPS = [
                                   (123, 123), (139, 139), (146, 146), (158, 160),
                                   (163, 163), (193, 193),  # 193 added — T006/T007 283-corpus widening (see report)
                                   (201, 201), (226, 226), (262, 262),
-                                  (268, 271), (277, 277)]),  # 277 added 2026-10-13 — §11.4.277 llmctl model validation gate
+                                  (268, 271), (277, 277),
+                                  (289, 289)]),  # 289 added 2026-10-26 — no stubs or mocks as evidence, live testing only; 277 added 2026-10-13 — §11.4.277 llmctl model validation gate
     ("code-review-and-quality", [(124, 125),  # 124 added, was (125,125) # WIDENED
                                   (134, 134), (142, 142), (145, 145), (165, 165),
                                   (194, 194), (209, 209), (240, 241),  # 240 added, was (241,241) # WIDENED
@@ -319,11 +320,13 @@ ID_RANGE_GROUPS = [
     ("git-and-data-safety", [(10, 10), (30, 30), (36, 37), (41, 41), (71, 71),
                               (84, 84), (88, 88), (113, 113), (121, 121),
                               (179, 181), (188, 188), (195, 195),
-                              (206, 206), (234, 234), (252, 253)]),
+                              (206, 206), (234, 234), (252, 253),
+                              (288, 288)]),  # 288 added 2026-10-26 — all work on main, recursively; sibling of 113/188/195
     ("host-and-resource-safety", [(24, 24), (58, 58), (96, 96), (111, 111),
                                    (119, 119), (128, 128), (144, 144), (147, 147),
                                    (154, 155), (174, 174),  # 174 added — T006/T007 283-corpus widening (see report)
-                                   (225, 225), (254, 254), (263, 263)]),
+                                   (225, 225), (254, 254), (263, 263),
+                                   (287, 287)]),  # 287 added 2026-10-24 — destructive-path safeguard; sibling of 263 (signal-safety) in this group
     # NOTE (fix round 1): the ORIGINAL (176, 192) single contiguous tuple
     # here silently swallowed several tails that genuinely belong to OTHER
     # groups (177 governance-and-constitution-meta, 179-181/188 git-and-

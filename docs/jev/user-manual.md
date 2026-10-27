@@ -95,7 +95,8 @@ Add an entry to the `lan` list of the toolkit's `providers/jev.json` (or point `
 
 ```bash
 bash scripts/jev/jev-status.sh          # human sections
-bash scripts/jev/jev-status.sh --json   # {version, detection, thresholds, bootstrap:{stamp,pending}, mode}
+bash scripts/jev/jev-status.sh --json   # {version, detection, thresholds, bootstrap:{stamp,pending}, mode (effective), mode_stored, mode_reason, test_override}
+bash scripts/jev/jev-status.sh --no-validate   # or JEV_STATUS_NO_VALIDATE=1: do NOT run llmctl require-validated; a stored enforce then reports mode unknown (reason validation-skipped)
 ```
 
 Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thresholds, Evidence log (decision count, kill-switch uses), Bootstrap (stamp, pending and why). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
@@ -103,7 +104,7 @@ Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thre
 ## 6. Shadow mode and enforce mode
 
 - Shadow (`JEV_MODE=shadow`, default): the gate asks the endpoint, logs, and passes everything through.
-- Enforce (`JEV_MODE=enforce`): the gate emits allow/ask/deny. The bootstrap only writes `enforce` when thresholds exist; setting the variable by hand skips that check and the gate then uses its own thresholds (`JEV_GATE_THRESHOLD` 0.8 deny, `JEV_RISKY_THRESHOLD` 0.7 ask, or the toolkit's `decisions.lock.json`).
+- Enforce (`JEV_MODE=enforce`): the gate emits allow/ask/deny. The bootstrap and `register.sh` write `enforce` only when a PROMOTED type, a FRESH detection record with a local llmctl endpoint (id `llmctl-<profile>`, loopback url), a base URL that resolves and is loopback in every place it is stored, and a fresh `require-validated` PASS all hold (re-checked on every run, so a stored `enforce` is downgraded when they stop holding); `jev-status` runs the REAL `llmctl require-validated` (up to 60 s per profile) unless `--no-validate`; no decide-* profile has ever been run against a real model, so enforcement is not claimed live; setting the variable by hand skips that check and the gate then uses its own thresholds (`JEV_GATE_THRESHOLD` 0.8 deny, `JEV_RISKY_THRESHOLD` 0.7 ask, or the toolkit's `decisions.lock.json`).
 - Kill-switch: `JEV_GATE=off` passes every call through and records the use in `gate-off.log`.
 - Fail-closed: `JEV_GATE_FAIL=closed` denies when the endpoint is unreachable. Default is fail-open.
 
@@ -116,7 +117,7 @@ bash scripts/jev/jev-calibrate.sh --dry-run      # report only, writes nothing
 bash scripts/jev/jev-calibrate.sh --now --alias <alias>
 ```
 
-Output: per question type, `n`, agreement, recommended threshold, promoted or not, with the reason. Thresholds are written atomically to `~/.config/jev/jev-thresholds.json` (mirrored to the evidence dir); the previous file is kept as `jev-thresholds.<epoch>.json`. Rows that lack question text, criteria and state text are counted as skipped and never labeled blind. Today's gate rows lack them; see the limitation in the governance guide. The labeling command can be replaced with `JEV_CALIBRATE_ALIAS_CMD`.
+Output: per question type, `n`, agreement, recommended threshold, promoted or not, with the reason. Thresholds are written atomically to `~/.config/jev/jev-thresholds.json` (mirrored to the evidence dir, `~/.local/state/jev/evidence` by default); the previous file is kept as `jev-thresholds.<epoch>.json`. Rows that lack question text, criteria and state text are counted as skipped and never labeled blind. Today's gate rows lack them; see the limitation in the governance guide. The labeling command can be replaced with `JEV_CALIBRATE_ALIAS_CMD`.
 
 ## 8. Routing and voting across several endpoints
 
@@ -139,4 +140,4 @@ Copy the toolkit's `scripts/providers/jev-routes.json.template` to a path you ow
 
 ## 11. Where things live
 
-`~/.local/state/jev/` (decisions, stamp, pending, gate-off log) · `~/.config/jev/` (env, thresholds) · `.jev/` in the project (detection record, thresholds mirror) · `~/.local/share/claude-multi-account/providers/jev-endpoints.json` (ranked cache) · `~/.local/share/helix/` (managed clones).
+`~/.local/state/jev/` (decisions, stamp, pending, gate-off log) · `~/.config/jev/` (env, thresholds) · `~/.local/state/jev/evidence/` (detection record, thresholds mirror; `JEV_EVIDENCE_DIR` selects another place; never the current directory) · `~/.local/share/claude-multi-account/providers/jev-endpoints.json` (ranked cache) · `~/.local/share/helix/` (managed clones).

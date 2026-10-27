@@ -17,6 +17,7 @@
 #   ME4 H2 block boundary reverted                                      must flip H2-BOUNDARY
 #   ME5 `[full → …]` honoured on ANY first line, not only `- §N`        must flip COMPACT-NOT-BULLET
 #   ME6 carrier-basename target restriction removed                     must flip COMPACT-AT-CARRIER
+#   ME7 the carrier-discovery `find` status ignored                     must give BLIND rc 2, not a silent rc 1
 #
 # Steps: BASELINE (every fixture META OK, rc 0) · each mutant (named flip + rc != 0, and the mutant text was
 # applied exactly once and still parses) · NEGATIVE CONTROL (a comment-only edit flips nothing) · RESTORED
@@ -119,6 +120,31 @@ pair ME6 \
   'case "${_cpe_ptr##*/}" in __never__) _cpe_ptr="" ;; esac' \
   COMPACT-AT-CARRIER
 
+# DISCOVERY-BLIND (review round 5 M4): an incomplete carrier traversal is BLIND (rc 2, with a reason),
+# never a silent rc 1 under `set -e` and never a PASS over a partial set. ME7 restores the old silent path.
+blind_case() { # $1 label -> sets brc/bout for a root holding the carriers plus an unreadable directory
+    local fx="$TMPD/blindroot"
+    rm -rf "$fx"; mkdir -p "$fx/sub/locked"
+    cp "$HERE/../../CLAUDE.md" "$HERE/../../AGENTS.md" "$HERE/../../QWEN.md" "$HERE/../../GEMINI.md" "$fx/" 2>/dev/null
+    chmod 000 "$fx/sub/locked"
+    bout="$(env -u COVENANT_PROPAGATION_CARRIERS -u COVENANT_PROPAGATION_ANCHORS bash "$SB/$(basename "$WRAP")" --root "$fx" --quiet 2>&1)"; brc=$?
+    chmod 700 "$fx/sub/locked"
+}
+if [ "$(id -u)" = 0 ]; then
+    echo "  [skip] DISCOVERY-BLIND: running as root, an unreadable directory cannot be built (hardware_not_present-class honest SKIP)"
+else
+    restore
+    blind_case base
+    if [ "$brc" -eq 2 ] && grep -q "did not complete" <<<"$bout"; then ok "DISCOVERY-BLIND: unreadable directory under the root -> BLIND rc=2 with the reason"
+    else bad "DISCOVERY-BLIND: unreadable directory gave rc=$brc: $(head -c 200 <<<"$bout")"; fi
+    if apply '2>/dev/null)" || _cpe_frc=$?' '2>/dev/null)" || true'; then
+        blind_case ME7
+        if [ "$brc" -ne 2 ]; then ok "ME7: ignoring the find status changes the verdict (rc=$brc, not BLIND) — mutant killed"
+        else bad "ME7: ignoring the find status still gives BLIND — the check is not load-bearing"; fi
+    else bad "ME7: mutant text not applied exactly once — re-anchor it"; fi
+    restore
+fi
+
 # NEGATIVE CONTROL: a comment-only edit must flip nothing (the harness is not a rubber stamp for "any change").
 restore
 if apply 'local GENERIC_BLOCK_RE=' '# negative-control comment
@@ -135,5 +161,5 @@ rest="$(run_meta)"; rest_rc=$?
 SUM_AFTER="$(sha256sum "$ENGINE" | cut -d' ' -f1)"
 [ "$SUM_BEFORE" = "$SUM_AFTER" ] && ok "tracked library unchanged (sha256 $SUM_AFTER)" || bad "tracked engine changed during the test ($SUM_BEFORE -> $SUM_AFTER)"
 
-if [ "$fails" -eq 0 ]; then echo "=== MUTATION PAIR VALID: 6 engine mutants killed, negative control clean ==="; exit 0; fi
+if [ "$fails" -eq 0 ]; then echo "=== MUTATION PAIR VALID: 7 engine mutants killed (ME1-ME7), negative control clean ==="; exit 0; fi
 echo "=== MUTATION PAIR NOT DEMONSTRATED: $fails failure(s) ==="; exit 1

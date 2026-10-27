@@ -38,21 +38,21 @@
 # Env (names only):
 #   JEV_STATE_DIR (default ~/.local/state/jev)  decisions.jsonl lives here
 #   JEV_CONFIG_DIR (default ~/.config/jev)      thresholds written here
-#   JEV_EVIDENCE_DIR (default .jev)             thresholds mirrored here
+#   JEV_EVIDENCE_DIR (default <state>/evidence) thresholds mirrored here
 #   JEV_CALIBRATE_ALIAS_CMD  label command; receives the labeling prompt JSON
 #        on stdin and must print JSON {"label": ...}. Default: the toolkit
 #        provider alias <A> run headless through cma_run_provider (sourced from
 #        JEV_CALIBRATE_ALIAS_FILE or the toolkit default alias file).
 #   JEV_CALIBRATE_ALIAS_FILE  alias file defining cma_run_provider
 #   JEV_CALIBRATE_FLOOR (default 0.90), JEV_CALIBRATE_MIN_SAMPLE (default 30)
-#   JEV_NOW_EPOCH (deterministic-clock seam for tests)
+#   JEV_NOW_EPOCH (deterministic-clock seam, honoured ONLY with JEV_TEST=1)
 
 set -euo pipefail
 
-JEV_STATE_DIR="${JEV_STATE_DIR:-$HOME/.local/state/jev}"
-JEV_CONFIG_DIR="${JEV_CONFIG_DIR:-$HOME/.config/jev}"
-JEV_EVIDENCE_DIR="${JEV_EVIDENCE_DIR:-.jev}"
-NOW="${JEV_NOW_EPOCH:-$(date +%s)}"
+# shellcheck source=lib_decide.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib_decide.sh"
+JEV_STATE_DIR="$(jev_state_dir)"; JEV_CONFIG_DIR="$(jev_config_dir)"; JEV_EVIDENCE_DIR="$(jev_evidence_dir)"   # the ONE shared resolver (r5 I5-2, r6 I6-2)
+NOW="$(date +%s)"; [ "${JEV_TEST:-}" != "1" ] || NOW="${JEV_NOW_EPOCH:-$NOW}"   # clock seam is test-only (r6 n6-1)
 FLOOR="${JEV_CALIBRATE_FLOOR:-0.90}"
 MIN_SAMPLE="${JEV_CALIBRATE_MIN_SAMPLE:-30}"
 
@@ -89,7 +89,7 @@ fi
 if [ -n "${JEV_CALIBRATE_ALIAS_CMD:-}" ]; then
   LABEL_CMD="$JEV_CALIBRATE_ALIAS_CMD"
 else
-  ALIAS_FILE="${JEV_CALIBRATE_ALIAS_FILE:-$HOME/.local/share/claude-multi-account/aliases.sh}"
+  ALIAS_FILE="$(jev_aliases_file)"
   if [ ! -f "$ALIAS_FILE" ]; then
     echo "jev-calibrate: no label command: set JEV_CALIBRATE_ALIAS_CMD or provide the toolkit alias file ($ALIAS_FILE); cannot determine (rc 2)" >&2
     exit 2
@@ -205,13 +205,17 @@ OUTPUT="$(jq -Rn --argjson now "$NOW" --argjson floor "$FLOOR" --argjson min "$M
   '{version:1, calibrated_at:$now, floor:$floor, min_sample:$min, sample_per_type:$sample,
     per_type: ([inputs | split("\t") | {key:.[0], value:(.[1] | fromjson)}] | from_entries)}' < "$TMPD/frags.tsv")"
 
-write_thresholds() { # atomic write; previous preserved as .<epoch>.json
-  local target="$1"
+write_thresholds() { # atomic write (through a symlink); the previous file is kept as .<epoch>.json, newest 5 copies only
+  local target="$1" dir c n=0
+  dir="$(dirname "$(jev_real_target "$target")")"
   if [ -f "$target" ]; then
-    cp -p "$target" "$(dirname "$target")/jev-thresholds.$NOW.json"
+    cp -p -- "$(jev_real_target "$target")" "$dir/jev-thresholds.$NOW.json"
   fi
-  printf '%s\n' "$OUTPUT" > "$target.tmp.$$"
-  mv -f "$target.tmp.$$" "$target"
+  printf '%s\n' "$OUTPUT" | jev_write_atomic "$target"
+  # cap: keep the 5 newest timestamped copies (names sort by epoch); only files matching the pattern in THIS directory are removed
+  for c in $(ls -1r -- "$dir"/jev-thresholds.[0-9]*.json 2>/dev/null); do
+    n=$((n+1)); [ "$n" -le 5 ] || rm -f -- "$c"
+  done
 }
 
 if [ "$DRY_RUN" = "0" ]; then

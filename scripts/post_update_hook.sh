@@ -93,6 +93,7 @@ CHANGED_HOOKS=()
 CHANGED_SCRIPTS=()
 CHANGED_ACTIONS=()   # actions/registry.yaml + plugins/** — re-wire slash commands
 CHANGED_LABELSYNC=() # scripts/label-sync/** + the labeler — re-wire the label-sync hooks (§11.4.228(D))
+STALE_JEV_MCP=0      # mcp/jev-decisions.json was deleted/moved => repair v71's unexpanded-placeholder entry (review I-1)
 CHANGED_JEV=()       # Jev decision-layer files — re-fire the bootstrap (§11.4.281(C)); NOT exclusive with the classes below
 ERRORS=()
 WARNINGS=()
@@ -146,7 +147,16 @@ detect_changes() {
     local changed_files=()
     mapfile -d '' -t changed_files < <(git -C "$CONST_DIR" diff -z --name-only --diff-filter=AM "$old_ref"..HEAD 2>/dev/null || true)   # MUT:diffz
 
-    if [ "${#changed_files[@]}" -eq 0 ]; then
+    # Deleted/moved live Jev MCP config (helixconstitution-v71 shipped it and its hook
+    # merged the unexpanded ${...} placeholders into consumers' .mcp.json). --no-renames
+    # so a move shows as a deletion of the old path.
+    local deleted_files=() d
+    mapfile -d '' -t deleted_files < <(git -C "$CONST_DIR" diff -z --name-only --no-renames --diff-filter=D "$old_ref"..HEAD 2>/dev/null || true)
+    for d in "${deleted_files[@]:-}"; do
+        [ "$d" = "mcp/jev-decisions.json" ] && STALE_JEV_MCP=1
+    done
+
+    if [ "${#changed_files[@]}" -eq 0 ] && [ "$STALE_JEV_MCP" -eq 0 ]; then
         info "No files changed in this update — nothing to propagate."
         return 0
     fi
@@ -162,10 +172,12 @@ detect_changes() {
         [ -n "$f" ] || continue
         # Jev trigger set (§11.4.281(C)) — classified SEPARATELY from the exclusive
         # case below because a path here also belongs to another class
-        # (mcp/jev-decisions.json is an MCP config, actions/registry.yaml an action
-        # file): it must still be installed as such AND re-fire the bootstrap.
+        # (actions/registry.yaml is also an action file): it must still be installed
+        # as such AND re-fire the bootstrap. mcp/templates/jev-decisions.json.tmpl is
+        # a render TEMPLATE (never a live MCP config, see the mcp/templates/ case
+        # below) that only re-fires the bootstrap.
         case "$f" in
-            scripts/jev/*|skills/jev-decision-layer/*|mcp/jev-decisions.json|actions/registry.yaml|submodules/llmctl|submodules/claude_toolkit)
+            scripts/jev/*|skills/jev-decision-layer/*|mcp/templates/jev-decisions.json.tmpl|actions/registry.yaml|submodules/llmctl|submodules/claude_toolkit)
                 CHANGED_JEV+=("$f") ;;
         esac
         # Classify by path prefix
@@ -175,6 +187,9 @@ detect_changes() {
                 local skill_name
                 skill_name="${f#skills/}"; skill_name="${skill_name%%/*}"   # no echo|cut: a name may hold a newline
                 CHANGED_SKILLS+=("$skill_name")
+                ;;
+            mcp/templates/*)
+                # templates carry unexpanded ${VAR} placeholders: never a live config
                 ;;
             mcp/*.json)
                 local mcp_name
@@ -224,6 +239,9 @@ detect_changes() {
         unset -n _ref
     done
 
+    # Any Jev change re-checks too: the repair is idempotent and touches only an entry
+    # that still holds an unexpanded placeholder.
+    [ "$(arr_len CHANGED_JEV)" -gt 0 ] && STALE_JEV_MCP=1
     info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s), $(arr_len CHANGED_LABELSYNC) label-sync file(s), $(arr_len CHANGED_JEV) jev file(s) changed."
 }
 
@@ -288,6 +306,35 @@ install_skills() {
             fi
         done
     done
+}
+
+# ============================================================================
+# STEP 2b — Repair a stale `jev` MCP entry left by helixconstitution-v71
+# ============================================================================
+# v71 shipped mcp/jev-decisions.json with literal ${CLAUDE_TOOLKIT_DIR} /
+# ${JEV_CA_FILE} and the hook merged it verbatim. The file is now a template
+# (mcp/templates/); nothing else would ever remove the broken live entry. Remove a
+# `jev` server entry ONLY if it still holds an unexpanded ${...} placeholder
+# (a user-customised entry is never touched), timestamped backup first, all other
+# servers kept. Idempotent. Targets: project .mcp.json and ~/.mcp.json.
+repair_stale_jev_mcp() {
+    header "STEP 2b: Repairing stale jev MCP entry (v71 unexpanded placeholders)"
+    [ "$STALE_JEV_MCP" -eq 1 ] || { info "Nothing to repair."; return 0; }
+    command -v jq &>/dev/null || { warn "jq not available — stale jev MCP entry NOT checked."; return 0; }
+    local f tmp
+    for f in "${PROJECT_ROOT}/.mcp.json" "${HOME:-/nonexistent}/.mcp.json"; do
+        [ -f "$f" ] || continue
+        jq -e '(.mcpServers.jev? // empty) | tojson | contains("${")' "$f" >/dev/null 2>&1 || continue
+        tmp="$(mktemp "${f}.repair.XXXXXX")" || { WARNINGS+=("jev MCP repair: no temp file for $f"); continue; }
+        if jq 'del(.mcpServers.jev)' "$f" >"$tmp" 2>/dev/null && jq -e 'type == "object"' "$tmp" >/dev/null 2>&1 \
+           && cp -p "$f" "${f}.prejev.$(date +%s)" && mv -f "$tmp" "$f"; then
+            info "  -> removed stale 'jev' entry (unexpanded placeholder) from $f (backup: ${f}.prejev.*)"
+        else
+            rm -f "$tmp"; warn "  -> could not repair $f — left unchanged."
+            WARNINGS+=("jev MCP repair failed for $f")
+        fi
+    done
+    return 0
 }
 
 # ============================================================================
@@ -667,13 +714,18 @@ install_jev_bootstrap() {
     if [ ! -f "$boot" ]; then
         warn "jev-bootstrap: scripts/jev/bootstrap.sh not present in this checkout — recorded as pending"
         WARNINGS+=("jev-bootstrap: scripts/jev/bootstrap.sh missing (pending)")
-        mkdir -p "${PROJECT_ROOT}/.jev" 2>/dev/null && : >"${PROJECT_ROOT}/.jev/bootstrap.pending" 2>/dev/null || :
+        # the marker goes where bootstrap.sh / jev-status.sh read it: <state dir>/bootstrap.pending, from the ONE resolver in
+        # lib_decide.sh when this checkout has it; the inline fallback mirrors that default (r7 m7-5)
+        local pdir
+        pdir="$( (cd "$PROJECT_ROOT" 2>/dev/null; [ -f "${CONST_DIR}/scripts/jev/lib_decide.sh" ] && . "${CONST_DIR}/scripts/jev/lib_decide.sh" >/dev/null 2>&1 && jev_state_dir) 2>/dev/null )" || pdir=""
+        [ -n "$pdir" ] || pdir="${JEV_STATE_DIR:-${JEV_HOME:-${HOME:-}}/.local/state/jev}"   # jev-path-ok: fallback when lib_decide.sh is absent
+        mkdir -p "$pdir" 2>/dev/null && : >"$pdir/bootstrap.pending" 2>/dev/null || :
         return 0
     fi
     local -a runner=(bash)
     if command -v timeout >/dev/null 2>&1; then runner=(timeout "${JEV_HOOK_TIMEOUT:-900}" bash); fi
     local rc=0
-    # cd to PROJECT_ROOT: bootstrap.sh writes its evidence to ./.jev (JEV_EVIDENCE_DIR).
+    # cd to PROJECT_ROOT (the .jev/bootstrap.disabled opt-out marker is project-level; the bootstrap.pending stamp is state-level: <state dir>/bootstrap.pending, the file jev-status reads). Evidence is NOT written here: bootstrap.sh resolves it via lib_decide.sh (<state>/evidence unless JEV_EVIDENCE_DIR is set), independent of the cwd.
     (cd "$PROJECT_ROOT" && "${runner[@]}" "$boot" --non-interactive) || rc=$?
     if [ "$rc" -eq 0 ]; then
         info "jev-bootstrap: completed (non-interactive)"
@@ -937,7 +989,8 @@ main() {
        [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ] && \
-       [ "$(arr_len CHANGED_JEV)" -eq 0 ]; then
+       [ "$(arr_len CHANGED_JEV)" -eq 0 ] && \
+       [ "$STALE_JEV_MCP" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
         if [ "$(arr_len ERRORS)" -gt 0 ]; then
             report_summary
@@ -947,6 +1000,7 @@ main() {
     fi
 
     run_step install_skills
+    run_step repair_stale_jev_mcp
     run_step install_mcp_configs
     run_step install_hooks
     run_step install_action_plugins

@@ -1,13 +1,13 @@
 schema_version: 1
-generated_at: '2026-10-27T18:08:43.334907+00:00'
+generated_at: '2026-10-27T18:58:26.780725+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: a24b7626cf756ccd4cd8a356b4e62b4ea9668b26
-  source_sha256: e9bc9cc1325223156747a4025ee31c02f155cb35afa756b2240df5a646ef8996
+  commit: 09dacd68a59d6595c8bbf26787624dc6f94a2529
+  source_sha256: 23297d680ceca341e3065a99717a01e0a1c437792867777a517ea678a10a6495
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
-  anchor_count: 34
+  anchor_count: 35
 - name: code-review-and-quality
   path: constitution/groups/code-review-and-quality.md
   anchor_count: 12
@@ -19,13 +19,13 @@ groups:
   anchor_count: 27
 - name: git-and-data-safety
   path: constitution/groups/git-and-data-safety.md
-  anchor_count: 24
+  anchor_count: 25
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
   anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
-  anchor_count: 21
+  anchor_count: 22
 - name: multi-track-and-parallelism
   path: constitution/groups/multi-track-and-parallelism.md
   anchor_count: 13
@@ -489,6 +489,7 @@ anchors:
   - 11.4.25
   - 11.4.26
   - 11.4.27
+  - 11.4.289
   - 11.4.3
   - 11.4.35
   - 11.4.6
@@ -3921,7 +3922,10 @@ anchors:
   - 11.4.151
   - 11.4.167
   - 11.4.17
+  - 11.4.185
+  - 11.4.230
   - 11.4.28
+  - 11.4.288
   - 11.4.29
   - 11.4.35
   - 11.4.40
@@ -4147,6 +4151,7 @@ anchors:
   - 11.4.176
   - 11.4.24
   - 11.4.28
+  - 11.4.288
   - 11.4.35
   - 11.4.41
   - 11.4.5
@@ -4189,6 +4194,7 @@ anchors:
   - 11.4.176
   - 11.4.178
   - 11.4.187
+  - 11.4.288
   - 11.4.29
   - 11.4.35
   - 11.4.58
@@ -4210,6 +4216,7 @@ anchors:
   - 11.4.176
   - 11.4.179
   - 11.4.180
+  - 11.4.288
   - 11.4.35
   - 11.4.58
   - 11.4.6
@@ -4252,6 +4259,7 @@ anchors:
   - 11.4.179
   - 11.4.181
   - 11.4.28
+  - 11.4.288
   - 11.4.29
   - 11.4.35
   - 11.4.6
@@ -4278,6 +4286,7 @@ anchors:
   - 11.4.177
   - 11.4.178
   - 11.4.182
+  - 11.4.288
   - 11.4.29
   - 11.4.35
   - 11.4.58
@@ -4434,6 +4443,7 @@ anchors:
   - 11.4.187
   - 11.4.20
   - 11.4.28
+  - 11.4.288
   - 11.4.58
   - 11.4.6
   - 11.4.67
@@ -4464,6 +4474,7 @@ anchors:
   - 11.4.179
   - 11.4.181
   - 11.4.188
+  - 11.4.288
   - 11.4.35
   - 11.4.37
   - 11.4.40
@@ -4550,6 +4561,7 @@ anchors:
   - 11.4.181
   - 11.4.182
   - 11.4.191
+  - 11.4.288
   - 11.4.35
   - 11.4.6
   - 11.4.84
@@ -4579,6 +4591,7 @@ anchors:
   - 11.4.187
   - 11.4.191
   - 11.4.192
+  - 11.4.288
   - 11.4.3
   - 11.4.35
   - 11.4.42
@@ -4658,6 +4671,10 @@ anchors:
   - 11.4.188
   - 11.4.191
   - 11.4.195
+  - 11.4.197
+  - 11.4.230
+  - 11.4.251
+  - 11.4.288
   - 11.4.29
   - 11.4.35
   - 11.4.4
@@ -5683,6 +5700,7 @@ anchors:
   - 11.4.24
   - 11.4.240
   - 11.4.249
+  - 11.4.251
   - 11.4.259
   - 11.4.260
   - 11.4.261
@@ -5696,6 +5714,7 @@ anchors:
   - 11.4.271
   - 11.4.273
   - 11.4.276
+  - 11.4.288
   - 11.4.3
   - 11.4.35
   - 11.4.4
@@ -7370,14 +7389,20 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - 11.4.10
   - 11.4.141
   - 11.4.17
   - 11.4.198
   - 11.4.227
   - 11.4.231
+  - 11.4.262
+  - 11.4.277
   - 11.4.279
+  - 11.4.280
+  - 11.4.281
   - 11.4.286
   - 11.4.35
+  - 11.4.5
   - 11.4.6
   - '7.1'
 - id: 11.4.280
@@ -7493,6 +7518,172 @@ anchors:
   - 11.4.28
   - 11.4.281
   - 11.4.286
+- id: 11.4.287
+  title: '— Destructive-path safeguard: no agent, script, hook, test or subagent may
+    recursively delete, re-permission or sync-delete the filesystem root, a system
+    directory, /home, a home directory, an ancestor of it or a protected child of
+    it; enforced by a non-overridable PreToolUse guard, a refusing runtime helper
+    and mandatory script hygiene (User mandate, 2026-10-23)'
+  group: host-and-resource-safety
+  location: constitution/groups/host-and-resource-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-287-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.10
+  - 11.4.109
+  - 11.4.113
+  - 11.4.142
+  - 11.4.17
+  - 11.4.20
+  - 11.4.201
+  - 11.4.209
+  - 11.4.224
+  - 11.4.227
+  - 11.4.252
+  - 11.4.263
+  - 11.4.276
+  - 11.4.287
+  - 11.4.35
+  - 11.4.5
+  - 11.4.6
+  - 11.4.70
+  - '9.2'
+- id: 11.4.288
+  title: '— All work on `main`, recursively: every current and future change in the
+    project root and in every own-org submodule and constitution hub engine it uses
+    is made on `main` and lands on `main` as soon as it holds its source-correctness
+    GO (fetch, merge onto the latest `main`, fast-forward push to every upstream,
+    never force); manual QA tests builds cut from `main` and gates the release tag,
+    not the landing; product and flavor variants live on `main` as data packs; a branch,
+    worktree or clone is a vehicle used only when strictly necessary, fast-forwarded
+    into `main` and retired before the work is reported done; a submodule commit is
+    followed in the same wave by the parent pointer bump on `main` (User mandate,
+    2026-10-26)'
+  group: git-and-data-safety
+  location: constitution/groups/git-and-data-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-288-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.108
+  - 11.4.113
+  - 11.4.121
+  - 11.4.122
+  - 11.4.125
+  - 11.4.134
+  - 11.4.142
+  - 11.4.147
+  - 11.4.15
+  - 11.4.167
+  - 11.4.17
+  - 11.4.176
+  - 11.4.178
+  - 11.4.179
+  - 11.4.181
+  - 11.4.182
+  - 11.4.185
+  - 11.4.187
+  - 11.4.188
+  - 11.4.191
+  - 11.4.192
+  - 11.4.194
+  - 11.4.195
+  - 11.4.197
+  - 11.4.20
+  - 11.4.209
+  - 11.4.211
+  - 11.4.227
+  - 11.4.230
+  - 11.4.231
+  - 11.4.233
+  - 11.4.235
+  - 11.4.251
+  - 11.4.262
+  - 11.4.276
+  - 11.4.28
+  - 11.4.287
+  - 11.4.288
+  - 11.4.31
+  - 11.4.33
+  - 11.4.35
+  - 11.4.37
+  - 11.4.4
+  - 11.4.40
+  - 11.4.41
+  - 11.4.6
+  - 11.4.66
+  - 11.4.70
+  - 11.4.71
+  - 11.4.79
+  - 11.4.84
+  - '2.1'
+  - '9.2'
+- id: 11.4.289
+  title: '— No stubs, mocks or fixture servers as evidence: all testing, validation
+    and verification of produced results is LIVE and deterministic (real artifact,
+    real services, real devices, real models, real data); test doubles are legal only
+    in unit tests and in tests of a gate''s own logic; a live-labelled result carries
+    machine fields proving a real target; an absent real dependency is an honest SKIP,
+    never a stand-in (User mandate, 2026-10-26)'
+  group: anti-bluff-and-evidence
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-289-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.1
+  - 11.4.10
+  - 11.4.102
+  - 11.4.107
+  - 11.4.108
+  - 11.4.115
+  - 11.4.141
+  - 11.4.142
+  - 11.4.161
+  - 11.4.169
+  - 11.4.17
+  - 11.4.185
+  - 11.4.187
+  - 11.4.194
+  - 11.4.197
+  - 11.4.200
+  - 11.4.201
+  - 11.4.202
+  - 11.4.209
+  - 11.4.226
+  - 11.4.227
+  - 11.4.235
+  - 11.4.236
+  - 11.4.240
+  - 11.4.248
+  - 11.4.259
+  - 11.4.262
+  - 11.4.266
+  - 11.4.267
+  - 11.4.268
+  - 11.4.27
+  - 11.4.273
+  - 11.4.277
+  - 11.4.278
+  - 11.4.279
+  - 11.4.287
+  - 11.4.289
+  - 11.4.3
+  - 11.4.35
+  - 11.4.40
+  - 11.4.5
+  - 11.4.50
+  - 11.4.6
+  - 11.4.66
+  - 11.4.69
+  - 11.4.76
+  - 11.4.98
 - id: 11.4.290
   title: '— Optimistic done with parallel background verification: PROVISIONAL-DONE
     vs VERIFIED-DONE, automatic non-silent reopen, honest release labelling (User

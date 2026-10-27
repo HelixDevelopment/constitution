@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Stub curl for hosted-endpoint tests. URLs on the hosts "*.typesafe.test" / "*.openrouter.test" and on the two
+# builtin production pin hosts (api.typesafe.ai, openrouter.ai - simulated here, never contacted) are answered
+# locally. EVERY other host is refused (exit 28, "000", logged REFUSED_UNKNOWN_HOST): there is no passthrough to
+# the real curl, so a test can never reach the network or leak a key to it (review finding I2).
+#   STUB_CODE        HTTP status to answer (default 200; 000 = connection failure, exit 28)
+#   STUB_EXPECT_KEY  when set, the stdin config (-K -) must carry "Authorization: Bearer <key>" else 401
+#   STUB_LOG         dir for curl.log (argv ONLY, plus AUTH_OK / AUTH_MISSING / NO_STDIN_CONFIG verdicts)
+# The key is compared in memory and never written anywhere.
+url=""; usecfg=0; prev=""
+for a in "$@"; do
+  case "$a" in http://*|https://*) url="$a" ;; esac
+  [ "$prev" = "-K" ] && [ "$a" = "-" ] && usecfg=1
+  prev="$a"
+done
+case "$url" in
+  https://*.typesafe.test*|https://*.openrouter.test*|https://api.typesafe.ai|https://api.typesafe.ai/*|https://openrouter.ai|https://openrouter.ai/*) ;;
+  *)
+    printf 'curl %s\nverdict REFUSED_UNKNOWN_HOST %s\n' "$*" "$url" >> "${STUB_LOG:-/dev/null}/curl.log" 2>/dev/null
+    [ "$usecfg" = 1 ] && cat >/dev/null
+    printf '000'; exit 28 ;;
+esac
+log="${STUB_LOG:-/tmp}/curl.log"
+printf 'curl %s\n' "$*" >> "$log"
+verdict="NO_STDIN_CONFIG"; cfg=""
+if [ "$usecfg" = 1 ]; then cfg="$(cat)"; verdict="AUTH_MISSING"
+  case "$cfg" in *"Authorization: Bearer "*) verdict="AUTH_OK" ;; esac
+  if [ -n "${STUB_EXPECT_KEY:-}" ]; then
+    case "$cfg" in *"Bearer ${STUB_EXPECT_KEY}"*) ;; *) verdict="AUTH_WRONG" ;; esac
+  fi
+fi
+printf 'verdict %s %s\n' "$verdict" "$url" >> "$log"
+code="${STUB_CODE:-200}"
+[ "$verdict" = "AUTH_WRONG" ] && code=401
+[ "$code" = "000" ] && { printf '000'; exit 28; }
+printf '%s' "$code"

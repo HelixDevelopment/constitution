@@ -1,0 +1,61 @@
+# scripts/lib/protected_paths.list — protected deletion targets (constitution §11.4.287).
+#
+# Read at run time by scripts/lib/safe_rm.sh. The PreToolUse guard
+# scripts/hooks/guard-destructive-paths.py does NOT read this file: it carries its own
+# hardcoded, independent protected set (a superset of this list), and
+# scripts/hooks/test_guard_bypasses.py fails if any entry here is missing from it (and if the
+# guard fails to block any entry). Edit here for safe_rm.sh, and update the guard's sets too.
+#
+# FORMAT (one entry per line):
+#   - Blank lines and lines whose first non-space character is '#' are ignored.
+#   - Leading/trailing whitespace is trimmed. No inline comments.
+#   - An entry starting with '/'  is an ABSOLUTE protected path. A delete target
+#     whose fully resolved path (readlink -m) EQUALS it is refused. '/' itself is
+#     refused by the consumer unconditionally and need not be listed.
+#   - An entry starting with '~/' is a HOME-RELATIVE protected child. The part after
+#     '~/' is a single path component, optionally a shell glob ('*', '?', '[...]'),
+#     matched against the first component below every home directory the consumer
+#     treats as a home ($HOME, SAFE_RM_EXTRA_HOMES). A target that resolves EXACTLY
+#     to <home>/<matching component> is refused. Paths deeper inside it are not
+#     refused by this list (e.g. <home>/Projects/app/build stays deletable).
+#   - Any other line is a format error; consumers MUST fail closed on it.
+# A consumer that cannot read this file, or finds no absolute entry in it, MUST
+# refuse every delete (fail closed), never fall back to "nothing is protected".
+
+# --- system directories (absolute) ---
+/bin
+/boot
+/dev
+/etc
+/lib
+/lib32
+/lib64
+/libx32
+/opt
+/proc
+/root
+/run
+/sbin
+/srv
+/sys
+/usr
+/var
+/mnt
+/media
+/snap
+/home
+/tmp
+/Users
+
+# --- home-relative protected children ---
+~/scripts
+~/Projects
+~/.ssh
+~/.gnupg
+~/.claude*
+~/.config
+~/.local
+~/vasic
+~/ytdlp
+~/backups
+~/.cache

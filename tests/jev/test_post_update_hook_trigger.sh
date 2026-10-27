@@ -31,10 +31,17 @@ assert_not_contains "$HOST_P/bootstrap.log" "--defer" "1 healthy bootstrap is no
 assert_contains "$HOST_P/hook.out" "1 jev file(s)" "1 hook reports the Jev change it detected"
 
 # 1b every trigger path
-for trig in skills/jev-decision-layer/SKILL.md mcp/jev-decisions.json actions/registry.yaml; do
+for trig in skills/jev-decision-layer/SKILL.md mcp/templates/jev-decisions.json.tmpl actions/registry.yaml; do
   host "$trig"; run_hook_host
   assert_contains "$HOST_P/bootstrap.log" "bootstrap --non-interactive" "1b trigger path $trig fires bootstrap"
 done
+
+# 1c the template is a trigger but NEVER a live MCP config to merge
+host mcp/templates/jev-decisions.json.tmpl; run_hook_host
+assert_not_contains "$HOST_P/hook.out" "Merging MCP config:" "1c template change is not merged as a live MCP config"
+assert_not_contains "$HOST_P/hook.out" "jev-decisions" "1c template is not treated as an MCP server name"
+host mcp/templates/other.json; run_hook_host
+assert_not_contains "$HOST_P/hook.out" "Merging MCP config:" "1d any .json under mcp/templates/ is a template, never merged live"
 
 # 2 NEG unrelated change
 host docs/guides/something.md; run_hook_host
@@ -55,7 +62,7 @@ assert_file_absent "$HOST_P/bootstrap.log" "3c CONSTITUTION_JEV_HOOK=off: bootst
 assert_contains "$HOST_P/hook.out" "CONSTITUTION_JEV_HOOK=off" "3c kill-switch skip is logged"
 
 # 4 failure -> defer
-host mcp/jev-decisions.json; run_hook_host BOOTSTRAP_STUB_FAIL=1
+host mcp/templates/jev-decisions.json.tmpl; run_hook_host BOOTSTRAP_STUB_FAIL=1
 assert_rc 0 "$HOOK_RC" "4 hook rc 0 although bootstrap fails (fail-open: the pull is never broken)"
 assert_contains "$HOST_P/bootstrap.log" "bootstrap --defer" "4 failure degraded to --defer"
 assert_file_exists "$HOST_P/.jev-state/bootstrap.pending" "4 pending stamp written"
@@ -70,6 +77,6 @@ assert_not_contains "$HOST_P/bootstrap.log" "--defer" "5 NEG: rc 3 is not papere
 # 6 bootstrap script absent
 host scripts/jev/bootstrap.sh; rm -f "$HOST_C/scripts/jev/bootstrap.sh"; run_hook_host
 assert_rc 0 "$HOOK_RC" "6 missing bootstrap script: hook rc 0"
-assert_file_exists "$HOST_P/.jev/bootstrap.pending" "6 missing script recorded as pending, not ignored"
+assert_file_exists "$HOST_P/.jev-state/bootstrap.pending" "6 missing script recorded as pending (at the state-level path jev-status reads), not ignored"
 
 finish

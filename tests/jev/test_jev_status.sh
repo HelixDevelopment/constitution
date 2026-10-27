@@ -9,12 +9,13 @@ REPO="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=lib_assert.sh
 source "$HERE/lib_assert.sh"
 
-make_fixture_env status
+make_fixture_env status; export JEV_NOW_EPOCH=1700000000
+jev_test_enforce_env 0   # stored enforce is re-derived by the shared jev_effective_mode; a passing stub validator
 
 # --- seed state -------------------------------------------------------------
 cat > "$JEV_EVIDENCE_DIR/jev-detection.json" <<'JSON'
 {"version":1,"generated_at":1700000000,
- "endpoints":[{"id":"local-1","source":"local-llmctl","model":"jev-local-4b","reachable":true,"parallel":2,"probed_at":1700000000,"reason":null}],
+ "endpoints":[{"id":"llmctl-local-1","url":"http://127.0.0.1:9","source":"local-llmctl","model":"jev-local-4b","reachable":true,"parallel":2,"probed_at":1700000000,"reason":null}],
  "reason":null,"capacity":{"instances":1},
  "tools":{"llmctl":{"path":"/x/llmctl","ref":"llmctl-v1.4.0","source":"submodule","installer":"install.sh"},
           "claude_toolkit":{"path":"/x/claude_toolkit","ref":"toolkit-v1.28.0","source":"clone","installer":"install.sh"}}}
@@ -31,7 +32,7 @@ touch "$JEV_STATE_DIR/decisions.jsonl"
 # --- human output ------------------------------------------------------------
 bash "$REPO/scripts/jev/jev-status.sh" >"$T/human.out" 2>"$T/human.err"
 assert_rc 0 "$?" "human run rc 0"
-for section in "Mode: enforce" "Endpoints:" "local-1" "Tools:" "Thresholds:" "gate: threshold=0.9" "Bootstrap:" "PENDING"; do
+for section in "Mode: enforce" "Endpoints:" "llmctl-local-1" "Tools:" "Thresholds:" "gate: threshold=0.9" "Bootstrap:" "PENDING"; do
   assert_contains "$T/human.out" "$section" "human section: $section"
 done
 
@@ -40,15 +41,26 @@ if command -v jq >/dev/null 2>&1; then
   bash "$REPO/scripts/jev/jev-status.sh" --json >"$T/status.json"
   assert_rc 0 "$?" "--json run rc 0"
   keys="$(jq -r 'keys_unsorted | join(",")' "$T/status.json")"
-  assert_eq "version,detection,thresholds,bootstrap,mode" "$keys" "--json top-level keys exact"
+  assert_eq "version,detection,thresholds,bootstrap,mode,mode_stored,mode_reason,test_override,mcp_mode_mismatch" "$keys" "--json top-level keys exact"
   bkeys="$(jq -r '.bootstrap | keys_unsorted | join(",")' "$T/status.json")"
   assert_eq "stamp,pending" "$bkeys" "--json bootstrap keys exact"
   assert_eq "1" "$(jq -r '.version' "$T/status.json")" "--json version=1"
-  assert_eq "local-1" "$(jq -r '.detection.endpoints[0].id' "$T/status.json")" "--json detection inlined"
+  assert_eq "llmctl-local-1" "$(jq -r '.detection.endpoints[0].id' "$T/status.json")" "--json detection inlined"
   assert_eq "0.9" "$(jq -r '.thresholds.per_type.gate.threshold' "$T/status.json")" "--json thresholds inlined"
   assert_eq "true" "$(jq -r '.bootstrap.pending' "$T/status.json")" "--json pending true"
   assert_eq "abc" "$(jq -r '.bootstrap.stamp.stages["detect-tools"]' "$T/status.json")" "--json stamp inlined"
   assert_eq "enforce" "$(jq -r '.mode' "$T/status.json")" "--json mode"
+  assert_eq "enforce" "$(jq -r '.mode_stored' "$T/status.json")" "--json mode_stored"
+  # r3 I3-2: stored enforce with the thresholds gone is reported as the SHADOW it really is
+  mv "$JEV_CONFIG_DIR/jev-thresholds.json" "$T/thr.bak"
+  bash "$REPO/scripts/jev/jev-status.sh" --json >"$T/down.json"
+  assert_eq "shadow" "$(jq -r '.mode' "$T/down.json")" "I3-2 stored enforce + no thresholds => status says shadow"
+  assert_eq "enforce" "$(jq -r '.mode_stored' "$T/down.json")" "I3-2 the stored text is still shown as stored"
+  assert_eq "no-promoted-threshold" "$(jq -r '.mode_reason | sub(";test-override.*";"")' "$T/down.json")" "I3-2 the reason is named"
+  bash "$REPO/scripts/jev/jev-status.sh" >"$T/down.out"
+  assert_contains "$T/down.out" "Mode: shadow" "I3-2 human Mode line is shadow"
+  assert_contains "$T/down.out" "is NOT in force" "I3-2 human output says the stored value is not in force"
+  mv "$T/thr.bak" "$JEV_CONFIG_DIR/jev-thresholds.json"
 
   # empty state: nulls + pending false
   make_fixture_env status_empty

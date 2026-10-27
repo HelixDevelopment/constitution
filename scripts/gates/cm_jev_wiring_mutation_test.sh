@@ -5,6 +5,7 @@
 # Mutation B: inject a decision endpoint into a fake provider models.json —
 #   the gate MUST FAIL under clause 5 (§11.4.284(D)).
 set -uo pipefail
+unset JEV_CONFIG_DIR   # the wiring gate honours it; these fixtures address their config through JEV_HOME
 # Tool preflight: an absent tool is CANNOT-DETERMINE (rc 2), never a pass or a false RED.
 for _t in jq python3 mktemp; do command -v "$_t" >/dev/null 2>&1 || { echo "[mutation] cannot determine: required tool '$_t' missing" >&2; exit 2; }; done
 GREEN_LOG=$(mktemp); trap 'rm -f "$GREEN_LOG"' EXIT

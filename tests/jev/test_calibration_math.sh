@@ -20,6 +20,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 make_fixture_env calibrate
+export JEV_TEST=1   # r6 n6-1: JEV_NOW_EPOCH (the deterministic clock these cases pin) is honoured only under JEV_TEST=1
 export JEV_CALIBRATE_ALIAS_CMD="jev-label-stub"
 
 # --- build fixture decisions.jsonl (deterministic, fixed ts) ---------------

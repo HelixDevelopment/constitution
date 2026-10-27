@@ -35,7 +35,7 @@ flowchart LR
     ST["scripts/jev/jev-status.sh"]
     CAL["scripts/jev/jev-calibrate.sh"]
     SK["skills/jev-decision-layer"]
-    MCPJ["mcp/jev-decisions.json"]
+    MCPJ["mcp/templates/jev-decisions.json.tmpl"]
   end
   subgraph TK["claude_toolkit"]
     SETUP["jev-setup.sh"]
