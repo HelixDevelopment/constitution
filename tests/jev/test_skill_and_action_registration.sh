@@ -50,8 +50,8 @@ fi
 # ── B. register.sh twice = single registration per fixture platform home ─────
 SBX=$(mktemp -d); trap 'rm -rf "$SBX"' EXIT
 mkdir -p "$SBX/.claude" "$SBX/.kimi-code" "$SBX/.config/opencode" "$SBX/.pi"
-JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
-JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
+JEV_CONFIG_DIR="$SBX/.config/jev" JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
+JEV_CONFIG_DIR="$SBX/.config/jev" JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
 b_ok=1
 [ "$(grep -c '# >>> helix-jev >>>' "$SBX/.kimi-code/config.toml")" = "1" ] || { say "B FAIL: kimi marker block count != 1"; b_ok=0; }
 [ "$(jq '[.hooks.PreToolUse[] | .. | .command? // empty | select(test("jev-gate"))] | length' "$SBX/.claude/settings.json")" = "1" ] || { say "B FAIL: claude hook entries != 1"; b_ok=0; }
@@ -62,7 +62,7 @@ jq -e '.mcp.jev' "$SBX/.config/opencode/opencode.json" >/dev/null || { say "B FA
 [ -f "$SBX/.config/jev/registration.stamp" ] || { say "B FAIL: registration stamp missing"; b_ok=0; }
 [ -f "$REPO/skills/jev-decision-layer/EXTENSION_SOURCE.yaml" ] || { say "B FAIL: EXTENSION_SOURCE.yaml provenance missing"; b_ok=0; }
 # cross-check: the registered home passes CM-JEV-WIRING
-if JEV_HOME="$SBX" JEV_DETECTION_FILE="$REPO/scripts/gates/fixtures/jev/evidence/jev-detection.json" \
+if JEV_HOME="$SBX" JEV_CONFIG_DIR="$SBX/.config/jev" JEV_DETECTION_FILE="$REPO/scripts/gates/fixtures/jev/evidence/jev-detection.json" \
    bash "$REPO/scripts/gates/cm_jev_wiring.sh" >/dev/null 2>&1; then
   say "B cross-check OK: register.sh output passes CM-JEV-WIRING"
 else

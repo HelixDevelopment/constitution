@@ -62,6 +62,19 @@ JEV_DECISIONS="$FIX/evidence/decisions.jsonl" bash "$GATE" > "$SBX/outC.log" 2>&
   && say "RED flip C asserted: empty harness rejected (no vacuous pass)" \
   || { say "MUTATION C SURVIVED: empty BEFORE/AFTER passed vacuously"; rc=1; }
 
+# Mutation D (G4): no real pair configured => BLIND (rc 2), never GREEN from bundled fixtures.
+( cd "$SBX" && env -u JEV_BEFORE -u JEV_AFTER JEV_EVIDENCE_DIR="$SBX/none" bash "$GATE" > "$SBX/outD.log" 2>&1 ); drc=$?
+{ [ "$drc" -eq 2 ] && grep -q 'BLIND' "$SBX/outD.log"; } \
+  && say "RED flip D asserted: no configured pair is BLIND (rc 2)" \
+  || { say "MUTATION D SURVIVED: gate produced a verdict (rc $drc) without a real pair"; rc=1; }
+# Mutation E (H3): a toolkit-shaped log (.question, no .class) covering only 'gate' must still fail the other classes.
+printf '{"ts":1,"question":"gate","answer":"deny"}\n' > "$SBX/tk.jsonl"
+JEV_BEFORE="$FIX/evidence/before.jsonl" JEV_AFTER="$FIX/evidence/after.jsonl" JEV_BEFORE_CONFIG="$FIX/evidence/before.config" \
+JEV_AFTER_CONFIG="$FIX/evidence/after.config" JEV_DECISIONS="$SBX/tk.jsonl" bash "$GATE" > "$SBX/outE.log" 2>&1
+{ [ $? -ne 0 ] && grep -q "class 'routing'" "$SBX/outE.log"; } \
+  && say "RED flip E asserted: .question-shaped log lacking classes rejected" \
+  || { say "MUTATION E SURVIVED"; rc=1; }
+
 if [ "$rc" -eq 0 ]; then
   say "PASS: cm_jev_token_reduction.sh genuinely discriminates (GREEN genuine / RED mutated)"
 else

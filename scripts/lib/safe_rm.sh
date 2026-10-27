@@ -12,20 +12,32 @@
 #   - a home directory ($HOME or any SAFE_RM_EXTRA_HOMES entry) or an ANCESTOR of one
 #   - a protected home-relative child of such a home (the '~/' entries of
 #     protected_paths.list, e.g. ~/scripts, ~/.claude*)
-#   - the temp root itself ($TMPDIR, default /tmp)
+#   - the temp root itself ($TMPDIR, default /tmp); the temp-root depth bonus is
+#     withheld when the temp root is or contains a home or a home root
 #   - fewer than SAFE_RM_MIN_DEPTH (default 3) path components deep
 #     (a path strictly below the temp root counts as deep enough)
 #   - outside every root in SAFE_RM_ALLOWED_ROOTS (colon-separated), when that is set
 # Every rule is applied to the LEXICAL path (parent directories resolved, the last
 # component NOT followed: this is what rm removes) and, when the argument ends in
-# '/', also to the fully resolved path (rm then follows a trailing symlink).
-# A plain symlink leaf that points at a protected path is therefore removable as a
-# link, while "link/" is refused. All targets are validated before ANY is deleted
-# (atomic: one bad argument means nothing is deleted).
+# '/', also to the fully resolved path. The deletion itself always uses the stripped
+# lexical path and never follows the link, so refusing "link/" when the link points at
+# a protected path is DELIBERATELY CONSERVATIVE: it may refuse a call that would only
+# have removed the link (use the plain "link" form for that). A plain symlink leaf
+# that points at a protected path is removable as a link.
+# Validation is atomic: all targets are validated before ANY is deleted, so one bad
+# argument means nothing is deleted. The deletion is NOT atomic: if rm fails on
+# argument k (permissions, busy file), arguments 1..k-1 are already gone and the
+# function returns rm's status without trying the rest.
 #
 # Configuration:
-#   protected_paths.list  next to this file — the SINGLE source of protected paths,
-#                         shared with the PreToolUse guard. If it is missing,
+#   protected_paths.list  next to this file — the list of protected paths this helper
+#                         reads. It is NOT the single source shared with the PreToolUse
+#                         guard: the guard carries its own built-in home-children set (a
+#                         test checks only one direction of alignment), and that set is
+#                         larger (Documents, Desktop, Downloads, Pictures, Music, Videos,
+#                         Obsidian, bin, go, opt, Android, .git, .aws, .kube, .docker,
+#                         .password-store are guard-protected but absent from the list, so
+#                         safe_rm_rf can delete them; tracked gap, 2026-10-26). If it is missing,
 #                         unreadable, malformed, has no absolute entry, or this file
 #                         was sourced without a real file path (for example eval of
 #                         its text), every call is refused (fail closed).
@@ -128,9 +140,9 @@ safe_rm_rf() {
   case "$min_depth" in ''|*[!0-9]*) _safe_rm_refuse "(config)" "SAFE_RM_MIN_DEPTH must be a non-negative integer, got '$min_depth'"; return 2;; esac
   case "$min_depth" in 0) ;; 0*) _safe_rm_refuse "(config)" "SAFE_RM_MIN_DEPTH must not have leading zeros, got '$min_depth'"; return 2;; esac
   [ "${#min_depth}" -le 3 ] || { _safe_rm_refuse "(config)" "SAFE_RM_MIN_DEPTH has more than 3 digits"; return 2; }
+  case "${TMPDIR:-/tmp}" in /*) ;; *) _safe_rm_refuse "(config)" "TMPDIR is not absolute"; return 2;; esac
   tmp_real="$(readlink -m -- "${TMPDIR:-/tmp}" 2>/dev/null)" || tmp_real=""
   [ -n "$tmp_real" ] || tmp_real=/tmp
-  case "${TMPDIR:-/tmp}" in /*) ;; *) _safe_rm_refuse "(config)" "TMPDIR is not absolute"; return 2;; esac
   tmp_bonus=0
   # the temp-root depth bonus is granted only for /tmp, /var/tmp, or a temp root at least
   # 2 components deep that is not itself a protected path (TMPDIR=/usr must not buy depth)
@@ -164,6 +176,16 @@ safe_rm_rf() {
     hp="$(readlink -m -- "$h" 2>/dev/null)" || { _safe_rm_refuse "(config)" "cannot resolve SAFE_RM_EXTRA_HOME_ROOTS entry '$h'"; return 2; }
     hroots+=("$h" "$hp")
   done
+
+  # no depth bonus when the temp root is, or is an ancestor of, a home or a home root (TMPDIR=$HOME would
+  # otherwise make everything below it "deep enough")
+  if [ "$tmp_bonus" -eq 1 ]; then
+    for h in "${homes[@]}" "${hroots[@]}"; do
+      hp="${h%/}"; [ -n "$hp" ] || continue
+      if [ "$tmp_real" = "$hp" ]; then tmp_bonus=0; break; fi
+      case "$hp/" in "$tmp_real"/*) tmp_bonus=0; break;; esac
+    done
+  fi
 
   for arg in "$@"; do
     [ -n "$arg" ] || { _safe_rm_refuse "(empty)" "empty path (unset or empty variable?)"; return 2; }  # MUT:empty-arg

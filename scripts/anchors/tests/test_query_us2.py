@@ -66,8 +66,15 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # Re-measured 2026-10-23 (W1 canon, Jev anchors §11.4.279-§11.4.286
         # added, each "Classification: universal"): universal 176 -> 184 = +8.
         # 184 + 110 + 2 mixed = 296 = total index entries.
-        assert len(universal) == 184, (
-            f"expected exactly 184 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-26: universal 184 -> 186 = +1 §11.4.287
+        # (destructive-path safeguard, landed 2026-10-24; this test was stale
+        # at 184 before this change) +1 §11.4.288 (all work on main), each
+        # "Classification: universal". 186 + 110 + 2 mixed = 298 = total index
+        # entries (generator: "298 anchors across 12 groups").
+        # Re-measured 2026-10-26 (second): +1 §11.4.289 (no stubs or mocks as evidence),
+        # "Classification: universal": 187 + 110 + 2 mixed = 299.
+        assert len(universal) == 187, (
+            f"expected exactly 187 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

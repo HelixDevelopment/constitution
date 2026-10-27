@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Guard shim for curl (review r2 m2): the suite must never send a request to the operator's LIVE llmctl decide
+# gateway ports (8095 https gateway, 8096 http decide service). Any argument naming those ports on a loopback
+# host is REFUSED (exit 7, "could not connect") and logged to $STUB_LOG/guard-curl.log; every other call is passed
+# unchanged to the real curl found on PATH after this directory. No argument is ever echoed except the port.
+self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for a in "$@"; do
+  case "$a" in
+    *127.0.0.1:8095*|*localhost:8095*|*127.0.0.1:8096*|*localhost:8096*|*\[::1\]:8095*|*\[::1\]:8096*)
+      port="${a##*:}"; port="${port%%[!0-9]*}"
+      printf 'refused live port %s\n' "$port" >> "${STUB_LOG:-/tmp}/guard-curl.log" 2>/dev/null || true
+      exit 7 ;;
+  esac
+done
+real=""
+IFS=: read -r -a _p <<< "$PATH"
+for d in "${_p[@]}"; do
+  [ -n "$d" ] || continue
+  [ "$(cd "$d" 2>/dev/null && pwd)" = "$self_dir" ] && continue
+  [ -x "$d/curl" ] && { real="$d/curl"; break; }
+done
+[ -n "$real" ] || { echo "guard curl: no real curl on PATH" >&2; exit 127; }
+exec "$real" "$@"

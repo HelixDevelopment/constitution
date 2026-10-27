@@ -1,0 +1,77 @@
+# spelling | destructive rc (want 2) | benign rc (want 0)
+runuser --command='<S>' root | 2 | 0
+runuser -l root --session-command='<S>' | 2 | 0
+su --command='<S>' root | 2 | 0
+su root --session-command='<S>' | 2 | 0
+su -c'<S>' root | 2 | 0
+su root -c'<S>' | 2 | 0
+runuser root -c'<S>' | 2 | 0
+runuser -c'<S>' root | 2 | 0
+su -l root --command '<S>' | 2 | 0
+su --login --command='<S>' | 2 | 0
+su - root -c '<S>' | 2 | 0
+su -s /bin/sh -c '<S>' root | 2 | 0
+su --shell=/bin/sh --command='<S>' root | 2 | 0
+runuser -u root -- sh -c '<S>' | 2 | 0
+flock /tmp/l --command='<S>' | 2 | 0
+flock --command='<S>' /tmp/l | 2 | 0
+flock -c'<S>' /tmp/l | 2 | 0
+flock -x /tmp/l -c '<S>' | 2 | 0
+flock -c '<S>' /tmp/l | 2 | 0
+flock -n -c '<S>' /tmp/l | 2 | 0
+flock -w 5 /tmp/l sh -c '<S>' | 2 | 0
+env --split-string='<S>' | 2 | 0
+env --split-string '<S>' | 2 | 0
+env -S'<S>' | 2 | 0
+env -S '<S>' | 2 | 0
+env --chdir=/ sh -c '<S>' | 2 | 0
+env -C / sh -c '<S>' | 2 | 0
+env --unset=X sh -c '<S>' | 2 | 0
+sudo --user=root sh -c '<S>' | 2 | 0
+sudo -uroot sh -c '<S>' | 2 | 0
+sudo --user root -- sh -c '<S>' | 2 | 0
+doas -u root sh -c '<S>' | 2 | 0
+pkexec --user root sh -c '<S>' | 2 | 0
+run0 --user=root sh -c '<S>' | 2 | 0
+nice --adjustment=5 sh -c '<S>' | 2 | 0
+nice -n5 sh -c '<S>' | 2 | 0
+ionice --class=3 sh -c '<S>' | 2 | 0
+ionice -c3 -n7 sh -c '<S>' | 2 | 0
+timeout --signal=KILL 5 sh -c '<S>' | 2 | 0
+timeout --kill-after=3 5 sh -c '<S>' | 2 | 0
+timeout -k3 5 sh -c '<S>' | 2 | 0
+timeout 1.5s sh -c '<S>' | 2 | 0
+chrt --batch 0 sh -c '<S>' | 2 | 0
+taskset -c 0 sh -c '<S>' | 2 | 0
+taskset -c0 sh -c '<S>' | 2 | 0
+taskset --cpu-list=0,1 sh -c '<S>' | 2 | 0
+taskset 0x1 sh -c '<S>' | 2 | 0
+setsid --wait sh -c '<S>' | 2 | 0
+setsid --fork --ctty sh -c '<S>' | 2 | 0
+stdbuf -oL sh -c '<S>' | 2 | 0
+stdbuf --output=L sh -c '<S>' | 2 | 0
+unshare -m sh -c '<S>' | 2 | 0
+unshare --mount --map-root-user sh -c '<S>' | 2 | 0
+unshare -r -- sh -c '<S>' | 2 | 0
+unshare --uts=/tmp/x sh -c '<S>' | 2 | 0
+unshare --setuid 0 sh -c '<S>' | 2 | 0
+nsenter -t 1 -m sh -c '<S>' | 2 | 0
+nsenter --target=1 --mount sh -c '<S>' | 2 | 0
+setpriv --reuid 1000 sh -c '<S>' | 2 | 0
+prlimit --nofile=1024 sh -c '<S>' | 2 | 0
+numactl --membind=0 sh -c '<S>' | 2 | 0
+gosu root sh -c '<S>' | 2 | 0
+fakeroot sh -c '<S>' | 2 | 0
+chroot --userspec=root:root / sh -c '<S>' | 2 | 0
+systemd-run --uid=root sh -c '<S>' | 2 | 0
+busybox ash -c '<S>' | 2 | 0
+fish -c '<S>' | 2 | 0
+script -qc '<S>' /dev/null | 2 | 0
+script --command '<S>' /dev/null | 2 | 0
+script --command='<S>' /dev/null | 2 | 0
+sg audio -c '<S>' | 2 | 0
+xargs --max-procs=4 sh -c '<S>' | 2 | 0
+watch --interval=1 '<S>' | 2 | 0
+bash --noprofile --norc -c '<S>' | 2 | 0
+bash -O extglob -c '<S>' | 2 | 0
+TOTAL spellings=75 destructive_blocked=75 benign_allowed=75 violations=0

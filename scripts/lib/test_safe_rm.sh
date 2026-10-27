@@ -321,6 +321,97 @@ SAFE_RM_EXTRA_HOME_ROOTS="$SB/deep/a/vh" refuse "R3 home root itself" safe_rm_rf
 SAFE_RM_EXTRA_HOME_ROOTS="$SB/deep/a/vh" refuse "R3 ancestor of home root" safe_rm_rf "$SB/deep/a"
 alive "$SB/deep/a/vh/u1"
 
+# --- review round 2 (2026-10-24): S3 temp-root depth bonus vs homes, S1 what is removed ---
+# S3: a temp root that IS a home root (or an ancestor of a home / home root) buys no depth bonus.
+# SAFE_RM_MIN_DEPTH=99 makes the bonus the only way past the depth rule.
+mkdir -p "$SB/s3/u/p/x" "$SB/s3b/h1" "$SB/zz/y/x"
+TMPDIR="$SB/s3" SAFE_RM_EXTRA_HOME_ROOTS="$SB/s3" SAFE_RM_MIN_DEPTH=99 refuse "S3 temp root is a home root: no depth bonus" safe_rm_rf "$SB/s3/u/p/x"
+TMPDIR="$SB" SAFE_RM_EXTRA_HOMES="$SB/s3b/h1" SAFE_RM_MIN_DEPTH=99 refuse "S3 temp root is an ancestor of a home: no depth bonus" safe_rm_rf "$SB/zz/y/x"
+mkdir -p "$SB/zz/y/x"
+TMPDIR="$SB" SAFE_RM_EXTRA_HOME_ROOTS="$SB/s3b" SAFE_RM_MIN_DEPTH=99 refuse "S3 temp root is an ancestor of a home root: no depth bonus" safe_rm_rf "$SB/zz/y/x"
+mkdir -p "$SB/tmp/c1/d"
+TMPDIR="$SB/tmp" SAFE_RM_MIN_DEPTH=99 allow "S3 control: ordinary temp root still buys the bonus" safe_rm_rf "$SB/tmp/c1/d"
+gone "$SB/tmp/c1/d"
+# S1: "link/" whose link points at an unprotected dir: only the LINK is removed, never the target
+mkdir -p "$SB/work/s1tgt/keep"
+ln -s "$SB/work/s1tgt" "$SB/work/s1lnk"
+allow "S1 link/ to an unprotected dir is accepted" safe_rm_rf "$SB/work/s1lnk/"
+gone "$SB/work/s1lnk"
+alive "$SB/work/s1tgt/keep"
+
+# --- mutation audit (2026-10-24): tests for mutants that survived the earlier suite ---
+# S06: a newline in a path is a CLEAN refusal (rc 2 + the specific message), not an accidental one
+NL2="$SB/work/a/n"$'\n'"l/zz"
+out="$( safe_rm_rf "$NL2" 2>&1 )"; rc=$?
+if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q "path contains a newline"; then ok; else bad "S06 newline path: rc=$rc msg=$out"; fi
+# S15: TMPDIR must not buy depth when the temp root is itself a protected path of depth >= 2.
+# The shipped list has only depth-1 absolute entries, so use a COPY of the lib whose list gains /usr/local.
+mkdir -p "$SB/libcopy"
+cp "$LIB" "$SB/libcopy/safe_rm.sh"
+{ cat "$LIST"; printf '%s\n' "/usr/local"; } > "$SB/libcopy/protected_paths.list"
+( . "$SB/libcopy/safe_rm.sh"; TMPDIR=/usr/local SAFE_RM_MIN_DEPTH=5 safe_rm_rf /usr/local/zz_nonexistent ) >/dev/null 2>&1; rc=$?
+if [ "$rc" -eq 2 ]; then ok; else bad "S15 protected TMPDIR buys no depth bonus (rc=$rc)"; fi
+# S15 control: an unprotected temp root of the same depth does buy the bonus (the test is not vacuous)
+mkdir -p "$SB/tmp2/c1/d"
+( . "$SB/libcopy/safe_rm.sh"; TMPDIR="$SB/tmp2" SAFE_RM_MIN_DEPTH=99 safe_rm_rf "$SB/tmp2/c1/d" ) >/dev/null 2>&1; rc=$?
+if [ "$rc" -eq 0 ]; then ok; else bad "S15 control: ordinary temp root buys the bonus (rc=$rc)"; fi
+# S14: missing protected list -> refusal carries the SPECIFIC message
+mkdir -p "$SB/libnolist"; cp "$LIB" "$SB/libnolist/safe_rm.sh"
+out="$( . "$SB/libnolist/safe_rm.sh"; safe_rm_rf "$SB/work/a/b/c" 2>&1 )"; rc=$?
+if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q "protected list not readable"; then ok; else bad "S14 missing list message: rc=$rc msg=$out"; fi
+alive "$SB/work/a/b/c"
+
+# --- per-entry coverage of protected_paths.list (review round 1, finding 5) ---
+# Two independent sources: (a) a REQUIRED set written out in this file, so that deleting an entry from
+# the list cannot also delete its test; (b) every entry actually present in the list file. Each entry
+# gets its own refusal case; each home-relative entry also gets a per-entry mutant (list copy without
+# that one line) that must stop being refused, proving the entry itself carries the refusal.
+REQ_ABS="/bin /boot /dev /etc /lib /lib32 /lib64 /libx32 /opt /proc /root /run /sbin /srv /sys /usr /var /mnt /media /snap /home /tmp /Users"
+REQ_REL="scripts Projects .ssh .gnupg .claude* .config .local vasic ytdlp backups .cache"
+n_req=0
+for e in $REQ_ABS; do
+  n_req=$((n_req+1))
+  if grep -qxF -- "$e" "$LIST"; then ok; else bad "required absolute entry missing from list: $e"; fi
+  refuse "list entry (abs) $e" safe_rm_rf "$e"
+done
+set -f
+for e in $REQ_REL; do
+  n_req=$((n_req+1))
+  if grep -qxF -- "~/$e" "$LIST"; then ok; else bad "required home-relative entry missing from list: ~/$e"; fi
+done
+set +f
+# every entry present in the file (covers entries added later), with a control needle on the count
+n_list=0
+while IFS= read -r line; do
+  line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+  case "$line" in ""|"#"*) continue;; esac
+  n_list=$((n_list+1))
+  case "$line" in
+    /*) refuse "list file entry (abs) $line" safe_rm_rf "$line";;
+    "~/"*)
+      comp="${line#\~/}"; conc="${comp//\*/zz}"; conc="${conc//\?/z}"
+      mkdir -p "$FH/$conc"; : > "$FH/$conc/.keep_entry"
+      refuse "list file entry (home) ~/$comp" safe_rm_rf "$FH/$conc"
+      alive "$FH/$conc/.keep_entry"
+      if [[ "$comp" != *'['* ]]; then
+        # per-entry mutant: the same list without this one line must no longer refuse the child
+        md="$SB/pe_mut_$n_list"; mkdir -p "$md"; cp "$LIB" "$md/safe_rm.sh"
+        grep -vxF -- "$line" "$LIST" > "$md/protected_paths.list"
+        if [ "$(wc -l < "$md/protected_paths.list")" -ge "$(wc -l < "$LIST")" ]; then bad "per-entry mutant not applied for $line"
+        else
+          ( . "$md/safe_rm.sh"; FAKE_RM_NODELETE=1 safe_rm_rf "$FH/$conc" ) >/dev/null 2>&1; mrc=$?
+          if [ "$mrc" -ne 2 ]; then ok; else bad "per-entry mutant for $line survives (still refused without the entry)"; fi
+        fi
+      fi;;
+    *) bad "unexpected list entry shape: $line";;
+  esac
+done < "$LIST"
+if [ "$n_list" -ge "$n_req" ]; then ok; else bad "control: list has $n_list entries, fewer than the $n_req required"; fi
+# negative control: an unlisted child of the fake home is deletable (the refusals above are not vacuous)
+mkdir -p "$FH/notlisted_zz/x"
+allow "negative control: unlisted home child is deletable" safe_rm_rf "$FH/notlisted_zz/x"
+gone "$FH/notlisted_zz/x"
+
 # --- the fake rm never had to block anything (no attempt left the sandbox) ---
 if grep -q '^BLOCKED' "$SB/rm.log"; then bad "fake rm blocked an out-of-sandbox delete: $(grep '^BLOCKED' "$SB/rm.log" | head -3 | tr '\n' ' ')"; else ok; fi
 

@@ -56,7 +56,7 @@ deps:
 
   - name: continuum
     ssh_url: git@github.com:vasic-digital/continuum.git
-    ref: 4639347             # pinned sha (no upstream tag yet; re-synced 2026-10-19 to the recorded gitlink, bumped by 427cc34)
+    ref: f786afb             # pinned sha = the recorded gitlink (release v72 bump; remote main tip)
     why: "§11.4.207 instant multi-stream resume engine — content-addressed Merkle snapshot + append-only ledger + atomic single-writer refs so a fresh session resumes the WHOLE fleet at O(changed streams), self-validating oracle (golden-good/bad/negative-control)"
     layout: grouped
 
@@ -68,7 +68,7 @@ deps:
 
   - name: session_orchestrator
     ssh_url: git@github.com:vasic-digital/session_orchestrator.git
-    ref: 78b77bb             # pinned sha
+    ref: f7095e3             # pinned sha = the recorded gitlink (release v72 bump; remote main tip)
     why: "§11.4.187 automatic multi-track ruler orchestration substrate — headless spawn primitive (claude -p --output-format stream-json + session_id from init event), per-subscription auth isolation, rate-limit → alias rebind, crash-resilient ruler self-supervisor"
     layout: grouped
 
@@ -89,14 +89,14 @@ deps:
   # applies to the bootstrap's managed-clone path too). llmctl resolves the canon through lib/resolve_deps.sh, so this hub<->llmctl edge stays non-nesting.
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: f42bad6             # pinned sha (commit f42bad68325eb9cd599b55f83b406e581f66fd76 = the staged gitlink, a descendant of main's re-synced 5354354; remote main tip on all 5 remotes per `git ls-remote` 2026-10-21; describe: helixconstitution-v70-68-gf42bad6; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    ref: 7cc9e83             # pinned sha = the recorded gitlink; tag v3.3.0 (release v72 bump; llmctl main is 2 untested commits ahead: 2b28d0d, 81645ab)
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. Hub engine: nests no own-org repository; resolves the canon, containers and superspec via lib/resolve_deps.sh (§11.4.28(C)); its own helix-deps.yaml marks superspec third_party."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at f42bad6
 
   - name: containers
     ssh_url: git@github.com:vasic-digital/Containers.git
-    ref: 919ad1e             # pinned sha = the staged gitlink; remote main tip per `git ls-remote` 2026-10-21 (describe: helixcode-v1.1.0-159-g919ad1e)
+    ref: cb5c727             # pinned sha = the recorded gitlink (release v72 bump)
     why: "§11.4.76 / §11.4.161 digital.vasic.containers — the sole rootless container orchestration layer (boot / compose / health / remote distribution); provided flat by the hub so engines (llmctl among them) resolve it here instead of nesting it (§11.4.28(C))"
     layout: grouped
 
@@ -104,7 +104,7 @@ deps:
   # jev-stats). Pin kept at the SHA below, not `main` (§11.4.113 fetch-first); re-pin only with the gitlink (CM-HELIX-DEPS-REF-MATCHES-GITLINK).
   - name: claude_toolkit
     ssh_url: git@github.com:vasic-digital/claude_toolkit.git
-    ref: adae02d             # pinned sha (commit adae02de1a8ae9ad27bb721ab699c81d5a61f4e2 = the staged gitlink; tag claude_toolkit-1.32.0 (+ v1.32.0) present on github/gitlab/gitflic/gitverse per `git ls-remote --tags` 2026-10-23; ships scripts/jev-{setup,gate,calibrate,stats}.sh, jev_mcp.py, jev-lockdir-lib.sh; still flat: only third-party go + ccusage gitlinks; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    ref: 53bf5fb             # pinned sha = the recorded gitlink; tag v1.33.0 + claude_toolkit-1.33.0 (release v72 bump)
     why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact. Nests no own-org repository; resolves the canon, containers, challenges, LLMsVerifier and claude-code-router flat via scripts/resolve_deps.sh (§11.4.28(C)); ships its own helix-deps.yaml."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: claude_toolkit nests the third-party Go toolchain (submodules/go, go.googlesource.com), which is never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-HELIX-DEPS-MANIFEST-PRESENT PASS at 1f6dad3
@@ -129,7 +129,7 @@ deps:
   # ─── OpenDesign design-toolkit (grouped layout since 1c89813, 2026-10-11) ──
   - name: design-toolkit
     ssh_url: git@github.com:vasic-digital/design-toolkit.git
-    ref: 4ddc964             # pinned sha (tag v0.2.2 + 14 commits; re-synced 2026-10-19 to the recorded gitlink)
+    ref: 6446680             # pinned sha = the recorded gitlink; tag v0.2.3 (release v72 bump)
     why: "§11.4.162 OpenDesign UI design-system engine — canonical machine-readable design-token source (§11.4.216) + brand contract (§11.4.217) + living design-library catalogue (§11.4.218); consumed by every project that ships a user-facing UI"
     layout: grouped
 

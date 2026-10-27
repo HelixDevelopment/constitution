@@ -5,7 +5,7 @@
 # endpoints claimed reachable actually probe reachable in THIS environment.
 #
 # Env overrides (consumer DATA, §11.4.35):
-#   JEV_DETECTION_FILE         detection record (default: .jev/jev-detection.json)
+#   JEV_DETECTION_FILE         detection record (default: the shared resolver's <evidence>/jev-detection.json)
 #   JEV_EVIDENCE_WINDOW_START  epoch; generated_at/probed_at must be >= this (default: 0)
 #   JEV_PROBE_CMD              probe command, invoked as "$JEV_PROBE_CMD <id> <url>";
 #                              default: fail-closed probe (claims of reachability
@@ -15,9 +15,22 @@
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "CM-JEV-DETECTION CANNOT DETERMINE: jq not installed (rc 2, never a pass)" >&2; exit 2; }
 
-DETECTION="${JEV_DETECTION_FILE:-.jev/jev-detection.json}"
+# CLI (consistent with the other cm_* gates): --root <dir> judges <dir>/.jev/jev-detection.json.
+# JEV_DETECTION_FILE (env) still wins over --root when both are given.
+ROOT_ARG=""
+# shellcheck source=../jev/lib_decide.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../jev/lib_decide.sh"   # THE path resolver (review r6 I6-2): no independent derivation here
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --root) [ $# -ge 2 ] || { echo "CM-JEV-DETECTION: --root needs a directory" >&2; exit 2; }; ROOT_ARG="$2"; shift 2 ;;
+    -h|--help) sed -n '2,/^set -uo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
+    *) echo "CM-JEV-DETECTION: unknown argument: $1 (usage: cm_jev_detection.sh [--root <dir>])" >&2; exit 2 ;;
+  esac
+done
+DEFAULT_DET="$(jev_detection_file)"; [ -z "$ROOT_ARG" ] || DEFAULT_DET="${ROOT_ARG%/}/.jev/jev-detection.json"   # jev-path-ok: --root is an explicit caller-chosen project layout
+DETECTION="${JEV_DETECTION_FILE:-$DEFAULT_DET}"
 WINDOW_START="${JEV_EVIDENCE_WINDOW_START:-0}"
-ROOT="${JEV_FIXTURE_ROOT:-$(cd "$(dirname "$DETECTION")" && pwd)}"
+ROOT=""   # resolved after clause 1 proved the record exists (a cd into an absent dir only produced noise)
 PROBE="${JEV_PROBE_CMD:-}"
 
 fail=0
@@ -67,6 +80,7 @@ else
   [ "$bad" = "$n" ] || err "schema: some endpoints lack id/source/model, have reachable not true|false|null, lack probed_at (probed entries), or are unprobed (null) without reachable_basis"
 fi
 ok "clause 1: record parses, schema-valid ($n endpoints)"
+ROOT="${JEV_FIXTURE_ROOT:-$(cd "$(dirname "$DETECTION")" 2>/dev/null && pwd)}"
 unprobed=$(jq '[.endpoints[]? | select(.reachable == null)] | length' "$DETECTION" 2>/dev/null || echo 0)
 if [ "${unprobed:-0}" -gt 0 ]; then
   note "$unprobed of $n endpoint(s) have reachable=null (NOT probed): schema-valid, but 'unprobed' is not 'verified'"
@@ -128,7 +142,7 @@ if [ "${nt:-0}" -gt 0 ]; then
   nourl=$(jq '[.endpoints[] | select(.reachable == true and ((.url // "") | length == 0))] | length' "$DETECTION")
   [ "$nourl" = "0" ] || err "probe: $nourl endpoint(s) claim reachable=true but carry no .url - an unprobeable claim is a bluff (§7.1)"
   if [ -z "$PROBE" ]; then
-    err "probe: $nt endpoint(s) claim reachable=true but no JEV_PROBE_CMD mechanism is configured - unverifiable claims are bluffs (§7.1)"
+    err "probe: $nt endpoint(s) claim reachable=true but no JEV_PROBE_CMD mechanism is configured - unverifiable claims are bluffs (§7.1). Supply the replayable probe exactly as bootstrap does: JEV_PROBE_CMD=<constitution>/scripts/jev/jev-probe.sh JEV_DETECTION_FILE=<record> bash scripts/gates/cm_jev_detection.sh"
   else
     while IFS="$(printf '\t')" read -r id url; do
       [ -n "$url" ] || continue
@@ -139,6 +153,74 @@ if [ "${nt:-0}" -gt 0 ]; then
   fi
 fi
 ok "clause 6: probe replay consistent with recorded reachability ($nt claimed reachable)"
+
+# Clause 8 - a hosted endpoint with a key variable whose key is REAL (not a placeholder) must have been
+# PROVEN reachable. reachable=null/false next to a usable key means detection skipped or failed the probe:
+# GREEN would otherwise vouch for an endpoint nobody called (H1, 2026-10-24).
+clause_start
+_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/../jev/lib_keys.sh"
+if [ -f "$_lib" ]; then
+  # shellcheck source=../jev/lib_keys.sh
+  . "$_lib"
+  _fallback_noted=0
+  while IFS="$(printf '\t')" read -r _id _kv _rc; do
+    [ -n "$_kv" ] || continue
+    # The verdict is judged on the key state RECORDED at detection time (key_discovery.vars[]), so it is the same on
+    # every host that re-runs the gate. Only a record that carries no such state falls back to the RUNNER's own
+    # environment, and then the verdict is declared environment-dependent (a NOTE, once).
+    _rec="$(jq -r --arg v "$_kv" '[.key_discovery.vars[]? | select(.key_var == $v) | .state][0] // empty' "$DETECTION" 2>/dev/null)"
+    if [ -n "$_rec" ]; then _kst="$_rec"
+    else
+      _kst="$(key_state "$_kv" | cut -f1)"
+      if [ "$_fallback_noted" = 0 ]; then
+        note "clause 8: the record carries no key_discovery state for $_kv - the verdict depends on the environment of the host running this gate"
+        _fallback_noted=1
+      fi
+    fi
+    if [ "$_kst" = "real" ]; then
+      err "key: endpoint '$_id' (key variable $_kv) holds a real key but reachable=$_rc - the endpoint was not proven reachable (re-run detection with hosted probing enabled)"
+    fi
+  done < <(jq -r '.endpoints[]? | select((.key_var // "") != "" and .reachable != true) | [.id, .key_var, (.reachable | tostring)] | @tsv' "$DETECTION" 2>/dev/null)
+else
+  note "lib_keys.sh not found next to the gates: the key-present/unproven-endpoint check was not run"
+fi
+ok "clause 8: no hosted endpoint with a real key is unproven"
+
+# Clause 7 - an EMPTY record must not contradict llmctl's own registry (§11.4.201(6): a
+# false-null). With llmctl on PATH, a running gateway, a running profile or a healthy
+# decide service means "no endpoints" is wrong. llmctl absent/unparsable = NOTE only.
+clause_start
+if [ "$n" -eq 0 ]; then
+  if command -v llmctl >/dev/null 2>&1; then
+    _tmo="${JEV_TOOL_TIMEOUT:-30}"
+    if command -v timeout >/dev/null 2>&1; then _run() { timeout --kill-after=2 "$_tmo" "$@"; }; else _run() { "$@"; }; fi
+    st="$(_run llmctl decide status --json 2>/dev/null)"; _src=$?
+    if [ "$_src" -eq 124 ] || [ "$_src" -eq 137 ]; then
+      note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"
+      st=""
+    else
+      st="$(printf '%s' "$st" | jq -c '.' 2>/dev/null)" || st=""
+    fi
+    if [ -z "$st" ]; then
+      case "$_src" in 124|137) : ;; *) note "llmctl decide status gave no parsable JSON: the empty record cannot be cross-checked" ;; esac
+    else
+      cap="$(_run llmctl decide capacity --json 2>/dev/null | jq -c '.' 2>/dev/null)" || cap=""
+      [ -n "$cap" ] || cap='{}'
+      # A gateway with nothing behind it, and a profile that speaks the jev-verdict protocol (decide-tiny has no
+      # driver and is not a usable decision endpoint), are the two LAWFUL empty states. Everything else running is a
+      # contradiction. A running profile whose protocol is unknown is counted live (conservative).
+      # shellcheck source=../jev/lib_decide.sh
+      . "$(dirname "$0")/../jev/lib_decide.sh"
+      live="$(jev_usable_live "$st" "$cap")"
+      if [ -n "$live" ]; then
+        err "contradiction: the record lists 0 endpoints but llmctl reports live decision infrastructure ($live) - re-run detection (§11.4.279(A), false-null §11.4.201(6))"
+      fi
+    fi
+  else
+    note "llmctl not on PATH: the empty record cannot be cross-checked against llmctl's registry"
+  fi
+fi
+ok "clause 7: empty record consistent with llmctl's registry (or n/a: $n endpoints)"
 
 if [ "$fail" -ne 0 ]; then
   echo "CM-JEV-DETECTION: RED" >&2

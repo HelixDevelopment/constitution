@@ -83,11 +83,12 @@ run_boot() { # run_boot <home> <gitlog> [bootstrap args...]
   local home="$1" glog="$2"; shift 2
   case "$home" in "$SBX"/*) ;; *) echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: refusing to run bootstrap outside the sandbox ($home)" >&2; exit 2;; esac
   mkdir -p "$home"
+  # jev-path-ok: the fixture sandbox lays its dirs out explicitly (the point of the fixture)
   env HOME="$home" JEV_FAKE_HOME="$home" \
       JEV_STATE_DIR="$home/.local/state/jev" JEV_CONFIG_DIR="$home/.config/jev" \
       JEV_EVIDENCE_DIR="$home/.jev" JEV_BOOTSTRAP_HOME="$home/.local/share/helix" \
       CMA_PROVIDERS_DIR="$home/.local/share/cma/providers" \
-      JEV_CONSTITUTION_ROOT="$SBX/root" JEV_NOW_EPOCH=1760000000 \
+      JEV_CONSTITUTION_ROOT="$SBX/root" JEV_TEST=1 JEV_NOW_EPOCH=1760000000 \
       JEV_BOOTSTRAP_NESTED=1 JEV_BOOTSTRAP_ALLOW_CLONE=1 JEV_SUBMODULES_ABSENT=1 JEV_FIXTURE_DEPS="$DEPS" \
       GIT_SSH_COMMAND=/bin/false GIT_STUB_LOG="$glog" GIT_STUB_KNOWN_REFS="$KNOWN_REFS" \
       PATH="$STUBBIN:$PATH" \
@@ -121,6 +122,7 @@ clause_start
 H3="$SBX/host3"
 run_boot "$H3" "$SBX/git3.log" --defer; rc=$?
 [ "$rc" -eq 0 ] || err "defer: --defer exited $rc (must exit 0)"
+# jev-path-ok: asserting the documented default location inside the fixture HOME
 [ -f "$H3/.local/state/jev/bootstrap.pending" ] \
   || err "defer: pending stamp not written at .local/state/jev/bootstrap.pending"
 ok "clause 3: --defer writes pending stamp, exits 0"
@@ -138,10 +140,12 @@ for tool in llmctl claude_toolkit; do
     || err "clone-fallback: no managed clone of $want_url recorded for $tool (submodule-absent path)"
   grep -E -q "^git (-C [^ ]+ )?checkout( --quiet)? $want_ref\$" "$GITLOG" \
     || err "clone-fallback: $tool not checked out at pinned ref $want_ref - unpinned install is non-compliance (§11.4.286)"
+  # jev-path-ok: asserting the documented default clone location inside the fixture HOME
   [ "$(cat "$H4/.local/share/helix/$tool/.stub_head" 2>/dev/null)" = "$want_ref" ] \
     || err "clone-fallback: $tool clone directory does not hold the pinned ref $want_ref"
 done
 # The real script records the outcome in its provenance file; if present, it must say the pin was reached.
+# jev-path-ok: asserting the documented default provenance location inside the fixture HOME
 PROV="$H4/.local/state/jev/tools.provenance.json"
 if [ -f "$PROV" ]; then
   [ "$(grep -o 'pinned-checked-out' "$PROV" | wc -l)" -ge 2 ] \

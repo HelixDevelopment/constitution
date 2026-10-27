@@ -1,17 +1,17 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-v71-green) ![Anchors](https://img.shields.io/badge/anchors-296-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-161%2F161_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-164-green) ![Progressive](https://img.shields.io/badge/progressive-289_rules-red) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-7%2F7_current-green) ![Readiness](https://img.shields.io/badge/readiness-blocked-red)
+![Version](https://img.shields.io/badge/version-v72-green) ![Anchors](https://img.shields.io/badge/anchors-299-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-165%2F165_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-168-green) ![Progressive](https://img.shields.io/badge/progressive-289_rules-red) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-0%2F7_current-amber?color=ffbf00) ![Readiness](https://img.shields.io/badge/readiness-blocked-red)
 
 | Field | Value |
 |---|---|
-| Revision | 9 |
+| Revision | 13 |
 | Created | 2026-05-14 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-10-26T20:30:00Z |
 | Status | active |
-| Status summary | R8 refresh (2026-10-23, unreleased — next tag `helixconstitution-v71`, tag and hash filled at tag time): the decision layer (Jev) added — anchors §11.4.279–§11.4.286, a dedicated README section with a flow diagram, and updated dependency/tooling tables; the badge row is NOT hand-edited and must be recomputed with `scripts/badges/compute_badges.sh`. Earlier: Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
+| Status summary | R11 refresh (2026-10-26, unreleased, fix round 3 of the v72 change set): the facts table re-measured from the repository (canon revision 81, line and byte counts, shell-script count, submodule count, latest tag `helixconstitution-v71`); §11.4.289(D) restated so that only an imitation of the service, not an incidental property of a live one, disqualifies live evidence. Prior: R10 refresh (2026-10-26, unreleased): §11.4.289 no stubs or mocks for LIVE and deterministic driven testing added (operator mandate 2026-10-26); §11.4.27(A) gains a pointer; index 299 anchors in 12 groups. Prior: R9 refresh (2026-10-26, unreleased): §11.4.288 all work on `main`, recursively, added (operator mandate 2026-10-26); §11.4.167(C) and §11.4.195(B)/(C) amended in place; index 298 anchors in 12 groups; group table re-read from `constitution_index.yaml` (it had fallen 10 anchors behind). Prior: R8 refresh (2026-10-23, unreleased — next tag `helixconstitution-v71`, tag and hash filled at tag time): the decision layer (Jev) added — anchors §11.4.279–§11.4.286, a dedicated README section with a flow diagram, and updated dependency/tooling tables; the badge row is NOT hand-edited and must be recomputed with `scripts/badges/compute_badges.sh`. Earlier: Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31 dependency-manifest section, engine, gate and documentation links) |
+| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31 dependency-manifest section, engine, gate and documentation links); (R11, 2026-10-26 — measured facts refresh) |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -53,18 +53,18 @@ README ships in. Re-derive the machine-derived ones with
 
 | Fact | Value | Source of truth |
 |---|---|---|
-| Latest release tag | `helixconstitution-v70` (previous: `helixconstitution-v69`, 2026-10-05; `helixconstitution-v68`, 2026-08-18) | `git tag`, `CHANGELOG.md` |
-| Canon | `Constitution.md`, revision 79, 12,442 lines, 2,108,942 bytes | `wc`, document header |
-| Indexed anchors | **297**, in **12** groups | `constitution_index.yaml` |
-| Highest anchor number | §11.4.287 (§11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
+| Latest release tag | `helixconstitution-v72` (2026-10-27; previous: `helixconstitution-v71`, 2026-10-23; `helixconstitution-v70`, 2026-10-19; `helixconstitution-v69`, 2026-10-05) | `git tag`, `CHANGELOG.md` |
+| Canon | `Constitution.md`, revision 81, 12,524 lines, 2,171,213 bytes | `wc`, document header |
+| Indexed anchors | **299**, in **12** groups | `constitution_index.yaml` |
+| Highest anchor number | §11.4.289 (§11.4.289 no stubs or mocks as evidence, live testing only; §11.4.288 all work on `main`, recursively; §11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
 | Progressive rules | **289** rule files generated from the canon (the 288-vs-289 difference is a recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
-| Governance mirrors | `CLAUDE.md` rev 82, `AGENTS.md` rev 79, `QWEN.md` rev 76, `GEMINI.md` rev 50 (kept in lockstep per §11.4.157) | document headers |
-| Mechanism gates | **141** `cm_*` gates in `scripts/gates/`, **141** with a paired mutation test or outside self-test; **144** mutation tests in total | `compute_badges.sh --facts` |
-| Propagation gates | **89** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
-| Shell scripts | 749 `*.sh` under `scripts/` | `find` |
-| Submodules | **23** declared, **23** recorded gitlinks (8 own-org, 15 third-party) | `.gitmodules`, `git ls-files -s` |
+| Governance mirrors | `CLAUDE.md` rev 84, `AGENTS.md` rev 81, `QWEN.md` rev 78, `GEMINI.md` rev 52 (kept in lockstep per §11.4.157) | document headers |
+| Mechanism gates | **165** `cm_*` gates in `scripts/gates/`, **165** with a paired mutation test or outside self-test; **168** mutation tests in total | `compute_badges.sh --facts` |
+| Propagation gates | **100** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
+| Shell scripts | 853 `*.sh` under `scripts/` | `find` |
+| Submodules | **27** declared, **27** recorded gitlinks (10 own-org, 17 third-party, by remote organisation) | `.gitmodules`, `git ls-files -s` |
 | Remotes | 6 upstreams (GitHub ×2, GitLab ×2, GitFlic, GitVerse) | `git remote -v` |
-| Index freshness | index and progressive catalog both carry the canon's SHA-256 (`1667ded1…`) | `cm_constitution_index_fresh.sh` |
+| Index freshness | the index carries the canon's SHA-256 (`646780fa…`, `cm_constitution_index_fresh.sh`); the progressive catalog is STALE (older canon, lacks 11.4.285 to 11.4.289; tracked in `docs/owed_gate_implementations.md` R12, not regenerated) | `cm_constitution_index_fresh.sh` |
 
 ## Anchor catalogue by group
 
@@ -75,19 +75,19 @@ are the index's own.
 
 | Group | Anchors | File |
 |---|---:|---|
-| anti-bluff-and-evidence | 34 | `groups/anti-bluff-and-evidence.md` |
+| anti-bluff-and-evidence | 35 | `groups/anti-bluff-and-evidence.md` |
 | code-review-and-quality | 12 | `groups/code-review-and-quality.md` |
 | design-system-and-ui | 11 | `groups/design-system-and-ui.md` |
 | documentation-and-export | 27 | `groups/documentation-and-export.md` |
-| git-and-data-safety | 24 | `groups/git-and-data-safety.md` |
-| governance-and-constitution-meta | 37 | `groups/governance-and-constitution-meta.md` |
-| host-and-resource-safety | 21 | `groups/host-and-resource-safety.md` |
+| git-and-data-safety | 25 | `groups/git-and-data-safety.md` |
+| governance-and-constitution-meta | 40 | `groups/governance-and-constitution-meta.md` |
+| host-and-resource-safety | 22 | `groups/host-and-resource-safety.md` |
 | multi-track-and-parallelism | 13 | `groups/multi-track-and-parallelism.md` |
-| project-lifecycle-and-release | 46 | `groups/project-lifecycle-and-release.md` |
+| project-lifecycle-and-release | 51 | `groups/project-lifecycle-and-release.md` |
 | testing-and-tdd | 41 | `groups/testing-and-tdd.md` |
 | translation-and-localization | 3 | `groups/translation-and-localization.md` |
 | workable-items-and-tracking | 19 | `groups/workable-items-and-tracking.md` |
-| **Total** | **288** | `constitution_index.yaml` |
+| **Total** | **299** | `constitution_index.yaml` |
 
 Foundational clauses a reader meets first (each carries its verbatim
 operator mandate in a forensic-anchor block inside `Constitution.md`):
@@ -301,7 +301,7 @@ Documentation:
 
 | Path | Contents |
 |---|---|
-| `scripts/gates/` | 141 mechanism gates, 89 of them anchor-propagation gates, each with a paired mutation test or an outside self-test; the gate ledger, deferral and ratchet data files; `lib_badge_row.sh`, `lib_doc_manifest.sh` and other shared libraries |
+| `scripts/gates/` | 165 mechanism gates (measured 2026-10-26 with `compute_badges.sh --facts`), 100 of them anchor-propagation gates, each with a paired mutation test or an outside self-test; the gate ledger, deferral and ratchet data files; `lib_badge_row.sh`, `lib_doc_manifest.sh` and other shared libraries |
 | `scripts/anchors/` | anchor library, `constitution_generate.py` (regenerates `constitution_index.yaml` and the groups), link check, wiring audit |
 | `scripts/hooks/` | PreToolUse guards (forbidden commands, branch consistency, track labels, work-track binding, evidence-store writes, destructive paths — §11.4.287, shipped but not registered in any user settings) and the credential scanner |
 | `scripts/multitrack/` | the §11.4.187 ruler: up/down, claim registry, device lock, fallback monitor, supervisor, host budget |
@@ -329,10 +329,10 @@ git submodule add git@github.com:HelixDevelopment/HelixConstitution.git constitu
 
 # Pin to a release tag for reproducibility (recommended)
 cd constitution
-git checkout helixconstitution-v70
+git checkout helixconstitution-v71
 cd ..
 git add constitution
-git commit -m "chore: add Helix Constitution submodule pinned to helixconstitution-v70"
+git commit -m "chore: add Helix Constitution submodule pinned to helixconstitution-v71"
 ```
 
 When teammates clone your project:
@@ -481,6 +481,8 @@ tags are kept for history.
 
 | Tag | Date | Notes |
 |---|---|---|
+| `helixconstitution-v72` | 2026-10-27 | destructive-path safeguard §11.4.287, all work on `main` §11.4.288, no stubs or mocks as evidence §11.4.289, Jev hardening |
+| `helixconstitution-v71` | 2026-10-23 | decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution |
 | `helixconstitution-v70` | 2026-10-19 | progressive-disclosure layer, optimization audit and remediation, §11.4.141 M2–M9, §11.4.277 / §11.4.278 and llmctl, gate hardening, README badge computer |
 | `helixconstitution-v69` | 2026-10-05 | process-safety, release-engineering, anti-slop and review-round-budget round (14 anchors, 19 extensions) |
 | `helixconstitution-v68` | 2026-08-18 | monolithic amendment round (22 anchors, 5 extensions) |

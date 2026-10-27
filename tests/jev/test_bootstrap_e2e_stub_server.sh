@@ -5,6 +5,9 @@
 # (127.0.0.1, ephemeral port). Decisions are produced by genuine
 # POST /v1/systemone round-trips, not hand-written rows. No real provider,
 # no network beyond loopback.
+# CLASS (§11.4.289(I)): GATE-LOGIC test against a stub server the test starts itself.
+# The "e2e" in the name means the bootstrap pipeline runs end to end; it is NOT live
+# evidence and must never be cited as such (§11.4.289(D)).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES="$HERE/fixtures"
@@ -16,6 +19,7 @@ for dep in jq curl python3; do
 done
 
 make_fixture_env e2e
+export JEV_TEST=1   # r6 n6-1: JEV_NOW_EPOCH (the deterministic clock these cases pin) is honoured only under JEV_TEST=1
 make_fixture_constitution_root with-submodules
 cp -r "$FIXTURES/home_seed/.claude" "$HOME/.claude"
 
@@ -24,9 +28,9 @@ SRVLOG="$T/server.port"
 nice -n 10 python3 "$FIXTURES/jev_server.py" 0 >"$SRVLOG" 2>"$T/server.err" &
 SRV=$!
 trap 'kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; rm -rf "$T"' EXIT
-for _ in $(seq 1 50); do grep -q '^PORT ' "$SRVLOG" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 300); do grep -q '^PORT ' "$SRVLOG" 2>/dev/null && break; sleep 0.1; done   # 30 s: a loaded host must not turn a slow start into a failure
 PORT="$(sed -n 's/^PORT //p' "$SRVLOG" | head -1)"
-[ -n "$PORT" ] || { fail "stub server did not report a port"; finish; exit $?; }
+[ -n "$PORT" ] || { fail "stub server did not report a port within 30 s (see $T/server.err); this is a harness start-up failure, not a product assertion"; finish; exit $?; }
 BASE="http://127.0.0.1:$PORT"
 assert_eq '{"ok": true}' "$(curl -fsS "$BASE/healthz" | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin)))')" "stub server healthz answers on loopback"
 

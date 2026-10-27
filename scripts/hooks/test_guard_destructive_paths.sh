@@ -140,6 +140,20 @@ if [ "${SKIP_MUTATION:-0}" != 1 ]; then
   mutcheck "protected_reason neutered" "$MUT/g.py" "$RM $RF $HM"
   sed -e 's/home_taint = TV in hv or UV in hv  # MUT-H/home_taint = False/' -e 's/if TV in s:  # MUT-V/if False:/' "$GUARD" > "$MUT/g2.py"
   mutcheck "taint layer (H+V) neutered" "$MUT/g2.py" "$INCIDENT"
+  # round-7 mutations (reviewer mutants RD/RE adopted verbatim, plus the class-V unknown-target rule)
+  sed 's/elif re.search(r"\[rR\]", a):/elif re.search(r"[r]", a):/' "$GUARD" > "$MUT/g3.py"
+  mutcheck "rm -R (capital) ignored" "$MUT/g3.py" "$RM -R $HM"
+  sed 's/elif not file_input and pipe and pipe\[0\] in ("find", "lit"):/elif not file_input and pipe and pipe[0] in ("find",):/' "$GUARD" > "$MUT/g4.py"
+  # the mutant only turns class P into class V here (rc stays 2), so pin the harmless side: a
+  # literal-pipe xargs over a scratch path must be allowed by the guard and blocked by the mutant
+  if cmp -s "$GUARD" "$MUT/g4.py"; then FAIL=$((FAIL+1)); echo "FAIL [xargs mutation: sed changed nothing]"; else
+    xc="printf '%s\\n' /tmp/r7-build | xargs $RM $RF"
+    mkjson Bash command "$xc" | python3 -I "$GUARD" >/dev/null 2>&1; r1=$?
+    mkjson Bash command "$xc" | python3 -I "$MUT/g4.py" >/dev/null 2>&1; r2=$?
+    if [ "$r1" -eq 0 ] && [ "$r2" -eq 2 ]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FAIL [literal-pipe xargs ignored: unmutated rc=$r1 (want 0), mutated rc=$r2 (want 2)]"; fi
+  fi
+  sed 's/^R7_UNKNOWN_RECURSIVE = .*/R7_UNKNOWN_RECURSIVE = False/' "$GUARD" > "$MUT/g5.py"
+  mutcheck "unknown recursive target rule off" "$MUT/g5.py" "$RM $RF \"\$NEVER_SET_TARGET\""
 fi
 
 # ---- review-round bypass suite (python, no shell payloads) ----

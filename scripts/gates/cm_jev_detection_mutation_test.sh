@@ -5,6 +5,8 @@
 # endpoints are ABSENT. The gate MUST fail (probe replay + provenance path
 # checks expose the fabrication). Also asserts GREEN on the genuine fixture.
 set -uo pipefail
+# Hermetic: an operator key in the caller environment must never decide a fixture verdict.
+unset TYPESAFE_API_KEY OPENROUTER_API_KEY LLMCTL_API_KEY
 # Tool preflight: an absent tool is CANNOT-DETERMINE (rc 2), never a pass or a false RED.
 for _t in jq python3 mktemp; do command -v "$_t" >/dev/null 2>&1 || { echo "[mutation] cannot determine: required tool '$_t' missing" >&2; exit 2; }; done
 GREEN_LOG=$(mktemp); trap 'rm -f "$GREEN_LOG"' EXIT
@@ -117,6 +119,33 @@ JEV_DETECTION_FILE="$FIX/evidence/jev-detection.json" JEV_EVIDENCE_WINDOW_START=
 { [ $? -eq 1 ] && grep -q 'no JEV_PROBE_CMD' "$SBX/noprobe.log"; } \
   && say "RED flip L asserted: reachable=true without probe mechanism rejected" \
   || { say "MUTATION L SURVIVED: no-probe claim accepted"; rc=1; }
+
+# Mutation M (H1): a hosted endpoint recorded reachable=null while a REAL key is present must be RED;
+# the same record with only a PLACEHOLDER key must stay GREEN (false-positive guard).
+mkdir -p "$SBX/kf"
+printf 'export TYPESAFE_API_KEY=%s\n' "dummyM-A1b2C3d4-E5f6G7h8I9j0" > "$SBX/kf/real.sh"
+printf 'export TYPESAFE_API_KEY=%s\n' "changeme" > "$SBX/kf/ph.sh"
+jq '.endpoints += [{"id":"hosted-x","source":"api-keys-file","model":"jev-latest","reachable":null,"reachable_basis":"resolution-only","parallel":1,"url":"https://h.invalid","key_var":"TYPESAFE_API_KEY"}]' \
+  "$FIX/evidence/jev-detection.json" > "$SBX/hosted_null.json"
+JEV_API_KEYS_FILE="$SBX/kf/real.sh" JEV_DETECTION_FILE="$SBX/hosted_null.json" JEV_EVIDENCE_WINDOW_START=1759999000 \
+JEV_PROBE_CMD="$FIX/bin/jev-probe-ok.sh" JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > "$SBX/mM.log" 2>&1
+{ [ $? -eq 1 ] && grep -q 'holds a real key but reachable' "$SBX/mM.log"; } \
+  && say "RED flip M asserted: unproven hosted endpoint with a real key rejected" \
+  || { say "MUTATION M SURVIVED"; rc=1; }
+grep -q 'dummyM-A1b2' "$SBX/mM.log" && { say "SECRET LEAK in gate output"; rc=1; }
+JEV_API_KEYS_FILE="$SBX/kf/ph.sh" JEV_DETECTION_FILE="$SBX/hosted_null.json" JEV_EVIDENCE_WINDOW_START=1759999000 \
+JEV_PROBE_CMD="$FIX/bin/jev-probe-ok.sh" JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > "$SBX/mM2.log" 2>&1 \
+  && say "GREEN control: placeholder key does not demand a probe" \
+  || { say "OVER-REJECT: placeholder key made the gate RED"; cat "$SBX/mM2.log"; rc=1; }
+
+# Mutation N (G2): empty endpoints while llmctl reports a running USABLE decision profile must be RED (a gateway alone, or a jev-verdict-only profile, is lawful - see tests/jev/test_review_fixes.sh).
+mkdir -p "$SBX/nbin"
+printf '%s\n' '#!/usr/bin/env bash' 'case "$1 $2" in "decide status") echo "{\"gateway\":{\"running\":true},\"profiles\":[{\"profile\":\"decide-real\",\"running\":true}]}" ;; "decide capacity") echo "{\"decision_instances\":{\"decide-real\":{\"protocol\":\"jev-json\",\"effective_slots_per_instance\":2}}}" ;; *) exit 1 ;; esac' > "$SBX/nbin/llmctl"; chmod +x "$SBX/nbin/llmctl"
+jq '.endpoints=[] | .reason="nothing running" | .capacity={"instances":0,"decision_instances":0,"parallel_total":0}' "$FIX/evidence/jev-detection.json" > "$SBX/empty.json"
+PATH="$SBX/nbin:$PATH" JEV_DETECTION_FILE="$SBX/empty.json" JEV_EVIDENCE_WINDOW_START=1759999000 JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > "$SBX/mN.log" 2>&1
+{ [ $? -eq 1 ] && grep -q 'contradiction' "$SBX/mN.log"; } \
+  && say "RED flip N asserted: empty record contradicting llmctl rejected" \
+  || { say "MUTATION N SURVIVED"; rc=1; }
 
 if [ "$rc" -eq 0 ]; then
   say "PASS: cm_jev_detection.sh genuinely discriminates (GREEN genuine / RED mutated)"

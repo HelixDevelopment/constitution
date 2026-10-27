@@ -271,13 +271,25 @@ covenant_propagation_main() {
 
     # Discover owned governance carriers, excluding non-authored trees.
     if [ -z "$carriers" ]; then
-    carriers="$(find "$root" \
+    # The find exit status is read EXPLICITLY. It used to sit inside `$(find … | sort)`: under the
+    # wrappers' `set -euo pipefail` a traversal error (an unreadable directory, a vanished mount)
+    # failed the assignment and killed the gate with rc 1 and NO message (review round 5 M4: a
+    # no-argument run from a directory whose parent held an unreadable subtree exited 1 silently);
+    # without `set -e` the same error would have audited a partial set. Either way the carrier set
+    # is incomplete, so the honest verdict is BLIND (rc 2) with the reason (§11.4.201(7)(b)).
+    local _cpe_found="" _cpe_frc=0
+    _cpe_found="$(find "$root" \
         \( -path '*/node_modules' -o -path '*/.git' -o -path '*/out' \
            -o -path '*/build' -o -path '*/dist' -o -path '*/prebuilts' \
            -o -path '*/external' -o -path '*/vendor' -o -path '*/target' \
            ${excl_prune[@]+"${excl_prune[@]}"} \) -prune \
         -o \( -type f \( -name 'CLAUDE.md' -o -name 'AGENTS.md' \
-           -o -name 'QWEN.md' -o -name 'GEMINI.md' \) -print \) 2>/dev/null | sort)"
+           -o -name 'QWEN.md' -o -name 'GEMINI.md' \) -print \) 2>/dev/null)" || _cpe_frc=$?
+    if [ "$_cpe_frc" -ne 0 ]; then
+        echo "${GATE}: BLIND — carrier discovery under $root did not complete (find exit ${_cpe_frc}: an unreadable directory, a vanished mount or a permission failure somewhere below the root); refusing to audit a partial carrier set (§11.4.201(7)(b)). Pass --root <consumer-root> (the default root is \$CONSUMER_ROOT or '..')." >&2
+        return 2
+    fi
+    carriers="$(printf '%s\n' "$_cpe_found" | sort)"
     fi
 
     # Honest gap enumeration — never a silent narrowing (§11.4.135 / §11.4.6).

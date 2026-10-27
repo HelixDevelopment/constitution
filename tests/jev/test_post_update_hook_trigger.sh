@@ -77,6 +77,6 @@ assert_not_contains "$HOST_P/bootstrap.log" "--defer" "5 NEG: rc 3 is not papere
 # 6 bootstrap script absent
 host scripts/jev/bootstrap.sh; rm -f "$HOST_C/scripts/jev/bootstrap.sh"; run_hook_host
 assert_rc 0 "$HOOK_RC" "6 missing bootstrap script: hook rc 0"
-assert_file_exists "$HOST_P/.jev/bootstrap.pending" "6 missing script recorded as pending, not ignored"
+assert_file_exists "$HOST_P/.jev-state/bootstrap.pending" "6 missing script recorded as pending (at the state-level path jev-status reads), not ignored"
 
 finish

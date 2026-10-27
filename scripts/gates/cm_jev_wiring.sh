@@ -11,17 +11,22 @@
 # Env overrides:
 #   JEV_HOME             agent-home root to inspect (default: $HOME)
 #   JEV_DETECTION_FILE   detection record for clause 5 endpoint IDs
-#                        (default: $JEV_HOME/.jev/jev-detection.json; absent = clause skipped with note)
+#                        (default: the shared resolver's detection record, <evidence>/jev-detection.json; absent = clause skipped with note)
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "CM-JEV-WIRING CANNOT DETERMINE: jq not installed (rc 2, never a pass)" >&2; exit 2; }
 
-JHOME="${JEV_HOME:-$HOME}"
-DETECTION="${JEV_DETECTION_FILE:-$JHOME/.jev/jev-detection.json}"
+# shellcheck source=../jev/lib_decide.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../jev/lib_decide.sh"   # THE path resolver (review r6 I6-2): no independent derivation here
+JHOME="$(jev_home)"
+DETECTION="$(jev_detection_file)"
 fail=0
 err() { printf 'CM-JEV-WIRING FAIL: %s\n' "$*" >&2; fail=1; }
-ok()  { printf 'CM-JEV-WIRING ok: %s\n' "$*" >&2; }
+clause_start() { _f0=$fail; }
+ok()  { [ "$fail" = "$_f0" ] && printf 'CM-JEV-WIRING ok: %s\n' "$*" >&2; return 0; }
+_f0=0
 
 agents=()
+clause_start
 
 # ── claude ──
 if [ -d "$JHOME/.claude" ]; then
@@ -78,14 +83,17 @@ fi
 ok "clause 1/2: hook + MCP wiring present for: ${agents[*]:-none}"
 
 # Clause 3 — env exports reachable from the launch path.
-if [ -f "$JHOME/.config/jev/env" ]; then
-  grep -q '^JEV_MODE=' "$JHOME/.config/jev/env" \
-    || err "env: $JHOME/.config/jev/env lacks JEV_MODE"
-  ok "clause 3: env exports present at .config/jev/env"
+clause_start
+CFGDIR="$(jev_config_dir)"   # bootstrap writes <config>/env
+if [ -f "$CFGDIR/env" ]; then
+  grep -q '^JEV_MODE=' "$CFGDIR/env" \
+    || err "env: $CFGDIR/env lacks JEV_MODE"
+  ok "clause 3: env exports present at $CFGDIR/env"
 else
-  err "env: $JHOME/.config/jev/env missing — provider-alias env exports not reachable from launch path"
+  err "env: $CFGDIR/env missing — provider-alias env exports not reachable from launch path"
 fi
 
+clause_start
 # Clause 5 — no decision endpoint in any chat-model/provider config (§11.4.284(D)).
 if [ -f "$DETECTION" ] && jq -e '.endpoints | length > 0' "$DETECTION" >/dev/null 2>&1; then
   ids=$(jq -r '.endpoints[].id' "$DETECTION")
@@ -94,26 +102,40 @@ if [ -f "$DETECTION" ] && jq -e '.endpoints | length > 0' "$DETECTION" >/dev/nul
     [ -n "$cfg" ] || continue
     while IFS= read -r eid; do
       [ -n "$eid" ] || continue
-      grep -q -- "$eid" "$cfg" && err "clause5: decision endpoint id '$eid' found in chat-model config $cfg (§11.4.284(D) critical defect)"
+      grep -qF -- "$eid" "$cfg" && err "clause5: decision endpoint id '$eid' found in chat-model config $cfg (§11.4.284(D) critical defect)"
     done <<< "$ids"
     while IFS= read -r m; do
       [ -n "$m" ] || continue
-      jq -e --arg m "$m" '.. | strings | select(. == $m)' "$cfg" >/dev/null 2>&1 \
+      { case "$cfg" in
+          *.env) grep -qF -- "$m" "$cfg" ;;
+          *) jq -e --arg m "$m" '.. | strings | select(. == $m)' "$cfg" >/dev/null 2>&1 ;;
+        esac; } \
         && err "clause5: decision model '$m' wired as a chat model in $cfg (§11.4.284(D) critical defect)"
     done <<< "$models"
-  done < <(find "$JHOME" -name 'models.json' -o -name 'providers.json' 2>/dev/null)
+  # Bounded walk: only the agent config homes (and the jev config dir), shallow. The whole of $JHOME is a project
+  # tree on a real machine; walking it took >100 s and hung the bootstrap report stage (2026-10-24).
+  done < <( { for _d in "$JHOME/.claude" "$JHOME/.kimi-code" "$JHOME/.pi" "$JHOME/.config/opencode" "$CFGDIR"; do
+             [ -d "$_d" ] && find "$_d" -maxdepth 4 \( -name 'models.json' -o -name 'providers.json' \) -type f 2>/dev/null
+           done
+           # plus a shallow look at the top of the home itself (provider dirs placed directly under it)
+           find "$JHOME" -maxdepth 3 \( -name .cache -o -name .git -o -name node_modules -o -name .local \) -prune -o \
+             \( -name 'models.json' -o -name 'providers.json' \) -type f -print 2>/dev/null
+           # provider .env files: an alias launches a chat model from ANTHROPIC_MODEL & co. in these (claude_toolkit)
+           _pd="$(jev_providers_dir)"
+           [ -d "$_pd" ] && find "$_pd" -maxdepth 2 -name '*.env' -type f 2>/dev/null; } | sort -u )
   ok "clause 5: no decision endpoint in chat-model configs"
 else
   ok "clause 5: skipped (no detection record or zero endpoints — lawful only via §11.4.279(B) reasoned record)"
 fi
 
+clause_start
 # Clause 6 — thresholds schema-valid when enforce mode active.
-mode=$(grep -s '^JEV_MODE=' "$JHOME/.config/jev/env" | cut -d= -f2)
+mode=$(grep -s '^JEV_MODE=' "$CFGDIR/env" | cut -d= -f2)
 if [ "$mode" = "enforce" ]; then
-  t="$JHOME/.config/jev/jev-thresholds.json"
+  t="$CFGDIR/jev-thresholds.json"
   { [ -f "$t" ] && jq -e '.per_type | type == "object" and length > 0' "$t" >/dev/null 2>&1 \
-      && jq -e '[.per_type[] | select(.threshold|type=="number")] | length > 0' "$t" >/dev/null 2>&1; } \
-    || err "thresholds: JEV_MODE=enforce but jev-thresholds.json missing/schema-invalid — enforce-without-calibration is non-compliance (§11.4.285(C))"
+      && jq -e '[.per_type[] | select(.promoted == true and (.threshold|type=="number"))] | length > 0' "$t" >/dev/null 2>&1; } \
+    || err "thresholds: JEV_MODE=enforce but jev-thresholds.json missing/schema-invalid or no type is PROMOTED — enforce-without-calibration is non-compliance (§11.4.285(C))"
   ok "clause 6: thresholds schema-valid under enforce mode"
 else
   ok "clause 6: skipped (mode=${mode:-unset}, enforce not active)"

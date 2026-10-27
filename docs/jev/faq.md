@@ -54,7 +54,7 @@ Unknown. llmctl records their accuracy as unverified and says some were not run 
 UNKNOWN. Neither appears in llmctl's catalog or docs at `f42bad6`.
 
 **9. Why is the local URL `https://`?**
-The llmctl gateway is HTTPS only, with a local CA and a mandatory bearer key. The toolkit gate sends the key only over `https://` and accepts a CA file through `JEV_CA_FILE`. A plain `http://127.0.0.1:8095` URL will not work.
+The llmctl gateway is HTTPS only, with a local CA and a mandatory bearer key. The toolkit gate sends the key only over `https://` and accepts a CA file through the operator's `JEV_CA_FILE` environment variable (a `ca_file` in the detection record is not trusted for keyed requests). A plain `http://127.0.0.1:8095` URL will not work.
 
 **10. Why does a slow local model make the gate fall back?**
 The gate's curl timeout is `JEV_GATE_TIMEOUT` (2 s). The gateway's own budget is `LLMCTL_DECIDE_TIMEOUT` (8 s, or 120 s when a CPU llama instance is served). Raise the gate timeout or use a faster profile.
@@ -65,7 +65,7 @@ The gate's curl timeout is `JEV_GATE_TIMEOUT` (2 s). The gateway's own budget is
 With a hosted endpoint: the tool name and tool input (up to 12,000 characters), sent to that provider. With the local gateway: nothing leaves the host. The local log stores a 16-hex-character hash, never the text.
 
 **12. Where do secrets go?**
-Nowhere in this layer. Files and docs carry key variable NAMES (`LLMCTL_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`). The gate reads the value at call time and never puts it on a command line. One caveat in the toolkit: its kimi MCP config can contain a materialized key in a 0700 directory (comment in `jev-setup.sh`).
+Nowhere in this layer. Files and docs carry key variable NAMES (`LLMCTL_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`). The gate reads the value at call time and never puts it on a command line. One caveat in the toolkit (outside this repository, tracked upstream): `jev-setup.sh` writes the key VALUE as `TYPESAFE_API_KEY` / `JEV_API_KEY` into `<home>/.mcp.json` of every Claude home, the Kimi `mcp.json` and a third agent config, so treat those files as key-bearing (see the governance guide, key-handling section). This layer never backs such a file up.
 
 **13. Can I disable it?**
 Yes: `JEV_GATE=off` (recorded), shadow mode, the `.jev/bootstrap.disabled` marker, or `jev-setup.sh --uninstall`. Silent disabling is non-compliance.

@@ -1,8 +1,165 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v72 — 2026-10-27 — Destructive-path safeguard §11.4.287, all work on `main` §11.4.288, no stubs or mocks as evidence §11.4.289, Jev decision-layer hardening
+
+**Previous tag:** `helixconstitution-v71` (2026-10-23). Tag: `helixconstitution-v72` (annotated; points at the release commit on `main`). This entry is drafted against the staged change set: `git diff --cached --stat` reports 80 files changed, 8,968 insertions, 637 deletions. It consolidates the "Unreleased" entries below it (2026-10-24 to 2026-10-27).
+
+### Added
+
+- **§11.4.287 — Destructive-path safeguard (User mandate, 2026-10-23).** No agent, script, hook, test or subagent may recursively delete, re-permission or sync-delete `/`, a system directory, `/home`, a home directory, an ancestor of it or a protected child of it. Enforced by a non-overridable PreToolUse guard (`scripts/hooks/guard-destructive-paths.py`, bypass suite `scripts/hooks/test_guard_bypasses.py`, runner `test_guard_destructive_paths.sh`), a refusing runtime helper (`scripts/lib/safe_rm.sh` with `scripts/lib/protected_paths.list`, tests `scripts/lib/test_safe_rm.sh`) and mandatory script hygiene. Operator documents: guide, manual and FAQ under `docs/guides/`, `docs/manuals/`, `docs/faq/` (`destructive_path_safeguard*`). Replayable spelling battery: `scripts/hooks/spelling_battery_report.py`, output `docs/qa/destructive_path_spelling_battery_output.txt` (75 destructive spellings blocked, 75 benign twins allowed, 0 violations).
+- **§11.4.288 — All work on `main`, recursively (User mandate, 2026-10-26).** Every change in the project root and in every own-org submodule and hub engine it uses is made on and lands on `main` once it holds its source-correctness GO (fetch, merge onto the latest `main`, fast-forward push to every upstream, never force); manual QA gates the release tag, not the landing. §11.4.167(C) and §11.4.195(B)/(C) amended in place; precedence notes added to related multi-track anchors.
+- **§11.4.289 — No stubs, mocks or fixture servers as evidence (User mandate, 2026-10-26, `CRITICAL`).** All testing, validation and verification of produced results is live and deterministic; test doubles are legal only in unit tests and in tests of a gate's own logic; a live-labelled result carries machine fields proving a real target; an absent real dependency is an honest SKIP. Clause (D) is stated so that only an imitation of the service disqualifies live evidence (pinned by `scripts/gates/test_289_clause_d_not_overbroad.sh`); clause (I) classifies the Jev fixture servers as gate-logic unit tests.
+- **Gates:** `CM-COVENANT-114-288-PROPAGATION` and `CM-COVENANT-114-289-PROPAGATION` (generated wrappers with paired mutation tests); `covenant_propagation_anchors.tsv` and `lib/covenant_propagation_engine.sh` updated. Deferrals registered in `scripts/gates/gate_ledger_deferrals.tsv` (15 rows added; OWED-GATE-156 to 164 per `docs/owed_gate_implementations.md`); the ledger baseline stays at 394 unimplemented.
+- **Index and carriers:** `constitution_index.yaml` and `groups/*.md` regenerated (299 anchors in 12 groups); `CLAUDE.md`, `AGENTS.md`, `QWEN.md`, `GEMINI.md` carry compact entries and a revision bump; `scripts/anchors/anchor_lib.py` maps 289 into `anti-bluff-and-evidence`.
+
+### Changed
+
+- **Jev decision layer (§11.4.279) hardening, no new anchor:** hosted-key discovery (`scripts/jev/lib_keys.sh`), decision helper library (`lib_decide.sh`), probe (`jev-probe.sh`), fail-closed gate fixes in `cm_jev_detection.sh`, `cm_jev_wiring.sh`, `cm_jev_token_reduction.sh`; `bootstrap.sh` header and exit-code text corrected, a hosted endpoint whose key came from the environment is labelled `source: environment`; `register.sh` MCP-registration hardening; new tests `tests/jev/test_review_fixes*.sh` (r1 to r7), `test_hosted_key_discovery.sh`, `test_decision_layer_gaps.sh`, `test_mcp_register_hardening.sh`, `test_bootstrap_header_truth.sh`. §11.4.279(E)(6) unbacked live figures withdrawn as UNCONFIRMED.
+- `scripts/post_update_hook.sh` updated; README facts table re-measured.
+- Extensions §11.4.31, §11.4.28(C), §11.4.270 and §11.4.271 are NOT listed as v72 changes: their text is already in the v71 base and the staged diff touches them only inside the revision-header status text.
+
+### Components unchanged since helixconstitution-v70 (not retagged)
+
+`docs_chain`, `continuum`, `anti_bluff`, `session_orchestrator`, `token_optimizer`, `helix_perf_cache`.
+
+### Companion releases in this wave
+
+- `llmctl` v3.3.0 (`7cc9e83`)
+- `containers` containers-1.2.0 (`cb5c727`)
+- `design-toolkit` v0.2.3 (`6446680`)
+- `claude_toolkit` v1.33.0 (`53bf5fb`), tags `v1.33.0` and `claude_toolkit-1.33.0`; releases https://github.com/vasic-digital/claude_toolkit/releases/tag/v1.33.0 and https://gitlab.com/vasic-digital/claude_toolkit/-/releases/v1.33.0
+- Hub pin note: `llmctl` is pinned at tag v3.3.0 (`7cc9e83`); llmctl `main` is 2 commits ahead (`2b28d0d`, `81645ab`), untested, deliberately NOT adopted.
+
+### Known imperfections (sorted by severity, CRITICAL to TRIVIAL)
+
+**CRITICAL**
+
+- The round-6 independent review of the destructive-path guard is INCOMPLETE. The safety classifier halted the reviewer's bypass hunt; some probe inputs exited 0 and were never classified. The §11.4.276 review budget is consumed 6 of 7 rounds; round 7 was not performed. Reviewer-authored mutants were not written, and mutant kill for R5/R7 is unconfirmed.
+
+**HIGH**
+
+- The claude_toolkit v1.33.0 release gate was run as a single run and is INCOMPLETE (not a full multi-run pass).
+- Documented residual limits of the guard: trap bodies held in variables, foreign-pid `/proc/N/root` handled textually only, accepted false positive `env -P x echo rm`, interpreter `-c`, `ssh` and unlisted wrappers, and MCP/NotebookEdit file tools bypass the hook.
+- Gate CODE for many recommended gates is deferred (OWED-GATE-156 to 164); the ledger baseline stays at 394 unimplemented.
+- The Jev decision layer runs in SHADOW only. Live figures are UNCONFIRMED and no `decide-*` profile has been validated against a real model.
+
+**MEDIUM**
+
+- claude_toolkit v1.33.0 carries known imperfections N1, N2, N4, N8, N9, N10 (see that release's notes); `mgmt_port_isolation` shows an unexplained flake; the `kimi_llmctl_integration` and `mechanical_tools_acceptance` tests SKIP on missing prerequisites.
+- The html/pdf/docx twins of Constitution, CLAUDE, AGENTS, QWEN and GEMINI are NOT regenerated for §11.4.288/§11.4.289 (stale).
+- In this scratch clone (no submodules checked out) the dependency-manifest gate returns BLIND and the hub-engine nesting gate SKIPs; to be re-verified in the real hub.
+- The §11.4.279(G) wizard exit-code documentation (1/4/5) disagrees with `scripts/jev/bootstrap.sh` (0/2/3).
+- The rendered html/pdf/docx twins may be stale; the README `Twins` badge reports the state computed by `compute_badges.sh`.
+- Codeberg, GitFlic and GitVerse releases are not created (tags only) for some components.
+
+**LOW**
+
+- `llmctl` main is 2 commits ahead of the hub pin v3.3.0 (`2b28d0d`, `81645ab`); not adopted until tested.
+- Carrier revision headers are not bumped.
+- `helix_perf_cache` has no reachable GitLab repository.
+- The `containers` and `design-toolkit` releases have no attached assets.
+- Tag naming is inconsistent across components.
+
+**TRIVIAL**
+
+- None beyond the above.
+
+## Unreleased — 2026-10-27 (second) — fix round 6 for the v72 change set (independent review r5)
+
+Not tagged, not committed. A further independent review is still owed.
+
+- R5-I1 (important) destructive-path guard: a bare `cd` (and `cd` with no argument) goes to the HOME the command text assigned, at both walkers (`W="$2"; export HOME="$W/home"; cd; rm -rf <user>`, `HOME=/home cd && ...`, `HOME=/; cd; rm -rf usr`, `declare HOME=/; cd; ...` are blocked); a benign twin (`HOME=/tmp/fake; cd; rm -rf .cache`) stays allowed.
+- R5-N2 the two cwd-transition blocks are one shared function `cwd_transition`, so a fix cannot reach one walker only (explains reviewer mutant R8).
+- R5-M1 `/proc/<pid>/root` globs and `cd` targets are judged as `/` and a glob is resolved through its glob-free prefix; `/proc/<pid>/cwd` is a LOST directory. Residual: a foreign pid root is mapped textually.
+- R5-M2 a `trap` body that contains `cd`/`pushd`/`popd` marks the cwd LOST at both walkers; a body held in a variable is not read (documented).
+- R5-M3 after an unknown wrapper option the first later destructive command word is taken as the command (fail closed; accepted false positive `env -P x echo rm`).
+- R5-M4 benign twins for `systemd-run`/`run0 -p WorkingDirectory=` kill reviewer mutant R2.
+- R5-N1 test counts in guide, manual and FAQ re-measured.
+- Tests added test-first: RED 28 passed / 24 failed on the round-5 guard (quick runner), GREEN after the fixes. Reviewer mutants R2, R4, R5, R6, R7 killed; R8 (`pushd -N` rotation matched by `[+]` only) survives as an EQUIVALENT mutant, because a bare `pushd -1` already marks the directory LOST through the no-argument branch. Own mutants of the new code (bare cd keeps cwd, proc alias off, trap cd ignored at either walker, unknown-option scan off) all killed.
+- Measured: `test_guard_bypasses.py` 2429 passed, 0 failed; `test_guard_destructive_paths.sh` 65/0; `test_safe_rm.sh` 267/0.
+
+## Unreleased — 2026-10-27 — fix round 5 for the v72 change set (independent review r4)
+
+Not tagged, not committed. A further independent review is still owed.
+
+- R4-1 destructive-path guard: wrapper options are parsed getopt-faithfully, one table per wrapper (`take_wrapper_options` / `WRAP_SPEC`), shared by `strip_wrappers` and the cwd model (`_cwd_effect`). Clustered options (`sudo -Eu root`, `env -vC /`, `env -iC /`, `sudo -nD /`), attached values and long spellings now agree between "what is stripped" and "where it runs"; an unknown letter is kept, never swallowed.
+- R4-2 a `cd` inside a pipeline element no longer moves the outer shell; `eval` adopts the cwd effect and the text of its string; `pushd +N`/`-N` mark the cwd LOST.
+- R4-3 own battery hole closed test-first: `xargs -I%`, `-J%`, `--replace=%` and `parallel -I%` / `--replace=%` treated the custom replace string as a literal path (`echo /home | xargs -I% rm -rf %` was allowed). RED 6 failures on the previous guard, GREEN after the fix.
+- R4-4 `scripts/gates/test_289_clause_d_not_overbroad.sh` staged and pinned.
+- Documentation: caveats for `${VAR:?}` (guards empty, not wrong values) and `cd "$(dirname "$0")" && rm -rf lib`; `machinectl shell` and container `exec` added to the unlisted wrappers; remaining documented limits unchanged (ssh and interpreter `-c`, inherited `CDPATH`, failed `cd`, `cdable_vars`, sourced scripts, Write/Edit without cwd).
+- Mutation run: 20 reviewer-style mutants of the guard (M1-M9, N1-N11), all killed by `test_guard_bypasses.py` (fail counts 1 to 395), 0 survivors.
+- Spelling battery re-run: 75 destructive blocked, 75 benign allowed, 0 violations (list unchanged, output `docs/qa/destructive_path_spelling_battery_output.txt`).
+- Tests: `test_guard_bypasses.py` 2374 passed, 0 failed.
+
+## Unreleased — 2026-10-26 (fifth) — fix round 4 for the v72 change set (independent review r3, structural round)
+
+Not tagged, not committed. A further independent review is still owed.
+
+- R3-1 (important, `source-defect`) destructive-path guard, STRUCTURAL: the effective working directory is now threaded through the analysis as state (known / none / lost). Wrapper and builtin constructs that move it (`env -C`/`--chdir`, `sudo -D`/`--chdir`/`-i`/`-R`, `run0`, `systemd-run --working-directory`, `unshare -w`, `su -`, `pkexec`, `nsenter`, `chroot`, `cd`/`pushd`/`popd`, `CDPATH` lookups) either set a literal cwd or mark it lost; with a lost cwd a relative destructive target that can name a protected path (`home`, `Projects`, a `..` walk, a whole-directory recursive delete) blocks. Benign twins (`env -C /tmp ... rm build`, `git -C /safe clean -fdx`, `cd "${X:?}" && rm -rf *`) stay allowed. Remaining limits are documented, not closed: ssh, interpreter `-c`, unlisted wrappers (strace, ltrace, gdb, faketime, proot, firejail, bwrap), inherited `CDPATH`, a failed `cd`, `shopt cdable_vars`, sourced scripts, Write/Edit payloads with no cwd.
+- R3-2 `scripts/gates/test_289_clause_d_not_overbroad.sh` now extracts the UNIT-class condition sentence of §11.4.289(D) from all six carriers and asserts exactly the four conditions (i) to (iv), none keyed on launcher, network scope or lifetime. The reviewer mutant "(v) the answering process was launched by the test harness itself" is killed (rc 1, two FAIL lines).
+- R3-3 the unrecoverable "117-spelling" numbers are withdrawn (see F3 above); a replayable battery with committed output replaces them.
+- R3-4 wording: the F3 line no longer says the class is "closed".
+- R3-5 tests for attached `sg -cSTR` and attached `-cSTR` of runuser/flock/script (and `script -qcSTR`); the mutant "remove `sg` from `_C_ATTACHED`" now fails 2 tests.
+- Nits: N1 OWED-GATE-161 golden-FALSE now names the test-booted real container/gateway on loopback case; N2 whitespace; N3 `scripts/jev/bootstrap.sh` header accounts for `set -euo pipefail` exits; N4 guard docstring corrected for the non-JSON payload; N7 README index-freshness SHA re-verified.
+- Tests: `test_guard_bypasses.py` 1132 passed, 0 failed (1078 plus 54 new); `test_guard_destructive_paths.sh` 65/0; `test_safe_rm.sh` 267/0.
+
+## Unreleased — 2026-10-26 (fourth) — fix round 3 for the v72 change set (independent review r2: NO-GO 0/1/4/1)
+
+Not tagged, not committed. A round-4 independent review is still owed.
+
+- F1 (important) §11.4.289(D): the round-1 entry below described a rule that over-disqualified live evidence (loopback, test-started, test directory). Superseded. The disposition now turns on ONE question: is the thing answering the real service or an imitation of it. A registered double, a fixture binary, a digest mismatch, recorded data or an unresolvable identity is UNIT-CLASS; a real service reached on loopback, started by the test, or run from a test directory stays LIVE. Same wording in `Constitution.md`, the four mirrors and `groups/anti-bluff-and-evidence.md`; new test `scripts/gates/test_289_clause_d_not_overbroad.sh` (RED first); OWED-GATE-162 text corrected. `constitution_index.yaml` regenerated.
+- F3 destructive-path guard: listed wrappers and their option spellings are normalised in one place (`shnorm`); unlisted wrappers are documented as a limit, not claimed closed. Covers `--command`, `--command=`, `--session-command`, attached `-cSTR` for su/runuser/flock/sg/script; new wrappers unshare, nsenter, setpriv, prlimit, numactl, gosu, su-exec, fakeroot, eatmydata; `env -S`/`--split-string`; attached `taskset -c0`; more shells (ash, hush, fish, csh, tcsh, mksh, rbash). The original 117-spelling battery (31 missed before, 2 after) was run ad hoc and is NOT recoverable, so those numbers are withdrawn. What is committed and reproducible: the 75-entry SPELLINGS list in `scripts/hooks/test_guard_bypasses.py` (75 destructive rows blocked, 75 benign twins allowed), replayed by `scripts/hooks/spelling_battery_report.py`, output in `docs/qa/destructive_path_spelling_battery_output.txt`. Bypass suite 921 to 1078 passed, 0 failed at that round.
+- F4 guard: a payload that is not valid JSON is scanned in its raw text (tolerant extraction of `command`, `content`, `new_string`); a visible destructive command blocks (rc 2), anything else still warns and allows. The allow-by-default remainder is a documented tension with §11.4.201(4).
+- F2 `scripts/jev/bootstrap.sh`: header no longer claims the default run is network-free (the hosted-key probe is on by default, only with a real key, `JEV_HOSTED_PROBE=0` disables); exit-code list corrected, and the codes 1, 4, 5 that §11.4.279(G) reserves are marked as not emitted by this script. New test `tests/jev/test_bootstrap_header_truth.sh` (RED on the pre-fix file).
+- N1 `scripts/jev/bootstrap.sh`: a hosted endpoint whose key came from the process environment is labelled `source: environment`, not `api-keys-file`; regression block K16 added; `docs/jev/bootstrap-reference.md` updated.
+- F5 `README.md`: facts table re-measured (canon revision 81, 12,524 lines, 2,171,213 bytes, 853 shell scripts, 27 submodules, latest tag `helixconstitution-v71`); revision 13.
+
+## Unreleased — 2026-10-26 (third) — fix round 1 for the v72 change set (independent review r1: NO-GO 1/4/6/4)
+
+Not tagged, not committed. A round-2 independent review is still owed.
+
+- Staging: the sourced Jev files and tests that were untracked are added with a real `git add`; the complete set is staged together (review findings 1 and 2).
+- [SUPERSEDED by the fix round 3 entry above, F1] §11.4.289(D): loopback alone no longer disqualifies a live record; only a process the test started, one under a test directory or a recorded file does, and a loopback endpoint must carry the answering process identity (finding 3). Byte-identical in the four mirrors.
+- §11.4.279(E)(6) and the mirrors' compact line: unbacked live figures withdrawn as UNCONFIRMED; compact (E) clause added to the four mirrors (findings 4 and 10). `docs/jev/governance-guide.md` live-validation bullets marked UNCONFIRMED.
+- `scripts/lib/test_safe_rm.sh`: per-entry tests for every `protected_paths.list` entry with per-entry mutants (267 passed; finding 5).
+- Guard: `chrt`, `taskset`, `runuser` (and tested `setsid`) are unwrapped; 11 RED cases added to the bypass suite (921 passed; finding 6). `shred -u` of a single protected file and the fail-open on a non-JSON payload are documented limits (finding 7 kept by decision, tension with §11.4.201(4) stated).
+- The `GUARD_R7_UV_OFF` switch is removed; the rule is a constant (finding 11).
+- README counts refreshed from `compute_badges.sh --facts` (finding 8); canonical §11.4.195 table rows marked as amended by §11.4.288(C.5) and precedence notes added to §11.4.181 and §11.4.188 (finding 9); stale `§11.4.167(I)` history references annotated, Revision 80 note, e2e test class note (finding 12).
+
+## Unreleased — 2026-10-26 (second) — §11.4.289 no stubs or mocks for LIVE and deterministic driven testing
+
+Not tagged, not committed: applied to the working tree of the `feat/destructive-path-safeguard` clone by a subagent on Sonnet 5.5 (reasoning effort could not be set by the dispatch path).
+
+- **§11.4.289 — No stubs, mocks or fixture servers as evidence (User mandate, 2026-10-26, `CRITICAL`, quoted verbatim in the anchor).** Audit result: §11.4.27(A) and §11.4.169(1) already forbid doubles outside unit tests, but nothing stated what a live-labelled result must carry, that a stub-answered run is UNIT-CLASS, the SKIP-with-reason rule for a missing real dependency, the paid/hosted service rule, the reviewer check, or the classification of the Jev fixture servers. The anchor adds: definitions (LIVE, TEST DOUBLE, FIXTURE INPUT, UNIT-CLASS), verification is live-class only, determinism is N>=3 identical results on the real fingerprint (§11.4.50), where fixtures stay legal, machine fields that prove a real target, honest SKIP never a stand-in, doubles in production or non-unit tests are release blockers, real service with minimal safe calls, reviewer checks including a disconnection mutation, and the explicit classification of `tests/jev/fixtures/jev_server.py` and its suites as gate-logic unit tests. §11.4.27 gains a pointer (A.1) in `Constitution.md` (the mirrors carry a compact §11.4.27 and are unchanged there).
+- **Gates:** `CM-COVENANT-114-289-PROPAGATION` (generated wrapper plus paired mutation test). `CM-NO-STUB-IN-LIVE-EVIDENCE`, `CM-LIVE-EVIDENCE-HAS-REAL-TARGET-FIELDS`, `CM-LIVE-DEPENDENCY-ABSENT-IS-SKIP-NOT-STUB`, `CM-FIXTURE-SERVER-CLASSIFIED-UNIT` are registered as deferrals `OWED-GATE-161` to `OWED-GATE-164`; the ledger count stays at the 394 baseline. The existing `CM-NO-FAKES-BEYOND-UNIT-TESTS` is not re-minted.
+- `Constitution.md` and the four mirrors get a revision bump; `scripts/anchors/anchor_lib.py` (289 in `anti-bluff-and-evidence`), `constitution_index.yaml` and `groups/` regenerated (299 anchors in 12 groups), README rows, `docs/owed_gate_implementations.md` (R13). Generated html/pdf/docx twins not regenerated (honestly stale, §11.4.106(E)).
+
+## Unreleased — 2026-10-26 — §11.4.288 all work on `main`, recursively
+
+Not tagged, not committed: applied to the working tree of the `feat/destructive-path-safeguard` clone by a subagent on Opus (reasoning effort could not be set or read through the Agent-tool dispatch path, §11.4.231(F.2)); the §11.4.209 independent review is pending.
+
+### Fix round (independent review NO-GO 0/3/5/4)
+
+- Phantom `§11.4.167(D)(I)` in §11.4.211 and the compact §11.4.195/§11.4.211 mirrors corrected to `(D)/(C)`. §11.4.230(D.1) and §11.4.191 amended in place; precedence notes in §11.4.176/178/179/182/187/192. §11.4.288 labels interpretations as UNCONFIRMED, adds the §11.4.84/§11.4.121 quiescence exemption, D-label mapping, §11.4.287 mirror heading fix. New deferrals OWED-GATE-153 to 155 (ratchet stays 394). Hook code NOT changed (tracked). Progressive layer, CLAUDE_ANCHORS_FULL.md and twins stale, tracked, not regenerated.
+
+### Added
+
+- **§11.4.288 — All work on `main`, recursively (User mandate, 2026-10-26, `CRITICAL`).** Every change in the project root and in every own-org submodule and hub engine lands on `main` at its source-correctness GO (fetch, merge onto the latest `main`, fast-forward push to every upstream, never force); branches, worktrees and clones are vehicles used only when strictly necessary, fast-forwarded into `main` and retired before the work is reported done; a submodule commit is followed in the same wave by the parent pointer bump on `main`. Operator decisions of 2026-10-26 (relayed by the conductor, not verbatim) resolve the five questions D-1 to D-5 the first draft left open.
+- **Gates:** `CM-COVENANT-114-288-PROPAGATION` (generated wrapper plus paired mutation test). `CM-ALL-WORK-ON-MAIN`, `CM-SUBMODULE-POINTER-ON-MAIN` and `CM-VEHICLE-MERGED-AND-RETIRED` are registered as deferrals `OWED-GATE-150` to `OWED-GATE-152` (`scripts/gates/gate_ledger_deferrals.tsv`, `docs/owed_gate_implementations.md` revision 11); their code is not claimed shipped.
+
+### Changed
+
+- §11.4.167(C) amended in place: the approval, the §11.4.40 retest and §11.4.185 manual QA gate the release tag cut from `main`, not the landing; citations of the non-existent "§11.4.167(I)" in §11.4.188, §11.4.195 and §11.4.211 corrected to (C) (the verbatim operator quote in §11.4.195 keeps its wording with a `[sic]` note).
+- §11.4.195(B) and (C) amended in place with a new clause (E): `feat/*` lands on `main` at its GO; `product/*` and `flavor/*` lines merge to `main` and become §11.4.251 data packs.
+- `Constitution.md` revision 80, the four mirrors (CLAUDE 83, AGENTS 80, QWEN 77, GEMINI 51), `scripts/anchors/anchor_lib.py` (288 in `git-and-data-safety`), `constitution_index.yaml` and `groups/` regenerated (298 anchors in 12 groups), `scripts/anchors/tests/test_query_us2.py` (universal 184 to 186; it was stale at 184 since §11.4.287), README revision 10 (group table re-read from the index).
+
+### Owed
+
+- (Done in the fix round below: the in-place edits of §11.4.230(D.1) and §11.4.191.) Earlier owed text: in-place edits of §11.4.230(D.1) and §11.4.191 (§11.4.288(C.6) governs where they conflict meanwhile); the `progressive/` rule layer and the generated html/pdf/docx twins are stale (§11.4.106(E)).
+
 ## Unreleased — 2026-10-24 — §11.4.287 destructive-path safeguard
 
-Not tagged. Work is staged in the working tree of the `feat/destructive-path-safeguard` branch and is not committed.
+Not tagged. The port is committed locally on the `feat/destructive-path-safeguard` branch as `43e13af`; the review follow-up fixes described below are uncommitted (staged or in the working tree).
 
 ### Added
 
@@ -18,9 +175,71 @@ Not tagged. Work is staged in the working tree of the `feat/destructive-path-saf
 
 ### Measured (2026-10-24, this working tree)
 
-- `scripts/hooks/test_guard_bypasses.py`: pass=308 fail=0. The anchor text records 305 for this suite, so the figure in the anchor's evidence paragraph is stale by 3 and should be re-checked.
+- `scripts/hooks/test_guard_bypasses.py`: pass=491 fail=0 (was 422 at the first review round, 448 before the lexing and performance round; the 26 new cases cover a `for` loop over a literal protected path (class P), `read`/`mapfile` variables as tainted (class V), Edit/MultiEdit of an extension-less script (shebang on disk, leading blank lines before `#!`), Containerfile `RUN` lines and the shared script rule set; the anchor text records the same figure). Pre-change copy: 422 pass, with the 15 new cases that fail on it recorded as the RED baseline.
 - `scripts/hooks/test_guard_destructive_paths.sh`: pass=62 fail=0 (it also runs the bypass suite).
-- `scripts/lib/test_safe_rm.sh`: pass=138 fail=0.
+- `scripts/lib/test_safe_rm.sh`: pass=267 fail=0 (was 138; new cases: no temp-root depth bonus when the temp root is or contains a home or home root, and `link/` removes only the link).
+
+### Review round 6 fixes (2026-10-26, fix round 7, the LAST round of the 7-round budget, §11.4.276)
+
+Structural round: classes closed, not instances. Reviewer findings 0 blocking / 6 important / 9 minor / 2 nit.
+
+- **1, relative targets.** The hook payload `cwd` is the start directory for relative delete targets, so `rm -rf ../..` and `rm -rf .` are judged against the real working directory.
+- **2, word splitting.** Unquoted expansions are split on whitespace before the target check (`rm -rf $A` with `A="/x /home"` reaches `/home`); `${X:=v}` and `${X:-v}` are modelled as assignments and defaults.
+- **3, class V for an unknown recursive target.** A recursive delete whose whole target is a variable that is never assigned in the payload is class V (overridable with the audited marker). Constant `R7_UNKNOWN_RECURSIVE` (the former `GUARD_R7_UV_OFF` survey switch was removed in the v72 round-1 fix). Inline interpreter deletes (`rmtree`, `rmSync` and similar) are class P for a protected literal and class V for a computed path.
+- **4, `$0`** for `sh -c` is the first word after the script text, not the shell.
+- **5, printf/echo model.** A literal producer feeding `xargs` or `read` is modelled with printf/echo escapes, so a path built by `printf '%s\n' /home` is seen as the protected target.
+- **6, environment prefix.** `D=/home bash -c`, `env D=/home ...`, `OLDPWD` and `~-` are resolved.
+- **7, tests.** Round-7 section of `test_guard_bypasses.py` (98 cases) including reviewer mutants RA..RF, `rm -R`, the xargs pipe class assertion and symlink cases; three new paired mutations in `test_guard_destructive_paths.sh` (62 to 65).
+- **8, decisions recorded.** `rm -rf /tmp/*` is class P and not overridable (it can match the temp root); `rm -rf ~/.cache/*` is class V and overridable. Both are in the guard docstring, manual and FAQ.
+- **Reviewer mutants (run against `test_guard_bypasses.py`):** RA, RB, RD, RE, RF killed; RC not killed and recorded EQUIVALENT (path normalisation drops the `.` before the tail strip, so the mutated line is unreachable; the suite includes a tail test).
+- **False-positive survey (real HOME, Write payload, no marker):** canon tracked 916 `.sh` files, 45 blocked with the new rule off and on (no change); Catalogizer tracked top-level 610, 52 off and 53 on (+1: `scripts/anti-mess/tests/test_sweep_r5.sh`, `rm -rf "$W"` with W never assigned, a true positive); Catalogizer filesystem walk 3588 files, 242 blocked on versus 240 off (earlier baseline 189 of 3569, the increase comes from other round-6/7 changes, not from the new rule; the walk run predates the interpreter and `~-` edits).
+- **Measured (2026-10-26):** `test_guard_bypasses.py` pass=921 fail=0 (round-7 section 98/0); `test_guard_destructive_paths.sh` pass=65 fail=0; `scripts/lib/test_safe_rm.sh` pass=267 fail=0.
+- **Known limits, stated:** namerefs, array append and extglob, scripts written with `echo >` and run later, inherited environment such as `XDG_*`, runtime deletes beyond inline-literal detection, Unicode slash, `/HOME`, IFS tricks, non-recursive `rmdir`/`unlink`, run-time cwd of a Write/Edit script, script FILES run by interpreters. The guard remains a text scan and not a security boundary.
+
+### Review round 5 fixes (2026-10-26, fix round 6 of the 7-round budget, §11.4.276)
+
+- **I1-r5, ancestors of any home directory.** Class P protected the ancestors of a home only for the `/home/<user>` shape. `home_ancestors()` now adds every proper ancestor below `/` of the resolved home and of `$HOME` as written, so `/data/users` is class P when `$HOME=/data/users/x`, and the block message names "an ancestor of the home directory".
+- **I2-r5, tests.** A round-5 section (93 cases) runs under four `$HOME` shapes (`/home/r5user`, `/data/users/r5x`, `/srv/h/r5y/z`, `/Users/r5mac`): every ancestor as class P (plain, trailing slash, with a marker, `find -delete`, a glob), `dirname`, `${HOME%/*}` and `$HOME/..`, golden-FALSE subdirectory, file, glob, `find` and sibling cases, and the degraded path (`GUARD_TIME_BUDGET=0`). RED before the fix: 24 failures on the nonstandard home shapes. The reviewer mutants D and E, rebuilt from the fixed guard, are killed (777/2 each). D survives only through `find -delete`, because the force check already matches `-delete`: a redundancy, not a gap.
+- **Survey follow-up, quotes nested inside `${...}`.** The walk survey found a class X "unterminated quote" on a valid seam script (`bash -n` clean): the tokenizer read the inner `"` of `"${v//"'"/"''"}"` as the end of the outer string. `param_span()` now matches `${...}` the way bash 5.3 does (each quote inside it is its own context, nested `${...}` recursively); a span that holds `$(`, a backtick, `<(` or `>(` keeps the old path. 25 new cases (R6 labels), each "valid" text checked with `bash -n`. RED: 2 failures; removing the fix fails the same 2. Restricting the verbatim copy to spans without a command substitution is redundant (a mutant that drops the restriction passes all 804 cases, because the substitution is analysed from the copied text anyway); it is kept as defence in depth and recorded as an equivalent mutant.
+- **M1.** The guard docstring now states fail closed: analysis failure is class X, a failure elsewhere in `run()` makes `main()` exit 2, a non-string command or content is class X, and only a payload that is not JSON is allowed with a warning. Class X lists the re-parse depth (`MAX_DEPTH` = 5) and the frame limit (`MAX_FRAMES` = 40); class P names any ancestor of the home directory.
+- **M2.** Kept: a payload that is not JSON is allowed with a warning. Claude Code always sends JSON, so it is not a reachable tool call, and blocking it would block all work (§11.4.201(1)). It is tested and documented.
+- **M4, silent exit of the propagation gates.** `scripts/gates/lib/covenant_propagation_engine.sh` ran carrier discovery as `carriers="$(find …|sort)"` under `set -euo pipefail`, so a `find` error ended the gate with a silent exit 1. The find status is now captured; on failure the gate prints `BLIND — carrier discovery under <root> did not complete (find exit N …)` and exits 2. This changes every gate built on the engine. Mutant ME7 (ignore the find status) is added to `covenant_propagation_engine_compact_mutation_test.sh`: 7 of 7 engine mutants killed. The reviewer's large-root run, repeated from a scratch directory under `~/.cache/claude-tmp`, took 117 s and ended with a full report and an explicit FAIL (exit 1): 40 PRESENT, 1573 SKIP, 656 MISSING or DUPLICATED, 32 DIVERGENT, correct for a tree holding other copies. UNCONFIRMED: which `find` error the reviewer's run hit.
+- **M3, survey method.** The round-4 numbers came from `git ls-files` (tracked, top level). Measured again on this guard, written as a Write without a marker, with the real `$HOME` value:
+  - this repository, tracked: 45 of 916 blocked (U 15, V 29, UV 1); filesystem walk: 46 of 926 (V 30, U 15, UV 1). No class P or X.
+  - consumer repository, tracked top level: 52 of 610 (U 7, V 42, UV 3); with `--recurse-submodules`: 97 of 1,806 (U 22, V 71, UV 4). No class P or X. One tracked file is missing on disk and is reported as unreadable.
+  - consumer repository, filesystem walk: 189 of 3,569 (V 104, U 74, UV 5, UX 2, PU 2, P 2); before the `${...}` fix 190, with one more class X. The six P or X results are two copies (submodule and a research copy) of three files of one toolkit: `test_unify.sh` and `test_alias_file_concurrency.sh` delete `$HOME/.claude-…` after a sourced `sandbox.sh` has pointed `$HOME` at a temporary directory. The guard cannot follow a `$HOME` assignment in another file, so class P is the documented result, not a parser error. `scripts/lib.sh` (5,045 lines, 270 KB) exhausts the work budget in 1.6 s, deterministically, not the clock, and gets the documented class X.
+- Measured: `scripts/hooks/test_guard_bypasses.py` pass=804 fail=0 (round-5 section 93/0, round-5 survey section 25/0); `test_guard_destructive_paths.sh` 62/0; `scripts/lib/test_safe_rm.sh` 151/0; `cm_guard_class_p_not_overridable.sh` PASS, its mutation test ok=5 fail=0; `cm_covenant_114_287_propagation.sh --root .` PASS and its mutation test PASS; `cm_gate_ledger_ratchet.sh` PASS (394 unimplemented, baseline 394); `constitution_generate.py check` no drift.
+
+### Review round 4 fixes (2026-10-26, structural round under §11.4.276(E))
+
+- **B1-r4, arithmetic is not code.** `x=$((a * b / 2))` was class P because the arithmetic body was analysed as a command line and `*` was glob-resolved to a delete program. An arithmetic span now counts as the value `0`; only `$(...)` and backticks inside it are analysed (`$(( $(rm -rf /) + 1 ))` stays P). The arithmetic scanner is bounded (`ARITH_SCAN_LIMIT` = 2,000,000 characters per call); past it `$((` is read as `$(` plus a subshell.
+- **B2-r4, no class X from quoted program text.** Function chains through `$(f)` no longer count towards the string-nesting depth of 5 (a separate frame limit of 40 bounds them), so ordinary libraries stay in the full analysis. The degraded check splits statements with the quote-aware tokenizer (a quoted awk `$0` is no longer a command word); only text the tokenizer cannot parse falls back to the plain separator split, and it is class X only when it contains a destructive command. A command word the degraded check cannot resolve is class X only with a recursive or force flag or a protected path, otherwise class U. The degraded check has a statement limit (20,000) and a character budget (four times the input, at least 400,000); text left over is class X only when it is destructive.
+- **I1-r4.** `x="$(echo "it's")"` was class X "unterminated quote": inside double quotes `$(...)`, `$((...))` and backticks are now copied whole. Quoted function definitions with an unparsable body are skipped, and the quote test used to find them is linear.
+- **I2-r4.** The anchor, FAQ, guide and manual now all state fail closed: an internal failure and a non-string tool input are class X (exit 2); only a payload that is not JSON is allowed with a warning.
+- **I3-r4 and minors.** RED tests kill the reviewer mutants R1, R2 and R5; the internal-failure check now asserts the class X message, so both a dropped and a downgraded finding are killed. The determinism test inserts a marker and requires every real repository file to be allowed. Real repository scripts (`action_prefix_lib.sh`, both multitrack scripts, `prove_mutations.sh`, `compute_badges.sh`, two fastcycle tests) are negative controls.
+- Measured: `scripts/hooks/test_guard_bypasses.py` pass=686 fail=0 (round-4 section 36/0); `test_guard_destructive_paths.sh` 62/0; `scripts/lib/test_safe_rm.sh` 151/0; 15 of 15 mutants killed (reviewer R1 to R5 with two R4 variants, own O1 to O9). A survey of the git-tracked `.sh` files (`git ls-files`, top level, submodules not entered) written without a marker found no class P or X on a valid file (45 of 916 blocked here, 52 of 610 in one consumer repository, all U or V, which a marker overrides). Review round 5 showed that a filesystem walk of the consumer finds class P and X results this survey could not see; see the round-5 entry.
+
+### Review round 3 fixes (2026-10-26, structural round under §11.4.276(E))
+
+- **B1, one degraded check.** Every exit where the full analysis cannot finish (the work budget, the last-resort clock, nesting deeper than 5 levels, an internal error) now runs ONE linear check, `fallback_scan`, over the whole text. It follows plain assignments, `mktemp`/`read`/`for` values and `cd`, keeps class P for a known protected path, and blocks with class X (not overridable) a recursive or forced delete it cannot judge and a command word it cannot resolve (variable, function argument, ANSI-C or split verb, `eval`/`sh -c` of an unreadable string, array element) that is used with a recursive/force flag, a destructive verb or a protected path. Other uncertain deletes are class U, which only a marker on line 1 (line 2 after a shebang) allows. Hidden deletes padded past the budget no longer get through.
+- **B2.** `resolve_head` returned an `IndexError` when the command word expanded to wrappers only (`x=command; $x`), and `main()` turned that into an allow. The empty case now returns early; any other internal error blocks with class X plus the degraded check, and an exception that escapes `run()` makes `main()` return 2 (an unreadable payload is still allowed with a warning, because there is nothing to inspect).
+- **I1, deterministic limits.** The budget is now a fixed amount of work (4,000,000 characters analysed, 3,000 function expansions), not host speed; the clock is only a last resort (25 s, `GUARD_TIME_BUDGET` can shorten it, never lengthen it; negative, NaN and infinite values mean 25 s). Root cause of the remaining host dependence: `shlex` tokenises one long word in quadratic time (a 4.1 MB word took more than 60 s, so the hook timed out and the call ran uninspected). Long runs of plain characters are now swapped for a placeholder before tokenising and restored after; a 3.9 MB word plus a protected delete is blocked in about 3 s. The real large scripts get the same verdict with the clock unset and at zero.
+- **Minors.** Budget comment corrected; manual §9 items 9 and 11 and FAQ Q12a rewritten (operators must not set `GUARD_TIME_BUDGET` on a live hook); the reviewer's mutant M6 (a marker read late is trusted after the budget runs out) adopted as a test.
+- **Measured.** `test_guard_bypasses.py` pass=648 fail=0 (round-3 section 52/0; RED baseline: the same suite against the round-2 guard records 27 failures and then dies on the injected analysis crash, because that guard had no fail-closed path); `test_guard_destructive_paths.sh` 62/0; `test_safe_rm.sh` 151/0; own mutants killed 9/9 (B2 fix removed, `main()` returns 0, fallback hard to U, `ARRAY_SEP` ignored, late markers trusted, fallback swallows its crash, budget exit skips the fallback, long-run placeholder removed, clock clamp removed); `cm_guard_class_p_not_overridable.sh` PASS and its mutation test PASS; `cm_covenant_114_287_propagation.sh --root .` PASS; gate ledger ratchet PASS (394/394).
+- **Honest consequence.** In degraded mode a legitimate forced delete of a computed target (`rm -r "$(cat list)"`) is blocked as class X, where the full analysis would give an overridable class V. Non-recursive single-file deletes and a whole target that is only an unknown environment variable are not checked, in either mode.
+
+### Review round 2 fixes (2026-10-26)
+
+- Guard: an unresolvable expansion in the command word or target fails closed. Covered: command substitution, parameter operators (`${X:?}`, `${X:-}`), brace and glob heads, escaped and empty words, and a whole target that is the output of an uncomputable command. These are class V and overridable; with a protected argument a known protected path stays class P. `git clean` (with a known directory), `dd of=` and `shred` of a raw block device are now checked; a raw block device is class P. Messages print `$(...)` instead of internal placeholders.
+- Guard budget: when the analysis budget runs out, a bounded scan still finds class P. It blocks as class U when the text contains a destructive verb or a construct that can hide one. Only a marker on line 1 (line 2 after a shebang) allows that block. Nesting deeper than 5 levels is class X. An unterminated `$(` is no longer re-tokenised repeatedly: 200 KB of `$(` now takes 3.6 s (rc 0), down from 14 s (rc 2).
+- Measured: `test_guard_bypasses.py` pass=593 fail=0 (round-2 section: RED pass=49 fail=53, GREEN pass=102 fail=0); `test_guard_destructive_paths.sh` 62/0; `test_safe_rm.sh` 151/0; `cm_guard_class_p_not_overridable.sh` PASS and its mutation test ok=5 fail=0; `cm_covenant_114_287_propagation.sh --root .` PASS.
+- Known, not fixed (documented in manual §9 items 13-15 and FAQ Q22a): `mkfs`, `wipefs`, redirection onto a device, `shutil.rmtree`, alias, `declare -n`, a guard after its use, a relative computed target, the U5 heredoc-to-`.txt` indirection, and the `# after paren` heredoc case.
+
+### Review follow-up (2026-10-24)
+
+- Guard: `for t in /home; do ...; done` is now class P (literal loop words are judged); `read`, `mapfile` and `readarray` variables are tainted (class V); Edit/MultiEdit of an extension-less file checks the on-disk shebang; a shebang after leading blank lines counts; `Containerfile` is scanned like `Dockerfile`; one shared rule set (`file_kind`) replaces the two divergent ones.
+- `safe_rm.sh`: the temp-root depth bonus is withheld when the temp root is or contains a home or home root; headers state that `link/` refusal is deliberately conservative and that only validation, not deletion, is atomic. `SAFE_RM_EXTRA_HOME_ROOTS` is documented in the anchor, guide, manual and FAQ.
+- Anchor: clause (E) now says `NotebookEdit` and MCP shell/file tools bypass the hook; evidence paragraph re-dated 2026-10-24 with the new counts. `protected_paths.list` header cites §11.4.287.
 
 ### Honest boundaries
 

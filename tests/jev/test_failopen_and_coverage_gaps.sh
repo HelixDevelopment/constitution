@@ -62,7 +62,7 @@ done
 for tool in jq; do command -v $tool >/dev/null 2>&1 || { assert_skip "$tool absent: B skipped"; finish; exit $?; }; done
 SBX="$(mktemp -d)"; trap 'rm -rf "$SBX"; for h in "${HOSTS[@]:-}"; do [ -n "$h" ] && rm -rf "$(dirname "$h")"; done' EXIT
 mkdir -p "$SBX/.config/opencode"
-JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
+JEV_CONFIG_DIR="$SBX/.config/jev" JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
 assert_rc 0 "$?" "B register.sh rc 0"
 NOTE="$SBX/.config/opencode/jev-coverage-gaps.md"
 assert_file_exists "$NOTE" "B opencode coverage-gap note written"
@@ -75,7 +75,7 @@ assert_not_contains "$NOTE" "full coverage is guaranteed" "B NEG: note never cla
 assert_contains "$SBX/.config/opencode/plugin/jev.js" "COVERAGE GAP" "B plugin source repeats the coverage-gap caveat"
 # idempotent: second run does not alter the note
 h1="$(sha256sum "$NOTE" | awk '{print $1}')"
-JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
+JEV_CONFIG_DIR="$SBX/.config/jev" JEV_HOME="$SBX" bash "$REPO/skills/jev-decision-layer/register.sh" >/dev/null 2>&1
 assert_eq "$h1" "$(sha256sum "$NOTE" | awk '{print $1}')" "B note byte-stable across re-registration"
 # the SKILL.md limitations section records the gap too
 assert_contains "$REPO/skills/jev-decision-layer/SKILL.md" "opencode coverage gap" "B SKILL.md limitations record the opencode gap"
@@ -83,10 +83,10 @@ assert_contains "$REPO/skills/jev-decision-layer/SKILL.md" "opencode coverage ga
 GATE_W="$REPO/scripts/gates/cm_jev_wiring.sh"
 if [ -f "$GATE_W" ]; then
   DET="$REPO/scripts/gates/fixtures/jev/evidence/jev-detection.json"
-  JEV_HOME="$SBX" JEV_DETECTION_FILE="$DET" bash "$GATE_W" >/dev/null 2>&1
+  JEV_HOME="$SBX" JEV_CONFIG_DIR="$SBX/.config/jev" JEV_DETECTION_FILE="$DET" bash "$GATE_W" >/dev/null 2>&1
   assert_rc 0 "$?" "B gate CM-JEV-WIRING green with the note present"
   rm -f "$NOTE"
-  JEV_HOME="$SBX" JEV_DETECTION_FILE="$DET" bash "$GATE_W" >/dev/null 2>&1
+  JEV_HOME="$SBX" JEV_CONFIG_DIR="$SBX/.config/jev" JEV_DETECTION_FILE="$DET" bash "$GATE_W" >/dev/null 2>&1
   assert_nonzero "$?" "B NEG: CM-JEV-WIRING RED when the opencode gap note is removed"
 else
   fail "B gate $GATE_W missing (scope not landed?)"
