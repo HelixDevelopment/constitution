@@ -1,6 +1,6 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-300-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-168%2F168_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-171-green) ![Progressive](https://img.shields.io/badge/progressive-301_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-blocked-red)
+![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-300-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-168%2F168_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-171-green) ![Progressive](https://img.shields.io/badge/progressive-301_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00)
 
 | Field | Value |
 |---|---|
