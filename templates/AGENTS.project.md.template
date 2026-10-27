@@ -20,6 +20,10 @@
   authorization AND a green §9.1.5 post-op gate.
 - **Hardlinked backup before any destructive op.** Constitution §9.
 - **CONTINUATION.md kept in sync** in every non-trivial commit. Constitution §12.10.
+- **Dependency manifest.** Every own-org repository (root, `submodules/*`,
+  `constitution/submodules/*`) carries a tracked `helix-deps.yaml`;
+  check with `constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .`.
+  Constitution §11.4.31.
 - **60% RAM cap.** Heavy work wrapped in bounded execution scope.
   Constitution §12.6.
 

@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {"type": "command", "command": "bash ${CLAUDE_TOOLKIT_DIR}/scripts/jev-gate.sh"}
+        ]
+      }
+    ]
+  }
+}

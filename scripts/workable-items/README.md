@@ -80,12 +80,17 @@ workable-items close <atm-id> --db <p> --status <fixed|implemented|completed|obs
 workable-items report --db <p> [--by-type|--by-status|--by-severity|--by-assigned|--by-creator|--obsolete-audit]
                                     # read-only grouped tally; --obsolete-audit lists
                                     # Obsolete items + flags missing §11.4.90 details.
-workable-items export --db <p> [--out-dir <d>] [--no-formats] [--out-issues <p>] [--out-fixed <p>]
+workable-items export --db <p> [--out-dir <d>] [--formats|--no-formats] [--out-issues <p>] [--out-fixed <p>]
                                     # regenerate Issues.md + Fixed.md (byte-identical
                                     # round-trip) + Issues_Summary.md (§11.4.12 open-
                                     # only Type×Status tally) + Fixed_Summary.md
                                     # (§11.4.53 closed-only) + §11.4.65 HTML/PDF/DOCX
-                                    # siblings via pandoc (--pdf-engine=weasyprint).
+                                    # siblings via pandoc (--pdf-engine=weasyprint)
+                                    # ONLY when the constitution formats-export switch is ON
+                                    # (DOCS_EXPORT=1 / docs/context/doc_export.policy
+                                    # enabled=1 / --formats); default OFF = Markdown only
+                                    # + an honest "formats export disabled" line. Same for
+                                    # subtask-export.
                                     # Sibling steps are exec.LookPath-gated: when
                                     # pandoc/weasyprint is absent the .md is still
                                     # written + an honest message printed — NO fake

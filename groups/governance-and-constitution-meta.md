@@ -299,6 +299,8 @@ flat / grouped layout makes the consuming project's submodule
 graph a tree-of-depth-1, which any developer can audit at a
 glance via `git submodule status` from the project root.
 
+**EXTENSION — one source of truth, resolver instead of nested copies (operator mandate, 2026-10-21, relayed by the coordinating agent, not verbatim).** Reduce redundancy to a minimum; all submodules and modules use ONE source of truth, always the latest codebase; main submodules live in `<root>/submodules` or `<root>/constitution/submodules`, never in nested chains. Consequences, binding every owned repository: (1) an owned submodule — a hub engine included — MUST NOT declare, as its own nested submodule, (a) the constitution (it is the hub or the project root's `constitution/`), (b) the hub itself or any hub engine, or (c) any owned repository that the parent already provides at a canonical flat path; a nested `constitution` inside a hub engine is the canonical forbidden case because it makes the hub reach itself (a mutual reference) and keeps a second, drifting copy of the canon. (2) Such an engine finds the canon and its siblings with ONE documented resolver, in this order: an environment override, then the parent hub when it sits at `<hub>/submodules/<name>` (`../..` is the hub, `../<sibling>` a sibling), then `<project_root>/constitution` and `<project_root>/submodules/<name>`, then a sibling directory, then the host fallback of `find_constitution.sh`; when nothing resolves the resolver exits non-zero with an actionable message and NEVER passes silently (§11.4.201). (3) The version of a shared dependency is the parent's pin — latest by default (§11.4.113 fetch-first) — never a second pin held by a child. (4) Third-party repositories an engine really builds against (for example `llama.cpp`) remain legal nested submodules; they are classified third-party (§11.4.79(6)), are not initialised by consumers that do not build the engine, and are never a reason to initialise anything recursively. (5) Gate `CM-HUB-ENGINE-NO-OWNORG-NESTING` (`scripts/gates/cm_hub_engine_no_ownorg_nesting.sh`, implemented with a paired mutation test) reads each checked-out `constitution/submodules/<engine>`'s `.gitmodules` from the commit the hub records for it (the staged index gitlink when it differs from HEAD's, printed as a note) and FAILs by NAME MATCHING on the nested submodule URLs: an owner segment `vasic-digital` or `HelixDevelopment`, or a repository named `constitution` / `HelixConstitution` under any owner (case-insensitive). A relative nested URL (`./x`, `../x`) is first resolved against the engine's own URL in the hub `.gitmodules`, as git resolves it, so `../Containers.git` under an own-org engine is own-org and an unresolvable one is BLIND. Beyond that it does not resolve URLs or compare trees, so an own-org repository reachable under another name is outside what it can see (§11.4.6). It exits 0 PASS, 1 FAIL, 2 BLIND, and 3 SKIP when no engine was checked out (nothing inspected is never a PASS); it runs on every constitution pull from `scripts/post_update_hook.sh` (§11.4.32 / §11.4.164), together with `CM-LLMCTL-SUBMODULE-NONRECURSIVE`, which it generalises and which stays. A project that vendors the constitution adopts this verbatim in its own Spec Kit layer (§11.4.35).
+
 Third-party submodules (not under our orgs) are exempt — they
 MAY appear at any depth as the upstream's structure dictates.
 The invariant applies only to our owned set.
@@ -640,6 +642,105 @@ matrix), §11.4.28 (this rule is its operational complement),
 §11.4.29 (manifests use snake_case names + canonical paths),
 §11.4.30 (manifest is tracked source — not a build artefact),
 CONST-047 (manifests cascade recursively).
+
+**EXTENSION (2026-10-21) — a manifest in EVERY own-org repository, one canonical engine, one gate, a bootstrap step.**
+Operator mandate (2026-10-21, relayed by the coordinating agent, not
+verbatim): every repository MUST carry the list of its submodule
+dependencies in the §11.4.31 format at the expected locations
+(`<root>/submodules` and `<root>/constitution/submodules`); the
+solution MUST be systematic, documented under the constitution, and
+followed by every existing and new project. Measured gap that this
+closes (2026-10-21, with the engine below): the "Cascade requirement"
+above named a verifier but none was wired at any seam, so nothing
+refused a missing manifest; on the constitution's own tree the engine
+reports pass 9 / fail 2 / skip_third_party 17 (`claude_toolkit` ships no
+manifest; `llmctl` lists the third-party `superspec` without
+`third_party: true`), both owed upstream in those repositories;
+re-measured after the llmctl pin moved to `f42bad6` (which marks
+`superspec` `third_party: true`): pass 10 / fail 1 / skip_third_party 17;
+re-measured 2026-10-22 after the `claude_toolkit` pin moved to `1f6dad3`
+(flat, no own-org nests, a tracked `helix-deps.yaml`): pass 11 / fail 0 /
+blind 0 / skip_third_party 17 / known 0, and
+`CM-HUB-ENGINE-NO-OWNORG-NESTING` PASS for every hub engine.
+
+(A) SCOPE. A tracked `helix-deps.yaml` MUST exist at the root of: the
+project root (always, whatever its organisation); every own-org
+repository the root declares in `.gitmodules` (whatever its path, the
+`constitution` hub included); every own-org repository the hub declares;
+and every checked-out own-org repository under `<root>/submodules/*` or
+`<root>/constitution/submodules/*` even when no `.gitmodules` declares
+it. Own-org = the organisation of the repository's remote URL is in the
+consumer's own-org list (DATA, §11.4.35; default `vasic-digital`,
+`HelixDevelopment`). A third-party repository needs no manifest and is
+reported `SKIP(third_party)`, never PASS. A manifest that exists but is
+not tracked by git does not count (§11.4.215).
+
+(B) SCHEMA (closed, strings-only). Top level: `schema_version: 1`,
+`deps` (a list; `deps: []` when empty), `transitive_handling`
+(`recursive: true|false`, `conflict_resolution: operator-required`),
+`language_specific_subtree: true|false`; optional identity keys `name`,
+`ssh_url`, `mirrors`, `language`, `project_agnostic`, `carve_out`,
+`third_party_manifest`. Every dep: `name`, `ssh_url`
+(`git@host:org/repo.git`, SSH only), `ref`, `why`, `layout`
+(`flat` | `grouped` | `hub`); optional `path` (relative),
+`recursive_init`, `third_party` (`true|false`), `licence` (REQUIRED when
+`third_party: true`). A dep whose URL organisation is not own-org MUST be
+marked `third_party: true`; an own-org URL marked third-party is a
+contradiction. Unknown keys, duplicate keys, duplicate names or URLs,
+and placeholder values (`why`/`ref` starting with UNKNOWN, TODO, TBD or
+FIXME) are defects. Every scalar is read as a string, so a ref such as
+`0123456` is never turned into a number.
+
+(C) CONSISTENCY WITH `.gitmodules`. The root and the hub MUST declare a
+`deps` entry for every own-org submodule they carry (matched by
+normalised `org/repo`); the root does not list the `constitution` hub,
+which is inherited by reference. A leaf (any repository under
+`submodules/`) MUST NOT nest an own-org or hub repository (§11.4.28(C));
+when its parent's entry carries `recursive_init: false` the nesting is
+reported `KNOWN`, the debt already owned by
+`CM-HUB-ENGINE-NO-OWNORG-NESTING`, never hidden and never a PASS of that
+gate.
+
+(D) ONE CANONICAL ENGINE, CONSUMED BY REFERENCE (§11.4.28 / §11.4.177).
+`scripts/deps_manifest/verify_helix_deps_manifests.sh` (logic in
+`helix_deps_manifest.py`) verifies a tree (`--root <project-root>`),
+validates one file (`--validate-file`), runs its own control needles
+(`--selftest`) and generates a skeleton (`--scaffold <dir> [--write]`)
+from `.gitmodules`, `go.mod` and `package.json`. Scaffold NEVER
+overwrites an existing file and writes placeholders the verifier
+REJECTS until a human fills them (§11.4.6). Exit codes: 0 PASS, 1 FAIL,
+2 BLIND (an own-org repository not checked out, an unreadable root, or a
+failed control needle), 64 usage. A project-level script MAY exist only
+as a thin wrapper that calls this engine; it MUST NOT re-implement the
+schema.
+
+(E) BOOTSTRAP AND CHANGE STEPS. A new project, right after adding the
+constitution submodule: run `--scaffold . --write` at its root, replace
+every placeholder, run `--validate-file helix-deps.yaml`, `git add` it,
+then run the gate. Adding, removing or re-pinning an own-org submodule
+updates the matching `deps` entry in the SAME commit. An own-org
+repository without a manifest gets one in ITS OWN repository (scaffold
+there, commit there, bump the pointer), never a copy kept by the
+parent.
+
+(F) GATE. `CM-HELIX-DEPS-MANIFEST-PRESENT`
+(`scripts/gates/cm_helix_deps_manifest_present.sh`, IMPLEMENTED, with a
+paired mutation test whose fixtures include the third-party golden-FALSE
+and whose seventeen engine mutants must all be killed) runs on every
+constitution pull from `scripts/post_update_hook.sh` against the
+consumer's `PROJECT_ROOT` (FAIL is an error, BLIND a warning, never a
+PASS). Documentation: `docs/guides/dependency_manifest_user_guide.md`,
+`docs/manuals/dependency_manifest_manual.md`,
+`docs/faq/dependency_manifest_faq.md` (§11.4.257 / §11.4.258).
+
+Honest boundary (§11.4.6): the gate proves that each own-org repository
+carries a tracked manifest of the right form and that the root and hub
+manifests cover their own-org submodules. It does not prove that a
+`ref` equals the recorded gitlink (that drift is the job of
+`CM-DEPENDENCY-POINTER-PREFLIGHT-FAIL-CLOSED`, §11.4.233(G)), that the
+`why` text is true, or that the bootstrap Challenge above exists. No
+escape hatch: no `--skip-manifest-check`, `--manifest-optional`,
+`--third-party-as-pass`, `--scaffold-overwrite` flag.
 
 **Classification:** universal (per §11.4.17). No escape hatch.
 Severity-equivalent to a §11.4 PASS-bluff at the dependency-graph
@@ -1899,4 +2000,66 @@ Propagation gate `CM-COVENANT-114-274-PROPAGATION` (literal `11.4.274`) + recomm
 Propagation gate `CM-COVENANT-114-275-PROPAGATION` (literal `11.4.275`, block-start exactly once per governance file, lockstep across mirrors per §11.4.227(B)) + recommended mechanism gates `CM-CODE-INDEX-AGENT-ACCESSIBLE` (every indexed space answers an unforgeable challenge from a dispatched subagent; an enabled-but-undeclared server FAILs) / `CM-CODE-INDEX-COMPLETE-BEFORE-READY` (pending == 0, state complete, count within tolerance) / `CM-LUMEN-MODEL-PROVEN` / `CM-LUMEN-SCOPED-FRESH` / `CM-CODE-INDEX-BENCH` (N≥3 identical hashes, reduction over both-correct only, wrong answers listed by id, thresholds from consumer DATA) / `CM-CODEGRAPH-SCOPE-PROOF` / `CM-CODEGRAPH-UPGRADE-PROBE-GATED` / `CM-CODEGRAPH-WRITER-EXCLUSIVE` / `CM-CODEGRAPH-BULK-BY-BACKLOG` / `CM-CODEGRAPH-STALL-WATCHDOG` + paired §1.1 mutations (enable a server with no resolvable definition → accessibility gate MUST FAIL; report ready with pending > 0 → completeness gate MUST FAIL; drop the wrong-answer list or compute reduction over all queries → bench gate MUST FAIL; unload the embedding model → model gate MUST FAIL; classify bulk by stored rows → bulk gate MUST FAIL; drop the liveness check → writer gate MUST FAIL; golden-FALSE per §11.4.201(1): an unchanged, complete, reachable index MUST NOT fire any gate). Gate CODE is a separate work item, NOT claimed shipped (§11.4.6 / §11.4.227).
 
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.275. Non-compliance is a release blocker. No escape hatch — no `--index-partial-ready`, `--enabled-is-declared`, `--main-session-only-index`, `--skip-model-proof`, `--reduction-without-wrong-answers`, `--bulk-by-row-count`, `--lock-age-is-liveness` flag.
+
+### §11.4.282 — Maximal decision-instance utilization (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Use all available model instances to the maximum."
+
+**(A) CAPACITY IS COMPUTED, NOT GUESSED.** Every incorporating project MUST compute its decision capacity from `llmctl plan --json` `decision_instances` (per-profile instance counts under the host's RAM/VRAM headroom rules) and record it in `jev-detection.json`.
+
+**(B) DECISION WORK USES DECISION CAPACITY.** Whenever more than one decision endpoint or instance is available, decision traffic (gates, routing, scoring, calibration probes) MUST be distributed across them — local instances first, then LAN pins, then hosted — with per-endpoint concurrency bounded by the profile's `parallel` slots. A single pinned endpoint used while idle local capacity exists is non-compliant.
+
+**(C) DEGRADATION IS EXPLICIT.** If instance count is 1 or 0, that is recorded with the reason (tier gate, budget refusal, download absent); the ladder of §11.4.231 proceeds unchanged.
+
+**(D) GATE.** Covered by `CM-JEV-DETECTION` (capacity fields present) and a §11.4.283 harness assertion (traffic distribution evidence in `decisions.jsonl` endpoint field). No separate gate-code.
+
+Composes with §11.4.279 / §11.4.141 / §11.4.231 / §9 (host-safety budget rules are never overridden for utilization).
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-282-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.282.
+
+**Non-compliance is a release blocker. No escape hatch — host-safety headroom (§12) is the ONLY legitimate capacity limiter.**
+
+### §11.4.283 — Decision-layer token-reduction proof (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Reduce token consumption of traditional LLMs to the maximum by offloading decisions to the decision layer."
+
+**(A) MEASURED PROOF, NOT ASSERTION.** Every incorporating project MUST extend its §11.4.141 BEFORE/AFTER token-accounting harness with a decision-layer arm: BEFORE = frozen workload executed with the decision layer disabled (`JEV_GATE=off`, no decision routing); AFTER = the identical frozen workload with the decision layer active. Token accounting uses provider `usage` fields exactly as §11.4.141 mandates.
+
+**(B) PASS CRITERION.** Pass = AFTER ≤ BEFORE with the project's declared reduction floor (DATA per §11.4.35; absent declaration resolves to "AFTER ≤ BEFORE, i.e. decision layer never increases traditional-LLM token consumption") AND `decisions.jsonl` showing ≥1 decision served per gated tool-call class. The §11.4.141 aggregate bar (AFTER ≤ 40% of BEFORE) remains in force; the decision layer is one of its mechanisms.
+
+**(C) EVIDENCE FORM.** `tests/jev/fixtures/before.jsonl` / `after.jsonl` per the §11.4.141 harness pattern; `jev-stats.sh` savings estimates are labeled ESTIMATES and never substitute for the measured harness.
+
+**(D) GATE.** Gate `CM-JEV-TOKEN-REDUCTION` asserts: BEFORE/AFTER artifacts exist, parse, differ only in the decision-layer arm, and meet the criterion. Paired §1.1 mutation: `cm_jev_token_reduction_mutation_test.sh` swaps the AFTER artifact for a copy of BEFORE with inflated usage — the gate MUST fail.
+
+Composes with §11.4.141 / §11.4.198 / §11.4.35 / §7.1 / §1.1.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-283-PROPAGATION` + recommended gate `CM-JEV-TOKEN-REDUCTION` + paired §1.1 meta-test mutation. Gate code shipped: `scripts/gates/cm_jev_token_reduction.sh` + paired mutation test `scripts/gates/cm_jev_token_reduction_mutation_test.sh` (§11.4.6 / §11.4.227).
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.283.
+
+**Non-compliance is a release blocker. No escape hatch — no `--skip-token-efficiency` or analogous flag exists (§11.4.141 close inherited in full).**
+
+### §11.4.284 — Decision layer as pre-ladder routing stage (amends §11.4.231) (User mandate, 2026-10-07)
+
+**Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Decisions are offloaded before any LLM tier is invoked; the model ladder stays closed and unchanged for generative work."
+
+**(A) PRE-LADDER STAGE.** The decision layer is a routing stage that executes **before** the §11.4.231 ladder is consulted. A judgment expressible as a typed decision (bool/choice/score) MUST be answered by a decision model, not by any ladder rung. Only work that survives this stage — genuinely generative work — enters the ladder.
+
+**(B) THE LADDER IS UNCHANGED.** §11.4.231's closed ladder (`sonnet < opus`; `fable` is not a rung; haiku context-floor prohibition) is neither extended nor weakened: decision models are not a rung, not a tier, and never launchable as chat models. Tier selection for generative work proceeds exactly as §11.4.231 specifies.
+
+**(C) ESCALATION COMPOSITION.** When a decision model's calibrated confidence falls below its §11.4.285 threshold, the decision — and only that decision — escalates to the lightest capable ladder rung (the same dynamic-escalation contract as §11.4.231 mid-flight escalation). The rest of the work item is unaffected.
+
+**(D) DECISION MODELS NEVER GENERATE.** No decision endpoint may be wired as a chat/provider model into any agent's provider configuration (llmctl `decide` capability is excluded from `chat` by construction; toolkit decision records carry `classification: decision` and emit no aliases). A decision endpoint found in a chat-model configuration is a critical defect.
+
+**(E) GATE.** Coverage: `CM-JEV-WIRING` asserts no decision endpoint appears in any chat-model config; the §11.4.231 gates are untouched. No separate gate-code.
+
+Composes with §11.4.231 (amends, does not repeal) / §11.4.196 / §11.4.279 / §11.4.285.
+
+Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-284-PROPAGATION`.
+
+**Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.284.
+
+**Non-compliance is a release blocker. No escape hatch — the pre-ladder stage has no bypass flag; its absence (zero endpoints) is lawful only via §11.4.279(B)'s reasoned detection record.**
 

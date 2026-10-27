@@ -37,6 +37,10 @@ commit	scripts/git_hooks/commit-msg
 commit	scripts/git_hooks/pre-push
 commit	scripts/git_hooks/post-commit
 commit	constitution/scripts/hooks/post-merge
+# post_update_hook.sh is the script post-merge delegates to (§11.4.164 / §11.4.32 pull seam); it invokes
+# cm_hub_engine_no_ownorg_nesting.sh and cm_llmctl_submodule_nonrecursive.sh by literal basename (added 2026-10-21),
+# and cm_helix_deps_manifest_present.sh (§11.4.31, pointed at the consumer PROJECT_ROOT; added 2026-10-21).
+commit	constitution/scripts/post_update_hook.sh
 release-tag	scripts/testing/release_tag.sh
 qa-deploy	scripts/deploy_release.sh
 pre-action	constitution/scripts/hooks/guard-branch-consistency.sh

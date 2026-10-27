@@ -16,6 +16,8 @@ Every registered §11.4.140 action is exposed as a Claude Code slash command.
 | `/task` | `/helix:task` · `/default-task` | Report an internal WORKSTREAM item — create a fully-populated Type=Task workable item and drive the full DB → docs → external-tracker sync. |
 | `/issue` | `/helix:issue` · `/default-issue` | Report ANYTHING trackable — classify into the §11.4.16 closed set {Bug \| Feature \| Task}, then create the fully-populated, fully-synced item. |
 | `/feature` | `/helix:feature` · `/default-feature` | SCHEDULE (never synchronously run) a deep, enterprise-grade research + implementation-planning effort on a described feature as a tracked workable item — the multi-day research itself is performed later by the autonomous loop, not by this directive. |
+| `/jev_bootstrap` | `/helix:jev_bootstrap` · `/default-jev_bootstrap` | Run the Jev decision-layer bootstrap wizard: detect decision models, provision llmctl + claude_toolkit, wire every detected agent, start shadow calibration (§11.4.279–§11.4.286). |
+| `/jev_status` | `/helix:jev_status` · `/default-jev_status` | Show decision-layer status: detected endpoints, per-agent wiring, mode (shadow/enforce), calibrated thresholds, pending bootstrap stamp, and the jev-stats savings summary. |
 
 ## Conflict rule (§11.4.140)
 

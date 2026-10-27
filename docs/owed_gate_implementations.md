@@ -1,11 +1,13 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 9
-**Last modified:** 2026-10-13T00:00:00Z
+**Revision:** 10
+**Last modified:** 2026-10-21T00:00:00Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
 **R6 (2026-10-05, currency check):** this document had fallen 8 rows behind `gate_ledger_deferrals.tsv` — `OWED-GATE-106` (§11.4.235(D), registered 2026-10-03) and `OWED-GATE-107` through `OWED-GATE-110` (§11.4.230(D), registered 2026-10-04) were both already in the TSV but documented nowhere in this file; `OWED-GATE-111` through `OWED-GATE-113` (§11.4.276, registered the same session as this currency check) were likewise TSV-only. All 8 are now documented in Section A below (new `### §11.4.235(D)`, `### §11.4.230(D)`, and `### §11.4.276` subsections). Verified by direct diff against the live TSV (`grep -E "OWED-GATE-10[6-9]|OWED-GATE-11[0-3]"`), not assumed.
+
+**R10 (2026-10-21, currency check):** `OWED-GATE-143` (`CM-VISION-MODEL-IDENTITY-RECORDED`, §11.4.278(L)) and `OWED-GATE-144`/`OWED-GATE-145` (§11.4.141 M2/M3) were registered in `gate_ledger_deferrals.tsv` on 2026-10-21; all three are now documented in Section A (new `### §11.4.278(L)` and `### §11.4.141 M2/M3` subsections). Verified by matching every `OWED-GATE-NNN` row of the TSV against a `- **OWED-GATE-NNN** — \`GATE\`` entry here, with a positive and a negative control needle. That check still reports one PRE-EXISTING mismatch it did not introduce: the TSV binds `OWED-GATE-076` to `CM-DEVICE-LOCK-DEADLOCK-FREE`, while this document's `OWED-GATE-076` entry names `CM-UNCHALLENGED-CAPABILITY-BLOCKS-RELEASE`; it is left for the owner of those rows to reconcile (§11.4.6, not guessed here).
 
 ## Why this document exists
 
@@ -865,4 +867,22 @@ missing.
 - **OWED-GATE-142** — `CM-UI-QA-READINESS-GATE`
   - **Must assert:** manual-QA hand-off is blocked until the coverage gates above are GREEN (§11.4.236)
   - **Blocked on:** no hand-off gate input harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+
+### §11.4.278(L) (registered 2026-10-21 — landed with the Vision model identity and tiers clause; gate code is a separate work item)
+
+- **OWED-GATE-143** — `CM-VISION-MODEL-IDENTITY-RECORDED`
+  - **Must assert:** every Vision verdict, per-frame record and run summary carries the full model identity (llmctl profile, tier from the consumer's declared ladder of at least two validated tiers, model + `mmproj` sha256, quantisation, engine and version, launch fingerprint, validation-record id and age); a lower-tier PASS presented as a higher-tier one FAILs (§11.4.278(L))
+  - **Blocked on:** no Vision-verdict record harness exists in-repo (§11.4.278(L), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+
+### §11.4.141 M2/M3 (named 2026-10-17 in f9290df without deferral rows; registered 2026-10-21 to restore the §11.4.227(A) ratchet)
+
+- **OWED-GATE-144** — `CM-CONTEXT-FOOTPRINT-BUDGET`
+  - **Must assert:** a declared always-loaded byte budget exists, is mechanically enforced, and its measuring instrument is control-needled (§11.4.141 M2, §11.4.273)
+  - **Blocked on:** no always-loaded-footprint harness exists in-repo (§11.4.141, gate-code declared a separate work item; named in f9290df on 2026-10-17 without a deferral row, registered 2026-10-21)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-145** — `CM-NO-INLINED-GOVERNANCE-IN-ALWAYS-LOADED-FILE`
+  - **Must assert:** an always-loaded agent instruction file that restates anchor bodies beyond the declared budget FAILs (§11.4.141 M3)
+  - **Blocked on:** no inlined-anchor-body detector exists in-repo (§11.4.141, gate-code declared a separate work item; named in f9290df on 2026-10-17 without a deferral row, registered 2026-10-21)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.

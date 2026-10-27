@@ -1,7 +1,7 @@
 # Action-Directive System — Reference Manual
 
-**Revision:** 2
-**Last modified:** 2026-07-14T22:05:00Z
+**Revision:** 3
+**Last modified:** 2026-10-23T00:00:00Z
 **Authority:** constitution §11.4.140 (universal action-prefix system) + §11.4.202 (reporting directives) + §11.4.164 (post-update auto-propagation)
 **Maintainer:** constitution submodule (inherited BY REFERENCE per §11.4.28(B) / §11.4.177 — never copied into a consuming project)
 **Scope:** the complete reference for the registry, the grammar, the plugin, the per-agent commands, the skills, and every script that implements them.
@@ -134,6 +134,8 @@ banner naming its source row. Edit `actions/registry.yaml`, re-run the generator
 | `BUG` | `Bug` | `[bug]` | Report a product defect → fully-populated Type=Bug workable item + full DB → docs → tracker sync. |
 | `TASK` | `Task` | — | Report an internal workstream item → Type=Task workable item + full sync. |
 | `ISSUE` | `{Bug｜Feature｜Task}` | — | Report anything trackable; classify into the §11.4.16 closed set, then create + sync. |
+| `JEV_BOOTSTRAP` | — | — | Run the decision-layer (Jev) bootstrap wizard non-interactively (§11.4.281): detect, provision `llmctl` + `claude_toolkit`, wire every detected agent, start shadow calibration. |
+| `JEV_STATUS` | — | — | Report decision-layer status from evidence files only: endpoints, per-agent wiring, mode, thresholds, pending bootstrap stamp (§11.4.279–§11.4.285). |
 
 ---
 

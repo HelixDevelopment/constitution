@@ -1,0 +1,7 @@
+# EXTENSION_SOURCE.yaml — §11.4.228 provenance for the jev-decision-layer skill
+extension: jev-decision-layer
+source_repo: git@github.com:HelixDevelopment/constitution.git
+source_path: skills/jev-decision-layer
+install_mechanism: register.sh (standalone fallback; jq-merge / marker-guarded append). The canonical per-agent installer is claude_toolkit scripts/jev-setup.sh, which scripts/jev/bootstrap.sh prefers.
+compatibility: [claude-code, kimi, pi, opencode]   # §11.4.228 closed vocabulary
+registration_evidence: per-home stamp at $JEV_HOME/.config/jev/registration.stamp

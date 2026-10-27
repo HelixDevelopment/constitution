@@ -21,4 +21,4 @@ Per-agent install targets (the install script wires these by reference):
 | Qwen Code  | `qwen/<name>.toml`, `qwen/default-<name>.toml`     | `.qwen/commands/` |
 | Codex CLI  | `codex/<name>.md`, `codex/default-<name>.md`       | `prompts/` |
 
-Generated 9 action(s) (each as a bare + a `default-` namespaced command).
+Generated 11 action(s) (each as a bare + a `default-` namespaced command).

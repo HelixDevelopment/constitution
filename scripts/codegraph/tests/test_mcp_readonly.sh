@@ -22,6 +22,8 @@
 #                R11 no detached daemon even with CODEGRAPH_NO_DAEMON=0                                               (control: stock leaves daemon.log)
 #                R12 node-level unit: FileLock.acquire throws + never unlinks a stale lock (second-line guard)        (control: stock unlinks it)
 #                R13 registry: mcpro1 registered + selectable, NOT in the default patch set, exclusive with writer patches
+#                R14 no writer slot: a live RO session never creates .codegraph/writer.pid / daemon.pid / daemon.sock (1.6.2 direct mode claims
+#                    a writer slot)                                                                                  (control: stock creates writer.pid)
 #              Every "unchanged" verdict additionally requires that the RO session ANSWERED (a session that never started changes nothing).
 #              Fingerprints read the DB with mode=ro (sees -wal); the earlier immutable=1 reader was WAL-blind (mutant M3 survived).
 # Usage        bash test_mcp_readonly.sh ; ONLY=R3,R5 bash test_mcp_readonly.sh
@@ -206,11 +208,17 @@ if t_want R8; then
     BAD="$W/r8/src"; mkdir -p "$W/r8"
     cp -a "$STOCK_SRC" "$BAD" 2>/dev/null
     python3 - "$BAD/lib/dist/mcp/engine.js" <<'PY'
-import sys
+import re, sys
 p = sys.argv[1]
 t = open(p, encoding="utf-8").read()
-# duplicate the catchUpSync definition line so the anchor occurs 2x
-t = t.replace("    catchUpSync() {\n", "    catchUpSync() {\n    catchUpSync() {\n", 1)
+# duplicate the catchUpSync definition line so the anchor occurs 2x.
+# Version-aware: 1.6.0 declares `catchUpSync() {`, 1.6.2 declares
+# `catchUpSync(afterReopen = false) {` - match either (a fixed-string replace
+# silently no-ops on a shape it does not know, which is a vacuous mutation).
+m = re.search(r"^    catchUpSync\([^)]*\) \{\n", t, flags=re.M)
+if not m:
+    sys.exit("R8 fixture: no catchUpSync definition line found - mutation would be vacuous")
+t = t[:m.end()] + m.group(0) + t[m.end():]
 open(p, "w", encoding="utf-8").write(t)
 PY
     python3 "$BUILDER" --patches mcpro1 --src "$BAD" --dst "$W/r8/out_runner" >"$W/r8/out.log" 2>&1; RC=$?
@@ -298,6 +306,30 @@ if t_want R13; then
     python3 "$BUILDER" --patches mcpro1,resolve1 --src "$STOCK_SRC" --dst "$W/r13/x" > "$W/r13.out" 2>&1; XRC=$?
     [ "$XRC" -eq 2 ] && grep -q 'exclusive' "$W/r13.out" && [ ! -e "$W/r13/x" ]; EXCL=$?
     t_check R13 "mcpro1 registered + selectable, NOT in the default patch set, exclusive with writer patches" $((NOTDEF + REGD + EXCL)) "default=[$DEF] registry=[$ALL] exclusive_rc=$XRC"
+fi
+
+if t_want R14; then build_ro
+    # While the server is ALIVE (probe --hold keeps it up), poll for the writer-slot / daemon files. The control (stock direct mode)
+    # MUST show the writer slot, otherwise the instrument is blind and the "RO creates nothing" verdict says nothing (§11.4.273).
+    watch_slot() {
+        # watch_slot <bin> <proj> -> prints 1 when writer.pid / daemon.pid / daemon.sock appeared during the live session, else 0
+        local bin="$1" proj="$2" seen=0 i
+        python3 "$PROBE" --bin "$bin" --project "$proj" --stderr-file "$W/r14.err.$$" --hold 6 --list-only \
+            --env CODEGRAPH_NO_DAEMON=1 --env CODEGRAPH_NO_WATCH=1 >/dev/null 2>&1 &
+        local ppid=$!
+        for i in $(seq 1 28); do
+            if [ -e "$proj/.codegraph/writer.pid" ] || [ -e "$proj/.codegraph/daemon.pid" ] || [ -e "$proj/.codegraph/daemon.sock" ]; then seen=1; break; fi
+            kill -0 "$ppid" 2>/dev/null || break
+            sleep 0.25
+        done
+        wait "$ppid" 2>/dev/null
+        echo "$seen"
+    }
+    FXS="$W/r14/stock"; mkfx "$FXS"; STOCK_SEEN="$(watch_slot "$STOCK_RUNNER" "$FXS")"; kill_daemon "$FXS"
+    FXR="$W/r14/ro"; mkfx "$FXR"; RO_SEEN="$(watch_slot "$RO_RUNNER" "$FXR")"; kill_daemon "$FXR"
+    [ "$STOCK_SEEN" = "1" ]; CTRL=$?
+    [ "$RO_SEEN" = "0" ]; NOSLOT=$?
+    t_check R14 "RO runner never claims a writer slot / daemon file during a live session (control: stock creates writer.pid)" $((CTRL + NOSLOT)) "control_saw_slot=$STOCK_SEEN ro_saw_slot=$RO_SEEN"
 fi
 
 t_finish

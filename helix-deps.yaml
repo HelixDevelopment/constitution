@@ -7,19 +7,31 @@
 #
 # The constitution submodule itself acts as a HUB (§11.4.28(C) carve-out):
 # it hosts own-org depth-1 dependencies — the reusable engines under
-# `submodules/` (llmctl added 2026-10-13, §11.4.277) plus the OpenDesign
-# design-toolkit.
-# The depth-1 invariant holds for every engine EXCEPT llmctl: llmctl's own
-# .gitmodules declares own-org submodules (its `constitution` = THIS
-# constitution, and `containers`), so the engines are NOT all leaves.
-# OPERATOR DECISION (explicit, 2026-10-13): submodules/llmctl is kept as a
-# depth-1 hub entry that consumers MUST NOT initialise recursively
-# (`git submodule update --init submodules/llmctl`, WITHOUT --recursive);
-# the entry below carries the marker `recursive_init: false`. The mutual
-# reference is finite only because llmctl's `constitution` pin (4091798 at v3.2.2; 3e8e855 at v3.2.1)
-# contains no submodules/llmctl; bumping that pin to a commit that does
-# contain it MUST be refused. CM-LLMCTL-SUBMODULE-NONRECURSIVE
-# (scripts/gates/cm_llmctl_submodule_nonrecursive.sh) enforces both.
+# `submodules/` (llmctl added 2026-10-13, §11.4.277; containers, claude_toolkit
+# and superspec 2026-10-21) plus the OpenDesign design-toolkit, and ONE
+# third-party REFERENCE checkout (open_design, §11.4.162).
+# RULE (§11.4.28(C) EXTENSION, 2026-10-21 — one source of truth): a hub engine
+# MUST NOT nest this constitution, the hub, another hub engine or any own-org
+# repository the hub already provides flat; it resolves the canon with the
+# single documented resolver instead. This supersedes the 2026-10-13
+# mutual-reference decision for llmctl. Gate CM-HUB-ENGINE-NO-OWNORG-NESTING
+# (scripts/gates/cm_hub_engine_no_ownorg_nesting.sh) enforces it by name
+# matching on each engine's nested URLs; CM-LLMCTL-SUBMODULE-NONRECURSIVE
+# (scripts/gates/cm_llmctl_submodule_nonrecursive.sh) stays as a narrower
+# re-entry check. Both run from scripts/post_update_hook.sh on every pull.
+# HONEST STATE (measured 2026-10-22, §11.4.6): llmctl at f42bad6 nests no
+# own-org repository any more (only third-party llama.cpp and colibri; it
+# resolves constitution, containers and superspec via lib/resolve_deps.sh), so
+# both gates PASS for llmctl. claude_toolkit at 1f6dad3 is flat as well: its
+# only nested submodule is third-party submodules/go (go.googlesource.com), its
+# own-org deps (HelixConstitution, containers, challenges, LLMsVerifier,
+# claude-code-router) resolve flat via scripts/resolve_deps.sh, and it ships a
+# tracked helix-deps.yaml; CM-HUB-ENGINE-NO-OWNORG-NESTING and
+# CM-HELIX-DEPS-MANIFEST-PRESENT PASS for it. Both entries keep the marker
+# `recursive_init: false` — consumers initialise them one level only, WITHOUT
+# --recursive (llmctl: llama.cpp + colibri; claude_toolkit: the Go toolchain
+# checkout under submodules/go — third-party nests are never initialised
+# recursively).
 #
 # Discovered gap: constitution/helix-deps.yaml was MISSING until
 # 2026-08-15 (chain-audit finding, subagent a2cf7f91). Created inline
@@ -50,7 +62,7 @@ deps:
 
   - name: anti_bluff
     ssh_url: git@github.com:vasic-digital/anti_bluff.git
-    ref: bcc7f3d             # pinned sha
+    ref: d060d08             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was bcc7f3d, drifted; main also re-synced it on the label-sync merge after cascade 94b8836, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "shared anti-bluff verification primitives (§11.4 covenant family) — ab_pass_with_evidence / ab_skip_with_reason helpers, sink-side taxonomy per §11.4.69, stress+chaos helpers per §11.4.85; consumed by challenge scripts across the constitution consumer fleet"
     layout: grouped
 
@@ -62,7 +74,7 @@ deps:
 
   - name: token_optimizer
     ssh_url: git@github.com:vasic-digital/token_optimizer.git
-    ref: c0591b5             # pinned sha
+    ref: 2002db5             # pinned sha = the recorded gitlink; remote main tip per `git ls-remote` 2026-10-21 (was c0591b5, drifted; main also re-synced it on the label-sync merge after cascade 94b8836, gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
     why: "§11.4.141 heavy token-optimization engine — compact-anchor rewriter, targeted-read planner, evidence-hash reference builder, subagent-context-isolation helpers; always-on default per §11.4.198 (default mechanisms always-on)"
     layout: grouped
 
@@ -72,12 +84,47 @@ deps:
     why: "shared performance cache (build/test/measurement result memoization with fingerprint invalidation) — reduces the §11.4.24 build-resource stats window churn + supports §11.4.230 pipeline-overlap parallelization by caching invariant results across stages"
     layout: grouped
 
+  # Jev decision layer (§11.4.279–§11.4.286): llmctl serves the decision models (decide profiles / systemone gateway) that scripts/jev/bootstrap.sh
+  # detects and validates. Consumed by reference at the pin below; the bootstrap NEVER re-pins it or inits it with --recursive (recursive_init: false
+  # applies to the bootstrap's managed-clone path too). llmctl resolves the canon through lib/resolve_deps.sh, so this hub<->llmctl edge stays non-nesting.
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: v3.2.2              # pinned tag (commit 5c3dea57fb35215cdaa4b7412da438e7a8d96d86); exists on the remote
-    why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. NOTE: llmctl vendors this constitution as its own `constitution` submodule (mutual reference); depth-1 hub entry, non-recursive init per the operator decision recorded in the header and §11.4.277(B)."
+    ref: f42bad6             # pinned sha (commit f42bad68325eb9cd599b55f83b406e581f66fd76 = the staged gitlink, a descendant of main's re-synced 5354354; remote main tip on all 5 remotes per `git ls-remote` 2026-10-21; describe: helixconstitution-v70-68-gf42bad6; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. Hub engine: nests no own-org repository; resolves the canon, containers and superspec via lib/resolve_deps.sh (§11.4.28(C)); its own helix-deps.yaml marks superspec third_party."
     layout: grouped
-    recursive_init: false    # operator decision: NEVER `--recursive` for this path (mutual reference with this constitution); gate CM-LLMCTL-SUBMODULE-NONRECURSIVE
+    recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at f42bad6
+
+  - name: containers
+    ssh_url: git@github.com:vasic-digital/Containers.git
+    ref: 919ad1e             # pinned sha = the staged gitlink; remote main tip per `git ls-remote` 2026-10-21 (describe: helixcode-v1.1.0-159-g919ad1e)
+    why: "§11.4.76 / §11.4.161 digital.vasic.containers — the sole rootless container orchestration layer (boot / compose / health / remote distribution); provided flat by the hub so engines (llmctl among them) resolve it here instead of nesting it (§11.4.28(C))"
+    layout: grouped
+
+  # Jev decision layer (§11.4.279–§11.4.286): claude_toolkit ships the per-agent wiring the bootstrap installs (sync-jev, jev-setup, jev-gate, jev_mcp,
+  # jev-stats). Pin kept at the SHA below, not `main` (§11.4.113 fetch-first); re-pin only with the gitlink (CM-HELIX-DEPS-REF-MATCHES-GITLINK).
+  - name: claude_toolkit
+    ssh_url: git@github.com:vasic-digital/claude_toolkit.git
+    ref: adae02d             # pinned sha (commit adae02de1a8ae9ad27bb721ab699c81d5a61f4e2 = the staged gitlink; tag claude_toolkit-1.32.0 (+ v1.32.0) present on github/gitlab/gitflic/gitverse per `git ls-remote --tags` 2026-10-23; ships scripts/jev-{setup,gate,calibrate,stats}.sh, jev_mcp.py, jev-lockdir-lib.sh; still flat: only third-party go + ccusage gitlinks; gate CM-HELIX-DEPS-REF-MATCHES-GITLINK)
+    why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact. Nests no own-org repository; resolves the canon, containers, challenges, LLMsVerifier and claude-code-router flat via scripts/resolve_deps.sh (§11.4.28(C)); ships its own helix-deps.yaml."
+    layout: grouped
+    recursive_init: false    # NEVER `--recursive` for this path: claude_toolkit nests the third-party Go toolchain (submodules/go, go.googlesource.com), which is never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-HELIX-DEPS-MANIFEST-PRESENT PASS at 1f6dad3
+
+  - name: superspec
+    ssh_url: git@github.com:WangX0111/superspec.git
+    ref: v1.0.2              # pinned tag (commit c20ac6c1ba069cc9a72dacb8044b7b193d3dde81 = the staged gitlink; tag present per `git ls-remote` 2026-10-21)
+    why: "Superpowers Bridge for Spec-Kit — the spec-kit extension that integrates the superpowers agent skills (brainstorming, writing-plans, execution, review) into the Spec Kit workflow the constitution uses"
+    layout: grouped
+    third_party: true        # owner WangX0111 is not an own org; licence MIT (verified from submodules/superspec/LICENSE)
+    licence: MIT
+
+  # ─── Third-party REFERENCE checkout (§11.4.162; never a product's consumption path) ──
+  - name: open_design
+    ssh_url: git@github.com:nexu-io/open-design.git
+    ref: 3b0df90             # pinned sha = the recorded gitlink; on origin/main of the local remote-tracking ref (describe: blog-indexed-prod-278-g3b0df90f30)
+    why: "§11.4.162 OpenDesign upstream, ONE pinned REFERENCE checkout for design-system work; products consume OpenDesign as a dependency, never through this path; excluded from the index, coverage and own-org review"
+    layout: grouped
+    third_party: true
+    licence: Apache-2.0      # verified from submodules/open_design/LICENSE ("Apache License, Version 2.0")
 
   # ─── OpenDesign design-toolkit (grouped layout since 1c89813, 2026-10-11) ──
   - name: design-toolkit
@@ -87,16 +134,16 @@ deps:
     layout: grouped
 
 transitive_handling:
-  # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Most engines
-  # nest no own-org deps and declare `deps: []` (leaf), but llmctl is NOT a
-  # leaf: its own helix-deps.yaml lists `constitution` (THIS constitution)
-  # and `containers`. `recursive: true` stays the default so tooling walks
-  # the manifest chain, with ONE explicit exception: any dep entry carrying
-  # `recursive_init: false` (llmctl) MUST be neither initialised with
-  # `git submodule update --recursive` nor walked into by manifest-walking
-  # tooling; tooling that ignores the marker would loop through the mutual
-  # reference. CM-LLMCTL-SUBMODULE-NONRECURSIVE checks the marker and that
-  # the loop is finite.
+  # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Engines MUST be
+  # leaves for own-org repositories (`deps: []`): they resolve the canon and
+  # their siblings through the hub, never by nesting them. `recursive: true`
+  # stays the default so tooling walks the manifest chain, with ONE explicit
+  # exception: any dep entry carrying `recursive_init: false` (llmctl and
+  # claude_toolkit — both nest third-party repositories only) MUST
+  # be neither initialised with `git submodule update --recursive` nor walked
+  # into by manifest-walking tooling. Entries with `third_party: true` are not
+  # own-org dependencies and are never walked for own-org manifests.
+  # CM-HUB-ENGINE-NO-OWNORG-NESTING and CM-LLMCTL-SUBMODULE-NONRECURSIVE check this.
   recursive: true
 
   # §11.4.6 no-guessing: conflicts (two dep entries diverging on ref)
@@ -116,8 +163,9 @@ language_specific_subtree: false
 #
 #   cd constitution
 #   git submodule update --init submodules/docs_chain submodules/continuum submodules/anti_bluff \
-#       submodules/session_orchestrator submodules/token_optimizer submodules/helix_perf_cache submodules/design-toolkit
-#   # llmctl: depth-1 only, NEVER --recursive (recursive_init: false)
+#       submodules/session_orchestrator submodules/token_optimizer submodules/helix_perf_cache submodules/design-toolkit \
+#       submodules/containers submodules/superspec submodules/open_design
+#   # llmctl, claude_toolkit: depth-1 only, NEVER --recursive (recursive_init: false)
 #   # Verify SSH-only per Hard Stop #2:
 #   git submodule foreach --recursive --quiet 'git remote -v | grep -c https://' | \
 #     paste -sd+ | bc   # MUST be 0

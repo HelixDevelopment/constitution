@@ -1,0 +1,27 @@
+# helix-deps.yaml - <PROJECT NAME> Submodule-Dependency Manifest (Universal Constitution §11.4.31)
+#
+# Copy to the root of the repository as helix-deps.yaml, or generate a starting point with:
+#   bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --scaffold . --write
+# then replace every <...> and every UNKNOWN value. Validate with:
+#   bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --validate-file helix-deps.yaml
+# Reference: constitution/docs/manuals/dependency_manifest_manual.md
+#
+# Rules (abridged): SSH URLs only (git@host:org/repo.git); layout flat | grouped | hub;
+# a dependency outside the own-org list needs third_party: true + licence; the constitution hub
+# itself is inherited by reference and is NOT listed; no placeholder survives a commit.
+
+schema_version: 1
+
+deps: []
+# Example entry (replace deps: [] with a list like this):
+#   - name: <snake_case_name>
+#     ssh_url: git@github.com:<org>/<Repo>.git
+#     ref: <tag or 7+ character commit>
+#     why: "<the real reason this repository needs it>"
+#     layout: grouped            # grouped = <root>/submodules/<name>/, flat = <root>/<name>/, hub = <root>/constitution/submodules/<name>/
+
+transitive_handling:
+  recursive: true
+  conflict_resolution: operator-required
+
+language_specific_subtree: false

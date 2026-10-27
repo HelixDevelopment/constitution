@@ -2,20 +2,20 @@
 # ============================================================================
 # test_codegraph_mcp_preflight_mutations.sh — paired §1.1 mutation proof for codegraph_mcp_preflight.sh
 # ============================================================================
-# Purpose      Each mutant re-opens exactly one hole in a COPY of codegraph_mcp_preflight.sh; the named case(s) of
+# Purpose      Each mutant re-opens exactly one hole in a COPY of codegraph_mcp_preflight.sh or codegraph_launch_class.py; the named case(s) of
 #              tests/test_codegraph_mcp_preflight.sh MUST turn FAIL (mutant KILLED). A survivor = a test blind to that hole.
 # Usage        bash test_codegraph_mcp_preflight_mutations.sh [Y1 Y2 ...]   (default: all)
 # Inputs       TMPDIR, STOCK_SRC (forwarded)        Outputs  per-mutant KILLED/SURVIVED + SUMMARY; exit 1 on survivor/baseline failure
 # Side effects copies under $TMPDIR/cg_mcpf_mut.*; nothing tracked
-# Cross-refs   test_codegraph_mcp_preflight.sh, test_codegraph_mcp_preflight_mutate.py, constitution §1.1
+# Cross-refs   test_codegraph_mcp_preflight.sh, test_codegraph_mcp_preflight_mutate.py (the mutant table), ../codegraph_launch_class.py, constitution §1.1
 # ============================================================================
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CG_DIR="$(cd "$HERE/.." && pwd)"
 W="$(mktemp -d "${TMPDIR:-/tmp}/cg_mcpf_mut.XXXXXX")"
-IDS=("$@"); [ "${#IDS[@]}" -gt 0 ] || IDS=(Y1 Y2 Y3 Y4 Y5 Y6)
+IDS=("$@"); [ "${#IDS[@]}" -gt 0 ] || IDS=(Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y9 Y10 Y11 Y12 Y13 Y14 Y15 Y16 Y17 Y18 Y19 Y20 Y21 Y22 Y23)
 survivors=0; killed=0
-copy_tree() { mkdir -p "$1"; ( cd "$CG_DIR" && cp -a codegraph_mcp_preflight.sh codegraph_mcp.sh fk_index_patch.py runner_patches tests codegraph_mcp_probe.py "$1"/ ); rm -rf "$1"/runner_patches/__pycache__ "$1"/tests/__pycache__; }
+copy_tree() { mkdir -p "$1"; ( cd "$CG_DIR" && cp -a codegraph_mcp_preflight.sh codegraph_launch_class.py codegraph_mcp.sh fk_index_patch.py runner_patches tests codegraph_mcp_probe.py "$1"/ ); rm -rf "$1"/__pycache__ "$1"/runner_patches/__pycache__ "$1"/tests/__pycache__; }
 copy_tree "$W/base"
 CG_DIR="$W/base" bash "$W/base/tests/test_codegraph_mcp_preflight.sh" > "$W/base.out" 2>&1; BRC=$?
 grep -E '^RESULT' "$W/base.out" | cut -c1-100

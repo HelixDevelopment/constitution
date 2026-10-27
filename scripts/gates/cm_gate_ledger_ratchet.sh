@@ -37,6 +37,14 @@
 #                                           location per every existing
 #                                           cm_covenant_*_propagation.sh
 #                                           gate's own documented convention).
+#   <status-summary archive>               OPTIONAL second corpus file: when the
+#                                           preamble `| Status summary |` cell of
+#                                           Constitution.md says its older entries
+#                                           are "kept on demand in <path>;" that
+#                                           archive (verbatim history, §11.4.61(A))
+#                                           is read as part of the corpus, so a
+#                                           rotation is ledger-neutral. A pointer
+#                                           that cannot be resolved is BLIND (exit 2).
 #   scripts/                               implementation tree, scanned
 #                                           recursively — gate sites are NOT
 #                                           confined to scripts/gates/.
@@ -114,15 +122,63 @@ done
 [ -d "$impl" ] || { echo "${GATE}: BLIND — implementation tree not found: $impl" >&2; exit 2; }
 [ -r "$removals" ] || removals=""
 
+# ── Archived status-summary corpus: a RELOCATION is ledger-NEUTRAL ───────────
+# §11.4.61(A) keeps the preamble `| Status summary |` cell of Constitution.md a
+# one-line current-state hook. Older entries of that cell are rotated VERBATIM
+# into an on-demand archive (scripts/amendment_log/status_summary_archive.py) and
+# the cell then names the archive: "... are kept on demand in <rel-path>; ...".
+#
+# Root cause this block closes (measured 2026-10-27, pre-build run 8): ten
+# gate names (nine prose range/slash-join artefacts of the covenant-propagation
+# family, and the REAL, implemented sub-system-shortcuts gate; the exact ids
+# are in the evidence pack under qa-results/ledger_ratchet_archive_20261027)
+# occur ONLY inside that cell, never in an anchor body. Rotating the cell moved
+# them out of Constitution.md — the sole corpus file — so the vanished-name
+# check read a lossless relocation as ten uncited deletions, while the five
+# UNIMPLEMENTED ones leaving the count made it fall below its baseline and
+# would have hidden a new unimplemented gate behind the headroom. A removal
+# citation would be a FALSE statement for the sub-system-shortcuts gate (it was
+# not removed) and would launder the five phantom debts; the honest rule is
+# that history moved into the cell's OWN declared archive is still the
+# governance corpus. So the archive the cell points at is read as a second
+# corpus file: nothing is added to, or hidden from, the ledger by a rotation.
+# (This comment deliberately spells out no gate token: this engine counts a
+# token inside ANY tracked `.sh` file as an implementation site, so naming one
+# here would mint a phantom IMPLEMENTED row.)
+#
+# Fail-CLOSED (§11.4.6/§11.4.252): a pointer that is malformed, absolute,
+# escapes the root via `..`, or names an unreadable file is BLIND (exit 2) —
+# never a silent fall back to the one-file corpus, which would again turn the
+# missing archive into mass vanished names (or, worse, into a clean pass if the
+# vanished names were then cited away). No pointer in the cell = no archive.
+corpus_files=("$corpus")
+archive_note=""
+status_cell="$(awk '/^## /{exit} /^\| Status summary \| /{print; exit}' "$corpus")"
+case "$status_cell" in
+    *" kept on demand in "*)
+        archive_rel="$(printf '%s\n' "$status_cell" | sed -n 's/.* kept on demand in \([^;[:space:]]*\);.*/\1/p')"
+        case "$archive_rel" in
+            "")  echo "${GATE}: BLIND — the Status summary cell says its older entries are 'kept on demand in' an archive but no '<path>;' pointer could be parsed from it" >&2; exit 2 ;;
+            /*|*..*) echo "${GATE}: BLIND — status-summary archive pointer '${archive_rel}' is absolute or contains '..'; it must be a path inside ${root}" >&2; exit 2 ;;
+        esac
+        archive="${root}/${archive_rel}"
+        [ -r "$archive" ] || { echo "${GATE}: BLIND — the Status summary cell points at the archive '${archive_rel}' but ${archive} is not a readable file; refusing to treat its absence as ten uncited gate deletions or as a pass" >&2; exit 2; }
+        corpus_files+=("$archive")
+        archive_note=" (corpus = Constitution.md + its status-summary archive ${archive_rel})"
+        ;;
+esac
+
 ledger_tmp="$(mktemp)"
 trap 'rm -f "$ledger_tmp"' EXIT
 
-if ! "$engine" generate "$impl" "$deferrals" "$corpus" > "$ledger_tmp"; then
+if ! "$engine" generate "$impl" "$deferrals" "${corpus_files[@]}" > "$ledger_tmp"; then
     echo "${GATE}: BLIND — gate_ledger.sh generate failed (see stderr above)" >&2
     exit 2
 fi
 
 [ -n "$quiet" ] || cat "$ledger_tmp"
+# Always state which corpus was read (never silent about a second corpus file).
+[ -z "$archive_note" ] || echo "${GATE}: corpus read${archive_note}"
 
 # NOTE (own §11.4.201(7)(c) instrument-footgun, caught by this gate's OWN
 # paired §1.1 mutation test T4/T5): `status=$?` taken AFTER an `if cmd;

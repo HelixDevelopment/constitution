@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["file://~/.config/opencode/plugin/jev.js"],
+  "mcp": {
+    "jev": {
+      "type": "local",
+      "command": ["python3", "/fixture/claude_toolkit/scripts/jev_mcp.py"]
+    }
+  }
+}

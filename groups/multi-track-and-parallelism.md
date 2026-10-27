@@ -266,6 +266,8 @@ Classification: universal (§11.4.17) — a platform-neutral model-capacity-matc
 
 Non-compliance is a release blocker regardless of context. No escape hatch — no `--always-heaviest-model`, `--always-lightest-model`, `--skip-complexity-reassessment`, `--fixed-tier-per-session`, `--relax-review-pin`, `--relax-merge-conflict-pin`, `--per-request-tier-opt-in` flag exists.
 
+Amended 2026-10-07: the ladder governs generative work only. Typed decisions are resolved by the §11.4.284 pre-ladder decision stage before this ladder is consulted. Nothing in this amendment adds a rung, reopens the ladder, or permits a decision endpoint in a chat-model configuration.
+
 ### §11.4.232 — Anti-mess long-op orchestration: every long-op is registered, single-owned-per-purpose, liveness-PROVEN, handed-off-on-stop, safely-reaped, consistency-checked, and escape-bounded — the single source of truth for what is running, never inferred (research-derived, 2026-07-26)
 
 

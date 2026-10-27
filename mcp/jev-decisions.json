@@ -1,0 +1,20 @@
+{
+  "_comment": "jev decision-layer MCP declaration (§11.4.280(A)). TEMPLATE: ${VAR} placeholders are materialized at bootstrap/jev-setup time into per-agent absolute-path copies, because MCP clients do not reliably expand environment variables. The server is claude_toolkit's stdlib-only scripts/jev_mcp.py, used by reference (python3 is unavoidable there). Only NON-SECRET values appear here: the API key is never written into this file or its materialized copies; JEV_KEY_VAR carries the NAME of the variable that holds it and the server resolves it at call time. Provenance: skills/jev-decision-layer/EXTENSION_SOURCE.yaml. Tools exposed by the server: jev_ask, jev_models, jev_stats_summary, jev_recommend_tier.",
+  "mcpServers": {
+    "jev": {
+      "description": "Jev decision layer — typed decisions (choice / yes-no probability) via the systemone wire format: llmctl decide gateway (https, default port 8095), OpenRouter, or TypeSafe hosted. Shadow-first enforcement per §11.4.285.",
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${CLAUDE_TOOLKIT_DIR}/scripts/jev_mcp.py"],
+      "env": {
+        "JEV_BASE_URL": "${JEV_BASE_URL}",
+        "JEV_KEY_VAR": "${JEV_KEY_VAR}",
+        "JEV_CA_FILE": "${JEV_CA_FILE}",
+        "JEV_MODEL": "${JEV_MODEL:-jev-latest}",
+        "JEV_MODE": "${JEV_MODE:-shadow}"
+      },
+      "disabled": false,
+      "autoApprove": ["jev_models", "jev_stats_summary"]
+    }
+  }
+}

@@ -12,7 +12,14 @@
 #                F12 wrapper copy that is not a genuine copy of the tooling => P1 FAIL
 #                F13 user-scope configs (HOME / CLAUDE_CONFIG_DIR .claude.json) with a non-wrapper codegraph => P7 FAIL, secrets redacted
 #                F14 other entries resolved by launch target (node .js / bash -c / npx / env / shim script) => P2 FAIL
-# Usage        bash test_codegraph_mcp_preflight.sh ; ONLY=F2,F4 bash test_codegraph_mcp_preflight.sh
+#                F15 launch-target classifier false-positive guards: entries that only MENTION codegraph, the sanctioned wrapper as a
+#                    second entry, a shim without codegraph and a shim cycle => P2 PASS, exit 0 (§11.4.201(1))
+#                F16 P3 (--settings mcpServers) classifies by launch target too (node .js / env wrapper => FAIL; unrelated server => PASS)
+#                F17 P7 shapes: a user-scope `codegraph` that is not the wrapper (url server) => FAIL, a stock bash -c entry under another
+#                    name => FAIL, junk shapes (non-dict project / server values) do not crash and do not fail
+#                F18 shell-text edge cases (here-document body / comment mention => not flagged; stock after a here-document or a
+#                    codegraph.js that is not on disk => flagged) and P3 hook commands judged by what they run, not by a substring
+# Usage       bash test_codegraph_mcp_preflight.sh ; ONLY=F2,F4 bash test_codegraph_mcp_preflight.sh
 # Inputs       CG_DIR (code under test; mutation harness uses a COPY), STOCK_SRC, TMPDIR     Outputs RESULT lines + SUMMARY; exit 1 on failure
 # Side effects fixtures + runner cache + helper processes under $TMPDIR/cg_safe_tests (killed on exit)
 # Cross-refs   ../codegraph_mcp_preflight.sh, test_mcp_readonly.sh (mkfx reused), constitution §11.4.201/.273/.224
@@ -158,5 +165,76 @@ if t_want F14; then
     has P2 PASS; CTRL=$?
     [ "$RES" = "FFFFF" ] && [ "$CTRL" -eq 0 ]
     t_check F14 "node dist/bin/codegraph.js | bash -c | npx @colbymchenry/codegraph | env | shim script => P2 FAIL each; unrelated node server => P2 PASS" $? "res=$RES ctrl=$CTRL"
+fi
+if t_want F15; then
+    # §11.4.201(1): the classifier must resolve what an entry LAUNCHES, never refuse one that merely MENTIONS codegraph.
+    P="$W/f15/p"; mkdir -p "$W/f15"
+    printf '#!/bin/sh\necho hello\n' > "$W/f15/plainshim"; chmod +x "$W/f15/plainshim"
+    printf '#!/bin/sh\nexec %s/f15/cyc_b "$@"\n' "$W" > "$W/f15/cyc_a"; printf '#!/bin/sh\nexec %s/f15/cyc_a "$@"\n' "$W" > "$W/f15/cyc_b"; chmod +x "$W/f15/cyc_a" "$W/f15/cyc_b"
+    RES=""
+    for body in \
+        '{"command":"bash","args":["-c","grep codegraph /var/log/none; echo codegraph"]}' \
+        '{"command":"node","args":["/opt/other/codegraph-viewer.js"]}' \
+        '{"command":"npx","args":["-y","@other/codegraph-ui","serve"]}' \
+        '{"command":"env","args":["CODEGRAPH_NOTE=codegraph","/opt/other/server"]}' \
+        "{\"command\":\"$WRAP\",\"args\":[\"serve\",\"--mcp\"]}" \
+        "{\"command\":\"$W/f15/plainshim\",\"args\":[]}" \
+        "{\"command\":\"$W/f15/cyc_a\",\"args\":[]}"; do
+        rm -rf "$P"; mkproj "$P" "$(printf '{"mcpServers":{"codegraph":{"command":"%s","args":["serve","--mcp"]},"extra":%s}}' "$WRAP" "$body")"; run_pf "$P"
+        if [ "$RC" -eq 0 ] && has P2 PASS; then RES="${RES}p"; else RES="${RES}F"; fi
+    done
+    [ "$RES" = "ppppppp" ]
+    t_check F15 "mention-only entries, the sanctioned wrapper as a 2nd entry, a codegraph-free shim and a shim cycle => P2 PASS and exit 0" $? "res=$RES (p = correctly not flagged, F = false positive)"
+fi
+if t_want F16; then
+    # P3 shares the P2 launch-target classifier: a settings-file mcpServers entry is judged by what it launches, not by its command basename.
+    P="$W/f16/p"; mkproj "$P" "$(GOODJSON "$P")"
+    printf '{"mcpServers":{"x":{"command":"node","args":["%s/lib/dist/bin/codegraph.js","serve","--mcp"]}}}' "$STOCK_SRC" > "$W/f16/bad_node.json"
+    printf '{"mcpServers":{"x":{"command":"env","args":["A=1","codegraph","serve","--mcp"]}}}' > "$W/f16/bad_env.json"
+    printf '{"mcpServers":{"x":{"command":"node","args":["/opt/other/server.js"]}}}' > "$W/f16/ok.json"
+    run_pf "$P" --settings "$W/f16/bad_node.json"; N_RC=$RC; hasmsg P3 FAIL 'stock codegraph'; N3=$?
+    run_pf "$P" --settings "$W/f16/bad_env.json"; E_RC=$RC; hasmsg P3 FAIL 'stock codegraph'; E3=$?
+    run_pf "$P" --settings "$W/f16/ok.json"; O_RC=$RC; has P3 PASS; O3=$?
+    [ "$N_RC" -eq 1 ] && [ "$N3" -eq 0 ] && [ "$E_RC" -eq 1 ] && [ "$E3" -eq 0 ] && [ "$O_RC" -eq 0 ] && [ "$O3" -eq 0 ]
+    t_check F16 "settings mcpServers: node codegraph.js and env-wrapped codegraph => P3 FAIL; an unrelated node server => P3 PASS" $? "node=$N_RC/$N3 env=$E_RC/$E3 ok=$O_RC/$O3"
+fi
+if t_want F17; then
+    # P7 shapes: (a) a user-scope `codegraph` that cannot be shown to be the wrapper (url server) is refused;
+    # (b) a stock entry under another name launched through `bash -c` is refused (class, not name); (c) junk shapes neither crash nor fail.
+    P="$W/f17/p"; mkproj "$P" "$(GOODJSON "$P")"
+    HA="$W/f17/ha"; HB="$W/f17/hb"; HC="$W/f17/hc"; mkdir -p "$HA" "$HB" "$HC"
+    printf '{"mcpServers":{"codegraph":{"type":"http","url":"http://127.0.0.1:9/mcp"}}}' > "$HA/.claude.json"
+    printf '{"mcpServers":{"viewer":{"command":"bash","args":["-c","exec codegraph serve --mcp --project /x"]}}}' > "$HB/.claude.json"
+    printf '{"mcpServers":{"a":5,"b":null,"c":{"command":7,"args":"x"}},"projects":{"/p":5,"/q":{"mcpServers":[1,2]},"/r":{"mcpServers":{"ok":{"command":"echo","args":["hi"]}}}}}' > "$HC/.claude.json"
+    OUT="$(HOME="$HA" CLAUDE_CONFIG_DIR="$UCFG" "$PF" --project "$P" 2>&1)"; RA=$?; hasmsg P7 FAIL 'sanctioned'; AM=$?
+    OUT="$(HOME="$HB" CLAUDE_CONFIG_DIR="$UCFG" "$PF" --project "$P" 2>&1)"; RB=$?; hasmsg P7 FAIL "'viewer'"; BM=$?
+    OUT="$(HOME="$HC" CLAUDE_CONFIG_DIR="$UCFG" "$PF" --project "$P" 2>&1)"; RC_=$?; has P7 PASS; CM=$?; printf '%s' "$OUT" | grep -q Traceback; CT=$?
+    [ "$RA" -eq 1 ] && [ "$AM" -eq 0 ] && [ "$RB" -eq 1 ] && [ "$BM" -eq 0 ] && [ "$RC_" -eq 0 ] && [ "$CM" -eq 0 ] && [ "$CT" -ne 0 ]
+    t_check F17 "user-scope: url-typed 'codegraph' => P7 FAIL (not the wrapper); stock via bash -c under another name => P7 FAIL; junk shapes => P7 PASS, no traceback" $? "a=$RA/$AM b=$RB/$BM c=$RC_/$CM/trace$CT"
+fi
+if t_want F18; then
+    # Shell-text edge cases of the classifier (here-document body, comment, stock after a here-document, a target file that is not on
+    # disk) and P3 hook commands judged by what they RUN, not by a substring of any string in the hooks object (§11.4.201(1)).
+    P="$W/f18/p"; mkdir -p "$W/f18"
+    printf '#!/bin/sh\ncat <<EOF\ncodegraph serve --mcp\nEOF\necho done\n' > "$W/f18/heredoc_mention"
+    printf '#!/bin/sh\n# run later; codegraph serve is NOT started by this script\necho hi\n' > "$W/f18/comment_mention"
+    printf '#!/bin/sh\ncat <<EOF\nignored\nEOF\nexec codegraph serve --mcp\n' > "$W/f18/after_heredoc"
+    chmod +x "$W/f18/heredoc_mention" "$W/f18/comment_mention" "$W/f18/after_heredoc"
+    RES=""
+    for body in \
+        "{\"command\":\"$W/f18/heredoc_mention\",\"args\":[]}" \
+        "{\"command\":\"$W/f18/comment_mention\",\"args\":[]}" \
+        "{\"command\":\"$W/f18/after_heredoc\",\"args\":[]}" \
+        '{"command":"node","args":["/nonexistent/dist/bin/codegraph.js","serve","--mcp"]}'; do
+        rm -rf "$P"; mkproj "$P" "$(printf '{"mcpServers":{"codegraph":{"command":"%s","args":["serve","--mcp"]},"extra":%s}}' "$WRAP" "$body")"; run_pf "$P"
+        if [ "$RC" -eq 1 ] && hasmsg P2 FAIL 'extra'; then RES="${RES}F"; else RES="${RES}p"; fi
+    done
+    rm -rf "$P"; mkproj "$P" "$(GOODJSON "$P")"
+    printf '{"hooks":{"PreToolUse":[{"matcher":"codegraph","hooks":[{"type":"command","command":"echo \\"see the codegraph docs\\""}]}]}}' > "$W/f18/hook_mention.json"
+    printf '{"hooks":{"PreToolUse":[{"matcher":"x","hooks":[{"type":"command","command":"/opt/cg/bin/codegraph prompt-hook"}]}]}}' > "$W/f18/hook_abs.json"
+    run_pf "$P" --settings "$W/f18/hook_mention.json"; HM_RC=$RC; has P3 PASS; HM3=$?
+    run_pf "$P" --settings "$W/f18/hook_abs.json"; HA_RC=$RC; hasmsg P3 FAIL 'stock codegraph'; HA3=$?
+    [ "$RES" = "ppFF" ] && [ "$HM_RC" -eq 0 ] && [ "$HM3" -eq 0 ] && [ "$HA_RC" -eq 1 ] && [ "$HA3" -eq 0 ]
+    t_check F18 "here-doc/comment mentions => not flagged; stock after a here-doc and a not-on-disk codegraph.js => P2 FAIL; hook mentioning codegraph => P3 PASS, absolute-path codegraph hook => P3 FAIL" $? "res=$RES hook_mention=$HM_RC/$HM3 hook_abs=$HA_RC/$HA3"
 fi
 t_finish

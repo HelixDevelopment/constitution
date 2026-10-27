@@ -77,6 +77,13 @@ r="$tmp/rec_dirty"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "${PIN[PATH]}" "${PIN
 expect "RECORDED-DIRTY-HEAD-CLEAN (recorded llmctl commit re-enters) must FAIL" 1 "$r"
 r="$tmp/rec_clean"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "${PIN[CLEAN]}" "${PIN[CLEAN]}")"; record "$r" "$L1"; mk_llmctl "$r" "${PIN[PATH]}" "${PIN[CLEAN]}" >/dev/null
 expect "RECORDED-CLEAN-HEAD-DIRTY (the RECORDED commit governs) must PASS" 0 "$r"
+# staged-vs-HEAD (same precedence as CM-HUB-ENGINE-NO-OWNORG-NESTING): a STAGED (index) gitlink that differs from
+# the HEAD record governs, so a pin bump is judged before it is committed.
+stage() { git -C "$1" update-index --add --cacheinfo "160000,$2,submodules/llmctl"; } # <root> <llmctl-commit> : index only
+r="$tmp/stg_dirty"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "${PIN[CLEAN]}" "${PIN[CLEAN]}")"; record "$r" "$L1"; L2="$(mk_llmctl "$r" "${PIN[PATH]}" "${PIN[CLEAN]}")"; stage "$r" "$L2"
+expect "STAGED-DIRTY-HEADREC-CLEAN (staged llmctl commit re-enters) must FAIL" 1 "$r"
+r="$tmp/stg_clean"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "${PIN[PATH]}" "${PIN[CLEAN]}")"; record "$r" "$L1"; L2="$(mk_llmctl "$r" "${PIN[CLEAN]}" "${PIN[CLEAN]}")"; stage "$r" "$L2"
+expect "STAGED-CLEAN-HEADREC-DIRTY (the STAGED commit governs) must PASS" 0 "$r"
 # LARGE-ENTRY (SIGPIPE x pipefail, §11.4.276(C) class member F1): the marker sits on the FIRST line of a llmctl entry
 # of ~465 KB. A `printf "$entry" | grep -q` under `set -o pipefail` lets grep exit at the first match while printf is
 # still writing; printf takes SIGPIPE and pipefail turns the PRESENT marker into a false "lacks the marker" FAIL.

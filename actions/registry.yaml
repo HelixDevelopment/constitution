@@ -547,6 +547,62 @@ actions:
       - "11.4.103"
       - "11.4.126"
 
+  # ── Jev decision-layer triggers (§11.4.281(D); data change, never code) ────
+  - name: JEV_BOOTSTRAP
+    version: 1
+    namespaces: [DEFAULT]
+    slash_bare: auto
+    slash_conflicts: []
+    summary: >-
+      Run the Jev decision-layer bootstrap wizard: detect decision models,
+      provision llmctl + claude_toolkit, wire every detected agent, start
+      shadow calibration (§11.4.279–§11.4.286).
+    expansion: >-
+      Execute the Jev decision-layer bootstrap wizard non-interactively:
+      `bash constitution/scripts/jev/bootstrap.sh --non-interactive`
+      (fall back to `bash scripts/jev/bootstrap.sh --non-interactive` when the
+      constitution is the project root). The wizard runs detect → provision
+      (llmctl + claude_toolkit) → detect decision models → install per-agent
+      artifacts → configure → shadow-calibrate → verify, reporting progress at
+      every stage. If the wizard fails, its own `--defer` fallback records a
+      pending stamp; surface the failure per §11.4.6 — never claim bootstrap
+      done without the stamp.
+    rules:
+      - "Non-interactive in agent context only; interactive prompting is for human operators at a TTY (§11.4.281(B))."
+      - "A bootstrap claim requires the bootstrap stamp evidence; failure degrades to --defer, never silent skip."
+    composes_with:
+      - "11.4.279"
+      - "11.4.280"
+      - "11.4.281"
+      - "11.4.286"
+
+  - name: JEV_STATUS
+    version: 1
+    namespaces: [DEFAULT]
+    slash_bare: auto
+    slash_conflicts: []
+    summary: >-
+      Show decision-layer status: detected endpoints, per-agent wiring, mode
+      (shadow/enforce), calibrated thresholds, pending bootstrap stamp, and the
+      jev-stats savings summary.
+    expansion: >-
+      Report decision-layer status by running
+      `bash scripts/jev/jev-status.sh` (or `bash
+      constitution/scripts/jev/jev-status.sh` from a consumer root): detected
+      endpoints from jev-detection.json, per-agent wiring state, current mode
+      (shadow/enforce), jev-thresholds.json calibration state, any pending
+      bootstrap stamp, and jev-stats savings figures — the savings figures are
+      ESTIMATES unless they cite the measured §11.4.141 harness. Report the
+      output verbatim-relevant parts; never invent status not present in the
+      evidence files (§11.4.6).
+    rules:
+      - "Status claims come from evidence files only (jev-detection.json, thresholds, stamps) — never from assumption (§7.1)."
+      - "Savings figures are labeled ESTIMATES unless measured-harness-backed (§11.4.283(C))."
+    composes_with:
+      - "11.4.279"
+      - "11.4.283"
+      - "11.4.285"
+
 # ── Sub-system / submodule shortcuts (§11.4.140 extension, 2026-07-14) ────────
 # A grammar-shaped UPPERCASE token that is NOT a registered behavioral action
 # (BACKGROUND / REMINDER above) MAY name an incorporated SUB-SYSTEM / submodule.

@@ -11,7 +11,11 @@
 //   - per-item one-line rows.
 //   - <doc>.html / .pdf / .docx    — §11.4.65 multi-format siblings for every
 //     emitted .md, produced via pandoc when the
-//     tool is present.
+//     tool is present AND the constitution
+//     formats-export switch is ON (default OFF,
+//     operator order 2026-10-26; see
+//     formats_switch.go). `--formats` forces on,
+//     `--no-formats` forces off.
 //
 // §6.J / §11.4.6 anti-bluff: the pandoc / weasyprint steps are GATED on tool
 // presence (`exec.LookPath`). When the tool is absent the .md is still emitted
@@ -42,8 +46,16 @@ func exportCmd(args []string) int {
 	outDir := fs.String("out-dir", ".", "directory to write the regenerated docs into")
 	outIssues := fs.String("out-issues", "", "explicit Issues.md output path (overrides --out-dir)")
 	outFixed := fs.String("out-fixed", "", "explicit Fixed.md output path (overrides --out-dir)")
-	noFormats := fs.Bool("no-formats", false, "emit only Markdown; skip HTML/PDF/DOCX sibling generation")
+	noFormats := fs.Bool("no-formats", false, "emit only Markdown; skip HTML/PDF/DOCX sibling generation (force off)")
+	formats := fs.Bool("formats", false, "force HTML/PDF/DOCX sibling generation on (default: the constitution formats-export switch decides, which is OFF)")
 	if err := fs.Parse(args); err != nil {
+		return exitUsage
+	}
+	// Operator order 2026-10-26: the exporter honours the ONE formats-export switch
+	// (formats_switch.go -> formats_export_lib.sh). Resolve before any write.
+	fmtDecision, fmtOK := decideFormats(*noFormats, *formats)
+	if !fmtOK {
+		fmt.Fprintln(os.Stderr, "export: --formats and --no-formats are mutually exclusive")
 		return exitUsage
 	}
 	if *dbPath == "" {
@@ -142,6 +154,10 @@ func exportCmd(args []string) int {
 	// 3. §11.4.65 multi-format siblings (HTML / PDF / DOCX) — pandoc-gated.
 	if *noFormats {
 		fmt.Println("export: --no-formats set; skipped HTML/PDF/DOCX sibling generation")
+		return exitOK
+	}
+	if !fmtDecision.Enabled {
+		fmt.Println(formatsDisabledNotice("export", fmtDecision))
 		return exitOK
 	}
 

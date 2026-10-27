@@ -361,9 +361,15 @@ func subtaskExportCmd(args []string) int {
 	parent := fs.String("parent", "", "all sub-tasks of this parent")
 	all := fs.Bool("all", false, "every sub-task in the DB")
 	outDir := fs.String("out-dir", "docs/issues", "root directory for per-item session docs")
-	noFormats := fs.Bool("no-formats", false, "emit Markdown only (skip HTML/PDF/DOCX siblings)")
-	_, flagArgs := partitionArgs(args, map[string]bool{"all": true, "no-formats": true})
+	noFormats := fs.Bool("no-formats", false, "emit Markdown only (skip HTML/PDF/DOCX siblings; force off)")
+	formats := fs.Bool("formats", false, "force HTML/PDF/DOCX siblings on (default: the constitution formats-export switch decides, which is OFF)")
+	_, flagArgs := partitionArgs(args, map[string]bool{"all": true, "no-formats": true, "formats": true})
 	if err := fs.Parse(flagArgs); err != nil {
+		return exitUsage
+	}
+	fmtDecision, fmtOK := decideFormats(*noFormats, *formats)
+	if !fmtOK {
+		fmt.Fprintln(os.Stderr, "subtask-export: --formats and --no-formats are mutually exclusive")
 		return exitUsage
 	}
 	if *dbPath == "" {
@@ -429,6 +435,10 @@ func subtaskExportCmd(args []string) int {
 
 	if *noFormats {
 		fmt.Println("subtask-export: --no-formats set; skipped HTML/PDF/DOCX siblings")
+		return exitOK
+	}
+	if !fmtDecision.Enabled {
+		fmt.Println(formatsDisabledNotice("subtask-export", fmtDecision))
 		return exitOK
 	}
 	return emitFourFormatSiblings(mdFiles)

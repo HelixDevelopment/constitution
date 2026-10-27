@@ -1,0 +1,4 @@
+{"run": "before", "step": 1, "tool": "Edit", "config": {"JEV_GATE": "off", "JEV_MODE": "off"}, "usage": {"input_tokens": 1200, "output_tokens": 300}}
+{"run": "before", "step": 2, "tool": "Bash", "config": {"JEV_GATE": "off", "JEV_MODE": "off"}, "usage": {"input_tokens": 2400, "output_tokens": 410}}
+{"run": "before", "step": 3, "tool": "Read", "config": {"JEV_GATE": "off", "JEV_MODE": "off"}, "usage": {"input_tokens": 800, "output_tokens": 120}}
+{"run": "before", "step": 4, "tool": "Write", "config": {"JEV_GATE": "off", "JEV_MODE": "off"}, "usage": {"input_tokens": 1600, "output_tokens": 520}}

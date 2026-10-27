@@ -63,9 +63,14 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # Re-measured 2026-10-13: universal 174 -> 176 = +2 for §11.4.277 and
         # §11.4.278 (each states "Classification: universal (§11.4.17)"; the
         # count is the generator's measurement over the real corpus).
-        # 176 + 110 + 2 mixed = 288 = total anchors.
-        assert len(universal) == 176, (
-            f"expected exactly 176 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-23 (W1 canon, Jev anchors §11.4.279-§11.4.286
+        # added, each "Classification: universal"): universal 176 -> 184 = +8.
+        # Re-measured 2026-10-27 (§11.4.290 optimistic done + parallel background
+        # verification added, "Classification: universal (§11.4.17)"): universal
+        # 184 -> 185 = +1.
+        # 185 + 110 + 2 mixed = 297 = total index entries.
+        assert len(universal) == 185, (
+            f"expected exactly 185 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

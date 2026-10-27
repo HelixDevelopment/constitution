@@ -1,10 +1,11 @@
 # mcpro1 (runner patch) — guide
 
-**Revision:** 1
-**Last modified:** 2026-09-26T14:20:00Z
+**Revision:** 2
+**Last modified:** 2026-10-26T20:57:00Z
 
-Source: `constitution/scripts/codegraph/runner_patches/mcpro1.py` (161 lines). A **module driven by
-`fk_index_patch.py`**, not a command. Citations are `mcpro1.py:<line>` unless another file is named. Machinery guide:
+Source: `constitution/scripts/codegraph/runner_patches/mcpro1.py` (233 lines). A **module driven by
+`fk_index_patch.py`**, not a command. Citations are `mcpro1.py:<line>` unless another file is named (Revision 2 added shape B, see below; the shape-A line citations in the
+anchor table are unchanged because shape B was appended after them). Machinery guide:
 [fk_index_patch](fk_index_patch.md).
 
 ## Overview
@@ -39,6 +40,42 @@ The source records a measured hazard behind the allowlist (lines 27-30): without
 deleted the database, because `removeDatabaseFiles` runs before `initialize()` throws. Layering (lines 32-35): the CLI
 allowlist is the first line, the read-only open / no-op sync / no-daemon are the operational lines for the MCP server, and the
 `initialize`/`FileLock` throws are second-line guards for paths that bypass the CLI.
+
+## Two code shapes: A (CodeGraph 1.6.0) and B (CodeGraph >= 1.6.2) — added in Revision 2
+
+Why this exists (incident 2026-10-27, `/mcp` showed `Failed to reconnect to codegraph: MCP error -32000: Connection closed`).
+The eight anchors above were written against 1.6.0. The npm package was upgraded to 1.6.2 and nothing re-proved the patch, so
+the builder refused (`mcpro1: anchor 'DatabaseConnection.open -> read-only, no migrate/heal' occurs 0x`), the sanctioned
+wrapper [codegraph_mcp](codegraph_mcp.md) exited 5 in 0.11 s with an EMPTY stdout, and the MCP client reported a closed
+connection. Fail-closed worked as designed; what was missing was a gate that notices the refusal before an operator does (see
+[codegraph_mcp_health](codegraph_mcp_health.md)).
+
+`plan()` recognises the shape from `lib/dist/db/index.js`: exactly one `static open(dbPath, options = {}) {` means shape B
+(`mcpro1.py:209`), anything else is planned as shape A and refused by the exactly-once anchors if it matches neither
+(fail-closed). Shape B keeps every shape-A guarantee and swaps/adds anchors (eleven anchors, five files; the recorded plan for the
+installed 1.6.2 is in the reference consumer's evidence pack, `79_mcpro1_plan_current_shapeB.json`):
+
+| Shape-B anchor | File | Effect |
+|---|---|---|
+| `static open(dbPath, options = {})` (`:163`) | `lib/dist/db/index.js` | 1.6.2 has a native `readOnly` option; the wrapper forces `readOnly: true` for every caller, then still refuses a schema older than this build (never migrates) |
+| `catchUpSync(afterReopen = false)` (`:181`) | `lib/dist/mcp/engine.js` | No-op (the signature changed in 1.6.2) |
+| `function makeFallbackEngine(root)` (`:187`) | `lib/dist/mcp/index.js` | Returns the read-only fallback engine only; never a writable one |
+| `const writerRoot = resolveDaemonRoot(this.projectPath);` (`:193`) | `lib/dist/mcp/index.js` | `writerRoot = null`: 1.6.2 `startDirect()` otherwise claims the project's writer slot (`.codegraph/writer.pid`) |
+| `new engine_1.MCPEngine({ queryPool: true, ... })` (`:197`) | `lib/dist/mcp/index.js` | Builds only `MCPEngine({ readOnly: true })`: no watcher, no catch-up sync, no query pool |
+
+The other six anchors (`initialize`, `FileLock.acquire/release`, `startWatching`, `daemonOptOutSet`, the CLI allowlist) are shared
+with shape A.
+
+How the watcher is armed on shape B (read from the 1.6.2 source, then proven by mutant M5): `MCPEngine.startWatching()`
+(`mcp/engine.js`) only creates the project lease through `acquireProject`. The lease's `activate()`
+(`mcp/project-lifecycle.js`) is the code that calls `cg.watch()`, prints `File watcher active` and then `cg.sync()`; it runs
+lazily from `lease.ready()`, and the only caller of `ready()` is `catchUpSync()`. The engine's own `readOnly` option
+short-circuits both methods natively. The hole is therefore closed by three independent layers (patched `startWatching`, patched
+`catchUpSync`, the read-only engine), and the M5 mutant reverts all three before the watcher log reappears. A first attempt that
+reverted only the watcher method, then the watcher plus the engine option and the write-lock throw, left the mutant alive for
+the right reason: each of those leaves a layer in place, which is why a single-layer mutant on this shape is an equivalent
+mutant and must not be accepted as a "killed" proof. Evidence: `75_`/`76_mcpro1_M5_probe*.txt` (survivors),
+`77_mcpro1_M5_shapeB_fixed.txt` (killed).
 
 ## Prerequisites
 
@@ -80,13 +117,20 @@ even without `CODEGRAPH_NO_WATCH` (stock reports active); R7 a planted stale loc
 builder fail-closed on shape mismatch: exit 2 and no runner directory; R9 the RO runner refuses `codegraph sync` (exit 78;
 database and planted lock untouched); R10 it refuses `codegraph index`; R11 no detached daemon even with
 `CODEGRAPH_NO_DAEMON=0` (stock leaves `daemon.log`); R12 node-level: `FileLock.acquire` throws and never unlinks a stale lock;
-R13 registry: registered, selectable, not in the default set, exclusive with writer patches. The test unsets ambient
+R13 registry: registered, selectable, not in the default set, exclusive with writer patches; R14 (Revision 2) a live RO MCP
+session never creates `.codegraph/writer.pid`, `daemon.pid` or `daemon.sock` (control: the stock runner does create `writer.pid`, so
+the instrument is shown able to see a slot). R8 uses a version-aware regex for the `catchUpSync` definition line so its
+shape-mismatch mutation is not vacuous on shape B. The test unsets ambient
 `CODEGRAPH_*` env so the instrument cannot be steered from outside (`test_mcp_readonly.sh:21`).
-`tests/test_mcp_readonly_mutations.sh` applies single-edit mutants (table in `test_mcp_readonly_mutate.py`).
+`tests/test_mcp_readonly_mutations.sh` applies the mutants of `test_mcp_readonly_mutate.py` to a scratch COPY and requires the named
+R-cases to turn FAIL. Since Revision 2 each mutant carries per-shape edits (`{shape: (edits, expected-FAIL list)}`; `*` = shape
+independent) and the harness reads the installed package's shape itself; a mutant with no variant for the shape under test exits 3 and is
+reported `N/A`, never counted as killed. M11 is shape-B only (the writer slot, expected R14). On shape B, M8 expects only R10 because
+`codegraph sync` is still refused by the second-line `FileLock.acquire` throw even with the allowlist off.
 
 ## Behaviour (source-traced)
 
-`plan(view)` (lines 144-161): Refuse `mcpro1: <file> is ALREADY patched` if the marker `helix-mcpro1` occurs in any of the five
+`plan(view)` (`mcpro1.py:202-233`; the shape-A path is unchanged in behaviour): Refuse `mcpro1: <file> is ALREADY patched` if the marker `helix-mcpro1` occurs in any of the five
 files (lines 145-147); then eight `replace_once` edits, each failing closed (exit 2, no runner) if its anchor is not found
 exactly once. There is no NOT_NEEDED path. Because it edits `db/index.js` and `utils.js`, the same files touched by `fkidx1`
 and `lockfix1`, it must never be combined with them (enforced by EXCLUSIVE).
@@ -111,3 +155,11 @@ and `lockfix1`, it must never be combined with them (enforced by EXCLUSIVE).
 
 2026-09-26: `tests/test_mcp_readonly.sh` 13/13 PASS with a scratch `TMPDIR`; real runner cache listing unchanged. `tests/test_mcp_readonly_mutations.sh`:
 mutants=10 killed=10 survivors=0.
+
+2026-10-26 (Revision 2, CodeGraph 1.6.2 installed and the npm `latest`):
+- `VERIFIED (ran: fk_index_patch.plan_all(<installed 1.6.2>, ["mcpro1"]); saw: status APPLIED, anchors 11, files 5, detail shape "B (>=1.6.2: native readOnly open, writer-slot + writable-engine paths closed)")`.
+- `VERIFIED (ran: tests/test_mcp_readonly.sh, R1,R3,R5,R6,R7,R9..R14 via the mutation harness baseline; saw: every RESULT line PASS, including R14 with its stock control)`.
+- `VERIFIED (ran: tests/test_mcp_readonly_mutations.sh, all mutants; saw: SUMMARY mutants=11 killed=11 survivors=0 not_applicable=0, EXIT=0)`; the previous run of the same harness (single-layer M5) had mutants=11 killed=10 survivors=1, recorded as the equivalent-mutant defect fixed above.
+- `VERIFIED (ran: the exact .mcp.json command, bash constitution/scripts/codegraph/codegraph_mcp.sh with cwd = the project, driven by a scripted MCP client; saw: initialize in 0.57 s, 8 tools in tools/list, a real query for a known symbol returning "Search Results (5 found)", exit 0, peak RSS 2.59 GB)`.
+- Not covered: shapes other than A and B (refused by design); a future 1.6.x that keeps the shape-B signatures but moves the watcher arming (the M5 mutant would then need re-deriving); behaviour on non-Linux hosts.
+

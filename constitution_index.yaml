@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-26T15:43:04.858577+00:00'
+generated_at: '2026-10-27T18:08:43.334907+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 94b8836731939dccbd537e6671db184e9f658ba5
-  source_sha256: 0336c93a44ec0d7072e31043d317d67cf41c525ea88ffa04c3343ab0ac81a0db
+  commit: a24b7626cf756ccd4cd8a356b4e62b4ea9668b26
+  source_sha256: e9bc9cc1325223156747a4025ee31c02f155cb35afa756b2240df5a646ef8996
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -22,7 +22,7 @@ groups:
   anchor_count: 24
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
-  anchor_count: 37
+  anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
   anchor_count: 21
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 46
+  anchor_count: 51
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 41
@@ -40,7 +40,7 @@ groups:
   anchor_count: 3
 - name: workable-items-and-tracking
   path: constitution/groups/workable-items-and-tracking.md
-  anchor_count: 19
+  anchor_count: 20
 anchors:
 - id: '1.1'
   title: False-positive immunity is an invariant
@@ -294,6 +294,7 @@ anchors:
   cross_references:
   - 11.4.15
   - 11.4.2
+  - 11.4.290
   - 11.4.5
 - id: 11.4.16
   title: — Item-type tracking mandate
@@ -503,16 +504,22 @@ anchors:
   cross_references:
   - '1.1'
   - '11.4'
+  - 11.4.113
+  - 11.4.164
   - 11.4.17
   - 11.4.20
+  - 11.4.201
   - 11.4.21
   - 11.4.25
   - 11.4.26
   - 11.4.27
   - 11.4.28
   - 11.4.31
+  - 11.4.32
   - 11.4.35
+  - 11.4.6
   - 11.4.74
+  - 11.4.79
   - '2.1'
 - id: 11.4.29
   title: — Lowercase-Snake_Case-Naming Mandate (User mandate, 2026-05-15)
@@ -568,16 +575,23 @@ anchors:
   - '11.4'
   - 11.4.12
   - 11.4.17
+  - 11.4.177
   - 11.4.18
   - 11.4.2
   - 11.4.20
+  - 11.4.215
+  - 11.4.233
   - 11.4.25
+  - 11.4.257
+  - 11.4.258
   - 11.4.26
   - 11.4.27
   - 11.4.28
   - 11.4.29
   - 11.4.30
   - 11.4.31
+  - 11.4.35
+  - 11.4.6
 - id: 11.4.32
   title: — Post-Constitution-Pull Validation Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
@@ -619,6 +633,7 @@ anchors:
   - 11.4.17
   - 11.4.19
   - 11.4.23
+  - 11.4.290
   - 11.4.33
 - id: 11.4.34
   title: — Reopened-source attribution mandate (User mandate, 2026-05-15)
@@ -2277,6 +2292,7 @@ anchors:
   - 11.4.226
   - 11.4.262
   - 11.4.27
+  - 11.4.290
   - 11.4.35
   - 11.4.4
   - 11.4.40
@@ -2659,6 +2675,7 @@ anchors:
   - 11.4.123
   - 11.4.17
   - 11.4.21
+  - 11.4.290
   - 11.4.33
   - 11.4.35
   - 11.4.5
@@ -3776,18 +3793,24 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - 11.4.10
   - 11.4.107
   - 11.4.162
   - 11.4.17
+  - 11.4.216
+  - 11.4.218
   - 11.4.25
   - 11.4.27
+  - 11.4.28
   - 11.4.35
   - 11.4.4
   - 11.4.48
   - 11.4.49
   - 11.4.6
+  - 11.4.66
   - 11.4.69
   - 11.4.74
+  - 11.4.79
 - id: 11.4.163
   title: — Universal Media Validation & Verification Mandate (User mandate, 2026-06-21)
   group: anti-bluff-and-evidence
@@ -5476,6 +5499,7 @@ anchors:
   - 11.4.214
   - 11.4.226
   - 11.4.227
+  - 11.4.290
   - 11.4.32
   - 11.4.33
   - 11.4.35
@@ -5726,6 +5750,7 @@ anchors:
   - 11.4.211
   - 11.4.227
   - 11.4.231
+  - 11.4.284
   - 11.4.35
   - 11.4.5
   - 11.4.6
@@ -7336,6 +7361,185 @@ anchors:
   - 11.4.81
   - 11.4.83
   - 11.4.85
+- id: 11.4.279
+  title: — Decision-model detection-first mandate (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-279-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.141
+  - 11.4.17
+  - 11.4.198
+  - 11.4.227
+  - 11.4.231
+  - 11.4.279
+  - 11.4.286
+  - 11.4.35
+  - 11.4.6
+  - '7.1'
+- id: 11.4.280
+  title: — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-280-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.164
+  - 11.4.17
+  - 11.4.227
+  - 11.4.228
+  - 11.4.272
+  - 11.4.279
+  - 11.4.280
+  - 11.4.281
+  - 11.4.6
+  - '7.1'
+- id: 11.4.281
+  title: — Bootstrap wizard and post-update auto-trigger (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-281-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.164
+  - 11.4.17
+  - 11.4.227
+  - 11.4.228
+  - 11.4.26
+  - 11.4.279
+  - 11.4.281
+  - 11.4.32
+  - 11.4.6
+- id: 11.4.282
+  title: — Maximal decision-instance utilization (User mandate, 2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-282-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.141
+  - 11.4.17
+  - 11.4.231
+  - 11.4.279
+  - 11.4.282
+  - 11.4.283
+- id: 11.4.283
+  title: — Decision-layer token-reduction proof (User mandate, 2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-283-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.141
+  - 11.4.17
+  - 11.4.198
+  - 11.4.227
+  - 11.4.279
+  - 11.4.283
+  - 11.4.35
+  - 11.4.6
+  - '7.1'
+- id: 11.4.284
+  title: — Decision layer as pre-ladder routing stage (amends §11.4.231) (User mandate,
+    2026-10-07)
+  group: governance-and-constitution-meta
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-284-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.196
+  - 11.4.231
+  - 11.4.279
+  - 11.4.284
+  - 11.4.285
+- id: 11.4.285
+  title: — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-285-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.231
+  - 11.4.279
+  - 11.4.281
+  - 11.4.285
+  - 11.4.35
+  - '7.1'
+- id: 11.4.286
+  title: — Decision-layer dependency submodules (User mandate, 2026-10-07)
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-286-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - 11.4.17
+  - 11.4.26
+  - 11.4.279
+  - 11.4.28
+  - 11.4.281
+  - 11.4.286
+- id: 11.4.290
+  title: '— Optimistic done with parallel background verification: PROVISIONAL-DONE
+    vs VERIFIED-DONE, automatic non-silent reopen, honest release labelling (User
+    mandate, 2026-10-27)'
+  group: workable-items-and-tracking
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-290-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.1
+  - 11.4.107
+  - 11.4.108
+  - 11.4.115
+  - 11.4.123
+  - 11.4.135
+  - 11.4.15
+  - 11.4.17
+  - 11.4.189
+  - 11.4.19
+  - 11.4.197
+  - 11.4.201
+  - 11.4.207
+  - 11.4.21
+  - 11.4.226
+  - 11.4.227
+  - 11.4.230
+  - 11.4.236
+  - 11.4.262
+  - 11.4.271
+  - 11.4.290
+  - 11.4.33
+  - 11.4.34
+  - 11.4.35
+  - 11.4.5
+  - 11.4.55
+  - 11.4.6
+  - 11.4.69
+  - 11.4.7
+  - 11.4.90
+  - 11.4.94
+  - 11.4.97
+  - '12.6'
+  - '7.1'
+  - '9.1'
+  - '9.3'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

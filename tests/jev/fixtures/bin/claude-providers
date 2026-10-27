@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Stub: claude-providers. `sync-jev [--quiet]` writes the endpoint cache to
+# $CMA_PROVIDERS_DIR/jev-endpoints.json (fields provider_id/base_url/model/
+# key_var) from $FIXTURE_ENDPOINTS when set, else an empty cache.
+set -euo pipefail
+logdir="${STUB_LOG:-/tmp}"
+printf '%s\n' "claude-providers $*" >> "$logdir/claude-providers.log" 2>/dev/null || true
+case "${1:-}" in
+  --version|version) echo "claude-providers stub 0.0.0-fixture" ;;
+  sync-jev)
+    dir="${CMA_PROVIDERS_DIR:?CMA_PROVIDERS_DIR must be set}"
+    mkdir -p "$dir"
+    if [ -n "${FIXTURE_ENDPOINTS:-}" ] && [ -f "$FIXTURE_ENDPOINTS" ]; then cp "$FIXTURE_ENDPOINTS" "$dir/jev-endpoints.json"
+    else printf '{"endpoints":[]}\n' > "$dir/jev-endpoints.json"; fi
+    echo "stub: sync-jev cache written" ;;
+  *) echo "claude-providers stub: unknown command '${1:-}'" >&2; exit 1 ;;
+esac

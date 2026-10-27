@@ -1,0 +1,3 @@
+{"ts":1760000001,"class":"gate","question":"allow Read?","answer":"yes","confidence":0.97,"state_hash":"a1"}
+{"ts":1760000002,"class":"routing","question":"which tier?","answer":"sonnet","confidence":0.93,"state_hash":"b2"}
+{"ts":1760000003,"class":"score","question":"quality?","answer":"0.8","confidence":0.91,"state_hash":"c3"}

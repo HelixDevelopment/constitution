@@ -140,21 +140,93 @@ DAEMON_NEW = """function daemonOptOutSet() {
 }
 function helixLegacyDaemonOptOutSet() {""" % TAG
 
+# ---- shape B: CodeGraph >= 1.6.2 (measured 2026-10-27 on the installed v1.6.2) ---------------------
+# Upstream changed the shape in four places; the 1.6.0 anchors above then occur 0x and the builder
+# refused ("mcpro1: anchor 'DatabaseConnection.open -> read-only, no migrate/heal' occurs 0x") =>
+# no read-only runner => codegraph_mcp.sh exited 5 before the MCP handshake => the harness showed
+# "Failed to reconnect to codegraph: MCP error -32000: Connection closed". Shape B keeps every
+# guarantee of shape A and closes the two NEW write paths 1.6.2 added to direct mode:
+#   db/index.js   open(dbPath, options = {}) now has a NATIVE readOnly option (O_RDONLY fd, returns
+#                 before migrations/heals). Forced here for every caller; schema older than this
+#                 build still throws (never migrate).
+#   mcp/engine.js catchUpSync(afterReopen = false)  -> no-op (signature changed).
+#   mcp/index.js  startDirect() took a writer slot (tryAcquireWriterLock => .codegraph/writer.pid)
+#                 and built a WRITABLE engine (watcher + catch-up sync + 16-thread query pool);
+#                 makeFallbackEngine() did the same. Both now build only MCPEngine({readOnly:true}),
+#                 which never claims the writer slot, never watches, never syncs.
+# Watcher arming on shape B is TWO cooperating steps (read from the 1.6.2 source, then re-proven by the
+# M5 mutant in tests/test_mcp_readonly_mutate.py): engine.startWatching() only creates the project lease;
+# the lease's activate() (cg.watch() + the "File watcher active" log + cg.sync()) runs lazily from
+# lease.ready(), and the only caller of ready() is engine.catchUpSync(). Both methods are no-ops here, and
+# the engine's own `readOnly` option short-circuits both natively, so the hole is closed by three
+# independent layers; the M5 mutant must revert all three before the watcher log reappears.
+OPEN_ANCHOR_B = "    static open(dbPath, options = {}) {"
+OPEN_NEW_B = """    static open(dbPath, options = {}) {
+        %s: READ-ONLY open — whatever the caller
+        // asks, the descriptor is O_RDONLY (native readOnly path: no migration, no heal, no DDL), and a
+        // schema older than this build is refused rather than migrated.
+        const helixConn = DatabaseConnection.helixLegacyOpen(dbPath, { ...options, readOnly: true });
+        const helixVersion = (0, migrations_1.getCurrentVersion)(helixConn.db);
+        if (helixVersion < migrations_1.CURRENT_SCHEMA_VERSION) {
+            try {
+                helixConn.db.close();
+            }
+            catch { /* ignore */ }
+            throw new Error(`helix-mcpro1: schema v${helixVersion} is older than v${migrations_1.CURRENT_SCHEMA_VERSION}; a read-only runner cannot migrate`);
+        }
+        return helixConn;
+    }
+    static helixLegacyOpen(dbPath, options = {}) {""" % TAG
+
+SYNC_ANCHOR_B = "    catchUpSync(afterReopen = false) {"
+SYNC_NEW_B = """    catchUpSync(afterReopen = false) {
+        return; %s: no startup catch-up sync (cg.sync() writes)
+    }
+    helixLegacyCatchUpSync(afterReopen = false) {""" % TAG
+
+FALLBACK_ANCHOR_B = "function makeFallbackEngine(root) {"
+FALLBACK_NEW_B = """function makeFallbackEngine(root) {
+    return readOnlyFallback('helix-mcpro1 read-only runner'); %s: never a writer slot, never a writable engine
+}
+function helixLegacyMakeFallbackEngine(root) {""" % TAG
+
+WRITER_ANCHOR_B = "        const writerRoot = resolveDaemonRoot(this.projectPath);"
+WRITER_NEW_B = ("        const writerRoot = null; " + TAG + ": a read-only runner never claims the "
+                "project's writer slot (no .codegraph/writer.pid)")
+
+DIRECT_ANCHOR_B = "        this.engine = new engine_1.MCPEngine({ queryPool: true, queryPoolDefaultMax: DIRECT_QUERY_POOL_MAX });"
+DIRECT_NEW_B = ("        this.engine = new engine_1.MCPEngine({ readOnly: true }); " + TAG + ": read-only engine "
+                "(no watcher, no catch-up sync, no query pool)")
+
 
 def plan(view):
     for rel in (DBJS, UTILS, ENGINE, MCPIDX, BIN):
         if MARK in view.read(rel):
             raise Refuse(f"mcpro1: {rel} is ALREADY patched — --src must be the pristine package")
     p = PatchPlan(PATCH_ID)
-    p.replace_once(view, DBJS, OPEN_ANCHOR, OPEN_NEW, "DatabaseConnection.open -> read-only, no migrate/heal")
+    # Shape B (>= 1.6.2) is recognised by its open() signature; anything else is treated as shape A
+    # (1.6.0) and refused by the exactly-once anchors if it matches neither (fail-closed).
+    shape_b = view.read(DBJS).count(OPEN_ANCHOR_B) == 1
+    if shape_b:
+        p.replace_once(view, DBJS, OPEN_ANCHOR_B, OPEN_NEW_B, "DatabaseConnection.open -> read-only, no migrate/heal")
+    else:
+        p.replace_once(view, DBJS, OPEN_ANCHOR, OPEN_NEW, "DatabaseConnection.open -> read-only, no migrate/heal")
     p.replace_once(view, DBJS, INIT_ANCHOR, INIT_NEW, "DatabaseConnection.initialize -> throw")
     p.replace_once(view, UTILS, ACQ_ANCHOR, ACQ_NEW, "FileLock.acquire -> throw (no stale-lock unlink)")
     p.replace_once(view, UTILS, REL_ANCHOR, REL_NEW, "FileLock.release -> no-op")
     p.replace_once(view, ENGINE, WATCH_ANCHOR, WATCH_NEW, "MCPEngine.startWatching -> no-op + notice")
-    p.replace_once(view, ENGINE, SYNC_ANCHOR, SYNC_NEW, "MCPEngine.catchUpSync -> no-op")
+    if shape_b:
+        p.replace_once(view, ENGINE, SYNC_ANCHOR_B, SYNC_NEW_B, "MCPEngine.catchUpSync -> no-op")
+    else:
+        p.replace_once(view, ENGINE, SYNC_ANCHOR, SYNC_NEW, "MCPEngine.catchUpSync -> no-op")
     p.replace_once(view, MCPIDX, DAEMON_ANCHOR, DAEMON_NEW, "daemonOptOutSet -> always direct")
+    if shape_b:
+        p.replace_once(view, MCPIDX, FALLBACK_ANCHOR_B, FALLBACK_NEW_B, "makeFallbackEngine -> read-only engine only")
+        p.replace_once(view, MCPIDX, WRITER_ANCHOR_B, WRITER_NEW_B, "startDirect writer slot -> never claimed")
+        p.replace_once(view, MCPIDX, DIRECT_ANCHOR_B, DIRECT_NEW_B, "startDirect engine -> MCPEngine({readOnly:true})")
     p.replace_once(view, BIN, CLI_ANCHOR, CLI_NEW, "CLI allowlist (serve --mcp/status/--version/--help only)")
-    p.detail = {"mode": "unconditional read-only (no env gate)", "exclusive": True, "opt_in": True,
+    p.detail = {"shape": "B (>=1.6.2: native readOnly open, writer-slot + writable-engine paths closed)" if shape_b
+                else "A (1.6.0)", "mode": "unconditional read-only (no env gate)", "exclusive": True, "opt_in": True,
                 "db_open": "createDatabase(readOnly) + query_only, no migrations/heals",
                 "stale_lock_unlink": "removed (FileLock.acquire throws, release no-op)",
                 "daemon": "never", "watcher": "never", "catch_up_sync": "never"}

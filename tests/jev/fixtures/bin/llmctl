@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Stub: llmctl. Records invocations to $STUB_LOG/llmctl.log. Implements ONLY the
+# subcommands scripts/jev/bootstrap.sh uses (`plan --json` is NOT used and is
+# deliberately unknown here, so a regression to it fails loudly):
+#   decide status --json    -> $LLMCTL_STATUS_JSON file, else one running profile
+#   decide capacity --json  -> $LLMCTL_CAPACITY_JSON file, else decide-tiny fits
+#   models download <prof>  -> recorded
+set -euo pipefail
+logdir="${STUB_LOG:-/tmp}"
+printf '%s\n' "llmctl $*" >> "$logdir/llmctl.log" 2>/dev/null || true
+cmd="${1:-}"; sub="${2:-}"
+case "$cmd $sub" in
+  "decide status")
+    if [ -n "${LLMCTL_STATUS_JSON:-}" ] && [ -f "$LLMCTL_STATUS_JSON" ]; then cat "$LLMCTL_STATUS_JSON"
+    else echo '{"gateway":{"running":true},"profiles":[{"profile":"decide-tiny","running":true}]}'; fi ;;
+  "decide capacity")
+    if [ -n "${LLMCTL_CAPACITY_JSON:-}" ] && [ -f "$LLMCTL_CAPACITY_JSON" ]; then cat "$LLMCTL_CAPACITY_JSON"
+    else echo '{"decision_instances":{"decide-tiny":{"instances_gpu":0,"instances_cpu":1,"effective_slots_per_instance":2}}}'; fi ;;
+  "models download") echo "stub: downloaded ${3:-?}" ;;
+  *) echo "llmctl stub: unknown command '$cmd $sub'" >&2; exit 1 ;;
+esac

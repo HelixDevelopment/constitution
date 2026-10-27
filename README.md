@@ -1,17 +1,17 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-v70-green) ![Anchors](https://img.shields.io/badge/anchors-288-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-141%2F141_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-144-green) ![Progressive](https://img.shields.io/badge/progressive-289_rules-green) ![Submodules](https://img.shields.io/badge/submodules-23%2F23_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-ready-green)
+![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-297-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-164%2F164_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-167-green) ![Progressive](https://img.shields.io/badge/progressive-298_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00)
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 11 |
 | Created | 2026-05-14 |
-| Last modified | 2026-10-26T16:00:00Z |
+| Last modified | 2026-10-27T10:49:45Z |
 | Status | active |
-| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). R8 (2026-10-26, operator order: agents work only with Markdown): the generated `.html` / `.pdf` / `.docx` exports of tracked Markdown were removed from this repository, the `formats_export` switch (`config/formats_export.conf`, shipped `false`) owns whether twins exist, and the `Twins` badge is gray "markdown only" while it is off (`scripts/badges/test_twins_badge_formats_switch.sh` proves both directions). |
+| Status summary | R9 2026-10-27: new anchor §11.4.290 (optimistic done with parallel background verification: PROVISIONAL-DONE vs VERIFIED-DONE, automatic non-silent reopen, honest release labelling) with its gate `CM-PROVISIONAL-DONE-ANCHOR-WIRED`, a README section and state diagram; the Facts table, group table and badge row re-measured from the index (the old figures were stale). Prior: Merge 2026-10-26: upstream v71 (Jev decision layer §11.4.279–286) merged with the Markdown-only amendment (`formats_export` flag, shipped false; upstream format twins dropped). Prior: R8 refresh (2026-10-23, unreleased — next tag `helixconstitution-v71`, tag and hash filled at tag time): the decision layer (Jev) added — anchors §11.4.279–§11.4.286, a dedicated README section with a flow diagram, and updated dependency/tooling tables; the badge row is NOT hand-edited and must be recomputed with `scripts/badges/compute_badges.sh`. Earlier: Universal engineering constitution shared by every project that includes this repository as a Git submodule. R7 refresh (2026-10-19, release `helixconstitution-v70`): every figure on this page is computed from the repository, not typed — see "Facts at a glance" and `scripts/badges/compute_badges.sh`. The canon (`Constitution.md`, revision 76) defines anchors through §11.4.278; this release adds the progressive-disclosure layer (`progressive/`), the independent audit + remediation of the optimization packs, the §11.4.141 M2–M9 token-efficiency measures, §11.4.277 / §11.4.278 with the vendored `llmctl`, the SIGPIPE-class gate hardening and the README quality-badge computer (§11.4.259 applied to this repository). The authoritative per-round history stays in `Constitution.md`'s own header and in `CHANGELOG.md`; this page is a point-in-time pointer and the badge row says honestly when it is stale. The rendered twins of the governance files (`.html` / `.pdf` / `.docx`) are NOT regenerated in this release and are declared PENDING upstream regeneration (amber `Twins` badge). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process) |
+| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23); (R4, 2026-07-23 — §11.4.226/§11.4.227 harvest round); (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap); (R6, 2026-10-13 — §11.4.277 / §11.4.278, llmctl vendored); (R7, 2026-10-19 — exhaustive rewrite against the live repository state, badge row, progressive-disclosure layer, dependency table, release process); (R8, 2026-10-21 — §11.4.31 dependency-manifest section, engine, gate and documentation links); (R9, 2026-10-27 — §11.4.290, figures re-measured, badge row recomputed) |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -54,17 +54,17 @@ README ships in. Re-derive the machine-derived ones with
 | Fact | Value | Source of truth |
 |---|---|---|
 | Latest release tag | `helixconstitution-v70` (previous: `helixconstitution-v69`, 2026-10-05; `helixconstitution-v68`, 2026-08-18) | `git tag`, `CHANGELOG.md` |
-| Canon | `Constitution.md`, revision 76, 12,149 lines, 2,062,810 bytes | `wc`, document header |
-| Indexed anchors | **288**, in **12** groups | `constitution_index.yaml` |
-| Highest anchor number | §11.4.278 (§11.4.277 llmctl model validation gate, §11.4.278 HelixQA UI QA with Vision eyes — the latter PROPOSED, evidence pending) | `Constitution.md` |
-| Progressive rules | **289** rule files generated from the canon (the 288-vs-289 difference is a recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
-| Governance mirrors | `CLAUDE.md` rev 79, `AGENTS.md` rev 77, `QWEN.md` rev 74, `GEMINI.md` rev 48 (kept in lockstep per §11.4.157) | document headers |
-| Mechanism gates | **141** `cm_*` gates in `scripts/gates/`, **141** with a paired mutation test or outside self-test; **144** mutation tests in total | `compute_badges.sh --facts` |
-| Propagation gates | **89** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
+| Canon | `Constitution.md`, revision 81, 12,498 lines, 2,118,331 bytes | `wc`, document header |
+| Indexed anchors | **297**, in **12** groups | `constitution_index.yaml` |
+| Highest anchor number | §11.4.290 (§11.4.290 optimistic done with parallel background verification; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
+| Progressive rules | **298** rule files generated from the canon (the 297-vs-298 difference is the recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
+| Governance mirrors | `CLAUDE.md` rev 85, `AGENTS.md` rev 82, `QWEN.md` rev 79, `GEMINI.md` rev 53 (kept in lockstep per §11.4.157) | document headers |
+| Mechanism gates | **164** gates in `scripts/gates/` (as counted by `compute_badges.sh`, propagation gates included), **164** with a paired mutation test or outside self-test; **167** mutation tests in total | `compute_badges.sh --facts` |
+| Propagation gates | **98** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
 | Shell scripts | 749 `*.sh` under `scripts/` | `find` |
-| Submodules | **23** declared, **23** recorded gitlinks (8 own-org, 15 third-party) | `.gitmodules`, `git ls-files -s` |
+| Submodules | **27** declared, **27** linked per `compute_badges.sh --facts` (own-org / third-party split: re-derive from `.gitmodules`; the earlier typed split of 8 own-org and 15 third-party was not re-measured here) | `.gitmodules`, `git ls-files -s` |
 | Remotes | 6 upstreams (GitHub ×2, GitLab ×2, GitFlic, GitVerse) | `git remote -v` |
-| Index freshness | index and progressive catalog both carry the canon's SHA-256 (`1667ded1…`) | `cm_constitution_index_fresh.sh` |
+| Index freshness | index and progressive catalog both carry the canon's SHA-256 (`809b27e3…`) | `cm_constitution_index_fresh.sh` |
 
 ## Anchor catalogue by group
 
@@ -80,14 +80,14 @@ are the index's own.
 | design-system-and-ui | 11 | `groups/design-system-and-ui.md` |
 | documentation-and-export | 27 | `groups/documentation-and-export.md` |
 | git-and-data-safety | 24 | `groups/git-and-data-safety.md` |
-| governance-and-constitution-meta | 37 | `groups/governance-and-constitution-meta.md` |
+| governance-and-constitution-meta | 40 | `groups/governance-and-constitution-meta.md` |
 | host-and-resource-safety | 21 | `groups/host-and-resource-safety.md` |
 | multi-track-and-parallelism | 13 | `groups/multi-track-and-parallelism.md` |
-| project-lifecycle-and-release | 46 | `groups/project-lifecycle-and-release.md` |
+| project-lifecycle-and-release | 51 | `groups/project-lifecycle-and-release.md` |
 | testing-and-tdd | 41 | `groups/testing-and-tdd.md` |
 | translation-and-localization | 3 | `groups/translation-and-localization.md` |
-| workable-items-and-tracking | 19 | `groups/workable-items-and-tracking.md` |
-| **Total** | **288** | `constitution_index.yaml` |
+| workable-items-and-tracking | 20 | `groups/workable-items-and-tracking.md` |
+| **Total** | **297** | `constitution_index.yaml` |
 
 Foundational clauses a reader meets first (each carries its verbatim
 operator mandate in a forensic-anchor block inside `Constitution.md`):
@@ -108,6 +108,8 @@ operator mandate in a forensic-anchor block inside `Constitution.md`):
 | §11.4.259 | README quality-badge row — applied to this very page (see the top of it) |
 | §11.4.276 | Review-round budget: at most 7 rounds, with a binding structural round at round 3 |
 | §11.4.277 / §11.4.278 | llmctl model validation gate; HelixQA UI QA with Vision eyes (PROPOSED) |
+| §11.4.290 | Optimistic done with parallel background verification: PROVISIONAL-DONE vs VERIFIED-DONE, automatic non-silent reopen, honest release labelling — see "Optimistic done with background verification" below |
+| §11.4.279–§11.4.286 | Decision layer (Jev): detection-first, per-agent installation, bootstrap wizard, instance utilization, token-reduction proof, pre-ladder routing (amends §11.4.231), shadow-first auto-tuning, `llmctl` / `claude_toolkit` dependency submodules — see "Decision layer (Jev)" below |
 | §12 / §12.6 / §12.12 | Host-session safety: 60 % memory ceiling, thread-limit headroom |
 
 ## Progressive-disclosure layer (`progressive/`)
@@ -155,6 +157,98 @@ comparison needs a real build; an independent fresh-clone sign-off is
 not yet committed; twin governance files reference 20 anchors the canon
 only cites, never defines (`progressive/twin_exceptions.txt`).
 
+## Decision layer (Jev)
+
+Anchors §11.4.279–§11.4.286 add a typed-decision routing stage in front
+of the model ladder. A judgment that fits a typed decision (yes/no,
+choice, score) is answered by a small decision model ("Jev": hosted via
+TypeSafe/OpenRouter, or the local `llmctl` decide gateway; Kev, Laya,
+Verdict and Strands profiles are the other decision profiles) instead
+of a chat model, so only generative work spends traditional-LLM tokens.
+The §11.4.231 ladder itself is unchanged. The text lives in
+`Constitution.md`; the operator documents are under `docs/jev/`.
+
+```mermaid
+flowchart TD
+    A[Work item or tool call] --> B{Typed decision?}
+    B -- no, generative --> L[Model ladder: sonnet, then opus - section 11.4.231]
+    B -- yes --> D[Detection record: jev-detection.json - 11.4.279]
+    D --> E[Decision endpoints: local llmctl gateway, LAN pins, OpenRouter, TypeSafe - 11.4.282]
+    E --> M{Mode for this question type}
+    M -- shadow: no calibrated threshold --> S[Log to decisions.jsonl, answer from ladder - 11.4.285]
+    M -- enforce: calibrated --> C{Confidence at or above threshold?}
+    C -- yes --> R[Decision served, no LLM tokens]
+    C -- no --> L
+    S --> L
+    R --> T[Token-reduction proof: BEFORE/AFTER harness - 11.4.283]
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Shadow
+    Shadow --> Calibrating: weekly or jev-calibrate --now
+    Calibrating --> Enforce: agreement at or above floor and sample at or above minimum
+    Calibrating --> Shadow: below floor
+    Enforce --> Calibrating: constitution update or decision-model version change
+```
+
+| Concern | Anchor | Where it is implemented |
+|---|---|---|
+| Detect decision models before the first LLM call | §11.4.279 | `jev-detection.json`, gate `CM-JEV-DETECTION` |
+| Install per agent (hook, MCP, skill, aliases) | §11.4.280 | `jev-setup.sh`, `skills/jev-decision-layer/`, `mcp/jev-decisions.json`, gate `CM-JEV-WIRING` |
+| Bootstrap wizard, rerun on every constitution update | §11.4.281 | `scripts/jev/bootstrap.sh`, `scripts/post_update_hook.sh`, gate `CM-JEV-BOOTSTRAP-IDEMPOTENT` |
+| Use all decision instances | §11.4.282 | capacity in `jev-detection.json` |
+| Prove token reduction | §11.4.283 | BEFORE/AFTER harness extension, gate `CM-JEV-TOKEN-REDUCTION` |
+| Pre-ladder routing stage (amends §11.4.231) | §11.4.284 | `CM-JEV-WIRING` (no decision endpoint in a chat config) |
+| Shadow-first auto-tuning | §11.4.285 | `jev-calibrate.sh`, `jev-thresholds.json` |
+| `llmctl` and `claude_toolkit` as submodules | §11.4.286 | `helix-deps.yaml`, `submodules/` |
+
+Each anchor also has a `CM-COVENANT-114-<N>-PROPAGATION` gate. Whether
+each of these files and gates exists in a given checkout is verified
+with `ls scripts/jev scripts/gates | grep -i jev`, not by this table.
+
+## Optimistic done with background verification (§11.4.290)
+
+Operator rule of 2026-10-27: mark things done and release ASAP versions,
+but always validate and verify against machine evidence in parallel, in the
+background; when verification finds a problem, reopen the item; until it is
+proved not done, consider it done. §11.4.290 makes that rule explicit
+without weakening the anti-bluff covenant: it adds a separately named,
+separately labelled state, and the words "fixed", "verified" and "passing"
+stay evidence-gated exactly as before (§11.4.123 governs the words, this
+anchor governs the planning and release decisions).
+
+```mermaid
+stateDiagram-v2
+    [*] --> InProgress
+    InProgress --> ProvisionalDone: implemented and wired, verification job scheduled
+    ProvisionalDone --> VerifiedDone: machine verdict at or above the class floor, matching artifact and target
+    ProvisionalDone --> Reopened: contrary evidence (automatic, never silent)
+    ProvisionalDone --> ProvisionalDone: job overdue, labelled OVERDUE, neither promoted nor demoted
+    VerifiedDone --> Reopened: later contrary evidence
+    Reopened --> InProgress
+```
+
+| State | Counts as done for planning, roadmap, release scope | May be called verified / fixed / passing | Carried by |
+|---|---|---|---|
+| `PROVISIONAL-DONE` | yes | never | Status `Ready for testing` or `In testing` plus a `**Verification:** provisional` line |
+| `VERIFIED-DONE` | yes | yes | the §11.4.33 closure value |
+| `REOPENED` | no | no | Status `Reopened` plus `Reopened-Details` |
+
+Reports state the two populations separately ("V verified + P provisional
+(O overdue)", never a bare "N done"). A release may ship on provisional work
+in provisional-eligible classes (data, default dev and pre-release) and its
+changelog lists VERIFIED, PROVISIONAL (pending job, target, due, command),
+REOPENED and OVERDUE separately. The tracker's Status set is a closed schema
+value, which is why the state rides on the `Verification:` line and not on a
+new Status word. Gate `CM-PROVISIONAL-DONE-ANCHOR-WIRED`
+(`scripts/gates/cm_provisional_done_anchor_wired.sh`, paired mutation test
+beside it, run on every pull by `scripts/post_update_hook.sh`) proves the rule
+is present and cross-referenced in the canon, the four mirrors, the lifecycle
+skill and the generated index and catalog. It does not prove that a consuming
+project's tracker carries the line, schedules the job or executes the reopen;
+that item-level seam is each consumer's own tracked work.
+
 ## Token and speed machinery
 
 | Piece | Path | Purpose |
@@ -185,8 +279,8 @@ is always announced, never silent.
 ## Dependency submodules
 
 The constitution is a hub (the §11.4.28(C) depth-1 carve-out): it hosts
-23 submodules under `submodules/`. Eight are own-org and are declared in
-`helix-deps.yaml` (§11.4.31); fifteen are third-party skill, tool and
+27 submodules under `submodules/`. Ten are own-org and are declared in
+`helix-deps.yaml` (§11.4.31); seventeen are third-party skill, tool and
 reference repositories pinned read-only. Pins below are the recorded
 gitlinks.
 
@@ -196,11 +290,13 @@ Own-org (declared in `helix-deps.yaml`):
 |---|---|---|---|
 | `docs_chain` | `vasic-digital/docs_chain` | `8e0abe0` (tag `helixcode-v1.1.0` + 12) | §11.4.106 documentation-and-database sync/verify engine |
 | `continuum` | `vasic-digital/continuum` | `4639347` | §11.4.207 instant multi-stream resume engine |
-| `anti_bluff` | `vasic-digital/anti_bluff` | `bcc7f3d` | shared anti-bluff verification primitives (§11.4) |
+| `anti_bluff` | `vasic-digital/anti_bluff` | `d060d08` | shared anti-bluff verification primitives (§11.4) |
 | `session_orchestrator` | `vasic-digital/session_orchestrator` | `78b77bb` | §11.4.187 multi-track ruler substrate |
-| `token_optimizer` | `vasic-digital/token_optimizer` | `c0591b5` | §11.4.141 token-optimization engine |
+| `token_optimizer` | `vasic-digital/token_optimizer` | `2002db5` | §11.4.141 token-optimization engine |
 | `helix_perf_cache` | `HelixDevelopment/helix_perf_cache` | `6adcfb2` | shared build/test result cache with fingerprint invalidation |
-| `llmctl` | `vasic-digital/llmctl` | `v3.2.2` (`5c3dea5`) | §11.4.277 model manager and validation gate — depth-1 only, **never** initialised recursively (`recursive_init: false`, enforced by `CM-LLMCTL-SUBMODULE-NONRECURSIVE`) |
+| `llmctl` | `vasic-digital/llmctl` | `f42bad6` (main, describe `helixconstitution-v70-68-gf42bad6`) | §11.4.277 model manager and validation gate; §11.4.286 decision-layer dependency — nests no own-org repository (resolves the canon, `containers` and `superspec` via `lib/resolve_deps.sh`); depth-1 only, **never** initialised recursively because it nests third-party `llama.cpp` and `colibri` (`recursive_init: false`, checked by `CM-LLMCTL-SUBMODULE-NONRECURSIVE` and `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
+| `containers` | `vasic-digital/Containers` | `919ad1e` (main, describe `helixcode-v1.1.0-159-g919ad1e`) | §11.4.76 / §11.4.161 rootless container orchestration layer, provided flat so engines resolve it instead of nesting it |
+| `claude_toolkit` | `vasic-digital/claude_toolkit` | `adae02d` (tag `claude_toolkit-1.32.0`) | multi-alias / provider toolkit (§11.4.196 / §11.4.198); §11.4.286 decision-layer dependency — nests no own-org repository (resolves the canon, `containers`, `challenges`, `LLMsVerifier` and `claude-code-router` flat via `scripts/resolve_deps.sh`) and ships its own `helix-deps.yaml`; depth-1 only, **never** initialised recursively because it nests the third-party Go toolchain (`submodules/go`) (`recursive_init: false`, checked by `CM-HUB-ENGINE-NO-OWNORG-NESTING`) |
 | `design-toolkit` | `vasic-digital/design-toolkit` | `4ddc964` (tag `v0.2.2` + 14) | §11.4.162 OpenDesign design-token and brand-contract engine |
 
 Third-party (pinned, not modified here): `agentic-validation`
@@ -216,17 +312,39 @@ Third-party (pinned, not modified here): `agentic-validation`
 (ArcBlock/agent-skills), `verify` (KeyValueSoftwareSystems/maestro),
 `video-quality-mcp` (hlpsxc/video-quality-mcp), `watch-skill`
 (oxbshw/watch-skill, `deepwatch-v0.1.4`) and `wave-dpctf`
-(cta-wave/device-observation-framework, `v2.1.0` + 9).
+(cta-wave/device-observation-framework, `v2.1.0` + 9), plus `superspec`
+(WangX0111/superspec, `v1.0.2`, MIT) and `open_design` (nexu-io/open-design,
+Apache-2.0, the §11.4.162 reference checkout), both declared in
+`helix-deps.yaml` with `third_party: true`.
 
 `submodules-catalogue.md` is the separate inventory of every
 owned-by-us repository under `vasic-digital` and `HelixDevelopment`
 (§11.4.74), categorised into capability groups.
 
+### Dependency manifests (§11.4.31)
+
+Every own-org repository — your project root, every repository under
+`<root>/submodules/`, the `constitution` hub and every repository under
+`<root>/constitution/submodules/` — carries a tracked `helix-deps.yaml`.
+One engine checks and generates them, by reference from this submodule:
+
+```bash
+bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .            # check the whole tree
+bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --scaffold . --write # first manifest for a new project
+```
+
+The gate `CM-HELIX-DEPS-MANIFEST-PRESENT`
+(`scripts/gates/cm_helix_deps_manifest_present.sh`) runs it on every pull.
+Documentation:
+[user guide](docs/guides/dependency_manifest_user_guide.md) ·
+[manual](docs/manuals/dependency_manifest_manual.md) ·
+[FAQ](docs/faq/dependency_manifest_faq.md).
+
 ## Tooling map
 
 | Path | Contents |
 |---|---|
-| `scripts/gates/` | 141 mechanism gates, 89 of them anchor-propagation gates, each with a paired mutation test or an outside self-test; the gate ledger, deferral and ratchet data files; `lib_badge_row.sh`, `lib_doc_manifest.sh` and other shared libraries |
+| `scripts/gates/` | 164 mechanism gates (as counted by `compute_badges.sh`), 98 of them anchor-propagation gates, each with a paired mutation test or an outside self-test; the gate ledger, deferral and ratchet data files; `lib_badge_row.sh`, `lib_doc_manifest.sh` and other shared libraries |
 | `scripts/anchors/` | anchor library, `constitution_generate.py` (regenerates `constitution_index.yaml` and the groups), link check, wiring audit |
 | `scripts/hooks/` | PreToolUse guards (forbidden commands, branch consistency, track labels, work-track binding, evidence-store writes) and the credential scanner |
 | `scripts/multitrack/` | the §11.4.187 ruler: up/down, claim registry, device lock, fallback monitor, supervisor, host budget |
@@ -235,13 +353,15 @@ owned-by-us repository under `vasic-digital` and `HelixDevelopment`
 | `scripts/fastcycle/` | fast-development-cycle gates, review records, timing, sampling |
 | `scripts/skill_activation/` | on-demand skill activation (§11.4.272) |
 | `scripts/translation/`, `scripts/render/` | the HelixTranslate pipeline wrappers and the governance-twin renderer (`render-governance-twins.sh`) |
+| `scripts/jev/` | the decision-layer wizard and tools (§11.4.279–§11.4.286): `bootstrap.sh`, `jev-setup.sh`, `jev-gate.sh`, `jev-calibrate.sh`, `jev-stats.sh` |
 | `scripts/badges/` | `compute_badges.sh` — the README badge computer (this page) |
 | `scripts/doc_integrity/` | cross-document consistency validator (§11.4.186) |
-| `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle` |
+| `skills/` | `action-prefix-system`, `media-validator`, `multitrack`, `reporting-workable-items`, `scheduled-work-queue`, `session-sync`, `skill-catalog`, `workable-item-lifecycle`, `jev-decision-layer` |
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
-| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`) |
-| `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files |
-| `docs/` | guides (shell-instrument footguns), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`, `jev-decisions.json`) |
+| `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
+| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
 
 ## How to consume
 
@@ -266,10 +386,19 @@ git clone --recurse-submodules <your-project-url>
 git submodule update --init --recursive
 ```
 
-`submodules/llmctl` is the one exception: initialise it one level deep
-only (`git submodule update --init submodules/llmctl`), never with
-`--recursive`, or the mutual reference between llmctl and this
-constitution would loop.
+`submodules/llmctl` and `submodules/claude_toolkit` are the exceptions
+(`recursive_init: false` in `helix-deps.yaml`): initialise them one level
+deep only (`git submodule update --init submodules/llmctl
+submodules/claude_toolkit`), never with `--recursive`. llmctl no longer
+vendors this constitution (it resolves it, `containers` and `superspec`
+via `lib/resolve_deps.sh`), but it nests the third-party `llama.cpp` and
+`colibri`, which are never initialised recursively. claude_toolkit (pin
+`1f6dad3`) no longer nests any own-org repository either — it resolves this
+constitution and its siblings flat via `scripts/resolve_deps.sh` and ships a
+tracked `helix-deps.yaml` — but it nests the third-party Go toolchain
+(`submodules/go`), which is never initialised recursively. Measured
+2026-10-22: `CM-HUB-ENGINE-NO-OWNORG-NESTING` and
+`CM-HELIX-DEPS-MANIFEST-PRESENT` both PASS for every engine.
 
 ### 2. Wire the inheritance
 
@@ -395,6 +524,8 @@ tags are kept for history.
 
 | Tag | Date | Notes |
 |---|---|---|
+| (unreleased, no tag) | 2026-10-27 | §11.4.290 optimistic done with parallel background verification; see the top entry of `CHANGELOG.md` |
+| `helixconstitution-v71` | 2026-10-23 | decision layer (Jev) §11.4.279–§11.4.286, label-sync, mandatory `helix-deps.yaml`, hub-engine resolution |
 | `helixconstitution-v70` | 2026-10-19 | progressive-disclosure layer, optimization audit and remediation, §11.4.141 M2–M9, §11.4.277 / §11.4.278 and llmctl, gate hardening, README badge computer |
 | `helixconstitution-v69` | 2026-10-05 | process-safety, release-engineering, anti-slop and review-round-budget round (14 anchors, 19 extensions) |
 | `helixconstitution-v68` | 2026-08-18 | monolithic amendment round (22 anchors, 5 extensions) |
@@ -414,13 +545,14 @@ within a primary version.
 | `constitution_index.yaml`, `groups/` | Generated anchor index and the 12 topical group files. |
 | `progressive/` | The progressive-disclosure layer (see above). |
 | `CHANGELOG.md` | Release notes and version log. |
-| `helix-deps.yaml` | Own-org dependency manifest (§11.4.31). |
+| `helix-deps.yaml` | Own-org dependency manifest (§11.4.31); every own-org repository carries one, checked by `scripts/deps_manifest/verify_helix_deps_manifests.sh`. |
 | `submodules/`, `submodules-catalogue.md` | Dependency submodules and the owned-repository inventory. |
 | `scripts/`, `tests/`, `skills/`, `plugins/`, `mcp/`, `actions/`, `config/` | Tooling, tests, skills, plugins, MCP definitions, prefix-action registry, gate configuration. |
-| `docs/` | Guides, research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
-| `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files. |
+| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md)), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md)), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
+| `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files and `helix-deps.yaml.template` (§11.4.31). |
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
+| `docs/jev/` | The decision-layer (Jev) operator documents. |
 | `LICENSE` | Apache License 2.0, governing the constitution text itself. |
 
 Agents work only with Markdown (operator order 2026-10-26): the
