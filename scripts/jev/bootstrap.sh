@@ -799,7 +799,9 @@ if stage_begin 7 "report" "$S7_KEY"; then
       log "" "  gate $g: absent (advisory skip)"
     fi
   done
-  log "" "  summary: state=$JEV_STATE_DIR evidence=$JEV_EVIDENCE_DIR mode=$(jev_env_get "$ENV_FILE" JEV_MODE || echo shadow)"
+  # jev_env_get exits 0 with empty output when JEV_MODE is absent, so `|| echo shadow` never ran (review round 1, F6): default via ${var:-shadow}.
+  SUMMARY_MODE="$(jev_env_get "$ENV_FILE" JEV_MODE || true)"
+  log "" "  summary: state=$JEV_STATE_DIR evidence=$JEV_EVIDENCE_DIR mode=${SUMMARY_MODE:-shadow}"
   log "" "  next: scripts/jev/jev-status.sh for status; claude_toolkit scripts/jev-stats.sh for savings (ESTIMATES only)"
   stage_commit 7 "report" "ok"
 fi

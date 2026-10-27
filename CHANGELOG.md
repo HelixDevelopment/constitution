@@ -1,5 +1,20 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-10-28 — review round 1 fixes for the 11.4.290 landing
+
+**Status of this entry: UNRELEASED.** Local commits only; nothing tagged or pushed.
+
+### Added
+
+- **`CM-GITLINK-ON-REMOTE`** (`scripts/gates/cm_gitlink_on_remote.sh`, paired mutation test, guide `docs/scripts/cm_gitlink_on_remote.md`): fails when a recorded gitlink names a commit that is on no remote. Class guard for review finding F1 (three nested pins on no remote). Not wired into `post_update_hook.sh` (see the guide).
+- `tests/jev/test_bootstrap_summary_mode_default.sh`: the bootstrap summary prints `mode=shadow` when `JEV_MODE` is absent (RED on the pre-fix file).
+
+### Fixed
+
+- Nested gitlinks `claude_toolkit`, `docs_chain`, `token_optimizer` point at v72's published pins (53bf5fb, 8e0abe0, 2002db5), which also clears three DRIFT lines of `CM-HELIX-DEPS-REF-MATCHES-GITLINK`. The local-only commits that were pinned are preserved as branches and patches (see the review report).
+- `scripts/jev/bootstrap.sh`: the summary mode defaults to `shadow` again (`jev_env_get` exits 0 with empty output, so `|| echo shadow` never ran).
+- README: the R9 status-summary entry, the 2026-10-26 Markdown-only merge entry and the Fixed R9 row restored; `test_query_us2.py`: v72's comment lines restored.
+
 ## Unreleased — 2026-10-27 — §11.4.290 optimistic done with parallel background verification (PROVISIONAL-DONE vs VERIFIED-DONE)
 
 **Status of this entry: UNRELEASED.** No tag exists for it; the newest tag is `helixconstitution-v72`. This entry is the local landing on top of the v72 merge: the anchor was drafted as 11.4.287 and renumbered to **11.4.290** because v72 owns §11.4.287 to §11.4.289 (the same gate files that v72 ships under the 287 name are untouched; ours are named 290). Nothing here is tagged or pushed by this change set. Until a tag exists the README version badge reads "unreleased" (amber) by construction, because `scripts/badges/compute_badges.sh` derives it from the first heading of this file.
