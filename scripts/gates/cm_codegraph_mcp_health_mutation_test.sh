@@ -132,6 +132,10 @@ P="$(newproj TOOL-EXITS-0-WITHOUT-ROUNDTRIP)"; wrap_json "$P" "$W_OK"
 CG_HEALTH_TOOL="$tmp/tool_noroundtrip.py" expect_gate TOOL-EXITS-0-WITHOUT-ROUNDTRIP 2 "$P"
 P="$(newproj BUSY)"; wrap_json "$P" "$W_OK"; CG_HEALTH_TOOL="$tmp/tool_busy.py" expect_gate BUSY 3 "$P"
 P="$(newproj NOTHING-DECLARED)"; rm -rf "$P/.codegraph" "$P/.mcp.json"; expect_gate NOTHING-DECLARED 3 "$P"
+# R2-F6: a `.codegraph` directory holding only a tracked .gitignore (every constitution checkout) is NOT an index: SKIP, never FAIL
+P="$(newproj NOTHING-DECLARED-GITIGNORE-ONLY)"; rm -rf "$P/.codegraph" "$P/.mcp.json"; mkdir -p "$P/.codegraph"; printf '*\n' > "$P/.codegraph/.gitignore"; expect_gate NOTHING-DECLARED-GITIGNORE-ONLY 3 "$P"
+# control needle for the case above: the same project WITH the index database and no declared server must NOT skip
+P="$(newproj INDEXED-NOT-DECLARED)"; rm -f "$P/.mcp.json"; expect_gate INDEXED-NOT-DECLARED 1 "$P"
 P="$(newproj GATE-REFUSES-HEAL)"; wrap_json "$P" "$W_OK"; expect_gate GATE-REFUSES-HEAL 2 "$P" --heal
 expect_gate GATE-REFUSES-NO-ROUNDTRIP 2 "$P" --no-roundtrip
 

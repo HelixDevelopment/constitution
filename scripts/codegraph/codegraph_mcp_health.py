@@ -645,8 +645,10 @@ def main():
     mcp = a.mcp_json or os.path.join(project, ".mcp.json")
     cg = os.path.join(project, ".codegraph")
     srv, why = load_server(mcp)
-    if srv is None and not os.path.isdir(cg):
-        print("HEALTH H1 SKIP %s and no %s index directory — nothing to inspect (not a PASS)" % (why, cg))
+    # "indexed" means an index DATABASE exists, not that a `.codegraph` directory does (the constitution tracks
+    # `.codegraph/.gitignore`, so the bare directory exists in every checkout; review round 2, R2-F6).
+    if srv is None and not os.path.isfile(os.path.join(cg, "codegraph.db")):
+        print("HEALTH H1 SKIP %s and no %s index database — nothing to inspect (not a PASS)" % (why, os.path.join(cg, "codegraph.db")))
         return 3
     if a.heal and os.path.isdir(cg):
         os.makedirs(os.path.join(cg, "index_runs"), exist_ok=True)
