@@ -83,11 +83,17 @@ while IFS=$'\t' read -r sha path; do
     missing=0
     while read -r tip; do [ -n "$tip" ] && ! git --git-dir="$repo" cat-file -e "${tip}^{commit}" 2>/dev/null && missing=1; done <<<"$tips"
     if [ "$missing" = 1 ]; then echo "❓ BLIND        $path ${sha:0:12}: not a remote tip and some remote tips are not fetched locally, ancestry cannot be tested (fetch, then re-run)"; blind=1; continue; fi
+    if [ "$(git --git-dir="$repo" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then echo "❓ BLIND        $path ${sha:0:12}: shallow repository, ancestry across the shallow boundary cannot be tested"; blind=1; continue; fi   # R3-F5b
     echo "❌ UNPUBLISHED  $path ${sha:0:12}: not a remote tip and not an ancestor of any remote tip ($url)"; bad=1; continue
   else
     cont=""
     for r in $rems; do
-      c="$(git --git-dir="$repo" for-each-ref --contains "$sha" --count=1 --format='%(refname:short)' "refs/remotes/$r" 2>/dev/null)"   # MUT:contains
+      c="$(git --git-dir="$repo" for-each-ref --contains "$sha" --format='%(refname:short)' "refs/remotes/$r" 2>/dev/null)"   # MUT:contains
+      c="$(printf '%s\n' "$c" | while IFS= read -r ref; do   # R3-F4: refs/remotes/<r>/<x>/... belongs to a foreign remote named "<r>/<x>"
+        [ -n "$ref" ] || continue; foreign=0
+        for r2 in $(git --git-dir="$repo" remote 2>/dev/null); do case "$r2" in "$r"/*) case "$ref" in "$r2"/*) foreign=1;; esac;; esac; done
+        [ "$foreign" = 0 ] && { echo "$ref"; break; }
+      done)"
       [ -n "$c" ] && { cont="$c"; break; }
     done
     if [ -n "$cont" ]; then echo "✅ PUBLISHED    $path ${sha:0:12}: contained in $cont"; continue; fi
@@ -96,7 +102,7 @@ while IFS=$'\t' read -r sha path; do
   nrem=""; for r in $rems; do nrem="$(git --git-dir="$repo" for-each-ref --count=1 --format='x' "refs/remotes/$r" 2>/dev/null)"; [ -n "$nrem" ] && break; done
   if [ "$shallow" = true ]; then echo "❓ BLIND        $path ${sha:0:12}: shallow repository, absence cannot be proven"; blind=1; continue; fi
   if [ -z "$nrem" ]; then echo "❓ BLIND        $path ${sha:0:12}: no refs/remotes/<remote> of a remote whose URL equals the .gitmodules URL ("$url") in $repo (run with --online or fetch)"; blind=1; continue; fi
-  echo "❌ UNPUBLISHED  $path ${sha:0:12}: on no remote ref or tag (a recursive clone cannot fetch it)"; bad=1
+  echo "❌ UNPUBLISHED  $path ${sha:0:12}: on no remote ref (a tag alone is not trusted offline, run --online; a recursive clone cannot fetch it)"; bad=1
 done <<<"$links"
 echo "----------------------------------------------------------------------"
 [ "$bad" = 1 ] && { echo "❌ $GATE: FAIL — at least one gitlink names a commit on no remote ($n gitlinks)"; exit 1; }
