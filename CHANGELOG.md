@@ -7,7 +7,7 @@
 ### Added
 
 - **credscan** (`scripts/credscan/`): a counts-only credential-shape scanner with a baseline ratchet, a `credscan_hook.py` entry point and a low-priority systemd check timer (user scope). It prints counts, never values (§11.4.10). 67 tests (`scripts/credscan/tests/test_credscan.py`). Guide, manual and FAQ under `docs/`. The hook is NOT installed into any `settings.json` by this release; installation stays an operator act.
-- `scripts/gates/covenant_propagation_default_root_test.sh` and `scripts/gates/covenant_propagation_superspec_exclusion_test.sh` (tests for the two fixes below).
+- Tests for the fixes below: `covenant_propagation_default_root_test.sh`, `covenant_propagation_suite_default_root_test.sh`, `covenant_propagation_superspec_exclusion_test.sh`, `covenant_propagation_third_party_hub_exclusion_test.sh` (all under `scripts/gates/`).
 
 ### Changed — hub engine pins (verified by `git ls-remote` on the real remotes)
 
@@ -16,18 +16,20 @@
 ### Fixed
 
 - The propagation family's default root is the repository root, not a cwd-relative parent (the gates previously audited a wrong carrier set once the submodules were populated).
-- Carrier exclusions for the vendored third-party submodules (agentic-validation, claude-video, donespec, repo-proof, skill-doctor, verfix, verify, watch-skill) and for the SpecKit sample-project fixtures (claude_toolkit, hub superspec), each with its justification in `config/covenant_propagation_exclusions.tsv`.
-- `docs/jev/user-manual.md` no longer says that no `decide-*` profile has ever been run: on one host (2026-10-28) `decide-nli`, `decide-laya`, `decide-kev-08b` recorded `pass`, `decide-julia` recorded `fail`, `decide-tiny` recorded `undetermined` (2026-10-22). Enforcement is still not claimed live. No anchor text (§11.4.277, §11.4.279) contained the stale claim in this base; the anchors are unchanged.
+- Carrier exclusions for the vendored third-party submodules (agentic-validation, claude-video, donespec, repo-proof, skill-doctor, verfix, verify, watch-skill) and for the third-party `open_design` and `verification` checkouts, and for the SpecKit sample-project fixtures (llmctl, claude_toolkit, hub superspec), each with its justification in `config/covenant_propagation_exclusions.tsv`.
+- `docs/jev/user-manual.md` no longer says that no `decide-*` profile has ever been run: on one host (2026-10-28) `decide-nli`, `decide-laya`, `decide-kev-08b` were reported `pass`, `decide-julia` `fail`, `decide-tiny` `undetermined` (UNCONFIRMED lead: no committed evidence artifact). Enforcement is still not claimed live. No anchor text (§11.4.277, §11.4.279) contained the stale claim in this base; the anchors are unchanged.
 
 ### Known imperfections (sorted by severity)
 
-1. **MEDIUM** — The `decide-*` validation evidence is one host on one day (2026-10-28, `decide-julia` FAILED, `decide-tiny` UNDETERMINED); the llmctl release that produced it is UNCONFIRMED. Enforcement by decision models stays unclaimed (§11.4.279(D)).
+1. **MEDIUM** — The `decide-*` validation results are an UNCONFIRMED lead (operator-relayed, one host, 2026-10-28; no committed evidence artifact); the llmctl release that produced it is UNCONFIRMED. Enforcement by decision models stays unclaimed (§11.4.279(D)).
 2. **MEDIUM** — The propagation family audits every checked-out `CLAUDE/AGENTS/QWEN/GEMINI.md`, so each new third-party submodule needs a justified row in `config/covenant_propagation_exclusions.tsv` or the suite goes red once submodules are populated (found twice in this release: `open_design`, `verification`). A gate that discovers third-party carriers by `third_party: true` in `helix-deps.yaml` instead of a hand list is owed.
-3. **LOW** — The weekly llmctl revalidate timer from the operator's user-scope kit is NOT shipped: it is host-specific (user systemd units, host paths), not hub-appropriate. Owed as a consumer-side item.
-4. **LOW** — No generated twins (html/pdf/docx): this base is Markdown-only (§11.4.65 export off), so none were regenerated.
-5. **LOW** — credscan is shipped but its hook is NOT installed into any `settings.json`, and the timer is not enabled; both are operator acts. Its baseline ratchet starts from the first run on each host.
-6. **LOW** — `post_update_hook.sh` run against a consumer root without `helix-deps.yaml` fails by design (§11.4.31); run it with `PROJECT_ROOT` set.
-7. **TRIVIAL** — The first covenant-suite run in the release work was invalidated by an external `timeout` kill (carrier tempfile removed) and repeated unkilled; the recorded counts are from the unkilled runs.
+3. **MEDIUM** — Review: round 1 (Opus, independent) returned GO with 2 IMPORTANT + 13 MINOR; the 2 IMPORTANT and minors 4, 5, 7, 8, 9, 10 were fixed afterwards and verified by the author's own reruns (gates 103/103), but NO second independent review round was run on those fixes.
+4. **LOW** — Round-1 minors left open: credscan baseline write is not O_NOFOLLOW (symlink/umask window); the PLACEHOLDER regex skips tokens containing test/sample/fake/example; `default_roots()` hardcodes `~/.claude-shared`; exclusion globs start with an unanchored `*`; credscan manual says twins are stale while the base is Markdown-only; user guide mislabels engine exit codes 1-4 as wrapper-only; the hook default mode (block, fail-open) is not documented prominently; docs disagree on whether `JEV_GATE=off` records its use (canon §11.4.279(F) says it logs nothing, the user manual says gate-off.log).
+5. **LOW** — The weekly llmctl revalidate timer from the operator's user-scope kit is NOT shipped: it is host-specific (user systemd units, host paths), not hub-appropriate. Owed as a consumer-side item.
+6. **LOW** — No generated twins (html/pdf/docx): this base is Markdown-only (§11.4.65 export off), so none were regenerated.
+7. **LOW** — credscan is shipped but its hook is NOT installed into any `settings.json`, and the timer is not enabled; both are operator acts. Its baseline ratchet starts from the first run on each host.
+8. **LOW** — `post_update_hook.sh` run against a consumer root without `helix-deps.yaml` fails by design (§11.4.31); run it with `PROJECT_ROOT` set.
+9. **TRIVIAL** — The first covenant-suite run in the release work was invalidated by an external `timeout` kill (carrier tempfile removed) and repeated unkilled; the recorded counts are from the unkilled runs.
 
 ## Unreleased — 2026-10-28 (second) — landing change set on top of v72: Markdown-only amendment (formats_export OFF), dispatch-tier guard, v71/v72 merge, claude_toolkit re-pin
 

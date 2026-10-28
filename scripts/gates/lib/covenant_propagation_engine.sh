@@ -300,7 +300,7 @@ covenant_propagation_main() {
         -o \( -type f \( -name 'CLAUDE.md' -o -name 'AGENTS.md' \
            -o -name 'QWEN.md' -o -name 'GEMINI.md' \) -print \) 2>/dev/null)" || _cpe_frc=$?
     if [ "$_cpe_frc" -ne 0 ]; then
-        echo "${GATE}: BLIND — carrier discovery under $root did not complete (find exit ${_cpe_frc}: an unreadable directory, a vanished mount or a permission failure somewhere below the root); refusing to audit a partial carrier set (§11.4.201(7)(b)). Pass --root <consumer-root> (the default root is \$CONSUMER_ROOT or '..')." >&2
+        echo "${GATE}: BLIND — carrier discovery under $root did not complete (find exit ${_cpe_frc}: an unreadable directory, a vanished mount or a permission failure somewhere below the root); refusing to audit a partial carrier set (§11.4.201(7)(b)). Pass --root <consumer-root> (the default root is \$CONSUMER_ROOT or the repository root)." >&2
         return 2
     fi
     carriers="$(printf '%s\n' "$_cpe_found" | sort)"
