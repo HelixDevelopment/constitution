@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-10-28T12:00:00Z |
 | Status | active |
 | Status summary | Task-oriented operating manual: set up, run, read status, calibrate, switch endpoints, turn it off. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation |
+| Fixed | enforce-section measured-facts wording (no decide-* profile "ever been run" claim); see CHANGELOG |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -104,7 +104,7 @@ Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thre
 ## 6. Shadow mode and enforce mode
 
 - Shadow (`JEV_MODE=shadow`, default): the gate asks the endpoint, logs, and passes everything through.
-- Enforce (`JEV_MODE=enforce`): the gate emits allow/ask/deny. The bootstrap and `register.sh` write `enforce` only when a PROMOTED type, a FRESH detection record with a local llmctl endpoint (id `llmctl-<profile>`, loopback url), a base URL that resolves and is loopback in every place it is stored, and a fresh `require-validated` PASS all hold (re-checked on every run, so a stored `enforce` is downgraded when they stop holding); `jev-status` runs the REAL `llmctl require-validated` (up to 60 s per profile) unless `--no-validate`; no decide-* profile has ever been run against a real model, so enforcement is not claimed live; setting the variable by hand skips that check and the gate then uses its own thresholds (`JEV_GATE_THRESHOLD` 0.8 deny, `JEV_RISKY_THRESHOLD` 0.7 ask, or the toolkit's `decisions.lock.json`).
+- Enforce (`JEV_MODE=enforce`): the gate emits allow/ask/deny. The bootstrap and `register.sh` write `enforce` only when a PROMOTED type, a FRESH detection record with a local llmctl endpoint (id `llmctl-<profile>`, loopback url), a base URL that resolves and is loopback in every place it is stored, and a fresh `require-validated` PASS all hold (re-checked on every run, so a stored `enforce` is downgraded when they stop holding); `jev-status` runs the REAL `llmctl require-validated` (up to 60 s per profile) unless `--no-validate`; MEASURED on one host (2026-10-28, `repeat` 3): `decide-nli`, `decide-laya` and `decide-kev-08b` recorded `pass`, `decide-julia` recorded `fail` and `decide-tiny` recorded `undetermined` (2026-10-22); that is validation of those profiles on that host only (the producing llmctl release is UNCONFIRMED), not a promoted question type, so enforcement is still not claimed live; setting the variable by hand skips that check and the gate then uses its own thresholds (`JEV_GATE_THRESHOLD` 0.8 deny, `JEV_RISKY_THRESHOLD` 0.7 ask, or the toolkit's `decisions.lock.json`).
 - Kill-switch: `JEV_GATE=off` passes every call through and records the use in `gate-off.log`.
 - Fail-closed: `JEV_GATE_FAIL=closed` denies when the endpoint is unreachable. Default is fail-open.
 

@@ -1,5 +1,34 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v72.1 — 2026-10-28 — credscan, hub engine pins, propagation-family fixes
+
+**Status of this entry: RELEASE v72.1** (tag `helixconstitution-v72.1`). Built on `511b3a4` (the landing after v72); Markdown-only documentation policy applies (no generated twins).
+
+### Added
+
+- **credscan** (`scripts/credscan/`): a counts-only credential-shape scanner with a baseline ratchet, a `credscan_hook.py` entry point and a low-priority systemd check timer (user scope). It prints counts, never values (§11.4.10). 67 tests (`scripts/credscan/tests/test_credscan.py`). Guide, manual and FAQ under `docs/`. The hook is NOT installed into any `settings.json` by this release; installation stays an operator act.
+- `scripts/gates/covenant_propagation_default_root_test.sh` and `scripts/gates/covenant_propagation_superspec_exclusion_test.sh` (tests for the two fixes below).
+
+### Changed — hub engine pins (verified by `git ls-remote` on the real remotes)
+
+- `llmctl` v3.3.2 (`11a9154`), `claude_toolkit` v1.33.2 (`36bdfd9`), `continuum` continuum-0.1.2 (`9d95651`), `containers` containers-2.0.0 (`bfd0e98`, Go module path stays `digital.vasic.containers`). `helix-deps.yaml` refs follow the gitlinks (`CM-HELIX-DEPS-REF-MATCHES-GITLINK` PASS, `CM-GITLINK-ON-REMOTE` PASS).
+
+### Fixed
+
+- The propagation family's default root is the repository root, not a cwd-relative parent (the gates previously audited a wrong carrier set once the submodules were populated).
+- Carrier exclusions for the vendored third-party submodules (agentic-validation, claude-video, donespec, repo-proof, skill-doctor, verfix, verify, watch-skill) and for the SpecKit sample-project fixtures (claude_toolkit, hub superspec), each with its justification in `config/covenant_propagation_exclusions.tsv`.
+- `docs/jev/user-manual.md` no longer says that no `decide-*` profile has ever been run: on one host (2026-10-28) `decide-nli`, `decide-laya`, `decide-kev-08b` recorded `pass`, `decide-julia` recorded `fail`, `decide-tiny` recorded `undetermined` (2026-10-22). Enforcement is still not claimed live. No anchor text (§11.4.277, §11.4.279) contained the stale claim in this base; the anchors are unchanged.
+
+### Known imperfections (sorted by severity)
+
+1. **MEDIUM** — The `decide-*` validation evidence is one host on one day (2026-10-28, `decide-julia` FAILED, `decide-tiny` UNDETERMINED); the llmctl release that produced it is UNCONFIRMED. Enforcement by decision models stays unclaimed (§11.4.279(D)).
+2. **MEDIUM** — The propagation family audits every checked-out `CLAUDE/AGENTS/QWEN/GEMINI.md`, so each new third-party submodule needs a justified row in `config/covenant_propagation_exclusions.tsv` or the suite goes red once submodules are populated (found twice in this release: `open_design`, `verification`). A gate that discovers third-party carriers by `third_party: true` in `helix-deps.yaml` instead of a hand list is owed.
+3. **LOW** — The weekly llmctl revalidate timer from the operator's user-scope kit is NOT shipped: it is host-specific (user systemd units, host paths), not hub-appropriate. Owed as a consumer-side item.
+4. **LOW** — No generated twins (html/pdf/docx): this base is Markdown-only (§11.4.65 export off), so none were regenerated.
+5. **LOW** — credscan is shipped but its hook is NOT installed into any `settings.json`, and the timer is not enabled; both are operator acts. Its baseline ratchet starts from the first run on each host.
+6. **LOW** — `post_update_hook.sh` run against a consumer root without `helix-deps.yaml` fails by design (§11.4.31); run it with `PROJECT_ROOT` set.
+7. **TRIVIAL** — The first covenant-suite run in the release work was invalidated by an external `timeout` kill (carrier tempfile removed) and repeated unkilled; the recorded counts are from the unkilled runs.
+
 ## Unreleased — 2026-10-28 (second) — landing change set on top of v72: Markdown-only amendment (formats_export OFF), dispatch-tier guard, v71/v72 merge, claude_toolkit re-pin
 
 **Status of this entry: UNRELEASED.** No tag exists for it; the newest tag is `helixconstitution-v72`. It records, in one place, every change in the range `origin/main..HEAD` that earlier entries did not describe. Items already described by the entries below (the §11.4.290 anchor, the review-round-1 fixes) are only cross-referenced here.

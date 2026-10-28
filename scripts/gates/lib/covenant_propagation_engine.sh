@@ -132,6 +132,20 @@
 # pointer_carrier.sh and the parent data pack are found regardless of caller cwd.
 _cpe_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
+# F5: default consumer root. The repository root this lib lives in; when that
+# repository is a vendored "constitution" submodule of a git consumer, the
+# consumer. Never cwd-relative (a bare ".." resolved against the caller cwd and
+# produced false FAILs when a gate ran standalone).
+covenant_propagation_default_root() {
+    local repo
+    repo="$(cd "${1:-${_cpe_lib_dir}/../../..}" 2>/dev/null && pwd)" || return 2
+    if [ "$(basename "$repo")" = "constitution" ] && [ -e "$(dirname "$repo")/.git" ]; then
+        dirname "$repo"
+    else
+        printf '%s\n' "$repo"
+    fi
+}
+
 # shellcheck source=pointer_carrier.sh
 if [ -r "${_cpe_lib_dir}/pointer_carrier.sh" ]; then
     . "${_cpe_lib_dir}/pointer_carrier.sh"
@@ -179,7 +193,7 @@ covenant_propagation_main() {
         return 2
     fi
 
-    root="${CONSUMER_ROOT:-..}"
+    root="${CONSUMER_ROOT:-$(covenant_propagation_default_root)}"
     quiet=""
     while [ $# -gt 0 ]; do
         case "$1" in

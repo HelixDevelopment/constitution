@@ -42,6 +42,8 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# F5: default-root helper (defined in the shared engine; sourcing only defines functions)
+. "${HERE}/lib/covenant_propagation_engine.sh"
 PACK="${COVENANT_PROPAGATION_ANCHORS:-${HERE}/covenant_propagation_anchors.tsv}"
 MODE="${1:-}"; shift || true
 
@@ -71,7 +73,7 @@ if [ "$MODE" = "gates" ] && [ -z "${COVENANT_PROPAGATION_CARRIERS:-}" ]; then
         [ "$_prev" = "--root" ] && _suite_root="$_a"
         _prev="$_a"
     done
-    _suite_root="${_suite_root:-${CONSUMER_ROOT:-..}}"
+    _suite_root="${_suite_root:-${CONSUMER_ROOT:-$(covenant_propagation_default_root)}}"
     if [ -d "$_suite_root" ]; then
         _suite_cl="$(mktemp -t covenant_carriers.XXXXXX)"
         trap 'rm -f "$_suite_cl"' EXIT INT TERM
