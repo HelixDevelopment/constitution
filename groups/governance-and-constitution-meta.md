@@ -2021,7 +2021,7 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-282-PRO
 
 **Non-compliance is a release blocker. No escape hatch — host-safety headroom (§12) is the ONLY legitimate capacity limiter.**
 
-**Refinement note (2026-10-28).** §11.4.291 bounds "to the maximum": only instances whose LIVE placement verdict is `fits` or `fits_reduced` count, the planned `decision_instances` figure is an upper bound and never a licence to start them, and host-safety headroom (the only limiter, per the close above) is measured live per §11.4.291(C).
+**Refinement note (2026-10-28).** §11.4.291 bounds "to the maximum": only instances whose LIVE placement verdict is `fits` or `fits_with_reduced_threads` count, the planned `decision_instances` figure is an upper bound and never a licence to start them, and host-safety headroom (the only limiter, per the close above) is measured live per §11.4.291(C).
 
 ### §11.4.283 — Decision-layer token-reduction proof (User mandate, 2026-10-07)
 

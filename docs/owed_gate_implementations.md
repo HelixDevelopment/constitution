@@ -957,11 +957,11 @@ The four gates named in §11.4.289 are registered as deferrals in the same chang
 The four recommended gates named in §11.4.291 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. No producer of the `placement` record exists yet, and the canonical capacity source (`llmctl capacity --json`, llmctl 3.4.0) is not in the vendored pin (llmctl 3.3.2).
 
 - **OWED-GATE-165** — `CM-DECISION-PLACEMENT-VERDICT-RECORDED`
-  - **Must assert:** (per §11.4.291(A)/(C)/(F)) every evaluated decision profile has a `placement` entry in `jev-detection.json` with a closed-set verdict and clause (C) inputs carrying source and timestamp; golden-FALSE: an honest `undetermined` naming the unreadable input
+  - **Must assert:** (per §11.4.291(A)/(C)/(F)) every evaluated decision profile has a `placement` entry in `jev-detection.json` with a closed-set verdict (`fits`, `fits_with_reduced_threads`, `does_not_fit`, `undetermined`) and clause (C) inputs carrying source and timestamp, and no start under `undetermined` lacks a resolvable unexpired (A.1) override id; golden-FALSE: an honest `undetermined` naming the unreadable input, and a start under a recorded override
   - **Blocked on:** no placement producer; no live capacity source in the vendored llmctl
   - **Paired §1.1 mutation:** make `undetermined` read as `fits`; the gate MUST FAIL
 - **OWED-GATE-166** — `CM-DECISION-FALLBACK-ON-NO-FIT`
-  - **Must assert:** (per §11.4.291(E)/(F)) no local start after `does_not_fit` or `undetermined`; every route change has a notice and a record; a hosted route never enforces; no key value in the record or logs; golden-FALSE: a hosted route recorded with the key's variable name only
+  - **Must assert:** (per §11.4.291(E)/(F)) no local start after `does_not_fit`, or after `undetermined` without an (A.1) override; every route change has a notice and a record; a `cloud` route never enforces and never follows a placeholder key; no key value in the record or logs; golden-FALSE: a `cloud` route recorded with the key's variable name only
   - **Blocked on:** no placement producer or route switch in-repo
   - **Paired §1.1 mutation:** drop the notice, or let a hosted route enforce; the gate MUST FAIL
 - **OWED-GATE-167** — `CM-CONSTITUTION-NEVER-ENABLES-LLMCTL`
@@ -969,6 +969,10 @@ The four recommended gates named in §11.4.291 are registered as deferrals in th
   - **Blocked on:** a call-site extractor that tells executable calls from carriers (§11.4.201(7)(a)); a bare grep would be the carrier-match bluff
   - **Paired §1.1 mutation:** add an `llmctl enable` call to the bootstrap; the gate MUST FAIL
 - **OWED-GATE-168** — `CM-DECISION-MODEL-DEGRADATION-REEVALUATED`
-  - **Must assert:** (per §11.4.291(D)) with injected pressure inputs, a running constitution-started model whose verdict turns `does_not_fit` is stopped with `llmctl stop` only after the route switched; an operator-started model is never stopped; the return to local waits for the hold window; golden-FALSE: steady `fits` changes nothing
-  - **Blocked on:** no re-evaluation loop in-repo
-  - **Paired §1.1 mutation:** stop the model before switching the route; the gate MUST FAIL
+  - **Must assert:** (per §11.4.291(D)) with injected pressure inputs, a running constitution-started model whose verdict turns `does_not_fit` is stopped with `llmctl stop` only after the route switched, the bounded drain ended and the last lease was released (never while another live lease exists); an operator-started model is never stopped; an endpoint gone moves every route to the fallback with reason `endpoint_gone`; the return to local waits for the hold window; golden-FALSE: steady `fits` changes nothing
+  - **Blocked on:** no re-evaluation loop and no lease registry in-repo
+  - **Paired §1.1 mutation:** stop the model before switching the route, or while another live lease exists; the gate MUST FAIL
+
+### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
+
+The independent review of §11.4.291 (round 2) found that `scripts/gates/cm_gate_ledger_ratchet.sh` does not refuse two rows of `gate_ledger_deferrals.tsv` that carry the same `OWED-GATE-NNN` id: the reviewer's mutant M4 (a duplicated deferral id) survived the ratchet's mutation test. Not fixed in that change and no gate name is minted for it here (minting one would add a named gate to the corpus without its seam, §11.4.227(A)). Owed work: make the ratchet FAIL on a duplicated deferral id (and on a duplicated gate name), add M4 to `cm_gate_ledger_ratchet_mutation_test.sh` as a killed mutant, and keep a golden-FALSE with all ids unique. Tracked as a follow-up of the §11.4.291 change, per §11.4.197.
