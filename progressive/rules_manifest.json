@@ -1269,7 +1269,7 @@
   },
   "§11.4.291": {
    "file": "progressive/rules/11.4.291.md",
-   "hash": "sha256:d16e780af64c56f6c9e1f97b2125abe6b7e02acfe2ca7f8f4042de9df82abeaa",
+   "hash": "sha256:49c246b67c8490a87dd17857929656869c0d0ab036794c9c784a427e186bf4f4",
    "line_end": 12660,
    "line_start": 12610
   },
@@ -1816,5 +1816,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "88f9ec3642a3e8c7d370479f9a0e15e23e6f552d11397e591f31211d6082c977"
+ "source_sha256": "7195b2495bbd602f6ee750060ad47c20cbfb61aaa1d04250d8b7021023d293ea"
 }

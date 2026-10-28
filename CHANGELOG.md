@@ -25,6 +25,13 @@
 - The llmctl 3.3.2 `llmctl decide capacity --json` description corrected: partly live (RAM and VRAM budgets), but no PSI, CPU load, cgroup limit or per-profile verdict.
 - Recorded, not fixed: the review found that `cm_gate_ledger_ratchet.sh` accepts duplicate deferral IDs (its reviewer mutant M4 survived); written up as a follow-up in `docs/owed_gate_implementations.md`, no gate name minted.
 
+### Fixed — review round 3 (independent Opus review of 7cd7550, NO-GO, 4 source-defects)
+
+- §11.4.291(E): when no candidate of the session fits, `fallback.recommended: local` is untrusted (llmctl `lib/capacity.sh` line 193 answers `local` when another decision profile fits or any decide unit runs, `degraded` included); the route is `cloud` or `none` from the consumer's own §11.4.279(E) key-by-name check, never a `degraded` unit. Contract table and OWED-GATE-166 updated.
+- §11.4.291(J): a lease-lock timeout means no lease (no local route, no start, fallback `lease_lock_timeout`); the last-lease stop is atomic with acquisition (set marked `stopping` under the lock, acquisition on it refused); the holder is the long-lived session process or a session heartbeat with a TTL, never a short-lived hook, bootstrap or MCP-call pid; a reap alone never stops the model. OWED-GATE-166 and 168 updated.
+- Wording: exit 0 means "fits or already running"; the `host` row names its real keys; vendoring llmctl 3.4.0 alone does not end `undetermined` for a start; the ratchet follow-up now also covers renumbered ids (mutant N3).
+- Noted in the governance guide (llmctl side, not fixed here): llmctl's `running` detection matches exact profile names, so instance-suffixed units such as `decide.1` are missed.
+
 ### Honest boundaries
 
 - Nothing is measured: no placement verdict has been computed on any host, no producer of the `placement` record exists, and the vendored llmctl (3.3.2, `11a9154`) has no `llmctl capacity`; its `llmctl decide capacity --json` is partly live (RAM budget = min(live `MemAvailable` - 4 GiB, 60% of `MemTotal` - running reservations), live free VRAM, per `lib/catalog.sh` lines 1-12 and 365-400) but has no PSI, CPU load, cgroup limit or per-profile verdict, and is not accepted as a live verdict on its own. The `llmctl capacity --json` contract was read from an uncommitted llmctl 3.4.0 working tree and one run of it on one host (`schema` `llmctl.capacity/1`, exit 0); it is not vendored.
