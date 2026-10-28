@@ -25,6 +25,12 @@
 - The llmctl 3.3.2 `llmctl decide capacity --json` description corrected: partly live (RAM and VRAM budgets), but no PSI, CPU load, cgroup limit or per-profile verdict.
 - Recorded, not fixed: the review found that `cm_gate_ledger_ratchet.sh` accepts duplicate deferral IDs (its reviewer mutant M4 survived); written up as a follow-up in `docs/owed_gate_implementations.md`, no gate name minted.
 
+### Fixed — review round 4 (independent Opus review of 2e647ae, NO-GO minor)
+
+- §11.4.291(J)(3): a `stopping` mark carries the stopper's pid or heartbeat and a bounded stop timeout; when the stopper is dead or the timeout passed, the mark is cleared under the lock (unit still running: set returns to normal, model not stopped; unit gone: set removed; recorded either way). OWED-GATE-168 gains the golden case "stopper killed mid-stop: mark cleared, not stuck".
+- §11.4.291(J)(1): a heartbeat TTL MUST exceed the re-evaluation cadence plus the llmctl call timeout.
+- Ratchet follow-up in `docs/owed_gate_implementations.md`: reviewer mutant P4 (swapping two deferral ids, 165 and 166) added beside M4 and N3.
+
 ### Fixed — review round 3 (independent Opus review of 7cd7550, NO-GO, 4 source-defects)
 
 - §11.4.291(E): when no candidate of the session fits, `fallback.recommended: local` is untrusted (llmctl `lib/capacity.sh` line 193 answers `local` when another decision profile fits or any decide unit runs, `degraded` included); the route is `cloud` or `none` from the consumer's own §11.4.279(E) key-by-name check, never a `degraded` unit. Contract table and OWED-GATE-166 updated.

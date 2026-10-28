@@ -64,7 +64,7 @@ README ships in. Re-derive the machine-derived ones with
 | Shell scripts | 874 `*.sh` under `scripts/` | `find` |
 | Submodules | **27** declared, **27** recorded gitlinks (10 own-org, 17 third-party, by remote organisation) | `.gitmodules`, `git ls-files -s` |
 | Remotes | 6 upstreams (GitHub ×2, GitLab ×2, GitFlic, GitVerse) | `git remote -v` |
-| Index freshness | the index and the progressive catalog both carry the canon's SHA-256 (`7195b249…`, `cm_constitution_index_fresh.sh`, `progressive/generate_split.py --check`) | `cm_constitution_index_fresh.sh` |
+| Index freshness | the index and the progressive catalog both carry the canon's SHA-256 (`c30d3a5d…`, `cm_constitution_index_fresh.sh`, `progressive/generate_split.py --check`) | `cm_constitution_index_fresh.sh` |
 
 ## Anchor catalogue by group
 
