@@ -326,7 +326,8 @@ ID_RANGE_GROUPS = [
                                    (119, 119), (128, 128), (144, 144), (147, 147),
                                    (154, 155), (174, 174),  # 174 added — T006/T007 283-corpus widening (see report)
                                    (225, 225), (254, 254), (263, 263),
-                                   (287, 287)]),  # 287 added 2026-10-24 — destructive-path safeguard; sibling of 263 (signal-safety) in this group
+                                   (287, 287),  # 287 added 2026-10-24 — destructive-path safeguard; sibling of 263 (signal-safety) in this group
+                                   (291, 291)]),  # 291 added 2026-10-28 — capacity-aware decision-model placement; sibling of 225 (quota throttling) and §12.6/§12.12
     # NOTE (fix round 1): the ORIGINAL (176, 192) single contiguous tuple
     # here silently swallowed several tails that genuinely belong to OTHER
     # groups (177 governance-and-constitution-meta, 179-181/188 git-and-

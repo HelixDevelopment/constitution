@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-07 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-10-28T19:34:34Z |
 | Status | active |
-| Status summary | Operator-facing explanation of the Jev decision-layer mandate. Revision 2 corrects the tool surface against the claude_toolkit and llmctl sources. |
+| Status summary | Operator-facing explanation of the Jev decision-layer mandate. Revision 2 corrects the tool surface against the claude_toolkit and llmctl sources. Revision 3 adds the §11.4.291 capacity-aware placement section. |
 | Authority | Constitution §11.4.279–§11.4.286 (+ §11.4.231 as amended 2026-10-07). The canonical anchor texts in `Constitution.md` govern; this guide is operator-facing explanation, never a second source of rule text. |
 | Scope | Universal (§11.4.17) — inherited by reference (§11.4.28/§11.4.177); every project-specific value below is consumer DATA per §11.4.35. |
 | Issues | 3 integration gaps recorded under "Honest limitations" |
@@ -27,6 +27,7 @@ Related: [bootstrap reference](bootstrap-reference.md) · [user manual](user-man
 - [Gate reference](#gate-reference)
 - [Using a Jev API key (hosted) out of the box](#using-a-jev-api-key-hosted-out-of-the-box)
 - [Live validation (2026-10-24)](#live-validation-2026-10-24)
+- [Capacity-aware placement](#capacity-aware-placement-114291)
 - [Calibration lifecycle](#calibration-lifecycle-1285)
 - [Honest limitations](#honest-limitations-read-before-relying-on-the-layer)
 - [See also](#see-also)
@@ -108,6 +109,19 @@ UNCONFIRMED (review round 1, finding 4): the figures below were reported from a 
 - UNCONFIRMED lead, local llmctl: `decide-laya` validate PASS 10/0/0, determinism 3/3; `vision` PASS 38/0/0; `decide-julia` validate FAIL 9/1/0 (model defect: the prompt "The number is 8" was answered odd; not usable); `decide-tiny` UNDETERMINED (protocol `jev-verdict` has no driver). Typed-decision determinism on laya: 3/3 identical. The `noul` type was unreliable on laya (maturity experimental, calibrated=false). Enforcement is not live.
 - UNCONFIRMED lead, hosted (TypeSafe): 54 decisions (`jev-latest` and `jev-1.13.0` x yes/no, choice, score x 3 questions x 3 repeats), all HTTP 200 and all agreeing with the known answers; discrete answers identical across repeats; `jev-latest` showed numeric jitter (0.98/0.99); median latency about 170 ms; about 349 tokens per decision. Failure codes: 401 wrong key, 403 empty bearer, 422 malformed, 400 unknown model, unknown type or oversize. Timeout behaviour: UNCONFIRMED. The token-reduction proof was NOT produced (no BEFORE side exists). Shadow gate decisions logged: an rm-like command denied (0.96), a force-push-like command denied at confidence 0.30, `ls` allowed (0.05).
 - Findings fixed after this run: externally started decide engines missed (G1), empty record contradicting llmctl (G2), report-stage gates judging a cwd-relative default (G3), token gate GREEN on bundled fixtures (G4), gateway `reachable` claimed from "running", ambient `LLMCTL_DIR` leaking into the test run, wiring gate reading the wrong env directory, hosted `reachable=null` making a GREEN detection vacuous, `--root` missing on `cm_jev_detection`, `.class` versus `.question` in `decisions.jsonl` (the gate now accepts `.class // .question`; the toolkit gate writes `.question` only).
+
+## Capacity-aware placement (§11.4.291)
+
+Added 2026-10-28. A local decision model runs only when the host's live load leaves room for it. The rule text is §11.4.291 in `Constitution.md`; this section explains what it means for an operator.
+
+- **Verdict.** Before a start, before traffic goes to a local instance and at every re-evaluation, each decision profile gets one verdict: `fits`, `fits_reduced` (only in a reduced configuration the profile itself declares), `does_not_fit` or `undetermined`. `undetermined` (an input unreadable, a probe timed out, or no capacity source) is never read as `fits`: no local model is started on it.
+- **Host reserve.** The model never takes all memory, CPU or threads. The reserve composes rules that already exist (§12.6 memory ceiling, §12.12 thread headroom, §11.4.225 CPU throttle accounting, the §11.4.277(E)(3) start gate); §11.4.291 adds no new number.
+- **Capacity source.** The canonical source is `llmctl capacity --json`, planned for llmctl 3.4.0 and UNCONFIRMED until that version is vendored and run. The vendored llmctl 3.3.2 has `llmctl decide capacity --json`, which is a static plan (tier, budgets, `decision_instances`), not a live measurement, so on its own it never yields `fits`.
+- **Fallback.** When no profile fits and a non-placeholder hosted key is present (found by variable NAME, never printed), traffic goes to the hosted endpoint. Hosted endpoints never enforce, so enforced question types return to shadow. With no key, the layer records why it has no endpoint and decisions escalate per §11.4.284(C).
+- **You are told.** Every change of route prints a notice and writes a `placement` entry in `jev-detection.json` (profile, verdict, reason, inputs, reserve, route, key variable name only, whether the constitution started the model, previous verdict).
+- **On demand only.** Constitution automation may run `llmctl start` after a fitting verdict and `llmctl stop` for a model it started. It never runs `enable` / `disable`, never creates a boot unit, never runs `switch` or an evicting `auto`, and bounds every llmctl call with a timeout. Starting llmctl at boot stays an operator choice.
+- **Degradation.** While a constitution-started model runs, placement is re-evaluated on a cadence; on degradation the route moves to the fallback first, then the model is stopped.
+- **Not yet built.** No producer of the `placement` record and none of the four mechanism gates (`OWED-GATE-165` to `OWED-GATE-168`) exist yet. Until a live capacity source exists the verdict is `undetermined`, so no local decision model is started by constitution automation; whether that interim effect is wanted is an open operator question.
 
 ## Calibration lifecycle (§11.4.285)
 

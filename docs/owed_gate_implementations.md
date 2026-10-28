@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 11
-**Last modified:** 2026-10-26T17:04:36Z
+**Revision:** 12
+**Last modified:** 2026-10-28T19:34:34Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -12,6 +12,8 @@
 **R11 (2026-10-26, §11.4.288):** `OWED-GATE-150` to `OWED-GATE-152` (`CM-ALL-WORK-ON-MAIN`, `CM-SUBMODULE-POINTER-ON-MAIN`, `CM-VEHICLE-MERGED-AND-RETIRED`) were registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.288; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394 (measured before and after).
 
 **R13 (2026-10-26, §11.4.289):** `OWED-GATE-161` to `OWED-GATE-164` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.289; section at the end of this file.
+
+**R14 (2026-10-28, §11.4.291):** `OWED-GATE-165` to `OWED-GATE-168` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.291; section at the end of this file.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -949,3 +951,24 @@ The four gates named in §11.4.289 are registered as deferrals in the same chang
 - **OWED-GATE-164** — `CM-FIXTURE-SERVER-CLASSIFIED-UNIT`
   - **Must assert:** (per §11.4.289(C)/(I), added 2026-10-26) that every fixture server, recorded-replay asset and fixture binary is registered as unit or gate-logic class and is not cited by any live-labelled record or by any decision-layer behaviour claim; golden-FALSE: tests/jev fixtures cited only by gate-logic tests do not fire
   - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL
+
+### §11.4.291 capacity-aware decision-model placement (registered 2026-10-28)
+
+The four recommended gates named in §11.4.291 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. No producer of the `placement` record exists yet, and the canonical capacity source (`llmctl capacity --json`, llmctl 3.4.0) is not in the vendored pin (llmctl 3.3.2).
+
+- **OWED-GATE-165** — `CM-DECISION-PLACEMENT-VERDICT-RECORDED`
+  - **Must assert:** (per §11.4.291(A)/(C)/(F)) every evaluated decision profile has a `placement` entry in `jev-detection.json` with a closed-set verdict and clause (C) inputs carrying source and timestamp; golden-FALSE: an honest `undetermined` naming the unreadable input
+  - **Blocked on:** no placement producer; no live capacity source in the vendored llmctl
+  - **Paired §1.1 mutation:** make `undetermined` read as `fits`; the gate MUST FAIL
+- **OWED-GATE-166** — `CM-DECISION-FALLBACK-ON-NO-FIT`
+  - **Must assert:** (per §11.4.291(E)/(F)) no local start after `does_not_fit` or `undetermined`; every route change has a notice and a record; a hosted route never enforces; no key value in the record or logs; golden-FALSE: a hosted route recorded with the key's variable name only
+  - **Blocked on:** no placement producer or route switch in-repo
+  - **Paired §1.1 mutation:** drop the notice, or let a hosted route enforce; the gate MUST FAIL
+- **OWED-GATE-167** — `CM-CONSTITUTION-NEVER-ENABLES-LLMCTL`
+  - **Must assert:** (per §11.4.291(G)) constitution automation never calls `llmctl enable` / `disable`, `switch` or an evicting `auto`, never enables a boot unit for a model, and bounds every llmctl call with a timeout; golden-FALSE: a comment or document naming `llmctl enable` as the operator's own act
+  - **Blocked on:** a call-site extractor that tells executable calls from carriers (§11.4.201(7)(a)); a bare grep would be the carrier-match bluff
+  - **Paired §1.1 mutation:** add an `llmctl enable` call to the bootstrap; the gate MUST FAIL
+- **OWED-GATE-168** — `CM-DECISION-MODEL-DEGRADATION-REEVALUATED`
+  - **Must assert:** (per §11.4.291(D)) with injected pressure inputs, a running constitution-started model whose verdict turns `does_not_fit` is stopped with `llmctl stop` only after the route switched; an operator-started model is never stopped; the return to local waits for the hold window; golden-FALSE: steady `fits` changes nothing
+  - **Blocked on:** no re-evaluation loop in-repo
+  - **Paired §1.1 mutation:** stop the model before switching the route; the gate MUST FAIL

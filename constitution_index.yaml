@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-27T18:58:26.780725+00:00'
+generated_at: '2026-10-28T19:37:34.960264+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 09dacd68a59d6595c8bbf26787624dc6f94a2529
-  source_sha256: 23297d680ceca341e3065a99717a01e0a1c437792867777a517ea678a10a6495
+  commit: 6374feb7fa93b40d47d0c9e739cd2cd593befcc6
+  source_sha256: be49f857794270c9c1570d550136742fc7a9dc0371ffd0084b44d9140bf126ea
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -25,7 +25,7 @@ groups:
   anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
-  anchor_count: 22
+  anchor_count: 23
 - name: multi-track-and-parallelism
   path: constitution/groups/multi-track-and-parallelism.md
   anchor_count: 13
@@ -7401,6 +7401,7 @@ anchors:
   - 11.4.280
   - 11.4.281
   - 11.4.286
+  - 11.4.291
   - 11.4.35
   - 11.4.5
   - 11.4.6
@@ -7456,6 +7457,7 @@ anchors:
   - 11.4.279
   - 11.4.282
   - 11.4.283
+  - 11.4.291
 - id: 11.4.283
   title: — Decision-layer token-reduction proof (User mandate, 2026-10-07)
   group: governance-and-constitution-meta
@@ -7489,6 +7491,7 @@ anchors:
   - 11.4.279
   - 11.4.284
   - 11.4.285
+  - 11.4.291
 - id: 11.4.285
   title: — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
   group: project-lifecycle-and-release
@@ -7731,6 +7734,46 @@ anchors:
   - '7.1'
   - '9.1'
   - '9.3'
+- id: 11.4.291
+  title: '— Capacity-aware decision-model placement: a local decision model runs only
+    when the host''s LIVE load leaves room for it; otherwise decision traffic falls
+    back, visibly and with a recorded reason, to the hosted endpoint when its key
+    is present (or to a reasoned absence when it is not); the placement is re-evaluated
+    at any time, including while a model runs; the constitution starts and stops llmctl
+    models on demand and never enables them for boot (User mandate, 2026-10-28)'
+  group: host-and-resource-safety
+  location: constitution/groups/host-and-resource-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-291-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.10
+  - 11.4.102
+  - 11.4.119
+  - 11.4.17
+  - 11.4.201
+  - 11.4.225
+  - 11.4.227
+  - 11.4.231
+  - 11.4.232
+  - 11.4.263
+  - 11.4.267
+  - 11.4.274
+  - 11.4.277
+  - 11.4.279
+  - 11.4.281
+  - 11.4.282
+  - 11.4.284
+  - 11.4.285
+  - 11.4.291
+  - 11.4.35
+  - 11.4.6
+  - 11.4.97
+  - '12.11'
+  - '12.12'
+  - '12.6'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

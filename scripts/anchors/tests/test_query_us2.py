@@ -76,8 +76,11 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # Re-measured 2026-10-27 (§11.4.290 optimistic done + parallel background
         # verification added, "Classification: universal (§11.4.17)"): universal
         # 187 -> 188 = +1. 188 + 110 + 2 mixed = 300 = total index entries.
-        assert len(universal) == 188, (
-            f"expected exactly 188 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-28 (§11.4.291 capacity-aware decision-model placement
+        # added, "Classification: universal (§11.4.17)"): universal 188 -> 189 = +1.
+        # 189 + 110 + 2 mixed = 301 = total index entries.
+        assert len(universal) == 189, (
+            f"expected exactly 189 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

@@ -1750,6 +1750,8 @@ Classification: universal (§11.4.17) — the consuming project supplies its key
 
 **Non-compliance is a release blocker. No escape hatch — no `--skip-jev-detection`, no env kill-switch for detection itself (runtime kill-switch `JEV_GATE=off` governs enforcement only, never detection).**
 
+**Refinement note (2026-10-28).** §11.4.291 adds `placement` entries to `jev-detection.json` (verdict, measured inputs, route, the hosted key's variable NAME only) and lets a reasoned-empty record cite a `does_not_fit` or `undetermined` placement verdict as its reason; detection itself is unchanged.
+
 ### §11.4.280 — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
 
 **Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Install all the plugins, skills and MCPs per agent so every agent on the host can reach the decision layer."
