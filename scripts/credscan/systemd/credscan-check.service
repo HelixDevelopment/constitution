@@ -1,0 +1,14 @@
+[Unit]
+Description=Credential exposure ratchet check (counts only, low priority)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/lib/credscan/credscan_check_timer.sh
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+MemoryMax=1G
+TimeoutStartSec=115min
+# exit 1 (ratchet violated) is a result recorded in status.json; every other non-zero (2 cannot run,
+# 3 blind, 4 internal error, 5 partial scan, 124 timeout, 137 killed) is a real unit failure
+SuccessExitStatus=1
