@@ -89,14 +89,14 @@ deps:
   # applies to the bootstrap's managed-clone path too). llmctl resolves the canon through lib/resolve_deps.sh, so this hub<->llmctl edge stays non-nesting.
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: 11a9154             # pinned sha = the recorded gitlink; tag v3.3.2 (v72.1 bump)
+    ref: 4fbef9e             # pinned sha = the recorded gitlink; main tip, tag v3.3.2 + third-party pin bump (update-all 2026-10-29)
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. Hub engine: nests no own-org repository; resolves the canon, containers and superspec via lib/resolve_deps.sh (§11.4.28(C)); its own helix-deps.yaml marks superspec third_party."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at the 11a9154 re-pin (v72.1 run)
 
   - name: containers
     ssh_url: git@github.com:vasic-digital/Containers.git
-    ref: bfd0e98             # pinned sha = the recorded gitlink; tag containers-2.0.0 = main tip (v72.1 bump; Go module path stays digital.vasic.containers)
+    ref: 22b4970             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29)
     why: "§11.4.76 / §11.4.161 digital.vasic.containers — the sole rootless container orchestration layer (boot / compose / health / remote distribution); provided flat by the hub so engines (llmctl among them) resolve it here instead of nesting it (§11.4.28(C))"
     layout: grouped
 
@@ -104,7 +104,7 @@ deps:
   # jev-stats). Pin kept at the SHA below, not `main` (§11.4.113 fetch-first); re-pin only with the gitlink (CM-HELIX-DEPS-REF-MATCHES-GITLINK).
   - name: claude_toolkit
     ssh_url: git@github.com:vasic-digital/claude_toolkit.git
-    ref: 36bdfd9             # pinned sha = the recorded gitlink; tag v1.33.2 (v72.1 bump)
+    ref: f24e091             # pinned sha = the recorded gitlink; main tip, tag v1.34.0 + third-party pin bump (update-all 2026-10-29)
     why: "constitution hub engine — the multi-alias / provider toolkit consumed by reference (§11.4.196 / §11.4.198 native-first multi-alias orchestration); never shipped in a product artifact. Nests no own-org repository; resolves the canon, containers, challenges, LLMsVerifier and claude-code-router flat via scripts/resolve_deps.sh (§11.4.28(C)); ships its own helix-deps.yaml."
     layout: grouped
     recursive_init: false    # NEVER `--recursive` for this path: claude_toolkit nests the third-party Go toolchain (submodules/go, go.googlesource.com), which is never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-HELIX-DEPS-MANIFEST-PRESENT PASS at the 36bdfd9 re-pin (v72.1 run)
@@ -120,7 +120,7 @@ deps:
   # ─── Third-party REFERENCE checkout (§11.4.162; never a product's consumption path) ──
   - name: open_design
     ssh_url: git@github.com:nexu-io/open-design.git
-    ref: 3b0df90             # pinned sha = the recorded gitlink; on origin/main of the local remote-tracking ref (describe: blog-indexed-prod-278-g3b0df90f30)
+    ref: 3805d03             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29; third party, read-only)
     why: "§11.4.162 OpenDesign upstream, ONE pinned REFERENCE checkout for design-system work; products consume OpenDesign as a dependency, never through this path; excluded from the index, coverage and own-org review"
     layout: grouped
     third_party: true
@@ -129,7 +129,7 @@ deps:
   # ─── OpenDesign design-toolkit (grouped layout since 1c89813, 2026-10-11) ──
   - name: design-toolkit
     ssh_url: git@github.com:vasic-digital/design-toolkit.git
-    ref: 6446680             # pinned sha = the recorded gitlink; tag v0.2.3 (release v72 bump)
+    ref: 1b9abac             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29)
     why: "§11.4.162 OpenDesign UI design-system engine — canonical machine-readable design-token source (§11.4.216) + brand contract (§11.4.217) + living design-library catalogue (§11.4.218); consumed by every project that ships a user-facing UI"
     layout: grouped
 
