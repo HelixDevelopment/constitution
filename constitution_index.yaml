@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-28T21:07:50.377108+00:00'
+generated_at: '2026-10-30T10:35:17.569708+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 2e647ae9b4a228914dded457bc3b840f44ec8d7a
-  source_sha256: c30d3a5dc75d4ea4214bbc9ebad250e0efb47ddd9f001dce618b40956316b970
+  commit: eca3c33cc3cc38bdba10a7cf991fbe6931aa8d59
+  source_sha256: 1ad17551cbdf90a34a3c1e25a8da28e141207d06b44406ff1f9fc6995e157217
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -2759,6 +2759,7 @@ anchors:
   - 11.4.126
   - 11.4.17
   - 11.4.2
+  - 11.4.230
   - 11.4.35
   - 11.4.40
   - 11.4.42
@@ -5630,7 +5631,9 @@ anchors:
     re-run + parallel multi-device testing/recording + fan-out-subagents-always +
     incremental delivery granularity with a declared QA-build cadence + a quick visible
     first deliverable with a hardening status and ledger tracked to production readiness
-    (research-derived, 2026-07-26; clause (D) added 2026-10-04; clause (E) added 2026-10-12)'
+    + a continuous release train that never stops at a release (research-derived,
+    2026-07-26; clause (D) added 2026-10-04; clause (E) added 2026-10-12; clause (F)
+    added 2026-10-30)'
   group: multi-track-and-parallelism
   location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
@@ -5687,6 +5690,7 @@ anchors:
   - 11.4.209
   - 11.4.21
   - 11.4.210
+  - 11.4.214
   - 11.4.227
   - 11.4.229
   - 11.4.230
@@ -5715,6 +5719,7 @@ anchors:
   - 11.4.273
   - 11.4.276
   - 11.4.288
+  - 11.4.290
   - 11.4.3
   - 11.4.35
   - 11.4.4
@@ -5734,6 +5739,7 @@ anchors:
   - 11.4.97
   - '12.12'
   - '12.6'
+  - '2.1'
 - id: 11.4.231
   title: '— Nano-precision model-tier selection: lightest-capable-model-first with
     dynamic mid-task escalation (User mandate, 2026-07-26, `CRITICAL`)'
@@ -7207,6 +7213,8 @@ anchors:
   - 11.4.142
   - 11.4.148
   - 11.4.17
+  - 11.4.184
+  - 11.4.185
   - 11.4.194
   - 11.4.197
   - 11.4.199
@@ -7216,8 +7224,11 @@ anchors:
   - 11.4.224
   - 11.4.226
   - 11.4.227
+  - 11.4.230
   - 11.4.235
+  - 11.4.236
   - 11.4.238
+  - 11.4.239
   - 11.4.240
   - 11.4.246
   - 11.4.250
@@ -7225,9 +7236,12 @@ anchors:
   - 11.4.267
   - 11.4.271
   - 11.4.276
+  - 11.4.288
   - 11.4.35
+  - 11.4.40
   - 11.4.6
   - 11.4.66
+  - 11.4.93
   - 11.4.97
   - 11.4.99
 - id: 11.4.277

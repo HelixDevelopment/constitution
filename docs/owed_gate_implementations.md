@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 12
-**Last modified:** 2026-10-28T19:34:34Z
+**Revision:** 13
+**Last modified:** 2026-10-30T10:34:31Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -735,7 +735,7 @@ missing.
 ### §11.4.276 (registered 2026-10-05 — landed the SAME session as this currency check, per the operator CRITICAL mandate on excessive review-round counts)
 
 - **OWED-GATE-111** — `CM-REVIEW-ROUND-BUDGET`
-  - **Must assert:** asserts every independently-reviewed work item has a declared round budget `R_max` in the closed range 5–7 (absent declaration resolves to 5) and a round count derived from its own review record; FAILs if a round `R_max`+1 is dispatched under the same approach with no recorded operator decision (§11.4.276(E)(3)), or if an item is closed without a GO verdict
+  - **Must assert:** (contract amended 2026-10-30 by §11.4.276(G)) asserts every independently-reviewed work item has a round budget `R_max` of 5 (6 or 7 only with a recorded operator decision naming the item) and a round count derived from its own review record; FAILs if a round `R_max`+1 to `R_max`+5 runs with no recorded (G.3) extension trigger, if a round `R_max`+6 or a second extension cycle runs with no recorded operator decision (§11.4.276(E)(3)), or if an item is closed without a GO or `GO-with-follow-ups` verdict
   - **Blocked on:** no review-round-counting harness exists in-repo yet (§11.4.276(A), gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
 - **OWED-GATE-112** — `CM-REVIEW-ROUND3-CONVERGENCE-ASSESSMENT`
@@ -972,6 +972,31 @@ The four recommended gates named in §11.4.291 are registered as deferrals in th
   - **Must assert:** (per §11.4.291(D)) with injected pressure inputs, a running constitution-started model whose verdict turns `does_not_fit` is stopped with `llmctl stop` only after the route switched, the bounded drain ended and the last lease was released with the set marked `stopping` under the lock (never while another live lease exists; an acquisition on a `stopping` set is refused; a lease held by a short-lived pid or an expired heartbeat is not live, and a reap alone never stops the model; a `stopping` mark whose stopper is dead or whose stop timeout passed is cleared under the lock, returning the set to normal if the unit still runs and removing it if the unit is gone; a heartbeat TTL not greater than the re-evaluation cadence plus the llmctl call timeout is refused as a config error); an operator-started model is never stopped; an endpoint gone moves every route to the fallback with reason `endpoint_gone`; the return to local waits for the hold window; golden case: a stopper killed mid-stop leaves the mark cleared, not stuck; golden-FALSE: steady `fits` changes nothing
   - **Blocked on:** no re-evaluation loop and no lease registry in-repo
   - **Paired §1.1 mutation:** stop the model before switching the route, or while another live lease exists; the gate MUST FAIL
+
+### §11.4.230(F) continuous release train and §11.4.276(G) round cap (registered 2026-10-30)
+
+The five recommended gates named in §11.4.230(F) and §11.4.276(G) are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. No release record, release-trigger declaration, review-round harness or review-record schema with finding layer and severity exists in-repo yet.
+
+- **OWED-GATE-169** — `CM-RELEASE-TRAIN-HANDOVER-NO-GAP`
+  - **Must assert:** (per §11.4.230(F.4)/(F.5)) every recorded release of N opens candidate N+1 in the same write; FAIL on zero live streams while N+1 holds actionable items and headroom exists, or on the loop reported stopped after a release with a non-empty N+1 scope; golden-FALSE: a genuinely empty N+1 scope recorded with tracker evidence
+  - **Blocked on:** no release-record or candidate producer in-repo
+  - **Paired §1.1 mutation:** record a release without opening candidate N+1; the gate MUST FAIL
+- **OWED-GATE-170** — `CM-RELEASE-LEDGER-CARRIED-FORWARD`
+  - **Must assert:** (per §11.4.230(F.4)(2)) every ledger entry open at N's release instant, and every `waived` entry with unpaid debt, is in N+1's scope under its own tracked id, linked to N; N's announced status is never raised by later work; golden-FALSE: every carried entry present and linked
+  - **Blocked on:** the hardening-ledger join (OWED-GATE-117) does not exist yet
+  - **Paired §1.1 mutation:** drop one carried entry, or carry it under a new id; the gate MUST FAIL
+- **OWED-GATE-171** — `CM-RELEASE-NOT-WITHHELD-AND-CLASS-HONEST`
+  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed
+  - **Blocked on:** no release-trigger declaration or release record in-repo
+  - **Paired §1.1 mutation:** ship a production-class release with O > 0; the gate MUST FAIL
+- **OWED-GATE-172** — `CM-REVIEW-EXTENSION-CYCLE-JUSTIFIED`
+  - **Must assert:** (per §11.4.276(G.3)) every round past `R_max` carries a recorded trigger citing an open `source-defect` above `minor` or a broken stack or gate; the first extension round is structural; no second extension cycle; golden-FALSE: a trigger citing an `important` `source-defect`
+  - **Blocked on:** no review-round harness (OWED-GATE-111)
+  - **Paired §1.1 mutation:** open an extension cycle for a nit; the gate MUST FAIL
+- **OWED-GATE-173** — `CM-REVIEW-FOLLOW-UPS-REGISTERED`
+  - **Must assert:** (per §11.4.276(G.2)) every finding named by a `GO-with-follow-ups` verdict is a tracked item linked to its parent and assigned to the next iteration; no finding in an excluded surface carries a minor-class label; no `GO-with-follow-ups` is reported as a zero-finding GO; golden-FALSE: every follow-up present, linked and assigned
+  - **Blocked on:** no review-record schema carrying finding layer and severity in-repo
+  - **Paired §1.1 mutation:** drop one follow-up item, or label a security finding minor; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

@@ -1,5 +1,21 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-10-30 — §11.4.230(F) continuous release train and §11.4.276(G) five-round review cap with minor findings carried to the next iteration
+
+**Status of this entry: UNRELEASED.** Local commit in a scratch clone only; nothing tagged or pushed. Pending an independent §11.4.209 review.
+
+### Added
+
+- **§11.4.230(F) — Continuous release train.** Operator mandate of 2026-10-30 quoted verbatim once (typos preserved). Closed release states `candidate` / `released` / `hardening-in-background` and the NEXT-CANDIDATE; release N ships as soon as its seam holds and the declared release trigger fires (default `per-ready-candidate`); the release seam it never relaxes (§11.4.40, §11.4.185, §11.4.236, §11.4.129, §11.4.264, (E.2), §11.4.290(5)); a release may ship with open hardening only in a provisional-eligible class, a production-class release needs `production-ready`; the handover in the same write (next id minted, open ledger entries carried under their ids, background streams continue, findings against N land in N+1, N never patched or re-tagged); the loop does not stop at a release; release interval, handover gap and carried debt as trend metrics, never gates; four failure modes with detectors; an operator-readable worked example of the loop end to end.
+- **§11.4.276(G) — Review-round cap amendment.** `R_max` default and hard ceiling 5 (6 or 7 only by a recorded operator decision naming the item); minor-class findings end the loop with a `GO-with-follow-ups` verdict and become tracked follow-up items in the §11.4.93 store for the next iteration, with a fresh budget; at most one extension cycle of 5 rounds, only for an open `source-defect` above minor or a broken stack or gate, recorded as a trigger; then (E)(3). Precedence note: (G) amends (A), (E)(3) and (F).
+- **Gates:** five recommended gates registered as deferrals `OWED-GATE-169` to `OWED-GATE-173` (`CM-RELEASE-TRAIN-HANDOVER-NO-GAP`, `CM-RELEASE-LEDGER-CARRIED-FORWARD`, `CM-RELEASE-NOT-WITHHELD-AND-CLASS-HONEST`, `CM-REVIEW-EXTENSION-CYCLE-JUSTIFIED`, `CM-REVIEW-FOLLOW-UPS-REGISTERED`), documented in `docs/owed_gate_implementations.md` (revision 13); the `CM-REVIEW-ROUND-BUDGET` (OWED-GATE-111) contract amended to match (G). Gate code is not claimed shipped.
+
+### Changed
+
+- **§11.4.126:** a dated amendment note: terminal condition (A) ends the scope of release N only, and the loop continues on N+1.
+- **Carriers:** the full §11.4.230 block (heading and new clause (F), process note now naming (G) as next free letter) is identical in `CLAUDE.md` (revision 88), `AGENTS.md` (85), `QWEN.md` (82), `GEMINI.md` (56); the compact §11.4.276 entry gains one amendment sentence; `Constitution.md` revision 85. The `Status summary` cells were not touched.
+- **Generated:** `constitution_index.yaml`, `groups/*.md`, `progressive/catalog.json`, `progressive/rules/11.4.126.md`, `11.4.230.md`, `11.4.276.md` and `progressive/rules_manifest.json` regenerated from `Constitution.md`. README not updated (facts and badge row not re-measured in this change).
+
 ## Unreleased — 2026-10-28 — §11.4.291 capacity-aware decision-model placement (local only when it fits, visible fallback to hosted, on-demand llmctl, never `enable`)
 
 **Status of this entry: UNRELEASED.** Local commit in a scratch clone only; nothing tagged or pushed. Pending an independent §11.4.209 review.
