@@ -1,8 +1,42 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v72.2 — 2026-10-30 — §11.4.291 capacity-aware decision-model placement, §11.4.230(F) continuous release train with the §11.4.276(G) five-round review cap, llmctl 3.4.0 pin
+
+**Status of this entry: RELEASE v72.2** (tag `helixconstitution-v72.2`). Built on `a5cee41` (the 2026-10-29 update-all-submodules commit on top of v72.1, which also added the `upstreams/m3w.sh` upstream). Markdown-only documentation policy applies (no generated twins). The two entries below, dated 2026-10-28 and 2026-10-30, describe the anchor work in full; this entry lists what the release contains and what stays open.
+
+### Added
+
+- **§11.4.291 — Capacity-aware decision-model placement** (see the 2026-10-28 entry below): a local decision model runs only when the host's live load leaves room for it; otherwise decision traffic falls back, visibly and with a recorded reason, to the hosted endpoint (key present) or to a reasoned absence; on-demand `llmctl start` / `stop` only, never `enable`. Propagation gate `CM-COVENANT-114-291-PROPAGATION`; deferrals `OWED-GATE-165` to `OWED-GATE-168`. Independent reviews: rounds 2, 3 and 4 NO-GO, each fixed; round-4 follow-ups U1 and T2 recorded.
+- **§11.4.230(F) — Continuous release train, and §11.4.276(G) — five-round review cap** (see the 2026-10-30 entry below), with dated amendment notes in §11.4.126, §11.4.134, §11.4.235(B)/(D) and the §11.4.288 Terms. Deferrals `OWED-GATE-169` to `OWED-GATE-173`; `CM-REVIEW-ROUND-BUDGET` (OWED-GATE-111) contract amended. Independent §11.4.209 review: rounds 1 and 2 NO-GO (fixed), round 3 GO.
+
+### Pending operator decisions (release-train amendment; conservative defaults applied)
+
+1. Whether an `important` `source-defect` may trigger an extension cycle — default **no** (it goes to §11.4.276(E)(3)).
+2. The extension length `E_ext` — default **0** (no automatic extension).
+3. The consumer `R_max` right — a consumer may declare `R_max` **below 5, never above** (6 or 7 only by a recorded operator decision naming the item).
+4. `minor` / `nit` `source-defect` findings may ship as follow-ups — **applied**.
+5. Open hardening may ride a release only in provisional-eligible classes (dev / pre-release); (L1), (L6) and (L7) entries **never** ride — **applied**.
+6. The follow-up register location — default the **§11.4.93 store**, with `docs/FOLLOW_UPS_NEXT_PHASE.md` (or the consumer's equivalent) as a view of it.
+
+### Changed — hub engine pin
+
+- `llmctl` v3.4.0 (`4b68967`), fast-forward from `4fbef9e` (35 commits). `helix-deps.yaml` ref follows the gitlink. It is the first vendored llmctl that ships `llmctl capacity --json` (§11.4.291(C)); no placement verdict was computed on any host for this release. Checked: constitution scripts call `llmctl decide`, `llmctl models` and `llmctl require-validated` only; there is no `llmctl enable`, `disable`, `start`, `stop`, `switch` or `auto` call in `scripts/`, `skills/`, `plugins/`, `mcp/` or `actions/` (text search, `git grep`), so nothing needed changing for §11.4.291(G).
+
+### Reconciliations made while assembling
+
+- The (a) and (b) change sets were built on the same base (`eca3c33`); (b) contains (a), so the eight commits were applied in order onto `a5cee41` with no conflict (cherry-pick; the commit trailers were normalised to `Claude Sonnet 5.5`, since none of the commits had been pushed). Vocabulary was checked between the two: there is no `verdict_class` token anywhere in the repository; §11.4.291 uses `verdict` and `route` (`local` | `cloud` | `none`) as fields of its `placement` record, and §11.4.230(F) / §11.4.276(G) neither cite §11.4.291 nor use those field names; `GO-with-follow-ups` is spelled the same way in every occurrence. No text change was needed.
+
+### Known imperfections (sorted by severity)
+
+1. **MEDIUM** — §11.4.291: the last recorded independent review round (4) returned NO-GO (minor); its fixes landed in the round-4 commit and its two follow-ups were recorded, but no later round that returned GO is recorded in this repository (UNCONFIRMED).
+2. **MEDIUM** — No placement verdict, `placement` record or lease registry exists on any host; all §11.4.291 and §11.4.230(F) / §11.4.276(G) mechanism gates are deferrals (`OWED-GATE-165` to `173`), not shipped code.
+3. **LOW** — Release-train review minors NOT folded in (they need an independent review and a lockstep edit of the full §11.4.230 block in the four carriers): a release-boundary note in §11.4.235(E.5); the "strictly increasing" wording; the carried-count wording; a counter-range note; §11.4.276(G.2) cites §11.4.184 (SonarQube tooling) for "a security finding", a mis-citation. Tracked as follow-ups for the next iteration.
+4. **LOW** — `upstreams/m3w.sh` (added in `4488f83`, not by this release) carries a copied comment saying GitHub is the primary upstream; its own `UPSTREAMABLE_PRIMARY=0` is correct. Text only.
+5. **LOW** — No generated twins (Markdown-only base).
+
 ## Unreleased — 2026-10-30 — §11.4.230(F) continuous release train and §11.4.276(G) five-round review cap with minor findings carried to the next iteration
 
-**Status of this entry: UNRELEASED.** Local commits in a scratch clone only; nothing tagged or pushed. Rounds 1 and 2 of the independent §11.4.209 review returned NO-GO; their fixes are listed under "Review round 1 fixes" and "Review round 2 fixes" below; round 3 is pending.
+**Status of this entry: released in `helixconstitution-v72.2`** (see that entry above). Rounds 1 and 2 of the independent §11.4.209 review returned NO-GO; their fixes are listed under "Review round 1 fixes" and "Review round 2 fixes" below; round 3 returned GO.
 
 ### Added
 
@@ -19,7 +53,7 @@
 
 ## Unreleased — 2026-10-28 — §11.4.291 capacity-aware decision-model placement (local only when it fits, visible fallback to hosted, on-demand llmctl, never `enable`)
 
-**Status of this entry: UNRELEASED.** Local commit in a scratch clone only; nothing tagged or pushed. Pending an independent §11.4.209 review.
+**Status of this entry: released in `helixconstitution-v72.2`** (see that entry above). Independent §11.4.209 review rounds 2, 3 and 4 are recorded below; the last recorded round (4) returned NO-GO (minor) and was fixed.
 
 ### Added
 
