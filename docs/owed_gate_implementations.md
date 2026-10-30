@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 14
-**Last modified:** 2026-10-30T10:55:34Z
+**Revision:** 15
+**Last modified:** 2026-10-30T11:05:47Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -986,9 +986,9 @@ The five recommended gates named in §11.4.230(F) and §11.4.276(G) are register
   - **Blocked on:** the hardening-ledger join (OWED-GATE-117) does not exist yet
   - **Paired §1.1 mutation:** drop one carried entry, or carry it under a new id; the gate MUST FAIL
 - **OWED-GATE-171** — `CM-RELEASE-NOT-WITHHELD-AND-CLASS-HONEST`
-  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; no release of any class ships with an open (L6) or (L7) entry; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed and none of class (L6) or (L7)
+  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; no release of any class ships with an open (L1), (L6) or (L7) entry; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed and none of class (L1), (L6) or (L7)
   - **Blocked on:** no release-trigger declaration or release record in-repo
-  - **Paired §1.1 mutation:** ship a production-class release with O > 0, or a pre-release with one open (L7) entry; the gate MUST FAIL
+  - **Paired §1.1 mutation:** ship a production-class release with O > 0, or a pre-release with one open (L1) or (L7) entry; the gate MUST FAIL
 - **OWED-GATE-172** — `CM-REVIEW-EXTENSION-CYCLE-JUSTIFIED`
   - **Must assert:** (per §11.4.276(G.3)) every round past `R_max` runs only under a declared `E_ext` > 0 and carries a recorded trigger citing an open `critical` `source-defect` or a broken proof-of-batch stack (never an `important` or minor-class finding, never a gate that guards only future regressions); the first extension round is structural; no second extension cycle; golden-FALSE: with `E_ext` > 0 declared, a trigger citing a `critical` `source-defect`
   - **Blocked on:** no review-round harness (OWED-GATE-111)
