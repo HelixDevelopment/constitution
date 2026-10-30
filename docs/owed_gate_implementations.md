@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 13
-**Last modified:** 2026-10-30T10:34:31Z
+**Revision:** 14
+**Last modified:** 2026-10-30T10:55:34Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -735,7 +735,7 @@ missing.
 ### §11.4.276 (registered 2026-10-05 — landed the SAME session as this currency check, per the operator CRITICAL mandate on excessive review-round counts)
 
 - **OWED-GATE-111** — `CM-REVIEW-ROUND-BUDGET`
-  - **Must assert:** (contract amended 2026-10-30 by §11.4.276(G)) asserts every independently-reviewed work item has a round budget `R_max` of 5 (6 or 7 only with a recorded operator decision naming the item) and a round count derived from its own review record; FAILs if a round `R_max`+1 to `R_max`+5 runs with no recorded (G.3) extension trigger, if a round `R_max`+6 or a second extension cycle runs with no recorded operator decision (§11.4.276(E)(3)), or if an item is closed without a GO or `GO-with-follow-ups` verdict
+  - **Must assert:** (contract amended 2026-10-30 by §11.4.276(G)) asserts every independently-reviewed work item has a round budget `R_max` of 5 (6 or 7 only with a recorded operator decision naming the item) and a round count derived from its own review record; FAILs if a round `R_max`+1 to `R_max`+`E_ext` runs with no declared `E_ext` > 0 (consumer DATA by recorded operator decision, default 0) or no recorded (G.3) extension trigger, if any later round or a second extension cycle runs with no recorded operator decision (§11.4.276(E)(3)/(G.4)), or if an item is closed without a GO or `GO-with-follow-ups` verdict
   - **Blocked on:** no review-round-counting harness exists in-repo yet (§11.4.276(A), gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
 - **OWED-GATE-112** — `CM-REVIEW-ROUND3-CONVERGENCE-ASSESSMENT`
@@ -986,15 +986,15 @@ The five recommended gates named in §11.4.230(F) and §11.4.276(G) are register
   - **Blocked on:** the hardening-ledger join (OWED-GATE-117) does not exist yet
   - **Paired §1.1 mutation:** drop one carried entry, or carry it under a new id; the gate MUST FAIL
 - **OWED-GATE-171** — `CM-RELEASE-NOT-WITHHELD-AND-CLASS-HONEST`
-  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed
+  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; no release of any class ships with an open (L6) or (L7) entry; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed and none of class (L6) or (L7)
   - **Blocked on:** no release-trigger declaration or release record in-repo
-  - **Paired §1.1 mutation:** ship a production-class release with O > 0; the gate MUST FAIL
+  - **Paired §1.1 mutation:** ship a production-class release with O > 0, or a pre-release with one open (L7) entry; the gate MUST FAIL
 - **OWED-GATE-172** — `CM-REVIEW-EXTENSION-CYCLE-JUSTIFIED`
-  - **Must assert:** (per §11.4.276(G.3)) every round past `R_max` carries a recorded trigger citing an open `source-defect` above `minor` or a broken stack or gate; the first extension round is structural; no second extension cycle; golden-FALSE: a trigger citing an `important` `source-defect`
+  - **Must assert:** (per §11.4.276(G.3)) every round past `R_max` runs only under a declared `E_ext` > 0 and carries a recorded trigger citing an open `critical` `source-defect` or a broken proof-of-batch stack (never an `important` or minor-class finding, never a gate that guards only future regressions); the first extension round is structural; no second extension cycle; golden-FALSE: with `E_ext` > 0 declared, a trigger citing a `critical` `source-defect`
   - **Blocked on:** no review-round harness (OWED-GATE-111)
-  - **Paired §1.1 mutation:** open an extension cycle for a nit; the gate MUST FAIL
+  - **Paired §1.1 mutation:** open an extension cycle for a nit or an `important` finding, or with `E_ext` 0; the gate MUST FAIL
 - **OWED-GATE-173** — `CM-REVIEW-FOLLOW-UPS-REGISTERED`
-  - **Must assert:** (per §11.4.276(G.2)) every finding named by a `GO-with-follow-ups` verdict is a tracked item linked to its parent and assigned to the next iteration; no finding in an excluded surface carries a minor-class label; no `GO-with-follow-ups` is reported as a zero-finding GO; golden-FALSE: every follow-up present, linked and assigned
+  - **Must assert:** (per §11.4.276(G.2)) every finding named by a `GO-with-follow-ups` verdict is a tracked item linked to its parent and assigned to the next iteration; no finding in an excluded surface carries a minor-class label; no finding with no recorded severity, or a severity lowered by the producer, counts as minor-class; no `GO-with-follow-ups` is reported as a zero-finding GO; golden-FALSE: every follow-up present, linked and assigned
   - **Blocked on:** no review-record schema carrying finding layer and severity in-repo
   - **Paired §1.1 mutation:** drop one follow-up item, or label a security finding minor; the gate MUST FAIL
 

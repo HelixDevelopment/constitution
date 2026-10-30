@@ -255,39 +255,39 @@
   },
   "§11.4.134": {
    "file": "progressive/rules/11.4.134.md",
-   "hash": "sha256:bd452ce68fdf2e00c36df95b58fb3b3e5d1a532cc42d9618da2776ba352e8edf",
-   "line_end": 9260,
+   "hash": "sha256:3a618b93dd05ebcf07b4cf37d14040e7b60538b98d09abbaffce1f54207491e6",
+   "line_end": 9262,
    "line_start": 9245
   },
   "§11.4.135": {
    "file": "progressive/rules/11.4.135.md",
    "hash": "sha256:2d4a456d1a23877f08badf550d0aac9545c985562d83882db562da55cf18226c",
-   "line_end": 9273,
-   "line_start": 9261
+   "line_end": 9275,
+   "line_start": 9263
   },
   "§11.4.136": {
    "file": "progressive/rules/11.4.136.md",
    "hash": "sha256:54f5b61aedfbb522797dec36ccee8806a5dc9571beca5bf6dbacf923b45437fe",
-   "line_end": 9282,
-   "line_start": 9274
+   "line_end": 9284,
+   "line_start": 9276
   },
   "§11.4.137": {
    "file": "progressive/rules/11.4.137.md",
    "hash": "sha256:a973b16e373ea0c3caee1671e4e9662d5280617ce14f90fd948d8a47a8375cf5",
-   "line_end": 9297,
-   "line_start": 9283
+   "line_end": 9299,
+   "line_start": 9285
   },
   "§11.4.138": {
    "file": "progressive/rules/11.4.138.md",
    "hash": "sha256:56d0449631251984cb242c5dae2653b69dd3564bad0554a5331f4cf077172235",
-   "line_end": 9306,
-   "line_start": 9298
+   "line_end": 9308,
+   "line_start": 9300
   },
   "§11.4.139": {
    "file": "progressive/rules/11.4.139.md",
    "hash": "sha256:cff809c7293b6eb28a0da408e6a1d83e5d05465f64c464169156c7ad2d422a5d",
-   "line_end": 9314,
-   "line_start": 9307
+   "line_end": 9316,
+   "line_start": 9309
   },
   "§11.4.14": {
    "file": "progressive/rules/11.4.14.md",
@@ -298,62 +298,62 @@
   "§11.4.140": {
    "file": "progressive/rules/11.4.140.md",
    "hash": "sha256:56d3f06ed45c4bb59f94a690385681dfda6af40f5dedd9c310ee1fe3686e930d",
-   "line_end": 9433,
-   "line_start": 9315
+   "line_end": 9435,
+   "line_start": 9317
   },
   "§11.4.141": {
    "file": "progressive/rules/11.4.141.md",
    "hash": "sha256:0cf16c77add602b3d09cfca3b3753dbc67797c347b30b6a2982563e95916240e",
-   "line_end": 9480,
-   "line_start": 9434
+   "line_end": 9482,
+   "line_start": 9436
   },
   "§11.4.142": {
    "file": "progressive/rules/11.4.142.md",
    "hash": "sha256:37340ab973fe1411a9ab55bae3e17953a97df8ac019515fe97ede65b5975b209",
-   "line_end": 9500,
-   "line_start": 9481
+   "line_end": 9502,
+   "line_start": 9483
   },
   "§11.4.143": {
    "file": "progressive/rules/11.4.143.md",
    "hash": "sha256:7c1a0276106c4f3cdc523ed05218e75335d756ad936f063d869dc69c258749c2",
-   "line_end": 9514,
-   "line_start": 9501
+   "line_end": 9516,
+   "line_start": 9503
   },
   "§11.4.144": {
    "file": "progressive/rules/11.4.144.md",
    "hash": "sha256:085cc6579ea771c1a5d057dd34f4a6a44854fccb5514d444dd4289b934b8a3da",
-   "line_end": 9528,
-   "line_start": 9515
+   "line_end": 9530,
+   "line_start": 9517
   },
   "§11.4.145": {
    "file": "progressive/rules/11.4.145.md",
    "hash": "sha256:03ba12cee55424df802526f7d8c00a4f2b52b1608aecde3281ea3ea3f75449b9",
-   "line_end": 9546,
-   "line_start": 9529
+   "line_end": 9548,
+   "line_start": 9531
   },
   "§11.4.146": {
    "file": "progressive/rules/11.4.146.md",
    "hash": "sha256:1bd5d5602c19242a2b54550e0242cbcc06b0ef6db9974d02b26bd2613b7dd3b5",
-   "line_end": 9568,
-   "line_start": 9547
+   "line_end": 9570,
+   "line_start": 9549
   },
   "§11.4.147": {
    "file": "progressive/rules/11.4.147.md",
    "hash": "sha256:5c4d5d48dd594eeac963a5a0b7c41152bd90e67491d8c155a3fc5923bc61d39f",
-   "line_end": 9590,
-   "line_start": 9569
+   "line_end": 9592,
+   "line_start": 9571
   },
   "§11.4.148": {
    "file": "progressive/rules/11.4.148.md",
    "hash": "sha256:e7f1fd22a92903d3685a90d35fa3eeaaa7b15e4ec895d2f77721cf27726454c0",
-   "line_end": 9614,
-   "line_start": 9591
+   "line_end": 9616,
+   "line_start": 9593
   },
   "§11.4.149": {
    "file": "progressive/rules/11.4.149.md",
    "hash": "sha256:9a2ff5a68ffc9ed5c3aa3190e014dda1c01e59e2de996229daf7496b2e347924",
-   "line_end": 9634,
-   "line_start": 9615
+   "line_end": 9636,
+   "line_start": 9617
   },
   "§11.4.15": {
    "file": "progressive/rules/11.4.15.md",
@@ -364,62 +364,62 @@
   "§11.4.150": {
    "file": "progressive/rules/11.4.150.md",
    "hash": "sha256:4e70065657be118b95db1d5c55d8500602cba433b0e941e922bb475b30da60c7",
-   "line_end": 9658,
-   "line_start": 9635
+   "line_end": 9660,
+   "line_start": 9637
   },
   "§11.4.151": {
    "file": "progressive/rules/11.4.151.md",
    "hash": "sha256:c3a16f432da491f8b95d4e0386a799dedac38413ff1e6d89086cf31670a5f748",
-   "line_end": 9679,
-   "line_start": 9659
+   "line_end": 9681,
+   "line_start": 9661
   },
   "§11.4.152": {
    "file": "progressive/rules/11.4.152.md",
    "hash": "sha256:e3ad679ba278c6a35b47be62a18defa3212a5f7c810460a729536dbf2ff65dda",
-   "line_end": 9709,
-   "line_start": 9680
+   "line_end": 9711,
+   "line_start": 9682
   },
   "§11.4.153": {
    "file": "progressive/rules/11.4.153.md",
    "hash": "sha256:8b3c2fb92e072d7bd160067aae729633cfed0c50410e20353737a1e12697e5d1",
-   "line_end": 9735,
-   "line_start": 9710
+   "line_end": 9737,
+   "line_start": 9712
   },
   "§11.4.154": {
    "file": "progressive/rules/11.4.154.md",
    "hash": "sha256:f352dde2e762bddcac7c1f45106759e68715ead89277ec9d7ca930f1afcb87a0",
-   "line_end": 9747,
-   "line_start": 9736
+   "line_end": 9749,
+   "line_start": 9738
   },
   "§11.4.155": {
    "file": "progressive/rules/11.4.155.md",
    "hash": "sha256:f5e8dcf458e33d1e40415d264f607056efa42ded1920141b6aaa1483b77e998c",
-   "line_end": 9761,
-   "line_start": 9748
+   "line_end": 9763,
+   "line_start": 9750
   },
   "§11.4.156": {
    "file": "progressive/rules/11.4.156.md",
    "hash": "sha256:6f1d30f60eeae6d854d10a0cfb2c56a40474853a31787fbe818b5569dad2f324",
-   "line_end": 9777,
-   "line_start": 9762
+   "line_end": 9779,
+   "line_start": 9764
   },
   "§11.4.157": {
    "file": "progressive/rules/11.4.157.md",
    "hash": "sha256:5aad3efb2082a0aeffd2e948a0425e3008c66dd8551023b2e4276911a2d87593",
-   "line_end": 9793,
-   "line_start": 9778
+   "line_end": 9795,
+   "line_start": 9780
   },
   "§11.4.158": {
    "file": "progressive/rules/11.4.158.md",
    "hash": "sha256:a30f5a90a747b80a085206877d82ef7f25163194a69a275dbcb0b5c74b2c489f",
-   "line_end": 9819,
-   "line_start": 9794
+   "line_end": 9821,
+   "line_start": 9796
   },
   "§11.4.159": {
    "file": "progressive/rules/11.4.159.md",
    "hash": "sha256:ed6fb51bacb994ed5d5b852628ee949e2f43cf42a31da7cc3f27389ee5d346a9",
-   "line_end": 9868,
-   "line_start": 9820
+   "line_end": 9870,
+   "line_start": 9822
   },
   "§11.4.16": {
    "file": "progressive/rules/11.4.16.md",
@@ -430,62 +430,62 @@
   "§11.4.160": {
    "file": "progressive/rules/11.4.160.md",
    "hash": "sha256:6af02a6ec2d7c8d5a474ee95c7f50ca7d0208a3735d59270df4f2daaab2041e7",
-   "line_end": 9890,
-   "line_start": 9869
+   "line_end": 9892,
+   "line_start": 9871
   },
   "§11.4.161": {
    "file": "progressive/rules/11.4.161.md",
    "hash": "sha256:d94ba0538c6f757d5ced717a382bfbed9ef8dad435a79337142bb5852f5b6457",
-   "line_end": 9908,
-   "line_start": 9891
+   "line_end": 9910,
+   "line_start": 9893
   },
   "§11.4.162": {
    "file": "progressive/rules/11.4.162.md",
    "hash": "sha256:7b5096eef5c60093cf4ef45b5406311e44c4aea5410c840691ac7ce1d6053a31",
-   "line_end": 9936,
-   "line_start": 9909
+   "line_end": 9938,
+   "line_start": 9911
   },
   "§11.4.163": {
    "file": "progressive/rules/11.4.163.md",
    "hash": "sha256:09cb57741b373fbf49c6d268ce48e5a962c57f9802b635f5f2a391c280fba0ca",
-   "line_end": 9960,
-   "line_start": 9937
+   "line_end": 9962,
+   "line_start": 9939
   },
   "§11.4.164": {
    "file": "progressive/rules/11.4.164.md",
    "hash": "sha256:7dc4de139389bdc0d2df14072b803a2a563c6709cef0f439be27dd3a62e2d550",
-   "line_end": 9988,
-   "line_start": 9961
+   "line_end": 9990,
+   "line_start": 9963
   },
   "§11.4.165": {
    "file": "progressive/rules/11.4.165.md",
    "hash": "sha256:61173b7e8af4f5f3b3c1a058cdd67ca551d56b21bfc3c952b4d637664ac19243",
-   "line_end": 10012,
-   "line_start": 9989
+   "line_end": 10014,
+   "line_start": 9991
   },
   "§11.4.166": {
    "file": "progressive/rules/11.4.166.md",
    "hash": "sha256:e20ca8c1b81f336482d77fa3f85ab5971f9d065c62dc1626a2ff80c780885eef",
-   "line_end": 10014,
-   "line_start": 10013
+   "line_end": 10016,
+   "line_start": 10015
   },
   "§11.4.167": {
    "file": "progressive/rules/11.4.167.md",
    "hash": "sha256:f40dce5c0d13ccf4261f7c768bde6f399216ddab2a2add2ced919120d220699f",
-   "line_end": 10134,
-   "line_start": 10015
+   "line_end": 10136,
+   "line_start": 10017
   },
   "§11.4.168": {
    "file": "progressive/rules/11.4.168.md",
    "hash": "sha256:edd32c1efc12314bdc2ac9b7e2275f135574414001c093c80d022bdcfa6dc1d9",
-   "line_end": 10156,
-   "line_start": 10135
+   "line_end": 10158,
+   "line_start": 10137
   },
   "§11.4.169": {
    "file": "progressive/rules/11.4.169.md",
    "hash": "sha256:880b6a7c8307addce0a906056d73a0311c35544ea7614c25b54ef41c60c71a29",
-   "line_end": 10204,
-   "line_start": 10157
+   "line_end": 10206,
+   "line_start": 10159
   },
   "§11.4.17": {
    "file": "progressive/rules/11.4.17.md",
@@ -496,56 +496,56 @@
   "§11.4.170": {
    "file": "progressive/rules/11.4.170.md",
    "hash": "sha256:fe6ea7bd84752dc5e2ddd9ae3eac1b87d73ebfae0badc400faa6aaea615308b9",
-   "line_end": 10208,
-   "line_start": 10205
+   "line_end": 10210,
+   "line_start": 10207
   },
   "§11.4.171": {
    "file": "progressive/rules/11.4.171.md",
    "hash": "sha256:4a993861cbaa51e048c8403a2a1522b56b8b1a0012b5c247aa0fb2788c68aaab",
-   "line_end": 10418,
-   "line_start": 10417
+   "line_end": 10420,
+   "line_start": 10419
   },
   "§11.4.172": {
    "file": "progressive/rules/11.4.172.md",
    "hash": "sha256:d61fbc86a4c9f8c99550ae0e0aeb8244b0bc520e1c6697ff7673535991001ca7",
-   "line_end": 10420,
-   "line_start": 10419
+   "line_end": 10422,
+   "line_start": 10421
   },
   "§11.4.173": {
    "file": "progressive/rules/11.4.173.md",
    "hash": "sha256:7267b7285ad188f0dc068cdaa4497df78fcb35ae10f9b232a71992ad0f96e203",
-   "line_end": 10422,
-   "line_start": 10421
+   "line_end": 10424,
+   "line_start": 10423
   },
   "§11.4.174": {
    "file": "progressive/rules/11.4.174.md",
    "hash": "sha256:97fe6f4b04bf784c1720b5f89a4c54330f38207193ffe47773f7fe0de813cd9e",
-   "line_end": 10424,
-   "line_start": 10423
+   "line_end": 10426,
+   "line_start": 10425
   },
   "§11.4.176": {
    "file": "progressive/rules/11.4.176.md",
    "hash": "sha256:7fdddd40fc81aac8ab0b993c04d7956e4327cca1b7275fd24040eb2dd788f10e",
-   "line_end": 10426,
-   "line_start": 10425
+   "line_end": 10428,
+   "line_start": 10427
   },
   "§11.4.177": {
    "file": "progressive/rules/11.4.177.md",
    "hash": "sha256:25d09b26e2bd7ce2989dd55729f21d475c702c80af52722345dba599545b36b8",
-   "line_end": 10428,
-   "line_start": 10427
+   "line_end": 10430,
+   "line_start": 10429
   },
   "§11.4.178": {
    "file": "progressive/rules/11.4.178.md",
    "hash": "sha256:d160621250f81bb9c72fe67760b24805a3e4e54b793d8e68fdb68f4c1068a37e",
-   "line_end": 10430,
-   "line_start": 10429
+   "line_end": 10432,
+   "line_start": 10431
   },
   "§11.4.179": {
    "file": "progressive/rules/11.4.179.md",
    "hash": "sha256:8a45224727d31c2a76e10fae8ebc098981f4bf17e1276c89e71c78e9cb852a44",
-   "line_end": 10432,
-   "line_start": 10431
+   "line_end": 10434,
+   "line_start": 10433
   },
   "§11.4.18": {
    "file": "progressive/rules/11.4.18.md",
@@ -556,62 +556,62 @@
   "§11.4.180": {
    "file": "progressive/rules/11.4.180.md",
    "hash": "sha256:25bd76e4b804198b6dabec8f7a314efe8f005af473894d16adff5a5dee55ba4e",
-   "line_end": 10434,
-   "line_start": 10433
+   "line_end": 10436,
+   "line_start": 10435
   },
   "§11.4.181": {
    "file": "progressive/rules/11.4.181.md",
    "hash": "sha256:977f4318a433be6f47e9fb11573527237779e930b14d0e1f8debf795bde0d9ab",
-   "line_end": 10436,
-   "line_start": 10435
+   "line_end": 10438,
+   "line_start": 10437
   },
   "§11.4.182": {
    "file": "progressive/rules/11.4.182.md",
    "hash": "sha256:a96191ccbf35b452ecb13be2177fdcadc84159acbaef8cf4fd06a934104cb696",
-   "line_end": 10438,
-   "line_start": 10437
+   "line_end": 10440,
+   "line_start": 10439
   },
   "§11.4.183": {
    "file": "progressive/rules/11.4.183.md",
    "hash": "sha256:aa9cb822c916776debbf3995b2f5b0f0dd6fd9dc6d2fbcfe37f37ecdb42294d7",
-   "line_end": 10440,
-   "line_start": 10439
+   "line_end": 10442,
+   "line_start": 10441
   },
   "§11.4.184": {
    "file": "progressive/rules/11.4.184.md",
    "hash": "sha256:60ee702ca94e8c4f134855979bde2bd6d3775ad2c6b7342840a2518b271d9e67",
-   "line_end": 10460,
-   "line_start": 10441
+   "line_end": 10462,
+   "line_start": 10443
   },
   "§11.4.185": {
    "file": "progressive/rules/11.4.185.md",
    "hash": "sha256:48206cf11c4e8b7ad731a9727cb85745921744f8c2e970bc6a688d6f5d48696d",
-   "line_end": 10464,
-   "line_start": 10461
+   "line_end": 10466,
+   "line_start": 10463
   },
   "§11.4.186": {
    "file": "progressive/rules/11.4.186.md",
    "hash": "sha256:7a410d634807f40a25ec51f0def992d454e3d0bacef54b94e40d97a5c03e16cb",
-   "line_end": 10466,
-   "line_start": 10465
+   "line_end": 10468,
+   "line_start": 10467
   },
   "§11.4.187": {
    "file": "progressive/rules/11.4.187.md",
    "hash": "sha256:3124da169249870a056af800ca1bf816d65c6133dbf7cffc3c9973213027ba41",
-   "line_end": 10468,
-   "line_start": 10467
+   "line_end": 10470,
+   "line_start": 10469
   },
   "§11.4.188": {
    "file": "progressive/rules/11.4.188.md",
    "hash": "sha256:dc8a964860d31c97c86b6887d54a20f89ca1ec5d40a9eb3b3e46def465baaac2",
-   "line_end": 10470,
-   "line_start": 10469
+   "line_end": 10472,
+   "line_start": 10471
   },
   "§11.4.189": {
    "file": "progressive/rules/11.4.189.md",
    "hash": "sha256:861ffd9efe20fa7fb0d0b9e1dceb5fdd4d919f5e8dfdd70dd50c91e53233ec6e",
-   "line_end": 10472,
-   "line_start": 10471
+   "line_end": 10474,
+   "line_start": 10473
   },
   "§11.4.19": {
    "file": "progressive/rules/11.4.19.md",
@@ -622,62 +622,62 @@
   "§11.4.190": {
    "file": "progressive/rules/11.4.190.md",
    "hash": "sha256:697bd2b78363490615f2d473fcefb00409f619db3f3dfb4c0197c1084f20eaab",
-   "line_end": 10474,
-   "line_start": 10473
+   "line_end": 10476,
+   "line_start": 10475
   },
   "§11.4.191": {
    "file": "progressive/rules/11.4.191.md",
    "hash": "sha256:868433d6c2bb140cedbd55d745ebee5afb0c5c6b852242ceaab6e93435def57d",
-   "line_end": 10476,
-   "line_start": 10475
+   "line_end": 10478,
+   "line_start": 10477
   },
   "§11.4.192": {
    "file": "progressive/rules/11.4.192.md",
    "hash": "sha256:3fab4276bc0581dbd9e41f48481e127a389c381f8864cac1e96651559e5b8744",
-   "line_end": 10496,
-   "line_start": 10477
+   "line_end": 10498,
+   "line_start": 10479
   },
   "§11.4.193": {
    "file": "progressive/rules/11.4.193.md",
    "hash": "sha256:de33551513a9235d2795772686cd4fd87896ae04b9ca8c8ca5a2a659d12b2acd",
-   "line_end": 10518,
-   "line_start": 10497
+   "line_end": 10520,
+   "line_start": 10499
   },
   "§11.4.194": {
    "file": "progressive/rules/11.4.194.md",
    "hash": "sha256:ea3e762ae13b2a001b2a4786d022350524d2a19a8c7e05a8a52ef8bf9351633f",
-   "line_end": 10546,
-   "line_start": 10519
+   "line_end": 10548,
+   "line_start": 10521
   },
   "§11.4.195": {
    "file": "progressive/rules/11.4.195.md",
    "hash": "sha256:fc9651366c6310ce4ef18218c9a00457b0806fdbe4ea084ab6cb35df260cb8d8",
-   "line_end": 10583,
-   "line_start": 10547
+   "line_end": 10585,
+   "line_start": 10549
   },
   "§11.4.196": {
    "file": "progressive/rules/11.4.196.md",
    "hash": "sha256:883ad49c8a130bc31c8f5925f01ef9c5c26e69bc5df398d6365b56c822cc2af1",
-   "line_end": 10593,
-   "line_start": 10584
+   "line_end": 10595,
+   "line_start": 10586
   },
   "§11.4.197": {
    "file": "progressive/rules/11.4.197.md",
    "hash": "sha256:5fe757b1490606038e0bd061a4a0f9dea989bd9a7e153f243f253f45ec8697ee",
-   "line_end": 10615,
-   "line_start": 10594
+   "line_end": 10617,
+   "line_start": 10596
   },
   "§11.4.198": {
    "file": "progressive/rules/11.4.198.md",
    "hash": "sha256:b85ea57f7b20e7bf8b3fbb5a8767eb8ba6c6984a302888d7bf3c7dfafebfaa39",
-   "line_end": 10633,
-   "line_start": 10616
+   "line_end": 10635,
+   "line_start": 10618
   },
   "§11.4.199": {
    "file": "progressive/rules/11.4.199.md",
    "hash": "sha256:20adc88c832ff6d9cd1d5da90ac1f21c01b30ef75bd20ab8631bfbc4a2416eaa",
-   "line_end": 10653,
-   "line_start": 10634
+   "line_end": 10655,
+   "line_start": 10636
   },
   "§11.4.2": {
    "file": "progressive/rules/11.4.2.md",
@@ -694,38 +694,38 @@
   "§11.4.200": {
    "file": "progressive/rules/11.4.200.md",
    "hash": "sha256:7985bdfd9818deea88c4683184caea7240b3bfc15efc35593c8e40df1f0a5ae6",
-   "line_end": 10673,
-   "line_start": 10654
+   "line_end": 10675,
+   "line_start": 10656
   },
   "§11.4.201": {
    "file": "progressive/rules/11.4.201.md",
    "hash": "sha256:14a4eef51097e3fa33ac05e072abdd205f0ed44bc43a1e27d3598184c4f0f6cd",
-   "line_end": 10713,
-   "line_start": 10674
+   "line_end": 10715,
+   "line_start": 10676
   },
   "§11.4.202": {
    "file": "progressive/rules/11.4.202.md",
    "hash": "sha256:8f8d73b205dfb3ab97d0f019c9370f0082be4f69d6996d58fa6f494d29535dfc",
-   "line_end": 10719,
-   "line_start": 10714
+   "line_end": 10721,
+   "line_start": 10716
   },
   "§11.4.207": {
    "file": "progressive/rules/11.4.207.md",
    "hash": "sha256:d8ec9150a20aa3b8df3b9956bda7ed93d04b0f0cead6671637ffb26b93f97de5",
-   "line_end": 10727,
-   "line_start": 10720
+   "line_end": 10729,
+   "line_start": 10722
   },
   "§11.4.208": {
    "file": "progressive/rules/11.4.208.md",
    "hash": "sha256:8e5508fd6b6fa52a21961f6a0dbdd79adcc0b2fad54215253b9163d1e7ff95d2",
-   "line_end": 10739,
-   "line_start": 10728
+   "line_end": 10741,
+   "line_start": 10730
   },
   "§11.4.209": {
    "file": "progressive/rules/11.4.209.md",
    "hash": "sha256:dc806bc1ea6123f4e2232893eabfd4990f025fec5b5f64d5fd648aa2fc5f6c8d",
-   "line_end": 10757,
-   "line_start": 10740
+   "line_end": 10759,
+   "line_start": 10742
   },
   "§11.4.21": {
    "file": "progressive/rules/11.4.21.md",
@@ -736,62 +736,62 @@
   "§11.4.210": {
    "file": "progressive/rules/11.4.210.md",
    "hash": "sha256:41d7e5cf8a2e63b419205c701678d6a07d21aa8e5e5fd6bfa0d726ac129eb7e5",
-   "line_end": 10773,
-   "line_start": 10758
+   "line_end": 10775,
+   "line_start": 10760
   },
   "§11.4.211": {
    "file": "progressive/rules/11.4.211.md",
    "hash": "sha256:fa76821f02f0f0c180e4f27b9ba48b245a913586daed7428980cf575380cc441",
-   "line_end": 10789,
-   "line_start": 10774
+   "line_end": 10791,
+   "line_start": 10776
   },
   "§11.4.212": {
    "file": "progressive/rules/11.4.212.md",
    "hash": "sha256:6331a38bfaa058185125def8fd5a124d0666bf697d405afc7fdefd9e464bfa87",
-   "line_end": 10805,
-   "line_start": 10790
+   "line_end": 10807,
+   "line_start": 10792
   },
   "§11.4.213": {
    "file": "progressive/rules/11.4.213.md",
    "hash": "sha256:a0a800d48c25005dcba62ceee73c0538707cb0b37b90325cc05e4b09d4e4fe59",
-   "line_end": 10827,
-   "line_start": 10806
+   "line_end": 10829,
+   "line_start": 10808
   },
   "§11.4.214": {
    "file": "progressive/rules/11.4.214.md",
    "hash": "sha256:10d6b799249c047e8279dabed6927428c365963bf001e1e9333b959680d92d24",
-   "line_end": 10847,
-   "line_start": 10828
+   "line_end": 10849,
+   "line_start": 10830
   },
   "§11.4.215": {
    "file": "progressive/rules/11.4.215.md",
    "hash": "sha256:e31fa71094f4aee7b4db43cd9cbc43044bf7bd428f608180ccf70ea448018a97",
-   "line_end": 10861,
-   "line_start": 10848
+   "line_end": 10863,
+   "line_start": 10850
   },
   "§11.4.216": {
    "file": "progressive/rules/11.4.216.md",
    "hash": "sha256:61b81891114f50be0fe9bfee68c7757dbb5f22dfce6205204c3897bf6e7ba377",
-   "line_end": 10875,
-   "line_start": 10862
+   "line_end": 10877,
+   "line_start": 10864
   },
   "§11.4.217": {
    "file": "progressive/rules/11.4.217.md",
    "hash": "sha256:a0e0ca54d0a5b8000a7c000b9c74ac226658e932f8eadc13932e9f96d02ba06c",
-   "line_end": 10889,
-   "line_start": 10876
+   "line_end": 10891,
+   "line_start": 10878
   },
   "§11.4.218": {
    "file": "progressive/rules/11.4.218.md",
    "hash": "sha256:eaf4746ff45a0125b0b39f1f08742e5070c4655060b469f6dfcbcf20f3bc42c4",
-   "line_end": 10903,
-   "line_start": 10890
+   "line_end": 10905,
+   "line_start": 10892
   },
   "§11.4.219": {
    "file": "progressive/rules/11.4.219.md",
    "hash": "sha256:e35fbf11de15231699a82dd3e2983bed4cf32862f5e294ed97fa6a437cc07a56",
-   "line_end": 10917,
-   "line_start": 10904
+   "line_end": 10919,
+   "line_start": 10906
   },
   "§11.4.22": {
    "file": "progressive/rules/11.4.22.md",
@@ -802,62 +802,62 @@
   "§11.4.220": {
    "file": "progressive/rules/11.4.220.md",
    "hash": "sha256:3c764c369a5a66687452e8eb5b002bf4defeb1c51d609f382d90ddac9e93f2b8",
-   "line_end": 10931,
-   "line_start": 10918
+   "line_end": 10933,
+   "line_start": 10920
   },
   "§11.4.221": {
    "file": "progressive/rules/11.4.221.md",
    "hash": "sha256:2d5dc526383f10e9b28e6a103173cca481ea1492922623d94b3e6129b7444b95",
-   "line_end": 10945,
-   "line_start": 10932
+   "line_end": 10947,
+   "line_start": 10934
   },
   "§11.4.222": {
    "file": "progressive/rules/11.4.222.md",
    "hash": "sha256:04d0b4cb036265a8bc3caf2d42673db1a79128737a45b78db2e0e622d77ce125",
-   "line_end": 10959,
-   "line_start": 10946
+   "line_end": 10961,
+   "line_start": 10948
   },
   "§11.4.223": {
    "file": "progressive/rules/11.4.223.md",
    "hash": "sha256:1b5ab6c47ae4a139c2e2d30ed3eacb79c4825a804e6a5aac6e728ecd9d995150",
-   "line_end": 10973,
-   "line_start": 10960
+   "line_end": 10975,
+   "line_start": 10962
   },
   "§11.4.224": {
    "file": "progressive/rules/11.4.224.md",
    "hash": "sha256:624a45b5e2923620dc98e985d271b1e2a82279ab73294a775225b3fc99287e7e",
-   "line_end": 11001,
-   "line_start": 10974
+   "line_end": 11003,
+   "line_start": 10976
   },
   "§11.4.225": {
    "file": "progressive/rules/11.4.225.md",
    "hash": "sha256:c992a777ce5e3fde0512e343f32d206c74ce282670e3774b860b7b5c32113c6f",
-   "line_end": 11019,
-   "line_start": 11002
+   "line_end": 11021,
+   "line_start": 11004
   },
   "§11.4.226": {
    "file": "progressive/rules/11.4.226.md",
    "hash": "sha256:310a2396651b0547437a1ad2a8055aef278dadff6598741d02693173b07c940e",
-   "line_end": 11051,
-   "line_start": 11020
+   "line_end": 11053,
+   "line_start": 11022
   },
   "§11.4.227": {
    "file": "progressive/rules/11.4.227.md",
    "hash": "sha256:41751e21cd486eee6fa460ce6125f7f837f0736db4cbf565ad6511bcd8efab9f",
-   "line_end": 11073,
-   "line_start": 11052
+   "line_end": 11075,
+   "line_start": 11054
   },
   "§11.4.228": {
    "file": "progressive/rules/11.4.228.md",
    "hash": "sha256:a32ce742ac56456ac59e35bad0c9ae200b56d56ce437e92c3e44babd821065e8",
-   "line_end": 11120,
-   "line_start": 11074
+   "line_end": 11122,
+   "line_start": 11076
   },
   "§11.4.229": {
    "file": "progressive/rules/11.4.229.md",
    "hash": "sha256:ebada84bede3a178d7039650f04e0ab272d9c4a72dd7c9a295fa3473b0fc1ef3",
-   "line_end": 11140,
-   "line_start": 11121
+   "line_end": 11142,
+   "line_start": 11123
   },
   "§11.4.23": {
    "file": "progressive/rules/11.4.23.md",
@@ -867,63 +867,63 @@
   },
   "§11.4.230": {
    "file": "progressive/rules/11.4.230.md",
-   "hash": "sha256:b86e5d6d7d0cacdb276ab46cd744b05bf98448b6a861343663d0e47c6c38f465",
-   "line_end": 11217,
-   "line_start": 11141
+   "hash": "sha256:1e3f88cdcf773a55fe55ccfc7d134e0548a87f878560ad5a08121e74916f94e7",
+   "line_end": 11219,
+   "line_start": 11143
   },
   "§11.4.231": {
    "file": "progressive/rules/11.4.231.md",
    "hash": "sha256:138e822787df473a886b4d07f989bbbdebd0589b48ce438a88b15fb4e9549369",
-   "line_end": 11244,
-   "line_start": 11218
+   "line_end": 11246,
+   "line_start": 11220
   },
   "§11.4.232": {
    "file": "progressive/rules/11.4.232.md",
    "hash": "sha256:c78cc1205b5459f99353b4728aa76d57a2b1ecfbf5542b46f6b86c9402fbc5ba",
-   "line_end": 11271,
-   "line_start": 11245
+   "line_end": 11273,
+   "line_start": 11247
   },
   "§11.4.233": {
    "file": "progressive/rules/11.4.233.md",
    "hash": "sha256:aa07c8073e7cd4fabc89b5d1b8eb5171082add7d97a47f27292791488474ac39",
-   "line_end": 11296,
-   "line_start": 11272
+   "line_end": 11298,
+   "line_start": 11274
   },
   "§11.4.234": {
    "file": "progressive/rules/11.4.234.md",
    "hash": "sha256:2c379f3b0a75d3056c76311e37cb7fefc1e56103d5bad7d0721b6615e754b46c",
-   "line_end": 11314,
-   "line_start": 11297
+   "line_end": 11316,
+   "line_start": 11299
   },
   "§11.4.235": {
    "file": "progressive/rules/11.4.235.md",
-   "hash": "sha256:ebaed77c361073dd6d156cddf873705d0078d7c6eb502ed9696ba348087911a8",
-   "line_end": 11346,
-   "line_start": 11315
+   "hash": "sha256:34e251046ec0ab2e1f436ac1af4da91daba6d8dc880655720e8e3c8ed825baf6",
+   "line_end": 11348,
+   "line_start": 11317
   },
   "§11.4.236": {
    "file": "progressive/rules/11.4.236.md",
    "hash": "sha256:79f4ea5874908c9513404bc61fefcad651dd5549ac5c248dbc1a8cb48c845278",
-   "line_end": 11352,
-   "line_start": 11347
+   "line_end": 11354,
+   "line_start": 11349
   },
   "§11.4.237": {
    "file": "progressive/rules/11.4.237.md",
    "hash": "sha256:0bcf3157566fba7d90598a1dad95d8bca6d8d62626afede5662ce5f321912a9b",
-   "line_end": 11374,
-   "line_start": 11353
+   "line_end": 11376,
+   "line_start": 11355
   },
   "§11.4.238": {
    "file": "progressive/rules/11.4.238.md",
    "hash": "sha256:c755f7134599f2f2dc3c65c99f05bd84a152229723589420570642c259f705c3",
-   "line_end": 11405,
-   "line_start": 11375
+   "line_end": 11407,
+   "line_start": 11377
   },
   "§11.4.239": {
    "file": "progressive/rules/11.4.239.md",
    "hash": "sha256:e415b0662cfad6e81a7e90a2751cd67be72a93ea489336990b127d69ad9ce2e2",
-   "line_end": 11425,
-   "line_start": 11406
+   "line_end": 11427,
+   "line_start": 11408
   },
   "§11.4.24": {
    "file": "progressive/rules/11.4.24.md",
@@ -934,62 +934,62 @@
   "§11.4.240": {
    "file": "progressive/rules/11.4.240.md",
    "hash": "sha256:192b837672ae7f426f5e3570eaf655dd0891dd1218e6e2e4fce07d5e98002531",
-   "line_end": 11447,
-   "line_start": 11426
+   "line_end": 11449,
+   "line_start": 11428
   },
   "§11.4.241": {
    "file": "progressive/rules/11.4.241.md",
    "hash": "sha256:efc328f7098aee4e4a1b47bf4cecbab059a83c316019b85d43518ce8dd3dbfac",
-   "line_end": 11455,
-   "line_start": 11448
+   "line_end": 11457,
+   "line_start": 11450
   },
   "§11.4.242": {
    "file": "progressive/rules/11.4.242.md",
    "hash": "sha256:ea246f63a35f77ee28956f04d71290fc3d979fccfe913d1a564699e048e52a0d",
-   "line_end": 11465,
-   "line_start": 11456
+   "line_end": 11467,
+   "line_start": 11458
   },
   "§11.4.243": {
    "file": "progressive/rules/11.4.243.md",
    "hash": "sha256:ef383469f5e9b587bfa891ee8b7fbce6a9d0149047884023783098cac9fd84ba",
-   "line_end": 11473,
-   "line_start": 11466
+   "line_end": 11475,
+   "line_start": 11468
   },
   "§11.4.244": {
    "file": "progressive/rules/11.4.244.md",
    "hash": "sha256:3bfcafd0c9dbfae70b9ae54ff5b4a51576b06c8781cc3e21cfbb05f624754dbe",
-   "line_end": 11481,
-   "line_start": 11474
+   "line_end": 11483,
+   "line_start": 11476
   },
   "§11.4.245": {
    "file": "progressive/rules/11.4.245.md",
    "hash": "sha256:210fad89d737ff8a0b22fe1445ca88fe816366e5f44c3c05f79a5703745527aa",
-   "line_end": 11489,
-   "line_start": 11482
+   "line_end": 11491,
+   "line_start": 11484
   },
   "§11.4.246": {
    "file": "progressive/rules/11.4.246.md",
    "hash": "sha256:4e3e6c8b729b9df33350ae85c6b1e8b1b585d9c991bcb19851d5eede094c8040",
-   "line_end": 11497,
-   "line_start": 11490
+   "line_end": 11499,
+   "line_start": 11492
   },
   "§11.4.247": {
    "file": "progressive/rules/11.4.247.md",
    "hash": "sha256:44fb8d0c950242e648149c65af2d28b594b05db4dce10ed0d56fdba527fa4120",
-   "line_end": 11505,
-   "line_start": 11498
+   "line_end": 11507,
+   "line_start": 11500
   },
   "§11.4.248": {
    "file": "progressive/rules/11.4.248.md",
    "hash": "sha256:b706f098feb445534345667b02a0c9641f1140ba5380ccfe022f0876995252a5",
-   "line_end": 11515,
-   "line_start": 11506
+   "line_end": 11517,
+   "line_start": 11508
   },
   "§11.4.249": {
    "file": "progressive/rules/11.4.249.md",
    "hash": "sha256:746c138e488f601a16d9d643c74e0a91d28be9befca2a66b59016ad353281ee9",
-   "line_end": 11523,
-   "line_start": 11516
+   "line_end": 11525,
+   "line_start": 11518
   },
   "§11.4.25": {
    "file": "progressive/rules/11.4.25.md",
@@ -1000,62 +1000,62 @@
   "§11.4.250": {
    "file": "progressive/rules/11.4.250.md",
    "hash": "sha256:5c7e45ec963bd76be75af907ae89bac6200afe7ae9bf7651846314f815339cab",
-   "line_end": 11531,
-   "line_start": 11524
+   "line_end": 11533,
+   "line_start": 11526
   },
   "§11.4.251": {
    "file": "progressive/rules/11.4.251.md",
    "hash": "sha256:2ecf2cd122cc153c2ff4184a7e0816a9b722c4dcd758cfae57a3fb5bf983237c",
-   "line_end": 11539,
-   "line_start": 11532
+   "line_end": 11541,
+   "line_start": 11534
   },
   "§11.4.252": {
    "file": "progressive/rules/11.4.252.md",
    "hash": "sha256:e5842649b6ae5eabedce467f9fc2a8214e563be0103883d6d9f6a812308d9e5c",
-   "line_end": 11547,
-   "line_start": 11540
+   "line_end": 11549,
+   "line_start": 11542
   },
   "§11.4.253": {
    "file": "progressive/rules/11.4.253.md",
    "hash": "sha256:a3ac66818a2429757460fb25d642d56a489bd0ff0a9485ba2921c403c58413bf",
-   "line_end": 11555,
-   "line_start": 11548
+   "line_end": 11557,
+   "line_start": 11550
   },
   "§11.4.254": {
    "file": "progressive/rules/11.4.254.md",
    "hash": "sha256:bcf3e505da46cf62171ed3141b9143049cdd7eee7521f3c4509b2a995283d338",
-   "line_end": 11563,
-   "line_start": 11556
+   "line_end": 11565,
+   "line_start": 11558
   },
   "§11.4.255": {
    "file": "progressive/rules/11.4.255.md",
    "hash": "sha256:f2b819db580f5b8a9918ff8c8552b4ceec61b4fb17bc9c0dd91f29857eb2ea0b",
-   "line_end": 11593,
-   "line_start": 11564
+   "line_end": 11595,
+   "line_start": 11566
   },
   "§11.4.256": {
    "file": "progressive/rules/11.4.256.md",
    "hash": "sha256:7c1c04369dda52b494ae569215cb83a798f8d81e932ebcc2dc372c6461da1063",
-   "line_end": 11623,
-   "line_start": 11594
+   "line_end": 11625,
+   "line_start": 11596
   },
   "§11.4.257": {
    "file": "progressive/rules/11.4.257.md",
    "hash": "sha256:e04968f44075f0d57c4693dd228bc66ffbf62c214b35c6b63e234e2f2a60c2f8",
-   "line_end": 11647,
-   "line_start": 11624
+   "line_end": 11649,
+   "line_start": 11626
   },
   "§11.4.258": {
    "file": "progressive/rules/11.4.258.md",
    "hash": "sha256:139d6552b0063468b75600889cbe636d3bbe41d7860b12783c58edf5de758c0e",
-   "line_end": 11671,
-   "line_start": 11648
+   "line_end": 11673,
+   "line_start": 11650
   },
   "§11.4.259": {
    "file": "progressive/rules/11.4.259.md",
    "hash": "sha256:c95a1b49a79dfa83d6db00ab72d833aa31c3362d2df16fa866cb6c04beffd37c",
-   "line_end": 11697,
-   "line_start": 11672
+   "line_end": 11699,
+   "line_start": 11674
   },
   "§11.4.26": {
    "file": "progressive/rules/11.4.26.md",
@@ -1066,62 +1066,62 @@
   "§11.4.260": {
    "file": "progressive/rules/11.4.260.md",
    "hash": "sha256:db5083552f4d7ddf988953595e023ad1721dd8a17f024985d805cb3301cb5b2f",
-   "line_end": 11723,
-   "line_start": 11698
+   "line_end": 11725,
+   "line_start": 11700
   },
   "§11.4.261": {
    "file": "progressive/rules/11.4.261.md",
    "hash": "sha256:bc46e505c9a5e518c74404b75028035a4e02cacb4576bed9b6409e2bb4f4ef29",
-   "line_end": 11747,
-   "line_start": 11724
+   "line_end": 11749,
+   "line_start": 11726
   },
   "§11.4.262": {
    "file": "progressive/rules/11.4.262.md",
    "hash": "sha256:56f9754538557feede211f0f0ff8c1ebb249849e2b1ad78af31596063c22e2dc",
-   "line_end": 11771,
-   "line_start": 11748
+   "line_end": 11773,
+   "line_start": 11750
   },
   "§11.4.263": {
    "file": "progressive/rules/11.4.263.md",
    "hash": "sha256:c2d11c18748b5bb25a7b6ea41fa57c1afdb9fa3bbaefc8049c52cd8aecf1db10",
-   "line_end": 11839,
-   "line_start": 11772
+   "line_end": 11841,
+   "line_start": 11774
   },
   "§11.4.264": {
    "file": "progressive/rules/11.4.264.md",
    "hash": "sha256:facaaaf80c66d2807de021328f376069c236c434408eae6903b402518d2cb953",
-   "line_end": 11871,
-   "line_start": 11840
+   "line_end": 11873,
+   "line_start": 11842
   },
   "§11.4.265": {
    "file": "progressive/rules/11.4.265.md",
    "hash": "sha256:b52ea7f60db45561535fc6f0a531f2d6c597a4509d4378f85a74dfe24d734687",
-   "line_end": 11905,
-   "line_start": 11872
+   "line_end": 11907,
+   "line_start": 11874
   },
   "§11.4.266": {
    "file": "progressive/rules/11.4.266.md",
    "hash": "sha256:3d8853f1efa2bff5bfc410c17b32b83518aa4639a6bb504494bc80740bae734c",
-   "line_end": 11937,
-   "line_start": 11906
+   "line_end": 11939,
+   "line_start": 11908
   },
   "§11.4.267": {
    "file": "progressive/rules/11.4.267.md",
    "hash": "sha256:f62d68936bfdf5aea54084bfb3c2fd938bea205a97c32bf6d54c4c4ed92bd49e",
-   "line_end": 11971,
-   "line_start": 11938
+   "line_end": 11973,
+   "line_start": 11940
   },
   "§11.4.268": {
    "file": "progressive/rules/11.4.268.md",
    "hash": "sha256:3bc53d3b4bf4f7f419a811d66bc48c9c0830fd0c636a982a0d21bfee49affea6",
-   "line_end": 11985,
-   "line_start": 11972
+   "line_end": 11987,
+   "line_start": 11974
   },
   "§11.4.269": {
    "file": "progressive/rules/11.4.269.md",
    "hash": "sha256:f97802fecb2b7fdbf500e523b5406d90a1fe1a21cebf1f26d21fc27cfa3ee61c",
-   "line_end": 12001,
-   "line_start": 11986
+   "line_end": 12003,
+   "line_start": 11988
   },
   "§11.4.27": {
    "file": "progressive/rules/11.4.27.md",
@@ -1132,62 +1132,62 @@
   "§11.4.270": {
    "file": "progressive/rules/11.4.270.md",
    "hash": "sha256:77383b6bef962f45c72e5d928eba448e51cd092de806790b1f5a79802fc70905",
-   "line_end": 12016,
-   "line_start": 12002
+   "line_end": 12018,
+   "line_start": 12004
   },
   "§11.4.271": {
    "file": "progressive/rules/11.4.271.md",
    "hash": "sha256:952216ad747365d48a05cc30fdc4ffcad3930f1800655c7cbab5fa70e73aac51",
-   "line_end": 12029,
-   "line_start": 12017
+   "line_end": 12031,
+   "line_start": 12019
   },
   "§11.4.272": {
    "file": "progressive/rules/11.4.272.md",
    "hash": "sha256:d5bfc104f72764fc4fe9ac395f5d7df42f2afcd95e7e74ee83ba88afcd4df05c",
-   "line_end": 12061,
-   "line_start": 12030
+   "line_end": 12063,
+   "line_start": 12032
   },
   "§11.4.273": {
    "file": "progressive/rules/11.4.273.md",
    "hash": "sha256:5e3bff9863e2b38a0ced88acf1b918a6ce10cfa4a6f71428b51739d3863a1455",
-   "line_end": 12103,
-   "line_start": 12062
+   "line_end": 12105,
+   "line_start": 12064
   },
   "§11.4.274": {
    "file": "progressive/rules/11.4.274.md",
    "hash": "sha256:b77ac711ce147405e0368311cbcef09e0287577b091eee1632017109cdbf30c5",
-   "line_end": 12123,
-   "line_start": 12104
+   "line_end": 12125,
+   "line_start": 12106
   },
   "§11.4.275": {
    "file": "progressive/rules/11.4.275.md",
    "hash": "sha256:7b8590508ce97715de788938b06275a696372dd981a852d684cf65c110d56e5b",
-   "line_end": 12155,
-   "line_start": 12124
+   "line_end": 12157,
+   "line_start": 12126
   },
   "§11.4.276": {
    "file": "progressive/rules/11.4.276.md",
-   "hash": "sha256:373d495d054e262d6ce6727f3b43954f4160ebe2f3e3b8489a87557c441827c4",
-   "line_end": 12208,
-   "line_start": 12156
+   "hash": "sha256:1447c3dabedc85aa208d204a4e0a1b37335e50ad0bc5f77490a4531509a44010",
+   "line_end": 12210,
+   "line_start": 12158
   },
   "§11.4.277": {
    "file": "progressive/rules/11.4.277.md",
    "hash": "sha256:fc72b7f811744ab925b0a87a68493fa816b7e2140402b36edb5a1f1857d7397a",
-   "line_end": 12275,
-   "line_start": 12209
+   "line_end": 12277,
+   "line_start": 12211
   },
   "§11.4.278": {
    "file": "progressive/rules/11.4.278.md",
    "hash": "sha256:da9bf1dc0da5b390c3402a7b869cdc5a3464db374d2cbc47332c8ac51dbdc494",
-   "line_end": 12337,
-   "line_start": 12276
+   "line_end": 12339,
+   "line_start": 12278
   },
   "§11.4.279": {
    "file": "progressive/rules/11.4.279.md",
    "hash": "sha256:44c6a9f54f0560d674adddb8991bd890943da6ce0962f649c3a4d55ccd21c180",
-   "line_end": 12361,
-   "line_start": 12338
+   "line_end": 12363,
+   "line_start": 12340
   },
   "§11.4.28": {
    "file": "progressive/rules/11.4.28.md",
@@ -1198,62 +1198,62 @@
   "§11.4.280": {
    "file": "progressive/rules/11.4.280.md",
    "hash": "sha256:aefa0bc905b8c127fb5730185cbde6e917b65a1908cc768f78b07914859cdf8a",
-   "line_end": 12381,
-   "line_start": 12362
+   "line_end": 12383,
+   "line_start": 12364
   },
   "§11.4.281": {
    "file": "progressive/rules/11.4.281.md",
    "hash": "sha256:fb086b15943fd707b2f173f79da99064a28485d482eeb101567cda9dc3c2c444",
-   "line_end": 12403,
-   "line_start": 12382
+   "line_end": 12405,
+   "line_start": 12384
   },
   "§11.4.282": {
    "file": "progressive/rules/11.4.282.md",
    "hash": "sha256:a2dd9748108489349ebbc5f96635d44edae94a7cdfedaa43f4dd014b64cb8aed",
-   "line_end": 12425,
-   "line_start": 12404
+   "line_end": 12427,
+   "line_start": 12406
   },
   "§11.4.283": {
    "file": "progressive/rules/11.4.283.md",
    "hash": "sha256:6f12bec51a8222545047cbe84112d99e286c2f6b57976747b0253de6655a4396",
-   "line_end": 12445,
-   "line_start": 12426
+   "line_end": 12447,
+   "line_start": 12428
   },
   "§11.4.284": {
    "file": "progressive/rules/11.4.284.md",
    "hash": "sha256:27bce0a10b2f84eac576cf4e6f09f9dc5213d650ba1e6a325e17229bdfeec2f2",
-   "line_end": 12469,
-   "line_start": 12446
+   "line_end": 12471,
+   "line_start": 12448
   },
   "§11.4.285": {
    "file": "progressive/rules/11.4.285.md",
    "hash": "sha256:2e42e9e6b22f02fe92492a339690ae58deb0e2897ce1f9a7d0d8628dc8a29221",
-   "line_end": 12491,
-   "line_start": 12470
+   "line_end": 12493,
+   "line_start": 12472
   },
   "§11.4.286": {
    "file": "progressive/rules/11.4.286.md",
    "hash": "sha256:6eef6e92483ac69fc1ad1a16d78cc49f9caa172ecb1c9f948691ebae12fd062e",
-   "line_end": 12511,
-   "line_start": 12492
+   "line_end": 12513,
+   "line_start": 12494
   },
   "§11.4.287": {
    "file": "progressive/rules/11.4.287.md",
    "hash": "sha256:cf6f2deeb3e636ee63efbe3ef84124dc6af3a124f6e358ee3d0edcf4727ee952",
-   "line_end": 12533,
-   "line_start": 12512
+   "line_end": 12535,
+   "line_start": 12514
   },
   "§11.4.288": {
    "file": "progressive/rules/11.4.288.md",
-   "hash": "sha256:23d41693a53f8c61b120f66460c3d4e11ff91288dce51f0165c48583c30d3f6d",
-   "line_end": 12573,
-   "line_start": 12534
+   "hash": "sha256:26653d577596d3f15f0561357d933d3f912a0af7c8ded03da72f629a28e4f43e",
+   "line_end": 12575,
+   "line_start": 12536
   },
   "§11.4.289": {
    "file": "progressive/rules/11.4.289.md",
    "hash": "sha256:97e32692616d85ba79a7b82a9dcaa013a223a508bfdcee4c3f1bdb79290b25c7",
-   "line_end": 12605,
-   "line_start": 12574
+   "line_end": 12607,
+   "line_start": 12576
   },
   "§11.4.29": {
    "file": "progressive/rules/11.4.29.md",
@@ -1264,14 +1264,14 @@
   "§11.4.290": {
    "file": "progressive/rules/11.4.290.md",
    "hash": "sha256:1bf2fa284059ea7130eb4759f87e0cbcb1a2a3eabad68db4c00172b05ef1b732",
-   "line_end": 12647,
-   "line_start": 12606
+   "line_end": 12649,
+   "line_start": 12608
   },
   "§11.4.291": {
    "file": "progressive/rules/11.4.291.md",
    "hash": "sha256:67030b6ba77bc06d9f80c20ab3d914072af22f47219a4ae9103a80061c266fe0",
-   "line_end": 12698,
-   "line_start": 12648
+   "line_end": 12700,
+   "line_start": 12650
   },
   "§11.4.3": {
    "file": "progressive/rules/11.4.3.md",
@@ -1726,50 +1726,50 @@
   "§12": {
    "file": "progressive/rules/12.md",
    "hash": "sha256:f0fd0e6da75f88a5ebeb0fca4a25ef5b37456d57600b29871e99c49cf35f64e7",
-   "line_end": 10214,
-   "line_start": 10209
+   "line_end": 10216,
+   "line_start": 10211
   },
   "§12.1": {
    "file": "progressive/rules/12.1.md",
    "hash": "sha256:3f7e8b43ae1ac7981be489e6a4dce403359512780f326cddca9e7f104e24f589",
-   "line_end": 10235,
-   "line_start": 10215
+   "line_end": 10237,
+   "line_start": 10217
   },
   "§12.10": {
    "file": "progressive/rules/12.10.md",
    "hash": "sha256:0320b746df1bf0d316c6f17b0d427bb021c9085d4dbc8df64107a9eef35bc72e",
-   "line_end": 10332,
-   "line_start": 10291
+   "line_end": 10334,
+   "line_start": 10293
   },
   "§12.11": {
    "file": "progressive/rules/12.11.md",
    "hash": "sha256:04a6e68dac1bbed7a418d1657565792218950d1668acc46061230208847e61f3",
-   "line_end": 10352,
-   "line_start": 10333
+   "line_end": 10354,
+   "line_start": 10335
   },
   "§12.12": {
    "file": "progressive/rules/12.12.md",
    "hash": "sha256:69071ce04c1482f58ee666b3fdb4f452d08d45e81840042fad7a075dab0273c3",
-   "line_end": 10416,
-   "line_start": 10353
+   "line_end": 10418,
+   "line_start": 10355
   },
   "§12.2": {
    "file": "progressive/rules/12.2.md",
    "hash": "sha256:c2e57e6de301c56b8aa23aecef439fe96e2afa5e8fc35f8356b740e2ad9bbf5e",
-   "line_end": 10249,
-   "line_start": 10236
+   "line_end": 10251,
+   "line_start": 10238
   },
   "§12.3": {
    "file": "progressive/rules/12.3.md",
    "hash": "sha256:031ef3cd48dccb20aa6f79f15a08efa3be0aa5eb4b30a716e8c18c640527b8c6",
-   "line_end": 10260,
-   "line_start": 10250
+   "line_end": 10262,
+   "line_start": 10252
   },
   "§12.6": {
    "file": "progressive/rules/12.6.md",
    "hash": "sha256:c2af6f6e9f638b374c5fa9e46da8942711c3af377affad8ac7f3757e81723b64",
-   "line_end": 10290,
-   "line_start": 10261
+   "line_end": 10292,
+   "line_start": 10263
   },
   "§7.1": {
    "file": "progressive/rules/7.1.md",
@@ -1816,5 +1816,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "1ad17551cbdf90a34a3c1e25a8da28e141207d06b44406ff1f9fc6995e157217"
+ "source_sha256": "aab0d6a002d1549259aba5292f4f8a4fbc4ccb7cb1a74828138ddf4cc538666c"
 }
