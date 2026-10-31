@@ -5,7 +5,7 @@ Usage: args_file_read.py PATH            (prints the file text on stdout, then d
 Exit codes: 0 ok; 2 rejected (reason on stderr); never reads or deletes anything but the verified file.
 
 Accepted PATH shape, checked LEXICALLY first (no resolution yet):
-    <DIR>/constitution_args_<id>.txt     DIR in {"/tmp", $TMPDIR (absolute, no trailing slash, no ".." / "." segment)}
+    <DIR>/constitution_args_<id>.txt     DIR in {"/tmp", $TMPDIR (absolute, canonical: no ".." / "." / empty segment, realpath(TMPDIR)==TMPDIR, so no symlink in it)}
     <id> = [a-z0-9]{8,64}                no other "/" anywhere after DIR, no "..".
 Then: realpath(DIR) must be a real directory; the file is opened RELATIVE to a directory fd with
 O_NOFOLLOW|O_NONBLOCK (a symlink leaf or a symlinked middle component cannot be followed); the
@@ -34,7 +34,13 @@ def allowed_dirs(env_tmpdir):
     out = ["/tmp"]
     if env_tmpdir:
         t = env_tmpdir[:-1] if env_tmpdir.endswith("/") and len(env_tmpdir) > 1 else env_tmpdir
-        if t.startswith("/") and t not in out:
+        # Only a canonical absolute TMPDIR is accepted: no "." / ".." / empty segment, and no symlink
+        # anywhere in it (realpath(TMPDIR) must equal TMPDIR). Anything else is silently not allowed,
+        # so a path under it is rejected by the "directory must be exactly" rule.
+        segs = t.split("/")[1:]
+        if (t.startswith("/") and "\0" not in t and t not in out
+                and not any(x in ("", ".", "..") for x in segs)
+                and os.path.realpath(t) == t):
             out.append(t)
     return out
 
@@ -70,6 +76,9 @@ def read_and_consume(path, dirs, euid=None):
                 reject("must be owned by the calling user")
             if st.st_size > MAX_BYTES:
                 reject("file too large (more than 8001 bytes)")
+            if os.environ.get("CONSTITUTION_CMD_TEST") == "1" and os.environ.get("CONSTITUTION_CMD_TEST_SWAP"):
+                # test seam (inert unless CONSTITUTION_CMD_TEST=1): replace the directory entry after open
+                os.rename(os.environ["CONSTITUTION_CMD_TEST_SWAP"], name, src_dir_fd=dfd, dst_dir_fd=dfd)
             try:
                 ls = os.stat(name, dir_fd=dfd, follow_symlinks=False)
             except OSError:

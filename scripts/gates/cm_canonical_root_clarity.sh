@@ -104,6 +104,12 @@
 #     --selftest             run the golden-good / golden-bad / negative-
 #                            control fixture suite against this gate itself
 #                            and exit (no real tree is read).
+#     --standalone-canon     DECLARE that --const-dir is the canon repository itself (no consumer
+#                            exists): (a) is then an honest SKIP (exit 3). Same as env
+#                            CM_CANONICAL_ROOT_STANDALONE=1. The ONLY way to get that SKIP: it is
+#                            never inferred from layout, git state or sibling files (a vendored
+#                            legacy <consumer>/constitution has the same bytes). Ignored when a
+#                            consumer root is given. Default = fail-closed consumer audit.
 #
 # ── Inputs ───────────────────────────────────────────────────────────────────
 #   CANONICAL_ROOT_DIR / CONSUMER_ROOT env overrides (flags take precedence).
@@ -140,9 +146,9 @@
 #       unreadable, or the control needle failed (the instrument cannot see,
 #       so no absence it reports may be trusted — §11.4.6, never a guessed
 #       zero).
-#   3 — SKIP: (b) and (c) hold, but (a) is not applicable because the
-#       constitution is a STANDALONE checkout (its own git toplevel, no
-#       superproject, parent in no git work tree) and no --consumer-root /
+#   3 — SKIP: (b) and (c) hold, but (a) is not applicable because the invocation
+#       DECLARED the constitution a STANDALONE canon (--standalone-canon or
+#       CM_CANONICAL_ROOT_STANDALONE=1) and no --consumer-root /
 #       CONSUMER_ROOT was given. Never reported as PASS (§11.4.1); a (b) or
 #       (c) violation in a standalone checkout still exits 1.
 #
@@ -159,6 +165,8 @@ consumer_root="${CONSUMER_ROOT:-}"
 head_lines=40
 quiet=""
 selftest=""
+standalone_decl=""
+case "${CM_CANONICAL_ROOT_STANDALONE:-}" in 1) standalone_decl="1" ;; esac
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -167,6 +175,7 @@ while [ $# -gt 0 ]; do
         --head-lines)     head_lines="$2"; shift 2 ;;
         --quiet)          quiet="1"; shift ;;
         --selftest)       selftest="1"; shift ;;
+        --standalone-canon) standalone_decl="1"; shift ;;
         -h|--help)        sed -n '1,100p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -392,54 +401,19 @@ if [ ! -d "$const_dir" ]; then
     exit 2
 fi
 const_dir="$(cd "$const_dir" && pwd)"
-# Standalone canon checkout (§11.4.201(1)): when the constitution IS the
-# repository — its own git toplevel, no superproject, and its parent lies in
-# no git work tree — there is no consumer, so (a) is not applicable. Before
-# this check the derivation below took the parent directory (a checkout named
-# '.../constitution' matched the legacy-layout rule) and FAILED (a) on a
-# CLAUDE.md that nobody owes: a false refusal. Detected only when the consumer
-# root was NOT supplied explicitly, and only when PROVEN (every git probe must
-# answer); any doubt keeps the old behaviour, which fails closed.
-# crc_git ARGS — git with every ambient repository-locating GIT_* variable
-# scrubbed (the canonical list of scripts/lib/constitution_layout.sh,
-# CL_GIT_SCRUB_VARS, carried inline so the gate also works without that lib).
-crc_git() {
-    ( LC_ALL=C; export LC_ALL
-      for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
-          unset "$_v"
-      done
-      exec git "$@" )
-}
+# Standalone canon checkout (§11.4.201(1)). DECISION (round 11, replaces the layout heuristic): whether
+# this directory is "the canon repository itself" or "a vendored copy inside a consumer" cannot be told
+# from its location or its surroundings -- the bytes are identical, and every layout/marker guess was
+# shown to err both ways (a non-git consumer with package.json/go.mod/Makefile only, or holding both
+# constitution/ and submodules/constitution/, was SKIPped = false negative; a real canon whose parent
+# holds a README.md or which is cloned into a directory named 'submodules' FAILed = false refusal).
+# So the SKIP of (a) is taken ONLY when the invocation DECLARES it: --standalone-canon, or the
+# environment CM_CANONICAL_ROOT_STANDALONE=1. Default (no declaration) = the fail-closed consumer audit.
+# An explicit --consumer-root / CONSUMER_ROOT always wins over the declaration (it is audited).
+# Callers that legitimately run this gate against the canon repository itself must pass the flag.
 standalone=""
-if [ -z "$consumer_root" ] && command -v git >/dev/null 2>&1; then
-    _sa_ok=1
-    _sa_top="$(crc_git -C "$const_dir" rev-parse --show-toplevel 2>/dev/null)" || _sa_ok=0
-    _sa_super="$(crc_git -C "$const_dir" rev-parse --show-superproject-working-tree 2>/dev/null)" || _sa_ok=0
-    _sa_phys="$(cd "$const_dir" && pwd -P)" || _sa_ok=0
-    if [ "$_sa_ok" -eq 1 ] && [ -n "$_sa_top" ] && [ "$_sa_top" = "$_sa_phys" ] && [ -z "$_sa_super" ]; then
-        # The parent must be PROVEN outside every work tree: git must fail
-        # with 'not a git repository' (any other error, e.g. dubious
-        # ownership, is not proof and keeps the consumer audit).
-        _sa_perr="$(crc_git -C "$(dirname "$_sa_phys")" rev-parse --show-toplevel 2>&1 >/dev/null)" && _sa_perr=""
-        case "$_sa_perr" in
-            *"not a git repository"*) standalone="1" ;;
-        esac
-        # Consumer-shaped layouts are NEVER standalone (a non-git consumer holding the
-        # constitution as its own clone at constitution/ or submodules/constitution/ owes
-        # a CLAUDE.md; SKIPping it would be a false negative): the parent is named
-        # 'submodules', or the parent carries a project marker (a consumer manual,
-        # a manifest, a README or a .gitmodules).
-        if [ -n "$standalone" ]; then
-            _sa_parent="$(dirname "$_sa_phys")"
-            if [ "$(basename "$_sa_parent")" = "submodules" ]; then
-                standalone=""
-            else
-                for _m in CLAUDE.md AGENTS.md GEMINI.md QWEN.md .gitmodules helix-deps.yaml README.md; do
-                    if [ -e "$_sa_parent/$_m" ]; then standalone=""; break; fi
-                done
-            fi
-        fi
-    fi
+if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then
+    standalone="1"
 fi
 if [ -z "$consumer_root" ] && [ -z "$standalone" ]; then
     # The ONE layout resolver (standard submodules/constitution + legacy).
@@ -549,7 +523,7 @@ fi
 # ── Invariant (a): the consumer opens with the inheritance pointer ──────────
 consumer_claude="${consumer_root}/CLAUDE.md"
 if [ -n "$standalone" ]; then
-    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout (${const_dir} is its own git toplevel, has no superproject, and its parent is in no git work tree): there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
+    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout DECLARED by the invocation (--standalone-canon / CM_CANONICAL_ROOT_STANDALONE=1) for ${const_dir}: there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
 elif [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
     echo "❌ (a) CONSUMER-POINTER-PRESENT: consumer CLAUDE.md missing or unreadable at ${consumer_claude}"
     fail=1

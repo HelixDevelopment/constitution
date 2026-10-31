@@ -118,6 +118,25 @@ fi
 project_root="${project_root:-${PROJECT_ROOT:-$PWD}}"
 project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)" || { echo "[install-plugins] project root does not exist: ${project_root}" >&2; exit 2; }
 
+# ── Ownership / containment helpers (class: never act on a path we cannot prove is ours) ──
+# Every ln/rm/mv/unlink in this installer goes through one of these:
+#   ic_dir_inside_project DIR  -> DIR (symlinks resolved, may not exist yet) lies strictly inside the project
+#   ic_link_owned LINK SUBDIR  -> LINK is a symlink whose fully-resolved target (dangling allowed) lies under
+#                                 THIS constitution tree's SUBDIR (skills, actions/generated)
+const_real="$(cd "$const_root" && pwd -P)"
+proj_real_global="$(cd "$project_root" && pwd -P)"
+ic_dir_inside_project() {
+  local r
+  r="$(readlink -m -- "$1" 2>/dev/null)" || return 1
+  case "$r" in "$proj_real_global"/*) return 0 ;; *) return 1 ;; esac
+}
+ic_link_owned() {
+  local r
+  [ -L "$1" ] || return 1
+  r="$(readlink -m -- "$1" 2>/dev/null)" || return 1
+  case "$r" in "$const_real/$2"/*|"$const_root/$2"/*) return 0 ;; *) return 1 ;; esac
+}
+
 MARKETPLACE_NAME="helix-constitution"
 PLUGIN_NAME="helix"
 
@@ -164,15 +183,12 @@ link_skills() {
     *) warn "$skills_dst resolves outside the project — REFUSED"; return 1 ;;
   esac
 
-  # Reap OUR dangling skill links only: a link whose text ends in skills/<its own name> (what
-  # hc_ln_relative writes). A user's own dangling link, and any other name, is never touched.
-  local stale tgt
+  # Reap OUR dangling skill links only: a dangling link whose resolved target lies under THIS
+  # constitution's skills dir. A user's own dangling link, whatever its text, is never touched.
+  local stale
   for stale in "$skills_dst"/*; do
-    if [ -L "$stale" ] && [ ! -e "$stale" ]; then
-      tgt="$(readlink "$stale")"
-      case "$tgt" in
-        */skills/"$(basename "$stale")") rm -f "$stale" ;;
-      esac
+    if [ -L "$stale" ] && [ ! -e "$stale" ] && ic_link_owned "$stale" skills; then
+      rm -f "$stale"
     fi
   done
 
@@ -194,7 +210,7 @@ link_skills() {
     if [ -L "$dst" ]; then
       # Replace only a link that already points at OUR skill (or is our own dangling one).
       cur="$(readlink -f -- "$dst" 2>/dev/null || true)"
-      if [ "$cur" = "$(readlink -f -- "${src%/}")" ] || { [ ! -e "$dst" ] && case "$(readlink "$dst")" in */skills/"$name") true ;; *) false ;; esac; }; then
+      if [ "$cur" = "$(readlink -f -- "${src%/}")" ] || { [ ! -e "$dst" ] && ic_link_owned "$dst" skills; }; then
         hc_ln_relative "${src%/}" "$dst"
         linked=$((linked + 1))
       else
@@ -225,7 +241,7 @@ link_agent_commands() {
 
   # agent:source-subdir:destination-dir-relative-to-project:extension
   local specs="gemini:.gemini/commands:toml qwen:.qwen/commands:toml codex:prompts:md"
-  local spec agent dst_rel ext src_dir dst_dir f base total=0
+  local spec agent dst_rel ext src_dir dst_dir f base total=0 refused_dirs=0
 
   for spec in $specs; do
     agent="${spec%%:*}"
@@ -234,6 +250,13 @@ link_agent_commands() {
     src_dir="$gen/$agent"
     [ -d "$src_dir" ] || continue
     dst_dir="$project_root/$dst_rel"
+    # Containment first, mkdir second: a symlinked .gemini/.qwen/prompts pointing outside the project
+    # must receive nothing (and mkdir -p through it would already write outside).
+    if ! ic_dir_inside_project "$dst_dir"; then
+      warn "$dst_dir resolves outside the project — REFUSED, nothing written"
+      refused_dirs=$((refused_dirs + 1))
+      continue
+    fi
     mkdir -p "$dst_dir"
 
     # Reap DANGLING symlinks first: when an action is removed from the registry
@@ -241,7 +264,9 @@ link_agent_commands() {
     # link here — an agent offering a directive that no longer exists.
     local stale
     for stale in "$dst_dir"/*; do
-      [ -L "$stale" ] && [ ! -e "$stale" ] && rm -f "$stale"
+      if [ -L "$stale" ] && [ ! -e "$stale" ] && ic_link_owned "$stale" actions/generated; then
+        rm -f "$stale"
+      fi
     done
 
     local n=0
@@ -250,11 +275,14 @@ link_agent_commands() {
       base="$(basename "$f")"
       # Only ever replace our own symlink or a free slot — never clobber a real
       # file the operator wrote by hand.
-      if [ -L "$dst_dir/$base" ] || [ ! -e "$dst_dir/$base" ]; then
+      if [ ! -e "$dst_dir/$base" ] && [ ! -L "$dst_dir/$base" ]; then
+        hc_ln_relative "$f" "$dst_dir/$base"
+        n=$((n + 1))
+      elif ic_link_owned "$dst_dir/$base" actions/generated; then
         hc_ln_relative "$f" "$dst_dir/$base"
         n=$((n + 1))
       else
-        warn "$dst_dir/$base exists and is NOT a symlink — left untouched"
+        warn "$dst_dir/$base exists and is not our symlink (user-owned file or link) — left untouched"
       fi
     done
     [ "$n" -eq 0 ] || ok "wired $n $agent command(s) → $dst_rel/"
@@ -262,6 +290,7 @@ link_agent_commands() {
   done
 
   [ "$total" -gt 0 ] || warn "no per-agent commands linked (nothing generated?)"
+  [ "$refused_dirs" -eq 0 ] || return 1
   return 0
 }
 

@@ -79,13 +79,13 @@ shell) to `/tmp/constitution_args_<id>.txt` (`<id>` = fresh random 12-hex string
 ever sees user text and there is no heredoc delimiter to break out of (the earlier fixed-delimiter
 heredoc could be ended early by a pasted line equal to the delimiter; that class is removed, and
 the suite replays that exact payload as a control needle). The engine accepts only
-`<dir>/constitution_args_<id>.txt` with `<dir>` exactly `/tmp` or exactly `$TMPDIR` (absolute, no extra
-path component, no `..`, no `.`/`//`) and `<id>` in `[a-z0-9]{8,64}`. The file is opened relative to a
+`<dir>/constitution_args_<id>.txt` with `<dir>` exactly `/tmp` or exactly `$TMPDIR` (absolute and canonical: no extra
+path component, no `..`, no `.`/`//`, and `realpath($TMPDIR)` equal to `$TMPDIR`, so a symlinked or relative `$TMPDIR` is not accepted) and `<id>` in `[a-z0-9]{8,64}`. The file is opened relative to a
 directory descriptor with `O_NOFOLLOW` (a symlink leaf or symlinked middle directory cannot be followed),
 must be a regular file with one hard link, owned by the caller, at most 8001 bytes, with the same
 inode as the directory entry, one line, no control or NUL characters; only that verified file is
 deleted (through the directory descriptor) after reading (helper `args_file_read.py`). `--stdin` was
-removed (nothing used it). The directory `/tmp` is hard-coded on purpose; an agent without a
+removed (nothing used it). The directories are exactly `/tmp` and (when canonical) `$TMPDIR`, on purpose; an agent without a
 file-write tool must refuse, never fall back to the shell.
 The engine splits the one-line string on blanks itself. Passing text as a double-quoted argument,
 as the first version did, is NOT safe and is not used. Residual: an agent without a file-write

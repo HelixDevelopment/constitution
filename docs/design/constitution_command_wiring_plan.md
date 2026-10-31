@@ -32,4 +32,4 @@
 2. Verify Codex prompt location; if `~/.codex/prompts` is the real path, link there (user scope, opt-in per the label-sync dry-run precedent in step 4d).
 3. For gemini/qwen/codex run a live `/constitution status` once the binaries are installed; until then record SKIP `hardware_not_present`-style (tool absent), never PASS.
 4. Add a doctor check per wired agent (symlink resolves, file content matches the generated one).
-5. All shims already use the `--args-file` mechanism (file-write tool, no shell sees user text); agents without a file-write tool cannot use it and need a documented fallback (`--stdin` through a heredoc with an agent-chosen random delimiter).
+5. All shims already use the `--args-file` mechanism (file-write tool, no shell sees user text); agents without a file-write tool cannot use it and must refuse; there is no shell fallback (`--stdin` was removed because a heredoc delimiter can be broken out of).

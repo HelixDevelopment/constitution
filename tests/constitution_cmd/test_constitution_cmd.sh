@@ -295,6 +295,36 @@ printf 'status\001x\n' > "$TD/constitution_args_ctl00000$$.txt"; run "$EA" --arg
 check "A control char in args file rejected rc2" test $RC -eq 2; rm -f "$TD/constitution_args_ctl00000$$.txt"
 printf 'help\000\n' > "$TD/constitution_args_nul00000$$.txt"; run "$EA" --args-file "$TD/constitution_args_nul00000$$.txt"
 check "A NUL byte in args file rejected rc2" test $RC -eq 2; rm -f "$TD/constitution_args_nul00000$$.txt"
+# filename anchored at the END: a valid-looking prefix followed by extra characters must be rejected
+for sfx in ".bak" "x" ".txt"; do
+    printf 'help\n' > "$TD/constitution_args_trail000$$.txt$sfx"; run "$EA" --args-file "$TD/constitution_args_trail000$$.txt$sfx"
+    check "A trailing '$sfx' after .txt rejected rc2" test $RC -eq 2; check "A trailing '$sfx' file survives" test -e "$TD/constitution_args_trail000$$.txt$sfx"
+    rm -f "$TD/constitution_args_trail000$$.txt$sfx"
+done
+# TMPDIR hygiene: the helper claims it accepts only a canonical absolute $TMPDIR (no ".."/"."/empty
+# segment, not relative, realpath(TMPDIR)==TMPDIR). Driven directly with a controlled TMPDIR.
+TR="$(realpath "$SB")/tdr"; mkdir -p "$TR/real" "$TR/other"; ln -s real "$TR/link"
+hlp(){ ( cd "$SB" && env "$@" python3 -I "$HLP" "$HLP_PATH" ) >"$SB/hout" 2>"$SB/herr"; HRC=$?; }
+printf 'help\n' > "$TR/real/constitution_args_tmpdir01.txt"
+HLP_PATH="$TR/real/../real/constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/real/../real"
+check "A TMPDIR with '..' rejected rc2" test $HRC -eq 2; check "A TMPDIR '..' file survives" test -e "$TR/real/constitution_args_tmpdir01.txt"
+HLP_PATH="$TR/link/constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/link"
+check "A symlinked TMPDIR rejected rc2" test $HRC -eq 2; check "A symlinked TMPDIR file survives" test -e "$TR/real/constitution_args_tmpdir01.txt"
+HLP_PATH="relative/constitution_args_tmpdir01.txt"; hlp TMPDIR="relative"
+check "A relative TMPDIR rejected rc2" test $HRC -eq 2
+HLP_PATH="$TR/real//constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/real//"
+check "A TMPDIR with empty segment rejected rc2" test $HRC -eq 2
+HLP_PATH="$TR/real/constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/real"
+check "A canonical TMPDIR accepted rc0" test $HRC -eq 0; check "A canonical TMPDIR file consumed" test ! -e "$TR/real/constitution_args_tmpdir01.txt"
+# identity check (dev+inode): the test seam (honoured ONLY with CONSTITUTION_CMD_TEST=1) swaps the directory
+# entry for another file in the same dir after the descriptor is open; the helper must reject.
+printf 'help\n' > "$TR/real/constitution_args_swapa0001.txt"; printf 'evil\n' > "$TR/real/constitution_args_swapb0001.txt"
+HLP_PATH="$TR/real/constitution_args_swapa0001.txt"; hlp TMPDIR="$TR/real" CONSTITUTION_CMD_TEST=1 CONSTITUTION_CMD_TEST_SWAP=constitution_args_swapb0001.txt
+check "A entry swapped after open rejected rc2" test $HRC -eq 2; check "A swap rejection says identity changed" grep -q 'identity changed' "$SB/herr"
+check "A swapped-in file not consumed" test -e "$TR/real/constitution_args_swapa0001.txt"
+printf 'help\n' > "$TR/real/constitution_args_swapb0001.txt"
+hlp TMPDIR="$TR/real" CONSTITUTION_CMD_TEST_SWAP=constitution_args_swapb0001.txt
+check "A swap seam inert without CONSTITUTION_CMD_TEST=1 (rc0)" test $HRC -eq 0
 # owner check: unit-test the helper with a different effective uid (a foreign-owned file cannot be created unprivileged)
 mkaf "owner000$$" "help"
 OUT="$(python3 -I - "$HLP" "$TD/constitution_args_owner000$$.txt" "$TD" 2>&1 <<'PYEOF'

@@ -271,8 +271,13 @@ expect_exit_derived() {
 sa_checks() {
     # G6 golden-SKIP: standalone canon, consumer root DERIVED -> exit 3.
     FX_G6="$(mk_sa "${SAP}sa_good")"
-    expect_exit_derived "G6 standalone canon checkout, no consumer -> SKIP (a), exit 3" 3 "${FX_G6}/constitution"
-    _g6_out="$("$GATE" --const-dir "${FX_G6}/constitution" 2>&1)"
+    expect_exit_derived "G6 standalone canon DECLARED (--standalone-canon), no consumer -> SKIP (a), exit 3" 3 "${FX_G6}/constitution" --standalone-canon
+    expect_exit_derived "G6b same checkout WITHOUT the declaration -> fail-closed consumer audit, exit 1 (never an inferred SKIP)" 1 "${FX_G6}/constitution"
+    CM_CANONICAL_ROOT_STANDALONE=1 "$GATE" --const-dir "${FX_G6}/constitution" --quiet >/dev/null 2>&1; _e=$?
+    if [ "$_e" -eq 3 ]; then echo "META OK:   G6c env CM_CANONICAL_ROOT_STANDALONE=1 declares standalone (exit 3)"; else echo "META FAIL: G6c env declaration expected exit 3, got ${_e}"; rc=1; fi
+    CM_CANONICAL_ROOT_STANDALONE=0 "$GATE" --const-dir "${FX_G6}/constitution" --quiet >/dev/null 2>&1; _e=$?
+    if [ "$_e" -eq 1 ]; then echo "META OK:   G6d env CM_CANONICAL_ROOT_STANDALONE=0 does not declare (exit 1)"; else echo "META FAIL: G6d env=0 expected exit 1, got ${_e}"; rc=1; fi
+    _g6_out="$("$GATE" --const-dir "${FX_G6}/constitution" --standalone-canon 2>&1)"
     case "$_g6_out" in
         *"(a) CONSUMER-POINTER-PRESENT: SKIP"*) echo "META OK:   G6 output states the (a) SKIP reason" ;;
         *) echo "META FAIL: G6 output carries no '(a) ... SKIP' reason line"; rc=1 ;;
@@ -280,12 +285,12 @@ sa_checks() {
     # M11: standalone canon still FAILs when (c) is violated (SKIP never hides (b)/(c)).
     FX_M11="$(mk_sa "${SAP}sa_mut_c")"
     printf '\n## INHERITED FROM some-upstream/CLAUDE.md\n\nx\n' >> "${FX_M11}/constitution/CLAUDE.md"
-    expect_exit_derived "M11 mutation: standalone canon gains a live pointer -> exit 1, not SKIP" 1 "${FX_M11}/constitution"
+    expect_exit_derived "M11 mutation: standalone canon gains a live pointer -> exit 1, not SKIP" 1 "${FX_M11}/constitution" --standalone-canon
     # M12 golden-TRUE: explicit --consumer-root is always audited, even for a standalone canon.
     FX_M12="$(mk_sa "${SAP}sa_explicit")"
     printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_M12}/CLAUDE.md"
-    expect_exit_derived "M12 explicit --consumer-root on a standalone canon, pointer missing -> exit 1" 1 \
-        "${FX_M12}/constitution" --consumer-root "${FX_M12}"
+    expect_exit_derived "M12 explicit --consumer-root beats the standalone declaration, pointer missing -> exit 1" 1 \
+        "${FX_M12}/constitution" --consumer-root "${FX_M12}" --standalone-canon
     # M13 golden-TRUE: a nested clone inside a CONSUMER git repo (not a
     # registered submodule) is a consumer, not standalone -> missing pointer FAILs.
     FX_M13="$(mk_sa "${SAP}sa_nested")"
@@ -321,6 +326,35 @@ sa_checks() {
     mkdir -p "${FX_N4}_cons"; printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_N4}_cons/CLAUDE.md"
     expect_exit_derived "N4 explicit --consumer-root, standalone-shaped canon, pointer missing -> exit 1" 1 \
         "${FX_N4}/constitution" --consumer-root "${FX_N4}_cons"
+    # Round-11 reviewer cases. DEFAULT (no declaration) must FAIL for every consumer shape, whatever the
+    # surroundings; the declaration is the ONLY route to SKIP, and it works whatever the surroundings.
+    # N5: non-git consumer holding BOTH constitution/ and submodules/constitution/, no CLAUDE.md.
+    FX_N5="$(mk_sa "${SAP}sa_both")"; mkdir -p "${FX_N5}/submodules"; cp -R "${FX_N5}/constitution" "${FX_N5}/submodules/constitution"
+    expect_exit_derived "N5 both constitution/ and submodules/constitution/, no CLAUDE.md -> exit 1" 1 "${FX_N5}/constitution"
+    expect_exit_derived "N5b same, the submodules/ copy -> exit 1" 1 "${FX_N5}/submodules/constitution"
+    # N6: consumer parent holding only package.json / go.mod / Makefile / src -> exit 1.
+    FX_N6="$(mk_sa "${SAP}sa_pkgonly")"; printf '{}\n' > "${FX_N6}/package.json"; printf 'module x\n' > "${FX_N6}/go.mod"; printf 'all:\n' > "${FX_N6}/Makefile"; mkdir -p "${FX_N6}/src"
+    expect_exit_derived "N6 parent with package.json/go.mod/Makefile/src only, no CLAUDE.md -> exit 1" 1 "${FX_N6}/constitution"
+    # N7: genuine standalone canon whose parent holds a README.md, declared -> SKIP; undeclared -> FAIL.
+    FX_N7="$(mk_sa "${SAP}sa_readme")"; printf '# notes\n' > "${FX_N7}/README.md"
+    expect_exit_derived "N7 declared standalone canon, parent has README.md -> SKIP exit 3" 3 "${FX_N7}/constitution" --standalone-canon
+    expect_exit_derived "N7b same, undeclared -> exit 1" 1 "${FX_N7}/constitution"
+    # N8: a canon cloned into a directory named 'submodules', declared -> SKIP.
+    FX_N8="$(mk_sa "${SAP}sa_dirname")"; mkdir -p "${FX_N8}/wrap"; mv "${FX_N8}/constitution" "${FX_N8}/wrap/submodules"
+    expect_exit_derived "N8 declared standalone canon cloned into a dir named 'submodules' -> SKIP exit 3" 3 "${FX_N8}/wrap/submodules" --standalone-canon
+    # D1/D2: the derived-consumer-root branches. D1 lib present + standard layout (resolver answers),
+    # D2 lib ABSENT (plain-parent fallback), good and bad, so neither derivation branch is uncovered.
+    FX_D1="$(mk_std "${SAP}der_std_bad")"; printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_D1}/CLAUDE.md"
+    expect_exit_derived "D1 standard layout, derived root, pointer missing -> exit 1" 1 "${FX_D1}/submodules/constitution"
+    FX_D1G="$(mk_std "${SAP}der_std_good")"
+    expect_exit_derived "D1b standard layout, derived root via resolver, good @import -> exit 0" 0 "${FX_D1G}/submodules/constitution"
+    _nl="${TMP}/nolib_${SAP}/gates"; mkdir -p "$_nl"; cp "$GATE" "$_nl/g.sh"; chmod +x "$_nl/g.sh"
+    FX_D2="$(mk "${SAP}der_nolib_good")"
+    _o="$("$_nl/g.sh" --const-dir "${FX_D2}/constitution" --quiet 2>&1)"; _e=$?
+    if [ "$_e" -eq 0 ]; then echo "META OK:   D2 lib absent, legacy layout, plain-parent fallback, good pointer (exit 0)"; else echo "META FAIL: D2 expected exit 0, got ${_e}: ${_o}"; rc=1; fi
+    FX_D3="$(mk "${SAP}der_nolib_bad")"; printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_D3}/CLAUDE.md"
+    "$_nl/g.sh" --const-dir "${FX_D3}/constitution" --quiet >/dev/null 2>&1; _e=$?
+    if [ "$_e" -eq 1 ]; then echo "META OK:   D3 lib absent, pointer missing (exit 1)"; else echo "META FAIL: D3 expected exit 1, got ${_e}"; rc=1; fi
 }
 if ( unset GIT_DIR GIT_WORK_TREE; git -C "$TMP" rev-parse --show-toplevel ) >/dev/null 2>&1; then
     echo "META FAIL: fixture dir $TMP lies inside a git work tree; standalone cases cannot be built honestly"
@@ -348,13 +382,13 @@ open(os.environ["DST"],"w").write(s.replace(o,os.environ["NEW"],1))' || { echo "
             echo "META OK:   source mutant $1 killed by the suite"
         fi
     }
-    sa_mutant skip-without-layout-check   '        if [ -n "$standalone" ]; then
-            _sa_parent=' '        if false; then
-            _sa_parent='
-    sa_mutant submodules-parent-not-consumer '"$(basename "$_sa_parent")" = "submodules"' '"$(basename "$_sa_parent")" = "never_submodules"'
-    sa_mutant parent-markers-ignored      'for _m in CLAUDE.md AGENTS.md GEMINI.md QWEN.md .gitmodules helix-deps.yaml README.md; do' 'for _m in NEVER_A_MARKER_FILE; do'
-    sa_mutant explicit-consumer-root-ignored 'if [ -z "$consumer_root" ] && command -v git >/dev/null 2>&1; then' 'if command -v git >/dev/null 2>&1; then'
-    sa_mutant parent-proof-dropped        '*"not a git repository"*) standalone="1" ;;' '*) standalone="1" ;;'
+    sa_mutant declaration-flag-ignored    '--standalone-canon) standalone_decl="1"; shift ;;' '--standalone-canon) shift ;;'
+    sa_mutant skip-without-declaration    'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ -z "$consumer_root" ]; then'
+    sa_mutant explicit-consumer-root-ignored 'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ "$standalone_decl" = "1" ]; then'
+    sa_mutant env-declaration-ignored     'case "${CM_CANONICAL_ROOT_STANDALONE:-}" in 1) standalone_decl="1" ;; esac' ':'
+    sa_mutant env-any-value-declares      'in 1) standalone_decl="1" ;; esac' 'in ?*) standalone_decl="1" ;; esac'
+    sa_mutant derive-fallback-removed     '[ -n "$consumer_root" ] || consumer_root="$(dirname "$const_dir")"' ':'
+    sa_mutant derive-resolver-ignored     'consumer_root="$(cl_project_root_of "$const_dir")" || consumer_root=""' 'consumer_root=""'
     GATE="$REAL_GATE"
 fi
 
