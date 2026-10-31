@@ -71,6 +71,9 @@ make_upstream() {
   git -C "$d/upstream.git" config uploadpack.allowFilter true || return 1
   git clone -q "$d/upstream.git" "$d/upwork" || return 1
   if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
+    # the clone carries the REAL follow-ups; drop them so the run depends only on the labelled fixtures below
+    # (real-repo state must never change the follow-up count the tests assert)
+    git -C "$d/upwork" rm -rq --ignore-unmatch docs/prompts/setup/followups || return 1
     mkdir -p "$d/upwork/scripts" "$d/upwork/docs/prompts/setup/followups"
     cp "$INSTALLER" "$d/upwork/scripts/install_constitution.sh"
     cp "$UPDATER" "$d/upwork/scripts/update_constitution.sh"

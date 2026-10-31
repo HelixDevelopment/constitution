@@ -24,7 +24,7 @@ git clone -q --shared --no-recurse-submodules "$REPO" "$C" || { echo "shared clo
 # exactly as they will be after a commit, so layer (1) is exercised; layer (2)/(3) are tested separately below
 cp "$INSTALLER" "$C/scripts/install_constitution.sh"; cp "$UPDATER" "$C/scripts/update_constitution.sh"
 git -C "$C" add -f scripts/install_constitution.sh scripts/update_constitution.sh
-git -C "$C" commit -q -m "test: installer under test" || { echo "commit failed" >&2; exit 2; }
+git -C "$C" commit -q --allow-empty -m "test: installer under test" || { echo "commit failed" >&2; exit 2; }
 fp() { { tree_fingerprint "$1"; [ -e "$1/.constitution-install-backup" ] && echo BACKUP-DIR-CREATED; } | sha256sum | cut -c1-64; }
 f0="$(fp "$C")"
 selfrun() { # description cwd args...
