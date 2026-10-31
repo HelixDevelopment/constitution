@@ -67,7 +67,12 @@
 # a command word or operands held in a variable or delivered at run time (`k=kill; $k -9 -1`,
 # `xargs kill -9 <<<"-1"`, `set -- -9 -1; kill "$@"`, `str(-pg)` list elements), strings assembled by a
 # computation other than `+` / adjacent literals (`"".join`, `%`-formatted names, `chr()`), getattr with a
-# computed name, exec wrappers that hide the command. Also: shell quote desync inside nested `$(...)`,
+# computed name, exec wrappers whose operands are computed (the plain wrappers timeout/env/sudo/command ARE
+# looked through). Closed in round 6: `pkill` with options before `-g`, `-gN`, `--pgroup`; python argv
+# `"-" + str(pg)` (a non-string operand of a `+` concatenation is spelled `$pg` / its digits); `kill 0`,
+# `kill(0, sig)`, `kill(~pg + 1, sig)`. Honest limit: a bare `kill 0` inside a string counts only when `kill`
+# starts the command or follows a command word (sudo, timeout, env, system, run, sh, ...), so prose such as
+# `after kill 0 times` stays quiet; `kill 0` after other words is missed. Also: shell quote desync inside nested `$(...)`,
 # Rust raw strings with embedded quotes, guard windows fakeable by comment-like text in sh/go, no check of
 # which branch a comparator controls, a heredoc whose delimiter is built by expansion, a Python heredoc
 # whose body is not valid Python (kept raw: stricter, never laxer), and Unicode normalisation outside
@@ -233,7 +238,15 @@ command -v python3 >/dev/null 2>&1 || { echo "${GATE}: python3 is required (comm
 #   (A bare non-call `killpg` reference is finding type B, decided on the non-string view; an exact
 #   "killpg" string is type C.)
 QCH=$'["\']'
-CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|pkill[[:space:]]+-g[[:space:]]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1'
+# pkill: ANY option may precede the group option (`pkill -9 -g P`, `-TERM -g P`, `-s TERM -g P`), the group
+# option may carry its value glued on (`-g1`), be bundled (`-fg`), or be spelled long (`--pgroup P`,
+# `--pgroup=P`). PKILL_PRE reads the options before it, PKILL_OPT is the group option itself.
+PKILL_PRE='pkill([[:space:]]+[^;&|]*)?[[:space:]]+'
+PKILL_OPT='(-[A-Za-z0-9]*g|--pgroup)'
+PKILL_G="${PKILL_PRE}${PKILL_OPT}([^A-Za-z]|\$)"
+# kill(0, sig) / Kill(0, sig) signals the CALLER'S OWN process group (pid 0), kill(~pg + 1, sig) is -pg.
+ZERO_COMPL='(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*(0[[:space:]]*,|~)'
+CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|'"${PKILL_G}"'|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1|'"${ZERO_COMPL}"''
 BARE_KILLPG='(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)'
 
 # ── Guard must be scoped to THE CALL'S OWN TARGET, in the RIGHT direction ───
@@ -249,7 +262,7 @@ extract_target() {
         -e 's/.*[^A-Za-z0-9_][Kk]ill[[:space:]]*\(//' \
         -e 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_:]*::)?[A-Za-z_]*from_raw[[:space:]]*\(//' \
         -e 's/^[[:space:]]*0[[:space:]]*-/-/' \
-        -e 's/.*pkill[[:space:]]+-g[[:space:]]+//' \
+        -e 's/.*pkill([[:space:]]+[^;&|]*)?[[:space:]]+(-[A-Za-z0-9]*g|--pgroup)[[:space:]=]*//' \
         | sed -nE 's/^[[:space:]]*-?[[:space:]]*"?\$?\{?([A-Za-z_][A-Za-z0-9_.]*).*/\1/p'
 }
 
@@ -280,7 +293,7 @@ target_guarded() {
 # A call whose process-group target is a NUMERIC LITERAL (`os.killpg(1, ...)`, `kill(-1, sig)`,
 # `syscall.Kill(-1, ...)`, `pkill -g 1`, `kill -9 -1`) is the BOB-126 disaster syscall spelled out in
 # source. No guard can make a hardcoded `1` safe; refusing to guess is the conservative-safe default.
-LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|pkill[[:space:]]+-g[[:space:]]+[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]'
+LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|'"${PKILL_PRE}${PKILL_OPT}"'[[:space:]="'"'"']*[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*0[[:space:]]*,'
 
 # ── The shell-kill OPERAND CLASSIFIER (POSIX awk; no gensub, no {n,m}) ──────────────────────────────────
 # Input: "LINENO<TAB>TEXT" records (the strings-kept view, continuation lines already joined; python
@@ -351,14 +364,20 @@ function classify(t,    r, r2, id) {
             if (t == "kill" || t ~ /\/kill$/ || t ~ /[A-Za-z0-9_]\.kill$/) { kpos = i; break }
         }
         if (!kpos) continue
-        dd = 0; sigdone = 0; skip = 0
+        dd = 0; sigdone = 0; skip = 0; seenpid = 0
+        # A bare `0` operand is the caller's own process group, but prose such as `after kill 0 times` must
+        # not fire: it counts only when `kill` starts the command or follows a command-introducing word.
+        pv = ""
+        for (q = kpos - 1; q >= 1; q--) if (tk[q] != "") { pv = tk[q]; break }
+        zok = (pv == "" || pv !~ /^[A-Za-z]+$/ || pv ~ /^(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|check_call|check_output|Popen|Command|sh|bash|eval)$/)
         i = kpos + 1
         while (i <= n && !skip) {
             i = skipnoise(i)
             if (i > n) break
             t = tk[i]
             if (t == "--") { dd = 1; i++; continue }
-            if (substr(t, 1, 1) != "-" || length(t) < 2) { i++; continue }
+            if (t ~ /^0+$/ && !seenpid && zok) { print ln "\tLIT\t"; i++; continue }   # pid 0 = the caller's own process group
+            if (substr(t, 1, 1) != "-" || length(t) < 2) { seenpid = 1; i++; continue }
             if (!dd && !sigdone) {
                 if (t == "-0") { skip = 1; break }
                 if (t == "-s" || t == "-n" || t == "-S") {
@@ -461,6 +480,56 @@ def slice_src(lines, start, end):
     return ' '.join(parts)
 
 
+_WRAP = {'str', 'int', 'abs', 'repr', 'format', 'float', 'oct', 'hex'}
+
+
+def plus_expr(toks, i, fstr_start):
+    """The operand after a `+` when it is NOT a string: returns (placeholder, next index) or None.
+    Consumes tokens up to a `,` `)` `]` `}` or a further `+` at depth 0. Placeholder: the digits of a numeric
+    literal (`str(1)` -> `1`), else `$<last identifier>` (`str(self.pg)` -> `$pg`), else `$(?)` (unknown
+    expression: never a plain name, so it can never be cleared by a guard)."""
+    n = len(toks)
+    while i < n and toks[i].type in (tokenize.NL, tokenize.COMMENT):
+        i += 1
+    if i >= n:
+        return None
+    first = toks[i]
+    if first.type == tokenize.STRING or (fstr_start is not None and first.type == fstr_start):
+        return None
+    depth = 0
+    names = []
+    nums = []
+    j = i
+    while j < n:
+        t = toks[j]
+        if t.type in (tokenize.NL, tokenize.COMMENT):
+            j += 1
+            continue
+        if t.type in (tokenize.NEWLINE, tokenize.ENDMARKER):
+            break
+        if t.type == tokenize.OP:
+            if t.string in ('(', '[', '{'):
+                depth += 1
+            elif t.string in (')', ']', '}'):
+                if depth == 0:
+                    break
+                depth -= 1
+            elif depth == 0 and t.string in (',', '+'):
+                break
+        elif t.type == tokenize.NAME and t.string not in _WRAP:
+            names.append(t.string)
+        elif t.type == tokenize.NUMBER:
+            nums.append(t.string)
+        elif t.type == tokenize.STRING or (fstr_start is not None and t.type == fstr_start):
+            return None
+        j += 1
+    if nums and not names:
+        return nums[0], j
+    if names:
+        return '$' + names[-1], j
+    return '$(?)', j
+
+
 def joined_records(toks, lines, fstr_start, fstr_end):
     """Runs of >= 2 string items separated only by `,` / `+` / newlines (an argv list or a concatenation that
     spans lines) joined into one record, attributed to the first item's line."""
@@ -505,6 +574,14 @@ def joined_records(toks, lines, fstr_start, fstr_end):
                 first[0] = t.start[0]
             cur.append(strbody(slice_src(lines, t.start, toks[j - 1].end)))
             plus.append(pend[0])
+            pend[0] = False
+            i = j
+        elif t.type == tokenize.OP and t.string == '+' and cur and plus_expr(toks, i + 1, fstr_start) is not None:
+            # `"-" + str(pg)`: a non-string operand of a concatenation. It is spelled into the record as a
+            # shell-style variable (`$pg`) or its literal digits, so the operand classifier sees `-$pg` / `-1`.
+            txt, j = plus_expr(toks, i + 1, fstr_start)
+            cur.append(txt)
+            plus.append(True)
             pend[0] = False
             i = j
         elif t.type == tokenize.OP and t.string in (',', '+'):

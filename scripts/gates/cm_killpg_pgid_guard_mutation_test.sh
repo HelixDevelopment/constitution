@@ -602,6 +602,44 @@ else
 fi
 
 # ===================================================================
+# 8.11 ROUND 6: F1 pkill option order / --pgroup, F2 argv `"-" + str(x)`, F3 kill 0 / kill(0,..),
+# F4 `~pg + 1`. Control needles p00/q00/r00 (shapes the old gate already caught) prove the
+# instrument sees the file class before any new shape is believed.
+# ===================================================================
+R6GEN="${SCRIPT_DIR}/fixtures/killpg_round6_cases.py"
+if [ -f "$R6GEN" ] && command -v python3 >/dev/null 2>&1; then
+    R6="$TMP/round6"; mkdir -p "$R6"
+    python3 -I "$R6GEN" "$R6"
+    r6_n=0; r6_bad=0
+    while IFS=$'\t' read -r cid crc creq || [ -n "$cid" ]; do
+        [ -n "$cid" ] || continue
+        r6_n=$(( r6_n + 1 ))
+        cout="$(bash "$GATE" --root "$R6/$cid" 2>&1)"; crc_got=$?
+        if [ "$crc_got" -ne "$crc" ]; then
+            echo "❌ META FAIL: round-6 case ${cid} — expected rc=${crc}, got rc=${crc_got}"
+            r6_bad=$(( r6_bad + 1 )); continue
+        fi
+        IFS='|' read -r -a reqs <<< "$creq"
+        for rq in "${reqs[@]}"; do
+            [ -n "$rq" ] || continue
+            if ! grep -qF -- "$rq" <<< "$cout"; then
+                echo "❌ META FAIL: round-6 case ${cid} — gate output lacks '${rq}'"
+                r6_bad=$(( r6_bad + 1 ))
+            fi
+        done
+    done < "$R6/MANIFEST.tsv"
+    if [ "$r6_bad" -eq 0 ]; then
+        echo "✅ META OK:   round-6 cases — ${r6_n} cases hold (exit status and gate output)"
+    else
+        echo "❌ META FAIL: round-6 cases — ${r6_bad} assertion(s) failed of ${r6_n} cases"
+        rc=1
+    fi
+else
+    echo "❌ META FAIL: round-6 case generator or python3 missing (${R6GEN})"
+    rc=1
+fi
+
+# ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
 # an EARLY line of the call's window and a ~350 KB code line follows it. With
 # `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the
