@@ -125,10 +125,17 @@ cases_mode(){
     m="$(stat -L -c %a "$q/.claude/settings.json" 2>/dev/null)"
     hck "MODE/$mode symlinked settings.json -> 644 file: rc 0" "[ $RC -eq 0 ]"
     hck "MODE/$mode symlinked settings.json: not group/other-writable (got $m)" "[ '$m' = 644 ]"
-    q="$sb/${tag}_new_$mode"; mkdir -p "$q"
-    if [ $mode = nojq ]; then ( umask 027; pfx "$q" env PATH="$nojq" ); else ( umask 027; pfx "$q" env ); fi
-    hck "MODE/$mode new settings.json follows umask 027 (640)" "[ \"\$(stat -c %a '$q/.claude/settings.json')\" = 640 ]"
-    hck "MODE/$mode new .bak follows umask 027 (640)" "[ \"\$(stat -c %a '$q/.claude/settings.json.bak')\" = 640 ]"
+    hck "MODE/$mode symlinked settings.json: replaced by a regular file" "[ ! -L '$q/.claude/settings.json' ] && [ -f '$q/.claude/settings.json' ]"
+    hck "MODE/$mode symlinked settings.json: stderr warning names the symlink" "grep -q 'settings.json is a symlink' '$sb/out'"
+    local um want_f want_d
+    for um in 000:644:755 077:600:700 027:640:750 022:644:755; do
+      IFS=: read -r um want_f want_d <<<"$um"
+      q="$sb/${tag}_new_${mode}_$um"; mkdir -p "$q"
+      if [ $mode = nojq ]; then ( umask "$um"; pfx "$q" env PATH="$nojq" ); else ( umask "$um"; pfx "$q" env ); fi
+      hck "MODE/$mode umask $um: new settings.json is $want_f" "[ \"\$(stat -c %a '$q/.claude/settings.json')\" = $want_f ]"
+      hck "MODE/$mode umask $um: new .bak is $want_f" "[ \"\$(stat -c %a '$q/.claude/settings.json.bak')\" = $want_f ]"
+      hck "MODE/$mode umask $um: new .claude is $want_d (no group/other write)" "[ \"\$(stat -c %a '$q/.claude')\" = $want_d ]"
+    done
     q="$sb/${tag}_old_$mode"; mkdir -p "$q/.claude"; printf '{}\n' > "$q/.claude/settings.json"; chmod 600 "$q/.claude/settings.json"
     if [ $mode = nojq ]; then pfx "$q" env PATH="$nojq"; else pfx "$q" env; fi
     hck "MODE/$mode existing 600 settings.json keeps 600" "[ \"\$(stat -c %a '$q/.claude/settings.json')\" = 600 ]"
@@ -136,16 +143,28 @@ cases_mode(){
 }
 cases_mode md
 ck "MODE all cases (production script)" "[ $H1F -eq 0 ]"
-# finding 5: invalid JSON is refused on BOTH paths, file left unchanged
+# finding 5 + round 14: anything but exactly ONE well-formed JSON object is REFUSED (clear message, no
+# traceback, file byte-identical) on BOTH paths: invalid, array, empty, whitespace, multi-doc, null, bad hooks.
+INV_BODIES=('not json {' '[1,2]' '' $'  \n\t\n' '{} {}' 'null' '{"hooks":"x"}' '{"hooks":null}' '{"hooks":{"UserPromptSubmit":"x"}}' '{"hooks":{"UserPromptSubmit":[1]}}' '{"hooks":{"UserPromptSubmit":[{"hooks":"x"}]}}' '{"hooks":{"UserPromptSubmit":[{"hooks":[1]}]}}')
 cases_invalid(){
-  local tag="$1" mode body q
+  local tag="$1" mode body q i
   for mode in jq nojq; do
-    for body in 'not json {' '[1,2]'; do
-      q="$sb/${tag}_bad_${mode}_${#body}"; mkdir -p "$q/.claude"; printf '%s\n' "$body" > "$q/.claude/settings.json"
+    for i in "${!INV_BODIES[@]}"; do
+      body="${INV_BODIES[$i]}"
+      q="$sb/${tag}_bad_${mode}_$i"; mkdir -p "$q/.claude"; printf '%s' "$body" > "$q/.claude/settings.json"; cp "$q/.claude/settings.json" "$q/orig"
       if [ $mode = nojq ]; then pfx "$q" env PATH="$nojq"; else pfx "$q" env; fi
-      hck "INVALID/$mode '$body': rc non-zero" "[ $RC -ne 0 ]"
-      hck "INVALID/$mode '$body': settings.json unchanged" "[ \"\$(cat '$q/.claude/settings.json')\" = '$body' ]"
+      hck "INVALID/$mode #$i: rc non-zero" "[ $RC -ne 0 ]"
+      hck "INVALID/$mode #$i: settings.json byte-identical" "cmp -s '$q/orig' '$q/.claude/settings.json'"
+      hck "INVALID/$mode #$i: clear REFUSED message, no traceback, no 'wired'" "grep -q REFUSED '$sb/out' && ! grep -q Traceback '$sb/out' && ! grep -q 'wired UserPromptSubmit' '$sb/out'"
     done
+  done
+  # nit 5: settings.json is a directory: early clear refusal, no hard-link warning, no seed leftover
+  for mode in jq nojq; do
+    q="$sb/${tag}_dir_$mode"; mkdir -p "$q/.claude/settings.json"
+    if [ $mode = nojq ]; then pfx "$q" env PATH="$nojq"; else pfx "$q" env; fi
+    hck "DIR/$mode settings.json directory: rc 1" "[ $RC -eq 1 ]"
+    hck "DIR/$mode settings.json directory: clear message, no hard-link warning" "grep -q 'is a directory (or a symlink to one) - REFUSED' '$sb/out' && ! grep -q 'hard link' '$sb/out'"
+    hck "DIR/$mode settings.json directory: still a directory, no leftover files" "[ -d '$q/.claude/settings.json' ] && [ -z \"\$(ls -A '$q/.claude' | grep -v '^settings.json\$')\" ]"
   done
 }
 cases_invalid inv
@@ -186,8 +205,17 @@ MUT[PY]='s=s.replace("os.replace(tmp, path)","open(path,\"w\").write(open(tmp).r
 MUT[BAK]='s=s.replace("cp -f -- \"$settings\" \"$_bak\" && chmod \"$_bak_mode\" \"$_bak\" && mv -f -- \"$_bak\" \"$settings.bak\"","cp -f -- \"$settings\" \"$settings.bak\"")'
 MUT[STAT]='s=s.replace("settings_mode=\"$(stat -L -c","settings_mode=\"$(stat -c")'
 MUT[SDR]='s=s.replace("  \"$proj_real\"/*) ;;\n  *) echo \"install_action_prefix: $settings_dir resolves outside the project — REFUSED\" >&2; exit 1 ;;","  *) ;;")'
-MUT[PYINV]='s=s.replace("sys.exit(1)\nif not isinstance","data = {}\nif not isinstance")'
-for name in LC JQ PY BAK STAT PYINV SDR; do
+MUT[PYVAL]='s=s.replace("except Exception as exc:\n    refuse(\"is not exactly one valid JSON document (%s)\" % exc)","except Exception as exc:\n    data = {}")'
+MUT[PYNULL]='s=s.replace("if not isinstance(data, dict):\n    refuse(\"top level is not an object\")","if data is None:\n    data = {}\nif not isinstance(data, dict):\n    refuse(\"top level is not an object\")")'
+MUT[PYHOOKS]='s=s.replace("if not isinstance(hooks, dict):\n    refuse(","if False:\n    refuse(")'
+MUT[JQNOVAL]='s=s.replace("if ! jq -s -e \"$JQ_VALID\"","if false && jq -s -e \"$JQ_VALID\"").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
+MUT[JQMULTI]='s=s.replace("length == 1 and (.[0] | valid)","all(.[]; valid)").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
+MUT[JQNULL]='s=s.replace("length == 1 and (.[0] | valid)","length == 1 and ((.[0] == null) or (.[0] | valid))").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
+MUT[JQHOOKS]='s=s.replace("if ! jq -s -e \"$JQ_VALID\"\x27 length == 1 and (.[0] | valid)\x27","if ! jq -s -e \x27length == 1 and (.[0] | type) == \"object\"\x27")'
+MUT[MODE]='s=s.replace("& ~022 )))","))) ")'
+MUT[SYM]='s=s.replace("$settings is a symlink;","$settings is a link;")'
+MUT[DIR]='s=s.replace("if [ -d \"$settings\" ]; then\n  echo \"install_action_prefix: $settings is a directory","if false; then\n  echo \"install_action_prefix: $settings is a directory")'
+for name in LC JQ PY BAK STAT SDR PYVAL PYNULL PYHOOKS JQNOVAL JQMULTI JQNULL JQHOOKS MODE SYM DIR; do
   if mkmut "$name" "${MUT[$name]}"; then
     ck "MUTANT $name is killed by the suite" "run_mut $name"
   else

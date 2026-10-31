@@ -29,8 +29,11 @@
 #   Edits the project's .claude/settings.json (creating it if absent). A backup
 #   is written to .claude/settings.json.bak before any modification. Files are
 #   replaced by mktemp+rename (never written through); an existing settings.json keeps
-#   its mode (stat -L), a NEW settings.json/.bak gets 0666 & ~umask. A hard-linked
-#   settings.json only draws a warning. Invalid JSON is refused on both jq and python paths.
+#   its mode (stat -L), a NEW settings.json/.bak gets 0666 & ~umask & ~022 (never group/other
+#   writable); a NEW .claude is created without group/other write. A hard-linked settings.json
+#   only draws a warning; a symlinked settings.json is replaced by a regular file (warning).
+#   Anything but exactly ONE JSON object (empty, whitespace, null, array, several documents,
+#   malformed hooks structure) is REFUSED on both jq and python paths, file unchanged.
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
 #   jq (REQUIRED for safe JSON merge of settings.json). python3 fallback if jq
@@ -77,7 +80,13 @@ for _p in "$settings_dir" "$settings" "$settings.bak" "$settings.tmp"; do
     *) echo "install_action_prefix: $_p resolves outside the project — REFUSED, nothing written" >&2; exit 1 ;;
   esac
 done
-mkdir -p "$settings_dir"
+if [ -d "$settings" ]; then
+  echo "install_action_prefix: $settings is a directory (or a symlink to one) - REFUSED, nothing written" >&2; exit 1
+fi
+if [ ! -d "$settings_dir" ]; then
+  # NEW .claude: no group/other write regardless of the ambient umask
+  ( umask "$(printf '%04o' $(( $(umask) | 022 )))"; mkdir -p "$settings_dir" ) || exit 1
+fi
 settings_dir_real="$(cd "$settings_dir" && pwd -P)"
 case "$settings_dir_real" in
   "$proj_real"/*) ;;
@@ -92,13 +101,16 @@ esac
 # A settings.json with more than one hard link (for example after a `cp -al` snapshot) is NOT
 # refused: nothing here writes through the inode (fresh mktemp inode + rename only, so the other
 # links keep the old content); we only warn so the operator knows the other links stay stale.
+if [ -L "$settings" ]; then
+  echo "install_action_prefix: WARNING $settings is a symlink; it is replaced by a regular file (the link target keeps its old content)" >&2
+fi
 if [ -e "$settings" ] && [ "$(stat -L -c %h -- "$settings" 2>/dev/null || echo 1)" -gt 1 ]; then
   echo "install_action_prefix: WARNING $settings has more than one hard link; it is replaced by a new file (rename), the other links keep the old content" >&2
 fi
 
-# Mode handling: mktemp creates 0600. A NEW file gets the umask-respecting mode (0666 & ~umask);
+# Mode handling: mktemp creates 0600. A NEW file gets 0666 & ~umask & ~022 (at most 0644);
 # an EXISTING file keeps its own mode (stat -L: follows a symlink, so a link to a 0644 file yields 644).
-new_mode="$(printf '%03o' $(( 0666 & ~$(umask) )))"
+new_mode="$(printf '%03o' $(( 0666 & ~$(umask) & ~022 )))"
 
 # Seed an empty settings.json if missing (fresh inode, renamed into place).
 if [ ! -f "$settings" ]; then
@@ -112,8 +124,21 @@ _bak="$(mktemp "$settings_dir/.settings.bak.XXXXXX")" || exit 1
 if [ -e "$settings.bak" ]; then _bak_mode="$(stat -L -c %a -- "$settings.bak" 2>/dev/null || echo "$new_mode")"; else _bak_mode="$new_mode"; fi
 cp -f -- "$settings" "$_bak" && chmod "$_bak_mode" "$_bak" && mv -f -- "$_bak" "$settings.bak" || { rm -f -- "$_bak"; exit 1; }
 
+# One JSON object, hooks structure well formed (shared by input validation and post-merge sanity).
+JQ_VALID='def valid:
+  if type != "object" then false
+  elif (has("hooks") and ((.hooks | type) != "object")) then false
+  elif (((.hooks // {}) | has("UserPromptSubmit")) and (((.hooks // {}).UserPromptSubmit | type) != "array")) then false
+  else ((.hooks // {}).UserPromptSubmit // [])
+       | all(.[]; (type == "object") and ((has("hooks") | not) or (((.hooks | type) == "array") and all(.hooks[]; type == "object"))))
+  end;'
+
 merge_with_jq() {
   local tmp
+  if ! jq -s -e "$JQ_VALID"' length == 1 and (.[0] | valid)' "$settings" >/dev/null 2>&1; then
+    echo "install_action_prefix: $settings is not exactly one JSON object with a well-formed hooks structure (empty, whitespace, null, array, several documents or malformed hooks) - REFUSED, left unchanged" >&2
+    return 1
+  fi
   tmp="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
   if jq --arg cmd "$hook_cmd" '
     .hooks = (.hooks // {})
@@ -127,7 +152,9 @@ merge_with_jq() {
           { "hooks": [ { "type": "command", "command": $cmd } ] }
         ]
       end
-  ' "$settings" > "$tmp" && chmod "$settings_mode" "$tmp" && mv -f -- "$tmp" "$settings"; then
+  ' "$settings" > "$tmp" \
+     && jq -s -e --arg cmd "$hook_cmd" 'length == 1 and (.[0] | type) == "object" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))' "$tmp" >/dev/null 2>&1 \
+     && chmod "$settings_mode" "$tmp" && mv -f -- "$tmp" "$settings"; then
     return 0
   fi
   rm -f -- "$tmp"
@@ -139,17 +166,28 @@ merge_with_python() {
 import json, os, sys, tempfile
 path = sys.argv[1]
 cmd = os.environ["HELIX_HOOK_CMD"]
+def refuse(msg):
+    sys.stderr.write("install_action_prefix: settings.json %s - REFUSED, left unchanged\n" % msg)
+    sys.exit(1)
 try:
     with open(path) as fh:
-        data = json.load(fh)
+        data = json.loads(fh.read())
 except Exception as exc:
-    sys.stderr.write("install_action_prefix: settings.json is not valid JSON (%s) - REFUSED, left unchanged\n" % exc)
-    sys.exit(1)
+    refuse("is not exactly one valid JSON document (%s)" % exc)
 if not isinstance(data, dict):
-    sys.stderr.write("install_action_prefix: settings.json top level is not an object - REFUSED, left unchanged\n")
-    sys.exit(1)
-hooks = data.setdefault("hooks", {})
-ups = hooks.setdefault("UserPromptSubmit", [])
+    refuse("top level is not an object")
+hooks = data.get("hooks", {}) if "hooks" in data else {}
+if not isinstance(hooks, dict):
+    refuse("\"hooks\" is not an object")
+ups = hooks.get("UserPromptSubmit", []) if "UserPromptSubmit" in hooks else []
+if not isinstance(ups, list):
+    refuse("\"hooks.UserPromptSubmit\" is not an array")
+for grp in ups:
+    if not isinstance(grp, dict):
+        refuse("a hooks.UserPromptSubmit entry is not an object")
+    if "hooks" in grp:
+        if not isinstance(grp["hooks"], list) or not all(isinstance(h, dict) for h in grp["hooks"]):
+            refuse("a hooks.UserPromptSubmit entry has a malformed \"hooks\" array")
 def already():
     for grp in ups:
         for h in grp.get("hooks", []):
@@ -158,6 +196,10 @@ def already():
     return False
 if not already():
     ups.append({"hooks": [{"type": "command", "command": cmd}]})
+hooks["UserPromptSubmit"] = ups
+data["hooks"] = hooks
+if not already():
+    refuse("hook entry missing after merge (internal error)")
 # Write a fresh inode next to the target and rename it into place: never write through the old inode.
 mode = os.stat(path).st_mode & 0o7777
 fd, tmp = tempfile.mkstemp(prefix=".settings.new.", dir=os.path.dirname(path))
