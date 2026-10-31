@@ -81,6 +81,22 @@ for rel in submodules/constitution constitution; do
     done
 done
 
+# Fail-closed (a) : with NO --standalone-canon declaration the gate audits a consumer, so a
+# parent WITHOUT any CLAUDE.md (or without a pointer) is a FAIL, never an auto-detected
+# standalone SKIP; the SKIP exists only when the invocation DECLARES --standalone-canon.
+for rel in submodules/constitution constitution; do
+    d="$LT_SB/sa $(printf '%s' "$rel" | tr / _)"
+    mkfx "$d" "$rel" "## INHERITED FROM $rel/CLAUDE.md"
+    rm -f "$d/CLAUDE.md"
+    gate "$d/$rel"; rc=$?
+    lt_check "[$rel] no consumer CLAUDE.md and no declaration -> exit 1 fail-closed (rc=$rc)" test "$rc" -eq 1
+    gate "$d/$rel" --standalone-canon; rc=$?
+    lt_check "[$rel] --standalone-canon declared -> exit 3 SKIP (rc=$rc)" test "$rc" -eq 3
+    printf '# readme\n' > "$d/README.md"
+    gate "$d/$rel"; rc=$?
+    lt_check "[$rel] README.md next to the checkout does not make it standalone -> exit 1 (rc=$rc)" test "$rc" -eq 1
+done
+
 G="$LAYOUT_SRC_ROOT/scripts/gates/cm_canonical_root_clarity.sh"
 lt_check "gate --selftest green" bash "$G" --selftest
 lt_check "gate parses under sh -n" sh -n "$G"

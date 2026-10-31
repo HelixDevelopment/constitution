@@ -7,13 +7,57 @@
 # A control run of every suite on the unmutated copy must PASS first.
 # The real tree is never modified.
 # Usage: bash tests/layout/test_layout_mutations.sh
+#
+# Kinds of mutation (mutate ID SUITE KIND PATH ...):
+#   pre  PATH           revert PATH to its PRE-HARDENING content (git rev PRE_REV, default
+#                       a0609ec^ = the parent of the commit that landed the layout hardening).
+#                       A plain 'git show HEAD:PATH' is a no-op: HEAD already holds the fixes.
+#   sed  PATH EXPR      sed edit of the sandbox copy
+#   repl PATH OLD NEW   literal replacement of exactly ONE occurrence
+# Every mutant MUST differ from the unmutated sandbox copy; an unchanged mutant is reported
+# 'BROKEN <id> NOOP' and counts as a FAIL (never a silent 'survived').
+#
+# Knobs (environment):
+#   MUT_ONLY=<ERE>      run only the mutations whose id matches (e.g. 'M0[2-9]|M1[0-2]').
+#   MUT_SHARD=<i>/<n>   run only every n-th selected mutation, starting at index i (0-based);
+#                       lets one logical run be split over several short jobs.
+#   CONTROL_ALL=1       run the control of EVERY suite up front (default: lazily, once per
+#                       distinct guarding suite, cached for the whole run).
+#   MUT_SUITE_TIMEOUT=<s>  per-suite-run timeout (default 900); a timeout is a non-attributable FAIL.
+#   PRE_REV=<rev>       pre-hardening revision for kind 'pre' (default a0609ec^).
+# Cost: test_round7_ambient ~380 s and test_round8_git_env ~200 s PER RUN; the full set
+# (every mutation x its suite) therefore does NOT fit one 1500 s job: split it with MUT_ONLY
+# or MUT_SHARD. The mutants of the template/hook/script group (M01-M12) fit one job.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL="$(cd "$HERE/../.." && pwd)"
 . "$REAL/scripts/lib/safe_rm.sh"
 SB="$(mktemp -d "${TMPDIR:-/tmp}/layout_mut.XXXXXX")"
 [ -n "$SB" ] && [ -d "$SB" ] || { echo "mktemp failed"; exit 2; }
-trap 'safe_rm_rf "${SB:?}"' EXIT
+# Cleanup must also run on TERM/INT/HUP (a bash killed by an untrapped signal skips the EXIT
+# trap and leaks the sandbox). safe_rm_rf is never weakened; if it refuses, say so loudly and
+# fall back to a guarded delete of exactly our own mktemp name.
+cleanup() {
+    local sb="${SB:?}"
+    safe_rm_rf "$sb" 2>/dev/null && return 0
+    case "$sb" in
+        "${TMPDIR:-/tmp}"/layout_mut.??????) [ -d "$sb" ] && [ ! -L "$sb" ] && rm -rf -- "${sb:?}" ;;
+        *) echo "cleanup: refusing to delete unexpected path $sb" >&2 ;;
+    esac
+}
+trap cleanup EXIT
+# Stop OUR OWN suite process group (setsid below makes pgid == pid) before exiting, so a TERM
+# does not wait for a ~380 s suite. §11.4.263: only a pgid that is an int > 1 AND equals the pid
+# we started is ever signalled.
+SUITE_PID=""
+stop_suite() {
+    local pid="${SUITE_PID:-}" pg
+    [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null || return 0
+    pg="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+    if [ -n "$pg" ] && [ "$pg" -gt 1 ] 2>/dev/null && [ "$pg" = "$pid" ]; then kill -TERM -- "-$pg" 2>/dev/null; fi
+}
+trap 'stop_suite; exit 143' TERM
+trap 'stop_suite; exit 130' INT HUP
 SRC="$SB/src"
 mkdir -p "$SRC/tests"
 for p in scripts templates .claude-plugin plugins actions skills Constitution.md CLAUDE.md AGENTS.md; do
@@ -22,30 +66,54 @@ done
 cp -a "$REAL/tests/layout" "$SRC/tests/layout"
 safe_rm_rf "$SRC/scripts/fastcycle/consumers/__pycache__" 2>/dev/null || true
 
-PASS=0; FAIL=0
-run_suite() { LAYOUT_SRC_ROOT="$SRC" bash "$SRC/tests/layout/$1.sh" >"$SB/last.out" 2>&1; }
+PASS=0; FAIL=0; MUT_IDX=0
+PRE_REV="${PRE_REV:-a0609ec^}"
+SUITE_TO="${MUT_SUITE_TIMEOUT:-900}"
+run_suite() {
+    local rc
+    LAYOUT_SRC_ROOT="$SRC" setsid timeout -k 10 "$SUITE_TO" nice -n 15 bash "$SRC/tests/layout/$1.sh" >"$SB/last.out" 2>&1 &
+    SUITE_PID=$!
+    wait "$SUITE_PID"; rc=$?
+    SUITE_PID=""
+    return "$rc"
+}
 
-# --- control: every guarding suite passes on the unmutated copy ------------
+# --- control: the guarding suite passes on the unmutated copy (once per suite, cached) ---
+declare -A CONTROL=()
+control() { # control SUITE -> 0 when green
+    local s="$1"
+    if [ -z "${CONTROL[$s]:-}" ]; then
+        if run_suite "$s"; then CONTROL[$s]=ok; PASS=$((PASS+1)); echo "PASS control $s"
+        else CONTROL[$s]=red; FAIL=$((FAIL+1)); echo "FAIL control $s (its mutations below are meaningless)"; tail -5 "$SB/last.out"; fi
+    fi
+    [ "${CONTROL[$s]}" = ok ]
+}
 SUITES="test_constitution_layout_lib test_setup_layout test_post_merge_layout test_guard_evidence_layout
 test_canonical_root_layout test_fastcycle_layout test_multitrack_sync_layout test_plugin_hint_layout test_templates_layout
 test_pending_update_layout test_deps_manifest_layout test_consumer_trust_lock test_round4_hardening test_round6_hardening test_round7_ambient test_round8_git_env"
-# MUT_ONLY=<ERE>: run only the mutations whose id matches (and only the round-8 control); unset = everything.
-for s in $SUITES; do
-    [ -n "${MUT_ONLY:-}" ] && [ "$s" != test_round8_git_env ] && continue
-    if run_suite "$s"; then PASS=$((PASS+1)); echo "PASS control $s"
-    else FAIL=$((FAIL+1)); echo "FAIL control $s (mutations below are meaningless)"; tail -5 "$SB/last.out"; fi
-done
+if [ "${CONTROL_ALL:-0}" = 1 ] && [ -z "${MUT_ONLY:-}" ]; then for s in $SUITES; do control "$s"; done; fi
 
-# mutate ID SUITE KIND ARG... ; KIND = head PATH | sed PATH EXPR | repl PATH OLD NEW
+# selected ID -> 0 when this mutation should run (MUT_ONLY filter, then MUT_SHARD split)
+selected() {
+    if [ -n "${MUT_ONLY:-}" ] && ! [[ "$1" =~ $MUT_ONLY ]]; then return 1; fi
+    if [ -n "${MUT_SHARD:-}" ]; then
+        local i="${MUT_SHARD%/*}" n="${MUT_SHARD#*/}" k=$MUT_IDX
+        MUT_IDX=$((MUT_IDX+1))
+        [ $((k % n)) -eq "$i" ] || return 1
+    fi
+    return 0
+}
+
+# mutate ID SUITE KIND ARG... ; KIND = pre PATH | sed PATH EXPR | repl PATH OLD NEW
 mutate() {
     local id="$1" suite="$2" kind="$3" path="$4" bak="$SB/bak"
-    if [ -n "${MUT_ONLY:-}" ] && ! [[ "$id" =~ $MUT_ONLY ]]; then return; fi
+    selected "$id" || return 0
+    control "$suite" || { echo "SKIP $id (control of $suite is red)"; return 0; }
     cp -a "$SRC/$path" "$bak"
     case "$kind" in
-        head) git -C "$REAL" show "HEAD:$path" > "$SRC/$path" ;;
-        sed)  sed -i "$5" "$SRC/$path"
-              if cmp -s "$bak" "$SRC/$path"; then
-                  FAIL=$((FAIL+1)); echo "FAIL $id: sed expression did not change $path"; cp -a "$bak" "$SRC/$path"; return; fi ;;
+        pre)  if ! git -C "$REAL" show "$PRE_REV:$path" > "$SRC/$path" 2>/dev/null; then
+                  FAIL=$((FAIL+1)); echo "BROKEN $id: $path not present at $PRE_REV"; cp -a "$bak" "$SRC/$path"; return; fi ;;
+        sed)  sed -i "$5" "$SRC/$path" ;;
         repl) # literal replacement of exactly ONE occurrence of $5 by $6
               if ! python3 - "$SRC/$path" "$5" "$6" <<'PYREPL'
 import sys
@@ -55,8 +123,10 @@ if s.count(old) != 1:
     sys.exit(1)
 open(p, "w").write(s.replace(old, new))
 PYREPL
-              then FAIL=$((FAIL+1)); echo "FAIL $id: replacement text not found exactly once in $path"; cp -a "$bak" "$SRC/$path"; return; fi ;;
+              then FAIL=$((FAIL+1)); echo "BROKEN $id: replacement text not found exactly once in $path"; cp -a "$bak" "$SRC/$path"; return; fi ;;
     esac
+    if cmp -s "$bak" "$SRC/$path"; then
+        FAIL=$((FAIL+1)); echo "BROKEN $id NOOP: the mutant is identical to the unmutated $path"; cp -a "$bak" "$SRC/$path"; return; fi
     if run_suite "$suite"; then
         FAIL=$((FAIL+1)); echo "FAIL $id SURVIVED ($suite still green)"
     else
@@ -67,7 +137,7 @@ PYREPL
         if [ -n "$sumline" ] && [ -n "$firstfail" ]; then
             PASS=$((PASS+1)); echo "PASS $id killed by [$firstfail] ($sumline)"
         else
-            FAIL=$((FAIL+1)); echo "FAIL $id NOT-ATTRIBUTABLE (suite failed without a summary line or a named FAIL: crash)"
+            FAIL=$((FAIL+1)); echo "FAIL $id NOT-ATTRIBUTABLE (suite failed without a summary line or a named FAIL: crash/timeout)"
             tail -3 "$SB/last.out" | cut -c1-200
         fi
     fi
@@ -76,20 +146,23 @@ PYREPL
 
 mutate M01-lib-legacy-only   test_constitution_layout_lib sed scripts/lib/constitution_layout.sh \
     's|^CONSTITUTION_LAYOUT_RELS=.*|CONSTITUTION_LAYOUT_RELS="constitution"|'
-mutate M02-setup-revert      test_setup_layout          head scripts/setup.sh
+mutate M02-setup-revert      test_setup_layout          pre scripts/setup.sh
 HL=scripts/lib/hook_install.sh   # the shared install/backup/scope implementation (round 4)
 mutate M03-setup-no-backup   test_setup_layout          repl "$HL" \
     'cp -p "$dst" "$bpath" && cmp -s "$dst" "$bpath" || return 1' 'true'
-mutate M04-postmerge-revert  test_post_merge_layout     head scripts/hooks/post-merge
+mutate M04-postmerge-revert  test_post_merge_layout     pre scripts/hooks/post-merge
 mutate M05-postmerge-silent  test_post_merge_layout     sed  scripts/hooks/post-merge 's/^warn() { printf .*/warn() { :; }/'
-mutate M06-guard-revert      test_guard_evidence_layout head scripts/hooks/guard-evidence-store-write.sh
-mutate M07-gate-revert       test_canonical_root_layout head scripts/gates/cm_canonical_root_clarity.sh
-mutate M08-enumerate-re      test_fastcycle_layout      head scripts/fastcycle/consumers/_enumerate_impl.py
-mutate M09-migrate-revert    test_fastcycle_layout      head scripts/fastcycle/consumers/migrate.sh
-mutate M10-multitrack-revert test_multitrack_sync_layout head scripts/multitrack/multitrack_constitution_sync.sh
-mutate M11-plugin-hint       test_plugin_hint_layout    head scripts/install_cli_agent_plugins.sh
+mutate M06-guard-revert      test_guard_evidence_layout pre scripts/hooks/guard-evidence-store-write.sh
+mutate M07-gate-auto-standalone test_canonical_root_layout repl scripts/gates/cm_canonical_root_clarity.sh \
+    'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ -z "$consumer_root" ]; then'
+mutate M07b-gate-heuristic-standalone test_canonical_root_layout repl scripts/gates/cm_canonical_root_clarity.sh \
+    'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ -z "$consumer_root" ] && { [ "$standalone_decl" = "1" ] || [ ! -f "$(dirname "$const_dir")/CLAUDE.md" ]; }; then'
+mutate M08-enumerate-re      test_fastcycle_layout      pre scripts/fastcycle/consumers/_enumerate_impl.py
+mutate M09-migrate-revert    test_fastcycle_layout      pre scripts/fastcycle/consumers/migrate.sh
+mutate M10-multitrack-revert test_multitrack_sync_layout pre scripts/multitrack/multitrack_constitution_sync.sh
+mutate M11-plugin-hint       test_plugin_hint_layout    pre scripts/install_cli_agent_plugins.sh
 for t in CLAUDE.project.md AGENTS.project.md Constitution.project.md helix-deps.yaml; do
-    mutate "M12-template-$t"  test_templates_layout     head "templates/$t.template"
+    mutate "M12-template-$t"  test_templates_layout     pre "templates/$t.template"
 done
 
 # --- review round fixes (B1, I1-I6, M2) -------------------------------------
@@ -326,6 +399,8 @@ mutate M117-PL-pu-removes-install-lock    $R7 repl "$PU" "$PU_AFTER_ROOT" "$PU_A
 '
 # Known low-probability survivor candidates (run, reported, not counted):
 info_mut() { # ID SUITE PATH OLD NEW
+    selected "$1" || return 0
+    control "$2" || return 0
     cp -a "$SRC/$3" "$SB/bak"
     python3 - "$SRC/$3" "$4" "$5" <<'PYI' || { echo "INFO $1: text not found"; cp -a "$SB/bak" "$SRC/$3"; return; }
 import sys
@@ -341,6 +416,7 @@ info_mut N4-release-foreign-lock     $T "$C" '    lock_is_mine || return 0' '   
 # Expected EQUIVALENT (defence in depth, reported, not counted as a failure):
 # the traversal/absolute filter in post-merge is shadowed by is_gitlink (git
 # refuses pathspecs outside the repository), so removing it changes nothing.
+if selected N2-traversal-filter && control test_pending_update_layout; then
 cp -a "$SRC/$H" "$SB/bak"
 python3 - "$SRC/$H" <<'PYEQ'
 import sys
@@ -352,6 +428,7 @@ PYEQ
 if run_suite test_pending_update_layout; then echo "INFO N2-traversal-filter EQUIVALENT (survives: is_gitlink also refuses ../ and absolute paths)"
 else echo "INFO N2-traversal-filter killed"; fi
 cp -a "$SB/bak" "$SRC/$H"
+fi
 
 # --- review round 8: ambient git environment, locks, stamps, applied ref ---
 R8=test_round8_git_env; SC=scripts
@@ -395,7 +472,7 @@ mutate RM7-hookinstall-inline-drops-last-var   $R8 sed scripts/lib/hook_install.
 # test can see it). Multi-file, so not via mutate().
 rm3_files="$SC/lib/constitution_layout.sh scripts/lib/hook_install.sh $SC/post_update_hook.sh $SC/hooks/post-merge $SC/hooks/constitution-submodule-post-checkout $SC/multitrack/multitrack_constitution_sync.sh $SC/fastcycle/consumers/migrate.sh $SC/fastcycle/consumers/audit.py $SC/deps_manifest/helix_deps_manifest.py $SC/jev/bootstrap.sh $SC/label-sync/install_label_sync.sh"
 rm3_n=0
-if [ -z "${MUT_ONLY:-}" ] || [[ "RM3" =~ $MUT_ONLY ]]; then
+if selected RM3 && control "$R8"; then
 for f in $rm3_files; do cp -a "$SRC/$f" "$SB/rm3.$(echo "$f" | tr / _)"; grep -q 'GIT_COMMON_DIR' "$SRC/$f" && { sed -i 's/\bGIT_COMMON_DIR\b/GIT_COMMON_DIRX/g' "$SRC/$f"; rm3_n=$((rm3_n+1)); }; done
 if [ "$rm3_n" -lt 9 ]; then FAIL=$((FAIL+1)); echo "FAIL RM3: only $rm3_n files carried GIT_COMMON_DIR (expected >= 9)"
 elif run_suite "$R8"; then FAIL=$((FAIL+1)); echo "FAIL RM3-consistent-rename-all-lists SURVIVED ($rm3_n files, $R8 still green)"
