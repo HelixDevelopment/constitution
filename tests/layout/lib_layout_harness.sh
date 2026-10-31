@@ -93,6 +93,8 @@ lt_make_const_upstream() {
 #!/usr/bin/env bash
 # TEST DOUBLE (gate-logic class, §11.4.289): records how it was called.
 [ -n "${LAYOUT_STUB_SLEEP:-}" ] && sleep "$LAYOUT_STUB_SLEEP"
+# deterministic takeover: replace the lock file with a foreign owner's lock (no timing)
+[ -n "${LAYOUT_STUB_REPLACE_LOCK:-}" ] && printf 'PID=1\nSTART=1\nNONCE=foreign-owner\n' > "$LAYOUT_STUB_REPLACE_LOCK"
 printf 'CALLED PROJECT_ROOT=%s CONST_DIR=%s PWD=%s OLD=%s NEW=%s\n' "${PROJECT_ROOT:-<unset>}" "${CONST_DIR:-<unset>}" "$PWD" "${CONSTITUTION_UPDATE_OLD_REF:-<unset>}" "${CONSTITUTION_UPDATE_NEW_REF:-<unset>}" >> "${LAYOUT_RECORD:?LAYOUT_RECORD unset}"
 exit "${LAYOUT_STUB_EXIT:-0}"
 STUB

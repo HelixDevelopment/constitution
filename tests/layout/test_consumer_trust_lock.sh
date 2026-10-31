@@ -265,5 +265,27 @@ lt_check "I2: the LINKED worktree's update is NOT skipped: runs once more there 
 lt_check "I2: each worktree recorded its own applied ref" \
     eval 'grep -qx "REF=$w2" "$(st "$B")/constitution-applied-ref" && grep -qx "REF=$w2" "$(st "$WT2")/constitution-applied-ref"'
 
+# ============================================================================
+# N4: a holder whose lock was taken over mid-run must NOT delete the new
+# owner's lock on release (release_lock: lock_is_mine || return 0).
+# Deterministic: the stub post-update hook (runs inside the held lock) swaps
+# the lock file for a foreign owner's record; no timing involved.
+# ============================================================================
+mkpair tk || lt_bad "fixture tk"
+pending
+LK="$(st "$B")/constitution-pending-update.lock"
+reset_state() { : > "$LAYOUT_RECORD"; rm -f "$(st "$B")/constitution-applied-ref" "$LK"; write_stamp "$B" "$OLDV" "$NEWV"; }
+reset_state
+consume "$B" LAYOUT_STUB_REPLACE_LOCK="$LK"
+lt_check "N4: lock taken over during the run -> the foreign owner's lock survives our release" \
+    eval 'test -f "$LK" && grep -qx "NONCE=foreign-owner" "$LK"'
+lt_check "N4: ... and the hook warned that the lock was no longer ours" \
+    grep -q "no longer this process's when the post-update hook finished" "$LT_SB/consume.err"
+rm -f "$LK"
+reset_state
+consume "$B"
+lt_check "N4 control: untouched lock is released by its owner (no lock left)" test ! -e "$LK"
+lt_check "N4 control: propagation ran once" test "$(calls)" = 1
+
 lt_check "consumer hook parses under bash -n" bash -n "$LAYOUT_SRC_ROOT/scripts/hooks/constitution-submodule-post-checkout"
 lt_summary
