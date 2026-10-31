@@ -131,6 +131,7 @@ covenant_propagation_wrappers_generate.sh'
 ROOT=${CONSUMER_ROOT:-}
 GATES_DIR=; SEAMS=; DISPATCH=; DEFERRALS=; REMOVALS=; RESULT=
 NOWRITE=0; MODE=check
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer seams (only way to get the honest SKIP)
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -142,6 +143,7 @@ while [ $# -gt 0 ]; do
         --removals)    REMOVALS=${2:?}; shift 2 ;;
         --result)      RESULT=${2:?}; shift 2 ;;
         --no-write)    NOWRITE=1; shift ;;
+        --standalone-canon) STANDALONE=1; shift ;;
         --fingerprint) MODE=fingerprint; shift ;;
         --selftest)    MODE=selftest; shift ;;
         -h|--help)     sed -n '1,130p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -150,7 +152,12 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$GATES_DIR" ] || GATES_DIR=$SELF_DIR
-[ -n "$ROOT" ]      || ROOT=$(CDPATH= cd -- "$GATES_DIR/../../.." && pwd)
+if [ -z "$ROOT" ]; then
+    # Default = where the gate LIVES (superproject when vendored, else the canon), never the directory above the canon.
+    # shellcheck disable=SC1091
+    [ -r "$SELF_DIR/../lib/default_scan_root.sh" ] && . "$SELF_DIR/../lib/default_scan_root.sh" && ROOT=$(cm_default_scan_root "$SELF_DIR") || ROOT=""
+    [ -n "$ROOT" ] || ROOT=$(CDPATH= cd -- "$GATES_DIR/../../.." && pwd)   # staged copy without scripts/lib: legacy consumer depth
+fi
 [ -n "$SEAMS" ]     || SEAMS="$GATES_DIR/wiring_seam_files.tsv"
 [ -n "$DISPATCH" ]  || DISPATCH="$GATES_DIR/wiring_data_dispatch.tsv"
 [ -n "$DEFERRALS" ] || DEFERRALS="$GATES_DIR/gate_ledger_deferrals.tsv"
@@ -213,6 +220,10 @@ build_seam_code() {
             missing="$missing $rel"
         fi
     done < "$TMP/seams.txt"
+    if [ -n "$missing" ] && [ "$STANDALONE" -eq 1 ]; then
+        printf 'SKIP: STANDALONE_CANON_DECLARED — the declared seam file(s)%s are consumer files and do not exist here (--standalone-canon; honest SKIP, not a PASS)\n' "$missing"
+        exit 3
+    fi
     [ -z "$missing" ] || refuse "store_UNREADABLE" "declared seam file(s) unreadable:$missing — a seam that cannot be read cannot be shown to reference anything, and treating that as 'no reference' would convert an instrument failure into findings against every gate"
 }
 

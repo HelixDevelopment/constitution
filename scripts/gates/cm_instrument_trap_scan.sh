@@ -40,9 +40,10 @@ set -u
 
 GATE_ID=CM-INSTRUMENT-TRAP-SCAN
 SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
-
-FIXTURES="$REPO/scripts/testing/anti_slop/fixtures/traps"
+# The trap fixtures (the control needle included) are canon-owned test data shipped next to the gate, so the gate can
+# prove it SEES in a standalone canon checkout as well as inside a consumer (it used to read them from a consumer
+# path two levels above the canon, which does not exist standalone: a permanent BLIND). --fixtures still overrides.
+FIXTURES="$SELF_DIR/fixtures/instrument_trap_scan/traps"
 CORPUS_ROOT="$SELF_DIR"
 FILES=""
 while [ $# -gt 0 ]; do

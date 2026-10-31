@@ -47,13 +47,21 @@ set -u
 
 GATE_ID=CM-CONTROL-NEEDLE-REQUIRED
 SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+# Default root = where the gate LIVES (the superproject when vendored as a submodule, else the canon itself), never the
+# directory above the canon: "../../.." from a standalone canon is a foreign directory outside the repository.
+# shellcheck disable=SC1091
+[ -r "$SELF_DIR/../lib/default_scan_root.sh" ] && . "$SELF_DIR/../lib/default_scan_root.sh" && REPO=$(cm_default_scan_root "$SELF_DIR") || REPO=""
+# A copy of the gate staged somewhere without scripts/lib (a paired-mutation sandbox) falls back to the legacy
+# consumer-layout depth it was staged at.
+[ -n "$REPO" ] || REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer (only way to get the honest SKIP)
 
 READER="$REPO/scripts/lib/critical_blocker_gate.sh"
 DO_SELFTEST=0
 while [ $# -gt 0 ]; do
     case $1 in
         --reader) READER=$2; shift 2 ;;
+        --standalone-canon) STANDALONE=1; shift ;;
         --selftest) DO_SELFTEST=1; shift ;;
         -h|--help) sed -n '2,45p' "$0"; exit 0 ;;
         *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -135,7 +143,9 @@ fi
 # Certify the grep can see this file at all before reporting any absence.
 cn_count '-E' 'open_blocker_gate' "$READER"
 _needle_hits=$CN_COUNT
-if [ ! -r "$READER" ]; then
+if [ ! -r "$READER" ] && [ "$STANDALONE" -eq 1 ]; then
+    cn_skip CNR-A5-WIRED-AT-SEAM "standalone canon DECLARED (--standalone-canon): the acceptance seam $READER belongs to a consumer and does not exist here, so the wiring question is not applicable (honest SKIP, not a PASS; A1-A4 above still ran)"
+elif [ ! -r "$READER" ]; then
     cn_blind CNR-A5-WIRED-AT-SEAM "the acceptance seam is unreadable at $READER — the wiring question is UNDECIDED, and undecided is never reported as wired"
 elif [ "${_needle_hits:-0}" -eq 0 ]; then
     cn_blind CNR-A5-WIRED-AT-SEAM "control needle 'open_blocker_gate' returned 0 hits in $READER through the same grep and flags — the instrument cannot see, so any zero it reports for the rule says NOTHING (§11.4.201(7)(b))"

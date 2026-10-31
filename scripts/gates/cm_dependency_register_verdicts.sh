@@ -42,13 +42,20 @@ set -u
 
 GATE_ID=CM-DEPENDENCY-REGISTER-VERDICTS
 SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+# Default root = where the gate LIVES (superproject when vendored, else the canon itself), never the directory above the canon.
+# shellcheck disable=SC1091
+[ -r "$SELF_DIR/../lib/default_scan_root.sh" ] && . "$SELF_DIR/../lib/default_scan_root.sh" && REPO=$(cm_default_scan_root "$SELF_DIR") || REPO=""
+# A copy of the gate staged somewhere without scripts/lib (a paired-mutation sandbox) falls back to the legacy
+# consumer-layout depth it was staged at.
+[ -n "$REPO" ] || REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer (only way to get the honest SKIP)
 REGISTER="$REPO/docs/requests/dependency_register.jsonl"
 DR="$SELF_DIR/lib/dependency_register.sh"
 
 while [ $# -gt 0 ]; do
     case $1 in
         --register) REGISTER=$2; shift 2 ;;
+        --standalone-canon) STANDALONE=1; shift ;;
         -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
         *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
     esac
@@ -71,8 +78,18 @@ trap "rm -rf '$TMP'" EXIT INT TERM
 # --- A0 -----------------------------------------------------------------------
 a0=0
 [ -f "$DR" ] || { cn_fail DRV-A0-SEAM-PRESENT "the E6 reader is absent: $DR"; a0=1; }
-[ -r "$REGISTER" ] || { cn_fail DRV-A0-SEAM-PRESENT "the E6 register is absent or unreadable: $REGISTER"; a0=1; }
-if [ "$a0" -eq 0 ]; then
+REG_SKIP=0
+if [ ! -r "$REGISTER" ] && [ "$STANDALONE" -eq 1 ]; then
+    REG_SKIP=1
+    cn_skip DRV-A0-SEAM-PRESENT "standalone canon DECLARED (--standalone-canon): the E6 register $REGISTER is consumer data and does not exist here (honest SKIP, not a PASS; the fixture checks A2-A6 still ran)"
+elif [ ! -r "$REGISTER" ]; then
+    cn_fail DRV-A0-SEAM-PRESENT "the E6 register is absent or unreadable: $REGISTER"; a0=1
+fi
+if [ "$REG_SKIP" -eq 1 ] && [ ! -f "$DR" ]; then
+    cn_fail DRV-A0-SEAM-PRESENT "the E6 reader is absent: $DR"; cn_summary "$GATE_ID"; exit $?
+elif [ "$REG_SKIP" -eq 1 ]; then
+    :
+elif [ "$a0" -eq 0 ]; then
     cn_pass DRV-A0-SEAM-PRESENT "reader $DR and register $REGISTER are both present"
 else
     cn_summary "$GATE_ID"; exit $?
@@ -81,8 +98,15 @@ fi
 run_dr() { sh "$DR" "$@" 2>&1; }
 
 # --- A1 the real register validates -------------------------------------------
+if [ "$REG_SKIP" -eq 1 ]; then
+    cn_skip DRV-A1-REAL-REGISTER-VALID "standalone canon DECLARED: no consumer register to validate (honest SKIP, not a PASS)"
+    rc=-1; out=""
+else
 out=$(run_dr validate "$REGISTER"); rc=$?
-if [ "$rc" -eq 0 ]; then
+fi
+if [ "$rc" -eq -1 ]; then
+    :
+elif [ "$rc" -eq 0 ]; then
     n=$(printf '%s\n' "$out" | grep -Ec '^ok   entry ' || true)
     cn_pass DRV-A1-REAL-REGISTER-VALID "the shipped register validates: $n entry/entries accepted"
 else

@@ -5,6 +5,27 @@
 
 PASS=0; FAIL=0; SKIPS=0
 
+# jev_scrub_ambient_env — HERMETIC ENVIRONMENT, applied the moment this library is sourced, so a test run DIRECTLY
+# (not only through run_all.sh) cannot be steered by the operator's ambient configuration. Measured 2026-10-31
+# (known_failures_v73 row 7): with CONSTITUTION_JEV_HOOK=off exported, test_failopen_and_coverage_gaps.sh failed 4
+# assertions (the post-update hook skipped the bootstrap it was being asked to degrade) and passes with it unset; the
+# same family of leak is CLAUDE_CONFIG_DIR (the operator's real alias dir, read by jev_mcp_files), JEV_BASE_URL /
+# TYPESAFE_BASE_URL (a real endpoint), the LLMCTL_*/CMA_* tool locations and every key variable. Rule: every variable
+# whose name starts with a decision-layer prefix is dropped, plus the named Claude/constitution variables; a test that
+# needs one sets it AFTER sourcing this file. JEV_GATE_SCRIPT is the single deliberate operator opt-in
+# (test_failopen A3 documents it) and is kept.
+jev_scrub_ambient_env() {
+  local v
+  for v in $(compgen -e); do
+    case "$v" in
+      JEV_GATE_SCRIPT) ;;
+      JEV_*|LLMCTL_*|CMA_*|TYPESAFE_*|OPENROUTER_*|CONSTITUTION_JEV_*|CONSTITUTION_UPDATE_*|CONSTITUTION_ALLOW_*|\
+      CLAUDE_CONFIG_DIR|CLAUDE_PROJECT_DIR|CLAUDE_TOOLKIT_DIR|FIXTURE_ENDPOINTS|BOOTSTRAP_STUB_*) unset "$v" ;;
+    esac
+  done
+}
+jev_scrub_ambient_env
+
 ok()   { PASS=$((PASS+1)); printf 'ok %d - %s\n' "$PASS" "$1"; }
 fail() { FAIL=$((FAIL+1)); printf 'FAIL - %s\n' "$1"; }
 

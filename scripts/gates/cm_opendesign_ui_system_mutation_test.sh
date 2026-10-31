@@ -84,7 +84,7 @@ echo "======================================================================"
 MUT_FLEET="$TMP/prop_mut"
 mkdir -p "$MUT_FLEET/sub"
 # good carrier (carries the anchor)
-printf '## §11.4.162 OpenDesign\nanchor 11.4.162 present here\n' > "$MUT_FLEET/AGENTS.md"
+printf '**§11.4.162 — OpenDesign anchor block (fixture).**\nanchor 11.4.162 present here\n' > "$MUT_FLEET/AGENTS.md"
 # MUTATION: this carrier omits the literal entirely
 printf '# Project carrier\nno anchor here at all\n' > "$MUT_FLEET/CLAUDE.md"
 expect_fail "propagation gate / missing-anchor carrier" \
@@ -94,7 +94,7 @@ expect_fail "propagation gate / missing-anchor carrier" \
 CLEAN_FLEET="$TMP/prop_clean"
 mkdir -p "$CLEAN_FLEET"
 for c in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
-    printf '# carrier %s\n§11.4.162 — OpenDesign anchor literal 11.4.162\n' "$c" \
+    printf '# carrier %s\n**§11.4.162 — OpenDesign anchor block (fixture).** literal 11.4.162\n' "$c" \
         > "$CLEAN_FLEET/$c"
 done
 expect_pass "propagation gate / clean fleet" \

@@ -79,11 +79,13 @@ ANCHOR="11.4.261"
 root="${CONSUMER_ROOT:-.}"
 ledger_rel="docs/findings/zero_findings_ledger.jsonl"
 ratchet_rel="docs/findings/zero_findings_ratchet.tsv"
+standalone=0   # --standalone-canon: the invocation DECLARES a canon with no consumer ratchet (only way to get the honest SKIP)
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --ledger) ledger_rel="$2"; shift 2 ;;
         --ratchet) ratchet_rel="$2"; shift 2 ;;
+        --standalone-canon) standalone=1; shift ;;
         -h|--help) sed -n '1,60p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -104,6 +106,10 @@ esac
 # ---- ratchet-snapshot MUST exist: missing is a hard FAIL, never BLIND ----
 # (§11.4.6 -- "no baseline was ever recorded" is not compliance; the anchor
 # mandates the brownfield-adoption snapshot as the mechanism itself).
+if [ ! -f "$ratchet" ] && [ "$standalone" -eq 1 ]; then
+    echo "${GATE}: SKIP ratchet-snapshot='${ratchet}' reason=STANDALONE_CANON_DECLARED (--standalone-canon: the snapshot is consumer data and does not exist here; honest SKIP, not a PASS; the canon's own missing ceiling is an owed §11.4.261 gap, not hidden by this SKIP)"
+    exit 3
+fi
 if [ ! -f "$ratchet" ]; then
     echo "${GATE}: FAIL ratchet-snapshot='${ratchet}' reason=RATCHET_SNAPSHOT_MISSING (§11.4.261(C) mandates a checked-in brownfield ceiling -- none found)" >&2
     exit 1

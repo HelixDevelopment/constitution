@@ -173,7 +173,7 @@ its_selftest() {
     _st_root=${ITS_FIXTURES:-}
     if [ -z "$_st_root" ]; then
         _st_here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-        _st_root="${_st_here}/../../../../scripts/testing/anti_slop/fixtures/traps"
+        _st_root="${_st_here}/../fixtures/instrument_trap_scan/traps"
     fi
     if [ ! -d "$_st_root" ]; then
         printf 'SELFTEST-BLIND fixtures not found at %s — reporting blindness, not compliance\n' "$_st_root"
