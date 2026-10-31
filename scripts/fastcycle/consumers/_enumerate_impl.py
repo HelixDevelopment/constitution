@@ -51,7 +51,9 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import urllib.parse
 import re
+import os
 import subprocess
 import sys
 
@@ -63,7 +65,15 @@ except ImportError:
 
 WORKERS = 12
 GH_TIMEOUT_S = 20
-INHERIT_RE = re.compile(r"INHERITED FROM constitution/CLAUDE\.md|@constitution/CLAUDE\.md")
+# Both layouts: the standard `submodules/constitution` and the legacy
+# `constitution` (heading or @import form).
+INHERIT_RE = re.compile(
+    r"INHERITED FROM (?:submodules/)?constitution/CLAUDE\.md|@(?:submodules/)?constitution/CLAUDE\.md"
+)
+
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _layout import LAYOUT_RELS, local_gitlink, scrub_git_env, git_env  # noqa: E402  (the ONE layout list)
 
 
 def canon(obj):
@@ -143,9 +153,29 @@ def gh_probe_submodule(org, repo):
     failure/rate-limit/network error/timeout/malformed JSON) -- an
     unknown probe is NEVER folded into "confirmed absent"
     (§11.4.201(6), T177 Round 1 B1)."""
+    # Every layout is probed (standard first); True as soon as one is a
+    # submodule, False only when EVERY layout is a confirmed absence, None
+    # (degraded) when any probe could not be decided and none was True.
+    # An EMPTY repository (HTTP 409) has no path at all, so one 409 answer is
+    # a confirmed absence for every layout -- it settles the repo at once.
+    unknown = False
+    for rel in LAYOUT_RELS:
+        found, status = _gh_probe_path(org, repo, rel)
+        if found is True:
+            return True, "ok"
+        if status == "empty-repo":
+            return False, "ok"
+        if found is None:
+            unknown = True
+    if unknown:
+        return None, "error"
+    return False, "ok"
+
+
+def _gh_probe_path(org, repo, rel):
     try:
         proc = subprocess.run(
-            ["gh", "api", "repos/%s/%s/contents/constitution" % (org, repo)],
+            ["gh", "api", "repos/%s/%s/contents/%s" % (org, repo, rel)],
             capture_output=True, text=True, timeout=GH_TIMEOUT_S,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -160,7 +190,7 @@ def gh_probe_submodule(org, repo):
         # is a confirmed absence, never a degraded probe that would make
         # every run exit 5 the day any configured org gains an empty repo.
         if HTTP_409_EMPTY_RE.search(proc.stderr or ""):
-            return False, "ok"
+            return False, "empty-repo"
         return None, "error"
     try:
         doc = json.loads(proc.stdout)
@@ -273,6 +303,44 @@ def _glab_paginated_group_projects(org):
     return all_projects, "ok"
 
 
+def _glab_tree_has_gitlink(pid, parent, leaf):
+    """Paginated probe: does `parent` ("" = repository root) of project `pid`
+    hold a gitlink entry NAMED `leaf`? Returns (found, status).
+
+    I4 fix: the tree listing was one unpaginated call (GitLab's default page is
+    20 entries), so a constitution gitlink sorted onto page 2+ of a busy
+    `submodules/` (or repository root) was reported ABSENT -- the same
+    false-null class m-R2-4 fixed for the group list. Pages are walked with
+    per_page=GITLAB_PAGE_SIZE until a short page; GITLAB_MAX_PAGES bounds it
+    (recorded degraded, never an absent). Matching is by exact entry name,
+    for both layouts (the legacy probe used to list the gitlink path itself).
+    """
+    page = 1
+    while True:
+        query = "per_page=%d&page=%d" % (GITLAB_PAGE_SIZE, page)
+        if parent:
+            query = "path=%s&%s" % (urllib.parse.quote(parent, safe=""), query)
+        tree, status = glab_json(["api", "projects/%s/repository/tree?%s" % (pid, query)])
+        if status == "http_404":
+            # page 1: no such directory (normal negative); later page: no more pages
+            return False, "ok"
+        if status == "ok" and tree is not None and not isinstance(tree, list):
+            status = "malformed-shape"
+        if status != "ok":
+            return False, status
+        if not tree:
+            return False, "ok"
+        for entry in tree:
+            if (isinstance(entry, dict) and entry.get("name") == leaf
+                    and (entry.get("mode") == "160000" or entry.get("type") == "commit")):
+                return True, "ok"
+        if len(tree) < GITLAB_PAGE_SIZE:
+            return False, "ok"
+        page += 1
+        if page > GITLAB_MAX_PAGES:
+            return False, "pagination-limit-exceeded"
+
+
 def source2_gitlab(orgs):
     """Returns (hits, any_reachable, degraded) -- see source1_github()
     for the shape of `degraded`.
@@ -311,18 +379,27 @@ def source2_gitlab(orgs):
             path_with_ns = proj.get("path_with_namespace")
             if pid is None or not path_with_ns:
                 continue
-            tree, tree_status = glab_json(["api", "projects/%s/repository/tree?path=constitution" % pid])
-            if tree_status == "http_404":
-                continue  # project genuinely has no constitution/ path -- normal negative
-            if tree_status == "ok" and tree is not None and not isinstance(tree, list):
-                tree_status = "malformed-shape"
-            if tree_status != "ok":
-                degraded.append({"org": org, "repo": path_with_ns, "reason": "tree-%s" % tree_status})
-                continue
-            if not tree:
-                continue
-            if any(isinstance(entry, dict) and (entry.get("mode") == "160000" or entry.get("type") == "commit") for entry in tree):
-                hits[path_with_ns] = True
+            # Every layout (standard first): list the PARENT directory (the
+            # repository root for the legacy `constitution`), paginated, and
+            # look for a gitlink entry NAMED like the layout's leaf.
+            # A layout probe that could not be decided is recorded degraded ONLY
+            # when no other layout of the SAME repository settles it with a
+            # found gitlink (a later layout finding it makes the first probe's
+            # failure moot; the result is no longer partial for this repo).
+            repo_degraded = []
+            repo_found = False
+            for rel in LAYOUT_RELS:
+                parent, _, leaf = rel.rpartition("/")
+                found, tree_status = _glab_tree_has_gitlink(pid, parent, leaf)
+                if tree_status != "ok":
+                    repo_degraded.append({"org": org, "repo": path_with_ns, "reason": "tree-%s" % tree_status})
+                    continue
+                if found:
+                    hits[path_with_ns] = True
+                    repo_found = True
+                    break
+            if not repo_found:
+                degraded.extend(repo_degraded)
     return hits, any_reachable, degraded
 
 
@@ -373,7 +450,7 @@ def _local_project_id(path):
     try:
         proc = subprocess.run(
             ["git", "-C", path, "remote", "get-url", "origin"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, text=True, timeout=5, env=git_env(),
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -387,14 +464,8 @@ def _local_project_id(path):
 
 
 def _classify_local(path):
-    try:
-        proc = subprocess.run(
-            ["git", "-C", path, "ls-tree", "HEAD", "constitution"],
-            capture_output=True, text=True, timeout=5,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        proc = None
-    if proc is not None and proc.returncode == 0 and "160000 commit" in proc.stdout:
+    rel, _sha = local_gitlink(path)
+    if rel is not None:
         return "submodule"
     claude_md = None
     for candidate in ("CLAUDE.md",):
@@ -489,6 +560,7 @@ def run_once(cfg):
 
 
 def main():
+    scrub_git_env()
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--out", required=True)

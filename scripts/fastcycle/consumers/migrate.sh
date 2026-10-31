@@ -135,6 +135,21 @@
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
+# The ONE layout resolver: CONSTITUTION_LAYOUT_RELS lists the checkout paths a
+# consumer may use (standard `submodules/constitution` first, legacy
+# `constitution` second). CONST_PATH (the one this consumer really uses) is
+# resolved from its own .gitmodules at step 4; nothing before step 4 uses it.
+if [ -r "$HERE/../../lib/constitution_layout.sh" ]; then
+    # shellcheck source=../../lib/constitution_layout.sh
+    . "$HERE/../../lib/constitution_layout.sh"
+else
+    # Only when this file runs as a lone scratch copy (the guard-viability
+    # mutants of scripts/fastcycle/tests/test_consumer_migrate_red.sh copy
+    # migrate.sh alone). MUST equal CONSTITUTION_LAYOUT_RELS in the lib; the
+    # parity is asserted by tests/layout/test_fastcycle_layout.sh.
+    CONSTITUTION_LAYOUT_RELS="submodules/constitution constitution"
+fi
+CONST_PATH=""
 # FASTCYCLE_VERIFY_TOOL_OVERRIDE: test-only hook (T177 Round 1 B3) -- lets
 # a RED test prove step 9's CA-026 double-verify is genuinely load-
 # bearing (pointing it at a nonexistent path must turn an otherwise-
@@ -216,11 +231,19 @@ fi
 # push may legitimately need (`SSH_AUTH_SOCK`, `GIT_SSH_COMMAND`,
 # `GIT_ASKPASS`, `GIT_PROXY_COMMAND`) remain untouched throughout, for
 # the same class of reason.
+# Round 8: the repository-locating class is the same list as
+# scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS (GIT_INDEX_FILE,
+# GIT_PREFIX, GIT_CEILING_DIRECTORIES, ... were missing here: an ambient
+# GIT_INDEX_FILE made the early `git status` read another repository's index);
+# GIT_TEMPLATE_DIR is this tool's own addition (see above).
+# tests/layout/test_round8_git_env.sh checks that every one of the 15 is here.
 for _fc_unset_var in \
     GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_OBJECT_DIRECTORY \
     GIT_TEMPLATE_DIR \
     GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR \
-    GIT_SHALLOW_FILE GIT_REPLACE_REF_BASE GIT_NAMESPACE
+    GIT_SHALLOW_FILE GIT_REPLACE_REF_BASE GIT_NAMESPACE \
+    GIT_INDEX_FILE GIT_PREFIX GIT_CEILING_DIRECTORIES GIT_GRAFT_FILE \
+    GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX
 do
     unset "$_fc_unset_var" 2>/dev/null || true
 done
@@ -803,6 +826,8 @@ FC_CALLER_GCC=${GIT_CONFIG_COUNT:-0}
 case "$FC_CALLER_GCC" in
     ''|*[!0-9]*) echo "migrate.sh: inherited GIT_CONFIG_COUNT=$FC_CALLER_GCC is not a number -- refusing to guess how to extend it" >&2; exit 4 ;;
 esac
+# NB: GIT_NO_REPLACE_OBJECTS and GIT_GRAFT_FILE were already unset by the round-8 loop near the top,
+# so the two captures below always record "not set" (see run_with_caller_git_env).
 FC_CALLER_NRO_SET=0
 [ -n "${GIT_NO_REPLACE_OBJECTS+x}" ] && FC_CALLER_NRO_SET=1
 FC_CALLER_NRO=${GIT_NO_REPLACE_OBJECTS:-}
@@ -955,8 +980,13 @@ unset GIT_CONFIG_PARAMETERS
 GIT_NO_LAZY_FETCH=1; export GIT_NO_LAZY_FETCH
 run_with_caller_git_env() {
     # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT,
-    # GIT_NO_REPLACE_OBJECTS, GIT_GRAFT_FILE, GIT_CONFIG_PARAMETERS and
-    # GIT_NO_LAZY_FETCH restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond
+    # GIT_CONFIG_PARAMETERS and GIT_NO_LAZY_FETCH restored. NOT original for
+    # GIT_NO_REPLACE_OBJECTS and GIT_GRAFT_FILE: the round-8 unset loop at the
+    # top of this file removes both BEFORE the FC_CALLER_* capture below, so
+    # FC_CALLER_NRO_SET / FC_CALLER_GRAFT_SET are always 0 and these two are
+    # always UNSET for the hook and gates (the repository-locating class is never
+    # handed on; the two restore branches below are kept as inert symmetry).
+    # (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond
     # the count are ignored by git) -- the post-update hook and the consumer's own
     # gates are the CONSUMER's own processes, not this tool's, so they
     # run under the environment the caller actually had, never this
@@ -1841,9 +1871,10 @@ fc_submodule_update_init_filtered() {
 # fc_checkout_submodule_filtered (see above) rather than a bare
 # `checkout`, same as every other submodule-materializing call site.
 restore_submodule() {
-    [ -d "$WORKDIR/constitution/.git" ] || [ -f "$WORKDIR/constitution/.git" ] || return 0
+    [ -n "${CONST_PATH:-}" ] || return 0
+    [ -d "$WORKDIR/$CONST_PATH/.git" ] || [ -f "$WORKDIR/$CONST_PATH/.git" ] || return 0
     [ -n "${OLD_SHA:-}" ] || return 0
-    fc_checkout_submodule_filtered "$WORKDIR/constitution" "$OLD_SHA" 2>/dev/null || true
+    fc_checkout_submodule_filtered "$WORKDIR/$CONST_PATH" "$OLD_SHA" 2>/dev/null || true
 }
 
 not_migrated_after_write() {
@@ -2021,7 +2052,8 @@ if bad:
 ' "$2" <"$1"
 }
 scan_gitlinks_raw() {
-    python3 -c '
+    FC_CONST_PATH="$CONST_PATH" python3 -c '
+import os
 import sys
 data = sys.stdin.buffer.read().split(b"\0")
 i = 0
@@ -2035,7 +2067,7 @@ while i + 1 < len(data):
     if len(fields) < 4 or fields[1] != b"160000":
         continue
     rel = path.decode("utf-8", "surrogateescape")
-    if rel == "constitution":
+    if rel == (os.environ.get("FC_CONST_PATH") or "constitution"):
         continue
     bad.append("path=%s" % rel)
 if bad:
@@ -2048,8 +2080,9 @@ if bad:
 # Round 19 M-1's own hard-won lesson: an inline copy drifts). Returns 0
 # iff path $1 is allowed.
 ca022_post_hook_path_ok() {
+    [ -n "${CONST_PATH:-}" ] && [ "$1" = "$CONST_PATH" ] && return 0
     case "$1" in
-        constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;
+        .gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;
     esac
     return 1
 }
@@ -2389,16 +2422,25 @@ if [ -n "$PATH_ENTRIES" ]; then
     OLD_IFS=$IFS
     IFS='
 '
-    for line in $PATH_ENTRIES; do
-        key=${line%% *}
-        val=${line#* }
-        if [ "$val" = "constitution" ]; then
-            CONST_SECTION=${key#submodule.}
-            CONST_SECTION=${CONST_SECTION%.path}
-            break
-        fi
-    done
+    # Layout priority (standard first) decides when a consumer declares more
+    # than one candidate path; within one layout the first section wins.
     IFS=$OLD_IFS
+    for want in $CONSTITUTION_LAYOUT_RELS; do
+        IFS='
+'
+        for line in $PATH_ENTRIES; do
+            key=${line%% *}
+            val=${line#* }
+            if [ "$val" = "$want" ]; then
+                CONST_SECTION=${key#submodule.}
+                CONST_SECTION=${CONST_SECTION%.path}
+                CONST_PATH=$want
+                break
+            fi
+        done
+        IFS=$OLD_IFS
+        [ -n "$CONST_SECTION" ] && break
+    done
 fi
 SUB_URL=""
 if [ -n "$CONST_SECTION" ]; then
@@ -2431,7 +2473,7 @@ fi
 if [ -z "$NEW_SHA" ]; then
     not_migrated "gitlink-bump" "unreachable" "git-ls-remote-resolved-no-target-commit"
 fi
-OLD_SHA=$(git -C "$WORKDIR" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}')
+OLD_SHA=$(git -C "$WORKDIR" ls-tree HEAD -- "$CONST_PATH" 2>/dev/null | awk '{print $3}')
 # T177 Round 1 I4 fix: a consumer already at the migration target has
 # NOTHING to bump/materialize/review/commit/push -- ALREADY_AT_TARGET
 # short-circuits steps 5-8 entirely and proceeds directly to step 9.
@@ -2488,16 +2530,16 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     if ! fc_neutralize_repo_filters; then
         not_migrated_after_write "wiring" "local-git-error" "filter-driver-discovery-failed"
     fi
-    if ! fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
+    if ! fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/$CONST_PATH" "$CONST_PATH" >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable"
     fi
-    SUB_GITDIR=$(git -C "$WORKDIR/constitution" rev-parse --absolute-git-dir 2>/dev/null)
+    SUB_GITDIR=$(git -C "$WORKDIR/$CONST_PATH" rev-parse --absolute-git-dir 2>/dev/null)
     if [ -n "$SUB_GITDIR" ] && [ -e "$SUB_GITDIR/objects/info/alternates" ]; then
         echo "migrate.sh: the constitution submodule's own checkout unexpectedly has an objects/info/alternates file -- refusing rather than trust object resolution that could be silently satisfied by a foreign store" >&2
         not_migrated_after_write "wiring" "out-of-scope-diff" "constitution-submodule-has-alternates-file"
     fi
     # T177 Round 24 (transport-executable closure, item 2a; supersedes a
-    # single-hop `git -C "$WORKDIR/constitution" fetch -q origin ...`
+    # single-hop `git -C "$WORKDIR/$CONST_PATH" fetch -q origin ...`
     # that ran BY REMOTE NAME against the submodule's own local config).
     # Live-reproduced: that single-hop shape runs whatever LOCAL,
     # untracked `remote.origin.uploadpack` the submodule's own `.git/
@@ -2553,22 +2595,25 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         && ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
+    if ! fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/$CONST_PATH" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+    if ! fc_checkout_submodule_filtered "$WORKDIR/$CONST_PATH" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-checkout-failed"
     fi
 
-    HOOK="$WORKDIR/constitution/scripts/post_update_hook.sh"
+    HOOK="$WORKDIR/$CONST_PATH/scripts/post_update_hook.sh"
     if [ -f "$HOOK" ]; then
         # T177 Round 1 B2 fix: the hook MUST run against the CONSUMER
         # ($WORKDIR), never the caller's own ambient cwd.
         # T177 Round 3 finding 9: the REAL post_update_hook.sh is a BASH
         # script -- invoked with bash explicitly, never sh.
         # sh -c '...' receives WORKDIR/HOOK as its OWN $1/$2 -- deliberately not expanded by this shell
+        # The root is also passed as --project-root (round 7): the hook no
+        # longer lets an environment value pick the target repository; a hook
+        # older than that flag ignores its arguments, so this is safe both ways.
         # shellcheck disable=SC2016
-        if ! run_with_caller_git_env sh -c 'cd "$1" && PROJECT_ROOT="$1" CONST_DIR="$1/constitution" bash "$2"' fc-hook "$WORKDIR" "$HOOK" >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
+        if ! run_with_caller_git_env sh -c 'cd "$1" && PROJECT_ROOT="$1" CONST_DIR="$1/$3" bash "$2" --project-root "$1"' fc-hook "$WORKDIR" "$HOOK" "$CONST_PATH" >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
             not_migrated_after_write "post-update-hook" "consumer-gates-red"
         fi
     fi
@@ -2650,7 +2695,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
             case "$f" in
                 '"'*) IFS=$OLD_IFS; not_migrated_after_write "wiring" "out-of-scope-diff" "unsupported-path-encoding=$f" ;;
             esac
-            [ "$f" = "constitution" ] && continue
+            [ "$f" = "$CONST_PATH" ] && continue
             if ! ca022_post_hook_path_ok "$f"; then
                 IFS=$OLD_IFS
                 not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f"
@@ -2686,7 +2731,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         not_migrated_after_write "commit" "local-git-error" "read-tree-failed"
     fi
     GIT_INDEX_FILE="$PRIV_INDEX"; export GIT_INDEX_FILE
-    if ! git -C "$FC_BARE" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>"$MIGRATE_SCRATCH/updindex.err"; then
+    if ! git -C "$FC_BARE" update-index --add --cacheinfo "160000,$NEW_SHA,$CONST_PATH" 2>"$MIGRATE_SCRATCH/updindex.err"; then
         unset GIT_INDEX_FILE
         not_migrated_after_write "commit" "local-git-error" "git-update-index-failed"
     fi
@@ -2717,7 +2762,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         echo "$FULL [refused-before-commit: candidate-tree-verification: $1]"
         exit 1
     }
-    CT_CONST_LINE=$(git -C "$FC_BARE" ls-tree "$NEW_TREE" constitution 2>/dev/null)
+    CT_CONST_LINE=$(git -C "$FC_BARE" ls-tree "$NEW_TREE" -- "$CONST_PATH" 2>/dev/null)
     CT_CONST_MODE=$(echo "$CT_CONST_LINE" | awk '{print $1}')
     CT_CONST_OID=$(echo "$CT_CONST_LINE" | awk '{print $3}')
     if [ -z "$CT_CONST_LINE" ] || [ "$CT_CONST_MODE" != "160000" ] || [ "$CT_CONST_OID" != "$NEW_SHA" ]; then
@@ -2926,8 +2971,8 @@ while i + 1 < len(data):
         echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be transferred back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
     git -C "$WORKDIR" update-ref "refs/heads/$BRANCH" "$NEW_COMMIT" 2>/dev/null
-    fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" 2>/dev/null || true
-    git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>/dev/null
+    fc_checkout_submodule_filtered "$WORKDIR/$CONST_PATH" "$NEW_SHA" 2>/dev/null || true
+    git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,$CONST_PATH" 2>/dev/null
     if [ -s "$HARVEST_PATHS" ]; then
         while IFS= read -r _hp; do
             [ -z "$_hp" ] && continue
@@ -2938,7 +2983,7 @@ while i + 1 < len(data):
     if [ -n "$SYNC_RESIDUE" ]; then
         echo "migrate.sh: WARNING -- \$WORKDIR still shows local changes after syncing to the published commit $NEW_COMMIT ($SYNC_RESIDUE); the push itself already succeeded on every configured remote -- re-run 'git checkout $BRANCH' manually in \$WORKDIR" >&2
     fi
-    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >/dev/null 2>&1 || true
+    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/$CONST_PATH" "$CONST_PATH" >/dev/null 2>&1 || true
 else
     # Already at target: still ensure the submodule is genuinely checked
     # out before verify (CA-026) runs -- a consumer whose gitlink is
@@ -2969,7 +3014,7 @@ else
         fi
         not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"
     fi
-    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >/dev/null 2>&1 || true
+    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/$CONST_PATH" "$CONST_PATH" >/dev/null 2>&1 || true
     NEW_COMMIT="$LOCAL_HEAD"
 fi
 

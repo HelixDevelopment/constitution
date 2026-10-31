@@ -74,6 +74,30 @@
 #   JEV_NOW_EPOCH (deterministic-clock seam, honoured ONLY with JEV_TEST=1).
 
 set -euo pipefail
+# Ambient GIT_DIR & co. (left over for ANOTHER repository) must never choose the
+# repository a git call below reads or writes (round 8 class fix): every git call
+# goes through jb__git, which drops the repository-locating variables in a subshell.
+# The list equals CL_GIT_SCRUB_VARS (scripts/lib/constitution_layout.sh);
+# tests/layout/test_round8_git_env.sh checks that.
+jb__git() {
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE \
+            GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH \
+            GIT_INTERNAL_SUPER_PREFIX 2>/dev/null; exec git "$@" )
+}
+
+# jb__scrubbed CMD... — run a CHILD installer with the same repository-locating
+# variables removed (env -u): claude_toolkit/scripts/install.sh runs `git -C <sibling> pull`
+# and `git clone` (traced 2026-10-31), which an ambient GIT_DIR would redirect to another
+# repository. llmctl `make install` only symlinks (no git; traced), jev-setup.sh makes no
+# direct git call (grep); a deeper indirect call from those two is UNCONFIRMED, but they
+# go through the scrub too, so it cannot matter.
+jb__scrubbed() {
+    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY \
+        -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE -u GIT_CEILING_DIRECTORIES -u GIT_SHALLOW_FILE \
+        -u GIT_GRAFT_FILE -u GIT_REPLACE_REF_BASE -u GIT_NO_REPLACE_OBJECTS -u GIT_QUARANTINE_PATH \
+        -u GIT_INTERNAL_SUPER_PREFIX "$@"
+}
 
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -280,13 +304,13 @@ provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
     path="$subdir"; source="submodule"
   elif [ -d "$clone_dir" ]; then
     # Managed clone exists: update only if clean; never reset over local changes.
-    if [ -n "$(git -C "$clone_dir" status --porcelain 2>/dev/null)" ]; then
+    if [ -n "$(jb__git -C "$clone_dir" status --porcelain 2>/dev/null)" ]; then
       echo "jev-bootstrap: ERROR: managed clone $clone_dir has local changes;" >&2
       echo "jev-bootstrap: operator-required stop (conflict_resolution); nothing overwritten." >&2
       exit 3
     fi
     if [ "$may_net" = "1" ]; then
-      git -C "$clone_dir" fetch --quiet 2>/dev/null || log "" "  fetch failed for $tool (offline?); using the existing clone"
+      jb__git -C "$clone_dir" fetch --quiet 2>/dev/null || log "" "  fetch failed for $tool (offline?); using the existing clone"
     else
       ref_status="not-synced-no-consent"
     fi
@@ -297,7 +321,7 @@ provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
     add_pending "provision requires consent ($tool)"
   elif command -v git >/dev/null 2>&1; then
     mkdir -p "$JEV_BOOTSTRAP_HOME"
-    if git clone --quiet "$url" "$clone_dir" 2>/dev/null; then
+    if jb__git clone --quiet "$url" "$clone_dir" 2>/dev/null; then
       path="$clone_dir"; source="clone"
     else
       log "" "  clone of $tool failed ($url); recording it as unavailable"
@@ -310,23 +334,23 @@ provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
   [ "$source" = "unavailable" ] && PROV_UNAVAILABLE=1
 
   if [ "$source" = "clone" ] && [ "$ref" != "unpinned" ] && [ "$may_net" = "1" ]; then
-    if git -C "$path" checkout --quiet "$ref" 2>/dev/null; then ref_status="pinned-checked-out"
+    if jb__git -C "$path" checkout --quiet "$ref" 2>/dev/null; then ref_status="pinned-checked-out"
     else ref_status="pin-not-reachable"; log "" "  $tool: pinned ref $ref could not be checked out; staying on the current head"; fi
   elif [ "$source" = "submodule" ] || [ "$source" = "explicit" ]; then
     ref_status="as-checked-out"   # the gitlink / the operator's checkout is authoritative
   fi
-  [ -n "$path" ] && head="$(git -C "$path" rev-parse --short=12 HEAD 2>/dev/null || true)"
+  [ -n "$path" ] && head="$(jb__git -C "$path" rev-parse --short=12 HEAD 2>/dev/null || true)"
 
   # Tool installers run only with explicit consent (they link into PATH / edit rc files).
   if [ -n "$path" ] && [ "$INSTALL_TOOLS" = "1" ]; then
     case "$tool" in
       llmctl)
         if [ -f "$path/Makefile" ] && command -v make >/dev/null 2>&1; then
-          if make -C "$path" install >/dev/null 2>&1; then installer="make-install"; else installer="make-install-failed"; fi
+          if jb__scrubbed make -C "$path" install >/dev/null 2>&1; then installer="make-install"; else installer="make-install-failed"; fi
         else installer="no-installer-found"; fi ;;
       claude_toolkit)
         if [ -f "$path/scripts/install.sh" ]; then
-          if bash "$path/scripts/install.sh" >/dev/null 2>&1; then installer="scripts/install.sh"; else installer="scripts/install.sh-failed"; fi
+          if jb__scrubbed bash "$path/scripts/install.sh" >/dev/null 2>&1; then installer="scripts/install.sh"; else installer="scripts/install.sh-failed"; fi
         else installer="no-installer-found"; fi ;;
     esac
   fi
@@ -678,7 +702,7 @@ TK_SETUP=""
 [ -n "$TK_PATH" ] && [ -f "$TK_PATH/scripts/jev-setup.sh" ] && TK_SETUP="$TK_PATH/scripts/jev-setup.sh"
 CHECK_OUT=""; CHECK_RC=0
 if [ -n "$TK_SETUP" ]; then
-  CHECK_OUT="$(bash "$TK_SETUP" --check --agents "$AGENTS" 2>&1)" || CHECK_RC=$?
+  CHECK_OUT="$(jb__scrubbed bash "$TK_SETUP" --check --agents "$AGENTS" 2>&1)" || CHECK_RC=$?
 fi
 S4_KEY="agents|$AGENTS|consent=$CONSENT|setup=${TK_SETUP:+1}|rc=$CHECK_RC|$CHECK_OUT"
 if stage_begin 4 "install-per-agent" "$S4_KEY"; then
@@ -696,7 +720,7 @@ if stage_begin 4 "install-per-agent" "$S4_KEY"; then
     stage_commit 4 "install-per-agent" "pending-consent"
   else
     setup_rc=0
-    bash "$TK_SETUP" --agents "$AGENTS" --yes >"$WORK/setup.out" 2>&1 || setup_rc=$?
+    jb__scrubbed bash "$TK_SETUP" --agents "$AGENTS" --yes >"$WORK/setup.out" 2>&1 || setup_rc=$?
     if [ "$setup_rc" = "0" ]; then
       stage_commit 4 "install-per-agent" "ok wired agents=$AGENTS"
     else

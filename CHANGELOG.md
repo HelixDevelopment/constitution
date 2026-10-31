@@ -1,5 +1,53 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v73 — 2026-10-31 — one-command installer, updater, versioned setup prompt, decisions wizard, Gitea publisher, submodules/constitution standard
+
+**Status of this entry: UNRELEASED.** `helixconstitution-v73` is a placeholder number (newest existing tag: `helixconstitution-v72.1`; the conductor may change it at tag time). The documentation was reconciled on 2026-10-31 with the scripts' `--help` output and source; the decisions-wizard tutorial (steps 1 to 5 and the weakening refusal) was run in a throwaway project; the committed transcript `docs/qa/decisions_wizard_tutorial_run.txt` is the only evidence of that run. No live end-to-end install and no live LLM/agent run was made for this documentation pass. Release 2 (extensions engine behind a `/constitution` command family) is NOT part of this release: `scripts/constitution_ext/` is an implemented engine only, not yet wired into any command, the installer or the post-update hook. Verification evidence belongs to the commits and reports that land it, not to this text.
+
+### Added
+
+- `scripts/install_constitution.sh`: a curl-installable, single-file installer (ADD / UPDATE / LEGACY mode detection, agent detection and headless run, deterministic post-verify, backups under `.constitution-install-backup/<timestamp>/`, never pushes). Raw-URL snippets for the github, gitlab, gitlab-vasic, gitflic and gitverse upstreams are at the top of the README, exactly as `--print-snippets` prints them (the `github-vasic` mirror returned 404 and `m3w` is private, so neither has a snippet). Flags beyond the basics: `--upstream-url`, `--ssh`, `--edit-agent-docs`, `--register-hooks`, `--run-setup`, `--commit`, `--git-init`, `--restore DIR`, `--detect-agents [--json]`, `--detect-layout`, `--print-snippets`; exit codes 0 to 6 (plus 130 / 143 on interrupt; 6 = agent success unverified). Agent driving is only unit-class tested; provider aliases, kimi, opencode and pi are UNCONFIRMED.
+- `scripts/decisions/constitution_decisions.sh`: decisions wizard for the Jev decision layer; local overrides in `.constitution/decisions.yml` that inherit from the constitution, locked rules cannot be weakened (exit 4), backups under `.constitution-install-backup/<UTC>-decisions/`, exit codes 0 to 5; never runs `bootstrap.sh`, no network, no LLM.
+- Installer `--allow-unrestricted-agent` (required for `kimi`, `opencode`, `pi`, which run with their own default permissions; refused with exit 3 when non-interactive without it), a deny list for the Claude family (web tools and `git push` forms), and a post-run no-push check (a detected push fails the run with exit 5; `HELIX_INSTALLER_TEST=1` enables test seams only).
+- `scripts/update_constitution.sh`: fast-forward-only updater that works for both layouts and refuses on local changes.
+- Installer hardening reflected in the docs (from `install_constitution.sh --help` and `update_constitution.sh --help`, 2026-10-29): bash 4.4 or newer; blobless clone with full-clone fallback; refusal (exit 3) to install into the constitution repository itself, with `--not-constitution-repo` for projects that only use it; `--allow-insecure-url` (http and git URLs refused otherwise); exit code 6 (agent ran but success UNVERIFIED, `opencode` / `pi`); `--max-budget-usd` as a total cap (greater than 0, at most 50); `--model` / `--effort` refused for `kimi`, `opencode`, `pi`; git run with a sanitised environment (inherited `GIT_*` such as `GIT_SSH_COMMAND` dropped; ssh `BatchMode=yes`); credentials removed from printed URLs and query values shown as `REDACTED`; stricter `--restore` rules; a stale-aware install lock; `--detect-layout` also prints `constitution-repo`. The updater's `--check` and `--dry-run` still fetch; default target is the newest release tag `helixconstitution-vN(.N)*`, never a pre-release.
+- Hooks / layout (from the `setup.sh` and hook headers): auto-propagation of the post-update hook is guarded (commit reachable from the submodule's upstream default branch, not a downgrade) with opt-outs `git config constitution.autoPropagate false` and `CONSTITUTION_AUTO_PROPAGATE=off`; `setup.sh --allow-global-hooks-path`; shared `scripts/lib/hook_install.sh`; a submodule-side `post-checkout` consumer hook.
+- `scripts/release_publish_gitea.sh`: publishes a release to the private `m3w` Gitea over its REST API (token from the environment only; refuses to publish an `[Unreleased]` section under a tag). Exercised only by its own help text in this documentation pass; no live publish is claimed.
+- `scripts/constitution_ext/`: an extension engine (`validate`, `list`, `info`, `add`, `remove`, `enable`, `disable`, `verify`, `lock`, `doctor`, `catalog`, `wire`, `unwire`) with pinned installs, consent, signed local state and atomic journaled transactions. Engine only, shipped dormant: NOT wired into a `/constitution` command (planned / in review), the installer or the post-update hook; per-agent shim formats other than Claude are UNCONFIRMED against live agents. Design: `docs/design/constitution_extensions_plan.md`.
+- Documentation added: installer user guide, manual and FAQ, tutorials 01 to 08, a setup-prompt versioning guide, a release publishing guide, Mermaid diagrams (all linked from the README), quick start, troubleshooting guide, extensions guide / manual / FAQ / tutorial 07, decisions-wizard guide / FAQ / tutorial 08 (reconciled 2026-10-30 with the landed `scripts/decisions/constitution_decisions.sh`), and diagrams for architecture, update flow, trust model, extension lifecycle and decision flow.
+- `docs/prompts/setup/latest.md` as the always-current versioned setup prompt, with follow-ups under `docs/prompts/setup/followups/` and `scripts/prompts/rotate_setup_prompt.sh` that rotates the old latest to `NN_NAME.md`.
+
+### Changed
+
+- `submodules/constitution` is the standard consumer layout; the legacy `./constitution` layout stays supported by every script. README install example updated accordingly.
+- Layout-hardened hooks and scripts so both layouts work.
+- README: latest-tag fact corrected to `helixconstitution-v72.1`; installer section placed at the top with one snippet per upstream and a link to the design plans.
+
+### Changed — hub engine pins (update-all refresh, commit `a5cee41`)
+
+- `claude_toolkit` `f24e091`, `containers` `22b4970`, `design-toolkit` `1b9abac`, `llmctl` `4fbef9e`, `open_design` `3805d03`, `verify` `cda25a0`; manifest re-pinned.
+
+### Fixed
+
+- Layout hardening so every script and hook works with both `submodules/constitution` and the legacy `./constitution` (setup, post-merge hook, evidence-store guard, canonical-root clarity gate and its mutation test, fast-cycle consumers, multitrack constitution sync, CLI-agent plugin installer, templates).
+- Documentation drift: README, quick start, troubleshooting, manuals and tutorials re-checked flag by flag against `--help` of the installer, updater, decisions wizard, rotation script and Gitea publisher (no flag in the docs is absent from the scripts); the rotation script's dirty-tree refusal (exit 3 unless `--allow-dirty`) and the wizard's exit codes added to the troubleshooting guide; the orphaned extensions design plan linked from the README.
+
+### Security
+
+- Installer: never pushes; post-run no-push check; deny list for the Claude family; `--allow-unrestricted-agent` required for kimi, opencode, pi; sanitised git environment; credentials stripped from printed URLs; `--restore` path rules; refuses root without `--yes`; `curl | bash` runs a single `main()` invoked last, so a truncated download executes nothing. Trust model: [diagram](docs/diagrams/trust_model.md).
+- Decisions wizard: a locked constitution rule can only be kept or tightened (weakening exits 4); secret-like values are refused; writes are confined to the project (and the user file with `--scope user`).
+- Gitea publisher: token from the environment only, never argv, never printed, sent through a 0600 curl config; refuses to publish an `[Unreleased]` section under a tag.
+
+### Known limits (§11.4.6)
+
+- The installer's "agent never pushes" gate is a best-effort tripwire, not a boundary: it misses a push by URL to an unconfigured remote that updates no tracking ref, pushes to other repositories, and a push the remote reverses before the second look; a push by someone else during the run is a false positive. Whether `claude` enforces every form of the deny list was not checked live (UNCONFIRMED).
+- Agent driving (claude family, provider aliases, kimi, opencode, pi) is covered only by unit-class tests with a fake agent binary (§11.4.289: a double is not live proof); no live LLM run was made for this documentation. Provider aliases, kimi, opencode and pi are UNCONFIRMED; opencode and pi end with exit 6 (success unverified).
+- Lock reclaim differs between scripts: the installer reclaims a stale `.git/helix-constitution-install.lock` under a link-created `.reclaim` marker (only one of several runs replaces it), while `rotate_setup_prompt.sh` takes a stale `.rotate.lock` over by renaming its `pid` file away and re-checking the dead owner. Both refuse a non-regular lock; the two protocols are not shared code.
+- Decisions wizard residuals (from `docs/design/decisions_wizard_plan.md`): a path-based copy after the last identity check remains a documented residual (note 6); `layer.mode=off` conflicts with §11.4.279(E) and is an open operator question; `bootstrap.sh` does not yet read `.constitution/decisions.yml` (the wizard prints the command and env names); the two wizard gates are not wired into the gate ledger, the pre-build sweep or the post-update hook; the enforce-eligible stems other than `gate` are UNCONFIRMED; review rounds for the wizard (tests `tests/decisions/test_round8.sh` to `test_round11.sh` exist) exceeded the §11.4.276 budget of 5 to 7 and continued under a documented overridable-budget decision (UNCONFIRMED as a recorded operator decision); an independent GO after round 11 was reported to the documentation pass, not re-verified here.
+- Extensions: the `/constitution` command family, installer integration and post-update wiring are planned / in review; per-agent shim formats other than Claude are UNCONFIRMED against live agents.
+- `scripts/release_publish_gitea.sh` was exercised only through `--help` in this documentation pass; no live publish is claimed.
+- Only Markdown documents are shipped (formats export is off).
+
 ## helixconstitution-v72.1 — 2026-10-28 — credscan, hub engine pins, propagation-family fixes
 
 **Status of this entry: RELEASE v72.1** (tag `helixconstitution-v72.1`). Built on `511b3a4` (the landing after v72); Markdown-only documentation policy applies (no generated twins).

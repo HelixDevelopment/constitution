@@ -84,6 +84,17 @@
 #           §11.4.201 (assert real conditions), docs/label-sync/HOOKS.md.
 # Classification: universal (§11.4.17).
 set -u
+# Ambient GIT_DIR & co. (left over for ANOTHER repository) must never choose the
+# repository a git call below reads or writes (round 8 class fix): every git call
+# goes through ls__git, which drops the repository-locating variables in a subshell.
+# The list equals CL_GIT_SCRUB_VARS (scripts/lib/constitution_layout.sh);
+# tests/layout/test_round8_git_env.sh checks that.
+ls__git() {
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE \
+            GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH \
+            GIT_INTERNAL_SUPER_PREFIX 2>/dev/null; exec git "$@" )
+}
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
 CONST_ROOT="$(cd "$HERE/../.." && pwd -P)"
@@ -295,7 +306,7 @@ rl_json='null'; [ "$req_set" = 1 ] && rl_json="$(jq -nc --arg r "$req_ledger" '$
 if [ "$req_set" = 1 ] && [ "$uninstall" = 0 ]; then
   case "$req_ledger" in /*) rl_abs="$req_ledger" ;; *) rl_abs="${project_root%/}/$req_ledger" ;; esac
   rl_d="$(dirname -- "$rl_abs")"; while [ ! -d "$rl_d" ] && [ "$rl_d" != / ]; do rl_d="$(dirname -- "$rl_d")"; done
-  if git -C "$rl_d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && ! git -C "$rl_d" check-ignore -q -- "$rl_abs" 2>/dev/null; then
+  if ls__git -C "$rl_d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && ! ls__git -C "$rl_d" check-ignore -q -- "$rl_abs" 2>/dev/null; then
     echo "WARNING: the request ledger $rl_abs is inside a git work tree and NOT git-ignored — prompts (secret-redacted, otherwise verbatim) would be committed by any 'git add .' wrapper (§11.4.10). Add it to .gitignore, or choose a path outside the repository, unless committing them is intended (§11.4.208)."
   fi
 fi

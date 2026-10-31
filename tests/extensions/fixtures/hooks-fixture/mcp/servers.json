@@ -1,0 +1,1 @@
+{"mcpServers": {"hooks-fixture-mcp": {"command": "node", "args": ["mcp/server.js"], "env": {"HOOKS_FIXTURE_TOKEN": "${HOOKS_FIXTURE_TOKEN}"}}}}

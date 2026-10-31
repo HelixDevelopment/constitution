@@ -1,0 +1,411 @@
+#!/usr/bin/env bash
+# constitution-pending-update-consumer v2 (marker string: do not remove; post-merge greps for it)
+# ============================================================================
+# constitution-submodule-post-checkout — the CONSTITUTION SUBMODULE's own
+# post-checkout hook: runs the pending §11.4.164 post-update propagation once
+# the submodule checkout has reached the gitlink the parent merged.
+# ============================================================================
+# Why it exists (measured, git 2.53.0, 2026-10-29): the parent's post-merge runs
+# BEFORE `git pull --recurse-submodules` updates the submodule, so it sees the
+# old checkout. The update that follows is an internal `git submodule update`,
+# which fires THIS hook (the submodule's post-checkout, run from the submodule
+# work tree with GIT_DIR=<parent git dir>/modules/<name>), never the parent's.
+# A plain `git pull` followed later by `git submodule update` fires it too.
+#
+# TRUST MODEL (read this): this hook EXECUTES CODE THAT WAS JUST FETCHED. It
+# runs <constitution>/scripts/post_update_hook.sh of the commit the submodule
+# has just been checked out at (the merged gitlink, NEW), automatically, at
+# pull / submodule-update time. git itself never executes fetched content;
+# this hook does, on purpose, because §11.4.164 mandates auto-propagation. To
+# bound that, it runs ONLY when ALL of these hold (otherwise it prints one
+# WARNING with the exact manual command and runs nothing):
+#   - auto-propagation is not disabled: `git config constitution.autoPropagate
+#     false` (any scope; a value git cannot read as a boolean also disables)
+#     or env CONSTITUTION_AUTO_PROPAGATE=off|0|false|no turns it off;
+#   - NEW is a full 40-hex (SHA-1) or 64-hex (SHA-256) commit id;
+#   - NEW is reachable from the SUBMODULE's upstream default branch, i.e. an
+#     ancestor of the first existing ref of refs/remotes/origin/HEAD,
+#     refs/remotes/origin/main, refs/remotes/origin/master (this hook never
+#     fetches; `git pull --recurse-submodules` / `git submodule update` have
+#     already fetched). A commit that exists only on another branch, a fork or
+#     a hand-made ref is not run;
+#   - it is not a downgrade or a side move: OLD (when known) is a commit and
+#     an ancestor of NEW. A branch switch to an older gitlink therefore never
+#     runs the older checkout's hook, and a stale applied record is harmless.
+# The parent's post-merge applies the same rules before it runs the hook.
+#
+# Installation: scripts/setup.sh copies this file to
+#   $(git -C <constitution> rev-parse --git-path hooks)/post-checkout
+# only when the constitution is a real submodule (gitlink, mode 160000) of the
+# project. The file name differs from every git hook name on purpose, so the
+# generic hook installer never copies it into the PROJECT's hooks dir.
+#
+# State (PER WORKTREE: $(git -C <project> rev-parse --absolute-git-dir), i.e.
+# .git for the main worktree and .git/worktrees/<name> for a linked one, so
+# one worktree's update never marks another one applied):
+#   constitution-pending-update       ROOT=, REL=, OLD=, NEW= (from post-merge)
+#   constitution-applied-ref          REL=, REF= (the last propagated gitlink)
+#   constitution-pending-update.lock  lock FILE: PID=, START=, NONCE= (a directory
+#                                     holding "owner" is the pre-round-4 form;
+#                                     honoured and reclaimed by the same rules)
+#
+# Behaviour ($3 = 1 branch/commit checkout; file checkouts are ignored):
+#   1. resolves the superproject; exits 0 silently unless this checkout is the
+#      superproject's constitution gitlink (mode 160000) and HEAD equals the
+#      gitlink recorded in the superproject's HEAD;
+#   2. OLD = stamp OLD (stamp ROOT and REL must match), else the applied REF;
+#      with neither it does nothing (it never guesses a range); when the
+#      applied REF already equals the gitlink it only discards the stamp;
+#   3. takes the lock: an EXCLUSIVE create of the lock file by bash itself
+#      (`set -o noclobber`: open(O_CREAT|O_EXCL), atomic in the kernel; never
+#      `mkdir`: measured 2026-10-29, uutils coreutils 0.8.0 mkdir reports
+#      success to BOTH of two simultaneous callers in 86/200 rounds, bash
+#      noclobber 0/200 on ext4 and 0/200 on tmpfs, 0/100 with 8 contenders),
+#      then the record is read back (NONCE must be ours). Nothing is created
+#      when the path already exists (so a FIFO or a symlink there is never
+#      opened). A lock is STALE (reclaimed, with a WARNING) when its owner pid
+#      is dead, the pid was reused (process start time differs), it has no
+#      owner record and is older than LOCK_STALE_AGE (60 s), or it is neither
+#      a regular file nor a plain directory (a symlink is renamed away, its
+#      target is never touched or opened; a FIFO/socket likewise). Reclaim is
+#      an atomic rename (mv) of the stale lock to a unique name, then the
+#      renamed lock's signature (type + owner record PID/START/NONCE + mtime)
+#      must equal the snapshot that was judged stale, else it is put back
+#      without replacing anything (hard link / symlink re-create) and the run
+#      backs off: inode identity alone is NOT proof (ext4 reuses a freed inode
+#      for the next file at once). Only then is it removed, so two reclaimers
+#      never both win and a live holder's lock made after the snapshot is put
+#      back, not taken over (limits: an owner-less lock is told apart by its
+#      mtime, 1 s resolution; a holder whose lock is removed by hand or by a
+#      crash-and-reclaim is re-checked again after the post-update hook and a
+#      WARNING is printed — the run itself cannot be undone). A live
+#      lock is never reclaimed: the hook prints a WARNING (the stamp stays,
+#      nothing is lost) with the command. The holder re-checks that the lock
+#      is still its own right before it runs the post-update hook;
+#   4. applies the trust rules above, runs post_update_hook.sh from the
+#      project root with PROJECT_ROOT, CONST_DIR, CONSTITUTION_UPDATE_OLD_REF/
+#      NEW_REF and CONSTITUTION_PENDING_UPDATE_RUNNING=1, and ONLY when it
+#      succeeds records the applied ref and removes the stamp (exactly once per
+#      gitlink move). A failing hook is reported with the command to re-run it,
+#      the applied ref is NOT advanced and a stamp is kept (written when none
+#      existed), so the next checkout retries. A refused run keeps the stamp
+#      and does not record anything.
+#   Ignores checkouts made while CONSTITUTION_PENDING_UPDATE_RUNNING=1.
+# Exit: always 0 (a hook must never break a checkout).
+# Dependencies: bash (noclobber, builtins), git, mv, ln, readlink, rm, ls, stat, date, cat.
+#   Cross-references: §11.4.164;
+#   scripts/hooks/post-merge; scripts/setup.sh;
+#   tests/layout/test_pending_update_layout.sh, tests/layout/test_consumer_trust_lock.sh,
+#   tests/layout/test_round4_hardening.sh, tests/layout/test_round6_hardening.sh.
+# Last verified: 2026-10-29
+# ============================================================================
+set -uo pipefail
+
+[ "${CONSTITUTION_PENDING_UPDATE_RUNNING:-}" = 1 ] && exit 0
+[ "${3:-0}" = 1 ] || exit 0
+
+LOCK_STALE_AGE=60   # seconds: an owner-less lock older than this is stale
+
+say()  { printf '[constitution] %s\n' "$*" >&2; }
+q() { printf '%q' "$1"; }
+
+# git runs the hook from the submodule work tree's top level.
+CONST_DIR="$(pwd -P)"
+# (the repository-locating class of scripts/lib/constitution_layout.sh
+# CL_GIT_SCRUB_VARS — keep the lists equal; tests/layout/test_round8_git_env.sh
+# checks it. No notice: git itself exports some of them to every hook.)
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR \
+      GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE \
+      GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE \
+      GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX 2>/dev/null || true
+
+_top="$(git -C "$CONST_DIR" rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ "$( (cd -- "$_top" 2>/dev/null && pwd -P) )" = "$CONST_DIR" ] || exit 0
+PROJECT_ROOT="$(git -C "$CONST_DIR" rev-parse --show-superproject-working-tree 2>/dev/null)" || exit 0
+[ -n "$PROJECT_ROOT" ] || exit 0
+PROJECT_ROOT="$( (cd -- "$PROJECT_ROOT" 2>/dev/null && pwd -P) )" || exit 0
+case "$CONST_DIR" in "$PROJECT_ROOT"/*) REL="${CONST_DIR#"$PROJECT_ROOT"/}" ;; *) exit 0 ;; esac
+case "$REL" in ''|..|../*|*/..|*/../*|*$'\n'*) exit 0 ;; esac
+
+G() { git -C "$PROJECT_ROOT" --literal-pathspecs "$@"; }
+_gl=0
+while IFS= read -r -d '' _rec; do
+    case "$_rec" in "160000 "*) [ "${_rec#*$'\t'}" = "$REL" ] && _gl=1 ;; esac
+done < <(G ls-files -s -z -- "$REL" 2>/dev/null)
+[ "$_gl" = 1 ] || exit 0
+
+LINK="$(G rev-parse -q --verify "HEAD:${REL}" 2>/dev/null)" || exit 0
+CUR="$(git -C "$CONST_DIR" rev-parse HEAD 2>/dev/null)" || exit 0
+[ -n "$LINK" ] && [ "$CUR" = "$LINK" ] || exit 0
+
+STATE="$(G rev-parse --absolute-git-dir 2>/dev/null)" || exit 0
+[ -d "$STATE" ] || exit 0
+STAMP="$STATE/constitution-pending-update"
+APPLIED="$STATE/constitution-applied-ref"
+LOCK="$STATE/constitution-pending-update.lock"
+
+is_sha() { [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; }
+kv() { [ -f "$1" ] || return 1; local l; while IFS= read -r l; do case "$l" in "$2="*) printf '%s' "${l#"$2"=}"; return 0 ;; esac; done < "$1"; return 1; }
+
+# --- read the state (no lock needed to decide there is nothing to do) -------
+read_state() {
+    HAVE_STAMP=0; S_OLD=""; A_REF=""
+    if [ "$(kv "$STAMP" ROOT)" = "$PROJECT_ROOT" ] && [ "$(kv "$STAMP" REL)" = "$REL" ]; then
+        S_OLD="$(kv "$STAMP" OLD || true)"
+        if [ -z "$S_OLD" ] || is_sha "$S_OLD"; then HAVE_STAMP=1; else S_OLD=""; fi
+    fi
+    if [ "$(kv "$APPLIED" REL)" = "$REL" ]; then
+        A_REF="$(kv "$APPLIED" REF || true)"; is_sha "$A_REF" || A_REF=""
+    fi
+}
+read_state
+if [ "$A_REF" = "$LINK" ]; then
+    [ "$HAVE_STAMP" = 1 ] && rm -f -- "$STAMP"
+    exit 0
+fi
+if [ "$HAVE_STAMP" = 1 ]; then OLD="$S_OLD"
+elif [ -n "$A_REF" ]; then OLD="$A_REF"
+else exit 0
+fi
+
+HOOK="$CONST_DIR/scripts/post_update_hook.sh"
+RERUN() { printf 'cd -- %s && PROJECT_ROOT=%s CONST_DIR=%s CONSTITUTION_UPDATE_OLD_REF=%s CONSTITUTION_UPDATE_NEW_REF=%s bash %s' \
+    "$(q "$PROJECT_ROOT")" "$(q "$PROJECT_ROOT")" "$(q "$CONST_DIR")" "$OLD" "$LINK" "$(q "$HOOK")"; }
+
+# --- lock ------------------------------------------------------------------
+alive() { if [ -d /proc/self ]; then [ -d "/proc/$1" ]; else kill -0 "$1" 2>/dev/null || ps -p "$1" >/dev/null 2>&1; fi; }
+proc_start() { # process start time (Linux: /proc/PID/stat field 22; else ps lstart)
+    local s f
+    if [ -r "/proc/$1/stat" ]; then
+        s="$(cat "/proc/$1/stat" 2>/dev/null)" || return 1
+        s="${s##*) }"; read -r -a f <<<"$s"
+        printf '%s' "${f[19]:-}"
+        return 0
+    fi
+    ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ' '_'
+}
+inode_of() { ls -di -- "$1" 2>/dev/null | awk '{ print $1; exit }'; }
+mtime_of() { stat -c %Y -- "$1" 2>/dev/null || stat -f %m -- "$1" 2>/dev/null; }
+MY_NONCE="$$.$(date +%s%N 2>/dev/null).${RANDOM}${RANDOM}"
+MY_START="$(proc_start "$$" 2>/dev/null || true)"
+LOCK_HOLDER=""
+
+# lock_create -> 0 iff THIS process created the lock file exclusively.
+# bash noclobber = open(O_CREAT|O_EXCL) for a path that does not exist; it is
+# NOT used when the path exists (a FIFO / symlink would then be opened).
+lock_path_taken() { [ -e "$LOCK" ] || [ -L "$LOCK" ]; }
+lock_create() {
+    if lock_path_taken; then return 1; fi
+    ( set -o noclobber
+      printf 'PID=%s\nSTART=%s\nNONCE=%s\n' "$$" "$MY_START" "$MY_NONCE" > "$LOCK" ) 2>/dev/null || return 1
+    lock_is_mine
+}
+lock_is_mine() { [ -f "$LOCK" ] && [ ! -L "$LOCK" ] && [ "$(kv "$LOCK" NONCE 2>/dev/null)" = "$MY_NONCE" ]; }
+
+# lock_sig PATH -> one line naming WHICH lock is at PATH: its type, the owner
+# record text (PID/START/NONCE) and its mtime. Two different locks never have
+# the same signature (a NONCE is unique; an owner-less lock differs by mtime),
+# while an inode number can be reused at once by the next file created.
+# A symlink is never followed and a FIFO/socket is never opened.
+lock_sig() {
+    local p="$1" f t
+    if [ -L "$p" ]; then
+        t="$(readlink -- "$p" 2>/dev/null)" || return 1; printf 'L:%s' "$t"
+    elif [ -d "$p" ]; then
+        f="$p/owner"; [ -f "$f" ] && [ ! -L "$f" ] && t="$(<"$f")" || t=""
+        printf 'D:%s:%s' "$(mtime_of "$p")" "$t"
+    elif [ -f "$p" ]; then
+        t="$(<"$p")" || return 1; printf 'F:%s:%s' "$(mtime_of "$p")" "$t"
+    elif [ -e "$p" ]; then
+        printf 'O:%s' "$(inode_of "$p")"
+    else
+        return 1
+    fi
+}
+kvs() { local l; while IFS= read -r l; do case "$l" in "$2="*) printf '%s' "${l#"$2"=}"; return 0 ;; esac; done <<<"$1"; return 1; }
+# put_back U -> 0 iff U was restored to LOCK WITHOUT replacing anything there
+# (a regular file by a hard link, a symlink by re-creating it: both fail when
+# LOCK exists; a legacy directory by a no-clobber, no-target-dir rename).
+put_back() {
+    local u="$1" t
+    if [ -L "$u" ]; then
+        t="$(readlink -- "$u")" && ln -s -- "$t" "$LOCK" 2>/dev/null && rm -f -- "$u"
+    elif [ -f "$u" ]; then
+        ln -- "$u" "$LOCK" 2>/dev/null && rm -f -- "$u"
+    else
+        # a legacy directory lock: -T never moves INTO an existing directory,
+        # -n never replaces anything (not even an empty directory); success is
+        # proven by the result, never by mv's exit status alone.
+        { [ -e "$LOCK" ] || [ -L "$LOCK" ]; } && return 1
+        mv -T -n -- "$u" "$LOCK" 2>/dev/null
+        { [ ! -e "$u" ] && [ ! -L "$u" ] && [ -d "$LOCK" ] && [ ! -L "$LOCK" ]; }
+    fi
+}
+
+# take_lock -> 0 acquired; 1 contention (LOCK_HOLDER says by whom)
+take_lock() {
+    local i sig sig2 txt pid st cur age mt now stale u
+    for i in 1 2 3 4 5; do
+        if lock_create; then
+            return 0
+        fi
+        # One snapshot decides everything below; the rename is then accepted
+        # only if the renamed lock is THAT snapshot (owner record + mtime).
+        sig="$(lock_sig "$LOCK")" || continue      # vanished meanwhile: retry the create
+        stale=""; txt=""
+        case "$sig" in
+            L:*) stale="it is a symlink (never followed)" ;;
+            O:*) stale="it is neither a regular file nor a directory (FIFO/socket/device; never opened)" ;;
+            D:*|F:*) txt="${sig#?:}"; mt="${txt%%:*}"; txt="${txt#*:}" ;;
+        esac
+        if [ -z "$stale" ]; then
+            pid="$(kvs "$txt" PID || true)"; st="$(kvs "$txt" START || true)"
+            if [[ "$pid" =~ ^[0-9]+$ ]]; then
+                if ! alive "$pid"; then
+                    stale="its owner pid $pid is dead"
+                else
+                    cur="$(proc_start "$pid" 2>/dev/null || true)"
+                    if [ -n "$st" ] && [ -n "$cur" ] && [ "$st" != "$cur" ]; then
+                        stale="its owner pid $pid was reused (start time $st, now $cur)"
+                    else
+                        LOCK_HOLDER="live pid $pid"; return 1
+                    fi
+                fi
+            else
+                now="$(date +%s)"
+                if [[ "$mt" =~ ^[0-9]+$ ]]; then age=$((now - mt)); else age=0; fi
+                if [ "$age" -gt "$LOCK_STALE_AGE" ]; then
+                    stale="it has no owner record and is ${age}s old (> ${LOCK_STALE_AGE}s)"
+                else
+                    LOCK_HOLDER="a lock without an owner record, ${age}s old (<= ${LOCK_STALE_AGE}s: maybe being created)"
+                    return 1
+                fi
+            fi
+        fi
+        # takeover: only one reclaimer can rename a given lock away; the renamed
+        # lock must be the snapshot judged stale (same owner record and mtime;
+        # inode identity alone is NOT enough: ext4 hands a freed inode to the
+        # next file at once, measured 2026-10-29).
+        u="$LOCK.stale.$MY_NONCE.$i"
+        mv -- "$LOCK" "$u" 2>/dev/null || continue
+        sig2="$(lock_sig "$u" 2>/dev/null)" || sig2=""
+        if [ "$sig2" != "$sig" ]; then
+            # we renamed a lock made after we looked (a live holder's): put it back
+            if ! put_back "$u"; then
+                say "WARNING: renamed a lock that was not the stale one and could not put it back: $u (move it back to $LOCK by hand if its owner is still running)"
+            fi
+            LOCK_HOLDER="a concurrent locker (the lock changed while it was being reclaimed)"; return 1
+        fi
+        if [ -L "$u" ] || [ ! -d "$u" ]; then
+            rm -f -- "$u"
+        else
+            rm -f -- "$u/owner" "$u"/.owner.* 2>/dev/null
+            rmdir -- "$u" 2>/dev/null || say "WARNING: could not remove the reclaimed lock $u (inspect and delete it by hand)"
+        fi
+        say "WARNING: reclaimed a stale propagation lock $LOCK: $stale."
+    done
+    LOCK_HOLDER="${LOCK_HOLDER:-(lock busy after 5 attempts)}"
+    return 1
+}
+release_lock() {
+    lock_is_mine || return 0
+    rm -f -- "$LOCK"
+}
+
+if ! take_lock; then
+    say "WARNING: the propagation lock $LOCK is held by $LOCK_HOLDER; §11.4.164 propagation for ${OLD:0:8}..${LINK:0:8} (${REL}) was NOT run by this checkout and stays PENDING."
+    say "  When no other propagation is running, run: $(RERUN)"
+    exit 0
+fi
+trap release_lock EXIT
+
+read_state   # re-read under the lock (another run may have finished meanwhile)
+if [ "$A_REF" = "$LINK" ]; then
+    [ "$HAVE_STAMP" = 1 ] && rm -f -- "$STAMP"
+    exit 0
+fi
+if [ "$HAVE_STAMP" = 1 ]; then OLD="$S_OLD"
+elif [ -n "$A_REF" ]; then OLD="$A_REF"
+else exit 0
+fi
+
+# --- trust rules (see TRUST MODEL above) -----------------------------------
+AP_WHY=""; AP_NOTE=0
+auto_propagate_allowed() { # DIR OLD NEW -> 0 run, 1 refuse (AP_WHY says why)
+    local c="$1" old="$2" new="$3" raw v r up=""
+    case "$(printf '%s' "${CONSTITUTION_AUTO_PROPAGATE:-}" | tr 'A-Z' 'a-z')" in
+        off|0|false|no) AP_WHY="auto-propagation is disabled (CONSTITUTION_AUTO_PROPAGATE=${CONSTITUTION_AUTO_PROPAGATE})"; AP_NOTE=1; return 1 ;;
+    esac
+    raw="$(git -C "$PROJECT_ROOT" config --get constitution.autoPropagate 2>/dev/null || true)"
+    if [ -n "$raw" ]; then
+        v="$(git -C "$PROJECT_ROOT" config --type=bool --get constitution.autoPropagate 2>/dev/null || true)"
+        if [ "$v" != true ]; then
+            AP_WHY="auto-propagation is disabled (git config constitution.autoPropagate=$raw)"; AP_NOTE=1; return 1
+        fi
+    fi
+    is_sha "$new" || { AP_WHY="the gitlink '$new' is not a full 40/64-hex commit id"; return 1; }
+    for r in refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin/master; do
+        if git -C "$c" rev-parse -q --verify "${r}^{commit}" >/dev/null 2>&1; then up="$r"; break; fi
+    done
+    [ -n "$up" ] || { AP_WHY="the submodule has no upstream default-branch ref (origin/HEAD, origin/main or origin/master; this hook never fetches)"; return 1; }
+    git -C "$c" merge-base --is-ancestor "$new" "$up" 2>/dev/null || \
+        { AP_WHY="${new:0:12} is NOT reachable from the submodule's upstream default branch ${up#refs/remotes/} (code from another branch or a fork is never run automatically)"; return 1; }
+    if [ -n "$old" ] && [ "$old" != "$new" ]; then
+        git -C "$c" cat-file -e "${old}^{commit}" 2>/dev/null || \
+            { AP_WHY="the previous gitlink ${old:0:12} is unknown here, so an upgrade cannot be proven"; return 1; }
+        git -C "$c" merge-base --is-ancestor "$old" "$new" 2>/dev/null || \
+            { AP_WHY="this is a downgrade or a side move (${old:0:12} is not an ancestor of ${new:0:12}); an older checkout's hook is never run automatically"; return 1; }
+    fi
+    return 0
+}
+
+record_applied() {
+    local t
+    t="$(mktemp "$STATE/.constitution-applied-ref.XXXXXX" 2>/dev/null)" || return 1
+    printf 'REL=%s\nREF=%s\n' "$REL" "$LINK" > "$t" && mv -f -- "$t" "$APPLIED"
+}
+if [ "$OLD" = "$LINK" ]; then
+    [ "$HAVE_STAMP" = 1 ] && rm -f -- "$STAMP"
+    record_applied; exit 0
+fi
+if [ ! -f "$HOOK" ]; then
+    say "WARNING: $HOOK not found; propagation (§11.4.164) did NOT run for ${OLD:0:8}..${LINK:0:8}."
+    exit 0
+fi
+if ! auto_propagate_allowed "$CONST_DIR" "$OLD" "$LINK"; then
+    if [ "$AP_NOTE" = 1 ]; then
+        say "NOTE: $AP_WHY: propagation for ${OLD:0:8}..${LINK:0:8} (${REL}) was not run (pending)."
+    else
+        say "WARNING: $AP_WHY: propagation for ${OLD:0:8}..${LINK:0:8} (${REL}) was NOT run automatically (pending)."
+    fi
+    say "  Review the commit, then run by hand: $(RERUN)"
+    exit 0
+fi
+
+if ! lock_is_mine; then
+    say "WARNING: the propagation lock $LOCK is no longer this process's (taken over meanwhile); §11.4.164 propagation for ${OLD:0:8}..${LINK:0:8} (${REL}) was NOT run and stays PENDING."
+    say "  When no other propagation is running, run: $(RERUN)"
+    exit 0
+fi
+say "Constitution submodule updated: ${OLD:0:8}..${LINK:0:8} (${REL}); running post-update auto-propagation..."
+( cd "$PROJECT_ROOT" && PROJECT_ROOT="$PROJECT_ROOT" CONST_DIR="$CONST_DIR" \
+    CONSTITUTION_UPDATE_OLD_REF="$OLD" CONSTITUTION_UPDATE_NEW_REF="$LINK" \
+    CONSTITUTION_PENDING_UPDATE_RUNNING=1 bash "$HOOK" --project-root "$PROJECT_ROOT" ) >&2
+_rc=$?
+if ! lock_is_mine; then
+    say "WARNING: the propagation lock $LOCK was no longer this process's when the post-update hook finished (removed or reclaimed meanwhile): another propagation may have run concurrently; review its output."
+fi
+if [ "$_rc" -eq 0 ]; then
+    # success only: the applied ref is what makes the next checkout a no-op
+    record_applied || say "WARNING: could not record $APPLIED"
+    rm -f -- "$STAMP"
+else
+    # failure: NOTHING is recorded as applied and a pending stamp keeps the
+    # range, so setup.sh / the next checkout / the printed command can retry.
+    if [ "$HAVE_STAMP" != 1 ]; then
+        _t="$(mktemp "$STATE/.constitution-pending-update.XXXXXX" 2>/dev/null)" && \
+            printf 'ROOT=%s\nREL=%s\nOLD=%s\nNEW=%s\n' "$PROJECT_ROOT" "$REL" "$OLD" "$LINK" > "$_t" && mv -f -- "$_t" "$STAMP"
+    fi
+    say "WARNING: post-update hook exited $_rc (non-fatal). NOT recorded as applied; the pending stamp is kept. Review the output above; re-run with: $(RERUN)"
+fi
+exit 0

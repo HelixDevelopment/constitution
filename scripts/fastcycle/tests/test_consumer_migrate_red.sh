@@ -69,8 +69,12 @@ TOOL="$FC/consumers/migrate.sh"
 FIXDIR="$HERE/fixtures/consumer_migrate"
 BUILDER="$FIXDIR/build_fixtures.sh"
 VERIFY_TOOL="$FC/verify/repo_verify.py"
-EVDIR="$REPO_ROOT/qa-results/fastcycle/us8/red"
-mkdir -p "$EVDIR" 2>/dev/null || true
+# Evidence log: FASTCYCLE_RED_EVIDENCE_DIR when set (kept); otherwise a dir
+# inside this run's own mktemp sandbox (removed on exit). The old default
+# "$REPO_ROOT/qa-results/..." resolved, inside the constitution repo, to the
+# PARENT of the repository (REPO_ROOT is three levels up from scripts/fastcycle) and
+# wrote outside the repo on every run.
+EVDIR="${FASTCYCLE_RED_EVIDENCE_DIR:-}"
 FINGERPRINT=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)
 
 FAIL=0; PASS=0
@@ -131,6 +135,8 @@ fi
 # =============================================================================
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
+[ -n "$EVDIR" ] || EVDIR="$WORK/evidence"
+mkdir -p "$EVDIR" 2>/dev/null || true
 FIXWORK="$WORK/fixtures"
 
 if sh "$BUILDER" "$FIXWORK" >"$WORK/build.log" 2>&1; then
@@ -1982,7 +1988,7 @@ else
     bad "J6 allow-list enforcement: out-of-scope hook artefact not refused honestly (rc=$J_RC out=$J_OUT; see $WORK/j6.json)"
 fi
 j_mutant J6_allow_any_root_path \
-    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;' \
+    '.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;' \
     '*) return 0 ;;'
 build_r3_fixture "$I_ROOT/j6m" "$J6_HOOK"
 j_run "$WORK/jmut_J6_allow_any_root_path.sh" "$I_ROOT/j6m" fixture/section_j6m "$WORK/j6m.json"
@@ -2106,7 +2112,7 @@ else
     bad "J9 constitution-gitlink invariant: a deleted submodule checkout affected the published gitlink (rc=$J_RC out=$J_OUT published=$J9_PUBLISHED_GITLINK expected=$R3_NEW)"
 fi
 j_mutant J9_drop_unconditional_cacheinfo \
-    'if ! git -C "$FC_BARE" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>"$MIGRATE_SCRATCH/updindex.err"; then' \
+    'if ! git -C "$FC_BARE" update-index --add --cacheinfo "160000,$NEW_SHA,$CONST_PATH" 2>"$MIGRATE_SCRATCH/updindex.err"; then' \
     'if false; then'
 build_r3_fixture "$I_ROOT/j9m" "$J9_HOOK"
 j_run "$WORK/jmut_J9_drop_unconditional_cacheinfo.sh" "$I_ROOT/j9m" fixture/section_j9m "$WORK/j9m.json"
@@ -2763,8 +2769,8 @@ fi
 # mutant's shell syntax (caught live while authoring this arm: the first
 # attempt produced exactly that syntax error).
 j_mutant K_insteadof_fetch_shape \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
-    'git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/$CONST_PATH" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'git -C "$WORKDIR/$CONST_PATH" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
     'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
 K_ISF_M_ROOT="$K_ROOT/km_isf"
@@ -3127,8 +3133,8 @@ fi
 # proving fc_transfer_objects_into()'s object-only transfer, not some
 # other mechanism, is what K-receive-hooks's PASS depends on.
 j_mutant K_receive_hooks_push_shape \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
-    'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/$CONST_PATH" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/$CONST_PATH" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
     'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
 K_RH_M_ROOT="$K_ROOT/km_rh"
@@ -3266,8 +3272,8 @@ fi
 # history instead -- proving the `$5` boundary, not some other mechanism,
 # is what keeps K-bounded-transfer's growth small.
 j_mutant K_bt_unbounded \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/$CONST_PATH" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/$CONST_PATH" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
     'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"'
 K_BT_M_ROOT="$K_ROOT/km_bt"

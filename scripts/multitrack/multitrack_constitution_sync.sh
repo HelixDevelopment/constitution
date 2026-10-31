@@ -42,7 +42,12 @@
 #
 # Usage:
 #   multitrack_constitution_sync.sh sync <constitution-checkout-path>
-#   multitrack_constitution_sync.sh for-alias <alias>   # resolve wt, sync <wt>/constitution
+#   multitrack_constitution_sync.sh for-alias <alias>   # resolve wt, sync its constitution
+#     (<wt>/submodules/constitution — the standard layout — or the legacy
+#      <wt>/constitution, or any .gitmodules path; resolved by
+#      scripts/lib/constitution_layout.sh, ignoring any ambient
+#      $CONSTITUTION_DIR. None found => logged
+#      SKIPPED-no-constitution, never a silent no-op.)
 #   multitrack_constitution_sync.sh -h | --help
 #
 # Inputs (env, all optional — safe defaults):
@@ -166,7 +171,7 @@ _mtcs_sync_one() {
     return 0
 }
 
-# --- for-alias: resolve the alias's worktree, sync <worktree>/constitution ----
+# --- for-alias: resolve the alias's worktree, sync its constitution checkout --
 _mtcs_for_alias() {
     local alias="$1" resolver wt
     [ -n "$alias" ] || { _mtcs_log SKIPPED-empty-alias "(no alias given)"; return 0; }
@@ -177,7 +182,25 @@ _mtcs_for_alias() {
         _MTCS_CUR="" _mtcs_log NOOP-no-worktree "alias '$alias' -> no worktree (conductor/home/unmapped) — nothing to sync"
         return 0
     fi
-    _mtcs_sync_one "$wt/constitution"
+    local lib="$MTCS_DIR/../lib/constitution_layout.sh" cdir=""
+    if [ ! -r "$lib" ]; then
+        _MTCS_CUR="" _mtcs_log SKIPPED-no-layout-resolver "$lib missing — cannot locate the constitution in $wt"
+        return 0
+    fi
+    # shellcheck source=../lib/constitution_layout.sh
+    . "$lib"
+    # The WORKTREE's own checkout: an ambient $CONSTITUTION_DIR (exported for
+    # some other project) must never redirect the sync to another checkout.
+    if command -v cl_find_in_project_no_override >/dev/null 2>&1; then
+        cdir="$(cl_find_in_project_no_override "$wt" 2>/dev/null || true)"
+    else
+        cdir="$(CONSTITUTION_DIR='' cl_find_in_project "$wt" 2>/dev/null || true)"
+    fi
+    if [ -z "$cdir" ]; then
+        _MTCS_CUR="" _mtcs_log SKIPPED-no-constitution "alias '$alias' -> $wt has no constitution checkout (looked for $CONSTITUTION_LAYOUT_RELS and .gitmodules paths)"
+        return 0
+    fi
+    _mtcs_sync_one "$cdir"
 }
 
 _mtcs_usage() {
@@ -186,6 +209,16 @@ _mtcs_usage() {
 
 main() {
     local cmd="${1:-}"; shift 2>/dev/null || true
+    # Ambient git environment (round 8): GIT_DIR & co. beat `git -C <checkout>`,
+    # so a leftover for another repository would fetch/merge the WRONG one.
+    # Dropped here (unset-and-proceed, with a notice). Inline copy of
+    # scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS (this engine file may
+    # run without the lib; tests/layout/test_round8_git_env.sh checks equality).
+    local _v _dropped=""
+    for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
+        if [ -n "${!_v+x}" ]; then _dropped="${_dropped:+$_dropped }$_v"; unset "$_v"; fi
+    done
+    [ -z "$_dropped" ] || printf '[constitution-sync] NOTICE: ignoring the ambient git environment (%s); each checkout is addressed by its own path.\n' "$_dropped" >&2
     case "$cmd" in
         sync)       _mtcs_sync_one "${1:-}" ;;
         for-alias)  _mtcs_for_alias "${1:-}" ;;

@@ -603,6 +603,34 @@ actions:
       - "11.4.283"
       - "11.4.285"
 
+  - name: CONSTITUTION
+    version: 1
+    namespaces: [DEFAULT]
+    slash_bare: auto
+    slash_conflicts: []
+    summary: >-
+      Constitution command family: status, update (check only), doctor,
+      anchors N, gates, report/issue/bug/task/feature, skills, extensions,
+      jev, release-notes, help - one read-mostly engine, allow-listed arguments.
+    expansion: >-
+      Run the constitution command engine with the user's arguments, quoting
+      them as ONE argument: `bash submodules/constitution/scripts/constitution_cmd/constitution_cmd.sh
+      "<arguments>"` (use `bash constitution/scripts/constitution_cmd/constitution_cmd.sh` for the
+      legacy layout, or `bash scripts/constitution_cmd/constitution_cmd.sh` when the constitution
+      is the project root). Subcommands: status, update, doctor, anchors N, gates,
+      report|issue|bug|task|feature, skills, extensions, jev, release-notes, help. With no
+      arguments run `help`. Relay the engine output; never invent status it did not print
+      (section 11.4.6). The engine rejects unknown subcommands (exit 2) and reports a missing
+      delegated tool as unavailable (exit 3) - relay that honestly, do not work around it.
+    rules:
+      - "Pass the arguments as a single quoted argument; never build a shell command from user text (section 11.4.287 hygiene)."
+      - "update only ever checks; applying an update is a deliberate operator act through update_constitution.sh."
+    composes_with:
+      - "11.4.140"
+      - "11.4.202"
+      - "11.4.228"
+      - "11.4.272"
+
 # ── Sub-system / submodule shortcuts (§11.4.140 extension, 2026-07-14) ────────
 # A grammar-shaped UPPERCASE token that is NOT a registered behavioral action
 # (BACKGROUND / REMINDER above) MAY name an incorporated SUB-SYSTEM / submodule.

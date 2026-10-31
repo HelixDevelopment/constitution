@@ -25,6 +25,13 @@
 #       structure-matching gate must refuse. This is the sharpest of the
 #       three, because a string-deletion tautology cannot express it.
 #   M4  REMOVES one canonical file (invariant b).
+#   M5  ADDS a live `@submodules/constitution/...` import (the standard-
+#       layout pointer form) to a canonical-root file. Nothing deleted.
+#   M6  STANDARD LAYOUT, consumer root DERIVED (no --consumer-root): the
+#       consumer's pointer is demoted to a fenced carrier. Proves the gate
+#       audits the REAL consumer (<root>, not <root>/submodules) in that layout:
+#       a gate that derived the wrong root would refuse for the wrong reason,
+#       which G4 below rules out.
 #
 # ── The false-positive guard runs too (§11.4.201(1)) ────────────────────────
 # G1 asserts the gate PASSES a correct fixture whose canonical CLAUDE.md
@@ -33,6 +40,8 @@
 # gate that refused this would be a FAIL-bluff, as forbidden as a pass-bluff.
 # G2 asserts the gate refuses BLIND (exit 2) rather than reporting a false
 # absence when its control needle cannot see.
+# G4 asserts a correct STANDARD-layout tree (<root>/submodules/constitution,
+# consumer root derived, pointer `@submodules/constitution/CLAUDE.md`) PASSES.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_canonical_root_clarity_mutation_test.sh
@@ -170,6 +179,69 @@ expect_exit "M4 mutation: canonical Constitution.md removed" 1 "$FX_M4"
 FX_G2="$(mk blind)"
 printf 'a consumer file with no markdown headings at all\n' > "${FX_G2}/CLAUDE.md"
 expect_exit "G2 blind guard: needle sees nothing -> BLIND refusal, not a reported absence" 2 "$FX_G2"
+
+# --- M5. ADD a live standard-layout @import pointer to a canonical file -----
+FX_M5="$(mk mut5)"
+printf '\n@submodules/constitution/CLAUDE.md\n' >> "${FX_M5}/constitution/CLAUDE.md"
+expect_exit "M5 mutation: canonical root gains a LIVE '@submodules/constitution/...' import" 1 "$FX_M5"
+
+# mk_std <name> -> moves a correct fixture into the STANDARD layout
+# (<root>/submodules/constitution) with the standard-layout pointer.
+mk_std() {
+    _s="$(mk "$1")"
+    mkdir -p "${_s}/submodules"
+    mv "${_s}/constitution" "${_s}/submodules/constitution"
+    printf '# Consumer\n\n@submodules/constitution/CLAUDE.md\n\n## Project Overview\n\nrules\n' > "${_s}/CLAUDE.md"
+    printf '%s\n' "$_s"
+}
+expect_exit_std() {
+    _desc="$1"; _want="$2"; _fx="$3"
+    "$GATE" --const-dir "${_fx}/submodules/constitution" --quiet >/dev/null 2>&1
+    _got=$?
+    if [ "$_got" -eq "$_want" ]; then
+        echo "META OK:   ${_desc} (exit ${_got})"
+    else
+        echo "META FAIL: ${_desc} — expected exit ${_want}, got ${_got}"
+        rc=1
+    fi
+}
+
+# --- G4. FALSE-POSITIVE GUARD, standard layout, derived consumer root ------
+FX_G4="$(mk_std std_good)"
+expect_exit_std "G4 golden-good: standard layout, consumer root derived, @submodules import" 0 "$FX_G4"
+
+# --- M6. standard layout: consumer pointer demoted to a fenced carrier -----
+FX_M6="$(mk_std mut6)"
+printf '# Consumer\n\n## Project Overview\n\n```markdown\n@submodules/constitution/CLAUDE.md\n```\n\n## Build\n\nrules\n' > "${FX_M6}/CLAUDE.md"
+expect_exit_std "M6 mutation: standard layout, consumer pointer demoted to a fenced carrier" 1 "$FX_M6"
+
+# M7 (I3): a LEGACY-layout consumer whose pointer names the STANDARD path —
+# the pointer must equal <rel(consumer_root, const_dir)>/CLAUDE.md.
+FX_M7="$(mk mut7)"
+printf '# Consumer\n\n@submodules/constitution/CLAUDE.md\n\n## Project Overview\n\nrules\n' > "${FX_M7}/CLAUDE.md"
+expect_exit "M7 mutation: legacy consumer points at @submodules/constitution/CLAUDE.md (wrong path)" 1 "$FX_M7"
+
+# M8 (I3): a STANDARD-layout consumer whose pointer names the LEGACY path.
+FX_M8="$(mk_std mut8)"
+printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md\n\n## Project Overview\n\nrules\n' > "${FX_M8}/CLAUDE.md"
+expect_exit_std "M8 mutation: standard consumer points at constitution/CLAUDE.md (wrong path)" 1 "$FX_M8"
+
+# --- G5. FALSE-POSITIVE GUARD: heading pointer with trailing text ----------
+# The real consumer shape (helix_code/CLAUDE.md line 12):
+#   '## INHERITED FROM constitution/CLAUDE.md (HelixConstitution submodule)'
+FX_G5="$(mk good_trailing)"
+printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md (HelixConstitution submodule)\n\n## Project Overview\n\nrules\n' > "${FX_G5}/CLAUDE.md"
+expect_exit "G5 golden-good: heading pointer followed by trailing text" 0 "$FX_G5"
+
+# M9: the SAME trailing-text shape, but the path is the WRONG layout.
+FX_M9="$(mk mut9)"
+printf '# Consumer\n\n## INHERITED FROM submodules/constitution/CLAUDE.md (HelixConstitution submodule)\n\n## Project Overview\n\nrules\n' > "${FX_M9}/CLAUDE.md"
+expect_exit "M9 mutation: trailing-text pointer names the wrong layout path" 1 "$FX_M9"
+
+# M10: the path glued to more characters ('CLAUDE.md.bak') is not the pointer.
+FX_M10="$(mk mut10)"
+printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md.bak (old)\n\n## Project Overview\n\nrules\n' > "${FX_M10}/CLAUDE.md"
+expect_exit "M10 mutation: near-miss path 'constitution/CLAUDE.md.bak (old)'" 1 "$FX_M10"
 
 # --- G3. the gate's own selftest suite must be green ------------------------
 if "$GATE" --selftest >/dev/null 2>&1; then

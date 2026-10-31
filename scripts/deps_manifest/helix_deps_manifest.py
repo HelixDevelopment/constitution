@@ -5,8 +5,11 @@ Purpose
     Verify that every own-org repository of a project carries a well-formed, tracked
     ``helix-deps.yaml`` at its root, and generate a correct skeleton for a repository that has none.
     Walk order: the project root, every submodule the root declares in .gitmodules (incl. the
-    ``constitution`` hub), every submodule the hub declares, and any checked-out repository found
-    under <root>/submodules/* or <root>/constitution/submodules/* that .gitmodules does not declare.
+    constitution hub), every submodule the hub declares, and any checked-out repository found
+    under <root>/submodules/* or <hub>/submodules/* that .gitmodules does not declare. The hub is
+    found in BOTH layouts (standard submodules/constitution first, legacy constitution; HUB_RELS,
+    kept in step with scripts/lib/constitution_layout.sh) and at any other .gitmodules path whose
+    checkout is a constitution tree (Constitution.md + scripts/).
 
 Own-org determination
     The organisation of a repository's remote URL (the .gitmodules URL; the checkout's origin remote
@@ -273,9 +276,29 @@ def validate_text(text, own_orgs):
 
 
 # ----------------------------------------------------------------------------- git helpers
+# Ambient repository-locating GIT_* variables (round 8): GIT_DIR & co. beat
+# `cwd`, so a leftover for another repository made every manifest/gitlink read
+# come from the WRONG repository. Dropped from the environment of every git
+# child (unset-and-proceed). Lone tool: the list is inline; it equals
+# scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS
+# (tests/layout/test_round8_git_env.sh checks it).
+GIT_SCRUB_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR",
+                  "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE",
+                  "GIT_CEILING_DIRECTORIES", "GIT_SHALLOW_FILE", "GIT_GRAFT_FILE",
+                  "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_QUARANTINE_PATH",
+                  "GIT_INTERNAL_SUPER_PREFIX")
+
+
+def git_env(extra=None):
+    env = {k: v for k, v in os.environ.items() if k not in GIT_SCRUB_VARS}
+    if extra:
+        env.update(extra)
+    return env
+
+
 def git(args, cwd=None):
     try:
-        r = subprocess.run(["git"] + args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        r = subprocess.run(["git"] + args, cwd=cwd, env=git_env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return r.returncode, r.stdout
     except OSError:
         return 127, ""
@@ -363,6 +386,22 @@ def parent_marks_nonrecursive(parent_doc, url, path):
     return any(entry_matches(d, url, path) and d.get("recursive_init") == "false" for d in parent_doc["deps"])
 
 
+# The constitution hub's checkout paths, standard layout first (keep in step
+# with CONSTITUTION_LAYOUT_RELS in scripts/lib/constitution_layout.sh).
+HUB_RELS = ("submodules/constitution", "constitution")
+
+
+def is_constitution_dir(d):
+    return os.path.isfile(os.path.join(d, "Constitution.md")) and os.path.isdir(os.path.join(d, "scripts"))
+
+
+def is_hub_path(root, path):
+    """A submodule path is the constitution hub when it is one of the two layout
+    paths, or (any other .gitmodules path) its checkout is a constitution tree."""
+    n = os.path.normpath(path.strip("/"))
+    return n in HUB_RELS or is_constitution_dir(os.path.join(root, n))
+
+
 def collect(root):
     """-> (list of repo records, list of blind notes). A record: dict(label, dir, role, url, parent)."""
     recs, notes = [], []
@@ -373,16 +412,19 @@ def collect(root):
         notes.append((".", blind))
     seen = set()
     for _, path, url in ents:
-        role = "hub" if path.strip("/") == "constitution" else "leaf"
-        recs.append(dict(label=path, dir=os.path.join(root, path), role=role, url=url, parent="."))
-        seen.add(os.path.normpath(path))
+        role = "hub" if is_hub_path(root, path) else "leaf"
+        lab = os.path.normpath(path)
+        recs.append(dict(label=lab, dir=os.path.join(root, path), role=role, url=url, parent="."))
+        seen.add(lab)
         if role == "hub":
-            hubs.append((path, os.path.join(root, path), "."))
-    if os.path.normpath("constitution") not in seen and is_checkout(os.path.join(root, "constitution")):
-        recs.append(dict(label="constitution", dir=os.path.join(root, "constitution"), role="hub",
-                         url=origin_url(os.path.join(root, "constitution")), parent="."))
-        seen.add("constitution")
-        hubs.append(("constitution", os.path.join(root, "constitution"), "."))
+            hubs.append((lab, os.path.join(root, path), "."))
+    for hrel in HUB_RELS:
+        hrel = os.path.normpath(hrel)
+        hd = os.path.join(root, hrel)
+        if hrel not in seen and is_checkout(hd):
+            recs.append(dict(label=hrel, dir=hd, role="hub", url=origin_url(hd), parent="."))
+            seen.add(hrel)
+            hubs.append((hrel, hd, "."))
     for hlabel, hdir, _ in hubs[1:]:
         if not is_checkout(hdir):
             continue
@@ -393,7 +435,8 @@ def collect(root):
             lab = os.path.normpath(os.path.join(hlabel, path))
             recs.append(dict(label=lab, dir=os.path.join(hdir, path), role="leaf", url=url, parent=hlabel))
             seen.add(lab)
-    for base in ("submodules", os.path.join("constitution", "submodules")):
+    bases = [("submodules", ".")] + [(os.path.join(h, "submodules"), h) for h, _, _ in hubs[1:]]
+    for base, parent in bases:
         bdir = os.path.join(root, base)
         if not os.path.isdir(bdir):
             continue
@@ -402,8 +445,8 @@ def collect(root):
             d = os.path.join(bdir, nm)
             if lab in seen or not is_checkout(d):
                 continue
-            parent = "constitution" if base.startswith("constitution") else "."
             recs.append(dict(label=lab, dir=d, role="leaf", url=origin_url(d), parent=parent, undeclared=True))
+            seen.add(lab)
     return recs, notes
 
 
@@ -472,7 +515,7 @@ def verify(root, own_orgs, out):
         if role in ("root", "hub"):
             deps = doc.get("deps") if isinstance(doc, dict) and isinstance(doc.get("deps"), list) else []
             for _, pth, u in own_ents:
-                if role == "root" and pth.strip("/") == "constitution":
+                if role == "root" and is_hub_path(d, pth):
                     continue  # the hub is inherited by reference, never listed as a dependency
                 if not any(isinstance(x, dict) and isinstance(x.get("ssh_url"), str) and norm_key(x["ssh_url"]) == norm_key(u)
                            for x in deps):
@@ -530,7 +573,7 @@ def scaffold_text(d, own_orgs):
             comments.append("# NOTE: .gitmodules entry %s has an unparseable or unresolvable URL %r - add it manually if own-org"
                             % (path, raw))
             continue
-        if path.strip("/") == "constitution" or is_hub_name(url):
+        if is_hub_path(d, path) or is_hub_name(url):
             comments.append("# NOTE: %s is the constitution hub - inherited by reference, never listed here" % path)
             continue
         if not is_own(p[1], own_orgs):
@@ -656,7 +699,7 @@ def selftest(out):
                  ("git@h:o/r.git", "", "git@h:o/r.git"), ("../../../x.git", "git@h:o/e.git", None),
                  ("../x.git", "", None), ("../x.git", "../rel.git", None)]
     results.append(("relative-urls", all(resolve_url(u, b) == want for u, b, want in rel_cases)))
-    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+    env = git_env(dict(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t"))
 
     def g(args, cwd):
         subprocess.run(["git"] + args, cwd=cwd, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -1,0 +1,35 @@
+# TEST FIXTURE (tests/extensions/fixtures/hello-fixture) — not a real extension.
+# Used only by tests/extensions/* as the smallest valid extension.
+schema_version: "1.0"
+extension:
+  id: hello-fixture
+  name: Hello fixture
+  version: 1.0.0
+  description: TEST FIXTURE extension with one command and no executable components
+  author: constitution tests
+  license: Apache-2.0
+  trust_tier: community
+requires:
+  anchors:
+    - "11.4.228"
+provides:
+  commands:
+    - name: hello-fixture
+      description: TEST FIXTURE command that prints a greeting
+      argument_hint: "[name]"
+capabilities:
+  writes: []
+  network: []
+  executes: []
+  reads_secrets: false
+compatibility:
+  claude:
+    status: UNTESTED
+  opencode:
+    status: UNTESTED
+  gemini:
+    status: UNTESTED
+  qwen:
+    status: UNTESTED
+tags:
+  - fixture

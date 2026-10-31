@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# HELIX_HOOK_CAPABILITIES: project-root
+# (the line above is a machine-read capability marker: this hook parses
+#  --project-root DIR; an updater probes for it before passing the flag)
 # ============================================================================
 # post_update_hook.sh — Constitution submodule post-update auto-propagation
 # ============================================================================
@@ -13,7 +16,9 @@
 #   1. Detects which files changed in the constitution submodule since HEAD
 #   2. Installs newly added/modified skills from constitution/skills/
 #   3. Merges newly added/modified MCP configs from constitution/mcp/
-#   4. Installs newly added/modified hooks from constitution/scripts/hooks/
+#   4. Installs newly added/modified git hooks from constitution/scripts/hooks/
+#      (scripts/lib/hook_install.sh: never into a shared hooks dir unless
+#      CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1; a differing hook is backed up first)
 #   4b/4c/4d. Re-wires action directives, the label-sync Claude Code hooks
 #      (LABEL_SYNC_AUTOWIRE, dry-run default) and the label-sync CLI-agent
 #      adapters (LABEL_SYNC_ADAPTERS, dry-run default)
@@ -32,10 +37,20 @@
 #   # or from any consuming project root:
 #   bash <path-to-constitution>/scripts/post_update_hook.sh
 #
+# Arguments:
+#   --project-root DIR — the consuming project (explicit; wins over every rule below)
+#
 # Inputs:
-#   CONST_DIR  — path to the constitution submodule root
-#                (default: the directory this script lives in, ../..)
-#   PROJECT_ROOT — consuming project root (default: pwd)
+#   CONST_DIR  — ALWAYS the checkout this script lives in ($SCRIPT_DIR/..); an
+#                environment CONST_DIR naming another directory is refused (exit 1)
+#   PROJECT_ROOT — consuming project root: --project-root, else the OWNER of
+#                this checkout (its superproject / the work tree of a vendored
+#                copy; an ambient PROJECT_ROOT or cwd naming another dir is
+#                ignored with a WARNING), else (standalone checkout) $PROJECT_ROOT
+#                or pwd
+#   CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1 — let STEP 4 write into a shared hooks
+#                dir (global/system core.hooksPath, symlinked .git/hooks);
+#                default: refused with a WARNING.
 #   POST_UPDATE_HOOK_TEST_MODE=1 + POST_UPDATE_HOOK_FAULT_STEP / _FAULT_EXIT —
 #                TEST ONLY fault seams (see run_step); without TEST_MODE=1 they
 #                are ignored.
@@ -51,7 +66,8 @@
 # Side-effects:
 #   - Copies/links skill directories into the consuming project
 #   - Merges MCP config JSON snippets
-#   - Installs git hooks into project .git/hooks/
+#   - Installs git hooks into the project's hooks dir (`git rev-parse --git-path
+#     hooks`), backing up a differing hook to <git common dir>/constitution-hook-backup/
 #   - Sets executable bits on scripts
 #
 # Cross-references:
@@ -74,15 +90,109 @@ set -euo pipefail
 # the "skills/*" / "actions/*" / "scripts/hooks/*" classifiers below: the hook
 # reported "No relevant changes" and propagated NOTHING, silently. That was a
 # reproduced defect (probe: default='<parent>', constitution='<parent>/constitution').
+#
+# Ambient-environment rule (round 7, §11.4.6): the TARGET of every write is
+# never chosen by an ambient variable left in the shell for another project.
+#   * CONST_DIR is ALWAYS this script's own checkout ($SCRIPT_DIR/..). A
+#     CONST_DIR in the environment is accepted only when it names that same
+#     directory (callers pass it for clarity); any other value is REFUSED
+#     (exit 1, nothing written) — run that checkout's own post_update_hook.sh.
+#   * PROJECT_ROOT, once for EVERY step: an explicit `--project-root DIR`
+#     argument wins; otherwise, when this checkout has an OWNER project
+#     (its git superproject, or the work tree of a vendored plain copy), the
+#     owner is used and an environment PROJECT_ROOT / cwd naming anything else
+#     is ignored with a WARNING; only a standalone checkout (no owner) takes
+#     $PROJECT_ROOT, else the cwd.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONST_DIR="${CONST_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+_pu_self="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Ambient git environment (round 8): GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE &
+# co. choose WHICH repository every `git -C <path>` below really reads (GIT_DIR
+# beats -C), so a leftover for another repository made the range diff read the
+# wrong history and report "nothing to propagate" (a false null). They are
+# dropped here, before the first git call (unset-and-proceed; the repository is
+# discovered from the project path). Inline list: this script must also run as
+# a lone copy; it equals scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS
+# (tests/layout/test_round8_git_env.sh checks it). The post-merge hook and
+# git's own post-checkout export some of these variables to the children they
+# start; they scrub first, so no notice is expected from that path.
+_pu_dropped=""
+for _pu_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
+    if [ -n "${!_pu_v+x}" ]; then _pu_dropped="${_pu_dropped:+$_pu_dropped }$_pu_v"; unset "$_pu_v"; fi
+done
+if [ -n "$_pu_dropped" ]; then
+    echo "[NOTICE] ignoring the ambient git environment ($_pu_dropped): the repository is discovered from the project path, never from these variables." >&2
+fi
+unset _pu_dropped _pu_v
+pu_phys() { ( CDPATH='' cd -- "$1" 2>/dev/null && pwd -P ); }
+# pu_owner_of DIR — same rules as cl_owner_project_of (scripts/lib/
+# constitution_layout.sh), inlined because this script must also run as a lone
+# copy; tests/layout/test_round7_ambient.sh checks the two agree.
+pu_owner_of() {
+    local c="$1" s t cp l
+    command -v git >/dev/null 2>&1 || return 1
+    s="$(git -C "$c" rev-parse --show-superproject-working-tree 2>/dev/null)" || s=""
+    if [ -n "$s" ]; then
+        case "$c" in
+            */submodules/constitution) l="${c%/submodules/constitution}" ;;
+            */constitution)            l="${c%/constitution}" ;;
+            *)                         l="" ;;
+        esac
+        if [ -n "$l" ] && [ "$(pu_phys "$l")" = "$s" ]; then printf '%s\n' "$l"; else printf '%s\n' "$s"; fi
+        return 0
+    fi
+    t="$(git -C "$c" rev-parse --show-toplevel 2>/dev/null)" || return 1
+    [ -n "$t" ] || return 1
+    cp="$(pu_phys "$c")" || return 1
+    [ "$t" = "$cp" ] && return 1                 # a standalone checkout: no owner
+    case "$c" in
+        */submodules/constitution) l="${c%/submodules/constitution}" ;;
+        */constitution)            l="${c%/constitution}" ;;
+        *)                         l="" ;;
+    esac
+    if [ -n "$l" ] && [ "$(pu_phys "$l")" = "$t" ]; then printf '%s\n' "$l"; else printf '%s\n' "$t"; fi
+}
+ARG_PROJECT_ROOT=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --project-root)
+            [ $# -ge 2 ] && [ -n "${2:-}" ] || { echo "[ERROR] --project-root needs a directory" >&2; exit 2; }
+            ARG_PROJECT_ROOT="$2"; shift 2 ;;
+        --project-root=*)
+            ARG_PROJECT_ROOT="${1#--project-root=}"
+            [ -n "$ARG_PROJECT_ROOT" ] || { echo "[ERROR] --project-root= needs a directory" >&2; exit 2; }
+            shift ;;
+        *) echo "[ERROR] unknown argument: $1 (only --project-root DIR is accepted)" >&2; exit 2 ;;
+    esac
+done
+if [ -n "${CONST_DIR:-}" ] && [ "$(pu_phys "$CONST_DIR")" != "$(pu_phys "$_pu_self")" ]; then
+    echo "[ERROR] CONST_DIR=$CONST_DIR (from the environment) is not this checkout ($_pu_self)" >&2
+    echo "        and does not look like the constitution root of this run: nothing was written." >&2
+    echo "        Unset CONST_DIR, or run that checkout's own scripts/post_update_hook.sh." >&2
+    exit 1
+fi
+CONST_DIR="$_pu_self"
+_pu_owner="$(pu_owner_of "$CONST_DIR")" || _pu_owner=""
+if [ -n "$ARG_PROJECT_ROOT" ]; then
+    PROJECT_ROOT="$ARG_PROJECT_ROOT"
+elif [ -n "$_pu_owner" ]; then
+    _pu_amb="${PROJECT_ROOT:-$(pwd)}"
+    if [ "$(pu_phys "$_pu_amb")" != "$(pu_phys "$_pu_owner")" ]; then
+        if [ -n "${PROJECT_ROOT:-}" ]; then
+            echo "[WARN] ignoring the ambient PROJECT_ROOT=$PROJECT_ROOT: this constitution checkout belongs to $_pu_owner (pass --project-root to choose another project explicitly)." >&2
+        fi
+        PROJECT_ROOT="$_pu_owner"
+    else
+        PROJECT_ROOT="$_pu_amb"
+    fi
+else
+    PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+fi
 
 # Fail loudly rather than silently propagating nothing (§11.4.6): the resolved
 # CONST_DIR MUST actually look like the constitution submodule.
 if [ ! -f "$CONST_DIR/Constitution.md" ] || [ ! -d "$CONST_DIR/scripts" ]; then
     echo "[ERROR] CONST_DIR does not look like the constitution root: $CONST_DIR" >&2
-    echo "        (expected Constitution.md + scripts/ there). Set CONST_DIR explicitly." >&2
+    echo "        (expected Constitution.md + scripts/ there). CONST_DIR is always this script's own checkout and cannot be set from the environment; run the post_update_hook.sh of a real constitution checkout." >&2
     exit 1
 fi
 
@@ -129,8 +239,25 @@ detect_changes() {
     # against the previous HEAD (ORIG_HEAD if available, otherwise HEAD~1).
     # For `git pull` / `git submodule update` scenarios, ORIG_HEAD is set
     # by git before the merge.
-    local old_ref
-    if git -C "$CONST_DIR" rev-parse --verify ORIG_HEAD 2>/dev/null; then
+    # Explicit range (set by scripts/hooks/post-merge from the parent repo's gitlink
+    # old/new commit ids): used ONLY when BOTH are full ids (40-hex SHA-1 or
+    # 64-hex SHA-256 object format) AND exist as commits in
+    # this submodule; otherwise fall back to the ORIG_HEAD / HEAD~1 behaviour.
+    local old_ref new_ref="HEAD" env_old="${CONSTITUTION_UPDATE_OLD_REF:-}" env_new="${CONSTITUTION_UPDATE_NEW_REF:-}"
+    local range_set=0
+    if [ -n "$env_old$env_new" ]; then
+        if [[ "$env_old" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ && "$env_new" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] \
+           && git -C "$CONST_DIR" cat-file -e "${env_old}^{commit}" 2>/dev/null \
+           && git -C "$CONST_DIR" cat-file -e "${env_new}^{commit}" 2>/dev/null; then
+            old_ref="$env_old"; new_ref="$env_new"; range_set=1
+            info "Using explicit update range ${env_old:0:12}..${env_new:0:12} (CONSTITUTION_UPDATE_OLD_REF/NEW_REF)"
+        else
+            warn "CONSTITUTION_UPDATE_OLD_REF/NEW_REF invalid or unknown commit — falling back to ORIG_HEAD/HEAD~1"
+        fi
+    fi
+    if [ "$range_set" -eq 1 ]; then
+        :
+    elif git -C "$CONST_DIR" rev-parse --verify ORIG_HEAD 2>/dev/null; then
         old_ref="ORIG_HEAD"
     else
         # Fall back to HEAD~1 — may miss some if HEAD is detached but it's
@@ -145,13 +272,13 @@ detect_changes() {
     # ("skills/\303\274/SKILL.md"), which no `case` pattern below matches, so the
     # change was silently ignored (re-review 3 finding 8, whole path-list class).
     local changed_files=()
-    mapfile -d '' -t changed_files < <(git -C "$CONST_DIR" diff -z --name-only --diff-filter=AM "$old_ref"..HEAD 2>/dev/null || true)   # MUT:diffz
+    mapfile -d '' -t changed_files < <(git -C "$CONST_DIR" diff -z --name-only --diff-filter=AM "$old_ref".."$new_ref" 2>/dev/null || true)   # MUT:diffz
 
     # Deleted/moved live Jev MCP config (helixconstitution-v71 shipped it and its hook
     # merged the unexpanded ${...} placeholders into consumers' .mcp.json). --no-renames
     # so a move shows as a deletion of the old path.
     local deleted_files=() d
-    mapfile -d '' -t deleted_files < <(git -C "$CONST_DIR" diff -z --name-only --no-renames --diff-filter=D "$old_ref"..HEAD 2>/dev/null || true)
+    mapfile -d '' -t deleted_files < <(git -C "$CONST_DIR" diff -z --name-only --no-renames --diff-filter=D "$old_ref".."$new_ref" 2>/dev/null || true)
     for d in "${deleted_files[@]:-}"; do
         [ "$d" = "mcp/jev-decisions.json" ] && STALE_JEV_MCP=1
     done
@@ -463,7 +590,24 @@ install_hooks() {
     # submodule checkouts have NO <root>/.git/hooks directory (.git is a FILE),
     # so the hooks dir is asked from git itself (`--git-path hooks`, which also
     # honours core.hooksPath), never assumed.
-    local hooks_src="${CONST_DIR}/scripts/hooks" hooks_dst=""
+    # Policy (round-4 I-B; the SAME implementation as setup.sh, from
+    # scripts/lib/hook_install.sh): a hooks dir that is shared (core.hooksPath
+    # at a global/system/command-line scope, or a dir that PHYSICALLY resolves
+    # outside the project's git dir / common dir / work tree, e.g. a symlinked
+    # .git/hooks) is NEVER written unless CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1;
+    # a differing existing hook is BACKED UP to
+    # <git common dir>/constitution-hook-backup/<UTC stamp>/post-update/<name>
+    # before it is replaced; an identical hook is left alone.
+    local hooks_src="${CONST_DIR}/scripts/hooks" hooks_dst="" hlib="${SCRIPT_DIR}/lib/hook_install.sh"
+    local common_dir="" bstamp
+    if [ ! -f "$hlib" ]; then
+        warn "hook install library missing: $hlib — git hooks NOT installed (re-run setup.sh)."
+        WARNINGS+=("git hooks not installed: $hlib missing")
+        return 0
+    fi
+    # shellcheck source=lib/hook_install.sh
+    . "$hlib"
+    # (The ambient PROJECT_ROOT rule is applied ONCE, at the top, for every step.)
     hooks_dst="$(cd "$PROJECT_ROOT" 2>/dev/null && git rev-parse --path-format=absolute --git-path hooks 2>/dev/null)" || hooks_dst=""
     if [ -z "$hooks_dst" ]; then   # git < 2.31 has no --path-format: absolutise by hand
         hooks_dst="$(cd "$PROJECT_ROOT" 2>/dev/null && git rev-parse --git-path hooks 2>/dev/null)" || hooks_dst=""
@@ -474,6 +618,27 @@ install_hooks() {
         WARNINGS+=("git hooks not installed: $PROJECT_ROOT is not a git work tree")
         return 0
     fi
+    if ! chi_hooks_dir_check "$PROJECT_ROOT" "$hooks_dst" repo; then
+        if [ "${CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH:-}" = 1 ]; then
+            warn "$CHI_WHY: installing there anyway (CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1)."
+        else
+            warn "$CHI_WHY: git hooks NOT installed there (it may be shared by other repositories)."
+            warn "  Use a repository-local hooks dir and re-run setup.sh, or set CONSTITUTION_ALLOW_GLOBAL_HOOKS_PATH=1 to write there anyway."
+            WARNINGS+=("git hooks not installed: shared hooks dir ($CHI_WHY)")
+            return 0
+        fi
+    fi
+    if chi_tracked_hooks_dir "$PROJECT_ROOT" "$hooks_dst"; then
+        warn "the git hooks dir $hooks_dst resolves to $CHI_TRACKED_PHYS, a directory TRACKED by the project: refreshing hooks there modifies TRACKED files (differing ones are backed up first) — review 'git status' before committing."
+        WARNINGS+=("git hooks dir holds tracked files: $CHI_TRACKED_PHYS")
+    fi
+    common_dir="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || common_dir=""
+    if [ -z "$common_dir" ] || [ ! -d "$common_dir" ]; then
+        warn "cannot resolve the git common dir of $PROJECT_ROOT — hooks not installed (no safe backup location)."
+        WARNINGS+=("git hooks not installed: git common dir unresolved")
+        return 0
+    fi
+    bstamp="$(date -u +%Y%m%dT%H%M%SZ)"
     if ! mkdir -p "$hooks_dst" 2>/dev/null; then
         warn "cannot create the git hooks dir $hooks_dst — hooks not installed."
         WARNINGS+=("git hooks dir $hooks_dst not writable")
@@ -502,7 +667,7 @@ install_hooks() {
         fi
 
         info "Installing hook: ${hook_name}"
-        if cp "$src_file" "$dst_file" && chmod +x "$dst_file"; then
+        if chi_install_hook "$src_file" "$hook_name" post-update "$hooks_dst" "$common_dir/constitution-hook-backup" "$bstamp"; then
             info "  -> Installed: $dst_file"
         else
             # an attempted install that failed is an ERROR, like a failed skill
@@ -843,8 +1008,15 @@ validate_scripts() {
 
     local validated=0
     for script in "${unique_scripts[@]}"; do
-        # chmod +x
-        chmod +x "$script" 2>/dev/null || true
+        # Never change the mode of a TRACKED file: the chmod would dirty the
+        # consumer's submodule (" M file") and the next update would refuse with
+        # "local changes". Tracked files keep the mode recorded in the index; an
+        # untracked file (or a checkout that is not a repo) may be made executable.
+        if git -C "$CONST_DIR" ls-files --error-unmatch -- "${script#"$CONST_DIR"/}" >/dev/null 2>&1; then   # MUT:chmodtracked
+            [ -x "$script" ] || warn "tracked script is not executable (mode left unchanged): ${script#"$CONST_DIR"/}"
+        else
+            chmod +x "$script" 2>/dev/null || true
+        fi
 
         # Bash syntax check (works for almost all our scripts)
         if bash -n "$script" 2>/dev/null; then
@@ -968,6 +1140,37 @@ report_summary() {
 }
 
 # ============================================================================
+# Installed-hook drift hint (never fails): the hooks setup.sh installed are
+# COPIES. STEP 4 above refreshes a project git hook (e.g. post-merge) ONLY when
+# its source changed in the update range, and only into a non-shared hooks dir;
+# it NEVER refreshes the submodule consumer (constitution-submodule-post-checkout
+# is not a git hook name; only setup.sh installs it). This hint runs BEFORE the
+# steps, so it reports the drift as found when this hook started: when the
+# installed submodule consumer (post-checkout) or the project post-merge
+# differs from its source in this checkout, it prints ONE line telling the user
+# to re-run setup.sh.
+# ============================================================================
+hint_installed_hook_drift() {
+    local hd inst src drift=""
+    hd="$(git -C "$CONST_DIR" rev-parse --path-format=absolute --git-path hooks 2>/dev/null)" || hd=""
+    inst="$hd/post-checkout"; src="$CONST_DIR/scripts/hooks/constitution-submodule-post-checkout"
+    if [ -n "$hd" ] && [ -f "$src" ] && [ -f "$inst" ] && \
+       grep -q 'constitution-pending-update-consumer' "$inst" 2>/dev/null && ! cmp -s "$inst" "$src"; then
+        drift="submodule post-checkout ($inst)"
+    fi
+    hd="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-path hooks 2>/dev/null)" || hd=""
+    inst="$hd/post-merge"; src="$CONST_DIR/scripts/hooks/post-merge"
+    if [ -n "$hd" ] && [ -f "$src" ] && [ -f "$inst" ] && \
+       grep -q 'constitution auto-propagation after a merge' "$inst" 2>/dev/null && ! cmp -s "$inst" "$src"; then
+        drift="${drift:+$drift and }project post-merge ($inst)"
+    fi
+    if [ -n "$drift" ]; then
+        info "hint: the installed $drift differs from this constitution checkout; re-run setup.sh to refresh it (setup.sh --check-only shows the hashes)."
+    fi
+    return 0
+}
+
+# ============================================================================
 # Main
 # ============================================================================
 main() {
@@ -980,6 +1183,7 @@ main() {
     info "Project root:      $PROJECT_ROOT"
     info "Script dir:        $SCRIPT_DIR"
 
+    hint_installed_hook_drift
     detect_changes
     run_step validate_hub_structure   # 5b: every pull, changed files or not; isolated like steps 2-5
 

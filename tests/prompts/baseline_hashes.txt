@@ -1,0 +1,6 @@
+# sha256 baseline of the setup-prompt HISTORY files (never modified).
+# Taken 2026-10-29 from the working tree: the files were untracked then, so there was
+# no git HEAD baseline; this file IS the baseline from that day, not a git fact.
+# Format: <sha256>  <file name under docs/prompts/setup/>
+f2cbc881d7e9def10e34263ec5f1fb48a089774cabd515d47677f9b730cf88c1  01_old.md
+4130d5a93b2eb0310313c7a718bd56d53d9d6f424b53d99ea347930c8bf5de9e  02_middle.md

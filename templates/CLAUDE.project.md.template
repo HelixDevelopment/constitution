@@ -1,16 +1,21 @@
 # <PROJECT NAME> — CLAUDE.md
 
-## INHERITED FROM constitution/CLAUDE.md
+## INHERITED FROM submodules/constitution/CLAUDE.md
 
-All rules in `constitution/CLAUDE.md` and the
-`constitution/Constitution.md` it references apply unconditionally to
-this project. Project-specific rules below extend them — they do NOT
-weaken or override any universal clause.
+All rules in `submodules/constitution/CLAUDE.md` and the
+`submodules/constitution/Constitution.md` it references apply
+unconditionally to this project. Project-specific rules below extend
+them — they do NOT weaken or override any universal clause.
 
 When this file disagrees with the constitution submodule, the
 constitution wins.
 
-@constitution/CLAUDE.md
+@submodules/constitution/CLAUDE.md
+
+<!-- Layout: the standard checkout path is submodules/constitution. Legacy
+     layout (constitution at ./constitution, still supported): write
+     constitution/ instead of submodules/constitution/ in the heading, the
+     @import and every path in this file (legacy). -->
 
 ---
 
@@ -31,10 +36,10 @@ constitution wins.
 ### Dependency manifest (§11.4.31)
 
 `helix-deps.yaml` at the project root and in every own-org submodule
-(`submodules/*`, `constitution/submodules/*`). Adding, removing or
+(`submodules/*`, `submodules/constitution/submodules/*`). Adding, removing or
 re-pinning an own-org submodule updates its `deps` entry in the same
-commit. Check: `bash constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .`
-Guide: `constitution/docs/guides/dependency_manifest_user_guide.md`.
+commit. Check: `bash submodules/constitution/scripts/deps_manifest/verify_helix_deps_manifests.sh --root .`
+Guide: `submodules/constitution/docs/guides/dependency_manifest_user_guide.md`.
 
 ### Deployment / flash / publish
 

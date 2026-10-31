@@ -21,8 +21,14 @@
 #   constitution pull by scripts/post_update_hook.sh (§11.4.164).
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
-#   bash constitution/scripts/install_cli_agent_plugins.sh [PROJECT_ROOT] [OPTS]
-#     PROJECT_ROOT   consuming project root (default: $PWD)
+#   bash <constitution>/scripts/install_cli_agent_plugins.sh [PROJECT_ROOT | --project-root DIR] [OPTS]
+#     (<constitution> is submodules/constitution (standard) or constitution (legacy))
+#     PROJECT_ROOT   consuming project root. Chosen in this order: the explicit
+#                    argument (positional or --project-root DIR); else the OWNER
+#                    of this checkout (its git superproject / the work tree
+#                    holding a vendored copy; an ambient $PROJECT_ROOT or cwd
+#                    naming another directory is ignored with a WARN); only a
+#                    STANDALONE checkout (no owner) uses $PROJECT_ROOT, else $PWD
 #     --skills-only  only link skills (skip generation + plugin install)
 #     --skill NAME   link just this one skill (implies --skills-only)
 #     --no-plugin    skip the marketplace/plugin install step
@@ -79,14 +85,38 @@ while [ $# -gt 0 ]; do
     --skill)       shift; one_skill="${1:-}"; skills_only=1 ;;
     --no-plugin)   do_plugin=0 ;;
     --check)       check_only=1 ;;
-    -h|--help)     sed -n '3,30p' "$0"; exit 0 ;;
+    --project-root)
+      if [ $# -lt 2 ] || [ -z "${2:-}" ]; then echo "[install-plugins] --project-root needs a directory" >&2; exit 2; fi
+      project_root="$2"; shift ;;
+    --project-root=*) project_root="${1#--project-root=}"
+      [ -n "$project_root" ] || { echo "[install-plugins] --project-root= needs a directory" >&2; exit 2; } ;;
+    -h|--help)     sed -n '3,36p' "$0"; exit 0 ;;
     *)             [ -n "$project_root" ] || project_root="$1" ;;
   esac
   shift || true
 done
 
-project_root="${project_root:-$PWD}"
-project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)"
+# Owner rule (round 8, same as setup.sh / post_update_hook.sh): explicit
+# argument > the OWNER of this checkout > ($PROJECT_ROOT, $PWD) only when the
+# checkout is standalone. An ambient value left for another project never
+# redirects the writes (.claude/skills, settings, generated commands).
+if [ -f "$self_dir/lib/constitution_layout.sh" ]; then
+  # shellcheck source=lib/constitution_layout.sh
+  . "$self_dir/lib/constitution_layout.sh"
+  cl_scrub_git_env
+  if [ -z "$project_root" ]; then
+    _owner="$(cl_owner_project_of "$const_root" 2>/dev/null)" || _owner=""
+    if [ -n "$_owner" ]; then
+      _amb="${PROJECT_ROOT:-$PWD}"
+      if [ -n "${PROJECT_ROOT:-}" ] && ! cl_same_dir "$_amb" "$_owner"; then
+        printf '[install-plugins] WARN: ignoring the ambient PROJECT_ROOT=%s: this constitution checkout belongs to %s (pass --project-root to choose another project explicitly).\n' "$PROJECT_ROOT" "$_owner" >&2
+      fi
+      project_root="$_owner"
+    fi
+  fi
+fi
+project_root="${project_root:-${PROJECT_ROOT:-$PWD}}"
+project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)" || { echo "[install-plugins] project root does not exist: ${project_root}" >&2; exit 2; }
 
 MARKETPLACE_NAME="helix-constitution"
 PLUGIN_NAME="helix"
@@ -224,11 +254,28 @@ wire_prompt_hook() {
 }
 
 # ── 3. Register the marketplace + install the plugin (non-interactive) ───────
+# marketplace_hint_path — the constitution path as the operator types it from
+# the project root: ./submodules/constitution (standard), ./constitution
+# (legacy), or the absolute path when it lives outside the project.
+marketplace_hint_path() {
+  local rel=""
+  if [ -f "$self_dir/lib/constitution_layout.sh" ]; then
+    # shellcheck source=lib/constitution_layout.sh
+    . "$self_dir/lib/constitution_layout.sh"
+    rel="$(cl_rel_path "$project_root" "$const_root")"
+  fi
+  case "$rel" in
+    '') printf '%s\n' "$const_root" ;;
+    /*) printf '%s\n' "$rel" ;;
+    *)  printf './%s\n' "$rel" ;;
+  esac
+}
+
 install_plugin() {
   if ! command -v claude >/dev/null 2>&1; then
     warn "the \`claude\` CLI is NOT on PATH — the plugin was NOT installed."
     warn "ONE-TIME operator step, from the project root:"
-    warn "    claude plugin marketplace add ./$(basename "$const_root")"
+    warn "    claude plugin marketplace add $(printf '%q' "$(marketplace_hint_path)")"
     warn "    claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}"
     return 1
   fi

@@ -1,0 +1,52 @@
+# TEST FIXTURE (tests/extensions/fixtures/hooks-fixture) — not a real extension.
+# Exercises hooks, an MCP server declaration, a tool binding and capability consent.
+schema_version: "1.0"
+extension:
+  id: hooks-fixture
+  name: Hooks fixture
+  version: 0.2.1
+  description: TEST FIXTURE extension with a hook, an MCP server and a tool binding
+  author: constitution tests
+  license: Apache-2.0
+  trust_tier: community
+requires:
+  constitution_version: ">=1.0"
+  extensions:
+    - id: hello-fixture
+      version: ">=1.0.0"
+  tools:
+    - name: git
+      required: true
+provides:
+  commands:
+    - name: hooks-fixture-run
+      description: TEST FIXTURE command bound to a tool
+  hooks:
+    - event: session_start
+      command: hooks/session_start.sh
+      description: TEST FIXTURE hook, never executed by the engine
+  mcp:
+    - name: hooks-fixture-mcp
+      file: mcp/servers.json
+      transport: stdio
+      env_vars:
+        - HOOKS_FIXTURE_TOKEN
+  tools_bindings:
+    - name: fixture-find-constitution
+      kind: constitution-path
+      target: find_constitution.sh
+    - name: fixture-git
+      kind: command
+      target: git
+capabilities:
+  writes:
+    - ".fixture/**"
+  network: []
+  executes:
+    - hooks/session_start.sh
+  reads_secrets: false
+compatibility:
+  claude:
+    status: CONFIG-ONLY
+  pi:
+    status: UNSUPPORTED

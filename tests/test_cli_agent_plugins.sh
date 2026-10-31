@@ -113,9 +113,13 @@ make_const() {
 	cp -a "$ROOT/skills"         "$dest/skills"
 	cp -a "$ROOT/Constitution.md" "$dest/Constitution.md"
 	for s in action_prefix_lib.sh generate_agent_prefix_commands.sh \
-	         install_cli_agent_plugins.sh post_update_hook.sh; do
+	         install_cli_agent_plugins.sh post_update_hook.sh \
+	         portable_symlink_lib.sh; do
 		cp -a "$ROOT/scripts/$s" "$dest/scripts/$s"
 	done
+	# install_cli_agent_plugins.sh optionally sources lib/constitution_layout.sh
+	mkdir -p "$dest/scripts/lib"
+	cp -a "$ROOT/scripts/lib/constitution_layout.sh" "$dest/scripts/lib/constitution_layout.sh"
 }
 
 # hash_tree <dir> — stable sha256 manifest of every file under <dir>.
@@ -274,6 +278,9 @@ for d in "$CINS"/skills/*/; do
 		no "C4 install: $lnk is NOT a symlink (skills MUST be inherited BY REFERENCE, never copied — §11.4.28/§11.4.80)"; bad_links=$((bad_links + 1)); continue
 	fi
 	tgt=$(readlink "$lnk")
+	# The installer stores link-relative targets (§11.4.111); resolve against the
+	# link's own directory before asserting the target is inside the constitution.
+	case "$tgt" in /*) : ;; *) tgt=$(cd "$(dirname "$lnk")" && cd "$(dirname "$tgt")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$tgt")") ;; esac
 	case "$tgt" in
 		"$CINS"/skills/*) : ;;
 		*) no "C4 install: $lnk points at '$tgt' — NOT into the constitution skills dir"; bad_links=$((bad_links + 1)) ;;
@@ -329,7 +336,7 @@ else
 	no "C5b RED baseline: could NOT reproduce the subshell array loss (lost=$red_lost kept=$red_kept) — this shell does not exhibit the bug class, so C5's regression guard is blind here"
 fi
 # And the CURRENT hook must not use the losing form for its classification loop.
-if grep -q 'done < <(printf' "$ROOT/scripts/post_update_hook.sh" && \
+if grep -q 'for f in "${changed_files\[@\]}"' "$ROOT/scripts/post_update_hook.sh" && \
    ! grep -q '"\$changed_files" | while' "$ROOT/scripts/post_update_hook.sh"; then
 	ok "C5b GREEN: post_update_hook.sh feeds its classification loop by process substitution (\`done < <(printf ...)\`), NOT by a pipe — the subshell bug cannot recur"
 else
@@ -402,8 +409,9 @@ else
 	sed 's/^/        | /' "$def_log" >&2
 fi
 # Static companion: the default expression itself must be one level up, not two.
-if grep -q 'CONST_DIR="\${CONST_DIR:-\$(cd "\$SCRIPT_DIR/\.\." && pwd)}"' "$ROOT/scripts/post_update_hook.sh"; then
-	ok "C5c static: the CONST_DIR default expression is \`\$SCRIPT_DIR/..\` (the constitution root), not \`\$SCRIPT_DIR/../..\` (the parent project)"
+if grep -q '_pu_self="\$(cd "\$SCRIPT_DIR/\.\." && pwd)"' "$ROOT/scripts/post_update_hook.sh" && \
+   grep -q '^CONST_DIR="\$_pu_self"$' "$ROOT/scripts/post_update_hook.sh"; then
+	ok "C5c static: CONST_DIR is always \`\$SCRIPT_DIR/..\` (the constitution root, never the parent project, never an ambient CONST_DIR)"
 else
 	no "C5c static: the CONST_DIR default is NOT \`\$SCRIPT_DIR/..\` — verify it still resolves to the constitution root"
 fi
