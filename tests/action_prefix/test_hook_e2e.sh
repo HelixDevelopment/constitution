@@ -228,8 +228,15 @@ emit ""
 emit "--- parse-clean (§11.4.67) ---"
 PARSE_OK=yes
 for f in "$HOOK" "$CONST_ROOT/scripts/action_prefix_lib.sh" "$INSTALLER" "${BASH_SOURCE[0]:-$0}"; do
-  if sh -n "$f" 2>/dev/null && bash -n "$f" 2>/dev/null; then
-    emit "  sh -n + bash -n OK: ${f#"$CONST_ROOT"/}"
+  # bash scripts (arrays, [[ ]], declare -a) are parse-checked with bash -n; only files
+  # whose shebang is POSIX sh are also held to sh -n (dash rejects bash syntax by design).
+  _shebang="$(head -n1 "$f" 2>/dev/null)"
+  case "$_shebang" in
+    '#!/bin/sh'*|'#!/usr/bin/env sh'*) _parse_ok=0; sh -n "$f" 2>/dev/null && bash -n "$f" 2>/dev/null && _parse_ok=1 ;;
+    *) _parse_ok=0; bash -n "$f" 2>/dev/null && _parse_ok=1 ;;
+  esac
+  if [ "$_parse_ok" -eq 1 ]; then
+    emit "  parse OK (${_shebang%% *}): ${f#"$CONST_ROOT"/}"
   else
     PARSE_OK=no
     emit "  PARSE FAIL: ${f#"$CONST_ROOT"/}"

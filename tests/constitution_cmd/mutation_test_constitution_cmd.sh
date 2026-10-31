@@ -3,6 +3,7 @@
 # the /constitution engine. Each mutant is a semantic change applied (python str.replace, asserted
 # to change the file) to a COPY of the engine; the test suite is re-run against the copy with
 # CMD_SRC_ROOT and must FAIL (mutant killed). The unmutated engine must PASS first (baseline).
+# ONLY=name1,name2 runs just those mutants (baseline still runs).
 # Exit 0 only if the baseline passes and every mutant is killed.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +24,7 @@ if run_suite "$MS/base"; then echo "baseline: PASS"; else echo "baseline FAILED 
 killed=0; survived=0; n=0
 mutant() {   # name, old, new
     local name="$1" old="$2" new="$3" d="$MS/m$n"; n=$((n+1))
+    if [ -n "${ONLY:-}" ]; then case ",$ONLY," in *",$name,"*) ;; *) return ;; esac; fi
     mkdir -p "$d/scripts/constitution_cmd"
     OLD="$old" NEW="$new" SRCF="$REAL/$ENG" DST="$d/$ENG" python3 - <<'PY' || { echo "MUTANT-SETUP-ERROR $name (pattern not found)"; survived=$((survived+1)); return; }
 import os,sys
@@ -50,6 +52,22 @@ mutant gate-timeout-removed     'timeout "$t" "$@"' '"$@"'
 mutant status-layout-constant   'layout="$(cl_rel_path "$proj" "$CONST_DIR" 2>/dev/null)" || layout="unknown"' 'layout="constitution"'
 mutant doctor-collision-silent  'd_warn collision "user command shadows/collides: $c"; found=1' 'd_ok collision "ours: $c"'
 mutant report-text-unbounded    '[ "${#text}" -le 4000 ] || { die "report text longer than 4000 characters"; return 2; }' ':'
+
+mutant output-unbounded         'head -c 40000 "$red"' 'cat "$red"'
+mutant bearer-redact-gone       "-e 's/([Bb]earer) [A-Za-z0-9._~+\/=-]{16,}/\1 [REDACTED]/g' \\" "-e 's/zzqbearer/x/' \\"
+mutant gate-timeout-range-gone  '[[ "$t" =~ ^[0-9]{1,3}$ ]] && [ "$t" -ge 1 ] && [ "$t" -le 600 ] ||' '[[ "$t" =~ ^[0-9]{1,3}$ ]] ||'
+mutant ext-dash-dash-any        '^(--[a-z][a-z-]{0,30}|' '^(-.*|'
+mutant single-arg-glob-on       'set -f; read -r -a ARGS <<<"$1"; set +f' 'ARGS=($1)'
+mutant truncation-marker-gone   "[ \"\$(wc -c <\"\$red\")\" -gt 40000 ]" 'false'
+mutant rc-lost-to-pipe          'rc=$?
+    redact' 'rc=0
+    redact'
+mutant ext-root-allowed         'add) allow=" --json --dry-run --dev --sha --sha256 " ;;' 'add) allow=" --json --dry-run --dev --sha --sha256 --root --yes " ;;
+        list) allow=" --json --root --project-root --yes " ;;'
+mutant anchors-bold-form-gone   'if (!inb && index($0,q)==1) inb=2' ':'
+mutant stdin-mode-off           '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' 'false'
+mutant jev-extra-args-ok        'die "jev takes no arguments"; return 2;' ':;'
+mutant token-space-redact-gone  "-e 's/([Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]) [A-Za-z0-9._~+\/=-]{12,}/\1 [REDACTED]/g' \\" "-e 's/zzqtok/x/' \\"
 
 echo "mutants: killed=$killed survived=$survived total=$n"
 [ "$survived" -eq 0 ]

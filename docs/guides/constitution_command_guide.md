@@ -46,7 +46,7 @@ of the shims is owned by `scripts/install_cli_agent_plugins.sh` (not changed her
 | `status` | layout, constitution dir, project root, pinned commit, latest LOCAL release tag, Jev state |
 | `update [--check\|--dry-run] [--ref REF]` | delegates to `update_constitution.sh`; `--check` is the default; never applies |
 | `doctor` | read-only: layout, registry row, shims, regeneration drift, skill link, hooks, name collisions |
-| `anchors N` | prints the block of anchor `11.4.N` (`N` or `N.M`), at most 120 lines / 24000 bytes |
+| `anchors N` | prints the block of anchor `11.4.N` (`N` or `N.M`), at most 120 lines / 24000 bytes; both the `### §11.4.N —` heading form and the bold `**§11.4.N —` paragraph form are found |
 | `gates [list]`, `gates run NAME` | lists `cm_*` gates (mutation tests hidden); runs one with a timeout (`CONSTITUTION_CMD_GATE_TIMEOUT`, default 120 s) |
 | `report`/`issue`/`bug`/`task`/`feature TEXT` | delegates to `report_item.sh` (section 11.4.202) |
 | `skills [list\|status]` | delegates to `skill_activate.sh` |
@@ -56,8 +56,11 @@ of the shims is owned by `scripts/install_cli_agent_plugins.sh` (not changed her
 
 ## Exit codes
 
-0 ok; 1 failure or not found (doctor: a FAIL line); 2 usage error or rejected argument; 3 a
-delegated tool is not installed (reported as `unavailable`); 124 a delegated tool timed out.
+0 ok; 1 failure or not found (doctor: a FAIL line); 2 usage error or rejected argument; 3 the
+engine found a delegated tool not installed (`unavailable`) - but a delegated tool's OWN exit
+status is passed through unchanged, so a tool can also exit 3 itself; 124 a delegated tool timed out.
+Delegated output is capped at 40000 bytes; when cut, the engine prints an explicit
+`[truncated: ...]` marker and the exit status is still the tool's real one.
 
 ## Security model
 
@@ -65,8 +68,17 @@ No `eval`; the subcommand is an allow-list; the anchor id must match `^[0-9]{1,3
 gate names must match `^[a-z0-9_]{1,100}$` (or `CM-...`) and resolve (symlinks followed) inside
 `scripts/gates`; extension arguments are matched against a conservative character class; control
 characters are refused everywhere; delegated output is size-bounded and run through a
-credential-shape redactor (tokens, `Bearer`, `*TOKEN*=`-style assignments). Pass user text as ONE
-quoted argument - the engine splits a lone string on blanks itself and never lets the shell see it.
+credential-shape redactor (tokens, `Bearer`, `token VALUE`, `api_key: "..."`, case-insensitive `password=`-style assignments).
+Extension options are an allow-list per subcommand (`--json`, `--dry-run`; `add` also `--dev`,
+`--sha`, `--sha256`); `--root`, `--project-root`, `--yes` and any other `--*` are rejected. `jev`
+and `release-notes` take no arguments.
+
+User text reaches the engine on STDIN (`constitution_cmd.sh --stdin`) through a QUOTED heredoc with
+a fixed delimiter, so the agent shell does not evaluate `$(...)`, backticks or `$VAR` in it. The
+engine splits the one-line string on blanks itself. Residual risk (UNCONFIRMED against a hostile
+model): a line equal to the delimiter inside the user text would end the heredoc early; the engine
+never executes the remaining text, but the agent shell would. Passing it as a double-quoted
+argument, as an earlier version did, is NOT safe and is no longer used.
 
 ## Troubleshooting
 

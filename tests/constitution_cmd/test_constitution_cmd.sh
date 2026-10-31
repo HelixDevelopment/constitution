@@ -44,11 +44,14 @@ mk_const() {   # $1 = dir ; a real git repo shaped like a constitution checkout
         printf '### §11.4.10 — Credentials\nbody ten\n\n### §11.4.10.A — Sub audit\nbody ten A\n\n### §11.4.12 — Next\nbody twelve\n\n'
         printf '### §11.4.99 — Huge\n'; local i=0; while [ $i -lt 600 ]; do printf 'padding line %04d xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n' $i; i=$((i+1)); done
         printf '\n### §11.4.100 — After huge\nbody hundred\n'
+    printf '\n**§11.4.150 — Bold anchor (test).** bold body text one\n\nafter bold paragraph text\n'
     } > "$d/Constitution.md"
     printf '# Changelog\n\nrelease notes line A\nrelease notes line B\n' > "$d/CHANGELOG.md"
     printf '#!/usr/bin/env bash\necho "gate-ok $*"\nexit 0\n' > "$d/scripts/gates/cm_demo_gate.sh"
     printf '#!/usr/bin/env bash\necho gate-mut\nexit 0\n' > "$d/scripts/gates/cm_demo_gate_mutation_test.sh"
     printf '#!/usr/bin/env bash\nsleep 30\n' > "$d/scripts/gates/cm_slow_gate.sh"
+    printf '#!/usr/bin/env bash\nhead -c 200000 /dev/zero | tr "\\0" a\necho\nexit "${BIG_RC:-0}"\n' > "$d/scripts/gates/cm_big_gate.sh"
+    printf '#!/usr/bin/env bash\necho "Authorization: Bearer abcdefghijklmnopqrstuvwx0123"\necho "token zzzzzzzzzzzzzzzz9999"\necho "api_key: \\"sk_live_ABCDEFGH12345678\\""\necho "password=hunter2hunter2"\necho "Password: pw-value-12345"\nexit 0\n' > "$d/scripts/gates/cm_secrets_gate.sh"
     printf '#!/usr/bin/env bash\necho "leak ghp_abcdefghijklmnopqrstuvwxyz0123456789 end"\nexit 3\n' > "$d/scripts/gates/cm_leaky_gate.sh"
     ( cd "$d" && git init -q -b main . && git add -A && git commit -qm init && git tag helixconstitution-v1 ) >/dev/null 2>&1
 }
@@ -128,6 +131,10 @@ run "$EA" gates run cm_leaky_gate; check "gate rc propagated" test $RC -eq 3; ch
 for badg in '../scripts/gates/cm_demo_gate' 'a/b' 'cm_demo_gate;touch pwn' 'cm_demo_gate_mutation_test' '/bin/true' '$(id)' 'nonexistent_gate' ; do
     run "$EA" gates run "$badg"; check "gates run rejects <$badg>" test $RC -ne 0
 done
+for badg in '../scripts/gates/cm_demo_gate' 'a/b' 'cm_demo_gate;touch pwn' 'cm_demo_gate_mutation_test' '/bin/true' '$(id)' 'cm.demo'; do
+    run "$EA" gates run "$badg"; check "gates run malformed <$badg> is usage error rc2" test $RC -eq 2
+done
+run "$EA" gates run nonexistent_gate; check "gates run unknown name rc1" test $RC -eq 1
 ln -sf /bin/true "$PA/submodules/constitution/scripts/gates/cm_escape.sh"
 run "$EA" gates run cm_escape; check "gate symlink escape refused" test $RC -eq 2
 check "no injected file 2" test ! -e "$SB/pwn"
@@ -150,6 +157,8 @@ run "$EA" report some thing;  check "report kind" has "$(tr '\n' ' ' < "$CA/scri
 run "$EA" bug;                check "bug without text rc2" test $RC -eq 2
 run "$EA" bug 'a $(touch pwn) b'; check "injection text literal" has "$(cat "$CA/scripts/reporting/report_item.sh.argv")" '$(touch pwn)'; check "no injected file 3" test ! -e "$SB/pwn"
 run "$EA" bug "$(printf 'a\nb')"; check "newline text rejected" test $RC -eq 2
+long="$(head -c 4001 /dev/zero | tr '\0' 'a')"; run "$EA" bug "$long"; check "over-long report text rc2" test $RC -eq 2
+run "$EA" bug "$(head -c 3000 /dev/zero | tr '\0' 'a')"; check "3000-char report text accepted" test $RC -eq 0
 rm -f "$CA/scripts/reporting/report_item.sh"
 run "$EA" bug x; check "report tool absent -> unavailable rc3" test $RC -eq 3; check "unavailable msg" has "$ERR$OUT" "unavailable"
 stub "$CA/scripts/skill_activation/skill_activate.sh"
@@ -190,6 +199,63 @@ mv "$SB/layout.bak" "$CB/scripts/lib/constitution_layout.sh"
 mv "$CB/Constitution.md" "$SB/C.bak"; run "$EB" anchors 7; check "chaos: no Constitution.md rc1" test $RC -eq 1; mv "$SB/C.bak" "$CB/Constitution.md"
 rm -f "$CB/scripts/update_constitution.sh"; run "$EB" update; check "chaos: update absent rc3" test $RC -eq 3
 
+# ---- S1: user text never evaluated by the shell (command template from SKILL.md) ---------------
+tmpl_line="$(grep -m1 -- '--stdin <<' "$REAL_ROOT/skills/constitution/SKILL.md")"
+delim="$(printf '%s' "$tmpl_line" | sed -n "s/.*<<'\\([A-Za-z0-9_]*\\)'.*/\\1/p")"
+check "S1 template has delimiter" test -n "$delim"
+rm -f "$PA/SENTINEL" "$PA/SENTINEL2" "$PA/SENTINEL3"
+( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" 'anchors 7 $(touch SENTINEL) `touch SENTINEL2` ${HOME}' "$delim")" ) >/dev/null 2>&1
+check "S1 hostile \$(..) not executed" test ! -e "$PA/SENTINEL"
+check "S1 hostile backticks not executed" test ! -e "$PA/SENTINEL2"
+( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" 'anchors 7' "$delim")" ) >"$SB/s1.out" 2>&1; rc=$?
+check "S1 stdin path works rc0" test $rc -eq 0; check "S1 stdin path output" grep -q 'Demotion rule' "$SB/s1.out"
+( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" '' "$delim")" ) >"$SB/s1.out" 2>&1; check "S1 empty stdin -> help" grep -q Usage "$SB/s1.out"
+# control needle: the OLD double-quoted form DOES execute the text, so the instrument can see it
+( cd "$PA" && bash -c 'bash "$1" "anchors 7 $(touch SENTINEL3)"' _ "$EA" ) >/dev/null 2>&1
+check "S1 control needle: old quoted form executes" test -e "$PA/SENTINEL3"
+rm -f "$PA/SENTINEL3"
+run "$EA" --stdin </dev/null; check "stdin empty rc0 help" test $RC -eq 0
+long8="$(head -c 8100 /dev/zero | tr '\0' a)"
+OUT="$(printf '%s\n' "$long8" | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin over-long rejected rc2" test $RC -eq 2
+OUT="$(printf 'status\x01x\n' | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin control char rejected rc2" test $RC -eq 2
+
+# ---- S2: truncation marker + real tool rc -------------------------------------------------------
+run "$EA" gates run cm_big_gate; check "S2 big output tool rc0 preserved" test $RC -eq 0
+check "S2 big output bounded" test "${#OUT}" -le 40400; check "S2 truncation marker" has "$OUT" "[truncated: delegated output"
+BIG_RC=7 run "$EA" gates run cm_big_gate; check "S2 big output tool rc7 preserved" test $RC -eq 7
+# ---- gate timeout range ---------------------------------------------------------------------------
+for badt in 0 601 abc 1000 -5; do CONSTITUTION_CMD_GATE_TIMEOUT="$badt" run "$EA" gates run cm_demo_gate; check "gate timeout <$badt> rejected rc2" test $RC -eq 2; done
+CONSTITUTION_CMD_GATE_TIMEOUT=600 run "$EA" gates run cm_demo_gate; check "gate timeout 600 ok" test $RC -eq 0
+# ---- S5: redactor shapes (synthetic fake values) --------------------------------------------------
+run "$EA" gates run cm_secrets_gate; check "S5 secrets gate rc0" test $RC -eq 0
+for v in abcdefghijklmnopqrstuvwx0123 zzzzzzzzzzzzzzzz9999 sk_live_ABCDEFGH12345678 hunter2hunter2 pw-value-12345; do check "S5 redacted <$v>" hasnt "$OUT" "$v"; done
+check "S5 marker present" has "$OUT" "[REDACTED]"
+# ---- S3: bold-form anchors (fixture + the REAL Constitution.md) ---------------------------------
+run "$EA" anchors 150; check "S3 fixture bold anchor rc0" test $RC -eq 0; check "S3 bold heading" has "$OUT" "Bold anchor (test)"
+check "S3 bold stops at blank" hasnt "$OUT" "after bold paragraph"
+RC_DIR="$SB/realc"; mkdir -p "$RC_DIR/scripts/constitution_cmd" "$RC_DIR/scripts/lib"
+cp "$SRC/scripts/constitution_cmd/constitution_cmd.sh" "$RC_DIR/scripts/constitution_cmd/"; cp "$REAL_ROOT/scripts/lib/"{constitution_layout,safe_rm}.sh "$REAL_ROOT/scripts/lib/protected_paths.list" "$RC_DIR/scripts/lib/"; cp "$REAL_ROOT/Constitution.md" "$RC_DIR/"
+run "$RC_DIR/scripts/constitution_cmd/constitution_cmd.sh" anchors 170
+check "S3 real anchor 170 rc0" test $RC -eq 0; check "S3 real anchor 170 text" has "$OUT" "§11.4.170 — Device-independent"; check "S3 real 170 excludes 171" hasnt "$OUT" "§11.4.171 —"
+run "$RC_DIR/scripts/constitution_cmd/constitution_cmd.sh" anchors 100
+check "S3 real anchor 100 rc0" test $RC -eq 0; check "S3 real anchor 100 text" has "$OUT" "RETIRED"
+# ---- S4: extension option allow-list --------------------------------------------------------------
+for bad in --root --root=/x --project-root --project-root=/x --yes --bogus --waiver-id; do
+    run "$EA" extensions list "$bad"; check "S4 rejects <$bad>" test $RC -eq 2
+done
+run "$EA" extensions list --root /tmp; check "S4 rejects --root /tmp" test $RC -eq 2
+run "$EA" extensions add src --yes; check "S4 add --yes rejected" test $RC -eq 2
+run "$EA" extensions list --json; check "S4 allows --json" test $RC -eq 0
+run "$EA" extensions add src --sha abc123; check "S4 add --sha allowed" test $RC -eq 0
+run "$EA" extensions info '-x;y'; check "S4 weird single-dash rejected" test $RC -eq 2
+run "$EA" extensions info '--json;y'; check "S4 --json;y rejected" test $RC -eq 2
+# ---- S6: extra args rejected ------------------------------------------------------------------------
+run "$EA" jev extra; check "S6 jev extra rc2" test $RC -eq 2
+run "$EA" release-notes extra; check "S6 release-notes extra rc2" test $RC -eq 2
+# ---- single-string arg is never glob-expanded -------------------------------------------------------
+GD="$SB/globdir"; mkdir -p "$GD"; : > "$GD/7"
+RUN_CWD="$GD" run "$EA" 'anchors *'; check "glob in lone string not expanded (rc2)" test $RC -eq 2
+
 # ---- determinism x3 -----------------------------------------------------------------------------
 d1=""; for i in 1 2 3; do run "$EA" anchors 7; run "$EA" gates; d1="$d1$(printf '%s' "$OUT" | sha256sum)"; done
 check "determinism x3" test "$(printf '%s' "$d1" | tr -d ' -' | fold -w64 | sort -u | wc -l)" -eq 1
@@ -204,6 +270,10 @@ check "generator twice == fresh (idempotent)" test "$(hashtree "$G1")" = "$(hash
 for f in "plugins/helix/commands/constitution.md" "plugins/helix/commands/default-constitution.md" "actions/generated/gemini/constitution.toml" "actions/generated/qwen/constitution.toml" "actions/generated/codex/constitution.md"; do
     check "generated $f exists" test -f "$G1/$f"
     check "generated $f names dispatcher" grep -q 'constitution_cmd.sh' "$G1/$f"
+done
+for f in "plugins/helix/commands/constitution.md" "actions/generated/gemini/constitution.toml" "actions/generated/codex/constitution.md"; do
+    check "generated $f uses quoted stdin heredoc" grep -q -- "--stdin <<'CONSTITUTION_ARGS_" "$G1/$f"
+    check "generated $f has no double-quoted arguments form" bash -c '! grep -q "constitution_cmd.sh \"<arguments>\"" "$1"' _ "$G1/$f"
 done
 check "claude cmd forwards ARGUMENTS" grep -q '\$ARGUMENTS' "$G1/plugins/helix/commands/constitution.md"
 check "gemini cmd forwards args" grep -q '{{args}}' "$G1/actions/generated/gemini/constitution.toml"

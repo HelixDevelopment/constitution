@@ -5,6 +5,7 @@
 #
 # Usage:
 #   constitution_cmd.sh <subcommand> [args]        (a single string argument is split on blanks)
+#   constitution_cmd.sh --stdin                    (the one-line argument string is read from stdin)
 #     status                       layout, pinned version, latest local release tag, Jev state
 #     update [--check|--dry-run] [--ref REF]
 #                                  delegates to scripts/update_constitution.sh; --check is the
@@ -52,6 +53,15 @@ usage() { sed -n '/^# Usage:/,/^# Exit codes:/p' "${BASH_SOURCE[0]}" | sed 's/^#
 die()   { printf 'constitution: %s\n' "$*" >&2; }
 
 # ---- argument intake: reject control chars; split a lone string argument on blanks ---------------
+# --stdin (used by the generated commands/skill): the arguments come from stdin, so the calling
+# agent shell never evaluates user text (it sits in a quoted heredoc). Exactly one line, bounded.
+if [ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]; then
+    _line=""
+    IFS= read -r -d '' -n 8001 _line || true
+    _line="${_line%$'\n'}"
+    [ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
+    set -- "$_line"
+fi
 for _a in "$@"; do
     case "$_a" in *[[:cntrl:]]*) die "control characters are not allowed in arguments"; exit 2 ;; esac
 done
@@ -72,14 +82,21 @@ redact() {
       -e 's/AKIA[0-9A-Z]{16}/[REDACTED]/g' \
       -e 's/xox[bap]-[A-Za-z0-9-]{10,}/[REDACTED]/g' \
       -e 's/([Bb]earer) [A-Za-z0-9._~+\/=-]{16,}/\1 [REDACTED]/g' \
-      -e 's/([A-Za-z_]*(TOKEN|SECRET|PASSWORD|API_KEY)[A-Za-z_]*)=[^[:space:]]+/\1=[REDACTED]/g'
+      -e 's/([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy])([A-Za-z_]*)[[:space:]]*[=:][[:space:]]*(\"[^\"]*\"|'"'"'[^'"'"']*'"'"'|[^[:space:]]+)/\1\2=[REDACTED]/g' \
+      -e 's/([Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]) [A-Za-z0-9._~+\/=-]{12,}/\1 [REDACTED]/g' \
+      -e 's/(sk_live|sk_test|pk_live|rk_live)_[A-Za-z0-9]{8,}/[REDACTED]/g'
 }
 tmo() { local t="$1"; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
 # deleg TIMEOUT CMD ARGS... : run, redact, bound; propagate the tool's exit code.
 deleg() {
-    local t="$1" rc; shift
-    tmo "$t" "$@" 2>&1 | redact | head -c 40000
-    rc="${PIPESTATUS[0]}"
+    local t="$1" rc raw red; shift
+    raw="$(mktemp)" && red="$(mktemp)" || { die "cannot create temp file"; return 1; }
+    tmo "$t" "$@" >"$raw" 2>&1
+    rc=$?
+    redact <"$raw" >"$red"
+    head -c 40000 "$red"
+    if [ "$(wc -c <"$red")" -gt 40000 ]; then printf '\n[truncated: delegated output exceeded 40000 bytes; exit status of the tool is preserved]\n'; fi
+    rm -f -- "${raw:?}" "${red:?}"
     if [ "$rc" -eq 124 ]; then die "delegated tool timed out after ${t}s"; fi
     return "$rc"
 }
@@ -157,9 +174,11 @@ cmd_anchors() {
     local f="$CONST_DIR/Constitution.md"
     [ -f "$f" ] || { die "Constitution.md not found"; return 1; }
     local out
-    out="$(awk -v id="$id" 'BEGIN{p="### §11.4." id " — "; max=120}
+    out="$(awk -v id="$id" 'BEGIN{p="### §11.4." id " — "; q="**§11.4." id " — "; max=120}
         { if (inb && (index($0,"### ")==1 || index($0,"## ")==1)) exit
+          if (inb==2 && $0=="") exit
           if (!inb && index($0,p)==1) inb=1
+          if (!inb && index($0,q)==1) inb=2
           if (inb) { n++; if (n<=max) print; else { print "[truncated: block exceeds " max " lines; read Constitution.md for the rest]"; exit } } }' "$f")"
     [ -n "$out" ] || { die "anchor 11.4.$id not found in Constitution.md"; return 1; }
     if [ "${#out}" -gt 24000 ]; then out="${out:0:24000}"$'\n[truncated: output byte limit]'; fi
@@ -230,7 +249,15 @@ cmd_extensions() {
         *) die "extensions subcommands: list info add update remove enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
     esac
     local a
+    local allow
+    case "$sub" in
+        add) allow=" --json --dry-run --dev --sha --sha256 " ;;
+        *)   allow=" --json --dry-run " ;;
+    esac
     for a in "${REST[@]:1}"; do
+        case "$a" in
+            --*) case "$allow" in *" $a "*) ;; *) die "rejected extension option: $(printf '%.30s' "$a" | tr -c 'A-Za-z0-9._-' '?')"; return 2 ;; esac ;;
+        esac
         [[ "$a" =~ ^(--[a-z][a-z-]{0,30}|[A-Za-z0-9._/:@=+,~-]{1,300})$ ]] || { die "rejected extension argument"; return 2; }
     done
     if [ ! -f "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" ]; then
@@ -239,10 +266,12 @@ cmd_extensions() {
     deleg 300 bash "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" --project-root "$(project_root)" "${REST[@]}"
 }
 cmd_jev() {
+    [ ${#REST[@]} -eq 0 ] || { die "jev takes no arguments"; return 2; }
     need_tool "$CONST_DIR/scripts/jev/jev-status.sh" jev-status.sh || return 3
     deleg 60 bash "$CONST_DIR/scripts/jev/jev-status.sh" --no-validate
 }
 cmd_release_notes() {
+    [ ${#REST[@]} -eq 0 ] || { die "release-notes takes no arguments"; return 2; }
     [ -f "$CONST_DIR/CHANGELOG.md" ] || { die "CHANGELOG.md not found"; return 1; }
     head -n 60 "$CONST_DIR/CHANGELOG.md" | redact
 }
