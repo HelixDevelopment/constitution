@@ -27,7 +27,10 @@
 #
 # ── Side-effects ─────────────────────────────────────────────────────────────
 #   Edits the project's .claude/settings.json (creating it if absent). A backup
-#   is written to .claude/settings.json.bak before any modification.
+#   is written to .claude/settings.json.bak before any modification. Files are
+#   replaced by mktemp+rename (never written through); an existing settings.json keeps
+#   its mode (stat -L), a NEW settings.json/.bak gets 0666 & ~umask. A hard-linked
+#   settings.json only draws a warning. Invalid JSON is refused on both jq and python paths.
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
 #   jq (REQUIRED for safe JSON merge of settings.json). python3 fallback if jq
@@ -86,20 +89,28 @@ esac
 # (no openat/O_NOFOLLOW chain in shell). Hard links are handled by never writing THROUGH an
 # existing inode: every file we create is a fresh mktemp file renamed into place (rename replaces
 # the directory entry, it never follows or truncates the old inode).
-if [ -e "$settings" ] && [ "$(stat -c %h -- "$settings" 2>/dev/null || echo 2)" -gt 1 ]; then
-  echo "install_action_prefix: $settings has more than one hard link — REFUSED, nothing written" >&2
-  exit 1
+# A settings.json with more than one hard link (for example after a `cp -al` snapshot) is NOT
+# refused: nothing here writes through the inode (fresh mktemp inode + rename only, so the other
+# links keep the old content); we only warn so the operator knows the other links stay stale.
+if [ -e "$settings" ] && [ "$(stat -L -c %h -- "$settings" 2>/dev/null || echo 1)" -gt 1 ]; then
+  echo "install_action_prefix: WARNING $settings has more than one hard link; it is replaced by a new file (rename), the other links keep the old content" >&2
 fi
+
+# Mode handling: mktemp creates 0600. A NEW file gets the umask-respecting mode (0666 & ~umask);
+# an EXISTING file keeps its own mode (stat -L: follows a symlink, so a link to a 0644 file yields 644).
+new_mode="$(printf '%03o' $(( 0666 & ~$(umask) )))"
 
 # Seed an empty settings.json if missing (fresh inode, renamed into place).
 if [ ! -f "$settings" ]; then
   _seed="$(mktemp "$settings_dir/.settings.seed.XXXXXX")" || exit 1
-  printf '{}\n' > "$_seed" && mv -f -- "$_seed" "$settings" || { rm -f -- "$_seed"; exit 1; }
+  printf '{}\n' > "$_seed" && chmod "$new_mode" "$_seed" && mv -f -- "$_seed" "$settings" || { rm -f -- "$_seed"; exit 1; }
 fi
+settings_mode="$(stat -L -c %a -- "$settings")"
 
 # Backup via a fresh inode too: a pre-existing (possibly hard-linked) .bak is replaced, never written.
 _bak="$(mktemp "$settings_dir/.settings.bak.XXXXXX")" || exit 1
-cp -f -- "$settings" "$_bak" && mv -f -- "$_bak" "$settings.bak" || { rm -f -- "$_bak"; exit 1; }
+if [ -e "$settings.bak" ]; then _bak_mode="$(stat -L -c %a -- "$settings.bak" 2>/dev/null || echo "$new_mode")"; else _bak_mode="$new_mode"; fi
+cp -f -- "$settings" "$_bak" && chmod "$_bak_mode" "$_bak" && mv -f -- "$_bak" "$settings.bak" || { rm -f -- "$_bak"; exit 1; }
 
 merge_with_jq() {
   local tmp
@@ -116,7 +127,7 @@ merge_with_jq() {
           { "hooks": [ { "type": "command", "command": $cmd } ] }
         ]
       end
-  ' "$settings" > "$tmp" && chmod "$(stat -c %a -- "$settings")" "$tmp" && mv -f -- "$tmp" "$settings"; then
+  ' "$settings" > "$tmp" && chmod "$settings_mode" "$tmp" && mv -f -- "$tmp" "$settings"; then
     return 0
   fi
   rm -f -- "$tmp"
@@ -131,10 +142,12 @@ cmd = os.environ["HELIX_HOOK_CMD"]
 try:
     with open(path) as fh:
         data = json.load(fh)
-except Exception:
-    data = {}
+except Exception as exc:
+    sys.stderr.write("install_action_prefix: settings.json is not valid JSON (%s) - REFUSED, left unchanged\n" % exc)
+    sys.exit(1)
 if not isinstance(data, dict):
-    data = {}
+    sys.stderr.write("install_action_prefix: settings.json top level is not an object - REFUSED, left unchanged\n")
+    sys.exit(1)
 hooks = data.setdefault("hooks", {})
 ups = hooks.setdefault("UserPromptSubmit", [])
 def already():
@@ -164,7 +177,7 @@ PYEOF
 if command -v jq >/dev/null 2>&1; then
   merge_with_jq || { echo "install_action_prefix: jq merge FAILED, settings.json left UNCHANGED (backup at $settings.bak)" >&2; exit 1; }
 elif command -v python3 >/dev/null 2>&1; then
-  merge_with_python
+  merge_with_python || { echo "install_action_prefix: python merge FAILED, settings.json left UNCHANGED (backup at $settings.bak)" >&2; exit 1; }
 else
   echo "install_action_prefix: need jq OR python3 to edit settings.json safely" >&2
   echo "install_action_prefix: settings.json left UNCHANGED (backup at $settings.bak)" >&2

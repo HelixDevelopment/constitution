@@ -65,7 +65,7 @@ docs/extensions/EXTENSIONS_CATALOG.md   generated catalog + per-platform compati
 
 Registry row `constitution` generates `/helix:constitution` (and the `default-` alias). A project-scope skill `skills/constitution/SKILL.md`, linked into `.claude/skills/constitution`, provides bare `/constitution`. Other agents get rendered shims (OpenCode `.opencode/commands/`, Gemini/Qwen TOML, pi prompts, Codex skills, Kimi `/skill:`).
 
-Subcommands (all handled by one engine script reading `$ARGUMENTS`): `status`, `update`, `doctor`, `extensions list|info|add|update|remove|enable|disable|verify|lock|catalog|wire|unwire`, `install-extension`, `anchors <N>`, `gates`, `report|issue|bug|task|feature` (reusing `scripts/reporting/report_item.sh`, §11.4.202), `note|reminder|critical|important|background`, `jev`, `skills`, `release-notes`, `help`.
+Subcommands (all handled by one engine script reading `$ARGUMENTS`): `status`, `doctor`, `extensions list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire`, `install-extension`, `anchors <N>`, `gates`, `report|issue|bug|task|feature` (reusing `scripts/reporting/report_item.sh`, §11.4.202), `note|reminder|critical|important|background`, `jev`, `skills`, `release-notes`, `help`.
 
 ### 3.5 Binding to existing tools
 
