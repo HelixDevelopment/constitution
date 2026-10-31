@@ -140,6 +140,11 @@
 #       unreadable, or the control needle failed (the instrument cannot see,
 #       so no absence it reports may be trusted — §11.4.6, never a guessed
 #       zero).
+#   3 — SKIP: (b) and (c) hold, but (a) is not applicable because the
+#       constitution is a STANDALONE checkout (its own git toplevel, no
+#       superproject, parent in no git work tree) and no --consumer-root /
+#       CONSUMER_ROOT was given. Never reported as PASS (§11.4.1); a (b) or
+#       (c) violation in a standalone checkout still exits 1.
 #
 # Classification: universal (§11.4.17) — no project-specific literal; the
 # consuming project supplies --const-dir / --consumer-root as DATA (§11.4.35).
@@ -387,7 +392,41 @@ if [ ! -d "$const_dir" ]; then
     exit 2
 fi
 const_dir="$(cd "$const_dir" && pwd)"
-if [ -z "$consumer_root" ]; then
+# Standalone canon checkout (§11.4.201(1)): when the constitution IS the
+# repository — its own git toplevel, no superproject, and its parent lies in
+# no git work tree — there is no consumer, so (a) is not applicable. Before
+# this check the derivation below took the parent directory (a checkout named
+# '.../constitution' matched the legacy-layout rule) and FAILED (a) on a
+# CLAUDE.md that nobody owes: a false refusal. Detected only when the consumer
+# root was NOT supplied explicitly, and only when PROVEN (every git probe must
+# answer); any doubt keeps the old behaviour, which fails closed.
+# crc_git ARGS — git with every ambient repository-locating GIT_* variable
+# scrubbed (the canonical list of scripts/lib/constitution_layout.sh,
+# CL_GIT_SCRUB_VARS, carried inline so the gate also works without that lib).
+crc_git() {
+    ( LC_ALL=C; export LC_ALL
+      for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do
+          unset "$_v"
+      done
+      exec git "$@" )
+}
+standalone=""
+if [ -z "$consumer_root" ] && command -v git >/dev/null 2>&1; then
+    _sa_ok=1
+    _sa_top="$(crc_git -C "$const_dir" rev-parse --show-toplevel 2>/dev/null)" || _sa_ok=0
+    _sa_super="$(crc_git -C "$const_dir" rev-parse --show-superproject-working-tree 2>/dev/null)" || _sa_ok=0
+    _sa_phys="$(cd "$const_dir" && pwd -P)" || _sa_ok=0
+    if [ "$_sa_ok" -eq 1 ] && [ -n "$_sa_top" ] && [ "$_sa_top" = "$_sa_phys" ] && [ -z "$_sa_super" ]; then
+        # The parent must be PROVEN outside every work tree: git must fail
+        # with 'not a git repository' (any other error, e.g. dubious
+        # ownership, is not proof and keeps the consumer audit).
+        _sa_perr="$(crc_git -C "$(dirname "$_sa_phys")" rev-parse --show-toplevel 2>&1 >/dev/null)" && _sa_perr=""
+        case "$_sa_perr" in
+            *"not a git repository"*) standalone="1" ;;
+        esac
+    fi
+fi
+if [ -z "$consumer_root" ] && [ -z "$standalone" ]; then
     # The ONE layout resolver (standard submodules/constitution + legacy).
     if [ -f "${SELF_DIR}/../lib/constitution_layout.sh" ]; then
         # shellcheck source=../lib/constitution_layout.sh
@@ -396,11 +435,13 @@ if [ -z "$consumer_root" ]; then
     fi
     [ -n "$consumer_root" ] || consumer_root="$(dirname "$const_dir")"
 fi
-if [ ! -d "$consumer_root" ]; then
-    echo "❌ ${GATE}: BLIND — consumer root directory not found: ${consumer_root}" >&2
-    exit 2
+if [ -z "$standalone" ]; then
+    if [ ! -d "$consumer_root" ]; then
+        echo "❌ ${GATE}: BLIND — consumer root directory not found: ${consumer_root}" >&2
+        exit 2
+    fi
+    consumer_root="$(cd "$consumer_root" && pwd)"
 fi
-consumer_root="$(cd "$consumer_root" && pwd)"
 
 fail=0
 
@@ -492,7 +533,9 @@ fi
 
 # ── Invariant (a): the consumer opens with the inheritance pointer ──────────
 consumer_claude="${consumer_root}/CLAUDE.md"
-if [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
+if [ -n "$standalone" ]; then
+    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout (${const_dir} is its own git toplevel, has no superproject, and its parent is in no git work tree): there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
+elif [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
     echo "❌ (a) CONSUMER-POINTER-PRESENT: consumer CLAUDE.md missing or unreadable at ${consumer_claude}"
     fail=1
 else
@@ -535,6 +578,10 @@ else
 fi
 
 echo "----------------------------------------------------------------------"
+if [ "$fail" -eq 0 ] && [ -n "$standalone" ]; then
+    echo "⏭  ${GATE}: SKIP — (b) and (c) hold; (a) not applicable (standalone canon checkout, no consumer) [const-dir=${const_dir}]"
+    exit 3
+fi
 if [ "$fail" -eq 0 ]; then
     echo "✅ ${GATE}: PASS — (a) consumer pointer present, (b) canonical root present, (c) canonical root is not a consumer [const-dir=${const_dir}]"
     exit 0

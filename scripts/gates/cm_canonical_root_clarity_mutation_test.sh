@@ -243,6 +243,64 @@ FX_M10="$(mk mut10)"
 printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md.bak (old)\n\n## Project Overview\n\nrules\n' > "${FX_M10}/CLAUDE.md"
 expect_exit "M10 mutation: near-miss path 'constitution/CLAUDE.md.bak (old)'" 1 "$FX_M10"
 
+# --- Standalone canon checkout (no consumer exists) -------------------------
+# When the constitution IS the repository (its own git toplevel, no
+# superproject, parent not inside any work tree), there is no consumer: (a) is
+# not applicable and must be an honest SKIP (exit 3), never a FAIL (a false
+# refusal is a FAIL-bluff, §11.4.201(1)) and never a PASS (§11.4.1).
+# mk_sa <name> -> a correct canonical root that is a standalone git repo named
+# 'constitution' whose parent holds NO CLAUDE.md (the exact real-tree shape).
+mk_sa() {
+    _s="$(mk "$1")"
+    rm -f "${_s}/CLAUDE.md"
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+      git -C "${_s}/constitution" init -q ) || { echo "META: git init failed" >&2; exit 2; }
+    printf '%s\n' "$_s"
+}
+expect_exit_derived() {
+    _desc="$1"; _want="$2"; _cd="$3"; shift 3
+    "$GATE" --const-dir "$_cd" --quiet "$@" >/dev/null 2>&1
+    _got=$?
+    if [ "$_got" -eq "$_want" ]; then
+        echo "META OK:   ${_desc} (exit ${_got})"
+    else
+        echo "META FAIL: ${_desc} — expected exit ${_want}, got ${_got}"
+        rc=1
+    fi
+}
+if ( unset GIT_DIR GIT_WORK_TREE; git -C "$TMP" rev-parse --show-toplevel ) >/dev/null 2>&1; then
+    echo "META FAIL: fixture dir $TMP lies inside a git work tree; standalone cases cannot be built honestly"
+    rc=1
+else
+    # G6 golden-SKIP: standalone canon, consumer root DERIVED -> exit 3.
+    FX_G6="$(mk_sa sa_good)"
+    expect_exit_derived "G6 standalone canon checkout, no consumer -> SKIP (a), exit 3" 3 "${FX_G6}/constitution"
+    _g6_out="$("$GATE" --const-dir "${FX_G6}/constitution" 2>&1)"
+    case "$_g6_out" in
+        *"(a) CONSUMER-POINTER-PRESENT: SKIP"*) echo "META OK:   G6 output states the (a) SKIP reason" ;;
+        *) echo "META FAIL: G6 output carries no '(a) ... SKIP' reason line"; rc=1 ;;
+    esac
+    # M11: standalone canon still FAILs when (c) is violated (SKIP never hides (b)/(c)).
+    FX_M11="$(mk_sa sa_mut_c)"
+    printf '\n## INHERITED FROM some-upstream/CLAUDE.md\n\nx\n' >> "${FX_M11}/constitution/CLAUDE.md"
+    expect_exit_derived "M11 mutation: standalone canon gains a live pointer -> exit 1, not SKIP" 1 "${FX_M11}/constitution"
+    # M12 golden-TRUE: explicit --consumer-root is always audited, even for a standalone canon.
+    FX_M12="$(mk_sa sa_explicit)"
+    printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_M12}/CLAUDE.md"
+    expect_exit_derived "M12 explicit --consumer-root on a standalone canon, pointer missing -> exit 1" 1 \
+        "${FX_M12}/constitution" --consumer-root "${FX_M12}"
+    # M13 golden-TRUE: a nested clone inside a CONSUMER git repo (not a
+    # registered submodule) is a consumer, not standalone -> missing pointer FAILs.
+    FX_M13="$(mk_sa sa_nested)"
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR; git -C "${FX_M13}" init -q ) || rc=1
+    printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_M13}/CLAUDE.md"
+    expect_exit_derived "M13 nested clone inside a consumer repo, pointer missing -> exit 1" 1 "${FX_M13}/constitution"
+    # M14 golden-TRUE: same nested clone, consumer CLAUDE.md absent -> exit 1 (never SKIP).
+    FX_M14="$(mk_sa sa_nested_nofile)"
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR; git -C "${FX_M14}" init -q ) || rc=1
+    expect_exit_derived "M14 nested clone inside a consumer repo, consumer CLAUDE.md absent -> exit 1" 1 "${FX_M14}/constitution"
+fi
+
 # --- G3. the gate's own selftest suite must be green ------------------------
 if "$GATE" --selftest >/dev/null 2>&1; then
     echo "META OK:   G3 the gate's own --selftest fixture suite is green"
