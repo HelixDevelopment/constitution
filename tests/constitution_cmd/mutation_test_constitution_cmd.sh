@@ -68,6 +68,10 @@ mutant anchors-bold-form-gone   'if (!inb && index($0,q)==1) inb=2' ':'
 mutant stdin-mode-off           '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' 'false'
 mutant jev-extra-args-ok        'die "jev takes no arguments"; return 2;' ':;'
 mutant token-space-redact-gone  "-e 's/([Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]) [A-Za-z0-9._~+\/=-]{12,}/\1 [REDACTED]/g' \\" "-e 's/zzqtok/x/' \\"
+mutant stdin-len-unbounded      '[ "${#_line}" -le 8000 ] ||' ':'
+mutant stdin-extra-args-ok      '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' '[ "${1:-}" = "--stdin" ]'
+mutant akia-redact-gone         "-e 's/AKIA[0-9A-Z]{16}/[REDACTED]/g' \\" "-e 's/zzqakia/x/' \\"
+mutant ext-allow-bypass         '*) die "rejected extension option:' '*) : ;; esac ;; esac; case x in x) die "rejected extension option:'
 
 echo "mutants: killed=$killed survived=$survived total=$n"
 [ "$survived" -eq 0 ]

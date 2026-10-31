@@ -52,6 +52,7 @@ mk_const() {   # $1 = dir ; a real git repo shaped like a constitution checkout
     printf '#!/usr/bin/env bash\nsleep 30\n' > "$d/scripts/gates/cm_slow_gate.sh"
     printf '#!/usr/bin/env bash\nhead -c 200000 /dev/zero | tr "\\0" a\necho\nexit "${BIG_RC:-0}"\n' > "$d/scripts/gates/cm_big_gate.sh"
     printf '#!/usr/bin/env bash\necho "Authorization: Bearer abcdefghijklmnopqrstuvwx0123"\necho "token zzzzzzzzzzzzzzzz9999"\necho "api_key: \\"sk_live_ABCDEFGH12345678\\""\necho "password=hunter2hunter2"\necho "Password: pw-value-12345"\nexit 0\n' > "$d/scripts/gates/cm_secrets_gate.sh"
+    printf '#!/usr/bin/env bash\necho "id AKIAABCDEFGHIJKLMNOP end"\necho "key AIzaSyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q"\necho "url postgres://dbuser:fakepassw0rdXYZ@db.example/x"\necho "-----BEGIN RSA PRIVATE KEY-----"\necho "FAKEPEMBODYLINEONE0123456789abcdef"\necho "FAKEPEMBODYLINETWO0123456789abcdef"\necho "-----END RSA PRIVATE KEY-----"\necho "after-pem-ok"\nexit 0\n' > "$d/scripts/gates/cm_secrets2_gate.sh"
     printf '#!/usr/bin/env bash\necho "leak ghp_abcdefghijklmnopqrstuvwxyz0123456789 end"\nexit 3\n' > "$d/scripts/gates/cm_leaky_gate.sh"
     ( cd "$d" && git init -q -b main . && git add -A && git commit -qm init && git tag helixconstitution-v1 ) >/dev/null 2>&1
 }
@@ -215,8 +216,9 @@ check "S1 stdin path works rc0" test $rc -eq 0; check "S1 stdin path output" gre
 check "S1 control needle: old quoted form executes" test -e "$PA/SENTINEL3"
 rm -f "$PA/SENTINEL3"
 run "$EA" --stdin </dev/null; check "stdin empty rc0 help" test $RC -eq 0
-long8="$(head -c 8100 /dev/zero | tr '\0' a)"
-OUT="$(printf '%s\n' "$long8" | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin over-long rejected rc2" test $RC -eq 2
+long8="help$(head -c 8100 /dev/zero | tr '\0' ' ')"
+OUT="$(printf '%s\n' "$long8" | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin over-long rejected rc2" test $RC -eq 2; check "stdin over-long cap message" has "$OUT" "longer than 8000"
+OUT="$(printf 'help\n' | bash "$EA" --stdin foo 2>&1)"; RC=$?; check "--stdin foo rejected" test $RC -eq 2
 OUT="$(printf 'status\x01x\n' | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin control char rejected rc2" test $RC -eq 2
 
 # ---- S2: truncation marker + real tool rc -------------------------------------------------------
@@ -230,6 +232,10 @@ CONSTITUTION_CMD_GATE_TIMEOUT=600 run "$EA" gates run cm_demo_gate; check "gate 
 run "$EA" gates run cm_secrets_gate; check "S5 secrets gate rc0" test $RC -eq 0
 for v in abcdefghijklmnopqrstuvwx0123 zzzzzzzzzzzzzzzz9999 sk_live_ABCDEFGH12345678 hunter2hunter2 pw-value-12345; do check "S5 redacted <$v>" hasnt "$OUT" "$v"; done
 check "S5 marker present" has "$OUT" "[REDACTED]"
+run "$EA" gates run cm_secrets2_gate; check "S5b gate rc0" test $RC -eq 0
+for v in AKIAABCDEFGHIJKLMNOP AIzaSyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q fakepassw0rdXYZ FAKEPEMBODYLINEONE0123456789abcdef FAKEPEMBODYLINETWO0123456789abcdef; do check "S5b redacted <$v>" hasnt "$OUT" "$v"; done
+check "S5b non-secret text kept" has "$OUT" "after-pem-ok"
+check "S5b url host kept" has "$OUT" "@db.example/x"
 # ---- S3: bold-form anchors (fixture + the REAL Constitution.md) ---------------------------------
 run "$EA" anchors 150; check "S3 fixture bold anchor rc0" test $RC -eq 0; check "S3 bold heading" has "$OUT" "Bold anchor (test)"
 check "S3 bold stops at blank" hasnt "$OUT" "after bold paragraph"
@@ -243,7 +249,7 @@ check "S3 real anchor 100 rc0" test $RC -eq 0; check "S3 real anchor 100 text" h
 for bad in --root --root=/x --project-root --project-root=/x --yes --bogus --waiver-id; do
     run "$EA" extensions list "$bad"; check "S4 rejects <$bad>" test $RC -eq 2
 done
-run "$EA" extensions list --root /tmp; check "S4 rejects --root /tmp" test $RC -eq 2
+run "$EA" extensions list --root /tmp; check "S4 rejects --root /tmp" test $RC -eq 2; check "S4 rejection message" has "$ERR$OUT" "rejected extension option: --root"
 run "$EA" extensions add src --yes; check "S4 add --yes rejected" test $RC -eq 2
 run "$EA" extensions list --json; check "S4 allows --json" test $RC -eq 0
 run "$EA" extensions add src --sha abc123; check "S4 add --sha allowed" test $RC -eq 0

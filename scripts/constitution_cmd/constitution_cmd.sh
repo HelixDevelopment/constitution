@@ -75,6 +75,9 @@ REST=("${ARGS[@]:1}")
 
 redact() {
     sed -E \
+      -e '/-----BEGIN [A-Z ]*PRIVATE KEY-----/,/-----END [A-Z ]*PRIVATE KEY-----/c\[REDACTED PRIVATE KEY]' \
+      -e 's/AIza[0-9A-Za-z_-]{30,}/[REDACTED]/g' \
+      -e 's#([a-zA-Z][a-zA-Z0-9+.-]*://[^/:@[:space:]]+):[^/@[:space:]]+@#\1:[REDACTED]@#g' \
       -e 's/(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}/[REDACTED]/g' \
       -e 's/github_pat_[A-Za-z0-9_]{20,}/[REDACTED]/g' \
       -e 's/glpat-[A-Za-z0-9_-]{16,}/[REDACTED]/g' \
