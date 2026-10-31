@@ -2211,6 +2211,27 @@ class Round8(unittest.TestCase):
         self.assertIsNotNone(e.journal_problem(sg(os.path.join(self.d, ".trash-1-abcdef01"))))
         self.assertIsNotNone(e.journal_problem(sg(os.path.join(inst, "sub", ".trash-1-abcdef01"))))
 
+    def test_r12_final_bound_validly_signed_journal_with_foreign_final(self):
+        """RULE:R12-final-bound: a journal that carries a VALID MAC (signed by this project's own key, e.g. a
+        replayed or confused-deputy journal) but whose 'final' is not exactly <_installed>/<id> must be refused;
+        the MAC alone must not be what keeps recovery away from a path outside _installed."""
+        e = self.eng()
+        inst = e.inst_dir
+        k = e._key(True)
+
+        def sg(j):
+            return dict(j, mac=e._jmac(k, j))
+        add = {"op": "add", "id": "x", "sha256": "a" * 64, "final": os.path.join(inst, "x")}
+        rm = {"op": "remove", "id": "x", "final": os.path.join(inst, "x"),
+              "aux": os.path.join(inst, ".trash-1-abcdef01")}
+        self.assertIsNone(e.journal_problem(sg(add)))  # controls: the same journals with the right final are good
+        self.assertIsNone(e.journal_problem(sg(rm)))
+        for base in (add, rm):
+            for bad_final in (self.d, os.path.join(inst, "y"), os.path.join(inst, "x", "sub"), os.path.join(inst, "x") + "/",
+                              "relative/x", None):
+                why = e.journal_problem(sg(dict(base, final=bad_final)))
+                self.assertEqual(why, "final path is not _installed/<id>", (base["op"], bad_final, why))
+
     def test_f4_unsigned_or_forged_remove_journal_is_bad(self):
         e = self.eng()
         j = {"op": "remove", "id": "x", "final": os.path.join(e.inst_dir, "x"),
