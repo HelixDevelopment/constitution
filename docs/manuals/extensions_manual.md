@@ -6,12 +6,12 @@
 | Created | 2026-10-29 |
 | Last modified | 2026-10-29T20:00:00Z |
 | Status | draft |
-| Status summary | Engine (E1) implemented with its own tests; NOT yet wired into `/constitution`, the installer or the post-update hook (E2, E5 pending), and the shim formats are UNCONFIRMED against live agents. Written 2026-10-29 from `constitution_ext.sh --help` and `scripts/constitution_ext/README.md`. |
+| Status summary | Engine (E1) implemented with its own tests; experimental, dormant, not independently GO'd (rounds 10 and 11 fixes landed, round 11 fixes pending independent re-review). `/constitution extensions ...` delegates to it (`constitution_cmd.sh`; `install-extension` maps to `add`); installer and post-update-hook wiring of extensions is UNCONFIRMED; shim formats other than Claude are UNCONFIRMED against live agents. Written 2026-10-29 from `constitution_ext.sh --help` and `scripts/constitution_ext/README.md`. |
 | Authority | Tool documentation for `scripts/constitution_ext/`; design in `docs/design/constitution_extensions_plan.md`. §11.4.228, §11.4.272, §11.4.18, §11.4.257, §11.4.212 govern. |
 | Scope | Reference for `scripts/constitution_ext/constitution_ext.sh`. |
 | Issues | none |
 
-Source of truth: `constitution_ext.sh --help` and `scripts/constitution_ext/README.md` (rules R1 to R21). Requires bash, python3 3.8+ (stdlib only) and git.
+Source of truth: `constitution_ext.sh --help` and `scripts/constitution_ext/README.md` (rules R1 to R22). Requires bash, python3 3.8+ (stdlib only) and git.
 
 ## Synopsis
 
@@ -66,6 +66,7 @@ Plain scalars a YAML 1.1 reader would reinterpret (octal/hex numbers, floats, `y
 - Whether Claude Code skills or OpenCode commands execute `` !`...` `` or honour `allowed-tools` through these shims is UNCONFIRMED.
 - A user able to write both the tracked lock and the local state directory can forge both; the records protect against a lock edited elsewhere and merged in, not against the local user.
 - Catalogs are plain JSON; no signature verification.
-- Several projects sharing one constitution root share `_installed/`; one project's `remove` breaks another's lock entry.
+- Sharing limit: byte-identical content locked by two projects (or a cloned lock) shares one tree under `_installed/`; `remove` by one project moves that tree, so the other project's `verify` then reports it missing. A tree with different content under the same id is left in place and only the removing project's lock entry is dropped.
+- `remove` refuses ids that are not in this project's lock and ids for which this checkout has no valid HMAC-signed state record (a cloned lock is not proof of installation); the add and remove journals are HMAC-signed; symlinked or foreign shared directories are refused (checked against `ext_engine.py` `cmd_remove`, `RULE:F1-lock-membership`, `F3-own-record`, `F2-journal-mac`, `F4-remove-journal-mac`; the symlinked/foreign-shared-dir refusal itself was not re-read line by line here: UNCONFIRMED).
 
 Related: [guide](../guides/extensions_guide.md), [FAQ](../faq/extensions_faq.md), [lifecycle diagram](../diagrams/extension_lifecycle.md).

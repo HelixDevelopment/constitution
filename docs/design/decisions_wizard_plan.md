@@ -94,7 +94,7 @@ flowchart TD
   B -- show/check/export --> R[read layers, validate] --> O[print, exit 0 or 4]
   B -- set/unset/reset/import/answers --> M[merge into overrides]
   B -- none --> T{TTY on /dev/tty?}
-  T -- no, not --non-interactive --> E2[exit 2]
+  T -- "no TTY and no non-interactive flag" --> E2[exit 2]
   T -- yes --> Q[prompt each decision, Enter keeps] --> M
   M --> V{validate: closed keys, locked floors, contradictions, secrets}
   V -- refused --> E4[exit 4, nothing written]

@@ -4,7 +4,8 @@
 |---|---|
 | Revision | 1 |
 | Created | 2026-10-31 |
-| Status | investigation record; not linked from any index yet |
+| Status | investigation record; linked from README (design plans list) |
+| Last modified | 2026-10-31 |
 | Source | CHANGELOG.md v72.2, known imperfection 6 (41 failing entries of the §11.4.40 run) |
 | Base | main at 9d78ce7 (merge of origin/main), working tree with the fixes named below |
 
