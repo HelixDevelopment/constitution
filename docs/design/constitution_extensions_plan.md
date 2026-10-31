@@ -146,6 +146,16 @@ Class: a recovery or cleanup path that renames or deletes a path taken from jour
 | `.trash-*` sweep | never deleted by name (only the journal that names it may act) |
 | temp files, wire stage directories, wire temp shims | dead pid, shape, owner, and for shims the managed-by marker or the engine-computed link text |
 | commit journal (`deletes`) | ids validated, deleted only when absent from the lock |
+| `cmd_remove` (rename to trash, `rm_tree`, lock entry, record) | Round 10 (F1): refused unless the id is in THIS project's lock; the tree is moved only when its digest equals the sha256 the lock pinned, otherwise only the lock entry goes and the tree is left (with a note); `update`, `enable`, `disable`, `wire`, `unwire` never touch `_installed/<id>` for an id absent from the lock (enable/wire refuse, disable/unwire act on this project's wiring only) |
+| `cmd_add` rollback and the add journal | Round 10 (F2): the add journal is HMAC-signed with the project's state key; an unsigned or forged one is left in place, reported, and add/remove/lock/enable/disable refuse while it is present (a bad journal is never overwritten) |
+| `_installed` / `extensions/` as symlinks | Round 10 (A4): every mutating command refuses when either is a symlink, not a directory, or not owned by the user, before any sweep |
+| `.staging-*` sweep | also live-pid check (`_alive`), regression test added (m10) |
+| state record deletion after an unproven trash | Round 10: the record stays with the trash that was left in place |
 | snapshot garbage collection, `_work`, wire stage | paths built from validated names under this project's own state or the engine's own working directory |
 
 Copy: `_copy_tree` re-checks the opened descriptor (regular file, one link, same device and inode as the `lstat`), closing the window between `lstat` and `open`. Test infrastructure: `new_sandbox` resolves the sandbox with `realpath`, so a symlinked or `..`-containing `TMPDIR` no longer changes compared paths. Honest boundary: identity is device, inode and mtime of a directory; it proves "the same directory that was moved", not that its content is unchanged.
+
+
+## Round 10 note (F1, structural: an act on the shared `_installed` root needs proof that THIS project owns the target)
+
+Class: a command that renames, deletes or sweeps under the shared `extensions/_installed` root on the strength of a name, without proof from this project's own records. Census re-derived by hand (control-needled: `os.rename` 4 hits, `os.unlink` 10 hits, `rm_tree` 12 hits, an absent needle 0): the table above lists every site. Design decision for trees shared by several projects: ownership is "the id is in this project's lock AND the tree's digest equals the lock's pinned sha256". No per-root reference count is kept (the root is git-ignored and re-installable, so a deleted tree is reported by the other project's `verify` with the exact reinstall command). Remaining limit: two projects that locked byte-identical content share one tree; removing it from one makes the other's `verify` report it missing. `_copy_tree` is the only read of the source whose bytes are installed; `file_hashes(srcdir)` reads the source earlier only to validate and pin it.

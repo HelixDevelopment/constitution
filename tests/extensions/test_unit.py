@@ -520,7 +520,11 @@ class EngineAdd(unittest.TestCase):
         e = self.eng()
         inst = os.path.join(self.root, "extensions", "_installed")
         good = {"op": "add", "id": "x", "final": os.path.join(inst, "x"), "sha256": "a" * 64}
+        self.assertIn("unsigned", e.journal_problem(good))  # F2: an add journal must carry the engine's MAC
+        os.makedirs(e.state, exist_ok=True)
+        good["mac"] = e._jmac(e._key(True), good)
         self.assertIsNone(e.journal_problem(good))
+        self.assertIsNotNone(e.journal_problem(dict(good, sha256="b" * 64)))  # any field change voids the MAC
         for bad in (dict(good, final=self.d), dict(good, final=os.path.join(inst, "y")), "str",
                     {"op": "remove", "id": "x", "final": os.path.join(inst, "x"), "aux": self.d},
                     {"op": "remove", "id": "x", "final": os.path.join(inst, "x"), "aux": os.path.join(inst, ".trash-1-zz")}):

@@ -497,9 +497,27 @@ E1r1 F6a copy reads a growing file past the per-file cap‖unit‖ext_engine.py�
 @@
 E1r1 F6b copy reads a growing file past the tree cap‖unit‖ext_engine.py‖                    if got > MAX_FILE_BYTES or n_bytes - st.st_size + got > MAX_TREE_BYTES:‖                    if got > MAX_FILE_BYTES or n_bytes - st.st_size + got > 10**12:
 @@
+E1r10 F1 remove accepts an id absent from the lock‖round10‖ext_engine.py‖        if eid not in lock:  # RULE:F1-lock-membership: the root is shared; a tree no lock of ours names is not ours‖        if False:  # RULE:F1-lock-membership
+@@
+E1r10 F1 remove deletes a tree that is not the pinned one‖round10‖ext_engine.py‖                mine = tree_digest(final) == lock[eid].get("sha256")‖                mine = True
+@@
+E1r10 F2 add journal signature not compared‖round10‖ext_engine.py‖                    or not hmac.compare_digest(j["mac"], self._jmac(key, j)):‖                    or False:
+@@
+E1r10 F2 add journal not signed (and not required)‖round10‖ext_engine.py‖        jadd["mac"] = self._jmac(self._key(True), jadd)  # RULE:F2-journal-mac‖        pass  # RULE:F2-journal-mac
+@@
+E1r10 F2 commit overwrites a bad journal‖round10‖ext_engine.py‖            self._refuse_bad_journal()  # RULE:F2-keep-bad-journal: never overwrite (and so destroy) a journal we ignored‖            pass
+@@
+E1r10 A4 shared dirs not checked‖round10‖ext_engine.py‖                self._check_shared_dirs()  # RULE:A4-shared-dirs‖                pass
+@@
+E1r10 A4 shared dir examined through the link‖round10‖ext_engine.py‖            st = os.lstat(d)\n            if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):‖            st = os.stat(d)\n            if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+@@
+E1r10 m10 staging sweep ignores a live pid‖round10‖ext_engine.py‖                    if pid == os.getpid() or _alive(pid):\n                        continue\n                    if m.group(1) == "trash":‖                    if pid == os.getpid():\n                        continue\n                    if m.group(1) == "trash":
+@@
+E1r10 D1 record deleted although the trash was left‖round10‖ext_engine.py‖                        return\n                self.delete_record(eid)‖                        pass\n                self.delete_record(eid)
+@@
 E1r8 S1 remove-journal identity not compared‖unit round9‖ext_engine.py‖        return isinstance(ident, list) and _ident_of(aux) == ident‖        return True
 @@
-E1r8 S1 remove journal records no identity‖unit round9‖ext_engine.py‖        if os.path.lexists(final) and _ident_of(final) is not None:  # RULE:S1-ident‖        if False and _ident_of(final) is not None:  # RULE:S1-ident
+E1r8 S1 remove journal records no identity‖unit round9‖ext_engine.py‖        if mine and _ident_of(final) is not None:  # RULE:S1-ident‖        if False and _ident_of(final) is not None:  # RULE:S1-ident
 @@
 E1r8 M1 aux rename drops the trash-name check‖unit‖ext_engine.py‖                or not TRASH_RE.match(os.path.basename(aux)):\n            return False‖                or False:\n            return False
 @@

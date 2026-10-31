@@ -1554,6 +1554,20 @@ class Engine:
         if not self.project:
             raise EngineError(EXIT_REFUSED, "no consumer project found (pass --project-root DIR)")
 
+    def _check_shared_dirs(self):
+        """RULE:A4-shared-dirs: <root>/extensions and <root>/extensions/_installed are the SHARED part of the root.
+        When they exist they must be real directories owned by this user (or by root when run as root); a symlink
+        there would let a sweep, an add or a remove act on whatever the link points at."""
+        for d in (self.ext_dir, self.inst_dir):
+            if not os.path.lexists(d):
+                continue
+            st = os.lstat(d)
+            if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+                raise EngineError(EXIT_REFUSED, "%s is a symlink or not a real directory; refusing to install, "
+                                                "remove or clean up through it" % d)
+            if st.st_uid != os.geteuid() and os.geteuid() != 0:
+                raise EngineError(EXIT_REFUSED, "%s is not owned by you; refusing to act on it" % d)
+
     def _check_state_dir(self):
         """The state directory must be a real directory, never a symlink (R18)."""
         if self.state and os.path.lexists(self.state):
@@ -1584,6 +1598,8 @@ class Engine:
             if mutating:
                 _check_project_is_cwd_toplevel(self.project, bool(self.o.get("project_root")))
             self._check_state_dir()
+            if mutating:
+                self._check_shared_dirs()  # RULE:A4-shared-dirs
             for d in (self.project, self.root):  # the root always exists (extensions/ may not yet)
                 fd = os.open(d, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
                 fcntl.flock(fd, fcntl.LOCK_EX)  # RULE:R13-lock
@@ -1718,6 +1734,12 @@ class Engine:
         msg = json.dumps({"id": eid, "entry": entry}, sort_keys=True, separators=(",", ":")).encode()
         return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
+    @staticmethod
+    def _jmac(key, j):
+        body = {k: v for k, v in j.items() if k != "mac"}
+        msg = b"journal-add\0" + json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
     def make_record(self, eid, entry):
         return {"id": eid, "entry": entry, "mac": self._mac(self._key(True), eid, entry)}
 
@@ -1763,6 +1785,7 @@ class Engine:
         recs = [self.make_record(i, lock[i]) for i in sorted(changed) if i in lock]
         dels = sorted(i for i in changed if i not in lock)
         if not outer:
+            self._refuse_bad_journal()  # RULE:F2-keep-bad-journal: never overwrite (and so destroy) a journal we ignored
             self.write_atomic(self.p("extensions.txn"), json.dumps({"op": "commit", "records": recs, "deletes": dels}))
         wrote = self.write_lock(lock, stage=stage, force=force)
         for r in recs:
@@ -1998,6 +2021,14 @@ class Engine:
             return "final path is not _installed/<id>"
         if op == "add" and not SHA256_RE.match(str(j.get("sha256", ""))):
             return "add journal without a sha256"
+        if op == "add":  # RULE:F2-journal-mac: only this project's engine (holder of the state key) writes one
+            try:
+                key = self._key(False)
+            except EngineError:
+                key = None
+            if key is None or not isinstance(j.get("mac"), str) \
+                    or not hmac.compare_digest(j["mac"], self._jmac(key, j)):
+                return "add journal is unsigned or its signature does not verify (forged, or written by another checkout)"
         if op in ("add", "remove") and "ident" in j:  # RULE:R12-ident
             idt = j["ident"]
             if not isinstance(idt, list) or len(idt) != 3 or any(not isinstance(x, int) or isinstance(x, bool)
@@ -2186,9 +2217,11 @@ class Engine:
                     if owned:
                         self.rm_tree(aux, self.inst_dir)
                     else:
+                        # RULE:D1-record-with-trash: the trash stays, and so does the state record beside it
                         self.err("WARNING: left %s alone: this journal cannot prove it is the tree it removed (it "
                                  "may belong to another project that shares this constitution root); delete it by "
-                                 "hand if it is yours" % aux)
+                                 "hand if it is yours; the state record of %s was kept too" % (aux, eid))
+                        return
                 self.delete_record(eid)
                 self.err("recovered: completed interrupted remove of %s" % eid)
 
@@ -2640,7 +2673,9 @@ class Engine:
             if borigin == "installed" and eid in lock and lock[eid].get("sha256") == digest:
                 self.say("%s %s already installed (sha256 %s); nothing to do" % (eid, ver, digest))
                 return EXIT_OK
-            raise EngineError(EXIT_REFUSED, "%s is already installed with different content; remove it first" % eid)
+            raise EngineError(EXIT_REFUSED, "%s is already present in the shared constitution root and %s; this project "
+                                            "does not replace it (remove only works on an id in this project's lock)"
+                                  % (eid, "is not in this project's lock" if eid not in lock else "has different content"))
         rerrs = self.check_requirements(m, eid)
         owners = self.command_owners(skip_id=eid)
         for c in (m.get("provides") or {}).get("commands") or []:
@@ -2683,8 +2718,9 @@ class Engine:
                  "consent": {"capabilities": caps, "mode": mode},
                  "components": self._components(m, False)}
         rec = self.make_record(eid, entry)
-        self.write_atomic(self.p("extensions.txn"), json.dumps({"op": "add", "id": eid, "final": final, "sha256": digest,
-                                                                "record": rec, "ident": _ident_of(staged)}))
+        jadd = {"op": "add", "id": eid, "final": final, "sha256": digest, "record": rec, "ident": _ident_of(staged)}
+        jadd["mac"] = self._jmac(self._key(True), jadd)  # RULE:F2-journal-mac
+        self.write_atomic(self.p("extensions.txn"), json.dumps(jadd))
         kill_point("add:journaled")
         try:
             os.rename(staged, final)
@@ -2711,6 +2747,10 @@ class Engine:
         lock = self.read_lock()
         if tree is None and eid not in lock:
             raise EngineError(EXIT_FAIL, "%s: not installed" % eid)
+        if eid not in lock:  # RULE:F1-lock-membership: the root is shared; a tree no lock of ours names is not ours
+            raise EngineError(EXIT_REFUSED, "%s is not in this project's lock, so this project cannot prove it "
+                                            "installed %s (it may belong to another project that shares this "
+                                            "constitution root); nothing was removed" % (eid, os.path.join(self.inst_dir, eid)))
         if self.dry:
             self.say("dry-run: would unwire and remove %s" % eid)
             return EXIT_OK
@@ -2718,12 +2758,25 @@ class Engine:
         self._unwire(eid, WIRE_AGENTS, None)
         final = os.path.join(self.inst_dir, eid)
         trash = os.path.join(self.inst_dir, ".trash-%d-%s" % (os.getpid(), os.urandom(4).hex()))
+        # RULE:F1-tree-pinned: the tree is moved only when it is the very content this project's lock pinned. A
+        # different tree under the same id was put there by another project (or tampered with); the lock entry is
+        # still dropped, the tree is left in place and reported.
+        mine = False
+        if os.path.lexists(final) and not os.path.islink(final):
+            try:
+                mine = tree_digest(final) == lock[eid].get("sha256")
+            except EngineError:
+                mine = False
         jr = {"op": "remove", "id": eid, "final": final, "aux": trash}
-        if os.path.lexists(final) and _ident_of(final) is not None:  # RULE:S1-ident: survives the rename
+        if mine and _ident_of(final) is not None:  # RULE:S1-ident: survives the rename
             jr["ident"] = _ident_of(final)
         self.write_atomic(self.p("extensions.txn"), json.dumps(jr))
         kill_point("remove:journaled")
-        if os.path.lexists(final):
+        if os.path.lexists(final) and not mine:
+            self.err("NOTE: %s was left in place: its content is not the one this project's lock pinned (it may "
+                     "belong to another project that shares this constitution root, or was modified); only this "
+                     "project's lock entry was removed. Delete the directory by hand if it is yours." % final)
+        if mine:
             os.rename(final, trash)
         kill_point("remove:trashed")
         lock.pop(eid, None)
@@ -2752,7 +2805,7 @@ class Engine:
         e = lock.get(eid)
         if e is None:
             if origin != "bundled":
-                raise EngineError(EXIT_REFUSED, "%s is installed but not in the lock (untracked); remove it and add it again" % eid)
+                raise EngineError(EXIT_REFUSED, "%s is installed but not in this project's lock (untracked; it may belong to another project that shares this constitution root): add it to this project, or delete the directory by hand" % eid)
             e = {"id": eid, "version": m["extension"]["version"], "origin": "bundled", "sha256": digest,
                  "enabled": False, "dev": False, "waiver_id": None,
                  "source": {"kind": "bundled", "location": "extensions/" + eid, "sha": None},
@@ -3583,9 +3636,11 @@ def _alive(pid):
 
 
 def _copy_tree(src, dst, skip_git):
-    """Copy regular files and directories only, normalising modes (0644/0755). Never executes. This is the ONE
-    read of SRC: it returns {relpath: sha256} of the bytes it read and wrote, so a digest taken from the return
-    value (or from DST) describes exactly what was copied, whatever SRC does afterwards."""
+    """Copy regular files and directories only, normalising modes (0644/0755). Never executes. This is the only read of
+    SRC whose bytes are trusted: the caller may hash SRC beforehand (file_hashes, to validate the source), but
+    that earlier read is only compared with, never installed from. It returns {relpath: sha256} of the bytes it
+    read and wrote, so a digest taken from the return value (or from DST) describes exactly what was copied,
+    whatever SRC does afterwards."""
     hashes = {}
     n_files = n_dirs = n_bytes = 0
     os.makedirs(dst, mode=0o755)
