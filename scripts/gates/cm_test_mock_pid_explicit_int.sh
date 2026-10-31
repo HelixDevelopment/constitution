@@ -50,12 +50,12 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_test_mock_pid_explicit_int.sh [--root <dir>] [--quiet]
-#     --root <dir>   scan root (default: $MOCK_PID_GUARD_ROOT or "..")
+#     --root <dir>   scan root (default: $MOCK_PID_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
-#   MOCK_PID_GUARD_ROOT      default scan root (else --root, else "..")
+#   MOCK_PID_GUARD_ROOT      default scan root (else --root, else the gate-location default, see scripts/lib/default_scan_root.sh)
 #   MOCK_PID_GUARD_GLOB      -iname glob for candidate test files
 #                             (default: "*test*.py" — matches test_*.py,
 #                              *_test.py, and conftest.py)
@@ -95,7 +95,7 @@ set -uo pipefail
 GATE="CM-TEST-MOCK-PID-EXPLICIT-INT"
 ANCHOR="11.4.263"
 
-root="${MOCK_PID_GUARD_ROOT:-..}"
+root="${MOCK_PID_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 glob="${MOCK_PID_GUARD_GLOB:-*test*.py}"
 quiet=0
 
@@ -108,6 +108,13 @@ while [ $# -gt 0 ]; do
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
 
 # The scan root may be a DIRECTORY (walked) or a SINGLE FILE (scanned as-is)
 # — the single-file form lets a consumer delegate detection here per-file

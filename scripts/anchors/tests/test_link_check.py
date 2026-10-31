@@ -1,5 +1,6 @@
 # constitution/scripts/anchors/tests/test_link_check.py
 import subprocess, tempfile, os, sys
+from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 LINK_CHECK = os.path.join(os.path.dirname(__file__), "..", "constitution_link_check.py")
@@ -32,7 +33,7 @@ def test_selftest_control_needles_pass():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
 
         # A single clean fixture file citing ONE real, known-resolvable
@@ -64,7 +65,7 @@ def test_negative_control_flags_fabricated_citation_in_a_real_scan():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
 
         bad_corpus_dir = os.path.join(tmp, "bad_corpus")
@@ -129,7 +130,7 @@ def test_unresolved_citation_names_a_real_line_number_never_capped_at_50():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
 
         bad_corpus_dir = os.path.join(tmp, "bad_corpus_many")

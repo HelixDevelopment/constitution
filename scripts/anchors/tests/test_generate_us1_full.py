@@ -5,13 +5,14 @@
 # list(pre_anchors.keys()) (no [:10] slice), as the story's closing
 # acceptance run.
 import sys, os, subprocess, tempfile
+from _paths import SRC, CANON  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from anchor_lib import extract_anchors
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
 def test_all_anchors_byte_identical_after_generate():
-    with open("constitution/Constitution.md") as f:
+    with open(SRC) as f:
         pre_text = f.read()
     pre_anchors = {a["id"]: a["body"] for a in extract_anchors(pre_text)}
     sample_ids = list(pre_anchors.keys())  # full scale — no [:10] slice
@@ -21,7 +22,7 @@ def test_all_anchors_byte_identical_after_generate():
         index_out = os.path.join(tmp, "index.yaml")
         result = subprocess.run(
             ["python3", GEN, "generate",
-             "--source", "constitution/Constitution.md",
+             "--source", SRC,
              "--groups-dir", groups_dir, "--index-out", index_out],
             capture_output=True, text=True,
         )

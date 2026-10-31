@@ -22,7 +22,7 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_opendesign_ui_system.sh [--root <project-root>]
-#     --root <dir>   project root to audit (default: $CONSUMER_ROOT or "..").
+#     --root <dir>   project root to audit (default: $CONSUMER_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself).
 #
 # ── Inputs (env, project-agnostic per §11.4.28 — sane defaults, never hardcoded
 #    consumer paths) ────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ shopt -s globstar
 GATE="CM-OPENDESIGN-UI-SYSTEM"
 ANCHOR="11.4.162"
 
-root="${CONSUMER_ROOT:-..}"
+root="${CONSUMER_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
@@ -86,6 +86,13 @@ while [ $# -gt 0 ]; do
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
 [ -d "$root" ] || { echo "${GATE}: project root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"
 

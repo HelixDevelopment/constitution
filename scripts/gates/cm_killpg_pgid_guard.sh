@@ -90,14 +90,14 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_killpg_pgid_guard.sh [--root <dir|file>] [--window N] [--quiet]
-#     --root <dir>   scan root (default: $KILLPG_GUARD_ROOT or "..")
+#     --root <dir>   scan root (default: $KILLPG_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
-#   KILLPG_GUARD_ROOT         default scan root (else --root, else "..")
+#   KILLPG_GUARD_ROOT         default scan root (else --root, else the gate-location default, see scripts/lib/default_scan_root.sh)
 #   KILLPG_GUARD_WINDOW       guard-proximity window, lines (default 6)
 #   KILLPG_GUARD_ALLOW_PATHS  extra path globs (relative to the scan root) where the audited allow
 #                             marker is honoured, in addition to the test-path rules above (read into an
@@ -138,7 +138,7 @@ set -uo pipefail
 GATE="CM-KILLPG-PGID-GUARD"
 ANCHOR="11.4.263"
 
-root="${KILLPG_GUARD_ROOT:-..}"
+root="${KILLPG_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 window="${KILLPG_GUARD_WINDOW:-6}"
 quiet=0
 
@@ -151,6 +151,13 @@ while [ $# -gt 0 ]; do
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
 
 case "$window" in
     ''|*[!0-9]*) echo "${GATE}: --window must be a non-negative integer, got '$window'" >&2; exit 2 ;;

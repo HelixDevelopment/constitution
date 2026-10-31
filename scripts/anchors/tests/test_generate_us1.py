@@ -1,12 +1,13 @@
 # constitution/scripts/anchors/tests/test_generate_us1.py
 import sys, os, subprocess, tempfile
+from _paths import SRC, CANON  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from anchor_lib import extract_anchors
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
 def test_sample_anchors_byte_identical_after_generate():
-    with open("constitution/Constitution.md") as f:
+    with open(SRC) as f:
         pre_text = f.read()
     pre_anchors = {a["id"]: a["body"] for a in extract_anchors(pre_text)}
     sample_ids = list(pre_anchors.keys())[:10]
@@ -16,7 +17,7 @@ def test_sample_anchors_byte_identical_after_generate():
         index_out = os.path.join(tmp, "index.yaml")
         result = subprocess.run(
             ["python3", GEN, "generate",
-             "--source", "constitution/Constitution.md",
+             "--source", SRC,
              "--groups-dir", groups_dir, "--index-out", index_out],
             capture_output=True, text=True,
         )
@@ -66,7 +67,7 @@ def test_sample_anchors_byte_identical_after_generate():
 # shipped with no test proving it.
 def test_duplicate_anchor_id_exits_3_naming_the_duplicate():
     with tempfile.TemporaryDirectory() as tmp:
-        with open("constitution/Constitution.md") as f:
+        with open(SRC) as f:
             text = f.read()
         # Duplicate a real, already-present anchor heading verbatim — the
         # FR-005 fault this Checked-by clause names: "a deliberately

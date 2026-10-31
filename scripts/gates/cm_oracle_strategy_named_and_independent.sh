@@ -52,12 +52,12 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_oracle_strategy_named_and_independent.sh [--root <dir>] [--quiet]
-#     --root <dir>   scan root (default: $ORACLE_GUARD_ROOT or "..")
+#     --root <dir>   scan root (default: $ORACLE_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
-#   ORACLE_GUARD_ROOT      default scan root (else --root, else "..")
+#   ORACLE_GUARD_ROOT      default scan root (else --root, else the gate-location default, see scripts/lib/default_scan_root.sh)
 #   ORACLE_GUARD_GLOB      -iname glob for candidate test files
 #                           (default: "*test*.py")
 #   ORACLE_GUARD_EXCLUDE   space-separated dir-name globs to prune
@@ -95,7 +95,7 @@ set -uo pipefail
 GATE="CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT"
 ANCHOR="11.4.245"
 
-root="${ORACLE_GUARD_ROOT:-..}"
+root="${ORACLE_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 glob="${ORACLE_GUARD_GLOB:-*test*.py}"
 quiet=0
 
@@ -108,6 +108,13 @@ while [ $# -gt 0 ]; do
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
 
 [ -d "$root" ] || { echo "${GATE}: scan root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"

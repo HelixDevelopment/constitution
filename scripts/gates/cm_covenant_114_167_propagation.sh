@@ -20,7 +20,7 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_covenant_114_167_propagation.sh [--root <consumer-root>] [--quiet]
-#     --root <dir>   consumer fleet root to scan (default: $CONSUMER_ROOT or "..")
+#     --root <dir>   consumer fleet root to scan (default: $CONSUMER_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
 #     --quiet        suppress the per-file PASS lines (FAIL lines always shown)
 #
 # ── Inputs ───────────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ set -euo pipefail
 ANCHOR="11.4.167"
 GATE="CM-COVENANT-114-167-PROPAGATION"
 
-root="${CONSUMER_ROOT:-..}"
+root="${CONSUMER_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 quiet=""
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -70,6 +70,13 @@ while [ $# -gt 0 ]; do
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
 
 [ -d "$root" ] || { echo "${GATE}: consumer root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"

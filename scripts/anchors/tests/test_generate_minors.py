@@ -2,9 +2,9 @@
 # Regression tests for deferred Minor findings N-1, N-2, N-5 (hermetic temp dirs;
 # run from the parent repo root like test_generate_us3.py).
 import subprocess, tempfile, os, yaml
+from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
-SRC = "constitution/Constitution.md"
 
 def _run(args):
     return subprocess.run(["python3", GEN] + args, capture_output=True, text=True)
