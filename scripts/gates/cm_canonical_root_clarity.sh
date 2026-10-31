@@ -424,6 +424,21 @@ if [ -z "$consumer_root" ] && command -v git >/dev/null 2>&1; then
         case "$_sa_perr" in
             *"not a git repository"*) standalone="1" ;;
         esac
+        # Consumer-shaped layouts are NEVER standalone (a non-git consumer holding the
+        # constitution as its own clone at constitution/ or submodules/constitution/ owes
+        # a CLAUDE.md; SKIPping it would be a false negative): the parent is named
+        # 'submodules', or the parent carries a project marker (a consumer manual,
+        # a manifest, a README or a .gitmodules).
+        if [ -n "$standalone" ]; then
+            _sa_parent="$(dirname "$_sa_phys")"
+            if [ "$(basename "$_sa_parent")" = "submodules" ]; then
+                standalone=""
+            else
+                for _m in CLAUDE.md AGENTS.md GEMINI.md QWEN.md .gitmodules helix-deps.yaml README.md; do
+                    if [ -e "$_sa_parent/$_m" ]; then standalone=""; break; fi
+                done
+            fi
+        fi
     fi
 fi
 if [ -z "$consumer_root" ] && [ -z "$standalone" ]; then

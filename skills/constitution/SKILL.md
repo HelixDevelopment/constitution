@@ -24,15 +24,20 @@ Pass the user's arguments in a FILE so no shell ever sees the user's text (a her
 delimiter a pasted payload could contain; a file has none).
 
 1. With your FILE-WRITE tool (not the shell), write the arguments, verbatim, on one line, into a new
-   file `/tmp/constitution_args_<id>.txt`, where `<id>` is a fresh random 12-character `[a-z0-9]`
-   string. With no arguments write `help`.
+   file `/tmp/constitution_args_<id>.txt`, where `<id>` is a fresh random 12-character lowercase-hex
+   string (the engine accepts only `[a-z0-9]{8,64}`; make it unguessable, do not reuse an id).
+   With no arguments write `help`.
 2. Run exactly this command (the path is the only variable part; it contains no user text):
 
 ```
 bash submodules/constitution/scripts/constitution_cmd/constitution_cmd.sh --args-file /tmp/constitution_args_<id>.txt
 ```
 
-The engine deletes the file after reading it. Never put the arguments on the command line, in a
+The engine deletes the file after reading it. The directory is hard-coded to `/tmp` (or exactly
+`$TMPDIR` when that is where you wrote the file); any other directory, `..`, symlink, hard link,
+non-regular or foreign-owned file is refused (exit 2). If you have NO file-write tool, refuse:
+tell the user this command cannot run safely from this agent, and do NOT fall back to putting the
+text on a shell command line, in a heredoc or in quotes. Never put the arguments on the command line, in a
 heredoc or inside quotes.
 
 Legacy layout: `constitution/scripts/constitution_cmd/constitution_cmd.sh`. When the constitution

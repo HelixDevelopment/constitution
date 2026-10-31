@@ -14,24 +14,32 @@ MS="$(mktemp -d)" || exit 1
 [ -n "$MS" ] && [ -d "$MS" ] || exit 1
 trap 'safe_rm_rf "$MS"' EXIT
 ENG=scripts/constitution_cmd/constitution_cmd.sh
+HLP=scripts/constitution_cmd/args_file_read.py
 export CMD_TEST_SKIP_GEN=1
 
 run_suite() { CMD_SRC_ROOT="$1" bash "$HERE/test_constitution_cmd.sh" >"$MS/out.log" 2>&1; }
 
-mkdir -p "$MS/base/scripts/constitution_cmd"; cp "$REAL/$ENG" "$MS/base/$ENG"
+mkdir -p "$MS/base/scripts/constitution_cmd"; cp "$REAL/$ENG" "$MS/base/$ENG"; cp "$REAL/$HLP" "$MS/base/$HLP"
 if run_suite "$MS/base"; then echo "baseline: PASS"; else echo "baseline FAILED (suite must pass unmutated)"; tail -5 "$MS/out.log"; exit 1; fi
 
 killed=0; survived=0; n=0
 mutant() {   # name, old, new
-    local name="$1" old="$2" new="$3" d="$MS/m$n"; n=$((n+1))
+    local name="$1" old="$2" new="$3" old2="${4:-}" new2="${5:-}" d="$MS/m$n"; n=$((n+1))
     if [ -n "${ONLY:-}" ]; then case ",$ONLY," in *",$name,"*) ;; *) return ;; esac; fi
     mkdir -p "$d/scripts/constitution_cmd"
-    OLD="$old" NEW="$new" SRCF="$REAL/$ENG" DST="$d/$ENG" python3 - <<'PY' || { echo "MUTANT-SETUP-ERROR $name (pattern not found)"; survived=$((survived+1)); return; }
+    local mf="${MUT_FILE:-$ENG}"
+    cp "$REAL/$ENG" "$d/$ENG"; cp "$REAL/$HLP" "$d/$HLP"
+    OLD="$old" NEW="$new" OLD2="$old2" NEW2="$new2" SRCF="$REAL/$mf" DST="$d/$mf" python3 - <<'PY' || { echo "MUTANT-SETUP-ERROR $name (pattern not found)"; survived=$((survived+1)); return; }
 import os,sys
 s=open(os.environ['SRCF']).read()
 o=os.environ['OLD']
 if o not in s: sys.exit(1)
-open(os.environ['DST'],'w').write(s.replace(o,os.environ['NEW'],1))
+s=s.replace(o,os.environ['NEW'],1)
+o2=os.environ.get('OLD2','')
+if o2:
+    if o2 not in s: sys.exit(1)
+    s=s.replace(o2,os.environ['NEW2'],1)
+open(os.environ['DST'],'w').write(s)
 PY
     if run_suite "$d"; then echo "SURVIVED: $name"; survived=$((survived+1)); else echo "killed:   $name"; killed=$((killed+1)); fi
 }
@@ -65,26 +73,38 @@ mutant rc-lost-to-pipe          'rc=$?
 mutant ext-root-allowed         'add) allow=" --json --dry-run --dev --sha --sha256 " ;;' 'add) allow=" --json --dry-run --dev --sha --sha256 --root --yes " ;;
         list) allow=" --json --root --project-root --yes " ;;'
 mutant anchors-bold-form-gone   'if (!inb && index($0,q)==1) inb=2' ':'
-mutant stdin-mode-off           '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' 'false'
 mutant jev-extra-args-ok        'die "jev takes no arguments"; return 2;' ':;'
 mutant token-space-redact-gone  "-e 's/([Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]) [A-Za-z0-9._~+\/=-]{12,}/\1 [REDACTED]/g' \\" "-e 's/zzqtok/x/' \\"
-mutant stdin-len-unbounded      '[ "${#_line}" -le 8000 ] ||' ':'
-mutant stdin-extra-args-ok      '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' '[ "${1:-}" = "--stdin" ]'
 mutant akia-redact-gone         "-e 's/AKIA[0-9A-Z]{16}/[REDACTED]/g' \\" "-e 's/zzqakia/x/' \\"
 mutant ext-allow-bypass         '*) die "rejected extension option:' '*) : ;; esac ;; esac; case x in x) die "rejected extension option:'
+
+# --args-file mutants (the verification lives in the python helper; the engine wiring in the shell)
 mutant args-file-mode-off       '[ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]' 'false'
-mutant args-file-symlink-ok     '[ -f "$_f" ] && [ ! -L "$_f" ] && [ -O "$_f" ]' '[ -f "$_f" ]'
-mutant args-file-path-open      'case "$_f" in "$_td"/constitution_args_*.txt|/tmp/constitution_args_*.txt) ;;' 'case "$_f" in *) ;;'
-mutant args-file-id-open        '[[ "$_b" =~ ^[A-Za-z0-9_-]{1,64}$ ]] ||' '[[ "$_b" =~ ^.*$ ]] ||'
+mutant args-file-extra-ok       '[ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]' '[ "${1:-}" = "--args-file" ]'
 mutant args-file-len-unbounded  '[ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
     set -- "$_line"
 fi
-for _a' ':
+for' ':
     set -- "$_line"
 fi
-for _a'
-mutant args-file-not-consumed   'rm -f -- "${_f:?}"' ':'
-mutant args-file-extra-ok       '[ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]' '[ "${1:-}" = "--args-file" ]'
+for'
+mutant args-file-rc-ignored     '[ "$_rc" -eq 0 ] || { exit 2; }' ':'
+MUT_FILE=$HLP
+mutant h-id-pattern-open        'ID_RE = re.compile(r"constitution_args_[a-z0-9]{8,64}\.txt\Z")' 'ID_RE = re.compile(r".*")'
+mutant h-id-upper-ok            'constitution_args_[a-z0-9]{8,64}\.txt' 'constitution_args_[A-Za-z0-9]{8,64}\.txt'
+mutant h-id-len-unbounded       'constitution_args_[a-z0-9]{8,64}\.txt' 'constitution_args_[a-z0-9]{8,}\.txt'
+mutant h-id-len-min-1           'constitution_args_[a-z0-9]{8,64}\.txt' 'constitution_args_[a-z0-9]{1,64}\.txt'
+mutant h-dir-not-exact          'if parent not in dirs:' 'if False:'
+# O_NOFOLLOW and the lstat-vs-fstat inode identity check overlap on purpose (a symlink leaf is caught by
+# either); a single removal is masked by the other layer, so the mutant removes BOTH.
+mutant h-symlink-defences-both-removed 'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC' 'os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC' 'if (ls.st_dev, ls.st_ino) != (st.st_dev, st.st_ino):' 'if False:'
+mutant h-regular-check-removed  'if not stat.S_ISREG(st.st_mode):' 'if False:'
+mutant h-nlink-check-removed    'if st.st_nlink != 1:' 'if False:'
+mutant h-owner-check-removed    'if st.st_uid != euid:' 'if False:'
+mutant h-size-cap-removed       'if st.st_size > MAX_BYTES:' 'if False:'
+mutant h-nul-check-removed      'if b"\0" in data:' 'if False:'
+mutant h-not-consumed           'os.unlink(name, dir_fd=dfd)' 'pass'
+unset MUT_FILE
 
 echo "mutants: killed=$killed survived=$survived total=$n"
 [ "$survived" -eq 0 ]

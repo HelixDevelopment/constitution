@@ -37,7 +37,7 @@ hasnt(){ case "$1" in *"$2"*) return 1;; esac; return 0; }
 # ---- fixture builders -------------------------------------------------------------------------
 mk_const() {   # $1 = dir ; a real git repo shaped like a constitution checkout
     local d="$1"; mkdir -p "$d/scripts/constitution_cmd" "$d/scripts/lib" "$d/scripts/gates" "$d/actions" "$d/plugins/helix/commands" "$d/skills/constitution"
-    cp "$SRC/scripts/constitution_cmd/constitution_cmd.sh" "$d/scripts/constitution_cmd/" 2>/dev/null
+    cp "$SRC/scripts/constitution_cmd/constitution_cmd.sh" "$SRC/scripts/constitution_cmd/args_file_read.py" "$d/scripts/constitution_cmd/" 2>/dev/null
     cp "$REAL_ROOT/scripts/lib/constitution_layout.sh" "$REAL_ROOT/scripts/lib/safe_rm.sh" "$REAL_ROOT/scripts/lib/protected_paths.list" "$d/scripts/lib/"
     cp "$REAL_ROOT/scripts/action_prefix_lib.sh" "$REAL_ROOT/scripts/generate_agent_prefix_commands.sh" "$d/scripts/"
     cp "$REAL_ROOT/actions/registry.yaml" "$d/actions/"
@@ -213,7 +213,7 @@ check "S1 template has no heredoc" bash -c '! grep -q "<<" "$1"' _ "$REAL_ROOT/s
 check "S1 template has no fixed public delimiter" bash -c '! grep -q "CONSTITUTION_ARGS_" "$1"' _ "$REAL_ROOT/skills/constitution/SKILL.md"
 AFN=0
 agent_run() {   # agent_run TEXT [ENGINE] : write TEXT to a fresh args file, run the template command; sets OUT RC
-    local text="$1" eng="${2:-$EA}" id f cmd; AFN=$((AFN+1)); id="t${AFN}x$$"; f="${TMPDIR:-/tmp}/constitution_args_${id}.txt"
+    local text="$1" eng="${2:-$EA}" id f cmd; AFN=$((AFN+1)); id="agentrun${AFN}p$$"; f="${TMPDIR:-/tmp}/constitution_args_${id}.txt"
     printf '%s\n' "$text" > "$f"
     cmd="${tmpl_line//<id>/$id}"; cmd="${cmd//submodules\/constitution\/scripts\/constitution_cmd\/constitution_cmd.sh/$eng}"; cmd="${cmd//\/tmp\/constitution_args_/${TMPDIR:-/tmp}\/constitution_args_}"
     OUT="$( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$cmd" 2>&1 )"; RC=$?
@@ -239,33 +239,87 @@ CONSTITUTION_ARGS_7f3a9c"
 ( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$old_cmd" ) >/dev/null 2>&1
 check "A control needle: old heredoc form breaks out" test -e "$PA/BREAKOUT"
 rm -f "$PA/BREAKOUT"
-# --args-file validation (security)
-mkaf() { printf '%s\n' "$2" > "${TMPDIR:-/tmp}/constitution_args_$1.txt"; }
+# --args-file validation (security). TD = the allowed temp dir ($TMPDIR when set, else /tmp).
+TD="${TMPDIR:-/tmp}"; TD="${TD%/}"; HLP="$SRC/scripts/constitution_cmd/args_file_read.py"
+mkaf() { printf '%s\n' "$2" > "$TD/constitution_args_$1.txt"; }
 run "$EA" --args-file /etc/passwd; check "A path outside pattern rejected rc2" test $RC -eq 2
-run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_a/../x.txt"; check "A id with slash rejected rc2" test $RC -eq 2
-run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_nofile$$.txt"; check "A missing file rejected rc2" test $RC -eq 2
+run "$EA" --args-file "$TD/constitution_args_nofile$$.txt"; check "A missing file rejected rc2" test $RC -eq 2
 run "$EA" --args-file; check "A --args-file without path rejected" test $RC -eq 2
-run "$EA" --args-file a b; check "A --args-file with extra arg rejected" test $RC -eq 2
-# each layer must reject on its own (defence in depth would otherwise hide a removed layer)
-printf 'help\n' > "$SB/tgt.txt"; ln -sf "$SB/tgt.txt" "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"
-check "A symlink (to own file) rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"
-printf 'help\n' > "$SB/constitution_args_ok.txt"; run "$EA" --args-file "$SB/constitution_args_ok.txt"
-check "A own valid file outside tmpdir rejected rc2" test $RC -eq 2; check "A outside-tmpdir file not consumed" test -e "$SB/constitution_args_ok.txt"
-printf 'help\n' > "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"
-check "A own file with bad id chars rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"
-mkaf "big$$" "help$(head -c 8100 /dev/zero | tr '\0' ' ')"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_big$$.txt"
-check "A over-long args file rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_big$$.txt"
-printf 'status\001x\n' > "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"
-check "A control char in args file rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"
+mkaf "extra000$$" "help"; run "$EA" --args-file "$TD/constitution_args_extra000$$.txt" status; check "A --args-file VALID path + extra arg rejected" test $RC -eq 2; check "A extra-arg case: valid file not consumed" test -e "$TD/constitution_args_extra000$$.txt"; rm -f "$TD/constitution_args_extra000$$.txt"
+run "$EA" --stdin; check "A --stdin no longer exists (treated as a plain subcommand, rc2)" test $RC -eq 2
+# A1/A2: traversal. The directories EXIST and a decoy (shaped like a legitimate victim) sits at the
+# traversal target; if any check fails the decoy is deleted and the test fails.
+V="$SB/victim"; mkdir -p "$V" "$TD/constitution_args_dirx$$"
+printf 'help\n' > "$V/notes.txt"; printf 'help\n' > "$V/constitution_args_decoy01.txt"
+VR="$(realpath "$V")"
+run "$EA" --args-file "$TD/constitution_args_dirx$$/../../${VR#/}/notes.txt"; check "A1 dotdot via existing dir rejected rc2" test $RC -eq 2; check "A1 decoy survives (dotdot)" test -e "$V/notes.txt"
+run "$EA" --args-file "$TD/constitution_args_dirx$$/../$(realpath --relative-to="$TD" "$V")/notes.txt"; check "A1 relative dotdot rejected rc2" test $RC -eq 2; check "A1 decoy survives (relative dotdot)" test -e "$V/notes.txt"
+ln -sfn "$V" "$TD/constitution_args_symdir$$"
+run "$EA" --args-file "$TD/constitution_args_symdir$$/notes.txt"; check "A1 symlinked middle dir rejected rc2" test $RC -eq 2; check "A1 decoy survives (symlinked dir)" test -e "$V/notes.txt"
+run "$EA" --args-file "$TD/constitution_args_symdir$$/constitution_args_decoy01.txt"; check "A1 symlinked dir + valid leaf name rejected rc2" test $RC -eq 2; check "A1 decoy survives (symlinked dir, valid leaf)" test -e "$V/constitution_args_decoy01.txt"
+rm -f "$TD/constitution_args_symdir$$"; rmdir "$TD/constitution_args_dirx$$"
+run "$EA" --args-file "$V/constitution_args_decoy01.txt"; check "A1 valid leaf in a foreign dir rejected rc2" test $RC -eq 2; check "A1 decoy survives (foreign dir)" test -e "$V/constitution_args_decoy01.txt"
+run "$EA" --args-file "$TD//constitution_args_decoy01.txt"; check "A1 doubled slash rejected rc2" test $RC -eq 2
+run "$EA" --args-file "$TD/./constitution_args_decoy01.txt"; check "A1 dot segment rejected rc2" test $RC -eq 2
+run "$EA" --args-file "$TD/sub/constitution_args_decoy01.txt"; check "A1 extra component rejected rc2" test $RC -eq 2
+# the id contains a slash and the directory exists: the decoy must survive
+mkdir -p "$TD/constitution_args_a"; printf 'help\n' > "$TD/constitution_args_a/x.txt"
+run "$EA" --args-file "$TD/constitution_args_a/x.txt"; check "A2 id with slash rejected rc2 (dir exists)" test $RC -eq 2; check "A2 decoy survives (id with slash)" test -e "$TD/constitution_args_a/x.txt"
+rm -f "$TD/constitution_args_a/x.txt"; rmdir "$TD/constitution_args_a"
+# symlink leaf to an own file
+printf 'help\n' > "$SB/tgt.txt"; ln -sf "$SB/tgt.txt" "$TD/constitution_args_lnk$$.txt"; run "$EA" --args-file "$TD/constitution_args_lnk$$.txt"
+check "A symlink (to own file) rejected rc2" test $RC -eq 2; check "A symlink target survives" test -e "$SB/tgt.txt"; rm -f "$TD/constitution_args_lnk$$.txt"
+printf 'help\n' > "$SB/constitution_args_okokokok.txt"; run "$EA" --args-file "$SB/constitution_args_okokokok.txt"
+check "A own valid file outside tmpdir rejected rc2" test $RC -eq 2; check "A outside-tmpdir file not consumed" test -e "$SB/constitution_args_okokokok.txt"
+# id grammar: lowercase [a-z0-9], length 8..64
+for badid in "a;b$$" "UPPER$$xyz" "short" "abcdefg" "$(head -c 65 /dev/zero | tr '\0' a)" "has-dash0123" "has_under012"; do
+    printf 'help\n' > "$TD/constitution_args_${badid}.txt" 2>/dev/null; run "$EA" --args-file "$TD/constitution_args_${badid}.txt"
+    check "A bad id <${badid:0:12}> rejected rc2" test $RC -eq 2; check "A bad id <${badid:0:12}> file not consumed" test -e "$TD/constitution_args_${badid}.txt"; rm -f "$TD/constitution_args_${badid}.txt"
+done
+okid64="$(head -c 64 /dev/zero | tr '\0' b)"; mkaf "$okid64" "help"; run "$EA" --args-file "$TD/constitution_args_${okid64}.txt"; check "A 64-char id accepted rc0" test $RC -eq 0
+mkaf "abcdefgh" "help"; run "$EA" --args-file "$TD/constitution_args_abcdefgh.txt"; check "A 8-char id accepted rc0" test $RC -eq 0
+# non-regular files: a FIFO and a directory with a valid name must be rejected (and not hang)
+mkfifo "$TD/constitution_args_fifo0000$$.txt"; run "$EA" --args-file "$TD/constitution_args_fifo0000$$.txt"
+check "A FIFO rejected rc2 (no hang)" test $RC -eq 2; rm -f "$TD/constitution_args_fifo0000$$.txt"
+mkdir "$TD/constitution_args_dir00000$$.txt"; run "$EA" --args-file "$TD/constitution_args_dir00000$$.txt"; check "A directory rejected rc2" test $RC -eq 2; rmdir "$TD/constitution_args_dir00000$$.txt"
+# hard link (two names, one inode) rejected
+mkaf "hardl0000$$" "help"; ln "$TD/constitution_args_hardl0000$$.txt" "$SB/hardlink.keep"; run "$EA" --args-file "$TD/constitution_args_hardl0000$$.txt"
+check "A multi-link file rejected rc2" test $RC -eq 2; rm -f "$TD/constitution_args_hardl0000$$.txt" "$SB/hardlink.keep"
+# size: the file cap (8001 bytes) is checked before reading; message distinguishes it from the 8000-char cap
+mkaf "big00000$$" "help$(head -c 8100 /dev/zero | tr '\0' ' ')"; run "$EA" --args-file "$TD/constitution_args_big00000$$.txt"
+check "A over-long args file rejected rc2" test $RC -eq 2; check "A over-long args file: size-cap message" has "$ERR$OUT" "too large"; rm -f "$TD/constitution_args_big00000$$.txt"
+mkaf "edge0000$$" "help$(head -c 7990 /dev/zero | tr '\0' ' ')"; run "$EA" --args-file "$TD/constitution_args_edge0000$$.txt"; check "A ~8000-byte args file accepted rc0" test $RC -eq 0
+printf '%s' "help$(head -c 7996 /dev/zero | tr '\0' ' ')x" > "$TD/constitution_args_len80010$$.txt"; run "$EA" --args-file "$TD/constitution_args_len80010$$.txt"
+check "A 8001-char line (within file cap) rejected by the 8000-char cap rc2" test $RC -eq 2; check "A 8001-char: char-cap message" has "$ERR$OUT" "longer than 8000"; rm -f "$TD/constitution_args_len80010$$.txt"
+printf 'status\001x\n' > "$TD/constitution_args_ctl00000$$.txt"; run "$EA" --args-file "$TD/constitution_args_ctl00000$$.txt"
+check "A control char in args file rejected rc2" test $RC -eq 2; rm -f "$TD/constitution_args_ctl00000$$.txt"
+printf 'help\000\n' > "$TD/constitution_args_nul00000$$.txt"; run "$EA" --args-file "$TD/constitution_args_nul00000$$.txt"
+check "A NUL byte in args file rejected rc2" test $RC -eq 2; rm -f "$TD/constitution_args_nul00000$$.txt"
+# owner check: unit-test the helper with a different effective uid (a foreign-owned file cannot be created unprivileged)
+mkaf "owner000$$" "help"
+OUT="$(python3 -I - "$HLP" "$TD/constitution_args_owner000$$.txt" "$TD" 2>&1 <<'PYEOF'
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("afr", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+try:
+    m.read_and_consume(sys.argv[2], [sys.argv[3]], euid=os.geteuid() + 1)
+    print("ACCEPTED")
+except SystemExit as e:
+    print("REJECTED", e.code)
+PYEOF
+)"
+check "A foreign-owner file rejected (helper unit, euid+1)" has "$OUT" "REJECTED 2"; check "A foreign-owner file not consumed" test -e "$TD/constitution_args_owner000$$.txt"; rm -f "$TD/constitution_args_owner000$$.txt"
+# control needle: the OLD-style pattern (case glob) DOES accept a traversal path, so the instrument can see it
+oldglob() { case "$1" in "$2"/constitution_args_*.txt) return 0 ;; esac; return 1; }
+check "A control needle: old glob accepts traversal path" oldglob "$TD/constitution_args_x/../../victim/notes.txt" "$TD"
 # control needle: the OLD double-quoted form DOES execute the text, so the instrument can see it
 ( cd "$PA" && bash -c 'bash "$1" "anchors 7 $(touch SENTINEL3)"' _ "$EA" ) >/dev/null 2>&1
 check "S1 control needle: old quoted form executes" test -e "$PA/SENTINEL3"
 rm -f "$PA/SENTINEL3"
-run "$EA" --stdin </dev/null; check "stdin empty rc0 help" test $RC -eq 0
-long8="help$(head -c 8100 /dev/zero | tr '\0' ' ')"
-OUT="$(printf '%s\n' "$long8" | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin over-long rejected rc2" test $RC -eq 2; check "stdin over-long cap message" has "$OUT" "longer than 8000"
-OUT="$(printf 'help\n' | bash "$EA" --stdin foo 2>&1)"; RC=$?; check "--stdin foo rejected" test $RC -eq 2
-OUT="$(printf 'status\x01x\n' | bash "$EA" --stdin 2>&1)"; RC=$?; check "stdin control char rejected rc2" test $RC -eq 2
+# class sweep: other path-like arguments: '..' segments are refused
+run "$EA" update --ref ../../x; check "sweep: update --ref with .. rejected" test $RC -eq 2
+run "$EA" update --ref a//b; check "sweep: update --ref with // rejected" test $RC -eq 2
+run "$EA" extensions remove ../../x; check "sweep: extensions arg with .. rejected" test $RC -eq 2
+run "$EA" install-extension ../x; check "sweep: install-extension .. rejected" test $RC -eq 2
 
 # ---- S2: truncation marker + real tool rc -------------------------------------------------------
 run "$EA" gates run cm_big_gate; check "S2 big output tool rc0 preserved" test $RC -eq 0

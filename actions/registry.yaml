@@ -620,7 +620,9 @@ actions:
       `bash submodules/constitution/scripts/constitution_cmd/constitution_cmd.sh --args-file /tmp/constitution_args_<id>.txt`
       (use `bash constitution/scripts/constitution_cmd/constitution_cmd.sh` for the legacy layout, or
       `bash scripts/constitution_cmd/constitution_cmd.sh` when the constitution is the project root).
-      The engine deletes the file after reading it. The command line contains only that path, never
+      The engine deletes the file after reading it and accepts only /tmp (or exactly $TMPDIR) with
+      an id of [a-z0-9]{8,64}; make the id unguessable. If you have no file-write tool, refuse - do
+      not fall back to the shell. The command line contains only that path, never
       user text. Never put the arguments on a command line, in a heredoc or inside quotes. Subcommands: status, update, doctor, anchors N, gates,
       report|issue|bug|task|feature, skills, extensions, jev, release-notes, help. With no
       arguments run `help`. Relay the engine output; never invent status it did not print

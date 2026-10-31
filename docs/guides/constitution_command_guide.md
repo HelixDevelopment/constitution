@@ -74,19 +74,25 @@ Extension options are an allow-list per subcommand (`--json`, `--dry-run`; `add`
 and `release-notes` take no arguments.
 
 User text reaches the engine through a FILE: the agent writes it with its file-write tool (not the
-shell) to `/tmp/constitution_args_<id>.txt` (`<id>` = fresh random `[a-z0-9]` string) and runs
+shell) to `/tmp/constitution_args_<id>.txt` (`<id>` = fresh random 12-hex string, unguessable) and runs
 `constitution_cmd.sh --args-file <that path>`. The command line holds only the path, so no shell
 ever sees user text and there is no heredoc delimiter to break out of (the earlier fixed-delimiter
 heredoc could be ended early by a pasted line equal to the delimiter; that class is removed, and
 the suite replays that exact payload as a control needle). The engine accepts only
-`<tmpdir>/constitution_args_<id>.txt` with `<id>` in `[A-Za-z0-9_-]{1,64}`, a regular, non-symlink
-file owned by the caller, at most 8001 bytes, one line, no control characters; it deletes the file
-after reading. `--stdin` still exists for direct use; the generated commands no longer use it.
+`<dir>/constitution_args_<id>.txt` with `<dir>` exactly `/tmp` or exactly `$TMPDIR` (absolute, no extra
+path component, no `..`, no `.`/`//`) and `<id>` in `[a-z0-9]{8,64}`. The file is opened relative to a
+directory descriptor with `O_NOFOLLOW` (a symlink leaf or symlinked middle directory cannot be followed),
+must be a regular file with one hard link, owned by the caller, at most 8001 bytes, with the same
+inode as the directory entry, one line, no control or NUL characters; only that verified file is
+deleted (through the directory descriptor) after reading (helper `args_file_read.py`). `--stdin` was
+removed (nothing used it). The directory `/tmp` is hard-coded on purpose; an agent without a
+file-write tool must refuse, never fall back to the shell.
 The engine splits the one-line string on blanks itself. Passing text as a double-quoted argument,
 as the first version did, is NOT safe and is not used. Residual: an agent without a file-write
 tool cannot use this path (UNCONFIRMED which hosts lack one); a local user who can write to the
-same temp directory could race the file before the engine reads it (the owner and symlink checks
-narrow, not close, that window).
+same temp directory could race the file before the engine reads it (the owner, link and same-inode checks
+narrow, not close, a rename swap between the identity check and the unlink (it can only remove a
+file with a valid `constitution_args_<id>.txt` name inside the temp directory)).
 
 ## Troubleshooting
 

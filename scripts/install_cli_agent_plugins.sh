@@ -147,15 +147,36 @@ link_skills() {
   local skills_src="$const_root/skills"
   local skills_dst="$project_root/.claude/skills"
   [ -d "$skills_src" ] || { warn "no skills dir at $skills_src"; return 1; }
+  # The project's .claude (and .claude/skills) must really live inside the project: a symlinked
+  # .claude pointing elsewhere would make us write outside it. Refuse, honestly.
+  local proj_real claude_real
+  proj_real="$(cd "$project_root" && pwd -P)"
+  if [ -L "$project_root/.claude" ] || [ -L "$skills_dst" ]; then
+    claude_real="$(readlink -m -- "$skills_dst" 2>/dev/null)" || claude_real=""
+    case "$claude_real" in
+      "$proj_real"/*) ;;
+      *) warn "$project_root/.claude (or .claude/skills) is a symlink that resolves outside the project — REFUSED, nothing written"; return 1 ;;
+    esac
+  fi
   mkdir -p "$skills_dst"
+  case "$(cd "$skills_dst" && pwd -P)" in
+    "$proj_real"/*) ;;
+    *) warn "$skills_dst resolves outside the project — REFUSED"; return 1 ;;
+  esac
 
-  # Reap dangling skill links (a skill removed upstream must stop being offered).
-  local stale
+  # Reap OUR dangling skill links only: a link whose text ends in skills/<its own name> (what
+  # hc_ln_relative writes). A user's own dangling link, and any other name, is never touched.
+  local stale tgt
   for stale in "$skills_dst"/*; do
-    [ -L "$stale" ] && [ ! -e "$stale" ] && rm -f "$stale"
+    if [ -L "$stale" ] && [ ! -e "$stale" ]; then
+      tgt="$(readlink "$stale")"
+      case "$tgt" in
+        */skills/"$(basename "$stale")") rm -f "$stale" ;;
+      esac
+    fi
   done
 
-  local linked=0 skipped=0 name src dst
+  local linked=0 skipped=0 refused=0 name src dst cur
   for src in "$skills_src"/*/; do
     [ -d "$src" ] || continue
     name="$(basename "$src")"
@@ -170,15 +191,27 @@ link_skills() {
     fi
 
     dst="$skills_dst/$name"
-    if [ -L "$dst" ] || [ ! -e "$dst" ]; then
+    if [ -L "$dst" ]; then
+      # Replace only a link that already points at OUR skill (or is our own dangling one).
+      cur="$(readlink -f -- "$dst" 2>/dev/null || true)"
+      if [ "$cur" = "$(readlink -f -- "${src%/}")" ] || { [ ! -e "$dst" ] && case "$(readlink "$dst")" in */skills/"$name") true ;; *) false ;; esac; }; then
+        hc_ln_relative "${src%/}" "$dst"
+        linked=$((linked + 1))
+      else
+        warn "$dst is a symlink to somewhere else (user-owned?) — REFUSED, left untouched"
+        refused=$((refused + 1))
+      fi
+    elif [ ! -e "$dst" ]; then
       hc_ln_relative "${src%/}" "$dst"
       linked=$((linked + 1))
-    elif [ -d "$dst" ]; then
-      warn "$dst exists and is NOT a symlink — left untouched (remove it to re-link)"
+    else
+      warn "$dst exists and is NOT a symlink ($([ -d "$dst" ] && echo directory || echo 'regular file')) — REFUSED, left untouched (remove it to re-link)"
+      refused=$((refused + 1))
     fi
   done
 
-  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped)"
+  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped, ${refused} refused)"
+  [ "$refused" -eq 0 ] || return 1
   return 0
 }
 

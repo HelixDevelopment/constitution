@@ -268,12 +268,9 @@ expect_exit_derived() {
         rc=1
     fi
 }
-if ( unset GIT_DIR GIT_WORK_TREE; git -C "$TMP" rev-parse --show-toplevel ) >/dev/null 2>&1; then
-    echo "META FAIL: fixture dir $TMP lies inside a git work tree; standalone cases cannot be built honestly"
-    rc=1
-else
+sa_checks() {
     # G6 golden-SKIP: standalone canon, consumer root DERIVED -> exit 3.
-    FX_G6="$(mk_sa sa_good)"
+    FX_G6="$(mk_sa "${SAP}sa_good")"
     expect_exit_derived "G6 standalone canon checkout, no consumer -> SKIP (a), exit 3" 3 "${FX_G6}/constitution"
     _g6_out="$("$GATE" --const-dir "${FX_G6}/constitution" 2>&1)"
     case "$_g6_out" in
@@ -281,24 +278,84 @@ else
         *) echo "META FAIL: G6 output carries no '(a) ... SKIP' reason line"; rc=1 ;;
     esac
     # M11: standalone canon still FAILs when (c) is violated (SKIP never hides (b)/(c)).
-    FX_M11="$(mk_sa sa_mut_c)"
+    FX_M11="$(mk_sa "${SAP}sa_mut_c")"
     printf '\n## INHERITED FROM some-upstream/CLAUDE.md\n\nx\n' >> "${FX_M11}/constitution/CLAUDE.md"
     expect_exit_derived "M11 mutation: standalone canon gains a live pointer -> exit 1, not SKIP" 1 "${FX_M11}/constitution"
     # M12 golden-TRUE: explicit --consumer-root is always audited, even for a standalone canon.
-    FX_M12="$(mk_sa sa_explicit)"
+    FX_M12="$(mk_sa "${SAP}sa_explicit")"
     printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_M12}/CLAUDE.md"
     expect_exit_derived "M12 explicit --consumer-root on a standalone canon, pointer missing -> exit 1" 1 \
         "${FX_M12}/constitution" --consumer-root "${FX_M12}"
     # M13 golden-TRUE: a nested clone inside a CONSUMER git repo (not a
     # registered submodule) is a consumer, not standalone -> missing pointer FAILs.
-    FX_M13="$(mk_sa sa_nested)"
+    FX_M13="$(mk_sa "${SAP}sa_nested")"
     ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR; git -C "${FX_M13}" init -q ) || rc=1
     printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_M13}/CLAUDE.md"
     expect_exit_derived "M13 nested clone inside a consumer repo, pointer missing -> exit 1" 1 "${FX_M13}/constitution"
     # M14 golden-TRUE: same nested clone, consumer CLAUDE.md absent -> exit 1 (never SKIP).
-    FX_M14="$(mk_sa sa_nested_nofile)"
+    FX_M14="$(mk_sa "${SAP}sa_nested_nofile")"
     ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR; git -C "${FX_M14}" init -q ) || rc=1
     expect_exit_derived "M14 nested clone inside a consumer repo, consumer CLAUDE.md absent -> exit 1" 1 "${FX_M14}/constitution"
+    # C2 fixtures: a REAL consumer shape must never be SKIPped (false negative).
+    # N1: non-git consumer, the constitution is its own git clone at constitution/, consumer
+    #     CLAUDE.md missing but the consumer carries another manual -> exit 1.
+    FX_N1="$(mk_sa "${SAP}sa_nongit_legacy")"
+    printf '# Consumer agents\n' > "${FX_N1}/AGENTS.md"
+    expect_exit_derived "N1 non-git consumer at constitution/, CLAUDE.md missing -> exit 1 (never SKIP)" 1 "${FX_N1}/constitution"
+    # N2: non-git consumer, the constitution is its own clone at submodules/constitution/
+    #     (parent named 'submodules', nothing else around) -> exit 1.
+    FX_N2="$(mk_sa "${SAP}sa_nongit_std")"
+    mkdir -p "${FX_N2}/submodules"; mv "${FX_N2}/constitution" "${FX_N2}/submodules/constitution"
+    expect_exit_derived "N2 non-git consumer at submodules/constitution/, CLAUDE.md missing -> exit 1 (never SKIP)" 1 "${FX_N2}/submodules/constitution"
+    # N3: a REGISTERED submodule (git consumer, real 'git submodule add'), CLAUDE.md missing -> exit 1.
+    FX_N3="${TMP}/${SAP}sa_registered"; mkdir -p "$FX_N3"
+    FX_N3_SRC="$(mk_sa "${SAP}sa_registered_src")"
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+      cd "${FX_N3_SRC}/constitution" && git add -A && git -c user.name=t -c user.email=t@example.invalid commit -qm init &&
+      cd "$FX_N3" && git init -q && mkdir -p submodules &&
+      git -c protocol.file.allow=always submodule add -q "${FX_N3_SRC}/constitution" submodules/constitution ) >/dev/null 2>&1 || { echo "META FAIL: N3 fixture setup failed"; rc=1; }
+    expect_exit_derived "N3 registered submodule, consumer CLAUDE.md missing -> exit 1 (never SKIP)" 1 "${FX_N3}/submodules/constitution"
+    # N4: a standalone-shaped canon (parent carries no marker) audited with an EXPLICIT consumer
+    #     root that lacks the pointer -> exit 1 (an explicit root is never SKIPped).
+    FX_N4="$(mk_sa "${SAP}sa_explicit_bare")"
+    mkdir -p "${FX_N4}_cons"; printf '# Consumer\n\n## Build Rules\n\nno pointer\n' > "${FX_N4}_cons/CLAUDE.md"
+    expect_exit_derived "N4 explicit --consumer-root, standalone-shaped canon, pointer missing -> exit 1" 1 \
+        "${FX_N4}/constitution" --consumer-root "${FX_N4}_cons"
+}
+if ( unset GIT_DIR GIT_WORK_TREE; git -C "$TMP" rev-parse --show-toplevel ) >/dev/null 2>&1; then
+    echo "META FAIL: fixture dir $TMP lies inside a git work tree; standalone cases cannot be built honestly"
+    rc=1
+else
+    SAP=""
+    sa_checks
+    # C2: real SOURCE mutants of the SKIP decision. Each is applied to a copy of the gate (same
+    # relative layout so the ../lib resolver still works); the standalone/consumer suite run
+    # against the copy MUST FAIL (a mutant that still passes the suite = the suite is decoration).
+    REAL_GATE="$GATE"
+    mkdir -p "${TMP}/mg/gates"; ln -s "$(cd "${SELF_DIR}/../lib" && pwd)" "${TMP}/mg/lib"
+    n_mut=0
+    sa_mutant() {   # name, old, new
+        n_mut=$((n_mut+1)); _mg="${TMP}/mg/gates/mut_${n_mut}.sh"
+        OLD="$2" NEW="$3" SRCF="$REAL_GATE" DST="$_mg" python3 -I -c '
+import os,sys
+s=open(os.environ["SRCF"]).read(); o=os.environ["OLD"]
+if o not in s: sys.exit(1)
+open(os.environ["DST"],"w").write(s.replace(o,os.environ["NEW"],1))' || { echo "META FAIL: mutant $1 pattern not found"; rc=1; return; }
+        chmod +x "$_mg"
+        if ( rc=0; GATE="$_mg"; SAP="mut${n_mut}_"; sa_checks >/dev/null 2>&1; exit "$rc" ); then
+            echo "META FAIL: source mutant $1 SURVIVED the suite"; rc=1
+        else
+            echo "META OK:   source mutant $1 killed by the suite"
+        fi
+    }
+    sa_mutant skip-without-layout-check   '        if [ -n "$standalone" ]; then
+            _sa_parent=' '        if false; then
+            _sa_parent='
+    sa_mutant submodules-parent-not-consumer '"$(basename "$_sa_parent")" = "submodules"' '"$(basename "$_sa_parent")" = "never_submodules"'
+    sa_mutant parent-markers-ignored      'for _m in CLAUDE.md AGENTS.md GEMINI.md QWEN.md .gitmodules helix-deps.yaml README.md; do' 'for _m in NEVER_A_MARKER_FILE; do'
+    sa_mutant explicit-consumer-root-ignored 'if [ -z "$consumer_root" ] && command -v git >/dev/null 2>&1; then' 'if command -v git >/dev/null 2>&1; then'
+    sa_mutant parent-proof-dropped        '*"not a git repository"*) standalone="1" ;;' '*) standalone="1" ;;'
+    GATE="$REAL_GATE"
 fi
 
 # --- G3. the gate's own selftest suite must be green ------------------------

@@ -5,8 +5,7 @@
 #
 # Usage:
 #   constitution_cmd.sh <subcommand> [args]        (a single string argument is split on blanks)
-#   constitution_cmd.sh --stdin                    (the one-line argument string is read from stdin)
-#   constitution_cmd.sh --args-file PATH           (same, from a file the agent wrote; deleted after use)
+#   constitution_cmd.sh --args-file PATH           (same, from /tmp/constitution_args_<[a-z0-9]{8,64}>.txt the agent wrote; deleted after use)
 #     status                       layout, pinned version, latest local release tag, Jev state
 #     update [--check|--dry-run] [--ref REF]
 #                                  delegates to scripts/update_constitution.sh; --check is the
@@ -54,29 +53,18 @@ usage() { sed -n '/^# Usage:/,/^# Exit codes:/p' "${BASH_SOURCE[0]}" | sed 's/^#
 die()   { printf 'constitution: %s\n' "$*" >&2; }
 
 # ---- argument intake: reject control chars; split a lone string argument on blanks ---------------
-# --stdin (used by the generated commands/skill): the arguments come from stdin, so the calling
-# agent shell never evaluates user text (it sits in a quoted heredoc). Exactly one line, bounded.
-if [ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]; then
-    _line=""
-    IFS= read -r -d '' -n 8001 _line || true
-    _line="${_line%$'\n'}"
-    [ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
-    set -- "$_line"
-fi
-# --args-file PATH (used by the generated commands/skill since release 2.1): the agent writes the
-# user's text to a file with its FILE-WRITE tool, so the text is never part of any shell command and
-# no heredoc delimiter exists to break out of. PATH must be <tmpdir>/constitution_args_<id>.txt
-# (id = [A-Za-z0-9_-]{1,64}), a regular non-symlink file owned by the caller; at most 8001 bytes are read.
-# The file is consumed (deleted) after reading.
+# --args-file PATH (used by the generated commands/skill): the agent writes the user's text to a file
+# with its FILE-WRITE tool, so the text is never part of any shell command and no heredoc delimiter
+# exists to break out of. PATH must be EXACTLY <dir>/constitution_args_<id>.txt with dir = /tmp or
+# $TMPDIR (absolute, no extra components, no ".."), id = [a-z0-9]{8,64}; the verification (fd-relative
+# O_NOFOLLOW open, regular file, one link, owner = caller, size cap, same-inode check) and the
+# deletion of that one verified file are done by args_file_read.py. At most 8000 characters are used.
 if [ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]; then
-    _f="$2"; _td="${TMPDIR:-/tmp}"; _td="${_td%/}"
-    case "$_f" in "$_td"/constitution_args_*.txt|/tmp/constitution_args_*.txt) ;; *) die "--args-file path must be <tmpdir>/constitution_args_<id>.txt"; exit 2 ;; esac
-    _b="${_f##*/}"; _b="${_b#constitution_args_}"; _b="${_b%.txt}"
-    [[ "$_b" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || { die "--args-file id must match [A-Za-z0-9_-]{1,64}"; exit 2; }
-    { [ -f "$_f" ] && [ ! -L "$_f" ] && [ -O "$_f" ]; } || { die "--args-file must be a regular, non-symlink file owned by you"; exit 2; }
-    _line=""
-    IFS= read -r -d '' -n 8001 _line <"$_f" || true
-    rm -f -- "${_f:?}"
+    command -v python3 >/dev/null 2>&1 || { die "--args-file needs python3"; exit 3; }
+    [ -f "$SELF_DIR/args_file_read.py" ] || { die "--args-file helper missing"; exit 3; }
+    _line="$(python3 -I "$SELF_DIR/args_file_read.py" "$2"; _r=$?; printf x; exit "$_r")"; _rc=$?
+    [ "$_rc" -eq 0 ] || { exit 2; }
+    _line="${_line%x}"
     _line="${_line%$'\n'}"
     [ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
     set -- "$_line"
@@ -177,7 +165,7 @@ cmd_update() {
             --check|--dry-run) have_mode=1; args+=("${REST[$i]}") ;;
             --ref)
                 i=$((i+1)); [ $i -lt $n ] || { die "--ref needs a value"; return 2; }
-                [[ "${REST[$i]}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$ ]] || { die "invalid --ref value"; return 2; }
+                [[ "${REST[$i]}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$ ]] && [[ "${REST[$i]}" != *..* && "${REST[$i]}" != *//* ]] || { die "invalid --ref value"; return 2; }
                 args+=(--ref "${REST[$i]}") ;;
             *) die "update accepts only --check, --dry-run, --ref REF (apply by running update_constitution.sh directly)"; return 2 ;;
         esac
@@ -281,6 +269,7 @@ cmd_extensions() {
             --*) case "$allow" in *" $a "*) ;; *) die "rejected extension option: $(printf '%.30s' "$a" | tr -c 'A-Za-z0-9._-' '?')"; return 2 ;; esac ;;
         esac
         [[ "$a" =~ ^(--[a-z][a-z-]{0,30}|[A-Za-z0-9._/:@=+,~-]{1,300})$ ]] || { die "rejected extension argument"; return 2; }
+        case "/$a/" in */../*) die "rejected extension argument (parent-directory segment)"; return 2 ;; esac
     done
     if [ ! -f "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" ]; then
         die "extensions engine not installed"; return 3
