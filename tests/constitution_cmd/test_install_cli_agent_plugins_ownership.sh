@@ -79,7 +79,7 @@ PROD="$here/scripts/install_action_prefix.sh"
 pfx(){ RC=0; "${@:2}" bash "$ACT" "$1" >"$sb/out" 2>&1 || RC=$?; }
 ACT="$PROD"
 nojq="$sb/nojq_bin"; mkdir -p "$nojq"
-for t in bash python3 dirname readlink mkdir mktemp mv cp rm ls cat sed grep stat ln basename env id tr head wc find sort uname chmod touch sleep; do
+for t in bash python3 dirname readlink mkdir mktemp mv cp rm ls cat sed grep stat ln basename env id tr head wc find sort uname chmod touch sleep od; do
   w="$(command -v "$t" 2>/dev/null)" && ln -s "$w" "$nojq/$t"
 done
 # hck: like ck but counts failures in H1F (so the same case set can be replayed against mutated COPIES)
@@ -182,6 +182,76 @@ cases_sdr(){
 }
 cases_sdr sdr
 ck "SDR all cases (production script)" "[ $H1F -eq 0 ]"
+
+# cases_f <tag>: round-15 (review of 4d39b88): python number fidelity + strict output, NaN/Infinity/BOM
+# refusal on both paths, .bak order + original-preserving, 0444, deep nesting, signal cleanup, spaced hook path.
+cases_f(){
+  local tag="$1" mode q i body tok fb sg
+  for mode in jq nojq; do
+    mp(){ if [ $mode = nojq ]; then pfx "$1" env PATH="$nojq"; else pfx "$1" env; fi; }
+    # NaN / Infinity / BOM refused (rc!=0, byte-identical, REFUSED, no .bak created by a refused run)
+    i=0
+    for body in '{"a":NaN}' '{"a":Infinity}' '{"a":-Infinity}' $'\xef\xbb\xbf{}'; do
+      i=$((i+1)); q="$sb/${tag}_nf_${mode}_$i"; mkdir -p "$q/.claude"; printf '%s' "$body" > "$q/.claude/settings.json"; cp "$q/.claude/settings.json" "$q/orig"
+      mp "$q"
+      hck "F-NF/$mode #$i: rc!=0, unchanged, REFUSED" "[ $RC -ne 0 ] && cmp -s '$q/orig' '$q/.claude/settings.json' && grep -q REFUSED '$sb/out' && ! grep -q Traceback '$sb/out'"
+      hck "F-BAK/$mode #$i: refused run creates no .bak" "[ ! -e '$q/.claude/settings.json.bak' ]"
+    done
+    # refused run never clobbers a good existing .bak
+    q="$sb/${tag}_bakkeep_$mode"; mkdir -p "$q/.claude"; printf '{"good":"bak"}\n' > "$q/.claude/settings.json.bak"; printf 'not json {' > "$q/.claude/settings.json"
+    mp "$q"
+    hck "F-BAK/$mode refused run keeps existing .bak" "[ $RC -ne 0 ] && [ \"\$(cat '$q/.claude/settings.json.bak')\" = '{\"good\":\"bak\"}' ]"
+    # original-preserving: 1st run backs up the pre-install file, later runs never overwrite it
+    q="$sb/${tag}_bakorig_$mode"; mkdir -p "$q/.claude"; printf '{"orig":1}\n' > "$q/.claude/settings.json"
+    mp "$q"; hck "F-BAK/$mode first run ok + .bak is the original" "[ $RC -eq 0 ] && [ \"\$(cat '$q/.claude/settings.json.bak')\" = '{\"orig\":1}' ]"
+    printf '{"second":2}\n' > "$q/.claude/settings.json"; mp "$q"
+    hck "F-BAK/$mode repeated success keeps the FIRST original .bak" "[ $RC -eq 0 ] && [ \"\$(cat '$q/.claude/settings.json.bak')\" = '{\"orig\":1}' ] && grep -q second '$q/.claude/settings.json'"
+    # 0444 settings.json is rewritten and keeps its mode
+    q="$sb/${tag}_ro_$mode"; mkdir -p "$q/.claude"; printf '{}\n' > "$q/.claude/settings.json"; chmod 444 "$q/.claude/settings.json"
+    mp "$q"; hck "F-RO/$mode 0444 settings.json: wired, mode stays 444" "[ $RC -eq 0 ] && grep -q action_prefix_expand '$q/.claude/settings.json' && [ \"\$(stat -c %a '$q/.claude/settings.json')\" = 444 ]"
+    # very deep nesting: REFUSED on both paths, no traceback, unchanged
+    q="$sb/${tag}_deep_$mode"; mkdir -p "$q/.claude"; python3 -c "open('$q/.claude/settings.json','w').write('{\"x\":'+'['*200000+']'*200000+'}')"; cp "$q/.claude/settings.json" "$q/orig"
+    mp "$q"; hck "F-DEEP/$mode: rc!=0, REFUSED, no traceback, unchanged" "[ $RC -ne 0 ] && grep -q REFUSED '$sb/out' && ! grep -q Traceback '$sb/out' && cmp -s '$q/orig' '$q/.claude/settings.json'"
+  done
+  # dangling .bak symlink (inside the project): replaced by a regular file, never written through
+  for mode in jq nojq; do
+    q="$sb/${tag}_dbak_$mode"; mkdir -p "$q/.claude"; printf '{"orig":1}\n' > "$q/.claude/settings.json"; ln -s "$q/dangling_target" "$q/.claude/settings.json.bak"
+    mp "$q"
+    hck "F-BAK/$mode dangling .bak symlink: replaced by a regular file, target not created" "[ $RC -eq 0 ] && [ ! -L '$q/.claude/settings.json.bak' ] && [ -f '$q/.claude/settings.json.bak' ] && [ ! -e '$q/dangling_target' ]"
+  done
+  # python number fidelity: tokens survive textually, output is strict JSON (no Infinity/NaN), existing content kept
+  q="$sb/${tag}_num"; mkdir -p "$q/.claude"
+  printf '{"big":1e400,"small":1e-400,"p":1.0000000000000000001,"e":1.5e3,"i":123456789012345678901234567890,"z":-0.0,"s":"1e400"}\n' > "$q/.claude/settings.json"
+  pfx "$q" env PATH="$nojq"
+  for tok in '"big": 1e400' '"small": 1e-400' '"p": 1.0000000000000000001' '"e": 1.5e3' '"i": 123456789012345678901234567890' '"z": -0.0' '"s": "1e400"'; do
+    hck "F-NUM/python keeps token $tok" "grep -qF '$tok' '$q/.claude/settings.json'"
+  done
+  hck "F-NUM/python: rc 0, wired, strict JSON" "[ $RC -eq 0 ] && grep -q action_prefix_expand '$q/.claude/settings.json' && python3 -c \"import json,sys; json.loads(open(sys.argv[1]).read(), parse_constant=lambda c: (_ for _ in ()).throw(ValueError(c)))\" '$q/.claude/settings.json'"
+  # signal cleanup: a TERM (jq path) / INT (python path) arriving after the temp file exists leaves no temp files
+  fb="$sb/${tag}_sigjq"; mkdir -p "$fb"
+  printf '#!/bin/sh\nfor a in "$@"; do [ "$a" = -s ] && exec %s "$@"; done\n%s "$@"; rc=$?; kill -$SIGN $PPID; exit $rc\n' "$(command -v jq)" "$(command -v jq)" > "$fb/jq"; chmod +x "$fb/jq"
+  sg="$sb/${tag}_sigpy"; mkdir -p "$sg"; cp -a "$nojq/." "$sg/"; rm -f "$sg/python3"
+  printf '#!/bin/sh\n%s "$@"; rc=$?; kill -$SIGN $PPID; exit $rc\n' "$(command -v python3)" > "$sg/python3"; chmod +x "$sg/python3"
+  q="$sb/${tag}_sig_jq"; mkdir -p "$q/.claude"; printf '{"keep":1}\n' > "$q/.claude/settings.json"
+  pfx "$q" env PATH="$fb:$PATH" SIGN=TERM
+  hck "F-SIG/jq TERM: rc 143, no temp files, settings unchanged" "[ $RC -eq 143 ] && [ -z \"\$(ls -A '$q/.claude' | grep '^\\.settings\\.')\" ] && [ \"\$(cat '$q/.claude/settings.json')\" = '{\"keep\":1}' ]"
+  q="$sb/${tag}_sig_py"; mkdir -p "$q/.claude"; printf '{"keep":1}\n' > "$q/.claude/settings.json"
+  pfx "$q" env PATH="$sg" SIGN=INT
+  hck "F-SIG/python INT: rc 130, no temp files, settings unchanged" "[ $RC -eq 130 ] && [ -z \"\$(ls -A '$q/.claude' | grep '^\\.settings\\.')\" ] && [ \"\$(cat '$q/.claude/settings.json')\" = '{\"keep\":1}' ]"
+  # spaced / quoted constitution path: the stored hook command must run under sh -c (not rc 127)
+  for mode in jq nojq; do
+    local r="$sb/${tag}_sp_$mode/it's a dir/const" c
+    mkdir -p "$r/scripts/hooks" "$sb/${tag}_sp_$mode/proj"
+    cp "$ACT" "$r/scripts/install_action_prefix.sh"; cp "$here/scripts/hooks/action_prefix_expand.sh" "$r/scripts/hooks/"; cp "$here/scripts/action_prefix_lib.sh" "$r/scripts/"
+    q="$sb/${tag}_sp_$mode/proj"
+    if [ $mode = nojq ]; then RC=0; env PATH="$nojq" bash "$r/scripts/install_action_prefix.sh" "$q" >"$sb/out" 2>&1 || RC=$?; else RC=0; bash "$r/scripts/install_action_prefix.sh" "$q" >"$sb/out" 2>&1 || RC=$?; fi
+    c="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])" "$q/.claude/settings.json" 2>/dev/null)"
+    local hrc=0; ( cd "$q" && printf '{}' | sh -c "$c" >"$sb/hookout" 2>&1 ) || hrc=$?
+    hck "F-SPACE/$mode: install rc 0 and stored command runs under sh -c (hook rc $hrc)" "[ $RC -eq 0 ] && [ $hrc -eq 0 ] && ! grep -qi 'not found\|syntax error' '$sb/hookout'"
+  done
+}
+cases_f f15
+ck "F15 all cases (production script)" "[ $H1F -eq 0 ]"
 # ── mutants (on COPIES in a mini constitution root; production code is never altered) ──
 mkmut(){ # <name> <python-snippet operating on s> ; creates $sb/mut_<name>/scripts/...
   local r="$sb/mut_$1"; mkdir -p "$r/scripts/hooks"; cp "$here/scripts/hooks/action_prefix_expand.sh" "$r/scripts/hooks/"
@@ -195,27 +265,34 @@ PYEOF
 }
 run_mut(){ # <name> ; replay all case sets against the mutant; killed if any case fails
   local name="$1"; ACT="$sb/mut_$name/scripts/install_action_prefix.sh"
-  H1F=0; VERBOSE_H1=""; cases_h1 "mh_$name"; cases_mode "mm_$name"; cases_invalid "mi_$name"; cases_sdr "ms_$name"; VERBOSE_H1=1; ACT="$PROD"
+  H1F=0; VERBOSE_H1=""; cases_h1 "mh_$name"; cases_mode "mm_$name"; cases_invalid "mi_$name"; cases_sdr "ms_$name"; cases_f "mf_$name"; VERBOSE_H1=1; ACT="$PROD"
   [ $H1F -gt 0 ]
 }
 declare -A MUT
 MUT[LC]='s=s.replace("hard link; it is replaced by a new file (rename), the other links keep the old content\" >&2","hard link REFUSED\" >&2; exit 1")'
-MUT[JQ]='s=s.replace("&& mv -f -- \"$tmp\" \"$settings\"; then","&& cat \"$tmp\" > \"$settings\"; then")'
-MUT[PY]='s=s.replace("os.replace(tmp, path)","open(path,\"w\").write(open(tmp).read())")'
-MUT[BAK]='s=s.replace("cp -f -- \"$settings\" \"$_bak\" && chmod \"$_bak_mode\" \"$_bak\" && mv -f -- \"$_bak\" \"$settings.bak\"","cp -f -- \"$settings\" \"$settings.bak\"")'
+MUT[MV]='s=s.replace("mv -f -- \"$NEW_TMP\" \"$settings\" || exit 1","cat \"$NEW_TMP\" > \"$settings\" || exit 1")'
+MUT[BAK]='s=s.replace("cp -f -- \"$settings\" \"$_bak\" && chmod \"$new_mode\" \"$_bak\" && mv -f -- \"$_bak\" \"$settings.bak\"","cp -f -- \"$settings\" \"$settings.bak\"")'
+MUT[BAKORIG]='s=s.replace("if [ ! -e \"$settings.bak\" ]; then","if true; then")'
+MUT[BAKORDER]='s=s.replace("if command -v jq >/dev/null 2>&1; then\n  merge_with_jq","cp -f -- \"$settings\" \"$settings.bak\"\nif command -v jq >/dev/null 2>&1; then\n  merge_with_jq")'
+MUT[TRAP]='s=s.replace("trap cleanup EXIT\ntrap \x27exit 143\x27 TERM\ntrap \x27exit 130\x27 INT\n","")'
+MUT[QUOTE]='s=s.replace("*[!A-Za-z0-9_@%+=:,./-]*) hook_cmd","*[!A-Za-z0-9_@%+=:,./-]X*) hook_cmd")'
+MUT[PYNUM]='s=s.replace("parse_float=num, parse_int=num, ","")'
+MUT[PYNAN]='s=s.replace("raise ValueError(\"%s is not valid JSON\" % name)","return 0").replace("if back != data:","if False:")'
+MUT[BOM]='s=s.replace("= \"efbbbf\" ]; then","= \"zzzz\" ]; then")'
+MUT[JQNAN]='s=s.replace("and (.[0] | nonfinite | not)","")'
 MUT[STAT]='s=s.replace("settings_mode=\"$(stat -L -c","settings_mode=\"$(stat -c")'
 MUT[SDR]='s=s.replace("  \"$proj_real\"/*) ;;\n  *) echo \"install_action_prefix: $settings_dir resolves outside the project — REFUSED\" >&2; exit 1 ;;","  *) ;;")'
-MUT[PYVAL]='s=s.replace("except Exception as exc:\n    refuse(\"is not exactly one valid JSON document (%s)\" % exc)","except Exception as exc:\n    data = {}")'
-MUT[PYNULL]='s=s.replace("if not isinstance(data, dict):\n    refuse(\"top level is not an object\")","if data is None:\n    data = {}\nif not isinstance(data, dict):\n    refuse(\"top level is not an object\")")'
-MUT[PYHOOKS]='s=s.replace("if not isinstance(hooks, dict):\n    refuse(","if False:\n    refuse(")'
-MUT[JQNOVAL]='s=s.replace("if ! jq -s -e \"$JQ_VALID\"","if false && jq -s -e \"$JQ_VALID\"").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
-MUT[JQMULTI]='s=s.replace("length == 1 and (.[0] | valid)","all(.[]; valid)").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
-MUT[JQNULL]='s=s.replace("length == 1 and (.[0] | valid)","length == 1 and ((.[0] == null) or (.[0] | valid))").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$tmp\" >/dev/null 2>&1 \\\n","")'
-MUT[JQHOOKS]='s=s.replace("if ! jq -s -e \"$JQ_VALID\"\x27 length == 1 and (.[0] | valid)\x27","if ! jq -s -e \x27length == 1 and (.[0] | type) == \"object\"\x27")'
+MUT[PYVAL]='s=s.replace("except Exception as exc:\n        refuse(\"is not exactly one valid JSON document (%s)\" % exc)","except Exception as exc:\n        data = {}")'
+MUT[PYNULL]='s=s.replace("if not isinstance(data, dict):\n        refuse(\"top level is not an object\")","if data is None:\n        data = {}\n    if not isinstance(data, dict):\n        refuse(\"top level is not an object\")")'
+MUT[PYHOOKS]='s=s.replace("if not isinstance(hooks, dict):\n        refuse(","if False:\n        refuse(").replace("refuse(\"could not be processed (%s)\" % exc)","pass")'
+MUT[JQNOVAL]='s=s.replace("if ! jq -s -e \"$JQ_VALID\"","if false && jq -s -e \"$JQ_VALID\"").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$NEW_TMP\" >/dev/null 2>&1\n","\n")'
+MUT[JQMULTI]='s=s.replace("length == 1 and (.[0] | valid) and","all(.[]; valid) and").replace("     && jq -s -e --arg cmd \"$hook_cmd\" \x27length == 1 and (.[0] | type) == \"object\" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))\x27 \"$NEW_TMP\" >/dev/null 2>&1\n","\n")'
+MUT[JQNULL]='s=s.replace("length == 1 and (.[0] | valid) and","length == 1 and ((.[0] == null) or (.[0] | valid)) and")'
+MUT[JQHOOKS]='s=s.replace("length == 1 and (.[0] | valid) and (.[0] | nonfinite | not)\x27","length == 1 and (.[0] | type) == \"object\" and (.[0] | nonfinite | not)\x27")'
 MUT[MODE]='s=s.replace("& ~022 )))","))) ")'
 MUT[SYM]='s=s.replace("$settings is a symlink;","$settings is a link;")'
 MUT[DIR]='s=s.replace("if [ -d \"$settings\" ]; then\n  echo \"install_action_prefix: $settings is a directory","if false; then\n  echo \"install_action_prefix: $settings is a directory")'
-for name in LC JQ PY BAK STAT SDR PYVAL PYNULL PYHOOKS JQNOVAL JQMULTI JQNULL JQHOOKS MODE SYM DIR; do
+for name in LC MV BAK BAKORIG BAKORDER TRAP QUOTE PYNUM PYNAN BOM JQNAN STAT SDR PYVAL PYNULL PYHOOKS JQNOVAL JQMULTI JQNULL JQHOOKS MODE SYM DIR; do
   if mkmut "$name" "${MUT[$name]}"; then
     ck "MUTANT $name is killed by the suite" "run_mut $name"
   else
@@ -223,7 +300,7 @@ for name in LC JQ PY BAK STAT SDR PYVAL PYNULL PYHOOKS JQNOVAL JQMULTI JQNULL JQ
   fi
 done
 # combined LC+JQ: refusal removed AND write-through
-if mkmut LCJQ "${MUT[LC]}; ${MUT[JQ]}"; then ck "MUTANT LC+JQ is killed by the suite" "run_mut LCJQ"; else ck "MUTANT LC+JQ BROKEN" "false"; fi
+if mkmut LCJQ "${MUT[LC]}; ${MUT[MV]}"; then ck "MUTANT LC+JQ is killed by the suite" "run_mut LCJQ"; else ck "MUTANT LC+JQ BROKEN" "false"; fi
 # M1: dangling .tmp symlink pointing outside must be refused, nothing created outside
 q="$sb/m1"; mkdir -p "$q/.claude"; ln -s "$sb/m1_outside_new" "$q/.claude/settings.json.tmp"
 pfx "$q" env

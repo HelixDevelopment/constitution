@@ -32,6 +32,11 @@
 #   its mode (stat -L), a NEW settings.json/.bak gets 0666 & ~umask & ~022 (never group/other
 #   writable); a NEW .claude is created without group/other write. A hard-linked settings.json
 #   only draws a warning; a symlinked settings.json is replaced by a regular file (warning).
+#   Order: validate + merge into a temp file first, then back up, then rename; a refused run writes nothing
+#   (no .bak). The .bak is ORIGINAL-PRESERVING: created once from the pre-install file, never overwritten
+#   by later runs. A read-only (0444) settings.json is still rewritten (rename needs only the directory
+#   to be writable) and keeps its 0444 mode. The python3 path keeps numbers textually (1e400, 1e-400,
+#   1.0000000000000000001, 1.5e3) and refuses NaN/Infinity and a UTF-8 BOM, as the jq path does.
 #   Anything but exactly ONE JSON object (empty, whitespace, null, array, several documents,
 #   malformed hooks structure) is REFUSED on both jq and python paths, file unchanged.
 #
@@ -66,6 +71,11 @@ fi
 hook_cmd="$hook_abs"
 case "$const_root" in
   "$project_root"/*) hook_cmd="${const_root#"$project_root"/}/scripts/hooks/action_prefix_expand.sh" ;;
+esac
+# The command is run through a shell: single-quote it when it holds anything outside a safe set
+# (spaces, quotes, $, ...). Safe paths stay unquoted, so existing installs are still matched (idempotent).
+case "$hook_cmd" in
+  *[!A-Za-z0-9_@%+=:,./-]*) hook_cmd="'$(printf '%s' "$hook_cmd" | sed "s/'/'\\\\''/g")'" ;;
 esac
 
 settings_dir="$project_root/.claude"
@@ -108,6 +118,15 @@ if [ -e "$settings" ] && [ "$(stat -L -c %h -- "$settings" 2>/dev/null || echo 1
   echo "install_action_prefix: WARNING $settings has more than one hard link; it is replaced by a new file (rename), the other links keep the old content" >&2
 fi
 
+# Temp files we create are removed on exit, TERM and INT (kill -9 cannot be handled and may leave
+# .settings.new.* / .settings.bak.* / .settings.seed.* behind). A signal is acted on after the
+# foreground child (jq/python3) finishes. Only OUR recorded paths are removed, never a glob.
+NEW_TMP=""; _seed=""; _bak=""
+cleanup() { rm -f -- "$NEW_TMP" "$_seed" "$_bak" 2>/dev/null || true; }
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
 # Mode handling: mktemp creates 0600. A NEW file gets 0666 & ~umask & ~022 (at most 0644);
 # an EXISTING file keeps its own mode (stat -L: follows a symlink, so a link to a 0644 file yields 644).
 new_mode="$(printf '%03o' $(( 0666 & ~$(umask) & ~022 )))"
@@ -119,10 +138,11 @@ if [ ! -f "$settings" ]; then
 fi
 settings_mode="$(stat -L -c %a -- "$settings")"
 
-# Backup via a fresh inode too: a pre-existing (possibly hard-linked) .bak is replaced, never written.
-_bak="$(mktemp "$settings_dir/.settings.bak.XXXXXX")" || exit 1
-if [ -e "$settings.bak" ]; then _bak_mode="$(stat -L -c %a -- "$settings.bak" 2>/dev/null || echo "$new_mode")"; else _bak_mode="$new_mode"; fi
-cp -f -- "$settings" "$_bak" && chmod "$_bak_mode" "$_bak" && mv -f -- "$_bak" "$settings.bak" || { rm -f -- "$_bak"; exit 1; }
+# BOM: jq accepts a UTF-8 BOM, python's strict parser does not; both paths REFUSE it (clear message).
+if [ "$(head -c 3 -- "$settings" | od -An -tx1 | tr -d ' \n')" = "efbbbf" ]; then
+  echo "install_action_prefix: $settings starts with a UTF-8 byte order mark - REFUSED, left unchanged (remove the BOM first)" >&2
+  exit 1
+fi
 
 # One JSON object, hooks structure well formed (shared by input validation and post-merge sanity).
 JQ_VALID='def valid:
@@ -131,16 +151,18 @@ JQ_VALID='def valid:
   elif (((.hooks // {}) | has("UserPromptSubmit")) and (((.hooks // {}).UserPromptSubmit | type) != "array")) then false
   else ((.hooks // {}).UserPromptSubmit // [])
        | all(.[]; (type == "object") and ((has("hooks") | not) or (((.hooks | type) == "array") and all(.hooks[]; type == "object"))))
-  end;'
+  end;
+  def nonfinite: [.. | numbers | select(isnan or (isinfinite and (tojson | test("^-?1\\.7976931348623157e\\+308$"))))] | length > 0;'
 
+# Both merge functions leave the merged, verified document in $NEW_TMP and touch NOTHING else
+# (settings.json and .bak are only written by the commit step below, after validation succeeded).
 merge_with_jq() {
-  local tmp
-  if ! jq -s -e "$JQ_VALID"' length == 1 and (.[0] | valid)' "$settings" >/dev/null 2>&1; then
-    echo "install_action_prefix: $settings is not exactly one JSON object with a well-formed hooks structure (empty, whitespace, null, array, several documents or malformed hooks) - REFUSED, left unchanged" >&2
+  if ! jq -s -e "$JQ_VALID"' length == 1 and (.[0] | valid) and (.[0] | nonfinite | not)' "$settings" >/dev/null 2>&1; then
+    echo "install_action_prefix: $settings is not exactly one JSON object with a well-formed hooks structure and finite numbers (empty, whitespace, null, array, several documents, NaN/Infinity or malformed hooks) - REFUSED, left unchanged" >&2
     return 1
   fi
-  tmp="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
-  if jq --arg cmd "$hook_cmd" '
+  NEW_TMP="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
+  jq --arg cmd "$hook_cmd" '
     .hooks = (.hooks // {})
     | .hooks.UserPromptSubmit = (.hooks.UserPromptSubmit // [])
     # Only add our matcher group if no existing entry already references the hook.
@@ -152,79 +174,104 @@ merge_with_jq() {
           { "hooks": [ { "type": "command", "command": $cmd } ] }
         ]
       end
-  ' "$settings" > "$tmp" \
-     && jq -s -e --arg cmd "$hook_cmd" 'length == 1 and (.[0] | type) == "object" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))' "$tmp" >/dev/null 2>&1 \
-     && chmod "$settings_mode" "$tmp" && mv -f -- "$tmp" "$settings"; then
-    return 0
-  fi
-  rm -f -- "$tmp"
-  return 1
+  ' "$settings" > "$NEW_TMP" \
+     && jq -s -e --arg cmd "$hook_cmd" 'length == 1 and (.[0] | type) == "object" and ([.[0].hooks.UserPromptSubmit[]?.hooks[]? | .command] | any(. == $cmd))' "$NEW_TMP" >/dev/null 2>&1
 }
 
 merge_with_python() {
-  HELIX_HOOK_CMD="$hook_cmd" python3 - "$settings" <<'PYEOF'
-import json, os, sys, tempfile
-path = sys.argv[1]
+  NEW_TMP="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
+  HELIX_HOOK_CMD="$hook_cmd" python3 - "$settings" "$NEW_TMP" <<'PYEOF'
+import json, os, re, secrets, sys
+path, outpath = sys.argv[1], sys.argv[2]
 cmd = os.environ["HELIX_HOOK_CMD"]
 def refuse(msg):
     sys.stderr.write("install_action_prefix: settings.json %s - REFUSED, left unchanged\n" % msg)
     sys.exit(1)
-try:
-    with open(path) as fh:
-        data = json.loads(fh.read())
-except Exception as exc:
-    refuse("is not exactly one valid JSON document (%s)" % exc)
-if not isinstance(data, dict):
-    refuse("top level is not an object")
-hooks = data.get("hooks", {}) if "hooks" in data else {}
-if not isinstance(hooks, dict):
-    refuse("\"hooks\" is not an object")
-ups = hooks.get("UserPromptSubmit", []) if "UserPromptSubmit" in hooks else []
-if not isinstance(ups, list):
-    refuse("\"hooks.UserPromptSubmit\" is not an array")
-for grp in ups:
-    if not isinstance(grp, dict):
-        refuse("a hooks.UserPromptSubmit entry is not an object")
-    if "hooks" in grp:
-        if not isinstance(grp["hooks"], list) or not all(isinstance(h, dict) for h in grp["hooks"]):
-            refuse("a hooks.UserPromptSubmit entry has a malformed \"hooks\" array")
-def already():
+# Numbers are carried as marker strings holding their ORIGINAL token and swapped back after dumping, so
+# 1e400, 1e-400, 1.0000000000000000001, 1.5e3 and big integers round-trip textually (no float/int rewrite).
+nonce = secrets.token_hex(8)
+PREFIX = "@@NUM" + nonce + ":"
+def num(tok):
+    return PREFIX + tok + "@@"
+def bad_const(name):
+    raise ValueError("%s is not valid JSON" % name)
+def load(raw):
+    if raw.startswith(b"\xef\xbb\xbf"):
+        raise ValueError("UTF-8 byte order mark")
+    text = raw.decode("utf-8")
+    if PREFIX in text:
+        raise ValueError("reserved marker present")
+    return json.loads(text, parse_float=num, parse_int=num, parse_constant=bad_const)
+def main():
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        data = load(raw)
+    except Exception as exc:
+        refuse("is not exactly one valid JSON document (%s)" % exc)
+    if not isinstance(data, dict):
+        refuse("top level is not an object")
+    hooks = data.get("hooks", {}) if "hooks" in data else {}
+    if not isinstance(hooks, dict):
+        refuse("\"hooks\" is not an object")
+    ups = hooks.get("UserPromptSubmit", []) if "UserPromptSubmit" in hooks else []
+    if not isinstance(ups, list):
+        refuse("\"hooks.UserPromptSubmit\" is not an array")
     for grp in ups:
-        for h in grp.get("hooks", []):
-            if h.get("command") == cmd:
-                return True
-    return False
-if not already():
-    ups.append({"hooks": [{"type": "command", "command": cmd}]})
-hooks["UserPromptSubmit"] = ups
-data["hooks"] = hooks
-if not already():
-    refuse("hook entry missing after merge (internal error)")
-# Write a fresh inode next to the target and rename it into place: never write through the old inode.
-mode = os.stat(path).st_mode & 0o7777
-fd, tmp = tempfile.mkstemp(prefix=".settings.new.", dir=os.path.dirname(path))
+        if not isinstance(grp, dict):
+            refuse("a hooks.UserPromptSubmit entry is not an object")
+        if "hooks" in grp:
+            if not isinstance(grp["hooks"], list) or not all(isinstance(h, dict) for h in grp["hooks"]):
+                refuse("a hooks.UserPromptSubmit entry has a malformed \"hooks\" array")
+    def already():
+        for grp in ups:
+            for h in grp.get("hooks", []):
+                if h.get("command") == cmd:
+                    return True
+        return False
+    if not already():
+        ups.append({"hooks": [{"type": "command", "command": cmd}]})
+    hooks["UserPromptSubmit"] = ups
+    data["hooks"] = hooks
+    if not already():
+        refuse("hook entry missing after merge (internal error)")
+    out = json.dumps(data, indent=2, allow_nan=False)
+    out = re.sub(r'"' + re.escape(PREFIX) + r'([-+0-9.eE]+)@@"', r'\1', out) + "\n"
+    with open(outpath, "w", encoding="utf-8") as fh:
+        fh.write(out)
+    # strict re-parse of what was written, and equality with the in-memory merge result
+    with open(outpath, "rb") as fh:
+        back = load(fh.read())
+    if back != data:
+        refuse("merged output does not round-trip (internal error)")
 try:
-    with os.fdopen(fd, "w") as fh:
-        json.dump(data, fh, indent=2)
-        fh.write("\n")
-    os.chmod(tmp, mode)
-    os.replace(tmp, path)
-except BaseException:
-    try: os.unlink(tmp)
-    except OSError: pass
-    raise
+    main()
+except RecursionError:
+    refuse("is nested too deeply")
+except Exception as exc:
+    refuse("could not be processed (%s)" % exc)
 PYEOF
 }
 
+# Validate and merge FIRST (nothing but $NEW_TMP is written); a refused run never touches .bak.
 if command -v jq >/dev/null 2>&1; then
-  merge_with_jq || { echo "install_action_prefix: jq merge FAILED, settings.json left UNCHANGED (backup at $settings.bak)" >&2; exit 1; }
+  merge_with_jq || { echo "install_action_prefix: jq merge FAILED - REFUSED, settings.json left UNCHANGED" >&2; exit 1; }
 elif command -v python3 >/dev/null 2>&1; then
-  merge_with_python || { echo "install_action_prefix: python merge FAILED, settings.json left UNCHANGED (backup at $settings.bak)" >&2; exit 1; }
+  merge_with_python || { echo "install_action_prefix: python merge FAILED - REFUSED, settings.json left UNCHANGED" >&2; exit 1; }
 else
   echo "install_action_prefix: need jq OR python3 to edit settings.json safely" >&2
-  echo "install_action_prefix: settings.json left UNCHANGED (backup at $settings.bak)" >&2
+  echo "install_action_prefix: settings.json left UNCHANGED" >&2
   exit 1
 fi
+
+# Backup, ORIGINAL-PRESERVING: .bak is created once from the pre-install settings.json (fresh inode)
+# and never overwritten by later runs (delete it by hand to refresh). An existing .bak is left as is.
+if [ ! -e "$settings.bak" ]; then
+  _bak="$(mktemp "$settings_dir/.settings.bak.XXXXXX")" || exit 1
+  cp -f -- "$settings" "$_bak" && chmod "$new_mode" "$_bak" && mv -f -- "$_bak" "$settings.bak" || exit 1
+fi
+# Commit: rename the verified temp file into place (never write through the old inode).
+chmod "$settings_mode" "$NEW_TMP" && mv -f -- "$NEW_TMP" "$settings" || exit 1
 
 # Regenerate the per-agent slash commands (best-effort; non-fatal).
 if [ -x "$const_root/scripts/generate_agent_prefix_commands.sh" ]; then
@@ -233,5 +280,5 @@ if [ -x "$const_root/scripts/generate_agent_prefix_commands.sh" ]; then
 fi
 
 echo "install_action_prefix: wired UserPromptSubmit hook -> $hook_cmd" >&2
-echo "install_action_prefix:   settings: $settings (backup: $settings.bak)" >&2
+echo "install_action_prefix:   settings: $settings (original backup: $settings.bak)" >&2
 echo "install_action_prefix: done." >&2
