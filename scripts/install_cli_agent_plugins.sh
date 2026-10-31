@@ -120,8 +120,9 @@ project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)" || { echo "[install-
 
 # ── Ownership / containment helpers (class: never act on a path we cannot prove is ours) ──
 # Every ln/rm/mv/unlink in THIS script goes through one of these; the scripts it chains to
-# (install_action_prefix.sh: own containment check; generate_agent_prefix_commands.sh: writes only
-# inside the constitution tree) are covered separately:
+# (install_action_prefix.sh: own containment check; generate_agent_prefix_commands.sh: the installer
+# runs it with HELIX_ACTION_OUT_ROOT unset (env -u), so it writes only inside the constitution tree;
+# the generator itself still honours that variable for tests/dry-runs) are covered separately:
 #   ic_dir_inside_project DIR  -> DIR (symlinks resolved, may not exist yet) lies strictly inside the project
 #   ic_link_owned LINK SUBDIR  -> LINK is a symlink whose fully-resolved target (dangling allowed) lies under
 #                                 THIS constitution tree's SUBDIR (skills, actions/generated)
@@ -152,7 +153,7 @@ regen_commands() {
     warn "generator missing: $gen — commands NOT regenerated"
     return 1
   fi
-  if bash "$gen" >/dev/null 2>&1; then
+  if env -u HELIX_ACTION_OUT_ROOT bash "$gen" >/dev/null 2>&1; then
     local n
     n="$(find "$const_root/plugins/$PLUGIN_NAME/commands" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
     ok "regenerated slash commands from registry ($n Claude Code command file(s))"

@@ -75,16 +75,36 @@ for _p in "$settings_dir" "$settings" "$settings.bak" "$settings.tmp"; do
   esac
 done
 mkdir -p "$settings_dir"
+settings_dir_real="$(cd "$settings_dir" && pwd -P)"
+case "$settings_dir_real" in
+  "$proj_real"/*) ;;
+  *) echo "install_action_prefix: $settings_dir resolves outside the project — REFUSED" >&2; exit 1 ;;
+esac
 
-# Seed an empty settings.json if missing.
-if [ ! -f "$settings" ]; then
-  printf '{}\n' > "$settings"
+# KNOWN LIMIT (TOCTOU): the containment and link-count checks above/below run BEFORE the writes; a
+# local attacker who can swap a path component between check and use is NOT defended against
+# (no openat/O_NOFOLLOW chain in shell). Hard links are handled by never writing THROUGH an
+# existing inode: every file we create is a fresh mktemp file renamed into place (rename replaces
+# the directory entry, it never follows or truncates the old inode).
+if [ -e "$settings" ] && [ "$(stat -c %h -- "$settings" 2>/dev/null || echo 2)" -gt 1 ]; then
+  echo "install_action_prefix: $settings has more than one hard link — REFUSED, nothing written" >&2
+  exit 1
 fi
 
-cp -f "$settings" "$settings.bak"
+# Seed an empty settings.json if missing (fresh inode, renamed into place).
+if [ ! -f "$settings" ]; then
+  _seed="$(mktemp "$settings_dir/.settings.seed.XXXXXX")" || exit 1
+  printf '{}\n' > "$_seed" && mv -f -- "$_seed" "$settings" || { rm -f -- "$_seed"; exit 1; }
+fi
+
+# Backup via a fresh inode too: a pre-existing (possibly hard-linked) .bak is replaced, never written.
+_bak="$(mktemp "$settings_dir/.settings.bak.XXXXXX")" || exit 1
+cp -f -- "$settings" "$_bak" && mv -f -- "$_bak" "$settings.bak" || { rm -f -- "$_bak"; exit 1; }
 
 merge_with_jq() {
-  jq --arg cmd "$hook_cmd" '
+  local tmp
+  tmp="$(mktemp "$settings_dir/.settings.new.XXXXXX")" || return 1
+  if jq --arg cmd "$hook_cmd" '
     .hooks = (.hooks // {})
     | .hooks.UserPromptSubmit = (.hooks.UserPromptSubmit // [])
     # Only add our matcher group if no existing entry already references the hook.
@@ -96,12 +116,16 @@ merge_with_jq() {
           { "hooks": [ { "type": "command", "command": $cmd } ] }
         ]
       end
-  ' "$settings" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+  ' "$settings" > "$tmp" && chmod "$(stat -c %a -- "$settings")" "$tmp" && mv -f -- "$tmp" "$settings"; then
+    return 0
+  fi
+  rm -f -- "$tmp"
+  return 1
 }
 
 merge_with_python() {
   HELIX_HOOK_CMD="$hook_cmd" python3 - "$settings" <<'PYEOF'
-import json, os, sys
+import json, os, sys, tempfile
 path = sys.argv[1]
 cmd = os.environ["HELIX_HOOK_CMD"]
 try:
@@ -121,14 +145,24 @@ def already():
     return False
 if not already():
     ups.append({"hooks": [{"type": "command", "command": cmd}]})
-with open(path, "w") as fh:
-    json.dump(data, fh, indent=2)
-    fh.write("\n")
+# Write a fresh inode next to the target and rename it into place: never write through the old inode.
+mode = os.stat(path).st_mode & 0o7777
+fd, tmp = tempfile.mkstemp(prefix=".settings.new.", dir=os.path.dirname(path))
+try:
+    with os.fdopen(fd, "w") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+except BaseException:
+    try: os.unlink(tmp)
+    except OSError: pass
+    raise
 PYEOF
 }
 
 if command -v jq >/dev/null 2>&1; then
-  merge_with_jq
+  merge_with_jq || { echo "install_action_prefix: jq merge FAILED, settings.json left UNCHANGED (backup at $settings.bak)" >&2; exit 1; }
 elif command -v python3 >/dev/null 2>&1; then
   merge_with_python
 else
@@ -139,7 +173,7 @@ fi
 
 # Regenerate the per-agent slash commands (best-effort; non-fatal).
 if [ -x "$const_root/scripts/generate_agent_prefix_commands.sh" ]; then
-  bash "$const_root/scripts/generate_agent_prefix_commands.sh" || \
+  env -u HELIX_ACTION_OUT_ROOT bash "$const_root/scripts/generate_agent_prefix_commands.sh" || \
     echo "install_action_prefix: slash-command generation reported a warning" >&2
 fi
 

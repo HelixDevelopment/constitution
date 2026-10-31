@@ -15,6 +15,8 @@ inst(){ RC=0; HOME="$sb/home" bash "$here/scripts/install_cli_agent_plugins.sh" 
 mkdir -p "$sb/home" "$sb/decoy"; printf 'precious\n' > "$sb/decoy/keep.txt"
 gen="$here/actions/generated/gemini"; one="$(ls "$gen"/*.toml | head -1)"; base="$(basename "$one")"
 
+# R13_ONLY=1 runs only the round-13 section (the earlier sections spawn ~20 slow installer runs)
+if [ -z "${R13_ONLY:-}" ]; then
 # B1 + B4 + B2 in one project
 p="$sb/p1"; mkdir -p "$p/.gemini/commands" "$p/.qwen/commands" "$p/prompts" "$p/.claude/skills" "$p/mine"
 printf 'u\n' > "$p/mine/file"
@@ -70,4 +72,46 @@ q="$sb/q_f1"; mkdir -p "$q"; ln -s "$sb/decoy" "$q/.claude"; before="$(tsum "$sb
 RC=0; bash "$here/scripts/install_action_prefix.sh" "$q" >/dev/null 2>&1 || RC=$?
 ck "F1 standalone install_action_prefix refuses outside .claude" "[ '$before' = \"\$(tsum '$sb/decoy')\" ] && [ $RC -ne 0 ]"
 ck "final: decoy + home untouched" "[ \"\$(cat '$sb/decoy/keep.txt')\" = precious ] && [ ! -e '$sb/decoy/commands' ]"
+
+fi
+# ── Round-13 additions (review of 380e692) ──
+pfx(){ RC=0; "${@:2}" bash "$here/scripts/install_action_prefix.sh" "$1" >"$sb/out" 2>&1 || RC=$?; }
+# H1: hard links (readlink -m cannot see them) must never let an outside file be overwritten
+nojq="$sb/nojq_bin"; mkdir -p "$nojq"
+for t in bash python3 dirname readlink mkdir mktemp mv cp rm ls cat sed grep stat ln basename env id tr head wc find sort uname chmod touch sleep; do
+  w="$(command -v "$t" 2>/dev/null)" && ln -s "$w" "$nojq/$t"
+done
+for mode in jq nojq; do
+  for what in settings.json.bak settings.json.tmp settings.json; do
+    q="$sb/h1_${mode}_${what//./_}"; mkdir -p "$q/.claude"; printf 'OUTSIDE-%s\n' "$what" > "$sb/h1_out_${mode}_${what//./_}"
+    out_f="$sb/h1_out_${mode}_${what//./_}"
+    [ "$what" != settings.json ] && printf '{}\n' > "$q/.claude/settings.json"
+    ln "$out_f" "$q/.claude/$what"
+    if [ $mode = nojq ]; then pfx "$q" env PATH="$nojq"; else pfx "$q" env; fi
+    ck "H1/$mode hard-linked $what: outside file unchanged" "[ \"\$(cat '$out_f')\" = 'OUTSIDE-$what' ]"
+  done
+done
+# control: the no-jq (python fallback) path really works when nothing is hard-linked
+q="$sb/h1_ctl"; mkdir -p "$q"; pfx "$q" env PATH="$nojq"
+ck "H1 control: python fallback installs hook (rc 0)" "[ $RC -eq 0 ] && grep -q action_prefix_expand '$q/.claude/settings.json'"
+# M1: dangling .tmp symlink pointing outside must be refused, nothing created outside
+q="$sb/m1"; mkdir -p "$q/.claude"; ln -s "$sb/m1_outside_new" "$q/.claude/settings.json.tmp"
+pfx "$q" env
+ck "M1 dangling .tmp -> outside: rc 1" "[ $RC -eq 1 ]"
+ck "M1 dangling .tmp -> outside: nothing created outside" "[ ! -e '$sb/m1_outside_new' ]"
+# M4: standalone prefix installer, .claude -> sibling-prefix dir
+q="$sb/m4"; mkdir -p "$q" "$sb/m4-evil"; ln -s "../m4-evil" "$q/.claude"
+pfx "$q" env
+ck "M4 .claude -> sibling-prefix: sibling empty" "[ -z \"\$(ls -A '$sb/m4-evil')\" ]"
+ck "M4 .claude -> sibling-prefix: rc non-zero" "[ $RC -ne 0 ]"
+# M2: link_skills first check, .claude -> sibling-prefix dir
+q="$sb/m2"; mkdir -p "$q" "$sb/m2-evil"; ln -s "../m2-evil" "$q/.claude"
+inst "$q"
+ck "M2 link_skills .claude -> sibling-prefix: sibling empty" "[ -z \"\$(ls -A '$sb/m2-evil')\" ]"
+# H3: an ambient HELIX_ACTION_OUT_ROOT must not redirect generated output
+q="$sb/h3"; mkdir -p "$q"; RC=0
+HOME="$sb/home" HELIX_ACTION_OUT_ROOT="$sb/h3_redirect" bash "$here/scripts/install_cli_agent_plugins.sh" --no-plugin "$q" >"$sb/out" 2>&1 || RC=$?
+ck "H3 installer ignores ambient HELIX_ACTION_OUT_ROOT (installer)" "[ ! -e '$sb/h3_redirect' ]"
+RC=0; HELIX_ACTION_OUT_ROOT="$sb/h3_redirect2" bash "$here/scripts/install_action_prefix.sh" "$q" >/dev/null 2>&1 || RC=$?
+ck "H3 installer ignores ambient HELIX_ACTION_OUT_ROOT (prefix)" "[ ! -e '$sb/h3_redirect2' ]"
 exit $fail

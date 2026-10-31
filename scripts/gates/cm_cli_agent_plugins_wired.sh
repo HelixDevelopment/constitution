@@ -350,7 +350,7 @@ else
 		# NOTE: the sandbox commands dir starts EMPTY on purpose — a leftover file
 		# in the real tree that the registry no longer produces then shows up as an
 		# extra file in the SET diff below.
-		if ( unset HELIX_ACTION_REGISTRY; bash "$TMP/scripts/generate_agent_prefix_commands.sh" ) >/dev/null 2>&1; then
+		if ( unset HELIX_ACTION_REGISTRY HELIX_ACTION_OUT_ROOT; bash "$TMP/scripts/generate_agent_prefix_commands.sh" ) >/dev/null 2>&1; then
 			real_list=$( (cd "$CMD_DIR" && ls -1 *.md 2>/dev/null) | sort )
 			gen_list=$( (cd "$TMP/plugins/$PLUGIN_NAME/commands" && ls -1 *.md 2>/dev/null) | sort )
 			if [ "$real_list" != "$gen_list" ]; then
