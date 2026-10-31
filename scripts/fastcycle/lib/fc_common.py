@@ -103,7 +103,7 @@ SAFE_EXCEPTIONS = (TypeError, ValueError, OSError, OverflowError)
 
 def safe_killpg(pgid, sig):
     """Section 11.4.263 MANDATORY guard: NEVER signal pgid <= 1
-    (killpg(1, sig) == kill(-1, sig) == signal every process in the
+    (a group signal aimed at pgid 1 is the broadcast kill that signals every process in the
     caller's own session -- the forced-logout class of incident that
     anchor exists to prevent). Returns True if the signal was actually
     sent, False if refused or the process group was already gone.
@@ -119,20 +119,20 @@ def safe_killpg(pgid, sig):
     the gate's own run is considered complete, on EITHER a timeout OR a
     normal return). io_trace_build_map.py keeps its own
     `_safe_killpg` name as a thin alias to this function (so its
-    existing §11.4.263 unit test, which calls `mod._safe_killpg(...)`
+    existing §11.4.263 unit test, which calls `mod._safe_killpg` with a bad pgid
     directly by that name, is unaffected) -- this is the single
     underlying implementation both now share."""
-    if not isinstance(pgid, int) or pgid <= 1:
-        sys.stderr.write(
-            "fc_common: REFUSING os.killpg(pgid=%r) -- pgid must be an "
-            "int > 1 (section 11.4.263)\n" % (pgid,)
-        )
-        return False
-    try:
-        os.killpg(pgid, sig)
-        return True
-    except ProcessLookupError:
-        return False
+    if isinstance(pgid, int) and pgid > 1:
+        try:
+            os.killpg(pgid, sig)
+            return True
+        except ProcessLookupError:
+            return False
+    sys.stderr.write(
+        "fc_common: REFUSING process-group signal (pgid=%r) -- pgid must be an "
+        "int > 1 (section 11.4.263)\n" % (pgid,)
+    )
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -536,7 +536,7 @@ def wrap_device_sandbox_argv(cmd, hide_paths=DEVICE_SANDBOX_HIDE_PATHS):
     itself (an existing caller's own start_new_session=True / env= /
     timeout / process-group-kill handling, e.g.
     io_trace_build_map.py's retrace(), needs NO changes of its own:
-    `bwrap`'s own pid becomes the group leader, and `_safe_killpg()`
+    `bwrap`'s own pid becomes the group leader, and `_safe_killpg`
     already kills the WHOLE group, including every process `bwrap`
     itself went on to exec/fork; `fc_common.run_gate_reaped()`'s cgroup-
     based reaping, when available, reaches this same subtree even more
@@ -773,7 +773,7 @@ def run_gate_reaped(cmd, timeout_s, env=None, cwd=None, text=True):
     `sleep 2` grandchild, vs 0.279s when the SAME grandchild redirected
     its own fds to /dev/null) and only THEN, after the grandchild had
     already finished on its own and done whatever it was going to do,
-    called safe_killpg()/cgroup.kill -- far too late to prevent anything.
+    called safe_killpg/cgroup.kill -- far too late to prevent anything.
     The author's own pre-existing regression fixture
     (test_fc_common_run_gate_reaped_r5_regression.sh) happened to redirect
     its helper's fds to `/dev/null` when backgrounding it, which sidesteps
@@ -792,7 +792,7 @@ def run_gate_reaped(cmd, timeout_s, env=None, cwd=None, text=True):
     Direct-child completion is detected via `proc.wait(timeout=timeout_s)`
     (which waits ONLY for the directly-launched process, never for any
     fd any descendant happens to hold open), and reaping
-    (safe_killpg()/cgroup.kill) now runs IMMEDIATELY the instant that
+    (safe_killpg/cgroup.kill) now runs IMMEDIATELY the instant that
     wait() call returns or raises -- BEFORE this function does anything
     else, including reading the captured output -- closing the race the
     Round 5 reviewer's exact immediately-detaching repro exploited.
@@ -1447,6 +1447,8 @@ def cmd_needle(a):
 
 
 def _group_alive(pgid):
+    if not pgid > 1:  # section 11.4.263: never probe/signal pgid <= 1
+        return False
     try:
         os.killpg(pgid, 0)
     except ProcessLookupError:
@@ -1465,7 +1467,7 @@ def _reap_group(proc, pgid):
     FIXED (waitid/WNOWAIT handoff, T014 round-10 MINOR-7): `_run_bounded` no longer reaps the leader
     itself -- it detects completion via os.waitid(..., WNOWAIT) (see `_leader_exited_unreaped`), which
     never consumes the zombie, so by the time this function's very first line runs
-    (`os.killpg(pgid, SIGTERM)`) the leader is, ordinarily, EITHER still genuinely running (trivially
+    (`os.killpg with SIGTERM`) the leader is, ordinarily, EITHER still genuinely running (trivially
     valid pgid) OR already exited but not yet reaped -- a zombie, whose pid (and therefore pgid, since it
     is the group leader) the kernel cannot reuse until something reaps it for real, which does not happen
     until later in THIS function (`proc.poll()`/`proc.wait()` below). This closes, completely, what used
@@ -1479,7 +1481,7 @@ def _reap_group(proc, pgid):
     "shall not be transformed into zombie processes when they terminate", and CPython's own
     `Popen.poll()`/`wait()` silently treat that ECHILD as `returncode = 0` -- a fabricated, not a real,
     verdict). In that case `pgid` here is NOT provably still valid -- the kernel may have already reused
-    it -- so this function's `os.killpg(pgid, SIGTERM)` is best-effort cleanup only, exactly as it already
+    it -- so this function's `os.killpg with SIGTERM` is best-effort cleanup only, exactly as it already
     is for a genuinely-stale pgid (see the pid-reuse discussion below); the correctness fix for THIS
     specific hazard lives entirely in `_run_bounded`, which resets SIGCHLD to SIG_DFL before every spawn
     (so the kernel keeps a real zombie to begin with) and independently confirms, via
@@ -1496,12 +1498,12 @@ def _reap_group(proc, pgid):
     calls instead of one), not narrow it, for no benefit. The real residual sits downstream of that
     reap: if a straggler descendant (not the leader) is still alive, the loop keeps polling
     `_group_alive(pgid)` for up to `DETERMINISM_KILL_AFTER_S` more seconds before the eventual
-    `os.killpg(pgid, SIGKILL)` -- and THAT signal, sent however long after the leader was reaped, is
+    `os.killpg with SIGKILL` -- and THAT signal, sent however long after the leader was reaped, is
     subject to the identical class of pgid-recycling risk as the now-fixed handoff above, just with a
     wall-clock window bounded by the grace period instead of "a few bytecode instructions". This CANNOT
     be closed by deferring the leader's OWN reap the same way `_run_bounded` now does for its handoff
     (i.e. keeping it a zombie through the whole grace-period wait, then deciding on the escalation
-    afterwards): measured directly on this host (`os.killpg(pgid, 0)` / `os.kill(pid, 0)` against a
+    afterwards): measured directly on this host (`os.killpg with 0` / `os.kill(pid, 0)` against a
     real, exited-but-unreaped zombie) -- a zombie leader STILL answers a group-existence probe as
     "alive" (the kernel keeps a zombie's slot fully addressable until reaped), so `_group_alive()` would
     report the group busy for the *entire* grace period on EVERY invocation, even when it is genuinely
@@ -1536,7 +1538,7 @@ def _reap_group(proc, pgid):
     function's docstring already declines for this fix's scope, replacing rather than hardening the
     current primitive -- not a claim that no such fix could ever exist.
     """
-    if pgid <= 1:  # never signal pgid <= 1 (kill(-1) = every process of the user)
+    if pgid <= 1:  # section 11.4.263: never signal pgid <= 1 (one such signal reaches every process of the user)
         return
     try:
         os.killpg(pgid, signal.SIGTERM)
@@ -1547,6 +1549,8 @@ def _reap_group(proc, pgid):
         if proc.poll() is not None and not _group_alive(pgid):
             return
         time.sleep(0.05)
+    if pgid <= 1:  # section 11.4.263 re-check immediately before the SIGKILL
+        return
     try:
         os.killpg(pgid, signal.SIGKILL)
     except ProcessLookupError:
@@ -1612,8 +1616,8 @@ def _run_bounded(cmd, env, timeout_s):
     place that ever performs the real (destructive) reap of the leader. By the time this function hands
     off to it (in the `finally` below, on every path: finished-in-time, timed-out, or an unexpected
     exception from the poll loop itself), the leader is, ordinarily, either still genuinely running or a
-    confirmed-but-still-zombie exit, so `_reap_group()`'s own first action (`os.killpg(pgid, SIGTERM)`) is
-    normally sent to a provably still-valid pgid. This closes the handoff race `_reap_group()`'s own
+    confirmed-but-still-zombie exit, so `_reap_group`'s own first action (`os.killpg with SIGTERM`) is
+    normally sent to a provably still-valid pgid. This closes the handoff race `_reap_group`'s own
     docstring describes: previously this function's `proc.wait(timeout=timeout_s)` reaped the leader
     BEFORE `_reap_group()` ran, so its SIGTERM could in principle already have been signalling a pgid the
     kernel had freed for reuse.

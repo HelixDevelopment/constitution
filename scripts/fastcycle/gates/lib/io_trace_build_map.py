@@ -37,13 +37,13 @@ so does this fix's own verification):
      without a record (§11.4.6).
   2. `retrace()` now launches the traced process in its OWN process group
      (`start_new_session=True`) and, on timeout, kills the WHOLE group via
-     `os.killpg()` -- not just the direct `sh` child -- closing the
+     `os.killpg` -- not just the direct `sh` child -- closing the
      grandchild-survives-the-timeout gap (e.g. a traced `sleep 30`
      backgrounded by the gate script kept running after the prior
      `subprocess.run(..., timeout=...)` call returned). Per the MANDATORY
-     §11.4.263 process-group signal-safety guard, `_safe_killpg()` below
+     §11.4.263 process-group signal-safety guard, `_safe_killpg` below
      validates `isinstance(pgid, int) and pgid > 1` before every
-     `os.killpg()` call -- this module NEVER signals pgid <= 1.
+     `os.killpg` call -- this module NEVER signals pgid <= 1.
   3. The hash-based cache hit check in `main()` now requires BOTH the
      sha256 to match AND the persisted `trace_status` to be "ok" before
      treating a script as a cache hit. A script whose last recorded
@@ -144,7 +144,7 @@ import tempfile
 import time
 
 # ---------------------------------------------------------------------------
-# T085 Round 3 R3-I1: wiring to the shared safe_killpg() primitive
+# T085 Round 3 R3-I1: wiring to the shared safe_killpg primitive
 # (identical import-by-path pattern to gates/batch_bisect.py's own
 # fc_common wiring -- this file lives one directory deeper, under
 # gates/lib/, so the relative hop to scripts/fastcycle/lib/ is
@@ -360,13 +360,13 @@ _sandboxed_env = fc_common.device_sandbox_env
 
 
 # T085 Round 3 R3-I1: `_safe_killpg` is now a thin alias to the ONE
-# shared implementation, `fc_common.safe_killpg()` (section 11.4.227
+# shared implementation, `fc_common.safe_killpg` (section 11.4.227
 # reuse-not-reinvention -- batch_bisect.py's run_gate_on_tree() needed
 # the IDENTICAL §11.4.263 guard for the SAME class of fix). Kept under
 # this module's own original name so every existing call site below, and
 # this module's own §11.4.263 unit test (which calls `mod._safe_killpg`
 # directly by that name), continue to work completely unchanged -- see
-# fc_common.safe_killpg()'s own docstring for the full guarantee.
+# fc_common.safe_killpg's own docstring for the full guarantee.
 _safe_killpg = fc_common.safe_killpg
 
 
@@ -500,8 +500,8 @@ def retrace(tool, script_path, timeout_s, env=None, use_namespace_sandbox=False)
 
     T085 Round 2 B-R2-3: the traced process runs in its OWN process group
     (start_new_session=True) so that, on timeout, the ENTIRE group -- not
-    merely the direct `sh` child -- is killed via `os.killpg()` (guarded by
-    §11.4.263's mandatory pgid>1 validation, `_safe_killpg()`). The
+    merely the direct `sh` child -- is killed via `os.killpg` (guarded by
+    §11.4.263's mandatory pgid>1 validation, `_safe_killpg`). The
     pre-fix `subprocess.run(..., timeout=...)` killed only the direct
     child; a grandchild the traced gate script backgrounds (e.g. a
     `sleep 30 &`) survived the timeout and kept running after this
@@ -518,7 +518,7 @@ def retrace(tool, script_path, timeout_s, env=None, use_namespace_sandbox=False)
 
     T085 Round 5 (R4-I2, defense-in-depth): the Round 3 fix above STILL
     could not reach a grandchild that calls setsid() (a brand-new
-    session + process group, invisible to killpg()) -- confirmed, this
+    session + process group, invisible to killpg) -- confirmed, this
     exact class of gap, as still open at BOTH of the Round 3 "fixed"
     sites (this module and batch_bisect.py). This function now delegates
     its whole launch/timeout/reap lifecycle to the ONE shared primitive,

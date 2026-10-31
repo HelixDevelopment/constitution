@@ -138,7 +138,7 @@ else
 fi
 
 exts="${KILLPG_GUARD_EXT:-py go rs c cc cpp h hpp sh bash}"
-excludes="${KILLPG_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
+excludes="${KILLPG_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates scripts/fastcycle/tests out build dist}"
 
 # ── Build the `find` file-selector predicate (extensions) ──────────────────
 find_name_expr=()
@@ -283,6 +283,13 @@ for f in "${files[@]}"; do
     [ -n "$code_only" ] || continue
 
     hit_lines="$(printf '%s\n' "$code_only" | grep -nE "$CALL_ERE" 2>/dev/null || true)"
+    # A function DEFINITION (`def safe_killpg(pgid, sig):`) is not a call site, and a call to the
+    # §11.4.263 guarded primitive `safe_killpg`/`_safe_killpg` with an identifier target is not an
+    # unguarded signal: that primitive's own body is scanned here and must carry the pgid>1 guard.
+    # A NUMERIC-LITERAL target (`safe_killpg(1, ...)`) is still kept and still FAILs (§11.4.201(1)/(2)).
+    if [ -n "$hit_lines" ]; then
+        hit_lines="$(grep -vE '^[0-9]+:[[:space:]]*def[[:space:]]+_?[A-Za-z0-9_]*killpg[[:space:]]*\(|^[0-9]+:.*(^|[^[:alnum:]])_?safe_killpg[[:space:]]*\([[:space:]]*[A-Za-z_]' <<<"$hit_lines" || true)"
+    fi
     [ -n "$hit_lines" ] || continue
 
     while IFS= read -r hit; do

@@ -232,6 +232,32 @@ SH
 expect_pass "negative control: ordinary single-process 'kill -9 \$pid' never flagged" "$NEG1"
 
 # ===================================================================
+# 5. A `def` line naming killpg, and a call to the guarded safe_killpg
+#    primitive with an identifier target, are NOT unguarded signal calls
+#    (negative controls); a numeric-literal safe_killpg target and an
+#    unguarded raw os.killpg beside such a def are STILL caught.
+# ===================================================================
+NEG2="$TMP/def_and_wrapper"
+mkdir -p "$NEG2"
+cat > "$NEG2/w.py" <<'PY'
+import os
+def safe_killpg(pgid, sig):
+    if isinstance(pgid, int) and pgid > 1:
+        os.killpg(pgid, sig)
+def reap(proc):
+    safe_killpg(proc.pid, 9)
+PY
+expect_pass "negative control: def line + safe_killpg(identifier) wrapper call not flagged" "$NEG2"
+MUT6="$TMP/wrapper_literal"
+mkdir -p "$MUT6"
+printf 'def reap():\n    safe_killpg(1, 9)\n' > "$MUT6/w.py"
+expect_fail "safe_killpg with numeric-literal target still flagged" "$MUT6"
+MUT7="$TMP/unguarded_beside_def"
+mkdir -p "$MUT7"
+printf 'import os\ndef safe_killpg(pgid, sig):\n    os.killpg(pgid, sig)\n' > "$MUT7/w.py"
+expect_fail "raw unguarded os.killpg inside a safe_killpg def still flagged" "$MUT7"
+
+# ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
 # an EARLY line of the call's window and a ~350 KB code line follows it. With
 # `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the
