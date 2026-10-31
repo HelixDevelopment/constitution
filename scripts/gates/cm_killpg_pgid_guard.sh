@@ -70,7 +70,7 @@
 # computed name, exec wrappers whose operands are computed (the plain wrappers timeout/env/sudo/command ARE
 # looked through). Closed in round 6: `pkill` with options before `-g`, `-gN`, `--pgroup`; python argv
 # `"-" + str(pg)` (a non-string operand of a `+` concatenation is spelled `$pg` / its digits); `kill 0`,
-# `kill(0, sig)`, `kill(~pg + 1, sig)`. Honest limit: a bare `kill 0` inside a string counts only when `kill`
+# `kill(0, sig)`, `kill(~pg + 1, sig)`, `kill((-pg), sig)`. Honest limit: a bare `kill 0` inside a string counts only when `kill`
 # starts the command or follows a command word (sudo, timeout, env, system, run, sh, ...), so prose such as
 # `after kill 0 times` stays quiet; `kill 0` after other words is missed. Also: shell quote desync inside nested `$(...)`,
 # Rust raw strings with embedded quotes, guard windows fakeable by comment-like text in sh/go, no check of
@@ -241,12 +241,18 @@ QCH=$'["\']'
 # pkill: ANY option may precede the group option (`pkill -9 -g P`, `-TERM -g P`, `-s TERM -g P`), the group
 # option may carry its value glued on (`-g1`), be bundled (`-fg`), or be spelled long (`--pgroup P`,
 # `--pgroup=P`). PKILL_PRE reads the options before it, PKILL_OPT is the group option itself.
-PKILL_PRE='pkill([[:space:]]+[^;&|]*)?[[:space:]]+'
+# The option scan walks TOKENS: options, the value of a value-taking option (-s -u -U -t -P -G), bare operands
+# and COMPLETE quoted strings (a quoted -f pattern such as "worker -tag x" is ONE operand, never scanned for
+# options), so only a real group option is found. `pkill` itself must stand at command position (start, after
+# ; & | ( ` { / or a quote, or after a command word), so prose such as `echo "use pkill -g ..."` stays quiet.
+PK_LEAD='(^|[;&|(`{"'"'"'/]|(^|[[:space:]])(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|sh|bash|eval|trap)[[:space:]]+)[[:space:]]*'
+PK_TOK='(-[stuUPG][[:space:]]+[^[:space:]]+[[:space:]]+|-[^[:space:]"'"'"']+[[:space:]]+|[A-Za-z0-9_./$]+[[:space:]]+|"[^"]*"[[:space:]]+|'"'"'[^'"'"']*'"'"'[[:space:]]+)'
+PKILL_PRE="${PK_LEAD}pkill[[:space:]]+${PK_TOK}*"
 PKILL_OPT='(-[A-Za-z0-9]*g|--pgroup)'
 PKILL_G="${PKILL_PRE}${PKILL_OPT}([^A-Za-z]|\$)"
 # kill(0, sig) / Kill(0, sig) signals the CALLER'S OWN process group (pid 0), kill(~pg + 1, sig) is -pg.
 ZERO_COMPL='(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*(0[[:space:]]*,|~)'
-CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|'"${PKILL_G}"'|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1|'"${ZERO_COMPL}"''
+CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|'"${PKILL_G}"'|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1|'"${ZERO_COMPL}"''
 BARE_KILLPG='(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)'
 
 # ── Guard must be scoped to THE CALL'S OWN TARGET, in the RIGHT direction ───
@@ -293,7 +299,7 @@ target_guarded() {
 # A call whose process-group target is a NUMERIC LITERAL (`os.killpg(1, ...)`, `kill(-1, sig)`,
 # `syscall.Kill(-1, ...)`, `pkill -g 1`, `kill -9 -1`) is the BOB-126 disaster syscall spelled out in
 # source. No guard can make a hardcoded `1` safe; refusing to guess is the conservative-safe default.
-LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|'"${PKILL_PRE}${PKILL_OPT}"'[[:space:]="'"'"']*[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*0[[:space:]]*,'
+LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|'"${PKILL_PRE}${PKILL_OPT}"'[[:space:]="'"'"']*[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*0[[:space:]]*,'
 
 # ── The shell-kill OPERAND CLASSIFIER (POSIX awk; no gensub, no {n,m}) ──────────────────────────────────
 # Input: "LINENO<TAB>TEXT" records (the strings-kept view, continuation lines already joined; python
@@ -369,7 +375,7 @@ function classify(t,    r, r2, id) {
         # not fire: it counts only when `kill` starts the command or follows a command-introducing word.
         pv = ""
         for (q = kpos - 1; q >= 1; q--) if (tk[q] != "") { pv = tk[q]; break }
-        zok = (pv == "" || pv !~ /^[A-Za-z]+$/ || pv ~ /^(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|check_call|check_output|Popen|Command|sh|bash|eval)$/)
+        zok = (pv == "" || pv !~ /^[A-Za-z]+$/ || pv ~ /^(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|check_call|check_output|Popen|Command|sh|bash|eval|trap)$/)
         i = kpos + 1
         while (i <= n && !skip) {
             i = skipnoise(i)

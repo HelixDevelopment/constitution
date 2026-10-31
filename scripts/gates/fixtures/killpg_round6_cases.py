@@ -86,6 +86,35 @@ add('r26', 'a.sh', 'eq "re-wire after kill" 0 "$RC"\n', 0)
 add('r27', 'a.py', 'import os\nos.system("kill 0")\n', 1)
 add('r28', 'a.sh', 'sudo kill 0\n', 1)
 
+# ---- round 6b: N1 quoted -f patterns are operands, not options (golden-FALSE) ---------------------
+for i, t in [
+    ('n101', 'pkill -f "myapp -config"\n'),
+    ('n102', 'pkill -f "java -Xmx2g"\n'),
+    ('n103', 'pkill -u "$USER" -f "worker -tag x"\n'),
+    ('n104', 'pkill -f "app -debug 5"\n'),
+    ('n105', 'pkill -f "ffmpeg -preset fast -g 60"\n'),
+    # N2 prose naming pkill -g is not a command
+    ('n201', 'echo "use pkill -g to target groups"\n'),
+]:
+    add(i, 'a.sh', t, 0)
+# golden-TRUE companions: the real group option AFTER a quoted pattern / value option is still caught
+for i, t in [
+    ('n110', 'pkill -f "app" -g "$pg"\n'),
+    ('n111', 'pkill -u "$USER" -f "worker -tag x" -g 1\n'),
+    ('n112', 'pkill -f worker -g "$pg"\n'),
+    ('n113', 'sudo pkill -9 -g "$pg"\n'),
+    ('n114', 'x=$(pkill -TERM -g "$pg")\n'),
+    ('n115', '/usr/bin/pkill -g 1\n'),
+    # N3 trap
+    ('n301', 'trap "kill 0" EXIT\n'),
+    ('n302', "trap 'kill -9 0' INT\n"),
+]:
+    add(i, 'a.sh', t, 1)
+# N4 parenthesised negation
+add('n401', 'a.py', 'import os\nos.kill((-pg), 9)\n', 1)
+add('n402', 'a.go', 'package m\nfunc f(pg int){ syscall.Kill((-pg), 9) }\n', 1)
+add('n403', 'a.c', 'void f(int pg){ kill(( -1), 9); }\n', 1)
+
 # ---- F4: complement spelling ---------------------------------------------------------------------
 add('s01', 'a.py', 'import os\nos.kill(~pg + 1, 9)\n', 1)
 add('s02', 'a.c', 'void f(int pg){ kill(~pg + 1, 9); }\n', 1)
