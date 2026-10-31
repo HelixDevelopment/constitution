@@ -348,12 +348,12 @@ calls = []
 def _fake_killpg(pgid, sig):
     calls.append((pgid, sig))
 
-real_killpg = os.killpg
+real_killpg = os.killpg  # killpg-gate:allow test saves the real function to restore after patching
 os.killpg = _fake_killpg
 try:
     results = []
     for bad_pgid in (1, 0, -1, "notanint", None):
-        r = mod._safe_killpg(bad_pgid, 9)
+        r = mod._safe_killpg(bad_pgid, 9)  # killpg-gate:allow test feeds the guard bad pgids to prove refusal
         results.append((bad_pgid, r))
     if calls:
         print("FAIL: os.killpg was invoked for a pgid<=1 or non-int value -- calls=%r" % (calls,))
@@ -364,7 +364,7 @@ try:
     print("OK: _safe_killpg refused every pgid<=1/non-int value, os.killpg never invoked")
 
     # Positive-path sanity: a genuinely >1 pgid IS passed through to killpg.
-    r2 = mod._safe_killpg(99999, 9)
+    r2 = mod._safe_killpg(99999, 9)  # killpg-gate:allow test proves a valid pgid passes through to the (faked) killpg
     if calls == [(99999, 9)]:
         print("OK: _safe_killpg passes a genuinely valid pgid>1 through to os.killpg")
     else:

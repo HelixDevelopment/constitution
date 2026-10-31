@@ -258,6 +258,37 @@ printf 'import os\ndef safe_killpg(pgid, sig):\n    os.killpg(pgid, sig)\n' > "$
 expect_fail "raw unguarded os.killpg inside a safe_killpg def still flagged" "$MUT7"
 
 # ===================================================================
+# 6. Review round 1 (NO-GO) bypass shapes: each MUST FAIL; golden-FALSE MUST PASS.
+# ===================================================================
+mkfix() { # $1=name $2=file $3=content (printf %b)
+    mkdir -p "$(dirname "$TMP/$1/$2")"; printf '%b' "$3" > "$TMP/$1/$2"; echo "$TMP/$1"
+}
+expect_fail "F1a alias '_safe_killpg = os.killpg' then call" \
+    "$(mkfix f1a w.py 'import os\n_safe_killpg = os.killpg\ndef r(p):\n    _safe_killpg(p.pid, 9)\n')"
+expect_fail "F1b third-party 'not_safe_killpg(p, 9)'" \
+    "$(mkfix f1b w.py 'from thirdparty import not_safe_killpg\nnot_safe_killpg(p, 9)\n')"
+expect_fail "F1c vendor safe_killpg with arithmetic target (p - 1)" \
+    "$(mkfix f1c w.py 'from vendor_lib import safe_killpg\nsafe_killpg(p - 1, 9)\n')"
+expect_fail "F1d vendor safe_killpg(pgid, 9) from a non-fc_common import" \
+    "$(mkfix f1d w.py 'from vendor_lib import safe_killpg\nsafe_killpg(pgid, 9)\n')"
+expect_fail "F2a wrapper call plus raw os.killpg on one line" \
+    "$(mkfix f2a w.py 'import os\nimport fc_common\nfc_common.safe_killpg(pgid, 9); os.killpg(other, 9)\n')"
+expect_fail "F2b one-line def with a raw os.killpg body" \
+    "$(mkfix f2b w.py 'import os\ndef my_killpg(p): os.killpg(p, 9)\n')"
+expect_fail "F3a heredoc python raw os.killpg(os.getpgid(proc.pid)) in a tests/*.sh" \
+    "$(mkfix f3a scripts/fastcycle/tests/t.sh 'python3 - <<PY\nimport os\nproc = mock.AsyncMock(); os.killpg(os.getpgid(proc.pid), 9)\nPY\n')"
+expect_fail "F3b 'bash -c \"kill -9 -1\"' string handed to a shell is code" \
+    "$(mkfix f3b scripts/x.sh '#!/bin/bash\nbash -c "kill -9 -1"\n')"
+expect_pass "GF1 legit fc_common.safe_killpg wrapper call" \
+    "$(mkfix gf1 w.py 'import fc_common\ndef r(proc):\n    fc_common.safe_killpg(proc.pid, 9)\n')"
+expect_pass "GF3 audited marker with a reason skips a deliberate test call" \
+    "$(mkfix gf3 w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow test hands the guard a bad pgid\n')"
+expect_fail "F7 marker WITHOUT a reason does not exempt" \
+    "$(mkfix f7 w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow\n')"
+expect_pass "GF2 fixture/spec strings and docstring prose are not call sites" \
+    "$(mkfix gf2 scripts/fastcycle/tests/t.sh 'echo "kill -9 -1"\nspec = ("kill-wide", "#!/bin/sh\\nkill -9 -1")\ncat <<PY\nx = """\nos.killpg(p, 9)\nkillpg(1, 9)\n"""\nPY\n')"
+
+# ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
 # an EARLY line of the call's window and a ~350 KB code line follows it. With
 # `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the

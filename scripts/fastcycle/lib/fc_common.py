@@ -1549,12 +1549,7 @@ def _reap_group(proc, pgid):
         if proc.poll() is not None and not _group_alive(pgid):
             return
         time.sleep(0.05)
-    if pgid <= 1:  # section 11.4.263 re-check immediately before the SIGKILL
-        return
-    try:
-        os.killpg(pgid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
+    safe_killpg(pgid, signal.SIGKILL)  # section 11.4.263 guarded primitive; a vanished group is not an error
     proc.wait()
 
 

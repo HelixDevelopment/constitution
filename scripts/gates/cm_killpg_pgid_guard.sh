@@ -138,7 +138,7 @@ else
 fi
 
 exts="${KILLPG_GUARD_EXT:-py go rs c cc cpp h hpp sh bash}"
-excludes="${KILLPG_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates scripts/fastcycle/tests out build dist}"
+excludes="${KILLPG_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
 
 # ── Build the `find` file-selector predicate (extensions) ──────────────────
 find_name_expr=()
@@ -195,7 +195,7 @@ fi
 #                         POSIX liveness-PROBE idiom and is structurally
 #                         incapable of the §11.4.263 defect, so flagging it
 #                         would be a §11.4.201(1) false-positive refusal.
-CALL_ERE='killpg[[:space:]]*\(|syscall\.Kill[[:space:]]*\([[:space:]]*-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-|pkill[[:space:]]+-g[[:space:]]|kill[[:space:]]+-"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-("?\$\{?[A-Za-z_]|[0-9])'
+CALL_ERE='killpg[[:space:]]*\(|=[[:space:]]*([A-Za-z_][A-Za-z0-9_.]*\.)?killpg[[:space:]]*;?[[:space:]]*$|syscall\.Kill[[:space:]]*\([[:space:]]*-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-|pkill[[:space:]]+-g[[:space:]]|kill[[:space:]]+-"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-("?\$\{?[A-Za-z_]|[0-9])'
 
 # Guard-proximity ERE: a pid/pgid/gid-family identifier compared to 1 via
 # ANY ordering comparator (>, >=, <, <=, -gt, -ge, -lt, -le; either operand
@@ -204,7 +204,7 @@ CALL_ERE='killpg[[:space:]]*\(|syscall\.Kill[[:space:]]*\([[:space:]]*-|(^|[^[:a
 # both the affirmative "if pid > 1: dangerous()" idiom AND the equally
 # legitimate negated raise-early idiom "if pid <= 1: raise(...)" are real,
 # common guard shapes and BOTH must clear this gate without a false refusal.
-GUARD_ERE='(pid|pgid|gid|process_group|pgrp)[A-Za-z0-9_]*[[:space:]]*(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|$)|1[[:space:]]*(<=?|>=?)[[:space:]]*(pid|pgid|gid|process_group|pgrp)'
+GUARD_ERE='(pid|pgid|gid|process_group|pgrp)[A-Za-z0-9_]*[^A-Za-z0-9_]{0,3}(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|$)|1[[:space:]]*(<=?|>=?)[[:space:]]*(pid|pgid|gid|process_group|pgrp)'
 
 # ── Guard must be scoped to THE CALL'S OWN TARGET (§11.4.201 false-negative) ─
 # The family-name GUARD_ERE above is NOT identifier-scoped: it clears a call
@@ -271,6 +271,51 @@ target_guarded() {
 # (§11.4.101/§11.4.201).
 LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|pkill[[:space:]]+-g[[:space:]]+[0-9]|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-[0-9]'
 
+# Audited per-line marker: a line carrying `killpg-gate:allow <non-empty reason>` (in a comment) is a
+# reviewed exception (e.g. a test deliberately handing the guard a bad pgid); a marker with no reason does nothing.
+#
+# String/docstring stripper (F3): blanks string literals and triple-quoted docstrings and trailing
+# comments so prose and fixture text are not call sites, while real code (including heredoc python in
+# .sh files) is still scanned. A string handed to a shell/evaluator (`-c "..."`, eval, system(, exec(,
+# popen() is CODE and is kept, as is a bare variable reference "$name" (shell guards/targets use them). An unterminated quote keeps the rest of the line (never hides code).
+read -r -d '' STRIP_AWK <<'AWK' || true
+BEGIN { tq = ""; Q1 = sprintf("%c", 39); Q2 = sprintf("%c", 34) }
+{
+  line = $0; n = length(line); out = ""; i = 1
+  while (i <= n) {
+    if (tq != "") {
+      j = index(substr(line, i), tq)
+      if (j == 0) { i = n + 1; break }
+      i += j - 1 + 3; tq = ""; out = out Q2 Q2; continue
+    }
+    c = substr(line, i, 1); t3 = substr(line, i, 3)
+    if (c == "#" && (i == 1 || substr(line, i - 1, 1) ~ /[ \t]/)) break
+    if (t3 == Q2 Q2 Q2 || t3 == Q1 Q1 Q1) {
+      j = index(substr(line, i + 3), t3)
+      if (j == 0) { tq = t3; i = n + 1; break }
+      out = out Q2 Q2; i += 3 + j - 1 + 3; continue
+    }
+    if (c == Q1 || c == Q2) {
+      k = i + 1; closed = 0
+      while (k <= n) {
+        d = substr(line, k, 1)
+        if (d == "\\") { k += 2; continue }
+        if (d == c) { closed = 1; break }
+        k++
+      }
+      if (!closed) { out = out substr(line, i); i = n + 1; break }
+      pre = substr(line, 1, i - 1)
+      body = substr(line, i, k - i + 1)
+      if (pre ~ /(-c|eval|system\(|exec\(|popen\()[ \t]*$/ || body ~ /^"\$[{]?[A-Za-z_][A-Za-z0-9_]*[}]?"$/) out = out body
+      else out = out c c
+      i = k + 1; continue
+    }
+    out = out c; i++
+  }
+  print out
+}
+AWK
+
 unguarded=0
 guarded=0
 
@@ -279,23 +324,33 @@ for f in "${files[@]}"; do
     # gate's own doc-comments, and any project's comment-only mentions, are
     # never treated as real call sites (§11.4.201(7)(a) — match structure,
     # not substring; a doc mention is a CARRIER, not the thing itself).
-    code_only="$(sed -E 's/^[[:space:]]*(#|\/\/).*$//' "$f" 2>/dev/null || true)"
+    code_only="$(sed -E -e 's/^.*killpg-gate:allow[[:space:]]+[^[:space:]].*$//' -e 's/^[[:space:]]*(#|\/\/).*$//' "$f" 2>/dev/null | awk "$STRIP_AWK" 2>/dev/null || true)"
     [ -n "$code_only" ] || continue
 
     hit_lines="$(printf '%s\n' "$code_only" | grep -nE "$CALL_ERE" 2>/dev/null || true)"
-    # A function DEFINITION (`def safe_killpg(pgid, sig):`) is not a call site, and a call to the
-    # §11.4.263 guarded primitive `safe_killpg`/`_safe_killpg` with an identifier target is not an
-    # unguarded signal: that primitive's own body is scanned here and must carry the pgid>1 guard.
-    # A NUMERIC-LITERAL target (`safe_killpg(1, ...)`) is still kept and still FAILs (§11.4.201(1)/(2)).
-    if [ -n "$hit_lines" ]; then
-        hit_lines="$(grep -vE '^[0-9]+:[[:space:]]*def[[:space:]]+_?[A-Za-z0-9_]*killpg[[:space:]]*\(|^[0-9]+:.*(^|[^[:alnum:]])_?safe_killpg[[:space:]]*\([[:space:]]*[A-Za-z_]' <<<"$hit_lines" || true)"
+    # Is this file entitled to the safe_killpg wrapper exemption?  Only when it DEFINES the primitive
+    # itself (its body is scanned like any other call) or references the canonical module fc_common, and
+    # never when it imports safe_killpg from any other module (a look-alike vendor primitive).
+    wrapper_ok=0
+    if grep -qE '^[[:space:]]*def[[:space:]]+safe_killpg[[:space:]]*\(|fc_common' <<<"$code_only" \
+       && ! { grep -E 'from[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+import[^#]*safe_killpg' <<<"$code_only" \
+              | grep -vE 'from[[:space:]]+([A-Za-z0-9_.]*\.)?fc_common[[:space:]]+import' | grep -q .; }; then
+        wrapper_ok=1
     fi
-    [ -n "$hit_lines" ] || continue
 
     while IFS= read -r hit; do
         [ -n "$hit" ] || continue
         lineno="${hit%%:*}"
         text="${hit#*:}"
+
+        # Remove ONLY the exempt pieces of the line, then re-test what remains (a def header with nothing
+        # after its colon; a canonical safe_killpg(<identifier>, ...) call). Anything else on the same line
+        # (a second raw call, a one-line def body) stays a hit.
+        rest="$(sed -E 's/^[[:space:]]*def[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\([^)]*\)[[:space:]]*(->[^:]*)?:[[:space:]]*//' <<<"$text")"
+        if [ "$wrapper_ok" -eq 1 ]; then
+            rest="$(sed -E 's/(^|[^[:alnum:]_.])(fc_common\.)?_?safe_killpg[[:space:]]*\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*,[^()]*\)/\1/g' <<<"$rest")"
+        fi
+        grep -qE "$CALL_ERE" <<<"$rest" || continue
 
         start=$(( lineno - window ))
         [ "$start" -lt 1 ] && start=1
