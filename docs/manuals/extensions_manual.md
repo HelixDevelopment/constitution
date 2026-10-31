@@ -69,4 +69,12 @@ Plain scalars a YAML 1.1 reader would reinterpret (octal/hex numbers, floats, `y
 - Sharing limit: byte-identical content locked by two projects (or a cloned lock) shares one tree under `_installed/`; `remove` by one project moves that tree, so the other project's `verify` then reports it missing. A tree with different content under the same id is left in place and only the removing project's lock entry is dropped.
 - `remove` refuses ids that are not in this project's lock and ids for which this checkout has no valid HMAC-signed state record (a cloned lock is not proof of installation); the add and remove journals are HMAC-signed; symlinked or foreign shared directories are refused (checked against `ext_engine.py` `cmd_remove`, `RULE:F1-lock-membership`, `F3-own-record`, `F2-journal-mac`, `F4-remove-journal-mac`; the symlinked/foreign-shared-dir refusal itself was not re-read line by line here: UNCONFIRMED).
 
+### Known limits added in round 12 (not fixed)
+
+- **F-1 (known, not fixed).** `remove` can delete a shared tree after `enable` re-consent in a second clone that holds a copied lock: `enable` writes a signed state record for any id present in the lock, and `remove` accepts that record as proof of ownership.
+- **F-2 (known, not fixed).** A state record / `add` journal is not bound to the constitution root. A project that installed the id under another root can therefore remove a shared tree with an identical digest.
+- **S2 (known, not fixed).** A parent-directory swap during `_copy_tree` can make the copy read outside content; it is caught afterwards by the pinned-digest check, not prevented.
+- **No reference counting.** `remove` by one project breaks another project's `verify` on the shared tree.
+- Status: the engine is experimental and dormant, and has NOT been independently reviewed to a GO. No GO is claimed. The ownership redesign (an "installed by this checkout" marker set only by `add`, bound to the root realpath and the tree identity, never by `enable`) is a tracked release-2 item.
+
 Related: [guide](../guides/extensions_guide.md), [FAQ](../faq/extensions_faq.md), [lifecycle diagram](../diagrams/extension_lifecycle.md).

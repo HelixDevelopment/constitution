@@ -63,9 +63,14 @@ when the lock has the id with the journal's `sha256`, the state record is rolled
 lock has the id with a DIFFERENT sha256, nothing is deleted and a warning is printed. An interrupted
 `remove` is rolled back (trash renamed back) when the lock still has the id, completed otherwise.
 A journal that does not validate is never acted on: a loud WARNING is printed, nothing is deleted
-or renamed, and `add`/`remove` refuse until a person inspects and deletes it. Staging/trash
-directories are cleaned only when their name matches the strict pattern, they are real directories
-(not symlinks) and their owning pid is dead.
+or renamed, and `add`/`remove` refuse until a person inspects and deletes it. Both `add` and `remove`
+journals must be HMAC-signed with this checkout's key; an unsigned or forged one is a journal that
+does not validate. `.staging-<pid>-<8hex>` directories are swept only when the name matches the strict
+pattern, they are real directories (not symlinks) owned by this user, and the pid is in range (at most
+4194304) and dead; an out-of-range pid is left in place with a NOTE and never crashes the command (A3).
+`.trash-<pid>-<8hex>` directories are NOT swept by the pid alone: they are kept unless the journal that
+names them proves it is the same tree (identity match), because the root can be shared with another
+project's interrupted remove.
 
 ## Security rules added by the 2026-10-29 review (R11-R19)
 

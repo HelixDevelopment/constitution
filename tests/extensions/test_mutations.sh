@@ -521,6 +521,8 @@ E1r11 F4 remove journal not signed‖round11‖ext_engine.py‖        jr["mac"]
 @@
 E1r11 F4 remove journal signature not required‖round11‖ext_engine.py‖        if op in ("add", "remove"):  # RULE:F2-journal-mac‖        if op == "add":  # RULE:F2-journal-mac
 @@
+E1r12 A3 staging pid unbounded‖round12‖ext_engine.py‖                    if len(m.group(2)) > 7 or int(m.group(2)) > 4194304:  # RULE:A3-staging-pid-bound‖                    if False:  # RULE:A3-staging-pid-bound
+@@
 E1r8 S1 remove-journal identity not compared‖unit round9‖ext_engine.py‖        return isinstance(ident, list) and _ident_of(aux) == ident‖        return True
 @@
 E1r8 S1 remove journal records no identity‖unit round9‖ext_engine.py‖        if mine and _ident_of(final) is not None:  # RULE:S1-ident‖        if False and _ident_of(final) is not None:  # RULE:S1-ident

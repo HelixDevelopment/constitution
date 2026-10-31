@@ -2089,6 +2089,10 @@ class Engine:
                 m = STAGING_RE.match(n)
                 full = os.path.join(self.inst_dir, n)
                 if m and stat.S_ISDIR(os.lstat(full).st_mode) and os.lstat(full).st_uid == os.geteuid():  # RULE:S1-sweep-owner
+                    if len(m.group(2)) > 7 or int(m.group(2)) > 4194304:  # RULE:A3-staging-pid-bound
+                        # an out-of-range pid can never be proven dead (os.kill would raise); leave it alone
+                        self.err("NOTE: %s has a process id outside the valid range; it was left in place" % full)
+                        continue
                     pid = int(m.group(2))
                     if pid == os.getpid() or _alive(pid):
                         continue

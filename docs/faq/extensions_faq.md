@@ -35,4 +35,6 @@
 
 **12. Is it safe with two projects sharing one constitution?** Locks serialise them, but one project's `remove` deletes a tree another project's lock still names.
 
+**13. What are the known limits?** The engine is experimental, dormant and not independently GO'd. Unfixed: F-1 and F-2 (a project can remove a shared tree it did not install, via a copied lock or another root), S2 (copy race, caught afterwards by the digest check), no reference counting. See the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed). The ownership redesign is a tracked release-2 item.
+
 Related: [guide](../guides/extensions_guide.md), [manual](../manuals/extensions_manual.md), [troubleshooting](../guides/troubleshooting_guide.md).

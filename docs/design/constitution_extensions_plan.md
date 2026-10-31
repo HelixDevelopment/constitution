@@ -164,3 +164,15 @@ Class: a command that renames, deletes or sweeps under the shared `extensions/_i
 ## Round 11 note (F3 remove needs this checkout's own record, F4 the remove journal is signed)
 
 F3 (high): the lock is committed, so a project can hold a copy of another project's lock whose tree digest matches the shared tree; round 10's ownership proof (id in lock AND digest equal) was therefore satisfied by a copy, and `remove` deleted the other project's tree. `cmd_remove` now also requires a valid HMAC-signed local state record for the id (the record is never committed and is keyed by this checkout's own key); a missing or invalid record, or a missing key, refuses with exit 3 and leaves the tree and the lock. A lock-vs-record field difference does not by itself refuse here (it is reported by `verify`). F4 (medium): the remove journal is HMAC-signed with the same scheme as the add journal (the MAC is domain-separated by the op, so an add MAC is not a remove MAC); an unsigned or forged remove journal is left in place with a warning and add/remove refuse while it is present. Not done (UNCONFIRMED as needed): refusing removal while another project's live wiring points at the shared tree; the root keeps no registry of projects, so this is not cheaply detectable and is documented as a remaining limit. Existing tests that handwrote unsigned remove journals now sign them with `sign_journal` (lib.sh). Tests: `test_round11.sh`, unit `test_f4_*`, mutants `E1r11 F3`, `E1r11 F4` (two rows).
+
+## Round 12 note and KNOWN LIMITS (no fix claimed)
+
+A3 (source-defect, fixed): the staging/trash sweep did `int(pid)` then `os.kill`; a directory such as `_installed/.staging-99999999999999999999999-deadbeef` raised OverflowError and made every mutating command exit 1. The pid is now bounded like the temporary-file pattern (at most 4194304); an out-of-range pid is left in place with a NOTE. Regression: `tests/extensions/test_round12.sh`, mutant `E1r12 A3 staging pid unbounded`.
+
+### Known limits (honest; not fixed)
+
+- **F-1 (known, not fixed).** `remove` can delete a shared tree after `enable` re-consent in a second clone that holds a copied lock: `enable` writes a signed state record for any id present in the lock, and `remove` accepts that record as proof of ownership.
+- **F-2 (known, not fixed).** A state record / `add` journal is not bound to the constitution root. A project that installed the id under another root can therefore remove a shared tree with an identical digest.
+- **S2 (known, not fixed).** A parent-directory swap during `_copy_tree` can make the copy read outside content; it is caught afterwards by the pinned-digest check, not prevented.
+- **No reference counting.** `remove` by one project breaks another project's `verify` on the shared tree.
+- Status: the engine is experimental and dormant, and has NOT been independently reviewed to a GO. No GO is claimed. The ownership redesign (an "installed by this checkout" marker set only by `add`, bound to the root realpath and the tree identity, never by `enable`) is a tracked release-2 item.

@@ -46,4 +46,8 @@ bash $E unwire my_ext --agent all; bash $E disable my_ext; bash $E remove my_ext
 
 `extensions.state/` is local and git-ignored, so `verify` exits 5 until each enabled entry is re-consented (`enable <id> --yes`). That is by design.
 
+## Known limits
+
+The engine is experimental and dormant and has not been independently reviewed to a GO. Known, unfixed ownership limits (shared-tree removal after re-consent with a copied lock, records not bound to the constitution root, a directory-swap race in the tree copy, no reference counting) are listed in the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed). Do not share one constitution root between projects you do not control.
+
 Next: [manual](../manuals/extensions_manual.md), [FAQ](../faq/extensions_faq.md), [tutorial 07](../tutorials/07_installing_an_extension.md), [troubleshooting](troubleshooting_guide.md).
