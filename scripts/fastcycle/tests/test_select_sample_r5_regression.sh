@@ -734,7 +734,7 @@ PY
   run_mutant M2_oldest_n "$SS" 'for atm_id in reversed(ids):' 'for atm_id in ids:'
   # V2 new mutants (reviewer, verbatim effect).
   run_mutant SS_N1_asof_day_dropped "$SS" 'r["on_date"][:10] <= as_of]' 'r["on_date"][:10] < as_of]'
-  run_mutant SS_N3_negative_gap_retroactive "$SS" 'return 0 <= gap < 60' 'return gap < 60'
+  run_mutant SS_N3_negative_gap_retroactive "$SS" 'return "retroactive" if 0 <= gap < 60 else "normal"' 'return "retroactive" if gap < 60 else "normal"'
   run_mutant SS_N4_recency_row_id_only "$SS" 'return (created_at, hist_id, atm_id)' 'return (hist_id, atm_id)'
   # Own: the recorded operator decision flipped (excluded rows consume the quota = round-1 V2-1 bug).
   run_mutant excluded_count_toward_n "$SS" 'EXCLUDED_ROWS_COUNT_TOWARD_N = False' 'EXCLUDED_ROWS_COUNT_TOWARD_N = True'

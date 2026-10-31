@@ -125,22 +125,34 @@ def parse_iso(value):
     return dt
 
 
+def retroactive_state(history):
+    """Tri-state form of the retroactive-registration rule: "retroactive",
+    "normal", or "unparseable" (the Opened or closure created_at is missing
+    or malformed, so the gap cannot be computed). A bare `except Exception:
+    return False` used to fold "unparseable" into "normal", so an item with a
+    corrupt timestamp was silently counted as an ordinary closure and the
+    rate moved with no trace (§11.4.201(6)); the caller now LISTS such items."""
+    opened = next((r for r in history if r.get("event_type") == "Opened"), None)
+    closed = next((r for r in reversed(history) if r.get("event_type") in CLOSURE_EVENTS), None)
+    if not opened or not closed:
+        return "normal"
+    try:
+        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return "unparseable"
+    return "retroactive" if 0 <= gap < 60 else "normal"
+
+
 def is_retroactive_registration(history):
     """Identical rule to cycle_report.py's flag_retroactive_registration and
     select_sample.py's detect_retroactive_registration: Opened -> terminal
     closure created_at (db-write) gap in [0, 60) seconds. Reimplemented here
     (never imported) -- this tree's established convention is that each
     flat CLI tool carries its own copy of a shared rule rather than
-    cross-importing another tool's module."""
-    opened = next((r for r in history if r.get("event_type") == "Opened"), None)
-    closed = next((r for r in reversed(history) if r.get("event_type") in CLOSURE_EVENTS), None)
-    if not opened or not closed:
-        return False
-    try:
-        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
-    except Exception:
-        return False
-    return 0 <= gap < 60
+    cross-importing another tool's module. An unparseable timestamp is not
+    retroactive here (it cannot be proven so) but is reported separately by
+    retroactive_state()."""
+    return retroactive_state(history) == "retroactive"
 
 
 def has_closure_ever(history):
@@ -219,6 +231,7 @@ def compute_window(as_of, window_days):
 # ---------------------------------------------------------------------------
 def derive_type_block(item_ids, hist_by_item, frm, to):
     excluded = []
+    unparseable = []
     matched_closed = []
     dedup_removed_total = 0
     deduped_by_item = {}
@@ -228,10 +241,13 @@ def derive_type_block(item_ids, hist_by_item, frm, to):
         deduped_by_item[aid] = rows
         dedup_removed_total += removed
         if closed_in_window(rows, frm, to):
-            if is_retroactive_registration(rows):
+            rstate = retroactive_state(rows)
+            if rstate == "retroactive":
                 excluded.append(aid)
             else:
                 matched_closed.append(aid)
+                if rstate == "unparseable":
+                    unparseable.append(aid)
 
     # A Reopened-in-window item that is NOT a member of the closed-in-
     # window (matched) population and was NOT excluded as retroactive is a
@@ -264,6 +280,9 @@ def derive_type_block(item_ids, hist_by_item, frm, to):
         block["excluded_retroactive"] = [
             {"item_id": aid, "reason": RETROACTIVE_REASON} for aid in sorted(excluded)
         ]
+    if unparseable:
+        # counted (retroactivity cannot be proven) but never silent
+        block["unparseable_timestamps"] = sorted(unparseable)
     if mismatched:
         # NEVER divide two mismatched counts (the "18 of 31" defect) --
         # refuse and name the mismatched item(s) instead.
@@ -291,6 +310,7 @@ def derive_report(items, history, frm, to):
     total_dedup_removed = 0
     total_excluded = []
     total_mismatched = []
+    total_unparseable = []
 
     for t in ITEM_TYPES:
         ids = ids_by_type.get(t, [])
@@ -301,6 +321,7 @@ def derive_report(items, history, frm, to):
         total_dedup_removed += block["dedup_rows_removed"]
         total_excluded.extend(excluded)
         total_mismatched.extend(mismatched)
+        total_unparseable.extend(block.get("unparseable_timestamps", []))
 
     overall = {
         "reopened": total_reopened,
@@ -312,6 +333,8 @@ def derive_report(items, history, frm, to):
         overall["excluded_retroactive"] = [
             {"item_id": aid, "reason": RETROACTIVE_REASON} for aid in sorted(total_excluded)
         ]
+    if total_unparseable:
+        overall["unparseable_timestamps"] = sorted(set(total_unparseable))
     if total_mismatched:
         # The Bug type's own mismatch MUST NOT be silently dropped from, nor
         # silently included in, the aggregate -- the overall rate refuses
@@ -484,6 +507,11 @@ def main(argv):
         "excluded_retroactive": excluded_retroactive,
     }
     write_report(args.out, body, run_meta)
+    if overall.get("unparseable_timestamps"):
+        print("reopen_rate: WARNING %d item(s) have an unparseable Opened/closure created_at and were "
+              "counted without a retroactive check: %s"
+              % (len(overall["unparseable_timestamps"]), ",".join(overall["unparseable_timestamps"])),
+              file=sys.stderr)
     print(
         "reopen_rate: window=[%s, %s] overall reopened=%d closed=%d rate=%s"
         % (window["from"], window["to"], overall["reopened"], overall["closed"], overall.get("rate"))

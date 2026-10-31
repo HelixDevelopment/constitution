@@ -55,7 +55,7 @@ for g in $GATES; do
     else bad "[$g] GREEN: rc=$RC, no SKIP line: $(printf '%s' "$OUT" | tail -2 | cut -c1-160)"; fi
     # determinism x3
     # verdict identity (id + verdict columns + rc): some gates embed a per-run mktemp path in their free-text column
-    vh() { printf '%s\n' "$OUT" | awk -F'\t' '{ if (NF>=3) print $1, $2, $3; else print "L", length($0) > 0 }' | sha256sum; }
+    vh() { printf '%s\n' "$OUT" | awk -F'\t' '{ if (NF>=3) print $1, $2, $3; else print "L", length($0) }' | sha256sum; }
     h1=$(vh); run "$sb/canon" "$g" --standalone-canon; h2=$(vh); run "$sb/canon" "$g" --standalone-canon; h3=$(vh)
     if [ "$h1" = "$h2" ] && [ "$h2" = "$h3" ]; then ok "[$g] determinism: 3 identical runs"; else bad "[$g] determinism: runs differ"; fi
     # mutation: flag handler neutralised -> the declared run must stop being an honest SKIP

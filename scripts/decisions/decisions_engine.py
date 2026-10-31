@@ -498,6 +498,10 @@ def check_contradictions(eff):
 
 
 def is_locked(key):
+    # "locked" is a property of a KNOWN key: a key spec_for refuses is not locked, it is invalid. That is safe
+    # because every caller first validates (validate_map/check_key) or round-trips through parse_override_data,
+    # which refuses it with a named error (tests/decisions/test_is_locked_contract.sh pins this). Returning
+    # True here instead would make drop_locked() silently discard invalid input, which is the worse direction.
     try:
         return "locked" in spec_for(key)[2]
     except Refused:

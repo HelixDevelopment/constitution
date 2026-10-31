@@ -1980,15 +1980,17 @@ def real_alias(path):
         prefix, rest = "/".join(comps[:k]) or "/", "/".join(comps[k:])
         try:
             rp = os.path.realpath(prefix)
-        except Exception:
+        except (ValueError, OSError):
+            # "no extra resolution" (embedded NUL / unreadable). NUL text is analysed stripped by run(), so
+            # this is not a bypass; any other exception propagates to main()'s fail-closed block.
             return None
         if rp == (prefix.rstrip("/") or "/"):
             return None
         return (rp.rstrip("/") + "/" + rest) if rest else rp
     try:
         rp = os.path.realpath(strip_tail(path))
-    except Exception:
-        return None
+    except (ValueError, OSError):
+        return None  # same contract as above: only "cannot resolve" is silent, anything else fails closed
     return rp if rp != strip_tail(path) else None
 
 
@@ -3670,6 +3672,11 @@ def run(payload):
         text = script_text(path, body, head)
         if text is not None:
             texts.append(text)
+    # A shell fed text on stdin silently DROPS NUL bytes (measured: `printf 'echo ho\0me' | bash` prints
+    # `home`), so `rm -rf /ho<NUL>me` runs as `rm -rf /home`. The guard's own sentinels use NUL, and
+    # realpath() raises ValueError on one, so the original text is analysed AND the NUL-stripped text the
+    # shell would actually execute (§11.4.287; was a silent allow, see canon_self_scan_triage_2026_10_31.md).
+    texts = texts + [t.replace("\0", "") for t in texts if "\0" in t]
     findings, markers = [], []
     pcwd = payload.get("cwd")
     start_cwd = None
