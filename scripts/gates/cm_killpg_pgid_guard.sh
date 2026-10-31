@@ -14,68 +14,64 @@
 # `isinstance(pgid,int) and pgid>1` BEFORE every process-group signal call —
 # `os.killpg` (Python), `syscall.Kill(-pgid,sig)` (Go), `nix::killpg` (Rust),
 # `kill -<pgid>` / `pkill -g` (Bash), `killpg`/`kill(-pid,sig)` (C). This gate
-# is the pre-build STATIC scanner half of clause (D)'s four-layer defense: it
-# walks production source for a dangerous process-group-signal call site and
-# FAILs when no guard comparing a pid/pgid/gid-named identifier to `1` via a
-# `>`/`>=`/`-gt` comparator appears within a preceding window of source lines.
+# is the pre-build STATIC scanner half of clause (D)'s four-layer defense.
 #
-# ── Detection scope (honest, stated tradeoff — §11.4.6) ─────────────────────
-# This is a bounded-window regex-proximity heuristic, NOT a data-flow or AST
-# analysis (infeasible for a portable multi-language shell/awk scanner within
-# this gate's scope). It WILL correctly clear the anchor's own prescribed
-# guard idiom — the pgid bound to a NAME and that NAME compared to 1 before
-# the call, e.g. `pgid = os.getpgid(pid); if pgid > 1: os.killpg(pgid, sig)`
-# — and WILL correctly flag the literal BOB-126 shape (a bare, unguarded
-# `os.killpg(os.getpgid(proc.pid), signal.SIGKILL)`).
+# ── Design (round 4, STRUCTURAL; §11.4.276(E)) ──────────────────────────────
+# Whether a string runs depends on data flow, so a text scanner can NOT soundly decide "this string is
+# inert prose, that one is a command". The gate therefore does NOT try:
+#   * STRINGS ARE CODE-BEARING BY DEFAULT. Every literal in the file (string, docstring, heredoc body,
+#     f-string, raw string) that spells a group kill (`killpg(`, `kill -9 -1`, `kill -s S -- -$pg`,
+#     `pkill -g`, `syscall.Kill(-p,..)`, ...) is a finding exactly like code. Only REAL COMMENTS are
+#     ignored. Fixture / prose text that legitimately spells a kill (a test handing the guard a bad pgid,
+#     a docstring) is exempted with the audited allow marker below, on a test path.
+#   * PYTHON (.py) is analysed exactly: python3 `tokenize` yields the comment, string and f-string
+#     tokens, so comments are blanked precisely and strings are never guessed about. A file that does not
+#     tokenize is a FAIL (cannot analyse), never a pass.
+#   * SHELL (.sh/.bash), GO, RUST, C/C++ are BEST EFFORT: a quote-aware scanner strips comments (shell '#'
+#     only at a word start; C-like // and /* */) and tracks quote state. It does not parse nested
+#     `$( ... )` quoting, Rust raw strings with embedded quotes, or heredoc bodies (kept as raw code). If
+#     the quote state is still open at end of file the file is scanned RAW (nothing stripped).
 #
-# The guard must be scoped to THE CALL'S OWN TARGET: a window guard on a
-# DIFFERENT pid-family variable does not clear the call (see `extract_target`
-# / `target_guarded` below for the forensic shape this closes). Two honest,
-# bounded consequences, documented rather than silent (§11.4.6):
-#   * a call whose target is an INLINE EXPRESSION rather than a name
-#     (`os.killpg(os.getpgid(proc.pid), sig)`) can never be proven guarded by
-#     a text scanner and is reported UNGUARDED. This is not a workaround to
-#     route around — §11.4.263(B) mandates validating the pgid too, which is
-#     only expressible by binding it to a name first;
-#   * a guard placed further than `KILLPG_GUARD_WINDOW` (default 6) lines
-#     above the call site is likewise not seen.
-# Neither is an attempt at full soundness this class of scanner cannot
-# honestly claim.
+# Three finding types, all scanned on the comment-free text:
+#   A  a group-kill CALL / SHELL form anywhere (strings kept): `killpg(`, `kill -9 -1`, `pkill -g`,
+#      Go `syscall.Kill(-p)`, Rust `kill(Pid::from_raw(-p))`, ...; guarded only if the call's OWN target
+#      identifier is compared to 1 with the RIGHT direction in the preceding window (below).
+#   B  a bare, non-call reference to the identifier `killpg` OUTSIDE any string (alias, import-as,
+#      default argument, dict value ...): cannot be proven guarded, a finding by construction.
+#   C  a string literal that is exactly `killpg` / `x.killpg` (getattr(os, "killpg")), unless it is an
+#      operand of ==/!= (a comparison is not a use).
 #
-# Shell-form detection is deliberately NARROW but covers the real spellings: `pkill -g`, and a negated
-# group target after `kill` with any option/signal words (`kill -9 -"$pg"`, `kill -s KILL -"$pg"`,
-# `kill -9 -- -"$pg"`, `kill -- -1`), plus Python `subprocess`/`os.system`/`sh -c` strings, Go
-# `syscall.Kill(-p, ..)` / `unix.Kill(0-p, ..)`, Rust `kill(Pid::from_raw(-p), ..)`. An ordinary
-# single-process `kill -9 $pid` is NOT flagged (precision matters, §11.4.201(1)).
+# ── Guard rule (direction-aware, §11.4.201 both ways) ───────────────────────
+# A window guard must establish `target > 1`: `T > N`, `T <= N` (raise-early) with N>=1; `T >= N`,
+# `T < N` (raise-early) with N>=2; mirrored forms `N < T`, `N <= T`... and shell -gt/-le/-ge/-lt likewise.
+# `T >= 1` and `T < 1` leave pgid == 1 reachable and are NOT guards. The guard must be on the call's OWN
+# target; a comparator on a different variable never clears it. Honest limits (§11.4.6): the scanner does
+# not check WHICH branch the comparator controls, and a numeric-literal target (`killpg(1, 9)`,
+# `kill -9 -1`) is always a finding (no guard can make a hardcoded 1 safe). A target that is an inline
+# expression cannot be proven guarded and is reported (bind the pgid to a name first).
 #
-# ── What counts as code (round 3: structural, not a line blanker; §11.4.276(C)) ─────────────────────
-# One awk tokenizer (per language: py | sh | c-like) blanks ONLY text that is provably inert: real
-# comments, string literals not handed to an executor, heredoc bodies of cat/tee/read. Everything else,
-# and anything it cannot parse, stays CODE (fail closed): strings given to run/Popen/system/call-class
-# sinks, any `shell=True` line, any string after `-c`/`-e`, unknown shell command words, `$(..)`/backtick
-# content inside double quotes, f-string replacement fields, python3 heredoc bodies (scanned as python)
-# and sh-family heredoc bodies (scanned as shell). Triple quotes are tracked for `.py` only; shell single
-# quotes take no backslash escapes. A tokenizer failure is a FAIL, never a pass.
+# ── Known gaps (documented, not hidden; the reviewer corpus lists them as KNOWN_GAP) ─────────────────────
+# runtime-assembled commands and name flow (a variable assigned a string and run later, getattr tricks
+# with computed names, `str(-pg)` list elements), exec wrappers that hide the command, shell quote desync
+# inside nested `$(...)`, Rust raw strings with embedded quotes, guard windows fakeable by comment-like
+# text in sh/go, no check of which branch a comparator controls, and sh/go aliasing (g10).
 #
-# A non-call mention of the identifier `killpg` (alias, getattr, import-as, default argument, dict value)
-# is a finding; a bare `X.killpg = <value>` assignment (monkeypatch) and a `def _fake_killpg(..)` double
-# are not signals (their right-hand side / parameters are still scanned). The sanctioned
-# `fc_common.safe_killpg` wrapper is exempt only behind a real `import fc_common` / `from fc_common import
-# safe_killpg` (no rename, no star import, no rebinding).
+# The sanctioned `fc_common.safe_killpg` wrapper is exempt only behind a real `import fc_common` /
+# `from fc_common import safe_killpg` (checked on the non-string view; no rename, no star import, no
+# rebinding). A bare `X.killpg = <value>` assignment (monkeypatch) and a `def _fake_killpg(..)` double are
+# not signals (their right-hand side / parameters are still scanned).
 #
 # `scripts/gates` is excluded from the default scan root's recursive walk (this file and its
-# mutation-test fixtures legitimately embed the dangerous literal as fixture text). The guard is
-# target-scoped: a `>1`-style comparator on the call's OWN target identifier (any variable name) in the
-# preceding window; a comparator on a different variable never clears it.
+# mutation-test fixtures legitimately embed the dangerous literal as fixture text).
 #
 # ── Audited allow marker ─────────────────────────────────────────────────────
-# `killpg-gate:allow <non-empty reason>` counts ONLY inside a real comment, ONLY in a test path (a
-# tests|test|testing directory, a test_* / *_test.* basename, or a glob in KILLPG_GUARD_ALLOW_PATHS);
-# every suppressed line is printed as `ALLOWED file:line reason`, and a marker anywhere else is printed
-# as `marker IGNORED` and the line is still scanned.
+# `killpg-gate:allow <non-empty reason>` counts ONLY inside a real comment, ONLY on the line it sits on,
+# ONLY in a test path (a tests|test|testing directory, a test_* / *_test.* basename, or a glob in
+# KILLPG_GUARD_ALLOW_PATHS); every suppressed line is printed as `ALLOWED file:line reason`, and a marker
+# anywhere else is printed as `marker IGNORED` and the line is still scanned.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
-#   cm_killpg_pgid_guard.sh [--root <dir>] [--window N] [--quiet]
+#   cm_killpg_pgid_guard.sh [--root <dir|file>] [--window N] [--quiet]
 #     --root <dir>   scan root (default: $KILLPG_GUARD_ROOT or "..")
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
@@ -83,37 +79,38 @@
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
-#   KILLPG_GUARD_ROOT       default scan root (else --root, else "..")
-#   KILLPG_GUARD_WINDOW     guard-proximity window, lines (default 6)
+#   KILLPG_GUARD_ROOT         default scan root (else --root, else "..")
+#   KILLPG_GUARD_WINDOW       guard-proximity window, lines (default 6)
 #   KILLPG_GUARD_ALLOW_PATHS  extra path globs (relative to the scan root) where the audited allow
-#                            marker is honoured, in addition to the test-path rules above
-#   KILLPG_GUARD_EXT        space-separated source extensions to scan
-#                            (default: "py go rs c cc cpp h hpp sh bash")
-#   KILLPG_GUARD_EXCLUDE    space-separated dir-name globs to prune
-#                            (default: ".git node_modules vendor .venv
-#                             __pycache__ scripts/gates out build dist")
+#                             marker is honoured, in addition to the test-path rules above (read into an
+#                             array, never glob-expanded against the cwd)
+#   KILLPG_GUARD_EXT          space-separated source extensions to scan
+#                             (default: "py go rs c cc cpp h hpp sh bash")
+#   KILLPG_GUARD_EXCLUDE      space-separated dir-name globs to prune
+#                             (default: ".git node_modules vendor .venv __pycache__ scripts/gates out
+#                             build dist)
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
-#   Per-hit evidence line (file:line + matched call-site text) + a final
-#   PASS / FAIL verdict with the guarded/unguarded hit counts.
+#   Per-hit evidence line (file:line + matched text) + a final PASS / FAIL verdict with the
+#   guarded/unguarded hit counts.
 #
 # ── Side-effects ─────────────────────────────────────────────────────────────
-#   None (read-only; no network, no commit, no process signaled — the scanner
-#   NEVER executes a real killpg/kill syscall, it only reads source text).
+#   None (read-only; no network, no commit, no process signaled — the scanner NEVER executes a real
+#   killpg/kill syscall, it only reads source text). Temporary files live in a private mktemp -d.
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, find, grep (GNU or BSD ERE), awk. Parses clean under bash -n.
+#   bash, find, grep (GNU or BSD ERE), sed, python3 (stdlib only: comment/string extraction). Parses
+#   clean under bash -n.
 #
 # ── Cross-references ─────────────────────────────────────────────────────────
-#   §11.4.263 (the anchor enforced — full clauses A-F), §11.4.201(1)/(7)(a)
-#   (false-positive refusal is a FAIL-bluff; match structure not substring),
-#   §11.4.6 (honest documented bounded limitation, never silent), §11.4.28/
-#   §11.4.35 (project-agnostic, env-var-driven), §1.1 (paired mutation:
-#   cm_killpg_pgid_guard_mutation_test.sh).
+#   §11.4.263 (the anchor enforced — full clauses A-F), §11.4.201(1)/(7)(a) (false-positive refusal is a
+#   FAIL-bluff; match structure not substring), §11.4.6 (honest documented limits), §11.4.28/§11.4.35
+#   (project-agnostic, env-var-driven), §11.4.276 (structural round), §1.1 (paired mutation:
+#   cm_killpg_pgid_guard_mutation_test.sh; reviewer corpus: fixtures/killpg_reviewer_corpus.py).
 #
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — PASS (no dangerous call site found, or every one found is guarded).
-#   1 — FAIL (an unguarded process-group signal call site found).
+#   1 — FAIL (an unguarded process-group signal call site found, or a file that cannot be analysed).
 #   2 — environment / argument error.
 #
 # Classification: universal (§11.4.17) — no project-specific literal.
@@ -132,7 +129,7 @@ while [ $# -gt 0 ]; do
         --root) root="$2"; shift 2 ;;
         --window) window="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
-        -h|--help) sed -n '1,90p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) awk 'NR>1 && !/^#/ {exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
@@ -197,71 +194,42 @@ if [ "${#files[@]}" -eq 0 ]; then
     exit 0
 fi
 
-# ── Dangerous call-site ERE (comment-stripped lines only) ──────────────────
+command -v python3 >/dev/null 2>&1 || { echo "${GATE}: python3 is required (comment/string extraction)" >&2; exit 2; }
+
+# ── Dangerous call-site ERE (comment-free text, STRINGS KEPT) ──────────────
 #   * Python/Go/Rust/C:  killpg(          — os.killpg / killpg / nix::killpg
-#   * Go:                syscall.Kill(-   — process-GROUP form (negative pgid)
-#   * C/generic:          kill(-           — kill(-pid,sig) process-group form
-#   * shell:              pkill -g        — pkill's explicit process-group flag
-#   * shell:              kill -"$pgid" / kill -${pgid}  — negated-pgid idiom
-#   * shell:              kill -<SIG> -<target>  — the NEGATED-TARGET process
-#                         group form (`kill -9 -1`, `kill -TERM -"$pgid"`).
-#                         Upstreamed from the boba consumer's local gate,
-#                         which detected the literal shell broadcast-kill
-#                         `kill -9 -1` this scanner was blind to. The SIGNAL
-#                         token deliberately excludes a bare `0`: `kill -0`
-#                         delivers no signal at all (kill(2)) — it is the
-#                         POSIX liveness-PROBE idiom and is structurally
-#                         incapable of the §11.4.263 defect, so flagging it
-#                         would be a §11.4.201(1) false-positive refusal.
-#   * (round 3) ANY non-call reference to the identifier `killpg` (an alias, `getattr`, an import-as, a
-#     dict value, a default argument, a tuple unpack ...) — the simplest fail-closed rule for the alias
-#     class: a reference cannot be guarded, so it is a finding unless it is the sanctioned wrapper;
-#   * (round 3) more spellings of the shell group kill: options between `kill` and the negated target
-#     (`kill -9 -- -1`, `kill -- -1`, `kill -s KILL -"$pg"`, `kill -9 "-$pg"`), the same inside an argv
-#     list (`["kill","-9","-1"]` — adjacent string items are joined before matching), `os.kill(0 - pg, ..)`,
-#     Go `unix.Kill(-p, ..)` / `syscall.Kill(0-p, ..)`, Rust `kill(Pid::from_raw(-p), ..)`.
+#   * Go:                Kill(-  / Kill(0-  — process-GROUP form (negative pgid)
+#   * C/generic:         kill(-           — kill(-pid,sig) process-group form
+#   * shell:             pkill -g         — pkill's explicit process-group flag
+#   * shell:             kill -"$pgid" / kill -${pgid}  — negated-pgid idiom
+#   * shell:             kill [opts] -<target>  — the NEGATED-TARGET process group form
+#                        (`kill -9 -1`, `kill -TERM -"$pgid"`, `kill -s "$sig" -- "-$pg"`). The SIGNAL
+#                        token deliberately excludes a bare `0`: `kill -0` delivers no signal at all
+#                        (kill(2)) — the POSIX liveness-PROBE idiom is structurally incapable of the
+#                        §11.4.263 defect, so flagging it would be a §11.4.201(1) false-positive refusal.
+#   (A bare non-call `killpg` reference is finding type B, decided on the non-string view; an exact
+#   "killpg" string is type C.)
 QCH=$'["\']'
-SH_OPTS='([[:space:]]+(-[A-Za-z1-9][A-Za-z0-9]*([[:space:]]+[A-Za-z1-9][A-Za-z0-9]*)?|--))+'
+SH_VARWORD="${QCH}?"'\$\{?[A-Za-z_][A-Za-z0-9_]*\}?'"${QCH}?"
+SH_OPTS='([[:space:]]+(-[A-Za-z1-9][A-Za-z0-9]*([[:space:]]+('"${SH_VARWORD}"'|[A-Za-z1-9][A-Za-z0-9]*))?|--))+'
 SH_KILL='(^|[^[:alnum:]_.-])kill'
 SH_TGT_VAR="[[:space:]]+${QCH}?-${QCH}?"'\$\{?[A-Za-z_]'
 SH_TGT_NUM="[[:space:]]+${QCH}?-${QCH}?"'[0-9]'
-CALL_ERE='killpg[[:space:]]*\(|(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|pkill[[:space:]]+-g[[:space:]]|kill[[:space:]]+-"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-("?\$\{?[A-Za-z_]|[0-9])'
+CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|pkill[[:space:]]+-g[[:space:]]|kill[[:space:]]+-"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-("?\$\{?[A-Za-z_]|[0-9])'
 CALL_ERE="${CALL_ERE}|${SH_KILL}${SH_OPTS}(${SH_TGT_VAR}|${SH_TGT_NUM})"
+BARE_KILLPG='(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)'
 
-# Guard-proximity ERE: a pid/pgid/gid-family identifier compared to 1 via
-# ANY ordering comparator (>, >=, <, <=, -gt, -ge, -lt, -le; either operand
-# order; either language's syntax). Broadened deliberately (§11.4.201 — a
-# false-positive refusal is exactly as forbidden as a false-negative pass):
-# both the affirmative "if pid > 1: dangerous()" idiom AND the equally
-# legitimate negated raise-early idiom "if pid <= 1: raise(...)" are real,
-# common guard shapes and BOTH must clear this gate without a false refusal.
-GUARD_ERE='(pid|pgid|gid|process_group|pgrp)[A-Za-z0-9_]*[^A-Za-z0-9_]{0,3}(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|$)|1[[:space:]]*(<=?|>=?)[[:space:]]*(pid|pgid|gid|process_group|pgrp)'
-
-# ── Guard must be scoped to THE CALL'S OWN TARGET (§11.4.201 false-negative) ─
-# The family-name GUARD_ERE above is NOT identifier-scoped: it clears a call
-# whenever ANY pid/pgid-family name is compared to 1 in the window. That is a
-# false-negative PASS on the exact BOB-126 shape, e.g.
-#     _pid = proc.pid
-#     if isinstance(_pid, int) and _pid > 1:          # correct guard, wrong var
-#         _pgid = os.getpgid(_pid)
-#         if isinstance(_pgid, int) and _pgid > 0:    # WEAK: 0, not 1
-#             os.killpg(_pgid, SIGKILL)               # pgid==1 still reaches here
-# where the strong `_pid > 1` guard "covers" a target (`_pgid`) that was only
-# ever checked `> 0`. Upstreamed from the boba consumer gate: extract the
-# identifier actually PASSED to the call and require the window to compare
-# THAT identifier to 1.
-#
-# extract_target <matched-line> — prints the call's target identifier (a bare
-# name or a dotted-attribute chain such as `self._pgid`), or nothing when the
-# target is not a plain identifier (a nested call expression, an arithmetic
-# expression). An unextractable target is treated as UNGUARDED — conservative
-# by design (§11.4.101/§11.4.201): the anchor's own prescribed idiom assigns
-# the pgid to a variable and guards that variable, so a nested-call target is
-# a shape this scanner cannot prove safe and must not clear.
+# ── Guard must be scoped to THE CALL'S OWN TARGET, in the RIGHT direction ───
+# extract_target <matched-line> — prints the call's target identifier (a bare name or a dotted-attribute
+# chain such as `self._pgid`), or nothing when the target is not a plain identifier (a nested call
+# expression, an arithmetic expression). An unextractable target is UNGUARDED — conservative by design
+# (§11.4.101/§11.4.201): the anchor's own prescribed idiom binds the pgid to a variable and guards it.
 extract_target() {
-    _et_sh="$(printf '%s\n' "$1" | sed -nE "s/^.*${SH_KILL}${SH_OPTS}[[:space:]]+(${QCH}?-.*)\$/\\5/p")"
-    if [ -n "$_et_sh" ]; then
-        printf '%s\n' "$_et_sh" | sed -nE "s/^[[:space:]]*${QCH}?-${QCH}?\"?\\\$?\\{?([A-Za-z_][A-Za-z0-9_.]*).*/\\1/p"
+    if grep -qE "${SH_KILL}${SH_OPTS}(${SH_TGT_VAR}|${SH_TGT_NUM})" <<<"$1"; then
+        # Several commands on one line: take the first segment that is itself a group kill.
+        _et_seg="$(tr ';' '\n' <<<"$1" | grep -E "${SH_KILL}${SH_OPTS}(${SH_TGT_VAR}|${SH_TGT_NUM})" | sed -n '1p')"
+        _et_sh="$(sed -E "s/^.*${SH_KILL}${SH_OPTS}[[:space:]]+//" <<<"$_et_seg")"
+        sed -nE "s/^${QCH}?-${QCH}?\"?\\\$?\\{?([A-Za-z_][A-Za-z0-9_.]*).*/\\1/p" <<<"$_et_sh"
         return 0
     fi
     printf '%s\n' "$1" | sed -E \
@@ -277,344 +245,358 @@ extract_target() {
 }
 
 # target_guarded <window-text> <target-identifier>
-#   0 (guarded) iff the window compares THAT identifier to the literal 1 with
-#   any ordering comparator, in either operand order and either language's
-#   syntax. Any `.` in a dotted chain is regex-escaped so it matches itself
-#   and never behaves as an "any character" wildcard. Intervening non-word
-#   characters (a closing shell quote, a brace) are tolerated between the
-#   identifier and its comparator.
+#   0 (guarded) iff the window establishes `target > 1` with a comparator of the RIGHT direction (see the
+#   header): T > N / T <= N with N>=1, T >= N / T < N with N>=2, and the mirrored operand order; shell
+#   -gt/-le/-ge/-lt likewise. `T >= 1` and `T < 1` are NOT guards (pgid == 1 stays reachable). Any `.` in
+#   a dotted chain is regex-escaped. Here-strings (not `printf | grep -q`) avoid the SIGPIPE x pipefail
+#   class on a large window (§11.4.276(C)).
+NUM1='[1-9][0-9]*'
+NUM2='([2-9]|[1-9][0-9]+)'
+FILL_L=$'[]"\'})[:space:]]*'
+FILL_R=$'[[:space:]"\'${(]*'
 target_guarded() {
     _tg_window="$1"; _tg_ident="$2"
     [ -n "$_tg_ident" ] || return 1
-    _tg_re="$(printf '%s' "$_tg_ident" | sed 's/\./\\./g')"
-    # here-string, not `printf | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and
-    # read a GUARDED call as unguarded on a large window (SIGPIPE x pipefail class, §11.4.276(C))
+    _tg_re="$(sed 's/\./\\./g' <<<"$_tg_ident")"
+    _tg_t="(^|[^A-Za-z0-9_])${_tg_re}${FILL_L}"
+    _tg_tail='([^0-9.]|$)'
+    _tg_ml='(^|[^0-9.A-Za-z_])'
+    _tg_mr="${FILL_R}${_tg_re}"'([^A-Za-z0-9_]|$)'
     grep -qE \
-"(^|[^A-Za-z0-9_])${_tg_re}[^A-Za-z0-9_]*(>=?|<=?|-gt|-ge|-lt|-le)[[:space:]]*1([^0-9]|\$)|1[[:space:]]*(<=?|>=?)[^A-Za-z0-9_]*${_tg_re}([^A-Za-z0-9_]|\$)" \
+"${_tg_t}(>|-gt)[[:space:]]*${NUM1}${_tg_tail}|${_tg_t}(<=|-le)[[:space:]]*${NUM1}${_tg_tail}|${_tg_t}(>=|-ge)[[:space:]]*${NUM2}${_tg_tail}|${_tg_t}(<|-lt)[[:space:]]*${NUM2}${_tg_tail}|${_tg_ml}${NUM1}[[:space:]]*(<|-lt)${_tg_mr}|${_tg_ml}${NUM2}[[:space:]]*(<=|-le)${_tg_mr}|${_tg_ml}${NUM1}[[:space:]]*(>=|-ge)${_tg_mr}|${_tg_ml}${NUM2}[[:space:]]*(>|-gt)${_tg_mr}" \
         <<<"$_tg_window"
 }
 
 # ── Numeric-literal target ⇒ ALWAYS unguarded (§11.4.201 false-negative fix) ─
-# A call whose process-group target is a NUMERIC LITERAL (`os.killpg(1, ...)`,
-# `kill(-1, sig)`, `syscall.Kill(-1, ...)`, `pkill -g 1`, `kill -9 -1`) is the
-# BOB-126 disaster syscall spelled out in source. No guard can make a hardcoded
-# `1` safe, and the proximity heuristic above is NOT identifier-scoped — so ANY
-# unrelated pid/pgid/gid-family bounds check that happens to sit in the
-# preceding window (even one for a completely different variable, even inside
-# a since-stripped comment) would otherwise clear it. That is a false-negative
-# PASS-bluff on the exact defect class this gate exists to catch. Upstreamed
-# from the boba consumer's local gate, whose identifier-scoped extraction
-# treats an identifier-less (literal/numeric) target as unconditionally
-# unguarded; refusing to guess here is the conservative-safe default
-# (§11.4.101/§11.4.201).
+# A call whose process-group target is a NUMERIC LITERAL (`os.killpg(1, ...)`, `kill(-1, sig)`,
+# `syscall.Kill(-1, ...)`, `pkill -g 1`, `kill -9 -1`) is the BOB-126 disaster syscall spelled out in
+# source. No guard can make a hardcoded `1` safe; refusing to guess is the conservative-safe default.
 LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|pkill[[:space:]]+-g[[:space:]]+[0-9]|kill[[:space:]]+-[A-Za-z1-9][A-Za-z0-9]*[[:space:]]+-[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]'
 LITERAL_TARGET_ERE="${LITERAL_TARGET_ERE}|${SH_KILL}${SH_OPTS}${SH_TGT_NUM}"
 
-# Audited per-line marker: a line carrying `killpg-gate:allow <non-empty reason>` (in a comment) is a
-# reviewed exception (e.g. a test deliberately handing the guard a bad pgid); a marker with no reason does nothing.
-#
-# Code extractor (round-3 structural replacement of the F3 blanker, §11.4.276(C) class closure).
-# One awk program, per-language mode (py | sh | c-like), line-preserving. It blanks ONLY text that is
-# provably inert and keeps everything else (including anything it cannot parse) as CODE:
-#   * real comments (py '#', sh '#' at word start, c-like '//' and '/* */');
-#   * string literals that are not handed to an executor. Code strings: any string inside a call whose
-#     callee name looks like an exec/shell/run/call/popen/system sink, any string on a `shell=True` line,
-#     any string after a `-c`/`-e` argument, a string that is exactly `killpg`/`x.killpg`; in shell, a
-#     string at a command position whose command word is not a known text-only builtin (unknown command
-#     => code), a string piped into a shell, and `$(...)` / backtick contents inside double quotes;
-#   * f-string replacement fields are always code (emitted next to the blanked literal);
-#   * triple quotes are tracked for `py` mode only (never for sh/c-like), shell single quotes take no
-#     escapes (ANSI-C `$'..'` does), Go raw strings span lines;
-#   * heredoc bodies are inert ONLY for `cat`/`tee`/`read` consumers; `python*` bodies are scanned as
-#     python, `sh`-family bodies as shell, every other consumer's body is raw code; a heredoc whose
-#     terminator is not found is not a heredoc (never swallows the rest of the file);
-#   * the audited allow marker `killpg-gate:allow <reason>` counts ONLY inside a real comment, ONLY on a
-#     test path (ALLOWOK), and every use is recorded (the gate prints it as ALLOWED).
-read -r -d '' STRIP_AWK <<'AWK' || true
-# Structural, per-language, fail-closed code extractor for CM-KILLPG-PGID-GUARD.
-# One output line per input line. Only text PROVABLY inert is blanked: real comments, inert strings
-# (not handed to an executor), inert heredoc bodies. Everything else (and anything unparseable) stays CODE.
-# Vars: LANGX (py|sh|c)  ALLOWOK (1 if this file's path may carry the audited allow marker)
-#       FNAME  ALLOWLOG (path; ALLOWED/IGNORED records are appended as "KIND<TAB>file:line<TAB>reason")
-function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
-function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
-function callee_is_sink(pre,    k, nm) {
-  pre = rtrim(pre); k = length(pre); nm = ""
-  while (k >= 1 && substr(pre, k, 1) ~ /[A-Za-z0-9_.]/) { nm = substr(pre, k, 1) nm; k-- }
-  nm = tolower(nm)
-  if (nm == "") return 0
-  return (nm ~ /(run|exec|shell|system|spawn|popen|call|cmd|command|eval|bash|output|getattr|setattr|import_module|__import__|(^|[.])sh$)/)
-}
-function comment_seen(cm, lineno,    r) {
-  if (cm ~ /killpg-gate:allow[ \t]+[^ \t]/) {
-    r = cm; sub(/^.*killpg-gate:allow[ \t]+/, "", r)
-    if (ALLOWOK == 1) { allowed_line = 1; printf "ALLOWED\t%s:%d\t%s\n", FNAME, lineno, r >> ALLOWLOG }
-    else printf "IGNORED\t%s:%d\t%s\n", FNAME, lineno, r >> ALLOWLOG
-  }
-}
-function sh_str_is_code(seg,    t, w, guard) {
-  t = ltrim(seg)
-  if (substr(t, 1, 5) == "@ARR@") return 0
-  if (LINEPIPE) return 1
-  if (t ~ /(^|[ \t])(-[A-Za-z]*[ce]|--command|--eval)[ \t]*$/) return 1
-  guard = 0
-  while (guard++ < 12 && t ~ /^(if|then|elif|else|do|while|until|time|!|\{|\()([ \t]+|$)/) { sub(/^(if|then|elif|else|do|while|until|time|!|\{|\()([ \t]+|$)/, "", t) }
-  while (t ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=[^ \t]*[ \t]+/) sub(/^[A-Za-z_][A-Za-z0-9_]*\+?=[^ \t]*[ \t]+/, "", t)
-  if (t ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=/) return 0
-  if (t == "") return 0
-  w = t; sub(/[ \t].*$/, "", w)
-  if (w ~ /^[$`]/ || w == "S") return 1
-  if (t ~ /(^|[ \t\/])(eval|exec|ssh|su|sudo|nohup|env|timeout|nice|watch|xargs|setsid|trap|python[0-9.]*|perl|ruby|node|awk|gawk|sh|bash|zsh|dash|ksh|busybox|docker|podman|kubectl|chroot|flock|runuser|unshare|nsenter|fakeroot|strace|taskset|chrt|ionice|stdbuf|systemd-run|parallel|tmux|doas|pkexec|bwrap|firejail|nsjail)([ \t]|$)/) return 1
-  sub(/^.*\//, "", w)
-  if (w ~ /^(echo|printf|cat|tee|grep|egrep|fgrep|rg|sed|read|local|declare|typeset|export|readonly|return|set|unset|shift|for|case|select|let|test|\[|\[\[|true|false|:|print|basename|dirname|head|tail|wc|sort|uniq|cut|tr|diff|cmp|ls|cp|mv|mkdir|touch|chmod|cd|pwd|git|sleep|date|mktemp|readlink|realpath|printenv|expr|wait|mapfile|readarray|ok|bad|pass|fail|skip|warn|info|say|note|log|die)$/) return 0
-  return 1
-}
-function lit_is_code(body) {
-  if (STMTSHELL) return 1
-  if (sdepth > 0 && pd >= sinkpd[sdepth]) return 1
-  if (lastq != "" && lastq ~ /^-[A-Za-z]*[ce]$/ && sincestr ~ /^[ \t,\[]*$/) return 1
-  if (body ~ /^([A-Za-z0-9_.:]*[.:])?killpg$/) return 1
-  return 0
-}
-function f_fields(body,    j, m, dep, e, r, ch) {
-  r = ""; m = length(body); j = 1
-  while (j <= m) {
-    ch = substr(body, j, 1)
-    if (ch == "{" && substr(body, j + 1, 1) == "{") { j += 2; continue }
-    if (ch == "{") {
-      dep = 1; e = ""; j++
-      while (j <= m && dep > 0) { ch = substr(body, j, 1); if (ch == "{") dep++; else if (ch == "}") { dep--; if (dep == 0) break } e = e ch; j++ }
-      r = r " " e " "; j++; continue
-    }
-    j++
-  }
-  return r
-}
-function more_quote(lineno, q,  r) {
-  for (r = lineno + 1; r <= NR; r++) if (index(L[r], q) > 0) return 1
-  return 0
-}
-function tok(line, mode, lineno,    n, i, c, c2, c3, prev, out, j, k, closed, d, body, isf, israw, pfx, ps, iscode, tag, rest, cons, t, ansi, dep, ch, q, rem, dash, found, inner) {
-  n = length(line); i = 1; out = ""
-  if (cb) {
-    j = index(line, "*/")
-    if (j == 0) return ""
-    cb = 0; i = j + 2
-  }
-  if (mode == "py" && tq != "") {
-    j = 0; k = 1
-    while (k <= n) {
-      if (substr(line, k, 1) == "\\") { k += 2; continue }
-      if (substr(line, k, 3) == tq) { j = k; break }
-      k++
-    }
-    if (j == 0) {
-      if (tqcode) return line
-      if (tqf) return f_fields(line)
-      return ""
-    }
-    body = substr(line, 1, j - 1)
-    if (tqcode) out = body tq
-    else if (tqf) out = f_fields(body) " \"\" "
-    else out = "\"\""
-    tq = ""; i = j + 3
-  }
-  if (mode == "c" && graw) {
-    j = index(line, "`")
-    if (j == 0) { if (grawcode) return line; return "" }
-    out = grawcode ? substr(line, 1, j) : "\"\""
-    graw = 0; i = j + 1
-  }
-  if (mode == "sh" && shq != "") {
-    k = 1; j = 0
-    while (k <= n) {
-      ch = substr(line, k, 1)
-      if (shq == "\"" && ch == "\\") { k += 2; continue }
-      if (shq == "'" && shqansi && ch == "\\") { k += 2; continue }
-      if (ch == shq) { j = k; break }
-      k++
-    }
-    if (j == 0) { if (shqcode) return line; return "" }
-    out = shqcode ? substr(line, 1, j) : "\"\""
-    shq = ""; i = j + 1
-  }
-  while (i <= n) {
-    c = substr(line, i, 1); c2 = substr(line, i, 2); c3 = substr(line, i, 3)
-    prev = (i > 1) ? substr(line, i - 1, 1) : ""
-    if (mode == "c" && c2 == "//") { comment_seen(substr(line, i + 2), lineno); break }
-    if (mode == "c" && c2 == "/*") {
-      j = index(substr(line, i + 2), "*/")
-      if (j == 0) { cb = 1; comment_seen(substr(line, i + 2), lineno); break }
-      comment_seen(substr(line, i + 2, j - 1), lineno); i += 2 + j + 1; out = out " "; continue
-    }
-    if (mode == "py" && c == "#") { comment_seen(substr(line, i + 1), lineno); break }
-    if (mode == "sh" && c == "#" && (i == 1 || prev ~ /[ \t;&|()]/)) { comment_seen(substr(line, i + 1), lineno); break }
-    if (c == "\\" && mode != "c") { out = out substr(line, i, 2); shseg = shseg " "; i += 2; continue }
-    if (mode == "py" && (c == "\"" || c == "'")) {
-      pfx = ""; ps = i - 1
-      while (ps >= 1 && length(pfx) < 2 && substr(line, ps, 1) ~ /[rRbBuUfF]/) { pfx = substr(line, ps, 1) pfx; ps-- }
-      if (ps >= 1 && substr(line, ps, 1) ~ /[A-Za-z0-9_]/) pfx = ""
-      isf = (pfx ~ /[fF]/); israw = (pfx ~ /[rR]/)
-      if (c3 == c c c) {
-        k = i + 3; j = 0
-        while (k <= n) {
-          if (substr(line, k, 1) == "\\") { k += 2; continue }
-          if (substr(line, k, 3) == c c c) { j = k; break }
-          k++
-        }
-        body = (j == 0) ? substr(line, i + 3) : substr(line, i + 3, j - i - 3)
-        iscode = lit_is_code(body)
-        if (j == 0) { tq = c c c; tqcode = iscode; tqf = isf; out = out (iscode ? substr(line, i) : (isf ? f_fields(body) " " : "")); i = n + 1; break }
-        out = out (iscode ? substr(line, i, j + 3 - i) : "\"\"" (isf ? f_fields(body) : ""))
-        lastq = body; sincestr = ""; i = j + 3; continue
-      }
-      k = i + 1; closed = 0
-      while (k <= n) {
-        d = substr(line, k, 1)
-        if (d == "\\") { k += 2; continue }
-        if (d == c) { closed = 1; break }
-        k++
-      }
-      if (!closed) { out = out substr(line, i); i = n + 1; break }
-      body = substr(line, i + 1, k - i - 1)
-      iscode = lit_is_code(body)
-      out = out (iscode ? substr(line, i, k - i + 1) : "\"\"" (isf ? f_fields(body) : ""))
-      lastq = body; sincestr = ""; i = k + 1; continue
-    }
-    if (mode == "c" && c == "`") {
-      j = index(substr(line, i + 1), "`")
-      if (j == 0) { graw = 1; grawcode = lit_is_code(""); out = out (grawcode ? substr(line, i) : "\"\""); i = n + 1; break }
-      body = substr(line, i + 1, j - 1); iscode = lit_is_code(body)
-      out = out (iscode ? substr(line, i, j + 1) : "\"\""); lastq = body; sincestr = ""; i += j + 1; continue
-    }
-    if (mode == "c" && c == "\"") {
-      k = i + 1; closed = 0
-      while (k <= n) { d = substr(line, k, 1); if (d == "\\") { k += 2; continue } if (d == "\"") { closed = 1; break } k++ }
-      if (!closed) { out = out substr(line, i); i = n + 1; break }
-      body = substr(line, i + 1, k - i - 1); iscode = lit_is_code(body)
-      out = out (iscode ? substr(line, i, k - i + 1) : "\"\""); lastq = body; sincestr = ""; i = k + 1; continue
-    }
-    if (mode == "c" && c == "'") {
-      if (substr(line, i + 2, 1) == "'") { out = out "' '"; i += 3; continue }
-      if (substr(line, i + 1, 1) == "\\" && substr(line, i + 3, 1) == "'") { out = out "' '"; i += 4; continue }
-      out = out c; i++; continue
-    }
-    if (mode == "sh" && c == "'") {
-      ansi = (prev == "$")
-      k = i + 1; closed = 0
-      while (k <= n) { d = substr(line, k, 1); if (ansi && d == "\\") { k += 2; continue } if (d == "'") { closed = 1; break } k++ }
-      iscode = sh_str_is_code(shseg)
-      if (!closed) {
-        if (!more_quote(lineno, "'")) { out = out substr(line, i); i = n + 1; break }
-        shq = "'"; shqansi = ansi; shqcode = iscode; out = out (iscode ? substr(line, i) : "''"); shseg = shseg ((shseg ~ /=$/) ? "S " : " S "); i = n + 1; break
-      }
-      out = out (iscode ? substr(line, i, k - i + 1) : "''"); shseg = shseg ((shseg ~ /=$/) ? "S " : " S "); i = k + 1; continue
-    }
-    if (mode == "sh" && c == "\"") {
-      iscode = sh_str_is_code(shseg)
-      k = i + 1; closed = 0; inner = ""
-      while (k <= n) {
-        d = substr(line, k, 1)
-        if (d == "\\") { k += 2; continue }
-        if (d == "$" && substr(line, k + 1, 1) == "(") {
-          dep = 1; j = k + 2
-          while (j <= n && dep > 0) { ch = substr(line, j, 1); if (ch == "(") dep++; else if (ch == ")") dep--; j++ }
-          inner = inner " " substr(line, k, j - k) " "; k = j; continue
-        }
-        if (d == "$" && substr(line, k + 1, 1) ~ /[A-Za-z_{]/) {
-          j = k + 1
-          if (substr(line, j, 1) == "{") { while (j <= n && substr(line, j, 1) != "}") j++; j++ }
-          else { while (j <= n && substr(line, j, 1) ~ /[A-Za-z0-9_]/) j++ }
-          inner = inner substr(line, k, j - k); k = j; continue
-        }
-        if (d == "`") {
-          j = k + 1; while (j <= n && substr(line, j, 1) != "`") j++
-          inner = inner " " substr(line, k, j - k + 1) " "; k = j + 1; continue
-        }
-        if (d == "\"") { closed = 1; break }
-        k++
-      }
-      if (!closed) {
-        if (!more_quote(lineno, "\"")) { out = out substr(line, i); i = n + 1; break }
-        shq = "\""; shqansi = 0; shqcode = iscode; out = out (iscode ? substr(line, i) : "\"" inner "\""); shseg = shseg ((shseg ~ /=$/) ? "S " : " S "); i = n + 1; break
-      }
-      out = out (iscode ? substr(line, i, k - i + 1) : "\"" inner "\""); shseg = shseg ((shseg ~ /=$/) ? "S " : " S "); i = k + 1; continue
-    }
-    if (mode == "sh" && c2 == "<<" && substr(line, i + 2, 1) != "<" && prev != "<") {
-      rest = substr(line, i + 2); dash = 0
-      if (substr(rest, 1, 1) == "-") { dash = 1; rest = substr(rest, 2) }
-      rest = ltrim(rest)
-      if (substr(rest, 1, 1) ~ /['"\\]/) rest = substr(rest, 2)
-      tag = rest
-      if (match(tag, /^[A-Za-z_][A-Za-z0-9_]*/)) tag = substr(tag, 1, RLENGTH); else tag = ""
-      if (tag != "") {
-        t = ltrim(shseg)
-        while (t ~ /^(if|then|elif|else|do|while|until|time|!|\{|\()([ \t]+|$)/) sub(/^(if|then|elif|else|do|while|until|time|!|\{|\()([ \t]+|$)/, "", t)
-        while (t ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=[^ \t]*[ \t]+/) sub(/^[A-Za-z_][A-Za-z0-9_]*\+?=[^ \t]*[ \t]+/, "", t)
-        cons = t; sub(/[ \t].*$/, "", cons); sub(/^.*\//, "", cons)
-        found = 0
-        for (q = lineno + 1; q <= NR; q++) { rem = L[q]; if (dash) sub(/^\t+/, "", rem); if (rem == tag) { found = 1; break } }
-        if (found) {
-          hd = tag; hddash = dash
-          hdinert = (!LINEPIPE && (cons == "cat" || cons == "tee" || cons == "read")) ? 1 : 0
-          hdmode = (cons ~ /^python[0-9.]*$/) ? "py" : ((cons ~ /^(ba|z|da|k)?sh$/) ? "sh" : "raw")
-        }
-      }
-      out = out c2; i += 2; continue
-    }
-    if (mode != "sh") {
-      if (c == "(") {
-        pd++
-        if (callee_is_sink(out)) { sdepth++; sinkpd[sdepth] = pd }
-      } else if (c == ")") {
-        if (sdepth > 0 && pd == sinkpd[sdepth]) sdepth--
-        pd--; if (pd < 0) pd = 0
-      }
-      if (c !~ /[ \t,\[]/) { lastq = "" }
-      sincestr = sincestr c
-    }
-    if (mode == "sh") {
-      if (c == "(" && prev == "=") { shseg = "@ARR@" }
-      else if ((c ~ /[;&|(){]/ && !(c == "&" && (prev ~ /[<>]/ || substr(line, i + 1, 1) == ">"))) || (c == "$" && substr(line, i + 1, 1) == "(")) { shseg = "" } else shseg = shseg c
-    }
-    out = out c; i++
-  }
-  return out
-}
-{ L[NR] = $0 }
-END {
-  mode = LANGX; tq = ""; cb = 0; graw = 0; shq = ""; hd = ""; pd = 0; sdepth = 0; lastq = ""; sincestr = ""; shseg = ""; contprev = 0
-  for (ln = 1; ln <= NR; ln++) {
-    line = L[ln]
-    allowed_line = 0
-    if (hd != "") {
-      rem = line; if (hddash) sub(/^\t+/, "", rem)
-      if (rem == hd) { hd = ""; tq = ""; tqcode = 0; tqf = 0; shseg = ""; print ""; continue }
-      if (hdinert) { print ""; continue }
-      if (hdmode == "raw") { print line; continue }
-      res = tok(line, hdmode, ln)
-      if (allowed_line) res = ""
-      print res; continue
-    }
-    LINEPIPE = (line ~ /[|][ \t]*(sudo[ \t]+)?((ba|z|da|k)?sh|python[0-9.]*|perl|ruby|node)([ \t]|$|;|\))/) ? 1 : 0
-    STMTSHELL = (line ~ /shell[ \t]*=[ \t]*True/) ? 1 : 0
-    if (mode == "sh" && !contprev && shq == "") shseg = ""
-    res = tok(line, mode, ln)
-    if (allowed_line) res = ""
-    print res
-    contprev = (line ~ /\\$/) ? 1 : 0
-    if (hd != "") { shseg = "" }
-  }
-}
-AWK
+# ── The comment / string extractor (python3, stdlib only) ───────────────────
+# Usage: helper LANG(py|sh|c) FILE ALLOWOK KEEPOUT NSOUT COUT MARKOUT
+#   KEEPOUT  line-preserving text: real comments blanked, STRINGS KEPT        (finding type A)
+#   NSOUT    line-preserving text: comments AND string contents blanked        (finding type B)
+#   COUT     one line number per line carrying an exact `killpg` string literal (finding type C)
+#   MARKOUT  "KIND<TAB>file:line<TAB>reason" for every audited-marker use (KIND ALLOWED|IGNORED)
+# A line carrying a valid marker on an allow-path is blanked entirely in both views. Exit 3 = cannot
+# analyse (python tokenize failure, NUL byte): the gate treats that as a FAIL, never a pass.
+read -r -d '' PYHELPER <<'PYEOF' || true
+import io
+import re
+import sys
+import tokenize
+
+MARK = re.compile(r'killpg-gate:allow[ \t]+(\S.*)')
+STRKILL = re.compile(r'''(["'])(?:[A-Za-z_][A-Za-z0-9_]*\.)*killpg\1''')
+
+
+def blank(view, sr, sc, er, ec):
+    if sr == er:
+        row = view[sr - 1]
+        for i in range(sc, min(ec, len(row))):
+            row[i] = ' '
+        return
+    row = view[sr - 1]
+    for i in range(sc, len(row)):
+        row[i] = ' '
+    for r in range(sr + 1, er):
+        rw = view[r - 1]
+        for i in range(len(rw)):
+            rw[i] = ' '
+    if er - 1 < len(view):
+        rw = view[er - 1]
+        for i in range(min(ec, len(rw))):
+            rw[i] = ' '
+
+
+def scan_py(text, lines):
+    keep = [list(l) for l in lines]
+    ns = [list(l) for l in lines]
+    marks = {}
+    cl = set()
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        sys.exit(3)
+    skip = (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT)
+    fstr = {getattr(tokenize, n) for n in ('FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END') if hasattr(tokenize, n)}
+
+    def neighbour(i, step):
+        j = i + step
+        while 0 <= j < len(toks):
+            if toks[j].type not in skip:
+                return toks[j]
+            j += step
+        return None
+
+    for i, tok in enumerate(toks):
+        (sr, sc), (er, ec) = tok.start, tok.end
+        if tok.type == tokenize.COMMENT:
+            m = MARK.search(tok.string)
+            if m:
+                marks[sr] = m.group(1)
+            blank(keep, sr, sc, er, ec)
+            blank(ns, sr, sc, er, ec)
+        elif tok.type == tokenize.STRING or tok.type in fstr:
+            blank(ns, sr, sc, er, ec)
+            if tok.type == tokenize.STRING:
+                m = re.match(r'^[A-Za-z]*("""|\'\'\'|"|\')(.*)\1$', tok.string, re.S)
+                if m and re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_]*\.)*killpg', m.group(2)):
+                    prv, nxt = neighbour(i, -1), neighbour(i, 1)
+                    cmp_ = (prv is not None and prv.type == tokenize.OP and prv.string in ('==', '!=')) or \
+                           (nxt is not None and nxt.type == tokenize.OP and nxt.string in ('==', '!='))
+                    if not cmp_:
+                        cl.add(sr)
+    return keep, ns, cl, marks
+
+
+HMARK = re.compile(r'#[ \t]*killpg-gate:allow[ \t]+(\S.*)')
+HD = re.compile(r'<<(-?)[ \t]*(["\']?)([A-Za-z_][A-Za-z0-9_]*)\2')
+
+
+def scan_sh(lines):
+    n = len(lines)
+    keep = [None] * n
+    ns = [None] * n
+    marks = {}
+    in_sq = in_dq = ansi = False
+    hds = []
+    for idx, line in enumerate(lines):
+        if hds:
+            w, strip = hds[0]
+            body = line.lstrip('\t') if strip else line
+            keep[idx] = line
+            ns[idx] = line
+            hm = HMARK.search(line)
+            if hm:
+                marks[idx + 1] = hm.group(1)
+            if body.rstrip('\r') == w:
+                hds.pop(0)
+            continue
+        k = list(line)
+        s = list(line)
+        j = 0
+        L = len(line)
+        newh = []
+        while j < L:
+            c = line[j]
+            if in_sq:
+                if ansi and c == '\\':
+                    s[j] = ' '
+                    if j + 1 < L:
+                        s[j + 1] = ' '
+                    j += 2
+                    continue
+                if c == "'":
+                    in_sq = False
+                    ansi = False
+                else:
+                    s[j] = ' '
+                j += 1
+                continue
+            if in_dq:
+                if c == '\\':
+                    s[j] = ' '
+                    if j + 1 < L:
+                        s[j + 1] = ' '
+                    j += 2
+                    continue
+                if c == '"':
+                    in_dq = False
+                else:
+                    s[j] = ' '
+                j += 1
+                continue
+            if c == '\\':
+                j += 2
+                continue
+            if c == "'":
+                in_sq = True
+                ansi = j > 0 and line[j - 1] == '$'
+                j += 1
+                continue
+            if c == '"':
+                in_dq = True
+                j += 1
+                continue
+            if c == '#' and (j == 0 or line[j - 1] in ' \t;&|(`'):
+                m = MARK.search(line[j:])
+                if m:
+                    marks[idx + 1] = m.group(1)
+                for q in range(j, L):
+                    k[q] = ' '
+                    s[q] = ' '
+                break
+            if c == '<' and line.startswith('<<', j):
+                if line.startswith('<<<', j):
+                    j += 3
+                    continue
+                m = HD.match(line, j)
+                if m:
+                    newh.append((m.group(3), m.group(1) == '-'))
+                    j = m.end()
+                    continue
+                j += 2
+                continue
+            j += 1
+        keep[idx] = ''.join(k)
+        ns[idx] = ''.join(s)
+        hds.extend(newh)
+    if in_sq or in_dq or hds:
+        return list(lines), list(lines), {}, True
+    return keep, ns, marks, False
+
+
+CHR = re.compile(r"'(?:\\.[^']{0,6}|[^\\'])'")
+
+
+def scan_c(lines):
+    n = len(lines)
+    keep = [None] * n
+    ns = [None] * n
+    marks = {}
+    in_blk = in_raw = False
+    for idx, line in enumerate(lines):
+        k = list(line)
+        s = list(line)
+        j = 0
+        L = len(line)
+        while j < L:
+            c = line[j]
+            if in_blk:
+                end = line.find('*/', j)
+                stop = L if end < 0 else end + 2
+                m = MARK.search(line[j:stop])
+                if m:
+                    marks[idx + 1] = m.group(1)
+                for q in range(j, stop):
+                    k[q] = ' '
+                    s[q] = ' '
+                j = stop
+                if end >= 0:
+                    in_blk = False
+                continue
+            if in_raw:
+                if c == '`':
+                    in_raw = False
+                else:
+                    s[j] = ' '
+                j += 1
+                continue
+            nx = line[j + 1] if j + 1 < L else ''
+            if c == '/' and nx == '/':
+                m = MARK.search(line[j:])
+                if m:
+                    marks[idx + 1] = m.group(1)
+                for q in range(j, L):
+                    k[q] = ' '
+                    s[q] = ' '
+                break
+            if c == '/' and nx == '*':
+                in_blk = True
+                end = line.find('*/', j + 2)
+                stop = L if end < 0 else end + 2
+                m = MARK.search(line[j:stop])
+                if m:
+                    marks[idx + 1] = m.group(1)
+                for q in range(j, stop):
+                    k[q] = ' '
+                    s[q] = ' '
+                j = stop
+                if end >= 0:
+                    in_blk = False
+                continue
+            if c == '"':
+                q = j + 1
+                while q < L and line[q] != '"':
+                    q += 2 if line[q] == '\\' else 1
+                for r in range(j + 1, min(q, L)):
+                    s[r] = ' '
+                j = q + 1
+                continue
+            if c == '`':
+                in_raw = True
+                j += 1
+                continue
+            if c == "'":
+                m = CHR.match(line, j)
+                if m:
+                    for r in range(j + 1, m.end() - 1):
+                        s[r] = ' '
+                    j = m.end()
+                    continue
+            j += 1
+        keep[idx] = ''.join(k)
+        ns[idx] = ''.join(s)
+    if in_blk or in_raw:
+        return list(lines), list(lines), {}, True
+    return keep, ns, marks, False
+
+
+def main():
+    lang, path, allowok, keepf, nsf, cf, mf = sys.argv[1:8]
+    allowok = allowok == '1'
+    with open(path, 'rb') as fh:
+        raw = fh.read()
+    text = raw.decode('utf-8', errors='replace')
+    if '\x00' in text:
+        sys.exit(3)
+    lines = text.split('\n')
+    cl = set()
+    if lang == 'py':
+        keep, ns, cl, marks = scan_py(text, lines)
+        keep = [''.join(r) for r in keep]
+        ns = [''.join(r) for r in ns]
+    else:
+        if lang == 'sh':
+            keep, ns, marks, _raw = scan_sh(lines)
+        else:
+            keep, ns, marks, _raw = scan_c(lines)
+        for i, ln in enumerate(keep):
+            for m in STRKILL.finditer(ln):
+                before = ln[:m.start()].rstrip()
+                after = ln[m.end():].lstrip()
+                if before.endswith(('==', '!=', '=~')) or after.startswith(('==', '!=')):
+                    continue
+                cl.add(i + 1)
+    out = []
+    for ln in sorted(marks):
+        if allowok:
+            if ln - 1 < len(keep):
+                keep[ln - 1] = ''
+                ns[ln - 1] = ''
+            cl.discard(ln)
+            kind = 'ALLOWED'
+        else:
+            kind = 'IGNORED'
+        out.append('%s\t%s:%d\t%s' % (kind, path, ln, marks[ln].strip()))
+    with open(keepf, 'w', encoding='utf-8', errors='replace') as fh:
+        fh.write('\n'.join(keep))
+    with open(nsf, 'w', encoding='utf-8', errors='replace') as fh:
+        fh.write('\n'.join(ns))
+    with open(cf, 'w') as fh:
+        fh.write('\n'.join(str(x) for x in sorted(cl)))
+    with open(mf, 'w', encoding='utf-8', errors='replace') as fh:
+        fh.write('\n'.join(out))
+
+
+main()
+PYEOF
+
+TMPD="$(mktemp -d "${TMPDIR:-/tmp}/killpg_gate.XXXXXX")"
+trap 'rm -rf "${TMPD:?}"' EXIT
+HELPER="${TMPD}/strip.py"
+printf '%s\n' "$PYHELPER" > "$HELPER"
+KEEPF="${TMPD}/keep.txt"; NSF="${TMPD}/ns.txt"; CF="${TMPD}/c.txt"; MF="${TMPD}/marks.txt"
 
 unguarded=0
 guarded=0
 allowed_n=0
-ALLOWLOG="$(mktemp "${TMPDIR:-/tmp}/killpg_allow.XXXXXX")"
-trap 'rm -f "$ALLOWLOG"' EXIT
 # Consumer DATA (§11.4.35): extra path globs (relative to the scan root) that may carry the audited marker.
-allow_paths="${KILLPG_GUARD_ALLOW_PATHS:-}"
+# Read into an ARRAY: a glob such as '*' must stay a pattern and never expand against the cwd.
+read -r -a allow_globs <<<"${KILLPG_GUARD_ALLOW_PATHS:-}"
 
 # allow_path_ok <relative-path>  — the audited allow marker is honoured ONLY on a test path:
 #   a `tests`/`test`/`testing` directory component, a `test_*` basename, a `*_test.*`/`*_tests.*` basename,
@@ -623,15 +605,65 @@ allow_path_ok() {
     _ap_rel="$1"; _ap_base="${_ap_rel##*/}"
     case "/${_ap_rel}" in */tests/*|*/test/*|*/testing/*) return 0 ;; esac
     case "$_ap_base" in test_*|*_test.*|*_tests.*) return 0 ;; esac
-    for _ap_g in $allow_paths; do
+    for _ap_g in "${allow_globs[@]}"; do
+        [ -n "$_ap_g" ] || continue
         # shellcheck disable=SC2254
         case "$_ap_rel" in $_ap_g) return 0 ;; esac
     done
     return 1
 }
 
+# apply_exempt <line-text> — print the text with ONLY the exempt pieces removed (a def header with nothing
+# after its colon; a canonical safe_killpg(<identifier>, ...) call; a `X.killpg = value` LHS). Reads the
+# per-file flags def_here / disq / ok_qual / ok_bare / ok_alias set below.
+apply_exempt() {
+    local rest="$1" nm
+    if [ "$def_here" -eq 1 ] && [ "$disq" -eq 0 ]; then
+        rest="$(sed -E 's/^def[[:space:]]+safe_killpg[[:space:]]*\([^)]*\)[[:space:]]*(->[^:]*)?:[[:space:]]*//' <<<"$rest")"
+    fi
+    if [ "$ok_qual" -eq 1 ]; then
+        rest="$(sed -E "s/(^|[^[:alnum:]_.])fc_common\\.safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
+    fi
+    if [ "$ok_bare" -eq 1 ]; then
+        rest="$(sed -E "s/(^|[^[:alnum:]_.])safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
+    fi
+    if [ "$ok_alias" -eq 1 ]; then
+        rest="$(sed -E "s/(^|[^[:alnum:]_.])_safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
+        rest="$(sed -E 's/^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$//' <<<"$rest")"
+    fi
+    # A def header of a function merely NAMED *killpg (a test double) is a definition, not a signal; the
+    # names killpg / safe_killpg / _safe_killpg themselves are never stripped here. A bare `X.killpg =
+    # <value>` assignment REPLACES the attribute (monkeypatch) and signals nothing; its right-hand side is
+    # still scanned.
+    if [[ "$rest" =~ ^[[:space:]]*def[[:space:]]+([A-Za-z0-9_]+)[[:space:]]*\( ]]; then
+        nm="${BASH_REMATCH[1]}"
+        case "$nm" in
+            killpg|safe_killpg|_safe_killpg) : ;;
+            *killpg) case "${rest#*(}" in
+                *killpg*) : ;;   # killpg mentioned in the parameters / one-line body: stays a finding
+                *) rest="$(sed -E 's/^([[:space:]]*)def[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\([^)]*\)[[:space:]]*(->[^:]*)?:/\1/' <<<"$rest")" ;;
+               esac ;;
+            *) : ;;
+        esac
+    fi
+    sed -E 's/(^|;)([[:space:]]*)[A-Za-z_][A-Za-z0-9_.]*\.killpg[[:space:]]*=([^=])/\1\2_lhs_ =\3/g' <<<"$rest"
+}
+
+WRAP_ARG='[[:space:]]*\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*,[^()]*\)'
+
 for f in "${files[@]}"; do
     if [ "$root_is_file" -eq 1 ]; then rel="${f##*/}"; else rel="${f#"$root"/}"; fi
+
+    # Cheap prefilter: every finding type contains `kill` or `Kill`. A file without either has nothing to find.
+    grep -qE '[kK]ill' "$f" 2>/dev/null
+    pre_rc=$?
+    if [ "$pre_rc" -eq 1 ]; then continue; fi
+    if [ "$pre_rc" -ne 0 ]; then
+        unguarded=$(( unguarded + 1 ))
+        echo "❌ ${GATE}: FAIL — cannot read ${f}; refusing to treat an unreadable file as clean (§11.4.201(4))"
+        continue
+    fi
+
     case "${f##*.}" in
         py) langx=py ;;
         sh|bash) langx=sh ;;
@@ -639,15 +671,13 @@ for f in "${files[@]}"; do
     esac
     allowok=0
     allow_path_ok "$rel" && allowok=1
-    : > "$ALLOWLOG"
+    : > "$MF"
 
-    # Structural code extraction (see STRIP_AWK): real comments, inert strings and inert heredoc bodies are
-    # blanked, everything else stays code. A tokenizer failure is NOT a pass (fail closed, §11.4.201(4)).
-    code_only="$(awk -v LANGX="$langx" -v ALLOWOK="$allowok" -v FNAME="$f" -v ALLOWLOG="$ALLOWLOG" "$STRIP_AWK" "$f" 2>/dev/null)"
-    awk_rc=$?
-    if [ "$awk_rc" -ne 0 ]; then
+    python3 -I "$HELPER" "$langx" "$f" "$allowok" "$KEEPF" "$NSF" "$CF" "$MF" 2>/dev/null
+    helper_rc=$?
+    if [ "$helper_rc" -ne 0 ]; then
         unguarded=$(( unguarded + 1 ))
-        echo "❌ ${GATE}: FAIL — cannot analyse ${f} (extractor exit ${awk_rc}); refusing to treat an unreadable file as clean (§11.4.201(4))"
+        echo "❌ ${GATE}: FAIL — cannot analyse ${f} (extractor exit ${helper_rc}); refusing to treat an unreadable file as clean (§11.4.201(4))"
         continue
     fi
     # Report every audited-marker decision (a suppression is never silent).
@@ -659,115 +689,101 @@ for f in "${files[@]}"; do
         else
             echo "⚠️  ${GATE}: marker IGNORED at ${where} (not a test path: ${rel}) — the line is still scanned: ${reason}"
         fi
-    done < "$ALLOWLOG"
-    [ -n "$code_only" ] || continue
+    done < "$MF"
+
+    code_keep="$(<"$KEEPF")"
+    code_ns="$(<"$NSF")"
+    c_lines="$(<"$CF")"
     # Adjacent string items of one argv list are joined (["kill","-9","-1"] -> ["kill -9 -1"]).
-    code_only="$(sed -E "s/${QCH}[[:space:]]*,[[:space:]]*${QCH}/ /g" <<<"$code_only")"
+    code_keep="$(sed -E "s/${QCH}[[:space:]]*,[[:space:]]*${QCH}/ /g" <<<"$code_keep")"
 
-    hit_lines="$(grep -nE "$CALL_ERE" <<<"$code_only" 2>/dev/null || true)"
-    [ -n "$hit_lines" ] || continue
+    # Hit lines: type A on the strings-kept view, type B on the non-string view, type C from the helper.
+    a_nums="$(grep -nE "$CALL_ERE" <<<"$code_keep" 2>/dev/null | cut -d: -f1 || true)"
+    b_nums="$(grep -nE "$BARE_KILLPG" <<<"$code_ns" 2>/dev/null | cut -d: -f1 || true)"
+    hit_nums="$(printf '%s\n%s\n%s\n' "$a_nums" "$b_nums" "$c_lines" | grep -E '^[0-9]+$' | sort -un || true)"
+    [ -n "$hit_nums" ] || continue
 
-    # ── The sanctioned safe_killpg wrapper exemption, bound to REAL bindings (round 3) ──────────────────
+    # ── The sanctioned safe_killpg wrapper exemption, bound to REAL bindings ─────────────────────────────
     # Granted only by a genuine `import fc_common` / `from fc_common import safe_killpg` line (no `as`
     # rename, no star import) or by the file DEFINING safe_killpg at module level, and withdrawn by ANY
-    # rebinding of fc_common / safe_killpg / _safe_killpg in the file.
+    # rebinding of fc_common / safe_killpg / _safe_killpg in the file. Decided on the NON-STRING view, so
+    # text inside a string can neither grant nor withdraw it.
     disq=0
-    grep -qE '^[[:space:]]*from[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+import[[:space:]]+\*' <<<"$code_only" && disq=1
-    if grep -vE '^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$' <<<"$code_only" \
+    grep -qE '^[[:space:]]*from[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+import[[:space:]]+\*' <<<"$code_ns" && disq=1
+    if grep -vE '^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$' <<<"$code_ns" \
          | grep -qE '(^|[^A-Za-z0-9_.])(fc_common|safe_killpg|_safe_killpg)[[:space:]]*(=[^=]|:=|:[^=]*=[^=])'; then
         disq=1
     fi
-    # more than one binding of _safe_killpg, or any other binding form of the three names
-    [ "$(grep -cE '(^|[^A-Za-z0-9_.])_safe_killpg[[:space:]]*(=[^=]|:=)' <<<"$code_only")" -gt 1 ] && disq=1
-    grep -qE '(^|[[:space:]])as[[:space:]]+(fc_common|safe_killpg|_safe_killpg)([^A-Za-z0-9_]|$)' <<<"$code_only" && disq=1
-    grep -qE '^[[:space:]]*(global|nonlocal|del|for|with)[[:space:]]+([^#]*[^A-Za-z0-9_.])?(fc_common|safe_killpg)([^A-Za-z0-9_]|$)' <<<"$code_only" && disq=1
-    grep -qE '^[[:space:]]+def[[:space:]]+(safe_killpg|_safe_killpg)|^[[:space:]]*class[[:space:]]+(fc_common|safe_killpg)' <<<"$code_only" && disq=1
-    # safe_killpg imported from any module other than fc_common
-    if grep -E 'from[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+import[^#]*safe_killpg' <<<"$code_only" \
+    grep -qE '(^|[^A-Za-z0-9_])sys[[:space:]]*\.[[:space:]]*modules' <<<"$code_ns" && disq=1
+    [ "$(grep -cE '(^|[^A-Za-z0-9_.])_safe_killpg[[:space:]]*(=[^=]|:=)' <<<"$code_ns")" -gt 1 ] && disq=1
+    grep -qE '(^|[[:space:]])as[[:space:]]+(fc_common|safe_killpg|_safe_killpg)([^A-Za-z0-9_]|$)' <<<"$code_ns" && disq=1
+    grep -qE '^[[:space:]]*(global|nonlocal|del|for|with)[[:space:]]+([^#]*[^A-Za-z0-9_.])?(fc_common|safe_killpg)([^A-Za-z0-9_]|$)' <<<"$code_ns" && disq=1
+    grep -qE '^[[:space:]]+def[[:space:]]+(safe_killpg|_safe_killpg)|^[[:space:]]*class[[:space:]]+(fc_common|safe_killpg)' <<<"$code_ns" && disq=1
+    if grep -E 'from[[:space:]]+[A-Za-z0-9_.]+[[:space:]]+import[^#]*safe_killpg' <<<"$code_ns" \
          | grep -vE 'from[[:space:]]+fc_common[[:space:]]+import[[:space:]]+safe_killpg[[:space:]]*$' | grep -q .; then
         disq=1
     fi
     has_imp_mod=0; has_from_imp=0; def_here=0; alias_ok=0
-    grep -qE '^[[:space:]]*import[[:space:]]+fc_common[[:space:]]*;?[[:space:]]*$' <<<"$code_only" && has_imp_mod=1
-    grep -qE '^[[:space:]]*from[[:space:]]+fc_common[[:space:]]+import[[:space:]]+safe_killpg[[:space:]]*$' <<<"$code_only" && has_from_imp=1
-    grep -qE '^def[[:space:]]+safe_killpg[[:space:]]*\(' <<<"$code_only" && def_here=1
-    grep -qE '^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$' <<<"$code_only" && alias_ok=1
+    grep -qE '^[[:space:]]*import[[:space:]]+fc_common[[:space:]]*;?[[:space:]]*$' <<<"$code_ns" && has_imp_mod=1
+    grep -qE '^[[:space:]]*from[[:space:]]+fc_common[[:space:]]+import[[:space:]]+safe_killpg[[:space:]]*$' <<<"$code_ns" && has_from_imp=1
+    grep -qE '^def[[:space:]]+safe_killpg[[:space:]]*\(' <<<"$code_ns" && def_here=1
+    grep -qE '^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$' <<<"$code_ns" && alias_ok=1
     ok_qual=0; ok_bare=0; ok_alias=0
     if [ "$disq" -eq 0 ]; then
         [ "$has_imp_mod" -eq 1 ] && ok_qual=1
         { [ "$has_from_imp" -eq 1 ] || [ "$def_here" -eq 1 ]; } && ok_bare=1
         [ "$alias_ok" -eq 1 ] && [ "$ok_qual" -eq 1 ] && ok_alias=1
     fi
-    WRAP_ARG='[[:space:]]*\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*,[^()]*\)'
 
-    while IFS= read -r hit; do
-        [ -n "$hit" ] || continue
-        lineno="${hit%%:*}"
-        text="${hit#*:}"
+    # The guard window is read from the non-string view for Python (a string can never fake a guard), and
+    # from the strings-kept view for shell/C-like (a shell guard `[ "$pg" -gt 1 ]` lives inside quotes).
+    if [ "$langx" = py ]; then window_src="$code_ns"; else window_src="$code_keep"; fi
 
-        # Remove ONLY the exempt pieces of the line, then re-test what remains (a def header with nothing
-        # after its colon; a canonical safe_killpg(<identifier>, ...) call). Anything else on the same line
-        # (a second raw call, a one-line def body) stays a hit.
-        rest="$text"
-        if [ "$def_here" -eq 1 ] && [ "$disq" -eq 0 ]; then
-            rest="$(sed -E 's/^def[[:space:]]+safe_killpg[[:space:]]*\([^)]*\)[[:space:]]*(->[^:]*)?:[[:space:]]*//' <<<"$rest")"
-        fi
-        if [ "$ok_qual" -eq 1 ]; then
-            rest="$(sed -E "s/(^|[^[:alnum:]_.])fc_common\\.safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
-        fi
-        if [ "$ok_bare" -eq 1 ]; then
-            rest="$(sed -E "s/(^|[^[:alnum:]_.])safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
-        fi
-        if [ "$ok_alias" -eq 1 ]; then
-            rest="$(sed -E "s/(^|[^[:alnum:]_.])_safe_killpg${WRAP_ARG}/\\1/g" <<<"$rest")"
-            rest="$(sed -E 's/^[[:space:]]*_safe_killpg[[:space:]]*=[[:space:]]*fc_common\.safe_killpg[[:space:]]*;?[[:space:]]*$//' <<<"$rest")"
-        fi
-        # A def header of a function merely NAMED *killpg (a test double) is a definition, not a signal; the
-        # names killpg / safe_killpg / _safe_killpg themselves are never stripped here (they keep their
-        # own rules above). A bare `X.killpg = <value>` assignment REPLACES the attribute (monkeypatch) and
-        # signals nothing; its right-hand side is still scanned (`y = os.killpg` / `os.killpg = os.killpg`).
-        if [[ "$rest" =~ ^[[:space:]]*def[[:space:]]+([A-Za-z0-9_]+)[[:space:]]*\( ]]; then
-            case "${BASH_REMATCH[1]}" in
-                killpg|safe_killpg|_safe_killpg) : ;;
-                *killpg) case "${rest#*(}" in
-                    *killpg*) : ;;   # killpg mentioned in the parameters / one-line body: stays a finding
-                    *) rest="$(sed -E 's/^([[:space:]]*)def[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\([^)]*\)[[:space:]]*(->[^:]*)?:/\1/' <<<"$rest")" ;;
-                   esac ;;
-                *) : ;;
-            esac
-        fi
-        rest="$(sed -E 's/(^|;)([[:space:]]*)[A-Za-z_][A-Za-z0-9_.]*\.killpg[[:space:]]*=([^=])/\1\2_lhs_ =\3/g' <<<"$rest")"
-        grep -qE "$CALL_ERE" <<<"$rest" || continue
+    while IFS= read -r lineno; do
+        [ -n "$lineno" ] || continue
+        textK="$(sed -n "${lineno}p" <<<"$code_keep")"
+        textN="$(sed -n "${lineno}p" <<<"$code_ns")"
+        restK="$(apply_exempt "$textK")"
+        restN="$(apply_exempt "$textN")"
 
+        a_hit=0; b_hit=0; c_hit=0
+        grep -qE "$CALL_ERE" <<<"$restK" && a_hit=1
+        # B: a non-call reference to the identifier `killpg` outside any string.
+        alias_ref="$(sed -E 's/(^|[^A-Za-z0-9_])killpg[[:space:]]*\(/\1@CALL@(/g' <<<"$restN")"
+        grep -qE "$BARE_KILLPG" <<<"$alias_ref" && b_hit=1
+        # C: an exact `killpg` string literal.
+        grep -qxF "$lineno" <<<"$c_lines" && c_hit=1
+        [ $(( a_hit + b_hit + c_hit )) -gt 0 ] || continue
+
+        text="$textK"
         start=$(( lineno - window ))
         [ "$start" -lt 1 ] && start=1
+        window_text="$(sed -n "${start},${lineno}p" <<<"$window_src")"
 
-        window_text="$(sed -n "${start},${lineno}p" <<<"$code_only")"
-
-        target="$(extract_target "$text")"
-
-        # A non-call reference to the identifier `killpg` (alias / getattr / import-as / dict value / default
-        # argument / tuple unpack ...) can never be proven guarded: a finding by construction.
-        alias_ref="$(sed -E 's/(^|[^A-Za-z0-9_])killpg[[:space:]]*\(/\1@CALL@(/g' <<<"$rest")"
-
-        # here-strings below, not `printf | grep -q` (SIGPIPE x pipefail class, §11.4.276(C))
-        if grep -qE '(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)' <<<"$alias_ref"; then
+        if [ "$b_hit" -eq 1 ]; then
             unguarded=$(( unguarded + 1 ))
             echo "❌ ${GATE}: FAIL — non-call reference to killpg (alias/indirect use) at ${f}:${lineno}: ${text# }"
             echo "   (an alias, getattr, import-as, dict value or default argument holding killpg cannot be proven guarded — §11.4.263(B); call it directly behind a '>1' guard or use fc_common.safe_killpg)"
-        elif grep -qE "$LITERAL_TARGET_ERE" <<<"$text"; then
+        elif [ "$c_hit" -eq 1 ]; then
+            unguarded=$(( unguarded + 1 ))
+            echo "❌ ${GATE}: FAIL — string literal naming killpg (indirect lookup) at ${f}:${lineno}: ${text# }"
+            echo "   (getattr(os, \"killpg\") and friends resolve the call at run time and cannot be proven guarded — §11.4.263(B); a test fixture text needs the audited marker on a test path)"
+        elif grep -qE "$LITERAL_TARGET_ERE" <<<"$textK"; then
             unguarded=$(( unguarded + 1 ))
             echo "❌ ${GATE}: FAIL — UNGUARDABLE numeric-literal process-group target at ${f}:${lineno}: ${text# }"
-            echo "   (a hardcoded numeric pid/pgid can never be guarded — §11.4.263(A): NEVER signal pgid <= 1)"
-        elif target_guarded "$window_text" "$target"; then
-            guarded=$(( guarded + 1 ))
-            [ "$quiet" -eq 1 ] || echo "✅ ${GATE}: PASS — guarded process-group signal call at ${f}:${lineno}: ${text# }"
+            echo "   (a hardcoded numeric pid/pgid can never be guarded — §11.4.263(A): NEVER signal pgid <= 1; text inside a string or docstring counts too — use the audited marker on a test path for fixture text)"
         else
-            unguarded=$(( unguarded + 1 ))
-            echo "❌ ${GATE}: FAIL — UNGUARDED process-group signal call at ${f}:${lineno}: ${text# }"
-            echo "   (no '>1' comparator on the call's own target '${target:-<non-identifier expression>}' in the preceding ${window} lines — §11.4.263(B))"
+            target="$(extract_target "$textK")"
+            if target_guarded "$window_text" "$target"; then
+                guarded=$(( guarded + 1 ))
+                [ "$quiet" -eq 1 ] || echo "✅ ${GATE}: PASS — guarded process-group signal call at ${f}:${lineno}: ${text# }"
+            else
+                unguarded=$(( unguarded + 1 ))
+                echo "❌ ${GATE}: FAIL — UNGUARDED process-group signal call at ${f}:${lineno}: ${text# }"
+                echo "   (no direction-correct '>1' comparator on the call's own target '${target:-<non-identifier expression>}' in the preceding ${window} lines — §11.4.263(B))"
+            fi
         fi
-    done <<< "$hit_lines"
+    done <<< "$hit_nums"
 done
 
 echo "======================================================================"
