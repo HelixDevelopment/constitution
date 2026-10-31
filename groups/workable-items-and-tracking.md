@@ -947,3 +947,4 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.290.
 
 **Non-compliance is a release blocker. No escape hatch — no `--provisional-counts-as-verified`, `--skip-verification-job`, `--silent-reopen`, `--hide-provisional-in-changelog`, `--promote-on-timeout`, `--unlabelled-done-count` flag exists.**
+

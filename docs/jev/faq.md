@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-10-28T19:34:34Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -24,6 +24,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Safety and privacy](#safety-and-privacy)
 - [Calibration and proof](#calibration-and-proof)
 - [Bootstrap](#bootstrap)
+- [Capacity and placement](#capacity-and-placement)
 
 ## General
 
@@ -100,3 +101,8 @@ Not by default. Cloning or fetching llmctl/claude_toolkit needs `--allow-clone` 
 
 **22. Does bootstrap run the tools' installers?**
 Only with `--install-tools` (or a "y" at the prompt). They link into PATH and edit shell rc files.
+
+## Capacity and placement
+
+**23. My host is busy. Will a local decision model still start?**
+Not unless it fits. §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement").

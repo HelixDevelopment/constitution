@@ -89,10 +89,10 @@ deps:
   # applies to the bootstrap's managed-clone path too). llmctl resolves the canon through lib/resolve_deps.sh, so this hub<->llmctl edge stays non-nesting.
   - name: llmctl
     ssh_url: git@github.com:vasic-digital/llmctl.git
-    ref: 4fbef9e             # pinned sha = the recorded gitlink; main tip, tag v3.3.2 + third-party pin bump (update-all 2026-10-29)
+    ref: 4b68967             # pinned sha = the recorded gitlink; main tip, tag v3.4.0 (v72.2 bump; first vendored release with `llmctl capacity --json`)
     why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. Hub engine: nests no own-org repository; resolves the canon, containers and superspec via lib/resolve_deps.sh (§11.4.28(C)); its own helix-deps.yaml marks superspec third_party."
     layout: grouped
-    recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at the 11a9154 re-pin (v72.1 run)
+    recursive_init: false    # NEVER `--recursive` for this path: llmctl nests third-party llama.cpp + colibri, which are never initialised recursively (§11.4.28(C)); gates CM-HUB-ENGINE-NO-OWNORG-NESTING + CM-LLMCTL-SUBMODULE-NONRECURSIVE PASS at the 4b68967 re-pin (v72.2 run)
 
   - name: containers
     ssh_url: git@github.com:vasic-digital/Containers.git
