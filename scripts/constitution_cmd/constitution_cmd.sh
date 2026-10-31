@@ -6,6 +6,7 @@
 # Usage:
 #   constitution_cmd.sh <subcommand> [args]        (a single string argument is split on blanks)
 #   constitution_cmd.sh --stdin                    (the one-line argument string is read from stdin)
+#   constitution_cmd.sh --args-file PATH           (same, from a file the agent wrote; deleted after use)
 #     status                       layout, pinned version, latest local release tag, Jev state
 #     update [--check|--dry-run] [--ref REF]
 #                                  delegates to scripts/update_constitution.sh; --check is the
@@ -58,6 +59,24 @@ die()   { printf 'constitution: %s\n' "$*" >&2; }
 if [ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]; then
     _line=""
     IFS= read -r -d '' -n 8001 _line || true
+    _line="${_line%$'\n'}"
+    [ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
+    set -- "$_line"
+fi
+# --args-file PATH (used by the generated commands/skill since release 2.1): the agent writes the
+# user's text to a file with its FILE-WRITE tool, so the text is never part of any shell command and
+# no heredoc delimiter exists to break out of. PATH must be <tmpdir>/constitution_args_<id>.txt
+# (id = [A-Za-z0-9_-]{1,64}), a regular non-symlink file owned by the caller; at most 8001 bytes are read.
+# The file is consumed (deleted) after reading.
+if [ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]; then
+    _f="$2"; _td="${TMPDIR:-/tmp}"; _td="${_td%/}"
+    case "$_f" in "$_td"/constitution_args_*.txt|/tmp/constitution_args_*.txt) ;; *) die "--args-file path must be <tmpdir>/constitution_args_<id>.txt"; exit 2 ;; esac
+    _b="${_f##*/}"; _b="${_b#constitution_args_}"; _b="${_b%.txt}"
+    [[ "$_b" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || { die "--args-file id must match [A-Za-z0-9_-]{1,64}"; exit 2; }
+    { [ -f "$_f" ] && [ ! -L "$_f" ] && [ -O "$_f" ]; } || { die "--args-file must be a regular, non-symlink file owned by you"; exit 2; }
+    _line=""
+    IFS= read -r -d '' -n 8001 _line <"$_f" || true
+    rm -f -- "${_f:?}"
     _line="${_line%$'\n'}"
     [ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
     set -- "$_line"

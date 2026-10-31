@@ -73,12 +73,20 @@ Extension options are an allow-list per subcommand (`--json`, `--dry-run`; `add`
 `--sha`, `--sha256`); `--root`, `--project-root`, `--yes` and any other `--*` are rejected. `jev`
 and `release-notes` take no arguments.
 
-User text reaches the engine on STDIN (`constitution_cmd.sh --stdin`) through a QUOTED heredoc with
-a fixed delimiter, so the agent shell does not evaluate `$(...)`, backticks or `$VAR` in it. The
-engine splits the one-line string on blanks itself. Residual risk (UNCONFIRMED against a hostile
-model): a line equal to the delimiter inside the user text would end the heredoc early; the engine
-never executes the remaining text, but the agent shell would. Passing it as a double-quoted
-argument, as an earlier version did, is NOT safe and is no longer used.
+User text reaches the engine through a FILE: the agent writes it with its file-write tool (not the
+shell) to `/tmp/constitution_args_<id>.txt` (`<id>` = fresh random `[a-z0-9]` string) and runs
+`constitution_cmd.sh --args-file <that path>`. The command line holds only the path, so no shell
+ever sees user text and there is no heredoc delimiter to break out of (the earlier fixed-delimiter
+heredoc could be ended early by a pasted line equal to the delimiter; that class is removed, and
+the suite replays that exact payload as a control needle). The engine accepts only
+`<tmpdir>/constitution_args_<id>.txt` with `<id>` in `[A-Za-z0-9_-]{1,64}`, a regular, non-symlink
+file owned by the caller, at most 8001 bytes, one line, no control characters; it deletes the file
+after reading. `--stdin` still exists for direct use; the generated commands no longer use it.
+The engine splits the one-line string on blanks itself. Passing text as a double-quoted argument,
+as the first version did, is NOT safe and is not used. Residual: an agent without a file-write
+tool cannot use this path (UNCONFIRMED which hosts lack one); a local user who can write to the
+same temp directory could race the file before the engine reads it (the owner and symlink checks
+narrow, not close, that window).
 
 ## Troubleshooting
 

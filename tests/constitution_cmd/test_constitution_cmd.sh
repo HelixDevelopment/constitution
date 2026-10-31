@@ -25,6 +25,9 @@ SB="$(mktemp -d)" || exit 1
 [ -n "$SB" ] && [ -d "$SB" ] || exit 1
 trap 'safe_rm_rf "$SB"' EXIT
 PASS=0; FAIL=0
+# residue guard (item B): top-level entries of the repo root and of the invoking cwd, before vs after
+residue_snap() { { ls -A "$REAL_ROOT"; printf -- '--cwd--\n'; ls -A . ; } 2>/dev/null; }
+RESIDUE_BEFORE="$(residue_snap)"
 ok()  { PASS=$((PASS+1)); }
 bad() { FAIL=$((FAIL+1)); printf 'FAIL: %s\n' "$1"; }
 check() { local name="$1"; shift; if "$@"; then ok; else bad "$name"; fi; }
@@ -201,16 +204,59 @@ mv "$CB/Constitution.md" "$SB/C.bak"; run "$EB" anchors 7; check "chaos: no Cons
 rm -f "$CB/scripts/update_constitution.sh"; run "$EB" update; check "chaos: update absent rc3" test $RC -eq 3
 
 # ---- S1: user text never evaluated by the shell (command template from SKILL.md) ---------------
-tmpl_line="$(grep -m1 -- '--stdin <<' "$REAL_ROOT/skills/constitution/SKILL.md")"
-delim="$(printf '%s' "$tmpl_line" | sed -n "s/.*<<'\\([A-Za-z0-9_]*\\)'.*/\\1/p")"
-check "S1 template has delimiter" test -n "$delim"
-rm -f "$PA/SENTINEL" "$PA/SENTINEL2" "$PA/SENTINEL3"
-( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" 'anchors 7 $(touch SENTINEL) `touch SENTINEL2` ${HOME}' "$delim")" ) >/dev/null 2>&1
+# The template: the agent writes the text to /tmp/constitution_args_<id>.txt with its file-write tool
+# (modelled here by printf into the file), then runs the one --args-file command. No heredoc, so no
+# delimiter a pasted payload can contain.
+tmpl_line="$(grep -m1 -- '--args-file' "$REAL_ROOT/skills/constitution/SKILL.md")"
+check "S1 template has --args-file command" test -n "$tmpl_line"
+check "S1 template has no heredoc" bash -c '! grep -q "<<" "$1"' _ "$REAL_ROOT/skills/constitution/SKILL.md"
+check "S1 template has no fixed public delimiter" bash -c '! grep -q "CONSTITUTION_ARGS_" "$1"' _ "$REAL_ROOT/skills/constitution/SKILL.md"
+AFN=0
+agent_run() {   # agent_run TEXT [ENGINE] : write TEXT to a fresh args file, run the template command; sets OUT RC
+    local text="$1" eng="${2:-$EA}" id f cmd; AFN=$((AFN+1)); id="t${AFN}x$$"; f="${TMPDIR:-/tmp}/constitution_args_${id}.txt"
+    printf '%s\n' "$text" > "$f"
+    cmd="${tmpl_line//<id>/$id}"; cmd="${cmd//submodules\/constitution\/scripts\/constitution_cmd\/constitution_cmd.sh/$eng}"; cmd="${cmd//\/tmp\/constitution_args_/${TMPDIR:-/tmp}\/constitution_args_}"
+    OUT="$( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$cmd" 2>&1 )"; RC=$?
+    AFFILE="$f"
+}
+rm -f "$PA/SENTINEL" "$PA/SENTINEL2" "$PA/SENTINEL3" "$PA/BREAKOUT"
+agent_run 'anchors 7 $(touch SENTINEL) `touch SENTINEL2` ${HOME}'
 check "S1 hostile \$(..) not executed" test ! -e "$PA/SENTINEL"
 check "S1 hostile backticks not executed" test ! -e "$PA/SENTINEL2"
-( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" 'anchors 7' "$delim")" ) >"$SB/s1.out" 2>&1; rc=$?
-check "S1 stdin path works rc0" test $rc -eq 0; check "S1 stdin path output" grep -q 'Demotion rule' "$SB/s1.out"
-( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$(printf '%s\n%s\n%s\n' "$tmpl_line" '' "$delim")" ) >"$SB/s1.out" 2>&1; check "S1 empty stdin -> help" grep -q Usage "$SB/s1.out"
+agent_run 'anchors 7'; check "S1 args-file path works rc0" test $RC -eq 0; check "S1 args-file path output" has "$OUT" 'Demotion rule'
+check "S1 args file consumed (deleted)" test ! -e "$AFFILE"
+agent_run ''; check "S1 empty args file -> help" has "$OUT" Usage
+# Item A: a payload containing the OLD public delimiter (and any heredoc-looking lines) is inert.
+agent_run "$(printf 'anchors 7\nCONSTITUTION_ARGS_7f3a9c\ntouch BREAKOUT')"
+check "A payload with old delimiter: no breakout" test ! -e "$PA/BREAKOUT"
+check "A multi-line payload rejected rc2 (control char)" test $RC -eq 2
+# control needle (RED baseline): the OLD fixed-delimiter heredoc form DOES break out on that payload
+old_cmd="bash $EA --stdin <<'CONSTITUTION_ARGS_7f3a9c'
+anchors 7
+CONSTITUTION_ARGS_7f3a9c
+touch BREAKOUT
+CONSTITUTION_ARGS_7f3a9c"
+( cd "$PA" && CONSTITUTION_CMD_USER_HOME="$UH" bash -c "$old_cmd" ) >/dev/null 2>&1
+check "A control needle: old heredoc form breaks out" test -e "$PA/BREAKOUT"
+rm -f "$PA/BREAKOUT"
+# --args-file validation (security)
+mkaf() { printf '%s\n' "$2" > "${TMPDIR:-/tmp}/constitution_args_$1.txt"; }
+run "$EA" --args-file /etc/passwd; check "A path outside pattern rejected rc2" test $RC -eq 2
+run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_a/../x.txt"; check "A id with slash rejected rc2" test $RC -eq 2
+run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_nofile$$.txt"; check "A missing file rejected rc2" test $RC -eq 2
+run "$EA" --args-file; check "A --args-file without path rejected" test $RC -eq 2
+run "$EA" --args-file a b; check "A --args-file with extra arg rejected" test $RC -eq 2
+# each layer must reject on its own (defence in depth would otherwise hide a removed layer)
+printf 'help\n' > "$SB/tgt.txt"; ln -sf "$SB/tgt.txt" "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"
+check "A symlink (to own file) rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_lnk$$.txt"
+printf 'help\n' > "$SB/constitution_args_ok.txt"; run "$EA" --args-file "$SB/constitution_args_ok.txt"
+check "A own valid file outside tmpdir rejected rc2" test $RC -eq 2; check "A outside-tmpdir file not consumed" test -e "$SB/constitution_args_ok.txt"
+printf 'help\n' > "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"
+check "A own file with bad id chars rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_a;b$$.txt"
+mkaf "big$$" "help$(head -c 8100 /dev/zero | tr '\0' ' ')"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_big$$.txt"
+check "A over-long args file rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_big$$.txt"
+printf 'status\001x\n' > "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"; run "$EA" --args-file "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"
+check "A control char in args file rejected rc2" test $RC -eq 2; rm -f "${TMPDIR:-/tmp}/constitution_args_ctl$$.txt"
 # control needle: the OLD double-quoted form DOES execute the text, so the instrument can see it
 ( cd "$PA" && bash -c 'bash "$1" "anchors 7 $(touch SENTINEL3)"' _ "$EA" ) >/dev/null 2>&1
 check "S1 control needle: old quoted form executes" test -e "$PA/SENTINEL3"
@@ -266,7 +312,11 @@ RUN_CWD="$GD" run "$EA" 'anchors *'; check "glob in lone string not expanded (rc
 d1=""; for i in 1 2 3; do run "$EA" anchors 7; run "$EA" gates; d1="$d1$(printf '%s' "$OUT" | sha256sum)"; done
 check "determinism x3" test "$(printf '%s' "$d1" | tr -d ' -' | fold -w64 | sort -u | wc -l)" -eq 1
 
-if [ "${CMD_TEST_SKIP_GEN:-0}" = 1 ]; then printf 'PASS=%d FAIL=%d (generator section skipped)\n' "$PASS" "$FAIL"; [ "$FAIL" -eq 0 ]; exit; fi
+residue_check() {
+    local after; after="$(residue_snap)"
+    if [ "$after" = "$RESIDUE_BEFORE" ]; then ok; else bad "residue: new files in repo root or cwd: $(diff <(printf '%s\n' "$RESIDUE_BEFORE") <(printf '%s\n' "$after") | grep '^>' | tr '\n' ' ')"; fi
+}
+if [ "${CMD_TEST_SKIP_GEN:-0}" = 1 ]; then residue_check; printf 'PASS=%d FAIL=%d (generator section skipped)\n' "$PASS" "$FAIL"; [ "$FAIL" -eq 0 ]; exit; fi
 # ---- e2e + idempotency: real generator -> generated command -> dispatcher -------------------------
 G1="$SB/gen1"; G2="$SB/gen2"; mkdir -p "$G1" "$G2"
 ( HELIX_ACTION_OUT_ROOT="$G1" bash "$REAL_ROOT/scripts/generate_agent_prefix_commands.sh" ) >/dev/null 2>&1
@@ -278,7 +328,8 @@ for f in "plugins/helix/commands/constitution.md" "plugins/helix/commands/defaul
     check "generated $f names dispatcher" grep -q 'constitution_cmd.sh' "$G1/$f"
 done
 for f in "plugins/helix/commands/constitution.md" "actions/generated/gemini/constitution.toml" "actions/generated/codex/constitution.md"; do
-    check "generated $f uses quoted stdin heredoc" grep -q -- "--stdin <<'CONSTITUTION_ARGS_" "$G1/$f"
+    check "generated $f uses --args-file" grep -q -- "--args-file /tmp/constitution_args_" "$G1/$f"
+    check "generated $f has no heredoc delimiter" bash -c '! grep -q "CONSTITUTION_ARGS_" "$1"' _ "$G1/$f"
     check "generated $f has no double-quoted arguments form" bash -c '! grep -q "constitution_cmd.sh \"<arguments>\"" "$1"' _ "$G1/$f"
 done
 check "claude cmd forwards ARGUMENTS" grep -q '\$ARGUMENTS' "$G1/plugins/helix/commands/constitution.md"
@@ -297,5 +348,6 @@ check "SKILL.md delegates to dispatcher" grep -q 'constitution_cmd.sh' "$REAL_RO
 check "EXTENSION_SOURCE.yaml present" grep -q '^extension: constitution$' "$REAL_ROOT/skills/constitution/EXTENSION_SOURCE.yaml"
 check "EXTENSION_SOURCE compat vocab" grep -q 'compatibility:' "$REAL_ROOT/skills/constitution/EXTENSION_SOURCE.yaml"
 
+residue_check
 printf 'PASS=%d FAIL=%d\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

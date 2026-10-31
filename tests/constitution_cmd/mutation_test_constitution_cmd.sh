@@ -72,6 +72,19 @@ mutant stdin-len-unbounded      '[ "${#_line}" -le 8000 ] ||' ':'
 mutant stdin-extra-args-ok      '[ "${1:-}" = "--stdin" ] && [ $# -eq 1 ]' '[ "${1:-}" = "--stdin" ]'
 mutant akia-redact-gone         "-e 's/AKIA[0-9A-Z]{16}/[REDACTED]/g' \\" "-e 's/zzqakia/x/' \\"
 mutant ext-allow-bypass         '*) die "rejected extension option:' '*) : ;; esac ;; esac; case x in x) die "rejected extension option:'
+mutant args-file-mode-off       '[ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]' 'false'
+mutant args-file-symlink-ok     '[ -f "$_f" ] && [ ! -L "$_f" ] && [ -O "$_f" ]' '[ -f "$_f" ]'
+mutant args-file-path-open      'case "$_f" in "$_td"/constitution_args_*.txt|/tmp/constitution_args_*.txt) ;;' 'case "$_f" in *) ;;'
+mutant args-file-id-open        '[[ "$_b" =~ ^[A-Za-z0-9_-]{1,64}$ ]] ||' '[[ "$_b" =~ ^.*$ ]] ||'
+mutant args-file-len-unbounded  '[ "${#_line}" -le 8000 ] || { die "arguments longer than 8000 characters"; exit 2; }
+    set -- "$_line"
+fi
+for _a' ':
+    set -- "$_line"
+fi
+for _a'
+mutant args-file-not-consumed   'rm -f -- "${_f:?}"' ':'
+mutant args-file-extra-ok       '[ "${1:-}" = "--args-file" ] && [ $# -eq 2 ]' '[ "${1:-}" = "--args-file" ]'
 
 echo "mutants: killed=$killed survived=$survived total=$n"
 [ "$survived" -eq 0 ]

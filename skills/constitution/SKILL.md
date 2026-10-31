@@ -20,16 +20,20 @@ compatibility:
 
 # /constitution
 
-Run the dispatcher with the user's arguments on STDIN through a QUOTED heredoc (the shell then does
-not evaluate `$(...)`, backticks or `$VAR` in the user's text). Run exactly this three-line command and
-replace ONLY line 2 with the arguments, verbatim, on one line; never put them on the command line or
-inside double quotes:
+Pass the user's arguments in a FILE so no shell ever sees the user's text (a heredoc has a
+delimiter a pasted payload could contain; a file has none).
+
+1. With your FILE-WRITE tool (not the shell), write the arguments, verbatim, on one line, into a new
+   file `/tmp/constitution_args_<id>.txt`, where `<id>` is a fresh random 12-character `[a-z0-9]`
+   string. With no arguments write `help`.
+2. Run exactly this command (the path is the only variable part; it contains no user text):
 
 ```
-bash submodules/constitution/scripts/constitution_cmd/constitution_cmd.sh --stdin <<'CONSTITUTION_ARGS_7f3a9c'
-<arguments>
-CONSTITUTION_ARGS_7f3a9c
+bash submodules/constitution/scripts/constitution_cmd/constitution_cmd.sh --args-file /tmp/constitution_args_<id>.txt
 ```
+
+The engine deletes the file after reading it. Never put the arguments on the command line, in a
+heredoc or inside quotes.
 
 Legacy layout: `constitution/scripts/constitution_cmd/constitution_cmd.sh`. When the constitution
 is the project root: `scripts/constitution_cmd/constitution_cmd.sh`.
