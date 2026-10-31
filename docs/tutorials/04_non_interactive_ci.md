@@ -15,7 +15,7 @@
 1. Pin a ref and skip the agent.
 
 ```bash
-# works only after the release is pushed and tagged (see the README Availability note)
+# works only after the release is pushed and tagged (see the README Availability note); v73 is a placeholder number until that tag exists
 curl -fsSL https://raw.githubusercontent.com/HelixDevelopment/HelixConstitution/main/scripts/install_constitution.sh | bash -s -- --non-interactive --agent none --ref helixconstitution-v73 --report-json install_report.json
 ```
 

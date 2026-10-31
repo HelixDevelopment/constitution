@@ -136,7 +136,7 @@ are the index's own.
 | testing-and-tdd | 41 | `groups/testing-and-tdd.md` |
 | translation-and-localization | 3 | `groups/translation-and-localization.md` |
 | workable-items-and-tracking | 20 | `groups/workable-items-and-tracking.md` |
-| **Total** | **300** | `constitution_index.yaml` |
+| **Total** | **301** | `constitution_index.yaml` |
 
 Foundational clauses a reader meets first (each carries its verbatim
 operator mandate in a forensic-anchor block inside `Constitution.md`):
@@ -456,22 +456,23 @@ tracked `helix-deps.yaml` — but it nests the third-party Go toolchain
 ### 2. Wire the inheritance
 
 Add a clearly-marked pointer at the top of your project's root
-`CLAUDE.md`:
+`CLAUDE.md` (standard layout: the submodule lives at `submodules/constitution`):
 
 ```markdown
-## INHERITED FROM constitution/CLAUDE.md
+## INHERITED FROM submodules/constitution/CLAUDE.md
 
-All rules in `constitution/CLAUDE.md` (and the `constitution/Constitution.md`
-it references) apply unconditionally. Project-specific rules below
-extend them.
+All rules in `submodules/constitution/CLAUDE.md` (and the
+`submodules/constitution/Constitution.md` it references) apply
+unconditionally. Project-specific rules below extend them; they never
+weaken them.
 
-@constitution/CLAUDE.md
+@submodules/constitution/CLAUDE.md
 ```
 
 Same for `AGENTS.md` (any AI-agent tooling), `QWEN.md` and `GEMINI.md`:
 
 ```markdown
-> Base agent rules: `constitution/AGENTS.md` — READ IT FIRST.
+> Base agent rules: `submodules/constitution/AGENTS.md` — READ IT FIRST.
 > The base file is authoritative for any topic not covered here.
 ```
 
@@ -479,10 +480,12 @@ And for your project Constitution:
 
 ```markdown
 This constitution **extends** the Helix Universal Constitution at
-`constitution/Constitution.md`. All clauses there apply unless
+`submodules/constitution/Constitution.md`. All clauses there apply unless
 explicitly overridden below with an explicit `Override §X.Y`
 section.
 ```
+
+Projects still on the legacy layout (submodule at `./constitution`) use the same text with `constitution/...` in place of `submodules/constitution/...`.
 
 ### 3. Keep always-loaded context small
 

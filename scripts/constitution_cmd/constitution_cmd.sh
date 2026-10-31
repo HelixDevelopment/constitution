@@ -5,7 +5,7 @@
 #
 # Usage:
 #   constitution_cmd.sh <subcommand> [args]        (a single string argument is split on blanks)
-#   constitution_cmd.sh --args-file PATH           (same, from /tmp/constitution_args_<[a-z0-9]{8,64}>.txt the agent wrote; deleted after use)
+#   constitution_cmd.sh --args-file PATH           (same, from /tmp/constitution_args_<[a-z0-9]{8,64}>.txt or $TMPDIR/constitution_args_<id>.txt, the file the agent wrote; deleted after use)
 #     status                       layout, pinned version, latest local release tag, Jev state
 #     update [--check|--dry-run] [--ref REF]
 #                                  delegates to scripts/update_constitution.sh; --check is the
@@ -19,7 +19,7 @@
 #     report|issue|bug|task|feature <text>
 #                                  delegates to scripts/reporting/report_item.sh (section 11.4.202)
 #     skills [list|status]         delegates to scripts/skill_activation/skill_activate.sh
-#     extensions <list|info|add|update|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
+#     extensions <list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
 #     install-extension <src>      alias of: extensions add <src>
 #                                  both delegate to scripts/constitution_ext/constitution_ext.sh
 #     jev                          decision-layer status (jev-status.sh --no-validate)
@@ -255,8 +255,9 @@ cmd_skills() {
 cmd_extensions() {
     local sub="${REST[0]:-}"
     case "$sub" in
-        list|info|add|update|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
-        *) die "extensions subcommands: list info add update remove enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
+        list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
+        update) die "extensions update is not implemented (the extension engine has no update command; remove and add to change a version)"; return 2 ;;
+        *) die "extensions subcommands: list info add remove enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
     esac
     local a
     local allow

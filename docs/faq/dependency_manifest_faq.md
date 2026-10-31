@@ -15,6 +15,8 @@
 | Fixed summary | — |
 | Continuation | — |
 
+> Path note: paths written `constitution/scripts/...` in this document are `submodules/constitution/scripts/...` in the standard layout (`constitution/...` is the legacy layout).
+
 Related: [user guide](../guides/dependency_manifest_user_guide.md) · [manual](../manuals/dependency_manifest_manual.md)
 
 ## General

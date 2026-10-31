@@ -50,7 +50,7 @@ of the shims is owned by `scripts/install_cli_agent_plugins.sh` (not changed her
 | `gates [list]`, `gates run NAME` | lists `cm_*` gates (mutation tests hidden); runs one with a timeout (`CONSTITUTION_CMD_GATE_TIMEOUT`, default 120 s) |
 | `report`/`issue`/`bug`/`task`/`feature TEXT` | delegates to `report_item.sh` (section 11.4.202) |
 | `skills [list\|status]` | delegates to `skill_activate.sh` |
-| `extensions list\|info\|add\|update\|remove\|enable\|disable\|verify\|lock\|catalog\|wire\|unwire\|doctor\|validate ...` | delegates to the extension engine if installed; otherwise prints `extensions engine not installed` |
+| `extensions list\|info\|add\|remove\|enable\|disable\|verify\|lock\|catalog\|wire\|unwire\|doctor\|validate ...` | delegates to the extension engine if installed; otherwise prints `extensions engine not installed`; `extensions update` is not implemented and exits 2 |
 | `install-extension SRC` | alias of `extensions add SRC` |
 | `jev`, `release-notes`, `help` | decision-layer status, head of the changelog, usage |
 
