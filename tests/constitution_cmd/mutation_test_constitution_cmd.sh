@@ -110,7 +110,6 @@ mutant h-tmpdir-realpath-check-removed 'and os.path.realpath(t) == t):' 'and Tru
 mutant h-tmpdir-dotdot-both-removed 'and not any(x in ("", ".", "..") for x in segs)' 'and True' 'and os.path.realpath(t) == t):' 'and True):'
 mutant h-tmpdir-relative-both-removed 'if (t.startswith("/") and' 'if (True and' 'and os.path.realpath(t) == t):' 'and True):'
 mutant h-filename-anchor-loose  'ID_RE = re.compile(r"constitution_args_[a-z0-9]{8,64}\.txt\Z")' 'ID_RE = re.compile(r"constitution_args_[a-z0-9]{8,64}\.txt")'
-mutant h-seam-ungated           'os.environ.get("CONSTITUTION_CMD_TEST") == "1" and os.environ.get("CONSTITUTION_CMD_TEST_SWAP")' 'os.environ.get("CONSTITUTION_CMD_TEST_SWAP")'
 mutant h-not-consumed           'os.unlink(name, dir_fd=dfd)' 'pass'
 unset MUT_FILE
 

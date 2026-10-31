@@ -55,5 +55,19 @@ ck "B3 .gemini/commands symlinked outside: decoy untouched" "[ '$before' = \"\$(
 # symlink INSIDE the project is fine
 q="$sb/q_in"; mkdir -p "$q/real_g"; ln -s real_g "$q/.gemini"; inst "$q"
 ck "B3 .gemini symlinked inside project ok" "[ -L '$q/real_g/commands/$base' ]"
+# R1: a user link to a NON-skills, NON-generated constitution file at a generated name is left untouched
+q="$sb/q_r1"; mkdir -p "$q/.gemini/commands"
+ln -s "$here/docs/guides/constitution_command_guide.md" "$q/.gemini/commands/$base"
+inst "$q"
+ck "R1 user link to other constitution file kept" "[ \"\$(readlink '$q/.gemini/commands/$base')\" = '$here/docs/guides/constitution_command_guide.md' ]"
+# R4: sibling-prefix (<project>-evil) must be refused and the sibling stays empty
+q="$sb/q_r4"; mkdir -p "$q" "$sb/q_r4-evil"; ln -s "../q_r4-evil" "$q/.qwen"
+inst "$q"
+ck "R4 .qwen -> sibling-prefix dir: sibling empty" "[ -z \"\$(ls -A '$sb/q_r4-evil')\" ]"
+ck "R4 .qwen -> sibling-prefix dir: rc non-zero" "[ $RC -ne 0 ]"
+# F1: .claude symlinked outside must not receive settings.json(.bak) even via the standalone prefix installer
+q="$sb/q_f1"; mkdir -p "$q"; ln -s "$sb/decoy" "$q/.claude"; before="$(tsum "$sb/decoy")"
+RC=0; bash "$here/scripts/install_action_prefix.sh" "$q" >/dev/null 2>&1 || RC=$?
+ck "F1 standalone install_action_prefix refuses outside .claude" "[ '$before' = \"\$(tsum '$sb/decoy')\" ] && [ $RC -ne 0 ]"
 ck "final: decoy + home untouched" "[ \"\$(cat '$sb/decoy/keep.txt')\" = precious ] && [ ! -e '$sb/decoy/commands' ]"
 exit $fail

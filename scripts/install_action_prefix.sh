@@ -64,6 +64,16 @@ esac
 
 settings_dir="$project_root/.claude"
 settings="$settings_dir/settings.json"
+# Containment BEFORE any write (mkdir/cp/mv): .claude, settings.json, .bak and .tmp must all
+# resolve (symlinks followed, may not exist yet) strictly inside the project, else REFUSE.
+proj_real="$(cd "$project_root" && pwd -P)"
+for _p in "$settings_dir" "$settings" "$settings.bak" "$settings.tmp"; do
+  _r="$(readlink -m -- "$_p" 2>/dev/null)" || _r=""
+  case "$_r" in
+    "$proj_real"/*) ;;
+    *) echo "install_action_prefix: $_p resolves outside the project — REFUSED, nothing written" >&2; exit 1 ;;
+  esac
+done
 mkdir -p "$settings_dir"
 
 # Seed an empty settings.json if missing.

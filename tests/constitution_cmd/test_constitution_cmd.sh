@@ -316,15 +316,26 @@ HLP_PATH="$TR/real//constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/real//"
 check "A TMPDIR with empty segment rejected rc2" test $HRC -eq 2
 HLP_PATH="$TR/real/constitution_args_tmpdir01.txt"; hlp TMPDIR="$TR/real"
 check "A canonical TMPDIR accepted rc0" test $HRC -eq 0; check "A canonical TMPDIR file consumed" test ! -e "$TR/real/constitution_args_tmpdir01.txt"
-# identity check (dev+inode): the test seam (honoured ONLY with CONSTITUTION_CMD_TEST=1) swaps the directory
-# entry for another file in the same dir after the descriptor is open; the helper must reject.
+# identity check (dev+inode): driven IN-PROCESS (import + after_open callback); the shipped entry point has
+# no environment-controlled behaviour at all.
+check "A production helper has no env-controlled seam" bash -c "! grep -q 'CONSTITUTION_CMD_TEST' '$HLP'"
 printf 'help\n' > "$TR/real/constitution_args_swapa0001.txt"; printf 'evil\n' > "$TR/real/constitution_args_swapb0001.txt"
-HLP_PATH="$TR/real/constitution_args_swapa0001.txt"; hlp TMPDIR="$TR/real" CONSTITUTION_CMD_TEST=1 CONSTITUTION_CMD_TEST_SWAP=constitution_args_swapb0001.txt
-check "A entry swapped after open rejected rc2" test $HRC -eq 2; check "A swap rejection says identity changed" grep -q 'identity changed' "$SB/herr"
-check "A swapped-in file not consumed" test -e "$TR/real/constitution_args_swapa0001.txt"
-printf 'help\n' > "$TR/real/constitution_args_swapb0001.txt"
-hlp TMPDIR="$TR/real" CONSTITUTION_CMD_TEST_SWAP=constitution_args_swapb0001.txt
-check "A swap seam inert without CONSTITUTION_CMD_TEST=1 (rc0)" test $HRC -eq 0
+SWOUT="$(python3 -I - "$HLP" "$TR/real" 2>&1 <<'PYEOF'
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("afr", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+d = sys.argv[2]
+def swap(dfd, name):
+    os.rename("constitution_args_swapb0001.txt", name, src_dir_fd=dfd, dst_dir_fd=dfd)
+try:
+    m.read_and_consume(d + "/constitution_args_swapa0001.txt", [d], after_open=swap)
+    print("ACCEPTED")
+except SystemExit as e:
+    print("REJECTED", e.code)
+PYEOF
+)"
+check "A entry swapped after open rejected rc2" bash -c "[ \"\$1\" = 'REJECTED 2' ]" _ "$(printf '%s\n' "$SWOUT" | tail -1)"
+check "A swap rejection says identity changed" bash -c "printf '%s' \"\$1\" | grep -q 'identity changed'" _ "$SWOUT"
+check "A swapped-in file consumed not (swap target stays)" test -e "$TR/real/constitution_args_swapa0001.txt"
 # owner check: unit-test the helper with a different effective uid (a foreign-owned file cannot be created unprivileged)
 mkaf "owner000$$" "help"
 OUT="$(python3 -I - "$HLP" "$TD/constitution_args_owner000$$.txt" "$TD" 2>&1 <<'PYEOF'

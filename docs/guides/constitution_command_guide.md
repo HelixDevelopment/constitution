@@ -85,7 +85,7 @@ directory descriptor with `O_NOFOLLOW` (a symlink leaf or symlinked middle direc
 must be a regular file with one hard link, owned by the caller, at most 8001 bytes, with the same
 inode as the directory entry, one line, no control or NUL characters; only that verified file is
 deleted (through the directory descriptor) after reading (helper `args_file_read.py`). `--stdin` was
-removed (nothing used it). The directories are exactly `/tmp` and (when canonical) `$TMPDIR`, on purpose; an agent without a
+removed (nothing used it). The directories are exactly `/tmp` and (when canonical) `$TMPDIR`, on purpose. Known limit: where `/tmp` itself is a symlink (macOS: `/tmp` -> `/private/tmp`) `/tmp` stays accepted as the literal string while a `$TMPDIR` that is, or lies under, a symlink is rejected, so the two are not treated alike; use a canonical `$TMPDIR` there (e.g. `/private/tmp/...`). The helper itself has no environment-controlled test behaviour; the identity check is tested in-process. An agent without a
 file-write tool must refuse, never fall back to the shell.
 The engine splits the one-line string on blanks itself. Passing text as a double-quoted argument,
 as the first version did, is NOT safe and is not used. Residual: an agent without a file-write

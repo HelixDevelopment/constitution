@@ -119,7 +119,9 @@ project_root="${project_root:-${PROJECT_ROOT:-$PWD}}"
 project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)" || { echo "[install-plugins] project root does not exist: ${project_root}" >&2; exit 2; }
 
 # ── Ownership / containment helpers (class: never act on a path we cannot prove is ours) ──
-# Every ln/rm/mv/unlink in this installer goes through one of these:
+# Every ln/rm/mv/unlink in THIS script goes through one of these; the scripts it chains to
+# (install_action_prefix.sh: own containment check; generate_agent_prefix_commands.sh: writes only
+# inside the constitution tree) are covered separately:
 #   ic_dir_inside_project DIR  -> DIR (symlinks resolved, may not exist yet) lies strictly inside the project
 #   ic_link_owned LINK SUBDIR  -> LINK is a symlink whose fully-resolved target (dangling allowed) lies under
 #                                 THIS constitution tree's SUBDIR (skills, actions/generated)
@@ -305,6 +307,11 @@ wire_prompt_hook() {
   local inst="$const_root/scripts/install_action_prefix.sh"
   if [ ! -f "$inst" ]; then
     warn "install_action_prefix.sh missing — free-form prefix expansion NOT wired"
+    return 1
+  fi
+  # Containment before delegating (the callee also checks, as it can be run standalone).
+  if ! ic_dir_inside_project "$project_root/.claude" || ! ic_dir_inside_project "$project_root/.claude/settings.json"; then
+    warn "$project_root/.claude resolves outside the project — prompt hook REFUSED, nothing written"
     return 1
   fi
   if bash "$inst" "$project_root" >/dev/null 2>&1; then

@@ -105,8 +105,9 @@
 #                            control fixture suite against this gate itself
 #                            and exit (no real tree is read).
 #     --standalone-canon     DECLARE that --const-dir is the canon repository itself (no consumer
-#                            exists): (a) is then an honest SKIP (exit 3). Same as env
-#                            CM_CANONICAL_ROOT_STANDALONE=1. The ONLY way to get that SKIP: it is
+#                            exists): (a) is then an honest SKIP (exit 3). The ONLY way
+#                            to get that SKIP (an ambient environment variable is deliberately NOT
+#                            honoured: it would turn a real consumer FAIL into a SKIP): it is
 #                            never inferred from layout, git state or sibling files (a vendored
 #                            legacy <consumer>/constitution has the same bytes). Ignored when a
 #                            consumer root is given. Default = fail-closed consumer audit.
@@ -147,8 +148,7 @@
 #       so no absence it reports may be trusted — §11.4.6, never a guessed
 #       zero).
 #   3 — SKIP: (b) and (c) hold, but (a) is not applicable because the invocation
-#       DECLARED the constitution a STANDALONE canon (--standalone-canon or
-#       CM_CANONICAL_ROOT_STANDALONE=1) and no --consumer-root /
+#       DECLARED the constitution a STANDALONE canon (--standalone-canon only) and no --consumer-root /
 #       CONSUMER_ROOT was given. Never reported as PASS (§11.4.1); a (b) or
 #       (c) violation in a standalone checkout still exits 1.
 #
@@ -166,7 +166,6 @@ head_lines=40
 quiet=""
 selftest=""
 standalone_decl=""
-case "${CM_CANONICAL_ROOT_STANDALONE:-}" in 1) standalone_decl="1" ;; esac
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -407,8 +406,8 @@ const_dir="$(cd "$const_dir" && pwd)"
 # shown to err both ways (a non-git consumer with package.json/go.mod/Makefile only, or holding both
 # constitution/ and submodules/constitution/, was SKIPped = false negative; a real canon whose parent
 # holds a README.md or which is cloned into a directory named 'submodules' FAILed = false refusal).
-# So the SKIP of (a) is taken ONLY when the invocation DECLARES it: --standalone-canon, or the
-# environment CM_CANONICAL_ROOT_STANDALONE=1. Default (no declaration) = the fail-closed consumer audit.
+# So the SKIP of (a) is taken ONLY when the invocation DECLARES it: --standalone-canon flag ONLY (no
+# environment opt-in: an ambient variable would turn a real consumer FAIL into a SKIP). Default (no declaration) = the fail-closed consumer audit.
 # An explicit --consumer-root / CONSUMER_ROOT always wins over the declaration (it is audited).
 # Callers that legitimately run this gate against the canon repository itself must pass the flag.
 standalone=""
@@ -523,7 +522,7 @@ fi
 # ── Invariant (a): the consumer opens with the inheritance pointer ──────────
 consumer_claude="${consumer_root}/CLAUDE.md"
 if [ -n "$standalone" ]; then
-    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout DECLARED by the invocation (--standalone-canon / CM_CANONICAL_ROOT_STANDALONE=1) for ${const_dir}: there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
+    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout DECLARED by the invocation (--standalone-canon) for ${const_dir}: there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
 elif [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
     echo "❌ (a) CONSUMER-POINTER-PRESENT: consumer CLAUDE.md missing or unreadable at ${consumer_claude}"
     fail=1

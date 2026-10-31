@@ -45,8 +45,12 @@ def allowed_dirs(env_tmpdir):
     return out
 
 
-def read_and_consume(path, dirs, euid=None):
-    """Return the file text (str). Raises SystemExit(2) via reject() on any violation."""
+def read_and_consume(path, dirs, euid=None, after_open=None):
+    """Return the file text (str). Raises SystemExit(2) via reject() on any violation.
+
+    after_open: optional callable(dir_fd, name) invoked between open and identity check. It is a
+    code-level parameter for in-process tests only (main() never passes one); there is no
+    environment-controlled behaviour in this module."""
     if euid is None:
         euid = os.geteuid()
     if not isinstance(path, str) or "\0" in path:
@@ -76,9 +80,8 @@ def read_and_consume(path, dirs, euid=None):
                 reject("must be owned by the calling user")
             if st.st_size > MAX_BYTES:
                 reject("file too large (more than 8001 bytes)")
-            if os.environ.get("CONSTITUTION_CMD_TEST") == "1" and os.environ.get("CONSTITUTION_CMD_TEST_SWAP"):
-                # test seam (inert unless CONSTITUTION_CMD_TEST=1): replace the directory entry after open
-                os.rename(os.environ["CONSTITUTION_CMD_TEST_SWAP"], name, src_dir_fd=dfd, dst_dir_fd=dfd)
+            if after_open is not None:
+                after_open(dfd, name)
             try:
                 ls = os.stat(name, dir_fd=dfd, follow_symlinks=False)
             except OSError:

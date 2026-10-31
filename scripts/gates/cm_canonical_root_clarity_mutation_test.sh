@@ -274,9 +274,7 @@ sa_checks() {
     expect_exit_derived "G6 standalone canon DECLARED (--standalone-canon), no consumer -> SKIP (a), exit 3" 3 "${FX_G6}/constitution" --standalone-canon
     expect_exit_derived "G6b same checkout WITHOUT the declaration -> fail-closed consumer audit, exit 1 (never an inferred SKIP)" 1 "${FX_G6}/constitution"
     CM_CANONICAL_ROOT_STANDALONE=1 "$GATE" --const-dir "${FX_G6}/constitution" --quiet >/dev/null 2>&1; _e=$?
-    if [ "$_e" -eq 3 ]; then echo "META OK:   G6c env CM_CANONICAL_ROOT_STANDALONE=1 declares standalone (exit 3)"; else echo "META FAIL: G6c env declaration expected exit 3, got ${_e}"; rc=1; fi
-    CM_CANONICAL_ROOT_STANDALONE=0 "$GATE" --const-dir "${FX_G6}/constitution" --quiet >/dev/null 2>&1; _e=$?
-    if [ "$_e" -eq 1 ]; then echo "META OK:   G6d env CM_CANONICAL_ROOT_STANDALONE=0 does not declare (exit 1)"; else echo "META FAIL: G6d env=0 expected exit 1, got ${_e}"; rc=1; fi
+    if [ "$_e" -eq 1 ]; then echo "META OK:   G6c env CM_CANONICAL_ROOT_STANDALONE=1 is IGNORED (exit 1, no ambient opt-in)"; else echo "META FAIL: G6c env must not declare standalone, expected exit 1, got ${_e}"; rc=1; fi
     _g6_out="$("$GATE" --const-dir "${FX_G6}/constitution" --standalone-canon 2>&1)"
     case "$_g6_out" in
         *"(a) CONSUMER-POINTER-PRESENT: SKIP"*) echo "META OK:   G6 output states the (a) SKIP reason" ;;
@@ -385,8 +383,7 @@ open(os.environ["DST"],"w").write(s.replace(o,os.environ["NEW"],1))' || { echo "
     sa_mutant declaration-flag-ignored    '--standalone-canon) standalone_decl="1"; shift ;;' '--standalone-canon) shift ;;'
     sa_mutant skip-without-declaration    'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ -z "$consumer_root" ]; then'
     sa_mutant explicit-consumer-root-ignored 'if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then' 'if [ "$standalone_decl" = "1" ]; then'
-    sa_mutant env-declaration-ignored     'case "${CM_CANONICAL_ROOT_STANDALONE:-}" in 1) standalone_decl="1" ;; esac' ':'
-    sa_mutant env-any-value-declares      'in 1) standalone_decl="1" ;; esac' 'in ?*) standalone_decl="1" ;; esac'
+    sa_mutant env-opt-in-reintroduced     'standalone_decl=""' 'standalone_decl=""; case "${CM_CANONICAL_ROOT_STANDALONE:-}" in 1) standalone_decl="1" ;; esac'
     sa_mutant derive-fallback-removed     '[ -n "$consumer_root" ] || consumer_root="$(dirname "$const_dir")"' ':'
     sa_mutant derive-resolver-ignored     'consumer_root="$(cl_project_root_of "$const_dir")" || consumer_root=""' 'consumer_root=""'
     GATE="$REAL_GATE"
