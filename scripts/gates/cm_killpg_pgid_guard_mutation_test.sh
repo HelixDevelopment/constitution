@@ -563,6 +563,45 @@ else
 fi
 
 # ===================================================================
+# 8.10 ROUND 5: output integrity + shell operand grammar + python decoding + META cases.
+# Every case asserts the exit status; the marker / heredoc cases ALSO assert the gate's
+# OUTPUT (ALLOWED / IGNORED lines and the suppressed-site count), so a deleted echo or a
+# dropped last record (marker file without trailing newline) is detected.
+# ===================================================================
+R5GEN="${SCRIPT_DIR}/fixtures/killpg_round5_cases.py"
+if [ -f "$R5GEN" ] && command -v python3 >/dev/null 2>&1; then
+    R5="$TMP/round5"; mkdir -p "$R5"
+    python3 -I "$R5GEN" "$R5"
+    r5_n=0; r5_bad=0
+    while IFS=$'\t' read -r cid crc creq || [ -n "$cid" ]; do
+        [ -n "$cid" ] || continue
+        r5_n=$(( r5_n + 1 ))
+        cout="$(bash "$GATE" --root "$R5/$cid" 2>&1)"; crc_got=$?
+        if [ "$crc_got" -ne "$crc" ]; then
+            echo "❌ META FAIL: round-5 case ${cid} — expected rc=${crc}, got rc=${crc_got}"
+            r5_bad=$(( r5_bad + 1 )); continue
+        fi
+        IFS='|' read -r -a reqs <<< "$creq"
+        for rq in "${reqs[@]}"; do
+            [ -n "$rq" ] || continue
+            if ! grep -qF -- "$rq" <<< "$cout"; then
+                echo "❌ META FAIL: round-5 case ${cid} — gate output lacks '${rq}'"
+                r5_bad=$(( r5_bad + 1 ))
+            fi
+        done
+    done < "$R5/MANIFEST.tsv"
+    if [ "$r5_bad" -eq 0 ]; then
+        echo "✅ META OK:   round-5 cases — ${r5_n} cases hold (exit status and gate output)"
+    else
+        echo "❌ META FAIL: round-5 cases — ${r5_bad} assertion(s) failed of ${r5_n} cases"
+        rc=1
+    fi
+else
+    echo "❌ META FAIL: round-5 case generator or python3 missing (${R5GEN})"
+    rc=1
+fi
+
+# ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
 # an EARLY line of the call's window and a ~350 KB code line follows it. With
 # `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the

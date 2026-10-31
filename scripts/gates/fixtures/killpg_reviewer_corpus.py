@@ -4,9 +4,17 @@
 Provenance: the 188 single-file shapes an independent Opus reviewer generated against commit 2315d04
 (round-3 review, NO-GO). Every shape is INERT TEXT written to disk for the gate's scanner to read; nothing
 here is ever executed. Almost every shape is a real way to reach a process-group signal that the
-anchor forbids to leave unguarded; the ids in KNOWN_GAP are the few INDIRECT name-flow shapes
-(variable assigned a string then run, computed attribute names, aliasing through a function value, exec
-wrappers) that no static text scanner can see - they are recorded, NOT asserted.
+anchor forbids to leave unguarded, and the gate asserts that it FAILs every one of them except the ids below.
+
+KNOWN_GAP (round 5, honest list): the four shapes whose danger is a DATA FLOW the scanner does not follow.
+  g10  Go function value:        k := syscall.Kill; k(-pg, 9)       (the call is spelled through an alias)
+  s34  shell command word held in a variable:   k=kill; $k -9 -1
+  s39  operands delivered on stdin:             xargs kill -9 <<<"-1"
+  t13  operands delivered by positional parameters:  set -- -9 -1; kill "$@"
+They are recorded, NOT asserted. Round 4 listed fifteen; round 5 closed eleven of them in the gate
+(multi-line argv lists, backslash line continuation, `%d` / `{}` / `{name}` placeholders, `"kill" + "pg"` /
+`"kill -9 " + "-1"` concatenation, ANSI-C `$'1'` and `"$(..)"` targets, `sh.kill(..)`, and the
+`CMD = ["kill", "-9", "-1"]` list literal q04): those ids are asserted now.
 
 Usage: python3 killpg_reviewer_corpus.py <outdir>      writes <outdir>/<id>/mod_<id>.<ext>
        python3 killpg_reviewer_corpus.py --known-gap   prints the KNOWN_GAP ids, one per line
@@ -204,11 +212,8 @@ C['u19.py']='import os\nos.system("kill -9 " + "-1")\n'
 C['u20.py']='import os\nos.system("kill -9 -%d" % pg)\n'
 C['u21.py']='import os\nos.system("kill -9 -{}".format(pg))\n'
 
-# Indirect shapes no text scanner can see (verified unflagged by the pre-round-3 base gate as well).
-KNOWN_GAP = {
-    "g10", "p28", "p32", "q03", "q04", "s19", "s34", "s39", "s47", "s48",
-    "t13", "u11", "u19", "u20", "u21",
-}
+# Indirect data-flow shapes no text scanner follows (see the module docstring; round-5 honest list).
+KNOWN_GAP = {"g10", "s34", "s39", "t13"}
 
 
 # Sanctioned usage (the real fc_common wrapper behind its real import): the gate MUST PASS these.
