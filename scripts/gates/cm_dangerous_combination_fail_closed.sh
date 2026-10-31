@@ -518,6 +518,14 @@
 #                          scanned set of subdirectories, per BOB-214; default
 #                          0 / unset = unlimited depth, the original recursive
 #                          behaviour, unchanged)
+#     --include-third-party
+#                        also scan third-party / separate-repository trees.
+#                        DEFAULT PRUNES them (triage 2026-10-31): every `path =`
+#                        of the root .gitmodules, every helix-deps.yaml dep with
+#                        `third_party: true` (its `path:` or submodules/<name>),
+#                        resolved by scripts/lib/third_party_prune.sh; unsafe
+#                        manifest paths are dropped, never interpreted. Each
+#                        separate repository adopts this gate itself.
 #     -h|--help          print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
@@ -529,7 +537,10 @@
 #                               project-wide were invisible to this gate)
 #   DANGEROUS_COMBO_EXCLUDE   space-separated dir-name globs to prune
 #                              (default: ".git node_modules vendor .venv
-#                               __pycache__ scripts/gates out build dist")
+#                               __pycache__ scripts/gates out build dist
+#                               third_party site-packages")
+#   DANGEROUS_COMBO_INCLUDE_THIRD_PARTY
+#                              1 = same as --include-third-party
 #   DANGEROUS_COMBO_PYTHON    Python 3 interpreter used for AST analysis of
 #                              .py files (default: python3, then python).
 #   DANGEROUS_COMBO_MAX_DEPTH default for --max-depth (0/unset = unlimited).
@@ -601,16 +612,18 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=579
+HEADER_LINES=590
 
 root="${DANGEROUS_COMBO_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 quiet=0
+include_tp="${DANGEROUS_COMBO_INCLUDE_THIRD_PARTY:-0}"
 maxdepth="${DANGEROUS_COMBO_MAX_DEPTH:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
+        --include-third-party) include_tp=1; shift ;;
         --max-depth) maxdepth="$2"; shift 2 ;;
         -h|--help) sed -n "1,${HEADER_LINES}p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
@@ -640,7 +653,12 @@ if [ "$maxdepth" -gt 0 ]; then
 fi
 
 exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb sh bash}"
-excludes="${DANGEROUS_COMBO_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
+excludes="${DANGEROUS_COMBO_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages}"
+if [ "$include_tp" != 1 ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh" 2>/dev/null \
+        && excludes="$excludes $(cm_third_party_prune_paths "$root" | tr '\n' ' ')"
+fi
 
 find_name_expr=()
 first=1
@@ -808,6 +826,50 @@ scan_py_text() { # $1=file  -> echoes one "lineno" per swallowed handler
                     break
                 }
                 if (nxt != 0 && indent_of(lines[nxt]) > exc_indent) continue
+                # Repair (c): exception-ASSERTION idiom (see the AST analyser):
+                # swallow kind only, narrow clause only, enclosing def is a
+                # test, last try-body statement is a terminal failure.
+                if (body == "pass" || body == "...") {
+                    cl = trim(line)
+                    narrow = 1
+                    if (cl ~ /^except[ \t]*:/) narrow = 0
+                    if (cl ~ /(^|[^A-Za-z0-9_.])(Exception|BaseException|AssertionError)([^A-Za-z0-9_]|$)/) narrow = 0
+                    if (narrow) {
+                        prev = 0
+                        for (j = i - 1; j >= 1; j--) {
+                            t = trim(lines[j])
+                            if (t == "" || substr(t, 1, 1) == "#") continue
+                            prev = j; break
+                        }
+                        # the failing statement must sit at the try BODY level
+                        # (not nested in an if/for), so find the matching `try:`
+                        tb_indent = -1
+                        for (j = i - 1; j >= 1; j--) {
+                            if (lines[j] ~ /^[ \t]*try[ \t]*:[ \t]*(#.*)?$/ && indent_of(lines[j]) == exc_indent) {
+                                for (k = j + 1; k <= NR; k++) {
+                                    t = trim(lines[k])
+                                    if (t == "" || substr(t, 1, 1) == "#") continue
+                                    tb_indent = indent_of(lines[k]); break
+                                }
+                                break
+                            }
+                        }
+                        if (prev != 0 && tb_indent > exc_indent && indent_of(lines[prev]) == tb_indent) {
+                            pt = trim(lines[prev])
+                            if (pt ~ /^assert[ \t]+(False|0)[ \t]*(,.*)?$/ || pt ~ /^(self|cls|pytest)\.fail[ \t]*\(/ || pt ~ /^raise[ \t]+AssertionError([ \t]*\(.*|[ \t]*)$/) {
+                                in_test = 0
+                                for (j = i - 1; j >= 1; j--) {
+                                    if (lines[j] ~ /^[ \t]*(async[ \t]+)?def[ \t]+/ && indent_of(lines[j]) < exc_indent) {
+                                        dn = trim(lines[j]); sub(/^(async[ \t]+)?def[ \t]+/, "", dn)
+                                        if (dn ~ /^test/) in_test = 1
+                                        break
+                                    }
+                                }
+                                if (in_test) continue
+                            }
+                        }
+                    }
+                }
                 print i
             }
         }
@@ -1292,6 +1354,61 @@ def gated_only_call_names(tree):
     return {name for name, flags in per_name.items() if flags and all(flags)}
 
 
+# Repair (c) (triage 2026-10-31): the exception-ASSERTION idiom
+#     def test_x(): try: f(); assert False; except ValueError: pass
+# is not a swallow -- the terminal failing statement raises if the expected
+# exception does NOT occur, so nothing is silently absorbed. Exempt ONLY when
+# ALL hold: (1) the handler is the plain `swallow` kind (a silent-default
+# `return None` is still flagged); (2) the enclosing function is a test
+# (name starts with `test`); (3) the LAST statement of the try body is a
+# terminal failure: `assert False/0`, `self.fail(..)`, `pytest.fail(..)`,
+# `raise AssertionError(..)`; (4) the clause names only NARROW classes: a
+# bare `except:`, Exception, BaseException or AssertionError would swallow the
+# very assertion that is supposed to fail the test (they stay flagged).
+def _is_terminal_failure(stmt):
+    if isinstance(stmt, ast.Assert):
+        t = stmt.test
+        return isinstance(t, ast.Constant) and not t.value
+    if isinstance(stmt, ast.Raise):
+        e = stmt.exc
+        if isinstance(e, ast.Call):
+            e = e.func
+        return isinstance(e, ast.Name) and e.id == "AssertionError"
+    if (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call)
+            and isinstance(stmt.value.func, ast.Attribute)
+            and stmt.value.func.attr == "fail"
+            and isinstance(stmt.value.func.value, ast.Name)
+            and stmt.value.func.value.id in ("self", "pytest", "cls")):
+        return True
+    return False
+
+
+def _exc_names_narrow(handler):
+    t = handler.type
+    if t is None:
+        return False
+    elts = t.elts if isinstance(t, ast.Tuple) else [t]
+    for e in elts:
+        if isinstance(e, ast.Name):
+            n = e.id
+        elif isinstance(e, ast.Attribute):
+            n = e.attr
+        else:
+            return False          # computed class: cannot prove narrow
+        if n in ("Exception", "BaseException", "AssertionError"):
+            return False
+    return True
+
+
+def is_exception_assertion_idiom(try_node, handler, func_name):
+    if not (func_name and func_name.startswith("test")):
+        return False
+    body = [x for x in try_node.body if not is_docstring(x)]
+    if not body or not _is_terminal_failure(body[-1]):
+        return False
+    return _exc_names_narrow(handler)
+
+
 class _HandlerVisitor(ast.NodeVisitor):
     """Collects (kind, lineno, enclosing_function_name_or_None) for every
     classify()-positive exception handler, tracking the enclosing function
@@ -1317,6 +1434,9 @@ class _HandlerVisitor(ast.NodeVisitor):
     def visit_Try(self, node):
         for handler in node.handlers:
             kind = classify(handler)
+            if kind == "swallow" and is_exception_assertion_idiom(
+                    node, handler, self._enclosing()):
+                kind = None
             if kind:
                 self.hits.append((kind, handler.lineno, self._enclosing()))
         self.generic_visit(node)

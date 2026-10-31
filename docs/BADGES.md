@@ -7,6 +7,16 @@ assert the README row equals the computed row, and `--selftest` for the
 golden-good / golden-bad / negative-control self-validation
 (§11.4.107(10)).
 
+Static badges: a badge with no computed value or colour (for example a
+link badge such as "Ask DeepWiki") is declared as DATA, one Markdown badge
+per line, in `config/static_badges.list`. The computer appends those lines
+verbatim after the derived row (the Readiness gauge ignores them), `--check`
+requires them, and the colour and provenance gates exempt exactly the alts
+declared there. A static line must be `![alt](https://...)` or
+`[![alt](https://...)](https://...)` with no spaces, quotes, angle brackets,
+backticks or parentheses inside the URLs, and its alt may not reuse a derived
+badge alt; anything else makes the computer exit 2 (BLIND) and print no row.
+
 Colour vocabulary is the closed set of §11.4.259(A): green, amber, red
 (gray is reserved for a class that does not apply). A source that cannot
 be read makes the computer exit 2 (BLIND) and print no row — a missing
@@ -17,7 +27,7 @@ line names where the value and colour come from. The gate
 `CM-BADGE-MACHINE-DERIVED-SOURCE` cross-checks this file against the row.
 
 ## Version
-Source: scripts/badges/compute_badges.sh (first `## ` heading of CHANGELOG.md; amber while it is `Unreleased`, green once it is a `helixconstitution-vNN` release heading)
+Source: scripts/badges/compute_badges.sh (first `## ` heading of CHANGELOG.md; amber while it is `Unreleased`, green once it is a `helixconstitution-vNN` or dotted patch `helixconstitution-vNN.N[.N...]` release heading)
 
 ## Anchors
 Source: scripts/badges/compute_badges.sh (count of `- id:` rows in constitution_index.yaml; red unless the index's recorded source SHA-256 equals the SHA-256 of Constitution.md)

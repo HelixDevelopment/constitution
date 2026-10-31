@@ -1,8 +1,47 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
-## Unreleased (post-v73)
+## helixconstitution-v73.1 — 2026-10-31 — patch release after v73: installer settings-merge hardening, consumer-layout gate and test fixes, hermetic test environments
 
-### Fixed — `scripts/install_action_prefix.sh` (review of 4d39b88)
+**Status of this entry: READY TO TAG, not yet tagged or published (§11.4.290 labelling).** Previous tag: `helixconstitution-v73` (2026-10-31). Commits since v73: 12 (`git log helixconstitution-v73..HEAD --oneline`) plus uncommitted-but-complete work in the tree (scanner-gate repairs, static badges, third-party prune library, triage note). The §11.4.40 full-suite retest was NOT run for this patch.
+
+#### VERIFIED (commands run by the author of this entry on 2026-10-31, output seen)
+
+- `bash tests/gates/test_default_scan_root.sh` ends `passed=25 failed=0`, rc 0.
+- `bash tests/gates/test_standalone_canon_gates.sh` ends `# test_standalone_canon_gates: pass=50 fail=0`, rc 0.
+- `bash scripts/gates/scanner_gate_false_positive_repairs_test.sh` ends `RESULT: 59 ok, 0 failed`, rc 0.
+- `bash scripts/badges/test_static_badges.sh` ends `RESULT: pass=64 fail=0`, rc 0.
+- `bash scripts/badges/compute_badges.sh --check` prints `BADGES: README badge row matches the computed row`, rc 0.
+- `bash tests/layout/test_consumer_trust_lock.sh`: FIRST run ended `PASS=39 FAIL=1` (rc 1), an immediate SECOND run ended `PASS=40 FAIL=0` (rc 0). The failing assertion of the first run was not captured (output was tailed), so the cause is UNKNOWN; a flaky or timing-dependent test is possible and is carried as KNOWN OPEN.
+- The stray file `0` no longer exists in the repo root (`ls 0` reports no such file).
+
+#### PROVISIONAL (reported by agents, NOT re-run by the author of this entry)
+
+- Known-issue ranks 1 to 3 fixed: anchors tests resolve canon from `__file__`; new `scripts/lib/default_scan_root.sh`; six scanner gates derive their default scan root from the gate location, not the cwd parent.
+- Ranks 5 to 8: consumer-layout gates take `--standalone-canon` or use `default_scan_root`; locale-stable `comm` in `cm_rule_binds_to_seam`; canon-owned instrument-trap fixtures; jev tests scrub the ambient environment including `CLAUDE_CONFIG_DIR`; continuum test literals genericised (submodule commit `213ad07` plus the pointer bump); `known_failures_v73.md` rows 5 to 8 with evidence.
+- N4 layout test gap closed: all 93 counted layout mutations killed, N4 killed, N2 judged equivalent.
+- Extensions mutation suite: the earlier "stall" was not a hang (244 mutants at about 27 s each is about 110 min serial); 244/244 killed as the union of 4 invocations.
+- Decisions own mutants 169/169 killed (163 plus 6 re-run); jev `test_gate_pairs` PASS.
+- `reopen_rate` and `select_sample`: unparseable timestamps are now surfaced, not silently counted. Destructive-path guard now also analyses NUL-stripped text (a true bypass, fixed) and narrows realpath handlers. `is_locked` contract pinned. Stray file `0` root cause: awk `print ... > 0` in `tests/gates/test_standalone_canon_gates.sh` line 58, fixed.
+- Gate repairs (the VERIFIED test above covers the repair test file): oracle and dangerous-combination gates prune third-party by default (opt-in flag to include), prose `oracle:` no longer parsed as a strategy, the `assert False` / `except: pass` test idiom is skipped; 13/13 mutants killed (agent-reported), 59 ok (verified above).
+- Badges: static badges data file `config/static_badges.list`; dotted tags (`v73.1`) accepted; `lib_badge_row` treats linked badges as badges (before, `cm_readme_badge_row_at_top` failed and 3 badge gates passed vacuously). Verified above: 64/0 and `--check` rc 0.
+- Installer `cases_f` set and mutants MV, BAK, BAKORIG, BAKORDER, TRAP, QUOTE, PYNUM, PYNAN, BOM, JQNAN in `tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh` (run result not recorded when this entry was written).
+
+#### KNOWN OPEN
+
+1. Canon first-party oracle gate: 414 unannotated tests; the ceiling baseline value is an operator decision (§11.4.66).
+2. Dangerous-combination: 150 first-party hits triaged as 0 true defects (`docs/design/canon_self_scan_triage_2026_10_31.md`).
+3. Operator decisions pending: default scan root (superproject vs canon); whether `.gitmodules` own-org submodules should be pruned or only `third_party: true`; applicability of `CM-CODEGRAPH-MCP-HEALTH` and `CM-OPENDESIGN-UI-SYSTEM` to the canon.
+4. The §11.4.40 full-suite retest was not run for this patch.
+5. 4 NOT-ok cases in `scripts/fastcycle/tests` (`test_select_sample_r5_regression` S3/S5/S6, `test_reopen_rate_red` control needle), reported environmental (live tracker DB / sqlite3 unavailable) but NOT proven by a clean-HEAD comparison.
+6. `tests/layout/test_consumer_trust_lock.sh` failed once (39/1) and passed on re-run (40/0); cause unknown. A follow-up attempt to reproduce it ran the test 12 times sequentially and 6 times concurrently (all in per-run sandboxes) and got `PASS=40 FAIL=0` 18 of 18 times, so the single failure is UNCONFIRMED and not reproduced; the failing assertion was never captured.
+7. The extensions engine remains experimental and dormant; ownership redesign and opencode/kimi/pi wiring are planned, not done.
+8. The carried v73 follow-ups listed in the v73 entry below.
+
+### Changed
+
+- README Version badge regenerated with `scripts/badges/compute_badges.sh` (not hand-typed) from this heading; dotted tags such as `v73.1` are now accepted.
+
+### Fixed — `scripts/install_action_prefix.sh` (review of 4d39b88; PROVISIONAL, see status)
 
 - **Python fallback number fidelity (important).** Numbers are carried as their original token, so `1e400`, `1e-400`, `1.0000000000000000001`, `1.5e3`, big integers and `-0.0` round-trip textually (before: `Infinity`, `0.0`, `1.0`, `1500.0` written back, rc 0). `NaN`/`Infinity` are refused (`parse_constant`), the output is dumped with `allow_nan=False`, re-parsed strictly and compared with the in-memory result before the rename. A UTF-8 BOM is now REFUSED on BOTH paths (jq used to accept it); the jq path also REFUSES `NaN`/`Infinity` (jq turns them into `null` / `1.797e308`; checked with jq 1.8.1 only, other jq versions UNCONFIRMED). The jq path still normalises number spelling itself (for example `1.5e3` becomes `1500`); the textual guarantee is for the python path.
 - **`.bak` order and policy (minor).** Validation and merge happen first into a temp file; a refused run writes nothing, so it never creates or clobbers `.bak`. The `.bak` is ORIGINAL-PRESERVING: created once from the pre-install file, never overwritten by later runs (delete it by hand to refresh; an existing `.bak` of any content is kept).

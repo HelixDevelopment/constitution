@@ -75,7 +75,8 @@ br_badge_row_text() {
     # Badge-shaped: after stripping every ![alt](url) occurrence, nothing
     # but whitespace remains.
     local stripped
-    stripped="$(printf '%s' "$candidate" | sed -E 's/!\[[^]]*\]\([^)]*\)//g')"
+    # a linked badge `[![alt](img)](link)` (static badges, e.g. a DeepWiki link badge) is badge-shaped too
+    stripped="$(printf '%s' "$candidate" | sed -E -e 's/\[!\[[^]]*\]\([^)]*\)\]\([^)]*\)//g' -e 's/!\[[^]]*\]\([^)]*\)//g')"
     if [ -n "${stripped//[$' \t\r\n']/}" ]; then
         return 1
     fi
@@ -97,6 +98,20 @@ br_extract_entries() {
         url="$(printf '%s' "$entry" | sed -E 's/^!\[[^]]*\]\(([^)]*)\)/\1/')"
         printf '%s\t%s\n' "$alt" "$url"
     done
+}
+
+br_static_alts() {
+    # $1 = project root. Prints, one per line, the alt text of every STATIC (non-derived) badge declared in
+    # <root>/config/static_badges.list (see scripts/badges/compute_badges.sh static_badges). Prints nothing when the
+    # file is absent. Static badges carry no computed colour/value, so the colour and provenance gates exempt exactly
+    # these alts; a badge that is not declared there stays fully subject to both gates.
+    local f="$1/config/static_badges.list" line
+    [ -f "$f" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        case "$line" in ''|'#'*) continue ;; esac
+        printf '%s\n' "$line" | sed -E -n 's/^\[?!\[([^]]*)\]\(.*/\1/p'
+    done <"$f"
 }
 
 br_color_token() {
