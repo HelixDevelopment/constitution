@@ -60,6 +60,7 @@ cp "$REPO/scripts/post_update_hook.sh" "$HOST_C/scripts/post_update_hook.sh"
 cp "$HERE/fixtures-shared/jev_scripts/bootstrap.sh" "$HOST_C/scripts/jev/bootstrap.sh"
 printf '# c\n' > "$HOST_C/Constitution.md"; mkdir -p "$HOST_C/mcp"
 printf '{"mcpServers":{"jev":%s}}\n' "$OLD_ENTRY" > "$HOST_C/mcp/jev-decisions.json"
+unset CLAUDE_CONFIG_DIR   # hermetic: jev_mcp_files (correctly) scans $CLAUDE_CONFIG_DIR/.claude.json + .mcp.json, so an ambient alias dir holding a hosted jev entry forces shadow in the S2 enforce case
 unset TYPESAFE_BASE_URL JEV_BASE_URL   # hermetic: an ambient hosted base must not decide the S2 enforce case (r6 m6-2 reads the process env)
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 git -C "$HOST_C" init -q && git -C "$HOST_C" add -A && git -C "$HOST_C" commit -q -m v71
