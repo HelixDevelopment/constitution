@@ -4,7 +4,7 @@
 
 ## Install / update with one command
 
-> **Availability.** The raw URLs below and the installer's default `--ref` (newest `helixconstitution-v*` tag) work only after this release is pushed and tagged; until then the curl route returns nothing. The minimum supported ref is the release-1 tag `helixconstitution-v73` (placeholder number, the conductor may change it): older tags such as `helixconstitution-v72.2` predate the installer, `latest.md` and the decisions wizard. The only "predates" refusal in `install_constitution.sh` is in the agent step (a run with an agent on a ref without `docs/prompts/setup/latest.md` ends with exit 3 "this constitution version predates it"); a run with `--agent none` does not read `latest.md`, so whether it succeeds on an old ref beyond that is UNCONFIRMED.
+> **Availability.** The raw URLs below and the installer's default `--ref` (newest `helixconstitution-v*` tag) work once the `helixconstitution-v73` release is pushed and tagged (released 2026-10-31). The minimum supported ref is the release-1 tag `helixconstitution-v73`: older tags such as `helixconstitution-v72.2` predate the installer, `latest.md` and the decisions wizard. The only "predates" refusal in `install_constitution.sh` is in the agent step (a run with an agent on a ref without `docs/prompts/setup/latest.md` ends with exit 3 "this constitution version predates it"); a run with `--agent none` does not read `latest.md`, so whether it succeeds on an old ref beyond that is UNCONFIRMED.
 
 Run inside a git project. The installer adds the constitution as a git submodule at `submodules/constitution` (the standard layout; the legacy `./constitution` layout stays supported), never pushes, and backs up every file it changes under `.constitution-install-backup/<timestamp>/`. One snippet per upstream, exactly as `bash scripts/install_constitution.sh --print-snippets` prints them (the first is the default upstream, `github`; the rest are `gitlab`, `gitlab-vasic`, `gitflic`, `gitverse`):
 
@@ -423,7 +423,7 @@ git submodule add git@github.com:HelixDevelopment/HelixConstitution.git submodul
 
 # Pin to a release tag for reproducibility (recommended)
 cd submodules/constitution
-git checkout helixconstitution-v73   # placeholder: does not work until the tag exists (newest tag today: helixconstitution-v72.2)
+git checkout helixconstitution-v73
 cd ../..
 git add submodules/constitution
 git commit -m "chore: add Helix Constitution submodule pinned to helixconstitution-v73"
