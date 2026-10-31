@@ -2207,7 +2207,7 @@ class Round8(unittest.TestCase):
         make(aux)
         e.read_lock = lambda: {"x": {"id": "x"}}
         j = {"op": "remove", "id": "x", "final": os.path.join(e.inst_dir, "x"), "aux": aux}
-        if os.path.isdir(aux) and not os.path.islink(aux):
+        if os.path.lexists(aux):  # a link too: the identity matches, so only the directory/owner arm can refuse
             j["ident"] = ext_engine._ident_of(aux)
         e._recover_journal(j)
         return e
@@ -2376,6 +2376,20 @@ class Round9(unittest.TestCase):
             self.assertIsNotNone(e.journal_problem(self._remove_journal(e, aux, bad)), bad)
         self.assertIsNone(e.journal_problem(self._remove_journal(e, aux, [1, 2, 3])))
 
+    def test_s1_rollback_refuses_a_trash_directory_of_another_owner(self):  # reviewer mutant PC3
+        e = self.eng()
+        aux = self._trash(e)
+        e.read_lock = lambda: {"x": {"id": "x"}}
+        j = self._remove_journal(e, aux, ext_engine._ident_of(aux))
+        old = os.geteuid
+        os.geteuid = lambda: old() + 1
+        try:
+            e._recover_journal(j)
+        finally:
+            os.geteuid = old
+        self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
+        self.assertTrue(os.path.isdir(aux))
+
     def test_s1_m1_rename_requires_a_trash_name(self):  # reviewer mutant M1
         e = self.eng()
         aux = self._trash(e, name="notatrash")
@@ -2434,6 +2448,23 @@ class Round9(unittest.TestCase):
         self.assertEqual(hits, ["copy-before-open"], "the race seam did not run (the test proves nothing)")
         copied = os.path.join(dst, "a.txt")
         self.assertFalse(os.path.exists(copied) and "TOPSECRET" in open(copied).read())
+
+    def test_s2_extra_link_to_the_same_file_added_after_lstat_is_refused(self):  # reviewer mutant M6
+        src = os.path.join(self.d, "lsrc")
+        os.makedirs(src)
+        victim = os.path.join(src, "a.txt")
+        with open(victim, "w") as f:
+            f.write("plain")
+        hits = []
+
+        def hook(stage):
+            if stage == "copy-before-open":
+                hits.append(stage)
+                os.link(victim, os.path.join(self.d, "elsewhere-link"))  # same inode, now two links
+        ext_engine.RACE_HOOK = hook
+        with self.assertRaises(ext_engine.EngineError):
+            ext_engine._copy_tree(src, os.path.join(self.d, "ldst"), False)
+        self.assertEqual(hits, ["copy-before-open"])
 
     def test_s2_different_file_swapped_in_after_lstat_is_refused(self):
         src = os.path.join(self.d, "isrc")

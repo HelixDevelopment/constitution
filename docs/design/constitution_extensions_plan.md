@@ -133,3 +133,19 @@ Class inventory written down before the fix (each class is closed by an allow-li
 
 Reviewer mutants RM1-RM5 are in `tests/extensions/test_mutations.sh` (rows `R7 RM1`..`R7 RM5`) with the new rules' own mutants.
 
+
+## Round 9 note (E1, structural: a journal acts only on what it can prove it owns)
+
+Class: a recovery or cleanup path that renames or deletes a path taken from journal content or from a name pattern. Census (control-needled: `os.rename` 4 hits, an absent needle 0 hits) of every rename, delete and unlink in the engine, and the proof each one now has:
+
+| Site | Proof before acting |
+|---|---|
+| add rollback (`rm_tree(final)`) | identity recorded by the add journal (device, inode, mtime), compared with the tree at `final` |
+| remove rollback (rename trash to `final`) and remove completion (delete trash) | NEW: the remove journal records the identity of `final` before the rename; the trash is touched only when both ends sit directly in `_installed`, the name is a trash name, it is a directory of this user and its identity equals the journal's. Otherwise it is left in place and reported; an old journal with no identity is treated the same way |
+| `.staging-*` sweep | dead pid, shape, and NEW: owned by this user |
+| `.trash-*` sweep | never deleted by name (only the journal that names it may act) |
+| temp files, wire stage directories, wire temp shims | dead pid, shape, owner, and for shims the managed-by marker or the engine-computed link text |
+| commit journal (`deletes`) | ids validated, deleted only when absent from the lock |
+| snapshot garbage collection, `_work`, wire stage | paths built from validated names under this project's own state or the engine's own working directory |
+
+Copy: `_copy_tree` re-checks the opened descriptor (regular file, one link, same device and inode as the `lstat`), closing the window between `lstat` and `open`. Test infrastructure: `new_sandbox` resolves the sandbox with `realpath`, so a symlinked or `..`-containing `TMPDIR` no longer changes compared paths. Honest boundary: identity is device, inode and mtime of a directory; it proves "the same directory that was moved", not that its content is unchanged.

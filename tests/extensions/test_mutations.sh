@@ -339,6 +339,7 @@ M3 partial lock reported as written‖provenance‖ext_engine.py‖            s
 M4 copy open blocks on a FIFO (no O_NONBLOCK)‖unit‖ext_engine.py‖        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)  # RULE:M4-open-nonblock‖        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)  # RULE:M4-open-nonblock
 @@
 M4 copy accepts a non-regular file at open time‖unit‖ext_engine.py‖    if not stat.S_ISREG(st.st_mode):  # RULE:M4-open-regular‖    if False:  # RULE:M4-open-regular
++‖‖ext_engine.py‖if not stat.S_ISREG(fst.st_mode) or‖if False or
 @@
 M5 deep JSON nesting crashes (RecursionError not caught)‖unit‖ext_engine.py‖        return json.loads(text, object_pairs_hook=pairs)\n    except RecursionError:‖        return json.loads(text, object_pairs_hook=pairs)\n    except ZeroDivisionError:
 @@
@@ -484,9 +485,9 @@ E1r1 CH1 enable shortcut ignores the consent list‖reviewfix‖ext_engine.py‖
 E1r1 RJ2 commit-journal recovery deletes records of ids still in the lock‖reviewfix‖ext_engine.py‖                if i not in lock:\n                    self.delete_record(i)‖                if True:\n                    self.delete_record(i)
 @@
 E1r1 PC2 aux dirname arm dropped (journal check + rename bound)‖unit reviewfix‖ext_engine.py‖if not isinstance(aux, str) or os.path.dirname(aux) != self.inst_dir \\n‖if not isinstance(aux, str) or False \\n
-+‖‖ext_engine.py‖                    if os.path.dirname(aux) == self.inst_dir and os.path.dirname(final) == self.inst_dir \\n‖                    if True \\n
++‖‖ext_engine.py‖        if os.path.dirname(aux) != self.inst_dir or os.path.dirname(final) != self.inst_dir \\n‖        if False \\n
 @@
-E1r1 PC3 recovery rename accepts a link / foreign owner‖unit reviewfix‖ext_engine.py‖                        ok_aux = stat.S_ISDIR(st.st_mode) and st.st_uid == os.geteuid()‖                        ok_aux = True
+E1r1 PC3 recovery rename accepts a link / foreign owner‖unit reviewfix‖ext_engine.py‖        if not (stat.S_ISDIR(st.st_mode) and st.st_uid == os.geteuid()):‖        if False:
 @@
 E1r1 EA2 http(s) value allowed in any env name‖unit‖ext_engine.py‖    if isinstance(name, str) and ENV_URLISH_RE.fullmatch(name) and v.startswith(("http://", "https://")):‖    if isinstance(name, str) and v.startswith(("http://", "https://")):
 @@
