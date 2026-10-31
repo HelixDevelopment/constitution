@@ -11,11 +11,11 @@
 
 Ranking: impact first (false refusal of a correct tree, then real defect), then effort. "PROVEN" means reproduced in this session with the command shown; anything else is marked UNCONFIRMED.
 
-## Fixed in this pass (pending review, not committed)
+## Fixed (committed in bd4d09c and 6412589; hardened in 210505f and 380e692)
 
 | Item | Root cause | Evidence |
 |---|---|---|
-| CM-CANONICAL-ROOT-CLARITY | PROVEN. In a standalone canon checkout named `.../constitution`, `cl_project_root_of` matched the legacy-layout rule and took the parent directory as the consumer, so invariant (a) audited a `CLAUDE.md` nobody owes (false refusal, §11.4.201(1)). | Before: `(a) ... consumer CLAUDE.md missing ... at /home/milosvasic/Projects/CLAUDE.md`, rc=1. After: `(a) ... SKIP — standalone canon checkout`, rc=3; (b)/(c) still enforced. Paired mutation test adds G6, M11–M14. |
+| CM-CANONICAL-ROOT-CLARITY | PROVEN. In a standalone canon checkout named `.../constitution`, `cl_project_root_of` matched the legacy-layout rule and took the parent directory as the consumer, so invariant (a) audited a `CLAUDE.md` nobody owes (false refusal, §11.4.201(1)). | Before: `(a) ... consumer CLAUDE.md missing ... at /home/milosvasic/Projects/CLAUDE.md`, rc=1. Current behaviour (run 2026-10-31 on this tree): without `--standalone-canon` the gate fails closed, rc=1; with `--standalone-canon` (a) is an honest SKIP, rc=3, (b)/(c) still enforced. The earlier env-var opt-in no longer exists. Layout mutation status: M01-M59 killed, M60+ slices pending. Paired mutation test adds G6, M11–M14. |
 
 ## Fixed upstream by another session (not by this pass)
 

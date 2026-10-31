@@ -26,7 +26,7 @@ bash submodules/constitution/scripts/update_constitution.sh
 ```
 
 3. Review the printed before/after SHA and changelog delta, then commit the staged gitlink: `git commit -m "chore: update constitution"` (or pass `--commit` to the updater). The post-update hook runs unless `--no-hook`.
-4. To target a specific tag: `--ref helixconstitution-v73` (the release-1 tag, the minimum supported ref; older tags predate the installer and the installer exits 3 on them).
+4. To target a specific tag: `--ref helixconstitution-v73` (a placeholder: this tag does not exist until it is cut; today the newest tag is `helixconstitution-v72.2`. Behaviour with older tags is UNCONFIRMED; the updater reports a target equal to or behind HEAD as "already up to date" (exit 0)).
 5. If it refuses (exit 3), the submodule has local changes, unpushed commits or the target is not a fast-forward. Resolve, do not force.
 
 Back: [installer guide](../guides/installer_user_guide.md).
