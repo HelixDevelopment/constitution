@@ -329,13 +329,13 @@ def run_gate_on_tree(gate_path, tree_dir):
     the SAME class of bug io_trace_build_map.py's retrace() had
     (T085 Round 2 B-R2-3 only fixed its timeout path; Round 3 R3-I1
     closed its normal-return path too). Fixed with
-    start_new_session=True + fc_common.safe_killpg() on EVERY return
+    start_new_session=True + fc_common.safe_killpg on EVERY return
     path.
 
     T085 Round 4 R4-I2 (BLOCKING recurrence): the Round 3 fix above was
     STILL incomplete -- a grandchild that calls setsid() leaves the
     gate's own process group entirely (a brand-new session + group),
-    so killpg() cannot reach it; reproduced live, this exact function:
+    so killpg cannot reach it; reproduced live, this exact function:
     "it wrote its marker 2.5s after the call had already returned
     PASS". Fixed via the ONE shared primitive,
     fc_common.run_gate_reaped() (section 11.4.227) -- a Linux cgroup v2

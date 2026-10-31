@@ -70,7 +70,10 @@ on_signal() {
     [ "$alive" -eq 1 ] || break
     sleep 0.1; i=$((i + 1))
   done
-  while read -r j; do kill -s KILL -- "-$j" 2>/dev/null; kill -s KILL "$j" 2>/dev/null; done <"$work/jobs"
+  while read -r j; do
+    case $j in ''|*[!0-9]*) continue ;; esac   # 11.4.263: integer > 1 only
+    if [ "$j" -gt 1 ]; then kill -s KILL -- "-$j" 2>/dev/null; kill -s KILL "$j" 2>/dev/null; fi
+  done <"$work/jobs"
   wait
   exit 2
 }

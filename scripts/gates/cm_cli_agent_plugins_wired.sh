@@ -391,7 +391,7 @@ else
 	if [ -z "$body" ]; then
 		fail "9/autoload: $HOOK has NO install_action_plugins() function"
 	elif printf '%s\n' "$body" | grep -q 'install_cli_agent_plugins\.sh'; then
-		if grep -q '^[[:space:]]*install_action_plugins$' "$HOOK"; then
+		if grep -qE '^[[:space:]]*(run_step[[:space:]]+)?install_action_plugins$' "$HOOK"; then
 			pass "9/autoload: post_update_hook.sh install_action_plugins() calls install_cli_agent_plugins.sh AND is invoked from main()"
 		else
 			fail "9/autoload: install_action_plugins() references the installer but is NEVER invoked in $HOOK"
