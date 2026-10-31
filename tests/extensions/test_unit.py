@@ -467,6 +467,7 @@ class EngineAdd(unittest.TestCase):
         opts, _ = ext_engine.parse_args(["--root", self.root, "--project-root", self.proj, "--yes",
                                          "--waiver-id", "WU"])
         e = ext_engine.Engine(opts)
+        os.makedirs(os.path.dirname(e._sd()), exist_ok=True)  # round 11: signing a journal needs the state dir's parent
         self.engines.append(e)
         return e
 
@@ -2201,9 +2202,25 @@ class Round8(unittest.TestCase):
         e = self.eng()
         inst = e.inst_dir
         base = {"op": "remove", "id": "x", "final": os.path.join(inst, "x")}
-        self.assertIsNone(e.journal_problem(dict(base, aux=os.path.join(inst, ".trash-1-abcdef01"))))
-        self.assertIsNotNone(e.journal_problem(dict(base, aux=os.path.join(self.d, ".trash-1-abcdef01"))))
-        self.assertIsNotNone(e.journal_problem(dict(base, aux=os.path.join(inst, "sub", ".trash-1-abcdef01"))))
+
+        def sg(aux):
+            j = dict(base, aux=aux)
+            j["mac"] = e._jmac(e._key(True), j)
+            return j
+        self.assertIsNone(e.journal_problem(sg(os.path.join(inst, ".trash-1-abcdef01"))))
+        self.assertIsNotNone(e.journal_problem(sg(os.path.join(self.d, ".trash-1-abcdef01"))))
+        self.assertIsNotNone(e.journal_problem(sg(os.path.join(inst, "sub", ".trash-1-abcdef01"))))
+
+    def test_f4_unsigned_or_forged_remove_journal_is_bad(self):
+        e = self.eng()
+        j = {"op": "remove", "id": "x", "final": os.path.join(e.inst_dir, "x"),
+             "aux": os.path.join(e.inst_dir, ".trash-1-abcdef01")}
+        self.assertIn("unsigned", e.journal_problem(dict(j)))
+        self.assertIn("unsigned", e.journal_problem(dict(j, mac="b" * 64)))
+        k = e._key(True)
+        self.assertIsNone(e.journal_problem(dict(j, mac=e._jmac(k, j))))
+        add = dict(j, op="add", sha256="a" * 64)
+        self.assertIsNotNone(e.journal_problem(dict(add, mac=e._jmac(k, j))))  # a remove mac is not an add mac
 
     def _recover_remove(self, aux, make):
         e = self.eng()
@@ -2301,6 +2318,7 @@ class Round9(unittest.TestCase):
         j = {"op": "remove", "id": "x", "final": final or os.path.join(e.inst_dir, "x"), "aux": aux}
         if ident is not None:
             j["ident"] = ident
+        j["mac"] = e._jmac(e._key(True), j)  # round 11: a remove journal is signed
         return j
 
     def _trash(self, e, name=".trash-1-abcdef01", content="foreign"):

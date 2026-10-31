@@ -24,7 +24,7 @@ echo "### S1 reproduction (a): lock holds the id, tree absent, journal names a f
 e add "$H" --dev --waiver-id WD --yes; eq "setup add" 0 "$RC"; [ "$RC" = 0 ] || echo "$OUT"
 mv "$INST/hooks-fixture" "$SB/parked"
 mkdir "$INST/.trash-999999-deadbeef"; echo foreign >"$INST/.trash-999999-deadbeef/f"
-printf '{"op":"remove","id":"hooks-fixture","final":"%s","aux":"%s"}' "$INST/hooks-fixture" "$INST/.trash-999999-deadbeef" >"$TXN"
+printf '{"op":"remove","id":"hooks-fixture","final":"%s","aux":"%s"}' "$INST/hooks-fixture" "$INST/.trash-999999-deadbeef" >"$TXN"; sign_journal "$TXN" "$P"
 e lock
 check "S1a foreign trash NOT renamed into _installed/<id>" test ! -e "$INST/hooks-fixture"
 check "S1a foreign trash kept where it was" test -f "$INST/.trash-999999-deadbeef/f"
@@ -35,7 +35,7 @@ e verify hooks-fixture; eq "S1a extension still verifies" 0 "$RC"
 
 echo "### S1 reproduction (b): journal for an id that is not in the lock names another project's trash"
 mkdir "$INST/.trash-999998-cafebabe"; echo precious >"$INST/.trash-999998-cafebabe/f"
-printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999998-cafebabe" >"$TXN"
+printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999998-cafebabe" >"$TXN"; sign_journal "$TXN" "$P"
 e lock
 check "S1b foreign trash NOT deleted" test -f "$INST/.trash-999998-cafebabe/f"
 has "S1b says why" "cannot prove" "$OUT"

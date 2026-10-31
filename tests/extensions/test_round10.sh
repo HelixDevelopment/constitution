@@ -105,12 +105,12 @@ echo "### D1 an unproven trash keeps the state record"
 SD="$P1/.constitution/extensions.state"; mkdir -p "$SD"
 printf '{}' >"$SD/ghost-fixture.json"
 mkdir "$INST/.trash-999998-cafebabe"; echo precious >"$INST/.trash-999998-cafebabe/f"
-printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999998-cafebabe" >"$TXN"
+printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999998-cafebabe" >"$TXN"; sign_journal "$TXN" "$P1"
 e1 lock
 check "D1 trash kept" test -f "$INST/.trash-999998-cafebabe/f"
 check "D1 record kept with it" test -f "$SD/ghost-fixture.json"
 rm -rf "${INST:?}/.trash-999998-cafebabe"
-printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999997-cafebabe" >"$TXN"
+printf '{"op":"remove","id":"ghost-fixture","final":"%s","aux":"%s"}' "$INST/ghost-fixture" "$INST/.trash-999997-cafebabe" >"$TXN"; sign_journal "$TXN" "$P1"
 e1 lock
 check "D1 control: no trash at all -> record completed away" test ! -e "$SD/ghost-fixture.json"
 finish

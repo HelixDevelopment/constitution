@@ -1737,7 +1737,7 @@ class Engine:
     @staticmethod
     def _jmac(key, j):
         body = {k: v for k, v in j.items() if k != "mac"}
-        msg = b"journal-add\0" + json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        msg = b"journal-" + str(j.get("op")).encode() + b"\0" + json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
         return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
     def make_record(self, eid, entry):
@@ -2021,14 +2021,14 @@ class Engine:
             return "final path is not _installed/<id>"
         if op == "add" and not SHA256_RE.match(str(j.get("sha256", ""))):
             return "add journal without a sha256"
-        if op == "add":  # RULE:F2-journal-mac: only this project's engine (holder of the state key) writes one
+        if op in ("add", "remove"):  # RULE:F2-journal-mac: only this project's engine (holder of the state key) writes one
             try:
                 key = self._key(False)
             except EngineError:
                 key = None
             if key is None or not isinstance(j.get("mac"), str) \
                     or not hmac.compare_digest(j["mac"], self._jmac(key, j)):
-                return "add journal is unsigned or its signature does not verify (forged, or written by another checkout)"
+                return "%s journal is unsigned or its signature does not verify (forged, or written by another checkout)" % op
         if op in ("add", "remove") and "ident" in j:  # RULE:R12-ident
             idt = j["ident"]
             if not isinstance(idt, list) or len(idt) != 3 or any(not isinstance(x, int) or isinstance(x, bool)
@@ -2751,6 +2751,14 @@ class Engine:
             raise EngineError(EXIT_REFUSED, "%s is not in this project's lock, so this project cannot prove it "
                                             "installed %s (it may belong to another project that shares this "
                                             "constitution root); nothing was removed" % (eid, os.path.join(self.inst_dir, eid)))
+        # RULE:F3-own-record: the lock is committed, so a project can hold a COPY of another project's lock; only
+        # the local HMAC-signed state record (never committed, keyed by this checkout's own key) proves THIS
+        # project installed the id. Without it nothing is removed. Not detected (documented): whether another
+        # project's wiring still points at the shared tree; that needs a registry of projects the root lacks.
+        if [x for x in self.record_problems(eid, lock[eid]) if not x.startswith("lock field")]:
+            raise EngineError(EXIT_REFUSED, "%s: this checkout has no valid signed state record for it, so this "
+                                            "project cannot prove it installed %s (the lock may be a copy of "
+                                            "another project's); nothing was removed" % (eid, os.path.join(self.inst_dir, eid)))
         if self.dry:
             self.say("dry-run: would unwire and remove %s" % eid)
             return EXIT_OK
@@ -2770,6 +2778,7 @@ class Engine:
         jr = {"op": "remove", "id": eid, "final": final, "aux": trash}
         if mine and _ident_of(final) is not None:  # RULE:S1-ident: survives the rename
             jr["ident"] = _ident_of(final)
+        jr["mac"] = self._jmac(self._key(True), jr)  # RULE:F4-remove-journal-mac
         self.write_atomic(self.p("extensions.txn"), json.dumps(jr))
         kill_point("remove:journaled")
         if os.path.lexists(final) and not mine:

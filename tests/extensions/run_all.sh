@@ -11,7 +11,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 quick=0; [ "${1:-}" = "--quick" ] && quick=1
 failed=()
 echo "=== test_unit.py"; if python3 -I "$here/test_unit.py"; then :; else failed+=(test_unit); fi
-suites=(test_cli test_security test_e2e test_determinism test_attacks test_provenance test_reviewfix test_round9 test_round10)
+suites=(test_cli test_security test_e2e test_determinism test_attacks test_provenance test_reviewfix test_round9 test_round10 test_round11)
 [ "$quick" = 1 ] || suites+=(test_integration test_chaos test_stress_perf test_mutations)
 for s in "${suites[@]}"; do
   echo "=== $s"; t0=$SECONDS

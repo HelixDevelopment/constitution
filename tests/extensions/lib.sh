@@ -125,3 +125,17 @@ fake_token() {
     pem) printf '%s%s' '-----BEG' 'IN PRIVATE KEY-----' ;;
   esac
 }
+
+# sign_journal FILE PROJECT — rewrite a handwritten journal with the project's own HMAC (round 11), so a test can
+# present a journal this project could have written
+sign_journal() {
+  python3 -I - "$1" "$2" <<'PY'
+import hashlib, hmac, json, sys
+f, proj = sys.argv[1:3]
+j = json.load(open(f)); j.pop("mac", None)
+key = open(proj + "/.constitution/extensions.state/key", "rb").read().strip()
+msg = b"journal-" + str(j["op"]).encode() + b"\0" + json.dumps(j, sort_keys=True, separators=(",", ":")).encode()
+j["mac"] = hmac.new(key, msg, hashlib.sha256).hexdigest()
+json.dump(j, open(f, "w"))
+PY
+}
