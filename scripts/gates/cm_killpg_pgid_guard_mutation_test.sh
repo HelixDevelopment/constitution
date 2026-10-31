@@ -282,11 +282,142 @@ expect_fail "F3b 'bash -c \"kill -9 -1\"' string handed to a shell is code" \
 expect_pass "GF1 legit fc_common.safe_killpg wrapper call" \
     "$(mkfix gf1 w.py 'import fc_common\ndef r(proc):\n    fc_common.safe_killpg(proc.pid, 9)\n')"
 expect_pass "GF3 audited marker with a reason skips a deliberate test call" \
-    "$(mkfix gf3 w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow test hands the guard a bad pgid\n')"
+    "$(mkfix gf3 tests/w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow test hands the guard a bad pgid\n')"
 expect_fail "F7 marker WITHOUT a reason does not exempt" \
     "$(mkfix f7 w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow\n')"
 expect_pass "GF2 fixture/spec strings and docstring prose are not call sites" \
-    "$(mkfix gf2 scripts/fastcycle/tests/t.sh 'echo "kill -9 -1"\nspec = ("kill-wide", "#!/bin/sh\\nkill -9 -1")\ncat <<PY\nx = """\nos.killpg(p, 9)\nkillpg(1, 9)\n"""\nPY\n')"
+    "$(mkfix gf2 scripts/fastcycle/tests/t.sh 'echo "kill -9 -1"\nspecs=("kill-wide" "#!/bin/sh\\nkill -9 -1")\ncat <<PY\nx = """\nos.killpg(p, 9)\nkillpg(1, 9)\n"""\nPY\n')"
+
+# ===================================================================
+# 7. Review round 2 (NO-GO on 9cf915e): bypasses of the string/comment blanking and the wrapper
+#    exemption. Each R* MUST FAIL (the BASE gate 3ad667a, which blanked nothing, caught the
+#    blanking-class ones); each GF* MUST PASS. Fixtures are inert text.
+# ===================================================================
+# 7.1 strings handed to a shell are code
+expect_fail "R1a subprocess.run(\"kill -9 -\$PGID\", shell=True)" \
+    "$(mkfix r1a w.py 'import subprocess\nsubprocess.run("kill -9 -$PGID", shell=True)\n')"
+expect_fail "R1b subprocess.Popen(\"kill -TERM -\${pg}\", shell=True)" \
+    "$(mkfix r1b w.py 'import subprocess\nsubprocess.Popen("kill -TERM -${pg}", shell=True)\n')"
+expect_fail "R1c list form [\"sh\",\"-c\",\"kill -9 -\$pg\"]" \
+    "$(mkfix r1c w.py 'import subprocess\nsubprocess.run(["sh","-c","kill -9 -$pg"])\n')"
+expect_fail "R1d os.system(f\"kill -9 -\$pg\")" \
+    "$(mkfix r1d w.py 'import os\nos.system(f"kill -9 -$pg")\n')"
+expect_fail "R1e Go exec.Command(\"sh\",\"-c\",\"kill -9 -1\")" \
+    "$(mkfix r1e w.go 'package main\nfunc f() {\n\texec.Command("sh", "-c", "kill -9 -1").Run()\n}\n')"
+expect_fail "R1f shell: ssh host \"kill -9 -1\"" \
+    "$(mkfix r1f w.sh '#!/bin/bash\nssh host "kill -9 -1"\n')"
+expect_fail "R1g shell: sh -c 'kill -9 -\$pg'" \
+    "$(mkfix r1g w.sh '#!/bin/bash\nsh -c '"'"'kill -9 -$pg'"'"'\n')"
+expect_fail "R1h shell: echo \"kill -9 -1\" | sh" \
+    "$(mkfix r1h w.sh '#!/bin/bash\necho "kill -9 -1" | sh\n')"
+expect_fail "R1i shell: x=\"\$(kill -9 -1)\" command substitution inside double quotes" \
+    "$(mkfix r1i w.sh '#!/bin/bash\nx="$(kill -9 -1)"\n')"
+expect_fail "R1j shell: eval \"kill -TERM -\$pg\"" \
+    "$(mkfix r1j w.sh '#!/bin/bash\neval "kill -TERM -$pg"\n')"
+expect_fail "R1k shell: unknown helper given a kill string (fail closed)" \
+    "$(mkfix r1k w.sh '#!/bin/bash\nrun_it "kill -9 -1"\n')"
+# 7.2 triple-quote state must not leak across heredoc / raw-string / language boundaries
+expect_fail "R2a .sh heredoc body with an odd triple-quote must not blank the real kill below it" \
+    "$(mkfix r2a w.sh '#!/bin/bash\ncat <<EOF\nx = """\nEOF\nkill -TERM -"$pg"\n')"
+expect_fail "R2b .go raw string containing a triple-quote must not blank the real Kill below it" \
+    "$(mkfix r2b w.go 'package main\nfunc f(pg int) {\n\ts := `a """ b`\n\t_ = s\n\tsyscall.Kill(-pg, 9)\n}\n')"
+expect_fail "R2c .sh python3 heredoc, then a real shell kill after the terminator" \
+    "$(mkfix r2c w.sh '#!/bin/bash\npython3 - <<PY\nx = 1\nPY\nkill -9 -1\n')"
+# 7.3 shell single quotes take NO backslash escapes
+expect_fail "R3 echo 'a\\'; kill -9 -\$pg; echo 'z'" \
+    "$(mkfix r3 w.sh "#!/bin/bash\necho 'a\\\\'; kill -9 -\$pg; echo 'z'\n")"
+# 7.4 f-string replacement fields are code
+expect_fail "R4 f-string field hides os.killpg(1, 9)" \
+    "$(mkfix r4 w.py 'import os\nx = f"{os.killpg(1, 9)}"\n')"
+expect_fail "R4b triple-quoted f-string field" \
+    "$(mkfix r4b w.py 'import os\nx = f"""\n{os.killpg(1, 9)}\n"""\n')"
+# 7.5 allow marker only in a real trailing comment, only on test paths
+expect_fail "R5a marker text inside a string literal does not suppress" \
+    "$(mkfix r5a w.py 'import os\ny = "killpg-gate:allow zzz"; os.killpg(1, 9)\n')"
+expect_fail "R5b marker with a reason on a NON-test path does not suppress" \
+    "$(mkfix r5b w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow because\n')"
+# 7.6 wrapper exemption is bound to the real import
+expect_fail "R6a 'import evil as fc_common' then fc_common.safe_killpg(pg, 9)" \
+    "$(mkfix r6a w.py 'import evil as fc_common\nfc_common.safe_killpg(pg, 9)\n')"
+expect_fail "R6b star import + token mention, then safe_killpg(pg, 9)" \
+    "$(mkfix r6b w.py 'from evil import *\nx = fc_common_shim\nsafe_killpg(pg, 9)\n')"
+expect_fail "R6c 'safe_killpg = evil.boom' + 'fc_common = None' then safe_killpg(pg, 9)" \
+    "$(mkfix r6c w.py 'safe_killpg = evil.boom\nfc_common = None\nsafe_killpg(pg, 9)\n')"
+expect_fail "R6d _safe_killpg alias bound to a foreign object" \
+    "$(mkfix r6d w.py 'import fc_common\n_safe_killpg = evil.boom\n_safe_killpg(pg, 9)\n')"
+expect_fail "R6e fc_common merely mentioned (not imported), then fc_common.safe_killpg(pg, 9)" \
+    "$(mkfix r6e w.py 'x = "fc_common"\nfc_common.safe_killpg(pg, 9)\n')"
+# 7.7 alias / reference class: any non-call reference to killpg outside the wrapper is a finding
+expect_fail "R7a from os import killpg as k; k(pg, 9)" \
+    "$(mkfix r7a w.py 'from os import killpg as k\nk(pg, 9)\n')"
+expect_fail "R7b getattr(os, \"killpg\")" \
+    "$(mkfix r7b w.py 'import os\nf = getattr(os, "killpg")\nf(pg, 9)\n')"
+expect_fail "R7c k, j = os.killpg, os.kill" \
+    "$(mkfix r7c w.py 'import os\nk, j = os.killpg, os.kill\nk(pg, 9)\n')"
+expect_fail "R7d k = (os.killpg)" \
+    "$(mkfix r7d w.py 'import os\nk = (os.killpg)\nk(pg, 9)\n')"
+expect_fail "R7e dict holding os.killpg" \
+    "$(mkfix r7e w.py 'import os\nd = {"k": os.killpg}\nd["k"](pg, 9)\n')"
+expect_fail "R7f default argument kill=os.killpg" \
+    "$(mkfix r7f w.py 'import os\ndef f(pg, kill=os.killpg):\n    kill(pg, 9)\n')"
+expect_fail "R7g os.__dict__[\"killpg\"]" \
+    "$(mkfix r7g w.py 'import os\nos.__dict__["killpg"](pg, 9)\n')"
+# 7.8 further spellings of the group kill
+expect_fail "R8a kill -9 -- -1" "$(mkfix r8a w.sh '#!/bin/bash\nkill -9 -- -1\n')"
+expect_fail "R8b kill -- -1" "$(mkfix r8b w.sh '#!/bin/bash\nkill -- -1\n')"
+expect_fail "R8c kill -s KILL -\"\$pg\" unguarded" "$(mkfix r8c w.sh '#!/bin/bash\nkill -s KILL -"$pg"\n')"
+expect_fail "R8d kill -9 -- -\"\$pg\" unguarded" "$(mkfix r8d w.sh '#!/bin/bash\nkill -9 -- -"$pg"\n')"
+expect_fail "R8e kill -9 \"-\$pg\" unguarded" "$(mkfix r8e w.sh '#!/bin/bash\nkill -9 "-$pg"\n')"
+expect_fail "R8f os.kill(0 - pg, 9)" "$(mkfix r8f w.py 'import os\nos.kill(0 - pg, 9)\n')"
+expect_fail "R8g Go unix.Kill(-p, 9)" "$(mkfix r8g w.go 'package main\nfunc f(p int) {\n\tunix.Kill(-p, 9)\n}\n')"
+expect_fail "R8h Go syscall.Kill(0-p, 9)" "$(mkfix r8h w.go 'package main\nfunc f(p int) {\n\tsyscall.Kill(0-p, 9)\n}\n')"
+expect_fail "R8i Rust kill(Pid::from_raw(-p), sig)" \
+    "$(mkfix r8i w.rs 'fn f(p: i32) {\n    nix::sys::signal::kill(Pid::from_raw(-p), Signal::SIGKILL);\n}\n')"
+expect_fail "R8j subprocess.run([\"kill\",\"-9\",\"-1\"])" \
+    "$(mkfix r8j w.py 'import subprocess\nsubprocess.run(["kill", "-9", "-1"])\n')"
+# golden-FALSE (MUST PASS)
+expect_pass "GFa python docstring prose naming os.killpg(1, 9)" \
+    "$(mkfix gfa w.py 'def f():\n    """Never call os.killpg(1, 9).\n    kill -9 -1 is the disaster.\n    """\n    return 1\n')"
+expect_pass "GFb cat <<EOF body (inert consumer) names killpg(1, 9) and kill -9 -1" \
+    "$(mkfix gfb w.sh '#!/bin/bash\ncat > /dev/null <<'"'"'EOF'"'"'\nos.killpg(1, 9)\nkill -9 -1\nEOF\n')"
+expect_pass "GFc printf / echo / grep / for-loop carrying kill text" \
+    "$(mkfix gfc w.sh "#!/bin/bash\nprintf '%s\\\\n' 'kill -9 -1'\necho 'os.killpg(1, 9)'\ngrep -q 'kill -9 -1' /dev/null\nfor spec in 'a|os.killpg(1, 9)|b' 'c'; do :; done\n")"
+expect_pass "GFd guarded shell group kills (-s KILL / -- forms)" \
+    "$(mkfix gfd w.sh '#!/bin/bash\nf() {\n    local pgid="$1"\n    if [ "$pgid" -le 1 ]; then return 1; fi\n    kill -s KILL -"$pgid"\n    kill -9 -- -"$pgid"\n}\n')"
+expect_pass "GFe print()/logging strings and a benign f-string carrying kill text" \
+    "$(mkfix gfe w.py 'import logging\nprint("os.killpg(1, 9)")\nlogging.info("kill -9 -1")\nx = f"{pid} killpg"\n')"
+expect_pass "GFf from fc_common import safe_killpg; safe_killpg(proc.pid, 9)" \
+    "$(mkfix gff w.py 'from fc_common import safe_killpg\ndef r(proc):\n    safe_killpg(proc.pid, 9)\n')"
+expect_pass "GFg _safe_killpg alias bound once to fc_common.safe_killpg" \
+    "$(mkfix gfg w.py 'import fc_common\n_safe_killpg = fc_common.safe_killpg\ndef r(proc):\n    _safe_killpg(proc.pid, 9)\n')"
+expect_pass "GFh ordinary kill forms: kill -9 -- \"\$pid\", kill -TERM \"\$pid\", kill -0 \"\$pid\"" \
+    "$(mkfix gfh w.sh '#!/bin/bash\nkill -9 -- "$pid"\nkill -TERM "$pid"\nkill -0 "$pid"\n')"
+expect_pass "GFi Go raw multi-line string naming syscall.Kill(-1, 9), no execution sink" \
+    "$(mkfix gfi w.go 'package main\nvar s = `\nsyscall.Kill(-1, 9)\nkill -9 -1\n`\n')"
+expect_pass "GFj audited marker on a TEST path with a reason suppresses (reported as ALLOWED)" \
+    "$(mkfix gfj tests/test_w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow test hands the guard a bad pgid\n')"
+expect_pass "GFk python3 heredoc data tuple + docstring inside a tests/*.sh" \
+    "$(mkfix gfk tests/t.sh 'python3 - <<PY\nspecs = [("kill-wide", "#!/bin/sh\\nkill -9 -1\\n", True)]\ndef f():\n    """doc: os.killpg(1, 9)"""\nPY\n')"
+expect_pass "GFl monkeypatch X.killpg = fake; def _fake_killpg(...) double (definition/replace, no signal)" \
+    "$(mkfix gfl w.py 'import os\ndef _fake_killpg(pgid, sig):\n    return None\nos.killpg = _fake_killpg\nos.killpg = lambda pg, sig: None; x = 1\n')"
+expect_pass "GFm test reporter helpers ok/bad carrying the word killpg + kill -9 -1 text" \
+    "$(mkfix gfm w.sh '#!/bin/bash\nbad "B2: killpg FAILED, kill -9 -1 is the disaster"\nok "B2: killpg killed the whole group"\n')"
+expect_pass "GFn env-prefixed python3 heredoc after 2>&1 (docstring + guarded call stay inert/guarded)" \
+    "$(mkfix gfn w.sh '#!/bin/bash\nR=$(FOO="$X" python3 - "$A" >"$T/o" 2>\&1 <<'"'"'PY'"'"'\ndef f():\n    """doc: os.killpg(1, 9) is the disaster"""\n    return 1\nPY\n)\n')"
+expect_pass "GFo shell group kill guarded by a >1 test on a non-pid-family variable name (j)" \
+    "$(mkfix gfo w.sh '#!/bin/bash\nwhile read -r j; do\n    if [ "$j" -gt 1 ]; then kill -s KILL -- "-$j"; fi\ndone\n')"
+expect_fail "R9a alias on the RIGHT side of an X.killpg assignment (y = os.killpg)" \
+    "$(mkfix r9a w.py 'import os\nj = os.killpg\nj(-3, 9)\n')"
+expect_fail "R9b self-assignment os.killpg = os.killpg keeps the alias finding" \
+    "$(mkfix r9b w.py 'import os\nos.killpg = os.killpg\n')"
+expect_fail "R9c def _fake_killpg(kill=os.killpg): parameter default holds the real function" \
+    "$(mkfix r9c w.py 'import os\ndef _fake_killpg(pg, kill=os.killpg):\n    kill(pg, 9)\n')"
+expect_fail "R9d helper-word string that is really a shell: ok \$(kill -9 -1) command substitution" \
+    "$(mkfix r9d w.sh '#!/bin/bash\nok "$(kill -9 -1)"\n')"
+expect_fail "R9e >1 test on a DIFFERENT variable does not guard the killed one" \
+    "$(mkfix r9e w.sh '#!/bin/bash\nj=$1; k=$2\nif [ "$j" -gt 1 ]; then kill -s KILL -- "-$k"; fi\n')"
+expect_fail "R9f env-prefixed python3 heredoc after 2>&1 with a live os.killpg(1, 9) call" \
+    "$(mkfix r9f w.sh '#!/bin/bash\nR=$(FOO="$X" python3 - "$A" >"$T/o" 2>\&1 <<'"'"'PY'"'"'\nimport os\nos.killpg(1, 9)\nPY\n)\n')"
 
 # ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on

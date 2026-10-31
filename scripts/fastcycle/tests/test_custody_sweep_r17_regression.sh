@@ -318,7 +318,7 @@ g -C "$T1b/main" config filter.slow.smudge cat
 mkdir -p "$T1b/main/.git/info"; echo 'f filter=slow' > "$T1b/main/.git/info/attributes"
 echo changed >> "$T1b/wt/f"; cp /dev/null "$T1b/wt.patch"
 mT1=$(mk_mutant MR17_2_kill_only_direct_child \
-      '                os.killpg(pgid, _signal.SIGKILL)' '                proc.kill()')
+      '                os.killpg(pgid, _signal.SIGKILL)' '                proc.kill()')   # killpg-gate:allow mutation-helper DATA arguments (source text to rewrite), never executed here
 if [ -z "$mT1" ]; then
   notok "mutation MR17_2_kill_only_direct_child: anchor not found ($(cat "$TMP/mut_MR17_2_kill_only_direct_child.log"))"
 else
