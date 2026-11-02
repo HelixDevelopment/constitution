@@ -675,9 +675,15 @@ open(os.environ["DST"], "w").write(s.replace(o, os.environ["NEW"], 1))'; then
 if [ -d "${R6:-}" ]; then
     r6_mut zero_compl "ZERO_COMPL='(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\\([[:space:]]*(0[[:space:]]*,|~)'" "ZERO_COMPL='NEVERMATCHZZ'" 0 "s01 s02 r05 r06"
     r6_mut pid0_awk 'if (t ~ /^0+$/ && !seenpid && zok)' 'if (0)' 0 "r01 r02 r03 r04 r08 r27 r28 n301 n302"
-    r6_mut pkill_old 'PKILL_G="${PKILL_PRE}${PKILL_OPT}([^A-Za-z]|\$)"' "PKILL_G='pkill[[:space:]]+-g[[:space:]]'" 0 "p01 p02 p03 p04 p06 p07 p08 p10 p11 n113 n114"
     r6_mut plus_joiner 'and cur and plus_expr(toks, i + 1, fstr_start) is not None:' 'and False:' 0 "q01 q02 q03 q04 q05 q06 q07"
-    r6_mut pkill_token_scan 'PKILL_PRE="${PK_LEAD}pkill[[:space:]]+${PK_TOK}*"' "PKILL_PRE='pkill([[:space:]]+[^;&|]*)?[[:space:]]+'" 1 "n101 n102 n103 n104 n105 n201"
+    # round 6c: the structural pkill scanner (PKAWK) — one paired mutation per piece
+    r6_mut pk_dequote 'if (cont ~ /[ \t]/) { nsc[depth]++;' 'if (0) { nsc[depth]++;' 1 "n101 n102 n103 n104 n105 n201 c42 c43 c44 c46"
+    r6_mut pk_prose 'if (!zok) continue' 'if (0) continue' 1 "n201 c43"
+    r6_mut pk_recurse 'scan(sc[depth, m], 1, depth + 1)' '0' 0 "c30 c31 c34"
+    r6_mut pk_anyposition 'if (!(t == "pkill" || t ~ /\/pkill$/)) continue' 'if (!(pos == 1 && (t == "pkill" || t ~ /\/pkill$/))) continue' 0 "c01 c02 c03 c04 c05 c06 c07 c08 c09 c10 c11 n113"
+    r6_mut pk_bare_operand 'if (substr(t, 1, 1) != "-" || substr(t, 2, 1) == "-") continue' 'if (substr(t, 1, 1) != "-" || substr(t, 2, 1) == "-") break' 0 "c12 c13 c14 c15 c21 c22 n110 n111 n112 c32"
+    r6_mut zok_trap $'|Command|sh|bash|eval|trap)$/)\n        i = kpos + 1' $'|Command|sh|bash|eval)$/)\n        i = kpos + 1' 0 "n301 n302"
+    r6_mut upper_kill_paren 'Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill' 'Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill' 0 "n402"
     r6_mut paren_neg 'kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|from_raw' 'kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw' 0 "n401 n403"
 else
     echo "❌ META FAIL: round-6 mutation block needs the round-6 case directory"

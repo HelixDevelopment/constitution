@@ -119,6 +119,50 @@ add('n403', 'a.c', 'void f(int pg){ kill(( -1), 9); }\n', 1)
 add('s01', 'a.py', 'import os\nos.kill(~pg + 1, 9)\n', 1)
 add('s02', 'a.c', 'void f(int pg){ kill(~pg + 1, 9); }\n', 1)
 
+# ---- round 6c: pkill is read STRUCTURALLY (quoted strings de-quoted, every pkill word scanned) -----
+# command-position forms the 6b whitelist missed
+for i, t in [
+    ('c01', 'while pkill -g 1; do :; done\n'),
+    ('c02', 'until pkill -g "$pg"; do :; done\n'),
+    ('c03', 'if x; then :; elif pkill -g 1; then :; fi\n'),
+    ('c04', '! pkill -g 1\n'),
+    ('c05', 'X=1 pkill -g "$pg"\n'),
+    ('c06', 'nice pkill -g 1\n'),
+    ('c07', 'ionice -c3 pkill -g 1\n'),
+    ('c08', 'setsid pkill -g 1\n'),
+    ('c09', 'stdbuf -o0 pkill -g 1\n'),
+    ('c10', 'doas pkill -g 1\n'),
+    ('c11', '$SUDO pkill -g "$pg"\n'),
+    # bare operands the 6b token class stopped on (dash, caret, colon, star, quote adjacency, escapes)
+    ('c12', 'pkill -f my-daemon -g 1\n'),
+    ('c13', 'pkill -f foo-bar -g "$pg"\n'),
+    ('c14', 'pkill -f ^java -g 1\n'),
+    ('c15', 'pkill -f app:1 -g 1\n'),
+    ('c16', 'pkill -f"foo" -g 1\n'),
+    ('c17', 'pkill -f \\"foo\\" -g 1\n'),
+    ('c18', 'pkill -f "a \\"b c\\" d" -g 1\n'),
+    ('c19', 'pkill --signal TERM -g 1\n'),
+    ('c20', 'pkill -g$pg\n'),
+    ('c21', "pkill -f 'x*y' -g 1\n"),
+    ('c22', 'pkill -f a*b -g "$pg"\n'),
+    ('c23', 'pkill -f "foo"-g 1\n'),
+]:
+    add(i, 'a.sh', t, 1)
+# literal / dashed operands in python argv and command strings
+add('c30', 'a.py', 'import os\nos.system("pkill -g 1")\n', 1)
+add('c31', 'a.py', 'import os\nos.system(f"pkill -g {pg}")\n', 1)
+add('c32', 'a.py', 'import subprocess\nsubprocess.run(["pkill", "-f", "my-daemon", "-g", "1"])\n', 1)
+add('c33', 'a.py', 'import subprocess\nsubprocess.run(["pkill", "-f", "foo-bar", "-g", str(pg)])\n', 1)
+add('c34', 'a.py', "import subprocess\nsubprocess.run(\"sh -c 'pkill -g 1'\", shell=True)\n", 1)
+# golden-FALSE: guarded targets, quoted patterns, prose
+add('c40', 'a.sh', 'if [ "$pg" -gt 1 ]; then\n    pkill -g "$pg"\nfi\n', 0)
+# (c41 removed: a guarded python argv `["pkill","-g",str(pg)]` is a documented pre-existing false positive, see header)
+add('c42', 'a.sh', 'pkill -f "worker -g 5"\n', 0)
+add('c43', 'a.sh', 'echo "do not use pkill -g"\n', 0)
+add('c44', 'a.sh', "pkill -u \"$USER\" -f 'my -g app'\n", 0)
+add('c45', 'a.sh', 'pkill -x foo-bar\n', 0)
+add('c46', 'a.py', 'import subprocess\nsubprocess.run(["pkill", "-f", "ffmpeg -preset fast -g 60"])\n', 0)
+
 
 def main():
     out = sys.argv[1]

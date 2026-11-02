@@ -70,7 +70,16 @@
 # computed name, exec wrappers whose operands are computed (the plain wrappers timeout/env/sudo/command ARE
 # looked through). Closed in round 6: `pkill` with options before `-g`, `-gN`, `--pgroup`; python argv
 # `"-" + str(pg)` (a non-string operand of a `+` concatenation is spelled `$pg` / its digits); `kill 0`,
-# `kill(0, sig)`, `kill(~pg + 1, sig)`, `kill((-pg), sig)`. Honest limit: a bare `kill 0` inside a string counts only when `kill`
+# `kill(0, sig)`, `kill(~pg + 1, sig)`, `kill((-pg), sig)`. Round 6c replaced the pkill REGEX (which needed a growing
+# whitelist of command words and operand shapes) by the structural scanner PKAWK: complete quoted strings are
+# de-quoted escape-aware, every `pkill` word is scanned token by token, quoted strings are scanned again as command
+# lines where `pkill` must stand at command position. Honest limits of PKAWK: a pkill command word held in a
+# variable or built at run time (`$P -g 1`, `c=pkill; $c -g 1`) is not seen; a `-g` that is the VALUE of another option
+# is still read as the group option (fail closed); unquoted prose such as a heredoc body naming `pkill -g` is
+# flagged (strings are command lines only when they start with pkill or follow a command word); a guarded python
+# argv `["pkill","-g",str(pg)]` stays reported unguarded (the joined record drops the operand); multi-line argv
+# lists keep a quoted item with blanks as one operand, but nested quotes deeper than 6 levels are scanned as plain
+# text. Honest limit: a bare `kill 0` inside a string counts only when `kill`
 # starts the command or follows a command word (sudo, timeout, env, system, run, sh, ...), so prose such as
 # `after kill 0 times` stays quiet; `kill 0` after other words is missed. Also: shell quote desync inside nested `$(...)`,
 # Rust raw strings with embedded quotes, guard windows fakeable by comment-like text in sh/go, no check of
@@ -238,21 +247,17 @@ command -v python3 >/dev/null 2>&1 || { echo "${GATE}: python3 is required (comm
 #   (A bare non-call `killpg` reference is finding type B, decided on the non-string view; an exact
 #   "killpg" string is type C.)
 QCH=$'["\']'
-# pkill: ANY option may precede the group option (`pkill -9 -g P`, `-TERM -g P`, `-s TERM -g P`), the group
-# option may carry its value glued on (`-g1`), be bundled (`-fg`), or be spelled long (`--pgroup P`,
-# `--pgroup=P`). PKILL_PRE reads the options before it, PKILL_OPT is the group option itself.
-# The option scan walks TOKENS: options, the value of a value-taking option (-s -u -U -t -P -G), bare operands
-# and COMPLETE quoted strings (a quoted -f pattern such as "worker -tag x" is ONE operand, never scanned for
-# options), so only a real group option is found. `pkill` itself must stand at command position (start, after
-# ; & | ( ` { / or a quote, or after a command word), so prose such as `echo "use pkill -g ..."` stays quiet.
-PK_LEAD='(^|[;&|(`{"'"'"'/]|(^|[[:space:]])(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|sh|bash|eval|trap)[[:space:]]+)[[:space:]]*'
-PK_TOK='(-[stuUPG][[:space:]]+[^[:space:]]+[[:space:]]+|-[^[:space:]"'"'"']+[[:space:]]+|[A-Za-z0-9_./$]+[[:space:]]+|"[^"]*"[[:space:]]+|'"'"'[^'"'"']*'"'"'[[:space:]]+)'
-PKILL_PRE="${PK_LEAD}pkill[[:space:]]+${PK_TOK}*"
-PKILL_OPT='(-[A-Za-z0-9]*g|--pgroup)'
-PKILL_G="${PKILL_PRE}${PKILL_OPT}([^A-Za-z]|\$)"
+# pkill is NOT decided by a regex: PKAWK (below) reads it STRUCTURALLY. Every complete quoted string is
+# replaced by a placeholder (escape-aware), the de-quoted text is split into segments (; & | ( ` {) and
+# EVERY `pkill` word found is scanned token by token for a group option (`-g`, `-gN`, `-fg`, `--pgroup`,
+# `--pgroup=P`); fail CLOSED: an unterminated quote is dropped and the rest scanned as plain text. The
+# contents of a quoted string are scanned again as a command line of their own (so `os.system("pkill -g 1")`
+# and `sh -c 'pkill -g 1'` are found), but there `pkill` must stand at command position (first word, after
+# ; & | ( ` or a command word, or after a non-plain word such as `$SUDO` / `X=1` / `!`), so prose such as
+# `echo "use pkill -g ..."` and a quoted `-f` pattern such as "worker -tag x" stay quiet.
 # kill(0, sig) / Kill(0, sig) signals the CALLER'S OWN process group (pid 0), kill(~pg + 1, sig) is -pg.
 ZERO_COMPL='(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*(0[[:space:]]*,|~)'
-CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|'"${PKILL_G}"'|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1|'"${ZERO_COMPL}"''
+CALL_ERE='killpg[[:space:]]*\(|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|from_raw[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([^,)]*\*[[:space:]]*-[[:space:]]*1|'"${ZERO_COMPL}"''
 BARE_KILLPG='(^|[^A-Za-z0-9_])killpg([^A-Za-z0-9_]|$)'
 
 # ── Guard must be scoped to THE CALL'S OWN TARGET, in the RIGHT direction ───
@@ -268,7 +273,6 @@ extract_target() {
         -e 's/.*[^A-Za-z0-9_][Kk]ill[[:space:]]*\(//' \
         -e 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_:]*::)?[A-Za-z_]*from_raw[[:space:]]*\(//' \
         -e 's/^[[:space:]]*0[[:space:]]*-/-/' \
-        -e 's/.*pkill([[:space:]]+[^;&|]*)?[[:space:]]+(-[A-Za-z0-9]*g|--pgroup)[[:space:]=]*//' \
         | sed -nE 's/^[[:space:]]*-?[[:space:]]*"?\$?\{?([A-Za-z_][A-Za-z0-9_.]*).*/\1/p'
 }
 
@@ -299,7 +303,7 @@ target_guarded() {
 # A call whose process-group target is a NUMERIC LITERAL (`os.killpg(1, ...)`, `kill(-1, sig)`,
 # `syscall.Kill(-1, ...)`, `pkill -g 1`, `kill -9 -1`) is the BOB-126 disaster syscall spelled out in
 # source. No guard can make a hardcoded `1` safe; refusing to guess is the conservative-safe default.
-LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|'"${PKILL_PRE}${PKILL_OPT}"'[[:space:]="'"'"']*[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*0[[:space:]]*,'
+LITERAL_TARGET_ERE='killpg[[:space:]]*\([[:space:]]*[0-9]|syscall\.Kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:](]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-[[:space:]]*[0-9]|(^|[^[:alnum:]_])kill[[:space:]]*\([[:space:]]*0[[:space:]]*-[[:space:]]*[0-9]|from_raw[[:space:]]*\([[:space:]]*-[[:space:]]*[0-9]|(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\([[:space:]]*0[[:space:]]*,'
 
 # ── The shell-kill OPERAND CLASSIFIER (POSIX awk; no gensub, no {n,m}) ──────────────────────────────────
 # Input: "LINENO<TAB>TEXT" records (the strings-kept view, continuation lines already joined; python
@@ -410,6 +414,101 @@ function classify(t,    r, r2, id) {
             i++
         }
     }
+}
+AWKEOF
+
+# ── The pkill group-option scanner (POSIX awk; recursive via explicit depth) ────────────────────────────
+# Same input and output records as SHAWK. See the comment above CALL_ERE for the rules.
+read -r -d '' PKAWK <<'AWKEOF' || true
+BEGIN { FS = "\t" }
+function emit(op,    r, id) {
+    if (op == "" || op ~ /^\001/) { print ln "\tVAR\t"; return }
+    if (op ~ /^[0-9]/) { print ln "\tLIT\t"; return }
+    id = ""
+    if (op ~ /^\$\{?[0-9]\}?([^0-9A-Za-z_]|$)/) { match(op, /[0-9]/); id = "$" substr(op, RSTART, 1) }
+    else {
+        r = op
+        sub(/^[\\$`{"'~]+/, "", r)
+        if (match(r, /^[A-Za-z_][A-Za-z0-9_.]*/)) id = substr(r, 1, RLENGTH)
+    }
+    print ln "\tVAR\t" id
+}
+function tokscan(o, strmode,    nseg, s, n, tk, i, k, t, ch, found, pos, pv, q, zok, rest, op, j) {
+    gsub(/[,\[\]]/, " ", o)
+    gsub(/(str|int)\(/, " ", o)
+    gsub(/2>&1/, " ", o)
+    gsub(/&>/, " > ", o)
+    gsub(/&&/, ";", o)
+    gsub(/\|\|/, ";", o)
+    gsub(/\$\(/, " ; ", o)
+    gsub(/[(`{]/, " ; ", o)
+    gsub(/[)}]/, " ", o)
+    nseg = split(o, sg, /[;&|]/)
+    for (s = 1; s <= nseg; s++) {
+        n = split(sg[s], tk, /[ \t]+/)
+        for (pos = 1; pos <= n; pos++) {
+            t = tk[pos]
+            if (!(t == "pkill" || t ~ /\/pkill$/)) continue
+            if (strmode) {
+                pv = ""
+                for (q = pos - 1; q >= 1; q--) if (tk[q] != "") { pv = tk[q]; break }
+                zok = (pv == "" || pv !~ /^[A-Za-z]+$/ || pv ~ /^(sudo|doas|timeout|env|command|exec|nohup|nice|ionice|setsid|stdbuf|xargs|then|do|else|elif|if|while|until|time|system|popen|run|call|check_call|check_output|Popen|Command|sh|bash|eval|trap)$/)
+                if (!zok) continue
+            }
+            for (i = pos + 1; i <= n; i++) {
+                t = tk[i]
+                if (t == "" || t == "\001") continue
+                if (t ~ /^--pg[a-z]*/) {
+                    rest = t; sub(/^--pg[a-z]*=?/, "", rest)
+                    if (rest == "") { op = ""; for (j = i + 1; j <= n; j++) if (tk[j] != "") { op = tk[j]; break }; emit(op) } else emit(rest)
+                    continue
+                }
+                if (substr(t, 1, 1) != "-" || substr(t, 2, 1) == "-") continue
+                found = 0
+                for (k = 2; k <= length(t); k++) {
+                    ch = substr(t, k, 1)
+                    if (ch == "g") { found = k; break }
+                    if (ch !~ /[A-Za-z0-9]/) break
+                }
+                if (!found) continue
+                rest = substr(t, found + 1)
+                if (rest == "") { op = ""; for (j = i + 1; j <= n; j++) if (tk[j] != "") { op = tk[j]; break }; emit(op) } else emit(rest)
+            }
+        }
+    }
+}
+function scan(s, strmode, depth,    i, L, c, d, k, out, cont, m) {
+    out = ""; nsc[depth] = 0; i = 1; L = length(s)
+    while (i <= L) {
+        c = substr(s, i, 1)
+        if (c == "\\") { out = out c substr(s, i + 1, 1); i += 2; continue }
+        if (c == "\"" || c == "'") {
+            k = i + 1
+            while (k <= L) {
+                d = substr(s, k, 1)
+                if (d == "\\") { k += 2; continue }
+                if (d == c) break
+                k++
+            }
+            if (k > L) { out = out " "; i++; continue }
+            cont = substr(s, i + 1, k - i - 1)
+            if (cont ~ /[ \t]/) { nsc[depth]++; sc[depth, nsc[depth]] = cont; out = out " \001 " }
+            else out = out " " cont " "
+            i = k + 1
+            continue
+        }
+        out = out c
+        i++
+    }
+    tokscan(out, strmode)
+    if (depth < 6) { for (m = 1; m <= nsc[depth]; m++) scan(sc[depth, m], 1, depth + 1) }
+    else { for (m = 1; m <= nsc[depth]; m++) tokscan(sc[depth, m], 0) }
+}
+{
+    ln = $1
+    txt = $0
+    sub(/^[^\t]*\t/, "", txt)
+    scan(txt, 0, 1)
 }
 AWKEOF
 
@@ -548,9 +647,16 @@ def joined_records(toks, lines, fstr_start, fstr_end):
     def flush():
         if len(cur) >= 2:
             # `+` concatenation joins WITHOUT a blank ("kill" + "pg" is "killpg"); a list comma joins with one.
-            txt = cur[0]
+            # A list item that holds blanks keeps its boundary as a double-quoted string (`["pkill","-f","a -g 5"]`
+            # -> `pkill -f "a -g 5"`), so a quoted -f pattern is never mistaken for options.
+            def item(k):
+                glued = plus[k] or (k + 1 < len(cur) and plus[k + 1])
+                if glued or not re.search(r'\s', cur[k]):
+                    return cur[k]
+                return '"' + cur[k].replace('\\', '\\\\').replace('"', '\\"') + '"'
+            txt = item(0)
             for k in range(1, len(cur)):
-                txt += ('' if plus[k] else ' ') + cur[k]
+                txt += ('' if plus[k] else ' ') + item(k)
             recs.append((first[0], txt, any(plus[1:])))
         del cur[:]
         del plus[:]
@@ -959,6 +1065,7 @@ trap 'rm -rf "${TMPD:?}"' EXIT
 HELPER="${TMPD}/strip.py"
 printf '%s\n' "$PYHELPER" > "$HELPER"
 SHAWKF="${TMPD}/sh.awk"; printf '%s\n' "$SHAWK" > "$SHAWKF"
+PKAWKF="${TMPD}/pk.awk"; printf '%s\n' "$PKAWK" > "$PKAWKF"
 JOINAWKF="${TMPD}/join.awk"; printf '%s\n' "$JOINAWK" > "$JOINAWKF"
 KEEPF="${TMPD}/keep.txt"; NSF="${TMPD}/ns.txt"; CF="${TMPD}/c.txt"; MF="${TMPD}/marks.txt"
 WINF="${TMPD}/win.txt"; JOINF="${TMPD}/join.txt"; SHF="${TMPD}/sh_rows.txt"; SHIN="${TMPD}/sh_in.txt"
@@ -1083,6 +1190,7 @@ for f in "${files[@]}"; do
     # joined) plus the joined multi-line argv / concatenation records.
     { awk -f "$JOINAWKF" "$KEEPF"; cat "$JOINF"; } > "$SHIN"
     awk -f "$SHAWKF" "$SHIN" > "$SHF"
+    awk -f "$PKAWKF" "$SHIN" >> "$SHF"
     sh_nums="$(cut -f1 "$SHF" | sort -un || true)"
     j_nums=""
     while IFS=$'\t' read -r jl jt || [ -n "$jl" ]; do
