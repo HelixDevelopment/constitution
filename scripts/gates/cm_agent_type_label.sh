@@ -220,6 +220,22 @@ if [ "$r_p1" = 6 ] && [ "$r_p2" = 6 ] && [ "$r_p3" = 6 ] && [ "$r_p4" = 6 ] && [
 r_q1="$(rfs "$SH" --project-root "$P" --out-dir /tmp)"; r_q2="$(rfs "$SH" --project-root "$P" --out-dir /srv/agentlabel-probe)"
 r_q3="$(rfs "$SH" --project-root "$P" --out-dir /usrx/agents)"; r_q4="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claudeless/agents")"; r_q5="$(rfs "$SH" --project-root "$P" --out-dir /tmp/agentlabel-probe/agents)"
 if [ "$r_q1" = 6 ] && [ "$r_q2" = 6 ] && [ "$r_q3" = 0 ] && [ "$r_q4" = 0 ] && [ "$r_q5" = 0 ]; then say "✅ INSTALLER: /tmp and /srv/<child> refused; /usrx, ~/.claudeless and /tmp/<child> accepted"; else ko "INSTALLER: strict/exact/prefix probes wrong (/tmp $r_q1, /srv/x $r_q2 want 6; /usrx $r_q3, ~/.claudeless $r_q4, /tmp/x $r_q5 want 0)"; fi
+# R5-1..R5-3: per-process links (/proc/self, /dev/fd) refused; a symlink followed before a following '..';
+# the kernel cross-check and the canon failure each refuse on their own (unit probes source the installer's
+# own functions); an un-enterable project root stops with exit 2. No /proc or running as root: SKIP-with-reason.
+mkdir -p "$SH/a/b" "$W/ordm/a"; ln -sfn "$SH/a/b" "$SH/deep"; ln -sfn "$W/ordm/a" "$W/ordmlink"; SHB="$(basename "$SH")"; SHP="$(cd -P -- "$SH" && pwd -P)"
+FN="$W/canon_fns.sh"; { sed -n '/^canon() {/,/^}/p' "$inst"; sed -n '/^canon_kcheck() {/,/^}/p' "$inst"; sed -n '/^canon_to() {/,/^}/p' "$inst"; grep '^refuse6() {' "$inst"; } >"$FN"
+if [ -L /proc/self ]; then
+  r_m1="$(cd "$SH/a/b" && rfs "$SH" --project-root "$P" --out-dir "/proc/self/cwd/../../../$SHB/.claude/agents")"; r_m2="$(rfs "$SH" --project-root "$P" --out-dir /dev/fd/../../agents)"
+  r_u2="$(bash -c '. "$1"; canon /proc/self/cwd/..' _ "$FN" >/dev/null 2>&1; echo $?)"
+else r_m1=6; r_m2=6; r_u2=2; say "ℹ️  INSTALLER: /proc/self absent: magic-link probes SKIP-with-reason (topology_unsupported)"; fi
+r_m3="$(rfs "$SH" --project-root "$P" --out-dir "$SH/deep/../../.claude/agents")"; r_g1="$(rfs "$SH" --project-root "$P" --out-dir "$W/ordmlink/../agents")"
+r_u1="$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH/deep/../../x" 2>/dev/null)"
+r_u3="$(bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "$SH/deep/../../x" >/dev/null 2>&1; echo $?)"
+r_u4="$(bash -c '. "$1"; T="$2"; canon() { [ "$1" = "$T" ] && return 1; printf "%s\n" "$1"; }; canon_to v "$T"' _ "$FN" "$SHP/nonexist/x" >/dev/null 2>&1; echo $?)"
+r_u5="$(bash -c '. "$1"; canon_to v "$2"' _ "$FN" "$SH/deep/.." >/dev/null 2>&1; echo $?)"
+if [ "$(id -u)" != 0 ]; then NE="$W/noenter"; mkdir -p "$NE"; chmod 000 "$NE"; r_n1="$(rfs "$SH" --project-root "$NE")"; chmod 755 "$NE"; else r_n1=2; say "ℹ️  INSTALLER: running as root: un-enterable-root probe SKIP-with-reason"; fi
+if [ "$r_m1" = 6 ] && [ "$r_m2" = 6 ] && [ "$r_m3" = 6 ] && [ "$r_g1" = 0 ] && [ "$r_u1" = "$SHP/x" ] && [ "$r_u2" = 2 ] && [ "$r_u3" = 6 ] && [ "$r_u4" = 6 ] && [ "$r_u5" = 0 ] && [ "$r_n1" = 2 ]; then say "✅ INSTALLER: per-process links refused, symlink resolved before '..', kernel cross-check and canon failure each refuse, un-enterable root exits 2; an ordinary symlink-then-'..' accepted"; else ko "INSTALLER: R5 probes wrong (/proc/self/cwd/.. $r_m1, /dev/fd/.. $r_m2, ~/deep/../.. $r_m3, lexical-canon $r_u3, canon-fails $r_u4 want 6; canon /proc/self rc $r_u2 want 2; canon ~/deep/../../x '$r_u1' want '$SHP/x'; ordinary $r_g1, real canon_to $r_u5 want 0; un-enterable root $r_n1 want 2)"; fi
 if [ "$r_s1" = 6 ] && [ "$r_s2" = 6 ] && [ "$r_s3" = 6 ] && [ "$r_s4" = 6 ] && [ "$r_s5" = 6 ] && [ "$r_s6" = 6 ] && [ "$r_s7" = 0 ]; then say "✅ INSTALLER: refuses a symlinked ~/.claude (out-dir and target), an out-dir containing it, an empty-HOME passwd home, HOME itself and an ancestor of HOME"; else ko "INSTALLER: user-level refusal bypassed (symlink out-dir $r_s1, symlink target $r_s2, out-dir contains $r_s3, empty HOME $r_s4, HOME $r_s5, HOME ancestor $r_s6; want 6; empty-HOME ordinary project $r_s7 want 0)"; fi
 # a project whose .claude IS the user-level agent config dir is refused (F1)
 UC="$W/ucfg"; mkdir -p "$UC/.claude"; git -C "$UC" init -q -b main 2>/dev/null; git -C "$UC" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null

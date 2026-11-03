@@ -36,7 +36,10 @@
 #   the protected set; (d) the comparison is case-sensitive, so on a case-insensitive file
 #   system (macOS default) ~/.CLAUDE/agents is not refused; (e) canonicalisation uses pure
 #   bash + flag-less readlink, never 'realpath -m' (R4-1): if a symlink on the path cannot be
-#   read, the run is REFUSED (exit 6), never guessed.
+#   read, the run is REFUSED (exit 6), never guessed; (f) a path through a per-process link
+#   (/proc/self, /proc/<pid>/..., /dev/fd, /dev/stdin|stdout|stderr) is REFUSED (exit 6, R5-1),
+#   even where it would land somewhere harmless, and the kernel's own 'cd -P' resolution of the
+#   existing prefix must agree with the pure-bash walk.
 # Side-effects: writes generated files; prunes ONLY genuine generated
 #   T<N>-*.md files whose (track, branch) is no longer declared (a declared
 #   track whose branch is unresolvable keeps its files; with no usable consumer
@@ -70,7 +73,7 @@ while [ $# -gt 0 ]; do
     --check)        do_check=1; shift ;;
     --dry-run)      dry=1; shift ;;
     --no-prune)     prune=0; shift ;;
-    -h|--help)      sed -n '2,39p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)              die2 "unknown argument '$1'" ;;
   esac
 done
@@ -94,6 +97,11 @@ if _pr="$(CDPATH='' cd -- "$project_root" 2>/dev/null && pwd -P)" && [ -n "$_pr"
 # resolved prefix, and components that do not exist are kept lexically (as realpath -m does).
 # It prints nothing and returns 1 when the path cannot be established (empty input, no
 # working directory, an unreadable link, more than 40 links): the caller refuses (exit 6).
+# Per-process links (review round 5, R5-1): a symlink located under /proc (/proc/self,
+# /proc/thread-self, /proc/<pid>/cwd|root|exe|fd/*, /proc/mounts, ...) or at /dev/fd,
+# /dev/stdin, /dev/stdout, /dev/stderr means something different in every process, and
+# 'readlink' would answer for its own short-lived process (a following '..' then escapes
+# /proc). Such a link is never followed: canon returns 2 and the caller refuses (exit 6).
 canon() {
   local rest comp t l cur=/ n=0 base
   [ -n "$1" ] || return 1
@@ -110,6 +118,7 @@ canon() {
     esac
     if [ "$cur" = / ]; then t="/$comp"; else t="$cur/$comp"; fi
     if [ -L "$t" ]; then
+      case "$t" in /proc|/proc/*|/dev/fd|/dev/stdin|/dev/stdout|/dev/stderr) return 2 ;; esac
       n=$((n+1)); [ "$n" -le 40 ] || return 1
       l="$(readlink -- "$t" 2>/dev/null)" || return 1
       [ -n "$l" ] || return 1
@@ -121,11 +130,30 @@ canon() {
   done
   printf '%s\n' "$cur"
 }
+# canon_kcheck PATH CANON: second, independent opinion (R5-1). The longest prefix of PATH that
+# the kernel can enter is resolved with 'cd -P' in a subshell (the kernel follows every link,
+# magic ones included, in a process that has the installer's working directory), and must
+# equal what canon says for the same prefix. A prefix nobody can enter gives no opinion
+# (return 0); a disagreement, or a canon failure on the prefix, returns 1 (caller refuses).
+canon_kcheck() {
+  local p="$1" kp="" cp="" i=0
+  while :; do
+    if [ -d "$p" ] && kp="$(CDPATH='' cd -P -- "$p" 2>/dev/null && pwd -P)" && [ -n "$kp" ]; then break; fi
+    case "$p" in /|.|'') return 0 ;; esac
+    case "$p" in */*) p="${p%/*}"; [ -n "$p" ] || p=/ ;; *) p=. ;; esac
+    i=$((i+1)); [ "$i" -le 100000 ] || return 1
+  done
+  cp="$(canon "$p")" || return 1
+  [ "$kp" = "$cp" ]
+}
 # canon_to VAR PATH: VAR := canon PATH, or refuse (exit 6, fail closed, §11.4.201(4)).
 canon_to() {
-  local -n _cv="$1"
-  _cv="$(canon "$2")" || refuse6 "cannot canonicalise '$2' (unreadable symlink or no usable readlink); cannot prove it is not a user-level or system directory"
+  local -n _cv="$1"; local _crc=0
+  _cv="$(canon "$2")" || _crc=$?
+  [ "$_crc" -ne 2 ] || refuse6 "'$2' passes through a per-process magic link (/proc/self, /proc/<pid>/..., /dev/fd, /dev/stdin): its meaning depends on the resolving process, so it cannot be proven not to be a user-level or system directory"
+  [ "$_crc" -eq 0 ] || refuse6 "cannot canonicalise '$2' (unreadable symlink or no usable readlink); cannot prove it is not a user-level or system directory"
   [ -n "$_cv" ] || refuse6 "cannot canonicalise '$2'"
+  canon_kcheck "$2" "$_cv" || refuse6 "'$2': the canonical path disagrees with the kernel's own resolution (cd -P); cannot prove it is not a user-level or system directory"
 }
 # $1 equal to or inside $2. The filesystem root is an ancestor of every absolute path (R3-1:
 # the pattern "$2"/* would be '//*' for '/', which matches nothing).

@@ -298,6 +298,59 @@ check "I19g (R4-1) unreadable symlink (readlink fails, ~/.claude is a link) refu
 grep -q 'cannot canonicalise' "$W/err" && ok "I19h (R4-1) refusal names the canonicalisation failure" || bad "I19h (R4-1) refusal names the canonicalisation failure" "$(head -2 "$W/err")"
 PH="$W/plainhome"; mkdir -p "$PH"
 check "I19i (R4-1) golden-FALSE: readlink and realpath both failing, no symlink on any path -> not refused" 0 "$(env -u CLAUDE_CONFIG_DIR PATH="$RLS:$PATH" HOME="$PH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run --project-root "$P" >"$W/out" 2>"$W/err"; echo $?)"
+# R5-1 (review round 5): per-process magic links (/proc/self, /proc/<pid>/cwd, /dev/fd, /dev/stdin) must
+# not be resolved in a child process and then escaped with '..'. Any walk through a symlink under /proc
+# is refused (exit 6), and the existing prefix is cross-checked with the kernel (cd -P) in a subshell.
+mkdir -p "$SH/a/b"; SHB="$(basename "$SH")"
+rm -f "$SH/dotreal/agents/T"*; : >"$SH/dotreal/agents/mine.md"; hm_before="$(ls "$SH/dotreal/agents")"
+if [ -L /proc/self ]; then
+  for sp in "" "$RPS"; do
+    rc=$(cd "$SH/a/b" && env -u CLAUDE_CONFIG_DIR PATH="${sp:+$sp:}$PATH" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "/proc/self/cwd/../../../$SHB/.claude/agents" >"$W/out" 2>"$W/err"; echo $?)
+    check "I21a (R5-1) NON-dry --out-dir /proc/self/cwd/../../../<home>/.claude/agents from ~/a/b refused (exit 6)${sp:+, failing realpath}" 6 "$rc"
+    check "I21b (R5-1) the user's ~/.claude/agents is unchanged${sp:+ (failing realpath)}" "$hm_before" "$(ls "$SH/dotreal/agents")"
+    rm -f "$SH/dotreal/agents/T"*
+  done
+  for od in "/proc/thread-self/cwd/../../../$SHB/.claude/agents" "/proc/$$/cwd/../x" "/dev/fd/../../agents" "/dev/stdin/../../agents" "/proc/self/root$W/ordinary/agents"; do
+    check "I21c (R5-1) --out-dir through a per-process magic link '$od' refused (exit 6)" 6 "$(cd "$SH/a/b" && runh "$SH" --project-root "$P" --out-dir "$od")"
+  done
+  grep -q 'magic link\|per-process' "$W/err" && ok "I21d (R5-1) refusal names the per-process link" || bad "I21d (R5-1) refusal names the per-process link" "$(head -2 "$W/err")"
+else ok "I21a-d /proc/self absent on this host (SKIP-with-reason: topology_unsupported)"; fi
+mkdir -p "$W/ordinary/a"; ln -sfn "$W/ordinary/a" "$W/ordlink"
+check "I21e golden-FALSE: an ordinary symlink followed by '..' (no /proc) is not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir "$W/ordlink/../agents")"
+# R5-2: a symlink is followed BEFORE the '..' after it (kernel order). deep -> ~/a/b, so ~/deep/../.. is ~,
+# not the parent of ~ (reviewer mutant RV7 resolved '..' lexically and wrote into ~/.claude/agents).
+ln -sfn "$SH/a/b" "$SH/deep"
+for sp in "" "$RPS"; do
+  rc=$(env -u CLAUDE_CONFIG_DIR PATH="${sp:+$sp:}$PATH" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "$SH/deep/../../.claude/agents" >"$W/out" 2>"$W/err"; echo $?)
+  check "I22a (R5-2) NON-dry --out-dir ~/deep/../../.claude/agents (deep -> ~/a/b) refused (exit 6)${sp:+, failing realpath}" 6 "$rc"
+  check "I22b (R5-2) the user's ~/.claude/agents is unchanged${sp:+ (failing realpath)}" "$hm_before" "$(ls "$SH/dotreal/agents")"
+  rm -f "$SH/dotreal/agents/T"*
+done
+# I23 unit: the functions themselves, extracted from the installer (each layer must hold on its own)
+FN="$W/canon_fns.sh"
+{ sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
+SHP="$(cd -P -- "$SH" && pwd -P)"
+check "I23a (R5-2) canon: symlink followed before the following '..'" "$SHP/dotreal/agents" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH/deep/../../.claude/agents")"
+check "I23b (R5-2) canon: '..' after a chained relative link" "$SHP/a" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH/deep/..")"
+if [ -L /proc/self ]; then
+  for pp in /proc/self/cwd/.. /proc/self /proc/thread-self/cwd "/proc/$$/cwd" /dev/fd/0 /dev/stdin "/proc/self/root/tmp"; do
+    out="$(cd "$SH/a/b" && bash -c '. "$1"; canon "$2"' _ "$FN" "$pp")"; r=$?
+    check "I23c (R5-1) canon refuses '$pp' (rc 2 = per-process link, no output)" "2:" "$r:$out"
+  done
+fi
+check "I23d (R5-1) canon_kcheck: a lexical (wrong) canonicaliser is caught by the kernel cross-check (exit 6)" 6 "$(bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "$SH/deep/../../.claude/agents" >/dev/null 2>&1; echo $?)"
+check "I23e golden-FALSE: canon_to with the real canon accepts the same path" "$SHP/dotreal/agents:0" "$(bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$SH/deep/../../.claude/agents" 2>/dev/null; printf ':%s' "$?" )"
+check "I23f (R4-1/R19) canon_to refuses when canon fails on the full path, even if the kernel cross-check alone would agree" 6 "$(bash -c '. "$1"; canon() { [ "$1" = "$2" ] && return 1; printf "%s\n" "$1"; }; T="$2"; canon() { [ "$1" = "$T" ] && return 1; printf "%s\n" "$1"; }; canon_to v "$T"' _ "$FN" "$SHP/nonexist/x" >/dev/null 2>&1; echo $?)"
+check "I23g (R5-1) canon_to names a per-process link when canon returns 2" 1 "$(bash -c '. "$1"; canon() { return 2; }; canon_to v /x' _ "$FN" 2>&1 >/dev/null | grep -c 'per-process magic link')"
+# R5-3: a project root that cannot be entered (not a system dir) stops with exit 2, nothing written
+if [ "$(id -u)" != 0 ]; then
+  NE="$W/noenter"; mkdir -p "$NE"; chmod 000 "$NE"
+  rc=$(env -u CLAUDE_CONFIG_DIR HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$NE" >"$W/out" 2>"$W/err"; echo $?)
+  chmod 755 "$NE"
+  check "I24a (R5-3) un-enterable (chmod 000) project root stops with exit 2" 2 "$rc"
+  [ ! -e "$NE/.claude" ] && ok "I24b (R5-3) nothing written under the un-enterable root" || bad "I24b (R5-3) nothing written under the un-enterable root"
+  grep -q 'cannot be entered' "$W/err" && ok "I24c (R5-3) the reason is reported" || bad "I24c (R5-3) the reason is reported" "$(head -2 "$W/err")"
+else ok "I24a-c running as root: chmod 000 does not block (SKIP-with-reason)"; fi
 # R3-2 mutant killers (X3..X7)
 ln -s "$W/nonexistent-target" "$SH/.claude-dangling"
 check "I18a (X3) out-dir inside a DANGLING ~/.claude-* symlink refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-dangling/agents")"

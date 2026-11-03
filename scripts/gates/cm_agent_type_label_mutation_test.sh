@@ -30,6 +30,7 @@
 #     R11 installer prunes a declared-but-unresolvable track -> FAIL (R2-2)
 #     R12 installer prunes with no usable config -> FAIL (R2-2)
 #     R13 installer ignores the passwd home when HOME is empty -> FAIL (R2-1)
+#     RV7 R20-R22 RV5 round-5 canonicaliser / per-process link / cross-check / un-enterable root -> FAIL (R5-1..R5-3)
 #     E2  an ambient AGENT_TYPE_LABEL_AGENTS_DIR does not change the verdict (R2-4)
 #     E1  an ambient HP in the caller's environment does not change the verdict (F3)
 #   plus gate-level cases on the dispatch-log audit (warn vs enforce) and a
@@ -182,8 +183,19 @@ D=$(fresh_tree r17); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs
 expect fail "R17 canon() falls back to the raw path when realpath -m is unavailable (R4-1)" gate_in "$D"
 D=$(fresh_tree r18); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;' '..) continue ;;' || rc=1
 expect fail "R18 canon() ignores '..'" gate_in "$D"
-D=$(fresh_tree r19); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '_cv="$(canon "$2")" || refuse6' '_cv="$(canon "$2")" || _cv="$2"; false && refuse6' || rc=1
+D=$(fresh_tree r19); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  _cv="$(canon "$2")" || _crc=$?' '  _cv="$(canon "$2")" || _cv="$2"' || rc=1
 expect fail "R19 an uncanonicalisable path is used raw instead of refused (fail open)" gate_in "$D"
+# review round 5 (R5-1..R5-3)
+D=$(fresh_tree rv7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '      ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;\n' '      ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;\n      *) case "$rest" in ..|../*) rest="${rest#..}"; rest="${rest#/}"; continue ;; esac ;;\n' || rc=1
+expect fail "RV7 canon() resolves '..' lexically before the symlink in front of it (R5-2)" gate_in "$D"
+D=$(fresh_tree r20); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '      case "$t" in /proc|/proc/*|/dev/fd|/dev/stdin|/dev/stdout|/dev/stderr) return 2 ;; esac\n' '' || rc=1
+expect fail "R20 canon() follows per-process links under /proc and /dev/fd (R5-1)" gate_in "$D"
+D=$(fresh_tree r21); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  cp="$(canon "$p")" || return 1\n  [ "$kp" = "$cp" ]' '  return 0' || rc=1
+expect fail "R21 canon_kcheck() always agrees (kernel cross-check blind, R5-1)" gate_in "$D"
+D=$(fresh_tree r22); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  canon_kcheck "$2" "$_cv" || refuse6' '  true || refuse6' || rc=1
+expect fail "R22 canon_to() never calls the kernel cross-check (R5-1)" gate_in "$D"
+D=$(fresh_tree rv5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ "$pr_unentered" -eq 0 ] || die2 "project root \x27$project_root\x27 cannot be entered"\n' '' || rc=1
+expect fail "RV5 an un-enterable project root proceeds instead of exit 2 (R5-3)" gate_in "$D"
 D=$(fresh_tree ma); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /snap /tmp /Users)' ' /snap /Users)' || rc=1
 expect fail "MA /tmp dropped from SYS_EXACT (R4-2)" gate_in "$D"
 D=$(fresh_tree mb); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /sbin /srv /sys /usr)' ' /sbin /sys /usr)' || rc=1
