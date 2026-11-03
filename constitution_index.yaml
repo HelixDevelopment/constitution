@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-03T11:57:47.065781+00:00'
+generated_at: '2026-11-03T12:31:22.351879+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: eb719869daf02803dfdd2cc09b53935027f0241a
-  source_sha256: dd170c6a228dd9d2c7bcfbe4e02606da204a12f19f1247f75eb7f7720a8c6976
+  commit: 9e24057000ef8e92aca03de1e59d6dbd68b1ea63
+  source_sha256: aecd99480a7fe46cdfb3adc98c7aaabb0fb11cb7683e16e7916292a73d96112d
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 51
+  anchor_count: 52
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 42
@@ -743,6 +743,7 @@ anchors:
   - '11.4'
   - 11.4.15
   - 11.4.17
+  - 11.4.293
   - 11.4.34
   - 11.4.39
   - 11.4.4
@@ -2445,6 +2446,7 @@ anchors:
   - 11.4.114
   - 11.4.115
   - 11.4.17
+  - 11.4.293
   - 11.4.35
   - 11.4.4
   - 11.4.40
@@ -3002,6 +3004,7 @@ anchors:
   - 11.4.17
   - 11.4.201
   - 11.4.205
+  - 11.4.293
   - 11.4.3
   - 11.4.4
   - 11.4.40
@@ -7847,6 +7850,53 @@ anchors:
   - 11.4.6
   - 11.4.7
   - 11.4.90
+  - '7.1'
+- id: 11.4.293
+  title: '— Scope discipline and image no-worse proof: all work serves the main Roadmap''s
+    workable items and stays inside the codebase context of the issue it fixes, every
+    commit names the Roadmap item it serves and every out-of-scope edit carries a
+    reason from a closed list; every produced flashing image is LIVE-tested and compared,
+    test by test, with the previously flashed image''s baseline run on the same board
+    and harness, and only the closed verdict NO-WORSE-PROVEN lets it be released or
+    tagged as no worse (User mandate, 2026-11-03)'
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-293-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.108
+  - 11.4.114
+  - 11.4.118
+  - 11.4.135
+  - 11.4.148
+  - 11.4.17
+  - 11.4.185
+  - 11.4.191
+  - 11.4.200
+  - 11.4.202
+  - 11.4.210
+  - 11.4.227
+  - 11.4.236
+  - 11.4.240
+  - 11.4.248
+  - 11.4.262
+  - 11.4.264
+  - 11.4.267
+  - 11.4.288
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.293
+  - 11.4.35
+  - 11.4.40
+  - 11.4.50
+  - 11.4.58
+  - 11.4.6
+  - 11.4.66
+  - 11.4.7
+  - 11.4.77
   - '7.1'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly

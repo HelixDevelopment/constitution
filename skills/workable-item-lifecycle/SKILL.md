@@ -1,7 +1,7 @@
 ---
 name: Workable Item Lifecycle
 description: Use when moving a tracked item through its lifecycle — starting work, marking it ready for testing, closing it, reopening it, marking it obsolete or operator-blocked — or when asked which Status/Type value is legal, how to close a Feature vs a Bug, why the Issues/Fixed docs must be regenerated rather than hand-edited, what a reopen must record, what belongs in a per-item testing diary, or whether an item may be counted as done (PROVISIONAL-DONE) before its verification has run.
-version: 1.2.0
+version: 1.3.0
 # --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
 # Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
 # completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
@@ -219,3 +219,13 @@ paperwork.
 - Every status change flows **DB → regenerate docs**, in the same commit.
 - Fix ⇒ a permanent regression guard (§11.4.135), authored RED on the broken
   artifact and flipped GREEN on the fixed one (§11.4.115).
+- Scope (§11.4.293): work only on main-Roadmap items, inside the issue's codebase
+  context. Every commit names its item with a `Roadmap-Item: <id>` trailer; every
+  path outside that context gets an `Out-of-scope: <path> — <reason> — <justification>`
+  trailer, reason exactly one of `fix-gate-or-test` · `generated-regeneration` ·
+  `upstream-merge` · `operator-order`; anything else is split into its own item or
+  reverted.
+- Images (§11.4.293): a flashed image is compared test by test with the previously
+  flashed image on the same board and harness; only `NO-WORSE-PROVEN` lets it be
+  released or tagged as no worse (a baseline PASS that is INCONCLUSIVE, SKIPPED or
+  absent is a regression).

@@ -375,7 +375,8 @@ ID_RANGE_GROUPS = [
                                         (185, 185), (200, 200),
                                         (207, 207), (208, 208), (210, 211), (213, 213),
                                         (229, 229), (235, 236), (260, 261), (264, 267),
-                                        (279, 281), (285, 286)]),  # 279-281, 285-286 added 2026-10-23 — Jev decision-layer: detection, wiring, bootstrap, auto-tuning, dependency submodules
+                                        (279, 281), (285, 286),  # 279-281, 285-286 added 2026-10-23 — Jev decision-layer: detection, wiring, bootstrap, auto-tuning, dependency submodules
+                                        (293, 293)]),  # 293 added 2026-11-03 — §11.4.293 scope discipline + image no-worse proof; sibling of 40/235/236
 ]
 
 EXPLICIT_ID_GROUPS = {

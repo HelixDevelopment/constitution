@@ -1,6 +1,6 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 16
+**Revision:** 17
 **Last modified:** 2026-11-03T11:54:28Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
@@ -16,6 +16,8 @@
 **R14 (2026-10-28, §11.4.291):** `OWED-GATE-165` to `OWED-GATE-168` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.291; section at the end of this file.
 
 **R16 (2026-11-03, §11.4.292):** `OWED-GATE-174` (`CM-REPRODUCTION-RECORD-BEFORE-FIX`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.292; section after the §11.4.230(F) section.
+
+**R17 (2026-11-03, §11.4.293):** `OWED-GATE-175` (`CM-COMMIT-NAMES-ROADMAP-ITEM`) and `OWED-GATE-176` (`CM-IMAGE-NO-WORSE-PROVEN`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.293; section after the §11.4.292 section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -1008,6 +1010,19 @@ The item-level gate named in §11.4.292 is registered as a deferral in the same 
   - **Must assert:** (per §11.4.292(B)/(C)/(D)/(E)/(F)) every item being fixed carries a `**Reproduction:**` line before its first fix commit; the result is one of `reproduced-live`, `reproduced-host-fixture`, `not-reproducible-with-evidence`, `blocked-no-device-with-recorded-blocker`; a `REPRODUCED` label has every required field (surface, exact command, RED evidence path + sha256 + timestamp + ids, build and artifact fingerprint, target identity, symptom signature) and no `UNCONFIRMED:` field; no `UNREPRODUCED` item carries a §11.4.33 closure value or sits in a verified count; the promoting GREEN has the same command, target identity and signature as the RED; a not-reproducible record has a positive control needle; a blocked record has a resolvable blocker record; golden-FALSE: an honest PROVISIONAL-DONE item labelled `UNREPRODUCED` with its verification job scheduled, and a `host-only` reproduction of a gate-script defect
   - **Blocked on:** the workable-items engine does not parse the `Reproduction:` line, and no item-level evidence store layout is defined in-repo
   - **Paired §1.1 mutation:** delete the RED path from a `reproduced-live` record, promote an `UNREPRODUCED` item to a closure value, swap the GREEN's signature, or drop the control needle from a non-reproduction; the gate MUST FAIL
+
+### §11.4.293 scope discipline and image no-worse proof (registered 2026-11-03)
+
+The two item-level gates named in §11.4.293 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh` with its paired mutation test); the comparator itself is consuming-project work.
+
+- **OWED-GATE-175** — `CM-COMMIT-NAMES-ROADMAP-ITEM`
+  - **Must assert:** (per §11.4.293(A)) every commit carries a `Roadmap-Item:` trailer naming an id that is a Roadmap item; every touched path outside that item's context carries an `Out-of-scope: <path> — <reason> — <justification>` trailer whose reason is one of `fix-gate-or-test`, `generated-regeneration`, `upstream-merge`, `operator-order`; golden-FALSE: a commit whose only out-of-scope paths are regenerated generated files listed with `generated-regeneration`
+  - **Blocked on:** no machine-readable Roadmap or per-item context manifest is defined in-repo, so "outside the item's context" has no computable input yet
+  - **Paired §1.1 mutation:** remove the `Roadmap-Item:` trailer, or use a fifth out-of-scope reason; the gate MUST FAIL
+- **OWED-GATE-176** — `CM-IMAGE-NO-WORSE-PROVEN`
+  - **Must assert:** (per §11.4.293(B)-(F)) no release or non-dev tag of a flashing image without a machine-written comparison record whose verdict is `NO-WORSE-PROVEN`; the record's two runs share board serial, harness fingerprint, suite definition and command and carry both image identities; a baseline-`PASS` test that is `INCONCLUSIVE`, `SKIPPED`, `BLIND`, `ERROR` or absent on the new image is counted as `baseline-pass-lost`; every targeted issue has its RED-to-GREEN flip; golden-FALSE: a purely new-feature image with every pre-existing test unchanged and new tests reported separately
+  - **Blocked on:** the constitution ships no flashing tool and no per-test verdict schema; the comparator is the consuming project's work
+  - **Paired §1.1 mutation:** flip one baseline-`PASS` test to `INCONCLUSIVE` in the new set, delete the baseline, or drop a targeted flip; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

@@ -1,5 +1,52 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-03 — §11.4.293 scope discipline and image no-worse proof (Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison against the previously flashed image)
+
+**Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was committed in a scratch clone of the constitution (branch `work`) on top of the §11.4.292 commit and was not pushed. The rule is implemented and wired at the canon level (anchor, four carriers, index, groups, progressive split, lifecycle skill, gate, mutation test, propagation wrappers, seam binding, post-update hook); the two item-level seams are the registered deferrals `OWED-GATE-175` and `OWED-GATE-176`. No independent §11.4.209 review has run on this change yet.
+
+#### VERIFIED (commands run by the author of this entry on 2026-11-03, output seen)
+
+All commands ran from the constitution root of the scratch clone, on the staged tree of this commit (parent: the §11.4.292 commit).
+
+- `bash scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh --quiet` → `PASS — 171/171 checks`.
+- `bash scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh --quiet` → `PASS: 187 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE)`: every mutation (marker, out-of-scope reason, verdict, flag, cross-reference, back-pointer, carrier, lifecycle skill, index, group, rule file, catalog, data-pack row, wrapper, seam row, each deferral row by id, hook binding, broken extractor, lost control needle) turns the gate RED or BLIND; the unmutated copy and four golden-FALSE copies stay GREEN.
+- `bash scripts/gates/cm_repro_first_anchor_wired.sh` → `PASS — 174/174` and its mutation test → `PASS: 187 RED/BLIND + 5 GREEN`; `bash scripts/gates/cm_provisional_done_anchor_wired.sh` → `PASS — 117/117` and its mutation test → `PASS: 120 RED/BLIND + 5 GREEN` (the earlier anchors stay green with §11.4.293 appended after them).
+- `cm_covenant_114_{290,291,292,293}_propagation.sh` → PASS each; their generated mutation tests → `META PASS` for each of the four.
+- `bash scripts/gates/cm_constitution_index_fresh.sh` → PASS; its mutation test → `MUTATION PAIR VALID`; `python3 progressive/generate_split.py --check` → `reproducible (306 artifact(s), byte-identical)`; `bash scripts/anchors/tests/run_all.sh` → 11 test files, exit 0.
+- `bash scripts/gates/cm_gate_ledger_ratchet.sh` → `unimplemented=394 baseline=394`, PASS (both new item-level gates are registered deferrals, and the wiring gate reads their names by OWED id, so neither reads as implemented); `cm_gate_ledger_ratchet_mutation_test.sh` → PASS (T1-T12; T6 deletes the real `CM-IMAGE-NO-WORSE-PROVEN` deferral row and the ratchet correctly FAILS).
+- `bash scripts/gates/cm_rule_binds_to_seam.sh --base HEAD` → `ALLOW — 47 rules bound, 1 newly declared, 0 findings`; `--selftest` → `pass=11 fail=0`; `cm_rule_binds_to_seam_mutation_test.sh` → `pass=12 fail=0`.
+- `bash scripts/gates/covenant_propagation_wrappers_generate.sh --check` → PASS.
+- `bash tests/test_post_update_hub_gates.sh` → PASS (15 cases); the same test run against the parent commit's hook FAILS with 20 findings (the new gate is never invoked), so the test discriminates.
+- `bash scripts/badges/compute_badges.sh --check` → match; `test_status_summary_archive.sh` → `39 passed, 0 failed`; `tests/gates/test_standalone_canon_gates.sh` → `pass=50 fail=0`; `scripts/gates/test_289_clause_d_not_overbroad.sh` → PASS.
+- `CM-UNREFERENCED-GATE-BOUND-OR-RETIRED` against the same scratch consumer layout as the §11.4.292 entry: `cm_scope_and_image_noworse_anchor_wired.sh` BOUND-SEAM-LITERAL, its mutation test BOUND-PAIRED-MUTATION, both §11.4.293 propagation files BOUND-DATA-DISPATCH; the UNBOUND set is identical to the one measured before either anchor.
+- `bash scripts/gates/cm_canonical_root_clarity.sh` → FAIL, identical before either anchor (the scratch clone's location has no consumer `CLAUDE.md` above it). Not caused by this change; not counted as a PASS.
+
+#### PROVISIONAL (not verified by any command)
+
+- That the anchor text is complete and unambiguous: no independent §11.4.209 review round has run.
+- The forensic quote is the conductor's rendering of the operator's 2026-11-03 16:45 addendum; the operator's own message was not available to the author and is not quoted as verbatim.
+- No consuming project carries a comparator or a `Roadmap-Item:` trailer check yet; the constitution ships neither (OWED-GATE-175, OWED-GATE-176).
+
+### Added
+
+- **§11.4.293 — Scope discipline and image no-worse proof.** (A) All work serves a workable item of the main Roadmap and stays inside the codebase context of the issue it fixes; every commit names its item with a `Roadmap-Item: <id>` trailer, and every path outside that context carries an `Out-of-scope: <path> — <reason> — <justification>` trailer whose reason is exactly one of `fix-gate-or-test`, `generated-regeneration`, `upstream-merge`, `operator-order`; anything else is split into its own item or reverted. (B)-(E) Every produced flashing image is LIVE-tested and compared, test by test, with the baseline run of the previously flashed image on the same board serial, harness, suite and command, both image identities recorded; closed verdict `NO-WORSE-PROVEN` / `REGRESSED` (reason codes `baseline-pass-lost`, `issue-count-higher`, `targeted-flip-missing`) / `INCOMPARABLE-BASELINE-MISSING`; a baseline `PASS` that is `INCONCLUSIVE`, `SKIPPED`, `BLIND`, `ERROR` or absent on the new image is a regression; new tests are reported separately; every image that fixes anything is more stable (targeted §11.4.292(E) flips present), a purely new-feature image is still `NO-WORSE-PROVEN` on every pre-existing test. (F) `REGRESSED` and `INCOMPARABLE-BASELINE-MISSING` refuse every release and its tag; a consumer-declared dev-class tag may still be created, its changelog stating the verdict first. Composes §11.4.40, §11.4.114, §11.4.135, §11.4.200, §11.4.236, §11.4.290 and §11.4.292 without restating them.
+- **Refinement notes** (dated 2026-11-03) at the end of the §11.4.40, §11.4.114 and §11.4.135 blocks, each pointing at §11.4.293 without restating it.
+- **Gates:** `CM-COVENANT-114-293-PROPAGATION` (generated from a new data-pack row, with its generated mutation test; seam row `11.4.293<TAB>pre-build<TAB>CM-COVENANT-114-293-PROPAGATION`) and `CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED` (`scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh`, 171 checks: 34 canon marker phrases, the four out-of-scope reasons and the three verdicts in the canon, the carriers and the lifecycle skill, 10 escape-hatch flags, 31 cross-references, three back-pointers, four carrier mirrors, index, group, rule file, catalog, data-pack row, wrappers, seam binding, both deferral rows read by their OWED id, hook binding) with its paired mutation test. Recommended item-level gates `CM-COMMIT-NAMES-ROADMAP-ITEM` (`OWED-GATE-175`) and `CM-IMAGE-NO-WORSE-PROVEN` (`OWED-GATE-176`) registered as deferrals (`gate_ledger_deferrals.tsv`, `docs/owed_gate_implementations.md` revision 17), NOT claimed implemented.
+- **Hook binding:** `scripts/post_update_hook.sh` step 5b also runs `CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED` against the constitution root; `tests/test_post_update_hub_gates.sh` gains a sixth stub gate and the cases NOWORSE-FAIL, NOWORSE-BLIND, NOWORSE-SKIP (15 cases).
+- **Skill:** `skills/workable-item-lifecycle/` version 1.3.0 (the `Roadmap-Item:` / `Out-of-scope:` trailers with the four reasons, and the image comparison rule).
+
+### Changed
+
+- **Carriers:** identical compact §11.4.293 entry appended at the end of `CLAUDE.md` (revision 92), `AGENTS.md` (89), `QWEN.md` (86), `GEMINI.md` (60); `Constitution.md` revision 89.
+- **Anchor machinery:** `scripts/anchors/anchor_lib.py` maps §11.4.293 to group `project-lifecycle-and-release`; `scripts/anchors/tests/test_query_us2.py` universal count 190 to 191; index, groups, progressive split and manifest regenerated with the repository's own generators.
+- **README** revision 22: facts, group, clause and release tables re-measured; badge row regenerated.
+
+### Honest boundaries
+
+- The gate proves the RULE is present, complete and wired; it does not prove that any commit names its item or that any image was compared (OWED-GATE-175, OWED-GATE-176). The comparator is the consuming project's work.
+- A no-worse verdict is bounded by the suite: a defect no test exercises is invisible to it (§11.4.118).
+- Open question recorded for the consuming project: a project rule that treats a geo-restricted content test as "never a failure" meets clause (C), where a baseline-PASS test that is SKIPPED on the new image is `baseline-pass-lost`; the constitution does not decide that project rule.
+
 ## Unreleased — 2026-11-03 — §11.4.292 reproduce first (live reproduction record before any fix, RED/GREEN on one command and signature, UNREPRODUCED cap)
 
 **Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was committed in a scratch clone of the constitution (branch `work`) and was not pushed. The rule is implemented and wired at the canon level (anchor, four carriers, index, groups, progressive split, item template, two skills, gate, mutation test, propagation wrappers, seam binding, post-update hook); the item-level seam that checks real items is the registered deferral `OWED-GATE-174`. No independent §11.4.209 review has run on this change yet.
