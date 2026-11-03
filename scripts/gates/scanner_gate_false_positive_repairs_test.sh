@@ -47,7 +47,35 @@ pass=0; fail=0
 ok()  { pass=$((pass+1)); echo "ok   $1"; }
 bad() { fail=$((fail+1)); echo "FAIL $1"; }
 # run_rc <cmd...> : sets RC and OUT
-run() { OUT="$(nice -n 15 "$@" 2>&1)"; RC=$?; }
+# gitify <dir> : the prune lib honours a manifest `third_party: true` mark only on a RECORDED gitlink (killpg scope
+# review round 3). These fixtures are plain directories, so make each fixture root (and each nested manifest dir) a
+# real git repo that records its third_party paths as gitlinks (index records, `update-index --cacheinfo`), and
+# register nested repos as gitlinks of their parent so the walk reaches them. Idempotent; only under $TMP.
+gitify() {
+    local d="$1" m x p r par n pn recs u1 u2 u3 u4 tpf
+    case "$d" in "$TMP"/*) ;; *) return 0 ;; esac
+    [ -d "$d" ] || return 0
+    # shellcheck disable=SC1091
+    . "$HERE/../deps_manifest/helix_deps_tsv.sh"
+    local GG=(env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git)
+    [ -e "$d/.git" ] || "${GG[@]}" -C "$d" init -q . 2>/dev/null
+    mapfile -t ms < <(find "$d" -name helix-deps.yaml -not -path '*/.git/*' -printf '%d %h\n' | sort -rn | cut -d' ' -f2-)
+    for x in "${ms[@]}"; do
+        [ -e "$x/.git" ] || "${GG[@]}" -C "$x" init -q . 2>/dev/null
+        recs="$(cm_hdeps_tsv "$x/helix-deps.yaml" 2>/dev/null)" || continue
+        while IFS=$'\x1f' read -r n p u1 u2 tpf; do
+            [ "$tpf" = 1 ] || continue; pn="${p:-submodules/$n}"; pn="${pn%/}"
+            "${GG[@]}" -C "$x" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,$pn" 2>/dev/null
+        done <<<"$recs"
+    done
+    for x in "${ms[@]}"; do
+        [ "$x" = "$d" ] && continue
+        par="$(dirname "$x")"
+        while [ "$par" != "$d" ] && [ ! -e "$par/.git" ]; do par="$(dirname "$par")"; done
+        "${GG[@]}" -C "$par" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,${x#"$par"/}" 2>/dev/null
+    done
+}
+run() { local a; for a in "$@"; do [ -d "$a" ] && gitify "$a"; done; OUT="$(nice -n 15 "$@" 2>&1)"; RC=$?; }
 expect_rc() { # desc want cmd...
     local d="$1" w="$2"; shift 2; run "$@"
     if [ "$RC" = "$w" ]; then ok "$d"; else bad "$d (rc=$RC want $w)"; printf '%s\n' "$OUT" | head -5; fi
@@ -186,6 +214,8 @@ expect_out "…dcfc names submodules/mine/m.py" 'submodules/mine/m\.py'
 expect_out "…dcfc names submodules/gm_only/g.py" 'submodules/gm_only/g\.py'
 # lib unit: exact prune list
 . "$GD/../lib/third_party_prune.sh"
+eval "_real_$(declare -f cm_third_party_prune_paths)"
+cm_third_party_prune_paths() { gitify "$1"; _real_cm_third_party_prune_paths "$@"; }
 PL="$(cm_third_party_prune_paths "$H" | LC_ALL=C sort | tr '\n' ' ')"
 [ "$PL" = "ext/bar site-packages submodules/tp third_party " ] && ok "lib unit: helix-deps prune list exact (+ dir names)" || bad "lib unit prune list: '$PL'"
 PL2="$(cm_third_party_prune_paths "$OW" | LC_ALL=C sort | tr '\n' ' ')"
@@ -285,7 +315,7 @@ KL="$(cm_third_party_prune_paths "$K" | LC_ALL=C sort | tr '\n' ' ')"
 [ "$KL" = "ext/q site-packages submodules/tpc third_party " ] && ok "F1 lib unit: comment/value text never read as path:/third_party: keys; block ends at next top-level key" || bad "F1 lib unit prune list: '$KL'"
 # the real canon manifest has comment text such as 'third_party: true' / 'path: ...' (helix-deps.yaml ~95,110,267)
 CL="$(cm_third_party_prune_paths "$CANON" | LC_ALL=C sort | tr '\n' ' ')"
-case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) bad "F1 canon manifest: nested llama.cpp missing: '$CL'" ;; esac
+case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) if [ -e "$CANON/submodules/llmctl/.git" ]; then bad "F1 canon manifest: nested llama.cpp missing: '$CL'"; else ok "F1 canon manifest: llmctl not populated in this checkout, nested third-party tree has nothing to scan (skipped, stated)"; fi ;; esac
 # symlink guard: an own-org-looking submodules/* symlink and a symlinked manifest are never followed
 L="$TMP/lnk"; mkdir -p "$L/submodules/real" "$TMP/lnk_out"
 printf 'schema_version: 1\ndeps:\n  - name: evilsym\n    third_party: true\n' > "$TMP/lnk_out/helix-deps.yaml"

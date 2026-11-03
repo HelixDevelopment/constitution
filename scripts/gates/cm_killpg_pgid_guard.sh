@@ -118,6 +118,8 @@
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
 #     --include-third-party
 #                    also scan third-party trees (default: pruned)
+#     --own-orgs a,b own-org list (consumer DATA; default vasic-digital,HelixDevelopment); a recorded gitlink
+#                    whose .gitmodules URL organisation is NOT listed is third-party and pruned
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
@@ -170,6 +172,7 @@ if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1"
 cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
 cm_gate_env_set window KILLPG_GUARD_WINDOW 6 value
 cm_gate_env_set include_tp KILLPG_GUARD_INCLUDE_THIRD_PARTY 0 value
+own_orgs=""
 quiet=0
 
 while [ $# -gt 0 ]; do
@@ -178,6 +181,7 @@ while [ $# -gt 0 ]; do
         --window) window="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
         --include-third-party) include_tp=1; shift ;;
+        --own-orgs) own_orgs="${2:-}"; shift 2 ;;
         -h|--help) awk 'NR>1 && !/^#/ {exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -235,11 +239,11 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
     # shellcheck source=/dev/null
     tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
     if [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null; then
-        cm_third_party_prune_find_expr "$root"
+        cm_third_party_prune_find_expr "$root" "$own_orgs"
         # make the exclusion visible: every pruned path is listed (a reader sees what was NOT scanned)
         while IFS= read -r _pp; do
             [ -n "$_pp" ] && echo "ℹ️  ${GATE}: PRUNED (third-party, not scanned): ${_pp}"
-        done < <(cm_third_party_prune_paths "$root" 2>/dev/null)
+        done < <(cm_third_party_prune_paths "$root" "$own_orgs" 2>/dev/null)
     else
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
     fi
