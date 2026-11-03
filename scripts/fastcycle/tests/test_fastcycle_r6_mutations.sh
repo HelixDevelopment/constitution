@@ -102,9 +102,17 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 exec python3 - "$FC" "$HERE" <<'PYEOF'
-import os, shutil, subprocess, sys, tempfile
+import os, shutil, signal, subprocess, sys, tempfile
 
 FC, TESTS = sys.argv[1], sys.argv[2]
+if __name__ == "__main__" and signal.getsignal(signal.SIGHUP) == signal.SIG_IGN:
+    # carry review round 1, F4: started with SIGHUP ignored (nohup) every HUP row of the suites it drives would report a
+    # false product FAIL (the tool keeps a caller-ignored HUP ignored by design), and its mutants a false survival
+    print("BLIND: SIGHUP is ignored at entry (inherited, e.g. nohup): the HUP rows cannot observe a stop -- run this "
+          "runner under setsid -w, not nohup [reason=topology_unsupported]")
+    print("----")
+    print("SUMMARY pass=0 fail=0 blind=1")
+    sys.exit(2)
 ONLY = os.environ.get("MUT_ONLY", "").split()
 
 BR = "cycle/baseline_replay.sh"
@@ -447,8 +455,9 @@ MUTS = [
     ("R5-F2b", SUP, [("    if not on_disk and listed is False:", "    if not on_disk:")],
      T_V5, {"V5_ONLY": "F2HONEST"}, "NOT ok [F2HONEST]"),
     # F2 in the worker: _fc_wt_cleanup back to remove --force (no unlock, no -f -f)
-    ("R5-F2c", BR, [('    git -C "$_FC_WT_REPO" worktree unlock "$_FC_WT_PATH" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "$_FC_WT_PATH" >/dev/null 2>&1\n',
-                     '    git -C "$_FC_WT_REPO" worktree remove --force "$_FC_WT_PATH" >/dev/null 2>&1\n')],
+    # anchor re-expressed (carry review round 1, F2): the code now guards the path with ${_FC_WT_PATH:?} -- same defect
+    ("R5-F2c", BR, [('    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null 2>&1\n',
+                     '    git -C "$_FC_WT_REPO" worktree remove --force "${_FC_WT_PATH:?}" >/dev/null 2>&1\n')],
      T_V5, {"V5_ONLY": "F2WORKER"}, "NOT ok [F2WORKER]"),
     # F2 end to end: the stop matrix's wtaddkill row against the old ledger removal
     ("R5-F2d", SUP, [('(["worktree", "unlock", wt], ["worktree", "remove", "-f", "-f", wt], ["worktree", "prune"])',
@@ -610,11 +619,13 @@ MUTS = [
     # sys.stderr again, so a dead stream RAISES out of say (round 7's class) -- the run role's code becomes 125
     ("V4R8-1b", SUP, [("    _write_bounded(2, data)\n", "    sys.stderr.write(data.decode())\n    sys.stderr.flush()\n")],
      T_V8, {"R8_ONLY": "R8RUN"}, "NOT ok [R8RUN] exit3-leftover x dead-both"),
-    ("V4R8-1c", SUP, [("    _repair_std_fds()           # before anything is opened (V4R8-1)\n", "")],
+    # re-expressed (carry review round 1, F1): the call moved to module level, before `import ctypes`
+    ("V4R8-1c", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n', "")],
      T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
     # a standard fd open in the WRONG direction (bash leaves its script on fd 2 when the caller closed stderr) no
     # longer counts as closed -- found by the round-8 matrix's own control needle
-    ("V4R8-1e", SUP, [("            if (mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY):\n                continue\n",
+    # anchor re-expressed (carry review F1: the FD_CLOEXEC clause joined the condition), same defect
+    ("V4R8-1e", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n                continue\n",
                        "            continue\n")],
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-err", "R8_SCENARIOS": "stop-INT-main"},
      "NOT ok [R8MATRIX] stop-INT-main x closed-err"),
@@ -655,7 +666,7 @@ MUTS = [
      "NOT ok [R9WIN] worker W2-after-writer x kill-self"),
     ("V4R9-RVM-D", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, None)\n")],
      T_V5, {"V5_ONLY": "R8N3KILLK"}, "NOT ok [R8N3KILLK]"),
-    ("V4R9-RVM-E", SUP, [("            if (mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY):", "            if fd != 2 or mode != os.O_RDONLY:")],
+    ("V4R9-RVM-E", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):", "            if not cloexec and (fd != 2 or mode != os.O_RDONLY):")],  # anchor re-expressed (carry F1)
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "wrongdir-in wrongdir-out", "R8_SCENARIOS": "stop-TERM-main"},
      "NOT ok [R8MATRIX] stop-TERM-main x wrongdir-"),
     ("V4R9-RVM-F", SUP, [("        _install_stop(entry_mask)\n        env = dict(os.environ)\n", "        _install_stop(entry_mask)\n        signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n        env = dict(os.environ)\n")],
@@ -733,7 +744,9 @@ MUTS = [
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-keeper"},
      "NOT ok [R8MATRIX] kill-keeper x dead-err"),
     # RV3-09 survived round 9 (V4R10-6): the fd-direction needle is now taken in EVERY role of EVERY supervised cell
-    ("V4R10-RV3-09", SUP, [("def main():\n    _repair_std_fds()", 'def main():\n    if "replay-sample" not in " ".join(sys.argv): _repair_std_fds()')],
+    # re-expressed (carry review F1: the repair runs at module level, before `import sys`), same defect
+    ("V4R10-RV3-09", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n',
+                            'if __name__ == "__main__":\n    import sys as _s\n    if "replay-sample" not in " ".join(_s.argv): _repair_std_fds()\n')],
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_SCENARIOS": "replay-sample", "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out wrongdir-err"},
      "NOT ok [R8MATRIX] replay-sample x"),
     # RV3-10 survived round 9 (V4R10-5): [R10ATOMIC] -- the marker must be the very inode written under its temp name
@@ -1191,6 +1204,27 @@ MUTS = [
      T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-param-guard]'),  # the ${V:?} rule skipped for a param-tagged operand
     ('V4R15-M19', CEN, [('PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars",\n              "breakpoint"}', 'PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars"}')],
      T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-py]'),  # breakpoint() accepted
+    # ---- ATM-1220 carry, review round 1 (scratchpad review_atm1220_carry_r1.md): F1 + the reviewer's RV1..RV3 ----
+    # F1: the repair back where it was (in main(), AFTER `import ctypes`): libffi's CLOEXEC fd lands on 0 first
+    ("CARRY-F1-M1", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n', ""),
+                          ("    # the std-fd repair already ran at module level, before `import ctypes` (carry review F1)\n",
+                           "    _repair_std_fds()\n")],
+     T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+    # F1: a standard fd with FD_CLOEXEC counted as healthy again
+    ("CARRY-F1-M2", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n",
+                           "            if ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n")],
+     T_SUP, {}, "NOT ok [CARRY-F1-cloexec]"),
+    # RV1 (reviewer, verbatim defect): the gate child's signal-mask reset dropped -- caught by a NON-shell gate probe (F3)
+    ("CARRY-RV1", SUP, [("                    pass\n            signal.pthread_sigmask(signal.SIG_SETMASK, [])\n            if cwd is not None:\n",
+                         "                    pass\n            if cwd is not None:\n")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] python gate mask"),
+    # RV2 (reviewer, verbatim): the re-opened /dev/null left non-inheritable -- reachable now that [R8FDS] is green (F1)
+    ("CARRY-RV2", SUP, [("                os.set_inheritable(fd, True)\n", "                os.set_inheritable(fd, False)\n")],
+     T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+    # RV3 (reviewer, verbatim): an undocumented exit code mapped to 0 instead of 4 (F6)
+    ("CARRY-RV3", SUP, [("documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 4\n",
+                         "documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 0\n")],
+     T_SUP, {}, "NOT ok [CARRY-F6-exit]"),
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
@@ -1316,6 +1350,18 @@ def report(ok, msg):
         failed += 1
         print("NOT ok " + msg)
 
+
+# carry review round 1, F2: FAIL FAST on a drifted anchor -- the static census applies every pair of every mutant (and
+# of the worktree-cleanup test's mutants) in about a second; the per-mutant drift check below would only meet a
+# drifted anchor when the run reaches it, up to ~1.5 h in. A blind census (exit 2) also stops the run.
+_ac = subprocess.run([sys.executable, "-I", os.path.join(TESTS, "check_mutation_anchors.py"), "--fc", FC, "--tests", TESTS],
+                     capture_output=True, text=True, timeout=120)
+print(_ac.stdout.rstrip())
+if _ac.returncode != 0:
+    print("NOT ok anchor census (rc=%d): fix the drifted anchors before any mutant runs" % _ac.returncode)
+    print("----")
+    print("SUMMARY pass=0 fail=1")
+    sys.exit(1)
 
 for cid, test, envx, want in CONTROLS:
     if ONLY and cid not in ONLY:

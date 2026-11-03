@@ -49,6 +49,12 @@ PASS=0
 FAIL=0
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
+# carry review round 1, F5: a SKIP carries the closed §11.4.69 reason code and is COUNTED in SUMMARY (never a pass);
+# a missing foreign uid states the MEASURED cause (tests/lib/foreign_uid_cause.sh), never an assumed one
+SKIPN=0
+skip() { SKIPN=$((SKIPN+1)); echo "SKIP $* [reason=topology_unsupported]"; }
+FU_CAUSE="$(bash "$HERE/lib/foreign_uid_cause.sh" 2>/dev/null)"
+[ -n "$FU_CAUSE" ] || FU_CAUSE="cause probe produced no output"
 tally() { # count the ok / NOT ok lines a python block printed; $1 = the block's last line: if it is missing (the
   # block crashed part-way, e.g. on code without a helper it calls), that is a FAILED row, never a silent pass
   local l done=0
@@ -56,6 +62,7 @@ tally() { # count the ok / NOT ok lines a python block printed; $1 = the block's
     case "$l" in
       "ok "*) PASS=$((PASS+1)); echo "$l" ;;
       "NOT ok "*) FAIL=$((FAIL+1)); echo "$l" ;;
+      "SKIP "*) SKIPN=$((SKIPN+1)); echo "$l [reason=topology_unsupported]" ;;
       "$1") done=1 ;;
       *) echo "$l" ;;
     esac
@@ -326,7 +333,7 @@ if want SH; then
       && ok "[R13UMASK-default] the DEFAULT flow (no --worktree-root) on a repository made under umask 002 (dirs $m1, group: this user's own) -> exit 0, report written (round 6: BLIND 4)" \
       || bad "[R13UMASK-default] dir mode=$m1 rc=$rc report=$([ -s "$U/out/u.json" ] && echo yes || echo no) $(head -c 300 "$S/u.err")"
   else
-    echo "SKIP [R13UMASK-default] this user's primary group has another member -- not counted"
+    skip "[R13UMASK-default] this user's primary group has another member -- not counted"
   fi
   if [ -n "$SHARED_GID" ]; then
     U2="$S/ushared"
@@ -348,7 +355,7 @@ if want SH; then
       && ok "[R13MSG-sample] replay-sample's BLIND line names the --worktree-root it could not create (V4R13-1(b))" \
       || bad "[R13MSG-sample] rc=$rc $(grep -m1 -i 'worktree-root' "$S/uss.err" | cut -c1-200)"
   else
-    echo "SKIP [R13UMASK-shared / R13MSG-sample] no group of this user's has another member -- not counted"
+    skip "[R13UMASK-shared / R13MSG-sample] no group of this user's has another member -- not counted"
   fi
   # ---- RV6-14's premise: a replay-logs directory of ours that is 1777 -> refused (by the --exclusive mkdir AND by the
   # --exclusive-parent mkdtemp right after it: either alone refuses, which is why RV6-14 is an EQUIVALENT mutant) ----
@@ -461,7 +468,7 @@ PY
       ok "[R13LOCK-foreign] another (real, subordinate) uid cannot open the 0600 lock file (control: it opens a 0644 file)"
     fi
   else
-    echo "SKIP [R13LOCK-foreign] no subordinate uid available (or its control open failed) -- not counted"
+    skip "[R13LOCK-foreign] no foreign uid ($FU_CAUSE) or its control open failed -- not counted"
   fi
 fi
 
@@ -477,5 +484,5 @@ if want CENSUS; then
 fi
 
 echo "----"
-echo "SUMMARY pass=$PASS fail=$FAIL"
+echo "SUMMARY pass=$PASS fail=$FAIL skip=$SKIPN"
 [ "$FAIL" = 0 ]

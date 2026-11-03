@@ -44,6 +44,12 @@ PASS=0
 FAIL=0
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
+# carry review round 1, F5: a SKIP carries the closed §11.4.69 reason code and is COUNTED in SUMMARY (never a pass);
+# a missing foreign uid states the MEASURED cause (tests/lib/foreign_uid_cause.sh), never an assumed one
+SKIPN=0
+skip() { SKIPN=$((SKIPN+1)); echo "SKIP $* [reason=topology_unsupported]"; }
+FU_CAUSE="$(bash "$HERE/lib/foreign_uid_cause.sh" 2>/dev/null)"
+[ -n "$FU_CAUSE" ] || FU_CAUSE="cause probe produced no output"
 want() {
   [ -z "${R12_ONLY:-}" ] && return 0
   case " $R12_ONLY " in *" $1 "*) return 0 ;; esac
@@ -145,13 +151,13 @@ if want PARITY; then
   if [ "$(stat -c '%u %a' /tmp 2>/dev/null)" = "0 1777" ]; then
     rows="$rows rootsticky:/tmp:trusted"
   else
-    echo "SKIP [R12PARITY-rootsticky] /tmp is not root-owned 1777 on this host (stat: $(stat -c '%u %a' /tmp 2>&1)) -- not counted"
+    skip "[R12PARITY-rootsticky] /tmp is not root-owned 1777 on this host (stat: $(stat -c '%u %a' /tmp 2>&1)) -- not counted"
   fi
   rows="$rows own777:$P/own777:refused missing:$P/nope/x:refused"
   if [ "$HAVE_F" = 1 ]; then
     rows="$rows f755:$P/f755:refused f1777:$P/f1777:refused fmid:$P/fmid/inner:refused flink:$P/fl/theirlink:refused"
   else
-    echo "SKIP [R12PARITY-f755/-f1777/-fmid/-flink] no subordinate uid available -- not counted"
+    skip "[R12PARITY-f755/-f1777/-fmid/-flink] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   for row in $rows; do
     id="${row%%:*}"; rest="${row#*:}"; path="${rest%:*}"; wantv="${rest##*:}"
@@ -200,7 +206,7 @@ if want CLI; then
       && ok "[R12CLI-write-parent] a 0700 directory of ours whose PARENT another uid owns -> refused (4)" \
       || bad "[R12CLI-write-parent] rc=$rc"
   else
-    echo "SKIP [R12CLI-write-parent] no subordinate uid available -- not counted"
+    skip "[R12CLI-write-parent] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   mkdir -p "$C/tree/sub" "$C/keep"; echo k >"$C/keep/k"; ln -s "$C/keep" "$C/tree/sub/lnk"
   _fc_safe rmtree "$C/tree" >/dev/null 2>&1; rc=$?
@@ -252,7 +258,7 @@ GATE
       bad "[R12SH-plant] rc=$rc written THROUGH the planted symlink into the victim: [${through}] made in the foreign directory: [${made}] ($(grep -m1 -i 'blind\|trusted' "$S/plant.err" | cut -c1-160))"
     fi
   else
-    echo "SKIP [R12SH-plant] no subordinate uid available -- not counted"
+    skip "[R12SH-plant] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   # ---- a --worktree-root another uid owns ----
   WTF="$S/wtf"; mkdir "$WTF"; chmod 777 "$WTF"
@@ -263,7 +269,7 @@ GATE
       && ok "[R12SH-wtroot-foreign] a --worktree-root another uid owns (0777) -> BLIND 4, nothing created in it" \
       || bad "[R12SH-wtroot-foreign] rc=$rc made=[$(ls -A "$WTF" | tr '\n' ' ')] $(head -c 200 "$S/wtf.err")"
   else
-    echo "SKIP [R12SH-wtroot-foreign] no subordinate uid available -- not counted"
+    skip "[R12SH-wtroot-foreign] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   # ---- a --worktree-root of ours that is sticky + world-writable: trusted as a PARENT, but not this user's ALONE ----
   WTS="$S/wts"; mkdir "$WTS"; chmod 1777 "$WTS"
@@ -281,7 +287,7 @@ GATE
       && ok "[R12SH-tmpdir-foreign] a TMPDIR another uid owns (0777) -> BLIND 4, no temp / state directory made in it" \
       || bad "[R12SH-tmpdir-foreign] rc=$rc made=[$(ls -A "$TF" | tr '\n' ' ')] $(head -c 200 "$S/tf.err")"
   else
-    echo "SKIP [R12SH-tmpdir-foreign] no subordinate uid available -- not counted"
+    skip "[R12SH-tmpdir-foreign] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   # ---- the worker's own proof of its temp directory ----
   WT7="$S/fc_baseline_replay.w777"; mkdir "$WT7"; chmod 777 "$WT7"
@@ -295,5 +301,5 @@ GATE
 fi
 
 echo "----"
-echo "SUMMARY pass=$PASS fail=$FAIL"
+echo "SUMMARY pass=$PASS fail=$FAIL skip=$SKIPN"
 [ "$FAIL" = 0 ]

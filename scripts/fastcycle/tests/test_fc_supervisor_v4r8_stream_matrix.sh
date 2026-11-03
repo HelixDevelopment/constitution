@@ -140,9 +140,8 @@ _inject(os.path.join(RREP, "cycle", "fc_supervisor.py"), [
     ("def cmd_main(a):\n    global OWNER\n", _PYPROBE + "def cmd_main(a):\n    global OWNER\n    _r8fd('main')\n"),
     ("    global HB_FD\n", "    global HB_FD\n    _r8fd('keeper')\n")])
 _inject(RSCRIPT, [("  _FC_IS_WORKER=1\n  trap 'exit 129' HUP\n",
-                   "  _FC_IS_WORKER=1\n  if [ -n \"${R8_FDLOG:-}\" ]; then _r8a=$(readlink /proc/$$/fd/0); "
-                   "_r8b=$(readlink /proc/$$/fd/1); _r8c=$(readlink /proc/$$/fd/2); "
-                   "printf 'worker\\t%s\\t%s\\t%s\\n' \"$_r8a\" \"$_r8b\" \"$_r8c\" >>\"$R8_FDLOG\"; fi\n"
+                   "  _FC_IS_WORKER=1\n  if [ -n \"${R8_FDLOG:-}\" ]; then (printf worker; for _r8i in 0 1 2; do printf '\\t'; "
+                   "readlink -n /proc/$$/fd/$_r8i 2>/dev/null; done; printf '\\n') >>\"$R8_FDLOG\"; fi\n"
                    "  trap 'exit 129' HUP\n")])
 ctypes.CDLL(None, use_errno=True).prctl(ctypes.c_int(36), ctypes.c_ulong(1), ctypes.c_ulong(0),
                                         ctypes.c_ulong(0), ctypes.c_ulong(0))
@@ -512,11 +511,23 @@ def settle(secs=30):
     return False, "left=%r tmp=%r worktrees=%r" % (marked_left(), os.listdir(TMP), wts)
 
 
+# carry review round 1, F4: a caller-IGNORED SIGHUP is kept ignored by the tool on purpose (nohup means nohup,
+# fc_supervisor.py KEEP_IGNORED), so a HUP cell run from a test that itself inherited SIG_IGN for HUP (started under
+# nohup) cannot observe the 129 it asserts: that is the test's environment, not a product FAIL. Such a cell is a
+# counted SKIP with the closed reason code and the measured disposition; run the matrix under `setsid -w` instead.
+HUP_IGN_AT_ENTRY = signal.getsignal(signal.SIGHUP) == signal.SIG_IGN
+N["skip"] = 0
 if want("R8MATRIX"):
     skipped = []
     for sname, so, se, ign, si in STREAMS:
         for cname, gate, extra, action, want_rc, want_rep in SCEN:
             tag = "[R8MATRIX] %s x %s" % (cname, sname)
+            if HUP_IGN_AT_ENTRY and action and action[1] == signal.SIGHUP:
+                N["skip"] += 1
+                print("SKIP %s: SIGHUP is SIG_IGN in this test process at entry (inherited from its caller, e.g. "
+                      "nohup) and the tool keeps a caller-ignored HUP ignored by design -- the 129 cannot be observed "
+                      "here; run under setsid -w [reason=topology_unsupported]" % tag, flush=True)
+                continue
             if cname in STALL_SKIP.get(sname, ()):
                 skipped.append("%s x %s" % (cname, sname))
                 continue
@@ -690,19 +701,28 @@ if want("R8SIGPIPE"):
         bad("[R8SIGPIPE] SIGPIPE ignored per role: %r (want main/keeper/worker True, gate False)" % res)
 
 # ---- [R8FDS] main started with fds 0/1/2 closed: its worker gets /dev/null on all three.
-# the probe reads ITS OWN fds before it opens the result file (a redirect of the loop itself would BE fd 1)
-PROBE = 'a=$(readlink /proc/$$/fd/0); b=$(readlink /proc/$$/fd/1); c=$(readlink /proc/$$/fd/2); printf "0=%s\\n1=%s\\n2=%s\\n" "$a" "$b" "$c" >"$0"'
+# the probe reads ITS OWN fds before it opens anything (round 2 of the carry review, F1): a shell probe that reads
+# them through `$(...)` gets the command-substitution pipe on the lowest free fd -- with fd 0 really closed it reported
+# "0=pipe:" and hid that the worker started with NO fd 0. os.readlink opens no fd; CLOSED is reported as such.
+PROBE = ("import os, sys\n"
+         "r = []\n"
+         "for i in (0, 1, 2):\n"
+         "    try:\n"
+         "        r.append('%d=%s' % (i, os.readlink('/proc/self/fd/%d' % i)))\n"
+         "    except OSError:\n"
+         "        r.append('%d=CLOSED' % i)\n"
+         "open(sys.argv[1], 'w').write('\\n'.join(r) + '\\n')\n")
 if want("R8FDS"):
     d = os.path.join(ROOT, "fds"); os.makedirs(os.path.join(d, "tmp"))
     rep = os.path.join(d, "links")
     p = subprocess.run(["bash", "-c", 'exec 0<&- 1>&- 2>&-; exec "$@"', "x", "python3", "-I", "-S", SUP, "main",
-                        "--tmp-parent", os.path.join(d, "tmp"), "--grace", "1", "--", "bash", "-c",
+                        "--tmp-parent", os.path.join(d, "tmp"), "--grace", "1", "--", "python3", "-I", "-S", "-c",
                         PROBE, rep],
                        timeout=60)
     got = open(rep).read().split() if os.path.exists(rep) else []
     # control needle: the same probe with the fds OPEN reports something other than /dev/null for at least one
     p2 = subprocess.run(["python3", "-I", "-S", SUP, "main", "--tmp-parent", os.path.join(d, "tmp"), "--grace", "1",
-                         "--", "bash", "-c", PROBE,
+                         "--", "python3", "-I", "-S", "-c", PROBE,
                          rep + ".open"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         timeout=60)
     got2 = open(rep + ".open").read().split() if os.path.exists(rep + ".open") else []
@@ -715,7 +735,7 @@ if want("R8FDS"):
         bad("[R8FDS] closed fds 0/1/2: rc=%s worker fds=%r temp=%r" % (p.returncode, got, os.listdir(os.path.join(d, "tmp"))))
 
 print("----")
-print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))
+print("SUMMARY pass=%d fail=%d skip=%d" % (N["ok"], N["bad"], N.get("skip", 0)))
 sys.exit(0 if N["bad"] == 0 else 1)
 PY
 exit $?

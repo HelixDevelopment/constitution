@@ -197,7 +197,7 @@ fi
 echo
 echo "=== case 4 (paired mutation B, §1.1): without BOTH layers the worktree must genuinely leak ==="
 if mk_mutant B cycle/baseline_replay.sh $'  _do_one_replay_body "$@"\n  local rc=$?\n  _fc_wt_cleanup\n' $'  _do_one_replay_body "$@"\n  local rc=$?\n' \
-     cycle/fc_supervisor.py $'    process_ledger(tmpdir, reason)\n' $'    pass\n'; then
+     cycle/fc_supervisor.py $'    process_ledger(tmpdir, reason, statedir)\n' $'    pass\n'; then
   run_case "$WORK/mut_B/cycle/baseline_replay.sh" "$WORK/wtroot_mutB" "mutantB" >"$WORK/mutB.log" 2>&1
   if [ "$RUN_CASE_IS_LEAK" = 1 ]; then
     echo "ok mutation B check: with neither cleanup layer the worktree leaks (leak=1) -- the leak check is real"

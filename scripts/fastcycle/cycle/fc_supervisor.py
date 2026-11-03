@@ -256,6 +256,56 @@ import os                     # noqa: E402
 import signal                 # noqa: E402
 
 
+def _repair_std_fds():
+    """T048 V4 round 8 (V4R8-1): a caller may start the tool with stdin/stdout/stderr CLOSED (`... >&-`). Every file
+    this process (and every child it starts) opens would then land on fd 0/1/2 -- a lock file or a temp file that a
+    later write to "stderr" corrupts, a child whose own stderr IS one of its data files. Each closed standard fd is
+    re-opened on /dev/null (inheritable, so the worker and its children start with all three open), before anything
+    else is opened. A closed stream thus behaves as a stream nobody reads: the exit code does not depend on it.
+    A standard fd that is open in the WRONG direction counts as closed (found by this round's own matrix, [R8MATRIX]
+    x closed-err: `bash baseline_replay.sh ... 2>&-` -- bash opens its SCRIPT on the lowest free fd, 2, dups it to 255
+    and leaves fd 2 open, read-only and inheritable, so main, keeper and worker ran with "stderr" = the script file).
+    fd 0 must be readable, fds 1/2 writable; otherwise /dev/null is put in their place (a write could never have
+    succeeded there, so nothing the caller could see changes).
+    ORDER + CLOEXEC (carry review round 1, F1): this runs at MODULE LEVEL, right after `import os` / `import signal`
+    and BEFORE `import ctypes`. Measured (strace, Python 3.14.4): `import ctypes` makes libffi open its own .so with
+    O_CLOEXEC (static trampolines) on the lowest free fd and keep it; with fd 0 closed that fd WAS 0, the old repair in
+    main() saw it open and readable and skipped it, and exec closed it -- the worker started with no fd 0 at all. A
+    standard fd that carries FD_CLOEXEC is therefore broken too (it will not reach the worker): it is replaced.
+    Pre-repair census of everything that can occupy fd 0-2 before this runs: the interpreter reads the script and
+    closes it before the first statement; `_signal` is builtin, `os` frozen, `signal`/`enum` and `fcntl` are opened
+    and closed by the import system (transient); baseline_replay.sh opens no fd before its exec into main except what
+    bash itself keeps (fd 255, CLOEXEC; and its script on fd 2 when stderr was closed -- the wrong-direction case
+    above; measured: with fd 0 or 1 closed bash leaves that slot closed). HONEST BOUNDARY: an fd 0 that is open,
+    readable, inheritable and simply not the stream the caller meant cannot be told apart from a real stdin."""
+    import fcntl
+    for fd in (0, 1, 2):
+        try:
+            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE
+            cloexec = fcntl.fcntl(fd, fcntl.F_GETFD) & fcntl.FD_CLOEXEC
+            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):
+                continue
+        except OSError:
+            pass
+        try:
+            nfd = os.open(os.devnull, os.O_RDWR)    # safepath:devnull
+        except OSError:
+            continue
+        try:
+            if nfd != fd:
+                os.dup2(nfd, fd)          # dup2 makes the new fd inheritable
+                os.close(nfd)
+            else:
+                os.set_inheritable(fd, True)
+        except OSError:
+            pass
+
+
+if __name__ == "__main__":
+    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)
+
+
+
 class Stop:
     sig = 0
     target_fd = None     # M: K's pidfd (forward target)
@@ -395,39 +445,6 @@ def _flush():
         try:
             stream.flush()
         except Exception:  # noqa: BLE001
-            pass
-
-
-def _repair_std_fds():
-    """T048 V4 round 8 (V4R8-1): a caller may start the tool with stdin/stdout/stderr CLOSED (`... >&-`). Every file
-    this process (and every child it starts) opens would then land on fd 0/1/2 -- a lock file or a temp file that a
-    later write to "stderr" corrupts, a child whose own stderr IS one of its data files. Each closed standard fd is
-    re-opened on /dev/null (inheritable, so the worker and its children start with all three open), before anything
-    else is opened. A closed stream thus behaves as a stream nobody reads: the exit code does not depend on it.
-    A standard fd that is open in the WRONG direction counts as closed (found by this round's own matrix, [R8MATRIX]
-    x closed-err: `bash baseline_replay.sh ... 2>&-` -- bash opens its SCRIPT on the lowest free fd, 2, dups it to 255
-    and leaves fd 2 open, read-only and inheritable, so main, keeper and worker ran with "stderr" = the script file).
-    fd 0 must be readable, fds 1/2 writable; otherwise /dev/null is put in their place (a write could never have
-    succeeded there, so nothing the caller could see changes)."""
-    import fcntl
-    for fd in (0, 1, 2):
-        try:
-            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE
-            if (mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY):
-                continue
-        except OSError:
-            pass
-        try:
-            nfd = os.open(os.devnull, os.O_RDWR)    # safepath:devnull
-        except OSError:
-            continue
-        try:
-            if nfd != fd:
-                os.dup2(nfd, fd)          # dup2 makes the new fd inheritable
-                os.close(nfd)
-            else:
-                os.set_inheritable(fd, True)
-        except OSError:
             pass
 
 
@@ -2644,7 +2661,7 @@ def cmd_safepath(argv):
 
 
 def main():
-    _repair_std_fds()           # before anything is opened (V4R8-1)
+    # the std-fd repair already ran at module level, before `import ctypes` (carry review F1)
     if sys.argv[1:2] == ["safepath"]:
         rc = cmd_safepath(sys.argv[2:])
         _flush()

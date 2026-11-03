@@ -1030,6 +1030,36 @@ if want("CENSUS"):
             cause = "main exited %s instead of the handled 143" % rc
         bad("[CENSUS] blocked TERM: %s (SigBlk=%s SigCgt=%s rc=%s left=%s)"
             % (cause, None if blk is None else "%x" % blk, None if cgt is None else "%x" % cgt, rc, bool(left)))
+    # the GATE's signal mask through a NON-SHELL gate (carry review round 1, F3; reviewer mutant RV1): spawn() blocks
+    # every catchable signal before the fork, the child must empty the mask before exec. The probes above are shell
+    # scripts, and a shell clears its OWN mask at start-up, so a dropped reset in the child was invisible to them. A
+    # python gate does not touch its mask: it reports exactly what exec handed it. Control needle: the same python
+    # probe started through the TERM-blocking wrapper DOES report TERM blocked (the probe sees an inherited mask).
+    PYPROBE = ("import sys\n"
+               "v = {}\n"
+               "for l in open('/proc/self/status'):\n"
+               "    k, _, x = l.partition(':')\n"
+               "    if k in ('SigBlk', 'SigIgn'):\n"
+               "        v[k] = x.strip()\n"
+               "open(sys.argv[1], 'w').write(''.join('%s %s\\n' % kv for kv in sorted(v.items())))\n")
+    pyn = os.path.join(d, "pyneedle")
+    subprocess.run(wrapped("term_blk", ["python3", "-I", "-S", "-c", PYPROBE, pyn]), timeout=20)
+    pn = parse_probe(pyn)
+    pyg = os.path.join(d, "pygate")
+    mk = os.path.join(d, "mk_pygate")
+    p = subprocess.run(["python3", "-I", SUP, "run", "--timeout", "10", "--marker", mk, "--cwd", d,
+                        "--entry-sigign", "0", "--", "python3", "-I", "-S", "-c", PYPROBE, pyg],
+                       capture_output=True, timeout=20)
+    pg = parse_probe(pyg)
+    if not bit(int(pn.get("SigBlk", "0") or "0", 16), signal.SIGTERM):
+        bad("[CENSUS] python gate mask: control needle failed (the python probe under the TERM-blocking wrapper "
+            "reported SigBlk=%s)" % pn.get("SigBlk"))
+    elif p.returncode == 0 and pg.get("SigBlk") is not None and int(pg["SigBlk"], 16) == 0:
+        ok("[CENSUS] a non-shell (python) gate starts with an EMPTY signal mask (SigBlk=%s; needle: the same probe "
+           "under a TERM-blocking caller reports %s)" % (pg["SigBlk"], pn.get("SigBlk")))
+    else:
+        bad("[CENSUS] python gate mask: rc=%s gate SigBlk=%s -- the gate was exec'd with signals blocked (a non-shell "
+            "gate would be unstoppable by them)" % (p.returncode, pg.get("SigBlk")))
     # an inherited fd: scoped out by design (a gate may legitimately use what its caller passed, e.g. a
     # make jobserver), but bounded -- a descendant holding the caller's pipe is stopped before `run`
     # returns, so the caller's reader sees EOF and never hangs on the tool

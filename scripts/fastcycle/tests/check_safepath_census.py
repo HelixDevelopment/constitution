@@ -139,7 +139,7 @@ MODULE_ATTRS = {
     "select": {"select"},                                  # waits on fds
     "sys": {"argv", "exit", "stderr", "stdout"},           # the process's own arguments / streams (already open)
     "time": {"monotonic", "sleep", "time_ns"},
-    "fcntl": {"F_GETFL", "LOCK_EX", "LOCK_NB", "fcntl", "flock"},   # on fds this module opened through the helpers
+    "fcntl": {"F_GETFL", "F_GETFD", "FD_CLOEXEC", "LOCK_EX", "LOCK_NB", "fcntl", "flock"},   # on fds this module opened through the helpers (F_GETFD/FD_CLOEXEC: _repair_std_fds reads a std fd's close-on-exec bit, carry F1)
     "json": {"dumps", "loads"},                            # strings only (dump / load would take a file object)
     "argparse": {"ArgumentParser"},                        # FileType would OPEN a path: not modelled
     "grp": {"getgrgid"}, "pwd": {"getpwall", "getpwuid"},  # the group / user database (read-only queries)

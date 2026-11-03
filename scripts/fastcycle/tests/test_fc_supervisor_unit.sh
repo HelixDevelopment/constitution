@@ -49,7 +49,7 @@ FC="$(cd "$HERE/.." && pwd)"
 SUP="${FC_SUP_UNDER_TEST:-$FC/cycle/fc_supervisor.py}"
 [ -f "$SUP" ] || { echo "NOT ok supervisor under test not found: $SUP"; exit 1; }
 
-SUP="$SUP" python3 -I - <<'PY'
+SUP="$SUP" HERE="$HERE" python3 -I - <<'PY'
 import importlib.util, os, signal, subprocess, sys, time
 
 spec = importlib.util.spec_from_file_location("fcsup", os.environ["SUP"])
@@ -64,6 +64,24 @@ def ok(s):
 
 def bad(s):
     N["bad"] += 1; print("NOT ok " + s, flush=True)
+
+
+# carry review round 1, F5: a SKIP carries the closed §11.4.69 reason code, the MEASURED cause of a missing foreign
+# uid (tests/lib/foreign_uid_cause.sh -- on the reference host /etc/subuid has an entry; the namespace root gets EPERM
+# from chown / setresuid under kernel.apparmor_restrict_unprivileged_userns=1), and is COUNTED in SUMMARY
+N["skip"] = 0
+try:
+    FU_CAUSE = subprocess.run(["bash", os.path.join(os.environ["HERE"], "lib", "foreign_uid_cause.sh")],
+                              capture_output=True, text=True, timeout=60).stdout.strip() or "cause probe gave no output"
+except (OSError, subprocess.TimeoutExpired) as _e:
+    FU_CAUSE = "cause probe failed: %r" % (_e,)
+
+
+def skip(s):
+    N["skip"] += 1
+    for old in ("no subordinate uid available (unshare --map-users=auto failed)", "no subordinate uid available"):
+        s = s.replace(old, "no foreign uid (%s)" % FU_CAUSE)
+    print("SKIP " + s + " [reason=topology_unsupported]", flush=True)
 
 
 def scripted(views, live):
@@ -899,7 +917,7 @@ try:
             "open it) with a FIFO lease -> gc returns, keeps it, and opens NEITHER the directory nor the lease: %s"
             % fores[:160])
     else:
-        print("SKIP [R11FIFO-foreign] no subordinate uid available (unshare --map-users=auto failed) -- not counted")
+        skip("[R11FIFO-foreign] no subordinate uid available (unshare --map-users=auto failed) -- not counted")
 
     # lease kinds: another uid / a directory / a socket / mode 0666
     lu = sdir("luid")
@@ -990,7 +1008,7 @@ try:
     except OSError as e:
         dout, drc = "unshare unavailable: %s" % e, None
     if drc is None or (drc != 0 and "character special" not in dout and dout != "TIMEOUT"):
-        print("SKIP [R11DEV] no user+mount namespace (%s) -- not counted" % dout[:120])
+        skip("[R11DEV] no user+mount namespace (%s) -- not counted" % dout[:120])
     else:
         (ok if drc == 0 and "character special" in dout and "removed=0 kept=True opened_lease=False reached_dir=True"
          in dout else bad)(
@@ -1191,7 +1209,7 @@ try:
         (ok if r == "exit 4" else bad)("[R11LOCK-%s] a planted %s lock file -> BLIND 4 (refused, said), never a hang: %s"
                                        % (nm, {"fifo": "FIFO", "link": "symlink", "uid": "another uid's 0666"}[nm], r))
     if not ulock_real:
-        print("SKIP [R11LOCK-uid] no subordinate uid available -- not counted")
+        skip("[R11LOCK-uid] no subordinate uid available -- not counted")
     rctl = in_child(lambda: m._lock_one(os.path.join(lkd, "fresh.lock"), "unit") > 2, 10)
     (ok if rctl == "True" else bad)("[R11LOCK-needle] control: a fresh lock file is created and locked -> %s" % rctl)
 
@@ -1305,11 +1323,11 @@ try:
                   ("f1777", "another uid's 1777 (sticky, not root's)", w_f1777, False),
                   ("fmid", "a dir of ours BELOW another uid's 0755", w_fmid_in, False)]
     else:
-        print("SKIP [R12WALK-f755/-f1777/-fmid] no subordinate uid available -- not counted")
+        skip("[R12WALK-f755/-f1777/-fmid] no subordinate uid available -- not counted")
     if hl:
         table.append(("flink", "another uid's symlink to a dir of ours", os.path.join(flink_dir, "theirlink"), False))
     else:
-        print("SKIP [R12WALK-flink] no subordinate uid available -- not counted")
+        skip("[R12WALK-flink] no subordinate uid available -- not counted")
     for tid, label, p, want in table:
         v = walk_verdict(p)
         good = (v == "trusted") == want
@@ -1347,7 +1365,7 @@ try:
         sd_ = dead_sdir(par, label)
         os.chmod(par, pmode)
         if foreign and not subuid_own(par):
-            print("SKIP [R12PARENT-%s] no subordinate uid available -- not counted" % label)
+            skip("[R12PARENT-%s] no subordinate uid available -- not counted" % label)
             continue
         r = gc_spy(par)
         (ok if r.startswith("(0, ") and os.path.basename(sd_) not in r and os.path.isdir(sd_) else bad)(
@@ -1460,7 +1478,7 @@ try:
         return None
     SG = shared_gid()
     if SG is None:
-        print("SKIP [R12MASK-dir770 / -dir770-read] this user is in no group with another member -- not counted")
+        skip("[R12MASK-dir770 / -dir770-read] this user is in no group with another member -- not counted")
     for tag, dmode, lmode, want_removed, what in (
             ("dir770", 0o770, 0o600, False, "a state directory 0770 whose group has another member (group-writable: "
                                             "DIR_FORBID has 0o020) -> kept"),
@@ -1477,7 +1495,7 @@ try:
             os.chmod(d, dmode)
         if tag == "dir770private" and ([1 for q in _pwd.getpwall() if q.pw_gid == os.getegid() and q.pw_uid != os.geteuid()]
                                         or [u for u in _grp.getgrgid(os.getegid()).gr_mem if u != _me]):
-            print("SKIP [R12MASK-dir770private] this user's primary group has another member -- not counted")
+            skip("[R12MASK-dir770private] this user's primary group has another member -- not counted")
             continue
         r = in_child(lambda par=par: m.gc_statedirs(par), 15)
         (ok if r == ("1" if want_removed else "0") and os.path.lexists(d) != want_removed else bad)(
@@ -1512,7 +1530,7 @@ try:
         (ok if ru is None else bad)("[R12MARKER-uid] a marker owned by another uid (0644: readable) in a 0700 state "
                                     "directory is not trusted -> %r" % (ru,))
     else:
-        print("SKIP [R12MARKER-uid] no subordinate uid available -- not counted")
+        skip("[R12MARKER-uid] no subordinate uid available -- not counted")
 
     # ---- [R12PREP-onefd] / [R12PREP-outparent] ----
     tdp = os.path.join(G12, "fc_baseline_replay.state.onefd"); os.mkdir(tdp, 0o700)
@@ -1552,7 +1570,7 @@ try:
             "[R12PREP-outparent] report_prepare for a --out whose directory another uid owns (0777) -> refused, no "
             "marker: %s" % r[:120])
     else:
-        print("SKIP [R12PREP-outparent] no subordinate uid available -- not counted")
+        skip("[R12PREP-outparent] no subordinate uid available -- not counted")
 
     # ---- [R12INTR-dirmode / -parent] ----
     def intr_row(logdir):
@@ -1574,7 +1592,7 @@ try:
             "[R12INTR-parent] a 0700 run-log directory of ours whose PARENT another uid owns (0777: it can rename our "
             "directory and plant a symlink) -> nothing written (%s, written=%s)" % (r, written))
     else:
-        print("SKIP [R12INTR-parent] no subordinate uid available -- not counted")
+        skip("[R12INTR-parent] no subordinate uid available -- not counted")
     lok = mkd("logok", mode=0o700)
     r, written = intr_row(lok)
     (ok if r == "None" and written else bad)("[R12INTR-needle] control: a 0700 run-log directory of ours under a "
@@ -1633,7 +1651,7 @@ try:
         (ok if r == "exit 4" else bad)("[R12LOCK-parent] a lock file under a lock directory another uid owns (0777) "
                                        "-> BLIND 4 (refused, said): %s" % r)
     else:
-        print("SKIP [R12LOCK-parent] no subordinate uid available -- not counted")
+        skip("[R12LOCK-parent] no subordinate uid available -- not counted")
 
     # ---- [R12CREATE-*] ensure_dir / mkdtemp_path ----
     cbase = mkd("create")
@@ -1670,7 +1688,7 @@ try:
             "[R12PEND-uid] process_pending never removes an empty directory another uid owns: kept=%s (%s)"
             % (os.path.isdir(pe), r))
     else:
-        print("SKIP [R12PEND-uid] no subordinate uid available -- not counted")
+        skip("[R12PEND-uid] no subordinate uid available -- not counted")
     pe2 = mkd("pendpar", "replay.mine", mode=0o700)
     r = in_child(lambda: m.process_pending([os.fsencode(pp), b"replay."], "unit r12"), 10)
     (ok if r == "None" and not os.path.lexists(pe2) else bad)(
@@ -1680,7 +1698,62 @@ finally:
     subprocess.run(["chmod", "-R", "u+rwx", G12], capture_output=True)
     shutil.rmtree(G12, ignore_errors=True)
 
+# ---- [CARRY-F1-cloexec] carry review round 1, F1: a standard fd that carries FD_CLOEXEC (what `import ctypes`
+# left on fd 0 -- libffi's own .so) will not reach the worker; _repair_std_fds must replace it, not keep it.
+# The REAL function of the module under test, in a forked child (its fds only). Control: the same fd WITHOUT
+# FD_CLOEXEC (a readable, inheritable stdin) is kept.
+def _cloexec_case(cloexec):
+    def fn():
+        os.close(0)
+        fl = os.O_RDONLY | (os.O_CLOEXEC if cloexec else 0)
+        fd = os.open(os.environ["SUP"], fl)
+        if fd != 0:
+            return "setup: fd %d" % fd
+        if not cloexec:
+            os.set_inheritable(0, True)
+        m._repair_std_fds()
+        return "%s inheritable=%s" % (os.readlink("/proc/self/fd/0"), os.get_inheritable(0))
+    return in_child(fn, 10)
+
+
+r_cx = _cloexec_case(True)
+r_nc = _cloexec_case(False)
+(ok if r_cx == repr("/dev/null inheritable=True") and r_nc == repr("%s inheritable=True" % os.path.realpath(os.environ["SUP"]))
+ else bad)("[CARRY-F1-cloexec] an fd 0 with FD_CLOEXEC is replaced by an inheritable /dev/null (%s); control: the same fd "
+           "without FD_CLOEXEC is kept (%s)" % (r_cx, r_nc))
+
+# ---- [CARRY-F1-order] the repair runs BEFORE `import ctypes` at module level (a static order check of the module
+# under test: the call site, guarded by __main__, precedes the import; the runtime proof is v4r8 [R8FDS]).
+_src = open(os.environ["SUP"]).read()
+_ic = _src.find("\nimport ctypes")
+_rc = _src.find('\nif __name__ == "__main__":\n    _repair_std_fds()')
+(ok if 0 < _rc < _ic else bad)("[CARRY-F1-order] the module-level _repair_std_fds() call (offset %d) precedes "
+                               "`import ctypes` (offset %d)" % (_rc, _ic))
+
+
+# ---- [CARRY-F6-exit] carry review round 1, F6 (reviewer mutant RV3): _exit_main maps every code OUTSIDE the
+# documented set to 4 (BLIND) -- never to 0. Driven in forked children (os._exit ends only the child); control: a
+# documented code passes through unchanged.
+def _exit_status(code):
+    sys.stdout.flush(); sys.stderr.flush()
+    pid = os.fork()
+    if pid == 0:
+        try:
+            nul = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(nul, 2)
+            m._exit_main(code)
+        finally:
+            os._exit(99)
+    assert pid > 1 and pid != os.getpid()
+    _, st = os.waitpid(pid, 0)
+    return os.waitstatus_to_exitcode(st)
+
+
+f6 = {c: _exit_status(c) for c in (77, 5, 128, -1, "x", None, 3, 0, 130)}
+(ok if f6 == {77: 4, 5: 4, 128: 4, -1: 4, "x": 4, None: 4, 3: 3, 0: 0, 130: 130} else bad)(
+    "[CARRY-F6-exit] undocumented codes 77/5/128/-1/'x'/None -> 4, documented 3/0/130 unchanged: %r" % (f6,))
+
 print("----")
-print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))
+print("SUMMARY pass=%d fail=%d skip=%d" % (N["ok"], N["bad"], N["skip"]))
 sys.exit(0 if N["bad"] == 0 else 1)
 PY

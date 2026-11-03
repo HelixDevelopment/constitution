@@ -72,6 +72,12 @@ PASS=0
 FAIL=0
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
+# carry review round 1, F5: a SKIP carries the closed §11.4.69 reason code and is COUNTED in SUMMARY (never a pass);
+# a missing foreign uid states the MEASURED cause (tests/lib/foreign_uid_cause.sh), never an assumed one
+SKIPN=0
+skip() { SKIPN=$((SKIPN+1)); echo "SKIP $* [reason=topology_unsupported]"; }
+FU_CAUSE="$(bash "$HERE/lib/foreign_uid_cause.sh" 2>/dev/null)"
+[ -n "$FU_CAUSE" ] || FU_CAUSE="cause probe produced no output"
 tally() { # count the ok / NOT ok lines a python block printed; a missing end marker is a FAILED row
   local l done=0
   while IFS= read -r l; do
@@ -139,7 +145,7 @@ PY
 # =============================================================================
 if want ACL; then
   if [ -z "$FUID" ] || [ -z "$HAVE_ACL" ]; then
-    echo "SKIP [R14ACL-*] no subordinate uid ($FUID) or no POSIX ACL support ($HAVE_ACL) on this host -- not counted"
+    skip "[R14ACL-*] foreign uid ${FUID:-unavailable: $FU_CAUSE} / POSIX ACL ${HAVE_ACL:-unavailable} on this host -- not counted"
   else
     A="$WORK/acl"; mkdir "$A"; chmod 711 "$A"
     # ---- the fixture is a GENUINE grant (control both ways) ----
@@ -171,7 +177,7 @@ if want ACL; then
         && ok "[R14ACL-walk] D on a PATH (check D/sub) -> 4, the reason names the extended ACL and the remedy" \
         || bad "[R14ACL-walk] rc=$rc $(head -c 240 "$A/p.err")"
     else
-      echo "SKIP [R14ACL-walk] this user's primary group has another member -- not counted"
+      skip "[R14ACL-walk] this user's primary group has another member -- not counted"
     fi
     # ---- end to end: nothing the helper certified can be planted in ----
     R="$A/E"; mkdir "$R"; chmod 700 "$R"; setfacl -m "u:$FUID:rwx" "$R"
@@ -205,7 +211,7 @@ if want ACL; then
         && ok "[R14ACL-cleared] after setfacl -b the same 0770 private-group directories are accepted again (check --exclusive / mkdir --exclusive / write / as a parent: 0 0 0 0)" \
         || bad "[R14ACL-cleared] rc=$r1 $r2 $r3 $r4 (want 0 0 0 0)"
     else
-      echo "SKIP [R14ACL-default / R14ACL-cleared] this user's primary group has another member -- not counted"
+      skip "[R14ACL-default / R14ACL-cleared] this user's primary group has another member -- not counted"
     fi
     # ---- an ACL whose mask grants no write: not refused (no false positive) ----
     mkdir "$A/M"; chmod 750 "$A/M"; setfacl -m "u:$FUID:rwx,m::rx" "$A/M"
@@ -313,7 +319,7 @@ PY
     [ "$rc" = 0 ] && ok "[R14SGID-private] a 2770 directory in this user's private group -> a namespace (0)" \
       || bad "[R14SGID-private] rc=$rc (want 0)"
   else
-    echo "SKIP [R14SGID-private] this user's primary group has another member -- not counted"
+    skip "[R14SGID-private] this user's primary group has another member -- not counted"
   fi
   if [ -n "$SHARED_GID" ]; then
     mkdir "$C/g2"; chgrp "$SHARED_GID" "$C/g2"; chmod 2770 "$C/g2"
@@ -321,7 +327,7 @@ PY
     [ "$rc" = 4 ] && ok "[R14SGID-shared] a 2770 directory in a group with another member ($SHARED_GID) -> 4" \
       || bad "[R14SGID-shared] rc=$rc (want 4)"
   else
-    echo "SKIP [R14SGID-shared] no shared group -- not counted"
+    skip "[R14SGID-shared] no shared group -- not counted"
   fi
   # ---- hard links: the foreign uid cannot link a 0600 file of ours ----
   if [ -n "$FUID" ]; then
@@ -333,7 +339,7 @@ PY
       && ok "[R14HARDLINK] the foreign uid cannot hard-link a 0600 file of ours (fs.protected_hardlinks=$(cat /proc/sys/fs/protected_hardlinks)); control: it can create in the drop directory" \
       || bad "[R14HARDLINK] ln rc=$rc (want !=0) control rc=$rcc (want 0)"
   else
-    echo "SKIP [R14HARDLINK] no subordinate uid -- not counted"
+    skip "[R14HARDLINK] no foreign uid ($FU_CAUSE) -- not counted"
   fi
 fi
 
@@ -378,7 +384,7 @@ PY
       && ok "[R14LOCK-nohome] the stated boundary: no \$HOME and the name pre-planted -> BLIND 4 (refused, never run unlocked)" \
       || bad "[R14LOCK-nohome] out=[$out] $(head -c 200 "$L/n.err")"
   else
-    echo "SKIP [R14LOCK-preplant / R14LOCK-nohome] no subordinate uid -- not counted"
+    skip "[R14LOCK-preplant / R14LOCK-nohome] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   OWN="$L/own"; mkdir "$OWN"; chmod 700 "$OWN"; H2="$L/home2"; mkdir "$H2"; chmod 700 "$H2"
   out="$(HOME="$H2" FAKE_PWHOME="$H2" python3 -I "$WORK/lock.py" "$SUP" take "$OWN" "$WORK" 2>"$L/o.err")"
@@ -431,5 +437,5 @@ if want CENSUS; then
 fi
 
 echo "----"
-echo "SUMMARY pass=$PASS fail=$FAIL"
+echo "SUMMARY pass=$PASS fail=$FAIL skip=$SKIPN"
 [ "$FAIL" = 0 ]

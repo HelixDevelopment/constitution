@@ -61,6 +61,12 @@ PASS=0
 FAIL=0
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
+# carry review round 1, F5: a SKIP carries the closed §11.4.69 reason code and is COUNTED in SUMMARY (never a pass);
+# a missing foreign uid states the MEASURED cause (tests/lib/foreign_uid_cause.sh), never an assumed one
+SKIPN=0
+skip() { SKIPN=$((SKIPN+1)); echo "SKIP $* [reason=topology_unsupported]"; }
+FU_CAUSE="$(bash "$HERE/lib/foreign_uid_cause.sh" 2>/dev/null)"
+[ -n "$FU_CAUSE" ] || FU_CAUSE="cause probe produced no output"
 want() {
   [ -z "${R15_ONLY:-}" ] && return 0
   case " $R15_ONLY " in *" $1 "*) return 0 ;; esac
@@ -202,7 +208,7 @@ if want LOCK; then
       && ok "[R15LOCK-nopasswd] REAL: a uid with no password-database entry (namespace uid 54321) -> _passwd_home() = '' (the stated boundary branch)" \
       || bad "[R15LOCK-nopasswd] entry=$hasent out=[$out]"
   else
-    echo "SKIP [R15LOCK-nopasswd] no subordinate uid -- not counted"
+    skip "[R15LOCK-nopasswd] no foreign uid ($FU_CAUSE) -- not counted"
   fi
   # ---- RV8-02: a pre-made SHARED cache lock directory is never used ----
   H3="$L/h3"; mkdir -p "$H3/.cache/fc_baseline_replay/locks"; chmod 700 "$H3" "$H3/.cache" "$H3/.cache/fc_baseline_replay"
@@ -221,7 +227,7 @@ if want LOCK; then
       && ok "[R15LOCK-lockdir-sharedgroup] RV8-03: a 1770 lock directory of ours in group $SHARED_GID (another member) -> redirected to <home>/.cache/..., nothing made in it" \
       || bad "[R15LOCK-lockdir-sharedgroup] out=[$out] in-shared=$([ -e "$GS/$lname" ] && echo yes || echo no) $(head -c 200 "$L/g.err")"
   else
-    echo "SKIP [R15LOCK-lockdir-sharedgroup] no shared group -- not counted"
+    skip "[R15LOCK-lockdir-sharedgroup] no shared group -- not counted"
   fi
   if [ "$PRIV_OK" = yes ]; then
     H5="$L/h5"; mkdir "$H5"; chmod 700 "$H5"
@@ -241,13 +247,13 @@ if want LOCK; then
         r2="acl: out=[$out] $(head -c 160 "$L/a.err")"
       fi
     else
-      r2=ok; echo "SKIP [R15LOCK-lockdir-privgroup ACL half] no POSIX ACL support -- not counted"
+      r2=ok; skip "[R15LOCK-lockdir-privgroup ACL half] no POSIX ACL support -- not counted"
     fi
     [ "$r1" = ok ] && [ "$r2" = ok ] \
       && ok "[R15LOCK-lockdir-privgroup] a 0770 lock directory in this user's PRIVATE group (no ACL) is used as it is; a sticky one WITH an ACL grant (mode $(stat -c %a "$L/gacl" 2>/dev/null)) is redirected to <home>/.cache/..." \
       || bad "[R15LOCK-lockdir-privgroup] $r1 / $r2"
   else
-    echo "SKIP [R15LOCK-lockdir-privgroup] this user's primary group has another member -- not counted"
+    skip "[R15LOCK-lockdir-privgroup] this user's primary group has another member -- not counted"
   fi
 fi
 
@@ -273,10 +279,10 @@ if want EXCL; then
         && ok "[R15EXCL-acl] the same 0775 private-group directory WITH an ACL grant: mkdir --exclusive -> 4, mkdtemp --exclusive-parent -> 4, nothing made" \
         || bad "[R15EXCL-acl] rc=$r3 $r4 (want 4 4) contents=[$(ls -A "$E/Q" | tr '\n' ' ')]"
     else
-      echo "SKIP [R15EXCL-acl] no POSIX ACL support -- not counted"
+      skip "[R15EXCL-acl] no POSIX ACL support -- not counted"
     fi
   else
-    echo "SKIP [R15EXCL-*] this user's primary group has another member -- not counted"
+    skip "[R15EXCL-*] this user's primary group has another member -- not counted"
   fi
 fi
 
@@ -399,5 +405,5 @@ if want SH; then
 fi
 
 echo "----"
-echo "SUMMARY pass=$PASS fail=$FAIL"
+echo "SUMMARY pass=$PASS fail=$FAIL skip=$SKIPN"
 [ "$FAIL" = 0 ]
