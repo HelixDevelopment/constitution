@@ -68,6 +68,7 @@ gitify() {
             [ "$tpf" = 1 ] || continue; pn="${p:-submodules/$n}"; pn="${pn%/}"
             "${GG[@]}" -C "$x" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,$pn" 2>/dev/null
         done <<<"$recs"
+        "${GG[@]}" -C "$x" add -- helix-deps.yaml 2>/dev/null   # the manifest must be the RECORDED copy (killpg scope round 5)
     done
     for x in "${ms[@]}"; do
         [ "$x" = "$d" ] && continue

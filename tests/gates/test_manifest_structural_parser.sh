@@ -30,6 +30,8 @@ mk() { # name content(printf fmt) -> dir with helix-deps.yaml
     for p in submodules/vend src; do
         env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -C "$d" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,$p" 2>/dev/null
     done
+    # ...and the manifest itself must be the RECORDED copy (tracked, worktree == index; killpg scope round 5)
+    env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -C "$d" add -- helix-deps.yaml 2>/dev/null
     echo "$d"
 }
 expect_prune() { # desc want dir

@@ -9,25 +9,19 @@
 # repository does not own; each separate repository adopts the gate itself.
 #
 # cm_third_party_prune_paths <root>
-#   Prints, one per line, what to prune (operator decision 2026-11-01):
-#     (1) the directory names `third_party` and `site-packages`,
-#     (2) every <root>/helix-deps.yaml dep with `third_party: true`: its explicit
-#         `path:` or, when absent, `submodules/<name>`.
-#     (3) NESTED (operator decision 2026-11-01): each own-org (not third_party)
-#         submodule found under <root>/submodules/* or named by a non-third_party
-#         dep path is descended (depth <= 3, symlinks never followed) and ITS
-#         helix-deps.yaml third_party:true entries are emitted as
-#         <submodule path>/<dep path or submodules/<name>>, same validation.
-#         Upstream marking is therefore required for nested third-party trees.
-#   Ownership by remote URL (§11.4.79(6)) is a CONSUMER DECLARATION and is OFF unless an own-org list is
-#   DECLARED (round 4, review 11.4.276): --own-orgs / the guarded HELIX_OWN_ORGS / the tracked data file
-#   <root>/config/own_orgs.list (or at the git top level). With NO declaration only the manifest rule
-#   (`third_party: true` on a RECORDED gitlink) applies, exactly as before round 3 (a consumer's own repositories
-#   under any organisation are never pruned by a default list). With a declaration, a recorded gitlink whose
-#   .gitmodules URL names an organisation outside the list is third-party. A malformed declaration is refused
-#   (cm_tp_orgs_resolve, rc 2). .gitmodules never prunes by itself: only a recorded gitlink (URL rule: also populated or empty)
-#   gitlink is ever pruned; ambiguous .gitmodules (duplicate path, multi-valued url) and file://, C:/,
-#   percent-encoded, relative or unparseable URLs are scanned.
+#   Prints, one per line, what to prune: (1) the directory names `third_party` and `site-packages`
+#   (any depth), and (2) every path selected by the rule below, relative to <root>.
+#   (2) ONE prune rule (review 11.4.276 round 5, structural replacement): a path is pruned iff
+#     (a) git records it as a GITLINK (mode 160000, exact literal path; never a pathspec prefix, never a bare
+#         .gitmodules line) in the repository it belongs to, AND
+#     (b) a helix-deps.yaml of that repository's chain marks it `third_party: true`: the manifest at the gate root
+#         (which may name a NESTED gitlink such as submodules/a/submodules/b, resolved through POPULATED own
+#         gitlinks), or the manifest at the top of a populated nested gitlink's own repository.
+#   The manifest is honoured only when it is TRACKED in that repository and its working-tree copy equals the
+#   index (an untracked, modified, symlinked or symlink-reached manifest is ignored: scan more, note on stderr).
+#   There is NO ownership-by-URL rule and NO own-org list: .gitmodules URLs never prune anything. An
+#   AMBIGUOUS .gitmodules entry (duplicate path, a name with several paths, a multi-valued url, an
+#   unparseable or symlinked .gitmodules) keeps the gitlink scanned even when the manifest marks it.
 #   Unsafe values are DROPPED, never interpreted (a prune entry that is empty,
 #   absolute, has a `..` or `.` segment, a leading `-`, whitespace, or a glob
 #   metacharacter `* ? [ ] \` could prune first-party code or break the
@@ -54,23 +48,12 @@ cm_third_party_prune_ok() { # $1=candidate -> 0 iff safe relative path
 # directory names -- and a note goes to stderr.
 _CM_TP_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck disable=SC1091
-declare -F cm_gate_env_set >/dev/null 2>&1 || { [ -r "$_CM_TP_LIBDIR/gate_env_override.sh" ] && . "$_CM_TP_LIBDIR/gate_env_override.sh"; }
-# shellcheck disable=SC1091
 . "$_CM_TP_LIBDIR/../deps_manifest/helix_deps_tsv.sh" 2>/dev/null || cm_hdeps_tsv() { return 3; }
 
-# ── Recorded-gitlink resolver (killpg scope, review round 3: structural replacement) ─────────────────
-# A path is prunable ONLY when git itself records it as a GITLINK (mode 160000) with an EXACT, literal path match
-# (never a pathspec prefix, never NR==1 of a listing, never a bare .gitmodules line). Two independent sources may
-# then mark a recorded gitlink third-party:
-#   (U) its .gitmodules remote URL names an organisation that is NOT in the own-org list (§11.4.79(6); the list is
-#       consumer DATA: argument 2 of cm_third_party_prune_paths, else the guarded HELIX_OWN_ORGS, else
-#       vasic-digital,HelixDevelopment -- the same default as verify_helix_deps_manifests.sh);
-#   (M) the repository's own helix-deps.yaml marks the dep `third_party: true` (manifest alone never prunes anything
-#       that is not a recorded gitlink of that same repository).
-# A relative or unparseable URL, a gitlink without a .gitmodules entry, an unpopulated or symlinked path: scanned.
+# ── Recorded-gitlink resolver (killpg scope; round 5: manifest-on-recorded-gitlink is the ONLY rule) ──────
 # No usable git metadata (no git binary, an exported tree, a git failure): FAIL CLOSED -- only the literal directory
-# names are pruned, a note goes to stderr, the scan covers more. Own-org populated gitlinks are descended (depth <= 3)
-# so their nested third-party gitlinks are found by the same two rules inside THEIR repository.
+# names are pruned, a note goes to stderr, the scan covers more. Populated gitlinks that are not marked are
+# descended (depth <= 3) so their own tracked manifests can mark their own recorded gitlinks.
 _cm_tp_git() { env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR git "$@"; }
 
 # cm_tp_is_gitlink <repo-top> <path-from-top> : exact gitlink (mode 160000, path field identical)
@@ -83,6 +66,29 @@ cm_tp_is_gitlink() {
     done < <(_cm_tp_git -C "$1" -c core.quotePath=false ls-files -s -z --full-name -- ":(literal)$2" 2>/dev/null)
     return 1
 }
+
+# cm_tp_ambiguous <repo-top> <path-from-top> : 0 iff <repo-top>/.gitmodules cannot vouch for a single entry of <path>:
+# symlinked or unparseable file, the path listed more than once, its name carrying several paths or several urls.
+cm_tp_ambiguous() {
+    local top="$1" p="$2" gm="$1/.gitmodules" rec key val name="" n=0 np=0 nu=0
+    [ -e "$gm" ] || [ -L "$gm" ] || return 1
+    [ -f "$gm" ] && [ ! -L "$gm" ] && [ -r "$gm" ] || return 0
+    _cm_tp_git config -f "$gm" --list >/dev/null 2>&1 || return 0
+    while IFS= read -r -d '' rec; do
+        key="${rec%%$'\n'*}"; val="${rec#*$'\n'}"
+        [ "$val" = "$p" ] || continue
+        n=$((n+1)); name="${key#submodule.}"; name="${name%.path}"
+    done < <(_cm_tp_git config -f "$gm" --null --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+    [ "$n" -le 1 ] || return 0
+    [ -n "$name" ] || return 1          # a gitlink without a .gitmodules entry: nothing to contradict the manifest
+    while IFS= read -r -d '' rec; do np=$((np+1)); done < <(_cm_tp_git config -f "$gm" --null --get-all "submodule.$name.path" 2>/dev/null)
+    while IFS= read -r -d '' rec; do nu=$((nu+1)); done < <(_cm_tp_git config -f "$gm" --null --get-all "submodule.$name.url" 2>/dev/null)
+    [ "$np" -le 1 ] && [ "$nu" -le 1 ] && return 1
+    return 0
+}
+
+# cm_tp_recorded <repo-top> <path> : an exact, unambiguous gitlink of that repository
+cm_tp_recorded() { cm_tp_is_gitlink "$1" "$2" && ! cm_tp_ambiguous "$1" "$2"; }
 
 # cm_tp_populated <dir> : a real (non-symlink) directory that is the top level of its own git repository
 cm_tp_populated() {
@@ -102,143 +108,61 @@ cm_tp_no_symlink() {
     return 0
 }
 
-# cm_tp_gitlink_deep <repo-top> <path> <depth> : is <path> an exact gitlink of the repo, or of a POPULATED gitlink
-# parent's own repository (a root manifest may name submodules/a/submodules/b)?
+# cm_tp_gitlink_deep <repo-top> <path> <depth> : is <path> a recorded gitlink of the repo, or of a POPULATED recorded
+# gitlink parent's own repository (a root manifest may name submodules/a/submodules/b)?
 cm_tp_gitlink_deep() {
     local top="$1" p="$2" depth="$3" pre="" rest seg
-    cm_tp_is_gitlink "$top" "$p" && return 0
+    cm_tp_recorded "$top" "$p" && return 0
     [ "$depth" -lt 3 ] || return 1
     rest="$p"
     while [[ "$rest" == */* ]]; do
         seg="${rest%%/*}"; rest="${rest#*/}"; pre="${pre:+$pre/}$seg"
-        cm_tp_is_gitlink "$top" "$pre" || continue
+        cm_tp_recorded "$top" "$pre" || continue
         cm_tp_populated "$top/$pre" || return 1
         cm_tp_gitlink_deep "$top/$pre" "$rest" $((depth+1)); return $?
     done
     return 1
 }
 
-# cm_tp_orgs_norm <csv> : prints the lowercase list; rc 2 unless EVERY comma-separated token is a valid org name
-# (an empty value, an empty token, whitespace, `;` or any char outside [A-Za-z0-9._-] refuses -- whole class)
-cm_tp_orgs_norm() {
-    local rest="$1" o out=""
-    [ -n "$rest" ] || return 2
-    while :; do
-        o="${rest%%,*}"
-        [[ "$o" =~ ^[A-Za-z0-9._-]+$ ]] || return 2
-        out+="${out:+,}${o,,}"
-        case "$rest" in *,*) rest="${rest#*,}" ;; *) break ;; esac
-    done
-    printf '%s\n' "$out"
+# cm_tp_manifest_recorded <repo-top> <path-from-top> : the manifest is tracked, a regular non-symlink file reached
+# through no symlinked component, and its working-tree content equals the index (else it is not the repository's
+# recorded declaration and is ignored).
+cm_tp_manifest_recorded() {
+    local top="$1" p="$2"
+    [ -f "$top/$p" ] && [ -r "$top/$p" ] && cm_tp_no_symlink "$top" "$p" || return 1
+    _cm_tp_git -C "$top" ls-files --error-unmatch -- ":(literal)$p" >/dev/null 2>&1 || return 1
+    _cm_tp_git -C "$top" -c core.quotePath=false diff --quiet --no-ext-diff -- ":(literal)$p" >/dev/null 2>&1
 }
 
-# cm_tp_orgs_file <file> : prints the normalised list from a declaration file (# comments, one org or csv per line)
-cm_tp_orgs_file() {
-    local f="$1" line acc="" n
-    [ -f "$f" ] && [ -r "$f" ] && [ ! -L "$f" ] || return 2
-    while IFS= read -r line || [ -n "$line" ]; do
-        line="${line%%#*}"; line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-        [ -n "$line" ] || continue
-        n="$(cm_tp_orgs_norm "$line")" || return 2
-        acc+="${acc:+,}$n"
-    done <"$f"
-    [ -n "$acc" ] || return 2
-    printf '%s\n' "$acc"
-}
-
-# cm_tp_orgs_resolve <root> [explicit-csv] [explicit-given 0|1] : the DECLARED own-org list, or empty when none is
-# declared. Order: explicit (flag/argument) > guarded HELIX_OWN_ORGS > <root>/config/own_orgs.list > <git top>/...
-# rc 0 (output possibly empty = undeclared) | rc 2 = a declaration exists but is malformed (message on stderr).
-cm_tp_orgs_resolve() {
-    local root="$1" exp="${2:-}" given="${3:-0}" v="" out f top
-    if [ "$given" = 1 ] || [ -n "$exp" ]; then
-        out="$(cm_tp_orgs_norm "$exp")" || { echo "third_party_prune: own-org list '$exp' is malformed (empty, empty token, whitespace or invalid character); refusing" >&2; return 2; }
-        printf '%s\n' "$out"; return 0
-    fi
-    if declare -F cm_gate_env_set >/dev/null 2>&1; then cm_gate_env_set v HELIX_OWN_ORGS "" value; else v=""; fi
-    if [ -n "$v" ]; then
-        out="$(cm_tp_orgs_norm "$v")" || { echo "third_party_prune: HELIX_OWN_ORGS value is malformed; refusing" >&2; return 2; }
-        printf '%s\n' "$out"; return 0
-    fi
-    f="$root/config/own_orgs.list"
-    if [ ! -e "$f" ] && [ ! -L "$f" ] && command -v git >/dev/null 2>&1; then
-        top="$(_cm_tp_git -C "$root" rev-parse --show-toplevel 2>/dev/null)" && [ -n "$top" ] && f="$top/config/own_orgs.list"
-    fi
-    if [ -e "$f" ] || [ -L "$f" ]; then
-        out="$(cm_tp_orgs_file "$f")" || { echo "third_party_prune: own-org declaration $f is unusable (symlink, unreadable, empty or malformed); refusing" >&2; return 2; }
-        printf '%s\n' "$out"; return 0
-    fi
-    return 0
-}
-
-# cm_tp_url_third <url> <orgs-csv> : 0 iff a DECLARED own-org list exists and url is an absolute http(s)/ssh/git or
-# scp-style remote whose organisation is not in it. file://, Windows C:/, percent-encoded, relative, whitespace or
-# otherwise unparseable URLs, and an empty list: 1 (not third-party => scanned, the safe side).
-cm_tp_url_third() {
-    local u="${1,,}" orgs="${2,,}" o
-    [ -n "$orgs" ] || return 1
-    case "$u" in ''|./*|../*|*%*|*[[:space:]]*) return 1 ;; esac
-    [[ "$u" =~ ^((https?|ssh|git)://[^/]+/[^[:space:]]+|[^/@:[:space:]]+@[^/@:[:space:]]{2,}:/?[^[:space:]]+|[^/@:[:space:]]+\.[^/@:[:space:]]+:/?[^[:space:]]+)$ ]] || return 1
-    local IFS=,
-    for o in $orgs; do
-        [[ "$o" =~ ^[a-z0-9._-]+$ ]] || return 1
-        [[ "$u" =~ (^|[/:])"$o"/ ]] && return 1
-    done
-    return 0
-}
-
-# cm_tp_prunable_dir <dir> : a gitlink marked third-party by its URL (rule U) may be pruned only when it is a populated repository top level, or
-# holds nothing to scan (absent / empty). A plain directory with content is scanned (review F4).
-cm_tp_prunable_dir() {
-    local d="$1"
-    [ ! -L "$d" ] || return 1
-    [ -e "$d" ] || return 0
-    [ -d "$d" ] || return 1
-    cm_tp_populated "$d" && return 0
-    [ -z "$(ls -A "$d" 2>/dev/null)" ]
-}
-
-# cm_tp_level <top> <prefix> <outpre> <depth> <orgs> : emits (relative to the gate root) every third-party gitlink
+# cm_tp_level <top> <prefix> <outpre> <depth> : emits (relative to the gate root) every manifest-marked recorded gitlink
 cm_tp_level() {
-    local top="$1" prefix="$2" outpre="$3" depth="$4" orgs="$5"
+    local top="$1" prefix="$2" outpre="$3" depth="$4"
     local base="$top"; [ -n "$prefix" ] && base="$top/$prefix"
-    local -A tp=() nameof=() emitted=()
-    local rec key val name g rel url recs rc n path u tpf pp nurl
+    local -A tp=() emitted=()
+    local rec g rel recs rc n path u r2 tpf pp mf="${prefix:+$prefix/}helix-deps.yaml"
 
-    # (M) manifest marks, honoured only on recorded gitlinks
-    if [ -f "$base/helix-deps.yaml" ] && [ -r "$base/helix-deps.yaml" ] && [ ! -L "$base/helix-deps.yaml" ]; then
-        recs="$(cm_hdeps_tsv "$base/helix-deps.yaml")"; rc=$?
-        if [ "$rc" != 0 ]; then
-            echo "third_party_prune: manifest $base/helix-deps.yaml not usable (reader rc=$rc); manifest marks ignored" >&2
+    if [ -e "$base/helix-deps.yaml" ] || [ -L "$base/helix-deps.yaml" ]; then
+        if ! cm_tp_manifest_recorded "$top" "$mf"; then
+            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded (tracked, unmodified, non-symlink) copy; manifest marks ignored" >&2
         else
-            while IFS=$'\x1f' read -r n path u rel tpf; do
-                [ "$tpf" = 1 ] || continue
-                [ -n "$path$n" ] || continue
-                pp="${path:-submodules/$n}"; pp="${pp%/}"
-                cm_third_party_prune_ok "$pp" || continue
-                cm_tp_no_symlink "$base" "$pp" || continue
-                if cm_tp_gitlink_deep "$top" "${prefix:+$prefix/}$pp" "$depth"; then tp["$pp"]=1
-                else echo "third_party_prune: manifest marks $outpre${outpre:+/}$pp third_party but it is not a recorded gitlink; NOT pruned (scanning it)" >&2; fi
-            done <<<"$recs"
+            recs="$(cm_hdeps_tsv "$base/helix-deps.yaml")"; rc=$?
+            if [ "$rc" != 0 ]; then
+                echo "third_party_prune: manifest $base/helix-deps.yaml not usable (reader rc=$rc); manifest marks ignored" >&2
+            else
+                while IFS=$'\x1f' read -r n path u r2 tpf; do
+                    [ "$tpf" = 1 ] || continue
+                    [ -n "$path$n" ] || continue
+                    pp="${path:-submodules/$n}"; pp="${pp%/}"
+                    cm_third_party_prune_ok "$pp" || continue
+                    cm_tp_no_symlink "$base" "$pp" || continue
+                    if cm_tp_gitlink_deep "$top" "${prefix:+$prefix/}$pp" "$depth"; then tp["$pp"]=1
+                    else echo "third_party_prune: manifest marks $outpre${outpre:+/}$pp third_party but it is not an unambiguous recorded gitlink; NOT pruned (scanning it)" >&2; fi
+                done <<<"$recs"
+            fi
         fi
     fi
 
-    # (U) .gitmodules name -> path/url map (top level of THIS repository). A duplicate path, a name with several
-    # paths or a multi-valued url is AMBIGUOUS and never pruned (scanned).
-    local -A ncnt=() amb=()
-    if [ -f "$top/.gitmodules" ] && [ ! -L "$top/.gitmodules" ]; then
-        while IFS= read -r -d '' rec; do
-            key="${rec%%$'\n'*}"; val="${rec#*$'\n'}"
-            case "$key" in submodule.*.path)
-                name="${key#submodule.}"; name="${name%.path}"
-                [ -z "${nameof[$val]+x}" ] || amb["$val"]=1
-                nameof["$val"]="$name"; ncnt["$name"]=$(( ${ncnt[$name]:-0} + 1 )) ;;
-            esac
-        done < <(_cm_tp_git config -f "$top/.gitmodules" --null --get-regexp '^submodule\..*\.path$' 2>/dev/null)
-        for rel in "${!nameof[@]}"; do [ "${ncnt[${nameof[$rel]}]:-0}" -le 1 ] || amb["$rel"]=1; done
-    fi
-
-    # the gitlinks recorded under the scan base
+    # the gitlinks recorded under the scan base: marked -> emitted; populated -> descended
     while IFS= read -r -d '' rec; do
         [ "${rec%% *}" = 160000 ] || continue
         g="${rec#*$'\t'}"
@@ -249,17 +173,8 @@ cm_tp_level() {
         if [ -n "${tp[$rel]:-}" ]; then
             emitted["$rel"]=1; printf '%s\n' "${outpre:+$outpre/}$rel"; continue
         fi
-        name="${nameof[$g]:-}"
-        if [ -n "$name" ] && [ -z "${amb[$g]:-}" ]; then
-            nurl=0; url=""
-            while IFS= read -r -d '' u; do url="$u"; nurl=$((nurl+1)); done < <(_cm_tp_git config -f "$top/.gitmodules" --null --get-all "submodule.$name.url" 2>/dev/null)
-            if [ "$nurl" = 1 ] && cm_tp_url_third "$url" "$orgs"; then
-                cm_tp_prunable_dir "$base/$rel" && printf '%s\n' "${outpre:+$outpre/}$rel"
-                continue
-            fi
-        fi
         [ "$depth" -lt 3 ] || continue
-        cm_tp_populated "$base/$rel" && cm_tp_level "$base/$rel" "" "${outpre:+$outpre/}$rel" $((depth+1)) "$orgs"
+        cm_tp_populated "$base/$rel" && cm_tp_level "$base/$rel" "" "${outpre:+$outpre/}$rel" $((depth+1))
     done < <(_cm_tp_git -C "$top" -c core.quotePath=false ls-files -s -z --full-name 2>/dev/null)
     # manifest marks that are deep (not direct gitlinks of this level) are emitted too
     for rel in "${!tp[@]}"; do
@@ -267,18 +182,16 @@ cm_tp_level() {
     done
 }
 
-cm_third_party_prune_paths() { # $1=root [$2=own-orgs csv]
-    local root="${1:-}" orgs="${2:-}" top rootp prefix=""
+cm_third_party_prune_paths() { # $1=root
+    local root="${1:-}" top rootp prefix=""
     [ -n "$root" ] && [ -d "$root" ] || return 0
     printf '%s\n' third_party site-packages
-    if [ -n "$orgs" ]; then orgs="$(cm_tp_orgs_norm "$orgs")" || { echo "third_party_prune: own-org list malformed; refusing" >&2; return 2; }
-    else orgs="$(cm_tp_orgs_resolve "$root")" || return 2; fi
     command -v git >/dev/null 2>&1 || { echo "third_party_prune: git unavailable; pruning literal directory names only (scanning submodules too)" >&2; return 0; }
     rootp="$(cd -P "$root" 2>/dev/null && pwd -P)" || return 0
     top="$(_cm_tp_git -C "$rootp" rev-parse --show-toplevel 2>/dev/null)" || {
         echo "third_party_prune: no usable git metadata at $root; pruning literal directory names only (fail closed: scanning submodule-like trees too)" >&2; return 0; }
     [ "$rootp" = "$top" ] || prefix="${rootp#"$top"/}"
-    cm_tp_level "$top" "$prefix" "" 0 "$orgs" | LC_ALL=C sort -u
+    cm_tp_level "$top" "$prefix" "" 0 | LC_ALL=C sort -u
     return 0
 }
 
@@ -299,7 +212,7 @@ cm_tp_glob_escape() {
 # `vend`) prunes only <root>/<path>, never a same-named first-party directory
 # deeper in the tree. The caller must have declared `prune_expr=()`.
 cm_third_party_prune_find_expr() {
-    local root="$1" ex er orgs="${2:-}"
+    local root="$1" ex er
     er="$(cm_tp_glob_escape "$root")"
     while IFS= read -r ex; do
         [ -n "$ex" ] || continue
@@ -307,5 +220,5 @@ cm_third_party_prune_find_expr() {
             third_party|site-packages) prune_expr+=(-name "$ex" -o) ;;
             *) prune_expr+=(-path "$er/$(cm_tp_glob_escape "$ex")" -o -path "$er/$(cm_tp_glob_escape "$ex")/*" -o) ;;
         esac
-    done < <(cm_third_party_prune_paths "$root" "$orgs")
+    done < <(cm_third_party_prune_paths "$root")
 }

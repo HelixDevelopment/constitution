@@ -688,7 +688,6 @@ for ex in $excludes; do
 done
 # third-party prune: root-anchored (see cm_third_party_prune_find_expr)
 if [ "$include_tp" != 1 ] && [ -n "${tp_lib:-}" ]; then
-    cm_tp_orgs_resolve "$root" >/dev/null || { echo "${GATE}: own-org declaration malformed or unusable; refusing" >&2; exit 2; }
     cm_third_party_prune_find_expr "$root"
 fi
 if [ "${#prune_expr[@]}" -gt 0 ]; then

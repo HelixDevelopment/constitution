@@ -96,10 +96,12 @@
 # ── Scan scope: third-party code is pruned (§11.4.28/§11.4.35) ───────────────
 # Like CM-DANGEROUS-COMBINATION-FAIL-CLOSED and CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT, a directory
 # walk prunes (via scripts/lib/third_party_prune.sh): directories named `third_party` / `site-packages`,
-# every helix-deps.yaml dep with `third_party: true` (explicit `path:` or `submodules/<name>`), and the
-# third_party deps of nested own-org manifests. Own-org submodules stay scanned. Unsafe manifest paths are
-# dropped (scan more); an unusable manifest or missing lib scans more (fail closed). Single-file roots are
-# never pruned. Opt back in with --include-third-party. Test: cm_killpg_pgid_guard_scope_test.sh.
+# and every RECORDED gitlink (exact path, unambiguous .gitmodules entry) that a TRACKED, unmodified
+# helix-deps.yaml of its repository chain marks `third_party: true` (the root manifest may name a nested
+# path). No URL / organisation rule exists: an unmarked submodule is always scanned. Unsafe manifest paths are
+# dropped (scan more); an unusable manifest, no git metadata or a missing lib scans more (fail closed). Every
+# pruned path is printed. Single-file roots are never pruned. Opt back in with --include-third-party.
+# Test: cm_killpg_pgid_guard_scope_test.sh.
 #
 # `scripts/gates` is excluded from the default scan root's recursive walk (this file and its
 # mutation-test fixtures legitimately embed the dangerous literal as fixture text).
@@ -118,10 +120,6 @@
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
 #     --include-third-party
 #                    also scan third-party trees (default: pruned)
-#     --own-orgs a,b DECLARE the own-org list (consumer DATA). Only with a declaration (this flag, the guarded
-#                    HELIX_OWN_ORGS, or config/own_orgs.list) is a recorded gitlink whose .gitmodules URL names an
-#                    organisation outside the list third-party and pruned; with none, only the manifest rule
-#                    (third_party: true on a recorded gitlink) applies. A malformed list exits 2.
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
@@ -174,8 +172,6 @@ if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1"
 cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
 cm_gate_env_set window KILLPG_GUARD_WINDOW 6 value
 cm_gate_env_set include_tp KILLPG_GUARD_INCLUDE_THIRD_PARTY 0 value
-own_orgs=""
-own_orgs_given=0
 quiet=0
 
 while [ $# -gt 0 ]; do
@@ -184,7 +180,6 @@ while [ $# -gt 0 ]; do
         --window) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; window="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
         --include-third-party) include_tp=1; shift ;;
-        --own-orgs) [ $# -ge 2 ] || { echo "${GATE}: --own-orgs requires a value" >&2; exit 2; }; own_orgs="$2"; own_orgs_given=1; shift 2 ;;
         -h|--help) awk 'NR>1 && !/^#/ {exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -242,13 +237,11 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
     # shellcheck source=/dev/null
     tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
     if [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null; then
-        # DECLARED own-org list only (flag > guarded HELIX_OWN_ORGS > config/own_orgs.list); malformed => refuse
-        own_orgs="$(cm_tp_orgs_resolve "$root" "$own_orgs" "$own_orgs_given")" || { echo "${GATE}: own-org list malformed or unusable; refusing" >&2; exit 2; }
-        cm_third_party_prune_find_expr "$root" "$own_orgs"
+        cm_third_party_prune_find_expr "$root"
         # make the exclusion visible: every pruned path is listed (a reader sees what was NOT scanned)
         while IFS= read -r _pp; do
             [ -n "$_pp" ] && echo "ℹ️  ${GATE}: PRUNED (third-party, not scanned): ${_pp}"
-        done < <(cm_third_party_prune_paths "$root" "$own_orgs" 2>/dev/null)
+        done < <(cm_third_party_prune_paths "$root" 2>/dev/null)
     else
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
     fi
