@@ -25,7 +25,9 @@
 # not emit -- mode endline-before-line: endLine = line - 1; endcol-before-col: endColumn =
 # column - 1; column-zero: column = 0; identity: rewritten through the same python path
 # but unchanged, the control -- to reach the extent sanity sub-checks of _finding_extent
-# through the real gate; these cases are SIMULATED tool output, labelled as such).
+# through the real gate; r10 adds endline-plus-one: endLine = line + 1, a sane extent into the next
+# statement, and cite-<N>: " on line <N>" appended to every message; these cases are SIMULATED tool
+# output, labelled as such).
 #
 # r5: the stub also appends the LINE COUNT of every lint input to $TMP/lintlog (the
 # G-class census: since r5 every lint input must be a WHOLE head or base blob).
@@ -101,6 +103,10 @@ for c in d.get("comments", []):
         c["endColumn"] = c["column"] - 1
     elif m == "column-zero":
         c["column"] = 0
+    elif m == "endline-plus-one":  # r10: a SANE extent reaching into the NEXT top-level statement
+        c["endLine"] = c["line"] + 1
+    elif m.startswith("cite-"):    # r10: the message cites another line ("... on line N")
+        c["message"] = c["message"] + " on line " + m[5:]
     elif m != "identity":
         sys.exit("unknown STUB_EXTENT mode " + m)
 json.dump(d, sys.stdout)' "\$t.o" "\$xmode"
@@ -1126,6 +1132,24 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
 else
     bad "R10-FC* the units helper could not be built or located (_units_helper_path) -- the fail-closed cases cannot run"
 fi
+# r10 X-class (r9 R01/R02/R05 survived the outermost unit): with whole statements as units, every REAL multi-line
+#    finding and every REAL cited line lies inside ONE statement, so the unit check alone already decides it. The
+#    extent and cited-line checks still guard a finding that reaches ANOTHER statement; SIMULATED output reaches them.
+# R10-E1 (kills R01, R05) SIMULATED: SC2086 on line 4 with endLine 5; line 5 is its own statement and is edited
+new_case r10e1; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho one\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho two\n"; head; gate
+expect "R10-E1 (SIMULATED extent 4-5) the extent's last line is another, EDITED statement -> FAIL, SC2086 4:6 new" "$FB" "('FAIL', [('SC2086', 4, 6)], [])"
+new_case r10e1n; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho one\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho one\necho added\n"; head; gate
+expect "R10-E1n control (SIMULATED extent 4-5, both lines unchanged, a line appended) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+# R10-C1 (kills R02) SIMULATED: the SC2086 on line 4 cites line 12 (two digits), another statement, and line 12 is edited
+C1B="#!/bin/sh\n$H STUB_EXTENT cite-12\na=\$1\necho \$a\necho l5\necho l6\necho l7\necho l8\necho l9\necho l10\necho l11\necho l12\n"
+new_case r10c1; wb s.sh "$C1B"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT cite-12\na=\$1\necho \$a\necho l5\necho l6\necho l7\necho l8\necho l9\necho l10\necho l11\necho L12\n"; head; gate
+expect "R10-C1 (SIMULATED message cites line 12) the cited two-digit line is another, EDITED statement -> FAIL, SC2086 4:6 new" "$FB" "('FAIL', [('SC2086', 4, 6)], [])"
+new_case r10c1n; wb s.sh "$C1B"; base; wh s.sh "${C1B}echo added\n"; head; gate
+expect "R10-C1n control (SIMULATED cite of line 12, nothing edited, a line appended) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate
 expect "S1 file absent at base -> FAIL new-file, reason untracked-at-base" '(c["verdict"], [(f["state"], f.get("new_file_reason")) for f in e["delta"]["files"]])' "('FAIL', [('new-file', 'untracked-at-base')])"

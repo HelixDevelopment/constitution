@@ -570,7 +570,7 @@ MUTANTS = [
   '		spans = append(spans, [2]uint{lo, hi})', '		spans = append(spans, [2]uint{lo, lo})', None),
  ('Q02-go-heredoc-body-ignored', GO,
   '			for _, p := range []syntax.Pos{node.Pos(), node.End()} {',
-  '			if r, ok := node.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {\n				return false\n			}\n			for _, p := range []syntax.Pos{node.Pos(), node.End()} {', None),
+  '			if r, ok := node.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {\n				return false\n			}\n			for _, p := range []syntax.Pos{node.Pos(), node.End()} {', 'EQUIVALENT: measured on mvdan.cc/sh v3.13.1 -- Stmt.End() of the statement that owns a here-document redirect already reaches the terminator line (probe: `cat <<EOF | sh` / x / EOF gives the inner stmt 1:1-3:4), so skipping the Redirect node still yields units [1,3]; the here-document extent is carried by the parser positions, not by one helper branch. Covered behaviourally by R10-HP and the census here-document fragments.'),
  ('Q03-parse-error-gives-singletons', RUN,
   '    if p.returncode != 0:\n        why = doc.get',
   '    if p.returncode == 3:\n        n = len(_raw_lines(data))\n        return {"schema": UNITS_SCHEMA, "dialect": dialect, "lines": n, "units": [[i, i] for i in range(1, n + 1)]}\n    if p.returncode != 0:\n        why = doc.get', None),
