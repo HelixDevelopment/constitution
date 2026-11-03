@@ -336,6 +336,51 @@ wait_file "$PD5/reached.acquired" 30 && r5_early=1 || r5_early=0   # 3 s: with t
 lt_check "R1b: a reclaimer between re-check and rename blocks the other reclaimer (it did not acquire meanwhile: early=$r5_early)" test "$r5_early" = 0
 lt_check "R1b: ... exactly one run (calls=$(calls)), no lock or renamed lock left" eval 'test "$(calls)" = 1 && test ! -e "$LK" && no_stale_left'
 
+# ============================================================================
+# Round 2 (review F1-F3): the shared reclaim mutex
+# <git-dir>/constitution-pending-update.reclaim
+# ============================================================================
+MX="$(st "$B")/constitution-pending-update.reclaim"
+noflock_path() { # a PATH dir with every command of $PATH except flock (symlinks)
+    local d="$LT_SB/noflock_bin" p f b; local -a ps
+    if [ ! -d "$d" ]; then
+        mkdir -p "$d"; IFS=: read -r -a ps <<<"$PATH"
+        for p in "${ps[@]}"; do for f in "$p"/*; do b="${f##*/}"
+            [ "$b" = flock ] && continue; [ -x "$f" ] && [ ! -e "$d/$b" ] && ln -s "$f" "$d/$b"; done; done
+    fi
+    printf '%s' "$d"
+}
+stale_lock() { sh -c 'exit 0' & local dp=$!; wait "$dp"; printf 'PID=%s\nSTART=1\nNONCE=stale-owner\n' "$dp" > "$LK"; }
+
+# F1: a FIFO (any non-regular file) at the mutex path is refused, never opened (an open would block forever)
+reset_state; stale_lock; rm -f "$MX"; mkfifo "$MX"
+( cd "$B/$REL" && timeout 30 bash "$(hk "$B")" x y 1 ) 2>"$LT_SB/fifo.err"; rc=$?
+lt_check "R2-F1: FIFO at the reclaim mutex path -> the hook returns (rc=$rc, never 124), nothing run, WARNING names the mutex" \
+    eval 'test "$rc" = 0 && test "$(calls)" = 0 && grep -q "reclaim mutex" "$LT_SB/fifo.err" && test -p "$MX" && grep -qx "NONCE=stale-owner" "$LK"'
+rm -f "$MX"
+
+# F2: the consumer waits for the SAME mutex the test (standing in for post-merge / setup.sh) holds
+reset_state; stale_lock; : >> "$MX"
+PD6="$LT_SB/pd6"; mkdir -p "$PD6"
+exec 7>>"$MX"; flock 7
+{ paused "$PD6" "reclaim_snapshot reclaim_checked" "$LT_SB/r6.err"; } 7>&-; r6=$!   # 7>&-: the child must not inherit the held lock
+wait_file "$PD6/reached.reclaim_snapshot" || lt_bad "R2-F2: consumer never reached its snapshot pause"
+: > "$PD6/release.reclaim_snapshot"
+wait_file "$PD6/reached.reclaim_checked" 30 && r6_early=1 || r6_early=0   # 3 s while the test holds the mutex
+exec 7>&-
+wait_file "$PD6/reached.reclaim_checked" || lt_bad "R2-F2: consumer never got the mutex after the test released it"
+: > "$PD6/release.reclaim_checked"; wait "$r6"
+lt_check "R2-F2: the consumer does not pass the re-check while the shared mutex is held elsewhere (early=$r6_early)" test "$r6_early" = 0
+lt_check "R2-F2: ... and reclaims + runs once after it is released (calls=$(calls))" eval 'test "$(calls)" = 1 && test ! -e "$LK" && no_stale_left'
+
+# F3: without flock(1) a stale lock is never reclaimed; the cause is named, the stamp stays
+reset_state; stale_lock; NFP="$(noflock_path)"
+lt_check "R2-F3 control needle: the no-flock PATH has git but no flock" \
+    eval 'PATH="$NFP" command -v git >/dev/null && ! PATH="$NFP" command -v flock >/dev/null'
+( cd "$B/$REL" && PATH="$NFP" timeout 30 bash "$(hk "$B")" x y 1 ) 2>"$LT_SB/nf.err"; rc=$?
+lt_check "R2-F3: no flock -> stale lock NOT reclaimed, WARNING names flock, nothing run, stamp kept (rc=$rc)" \
+    eval 'test "$rc" = 0 && test "$(calls)" = 0 && grep -q "flock(1) is unavailable" "$LT_SB/nf.err" && grep -qx "NONCE=stale-owner" "$LK" && test -f "$(st "$B")/constitution-pending-update"'
+
 # R1 seam inertness: without HELIX_TEST_MODE=1, or with a pause dir outside the
 # temp root, the pause points are ignored (no reached.* file, no wait).
 reset_state; PD3="$LT_SB/pd3"; mkdir -p "$PD3"

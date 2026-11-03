@@ -390,7 +390,7 @@ fi
 
 info ""
 info "Running post-update hook (skill registry + hook wiring) ..."
-PU_RC=0; PU_LOCK_BUSY=0
+PU_RC=0; PU_LOCK_BUSY=0; PU_RECLAIM_WHY=""
 # Take the SAME propagation lock as the git hooks (post-merge, the submodule
 # post-checkout consumer), so setup.sh never runs the post-update hook while
 # another propagation runs. Exclusive create only (bash noclobber = open
@@ -427,10 +427,14 @@ pu_lock_reclaim_dead() {
   # submodule post-checkout consumer and the other locker; under it the owner record
   # is re-read right before the rename, so a lock created after the judgement (a
   # live holder's) is never renamed away. No flock: never reclaimed.
-  command -v flock >/dev/null 2>&1 || return 1
-  [ ! -L "${PU_LOCK%.lock}.reclaim" ] && : 2>/dev/null >>"${PU_LOCK%.lock}.reclaim" || return 1
+  # The mutex path must be absent or a regular non-symlink file BEFORE any open: an
+  # open of a FIFO (or a device) at that path blocks forever, before flock -w applies.
+  command -v flock >/dev/null 2>&1 || { PU_RECLAIM_WHY="the stale lock is NOT reclaimed: flock(1) is unavailable to serialise reclaimers; remove $PU_LOCK by hand"; return 1; }
+  if [ -L "${PU_LOCK%.lock}.reclaim" ] || { [ -e "${PU_LOCK%.lock}.reclaim" ] && [ ! -f "${PU_LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${PU_LOCK%.lock}.reclaim"; then
+    PU_RECLAIM_WHY="the stale lock is NOT reclaimed: the reclaim mutex ${PU_LOCK%.lock}.reclaim is not a regular file or cannot be opened"; return 1
+  fi
   {
-      flock -w 10 8 || return 1
+      flock -w 10 8 || { PU_RECLAIM_WHY="the stale lock is NOT reclaimed: the reclaim mutex ${PU_LOCK%.lock}.reclaim was not obtained within 10 s (another reclaimer)"; return 1; }
       [ "$(kv "$PU_LOCK" PID 2>/dev/null || true)" = "$pid" ] && [ "$(kv "$PU_LOCK" START 2>/dev/null || true)" = "$st" ] && [ "$(kv "$PU_LOCK" NONCE 2>/dev/null || true)" = "$nonce" ] || return 1
       u="$PU_LOCK.stale.$PU_NONCE"
       mv -- "$PU_LOCK" "$u" 2>/dev/null || return 1
@@ -452,6 +456,7 @@ pu_lock_describe() {
   [ -f "$PU_LOCK" ] || { printf 'the lock path is not a regular file (never reclaimed)'; return 0; }
   pid="$(kv "$PU_LOCK" PID || true)"; st="$(kv "$PU_LOCK" START || true)"
   if ! [[ "$pid" =~ ^[0-9]+$ ]]; then printf 'no readable owner record (PID=%s START=%s): an owner-less lock is never reclaimed by setup.sh' "${pid:-<none>}" "${st:-<none>}"; return 0; fi
+  if [ -n "${PU_RECLAIM_WHY:-}" ]; then printf 'PID=%s START=%s: %s' "$pid" "${st:-<none>}" "$PU_RECLAIM_WHY"; return 0; fi
   if [ ! -d /proc/self ]; then printf 'PID=%s START=%s; /proc is not readable, so the owner cannot be proven gone' "$pid" "${st:-<none>}"; return 0; fi
   if [ -d "/proc/$pid" ]; then
     cur="$(pu_start "$pid")"

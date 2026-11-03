@@ -379,10 +379,14 @@ if [ "$_sub_head" = "$NEW_LINK" ]; then
         # submodule post-checkout consumer and the other locker; under it the owner record
         # is re-read right before the rename, so a lock created after the judgement (a
         # live holder's) is never renamed away. No flock: never reclaimed.
-        command -v flock >/dev/null 2>&1 || return 1
-        [ ! -L "${PM_LOCK%.lock}.reclaim" ] && : 2>/dev/null >>"${PM_LOCK%.lock}.reclaim" || return 1
+        # The mutex path must be absent or a regular non-symlink file BEFORE any open: an
+        # open of a FIFO (or a device) at that path blocks forever, before flock -w applies.
+        command -v flock >/dev/null 2>&1 || { PM_RECLAIM_WHY="the stale lock is NOT reclaimed: flock(1) is unavailable to serialise reclaimers; remove ${PM_LOCK} by hand"; return 1; }
+        if [ -L "${PM_LOCK%.lock}.reclaim" ] || { [ -e "${PM_LOCK%.lock}.reclaim" ] && [ ! -f "${PM_LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${PM_LOCK%.lock}.reclaim"; then
+            PM_RECLAIM_WHY="the stale lock is NOT reclaimed: the reclaim mutex ${PM_LOCK%.lock}.reclaim is not a regular file or cannot be opened"; return 1
+        fi
         {
-            flock -w 10 8 || return 1
+            flock -w 10 8 || { PM_RECLAIM_WHY="the stale lock is NOT reclaimed: the reclaim mutex ${PM_LOCK%.lock}.reclaim was not obtained within 10 s (another reclaimer)"; return 1; }
             [ "$(kv "$PM_LOCK" PID 2>/dev/null || true)" = "$pid" ] && [ "$(kv "$PM_LOCK" START 2>/dev/null || true)" = "$st" ] && [ "$(kv "$PM_LOCK" NONCE 2>/dev/null || true)" = "$nonce" ] || return 1
             u="$PM_LOCK.stale.$PM_NONCE"
             mv -- "$PM_LOCK" "$u" 2>/dev/null || return 1
@@ -396,10 +400,11 @@ if [ "$_sub_head" = "$NEW_LINK" ]; then
         warn "reclaimed a stale propagation lock ${PM_LOCK}: its owner pid ${pid} is gone (a SIGKILLed run leaves one)."
         return 0
     }
-    pm_got=0
+    pm_got=0; PM_RECLAIM_WHY=""
     if pm_lock_create || { pm_lock_reclaim_dead && pm_lock_create; }; then pm_got=1; fi
     if [ "$pm_got" != 1 ]; then
         warn "the propagation lock ${PM_LOCK} exists (another propagation is running, or its owner cannot be proven gone); propagation (§11.4.164) was NOT run and stays PENDING."
+        [ -z "$PM_RECLAIM_WHY" ] || warn "  cause: ${PM_RECLAIM_WHY}."
         if write_stamp; then
             warn "a pending stamp is recorded (${STAMP}). \`git submodule update\` does NOT consume it: the ${REL} checkout is already at the merged"
             warn "gitlink, so git checks nothing out and the consumer hook never fires. Once the lock is released, run from the project root:"

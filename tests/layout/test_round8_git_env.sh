@@ -790,6 +790,40 @@ rmx2="$(mutex_case "$PMH" "/^    pm_start() {/p;/^    pm_lock_reclaim_dead() {/,
 lt_check "LK-17b: post-merge's reclaim waits for the shared reclaim mutex and never renames a lock re-created meanwhile ($(tr '\n' ' ' <<<"$rmx2"))" \
     eval 'grep -qx WAITED <<<"$rmx2" && grep -qx KEPT <<<"$rmx2" && grep -qx "NONCE=live" <<<"$rmx2" && grep -qx "STALELEFT=0" <<<"$rmx2" && grep -qx NOT-RENAMED <<<"$rmx2"'
 
+# --- round 2 (review F1/F3/F4): the reclaim mutex in setup.sh and post-merge, real runs
+noflock_path() { # a PATH dir with every command of $PATH except flock (symlinks)
+    local d="$LT_SB/noflock_bin" p f b; local -a ps
+    if [ ! -d "$d" ]; then
+        mkdir -p "$d"; IFS=: read -r -a ps <<<"$PATH"
+        for p in "${ps[@]}"; do for f in "$p"/*; do b="${f##*/}"
+            [ "$b" = flock ] && continue; [ -x "$f" ] && [ ! -e "$d/$b" ] && ln -s "$f" "$d/$b"; done; done
+    fi
+    printf '%s' "$d"
+}
+NFP="$(noflock_path)"
+lt_check "LK-18 control needle: the no-flock PATH has git and bash but no flock" \
+    eval 'PATH="$NFP" command -v git >/dev/null && PATH="$NFP" command -v bash >/dev/null && ! PATH="$NFP" command -v flock >/dev/null'
+mklock lk18 || lt_bad "fixture lk18"
+lockfile "$(dead_pid)" "12345" "dead-nonce"; MXF="${LKF%.lock}.reclaim"; rm -f "$MXF"; mkfifo "$MXF"
+( cd "$B" && timeout 60 bash "$REL/scripts/setup.sh" ) >"$LT_SB/lk.out" 2>&1; rc=$?
+lt_check "LK-18: setup.sh with a FIFO at the reclaim mutex path returns (rc=$rc, not 124), never reclaims, names the mutex" \
+    eval 'test "$rc" != 124 && test "$(calls)" = 0 && grep -qx "NONCE=dead-nonce" "$LKF" && test -p "$MXF" && grep -q "reclaim mutex" "$LT_SB/lk.out"'
+mklock lk19 || lt_bad "fixture lk19"
+lockfile "$(dead_pid)" "12345" "dead-nonce"; MXF="${LKF%.lock}.reclaim"; rm -f "$MXF"; mkfifo "$MXF"
+( cd "$B" && A=1 timeout 60 bash .git/hooks/post-merge 0 ) >"$LT_SB/lk.out" 2>&1; rc=$?
+lt_check "LK-19: post-merge with a FIFO at the reclaim mutex path returns (rc=$rc, not 124), never reclaims, names the mutex" \
+    eval 'test "$rc" != 124 && test "$(calls)" = 0 && grep -qx "NONCE=dead-nonce" "$LKF" && test -p "$MXF" && grep -q "reclaim mutex" "$LT_SB/lk.out"'
+mklock lk20 || lt_bad "fixture lk20"
+lockfile "$(dead_pid)" "12345" "dead-nonce"
+( cd "$B" && PATH="$NFP" timeout 60 bash "$REL/scripts/setup.sh" ) >"$LT_SB/lk.out" 2>&1; rc=$?
+lt_check "LK-20: setup.sh without flock(1): the stale lock is NOT reclaimed and the message names flock (rc=$rc)" \
+    eval 'test "$rc" != 124 && test "$(calls)" = 0 && grep -qx "NONCE=dead-nonce" "$LKF" && grep -q "flock(1) is unavailable" "$LT_SB/lk.out"'
+mklock lk21 || lt_bad "fixture lk21"
+lockfile "$(dead_pid)" "12345" "dead-nonce"
+( cd "$B" && PATH="$NFP" A=1 timeout 60 bash .git/hooks/post-merge 0 ) >"$LT_SB/lk.out" 2>&1; rc=$?
+lt_check "LK-21: post-merge without flock(1): the stale lock is NOT reclaimed and the message names flock (rc=$rc)" \
+    eval 'test "$rc" != 124 && test "$(calls)" = 0 && grep -qx "NONCE=dead-nonce" "$LKF" && grep -q "flock(1) is unavailable" "$LT_SB/lk.out"'
+
 # --- post-merge ----------------------------------------------------------------
 mklock lk7 || lt_bad "fixture lk7"
 lockfile "$(dead_pid)" "12345" "dead-nonce"

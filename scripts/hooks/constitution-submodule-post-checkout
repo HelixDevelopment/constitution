@@ -329,8 +329,10 @@ take_lock() {
         # rename moves exactly the lock that was judged stale. No flock: a stale
         # lock is never reclaimed (WARNING, the stamp stays pending).
         command -v flock >/dev/null 2>&1 || { LOCK_HOLDER="a stale lock ($stale) that is NOT reclaimed: flock(1) is unavailable to serialise reclaimers; remove $LOCK by hand"; return 1; }
-        if [ -L "${LOCK%.lock}.reclaim" ] || ! : 2>/dev/null >>"${LOCK%.lock}.reclaim"; then
-            LOCK_HOLDER="a stale lock ($stale) that is NOT reclaimed: the reclaim mutex ${LOCK%.lock}.reclaim is a symlink or cannot be opened"; return 1
+        # The mutex path must be absent or a regular non-symlink file BEFORE any open: an
+        # open of a FIFO (or a device) at that path blocks forever, before flock -w applies.
+        if [ -L "${LOCK%.lock}.reclaim" ] || { [ -e "${LOCK%.lock}.reclaim" ] && [ ! -f "${LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${LOCK%.lock}.reclaim"; then
+            LOCK_HOLDER="a stale lock ($stale) that is NOT reclaimed: the reclaim mutex ${LOCK%.lock}.reclaim is not a regular file or cannot be opened"; return 1
         fi
         rcl=busy
         {
