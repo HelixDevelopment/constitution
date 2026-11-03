@@ -849,7 +849,12 @@ expect "N2 (J1) rm -rf \$root/\$sub, the unsafe token moves from \$sub to \$root
 #    the producer's intent -> PASS, the SC2164 at line 4 is pre-existing (the whole-file rule fails it)
 new_case n3j; wb s.sh '#!/bin/sh\nf() {\n    cd /tmp\n}\nf\n'; base
 wh s.sh '#!/bin/sh\nf() {\n    cd /tmp || exit 1\n    cd /tmp\n    rm -rf ./*\n}\nf\n'; head; gate
-expect "N3 (J3 stated limit) a copy the diff aligns with the old line is the old line -> PASS, SC2164 at 4 pre-existing" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('PASS', [('SC2164', 4)])"
+# r10 (outermost unit): inside a function the edit changes the whole `f() { }` statement -> no credit any more,
+#    the SC2164 at 4 is NEW (FLIPPED by r10, stricter); the stated limit is re-pinned at top level as N3t below
+expect "N3 (J3, FLIPPED by r10) the same edit inside a function: the function unit changed -> FAIL, SC2164 at 4 new" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("findings", [])], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2164', 4)], [])"
+new_case n3t; wb s.sh '#!/bin/sh\ncd /tmp\nrm -rf ./*\n'; base
+wh s.sh '#!/bin/sh\ncd /tmp || exit 1\ncd /tmp\nrm -rf ./*\n'; head; gate
+expect "N3t (J3 stated limit, top level) a copy the diff aligns with the old one-line statement is the old line -> PASS, SC2164 at 3 pre-existing" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('PASS', [('SC2164', 3)])"
 # N5 (reviewer J2) a multi-line finding (SC2045, lines 2-3) whose start line is unchanged but whose continuation line
 #    CHANGED -> the finding is partly on a changed line: NEW, FAIL (r6 credited it by its start line)
 new_case n5j; wb s.sh '#!/bin/sh\nfor f in $(ls \\\n  /tmp); do\n  echo "$f"\ndone\n'; base
@@ -978,7 +983,7 @@ expect "L1n2 (Q9) added comment ending in a backslash -> PASS, SC2086 at 4:6 pre
 new_case l1n3; wb s.sh '#!/bin/sh\na=$1\necho \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho x\necho \\\n  $a\n'; head; gate
 expect "L1n3 unchanged 2-line command, line inserted above -> PASS, SC2086 at 5:3 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 5, 3)])"
 new_case l1n4; wb s.sh '#!/bin/sh\na=$1\nif true; then\n  echo $a\nfi\n'; base; wh s.sh '#!/bin/sh\na=$1\nif false; then\n  echo $a\nfi\n'; head; gate
-expect "L1n4 (R12, stated) edited if-condition, body line unchanged -> PASS, SC2086 at 4:8 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 8)])"
+expect "L1n4 (R12 in-statement half, FLIPPED by r10: the outermost unit) edited if-condition, body line unchanged -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
 new_case l1n5; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval echo $a\necho $a\n'; head; gate
 expect "L1n5 (Q8) added eval echo \$a on its own line -> FAIL, SC2086 3:11 new, 4:6 pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 3, 11)], [('SC2086', 4, 6)])"
 # L2a (reviewer Z2, kills R02) a 13-line case: line 10 `a|x)` edited to `a|y)`; SC2222 on the UNCHANGED line 12 cites
@@ -994,6 +999,133 @@ new_case l2b; wb s.sh '#!/bin/sh\na=$1\necho $a "x"\n'; base; wh s.sh '#!/bin/sh
 expect "L2b (Z4) CR inside a quoted string on the debt line -> FAIL, SC2086 at 3:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 3, 6)], [])"
 new_case l2bn; wb s.sh '#!/bin/sh\na=$1\necho $a "x"\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a "x"\r\n'; head; gate
 expect "L2bn (Z4b) CR at the line end -> FAIL, head-unparsed (SC1017)" '(c["verdict"], [f.get("new_file_reason", "")[:14] for f in e["delta"]["files"]])' "('FAIL', ['head-unparsed:'])"
+# --- r10 (ATM-1217 structural replacement, operator decision 2026-11-03): the unit of "unchanged" is the OUTERMOST
+# top-level statement, taken from a real parser (units_helper: mvdan.cc/sh/v3/syntax in the gate's dialect), never
+# from a lexical re-implementation of shell grammar. Every case drives the REAL gate + shellcheck + units helper.
+# FB: (verdict, new findings as (rule, line, column), pre-existing findings as (rule, line, column))
+FB='(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])'
+# X1 (r9 review F1) an added `curl -s "$1" |` above a COMMENT line: the pipeline continues across the comment into the
+#    unchanged `sh -s $args` -> FAIL, SC2086 at 5:7 new (r9: PASS, the old debt credited)
+new_case r10x1; wb s.sh '#!/bin/sh\nargs=$1\n# run the payload\nsh -s $args\n'; base
+wh s.sh '#!/bin/sh\nargs=$1\ncurl -s "$1" |\n# run the payload\nsh -s $args\n'; head; gate
+expect "R10-X1 (r9 F1) | continued across a comment line into the unchanged sink -> FAIL, SC2086 5:7 new" "$FB" "('FAIL', [('SC2086', 5, 7)], [])"
+# X2 (r9 review F1) `echo start` -> `echo start |` above a BLANK line -> FAIL, SC2086 at 5:7 new
+new_case r10x2; wb s.sh '#!/bin/sh\nargs=$1\necho start\n\nsh -s $args\n'; base
+wh s.sh '#!/bin/sh\nargs=$1\necho start |\n\nsh -s $args\n'; head; gate
+expect "R10-X2 (r9 F1) | continued across a blank line -> FAIL, SC2086 5:7 new" "$FB" "('FAIL', [('SC2086', 5, 7)], [])"
+# X2b `true` -> `true &&` above a comment line -> FAIL, SC2086 at 5:7 new
+new_case r10x2b; wb s.sh '#!/bin/sh\nargs=$1\ntrue\n# c\nsh -s $args\n'; base
+wh s.sh '#!/bin/sh\nargs=$1\ntrue &&\n# c\nsh -s $args\n'; head; gate
+expect "R10-X2b && continued across a comment line -> FAIL, SC2086 5:7 new" "$FB" "('FAIL', [('SC2086', 5, 7)], [])"
+# X3 (r9 review F2) bash compound array: `items=(` renamed to `PROMPT_COMMAND=(`, the element line unchanged -> FAIL
+new_case r10x3; wb s.sh '#!/bin/bash\nuser=$1\nitems=(\n  $user\n)\necho "${items[@]}"\n'; base
+wh s.sh '#!/bin/bash\nuser=$1\nPROMPT_COMMAND=(\n  $user\n)\necho "${PROMPT_COMMAND[@]}"\n'; head; gate
+expect "R10-X3 (r9 F2) compound array renamed, element line unchanged -> FAIL, SC2206 4:3 new" "$FB" "('FAIL', [('SC2206', 4, 3)], [])"
+# X3b the same with `declare -a`: `declare -a items=(` -> `declare -a PROMPT_COMMAND=(`
+new_case r10x3b; wb s.sh '#!/bin/bash\nuser=$1\ndeclare -a items=(\n  $user\n)\necho "${items[@]}"\n'; base
+wh s.sh '#!/bin/bash\nuser=$1\ndeclare -a PROMPT_COMMAND=(\n  $user\n)\necho "${PROMPT_COMMAND[@]}"\n'; head; gate
+expect "R10-X3b declare -a array renamed, element line unchanged -> FAIL, SC2206 4:3 new" "$FB" "('FAIL', [('SC2206', 4, 3)], [])"
+# DB (r9 review F2) bash `$[ ]` across two lines, its first line edited, the `$(echo $a)` line unchanged -> FAIL
+new_case r10db; wb s.sh '#!/bin/bash\na=$1\nx=$[ 1 +\n  $(echo $a) ]\necho "$x"\n'; base
+wh s.sh '#!/bin/bash\na=$1\ny=$[ 1 +\n  $(echo $a) ]\necho "$y"\n'; head; gate
+expect "R10-DB (r9 F2) \$[ ] across lines, first line edited -> FAIL, SC2086 4:10 new" "$FB" "('FAIL', [('SC2086', 4, 10)], [])"
+# HP a here-document INSIDE A PIPELINE: `cat <<EOF | cat` -> `cat <<EOF | sh` (the body becomes code), body unchanged
+new_case r10hp; wb s.sh '#!/bin/sh\na=$1\ncat <<EOF | cat\n$(echo $a)\nEOF\n'; base
+wh s.sh '#!/bin/sh\na=$1\ncat <<EOF | sh\n$(echo $a)\nEOF\n'; head; gate
+expect "R10-HP here-document in a pipeline, opener edited, body unchanged -> FAIL, SC2086 4:8 new" "$FB" "('FAIL', [('SC2086', 4, 8)], [])"
+# HPn control: the same pipeline untouched, a line appended -> PASS, SC2086 4:8 pre-existing
+new_case r10hpn; wb s.sh '#!/bin/sh\na=$1\ncat <<EOF | cat\n$(echo $a)\nEOF\n'; base
+wh s.sh '#!/bin/sh\na=$1\ncat <<EOF | cat\n$(echo $a)\nEOF\necho end\n'; head; gate
+expect "R10-HPn control: here-document pipeline untouched -> PASS, SC2086 4:8 pre-existing" "$FB" "('PASS', [], [('SC2086', 4, 8)])"
+# Y1 (r9 review MY2) the LAST line of a same-length 2-line unit edited (`  >/dev/null` -> `  | sh`) -> FAIL, 3:13 new
+new_case r10y1; wb s.sh '#!/bin/sh\na=$1\nprintf "%s" $a \\\n  >/dev/null\n'; base
+wh s.sh '#!/bin/sh\na=$1\nprintf "%s" $a \\\n  | sh\n'; head; gate
+expect "R10-Y1 (r9 MY2) last line of the unit edited -> FAIL, SC2086 3:13 new" "$FB" "('FAIL', [('SC2086', 3, 13)], [])"
+# Y2 (r9 review MY1) `echo start` -> `echo start &&` above the unchanged `sh -c "x" $a` -> FAIL
+new_case r10y2; wb s.sh '#!/bin/sh\na=$1\necho start\nsh -c "x" $a\n'; base
+wh s.sh '#!/bin/sh\na=$1\necho start &&\nsh -c "x" $a\n'; head; gate
+expect "R10-Y2 (r9 MY1) && added at the end of the line above -> FAIL, SC2086 4:11 new" "$FB" "('FAIL', [('SC2086', 4, 11)], [])"
+# Y3 (r9 review MY5) a multi-line top-level `(( ))`, its first line edited -> FAIL, SC2154 at 3:3 new
+new_case r10y3; wb s.sh '#!/bin/bash\n(( x = 1 +\n  $a ))\necho "$x"\n'; base
+wh s.sh '#!/bin/bash\n(( y = 1 +\n  $a ))\necho "$y"\n'; head; gate
+expect "R10-Y3 (r9 MY5) multi-line (( )), first line edited -> FAIL, SC2154 3:3 new" "$FB" "('FAIL', [('SC2154', 3, 3)], [])"
+# R12a (stated r6-r9 limit, CLOSED by the outermost unit) a compound block newly piped into sh -> FAIL, SC2086 4:8 new
+new_case r10r12a; wb s.sh '#!/bin/sh\na=$1\n{\n  echo $a\n}\n'; base
+wh s.sh '#!/bin/sh\na=$1\n{\n  echo $a\n} | sh\n'; head; gate
+expect "R10-R12a { } newly piped into sh, body unchanged -> FAIL, SC2086 4:8 new" "$FB" "('FAIL', [('SC2086', 4, 8)], [])"
+# R12b an edit ELSEWHERE in the same function (the assignment) -> FAIL, SC2086 4:8 new
+new_case r10r12b; wb s.sh '#!/bin/sh\nf() {\n  a=$1\n  echo $a\n}\nf "$@"\n'; base
+wh s.sh '#!/bin/sh\nf() {\n  a=$2\n  echo $a\n}\nf "$@"\n'; head; gate
+expect "R10-R12b edit elsewhere in the same function -> FAIL, SC2086 4:8 new" "$FB" "('FAIL', [('SC2086', 4, 8)], [])"
+# negative controls (11.4.201(1)): untouched outermost statements keep their credit
+# N1 an unchanged function next to an edited function -> PASS, SC2086 4:8 pre-existing
+new_case r10n1; wb s.sh '#!/bin/sh\nf() {\n  a=$1\n  echo $a\n}\ng() {\n  echo one\n}\nf x\ng\n'; base
+wh s.sh '#!/bin/sh\nf() {\n  a=$1\n  echo $a\n}\ng() {\n  echo two\n}\nf x\ng\n'; head; gate
+expect "R10-N1 control: untouched function next to an edited one -> PASS, SC2086 4:8 pre-existing" "$FB" "('PASS', [], [('SC2086', 4, 8)])"
+# N2 blank + comment lines inserted BETWEEN two top-level statements -> PASS, SC2086 5:6 pre-existing
+new_case r10n2; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base
+wh s.sh "#!/bin/sh\na=\$1\n\n${H} note\necho \$a\n"; head; gate
+expect "R10-N2 control: lines inserted between two statements -> PASS, SC2086 5:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 5, 6)])"
+# N3 (the probe's two-statement control) `cd /tmp || exit` edited, the next statement unchanged -> PASS
+new_case r10n3; wb s.sh '#!/bin/sh\na=$1\ncd /tmp || exit\necho $a\n'; base
+wh s.sh '#!/bin/sh\na=$1\ncd /var || exit\necho $a\n'; head; gate
+expect "R10-N3 control: the previous statement edited, the next one unchanged -> PASS, SC2086 4:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+# DIALECT: the units come from the parser in the dialect shellcheck linted; a construct that dialect cannot parse,
+# a dialect with no parser mapping or a shell= directive that disagrees is no proof -> judged as a new file
+# D1 a POSIX-sh file using a bash-only array (shellcheck -s sh lints it, SC3030; dash cannot parse it): units
+#    unparsed -> FAIL, new-file, SC3030 new (r9: PASS, credited). NOTE `[[ ]]` is NOT such a case: in POSIX sh `[[` is
+#    an ordinary command word, dash parses it so and the parser agrees (measured), so its units are honest.
+new_case r10d1; wb s.sh '#!/bin/sh\nitems=(1 2)\necho "${items[0]}"\n'; base
+wh s.sh '#!/bin/sh\nitems=(1 2)\necho "${items[0]}"\necho more\n'; head; gate
+expect "R10-D1 POSIX file with a bash array: units unparsed -> FAIL, new-file units-unparsed, SC3030 2:7 + SC3054 3:7 new" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])])' "('FAIL', [('new-file', 'units-unparsed: head')], [('SC3030', 2, 7), ('SC3054', 3, 7)])"
+# D2 a ksh file: no parser on this host is an oracle for ksh -> units unparsed -> FAIL, new-file
+new_case r10d2; wb s.sh '#!/bin/ksh\na=$1\necho $a\n'; base
+wh s.sh '#!/bin/ksh\na=$1\necho $a\necho more\n'; head; gate
+expect "R10-D2 ksh file: no unit dialect -> FAIL, new-file units-unparsed, SC2086 3:6 new" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])])' "('FAIL', [('new-file', 'units-unparsed: head')], [('SC2086', 3, 6)])"
+# FAIL-CLOSED (gate-logic class, 11.4.289(C)(2)): a test-mode stub stands in for the helper
+# (PRECHECK_UNITS_HELPER, honoured ONLY with PRECHECK_TEST_MODE=1). Every stub failure must give the whole-file
+# verdict -- never credit. The fixture would PASS with real units (control FCn).
+REAL_UNITS=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import precheck_pack_run as m
+p, why = m._units_helper_path(None)
+print(p or "")' "$REVIEW/lib" 2>/dev/null)
+mkstub() { # <name> <body after the shebang> -> $TMP/<name>.stub
+    printf '#!/bin/sh\n%s\n' "$2" >"$TMP/$1.stub"; chmod +x "$TMP/$1.stub"
+}
+mkstub fc_real "exec \"$REAL_UNITS\" \"\$@\""
+mkstub fc_rc1 'cat >/dev/null; echo "{}"; exit 1'
+mkstub fc_hang 'cat >/dev/null; exec sleep 30'
+mkstub fc_badjson 'cat >/dev/null; echo "{not json"; exit 0'
+mkstub fc_schema 'cat >/dev/null; echo "{\"schema\":\"precheck-units/0\",\"dialect\":\"posix\",\"lines\":4,\"units\":[[1,1],[2,2],[3,3],[4,4]]}"; exit 0'
+mkstub fc_dialect 'cat >/dev/null; echo "{\"schema\":\"precheck-units/1\",\"dialect\":\"bash\",\"lines\":4,\"units\":[[1,1],[2,2],[3,3],[4,4]]}"; exit 0'
+mkstub fc_gap 'cat >/dev/null; echo "{\"schema\":\"precheck-units/1\",\"dialect\":\"posix\",\"lines\":4,\"units\":[[1,1],[3,3],[4,4]]}"; exit 0'
+mkstub fc_lines 'cat >/dev/null; echo "{\"schema\":\"precheck-units/1\",\"dialect\":\"posix\",\"lines\":9,\"units\":[[1,1],[2,2],[3,3],[4,4]]}"; exit 0'
+mkstub fc_type 'cat >/dev/null; echo "{\"schema\":\"precheck-units/1\",\"dialect\":\"posix\",\"lines\":4,\"units\":[[1,1],[2,\"2\"],[3,3],[4,4]]}"; exit 0'
+mkstub fc_base "t=\$(mktemp) || exit 99; cat >\"\$t\"; if grep -q 'UNITS_BASE_FAIL' \"\$t\"; then rm -f \"\$t\"; exit 3; fi; exec \"$REAL_UNITS\" \"\$@\" <\"\$t\""
+fc_case() { # <name> <stub> <label> <expected new_file_reason prefix> [base marker]
+    new_case "r10$1"; wb s.sh "#!/bin/sh\na=\$1\necho \$a\n${5:-}"; base
+    wh s.sh '#!/bin/sh\na=$1\necho $a\necho more\n'; head
+    gate_prepare; PRECHECK_UNITS_HELPER="$TMP/$2.stub" PRECHECK_UNITS_TIMEOUT_S=2 run_rule gate_run
+    expect "$3" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:len("'"$4"'")]) for f in e["delta"]["files"]], [(f["rule"], f["line"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('new-file', '$4')], [('SC2086', 3)], [])"
+}
+if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
+    new_case r10fcn; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a\necho more\n'; head
+    gate_prepare; PRECHECK_UNITS_HELPER="$TMP/fc_real.stub" run_rule gate_run
+    expect "R10-FCn control: the stub path running the REAL helper -> PASS, SC2086 3:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 3, 6)])"
+    fc_case fc1 fc_rc1 "R10-FC1 helper exits non-zero -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc2 fc_hang "R10-FC2 helper exceeds its time budget -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc3 fc_badjson "R10-FC3 helper prints malformed JSON -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc4 fc_schema "R10-FC4 helper prints a wrong schema version -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc5 fc_dialect "R10-FC5 helper reports another dialect than asked -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc6 fc_gap "R10-FC6 helper units do not cover the file -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc7 fc_lines "R10-FC7 helper line count disagrees with the gate's -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc8 fc_type "R10-FC8 helper unit bound is not an integer -> FAIL new-file (no credit)" "units-unparsed: head"
+    fc_case fc9 fc_base "R10-FC9 helper fails on the BASE only -> FAIL new-file, base-unlintable: units-unparsed" "base-unlintable: units-unparsed" "${H} UNITS_BASE_FAIL\n"
+    new_case r10fc0; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a\necho more\n'; head
+    gate_prepare; PRECHECK_UNITS_HELPER="$TMP/does-not-exist.stub" run_rule gate_run
+    expect "R10-FC0 helper absent -> FAIL new-file (no credit)" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], e.get("baseline_findings", []))' "('FAIL', [('new-file', 'units-unparsed: head')], [])"
+else
+    bad "R10-FC* the units helper could not be built or located (_units_helper_path) -- the fail-closed cases cannot run"
+fi
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate
 expect "S1 file absent at base -> FAIL new-file, reason untracked-at-base" '(c["verdict"], [(f["state"], f.get("new_file_reason")) for f in e["delta"]["files"]])' "('FAIL', [('new-file', 'untracked-at-base')])"

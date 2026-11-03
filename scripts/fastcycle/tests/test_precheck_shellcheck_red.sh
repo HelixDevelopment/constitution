@@ -35,7 +35,8 @@
 # failures; B binding + gitlinks; L legacy exceptions; MUT mutants (own, >= 8)
 # run against a scratch copy of the gate.
 #
-# Usage: sh test_precheck_shellcheck_red.sh     Exit: 0 all held; 1 any FAIL.
+# Usage: sh test_precheck_shellcheck_red.sh     Exit: 0 all held; 1 any FAIL; 2 environment (no shellcheck).
+# KEEP=1 keeps the scratch tree for forensics.
 # =============================================================================
 set -u
 
@@ -48,15 +49,18 @@ bad() { FAIL=$((FAIL+1)); echo "NOT ok: $1"; }
 
 echo "== precheck_pack shellcheck WHOLE-FILE STRICT + SEVERITY FLOOR (RED-first) =="
 if ! command -v shellcheck >/dev/null 2>&1; then
-    echo "SKIP: shellcheck not on PATH -- cannot exercise this check (11.4.3 honest skip)"
-    exit 0
+    # r10 (r9 review F6): exit 2, never 0 -- a runner must be able to tell this SKIP from a PASS (11.4.201 / 11.4.135:
+    # absence never reads as pass); the same convention as test_precheck_shellcheck_baseline_delta.sh
+    echo "SKIP/ENV: shellcheck not on PATH -- cannot exercise this check (11.4.3 honest skip, exit 2)" >&2
+    exit 2
 fi
 
 TMP=$(mktemp -d)
 HOLDER_PID=""
 cleanup() {
     if [ -n "$HOLDER_PID" ]; then kill "$HOLDER_PID" 2>/dev/null; fi
-    rm -rf "$TMP"
+    # r10 (r9 review F4): KEEP=1 keeps the scratch tree (every case's .stderr / .stdout / .out.json) for forensics
+    if [ -n "${KEEP:-}" ]; then echo "KEEP: scratch tree kept at $TMP" >&2; else rm -rf "${TMP:?}"; fi
 }
 trap cleanup EXIT INT TERM
 # Gate review round 6 (H6 flake): this suite's large-lint lock is PRIVATE to the run -- concurrent copies
@@ -113,6 +117,13 @@ gate_run() {
 }
 gate() { gate_prepare; gate_run "$@"; }
 sc() { # <python expr over c (shellcheck check), d (pack), e (evidence)>
+    # r10 (r9 review F4): a case that left NO pack file prints the gate's own stderr and the bind log, so a
+    # rare rc=2 / rc=4 is diagnosable from the suite output alone (the scratch tree is deleted without KEEP=1)
+    if [ ! -f "$OUT" ]; then
+        printf 'NO-PACK rc=%s stderr=[%s] bind=[%s]' "${RC:-?}" "$(command head -c 400 "$R.stderr" 2>/dev/null)" \
+            "$(command head -c 300 "$R.bind.out" 2>/dev/null)"
+        return 0
+    fi
     python3 - "$OUT" "$1" <<'PY' 2>&1
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -481,7 +492,7 @@ sh "$REVIEW/precheck_pack.sh" --batch "$R.batch.json" --clean-checkout "$R" --ou
     && ok "B2 an unbound (legacy) run is still whole-file strict and records binding=unbound (never dispatch-ready)" || bad "B2 rc=$RC $(rules)"
 
 new_case b3; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
-SIDE=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$BASE^{tree}")" -m side </dev/null 2>/dev/null)
+SIDE=$($GIT -C "$R" commit-tree "$(git -C "$R" rev-parse "$BASE^{tree}")" -m side </dev/null 2>/dev/null)
 gate_prepare
 python3 - "$R.batch.json" "$SIDE" <<'PY'
 import json, sys
@@ -517,7 +528,7 @@ sh "$REVIEW/precheck_pack.sh" --batch "$R.batch.json" --clean-checkout "$R" --ou
     && ok "B6 a declared DIRECTORY that is not a bound gitlink is refused (never silently skipped)" || bad "B6 dir: rc=$RC $(sc 'e.get("errors")')"
 # B7 (GR5): the checkout's git HEAD must BE the bound head -- same bytes on another commit are not enough
 new_case b7; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
-TWIN=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
+TWIN=$($GIT -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
 git -C "$R" worktree add --detach --quiet "$R.co" "$TWIN" >/dev/null 2>&1
 mkraw "$R.raw.json"
 python3 "$GATE_DIR/lib/precheck_pack_build_run.py" bind --repo "$R" --base "$BASE" --head "$HEADC" \
@@ -720,7 +731,7 @@ m_l21() { lcase ml21 "$TWO" "$(row ../vendor/big.sh vendored ATM-1234 SC2086=2 2
 m_l16() { new_case ml16; mkdir -p "$R/config"; row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09 >"$R/$TSV"; wb vendor/big.sh '#!/bin/sh\n# base\n'; base
           wh vendor/big.sh "#!/bin/sh\n$TWO"; head; gate_prepare; row vendor/big.sh vendored ATM-1234 SC2086=9 2026-10-09 >"$R.co/$TSV"; gate_run; }
 m_b3() { new_case mb3; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
-         SIDE=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$BASE^{tree}")" -m side </dev/null 2>/dev/null); gate_prepare
+         SIDE=$($GIT -C "$R" commit-tree "$(git -C "$R" rev-parse "$BASE^{tree}")" -m side </dev/null 2>/dev/null); gate_prepare
          python3 -c 'import json,sys;b=json.load(open(sys.argv[1]));b["binding"]["base_sha"]=sys.argv[2];json.dump(b,open(sys.argv[1],"w"))' "$R.batch.json" "$SIDE"
          BASE_KEEP=$BASE; BASE=$SIDE; gate_run; BASE=$BASE_KEEP; }
 m_b4() { new_case mb4; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_prepare
@@ -772,7 +783,7 @@ m_h7() { python3 -c 'import fcntl,sys,time;f=open(sys.argv[1],"a");fcntl.flock(f
          gate --shellcheck-exception-timeout 0.5; kill "$HOLDER_PID" 2>/dev/null; wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""; rm -f "$TMP/mh7.ready"; }
 m_h8() { new_case mh8; base; wh pkg/a.sh '#!/bin/sh\necho "x"\n'; head; PATH="$SCF3:$OLDPATH"; gate; PATH=$OLDPATH; }
 m_b7() { new_case mb7; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
-         TWIN=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
+         TWIN=$($GIT -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
          git -C "$R" worktree add --detach --quiet "$R.co" "$TWIN" >/dev/null 2>&1; mkraw "$R.raw.json"
          python3 "$GATE_DIR/lib/precheck_pack_build_run.py" bind --repo "$R" --base "$BASE" --head "$HEADC" --batch "$R.raw.json" --out "$R.batch.json" --rewrite-changes >/dev/null 2>&1; gate_run; }
 m_b8() { new_case mb8; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_prepare

@@ -1,0 +1,4 @@
+# mvdan.cc/sh/v3 v3.13.1
+## explicit; go 1.25.0
+mvdan.cc/sh/v3/fileutil
+mvdan.cc/sh/v3/syntax

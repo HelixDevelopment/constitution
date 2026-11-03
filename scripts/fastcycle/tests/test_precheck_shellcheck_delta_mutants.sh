@@ -1,7 +1,7 @@
 #!/bin/sh
 # fastcycle-timeout-s: 7200
 # =============================================================================
-# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8 + r9)
+# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8 + r9 + r10)
 # Paired 1.1 mutation harness for test_precheck_shellcheck_baseline_delta.sh.
 # Each mutant is a one-place semantic break of the baseline-delta rule, its
 # dispatchers or its seams with the round-5/6 gate, applied to a SCRATCH COPY of
@@ -33,7 +33,10 @@
 # R01-R06 (r9): the independent reviewer's 6 mutants of the r8 review, RECONSTRUCTED from the review text (its
 # scratch was deleted); R02 and R04 survived r8 (killed by L2a / L2b), R03 is EQUIVALENT (argued in its entry).
 # U01-U08 (r9): successors on the r9 command-unit line map (L1): the unit check, each join kind, the comment test,
-# the base-unit shape.
+# the base-unit shape. r10: U02-U06 and U08 RETIRED (the lexical scanner is deleted); U01 and U07 stay active.
+# Q01-Q08 (r10; the brief's P1-P8 -- P01-P11 are taken by r5): the structural replacement -- the Go helper's unit span and here-document handling, and the
+# fail-closed seams in lib/precheck_pack_run.py (parse error, timeout, base units, unit walk, dialect map, the
+# unfiltered map on a units failure).
 # Z07 RETIRED by r7 (the condition is keyed on the full finding key; successor W05).
 # r5 RETIRED: a mutant whose needle the r5 structural change deleted (the window fallback, its lexer, the
 # working-tree activation check) is kept verbatim and marked RETIRED; the harness PROVES its needle is absent
@@ -56,6 +59,7 @@ RUN = "lib/precheck_pack_run.py"
 BRUN = "lib/precheck_pack_build_run.py"
 SH = "precheck_pack.sh"
 BUILD = "precheck_pack_build.sh"
+GO = "units_helper/main.go"
 # 5th field: None = active (must be KILLED); "EQUIVALENT: <argument>" = run, and a survival is reported as EQUIVALENT
 # (listed, never counted as killed; a kill is still a kill); any other string = RETIRED by the r5 structural change: the harness then
 # requires the needle to be ABSENT (it proves the targeted code is gone); if the needle comes back the mutant
@@ -546,21 +550,41 @@ MUTANTS = [
  ('U01-unit-check-dropped', RUN,
   '        if intact[hs]:\n            keep[h] = b', '        if True:\n            keep[h] = b', None),
  ('U02-pipe-andor-line-end-not-joined', RUN,
-  '                cont = tail.endswith("|") or tail.endswith("&&") or tail.endswith("|&")', '                cont = False', None),
+  '                cont = tail.endswith("|") or tail.endswith("&&") or tail.endswith("|&")', '                cont = False', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
  ('U03-substitution-span-not-joined', RUN,
-  '                cont = cont or any(f[0] != "p" for f in stack)', '                cont = cont', None),
+  '                cont = cont or any(f[0] != "p" for f in stack)', '                cont = cont', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
  ('U04-open-quote-not-joined', RUN,
-  '                joins.add(line)  # a newline inside a quote / backtick / ${ } / arithmetic: one word', '                pass', None),
+  '                joins.add(line)  # a newline inside a quote / backtick / ${ } / arithmetic: one word', '                pass', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
  ('U05-heredoc-body-not-joined', RUN,
   '                            joins.add(line)\n                            line += 1\n                            j = n if k < 0 else k + 1',
-  '                            line += 1\n                            j = n if k < 0 else k + 1', None),
+  '                            line += 1\n                            j = n if k < 0 else k + 1', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
  ('U06-every-hash-is-a-comment', RUN,
-  '        if ch == "#" and prev in _UNIT_DELIM:', '        if ch == "#":', None),
+  '        if ch == "#" and prev in _UNIT_DELIM:', '        if ch == "#":', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
  ('U07-base-unit-shape-not-compared', RUN,
   '            intact[hs] = b0 is not None and bu.get(b0, (b0, b0)) == (b0, b0 + he - hs) and all(',
   '            intact[hs] = b0 is not None and all(', None),
  ('U08-code-backslash-newline-not-joined', RUN,
-  '                joins.add(line)  # backslash-newline: the next line continues this command', '                pass', None),
+  '                joins.add(line)  # backslash-newline: the next line continues this command', '                pass', 'r10 structural replacement: the r9 lexical unit scanner (_unit_joins) is deleted; successors Q01-Q08'),
+ # Q01-Q08 (r10; the brief's P1-P8, renamed: P01-P11 are the r5 set): the structural replacement -- units from a real parser (units_helper/, mvdan.cc/sh/v3).
+ ('Q01-go-unit-is-first-line-only', GO,
+  '		spans = append(spans, [2]uint{lo, hi})', '		spans = append(spans, [2]uint{lo, lo})', None),
+ ('Q02-go-heredoc-body-ignored', GO,
+  '			for _, p := range []syntax.Pos{node.Pos(), node.End()} {',
+  '			if r, ok := node.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {\n				return false\n			}\n			for _, p := range []syntax.Pos{node.Pos(), node.End()} {', None),
+ ('Q03-parse-error-gives-singletons', RUN,
+  '    if p.returncode != 0:\n        why = doc.get',
+  '    if p.returncode == 3:\n        n = len(_raw_lines(data))\n        return {"schema": UNITS_SCHEMA, "dialect": dialect, "lines": n, "units": [[i, i] for i in range(1, n + 1)]}\n    if p.returncode != 0:\n        why = doc.get', None),
+ ('Q04-helper-timeout-gives-singletons', RUN,
+  '        raise _UnitsError("the units helper exceeded its %ss budget" % timeout)',
+  '        n = len(_raw_lines(data))\n        return {"schema": UNITS_SCHEMA, "dialect": dialect, "lines": n, "units": [[i, i] for i in range(1, n + 1)]}', None),
+ ('Q05-base-units-taken-from-head', RUN,
+  '        bu = units(bdata, "base")', '        bu = hu', None),
+ ('Q06-unit-walk-drops-last-line', RUN,
+  'range(he - hs + 1)', 'range(he - hs)', None),
+ ('Q07-sh-parsed-as-bash', RUN,
+  '_UNITS_DIALECTS = {"sh": "posix",', '_UNITS_DIALECTS = {"sh": "bash",', None),
+ ('Q08-units-failure-gives-unfiltered-map', RUN,
+  '        return None, str(exc)', '        return out, None', None),
 ]
 PYEOF
 

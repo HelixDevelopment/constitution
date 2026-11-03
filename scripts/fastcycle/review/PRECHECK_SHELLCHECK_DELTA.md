@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Revision | 7 |
+| Revision | 8 |
 | Created | 2026-10-13 |
-| Last modified | 2026-10-14 |
-| Status | proposed (ATM-1217 r9 patch); rule id `shellcheck-baseline-delta/6`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Last modified | 2026-11-03 |
+| Status | proposed (ATM-1217 r10, structural replacement; independent review owed); rule id `shellcheck-baseline-delta/7`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
-| Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` is unchanged |
+| Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
 | Design | `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
 
 ## What it is
@@ -100,12 +100,12 @@ why:
 | `dialect-changed` | had another dialect (shebang dialect or `shell=` directive) than the head, so its findings in the head's dialect were never gated |
 | `untracked-at-base`, `symlink`, `gitlink` | was not a regular file at base |
 
-### Which head finding is pre-existing (r6, r7, r9)
+### Which head finding is pre-existing (r6, r7, r9, r10)
 
 The gate computes a line diff of the two whole blobs (base -> head; byte
-lines, a one-to-one, order-preserving match of equal lines). r9: a line counts
-as **unchanged** only together with its whole **command unit** -- the physical
-lines one command spans (see "Command units" below): the unit must map line for
+lines, a one-to-one, order-preserving match of equal lines). A line counts
+as **unchanged** only together with its whole **command unit** -- r10: the
+lines of the OUTERMOST statement it belongs to (see "Command units" below): the unit must map line for
 line, consecutively, onto exactly the base unit of its base line; otherwise no
 line of that unit is unchanged. A head finding is **pre-existing** only when
 
@@ -141,7 +141,9 @@ Everything else is new, in particular:
   the old `cd /tmp` becomes `cd /tmp || exit 1` and an identical `cd /tmp` is
   added on the next line), the result is byte-for-byte the same file as "kept
   the old line, inserted a guarded `cd` above it", and the copy is treated as
-  the old line (pre-existing; r6 review J3, pinned by test N3). A copy placed
+  the old line (pre-existing; r6 review J3) -- at the top level (test N3t).
+  r10: inside a function or any other compound statement the same edit changes
+  that statement's unit, so the copy is new (test N3, flipped by r10). A copy placed
   where the diff cannot align it (A2: thirty lines away) is new;
 * a **moved** line: cut here, pasted there, it is an added line and its
   findings are new. This is stricter than r3-r5 on purpose; re-indenting a
@@ -150,44 +152,89 @@ Everything else is new, in particular:
 Lines inserted or deleted elsewhere do not matter: an unchanged line keeps
 its anchor wherever it moves to in line numbers.
 
-### Command units (r9)
+### Command units (r10: from a real parser)
 
-One command can span several physical lines. r8 judged each physical line
-alone, so a finding on an unchanged line was pre-existing although an ADDED
-or EDITED line of the SAME command changed what that line does (r8 review
-L1): `eval \`, `rm -rf \` or `sudo sh -c \` added above an unchanged
-`echo $a` (old, inert debt turned into an injection sink, with no finding of
-its own on the added line); the first line of an existing multi-line command
-edited (`echo \` -> `eval \`, the argument lines unchanged); `true &&` ->
-`true && eval \`. All of these now fail: the finding's unit changed.
+One command can span several physical lines, and a line's meaning depends on
+the statement around it: `eval \` added above an unchanged `echo $a`, an
+edited `if` condition above an unchanged body line, a `{ ...; }` group newly
+piped into `sh`, a pipeline continued across a blank or comment line into an
+unchanged sink (r8 review L1, r9 review F1/F2). r8 judged each line alone; r9
+joined lines with a ~230-line lexical scanner, and every review found one more
+way a command spans lines that the scanner did not join (a trailing `|` /
+`&&` / `||` followed by a blank or comment line, compound arrays, `$[ ]`). Each
+new lexical rule was only as complete as the generator that checked it, so r10
+deletes the scanner (operator decision 2026-11-03).
 
-A unit is a run of consecutive lines where the newline after each line but the
-last does not end the command:
+r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
+(BSD-3-Clause), through a small Go helper in `units_helper/`:
 
-* backslash-newline outside single quotes (in code, in `"..."`, in backquotes,
-  in an unquoted here-document body);
-* a newline inside an open `'...'`, `"..."`, `$'...'`, backquotes, `${...}`,
-  `$((...))` / `((...))`, `$(...)`, `<(...)`, `>(...)`;
-* a newline after a trailing `|`, `||`, `&&` or `|&` (a pipeline or list
-  continued on the next line);
-* a here-document: the line that opens it, its body and its terminator line.
+* **A unit is one OUTERMOST statement** of the parse tree: an element of the
+  file's top-level statement list -- a whole `if` / `while` / `for` / `case` /
+  `{ }` / `( )` / function definition / pipeline / `&&`-`||` list -- from the line
+  it starts on to the LAST line any node under it reaches. Here-document bodies
+  and their terminator lines are included wherever the redirect sits (inside a
+  pipeline, a list, a substitution, a function). Statements that share a line are
+  one unit; a line outside every statement (blank, comment) is a unit of its own.
+* **Coarser than r9, on purpose (stricter only).** An edit anywhere in a
+  function, loop or `if` makes every finding of that whole statement new. A
+  large function touched in one place loses all its credit; the whole-file rule
+  would fail all of it anyway.
+* **Dialect.** The helper parses in the dialect shellcheck linted the blob in:
+  `sh` / `dash` -> POSIX, `bash` -> bash. **ksh is not mapped** (mvdan/sh parses
+  mksh, shellcheck lints ksh88/93, and no ksh is installed on the reference host
+  to compare the two): a ksh file fails closed. A `shell=` directive that
+  disagrees with the linted dialect also fails closed.
+* **Fail closed, every way.** No units means no credit: the helper absent, not
+  buildable, timed out, crashed or killed by its memory cap; a parse error in
+  that dialect (a bash array in a `#!/bin/sh` file); output that is not JSON, not
+  schema `precheck-units/1`, for another dialect, with another line count, or
+  not an in-order partition of the blob's lines. A head then is judged as a NEW
+  file (`new_file_reason` "units-unparsed: ..."; every blocking finding fails);
+  a base has no baseline ("base-unlintable: units-unparsed: ..."). Both are the
+  whole-file verdict.
+* **An empty here-document body** (`cat <<EOF` immediately followed by `EOF`)
+  has no body word in the parse tree; the unit is extended up to the next
+  top-level statement that starts on a later line (a superset, stricter only),
+  and the delimiter line must be found in that range, else the helper fails
+  closed.
 
-A comment never continues (`# text \` ends at its newline), and `#` is a
-comment only at the start of a word (`a#b \` continues). A newline at the top
-level or directly inside a compound command or subshell body (`if` / `while`
-/ `for` / `case` / `{ }` / `( )` / a function) is NOT a join: those are
-separate commands (see "Limits").
+The helper runs under the same scrubbed environment and memory cap as
+shellcheck (`systemd-run` scope), with its own 60 s budget inside the batch
+budget. Evidence records `tool.delta.units`: parser module and version, schema,
+granularity (`outermost-statement`).
 
-The scan is lexical and leans strict: where it may join lines a shell keeps
-apart, more findings are new, never fewer. Known over-joins (stated, all in
-the stricter direction): `$'...'` is read both the bash way and the POSIX-sh
-way (`$` then a `'...'` string) and the lines either reading joins are joined;
-a CR before a line end is read as a blank, so a `\` or `|` / `&&` before it
-joins (a shell does not; such a file fails as head-unparsed anyway, SC1017);
-every line of a multi-line
-`$( )` is one unit with the command around it. The scan was compared, boundary
-by boundary, with GNU bash's own parser (see the r9 evidence, `unit_census`):
-0 places where it separates lines bash joins.
+**Census (r10 evidence).** The helper's partition was compared, script by
+script, with the shells' own parsers (bash 5.3.9, dash): a unit ends at the
+first line `k` where `<sh> -n` accepts lines `s..k` with no warning AND rejects
+lines `s..k` plus a stray `}` (a `}` is absorbed after a trailing backslash or
+inside a here-document body, so it errors only after a complete statement).
+Over 800 generated scripts from a 44-fragment pool (blank and comment lines after
+`|` / `&&` / `||`, arrays, `declare -a`, `$[ ]`, here-documents in pipelines and
+lists, nested substitutions with `case`, functions, here-strings): 799 equal
+partitions, 1 difference -- an empty here-document body, where the helper's unit
+is the wider one (the stated extension above, stricter). Controls: a helper that
+returns one unit per line differs on 98 of 100 scripts; the r9 lexical scanner
+differs on 333 of 400 (r9 units are per command, not per outermost statement, and
+r9 splits the F1 shapes). The census measures agreement with bash and dash on
+this pool only; it is not a proof for every script.
+
+### Units helper and its dependency
+
+* Source: `units_helper/main.go`, module
+  `github.com/HelixDevelopment/HelixConstitution/scripts/fastcycle/review/units_helper`.
+* Dependency: `mvdan.cc/sh/v3 v3.13.1`, vendored under `units_helper/vendor/`
+  (only `syntax/` and `fileutil/`, byte-identical to the module zip minus test
+  files) and pinned by `go.sum` (`h1:DP3TfgZhDkT7lerUdnp6PTGKyxxzz6T+cOlY/xEvfWk=`).
+  Verdict row: `units_helper/DEPENDENCY_VERDICT.jsonl` (VERIFIED, SHIPPED). It is
+  not a git submodule, so it has no `helix-deps.yaml` entry.
+* Build: offline (`-mod=vendor`, `GOPROXY=off`, `GOTOOLCHAIN=local`,
+  `CGO_ENABLED=0`), under a lock and a 4096 MiB memory cap, into
+  `$PRECHECK_UNITS_CACHE_DIR` (default `$XDG_CACHE_HOME` or
+  `~/.cache/fastcycle-precheck-units`) in a directory named by the sha256 of every
+  helper source file; a cached binary is used only while its recorded sha256
+  matches. A host without `go` and without a cached helper fails closed.
+* Test mode only (`PRECHECK_TEST_MODE=1`): `PRECHECK_UNITS_HELPER` names a stub
+  helper and `PRECHECK_UNITS_TIMEOUT_S` a shorter budget (the fail-closed cases).
 
 ## Directives
 
@@ -289,14 +336,23 @@ another timeout; it never reuses it.
   fail them.
 * Activation is instance-tier only (see "Activation"): the anchor is only as
   trustworthy as the dispatcher's source for it.
-* A finding is pre-existing only on an unchanged line of an unchanged command
-  unit (see above). Old debt on such a line stays accepted even when a change
-  in ANOTHER command is what makes it dangerous now: a `cd` whose following
-  command was edited, a variable whose assignment elsewhere changed, an edited
-  `if` / `while` condition above an unchanged body line, a compound block whose
-  output is newly piped (`{ ...; } | sh`). The whole-file rule would fail it.
+* A finding is pre-existing only on an unchanged line of an unchanged
+  outermost statement (see above). Old debt on such a line stays accepted even
+  when a change in ANOTHER top-level statement is what makes it dangerous now: a
+  top-level `cd` whose following statement was edited, a variable whose
+  top-level assignment elsewhere changed. The whole-file rule would fail it.
   Only a dependency the finding's own message cites (`on line N`) is followed
-  (r7); any other dependency on another command is not.
+  (r7); any other dependency on another statement is not. r10 closes the
+  in-statement half (an edited `if` condition, `{ ...; } | sh`, an edit
+  elsewhere in the same function: tests L1n4, R10-R12a, R10-R12b).
+* r10 units: ksh files and files a `shell=` directive puts in another dialect
+  get no credit (fail closed); a function-heavy file loses credit for a whole
+  function on any edit inside it; an empty here-document body widens its unit
+  to the next statement. The units' agreement with bash and dash is measured on
+  a generated pool, not proven for every script.
+* The units helper's cache is trusted by a sha256 stamp written next to it in
+  the same user-owned directory; a party that can write that directory can
+  replace both. The `go` toolchain version is not part of the cache key.
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
   identity. The r8 census found one pair where only
   `fix.replacements[].precedence` differed; it was the command-unit class

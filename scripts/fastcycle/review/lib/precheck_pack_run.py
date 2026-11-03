@@ -680,12 +680,21 @@ TOO_LARGE_MIN_LINES = 5000
 #     and a multi-line finding is pre-existing only when EVERY line of its extent is
 #     an unchanged line mapping to consecutive base lines (_finding_key). A finding on
 #     an added or changed line is always new, and so is a
-#     MOVED one (stricter, stated). r9 (L1): "unchanged" is decided per COMMAND UNIT
-#     (_command_units: backslash-newline, an open quote / substitution / ${ } /
-#     arithmetic, a trailing | / && / ||, a here-document): a line stays in the map only
-#     when its whole unit maps line for line, consecutively, onto exactly its base unit,
-#     so an added `eval \` above, or an edited first line of, the command an unchanged
-#     line belongs to makes that line's findings new. The r3-r5 (rule, message, line text) multiset is
+#     MOVED one (stricter, stated). r10 (rule /7, structural replacement of the r9
+#     lexical scanner): "unchanged" is decided per COMMAND UNIT, and a unit is one
+#     OUTERMOST top-level statement of a REAL parse tree (units_helper/, mvdan.cc/sh/v3,
+#     vendored, built offline): a whole if / while / for / case / { } / ( ) / function
+#     definition / pipeline / list, from its first line to the last line any node under
+#     it reaches, here-document bodies and terminators included. A line stays in the map
+#     only when its whole unit maps line for line, consecutively, onto exactly its base
+#     unit, so ANY edit inside a statement (an added `eval \` above, an edited if
+#     condition, a new `| sh` after a { } group, an edit elsewhere in the same function)
+#     makes every finding of that statement new. Coarser than r9 by design: a function
+#     touched anywhere loses all its credit (stricter, stated). When the units cannot be
+#     derived (helper absent / unbuildable, timeout, crash, parse error, bad output,
+#     wrong schema, a dialect without a parser mapping -- ksh), the side is judged as in
+#     the whole-file rule: head -> new-file "units-unparsed: ...", base -> base-unlintable.
+#     The r3-r5 (rule, message, line text) multiset is
 #     gone: it let an old occurrence that was suppressed or fixed pay for an
 #     identical new one (r5 review H3). Pre-existing blocking findings are listed
 #     in evidence["baseline_findings"], never failing.
@@ -755,7 +764,7 @@ TOO_LARGE_MIN_LINES = 5000
 # ---------------------------------------------------------------------------
 SC_RULES = ("whole-file", "baseline-delta")
 DEFAULT_SC_RULE = "whole-file"
-DELTA_RULE_ID = "shellcheck-baseline-delta/6"  # r9: + command-unit line map (L1: verdicts change, stricter only)
+DELTA_RULE_ID = "shellcheck-baseline-delta/7"  # r10: units from a real parser, outermost statement (stricter only)
 DEFAULT_SC_TIMEOUT_DELTA = 120  # per lint; head + base make a delta run lint twice
 _LINE_REF_RE = re.compile(r"(?i)\bline\s+\d+")
 
@@ -794,273 +803,244 @@ def _raw_lines(raw):
     return lines
 
 
-_UNIT_DELIM = frozenset(" \t\n;&|()<>")
+# r10 (ATM-1217 structural replacement, operator decision 2026-11-03): the COMMAND UNIT of "unchanged" is taken from a
+# REAL shell parser, never from a lexical model of shell grammar. r8-r9 approximated it with a ~230-line scanner, and
+# every review found one more way a command spans lines that the scanner did not join (r9 review F1/F2: a trailing
+# | / && / || across blank and comment lines, compound arrays, $[ ] -- the 11.4.250 tower). The units now come from
+# units_helper/ (a small Go program over mvdan.cc/sh/v3/syntax, BSD-3-Clause, vendored and pinned by go.sum), run
+# in the dialect shellcheck linted the blob in. The unit is the OUTERMOST statement (an element of the parse tree's
+# top-level statement list: a whole if / while / case / { } / ( ) / function definition / pipeline / list), up to
+# the last line any node under it reaches, here-document bodies and terminators included; statements sharing a line
+# are one unit; a line outside every statement (blank, comment) is a unit of its own. Every failure to obtain
+# units -- no parser dialect, the helper absent / not buildable / timed out / crashed, a parse error, output that is
+# not exactly a partition of the blob's lines in the asked schema and dialect -- proves nothing: the file is judged
+# as a NEW file (head) or has no baseline (base), i.e. the whole-file verdict. Never credit on a failure.
+UNITS_SCHEMA = "precheck-units/1"
+UNITS_HELPER_ENV = "PRECHECK_UNITS_HELPER"      # a helper (stub) path -- honoured ONLY in test mode
+UNITS_TIMEOUT_ENV = "PRECHECK_UNITS_TIMEOUT_S"  # a shorter helper timeout -- honoured ONLY in test mode
+UNITS_CACHE_ENV = "PRECHECK_UNITS_CACHE_DIR"    # where the helper is built (content-addressed, hash-checked)
+DEFAULT_UNITS_TIMEOUT = 60
+UNITS_BUILD_TIMEOUT = 600
+UNITS_BUILD_MEM_MIB = 4096
+UNITS_GRANULARITY = "outermost-statement"
+_UNITS_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "units_helper")
+# shellcheck dialect -> parser dialect. ksh is UNMAPPED: mvdan/sh parses mksh, shellcheck lints ksh88/93, and no
+# ksh is installed on the reference host to check the two against -> fail closed (whole-file verdict), stated.
+_UNITS_DIALECTS = {"sh": "posix", "dash": "posix", "bash": "bash"}
 
 
-def _unit_joins(text, ansi_c):
-    """r9 (L1): the set of line numbers n whose terminating newline does NOT end the command it belongs to.
-    A conservative lexical scan (stricter when unsure: a wrong join only makes more findings new):
-      * backslash-newline in code, in "..." and in `...` (also backslash-CR-LF: shells do not join it, over-joined);
-      * a newline inside '...', "...", $'...', `...`, ${...}, $((...)) / ((...));
-      * a newline after a trailing `|`, `||`, `&&`, `|&` (outside quotes and comments);
-      * a here-document: the line that opens it, its body and its terminator line are one unit.
-      * a newline inside $(...), <(...), >(...): the substitution is one word of the command that contains it.
-    A newline at the top level or directly inside a compound command / subshell body (if / while / for / case /
-    { } / ( ) / function) is NOT a join: those are separate commands, and a change on another one of them is the
-    stated R12 limit. `ansi_c`: $'...' honours backslash escapes (bash) or not (POSIX sh: `$` then a '...' string);
-    _command_units joins both readings."""
-    joins = set()
-    n = len(text)
-    i = 0
-    line = 1
-    stack = []   # frames: [kind, case_depth, paren_depth]; kinds S D Q B E A (joining) / P p (code)
-    prev = "\n"  # previous char consumed in code context (word-start test for '#', '((')
-    tail = ""    # last non-blank chars of this line in code context (trailing-operator test)
-    word = ""    # the bare word being read in code context (case / esac)
-    pending = []  # here-documents opened on this logical line: (delimiter, strip_tabs)
-
-    def code():
-        return not stack or stack[-1][0] in ("P", "p")
-
-    def endword():
-        if word and (not stack or stack[-1][0] in ("P", "p")):
-            fr = stack[-1] if stack else top
-            if word == "case":
-                fr[1] += 1
-            elif word == "esac" and fr[1] > 0:
-                fr[1] -= 1
-
-    top = ["T", 0, 0]
-    while i < n:
-        ch = text[i]
-        kind = stack[-1][0] if stack else "T"
-        if ch == "\n":
-            if code():
-                endword()
-                word = ""
-                cont = tail.endswith("|") or tail.endswith("&&") or tail.endswith("|&")
-                cont = cont or any(f[0] != "p" for f in stack)  # inside $( ) / <( ) / >( ): one word of the command
-                if pending:
-                    j = i + 1
-                    for delim, strip, quoted in pending:
-                        cont_body = False
-                        while j < n:
-                            k = text.find("\n", j)
-                            seg = text[j:] if k < 0 else text[j:k]
-                            joins.add(line)
-                            line += 1
-                            j = n if k < 0 else k + 1
-                            if not cont_body and (seg.lstrip("\t") if strip else seg) == delim:
-                                break
-                            # an UNQUOTED here-document honours backslash-newline: the next line is joined to this
-                            # one and is never the terminator (backslash-CR is over-joined, stricter)
-                            t = seg[:-1] if seg.endswith("\r") else seg
-                            cont_body = not quoted and (len(t) - len(t.rstrip("\\"))) % 2 == 1
-                    pending = []
-                    if cont:
-                        joins.add(line)
-                    i = j
-                    line += 1
-                    prev, tail = "\n", ""
-                    continue
-                if cont:
-                    joins.add(line)
-            else:
-                joins.add(line)  # a newline inside a quote / backtick / ${ } / arithmetic: one word
-            line += 1
-            i += 1
-            if code():
-                prev, tail = "\n", ""
-            continue
-        if kind == "S":
-            if ch == "'":
-                stack.pop()
-            i += 1
-            continue
-        if kind in ("D", "Q", "B", "E", "A"):
-            if ch == "\\":
-                if text.startswith("\n", i + 1) or text.startswith("\r\n", i + 1):
-                    joins.add(line)
-                    line += 1
-                    i += 3 if text[i + 1] == "\r" else 2
-                else:
-                    i += 2
-                continue
-            if kind == "D" and ch == '"' or kind == "Q" and ch == "'" or kind == "B" and ch == "`" \
-                    or kind == "E" and ch == "}":
-                stack.pop()
-                i += 1
-                continue
-            if kind == "A":
-                if ch == "(":
-                    stack[-1][2] += 1
-                elif ch == ")":
-                    if stack[-1][2] > 0:
-                        stack[-1][2] -= 1
-                    else:
-                        stack.pop()
-                        i += 2 if text.startswith(")", i + 1) else 1
-                        continue
-            if kind != "Q" and kind != "B" and ch == "$" and text.startswith("(", i + 1):
-                if text.startswith("((", i + 1):
-                    stack.append(["A", 0, 0]); i += 3
-                else:
-                    stack.append(["P", 0, 0]); i += 2
-                continue
-            if kind != "Q" and kind != "B" and ch == "$" and text.startswith("{", i + 1):
-                stack.append(["E", 0, 0]); i += 2
-                continue
-            if kind in ("D", "E") and ch == "`":
-                stack.append(["B", 0, 0]); i += 1
-                continue
-            if kind == "E" and ch in "'\"":
-                stack.append(["S" if ch == "'" else "D", 0, 0]); i += 1
-                continue
-            i += 1
-            continue
-        # code context: top level, $( ), <( ), >( ), ( )
-        if ch == "\\":
-            if text.startswith("\n", i + 1) or text.startswith("\r\n", i + 1):
-                joins.add(line)  # backslash-newline: the next line continues this command
-                line += 1
-                i += 3 if text[i + 1] == "\r" else 2
-                continue
-            word += "\\"
-            prev, tail = "x", "x"
-            i += 2
-            continue
-        if ch in " \t\r":
-            endword()
-            word = ""
-            prev = ch if ch != "\r" else prev
-            i += 1
-            continue
-        if ch == "#" and prev in _UNIT_DELIM:
-            k = text.find("\n", i)
-            i = n if k < 0 else k  # a comment: the newline is handled above
-            continue
-        tail = (tail + ch)[-2:]
-        if ch == "'":
-            stack.append(["S", 0, 0]); prev = "x"; i += 1; word += "'"
-            continue
-        if ch == '"':
-            stack.append(["D", 0, 0]); prev = "x"; i += 1; word += '"'
-            continue
-        if ch == "`":
-            stack.append(["B", 0, 0]); prev = "x"; i += 1; word += "`"
-            continue
-        if ch == "$":
-            nx = text[i + 1:i + 2]
-            if nx == "'":
-                stack.append(["Q" if ansi_c else "S", 0, 0]); i += 2; prev = "x"; word += "$'"
-                continue
-            if nx == "(":
-                if text.startswith("((", i + 1):
-                    stack.append(["A", 0, 0]); i += 3
-                else:
-                    stack.append(["P", 0, 0]); i += 2
-                endword(); word = ""; prev = "("
-                continue
-            if nx == "{":
-                stack.append(["E", 0, 0]); i += 2; prev = "x"; word += "${"
-                continue
-            prev = "x"; word += "$"; i += 1
-            continue
-        if ch in "<>" and text.startswith("(", i + 1):
-            endword(); word = ""
-            stack.append(["P", 0, 0]); i += 2; prev = "("
-            continue
-        if ch == "<" and text.startswith("<", i + 1):
-            endword(); word = ""
-            if text.startswith("<", i + 2):
-                i += 3; prev = "<"; tail = "<"
-                continue
-            j = i + 2
-            strip = text.startswith("-", j)
-            if strip:
-                j += 1
-            while j < n and text[j] in " \t":
-                j += 1
-            d = []
-            quoted = False
-            while j < n and text[j] not in _UNIT_DELIM:
-                c2 = text[j]
-                if c2 in "'\"":
-                    q = text.find(c2, j + 1)
-                    if q < 0:
-                        q = n
-                    d.append(text[j + 1:q]); j = q + 1; quoted = True
-                    continue
-                if c2 == "\\" and j + 1 < n:
-                    d.append(text[j + 1]); j += 2; quoted = True
-                    continue
-                d.append(c2); j += 1
-            if d:
-                pending.append(("".join(d), strip, quoted))
-            prev, tail = "x", "x"
-            i = j
-            continue
-        if ch == "(":
-            endword(); word = ""
-            if prev in _UNIT_DELIM and text.startswith("(", i + 1):
-                stack.append(["A", 0, 0]); i += 2
-            else:
-                stack.append(["p", 0, 0]); i += 1
-            prev = "("
-            continue
-        if ch == ")":
-            endword(); word = ""
-            fr = stack[-1] if stack else top
-            if fr[1] == 0 and stack:
-                stack.pop()
-            prev = ")"
-            i += 1
-            continue
-        if ch in _UNIT_DELIM:
-            endword(); word = ""
-            prev = ch
-            i += 1
-            continue
-        word += ch
-        prev = "x"
-        i += 1
-    return joins
+class _UnitsError(Exception):
+    """No command units could be proven for a blob (the caller judges the file by the whole-file rule)."""
 
 
-def _command_units(raw):
-    """r9 (L1): {line -> (first line, last line) of the command unit it belongs to}, over the byte lines as
-    shellcheck numbers them. Both readings of $'...' are joined (stricter)."""
-    text = raw.decode("latin-1")
-    nlines = text.count("\n") + (0 if text.endswith("\n") or not text else 1)
-    joins = _unit_joins(text, True) | _unit_joins(text, False)
-    out = {}
-    s = 1
-    for ln in range(1, nlines + 1):
-        if ln not in joins or ln == nlines:
-            for m in range(s, ln + 1):
-                out[m] = (s, ln)
-            s = ln + 1
+def _units_source_hash():
+    """sha256 over every file of units_helper/ (relative path, size, bytes; sorted): the build cache key."""
+    h = hashlib.sha256()
+    for dp, dns, fns in os.walk(_UNITS_SRC):
+        dns.sort()
+        for fn in sorted(fns):
+            p = os.path.join(dp, fn)
+            rel = os.path.relpath(p, _UNITS_SRC)
+            if os.path.islink(p) or not os.path.isfile(p):
+                raise _UnitsError("units helper source %s is not a regular file" % rel)
+            with open(p, "rb") as fh:
+                data = fh.read()
+            h.update(rel.encode("utf-8", "surrogateescape") + b"\0" + str(len(data)).encode() + b"\0" + data)
+    if not os.path.isfile(os.path.join(_UNITS_SRC, "main.go")):
+        raise _UnitsError("units helper source %s has no main.go" % _UNITS_SRC)
+    return h.hexdigest()
+
+
+def _file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _units_parser_version():
+    """The vendored parser module and version, read from vendor/modules.txt (evidence; deterministic)."""
+    try:
+        with open(os.path.join(_UNITS_SRC, "vendor", "modules.txt"), encoding="utf-8") as fh:
+            for ln in fh:
+                if ln.startswith("# mvdan.cc/sh/v3 "):
+                    return ln[2:].strip()
+    except OSError:
+        pass
+    return "unknown"
+
+
+def _units_helper_path(mem_cap_mib):
+    """-> (path, None) | (None, reason). The helper is built from units_helper/ (offline: -mod=vendor,
+    GOPROXY=off, GOTOOLCHAIN=local, CGO_ENABLED=0) into a cache directory named by the source hash, under a lock
+    and the systemd-run memory cap; a cached binary is used only while its recorded sha256 matches. In test mode
+    PRECHECK_UNITS_HELPER names a stub instead (the fail-closed cases)."""
+    if _test_mode() and os.environ.get(UNITS_HELPER_ENV):
+        p = os.environ[UNITS_HELPER_ENV]
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p, None
+        return None, "the test-mode units helper %s is absent or not executable" % p
+    try:
+        src = _units_source_hash()
+    except (OSError, _UnitsError) as exc:
+        return None, "the units helper source cannot be read: %s" % exc
+    base = os.environ.get(UNITS_CACHE_ENV) or os.path.join(
+        os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"), "fastcycle-precheck-units")
+    d = os.path.join(base, src[:32])
+    binp, stamp = os.path.join(d, "units"), os.path.join(d, "units.sha256")
+
+    def cached():
+        try:
+            with open(stamp, encoding="utf-8") as fh:
+                want = fh.read().split()
+            return bool(want) and os.path.isfile(binp) and not os.path.islink(binp) and _file_sha256(binp) == want[0]
+        except OSError:
+            return False
+
+    if cached():
+        return binp, None
+    go = shutil.which("go")
+    if not go:
+        return None, "the units helper is not built and `go` is not on PATH (it is built offline from units_helper/)"
+    try:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, ".lock"), "a") as lk:
+            deadline = time.monotonic() + UNITS_BUILD_TIMEOUT
+            while True:
+                try:
+                    fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() > deadline:
+                        return None, "the units helper build lock %s was not obtained" % d
+                    time.sleep(0.5)
+            if cached():
+                return binp, None
+            tmpb = "%s.tmp.%d" % (binp, os.getpid())
+            env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": d,
+                   "GOCACHE": os.environ.get("GOCACHE") or os.path.join(base, "gocache"),
+                   "GOPATH": os.path.join(base, "gopath"), "GOPROXY": "off", "GOTOOLCHAIN": "local",
+                   "GOFLAGS": "-mod=vendor", "CGO_ENABLED": "0", "GOENV": "off", "GOTELEMETRY": "off"}
+            argv = (_cap_prefix(UNITS_BUILD_MEM_MIB) + ["env", "-i"] + ["%s=%s" % (k, env[k]) for k in sorted(env)]
+                    + [go, "build", "-trimpath", "-buildvcs=false", "-o", tmpb, "."])
+            try:
+                p = subprocess.run(argv, cwd=_UNITS_SRC, capture_output=True, timeout=UNITS_BUILD_TIMEOUT,
+                                   env=_runner_env())
+            except subprocess.TimeoutExpired:
+                return None, "the units helper build exceeded %ss" % UNITS_BUILD_TIMEOUT
+            if p.returncode != 0 or not os.path.isfile(tmpb):
+                return None, "the units helper build failed (rc=%d): %s" % (p.returncode, _txt(p.stderr)[:300])
+            digest = _file_sha256(tmpb)
+            os.replace(tmpb, binp)
+            with open(stamp + ".tmp", "w", encoding="utf-8") as fh:
+                fh.write(digest + "  units\n")
+            os.replace(stamp + ".tmp", stamp)
+    except OSError as exc:
+        return None, "the units helper could not be built: %s" % exc
+    return (binp, None) if cached() else (None, "the units helper built but its recorded hash does not match")
+
+
+def _units_timeout():
+    if _test_mode() and os.environ.get(UNITS_TIMEOUT_ENV):
+        try:
+            return max(float(os.environ[UNITS_TIMEOUT_ENV]), 0.1)
+        except ValueError:
+            pass
+    return DEFAULT_UNITS_TIMEOUT
+
+
+def _units_dialect(data):
+    """The parser dialect for a blob: the dialect shellcheck lints it in (_shell_dialect, the gate passes `-s`),
+    which every `shell=` directive must agree with (_effective_dialect). Unmapped or disagreeing -> _UnitsError."""
+    flag = _shell_dialect(data)
+    d = _UNITS_DIALECTS.get(flag)
+    if d is None:
+        raise _UnitsError("no parser dialect for the shellcheck dialect %r (mapped: sh, dash, bash)" % flag)
+    for s in _effective_dialect(data)[1]:
+        if _UNITS_DIALECTS.get(s) != d:
+            raise _UnitsError("a `shell=%s` directive disagrees with the linted dialect %s" % (s, flag))
+    return d
+
+
+def _validate_units(doc, dialect, nlines):
+    """-> {line -> (first, last)} when `doc` is exactly the helper's schema, for the asked dialect and the gate's
+    own line count, and its units are a partition of 1..nlines in order; else _UnitsError."""
+    if not isinstance(doc, dict) or doc.get("schema") != UNITS_SCHEMA:
+        raise _UnitsError("helper output is not schema %s" % UNITS_SCHEMA)
+    if doc.get("dialect") != dialect:
+        raise _UnitsError("helper answered for dialect %r, not %r" % (doc.get("dialect"), dialect))
+    lines = doc.get("lines")
+    if type(lines) is not int or lines != nlines:  # noqa: E721 -- bool is not a line count
+        raise _UnitsError("helper counted %r lines, the gate %d" % (lines, nlines))
+    units = doc.get("units", [] if nlines == 0 else None)
+    if not isinstance(units, list):
+        raise _UnitsError("helper output has no units list")
+    out, nxt = {}, 1
+    for u in units:
+        if not (isinstance(u, list) and len(u) == 2 and all(type(x) is int for x in u)):  # noqa: E721
+            raise _UnitsError("helper unit %r is not a pair of line numbers" % (u,))
+        s, e = u
+        if s != nxt or e < s or e > nlines:
+            raise _UnitsError("helper units do not partition the %d lines (unit %d-%d after line %d)" % (nlines, s, e, nxt - 1))
+        for m in range(s, e + 1):
+            out[m] = (s, e)
+        nxt = e + 1
+    if nxt != nlines + 1:
+        raise _UnitsError("helper units end at line %d of %d" % (nxt - 1, nlines))
     return out
 
 
-def _line_map(bdata, cdata):
+def _run_units(helper, dialect, data, timeout, mem_cap_mib):
+    """One helper run under the same scrubbed env + memory cap as shellcheck -> the parsed JSON object."""
+    try:
+        with tempfile.TemporaryDirectory() as empty:
+            p = subprocess.run(_capped_argv([helper, "-dialect", dialect], empty, mem_cap_mib), input=data,
+                               capture_output=True, timeout=timeout, cwd=empty, env=_runner_env())
+    except subprocess.TimeoutExpired:
+        raise _UnitsError("the units helper exceeded its %ss budget" % timeout)
+    except OSError as exc:
+        raise _UnitsError("the units helper failed to run: %s" % exc)
+    try:
+        doc = json.loads(p.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise _UnitsError("the units helper (rc=%d) printed no JSON object: %s" % (p.returncode, _txt(p.stderr)[:200]))
+    if p.returncode != 0:
+        why = doc.get("error") if isinstance(doc, dict) else None
+        raise _UnitsError("the units helper exited %d: %s" % (p.returncode, str(why)[:300]))
+    return doc
+
+
+def _command_units(data, helper, mem_cap_mib, timeout):
+    """r10: {line -> (first line, last line) of its OUTERMOST statement unit}, over the byte lines as shellcheck
+    numbers them (_raw_lines), or _UnitsError."""
+    dialect = _units_dialect(data)
+    return _validate_units(_run_units(helper, dialect, data, timeout, mem_cap_mib), dialect, len(_raw_lines(data)))
+
+
+def _line_map(bdata, cdata, units):
     """r6 H3: {head line -> base line} for the head lines a line diff of the two whole blobs keeps UNCHANGED
     (difflib, no junk heuristic: every equal line can anchor; one-to-one and order-preserving, so no base line is
     ever the anchor of two head lines). Added or changed head lines are absent from the map.
-    r9 (review r8 L1): a line is UNCHANGED only together with its whole command unit (_command_units: the lines one
-    command spans through backslash-newline, an open quote, a trailing | / && / ||, a here-document). A head line stays
-    in the map only when its head unit maps line for line, consecutively, onto exactly the base unit of its base line;
-    otherwise every line of that unit is dropped (added `eval \\` above an unchanged line, an edited first line of a
-    multi-line command, a deleted continuation line: the unchanged token belongs to a changed command)."""
+    r10 (structural replacement of the r9 lexical units): a line is UNCHANGED only together with its whole OUTERMOST
+    statement unit, from the parser (`units(data, side)` -> _command_units). A head line stays in the map only when
+    its head unit maps line for line, consecutively, onto exactly the base unit of its base line; otherwise every
+    line of that unit is dropped (an edited if-condition above an unchanged body line, an added `| sh` after a block,
+    an edit elsewhere in the same function, an added line that continues the same pipeline across comments).
+    -> (map, None), or (None, reason) when the units of either side cannot be proven (fail closed: the caller
+    judges the file by the whole-file rule; never the unfiltered map)."""
     sm = difflib.SequenceMatcher(None, _raw_lines(bdata), _raw_lines(cdata), autojunk=False)
     out = {}
     for i, j, n in sm.get_matching_blocks():
         for k in range(n):
             out[j + k + 1] = i + k + 1
     try:
-        hu, bu = _command_units(cdata), _command_units(bdata)
-    except Exception:  # noqa: BLE001 -- fail closed: no unit can be proven intact, so no line is unchanged
-        return {}
+        hu = units(cdata, "head")
+        bu = units(bdata, "base")
+    except _UnitsError as exc:
+        return None, str(exc)
+    except Exception as exc:  # noqa: BLE001 -- fail closed: no unit can be proven intact
+        return None, "head: internal error while deriving units: %r" % (exc,)
     keep, intact = {}, {}
     for h, b in out.items():
         hs, he = hu.get(h, (h, h))
@@ -1070,7 +1050,7 @@ def _line_map(bdata, cdata):
                 out.get(hs + d) == b0 + d for d in range(he - hs + 1))
         if intact[hs]:
             keep[h] = b
-    return keep
+    return keep, None
 
 
 def _finding_ident(c):
@@ -2131,7 +2111,9 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
         tool["test_mode"] = True  # a pack built so is never dispatch-ready (the verifier refuses it)
     delta_on = rule == "baseline-delta" and baseline is not None
     if rule == "baseline-delta":
-        tool["delta"] = {"rule_id": DELTA_RULE_ID, "lint_inputs": "whole-blob-only"}
+        tool["delta"] = {"rule_id": DELTA_RULE_ID, "lint_inputs": "whole-blob-only",
+                         "units": {"parser": _units_parser_version(), "schema": UNITS_SCHEMA,
+                                   "granularity": UNITS_GRANULARITY}}
     delta_files, baseline_findings, dir_viol_base = [], [], []
     ctx["shellcheck_params"] = {"timeout_s": sc_timeout, "exception_timeout_s": ex_timeout,
                                 "memory_cap_mib": mem_cap, "max_lines": max_lines}
@@ -2260,7 +2242,25 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
             dfile["state"] = "blind"
             dfile["cause"] = why
 
-    def delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap):
+    units_helper = []  # [(path|None, reason|None)] -- resolved (and built when needed) once per run
+
+    def units_of(data, side):
+        # r10: the outermost-statement units of one blob, from the parser helper; any failure -> _UnitsError
+        # naming the side (head / base), which _line_map turns into "no map" (fail closed)
+        if not units_helper:
+            units_helper.append(_units_helper_path(mem_cap))
+        helper, why = units_helper[0]
+        if helper is None:
+            raise _UnitsError("%s: %s" % (side, why))
+        left = remaining()
+        if left <= 0:
+            raise _UnitsError("%s: the per-batch time budget (%ss) is exhausted" % (side, DEFAULT_TOTAL_BUDGET))
+        try:
+            return _command_units(data, helper, mem_cap, min(_units_timeout(), left))
+        except _UnitsError as exc:
+            raise _UnitsError("%s: %s" % (side, exc))
+
+    def delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap, uerr):
         blocking = [c for c in comments if _blocking(c)]
         for c in comments:
             if not _blocking(c):
@@ -2273,6 +2273,13 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
             dfile["new_file_reason"] = "head-unparsed: " + _fatal_summary(hfatal)
             for c in sorted({id(x): x for x in blocking + hfatal}.values(),
                             key=lambda x: (x.get("line") or 0, x.get("column") or 0, str(x.get("code")))):
+                findings.append(dict(_finding(rel, c, _line_text(clines, c.get("line"))), new_in="new-file"))
+            return
+        if uerr and not uerr.startswith("base:"):
+            # r10: no command units could be proven for the HEAD -> judged as a NEW file (the whole-file verdict)
+            dfile["state"] = "new-file"
+            dfile["new_file_reason"] = "units-unparsed: " + uerr
+            for c in blocking:
                 findings.append(dict(_finding(rel, c, _line_text(clines, c.get("line"))), new_in="new-file"))
             return
         dfile["state"] = "full"
@@ -2297,6 +2304,10 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
         if bfatal:
             # r6 H1: a base shellcheck could not parse was never analysed whole -> it is no baseline
             delta_base_unlintable(rel, dfile, blocking, clines, "base-unparsed: " + _fatal_summary(bfatal))
+            return
+        if uerr:
+            # r10: no command units could be proven for the BASE -> no baseline (the whole-file verdict)
+            delta_base_unlintable(rel, dfile, blocking, clines, "units-unparsed: " + uerr)
             return
         new, old = _anchored_split(blocking, [c for c in bcom if _blocking(c)], lmap)
         for c in new:
@@ -2415,7 +2426,8 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                                           "file_scope": d["file_scope"], "text": d["text"]})
         files_linted += 1
         if row is None:
-            lmap = _line_map(bdata, cdata) if (dstate == "delta" and bdata is not None and not err) else None
+            lmap, uerr = (_line_map(bdata, cdata, units_of) if (dstate == "delta" and bdata is not None and not err)
+                          else (None, None))
             if dfile is not None:
                 delta_police(rel, dirs, bdata, lmap)
             else:
@@ -2430,7 +2442,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                 errors.append({"file": rel, "message": "BLIND (fails closed): " + err + hint})
                 continue
             if dstate == "delta":
-                delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap)
+                delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap, uerr)
                 continue
             for c in comments:
                 f_ = _finding(rel, c, _line_text(clines, c.get("line")))
