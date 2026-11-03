@@ -475,23 +475,35 @@ def detect_bulk_import_clusters(history_by_id, candidate_ids, bulk_threshold):
     return flagged
 
 
+def retroactive_state(history):
+    """Tri-state: "retroactive" | "normal" | "unparseable" (Opened or closure
+    created_at missing/malformed, so the gap cannot be computed). The former
+    `except Exception: return False` folded "unparseable" into "normal", so a
+    corrupt-timestamp item was silently kept as a usable duration sample
+    (§11.4.201(6)); classify_exclusions now excludes it WITH a stated reason."""
+    opened = next((r for r in history if r["event_type"] == "Opened"), None)
+    closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)
+    if not opened or not closed:
+        return "normal"
+    try:
+        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return "unparseable"
+    return "retroactive" if 0 <= gap < 60 else "normal"
+
+
 def detect_retroactive_registration(history):
     """Opened db_write -> terminal closure db_write gap in [0, 60) seconds.
     THE one implementation in the cycle tools (cycle_report.py imports it as
     its RETROACTIVE_REGISTRATION flag); a negative gap (closure row written
-    before the Opened row) is NOT a retroactive registration (V2-4)."""
-    opened = next((r for r in history if r["event_type"] == "Opened"), None)
-    closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)
-    if not opened or not closed:
-        return False
-    try:
-        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
-    except Exception:
-        return False
-    return 0 <= gap < 60
+    before the Opened row) is NOT a retroactive registration (V2-4). An
+    unparseable timestamp is not provably retroactive, so this is False for
+    it; retroactive_state() distinguishes it."""
+    return retroactive_state(history) == "retroactive"
 
 
 RETROACTIVE_REASON = "retroactive-registration (Opened->closure db_write gap < 60s)"
+UNPARSEABLE_REASON = "unparseable-timestamp (Opened/closure created_at missing or malformed; gap not computable)"
 
 
 def classify_exclusions(history_by_id, candidate_ids, bulk_threshold):
@@ -507,8 +519,12 @@ def classify_exclusions(history_by_id, candidate_ids, bulk_threshold):
             dirname, on_date = bulk_flagged[atm_id]
             reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
                 dirname, on_date, bulk_threshold)
-        elif detect_retroactive_registration(history_by_id.get(atm_id, [])):
-            reason = RETROACTIVE_REASON
+        else:
+            rstate = retroactive_state(history_by_id.get(atm_id, []))
+            if rstate == "retroactive":
+                reason = RETROACTIVE_REASON
+            elif rstate == "unparseable":
+                reason = UNPARSEABLE_REASON
         exclusion_by_id[atm_id] = reason
     return exclusion_by_id
 

@@ -131,7 +131,7 @@ cases = [
     ("sys-usb-authorized",     "#!/bin/sh\necho 0 > /sys/bus/usb/devices/1-1/authorized\n",    True),
     ("uhubctl",                "#!/bin/sh\nuhubctl -a off -p 2\n",                             True),
     ("systemctl-stop",         "#!/bin/sh\nsystemctl --user stop some.service\n",               True),
-    ("kill-wide-signal",       "#!/bin/sh\nkill -9 -1\n",                                      True),
+    ("kill-wide-signal",       "#!/bin/sh\nkill -9 -1\n",                                      True),  # killpg-gate:allow fixture text fed to the detector under test, never executed
     ("adb-via-dollar-var",     '#!/bin/sh\nADB="${ADB:-adb}"\n"${ADB}" -s SER shell echo hi\n', True),
     # Negative controls -- must remain NOT flagged.
     ("rm-rf-scratch-var",      '#!/bin/sh\nTMPD=$(mktemp -d)\nrm -rf "$TMPD"\n',                False),

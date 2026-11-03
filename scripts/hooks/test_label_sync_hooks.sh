@@ -34,6 +34,9 @@ HK="$LS/hooks"
 INSTALLER="$LS/install_label_sync.sh"
 WRAPPER="$LS/toolkit/cma_label_hook.sh"
 POSTHOOK="$CROOT/scripts/post_update_hook.sh"
+# A fake constitution ships the library STEP 4 sources (scripts/lib/hook_install.sh),
+# like the real one: without it the hook warns and installs no git hook at all.
+with_hlib() { mkdir -p "$1/scripts/lib" && cp "$CROOT/scripts/lib/hook_install.sh" "$1/scripts/lib/hook_install.sh"; }
 KEEP=""; FAILFAST=""
 for _a in "$@"; do case "$_a" in --keep) KEEP=1 ;; --fail-fast) FAILFAST=1 ;; esac; done
 
@@ -483,7 +486,7 @@ check "--uninstall removes our statusLine" bash -c "jq -e '.statusLine==null' '$
 # =========================================================================
 echo "== 11. post_update_hook.sh wiring (default NON-destructive) =="
 FC="$T/fakeconst"; mkdir -p "$FC/scripts/label-sync/hooks" "$FC/scripts/multitrack" "$FC/docs"
-cp "$POSTHOOK" "$FC/scripts/post_update_hook.sh"
+cp "$POSTHOOK" "$FC/scripts/post_update_hook.sh"; with_hlib "$FC"
 cp -r "$LS/hooks/." "$FC/scripts/label-sync/hooks/" 2>/dev/null
 cp "$INSTALLER" "$FC/scripts/label-sync/install_label_sync.sh" 2>/dev/null
 mkdir -p "$FC/scripts/label-sync/render"; cp "$FIXREND" "$FC/scripts/label-sync/render/statusline.sh"
@@ -747,7 +750,7 @@ check "F11 control needle: the same comment-stripping instrument DOES see code l
 # =========================================================================
 echo "== 17. F6: post_update_hook.sh in a WORKTREE / non-git consumer never aborts before step 4c =="
 FC6="$T/fakeconst6"; mkdir -p "$FC6/scripts/label-sync/hooks" "$FC6/scripts/hooks" "$FC6/scripts/label-sync/render"
-cp "$POSTHOOK" "$FC6/scripts/post_update_hook.sh"
+cp "$POSTHOOK" "$FC6/scripts/post_update_hook.sh"; with_hlib "$FC6"
 cp -r "$LS/hooks/." "$FC6/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC6/scripts/label-sync/install_label_sync.sh"
 cp "$FIXREND" "$FC6/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC6/Constitution.md"
 ( cd "$FC6" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
@@ -782,7 +785,7 @@ check "R1 ...no 'step install_label_sync FAILED' line" bash -c '! grep -q "step 
 # hook before step 4c: under `set -e` a non-zero return from step 4b used to
 # end the WHOLE run, so label-sync was never (re-)wired (FIX-B2 finding).
 FC4B="$T/fakeconst4b"; mkdir -p "$FC4B/scripts/label-sync/hooks" "$FC4B/scripts/label-sync/render" "$FC4B/actions"
-cp "$POSTHOOK" "$FC4B/scripts/post_update_hook.sh"
+cp "$POSTHOOK" "$FC4B/scripts/post_update_hook.sh"; with_hlib "$FC4B"
 cp -r "$LS/hooks/." "$FC4B/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC4B/scripts/label-sync/install_label_sync.sh"
 cp "$FIXREND" "$FC4B/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC4B/Constitution.md"
 ( cd "$FC4B" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
@@ -943,7 +946,7 @@ check "F3 SessionEnd removes the switch record" test ! -e "$LABEL_SYNC_DIR/hooks
 echo "== 20. review-2 C/D/E/L: post_update_hook isolates steps, resolves MCP paths, runs the adapters step, syntax-checks label-sync scripts =="
 C20="$T/c20"; FC20="$C20/constitution"
 mkdir -p "$FC20/scripts/label-sync/hooks" "$FC20/scripts/label-sync/render" "$FC20/scripts/label-sync/mcp" "$FC20/scripts/label-sync/adapters" "$FC20/mcp"
-cp "$POSTHOOK" "$FC20/scripts/post_update_hook.sh"
+cp "$POSTHOOK" "$FC20/scripts/post_update_hook.sh"; with_hlib "$FC20"
 cp -r "$LS/hooks/." "$FC20/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC20/scripts/label-sync/install_label_sync.sh"
 cp "$FIXREND" "$FC20/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC20/Constitution.md"
 cp "$LS/mcp/label-mcp.sh" "$FC20/scripts/label-sync/mcp/"; cp "$CROOT/mcp/label-sync-mcp.json" "$FC20/mcp/"
@@ -1059,7 +1062,7 @@ eq "R5 a prebuilt LABEL_SYNC_BIN without a stamp and newer than every source is 
 # =========================================================================
 echo "== 22. re-review 1/3: errexit inside every post-update step; per-item failures are ERRORs; exit/set -u contained =="
 C22="$T/c22"; FC22="$C22/constitution"; mkdir -p "$FC22/scripts/hooks" "$T/home22"
-cp "$POSTHOOK" "$FC22/scripts/post_update_hook.sh"; echo '# c' >"$FC22/Constitution.md"
+cp "$POSTHOOK" "$FC22/scripts/post_update_hook.sh"; with_hlib "$FC22"; echo '# c' >"$FC22/Constitution.md"
 ( cd "$FC22" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
   && mkdir -p skills/foo skills/bar && echo '# foo' >skills/foo/SKILL.md && echo '# bar' >skills/bar/SKILL.md \
   && printf '#!/usr/bin/env bash\necho ok\n' >"skills/foo/ok
@@ -1091,13 +1094,16 @@ eq "R1 an 'exit' inside a step ends only that step (hook exit 1, not aborted)" "
 check "R1 ...recorded with the step's exit code" grep -q 'step install_skills FAILED (exit 7)' "$T/ph22b.out"
 check "R1 ...and the next steps still ran: SUMMARY" grep -q 'SUMMARY' "$T/ph22b.out"
 # step 4 classified like step 2 (re-review 3 finding 6): a hook that cannot be copied is an ERROR
-# (the destination is a DANGLING symlink into a missing dir: an earlier run
-# already installed the file, cp overwrites an existing writable file even in a
-# 555 dir, and copies INTO a directory — a dangling link fails for root too)
+# (the destination is a DIRECTORY: scripts/lib/hook_install.sh refuses any
+# destination that is neither a regular file nor a symlink and leaves it in
+# place. Round 7: the former fixture — a dangling symlink — is no longer
+# uninstallable, because the shared lib backs a symlink up AS A LINK and
+# replaces it atomically, which is the intended behaviour.)
 HD22="$(git -C "$C22" rev-parse --path-format=absolute --git-path hooks)"; mkdir -p "$HD22"
-rm -f "$HD22/post-merge"; ln -s "$T/no-such-dir/post-merge" "$HD22/post-merge"
+rm -f "$HD22/post-merge"; mkdir "$HD22/post-merge"
 ph22 env >"$T/ph22h.out" 2>&1; rc=$?
-rm -f "$HD22/post-merge"
+check "R3.6 ...and the directory in the way is left in place, untouched" test -d "$HD22/post-merge"
+rmdir "$HD22/post-merge"
 eq "R3.6 a git hook that cannot be installed is an ERROR (hook exit 1), like a skill link" "$rc" 1
 check "R3.6 ...named in the errors" grep -q "git hook post-merge: install failed" "$T/ph22h.out"
 rm -f "$C22/skills/foo" "$C22/skills/bar"
@@ -1115,7 +1121,7 @@ echo "== 23. re-review 3 finding 8, whole class: the step-1 changed-file list is
 # so `case skills/*` never matched), and the IFS-newline dedupe `ARR=($(…))`
 # glob-expanded a name such as `g*` against the CONSUMER's cwd.
 C23="$T/c23"; FC23="$C23/constitution"; mkdir -p "$FC23/scripts/hooks" "$T/home23"
-cp "$POSTHOOK" "$FC23/scripts/post_update_hook.sh"; echo '# c' >"$FC23/Constitution.md"
+cp "$POSTHOOK" "$FC23/scripts/post_update_hook.sh"; with_hlib "$FC23"; echo '# c' >"$FC23/Constitution.md"
 ( cd "$FC23" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
   && mkdir -p 'skills/g*' 'skills/ü' skills/plain \
   && echo '# g' >'skills/g*/SKILL.md' && echo '# u' >'skills/ü/SKILL.md' && echo '# p' >skills/plain/SKILL.md \

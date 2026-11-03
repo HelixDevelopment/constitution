@@ -52,17 +52,40 @@
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_oracle_strategy_named_and_independent.sh [--root <dir>] [--quiet]
-#     --root <dir>   scan root (default: $ORACLE_GUARD_ROOT or "..")
+#     --root <dir>   scan root (default: $ORACLE_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
+#     --include-third-party
+#                    also scan third-party / separate-repository trees (opt-in;
+#                    default prunes them, see "Scope" below)
 #     -h|--help      print this header
 #
+# ── Scope: third-party trees are pruned by default (triage 2026-10-31) ──────
+# Trees the scanned repository does not own are pruned: every `path =` of the
+# root `.gitmodules` (each is a separate repository that adopts this gate on
+# its own) and every helix-deps.yaml dep marked `third_party: true` (its `path:`
+# or `submodules/<name>`), resolved by scripts/lib/third_party_prune.sh; plus
+# the directory names `third_party` and `site-packages`. Unsafe manifest paths
+# are dropped, never interpreted. Opt back in with --include-third-party or
+# ORACLE_GUARD_INCLUDE_THIRD_PARTY=1 (the default prune list below still
+# applies; ORACLE_GUARD_EXCLUDE is additive to the manifest-derived prune).
+#
+# ── Annotation grammar (closed; prose is never an annotation) ───────────────
+# A line is an annotation ONLY when `oracle:` begins the comment or docstring
+# text — start of line, or right after `#` / an opening triple quote — and the
+# strategy token is followed by end of line, `#`, a closing triple quote, `(`,
+# `;` or `,`. Prose such as "Independent oracle: raw grep" or "The oracle: the
+# reference output ..." is therefore NOT parsed as the (unknown) strategy
+# RAW / THE; it is simply not an annotation.
+#
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
-#   ORACLE_GUARD_ROOT      default scan root (else --root, else "..")
+#   ORACLE_GUARD_ROOT      default scan root (else --root, else the gate-location default, see scripts/lib/default_scan_root.sh)
 #   ORACLE_GUARD_GLOB      -iname glob for candidate test files
 #                           (default: "*test*.py")
+#   ORACLE_GUARD_INCLUDE_THIRD_PARTY  1 = same as --include-third-party
 #   ORACLE_GUARD_EXCLUDE   space-separated dir-name globs to prune
 #                          (default: ".git node_modules vendor .venv
-#                           __pycache__ scripts/gates out build dist")
+#                           __pycache__ scripts/gates out build dist
+#                           third_party site-packages")
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
 #   Per-violation evidence line (file:line of the `def test_...` + reason:
@@ -95,24 +118,38 @@ set -uo pipefail
 GATE="CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT"
 ANCHOR="11.4.245"
 
-root="${ORACLE_GUARD_ROOT:-..}"
+root="${ORACLE_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 glob="${ORACLE_GUARD_GLOB:-*test*.py}"
 quiet=0
+include_tp="${ORACLE_GUARD_INCLUDE_THIRD_PARTY:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --glob) glob="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
-        -h|--help) sed -n '1,90p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --include-third-party) include_tp=1; shift ;;
+        -h|--help) sed -n '1,115p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
 
+if [ -z "$root" ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
+fi
+
 [ -d "$root" ] || { echo "${GATE}: scan root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"
 
-excludes="${ORACLE_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
+excludes="${ORACLE_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages}"
+if [ "$include_tp" != 1 ]; then
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh" 2>/dev/null \
+        && excludes="$excludes $(cm_third_party_prune_paths "$root" | tr '\n' ' ')"
+fi
 
 prune_expr=()
 for ex in $excludes; do
@@ -144,6 +181,23 @@ BEGIN {
     for (n = 1; n in ok_arr; n++) ok[ok_arr[n]] = 1
 }
 { lines[NR] = $0 }
+# Closed annotation grammar: returns the UPPER-CASED token of a line that IS an
+# annotation, else "". `oracle:` must open the comment/docstring text (line
+# start, or right after `#` / quote characters) and the token must be followed
+# by end of line, `#`, a quote, `(`, `;` or `,` -- so prose such as
+# "Independent oracle: raw grep" or "The oracle: the reference ..." is not one.
+function annot(raw,   l, m, i, rest) {
+    l = tolower(raw)
+    if (!match(l, /(^|#)[ \t]*["\047]*[ \t]*oracle[ \t]*:[ \t]*[a-z_-]+([ \t]*[(#;,"\047]|[ \t]*$)/)) return ""
+    m = substr(raw, RSTART, RLENGTH)
+    i = index(tolower(m), "oracle")
+    rest = substr(m, i + 6)
+    sub(/^[ \t]*:[ \t]*/, "", rest)
+    match(rest, /^[A-Za-z_-]+/)
+    rest = toupper(substr(rest, RSTART, RLENGTH))
+    gsub(/-/, "_", rest)
+    return rest
+}
 END {
     total = NR
     for (i = 1; i <= total; i++) {
@@ -184,14 +238,8 @@ END {
                 if (kl ~ /^[ \t]*$/) break
                 if (kl ~ /^[ \t]*(async[ \t]+)?def[ \t]/) break
                 if (kl ~ /^[ \t]*class[ \t]/) break
-                if (match(kl, /[Oo][Rr][Aa][Cc][Ll][Ee][ \t]*:[ \t]*[A-Za-z_-]+/)) {
-                    m = substr(kl, RSTART, RLENGTH)
-                    cp = index(m, ":")
-                    val = substr(m, cp + 1)
-                    gsub(/^[ \t]+/, "", val)
-                    gsub(/[ \t]+$/, "", val)
-                    val = toupper(val)
-                    gsub(/-/, "_", val)
+                val = annot(kl)
+                if (val != "") {
                     if (val in ok) { found = 1 } else { bad_val = val }
                     break
                 }
@@ -202,14 +250,8 @@ END {
             if (!found) {
                 for (k = i; k < fend; k++) {
                     kl = lines[k]
-                    if (match(kl, /[Oo][Rr][Aa][Cc][Ll][Ee][ \t]*:[ \t]*[A-Za-z_-]+/)) {
-                        m = substr(kl, RSTART, RLENGTH)
-                        cp = index(m, ":")
-                        val = substr(m, cp + 1)
-                        gsub(/^[ \t]+/, "", val)
-                        gsub(/[ \t]+$/, "", val)
-                        val = toupper(val)
-                        gsub(/-/, "_", val)
+                    val = annot(kl)
+                    if (val != "") {
                         if (val in ok) { found = 1; bad_val = "" } else { bad_val = val }
                         break
                     }

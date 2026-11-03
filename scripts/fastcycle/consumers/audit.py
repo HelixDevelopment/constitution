@@ -84,6 +84,49 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from _layout import LAYOUT_RELS, local_gitlink, scrub_git_env  # noqa: E402  (the ONE layout list)
+except ImportError:
+    # Only when this file runs as a lone scratch copy (the guard-viability
+    # mutants of scripts/fastcycle/tests/test_consumer_audit_red.sh copy
+    # audit.py alone). This fallback MUST equal _layout.py; the parity is
+    # asserted by tests/layout/test_fastcycle_layout.sh.
+    LAYOUT_RELS = ("submodules/constitution", "constitution")
+
+    # Lone-copy fallback; MUST equal scripts/lib/constitution_layout.sh
+    # CL_GIT_SCRUB_VARS (tests/layout/test_round8_git_env.sh checks it).
+    GIT_SCRUB_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR",
+                      "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE",
+                      "GIT_CEILING_DIRECTORIES", "GIT_SHALLOW_FILE", "GIT_GRAFT_FILE",
+                      "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS", "GIT_QUARANTINE_PATH",
+                      "GIT_INTERNAL_SUPER_PREFIX")
+
+    def scrub_git_env(notice=True):
+        dropped = [v for v in GIT_SCRUB_VARS if v in os.environ]
+        for v in dropped:
+            del os.environ[v]
+        if dropped and notice:
+            print("[constitution] NOTICE: ignoring the ambient git environment (%s)." % " ".join(dropped), file=sys.stderr)
+        return dropped
+
+    def git_env():
+        return {k: v for k, v in os.environ.items() if k not in GIT_SCRUB_VARS}
+
+    def local_gitlink(checkout, timeout=5):
+        for rel in LAYOUT_RELS:
+            try:
+                proc = subprocess.run(["git", "-C", checkout, "ls-tree", "HEAD", "--", rel],
+                                      capture_output=True, text=True, timeout=timeout,
+                                      env=git_env())
+            except (OSError, subprocess.TimeoutExpired):
+                continue
+            if proc.returncode == 0 and "160000 commit" in proc.stdout:
+                parts = proc.stdout.split()
+                if len(parts) >= 3:
+                    return rel, parts[2]
+        return None, None
+
 try:
     import yaml
 except ImportError:
@@ -191,12 +234,7 @@ def audit_checkout_detail(checkout, const_root):
     if not _is_real_checkout(checkout):
         detail["cleanliness"] = "UNMEASURED"
         return detail
-    out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
-    gitlink = None
-    if out:
-        parts = out.split()
-        if len(parts) >= 3:
-            gitlink = parts[2]
+    _rel, gitlink = local_gitlink(checkout)
     detail["constitution_pointer"] = gitlink
     if gitlink:
         behind = measure_behind(const_root, gitlink)
@@ -256,11 +294,9 @@ def audit_one(project, const_root):
     local_ok = _is_real_checkout(local_checkouts[0]) if local_checkouts else False
     if local_ok:
         checkout = local_checkouts[0]
-        out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
-        if out:
-            parts = out.split()
-            if len(parts) >= 3:
-                gitlink = parts[2]
+        _rel, _sha = local_gitlink(checkout)
+        if _sha:
+            gitlink = _sha
         claude_md = os.path.join(checkout, "CLAUDE.md")
         if os.path.isfile(claude_md):
             preamble_bytes = os.path.getsize(claude_md)
@@ -268,9 +304,11 @@ def audit_one(project, const_root):
         clean, measured = measure_cleanliness(checkout)
         cleanliness = clean if measured else "UNMEASURED"
     else:
-        doc = gh_contents(project_id, "constitution")
-        if doc and doc.get("type") == "submodule":
-            gitlink = doc.get("sha")
+        for _rel in LAYOUT_RELS:
+            doc = gh_contents(project_id, _rel)
+            if doc and doc.get("type") == "submodule":
+                gitlink = doc.get("sha")
+                break
         claude_doc = gh_contents(project_id, "CLAUDE.md")
         if claude_doc and "size" in claude_doc:
             preamble_bytes = claude_doc["size"]
@@ -322,7 +360,11 @@ def audit_one(project, const_root):
 
 def cmd_audit(args):
     cfg = load_config(args.config)  # noqa: F841 (loaded for CA-011 future tool paths; validated present)
-    const_root = os.path.join(repo_root_of_config(args.config), "constitution")
+    _proj = repo_root_of_config(args.config)
+    const_root = next(
+        (os.path.join(_proj, r) for r in LAYOUT_RELS if os.path.isfile(os.path.join(_proj, r, "Constitution.md"))),
+        os.path.join(_proj, LAYOUT_RELS[-1]),
+    )
     with open(args.consumers, "r", encoding="utf-8") as fh:
         consumers_doc = json.load(fh)
     projects = consumers_doc.get("projects", [])
@@ -963,6 +1005,7 @@ def cmd_summary(args):
 
 
 def main():
+    scrub_git_env()
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
 

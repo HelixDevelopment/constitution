@@ -68,7 +68,11 @@ SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
 # constitution submodule root. This gate's inputs cross that boundary
 # deliberately: the deps-file is constitution-owned, the report-file is
 # repo-root-owned (qa-results/hxc159/...).
-ROOT=$(cd "$SELF_DIR/../../.." >/dev/null 2>&1 && pwd)
+# Default = where the gate LIVES (the superproject when vendored, else the canon), never the directory above the canon.
+# shellcheck disable=SC1091
+. "$SELF_DIR/../lib/default_scan_root.sh" 2>/dev/null && ROOT=$(cm_default_scan_root "$SELF_DIR") || ROOT=""
+[ -n "$ROOT" ] || { echo "$GATE: cannot resolve a default root from the gate location; pass --root" >&2; exit 2; }
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer probe report (only way to get the honest SKIP)
 DEPS_FILE=""
 REPORT_FILE=""
 QUIET=0
@@ -78,6 +82,7 @@ while [ $# -gt 0 ]; do
 		--root)        shift; ROOT="$1" ;;
 		--deps-file)   shift; DEPS_FILE="$1" ;;
 		--report-file) shift; REPORT_FILE="$1" ;;
+		--standalone-canon) STANDALONE=1 ;;
 		--quiet)       QUIET=1 ;;
 		-h|--help)     sed -n '3,50p' "$0"; exit 0 ;;
 		*) echo "$GATE: unknown arg: $1" >&2; exit 2 ;;
@@ -85,7 +90,7 @@ while [ $# -gt 0 ]; do
 	shift || true
 done
 
-[ -n "$DEPS_FILE" ] || DEPS_FILE="$ROOT/constitution/scripts/extensions/bridge_phase_layer_deps.json"
+[ -n "$DEPS_FILE" ] || DEPS_FILE="$SELF_DIR/../extensions/bridge_phase_layer_deps.json"   # constitution-owned: resolved from the gate location, valid vendored or standalone
 
 if [ -z "$REPORT_FILE" ]; then
 	LAYERS_DIR="$ROOT/qa-results/hxc159/bridge_layers"
@@ -112,6 +117,10 @@ say "   report-file: ${REPORT_FILE:-<none found>}"
 if [ ! -f "$DEPS_FILE" ]; then
 	fail "deps-file MISSING: $DEPS_FILE — cannot determine any phase's layer dependencies"
 	exit 1
+fi
+if { [ -z "${REPORT_FILE:-}" ] || [ ! -f "$REPORT_FILE" ]; } && [ "$STANDALONE" -eq 1 ]; then
+	say "SKIP  [CM-BRIDGE-LAYER-PRESENCE] standalone canon DECLARED (--standalone-canon): the probe report is a consumer run artifact and does not exist here (honest SKIP, not a PASS)"
+	exit 3
 fi
 if [ -z "${REPORT_FILE:-}" ] || [ ! -f "$REPORT_FILE" ]; then
 	fail "no probe report.json found (looked under qa-results/hxc159/bridge_layers/) — run probe_bridge_layers.sh first; a missing report is NOT evidence every layer is WIRED"

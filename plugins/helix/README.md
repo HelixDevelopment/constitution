@@ -18,6 +18,7 @@ Every registered §11.4.140 action is exposed as a Claude Code slash command.
 | `/feature` | `/helix:feature` · `/default-feature` | SCHEDULE (never synchronously run) a deep, enterprise-grade research + implementation-planning effort on a described feature as a tracked workable item — the multi-day research itself is performed later by the autonomous loop, not by this directive. |
 | `/jev_bootstrap` | `/helix:jev_bootstrap` · `/default-jev_bootstrap` | Run the Jev decision-layer bootstrap wizard: detect decision models, provision llmctl + claude_toolkit, wire every detected agent, start shadow calibration (§11.4.279–§11.4.286). |
 | `/jev_status` | `/helix:jev_status` · `/default-jev_status` | Show decision-layer status: detected endpoints, per-agent wiring, mode (shadow/enforce), calibrated thresholds, pending bootstrap stamp, and the jev-stats savings summary. |
+| `/constitution` | `/helix:constitution` · `/default-constitution` | Constitution command family: status, update (check only), doctor, anchors N, gates, report/issue/bug/task/feature, skills, extensions, jev, release-notes, help - one read-mostly engine, allow-listed arguments. |
 
 ## Conflict rule (§11.4.140)
 

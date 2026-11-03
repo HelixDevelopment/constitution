@@ -1,101 +1,459 @@
 #!/usr/bin/env bash
 # ============================================================================
-# post-merge — Git hook: auto-propagate constitution changes after merge
+# post-merge — Git hook: constitution auto-propagation after a merge (§11.4.164)
 # ============================================================================
 # Purpose:
-#   After any `git merge` or `git pull` that updates the constitution
-#   submodule, automatically run the constitution's post_update_hook.sh
-#   to install/register new skills, MCP configs, hooks, and scripts.
+#   After a `git merge` / `git pull` that moves the constitution submodule
+#   GITLINK, run <constitution>/scripts/post_update_hook.sh with the gitlink
+#   range — or, when the submodule checkout has not caught up yet, record a
+#   PENDING stamp that the submodule-side consumer hook runs later.
 #
-#   §11.4.164 — Post-update auto-propagation mandate
+# Why two hooks (measured, git 2.53.0, 2026-10-29):
+#   git runs the PARENT's post-merge BEFORE it updates submodules. With
+#   `git pull --recurse-submodules` (or `-c submodule.recurse=true pull`) this
+#   hook therefore always sees the OLD submodule checkout; the new checkout is
+#   made afterwards by an internal `git submodule update`, which fires the
+#   SUBMODULE's own post-checkout (in .git/modules/<name>/hooks, with GIT_DIR
+#   set to the submodule's git dir) — never the parent's post-checkout.
+#   So:
+#     - checkout already equals the merged gitlink -> this hook runs the
+#       post-update hook directly (e.g. the submodule was updated first),
+#       under the same TRUST rules as the consumer hook (below), holding the
+#       SAME propagation lock ($(git rev-parse --absolute-git-dir)/
+#       constitution-pending-update.lock, exclusive create; a lock whose owner
+#       record is provably dead -- no /proc/<pid>, or a different process start
+#       time -- is reclaimed with a warning; a live / unprovable / owner-less /
+#       symlink lock is never touched (the consumer hook additionally reclaims
+#       an owner-less lock older than 60 s, this hook deliberately does not):
+#       then ONE warning with the command, not run);
+#     - checkout is stale -> this hook writes the pending stamp
+#         $(git rev-parse --absolute-git-dir)/constitution-pending-update
+#       (lines ROOT=, REL=, OLD=, NEW=; written atomically: temp + rename) and
+#       the consumer hook scripts/hooks/constitution-submodule-post-checkout,
+#       installed by setup.sh as the SUBMODULE's post-checkout, runs the
+#       post-update hook exactly once when the checkout reaches NEW.
+#   After each successful hand-off the applied gitlink is recorded in
+#   $(git rev-parse --absolute-git-dir)/constitution-applied-ref (REL=, REF=).
+#   Both files are PER WORKTREE (.git for the main worktree,
+#   .git/worktrees/<name> for a linked one): one worktree's update never marks
+#   another worktree applied.
+#
+# TRUST MODEL: propagation EXECUTES <constitution>/scripts/post_update_hook.sh
+#   of the newly checked-out gitlink commit (fetched code). It runs
+#   automatically only when auto-propagation is not disabled
+#   (`git config constitution.autoPropagate false`, or env
+#   CONSTITUTION_AUTO_PROPAGATE=off), the gitlink is a full 40/64-hex commit
+#   reachable from the submodule's upstream default branch
+#   (refs/remotes/origin/HEAD, else origin/main, else origin/master; never
+#   fetched by the hook), and it is not a downgrade (the previous gitlink is
+#   an ancestor of the new one). Otherwise ONE warning with the exact manual
+#   command is printed and nothing runs. See
+#   scripts/hooks/constitution-submodule-post-checkout for the full text.
+#   Before those rules pass this hook runs and sources NOTHING from the
+#   checkout (its constitution resolver is embedded below, round-4 m-A): a
+#   commit git checked out but the rules refused can never execute through
+#   this hook. The hook file itself is a copy installed by setup.sh (refreshed
+#   by post_update_hook.sh STEP 4 after an accepted update).
 #
 # Installation:
-#   Installed automatically via:
-#     bash constitution/scripts/post_update_hook.sh
-#   Or manually:
-#     cp constitution/scripts/hooks/post-merge .git/hooks/post-merge
-#     chmod +x .git/hooks/post-merge
+#   bash submodules/constitution/scripts/setup.sh   (legacy: constitution/...)
+#   installs this file as the project's post-merge AND the consumer hook as
+#   the constitution submodule's post-checkout.
 #
-# Behaviour:
-#   - Detects if the constitution submodule was updated in the merge
-#   - Only runs when constitution/ HEAD actually changed
-#   - Delegates to constitution/scripts/post_update_hook.sh
-#   - Silent on no-op (no constitution changes)
+# When git does NOT run this hook (the consumer hook still covers these as
+# soon as the submodule checkout moves to the new gitlink, e.g. by
+# `git submodule update`; it uses OLD = the last applied gitlink):
+#   - `git pull --rebase` that has to REPLAY local commits, and `git rebase`
+#     (no merge). NOTE (measured, git 2.53.0, 2026-10-29): when `git pull
+#     --rebase` can simply FAST-FORWARD (no local commits), git DOES run
+#     post-merge, exactly like a fast-forward merge;
+#   - a merge that stopped on conflicts and was finished with `git commit`
+#     (post-merge is not invoked for that commit): run
+#       git submodule update -- <constitution path>
+#     afterwards; with the consumer hook installed that runs propagation;
+#   - `git submodule update` alone;
+#   - a branch switch / checkout / reset (no merge). When git moves the
+#     submodule itself through its recursion (submodule.recurse=true or
+#     --recurse-submodules) NO hook runs at all, not even the consumer, and
+#     nothing is printed (measured, git 2.53.0, 2026-10-29: `git -c
+#     submodule.recurse=true checkout -B x origin/main` moved the checkout to
+#     the new gitlink silently). Run setup.sh (or the manual command below)
+#     afterwards;
+#   - `git merge --squash`: post-merge IS invoked (status flag 1) but nothing
+#     is committed yet; a WARNING says to commit, then update the submodule.
+#   Without the consumer hook (setup.sh not re-run since it was added) run by
+#   hand from the project root, with the range printed in the warning:
+#     CONSTITUTION_UPDATE_OLD_REF=<old> CONSTITUTION_UPDATE_NEW_REF=<new> \
+#       bash <constitution>/scripts/post_update_hook.sh
 #
-# Inputs:
-#   GIT_DIR      — set by git; points to .git
-#   PROJECT_ROOT — consuming project root (default: parent of .git)
+# Behaviour details:
+#   - Exits 0 silently when the merge moved NO submodule gitlink (no noise on
+#     ordinary merges, whatever the state of the checkouts).
+#   - The constitution checkout is a path that is a real gitlink (mode
+#     160000) in the project index holding Constitution.md + scripts/: first
+#     the layouts submodules/constitution, then constitution, that ARE
+#     gitlinks (so a mid-migration tree with a vendored plain copy at one
+#     layout and the gitlink at the other finds the gitlink); else the FIRST
+#     of those layouts and the other .gitmodules paths holding the files, used
+#     only when it is a gitlink (absolute and '..' paths are never
+#     considered). Nothing in it is sourced; $CONSTITUTION_DIR is ignored (the
+#     project's own checkout only).
+#   - The constitution's gitlink moved but there is no initialized checkout
+#     (e.g. deinit'd): ONE concise WARNING with the command to run.
+#   - git exports GIT_DIR & co. to hooks; they are unset first so every
+#     `git -C <dir>` addresses <dir>.
 #
-# Outputs:
-#   stdout — summary of actions taken (only when constitution changes)
-#   Exit 0 — success or no-op
-#   Exit 1 — hook error (non-fatal for merge)
+# Env contract handed to post_update_hook.sh:
+#   PROJECT_ROOT, CONST_DIR,
+#   CONSTITUTION_UPDATE_OLD_REF — gitlink before (earliest not yet applied:
+#                                 the pending stamp's OLD, else the last
+#                                 applied ref, else ORIG_HEAD:<path>; may be
+#                                 empty when the constitution was just added)
+#   CONSTITUTION_UPDATE_NEW_REF — gitlink after the merge
+#   CONSTITUTION_PENDING_UPDATE_RUNNING=1 (the consumer hook ignores
+#                                 checkouts made while it is set)
 #
-# Dependencies:
-#   bash, git, constitution/scripts/post_update_hook.sh
-#
-# Side-effects:
-#   Updates skills/ MCP configs .git/hooks scripts in consuming project
-#
-# Cross-references:
-#   constitution/Constitution.md §11.4.164
-#   constitution/scripts/post_update_hook.sh
-#
-# Last verified: 2026-06-21
+# Inputs: $1 — git status flag (1 = squash merge)
+# Outputs: stdout/stderr messages; exit 0 always (never fails a merge).
+# Dependencies: bash 4, git, cat, date, rm, mktemp, mv (self-contained: sources nothing)
+# Cross-references: Constitution.md §11.4.164; scripts/setup.sh;
+#   scripts/hooks/constitution-submodule-post-checkout;
+#   tests/layout/test_post_merge_layout.sh, tests/layout/test_pending_update_layout.sh,
+#   tests/layout/test_round4_hardening.sh, tests/layout/test_round6_hardening.sh
+# Last verified: 2026-10-29
 # ============================================================================
 
-set -euo pipefail
+set -uo pipefail
 
-# Only run on a real merge (not a squash or rebase that git still calls merge)
-# git sets GIT_DIR during hook execution
-GIT_DIR="${GIT_DIR:-.git}"
+warn() { printf '[post-merge] WARNING: %s\n' "$*" >&2; }
+note() { printf '[post-merge] %s\n' "$*" >&2; }
+q() { printf '%q' "$1"; }
 
-# Resolve project root
-if [ -f "${GIT_DIR}" ]; then
-    # GIT_DIR is a file (submodule)
-    PROJECT_ROOT="$(cd "$(dirname "$GIT_DIR")" && pwd)"
-elif [ -d "${GIT_DIR}" ]; then
-    PROJECT_ROOT="$(cd "$GIT_DIR/.." && pwd)"
+# Repo-scoped variables git exports to hooks (or a shell left over for another
+# repository) would redirect every `git -C <constitution>` call, the project
+# root discovery below and the post-update hook to the WRONG repository: they
+# are unset FIRST (unset-and-proceed; this is the repository-locating class of
+# scripts/lib/constitution_layout.sh CL_GIT_SCRUB_VARS — keep the lists equal,
+# tests/layout/test_round8_git_env.sh checks it). No notice: git itself exports
+# some of them to every hook.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR \
+      GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE \
+      GIT_CEILING_DIRECTORIES GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE \
+      GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX 2>/dev/null || true
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+G() { git -C "$PROJECT_ROOT" --literal-pathspecs "$@"; }
+
+# --- 1. Which gitlinks did this merge move? ---------------------------------
+SQUASH=0; [ "${1:-0}" = 1 ] && SQUASH=1
+CHANGED=()
+_collect_changed() { # reads `git diff --raw -z --no-renames` on stdin
+    local meta path om nm
+    while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+        # shellcheck disable=SC2086
+        set -- $meta
+        om="${1#:}"; nm="${2:-}"
+        if [ "$om" = 160000 ] || [ "$nm" = 160000 ]; then CHANGED+=("$path"); fi
+    done
+}
+if [ "$SQUASH" = 1 ]; then
+    _collect_changed < <(G diff --cached --raw -z --no-renames --no-abbrev HEAD 2>/dev/null)
 else
-    PROJECT_ROOT="$(pwd)"
+    _base="$(G rev-parse -q --verify 'ORIG_HEAD^{tree}' 2>/dev/null || G hash-object -t tree /dev/null 2>/dev/null)"
+    [ -n "$_base" ] && _collect_changed < <(G diff --raw -z --no-renames --no-abbrev "$_base" HEAD 2>/dev/null)
 fi
+[ "${#CHANGED[@]}" -gt 0 ] || exit 0
 
-CONST_DIR="${PROJECT_ROOT}/constitution"
+in_changed() { local c; for c in "${CHANGED[@]}"; do [ "$c" = "$1" ] && return 0; done; return 1; }
+# is_gitlink REL — 0 iff REL is a submodule (mode 160000) in the index, exactly.
+is_gitlink() {
+    local rec
+    while IFS= read -r -d '' rec; do
+        case "$rec" in "160000 "*) [ "${rec#*$'\t'}" = "$1" ] && return 0 ;; esac
+    done < <(G ls-files -s -z -- "$1" 2>/dev/null)
+    return 1
+}
+safe_rel() { case "$1" in ''|/*|..|../*|*/..|*/../*|*$'\n'*) return 1 ;; esac; return 0; }
+
+# .gitmodules: path -> url (NUL-safe; a submodule NAME may contain spaces).
+declare -A GM_URL_BY_NAME=() GM_PATH_BY_NAME=()
+GITMODULE_PATHS=()
+if [ -f "${PROJECT_ROOT}/.gitmodules" ]; then
+    while IFS= read -r -d '' _rec; do
+        _key="${_rec%%$'\n'*}"; _val="${_rec#*$'\n'}"
+        [ "$_val" = "$_rec" ] && continue
+        _name="${_key#submodule.}"
+        case "$_key" in
+            *.path) _name="${_name%.path}"; GM_PATH_BY_NAME["$_name"]="$_val"
+                    safe_rel "$_val" && GITMODULE_PATHS+=("$_val") ;;
+            *.url)  _name="${_name%.url}"; GM_URL_BY_NAME["$_name"]="$_val" ;;
+        esac
+    done < <(git config -z -f "${PROJECT_ROOT}/.gitmodules" --get-regexp '^submodule\..*\.(path|url)$' 2>/dev/null)
+fi
+# looks_like_constitution REL — a layout path, or a .gitmodules URL naming
+# constitution / HelixConstitution (used only to word the warning when the
+# checkout is missing, never to source anything).
+looks_like_constitution() {
+    local n u b
+    case "$1" in submodules/constitution|constitution) return 0 ;; esac
+    for n in "${!GM_PATH_BY_NAME[@]}"; do
+        [ "${GM_PATH_BY_NAME[$n]}" = "$1" ] || continue
+        u="${GM_URL_BY_NAME[$n]:-}"; b="${u##*/}"; b="${b##*:}"; b="${b%.git}"
+        case "${b,,}" in constitution|helixconstitution) return 0 ;; esac
+    done
+    return 1
+}
+missing_checkout_warning() { # one concise warning per moved constitution-like gitlink
+    local c o n
+    for c in "${CHANGED[@]}"; do
+        looks_like_constitution "$c" || continue
+        o="$(G rev-parse -q --verify "ORIG_HEAD:$c" 2>/dev/null || true)"
+        n="$(G rev-parse -q --verify "HEAD:$c" 2>/dev/null || true)"
+        warn "constitution gitlink $(q "$c") moved (${o:0:8}..${n:0:8}) but it has no initialized checkout; propagation (§11.4.164) did NOT run. Run: cd -- $(q "$PROJECT_ROOT") && git submodule update --init -- $(q "$c") && PROJECT_ROOT=$(q "$PROJECT_ROOT") CONST_DIR=$(q "$PROJECT_ROOT/$c") CONSTITUTION_UPDATE_OLD_REF=$o CONSTITUTION_UPDATE_NEW_REF=$n bash $(q "$c/scripts/post_update_hook.sh")"
+    done
+}
+
+# --- 2. Locate the constitution checkout (self-contained; nothing sourced) ---
+# The checkout is NOT trusted yet (it may hold a commit the trust rules below
+# would refuse), so this hook never sources or runs any of its files before
+# those rules pass: the resolver is embedded here, with the same answer as
+# cl_find_in_project_no_override (scripts/lib/constitution_layout.sh): first
+# the layouts submodules/constitution, constitution, then every other
+# .gitmodules path, that hold Constitution.md + scripts/ AND are gitlinks (a
+# gitlink beats any vendored plain copy); else the FIRST directory holding them, tried in
+# the order submodules/constitution, constitution, then every other
+# .gitmodules path (absolute and '..' paths are never considered), used only
+# when it is a real gitlink (mode 160000) in the project index, else none.
+# $CONSTITUTION_DIR is never used: the answer must be the project's own checkout.
+CONST_DIR=""; REL=""
+for _p in submodules/constitution constitution "${GITMODULE_PATHS[@]}"; do   # 1. a holder that IS a gitlink
+    safe_rel "$_p" || continue
+    [ -f "${PROJECT_ROOT}/${_p}/Constitution.md" ] && [ -d "${PROJECT_ROOT}/${_p}/scripts" ] || continue
+    if is_gitlink "$_p"; then CONST_DIR="${PROJECT_ROOT}/${_p}"; REL="$_p"; break; fi
+done
+if [ -z "$CONST_DIR" ]; then                            # 2. first holder; must be a gitlink
+    for _p in submodules/constitution constitution "${GITMODULE_PATHS[@]}"; do
+        safe_rel "$_p" || continue
+        [ -f "${PROJECT_ROOT}/${_p}/Constitution.md" ] && [ -d "${PROJECT_ROOT}/${_p}/scripts" ] || continue
+        if is_gitlink "$_p"; then CONST_DIR="${PROJECT_ROOT}/${_p}"; REL="$_p"; fi
+        break
+    done
+fi
+if [ -z "$CONST_DIR" ]; then
+    missing_checkout_warning
+    exit 0
+fi
+in_changed "$REL" || exit 0
 POST_UPDATE_HOOK="${CONST_DIR}/scripts/post_update_hook.sh"
 
-# --- Early exit if no constitution submodule --------------------------------
-if [ ! -d "$CONST_DIR" ]; then
-    # Not a constitution-backed project — silently skip
+# --- 3. Squash merge: nothing committed yet ---------------------------------
+if [ "$SQUASH" = 1 ]; then
+    _staged="$(G ls-files -s -- "$REL" 2>/dev/null | awk '$1 == "160000" { print $2; exit }')"
+    _head="$(G rev-parse -q --verify "HEAD:${REL}" 2>/dev/null || true)"
+    warn "squash merge staged a constitution gitlink change (${_head:0:8}..${_staged:0:8}, ${REL}) but nothing is committed yet;"
+    warn "propagation did NOT run. Commit, then run: cd -- $(q "$PROJECT_ROOT") && git submodule update -- $(q "$REL")"
+    warn "(the submodule post-checkout consumer then runs it; without it: CONSTITUTION_UPDATE_OLD_REF=${_head} CONSTITUTION_UPDATE_NEW_REF=${_staged} bash $(q "$POST_UPDATE_HOOK"))"
     exit 0
 fi
 
-if [ ! -f "$POST_UPDATE_HOOK" ]; then
-    # Constitution exists but post-update hook isn't there yet — skip
-    exit 0
-fi
+OLD_LINK="$(G rev-parse -q --verify "ORIG_HEAD:${REL}" 2>/dev/null || true)"
+NEW_LINK="$(G rev-parse -q --verify "HEAD:${REL}" 2>/dev/null || true)"
+[ -n "$NEW_LINK" ] || exit 0   # constitution removed by this merge: nothing to propagate
+[ "$OLD_LINK" != "$NEW_LINK" ] || exit 0
 
-# --- Detect whether the constitution submodule actually changed -------------
-# Get the previous and current HEAD of the constitution submodule
-if [ -d "${CONST_DIR}/.git" ] || [ -f "${CONST_DIR}/.git" ]; then
-    PREV_CONST_HASH="$(git -C "$CONST_DIR" rev-parse HEAD~1 2>/dev/null || echo "")"
-    CURR_CONST_HASH="$(git -C "$CONST_DIR" rev-parse HEAD 2>/dev/null || echo "")"
-
-    if [ -n "$PREV_CONST_HASH" ] && [ "$PREV_CONST_HASH" != "$CURR_CONST_HASH" ]; then
-        # Constitution was updated — run the post-update hook
-        echo "[post-merge] Constitution submodule updated: ${PREV_CONST_HASH:0:8}..${CURR_CONST_HASH:0:8}"
-        echo "[post-merge] Running post-update auto-propagation..."
-
-        bash "$POST_UPDATE_HOOK" || {
-            echo "[post-merge] WARNING: post-update hook completed with errors (exit $?)"
-            echo "[post-merge] This is non-fatal for the merge, but review the output above."
-        }
-    else
-        # No change in constitution — silent skip
-        :
+STATE="$(G rev-parse --absolute-git-dir 2>/dev/null || true)"   # per worktree
+STAMP="${STATE}/constitution-pending-update"
+APPLIED="${STATE}/constitution-applied-ref"
+ROOT_PHYS="$(cd -- "$PROJECT_ROOT" 2>/dev/null && pwd -P)"
+is_sha() { [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; }
+# kv FILE KEY -> value of the first KEY= line (regular files only).
+kv() { [ -f "$1" ] || return 1; local l; while IFS= read -r l; do case "$l" in "$2="*) printf '%s' "${l#"$2"=}"; return 0 ;; esac; done < "$1"; return 1; }
+# write_stamp -> 0 iff the pending stamp (ROOT = PHYSICAL project root) was
+# written atomically (temp file + rename in the same git dir).
+write_stamp() {
+    local t
+    [ -n "$STATE" ] && [ -n "$ROOT_PHYS" ] && [[ "$ROOT_PHYS" != *$'\n'* ]] || return 1
+    t="$(mktemp "${STATE}/.constitution-pending-update.XXXXXX" 2>/dev/null)" || return 1
+    if printf 'ROOT=%s\nREL=%s\nOLD=%s\nNEW=%s\n' "$ROOT_PHYS" "$REL" "$RANGE_OLD" "$NEW_LINK" > "$t" && mv -f -- "$t" "$STAMP"; then
+        return 0
     fi
-else
-    # constitution/ is not a submodule checkout (yet) — skip
-    :
+    rm -f -- "$t"; return 1
+}
+
+S_OLD=""; HAVE_STAMP=0
+if [ -n "$STATE" ] && [ "$(kv "$STAMP" ROOT 2>/dev/null)" = "$ROOT_PHYS" ] && [ "$(kv "$STAMP" REL 2>/dev/null)" = "$REL" ]; then
+    S_OLD="$(kv "$STAMP" OLD 2>/dev/null || true)"
+    if [ -z "$S_OLD" ] || is_sha "$S_OLD"; then HAVE_STAMP=1; else S_OLD=""; fi
+fi
+A_REF=""
+if [ -n "$STATE" ] && [ "$(kv "$APPLIED" REL 2>/dev/null)" = "$REL" ]; then
+    A_REF="$(kv "$APPLIED" REF 2>/dev/null || true)"; is_sha "$A_REF" || A_REF=""
+fi
+if [ "$HAVE_STAMP" = 1 ]; then RANGE_OLD="$S_OLD"
+elif [ -n "$A_REF" ]; then RANGE_OLD="$A_REF"
+else RANGE_OLD="$OLD_LINK"; fi
+
+echo "[post-merge] Constitution submodule updated: ${RANGE_OLD:0:8}..${NEW_LINK:0:8} (${REL})"
+HINT="cd -- $(q "$PROJECT_ROOT") && PROJECT_ROOT=$(q "$PROJECT_ROOT") CONST_DIR=$(q "$CONST_DIR") CONSTITUTION_UPDATE_OLD_REF=${RANGE_OLD} CONSTITUTION_UPDATE_NEW_REF=${NEW_LINK} bash $(q "$POST_UPDATE_HOOK")"
+
+if [ "$A_REF" = "$NEW_LINK" ]; then
+    rm -f -- "$STAMP" 2>/dev/null
+    note "gitlink ${NEW_LINK:0:8} already propagated (applied record); nothing to do."
+    exit 0
 fi
 
+# Trust rules (TRUST MODEL in the header; same as the consumer hook).
+AP_WHY=""; AP_NOTE=0
+auto_propagate_allowed() { # DIR OLD NEW -> 0 run, 1 refuse (AP_WHY says why)
+    local c="$1" old="$2" new="$3" raw v r up=""
+    case "$(printf '%s' "${CONSTITUTION_AUTO_PROPAGATE:-}" | tr 'A-Z' 'a-z')" in
+        off|0|false|no) AP_WHY="auto-propagation is disabled (CONSTITUTION_AUTO_PROPAGATE=${CONSTITUTION_AUTO_PROPAGATE})"; AP_NOTE=1; return 1 ;;
+    esac
+    raw="$(G config --get constitution.autoPropagate 2>/dev/null || true)"
+    if [ -n "$raw" ]; then
+        v="$(G config --type=bool --get constitution.autoPropagate 2>/dev/null || true)"
+        if [ "$v" != true ]; then
+            AP_WHY="auto-propagation is disabled (git config constitution.autoPropagate=$raw)"; AP_NOTE=1; return 1
+        fi
+    fi
+    is_sha "$new" || { AP_WHY="the gitlink '$new' is not a full 40/64-hex commit id"; return 1; }
+    for r in refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin/master; do
+        if git -C "$c" rev-parse -q --verify "${r}^{commit}" >/dev/null 2>&1; then up="$r"; break; fi
+    done
+    [ -n "$up" ] || { AP_WHY="the submodule has no upstream default-branch ref (origin/HEAD, origin/main or origin/master; this hook never fetches)"; return 1; }
+    git -C "$c" merge-base --is-ancestor "$new" "$up" 2>/dev/null || \
+        { AP_WHY="${new:0:12} is NOT reachable from the submodule's upstream default branch ${up#refs/remotes/} (code from another branch or a fork is never run automatically)"; return 1; }
+    if [ -n "$old" ] && [ "$old" != "$new" ]; then
+        git -C "$c" cat-file -e "${old}^{commit}" 2>/dev/null || \
+            { AP_WHY="the previous gitlink ${old:0:12} is unknown here, so an upgrade cannot be proven"; return 1; }
+        git -C "$c" merge-base --is-ancestor "$old" "$new" 2>/dev/null || \
+            { AP_WHY="this is a downgrade or a side move (${old:0:12} is not an ancestor of ${new:0:12}); an older checkout's hook is never run automatically"; return 1; }
+    fi
+    return 0
+}
+
+_sub_head="$(git -C "$CONST_DIR" rev-parse HEAD 2>/dev/null || true)"
+if [ "$_sub_head" = "$NEW_LINK" ]; then
+    if [ ! -f "$POST_UPDATE_HOOK" ]; then
+        warn "${POST_UPDATE_HOOK} not found — propagation (§11.4.164) did NOT run."
+        exit 0
+    fi
+    if ! auto_propagate_allowed "$CONST_DIR" "$RANGE_OLD" "$NEW_LINK"; then
+        if [ "$AP_NOTE" = 1 ]; then note "$AP_WHY: propagation was not run."
+        else warn "$AP_WHY: propagation (§11.4.164) was NOT run automatically."; fi
+        warn "Review the commit, then run by hand: $HINT"
+        exit 0
+    fi
+    # Take the SAME propagation lock as the submodule consumer hook, so the two
+    # never run the post-update hook at once. Only an exclusive create (bash
+    # noclobber = open O_CREAT|O_EXCL, nothing created when the path exists).
+    # A lock whose owner is PROVABLY dead is reclaimed (pm_lock_reclaim_dead,
+    # below); any other existing lock (live, unprovable, owner-less, symlink) is
+    # reported and left for the consumer hook (which also reclaims an owner-less
+    # lock older than 60 s) or the printed command.
+    PM_LOCK="${STATE}/constitution-pending-update.lock"
+    PM_NONCE="pm.$$.$(date +%s%N 2>/dev/null).${RANDOM}${RANDOM}"
+    pm_start() { local s f; [ -r "/proc/$1/stat" ] || return 0; s="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0; s="${s##*) }"; read -r -a f <<<"$s"; printf '%s' "${f[19]:-}"; }
+    pm_lock_mine() { [ -f "$PM_LOCK" ] && [ ! -L "$PM_LOCK" ] && [ "$(kv "$PM_LOCK" NONCE 2>/dev/null)" = "$PM_NONCE" ]; }
+    pm_lock_create() { # exclusive create only; 0 iff THIS process now holds the lock
+        [ -n "$STATE" ] || return 1
+        { [ -e "$PM_LOCK" ] || [ -L "$PM_LOCK" ]; } && return 1
+        ( set -o noclobber
+          printf 'PID=%s\nSTART=%s\nNONCE=%s\n' "$$" "$(pm_start "$$")" "$PM_NONCE" > "$PM_LOCK" ) 2>/dev/null && pm_lock_mine
+    }
+    # pm_lock_reclaim_dead — reclaim the lock iff it is a REGULAR file whose
+    # owner record names a process that is provably gone (no /proc/<pid>, or
+    # the pid exists with a DIFFERENT start time: reused). A live holder or an
+    # unprovable one is never touched. One rename moves it aside; if the renamed
+    # file is not the snapshot judged dead it is linked back at once.
+    pm_lock_reclaim_dead() {
+        local pid st nonce cur u pid2 st2 nonce2
+        [ -d /proc/self ] || return 1
+        [ -f "$PM_LOCK" ] && [ ! -L "$PM_LOCK" ] || return 1
+        pid="$(kv "$PM_LOCK" PID 2>/dev/null || true)"; st="$(kv "$PM_LOCK" START 2>/dev/null || true)"; nonce="$(kv "$PM_LOCK" NONCE 2>/dev/null || true)"
+        [[ "$pid" =~ ^[0-9]+$ ]] && [ -n "$nonce" ] || return 1
+        if [ -d "/proc/$pid" ]; then
+            cur="$(pm_start "$pid")"
+            [ -n "$st" ] && [ -n "$cur" ] && [ "$st" != "$cur" ] || return 1
+        fi
+        u="$PM_LOCK.stale.$PM_NONCE"
+        mv -- "$PM_LOCK" "$u" 2>/dev/null || return 1
+        pid2="$(kv "$u" PID 2>/dev/null || true)"; st2="$(kv "$u" START 2>/dev/null || true)"; nonce2="$(kv "$u" NONCE 2>/dev/null || true)"
+        if [ "$pid2" != "$pid" ] || [ "$st2" != "$st" ] || [ "$nonce2" != "$nonce" ]; then
+            ln -- "$u" "$PM_LOCK" 2>/dev/null && rm -f -- "$u"
+            return 1
+        fi
+        rm -f -- "$u"
+        warn "reclaimed a stale propagation lock ${PM_LOCK}: its owner pid ${pid} is gone (a SIGKILLed run leaves one)."
+        return 0
+    }
+    pm_got=0
+    if pm_lock_create || { pm_lock_reclaim_dead && pm_lock_create; }; then pm_got=1; fi
+    if [ "$pm_got" != 1 ]; then
+        warn "the propagation lock ${PM_LOCK} exists (another propagation is running, or its owner cannot be proven gone); propagation (§11.4.164) was NOT run and stays PENDING."
+        if write_stamp; then
+            warn "a pending stamp is recorded (${STAMP}). \`git submodule update\` does NOT consume it: the ${REL} checkout is already at the merged"
+            warn "gitlink, so git checks nothing out and the consumer hook never fires. Once the lock is released, run from the project root:"
+            warn "  cd -- $(q "$PROJECT_ROOT") && bash $(q "$REL/scripts/setup.sh")        (consumes the stamp, then installs the hooks)"
+        else
+            warn "could not record the pending stamp ${STAMP}."
+        fi
+        warn "or, when no other propagation is running (remove a stale lock first): $HINT"
+        exit 0
+    fi
+    trap 'pm_lock_mine && rm -f -- "$PM_LOCK"' EXIT
+    # re-read the applied record under the lock (another run may have finished)
+    if [ "$(kv "$APPLIED" REL 2>/dev/null)" = "$REL" ] && [ "$(kv "$APPLIED" REF 2>/dev/null)" = "$NEW_LINK" ]; then
+        rm -f -- "$STAMP" 2>/dev/null
+        note "gitlink ${NEW_LINK:0:8} already propagated (applied record); nothing to do."
+        exit 0
+    fi
+    if ! pm_lock_mine; then
+        warn "the propagation lock ${PM_LOCK} is no longer this hook's; propagation was NOT run. Run: $HINT"
+        exit 0
+    fi
+    echo "[post-merge] Running post-update auto-propagation..."
+    ( cd "$PROJECT_ROOT" && PROJECT_ROOT="$PROJECT_ROOT" CONST_DIR="$CONST_DIR" \
+        CONSTITUTION_UPDATE_OLD_REF="$RANGE_OLD" CONSTITUTION_UPDATE_NEW_REF="$NEW_LINK" \
+        CONSTITUTION_PENDING_UPDATE_RUNNING=1 bash "$POST_UPDATE_HOOK" --project-root "$PROJECT_ROOT" )
+    _rc=$?
+    pm_lock_mine || warn "the propagation lock ${PM_LOCK} was no longer this hook's when the post-update hook finished (removed meanwhile): another propagation may have run concurrently; review its output."
+    if [ "$_rc" -eq 0 ]; then
+        # success only: the applied ref is what makes the next merge a no-op
+        if [ -n "$STATE" ]; then
+            _t="$(mktemp "${STATE}/.constitution-applied-ref.XXXXXX" 2>/dev/null)" && \
+                printf 'REL=%s\nREF=%s\n' "$REL" "$NEW_LINK" > "$_t" && mv -f -- "$_t" "$APPLIED"
+            rm -f -- "$STAMP" 2>/dev/null
+        fi
+    else
+        # failure: NOTHING is recorded as applied, and a pending stamp keeps the
+        # range so setup.sh / the consumer hook / the printed command can retry.
+        write_stamp || true
+        warn "post-update hook completed with errors (exit $_rc); non-fatal for the merge. NOT recorded as applied; the pending stamp is kept. Re-run: $HINT"
+    fi
+    exit 0
+fi
+
+# --- 4. Checkout is stale: record the pending stamp -------------------------
+if [ -z "$STATE" ] || [ -z "$ROOT_PHYS" ] || [[ "$ROOT_PHYS" == *$'\n'* ]]; then
+    warn "cannot record the pending stamp (git dir unresolved); propagation did NOT run."
+    warn "Run: cd -- $(q "$PROJECT_ROOT") && git submodule update -- $(q "$REL")"
+    warn "then: $HINT"
+    exit 0
+fi
+if ! write_stamp; then
+    warn "could not write ${STAMP}; propagation did NOT run. Run: $HINT (after: git submodule update -- $(q "$REL"))"
+    exit 0
+fi
+SUB_HOOKS="$(git -C "$CONST_DIR" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || true)"
+if [ -n "$SUB_HOOKS" ] && [ -f "$SUB_HOOKS/post-checkout" ] && \
+   grep -q 'constitution-pending-update-consumer' "$SUB_HOOKS/post-checkout" 2>/dev/null; then
+    note "the ${REL} checkout is at ${_sub_head:0:8}, not yet the merged gitlink ${NEW_LINK:0:8}: propagation is PENDING"
+    note "and runs automatically when the checkout reaches it: \`git pull --recurse-submodules\` (or submodule.recurse=true)"
+    note "does that right after this hook; after a PLAIN \`git pull\` nothing does it until you run:"
+    note "  cd -- $(q "$PROJECT_ROOT") && git submodule update -- $(q "$REL")"
+else
+    warn "the ${REL} checkout is at ${_sub_head:0:8}, not the merged gitlink ${NEW_LINK:0:8}; propagation did NOT run and the"
+    warn "submodule post-checkout consumer is not installed (re-run setup.sh). Run: cd -- $(q "$PROJECT_ROOT") && git submodule update -- $(q "$REL")"
+    warn "then: $HINT"
+fi
 exit 0

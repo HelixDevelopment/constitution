@@ -1,5 +1,6 @@
 # constitution/scripts/anchors/tests/test_wiring_audit_us4.py
 import subprocess, tempfile, os, sys, yaml
+from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 AUDIT = os.path.join(os.path.dirname(__file__), "..", "constitution_wiring_audit.py")
@@ -8,10 +9,10 @@ def test_control_needles_pass_selftest():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
         report = os.path.join(tmp, "wiring_gap_report.md")
-        r = subprocess.run(["python3", AUDIT, "--index", index_out, "--consumer-root", ".",
+        r = subprocess.run(["python3", AUDIT, "--index", index_out, "--consumer-root", CANON,
                              "--report", report, "--selftest"],
                             capture_output=True, text=True)
         assert r.returncode == 0, r.stdout + r.stderr
@@ -98,7 +99,7 @@ def test_selftest_failure_refuses_to_write_report():
         os.makedirs(empty_root)
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
         report = os.path.join(tmp, "report.md")
         r = subprocess.run(["python3", AUDIT, "--index", index_out, "--consumer-root", empty_root,

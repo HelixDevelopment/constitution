@@ -1,0 +1,53 @@
+# PROPOSAL ONLY (builder D1, 2026-10-29) — rows for actions/registry.yaml, which builder E2 owns.
+# Nothing reads this file. E2 copies the rows (or rejects them) into actions/registry.yaml.
+# Spellings these rows are meant to produce: /constitution decisions (a sub-command of E1's /constitution),
+# /helix:constitution-decisions and /helix:decisions (plugin commands generated from the rows),
+# plus the namespaced /DEFAULT::CONSTITUTION_DECISIONS form.
+actions:
+  - name: CONSTITUTION_DECISIONS
+    version: 1
+    namespaces: [DEFAULT]
+    slash_bare: auto
+    slash_conflicts: []
+    summary: >-
+      Review and change the project's decision-model choices (Jev decision layer, llmctl local models,
+      hosted endpoints, per-agent wiring) as local overrides that inherit from the constitution.
+    expansion: >-
+      Run the decisions wizard READ-ONLY first:
+      `bash submodules/constitution/scripts/decisions/constitution_decisions.sh --show`
+      (fall back to `constitution/scripts/decisions/...` for the legacy layout, or
+      `scripts/decisions/...` when the constitution is the project root). Show the user the effective
+      decisions and their sources. Change a decision ONLY after the user confirms the exact change, with
+      `--non-interactive --set KEY=VALUE` (preview first with `--dry-run`). Use `--plan` to show the
+      bootstrap command the decisions imply; never run bootstrap.sh from this action. Report the
+      wizard's exit code: 0 done, 1 internal failure, 2 usage, 3 blocked, 4 refused (a weakening, unknown key or
+      secret-like value; also `--check` not clean), 5 another run holds the lock.
+    rules:
+      - "Never pass a credential value; key settings take environment variable NAMES only (§11.4.10)."
+      - "A refusal (exit 4) is a constitution rule protecting itself; report it, never work around it (§11.4.35)."
+      - "Interactive prompting is for a human at a TTY; in agent context always use --non-interactive."
+      - "Do not edit settings.json or run bootstrap.sh from this action; recording consent is not acting on it."
+    composes_with:
+      - "11.4.35"
+      - "11.4.279"
+      - "11.4.280"
+      - "11.4.281"
+      - "11.4.284"
+      - "11.4.285"
+
+  - name: DECISIONS
+    version: 1
+    namespaces: [DEFAULT]
+    slash_bare: auto
+    slash_conflicts: []
+    summary: >-
+      Short alias of CONSTITUTION_DECISIONS: show or change decision-model choices (local overrides).
+    expansion: >-
+      Same as CONSTITUTION_DECISIONS: run
+      `bash submodules/constitution/scripts/decisions/constitution_decisions.sh --show` first, change
+      only after explicit user confirmation with `--non-interactive --set KEY=VALUE`.
+    rules:
+      - "Identical rules to CONSTITUTION_DECISIONS."
+    composes_with:
+      - "11.4.35"
+      - "11.4.279"

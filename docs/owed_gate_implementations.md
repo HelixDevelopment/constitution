@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 11
-**Last modified:** 2026-10-26T17:04:36Z
+**Revision:** 15
+**Last modified:** 2026-10-30T11:05:47Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -12,6 +12,8 @@
 **R11 (2026-10-26, §11.4.288):** `OWED-GATE-150` to `OWED-GATE-152` (`CM-ALL-WORK-ON-MAIN`, `CM-SUBMODULE-POINTER-ON-MAIN`, `CM-VEHICLE-MERGED-AND-RETIRED`) were registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.288; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394 (measured before and after).
 
 **R13 (2026-10-26, §11.4.289):** `OWED-GATE-161` to `OWED-GATE-164` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.289; section at the end of this file.
+
+**R14 (2026-10-28, §11.4.291):** `OWED-GATE-165` to `OWED-GATE-168` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.291; section at the end of this file.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -733,7 +735,7 @@ missing.
 ### §11.4.276 (registered 2026-10-05 — landed the SAME session as this currency check, per the operator CRITICAL mandate on excessive review-round counts)
 
 - **OWED-GATE-111** — `CM-REVIEW-ROUND-BUDGET`
-  - **Must assert:** asserts every independently-reviewed work item has a declared round budget `R_max` in the closed range 5–7 (absent declaration resolves to 5) and a round count derived from its own review record; FAILs if a round `R_max`+1 is dispatched under the same approach with no recorded operator decision (§11.4.276(E)(3)), or if an item is closed without a GO verdict
+  - **Must assert:** (contract amended 2026-10-30 by §11.4.276(G)) asserts every independently-reviewed work item has a round budget `R_max` of 5 (6 or 7 only with a recorded operator decision naming the item) and a round count derived from its own review record; FAILs if a round `R_max`+1 to `R_max`+`E_ext` runs with no declared `E_ext` > 0 (consumer DATA by recorded operator decision, default 0) or no recorded (G.3) extension trigger, if any later round or a second extension cycle runs with no recorded operator decision (§11.4.276(E)(3)/(G.4)), or if an item is closed without a GO or `GO-with-follow-ups` verdict
   - **Blocked on:** no review-round-counting harness exists in-repo yet (§11.4.276(A), gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
 - **OWED-GATE-112** — `CM-REVIEW-ROUND3-CONVERGENCE-ASSESSMENT`
@@ -949,3 +951,57 @@ The four gates named in §11.4.289 are registered as deferrals in the same chang
 - **OWED-GATE-164** — `CM-FIXTURE-SERVER-CLASSIFIED-UNIT`
   - **Must assert:** (per §11.4.289(C)/(I), added 2026-10-26) that every fixture server, recorded-replay asset and fixture binary is registered as unit or gate-logic class and is not cited by any live-labelled record or by any decision-layer behaviour claim; golden-FALSE: tests/jev fixtures cited only by gate-logic tests do not fire
   - **Paired §1.1 mutation:** point a live run at a loopback fixture server, drop the target-fingerprint field, turn a missing-credential SKIP into a PASS, or cite a Jev fixture as decision-layer proof; the gate MUST FAIL
+
+### §11.4.291 capacity-aware decision-model placement (registered 2026-10-28)
+
+The four recommended gates named in §11.4.291 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. No producer of the `placement` record exists yet, and the canonical capacity source (`llmctl capacity --json`, llmctl 3.4.0) is not in the vendored pin (llmctl 3.3.2).
+
+- **OWED-GATE-165** — `CM-DECISION-PLACEMENT-VERDICT-RECORDED`
+  - **Must assert:** (per §11.4.291(A)/(C)/(F)) every evaluated decision profile has a `placement` entry in `jev-detection.json` with a closed-set verdict (`fits`, `fits_with_reduced_threads`, `does_not_fit`, `undetermined`) and clause (C) inputs carrying source and timestamp, and no start under `undetermined` lacks a resolvable unexpired (A.1) override id; golden-FALSE: an honest `undetermined` naming the unreadable input, and a start under a recorded override
+  - **Blocked on:** no placement producer; no live capacity source in the vendored llmctl
+  - **Paired §1.1 mutation:** make `undetermined` read as `fits`; the gate MUST FAIL
+- **OWED-GATE-166** — `CM-DECISION-FALLBACK-ON-NO-FIT`
+  - **Must assert:** (per §11.4.291(E)/(F)) no local start after `does_not_fit`, or after `undetermined` without an (A.1) override; no `local` route taken from `fallback.recommended` when no candidate of the session fits; no route to a `degraded` unit; no local route or start without a held lease (a lease lock timeout means fallback with reason `lease_lock_timeout`); every route change has a notice and a record; a `cloud` route never enforces and never follows a placeholder key; no key value in the record or logs; golden-FALSE: a `cloud` route recorded with the key's variable name only
+  - **Blocked on:** no placement producer or route switch in-repo
+  - **Paired §1.1 mutation:** drop the notice, or let a hosted route enforce; the gate MUST FAIL
+- **OWED-GATE-167** — `CM-CONSTITUTION-NEVER-ENABLES-LLMCTL`
+  - **Must assert:** (per §11.4.291(G)) constitution automation never calls `llmctl enable` / `disable`, `switch` or an evicting `auto`, never enables a boot unit for a model, and bounds every llmctl call with a timeout; golden-FALSE: a comment or document naming `llmctl enable` as the operator's own act
+  - **Blocked on:** a call-site extractor that tells executable calls from carriers (§11.4.201(7)(a)); a bare grep would be the carrier-match bluff
+  - **Paired §1.1 mutation:** add an `llmctl enable` call to the bootstrap; the gate MUST FAIL
+- **OWED-GATE-168** — `CM-DECISION-MODEL-DEGRADATION-REEVALUATED`
+  - **Must assert:** (per §11.4.291(D)) with injected pressure inputs, a running constitution-started model whose verdict turns `does_not_fit` is stopped with `llmctl stop` only after the route switched, the bounded drain ended and the last lease was released with the set marked `stopping` under the lock (never while another live lease exists; an acquisition on a `stopping` set is refused; a lease held by a short-lived pid or an expired heartbeat is not live, and a reap alone never stops the model; a `stopping` mark whose stopper is dead or whose stop timeout passed is cleared under the lock, returning the set to normal if the unit still runs and removing it if the unit is gone; a heartbeat TTL not greater than the re-evaluation cadence plus the llmctl call timeout is refused as a config error); an operator-started model is never stopped; an endpoint gone moves every route to the fallback with reason `endpoint_gone`; the return to local waits for the hold window; golden case: a stopper killed mid-stop leaves the mark cleared, not stuck; golden-FALSE: steady `fits` changes nothing
+  - **Blocked on:** no re-evaluation loop and no lease registry in-repo
+  - **Paired §1.1 mutation:** stop the model before switching the route, or while another live lease exists; the gate MUST FAIL
+
+### §11.4.230(F) continuous release train and §11.4.276(G) round cap (registered 2026-10-30)
+
+The five recommended gates named in §11.4.230(F) and §11.4.276(G) are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. No release record, release-trigger declaration, review-round harness or review-record schema with finding layer and severity exists in-repo yet.
+
+- **OWED-GATE-169** — `CM-RELEASE-TRAIN-HANDOVER-NO-GAP`
+  - **Must assert:** (per §11.4.230(F.4)/(F.5)) every recorded release of N opens candidate N+1 in the same write; FAIL on zero live streams while N+1 holds actionable items and headroom exists, or on the loop reported stopped after a release with a non-empty N+1 scope; golden-FALSE: a genuinely empty N+1 scope recorded with tracker evidence
+  - **Blocked on:** no release-record or candidate producer in-repo
+  - **Paired §1.1 mutation:** record a release without opening candidate N+1; the gate MUST FAIL
+- **OWED-GATE-170** — `CM-RELEASE-LEDGER-CARRIED-FORWARD`
+  - **Must assert:** (per §11.4.230(F.4)(2)) every ledger entry open at N's release instant, and every `waived` entry with unpaid debt, is in N+1's scope under its own tracked id, linked to N; N's announced status is never raised by later work; golden-FALSE: every carried entry present and linked
+  - **Blocked on:** the hardening-ledger join (OWED-GATE-117) does not exist yet
+  - **Paired §1.1 mutation:** drop one carried entry, or carry it under a new id; the gate MUST FAIL
+- **OWED-GATE-171** — `CM-RELEASE-NOT-WITHHELD-AND-CLASS-HONEST`
+  - **Must assert:** (per §11.4.230(F.2)/(F.3)) no candidate that passed every seam is held past its declared trigger; no production-class release ships with a contained scope not `production-ready`; no release of any class ships with an open (L1), (L6) or (L7) entry; a provisional-eligible release lists every open entry in its changelog; golden-FALSE: a pre-release shipped on its trigger with every open entry listed and none of class (L1), (L6) or (L7)
+  - **Blocked on:** no release-trigger declaration or release record in-repo
+  - **Paired §1.1 mutation:** ship a production-class release with O > 0, or a pre-release with one open (L1) or (L7) entry; the gate MUST FAIL
+- **OWED-GATE-172** — `CM-REVIEW-EXTENSION-CYCLE-JUSTIFIED`
+  - **Must assert:** (per §11.4.276(G.3)) every round past `R_max` runs only under a declared `E_ext` > 0 and carries a recorded trigger citing an open `critical` `source-defect` or a broken proof-of-batch stack (never an `important` or minor-class finding, never a gate that guards only future regressions); the first extension round is structural; no second extension cycle; golden-FALSE: with `E_ext` > 0 declared, a trigger citing a `critical` `source-defect`
+  - **Blocked on:** no review-round harness (OWED-GATE-111)
+  - **Paired §1.1 mutation:** open an extension cycle for a nit or an `important` finding, or with `E_ext` 0; the gate MUST FAIL
+- **OWED-GATE-173** — `CM-REVIEW-FOLLOW-UPS-REGISTERED`
+  - **Must assert:** (per §11.4.276(G.2)) every finding named by a `GO-with-follow-ups` verdict is a tracked item linked to its parent and assigned to the next iteration; no finding in an excluded surface carries a minor-class label; no finding with no recorded severity, or a severity lowered by the producer, counts as minor-class; no `GO-with-follow-ups` is reported as a zero-finding GO; golden-FALSE: every follow-up present, linked and assigned
+  - **Blocked on:** no review-record schema carrying finding layer and severity in-repo
+  - **Paired §1.1 mutation:** drop one follow-up item, or label a security finding minor; the gate MUST FAIL
+
+### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
+
+The independent review of §11.4.291 (round 2) found that `scripts/gates/cm_gate_ledger_ratchet.sh` does not refuse two rows of `gate_ledger_deferrals.tsv` that carry the same `OWED-GATE-NNN` id: the reviewer's mutant M4 (a duplicated deferral id) survived the ratchet's mutation test. Not fixed in that change and no gate name is minted for it here (minting one would add a named gate to the corpus without its seam, §11.4.227(A)). The round-2 review of the fix also found that a renumbered deferral id (reviewer mutant N3: a row's `OWED-GATE-NNN` changed to another value) is not refused either, and neither is a swap of two existing ids (reviewer mutant P4: the ids of `OWED-GATE-165` and `OWED-GATE-166` exchanged between their rows). Owed work: make the ratchet FAIL on a duplicated deferral id, on a duplicated gate name and on a deferral id that changed for an existing gate name without a recorded renumbering, add M4, N3 and P4 to `cm_gate_ledger_ratchet_mutation_test.sh` as killed mutants, and keep a golden-FALSE with all ids unique and stable. The round-4 review also found that the contract text of a deferral row is not checked against the gate wording in its anchor (reviewer mutant Q4: a TSV contract edited away from the anchor's FAIL/golden-FALSE wording survived every gate); owed work: a check that a deferral row's contract still matches its anchor's recommended-gate text, with Q4 added as a killed mutant beside M4, N3 and P4. Tracked as a follow-up of the §11.4.291 change, per §11.4.197.
+
+### Follow-up: a recovered `stopping` set can stay running with no owner (recorded 2026-10-28, round-4 review U1, not a gate)
+
+The round-4 review of §11.4.291 (commit 0e45906) returned GO with follow-ups. Finding U1 (LOW, source-defect, tracked): when the clause (J)(3) recovery clears a `stopping` mark and the unit is still running, a constitution-started model can be left with ZERO leases and nobody who will stop it; it keeps using host memory until the operator notices. Fix direction (not decided, not landed): either the recovering session retries the stop itself as the new last holder after the (D)(2) hold window, or the recovered set is handed to the clause (G) idle-stop timeout ("when idle past a consumer-declared timeout") so the existing idle path stops it. When fixed, the OWED-GATE-168 contract gains the case "a recovered, running, constitution-started, zero-lease set is stopped by the chosen path", with a paired §1.1 mutation that leaves it running. Landed per the operator's review-budget policy (small leftovers at round 5: land and document). Tracked per §11.4.197.

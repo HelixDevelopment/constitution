@@ -18,6 +18,9 @@
 #   enabled=1 policy, or the conf default). Switch off => Twins is GRAY "markdown only" and no sibling is probed;
 #   the shared reader scripts/formats_export_lib.sh is required (absent => BLIND, exit 2).
 #
+# Static badges: config/static_badges.list (under --root) declares non-derived badges (e.g. a link badge) appended
+#   verbatim after the derived row; see static_badges() for the strict grammar. Invalid list => exit 2, no row.
+#
 # Closed colour vocabulary (§11.4.259(A)): green | amber | red | gray.
 #   amber is emitted with an explicit `?color=ffbf00` override because the badge
 #   renderer has no named "amber"; the literal token stays in the URL path so the
@@ -61,7 +64,7 @@ compute_facts() {
     # version: the first "## " heading of CHANGELOG.md
     local head1 ver
     head1="$(grep -m1 '^## ' "$root/CHANGELOG.md" | sed 's/^## //')"
-    ver="$(printf '%s' "$head1" | sed -n 's/^\(helixconstitution-v[0-9][0-9]*\)\( .*\)\{0,1\}$/\1/p')"
+    ver="$(printf '%s' "$head1" | sed -n 's/^\(helixconstitution-v[0-9][0-9]*\(\.[0-9][0-9]*\)*\)\( .*\)\{0,1\}$/\1/p')"
     local ver_state=released
     if [ -z "$ver" ]; then ver="$(printf '%s' "$head1" | cut -d' ' -f1)"; ver_state=unreleased; fi
 
@@ -128,9 +131,40 @@ compute_facts() {
     printf 'TWIN_DOCS=%s\nTWIN_DOCS_STALE=%s\nTWIN_DOCS_STALE_NAMES=%s\nTWIN_STALE_TRACKED=%s\n' "$n_tw" "$n_tw_stale" "${stale_list# }" "$tw_tracked"
 }
 
-# row_from_facts <facts-file> -> the badge row line on stdout
+# static_badges ROOT -> verbatim static (non-derived) badges, one per line, on stdout.
+# Declared in ROOT/config/static_badges.list (DATA, one Markdown badge per line, `#` comments, blank lines ignored).
+# A static badge carries NO computed value or colour (e.g. a "Ask DeepWiki" link badge): it is appended verbatim AFTER the
+# derived badges and never takes part in the Readiness gauge. The derived-colour guarantee (§11.4.259) is untouched
+# because a static line may not reuse a derived badge's alt text. Strict grammar (https only; no spaces, quotes, angle
+# brackets, backticks, parentheses or brackets inside URLs/alts) so badge text can never inject markup or a second link.
+# Missing file => no static badges (rc 0). Unreadable / not a regular file / invalid line / duplicate alt => rc 2, nothing printed.
+STATIC_URL='https://[A-Za-z0-9._~:/?#@&+,;=%-]+'
+STATIC_ALT='[A-Za-z0-9][A-Za-z0-9 ._-]*'
+static_badges() {
+    local root="$1" f="$root/config/static_badges.list" line n=0 alt seen="|Version|Anchors|Groups|Gates|Mutation|Progressive|Submodules|Twins|Readiness|" out=""
+    [ -e "$f" ] || return 0
+    if [ ! -f "$f" ] || [ ! -r "$f" ]; then echo "BLIND: static badge list is not a readable regular file: $f" >&2; return 2; fi
+    while IFS= read -r line || [ -n "$line" ]; do
+        n=$((n + 1))
+        line="${line%$'\r'}"
+        line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+        case "$line" in ''|'#'*) continue ;; esac
+        if [[ "$line" =~ ^\!\[($STATIC_ALT)\]\($STATIC_URL\)$ ]] || [[ "$line" =~ ^\[\!\[($STATIC_ALT)\]\($STATIC_URL\)\]\($STATIC_URL\)$ ]]; then
+            alt="${BASH_REMATCH[1]}"
+        else
+            echo "BLIND: invalid static badge at $f:$n (grammar: ![alt](https://url) or [![alt](https://img)](https://link))" >&2; return 2
+        fi
+        case "$seen" in *"|$alt|"*) echo "BLIND: static badge alt '$alt' at $f:$n duplicates a derived or earlier badge alt" >&2; return 2 ;; esac
+        seen="$seen$alt|"
+        out="${out:+$out }$line"
+    done <"$f"
+    [ -n "$out" ] && printf '%s\n' "$out"
+    return 0
+}
+
+# row_from_facts <facts-file> [static-badges-text] -> the badge row line on stdout
 row_from_facts() {
-    local facts="$1"
+    local facts="$1" static_text="${2:-}"
     eval "$(sed -n 's/^\([A-Z_]*\)=\(.*\)$/\1=\x27\2\x27/p' "$facts")"
     local c_ver=green c_anc=green c_grp=green c_gat=green c_mut=green c_prog=green c_sub=green c_twin=green
 
@@ -174,6 +208,7 @@ row_from_facts() {
         "$(_badge Readiness readiness "$gword" "$gauge")"; do
         row="${row:+$row }$b"
     done
+    [ -n "$static_text" ] && row="$row $static_text"
     printf '%s\n' "$row"
 }
 
@@ -247,23 +282,24 @@ main() {
         case "$1" in
             --root) root="$2"; shift 2 ;;
             --print|--facts|--check|--selftest) mode="$1"; shift ;;
-            -h|--help) sed -n '2,22p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'; return 0 ;;
+            -h|--help) sed -n '2,25p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'; return 0 ;;
             *) echo "unknown arg: $1" >&2; return 2 ;;
         esac
     done
     [ -n "$mode" ] || { echo "usage: compute_badges.sh [--root DIR] --print|--facts|--check|--selftest" >&2; return 2; }
     [ "$mode" = "--selftest" ] && { _selftest; return $?; }
 
-    local tmp rc
+    local tmp rc stat=""
+    if [ "$mode" != "--facts" ]; then stat="$(static_badges "$root")" || return 2; fi
     tmp="$(mktemp "${TMPDIR:-/tmp}/badges_facts.XXXXXX")" || return 2
     compute_facts "$root" >"$tmp"; rc=$?
     if [ "$rc" -ne 0 ]; then rm -f "$tmp"; return "$rc"; fi
     case "$mode" in
         --facts) cat "$tmp" ;;
-        --print) row_from_facts "$tmp" ;;
+        --print) row_from_facts "$tmp" "$stat" ;;
         --check)
             local want have
-            want="$(row_from_facts "$tmp")"
+            want="$(row_from_facts "$tmp" "$stat")"
             have="$(awk 'f&&NF{print;exit} /^# /{f=1}' "$root/README.md")"
             if [ "$want" = "$have" ]; then echo "BADGES: README badge row matches the computed row"; rc=0
             else echo "BADGES: MISMATCH" >&2; echo " computed: $want" >&2; echo " readme:   $have" >&2; rc=1; fi ;;

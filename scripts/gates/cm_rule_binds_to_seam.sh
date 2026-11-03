@@ -254,7 +254,7 @@ run_check() {
     printf 'OK   registry: %s rows, all 3-field, all seam ids in the E5 closed set, every gate token has an executable site\n' "$nrows"
 
     # ── Anchor extraction + CONTROL NEEDLE (§11.4.201(7)(b)). ──────────────
-    extract_anchors < "$CORPUS" | sort -u > "$TMP/now.txt"
+    extract_anchors < "$CORPUS" | LC_ALL=C sort -u > "$TMP/now.txt"
     now_n=$(wc -l < "$TMP/now.txt" | tr -d ' ')
     [ "$now_n" -gt 0 ] || \
         refuse "control_needle_BLIND" "the anchor extractor returned ZERO ids from a non-empty corpus ($CORPUS) — the instrument is blind, and a zero from a blind instrument is not an absence (§11.4.201(7)(b))"
@@ -275,11 +275,11 @@ run_check() {
     corpus_dir=$(dirname -- "$CORPUS"); corpus_base=$(basename -- "$CORPUS")
     if ( cd "$corpus_dir" 2>/dev/null && git rev-parse --git-dir >/dev/null 2>&1 ); then
         if ( cd "$corpus_dir" && git show "$BASE:./$corpus_base" >/dev/null 2>&1 ); then
-            ( cd "$corpus_dir" && git show "$BASE:./$corpus_base" ) | extract_anchors | sort -u > "$TMP/base.txt"
+            ( cd "$corpus_dir" && git show "$BASE:./$corpus_base" ) | extract_anchors | LC_ALL=C sort -u > "$TMP/base.txt"
             base_cnt=$(wc -l < "$TMP/base.txt" | tr -d ' ')
             [ "$base_cnt" -gt 0 ] || \
                 refuse "control_needle_BLIND" "the extractor returned ZERO ids from the $BASE blob of $corpus_base — blind against the base, so 'newly added' cannot be computed"
-            comm -23 "$TMP/now.txt" "$TMP/base.txt" > "$TMP/new.txt"
+            LC_ALL=C comm -23 "$TMP/now.txt" "$TMP/base.txt" > "$TMP/new.txt"
         else
             refuse "chain_UNWALKABLE" "cannot read $BASE:./$corpus_base — the base state is unresolvable, so 'newly added' is undecidable; supply --base explicitly rather than letting an unknown resolve to 'nothing new'"
         fi
@@ -330,8 +330,8 @@ run_check() {
     fi
 
     # ── FR-010: the aggregate ratchet. ─────────────────────────────────────
-    cut -f1 "$TMP/rows.txt" | sort -u > "$TMP/bound.txt"
-    noseam=$(comm -23 "$TMP/now.txt" "$TMP/bound.txt" | wc -l | tr -d ' ')
+    cut -f1 "$TMP/rows.txt" | LC_ALL=C sort -u > "$TMP/bound.txt"
+    noseam=$(LC_ALL=C comm -23 "$TMP/now.txt" "$TMP/bound.txt" | wc -l | tr -d ' ')
     if [ "$noseam" -gt "$base_n" ]; then
         printf 'FAIL: FR-010 ratchet violated — measured no-seam rule count %s EXCEEDS the recorded baseline %s (resolved from %s). The count is monotone-decreasing by contract; it went up.\n' \
             "$noseam" "$base_n" "$BASELINE"

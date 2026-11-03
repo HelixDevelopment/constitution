@@ -87,7 +87,7 @@ def old_prefix_run(script, timeout_s=10):
     reconstruction of run_gate_reaped()'s PRE-fix shape -- PIPE +
     communicate() to detect completion, THEN reap -- using the SAME
     cgroup-reaping mechanism (fc_common._own_cgroup_v2_base(),
-    fc_common.safe_killpg()) the real, fixed function also uses, so the
+    the fc_common safe group-kill wrapper) the real, fixed function also uses, so the
     ONLY variable that differs between this and real_fix_run() above is
     EXACTLY this round's fix (file-capture + wait()-then-reap ordering
     vs PIPE + communicate()-then-reap ordering) -- proving THIS is what

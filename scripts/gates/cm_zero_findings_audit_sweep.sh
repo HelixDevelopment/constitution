@@ -78,10 +78,12 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
 root="${CONSUMER_ROOT:-.}"
 sweep_rel="scripts/audit/zero_findings_sweep.sh"
+standalone=0   # --standalone-canon: the invocation DECLARES a canon with no consumer sweep (only way to get the honest SKIP)
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --sweep-script) sweep_rel="$2"; shift 2 ;;
+        --standalone-canon) standalone=1; shift ;;
         -h|--help) sed -n '1,60p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -97,6 +99,10 @@ esac
 
 fail=0
 
+if [ ! -f "$sweep" ] && [ "$standalone" -eq 1 ]; then
+    echo "${GATE}: SKIP sweep-script='${sweep}' reason=STANDALONE_CANON_DECLARED (--standalone-canon: the sweep is consumer data and does not exist here; honest SKIP, not a PASS; the canon's own missing sweep is an owed §11.4.261 gap, not hidden by this SKIP)"
+    exit 3
+fi
 if [ ! -f "$sweep" ]; then
     echo "${GATE}: FAIL sweep-script='${sweep}' reason=SWEEP_SCRIPT_MISSING (§11.4.261 mandates a mechanical audit sweep — none declared/found)" >&2
     exit 1

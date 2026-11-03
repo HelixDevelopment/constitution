@@ -1,5 +1,6 @@
 # constitution/scripts/anchors/tests/test_query_us2.py
 import subprocess, tempfile, os, yaml
+from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
@@ -7,7 +8,7 @@ def test_every_anchor_has_classification_and_explicit_gate_key():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        r = subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        r = subprocess.run(["python3", GEN, "generate", "--source", SRC,
                              "--groups-dir", groups_dir, "--index-out", index_out],
                             capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
@@ -32,7 +33,7 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
         with open(index_out) as f:
             idx = yaml.safe_load(f)
@@ -76,8 +77,11 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # Re-measured 2026-10-27 (§11.4.290 optimistic done + parallel background
         # verification added, "Classification: universal (§11.4.17)"): universal
         # 187 -> 188 = +1. 188 + 110 + 2 mixed = 300 = total index entries.
-        assert len(universal) == 188, (
-            f"expected exactly 188 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-28 (§11.4.291 capacity-aware decision-model placement
+        # added, "Classification: universal (§11.4.17)"): universal 188 -> 189 = +1.
+        # 189 + 110 + 2 mixed = 301 = total index entries.
+        assert len(universal) == 189, (
+            f"expected exactly 189 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )
@@ -195,7 +199,7 @@ def test_project_specific_count_matches_an_independently_derived_manual_count():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
         with open(index_out) as f:
             idx = yaml.safe_load(f)
@@ -207,7 +211,7 @@ def test_project_specific_count_matches_an_independently_derived_manual_count():
         # (2026-09-26 fix) for consistency; re-confirmed this still returns
         # exactly 0 against the real corpus (no false positive introduced).
         grep_count = int(subprocess.run(
-            ["grep", "-icE", r"Classification:\**\s*project-specific", "constitution/Constitution.md"],
+            ["grep", "-icE", r"Classification:\**\s*project-specific", SRC],
             capture_output=True, text=True,
         ).stdout.strip() or "0")
         assert generator_count == grep_count, (
@@ -231,7 +235,7 @@ def test_location_never_carries_a_fragment_that_does_not_resolve_anywhere():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+        subprocess.run(["python3", GEN, "generate", "--source", SRC,
                          "--groups-dir", groups_dir, "--index-out", index_out], check=True)
         with open(index_out) as f:
             idx = yaml.safe_load(f)

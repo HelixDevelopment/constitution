@@ -153,9 +153,11 @@ _lookup_source() {
 
 total=0
 fails=0
+static_alts="|$(br_static_alts "$root" | paste -sd'|' -)|"
 
 while IFS=$'\t' read -r alt url; do
     [ -n "${alt:-}${url:-}" ] || continue
+    case "$static_alts" in *"|$alt|"*) echo "${GATE}: OK badge='${alt}' static (declared in config/static_badges.list; carries no derived colour/value)"; continue ;; esac
     total=$((total + 1))
 
     src="$(_lookup_source "$alt")"

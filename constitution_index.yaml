@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-27T18:58:26.780725+00:00'
+generated_at: '2026-10-30T11:05:48.086413+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 09dacd68a59d6595c8bbf26787624dc6f94a2529
-  source_sha256: 23297d680ceca341e3065a99717a01e0a1c437792867777a517ea678a10a6495
+  commit: df7ae72cef3afb6d1e55569da4cc501cb7fa305c
+  source_sha256: 24f8a183111ec38ac00d8f0b7a5b3ec255b368d125d24f2924f0dc30138cfaba
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -25,7 +25,7 @@ groups:
   anchor_count: 40
 - name: host-and-resource-safety
   path: constitution/groups/host-and-resource-safety.md
-  anchor_count: 22
+  anchor_count: 23
 - name: multi-track-and-parallelism
   path: constitution/groups/multi-track-and-parallelism.md
   anchor_count: 13
@@ -2759,6 +2759,7 @@ anchors:
   - 11.4.126
   - 11.4.17
   - 11.4.2
+  - 11.4.230
   - 11.4.35
   - 11.4.40
   - 11.4.42
@@ -5630,7 +5631,9 @@ anchors:
     re-run + parallel multi-device testing/recording + fan-out-subagents-always +
     incremental delivery granularity with a declared QA-build cadence + a quick visible
     first deliverable with a hardening status and ledger tracked to production readiness
-    (research-derived, 2026-07-26; clause (D) added 2026-10-04; clause (E) added 2026-10-12)'
+    + a continuous release train that never stops at a release (research-derived,
+    2026-07-26; clause (D) added 2026-10-04; clause (E) added 2026-10-12; clause (F)
+    added 2026-10-30)'
   group: multi-track-and-parallelism
   location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
@@ -5687,6 +5690,7 @@ anchors:
   - 11.4.209
   - 11.4.21
   - 11.4.210
+  - 11.4.214
   - 11.4.227
   - 11.4.229
   - 11.4.230
@@ -5715,6 +5719,7 @@ anchors:
   - 11.4.273
   - 11.4.276
   - 11.4.288
+  - 11.4.290
   - 11.4.3
   - 11.4.35
   - 11.4.4
@@ -5734,6 +5739,7 @@ anchors:
   - 11.4.97
   - '12.12'
   - '12.6'
+  - '2.1'
 - id: 11.4.231
   title: '— Nano-precision model-tier selection: lightest-capable-model-first with
     dynamic mid-task escalation (User mandate, 2026-07-26, `CRITICAL`)'
@@ -5957,6 +5963,7 @@ anchors:
   - 11.4.267
   - 11.4.268
   - 11.4.275
+  - 11.4.276
   - 11.4.28
   - 11.4.3
   - 11.4.35
@@ -7207,6 +7214,8 @@ anchors:
   - 11.4.142
   - 11.4.148
   - 11.4.17
+  - 11.4.184
+  - 11.4.185
   - 11.4.194
   - 11.4.197
   - 11.4.199
@@ -7216,18 +7225,25 @@ anchors:
   - 11.4.224
   - 11.4.226
   - 11.4.227
+  - 11.4.230
   - 11.4.235
+  - 11.4.236
   - 11.4.238
+  - 11.4.239
   - 11.4.240
   - 11.4.246
+  - 11.4.249
   - 11.4.250
   - 11.4.262
   - 11.4.267
   - 11.4.271
   - 11.4.276
+  - 11.4.288
   - 11.4.35
+  - 11.4.40
   - 11.4.6
   - 11.4.66
+  - 11.4.93
   - 11.4.97
   - 11.4.99
 - id: 11.4.277
@@ -7401,6 +7417,7 @@ anchors:
   - 11.4.280
   - 11.4.281
   - 11.4.286
+  - 11.4.291
   - 11.4.35
   - 11.4.5
   - 11.4.6
@@ -7456,6 +7473,7 @@ anchors:
   - 11.4.279
   - 11.4.282
   - 11.4.283
+  - 11.4.291
 - id: 11.4.283
   title: — Decision-layer token-reduction proof (User mandate, 2026-10-07)
   group: governance-and-constitution-meta
@@ -7489,6 +7507,7 @@ anchors:
   - 11.4.279
   - 11.4.284
   - 11.4.285
+  - 11.4.291
 - id: 11.4.285
   title: — Traditional-LLM auto-tuning of decision thresholds (User mandate, 2026-10-07)
   group: project-lifecycle-and-release
@@ -7731,6 +7750,52 @@ anchors:
   - '7.1'
   - '9.1'
   - '9.3'
+- id: 11.4.291
+  title: '— Capacity-aware decision-model placement: a local decision model runs only
+    when the host''s LIVE load leaves room for it; otherwise decision traffic falls
+    back, visibly and with a recorded reason, to the hosted endpoint when its key
+    is present (or to a reasoned absence when it is not); the placement is re-evaluated
+    at any time, including while a model runs; the constitution starts and stops llmctl
+    models on demand and never enables them for boot (User mandate, 2026-10-28)'
+  group: host-and-resource-safety
+  location: constitution/groups/host-and-resource-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-291-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.10
+  - 11.4.102
+  - 11.4.119
+  - 11.4.17
+  - 11.4.176
+  - 11.4.180
+  - 11.4.196
+  - 11.4.201
+  - 11.4.225
+  - 11.4.227
+  - 11.4.231
+  - 11.4.232
+  - 11.4.263
+  - 11.4.267
+  - 11.4.271
+  - 11.4.272
+  - 11.4.274
+  - 11.4.277
+  - 11.4.279
+  - 11.4.281
+  - 11.4.282
+  - 11.4.284
+  - 11.4.285
+  - 11.4.291
+  - 11.4.35
+  - 11.4.6
+  - 11.4.66
+  - 11.4.97
+  - '12.11'
+  - '12.12'
+  - '12.6'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

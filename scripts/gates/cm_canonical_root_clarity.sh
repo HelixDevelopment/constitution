@@ -23,6 +23,19 @@
 # This script implements exactly those three invariants. It invents no
 # requirement the anchor does not state.
 #
+# ── Both layouts ────────────────────────────────────────────────────────────
+# The pointer may name either checkout path: the standard
+# `submodules/constitution/CLAUDE.md` or the legacy `constitution/CLAUDE.md`
+# (heading `## INHERITED FROM <path>` or import `@<path>`). In the consumer (a)
+# the pointer must name THAT consumer's real path: <path> MUST equal
+# <const-dir relative to consumer-root>/CLAUDE.md (a legacy consumer pointing
+# at submodules/constitution/CLAUDE.md, or the reverse, is refused). The
+# heading may carry trailing text after whitespace ('## INHERITED FROM
+# constitution/CLAUDE.md (HelixConstitution submodule)'); an import may name
+# any of the three canonical files ('@<rel>/AGENTS.md', '@<rel>/Constitution.md')
+# with nothing after it but whitespace. Both
+# path forms are refused as live pointers in the canonical root (c).
+#
 # ── Why (c) matters (the real hole this closes) ─────────────────────────────
 # If a canonical-root file ever acquires a live inheritance pointer, the
 # inheritance direction silently INVERTS: the source-of-truth starts
@@ -77,7 +90,11 @@
 #                            <const>/scripts/gates/).
 #     --consumer-root <dir>  consuming project root holding the consumer
 #                            CLAUDE.md (default: CONSUMER_ROOT env, else the
-#                            parent directory of --const-dir).
+#                            project that holds --const-dir, resolved by
+#                            scripts/lib/constitution_layout.sh: <root> for
+#                            both <root>/submodules/constitution (standard)
+#                            and <root>/constitution (legacy); the plain
+#                            parent directory only when that lib is absent).
 #     --head-lines N         how many leading lines of the consumer CLAUDE.md
 #                            count as "opens with" (default 40). The pointer
 #                            follows the file's title//description lines in
@@ -87,6 +104,13 @@
 #     --selftest             run the golden-good / golden-bad / negative-
 #                            control fixture suite against this gate itself
 #                            and exit (no real tree is read).
+#     --standalone-canon     DECLARE that --const-dir is the canon repository itself (no consumer
+#                            exists): (a) is then an honest SKIP (exit 3). The ONLY way
+#                            to get that SKIP (an ambient environment variable is deliberately NOT
+#                            honoured: it would turn a real consumer FAIL into a SKIP): it is
+#                            never inferred from layout, git state or sibling files (a vendored
+#                            legacy <consumer>/constitution has the same bytes). Ignored when a
+#                            consumer root is given. Default = fail-closed consumer audit.
 #
 # ── Inputs ───────────────────────────────────────────────────────────────────
 #   CANONICAL_ROOT_DIR / CONSUMER_ROOT env overrides (flags take precedence).
@@ -123,6 +147,10 @@
 #       unreadable, or the control needle failed (the instrument cannot see,
 #       so no absence it reports may be trusted — §11.4.6, never a guessed
 #       zero).
+#   3 — SKIP: (b) and (c) hold, but (a) is not applicable because the invocation
+#       DECLARED the constitution a STANDALONE canon (--standalone-canon only) and no --consumer-root /
+#       CONSUMER_ROOT was given. Never reported as PASS (§11.4.1); a (b) or
+#       (c) violation in a standalone checkout still exits 1.
 #
 # Classification: universal (§11.4.17) — no project-specific literal; the
 # consuming project supplies --const-dir / --consumer-root as DATA (§11.4.35).
@@ -137,6 +165,7 @@ consumer_root="${CONSUMER_ROOT:-}"
 head_lines=40
 quiet=""
 selftest=""
+standalone_decl=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -145,6 +174,7 @@ while [ $# -gt 0 ]; do
         --head-lines)     head_lines="$2"; shift 2 ;;
         --quiet)          quiet="1"; shift ;;
         --selftest)       selftest="1"; shift ;;
+        --standalone-canon) standalone_decl="1"; shift ;;
         -h|--help)        sed -n '1,100p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -203,7 +233,7 @@ crc_hits() {
 
 # ── Queries (single definition, used by both the needle and the verdicts) ───
 RE_INHERIT_HEADING='^## INHERITED FROM'
-RE_INHERIT_IMPORT='^@constitution/(CLAUDE|AGENTS|Constitution)\.md'
+RE_INHERIT_IMPORT='^@(submodules/)?constitution/(CLAUDE|AGENTS|Constitution)\.md'
 RE_NEEDLE='^## [A-Z]'
 RE_NEG_CONTROL='^## ZZ-NEEDLE-NEGATIVE-CONTROL-ABSENT'
 
@@ -265,6 +295,18 @@ if [ -n "$selftest" ]; then
     fx_good="$(st_mk good)"
     st_run "golden-good: fenced carrier in canonical root + consumer pointer present" pass "$fx_good"
 
+    # golden-GOOD: heading pointer followed by trailing text (a real consumer
+    # shape: '## INHERITED FROM constitution/CLAUDE.md (HelixConstitution submodule)').
+    fx_tt="$(st_mk good_trailing)"
+    printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md (HelixConstitution submodule)\n\nrules\n' > "${fx_tt}/CLAUDE.md"
+    st_run "golden-good: consumer heading pointer with trailing text" pass "$fx_tt"
+
+    # golden-BAD: a near-miss path with trailing text is still refused.
+    fx_nm="$(st_mk bad_nearmiss)"
+    printf '# Consumer\n\n## INHERITED FROM constitution/CLAUDE.md.bak (old copy)\n\nrules\n' > "${fx_nm}/CLAUDE.md"
+    st_expect_exit "golden-bad(a): near-miss path 'constitution/CLAUDE.md.bak (old copy)'" 1 \
+        --const-dir "${fx_nm}/constitution" --consumer-root "${fx_nm}" --quiet
+
     # golden-BAD 1 (invariant c): the SAME pointer, moved OUTSIDE the fence.
     fx_c="$(st_mk bad_c)"
     printf '\n## INHERITED FROM somewhere-upstream\n\nWe now inherit.\n' >> "${fx_c}/constitution/CLAUDE.md"
@@ -310,6 +352,30 @@ if [ -n "$selftest" ]; then
     rm -f "${fx_b}/constitution/AGENTS.md"
     st_run "golden-bad(b): canonical AGENTS.md absent" fail "$fx_b"
 
+    # golden-GOOD (standard layout): canonical root at <root>/submodules/constitution,
+    # consumer root DERIVED (no --consumer-root), pointer in either form.
+    for _ptr in '## INHERITED FROM submodules/constitution/CLAUDE.md' '@submodules/constitution/CLAUDE.md'; do
+        _d="${st_root}/std_$(printf '%s' "$_ptr" | tr -c 'a-zA-Z0-9' _)"
+        mkdir -p "${_d}/submodules"
+        _fx0="$(st_mk "std_src_$(printf '%s' "$_ptr" | tr -c 'a-zA-Z0-9' _)")"
+        mv "${_fx0}/constitution" "${_d}/submodules/constitution"
+        printf '# Consumer\n\n%s\n\n## Rules\n\nrules\n' "$_ptr" > "${_d}/CLAUDE.md"
+        st_expect_exit "golden-good(std layout, derived consumer root): pointer '${_ptr}'" 0 \
+            --const-dir "${_d}/submodules/constitution" --quiet
+    done
+
+    # golden-BAD (invariant a, I3): a LEGACY-layout consumer whose pointer names
+    # the STANDARD path — the pointer must equal <rel>/CLAUDE.md.
+    fx_wp="$(st_mk bad_wrongpath)"
+    printf '# Consumer\n\n@submodules/constitution/CLAUDE.md\n\n## Rules\n\nrules\n' > "${fx_wp}/CLAUDE.md"
+    st_expect_exit "golden-bad(a): legacy consumer pointer names submodules/constitution/CLAUDE.md" 1 \
+        --const-dir "${fx_wp}/constitution" --consumer-root "${fx_wp}" --quiet
+
+    # golden-BAD 1c (invariant c, standard-layout import form).
+    fx_cs="$(st_mk bad_cs)"
+    printf '\n@submodules/constitution/CLAUDE.md\n' >> "${fx_cs}/constitution/AGENTS.md"
+    st_run "golden-bad(c): live @submodules/constitution import in the canonical root" fail "$fx_cs"
+
     # negative control on the instrument itself: the needle's negative-control
     # query must return ZERO on a file that is otherwise full of headings.
     _neg="$(crc_count "${fx_good}/constitution/CLAUDE.md" "$RE_NEG_CONTROL")"
@@ -334,12 +400,36 @@ if [ ! -d "$const_dir" ]; then
     exit 2
 fi
 const_dir="$(cd "$const_dir" && pwd)"
-[ -n "$consumer_root" ] || consumer_root="$(dirname "$const_dir")"
-if [ ! -d "$consumer_root" ]; then
-    echo "❌ ${GATE}: BLIND — consumer root directory not found: ${consumer_root}" >&2
-    exit 2
+# Standalone canon checkout (§11.4.201(1)). DECISION (round 11, replaces the layout heuristic): whether
+# this directory is "the canon repository itself" or "a vendored copy inside a consumer" cannot be told
+# from its location or its surroundings -- the bytes are identical, and every layout/marker guess was
+# shown to err both ways (a non-git consumer with package.json/go.mod/Makefile only, or holding both
+# constitution/ and submodules/constitution/, was SKIPped = false negative; a real canon whose parent
+# holds a README.md or which is cloned into a directory named 'submodules' FAILed = false refusal).
+# So the SKIP of (a) is taken ONLY when the invocation DECLARES it: --standalone-canon flag ONLY (no
+# environment opt-in: an ambient variable would turn a real consumer FAIL into a SKIP). Default (no declaration) = the fail-closed consumer audit.
+# An explicit --consumer-root / CONSUMER_ROOT always wins over the declaration (it is audited).
+# Callers that legitimately run this gate against the canon repository itself must pass the flag.
+standalone=""
+if [ -z "$consumer_root" ] && [ "$standalone_decl" = "1" ]; then
+    standalone="1"
 fi
-consumer_root="$(cd "$consumer_root" && pwd)"
+if [ -z "$consumer_root" ] && [ -z "$standalone" ]; then
+    # The ONE layout resolver (standard submodules/constitution + legacy).
+    if [ -f "${SELF_DIR}/../lib/constitution_layout.sh" ]; then
+        # shellcheck source=../lib/constitution_layout.sh
+        . "${SELF_DIR}/../lib/constitution_layout.sh"
+        consumer_root="$(cl_project_root_of "$const_dir")" || consumer_root=""
+    fi
+    [ -n "$consumer_root" ] || consumer_root="$(dirname "$const_dir")"
+fi
+if [ -z "$standalone" ]; then
+    if [ ! -d "$consumer_root" ]; then
+        echo "❌ ${GATE}: BLIND — consumer root directory not found: ${consumer_root}" >&2
+        exit 2
+    fi
+    consumer_root="$(cd "$consumer_root" && pwd)"
+fi
 
 fail=0
 
@@ -431,7 +521,9 @@ fi
 
 # ── Invariant (a): the consumer opens with the inheritance pointer ──────────
 consumer_claude="${consumer_root}/CLAUDE.md"
-if [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
+if [ -n "$standalone" ]; then
+    echo "⏭  (a) CONSUMER-POINTER-PRESENT: SKIP — standalone canon checkout DECLARED by the invocation (--standalone-canon) for ${const_dir}: there is no consumer CLAUDE.md to audit; pass --consumer-root to audit one"
+elif [ ! -f "$consumer_claude" ] || [ ! -r "$consumer_claude" ]; then
     echo "❌ (a) CONSUMER-POINTER-PRESENT: consumer CLAUDE.md missing or unreadable at ${consumer_claude}"
     fail=1
 else
@@ -440,18 +532,44 @@ else
         echo "❌ ${GATE}: BLIND — control needle found 0 anchored headings in ${consumer_claude}; refusing to report a pointer absence from a possibly-blind instrument" >&2
         exit 2
     fi
-    a_head="$(crc_count "$consumer_claude" "$RE_INHERIT_HEADING" "$head_lines")"
-    a_imp="$(crc_count "$consumer_claude" "$RE_INHERIT_IMPORT" "$head_lines")"
+    # The pointer must name THIS consumer's real path to its constitution:
+    # <const_dir relative to consumer_root>/CLAUDE.md (a legacy consumer that
+    # points at submodules/constitution/CLAUDE.md, or the reverse, points at a
+    # file that does not exist there and is refused).
+    case "$const_dir" in
+        "$consumer_root"/*) a_rel="${const_dir#"$consumer_root"/}" ;;
+        *)                  a_rel="$const_dir" ;;
+    esac
+    a_expect="${a_rel}/CLAUDE.md"
+    a_esc="$(printf '%s' "$a_expect" | sed 's/[][\.*^$+?(){}|]/\\&/g')"
+    a_rel_esc="$(printf '%s' "$a_rel" | sed 's/[][\.*^$+?(){}|]/\\&/g')"
+    # Heading: '## INHERITED FROM <rel>/CLAUDE.md', optionally followed by
+    # whitespace and free text (a real consumer writes
+    # '## INHERITED FROM constitution/CLAUDE.md (HelixConstitution submodule)').
+    # The path must end at whitespace or end-of-line, so '<rel>/CLAUDE.md.bak'
+    # or '<rel>/CLAUDE.mdx' is still refused.
+    a_head="$(crc_count "$consumer_claude" "^## INHERITED FROM ${a_esc}([[:space:]].*)?\$" "$head_lines")"
+    # Import: '@<rel>/{CLAUDE,AGENTS,Constitution}.md' (any canonical file),
+    # nothing but whitespace after it.
+    a_imp="$(crc_count "$consumer_claude" "^@${a_rel_esc}/(CLAUDE|AGENTS|Constitution)\\.md[[:space:]]*\$" "$head_lines")"
     a_total=$((a_head + a_imp))
+    a_any=$(( $(crc_count "$consumer_claude" "$RE_INHERIT_HEADING" "$head_lines") + $(crc_count "$consumer_claude" "^@" "$head_lines") ))
     if [ "$a_total" -gt 0 ]; then
-        [ -n "$quiet" ] || echo "✅ (a) CONSUMER-POINTER-PRESENT: ${consumer_claude} opens with the inheritance pointer within its first ${head_lines} lines (heading=${a_head} import=${a_imp})"
+        [ -n "$quiet" ] || echo "✅ (a) CONSUMER-POINTER-PRESENT: ${consumer_claude} opens with the inheritance pointer to ${a_expect} within its first ${head_lines} lines (heading=${a_head} import=${a_imp})"
+    elif [ "$a_any" -gt 0 ]; then
+        echo "❌ (a) CONSUMER-POINTER-PRESENT: ${consumer_claude} carries an inheritance pointer, but none names this consumer's constitution path — expected '## INHERITED FROM ${a_expect}' or '@${a_expect}' (constitution at ${const_dir})"
+        fail=1
     else
-        echo "❌ (a) CONSUMER-POINTER-PRESENT: ${consumer_claude} carries no live inheritance pointer in its first ${head_lines} lines — neither a '## INHERITED FROM constitution/CLAUDE.md' heading nor an '@constitution/CLAUDE.md' import (a fenced example does not count, §11.4.201(7)(a))"
+        echo "❌ (a) CONSUMER-POINTER-PRESENT: ${consumer_claude} carries no live inheritance pointer in its first ${head_lines} lines — neither a '## INHERITED FROM ${a_expect}' heading nor an '@${a_expect}' import (a fenced example does not count, §11.4.201(7)(a))"
         fail=1
     fi
 fi
 
 echo "----------------------------------------------------------------------"
+if [ "$fail" -eq 0 ] && [ -n "$standalone" ]; then
+    echo "⏭  ${GATE}: SKIP — (b) and (c) hold; (a) not applicable (standalone canon checkout, no consumer) [const-dir=${const_dir}]"
+    exit 3
+fi
 if [ "$fail" -eq 0 ]; then
     echo "✅ ${GATE}: PASS — (a) consumer pointer present, (b) canonical root present, (c) canonical root is not a consumer [const-dir=${const_dir}]"
     exit 0

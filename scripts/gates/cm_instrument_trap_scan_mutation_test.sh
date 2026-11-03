@@ -38,11 +38,10 @@
 set -u
 
 SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
 LIB="$SELF_DIR/lib/instrument_trap_scan.sh"
 GATE="$SELF_DIR/cm_instrument_trap_scan.sh"
-TEST="$REPO/scripts/testing/anti_slop/us2_trap_scan_red.sh"
-FIXTURES="$REPO/scripts/testing/anti_slop/fixtures/traps"
+TEST="$SELF_DIR/fixtures/instrument_trap_scan/us2_trap_scan_red.sh"
+FIXTURES="$SELF_DIR/fixtures/instrument_trap_scan/traps"
 
 fails=0
 say() { printf '%s\n' "$*"; }
@@ -59,12 +58,12 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/cm_its_mut.XXXXXX") || exit 2
 # shellcheck disable=SC2064
 trap "rm -rf '$TMP'" EXIT INT TERM
 
-# Stage with the repo's own depth so SELF_DIR/../../.. resolves inside $TMP.
+# Stage the gate, its libraries and its canon-owned fixtures together inside $TMP.
 STAGE="$TMP/root"
-mkdir -p "$STAGE/constitution/scripts/gates/lib" "$STAGE/scripts/testing/anti_slop/fixtures" || exit 2
+mkdir -p "$STAGE/constitution/scripts/gates/lib" "$STAGE/constitution/scripts/gates/fixtures/instrument_trap_scan" || exit 2
 cp "$GATE" "$STAGE/constitution/scripts/gates/" || exit 2
 cp "$SELF_DIR"/lib/*.sh "$STAGE/constitution/scripts/gates/lib/" || exit 2
-cp -r "$FIXTURES" "$STAGE/scripts/testing/anti_slop/fixtures/traps" || exit 2
+cp -r "$FIXTURES" "$STAGE/constitution/scripts/gates/fixtures/instrument_trap_scan/traps" || exit 2
 MUT_GATE="$STAGE/constitution/scripts/gates/$(basename "$GATE")"
 MUT_LIB="$STAGE/constitution/scripts/gates/lib/$(basename "$LIB")"
 
@@ -73,7 +72,7 @@ say "tracked library (READ-ONLY to this harness): $LIB"
 say "mutating an out-of-repo copy at:            $MUT_LIB"
 
 run_t215() {  # <outfile> -> rc of the test
-    env US2_TRAP_SCAN="$MUT_GATE" US2_RED_DIR="$TMP/red" REPO_ROOT="$REPO" \
+    env US2_TRAP_SCAN="$MUT_GATE" US2_TRAP_FIXTURES="$STAGE/constitution/scripts/gates/fixtures/instrument_trap_scan/traps" \
         sh "$TEST" > "$1" 2>&1
     return $?
 }

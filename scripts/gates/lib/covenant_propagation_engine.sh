@@ -132,6 +132,20 @@
 # pointer_carrier.sh and the parent data pack are found regardless of caller cwd.
 _cpe_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
+# F5: default consumer root. The repository root this lib lives in; when that
+# repository is a vendored "constitution" submodule of a git consumer, the
+# consumer. Never cwd-relative (a bare ".." resolved against the caller cwd and
+# produced false FAILs when a gate ran standalone).
+covenant_propagation_default_root() {
+    local repo
+    repo="$(cd "${1:-${_cpe_lib_dir}/../../..}" 2>/dev/null && pwd)" || return 2
+    if [ "$(basename "$repo")" = "constitution" ] && [ -e "$(dirname "$repo")/.git" ]; then
+        dirname "$repo"
+    else
+        printf '%s\n' "$repo"
+    fi
+}
+
 # shellcheck source=pointer_carrier.sh
 if [ -r "${_cpe_lib_dir}/pointer_carrier.sh" ]; then
     . "${_cpe_lib_dir}/pointer_carrier.sh"
@@ -179,7 +193,7 @@ covenant_propagation_main() {
         return 2
     fi
 
-    root="${CONSUMER_ROOT:-..}"
+    root="${CONSUMER_ROOT:-$(covenant_propagation_default_root)}"
     quiet=""
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -286,7 +300,7 @@ covenant_propagation_main() {
         -o \( -type f \( -name 'CLAUDE.md' -o -name 'AGENTS.md' \
            -o -name 'QWEN.md' -o -name 'GEMINI.md' \) -print \) 2>/dev/null)" || _cpe_frc=$?
     if [ "$_cpe_frc" -ne 0 ]; then
-        echo "${GATE}: BLIND — carrier discovery under $root did not complete (find exit ${_cpe_frc}: an unreadable directory, a vanished mount or a permission failure somewhere below the root); refusing to audit a partial carrier set (§11.4.201(7)(b)). Pass --root <consumer-root> (the default root is \$CONSUMER_ROOT or '..')." >&2
+        echo "${GATE}: BLIND — carrier discovery under $root did not complete (find exit ${_cpe_frc}: an unreadable directory, a vanished mount or a permission failure somewhere below the root); refusing to audit a partial carrier set (§11.4.201(7)(b)). Pass --root <consumer-root> (the default root is \$CONSUMER_ROOT or the repository root)." >&2
         return 2
     fi
     carriers="$(printf '%s\n' "$_cpe_found" | sort)"

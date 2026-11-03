@@ -305,7 +305,7 @@ PARTIAL_DIR_APPEARED=0
 
 # SIGKILL the whole process group so the fake specify's `sleep 60` dies too,
 # simulating a genuine interrupted install (not a graceful shutdown).
-kill -9 -- -"$INSTALLER_PID" 2>/dev/null
+case "$INSTALLER_PID" in ''|*[!0-9]*) ;; *) [ "$INSTALLER_PID" -gt 1 ] && kill -9 -- -"$INSTALLER_PID" 2>/dev/null ;; esac   # 11.4.263: integer > 1 only
 kill -9 "$INSTALLER_PID" 2>/dev/null
 wait "$INSTALLER_PID" 2>/dev/null
 

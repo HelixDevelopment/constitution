@@ -21,8 +21,14 @@
 #   constitution pull by scripts/post_update_hook.sh (§11.4.164).
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
-#   bash constitution/scripts/install_cli_agent_plugins.sh [PROJECT_ROOT] [OPTS]
-#     PROJECT_ROOT   consuming project root (default: $PWD)
+#   bash <constitution>/scripts/install_cli_agent_plugins.sh [PROJECT_ROOT | --project-root DIR] [OPTS]
+#     (<constitution> is submodules/constitution (standard) or constitution (legacy))
+#     PROJECT_ROOT   consuming project root. Chosen in this order: the explicit
+#                    argument (positional or --project-root DIR); else the OWNER
+#                    of this checkout (its git superproject / the work tree
+#                    holding a vendored copy; an ambient $PROJECT_ROOT or cwd
+#                    naming another directory is ignored with a WARN); only a
+#                    STANDALONE checkout (no owner) uses $PROJECT_ROOT, else $PWD
 #     --skills-only  only link skills (skip generation + plugin install)
 #     --skill NAME   link just this one skill (implies --skills-only)
 #     --no-plugin    skip the marketplace/plugin install step
@@ -79,14 +85,60 @@ while [ $# -gt 0 ]; do
     --skill)       shift; one_skill="${1:-}"; skills_only=1 ;;
     --no-plugin)   do_plugin=0 ;;
     --check)       check_only=1 ;;
-    -h|--help)     sed -n '3,30p' "$0"; exit 0 ;;
+    --project-root)
+      if [ $# -lt 2 ] || [ -z "${2:-}" ]; then echo "[install-plugins] --project-root needs a directory" >&2; exit 2; fi
+      project_root="$2"; shift ;;
+    --project-root=*) project_root="${1#--project-root=}"
+      [ -n "$project_root" ] || { echo "[install-plugins] --project-root= needs a directory" >&2; exit 2; } ;;
+    -h|--help)     sed -n '3,36p' "$0"; exit 0 ;;
     *)             [ -n "$project_root" ] || project_root="$1" ;;
   esac
   shift || true
 done
 
-project_root="${project_root:-$PWD}"
-project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)"
+# Owner rule (round 8, same as setup.sh / post_update_hook.sh): explicit
+# argument > the OWNER of this checkout > ($PROJECT_ROOT, $PWD) only when the
+# checkout is standalone. An ambient value left for another project never
+# redirects the writes (.claude/skills, settings, generated commands).
+if [ -f "$self_dir/lib/constitution_layout.sh" ]; then
+  # shellcheck source=lib/constitution_layout.sh
+  . "$self_dir/lib/constitution_layout.sh"
+  cl_scrub_git_env
+  if [ -z "$project_root" ]; then
+    _owner="$(cl_owner_project_of "$const_root" 2>/dev/null)" || _owner=""
+    if [ -n "$_owner" ]; then
+      _amb="${PROJECT_ROOT:-$PWD}"
+      if [ -n "${PROJECT_ROOT:-}" ] && ! cl_same_dir "$_amb" "$_owner"; then
+        printf '[install-plugins] WARN: ignoring the ambient PROJECT_ROOT=%s: this constitution checkout belongs to %s (pass --project-root to choose another project explicitly).\n' "$PROJECT_ROOT" "$_owner" >&2
+      fi
+      project_root="$_owner"
+    fi
+  fi
+fi
+project_root="${project_root:-${PROJECT_ROOT:-$PWD}}"
+project_root="$(cd "$project_root" >/dev/null 2>&1 && pwd)" || { echo "[install-plugins] project root does not exist: ${project_root}" >&2; exit 2; }
+
+# ── Ownership / containment helpers (class: never act on a path we cannot prove is ours) ──
+# Every ln/rm/mv/unlink in THIS script goes through one of these; the scripts it chains to
+# (install_action_prefix.sh: own containment check; generate_agent_prefix_commands.sh: the installer
+# runs it with HELIX_ACTION_OUT_ROOT unset (env -u), so it writes only inside the constitution tree;
+# the generator itself still honours that variable for tests/dry-runs) are covered separately:
+#   ic_dir_inside_project DIR  -> DIR (symlinks resolved, may not exist yet) lies strictly inside the project
+#   ic_link_owned LINK SUBDIR  -> LINK is a symlink whose fully-resolved target (dangling allowed) lies under
+#                                 THIS constitution tree's SUBDIR (skills, actions/generated)
+const_real="$(cd "$const_root" && pwd -P)"
+proj_real_global="$(cd "$project_root" && pwd -P)"
+ic_dir_inside_project() {
+  local r
+  r="$(readlink -m -- "$1" 2>/dev/null)" || return 1
+  case "$r" in "$proj_real_global"/*) return 0 ;; *) return 1 ;; esac
+}
+ic_link_owned() {
+  local r
+  [ -L "$1" ] || return 1
+  r="$(readlink -m -- "$1" 2>/dev/null)" || return 1
+  case "$r" in "$const_real/$2"/*|"$const_root/$2"/*) return 0 ;; *) return 1 ;; esac
+}
 
 MARKETPLACE_NAME="helix-constitution"
 PLUGIN_NAME="helix"
@@ -101,7 +153,7 @@ regen_commands() {
     warn "generator missing: $gen — commands NOT regenerated"
     return 1
   fi
-  if bash "$gen" >/dev/null 2>&1; then
+  if env -u HELIX_ACTION_OUT_ROOT bash "$gen" >/dev/null 2>&1; then
     local n
     n="$(find "$const_root/plugins/$PLUGIN_NAME/commands" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
     ok "regenerated slash commands from registry ($n Claude Code command file(s))"
@@ -117,15 +169,33 @@ link_skills() {
   local skills_src="$const_root/skills"
   local skills_dst="$project_root/.claude/skills"
   [ -d "$skills_src" ] || { warn "no skills dir at $skills_src"; return 1; }
+  # The project's .claude (and .claude/skills) must really live inside the project: a symlinked
+  # .claude pointing elsewhere would make us write outside it. Refuse, honestly.
+  local proj_real claude_real
+  proj_real="$(cd "$project_root" && pwd -P)"
+  if [ -L "$project_root/.claude" ] || [ -L "$skills_dst" ]; then
+    claude_real="$(readlink -m -- "$skills_dst" 2>/dev/null)" || claude_real=""
+    case "$claude_real" in
+      "$proj_real"/*) ;;
+      *) warn "$project_root/.claude (or .claude/skills) is a symlink that resolves outside the project — REFUSED, nothing written"; return 1 ;;
+    esac
+  fi
   mkdir -p "$skills_dst"
+  case "$(cd "$skills_dst" && pwd -P)" in
+    "$proj_real"/*) ;;
+    *) warn "$skills_dst resolves outside the project — REFUSED"; return 1 ;;
+  esac
 
-  # Reap dangling skill links (a skill removed upstream must stop being offered).
+  # Reap OUR dangling skill links only: a dangling link whose resolved target lies under THIS
+  # constitution's skills dir. A user's own dangling link, whatever its text, is never touched.
   local stale
   for stale in "$skills_dst"/*; do
-    [ -L "$stale" ] && [ ! -e "$stale" ] && rm -f "$stale"
+    if [ -L "$stale" ] && [ ! -e "$stale" ] && ic_link_owned "$stale" skills; then
+      rm -f "$stale"
+    fi
   done
 
-  local linked=0 skipped=0 name src dst
+  local linked=0 skipped=0 refused=0 name src dst cur
   for src in "$skills_src"/*/; do
     [ -d "$src" ] || continue
     name="$(basename "$src")"
@@ -140,15 +210,27 @@ link_skills() {
     fi
 
     dst="$skills_dst/$name"
-    if [ -L "$dst" ] || [ ! -e "$dst" ]; then
+    if [ -L "$dst" ]; then
+      # Replace only a link that already points at OUR skill (or is our own dangling one).
+      cur="$(readlink -f -- "$dst" 2>/dev/null || true)"
+      if [ "$cur" = "$(readlink -f -- "${src%/}")" ] || { [ ! -e "$dst" ] && ic_link_owned "$dst" skills; }; then
+        hc_ln_relative "${src%/}" "$dst"
+        linked=$((linked + 1))
+      else
+        warn "$dst is a symlink to somewhere else (user-owned?) — REFUSED, left untouched"
+        refused=$((refused + 1))
+      fi
+    elif [ ! -e "$dst" ]; then
       hc_ln_relative "${src%/}" "$dst"
       linked=$((linked + 1))
-    elif [ -d "$dst" ]; then
-      warn "$dst exists and is NOT a symlink — left untouched (remove it to re-link)"
+    else
+      warn "$dst exists and is NOT a symlink ($([ -d "$dst" ] && echo directory || echo 'regular file')) — REFUSED, left untouched (remove it to re-link)"
+      refused=$((refused + 1))
     fi
   done
 
-  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped)"
+  ok "linked $linked skill(s) into .claude/skills/ (${skipped} legacy dir(s) without SKILL.md skipped, ${refused} refused)"
+  [ "$refused" -eq 0 ] || return 1
   return 0
 }
 
@@ -162,7 +244,7 @@ link_agent_commands() {
 
   # agent:source-subdir:destination-dir-relative-to-project:extension
   local specs="gemini:.gemini/commands:toml qwen:.qwen/commands:toml codex:prompts:md"
-  local spec agent dst_rel ext src_dir dst_dir f base total=0
+  local spec agent dst_rel ext src_dir dst_dir f base total=0 refused_dirs=0
 
   for spec in $specs; do
     agent="${spec%%:*}"
@@ -171,6 +253,13 @@ link_agent_commands() {
     src_dir="$gen/$agent"
     [ -d "$src_dir" ] || continue
     dst_dir="$project_root/$dst_rel"
+    # Containment first, mkdir second: a symlinked .gemini/.qwen/prompts pointing outside the project
+    # must receive nothing (and mkdir -p through it would already write outside).
+    if ! ic_dir_inside_project "$dst_dir"; then
+      warn "$dst_dir resolves outside the project — REFUSED, nothing written"
+      refused_dirs=$((refused_dirs + 1))
+      continue
+    fi
     mkdir -p "$dst_dir"
 
     # Reap DANGLING symlinks first: when an action is removed from the registry
@@ -178,7 +267,9 @@ link_agent_commands() {
     # link here — an agent offering a directive that no longer exists.
     local stale
     for stale in "$dst_dir"/*; do
-      [ -L "$stale" ] && [ ! -e "$stale" ] && rm -f "$stale"
+      if [ -L "$stale" ] && [ ! -e "$stale" ] && ic_link_owned "$stale" actions/generated; then
+        rm -f "$stale"
+      fi
     done
 
     local n=0
@@ -187,11 +278,14 @@ link_agent_commands() {
       base="$(basename "$f")"
       # Only ever replace our own symlink or a free slot — never clobber a real
       # file the operator wrote by hand.
-      if [ -L "$dst_dir/$base" ] || [ ! -e "$dst_dir/$base" ]; then
+      if [ ! -e "$dst_dir/$base" ] && [ ! -L "$dst_dir/$base" ]; then
+        hc_ln_relative "$f" "$dst_dir/$base"
+        n=$((n + 1))
+      elif ic_link_owned "$dst_dir/$base" actions/generated; then
         hc_ln_relative "$f" "$dst_dir/$base"
         n=$((n + 1))
       else
-        warn "$dst_dir/$base exists and is NOT a symlink — left untouched"
+        warn "$dst_dir/$base exists and is not our symlink (user-owned file or link) — left untouched"
       fi
     done
     [ "$n" -eq 0 ] || ok "wired $n $agent command(s) → $dst_rel/"
@@ -199,6 +293,7 @@ link_agent_commands() {
   done
 
   [ "$total" -gt 0 ] || warn "no per-agent commands linked (nothing generated?)"
+  [ "$refused_dirs" -eq 0 ] || return 1
   return 0
 }
 
@@ -215,6 +310,11 @@ wire_prompt_hook() {
     warn "install_action_prefix.sh missing — free-form prefix expansion NOT wired"
     return 1
   fi
+  # Containment before delegating (the callee also checks, as it can be run standalone).
+  if ! ic_dir_inside_project "$project_root/.claude" || ! ic_dir_inside_project "$project_root/.claude/settings.json"; then
+    warn "$project_root/.claude resolves outside the project — prompt hook REFUSED, nothing written"
+    return 1
+  fi
   if bash "$inst" "$project_root" >/dev/null 2>&1; then
     ok "wired the UserPromptSubmit prefix hook (free-form 'NAME :: task' forms)"
     return 0
@@ -224,11 +324,28 @@ wire_prompt_hook() {
 }
 
 # ── 3. Register the marketplace + install the plugin (non-interactive) ───────
+# marketplace_hint_path — the constitution path as the operator types it from
+# the project root: ./submodules/constitution (standard), ./constitution
+# (legacy), or the absolute path when it lives outside the project.
+marketplace_hint_path() {
+  local rel=""
+  if [ -f "$self_dir/lib/constitution_layout.sh" ]; then
+    # shellcheck source=lib/constitution_layout.sh
+    . "$self_dir/lib/constitution_layout.sh"
+    rel="$(cl_rel_path "$project_root" "$const_root")"
+  fi
+  case "$rel" in
+    '') printf '%s\n' "$const_root" ;;
+    /*) printf '%s\n' "$rel" ;;
+    *)  printf './%s\n' "$rel" ;;
+  esac
+}
+
 install_plugin() {
   if ! command -v claude >/dev/null 2>&1; then
     warn "the \`claude\` CLI is NOT on PATH — the plugin was NOT installed."
     warn "ONE-TIME operator step, from the project root:"
-    warn "    claude plugin marketplace add ./$(basename "$const_root")"
+    warn "    claude plugin marketplace add $(printf '%q' "$(marketplace_hint_path)")"
     warn "    claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}"
     return 1
   fi

@@ -1,0 +1,66 @@
+date: 2026-10-31T10:36:14Z  sandbox: throwaway git project, submodules/constitution is a symlink to the repo checkout (not a real submodule)
+### $ --show
+Decisions for /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/tutWRLQ (inherits from submodules/constitution)
+  agents.settings_json_consent             false                        [constitution]
+  budget.max_hosted_calls_per_hour         null                         [constitution]
+  budget.max_usd_per_day                   null                         [constitution]
+  calibration.cadence_days                 7                            [constitution]
+  calibration.floor                        0.9                          [constitution]
+  calibration.min_sample                   30                           [constitution]
+  endpoints.preference                     [local, lan, hosted]         [constitution]
+  exclusions.never_enforce                 []                           [constitution]
+  hosted.allowed                           true                         [constitution]
+  hosted.enforce                           false                        [constitution]
+  keys.discovery_consent                   true                         [constitution]
+  keys.var_names                           [LLMCTL_API_KEY, OPENROUTER_API_KEY, TYPESAFE_API_KEY] [constitution]
+  layer.mode                               shadow                       [constitution]
+rc=0
+### $ --set layer.mode=shadow --set calibration.floor=0.95 --non-interactive
+note: add .constitution-install-backup/ to .gitignore (backups of project docs and decisions are kept there, mode 0600/0700)
+backup: .constitution-install-backup/20261031T103614Z-decisions
+written: .constitution/decisions.yml
+written: CLAUDE.md
+bootstrap (printed, NOT run): env -u JEV_BOOTSTRAP_NON_INTERACTIVE -u JEV_BOOTSTRAP_DEFER -u JEV_BOOTSTRAP_CONSENT -u JEV_BOOTSTRAP_INSTALL_TOOLS -u JEV_BOOTSTRAP_ALLOW_CLONE -u JEV_BOOTSTRAP_DOWNLOAD_PROFILE -u JEV_BOOT
+rc=0
+### $ --check
+check: OK (2 override(s))
+rc=0
+### $ --export decisions_export.yml
+exported: decisions_export.yml
+rc=0
+### $ --reset --non-interactive
+note: add .constitution-install-backup/ to .gitignore (backups of project docs and decisions are kept there, mode 0600/0700)
+backup: .constitution-install-backup/20261031T103615Z-decisions
+written: .constitution/decisions.yml
+written: CLAUDE.md
+bootstrap (printed, NOT run): env -u JEV_BOOTSTRAP_NON_INTERACTIVE -u JEV_BOOTSTRAP_DEFER -u JEV_BOOTSTRAP_CONSENT -u JEV_BOOTSTRAP_INSTALL_TOOLS -u JEV_BOOTSTRAP_ALLOW_CLONE -u JEV_BOOTSTRAP_DOWNLOAD_PROFILE -u JEV_BOOT
+rc=0
+### $ --import decisions_export.yml --non-interactive
+note: add .constitution-install-backup/ to .gitignore (backups of project docs and decisions are kept there, mode 0600/0700)
+backup: .constitution-install-backup/20261031T103615Z-decisions-2
+written: .constitution/decisions.yml
+written: CLAUDE.md
+bootstrap (printed, NOT run): env -u JEV_BOOTSTRAP_NON_INTERACTIVE -u JEV_BOOTSTRAP_DEFER -u JEV_BOOTSTRAP_CONSENT -u JEV_BOOTSTRAP_INSTALL_TOOLS -u JEV_BOOTSTRAP_ALLOW_CLONE -u JEV_BOOTSTRAP_DOWNLOAD_PROFILE -u JEV_BOOT
+rc=0
+### $ --check
+check: OK (2 override(s))
+rc=0
+### $ --show --json
+{
+  "conflicts": [],
+  "contradictions": [],
+  "effective": {
+    "agents.settings_json_consent": {
+      "source": "constitution",
+      "value": false
+    },
+    "budget.max_hosted_calls_per_hour": {
+      "source": "constitution",
+      "value": null
+    },
+    "budget.max_usd_per_day": {
+      "source": "constitution",
+rc=0
+### $ --set hosted.enforce=true --non-interactive
+constitution_decisions: refused: hosted.enforce is locked by the constitution to false; a local override may not weaken it (§11.4.279(E) (hosted never enforces))
+rc=4

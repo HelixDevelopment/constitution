@@ -53,9 +53,11 @@ set -u
 
 NAME="CM-BRIDGE-LAYER-PRESENCE mutation"
 SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
-ROOT=$(cd "$SELF_DIR/../../.." >/dev/null 2>&1 && pwd)
+# shellcheck disable=SC1091
+. "$SELF_DIR/../lib/default_scan_root.sh" 2>/dev/null && ROOT=$(cm_default_scan_root "$SELF_DIR") || ROOT=""
+[ -n "$ROOT" ] || { echo "cannot resolve a default root from the test location" >&2; exit 2; }
 GATE="$SELF_DIR/cm_bridge_layer_presence.sh"
-REAL_DEPS="$ROOT/constitution/scripts/extensions/bridge_phase_layer_deps.json"
+REAL_DEPS="$SELF_DIR/../extensions/bridge_phase_layer_deps.json"   # constitution-owned, resolved from the test location (vendored or standalone)
 QUIET=0
 [ "${1:-}" = "--quiet" ] && QUIET=1
 
@@ -82,17 +84,27 @@ fi
 LAYERS_DIR="$ROOT/qa-results/hxc159/bridge_layers"
 LATEST_RUN=$(ls -1 "$LAYERS_DIR" 2>/dev/null | sort | tail -1)
 REAL_REPORT="$LAYERS_DIR/$LATEST_RUN/report.json"
-if [ -z "$LATEST_RUN" ] || [ ! -f "$REAL_REPORT" ]; then
-	bad "no probe report.json found under $LAYERS_DIR — run probe_bridge_layers.sh first"
-	echo "== $NAME: FAIL ==" >&2
-	exit 1
-fi
-
 TMP=$(mktemp -d) || { bad "mktemp -d failed"; echo "== $NAME: FAIL ==" >&2; exit 1; }
 SANDBOX_DEPS="$TMP/deps.json"
 SANDBOX_REPORT="$TMP/report.json"
 cp "$REAL_DEPS" "$SANDBOX_DEPS"
-cp "$REAL_REPORT" "$SANDBOX_REPORT"
+if [ -n "$LATEST_RUN" ] && [ -f "$REAL_REPORT" ]; then
+	cp "$REAL_REPORT" "$SANDBOX_REPORT"
+else
+	# No consumer probe report exists (standalone canon). This test is about the GATE'S OWN LOGIC (it proves the gate
+	# refuses a bad dependency), so a labelled gate-logic fixture report is legitimate here (§11.4.289(C)(2)): every layer
+	# the real deps-file names is WIRED, and L5 is absent (the "measured NONEXISTENT" layer the M1 mutation depends on).
+	# It proves the gate decides correctly on a given report, never that any Bridge layer is actually wired.
+	say "  NOTE  [$NAME] no consumer probe report under $LAYERS_DIR - using a labelled GATE-LOGIC fixture report (unit class, proves nothing about real layers)"
+	python3 - "$REAL_DEPS" "$SANDBOX_REPORT" <<'PYEOF'
+import json, sys
+deps = json.load(open(sys.argv[1], encoding="utf-8"))
+ids = sorted({l for ph in deps.get("phases", {}).values() for l in ph.get("layers", [])} | {"L1", "L2"})
+ids = [i for i in ids if i != "L5"]
+json.dump({"fixture": "gate-logic-class (not a probe result)", "layers": [{"id": i, "verdict": "WIRED"} for i in ids]},
+          open(sys.argv[2], "w", encoding="utf-8"), indent=2)
+PYEOF
+fi
 
 run_gate() {
 	# runs the gate against the sandbox files, quiet, returns its exit code

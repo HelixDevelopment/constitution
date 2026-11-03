@@ -97,6 +97,7 @@ HOOK_DIR=""
 NEEDLE="pre-commit"
 QUIET=0
 SELFTEST=0
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer hook map (only way to get the honest SKIP)
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -108,6 +109,7 @@ while [ $# -gt 0 ]; do
         --needle)      NEEDLE="${2:-}";      shift 2 ;;
         --selftest)    SELFTEST=1;           shift ;;
         --quiet)       QUIET=1;              shift ;;
+        --standalone-canon) STANDALONE=1;    shift ;;
         --help|-h)     sed -n '1,80p' "$0";  exit 0 ;;
         *) echo "${TOKEN}: unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -380,5 +382,9 @@ fi
 
 say "${TOKEN}: repo=${REPO}"
 say "${TOKEN}: live hook path=${HOOK_DIR}"
+if [ "$STANDALONE" = 1 ] && [ ! -r "$MAP" ]; then
+    emit "${TOKEN}: SKIP — standalone canon DECLARED (--standalone-canon): the hook map ${MAP} is consumer data and does not exist here (honest SKIP, not a PASS)"
+    exit 3
+fi
 run_gate "$REPO" "$MAP" "$HOOK_DIR" $(printf '%s' "$SOURCE_ROOTS" | tr '\n' ' ')
 exit $?

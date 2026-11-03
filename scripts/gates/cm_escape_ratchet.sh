@@ -73,6 +73,7 @@ WANT_CYCLE=""
 DO_RATCHET=0
 QUIET=0
 SELFTEST=0
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer ledger (only way to get the honest SKIP)
 
 CHANNELS_ESCAPE_EXEMPT="automated_seam"
 CHANNELS_ALL="automated_seam manual_qa operator end_user agent_inspection"
@@ -88,6 +89,7 @@ while [ $# -gt 0 ]; do
         --cycle)    shift; [ $# -gt 0 ] || die "--cycle needs a value"; WANT_CYCLE=$1 ;;
         --ratchet)  DO_RATCHET=1 ;;
         --quiet)    QUIET=1 ;;
+        --standalone-canon) STANDALONE=1 ;;
         --selftest) SELFTEST=1 ;;
         -h|--help)  sed -n '2,60p' "$0"; exit 0 ;;
         *)          die "unknown argument: $1" ;;
@@ -96,7 +98,11 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$LEDGER" ]; then
-    LEDGER="$SELF_DIR/../../../docs/requests/discovery_channel.jsonl"
+    # Default = where the gate LIVES (superproject when vendored, else the canon), never the directory above the canon.
+    # shellcheck disable=SC1091
+    [ -r "$SELF_DIR/../lib/default_scan_root.sh" ] && . "$SELF_DIR/../lib/default_scan_root.sh" && _er_root=$(cm_default_scan_root "$SELF_DIR") || _er_root=""
+    [ -n "$_er_root" ] || _er_root="$SELF_DIR/../../.."   # staged copy without scripts/lib: legacy consumer depth
+    LEDGER="$_er_root/docs/requests/discovery_channel.jsonl"
 fi
 
 # ---------------------------------------------------------------------------
@@ -418,6 +424,10 @@ if [ "$SELFTEST" -eq 1 ]; then
     exit "$rc"
 fi
 
+if [ "$STANDALONE" -eq 1 ] && [ ! -f "$LEDGER" ]; then
+    verdict "LEDGER" "SKIP" "standalone canon DECLARED (--standalone-canon): the discovery-channel ledger $LEDGER is consumer data and does not exist here (honest SKIP, not a PASS)"
+    exit 3
+fi
 run_gate "$LEDGER" "$BASELINE" "$WANT_CYCLE" "$DO_RATCHET"
 rc=$?
 exit "$rc"

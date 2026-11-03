@@ -40,7 +40,14 @@ set -u
 
 GATE_ID=CM-MECHANISM-OBSERVED-REFUSING
 SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+# Default root = where the gate LIVES (the superproject when vendored as a submodule, else the canon itself), never the
+# directory above the canon: "../../.." from a standalone canon is a foreign directory outside the repository.
+# shellcheck disable=SC1091
+[ -r "$SELF_DIR/../lib/default_scan_root.sh" ] && . "$SELF_DIR/../lib/default_scan_root.sh" && REPO=$(cm_default_scan_root "$SELF_DIR") || REPO=""
+# A copy of the gate staged somewhere without scripts/lib (a paired-mutation sandbox) falls back to the legacy
+# consumer-layout depth it was staged at.
+[ -n "$REPO" ] || REPO=$(CDPATH='' cd -- "$SELF_DIR/../../.." && pwd)
+STANDALONE=0   # --standalone-canon: the invocation DECLARES a canon with no consumer (only way to get the honest SKIP)
 
 REGISTRY="$REPO/docs/requests/verification_mechanisms.jsonl"
 READER="$REPO/scripts/lib/critical_blocker_gate.sh"
@@ -49,6 +56,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --registry) REGISTRY=$2; shift 2 ;;
         --reader)   READER=$2;   shift 2 ;;
+        --standalone-canon) STANDALONE=1; shift ;;
         --selftest) DO_SELFTEST=1; shift ;;
         -h|--help)  sed -n '2,40p' "$0"; exit 0 ;;
         *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -109,7 +117,9 @@ mor_admit() {
 }
 
 # --- A0 -----------------------------------------------------------------------
-if [ -r "$REGISTRY" ]; then
+if [ ! -r "$REGISTRY" ] && [ "$STANDALONE" -eq 1 ]; then
+    cn_skip MOR-A0-REGISTRY-PRESENT "standalone canon DECLARED (--standalone-canon): the E3 mechanism registry is consumer data and does not exist here (honest SKIP, not a PASS)"
+elif [ -r "$REGISTRY" ]; then
     cn_pass MOR-A0-REGISTRY-PRESENT "the E3 mechanism registry is present: $REGISTRY"
 else
     cn_fail MOR-A0-REGISTRY-PRESENT "the E3 mechanism registry is absent or unreadable at $REGISTRY — with no registry every mechanism is unvalidated, which is a refusal, not a pass"
@@ -162,6 +172,8 @@ if [ -r "$REGISTRY" ]; then
     elif [ "$_bad" -eq 0 ]; then
         cn_pass MOR-A4-REAL-REGISTRY-RESOLVES "all $_seen registered mechanism(s) resolve to a recorded refusal"
     fi
+elif [ "$STANDALONE" -eq 1 ]; then
+    cn_skip MOR-A4-REAL-REGISTRY-RESOLVES "standalone canon DECLARED (--standalone-canon): no consumer registry to resolve (honest SKIP, not a PASS)"
 else
     cn_fail MOR-A4-REAL-REGISTRY-RESOLVES "registry unreadable at $REGISTRY"
 fi
@@ -169,7 +181,9 @@ fi
 # --- A5 wired at the seam ------------------------------------------------------
 cn_count '-E' 'open_blocker_gate' "$READER"
 _needle_hits=$CN_COUNT
-if [ ! -r "$READER" ]; then
+if [ ! -r "$READER" ] && [ "$STANDALONE" -eq 1 ]; then
+    cn_skip MOR-A5-WIRED-AT-SEAM "standalone canon DECLARED (--standalone-canon): the acceptance seam $READER belongs to a consumer (honest SKIP, not a PASS)"
+elif [ ! -r "$READER" ]; then
     cn_blind MOR-A5-WIRED-AT-SEAM "the acceptance seam is unreadable at $READER — the wiring question is UNDECIDED"
 elif [ "${_needle_hits:-0}" -eq 0 ]; then
     cn_blind MOR-A5-WIRED-AT-SEAM "control needle 'open_blocker_gate' returned 0 hits in $READER through the same grep and flags — the instrument cannot see, so its zero says NOTHING (§11.4.201(7)(b))"

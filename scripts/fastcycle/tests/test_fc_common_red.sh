@@ -577,7 +577,7 @@ ok("_group_alive true for a live group", f._group_alive(p.pid) is True)
 time.sleep(0.2); ok("_group_alive probe does not signal the group", p.poll() is None)
 p.kill(); p.wait(); time.sleep(0.1)
 ok("_group_alive false for a dead group", f._group_alive(p.pid) is False)
-real = os.killpg
+real = os.killpg  # killpg-gate:allow test saves the real function to restore after patching
 def perm(pg, sig): raise PermissionError()
 f.os.killpg = perm; ok("_group_alive PermissionError -> True", f._group_alive(12345) is True); f.os.killpg = real
 # _reap_group never signals pgid <= 1, does signal pgid 2

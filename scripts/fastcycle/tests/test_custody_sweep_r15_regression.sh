@@ -410,7 +410,8 @@ unit_mut MG5_stash_apply_rc_ignored '            if rc != 0:
 unit_mut MM2_oracle_rereads_path '                restorable, why = restore_oracle_worktree(live.get("path"), live.get("head"), backup_full, env=env)' \
   '                restorable, why = restore_oracle_worktree(live.get("path"), live.get("head"), os.path.abspath(full), env=env)' \
   M2_tamper_after_hash=REFUSED
-for spec in 'MT1_kill_only_git|                os.killpg(pgid, _signal.SIGKILL)|                proc.kill()' \
+MT1_SPEC='MT1_kill_only_git|                os.killpg(pgid, _signal.SIGKILL)|                proc.kill()'  # killpg-gate:allow mutation anchor text, never executed
+for spec in "$MT1_SPEC" \
             'MT2_no_timeout|        out, err = proc.communicate(input=input_bytes, timeout=_git_timeout_s())|        out, err = proc.communicate(input=input_bytes)'; do
   IFS='|' read -r name old new <<<"$spec"
   m=$(mk_mutant "$name" "$old" "$new")

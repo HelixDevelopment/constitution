@@ -1,4 +1,5 @@
 import sys, os
+from _paths import SRC, CANON  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from anchor_lib import extract_anchors, MalformedHeadingError, derive_metadata
 
@@ -376,7 +377,7 @@ def test_unknown_id_raises_unclassified():
 def test_zero_unclassified_against_real_corpus():
     # This is the acceptance test named in Verified Notes: the LIVE
     # constitution/Constitution.md must classify with zero misses.
-    with open("constitution/Constitution.md") as f:
+    with open(SRC) as f:
         anchors = extract_anchors(f.read())
     unclassified = []
     for a in anchors:

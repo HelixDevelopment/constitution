@@ -1,0 +1,7 @@
+# EXTENSION_SOURCE.yaml -- section 11.4.228 provenance for the constitution command skill
+extension: constitution
+source_repo: git@github.com:HelixDevelopment/constitution.git
+source_path: skills/constitution
+install_mechanism: project-scope skill symlink (.claude/skills/constitution -> skills/constitution), created by the installer / setup; the dispatcher is scripts/constitution_cmd/constitution_cmd.sh and the generated plugin command is plugins/helix/commands/constitution.md
+compatibility: [claude-code]   # section 11.4.228 closed vocabulary; other agents get generated shims, liveness UNTESTED
+registration_evidence: doctor output of `constitution_cmd.sh doctor` (skills-link line)

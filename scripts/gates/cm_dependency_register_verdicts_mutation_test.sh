@@ -41,7 +41,7 @@ mutate_name_only_match() {  # <copy>
 }
 
 gm_init "$SELF_DIR/cm_dependency_register_verdicts.sh" \
-        --register "$REPO/docs/requests/dependency_register.jsonl"
+        --register "$REPO/docs/requests/dependency_register.jsonl" --standalone-canon
 gm_mutate_target "$SELF_DIR/lib/dependency_register.sh"
 gm_pair mutate_name_only_match \
         DRV-A4-NAME-COLLISION-AMBIGUOUS \

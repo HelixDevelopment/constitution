@@ -1,5 +1,6 @@
 # constitution/scripts/anchors/tests/test_generate_us3.py
 import subprocess, tempfile, os, shutil
+from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
@@ -10,12 +11,12 @@ def test_determinism_two_check_runs_agree():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        r1 = _run(["generate", "--source", "constitution/Constitution.md",
+        r1 = _run(["generate", "--source", SRC,
                     "--groups-dir", groups_dir, "--index-out", index_out])
         assert r1.returncode == 0, r1.stderr
-        c1 = _run(["check", "--source", "constitution/Constitution.md",
+        c1 = _run(["check", "--source", SRC,
                     "--groups-dir", groups_dir, "--index-out", index_out])
-        c2 = _run(["check", "--source", "constitution/Constitution.md",
+        c2 = _run(["check", "--source", SRC,
                     "--groups-dir", groups_dir, "--index-out", index_out])
         assert c1.returncode == 0, c1.stderr
         assert c2.returncode == 0, c2.stderr
@@ -23,7 +24,7 @@ def test_determinism_two_check_runs_agree():
 def test_malformed_heading_exits_2_no_partial_output():
     with tempfile.TemporaryDirectory() as tmp:
         broken = os.path.join(tmp, "broken.md")
-        with open("constitution/Constitution.md") as f:
+        with open(SRC) as f:
             text = f.read()
         broken_text = text.replace("### §11.4.209 ", "### §11.4.209(broken ", 1)
         with open(broken, "w") as f:
@@ -53,7 +54,7 @@ def test_no_partial_output_when_write_fails_after_groups_already_written():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")  # deliberately never created ahead of time
         bad_index_out = os.path.join(tmp, "no_such_subdir", "index.yaml")
-        r = _run(["generate", "--source", "constitution/Constitution.md",
+        r = _run(["generate", "--source", SRC,
                    "--groups-dir", groups_dir, "--index-out", bad_index_out])
         assert r.returncode != 0, "an invalid --index-out path MUST fail, not silently succeed"
         assert not os.path.isdir(groups_dir), (
@@ -89,13 +90,13 @@ def test_hand_edit_to_grouped_doc_detected_as_drift():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        _run(["generate", "--source", "constitution/Constitution.md",
+        _run(["generate", "--source", SRC,
               "--groups-dir", groups_dir, "--index-out", index_out])
         # Corrupt one grouped document by hand — this is the FR-012 paired mutation.
         target = next(f for f in os.listdir(groups_dir) if f.endswith(".md"))
         with open(os.path.join(groups_dir, target), "a") as f:
             f.write("\nHAND-EDITED LINE THAT MUST BE DETECTED AS DRIFT\n")
-        r = _run(["check", "--source", "constitution/Constitution.md",
+        r = _run(["check", "--source", SRC,
                    "--groups-dir", groups_dir, "--index-out", index_out])
         assert r.returncode == 4, (
             f"hand-edit with an UNCHANGED source MUST be detected as G-004 "
@@ -215,7 +216,7 @@ def test_generate_never_deletes_non_md_siblings_in_groups_dir():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
         index_out = os.path.join(tmp, "index.yaml")
-        r1 = _run(["generate", "--source", "constitution/Constitution.md",
+        r1 = _run(["generate", "--source", SRC,
                     "--groups-dir", groups_dir, "--index-out", index_out])
         assert r1.returncode == 0, r1.stderr
         # Place a fake sibling export next to one real group .md file,
@@ -226,7 +227,7 @@ def test_generate_never_deletes_non_md_siblings_in_groups_dir():
             f.write("<html>a real sibling export, not owned by the generator</html>")
         assert os.path.exists(sibling)
 
-        r2 = _run(["generate", "--source", "constitution/Constitution.md",
+        r2 = _run(["generate", "--source", SRC,
                     "--groups-dir", groups_dir, "--index-out", index_out])
         assert r2.returncode == 0, r2.stderr
         assert os.path.exists(sibling), (
@@ -249,7 +250,7 @@ def test_generate_with_trailing_slash_groups_dir_does_not_destroy_output():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir_with_slash = os.path.join(tmp, "groups") + os.sep
         index_out = os.path.join(tmp, "index.yaml")
-        r1 = _run(["generate", "--source", "constitution/Constitution.md",
+        r1 = _run(["generate", "--source", SRC,
                     "--groups-dir", groups_dir_with_slash, "--index-out", index_out])
         assert r1.returncode == 0, r1.stdout + r1.stderr
         real_dir = os.path.join(tmp, "groups")
@@ -258,7 +259,7 @@ def test_generate_with_trailing_slash_groups_dir_does_not_destroy_output():
         )
         # Re-run a SECOND time (the scenario that actually crashed before
         # the fix: scratch already inside groups_dir from a prior attempt).
-        r2 = _run(["generate", "--source", "constitution/Constitution.md",
+        r2 = _run(["generate", "--source", SRC,
                     "--groups-dir", groups_dir_with_slash, "--index-out", index_out])
         assert r2.returncode == 0, r2.stdout + r2.stderr
         assert os.path.isdir(real_dir) and os.listdir(real_dir), (

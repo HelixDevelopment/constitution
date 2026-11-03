@@ -2021,6 +2021,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-282-PRO
 
 **Non-compliance is a release blocker. No escape hatch — host-safety headroom (§12) is the ONLY legitimate capacity limiter.**
 
+**Refinement note (2026-10-28).** §11.4.291 bounds "to the maximum": only instances whose LIVE placement verdict is `fits` or `fits_with_reduced_threads` count, the planned `decision_instances` figure is an upper bound and never a licence to start them, and host-safety headroom (the only limiter, per the close above) is measured live per §11.4.291(C).
+
 ### §11.4.283 — Decision-layer token-reduction proof (User mandate, 2026-10-07)
 
 **Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Reduce token consumption of traditional LLMs to the maximum by offloading decisions to the decision layer."
@@ -2062,4 +2064,6 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-284-PRO
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.284.
 
 **Non-compliance is a release blocker. No escape hatch — the pre-ladder stage has no bypass flag; its absence (zero endpoints) is lawful only via §11.4.279(B)'s reasoned detection record.**
+
+**Refinement note (2026-10-28).** §11.4.291 decides whether a local decision endpoint may serve at all, from the host's live load: when it leaves the pre-ladder stage no endpoint (local `does_not_fit` or `undetermined`, no hosted key), typed decisions escalate per (C) above, and the stage itself is unchanged.
 

@@ -331,7 +331,7 @@ fi
 # =============================================================================
 # Section C -- §11.4.263 unit check: _safe_killpg() NEVER signals pgid<=1.
 # =============================================================================
-echo "-- Section C: §11.4.263 _safe_killpg() pgid<=1 refusal (monkeypatched, no real low-pgid signal ever sent) --"
+echo "-- Section C: §11.4.263 _safe_killpg() pgid<=1 refusal (monkeypatched, no real low-pgid signal ever sent) --"  # killpg-gate:allow section banner text
 
 C_OUT=$(python3 - "$BUILD_MAP_PY" <<'PYEOF'
 import importlib.util
@@ -348,25 +348,25 @@ calls = []
 def _fake_killpg(pgid, sig):
     calls.append((pgid, sig))
 
-real_killpg = os.killpg
+real_killpg = os.killpg  # killpg-gate:allow test saves the real function to restore after patching
 os.killpg = _fake_killpg
 try:
     results = []
     for bad_pgid in (1, 0, -1, "notanint", None):
-        r = mod._safe_killpg(bad_pgid, 9)
+        r = mod._safe_killpg(bad_pgid, 9)  # killpg-gate:allow test feeds the guard bad pgids to prove refusal
         results.append((bad_pgid, r))
     if calls:
-        print("FAIL: os.killpg was invoked for a pgid<=1 or non-int value -- calls=%r" % (calls,))
+        print("FAIL: os.killpg was invoked for a pgid<=1 or non-int value -- calls=%r" % (calls,))  # killpg-gate:allow message text
         sys.exit(1)
     if any(r for _, r in results):
         print("FAIL: _safe_killpg returned True for a refused pgid -- results=%r" % (results,))
         sys.exit(1)
-    print("OK: _safe_killpg refused every pgid<=1/non-int value, os.killpg never invoked")
+    print("OK: _safe_killpg refused every pgid<=1/non-int value, os.killpg never invoked")  # killpg-gate:allow message text
 
-    # Positive-path sanity: a genuinely >1 pgid IS passed through to killpg.
-    r2 = mod._safe_killpg(99999, 9)
+    # Positive-path sanity: a genuinely >1 pgid IS passed through to the faked group-kill.
+    r2 = mod._safe_killpg(99999, 9)  # killpg-gate:allow test proves a valid pgid passes through to the (faked) killpg
     if calls == [(99999, 9)]:
-        print("OK: _safe_killpg passes a genuinely valid pgid>1 through to os.killpg")
+        print("OK: _safe_killpg passes a genuinely valid pgid>1 through to os.killpg")  # killpg-gate:allow message text
     else:
         print("FAIL: _safe_killpg did not pass a valid pgid>1 through -- calls=%r" % (calls,))
         sys.exit(1)

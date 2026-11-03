@@ -93,7 +93,11 @@ newproj() { local d="$tmp/cases/$1"; mkdir -p "$tmp/cases"; cp -a "$tmp/base/pro
 wrap_json() { mcpjson "$1" bash "[\"$2\"]"; }
 
 # live "codegraph-looking" holder and a live non-codegraph holder
-mkdir -p "$tmp/fake"; cp "$(command -v sleep)" "$tmp/fake/codegraph"
+# The fake holder is a tiny SCRIPT named codegraph, not a copy of the sleep binary: on hosts where sleep is a multi-call
+# coreutils build, a renamed copy dies at once ("unknown program 'codegraph'"), so the holder was dead and the
+# HEAL-KEEPS-LIVE-CODEGRAPH-HOLDER case (and mutant M5) tested nothing. The script stays alive and its argv basename is codegraph.
+mkdir -p "$tmp/fake"
+printf '%s\n' '#!/bin/sh' 'sleep "$1" &' "trap 'kill \$! 2>/dev/null; exit 0' TERM INT" 'wait' > "$tmp/fake/codegraph"; chmod +x "$tmp/fake/codegraph"
 "$tmp/fake/codegraph" 600 & CGPID=$!; PIDS="$PIDS $CGPID"
 sleep 600 & OTHERPID=$!; PIDS="$PIDS $OTHERPID"
 

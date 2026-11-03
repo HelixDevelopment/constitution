@@ -15,6 +15,8 @@
 | Fixed summary | — |
 | Continuation | — |
 
+> Path note: paths written `constitution/scripts/...` in this document are `submodules/constitution/scripts/...` in the standard layout (`constitution/...` is the legacy layout).
+
 ## Table of contents
 
 1. [Purpose and the rule](#1-purpose-and-the-rule)

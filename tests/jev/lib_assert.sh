@@ -5,6 +5,27 @@
 
 PASS=0; FAIL=0; SKIPS=0
 
+# jev_scrub_ambient_env — HERMETIC ENVIRONMENT, applied the moment this library is sourced, so a test run DIRECTLY
+# (not only through run_all.sh) cannot be steered by the operator's ambient configuration. Measured 2026-10-31
+# (known_failures_v73 row 7): with CONSTITUTION_JEV_HOOK=off exported, test_failopen_and_coverage_gaps.sh failed 4
+# assertions (the post-update hook skipped the bootstrap it was being asked to degrade) and passes with it unset; the
+# same family of leak is CLAUDE_CONFIG_DIR (the operator's real alias dir, read by jev_mcp_files), JEV_BASE_URL /
+# TYPESAFE_BASE_URL (a real endpoint), the LLMCTL_*/CMA_* tool locations and every key variable. Rule: every variable
+# whose name starts with a decision-layer prefix is dropped, plus the named Claude/constitution variables; a test that
+# needs one sets it AFTER sourcing this file. JEV_GATE_SCRIPT is the single deliberate operator opt-in
+# (test_failopen A3 documents it) and is kept.
+jev_scrub_ambient_env() {
+  local v
+  for v in $(compgen -e); do
+    case "$v" in
+      JEV_GATE_SCRIPT) ;;
+      JEV_*|LLMCTL_*|CMA_*|TYPESAFE_*|OPENROUTER_*|CONSTITUTION_JEV_*|CONSTITUTION_UPDATE_*|CONSTITUTION_ALLOW_*|\
+      CLAUDE_CONFIG_DIR|CLAUDE_PROJECT_DIR|CLAUDE_TOOLKIT_DIR|FIXTURE_ENDPOINTS|BOOTSTRAP_STUB_*) unset "$v" ;;
+    esac
+  done
+}
+jev_scrub_ambient_env
+
 ok()   { PASS=$((PASS+1)); printf 'ok %d - %s\n' "$PASS" "$1"; }
 fail() { FAIL=$((FAIL+1)); printf 'FAIL - %s\n' "$1"; }
 
@@ -74,7 +95,7 @@ make_fixture_env() {
   export GIT_SSH_COMMAND=/bin/false   # no network, ever
   unset LLMCTL_STATUS_JSON LLMCTL_CAPACITY_JSON FIXTURE_ENDPOINTS LLMCTL_DIR CLAUDE_TOOLKIT_DIR LLMCTL_ENDPOINT LLMCTL_DECIDE_PORT LLMCTL_CACERT \
         LLMCTL_API_KEY TYPESAFE_API_KEY OPENROUTER_API_KEY JEV_API_KEY JEV_API_KEYS_FILE CMA_KEYS_FILE CMA_JEV_PINS_FILE JEV_BEFORE JEV_AFTER \
-        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE TYPESAFE_BASE_URL
+        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE TYPESAFE_BASE_URL CLAUDE_CONFIG_DIR   # CLAUDE_CONFIG_DIR: the operator's real alias dir must never be read (jev_mcp_files), HOME is already the sandbox
   export JEV_HOSTED_PROBE=0   # hermetic default: no hosted probe (tests that exercise probing set it to 1 and stub curl)
   mkdir -p "$CMA_PROVIDERS_DIR"
   mkdir -p "$JEV_STATE_DIR" "$JEV_EVIDENCE_DIR" "$JEV_CONFIG_DIR"

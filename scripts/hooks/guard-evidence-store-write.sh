@@ -52,8 +52,20 @@ set -uo pipefail
 PAYLOAD="$(cat || true)"
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# <repo>/constitution/scripts/hooks -> <repo>
-REPO_GUESS="$(cd "$HOOK_DIR/../../.." 2>/dev/null && pwd || printf '')"
+# <repo>/submodules/constitution/scripts/hooks or <repo>/constitution/scripts/hooks
+# -> <repo>, through the ONE layout resolver (scripts/lib/constitution_layout.sh).
+# Without the lib (a stray copy of this file) the legacy ../../.. guess is kept;
+# a wrong guess still fails CLOSED below, never open.
+REPO_GUESS=""
+if [ -f "$HOOK_DIR/../lib/constitution_layout.sh" ]; then
+  # shellcheck source=../lib/constitution_layout.sh
+  . "$HOOK_DIR/../lib/constitution_layout.sh"
+  # An ambient GIT_DIR & co. must not choose the repository whose registry is
+  # guarded (round 8); silent: this runs on every tool call.
+  cl_scrub_git_env quiet
+  REPO_GUESS="$(cl_project_root_of "$HOOK_DIR/../.." 2>/dev/null)" || REPO_GUESS=""
+fi
+[ -n "$REPO_GUESS" ] || REPO_GUESS="$(cd "$HOOK_DIR/../../.." 2>/dev/null && pwd || printf '')"
 REGISTRY="${GESW_REGISTRY:-${CLAUDE_PROJECT_DIR:-$REPO_GUESS}/docs/requests/critical_blockers.jsonl}"
 
 # --- JSON string-field reader (jq when present; awk otherwise) ---------------
