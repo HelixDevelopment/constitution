@@ -103,6 +103,15 @@ okl()  { TOTAL_PASS=$((TOTAL_PASS + 1)); say "  PASS  [$NAME] (LIVE) $* [answere
 skip() { SKIPS=$((SKIPS + 1)); say "  SKIP  [$NAME] $* (not counted as PASS)"; }
 bad()  { printf '  FAIL  [%s] %s\n' "$NAME" "$*" >&2; FAILS=$((FAILS + 1)); }
 
+finish() {
+	if [ "$FAILS" -eq 0 ]; then
+		say "== $NAME: PASS (live=$((TOTAL_PASS)) stub-class=$STUB_PASS skipped=$SKIPS [skips are not passes; stub-class is not live evidence]) =="
+		exit 0
+	fi
+	printf '== %s: FAIL (%s failing case(s)) ==\n' "$NAME" "$FAILS" >&2
+	exit 1
+}
+
 TMP=""
 cleanup() { [ -z "$TMP" ] || rm -rf "$TMP"; }
 trap cleanup EXIT INT TERM
@@ -353,7 +362,7 @@ full_auto_verdict() {
 }
 
 # ── INTEGRATION-1 (real root: SKIP when no .specify/) ───────────────────────
-REAL_HAS_SPECIFY=0; [ -d "$ROOT/.specify" ] && REAL_HAS_SPECIFY=1
+REAL_HAS_SPECIFY=0; [ -d "$ROOT/.specify" ] && [ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] && REAL_HAS_SPECIFY=1
 if [ "$REAL_HAS_SPECIFY" -eq 1 ]; then
 	v=$(integration_verdict "$ROOT" "$TMP/integration1.out")
 	if [ "$v" = PASS ]; then okl "INTEGRATION-1: real run against the real repo root PASSes, evidence written under $(latest_run_dir "$ROOT")"
@@ -385,12 +394,12 @@ make_live_fixture() {
 		&& git add -A && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -q -m live-fixture ) >/dev/null 2>&1 || return 1
 	[ -d "$r/.specify" ] && [ -f "$r/.specify/extensions/superspec/extension.yml" ] && [ -f "$r/submodules/superspec/extension.yml" ]
 }
-LIVE_FX_OK=0; LIVE_SKIP_WHY=""
+LIVE_FX_OK=0; LIVE_SKIP_WHY=""; LIVE_FX_BUILD_FAILED=0
 SSRC=$(find_superspec_src) || SSRC=""
 if [ -z "$LIVE_SPECIFY" ]; then LIVE_SKIP_WHY="missing dependency: no real specify CLI on PATH (no closed-set dependency-absent code exists, so topology_unsupported is used)"
 elif [ -z "$SSRC" ]; then LIVE_SKIP_WHY="missing dependency: no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC (no dependency-absent code in the closed set, so topology_unsupported)"
 elif make_live_fixture "$TMP/live_fixture" "$SSRC"; then LIVE_FX_OK=1; LIVE_ID="$LIVE_ID superspec_src=$SSRC"
-else LIVE_SKIP_WHY="real specify init / extension add / submodule add did not complete"; fi
+else LIVE_FX_BUILD_FAILED=1; fi
 
 if [ "$LIVE_FX_OK" -eq 1 ]; then
 	v=$(integration_verdict "$TMP/live_fixture" "$TMP/integration1l.out")
@@ -401,19 +410,33 @@ if [ "$LIVE_FX_OK" -eq 1 ]; then
 		PASS:*) okl "FULL-AUTOMATION-1L: two consecutive real runs on the real specify project PASS with identical per-layer status ('${r#PASS:}')" ;;
 		*) bad "FULL-AUTOMATION-1L: ${r#FAIL:}" ;;
 	esac
-	# foreign-cwd live run: the real installer launched from a dir that is NOT a spec-kit project must still PASS
-	( cd "$TMP" && run_real_installer "$TMP/live_fixture" "$TMP/integration1lc.out" ); rc=$?
-	if [ "$rc" -eq 0 ]; then okl "INTEGRATION-1L-CWD: real installer launched from a foreign cwd still PASSes against the real specify project (specify calls run in --root)"
-	else bad "INTEGRATION-1L-CWD: foreign-cwd live run failed (rc=$rc); output:"; sed 's/^/         /' "$TMP/integration1lc.out" >&2; fi
 	# paired mutation: break the REAL project (drop a carrier -> L1 PARTIAL); the same verdict function MUST FAIL
 	rm -f "$TMP/live_fixture/AGENTS.md"
 	v=$(integration_verdict "$TMP/live_fixture" "$TMP/integration1lm.out")
 	if [ "$v" = FAIL ] && grep -q "L1 (developer workstation)" "$TMP/integration1lm.out"; then
 		okl "INTEGRATION-1L-MUT: real specify project with a carrier removed -> verdict FAIL naming L1 (live verdict is falsifiable)"
 	else bad "INTEGRATION-1L-MUT: mutated live project did not FAIL as required (verdict=$v)"; fi
+elif [ "$LIVE_FX_BUILD_FAILED" -eq 1 ]; then
+	# Both real prerequisites ARE present, so the topology is supported: a fixture that cannot be built means the real
+	# dependency (or the fixture recipe) is broken, which is a finding, never a skip (§11.4.289(J), §11.4.3).
+	bad "LIVE-FIXTURE-BUILD: real specify ($LIVE_SPECIFY) and a superspec checkout ($SSRC) are present but the real fixture build (specify init / extension add --dev / submodule add) failed; see $TMP/live_fixture.init.out and $TMP/live_fixture.ext.out"
+	for _f in "$TMP/live_fixture.init.out" "$TMP/live_fixture.ext.out"; do [ -f "$_f" ] && sed 's/^/         /' "$_f" >&2; done
 else
 	skip "INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported ($LIVE_SKIP_WHY)"
 fi
+
+# ── META-1 (F6 guard): a superspec checkout that exists but cannot be used for the real fixture (no .git) must make the
+#    suite FAIL, not SKIP. Runs the suite in the fixture-only mode against such a source (needs the real specify).
+if [ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] && [ -n "$LIVE_SPECIFY" ]; then
+	mkdir -p "$TMP/badsrc" && echo "id: badsrc" > "$TMP/badsrc/extension.yml"
+	env HOME="$TMP/meta_home" BRIDGE_TEST_LIVE_FIXTURE_ONLY=1 SUPERSPEC_SRC="$TMP/badsrc" bash "$0" --quiet >"$TMP/meta1.out" 2>&1; rc=$?
+	if [ "$rc" -ne 0 ] && grep -q "LIVE-FIXTURE-BUILD" "$TMP/meta1.out"; then
+		ok "META-1: real specify + an unusable superspec checkout -> the suite FAILs (LIVE-FIXTURE-BUILD), it does not SKIP (rc=$rc)"
+	else
+		bad "META-1: an unusable superspec checkout did not fail the suite (rc=$rc); output:"; sed 's/^/         /' "$TMP/meta1.out" >&2
+	fi
+fi
+[ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] || finish
 
 # ── CWD-1 (stub-class) — L4 path run from a FOREIGN cwd: specify reads the project from its cwd, so every
 #    specify call must run IN --root. The fake specify below FAILS ("Not a Spec Kit project") outside a .specify dir
@@ -448,6 +471,51 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$CX/specify"; chmod +x "$CX/specify"; 
 	--superb-from "https://example.invalid/releases/download/v1.9.0/superpowers-bridge.zip" --superb-vetted-by "operator:test-harness — failed-probe case" >"$CX/run.out" 2>&1 )
 if [ -d "$CX/.specify/extensions/superb" ]; then ok "CWD-2: failed registration probe did NOT trigger rm -rf of .specify/extensions/superb"
 else bad "CWD-2: a failed probe fell through to rm -rf of the superb dir"; fi
+
+# ── CWD-3 (F2) — a probe that FAILS (rc 1) but still prints a parseable "[]": the stale dir must NOT be deleted
+C3="$TMP/cwd3"; mkdir -p "$C3/.specify/extensions/superb" "$C3/qa-results"
+printf '#!/usr/bin/env bash\nif [ "$1 $2" = "extension list" ]; then echo "[]"; exit 1; fi\nexit 0\n' > "$C3/specify"; chmod +x "$C3/specify"; make_report "$C3/report.json" WIRED WIRED WIRED DESIGNED-ONLY
+( cd "$C3" && SUPERSPEC_SHA_OVERRIDE="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81" SPECIFY_BIN="$C3/specify" bash "$INSTALLER" --root "$C3" --report-file "$C3/report.json" --quiet \
+	--superb-from "https://example.invalid/releases/download/v1.9.0/superpowers-bridge.zip" --superb-vetted-by "operator:test-harness — rc1-with-empty-list case" >"$C3/run.out" 2>&1 )
+if [ -d "$C3/.specify/extensions/superb" ]; then ok "CWD-3: probe rc=1 printing a parseable '[]' did NOT trigger rm -rf of .specify/extensions/superb"
+else bad "CWD-3: a failing probe that still printed '[]' fell through to rm -rf of the superb dir"; fi
+
+# ── REL-1 (F3/F4/F5) — relative SPECIFY_BIN, relative --report-file and a relative LOCAL --superb-from, all given
+#    relative to the CALLER's cwd (not --root): the installer must resolve them before it cds into --root.
+RL="$TMP/rel1"; mkdir -p "$RL/root/.specify" "$RL/caller/pkg" "$RL/root/qa-results"
+cat > "$RL/caller/specify" <<'FEOF'
+#!/usr/bin/env bash
+echo "CALL cwd=$(pwd) args=$*" >> "${REL_LOG:?}"
+if [ "$1 $2" = "extension list" ]; then echo '[{"id": "superb", "name": "SuperB", "version": "1.9.0", "enabled": true}]'; fi
+exit 0
+FEOF
+chmod +x "$RL/caller/specify"; : > "$RL/caller/pkg/superb.zip"; make_report "$RL/caller/report.json" WIRED WIRED WIRED DESIGNED-ONLY
+( cd "$RL/caller" && SUPERSPEC_SHA_OVERRIDE="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81" SPECIFY_BIN="./specify" REL_LOG="$RL/calls.log" \
+	bash "$INSTALLER" --root "$RL/root" --report-file report.json --quiet --superb-from pkg/superb.zip --superb-vetted-by "operator:test-harness — relative-input case" >"$RL/run.out" 2>&1 ); rc=$?
+RL_RC=$rc
+if [ "$RL_RC" -eq 0 ] && grep -q "cwd=$RL/root args=extension add superb --from $RL/caller/pkg/superb.zip" "$RL/calls.log" 2>/dev/null; then
+	ok "REL-1: relative SPECIFY_BIN + relative --report-file + relative local --superb-from were resolved against the caller's cwd; every specify call ran in --root with the absolute archive path (rc=$RL_RC)"
+else
+	bad "REL-1: relative inputs mishandled (rc=$RL_RC; calls: $(tr '\n' ';' < "$RL/calls.log" 2>/dev/null)); output:"; sed 's/^/         /' "$RL/run.out" >&2
+fi
+
+# ── PROBE-1 (F8) — probe_bridge_layers.sh must honour SPECIFY_BIN (incl. a relative one) for every specify call
+PB="$TMP/probe1"; mkdir -p "$PB/root/.specify" "$PB/caller"
+cat > "$PB/caller/specify" <<'FEOF'
+#!/usr/bin/env bash
+echo "PROBE_FAKE_SPECIFY $*"
+exit 0
+FEOF
+chmod +x "$PB/caller/specify"
+( cd "$PB/caller" && SPECIFY_BIN="./specify" bash "$SELF_DIR/probe_bridge_layers.sh" --root "$PB/root" --quiet >"$PB/run.out" 2>&1 )
+PBRAW=$(ls -d "$PB"/root/qa-results/hxc159/bridge_layers/*/raw 2>/dev/null | tail -1)
+if [ -n "$PBRAW" ] && grep -q "PROBE_FAKE_SPECIFY extension list" "$PBRAW/L3_extension_list.out" 2>/dev/null \
+	&& grep -q "PROBE_FAKE_SPECIFY extension search superb" "$PBRAW/L4_catalog_search.out" 2>/dev/null \
+	&& grep -q "/specify" "$PBRAW/L2_specify_cli.out" 2>/dev/null && ! grep -q "NOT-ON-PATH" "$PBRAW/L2_specify_cli.out" 2>/dev/null; then
+	ok "PROBE-1: probe_bridge_layers.sh used SPECIFY_BIN for L2 cli presence, L3 extension list and L4 catalog search"
+else
+	bad "PROBE-1: the probe ignored SPECIFY_BIN (raw dir: ${PBRAW:-none}); output:"; sed 's/^/         /' "$PB/run.out" >&2
+fi
 
 # ── GATELOGIC-1F — gate-logic (stub-class) against a spec-kit-shaped fixture root; NOT live evidence ─
 CF="$TMP/consumer_fixture"; mkdir -p "$CF"
@@ -496,7 +564,8 @@ FAKE_SPEC_C="$SC/fake_specify.sh"
 make_fake_specify "$FAKE_SPEC_C" "$SC/state.json"
 mkdir -p "$SC/.specify"
 echo "[]" > "$SC/state.json"
-mkdir -p "$SC/qa-results"
+mkdir -p "$SC/qa-results" "$SC/.specify/extensions/superspec"
+echo keep > "$SC/.specify/extensions/superspec/keep.txt"   # F1: a registered sibling extension must survive the stale-superb cleanup
 
 export SUPERSPEC_SHA_OVERRIDE="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81"
 export SPECIFY_BIN="$FAKE_SPEC_C"
@@ -552,6 +621,13 @@ grep -q '"id": "superb"' "$SC/state.json" 2>/dev/null && REGISTERED_AFTER_RECOVE
 STALE_MARKER_GONE=1
 [ -f "$SC/.specify/extensions/superb/.install-in-progress" ] && STALE_MARKER_GONE=0
 
+SIBLING_KEPT=0
+[ -f "$SC/.specify/extensions/superspec/keep.txt" ] && SIBLING_KEPT=1
+if [ "$SIBLING_KEPT" -ne 1 ]; then
+	bad "CHAOS-1 scope: the stale-superb cleanup deleted a sibling extension directory (.specify/extensions/superspec)"
+else
+	ok "CHAOS-1 scope: the stale-superb cleanup left the sibling extension directory (.specify/extensions/superspec) intact"
+fi
 if [ "$rc" -eq 0 ] && [ "$REGISTERED_AFTER_RECOVERY" -eq 1 ] && [ "$STALE_MARKER_GONE" -eq 1 ]; then
 	ok "CHAOS-1 recovery: re-run after a SIGKILL-interrupted install cleans stale state and completes successfully (rc=$rc, superb registered, no stale in-progress marker)"
 else
@@ -569,9 +645,4 @@ case "$SELF_DIR/" in
 esac
 
 # ── verdict ──────────────────────────────────────────────────────────────────
-if [ "$FAILS" -eq 0 ]; then
-	say "== $NAME: PASS (live=$((TOTAL_PASS)) stub-class=$STUB_PASS skipped=$SKIPS [skips are not passes; stub-class is not live evidence]) =="
-	exit 0
-fi
-printf '== %s: FAIL (%s failing case(s)) ==\n' "$NAME" "$FAILS" >&2
-exit 1
+finish

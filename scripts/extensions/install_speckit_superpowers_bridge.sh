@@ -137,6 +137,17 @@ done
 ROOT=$(cd "$ROOT" 2>/dev/null && pwd) || { echo "install_speckit_superpowers_bridge.sh: --root is not a directory" >&2; exit 2; }
 [ -z "$REPORT_FILE" ] || case "$REPORT_FILE" in /*) ;; *) REPORT_FILE="$(pwd)/$REPORT_FILE" ;; esac
 case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/$SPECIFY_BIN" ;; esac ;; esac
+# A LOCAL-path --superb-from / SUPERSPEC_FROM given relative to the caller's cwd must also be resolved before the cd
+# (URLs, scp-style and absolute values are left untouched; only an existing relative path is rewritten).
+abs_local_source() {
+	case "$1" in
+		''|/*|*://*|*@*:*) printf '%s' "$1" ;;
+		*) if [ -e "$1" ]; then printf '%s/%s' "$(pwd)" "${1#./}"; else printf '%s' "$1"; fi ;;
+	esac
+}
+SUPERB_FROM=$(abs_local_source "$SUPERB_FROM")
+[ -z "${SUPERSPEC_FROM:-}" ] || SUPERSPEC_FROM=$(abs_local_source "$SUPERSPEC_FROM")
+export SPECIFY_BIN   # the probe child process must see the resolved (absolute) binary too
 cd "$ROOT" || exit 1
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 EVID_DIR="$ROOT/qa-results/hxc159/bridge_install/$RUN_ID"
