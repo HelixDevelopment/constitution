@@ -1,6 +1,6 @@
 # install_agent_label_defs.sh — install label agent types into a project
 
-**Revision:** 2
+**Revision:** 3
 **Last modified:** 2026-11-03T00:00:00Z
 **Authority:** constitution submodule §11.4.182 · §11.4.231(F) · §11.4.164 (post-update registration seam) · §11.4.177 (inherited by reference) · §11.4.18
 **Classification:** universal (§11.4.17)
@@ -71,8 +71,12 @@ consent modes in a hermetic fixture constitution); gate `CM-AGENT-TYPE-LABEL`.
 
 **Last verified:** 2026-11-03.
 
-## Refusals added in review round 3 and known limits
+## Refusals added in review rounds 3 and 4, and known limits
 
 - `--out-dir /` (also `//`, `///`, `/.`, `/..`) and the project root `/` are refused with exit 6: the filesystem root counts as an ancestor of the home directory and of every protected directory.
-- The system directories of `scripts/lib/protected_paths.list` are refused as project root or out-dir (`/bin /boot /dev /etc /lib* /opt /proc /root /run /sbin /srv /sys /usr`: the directory and anything inside it; `/var /home /mnt /media /snap /tmp`: the directory itself only, because ordinary projects live below them). A unit test asserts every absolute entry of that file is refused, so the two lists cannot drift apart silently.
-- Known limits (honest residuals): a bind mount of a user config directory is invisible to the realpath-based refusal (UNCONFIRMED by experiment); the refusal runs once before generation, so a path component swapped for a symlink between the check and the write (check-to-write race) is not caught; `$XDG_CONFIG_HOME/claude` and other platforms' user directories are not protected.
+- The system directories of `scripts/lib/protected_paths.list` are refused as project root or out-dir (`/bin /boot /dev /etc /lib* /opt /proc /root /run /sbin /srv /sys /usr`: the directory and anything inside it; `/var /home /mnt /media /snap /tmp /Users`: the directory itself only, because ordinary projects live below them). Unit tests pin both lists (I17f/g), refuse every absolute entry of that file as an out-dir except `/Users`, which does not exist on Linux (I17e), refuse a child of every strict entry (I17h) and every exact-only entry itself (I17i), and accept a child of every exact-only entry (I17j). The check is one-directional: a new entry added to `protected_paths.list` and not mirrored here fails I17e; a list here is not checked against that file in the other direction.
+- Paths are canonicalised in pure bash with a flag-less `readlink`, never with `realpath -m` (review round 4, R4-1: BSD/macOS `realpath` has no `-m`, and busybox fails the same way, so `..` was left unresolved and `--out-dir "$HOME/x/../.claude/agents"` was accepted and written). `.`, `..`, `//` and every symlink on the path are resolved; a symlink is followed before a following `..`, as the kernel does. When a symlink on the path cannot be read, the run is refused with exit 6 ("cannot canonicalise"), never guessed. Tested with failing `realpath` and `readlink` stubs first on PATH (I19).
+- Prefix siblings are not confused with the protected directory: `/usrx`, `/optimum` and `~/.claudeless` are accepted (I17k-m).
+- Known limits (honest residuals): a bind mount of a user config directory is invisible to the symlink-resolving refusal (UNCONFIRMED by experiment); the refusal runs once before generation, so a path component swapped for a symlink between the check and the write (check-to-write race) is not caught; `$XDG_CONFIG_HOME/claude` and other platforms' user directories are not protected; the comparison is case-sensitive, so on a case-insensitive file system (the macOS default) `~/.CLAUDE/agents` is not refused. These two (XDG/other platforms, case-insensitive file systems) are tracked as follow-up work, not fixed in this change.
+- A `branch_pattern:` track whose mount HEAD does not match the pattern (for example `feature/*` with the mount on `hotfix/x`) is now reported and treated as unresolved: no files for the HEAD's branch are generated and the track's existing files are kept (review round 3, R3-5; test I20).
+- Open operator question (§11.4.66): everything under `/root` is refused, so the root user cannot install into a project below its own home, while a normal user can (review round 4 ruling).

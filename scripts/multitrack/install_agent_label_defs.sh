@@ -27,13 +27,16 @@
 #   nothing is written. A per-track refusal (3/4) never stops the other tracks.
 #   Also refused (6): the filesystem root, and the system directories of
 #   scripts/lib/protected_paths.list as project root or out-dir.
-# Known limits (honest residuals, review round 3): (a) the refusal compares
-#   realpath-resolved paths, so a BIND MOUNT of a user config dir is invisible to it
-#   (UNCONFIRMED by experiment: unshare was denied; it follows from what realpath does);
+# Known limits (honest residuals, review rounds 3-4): (a) the refusal compares
+#   symlink-resolved paths, so a BIND MOUNT of a user config dir is invisible to it
+#   (UNCONFIRMED by experiment: unshare was denied; it follows from what path resolution does);
 #   (b) the refusal runs once before generation: a path component swapped for a symlink
 #   between that check and the mkdir/mv writes (check-to-write race, same-user attacker)
 #   is not caught; (c) $XDG_CONFIG_HOME/claude and other platforms' user dirs are not in
-#   the protected set.
+#   the protected set; (d) the comparison is case-sensitive, so on a case-insensitive file
+#   system (macOS default) ~/.CLAUDE/agents is not refused; (e) canonicalisation uses pure
+#   bash + flag-less readlink, never 'realpath -m' (R4-1): if a symlink on the path cannot be
+#   read, the run is REFUSED (exit 6), never guessed.
 # Side-effects: writes generated files; prunes ONLY genuine generated
 #   T<N>-*.md files whose (track, branch) is no longer declared (a declared
 #   track whose branch is unresolvable keeps its files; with no usable consumer
@@ -67,23 +70,62 @@ while [ $# -gt 0 ]; do
     --check)        do_check=1; shift ;;
     --dry-run)      dry=1; shift ;;
     --no-prune)     prune=0; shift ;;
-    -h|--help)      sed -n '2,36p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,39p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)              die2 "unknown argument '$1'" ;;
   esac
 done
 [ -n "$project_root" ] || project_root="${PROJECT_ROOT:-$(pwd -P)}"
 [ -d "$project_root" ] || die2 "project root '$project_root' is not a directory"
-project_root="$(cd "$project_root" && pwd -P)"
+# A project root that cannot be entered (e.g. /root for a normal user) is still checked by the
+# refusals below on its raw path, so a system or user-level directory reports exit 6; only
+# after those checks does an un-enterable root stop with exit 2.
+pr_unentered=0
+if _pr="$(CDPATH='' cd -- "$project_root" 2>/dev/null && pwd -P)" && [ -n "$_pr" ]; then project_root="$_pr"; else pr_unentered=1; fi
 [ -n "$out_dir" ] || out_dir="$project_root/.claude/agents"
 
 # --- 0. refuse user-level targets (review 2026-11-03, F1) ----------------------------------
 # The project root must not be the home directory or an ancestor of it, and neither the
 # project root nor the out-dir may be (or lie inside, or contain) a user-level agent
 # config directory: those hold the user's own agents, not a project's.
-canon() { # resolve symlinks and '..'; collapse a leading '//' (POSIX keeps it) and trailing slashes (R3-1)
-  local r; r="$(realpath -m -- "$1" 2>/dev/null || printf '%s' "$1")"
-  r="$(printf '%s' "$r" | sed -e 's#^/\{2,\}#/#' -e 's#\(.\)/\{1,\}$#\1#')"
-  printf '%s\n' "$r"
+# canon PATH: the physical absolute path, in pure bash plus a flag-less 'readlink' (GNU, BSD,
+# macOS and busybox all have it). It does NOT use 'realpath -m', which BSD/macOS and busybox
+# lack (review round 4, R4-1). Components are walked left to right: '' and '.' are dropped,
+# a symlink is followed BEFORE a following '..' (the kernel's order), '..' pops the already
+# resolved prefix, and components that do not exist are kept lexically (as realpath -m does).
+# It prints nothing and returns 1 when the path cannot be established (empty input, no
+# working directory, an unreadable link, more than 40 links): the caller refuses (exit 6).
+canon() {
+  local rest comp t l cur=/ n=0 base
+  [ -n "$1" ] || return 1
+  case "$1" in
+    /*) rest="$1" ;;
+    *) base="$(pwd -P 2>/dev/null)" || return 1; [ -n "$base" ] || return 1; rest="$base/$1" ;;
+  esac
+  while [ -n "$rest" ]; do
+    comp="${rest%%/*}"
+    if [ "$comp" = "$rest" ]; then rest=""; else rest="${rest#*/}"; fi
+    case "$comp" in
+      ''|.) continue ;;
+      ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;
+    esac
+    if [ "$cur" = / ]; then t="/$comp"; else t="$cur/$comp"; fi
+    if [ -L "$t" ]; then
+      n=$((n+1)); [ "$n" -le 40 ] || return 1
+      l="$(readlink -- "$t" 2>/dev/null)" || return 1
+      [ -n "$l" ] || return 1
+      case "$l" in /*) cur=/ ;; esac
+      rest="$l${rest:+/$rest}"
+    else
+      cur="$t"
+    fi
+  done
+  printf '%s\n' "$cur"
+}
+# canon_to VAR PATH: VAR := canon PATH, or refuse (exit 6, fail closed, §11.4.201(4)).
+canon_to() {
+  local -n _cv="$1"
+  _cv="$(canon "$2")" || refuse6 "cannot canonicalise '$2' (unreadable symlink or no usable readlink); cannot prove it is not a user-level or system directory"
+  [ -n "$_cv" ] || refuse6 "cannot canonicalise '$2'"
 }
 # $1 equal to or inside $2. The filesystem root is an ancestor of every absolute path (R3-1:
 # the pattern "$2"/* would be '//*' for '/', which matches nothing).
@@ -102,9 +144,10 @@ add_uniq() { # array-name value
 }
 pw_home=""
 if command -v getent >/dev/null 2>&1; then pw_home="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"; fi
-[ -n "${HOME:-}" ] && { add_uniq HOMES "$HOME"; add_uniq HOMES "$(canon "$HOME")"; }
-[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; add_uniq HOMES "$(canon "$pw_home")"; }
-add_cfg() { add_uniq USERCFG "$1"; add_uniq USERCFG "$(canon "$1")"; }
+_cz=""
+[ -n "${HOME:-}" ] && { add_uniq HOMES "$HOME"; canon_to _cz "$HOME"; add_uniq HOMES "$_cz"; }
+[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; canon_to _cz "$pw_home"; add_uniq HOMES "$_cz"; }
+add_cfg() { local _cc=""; add_uniq USERCFG "$1"; canon_to _cc "$1"; add_uniq USERCFG "$_cc"; }
 [ -n "${CLAUDE_CONFIG_DIR:-}" ] && add_cfg "$CLAUDE_CONFIG_DIR"
 for h in "${HOMES[@]:-}"; do
   [ -n "$h" ] || continue
@@ -114,9 +157,11 @@ done
 if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then
   refuse6 "the home directory cannot be resolved (HOME empty and no passwd entry); cannot prove the target is not a user-level directory"
 fi
-pr_c="$(canon "$project_root")"; od_c="$(canon "$out_dir")"
+pr_c=""; od_c=""; canon_to pr_c "$project_root"; canon_to od_c "$out_dir"
 # System directories (R3-6). Mirrors the absolute entries of scripts/lib/protected_paths.list
-# (a unit test asserts every entry there is refused here). SYS_STRICT: the directory, anything
+# (unit test I17e asserts every absolute entry there except /Users is refused as an out-dir;
+# I17f/g pin both lists below, I17h probes a child of every strict entry, I17i every exact
+# entry itself, I17j a child of every exact entry as golden-FALSE). SYS_STRICT: the directory, anything
 # inside it and any ancestor are refused. SYS_EXACT: only the directory itself (and ancestors),
 # because ordinary projects live below them (/var/tmp, /mnt/x, /media/x, /tmp/x).
 SYS_STRICT=(/bin /boot /dev /etc /lib /lib32 /lib64 /libx32 /opt /proc /root /run /sbin /srv /sys /usr)
@@ -143,6 +188,7 @@ for c in "${USERCFG[@]:-}"; do
   under "$od_c" "$c" && refuse6 "out-dir '$od_c' is inside the user-level agent config directory $c"
   under "$c" "$od_c" && refuse6 "out-dir '$od_c' contains the user-level agent config directory $c"
 done
+[ "$pr_unentered" -eq 0 ] || die2 "project root '$project_root' cannot be entered"
 [ -x "$GEN" ] || [ -r "$GEN" ] || die2 "generator missing: $GEN"
 
 declare -a PAIRS=()          # "N<TAB>branch"
@@ -188,7 +234,10 @@ if [ "$cfg_ok" -eq 1 ]; then
       ''|*'*'*|*'?'*|*'['*)
         hb=""
         if [ -n "$tmount" ] && [ -d "$tmount" ]; then hb="$(git -C "$tmount" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"; fi
-        if [ -n "$hb" ] && [ "$hb" != HEAD ]; then add_pair "$tn" "$hb"
+        # shellcheck disable=SC2053 # the right side is the config's glob pattern on purpose (R3-5)
+        if [ -n "$hb" ] && [ "$hb" != HEAD ] && [ -n "$tbr" ] && [[ "$hb" != $tbr ]]; then
+          UNRESOLVED["$((10#$tn))"]=1; echo "SKIP     ${tid}: the mount's HEAD '$hb' does not match branch_pattern '$tbr' (not used, files kept)"
+        elif [ -n "$hb" ] && [ "$hb" != HEAD ]; then add_pair "$tn" "$hb"
         else UNRESOLVED["$((10#$tn))"]=1; echo "SKIP     ${tid}: branch ${tbr:-<unset>} cannot be resolved (mount '${tmount:-<unset>}' is not a checkout with a named HEAD)"; fi ;;
       *) add_pair "$tn" "$tbr" ;;
     esac

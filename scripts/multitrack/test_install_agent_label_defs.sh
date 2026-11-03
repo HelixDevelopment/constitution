@@ -250,12 +250,54 @@ if [ -r "$PPL" ]; then
   while IFS= read -r e; do
     e="${e#"${e%%[![:space:]]*}"}"; e="${e%"${e##*[![:space:]]}"}"
     case "$e" in /*) ;; *) continue ;; esac
-    case "$e" in /tmp|/Users) continue ;; esac   # /tmp is legitimately an ancestor of scratch projects; /Users does not exist on Linux
+    case "$e" in /Users) continue ;; esac   # /Users does not exist on Linux (I17i probes it explicitly); /tmp itself IS refused (R4-2)
     r="$(runh "$SH" --project-root "$P" --out-dir "$e")"
     [ "$r" = 6 ] || { bad_n=$((bad_n+1)); echo "    not refused: $e (exit $r)" >&2; }
   done <"$PPL"
-  check "I17e every absolute protected_paths.list entry (except /tmp,/Users) is refused as out-dir" 0 "$bad_n"
+  check "I17e every absolute protected_paths.list entry (except /Users, probed in I17i) is refused as out-dir" 0 "$bad_n"
 else bad "I17e protected_paths.list readable"; fi
+# R4-2/R4-3/R4-4: the strict-vs-exact class and under()'s slash handling (mutants MA, MB, ME)
+STRICT_T="/bin /boot /dev /etc /lib /lib32 /lib64 /libx32 /opt /proc /root /run /sbin /srv /sys /usr"
+EXACT_T="/var /home /mnt /media /snap /tmp /Users"
+strict_i="$(sed -n 's/^SYS_STRICT=(\(.*\))$/\1/p' "$INST")"; exact_i="$(sed -n 's/^SYS_EXACT=(\(.*\))$/\1/p' "$INST")"
+check "I17f the installer's SYS_STRICT list is the documented strict list" "$STRICT_T" "$strict_i"
+check "I17g the installer's SYS_EXACT list is the documented exact-only list" "$EXACT_T" "$exact_i"
+for sd in $STRICT_T; do
+  check "I17h --out-dir '$sd/agentlabel-probe' (child of a strict dir) refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$sd/agentlabel-probe")"
+done
+for sd in $EXACT_T; do
+  check "I17i --out-dir '$sd' (exact-only dir itself) refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$sd")"
+  check "I17j golden-FALSE: --out-dir '$sd/agentlabel-probe/agents' (below an exact-only dir) not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir "$sd/agentlabel-probe/agents")"
+done
+check "I17k golden-FALSE: --out-dir ~/.claudeless/agents (prefix sibling of ~/.claude) not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claudeless/agents")"
+check "I17l golden-FALSE: --out-dir /usrx/agents (prefix sibling of /usr) not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir /usrx/agents)"
+check "I17m golden-FALSE: --out-dir /optimum/p (prefix sibling of /opt) not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir /optimum/p)"
+# R4-1: the refusal must not depend on GNU 'realpath -m'. A realpath that fails (BSD/macOS without
+# -m, busybox) is put first on PATH; '.', '..' and '//' must still be resolved, and the user's
+# ~/.claude/agents must stay untouched on a NON-dry run.
+RPS="$W/stub_realpath"; mkdir -p "$RPS"; printf '#!/bin/sh\nexit 1\n' >"$RPS/realpath"; chmod +x "$RPS/realpath"
+runrp() { # fakehome args... (dry-run, failing realpath first on PATH)
+  local fh="$1"; shift
+  env -u CLAUDE_CONFIG_DIR PATH="$RPS:$PATH" HOME="$fh" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run "$@" >"$W/out" 2>"$W/err"; echo $?
+}
+mkdir -p "$SH/x"
+for od in "$SH/x/../.claude/agents" /.. "$SH/x/.." "$SH/./x/.." "$SH//x/../" / // /. /./ /../.. "$SH/x/../.claude-x/agents" /etc/../etc /usr/./lib /tmp/.. /tmp/x/../ "$SH/plain/../../$(basename "$SH")/.claude/agents"; do
+  check "I19a (R4-1) failing realpath: --out-dir '$od' refused (exit 6)" 6 "$(runrp "$SH" --project-root "$P" --out-dir "$od")"
+done
+check "I19b (R4-1) failing realpath: --project-root '\$HOME/x/..' refused (exit 6)" 6 "$(runrp "$SH" --project-root "$SH/x/..")"
+check "I19c (R4-1) failing realpath: relative --out-dir '../.claude/agents' from ~/x refused" 6 "$(cd "$SH/x" && runrp "$SH" --project-root "$P" --out-dir ../.claude/agents)"
+check "I19d (R4-1) golden-FALSE failing realpath: ordinary --out-dir with '.' and '..' not refused" 0 "$(runrp "$SH" --project-root "$P" --out-dir "$W/ordinary/./a/../agents")"
+rm -f "$SH/dotreal/agents/T"*; : >"$SH/dotreal/agents/mine.md"; hm_before="$(ls "$SH/dotreal/agents")"
+rc=$(env -u CLAUDE_CONFIG_DIR PATH="$RPS:$PATH" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "$SH/x/../.claude/agents" >"$W/out" 2>"$W/err"; echo $?)
+check "I19e (R4-1) failing realpath, NON-dry run into ~/x/../.claude/agents refused (exit 6)" 6 "$rc"
+check "I19f (R4-1) the user's ~/.claude/agents is unchanged (nothing written, nothing pruned)" "$hm_before" "$(ls "$SH/dotreal/agents")"
+# fail closed when a symlink cannot be read (no usable readlink): exit 6, never a guess
+RLS="$W/stub_readlink"; mkdir -p "$RLS"; printf '#!/bin/sh\nexit 1\n' >"$RLS/readlink"; chmod +x "$RLS/readlink"; cp "$RPS/realpath" "$RLS/"
+rc=$(env -u CLAUDE_CONFIG_DIR PATH="$RLS:$PATH" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run --project-root "$P" >"$W/out" 2>"$W/err"; echo $?)
+check "I19g (R4-1) unreadable symlink (readlink fails, ~/.claude is a link) refused (exit 6)" 6 "$rc"
+grep -q 'cannot canonicalise' "$W/err" && ok "I19h (R4-1) refusal names the canonicalisation failure" || bad "I19h (R4-1) refusal names the canonicalisation failure" "$(head -2 "$W/err")"
+PH="$W/plainhome"; mkdir -p "$PH"
+check "I19i (R4-1) golden-FALSE: readlink and realpath both failing, no symlink on any path -> not refused" 0 "$(env -u CLAUDE_CONFIG_DIR PATH="$RLS:$PATH" HOME="$PH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run --project-root "$P" >"$W/out" 2>"$W/err"; echo $?)"
 # R3-2 mutant killers (X3..X7)
 ln -s "$W/nonexistent-target" "$SH/.claude-dangling"
 check "I18a (X3) out-dir inside a DANGLING ~/.claude-* symlink refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-dangling/agents")"
@@ -288,6 +330,15 @@ YAML
 bash "$GEN" --track 7 --branch feature/seven --out-dir "$P4/.claude/agents" --models sonnet --efforts low >/dev/null 2>&1
 MT_HOST=fixturehost MT_CONFIG_DIR="$P4/config/multitrack" bash "$INST" --project-root "$P4" >/dev/null 2>&1
 [ -e "$P4/.claude/agents/T7-feature-seven-sonnet-low.md" ] && ok "I18g (X4) track-007 with absent mount: T7 files kept (keyed as 7)" || bad "I18g (X4) track-007 with absent mount: T7 files kept"
+# R3-5: a branch_pattern track whose mount HEAD does not match the pattern is UNRESOLVED (files kept, no T2-<head> set)
+P="$W/proj"; run >/dev/null; n_z="$(ls "$AG" | grep -c '^T2-feature-zeta-')"
+git -C "$P/mnt/track2" checkout -q -b hotfix/x 2>/dev/null
+check "I20a HEAD outside branch_pattern: run exit 0" 0 "$(run)"
+grep -q "does not match branch_pattern" "$W/out" && ok "I20b mismatch reported" || bad "I20b mismatch reported" "$(grep T2 "$W/out" | head -2)"
+check "I20c no T2-hotfix-x files generated" 0 "$(ls "$AG" | grep -c '^T2-hotfix-x-')"
+check "I20d T2-feature-zeta files kept (not pruned)" "$n_z" "$(ls "$AG" | grep -c '^T2-feature-zeta-')"
+git -C "$P/mnt/track2" checkout -q feature/zeta 2>/dev/null
+check "I20e golden-FALSE: HEAD matching the pattern still generates" 0 "$(run >/dev/null; grep -q 'does not match' "$W/out" && echo 1 || echo 0)"
 # R2-2: a declared track whose mount is absent / host mismatched must NOT have its files pruned
 P="$W/proj"; run >/dev/null
 n_before="$(ls "$AG" | grep -c '^T2-feature-zeta-')"

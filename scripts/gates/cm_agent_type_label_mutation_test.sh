@@ -135,7 +135,7 @@ expect fail "R5 installer prunes a declared track's files outside the --models f
 D=$(fresh_tree r6); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'refuse6() { echo' 'refuse6() { return 0; echo' || rc=1
 expect fail "R6 installer accepts a user-level config dir" gate_in "$D"
 
-D=$(fresh_tree r7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'add_cfg() { add_uniq USERCFG "$1"; add_uniq USERCFG "$(canon "$1")"; }' 'add_cfg() { add_uniq USERCFG "$1"; }' || rc=1
+D=$(fresh_tree r7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'add_cfg() { local _cc=""; add_uniq USERCFG "$1"; canon_to _cc "$1"; add_uniq USERCFG "$_cc"; }' 'add_cfg() { add_uniq USERCFG "$1"; }' || rc=1
 expect fail "R7 installer does not resolve symlinked user config dirs" gate_in "$D"
 
 D=$(fresh_tree r8); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  under "$c" "$od_c" && refuse6' '  false && refuse6' || rc=1
@@ -168,16 +168,30 @@ expect fail "R16 under() loses its equality branch (out-dir equal to a user conf
 D=$(fresh_tree x3); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '{ [ -e "$c" ] || [ -L "$c" ]; }' '[ -e "$c" ]' || rc=1
 expect fail "X3 the ~/.claude-* glob ignores dangling symlinks" gate_in "$D"
 
-D=$(fresh_tree x4); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'UNRESOLVED["$((10#$tn))"]=1' 'UNRESOLVED["$tn"]=1' || rc=1
+D=$(fresh_tree x4); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'else UNRESOLVED["$((10#$tn))"]=1; echo "SKIP     ${tid}: branch' 'else UNRESOLVED["$tn"]=1; echo "SKIP     ${tid}: branch' || rc=1
 expect fail "X4 UNRESOLVED keyed by the raw track digits (007 vs 7)" gate_in "$D"
 
-D=$(fresh_tree x5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'add_uniq HOMES "$(canon "$HOME")"; ' '' || rc=1
+D=$(fresh_tree x5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'canon_to _cz "$HOME"; add_uniq HOMES "$_cz"; ' '' || rc=1
 expect fail "X5 HOME is not canonicalised" gate_in "$D"
 
 D=$(fresh_tree x7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then' 'if false; then' || rc=1
 expect fail "X7 the no-resolvable-home refusal is disabled" gate_in "$D"
 
-D=$(fresh_tree r13); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; add_uniq HOMES "$(canon "$pw_home")"; }' 'true' || rc=1
+# R17: the round-4 canonicaliser (realpath -m with a raw-path fallback) is restored
+D=$(fresh_tree r17); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  [ -n "$1" ] || return 1\n  case "$1" in' '  printf "%s\\n" "$(realpath -m -- "$1" 2>/dev/null || printf "%s" "$1")"; return 0\n  case "$1" in' || rc=1
+expect fail "R17 canon() falls back to the raw path when realpath -m is unavailable (R4-1)" gate_in "$D"
+D=$(fresh_tree r18); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;' '..) continue ;;' || rc=1
+expect fail "R18 canon() ignores '..'" gate_in "$D"
+D=$(fresh_tree r19); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '_cv="$(canon "$2")" || refuse6' '_cv="$(canon "$2")" || _cv="$2"; false && refuse6' || rc=1
+expect fail "R19 an uncanonicalisable path is used raw instead of refused (fail open)" gate_in "$D"
+D=$(fresh_tree ma); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /snap /tmp /Users)' ' /snap /Users)' || rc=1
+expect fail "MA /tmp dropped from SYS_EXACT (R4-2)" gate_in "$D"
+D=$(fresh_tree mb); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /sbin /srv /sys /usr)' ' /sbin /sys /usr)' || rc=1
+mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'SYS_EXACT=(/var ' 'SYS_EXACT=(/srv /var ' || rc=1
+expect fail "MB /srv moved from SYS_STRICT to SYS_EXACT (R4-3)" gate_in "$D"
+D=$(fresh_tree me); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'case "$1" in "$2"/*) return 0' 'case "$1" in "$2"*) return 0' || rc=1
+expect fail "ME under() matches a prefix without the slash (R4-4, over-refusal of /usrx, ~/.claudeless)" gate_in "$D"
+D=$(fresh_tree r13); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; canon_to _cz "$pw_home"; add_uniq HOMES "$_cz"; }' 'true' || rc=1
 expect fail "R13 installer ignores the passwd home when HOME is empty" gate_in "$D"
 
 D=$(fresh_tree e2); expect pass "E2 ambient AGENT_TYPE_LABEL_AGENTS_DIR does not change the verdict" env AGENT_TYPE_LABEL_AGENTS_DIR=/tmp bash "$D/scripts/gates/cm_agent_type_label.sh" --quiet
