@@ -95,6 +95,20 @@ expect "10a N4 index restored to the published pin: the default run passes" 0 "$
 expect "10b N4 --rev HEAD judges the commit that records the unpushed pin" 1 "$(run "$P" --rev HEAD)"
 P="$TMP/p11"; mk_unpushed "$P"; "${G[@]}" -C "$P/submodules/a" fetch -q origin 2>/dev/null
 expect "11 N5 --online on an unpublished commit (tips fetched) => UNPUBLISHED" 1 "$(run "$P" --online)"
+# R3-F4 NB: a foreign remote NAMED "origin/backup" (other URL) must not count through the refs/remotes/origin/ prefix
+P="$TMP/p13"; mk_unpushed "$P"; U13="$("${G[@]}" -C "$P/submodules/a" rev-parse HEAD)"
+"${G[@]}" -C "$P/submodules/a" remote add origin/backup "file://$TMP/other2.git"
+"${G[@]}" -C "$P/submodules/a" update-ref refs/remotes/origin/backup/main "$U13"
+expect "13 R3-F4 NB foreign remote named origin/backup holding the unpushed commit => UNPUBLISHED" 1 "$(run "$P")"
+# R3-F5b: --online, shallow nested repo, pin = a published commit that is an ancestor of the shallow tip whose history was cut => BLIND, never a false UNPUBLISHED
+R2="$TMP/remote2.git"; "${G[@]}" init -q --bare "$R2"; S2="$TMP/seed2"; "${G[@]}" init -q "$S2"
+for i in 1 2 3; do "${G[@]}" -C "$S2" commit -q --allow-empty -m "s$i"; [ "$i" = 2 ] && C2="$("${G[@]}" -C "$S2" rev-parse HEAD)"; done
+"${G[@]}" -C "$S2" push -q "file://$R2" HEAD:refs/heads/main
+P="$TMP/p14"; "${G[@]}" init -q "$P"; "${G[@]}" clone -q --depth 1 "file://$R2" "$P/submodules/a"
+"${G[@]}" -C "$P/submodules/a" fetch -q --depth=1 origin "$C2"
+printf '[submodule "submodules/a"]\n\tpath = submodules/a\n\turl = file://%s\n' "$R2" >"$P/.gitmodules"
+"${G[@]}" -C "$P" add -A >/dev/null 2>&1; "${G[@]}" -C "$P" update-index --cacheinfo "160000,$C2,submodules/a"
+expect "14 R3-F5b --online shallow nested repo, pin below the shallow boundary => BLIND (never a false UNPUBLISHED)" 2 "$(run "$P" --online)"
 # 12 self-check mutants, all against fixture p1 (unpushed commit recorded)
 P="$TMP/p1"
 mutant() { # name sed-expr

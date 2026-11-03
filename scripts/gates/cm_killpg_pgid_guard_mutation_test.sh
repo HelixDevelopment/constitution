@@ -602,6 +602,95 @@ else
 fi
 
 # ===================================================================
+# 8.11 ROUND 6: F1 pkill option order / --pgroup, F2 argv `"-" + str(x)`, F3 kill 0 / kill(0,..),
+# F4 `~pg + 1`. Control needles p00/q00/r00 (shapes the old gate already caught) prove the
+# instrument sees the file class before any new shape is believed.
+# ===================================================================
+R6GEN="${SCRIPT_DIR}/fixtures/killpg_round6_cases.py"
+if [ -f "$R6GEN" ] && command -v python3 >/dev/null 2>&1; then
+    R6="$TMP/round6"; mkdir -p "$R6"
+    python3 -I "$R6GEN" "$R6"
+    r6_n=0; r6_bad=0
+    while IFS=$'\t' read -r cid crc creq || [ -n "$cid" ]; do
+        [ -n "$cid" ] || continue
+        r6_n=$(( r6_n + 1 ))
+        cout="$(bash "$GATE" --root "$R6/$cid" 2>&1)"; crc_got=$?
+        if [ "$crc_got" -ne "$crc" ]; then
+            echo "❌ META FAIL: round-6 case ${cid} — expected rc=${crc}, got rc=${crc_got}"
+            r6_bad=$(( r6_bad + 1 )); continue
+        fi
+        IFS='|' read -r -a reqs <<< "$creq"
+        for rq in "${reqs[@]}"; do
+            [ -n "$rq" ] || continue
+            if ! grep -qF -- "$rq" <<< "$cout"; then
+                echo "❌ META FAIL: round-6 case ${cid} — gate output lacks '${rq}'"
+                r6_bad=$(( r6_bad + 1 ))
+            fi
+        done
+    done < "$R6/MANIFEST.tsv"
+    if [ "$r6_bad" -eq 0 ]; then
+        echo "✅ META OK:   round-6 cases — ${r6_n} cases hold (exit status and gate output)"
+    else
+        echo "❌ META FAIL: round-6 cases — ${r6_bad} assertion(s) failed of ${r6_n} cases"
+        rc=1
+    fi
+else
+    echo "❌ META FAIL: round-6 case generator or python3 missing (${R6GEN})"
+    rc=1
+fi
+
+# ===================================================================
+# 8.12 ROUND 6 PAIRED MUTATIONS (§1.1): each fix is reverted in a private copy of the gate and the
+# cases that fix protects MUST then misbehave (dangerous shape PASSes / benign shape FAILs), asserted
+# per case id. A fix whose revert changes nothing is decoration. The replacement text must exist
+# exactly once in the gate (else the mutation itself is stale and the META FAILs).
+# ===================================================================
+r6_mut() { # $1=name  $2=old text  $3=new text  $4=wrong rc  $5=case ids
+    local name="$1" old="$2" new="$3" wrongrc="$4" ids="$5" mg id got bad=0 n=0
+    mg="$TMP/mut_r6_${name}.sh"
+    if ! OLD="$old" NEW="$new" SRC="$GATE" DST="$mg" python3 -I -c '
+import os
+s = open(os.environ["SRC"]).read()
+o = os.environ["OLD"]
+if s.count(o) != 1:
+    raise SystemExit(3)
+open(os.environ["DST"], "w").write(s.replace(o, os.environ["NEW"], 1))'; then
+        echo "❌ META FAIL: round-6 mutation ${name} — target text not found exactly once in the gate (stale mutation)"
+        rc=1; return
+    fi
+    for id in $ids; do
+        n=$(( n + 1 ))
+        bash "$mg" --root "$R6/$id" >/dev/null 2>&1; got=$?
+        if [ "$got" -ne "$wrongrc" ]; then
+            echo "❌ META FAIL: round-6 mutation ${name} — case ${id} did not change (rc=${got}, expected ${wrongrc} once the fix is reverted)"
+            bad=$(( bad + 1 ))
+        fi
+    done
+    if [ "$bad" -eq 0 ]; then
+        echo "✅ META OK:   round-6 mutation ${name} — reverting the fix flips all ${n} protected cases"
+    else
+        rc=1
+    fi
+}
+if [ -d "${R6:-}" ]; then
+    r6_mut zero_compl "ZERO_COMPL='(^|[^[:alnum:]_])[Kk]ill[[:space:]]*\\([[:space:]]*(0[[:space:]]*,|~)'" "ZERO_COMPL='NEVERMATCHZZ'" 0 "s01 s02 r05 r06"
+    r6_mut pid0_awk 'if (t ~ /^0+$/ && !seenpid && zok)' 'if (0)' 0 "r01 r02 r03 r04 r08 r27 r28 n301 n302"
+    r6_mut plus_joiner 'and cur and plus_expr(toks, i + 1, fstr_start) is not None:' 'and False:' 0 "q01 q02 q03 q04 q05 q06 q07"
+    # round 6c: the structural pkill scanner (PKAWK) — one paired mutation per piece
+    r6_mut pk_dequote 'if (cont ~ /[ \t]/) { nsc[depth]++;' 'if (0) { nsc[depth]++;' 1 "n101 n102 n103 n104 n105 n201 c42 c43 c44 c46"
+    r6_mut pk_prose 'if (!zok) continue' 'if (0) continue' 1 "n201 c43"
+    r6_mut pk_recurse 'scan(sc[depth, m], 1, depth + 1)' '0' 0 "c30 c31 c34"
+    r6_mut pk_anyposition 'if (!(t == "pkill" || t ~ /\/pkill$/)) continue' 'if (!(pos == 1 && (t == "pkill" || t ~ /\/pkill$/))) continue' 0 "c01 c02 c03 c04 c05 c06 c07 c08 c09 c10 c11 n113"
+    r6_mut pk_bare_operand 'if (substr(t, 1, 1) != "-" || substr(t, 2, 1) == "-") continue' 'if (substr(t, 1, 1) != "-" || substr(t, 2, 1) == "-") break' 0 "c12 c13 c14 c15 c21 c22 n110 n111 n112 c32"
+    r6_mut zok_trap $'|Command|sh|bash|eval|trap)$/)\n        i = kpos + 1' $'|Command|sh|bash|eval)$/)\n        i = kpos + 1' 0 "n301 n302"
+    r6_mut upper_kill_paren 'Kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill' 'Kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|(^|[^[:alnum:]_])kill' 0 "n402"
+    r6_mut paren_neg 'kill[[:space:]]*\([[:space:](]*(0[[:space:]]*)?-|from_raw' 'kill[[:space:]]*\([[:space:]]*(0[[:space:]]*)?-|from_raw' 0 "n401 n403"
+else
+    echo "❌ META FAIL: round-6 mutation block needs the round-6 case directory"
+    rc=1
+fi
+
+# ===================================================================
 # LARGE-WINDOW — SIGPIPE x pipefail (§11.4.276(C) class member). The guard sits on
 # an EARLY line of the call's window and a ~350 KB code line follows it. With
 # `printf "$window_text" | grep -qE` under `set -o pipefail`, grep exits at the

@@ -312,7 +312,7 @@ fi
 
 NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 [ -n "$SCOPE" ]      || SCOPE="UNKNOWN: not stated in the report — to be determined during investigation (§11.4.6)"
-[ -n "$REPRO" ]      || REPRO="UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199)"
+[ -n "$REPRO" ]      || REPRO="UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)"
 [ -n "$ACCEPTANCE" ] || ACCEPTANCE="The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135)."
 
 DESCRIPTION="**Reported-Via:** §11.4.202 reporting directive \`${KIND}\` on ${NOW_ISO}
@@ -334,6 +334,18 @@ ${REPRO}
 
 **Acceptance criteria:**
 ${ACCEPTANCE}"
+
+# §11.4.292(C): a defect item carries its reproduction record line from birth. `none — UNREPRODUCED` is the
+# absence of a result (not a fifth result); the first LIVE reproduction attempt replaces it with the record:
+# result (reproduced-live | reproduced-host-fixture | not-reproducible-with-evidence |
+# blocked-no-device-with-recorded-blocker), surface, exact command, RED evidence, build, target, symptom signature.
+# The line is kept short on purpose: intake-match (intake_match.go) scores recurrences by a Jaccard
+# overlap over title + stored description, so every boilerplate token added here widens the union it divides by.
+if [ "$TYPE" = "Bug" ]; then
+	DESCRIPTION="${DESCRIPTION}
+
+**Reproduction:** none — UNREPRODUCED (§11.4.292)"
+fi
 
 # ---------------------------------------------------------------------------
 # DRY RUN — classify + render, write nothing.

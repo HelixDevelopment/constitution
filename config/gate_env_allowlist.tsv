@@ -96,3 +96,5 @@ scripts/lib/constitution_layout.sh	<eval>	indirect-mechanism	tests whether each 
 scripts/lib/safe_rm.sh	<eval>	indirect-mechanism	copies a validated array into the caller-named output array (eval "$__out=(...)"); the name is chosen by the library's own caller, not by the environment
 scripts/gates/cm_gate_env_reads_allowlisted.sh	os.environ	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read
 scripts/gates/cm_gate_env_reads_allowlisted.sh	process.env	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read
+scripts/gates/cm_repro_first_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it

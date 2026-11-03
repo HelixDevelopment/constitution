@@ -1,7 +1,7 @@
 ---
 name: Workable Item Lifecycle
 description: Use when moving a tracked item through its lifecycle — starting work, marking it ready for testing, closing it, reopening it, marking it obsolete or operator-blocked — or when asked which Status/Type value is legal, how to close a Feature vs a Bug, why the Issues/Fixed docs must be regenerated rather than hand-edited, what a reopen must record, what belongs in a per-item testing diary, or whether an item may be counted as done (PROVISIONAL-DONE) before its verification has run.
-version: 1.1.0
+version: 1.3.0
 # --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
 # Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
 # completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
@@ -56,6 +56,44 @@ works-for-the-user. Green at the source layer says nothing about the other three
 
 If you are unsure **how** to validate something, that is a research trigger, not
 a licence to accept a weak PASS: do the deep research first (§11.4.123).
+
+## Reproduce first: the `Reproduction:` record (§11.4.292)
+
+Operator rule (2026-11-03, CRITICAL): every issue being fixed is **reproduced LIVE
+first** (on the target where it was reported; for code that runs only on the host,
+the real code on the host with the real input), before any cause hypothesis is acted
+on and before any fix is written. The result is recorded on a `**Reproduction:**`
+line in the item body. A new `Bug` starts with `**Reproduction:** none — UNREPRODUCED`.
+
+| Result (closed set) | Item label | Fix may land | Can reach VERIFIED-DONE |
+|---|---|---|---|
+| `reproduced-live` | `REPRODUCED` | yes | yes |
+| `reproduced-host-fixture` | `REPRODUCED` only on a `host-only` surface, else `UNREPRODUCED` | yes (PROVISIONAL-DONE only while `UNREPRODUCED`) | only on a `host-only` surface |
+| `not-reproducible-with-evidence` | `UNREPRODUCED` | no fix against the unobserved symptom | no (closure only via Obsolete `not-reproducible`) |
+| `blocked-no-device-with-recorded-blocker` | `UNREPRODUCED` | PROVISIONAL-DONE only | no |
+
+```
+**Reproduction:** <result> — surface <live-target|host-only> — command <exact command> — red <evidence path> sha256 <hash> at <ISO timestamp> — ids <item, run, test> — build <build id / artifact fingerprint> — target <board serial | rig | service | fixture sha256> — signature <symptom signature>
+```
+
+- **The fix is confirmed by a GREEN on the SAME command, the SAME target identity
+  and the SAME symptom signature** (only the polarity flag flipped), appended to the
+  same line as `— green <path> sha256 <hash> at <timestamp> — artifact <fixed fingerprint>`.
+  Any other GREEN promotes nothing.
+- **Blocked** (no device): the fix may land only as PROVISIONAL-DONE, labelled
+  `UNREPRODUCED` everywhere (e.g. "PROVISIONAL-DONE, UNREPRODUCED"); its verification
+  job starts with the live RED on the pre-fix artifact; its root-cause claim stays
+  `UNCONFIRMED:`. The blocker record states WHAT / WHY / UNBLOCK CONDITION / WHO.
+- **Not reproducible** needs the exact reported sequence, the reported build, the
+  declared number of attempts and a **positive control needle** (the instrument reads
+  the signature TRUE on a known-bad run); without the needle it is a blind instrument.
+- **Root cause** is a FACT only after a decisive experiment (remove the cause: signature
+  FALSE; restore it: TRUE). The fix ships with a deterministic LIVE coverage test with a
+  control needle; a `host-substitute` test is allowed only when live is impossible and is
+  labelled so.
+
+**Boundary.** The workable-items engine in this repository does not yet validate the
+`Reproduction:` line; the item-level gate is a registered deferral (OWED-GATE-174).
 
 ## Reopening (§11.4.34 / §11.4.55)
 
@@ -181,3 +219,13 @@ paperwork.
 - Every status change flows **DB → regenerate docs**, in the same commit.
 - Fix ⇒ a permanent regression guard (§11.4.135), authored RED on the broken
   artifact and flipped GREEN on the fixed one (§11.4.115).
+- Scope (§11.4.293): work only on main-Roadmap items, inside the issue's codebase
+  context. Every commit names its item with a `Roadmap-Item: <id>` trailer; every
+  path outside that context gets an `Out-of-scope: <path> — <reason> — <justification>`
+  trailer, reason exactly one of `fix-gate-or-test` · `generated-regeneration` ·
+  `upstream-merge` · `operator-order`; anything else is split into its own item or
+  reverted.
+- Images (§11.4.293): a flashed image is compared test by test with the previously
+  flashed image on the same board and harness; only `NO-WORSE-PROVEN` lets it be
+  released or tagged as no worse (a baseline PASS that is INCONCLUSIVE, SKIPPED or
+  absent is a regression).

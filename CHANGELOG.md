@@ -1,5 +1,102 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-03 — §11.4.293 scope discipline and image no-worse proof (Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison against the previously flashed image)
+
+**Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was committed in a scratch clone of the constitution (branch `work`) on top of the §11.4.292 commit and was not pushed. The rule is implemented and wired at the canon level (anchor, four carriers, index, groups, progressive split, lifecycle skill, gate, mutation test, propagation wrappers, seam binding, post-update hook); the two item-level seams are the registered deferrals `OWED-GATE-175` and `OWED-GATE-176`. No independent §11.4.209 review has run on this change yet.
+
+#### VERIFIED (commands run by the author of this entry on 2026-11-03, output seen)
+
+All commands ran from the constitution root of the scratch clone, on the staged tree of this commit (parent: the §11.4.292 commit).
+
+- `bash scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh --quiet` → `PASS — 171/171 checks`.
+- `bash scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh --quiet` → `PASS: 187 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE)`: every mutation (marker, out-of-scope reason, verdict, flag, cross-reference, back-pointer, carrier, lifecycle skill, index, group, rule file, catalog, data-pack row, wrapper, seam row, each deferral row by id, hook binding, broken extractor, lost control needle) turns the gate RED or BLIND; the unmutated copy and four golden-FALSE copies stay GREEN.
+- `bash scripts/gates/cm_repro_first_anchor_wired.sh` → `PASS — 174/174` and its mutation test → `PASS: 187 RED/BLIND + 5 GREEN`; `bash scripts/gates/cm_provisional_done_anchor_wired.sh` → `PASS — 117/117` and its mutation test → `PASS: 120 RED/BLIND + 5 GREEN` (the earlier anchors stay green with §11.4.293 appended after them).
+- `cm_covenant_114_{290,291,292,293}_propagation.sh` → PASS each; their generated mutation tests → `META PASS` for each of the four.
+- `bash scripts/gates/cm_constitution_index_fresh.sh` → PASS; its mutation test → `MUTATION PAIR VALID`; `python3 progressive/generate_split.py --check` → `reproducible (306 artifact(s), byte-identical)`; `bash scripts/anchors/tests/run_all.sh` → 11 test files, exit 0.
+- `bash scripts/gates/cm_gate_ledger_ratchet.sh` → `unimplemented=394 baseline=394`, PASS (both new item-level gates are registered deferrals, and the wiring gate reads their names by OWED id, so neither reads as implemented); `cm_gate_ledger_ratchet_mutation_test.sh` → PASS (T1-T12; T6 deletes the real `CM-IMAGE-NO-WORSE-PROVEN` deferral row and the ratchet correctly FAILS).
+- `bash scripts/gates/cm_rule_binds_to_seam.sh --base HEAD` → `ALLOW — 47 rules bound, 1 newly declared, 0 findings`; `--selftest` → `pass=11 fail=0`; `cm_rule_binds_to_seam_mutation_test.sh` → `pass=12 fail=0`.
+- `bash scripts/gates/covenant_propagation_wrappers_generate.sh --check` → PASS.
+- `bash tests/test_post_update_hub_gates.sh` → PASS (15 cases); the same test run against the parent commit's hook FAILS with 20 findings (the new gate is never invoked), so the test discriminates.
+- `bash scripts/badges/compute_badges.sh --check` → match; `test_status_summary_archive.sh` → `39 passed, 0 failed`; `tests/gates/test_standalone_canon_gates.sh` → `pass=50 fail=0`; `scripts/gates/test_289_clause_d_not_overbroad.sh` → PASS.
+- `CM-UNREFERENCED-GATE-BOUND-OR-RETIRED` against the same scratch consumer layout as the §11.4.292 entry: `cm_scope_and_image_noworse_anchor_wired.sh` BOUND-SEAM-LITERAL, its mutation test BOUND-PAIRED-MUTATION, both §11.4.293 propagation files BOUND-DATA-DISPATCH; the UNBOUND set is identical to the one measured before either anchor.
+- `bash scripts/gates/cm_canonical_root_clarity.sh` → FAIL, identical before either anchor (the scratch clone's location has no consumer `CLAUDE.md` above it). Not caused by this change; not counted as a PASS.
+
+#### PROVISIONAL (not verified by any command)
+
+- That the anchor text is complete and unambiguous: no independent §11.4.209 review round has run.
+- The forensic quote is the conductor's rendering of the operator's 2026-11-03 16:45 addendum; the operator's own message was not available to the author and is not quoted as verbatim.
+- No consuming project carries a comparator or a `Roadmap-Item:` trailer check yet; the constitution ships neither (OWED-GATE-175, OWED-GATE-176).
+
+### Added
+
+- **§11.4.293 — Scope discipline and image no-worse proof.** (A) All work serves a workable item of the main Roadmap and stays inside the codebase context of the issue it fixes; every commit names its item with a `Roadmap-Item: <id>` trailer, and every path outside that context carries an `Out-of-scope: <path> — <reason> — <justification>` trailer whose reason is exactly one of `fix-gate-or-test`, `generated-regeneration`, `upstream-merge`, `operator-order`; anything else is split into its own item or reverted. (B)-(E) Every produced flashing image is LIVE-tested and compared, test by test, with the baseline run of the previously flashed image on the same board serial, harness, suite and command, both image identities recorded; closed verdict `NO-WORSE-PROVEN` / `REGRESSED` (reason codes `baseline-pass-lost`, `issue-count-higher`, `targeted-flip-missing`) / `INCOMPARABLE-BASELINE-MISSING`; a baseline `PASS` that is `INCONCLUSIVE`, `SKIPPED`, `BLIND`, `ERROR` or absent on the new image is a regression; new tests are reported separately; every image that fixes anything is more stable (targeted §11.4.292(E) flips present), a purely new-feature image is still `NO-WORSE-PROVEN` on every pre-existing test. (F) `REGRESSED` and `INCOMPARABLE-BASELINE-MISSING` refuse every release and its tag; a consumer-declared dev-class tag may still be created, its changelog stating the verdict first. Composes §11.4.40, §11.4.114, §11.4.135, §11.4.200, §11.4.236, §11.4.290 and §11.4.292 without restating them.
+- **Refinement notes** (dated 2026-11-03) at the end of the §11.4.40, §11.4.114 and §11.4.135 blocks, each pointing at §11.4.293 without restating it.
+- **Gates:** `CM-COVENANT-114-293-PROPAGATION` (generated from a new data-pack row, with its generated mutation test; seam row `11.4.293<TAB>pre-build<TAB>CM-COVENANT-114-293-PROPAGATION`) and `CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED` (`scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh`, 171 checks: 34 canon marker phrases, the four out-of-scope reasons and the three verdicts in the canon, the carriers and the lifecycle skill, 10 escape-hatch flags, 31 cross-references, three back-pointers, four carrier mirrors, index, group, rule file, catalog, data-pack row, wrappers, seam binding, both deferral rows read by their OWED id, hook binding) with its paired mutation test. Recommended item-level gates `CM-COMMIT-NAMES-ROADMAP-ITEM` (`OWED-GATE-175`) and `CM-IMAGE-NO-WORSE-PROVEN` (`OWED-GATE-176`) registered as deferrals (`gate_ledger_deferrals.tsv`, `docs/owed_gate_implementations.md` revision 17), NOT claimed implemented.
+- **Hook binding:** `scripts/post_update_hook.sh` step 5b also runs `CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED` against the constitution root; `tests/test_post_update_hub_gates.sh` gains a sixth stub gate and the cases NOWORSE-FAIL, NOWORSE-BLIND, NOWORSE-SKIP (15 cases).
+- **Skill:** `skills/workable-item-lifecycle/` version 1.3.0 (the `Roadmap-Item:` / `Out-of-scope:` trailers with the four reasons, and the image comparison rule).
+
+### Changed
+
+- **Carriers:** identical compact §11.4.293 entry appended at the end of `CLAUDE.md` (revision 92), `AGENTS.md` (89), `QWEN.md` (86), `GEMINI.md` (60); `Constitution.md` revision 89.
+- **Anchor machinery:** `scripts/anchors/anchor_lib.py` maps §11.4.293 to group `project-lifecycle-and-release`; `scripts/anchors/tests/test_query_us2.py` universal count 190 to 191; index, groups, progressive split and manifest regenerated with the repository's own generators.
+- **README** revision 22: facts, group, clause and release tables re-measured; badge row regenerated.
+
+### Honest boundaries
+
+- The gate proves the RULE is present, complete and wired; it does not prove that any commit names its item or that any image was compared (OWED-GATE-175, OWED-GATE-176). The comparator is the consuming project's work.
+- A no-worse verdict is bounded by the suite: a defect no test exercises is invisible to it (§11.4.118).
+- Open question recorded for the consuming project: a project rule that treats a geo-restricted content test as "never a failure" meets clause (C), where a baseline-PASS test that is SKIPPED on the new image is `baseline-pass-lost`; the constitution does not decide that project rule.
+
+## Unreleased — 2026-11-03 — §11.4.292 reproduce first (live reproduction record before any fix, RED/GREEN on one command and signature, UNREPRODUCED cap)
+
+**Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was committed in a scratch clone of the constitution (branch `work`) and was not pushed. The rule is implemented and wired at the canon level (anchor, four carriers, index, groups, progressive split, item template, two skills, gate, mutation test, propagation wrappers, seam binding, post-update hook); the item-level seam that checks real items is the registered deferral `OWED-GATE-174`. No independent §11.4.209 review has run on this change yet.
+
+#### VERIFIED (commands run by the author of this entry on 2026-11-03, output seen)
+
+All commands ran from the constitution root of the scratch clone, on the staged tree of this commit.
+
+- `bash scripts/gates/cm_repro_first_anchor_wired.sh --quiet` → `PASS — 174/174 checks`.
+- `bash scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh --quiet` → `PASS: 187 RED/BLIND cases and 5 GREEN cases (1 control + 4 golden-FALSE)`: every mutation (marker, flag, cross-reference, back-pointer, carrier, template, skill, index, group, rule file, catalog, data-pack row, wrapper, seam row, deferral row by id, hook binding, broken extractor, lost control needle) turns the gate RED or BLIND; the unmutated copy and four golden-FALSE copies stay GREEN.
+- `bash scripts/gates/cm_covenant_114_292_propagation.sh --quiet` → PASS (4 carriers, byte-identical block) and its generated mutation test → PASS; the §11.4.290 and §11.4.291 propagation gates and their mutation tests → PASS.
+- `bash scripts/gates/cm_provisional_done_anchor_wired.sh` → `PASS — 117/117`; its mutation test → `PASS: 120 RED/BLIND + 5 GREEN`.
+- `bash scripts/gates/cm_constitution_index_fresh.sh` → PASS; its mutation test → `MUTATION PAIR VALID`; `python3 progressive/generate_split.py --check` → `reproducible (305 artifact(s), byte-identical)`; `bash scripts/anchors/tests/run_all.sh` → 11 test files, exit 0.
+- `bash scripts/gates/cm_gate_ledger_ratchet.sh` → `unimplemented=394 baseline=394`, PASS; `bash scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh` → PASS (T1-T12).
+- Defect found and fixed at its cause during this change: the first version of the wiring gate wrote the deferred gate's `CM-` name as a literal; the ledger counts a literal `CM-` token in any non-mutation-test `.sh` as an implementation site, so the deferral read as implemented and ledger mutation sub-case T6 FAILED (`deleting the real deferral row ... did NOT make the ratchet FAIL`). The gate now reads the deferred name from `gate_ledger_deferrals.tsv` by its `OWED-GATE-174` id and checks the canon names it; after the fix T6 reports `correctly FAILED` and the whole ledger mutation test PASSES.
+- `bash scripts/gates/cm_rule_binds_to_seam.sh --base HEAD` → `ALLOW — 46 rules bound, 1 newly declared, 0 findings`; `--selftest` → `pass=11 fail=0`; `cm_rule_binds_to_seam_mutation_test.sh` → `pass=12 fail=0`.
+- `bash scripts/gates/covenant_propagation_wrappers_generate.sh --check` → PASS.
+- `bash tests/test_post_update_hub_gates.sh` → PASS (12 cases) on the new hook; the same test run against the parent commit's hook (byte-identical to `HEAD:scripts/post_update_hook.sh`) FAILS with 17 findings (the new gate is never invoked in any case, and the REPRO-FAIL case leaves the hook at exit 0), so the test discriminates.
+- `bash scripts/badges/compute_badges.sh --check` → `README badge row matches the computed row`.
+- `bash scripts/amendment_log/tests/test_status_summary_archive.sh` → `39 passed, 0 failed`; `bash tests/gates/test_standalone_canon_gates.sh` → `pass=50 fail=0`; `bash scripts/gates/test_289_clause_d_not_overbroad.sh` → PASS.
+- `CM-UNREFERENCED-GATE-BOUND-OR-RETIRED`, run against a scratch consumer layout (`constitution` symlinked to this tree, parent seam files as empty stand-ins plus one line calling the propagation suite): the four new gate files are BOUND (`cm_repro_first_anchor_wired.sh` BOUND-SEAM-LITERAL through `scripts/post_update_hook.sh`, its mutation test BOUND-PAIRED-MUTATION, both propagation files BOUND-DATA-DISPATCH); the UNBOUND set is identical to the parent commit's under the same layout.
+- `report_item.sh --kind bug --dry-run` renders `**Reproduction:** none — UNREPRODUCED (§11.4.292)`; `--kind task --dry-run` does not.
+- `bash scripts/gates/cm_canonical_root_clarity.sh` → FAIL, identical on the parent commit: the scratch clone sits directly under a directory with no consumer `CLAUDE.md`, so the gate's consumer-root precondition is not met in this location. Not caused by this change; not counted as a PASS.
+
+#### PROVISIONAL (not verified by any command)
+
+- That the anchor text is complete and unambiguous: no independent §11.4.209 review round has run.
+- The forensic quote is the conductor's rendering of the operator's 2026-11-03 mandate ("verbatim intent"); the operator's own message was not available to the author and is not quoted as verbatim.
+- No item in any consuming project carries a `Reproduction:` record yet; the engine does not parse the line (OWED-GATE-174).
+
+### Added
+
+- **§11.4.292 — Reproduce first.** Every issue being fixed is reproduced LIVE (§11.4.289 meaning) before any cause hypothesis is acted on or any fix is written. Closed result vocabulary `reproduced-live` / `reproduced-host-fixture` / `not-reproducible-with-evidence` / `blocked-no-device-with-recorded-blocker`, item labels `REPRODUCED` / `UNREPRODUCED` (`reproduced-host-fixture` is `REPRODUCED` only on a `host-only` surface). The record rides on a `**Reproduction:**` line (template default `**Reproduction:** none — UNREPRODUCED`) with the exact command, the machine-written RED (path, sha256, timestamp, ids), the build / artifact fingerprint read from the target, the target identity (board serial, rig, service or fixture sha256) and the symptom signature. Under blocked reproduction a fix lands only as PROVISIONAL-DONE labelled `UNREPRODUCED` and cannot reach VERIFIED-DONE; the promoting GREEN must use the same command, target identity and signature; a non-reproduction needs a positive control needle and never licenses a fix; the root cause is a FACT only after a decisive cause-toggles-signature experiment; the fix ships with a deterministic live coverage test (a `host-substitute` only when live is impossible, labelled). Composes §11.4.6, §11.4.43, §11.4.102, §11.4.115, §11.4.146, §11.4.199, §11.4.289 and §11.4.290 without restating them.
+- **Refinement notes** (dated 2026-11-03) at the end of the §11.4.43, §11.4.115, §11.4.146 and §11.4.199 blocks, each pointing at §11.4.292 without restating it.
+- **Gates:** `CM-COVENANT-114-292-PROPAGATION` (generated by `scripts/gates/covenant_propagation_wrappers_generate.sh` from a new data-pack row, with its generated mutation test; seam row `11.4.292<TAB>pre-build<TAB>CM-COVENANT-114-292-PROPAGATION` in `rule_seam_bindings.tsv`) and `CM-REPRO-FIRST-ANCHOR-WIRED` (`scripts/gates/cm_repro_first_anchor_wired.sh`, 174 checks: canon block with 41 marker phrases, the four-value result vocabulary, 10 escape-hatch flags and 32 cross-references, four back-pointers, four carrier mirrors, the item template, both workable-item skills, index, group, rule file, catalog, data-pack row, wrappers, seam binding, the deferral row read by its OWED id, hook binding) with its paired mutation test `cm_repro_first_anchor_wired_mutation_test.sh`. Recommended item-level gate `CM-REPRODUCTION-RECORD-BEFORE-FIX` registered as deferral `OWED-GATE-174` (`gate_ledger_deferrals.tsv`, `docs/owed_gate_implementations.md` revision 16), NOT claimed implemented.
+- **Hook binding:** `scripts/post_update_hook.sh` step 5b also runs `CM-REPRO-FIRST-ANCHOR-WIRED` against the constitution root; `tests/test_post_update_hub_gates.sh` gains a fifth stub gate and the cases REPRO-FAIL, REPRO-BLIND, REPRO-SKIP (12 cases).
+- **Item template:** `scripts/reporting/report_item.sh` writes `**Reproduction:** none — UNREPRODUCED (§11.4.292)` into every new `Bug` description (kept short because `intake-match` scores recurrences by a Jaccard overlap over title + stored description).
+- **Skills:** `skills/workable-item-lifecycle/` version 1.2.0 (new section "Reproduce first: the `Reproduction:` record"), `skills/reporting-workable-items/` version 1.1.0 (the REPRODUCTION item of a good report and the after-creation step).
+
+### Changed
+
+- **Carriers:** identical compact §11.4.292 entry appended at the end of `CLAUDE.md` (revision 91), `AGENTS.md` (88), `QWEN.md` (85), `GEMINI.md` (59); `Constitution.md` revision 88. Last-modified fields keep their length, so the preamble byte sizes do not change; the `Status summary` cells were not touched.
+- **Anchor machinery:** `scripts/anchors/anchor_lib.py` maps §11.4.292 to group `testing-and-tdd`; `scripts/anchors/tests/test_query_us2.py` universal count 189 to 190; `constitution_index.yaml`, `groups/*.md`, `progressive/catalog.json`, `progressive/rules/*` and `progressive/rules_manifest.json` regenerated with the repository's own generators (index 302 anchors across 12 groups; progressive split 303 anchors). `groups/host-and-resource-safety.md` changes by one blank line because §11.4.291 is no longer the last block of the canon.
+- **README** revision 21: facts, group, clause and release tables re-measured; badge row regenerated with `scripts/badges/compute_badges.sh --print` (the Version badge now reads the first heading of this file, so it shows this unreleased entry).
+
+### Honest boundaries
+
+- The gate proves the RULE is present, complete and wired; it does not prove that any item carries a correct record, that a reproduction was live, or that a RED / GREEN pair matches (OWED-GATE-174).
+- Overlap stated, not hidden: §11.4.146 STEP 1 and §11.4.115 already require a reproducing RED test before a fix. §11.4.292 adds what they lack (live-first ordering, the record, the `UNREPRODUCED` cap, the pairing key) and restates neither.
+
 ## helixconstitution-v73.1 — 2026-10-31 — patch release after v73: installer settings-merge hardening, consumer-layout gate and test fixes, hermetic test environments
 
 **Status of this entry: READY TO TAG, not yet tagged or published (§11.4.290 labelling).** Previous tag: `helixconstitution-v73` (2026-10-31). Commits since v73: 12 (`git log helixconstitution-v73..HEAD --oneline`) plus uncommitted-but-complete work in the tree (scanner-gate repairs, static badges, third-party prune library, triage note). The §11.4.40 full-suite retest was NOT run for this patch.
@@ -238,9 +335,9 @@
 - **The switch:** new `config/formats_export.conf` (`formats_export=false`, the only default) read by ONE helper, `scripts/formats_export_lib.sh` (`formats_export_enabled`, `formats_export_resolve`, `formats_export_skip_notice`, `formats_export_gate`). Resolution order: env `DOCS_EXPORT` (1/true/yes/on or 0/false/no/off, one run) > a repository policy file `docs/context/doc_export.policy` with the line `enabled=1` (a repository can only opt IN) > the conf default > fail-closed (unreadable or unparsable means off). Every consumer announces its skip (§11.4.106(E)), never silent.
 - **Consumers wired:** `scripts/badges/compute_badges.sh` (Twins badge is GRAY "markdown only" while off; new `scripts/badges/test_twins_badge_formats_switch.sh`), `scripts/render/render-governance-twins.sh`, `scripts/translation/render-articles.sh`, `scripts/charts-engine/lib/export.py`, `scripts/catalog-engine/generate_catalog.py`, and the workable-items exporter (`export` and `subtask-export` honour the switch; `--formats` forces on, `--no-formats` forces off; new `formats_switch.go` with tests).
 - **How a consumer opts back in:** `DOCS_EXPORT=1 <command>` for one run, or `enabled=1` in `docs/context/doc_export.policy`, or change the conf value (a constitution-level decision). Nothing is ever implicit.
-- **Deletions:** 891 generated `.html` / `.pdf` / `.docx` twins of tracked Markdown were removed from this repository (the whole commit removes about 10,000 such exports across the consuming parent and the owned submodules; hardlink backups and manifests were kept by that operation). No `.md` document was removed. `docs/BADGES.md` and `README.md` were updated to the markdown-only reading.
+- **Deletions:** 891 generated `.html` / `.pdf` / `.docx` twins of tracked Markdown were removed from this repository (the whole commit removes at least 8,712 such exports, counted as 7,821 in the parent plus 891 here; the owned-submodule share was not counted, so any larger total is UNCONFIRMED; hardlink backups and manifests were kept by that operation). No `.md` document was removed. `docs/BADGES.md` and `README.md` were updated to the markdown-only reading.
 - **Nested pins moved by the same operation:** `docs_chain`, `token_optimizer` and `session_orchestrator` pointed at local twin-deletion commits. Those local commits are not published; the merge to v72 took v72's published pins (see below). The twin deletion is therefore applied here but not inside those three nested repositories.
-- **Single-track ruling and test refresh in the same commit:** `scripts/hooks/test_guard_work_track_binding.sh` reflects the single-track ruling (mistiq-vader logic group bound to track 1); `scripts/fastcycle/tests/test_render_keys_red.sh` adapted to the switch.
+- **Single-track ruling and test refresh in the same commit:** `scripts/hooks/test_guard_work_track_binding.sh` reflects the single-track ruling (the test adds a separate `unified-product` single-track row; `mistiq-vader` stays feature-bound as test data); `scripts/fastcycle/tests/test_render_keys_red.sh` adapted to the switch.
 
 ### Added — dispatch-tier guard (operator order 2026-10-26, "no heavy agent on a simple task")
 
@@ -257,18 +354,19 @@
 
 ### Changed — nested pins (review round 1 and 2)
 
-- `claude_toolkit`, `docs_chain` and `token_optimizer` are pinned to published commits only (a new gate, `CM-GITLINK-ON-REMOTE`, fails when a gitlink names a commit on no remote; see the entry below). `claude_toolkit` is re-pinned to `5d1c6eb` (tag `v1.33.1`, main tip of both its upstreams), which carries the §11.4.35 `## INHERITED FROM constitution/CLAUDE.md` pointer sections in its four carriers; `helix-deps.yaml` and the gitlink move together (`CM-HELIX-DEPS-REF-MATCHES-GITLINK`). `llmctl` and `session_orchestrator` take v72's published pins.
+- `claude_toolkit`, `docs_chain` and `token_optimizer` are pinned to published commits only (a new gate, `CM-GITLINK-ON-REMOTE`, fails when a gitlink names a commit on no remote; see the entry below). `claude_toolkit` is re-pinned to `5d1c6eb` (tag `v1.33.1`, main tip of all four declared upstreams), which carries the §11.4.35 `## INHERITED FROM constitution/CLAUDE.md` pointer sections in its four carriers; `helix-deps.yaml` and the gitlink move together (`CM-HELIX-DEPS-REF-MATCHES-GITLINK`). `llmctl` and `session_orchestrator` take v72's published pins.
 
 ### Fixed — review round 2
 
 - `CM-GITLINK-ON-REMOTE` no longer accepts a local unpushed tag, a local branch or the refs of a foreign remote as proof of publication: offline containment counts only `refs/remotes/<R>/*` of a remote whose URL equals the `.gitmodules` URL; `--online` re-validates against `git ls-remote --heads --tags` and is never an upgrade-on-any-output; new `--rev <commit>` judges the commit being pushed instead of the index. The paired mutation test grew from 10 to 17 checks and kills the two mutants the review found (local branches counted; `--online` upgrading on any output).
 - `CM-CODEGRAPH-MCP-HEALTH` reports its documented SKIP (exit 3) in a checkout with nothing declared and nothing indexed: "indexed" now means `.codegraph/codegraph.db` exists, not that a `.codegraph/` directory does (the constitution tracks `.codegraph/.gitignore`, so the bare directory exists everywhere and the gate FAILed). Mutation-test cases added for the gitignore-only directory and for an indexed, undeclared project.
-- `scripts/fastcycle/tokens/test_dispatch_stamp_class.sh` pins `FC_DISPATCH_ITEM_ID_RE` in the three cases that did not (policy-as-data, project policy file, `--extract-item-id`), so it passes in a standalone checkout (34/34; it failed 2 of 33 outside the ATMOSphere consumer, and the "policy" cases could pass for the wrong reason because an item-prefix refusal also exits 2).
+- Review-round-3 follow-ups (LOCAL, not yet reviewed or pushed): `config/covenant_propagation_exclusions.tsv` generalises the SpecKit-fixture row to `*/.specify/extensions/superspec/examples/*` (claude_toolkit vendors the same fixture as llmctl); `CM-GITLINK-ON-REMOTE` no longer counts refs of a foreign remote named `<remote>/<x>` offline (mutation case 13) and reports BLIND for `--online` in a shallow nested repo whose history was cut (mutation case 14); a tag-only publication stays UNPUBLISHED offline with a corrected message (a hard BLIND would contradict mutation case 8), `--online` is the documented pre-push mode.
+- `scripts/fastcycle/tokens/test_dispatch_stamp_class.sh` pins `FC_DISPATCH_ITEM_ID_RE` in the three cases that did not (policy-as-data, project policy file, `--extract-item-id`), so it passes in a standalone checkout (33 passed, 0 failed, 1 announced SKIP because the consumer policy file is absent; 34/34 inside the consumer; it failed 2 of 33 outside the ATMOSphere consumer, and the "policy" cases could pass for the wrong reason because an item-prefix refusal also exits 2).
 
 ### Honest boundaries
 
 - The unpublished intermediate commits of this range recorded nested pins that are on no remote (round-2 finding R2-F4); the final tip records only published pins. Publishing the three nested twin-deletion commits as tags is an operator decision.
-- Failures that exist at v72 in the same environment (evidence files, the hooks map, oracle annotations) were not changed by this range: all 331 gate scripts shared with v72 return the same exit code at the tip.
+- Failures that exist at v72 in the same environment (evidence files, the hooks map, oracle annotations) were not changed by this range: 330 of the 331 gate scripts shared with v72 return the same exit code at the tip (measured at 511b3a4); the one that differs is the timing-dependent `test_render.sh` G10b/G10c flake, which reproduces at v72.
 
 ## Unreleased — 2026-10-28 — review round 1 fixes for the 11.4.290 landing
 
