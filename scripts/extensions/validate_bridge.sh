@@ -221,7 +221,7 @@ done
 #    preconditions per the honest-boundary note above ───────────────────────
 SUPERSPEC_CMD="$ROOT/.specify/extensions/superspec/commands/status.md"
 SUPERSPEC_ENABLED=""
-LIST_JSON=$("$SPECIFY_BIN" extension list --json 2>/dev/null || echo "[]")
+LIST_JSON=$(cd "$ROOT" && "$SPECIFY_BIN" extension list --json 2>/dev/null || echo "[]")
 SUPERSPEC_ENABLED=$(printf '%s' "$LIST_JSON" | python3 -c 'import json,sys
 try:
     doc = json.load(sys.stdin)
