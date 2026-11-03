@@ -236,6 +236,10 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
     tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
     if [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null; then
         cm_third_party_prune_find_expr "$root"
+        # make the exclusion visible: every pruned path is listed (a reader sees what was NOT scanned)
+        while IFS= read -r _pp; do
+            [ -n "$_pp" ] && echo "ℹ️  ${GATE}: PRUNED (third-party, not scanned): ${_pp}"
+        done < <(cm_third_party_prune_paths "$root" 2>/dev/null)
     else
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
     fi
@@ -385,6 +389,12 @@ function classify(t,    r, r2, id) {
     gsub(/,/, " ", txt)
     gsub(/\[/, " ", txt)
     gsub(/\]/, " ", txt)
+    # a braced PLAIN identifier `${name}` / `${1}` is the same target as `$name` / `$1` (strip the braces before the
+    # generic brace->space rewrite below, which would otherwise split `-${pg}` into `-$` and `pg`); any other braced
+    # form (`${x:-1}`, `${!x}`, `${#x}`, `${x%..}`) is left alone and stays a non-name (unguarded).
+    while (match(txt, /\$\{([A-Za-z_][A-Za-z0-9_]*|[0-9])\}/)) {
+        txt = substr(txt, 1, RSTART - 1) "$" substr(txt, RSTART + 2, RLENGTH - 3) substr(txt, RSTART + RLENGTH)
+    }
     gsub(/-\{/, "-\002", txt)
     gsub(/\$\(/, "$\003", txt)
     gsub(/[(){}]/, " ", txt)

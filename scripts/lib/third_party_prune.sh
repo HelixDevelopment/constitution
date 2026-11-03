@@ -50,6 +50,39 @@ _CM_TP_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck disable=SC1091
 . "$_CM_TP_LIBDIR/../deps_manifest/helix_deps_tsv.sh" 2>/dev/null || cm_hdeps_tsv() { return 3; }
 
+# cm_tp_recorded <basedir> <relpath> : is <relpath> a RECORDED submodule of the repository at <basedir>?
+# Review finding (killpg scope, round 2): a manifest line `path: src / third_party: true` must not hide
+# first-party code. A third_party prune entry is honoured only when the path is a gitlink (mode 160000) in
+# the git index/tree or a `.gitmodules` path. Where NO git metadata exists (no .git and no .gitmodules,
+# e.g. an exported consumer layout) the manifest is the only record: that is ASSUMED (stated on stderr,
+# once per manifest base) and the manifest entry is honoured. Fail-safe = scan MORE: git present but the
+# path unrecorded -> NOT pruned.
+cm_tp_recorded() {
+    local b="$1" p="$2" mode
+    if [ -e "$b/.git" ] && command -v git >/dev/null 2>&1; then
+        mode="$(git -C "$b" ls-files -s -- "$p" 2>/dev/null | awk 'NR==1{print $1}')"
+        [ "$mode" = 160000 ] && return 0
+        # nested: a root manifest may name a dep inside a submodule (submodules/a/submodules/b). Walk the
+        # parent prefixes; the first one that is a recorded gitlink is checked recursively in ITS repository.
+        # An unpopulated parent checkout has nothing to hide, so it counts as recorded.
+        local pre="" rest="$p" seg
+        while [[ "$rest" == */* ]]; do
+            seg="${rest%%/*}"; rest="${rest#*/}"; pre="${pre:+$pre/}$seg"
+            [ "$(git -C "$b" ls-files -s -- "$pre" 2>/dev/null | awk 'NR==1{print $1}')" = 160000 ] || continue
+            [ -e "$b/$pre/.git" ] || return 0
+            cm_tp_recorded "$b/$pre" "$rest"; return $?
+        done
+        git -C "$b" config -f "$b/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '{print $2}' | grep -Fxq -- "$p" && return 0
+        return 1
+    fi
+    if [ -f "$b/.gitmodules" ]; then
+        awk -F= '/^[[:space:]]*path[[:space:]]*=/{gsub(/^[ \t]+|[ \t]+$/,"",$2);print $2}' "$b/.gitmodules" | grep -Fxq -- "$p"
+        return $?
+    fi
+    echo "third_party_prune: no git metadata at $b; ASSUMING manifest third_party path $p is a submodule (no recorded-submodule check possible)" >&2
+    return 0
+}
+
 # cm_tp_manifest_walk <manifest> <prefix> : prints "T<TAB>path" / "O<TAB>path"
 # (third_party / own-org dep), paths already prefixed and validated.
 cm_tp_manifest_walk() {
@@ -67,7 +100,10 @@ cm_tp_manifest_walk() {
         cm_third_party_prune_ok "$p" || continue   # validate the RAW path before prefixing
         [ -n "$pre" ] && p="$pre/$p"
         cm_third_party_prune_ok "$p" || continue
-        if [ "$tp" = 1 ]; then printf 'T\t%s\n' "$p"; else printf 'O\t%s\n' "$p"; fi
+        if [ "$tp" = 1 ]; then
+            if cm_tp_recorded "$(dirname "$mf")" "${p#"$pre"/}"; then printf 'T\t%s\n' "$p"
+            else echo "third_party_prune: manifest marks $p third_party but it is not a recorded submodule; NOT pruned (scanning it)" >&2; fi
+        else printf 'O\t%s\n' "$p"; fi
     done <<<"$recs"
 }
 

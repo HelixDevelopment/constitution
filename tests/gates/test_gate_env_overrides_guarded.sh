@@ -8,7 +8,7 @@
 #   paired mutation: gates with the guard removed (cm_gate_env_set -> raw ${VAR:-default}) let the override through -> this test FAILs.
 #   RED: the guard-removed mutant reproduces F1 on the identical code (HEAD predates the ratchet gate, so it cannot show it).
 set -uo pipefail
-KP="kill""pg"   # fixture call name assembled from fragments so no literal signal-call text sits in this file (CM-KILLPG-PGID-GUARD)
+KP="kill""pg"   # call name assembled from fragments in the printf-written fixtures; line 191 keeps one literal call inside a GUARDED fixture (isinstance + pgid <= 1 check), which the gate accepts as guarded
 export CONSTITUTION_JEV_HOOK=off
 unset ORACLE_GUARD_STRICT ORACLE_GUARD_BASELINE ORACLE_GUARD_BASE ORACLE_GUARD_ROOT ORACLE_GUARD_EXCLUDE ORACLE_GUARD_GLOB \
       DANGEROUS_COMBO_EXCLUDE DANGEROUS_COMBO_EXT DANGEROUS_COMBO_MAX_DEPTH KILLPG_GUARD_EXCLUDE KILLPG_GUARD_EXT KILLPG_GUARD_ALLOW_PATHS \
