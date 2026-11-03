@@ -101,7 +101,7 @@
 # path). No URL / organisation rule exists: an unmarked submodule is always scanned. Unsafe manifest paths are
 # dropped (scan more); an unusable manifest, no git metadata or a missing lib scans more (fail closed). Every
 # pruned path is printed. Single-file roots are never pruned. Opt back in with --include-third-party.
-# Test: cm_killpg_pgid_guard_scope_test.sh.
+# Test: cm_killpg_pgid_guard_scope_selftest.sh.
 #
 # `scripts/gates` is excluded from the default scan root's recursive walk (this file and its
 # mutation-test fixtures legitimately embed the dangerous literal as fixture text).

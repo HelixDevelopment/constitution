@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# cm_killpg_pgid_guard_scope_test.sh — test + paired mutation for the scan SCOPE of
+# cm_killpg_pgid_guard_scope_selftest.sh — test + paired mutation for the scan SCOPE of
 # CM-KILLPG-PGID-GUARD (§11.4.263). Round 5 (review 11.4.276, structural replacement): the ONLY prune rule
 # (scripts/lib/third_party_prune.sh) is "an exact, unambiguous RECORDED gitlink that a TRACKED, unmodified
 # helix-deps.yaml marks third_party: true". No URL / own-org rule exists: every unmarked submodule is scanned,
 # whatever organisation its URL names and whatever declaration files a repository carries.
 # --include-third-party opts back in.
-# Usage: cm_killpg_pgid_guard_scope_test.sh   Exit 0 all hold, 1 otherwise.
+# Usage: cm_killpg_pgid_guard_scope_selftest.sh   Exit 0 all hold, 1 otherwise.
 # Side effects: private mktemp -d, trap-cleaned. Read-only on the repo. Inert fixtures.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"

@@ -725,10 +725,10 @@ LWN="$TMP/large_window_unguarded"; mk_large_window "$LWN" 0
 expect_fail "LARGE-WINDOW same window WITHOUT the guard" "$LWN"
 
 # scan-SCOPE test (third-party prune, hostile-manifest and prefix-collision cases + their paired mutations)
-if bash "$(dirname "${BASH_SOURCE[0]}")/cm_killpg_pgid_guard_scope_test.sh" >/dev/null 2>&1; then
-    echo "✅ META OK:   scope test (cm_killpg_pgid_guard_scope_test.sh) passes"
+if bash "$(dirname "${BASH_SOURCE[0]}")/cm_killpg_pgid_guard_scope_selftest.sh" >/dev/null 2>&1; then
+    echo "✅ META OK:   scope test (cm_killpg_pgid_guard_scope_selftest.sh) passes"
 else
-    echo "❌ META FAIL: scope test (cm_killpg_pgid_guard_scope_test.sh) failed"; rc=1
+    echo "❌ META FAIL: scope test (cm_killpg_pgid_guard_scope_selftest.sh) failed"; rc=1
 fi
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
