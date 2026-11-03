@@ -456,6 +456,17 @@ mutate R8-21-pu-hook-capability-marker   $R8 sed  $SC/post_update_hook.sh 's/^# 
 
 mutate R8-22-scrub-caller-ifs          $R8 sed  $SC/lib/constitution_layout.sh '/_cl_sIFS="$IFS"; IFS=/{N;s/.*/    _cl_sIFS="$IFS"/}'
 mutate R8-23-step5-chmods-tracked        $R8 repl $SC/post_update_hook.sh 'ls-files --error-unmatch -- "${script#' 'ls-files --error-unmatch-X -- "${script#'
+# --- stale-lock reclaim serialisation (R1, the intermittent m6 race) ---------------
+mutate TL1-consumer-no-recheck-under-mutex  $T repl "$C" '                if [ "$(lock_sig "$LOCK" 2>/dev/null)" != "$sig" ]; then' '                if false; then'
+mutate TL2-consumer-no-reclaim-mutex        $T repl "$C" '            if flock -w 10 8; then' '            if true; then'
+mutate TL3-setup-no-recheck-under-mutex     $R8 sed  $SC/setup.sh '/^      \[ "\$(kv "\$PU_LOCK" PID 2>\/dev\/null || true)" = "\$pid" \] && /s/.*/      :/'
+mutate TL4-postmerge-no-reclaim-mutex       $R8 sed  $SC/hooks/post-merge '/^            flock -w 10 8 || /s/.*/            :/'
+mutate TL5-consumer-no-fifo-guard           $T repl "$C" '        if [ -L "${LOCK%.lock}.reclaim" ] || { [ -e "${LOCK%.lock}.reclaim" ] && [ ! -f "${LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${LOCK%.lock}.reclaim"; then' '        if [ -L "${LOCK%.lock}.reclaim" ] || ! : 2>/dev/null >>"${LOCK%.lock}.reclaim"; then'
+mutate TL6-consumer-other-mutex-file        $T repl "$C" '        } 8>>"${LOCK%.lock}.reclaim"' '        } 8>>"${LOCK%.lock}.reclaim2"'
+mutate TL7-setup-no-fifo-guard              $R8 repl $SC/setup.sh '  if [ -L "${PU_LOCK%.lock}.reclaim" ] || { [ -e "${PU_LOCK%.lock}.reclaim" ] && [ ! -f "${PU_LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${PU_LOCK%.lock}.reclaim"; then' '  if [ -L "${PU_LOCK%.lock}.reclaim" ] || ! : 2>/dev/null >>"${PU_LOCK%.lock}.reclaim"; then'
+mutate TL8-postmerge-no-fifo-guard          $R8 repl $SC/hooks/post-merge '        if [ -L "${PM_LOCK%.lock}.reclaim" ] || { [ -e "${PM_LOCK%.lock}.reclaim" ] && [ ! -f "${PM_LOCK%.lock}.reclaim" ]; } || ! : 2>/dev/null >>"${PM_LOCK%.lock}.reclaim"; then' '        if [ -L "${PM_LOCK%.lock}.reclaim" ] || ! : 2>/dev/null >>"${PM_LOCK%.lock}.reclaim"; then'
+mutate TL9-setup-cause-not-printed          $R8 repl $SC/setup.sh '  if [ -n "${PU_RECLAIM_WHY:-}" ]; then printf' '  if false; then printf'
+mutate TL10-postmerge-cause-not-printed     $R8 repl $SC/hooks/post-merge '        [ -z "$PM_RECLAIM_WHY" ] || warn' '        true || warn'
 # --- reviewer mutants (round 8 review): RM1-RM4 + the two inline helpers -----------
 mutate RM1-hookinstall-inline-drops-index-file $R8 sed scripts/lib/hook_install.sh 's/unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE /unset GIT_DIR GIT_WORK_TREE /'
 mutate RM2-step5-ls-files-no-error-unmatch     $R8 sed $SC/post_update_hook.sh 's/ls-files --error-unmatch -- /ls-files -- /'
