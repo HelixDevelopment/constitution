@@ -1065,14 +1065,16 @@ validate_hub_structure() {
     # root, <root>/submodules/* and <root>/constitution/submodules/*; the two hub gates inspect the hub itself.
     # cm_provisional_done_anchor_wired.sh (§11.4.290) inspects the hub's own canon, mirrors and skill, so it runs
     # against the hub too: a pull that delivers a half-wired §11.4.290 (missing mirror, back-pointer, index row)
-    # is reported here instead of being discovered later.
-    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh; do
+    # is reported here instead of being discovered later. cm_repro_first_anchor_wired.sh (§11.4.292) inspects the hub's
+    # canon, mirrors, item template and skills the same way, so it also runs against the hub.
+    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh; do
         groot="$CONST_DIR"
         case "$gate" in
             cm_hub_engine_no_ownorg_nesting.sh)   tok="CM-HUB-ENGINE-NO-OWNORG-NESTING" ;;
             cm_llmctl_submodule_nonrecursive.sh)  tok="CM-LLMCTL-SUBMODULE-NONRECURSIVE" ;;
             cm_helix_deps_manifest_present.sh)    tok="CM-HELIX-DEPS-MANIFEST-PRESENT"; groot="$PROJECT_ROOT" ;;
             cm_provisional_done_anchor_wired.sh)  tok="CM-PROVISIONAL-DONE-ANCHOR-WIRED" ;;
+            cm_repro_first_anchor_wired.sh)       tok="CM-REPRO-FIRST-ANCHOR-WIRED" ;;
         esac
         if [ ! -f "$CONST_DIR/scripts/gates/$gate" ]; then
             warn "$tok: gate file missing ($gate) — BLIND"; WARNINGS+=("$tok: gate file missing (BLIND)"); continue

@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 15
-**Last modified:** 2026-10-30T11:05:47Z
+**Revision:** 16
+**Last modified:** 2026-11-03T11:54:28Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -14,6 +14,8 @@
 **R13 (2026-10-26, §11.4.289):** `OWED-GATE-161` to `OWED-GATE-164` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.289; section at the end of this file.
 
 **R14 (2026-10-28, §11.4.291):** `OWED-GATE-165` to `OWED-GATE-168` registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.291; section at the end of this file.
+
+**R16 (2026-11-03, §11.4.292):** `OWED-GATE-174` (`CM-REPRODUCTION-RECORD-BEFORE-FIX`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.292; section after the §11.4.230(F) section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -997,6 +999,15 @@ The five recommended gates named in §11.4.230(F) and §11.4.276(G) are register
   - **Must assert:** (per §11.4.276(G.2)) every finding named by a `GO-with-follow-ups` verdict is a tracked item linked to its parent and assigned to the next iteration; no finding in an excluded surface carries a minor-class label; no finding with no recorded severity, or a severity lowered by the producer, counts as minor-class; no `GO-with-follow-ups` is reported as a zero-finding GO; golden-FALSE: every follow-up present, linked and assigned
   - **Blocked on:** no review-record schema carrying finding layer and severity in-repo
   - **Paired §1.1 mutation:** drop one follow-up item, or label a security finding minor; the gate MUST FAIL
+
+### §11.4.292 reproduce first (registered 2026-11-03)
+
+The item-level gate named in §11.4.292 is registered as a deferral in the same change that names it, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_repro_first_anchor_wired.sh` with its paired mutation test); this row is the item-level seam that checks real items.
+
+- **OWED-GATE-174** — `CM-REPRODUCTION-RECORD-BEFORE-FIX`
+  - **Must assert:** (per §11.4.292(B)/(C)/(D)/(E)/(F)) every item being fixed carries a `**Reproduction:**` line before its first fix commit; the result is one of `reproduced-live`, `reproduced-host-fixture`, `not-reproducible-with-evidence`, `blocked-no-device-with-recorded-blocker`; a `REPRODUCED` label has every required field (surface, exact command, RED evidence path + sha256 + timestamp + ids, build and artifact fingerprint, target identity, symptom signature) and no `UNCONFIRMED:` field; no `UNREPRODUCED` item carries a §11.4.33 closure value or sits in a verified count; the promoting GREEN has the same command, target identity and signature as the RED; a not-reproducible record has a positive control needle; a blocked record has a resolvable blocker record; golden-FALSE: an honest PROVISIONAL-DONE item labelled `UNREPRODUCED` with its verification job scheduled, and a `host-only` reproduction of a gate-script defect
+  - **Blocked on:** the workable-items engine does not parse the `Reproduction:` line, and no item-level evidence store layout is defined in-repo
+  - **Paired §1.1 mutation:** delete the RED path from a `reproduced-live` record, promote an `UNREPRODUCED` item to a closure value, swap the GREEN's signature, or drop the control needle from a non-reproduction; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

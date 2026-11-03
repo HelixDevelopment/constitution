@@ -1,7 +1,7 @@
 ---
 name: Reporting Workable Items
 description: 'Use whenever anything trackable is reported or discovered — a bug, a defect, a regression, a feature request, an internal task, a gap, "this is broken", "we should add X", "remember to do Y" — or when the operator invokes /issue, /bug, /task (or their /helix: and /default- forms, or the ISSUE/BUG/TASK action prefixes). Use it BEFORE answering a report in prose, and use it to check whether a report you are about to acknowledge has actually been turned into a real tracked item.'
-version: 1.0.0
+version: 1.1.0
 # --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
 # Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
 # completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
@@ -13,7 +13,7 @@ triggers:
 requires_isolation: false
 ---
 
-# Reporting Workable Items (§11.4.202 · §11.4.148 · §11.4.171)
+# Reporting Workable Items (§11.4.202 · §11.4.148 · §11.4.171 · §11.4.292)
 
 **A report that is only acknowledged is a lost requirement.** Answering "yes,
 that's a bug, I'll look into it" in prose — without creating a tracked item — is
@@ -60,6 +60,16 @@ member who was not in the room must understand it without reading code
 3. **REPRODUCTION** — for a `Bug`: the exact sequence that reproduces it. If a
    working reproduction already exists, use **its exact sequence** — a deviating
    repro that never reaches the precondition proves nothing (§11.4.199).
+   A `Bug` is also born with the §11.4.292 record line
+   `**Reproduction:** none — UNREPRODUCED` (the engine writes it). Reproduce
+   **LIVE first**, before acting on any cause hypothesis or writing any fix, and
+   replace the line with the record: the result from the closed set
+   `reproduced-live` · `reproduced-host-fixture` · `not-reproducible-with-evidence` ·
+   `blocked-no-device-with-recorded-blocker`, then the surface, the exact command,
+   the RED evidence (path, sha256, timestamp, ids), the build, the target (board
+   serial or fixture sha256) and the symptom signature. Until a `REPRODUCED`
+   record exists the item is labelled `UNREPRODUCED` and can never reach
+   VERIFIED-DONE (see the `workable-item-lifecycle` skill).
 4. **ACCEPTANCE** — the observable, machine-checkable condition that means done
    (the §11.4.108 runtime signature: what must be true on a clean deployment).
 5. **EVIDENCE** — captured artefact paths that back the report (§11.4.5 /
@@ -94,7 +104,8 @@ Reporting is not a note-to-self. The engine
 
 ## After the item exists
 
-- A `Bug` that is actionable now → investigate under **§11.4.102
+- A `Bug` that is actionable now → **reproduce it LIVE first** and write the
+  `**Reproduction:**` record (§11.4.292), then investigate under **§11.4.102
   systematic-debugging** (root cause BEFORE any fix; the Iron Law is "NO FIXES
   WITHOUT ROOT CAUSE INVESTIGATION FIRST"), and auto-activate it without waiting
   to be asked (§11.4.102(D)).

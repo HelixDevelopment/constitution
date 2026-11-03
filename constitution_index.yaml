@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-30T11:05:48.086413+00:00'
+generated_at: '2026-11-03T11:57:47.065781+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: df7ae72cef3afb6d1e55569da4cc501cb7fa305c
-  source_sha256: 24f8a183111ec38ac00d8f0b7a5b3ec255b368d125d24f2924f0dc30138cfaba
+  commit: eb719869daf02803dfdd2cc09b53935027f0241a
+  source_sha256: dd170c6a228dd9d2c7bcfbe4e02606da204a12f19f1247f75eb7f7720a8c6976
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -34,7 +34,7 @@ groups:
   anchor_count: 51
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
-  anchor_count: 41
+  anchor_count: 42
 - name: translation-and-localization
   path: constitution/groups/translation-and-localization.md
   anchor_count: 3
@@ -801,6 +801,7 @@ anchors:
   - 11.4.1
   - 11.4.17
   - 11.4.2
+  - 11.4.292
   - 11.4.3
   - 11.4.33
   - 11.4.4
@@ -2481,6 +2482,7 @@ anchors:
   - 11.4.201
   - 11.4.205
   - 11.4.227
+  - 11.4.292
   - 11.4.35
   - 11.4.4
   - 11.4.43
@@ -3309,6 +3311,7 @@ anchors:
   - 11.4.201
   - 11.4.205
   - 11.4.28
+  - 11.4.292
   - 11.4.3
   - 11.4.33
   - 11.4.35
@@ -4806,6 +4809,7 @@ anchors:
   - 11.4.146
   - 11.4.17
   - 11.4.199
+  - 11.4.292
   - 11.4.3
   - 11.4.35
   - 11.4.5
@@ -7796,6 +7800,54 @@ anchors:
   - '12.11'
   - '12.12'
   - '12.6'
+- id: 11.4.292
+  title: '— Reproduce first: every issue being fixed is REPRODUCED LIVE before any
+    cause hypothesis is acted on or any fix is written; the reproduction is a recorded,
+    closed-vocabulary RED with exact command, identifiers and symptom signature; the
+    fix is proven by a GREEN on the same command and signature, rests on a root cause
+    proven by evidence, and is covered by a deterministic live test; while reproduction
+    is blocked a fix lands only as PROVISIONAL-DONE labelled UNREPRODUCED and never
+    reaches VERIFIED-DONE (User mandate, 2026-11-03)'
+  group: testing-and-tdd
+  location: constitution/groups/testing-and-tdd.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-292-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.102
+  - 11.4.108
+  - 11.4.111
+  - 11.4.114
+  - 11.4.115
+  - 11.4.123
+  - 11.4.135
+  - 11.4.146
+  - 11.4.15
+  - 11.4.17
+  - 11.4.199
+  - 11.4.200
+  - 11.4.201
+  - 11.4.21
+  - 11.4.226
+  - 11.4.227
+  - 11.4.242
+  - 11.4.262
+  - 11.4.267
+  - 11.4.273
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.3
+  - 11.4.33
+  - 11.4.34
+  - 11.4.35
+  - 11.4.43
+  - 11.4.50
+  - 11.4.6
+  - 11.4.7
+  - 11.4.90
+  - '7.1'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

@@ -673,6 +673,7 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.291.
 
 **Non-compliance is a release blocker. No escape hatch — no `--start-local-without-placement`, `--undetermined-is-fits`, `--silent-fallback`, `--hosted-enforces`, `--constitution-enables-llmctl`, `--evict-models-we-did-not-start`, `--unbounded-llmctl-wait`, `--no-host-reserve`, `--unrecorded-override`, `--stop-with-live-lease`, `--undrained-stop`, `--assume-lease`, `--trust-local-recommendation` flag exists.**
+
 ### §12.1 Forbidden operations — directly OR indirectly
 
 1. **Suspending the host**: `systemctl suspend`, `pm-suspend`,
