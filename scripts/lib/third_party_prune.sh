@@ -19,9 +19,15 @@
 #         helix-deps.yaml third_party:true entries are emitted as
 #         <submodule path>/<dep path or submodules/<name>>, same validation.
 #         Upstream marking is therefore required for nested third-party trees.
-#   <root>/.gitmodules is NOT consulted: an own-org submodule (listed in
-#   .gitmodules, or absent from helix-deps.yaml, or not marked third_party)
-#   stays scanned. (Before 2026-11-01 every .gitmodules `path =` was pruned.)
+#   Ownership by remote URL (§11.4.79(6)) is a CONSUMER DECLARATION and is OFF unless an own-org list is
+#   DECLARED (round 4, review 11.4.276): --own-orgs / the guarded HELIX_OWN_ORGS / the tracked data file
+#   <root>/config/own_orgs.list (or at the git top level). With NO declaration only the manifest rule
+#   (`third_party: true` on a RECORDED gitlink) applies, exactly as before round 3 (a consumer's own repositories
+#   under any organisation are never pruned by a default list). With a declaration, a recorded gitlink whose
+#   .gitmodules URL names an organisation outside the list is third-party. A malformed declaration is refused
+#   (cm_tp_orgs_resolve, rc 2). .gitmodules never prunes by itself: only a recorded gitlink (URL rule: also populated or empty)
+#   gitlink is ever pruned; ambiguous .gitmodules (duplicate path, multi-valued url) and file://, C:/,
+#   percent-encoded, relative or unparseable URLs are scanned.
 #   Unsafe values are DROPPED, never interpreted (a prune entry that is empty,
 #   absolute, has a `..` or `.` segment, a leading `-`, whitespace, or a glob
 #   metacharacter `* ? [ ] \` could prune first-party code or break the
@@ -112,17 +118,84 @@ cm_tp_gitlink_deep() {
     return 1
 }
 
-# cm_tp_url_third <url> <orgs-csv> : 0 iff url is an absolute remote whose organisation is not an own org
+# cm_tp_orgs_norm <csv> : prints the lowercase list; rc 2 unless EVERY comma-separated token is a valid org name
+# (an empty value, an empty token, whitespace, `;` or any char outside [A-Za-z0-9._-] refuses -- whole class)
+cm_tp_orgs_norm() {
+    local rest="$1" o out=""
+    [ -n "$rest" ] || return 2
+    while :; do
+        o="${rest%%,*}"
+        [[ "$o" =~ ^[A-Za-z0-9._-]+$ ]] || return 2
+        out+="${out:+,}${o,,}"
+        case "$rest" in *,*) rest="${rest#*,}" ;; *) break ;; esac
+    done
+    printf '%s\n' "$out"
+}
+
+# cm_tp_orgs_file <file> : prints the normalised list from a declaration file (# comments, one org or csv per line)
+cm_tp_orgs_file() {
+    local f="$1" line acc="" n
+    [ -f "$f" ] && [ -r "$f" ] && [ ! -L "$f" ] || return 2
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%%#*}"; line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+        [ -n "$line" ] || continue
+        n="$(cm_tp_orgs_norm "$line")" || return 2
+        acc+="${acc:+,}$n"
+    done <"$f"
+    [ -n "$acc" ] || return 2
+    printf '%s\n' "$acc"
+}
+
+# cm_tp_orgs_resolve <root> [explicit-csv] [explicit-given 0|1] : the DECLARED own-org list, or empty when none is
+# declared. Order: explicit (flag/argument) > guarded HELIX_OWN_ORGS > <root>/config/own_orgs.list > <git top>/...
+# rc 0 (output possibly empty = undeclared) | rc 2 = a declaration exists but is malformed (message on stderr).
+cm_tp_orgs_resolve() {
+    local root="$1" exp="${2:-}" given="${3:-0}" v="" out f top
+    if [ "$given" = 1 ] || [ -n "$exp" ]; then
+        out="$(cm_tp_orgs_norm "$exp")" || { echo "third_party_prune: own-org list '$exp' is malformed (empty, empty token, whitespace or invalid character); refusing" >&2; return 2; }
+        printf '%s\n' "$out"; return 0
+    fi
+    if declare -F cm_gate_env_set >/dev/null 2>&1; then cm_gate_env_set v HELIX_OWN_ORGS "" value; else v=""; fi
+    if [ -n "$v" ]; then
+        out="$(cm_tp_orgs_norm "$v")" || { echo "third_party_prune: HELIX_OWN_ORGS value is malformed; refusing" >&2; return 2; }
+        printf '%s\n' "$out"; return 0
+    fi
+    f="$root/config/own_orgs.list"
+    if [ ! -e "$f" ] && [ ! -L "$f" ] && command -v git >/dev/null 2>&1; then
+        top="$(_cm_tp_git -C "$root" rev-parse --show-toplevel 2>/dev/null)" && [ -n "$top" ] && f="$top/config/own_orgs.list"
+    fi
+    if [ -e "$f" ] || [ -L "$f" ]; then
+        out="$(cm_tp_orgs_file "$f")" || { echo "third_party_prune: own-org declaration $f is unusable (symlink, unreadable, empty or malformed); refusing" >&2; return 2; }
+        printf '%s\n' "$out"; return 0
+    fi
+    return 0
+}
+
+# cm_tp_url_third <url> <orgs-csv> : 0 iff a DECLARED own-org list exists and url is an absolute http(s)/ssh/git or
+# scp-style remote whose organisation is not in it. file://, Windows C:/, percent-encoded, relative, whitespace or
+# otherwise unparseable URLs, and an empty list: 1 (not third-party => scanned, the safe side).
 cm_tp_url_third() {
     local u="${1,,}" orgs="${2,,}" o
-    case "$u" in ''|./*|../*) return 1 ;; esac
-    [[ "$u" =~ ^([a-z][a-z0-9+.-]*://[^/]+/|[^/@[:space:]]+@[^:/[:space:]]+:|[^/@:[:space:]]+:)/?[^[:space:]]+$ ]] || return 1
+    [ -n "$orgs" ] || return 1
+    case "$u" in ''|./*|../*|*%*|*[[:space:]]*) return 1 ;; esac
+    [[ "$u" =~ ^((https?|ssh|git)://[^/]+/[^[:space:]]+|[^/@:[:space:]]+@[^/@:[:space:]]{2,}:/?[^[:space:]]+|[^/@:[:space:]]+\.[^/@:[:space:]]+:/?[^[:space:]]+)$ ]] || return 1
     local IFS=,
     for o in $orgs; do
-        [[ "$o" =~ ^[a-z0-9._-]+$ ]] || continue
+        [[ "$o" =~ ^[a-z0-9._-]+$ ]] || return 1
         [[ "$u" =~ (^|[/:])"$o"/ ]] && return 1
     done
     return 0
+}
+
+# cm_tp_prunable_dir <dir> : a gitlink marked third-party by its URL (rule U) may be pruned only when it is a populated repository top level, or
+# holds nothing to scan (absent / empty). A plain directory with content is scanned (review F4).
+cm_tp_prunable_dir() {
+    local d="$1"
+    [ ! -L "$d" ] || return 1
+    [ -e "$d" ] || return 0
+    [ -d "$d" ] || return 1
+    cm_tp_populated "$d" && return 0
+    [ -z "$(ls -A "$d" 2>/dev/null)" ]
 }
 
 # cm_tp_level <top> <prefix> <outpre> <depth> <orgs> : emits (relative to the gate root) every third-party gitlink
@@ -130,7 +203,7 @@ cm_tp_level() {
     local top="$1" prefix="$2" outpre="$3" depth="$4" orgs="$5"
     local base="$top"; [ -n "$prefix" ] && base="$top/$prefix"
     local -A tp=() nameof=() emitted=()
-    local rec key val name g rel url recs rc n path u tpf pp
+    local rec key val name g rel url recs rc n path u tpf pp nurl
 
     # (M) manifest marks, honoured only on recorded gitlinks
     if [ -f "$base/helix-deps.yaml" ] && [ -r "$base/helix-deps.yaml" ] && [ ! -L "$base/helix-deps.yaml" ]; then
@@ -150,12 +223,19 @@ cm_tp_level() {
         fi
     fi
 
-    # (U) .gitmodules name -> path/url map (top level of THIS repository)
+    # (U) .gitmodules name -> path/url map (top level of THIS repository). A duplicate path, a name with several
+    # paths or a multi-valued url is AMBIGUOUS and never pruned (scanned).
+    local -A ncnt=() amb=()
     if [ -f "$top/.gitmodules" ] && [ ! -L "$top/.gitmodules" ]; then
         while IFS= read -r -d '' rec; do
             key="${rec%%$'\n'*}"; val="${rec#*$'\n'}"
-            case "$key" in submodule.*.path) name="${key#submodule.}"; name="${name%.path}"; nameof["$val"]="$name" ;; esac
+            case "$key" in submodule.*.path)
+                name="${key#submodule.}"; name="${name%.path}"
+                [ -z "${nameof[$val]+x}" ] || amb["$val"]=1
+                nameof["$val"]="$name"; ncnt["$name"]=$(( ${ncnt[$name]:-0} + 1 )) ;;
+            esac
         done < <(_cm_tp_git config -f "$top/.gitmodules" --null --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+        for rel in "${!nameof[@]}"; do [ "${ncnt[${nameof[$rel]}]:-0}" -le 1 ] || amb["$rel"]=1; done
     fi
 
     # the gitlinks recorded under the scan base
@@ -166,11 +246,17 @@ cm_tp_level() {
         if [ -n "$prefix" ]; then case "$g" in "$prefix"/*) rel="${g#"$prefix"/}" ;; *) continue ;; esac; else rel="$g"; fi
         cm_third_party_prune_ok "$rel" || continue
         cm_tp_no_symlink "$base" "$rel" || continue
-        if [ -n "${tp[$rel]:-}" ]; then printf '%s\n' "${outpre:+$outpre/}$rel"; emitted["$rel"]=1; continue; fi
+        if [ -n "${tp[$rel]:-}" ]; then
+            emitted["$rel"]=1; printf '%s\n' "${outpre:+$outpre/}$rel"; continue
+        fi
         name="${nameof[$g]:-}"
-        if [ -n "$name" ]; then
-            url="$(_cm_tp_git config -f "$top/.gitmodules" --get "submodule.$name.url" 2>/dev/null)"
-            if cm_tp_url_third "$url" "$orgs"; then printf '%s\n' "${outpre:+$outpre/}$rel"; continue; fi
+        if [ -n "$name" ] && [ -z "${amb[$g]:-}" ]; then
+            nurl=0; url=""
+            while IFS= read -r -d '' u; do url="$u"; nurl=$((nurl+1)); done < <(_cm_tp_git config -f "$top/.gitmodules" --null --get-all "submodule.$name.url" 2>/dev/null)
+            if [ "$nurl" = 1 ] && cm_tp_url_third "$url" "$orgs"; then
+                cm_tp_prunable_dir "$base/$rel" && printf '%s\n' "${outpre:+$outpre/}$rel"
+                continue
+            fi
         fi
         [ "$depth" -lt 3 ] || continue
         cm_tp_populated "$base/$rel" && cm_tp_level "$base/$rel" "" "${outpre:+$outpre/}$rel" $((depth+1)) "$orgs"
@@ -185,10 +271,8 @@ cm_third_party_prune_paths() { # $1=root [$2=own-orgs csv]
     local root="${1:-}" orgs="${2:-}" top rootp prefix=""
     [ -n "$root" ] && [ -d "$root" ] || return 0
     printf '%s\n' third_party site-packages
-    if [ -z "$orgs" ]; then
-        if declare -F cm_gate_env_set >/dev/null 2>&1; then cm_gate_env_set orgs HELIX_OWN_ORGS "vasic-digital,HelixDevelopment" value
-        else orgs="vasic-digital,HelixDevelopment"; fi
-    fi
+    if [ -n "$orgs" ]; then orgs="$(cm_tp_orgs_norm "$orgs")" || { echo "third_party_prune: own-org list malformed; refusing" >&2; return 2; }
+    else orgs="$(cm_tp_orgs_resolve "$root")" || return 2; fi
     command -v git >/dev/null 2>&1 || { echo "third_party_prune: git unavailable; pruning literal directory names only (scanning submodules too)" >&2; return 0; }
     rootp="$(cd -P "$root" 2>/dev/null && pwd -P)" || return 0
     top="$(_cm_tp_git -C "$rootp" rev-parse --show-toplevel 2>/dev/null)" || {

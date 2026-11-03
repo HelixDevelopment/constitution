@@ -8,6 +8,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/killpg_scope.XXXXXX")" || exit 2
+TMP="$(cd "$TMP" && pwd -P)"   # absolute: a relative TMPDIR made every file:// submodule add fail (review F9)
 trap 'rm -rf "${TMP:?}"' EXIT
 rc=0
 ok()  { echo "OK:   $1"; }
@@ -16,12 +17,12 @@ bad() { echo "FAIL: $1"; rc=1; }
 BADPY='import os, signal\ndef k(pg):\n    os.killpg(pg, signal.SIGKILL)\n'
 GIT() { env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t \
     git -c protocol.file.allow=always -c core.hooksPath=/dev/null -c init.defaultBranch=main "$@"; }
-mkrepo() { # $1=dir [$2=file to hold a bad call, default bad.py] : real repo with one commit
-    mkdir -p "$1"; GIT -C "$1" init -q . || return 1
-    printf "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i
+mkrepo() { # $1=dir [$2=file to hold a bad call, default bad.py] : real repo with one commit; a build failure is a hard FAIL (F9)
+    mkdir -p "$1"; GIT -C "$1" init -q . || { bad "fixture: git init failed ($1)"; return 1; }
+    printf "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i || { bad "fixture: commit failed ($1)"; return 1; }
 }
 addsub() { # $1=parent repo $2=remote repo $3=path $4=.gitmodules URL
-    GIT -C "$1" submodule add -q "file://$2" "$3" >/dev/null 2>&1 || { echo "fixture: submodule add failed ($3)" >&2; return 1; }
+    GIT -C "$1" submodule add -q "file://$2" "$3" >/dev/null 2>&1 || { bad "fixture: submodule add failed ($3)"; return 1; }
     GIT -C "$1" config -f .gitmodules "submodule.$3.url" "$4"
 }
 manifest() { # $1=file $2=dep path $3=third_party true|false
@@ -41,9 +42,11 @@ YML
 commitall() { GIT -C "$1" add -A >/dev/null 2>&1; GIT -C "$1" commit -q -m c >/dev/null 2>&1; }
 GO='https://github.com/golang/go.git'; OWN='https://github.com/vasic-digital/mine.git'
 gout() { bash "$@" 2>&1; return 0; }
-pruned()  { local o; o="$(bash "$1" --root "$2" 2>&1)"; [ $? -eq 0 ] && grep -q "PRUNED.*$3" <<<"$o" && ! grep -q 'SKIP' <<<"$o"; }
-pline()   { grep -q "PRUNED.*$3" <<<"$(gout "$1" --root "$2")"; }
-scanned() { ! bash "$1" --root "$2" >/dev/null 2>&1; }
+DECL=(--own-orgs vasic-digital)   # the explicit own-org DECLARATION (rule U is inert without one, review F1)
+pruned()  { local o; o="$(bash "$1" --root "$2" "${DECL[@]}" 2>&1)"; [ $? -eq 0 ] && grep -q "PRUNED.*$3" <<<"$o" && ! grep -q 'SKIP' <<<"$o"; }
+pline()   { grep -q "PRUNED.*$3" <<<"$(gout "$1" --root "$2" "${DECL[@]}")"; }
+scanned() { ! bash "$1" --root "$2" "${DECL[@]}" >/dev/null 2>&1; }
+mprune()  { grep -q "PRUNED.*$3" <<<"$(gout "$1" --root "$2")"; }   # manifest-rule view: NO declaration
 
 # fixture A: manifest-marked third-party gitlink (M) + own-org gitlink (scanned) + URL-third gitlink (U)
 mkA() { # $1=dir
@@ -55,11 +58,15 @@ mkA() { # $1=dir
 run_suite() { # $1=gate $2=label
     local g="$1" l="$2" T="$TMP/f_$2"
     mkA "$T" || { bad "$l: fixture A could not be built"; return; }
-    local o; o="$(bash "$g" --root "$T" 2>&1)"; local r=$?
+    local o; o="$(bash "$g" --root "$T" "${DECL[@]}" 2>&1)"; local r=$?
     if grep -q 'PRUNED.*submodules/vend' <<<"$o" && grep -q 'PRUNED.*submodules/url' <<<"$o" && ! grep -q 'PRUNED.*submodules/mine' <<<"$o"; then ok "$l: recorded third-party gitlinks pruned (manifest rule M and non-own-org URL rule U), own-org gitlink not pruned"
     else bad "$l: wrong prune set (rc=$r): $(grep PRUNED <<<"$o" | tr '\n' ' ')"; fi
     if [ "$r" -ne 0 ] && grep -q 'submodules/mine/bad.py' <<<"$o" && ! grep -q 'submodules/vend/bad.py' <<<"$o" && ! grep -q 'submodules/url/bad.py' <<<"$o"; then ok "$l: only the own-org gitlink's unguarded call is reported"
     else bad "$l: findings wrong"; fi
+    # F1: with NO declaration the URL rule is off: the golang-URL gitlink stays scanned, the manifest-marked one is pruned (M alone)
+    o="$(bash "$g" --root "$T" 2>&1)"
+    if grep -q 'PRUNED.*submodules/vend' <<<"$o" && ! grep -q 'PRUNED.*submodules/url' <<<"$o" && grep -q 'submodules/url/bad.py' <<<"$o"; then ok "$l: NO declaration => only the manifest rule prunes (URL-third gitlink stays scanned)"
+    else bad "$l: undeclared run pruned by URL: $(grep PRUNED <<<"$o" | tr '\n' ' ')"; fi
     if grep -q 'submodules/vend/bad.py' <<<"$(gout "$g" --root "$T" --include-third-party)"; then ok "$l: --include-third-party scans them"
     else bad "$l: --include-third-party did not scan the third-party dep"; fi
     # own-org list is consumer DATA: declaring golang as own makes the URL gitlink scanned
@@ -132,16 +139,117 @@ t_p3()  { scanned "$1" "$P3"; }
 t_p4()  { scanned "$1" "$P4"; }
 t_hos() { scanned "$1" "$H"; }
 t_url() { pruned "$1" "$TMP/f_real" 'submodules/url'; }
-t_own() { grep -q 'submodules/mine/bad.py' <<<"$(gout "$1" --root "$TMP/f_real")"; }
+t_own() { grep -q 'submodules/mine/bad.py' <<<"$(gout "$1" --root "$TMP/f_real" "${DECL[@]}")"; }
 t_nest(){ pline "$1" "$N" 'submodules/a/submodules/b'; }
 chk exact   's/\[ "\$path" = "\$2" \]/true/' '\[ "\$path" = "\$2" \]' t_p1
 chk rec     's/if cm_tp_gitlink_deep "\$top" .*; then tp/if true; then tp/' 'if cm_tp_gitlink_deep "\$top"' t_hos
 chk toplvl  's/^    \[ "\$rootp" = "\$top" \] || prefix=.*/    prefix=""/' '\[ "\$rootp" = "\$top" \] || prefix=' t_p2
 chk gitmod  's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { grep -Fq "path = $2" "$1\/.gitmodules" 2>\/dev\/null \&\& return 0/' '^cm_tp_is_gitlink() {' t_p3
 chk nogit   's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
-chk urlrule 's/if cm_tp_url_third "\$url" "\$orgs"; then/if false; then/' 'if cm_tp_url_third "\$url"' t_url
-chk ownrule 's/if cm_tp_url_third "\$url" "\$orgs"; then/if true; then/' 'if cm_tp_url_third "\$url"' t_own
+chk urlrule 's/cm_tp_url_third "\$url" "\$orgs"; then/false; then/' 'cm_tp_url_third "\$url" "\$orgs"; then' t_url
+chk ownrule 's/cm_tp_url_third "\$url" "\$orgs"; then/true; then/' 'cm_tp_url_third "\$url" "\$orgs"; then' t_own
 chk recurse 's/cm_tp_populated "\$base\/\$rel" \&\& cm_tp_level/false \&\& cm_tp_level/' 'cm_tp_populated "\$base/\$rel" && cm_tp_level' t_nest
+
+# ── round 4 fixtures (review 11.4.276 r3 findings F1..F11) ──────────────────────────────────────────────
+# F1: a consumer whose own repositories live under a NON-default organisation, with NO declaration: nothing pruned by URL
+CS="$TMP/consumer"; mkrepo "$TMP/rcs/a"; mkrepo "$TMP/rcs/b"; mkdir -p "$CS"; GIT -C "$CS" init -q .
+addsub "$CS" "$TMP/rcs/a" submodules/mine 'git@github.com:milos85vasic/OOM-Protect.git' && addsub "$CS" "$TMP/rcs/b" submodules/theirs 'https://github.com/acme/other.git' && commitall "$CS"
+oc="$(bash "$GATE" --root "$CS" 2>&1)"
+if ! grep -q 'PRUNED.*submodules/' <<<"$oc" && grep -q 'submodules/mine/bad.py' <<<"$oc" && grep -q 'submodules/theirs/bad.py' <<<"$oc"; then ok "F1: consumer-shaped tree, no declaration -> nothing pruned by URL (both scanned)"; else bad "F1: undeclared consumer had submodules pruned: $(grep PRUNED <<<"$oc" | tr '\n' ' ')"; fi
+oc="$(bash "$GATE" --root "$CS" --own-orgs milos85vasic 2>&1)"
+if grep -q 'PRUNED.*submodules/theirs' <<<"$oc" && ! grep -q 'PRUNED.*submodules/mine' <<<"$oc"; then ok "F1: with a declaration the URL rule applies (acme pruned, own org scanned)"; else bad "F1: declared run wrong: $(grep PRUNED <<<"$oc" | tr '\n' ' ')"; fi
+mkdir -p "$CS/config"; printf '# declared\nmilos85vasic\n' > "$CS/config/own_orgs.list"
+oc="$(bash "$GATE" --root "$CS" 2>&1)"
+if grep -q 'PRUNED.*submodules/theirs' <<<"$oc" && ! grep -q 'PRUNED.*submodules/mine' <<<"$oc"; then ok "F1: config/own_orgs.list is read as the declaration"; else bad "F1: declaration file not honoured: $(grep PRUNED <<<"$oc" | tr '\n' ' ')"; fi
+t_f2m() { timeout 20 bash "$1" --root "$CS" --own-orgs 'a;b' >/dev/null 2>&1; [ $? -eq 2 ]; }
+t_f1() { ! grep -q 'PRUNED.*submodules/' <<<"$(gout "$1" --root "$TMP/consumer_nodecl")"; }
+mkdir -p "$TMP/consumer_nodecl"; GIT -C "$TMP/consumer_nodecl" init -q .; addsub "$TMP/consumer_nodecl" "$TMP/rcs/b" submodules/theirs 'https://github.com/acme/other.git'; commitall "$TMP/consumer_nodecl"
+
+# F2: every malformed declaration refuses (exit 2) -- flag, guarded env, file
+for v in '' ' ' ',' ';' 'vasic-digital;HelixDevelopment' 'vasic digital' 'a,,b' 'a,' ',a' 'a b' 'ev"il' '$x'; do
+    o="$(timeout 20 bash "$GATE" --root "$CS" --own-orgs "$v" 2>&1)"; r=$?
+    if [ "$r" -eq 2 ] && grep -qi 'malformed' <<<"$o"; then ok "F2: --own-orgs '$v' refused (exit 2)"; else bad "F2: --own-orgs '$v' not refused (rc=$r)"; fi
+done
+for v in ' ' ',' 'a;b' 'a b'; do
+    o="$(env HELIX_TEST_MODE=1 HELIX_OWN_ORGS="$v" timeout 20 bash "$GATE" --root "$CS" 2>&1)"; r=$?
+    if [ "$r" -eq 2 ]; then ok "F2: HELIX_OWN_ORGS '$v' refused (exit 2)"; else bad "F2: HELIX_OWN_ORGS '$v' not refused (rc=$r)"; fi
+done
+FB="$TMP/f2file"; mkdir -p "$FB/config"; cp -a "$CS/.git" "$FB/.git" 2>/dev/null
+for v in '' '   ' '# only a comment' 'a b' 'x;y'; do
+    printf '%s\n' "$v" > "$FB/config/own_orgs.list"
+    o="$(timeout 20 bash "$GATE" --root "$FB" 2>&1)"; r=$?
+    if [ "$r" -eq 2 ]; then ok "F2: own_orgs.list content '$v' refused (exit 2)"; else bad "F2: own_orgs.list '$v' not refused (rc=$r)"; fi
+done
+# golden-FALSE: a valid declaration (mixed case, several orgs) is accepted
+if timeout 20 bash "$GATE" --root "$CS" --own-orgs 'Milos85Vasic,acme' >/dev/null 2>&1 || [ $? -eq 1 ]; then ok "F2 golden-FALSE: valid declaration accepted"; else bad "F2 golden-FALSE: valid declaration refused"; fi
+
+# F3: unparseable / non-network URLs are never third-party (scanned), with a declaration active
+U3="$TMP/u3"; mkdir -p "$U3"; GIT -C "$U3" init -q .
+i=0; for url in 'file:///tmp/x/vasic.git' 'C:/repos/x.git' 'https://github.com/vasic-digital%2fx/y.git' '../sibling.git' './here.git' 'weird' 'git@c:acme/x.git' 'ftp://h/acme/x.git'; do
+    i=$((i+1)); mkrepo "$TMP/ru3/r$i" && addsub "$U3" "$TMP/ru3/r$i" "submodules/u$i" "$url"
+done; commitall "$U3"
+o3="$(bash "$GATE" --root "$U3" "${DECL[@]}" 2>&1)"
+if ! grep -q 'PRUNED.*submodules/' <<<"$o3"; then ok "F3: file://, C:/, %-encoded, relative, unparseable, 1-char host, ftp URLs are never pruned"; else bad "F3: pruned by an unsafe URL: $(grep PRUNED <<<"$o3" | tr '\n' ' ')"; fi
+t_f3() { ! grep -q 'PRUNED.*submodules/' <<<"$(gout "$1" --root "$U3" "${DECL[@]}")"; }
+
+# F4: a URL-third gitlink whose directory is a PLAIN directory with code (not a repository): scanned
+F4="$TMP/f4"; mkrepo "$TMP/rf4/r"; mkdir -p "$F4"; GIT -C "$F4" init -q .; addsub "$F4" "$TMP/rf4/r" submodules/plain "$GO"; commitall "$F4"
+GIT -C "$F4" submodule deinit -f submodules/plain >/dev/null 2>&1; rm -rf "${F4:?}/submodules/plain"; mkdir -p "$F4/submodules/plain"; printf "$BADPY" > "$F4/submodules/plain/bad.py"
+if scanned "$GATE" "$F4" && ! pline "$GATE" "$F4" 'submodules/plain'; then ok "F4: URL rule does not prune a plain (non-repository) directory holding code"; else bad "F4: plain directory hidden by the URL rule"; fi
+t_f4() { scanned "$1" "$F4"; }
+# F4 golden-FALSE: a populated gitlink with the same URL is pruned; an EMPTY (uninitialised) one too
+if pruned "$GATE" "$P2B/sub" 'submodules/v'; then ok "F4 golden-FALSE: populated third-party gitlink still pruned"; else bad "F4 golden-FALSE: populated gitlink not pruned"; fi
+
+# F5: a value option as the LAST argument exits 2 promptly, never loops (all three gates)
+for g in cm_killpg_pgid_guard cm_dangerous_combination_fail_closed cm_oracle_strategy_named_and_independent; do
+    for opt in --root --own-orgs --window --max-depth --glob --baseline --base; do
+        grep -q -- "$opt)" "$HERE/$g.sh" || continue
+        timeout 10 bash "$HERE/$g.sh" "$opt" >/dev/null 2>&1; r=$?
+        if [ "$r" -eq 2 ]; then ok "F5: $g $opt without a value -> exit 2"; else bad "F5: $g $opt without a value -> rc=$r (hang/accept)"; fi
+    done
+done
+t_f5() { timeout 10 bash "$1" --own-orgs >/dev/null 2>&1; [ $? -eq 2 ]; }
+
+# F11: ambiguous .gitmodules (duplicate path, multi-valued url) is scanned
+A1="$TMP/amb1"; mkrepo "$TMP/ramb/r"; mkdir -p "$A1"; GIT -C "$A1" init -q .; addsub "$A1" "$TMP/ramb/r" submodules/x "$GO"; commitall "$A1"
+printf '[submodule "dup"]\n\tpath = submodules/x\n\turl = %s\n' "$GO" >> "$A1/.gitmodules"
+if scanned "$GATE" "$A1" && ! pline "$GATE" "$A1" 'submodules/x'; then ok "F11: duplicate .gitmodules path -> ambiguous -> scanned"; else bad "F11: duplicate-path ambiguity pruned"; fi
+A2="$TMP/amb2"; mkdir -p "$A2"; GIT -C "$A2" init -q .; addsub "$A2" "$TMP/ramb/r" submodules/x "$GO"; commitall "$A2"
+GIT -C "$A2" config -f .gitmodules --add submodule.submodules/x.url "$GO"
+if scanned "$GATE" "$A2" && ! pline "$GATE" "$A2" 'submodules/x'; then ok "F11: multi-valued url -> ambiguous -> scanned"; else bad "F11: multi-valued url pruned"; fi
+t_f11() { scanned "$1" "$A1" && scanned "$1" "$A2"; }
+
+# F6 / Q4: own-org URL + manifest mark: only rule M can prune it
+Q4="$TMP/q4"; mkrepo "$TMP/rq4/r"; mkdir -p "$Q4"; GIT -C "$Q4" init -q .; manifest "$Q4/helix-deps.yaml" submodules/q true; addsub "$Q4" "$TMP/rq4/r" submodules/q "$OWN"; commitall "$Q4"
+if pline "$GATE" "$Q4" 'submodules/q'; then ok "F6/Q4: own-org URL + manifest mark -> pruned by the manifest rule alone"; else bad "F6/Q4: manifest rule did not prune"; fi
+t_q4() { pline "$1" "$Q4" 'submodules/q'; }
+# F7 / Q1: typechange -- the INDEX records a regular file at src, the worktree has a directory src/ holding code; manifest marks src
+Q1="$TMP/q1"; mkdir -p "$Q1"; GIT -C "$Q1" init -q .; manifest "$Q1/helix-deps.yaml" src true; printf 'x\n' > "$Q1/src"; GIT -C "$Q1" add -A >/dev/null; GIT -C "$Q1" commit -q -m c
+rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf "$BADPY" > "$Q1/src/main.py"
+if scanned "$GATE" "$Q1"; then ok "F7/Q1: typechange (index blob, worktree dir) is not a gitlink -> scanned -> FAIL"; else bad "F7/Q1: typechange hid first-party code"; fi
+t_q1() { scanned "$1" "$Q1"; }
+# F8 / qcase: uppercase organisation in the URL is the same organisation
+QC="$TMP/qcase"; mkrepo "$TMP/rqc/r"; mkdir -p "$QC"; GIT -C "$QC" init -q .; addsub "$QC" "$TMP/rqc/r" submodules/c 'git@github.com:Vasic-Digital/c.git'; commitall "$QC"
+if scanned "$GATE" "$QC" && ! pline "$GATE" "$QC" 'submodules/c'; then ok "F8: URL org case-folded (Vasic-Digital == vasic-digital) -> own-org -> scanned"; else bad "F8: case-different own-org URL pruned"; fi
+t_qc() { scanned "$1" "$QC"; }
+
+mutg() { # $1=name $2=sed expr on the GATE copy: echoes the mutated gate path
+    local D="$TMP/mg_$1"; mkdir -p "$D/gates" "$D/lib" "$D/deps_manifest"
+    cp "$HERE/cm_killpg_pgid_guard.sh" "$D/gates/"; cp "$HERE"/../lib/*.sh "$HERE"/../lib/*.list "$D/lib/" 2>/dev/null; cp "$HERE"/../deps_manifest/*.* "$D/deps_manifest/"
+    sed -i "$2" "$D/gates/cm_killpg_pgid_guard.sh"; echo "$D/gates/cm_killpg_pgid_guard.sh"
+}
+# round-4 mutants (reviewer: M_off, nolower, typechange/modecheck, shift; author: the rest)
+chk m_off     's/then tp\["\$pp"\]=1/then :/' 'then tp\["\$pp"\]=1' t_q4
+chk nolower   's/local u="\${1,,}" orgs="\${2,,}" o/local u="$1" orgs="$2" o/' 'local u="\${1,,}" orgs="\${2,,}" o' t_qc
+chk modecheck 's/\[ "\$mode" = 160000 \] \&\& //' '\[ "\$mode" = 160000 \] \&\& ' t_q1
+chk default   's/^cm_tp_orgs_resolve() {/cm_tp_orgs_resolve() { printf "vasic-digital,HelixDevelopment\\n"; return 0/' '^cm_tp_orgs_resolve() {' t_f1
+chk normall   's/\[\[ "\$o" =~ \^\[A-Za-z0-9._-\]+\$ \]\] || return 2/:/' '\[\[ "\$o" =~ \^\[A-Za-z0-9._-\]+\$ \]\] || return 2' t_f2m
+chk fileurl   's/(https?|ssh|git):\/\//(https?|ssh|git|file):\/\//;s/\*%\*|//' 'ssh|git):' t_f3
+chk popul     's/^cm_tp_prunable_dir() {/cm_tp_prunable_dir() { return 0/' '^cm_tp_prunable_dir() {' t_f4
+chk ambig     's/ \&\& \[ -z "\${amb\[\$g\]:-}" \]//;s/\[ "\$nurl" = 1 \] \&\& //' 'amb\[\$g\]' t_f11
+SH="$(mutg shift 's/--own-orgs) \[ \$# -ge 2 \] || { echo "\${GATE}: --own-orgs requires a value" >\&2; exit 2; }; /--own-orgs) /')"
+if grep -q 'own-orgs requires' "$SH"; then bad "shift mutant did not apply"; elif t_f5 "$SH"; then bad "mutant shift survived (--own-orgs last arg not detected)"; else ok "mutant shift caught (--own-orgs as last argument)"; fi
+
 # no-prune mutation of the gate itself
 M="$TMP/mut"; mkdir -p "$M/gates" "$M/lib" "$M/deps_manifest"
 cp "$HERE/cm_killpg_pgid_guard.sh" "$M/gates/"; cp "$HERE"/../lib/*.sh "$M/lib/"; cp "$HERE"/../deps_manifest/*.* "$M/deps_manifest/"

@@ -1,0 +1,5 @@
+# Declared own-org list of THIS repository (consumer DATA, §11.4.79(6) / §11.4.35), read by
+# scripts/lib/third_party_prune.sh. One organisation per line (or comma separated); # starts a comment.
+# Without a declaration the URL-based third-party rule is OFF (only helix-deps.yaml third_party: true prunes).
+vasic-digital
+HelixDevelopment

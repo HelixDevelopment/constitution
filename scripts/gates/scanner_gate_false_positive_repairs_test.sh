@@ -43,8 +43,9 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/cm_repair.XXXXXX")" || exit 2
 : "${TMP:?}"
 trap 'rm -rf -- "${TMP:?}"' EXIT
 
-pass=0; fail=0
+pass=0; fail=0; skip=0
 ok()  { pass=$((pass+1)); echo "ok   $1"; }
+skp() { skip=$((skip+1)); echo "SKIP $1"; }   # a skip is never counted as ok (§11.4.3)
 bad() { fail=$((fail+1)); echo "FAIL $1"; }
 # run_rc <cmd...> : sets RC and OUT
 # gitify <dir> : the prune lib honours a manifest `third_party: true` mark only on a RECORDED gitlink (killpg scope
@@ -315,7 +316,12 @@ KL="$(cm_third_party_prune_paths "$K" | LC_ALL=C sort | tr '\n' ' ')"
 [ "$KL" = "ext/q site-packages submodules/tpc third_party " ] && ok "F1 lib unit: comment/value text never read as path:/third_party: keys; block ends at next top-level key" || bad "F1 lib unit prune list: '$KL'"
 # the real canon manifest has comment text such as 'third_party: true' / 'path: ...' (helix-deps.yaml ~95,110,267)
 CL="$(cm_third_party_prune_paths "$CANON" | LC_ALL=C sort | tr '\n' ' ')"
-case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) if [ -e "$CANON/submodules/llmctl/.git" ]; then bad "F1 canon manifest: nested llama.cpp missing: '$CL'"; else ok "F1 canon manifest: llmctl not populated in this checkout, nested third-party tree has nothing to scan (skipped, stated)"; fi ;; esac
+case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) if [ -e "$CANON/submodules/llmctl/.git" ]; then bad "F1 canon manifest: nested llama.cpp missing: '$CL'"; else
+       # llmctl is not populated in this checkout: the nested llama.cpp mark cannot be read (a recorded, POPULATED gitlink is
+       # required). Real assertion that needs no population: the own-org parents are not pruned and no unrecorded
+       # nested path was emitted; the nested-prune half is a SKIP, never an ok.
+       case "$CL" in *"submodules/llmctl/"*|*"submodules/claude_toolkit/"*) bad "F1 canon manifest (unpopulated): nested path pruned without a populated parent: '$CL'" ;; *) ok "F1 canon manifest (unpopulated llmctl): own-org parents not pruned, nothing nested emitted unrecorded"; skp "F1 canon manifest: nested llama.cpp prune needs a populated llmctl (not populated here)" ;; esac
+   fi ;; esac
 # symlink guard: an own-org-looking submodules/* symlink and a symlinked manifest are never followed
 L="$TMP/lnk"; mkdir -p "$L/submodules/real" "$TMP/lnk_out"
 printf 'schema_version: 1\ndeps:\n  - name: evilsym\n    third_party: true\n' > "$TMP/lnk_out/helix-deps.yaml"
@@ -596,5 +602,5 @@ run "$DCFC" --root "$S2" --quiet; D3="$OUT"
 [ "$B0" = "$(sum_tree "$S2")" ] && ok "idempotency/read-only: scanned tree byte-identical after 6 runs" || bad "gate mutated the tree"
 
 echo "======================================================================"
-echo "RESULT: $pass ok, $fail failed"
+echo "RESULT: $pass ok, $fail failed, $skip skipped"
 [ "$fail" -eq 0 ]
