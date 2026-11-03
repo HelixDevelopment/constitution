@@ -93,6 +93,14 @@
 # rebinding). A bare `X.killpg = <value>` assignment (monkeypatch) and a `def _fake_killpg(..)` double are
 # not signals (their right-hand side / parameters are still scanned).
 #
+# ── Scan scope: third-party code is pruned (§11.4.28/§11.4.35) ───────────────
+# Like CM-DANGEROUS-COMBINATION-FAIL-CLOSED and CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT, a directory
+# walk prunes (via scripts/lib/third_party_prune.sh): directories named `third_party` / `site-packages`,
+# every helix-deps.yaml dep with `third_party: true` (explicit `path:` or `submodules/<name>`), and the
+# third_party deps of nested own-org manifests. Own-org submodules stay scanned. Unsafe manifest paths are
+# dropped (scan more); an unusable manifest or missing lib scans more (fail closed). Single-file roots are
+# never pruned. Opt back in with --include-third-party. Test: cm_killpg_pgid_guard_scope_test.sh.
+#
 # `scripts/gates` is excluded from the default scan root's recursive walk (this file and its
 # mutation-test fixtures legitimately embed the dangerous literal as fixture text).
 #
@@ -108,6 +116,8 @@
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
+#     --include-third-party
+#                    also scan third-party trees (default: pruned)
 #     -h|--help      print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
@@ -116,6 +126,7 @@
 #   KILLPG_GUARD_ALLOW_PATHS  extra path globs (relative to the scan root) where the audited allow
 #                             marker is honoured, in addition to the test-path rules above (read into an
 #                             array, never glob-expanded against the cwd)
+#   KILLPG_GUARD_INCLUDE_THIRD_PARTY  1 = same as --include-third-party (guarded override)
 #   KILLPG_GUARD_EXT          space-separated source extensions to scan
 #                             (default: "py go rs c cc cpp h hpp sh bash")
 #   KILLPG_GUARD_EXCLUDE      space-separated dir-name globs to prune
@@ -158,6 +169,7 @@ _ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate
 if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
 cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
 cm_gate_env_set window KILLPG_GUARD_WINDOW 6 value
+cm_gate_env_set include_tp KILLPG_GUARD_INCLUDE_THIRD_PARTY 0 value
 quiet=0
 
 while [ $# -gt 0 ]; do
@@ -165,6 +177,7 @@ while [ $# -gt 0 ]; do
         --root) root="$2"; shift 2 ;;
         --window) window="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
+        --include-third-party) include_tp=1; shift ;;
         -h|--help) awk 'NR>1 && !/^#/ {exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -216,6 +229,17 @@ for ex in $excludes; do
         *)   prune_expr+=(-name "$ex" -o) ;;
     esac
 done
+# third-party prune (same resolver as the sibling scanner gates): root-anchored, see
+# cm_third_party_prune_find_expr in scripts/lib/third_party_prune.sh
+if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
+    # shellcheck source=/dev/null
+    tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
+    if [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null; then
+        cm_third_party_prune_find_expr "$root"
+    else
+        echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
+    fi
+fi
 # drop trailing -o
 if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
