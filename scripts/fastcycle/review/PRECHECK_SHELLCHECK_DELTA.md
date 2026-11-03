@@ -8,7 +8,7 @@
 | Status | proposed (ATM-1217 r10, structural replacement; independent review owed); rule id `shellcheck-baseline-delta/7`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
-| Design | `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
+| Design | r10: the "Command units" and "Units helper" sections below (the r10 structural replacement); r3-r9: `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
 
 ## What it is
 
