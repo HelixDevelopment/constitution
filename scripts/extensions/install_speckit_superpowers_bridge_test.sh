@@ -362,6 +362,55 @@ else
 	skip "INTEGRATION-1 (real root): reason=topology_unsupported (no .specify/ under $ROOT)"
 fi
 
+# ── LIVE fixture: a REAL spec-kit project made by the REAL `specify init` (offline: templates are bundled in the
+#    CLI) + the REAL `specify extension add --dev <local superspec checkout>` (offline) + a real git submodule of that
+#    checkout. Nothing here is a stub: the answering binary is LIVE_SPECIFY (recorded in LIVE_ID). When any real
+#    prerequisite is absent the LIVE cases SKIP honestly (topology_unsupported), never fall back to a stub.
+find_superspec_src() {
+	local c
+	for c in "${SUPERSPEC_SRC:-}" "$ROOT/submodules/superspec" "$ROOT/constitution/submodules/superspec" "$SELF_DIR/../../submodules/superspec"; do
+		[ -n "$c" ] && [ -f "$c/extension.yml" ] && { ( cd "$c" && pwd ); return 0; }
+	done
+	return 1
+}
+make_live_fixture() {
+	# make_live_fixture <root> <superspec-src> -> 0 only when every real step succeeded
+	local r="$1" s="$2" f
+	mkdir -p "$r" || return 1
+	( cd "$r" && git init -q -b main \
+		&& PATH="$LIVE_PATH" timeout 180 specify init . --here --force --non-interactive --integration claude --ignore-agent-tools >"$r.init.out" 2>&1 \
+		&& for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md CRUSH.md; do echo "# $f" > "$f"; done \
+		&& PATH="$LIVE_PATH" timeout 120 specify extension add --dev "$s" >"$r.ext.out" 2>&1 \
+		&& mkdir -p submodules && git -c protocol.file.allow=always submodule add -q "$s" submodules/superspec >/dev/null 2>&1 \
+		&& git add -A && git -c user.email=t@t -c user.name=t commit -q -m live-fixture ) >/dev/null 2>&1 || return 1
+	[ -d "$r/.specify" ] && [ -f "$r/.specify/extensions/superspec/extension.yml" ] && [ -f "$r/submodules/superspec/extension.yml" ]
+}
+LIVE_FX_OK=0; LIVE_SKIP_WHY=""
+SSRC=$(find_superspec_src) || SSRC=""
+if [ -z "$LIVE_SPECIFY" ]; then LIVE_SKIP_WHY="no real specify CLI on PATH"
+elif [ -z "$SSRC" ]; then LIVE_SKIP_WHY="no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC"
+elif make_live_fixture "$TMP/live_fixture" "$SSRC"; then LIVE_FX_OK=1
+else LIVE_SKIP_WHY="real specify init / extension add / submodule add did not complete"; fi
+
+if [ "$LIVE_FX_OK" -eq 1 ]; then
+	v=$(integration_verdict "$TMP/live_fixture" "$TMP/integration1l.out")
+	if [ "$v" = PASS ]; then okl "INTEGRATION-1L: real installer + real probe + REAL specify against a REAL 'specify init' project (superspec via real 'extension add --dev') PASSes, evidence written"
+	else bad "INTEGRATION-1L: live fixture run did not PASS; output:"; sed 's/^/         /' "$TMP/integration1l.out" >&2; fi
+	r=$(full_auto_verdict "$TMP/live_fixture" livefx)
+	case "$r" in
+		PASS:*) okl "FULL-AUTOMATION-1L: two consecutive real runs on the real specify project PASS with identical per-layer status ('${r#PASS:}')" ;;
+		*) bad "FULL-AUTOMATION-1L: ${r#FAIL:}" ;;
+	esac
+	# paired mutation: break the REAL project (drop a carrier -> L1 PARTIAL); the same verdict function MUST FAIL
+	rm -f "$TMP/live_fixture/AGENTS.md"
+	v=$(integration_verdict "$TMP/live_fixture" "$TMP/integration1lm.out")
+	if [ "$v" = FAIL ] && grep -q "L1 (developer workstation)" "$TMP/integration1lm.out"; then
+		okl "INTEGRATION-1L-MUT: real specify project with a carrier removed -> verdict FAIL naming L1 (live verdict is falsifiable)"
+	else bad "INTEGRATION-1L-MUT: mutated live project did not FAIL as required (verdict=$v)"; fi
+else
+	skip "INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported ($LIVE_SKIP_WHY)"
+fi
+
 # ── GATELOGIC-1F — gate-logic (stub-class) against a spec-kit-shaped fixture root; NOT live evidence ─
 CF="$TMP/consumer_fixture"; mkdir -p "$CF"
 make_consumer_fixture "$CF"

@@ -402,7 +402,7 @@ fi
 
 # ── RS-19 runtime signature — after running, 'specify extension list' is
 #    non-empty and names the pinned version. ─────────────────────────────────
-RS19_JSON=$("$SPECIFY_BIN" extension list --json 2>&1)
+RS19_JSON=$(cd "$ROOT" && "$SPECIFY_BIN" extension list --json 2>&1)   # live specify resolves .specify/ from cwd, so run it IN the target root
 RS19_RC=$?
 log_only "RS-19 extension list --json (rc=$RS19_RC): $RS19_JSON"
 RS19_PASS=0
