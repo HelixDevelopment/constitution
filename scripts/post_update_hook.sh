@@ -31,6 +31,10 @@
 #   subshell, a failing step is recorded as an ERROR (exit 1) and the next step
 #   still runs; `exit`/unset variables end only that step (a signal can still
 #   end the hook).
+#   4f. (Every pull) regenerates the §11.4.182/§11.4.231(F) agent-type label
+#      definitions T<N>-<branch>-<model>-<effort> into <project>/.claude/agents
+#      via scripts/multitrack/install_agent_label_defs.sh (idempotent, never
+#      touches hand-made agents, non-fatal)
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -739,6 +743,39 @@ install_action_plugins() {
 }
 
 # ============================================================================
+# STEP 4f — (Re)generate the §11.4.182 / §11.4.231(F) agent-type label definitions
+# ============================================================================
+# Every pull regenerates the consumer's T<N>-<branch>-<model>-<effort> agent
+# types into <project>/.claude/agents (idempotent; hand-made agents are never
+# touched; a collision is a WARNING, never fatal). Runs on EVERY pull, not only
+# when a tracked category changed, so a consumer that never had the types gets
+# them on its next pull. Definitions are loaded by the agent platform, so new
+# types may only become dispatchable after a short delay or a session restart.
+install_agent_label_defs() {
+    header "STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>)"
+
+    local installer="${CONST_DIR}/scripts/multitrack/install_agent_label_defs.sh"
+    if [ ! -f "$installer" ]; then
+        warn "install_agent_label_defs.sh missing: $installer — agent-type label definitions NOT generated."
+        WARNINGS+=("install_agent_label_defs.sh missing — agent-type label definitions not generated")
+        return 0
+    fi
+
+    local rc=0
+    bash "$installer" --project-root "$PROJECT_ROOT" || rc=$?
+    case "$rc" in
+        0) info "  -> Agent-type label definitions current." ;;
+        3) warn "  -> a hand-made agent file collides with a label definition name; left untouched."
+           WARNINGS+=("agent-type label definitions: a hand-made file collides with a generated name (hand-made kept)") ;;
+        4) warn "  -> a generated label definition was hand-edited; left untouched."
+           WARNINGS+=("agent-type label definitions: a generated file was hand-edited (kept; delete it to regenerate)") ;;
+        *) warn "  -> install_agent_label_defs.sh exited $rc — label definitions may be stale."
+           WARNINGS+=("agent-type label definitions: installer exited $rc") ;;
+    esac
+    return 0
+}
+
+# ============================================================================
 # STEP 4c — label-sync auto-wiring (hooks + statusLine into the consumer)
 # ============================================================================
 # §11.4.228(D) + §11.4.164 + §11.4.182: when label-sync scripts, the installer or
@@ -1190,6 +1227,9 @@ main() {
     hint_installed_hook_drift
     detect_changes
     run_step validate_hub_structure   # 5b: every pull, changed files or not; isolated like steps 2-5
+
+    # §11.4.182 / §11.4.231(F): always (idempotent), independent of what changed.
+    run_step install_agent_label_defs
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \
