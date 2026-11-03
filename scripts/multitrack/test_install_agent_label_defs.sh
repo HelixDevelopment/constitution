@@ -262,6 +262,8 @@ check "I18a (X3) out-dir inside a DANGLING ~/.claude-* symlink refused" 6 "$(run
 check "I18b (X6) out-dir EQUAL to a user config dir (~/.claude-y) refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-x")"
 RHR="$W/realhome"; mkdir -p "$RHR/proj"; ln -s "$RHR" "$W/homelink"
 check "I18c (X5) HOME is a symlink: project root = its real target refused" 6 "$(runh "$W/homelink" --project-root "$RHR")"
+mkdir -p "$W/x5/real/home" "$W/x5/links"; ln -s "$W/x5/real/home" "$W/x5/links/homelink"; git -C "$W/x5/real" init -q -b main 2>/dev/null
+check "I18c2 (X5) HOME is a symlink: project root = an ancestor of its real target refused" 6 "$(runh "$W/x5/links/homelink" --project-root "$W/x5/real")"
 check "I18d (X5) HOME is a symlink: out-dir = its real target refused" 6 "$(runh "$W/homelink" --project-root "$P" --out-dir "$RHR")"
 # X7: HOME empty AND no passwd entry (getent stubbed to fail): refuse, unless --check
 STUB="$W/stubbin"; mkdir -p "$STUB"; printf '#!/bin/sh\nexit 2\n' >"$STUB/getent"; chmod +x "$STUB/getent"

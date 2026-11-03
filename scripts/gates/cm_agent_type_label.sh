@@ -197,10 +197,10 @@ rfs() { env -u CLAUDE_CONFIG_DIR HOME="$1" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$
 r_s1="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude/agents")"; r_s2="$(rfs "$SH" --project-root "$SH/dotreal")"
 UD="$W/ud"; mkdir -p "$UD/proj/.claude"
 r_s3="$(env CLAUDE_CONFIG_DIR="$UD/proj/.claude" HOME="$SH/plain" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --dry-run --project-root "$P" --out-dir "$UD/proj" >/dev/null 2>&1; echo $?)"; r_s7="$(rfs "" --project-root "$P")"; r_s5="$(rfs "$SH" --project-root "$SH")"; r_s6="$(rfs "$SH" --project-root "$W")"; r_s4="$(rfs "" --project-root "$(getent passwd "$(id -u)" | cut -d: -f6)")"
-r_r1="$(rfs "$SH" --project-root "$P" --out-dir /)"; r_r2="$(rfs "$SH" --project-root "$P" --out-dir //)"; r_r3="$(rfs "$SH" --project-root "$P" --out-dir /etc/agents)"; r_r4="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude-x")"
-ln -s "$W/nonexistent-target" "$SH/.claude-dangling"; RHR="$W/realhome"; mkdir -p "$RHR"; ln -s "$RHR" "$W/homelink"
-STUB="$W/stubbin"; mkdir -p "$STUB"; printf '#!/bin/sh\nexit 2\n' >"$STUB/getent"; chmod +x "$STUB/getent"
-r_x3="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude-dangling/agents")"; r_x5="$(rfs "$W/homelink" --project-root "$RHR")"
+r_r1="$(rfs "$SH" --project-root "$P" --out-dir /)"; r_r2="$(rfs "$SH" --project-root "$P" --out-dir //)"; r_r3="$(rfs "$SH" --project-root "$P" --out-dir /etc/agents)"; r_r4="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude")"
+ln -s "$W/nonexistent-target" "$SH/.claude-dangling"; STUB="$W/stubbin"; mkdir -p "$STUB"; printf '#!/bin/sh\nexit 2\n' >"$STUB/getent"; chmod +x "$STUB/getent"
+r_x3="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude-dangling/agents")"; mkdir -p "$W/x5/real/home" "$W/x5/links"; ln -s "$W/x5/real/home" "$W/x5/links/homelink"; git -C "$W/x5/real" init -q -b main 2>/dev/null
+r_x5="$(rfs "$W/x5/links/homelink" --project-root "$W/x5/real")"
 r_x7="$(env -u CLAUDE_CONFIG_DIR PATH="$STUB:$PATH" HOME="" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --dry-run --project-root "$P" >/dev/null 2>&1; echo $?)"
 P4="$W/p4"; mkdir -p "$P4/cfg"; git -C "$P4" init -q -b main 2>/dev/null; git -C "$P4" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
 printf 'schema_version: 1\nhost:\n  hostname: cmatl-p4\nprotected_drives:\n  - serial: "PROT"\ntracks:\n  - id: track-007\n    role: feature\n    branch_pattern: "feature/*"\n    drive_serial: "C"\n    mount: %s/absent\n' "$P4" >"$P4/cfg/cmatl-p4.yaml"
