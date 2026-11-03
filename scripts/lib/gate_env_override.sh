@@ -41,8 +41,8 @@ cm_gate_env_set() {
     shift 4 2>/dev/null || shift $#
     while [ $# -gt 0 ]; do
         case "$1" in
-            --test-root) [ $# -ge 2 ] && __troots+=("$2"); shift 2 ;;
-            --trusted)   [ $# -ge 2 ] && __trusted+=("$2"); shift 2 ;;
+            --test-root) if [ $# -ge 2 ]; then __troots+=("$2"); shift 2; else shift; fi ;;
+            --trusted)   if [ $# -ge 2 ]; then __trusted+=("$2"); shift 2; else shift; fi ;;
             *) shift ;;
         esac
     done
