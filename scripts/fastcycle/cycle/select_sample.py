@@ -91,6 +91,16 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     a row BACKDATED after the fact (written later with an on_date <= as-of)
     is still visible, because the tracker keeps no immutable ingestion log
     to reconstruct "what the DB held on day X" by write time.
+    THE DAY RULE (V4-6, round 4): every window / cutoff / needle rule reads an
+    on_date's calendar day as its FIRST 10 CHARACTERS -- never created_at
+    (the row's db-write time: 11 live Reopened rows were written days or weeks
+    after their on_date, and keying on created_at drops them), and never a
+    UTC conversion: an on_date carrying a time and an offset
+    ("2026-05-20T23:30:00-05:00") counts on its LOCAL date (05-20) although
+    its UTC date is 05-21, while git/review instants are cut in UTC. The live
+    tracker stores only 10-char dates (all 1306 rows, 2026-10-08), so this is
+    an assumption stated, not a live divergence; the generated matrix pins
+    every shape (date, "YYYY-MM-DD HH:MM:SS", "T", "T"+offset).
 (3) Reopened-in-window inclusion is UNCONDITIONAL (DEC-03: "plus every item
     reopened in the window") -- a reopened item is added to `items`
     regardless of whether its type-stratum already filled its N slots and
@@ -193,18 +203,20 @@ if _LIB_DIR not in sys.path:
 # BLIND (C-001 exit 4: no honest output is possible), never the uncaught
 # exception's exit 1 -- which C-001 reserves for a determinism mismatch. Run as
 # a script, this exits 4; loaded by cycle_report.py, the exception is re-raised
-# so cycle_report.py reports its own BLIND exit.
+# so cycle_report.py reports its own BLIND exit. V4-4 (round 4): the API this
+# tool uses is resolved INSIDE the guard, so a sibling that loads but lacks a
+# function (renamed/removed -- the refactor-drift case) is BLIND too, not an
+# AttributeError exit 1 at first use.
 try:
     import fc_common  # noqa: E402  (path-inserted import, matches cycle_report.py's own convention)
-except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, ...) is BLIND
+    canon = fc_common.canon  # V4-4
+    body_hash_of = fc_common.body_hash_of  # V4-4
+except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, AttributeError ...) is BLIND
     if __name__ == "__main__":
         print("select_sample: BLIND: could not load lib/fc_common.py (%s: %s) -- no honest selection "
               "is possible (C-001 exit 4)" % (type(_exc).__name__, _exc), file=sys.stderr)
         sys.exit(4)
     raise
-
-canon = fc_common.canon
-body_hash_of = fc_common.body_hash_of
 
 SCHEMA = "baseline-sample/v1"
 ITEM_TYPES = ("Bug", "Feature", "Task")
@@ -475,35 +487,23 @@ def detect_bulk_import_clusters(history_by_id, candidate_ids, bulk_threshold):
     return flagged
 
 
-def retroactive_state(history):
-    """Tri-state: "retroactive" | "normal" | "unparseable" (Opened or closure
-    created_at missing/malformed, so the gap cannot be computed). The former
-    `except Exception: return False` folded "unparseable" into "normal", so a
-    corrupt-timestamp item was silently kept as a usable duration sample
-    (§11.4.201(6)); classify_exclusions now excludes it WITH a stated reason."""
-    opened = next((r for r in history if r["event_type"] == "Opened"), None)
-    closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)
-    if not opened or not closed:
-        return "normal"
-    try:
-        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
-    except (KeyError, ValueError, TypeError, AttributeError):
-        return "unparseable"
-    return "retroactive" if 0 <= gap < 60 else "normal"
-
-
 def detect_retroactive_registration(history):
     """Opened db_write -> terminal closure db_write gap in [0, 60) seconds.
     THE one implementation in the cycle tools (cycle_report.py imports it as
     its RETROACTIVE_REGISTRATION flag); a negative gap (closure row written
-    before the Opened row) is NOT a retroactive registration (V2-4). An
-    unparseable timestamp is not provably retroactive, so this is False for
-    it; retroactive_state() distinguishes it."""
-    return retroactive_state(history) == "retroactive"
+    before the Opened row) is NOT a retroactive registration (V2-4)."""
+    opened = next((r for r in history if r["event_type"] == "Opened"), None)
+    closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)
+    if not opened or not closed:
+        return False
+    try:
+        gap = (parse_iso(closed["created_at"]) - parse_iso(opened["created_at"])).total_seconds()
+    except Exception:
+        return False
+    return 0 <= gap < 60
 
 
 RETROACTIVE_REASON = "retroactive-registration (Opened->closure db_write gap < 60s)"
-UNPARSEABLE_REASON = "unparseable-timestamp (Opened/closure created_at missing or malformed; gap not computable)"
 
 
 def classify_exclusions(history_by_id, candidate_ids, bulk_threshold):
@@ -519,12 +519,8 @@ def classify_exclusions(history_by_id, candidate_ids, bulk_threshold):
             dirname, on_date = bulk_flagged[atm_id]
             reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
                 dirname, on_date, bulk_threshold)
-        else:
-            rstate = retroactive_state(history_by_id.get(atm_id, []))
-            if rstate == "retroactive":
-                reason = RETROACTIVE_REASON
-            elif rstate == "unparseable":
-                reason = UNPARSEABLE_REASON
+        elif detect_retroactive_registration(history_by_id.get(atm_id, [])):
+            reason = RETROACTIVE_REASON
         exclusion_by_id[atm_id] = reason
     return exclusion_by_id
 

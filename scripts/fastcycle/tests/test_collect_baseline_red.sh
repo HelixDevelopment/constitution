@@ -30,6 +30,13 @@
 #          tool did not perform.
 #   C-V413 (round 2, V4-13) an item id that could escape --out-dir as a path
 #          ('/', '..', NUL, whitespace) is refused before anything is written.
+#   C-FRESHJ (T048 V4 round 5, F7) a --fresh-execution-json that exists but is not
+#          a JSON object is refused AT START-UP (exit 2), before any work -- it used
+#          to be parsed only after the hours-long replay loop, crashing with a
+#          traceback so baseline.json was never written.
+#   C-ONDATE (T048 V4 round 5, F8) the reopen queries compare the CALENDAR DAY of
+#          on_date (substr 1..10, like select_sample.py): a row timestamped on the
+#          window's last day is in the window.
 #
 # Env: FC_CB_UNDER_TEST (collect_baseline.py path), FC_BR_UNDER_TEST
 # (baseline_replay.sh path) -- the paired-mutation runner points these at mutants.
@@ -229,7 +236,9 @@ fi
 if want C-FRESH; then
   OD="$WORK/fresh"
   run_cb "$OD" --skip-gate-replay --fresh-execution-json "$WORK/no_such_fresh.json"
-  if [ "$CB_RC" = 2 ] && grep -q "no_such_fresh.json" "$OD.stderr"; then
+  # round 5: the message must say the file is MISSING (the start-up JSON validation would also exit 2 for a
+  # missing file, naming it as "not a valid JSON object" -- a missing file must be reported as missing)
+  if [ "$CB_RC" = 2 ] && grep -q "file not found: .*no_such_fresh.json" "$OD.stderr"; then
     ok "[C-FRESH] a --fresh-execution-json path that does not exist is refused (exit 2), not recorded as NOT_YET_RECORDED"
   else
     bad "[C-FRESH] missing --fresh-execution-json file: rc=$CB_RC -- a typo'd path hid behind an honest-looking status"
@@ -355,6 +364,63 @@ PY
     ok "[C-V413] a sampled item id holding a bare '/' (no '..') is refused too (exit 4, id named, nothing written)"
   else
     bad "[C-V413] bare-slash id: rc=$rc sampled=$INS3 -- an id with a path separator was used as a path ($(tail -c 200 "$WORK/v413s.stderr"))"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+if want C-FRESHJ; then
+  printf '{"status": "RECORDED", "tokens": ' >"$WORK/fresh_bad.json"            # truncated JSON
+  printf '[1, 2, 3]\n' >"$WORK/fresh_list.json"                                 # valid JSON, not an object
+  printf '{"status": "RECORDED", "tokens": 1234}\n' >"$WORK/fresh_ok.json"
+  CFJ=""
+  for f in fresh_bad fresh_list; do
+    OD="$WORK/cfj_$f"
+    run_cb "$OD" --skip-gate-replay --fresh-execution-json "$WORK/$f.json"
+    if [ "$CB_RC" = 2 ] && grep -q "$f.json" "$OD.stderr" && ! grep -q Traceback "$OD.stderr" && [ ! -e "$OD/sample.json" ]; then
+      CFJ="$CFJ ok"
+    else
+      CFJ="$CFJ $f:rc=$CB_RC,sample=$([ -e "$OD/sample.json" ] && echo written || echo none),$(tail -c 120 "$OD.stderr" | tr '\n' ' ')"
+    fi
+  done
+  OD="$WORK/cfj_ok"
+  run_cb "$OD" --skip-gate-replay --fresh-execution-json "$WORK/fresh_ok.json"
+  T="$(jget "$OD/baseline.json" 'd["token_baseline"]["fresh_reexecution"].get("tokens")')"
+  if [ "$CFJ" = " ok ok" ] && [ "$T" = 1234 ]; then
+    ok "[C-FRESHJ] a truncated / non-object --fresh-execution-json is refused at start-up (exit 2, file named, nothing written, no traceback); a valid object is recorded (tokens=$T)"
+  else
+    bad "[C-FRESHJ] invalid fresh JSON:$CFJ; valid-object control recorded tokens=$T (rc=$CB_RC)"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+if want C-ONDATE; then
+  DBO="$WORK/items_ondate.db"
+  python3 - "$DBO" <<'PY'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+c.execute("CREATE TABLE items (atm_id TEXT PRIMARY KEY, type TEXT)")
+c.execute("CREATE TABLE item_history (id INTEGER PRIMARY KEY AUTOINCREMENT, atm_id TEXT, "
+          "event_type TEXT, by TEXT, on_date TEXT, reason TEXT, evidence_path TEXT, created_at TEXT)")
+c.execute("INSERT INTO items VALUES ('ATM-700', 'Bug')")
+# closed AND reopened on the window's LAST day (as_of), each with a time and an offset
+for ev, ts in (("Fixed", "2026-08-01T10:00:00+05:00"), ("Reopened", "2026-08-01T11:30:00+05:00")):
+    c.execute("INSERT INTO item_history (atm_id, event_type, by, on_date, reason, evidence_path, created_at) "
+              "VALUES ('ATM-700', ?, 'test', ?, NULL, 'qa/x.md', ?)", (ev, ts, ts))
+c.commit()
+PY
+  RES="$(FC_CB="$CB" python3 - "$DBO" <<'PY'
+import importlib.util, json, os, sys
+spec = importlib.util.spec_from_file_location("cb", os.environ["FC_CB"])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+r = m.reopen_baseline(sys.argv[1], "2026-08-01", 30)
+b = r["by_type"]["Bug"]
+print("%s %s %s" % (b["closed_in_window"], b["reopened_in_window"], b["reopened_in_window_any"]))
+PY
+)"
+  if [ "$RES" = "1 1 1" ]; then
+    ok "[C-ONDATE] a closure + reopen timestamped on the window's last day (2026-08-01T10:00:00+05:00) are in the window (closed=1 reopened=1 any=1), the calendar-day rule select_sample.py uses"
+  else
+    bad "[C-ONDATE] on_date with a time on the last window day: closed/reopened/any = '$RES' (want '1 1 1') -- the bare BETWEEN compared the timestamp string against a date and dropped it"
   fi
 fi
 

@@ -234,11 +234,17 @@ def main(argv):
         return 1
 
     input_path = argv[1]
+    # T048 V4 round 5 (F6): json.load raises more than JSONDecodeError on hostile input --
+    # ValueError for an integer literal past the 4300-digit int-conversion limit,
+    # RecursionError for nesting deeper than the recursion limit, UnicodeDecodeError (a
+    # ValueError) for bytes that are not UTF-8. Each is a REFUSE with the one-line evidence,
+    # never a traceback.
     try:
         with open(input_path, "r", encoding="utf-8") as fh:
             rec = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(f"build_deploy_qa_events: cannot read/parse {input_path}: {exc}\n")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError, RecursionError) as exc:
+        sys.stderr.write("build_deploy_qa_events: cannot read/parse %s: %s: %s\n"
+                         % (input_path, type(exc).__name__, str(exc)[:200]))
         print("REFUSE build_id=UNKNOWN verdict_INVALID=")
         return 1
 
@@ -246,15 +252,21 @@ def main(argv):
         print("REFUSE build_id=UNKNOWN verdict_INVALID=")
         return 1
 
-    kind = rec.get("kind")
-    if kind == "build_event":
-        return handle_build_event(rec)
-    if kind == "join":
-        return handle_join(rec)
-
-    sys.stderr.write(f"build_deploy_qa_events: unrecognised kind {kind!r}\n")
-    print(f"REFUSE build_id={_build_id_of(rec)} verdict_INVALID=")
-    return 1
+    try:
+        kind = rec.get("kind")
+        if kind == "build_event":
+            return handle_build_event(rec)
+        if kind == "join":
+            return handle_join(rec)
+        sys.stderr.write(f"build_deploy_qa_events: unrecognised kind {kind!r}\n")
+        print(f"REFUSE build_id={_build_id_of(rec)} verdict_INVALID=")
+        return 1
+    except (ValueError, RecursionError) as exc:
+        # a parsed value that cannot be shown (e.g. nesting deep enough to exhaust the recursion
+        # limit while it is escaped): still one REFUSE line, never a traceback
+        sys.stderr.write("build_deploy_qa_events: cannot evaluate %s: %s\n" % (input_path, type(exc).__name__))
+        print("REFUSE build_id=UNKNOWN verdict_INVALID=")
+        return 1
 
 
 if __name__ == "__main__":
