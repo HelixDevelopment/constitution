@@ -105,6 +105,7 @@ run_case "U18 model override opus on a sonnet type -> WARN"            0 yes "$P
 run_case "U18b same + ENFORCE -> BLOCK"                                2 yes "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low opus "")"
 run_case "U19 effort override high on a -low type + ENFORCE -> BLOCK"  2 yes "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low "" high)"
 run_case "U20 matching model+effort parameters -> silent (enforce)"    0 no  "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low sonnet low)"
+run_case "U20c effort parameter in other case (LOW) equal to the type -> silent (R2-6)" 0 no  "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low sonnet LOW)"
 run_case "U20b full model id naming the same family -> silent"         0 no  "$PROJ" 1 "$(mpl "$L" T1-main-opus-xhigh claude-opus-5-5 xhigh)"
 run_case "U20c model 'inherit' on a label type -> BLOCK (enforce)"     2 yes "$PROJ" 1 "$(mpl "$L" T1-main-opus-xhigh inherit "")"
 printf '%s' "$(mpl "$L" T1-main-sonnet-low opus "")" | env -u AGENT_TYPE_LABEL_ENFORCE CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_CONFIG_DIR="$LIVE_CFG" bash "$HOOK" >"$W/js2" 2>"$W/js2e"

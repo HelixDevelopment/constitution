@@ -203,6 +203,50 @@ rc=$(CLAUDE_CONFIG_DIR="$CP/.claude" MT_HOST=nohost MT_CONFIG_DIR="$CP/none" bas
 check "I14h project root equal to CLAUDE_CONFIG_DIR refused (exit 6)" 6 "$rc"
 P="$W/proj"; check "I14i an ordinary project still installs (golden-FALSE)" 0 "$(run)"
 
+# I15 round-2 review (R2-1/R2-3): symlinked user config dirs, empty HOME, out-dir containing a user dir
+# HOME is given per call as an env prefix pointing into a sandbox; the real HOME is never reassigned.
+runh() { # fakehome args... -> exit code (dry-run always; refusal must still be exit 6)
+  local fh="$1"; shift
+  env -u CLAUDE_CONFIG_DIR HOME="$fh" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run "$@" >"$W/out" 2>"$W/err"; echo $?
+}
+P="$W/proj"
+SH="$W/fakehome"; mkdir -p "$SH/dotreal/agents" "$SH/elsewhere/agents" "$SH/plain"
+ln -s "$SH/dotreal" "$SH/.claude"; ln -s "$SH/elsewhere" "$SH/.claude-x"
+check "I15a --out-dir ~/.claude/agents (symlinked .claude) refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude/agents")"
+check "I15b --project-root ~/.claude (symlink) refused" 6 "$(runh "$SH" --project-root "$SH/.claude")"
+check "I15c --project-root = the symlink TARGET refused" 6 "$(runh "$SH" --project-root "$SH/dotreal")"
+check "I15d --out-dir inside the symlink TARGET refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/dotreal/agents")"
+SP="$W/symproj"; mkdir -p "$SP"; git -C "$SP" init -q -b main; git -C "$SP" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+ln -s "$SH/dotreal" "$SP/.claude"
+check "I15e project whose .claude links to ~/.claude refused" 6 "$(runh "$SH" --project-root "$SP")"
+check "I15f symlinked ~/.claude-x as out-dir parent refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-x/agents")"
+check "I15g relative out-dir into symlinked .claude-x refused" 6 "$(cd "$SH/plain" && runh "$SH" --project-root "$P" --out-dir "../.claude-x/agents")"
+# empty HOME: the passwd home is used for the refusal
+RH="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"
+if [ -n "$RH" ] && [ -d "$RH" ]; then
+  check "I15h empty HOME: --project-root = passwd home refused" 6 "$(runh "" --project-root "$RH")"
+  check "I15i empty HOME: --out-dir ~/.claude/agents (passwd home) refused" 6 "$(runh "" --project-root "$P" --out-dir "$RH/.claude/agents")"
+else ok "I15h/i passwd home unavailable (SKIP-with-reason)"; fi
+# R2-3 (mutant ME): out-dir that CONTAINS a user config dir (real dirs, no symlinks)
+SR="$W/realcfg"; mkdir -p "$SR/proj/.claude/agents"   # user config dir NOT under HOME: only the contains-rule can catch an out-dir above it
+rc=$(env CLAUDE_CONFIG_DIR="$SR/proj/.claude" HOME="$SH/plain" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run --project-root "$P" --out-dir "$SR/proj" >"$W/out" 2>"$W/err"; echo $?)
+check "I15j --out-dir containing the user config dir refused (exit 6)" 6 "$rc"
+grep -q 'contains the user-level' "$W/err" && ok "I15j2 refusal names the contains-rule" || bad "I15j2 refusal names the contains-rule" "$(head -2 "$W/err")"
+[ -n "$RH" ] && check "I15l empty HOME: an ordinary project is NOT refused (passwd home resolved, golden-FALSE)" 0 "$(runh "" --project-root "$P")"
+check "I15k golden-FALSE: ordinary project under a fake home is not refused" 0 "$(runh "$SH" --project-root "$P")"
+# R2-2: a declared track whose mount is absent / host mismatched must NOT have its files pruned
+P="$W/proj"; run >/dev/null
+n_before="$(ls "$AG" | grep -c '^T2-feature-zeta-')"
+mv "$P/mnt/track2" "$P/mnt/track2.off"
+check "I16a run with the track-2 mount absent exit 0" 0 "$(run)"
+check "I16b declared-but-unresolvable T2 files NOT pruned" "$n_before" "$(ls "$AG" | grep -c '^T2-feature-zeta-')"
+mv "$P/mnt/track2.off" "$P/mnt/track2"
+rc=$(MT_HOST=otherhost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" >"$W/out" 2>"$W/err"; echo $?)
+check "I16c host-mismatch (no config) run exit 0" 0 "$rc"
+check "I16d config not loadable: nothing pruned" "$n_before" "$(ls "$AG" | grep -c '^T2-feature-zeta-')"
+bash "$GEN" --track 9 --branch gone --out-dir "$AG" --models sonnet,opus --efforts low >/dev/null
+P="$W/proj"; check "I16e golden-TRUE: a track removed from the config IS pruned" 0 "$(run >/dev/null; [ -e "$AG/T9-gone-sonnet-low.md" ] && echo 1 || echo 0)"
+
 # I10 lint -------------------------------------------------------------------------------------
 bash -n "$INST" 2>/dev/null && ok "I10a bash -n clean" || bad "I10a bash -n clean"
 if command -v shellcheck >/dev/null 2>&1; then shellcheck -s bash "$INST" >"$W/sc" 2>&1 && ok "I10b shellcheck clean" || bad "I10b shellcheck clean" "$(head -3 "$W/sc")"; else ok "I10b shellcheck unavailable (SKIP-with-reason)"; fi

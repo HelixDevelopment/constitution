@@ -342,7 +342,7 @@ _type_check() {
         pmodel="$(json_field .tool_input.model)"; peffort="$(json_field .tool_input.effort)"
         if [[ -n "$pmodel" && "$(_model_family "$pmodel")" != "$tmodel" ]]; then
           reason="subagent_type '${stype}' says model ${tmodel} but the call sets model '${pmodel}', which overrides the type's frontmatter"
-        elif [[ -n "$peffort" && "$peffort" != "$teffort" ]]; then
+        elif [[ -n "$peffort" && "${peffort,,}" != "$teffort" ]]; then
           reason="subagent_type '${stype}' says effort ${teffort} but the call sets effort '${peffort}', which overrides the type's frontmatter"
         else
           return 0

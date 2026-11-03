@@ -23,6 +23,14 @@
 #     R4  hook WARN payload built without JSON escaping    -> FAIL  (F7)
 #     R5  installer prunes declared tracks outside filter  -> FAIL  (F4)
 #     R6  installer accepts a user-level config dir        -> FAIL  (F1)
+#     R7  installer does not resolve symlinks of user config dirs -> FAIL (R2-1)
+#     R8  installer allows an out-dir that contains a user config dir -> FAIL (R2-3, ME)
+#     R9  installer prunes undeclared files outside the --models filter -> FAIL (R2-3, MA)
+#     R10 installer allows a project root equal to / above HOME -> FAIL (R2-3, MF)
+#     R11 installer prunes a declared-but-unresolvable track -> FAIL (R2-2)
+#     R12 installer prunes with no usable config -> FAIL (R2-2)
+#     R13 installer ignores the passwd home when HOME is empty -> FAIL (R2-1)
+#     E2  an ambient AGENT_TYPE_LABEL_AGENTS_DIR does not change the verdict (R2-4)
 #     E1  an ambient HP in the caller's environment does not change the verdict (F3)
 #   plus gate-level cases on the dispatch-log audit (warn vs enforce) and a
 #   removed-doc / removed-script case.
@@ -126,6 +134,29 @@ expect fail "R5 installer prunes a declared track's files outside the --models f
 
 D=$(fresh_tree r6); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'refuse6() { echo' 'refuse6() { return 0; echo' || rc=1
 expect fail "R6 installer accepts a user-level config dir" gate_in "$D"
+
+D=$(fresh_tree r7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'add_cfg() { add_uniq USERCFG "$1"; add_uniq USERCFG "$(canon "$1")"; }' 'add_cfg() { add_uniq USERCFG "$1"; }' || rc=1
+expect fail "R7 installer does not resolve symlinked user config dirs" gate_in "$D"
+
+D=$(fresh_tree r8); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  under "$c" "$od_c" && refuse6' '  false && refuse6' || rc=1
+expect fail "R8 installer allows an out-dir containing a user config dir" gate_in "$D"
+
+D=$(fresh_tree r9); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '    [ -n "${INFILTER[${BASH_REMATCH[2]}-${BASH_REMATCH[3]}]:-}" ] || continue' '    true' || rc=1
+expect fail "R9 installer prunes undeclared files outside the --models filter" gate_in "$D"
+
+D=$(fresh_tree r10); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  under "$h" "$pr_c" && refuse6' '  false && refuse6' || rc=1
+expect fail "R10 installer allows a project root that is / above HOME" gate_in "$D"
+
+D=$(fresh_tree r11); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '    [ -n "${UNRESOLVED[$((10#$tnum))]:-}" ] && continue' '    true' || rc=1
+expect fail "R11 installer prunes a declared-but-unresolvable track" gate_in "$D"
+
+D=$(fresh_tree r12); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'if [ "$cfg_ok" -eq 1 ] && [ -d "$out_dir" ]; then' 'if [ -d "$out_dir" ]; then' || rc=1
+expect fail "R12 installer prunes with no usable config" gate_in "$D"
+
+D=$(fresh_tree r13); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; add_uniq HOMES "$(canon "$pw_home")"; }' 'true' || rc=1
+expect fail "R13 installer ignores the passwd home when HOME is empty" gate_in "$D"
+
+D=$(fresh_tree e2); expect pass "E2 ambient AGENT_TYPE_LABEL_AGENTS_DIR does not change the verdict" env AGENT_TYPE_LABEL_AGENTS_DIR=/tmp bash "$D/scripts/gates/cm_agent_type_label.sh" --quiet
 
 D=$(fresh_tree e1); expect pass "E1 ambient HP pointing elsewhere does not change the verdict" env HP="$T/nonexistent-hp" bash "$D/scripts/gates/cm_agent_type_label.sh" --quiet
 

@@ -47,6 +47,11 @@ generated** `T<N>-*.md` files whose track/branch is no longer declared AND
 whose model and effort are inside this run's `--models` / `--efforts` filter, so
 a partial run such as `--models sonnet` never prunes an opus file (Rev 2, F4).
 A hand-edited stale file is kept with a WARN; `--no-prune` disables pruning.
+Pruning is by (track, sanitised branch). A track that is declared but whose branch
+cannot be resolved (mount absent, host mismatch) keeps its files, and with no usable
+consumer config nothing is pruned (Rev 3, R2-2). User-level refusal (exit 6) compares
+every path after symlink resolution, against `$HOME` or the passwd home when `$HOME`
+is empty (Rev 3, R2-1).
 
 ## Wiring
 

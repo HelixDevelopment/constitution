@@ -26,7 +26,9 @@
 #   directory (CLAUDE_CONFIG_DIR, ~/.claude, ~/.claude-*) or inside one;
 #   nothing is written. A per-track refusal (3/4) never stops the other tracks.
 # Side-effects: writes generated files; prunes ONLY genuine generated
-#   T<N>-*.md files whose (track, branch) is no longer declared AND whose
+#   T<N>-*.md files whose (track, branch) is no longer declared (a declared
+#   track whose branch is unresolvable keeps its files; with no usable consumer
+#   config nothing is pruned) AND whose
 #   model and effort are inside this run's --models / --efforts filter (a
 #   partial run never prunes files outside its filter); never a hand-made or
 #   hand-edited file; --no-prune disables pruning. Track numbers are decimal
@@ -72,17 +74,38 @@ project_root="$(cd "$project_root" && pwd -P)"
 canon() { realpath -m -- "$1" 2>/dev/null || printf '%s\n' "$1"; }
 under() { [ "$1" = "$2" ] || case "$1" in "$2"/*) return 0 ;; *) return 1 ;; esac; }  # $1 equal to or inside $2
 refuse6() { echo "install_agent_label_defs: REFUSED: $* — nothing written" >&2; exit 6; }
-home_c=""; [ -n "${HOME:-}" ] && home_c="$(canon "$HOME")"
-declare -a USERCFG=()
-[ -n "${CLAUDE_CONFIG_DIR:-}" ] && USERCFG+=("$(canon "$CLAUDE_CONFIG_DIR")")
-if [ -n "$home_c" ]; then
-  USERCFG+=("$home_c/.claude")
-  for c in "$home_c"/.claude-*; do [ -d "$c" ] && USERCFG+=("$c"); done
+# Every user-level entry is kept in BOTH its lexical and its canonical (symlink-resolved)
+# form, so a symlinked ~/.claude or ~/.claude-x (stow/dotfiles) cannot bypass the refusal
+# (review round 2, R2-1). The home directory is taken from $HOME and, when that is empty or
+# unset, from the passwd database; both are checked when they differ.
+declare -a HOMES=() USERCFG=()
+add_uniq() { # array-name value
+  local -n _a="$1"; local v="$2" x
+  [ -n "$v" ] || return 0
+  for x in "${_a[@]:-}"; do [ "$x" = "$v" ] && return 0; done
+  _a+=("$v")
+}
+pw_home=""
+if command -v getent >/dev/null 2>&1; then pw_home="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"; fi
+[ -n "${HOME:-}" ] && { add_uniq HOMES "$HOME"; add_uniq HOMES "$(canon "$HOME")"; }
+[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; add_uniq HOMES "$(canon "$pw_home")"; }
+add_cfg() { add_uniq USERCFG "$1"; add_uniq USERCFG "$(canon "$1")"; }
+[ -n "${CLAUDE_CONFIG_DIR:-}" ] && add_cfg "$CLAUDE_CONFIG_DIR"
+for h in "${HOMES[@]:-}"; do
+  [ -n "$h" ] || continue
+  add_cfg "$h/.claude"
+  for c in "$h"/.claude-*; do { [ -e "$c" ] || [ -L "$c" ]; } && add_cfg "$c"; done
+done
+if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then
+  refuse6 "the home directory cannot be resolved (HOME empty and no passwd entry); cannot prove the target is not a user-level directory"
 fi
 pr_c="$(canon "$project_root")"; od_c="$(canon "$out_dir")"
 [ "$pr_c" = / ] && refuse6 "project root is the filesystem root"
-if [ -n "$home_c" ] && under "$home_c" "$pr_c"; then refuse6 "project root '$pr_c' is the home directory or an ancestor of it"; fi
-if [ -n "$home_c" ] && under "$home_c" "$od_c"; then refuse6 "out-dir '$od_c' is the home directory or an ancestor of it"; fi
+for h in "${HOMES[@]:-}"; do
+  [ -n "$h" ] || continue
+  under "$h" "$pr_c" && refuse6 "project root '$pr_c' is the home directory or an ancestor of it"
+  under "$h" "$od_c" && refuse6 "out-dir '$od_c' is the home directory or an ancestor of it"
+done
 for c in "${USERCFG[@]:-}"; do
   [ -n "$c" ] || continue
   under "$pr_c" "$c" && refuse6 "project root '$pr_c' is a user-level agent config directory or inside one ($c)"
@@ -111,6 +134,7 @@ add_pair() { # N branch
 
 # --- 1. declared tracks from the consumer config ------------------------------------------
 cfg_ok=0
+declare -A UNRESOLVED=()     # track numbers declared but with no resolvable branch (never pruned)
 export MT_REPO_ROOT="${MT_REPO_ROOT:-$project_root}"
 if [ -r "$HERE/multitrack_config.sh" ]; then
   # shellcheck disable=SC1091 # the sourced library path is resolved at runtime from this script directory
@@ -134,7 +158,7 @@ if [ "$cfg_ok" -eq 1 ]; then
         hb=""
         if [ -n "$tmount" ] && [ -d "$tmount" ]; then hb="$(git -C "$tmount" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"; fi
         if [ -n "$hb" ] && [ "$hb" != HEAD ]; then add_pair "$tn" "$hb"
-        else echo "SKIP     ${tid}: branch ${tbr:-<unset>} cannot be resolved (mount '${tmount:-<unset>}' is not a checkout with a named HEAD)"; fi ;;
+        else UNRESOLVED["$((10#$tn))"]=1; echo "SKIP     ${tid}: branch ${tbr:-<unset>} cannot be resolved (mount '${tmount:-<unset>}' is not a checkout with a named HEAD)"; fi ;;
       *) add_pair "$tn" "$tbr" ;;
     esac
   done
@@ -175,11 +199,17 @@ done
 
 # --- 4. prune: genuine generated files of tracks that are no longer declared ---------------------
 npruned=0
-if [ -d "$out_dir" ]; then
+# Never prune on a guess (§11.4.201(4)): with no loadable consumer config the declared set is
+# unknown, and a declared track whose branch is unresolvable keeps its files (R2-2).
+[ "$cfg_ok" -eq 1 ] || echo "NOTE     no usable multitrack config: stale-file pruning skipped"
+if [ "$cfg_ok" -eq 1 ] && [ -d "$out_dir" ]; then
   shopt -s nullglob
   for f in "$out_dir"/T[0-9]*-*.md; do
     b="${f##*/}"
     [[ "$b" =~ ^(T[0-9]+-[a-z0-9-]+)-(sonnet|opus)-(low|medium|high|xhigh|max)\.md$ ]] || continue
+    # keep every file of a declared-but-unresolvable track (mount absent / host mismatch) (R2-2)
+    tnum="${BASH_REMATCH[1]#T}"; tnum="${tnum%%-*}"
+    [ -n "${UNRESOLVED[$((10#$tnum))]:-}" ] && continue
     # keep every file of a declared (track, branch), whatever its model/effort (F4) ...
     [ -n "${DECLARED[${BASH_REMATCH[1]}]:-}" ] && continue
     # ... and never prune a file outside this run's --models/--efforts filter (F4)

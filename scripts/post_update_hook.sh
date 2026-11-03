@@ -26,16 +26,17 @@
 #      changed — NON-INTERACTIVE only, fail-open (see install_jev_bootstrap)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   5b. Hub-structure + §11.4.31 manifest gates (every pull, changed files or not)
+#   4f. (Every pull; runs right after 5b, before the no-changes early exit) checks
+#      the §11.4.182/§11.4.231(F) agent-type label definitions
+#      T<N>-<branch>-<model>-<effort> in <project>/.claude/agents via
+#      scripts/multitrack/install_agent_label_defs.sh: DRY-RUN by default
+#      (reports only); writes only with AGENT_LABEL_DEFS_AUTOWIRE=apply; `off`
+#      skips it (idempotent, never touches hand-made agents, non-fatal)
 #   6. Reports a summary of what was installed
 #   Every step 2-5b is ISOLATED (run_step): it runs under `set -e` in a
 #   subshell, a failing step is recorded as an ERROR (exit 1) and the next step
 #   still runs; `exit`/unset variables end only that step (a signal can still
 #   end the hook).
-#   4f. (Every pull) checks the §11.4.182/§11.4.231(F) agent-type label
-#      definitions T<N>-<branch>-<model>-<effort> in <project>/.claude/agents
-#      via scripts/multitrack/install_agent_label_defs.sh: DRY-RUN by default
-#      (reports only); writes only with AGENT_LABEL_DEFS_AUTOWIRE=apply; `off`
-#      skips it (idempotent, never touches hand-made agents, non-fatal)
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh

@@ -879,7 +879,7 @@
   },
   "§11.4.232": {
    "file": "progressive/rules/11.4.232.md",
-   "hash": "sha256:3ec0d23a23832575de864a00ba584f4a50bbe974a241b9c4ce88c7e5391ad884",
+   "hash": "sha256:868c2da49335847debba4a042cbd7ea723856add9a18aed51b6e556625302ab8",
    "line_end": 11287,
    "line_start": 11261
   },
@@ -1828,5 +1828,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "c40de9807efeb55a1c034c181999f27de37dc4ad3048e76b7d0582da96883e9a"
+ "source_sha256": "2ba1ce52f8337df8b3a6340c7525f24f15d2baefff3c3c34d706a1a52829ed07"
 }

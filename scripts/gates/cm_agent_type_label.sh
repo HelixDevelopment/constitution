@@ -145,20 +145,59 @@ if [ "$r_hm" -eq 3 ] && [ "$b1" = "$(sha256sum "$W/hm/T7-gate-branch-x-sonnet-lo
 # ── 6 INSTALLER ──────────────────────────────────────────────────────────────────
 P="$W/proj"; mkdir -p "$P/.claude/agents"
 git -C "$P" init -q -b main 2>/dev/null; git -C "$P" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
+mkdir -p "$W/cfg"
+cat >"$W/cfg/cmatl-host.yaml" <<YAML
+schema_version: 1
+host:
+  hostname: cmatl-host
+protected_drives:
+  - serial: "PROT"
+tracks:
+  - id: track-1
+    role: main
+    branch: main
+    drive_serial: "A"
+    mount: $P
+  - id: track-2
+    role: feature
+    branch_pattern: "feature/*"
+    drive_serial: "B"
+    mount: $W/track2-absent
+YAML
+instc() { MT_HOST=cmatl-host MT_CONFIG_DIR="$W/cfg" bash "$inst" --project-root "$P" "$@"; }
 printf -- '---\nname: mine\ndescription: "mine"\n---\nhand\n' >"$P/.claude/agents/mine.md"
 printf -- '---\nname: T9-handmade\ndescription: "h"\n---\nhand\n' >"$P/.claude/agents/T9-handmade.md"
 printf -- '---\nname: T9-legacy-opus-high\ndescription: "hand made, generator-shaped name"\nmodel: opus\neffort: high\ncolor: red\n---\nhand\n' >"$P/.claude/agents/T9-legacy-opus-high.md"
 bash "$gen" --track 9 --branch gone --out-dir "$P/.claude/agents" --models sonnet --efforts low >/dev/null 2>&1
 m1="$(sha256sum "$P/.claude/agents/mine.md" "$P/.claude/agents/T9-handmade.md" "$P/.claude/agents/T9-legacy-opus-high.md")"
-MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" >"$W/i.out" 2>"$W/i.err"; r_i=$?
+bash "$gen" --track 2 --branch feature/live --out-dir "$P/.claude/agents" --models sonnet --efforts low >/dev/null 2>&1
+instc >"$W/i.out" 2>"$W/i.err"; r_i=$?
 n_t1="$(find "$P/.claude/agents" -maxdepth 1 -name 'T1-main-*' | wc -l)"
 if [ "$r_i" -eq 0 ] && [ "$n_t1" -eq 10 ]; then say "✅ INSTALLER: current checkout T1/main installed (10 files)"; else ko "INSTALLER: exit $r_i, T1-main files=$n_t1 (want 0/10): $(head -c 200 "$W/i.err")"; fi
 [ "$m1" = "$(sha256sum "$P/.claude/agents/mine.md" "$P/.claude/agents/T9-handmade.md" "$P/.claude/agents/T9-legacy-opus-high.md")" ] && say "✅ INSTALLER: hand-made agents untouched" || ko "INSTALLER: a hand-made agent file was modified or deleted"
 [ ! -e "$P/.claude/agents/T9-gone-sonnet-low.md" ] && say "✅ INSTALLER: stale GENERATED file pruned" || ko "INSTALLER: stale generated file not pruned"
 # partial --models run must not prune the other model's files of a declared track (F4)
-MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" --models sonnet >"$W/i2.out" 2>"$W/i2.err"; r_i2=$?
+instc --models sonnet >"$W/i2.out" 2>"$W/i2.err"; r_i2=$?
 n_op="$(find "$P/.claude/agents" -maxdepth 1 -name 'T1-main-opus-*' | wc -l)"
 if [ "$r_i2" -eq 0 ] && [ "$n_op" -eq 5 ]; then say "✅ INSTALLER: a --models sonnet run keeps the 5 opus files"; else ko "INSTALLER: --models sonnet run exit $r_i2, opus files left=$n_op (want 0/5)"; fi
+# an UNDECLARED track's file outside the run's --models/--efforts filter is kept (partial-run prune, R2-3)
+bash "$gen" --track 9 --branch gone --out-dir "$P/.claude/agents" --models opus --efforts low >/dev/null 2>&1
+instc --models sonnet >/dev/null 2>&1
+[ -e "$P/.claude/agents/T9-gone-opus-low.md" ] && say "✅ INSTALLER: an undeclared file outside the --models filter is kept" || ko "INSTALLER: a --models sonnet run pruned an opus file outside its filter"
+instc >/dev/null 2>&1
+# a declared track whose mount is absent (branch unresolvable) keeps its files; no config prunes nothing (R2-2)
+[ -e "$P/.claude/agents/T2-feature-live-sonnet-low.md" ] && say "✅ INSTALLER: declared-but-unresolvable track T2 NOT pruned" || ko "INSTALLER: declared-but-unresolvable track file was pruned"
+bash "$gen" --track 9 --branch gone --out-dir "$P/.claude/agents" --models sonnet --efforts low >/dev/null 2>&1
+MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" >/dev/null 2>&1
+[ -e "$P/.claude/agents/T9-gone-sonnet-low.md" ] && say "✅ INSTALLER: with no usable config nothing is pruned" || ko "INSTALLER: pruned with no usable config"
+instc >/dev/null 2>&1
+# user-level refusals with a symlinked ~/.claude, an empty HOME, and an out-dir containing a user dir (R2-1, R2-3)
+SH="$W/fh"; mkdir -p "$SH/dotreal/agents" "$SH/plain"; ln -s "$SH/dotreal" "$SH/.claude"
+rfs() { env -u CLAUDE_CONFIG_DIR HOME="$1" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --dry-run "${@:2}" >/dev/null 2>&1; echo $?; }
+r_s1="$(rfs "$SH" --project-root "$P" --out-dir "$SH/.claude/agents")"; r_s2="$(rfs "$SH" --project-root "$SH/dotreal")"
+UD="$W/ud"; mkdir -p "$UD/proj/.claude"
+r_s3="$(env CLAUDE_CONFIG_DIR="$UD/proj/.claude" HOME="$SH/plain" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --dry-run --project-root "$P" --out-dir "$UD/proj" >/dev/null 2>&1; echo $?)"; r_s7="$(rfs "" --project-root "$P")"; r_s5="$(rfs "$SH" --project-root "$SH")"; r_s6="$(rfs "$SH" --project-root "$W")"; r_s4="$(rfs "" --project-root "$(getent passwd "$(id -u)" | cut -d: -f6)")"
+if [ "$r_s1" = 6 ] && [ "$r_s2" = 6 ] && [ "$r_s3" = 6 ] && [ "$r_s4" = 6 ] && [ "$r_s5" = 6 ] && [ "$r_s6" = 6 ] && [ "$r_s7" = 0 ]; then say "✅ INSTALLER: refuses a symlinked ~/.claude (out-dir and target), an out-dir containing it, an empty-HOME passwd home, HOME itself and an ancestor of HOME"; else ko "INSTALLER: user-level refusal bypassed (symlink out-dir $r_s1, symlink target $r_s2, out-dir contains $r_s3, empty HOME $r_s4, HOME $r_s5, HOME ancestor $r_s6; want 6; empty-HOME ordinary project $r_s7 want 0)"; fi
 # a project whose .claude IS the user-level agent config dir is refused (F1)
 UC="$W/ucfg"; mkdir -p "$UC/.claude"; git -C "$UC" init -q -b main 2>/dev/null; git -C "$UC" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
 CLAUDE_CONFIG_DIR="$UC/.claude" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$UC" >/dev/null 2>&1; r_uc=$?
@@ -171,9 +210,9 @@ hk() { # enforce subagent_type [bypass-empty] [extra-json-members] -> exit code 
   if [ -n "$st" ]; then pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","subagent_type":"'"$st"'","prompt":"p"'"$xm"'}}'
   else pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","prompt":"p"'"$xm"'}}'; fi
   if [ -n "$extra" ]; then
-    printf '%s' "$pl" | env CLAUDE_PROJECT_DIR="$P" CLAUDE_CONFIG_DIR="$CFG" AGENT_TYPE_LABEL_ENFORCE="$enf" AGENT_TYPE_LABEL_BYPASS="" bash "$hook" >"$W/h.out" 2>"$W/h.err"
+    printf '%s' "$pl" | env -u AGENT_TYPE_LABEL_AGENTS_DIR CLAUDE_PROJECT_DIR="$P" CLAUDE_CONFIG_DIR="$CFG" AGENT_TYPE_LABEL_ENFORCE="$enf" AGENT_TYPE_LABEL_BYPASS="" bash "$hook" >"$W/h.out" 2>"$W/h.err"
   else
-    printf '%s' "$pl" | env -u AGENT_TYPE_LABEL_BYPASS CLAUDE_PROJECT_DIR="$P" CLAUDE_CONFIG_DIR="$CFG" AGENT_TYPE_LABEL_ENFORCE="$enf" bash "$hook" >"$W/h.out" 2>"$W/h.err"
+    printf '%s' "$pl" | env -u AGENT_TYPE_LABEL_AGENTS_DIR -u AGENT_TYPE_LABEL_BYPASS CLAUDE_PROJECT_DIR="$P" CLAUDE_CONFIG_DIR="$CFG" AGENT_TYPE_LABEL_ENFORCE="$enf" bash "$hook" >"$W/h.out" 2>"$W/h.err"
   fi
   return $?
 }
