@@ -287,5 +287,50 @@ consume "$B"
 lt_check "N4 control: untouched lock is released by its owner (no lock left)" test ! -e "$LK"
 lt_check "N4 control: propagation ran once" test "$(calls)" = 1
 
+# ============================================================================
+# R1 (the intermittent m6 failure, CHANGELOG "39/1"): two reclaimers judge the
+# SAME stale lock; the first reclaims it and creates its own lock; the second
+# then renames the WINNER's fresh lock away (its snapshot is out of date),
+# sees the signature differ and puts it back. While the lock is renamed away
+# the winner's ownership re-check fails, so NOBODY runs and the restored lock
+# is left behind with a dead owner. Driven deterministically through the
+# HELIX_TEST_MODE lock pause seam of the consumer (no timing).
+# ============================================================================
+wait_file() { local i; for ((i = 0; i < ${2:-200}; i++)); do [ -e "$1" ] && return 0; sleep 0.1; done; return 1; }
+paused() { # DIR POINTS ERRFILE -> run the installed consumer in the background with the pause seam
+    ( cd "$B/$REL" && HELIX_TEST_MODE=1 HELIX_LOCK_PAUSE_AT="$2" HELIX_LOCK_PAUSE_DIR="$1" bash "$(hk "$B")" x y 1 ) 2>"$3" &
+}
+mkpair rc || lt_bad "fixture rc"
+pending
+LK="$(st "$B")/constitution-pending-update.lock"
+reset_state() { : > "$LAYOUT_RECORD"; rm -f "$(st "$B")/constitution-applied-ref" "$LK"; write_stamp "$B" "$OLDV" "$NEWV"; }
+reset_state; sh -c 'exit 0' & dpid=$!; wait "$dpid"
+printf 'PID=%s\nSTART=1\nNONCE=stale-owner\n' "$dpid" > "$LK"
+PD1="$LT_SB/pd1"; PD2="$LT_SB/pd2"; mkdir -p "$PD1" "$PD2"
+paused "$PD2" "reclaim_snapshot reclaim_renamed" "$LT_SB/r2.err"; r2=$!
+wait_file "$PD2/reached.reclaim_snapshot" || lt_bad "R1: second reclaimer never reached its snapshot pause"
+paused "$PD1" "acquired" "$LT_SB/r1.err"; r1=$!
+wait_file "$PD1/reached.acquired" || lt_bad "R1: first reclaimer never acquired the lock"
+: > "$PD2/release.reclaim_snapshot"
+# the second reclaimer either renames the winner's lock (pauses at reclaim_renamed) or backs off and exits
+for ((_i = 0; _i < 200; _i++)); do [ -e "$PD2/reached.reclaim_renamed" ] && break; kill -0 "$r2" 2>/dev/null || break; sleep 0.1; done
+: > "$PD1/release.acquired"; wait "$r1"
+: > "$PD2/release.reclaim_renamed"; wait "$r2"
+lt_check "R1: stale lock + a reclaimer whose snapshot went out of date -> the winner still runs exactly once (calls=$(calls))" test "$(calls)" = 1
+lt_check "R1: ... the late reclaimer never renamed the winner's live lock away" test ! -e "$PD2/reached.reclaim_renamed"
+lt_check "R1: ... no lock and no renamed lock left behind" eval 'test ! -e "$LK" && no_stale_left'
+lt_check "R1: ... the late reclaimer backed off without running" grep -q "held by" "$LT_SB/r2.err"
+
+# R1 seam inertness: without HELIX_TEST_MODE=1, or with a pause dir outside the
+# temp root, the pause points are ignored (no reached.* file, no wait).
+reset_state; PD3="$LT_SB/pd3"; mkdir -p "$PD3"
+( cd "$B/$REL" && HELIX_LOCK_PAUSE_AT=acquired HELIX_LOCK_PAUSE_DIR="$PD3" timeout 20 bash "$(hk "$B")" x y 1 ) 2>/dev/null; rc=$?
+lt_check "R1 seam: HELIX_TEST_MODE unset -> pause ignored, run completes (rc=$rc, calls=$(calls))" \
+    eval 'test "$rc" = 0 && test ! -e "$PD3/reached.acquired" && test "$(calls)" = 1'
+reset_state; rm -f "$PD1"/reached.* "$PD1"/release.*
+( cd "$B/$REL" && TMPDIR="$LT_SB/pd3" HELIX_TEST_MODE=1 HELIX_LOCK_PAUSE_AT=acquired HELIX_LOCK_PAUSE_DIR="$PD1" timeout 20 bash "$(hk "$B")" x y 1 ) 2>/dev/null; rc=$?
+lt_check "R1 seam: pause dir outside the temp root -> ignored (rc=$rc, calls=$(calls))" \
+    eval 'test "$rc" = 0 && test ! -e "$PD1/reached.acquired" && test "$(calls)" = 1'
+
 lt_check "consumer hook parses under bash -n" bash -n "$LAYOUT_SRC_ROOT/scripts/hooks/constitution-submodule-post-checkout"
 lt_summary

@@ -190,6 +190,26 @@ MY_NONCE="$$.$(date +%s%N 2>/dev/null).${RANDOM}${RANDOM}"
 MY_START="$(proc_start "$$" 2>/dev/null || true)"
 LOCK_HOLDER=""
 
+# TEST SEAM (inert in production): honoured ONLY when HELIX_TEST_MODE is exactly 1,
+# HELIX_LOCK_PAUSE_AT names the point (a space-separated list) and HELIX_LOCK_PAUSE_DIR
+# resolves (readlink -m) to an existing directory strictly under the temp root
+# ${TMPDIR:-/tmp} (a temp root of "/" is refused). At a named point it creates
+# reached.<point> in that directory and waits (0.1 s polls, at most 60 s) for
+# release.<point>, so a test can drive an exact interleaving of two lockers with no
+# timing. Same pattern as scripts/lib/gate_env_override.sh and the generator's pause
+# hook (scripts/generate_agent_prefix_commands.sh gen_pause).
+lock_test_pause() {
+    [ "${HELIX_TEST_MODE:-}" = 1 ] && [ -n "${HELIX_LOCK_PAUSE_AT:-}" ] && [ -n "${HELIX_LOCK_PAUSE_DIR:-}" ] || return 0
+    case " $HELIX_LOCK_PAUSE_AT " in *" $1 "*) ;; *) return 0 ;; esac
+    local tmp real i
+    tmp="$(readlink -m -- "${TMPDIR:-/tmp}" 2>/dev/null)" || return 0
+    real="$(readlink -m -- "$HELIX_LOCK_PAUSE_DIR" 2>/dev/null)" || return 0
+    [ -n "$tmp" ] && [ "$tmp" != / ] && [ -n "$real" ] && [ "${real#"$tmp"/}" != "$real" ] && [ -d "$real" ] || return 0
+    : > "$real/reached.$1" 2>/dev/null || return 0
+    for ((i = 0; i < 600; i++)); do [ -e "$real/release.$1" ] && return 0; sleep 0.1; done
+    return 0
+}
+
 # lock_create -> 0 iff THIS process created the lock file exclusively.
 # bash noclobber = open(O_CREAT|O_EXCL) for a path that does not exist; it is
 # NOT used when the path exists (a FIFO / symlink would then be opened).
@@ -286,8 +306,10 @@ take_lock() {
         # lock must be the snapshot judged stale (same owner record and mtime;
         # inode identity alone is NOT enough: ext4 hands a freed inode to the
         # next file at once, measured 2026-10-29).
+        lock_test_pause reclaim_snapshot
         u="$LOCK.stale.$MY_NONCE.$i"
         mv -- "$LOCK" "$u" 2>/dev/null || continue
+        lock_test_pause reclaim_renamed
         sig2="$(lock_sig "$u" 2>/dev/null)" || sig2=""
         if [ "$sig2" != "$sig" ]; then
             # we renamed a lock made after we looked (a live holder's): put it back
@@ -318,6 +340,7 @@ if ! take_lock; then
     exit 0
 fi
 trap release_lock EXIT
+lock_test_pause acquired
 
 read_state   # re-read under the lock (another run may have finished meanwhile)
 if [ "$A_REF" = "$LINK" ]; then
