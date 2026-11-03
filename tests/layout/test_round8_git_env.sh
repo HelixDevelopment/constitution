@@ -755,6 +755,41 @@ rp3="$(bash -c '
 lt_check "LK-16c: post-merge's put-back never clobbers a lock a THIRD run created meanwhile ($(tr '\n' ' ' <<<"$rp3"))" \
     eval 'grep -qx KEPT <<<"$rp3" && grep -qx "NONCE=third" <<<"$rp3"'
 
+# --- reclaim mutex (R1 class, all three lockers share "<state>/constitution-pending-update.reclaim"): a reclaim
+# waits for the mutex, and the owner record is re-read UNDER it: a lock re-created
+# by a live holder while the reclaimer waited is never renamed away. Deterministic:
+# the test holds the mutex itself and replaces the lock while the reclaimer waits.
+mutex_case() { # SCRIPT EXTRACT LOCKVAR NONCEVAR FN TAG -> prints the case's result lines
+    bash -c '
+    SCRIPT=$1; EXTRACT=$2; LV=$3; NV=$4; FN=$5; SB=$6; DEADP=$7; TAG=$8
+    kv() { [ -f "$1" ] || return 1; local l; while IFS= read -r l; do case "$l" in "$2="*) printf "%s" "${l#"$2"=}"; return 0 ;; esac; done < "$1"; return 1; }
+    warn() { :; }
+    eval "$(sed -n "$EXTRACT" "$SCRIPT")"
+    L="$SB/$TAG.lock"; printf -v "$LV" "%s" "$L"; printf -v "$NV" "%s" mine
+    printf "PID=%s\nSTART=1\nNONCE=deadn\n" "$DEADP" > "$L"
+    M="${L%.lock}.reclaim"; : >> "$M"
+    exec 7>>"$M"; flock 7                       # the test holds the reclaim mutex
+    flock() { : > "$SB/$TAG.waiting"; command flock "$@"; }
+    mv() { : > "$SB/$TAG.mv"; command mv "$@"; }   # any rename of the lock path is the R1 harm
+    ( if "$FN"; then echo RECLAIMED; else echo KEPT; fi ) 7>&- > "$SB/$TAG.res" &
+    rp=$!
+    for ((i = 0; i < 100; i++)); do [ -e "$SB/$TAG.waiting" ] && break; sleep 0.1; done
+    [ -e "$SB/$TAG.waiting" ] && echo WAITED
+    printf "PID=%s\nSTART=%s\nNONCE=live\n" "$$" "$(cut -d" " -f22 /proc/$$/stat)" > "$L"   # a live holder re-creates it meanwhile
+    exec 7>&-                                                                           # release the mutex
+    wait "$rp"; cat "$SB/$TAG.res"
+    echo "NONCE=$(kv "$L" NONCE)"
+    ls "$SB" | grep -c "^$TAG.lock.stale" | sed "s/^/STALELEFT=/"
+    [ -e "$SB/$TAG.mv" ] && echo RENAMED || echo NOT-RENAMED
+    ' _ "$1" "$2" "$3" "$4" "$5" "$LT_SB" "$(dead_pid)" "$6"
+}
+rmx="$(mutex_case "$SETUP" "/^pu_start() {/p;/^pu_lock_reclaim_dead() {/,/^}/p" PU_LOCK PU_NONCE pu_lock_reclaim_dead mxs 2>&1)"
+lt_check "LK-17: setup.sh's reclaim waits for the shared reclaim mutex and never renames a lock re-created meanwhile ($(tr '\n' ' ' <<<"$rmx"))" \
+    eval 'grep -qx WAITED <<<"$rmx" && grep -qx KEPT <<<"$rmx" && grep -qx "NONCE=live" <<<"$rmx" && grep -qx "STALELEFT=0" <<<"$rmx" && grep -qx NOT-RENAMED <<<"$rmx"'
+rmx2="$(mutex_case "$PMH" "/^    pm_start() {/p;/^    pm_lock_reclaim_dead() {/,/^    }/p" PM_LOCK PM_NONCE pm_lock_reclaim_dead mxp 2>&1)"
+lt_check "LK-17b: post-merge's reclaim waits for the shared reclaim mutex and never renames a lock re-created meanwhile ($(tr '\n' ' ' <<<"$rmx2"))" \
+    eval 'grep -qx WAITED <<<"$rmx2" && grep -qx KEPT <<<"$rmx2" && grep -qx "NONCE=live" <<<"$rmx2" && grep -qx "STALELEFT=0" <<<"$rmx2" && grep -qx NOT-RENAMED <<<"$rmx2"'
+
 # --- post-merge ----------------------------------------------------------------
 mklock lk7 || lt_bad "fixture lk7"
 lockfile "$(dead_pid)" "12345" "dead-nonce"

@@ -115,7 +115,7 @@
 #
 # Inputs: $1 — git status flag (1 = squash merge)
 # Outputs: stdout/stderr messages; exit 0 always (never fails a merge).
-# Dependencies: bash 4, git, cat, date, rm, mktemp, mv (self-contained: sources nothing)
+# Dependencies: bash 4, git, cat, date, rm, mktemp, mv, flock (only to reclaim a stale lock; self-contained: sources nothing)
 # Cross-references: Constitution.md §11.4.164; scripts/setup.sh;
 #   scripts/hooks/constitution-submodule-post-checkout;
 #   tests/layout/test_post_merge_layout.sh, tests/layout/test_pending_update_layout.sh,
@@ -375,14 +375,24 @@ if [ "$_sub_head" = "$NEW_LINK" ]; then
             cur="$(pm_start "$pid")"
             [ -n "$st" ] && [ -n "$cur" ] && [ "$st" != "$cur" ] || return 1
         fi
-        u="$PM_LOCK.stale.$PM_NONCE"
-        mv -- "$PM_LOCK" "$u" 2>/dev/null || return 1
-        pid2="$(kv "$u" PID 2>/dev/null || true)"; st2="$(kv "$u" START 2>/dev/null || true)"; nonce2="$(kv "$u" NONCE 2>/dev/null || true)"
-        if [ "$pid2" != "$pid" ] || [ "$st2" != "$st" ] || [ "$nonce2" != "$nonce" ]; then
-            ln -- "$u" "$PM_LOCK" 2>/dev/null && rm -f -- "$u"
-            return 1
-        fi
-        rm -f -- "$u"
+        # reclaimers are serialised by an flock on "${PM_LOCK%.lock}.reclaim", shared with the
+        # submodule post-checkout consumer and the other locker; under it the owner record
+        # is re-read right before the rename, so a lock created after the judgement (a
+        # live holder's) is never renamed away. No flock: never reclaimed.
+        command -v flock >/dev/null 2>&1 || return 1
+        [ ! -L "${PM_LOCK%.lock}.reclaim" ] && : 2>/dev/null >>"${PM_LOCK%.lock}.reclaim" || return 1
+        {
+            flock -w 10 8 || return 1
+            [ "$(kv "$PM_LOCK" PID 2>/dev/null || true)" = "$pid" ] && [ "$(kv "$PM_LOCK" START 2>/dev/null || true)" = "$st" ] && [ "$(kv "$PM_LOCK" NONCE 2>/dev/null || true)" = "$nonce" ] || return 1
+            u="$PM_LOCK.stale.$PM_NONCE"
+            mv -- "$PM_LOCK" "$u" 2>/dev/null || return 1
+            pid2="$(kv "$u" PID 2>/dev/null || true)"; st2="$(kv "$u" START 2>/dev/null || true)"; nonce2="$(kv "$u" NONCE 2>/dev/null || true)"
+            if [ "$pid2" != "$pid" ] || [ "$st2" != "$st" ] || [ "$nonce2" != "$nonce" ]; then
+                ln -- "$u" "$PM_LOCK" 2>/dev/null && rm -f -- "$u"
+                return 1
+            fi
+            rm -f -- "$u"
+        } 8>>"${PM_LOCK%.lock}.reclaim"
         warn "reclaimed a stale propagation lock ${PM_LOCK}: its owner pid ${pid} is gone (a SIGKILLed run leaves one)."
         return 0
     }

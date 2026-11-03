@@ -67,8 +67,16 @@
 #      is dead, the pid was reused (process start time differs), it has no
 #      owner record and is older than LOCK_STALE_AGE (60 s), or it is neither
 #      a regular file nor a plain directory (a symlink is renamed away, its
-#      target is never touched or opened; a FIFO/socket likewise). Reclaim is
-#      an atomic rename (mv) of the stale lock to a unique name, then the
+#      target is never touched or opened; a FIFO/socket likewise). Reclaimers
+#      are SERIALISED by an flock on constitution-pending-update.reclaim (a
+#      persistent sibling of the lock, never itself a lock; shared with post-merge and
+#      setup.sh; without flock(1) a stale lock is never reclaimed): under it the
+#      lock's signature is taken again and must still equal the one judged
+#      stale, because without that a reclaimer whose snapshot went out of date
+#      renamed the next owner's fresh lock away, the owner's re-check failed,
+#      nobody ran and a dead-owner lock was left (measured: test R1 of
+#      tests/layout/test_consumer_trust_lock.sh, calls=0 on the old code). Reclaim
+#      is then an atomic rename (mv) of the stale lock to a unique name, then the
 #      renamed lock's signature (type + owner record PID/START/NONCE + mtime)
 #      must equal the snapshot that was judged stale, else it is put back
 #      without replacing anything (hard link / symlink re-create) and the run
@@ -92,7 +100,10 @@
 #      and does not record anything.
 #   Ignores checkouts made while CONSTITUTION_PENDING_UPDATE_RUNNING=1.
 # Exit: always 0 (a hook must never break a checkout).
-# Dependencies: bash (noclobber, builtins), git, mv, ln, readlink, rm, ls, stat, date, cat.
+# Dependencies: bash (noclobber, builtins), git, mv, ln, readlink, rm, ls, stat, date, cat,
+#   flock (util-linux; only to reclaim a stale lock).
+# Test seam: lock_test_pause (inert unless HELIX_TEST_MODE=1 and HELIX_LOCK_PAUSE_DIR
+#   under the temp root; see its definition).
 #   Cross-references: §11.4.164;
 #   scripts/hooks/post-merge; scripts/setup.sh;
 #   tests/layout/test_pending_update_layout.sh, tests/layout/test_consumer_trust_lock.sh,
@@ -264,7 +275,7 @@ put_back() {
 
 # take_lock -> 0 acquired; 1 contention (LOCK_HOLDER says by whom)
 take_lock() {
-    local i sig sig2 txt pid st cur age mt now stale u
+    local i sig sig2 txt pid st cur age mt now stale u rcl
     for i in 1 2 3 4 5; do
         if lock_create; then
             return 0
@@ -307,23 +318,57 @@ take_lock() {
         # inode identity alone is NOT enough: ext4 hands a freed inode to the
         # next file at once, measured 2026-10-29).
         lock_test_pause reclaim_snapshot
-        u="$LOCK.stale.$MY_NONCE.$i"
-        mv -- "$LOCK" "$u" 2>/dev/null || continue
-        lock_test_pause reclaim_renamed
-        sig2="$(lock_sig "$u" 2>/dev/null)" || sig2=""
-        if [ "$sig2" != "$sig" ]; then
-            # we renamed a lock made after we looked (a live holder's): put it back
-            if ! put_back "$u"; then
-                say "WARNING: renamed a lock that was not the stale one and could not put it back: $u (move it back to $LOCK by hand if its owner is still running)"
+        # Reclaimers are SERIALISED by an flock on "${LOCK%.lock}.reclaim" (shared with
+        # post-merge and setup.sh). Without it a reclaimer whose snapshot went out
+        # of date (another reclaimer already removed the stale lock and created its
+        # own) renamed the NEW owner's lock away; while it was away the owner's
+        # ownership re-check failed, nobody ran, and the put-back left a lock with
+        # a dead owner (tests/layout/test_consumer_trust_lock.sh R1). Under the
+        # mutex the snapshot is re-taken right before the rename: only a reclaimer
+        # can replace an existing lock, so an equal signature here proves the
+        # rename moves exactly the lock that was judged stale. No flock: a stale
+        # lock is never reclaimed (WARNING, the stamp stays pending).
+        command -v flock >/dev/null 2>&1 || { LOCK_HOLDER="a stale lock ($stale) that is NOT reclaimed: flock(1) is unavailable to serialise reclaimers; remove $LOCK by hand"; return 1; }
+        if [ -L "${LOCK%.lock}.reclaim" ] || ! : 2>/dev/null >>"${LOCK%.lock}.reclaim"; then
+            LOCK_HOLDER="a stale lock ($stale) that is NOT reclaimed: the reclaim mutex ${LOCK%.lock}.reclaim is a symlink or cannot be opened"; return 1
+        fi
+        rcl=busy
+        {
+            if flock -w 10 8; then
+                if [ "$(lock_sig "$LOCK" 2>/dev/null)" != "$sig" ]; then
+                    rcl=retry      # changed since the snapshot (reclaimed and/or re-created): judge it again
+                else
+                    lock_test_pause reclaim_checked
+                    u="$LOCK.stale.$MY_NONCE.$i"
+                    if ! mv -- "$LOCK" "$u" 2>/dev/null; then
+                        rcl=retry
+                    else
+                        lock_test_pause reclaim_renamed
+                        sig2="$(lock_sig "$u" 2>/dev/null)" || sig2=""
+                        if [ "$sig2" != "$sig" ]; then
+                            # defence in depth (unreachable while every reclaimer takes the mutex)
+                            if ! put_back "$u"; then
+                                say "WARNING: renamed a lock that was not the stale one and could not put it back: $u (move it back to $LOCK by hand if its owner is still running)"
+                            fi
+                            rcl=changed
+                        else
+                            if [ -L "$u" ] || [ ! -d "$u" ]; then
+                                rm -f -- "$u"
+                            else
+                                rm -f -- "$u/owner" "$u"/.owner.* 2>/dev/null
+                                rmdir -- "$u" 2>/dev/null || say "WARNING: could not remove the reclaimed lock $u (inspect and delete it by hand)"
+                            fi
+                            rcl=done
+                        fi
+                    fi
+                fi
             fi
-            LOCK_HOLDER="a concurrent locker (the lock changed while it was being reclaimed)"; return 1
-        fi
-        if [ -L "$u" ] || [ ! -d "$u" ]; then
-            rm -f -- "$u"
-        else
-            rm -f -- "$u/owner" "$u"/.owner.* 2>/dev/null
-            rmdir -- "$u" 2>/dev/null || say "WARNING: could not remove the reclaimed lock $u (inspect and delete it by hand)"
-        fi
+        } 8>>"${LOCK%.lock}.reclaim"
+        case "$rcl" in
+            retry) continue ;;
+            busy) LOCK_HOLDER="another reclaimer (the reclaim mutex ${LOCK%.lock}.reclaim was not obtained within 10 s)"; return 1 ;;
+            changed) LOCK_HOLDER="a concurrent locker (the lock changed while it was being reclaimed)"; return 1 ;;
+        esac
         say "WARNING: reclaimed a stale propagation lock $LOCK: $stale."
     done
     LOCK_HOLDER="${LOCK_HOLDER:-(lock busy after 5 attempts)}"

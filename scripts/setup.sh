@@ -423,14 +423,24 @@ pu_lock_reclaim_dead() {
     cur="$(pu_start "$pid")"
     [ -n "$st" ] && [ -n "$cur" ] && [ "$st" != "$cur" ] || return 1   # alive (or unprovable): keep
   fi
-  u="$PU_LOCK.stale.$PU_NONCE"
-  mv -- "$PU_LOCK" "$u" 2>/dev/null || return 1
-  pid2="$(kv "$u" PID || true)"; st2="$(kv "$u" START || true)"; nonce2="$(kv "$u" NONCE || true)"
-  if [ "$pid2" != "$pid" ] || [ "$st2" != "$st" ] || [ "$nonce2" != "$nonce" ]; then
-    ln -- "$u" "$PU_LOCK" 2>/dev/null && rm -f -- "$u"      # a live holder's new lock: put it back
-    return 1
-  fi
-  rm -f -- "$u"
+  # reclaimers are serialised by an flock on "${PU_LOCK%.lock}.reclaim", shared with the
+  # submodule post-checkout consumer and the other locker; under it the owner record
+  # is re-read right before the rename, so a lock created after the judgement (a
+  # live holder's) is never renamed away. No flock: never reclaimed.
+  command -v flock >/dev/null 2>&1 || return 1
+  [ ! -L "${PU_LOCK%.lock}.reclaim" ] && : 2>/dev/null >>"${PU_LOCK%.lock}.reclaim" || return 1
+  {
+      flock -w 10 8 || return 1
+      [ "$(kv "$PU_LOCK" PID 2>/dev/null || true)" = "$pid" ] && [ "$(kv "$PU_LOCK" START 2>/dev/null || true)" = "$st" ] && [ "$(kv "$PU_LOCK" NONCE 2>/dev/null || true)" = "$nonce" ] || return 1
+      u="$PU_LOCK.stale.$PU_NONCE"
+      mv -- "$PU_LOCK" "$u" 2>/dev/null || return 1
+      pid2="$(kv "$u" PID || true)"; st2="$(kv "$u" START || true)"; nonce2="$(kv "$u" NONCE || true)"
+      if [ "$pid2" != "$pid" ] || [ "$st2" != "$st" ] || [ "$nonce2" != "$nonce" ]; then
+        ln -- "$u" "$PU_LOCK" 2>/dev/null && rm -f -- "$u"      # a live holder's new lock: put it back
+        return 1
+      fi
+      rm -f -- "$u"
+  } 8>>"${PU_LOCK%.lock}.reclaim"
   warn "reclaimed a stale propagation lock $PU_LOCK: its owner pid $pid is gone (${st:+recorded start $st; }a SIGKILLed setup.sh / hook leaves one)."
   return 0
 }

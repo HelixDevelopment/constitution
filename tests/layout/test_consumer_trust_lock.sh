@@ -321,6 +321,21 @@ lt_check "R1: ... the late reclaimer never renamed the winner's live lock away" 
 lt_check "R1: ... no lock and no renamed lock left behind" eval 'test ! -e "$LK" && no_stale_left'
 lt_check "R1: ... the late reclaimer backed off without running" grep -q "held by" "$LT_SB/r2.err"
 
+# R1b: the remaining window is between the re-check and the rename. A reclaimer
+# paused THERE holds the reclaim mutex, so a second reclaimer must wait for it
+# instead of reclaiming and creating a lock the first one would then rename away.
+reset_state; sh -c 'exit 0' & dpid=$!; wait "$dpid"
+printf 'PID=%s\nSTART=1\nNONCE=stale-owner\n' "$dpid" > "$LK"
+PD4="$LT_SB/pd4"; PD5="$LT_SB/pd5"; mkdir -p "$PD4" "$PD5"
+paused "$PD4" "reclaim_checked" "$LT_SB/r4.err"; r4=$!
+wait_file "$PD4/reached.reclaim_checked" || lt_bad "R1b: first reclaimer never reached its post-check pause"
+paused "$PD5" "acquired" "$LT_SB/r5.err"; r5=$!
+wait_file "$PD5/reached.acquired" 30 && r5_early=1 || r5_early=0   # 3 s: with the mutex it cannot acquire now
+: > "$PD4/release.reclaim_checked"; wait "$r4"
+: > "$PD5/release.acquired"; wait "$r5"
+lt_check "R1b: a reclaimer between re-check and rename blocks the other reclaimer (it did not acquire meanwhile: early=$r5_early)" test "$r5_early" = 0
+lt_check "R1b: ... exactly one run (calls=$(calls)), no lock or renamed lock left" eval 'test "$(calls)" = 1 && test ! -e "$LK" && no_stale_left'
+
 # R1 seam inertness: without HELIX_TEST_MODE=1, or with a pause dir outside the
 # temp root, the pause points are ignored (no reached.* file, no wait).
 reset_state; PD3="$LT_SB/pd3"; mkdir -p "$PD3"
