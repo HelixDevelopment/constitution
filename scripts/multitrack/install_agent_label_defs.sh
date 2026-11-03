@@ -25,6 +25,15 @@
 #   is the home directory, an ancestor of it, or a user-level agent config
 #   directory (CLAUDE_CONFIG_DIR, ~/.claude, ~/.claude-*) or inside one;
 #   nothing is written. A per-track refusal (3/4) never stops the other tracks.
+#   Also refused (6): the filesystem root, and the system directories of
+#   scripts/lib/protected_paths.list as project root or out-dir.
+# Known limits (honest residuals, review round 3): (a) the refusal compares
+#   realpath-resolved paths, so a BIND MOUNT of a user config dir is invisible to it
+#   (UNCONFIRMED by experiment: unshare was denied; it follows from what realpath does);
+#   (b) the refusal runs once before generation: a path component swapped for a symlink
+#   between that check and the mkdir/mv writes (check-to-write race, same-user attacker)
+#   is not caught; (c) $XDG_CONFIG_HOME/claude and other platforms' user dirs are not in
+#   the protected set.
 # Side-effects: writes generated files; prunes ONLY genuine generated
 #   T<N>-*.md files whose (track, branch) is no longer declared (a declared
 #   track whose branch is unresolvable keeps its files; with no usable consumer
@@ -71,8 +80,14 @@ project_root="$(cd "$project_root" && pwd -P)"
 # The project root must not be the home directory or an ancestor of it, and neither the
 # project root nor the out-dir may be (or lie inside, or contain) a user-level agent
 # config directory: those hold the user's own agents, not a project's.
-canon() { realpath -m -- "$1" 2>/dev/null || printf '%s\n' "$1"; }
-under() { [ "$1" = "$2" ] || case "$1" in "$2"/*) return 0 ;; *) return 1 ;; esac; }  # $1 equal to or inside $2
+canon() { # resolve symlinks and '..'; collapse a leading '//' (POSIX keeps it) and trailing slashes (R3-1)
+  local r; r="$(realpath -m -- "$1" 2>/dev/null || printf '%s' "$1")"
+  r="$(printf '%s' "$r" | sed -e 's#^/\{2,\}#/#' -e 's#\(.\)/\{1,\}$#\1#')"
+  printf '%s\n' "$r"
+}
+# $1 equal to or inside $2. The filesystem root is an ancestor of every absolute path (R3-1:
+# the pattern "$2"/* would be '//*' for '/', which matches nothing).
+under() { [ "$1" = "$2" ] && return 0; [ "$2" = / ] && return 0; case "$1" in "$2"/*) return 0 ;; *) return 1 ;; esac; }
 refuse6() { echo "install_agent_label_defs: REFUSED: $* — nothing written" >&2; exit 6; }
 # Every user-level entry is kept in BOTH its lexical and its canonical (symlink-resolved)
 # form, so a symlinked ~/.claude or ~/.claude-x (stow/dotfiles) cannot bypass the refusal
@@ -100,7 +115,23 @@ if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then
   refuse6 "the home directory cannot be resolved (HOME empty and no passwd entry); cannot prove the target is not a user-level directory"
 fi
 pr_c="$(canon "$project_root")"; od_c="$(canon "$out_dir")"
-[ "$pr_c" = / ] && refuse6 "project root is the filesystem root"
+# System directories (R3-6). Mirrors the absolute entries of scripts/lib/protected_paths.list
+# (a unit test asserts every entry there is refused here). SYS_STRICT: the directory, anything
+# inside it and any ancestor are refused. SYS_EXACT: only the directory itself (and ancestors),
+# because ordinary projects live below them (/var/tmp, /mnt/x, /media/x, /tmp/x).
+SYS_STRICT=(/bin /boot /dev /etc /lib /lib32 /lib64 /libx32 /opt /proc /root /run /sbin /srv /sys /usr)
+SYS_EXACT=(/var /home /mnt /media /snap /tmp /Users)
+for t in "$pr_c" "$od_c"; do
+  [ "$t" = / ] && refuse6 "'$t' is the filesystem root or an ancestor of everything (project root / out-dir)"
+  for sd in "${SYS_STRICT[@]}"; do
+    under "$t" "$sd" && refuse6 "'$t' is the system directory $sd or inside it"
+    under "$sd" "$t" && refuse6 "'$t' is an ancestor of the system directory $sd"
+  done
+  for sd in "${SYS_EXACT[@]}"; do
+    [ "$t" = "$sd" ] && refuse6 "'$t' is the system directory $sd itself"
+    under "$sd" "$t" && refuse6 "'$t' is an ancestor of the system directory $sd"
+  done
+done
 for h in "${HOMES[@]:-}"; do
   [ -n "$h" ] || continue
   under "$h" "$pr_c" && refuse6 "project root '$pr_c' is the home directory or an ancestor of it"

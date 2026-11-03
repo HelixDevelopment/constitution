@@ -234,6 +234,58 @@ check "I15j --out-dir containing the user config dir refused (exit 6)" 6 "$rc"
 grep -q 'contains the user-level' "$W/err" && ok "I15j2 refusal names the contains-rule" || bad "I15j2 refusal names the contains-rule" "$(head -2 "$W/err")"
 [ -n "$RH" ] && check "I15l empty HOME: an ordinary project is NOT refused (passwd home resolved, golden-FALSE)" 0 "$(runh "" --project-root "$P")"
 check "I15k golden-FALSE: ordinary project under a fake home is not refused" 0 "$(runh "$SH" --project-root "$P")"
+# I17 round-3 review (R3-1/R3-6): the filesystem root and system directories are refused (all dry-run)
+for od in / // /// /. /.. /./ /../..; do
+  check "I17a --out-dir '$od' refused (exit 6)" 6 "$(runh "$SH" --project-root "$P" --out-dir "$od")"
+done
+for sd in /etc /etc/agents /usr /usr/lib/x /bin /var /root /boot /dev /proc /sys /lib /lib64 /opt /srv /run /home; do
+  check "I17b --out-dir '$sd' refused (exit 6)" 6 "$(runh "$SH" --project-root "$P" --out-dir "$sd")"
+  [ -d "$sd" ] && check "I17c --project-root '$sd' refused (exit 6)" 6 "$(runh "$SH" --project-root "$sd")"
+done
+check "I17d golden-FALSE: out-dir under the sandbox (below /tmp-class dirs) not refused" 0 "$(runh "$SH" --project-root "$P" --out-dir "$W/ordinary/agents")"
+# consistency: every absolute entry of scripts/lib/protected_paths.list is refused as an out-dir
+PPL="$CONST/scripts/lib/protected_paths.list"
+if [ -r "$PPL" ]; then
+  bad_n=0
+  while IFS= read -r e; do
+    e="${e#"${e%%[![:space:]]*}"}"; e="${e%"${e##*[![:space:]]}"}"
+    case "$e" in /*) ;; *) continue ;; esac
+    case "$e" in /tmp|/Users) continue ;; esac   # /tmp is legitimately an ancestor of scratch projects; /Users does not exist on Linux
+    r="$(runh "$SH" --project-root "$P" --out-dir "$e")"
+    [ "$r" = 6 ] || { bad_n=$((bad_n+1)); echo "    not refused: $e (exit $r)" >&2; }
+  done <"$PPL"
+  check "I17e every absolute protected_paths.list entry (except /tmp,/Users) is refused as out-dir" 0 "$bad_n"
+else bad "I17e protected_paths.list readable"; fi
+# R3-2 mutant killers (X3..X7)
+ln -s "$W/nonexistent-target" "$SH/.claude-dangling"
+check "I18a (X3) out-dir inside a DANGLING ~/.claude-* symlink refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-dangling/agents")"
+check "I18b (X6) out-dir EQUAL to a user config dir (~/.claude-y) refused" 6 "$(runh "$SH" --project-root "$P" --out-dir "$SH/.claude-x")"
+RHR="$W/realhome"; mkdir -p "$RHR/proj"; ln -s "$RHR" "$W/homelink"
+check "I18c (X5) HOME is a symlink: project root = its real target refused" 6 "$(runh "$W/homelink" --project-root "$RHR")"
+check "I18d (X5) HOME is a symlink: out-dir = its real target refused" 6 "$(runh "$W/homelink" --project-root "$P" --out-dir "$RHR")"
+# X7: HOME empty AND no passwd entry (getent stubbed to fail): refuse, unless --check
+STUB="$W/stubbin"; mkdir -p "$STUB"; printf '#!/bin/sh\nexit 2\n' >"$STUB/getent"; chmod +x "$STUB/getent"
+rc=$(env -u CLAUDE_CONFIG_DIR PATH="$STUB:$PATH" HOME="" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run --project-root "$P" >"$W/out" 2>"$W/err"; echo $?)
+check "I18e (X7) no resolvable home (HOME empty, getent fails) refused (exit 6)" 6 "$rc"
+grep -q 'cannot be resolved' "$W/err" && ok "I18f (X7) refusal explains the unresolvable home" || bad "I18f (X7) refusal explains the unresolvable home"
+# X4: track-007 with an absent mount is keyed as T7: its files are kept
+P4="$W/p4"; mkdir -p "$P4/config/multitrack"; git -C "$P4" init -q -b main; git -C "$P4" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+cat >"$P4/config/multitrack/fixturehost.yaml" <<YAML
+schema_version: 1
+host:
+  hostname: fixturehost
+protected_drives:
+  - serial: "PROT"
+tracks:
+  - id: track-007
+    role: feature
+    branch_pattern: "feature/*"
+    drive_serial: "C"
+    mount: $P4/mnt/absent
+YAML
+bash "$GEN" --track 7 --branch feature/seven --out-dir "$P4/.claude/agents" --models sonnet --efforts low >/dev/null 2>&1
+MT_HOST=fixturehost MT_CONFIG_DIR="$P4/config/multitrack" bash "$INST" --project-root "$P4" >/dev/null 2>&1
+[ -e "$P4/.claude/agents/T7-feature-seven-sonnet-low.md" ] && ok "I18g (X4) track-007 with absent mount: T7 files kept (keyed as 7)" || bad "I18g (X4) track-007 with absent mount: T7 files kept"
 # R2-2: a declared track whose mount is absent / host mismatched must NOT have its files pruned
 P="$W/proj"; run >/dev/null
 n_before="$(ls "$AG" | grep -c '^T2-feature-zeta-')"

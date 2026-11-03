@@ -70,3 +70,9 @@ interactive sessions).
 consent modes in a hermetic fixture constitution); gate `CM-AGENT-TYPE-LABEL`.
 
 **Last verified:** 2026-11-03.
+
+## Refusals added in review round 3 and known limits
+
+- `--out-dir /` (also `//`, `///`, `/.`, `/..`) and the project root `/` are refused with exit 6: the filesystem root counts as an ancestor of the home directory and of every protected directory.
+- The system directories of `scripts/lib/protected_paths.list` are refused as project root or out-dir (`/bin /boot /dev /etc /lib* /opt /proc /root /run /sbin /srv /sys /usr`: the directory and anything inside it; `/var /home /mnt /media /snap /tmp`: the directory itself only, because ordinary projects live below them). A unit test asserts every absolute entry of that file is refused, so the two lists cannot drift apart silently.
+- Known limits (honest residuals): a bind mount of a user config directory is invisible to the realpath-based refusal (UNCONFIRMED by experiment); the refusal runs once before generation, so a path component swapped for a symlink between the check and the write (check-to-write race) is not caught; `$XDG_CONFIG_HOME/claude` and other platforms' user directories are not protected.

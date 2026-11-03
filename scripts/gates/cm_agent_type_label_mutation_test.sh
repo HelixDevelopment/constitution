@@ -153,6 +153,27 @@ expect fail "R11 installer prunes a declared-but-unresolvable track" gate_in "$D
 D=$(fresh_tree r12); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'if [ "$cfg_ok" -eq 1 ] && [ -d "$out_dir" ]; then' 'if [ -d "$out_dir" ]; then' || rc=1
 expect fail "R12 installer prunes with no usable config" gate_in "$D"
 
+D=$(fresh_tree r14); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ "$2" = / ] && return 0; ' '' || rc=1
+expect fail "R14 under() does not treat the filesystem root as an ancestor (--out-dir / written)" gate_in "$D"
+
+D=$(fresh_tree r15); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '    under "$t" "$sd" && refuse6' '    false && refuse6' || rc=1
+expect fail "R15 system directories are not refused as out-dir" gate_in "$D"
+
+D=$(fresh_tree r16); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ "$1" = "$2" ] && return 0; ' '' || rc=1
+expect fail "R16 under() loses its equality branch (out-dir equal to a user config dir)" gate_in "$D"
+
+D=$(fresh_tree x3); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '{ [ -e "$c" ] || [ -L "$c" ]; }' '[ -e "$c" ]' || rc=1
+expect fail "X3 the ~/.claude-* glob ignores dangling symlinks" gate_in "$D"
+
+D=$(fresh_tree x4); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '${UNRESOLVED[$((10#$tnum))]:-}' '${UNRESOLVED[$tnum]:-}' || rc=1
+expect fail "X4 UNRESOLVED keyed by the raw track digits (007 vs 7)" gate_in "$D"
+
+D=$(fresh_tree x5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'add_uniq HOMES "$(canon "$HOME")"; ' '' || rc=1
+expect fail "X5 HOME is not canonicalised" gate_in "$D"
+
+D=$(fresh_tree x7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then' 'if false; then' || rc=1
+expect fail "X7 the no-resolvable-home refusal is disabled" gate_in "$D"
+
 D=$(fresh_tree r13); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '[ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; add_uniq HOMES "$(canon "$pw_home")"; }' 'true' || rc=1
 expect fail "R13 installer ignores the passwd home when HOME is empty" gate_in "$D"
 
