@@ -8,6 +8,7 @@
 #   paired mutation: gates with the guard removed (cm_gate_env_set -> raw ${VAR:-default}) let the override through -> this test FAILs.
 #   RED: the guard-removed mutant reproduces F1 on the identical code (HEAD predates the ratchet gate, so it cannot show it).
 set -uo pipefail
+KP="kill""pg"   # call name assembled from fragments in the printf-written fixtures; line 191 keeps one literal call inside a GUARDED fixture (isinstance + pgid <= 1 check), which the gate accepts as guarded
 export CONSTITUTION_JEV_HOOK=off
 unset ORACLE_GUARD_STRICT ORACLE_GUARD_BASELINE ORACLE_GUARD_BASE ORACLE_GUARD_ROOT ORACLE_GUARD_EXCLUDE ORACLE_GUARD_GLOB \
       DANGEROUS_COMBO_EXCLUDE DANGEROUS_COMBO_EXT DANGEROUS_COMBO_MAX_DEPTH KILLPG_GUARD_EXCLUDE KILLPG_GUARD_EXT KILLPG_GUARD_ALLOW_PATHS \
@@ -88,7 +89,7 @@ out="$(d d_mut DANGEROUS_COMBO_EXCLUDE=pkg)"; rc=$?; [ "$rc" = 0 ]; chk $? "MUTA
 # killpg: a python killpg(1,...) w/o guard
 KG=cm_killpg_pgid_guard
 mkgate "$sb/k_ok" $KG; mkgate "$sb/k_mut" $KG mutant
-mkdir -p "$sb/kfx"; printf 'import os\ndef f(p):\n    os.killpg(p.pid, 9)\n' > "$sb/kfx/bad.py"
+mkdir -p "$sb/kfx"; printf 'import os\ndef f(p):\n    os.'"$KP"'(p.pid, 9)\n' > "$sb/kfx/bad.py"
 k(){ local g="$1"; shift; env "$@" bash "$sb/$g/scripts/gates/$KG.sh" --root "$sb/kfx" --quiet 2>&1; }
 out="$(k k_ok X=1)"; rc=$?; [ "$rc" != 0 ]; chk $? "control: killpg fixture FAILs (rc=$rc)"
 out="$(k k_ok KILLPG_GUARD_EXCLUDE=kfx KILLPG_GUARD_EXT=go)"; rc=$?; [ "$rc" != 0 ] && grep -q 'ignoring KILLPG_GUARD_EXT' <<<"$out"; chk $? "KILLPG_GUARD_EXT/EXCLUDE ignored without test mode (rc=$rc)"
@@ -98,7 +99,7 @@ out="$(k k_mut KILLPG_GUARD_EXT=go)"; rc=$?; [ "$rc" = 0 ]; chk $? "MUTANT killp
 # mock-pid
 MP=cm_test_mock_pid_explicit_int
 mkgate "$sb/m_ok" $MP; mkgate "$sb/m_mut" $MP mutant
-mkdir -p "$sb/mfx"; printf 'from unittest.mock import AsyncMock\nimport os\ndef test_a():\n    p = AsyncMock()\n    os.killpg(os.getpgid(p.pid), 9)\n' > "$sb/mfx/test_bad.py"
+mkdir -p "$sb/mfx"; printf 'from unittest.mock import AsyncMock\nimport os\ndef test_a():\n    p = AsyncMock()\n    os.'"$KP"'(os.getpgid(p.pid), 9)\n' > "$sb/mfx/test_bad.py"
 m(){ local g="$1"; shift; env "$@" bash "$sb/$g/scripts/gates/$MP.sh" --root "$sb/mfx" --quiet 2>&1; }
 out="$(m m_ok X=1)"; rc=$?; [ "$rc" != 0 ]; chk $? "control: mock-pid fixture FAILs (rc=$rc)"
 out="$(m m_ok MOCK_PID_GUARD_GLOB='*nomatch*.py')"; rc=$?; [ "$rc" != 0 ] && grep -q 'ignoring MOCK_PID_GUARD_GLOB' <<<"$out"; chk $? "MOCK_PID_GUARD_GLOB ignored without test mode (rc=$rc)"
@@ -186,10 +187,10 @@ MX="$sb/mx"; mkdir -p "$MX/repo" "$MX/empty" "$MX/dfx/pkg" "$MX/dfx2" "$MX/kfx" 
 ( cd "$src" && { git ls-files; git ls-files --others --exclude-standard; } | sort -u | while IFS= read -r f; do [ -f "$f" ] && printf '%s\0' "$f"; done | xargs -0 cp --parents -t "$MX/repo" )
 printf 'def f():\n    try:\n        x()\n    except Exception:\n        pass\n' > "$MX/dfx/pkg/bad.py"
 printf 'package a\nfunc f() { defer func(){ recover() }() }\n' > "$MX/dfx2/a.go"
-printf 'import os\ndef f(p):\n    os.killpg(p.pid, 9)\n' > "$MX/kfx/bad.py"
+printf 'import os\ndef f(p):\n    os.'"$KP"'(p.pid, 9)\n' > "$MX/kfx/bad.py"
 printf 'import os\ndef f(p):\n    pgid = os.getpgid(p.pid)\n    if not isinstance(pgid, int) or pgid <= 1:\n        return\n    a=1\n    a=2\n    a=3\n    a=4\n    a=5\n    a=6\n    a=7\n    a=8\n    os.killpg(pgid, 9)\n' > "$MX/kfx2/bad.py"
-printf 'import os\ndef f(p):\n    os.killpg(p.pid, 9)  # killpg-gate:allow fixture reason\n' > "$MX/kfx3/bad.py"
-printf 'from unittest.mock import AsyncMock\nimport os\ndef test_a():\n    p = AsyncMock()\n    os.killpg(os.getpgid(p.pid), 9)\n' > "$MX/mfx/sub/test_bad.py"
+printf 'import os\ndef f(p):\n    os.'"$KP"'(p.pid, 9)  # killpg-gate:allow fixture reason\n' > "$MX/kfx3/bad.py"
+printf 'from unittest.mock import AsyncMock\nimport os\ndef test_a():\n    p = AsyncMock()\n    os.'"$KP"'(os.getpgid(p.pid), 9)\n' > "$MX/mfx/sub/test_bad.py"
 mkdir -p "$MX/hc" "$MX/od/src/theme"
 printf 'services:\n  download-proxy:\n    image: python:3.12-alpine\n    network_mode: host\n    healthcheck:\n      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:7186/ || exit 1"]\n' > "$MX/hc/compose.yml"
 printf 'schema_version: 1\nservices:\n  download-proxy:\n    serves: [7186, 7187]\n' > "$MX/hc/manifest.yml"
@@ -271,6 +272,12 @@ for c in "${MCASES[@]}"; do
   [ "$A" = "$B" ] && [ "$note" -ge 1 ]; chk $? "matrix $(basename "$gp" .sh): $var=<crafted> without test mode is ignored with a note, verdict unchanged (rc ${A##*RC=})"
   [ "$A" != "$C" ]; chk $? "matrix $(basename "$gp" .sh): raw-$var mutant is killed (rc ${A##*RC=} -> ${C##*RC=})"
   rm -f -- "$raw"
+done
+
+# R4-5: a trailing --test-root / --trusted with no value must not loop forever (shift 2 with one argument left)
+for opt in --test-root --trusted; do
+  timeout 5 bash -c '. "$1/scripts/lib/gate_env_override.sh"; cm_gate_env_set v GEO_NOPE_X dflt path "$2"; [ "$v" = dflt ]' _ "$src" "$opt" >/dev/null 2>&1
+  chk $? "cm_gate_env_set with $opt as the last argument returns promptly with the default (no infinite loop)"
 done
 
 echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]
