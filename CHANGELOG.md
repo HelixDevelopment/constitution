@@ -1,5 +1,47 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v73.3 — 2026-11-03 — PROVISIONAL pre-release after v73.2: speckit bridge fix, trust-lock flock fix, killpg scope gate with a single third-party prune rule, containers and llmctl pointer bumps
+
+**Status: PROVISIONAL PRE-RELEASE (§11.4.290), tag `helixconstitution-v73.3`.** Previous tag: `helixconstitution-v73.2`. Base `9d27081` (`git diff --shortstat helixconstitution-v73.2 9d27081`: 23 files changed, 1033 insertions, 122 deletions). Landed under §11.4.288 through reviewed vehicles (killpg-scope: GO-with-follow-ups; ptrbump: GO; trust-lock: round-2 GO-with-follow-ups). The §11.4.40 full-suite retest has NOT been run on this change set: no single full-suite entry point exists in the tree (only per-directory `run_all.sh` files and per-gate scripts). Nothing here is "fixed" or "verified" beyond the VERIFIED list.
+
+#### VERIFIED (command and result seen on the candidate tree, 2026-11-03)
+
+- `bash scripts/badges/compute_badges.sh --check` -> `BADGES: README badge row matches the computed row`.
+- `bash scripts/gates/gate_constitution_generate_no_drift.sh` -> `check: no drift`.
+- `python3 progressive/generate_split.py --check` -> `check: reproducible (306 artifact(s), byte-identical)`.
+- `bash scripts/gates/cm_killpg_pgid_guard.sh` -> `PASS - 23 process-group signal call site(s), all guarded (§11.4.263)` (v73.2 carried a FAIL with 43 unguarded sites; the cause was scanning third-party trees).
+- `bash scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh` -> `SCOPE TEST PASS`, including the mutant that disables brace stripping.
+
+#### PROVISIONAL (verification pending; counted as done for planning only)
+
+- CM-KILLPG-PGID-GUARD prunes third-party trees through one shared rule: a recorded gitlink plus a tracked `third_party: true` manifest mark; the own-org URL rule was removed.
+- Trust-lock: stale-lock reclaimers are serialised by a flock mutex (FIFO and non-regular mutex refused; no-flock and cross-locker tests); the gate-env setter no longer loops forever on a trailing `--test-root` / `--trusted`.
+- Speckit bridge: every `specify` call runs in `--root`; the superb cleanup is guarded behind a successful probe; live-fixture tests with real `specify init` and `extension add --dev`.
+- Pointer bumps: containers `22b4970` -> `1d8274c`, llmctl `a1bf949` -> `3877467` (v3.4.1-2), with `helix-deps.yaml` refs following the gitlinks.
+- Env-sensitive tests skip honestly where topology is absent (a SKIP is never a PASS).
+
+#### Independent review findings carried as follow-ups (all minor, not fixed here)
+
+- killpg: R5-1 and R5-2 (from the killpg-scope review).
+- Trust-lock follow-ups from the round-2 review.
+- Speckit bridge: F1-F8.
+- v73.2 findings F1-F9 (listed in the v73.2 entry) remain open.
+- containers: Cancel test. llmctl: K6c and L4.
+
+#### REOPENED
+
+- None known.
+
+#### OVERDUE
+
+- Verification jobs for the PROVISIONAL list above, due with the §11.4.40 retest.
+
+#### Known gaps and debt carried (honest)
+
+- The `claude_toolkit` submodule's Go sources are still scanned by the killpg gate, because that gate prunes only recorded `third_party` submodules.
+- Pending review and not part of this release: vehicle `agentlabel` (`fd34b84`), the `atm1220` carry, and the `atm1217` replacement (in progress).
+- Carried from v73.2: oracle baseline debt (321 functions in 19 own-org submodule files), extension engine ownership redesign D1-D6, `wave-dpctf` / `video-quality-mcp` licence ask.
+
 ## helixconstitution-v73.2 — 2026-11-03 — PROVISIONAL pre-release after v73.1: gate env-read allowlist and census (best-effort tripwire), oracle ratchet, structural helix-deps reader, atomic generator v2, extensions catalogue
 
 **Status: PROVISIONAL PRE-RELEASE (§11.4.290), tag `helixconstitution-v73.2`.** Previous tag: `helixconstitution-v73.1`. Candidate commit `1afdfc6` (149 files changed, 6706 insertions, 389 deletions against `ca88eda`, from `git diff --shortstat ca88eda 1afdfc6`), merged with `origin/main` in `6ade367`. The merge brought in the upstream anchors §11.4.292 (reproduce first, `9e24057`) and §11.4.293 (scope discipline and image no-worse proof, `c5f51cb`); they are upstream work, not authored in this release. Independent Opus review of the candidate: **GO-with-follow-ups**, minor findings only (F1-F9 below), tracked for v73.3. The §11.4.40 full-suite retest has NOT been run on this change set. Nothing here is "fixed" or "verified" beyond the VERIFIED list.
