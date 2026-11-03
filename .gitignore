@@ -42,4 +42,3 @@ docs/research/decisions_models
 
 # Generator staging dirs (scripts/generate_agent_prefix_commands.sh; removed on exit, reaped after a kill)
 .gen.*
-.full_suite_out/

@@ -1,0 +1,11 @@
+# config/full_suite_known_failures.tsv -- OPEN known failures for scripts/run_full_suite.sh (section 11.4.40).
+# A FAIL / TIMEOUT / ERROR unit is KNOWN only when its path equals a row's path EXACTLY and the row's
+# signature matches: a literal substring of that unit's log, or `reason:<code>` equal to the verdict
+# reason. KNOWN units are listed in the summary, never hidden, and do not make the exit status non-zero.
+# Columns (TAB): path signature tracked_id note   (path, signature and tracked_id must be non-empty)
+#
+# Derivation (2026-11-03): docs/design/known_failures_v73.md, revision 1, lists every item under
+# "Fixed", "Fixed upstream" or "Remaining" with status done / closed; it has NO open failing suite.
+# Paths that the doc cites only as passing evidence (for example tests/gates/test_default_scan_root.sh,
+# passed=25 failed=0) are NOT known failures. This table therefore has no rows: every failure fails
+# the run. Add a row only for a failure that is open, reproduced, and tracked under the given id.
