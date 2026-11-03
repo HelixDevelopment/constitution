@@ -312,7 +312,9 @@ else bad "control needle BLIND: $nids rule id(s) read from the checker"; fi
 
 # ---------------------------------------------------------------- Part B: covenant suite, end to end
 SB="$TMPD/gates"; ROOTD="$TMPD/root"; STUBPACK="$TMPD/stub_pack.tsv"
-mkdir -p "$SB/lib" "$ROOTD"
+mkdir -p "$SB/lib" "$ROOTD" "$TMPD/lib"
+# the engine resolves the env-override guard at $SB/lib/../../lib (scripts/lib/gate_env_override.sh): without it the stub-pack override is ignored (fail closed)
+cp "$HERE/../lib/gate_env_override.sh" "$TMPD/lib/"
 cp "$ENGINE" "$HERE/lib/pointer_carrier.sh" "$HERE/lib/covenant_propagation_mutation_engine.sh" "$SB/lib/"
 cp "$SUITE" "$ST" "$PACK" "$SB/"
 # the compact self-test needs the first data-pack row's gate wrapper and mutation wrapper beside it
@@ -326,7 +328,7 @@ printf '#!/usr/bin/env bash\necho "✅ CM-COVENANT-114-999-PROPAGATION: sandbox 
 printf '#!/usr/bin/env bash\necho "=== ACCOUNTING PAIR VALID: sandbox stub ==="\nexit 0\n' > "$SB/covenant_propagation_suite_accounting_mutation_test.sh"
 printf '#!/usr/bin/env bash\necho "=== VERDICT-SET CHECK PAIR VALID: sandbox stub ==="\nexit 0\n' > "$SB/suite_verdict_set_check_mutation_test.sh"
 cov_run() { # $1 checker ('' = the real one)  $2 optional env assignment -> R_RC, R_V, R_OUT; ids in $TMPD/ids
-    R_OUT="$(env -u COVENANT_PROPAGATION_CARRIERS -u COVENANT_PROPAGATION_SUITE_INNER COVENANT_PROPAGATION_ANCHORS="$STUBPACK" ${2:+"$2"} \
+    R_OUT="$(env -u COVENANT_PROPAGATION_CARRIERS -u COVENANT_PROPAGATION_SUITE_INNER HELIX_TEST_MODE=1 COVENANT_PROPAGATION_ANCHORS="$STUBPACK" ${2:+"$2"} \
              bash "$SB/covenant_propagation_suite.sh" gates --root "$ROOTD" 2>&1)"; R_RC=$?
     printf '%s\n' "$R_OUT" | bash "${1:-$CHK}" --profile covenant-gates --rc "$R_RC" > "$TMPD/chk.out" 2>&1
     case $? in 0) R_V=VALID ;; 1) R_V=INVALID ;; *) R_V=ERR ;; esac

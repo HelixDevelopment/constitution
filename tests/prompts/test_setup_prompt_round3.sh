@@ -222,7 +222,7 @@ grep -qE 'control needle: .gitmodules:[1-9]' <<<"$o" && ok "I7 STEP4G control ne
 GD="${R3_GATE_DIR:-}"
 if [ -z "$GD" ]; then
   GD="$(mk_sandbox)"; mkdir -p "$GD/scripts/gates" "$GD/scripts/lib"
-  cp "$GATE" "$GD/scripts/gates/"; cp "$REPO/scripts/lib/setup_prompt_extract.sh" "$GD/scripts/lib/"
+  cp "$GATE" "$GD/scripts/gates/"; cp "$REPO/scripts/lib/setup_prompt_extract.sh" "$REPO/scripts/lib/gate_env_override.sh" "$GD/scripts/lib/"
 fi
 G="$GD/scripts/gates/cm_setup_prompt_latest_present.sh"
 FX="$(mk_sandbox)"; mk_setup_dir "$FX" >/dev/null; mkdir -p "$FX/scripts"; printf '#!/bin/sh\n# --help\n' >"$FX/scripts/real.sh"
@@ -232,9 +232,14 @@ o="$(env -u SETUP_PROMPT_EXTRACT_LIB_TRUST bash "$G" --root "$FX" 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && ok "I9 gate default library accepted (PASS)" || no "I9 gate default rc=$rc: $o"
 o="$(env -u SETUP_PROMPT_EXTRACT_LIB_TRUST SETUP_PROMPT_EXTRACT_LIB="$GD/scripts/lib/setup_prompt_extract.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && ok "I9 gate explicit library inside its own scripts/lib accepted" || no "I9 gate own lib rc=$rc: $o"
-o="$(env -u SETUP_PROMPT_EXTRACT_LIB_TRUST SETUP_PROMPT_EXTRACT_LIB="$OUT/evil_lib.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
-[ "$rc" -eq 2 ] && grep -q 'outside' <<<"$o" && ok "I9 gate library outside scripts/lib refused (BLIND rc=2)" || no "I9 gate outside lib rc=$rc: $o"
-o="$(SETUP_PROMPT_EXTRACT_LIB_TRUST=1 SETUP_PROMPT_EXTRACT_LIB="$OUT/evil_lib.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
-[ "$rc" -eq 0 ] && ok "I9 gate outside library accepted with SETUP_PROMPT_EXTRACT_LIB_TRUST=1" || no "I9 gate trusted outside lib rc=$rc: $o"
+# 11.4.201(6)-(8) guard (scripts/lib/gate_env_override.sh): an outside library is IGNORED (the gate's own library is
+# used, never the override) unless HELIX_TEST_MODE=1 and the path lies under the temp root; SETUP_PROMPT_EXTRACT_LIB_TRUST
+# is no longer read (an ambient trust switch was itself an unguarded verdict-affecting override).
+o="$(env -u HELIX_TEST_MODE SETUP_PROMPT_EXTRACT_LIB="$OUT/evil_lib.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'ignoring SETUP_PROMPT_EXTRACT_LIB' <<<"$o" && ok "I9 gate library outside scripts/lib ignored without test mode (own library used)" || no "I9 gate outside lib rc=$rc: $o"
+o="$(SETUP_PROMPT_EXTRACT_LIB_TRUST=1 env -u HELIX_TEST_MODE SETUP_PROMPT_EXTRACT_LIB="$OUT/evil_lib.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'ignoring SETUP_PROMPT_EXTRACT_LIB' <<<"$o" && ok "I9 retired SETUP_PROMPT_EXTRACT_LIB_TRUST=1 does not re-open the override" || no "I9 trust switch rc=$rc: $o"
+o="$(HELIX_TEST_MODE=1 SETUP_PROMPT_EXTRACT_LIB="$OUT/evil_lib.sh" bash "$G" --root "$FX" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'honouring SETUP_PROMPT_EXTRACT_LIB' <<<"$o" && ok "I9 outside library honoured (announced) under HELIX_TEST_MODE=1 + temp path" || no "I9 test-mode outside lib rc=$rc: $o"
 
 summary round3

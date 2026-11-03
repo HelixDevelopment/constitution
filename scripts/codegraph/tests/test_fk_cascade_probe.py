@@ -20,8 +20,13 @@ Dependencies python3 (stdlib only), sh (fake npm)
 Cross-refs   fk_cascade_probe.py, test_fk_cascade_probe_mutations.sh, docs/scripts/fk_cascade_probe.md,
              constitution §11.4.18 / §11.4.50 / §11.4.115 / §11.4.201 / §11.4.224 / §11.4.273 / §1.1
 """
+import contextlib
+import importlib.util
+import io
 import json
 import os
+import sqlite3
+import time
 import shutil
 import stat
 import subprocess
@@ -192,6 +197,7 @@ class Base(unittest.TestCase):
 
 
 class Static(Base):
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_01_safe_fixture_reports_safe_exit0_with_full_evidence(self):
         dist = self.dist()
         doc = self.run_ok(0, "--dist", dist, "--static-only")
@@ -206,6 +212,7 @@ class Static(Base):
             self.assertEqual(v["unserved"], [], w)
             self.assertEqual(len(v["served"]), 3, w)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_02_never_dropped_unique_index_serves_the_fk(self):
         doc = self.run_ok(0, "--dist", self.dist(), "--static-only")
         for w in ("parse", "ref", "edge"):
@@ -215,6 +222,7 @@ class Static(Base):
             # idx_edges_source_kind IS in the dropped edge list; only the UNIQUE identity index survives -> still served
             self.assertEqual(src["survivors"], ["idx_edges_identity"], w)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_03_hazard_in_ref_window_only(self):
         doc = self.run_ok(1, "--dist", self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), "--static-only")
         self.assertEqual(doc["verdict"], "HAZARD")
@@ -223,12 +231,14 @@ class Static(Base):
         self.assertEqual(doc["static"]["ref"]["unserved"], [
             {"table": "unresolved_refs", "column": "from_node_id", "candidates": ["idx_unresolved_from_node"], "survivors": []}])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_04_hazard_in_parse_window_only(self):
         doc = self.run_ok(1, "--dist", self.dist(parse=SAFE_PARSE + ["idx_unresolved_from_node"]), "--static-only")
         self.assertEqual(doc["verdict"], "HAZARD")
         self.assertTrue(doc["static"]["parse"]["hazard"])
         self.assertFalse(doc["static"]["ref"]["hazard"])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_05_edge_list_hazard_reaches_parse_ref_and_edge_windows(self):
         # the parse and ref windows both ENTER the edge window, so an edge-list drop of the only edges.target index hits all three
         doc = self.run_ok(1, "--dist", self.dist(edge=SAFE_EDGE + ["idx_edges_target_kind"]), "--static-only")
@@ -237,6 +247,7 @@ class Static(Base):
             self.assertTrue(doc["static"][w]["hazard"], w)
             self.assertEqual([(f["table"], f["column"]) for f in doc["static"][w]["unserved"]], [("edges", "target")], w)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_06_fk_column_must_be_the_leftmost_index_column(self):
         idx = IDX.replace("idx_unresolved_from_node ON unresolved_refs(from_node_id)",
                           "idx_unresolved_from_node ON unresolved_refs(reference_name, from_node_id)")
@@ -246,6 +257,7 @@ class Static(Base):
                          [("unresolved_refs", "from_node_id", [])],
                          "an index with the FK column in second position does not serve it (not even a candidate)")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_07_index_must_be_on_the_fk_table(self):
         # the only from_node_id index is on `files`, which is not the FK-child table
         idx = IDX.replace("idx_unresolved_from_node ON unresolved_refs(from_node_id)",
@@ -253,11 +265,13 @@ class Static(Base):
         doc = self.run_ok(1, "--dist", self.dist(schema=NODES + EDGES + REFS + FILES + idx), "--static-only")
         self.assertEqual([(f["table"], f["column"]) for f in doc["static"]["ref"]["unserved"]], [("unresolved_refs", "from_node_id")])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_08_order_suffix_on_the_leftmost_column_is_ignored(self):
         idx = IDX.replace("unresolved_refs(from_node_id)", "unresolved_refs(from_node_id DESC)")
         doc = self.run_ok(0, "--dist", self.dist(schema=NODES + EDGES + REFS + FILES + idx), "--static-only")
         self.assertEqual(doc["verdict"], "SAFE")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_09a_lowercase_and_spaced_foreign_key_clause_is_detected(self):
         refs = REFS.replace("FOREIGN KEY (from_node_id) REFERENCES nodes(id)", "foreign key ( from_node_id ) references nodes ( id )")
         self.assertNotEqual(refs, REFS, "fixture edit applied")
@@ -266,6 +280,7 @@ class Static(Base):
         self.assertIn(("unresolved_refs", "from_node_id"), [(f["table"], f["column"]) for f in doc["fk_children_of_nodes"]])
         self.assertTrue(doc["static"]["ref"]["hazard"])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_09b_lowercase_index_statement_is_parsed(self):
         idx = IDX.replace("CREATE INDEX IF NOT EXISTS idx_unresolved_from_node ON unresolved_refs(from_node_id);",
                           "create index if not exists idx_unresolved_from_node on unresolved_refs ( from_node_id );")
@@ -273,6 +288,7 @@ class Static(Base):
         doc = self.run_ok(0, "--dist", self.dist(schema=NODES + EDGES + REFS + FILES + idx), "--static-only")
         self.assertEqual(doc["verdict"], "SAFE", "the lowercase index must still be seen as serving from_node_id")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_10_a_list_that_is_not_one_of_the_three_windows_changes_nothing(self):
         decoy = "    static BULK_DECOY_NAMES = [\n        'idx_unresolved_from_node',\n        'idx_edges_target_kind',\n    ];\n"
         dist = self.dist(indexjs=bulk_js(SAFE_PARSE, SAFE_REF, SAFE_EDGE, extra=decoy))
@@ -280,12 +296,14 @@ class Static(Base):
         self.assertEqual(doc["verdict"], "SAFE")
         self.assertIn("BULK_DECOY_NAMES", doc["bulk_lists"], "echoed as evidence, but never used as a window")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_11_static_only_skips_the_measured_layer_entirely(self):
         doc = self.run_ok(0, "--dist", self.dist(), "--static-only")
         self.assertNotIn("measured", doc)
         self.assertNotIn("scale", doc)
         self.assertEqual(os.listdir(self.tmpdir), [], "no scratch dir may be created by a static-only run")
 
+    # oracle: INVARIANT (two runs byte-identical and --json-out equals stdout)
     def test_12_output_is_deterministic_and_json_out_equals_stdout(self):
         dist = self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"])
         out = os.path.join(self.d, "evidence.json")
@@ -303,25 +321,30 @@ class CannotEvaluate(Base):
         self.assertEqual(doc["verdict"], "CANNOT_EVALUATE")
         self.assertIn(needle, doc["error"])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_20_dist_directory_missing(self):
         gone = os.path.join(self.d, "nope", "dist")
         doc = self.run_ok(2, "--dist", gone, "--static-only")
         self.assert_cannot(doc, "cannot read target files")
         self.assertEqual(doc["dist"], gone, "dist is echoed even when the target cannot be read")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_21_index_js_missing(self):
         doc = self.run_ok(2, "--dist", self.dist(indexjs=False), "--static-only")
         self.assert_cannot(doc, "cannot read target files")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_22_bulk_list_absent(self):
         js = bulk_js(SAFE_PARSE, SAFE_REF, SAFE_EDGE).replace("BULK_REF_INDEX_NAMES", "BULK_RENAMED_NAMES")
         doc = self.run_ok(2, "--dist", self.dist(indexjs=js), "--static-only")
         self.assert_cannot(doc, "BULK_REF_INDEX_NAMES not found/empty (upstream shape changed)")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_23_bulk_list_empty(self):
         doc = self.run_ok(2, "--dist", self.dist(indexjs=bulk_js(SAFE_PARSE, SAFE_REF, [])), "--static-only")
         self.assert_cannot(doc, "BULK_EDGE_INDEX_NAMES not found/empty")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_24_schema_without_any_fk_to_nodes(self):
         schema = (NODES + EDGES + REFS + FILES + IDX).replace("REFERENCES nodes(id)", "REFERENCES elsewhere(id)")
         self.assertNotIn("REFERENCES nodes", schema)
@@ -338,6 +361,7 @@ class CannotEvaluate(Base):
                        FAKE_NPM_ROOT=root or "")
         return env, log
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_25_npm_root_fails(self):
         env, log = self.fake_npm(mode="fail")
         p = self.run_tool("--static-only", env=env)
@@ -349,11 +373,13 @@ class CannotEvaluate(Base):
         with open(log, encoding="utf-8") as f:
             self.assertEqual(f.read().strip(), "root -g", "control: the fake npm WAS invoked, with exactly `root -g`")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_26_npm_not_on_path(self):
         empty = self.sub()
         doc = self.run_ok(2, "--static-only", env=self.env(PATH=empty))
         self.assert_cannot(doc, "npm root -g failed")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_27_no_codegraph_install_under_the_npm_root(self):
         root = self.sub()
         env, _ = self.fake_npm(root=root)
@@ -363,6 +389,7 @@ class CannotEvaluate(Base):
     def platform_base(self, root):
         return os.path.join(root, "@colbymchenry", "codegraph", "node_modules", "@colbymchenry")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_28_no_platform_package_carries_db_index_js(self):
         root = self.sub()
         os.makedirs(os.path.join(self.platform_base(root), "codegraph-linux-x64", "lib", "dist", "db"))  # dir, but no index.js
@@ -370,6 +397,7 @@ class CannotEvaluate(Base):
         doc = self.run_ok(2, "--static-only", env=env)
         self.assert_cannot(doc, "no platform package with lib/dist/db/index.js")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_29_default_dist_resolution_skips_incomplete_packages_and_uses_the_first_complete_one(self):
         root = self.sub()
         base = self.platform_base(root)
@@ -383,12 +411,14 @@ class CannotEvaluate(Base):
         with open(log, encoding="utf-8") as f:
             self.assertEqual(f.read().strip(), "root -g")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_30_explicit_dist_never_consults_npm(self):
         env, log = self.fake_npm(mode="fail")
         doc = self.run_ok(0, "--dist", self.dist(), "--static-only", env=env)
         self.assertEqual(doc["verdict"], "SAFE")
         self.assertFalse(os.path.exists(log), "npm must not run at all when --dist is given")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_31_json_out_is_written_for_an_unevaluable_target_too(self):
         out = os.path.join(self.d, "evidence.json")
         p = self.run_tool("--dist", os.path.join(self.d, "gone"), "--static-only", "--json-out", out)
@@ -399,6 +429,7 @@ class CannotEvaluate(Base):
 
 
 class Measured(Base):
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_40_safe_target_measured_layer_evidence(self):
         doc = self.run_ok(0, "--dist", self.dist(), *SMALL)
         self.assertEqual(doc["verdict"], "SAFE")
@@ -409,6 +440,7 @@ class Measured(Base):
             self.assertFalse(m["hazard"], w)
         self.assertEqual(os.listdir(self.tmpdir), [], "temp scratch dir removed after a normal run")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_41_hazard_target_is_missing_the_dropped_index_in_the_measured_ref_window(self):
         doc = self.run_ok(1, "--dist", self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), *SMALL)
         self.assertEqual(doc["verdict"], "HAZARD")
@@ -418,6 +450,7 @@ class Measured(Base):
         self.assertEqual(doc["measured"]["ref"]["indexes_present_for_fk"], ["idx_edges_identity", "idx_edges_target_kind"],
                          "the measured ref window must recreate exactly the indexes that SURVIVE that window")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_42_negative_threshold_makes_the_measured_layer_alone_raise_hazard(self):
         doc = self.run_ok(1, "--dist", self.dist(), *SMALL[:-1], "-1")
         self.assertEqual(doc["verdict"], "HAZARD")
@@ -426,6 +459,7 @@ class Measured(Base):
         for w in ("parse", "ref", "edge"):
             self.assertFalse(doc["static"][w]["hazard"], "static layer stays clean; only the measured layer flags: " + w)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_43_huge_threshold_clears_measured_but_a_static_hazard_still_fails(self):
         doc = self.run_ok(1, "--dist", self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), *SMALL)
         for w in ("parse", "ref"):
@@ -433,12 +467,14 @@ class Measured(Base):
         self.assertTrue(doc["static"]["ref"]["hazard"])
         self.assertEqual(doc["verdict"], "HAZARD", "verdict is static OR measured; a clean measured layer must not mask a static hazard")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_44_scale_and_default_threshold_are_echoed(self):
         doc = self.run_tool("--dist", self.dist(), "--scale-nodes", "500", "--scale-refs", "700", "--scale-edges", "900")
         d = json.loads(doc.stdout)
         self.assertEqual(d["scale"], {"nodes": 500, "refs": 700, "edges": 900, "threshold_s": 0.05})
         self.assertEqual(len(d["measured"]["parse"]["replace_existing_s"]), 3)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_45_unknown_not_null_column_fails_closed_measured_but_not_static_only(self):
         nodes = NODES.replace("docstring TEXT,", "docstring TEXT,\n    mystery TEXT NOT NULL,")
         self.assertNotEqual(nodes, NODES)
@@ -450,6 +486,7 @@ class Measured(Base):
         self.assertIn("nodes.mystery is NOT NULL without default and unknown to the probe (schema changed)", doc["error"],
                       "must fail via the probe's OWN shape guard, not by a downstream IntegrityError")
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_46_shape_guard_exempts_defaulted_and_primary_key_columns(self):
         # status/name_tail are NOT NULL DEFAULT (in the base refs table); make the primary keys explicit NOT NULL too
         nodes = NODES.replace("id TEXT PRIMARY KEY,", "id TEXT NOT NULL PRIMARY KEY,")
@@ -460,6 +497,7 @@ class Measured(Base):
         self.assertEqual(doc["verdict"], "SAFE")
         self.assert_measured_shape(doc)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_47_required_table_missing_after_schema_load(self):
         # no unresolved_refs table (and no index on it): edges FKs remain, so the static layer evaluates fine
         idx = "\n".join(l for l in IDX.splitlines() if "unresolved_refs" not in l) + "\n"
@@ -468,6 +506,7 @@ class Measured(Base):
         doc = self.run_ok(2, "--dist", dist, *SMALL)
         self.assertIn("table unresolved_refs missing after schema load", doc["error"])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_48_unexpected_error_in_the_measured_layer_fails_closed_never_safe(self):
         dist = self.dist(schema=NODES + EDGES + REFS + FILES + IDX + "CREATE TABL oops;\n")
         self.assertEqual(self.run_ok(0, "--dist", dist, "--static-only")["verdict"], "SAFE")
@@ -476,11 +515,13 @@ class Measured(Base):
         self.assertTrue(doc["error"].startswith("OperationalError:"), doc["error"])
         self.assertNotIn("measured", doc)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_49_unusable_work_dir_fails_closed(self):
         doc = self.run_ok(2, "--dist", self.dist(), "--work-dir", os.path.join(self.d, "does", "not", "exist"), *SMALL)
         self.assertEqual(doc["verdict"], "CANNOT_EVALUATE")
         self.assertTrue(doc["error"].startswith("OperationalError:"), doc["error"])
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_50_triggers_are_dropped_before_the_bulk_inserts(self):
         # a trigger that would fail every INSERT INTO nodes (as the FTS sync triggers are absent in the real bulk window)
         poison = "CREATE TRIGGER poison AFTER INSERT ON nodes BEGIN INSERT INTO no_such_table VALUES (1); END;\n"
@@ -488,6 +529,7 @@ class Measured(Base):
         self.assertEqual(doc["verdict"], "SAFE")
         self.assert_measured_shape(doc)
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_51_work_dir_is_kept_scratch_db_is_replaced_and_removed(self):
         wd = self.sub()
         junk = os.path.join(wd, "fk_probe.db")
@@ -508,6 +550,7 @@ class Measured(Base):
                 made = [l for l in f.read().splitlines() if l]
         return p, made
 
+    # oracle: SPECIFIED (synthetic dist fixtures built by the test with hand-stated expected verdicts and exit codes)
     def test_52_temp_scratch_dir_is_created_under_tmpdir_and_removed_on_success_and_failure(self):
         ok, made = self.run_spied("--dist", self.dist(), *SMALL)
         self.assertEqual(ok.returncode, 0, ok.stderr)
@@ -524,23 +567,82 @@ class Measured(Base):
         keep, made3 = self.run_spied("--dist", self.dist(), "--work-dir", wd, *SMALL)
         self.assertEqual((keep.returncode, made3), (0, []), "with --work-dir the tool must not create a temp dir at all")
 
+    def run_counting_vm_steps(self, dist, *args):
+        """Run the tool's own main() in-process with its clock replaced by a SQLite VM-step counter.
+
+        Every sqlite3 connection the tool opens gets a progress handler that ticks once per VM opcode (FK cascade
+        sub-programs included), and the tool's time.perf_counter() returns that tick count. So each
+        `replace_existing_s` sample the tool records is the number of VM steps its timed REPLACE+commit executed:
+        deterministic, and independent of host load and of the filesystem's fsync latency.
+        """
+        spec = importlib.util.spec_from_file_location("fk_cascade_probe_steps", TOOL)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        ticks = [0]
+
+        def tick():
+            ticks[0] += 1
+            return 0
+
+        class CountingSqlite:
+            def __getattr__(self, k):
+                return getattr(sqlite3, k)
+
+            def connect(self, *a, **kw):
+                c = sqlite3.connect(*a, **kw)
+                c.set_progress_handler(tick, 1)
+                return c
+
+        class StepClock:
+            def __getattr__(self, k):
+                return getattr(time, k)
+
+            def perf_counter(self):
+                return float(ticks[0])
+
+        mod.sqlite3, mod.time = CountingSqlite(), StepClock()
+        out, argv = io.StringIO(), sys.argv
+        sys.argv = [TOOL, "--dist", dist, *args]
+        try:
+            with contextlib.redirect_stdout(out):
+                rc = mod.main()
+        finally:
+            sys.argv = argv
+        return rc, json.loads(out.getvalue())
+
+    # oracle: METAMORPHIC (SQLite VM-step counts with and without the child index; deterministic, no wall clock)
     def test_53_replace_with_foreign_keys_on_is_measurably_slower_when_the_child_index_is_missing(self):
-        big = ["--scale-nodes", "10000", "--scale-refs", "150000", "--scale-edges", "10000", "--threshold-s", "1000",
-               "--work-dir", self.sub()]
-        hz = self.run_ok(1, "--dist", self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), *big)
-        sf = self.run_ok(0, "--dist", self.dist(), *big)
+        # History: this test used to compare wall-clock medians. Each timed REPLACE includes a commit, so every sample
+        # carries the filesystem's fsync latency as an ADDITIVE constant that does not cancel in a ratio. Measured
+        # 2026-11-03 at this scale: on tmpfs the hazard ref window took ~24 ms against ~0.3 ms (indexed parse) and
+        # ~0.1 ms (safe ref), ratios 78x and 240x; on ext4 every sample gained ~22 ms of commit cost (hazard 55-68 ms,
+        # parse 22-25 ms, safe ref 21-25 ms), ratio ~2.4x, and the 10x floor failed on every run. The property under
+        # test is "with the child index missing, each REPLACE full-scans unresolved_refs", so it is now asserted on VM
+        # step counts, which count the work and nothing else.
+        scale = ["--scale-nodes", "10000", "--scale-refs", "150000", "--scale-edges", "10000", "--threshold-s", "1000"]
+        # real CLI path: exit codes and output shape (the threshold is set high so timing never decides the verdict)
+        hz = self.run_ok(1, "--dist", self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), *scale, "--work-dir", self.sub())
+        sf = self.run_ok(0, "--dist", self.dist(), *scale, "--work-dir", self.sub())
         self.assert_measured_shape(hz, 10000, 150000, 10000)
         self.assert_measured_shape(sf, 10000, 150000, 10000)
-        hp, hr = hz["measured"]["parse"]["median_s"], hz["measured"]["ref"]["median_s"]
-        sr = sf["measured"]["ref"]["median_s"]
-        # ratios only (machine speed cancels): the hazard ref window full-scans unresolved_refs; the same run's parse window
-        # (FK index present) is the internal control, the safe target's ref window the external control. Observed at this scale:
-        # hazard/indexed-parse 61-95x, hazard/safe-ref 156-325x (6 runs, host load average ~44); the assertion floor is 10x.
-        self.assertGreater(hr, 10 * hp, "hazard ref window %.6fs vs same-run indexed parse window %.6fs" % (hr, hp))
-        self.assertGreater(hr, 10 * sr, "hazard ref window %.6fs vs safe target ref window %.6fs" % (hr, sr))
+        steps = scale[:-1] + ["1e18"]
+        rc_h, hz_s = self.run_counting_vm_steps(self.dist(ref=SAFE_REF + ["idx_unresolved_from_node"]), *steps,
+                                                "--work-dir", self.sub())
+        rc_s, sf_s = self.run_counting_vm_steps(self.dist(), *steps, "--work-dir", self.sub())
+        self.assertEqual((rc_h, rc_s), (1, 0), "static verdicts unchanged in-process (hazard, safe)")
+        hp, hr = hz_s["measured"]["parse"]["median_s"], hz_s["measured"]["ref"]["median_s"]
+        sr = sf_s["measured"]["ref"]["median_s"]
+        self.assertGreater(hp, 0, "control: the step counter sees the indexed REPLACE (instrument is not blind)")
+        self.assertGreater(sr, 0, "control: the step counter sees the safe-target REPLACE")
+        # a full scan of 150000 child rows per REPLACE; measured 2026-11-03: hazard ref ~1049792 steps, indexed parse
+        # 560, safe ref 112 (two runs, identical). The floor stays 10x and is also tied to the child-row count.
+        self.assertGreater(hr, 150000, "hazard ref window %d steps: fewer than one step per child row" % hr)
+        self.assertGreater(hr, 10 * hp, "hazard ref window %d steps vs same-run indexed parse window %d" % (hr, hp))
+        self.assertGreater(hr, 10 * sr, "hazard ref window %d steps vs safe target ref window %d" % (hr, sr))
 
 
 class Cli(Base):
+    # oracle: SPECIFIED (the CLI --help output; the specified outcome is exit 0 and every documented flag named in it; no dist fixture is built)
     def test_60_help_lists_every_flag_and_exits_zero(self):
         p = self.run_tool("--help")
         self.assertEqual(p.returncode, 0)
@@ -548,12 +650,14 @@ class Cli(Base):
                      "--work-dir"):
             self.assertIn(flag, p.stdout)
 
+    # oracle: SPECIFIED (an unrecognised flag; the specified outcome is exit 2, empty stdout (no JSON document) and 'unrecognized arguments' on stderr; the dist fixture is not used)
     def test_61_unknown_flag_is_a_usage_error_with_no_json_document(self):
         p = self.run_tool("--no-such-flag")
         self.assertEqual(p.returncode, 2)
         self.assertEqual(p.stdout, "")
         self.assertIn("unrecognized arguments", p.stderr)
 
+    # oracle: SPECIFIED (a non-numeric --scale-nodes value together with a dist fixture path; the specified outcome is exit 2, empty stdout and 'invalid int value' on stderr)
     def test_62_non_numeric_scale_is_a_usage_error(self):
         p = self.run_tool("--dist", self.dist(), "--scale-nodes", "many")
         self.assertEqual(p.returncode, 2)

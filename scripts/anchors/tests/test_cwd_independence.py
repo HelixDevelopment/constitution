@@ -26,6 +26,7 @@ def _git_state():
     return r.stdout
 
 
+# oracle: SPECIFIED (hand-chosen working directories; expected exit status is the requirement)
 def test_canon_root_and_unrelated_cwd():
     with tempfile.TemporaryDirectory() as empty:
         for cwd in (CANON, empty, "/"):
@@ -34,6 +35,7 @@ def test_canon_root_and_unrelated_cwd():
                 assert r.returncode == 0, f"{p} from cwd={cwd}: {r.stdout[-400:]}{r.stderr[-800:]}"
 
 
+# oracle: SPECIFIED (hand-chosen working directories; expected exit status is the requirement)
 def test_consumer_shaped_root():
     # consumer layout: <root>/constitution is the canon (symlink: the real
     # file is the same bytes; consumer submodule checkouts are real dirs).
@@ -44,6 +46,7 @@ def test_consumer_shaped_root():
             assert r.returncode == 0, f"{p}: {r.stdout[-400:]}{r.stderr[-800:]}"
 
 
+# oracle: SPECIFIED (hand-chosen working directories; expected exit status is the requirement)
 def test_hostile_cwd_names():
     with tempfile.TemporaryDirectory() as base:
         for name in ("a b", "x;touch pwned", "$(id)", "-rf"):
@@ -54,6 +57,7 @@ def test_hostile_cwd_names():
             assert not os.path.exists(os.path.join(base, "pwned")) and not os.path.exists(os.path.join(d, "pwned"))
 
 
+# oracle: SPECIFIED (a probe subprocess started after its working directory was deleted under it; the specified outcome is exit status 0 or 1, i.e. a clean pass or a loud failure, never a crash)
 def test_deleted_cwd_chaos():
     # cwd removed under the process: a location-independent test either runs
     # or fails loudly; it must never silently pass without Constitution.md.
@@ -69,6 +73,7 @@ def test_deleted_cwd_chaos():
     assert r.returncode in (0, 1), r.stderr[-400:]  # clean pass or loud fail, never a crash/hang
 
 
+# oracle: INVARIANT (three runs byte-identical and the repository state unchanged)
 def test_determinism_idempotency_performance():
     before = _git_state()
     outs = []
@@ -82,6 +87,7 @@ def test_determinism_idempotency_performance():
     assert _git_state() == before, "test run mutated the repository"
 
 
+# oracle: SPECIFIED (hand-chosen working directories; expected exit status is the requirement)
 def test_mutation_cwd_relative_source_is_caught():
     # paired section 1.1 mutation: copy tests, revert _paths.SRC to the old
     # cwd-relative literal; the probe MUST then fail from the canon root.

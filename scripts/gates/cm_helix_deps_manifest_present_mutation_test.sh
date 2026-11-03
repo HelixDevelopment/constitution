@@ -22,6 +22,7 @@
 # Side-effects: temp dir under $TMPDIR (trap-cleaned). Dependencies: bash, git, python3 + PyYAML, sed.
 # Classification: universal (§11.4.17).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 gate="$here/cm_helix_deps_manifest_present.sh"
 engdir="$(cd "$here/../deps_manifest" 2>/dev/null && pwd)" || { echo "META: engine dir missing" >&2; exit 2; }

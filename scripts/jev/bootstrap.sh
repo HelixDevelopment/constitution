@@ -269,14 +269,17 @@ stage_commit() { # stage_commit <num> <name> <result>
 mkdir -p "$JEV_STATE_DIR" "$JEV_EVIDENCE_DIR" "$JEV_CONFIG_DIR"
 
 # ---------------------------------------------- tool provisioning helpers --
-manifest_field() { # manifest_field <tool> <ref|ssh_url> from helix-deps.yaml
-  local deps="$JEV_CONSTITUTION_ROOT/helix-deps.yaml"
+manifest_field() { # manifest_field <tool> <ref|ssh_url> from helix-deps.yaml (structural reader, fail-closed)
+  # missing manifest or a tool the manifest does not list -> empty (caller defaults); an unreadable / ambiguous /
+  # unparseable manifest, or no PyYAML, -> return 1 so the caller STOPS (never an empty ref silently used).
+  local deps="$JEV_CONSTITUTION_ROOT/helix-deps.yaml" py="$SCRIPT_DIR/../deps_manifest/helix_deps_field.py" out rc
   [ -f "$deps" ] || return 0
-  awk -v n="$1" -v f="$2:" '
-    $0 ~ "^  - name: " n "[[:space:]]*$" {found=1; next}
-    found && $0 ~ /^  - name: / {found=0}
-    found && $1 == f {print $2; exit}
-  ' "$deps" | tr -d "\"'"
+  out="$(python3 -I "$py" "$deps" "$1" "$2")"; rc=$?
+  case "$rc" in
+    0) printf '%s\n' "$out" ;;
+    9) return 0 ;;
+    *) echo "jev-bootstrap: ERROR: cannot read $2 of '$1' from $deps (reader rc=$rc); refusing to use an empty pin" >&2; return 1 ;;
+  esac
 }
 
 provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
@@ -287,10 +290,10 @@ provision_tool() { # provision_tool <tool> <ENVDIR_VAR> <ref-override>
   local may_net=0
   { [ "$ALLOW_CLONE" = "1" ] || [ "$CONSENT" = "1" ]; } && may_net=1
 
-  url="$(manifest_field "$tool" ssh_url)"
+  url="$(manifest_field "$tool" ssh_url)" || exit 2
   [ -n "$url" ] || url="git@github.com:vasic-digital/$tool.git"
   ref="$ref_override"
-  [ -n "$ref" ] || ref="$(manifest_field "$tool" ref)"
+  [ -n "$ref" ] || { ref="$(manifest_field "$tool" ref)" || exit 2; }
   [ -n "$ref" ] || ref="unpinned"
 
   case "$envdir_var" in
@@ -441,7 +444,9 @@ if stage_begin 1 "detect-tools" "$S1_KEY"; then
 fi
 
 # ---- Stage 2: provision (llmctl + claude_toolkit) ----
-S2_KEY="prov|${LLMCTL_DIR:-}|${CLAUDE_TOOLKIT_DIR:-}|${LLMCTL_REF_OVERRIDE}|${TOOLKIT_REF_OVERRIDE}|install=$INSTALL_TOOLS|clone=$ALLOW_CLONE|consent=$CONSENT|$JEV_BOOTSTRAP_HOME|$(manifest_field llmctl ref)|$(manifest_field claude_toolkit ref)|sm=$({ ls -d "$JEV_CONSTITUTION_ROOT"/submodules/llmctl "$JEV_CONSTITUTION_ROOT"/submodules/claude_toolkit 2>/dev/null || true; } | tr '\n' ',')"
+S2_REF_LLMCTL="$(manifest_field llmctl ref)" || exit 2
+S2_REF_TOOLKIT="$(manifest_field claude_toolkit ref)" || exit 2
+S2_KEY="prov|${LLMCTL_DIR:-}|${CLAUDE_TOOLKIT_DIR:-}|${LLMCTL_REF_OVERRIDE}|${TOOLKIT_REF_OVERRIDE}|install=$INSTALL_TOOLS|clone=$ALLOW_CLONE|consent=$CONSENT|$JEV_BOOTSTRAP_HOME|$S2_REF_LLMCTL|$S2_REF_TOOLKIT|sm=$({ ls -d "$JEV_CONSTITUTION_ROOT"/submodules/llmctl "$JEV_CONSTITUTION_ROOT"/submodules/claude_toolkit 2>/dev/null || true; } | tr '\n' ',')"
 if stage_begin 2 "provision" "$S2_KEY"; then
   rm -f "$WORK"/prov.*.json
   PROV_UNAVAILABLE=0

@@ -31,6 +31,7 @@ CORPUS = os.path.join(CONSTITUTION_ROOT, "Constitution.md")
 INDEX = os.path.join(CONSTITUTION_ROOT, "constitution_index.yaml")
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchors)
 def test_bare_numbered_heading_opens_an_anchor():
     src = (
         "## 1. Test coverage\n"
@@ -53,6 +54,7 @@ def test_bare_numbered_heading_opens_an_anchor():
     assert "body three" not in anchors[1]["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchors)
 def test_bare_form_does_not_depend_on_a_parent_section_heading():
     # A regrouped document (constitution/groups/*.md, governance_subset)
     # carries the anchor WITHOUT its original `## N.` parent — the anchor
@@ -61,6 +63,7 @@ def test_bare_form_does_not_depend_on_a_parent_section_heading():
     assert [a["id"] for a in extract_anchors(src)] == ["1.1"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchors)
 def test_lookalikes_never_open_an_anchor():
     src = (
         "### §11.4.1 — Real anchor\n"
@@ -83,6 +86,7 @@ def test_lookalikes_never_open_an_anchor():
     assert "7.1 audio" in anchors[0]["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchors)
 def test_attempted_bare_opener_without_a_title_fails_loud():
     for bad in ("### 1.1\n", "### 1.1 \n", "### 1.1:Title\n", "### 1.1x Title\n"):
         try:
@@ -92,6 +96,7 @@ def test_attempted_bare_opener_without_a_title_fails_loud():
         raise AssertionError(f"expected MalformedHeadingError for {bad!r}")
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchors)
 def test_bare_ids_and_276_classify_into_a_group():
     for aid in ("1.1", "2.1", "11.4.276"):
         assign_group(aid)  # raises UnclassifiedAnchorError if unmapped
@@ -128,6 +133,7 @@ def _index_ids_and_sha():
     return {a["id"] for a in idx["anchors"]}, idx["generated_from"]["source_sha256"]
 
 
+# oracle: DERIVED (independent regex census of the corpus cross-checked against the index, with control needles)
 def test_every_cited_numbered_heading_in_the_real_corpus_is_indexed():
     with open(CORPUS, encoding="utf-8") as f:
         text = f.read()
@@ -154,6 +160,7 @@ def test_every_cited_numbered_heading_in_the_real_corpus_is_indexed():
         f"corpus is {live_sha[:12]}")
 
 
+# oracle: DERIVED (independent regex census of the corpus is the oracle for the parser)
 def test_parser_agrees_with_the_oracle_on_the_real_corpus():
     with open(CORPUS, encoding="utf-8") as f:
         text = f.read()

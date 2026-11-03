@@ -8,10 +8,15 @@
 #   probe 3  class H + marker      -> exit 0 (allowed)      else FAIL   (the marker still works where it should)
 #   probe 4  harmless command      -> exit 0                else FAIL
 # Exit: 0 PASS · 1 FAIL · 2 BLIND (guard or python3 missing) .
-# Env: GUARD overrides the guard path (used by the paired mutation test).
+# Env: GUARD overrides the guard path (used by the paired mutation test); GUARDED: honoured only under
+#      HELIX_TEST_MODE=1 with a path under the temp root (scripts/lib/gate_env_override.sh).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUARD="${GUARD:-$HERE/../hooks/guard-destructive-paths.py}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set GUARD GUARD "$HERE/../hooks/guard-destructive-paths.py" path   # an always-allow mimic would PASS
 command -v python3 >/dev/null 2>&1 || { echo "CM-GUARD-CLASS-P-NOT-OVERRIDABLE: BLIND (python3 not found)" >&2; exit 2; }
 [ -f "$GUARD" ] || { echo "CM-GUARD-CLASS-P-NOT-OVERRIDABLE: BLIND (guard not found: $GUARD)" >&2; exit 2; }
 

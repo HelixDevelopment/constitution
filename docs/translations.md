@@ -91,9 +91,9 @@ This is the inherited standard. Consuming projects restate + cite §11.4.133 via
 
 See: `scripts/translation/README.md` and Constitution.md §11.4.133.
 
-## Mandatory independent review (§11.4.141)
+## Mandatory independent review (§11.4.256)
 
-Every translation produced by the §11.4.140 pipeline MUST be reviewed by an
+Every translation produced by the §11.4.255 pipeline MUST be reviewed by an
 **independent** model (different provider/model than the translator), acting as a
 native reviewer of the target language, before it ships. Tooling:
 

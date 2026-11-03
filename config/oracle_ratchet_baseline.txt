@@ -1,0 +1,22 @@
+# oracle_ratchet_baseline.txt -- CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245) monotone-decreasing ratchet.
+# Format: <path relative to scan root><TAB><count of test functions lacking a valid oracle annotation>. May only DECREASE.
+# Lower with: bash scripts/gates/cm_oracle_strategy_named_and_independent.sh --write-baseline
+submodules/claude_toolkit/scripts/alias_e2e_test.py	2
+submodules/containers/scripts/resource-policy/test_caps.py	20
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/n_tests.py	29
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_d16_d32.py	20
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_defects_d01_d15.py	15
+submodules/llmctl/tests/py/test_bash_coverage.py	6
+submodules/llmctl/tests/py/test_evidence_manifest.py	11
+submodules/llmctl/tests/py/test_evidence_writer.py	17
+submodules/llmctl/tests/py/test_golden_manifest.py	11
+submodules/llmctl/tests/py/test_golden_runner.py	39
+submodules/llmctl/tests/py/test_golden_stats.py	30
+submodules/llmctl/tests/py/test_jevbench_adapter.py	34
+submodules/llmctl/tests/py/test_leak_scan.py	12
+submodules/llmctl/tests/py/test_matrix_calibration_fields.py	4
+submodules/llmctl/tests/py/test_matrix_harness_fixes.py	25
+submodules/llmctl/tests/py/test_matrix_harness_units.py	14
+submodules/llmctl/tests/py/test_maturity_from_golden.py	12
+submodules/llmctl/tests/py/test_overhead_from_memory.py	12
+submodules/llmctl/tests/py/test_spec_closure_audit.py	8

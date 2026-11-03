@@ -5,6 +5,7 @@
 # Each mutant copies the REAL wizard into a mktemp dir, breaks one rule, and the gate MUST NOT PASS a bad project.
 # Exit 0 = every mutant killed and baseline correct; 1 otherwise. Classification: universal (§11.4.17).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 gate="$const/scripts/gates/cm_decisions_override_valid.sh"
 . "$const/scripts/lib/safe_rm.sh"

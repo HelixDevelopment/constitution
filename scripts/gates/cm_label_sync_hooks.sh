@@ -50,7 +50,11 @@ set -uo pipefail
 
 GATE="CM-LABEL-SYNC-HOOKS"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-root="${CONSTITUTION_ROOT:-${SCRIPT_DIR}/../..}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set root CONSTITUTION_ROOT "${SCRIPT_DIR}/../.." path   # which canon is checked; --root stays honoured
 quiet=""; structural=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -118,12 +122,20 @@ done
 # DETERMINE (exit 2), exactly like CM-LABEL-SYNC-CORE / -RENDER.
 suite="$root/scripts/hooks/test_label_sync_hooks.sh"
 undet=""
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+# the runtime suite reads LS_TEST_BIN (a prebuilt test binary instead of `go test`): guarded here and passed to the
+# child only when honoured; otherwise it is removed from the child's environment.
+cm_gate_env_set _ls_bin LS_TEST_BIN "" path
+if [ -n "$_ls_bin" ]; then export LS_TEST_BIN="$_ls_bin"; else unset LS_TEST_BIN; fi
 if [ -n "$structural" ]; then
   warn "⚠️  SKIP     runtime suite (--structural-only requested)"
 else
   missing=""
   for t in jq git; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
-  [ -n "${LS_TEST_BIN:-}" ] || command -v go >/dev/null 2>&1 || missing="$missing go(or LS_TEST_BIN)"
+  [ -n "$_ls_bin" ] || command -v go >/dev/null 2>&1 || missing="$missing go(or LS_TEST_BIN)"
   if [ -n "$missing" ]; then
     warn "❓ UNDET    runtime suite cannot run (missing:$missing) — CANNOT DETERMINE, never a pass"; undet=1
   else

@@ -23,7 +23,11 @@
 set -uo pipefail
 GATE="CM-HELIX-DEPS-MANIFEST-PRESENT"
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-engine="${HELIX_DEPS_ENGINE:-$const/scripts/deps_manifest/verify_helix_deps_manifests.sh}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set engine HELIX_DEPS_ENGINE "$const/scripts/deps_manifest/verify_helix_deps_manifests.sh" path
 root=""; extra=()
 while [ $# -gt 0 ]; do
   case "$1" in

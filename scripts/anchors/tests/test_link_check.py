@@ -6,6 +6,7 @@ GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 LINK_CHECK = os.path.join(os.path.dirname(__file__), "..", "constitution_link_check.py")
 
 
+# oracle: SPECIFIED (control needles and fabricated citations known by construction)
 def test_selftest_control_needles_pass():
     # Uses a small, CONTROLLED synthetic corpus (a single-file tempdir citing
     # exactly one REAL anchor id) — not the real project corpus
@@ -57,6 +58,7 @@ def test_selftest_control_needles_pass():
         assert "all citations resolved" in r.stdout
 
 
+# oracle: SPECIFIED (control needles and fabricated citations known by construction)
 def test_negative_control_flags_fabricated_citation_in_a_real_scan():
     # Complements the selftest above: proves the checker's FULL-SCAN path
     # (not just --selftest's internal fixture check) genuinely reports a
@@ -82,6 +84,7 @@ def test_negative_control_flags_fabricated_citation_in_a_real_scan():
         assert "1 unresolved citation(s)" in r.stdout
 
 
+# oracle: SPECIFIED (control needles and fabricated citations known by construction)
 def test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated():
     # T024 independent review finding (IMPORTANT, 2026-09-26): before this
     # fix, CITATION_RE's character class stopped BEFORE any parenthesized
@@ -116,6 +119,7 @@ def test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated():
     )
 
 
+# oracle: SPECIFIED (control needles and fabricated citations known by construction)
 def test_unresolved_citation_names_a_real_line_number_never_capped_at_50():
     # Final whole-branch review finding I-3, 2026-09-26, IMPORTANT: the
     # checker's own contract (L-001/L-005) requires "naming every

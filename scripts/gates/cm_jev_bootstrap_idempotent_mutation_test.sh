@@ -7,6 +7,7 @@
 #   compares digests; here we assert a deliberately NON-idempotent stub run is
 #   detectable by the same digest mechanism).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 # Tool preflight: an absent tool is CANNOT-DETERMINE (rc 2), never a pass or a false RED.
 for _t in jq python3 mktemp; do command -v "$_t" >/dev/null 2>&1 || { echo "[mutation] cannot determine: required tool '$_t' missing" >&2; exit 2; }; done
 GREEN_LOG=$(mktemp); trap 'rm -f "$GREEN_LOG"' EXIT
@@ -84,6 +85,8 @@ mkdir -p "$SBX/n2/gates"
 cp "$GATE" "$SBX/n2/gates/gate.sh"
 ln -s "$HERE/fixtures" "$SBX/n2/gates/fixtures"
 ln -s "$HERE/../post_update_hook.sh" "$SBX/n2/post_update_hook.sh"
+ln -s "$HERE/../deps_manifest" "$SBX/n2/deps_manifest"
+ln -s "$HERE/../lib" "$SBX/n2/lib"   # guard lib (gate_env_override.sh) beside the copy, else its stub override is ignored
 python3 - "$SBX/n2/gates/gate.sh" <<'PYEOF'
 import re, sys
 p = sys.argv[1]; s = open(p).read()
@@ -108,6 +111,64 @@ JEV_BOOTSTRAP_STUB="$SBX/noop-stub.sh" timeout --kill-after=5 120 bash "$GATE" >
 { [ $? -eq 1 ] && grep -q 'clone-fallback' "$SBX/outD.log"; } \
   && say "RED flip D asserted: no-op bootstrap rejected (defer + clone-fallback clauses)" \
   || { say "MUTATION D SURVIVED: no-op bootstrap accepted"; rc=1; }
+
+# Mutation E/F/G - the pin reader is STRUCTURAL (helix_deps_field.py), not line patterns.
+cat > "$SBX/decoy.yaml" <<'YEOF'
+schema_version: 1
+deps:
+  -
+    name: other
+    ssh_url: git@github.com:vasic-digital/other.git
+    ref: other-pin
+    why: "mirror of name: llmctl"
+  - "name" : llmctl
+    "ssh_url": git@github.com:vasic-digital/llmctl.git
+    ref: fixture-pin-llmctl-1.0.0
+  - name : claude_toolkit
+    ssh_url: git@github.com:vasic-digital/claude_toolkit.git
+    ref: fixture-pin-toolkit-1.0.0
+YEOF
+# E: tricky-but-valid manifest (bare dash, quoted keys, `name :`, decoy `name: llmctl` inside a prior dep's text) -> GREEN.
+JEV_FIXTURE_DEPS="$SBX/decoy.yaml" timeout --kill-after=5 180 bash "$GATE" > "$SBX/outE.log" 2>&1; erc=$?
+if [ "$erc" -eq 0 ]; then say "E asserted: structural reader attributes pins correctly on bare-dash/quoted-key/'name :'/decoy manifest"
+else say "MUTATION E FAILED: valid tricky manifest gave rc=$erc"; rc=1; fi
+# F: duplicate key in the llmctl entry, and an unlisted tool -> CANNOT DETERMINE (rc 2), never pass.
+sed 's|^    ref: fixture-pin-llmctl-1.0.0|    ref: fixture-pin-llmctl-1.0.0\n    ref: fixture-pin-dup|' "$HERE/fixtures/jev/helix-deps.yaml" > "$SBX/dup.yaml"
+JEV_FIXTURE_DEPS="$SBX/dup.yaml" timeout --kill-after=5 120 bash "$GATE" > "$SBX/outF1.log" 2>&1; f1=$?
+sed '/claude_toolkit/,$d' "$HERE/fixtures/jev/helix-deps.yaml" > "$SBX/unlisted.yaml"
+JEV_FIXTURE_DEPS="$SBX/unlisted.yaml" timeout --kill-after=5 120 bash "$GATE" > "$SBX/outF2.log" 2>&1; f2=$?
+if [ "$f1" -eq 2 ] && [ "$f2" -eq 2 ] && grep -q 'CANNOT DETERMINE' "$SBX/outF1.log" "$SBX/outF2.log"; then
+  say "F asserted: duplicate-key manifest rc=$f1 and unlisted-tool manifest rc=$f2 are CANNOT DETERMINE (rc 2)"
+else say "MUTATION F FAILED: duplicate-key rc=$f1, unlisted-tool rc=$f2 (want 2/2)"; rc=1; fi
+# G: reader failure (no PyYAML switch; reader replaced by a failing program) -> rc 2.
+HELIX_TEST_MODE=1 HELIX_DEPS_FIELD_FORCE_NO_YAML=1 timeout --kill-after=5 120 bash "$GATE" > "$SBX/outG1.log" 2>&1; g1=$?
+printf 'import sys\nsys.exit(4)\n' > "$SBX/failreader.py"
+HELIX_TEST_MODE=1 HELIX_DEPS_FIELD_PY="$SBX/failreader.py" timeout --kill-after=5 120 bash "$GATE" > "$SBX/outG2.log" 2>&1; g2=$?
+if [ "$g1" -eq 2 ] && [ "$g2" -eq 2 ]; then say "G asserted: reader failure (no PyYAML / failing reader) is rc 2, never a pass"
+else say "MUTATION G FAILED: no-yaml rc=$g1, failing-reader rc=$g2 (want 2/2)"; rc=1; fi
+# Neutered copies prove E/F/G discriminate: M1 drops the reader-failure refusal; M2 restores the old first-match awk.
+mkdir -p "$SBX/n3/gates"
+for l in post_update_hook.sh jev deps_manifest lib; do ln -s "$HERE/../$l" "$SBX/n3/$l"; done   # lib: guard lib for the overrides
+ln -s "$HERE/fixtures" "$SBX/n3/gates/fixtures"
+python3 - "$GATE" "$SBX/n3/gates/m1.sh" "$SBX/n3/gates/m2.sh" <<'PYEOF'
+import sys
+s = open(sys.argv[1]).read()
+a = 'if [ "$frc" -ne 0 ] || [ -z "$DF_OUT" ]; then'
+assert a in s
+open(sys.argv[2], 'w').write(s.replace(a, 'if false; then'))
+b1 = '  dep_field "$tool" ssh_url; want_url="$DF_OUT"\n'
+b2 = '  dep_field "$tool" ref; want_ref="$DF_OUT"\n'
+assert b1 in s and b2 in s
+n1 = "  want_url=$(awk -v n=\"$tool\" '$0 ~ \"name: \"n {f=1} f && /ssh_url:/ {print $2; exit}' \"$DEPS\")\n"
+n2 = "  want_ref=$(awk -v n=\"$tool\" '$0 ~ \"name: \"n {f=1} f && /ref:/ {print $2; exit}' \"$DEPS\")\n"
+open(sys.argv[3], 'w').write(s.replace(b1, n1).replace(b2, n2))
+PYEOF
+JEV_FIXTURE_DEPS="$SBX/dup.yaml" timeout --kill-after=5 120 bash "$SBX/n3/gates/m1.sh" > "$SBX/outM1.log" 2>&1; m1=$?
+JEV_FIXTURE_DEPS="$SBX/decoy.yaml" timeout --kill-after=5 180 bash "$SBX/n3/gates/m2.sh" > "$SBX/outM2.log" 2>&1; m2=$?
+if [ "$m1" -ne 2 ]; then say "M1 killed: dropping the reader-failure refusal lets the duplicate-key manifest through (rc=$m1, not 2)"
+else say "MUTANT M1 SURVIVED: refusal removed yet duplicate-key manifest still rc 2"; rc=1; fi
+if [ "$m2" -ne 0 ]; then say "M2 killed: first-match awk misreads the decoy manifest (rc=$m2)"
+else say "MUTANT M2 SURVIVED: awk reader passed the decoy manifest"; rc=1; fi
 
 if [ "$rc" -eq 0 ]; then
   say "PASS: cm_jev_bootstrap_idempotent.sh genuinely discriminates (GREEN genuine / RED mutated)"

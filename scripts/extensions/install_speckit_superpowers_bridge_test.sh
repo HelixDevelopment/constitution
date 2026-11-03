@@ -16,9 +16,23 @@
 #   UNIT-4        default state (L3 WIRED + pin verified, L4 DESIGNED-ONLY,
 #                 no operator vetting supplied) → installer PASSES (rc=0),
 #                 L4 is reported "skipped-not-vetted", NOT installed.
-#   INTEGRATION-1 a real end-to-end run against the REAL repo root (no
-#                 sandboxing) — proves the script genuinely drives the real
+#   INTEGRATION-1 (LIVE class) a real end-to-end run against the REAL repo
+#                 root (no sandboxing) — the ONLY case that drives the real
 #                 `specify` CLI and the real probe, not a mock of either.
+#                 Needs a spec-kit-initialised root: when "$ROOT/.specify" is
+#                 absent it reports SKIP, reason `topology_unsupported`
+#                 (§11.4.3/§11.4.69; a SKIP is never counted as a PASS).
+#   GATELOGIC-1F  (UNIT / gate-logic class, §11.4.289) the installer decision
+#                 logic run against a spec-kit-shaped consumer FIXTURE built in
+#                 mktemp. `specify`/`claude` are PATH STUBS (test doubles), so
+#                 this is NOT live integration evidence and never counted as
+#                 such: it proves the installer+probe decide correctly given
+#                 stub-reported inputs, nothing about the real CLI.
+#   GATELOGIC-1M  (stub class) mutation: a fixture with a carrier removed MUST make the
+#                 same verdict function FAIL (not skip, not pass).
+#   GATELOGIC-2F  (stub class) the idempotent double run against the stub
+#                 fixture root; FULL-AUTOMATION-1 (LIVE, real root) SKIPs the
+#                 same way as INTEGRATION-1 when no .specify/ exists.
 #   FULL-AUTO-1   the installer is re-run twice in a row against the real repo
 #                 root and BOTH runs PASS with byte-for-byte-equivalent
 #                 install_report.json content (idempotency, §11.4.50) —
@@ -38,12 +52,15 @@
 #   bash constitution/scripts/extensions/install_speckit_superpowers_bridge_test.sh [--quiet]
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
-#   One PASS/FAIL line per case + a verdict. Exit 0 — every case held.
+#   One PASS/FAIL line per case + a verdict. Exit 0 — every case held. The
+#   verdict reports THREE separate tallies: live PASS (real specify/real root),
+#   stub-class PASS (unit/gate-logic/chaos with test doubles; never live
+#   evidence) and SKIP (honest, not a pass).
 #
 # ── Side-effects ─────────────────────────────────────────────────────────────
 #   UNIT/CHAOS cases run entirely inside `mktemp -d` sandboxes removed by the
 #   EXIT trap (§11.4.14/§11.4.84) — they NEVER touch the real .specify/ tree.
-#   INTEGRATION-1 and FULL-AUTO-1 run the REAL installer against the REAL repo
+#   INTEGRATION-1 and FULL-AUTOMATION-1 run the REAL installer against the REAL repo
 #   root; on THIS measured host both are no-ops for L3 (already WIRED) and
 #   skip L4 (not vetted) — i.e. still read-only against .specify/, evidence
 #   only written under qa-results/hxc159/bridge_install/. If a future host has
@@ -61,19 +78,29 @@
 #   · §11.4.98 · §11.4.169 · §11.4.224 · §11.4.84 (sandbox-only mutation)
 #
 # Classification: project-specific (HXC-159 Bridge investigation).
-# Last verified: 2026-09-22
+# Last verified: 2026-11-03 (relabelled stub-class cases per §11.4.289)
 set -u
 
 NAME="install_speckit_superpowers_bridge tests"
 SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
-ROOT=$(cd "$SELF_DIR/../../.." >/dev/null 2>&1 && pwd)
+# ROOT = the consumer project root when this canon is vendored as a submodule (superproject of this checkout),
+# else the canon checkout itself. Never a blind 3-levels-up: in standalone canon that is OUTSIDE the repo and the
+# real-root cases would write qa-results/ there.
+ROOT=$(git -C "$SELF_DIR" rev-parse --show-superproject-working-tree 2>/dev/null)
+[ -n "$ROOT" ] || ROOT=$(git -C "$SELF_DIR" rev-parse --show-toplevel 2>/dev/null)
+[ -n "$ROOT" ] || ROOT=$(cd "$SELF_DIR/../.." >/dev/null 2>&1 && pwd)
 INSTALLER="$SELF_DIR/install_speckit_superpowers_bridge.sh"
 QUIET=0
 [ "${1:-}" = "--quiet" ] && QUIET=1
 
 FAILS=0
+SKIPS=0
+TOTAL_PASS=0      # live-class PASS (real specify / real root)
+STUB_PASS=0       # unit / gate-logic / chaos PASS using test doubles: NEVER live integration evidence (§11.4.289)
 say()  { [ "$QUIET" -eq 1 ] || printf '%s\n' "$*"; }
-ok()   { say "  PASS  [$NAME] $*"; }
+ok()   { STUB_PASS=$((STUB_PASS + 1)); say "  PASS  [$NAME] (unit/stub-class) $*"; }
+okl()  { TOTAL_PASS=$((TOTAL_PASS + 1)); say "  PASS  [$NAME] (LIVE) $* [answered by ${LIVE_ID:-unrecorded}; ambient SPECIFY_BIN/SUPERSPEC_SHA_OVERRIDE/PATH-stubs scrubbed]"; }
+skip() { SKIPS=$((SKIPS + 1)); say "  SKIP  [$NAME] $* (not counted as PASS)"; }
 bad()  { printf '  FAIL  [%s] %s\n' "$NAME" "$*" >&2; FAILS=$((FAILS + 1)); }
 
 TMP=""
@@ -243,34 +270,137 @@ else
 	bad "UNIT-4: default state did not behave correctly (rc=$rc); output:"; sed 's/^/         /' "$S4/last_run.out" >&2
 fi
 
-# ── INTEGRATION-1 — real end-to-end run against the REAL repo root ─────────
-REAL_OUT="$TMP/integration1.out"
-bash "$INSTALLER" --quiet >"$REAL_OUT" 2>&1
-rc=$?
-LATEST_INSTALL_RUN=$(ls -1 "$ROOT/qa-results/hxc159/bridge_install" 2>/dev/null | sort | tail -1)
-if [ "$rc" -eq 0 ] && [ -n "$LATEST_INSTALL_RUN" ] && [ -f "$ROOT/qa-results/hxc159/bridge_install/$LATEST_INSTALL_RUN/install_report.json" ]; then
-	ok "INTEGRATION-1: real run against the real repo root PASSes (rc=$rc), evidence written at $LATEST_INSTALL_RUN"
-else
-	bad "INTEGRATION-1: real run did not PASS correctly (rc=$rc); output:"; sed 's/^/         /' "$REAL_OUT" >&2
+# ── consumer-root fixtures (INTEGRATION-1 / FULL-AUTOMATION-1) ───────────────
+# These two cases need a spec-kit-initialised consumer root. Honest handling
+# (§11.4.3/§11.4.69, closed reason `topology_unsupported`):
+#   * REAL root  : only exercised when "$ROOT/.specify" exists; otherwise SKIP
+#     (a SKIP is reported separately, never counted as a PASS).
+#   * FIXTURE root: ALWAYS exercised too, against a real spec-kit-shaped tree
+#     built in mktemp (the minimal shape the probe reads: the five carriers,
+#     `claude` + `specify` on PATH, .specify/, a speckit-* skill, the superspec
+#     git submodule + extension.yml + extensions.yml `installed:` entry, and
+#     `specify extension list` naming the enabled "Superpowers Bridge"). The
+#     `specify`/`claude` binaries are stubs placed first on PATH for the
+#     fixture runs only; the installer + probe scripts are the REAL ones.
+make_consumer_fixture() {
+	# make_consumer_fixture <root>
+	local r="$1" src="$1.superspec_src"
+	mkdir -p "$r/.specify/extensions/superspec" "$r/.claude/skills/speckit-plan" "$r/fakebin" "$src"
+	local f; for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md CRUSH.md; do echo "# $f" > "$r/$f"; done
+	printf 'id: superspec\n' > "$r/.specify/extensions/superspec/extension.yml"
+	printf 'installed:\n  - superspec\n' > "$r/.specify/extensions.yml"
+	printf '# skill\n' > "$r/.claude/skills/speckit-plan/SKILL.md"
+	printf '#!/usr/bin/env bash\nexit 0\n' > "$r/fakebin/claude"; chmod +x "$r/fakebin/claude"
+	echo '[{"id": "superspec", "name": "Superpowers Bridge", "version": "1.0.2", "enabled": true}]' > "$r/state.json"
+	make_fake_specify "$r/fakebin/specify" "$r/state.json"
+	( cd "$src" && git init -q -b main && echo x > f && git add f \
+		&& git -c user.email=t@t -c user.name=t commit -q -m init ) >/dev/null 2>&1
+	( cd "$r" && git init -q -b main && mkdir -p submodules \
+		&& git -c protocol.file.allow=always submodule add -q "$src" submodules/superspec \
+		&& git add -A && git -c user.email=t@t -c user.name=t commit -q -m fixture ) >/dev/null 2>&1
+}
+
+run_real_installer() {
+	# run_real_installer <root> <out-file> — the REAL installer, REAL probe, no --report-file.
+	local root="$1" out="$2" fk
+	fk=""; [ -d "$root/fakebin" ] && fk="$root/fakebin:"
+	if [ -n "$fk" ]; then
+		( cd "$root" && PATH="$fk$PATH" SPECIFY_BIN="$root/fakebin/specify" FAKE_SPECIFY_STATE="$root/state.json" \
+			bash "$INSTALLER" --root "$root" --quiet >"$out" 2>&1 )
+	else
+		# LIVE: never inherit ambient test seams (override binary / sha override / stub state / PATH stubs).
+		env -u SPECIFY_BIN -u SUPERSPEC_SHA_OVERRIDE -u FAKE_SPECIFY_STATE PATH="$LIVE_PATH" \
+			bash "$INSTALLER" --root "$root" --quiet >"$out" 2>&1
+	fi
+}
+
+# ── LIVE identity (C1): scrubbed PATH + the resolved specify binary that answers LIVE runs ──
+LIVE_PATH=""; _ifs="$IFS"; IFS=:
+for _d in $PATH; do
+	case "$_d" in "$TMP"*|*fakebin*|*/fake_*|*/stub*) continue ;; esac
+	LIVE_PATH="${LIVE_PATH:+$LIVE_PATH:}$_d"
+done
+IFS="$_ifs"; unset _d _ifs
+LIVE_SPECIFY="$(PATH="$LIVE_PATH" command -v specify 2>/dev/null || true)"
+LIVE_ID="specify=unresolved"
+if [ -n "$LIVE_SPECIFY" ]; then
+	LIVE_SPECIFY="$(readlink -f -- "$LIVE_SPECIFY" 2>/dev/null || printf '%s' "$LIVE_SPECIFY")"
+	LIVE_ID="specify=$LIVE_SPECIFY sha256=$(sha256sum -- "$LIVE_SPECIFY" 2>/dev/null | cut -d' ' -f1)"
 fi
 
-# ── FULL-AUTOMATION-1 — two consecutive real runs, fully autonomous, both
-#    PASS with equivalent (idempotent) per-layer status fields ─────────────
-RUN_A_DIR=$(ls -1 "$ROOT/qa-results/hxc159/bridge_install" 2>/dev/null | sort | tail -1)
-bash "$INSTALLER" --quiet >"$TMP/fa2.out" 2>&1
-rc2=$?
-RUN_B_DIR=$(ls -1 "$ROOT/qa-results/hxc159/bridge_install" 2>/dev/null | sort | tail -1)
-if [ "$rc2" -eq 0 ] && [ -n "$RUN_A_DIR" ] && [ -n "$RUN_B_DIR" ] && [ "$RUN_A_DIR" != "$RUN_B_DIR" ]; then
-	A_JSON=$(python3 -c "import json; d=json.load(open('$ROOT/qa-results/hxc159/bridge_install/$RUN_A_DIR/install_report.json')); print(d['L3_status'], d['L4_status'], d['overall_status'])")
-	B_JSON=$(python3 -c "import json; d=json.load(open('$ROOT/qa-results/hxc159/bridge_install/$RUN_B_DIR/install_report.json')); print(d['L3_status'], d['L4_status'], d['overall_status'])")
-	if [ "$A_JSON" = "$B_JSON" ]; then
-		ok "FULL-AUTOMATION-1: two consecutive fully-autonomous real runs both PASS with identical per-layer status ('$A_JSON') — idempotent re-run proven"
-	else
-		bad "FULL-AUTOMATION-1: two consecutive runs produced DIFFERENT status ('$A_JSON' vs '$B_JSON') — not idempotent"
-	fi
+latest_run_dir() { ls -1 "$1/qa-results/hxc159/bridge_install" 2>/dev/null | sort | tail -1; }
+
+integration_verdict() {
+	# integration_verdict <root> <out-file> -> PASS|FAIL (SKIP is decided by the caller from topology)
+	local root="$1" out="$2" rc d
+	run_real_installer "$root" "$out"; rc=$?
+	d=$(latest_run_dir "$root")
+	if [ "$rc" -eq 0 ] && [ -n "$d" ] && [ -f "$root/qa-results/hxc159/bridge_install/$d/install_report.json" ]; then echo PASS; else echo FAIL; fi
+}
+
+full_auto_verdict() {
+	# full_auto_verdict <root> <tag> -> PASS|FAIL : two consecutive real runs, identical per-layer status.
+	local root="$1" tag="$2" a b rc2 sa sb
+	a=$(latest_run_dir "$root")
+	sleep 1.1   # run ids are second-resolution timestamps
+	run_real_installer "$root" "$TMP/fa_$tag.out"; rc2=$?
+	b=$(latest_run_dir "$root")
+	if [ "$rc2" -eq 0 ] && [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ]; then
+		sa=$(python3 -c "import json; d=json.load(open('$root/qa-results/hxc159/bridge_install/$a/install_report.json')); print(d['L3_status'], d['L4_status'], d['overall_status'])" 2>/dev/null)
+		sb=$(python3 -c "import json; d=json.load(open('$root/qa-results/hxc159/bridge_install/$b/install_report.json')); print(d['L3_status'], d['L4_status'], d['overall_status'])" 2>/dev/null)
+		if [ -n "$sa" ] && [ "$sa" = "$sb" ]; then echo "PASS:$sa"; else echo "FAIL:'$sa' vs '$sb'"; fi
+	else echo "FAIL:rc2=$rc2"; fi
+}
+
+# ── INTEGRATION-1 (real root: SKIP when no .specify/) ───────────────────────
+REAL_HAS_SPECIFY=0; [ -d "$ROOT/.specify" ] && REAL_HAS_SPECIFY=1
+if [ "$REAL_HAS_SPECIFY" -eq 1 ]; then
+	v=$(integration_verdict "$ROOT" "$TMP/integration1.out")
+	if [ "$v" = PASS ]; then okl "INTEGRATION-1: real run against the real repo root PASSes, evidence written under $(latest_run_dir "$ROOT")"
+	else bad "INTEGRATION-1: real run did not PASS correctly; output:"; sed 's/^/         /' "$TMP/integration1.out" >&2; fi
 else
-	bad "FULL-AUTOMATION-1: second autonomous run did not PASS correctly (rc=$rc2)"
+	skip "INTEGRATION-1 (real root): reason=topology_unsupported (no .specify/ under $ROOT)"
 fi
+
+# ── GATELOGIC-1F — gate-logic (stub-class) against a spec-kit-shaped fixture root; NOT live evidence ─
+CF="$TMP/consumer_fixture"; mkdir -p "$CF"
+make_consumer_fixture "$CF"
+v=$(integration_verdict "$CF" "$TMP/integration1f.out")
+if [ "$v" = PASS ]; then
+	ok "GATELOGIC-1F: real installer + real probe, STUB specify/claude, against a spec-kit-shaped fixture consumer root PASSes, evidence written"
+else
+	bad "GATELOGIC-1F: fixture consumer run did not PASS; output:"; sed 's/^/         /' "$TMP/integration1f.out" >&2
+fi
+
+# ── GATELOGIC-1M — mutation: break the fixture (drop a carrier -> L1 PARTIAL);
+#    the same verdict function MUST report FAIL (and not SKIP) ──────────────────
+CM="$TMP/consumer_fixture_mut"; mkdir -p "$CM"
+make_consumer_fixture "$CM"
+rm -f "$CM/AGENTS.md"
+v=$(integration_verdict "$CM" "$TMP/integration1m.out")
+if [ "$v" = FAIL ] && grep -q "L1 (developer workstation)" "$TMP/integration1m.out"; then
+	ok "GATELOGIC-1M: mutated fixture (carrier removed) → verdict FAIL (not skipped), naming L1"
+else
+	bad "GATELOGIC-1M: mutated fixture did not FAIL as required (verdict=$v)"
+fi
+
+# ── FULL-AUTOMATION-1 (real root: SKIP when no .specify/) ───────────────────
+if [ "$REAL_HAS_SPECIFY" -eq 1 ]; then
+	r=$(full_auto_verdict "$ROOT" real)
+	case "$r" in
+		PASS:*) okl "FULL-AUTOMATION-1: two consecutive fully-autonomous real runs both PASS with identical per-layer status ('${r#PASS:}') — idempotent re-run proven" ;;
+		*) bad "FULL-AUTOMATION-1: ${r#FAIL:}" ;;
+	esac
+else
+	skip "FULL-AUTOMATION-1 (real root): reason=topology_unsupported (no .specify/ under $ROOT)"
+fi
+
+# ── GATELOGIC-2F — idempotent double run against the fixture root ──────
+r=$(full_auto_verdict "$CF" fixture)
+case "$r" in
+	PASS:*) ok "GATELOGIC-2F: two consecutive autonomous runs on the fixture consumer both PASS with identical per-layer status ('${r#PASS:}')" ;;
+	*) bad "GATELOGIC-2F: ${r#FAIL:}" ;;
+esac
 
 # ── CHAOS-1 — interrupted operator-vetted L4 install, then clean re-run ────
 SC="$TMP/chaos1"; mkdir -p "$SC"
@@ -342,9 +472,18 @@ else
 	sed 's/^/         /' "$SC/recovery_run.out" >&2
 fi
 
+# ── ROOT-1 — the resolved ROOT must contain this script (no write outside the repo) ──
+# ROOT must be a git work tree root (own .git) that contains this script: a bare ancestor directory
+# (e.g. the Projects dir above a standalone canon) contains the script too but is OUTSIDE any repo.
+case "$SELF_DIR/" in
+	"$ROOT"/*) if [ -e "$ROOT/.git" ]; then ok "ROOT-1: resolved ROOT ($ROOT) is a repo root containing this script; real-root evidence is written inside the repo only"
+		else bad "ROOT-1: ROOT ($ROOT) is not a git work tree root — real-root cases would write outside any repo"; fi ;;
+	*) bad "ROOT-1: ROOT ($ROOT) does not contain $SELF_DIR — real-root cases would write outside the repo" ;;
+esac
+
 # ── verdict ──────────────────────────────────────────────────────────────────
 if [ "$FAILS" -eq 0 ]; then
-	say "== $NAME: PASS (8/8 cases) =="
+	say "== $NAME: PASS (live=$((TOTAL_PASS)) stub-class=$STUB_PASS skipped=$SKIPS [skips are not passes; stub-class is not live evidence]) =="
 	exit 0
 fi
 printf '== %s: FAIL (%s failing case(s)) ==\n' "$NAME" "$FAILS" >&2

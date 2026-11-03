@@ -6,6 +6,7 @@
 #   M2  never block anything                  -> gate MUST FAIL
 #   M3  block class H even with the marker    -> gate MUST FAIL (kills a gate that only checks P)
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$HERE/cm_guard_class_p_not_overridable.sh"
 GUARD="$HERE/../hooks/guard-destructive-paths.py"

@@ -1,0 +1,1 @@
+2026-11-01	files=19	added=321	reason=Operator decision 2026-11-01: adopt unannotated oracle functions in own-org submodules (llmctl, containers, claude_toolkit) as baseline at today's level; ratchet only shrinks; new/changed tests must annotate

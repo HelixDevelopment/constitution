@@ -78,7 +78,8 @@
 #
 # ── Inputs ───────────────────────────────────────────────────────────────────
 #   CONSUMER_ROOT  env override for the fleet root (arg --root takes precedence).
-#   COVENANT_PROPAGATION_ANCHORS  optional override of the data-pack path.
+#   COVENANT_PROPAGATION_ANCHORS  optional override of the data-pack path; GUARDED (honoured only under
+#                                 HELIX_TEST_MODE=1 with a temp-root path: scripts/lib/gate_env_override.sh).
 #   Carriers are discovered by name (CLAUDE.md / AGENTS.md / QWEN.md /
 #   GEMINI.md) under the root, EXCLUDING vendored / third-party trees
 #   (node_modules, .git, out, build, dist, prebuilts, external, vendor,
@@ -131,6 +132,11 @@
 # Resolve this lib's own directory once, so both the sibling
 # pointer_carrier.sh and the parent data pack are found regardless of caller cwd.
 _cpe_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# Verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): the data-pack path (a stub pack binding a gate to a
+# trivially present anchor would PASS) is honoured only under HELIX_TEST_MODE=1 with a path under the temp root.
+# shellcheck source=/dev/null
+if [ -r "${_cpe_lib_dir}/../../lib/gate_env_override.sh" ]; then . "${_cpe_lib_dir}/../../lib/gate_env_override.sh"
+else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
 
 # F5: default consumer root. The repository root this lib lives in; when that
 # repository is a vendored "constitution" submodule of a git consumer, the
@@ -158,7 +164,7 @@ fi
 # to <gate-name> in the data pack, or nothing (nonzero) when unbound.
 covenant_propagation_anchor_for() {
     local gate="$1" pack
-    pack="${COVENANT_PROPAGATION_ANCHORS:-${_cpe_lib_dir}/../covenant_propagation_anchors.tsv}"
+    cm_gate_env_set pack COVENANT_PROPAGATION_ANCHORS "${_cpe_lib_dir}/../covenant_propagation_anchors.tsv" path 2>/dev/null
     [ -r "$pack" ] || return 2
     awk -F'\t' -v g="$gate" '
         /^#/ { next }
@@ -181,7 +187,8 @@ _cpe_sha256() {
 covenant_propagation_main() {
     local GATE="${1:?covenant_propagation_main: <gate-name> required}"; shift
     local ANCHOR root quiet
-    local pack="${COVENANT_PROPAGATION_ANCHORS:-${_cpe_lib_dir}/../covenant_propagation_anchors.tsv}"
+    local pack
+    cm_gate_env_set pack COVENANT_PROPAGATION_ANCHORS "${_cpe_lib_dir}/../covenant_propagation_anchors.tsv" path
 
     if [ ! -r "$pack" ]; then
         echo "${GATE}: anchor data pack not found/readable: $pack" >&2
@@ -277,6 +284,16 @@ covenant_propagation_main() {
             [ -n "$_cf" ] || continue
             [ -f "$_cf" ] || _cmiss=$((_cmiss + 1))
         done <<< "$carriers"
+        local _croot _cout=0
+        _croot="$(cd "$root" 2>/dev/null && pwd -P)"
+        while IFS= read -r _cf; do
+            [ -n "$_cf" ] || continue
+            case "$(readlink -f -- "$_cf" 2>/dev/null)" in "$_croot"/*) ;; *) _cout=$((_cout + 1)) ;; esac
+        done <<< "$carriers"
+        if [ -z "$_croot" ] || [ "$_cout" -gt 0 ]; then
+            echo "${GATE}: BLIND — pre-computed carrier list names ${_cout} path(s) outside the audited root ${root}; refusing a list built for another tree" >&2
+            return 2
+        fi
         if [ "$_cmiss" -gt 0 ]; then
             echo "${GATE}: BLIND — pre-computed carrier list is STALE (${_cmiss} listed path(s) no longer exist); refusing to audit a stale set" >&2
             return 2

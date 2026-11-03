@@ -93,6 +93,7 @@ NEEDLE_FILES = ["src/main.c", "src/util.py"]  # ordinary, never matches any secr
 
 
 class T(unittest.TestCase):
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_01_red_no_exceptions_file_legit_tool_still_fails(self):
         """Reproduces the real defect: secret_scan.py-shaped path FAILs with no exceptions given at all."""
         files = NEEDLE_FILES + ["tools/secret_scan.py"]
@@ -103,6 +104,7 @@ class T(unittest.TestCase):
         self.assertIn("SCOPE_HIT secret_named tools/secret_scan.py", out)
         self.assertIn("SCOPE FAIL", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_02_red_absent_exceptions_file_path_behaves_same_as_no_arg(self):
         """Passing a 3rd-arg path that does not exist on disk is NOT an error — empty exceptions, same as (1)."""
         files = NEEDLE_FILES + ["tools/secret_scan.py"]
@@ -111,6 +113,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 1, (out, err))
         self.assertIn("SCOPE_CLASS secret_named kind=secret count=1 FAIL", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_03_green_excepted_path_passes(self):
         """Naming the EXACT hit in the exceptions file flips that class to PASS."""
         files = NEEDLE_FILES + ["tools/secret_scan.py"]
@@ -121,6 +124,7 @@ class T(unittest.TestCase):
         self.assertIn("SCOPE_CLASS secret_named kind=secret count=0 excepted=1 PASS", out)
         self.assertIn("SCOPE PASS", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_04_negative_control_unlisted_sibling_still_fails(self):
         """A DIFFERENT secret-shaped path, not in the exceptions file, still FAILs — excepting one path
         never broadens to others (the false-positive guard proving this narrows, not loosens)."""
@@ -133,6 +137,7 @@ class T(unittest.TestCase):
         self.assertIn("SCOPE_HIT secret_named app/api_secret_value.py", out)
         self.assertNotIn("SCOPE_HIT secret_named tools/secret_scan.py", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_05_credential_content_class_cannot_be_excepted(self):
         """env_file (a credential-CONTENT class, §11.4.10) in the exceptions file is a HARD ERROR —
         it must never be possible to except a credential-bearing class, no matter the path."""
@@ -144,6 +149,7 @@ class T(unittest.TestCase):
         self.assertIn("SCOPE FAIL exceptions file invalid", out)
         self.assertIn("env_file", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_06_keystore_class_cannot_be_excepted(self):
         """keystore (also credential-CONTENT, §11.4.10) likewise refuses."""
         files = NEEDLE_FILES + ["release.jks"]
@@ -153,6 +159,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 1, (out, err))
         self.assertIn("SCOPE FAIL exceptions file invalid", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_07_glob_pattern_in_exceptions_is_a_hard_error(self):
         """A pattern (not an exact path) in the exceptions file is refused — exceptions narrow ONE
         verified file, they are never a general bypass mechanism."""
@@ -163,6 +170,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 1, (out, err))
         self.assertIn("SCOPE FAIL exceptions file invalid", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_08_typo_path_is_a_silent_noop_not_a_bypass(self):
         """A near-miss / typo'd exact path in the exceptions file matches nothing — the underlying
         FAIL is completely unaffected (fail-closed on a stale/mistyped exception entry)."""
@@ -174,6 +182,7 @@ class T(unittest.TestCase):
         self.assertIn("SCOPE_CLASS secret_named kind=secret count=1 FAIL", out)
         self.assertNotIn("excepted=1", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_09_secrets_dir_class_exception_works(self):
         """The secrets_dir class (dir:secrets) is excepted the same way as secret_named. NOTE: by
         construction secrets_dir is ALWAYS a subset of secret_named here — segglob:*secret* scans
@@ -191,6 +200,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 0, (out, err))
         self.assertIn("SCOPE_CLASS secrets_dir kind=secret count=0 excepted=1 PASS", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_09b_path_tripping_both_classes_needs_both_exceptions(self):
         """A file under a `secrets/` dir whose OWN basename also contains "secret" (the real shape of
         external/googleapis/google/cloud/secrets/v1beta1/secretmanager_v1beta1.yaml) trips BOTH
@@ -209,6 +219,7 @@ class T(unittest.TestCase):
         rc, out, err = run_scope(root, baseline, both)
         self.assertEqual(rc, 0, (out, err))
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_10_multiple_exceptions_same_class_all_apply(self):
         files = NEEDLE_FILES + ["tools/secret_scan.py", "tools/test_secret_scan.py"]
         root, baseline = build_fixture(files)
@@ -220,6 +231,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 0, (out, err))
         self.assertIn("SCOPE_CLASS secret_named kind=secret count=0 excepted=2 PASS", out)
 
+    # oracle: SPECIFIED (hand-built scope fixtures with hand-stated pass or fail expectations)
     def test_12_malformed_line_wrong_field_count_is_a_hard_error(self):
         """A line with the wrong number of whitespace-separated fields (not '<class> <path>') is
         refused, never silently skipped — a malformed exceptions file must not degrade into a
@@ -231,6 +243,7 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 1, (out, err))
         self.assertIn("SCOPE FAIL exceptions file invalid", out)
 
+    # oracle: INVARIANT (every line of the real file satisfies the stated format)
     def test_11_real_project_exceptions_file_is_well_formed(self):
         """The checked-in constitution/scripts/codegraph/scope_exceptions.txt itself parses cleanly
         and contains only allowed classes with exact (non-glob) paths — a direct sanity check on the

@@ -71,6 +71,7 @@ class T(unittest.TestCase):
     def tearDown(self):
         subprocess.run(["rm", "-rf", self.d])
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_01_discovers_exactly_the_governed_tools(self):
         got = sorted(by_path(report(self.d)))
         want = sorted(["scripts/codegraph/a_tool.sh", "scripts/codegraph/b_tool.py", "scripts/codegraph/c_tool.js",
@@ -78,6 +79,7 @@ class T(unittest.TestCase):
                        "scripts/codegraph/runner_patches/p2.py", "scripts/lumen/l_tool.py", "scripts/lumen/l_two.sh"])
         self.assertEqual(got, want, "tests/, __pycache__, __init__/common, .yaml/.txt data files must not be listed as tools")
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_02_test_by_name_and_by_exact_content_reference(self):
         t = by_path(report(self.d))
         self.assertTrue(t["scripts/codegraph/a_tool.sh"]["tested"], "test_<stem>.<ext> by name")
@@ -85,6 +87,7 @@ class T(unittest.TestCase):
         self.assertTrue(t["scripts/codegraph/runner_patches/p1.py"]["tested"], "patch id token in a test file")
         self.assertTrue(t["scripts/lumen/l_tool.py"]["tested"], "lumen tests dir is searched too")
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_03_substring_and_fixture_mentions_do_not_count_as_tests(self):
         t = by_path(report(self.d))
         self.assertFalse(t["scripts/codegraph/c_tool.js"]["tested"], "xc_tool.js / c_tool.js.bak / c_tool.jsx / fixtures are decoys")
@@ -92,6 +95,7 @@ class T(unittest.TestCase):
         self.assertFalse(t["scripts/codegraph/runner_patches/p2.py"]["tested"], "p2x and a fixtures-only p2 do not count")
         self.assertEqual(t["scripts/codegraph/runner_patches/p1.py"]["tests"], ["scripts/codegraph/tests/misc.py"], "p11 in decoy.sh must not add a reference")
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_04_guide_attribution(self):
         t = by_path(report(self.d))
         self.assertEqual(t["scripts/codegraph/a_tool.sh"]["guide"], "docs/scripts/a_tool.md")
@@ -99,6 +103,7 @@ class T(unittest.TestCase):
         self.assertIsNone(t["scripts/codegraph/b_tool.py"]["guide"])
         self.assertIsNone(t["scripts/lumen/l_two.sh"]["guide"])
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_05_owed_lists_are_exact(self):
         t = by_path(report(self.d))
         self.assertEqual(t["scripts/codegraph/a_tool.sh"]["owed"], [])
@@ -106,11 +111,13 @@ class T(unittest.TestCase):
         self.assertEqual(t["scripts/codegraph/d_tool.sh"]["owed"], ["tests", "guide"])
         self.assertEqual(t["scripts/codegraph/runner_patches/p2.py"]["owed"], ["tests", "guide"])
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_06_default_is_informational_strict_blocks(self):
         r = run(self.d); self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("scripts/codegraph/d_tool.sh", r.stdout)
         s = run(self.d, "--strict"); self.assertEqual(s.returncode, 1, s.stdout + s.stderr)
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_07_strict_passes_when_nothing_is_owed(self):
         for rel in ("scripts/codegraph/b_tool.py", "scripts/codegraph/c_tool.js", "scripts/codegraph/d_tool.sh", "scripts/codegraph/runner_patches/p2.py", "scripts/lumen/l_two.sh"):
             stem = os.path.splitext(os.path.basename(rel))[0]
@@ -120,6 +127,7 @@ class T(unittest.TestCase):
         s = run(self.d, "--strict"); self.assertEqual(s.returncode, 0, s.stdout + s.stderr)
         self.assertEqual(report(self.d)["owed_count"], 0)
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_08_blind_root_refuses_instead_of_reporting_nothing_owed(self):
         empty = tempfile.mkdtemp(prefix="owed_empty_")
         try:
@@ -128,19 +136,23 @@ class T(unittest.TestCase):
         finally:
             subprocess.run(["rm", "-rf", empty])
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_09_missing_root_refuses(self):
         r = run(os.path.join(self.d, "nope")); self.assertEqual(r.returncode, 3, r.stdout + r.stderr); self.assertIn("REFUSED", r.stderr)
 
+    # oracle: INVARIANT (repeated runs produce identical output)
     def test_10_deterministic_output(self):
         a = run(self.d, "--json").stdout; b = run(self.d, "--json").stdout
         self.assertEqual(a, b); self.assertEqual(run(self.d).stdout, run(self.d).stdout)
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_11_pycache_pyc_and_data_files_never_listed(self):
         w(self.d, "scripts/codegraph/tests/__pycache__/a_tool.cpython-311.pyc")
         paths = " ".join(by_path(report(self.d)))
         for bad in ("__pycache__", ".pyc", ".yaml", ".txt", "__init__", "common.py"):
             self.assertNotIn(bad, paths)
 
+    # oracle: SPECIFIED (hand-built fixture tree whose owed-tool lists are known by construction)
     def test_12_text_report_names_every_owed_tool_and_its_missing_parts(self):
         out = run(self.d).stdout
         line = [l for l in out.splitlines() if "d_tool.sh" in l]

@@ -5,6 +5,7 @@
 # endpoints are ABSENT. The gate MUST fail (probe replay + provenance path
 # checks expose the fabrication). Also asserts GREEN on the genuine fixture.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 # Hermetic: an operator key in the caller environment must never decide a fixture verdict.
 unset TYPESAFE_API_KEY OPENROUTER_API_KEY LLMCTL_API_KEY
 # Tool preflight: an absent tool is CANNOT-DETERMINE (rc 2), never a pass or a false RED.

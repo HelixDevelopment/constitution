@@ -25,11 +25,15 @@ if [ -n "${JEV_BOOTSTRAP_NESTED:-}" ]; then
   exit 2
 fi
 HERE=$(cd "$(dirname "$0")" && pwd)
-HOOK="${JEV_HOOK_FILE:-$HERE/../post_update_hook.sh}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set HOOK JEV_HOOK_FILE "$HERE/../post_update_hook.sh" path --test-root "$HERE/fixtures"
 REAL_BOOT="$HERE/../jev/bootstrap.sh"
 if [ -f "$REAL_BOOT" ]; then DEFAULT_STUB="$REAL_BOOT"; else DEFAULT_STUB="$HERE/fixtures/jev/bin/bootstrap.sh"; fi
-STUB="${JEV_BOOTSTRAP_STUB:-$DEFAULT_STUB}"
-DEPS="${JEV_FIXTURE_DEPS:-$HERE/fixtures/jev/helix-deps.yaml}"
+cm_gate_env_set STUB JEV_BOOTSTRAP_STUB "$DEFAULT_STUB" path --test-root "$HERE/fixtures"
+cm_gate_env_set DEPS JEV_FIXTURE_DEPS "$HERE/fixtures/jev/helix-deps.yaml" path --test-root "$HERE/fixtures"
 
 fail=0
 case "$STUB" in
@@ -77,7 +81,21 @@ TMO="${JEV_GATE_TIMEOUT:-120}"
 SBX=$(mktemp -d); trap 'rm -rf "$SBX"' EXIT
 mkdir -p "$SBX/root"; cp "$DEPS" "$SBX/root/helix-deps.yaml" 2>/dev/null || err "deps: fixture helix-deps.yaml not readable: $DEPS"
 STUBBIN="$HERE/fixtures/jev/bin"
-KNOWN_REFS=$(awk '/^ +ref:/{print $2}' "$DEPS" | tr '\n' ' ')
+# Pins are read STRUCTURALLY (helix_deps_field.py: parsed YAML; duplicate keys / ambiguous names / no PyYAML are
+# refusals). Line patterns were fooled by bare `-`, quoted keys, `name :` and duplicate keys. A reader failure or an
+# unlisted tool is CANNOT DETERMINE (rc 2), never a pass and never an empty pin.
+# shellcheck disable=SC1091
+. "$HERE/../deps_manifest/override_guard.sh"
+FIELDPY="$(cm_hdeps_override HELIX_DEPS_FIELD_PY "$HERE/../deps_manifest/helix_deps_field.py")"
+dep_field() { # dep_field <tool> <field> -> DF_OUT, or exit 2 (BLIND)
+  command -v python3 >/dev/null 2>&1 || { echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: python3 missing; the structural manifest reader cannot run (rc 2)" >&2; exit 2; }
+  DF_OUT=$(python3 -I "$FIELDPY" "$DEPS" "$1" "$2"); local frc=$?
+  if [ "$frc" -ne 0 ] || [ -z "$DF_OUT" ]; then
+    echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: structural reader failed for '$2' of '$1' in $DEPS (rc=$frc; 9 = tool not listed, empty = field absent); never a pass (rc 2)" >&2; exit 2
+  fi
+}
+KNOWN_REFS=""
+for _t in llmctl claude_toolkit; do dep_field "$_t" ref; KNOWN_REFS="$KNOWN_REFS$DF_OUT "; done
 timed_out=0
 run_boot() { # run_boot <home> <gitlog> [bootstrap args...]
   local home="$1" glog="$2"; shift 2
@@ -134,8 +152,8 @@ clause_start
 H4="$SBX/host4"; GITLOG="$SBX/git.log"; : > "$GITLOG"
 run_boot "$H4" "$GITLOG" --non-interactive
 for tool in llmctl claude_toolkit; do
-  want_url=$(awk -v n="$tool" '$0 ~ "name: "n {f=1} f && /ssh_url:/ {print $2; exit}' "$DEPS")
-  want_ref=$(awk -v n="$tool" '$0 ~ "name: "n {f=1} f && /ref:/ {print $2; exit}' "$DEPS")
+  dep_field "$tool" ssh_url; want_url="$DF_OUT"
+  dep_field "$tool" ref; want_ref="$DF_OUT"
   grep -Fq -- "$want_url" "$GITLOG" && grep -E -q "^git (-C [^ ]+ )?clone( --quiet)? .*$(printf '%s' "$want_url" | sed 's/[.[\*^$]/\\&/g')( |$)" "$GITLOG" \
     || err "clone-fallback: no managed clone of $want_url recorded for $tool (submodule-absent path)"
   grep -E -q "^git (-C [^ ]+ )?checkout( --quiet)? $want_ref\$" "$GITLOG" \

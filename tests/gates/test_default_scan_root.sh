@@ -8,6 +8,9 @@
 # cwd names), chaos (missing --root target), determinism (3 runs), time budget,
 # precedence (explicit --root wins), and a paired section 1.1 mutation.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
+# The legacy absolute mode is what these fixtures assert (no baseline in a fixture); ratchet mode is covered by tests/gates/test_oracle_ratchet_and_consumer_skips.sh.
+export ORACLE_GUARD_STRICT=1
 export CONSTITUTION_JEV_HOOK=off
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 canon_src="$(cd "$here/../.." && pwd)"
@@ -23,7 +26,7 @@ GATES="cm_oracle_strategy_named_and_independent cm_dangerous_combination_fail_cl
 mkcanon() { # $1 = dir ; builds a minimal real-git canon with the real gates + lib
     mkdir -p "$1/scripts/gates" "$1/scripts/lib"
     for g in $GATES; do cp "$canon_src/scripts/gates/$g.sh" "$1/scripts/gates/"; done
-    cp "$canon_src/scripts/lib/default_scan_root.sh" "$1/scripts/lib/"
+    cp "$canon_src/scripts/lib/default_scan_root.sh" "$canon_src/scripts/lib/gate_env_override.sh" "$1/scripts/lib/"
     printf 'def test_unannotated():\n    assert 1 == 1\n' > "$1/test_canon_marker.py"
     printf 'try { x(); } catch (e) {}\n' > "$1/canon_marker.js"
     git -C "$1" init -q 2>/dev/null
@@ -98,7 +101,7 @@ done
 
 # ---- paired section 1.1 mutation: restore the cwd-relative default ---------
 mkdir -p "$sb/parent/mut"; mkcanon "$sb/parent/mut"
-sed -i 's|root="${ORACLE_GUARD_ROOT:-}"|root="${ORACLE_GUARD_ROOT:-..}"|' "$sb/parent/mut/scripts/gates/cm_oracle_strategy_named_and_independent.sh"
+sed -i 's|^cm_gate_env_set root ORACLE_GUARD_ROOT "" path|root="${ORACLE_GUARD_ROOT:-..}"|' "$sb/parent/mut/scripts/gates/cm_oracle_strategy_named_and_independent.sh"
 o="$sb/o9"; ( cd "$sb/parent/mut" && bash scripts/gates/cm_oracle_strategy_named_and_independent.sh >"$o" 2>&1 )
 grep -q "sibling" "$o"; chk $? "mutation: restoring ':-..' makes the gate scan the sibling (test would catch the regression)"
 

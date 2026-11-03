@@ -38,6 +38,8 @@
 # Classification: universal (§11.4.17).
 
 set -uo pipefail
+# The legacy absolute mode is what these fixtures assert (no baseline in a fixture); ratchet mode is covered by tests/gates/test_oracle_ratchet_and_consumer_skips.sh.
+export ORACLE_GUARD_STRICT=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE="${SCRIPT_DIR}/cm_oracle_strategy_named_and_independent.sh"
@@ -143,6 +145,26 @@ def add(a, b):
     return a + b
 PY
 expect_pass "no candidate test files present — honest SKIP (exit 0), never a fake FAIL" "$TMP/5_no_tests"
+
+# --- 6. Adoption path (--adopt-new-files --reason): narrow, audited, never raises ---------------------
+adopt() { env -u ORACLE_GUARD_STRICT bash "$GATE" --root "$1" --baseline "$1/b.txt" "${@:2}" >/dev/null 2>&1; }
+mkdir -p "$TMP/6_adopt"
+printf 'def test_u1():\n    assert 1\n' > "$TMP/6_adopt/test_new6.py"
+printf 'def test_o():\n    assert 1\n' > "$TMP/6_adopt/test_old6.py"
+printf 'test_old6.py\t1\n' > "$TMP/6_adopt/b.txt"
+if adopt "$TMP/6_adopt" --adopt-new-files; then echo "❌ META FAIL: adoption without --reason accepted"; rc=1; else echo "✅ META OK:   adoption without --reason refused"; fi
+if adopt "$TMP/6_adopt" --adopt-new-files --reason "meta" && grep -q $'^test_new6.py\t1$' "$TMP/6_adopt/b.txt" && grep -q 'reason=meta' "$TMP/6_adopt/oracle_ratchet_adoptions.log"; then echo "✅ META OK:   adoption adds the new file and logs it"; else echo "❌ META FAIL: adoption did not add/log"; rc=1; fi
+printf 'def test_o2():\n    assert 1\n' >> "$TMP/6_adopt/test_old6.py"
+printf 'def test_u2():\n    assert 1\n' > "$TMP/6_adopt/test_new7.py"
+if adopt "$TMP/6_adopt" --adopt-new-files --reason "raise attempt" || grep -q test_new7 "$TMP/6_adopt/b.txt"; then echo "❌ META FAIL: adoption raised/ignored an over-baseline existing file"; rc=1; else echo "✅ META OK:   adoption refuses while an existing entry would increase"; fi
+
+# --- 7. --help prints the header through its REAL end (Classification line), derived not hardcoded (round 5 N-1) ---
+_cls="$(grep -m1 '^# Classification:' "$GATE" | sed 's/^# \{0,1\}//')"
+_help_last="$(bash "$GATE" --help 2>/dev/null | tail -1)"
+if [ -n "$_cls" ] && [ "$_help_last" = "$_cls" ]; then echo "✅ META OK:   --help ends on the Classification line"; else echo "❌ META FAIL: --help last line '${_help_last}' != Classification line '${_cls}'"; rc=1; fi
+# mutant: hardcoded cut at a stale line count must be DETECTED by the same check
+_mg="$TMP/help_mut.sh"; sed "s|sed -n \"1,\$(awk '/^# Classification:/{print NR; exit}' \"\$0\")p\" \"\$0\"|sed -n '1,150p' \"\$0\"|" "$GATE" > "$_mg"
+if grep -q "1,150p" "$_mg" && [ "$(bash "$_mg" --help 2>/dev/null | tail -1)" != "$_cls" ]; then echo "✅ META OK:   hardcoded-150 help mutant is killed"; else echo "❌ META FAIL: hardcoded-help mutant survived or was not applied"; rc=1; fi
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then

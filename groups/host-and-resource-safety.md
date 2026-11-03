@@ -325,8 +325,8 @@ worktree layout, batch thresholds) live in consumer-side
 `docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md` (this Constitution
 defines the discipline; consumers implement the tooling).
 
-**Reference:** parent
-[`docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md`](../../docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md)
+**Reference:** the consumer-side
+`docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md` (not shipped in this repository, so not linked)
 (full methodology with diagrams, templates, operator manual, and
 migration plan).
 

@@ -124,9 +124,11 @@ assert_rc 0 "$rc" "G2 empty endpoints + llmctl says only the gateway is running 
 mk_status "$T/status.json" false "" "[]" "$(prof_list decide-nli:false)"
 JEV_DETECTION_FILE="$EMPTY" bash "$GATES/cm_jev_detection.sh" >"$T/g2c.out" 2>&1; rc=$?
 assert_rc 0 "$rc" "G2-NEG lawful reasoned-empty record PASSes when llmctl reports nothing running"
-( export PATH="$T/nobin:/usr/bin:/bin"; mkdir -p "$T/nobin"; JEV_DETECTION_FILE="$EMPTY" bash "$GATES/cm_jev_detection.sh" >"$T/g2d.out" 2>&1 ); rc=$?
-assert_rc 0 "$rc" "G2-NEG llmctl absent: reasoned-empty record still passes (contradiction unverifiable, noted)"
+( export PATH="$T/nobin:/usr/bin:/bin"; mkdir -p "$T/nobin"; HELIX_TEST_MODE=1 JEV_DETECTION_FILE="$EMPTY" bash "$GATES/cm_jev_detection.sh" >"$T/g2d.out" 2>&1 ); rc=$?
+assert_rc 0 "$rc" "G2-NEG llmctl absent under the documented test mode (HELIX_TEST_MODE=1): reasoned-empty record passes (contradiction unverifiable, noted)"
 assert_contains "$T/g2d.out" "NOTE" "G2 llmctl-absent case is NOTEd, not silent"
+( export PATH="$T/nobin:/usr/bin:/bin"; env -u HELIX_TEST_MODE JEV_DETECTION_FILE="$EMPTY" bash "$GATES/cm_jev_detection.sh" >"$T/g2e.out" 2>&1 ); rc=$?
+assert_rc 2 "$rc" "G2 llmctl absent WITHOUT test mode: BLIND rc 2, never GREEN (F4)"
 
 # ---- G3: absent record must not leak a cd error; report uses this run's file ----
 mkdir -p "$T/cwd"

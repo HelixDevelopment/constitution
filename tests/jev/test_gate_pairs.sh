@@ -5,6 +5,7 @@
 # and each paired mutation test passes (the mutation tests self-assert the RED
 # flip). Deterministic, fixtures only, no network.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 unset JEV_CONFIG_DIR   # the wiring gate honours it; these fixtures address their config through JEV_HOME
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)

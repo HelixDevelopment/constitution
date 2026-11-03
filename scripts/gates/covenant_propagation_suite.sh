@@ -44,7 +44,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # F5: default-root helper (defined in the shared engine; sourcing only defines functions)
 . "${HERE}/lib/covenant_propagation_engine.sh"
-PACK="${COVENANT_PROPAGATION_ANCHORS:-${HERE}/covenant_propagation_anchors.tsv}"
+cm_gate_env_set PACK COVENANT_PROPAGATION_ANCHORS "${HERE}/covenant_propagation_anchors.tsv" path   # guarded (engine sources the lib)
 MODE="${1:-}"; shift || true
 
 [ -r "$PACK" ] || { echo "suite: data pack not readable: $PACK" >&2; exit 2; }

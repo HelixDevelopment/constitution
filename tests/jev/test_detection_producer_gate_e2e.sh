@@ -15,6 +15,7 @@
 #   E3 negative controls: a mutated record MUST make the gate fail
 #   E4 no network was attempted and no managed-clone dir was created without consent
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES="$HERE/fixtures"   # used by lib_assert helpers
 export FIXTURES

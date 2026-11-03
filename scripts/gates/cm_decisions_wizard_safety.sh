@@ -22,7 +22,11 @@
 set -uo pipefail
 GATE="CM-DECISIONS-WIZARD-SAFETY"
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-cli="${DECISIONS_CLI:-$const/scripts/decisions/constitution_decisions.sh}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set cli DECISIONS_CLI "$const/scripts/decisions/constitution_decisions.sh" path
 case "${1:-}" in "") ;; -h|--help) sed -n 2,20p "${BASH_SOURCE[0]:-$0}"; exit 0 ;; *) echo "$GATE: unknown argument $1" >&2; exit 64 ;; esac
 [ -x "$cli" ] || { echo "⚠ $GATE: BLIND (exit 2) — wizard missing: $cli"; exit 2; }
 # shellcheck source=../lib/safe_rm.sh

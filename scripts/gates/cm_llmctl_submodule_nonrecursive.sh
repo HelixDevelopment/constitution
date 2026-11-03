@@ -32,7 +32,7 @@
 #   None (read-only git plumbing; no network).
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, git, awk.
+#   bash, git, awk, python3 + PyYAML (scripts/deps_manifest/helix_deps_field.py; absent -> BLIND).
 #
 # ── Cross-references ─────────────────────────────────────────────────────────
 #   §11.4.277(B), §11.4.28(C), §11.4.31, §11.4.201, §1.1 (paired mutation:
@@ -55,20 +55,28 @@ done
 deps="$root/helix-deps.yaml"
 [ -r "$deps" ] || { echo "$GATE: BLIND — $deps unreadable" >&2; exit 2; }
 fail=0
-# (1) marker inside the llmctl entry (from `- name: llmctl` to the next `- name:` or a top-level key)
-entry="$(awk '/^  - name: llmctl[[:space:]]*$/{f=1;next} f&&/^  - name:/{exit} f&&/^[^ #]/{exit} f{print}' "$deps")"
-if [ -z "$entry" ]; then
-  echo "$GATE: FAIL — helix-deps.yaml has no llmctl entry"; fail=1
-# here-string, not `printf | grep -q`: under pipefail an early-exiting grep can SIGPIPE the producer and turn a
-# PRESENT marker into a false FAIL on a large entry (SIGPIPE x pipefail class, §11.4.276(C))
-elif ! grep -Eq '^[[:space:]]+recursive_init:[[:space:]]*false([[:space:]]|#|$)' <<<"$entry"; then
-  echo "$GATE: FAIL — helix-deps.yaml llmctl entry lacks the non-recursive marker 'recursive_init: false'"; fail=1
+# (1) marker inside the llmctl entry, read STRUCTURALLY (helix_deps_field.py: parsed YAML, duplicate keys / ambiguous
+# names / no PyYAML are refusals) — never by line patterns (bare `-`, quoted key, `name :` shapes fooled the old awk).
+# Reader failure is BLIND (rc 2), never a PASS.
+_dm="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../deps_manifest" && pwd)"
+# shellcheck disable=SC1091
+. "$_dm/override_guard.sh"
+fieldpy="$(cm_hdeps_override HELIX_DEPS_FIELD_PY "$_dm/helix_deps_field.py")"
+blind=0
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "$GATE: BLIND — python3 missing; the structural manifest reader cannot run" >&2; blind=1
 else
-  echo "$GATE: marker recursive_init: false present"
+  rinit="$(python3 -I "$fieldpy" "$deps" llmctl recursive_init)"; frc=$?
+  case "$frc" in
+    9) echo "$GATE: FAIL — helix-deps.yaml has no llmctl entry"; fail=1 ;;
+    0) if [ "$rinit" != "false" ]; then
+         echo "$GATE: FAIL — helix-deps.yaml llmctl entry lacks the non-recursive marker 'recursive_init: false'"; fail=1
+       else echo "$GATE: marker recursive_init: false present"; fi ;;
+    *) echo "$GATE: BLIND — structural reader failed (rc=$frc) on $deps; an unreadable or ambiguous manifest is never a PASS" >&2; blind=1 ;;
+  esac
 fi
 # (2) cycle finiteness
 sub="$root/submodules/llmctl"
-blind=0
 if ! git -C "$sub" rev-parse --git-dir >/dev/null 2>&1 || [ "$(git -C "$sub" rev-parse --show-toplevel 2>/dev/null)" != "$sub" ]; then
   echo "$GATE: SKIP (2) — submodules/llmctl is not checked out; nothing can re-enter this constitution through it"
 else

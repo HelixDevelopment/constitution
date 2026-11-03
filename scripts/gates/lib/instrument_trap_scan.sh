@@ -170,7 +170,18 @@ its_scan_file() {
 #     golden-GOOD counterpart. Both halves, because a false refusal is rated
 #     exactly as seriously as a false pass (§11.4.201(1)).
 its_selftest() {
-    _st_root=${ITS_FIXTURES:-}
+    # ITS_FIXTURES swaps the golden fixtures the selftest proves the detector against (a fixture set the detector
+    # trivially passes would certify a blind detector): INLINE-GUARDED (11.4.201(6)-(8), POSIX twin of
+    # scripts/lib/gate_env_override.sh) -- honoured only under HELIX_TEST_MODE=1 with a path under the temp root.
+    _st_root=""
+    if [ -n "${ITS_FIXTURES:-}" ]; then
+        _st_tr=$(readlink -m -- "${TMPDIR:-/tmp}" 2>/dev/null); _st_fr=$(readlink -m -- "$ITS_FIXTURES" 2>/dev/null)
+        if [ "${HELIX_TEST_MODE:-}" = 1 ] && [ -n "$_st_tr" ] && [ "$_st_tr" != / ] && [ -n "$_st_fr" ] && [ "${_st_fr#"$_st_tr"/}" != "$_st_fr" ]; then
+            _st_root=$_st_fr; printf 'gate_env_override: honouring ITS_FIXTURES (HELIX_TEST_MODE=1)\n' >&2
+        else
+            printf 'gate_env_override: ignoring ITS_FIXTURES (needs HELIX_TEST_MODE=1 and a path under the temp root); using the real fixtures\n' >&2
+        fi
+    fi
     if [ -z "$_st_root" ]; then
         _st_here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
         _st_root="${_st_here}/../fixtures/instrument_trap_scan/traps"

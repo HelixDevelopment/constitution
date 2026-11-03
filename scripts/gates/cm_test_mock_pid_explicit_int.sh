@@ -95,8 +95,12 @@ set -uo pipefail
 GATE="CM-TEST-MOCK-PID-EXPLICIT-INT"
 ANCHOR="11.4.263"
 
-root="${MOCK_PID_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
-glob="${MOCK_PID_GUARD_GLOB:-*test*.py}"
+# verdict-affecting ambient overrides are guarded (11.4.276 r8): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set root MOCK_PID_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
+cm_gate_env_set glob MOCK_PID_GUARD_GLOB "*test*.py" value
 quiet=0
 
 while [ $# -gt 0 ]; do
@@ -129,7 +133,8 @@ else
     echo "${GATE}: scan root not found: $root" >&2; exit 2
 fi
 
-excludes="${MOCK_PID_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
+cm_gate_env_set excludes MOCK_PID_GUARD_EXCLUDE ".git node_modules vendor .venv __pycache__ scripts/gates out build dist" value
+[ -z "${CM_GATE_OVERRIDES_HONOURED:-}" ] || echo "⚠ ${GATE}: NOTE — test-mode override(s) honoured: ${CM_GATE_OVERRIDES_HONOURED} (HELIX_TEST_MODE=1; never a production verdict)"
 
 prune_expr=()
 for ex in $excludes; do

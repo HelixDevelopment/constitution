@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-30T11:05:48.086413+00:00'
+generated_at: '2026-11-03T10:03:03.152985+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: df7ae72cef3afb6d1e55569da4cc501cb7fa305c
-  source_sha256: 24f8a183111ec38ac00d8f0b7a5b3ec255b368d125d24f2924f0dc30138cfaba
+  commit: ca88eda44ff928e161448d559d0fc07881d3dfea
+  source_sha256: 20d214c68274c233598011630c9706c5bbf4fc22e5869b08139f89db2e2eb933
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -5557,6 +5557,8 @@ anchors:
   - 11.4.205
   - 11.4.224
   - 11.4.227
+  - 11.4.255
+  - 11.4.256
   - 11.4.32
   - 11.4.35
   - 11.4.54
@@ -6024,18 +6026,17 @@ anchors:
   - 11.4.1
   - 11.4.107
   - 11.4.134
-  - 11.4.140
-  - 11.4.141
   - 11.4.142
   - 11.4.17
   - 11.4.20
   - 11.4.209
   - 11.4.227
   - 11.4.237
+  - 11.4.255
+  - 11.4.256
   - 11.4.3
   - 11.4.35
   - 11.4.5
-  - 11.4.54
   - 11.4.6
   - 11.4.69
   - 11.4.70

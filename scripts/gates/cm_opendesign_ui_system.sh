@@ -23,6 +23,15 @@
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_opendesign_ui_system.sh [--root <project-root>]
 #     --root <dir>   project root to audit (default: $CONSUMER_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself).
+#     --standalone-canon  DECLARE that --root/the default root is the canon repository itself. Only then, and only
+#                    when the root has NO token-bound UI system (no design-token artifact matching OD_TOKEN_GLOBS AND
+#                    no manifest in OD_MANIFEST_GLOBS referencing open-design; PATH is deliberately ignored so the
+#                    verdict is host-independent), the gate records an honest SKIP (exit 3,
+#                    VERDICT line reason=topology_unsupported) instead of FAILing on the canon's own report styles
+#                    (they are not a UI product). If the root HAS a token artifact or declares OpenDesign, the
+#                    declaration changes nothing and the audit runs (a consumer that has the surface and violates
+#                    it still FAILs). No environment opt-in exists, by design (an ambient variable would turn a
+#                    real consumer FAIL into a SKIP) -- same precedent as CM-CANONICAL-ROOT-CLARITY.
 #
 # ── Inputs (env, project-agnostic per §11.4.28 — sane defaults, never hardcoded
 #    consumer paths) ────────────────────────────────────────────────────────────
@@ -37,6 +46,10 @@
 #   OD_MANIFEST_GLOBS   manifests that may declare the OpenDesign dependency.
 #                       Default: .mcp.json package.json go.mod Cargo.toml
 #                                pubspec.yaml requirements.txt opencode.json
+#   The four OD_*_GLOBS decide WHAT is scanned (a glob list matching nothing would turn a FAIL into a SKIP), so the
+#   ENVIRONMENT form is GUARDED (honoured only under HELIX_TEST_MODE=1, scripts/lib/gate_env_override.sh). A consumer
+#   registers its paths with the explicit flags --theme-globs / --token-globs / --visreg-globs / --manifest-globs
+#   (an explicit flag is not ambient and is always honoured).
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
 #   Per-sub-check PASS / FAIL / SKIP lines with evidence; final overall verdict;
@@ -59,6 +72,8 @@
 #   0 — all applicable sub-checks PASS, OR no-UI-surface SKIP.
 #   1 — at least one applicable sub-check FAILed.
 #   2 — environment error (root not found).
+#   3 — SKIP (distinct, never a PASS): --standalone-canon declared and no token-bound UI system present.
+#   A final `OD-VERDICT<TAB>PASS|FAIL|SKIP<TAB>...` line is machine-readable.
 #
 # Classification: universal (§11.4.17).
 
@@ -78,11 +93,18 @@ shopt -s globstar
 GATE="CM-OPENDESIGN-UI-SYSTEM"
 ANCHOR="11.4.162"
 
+standalone_decl=0
+od_cli_theme=""; od_cli_token=""; od_cli_visreg=""; od_cli_manifest=""
 root="${CONSUMER_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
-        -h|--help) sed -n '1,60p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --standalone-canon) standalone_decl=1; shift ;;
+        --theme-globs)    od_cli_theme="${2:?--theme-globs needs a value}"; shift 2 ;;
+        --token-globs)    od_cli_token="${2:?--token-globs needs a value}"; shift 2 ;;
+        --visreg-globs)   od_cli_visreg="${2:?--visreg-globs needs a value}"; shift 2 ;;
+        --manifest-globs) od_cli_manifest="${2:?--manifest-globs needs a value}"; shift 2 ;;
+        -h|--help) awk 'NR>1 && /^#/ {print; next} NR>1 {exit}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
@@ -97,10 +119,18 @@ fi
 root="$(cd "$root" && pwd)"
 
 # ---- consumer-registered paths (§11.4.35) with sane defaults (§11.4.28) ----
-OD_THEME_GLOBS="${OD_THEME_GLOBS:-src/theme/* src/styles/* styles/* theme/* themes/* ui/theme/* assets/theme/* *.theme.css tailwind.config.* tokens.css}"
-OD_TOKEN_GLOBS="${OD_TOKEN_GLOBS:-tokens.json design-tokens.json design-tokens/* tokens/*.json *.tokens.json open-design.tokens.json src/tokens/* ui/tokens/*}"
-OD_VISREG_GLOBS="${OD_VISREG_GLOBS:-**/*visual*regression* **/*visreg* **/__image_snapshots__/* **/*.snap.png tests/visual/* test/visual/* **/*pixel*diff* **/*screenshot*test*}"
-OD_MANIFEST_GLOBS="${OD_MANIFEST_GLOBS:-.mcp.json package.json go.mod Cargo.toml pubspec.yaml requirements.txt opencode.json .qwen/settings.json}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set OD_THEME_GLOBS OD_THEME_GLOBS "src/theme/* src/styles/* styles/* theme/* themes/* ui/theme/* assets/theme/* *.theme.css tailwind.config.* tokens.css" value
+cm_gate_env_set OD_TOKEN_GLOBS OD_TOKEN_GLOBS "tokens.json design-tokens.json design-tokens/* tokens/*.json *.tokens.json open-design.tokens.json src/tokens/* ui/tokens/*" value
+cm_gate_env_set OD_VISREG_GLOBS OD_VISREG_GLOBS "**/*visual*regression* **/*visreg* **/__image_snapshots__/* **/*.snap.png tests/visual/* test/visual/* **/*pixel*diff* **/*screenshot*test*" value
+cm_gate_env_set OD_MANIFEST_GLOBS OD_MANIFEST_GLOBS ".mcp.json package.json go.mod Cargo.toml pubspec.yaml requirements.txt opencode.json .qwen/settings.json" value
+[ -z "$od_cli_theme" ]    || OD_THEME_GLOBS="$od_cli_theme"
+[ -z "$od_cli_token" ]    || OD_TOKEN_GLOBS="$od_cli_token"
+[ -z "$od_cli_visreg" ]   || OD_VISREG_GLOBS="$od_cli_visreg"
+[ -z "$od_cli_manifest" ] || OD_MANIFEST_GLOBS="$od_cli_manifest"
 
 # Expand a space-separated glob list (relative to $root) into existing files.
 _expand() {
@@ -127,6 +157,29 @@ if [ -z "${theme_files//[$' \t\r\n']/}" ] && [ -z "${token_files//[$' \t\r\n']/}
    && [ -z "${visreg_files//[$' \t\r\n']/}" ]; then
     echo "⏭️  SKIP ${GATE}: no UI surface detected under ${root} (no theme/token/visreg sources matched OD_*_GLOBS) — §11.4.3 SKIP-with-reason, not a fake PASS"
     exit 0
+fi
+
+# ---- Standalone-canon honest SKIP (declared invocation only; §11.4.201(1), §11.4.3, §11.4.69 topology_unsupported) ----
+if [ "$standalone_decl" = 1 ]; then
+    # F5: the declaration is only honoured for a real canon root (Constitution.md at the root, not a vendored submodule)
+    # shellcheck source=/dev/null
+    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && cm_is_canon_root "$root" || {
+        echo "${GATE}: --standalone-canon refused: ${root} is not a canon repository (needs Constitution.md at its root and not a vendored submodule); not a SKIP" >&2
+        exit 2
+    }
+    od_manifest_decl=""
+    for m in $OD_MANIFEST_GLOBS; do
+        for f in "$root"/$m; do
+            [ -f "$f" ] || continue
+            if grep -qiE 'open[-_]?design' "$f"; then od_manifest_decl="1"; break 2; fi
+        done
+    done
+    if [ -z "${token_files//[$' \t\r\n']/}" ] && [ -z "$od_manifest_decl" ]; then
+        echo "⏭️  SKIP ${GATE}: standalone canon DECLARED and ${root} has no token-bound UI system (no design-token artifact, no manifest referencing open-design) — topology_unsupported (§11.4.3/§11.4.69), not a PASS"
+        printf 'OD-VERDICT\tSKIP\treason=topology_unsupported\tstandalone_canon=declared\n'
+        exit 3
+    fi
 fi
 
 echo "${GATE} (§${ANCHOR}) — auditing ${root}"
@@ -227,7 +280,9 @@ fi
 echo "======================================================================"
 if [ "$fail" -gt 0 ]; then
     echo "❌ ${GATE}: FAIL — ${fail}/${applicable_checks} applicable sub-check(s) failed"
+    printf 'OD-VERDICT\tFAIL\tfailed=%s\n' "$fail"
     exit 1
 fi
 echo "✅ ${GATE}: PASS — all ${applicable_checks} applicable sub-checks passed"
+printf 'OD-VERDICT\tPASS\tchecks=%s\n' "$applicable_checks"
 exit 0

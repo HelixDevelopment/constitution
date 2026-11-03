@@ -1,0 +1,98 @@
+# config/gate_env_allowlist.tsv -- ambient environment reads of verdict-bearing gates that are NOT routed through
+# scripts/lib/gate_env_override.sh (cm_gate_env_set), each with a kind and a justification (11.4.201(6)-(8), 11.4.35).
+# Checked by scripts/gates/cm_gate_env_reads_allowlisted.sh against the static census scripts/gates/lib/gate_env_census.py.
+# Columns (TAB separated): gate-glob (fnmatch on the repo-relative path)  VAR  kind  justification
+# kind (closed set): data-root | data-config | strictness-only | output-only | internal-channel | guard-barrier |
+#   indirect-mechanism | not-ambient | inert-text | product-runtime | inline-guarded
+# A row that matches no census read is STALE and fails the gate; a census read that matches no row fails the gate.
+scripts/gates/cm_*.sh	CONSUMER_ROOT	data-root	the consumer project the gate is asked to check (11.4.35 data channel); the verdict line names the root scanned
+scripts/gates/lib/covenant_propagation_engine.sh	CONSUMER_ROOT	data-root	consumer project root for the covenant propagation engine (11.4.35 data channel); same contract as the gates
+scripts/lib/constitution_layout.sh	CONSTITUTION_DIR	data-root	explicit canon location for a consumer layout; resolved and validated by the layout library, a wrong value is BLIND not PASS
+scripts/gates/cm_build_on_source_proven_not_test_side.sh	CM_BUILD_PROVEN_CONFIG	data-config	consumer gate config file (11.4.235 data); a missing or unreadable named config is a config error (rc 2)
+scripts/gates/cm_version_increment_on_deploy.sh	CM_VERSION_DEPLOY_CONFIG	data-config	consumer gate config file (11.4.235(E.5) data); missing, unreadable or malformed config is a config error (rc 2)
+scripts/gates/cm_healthcheck_covers_served_ports.sh	HEALTHCHECK_PORTS_COMPOSE	data-config	consumer compose file to read the served ports from (11.4.35 data)
+scripts/gates/cm_healthcheck_covers_served_ports.sh	HEALTHCHECK_PORTS_MANIFEST	data-config	consumer health-check manifest to compare against (11.4.35 data)
+scripts/gates/cm_ledger_row_typed_from_closed_vocabulary.sh	CLAIM_LEDGER	data-config	consumer claim-vs-reality ledger (11.4.266 data)
+scripts/gates/cm_unchallenged_capability_blocks_release.sh	CLAIM_LEDGER	data-config	consumer claim-vs-reality ledger (11.4.266 data)
+scripts/gates/cm_unchallenged_capability_blocks_release.sh	CLAIM_VERDICTS	data-config	consumer verdict store joined against the ledger (11.4.266 data)
+scripts/gates/cm_unchallenged_capability_blocks_release.sh	CANDIDATE_FINGERPRINT	data-config	the release candidate fingerprint the verdicts must match (11.4.266(D) data); a mismatch blocks, never passes
+scripts/gates/cm_jev_token_reduction.sh	JEV_BEFORE	data-config	BEFORE arm of the 11.4.283 harness (measured data the gate compares)
+scripts/gates/cm_jev_token_reduction.sh	JEV_AFTER	data-config	AFTER arm of the 11.4.283 harness (measured data the gate compares)
+scripts/gates/cm_jev_token_reduction.sh	JEV_BEFORE_CONFIG	data-config	config of the BEFORE arm (11.4.283 data)
+scripts/gates/cm_jev_token_reduction.sh	JEV_AFTER_CONFIG	data-config	config of the AFTER arm (11.4.283 data)
+scripts/gates/cm_jev_token_reduction.sh	JEV_DECISIONS	data-config	decisions.jsonl the gate requires at least one served decision from (11.4.283 data)
+scripts/gates/cm_jev_token_reduction.sh	JEV_STATS_REPORT	data-config	jev-stats report location (11.4.283 data, estimates only)
+scripts/gates/cm_jev_detection.sh	JEV_DETECTION_FILE	product-runtime	the detection record location of the product contract (11.4.279): the gate must read where the bootstrap wrote; residual risk recorded
+scripts/gates/lib/covenant_propagation_engine.sh	COVENANT_PROPAGATION_EXCLUSIONS	data-config	exclusion table for the closed class set; every applied exclusion is printed with its class
+scripts/lib/safe_rm.sh	SAFE_RM_ALLOWED_ROOTS	data-config	deletion-safety configuration (11.4.287(B)); validated, can only narrow what may be deleted
+scripts/lib/safe_rm.sh	SAFE_RM_EXTRA_HOMES	data-config	deletion-safety configuration (11.4.287(B)); adds protected homes, can only refuse more
+scripts/lib/safe_rm.sh	SAFE_RM_EXTRA_HOME_ROOTS	data-config	deletion-safety configuration (11.4.287(B)); adds protected home roots, can only refuse more
+scripts/lib/safe_rm.sh	SAFE_RM_MIN_DEPTH	data-config	deletion-safety configuration (11.4.287(B)); validated integer; affects deletions, not any gate verdict
+scripts/gates/cm_dangerous_combination_fail_closed.sh	DANGEROUS_COMBO_INCLUDE_THIRD_PARTY	strictness-only	only widens the scan to third-party trees (more findings, never fewer)
+scripts/gates/cm_oracle_strategy_named_and_independent.sh	ORACLE_GUARD_INCLUDE_THIRD_PARTY	strictness-only	only widens the scan to third-party trees (more findings, never fewer)
+scripts/gates/cm_oracle_strategy_named_and_independent.sh	ORACLE_GUARD_STRICT	strictness-only	only raises strictness; unset means the default rules
+scripts/gates/cm_jev_bootstrap_idempotent.sh	JEV_BOOTSTRAP_NESTED	strictness-only	recursion marker of the bootstrap run; when set the nested run refuses rather than passes
+scripts/gates/cm_jev_bootstrap_idempotent.sh	JEV_REQUIRE_REAL_BOOTSTRAP	strictness-only	only forbids the stub path (stricter); unset keeps the default
+scripts/gates/cm_jev_bootstrap_idempotent.sh	JEV_GATE_TIMEOUT	strictness-only	time bound of the bootstrap call; a timeout gives rc 2, never a pass
+scripts/gates/cm_jev_detection.sh	JEV_EVIDENCE_WINDOW_START	strictness-only	freshness floor (default 0): a later floor rejects more evidence, never accepts more
+scripts/gates/cm_oracle_strategy_named_and_independent.sh	ORACLE_GUARD_BASE	output-only	read only to print that it is ignored; it no longer affects the scan
+scripts/gates/lib/covenant_propagation_engine.sh	QUIET	output-only	suppresses per-file notes only; the VERDICT line and exit code are unchanged
+scripts/lib/constitution_layout.sh	CL_GIT_SCRUB_QUIET	output-only	suppresses a stderr note only
+scripts/gates/lib/covenant_propagation_engine.sh	COVENANT_PROPAGATION_CARRIERS	internal-channel	written by the suite into its own mktemp file; every carrier must resolve under the scanned root or the engine is BLIND
+scripts/gates/lib/control_needle.sh	CN_E4_SELF_DIR	internal-channel	set by cm_control_needle_required.sh immediately before it sources the library
+scripts/lib/gate_env_override.sh	HELIX_TEST_MODE	guard-barrier	the test switch of the guard itself (boundary (a) in the library header)
+scripts/gates/lib/execution_record.sh	HELIX_TEST_MODE	guard-barrier	test switch of the inline guards of XR_STREAM_CAP and XR_CRED_LIB
+scripts/gates/lib/instrument_trap_scan.sh	HELIX_TEST_MODE	guard-barrier	test switch of the inline guard of ITS_FIXTURES
+scripts/gates/cm_jev_detection.sh	HELIX_TEST_MODE	guard-barrier	documented test mode: flips BLIND (rc 2: llmctl absent, erroring, mis-shaped, timed out, or lib_decide.sh missing) to GREEN (the GREEN line says TEST-MODE and that the cross-check was skipped); never makes a failing (RED) record pass
+scripts/gates/lib/execution_record.sh	XR_STREAM_CAP	inline-guarded	may only be raised to at least 65536 unless HELIX_TEST_MODE=1 (POSIX library, cannot source the bash helper)
+scripts/gates/lib/execution_record.sh	XR_CRED_LIB	inline-guarded	honoured only with HELIX_TEST_MODE=1 and a path under the temp root (POSIX inline guard)
+scripts/gates/lib/instrument_trap_scan.sh	ITS_FIXTURES	inline-guarded	honoured only with HELIX_TEST_MODE=1 and a path under the temp root (POSIX inline guard)
+scripts/gates/lib/execution_record.sh	XR_SELF_PATH	not-ambient	unset at source time and then assigned from BASH_SOURCE/$0 by the dispatch; never trusted from the environment; empty (POSIX sh caller) makes _xr_redact return 3 (fail closed)
+scripts/lib/gate_env_override.sh	__name	indirect-mechanism	the ${!__name} read IS the guarded lookup of the named override
+scripts/jev/lib_keys.sh	v	indirect-mechanism	reads the key variable by name inside a subshell; the value is never printed (11.4.10, 11.4.279(E))
+scripts/gates/cm_killpg_pgid_guard.sh	WRAP_ARG	not-ambient	local of a function body assigned before use at run time; the census reads text order only
+scripts/gates/cm_killpg_pgid_guard.sh	def_here	not-ambient	local of a function body assigned before use at run time
+scripts/gates/cm_killpg_pgid_guard.sh	disq	not-ambient	local of a function body assigned before use at run time
+scripts/gates/cm_killpg_pgid_guard.sh	ok_alias	not-ambient	local of a function body assigned before use at run time
+scripts/gates/cm_killpg_pgid_guard.sh	ok_bare	not-ambient	local of a function body assigned before use at run time
+scripts/gates/cm_killpg_pgid_guard.sh	ok_qual	not-ambient	local of a function body assigned before use at run time
+scripts/gates/cm_unreferenced_gate_bound_or_retired.sh	OUT	not-ambient	assigned in the function that writes it before any read at run time
+scripts/gates/cm_installer_no_push_no_force.sh	HI_I	inert-text	string data inside the scanned-pattern table, not an environment read
+scripts/gates/cm_installer_no_push_no_force.sh	HI_U	inert-text	string data inside the scanned-pattern table, not an environment read
+scripts/jev/lib_decide.sh	CLAUDE_CONFIG_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	CLAUDE_TOOLKIT_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	CMA_PROVIDERS_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_BASE_URL	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_BEFORE_WRITE_CMD	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_BOOTSTRAP_HOME	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_CALIBRATE_ALIAS_FILE	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_CONFIG_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_DECISION_PROFILES	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_DETECTION_FILE	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_DETECTION_MAX_AGE	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_EVIDENCE_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_HOME	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_NOW_EPOCH	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_REQUIRE_VALIDATED_CMD	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_SKIP_VALIDATION	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_STATE_DIR	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	JEV_TEST	guard-barrier	test switch of the decision layer, the analogue of HELIX_TEST_MODE: an ambient JEV_TEST=1 re-opens the layer's test seams (JEV_NOW_EPOCH, JEV_DETECTION_MAX_AGE, JEV_DECISION_PROFILES, JEV_REQUIRE_VALIDATED_CMD, JEV_BEFORE_WRITE_CMD); boundary stated, not closed (see the gate_env_override.sh header, boundary (a)); the honoured seam is recorded in the detection reason
+scripts/jev/lib_decide.sh	NOW	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_decide.sh	TYPESAFE_BASE_URL	product-runtime	decision-layer runtime contract (11.4.279-11.4.285) shared with the product the jev gates check; residual risk recorded in the census report
+scripts/jev/lib_keys.sh	CMA_JEV_PINS_FILE	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	CMA_KEYS_FILE	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	JEV_API_KEYS_FILE	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	JEV_CONSTITUTION_ROOT	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	JEV_KEYS_FILE_TIMEOUT	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	JEV_PINS_FILE	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	JEV_PROBE_TIMEOUT	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/jev/lib_keys.sh	KEYS_FILE	product-runtime	operator key-file and pin contract (11.4.279(E)) shared with the product; values read by name, never printed
+scripts/action_prefix_lib.sh	HELIX_ACTION_REGISTRY	product-runtime	registry-path override of the shared action-prefix library; every gate that sources it assigns it itself before the library runs (cm_feature_directive / cm_reporting_directives export their own REGISTRY, cm_subsystem_shortcuts passes it in the command prefix), so an ambient value does not reach those verdicts
+scripts/action_prefix_lib.sh	HELIX_PROJECT_ROOT	product-runtime	project-root override read only by apx__project_root (the sub-system lookup); cm_subsystem_shortcuts passes it in its command prefix, the FEATURE / reporting probes do not call the sub-system lookup
+scripts/deps_manifest/override_guard.sh	HELIX_TEST_MODE	guard-barrier	test switch of the inline override guard cm_hdeps_override (same contract as gate_env_override.sh boundary (a))
+scripts/deps_manifest/override_guard.sh	name	indirect-mechanism	the ${!name} read IS the guarded lookup of the named override (cm_hdeps_override); the value is honoured only under HELIX_TEST_MODE=1 with a path under the temp root
+scripts/gates/lib/shell_mutation_engine.sh	<eval>	indirect-mechanism	evals the kill-command template handed to the engine by the calling gate (an argument, not an environment variable) inside a subshell; the engine reads no environment variable through it
+scripts/lib/constitution_layout.sh	<eval>	indirect-mechanism	tests whether each name in the library's own CL_GIT_SCRUB_VARS list (GIT_* variables) is set, to scrub inherited git variables; the list is fixed in the library, the effect is to DROP ambient values
+scripts/lib/safe_rm.sh	<eval>	indirect-mechanism	copies a validated array into the caller-named output array (eval "$__out=(...)"); the name is chosen by the library's own caller, not by the environment
+scripts/gates/cm_gate_env_reads_allowlisted.sh	os.environ	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read
+scripts/gates/cm_gate_env_reads_allowlisted.sh	process.env	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read

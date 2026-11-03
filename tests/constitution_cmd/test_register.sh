@@ -45,7 +45,7 @@ run; ck "B2 user symlink at our path: rc non-zero" "[ $RC -ne 0 ]"
 ck "B2 user symlink untouched" "[ \"\$(readlink '$l')\" = '$sb/outside_target' ]"
 rm -f "$l"
 # our own stale (dangling) link IS replaced
-ln -s "../../gone/skills/constitution" "$l"
+ln -s "$here/skills/gone_constitution_old" "$l"   # dangling target INSIDE this constitution tree (ic_link_owned proof, 210505f)
 run; ck "B2 own dangling link replaced rc0" "[ $RC -eq 0 ] && [ \"\$(readlink -f '$l')\" = '$here/skills/constitution' ]"
 rm -f "$l"
 # symlinked .claude pointing outside the project: refuse, write nothing there

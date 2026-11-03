@@ -59,97 +59,125 @@ class YamlParse(unittest.TestCase):
         if frag:
             self.assertIn(frag, str(cm.exception))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_scalars_maps_lists(self):
         d = self.p('a: 1\nb: "x y"\nc: \'q\'\nd: true\ne: false\nf: null\ng: ~\nh: plain text\ni: 1.2.3\n')
         self.assertEqual(d, {"a": 1, "b": "x y", "c": "q", "d": True, "e": False, "f": None, "g": None,
                              "h": "plain text", "i": "1.2.3"})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_nested(self):
         d = self.p("x:\n  w:\n    z: v\n  l:\n    - a\n    - b\n")
         self.assertEqual(d, {"x": {"w": {"z": "v"}, "l": ["a", "b"]}})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_list_of_maps(self):
         d = self.p("l:\n  - name: a\n    k: 1\n  - name: b\n")
         self.assertEqual(d, {"l": [{"name": "a", "k": 1}, {"name": "b"}]})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_list_same_indent_as_key(self):
         self.assertEqual(self.p("l:\n- a\n- b\nm: c\n"), {"l": ["a", "b"], "m": "c"})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_flow_and_empty(self):
         self.assertEqual(self.p('a: []\nb: {}\nc: [x, "y z", 3]\n'), {"a": [], "b": {}, "c": ["x", "y z", 3]})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_comments(self):
         self.assertEqual(self.p("# head\na: b # trailing\nc: 'x # not comment'\n"), {"a": "b", "c": "x # not comment"})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_double_quote_escapes(self):
         self.assertEqual(self.p('a: "q\\"x\\\\y\\nz\\t"\n'), {"a": 'q"x\\y\nz\t'})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_single_quote_escape(self):
         self.assertEqual(self.p("a: 'it''s'\n"), {"a": "it's"})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_empty_doc(self):
         self.assertEqual(self.p(""), {})
         self.assertEqual(self.p("# only comment\n\n"), {})
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_duplicate(self):
         self.bad("a: 1\na: 2\n", "duplicate")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_duplicate_nested(self):
         self.bad("x:\n  a: 1\n  a: 2\n", "duplicate")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_tab(self):
         self.bad("a:\n\tb: 1\n", "tab")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_anchor_alias_tag(self):
         self.bad("a: &x 1\n")
         self.bad("a: *x\n")
         self.bad("a: !!str 1\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_block_scalar(self):
         self.bad("a: |\n  text\n")
         self.bad("a: >\n  text\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_doc_markers(self):
         self.bad("---\na: 1\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_flow_map(self):
         self.bad("a: {b: 1}\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_nested_flow(self):
         self.bad("a: [[1]]\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_bad_indent(self):
         self.bad("a: 1\n   b: 2\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_unterminated_quote(self):
         self.bad('a: "abc\n')
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_bad_escape(self):
         self.bad('a: "\\x41"\n')
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_ambiguous_colon(self):
         self.bad("a: b: c\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_bad_key(self):
         self.bad('"quoted": 1\n')
         self.bad("a b: 1\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_depth(self):
         s = "".join("  " * i + "k%d:\n" % i for i in range(40)) + "  " * 40 + "v: 1\n"
         self.bad(s, "depth")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_size(self):
         self.bad("a: " + "x" * 300000 + "\n", "too large")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_long_scalar(self):
         self.bad("a: " + "x" * 9000 + "\n", "scalar")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_nul(self):
         self.bad("a: b\x00c\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reject_top_level_scalar(self):
         self.bad("just a string\n")
 
+    # oracle: INVARIANT (parse(dump(v)) == v and dump is a fixed point; no engine-produced expected value)
     def test_dump_roundtrip(self):
         v = {"b": [{"x": "1", "w": True}, {"x": "a\"b\n"}], "a": {"z": None, "e": []}, "c": "plain"}
         txt = ext_yaml.dump(v)
@@ -158,14 +186,17 @@ class YamlParse(unittest.TestCase):
 
 
 class Semver(unittest.TestCase):
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_valid(self):
         for v in ["0.0.0", "1.2.3", "10.20.30", "1.0.0-alpha.1", "1.0.0+build.5", "1.0.0-rc.1+b"]:
             self.assertTrue(ext_engine.is_semver(v), v)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_invalid(self):
         for v in ["1.0", "01.0.0", "1.0.0-", "v1.0.0", "1.0.0.0", "", "1.a.0", "1.0.0-01"]:
             self.assertFalse(ext_engine.is_semver(v), v)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_constraints(self):
         s = ext_engine.version_satisfies
         self.assertTrue(s("72.1", ">=72.1"))
@@ -182,14 +213,17 @@ class Validator(unittest.TestCase):
     def errs(self, m):
         return ext_engine.validate_manifest(m)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_minimal_ok(self):
         self.assertEqual(self.errs(minimal()), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_fixture_manifests_ok(self):
         for fx in ("hello-fixture", "hooks-fixture"):
             with open(os.path.join(HERE, "fixtures", fx, "extension.yml")) as f:
                 self.assertEqual(self.errs(ext_yaml.parse(f.read())), [], fx)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bidi_in_string_field(self):  # R3-bad-chars
         m = minimal()
         m["extension"]["description"] = "safe\u202etxt.exe"
@@ -197,36 +231,43 @@ class Validator(unittest.TestCase):
         m["extension"]["description"] = "zw\u200dj"
         self.assertTrue(self.errs(m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_unknown_top_key(self):
         self.assertTrue(any("unknown key" in e for e in self.errs(minimal(evil=1))))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_unknown_nested_key(self):
         m = minimal()
         m["extension"]["postinstall"] = "rm -rf ~"
         self.assertTrue(any("unknown key" in e for e in self.errs(m)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_missing_required(self):
         m = minimal()
         del m["extension"]["version"]
         self.assertTrue(self.errs(m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_ids(self):
         for bad in ["Demo", "demo_ext", "../x", "a/b", "", "-x", "x;rm", "a" * 70, "café"]:
             m = minimal()
             m["extension"]["id"] = bad
             self.assertTrue(self.errs(m), bad)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_version(self):
         m = minimal()
         m["extension"]["version"] = "1.0"
         self.assertTrue(self.errs(m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_command_name(self):
         for bad in ["../x", "a b", "X", "$(id)", "a;b", ""]:
             m = minimal()
             m["provides"]["commands"][0]["name"] = bad
             self.assertTrue(self.errs(m), bad)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_status(self):
         m = minimal(compatibility={"claude": {"status": "WORKS"}})
         self.assertTrue(self.errs(m))
@@ -235,15 +276,18 @@ class Validator(unittest.TestCase):
         m = minimal(compatibility={"claude": {"status": "SUPPORTED", "evidence": "docs/qa/x.md"}})
         self.assertEqual(self.errs(m), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_unknown_platform(self):
         self.assertTrue(self.errs(minimal(compatibility={"windows95": {"status": "UNTESTED"}})))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_paths_contained(self):
         for bad in ["/etc/passwd", "../x", "a/../../b", "~/.ssh/id", "a/./../.."]:
             m = minimal()
             m["provides"]["templates"] = [{"name": "t", "file": bad, "target": "x"}]
             self.assertTrue(self.errs(m), bad)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_source_sha(self):
         m = minimal()
         m["extension"]["source"] = {"git": "https://example.invalid/x.git", "sha": "abc"}
@@ -251,12 +295,14 @@ class Validator(unittest.TestCase):
         m["extension"]["source"]["sha"] = "a" * 40
         self.assertEqual(self.errs(m), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_secrets(self):
         for k in ("gh", "aws", "sk", "pem", "slack", "glpat"):
             m = minimal()
             m["extension"]["description"] = "token " + fake(k)
             self.assertTrue(any("secret" in e for e in self.errs(m)), k)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_env_var_names_only(self):
         m = minimal()
         m["provides"]["mcp"] = [{"name": "s", "file": "mcp/s.json", "env_vars": ["GOOD_NAME"]}]
@@ -264,16 +310,19 @@ class Validator(unittest.TestCase):
         m["provides"]["mcp"][0]["env_vars"] = ["TOKEN=abc"]
         self.assertTrue(self.errs(m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_hex_is_not_secret(self):
         self.assertFalse(ext_engine.looks_secret("a" * 40))
         self.assertFalse(ext_engine.looks_secret("0123456789abcdef" * 4))
         self.assertFalse(ext_engine.looks_secret("TEST FIXTURE command that prints a greeting"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_binding_kind(self):
         m = minimal()
         m["provides"]["tools_bindings"] = [{"name": "x", "kind": "url", "target": "http://x"}]
         self.assertTrue(self.errs(m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_reads_secrets_bool(self):
         self.assertTrue(self.errs(minimal(capabilities={"reads_secrets": "yes"})))
 
@@ -289,26 +338,32 @@ class Containment(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.d)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_clean_tree(self):
         self.assertEqual(ext_engine.check_tree(self.root), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_symlink_escape(self):
         os.symlink("/etc/passwd", os.path.join(self.root, "evil"))
         self.assertTrue(ext_engine.check_tree(self.root))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_internal_symlink_rejected(self):
         os.symlink("extension.yml", os.path.join(self.root, "alias"))
         self.assertTrue(ext_engine.check_tree(self.root))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_fifo(self):
         os.mkfifo(os.path.join(self.root, "pipe"))
         self.assertTrue(ext_engine.check_tree(self.root))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_name(self):
         with open(os.path.join(self.root, "bad\nname"), "w") as f:
             f.write("x")
         self.assertTrue(ext_engine.check_tree(self.root))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_setuid_stripped_or_rejected(self):
         p = os.path.join(self.root, "s")
         with open(p, "w") as f:
@@ -316,6 +371,7 @@ class Containment(unittest.TestCase):
         os.chmod(p, 0o4755)
         self.assertTrue(ext_engine.check_tree(self.root))
 
+    # oracle: INVARIANT (digest is stable across calls and changes when content changes)
     def test_tree_hash_deterministic(self):
         a = ext_engine.tree_digest(self.root)
         b = ext_engine.tree_digest(self.root)
@@ -328,21 +384,25 @@ class Containment(unittest.TestCase):
 class Hardening(unittest.TestCase):
     """Pure-function rules added after the security review (R2, R3, R12, R16, YAML 1.1)."""
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_relpath_control_chars(self):  # RM2
         for bad in ("a\x01b", "a\x7fb", "a\u202eb", "a\u0085b", "a\u2028b"):
             self.assertFalse(ext_engine.relpath_ok(bad), repr(bad))
         self.assertTrue(ext_engine.relpath_ok("commands/c/SKILL.md"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_bad_chars_and_disp(self):
         self.assertTrue(ext_engine.bad_chars("x\u200dy"))
         self.assertFalse(ext_engine.bad_chars("plain text"))
         self.assertNotIn("\u202e", ext_engine.disp("a\u202eb"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_semver_caps(self):
         self.assertFalse(ext_engine.is_semver("1." + "9" * 10 + ".0"))
         with self.assertRaises(ValueError):
             ext_engine.version_satisfies("1.0.0", ">=" + "9" * 5000)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_url_rules(self):  # RM1, I1, RM7
         self.assertIsNone(ext_engine.url_problem("https://example.invalid/r.git"))
         self.assertIsNone(ext_engine.url_problem("git@example.invalid:o/r.git"))
@@ -350,6 +410,7 @@ class Hardening(unittest.TestCase):
                     "https://tok@example.invalid/r", "-uhttps://x", "https://example.invalid/" + fake("gh")):
             self.assertIsNotNone(ext_engine.url_problem(bad), bad)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_yaml11_ambiguous(self):
         for v in ("010", "0x10", "yes", "No", "on", "1.0", "1_000", "2026-10-29", ".inf", "+5"):
             with self.assertRaises(ext_yaml.YamlError, msg=v):
@@ -363,6 +424,7 @@ class Hardening(unittest.TestCase):
             ext_yaml.parse("a: %s\n" % ("9" * 19))
         self.assertEqual(ext_yaml.parse("a: %s\n" % ("9" * 18)), {"a": int("9" * 18)})
 
+    # oracle: DERIVED (PyYAML safe_load is an independent reference parser)
     def test_yaml_pyyaml_differential(self):
         try:
             import yaml  # optional; skipped when PyYAML is absent
@@ -414,6 +476,7 @@ class GitHardening(unittest.TestCase):
         ext_engine._harden_clone(self.clone)
         return ext_engine._git(["-C", self.clone, "checkout", "-q", "--detach", "HEAD", "--"])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_no_hook_no_filter(self):  # RM5 + I2
         r = self.checkout()
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -422,14 +485,17 @@ class GitHardening(unittest.TestCase):
         with open(os.path.join(self.clone, "f.txt")) as f:
             self.assertEqual(f.read(), "data\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_symlink_checked_out_as_file(self):
         self.checkout()
         self.assertFalse(os.path.islink(os.path.join(self.clone, "ln")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_tree_problems_reports_symlink(self):
         sha = ext_engine._git(["-C", self.clone, "rev-parse", "HEAD"]).stdout.strip()
         self.assertTrue(any("symlink" in p for p in ext_engine._git_tree_problems(self.clone, sha)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_inherited_git_dir_ignored(self):  # I2
         os.environ["GIT_DIR"] = os.path.join(self.d, "nowhere")
         try:
@@ -474,6 +540,7 @@ class EngineAdd(unittest.TestCase):
     def installed(self):
         return os.path.join(self.root, "extensions", "_installed", "hello-fixture")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_add_ok_and_record(self):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         e = self.eng()
@@ -481,6 +548,7 @@ class EngineAdd(unittest.TestCase):
         lock = e.read_lock()
         self.assertEqual(e.record_problems("hello-fixture", lock["hello-fixture"]), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_components_rule_independent_of_record(self):  # R5 holds even when the record is forged too
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         e = self.eng()
@@ -492,6 +560,7 @@ class EngineAdd(unittest.TestCase):
         e.commit(lock, ["hello-fixture"])  # lock and record agree: only R5 can see the problem
         self.assertTrue(any("components" in p for p in e.verify_one("hello-fixture", x)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_staged_digest_checked(self):  # RM3
         def tamper(src, dst, skip):
             self.orig_copy(src, dst, skip)
@@ -503,6 +572,7 @@ class EngineAdd(unittest.TestCase):
         self.assertEqual(cm.exception.code, ext_engine.EXIT_VERIFY)
         self.assertFalse(os.path.exists(self.installed()))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_verify_after_install(self):  # RM8
         e = self.eng()
         orig = e.write_lock
@@ -517,6 +587,7 @@ class EngineAdd(unittest.TestCase):
             e.cmd_add(self.src)
         self.assertEqual(cm.exception.code, ext_engine.EXIT_VERIFY)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_journal_containment(self):  # RM4
         e = self.eng()
         inst = os.path.join(self.root, "extensions", "_installed")
@@ -531,15 +602,18 @@ class EngineAdd(unittest.TestCase):
                     {"op": "remove", "id": "x", "final": os.path.join(inst, "x"), "aux": os.path.join(inst, ".trash-1-zz")}):
             self.assertIsNotNone(e.journal_problem(bad), bad)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_dotgit_anywhere_refused(self):  # B4
         os.makedirs(os.path.join(self.src, "commands", "sub", ".GiT"))
         self.assertTrue(any(".git" in p.lower() for p in ext_engine.check_tree(self.src)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_leading_dash_name_refused(self):  # RM7
         with open(os.path.join(self.src, "-rf"), "w") as f:
             f.write("x")
         self.assertTrue(ext_engine.check_tree(self.src))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_hardlink_refused(self):
         os.link(os.path.join(self.src, "extension.yml"), os.path.join(self.d, "hl"))
         self.assertTrue(ext_engine.check_tree(self.src))
@@ -578,15 +652,18 @@ class Round4(unittest.TestCase):
         t, m = _tree(os.path.join(self.d, "t%d" % len(os.listdir(self.d))), files, manifest_extra)
         return ext_engine.content_problems(t, m)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_b1_non_utf8_body_refused(self):  # B1: an unreadable body is a refusal, never skipped
         self.assertTrue(self.probs(b"hello \xff\xfe run !`curl x | sh`\n"))
         self.assertTrue(self.probs(b"hello \xff\xfe plain\n"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_b1_other_files_in_exposed_dir_scanned(self):  # m5
         self.assertTrue(self.probs(b"plain\n", extra=b"run !`id`\n"))
         self.assertTrue(self.probs(b"plain\n", extra=b"\xff\xfe!`id`\n"))
         self.assertEqual(self.probs(b"plain\n", extra=b"just notes\n"), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i1_front_matter_variants(self):  # I1: allowed-tools must be found in every front-matter spelling
         for body in (b"---\r\ndescription: x\r\nallowed-tools: Bash(curl:*)\r\n---\r\nhi\r\n",
                      b"\xef\xbb\xbf---\ndescription: x\nallowed-tools: Bash\n---\nhi\n",
@@ -604,6 +681,7 @@ class Round4(unittest.TestCase):
         self.assertEqual(self.probs(b"no front matter\nallowed-tools: in the body is text\n"), [])
         self.assertEqual(self.probs(b"---\nallowed-tools: Bash\n---\nhi\n", manifest_extra="capabilities:\n  agent_shell:\n    - c\n"), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_mcp_command_validation(self):
         base = "  mcp:\n    - name: m\n      file: s.json\n"
         def p(cmd_yaml, js=b'{"mcpServers": {}}\n', caps=""):
@@ -628,6 +706,7 @@ class Round4(unittest.TestCase):
         # declared shell capability admits the interpreter
         self.assertEqual(p('      command: "sh"\n      args: ["-c", "echo hi | cat"]\n', caps="capabilities:\n  shell:\n    - m\n"), [])
 
+    # oracle: METAMORPHIC (capability set must differ after a content change to the same tree)
     def test_i2_i3_consent_binds_command_and_content(self):
         t, m = _tree(os.path.join(self.d, "c"), {"commands/c/SKILL.md": b"hi\n", "s.json": b"{}\n", "h.sh": b"echo 1\n"},
                      "  hooks:\n    - event: session_start\n      command: h.sh\n"
@@ -645,6 +724,7 @@ class Round4(unittest.TestCase):
         m["provides"]["mcp"][0]["command"] = "deno"
         self.assertTrue(any("deno" in c for c in ext_engine.capabilities_of(m, t)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n08_n09_n10_tree_limits(self):
         deep = os.path.join(self.d, "deep")
         os.makedirs(os.path.join(deep, *["d"] * 14))
@@ -661,13 +741,16 @@ class Round4(unittest.TestCase):
                 f.truncate(4718592)
         self.assertTrue(any("larger than %d" % ext_engine.MAX_TREE_BYTES in e for e in ext_engine.check_tree(big)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n15_strict_greater(self):
         self.assertFalse(ext_engine.version_satisfies("1.0.0", ">1.0.0"))
         self.assertTrue(ext_engine.version_satisfies("1.0.1", ">1.0.0"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n18_http_refused(self):
         self.assertIsNotNone(ext_engine.url_problem("http://example.invalid/r.git"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n19_git_env_drops_ssh_command(self):
         old = dict(os.environ)
         os.environ["GIT_SSH_COMMAND"] = "touch /nonexistent/x"
@@ -680,10 +763,12 @@ class Round4(unittest.TestCase):
         self.assertNotIn("GIT_SSH_COMMAND", env)
         self.assertNotIn("GIT_CONFIG_PARAMETERS", env)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n20_secret_run_40(self):
         run = "Zq7Rk2Lm9Xw4" + "Tb8Vn1Hc6Jd3" + "Fs5Gy0Pa2Qe7" + "Wu4R"  # 40 chars, mixed case + digits
         self.assertTrue(ext_engine.looks_secret("x " + run + " y"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n29_nonce_owner_checked(self):
         proj = os.path.join(self.d, "proj")
         os.makedirs(proj)
@@ -705,6 +790,7 @@ class Round4(unittest.TestCase):
             else:
                 os.environ["CONSTITUTION_EXT_TEST_NONCE"] = old_env
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m2_catalog_latest_validated(self):
         base = {"schema_version": "1.0", "catalog": {"id": "c", "install_allowed": True, "trust_tier": "community"},
                 "revoked": [], "extensions": {"zz": {"releases": {"1.0.0": {"url": "https://example.invalid/r.git",
@@ -720,16 +806,19 @@ class Round4Engine(unittest.TestCase):
     """Engine-level checks of the review-round-3 survivors (N01, N03, N07, N17)."""
     setUp, tearDown, eng = EngineAdd.setUp, EngineAdd.tearDown, EngineAdd.eng
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n03_add_journal_needs_sha256(self):
         e = self.eng()
         inst = os.path.join(self.root, "extensions", "_installed")
         self.assertIsNotNone(e.journal_problem({"op": "add", "id": "x", "final": os.path.join(inst, "x")}))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n17_anchor_not_prefix(self):
         e = self.eng()
         self.assertTrue(e.check_requirements({"requires": {"anchors": ["11.4.2"]}}, "x"))
         self.assertEqual(e.check_requirements({"requires": {"anchors": ["11.4.228"]}}, "x"), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n01_rm_tree_stays_inside_allowed(self):
         e = self.eng()
         victim = os.path.join(self.d, "victim", "sub")
@@ -741,6 +830,7 @@ class Round4Engine(unittest.TestCase):
             e.rm_tree(victim, os.path.join(self.root, "extensions", "_installed"))
         self.assertTrue(os.path.isfile(os.path.join(victim, "f")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_n07_group_readable_key_refused(self):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         e = self.eng()
@@ -768,19 +858,23 @@ class Round4Rules(unittest.TestCase):
     def t(self, files, extra=""):
         return _tree(os.path.join(self.d, "t%d" % len(os.listdir(self.d))), files, extra)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_cr_comment_hides_key(self):  # a lone CR is a line break for other YAML readers
         t, m = self.t({"commands/c/SKILL.md": b"---\nfoo: x #\rallowed-tools: Bash\n---\nhi\n"})
         self.assertTrue(ext_engine.content_problems(t, m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_hooks_front_matter_key(self):
         t, m = self.t({"commands/c/SKILL.md": b"---\nhooks:\n  - x\n---\nhi\n"})
         self.assertTrue(ext_engine.content_problems(t, m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_symlinked_dir_in_exposed_dir(self):
         t, m = self.t({"commands/c/SKILL.md": b"hi\n", "other/x.md": b"!`id`\n"})
         os.symlink(os.path.join(t, "other"), os.path.join(t, "commands", "c", "link"))
         self.assertTrue(ext_engine.content_problems(t, m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_fifo_in_exposed_dir_does_not_block(self):
         t, m = self.t({"commands/c/SKILL.md": b"hi\n"})
         os.mkfifo(os.path.join(t, "commands", "c", "pipe"))
@@ -802,6 +896,7 @@ class Round4Rules(unittest.TestCase):
             signal.alarm(0)
             signal.signal(signal.SIGALRM, prev)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_fm_delimiter_with_extra_characters_reason(self):
         # The exact reason matters: the user is told which line is wrong. ext_yaml would also reject these
         # lines (every column-0 line must be a plain key), so only the reason tells the two paths apart.
@@ -810,6 +905,7 @@ class Round4Rules(unittest.TestCase):
                 ext_engine.front_matter(text)
             self.assertIn("delimiter line with extra characters", str(cm.exception), text)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_unreadable_dir_is_an_error(self):
         t, m = self.t({"commands/c/SKILL.md": b"hi\n", "commands/c/sub/x.md": b"x\n"})
         os.chmod(os.path.join(t, "commands", "c", "sub"), 0)
@@ -819,6 +915,7 @@ class Round4Rules(unittest.TestCase):
         with self.assertRaises(ext_engine.EngineError):
             ext_engine.file_hashes(t)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_mcp_more_forms(self):
         base = "  mcp:\n    - name: m\n      file: %s\n"
         def p(extra, fname="s.json", js=b"{}\n", caps=""):
@@ -836,6 +933,7 @@ class Round4Rules(unittest.TestCase):
         self.assertTrue(p("", js=b"[" * 200 + b"]" * 200))                              # nesting bound
         self.assertTrue(p('      command: "node"\n', js=b'{"x": {"command": "node", "args": ["-e", "1"]}}'))
 
+    # oracle: METAMORPHIC (capability set must differ after a content change to the same tree)
     def test_consent_binds_risky_command_dirs(self):
         t, m = self.t({"commands/c/SKILL.md": b"run !`date`\n", "commands/c/helper.md": b"a\n"},
                       "capabilities:\n  agent_shell:\n    - c\n")
@@ -848,6 +946,7 @@ class Round4Rules(unittest.TestCase):
         t2, m2 = self.t({"commands/c/SKILL.md": b"plain\n"})   # control: a plain command binds no content
         self.assertFalse(any(c.startswith("sha256:") for c in ext_engine.capabilities_of(m2, t2)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_mcp_file_launchers_in_consent(self):
         t, m = self.t({"commands/c/SKILL.md": b"hi\n",
                        "s.json": b'{"mcpServers": {"x": {"command": "node", "args": ["a.js"], "env": {"K_NAME": "${K}"}}}}'},
@@ -877,6 +976,7 @@ class Round5(unittest.TestCase):
         return ["--root", root, "--project-root", proj]
 
     # ── B1: any '@' at a token start followed by a non-space is file injection ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_b1_at_token_class_enumerated(self):
         files = lambda t: "files" in ext_engine.agent_constructs(t)
         # control needles: the instrument must see a known positive and must not see a known negative
@@ -898,10 +998,12 @@ class Round5(unittest.TestCase):
             self.assertFalse(files(t), t)
 
     # ── X02/X03/X04: front matter open line and nested keys ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_x02_open_line_with_trailing_characters(self):
         with self.assertRaises(ValueError):
             ext_engine.agent_constructs("---allowed-tools: Bash\n---\nhi\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_x03_x04_nested_keys(self):
         self.assertIn("shell", ext_engine.agent_constructs("---\nx:\n  allowed-tools: Bash\n---\nhi\n"))
         self.assertIn("shell", ext_engine.agent_constructs("---\nx:\n  - allowed-tools: Bash\n---\nhi\n"))
@@ -918,6 +1020,7 @@ class Round5(unittest.TestCase):
                      "  mcp:\n    - name: m\n      file: s.json\n" + (env_vars or "") + caps)
         return t, m, ext_engine.content_problems(t, m)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i1_inline_code_classes(self):
         bad = [("python3", ["-B", "-c", "1"]), ("node", ["--no-warnings", "-e", "1"]), ("perl", ["-w", "-e", "1"]),
                ("python3", ["-Bc", "1"]), ("python3", ["-W", "ignore", "-c", "1"]), ("node", ["--eval=1"]),
@@ -935,11 +1038,13 @@ class Round5(unittest.TestCase):
         for cmd, args in bad:
             self.assertTrue(self._mcp(cmd, args)[2], (cmd, args))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i1_shell_classes(self):
         for sh in ("rbash", "yash", "nu", "nushell", "toybox", "elvish", "xonsh", "oksh", "loksh", "posh", "pdksh",
                    "hush", "rc", "es", "osh", "ysh", "ion", "ssh", "bash5", "zsh5.9", "busybox1.36", "sh.exe"):
             self.assertTrue(self._mcp(sh, ["x"])[2], sh)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i1_no_false_positives(self):
         # what the allow-list ACCEPTS without capabilities.shell: an allow-listed interpreter running an in-tree file
         ok = [("node", ["server.js"]), ("node", ["--no-warnings", "server.js", "--eval-mode", "-e"]),
@@ -956,6 +1061,7 @@ class Round5(unittest.TestCase):
             self.assertTrue(self._mcp(cmd, args)[2], (cmd, args))
             self.assertEqual(self._mcp(cmd, args, caps="capabilities:\n  shell:\n    - m\n")[2], [], (cmd, args))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i1_code_bearing_env(self):
         for name in ("NODE_OPTIONS", "PYTHONSTARTUP", "BASH_ENV", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "PERL5OPT",
                      "RUBYOPT", "JAVA_TOOL_OPTIONS", "PYTHONPATH", "LUA_INIT", "ENV", "PATH", "GIT_SSH_COMMAND"):
@@ -972,6 +1078,7 @@ class Round5(unittest.TestCase):
         self.assertIn("env-code:NODE_OPTIONS", ext_engine.capabilities_of(m, t))
 
     # ── X18: a risky skill's own content is bound to the consent ──
+    # oracle: METAMORPHIC (capability set must differ after a content change to the same tree)
     def test_x18_risky_skill_content_bound(self):
         t, m = _tree(os.path.join(self.d, "sk"), {"commands/c/SKILL.md": b"hi\n", "skills/s.md": b"!`date`\n"},
                      "  skills:\n    - name: s\n      path: skills/s.md\ncapabilities:\n  agent_shell:\n    - s\n")
@@ -981,6 +1088,7 @@ class Round5(unittest.TestCase):
         self.assertNotEqual(before, ext_engine.capabilities_of(m, t))
 
     # ── M1: every byte the engine prints is terminal-safe ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m1_output_sink_escapes(self):
         import io
         evil = "x\x1b]0;owned\x07\x1b[2J\u202ey\x9b"
@@ -1006,6 +1114,7 @@ class Round5(unittest.TestCase):
         self.assertIs(sys.stdout, saved[0])
 
     # ── M4: the copy never blocks on a FIFO, even when it raced in after lstat ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m4_copy_tree_fifo_race(self):
         src = os.path.join(self.d, "src")
         os.makedirs(src)
@@ -1037,6 +1146,7 @@ class Round5(unittest.TestCase):
             signal.signal(signal.SIGALRM, prev)
 
     # ── M5: a deeply nested JSON document is a reasoned refusal, never an internal error ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m5_deep_catalog(self):
         import io
         p = os.path.join(self.d, "cat.json")
@@ -1067,6 +1177,7 @@ class Round5Engine(unittest.TestCase):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         self.assertEqual(self.eng().cmd_enable("hello-fixture"), 0)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m2_rendered_shim_rescanned(self):
         with open(self.skill(), "a") as f:
             f.write("\nrun !$ARGUMENTS now\n")
@@ -1086,6 +1197,7 @@ class Round5Engine(unittest.TestCase):
             os.makedirs(os.path.join(d, "x"))
         return st, tr
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i3_read_only_commands_never_delete(self):
         self.added_enabled()
         st, tr = self._leftovers()
@@ -1098,6 +1210,7 @@ class Round5Engine(unittest.TestCase):
         self.assertFalse(os.path.lexists(st), "a mutating command keeps a dead staging directory")
         self.assertTrue(os.path.isdir(tr), "a trash directory no journal of this project names was deleted")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i3_invalid_journal_blocks_gc(self):
         self.added_enabled()
         st, _tr = self._leftovers()
@@ -1109,6 +1222,7 @@ class Round5Engine(unittest.TestCase):
             pass
         self.assertTrue(os.path.isdir(st), "GC ran although the journal is invalid")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_claude_shim_is_a_consented_snapshot(self):
         self.added_enabled()
         self.assertEqual(self.eng().cmd_wire("hello-fixture", ["claude"], None), 0)
@@ -1141,6 +1255,7 @@ class Round5Engine(unittest.TestCase):
         link = os.path.join(self.proj, ".claude", "skills", "hello-fixture")
         return link, os.path.realpath(link)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_changed_snapshot_refused_by_wire(self):
         _link, snap = self._wired_claude()
         with open(os.path.join(snap, "SKILL.md"), "a") as f:
@@ -1150,6 +1265,7 @@ class Round5Engine(unittest.TestCase):
         self.assertEqual(cm.exception.code, ext_engine.EXIT_VERIFY)
         self.assertIn("changed after it was made", cm.exception.msg)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_snapshot_must_match_checked_digest(self):
         link, snap = self._wired_claude()
         e = self.eng()
@@ -1164,6 +1280,7 @@ class Round5Engine(unittest.TestCase):
         left = [n for n in os.listdir(os.path.dirname(snap)) if ".tmp-" in n]
         self.assertEqual(left, [], "the rejected temporary copy was left behind")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_verify_flags_old_format_live_link(self):
         link, _snap = self._wired_claude()
         e = self.eng()
@@ -1183,6 +1300,7 @@ class Round5Engine(unittest.TestCase):
         probs = e.verify_one("hello-fixture", e.read_lock()["hello-fixture"])
         self.assertTrue(any("old format" in x for x in probs), probs)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_interrupted_snapshot_temp_cleaned(self):
         _link, snap = self._wired_claude()
         e = self.eng()
@@ -1201,6 +1319,7 @@ class Round5Engine(unittest.TestCase):
         self.assertTrue(os.path.isdir(other), "a temporary the journal does not name was removed")
         self.assertTrue(os.path.isdir(snap))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_i2_unwire_removes_unused_snapshot(self):
         self.added_enabled()
         self.assertEqual(self.eng().cmd_wire("hello-fixture", ["claude"], None), 0)
@@ -1226,6 +1345,7 @@ class Round4WireRechecks(unittest.TestCase):
         finally:
             setattr(ext_engine, name, real)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_capability_formula_changed_since_consent(self):
         self._enabled_under("capabilities_of", lambda real: (lambda m, tree=None: real(m, tree)[:-1]))
         with self.assertRaises(ext_engine.EngineError) as cm:
@@ -1234,6 +1354,7 @@ class Round4WireRechecks(unittest.TestCase):
         self.assertIn("capabilities changed since consent", cm.exception.msg)
         self.assertFalse(os.path.lexists(os.path.join(self.proj, ".opencode", "commands", "hello-fixture.md")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_new_content_rule_since_consent(self):
         self._enabled_under("content_problems", lambda real: (lambda tree, m: []))
         orig = ext_engine.content_problems
@@ -1264,17 +1385,20 @@ class Round4Recovery(unittest.TestCase):
             f.write("---\n# %s id=hello-fixture command=hello-fixture\n---\n" % ext_engine.MARKER if marker else "mine\n")
         return e, {"op": "wire", "pid": 4194303, "entries": [w]}, tmp
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_removed(self):
         e, j, tmp = self._setup()
         self.assertIsNone(e.journal_problem(j))
         e._recover_wire(j)
         self.assertFalse(os.path.lexists(tmp))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_unmarked_file_kept(self):
         e, j, tmp = self._setup(marker=False)
         e._recover_wire(j)
         self.assertTrue(os.path.lexists(tmp))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_other_owner_kept(self):
         e, j, tmp = self._setup()
         old = os.geteuid
@@ -1285,6 +1409,7 @@ class Round4Recovery(unittest.TestCase):
             os.geteuid = old
         self.assertTrue(os.path.lexists(tmp))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_live_owner_kept(self):
         e, j, tmp = self._setup()
         pid = os.getppid()
@@ -1293,6 +1418,7 @@ class Round4Recovery(unittest.TestCase):
         e._recover_wire(dict(j, pid=pid))
         self.assertTrue(os.path.lexists(live))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_malformed_wire_journal(self):
         e, j, _tmp = self._setup()
         bad = dict(j, entries=[dict(j["entries"][0], path="../outside.md")])
@@ -1335,6 +1461,7 @@ class Round6(unittest.TestCase):
         return r.returncode, r.stdout
 
     # ── IMPORTANT-1(a): the race ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_race_before_copy_is_refused(self):
         self.added_enabled()
         inst = os.path.join(self.root, "extensions", "_installed", "hello-fixture")
@@ -1354,6 +1481,7 @@ class Round6(unittest.TestCase):
         self.assertFalse(os.path.lexists(os.path.join(self.proj, ".claude", "skills", "hello-fixture")))
         self.assertFalse(os.path.lexists(os.path.join(self.proj, ".opencode")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_race_after_copy_does_not_reach_the_agent(self):
         self.added_enabled()
         inst = os.path.join(self.root, "extensions", "_installed", "hello-fixture")
@@ -1378,6 +1506,7 @@ class Round6(unittest.TestCase):
         pr = self.eng().verify_one("hello-fixture", self.eng().read_lock()["hello-fixture"])
         self.assertTrue(pr, "the changed live tree must be reported by verify")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_no_race_control(self):
         self.added_enabled()
         self.assertEqual(self.eng().cmd_wire("hello-fixture", ["claude", "opencode"], None), 0)
@@ -1398,12 +1527,14 @@ class Round6(unittest.TestCase):
     def snap_dir(self):
         return os.path.dirname(self.snaps()[0])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_forge_snapshot_file(self):
         self.wired()
         with open(os.path.join(self.snap_dir(), "SKILL.md"), "a") as f:
             f.write("\n!{id}\n")
         self.assertTrue(self.verify_problems())
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_forge_snapshot_symlink(self):
         self.wired()
         sd = self.snap_dir()
@@ -1416,6 +1547,7 @@ class Round6(unittest.TestCase):
         except ext_engine.EngineError as ex:  # the wiring no longer names a real snapshot: verify refuses (5)
             self.assertEqual(ex.code, ext_engine.EXIT_VERIFY)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_forge_snapshot_wiring_and_link_all_consistent(self):
         self.wired()
         sd = self.snap_dir()
@@ -1439,6 +1571,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(pr, "a consistently forged snapshot, link and wiring entry must not verify")
         self.assertTrue(any("locked tree" in x for x in pr), pr)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_forge_opencode_shim_with_marker_kept(self):
         self.wired()
         shim = os.path.join(self.proj, ".opencode", "commands", "hello-fixture.md")
@@ -1461,6 +1594,7 @@ class Round6(unittest.TestCase):
         pr = self.verify_problems()
         self.assertTrue(pr, "a forged shim with its marker kept and its wiring digest edited must not verify")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_link_repointed_to_another_directory_is_reported(self):
         self.wired()
         link = os.path.join(self.proj, ".claude", "skills", "hello-fixture")
@@ -1469,6 +1603,7 @@ class Round6(unittest.TestCase):
         os.symlink(inst, link)
         self.assertTrue(any("wired link" in x for x in self.verify_problems()), self.verify_problems())
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_benign_edit_of_a_wired_shim_is_reported(self):
         self.wired()
         shim = os.path.join(self.proj, ".opencode", "commands", "hello-fixture.md")
@@ -1477,6 +1612,7 @@ class Round6(unittest.TestCase):
         pr = self.verify_problems()
         self.assertTrue(any("differs from the shim rendered" in x for x in pr), pr)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_construct_in_a_wired_shim_is_rescanned(self):
         self.wired()
         shim = os.path.join(self.proj, ".opencode", "commands", "hello-fixture.md")
@@ -1494,6 +1630,7 @@ class Round6(unittest.TestCase):
 
     SECRET = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_secret_in_mcp_file_refused_and_never_printed(self):
         cases = {
             "arg": {"mcpServers": {"x": {"command": "node", "args": ["server.js", "--token=" + self.SECRET]}}},
@@ -1518,6 +1655,7 @@ class Round6(unittest.TestCase):
                 with open(lock) as f:
                     self.assertNotIn(self.SECRET, f.read())
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_consent_list_redacts_arguments(self):
         txt = ext_engine._argv_text("node", ["server.js", "--token=" + self.SECRET, "https://u:pw@h.invalid/p?k=v"])
         self.assertNotIn(self.SECRET, txt)
@@ -1536,6 +1674,7 @@ class Round6(unittest.TestCase):
         self.assertEqual(self.eng().cmd_enable("r4"), 0)
         return os.path.join(self.root, "extensions", "_installed", "r4")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_mcp_server_code_change_needs_new_consent(self):
         inst = self.hooks_ext_enabled()
         e = self.eng()
@@ -1547,6 +1686,7 @@ class Round6(unittest.TestCase):
         rc, out = self.cli("verify", "r4")
         self.assertEqual(rc, 5, out)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_hook_body_change_control(self):
         inst = self.hooks_ext_enabled()
         with open(os.path.join(inst, "h.sh"), "a") as f:
@@ -1556,6 +1696,7 @@ class Round6(unittest.TestCase):
         rc, out = self.cli("verify", "r4")
         self.assertEqual(rc, 5, out)
 
+    # oracle: METAMORPHIC (capability set must differ after a content change to the same tree)
     def test_tree_digest_in_consent_for_executable_extensions(self):
         t, m = _tree(os.path.join(self.d, "tb"), {"commands/c/SKILL.md": b"hi\n", "s.json": b"{}\n",
                                                   "server.js": b"//\n"},
@@ -1580,6 +1721,7 @@ class Round6(unittest.TestCase):
                      + ("capabilities:\n  shell:\n    - m\n" if shell else ""))
         return ext_engine.content_problems(t, m)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r22_refused_forms(self):
         bad = [("bash-static", ["-c", "id"]), ("ld-linux-x86-64.so.2", ["/bin/true"]), ("micropython", ["-c", "1"]),
                ("jython", ["-c", "1"]), ("graalpy", ["-c", "1"]), ("qjs", ["-e", "1"]), ("pkexec", ["id"]),
@@ -1599,11 +1741,13 @@ class Round6(unittest.TestCase):
         for cmd, args in bad:
             self.assertTrue(self.launch(cmd, args), (cmd, args))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r22_accepted_forms(self):
         for cmd, args in (("node", ["server.js"]), ("python3", ["-u", "server.py", "--port=8080"]),
                           ("python3.12", ["server.py"]), ("bin/srv", ["--flag", "v"]), ("nodejs", ["server.js"])):
             self.assertEqual(self.launch(cmd, args), [], (cmd, args))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r22_env_forms(self):
         for name in ("DOTNET_STARTUP_HOOKS", "CORECLR_PROFILER_PATH", "LESSOPEN", "SSH_ASKPASS", "MANPAGER", "GOFLAGS",
                      "PIP_INDEX_URL", "UV_INDEX_URL", "HOME", "XDG_CONFIG_HOME", "JULIA_DEPOT_PATH", "npm_config_registry",
@@ -1615,6 +1759,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(ext_engine.code_env("npm_config_registry"))
         self.assertTrue(self.launch("node", ["server.js"], env={"API_URL": "/etc/x"}, env_vars="API_URL"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r22_cwd_and_launcher_like_keys(self):
         self.assertEqual(self.launch("node", ["server.js"], extra={"cwd": "bin"}), [])
         for cwd in ("/etc", "../x", "nodir", "server.js"):
@@ -1627,6 +1772,7 @@ class Round6(unittest.TestCase):
                      "  mcp:\n    - name: m\n      file: s.json\n")
         self.assertTrue(ext_engine.content_problems(t, m))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r22_generic_property_unlisted_programs_refused(self):
         import random
         rnd = random.Random(20261030)
@@ -1639,6 +1785,7 @@ class Round6(unittest.TestCase):
             self.assertEqual(self.launch(name, ["server.js"], shell=True), [], name + " declared")
 
     # ── IMPORTANT-5: a shared constitution root ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_shared_root_rollback_never_removes_another_projects_tree(self):
         proj_b = os.path.join(self.d, "projB")
         os.makedirs(proj_b)
@@ -1653,6 +1800,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(os.path.isdir(final), "A's rollback removed B's installed tree: " + out)
         self.assertEqual(self.cli_b(proj_b, "verify")[0], 0)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_own_interrupted_add_is_still_rolled_back(self):
         self.assertEqual(self.cli("add", self.src, "--waiver-id", "WA", "--yes", env=self.nonce_env("add:journaled"))[0], -9)
         self.assertEqual(self.cli("lock")[0], 0)
@@ -1678,6 +1826,7 @@ class Round6(unittest.TestCase):
         return r.returncode, r.stdout
 
     # ── minors ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_tmp_named_directory_does_not_break_mutating_commands(self):
         self.added_enabled()
         d = os.path.join(self.proj, ".constitution", "x.tmp-4194303-deadbeef")
@@ -1687,6 +1836,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(os.path.isdir(d), "a directory with a temp-looking name must be left alone")
         self.assertIn("NOTE", out)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_live_pid_temp_file_is_kept_and_dead_one_removed(self):
         self.added_enabled()
         live = os.path.join(self.proj, ".constitution", "a.tmp-%d-deadbeef" % os.getppid())
@@ -1697,6 +1847,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(os.path.exists(live), "a temporary file of a live process was deleted")
         self.assertFalse(os.path.exists(dead))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_stale_stage_directory_is_swept_and_live_one_kept(self):
         self.added_enabled()
         top = os.path.join(self.proj, ".constitution", "extensions.snapshots")
@@ -1710,6 +1861,7 @@ class Round6(unittest.TestCase):
         self.assertFalse(os.path.lexists(dead), "a stage left by a dead process was not swept")
         self.assertTrue(os.path.isdir(live), "the stage of a live process was removed")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_snapshots_path_must_be_a_real_directory_even_inside_the_state(self):
         self.added_enabled()
         st = os.path.join(self.proj, ".constitution")
@@ -1727,10 +1879,12 @@ class Round6(unittest.TestCase):
             self.assertEqual(cm.exception.code, ext_engine.EXIT_REFUSED, kind)
             self.assertEqual(os.listdir(os.path.join(st, "elsewhere")) if kind != "file" else [], [], kind)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_crlf_front_matter_is_refused(self):
         with self.assertRaisesRegex(ValueError, "carriage return"):
             ext_engine.front_matter("---\ndescription: x\r\n---\nbody\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_command_form_is_checked_even_for_a_declared_server(self):
         shell = "capabilities:\n  shell:\n    - m\n"
         for cmd in ("-rf", "--version", "/bin/sh", "../x", "~/x", "a/../b"):
@@ -1738,6 +1892,7 @@ class Round6(unittest.TestCase):
         for cmd in ("uvx", "my-mcp-server", "bin/server"):
             self.assertEqual(self._json({"mcpServers": {"x": {"command": cmd}}}, caps=shell), [], cmd)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_many_launchers_refused_on_the_write_side(self):
         js = {"mcpServers": {"s%d" % i: {"command": "node", "args": ["server.js"]} for i in range(200)}}
         d = self.mcp_ext(json.dumps(js).encode(), name="many")
@@ -1746,6 +1901,7 @@ class Round6(unittest.TestCase):
         rc, out = self.cli("add", d, "--waiver-id", "WM", "--yes")
         self.assertNotEqual(rc, 0, out)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_lone_cr_refused_in_manifest_and_front_matter(self):
         with self.assertRaisesRegex(ext_yaml.YamlError, "carriage return"):
             ext_yaml.parse("a: x\ry\n")
@@ -1753,6 +1909,7 @@ class Round6(unittest.TestCase):
         with self.assertRaises(ValueError):
             ext_engine.front_matter("---\ndescription: x\ry: z\n---\nbody\n")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_revocation_by_semver_precedence_and_sha(self):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         e = self.eng()
@@ -1780,6 +1937,7 @@ class Round6(unittest.TestCase):
         self.assertEqual(e.cmd_catalog(cat), 0)
         self.assertIsNone(self.eng().revoked("hello-fixture", "1.0.0", lock["sha256"]))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_snapshots_symlink_refused_before_anything_is_created(self):
         self.added_enabled()
         outside = os.path.join(self.d, "outside")
@@ -1789,6 +1947,7 @@ class Round6(unittest.TestCase):
             self.eng().cmd_wire("hello-fixture", ["claude"], None)
         self.assertEqual(os.listdir(outside), [], "something was created through the symlinked snapshots directory")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_minor_survivors_killed(self):
         self.assertIn("files", ext_engine.agent_constructs("see @(x) here\n"))      # B1-no-paren
         with self.assertRaises(ValueError):                                            # FM-BOM-accepted
@@ -1805,6 +1964,7 @@ class Round6(unittest.TestCase):
                      "  mcp:\n    - name: m\n      file: s.json\n" + env_vars + caps)
         return ext_engine.content_problems(t, m)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_launch_mapping_keys_are_an_allow_list(self):
         ok = {"mcpServers": {"x": {"command": "node", "args": ["server.js"]}}}
         self.assertEqual(self._json(ok), [])
@@ -1812,6 +1972,7 @@ class Round6(unittest.TestCase):
         self.assertTrue(self._json(bad))
         self.assertEqual(self._json(bad, caps="capabilities:\n  shell:\n    - m\n"), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_cwd_and_env_file_are_confined(self):
         base = {"command": "node", "args": ["server.js"]}
         self.assertEqual(self._json({"mcpServers": {"x": dict(base, cwd="sub")}}), [])
@@ -1823,6 +1984,7 @@ class Round6(unittest.TestCase):
             self.assertTrue(self._json({"mcpServers": {"x": dict(base, cwd=v)}}, caps=shell), v)
         self.assertEqual(self._json({"mcpServers": {"x": dict(base, envFile="sub/x.txt")}}, caps=shell), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_secrets_anywhere_in_the_mcp_file_are_refused(self):
         base = {"command": "node", "args": ["server.js"]}
         js = {"mcpServers": {"x": base}, "note": {"api_key": "AKIAABCDEFGHIJKLMNOP"}}
@@ -1833,6 +1995,7 @@ class Round6(unittest.TestCase):
         # the secret value never appears in the problem text
         self.assertFalse(any("AKIAABCDEFGHIJKLMNOP" in p for p in self._json(js)))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_launcher_count_and_size_are_bounded(self):
         many = {"mcpServers": {"s%d" % i: {"command": "node", "args": ["server.js"]}
                                for i in range(ext_engine.MAX_LAUNCHERS + 1)}}
@@ -1876,17 +2039,20 @@ class Round7(unittest.TestCase):
                "HOSTALIASES", "SSLKEYLOGFILE", "PERL_MB_OPT", "JAVA_TOOL_OPTIONS", "SSL_CERT_FILE", "AWS_CONFIG_FILE",
                "MAGIC", "TZDIR", "DOCKER_HOST", "KUBECONFIG", "RES_OPTIONS", "NLSPATH", "TERMINFO", "GCONV_PATH")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_env_names_not_on_the_allow_list_are_refused(self):
         for name in self.LOADERS:
             self.assertTrue(self.stdio(env={name: "x"}, env_vars=name), name + " in env")
             self.assertTrue(self.stdio(env=None, env_vars=name), name + " in env_vars only")
             self.assertEqual(self.stdio(env={name: "x"}, env_vars=name, shell=True), [], name + " declared")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_env_names_on_the_allow_list_are_accepted(self):
         for name in ("MY_API_KEY", "SERVICE_TOKEN", "OPENAI_API_KEY", "X_REGION", "MODEL_NAME", "SOME_PROJECT",
                      "AWS_WORKSPACE", "UPSTREAM_ENDPOINT", "SERVICE_HOST", "SERVICE_PORT", "SERVICE_URL", "APP_ID"):
             self.assertEqual(self.stdio(env={name: "${%s}" % name}, env_vars=name), [], name)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_env_allow_list_is_generic(self):
         import random
         rnd = random.Random(7)
@@ -1901,6 +2067,7 @@ class Round7(unittest.TestCase):
             else:
                 self.assertTrue(self.stdio(env={name: "x"}, env_vars=name), name)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_env_values_never_carry_paths(self):
         for name, val in (("MODEL_NAME", "a/b"), ("API_KEY", "/etc/passwd"), ("SERVICE_ID", "../x"),
                           ("API_URL", "/etc/x"), ("API_URL", "file:///etc/passwd"), ("SERVICE_HOST", "x/y"),
@@ -1908,6 +2075,7 @@ class Round7(unittest.TestCase):
             self.assertTrue(self.stdio(env={name: val}, env_vars=name), (name, val))
         self.assertEqual(self.stdio(env={"API_URL": "https://x.invalid/v1"}, env_vars="API_URL"), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_consent_tags_every_non_inert_env_name(self):
         for name in ("OPENSSL_CONF", "KRB5_CONFIG", "GLIBC_TUNABLES"):
             t, m = self.tree({"mcpServers": {"x": {"command": "node", "args": ["server.js"], "env": {name: "x"}}}},
@@ -1925,6 +2093,7 @@ class Round7(unittest.TestCase):
     def remote(self, entry, extra=None, key="m"):
         return self.probs({"mcpServers": {key: entry}}, extra if extra is not None else self.HTTP)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_remote_entry_is_refused_unless_declared(self):
         good = {"type": "http", "url": "https://mcp.example.invalid/mcp", "headers": {"Authorization": "Bearer ${SVC_TOKEN}"}}
         self.assertEqual(self.remote(good), [])
@@ -1951,6 +2120,7 @@ class Round7(unittest.TestCase):
             self.assertTrue(self.remote(bad), bad)
         self.assertTrue(self.remote(good, key="other"))           # a remote server must carry the provides.mcp name
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_stdio_entry_with_endpoint_keys_is_refused(self):
         for k, v in (("url", "https://evil.example/mcp"), ("headers", {"A": "${X_TOKEN}"}), ("serverUrl", "https://e.invalid"),
                      ("endpoint", "https://e.invalid"), ("httpUrl", "https://e.invalid")):
@@ -1959,12 +2129,14 @@ class Round7(unittest.TestCase):
             self.assertTrue(self.probs(js, "capabilities:\n  shell:\n    - m\n") or k not in ("url", "headers"), k)
         self.assertTrue(self.probs({"mcpServers": {"x": {"command": "node", "args": ["server.js"], "type": "http"}}}))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_document_shape_is_an_allow_list(self):
         for js in ({"servers": {"x": {"command": "node", "args": ["server.js"]}}}, {"mcpServers": []}, [], "x",
                    {"mcpServers": {"x": {"command": "node", "args": ["server.js"]}}, "extra": {}}):
             self.assertTrue(self.probs(js), js)
         self.assertEqual(self.probs({}), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_consent_lists_servers_and_endpoints(self):
         good = {"type": "http", "url": "https://mcp.example.invalid/mcp", "headers": {"Authorization": "Bearer ${SVC_TOKEN}"}}
         t, m = self.tree({"mcpServers": {"m": good}}, self.HTTP)
@@ -1976,6 +2148,7 @@ class Round7(unittest.TestCase):
         self.assertIn("mcp-server:m/x", ext_engine.capabilities_of(m2, t2))
 
     # ── reviewer mutants RM1 / RM2 / RM3 / RM5 ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_rm1_rm5_in_tree_means_real_files_of_the_right_type(self):
         files = {"bin/srv": b"#!/bin/sh\n", "bin/dir/f": b"x\n"}
         base = {"commands/c/SKILL.md": b"hi\n", "server.js": b"//\n"}
@@ -1993,11 +2166,13 @@ class Round7(unittest.TestCase):
         self.assertTrue(ext_engine._intree(t, "bin", True))
         self.assertFalse(ext_engine._intree(t, "lnkdir", True))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_rm2_option_values_cannot_be_absolute(self):
         for a in ("--cfg=/etc/passwd", "--cfg=~/x", "--cfg=../x", "--a=b=/etc/x"):
             self.assertTrue(self.probs({"mcpServers": {"x": {"command": "node", "args": ["server.js", a]}}}), a)
         self.assertEqual(self.probs({"mcpServers": {"x": {"command": "node", "args": ["server.js", "--port=8080"]}}}), [])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_rm3_secret_looking_keys_are_refused_even_with_plain_values(self):
         key = fake("gh")
         for js in ({"mcpServers": {"x": {"command": "node", "args": ["server.js"]}}, key: "1"},
@@ -2005,6 +2180,7 @@ class Round7(unittest.TestCase):
             self.assertTrue(any("credential" in p or "secret" in p.lower() for p in self.probs(js)), js)
 
     # ── IMPORTANT-3: root discovery ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_resolve_root_never_walks_up_from_the_cwd(self):
         anc = os.path.join(self.d, "anc")
         os.makedirs(os.path.join(anc, "submodules", "constitution"))
@@ -2058,6 +2234,7 @@ class Round7(unittest.TestCase):
                                                 if os.path.isfile(p) and not os.path.islink(p) else "")
         return out
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_symlinked_ancestor_never_reaches_a_foreign_project(self):
         sb = os.path.realpath(self.d)
         eng = os.path.join(sb, "eng")                       # an engine copy that is not inside a constitution root
@@ -2088,6 +2265,7 @@ class Round7(unittest.TestCase):
         self.assertEqual(self.snapshot(foreign), before, "the foreign project was touched")
         self.assertFalse(os.path.lexists(os.path.join(foreign, ".constitution")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_mutating_command_requires_project_to_be_the_cwd_toplevel(self):
         sb = os.path.realpath(self.d)
         p1, p2 = os.path.join(sb, "p1"), os.path.join(sb, "p2")
@@ -2119,6 +2297,7 @@ class Round7(unittest.TestCase):
             os.chdir(saved)
 
     # ── MINOR-2: duplicate keys ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_duplicate_json_keys_are_refused_everywhere(self):
         for text in ('{"a": 1, "a": 2}', '{"x": {"b": 1, "b": 1}}', '[{"k": 1, "k": 2}]'):
             with self.assertRaises(ValueError) as cm:
@@ -2130,6 +2309,7 @@ class Round7(unittest.TestCase):
         self.assertTrue(any("duplicate" in p for p in ps), ps)
 
     # ── MINOR-3: catalog revoked versions ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_catalog_revoked_version_is_semver_or_star(self):
         def cat(v):
             return {"schema_version": "1.0", "catalog": {"id": "c", "install_allowed": True, "trust_tier": "vetted"},
@@ -2140,6 +2320,7 @@ class Round7(unittest.TestCase):
             self.assertTrue(ext_engine._validate_catalog(cat(v)), v)
 
     # ── MINOR-1 / MINOR-4: tree copy ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_copy_tree_refuses_symlinked_directories_and_files(self):
         src = os.path.join(self.d, "src")
         os.makedirs(os.path.join(src, "real"))
@@ -2154,6 +2335,7 @@ class Round7(unittest.TestCase):
         with self.assertRaises(ext_engine.EngineError):
             ext_engine._copy_tree(src2, os.path.join(self.d, "dst2"), False)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_copy_tree_is_bounded(self):
         src = os.path.join(self.d, "bsrc")
         os.makedirs(os.path.join(src, "a", "b", "c"))
@@ -2179,6 +2361,7 @@ class Round8(unittest.TestCase):
     predicate (F5), journal aux bounds (F3) and a copy that reads a growing file (F6)."""
     setUp, tearDown, eng = EngineAdd.setUp, EngineAdd.tearDown, EngineAdd.eng
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f4_url_value_refused_in_a_non_url_env_name(self):
         for name in ("MY_API_KEY", "SERVICE_ID", "SOME_TOKEN", "MODEL_NAME", "SERVICE_HOST", "X_REGION"):
             for val in ("https://x.invalid/v1", "http://x.invalid"):
@@ -2186,6 +2369,7 @@ class Round8(unittest.TestCase):
         self.assertTrue(ext_engine._env_value_ok("API_URL", "https://x.invalid/v1"))
         self.assertTrue(ext_engine._env_value_ok("UP_ENDPOINT", "http://x.invalid"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f5_rel_ok_direct(self):
         ok = ext_engine._rel_ok
         for good in (".", "a", "a/b", ".constitution/x.json", "a b"):
@@ -2198,6 +2382,7 @@ class Round8(unittest.TestCase):
         self.assertFalse(ok(".."))
         self.assertFalse(ok("../"))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f3_aux_outside_installed_is_a_bad_journal(self):
         e = self.eng()
         inst = e.inst_dir
@@ -2211,6 +2396,7 @@ class Round8(unittest.TestCase):
         self.assertIsNotNone(e.journal_problem(sg(os.path.join(self.d, ".trash-1-abcdef01"))))
         self.assertIsNotNone(e.journal_problem(sg(os.path.join(inst, "sub", ".trash-1-abcdef01"))))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_r12_final_bound_validly_signed_journal_with_foreign_final(self):
         """RULE:R12-final-bound: a journal that carries a VALID MAC (signed by this project's own key, e.g. a
         replayed or confused-deputy journal) but whose 'final' is not exactly <_installed>/<id> must be refused;
@@ -2232,6 +2418,7 @@ class Round8(unittest.TestCase):
                 why = e.journal_problem(sg(dict(base, final=bad_final)))
                 self.assertEqual(why, "final path is not _installed/<id>", (base["op"], bad_final, why))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f4_unsigned_or_forged_remove_journal_is_bad(self):
         e = self.eng()
         j = {"op": "remove", "id": "x", "final": os.path.join(e.inst_dir, "x"),
@@ -2254,12 +2441,14 @@ class Round8(unittest.TestCase):
         e._recover_journal(j)
         return e
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f3_recovery_rename_is_bounded_to_the_installed_dir(self):
         outside = os.path.join(self.d, "elsewhere", ".trash-1-abcdef01")
         e = self._recover_remove(outside, lambda a: (os.makedirs(a), open(os.path.join(a, "f"), "w").close()))
         self.assertTrue(os.path.exists(os.path.join(outside, "f")))
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f3_recovery_rename_refuses_a_link(self):
         os.makedirs(os.path.join(self.d, "tgt"))
         e = self.eng()
@@ -2268,6 +2457,7 @@ class Round8(unittest.TestCase):
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
         self.assertTrue(os.path.islink(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f3_recovery_rename_happy_path(self):
         e = self.eng()
         aux = os.path.join(e.inst_dir, ".trash-1-abcdef01")
@@ -2290,6 +2480,7 @@ class Round8(unittest.TestCase):
                     f.write(b"b" * 400000)
         return src, hook
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f6_file_growing_during_copy_is_refused_per_file(self):
         src, hook = self._grow()
         saved = ext_engine.MAX_FILE_BYTES, ext_engine.RACE_HOOK
@@ -2303,6 +2494,7 @@ class Round8(unittest.TestCase):
         dst = os.path.join(self.d, "gdst", "big.bin")
         self.assertTrue(not os.path.exists(dst) or os.path.getsize(dst) <= 100000 + 65536)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_f6_file_growing_during_copy_is_refused_per_tree(self):
         src, hook = self._grow()
         saved = ext_engine.MAX_TREE_BYTES, ext_engine.RACE_HOOK
@@ -2314,6 +2506,7 @@ class Round8(unittest.TestCase):
         finally:
             ext_engine.MAX_TREE_BYTES, ext_engine.RACE_HOOK = saved
 
+    # oracle: DERIVED (expected digest comes from hashlib.sha256 over the known bytes)
     def test_f6_unchanged_file_still_copies(self):
         src, _hook = self._grow()
         saved = ext_engine.RACE_HOOK
@@ -2351,6 +2544,7 @@ class Round9(unittest.TestCase):
         return aux
 
     # ── S1: the remove journal carries the identity of the tree it moved ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_remove_journal_records_the_identity(self):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         e = self.eng()
@@ -2368,6 +2562,7 @@ class Round9(unittest.TestCase):
         self.assertIsInstance(j.get("ident"), list)
         self.assertEqual(len(j["ident"]), 3)
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_complete_foreign_trash_is_kept(self):  # reproduction (b): id not in the lock
         e = self.eng()
         aux = self._trash(e)
@@ -2375,6 +2570,7 @@ class Round9(unittest.TestCase):
         e._recover_journal(self._remove_journal(e, aux, [1, 2, 3]))
         self.assertTrue(os.path.isfile(os.path.join(aux, "f")), "a trash directory the journal cannot prove was deleted")
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_complete_without_identity_keeps_the_trash(self):
         e = self.eng()
         aux = self._trash(e)
@@ -2382,6 +2578,7 @@ class Round9(unittest.TestCase):
         e._recover_journal(self._remove_journal(e, aux, None))
         self.assertTrue(os.path.isfile(os.path.join(aux, "f")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_complete_own_trash_is_deleted(self):
         e = self.eng()
         aux = self._trash(e)
@@ -2389,6 +2586,7 @@ class Round9(unittest.TestCase):
         e._recover_journal(self._remove_journal(e, aux, ext_engine._ident_of(aux)))
         self.assertFalse(os.path.lexists(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_rollback_foreign_trash_is_not_renamed_into_place(self):  # reproduction (a)
         e = self.eng()
         aux = self._trash(e)
@@ -2397,6 +2595,7 @@ class Round9(unittest.TestCase):
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
         self.assertTrue(os.path.isfile(os.path.join(aux, "f")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_rollback_without_identity_keeps_the_trash(self):
         e = self.eng()
         aux = self._trash(e)
@@ -2404,6 +2603,7 @@ class Round9(unittest.TestCase):
         e._recover_journal(self._remove_journal(e, aux, None))
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_rollback_own_trash_is_restored(self):
         e = self.eng()
         aux = self._trash(e)
@@ -2412,6 +2612,7 @@ class Round9(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(e.inst_dir, "x", "f")))
         self.assertFalse(os.path.lexists(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_malformed_identity_is_a_bad_journal(self):
         e = self.eng()
         aux = os.path.join(e.inst_dir, ".trash-1-abcdef01")
@@ -2419,6 +2620,7 @@ class Round9(unittest.TestCase):
             self.assertIsNotNone(e.journal_problem(self._remove_journal(e, aux, bad)), bad)
         self.assertIsNone(e.journal_problem(self._remove_journal(e, aux, [1, 2, 3])))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_rollback_refuses_a_trash_directory_of_another_owner(self):  # reviewer mutant PC3
         e = self.eng()
         aux = self._trash(e)
@@ -2433,6 +2635,7 @@ class Round9(unittest.TestCase):
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
         self.assertTrue(os.path.isdir(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_m1_rename_requires_a_trash_name(self):  # reviewer mutant M1
         e = self.eng()
         aux = self._trash(e, name="notatrash")
@@ -2441,6 +2644,7 @@ class Round9(unittest.TestCase):
         self.assertFalse(os.path.lexists(os.path.join(e.inst_dir, "x")))
         self.assertTrue(os.path.isdir(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_m3_rename_target_must_sit_directly_in_installed(self):  # reviewer mutant M3
         e = self.eng()
         aux = self._trash(e)
@@ -2452,6 +2656,7 @@ class Round9(unittest.TestCase):
         self.assertFalse(os.path.lexists(final))
         self.assertTrue(os.path.isdir(aux))
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s1_sweep_keeps_a_staging_directory_of_another_owner(self):
         e = self.eng()
         os.makedirs(e.inst_dir, exist_ok=True)
@@ -2468,6 +2673,7 @@ class Round9(unittest.TestCase):
         self.assertFalse(os.path.lexists(st), "control: our own dead staging directory is still swept")
 
     # ── S2: the opened descriptor is what is checked ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s2_hard_link_swapped_in_after_lstat_is_refused(self):
         src = os.path.join(self.d, "hsrc")
         os.makedirs(src)
@@ -2492,6 +2698,7 @@ class Round9(unittest.TestCase):
         copied = os.path.join(dst, "a.txt")
         self.assertFalse(os.path.exists(copied) and "TOPSECRET" in open(copied).read())
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s2_extra_link_to_the_same_file_added_after_lstat_is_refused(self):  # reviewer mutant M6
         src = os.path.join(self.d, "lsrc")
         os.makedirs(src)
@@ -2509,6 +2716,7 @@ class Round9(unittest.TestCase):
             ext_engine._copy_tree(src, os.path.join(self.d, "ldst"), False)
         self.assertEqual(hits, ["copy-before-open"])
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_s2_different_file_swapped_in_after_lstat_is_refused(self):
         src = os.path.join(self.d, "isrc")
         os.makedirs(src)
@@ -2534,6 +2742,7 @@ class Round9(unittest.TestCase):
                 f.write(b"a" * n)
         return src
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m4_file_of_exactly_the_cap_copies_and_one_more_is_refused(self):
         saved = ext_engine.MAX_FILE_BYTES
         try:
@@ -2544,6 +2753,7 @@ class Round9(unittest.TestCase):
         finally:
             ext_engine.MAX_FILE_BYTES = saved
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m4_file_growing_to_exactly_the_cap_copies_and_one_more_is_refused(self):
         saved = ext_engine.MAX_FILE_BYTES
         try:
@@ -2569,6 +2779,7 @@ class Round9(unittest.TestCase):
             ext_engine.MAX_FILE_BYTES = saved
             ext_engine.RACE_HOOK = None
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m5_growing_file_is_not_counted_twice_against_the_tree_cap(self):
         saved = ext_engine.MAX_TREE_BYTES
         try:
@@ -2592,6 +2803,7 @@ class Round9(unittest.TestCase):
             ext_engine.MAX_TREE_BYTES = saved
             ext_engine.RACE_HOOK = None
 
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m5_tree_of_exactly_the_cap_copies_and_one_more_is_refused(self):
         saved = ext_engine.MAX_TREE_BYTES
         try:
@@ -2603,6 +2815,7 @@ class Round9(unittest.TestCase):
             ext_engine.MAX_TREE_BYTES = saved
 
     # ── M8: a fresh clone whose tracked lock already says enabled still writes its local record ──
+    # oracle: SPECIFIED (expected outcome is hand-written from the policy or review finding, not read back from the engine)
     def test_m8_enable_in_a_fresh_clone_writes_the_local_record(self):
         self.assertEqual(self.eng().cmd_add(self.src), 0)
         self.assertEqual(self.eng().cmd_enable("hello-fixture"), 0)

@@ -5,6 +5,7 @@ from _paths import SRC, CANON  # noqa: E402
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 AUDIT = os.path.join(os.path.dirname(__file__), "..", "constitution_wiring_audit.py")
 
+# oracle: SPECIFIED (control needles and fixtures known by construction)
 def test_control_needles_pass_selftest():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
@@ -41,6 +42,7 @@ def test_control_needles_pass_selftest():
         assert "11.4.108" in text  # W-004 negative control: IS a known, expected finding
         assert "ATM-1036" in text  # W-006: labeled distinct from a generic wiring gap
 
+# oracle: SPECIFIED (control needles and fixtures known by construction)
 def test_genuine_gap_classification_and_non_code_evidence_rejected():
     # T024 independent review finding (CRITICAL, 2026-09-26): before this
     # fix, ANY textual mention of a gate name outside the 5 excluded .md
@@ -91,6 +93,7 @@ def test_genuine_gap_classification_and_non_code_evidence_rejected():
         assert wired_hits and wired_hits[0].endswith("cm_fixture_wired.sh")
 
 
+# oracle: SPECIFIED (control needles and fixtures known by construction)
 def test_selftest_failure_refuses_to_write_report():
     # Corrupt the corpus so the positive control CANNOT resolve, proving the
     # checker refuses to write an unproven report rather than bluffing (W-003).

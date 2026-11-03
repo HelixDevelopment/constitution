@@ -7,6 +7,7 @@ GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 def _run(args):
     return subprocess.run(["python3", GEN] + args, capture_output=True, text=True)
 
+# oracle: INVARIANT (two check runs agree)
 def test_determinism_two_check_runs_agree():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
@@ -21,6 +22,7 @@ def test_determinism_two_check_runs_agree():
         assert c1.returncode == 0, c1.stderr
         assert c2.returncode == 0, c2.stderr
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_malformed_heading_exits_2_no_partial_output():
     with tempfile.TemporaryDirectory() as tmp:
         broken = os.path.join(tmp, "broken.md")
@@ -36,6 +38,7 @@ def test_malformed_heading_exits_2_no_partial_output():
         assert not os.path.isdir(groups_dir) or not os.listdir(groups_dir), \
             "no partial output allowed on fail-loud exit"
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_no_partial_output_when_write_fails_after_groups_already_written():
     # New test (2026-09-26, T013/T014 review remediation — Minor finding):
     # test_malformed_heading_exits_2_no_partial_output above does NOT
@@ -76,6 +79,7 @@ def test_no_partial_output_when_write_fails_after_groups_already_written():
             "from a write_groups that never ran at all"
         )
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_hand_edit_to_grouped_doc_detected_as_drift():
     # Exit-code corrected 2026-09-26 (T013/T014 review finding Important-1):
     # cmd_check now distinguishes "source unchanged, output hand-edited"
@@ -104,6 +108,7 @@ def test_hand_edit_to_grouped_doc_detected_as_drift():
             f"got {r.returncode}: {r.stderr}"
         )
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_check_reports_ordinary_drift_as_exit_1_when_source_itself_changed():
     # New test (2026-09-26, T013/T014 review remediation): proves the OTHER
     # side of the exit-1-vs-exit-4 distinction cmd_check now makes — when
@@ -134,6 +139,7 @@ def test_check_reports_ordinary_drift_as_exit_1_when_source_itself_changed():
             f"(exit 1), never the G-004 hand-edit code — got {r_check.returncode}: {r_check.stderr}"
         )
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_check_is_not_broken_by_an_unrelated_commit_moving_head():
     # Final whole-branch review finding C-1 (fable-xhigh reviewer,
     # 2026-09-26, CRITICAL): _content_hash's payload excluded only
@@ -203,6 +209,7 @@ def test_check_is_not_broken_by_an_unrelated_commit_moving_head():
         )
 
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_generate_never_deletes_non_md_siblings_in_groups_dir():
     # Final whole-branch review finding I-1, 2026-09-26, IMPORTANT: a fresh
     # `generate` used to `shutil.rmtree(args.groups_dir)` -- wiping the
@@ -237,6 +244,7 @@ def test_generate_never_deletes_non_md_siblings_in_groups_dir():
         with open(sibling) as f:
             assert "a real sibling export" in f.read(), "sibling content was replaced, not merely renamed"
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected exit codes and file states)
 def test_generate_with_trailing_slash_groups_dir_does_not_destroy_output():
     # Final whole-branch review finding I-2, 2026-09-26, IMPORTANT:
     # `--groups-dir groups/` (trailing separator) made the OLD

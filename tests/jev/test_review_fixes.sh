@@ -9,6 +9,7 @@
 #   M    key_state order, backslash, quoting, keys-file timeout, clause-8 independence, ca_file,
 #        leak-scan control needle, wiring clause 5 over provider .env files, register.sh enforce
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES="$HERE/fixtures"
 REPO="$(cd "$HERE/../.." && pwd)"

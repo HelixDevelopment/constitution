@@ -11,6 +11,7 @@ from anchor_lib import extract_anchors
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
+# oracle: INVARIANT (generate then extract must preserve every anchor body byte for byte)
 def test_all_anchors_byte_identical_after_generate():
     with open(SRC) as f:
         pre_text = f.read()

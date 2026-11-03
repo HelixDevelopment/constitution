@@ -499,13 +499,13 @@ expect_fail "R4-M3b shell=True on a continuation line" \
 # 8.8 F6: KILLPG_GUARD_ALLOW_PATHS globs must not be expanded against the cwd
 GLOBCWD="$TMP/globcwd"; mkdir -p "$GLOBCWD"; : > "$GLOBCWD/zzz_present"
 GLOBFIX="$(mkfix f6 lib/w.py 'import os\nos.killpg(p, 9)  # killpg-gate:allow reviewed exception for the glob test\n')"
-if (cd "$GLOBCWD" && KILLPG_GUARD_ALLOW_PATHS='lib/*' bash "$GATE" --root "$GLOBFIX" >/dev/null 2>&1); then
+if (cd "$GLOBCWD" && HELIX_TEST_MODE=1 KILLPG_GUARD_ALLOW_PATHS='lib/*' bash "$GATE" --root "$GLOBFIX" >/dev/null 2>&1); then
     echo "✅ META OK:   R4-F6 allow-paths glob 'lib/*' honoured with a populated cwd (no pathname expansion)"
 else
     echo "❌ META FAIL: R4-F6 allow-paths glob was expanded against the cwd (marker on lib/w.py ignored)"
     rc=1
 fi
-if (cd "$GLOBCWD" && KILLPG_GUARD_ALLOW_PATHS='*' bash "$GATE" --root "$GLOBFIX" >/dev/null 2>&1); then
+if (cd "$GLOBCWD" && HELIX_TEST_MODE=1 KILLPG_GUARD_ALLOW_PATHS='*' bash "$GATE" --root "$GLOBFIX" >/dev/null 2>&1); then
     echo "✅ META OK:   R4-F6b allow-paths '*' honoured in a non-empty cwd"
 else
     echo "❌ META FAIL: R4-F6b allow-paths '*' expanded against the non-empty cwd"

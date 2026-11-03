@@ -3,6 +3,7 @@ from _paths import SRC, CANON  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from anchor_lib import extract_anchors, MalformedHeadingError, derive_metadata
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_extracts_all_three_opener_forms():
     src = (
         "preamble text\n"
@@ -21,6 +22,7 @@ def test_extracts_all_three_opener_forms():
     assert "body line 2" in anchors[0]["body"]
     assert "body line 3" not in anchors[0]["body"]
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_malformed_heading_raises():
     src = "### §11.4.209(broken title with no space after the number\n"
     try:
@@ -29,6 +31,7 @@ def test_malformed_heading_raises():
     except MalformedHeadingError:
         pass
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_extracts_sub_anchor_letter_suffix_form():
     # Regression: the real constitution/Constitution.md contains a genuine
     # `§11.4.10.A` sub-anchor (a trailing `.LETTER` suffix on the normal
@@ -51,6 +54,7 @@ def test_extracts_sub_anchor_letter_suffix_form():
     assert "sub-anchor body" in anchors[1]["body"]
     assert "sub-anchor body" not in anchors[0]["body"]
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_bold_inline_citation_is_not_mistaken_for_an_opener():
     # Regression: a bolded inline citation to ANOTHER anchor, embedded in
     # ordinary body prose ("**§11.4.30 carve-out.** This anchor is..."),
@@ -80,6 +84,7 @@ def test_bold_inline_citation_is_not_mistaken_for_an_opener():
     assert "more body text for §11.4.95" in ninetyfive["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_genuine_bold_form_opener_still_recognized():
     # Negative control for the fix above: a REAL bold-form opener (the
     # whole line IS the bolded title, nothing after the closing ** on that
@@ -97,6 +102,7 @@ def test_genuine_bold_form_opener_still_recognized():
     assert anchors[0]["title"] == "extension — Real bolded heading form"
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped():
     # Regression: a real anchor form (verified live in the actual
     # constitution/Constitution.md corpus, e.g. the real §11.4.170) is a
@@ -128,6 +134,7 @@ def test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped(
     assert "Body text for this anchor starts immediately" not in first_anchor["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_genuine_bold_form_opener_still_recognized_after_discriminator_change():
     # Re-confirmation of the pre-existing negative control (from the second
     # regression fix) under the NEW canonical_ids-based discriminator: a
@@ -145,6 +152,7 @@ def test_genuine_bold_form_opener_still_recognized_after_discriminator_change():
     assert anchors[0]["title"] == "extension — Real bolded heading form"
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_bullet_self_citation_after_definition_is_not_a_new_anchor():
     # Regression: constitution/Constitution.md legitimately cites an anchor's
     # own id again later via the `- §` bullet form (e.g. a summary/index
@@ -170,6 +178,7 @@ def test_bullet_self_citation_after_definition_is_not_a_new_anchor():
     assert "trailing prose after the citation line" in second["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_bullet_self_citation_before_definition_still_resolves_to_the_real_definition():
     # Regression, the MORE dangerous ordering: a bullet citation to an id
     # appears BEFORE that id's real ###-form definition later in the same
@@ -206,6 +215,7 @@ def test_bullet_self_citation_before_definition_still_resolves_to_the_real_defin
     assert "- §11.4.9 — Ninth anchor citation" in first["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_genuine_duplicate_hash_form_heading_still_detected_downstream():
     # Negative control: this fix must NOT swallow a REAL duplicate ###-form
     # heading (an actual redefinition/typo) — that is a genuine error
@@ -225,6 +235,7 @@ def test_genuine_duplicate_hash_form_heading_still_detected_downstream():
     assert ids == ["11.4.1", "11.4.1"], ids  # both genuine ###-openers present, unfiltered
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_parenthesized_letter_suffix_form_is_recognized():
     # Regression: a real anchor form (verified live in the actual
     # constitution/Constitution.md corpus, §11.4.184(I) at line 10279) uses
@@ -242,6 +253,7 @@ def test_parenthesized_letter_suffix_form_is_recognized():
     assert ids == ["11.4.184", "11.4.184(I)"], ids
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it():
     # Regression: a real defect (verified live: Constitution.md's real
     # §11.4.214, a ###-form anchor, gets truncated by a bolded
@@ -271,6 +283,7 @@ def test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
     assert "11.4.214's body, part 2 — this line proves the anchor was not truncated" in anchor_214["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_two_component_hash_form_id_is_recognized():
     # Regression: a real anchor form (verified live: Constitution.md's real
     # §9.2, §12.6, and 11 other real anchors) uses a 2-component id
@@ -290,6 +303,7 @@ def test_two_component_hash_form_id_is_recognized():
     assert ids == ["9.1", "9.2", "11.4.1"], ids
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_three_component_id_is_not_truncated_by_the_2_component_widening():
     # Guard against the greedy-optional-group regression this fix could
     # introduce: a genuine 3-component id must still match in FULL, never
@@ -299,6 +313,7 @@ def test_three_component_id_is_not_truncated_by_the_2_component_widening():
     assert anchors[0]["id"] == "11.4.10", anchors[0]["id"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor():
     # Regression: a real defect the NAIVE version of this fix would have
     # introduced (verified live: Constitution.md:7305's "- §1.1 (paired
@@ -326,6 +341,7 @@ def test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_ancho
     assert "body line 2 — this MUST stay part of" in anchor_90["body"]
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation():
     # A bold-form citation to a REAL 2-component ###-defined id (e.g. the
     # real corpus cites "§12.10" via bold form from elsewhere) must still
@@ -354,6 +370,7 @@ def test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citati
 # append to constitution/scripts/anchors/tests/test_anchor_lib.py
 from anchor_lib import assign_group, UnclassifiedAnchorError, extract_anchors
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_known_ids_classify_into_expected_groups():
     assert assign_group("11.4.209") == "code-review-and-quality"
     assert assign_group("11.4.6") == "anti-bluff-and-evidence"
@@ -367,6 +384,7 @@ def test_known_ids_classify_into_expected_groups():
     assert assign_group("11.4.186") == "documentation-and-export"
     assert assign_group("11.4.189") == "testing-and-tdd"
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_unknown_id_raises_unclassified():
     try:
         assign_group("99.99.99")
@@ -374,6 +392,7 @@ def test_unknown_id_raises_unclassified():
     except UnclassifiedAnchorError:
         pass
 
+# oracle: INVARIANT (every anchor of the real corpus classifies into a group)
 def test_zero_unclassified_against_real_corpus():
     # This is the acceptance test named in Verified Notes: the LIVE
     # constitution/Constitution.md must classify with zero misses.
@@ -391,6 +410,7 @@ def test_zero_unclassified_against_real_corpus():
 # constitution/scripts/anchors/tests/test_anchor_lib.py)
 from anchor_lib import ID_RANGE_GROUPS
 
+# oracle: INVARIANT (no numeric tail belongs to more than one group)
 def test_no_two_groups_claim_the_same_numeric_tail():
     # Regression: verified live that ID_RANGE_GROUPS's ranges silently
     # overlapped for 12 real tails (176-182, 184, 185, 188, 190, 191) across
@@ -411,6 +431,7 @@ def test_no_two_groups_claim_the_same_numeric_tail():
     assert not collisions, f"tails claimed by more than one group: {collisions}"
 
 
+# oracle: SPECIFIED (inline heading fixtures with hand-stated expected anchor ids and bodies)
 def test_classification_defaults_to_unstated_never_universal_when_source_is_silent():
     # Final whole-branch review finding I-4, 2026-09-26, IMPORTANT:
     # derive_metadata used to default an ABSENT Classification line to the

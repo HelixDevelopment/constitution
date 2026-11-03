@@ -12,7 +12,7 @@
 # Classification: universal (§11.4.17).
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-gate="$here/cm_llmctl_submodule_nonrecursive.sh"
+gate="${GATE_UNDER_TEST:-$here/cm_llmctl_submodule_nonrecursive.sh}"
 [ -r "$gate" ] || { echo "META: gate missing" >&2; exit 2; }
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -72,6 +72,24 @@ fx gitmodules 1 1 GM CLEAN 1 "REENTRY-GITMODULES (pin .gitmodules url names this
 fx viacont 1 1 CLEAN PATH 1 "VIA-CONTAINERS (containers pin re-enters) must FAIL"
 fx unres 1 1 UNRES CLEAN 2 "UNRESOLVABLE constitution pin must be BLIND (rc 2)"
 fx unrescont 1 1 CLEAN UNRES 2 "UNRESOLVABLE containers pin must be BLIND (rc 2)"
+# structural manifest reader (odd list-item shapes; fail-closed): custom manifest text over a clean llmctl fixture
+mf() { # <name> <want-rc> <text> [ENV=val ...] ; the text is the whole helix-deps.yaml
+  local n="$1" want="$2" text="$3"; shift 3
+  local r="$tmp/mf_$n"; mk_root "$r" 1 1; local L; L="$(mk_llmctl "$r" "${PIN[CLEAN]}" "${PIN[CLEAN]}")"; record "$r" "$L"
+  printf '%s' "$text" > "$r/helix-deps.yaml"
+  local out rc; out="$(env "$@" bash "$gate" --root "$r" 2>&1)"; rc=$?
+  if [ "$rc" = "$want" ]; then echo "✅ META OK:   manifest shape $n (rc=$rc)"; else echo "❌ META BAD:  manifest shape $n want rc=$want got rc=$rc"; echo "$out" | sed 's/^/    /'; bad=1; fi; }
+mf bare_dash_pass 0 $'schema_version: 1\ndeps:\n  -\n    name: llmctl\n    recursive_init: false\n'
+mf quoted_key_pass 0 $'schema_version: 1\ndeps:\n  - "name": llmctl\n    "recursive_init": false\n'
+mf space_colon_pass 0 $'schema_version: 1\ndeps:\n  - name : llmctl\n    recursive_init : false\n'
+mf marker_in_next_bare_entry 1 $'schema_version: 1\ndeps:\n  - name: llmctl\n    layout: grouped\n  -\n    name: other\n    recursive_init: false\n'
+mf marker_true 1 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: true\n'
+mf dup_key_blind 2 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: false\n    recursive_init: true\n'
+mf ambiguous_name_blind 2 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: false\n  - name: llmctl\n    recursive_init: true\n'
+mf unparseable_blind 2 $'deps: [unclosed\n'
+mf no_pyyaml_blind 2 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: false\n' HELIX_TEST_MODE=1 HELIX_DEPS_FIELD_FORCE_NO_YAML=1
+mf helper_missing_blind 2 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: false\n' HELIX_TEST_MODE=1 HELIX_DEPS_FIELD_PY="$tmp/nonexistent/helper.py"
+mf override_ignored_without_test_mode 0 $'schema_version: 1\ndeps:\n  - name: llmctl\n    recursive_init: false\n' HELIX_DEPS_FIELD_PY="$tmp/nonexistent/helper.py"
 # recorded-vs-checked-out: root records L1, the checked-out HEAD of the fixture submodule is L2
 r="$tmp/rec_dirty"; mk_root "$r" 1 1; L1="$(mk_llmctl "$r" "${PIN[PATH]}" "${PIN[CLEAN]}")"; record "$r" "$L1"; mk_llmctl "$r" "${PIN[CLEAN]}" "${PIN[CLEAN]}" >/dev/null
 expect "RECORDED-DIRTY-HEAD-CLEAN (recorded llmctl commit re-enters) must FAIL" 1 "$r"

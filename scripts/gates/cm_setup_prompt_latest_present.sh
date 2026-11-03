@@ -86,15 +86,16 @@ done
 [ -n "$root" ] || root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 own_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/setup_prompt_extract.sh"
-spx_lib="${SETUP_PROMPT_EXTRACT_LIB:-$own_lib}"
-# The library is SOURCED (executed): an override is accepted only when it resolves to
-# this gate's own scripts/lib/setup_prompt_extract.sh, or when the caller explicitly
-# marks the environment as trusted (SETUP_PROMPT_EXTRACT_LIB_TRUST=1, used by tests).
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+# The library is SOURCED (executed): an ambient override is honoured only when it resolves to this gate's own
+# scripts/lib/setup_prompt_extract.sh (--trusted), or under HELIX_TEST_MODE=1 with a path under the temp root;
+# anything else is IGNORED with a note and the gate's own library is used (the old SETUP_PROMPT_EXTRACT_LIB_TRUST=1
+# switch is gone: it was itself an ambient weakening switch).
+cm_gate_env_set spx_lib SETUP_PROMPT_EXTRACT_LIB "$own_lib" path --trusted "$own_lib"
 lib_untrusted=0
-if [ "$spx_lib" != "$own_lib" ] && [ "${SETUP_PROMPT_EXTRACT_LIB_TRUST:-0}" != 1 ]; then
-  a="$(readlink -f -- "$spx_lib" 2>/dev/null)"; b="$(readlink -f -- "$own_lib" 2>/dev/null)"
-  if [ -z "$a" ] || [ "$a" != "$b" ]; then lib_untrusted=1; fi
-fi
 setup="$root/docs/prompts/setup"
 latest="$setup/latest.md"
 fails=0
@@ -181,7 +182,7 @@ if [ -f "$latest" ]; then
   if [ "$MUT_BLOCK" = 1 ]; then
     # shellcheck source=../lib/setup_prompt_extract.sh
     if [ "$lib_untrusted" = 1 ]; then
-      echo "BLIND: refusing extractor library outside this gate's scripts/lib: $spx_lib (set SETUP_PROMPT_EXTRACT_LIB_TRUST=1 only in tests)"
+      echo "BLIND: refusing extractor library outside this gate's scripts/lib: $spx_lib (only HELIX_TEST_MODE=1 with a temp-root path is honoured)"
       blind=1
     elif [ -r "$spx_lib" ] && . "$spx_lib" && declare -F spx_has_prompt_block >/dev/null; then
       if ! spx_has_prompt_block "$latest"; then  # block-check

@@ -16,7 +16,19 @@
 #   JEV_STATS_REPORT           optional stats report checked for ESTIMATE labeling
 #   JEV_GATED_CLASSES          comma list (default: gate,routing,score)
 #   JEV_REDUCTION_FLOOR        default 1.0 (AFTER <= BEFORE; §11.4.35 DATA)
+#   The FLOOR and the CLASS LIST decide the verdict (a floor of 99 or a class list naming nothing turns a FAIL into a
+#   PASS), so their ENVIRONMENT form is GUARDED (honoured only under HELIX_TEST_MODE=1, scripts/lib/gate_env_override.sh);
+#   a project declares its floor / classes with the explicit flags --floor <x> / --gated-classes <list> (always honoured).
 set -uo pipefail
+_jtr_floor=""; _jtr_classes=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --floor)         _jtr_floor="${2:?--floor needs a value}"; shift 2 ;;
+    --gated-classes) _jtr_classes="${2:?--gated-classes needs a value}"; shift 2 ;;
+    -h|--help) sed -n '2,/^set -uo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
+    *) echo "CM-JEV-TOKEN-REDUCTION: unknown argument: $1 (usage: cm_jev_token_reduction.sh [--floor <x>] [--gated-classes <list>])" >&2; exit 2 ;;
+  esac
+done
 command -v jq >/dev/null 2>&1 || { echo "CM-JEV-TOKEN-REDUCTION CANNOT DETERMINE: jq not installed (rc 2, never a pass)" >&2; exit 2; }
 
 # No synthetic default (2026-10-24): a GREEN from bundled fixtures is a verdict about the fixtures, not
@@ -36,8 +48,14 @@ BCONF="${JEV_BEFORE_CONFIG:-${BEFORE%.jsonl}.config}"
 ACONF="${JEV_AFTER_CONFIG:-${AFTER%.jsonl}.config}"
 DECISIONS="${JEV_DECISIONS:-$(dirname "$BEFORE")/decisions.jsonl}"
 REPORT="${JEV_STATS_REPORT:-}"
-FLOOR="${JEV_REDUCTION_FLOOR:-1.0}"
-CLASSES="${JEV_GATED_CLASSES:-gate,routing,score}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set FLOOR JEV_REDUCTION_FLOOR 1.0 value
+cm_gate_env_set CLASSES JEV_GATED_CLASSES "gate,routing,score" value
+[ -z "$_jtr_floor" ] || FLOOR="$_jtr_floor"
+[ -z "$_jtr_classes" ] || CLASSES="$_jtr_classes"
 
 fail=0
 err() { printf 'CM-JEV-TOKEN-REDUCTION FAIL: %s\n' "$*" >&2; fail=1; }
@@ -113,5 +131,5 @@ if [ "$fail" -ne 0 ]; then
   echo "CM-JEV-TOKEN-REDUCTION: RED" >&2
   exit 1
 fi
-echo "CM-JEV-TOKEN-REDUCTION: GREEN"
+echo "CM-JEV-TOKEN-REDUCTION: GREEN (inputs: before=$BEFORE after=$AFTER decisions=$DECISIONS)"
 exit 0

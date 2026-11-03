@@ -56,7 +56,19 @@
 # POSIX sh; `sh -n` AND `bash -n` clean; every name `_xr_`/`XR_` prefixed.
 # =============================================================================
 
-XR_STREAM_CAP=${XR_STREAM_CAP:-65536}     # bytes kept on disk per stream
+# bytes kept on disk per stream. INLINE-GUARDED (11.4.201(6)-(8)): an ambient value may only RAISE the cap (keep more
+# evidence); a lower or non-numeric value needs HELIX_TEST_MODE=1, else it is ignored with a note.
+_xr_cap_env=${XR_STREAM_CAP:-}
+XR_STREAM_CAP=65536
+if [ -n "$_xr_cap_env" ]; then
+    case "$_xr_cap_env" in
+        *[!0-9]*) _xr_cap_ok=0 ;;
+        *) if [ "$_xr_cap_env" -ge 65536 ] 2>/dev/null; then _xr_cap_ok=1; else _xr_cap_ok=0; fi ;;
+    esac
+    [ "${HELIX_TEST_MODE:-}" = 1 ] && _xr_cap_ok=1
+    if [ "$_xr_cap_ok" = 1 ]; then XR_STREAM_CAP=$_xr_cap_env
+    else printf 'gate_env_override: ignoring XR_STREAM_CAP=%s (a lower cap needs HELIX_TEST_MODE=1)\n' "$_xr_cap_env" >&2; fi
+fi
 
 # T048 round-36 independent review (critical_blocker_gate.sh, R36-I1):
 # exec_record_lookup() below is called by critical_blocker_gate.sh's
@@ -97,9 +109,23 @@ _xr_argv_json() {
 # silently folded into "clean".
 _xr_redact() {  # <file>
     [ -r "$1" ] || return 3
-    _xr_lib="${XR_CRED_LIB:-}"
+    # XR_CRED_LIB swaps the credential scanner used to REDACT captured streams (a stub would leave secrets in the
+    # record): INLINE-GUARDED -- honoured only under HELIX_TEST_MODE=1 with a path under the temp root.
+    _xr_lib=""
+    if [ -n "${XR_CRED_LIB:-}" ]; then
+        _xr_tr=$(readlink -m -- "${TMPDIR:-/tmp}" 2>/dev/null); _xr_lr=$(readlink -m -- "$XR_CRED_LIB" 2>/dev/null)
+        if [ "${HELIX_TEST_MODE:-}" = 1 ] && [ -n "$_xr_tr" ] && [ "$_xr_tr" != / ] && [ -n "$_xr_lr" ] && [ "${_xr_lr#"$_xr_tr"/}" != "$_xr_lr" ]; then
+            _xr_lib=$_xr_lr
+        else
+            printf 'gate_env_override: ignoring XR_CRED_LIB (needs HELIX_TEST_MODE=1 and a path under the temp root)\n' >&2
+        fi
+    fi
     if [ -z "$_xr_lib" ]; then
-        _xr_here=$(CDPATH='' cd -- "$(dirname -- "${XR_SELF_PATH:-$0}")" && pwd)
+        # XR_SELF_PATH is assigned by the dispatch below from BASH_SOURCE / $0 and NEVER trusted from the environment
+        # (the dispatch unsets any inherited value first). Empty = the library could not locate itself (a POSIX sh
+        # caller sourcing it): fail closed, rc 3, never fall back to $0 (the caller's own path).
+        [ -n "${XR_SELF_PATH:-}" ] || return 3
+        _xr_here=$(CDPATH='' cd -- "$(dirname -- "$XR_SELF_PATH")" && pwd) || return 3
         _xr_lib="$_xr_here/../../hooks/credential_scan_lib.sh"
     fi
     [ -r "$_xr_lib" ] || return 3
@@ -258,8 +284,12 @@ _xr_selftest() {
 
 # --- dispatch (content-identified, never by filename) ------------------------
 _XR_SELF_SENTINEL='xr-self-id-4d8e13c7-execution-record'
+unset XR_SELF_PATH   # never trust an inherited value: it selects which credential scanner redacts captured streams
 _xr_is_self() { [ -n "${1:-}" ] && [ -r "$1" ] && grep -qF "$_XR_SELF_SENTINEL" "$1" 2>/dev/null; }
-if [ -n "${BASH_SOURCE:-}" ]; then
+# BASH_SOURCE is ambient data too: dash/busybox take it from the environment, and bash keeps an imported scalar. It is
+# used ONLY when the file it names carries this library's own sentinel (content identity); otherwise it is ignored and
+# the chain falls through (ending in rc 3 "cannot locate the scanner", never a forged scanner).
+if [ -n "${BASH_SOURCE:-}" ] && _xr_is_self "${BASH_SOURCE}"; then
     if [ "${BASH_SOURCE}" = "$0" ]; then _XR_EXECUTED=1; else _XR_EXECUTED=0; fi
     XR_SELF_PATH="${BASH_SOURCE}"
 elif [ -n "${ZSH_EVAL_CONTEXT:-}" ]; then

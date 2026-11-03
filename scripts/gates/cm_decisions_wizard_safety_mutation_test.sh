@@ -3,6 +3,7 @@
 # Baseline: the real wizard PASSes. Each mutant copies the REAL wizard into a mktemp dir and adds one unsafe
 # behaviour; the gate MUST NOT PASS it. Exit 0 = baseline PASS and every mutant killed. Classification: universal.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 gate="$const/scripts/gates/cm_decisions_wizard_safety.sh"
 . "$const/scripts/lib/safe_rm.sh"

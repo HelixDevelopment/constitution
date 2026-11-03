@@ -95,6 +95,17 @@ done
 [ "${#files[@]}" -gt 0 ] || files=("$const/scripts/install_constitution.sh" "$const/scripts/update_constitution.sh")
 for f in "${files[@]}"; do [ -r "$f" ] || { echo "⚠ $GATE: BLIND (exit 2) — cannot read $f"; exit 2; }; done
 command -v python3 >/dev/null 2>&1 || { echo "⚠ $GATE: BLIND (exit 2) — python3 not found"; exit 2; }
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+# The diagnostic modes (CM_NOPUSH_INVENTORY / _COLLECT print a census and RETURN 0 without a verdict; _SPECS / _PINS
+# extend the inventory) are guarded: honoured only under HELIX_TEST_MODE=1, so a leaked variable cannot turn a FAIL
+# into an exit-0 "no verdict" run. The embedded program reads only the guarded values exported here.
+cm_gate_env_set _np_inv CM_NOPUSH_INVENTORY "" value; export CM_NOPUSH_INVENTORY="$_np_inv"
+cm_gate_env_set _np_col CM_NOPUSH_COLLECT "" value;   export CM_NOPUSH_COLLECT="$_np_col"
+cm_gate_env_set _np_spc CM_NOPUSH_SPECS "" value;     export CM_NOPUSH_SPECS="$_np_spc"
+cm_gate_env_set _np_pin CM_NOPUSH_PINS "" value;      export CM_NOPUSH_PINS="$_np_pin"
 exec python3 -I - "${files[@]}" <<'PYGATE'
 import os, re, subprocess, sys, tempfile
 

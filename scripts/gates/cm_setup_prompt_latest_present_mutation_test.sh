@@ -30,6 +30,7 @@
 # Usage: cm_setup_prompt_latest_present_mutation_test.sh   Exit: 0 proof holds · 1 misclassified/survivor · 2 env error.
 # Dependencies: bash, sed, cmp, mktemp. Classification: universal (§11.4.17).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 gate="$here/cm_setup_prompt_latest_present.sh"

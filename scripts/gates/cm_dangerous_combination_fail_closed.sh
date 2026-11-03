@@ -520,12 +520,13 @@
 #                          behaviour, unchanged)
 #     --include-third-party
 #                        also scan third-party / separate-repository trees.
-#                        DEFAULT PRUNES them (triage 2026-10-31): every `path =`
-#                        of the root .gitmodules, every helix-deps.yaml dep with
-#                        `third_party: true` (its `path:` or submodules/<name>),
-#                        resolved by scripts/lib/third_party_prune.sh; unsafe
-#                        manifest paths are dropped, never interpreted. Each
-#                        separate repository adopts this gate itself.
+#                        DEFAULT PRUNES only third-party trees (operator decision
+#                        2026-11-01): every helix-deps.yaml dep with
+#                        `third_party: true` (its `path:` or submodules/<name>)
+#                        plus the dir names third_party and site-packages,
+#                        resolved by scripts/lib/third_party_prune.sh. .gitmodules
+#                        paths are NOT pruned (own-org submodules are scanned);
+#                        unsafe manifest paths are dropped, never interpreted.
 #     -h|--help          print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
@@ -543,6 +544,11 @@
 #                              1 = same as --include-third-party
 #   DANGEROUS_COMBO_PYTHON    Python 3 interpreter used for AST analysis of
 #                              .py files (default: python3, then python).
+#                              GUARDED: honoured only under HELIX_TEST_MODE=1
+#                              (scripts/lib/gate_env_override.sh); otherwise
+#                              ignored with a note. Same for DANGEROUS_COMBO_ROOT
+#                              (use --root), _EXT, _EXCLUDE, _MAX_DEPTH and
+#                              _UNANALYSED_EXT.
 #   DANGEROUS_COMBO_MAX_DEPTH default for --max-depth (0/unset = unlimited).
 #   DANGEROUS_COMBO_UNANALYSED_EXT
 #                              space-separated extensions with NO idiom-
@@ -612,12 +618,17 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=590
+# Derived, never hand-counted: the header ends at its Classification line.
+HEADER_LINES="$(awk '/^# Classification:/{print NR; exit}' "$0")"
 
-root="${DANGEROUS_COMBO_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
+# verdict-affecting ambient overrides are guarded (11.4.276 r8): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set root DANGEROUS_COMBO_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
 quiet=0
 include_tp="${DANGEROUS_COMBO_INCLUDE_THIRD_PARTY:-0}"
-maxdepth="${DANGEROUS_COMBO_MAX_DEPTH:-0}"
+cm_gate_env_set maxdepth DANGEROUS_COMBO_MAX_DEPTH 0 value
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -652,12 +663,13 @@ if [ "$maxdepth" -gt 0 ]; then
     maxdepth_expr=(-maxdepth "$maxdepth")
 fi
 
-exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb sh bash}"
-excludes="${DANGEROUS_COMBO_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages}"
+cm_gate_env_set exts DANGEROUS_COMBO_EXT "py go rs c cc cpp h hpp java cs js ts jsx tsx php rb sh bash" value
+cm_gate_env_set excludes DANGEROUS_COMBO_EXCLUDE ".git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages" value
+[ -z "${CM_GATE_OVERRIDES_HONOURED:-}" ] || echo "⚠ ${GATE}: NOTE — test-mode override(s) honoured: ${CM_GATE_OVERRIDES_HONOURED} (HELIX_TEST_MODE=1; never a production verdict)"
 if [ "$include_tp" != 1 ]; then
     # shellcheck source=/dev/null
-    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh" 2>/dev/null \
-        && excludes="$excludes $(cm_third_party_prune_paths "$root" | tr '\n' ' ')"
+    tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
+    [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null || tp_lib=""
 fi
 
 find_name_expr=()
@@ -674,6 +686,10 @@ for ex in $excludes; do
         *)   prune_expr+=(-name "$ex" -o) ;;
     esac
 done
+# third-party prune: root-anchored (see cm_third_party_prune_find_expr)
+if [ "$include_tp" != 1 ] && [ -n "${tp_lib:-}" ]; then
+    cm_third_party_prune_find_expr "$root"
+fi
 if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
 fi
@@ -738,15 +754,18 @@ py_usable() { # $1=candidate -> 0 when it really runs and can import ast
     command -v "$1" >/dev/null 2>&1 || return 1
     "$1" -c 'import sys, ast; sys.exit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1
 }
-if [ -n "${DANGEROUS_COMBO_PYTHON:-}" ]; then
+# the interpreter pin is guarded (a fake interpreter exiting 0 would make every file "parse clean"): honoured only
+# under HELIX_TEST_MODE=1 (11.4.201(6)-(8)); an ignored pin is announced and the real interpreter search runs
+cm_gate_env_set py_pin DANGEROUS_COMBO_PYTHON "" value
+if [ -n "$py_pin" ]; then
     # An EXPLICIT operator pin is authoritative: if it does not resolve to a
     # working Python 3 the gate degrades LOUDLY rather than silently
     # substituting a different interpreter behind the operator's back
     # (§11.4.6 / §11.4.201 — say what actually happened).
-    if py_usable "$DANGEROUS_COMBO_PYTHON"; then
-        py_bin="$DANGEROUS_COMBO_PYTHON"
+    if py_usable "$py_pin"; then
+        py_bin="$py_pin"
     else
-        echo "⚠ ${GATE}: NOTE — DANGEROUS_COMBO_PYTHON='${DANGEROUS_COMBO_PYTHON}' is not a usable Python 3; NOT substituting another interpreter. Python files fall back to the TEXT scanner, whose results are ${TEXT_MODE_CAVEAT}."
+        echo "⚠ ${GATE}: NOTE — DANGEROUS_COMBO_PYTHON='${py_pin}' is not a usable Python 3; NOT substituting another interpreter. Python files fall back to the TEXT scanner, whose results are ${TEXT_MODE_CAVEAT}."
     fi
 else
     for cand in python3 python; do
@@ -1755,13 +1774,13 @@ for idx, raw in enumerate(paths):
             done <<< "$ast_out"
         fi
     else
-        if [ -n "${DANGEROUS_COMBO_PYTHON:-}" ]; then
+        if [ -n "$py_pin" ]; then
             # The explicit pin was honoured and NOT silently overridden, so
             # python3/python were deliberately never tried. Saying otherwise
             # would misreport what the instrument actually did (§11.4.6).
             echo "⚠ ${GATE}: NOTE — no usable Python 3 (the explicit DANGEROUS_COMBO_PYTHON pin did not resolve; python3/python were deliberately NOT tried); Python files analysed by the TEXT scanner, whose results are ${TEXT_MODE_CAVEAT}."
         else
-            echo "⚠ ${GATE}: NOTE — no Python 3 interpreter found (tried python3, python); Python files analysed by the TEXT scanner, whose results are ${TEXT_MODE_CAVEAT}. Set DANGEROUS_COMBO_PYTHON to enable structural analysis."
+            echo "⚠ ${GATE}: NOTE — no Python 3 interpreter found (tried python3, python); Python files analysed by the TEXT scanner, whose results are ${TEXT_MODE_CAVEAT}. Install python3 (or, in a test, set HELIX_TEST_MODE=1 DANGEROUS_COMBO_PYTHON=<interpreter>) to enable structural analysis."
         fi
         py_text_fallback_files=("${py_files[@]}")
     fi
@@ -1862,7 +1881,7 @@ sanitize_generic_carriers() { # $1=file $2=comment-marker("//"|"#"|"")
 # that later ships a real per-language analyser for one of these four
 # extensions removes it from this list rather than waiting on an upstream
 # constitution change.
-unanalysed_exts="${DANGEROUS_COMBO_UNANALYSED_EXT:-go rs rb c}"
+cm_gate_env_set unanalysed_exts DANGEROUS_COMBO_UNANALYSED_EXT "go rs rb c" value
 unanalysed_hits=0
 unanalysed_detail=()
 is_unanalysed_ext() { # $1=filename -> rc 0 iff its extension has no idiom-

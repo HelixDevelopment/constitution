@@ -77,6 +77,7 @@ def _generate(anchors_dir, out_dir):
     return groups, index
 
 
+# oracle: GOLDEN-MASTER (the committed reviewed index and groups are the recorded baseline)
 def test_committed_output_equals_a_fresh_regeneration():
     tmp = tempfile.mkdtemp()
     try:
@@ -91,6 +92,7 @@ def test_committed_output_equals_a_fresh_regeneration():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# oracle: METAMORPHIC (a one-byte change to the output must flip the comparison)
 def test_comparator_catches_a_changed_byte():
     tmp = tempfile.mkdtemp()
     try:
@@ -104,6 +106,7 @@ def test_comparator_catches_a_changed_byte():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# oracle: METAMORPHIC (moving an anchor between groups must flip the comparison)
 def test_g5_moving_an_anchor_between_groups_is_caught():
     """The round-3 reviewer's G5 mutation, adopted: 1.1 moved to git-and-data-safety."""
     tmp = tempfile.mkdtemp()
@@ -124,6 +127,7 @@ def test_g5_moving_an_anchor_between_groups_is_caught():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# oracle: CHARACTERIZATION (records the current known boundary behaviour (ATM-1130))
 def test_known_limitation_atm_1130_anchor_body_crosses_section_headings():
     """KNOWN LIMITATION (ATM-1130): an anchor body is closed only by the next anchor opener, so a
     higher-level `## N.` section heading and its text are absorbed into the previous anchor's body.
@@ -144,6 +148,7 @@ def test_known_limitation_atm_1130_anchor_body_crosses_section_headings():
     assert "body two" not in a["1.1"]["body"]
 
 
+# oracle: CHARACTERIZATION (records the current known boundary behaviour on the real corpus (ATM-1130))
 def test_known_limitation_atm_1130_real_corpus_2_1_absorbs_sections_3_to_7():
     """The same limitation on the real Constitution.md: anchor 2.1's body contains the `## 3.` to
     `## 7.` section headings (R3-01). Control needle: the `## 3.` heading exists in the corpus."""

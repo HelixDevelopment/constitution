@@ -29,6 +29,7 @@
 #   expectation was violated | 2 gate script missing.
 # Cross-refs: §1.1, §11.4.182, §11.4.201. Classification: universal (§11.4.17).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE="$SCRIPT_DIR/cm_label_sync_hooks.sh"
 [ -f "$GATE" ] || { echo "META: gate missing: $GATE" >&2; exit 2; }

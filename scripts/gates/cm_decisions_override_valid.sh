@@ -25,7 +25,11 @@
 set -uo pipefail
 GATE="CM-DECISIONS-OVERRIDE-VALID"
 const="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-cli="${DECISIONS_CLI:-$const/scripts/decisions/constitution_decisions.sh}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set cli DECISIONS_CLI "$const/scripts/decisions/constitution_decisions.sh" path
 root="$PWD"
 while [ $# -gt 0 ]; do
   case "$1" in

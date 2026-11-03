@@ -4,6 +4,7 @@ from _paths import SRC, CANON  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
+# oracle: SPECIFIED (hand-stated schema requirement)
 def test_every_anchor_has_classification_and_explicit_gate_key():
     with tempfile.TemporaryDirectory() as tmp:
         groups_dir = os.path.join(tmp, "groups")
@@ -27,6 +28,7 @@ def test_every_anchor_has_classification_and_explicit_gate_key():
             assert a["classification"] in ("universal", "project-specific", "mixed", "unstated"), a["id"]
             assert "propagation_gate" in a, f"{a['id']} missing explicit propagation_gate key"
 
+# oracle: INVARIANT (classification buckets partition the index and mixed count is the stated 2)
 def test_filter_by_classification_matches_plain_yaml_list_comprehension():
     # US2's own Independent Test: a plain filter, no query engine, per
     # yaml-index-schema.md's Consumers section.
@@ -90,6 +92,7 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
             f"(independently re-measured against the real corpus), got {len(unstated)}"
         )
 
+# oracle: SPECIFIED (hand-stated schema requirement)
 def test_project_specific_classification_is_detected_via_synthetic_fixture():
     # Correction (`/speckit-superspec-execute` proactive-audit finding D3,
     # 2026-09-25): the REAL constitution/Constitution.md corpus, verified
@@ -179,6 +182,7 @@ def test_project_specific_classification_is_detected_via_synthetic_fixture():
         print(f"synthetic project-specific oracle PASS: {generator_count} == {grep_count} == 1")
 
 
+# oracle: DERIVED (independent grep count of the corpus is the oracle)
 def test_project_specific_count_matches_an_independently_derived_manual_count():
     # FR-002's Checked-by clause (`/speckit-analyze` remediation, finding C2):
     # "a scripted query against it returns a result set matching a manual
@@ -221,6 +225,7 @@ def test_project_specific_count_matches_an_independently_derived_manual_count():
         )
         print(f"independent cross-check PASS: {generator_count} == {grep_count}")
 
+# oracle: SPECIFIED (hand-stated schema requirement)
 def test_location_never_carries_a_fragment_that_does_not_resolve_anywhere():
     # Final whole-branch review finding I-5, 2026-09-26, IMPORTANT: the
     # old `location` scheme (`constitution/groups/{group}.md#{id-with-

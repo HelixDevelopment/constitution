@@ -11,7 +11,22 @@
 # Usage   : bash scripts/hooks/test_label_sync_hooks.sh [--keep] [--fail-fast]
 #           --fail-fast  stop at the first FAIL (used by prove_hook_mutations.sh)
 #           env LS_TEST_BIN      reuse a prebuilt labelctl/label-busd dir
-#           env LS_LATENCY_MS    per-hook median latency bound (default 150)
+#           env LS_LATENCY_MS    per-hook median latency bound (default 150);
+#                                honoured ONLY with HELIX_TEST_MODE=1, else ignored
+#           env LS_LOAD_PER_CORE host-loaded threshold: 1-min loadavg / nproc
+#                                (default 0.25; honoured ONLY with HELIX_TEST_MODE=1).
+#                                Above it, a latency check whose WALL time misses the
+#                                bound reports SKIP reason=host_loaded (measured load
+#                                printed, never counted as PASS) PROVIDED the hook's
+#                                CPU time is within the bound; a CPU-time median at or
+#                                above the bound is a genuine regression and FAILs even
+#                                on a loaded host. At/below the threshold the wall bound
+#                                is strict. A latency that MEETS the bound is a PASS
+#                                whatever the load.
+#           env LS_LOADAVG_FILE  test-only loadavg source; honoured ONLY with
+#                                HELIX_TEST_MODE=1 AND a path under the temp
+#                                root (mirrors scripts/deps_manifest/
+#                                override_guard.sh), else /proc/loadavg.
 # Inputs  : the sibling scripts (read-only), a temp HOME + temp LABEL_SYNC_DIR.
 # Outputs : one PASS/FAIL line per assertion + a summary.
 # Exit    : 0 all assertions passed | 1 at least one failed | 2 environment
@@ -54,12 +69,15 @@ export LABEL_SYNC_CLAUDE_PID="$$"
 unset CLAUDE_CODE_SESSION_ID CLAUDE_PROJECT_DIR LABEL_SYNC_DISABLE \
       LABEL_SYNC_REQUEST_LEDGER LABEL_SYNC_HOOK_DEBUG CLAUDE_EFFORT CLAUDE_CODE_EFFORT AGENT_EFFORT CMA_EFFORT
 
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0
 ok() { # desc rc(0=pass)
   if [ "$2" -eq 0 ]; then PASS=$((PASS+1)); echo "✅ PASS  $1"
   else FAIL=$((FAIL+1)); echo "❌ FAIL  $1"
-    if [ -n "$FAILFAST" ]; then echo "label-sync hooks suite: $PASS passed, $FAIL failed (fail-fast)"; exit 1; fi
+    if [ -n "$FAILFAST" ]; then echo "label-sync hooks suite: $PASS passed, $FAIL failed, $SKIP skipped (fail-fast)"; exit 1; fi
   fi
+}
+skip() { # desc reason -- honest SKIP-with-reason (§11.4.3/§11.4.69); never counted as a PASS
+  SKIP=$((SKIP+1)); echo "⏭️  SKIP  $1 [reason=$2] (not counted as PASS)"
 }
 check() { local d="$1"; shift; "$@" >/dev/null 2>&1; ok "$d" $?; }
 eq()    { [ "$2" = "$3" ]; ok "$1 (got '$2' want '$3')" $?; }
@@ -309,7 +327,7 @@ done
 # for every assertion above, which proves the hooks have no daemon/socket dependence.
 
 # =========================================================================
-echo "== 8. latency bound (median of 5 per hook; bound ${LS_LATENCY_MS:-150} ms; load-aware) =="
+echo "== 8. latency bound (median of 5 per hook; default bound 150 ms, an override is honoured only under HELIX_TEST_MODE=1 and the effective bound is printed per check; load-aware) =="
 # Review-2 finding L: the wall-clock bound is enforced AS IS on an uncontended
 # host. Only when CPU contention is MEASURED during the run (the test's own
 # cgroup was throttled — nr_throttled grew — or system CPU pressure some avg10
@@ -334,15 +352,62 @@ LAT[subagent-stop]="$(lat label-sync-subagent-stop.sh "$(j SubagentStop '{"agent
 LAT[stop]="$(lat label-sync-stop.sh "$(j Stop '{}')")"
 th1="$(throttled)"; psi="$(cpupsi)"
 CONTENDED=""; { [ "${th1:-0}" -gt "${th0:-0}" ] 2>/dev/null || [ "${psi:-0}" -ge 10 ] 2>/dev/null; } && CONTENDED=1
-LB="${LS_LATENCY_MS:-150}"
+# verdict-affecting ambient overrides (a loosened bound or a raised load threshold turns FAIL into PASS/SKIP) are honoured
+# ONLY under HELIX_TEST_MODE=1 (scripts/lib/gate_env_override.sh); otherwise ignored with a note and the defaults apply.
+. "$CROOT/scripts/lib/gate_env_override.sh"
+cm_gate_env_set LB LS_LATENCY_MS 150 value
+cm_gate_env_set LOAD_THR LS_LOAD_PER_CORE 0.25 value
+loadavg_src() { # prints the loadavg file to read (override only under HELIX_TEST_MODE=1 + temp root)
+  local v="${LS_LOADAVG_FILE:-}" root real
+  if [ -n "$v" ]; then
+    root="$(readlink -m -- "${TMPDIR:-/tmp}" 2>/dev/null)"; real="$(readlink -m -- "$v" 2>/dev/null)"
+    if [ "${HELIX_TEST_MODE:-}" = "1" ] && [ -n "$root" ] && [ "$root" != "/" ] && [ "${real#"$root"/}" != "$real" ]; then
+      printf '%s\n' "$v"; return 0
+    fi
+    echo "loadavg_src: ignoring LS_LOADAVG_FILE (needs HELIX_TEST_MODE=1 and a path under the temp root)" >&2
+  fi
+  printf '%s\n' /proc/loadavg
+}
+host_load_per_core() { # -> "<load1> <ncpu> <1 if load1/ncpu > threshold else 0>"
+  local l n
+  l="$(awk '{print $1; exit}' "$(loadavg_src)" 2>/dev/null)"; n="$(nproc 2>/dev/null || echo 1)"
+  [ -n "$l" ] || { echo "0 $n 0"; return; }
+  awk -v l="$l" -v n="$n" -v t="$LOAD_THR" 'BEGIN{printf "%s %s %d\n", l, n, (l/n > t) ? 1 : 0}'
+}
+# lat_decide <wall_ms> <cpu_ms> <bound> <loaded 0|1> <contended ""|1> -> PASS | SKIP | CPU_PASS | FAIL
+lat_decide() {
+  if [ "$1" -lt "$3" ]; then echo PASS
+  elif [ "$2" -ge "$3" ]; then echo FAIL          # CPU-time median over the bound: a genuine regression, load or not
+  elif [ "$4" = 1 ]; then echo SKIP               # wall slow, CPU within bound, host loaded
+  elif [ -n "$5" ]; then echo CPU_PASS
+  else echo FAIL; fi
+}
+read -r LOAD1 NCPU LOADED <<<"$(host_load_per_core)"
 for k in "${!LAT[@]}"; do
   read -r w c <<<"${LAT[$k]}"
-  if [ "$w" -lt "$LB" ]; then ok "latency $k median ${w} ms < ${LB} ms (wall)" 0
-  elif [ -n "$CONTENDED" ]; then
-    [ "$c" -lt "$LB" ]; ok "latency $k: CPU contention measured (cgroup throttled ${th0}->${th1}, cpu psi avg10 ${psi}): wall ${w} ms, CPU-time median ${c} ms < ${LB} ms" $?
-  else ok "latency $k median ${w} ms < ${LB} ms (wall; no contention measured, cpu ${c} ms)" 1
-  fi
+  case "$(lat_decide "$w" "$c" "$LB" "$LOADED" "$CONTENDED")" in
+    PASS) ok "latency $k median ${w} ms < ${LB} ms (wall)" 0 ;;
+    SKIP) skip "latency $k: wall ${w} ms >= ${LB} ms but host loaded (loadavg1 ${LOAD1} / ${NCPU} cores > ${LOAD_THR}/core; cpu ${c} ms)" host_loaded ;;
+    CPU_PASS) ok "latency $k: CPU contention measured (cgroup throttled ${th0}->${th1}, cpu psi avg10 ${psi}): wall ${w} ms, CPU-time median ${c} ms < ${LB} ms" 0 ;;
+    *) ok "latency $k median ${w} ms < ${LB} ms (wall; load ${LOAD1}/${NCPU} cores not above ${LOAD_THR}/core, cpu ${c} ms)" 1 ;;
+  esac
 done
+# unit cases for the decision rule + the loadavg override guard (injected files, no wall-clock dependence)
+LA="$T/loadavg_inj"; printf '9.00 8.00 7.00 1/100 1\n' >"$LA"
+eq "latency rule: slow + loaded => SKIP" "$(lat_decide 170 100 150 1 '')" SKIP
+eq "latency rule: slow + not loaded + no contention => strict FAIL" "$(lat_decide 170 100 150 0 '')" FAIL
+eq "latency rule: slow + not loaded + CPU contention + cpu under bound => CPU_PASS" "$(lat_decide 170 100 150 0 1)" CPU_PASS
+eq "latency rule: slow wall + CPU median over the bound + loaded => FAIL (genuine regression, no SKIP)" "$(lat_decide 400 390 150 1 '')" FAIL
+eq "latency rule: slow wall + CPU median over the bound + contended => FAIL" "$(lat_decide 400 390 150 0 1)" FAIL
+eq "latency rule: fast => PASS even when loaded" "$(lat_decide 120 90 150 1 '')" PASS
+r="$(LS_LOADAVG_FILE="$LA" HELIX_TEST_MODE=1 host_load_per_core)"; set -- $r
+eq "injected loadavg 9.00 honoured (HELIX_TEST_MODE=1, temp path) => loaded flag" "$3" 1
+printf '0.01 0.01 0.01 1/100 1\n' >"$LA"
+r="$(LS_LOADAVG_FILE="$LA" HELIX_TEST_MODE=1 host_load_per_core)"; set -- $r
+eq "injected loadavg 0.01 => not loaded flag" "$3" 0
+printf '9999.00 8.00 7.00 1/100 1\n' >"$LA"
+eq "injected loadavg IGNORED without HELIX_TEST_MODE=1 (reads /proc/loadavg)" "$(LS_LOADAVG_FILE="$LA" loadavg_src 2>/dev/null)" /proc/loadavg
+eq "injected loadavg IGNORED outside the temp root" "$(LS_LOADAVG_FILE=/etc/hostname HELIX_TEST_MODE=1 loadavg_src 2>/dev/null)" /proc/loadavg
 
 # =========================================================================
 echo "== 9. toolkit wrapper (cma_label_hook.sh) =="
@@ -605,7 +670,7 @@ if [ -n "$have_flock" ]; then
   wait "$HOLD" 2>/dev/null
   check "F9 hooks pass --lock-timeout to every labelctl call (lib)" grep -q -- '--lock-timeout' "$HK/label-sync-lib.sh"
 else
-  echo "⚠️  SKIP  F9 lock-held tests: flock(1) absent (honest skip, §11.4.3)"
+  skip "F9 lock-held tests: flock(1) absent (honest skip, §11.4.3)" topology_unsupported
 fi
 
 # =========================================================================
@@ -1136,7 +1201,8 @@ check "R3.8b control: a plain skill is linked" test -L "$C23/skills/plain"
 
 # =========================================================================
 echo "----------------------------------------------------------------------"
-echo "label-sync hooks suite: $PASS passed, $FAIL failed"
+echo "label-sync hooks suite: $PASS passed, $FAIL failed, $SKIP skipped"
 [ "$FAIL" -eq 0 ] || exit 1
-echo "✅ ALL PASSED"
+if [ "$SKIP" -gt 0 ]; then echo "✅ NO FAILURES: $PASS passed, $SKIP skipped (skips are NOT passes; see SKIP lines above)"
+else echo "✅ ALL PASSED ($PASS passed, 0 skipped)"; fi
 exit 0

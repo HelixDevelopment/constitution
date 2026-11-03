@@ -145,5 +145,5 @@ if [ "$fail" -ne 0 ]; then
   echo "CM-JEV-WIRING: RED" >&2
   exit 1
 fi
-echo "CM-JEV-WIRING: GREEN"
+echo "CM-JEV-WIRING: GREEN (inputs: home=$JHOME detection=$DETECTION$([ -f "$DETECTION" ] && echo "" || echo " [absent: detection clauses skipped]"))"
 exit 0

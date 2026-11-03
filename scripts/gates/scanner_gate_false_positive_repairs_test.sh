@@ -4,8 +4,12 @@
 # (docs/design/canon_self_scan_triage_2026_10_31.md), covering
 # CM-DANGEROUS-COMBINATION-FAIL-CLOSED (§11.4.252) and
 # CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245):
-#   (a) third-party / separate-repository trees are pruned by default, with an
-#       explicit opt-in (--include-third-party / *_INCLUDE_THIRD_PARTY=1);
+#   (a) third-party trees are pruned by default, with an explicit opt-in
+#       (--include-third-party / *_INCLUDE_THIRD_PARTY=1). Operator decision
+#       2026-11-01: ONLY helix-deps.yaml deps marked `third_party: true` (their
+#       `path:`, else submodules/<name>) plus the directory names `third_party`
+#       and `site-packages` are pruned; a bare .gitmodules path (own-org
+#       submodule) is NOT pruned and is scanned;
 #   (b) the oracle matcher parses only the closed-set annotation grammar,
 #       never prose such as "Independent oracle: raw grep";
 #   (c) `except X: pass` after a terminal `assert False` in a test is the
@@ -25,6 +29,8 @@
 #   CM_REPAIR_SKIP_E2E=1      skip the canon-root end-to-end legs (mutation runs)
 # Exit: 0 all assertions hold; 1 otherwise. Side effects: mktemp -d sandbox only.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
+export ORACLE_GUARD_STRICT=1   # oracle gate is ratchet-by-default; these fixtures test strict mode
 
 HERE="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GD="${CM_REPAIR_TEST_GATE_DIR:-$HERE}"
@@ -75,12 +81,23 @@ mk_scope() { # dir : consumer-shaped root with a separate-repository subtree
     printf '%s' "$BADTEST" > "$d/submodules/vend/test_third.py"
     printf '%s' "$BADEXC" > "$d/submodules/vend/third.py"
     printf '[submodule "vend"]\n\tpath = submodules/vend\n\turl = git@example.invalid:o/vend.git\n' > "$d/.gitmodules"
+    cat > "$d/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: vend
+    ssh_url: git@example.invalid:o/vend.git
+    ref: abc
+    why: "x"
+    layout: grouped
+    third_party: true
+    licence: MIT
+YML
 }
 
 echo "== (a) third-party pruning: unit/integration =="
 S="$TMP/scope"; mk_scope "$S"
-expect_rc "oracle default prunes .gitmodules tree (golden-TRUE)" 0 "$ORACLE" --root "$S" --quiet
-expect_rc "dcfc   default prunes .gitmodules tree (golden-TRUE)" 0 "$DCFC" --root "$S" --quiet
+expect_rc "oracle default prunes third_party:true tree (golden-TRUE)" 0 "$ORACLE" --root "$S" --quiet
+expect_rc "dcfc   default prunes third_party:true tree (golden-TRUE)" 0 "$DCFC" --root "$S" --quiet
 expect_rc "oracle --include-third-party sees it (opt-in)" 1 "$ORACLE" --root "$S" --quiet --include-third-party
 expect_rc "dcfc   --include-third-party sees it (opt-in)" 1 "$DCFC" --root "$S" --quiet --include-third-party
 ORACLE_GUARD_INCLUDE_THIRD_PARTY=1 expect_rc "oracle env opt-in" 1 "$ORACLE" --root "$S" --quiet
@@ -129,12 +146,238 @@ C="$TMP/consumer"; mkdir -p "$C/constitution/scripts" "$C/app" "$C/submodules/li
 printf '%s' "$BADTEST" > "$C/constitution/test_k.py"; printf '%s' "$BADTEST" > "$C/submodules/lib/test_l.py"
 printf '%s' "$GOODTEST" > "$C/app/test_app.py"
 printf '[submodule "c"]\n\tpath = constitution\n\turl = x\n[submodule "l"]\n\tpath = submodules/lib\n\turl = y\n' > "$C/.gitmodules"
-expect_rc "consumer-shaped root: gitlinked trees pruned, app clean" 0 "$ORACLE" --root "$C" --quiet
+expect_rc "consumer-shaped root: gitlinked but NOT third_party trees ARE scanned (own-org)" 1 "$ORACLE" --root "$C" --quiet
+expect_out "…constitution/test_k.py reported" 'constitution/test_k\.py'
+expect_out "…submodules/lib/test_l.py reported" 'submodules/lib/test_l\.py'
+cat > "$C/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: lib
+    ssh_url: git@example.invalid:x/lib.git
+    ref: abc
+    why: "x"
+    layout: grouped
+    third_party: true
+    licence: MIT
+  - name: constitution
+    ssh_url: git@example.invalid:x/c.git
+    ref: abc
+    why: "x"
+    layout: flat
+    path: constitution
+    third_party: true
+    licence: MIT
+YML
+expect_rc "consumer-shaped root: third_party:true entries pruned, app clean" 0 "$ORACLE" --root "$C" --quiet
+# own-org submodule: in .gitmodules AND helix-deps WITHOUT third_party -> scanned
+OW="$TMP/ownorg"; mkdir -p "$OW/submodules/mine" "$OW/submodules/gm_only" "$OW/third_party/t" "$OW/pkg/site-packages/s"
+printf '%s' "$BADTEST" > "$OW/submodules/mine/test_m.py"; printf '%s' "$BADTEST" > "$OW/submodules/gm_only/test_g.py"
+printf '%s' "$BADTEST" > "$OW/third_party/t/test_t.py"; printf '%s' "$BADTEST" > "$OW/pkg/site-packages/s/test_s.py"
+printf '[submodule "mine"]\n\tpath = submodules/mine\n[submodule "gm_only"]\n\tpath = submodules/gm_only\n' > "$OW/.gitmodules"
+printf 'schema_version: 1\ndeps:\n  - name: mine\n    ssh_url: git@example.invalid:x/mine.git\n    ref: a\n    why: "x"\n    layout: grouped\n' > "$OW/helix-deps.yaml"
+expect_rc "own-org submodule scanned (golden-FALSE of the prune)" 1 "$ORACLE" --root "$OW" --quiet
+expect_out "…own-org helix-deps entry file reported" 'submodules/mine/test_m\.py'
+expect_out "…submodule absent from helix-deps.yaml is scanned" 'submodules/gm_only/test_g\.py'
+expect_noout "…directory name third_party pruned" 'third_party/t'
+expect_noout "…directory name site-packages pruned" 'site-packages'
+printf '%s' "$BADEXC" > "$OW/submodules/mine/m.py"; printf '%s' "$BADEXC" > "$OW/submodules/gm_only/g.py"
+expect_rc "dcfc own-org violation flagged" 1 "$DCFC" --root "$OW" --quiet
+expect_out "…dcfc names submodules/mine/m.py" 'submodules/mine/m\.py'
+expect_out "…dcfc names submodules/gm_only/g.py" 'submodules/gm_only/g\.py'
+# lib unit: exact prune list
+. "$GD/../lib/third_party_prune.sh"
+PL="$(cm_third_party_prune_paths "$H" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$PL" = "ext/bar site-packages submodules/tp third_party " ] && ok "lib unit: helix-deps prune list exact (+ dir names)" || bad "lib unit prune list: '$PL'"
+PL2="$(cm_third_party_prune_paths "$OW" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$PL2" = "site-packages third_party " ] && ok "lib unit: .gitmodules paths never pruned" || bad "lib unit gitmodules-only list: '$PL2'"
+# round 4: explicit `third_party: false` stays scanned; a trailing-slash path is normalised (reader + lib unit)
+TF="$TMP/tfalse"; mkdir -p "$TF"
+printf 'schema_version: 1\ndeps:\n  - name: mine\n    path: own/dir\n    third_party: false\n  - name: slashy\n    path: ext/baz/\n    third_party: true\n' > "$TF/helix-deps.yaml"
+TFL="$(cm_third_party_prune_paths "$TF" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$TFL" = "ext/baz site-packages third_party " ] && ok "lib unit: explicit third_party:false not pruned; trailing slash normalised" || bad "lib unit false/slash list: '$TFL'"
+# nested: own-org submodule's OWN manifest marks third_party (operator decision 2026-11-01)
+N="$TMP/nest"; mkdir -p "$N/submodules/eng/submodules/vend" "$N/submodules/eng/ext/zz" "$N/submodules/eng/submodules/own" "$N/submodules/eng/submodules/tpd" "$N/submodules/rootvend/submodules/deep" "$N/tests"
+printf '%s' "$BADTEST" > "$N/submodules/eng/submodules/vend/test_v.py"
+printf '%s' "$BADTEST" > "$N/submodules/eng/ext/zz/test_z.py"
+printf '%s' "$BADTEST" > "$N/submodules/eng/submodules/own/test_o.py"
+printf '%s' "$BADTEST" > "$N/submodules/eng/submodules/tpd/test_t.py"
+printf '%s' "$BADTEST" > "$N/submodules/rootvend/submodules/deep/test_d.py"
+cat > "$N/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: eng
+    ssh_url: git@github.com:o/eng.git
+    ref: a
+  - name: eng2
+    ssh_url: git@github.com:o/eng2.git
+    ref: a
+    path: libs/eng2
+  - name: rootvend
+    ssh_url: git@github.com:x/rootvend.git
+    ref: a
+    third_party: true
+YML
+cat > "$N/submodules/eng/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: vend
+    ssh_url: git@github.com:x/vend.git
+    ref: a
+    third_party: true
+  - name: zz
+    path: ext/zz
+    third_party: true
+  - name: own
+    ssh_url: git@github.com:o/own.git
+    ref: a
+  - name: evil
+    path: ../tests
+    third_party: true
+  - name: evil2
+    path: /abs/x
+    third_party: true
+YML
+printf 'schema_version: 1\ndeps:\n  - name: sneaky\n    third_party: true\n' > "$N/submodules/rootvend/helix-deps.yaml"
+mkdir -p "$N/libs/eng2/submodules/vendx"; printf '%s' "$BADTEST" > "$N/libs/eng2/submodules/vendx/test_x.py"
+printf 'schema_version: 1\ndeps:\n  - name: vendx\n    third_party: true\n' > "$N/libs/eng2/helix-deps.yaml"
+printf '%s' "$BADTEST" > "$N/tests/test_keep.py"
+NL="$(cm_third_party_prune_paths "$N" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$NL" = "libs/eng2/submodules/vendx site-packages submodules/eng/ext/zz submodules/eng/submodules/vend submodules/rootvend third_party " ] && ok "lib unit: nested third_party entries emitted with submodule prefix" || bad "lib unit nested list: '$NL'"
+case "$NL" in *"../"*|*" / "*|*submodules/eng/submodules/own*|*sneaky*) bad "lib unit nested: hostile/own-org/third-party-manifest leaked: '$NL'" ;; *) ok "lib unit nested: hostile paths dropped, own-org kept, pruned submodule's manifest not read" ;; esac
+run "$ORACLE" --root "$N" --quiet
+expect_noout "nested third_party tree pruned (oracle)" 'submodules/eng/submodules/vend|submodules/eng/ext/zz'
+expect_out "nested own-org (not marked) still scanned (oracle)" 'submodules/eng/submodules/own/test_o\.py'
+expect_out "nested unlisted submodules/* dir still scanned (oracle)" 'submodules/eng/submodules/tpd/test_t\.py'
+expect_out "hostile nested path does not prune first-party tests" 'tests/test_keep\.py'
+# toggling third_party flag flips the verdict
+sed -i 's/ref: a$/ref: a\n    third_party: true\n    licence: MIT/' "$OW/helix-deps.yaml"
+printf '%s' "$BADTEST" > "$OW/submodules/mine/test_m.py"
+run "$ORACLE" --root "$OW" --quiet
+expect_noout "…marking the entry third_party:true now prunes it" 'submodules/mine/'
+expect_out "…gm_only (still absent from helix-deps) stays scanned" 'submodules/gm_only/test_g\.py'
+
+echo "== (F1) manifest parsing: keys not substrings; symlink guard; depth cap =="
+K="$TMP/keys"; mkdir -p "$K/submodules"
+cat > "$K/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: ownc
+    ssh_url: git@github.com:o/ownc.git
+    layout: grouped   # own-org, so NOT third_party: true
+    why: "own-org; path: scripts and third_party: true appear only inside this text"
+  - name: tpc
+    ref: abc1234   # upstream docs path: scripts
+    third_party: true   # path: docs
+  - name: ownw
+    why: >
+      folded text that mentions
+      third_party: true
+      path: scripts
+    ref: a
+  - name: tpq
+    path: "ext/q"   # quoted + commented
+    third_party: "true"
+meta:
+    third_party: true
+    path: scripts
+YML
+KL="$(cm_third_party_prune_paths "$K" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$KL" = "ext/q site-packages submodules/tpc third_party " ] && ok "F1 lib unit: comment/value text never read as path:/third_party: keys; block ends at next top-level key" || bad "F1 lib unit prune list: '$KL'"
+# the real canon manifest has comment text such as 'third_party: true' / 'path: ...' (helix-deps.yaml ~95,110,267)
+CL="$(cm_third_party_prune_paths "$CANON" | LC_ALL=C sort | tr '\n' ' ')"
+case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) bad "F1 canon manifest: nested llama.cpp missing: '$CL'" ;; esac
+# symlink guard: an own-org-looking submodules/* symlink and a symlinked manifest are never followed
+L="$TMP/lnk"; mkdir -p "$L/submodules/real" "$TMP/lnk_out"
+printf 'schema_version: 1\ndeps:\n  - name: evilsym\n    third_party: true\n' > "$TMP/lnk_out/helix-deps.yaml"
+ln -s "$TMP/lnk_out" "$L/submodules/linkdir"
+printf 'schema_version: 1\ndeps: []\n' > "$L/helix-deps.yaml"
+ln -s "$TMP/lnk_out/helix-deps.yaml" "$L/submodules/real/helix-deps.yaml"
+LL="$(cm_third_party_prune_paths "$L" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$LL" = "site-packages third_party " ] && ok "F1 symlinked submodule dir and symlinked manifest are never followed" || bad "F1 symlink guard: '$LL'"
+# depth cap: manifests read at depth 0..3 only
+D="$TMP/depth"; p="$D"
+for lvl in root a b c d; do
+    [ "$lvl" = root ] || { p="$p/submodules/$lvl"; }
+    mkdir -p "$p"
+    printf 'schema_version: 1\ndeps:\n  - name: t\n    third_party: true\n' > "$p/helix-deps.yaml"
+done
+DL="$(cm_third_party_prune_paths "$D" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$DL" = "site-packages submodules/a/submodules/b/submodules/c/submodules/t submodules/a/submodules/b/submodules/t submodules/a/submodules/t submodules/t third_party " ] && ok "F1 depth cap: manifests read through depth 3, level-4 manifest not read" || bad "F1 depth cap list: '$DL'"
+
+echo "== (round 3) whole-list-item manifest parse; quoted '#'; root-anchored prune =="
+# I1: a dep may OPEN with any key (ssh_url: first, name later); fields never leak onto the previous dep
+W="$TMP/wholeitem"; mkdir -p "$W"
+cat > "$W/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - name: ownA
+    ssh_url: git@x:o/ownA.git
+    layout: grouped
+  - ssh_url: git@x:o/tpB.git
+    third_party: true
+    name: tpB
+  - ssh_url: git@x:o/ownC.git
+    path: src/ownC   # path first, no name
+    layout: grouped
+  - ref: abc
+    name: tpD
+    path: ext/tpd   # trailing comment is stripped
+    third_party: true
+  - ssh_url: "git@x:o/h.git"
+    path: "vend#x"   # a '#' inside quotes is NOT a comment (then dropped as unsafe), never truncated to "vend"
+    third_party: true
+    name: hashy
+transitive_handling:
+  recursive: true
+YML
+WL="$(cm_third_party_prune_paths "$W" | LC_ALL=C sort | tr '\n' ' ')"
+[ "$WL" = "ext/tpd site-packages submodules/tpB third_party " ] && ok "I1/M2 lib unit: dep opening with ssh_url:/ref:, any field order; quoted # kept (unsafe path dropped, not truncated)" || bad "I1/M2 prune list: '$WL'"
+# M3: a manifest-derived path prunes only <root>/<path>, never a same-named first-party dir deeper in the tree
+A="$TMP/anchored"; mkdir -p "$A/vend" "$A/app/vend" "$A/app/third_party_ok" "$A/other/third_party"
+printf 'schema_version: 1\ndeps:\n  - name: v\n    path: vend\n    third_party: true\n' > "$A/helix-deps.yaml"
+printf '%s' "$BADTEST" > "$A/vend/test_pruned.py"; printf '%s' "$BADTEST" > "$A/app/vend/test_first_party.py"; printf '%s' "$BADTEST" > "$A/other/third_party/test_namepruned.py"
+run "$ORACLE" --root "$A" --quiet
+expect_out "M3 oracle: first-party app/vend/ still scanned (single-segment path is root-anchored)" 'app/vend/test_first_party\.py'
+expect_noout "M3 oracle: <root>/vend pruned" '/vend/test_pruned\.py'
+expect_noout "M3 oracle: literal dir name third_party still pruned at any depth" 'test_namepruned'
+printf '%s' "$BADEXC" > "$A/vend/x.py"; printf '%s' "$BADEXC" > "$A/app/vend/y.py"
+run "$DCFC" --root "$A" --quiet
+expect_out "M3 dcfc: first-party app/vend/y.py still scanned" 'app/vend/y\.py'
+expect_noout "M3 dcfc: <root>/vend/x.py pruned" '/vend/x\.py'
 
 echo "== (a) security: hostile .gitmodules / helix-deps paths =="
 X="$TMP/sec"; mkdir -p "$X/tests" "$X/other"
 printf '%s' "$BADTEST" > "$X/tests/test_s.py"
 printf '[s "1"]\n\tpath = ../other\n[s "2"]\n\tpath = /\n[s "3"]\n\tpath = *\n[s "4"]\n\tpath = a b\n[s "5"]\n\tpath = -x\n[s "6"]\n\tpath = .\n[s "7"]\n\tpath = tests/../tests\n[s "8"]\n\tpath = ?est?\n[s "9"]\n\tpath = [t]ests\n' > "$X/.gitmodules"
+cat > "$X/helix-deps.yaml" <<'YML'
+schema_version: 1
+deps:
+  - {name: a, path: ../other, third_party: true}
+  - name: b
+    path: /
+    third_party: true
+  - name: c
+    path: "*"
+    third_party: true
+  - name: d
+    path: "a b"
+    third_party: true
+  - name: e
+    path: -x
+    third_party: true
+  - name: f
+    path: .
+    third_party: true
+  - name: g
+    path: tests/../tests
+    third_party: true
+  - name: h
+    path: ?est?
+    third_party: true
+  - name: i
+    path: "[t]ests"
+    third_party: true
+YML
 expect_rc "hostile paths never prune first-party code (oracle)" 1 "$ORACLE" --root "$X" --quiet
 expect_out "…tests/test_s.py still reported" 'tests/test_s\.py'
 printf '%s' "$BADEXC" > "$X/tests/s.py"
@@ -290,18 +533,19 @@ unset DANGEROUS_COMBO_PYTHON
 echo "== e2e: canon root + consumer-shaped root =="
 if [ "${CM_REPAIR_SKIP_E2E:-0}" != 1 ]; then
     run bash -c "cd '$TMP' && '$ORACLE' --root '$CANON' --quiet"
-    expect_noout "e2e canon: oracle output never names submodules/" 'submodules/'
+    expect_noout "e2e canon: oracle output never names third_party:true submodules" 'submodules/(superspec|open_design)/'
     ORC=$(printf '%s\n' "$OUT" | grep -c 'no oracle-strategy annotation')
     echo "     (oracle first-party missing-annotation count: $ORC)"
     run bash -c "cd '$TMP' && '$ORACLE' --root '$CANON' --quiet --include-third-party"
-    expect_out "e2e canon: opt-in includes submodules/" 'submodules/'
+    expect_out "e2e canon: opt-in includes third_party:true submodules" 'submodules/(superspec|open_design)/'
     run bash -c "cd '$TMP' && '$DCFC' --root '$CANON' --quiet"
-    expect_noout "e2e canon: dcfc output never names submodules/" 'submodules/'
+    expect_noout "e2e canon: dcfc output never names third_party:true submodules" 'submodules/(superspec|open_design)/'
 fi
 
 echo "== stress / performance budget / determinism x3 / idempotency =="
 P="$TMP/perf"; mkdir -p "$P/tests" "$P/submodules/big"
 printf '[s "b"]\n\tpath = submodules/big\n' > "$P/.gitmodules"
+printf 'schema_version: 1\ndeps:\n  - name: big\n    ssh_url: x\n    ref: a\n    why: x\n    layout: grouped\n    third_party: true\n    licence: MIT\n' > "$P/helix-deps.yaml"
 for i in $(seq 1 300); do
     { for j in $(seq 1 5); do printf '# oracle: SPECIFIED\ndef test_%s_%s():\n    assert True\n\n' "$i" "$j"; done; } > "$P/tests/test_$i.py"
 done

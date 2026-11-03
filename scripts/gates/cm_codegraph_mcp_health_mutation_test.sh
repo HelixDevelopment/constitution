@@ -20,6 +20,7 @@
 # Side-effects: temp dir under $TMPDIR (trap-cleaned; stray fixture processes are killed). Dependencies: bash, python3, git, sed, cmp,
 #   a stock codegraph 1.6.x install. Classification: universal (§11.4.17).
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 CGD="$(cd "$here/../codegraph" && pwd)"
 GATE="$here/cm_codegraph_mcp_health.sh"; TOOL="$CGD/codegraph_mcp_health.py"
@@ -224,7 +225,9 @@ mut_tool M10-drift-not-reported 's/    if heal and drift:/    if False:/' && { T
   OUT="$(HELIX_CODEGRAPH_RUNNER_DIR="$tmp/runners_drift3" TOOL_UNDER_TEST="$TOOL_UNDER_TEST" tool "$P" --heal)"; grep -q '^HEAL A3 REFUSED NEEDS-PATCH-UPDATE' <<<"$OUT" && fail "mutant M10-drift-not-reported SURVIVED" || ok "mutant M10-drift-not-reported killed"; unset TOOL_UNDER_TEST; }
 export CG_HEALTH_TOOL="$TOOL"
 # gate mutants
-mut_gate() { local m="$tmp/mut/$1"; mkdir -p "$m"; cp "$GATE" "$m/g.sh"; sed -i "$2" "$m/g.sh"; cmp -s "$m/g.sh" "$GATE" && { fail "gate mutant $1 did not apply"; return 1; }; GATE_UNDER_TEST="$m/g.sh"; return 0; }
+# the gate copy sits in a scripts/gates dir next to the real guard library (scripts/lib/gate_env_override.sh), so the
+# test-mode CG_HEALTH_TOOL override is honoured exactly as for the real gate (a copy without the library fails closed)
+mut_gate() { local m="$tmp/mut/$1"; mkdir -p "$m/scripts/gates" "$m/scripts/lib"; cp "$here/../lib/gate_env_override.sh" "$m/scripts/lib/"; ln -s "$CGD" "$m/scripts/codegraph"; cp "$GATE" "$m/scripts/gates/g.sh"; sed -i "$2" "$m/scripts/gates/g.sh"; cmp -s "$m/scripts/gates/g.sh" "$GATE" && { fail "gate mutant $1 did not apply"; return 1; }; GATE_UNDER_TEST="$m/scripts/gates/g.sh"; return 0; }
 mut_gate G1-no-roundtrip-evidence-required 's/if grep -q .^HEALTH H1 PASS . <<<"$out" \&\& grep -q .^HEALTH H8 PASS . <<<"$out"; then/if true; then/' \
   && { P="$tmp/cases/TOOL-EXITS-0-WITHOUT-ROUNDTRIP"; CG_HEALTH_TOOL="$tmp/tool_noroundtrip.py" g "$P"; [ "$GRC" = 2 ] && fail "gate mutant G1-no-roundtrip-evidence-required SURVIVED" || ok "gate mutant G1-no-roundtrip-evidence-required killed"; }
 mut_gate G2-busy-reads-as-pass 's/^  4) echo .*$/  4) echo "PASS"; exit 0 ;;/' \

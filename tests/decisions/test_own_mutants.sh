@@ -6,6 +6,7 @@
 # DEC_MUTANTS_APPLY_ONLY=1 only checks that each mutant still applies to the engine (no suite run).
 # A mutant whose search text is gone (a stale anchor after an engine change) is NOT-APPLIED: listed by name and the run FAILS.
 set -u
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 here="$(cd "$(dirname "$0")" && pwd)"; repo="$(cd "$here/../.." && pwd)"
 . "$repo/scripts/lib/safe_rm.sh"
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/dec_own_mut.XXXXXX")" || exit 1

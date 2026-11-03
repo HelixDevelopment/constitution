@@ -31,7 +31,14 @@ DEFAULT_DET="$(jev_detection_file)"; [ -z "$ROOT_ARG" ] || DEFAULT_DET="${ROOT_A
 DETECTION="${JEV_DETECTION_FILE:-$DEFAULT_DET}"
 WINDOW_START="${JEV_EVIDENCE_WINDOW_START:-0}"
 ROOT=""   # resolved after clause 1 proved the record exists (a cd into an absent dir only produced noise)
-PROBE="${JEV_PROBE_CMD:-}"
+# verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+# the probe decides reachability claims: an ambient probe that always answers "reachable" would PASS. Honoured when it
+# resolves to the canon's own scripts/jev/jev-probe.sh (what bootstrap passes), or in test mode (temp root / gate fixtures).
+_jd_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cm_gate_env_set PROBE JEV_PROBE_CMD "" path --trusted "$_jd_here/../jev/jev-probe.sh" --test-root "$_jd_here/fixtures"
 
 fail=0
 err() { printf 'CM-JEV-DETECTION FAIL: %s\n' "$*" >&2; fail=1; }
@@ -39,6 +46,10 @@ err() { printf 'CM-JEV-DETECTION FAIL: %s\n' "$*" >&2; fail=1; }
 clause_start() { _f0=$fail; }
 ok()  { [ "$fail" = "$_f0" ] && printf 'CM-JEV-DETECTION ok: %s\n' "$*" >&2; return 0; }
 note() { printf 'CM-JEV-DETECTION NOTE: %s\n' "$*" >&2; }
+# blind_or_note: a cross-check that could not run is NOT evidence of consistency. Outside HELIX_TEST_MODE=1 it makes the
+# verdict BLIND (rc 2, never GREEN, §11.4.201(6)); under the documented test mode it stays a NOTE for fixtures.
+blind=0; swallowed=0; _llm_path="none"
+blind_or_note() { if [ "${HELIX_TEST_MODE:-}" = "1" ]; then swallowed=1; note "$*"; else printf 'CM-JEV-DETECTION BLIND-REASON: %s\n' "$*" >&2; blind=1; fi; }
 _f0=0
 
 # Contract (producer = scripts/jev/bootstrap.sh):
@@ -80,7 +91,7 @@ else
   [ "$bad" = "$n" ] || err "schema: some endpoints lack id/source/model, have reachable not true|false|null, lack probed_at (probed entries), or are unprobed (null) without reachable_basis"
 fi
 ok "clause 1: record parses, schema-valid ($n endpoints)"
-ROOT="${JEV_FIXTURE_ROOT:-$(cd "$(dirname "$DETECTION")" 2>/dev/null && pwd)}"
+cm_gate_env_set ROOT JEV_FIXTURE_ROOT "$(cd "$(dirname "$DETECTION")" 2>/dev/null && pwd)" path --test-root "$_jd_here/fixtures"
 unprobed=$(jq '[.endpoints[]? | select(.reachable == null)] | length' "$DETECTION" 2>/dev/null || echo 0)
 if [ "${unprobed:-0}" -gt 0 ]; then
   note "$unprobed of $n endpoint(s) have reachable=null (NOT probed): schema-valid, but 'unprobed' is not 'verified'"
@@ -191,33 +202,38 @@ ok "clause 8: no hosted endpoint with a real key is unproven"
 # decide service means "no endpoints" is wrong. llmctl absent/unparsable = NOTE only.
 clause_start
 if [ "$n" -eq 0 ]; then
-  if command -v llmctl >/dev/null 2>&1; then
-    _tmo="${JEV_TOOL_TIMEOUT:-30}"
+  if ! declare -F jev_usable_live >/dev/null 2>&1; then
+    # the shared decision library failed to load (a `.` failure is non-fatal): the contradiction check is disabled
+    blind_or_note "scripts/jev/lib_decide.sh missing or unreadable (jev_usable_live undefined): the empty record cannot be cross-checked"
+  elif command -v llmctl >/dev/null 2>&1; then
+    _llm_path="$(command -v llmctl)"
+    cm_gate_env_set _tmo JEV_TOOL_TIMEOUT 30 value   # a tiny timeout would skip the cross-check (note only)
     if command -v timeout >/dev/null 2>&1; then _run() { timeout --kill-after=2 "$_tmo" "$@"; }; else _run() { "$@"; }; fi
     st="$(_run llmctl decide status --json 2>/dev/null)"; _src=$?
     if [ "$_src" -eq 124 ] || [ "$_src" -eq 137 ]; then
-      note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"
-      st=""
-    else
-      st="$(printf '%s' "$st" | jq -c '.' 2>/dev/null)" || st=""
-    fi
-    if [ -z "$st" ]; then
-      case "$_src" in 124|137) : ;; *) note "llmctl decide status gave no parsable JSON: the empty record cannot be cross-checked" ;; esac
+      blind_or_note "llmctl decide status timed out after ${_tmo}s: the empty record cannot be cross-checked"
+    elif [ "$_src" -ne 0 ]; then
+      # valid JSON next to a non-zero exit (for example {"error":"daemon down"}) is an error report, not a registry
+      blind_or_note "llmctl decide status exited $_src (output is not a registry answer): the empty record cannot be cross-checked"
+    elif ! st="$(printf '%s' "$st" | jq -c '.' 2>/dev/null)" || [ -z "$st" ]; then
+      blind_or_note "llmctl decide status gave no parsable JSON: the empty record cannot be cross-checked"
+    elif ! printf '%s' "$st" | jq -e 'type == "object" and (.profiles | type == "array")' >/dev/null 2>&1; then
+      blind_or_note "llmctl decide status JSON has the wrong shape (want an object with an array .profiles): the empty record cannot be cross-checked"
     else
       cap="$(_run llmctl decide capacity --json 2>/dev/null | jq -c '.' 2>/dev/null)" || cap=""
       [ -n "$cap" ] || cap='{}'
       # A gateway with nothing behind it, and a profile that speaks the jev-verdict protocol (decide-tiny has no
       # driver and is not a usable decision endpoint), are the two LAWFUL empty states. Everything else running is a
       # contradiction. A running profile whose protocol is unknown is counted live (conservative).
-      # shellcheck source=../jev/lib_decide.sh
-      . "$(dirname "$0")/../jev/lib_decide.sh"
-      live="$(jev_usable_live "$st" "$cap")"
-      if [ -n "$live" ]; then
+      live="$(jev_usable_live "$st" "$cap")"; _lrc=$?
+      if [ "$_lrc" -ne 0 ]; then
+        blind_or_note "jev_usable_live could not read the llmctl status (rc $_lrc): the empty record cannot be cross-checked"
+      elif [ -n "$live" ]; then
         err "contradiction: the record lists 0 endpoints but llmctl reports live decision infrastructure ($live) - re-run detection (§11.4.279(A), false-null §11.4.201(6))"
       fi
     fi
   else
-    note "llmctl not on PATH: the empty record cannot be cross-checked against llmctl's registry"
+    blind_or_note "llmctl not on PATH: the empty record cannot be cross-checked against llmctl's registry"
   fi
 fi
 ok "clause 7: empty record consistent with llmctl's registry (or n/a: $n endpoints)"
@@ -226,5 +242,13 @@ if [ "$fail" -ne 0 ]; then
   echo "CM-JEV-DETECTION: RED" >&2
   exit 1
 fi
-echo "CM-JEV-DETECTION: GREEN"
+if [ "$blind" -ne 0 ]; then
+  echo "CM-JEV-DETECTION BLIND: the empty record could not be cross-checked against llmctl (rc 2, never GREEN); record read: $DETECTION" >&2
+  exit 2
+fi
+if [ "$swallowed" -ne 0 ]; then
+  echo "CM-JEV-DETECTION: GREEN (TEST-MODE: the empty-record cross-check was SKIPPED, not passed; record read: $DETECTION; llmctl consulted: $_llm_path)"
+else
+  echo "CM-JEV-DETECTION: GREEN (record read: $DETECTION; llmctl consulted: $_llm_path)"
+fi
 exit 0

@@ -69,7 +69,9 @@ SUM_ENGINE="$(sha256sum "$ENGINE" | cut -d' ' -f1)"
 TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cps_accounting_mut.XXXXXX")" || exit 2
 trap 'rm -rf "$TMPD"' EXIT INT TERM
 SB="$TMPD/gates"; ROOTD="$TMPD/root"; STUBPACK="$TMPD/stub_pack.tsv"
-mkdir -p "$SB/lib" "$ROOTD"
+mkdir -p "$SB/lib" "$ROOTD" "$TMPD/lib"
+# the engine resolves the env-override guard at $SB/lib/../../lib (scripts/lib/gate_env_override.sh): without it the stub-pack override is ignored (fail closed)
+cp "$HERE/../lib/gate_env_override.sh" "$TMPD/lib/"
 cp "$ENGINE" "$HERE/lib/pointer_carrier.sh" "$HERE/lib/covenant_propagation_mutation_engine.sh" "$SB/lib/"
 cp "$PACK" "$WRAP" "$MWRAP" "$SB/"
 printf 'CM-COVENANT-114-999-PROPAGATION\t11.4.999\n' > "$STUBPACK"
@@ -122,11 +124,11 @@ PY
 run() {
     local out
     if [ "$1" = 1 ]; then
-        out="$(env -u COVENANT_PROPAGATION_CARRIERS COVENANT_PROPAGATION_ANCHORS="$STUBPACK" \
+        out="$(env -u COVENANT_PROPAGATION_CARRIERS HELIX_TEST_MODE=1 COVENANT_PROPAGATION_ANCHORS="$STUBPACK" \
                COVENANT_PROPAGATION_SUITE_INNER=1 bash "$SB_SUITE" gates --root "$ROOTD" 2>&1)"; R_RC=$?
     else
         out="$(env -u COVENANT_PROPAGATION_CARRIERS -u COVENANT_PROPAGATION_SUITE_INNER \
-               COVENANT_PROPAGATION_ANCHORS="$STUBPACK" bash "$SB_SUITE" gates --root "$ROOTD" 2>&1)"; R_RC=$?
+               HELIX_TEST_MODE=1 COVENANT_PROPAGATION_ANCHORS="$STUBPACK" bash "$SB_SUITE" gates --root "$ROOTD" 2>&1)"; R_RC=$?
     fi
     R_TALLY="$(printf '%s\n' "$out" | sed -n 's/^suite(gates): .*, \([0-9]*\) non-zero.*/\1/p' | tail -1)"
     R_ST="$(printf '%s\n' "$out" | awk '$1=="CM-COVENANT-PROPAGATION-ENGINE-SELFTEST"{print $2}' | tail -1)"

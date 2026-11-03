@@ -17,6 +17,7 @@ def _gen(tmp):
     r = _run(["generate"] + _args(tmp))
     assert r.returncode == 0, r.stderr
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected generator behaviour)
 def test_n1_check_reports_orphaned_sibling_exports():
     with tempfile.TemporaryDirectory() as tmp:
         _gen(tmp)
@@ -31,6 +32,7 @@ def test_n1_check_reports_orphaned_sibling_exports():
         _gen(tmp)
         assert os.path.exists(orphan), "generate must not delete orphaned siblings"
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected generator behaviour)
 def test_n1_check_ignores_siblings_of_live_groups():
     with tempfile.TemporaryDirectory() as tmp:
         _gen(tmp)
@@ -41,6 +43,7 @@ def test_n1_check_ignores_siblings_of_live_groups():
         r = _run(["check"] + _args(tmp))
         assert r.returncode == 0, r.stderr
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected generator behaviour)
 def test_n2_generate_removes_stale_md():
     with tempfile.TemporaryDirectory() as tmp:
         _gen(tmp)
@@ -50,6 +53,7 @@ def test_n2_generate_removes_stale_md():
         _gen(tmp)
         assert not os.path.exists(stale), "stale .md must be removed by generate"
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected generator behaviour)
 def test_n2_check_detects_stale_md():
     with tempfile.TemporaryDirectory() as tmp:
         _gen(tmp)
@@ -59,6 +63,7 @@ def test_n2_check_detects_stale_md():
         assert r.returncode in (1, 4), (r.returncode, r.stderr)
         assert "stale_group.md" in r.stderr, r.stderr
 
+# oracle: SPECIFIED (hand-built source trees with hand-stated expected generator behaviour)
 def test_n5_scalar_or_list_generated_from_is_controlled_divergence():
     for bad in ("scalar", ["a", "b"]):
         with tempfile.TemporaryDirectory() as tmp:

@@ -22,22 +22,28 @@ jev_decide_services() {
 # jev_running_profiles <status-json> <capacity-json>
 #   -> one line per profile the scheduler reports running:  profile TAB protocol
 jev_running_profiles() {
+  # shape guard (N2): a status that is not an object with an ARRAY .profiles is NOT "nothing running" -- it is unreadable
+  # (rc 3, nothing printed), and jq errors are no longer discarded.
+  printf '%s' "$1" | jq -e 'type == "object" and (.profiles | type == "array")' >/dev/null 2>&1 || return 3
   jq -nr --argjson st "$1" --argjson cap "${2:-{\}}" '
     def proto($p): (($cap.decision_instances // {})[$p].protocol // "");
-    $st.profiles[]? | select(.running == true) | [.profile, proto(.profile)] | @tsv' 2>/dev/null
+    $st.profiles[] | select(.running == true) | [.profile, proto(.profile)] | @tsv' || return 3
 }
 
 # jev_usable_live <status-json> <capacity-json> -> comma list "profile:X,service:NAME" of usable live infrastructure
+# rc 3 (and no list) when the status JSON cannot be read: the caller must treat that as BLIND, never as "nothing live".
 jev_usable_live() {
-  local out="" n p u proto
+  local out="" n p u proto rp sv
+  rp="$(jev_running_profiles "$1" "${2:-{\}}")" || return 3
   while IFS=$'\t' read -r p proto; do
     [ -n "$p" ] || continue; [ "$proto" = "jev-verdict" ] && continue
     out="${out:+$out,}profile:$p"
-  done < <(jev_running_profiles "$1" "${2:-{\}}")
+  done <<<"$rp"
+  sv="$(jev_decide_services "$1" "${2:-{\}}")" || return 3
   while IFS=$'\t' read -r n p u proto; do
     [ -n "$n" ] || continue; [ "$proto" = "jev-verdict" ] && continue
     out="${out:+$out,}service:$n"
-  done < <(jev_decide_services "$1" "${2:-{\}}")
+  done <<<"$sv"
   printf '%s' "$out"
 }
 

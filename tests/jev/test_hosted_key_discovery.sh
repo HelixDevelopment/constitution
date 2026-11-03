@@ -14,6 +14,7 @@
 #   K11 H5 bootstrap reads the cache where claude-providers sync-jev really writes
 # Keys are DUMMY values assembled from fragments; the control-needle scan proves the scan can see them.
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES="$HERE/fixtures"
 REPO="$(cd "$HERE/../.." && pwd)"

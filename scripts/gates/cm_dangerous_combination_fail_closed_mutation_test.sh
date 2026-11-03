@@ -373,6 +373,7 @@
 # Classification: universal (§11.4.17).
 
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE_SCRIPT="${SCRIPT_DIR}/cm_dangerous_combination_fail_closed.sh"
@@ -645,7 +646,18 @@ else
     rc=1
 fi
 
-_hl="$(sed -n 's/^HEADER_LINES=\([0-9][0-9]*\)$/\1/p' "$GATE_SCRIPT" | head -1)"
+_hl="$(awk '/^# Classification:/{print NR; exit}' "$GATE_SCRIPT")"
+# P13b: the gate must DERIVE HEADER_LINES (no stale hand-count) and --help must end on that line.
+if grep -Eq '^HEADER_LINES=[0-9]+$' "$GATE_SCRIPT"; then
+    echo "❌ META FAIL: P13 HEADER_LINES is a hand-counted literal again — it can go stale silently"; rc=1
+fi
+_help_last="$(bash "$GATE_SCRIPT" --help 2>/dev/null | tail -1)"
+_cls_text="$(sed -n "${_hl}p" "$GATE_SCRIPT" | sed 's/^# \{0,1\}//')"
+if [ -n "$_hl" ] && [ "$_help_last" = "$_cls_text" ]; then
+    echo "✅ META OK:   P13 --help ends exactly on the Classification line (${_hl})"
+else
+    echo "❌ META FAIL: P13 --help last line '${_help_last}' != Classification line ${_hl} '${_cls_text}'"; rc=1
+fi
 _at_hl="$(sed -n "${_hl}p" "$GATE_SCRIPT")"
 _after_hl="$(sed -n "$(( _hl + 1 ))p" "$GATE_SCRIPT")"
 case "${_at_hl}|${_after_hl}" in

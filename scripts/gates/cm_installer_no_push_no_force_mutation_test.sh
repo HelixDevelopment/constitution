@@ -324,7 +324,7 @@ run "R11 mutant M10: hi_marker_path returns .gitmodules" 1 "$d"
 # variable that is the target of a sanctioned redirection / file command / rm / chmod / mkdir / rmdir entry, plus the
 # marker-path helper) is re-pointed at a file the user owns by one extra binding in its function; each MUST fail (a).
 # Control needles: the census is not empty, and it contains the marker variables the reviewer's M6-M10 re-pointed.
-specs="$(CM_NOPUSH_INVENTORY=1 CM_NOPUSH_SPECS=1 bash "$gate" --file "$inst" --file "$upd" 2>/dev/null | grep '^SPEC ')"
+specs="$(HELIX_TEST_MODE=1 CM_NOPUSH_INVENTORY=1 CM_NOPUSH_SPECS=1 bash "$gate" --file "$inst" --file "$upd" 2>/dev/null | grep '^SPEC ')"
 nspec="$(printf '%s\n' "$specs" | grep -c '^SPEC ')"
 [ "$nspec" -ge 40 ] && printf '%s\n' "$specs" | grep -q '^SPEC install_constitution.sh hi_marker_set pend$' \
   && printf '%s\n' "$specs" | grep -q '^SPEC update_constitution.sh - PEND$' || { echo "META: variable census blind ($nspec specs)" >&2; exit 2; }

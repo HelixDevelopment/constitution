@@ -138,8 +138,12 @@ set -uo pipefail
 GATE="CM-KILLPG-PGID-GUARD"
 ANCHOR="11.4.263"
 
-root="${KILLPG_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
-window="${KILLPG_GUARD_WINDOW:-6}"
+# verdict-affecting ambient overrides are guarded (11.4.276 r8): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
+cm_gate_env_set window KILLPG_GUARD_WINDOW 6 value
 quiet=0
 
 while [ $# -gt 0 ]; do
@@ -177,8 +181,9 @@ else
     echo "${GATE}: scan root not found: $root" >&2; exit 2
 fi
 
-exts="${KILLPG_GUARD_EXT:-py go rs c cc cpp h hpp sh bash}"
-excludes="${KILLPG_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
+cm_gate_env_set exts KILLPG_GUARD_EXT "py go rs c cc cpp h hpp sh bash" value
+cm_gate_env_set excludes KILLPG_GUARD_EXCLUDE ".git node_modules vendor .venv __pycache__ scripts/gates out build dist" value
+[ -z "${CM_GATE_OVERRIDES_HONOURED:-}" ] || echo "⚠ ${GATE}: NOTE — test-mode override(s) honoured: ${CM_GATE_OVERRIDES_HONOURED} (HELIX_TEST_MODE=1; never a production verdict)"
 
 # ── Build the `find` file-selector predicate (extensions) ──────────────────
 find_name_expr=()
@@ -885,7 +890,9 @@ guarded=0
 allowed_n=0
 # Consumer DATA (§11.4.35): extra path globs (relative to the scan root) that may carry the audited marker.
 # Read into an ARRAY: a glob such as '*' must stay a pattern and never expand against the cwd.
-read -r -a allow_globs <<<"${KILLPG_GUARD_ALLOW_PATHS:-}"
+cm_gate_env_set _allow_paths KILLPG_GUARD_ALLOW_PATHS "" value
+read -r -a allow_globs <<<"${_allow_paths:-}"
+case ",${CM_GATE_OVERRIDES_HONOURED:-}," in *,KILLPG_GUARD_ALLOW_PATHS,*) echo "⚠ ${GATE}: NOTE — test-mode override KILLPG_GUARD_ALLOW_PATHS honoured (HELIX_TEST_MODE=1; never a production verdict)" ;; esac
 
 # allow_path_ok <relative-path>  — the audited allow marker is honoured ONLY on a test path:
 #   a `tests`/`test`/`testing` directory component, a `test_*` basename, a `*_test.*`/`*_tests.*` basename,

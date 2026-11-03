@@ -6,6 +6,7 @@ from anchor_lib import extract_anchors
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 
+# oracle: INVARIANT (generate then extract must preserve each anchor body byte for byte)
 def test_sample_anchors_byte_identical_after_generate():
     with open(SRC) as f:
         pre_text = f.read()
@@ -65,6 +66,7 @@ def test_sample_anchors_byte_identical_after_generate():
 # T011b (FR-005 fault-injection Checked-by clause, /speckit-analyze finding E2):
 # build_records already implements the duplicate-id sys.exit(3) path (T011) but
 # shipped with no test proving it.
+# oracle: SPECIFIED (hand-stated expected exit status and diagnostic)
 def test_duplicate_anchor_id_exits_3_naming_the_duplicate():
     with tempfile.TemporaryDirectory() as tmp:
         with open(SRC) as f:

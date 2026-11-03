@@ -57,15 +57,59 @@
 #     --include-third-party
 #                    also scan third-party / separate-repository trees (opt-in;
 #                    default prunes them, see "Scope" below)
+#     --strict       legacy absolute mode: every unannotated test function FAILs (no baseline
+#                    needed). Also ORACLE_GUARD_STRICT=1. Used by fixtures/mutation tests.
+#     --baseline <f> ratchet baseline file (default: <root>/config/oracle_ratchet_baseline.txt,
+#                    or $ORACLE_GUARD_BASELINE -- the env form is honoured ONLY with HELIX_TEST_MODE=1 and a path under the temp root; the verdict line prints baseline= and overrides=)
+#     --adopt-new-files --reason "<text>"  add baseline entries ONLY for files without one (never raises/lowers an existing entry; audited append to config/oracle_ratchet_adoptions.log; no --reason = refused rc=2)
+#     --write-baseline  create the baseline from the current counts, or LOWER an existing one
+#                    (refuses, rc=1, when any file's count is above its baseline)
+#     --base <ref>   git ref the NEW/MODIFIED-function check diffs against. Default (and the ONLY
+#                    ceiling): the OLDEST merge-base of HEAD with @{upstream} or any remote-tracking
+#                    <remote>/main|master (multi-upstream: remotes may be github_x etc.). --base may only be
+#                    that base or OLDER (an ancestor of HEAD not newer than it); anything newer, or
+#                    unresolvable, is refused (rc 2). There is NO environment override (ORACLE_GUARD_BASE is
+#                    ignored with a note). With no remote main sharing history with HEAD the check is
+#                    BLIND (rc 2), never a sliding HEAD~1. --adopt-new-files forbids --base entirely and
+#                    refuses any file whose unannotated functions are NEW/MODIFIED relative to the base.
+#                    The effective base is printed in the verdict line (base=<sha12>), with the remote ref that selected it
+#                    (via=<ref>) and rule3=evaluated|skipped (skipped = not a git tree: the new/modified-function check did not run).
 #     -h|--help      print this header
 #
+# ── Ratchet mode (default; operator decision 2026-11-01) ────────────────────
+# Brownfield adoption (§11.4.66/§11.4.224(E), the CM-ZERO-FINDINGS-MONOTONE-RATCHET pattern): a checked-in
+# baseline `<relative-path><TAB><count>` records, per file, how many test functions lack a valid oracle
+# annotation. Rules, each independent:
+#   (1) a file whose live unannotated count is ABOVE its baseline (absent file = 0) FAILs;
+#   (2) a count BELOW the baseline passes and prints how to lower it (`--write-baseline`) -- the baseline
+#       may only decrease; a baseline entry for a vanished file gets the same note;
+#   (3) every NEW or MODIFIED test function (added lines of `git diff <base>` -- committed since the base,
+#       staged and unstaged -- plus every line of an untracked file) MUST carry a valid annotation, even
+#       when its file has baseline slack; UNTOUCHED legacy tests are never failed by (3) (golden-FALSE);
+#   (4) a MISSING or malformed baseline is a config error (rc=2, "BLIND"), never a silent pass;
+#   (5) outside a git repository (3) cannot be evaluated and is reported as SKIPPED, not passed.
+# Deletion-only hunks (F2): a hunk that only deletes lines adds no function and is ignored, EXCEPT when the removed
+# lines contain an `oracle:` annotation and no `def test` -- the annotation was stripped from a function that stays,
+# so the neighbouring function counts as MODIFIED and must be annotated again.
+# Honest limit (F4): rule (3) diffs the scanned repo only; it cannot see INSIDE an own-org submodule's
+# contents (a gitlink bump shows as one changed line), so new/modified test functions in a baseline-covered
+# submodule are held only by that submodule's own ratchet/count rule (1), not by rule (3). Every adoption log
+# line carries `limit=submodule_contents_not_diffed`. Content pushed to the upstream main is trusted by the
+# adoption base (it was reviewed at push time); only unpushed/uncommitted content is checked.
+# Annotation zone (delta review 2026-11-03): above a def only comment-only/decorator lines at the def own
+# indentation count; the trailing `# oracle:` of the previous function last body line never annotates the next def.
+# Honest limit: a pure `git mv` of a test file (rule 3 sees every line as new in the new path) needs
+# --adopt-new-files --reason "..." to carry the old count over; the ratchet never follows renames by itself.
+# Honest limit: a legacy function edited without annotation is "modified" and must be annotated; a baseline
+# raised by hand is only caught by review/VCS history (stateless check, like the zero-findings ratchet).
+#
 # ── Scope: third-party trees are pruned by default (triage 2026-10-31) ──────
-# Trees the scanned repository does not own are pruned: every `path =` of the
-# root `.gitmodules` (each is a separate repository that adopts this gate on
-# its own) and every helix-deps.yaml dep marked `third_party: true` (its `path:`
-# or `submodules/<name>`), resolved by scripts/lib/third_party_prune.sh; plus
-# the directory names `third_party` and `site-packages`. Unsafe manifest paths
-# are dropped, never interpreted. Opt back in with --include-third-party or
+# Only trees the scanned repository does not own are pruned (operator decision
+# 2026-11-01): every helix-deps.yaml dep marked `third_party: true` (its `path:`
+# or `submodules/<name>`), resolved by scripts/lib/third_party_prune.sh, plus
+# the directory names `third_party` and `site-packages`. `.gitmodules` paths
+# are NOT pruned: own-org submodules are scanned. Unsafe manifest paths are
+# dropped, never interpreted. Opt back in with --include-third-party or
 # ORACLE_GUARD_INCLUDE_THIRD_PARTY=1 (the default prune list below still
 # applies; ORACLE_GUARD_EXCLUDE is additive to the manifest-derived prune).
 #
@@ -106,10 +150,12 @@
 #   mutation: cm_oracle_strategy_named_and_independent_mutation_test.sh).
 #
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 — PASS (every test function names a valid closed-set oracle strategy,
-#       or SKIP: no candidate test files / no test functions found).
-#   1 — FAIL (a test function has no oracle annotation, or an unknown one).
-#   2 — environment / argument error.
+#   0 — PASS (strict: every test function names a valid closed-set oracle strategy; ratchet: no file
+#       above its baseline and no new/modified unannotated function), or SKIP: no candidate test files.
+#   1 — FAIL (strict: a test function has no/unknown annotation; ratchet: above baseline, or a new/modified
+#       function unannotated, or --write-baseline refused).
+#   2 — environment / argument error, or BLIND: ratchet baseline missing/malformed.
+#   A final `ORACLE-VERDICT<TAB>PASS|FAIL|BLIND|SKIP<TAB>mode=...` line is machine-readable.
 #
 # Classification: universal (§11.4.17) — no project-specific literal.
 
@@ -118,9 +164,21 @@ set -uo pipefail
 GATE="CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT"
 ANCHOR="11.4.245"
 
-root="${ORACLE_GUARD_ROOT:-}"   # empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd
-glob="${ORACLE_GUARD_GLOB:-*test*.py}"
+# verdict-affecting ambient overrides are guarded (11.4.276 r8): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
+_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
+# shellcheck source=/dev/null
+if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
+cm_gate_env_set root ORACLE_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
+cm_gate_env_set glob ORACLE_GUARD_GLOB "*test*.py" value
 quiet=0
+strict="${ORACLE_GUARD_STRICT:-0}"
+cm_gate_env_set baseline ORACLE_GUARD_BASELINE "" path
+base_ref=""            # --base only; NO environment override exists (round 3, I2): an ambient variable must never turn a FAIL into a PASS
+[ -z "${ORACLE_GUARD_BASE:-}" ] || echo "${GATE}: note: ORACLE_GUARD_BASE is ignored (no environment override of the diff base exists; use --base with an older ancestor)" >&2
+write_baseline=0
+adopt_new=0
+adopt_reason=""
+adopt_reason_given=0
 include_tp="${ORACLE_GUARD_INCLUDE_THIRD_PARTY:-0}"
 
 while [ $# -gt 0 ]; do
@@ -128,11 +186,32 @@ while [ $# -gt 0 ]; do
         --root) root="$2"; shift 2 ;;
         --glob) glob="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
+        --strict) strict=1; shift ;;
+        --baseline) baseline="$2"; shift 2 ;;
+        --base) base_ref="$2"; shift 2 ;;
+        --write-baseline) write_baseline=1; shift ;;
+        --adopt-new-files) adopt_new=1; shift ;;
+        --reason) adopt_reason="${2-}"; adopt_reason_given=1; shift 2 || shift ;;
         --include-third-party) include_tp=1; shift ;;
-        -h|--help) sed -n '1,115p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n "1,$(awk '/^# Classification:/{print NR; exit}' "$0")p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
 done
+
+if [ "$adopt_new" = 1 ]; then
+    _r="${adopt_reason//[[:space:]]/}"
+    if [ "$adopt_reason_given" != 1 ] || [ -z "$_r" ] || [[ "$adopt_reason" == *$'\t'* ]] || [[ "$adopt_reason" == *$'\n'* ]]; then
+        echo "${GATE}: --adopt-new-files requires a non-empty single-line --reason \"<text>\"; refused" >&2; exit 2
+    fi
+    if [ -n "$base_ref" ]; then
+        echo "${GATE}: --adopt-new-files cannot be combined with --base (adoption always uses the non-sliding base); refused" >&2; exit 2
+    fi
+    if [ "$write_baseline" = 1 ] || [ "$strict" = 1 ]; then
+        echo "${GATE}: --adopt-new-files cannot be combined with --write-baseline or --strict; refused" >&2; exit 2
+    fi
+elif [ "$adopt_reason_given" = 1 ]; then
+    echo "${GATE}: --reason is only valid with --adopt-new-files" >&2; exit 2
+fi
 
 if [ -z "$root" ]; then
     # shellcheck source=/dev/null
@@ -144,11 +223,11 @@ fi
 [ -d "$root" ] || { echo "${GATE}: scan root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"
 
-excludes="${ORACLE_GUARD_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages}"
+cm_gate_env_set excludes ORACLE_GUARD_EXCLUDE ".git node_modules vendor .venv __pycache__ scripts/gates out build dist third_party site-packages" value
 if [ "$include_tp" != 1 ]; then
     # shellcheck source=/dev/null
-    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh" 2>/dev/null \
-        && excludes="$excludes $(cm_third_party_prune_paths "$root" | tr '\n' ' ')"
+    tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
+    [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null || tp_lib=""
 fi
 
 prune_expr=()
@@ -158,6 +237,10 @@ for ex in $excludes; do
         *)   prune_expr+=(-name "$ex" -o) ;;
     esac
 done
+# third-party prune: root-anchored (see cm_third_party_prune_find_expr)
+if [ "$include_tp" != 1 ] && [ -n "${tp_lib:-}" ]; then
+    cm_third_party_prune_find_expr "$root"
+fi
 if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
 fi
@@ -172,6 +255,7 @@ mapfile -d '' -t files < <(
 
 if [ "${#files[@]}" -eq 0 ]; then
     echo "⏭ ${GATE}: SKIP — topology_unsupported: no candidate test files under scan (root=$root, glob=$glob)"
+    printf 'ORACLE-VERDICT\tSKIP\treason=topology_unsupported\n'
     exit 0
 fi
 
@@ -180,12 +264,24 @@ BEGIN {
     split("SPECIFIED DERIVED METAMORPHIC GOLDEN_MASTER CHARACTERIZATION INVARIANT STATISTICAL HUMAN", ok_arr, " ")
     for (n = 1; n in ok_arr; n++) ok[ok_arr[n]] = 1
 }
-{ lines[NR] = $0 }
+{ sub(/\r$/, ""); lines[NR] = $0 }
 # Closed annotation grammar: returns the UPPER-CASED token of a line that IS an
 # annotation, else "". `oracle:` must open the comment/docstring text (line
 # start, or right after `#` / quote characters) and the token must be followed
 # by end of line, `#`, a quote, `(`, `;` or `,` -- so prose such as
 # "Independent oracle: raw grep" or "The oracle: the reference ..." is not one.
+# A line may sit in the annotation zone ABOVE a def only if it is a comment-only or decorator line
+# at the def own indentation (anything else is the last code line of a PRIOR block: its trailing
+# `# oracle:` belongs to that block, never to the next function).
+function lead(raw,   n, c) {
+    n = 0
+    while (n + 1 <= length(raw)) { c = substr(raw, n + 1, 1); if (c == " " || c == "\t") n++; else break }
+    return n
+}
+function above_ok(raw, di) {
+    if (raw !~ /^[ \t]*[#@]/) return 0
+    return lead(raw) == di
+}
 function annot(raw,   l, m, i, rest) {
     l = tolower(raw)
     if (!match(l, /(^|#)[ \t]*["\047]*[ \t]*oracle[ \t]*:[ \t]*[a-z_-]+([ \t]*[(#;,"\047]|[ \t]*$)/)) return ""
@@ -200,6 +296,7 @@ function annot(raw,   l, m, i, rest) {
 }
 END {
     total = NR
+    while (chg != "" && (getline rl < chg) > 0) { split(rl, rr, " "); nr++; rs[nr] = rr[1] + 0; re[nr] = rr[2] + 0 }
     for (i = 1; i <= total; i++) {
         line = lines[i]
         if (match(line, /^[ \t]*(async[ \t]+)?def[ \t]+test_[A-Za-z0-9_]*[ \t]*\(/)) {
@@ -223,30 +320,22 @@ END {
             }
             found = 0
             bad_val = ""
-            # ── (1) BACKWARD bounded scan for a PRECEDING annotation ────────
-            # Bounded by: at most 3 lines back, AND NEVER crossing a blank
-            # line or another def/class boundary. Without this boundary a
-            # naive "scan the preceding N lines" search can bleed BACKWARD
-            # into a PRIOR test functions own body and pick up ITS oracle
-            # annotation as if it belonged to THIS function -- a real
-            # cross-contamination false-negative (§11.4.201 PASS-bluff)
-            # caught and fixed during this gates own smoke-testing.
+            # (1) BACKWARD bounded scan for a PRECEDING annotation (<= 3 lines, never crossing a blank
+            # line or another def/class boundary -- otherwise it bleeds into a PRIOR test function body
+            # and picks up ITS annotation: a real cross-contamination PASS-bluff caught in this gate own
+            # smoke-testing).
             back_limit = i - 3
             if (back_limit < 1) back_limit = 1
             for (k = i - 1; k >= back_limit; k--) {
                 kl = lines[k]
-                if (kl ~ /^[ \t]*$/) break
-                if (kl ~ /^[ \t]*(async[ \t]+)?def[ \t]/) break
-                if (kl ~ /^[ \t]*class[ \t]/) break
+                if (!above_ok(kl, indent)) break
                 val = annot(kl)
                 if (val != "") {
                     if (val in ok) { found = 1 } else { bad_val = val }
                     break
                 }
             }
-            # ── (2) FORWARD scan within THIS functions own body [i, fend) ──
-            # Safe by construction: bounded to this function own extent,
-            # can never see a prior functions content.
+            # (2) FORWARD scan within THIS function own body [i, fend): can never see a prior function.
             if (!found) {
                 for (k = i; k < fend; k++) {
                     kl = lines[k]
@@ -258,45 +347,265 @@ END {
                 }
             }
             if (!found) {
-                if (bad_val != "") {
-                    print i "\tUNKNOWN_STRATEGY:" bad_val "\t" line
-                } else {
-                    print i "\tMISSING\t" line
+                isnew = "OLD"
+                # extent = def line .. last NON-BLANK body line (trailing blank lines belong to no function, so a
+                # blank line added between two tests never marks the earlier one as modified)
+                lastnb = i
+                for (k = fend - 1; k > i; k--) if (lines[k] !~ /^[ \t]*$/) { lastnb = k; break }
+                # the 3-line window ABOVE the def (same bounds as the backward annotation scan: stops at a blank line,
+                # another def or a class) belongs to this function: replacing/removing an annotation there modifies it
+                wstart = i
+                for (k = i - 1; k >= back_limit; k--) {
+                    kl = lines[k]
+                    if (!above_ok(kl, indent)) break
+                    wstart = k
                 }
+                for (q = 1; q <= nr; q++) if (rs[q] <= lastnb && re[q] >= wstart) { isnew = "NEW"; break }
+                if (bad_val != "") print i "\tUNKNOWN_STRATEGY:" bad_val "\t" isnew "\t" line
+                else print i "\tMISSING\t" isnew "\t" line
             }
         }
     }
 }
 '
 
-violations=0
+# ── changed-line ranges for the NEW/MODIFIED-function check (ratchet mode only) ─────────────────────────
+chg_master="$(mktemp)"; : "${chg_master:?}"
+chg_one="$(mktemp)"; : "${chg_one:?}"
+trap 'rm -f -- "${chg_master:?}" "${chg_one:?}"' EXIT
+diff_state="SKIPPED (not a git work tree)"
+nsb_via="none"
+if [ "$strict" != 1 ] && [ "$write_baseline" != 1 ] && git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Non-sliding base (F2 + round 3 I3): the merge-base of HEAD with a remote main. Candidates are
+    # @{upstream} PLUS EVERY remote-tracking `<remote>/main` and `<remote>/master` (a §2.1 multi-upstream
+    # checkout names its remotes github_x, gitlab_y, ... and has no `origin`). Rule: of all candidate
+    # merge-bases take the OLDEST (the one with the largest `<mb>..HEAD` range): the most conservative,
+    # it checks the most unpushed content and an upstream that is ahead cannot hide commits that another
+    # upstream has not received. Empty commits cannot move it. If NO candidate resolves (no remote main, a
+    # shallow clone that cannot reach a merge-base) there is no sound base: the new/modified-function check
+    # is BLIND (rc 2), never a silent HEAD~1.
+    head_sha="$(git -C "$root" rev-parse --verify -q 'HEAD^{commit}' 2>/dev/null || true)"
+    nsb=""; best=-1
+    cands="@{upstream}"
+    cands="$cands $(git -C "$root" for-each-ref --format='%(refname)' 'refs/remotes/*/main' 'refs/remotes/*/master' 2>/dev/null | tr '\n' ' ')"
+    for _u in $cands; do
+        git -C "$root" rev-parse --verify -q "${_u}^{commit}" >/dev/null 2>&1 || continue
+        _mb="$(git -C "$root" merge-base HEAD "$_u" 2>/dev/null || true)"; [ -n "$_mb" ] || continue
+        _n="$(git -C "$root" rev-list --count "${_mb}..HEAD" 2>/dev/null || echo 0)"
+        if [ "$_n" -gt "$best" ]; then best="$_n"; nsb="$_mb"; nsb_via="$_u"; fi
+    done
+    if [ -z "$nsb" ]; then
+        echo "❌ ${GATE}: BLIND — no non-sliding base: no remote main/master ref (@{upstream}, <remote>/main, <remote>/master) shares history with HEAD (shallow clone? no remote fetched?); fetch a remote main and re-run. A sliding HEAD~1 is never substituted" >&2
+        printf 'ORACLE-VERDICT\tBLIND\tmode=%s\treason=no_nonsliding_base\n' "$([ "$adopt_new" = 1 ] && echo adopt || echo ratchet)"; exit 2
+    fi
+    if [ -n "$base_ref" ]; then
+        # --base may only be STRICTER (older): an ancestor of HEAD that is not newer than the non-sliding base.
+        _bs="$(git -C "$root" rev-parse --verify -q "${base_ref}^{commit}" 2>/dev/null || true)"
+        if [ -z "$_bs" ] || ! git -C "$root" merge-base --is-ancestor "$_bs" HEAD 2>/dev/null \
+           || ! git -C "$root" merge-base --is-ancestor "$_bs" "$nsb" 2>/dev/null; then
+            echo "❌ ${GATE}: --base '${base_ref}' refused: it must resolve, be an ancestor of HEAD, and be the non-sliding base (${nsb:0:12}) or OLDER; a newer base would hide commits" >&2
+            printf 'ORACLE-VERDICT\tFAIL\tmode=ratchet\treason=base_not_older_than_nonsliding_base\n'; exit 2
+        fi
+        base_ref="$_bs"
+    else
+        base_ref="$nsb"
+    fi
+    if git -C "$root" rev-parse --verify -q "${base_ref}^{commit}" >/dev/null 2>&1; then
+        # F2: a deletion-only hunk (`+st,0`) adds no function, so it is NOT itself a new/changed test; but
+        # if the removed lines carry an `oracle:` annotation and no `def test` (the annotation was stripped
+        # from a function that stays), the neighbouring function IS modified: mark new-file lines st..st+1.
+        git -C "$root" -c core.quotepath=off diff -U0 --no-color --no-ext-diff --relative "$base_ref" -- . 2>/dev/null | awk '
+            function flush() {
+                if (pend && delann && !deldef) printf "%s\t%d\t%d\n", pf, pst, pst + 1
+                pend = 0; delann = 0; deldef = 0
+            }
+            /^\+\+\+ / { flush(); f = substr($0, 5); if (f == "/dev/null") f = ""; else sub(/^b\//, "", f); next }
+            /^--- / { next }
+            /^diff / { flush(); next }
+            /^@@ / {
+                flush()
+                if (f != "" && match($0, /\+[0-9]+(,[0-9]+)?/)) {
+                    t = substr($0, RSTART + 1, RLENGTH - 1); n = split(t, a, ",")
+                    st = a[1] + 0; ln = (n > 1) ? a[2] + 0 : 1
+                    if (ln > 0) printf "%s\t%d\t%d\n", f, st, st + ln - 1
+                    else { pend = 1; pf = f; pst = (st < 1 ? 1 : st) }
+                }
+                next
+            }
+            /^-/ && pend {
+                if (tolower($0) ~ /oracle[ \t]*:/) delann = 1
+                if ($0 ~ /^-[ \t]*(async[ \t]+)?def[ \t]+test/) deldef = 1
+            }
+            END { flush() }' >> "$chg_master"
+        git -C "$root" -c core.quotepath=off ls-files --others --exclude-standard -z 2>/dev/null | while IFS= read -r -d '' u; do
+            printf '%s\t1\t2147483647\n' "$u" >> "$chg_master"
+        done
+        diff_state="evaluated against ${base_ref:0:12} (+ untracked)"
+    else
+        echo "❌ ${GATE}: BLIND — base '${base_ref}' does not resolve" >&2; exit 2
+    fi
+fi
+
+declare -A cnt=() hitsby=() newcnt=()
+violations=0; new_viol=0; new_out=""
 for f in "${files[@]}"; do
-    # NOTE: unlike gate 1 (dangerous call-site detection), this gate's entire
-    # mechanism IS the comment/docstring annotation -- stripping comment-only
-    # lines here would destroy the very signal being searched for. Feed the
-    # raw file content to the awk scanner directly.
-    hits="$(awk "$AWK_SCRIPT" "$f" 2>/dev/null || true)"
+    rel="${f#"$root"/}"
+    : > "$chg_one"
+    if [ -s "$chg_master" ]; then
+        awk -F'\t' -v p="$rel" '$1 == p { print $2, $3 }' "$chg_master" > "$chg_one"
+    fi
+    hits="$(awk -v chg="$chg_one" "$AWK_SCRIPT" "$f" 2>/dev/null || true)"
     [ -n "$hits" ] || continue
-    while IFS=$'\t' read -r lineno reason defline; do
+    n=0; newn=0; text=""
+    while IFS=$'\t' read -r lineno reason isnew defline; do
         [ -n "$lineno" ] || continue
-        violations=$(( violations + 1 ))
+        n=$(( n + 1 ))
         case "$reason" in
             UNKNOWN_STRATEGY:*)
-                strat="${reason#UNKNOWN_STRATEGY:}"
-                echo "❌ ${GATE}: FAIL — ${f}:${lineno}: oracle strategy '${strat}' is not in the closed 7-member set (§${ANCHOR})"
-                ;;
+                msg="❌ ${GATE}: FAIL — ${f}:${lineno}: oracle strategy '${reason#UNKNOWN_STRATEGY:}' is not in the closed 7-member set (§${ANCHOR})" ;;
             *)
-                echo "❌ ${GATE}: FAIL — ${f}:${lineno}: no oracle-strategy annotation found (§${ANCHOR})"
-                ;;
+                msg="❌ ${GATE}: FAIL — ${f}:${lineno}: no oracle-strategy annotation found (§${ANCHOR})" ;;
         esac
-        echo "   ${defline# }"
+        text+="${msg}"$'\n'"   ${defline# }"$'\n'
+        if [ "$isnew" = NEW ]; then
+            newn=$(( newn + 1 ))
+            new_viol=$(( new_viol + 1 ))
+            new_out+="❌ ${GATE}: FAIL — ${f}:${lineno}: NEW or MODIFIED test function without a valid oracle annotation (§${ANCHOR}; untouched legacy tests are exempt)"$'\n'
+        fi
     done <<< "$hits"
+    cnt["$rel"]=$n
+    newcnt["$rel"]=$newn
+    hitsby["$rel"]="$text"
+    violations=$(( violations + n ))
 done
 
+if [ "$strict" = 1 ]; then
+    for rel in "${!cnt[@]}"; do printf '%s' "${hitsby[$rel]}"; done
+    echo "======================================================================"
+    if [ "$violations" -gt 0 ]; then
+        echo "❌ ${GATE}: FAIL — ${violations} test function(s) with no valid closed-set oracle-strategy annotation (§${ANCHOR})"
+        printf 'ORACLE-VERDICT\tFAIL\tmode=strict\tunannotated=%s\n' "$violations"
+        exit 1
+    fi
+    echo "✅ ${GATE}: PASS — every scanned test function names a valid closed-set oracle strategy (§${ANCHOR})"
+    printf 'ORACLE-VERDICT\tPASS\tmode=strict\tunannotated=0\n'
+    exit 0
+fi
+
+# ── ratchet mode ───────────────────────────────────────────────────────────────────────────────────────
+[ -n "$baseline" ] || baseline="$root/config/oracle_ratchet_baseline.txt"
+declare -A base=()
+have_base=0
+if [ -f "$baseline" ]; then
+    have_base=1
+    while IFS=$'\t' read -r bp bc extra; do
+        case "$bp" in ''|'#'*) continue ;; esac
+        if [ -z "$bc" ] || [ -n "$extra" ] || ! [[ "$bc" =~ ^[0-9]+$ ]] || [ -n "${base[$bp]+x}" ]; then
+            echo "⚠ ${GATE}: BLIND — malformed or duplicate baseline line in ${baseline}: '${bp}'" >&2
+            printf 'ORACLE-VERDICT\tBLIND\tmode=ratchet\treason=baseline_malformed\n'
+            exit 2
+        fi
+        base["$bp"]="$bc"
+    done < "$baseline"
+elif [ "$write_baseline" != 1 ]; then
+    [ "$adopt_new" != 1 ] || { echo "❌ ${GATE}: --adopt-new-files needs an existing baseline (${baseline}); refused" >&2; printf 'ORACLE-VERDICT\tFAIL\tmode=adopt\treason=baseline_missing\n'; exit 2; }
+    echo "⚠ ${GATE}: BLIND — ratchet baseline not found: ${baseline} (create it with --write-baseline, or pass --strict); a missing baseline is never a pass" >&2
+    printf 'ORACLE-VERDICT\tBLIND\tmode=ratchet\treason=baseline_missing\n'
+    exit 2
+fi
+
+if [ "$adopt_new" = 1 ]; then
+    # Narrow adoption: ONLY files with no baseline entry gain one (at today's count). Existing entries are never
+    # raised and never lowered; any existing entry whose live count exceeds it refuses the whole adoption.
+    up=0; added=0; total_added=0
+    declare -A newent=()
+    for rel in "${!cnt[@]}"; do
+        if [ -n "${base[$rel]+x}" ]; then
+            if [ "${cnt[$rel]}" -gt "${base[$rel]}" ]; then up=$((up+1)); echo "❌ ${GATE}: adoption refused: existing entry ${rel} has ${cnt[$rel]} > ${base[$rel]}" >&2; fi
+        elif [ "${newcnt[$rel]:-0}" -gt 0 ]; then
+            up=$((up+1)); echo "❌ ${GATE}: adoption refused: ${rel} has ${newcnt[$rel]} NEW or MODIFIED unannotated test function(s) relative to ${base_ref}; annotate them (adoption is for legacy files only)" >&2
+        elif [ "${cnt[$rel]}" -gt 0 ]; then
+            newent["$rel"]="${cnt[$rel]}"; added=$((added+1)); total_added=$((total_added+cnt[$rel]))
+        fi
+    done
+    if [ "$up" -gt 0 ]; then printf 'ORACLE-VERDICT\tFAIL\tmode=adopt\treason=existing_entry_would_raise_or_new_function_unannotated\n'; exit 1; fi
+    if [ "$added" -eq 0 ]; then
+        echo "✅ ${GATE}: nothing to adopt (no file without a baseline entry has unannotated tests)"
+        printf 'ORACLE-VERDICT\tPASS\tmode=adopt\tfiles=0\tadded=0\tbase=%s\n' "${base_ref:0:12}"; exit 0
+    fi
+    tmp="$(mktemp "${baseline}.XXXXXX")"; : "${tmp:?}"
+    {
+        echo "# oracle_ratchet_baseline.txt -- CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245) monotone-decreasing ratchet."
+        echo "# Format: <path relative to scan root><TAB><count of test functions lacking a valid oracle annotation>. May only DECREASE."
+        echo "# Lower with: bash scripts/gates/cm_oracle_strategy_named_and_independent.sh --write-baseline"
+        echo "# New files adopted only via: --adopt-new-files --reason \"<text>\" (audited in config/oracle_ratchet_adoptions.log)"
+        { for rel in "${!base[@]}"; do printf '%s\t%s\n' "$rel" "${base[$rel]}"; done
+          for rel in "${!newent[@]}"; do printf '%s\t%s\n' "$rel" "${newent[$rel]}"; done; } | LC_ALL=C sort
+    } > "$tmp" && mv -f -- "$tmp" "$baseline"
+    printf '%s\tfiles=%s\tadded=%s\treason=%s\tbase=%s\tlimit=submodule_contents_not_diffed\n' "$(date -u +%F)" "$added" "$total_added" "$adopt_reason" "$(git -C "$root" rev-parse --short=12 "$base_ref" 2>/dev/null || echo none)" \
+        >> "$(dirname -- "$baseline")/oracle_ratchet_adoptions.log"
+    echo "✅ ${GATE}: adopted ${added} new file(s), ${total_added} unannotated test function(s) into ${baseline}"
+    printf 'ORACLE-VERDICT\tPASS\tmode=adopt\tfiles=%s\tadded=%s\n' "$added" "$total_added"
+    exit 0
+fi
+
+if [ "$write_baseline" = 1 ]; then
+    up=0
+    for rel in "${!cnt[@]}"; do
+        [ "$have_base" = 1 ] || break   # creating a fresh baseline: nothing to raise
+        b="${base[$rel]:-0}"
+        if [ "${cnt[$rel]}" -gt "$b" ]; then up=$((up+1)); echo "❌ ${GATE}: refuse to RAISE baseline: ${rel} has ${cnt[$rel]} > ${b}" >&2; fi
+    done
+    if [ "$up" -gt 0 ]; then printf 'ORACLE-VERDICT\tFAIL\tmode=write-baseline\n'; exit 1; fi
+    mkdir -p "$(dirname -- "$baseline")"
+    tmp="$(mktemp "${baseline}.XXXXXX")"; : "${tmp:?}"
+    {
+        echo "# oracle_ratchet_baseline.txt -- CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245) monotone-decreasing ratchet."
+        echo "# Format: <path relative to scan root><TAB><count of test functions lacking a valid oracle annotation>. May only DECREASE."
+        echo "# Lower with: bash scripts/gates/cm_oracle_strategy_named_and_independent.sh --write-baseline"
+        for rel in "${!cnt[@]}"; do printf '%s\t%s\n' "$rel" "${cnt[$rel]}"; done | LC_ALL=C sort
+    } > "$tmp" && mv -f -- "$tmp" "$baseline"
+    echo "✅ ${GATE}: baseline written: ${baseline} (total ${violations})"
+    printf 'ORACLE-VERDICT\tPASS\tmode=write-baseline\tunannotated=%s\n' "$violations"
+    exit 0
+fi
+
+# rule 3 = the NEW/MODIFIED-function check; a non-git tree cannot evaluate it, so say so in the verdict (F4)
+case "$diff_state" in SKIPPED*) rule3=skipped ;; *) rule3=evaluated ;; esac
+over=0
+for rel in "${!cnt[@]}"; do
+    b="${base[$rel]:-0}"
+    if [ "${cnt[$rel]}" -gt "$b" ]; then
+        over=$(( over + 1 ))
+        printf '%s' "${hitsby[$rel]}"
+        echo "❌ ${GATE}: FAIL — ${rel}: ${cnt[$rel]} unannotated test function(s) exceeds baseline ${b} (the ratchet only decreases)"
+    fi
+done
+printf '%s' "$new_out"
+lower=0
+for rel in "${!base[@]}"; do
+    c="${cnt[$rel]:-0}"
+    if [ "$c" -lt "${base[$rel]}" ]; then
+        lower=$(( lower + 1 ))
+        [ "$quiet" = 1 ] || echo "ℹ ${GATE}: ${rel}: ${c} < baseline ${base[$rel]} -- lower the baseline with --write-baseline"
+    fi
+done
+# M4 (round 3): a baseline entry whose file no longer exists is STALE SLACK (e.g. after a rename + adopt the old
+# path keeps its count). Reported always (not hidden by --quiet); --write-baseline prunes it.
+stale=0
+for rel in "${!base[@]}"; do
+    if [ -z "${cnt[$rel]+x}" ] && [ ! -e "$root/$rel" ]; then
+        stale=$(( stale + 1 ))
+        echo "⚠ ${GATE}: stale baseline entry ${rel} (count ${base[$rel]}): the file no longer exists; prune it with --write-baseline"
+    fi
+done
 echo "======================================================================"
-if [ "$violations" -gt 0 ]; then
-    echo "❌ ${GATE}: FAIL — ${violations} test function(s) with no valid closed-set oracle-strategy annotation (§${ANCHOR})"
+echo "${GATE}: ratchet total=${violations} files_over_baseline=${over} new_or_modified_unannotated=${new_viol} lowerable=${lower} stale_entries=${stale} new-function-check: ${diff_state}"
+if [ "$over" -gt 0 ] || [ "$new_viol" -gt 0 ]; then
+    echo "❌ ${GATE}: FAIL — ${over} file(s) above baseline, ${new_viol} new/modified unannotated test function(s) (§${ANCHOR})"
+    printf 'ORACLE-VERDICT\tFAIL\tmode=ratchet\tover=%s\tnew=%s\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$over" "$new_viol" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
     exit 1
 fi
-echo "✅ ${GATE}: PASS — every scanned test function names a valid closed-set oracle strategy (§${ANCHOR})"
+echo "✅ ${GATE}: PASS — no file above its baseline and no new/modified test function lacks an oracle annotation (§${ANCHOR})"
+printf 'ORACLE-VERDICT\tPASS\tmode=ratchet\tunannotated=%s\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$violations" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
 exit 0

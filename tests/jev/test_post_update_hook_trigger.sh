@@ -13,6 +13,7 @@
 #   5. rc 3 (operator-required stop) is surfaced and NOT deferred over
 #   6. bootstrap script absent => pending marker, hook exits 0
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=lib_assert.sh

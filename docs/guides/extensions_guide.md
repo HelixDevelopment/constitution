@@ -13,6 +13,8 @@
 
 > Status: experimental, dormant, not independently GO'd (rounds 10 and 11 fixes landed, round 11 fixes and the round 12 A3 staging-pid fix (c252eed) pending independent re-review). The `/constitution` command exists and `/constitution extensions ...` delegates to this engine (`install-extension` maps to `add`); installer integration of extensions and post-update wiring are UNCONFIRMED. Everything below is the engine's own CLI.
 
+See also the [extensions catalogue](../extensions/EXTENSIONS_CATALOG.md) (every shipped extension, provenance, per-platform compatibility).
+
 ## What an extension is
 
 A directory with an `extension.yml` manifest (strict YAML subset, unknown keys rejected), optional `commands/<name>/SKILL.md`, skills, MCP, hooks, templates, tools, and a `CHECKSUMS.sha256`. Bundled ones live in `<constitution>/extensions/<id>/`; ones you install go to `<constitution>/extensions/_installed/<id>/` (git-ignored through the checkout's `info/exclude`). The consumer's project tracks `.constitution/extensions.lock.yml`.

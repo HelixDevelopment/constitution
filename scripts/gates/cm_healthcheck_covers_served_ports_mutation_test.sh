@@ -64,6 +64,7 @@
 # Classification: universal (§11.4.17).
 
 set -uo pipefail
+export HELIX_TEST_MODE=1   # this test points gates at fixture tools/roots: guarded overrides (scripts/lib/gate_env_override.sh) need the test switch
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE="${SCRIPT_DIR}/cm_healthcheck_covers_served_ports.sh"

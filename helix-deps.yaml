@@ -56,7 +56,7 @@ deps:
 
   - name: continuum
     ssh_url: git@github.com:vasic-digital/continuum.git
-    ref: 9d95651             # pinned sha = the recorded gitlink; tag continuum-0.1.2 (v72.1 bump)
+    ref: 213ad07             # pinned sha = the recorded gitlink; bumped deliberately in 02504a2 (genericised test literals) on top of 0.1.2 (9d95651)
     why: "§11.4.207 instant multi-stream resume engine — content-addressed Merkle snapshot + append-only ledger + atomic single-writer refs so a fresh session resumes the WHOLE fleet at O(changed streams), self-validating oracle (golden-good/bad/negative-control)"
     layout: grouped
 
@@ -132,6 +132,129 @@ deps:
     ref: 1b9abac             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29)
     why: "§11.4.162 OpenDesign UI design-system engine — canonical machine-readable design-token source (§11.4.216) + brand contract (§11.4.217) + living design-library catalogue (§11.4.218); consumed by every project that ships a user-facing UI"
     layout: grouped
+
+  # ─── Further external (non-own-org) third-party submodules, pinned at the recorded gitlinks (added 2026-11-01) ──
+  - name: watch-skill
+    ssh_url: git@github.com:oxbshw/watch-skill.git
+    ref: f1317c8
+    why: "external video-watching skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: repo-qa
+    ssh_url: git@github.com:okwinds/skills-runtime-sdk.git
+    ref: 2539e1c
+    why: "external repo-QA skill (skills-runtime-sdk), third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading LICENSE
+    licence: Apache-2.0
+
+  - name: verify
+    ssh_url: git@github.com:KeyValueSoftwareSystems/maestro.git
+    ref: cda25a0
+    why: "external verification skill (maestro), third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: claude-video
+    ssh_url: git@github.com:bradautomates/claude-video.git
+    ref: 03ceb42
+    why: "external claude-video skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: agentic-validation
+    ssh_url: git@github.com:Tyler-R-Kendrick/agentic_validation.git
+    ref: 8258f13
+    why: "external agentic-validation skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: verification
+    ssh_url: git@github.com:ArcBlock/agent-skills.git
+    ref: 5bc0d2c
+    why: "external verification skill (ArcBlock agent-skills), third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: repo-proof
+    ssh_url: git@github.com:Gary06868/repo-proof.git
+    ref: cd3d599
+    why: "external repo-proof skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading LICENSE
+    licence: Apache-2.0
+
+  - name: donespec
+    ssh_url: git@github.com:xryv/DoneSpec.git
+    ref: 017e05f
+    why: "external DoneSpec skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: skill-doctor
+    ssh_url: git@github.com:KalarisLabs/Skill-Doctor.git
+    ref: 9413620
+    why: "external Skill-Doctor skill, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading LICENSE
+    licence: Apache-2.0
+
+  - name: verfix
+    ssh_url: git@github.com:verfix-dev/verfix.git
+    ref: b1286b1
+    why: "external verfix tool, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading LICENSE.md
+    licence: Apache-2.0
+
+  - name: MVT
+    ssh_url: git@github.com:rdkcentral/MVT.git
+    ref: 2e62cca
+    why: "external media-validation tool (RDK Central MVT), third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading LICENSE (COPYING also present)
+    licence: Apache-2.0
+
+  - name: mcp-audio-tweaker
+    ssh_url: git@github.com:DeveloperZo/mcp-audio-tweaker.git
+    ref: 5d64b4f
+    why: "external audio-tweaking MCP server, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MIT identified by reading LICENSE
+    licence: MIT
+
+  - name: polyscreen-mcp
+    ssh_url: git@github.com:Zyzto/polyscreen-mcp.git
+    ref: 0e72e71
+    why: "external polyscreen MCP server, third-party read-only checkout"
+    layout: grouped
+    third_party: true        # not an own org; licence MPL-2.0 identified by reading LICENSE
+    licence: MPL-2.0
+
+  - name: colibri
+    ssh_url: git@github.com:JustVugg/colibri.git
+    ref: e0db083
+    why: "third-party repository nested in llmctl (never initialised recursively, recursive_init false on llmctl)"
+    layout: grouped
+    path: submodules/llmctl/submodules/colibri
+    third_party: true        # not an own org; licence Apache-2.0 identified by reading submodules/llmctl/submodules/colibri/LICENSE; recorded gitlink inside llmctl (not marked in llmctl's own manifest)
+    licence: Apache-2.0
+
+  - name: llama.cpp
+    ssh_url: git@github.com:ggml-org/llama.cpp.git
+    ref: 1537a0a
+    why: "third-party inference engine nested in llmctl (never initialised recursively, recursive_init false on llmctl)"
+    layout: grouped
+    path: submodules/llmctl/submodules/llama.cpp
+    third_party: true        # not an own org; licence MIT identified by reading submodules/llmctl/submodules/llama.cpp/LICENSE; recorded gitlink inside llmctl (not marked in llmctl's own manifest)
+    licence: MIT
 
 transitive_handling:
   # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Engines MUST be
