@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # cm_killpg_pgid_guard_scope_selftest.sh — test + paired mutation for the scan SCOPE of
 # CM-KILLPG-PGID-GUARD (§11.4.263). Round 5 (review 11.4.276, structural replacement): the ONLY prune rule
-# (scripts/lib/third_party_prune.sh) is "an exact, unambiguous RECORDED gitlink that a TRACKED, unmodified
-# helix-deps.yaml marks third_party: true". No URL / own-org rule exists: every unmarked submodule is scanned,
+# (scripts/lib/third_party_prune.sh) is "an exact, unambiguous RECORDED gitlink that the INDEX copy of a tracked
+# helix-deps.yaml marks third_party: true" (custody = the index blob, not HEAD and not the worktree; a skip-worktree /
+# assume-unchanged / visibly edited manifest is refused). No URL / own-org rule exists: every unmarked submodule is scanned,
 # whatever organisation its URL names and whatever declaration files a repository carries.
 # --include-third-party opts back in.
 # Usage: cm_killpg_pgid_guard_scope_selftest.sh   Exit 0 all hold, 1 otherwise.
@@ -192,7 +193,7 @@ for g in cm_dangerous_combination_fail_closed cm_oracle_strategy_named_and_indep
     rm -rf "${PR:?}/config"
 done
 
-# R5 manifest custody: only the TRACKED, unmodified, non-symlink manifest marks anything
+# R5 manifest custody: only the INDEX copy of a tracked, non-symlink manifest marks anything
 MC="$TMP/mcust"; mkrepo "$TMP/rmc/v"; mkdir -p "$MC"; GIT -C "$MC" init -q .; addsub "$MC" "$TMP/rmc/v" submodules/v "$GO"; commitall "$MC"
 manifest "$MC/helix-deps.yaml" submodules/v true
 if scanned "$GATE" "$MC" && ! pline "$GATE" "$MC" 'submodules/v'; then ok "R5: UNTRACKED manifest mark ignored (scanned)"; else bad "R5: untracked manifest pruned"; fi
@@ -206,6 +207,75 @@ t_mod() { scanned "$1" "$MM"; }
 # golden-FALSE: the same mark once committed prunes
 MG="$TMP/mgood"; cp -a "$MM" "$MG"; commitall "$MG"
 if pruned "$GATE" "$MG" 'submodules/v'; then ok "R5 golden-FALSE: committed manifest mark prunes the recorded gitlink"; else bad "R5 golden-FALSE: committed mark not honoured"; fi
+# R5-1 (review round 5 follow-up): custody means the INDEX. The marks are read from the index blob, never from the
+# working tree, and an index entry git is told to stop comparing with the worktree (skip-worktree `S`, assume-unchanged
+# `h`, any tag but `H`) is refused. Golden-BAD: index marks false, the worktree says true behind a hidden-diff state.
+mkcust() { # $1=dir $2=index mark true|false : committed manifest marking submodules/v
+    mkrepo "$TMP/rcu_$(basename "$1")/v" || return 1; mkdir -p "$1"; GIT -C "$1" init -q .; manifest "$1/helix-deps.yaml" submodules/v "$2"
+    printf "def f():\n    return 1\n" > "$1/f.py"   # a clean first-party file, so a full prune is PASS (rc 0), never SKIP
+    addsub "$1" "$TMP/rcu_$(basename "$1")/v" submodules/v "$GO" && commitall "$1"
+}
+CB="$TMP/cskip"; mkcust "$CB" false; GIT -C "$CB" update-index --skip-worktree helix-deps.yaml; manifest "$CB/helix-deps.yaml" submodules/v true
+CC="$TMP/cassume"; mkcust "$CC" false; GIT -C "$CC" update-index --assume-unchanged helix-deps.yaml; manifest "$CC/helix-deps.yaml" submodules/v true
+CL="$TMP/cfilter"; mkcust "$CL" false; printf 'helix-deps.yaml filter=x\n' > "$CL/.gitattributes"; commitall "$CL"
+GIT -C "$CL" config filter.x.clean "sed 's/third_party: true/third_party: false/'"; manifest "$CL/helix-deps.yaml" submodules/v true
+for c in "$CB:skip-worktree" "$CC:assume-unchanged" "$CL:clean-filter"; do
+    d="${c%%:*}"; l="${c#*:}"
+    # precondition: git itself reports no worktree difference (the hole the old `git diff --quiet` custody check fell into)
+    GIT -C "$d" diff --quiet -- helix-deps.yaml || bad "R5-1 fixture $l: git diff sees the edit (fixture does not reproduce the hidden diff)"
+    if scanned "$GATE" "$d" && ! pline "$GATE" "$d" 'submodules/v'; then ok "R5-1 golden-BAD: $l + worktree mark true, index false -> scanned"; else bad "R5-1: $l hid an edited mark (pruned)"; fi
+done
+t_cfilter() { scanned "$1" "$CL"; }
+# the refusal is load-bearing on its own: index marks TRUE but the entry is skip-worktree / assume-unchanged -> refused, scanned
+CB2="$TMP/cskip2"; mkcust "$CB2" true; GIT -C "$CB2" update-index --skip-worktree helix-deps.yaml; manifest "$CB2/helix-deps.yaml" submodules/v false
+CC2="$TMP/cassume2"; mkcust "$CC2" true; GIT -C "$CC2" update-index --assume-unchanged helix-deps.yaml; manifest "$CC2/helix-deps.yaml" submodules/v false
+for c in "$CB2:skip-worktree" "$CC2:assume-unchanged"; do
+    d="${c%%:*}"; l="${c#*:}"
+    o="$(bash "$GATE" --root "$d" 2>&1)"; r=$?
+    if [ "$r" -eq 1 ] && ! grep -q 'PRUNED.*submodules/v' <<<"$o" && grep -q 'third_party_prune: manifest .* is not the recorded' <<<"$o"; then ok "R5-1: $l entry refused even when the index marks true (scanned, stated on stderr)"; else bad "R5-1: $l entry not refused (rc=$r)"; fi
+done
+t_cflag() { scanned "$1" "$CB2" && scanned "$1" "$CC2"; }
+# visible unstaged edit of an index-true mark: still refused (scan more), so the worktree-equals-index check stays load-bearing
+CM2="$TMP/cmod2"; mkcust "$CM2" true; manifest "$CM2/helix-deps.yaml" submodules/v false
+if scanned "$GATE" "$CM2"; then ok "R5-1: index-true mark with a visible unstaged edit is refused (scanned)"; else bad "R5-1: unstaged-edited manifest honoured"; fi
+t_cmod2() { scanned "$1" "$CM2"; }
+# golden-FALSE: a staged, uncommitted mark is the index -> honoured; a plain committed mark prunes
+CD="$TMP/cstaged"; mkcust "$CD" false; manifest "$CD/helix-deps.yaml" submodules/v true; GIT -C "$CD" add helix-deps.yaml
+if pruned "$GATE" "$CD" 'submodules/v'; then ok "R5-1 golden-FALSE: staged (uncommitted) mark is the index and prunes"; else bad "R5-1 golden-FALSE: staged mark not honoured"; fi
+CG="$TMP/cgood"; mkcust "$CG" true
+if pruned "$GATE" "$CG" 'submodules/v'; then ok "R5-1 golden-FALSE: legit committed third-party mark still prunes"; else bad "R5-1 golden-FALSE: legit mark not honoured"; fi
+t_cgood() { pruned "$1" "$CG" 'submodules/v' && pruned "$1" "$CD" 'submodules/v'; }
+
+# R5-2 (review round 5 follow-up): depth boundaries. Chain top -> s1 -> s2 -> s3 -> s4 -> s5 (s5 holds the unguarded call).
+#   root-manifest resolution: a 4-hop path (s1/s2/s3/s4, resolved in the depth-3 repository) prunes; a 5-hop path stays scanned.
+#   own-manifest descent: the depth-3 repository's manifest is read; the depth-4 repository's manifest is not.
+mkchain() { # $1=dir $2=level whose own repository carries a manifest marking its gitlink (3 or 4, or 0 for none) $3=root mark or ''
+    local d="$1" R="$TMP/rch_$(basename "$1")" i
+    mkrepo "$R/r5" || return 1
+    for i in 4 3 2 1; do
+        mkdir -p "$R/r$i"; GIT -C "$R/r$i" init -q . || return 1; printf "def f():\n    return 1\n" > "$R/r$i/f.py"
+        addsub "$R/r$i" "$R/r$((i+1))" "s$((i+1))" "file://$R/r$((i+1))" || return 1
+        [ "$2" = "$i" ] && manifest "$R/r$i/helix-deps.yaml" "s$((i+1))" true
+        commitall "$R/r$i"
+    done
+    mkdir -p "$d"; GIT -C "$d" init -q .; [ -n "$3" ] && manifest "$d/helix-deps.yaml" "$3" true
+    addsub "$d" "$R/r1" s1 "file://$R/r1" && commitall "$d" || return 1
+    GIT -C "$d" submodule update -q --init --recursive >/dev/null 2>&1 || { bad "fixture: chain populate failed ($d)"; return 1; }
+}
+D4="$TMP/depth4"; mkchain "$D4" 0 s1/s2/s3/s4
+D5="$TMP/depth5"; mkchain "$D5" 0 s1/s2/s3/s4/s5
+DL3="$TMP/dlev3"; mkchain "$DL3" 3 ''
+DL4="$TMP/dlev4"; mkchain "$DL4" 4 ''
+[ -e "$D5/s1/s2/s3/s4/s5/bad.py" ] && ok "R5-2: depth chain populated (5 nested submodules)" || bad "R5-2: depth chain not populated"
+if pline "$GATE" "$D4" 's1/s2/s3/s4'; then ok "R5-2: root mark 4 hops deep (resolved at depth 3) prunes"; else bad "R5-2: depth-3 resolution not honoured"; fi
+if scanned "$GATE" "$D5" && ! pline "$GATE" "$D5" 's1/s2/s3/s4/s5'; then ok "R5-2: root mark 5 hops deep (depth 4) is not resolved -> scanned"; else bad "R5-2: depth-4 root mark pruned"; fi
+if pline "$GATE" "$DL3" 's1/s2/s3/s4'; then ok "R5-2: own manifest of the depth-3 repository is read"; else bad "R5-2: depth-3 own manifest not read"; fi
+if scanned "$GATE" "$DL4" && ! pline "$GATE" "$DL4" 's1/s2/s3/s4/s5'; then ok "R5-2: own manifest of the depth-4 repository is not read -> scanned"; else bad "R5-2: depth-4 own manifest honoured"; fi
+t_d4() { pline "$1" "$D4" 's1/s2/s3/s4'; }
+t_d5() { scanned "$1" "$D5"; }
+t_dl3() { pline "$1" "$DL3" 's1/s2/s3/s4'; }
+t_dl4() { scanned "$1" "$DL4"; }
+
 MS="$TMP/msym"; mkrepo "$TMP/rms/v"; mkdir -p "$MS/real"; GIT -C "$MS" init -q .; manifest "$MS/real/helix-deps.yaml" submodules/v true; ln -s real/helix-deps.yaml "$MS/helix-deps.yaml"
 addsub "$MS" "$TMP/rms/v" submodules/v "$GO"; commitall "$MS"
 if scanned "$GATE" "$MS"; then ok "R5: tracked SYMLINK manifest is ignored (scanned)"; else bad "R5: symlink manifest pruned"; fi
@@ -278,7 +348,7 @@ chk exact     's/\[ "\$path" = "\$2" \]/true/' '\[ "\$path" = "\$2" \]' t_p1
 chk rec       's/if cm_tp_gitlink_deep "\$top" .*; then tp/if true; then tp/' 'if cm_tp_gitlink_deep "\$top"' t_hos
 chk toplvl    's/^    \[ "\$rootp" = "\$top" \] || prefix=.*/    prefix=""/' '\[ "\$rootp" = "\$top" \] || prefix=' t_p2
 chk gitmod    's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { grep -Fq "path = $2" "$1\/.gitmodules" 2>\/dev\/null \&\& return 0/' '^cm_tp_is_gitlink() {' t_p3
-chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
+chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { return 0/;s/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { cat "$1\/$2" > "$3"; return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
 chk modecheck 's/\[ "\$mode" = 160000 \] \&\& //' '\[ "\$mode" = 160000 \] \&\& ' t_q1
 chk m_off     's/then tp\["\$pp"\]=1/then :/' 'then tp\["\$pp"\]=1' t_q4
 chk recurse   's/cm_tp_populated "\$base\/\$rel" \&\& cm_tp_level/false \&\& cm_tp_level/' 'cm_tp_populated "\$base/\$rel" && cm_tp_level' t_n1
@@ -289,9 +359,18 @@ chk pathok    's/                    cm_third_party_prune_ok "\$pp" || continue/
 chk nosym     's/                    cm_tp_no_symlink "\$base" "\$pp" || continue/                    :/' 'cm_tp_no_symlink "\$base" "\$pp" || continue' t_md2
 chk ambig     's/^cm_tp_recorded() { cm_tp_is_gitlink "\$1" "\$2" \&\& ! cm_tp_ambiguous "\$1" "\$2"; }/cm_tp_recorded() { cm_tp_is_gitlink "$1" "$2"; }/' '^cm_tp_recorded() {' t_f11
 chk ambparse  's/    _cm_tp_git config -f "\$gm" --list >\/dev\/null 2>\&1 || return 0/    :/' '_cm_tp_git config -f "\$gm" --list' t_f11p
-chk tracked   's/    _cm_tp_git -C "\$top" ls-files --error-unmatch -- .*/    :/' 'ls-files --error-unmatch' t_untr
-chk wtdiff    's/    _cm_tp_git -C "\$top" -c core.quotePath=false diff --quiet.*/    return 0/' 'diff --quiet --no-ext-diff' t_mod
-chk custody   's/        if ! cm_tp_manifest_recorded "\$top" "\$mf"; then/        if false; then/' 'if ! cm_tp_manifest_recorded' t_untr
+# (tracked -- dropping ls-files --error-unmatch -- is now an EQUIVALENT mutant: an untracked manifest has no index
+#  blob and no `ls-files -v` tag, so the blob read and the tag check refuse it anyway; recorded in the report)
+# (wtdiff on the MM fixture is equivalent now: its index blob marks submodules/other; wtdiff2 below is the killing case)
+chk blobwt    's/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { cat "$1\/$2" > "$3"; return 0/' '^cm_tp_manifest_blob() {' t_cfilter
+chk idxtag    's/    \[ "\$tags" = "H " \] || return 1/    :/' '\[ "\$tags" = "H " \] || return 1' t_cflag
+chk wtdiff2   's/    _cm_tp_git -C "\$top" -c core.quotePath=false diff --quiet.*/    return 0/' 'diff --quiet --no-ext-diff' t_cmod2
+chk blobgood  's/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { return 1/' '^cm_tp_manifest_blob() {' t_cgood
+chk depthres  's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 4 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d5
+chk depthres2 's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 2 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d4
+chk depthlev  's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 4 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl4
+chk depthlev2 's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 2 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl3
+chk custody   's/        if ! cm_tp_manifest_recorded "\$top" "\$mf"; then/        if false; then/' 'if ! cm_tp_manifest_recorded' t_cflag
 t_r5a_marked() { scanned "$1" "$N0" && ! pline "$1" "$TMP/tpflag" 'submodules/v'; }
 TF="$TMP/tpflag"; mkrepo "$TMP/rtf/v"; mkdir -p "$TF"; GIT -C "$TF" init -q .; manifest "$TF/helix-deps.yaml" submodules/v false; addsub "$TF" "$TMP/rtf/v" submodules/v "$GO"; commitall "$TF"
 if ! pline "$GATE" "$TF" 'submodules/v'; then ok "manifest third_party: false does not prune"; else bad "third_party: false pruned"; fi
@@ -329,7 +408,7 @@ if bash "$G" --root "$BR/ok.sh" --quiet >/dev/null 2>&1; then ok "guarded braced
 if bash "$G" --root "$BR/bad.sh" --quiet >/dev/null 2>&1; then bad "unguarded braced passed"; else ok "unguarded braced FAILs"; fi
 if bash "$G" --root "$BR/dflt.sh" --quiet >/dev/null 2>&1; then bad "default-expansion -braced-default treated as the guarded name"; else ok "braced-default stays a non-name -> FAIL"; fi
 BM="$TMP/mut4"; mkdir -p "$BM/gates" "$BM/lib" "$BM/deps_manifest"
-cp "$G" "$BM/gates/"; cp "$HERE"/../lib/*.sh "$BM/lib/"; cp "$HERE"/../deps_manifest/* "$BM/deps_manifest/"
+cp "$G" "$BM/gates/"; cp "$HERE"/../lib/*.sh "$BM/lib/"; cp "$HERE"/../deps_manifest/*.* "$BM/deps_manifest/"
 if grep -q 'while (match(txt, /' "$BM/gates/cm_killpg_pgid_guard.sh"; then
     sed -i 's/while (match(txt, \/\\\$\\{(\[A-Za-z_\]/while (0 \&\& match(txt, \/\\$\\{([A-Za-z_]/' "$BM/gates/cm_killpg_pgid_guard.sh"
     if grep -q 'while (0 &&' "$BM/gates/cm_killpg_pgid_guard.sh"; then

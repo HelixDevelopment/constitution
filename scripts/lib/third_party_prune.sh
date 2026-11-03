@@ -17,8 +17,11 @@
 #     (b) a helix-deps.yaml of that repository's chain marks it `third_party: true`: the manifest at the gate root
 #         (which may name a NESTED gitlink such as submodules/a/submodules/b, resolved through POPULATED own
 #         gitlinks), or the manifest at the top of a populated nested gitlink's own repository.
-#   The manifest is honoured only when it is TRACKED in that repository and its working-tree copy equals the
-#   index (an untracked, modified, symlinked or symlink-reached manifest is ignored: scan more, note on stderr).
+#   Custody means the INDEX (not HEAD, not the working tree): the marks are read from the manifest's index blob
+#   (stage 0), so a staged, uncommitted mark is honoured. The manifest is refused (scan more, note on stderr) when it
+#   is untracked, unmerged, a symlink or reached through one, carries an index tag other than `H` (skip-worktree `S`,
+#   assume-unchanged `h`, ...: git no longer compares that entry with the worktree), or differs visibly from the index.
+#   No worktree state (skip-worktree, assume-unchanged, a clean filter, fsmonitor) can change what the marks say.
 #   There is NO ownership-by-URL rule and NO own-org list: .gitmodules URLs never prune anything. An
 #   AMBIGUOUS .gitmodules entry (duplicate path, a name with several paths, a multi-valued url, an
 #   unparseable or symlinked .gitmodules) keeps the gitlink scanned even when the manifest marks it.
@@ -124,14 +127,23 @@ cm_tp_gitlink_deep() {
     return 1
 }
 
-# cm_tp_manifest_recorded <repo-top> <path-from-top> : the manifest is tracked, a regular non-symlink file reached
-# through no symlinked component, and its working-tree content equals the index (else it is not the repository's
-# recorded declaration and is ignored).
+# cm_tp_manifest_recorded <repo-top> <path-from-top> : the manifest is tracked at stage 0 with index tag `H` (never
+# skip-worktree / assume-unchanged / unmerged), is a regular non-symlink file reached through no symlinked component,
+# and shows no visible worktree difference (else it is not the repository's recorded declaration and is ignored).
+# The worktree checks only make the gate scan MORE; the marks themselves come from the index blob (cm_tp_manifest_blob).
 cm_tp_manifest_recorded() {
-    local top="$1" p="$2"
+    local top="$1" p="$2" tags
     [ -f "$top/$p" ] && [ -r "$top/$p" ] && cm_tp_no_symlink "$top" "$p" || return 1
     _cm_tp_git -C "$top" ls-files --error-unmatch -- ":(literal)$p" >/dev/null 2>&1 || return 1
+    tags="$(_cm_tp_git -C "$top" -c core.quotePath=false ls-files -v -- ":(literal)$p" 2>/dev/null | cut -c1-2 | LC_ALL=C sort -u)" || return 1
+    [ "$tags" = "H " ] || return 1
     _cm_tp_git -C "$top" -c core.quotePath=false diff --quiet --no-ext-diff -- ":(literal)$p" >/dev/null 2>&1
+}
+
+# cm_tp_manifest_blob <repo-top> <path-from-top> <out-file> : writes the stage-0 INDEX blob of the manifest, raw (no
+# filter, no textconv), to <out-file>. Non-zero when git cannot produce it (then no mark is read).
+cm_tp_manifest_blob() {
+    _cm_tp_git -C "$1" cat-file blob ":$2" > "$3" 2>/dev/null
 }
 
 # cm_tp_level <top> <prefix> <outpre> <depth> : emits (relative to the gate root) every manifest-marked recorded gitlink
@@ -143,11 +155,14 @@ cm_tp_level() {
 
     if [ -e "$base/helix-deps.yaml" ] || [ -L "$base/helix-deps.yaml" ]; then
         if ! cm_tp_manifest_recorded "$top" "$mf"; then
-            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded (tracked, unmodified, non-symlink) copy; manifest marks ignored" >&2
+            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded copy (tracked at stage 0 with index tag H, no visible edit, non-symlink); manifest marks ignored" >&2
         else
-            recs="$(cm_hdeps_tsv "$base/helix-deps.yaml")"; rc=$?
+            local blobf; blobf="$(mktemp "${TMPDIR:-/tmp}/tp_manifest.XXXXXX")" || blobf=""
+            if [ -n "$blobf" ] && cm_tp_manifest_blob "$top" "$mf" "$blobf"; then recs="$(cm_hdeps_tsv "$blobf")"; rc=$?
+            else recs=""; rc=8; fi
+            [ -n "$blobf" ] && rm -f -- "${blobf:?}"
             if [ "$rc" != 0 ]; then
-                echo "third_party_prune: manifest $base/helix-deps.yaml not usable (reader rc=$rc); manifest marks ignored" >&2
+                echo "third_party_prune: manifest $base/helix-deps.yaml not usable (index blob reader rc=$rc); manifest marks ignored" >&2
             else
                 while IFS=$'\x1f' read -r n path u r2 tpf; do
                     [ "$tpf" = 1 ] || continue
