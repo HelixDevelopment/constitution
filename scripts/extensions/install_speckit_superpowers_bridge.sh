@@ -132,6 +132,12 @@ while [ $# -gt 0 ]; do
 	shift || true
 done
 
+# specify reads the project from its cwd and `extension add` has no root flag, so EVERY specify call must run
+# inside --root (§11.4.276(C): fix the class). Resolve path-like inputs to absolute BEFORE the cd.
+ROOT=$(cd "$ROOT" 2>/dev/null && pwd) || { echo "install_speckit_superpowers_bridge.sh: --root is not a directory" >&2; exit 2; }
+[ -z "$REPORT_FILE" ] || case "$REPORT_FILE" in /*) ;; *) REPORT_FILE="$(pwd)/$REPORT_FILE" ;; esac
+case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/$SPECIFY_BIN" ;; esac ;; esac
+cd "$ROOT" || exit 1
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 EVID_DIR="$ROOT/qa-results/hxc159/bridge_install/$RUN_ID"
 mkdir -p "$EVID_DIR" || { echo "cannot create evidence dir: $EVID_DIR" >&2; exit 1; }
@@ -379,10 +385,16 @@ if [ -z "$STATUS_L4" ]; then
 			# rather than colliding with stale state (§11.4.85 chaos
 			# resilience — see the paired test).
 			if [ -d "$ROOT/.specify/extensions/superb" ]; then
-				ALREADY_REGISTERED=$("$SPECIFY_BIN" extension list --json 2>/dev/null | python3 -c 'import json,sys; print(any(e.get("id")=="superb" for e in json.load(sys.stdin)))' 2>/dev/null || echo False)
-				if [ "$ALREADY_REGISTERED" != "True" ]; then
+				# Delete ONLY when the probe really succeeded (rc 0, parseable) and says superb is NOT registered;
+				# a failed/unparseable probe never falls through to a delete.
+				PROBE_JSON=$("$SPECIFY_BIN" extension list --json 2>/dev/null); PROBE_RC=$?
+				ALREADY_REGISTERED=""
+				[ "$PROBE_RC" -eq 0 ] && ALREADY_REGISTERED=$(printf '%s' "$PROBE_JSON" | python3 -c 'import json,sys; print(any(e.get("id")=="superb" for e in json.load(sys.stdin)))' 2>/dev/null)
+				if [ "$ALREADY_REGISTERED" = "False" ]; then
 					warn "   L4: found a stale, unregistered .specify/extensions/superb/ from a prior interrupted attempt — removing before retry."
-					rm -rf "$ROOT/.specify/extensions/superb"
+					rm -rf "${ROOT:?}/.specify/extensions/superb"
+				elif [ "$ALREADY_REGISTERED" != "True" ]; then
+					warn "   L4: could not determine whether superb is registered (probe rc=$PROBE_RC) — NOT deleting .specify/extensions/superb."
 				fi
 			fi
 			INSTALL_OUT=$("$SPECIFY_BIN" extension add superb --from "$SUPERB_FROM" 2>&1)

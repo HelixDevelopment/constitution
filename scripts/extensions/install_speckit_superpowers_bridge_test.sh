@@ -382,14 +382,14 @@ make_live_fixture() {
 		&& for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md CRUSH.md; do echo "# $f" > "$f"; done \
 		&& PATH="$LIVE_PATH" timeout 120 specify extension add --dev "$s" >"$r.ext.out" 2>&1 \
 		&& mkdir -p submodules && git -c protocol.file.allow=always submodule add -q "$s" submodules/superspec >/dev/null 2>&1 \
-		&& git add -A && git -c user.email=t@t -c user.name=t commit -q -m live-fixture ) >/dev/null 2>&1 || return 1
+		&& git add -A && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -q -m live-fixture ) >/dev/null 2>&1 || return 1
 	[ -d "$r/.specify" ] && [ -f "$r/.specify/extensions/superspec/extension.yml" ] && [ -f "$r/submodules/superspec/extension.yml" ]
 }
 LIVE_FX_OK=0; LIVE_SKIP_WHY=""
 SSRC=$(find_superspec_src) || SSRC=""
-if [ -z "$LIVE_SPECIFY" ]; then LIVE_SKIP_WHY="no real specify CLI on PATH"
-elif [ -z "$SSRC" ]; then LIVE_SKIP_WHY="no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC"
-elif make_live_fixture "$TMP/live_fixture" "$SSRC"; then LIVE_FX_OK=1
+if [ -z "$LIVE_SPECIFY" ]; then LIVE_SKIP_WHY="missing dependency: no real specify CLI on PATH (no closed-set dependency-absent code exists, so topology_unsupported is used)"
+elif [ -z "$SSRC" ]; then LIVE_SKIP_WHY="missing dependency: no local superspec checkout (extension.yml) found; set SUPERSPEC_SRC (no dependency-absent code in the closed set, so topology_unsupported)"
+elif make_live_fixture "$TMP/live_fixture" "$SSRC"; then LIVE_FX_OK=1; LIVE_ID="$LIVE_ID superspec_src=$SSRC"
 else LIVE_SKIP_WHY="real specify init / extension add / submodule add did not complete"; fi
 
 if [ "$LIVE_FX_OK" -eq 1 ]; then
@@ -401,6 +401,10 @@ if [ "$LIVE_FX_OK" -eq 1 ]; then
 		PASS:*) okl "FULL-AUTOMATION-1L: two consecutive real runs on the real specify project PASS with identical per-layer status ('${r#PASS:}')" ;;
 		*) bad "FULL-AUTOMATION-1L: ${r#FAIL:}" ;;
 	esac
+	# foreign-cwd live run: the real installer launched from a dir that is NOT a spec-kit project must still PASS
+	( cd "$TMP" && run_real_installer "$TMP/live_fixture" "$TMP/integration1lc.out" ); rc=$?
+	if [ "$rc" -eq 0 ]; then okl "INTEGRATION-1L-CWD: real installer launched from a foreign cwd still PASSes against the real specify project (specify calls run in --root)"
+	else bad "INTEGRATION-1L-CWD: foreign-cwd live run failed (rc=$rc); output:"; sed 's/^/         /' "$TMP/integration1lc.out" >&2; fi
 	# paired mutation: break the REAL project (drop a carrier -> L1 PARTIAL); the same verdict function MUST FAIL
 	rm -f "$TMP/live_fixture/AGENTS.md"
 	v=$(integration_verdict "$TMP/live_fixture" "$TMP/integration1lm.out")
@@ -410,6 +414,40 @@ if [ "$LIVE_FX_OK" -eq 1 ]; then
 else
 	skip "INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported ($LIVE_SKIP_WHY)"
 fi
+
+# ── CWD-1 (stub-class) — L4 path run from a FOREIGN cwd: specify reads the project from its cwd, so every
+#    specify call must run IN --root. The fake specify below FAILS ("Not a Spec Kit project") outside a .specify dir
+#    (like the real CLI) and logs the cwd of each call. The registered superb dir MUST survive (no rm -rf on a failed
+#    or mis-rooted probe) and every call must have run inside the root.
+CW="$TMP/cwd1"; mkdir -p "$CW/.specify/extensions/superb" "$CW/foreign" "$CW/qa-results"
+cat > "$CW/specify" <<'FEOF'
+#!/usr/bin/env bash
+[ -d .specify ] || { echo '{"error": "Not a Spec Kit project (no .specify/ directory)"}'; echo "FOREIGN $*" >> "${CWD_LOG:?}"; exit 1; }
+echo "ROOTED $*" >> "${CWD_LOG:?}"
+case "$1 $2" in
+	"extension list") echo '[{"id": "superb", "name": "SuperB", "version": "1.9.0", "enabled": true}]' ;;
+	"extension add") echo ok ;;
+esac
+exit 0
+FEOF
+chmod +x "$CW/specify"; make_report "$CW/report.json" WIRED WIRED WIRED DESIGNED-ONLY
+( cd "$CW/foreign" && SUPERSPEC_SHA_OVERRIDE="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81" SPECIFY_BIN="$CW/specify" CWD_LOG="$CW/calls.log" \
+	bash "$INSTALLER" --root "$CW" --report-file "$CW/report.json" --quiet \
+	--superb-from "https://example.invalid/releases/download/v1.9.0/superpowers-bridge.zip" \
+	--superb-vetted-by "operator:test-harness — cwd case" >"$CW/run.out" 2>&1 ); rc=$?
+if [ -d "$CW/.specify/extensions/superb" ] && ! grep -q '^FOREIGN' "$CW/calls.log" 2>/dev/null && grep -q '^ROOTED extension add superb' "$CW/calls.log" 2>/dev/null; then
+	ok "CWD-1: L4 run from a foreign cwd — every specify call ran inside --root, registered superb dir NOT deleted (rc=$rc)"
+else
+	bad "CWD-1: foreign-cwd L4 run mis-rooted a specify call or deleted registered data (rc=$rc; calls: $(tr '\n' ';' < "$CW/calls.log" 2>/dev/null); superb_dir_present=$([ -d "$CW/.specify/extensions/superb" ] && echo 1 || echo 0))"
+fi
+
+# ── CWD-2 (stub-class) — a FAILED probe must never fall through to rm -rf: specify always errors -> dir kept
+CX="$TMP/cwd2"; mkdir -p "$CX/.specify/extensions/superb" "$CX/qa-results"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$CX/specify"; chmod +x "$CX/specify"; make_report "$CX/report.json" WIRED WIRED WIRED DESIGNED-ONLY
+( cd "$CX" && SUPERSPEC_SHA_OVERRIDE="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81" SPECIFY_BIN="$CX/specify" bash "$INSTALLER" --root "$CX" --report-file "$CX/report.json" --quiet \
+	--superb-from "https://example.invalid/releases/download/v1.9.0/superpowers-bridge.zip" --superb-vetted-by "operator:test-harness — failed-probe case" >"$CX/run.out" 2>&1 )
+if [ -d "$CX/.specify/extensions/superb" ]; then ok "CWD-2: failed registration probe did NOT trigger rm -rf of .specify/extensions/superb"
+else bad "CWD-2: a failed probe fell through to rm -rf of the superb dir"; fi
 
 # ── GATELOGIC-1F — gate-logic (stub-class) against a spec-kit-shaped fixture root; NOT live evidence ─
 CF="$TMP/consumer_fixture"; mkdir -p "$CF"
