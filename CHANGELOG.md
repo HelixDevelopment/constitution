@@ -1,5 +1,57 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## helixconstitution-v73.2 — 2026-11-03 — PROVISIONAL pre-release after v73.1: gate env-read allowlist and census (best-effort tripwire), oracle ratchet, structural helix-deps reader, atomic generator v2, extensions catalogue
+
+**Status: PROVISIONAL PRE-RELEASE (§11.4.290), tag `helixconstitution-v73.2`.** Previous tag: `helixconstitution-v73.1`. Candidate commit `1afdfc6` (149 files changed, 6706 insertions, 389 deletions against `ca88eda`, from `git diff --shortstat ca88eda 1afdfc6`), merged with `origin/main` in `6ade367`. The merge brought in the upstream anchors §11.4.292 (reproduce first, `9e24057`) and §11.4.293 (scope discipline and image no-worse proof, `c5f51cb`); they are upstream work, not authored in this release. Independent Opus review of the candidate: **GO-with-follow-ups**, minor findings only (F1-F9 below), tracked for v73.3. The §11.4.40 full-suite retest has NOT been run on this change set. Nothing here is "fixed" or "verified" beyond the VERIFIED list.
+
+#### VERIFIED (command and result seen; re-run read-only on 2026-11-03 unless marked "from log")
+
+- Oracle baseline: `config/oracle_ratchet_baseline.txt` has 19 file entries summing to 321 (awk over the file); `config/oracle_ratchet_adoptions.log` has 1 line.
+- `bash tests/gates/test_manifest_structural_parser.sh` -> `== 50 passed, 0 failed ==`.
+- `bash tests/gates/test_oracle_verdict_fields.sh` -> `== 4 passed, 0 failed ==`.
+- `bash tests/gates/test_help_full_header.sh` -> `PASS cm_oracle_strategy_named_and_independent (full header incl. last line)`.
+- From logs of this session (not re-run for this entry): `cm_gate_env_reads_allowlisted_mutation_test.sh` -> `META PASS: CM-GATE-ENV-READS-ALLOWLISTED kills every mutant`; `tests/jev/test_review_fixes.sh` -> `pass=84 fail=0 skip=0`.
+- `config/gate_env_allowlist.tsv` has 93 non-comment lines (counted).
+- Earlier recorded figures, carried from the conductor drafts and NOT re-run here: oracle ratchet suite `passed=105 failed=0` (known_failures_v73.md records 109/0 after a later addition, also not re-run); generator atomic v2 35/0; v73.1 retest (decisions mutants 169/169, extensions 244 killed, constitution_cmd 289/0).
+
+#### PROVISIONAL (verification pending; counted as done for planning only)
+
+- Gate env-read allowlist `scripts/gates/cm_gate_env_reads_allowlisted.sh` with census `scripts/gates/lib/gate_env_census.py` and `config/gate_env_allowlist.tsv`. It is a **best-effort tripwire, not a security boundary**: it detects environment reads of the listed shapes only, and the undetected forms are listed in the review findings below (F1 and the known-limit notes in the gate header). A green result means "none of the detected forms found", not "no ambient reads".
+- Atomic generator v2 (`scripts/generate_agent_prefix_commands.sh`, `tests/layout/test_generator_atomic.sh`): review GO-with-follow-ups; residual documented in the generator header (a first-ever run or newly added action killed mid-commit leaves agents inconsistent until the next run).
+- Oracle gate as monotone ratchet with non-sliding base and `--adopt-new-files --reason`; the 414 canon test functions are annotated, the 321 own-org submodule functions remain baselined, not annotated.
+- Third-party prune narrowed to `third_party: true` manifest deps; shared structural `helix-deps.yaml` reader (`helix_deps_tsv.{py,sh}`, `helix_deps_field.py`, `override_guard.sh`).
+- Consumer-only gates honest SKIP via `--standalone-canon` (`CM-CODEGRAPH-MCP-HEALTH`, `CM-OPENDESIGN-UI-SYSTEM`).
+- Extensions catalogue `docs/extensions/EXTENSIONS_CATALOG.md` (draft); ownership-redesign design doc (design only).
+- Fastcycle real-DB tests, credscan rewrite, speckit-bridge and label-sync test rework (honest SKIPs where topology absent).
+
+#### Independent review findings (verdict GO-with-follow-ups; all minor, tracked for v73.3, not fixed here)
+
+- F1: the census does not detect the escaped-dot source form.
+- F2: oracle gate body scan does not handle nested defs.
+- F3: oracle gate body scan does not handle multi-line decorators.
+- F4: a jev shape-check mutant is equivalent (cannot be killed).
+- F5: generator test case 12 counts a setup failure as a kill.
+- F6: three test files are not executable.
+- F7: `lat_decide` non-numeric input.
+- F8: census `--help` prints a traceback.
+- F9: stale counts in `docs/design/known_failures_v73.md` row 9.
+
+#### REOPENED
+
+- None known.
+
+#### OVERDUE
+
+- None.
+
+#### Known failures and debt carried (honest)
+
+- `CM-KILLPG-PGID-GUARD` FAILs on the merged canon tree: session log shows `43 unguarded process-group signal call site(s), 26 guarded` (rc=1). Cause: the gate scans third-party submodule sources (upstream behaviour). Tracked for v73.3. Not claimed fixed.
+- Oracle baseline debt remains: 321 functions in 19 own-org submodule files (the 322-to-321 figure; baseline only decreases).
+- Branches `atm1217_r9`, `agentlabel_r1`, `atm1220_r9` (remote `wip/review-pending-20261014/*`) are unmerged, pending review and an operator decision.
+- Deferred to v73.3: extension engine ownership redesign D1-D6; oracle annotations for the 321 submodule functions; refresh of the deployed destructive-path guard copy; `wave-dpctf` / `video-quality-mcp` licence ask.
+- Not confirmed this session: `tests/gates/test_gate_env_census_closure.sh` was started and did not finish within the tool timeout; its result is UNKNOWN.
+
 ## Unreleased — 2026-11-03 — §11.4.293 scope discipline and image no-worse proof (Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison against the previously flashed image)
 
 **Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was committed in a scratch clone of the constitution (branch `work`) on top of the §11.4.292 commit and was not pushed. The rule is implemented and wired at the canon level (anchor, four carriers, index, groups, progressive split, lifecycle skill, gate, mutation test, propagation wrappers, seam binding, post-update hook); the two item-level seams are the registered deferrals `OWED-GATE-175` and `OWED-GATE-176`. No independent §11.4.209 review has run on this change yet.
