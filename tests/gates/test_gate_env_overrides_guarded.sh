@@ -274,4 +274,10 @@ for c in "${MCASES[@]}"; do
   rm -f -- "$raw"
 done
 
+# R4-5: a trailing --test-root / --trusted with no value must not loop forever (shift 2 with one argument left)
+for opt in --test-root --trusted; do
+  timeout 5 bash -c '. "$1/scripts/lib/gate_env_override.sh"; cm_gate_env_set v GEO_NOPE_X dflt path "$2"; [ "$v" = dflt ]' _ "$src" "$opt" >/dev/null 2>&1
+  chk $? "cm_gate_env_set with $opt as the last argument returns promptly with the default (no infinite loop)"
+done
+
 echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]
