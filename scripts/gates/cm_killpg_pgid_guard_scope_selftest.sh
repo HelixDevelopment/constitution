@@ -2,8 +2,9 @@
 # cm_killpg_pgid_guard_scope_selftest.sh — test + paired mutation for the scan SCOPE of
 # CM-KILLPG-PGID-GUARD (§11.4.263). Round 5 (review 11.4.276, structural replacement): the ONLY prune rule
 # (scripts/lib/third_party_prune.sh) is "an exact, unambiguous RECORDED gitlink that the INDEX copy of a tracked
-# helix-deps.yaml marks third_party: true" (custody = the index blob, not HEAD and not the worktree; a skip-worktree /
-# assume-unchanged / visibly edited manifest is refused). No URL / own-org rule exists: every unmarked submodule is scanned,
+# helix-deps.yaml marks third_party: true" (custody = the index entry: worktree bytes whose hash equals the stage-0
+# mode-100644 index sha; the object store is never read; any byte / mode / type difference is refused; git runs
+# under env -i). No URL / own-org rule exists: every unmarked submodule is scanned,
 # whatever organisation its URL names and whatever declaration files a repository carries.
 # --include-third-party opts back in.
 # Usage: cm_killpg_pgid_guard_scope_selftest.sh   Exit 0 all hold, 1 otherwise.
@@ -319,6 +320,103 @@ rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf "$BADPY" > "$Q1/src/main.py"
 if scanned "$GATE" "$Q1"; then ok "F7/Q1: typechange (index blob, worktree dir) is not a gitlink -> scanned -> FAIL"; else bad "F7/Q1: typechange hid first-party code"; fi
 t_q1() { scanned "$1" "$Q1"; }
 
+# ── R6 (review 11.4.276 follow-ups round 1, F1-F5): nothing outside the INDEX ENTRY may decide which bytes are read ──
+# The class: an attacker or the ambient environment changes WHICH bytes or WHICH file the prune decision reads, with no
+# `git status` trace. Closed by construction: the marks are parsed from a snapshot of the worktree file whose
+# `git hash-object --no-filters` equals the sha that the stage-0, mode-100644 index entry records for exactly that
+# path; the object store is never read, and every git call runs under `env -i` (no caller GIT_* / config env).
+forge_obj() { # $1=objects dir $2=sha $3=file with the forged content : write a loose object under <sha> with other bytes
+    python3 -I - "$1" "$2" "$3" <<'PY'
+import sys, zlib, os
+d, sha, f = sys.argv[1:]; c = open(f, 'rb').read(); p = os.path.join(d, sha[:2], sha[2:])
+os.makedirs(os.path.dirname(p), exist_ok=True)
+if os.path.exists(p): os.chmod(p, 0o644)
+open(p, 'wb').write(zlib.compress(b'blob %d\0' % len(c) + c))
+PY
+}
+manifest "$TMP/r6_true.yaml" submodules/v true; manifest "$TMP/r6_false.yaml" submodules/v false
+# F1 golden-BAD: `git replace` of the index blob (index false -> replacement true), no status trace
+RR="$TMP/r6repl"; mkcust "$RR" false; GIT -C "$RR" replace "$(GIT -C "$RR" rev-parse :helix-deps.yaml)" "$(GIT -C "$RR" hash-object -w "$TMP/r6_true.yaml")"
+[ -z "$(GIT -C "$RR" status --porcelain)" ] || bad "R6 fixture F1: replace ref left a status trace"
+if scanned "$GATE" "$RR" && ! pline "$GATE" "$RR" 'submodules/v'; then ok "R6/F1: git replace of the manifest blob does not change the marks (scanned)"; else bad "R6/F1: replace ref pruned an own submodule"; fi
+# F1 golden-FALSE: a replace ref on a legitimately-true manifest (replacement false) does not hide the real mark
+RG="$TMP/r6replg"; mkcust "$RG" true; GIT -C "$RG" replace "$(GIT -C "$RG" rev-parse :helix-deps.yaml)" "$(GIT -C "$RG" hash-object -w "$TMP/r6_false.yaml")"
+if pruned "$GATE" "$RG" 'submodules/v'; then ok "R6/F1 golden-FALSE: replace ref on a true manifest -> the index content still prunes"; else bad "R6/F1 golden-FALSE: replace ref changed a legit verdict"; fi
+t_repl() { scanned "$1" "$RR"; }
+t_replg() { pruned "$1" "$RG" 'submodules/v'; }
+# F2 golden-BAD: caller env redirects the object store or the replace namespace
+RO="$TMP/r6objd"; mkcust "$RO" false; s="$(GIT -C "$RO" rev-parse :helix-deps.yaml)"; cp -a "$(GIT -C "$RO" rev-parse --absolute-git-dir)/objects" "$TMP/r6fobj"; forge_obj "$TMP/r6fobj" "$s" "$TMP/r6_true.yaml"
+envbad() { # $1=label $2=dir then env assignments
+    local l="$1" d="$2"; shift 2; local o r; o="$(env "$@" bash "$GATE" --root "$d" 2>&1)"; r=$?
+    if [ "$r" -eq 1 ] && ! grep -q 'PRUNED.*submodules/v' <<<"$o"; then ok "R6/F2: $l does not change the marks (scanned)"; else bad "R6/F2: $l pruned an own submodule (rc=$r)"; fi
+}
+envbad "GIT_OBJECT_DIRECTORY with a forged object" "$RO" GIT_OBJECT_DIRECTORY="$TMP/r6fobj"
+RB="$TMP/r6rbase"; mkcust "$RB" false; GIT -C "$RB" update-ref "refs/x/$(GIT -C "$RB" rev-parse :helix-deps.yaml)" "$(GIT -C "$RB" hash-object -w "$TMP/r6_true.yaml")"
+envbad "GIT_REPLACE_REF_BASE" "$RB" GIT_REPLACE_REF_BASE=refs/x/
+# F2: a forged loose object INSIDE the repository's own object store (no env at all)
+RF="$TMP/r6forge"; mkcust "$RF" false; forge_obj "$(GIT -C "$RF" rev-parse --absolute-git-dir)/objects" "$(GIT -C "$RF" rev-parse :helix-deps.yaml)" "$TMP/r6_true.yaml"
+if scanned "$GATE" "$RF" && ! pline "$GATE" "$RF" 'submodules/v'; then ok "R6/F2: forged loose object in the repository does not change the marks (scanned)"; else bad "R6/F2: forged in-repo object pruned"; fi
+# F2 golden-FALSE: ambient git config env does not change a legit verdict (control: the same env breaks plain git)
+RE="$TMP/r6envg"; mkcust "$RE" true
+for e in GIT_CONFIG_PARAMETERS=bogus GIT_CONFIG_COUNT=1 GIT_OBJECT_DIRECTORY=/nonexistent; do
+    if ! env "$e" git -C "$RE" rev-parse --show-toplevel >/dev/null 2>&1; then ok "R6 control needle: $e breaks an unscrubbed git"; else bad "R6 control needle: $e has no effect on plain git (test proves nothing)"; fi
+done
+envgood() { pruned "$1" "$RE" 'submodules/v'; }
+t_envg() { local g="$1"; GIT_CONFIG_PARAMETERS=bogus envgood "$g" && GIT_CONFIG_COUNT=1 envgood "$g" \
+    && GIT_INDEX_FILE=/nonexistent/idx GIT_OBJECT_DIRECTORY=/nonexistent GIT_NAMESPACE=x GIT_DIR=/nonexistent envgood "$g"; }
+if t_envg "$GATE"; then ok "R6/F2 golden-FALSE: GIT_CONFIG_PARAMETERS / GIT_CONFIG_COUNT / GIT_OBJECT_DIRECTORY / GIT_INDEX_FILE / GIT_DIR do not change a legit prune"; else bad "R6/F2 golden-FALSE: ambient git env changed a legit verdict"; fi
+# F2: an injected fsmonitor command never runs (control: the same env does run it under `git status`)
+printf '#!/bin/sh\ntouch "%s/fsmon_ran"\nexit 1\n' "$TMP" > "$TMP/fsmon.sh"; chmod +x "$TMP/fsmon.sh"
+env GIT_CONFIG_PARAMETERS="'core.fsmonitor'='$TMP/fsmon.sh'" git -C "$RE" status --porcelain >/dev/null 2>&1
+if [ -e "$TMP/fsmon_ran" ]; then ok "R6 control needle: injected core.fsmonitor runs under plain git status"; rm -f -- "${TMP:?}/fsmon_ran"; else bad "R6 control needle: fsmonitor injection inert (test proves nothing)"; fi
+env GIT_CONFIG_PARAMETERS="'core.fsmonitor'='$TMP/fsmon.sh'" bash "$GATE" --root "$RE" >/dev/null 2>&1
+if [ ! -e "$TMP/fsmon_ran" ]; then ok "R6/F2: injected core.fsmonitor command is never run by the prune"; else bad "R6/F2: the prune ran an injected fsmonitor command"; fi
+GIT -C "$RE" config core.fsmonitor "$TMP/fsmon.sh"; rm -f -- "${TMP:?}/fsmon_ran"; bash "$GATE" --root "$RE" >/dev/null 2>&1
+if [ ! -e "$TMP/fsmon_ran" ]; then ok "R6/F2: a repository-local core.fsmonitor command is never run by the prune"; else bad "R6/F2: the prune ran a repository-local fsmonitor command"; fi
+GIT -C "$RE" config --unset core.fsmonitor
+# F3 golden-BAD: gate root whose name is index-path syntax (0:s); a sibling s/helix-deps.yaml marks true
+CO="$TMP/r6colon"; mkdir -p "$CO/0:s" "$CO/s"; GIT -C "$CO" init -q .; mkrepo "$TMP/r6rco/v"
+manifest "$CO/0:s/helix-deps.yaml" submodules/v false; manifest "$CO/s/helix-deps.yaml" submodules/v true; printf "def f():\n    return 1\n" > "$CO/0:s/f.py"
+( cd "$CO/0:s" && GIT submodule add -q "file://$TMP/r6rco/v" submodules/v >/dev/null 2>&1 ) || bad "R6 fixture F3: submodule add failed"; commitall "$CO"
+if scanned "$GATE" "$CO/0:s" && ! pline "$GATE" "$CO/0:s" 'submodules/v'; then ok "R6/F3: root named 0:s reads its own manifest, not stage 0 of s/ (scanned)"; else bad "R6/F3: index-path syntax in the root read another file (pruned)"; fi
+# F4: index mode is load-bearing. SYMTYPE = the index records a SYMLINK whose link text is a YAML manifest, the worktree
+# holds a regular file with exactly those bytes (hash equal): only the mode check refuses it.
+mksym() { # $1=dir : committed symlink helix-deps.yaml whose link TEXT is a third_party: true manifest
+    mkrepo "$TMP/r6rs_$(basename "$1")/v" || return 1; mkdir -p "$1"; GIT -C "$1" init -q .; printf "def f():\n    return 1\n" > "$1/f.py"
+    ln -s "$(cat "$TMP/r6_true.yaml")" "$1/helix-deps.yaml"; addsub "$1" "$TMP/r6rs_$(basename "$1")/v" submodules/v "$GO" && commitall "$1"
+}
+SL="$TMP/r6symlink"; mksym "$SL"; [ "$(GIT -C "$SL" ls-files -s helix-deps.yaml | cut -c1-6)" = 120000 ] || bad "R6 fixture F4: symlink not recorded as 120000"
+if scanned "$GATE" "$SL" && ! pline "$GATE" "$SL" 'submodules/v'; then ok "R6/F4: tracked symlink whose link text is YAML is refused (scanned)"; else bad "R6/F4: symlink manifest pruned"; fi
+ST="$TMP/r6symtype"; mksym "$ST"; rm -f -- "${ST:?}/helix-deps.yaml"; GIT -C "$ST" cat-file blob "$(GIT -C "$ST" rev-parse :helix-deps.yaml)" > "$ST/helix-deps.yaml"
+[ "$(GIT -C "$ST" hash-object --no-filters "$ST/helix-deps.yaml")" = "$(GIT -C "$ST" rev-parse :helix-deps.yaml)" ] || bad "R6 fixture SYMTYPE: worktree bytes differ from the 120000 blob"
+if scanned "$GATE" "$ST" && ! pline "$GATE" "$ST" 'submodules/v'; then ok "R6/F4: index mode 120000 with an identical regular worktree file is refused (mode check)"; else bad "R6/F4: non-100644 index entry honoured"; fi
+t_symtype() { scanned "$1" "$ST"; }
+# the worktree must be a plain regular file: a legit 100644 true entry whose worktree is a symlink to identical bytes is refused
+WS="$TMP/r6wtsym"; mkcust "$WS" true; mv "$WS/helix-deps.yaml" "$TMP/r6wtsym_target.yaml"; ln -s "$TMP/r6wtsym_target.yaml" "$WS/helix-deps.yaml"
+if scanned "$GATE" "$WS"; then ok "R6: 100644 entry whose worktree is a symlink (same bytes) is refused (scanned)"; else bad "R6: symlinked worktree manifest honoured"; fi
+t_wtsym() { scanned "$1" "$WS"; }
+# executable bit in the worktree differs from the 100644 entry: visible difference -> refused
+XB="$TMP/r6xbit"; mkcust "$XB" true; chmod +x "$XB/helix-deps.yaml"
+if scanned "$GATE" "$XB"; then ok "R6: worktree +x on a 100644 manifest is refused (scanned)"; else bad "R6: exec-bit difference ignored"; fi
+t_xbit() { scanned "$1" "$XB"; }
+# F5: intent-to-add (git add -N): the index records the empty blob, the worktree says true -> refused
+IA="$TMP/r6ita"; mkcust "$IA" false; GIT -C "$IA" rm -q --cached helix-deps.yaml; GIT -C "$IA" commit -q -m u >/dev/null 2>&1; manifest "$IA/helix-deps.yaml" submodules/v true; GIT -C "$IA" add -N helix-deps.yaml
+if scanned "$GATE" "$IA" && ! pline "$GATE" "$IA" 'submodules/v'; then ok "R6/F5: intent-to-add manifest (empty index blob) is refused (scanned)"; else bad "R6/F5: intent-to-add manifest pruned"; fi
+t_ita() { scanned "$1" "$IA"; }
+# a single non-zero-stage entry whose content equals the worktree: there is no stage-0 record -> refused
+S2="$TMP/r6stage2"; mkcust "$S2" false; GIT -C "$S2" rm -q --cached helix-deps.yaml; GIT -C "$S2" commit -q -m u >/dev/null 2>&1; cp "$TMP/r6_true.yaml" "$S2/helix-deps.yaml"
+printf '100644 %s 2\thelix-deps.yaml\n' "$(GIT -C "$S2" hash-object -w "$S2/helix-deps.yaml")" | GIT -C "$S2" update-index --index-info
+[ "$(GIT -C "$S2" ls-files -s helix-deps.yaml | awk '{print $3}')" = 2 ] || bad "R6 fixture STAGE2: no stage-2 entry"
+if scanned "$GATE" "$S2"; then ok "R6: a lone stage-2 (unmerged) entry is refused (scanned)"; else bad "R6: unmerged stage-2 entry honoured"; fi
+t_stage2() { scanned "$1" "$S2"; }
+# gate root inside an UNPOPULATED gitlink holding a stray manifest + plain dir: not the recorded copy -> scanned
+UP="$TMP/r6unpop"; mkrepo "$TMP/r6rup/a"; mkdir -p "$UP"; GIT -C "$UP" init -q .; printf "def f():\n    return 1\n" > "$UP/f.py"; addsub "$UP" "$TMP/r6rup/a" submodules/a "$GO" && commitall "$UP"
+rm -rf "${UP:?}/submodules/a"; mkdir -p "$UP/submodules/a/x"; manifest2 "$UP/submodules/a/helix-deps.yaml" x true; printf "$BADPY" > "$UP/submodules/a/x/bad.py"
+if scanned "$GATE" "$UP/submodules/a" && ! pline "$GATE" "$UP/submodules/a" 'x'; then ok "R6: root inside an unpopulated gitlink with a stray manifest is scanned"; else bad "R6: unpopulated-gitlink root pruned"; fi
+# golden-FALSE: a committed CRLF manifest marking true (bytes equal to the index blob) still prunes
+CR="$TMP/r6crlf"; mkcust "$CR" true; sed -i 's/$/\r/' "$CR/helix-deps.yaml"; commitall "$CR"
+if pruned "$GATE" "$CR" 'submodules/v'; then ok "R6 golden-FALSE: committed CRLF manifest marking true prunes"; else bad "R6 golden-FALSE: committed CRLF manifest not honoured"; fi
+
 # --- paired mutations of the remaining prune logic: each MUST be caught ---
 mutlib() { # $1=name $2=sed expr ; builds private gate+lib copy, applies expr to the lib, echoes dir
     local D="$TMP/m_$1"; mkdir -p "$D/gates" "$D/lib" "$D/deps_manifest"
@@ -330,6 +428,7 @@ chk() { # $1=name $2=sed $3=anchor-regex $4=expectation-fn args...: root, mutant
     grep -q "$anchor" "$HERE/../lib/third_party_prune.sh" || { bad "mutation anchor absent: $name"; return; }
     D="$(mutlib "$name" "$expr")"
     cmp -s "$D/lib/third_party_prune.sh" "$HERE/../lib/third_party_prune.sh" && { bad "mutation did not apply: $name"; return; }
+    bash -n "$D/lib/third_party_prune.sh" 2>/dev/null || { bad "mutant $name does not parse (a parse error would be a false kill)"; return; }
     "$@" "$D/gates/cm_killpg_pgid_guard.sh" && bad "mutant $name survived (test not load-bearing)" || ok "mutant $name caught"
 }
 t_p1()  { scanned "$1" "$P1"; }
@@ -348,7 +447,7 @@ chk exact     's/\[ "\$path" = "\$2" \]/true/' '\[ "\$path" = "\$2" \]' t_p1
 chk rec       's/if cm_tp_gitlink_deep "\$top" .*; then tp/if true; then tp/' 'if cm_tp_gitlink_deep "\$top"' t_hos
 chk toplvl    's/^    \[ "\$rootp" = "\$top" \] || prefix=.*/    prefix=""/' '\[ "\$rootp" = "\$top" \] || prefix=' t_p2
 chk gitmod    's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { grep -Fq "path = $2" "$1\/.gitmodules" 2>\/dev\/null \&\& return 0/' '^cm_tp_is_gitlink() {' t_p3
-chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { return 0/;s/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { cat "$1\/$2" > "$3"; return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
+chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { cat "$1\/$2" > "$3"; return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
 chk modecheck 's/\[ "\$mode" = 160000 \] \&\& //' '\[ "\$mode" = 160000 \] \&\& ' t_q1
 chk m_off     's/then tp\["\$pp"\]=1/then :/' 'then tp\["\$pp"\]=1' t_q4
 chk recurse   's/cm_tp_populated "\$base\/\$rel" \&\& cm_tp_level/false \&\& cm_tp_level/' 'cm_tp_populated "\$base/\$rel" && cm_tp_level' t_n1
@@ -359,18 +458,28 @@ chk pathok    's/                    cm_third_party_prune_ok "\$pp" || continue/
 chk nosym     's/                    cm_tp_no_symlink "\$base" "\$pp" || continue/                    :/' 'cm_tp_no_symlink "\$base" "\$pp" || continue' t_md2
 chk ambig     's/^cm_tp_recorded() { cm_tp_is_gitlink "\$1" "\$2" \&\& ! cm_tp_ambiguous "\$1" "\$2"; }/cm_tp_recorded() { cm_tp_is_gitlink "$1" "$2"; }/' '^cm_tp_recorded() {' t_f11
 chk ambparse  's/    _cm_tp_git config -f "\$gm" --list >\/dev\/null 2>\&1 || return 0/    :/' '_cm_tp_git config -f "\$gm" --list' t_f11p
-# (tracked -- dropping ls-files --error-unmatch -- is now an EQUIVALENT mutant: an untracked manifest has no index
-#  blob and no `ls-files -v` tag, so the blob read and the tag check refuse it anyway; recorded in the report)
-# (wtdiff on the MM fixture is equivalent now: its index blob marks submodules/other; wtdiff2 below is the killing case)
-chk blobwt    's/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { cat "$1\/$2" > "$3"; return 0/' '^cm_tp_manifest_blob() {' t_cfilter
-chk idxtag    's/    \[ "\$tags" = "H " \] || return 1/    :/' '\[ "\$tags" = "H " \] || return 1' t_cflag
-chk wtdiff2   's/    _cm_tp_git -C "\$top" -c core.quotePath=false diff --quiet.*/    return 0/' 'diff --quiet --no-ext-diff' t_cmod2
-chk blobgood  's/^cm_tp_manifest_blob() {/cm_tp_manifest_blob() { return 1/' '^cm_tp_manifest_blob() {' t_cgood
+# R6 (review follow-ups r1): the recorded-copy guards, one killing fixture each. EQUIVALENT by construction (stated,
+# not tested): the literal pathspec, the exact-path compare and the one-record count in cm_tp_manifest_entry -- any
+# mis-selected record carries a sha the snapshot hash cannot match unless its bytes are identical, and identical bytes
+# are the recorded bytes; core.fsmonitor=false -- no command of the library refreshes the index (the fsmonitor
+# fixtures above prove no injected command runs, with or without it). The old tag (`H`) check is gone: a skip-worktree
+# or assume-unchanged entry is now judged by its bytes (hash vs index sha), which that state can no longer hide.
+chk custody   's/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { cat "$1\/$2" > "$3"; return 0/' '^cm_tp_manifest_recorded() {' t_mod
+chk blobgood  's/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { return 1/' '^cm_tp_manifest_recorded() {' t_cgood
+chk hashchk   's/^    \[ "\$got" = "\$sha" \]$/    true/' '^    \[ "\$got" = "\$sha" \]$' t_mod
+chk hashita   's/^    \[ "\$got" = "\$sha" \]$/    true/' '^    \[ "\$got" = "\$sha" \]$' t_ita
+chk idxmode   's/        \[ "\$mode" = 100644 \] || return 1/        :/' '\[ "\$mode" = 100644 \] || return 1' t_symtype
+chk idxstage  's/        \[ "\$stage" = 0 \] || return 1/        :/' '\[ "\$stage" = 0 \] || return 1' t_stage2
+chk noentry   's/^cm_tp_manifest_entry() {/cm_tp_manifest_entry() { _cm_tp_git -C "$1" hash-object --no-filters --stdin < "$1\/$2"; return 0/' '^cm_tp_manifest_entry() {' t_untr
+chk wtfile    's/^    \[ -f "\$top\/\$p" \] \&\& \[ ! -L .*/    :/' '\[ -f "\$top/\$p" \] && \[ ! -L' t_wtsym
+chk wtxbit    's/^    \[ ! -x "\$top\/\$p" \] || return 1/    :/' '\[ ! -x "\$top/\$p" \] || return 1' t_xbit
+chk envscrub  's/^    env -i PATH=.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false/        git/' '^    env -i PATH=' t_envg
+chk noreplace 's/^    env -i PATH=.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false/        git/;s/^    cat -- "\$top\/\$p" > "\$out" 2>\/dev\/null || return 1/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null || return 1/;s/^    \[ "\$got" = "\$sha" \]$/    true/' '^    cat -- "\$top/\$p" > "\$out"' t_repl
+chk objread   's/^    cat -- "\$top\/\$p" > "\$out" 2>\/dev\/null || return 1/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null || return 1/' '^    cat -- "\$top/\$p" > "\$out"' t_replg
 chk depthres  's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 4 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d5
 chk depthres2 's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 2 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d4
 chk depthlev  's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 4 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl4
 chk depthlev2 's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 2 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl3
-chk custody   's/        if ! cm_tp_manifest_recorded "\$top" "\$mf"; then/        if false; then/' 'if ! cm_tp_manifest_recorded' t_cflag
 t_r5a_marked() { scanned "$1" "$N0" && ! pline "$1" "$TMP/tpflag" 'submodules/v'; }
 TF="$TMP/tpflag"; mkrepo "$TMP/rtf/v"; mkdir -p "$TF"; GIT -C "$TF" init -q .; manifest "$TF/helix-deps.yaml" submodules/v false; addsub "$TF" "$TMP/rtf/v" submodules/v "$GO"; commitall "$TF"
 if ! pline "$GATE" "$TF" 'submodules/v'; then ok "manifest third_party: false does not prune"; else bad "third_party: false pruned"; fi

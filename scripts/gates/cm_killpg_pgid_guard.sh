@@ -98,8 +98,9 @@
 # walk prunes (via scripts/lib/third_party_prune.sh): directories named `third_party` / `site-packages`,
 # and every RECORDED gitlink (exact path, unambiguous .gitmodules entry) that the INDEX copy of a tracked
 # helix-deps.yaml of its repository chain marks `third_party: true` (the root manifest may name a nested
-# path). Custody means the index blob, not HEAD and not the worktree: a staged mark is honoured; a skip-worktree,
-# assume-unchanged or visibly edited manifest is refused (scan more). No URL / organisation rule exists: an unmarked submodule is always scanned. Unsafe manifest paths are
+# path). Custody means the index entry, not HEAD and not the object store: the marks are parsed from worktree bytes
+# whose hash equals the stage-0 mode-100644 index sha; a staged mark is honoured; any byte, mode or type difference
+# is refused (scan more); git runs under env -i. No URL / organisation rule exists: an unmarked submodule is always scanned. Unsafe manifest paths are
 # dropped (scan more); an unusable manifest, no git metadata or a missing lib scans more (fail closed). Every
 # pruned path is printed. Single-file roots are never pruned. Opt back in with --include-third-party.
 # Test: cm_killpg_pgid_guard_scope_selftest.sh.

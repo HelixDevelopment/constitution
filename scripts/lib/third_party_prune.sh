@@ -17,11 +17,21 @@
 #     (b) a helix-deps.yaml of that repository's chain marks it `third_party: true`: the manifest at the gate root
 #         (which may name a NESTED gitlink such as submodules/a/submodules/b, resolved through POPULATED own
 #         gitlinks), or the manifest at the top of a populated nested gitlink's own repository.
-#   Custody means the INDEX (not HEAD, not the working tree): the marks are read from the manifest's index blob
-#   (stage 0), so a staged, uncommitted mark is honoured. The manifest is refused (scan more, note on stderr) when it
-#   is untracked, unmerged, a symlink or reached through one, carries an index tag other than `H` (skip-worktree `S`,
-#   assume-unchanged `h`, ...: git no longer compares that entry with the worktree), or differs visibly from the index.
-#   No worktree state (skip-worktree, assume-unchanged, a clean filter, fsmonitor) can change what the marks say.
+#   Custody means the INDEX ENTRY (not HEAD, not the object store, not git's view of the worktree): the marks are
+#   parsed from a snapshot of the worktree file, and only when `git hash-object --no-filters` of that snapshot equals
+#   the blob sha that the ONE index record for exactly that path (literal pathspec, stage 0, mode 100644) records.
+#   So a staged, uncommitted mark is honoured, and the bytes read are by construction the bytes the index records.
+#   The object store is NEVER read (a `git replace` ref, a forged loose object, GIT_OBJECT_DIRECTORY, alternates or a
+#   replace namespace cannot change the bytes), no filter / textconv / fsmonitor runs, and the index-path syntax `:p`
+#   is not used (a root named `0:s` reads its own file). The manifest is refused (scan more, note on stderr) when it is
+#   untracked, intent-to-add, unmerged, recorded with another mode (a symlink 120000, an executable 100755), a symlink
+#   or reached through one in the worktree, executable in the worktree, or byte-different from its index entry
+#   (whatever skip-worktree / assume-unchanged / filter state hides that difference from `git status`).
+#   Every git call runs under `env -i` (PATH and LC_ALL=C only, no global/system config): no caller GIT_* variable
+#   (GIT_DIR, GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT, GIT_NAMESPACE, ...) and no
+#   ~/.gitconfig reaches git. Repository-local .git/config still applies (writing it is the same trust as writing
+#   the index). Out of scope, stated: a SHA-1/SHA-256 collision, a tampered `git` binary on PATH, case-insensitive
+#   file systems (the exact-path checks are byte-exact; a case-folding file system is not modelled).
 #   There is NO ownership-by-URL rule and NO own-org list: .gitmodules URLs never prune anything. An
 #   AMBIGUOUS .gitmodules entry (duplicate path, a name with several paths, a multi-valued url, an
 #   unparseable or symlinked .gitmodules) keeps the gitlink scanned even when the manifest marks it.
@@ -57,7 +67,13 @@ _CM_TP_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # No usable git metadata (no git binary, an exported tree, a git failure): FAIL CLOSED -- only the literal directory
 # names are pruned, a note goes to stderr, the scan covers more. Populated gitlinks that are not marked are
 # descended (depth <= 3) so their own tracked manifests can mark their own recorded gitlinks.
-_cm_tp_git() { env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR git "$@"; }
+# Every git call: an allowlisted environment (env -i) -- no caller GIT_* / config variables, no global or system config
+# (review 11.4.276 follow-ups r1 F2). core.fsmonitor=false is hardening: no command this library runs refreshes the
+# index, so it is not independently mutation-killable (stated, not claimed load-bearing).
+_cm_tp_git() {
+    env -i PATH="${PATH:-/usr/bin:/bin}" LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false "$@"
+}
 
 # cm_tp_is_gitlink <repo-top> <path-from-top> : exact gitlink (mode 160000, path field identical)
 cm_tp_is_gitlink() {
@@ -127,23 +143,34 @@ cm_tp_gitlink_deep() {
     return 1
 }
 
-# cm_tp_manifest_recorded <repo-top> <path-from-top> : the manifest is tracked at stage 0 with index tag `H` (never
-# skip-worktree / assume-unchanged / unmerged), is a regular non-symlink file reached through no symlinked component,
-# and shows no visible worktree difference (else it is not the repository's recorded declaration and is ignored).
-# The worktree checks only make the gate scan MORE; the marks themselves come from the index blob (cm_tp_manifest_blob).
-cm_tp_manifest_recorded() {
-    local top="$1" p="$2" tags
-    [ -f "$top/$p" ] && [ -r "$top/$p" ] && cm_tp_no_symlink "$top" "$p" || return 1
-    _cm_tp_git -C "$top" ls-files --error-unmatch -- ":(literal)$p" >/dev/null 2>&1 || return 1
-    tags="$(_cm_tp_git -C "$top" -c core.quotePath=false ls-files -v -- ":(literal)$p" 2>/dev/null | cut -c1-2 | LC_ALL=C sort -u)" || return 1
-    [ "$tags" = "H " ] || return 1
-    _cm_tp_git -C "$top" -c core.quotePath=false diff --quiet --no-ext-diff -- ":(literal)$p" >/dev/null 2>&1
+# cm_tp_manifest_entry <repo-top> <path-from-top> : prints the blob sha of the ONE index record for exactly that path
+# (literal pathspec, byte-exact path, stage 0, mode 100644); non-zero otherwise (untracked, unmerged, symlink, 100755).
+cm_tp_manifest_entry() {
+    local rec meta mode sha="" stage rp n=0
+    while IFS= read -r -d '' rec; do
+        rp="${rec#*$'\t'}"; meta="${rec%%$'\t'*}"
+        [ "$rp" = "$2" ] || continue
+        n=$((n+1)); read -r mode sha stage <<<"$meta"
+        [ "$mode" = 100644 ] || return 1
+        [ "$stage" = 0 ] || return 1
+    done < <(_cm_tp_git -C "$1" -c core.quotePath=false ls-files -s -z --full-name -- ":(literal)$2" 2>/dev/null)
+    [ "$n" -eq 1 ] || return 1
+    case "$sha" in ''|*[!0-9a-f]*) return 1 ;; esac
+    printf '%s' "$sha"
 }
 
-# cm_tp_manifest_blob <repo-top> <path-from-top> <out-file> : writes the stage-0 INDEX blob of the manifest, raw (no
-# filter, no textconv), to <out-file>. Non-zero when git cannot produce it (then no mark is read).
-cm_tp_manifest_blob() {
-    _cm_tp_git -C "$1" cat-file blob ":$2" > "$3" 2>/dev/null
+# cm_tp_manifest_recorded <repo-top> <path-from-top> <out-file> : writes to <out-file> the manifest bytes the INDEX
+# records, or returns non-zero (then no mark is read). The worktree file must be a regular, non-executable,
+# non-symlink file reached through no symlinked component; a snapshot of it is taken and accepted only when its
+# `hash-object --no-filters` equals the index entry's sha (cm_tp_manifest_entry). The object store is never read.
+cm_tp_manifest_recorded() {
+    local top="$1" p="$2" out="$3" sha got
+    [ -f "$top/$p" ] && [ ! -L "$top/$p" ] && [ -r "$top/$p" ] && cm_tp_no_symlink "$top" "$p" || return 1
+    [ ! -x "$top/$p" ] || return 1
+    sha="$(cm_tp_manifest_entry "$top" "$p")" || return 1
+    cat -- "$top/$p" > "$out" 2>/dev/null || return 1
+    got="$(_cm_tp_git -C "$top" hash-object --no-filters --stdin < "$out" 2>/dev/null)" || return 1
+    [ "$got" = "$sha" ]
 }
 
 # cm_tp_level <top> <prefix> <outpre> <depth> : emits (relative to the gate root) every manifest-marked recorded gitlink
@@ -154,15 +181,15 @@ cm_tp_level() {
     local rec g rel recs rc n path u r2 tpf pp mf="${prefix:+$prefix/}helix-deps.yaml"
 
     if [ -e "$base/helix-deps.yaml" ] || [ -L "$base/helix-deps.yaml" ]; then
-        if ! cm_tp_manifest_recorded "$top" "$mf"; then
-            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded copy (tracked at stage 0 with index tag H, no visible edit, non-symlink); manifest marks ignored" >&2
-        else
-            local blobf; blobf="$(mktemp "${TMPDIR:-/tmp}/tp_manifest.XXXXXX")" || blobf=""
-            if [ -n "$blobf" ] && cm_tp_manifest_blob "$top" "$mf" "$blobf"; then recs="$(cm_hdeps_tsv "$blobf")"; rc=$?
-            else recs=""; rc=8; fi
+        local blobf; blobf="$(mktemp "${TMPDIR:-/tmp}/tp_manifest.XXXXXX")" || blobf=""
+        if [ -z "$blobf" ] || ! cm_tp_manifest_recorded "$top" "$mf" "$blobf"; then
+            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded copy (one stage-0 mode-100644 index entry whose bytes equal the regular, non-executable, non-symlink worktree file); manifest marks ignored" >&2
             [ -n "$blobf" ] && rm -f -- "${blobf:?}"
+        else
+            recs="$(cm_hdeps_tsv "$blobf")"; rc=$?
+            rm -f -- "${blobf:?}"
             if [ "$rc" != 0 ]; then
-                echo "third_party_prune: manifest $base/helix-deps.yaml not usable (index blob reader rc=$rc); manifest marks ignored" >&2
+                echo "third_party_prune: manifest $base/helix-deps.yaml not usable (recorded-copy reader rc=$rc); manifest marks ignored" >&2
             else
                 while IFS=$'\x1f' read -r n path u r2 tpf; do
                     [ "$tpf" = 1 ] || continue
