@@ -35,8 +35,11 @@
 #       [--min-free-kb K] [--min-free-kb-objects K] [--timeout-s N] --out PATH
 #       Isolate a `git worktree` checkout of SHA (see DISK SAFETY below),
 #       run CMD inside it cold-runs+warm-runs times sequentially, record
-#       per-run {start_ns,end_ns,duration_ms,exit_code,verdict}, remove the
-#       worktree (always, via trap), write the canonical report.
+#       per-run {start_ns,end_ns,duration_ms,exit_code,verdict,leftover_*},
+#       remove the worktree (on every return path of the worker, verified with
+#       `git worktree list`; if the tool is STOPPED, the supervisor removes it
+#       from the cleanup ledger instead -- there are no traps), write the
+#       canonical report.
 #   replay-sample --sample PATH --gate-cmd "CMD..." [--cold-runs 10]
 #       [--warm-runs 10] [--repo-root DIR] [--worktree-root DIR]
 #       [--min-free-kb K] [--timeout-s N] --out PATH
@@ -163,10 +166,27 @@
 #   present but unreadable, a gate run that could not be STARTED
 #   (HARNESS_ERROR; the report is still written), any replay-sample item that
 #   could not be measured for a harness reason (report still written),
-#   --determinism-check runs that never completed (deterministic=null), or
-#   another replay holding a lock; 128+N the tool was stopped by signal N (sent
-#   to the main pid, the supervisor, the worker or their process group) -- no
-#   report is written, the run-log directory is marked INTERRUPTED.
+#   --determinism-check runs that never completed (deterministic=null), a
+#   replay worktree that could not be removed (verified), an umask that masks
+#   the owner's permissions, a kernel without /proc/<pid>/task/<tid>/children
+#   (the supervisor's start-up control needle), a run supervisor that ended
+#   without recording an outcome (killed or crashed: the whole replay is aborted
+#   so the supervisor stops what its command left running -- no report, the
+#   run-log directory is marked INTERRUPTED; T048 V4 round 6, F2), or another
+#   replay holding a lock; 128+N the tool was stopped by signal N (sent to the
+#   main pid, the supervisor, the worker or their process group) before the
+#   work finished -- no report is written, the run-log directory is marked
+#   INTERRUPTED. A stop -- or a SIGKILL of the worker or the supervisor's keeper --
+#   that lands only after the report was written does not change the exit code
+#   (round 6, F8; round 7; round 8 V4R8-2: "written" is decided from the report on
+#   disk, never from the writer's exit status). Any other code is mapped to 4, and
+#   the state of the caller's stdout/stderr (open, a pipe nobody reads, closed)
+#   never changes the exit code or whether the report is written (fc_supervisor.py
+#   main_exit_code; round 8 V4R8-1). A signal sent to ONE run supervisor
+#   process alone (`fc-run`, the parent of one gate run) is not a stop of the
+#   tool: that run ends, is recorded UNMEASURED ("stopped by a signal from
+#   outside this harness"), and the replay goes on (exit 0 when nothing else
+#   failed).
 #   Verdicts per run (closed set): PASS | FAIL | UNMEASURED | HARNESS_ERROR,
 #   see classify_run(); median_ms is over PASS runs only (R6-F9).
 #
@@ -238,6 +258,14 @@
 # Linux >= 5.3), coreutils `date`/`df`; Linux /proc with
 # /proc/<pid>/task/<tid>/children.
 set -u
+# T048 V4 round 8 (V4R8-1, CLASS 2): a write to a stdout/stderr whose reader is gone must never decide the exit code.
+# With SIGPIPE at its default action the shell DIED of it: `replay --determinism-check` with a dead stdout reader exited
+# 141 without writing the mandatory --out report (the verdict was echoed first), a harness-error replay with a dead
+# stderr reader exited 141 instead of 4, and a usage error in front of the exec died before `exit 2`. Ignored here (in
+# the caller's process in front of the exec AND in the worker, which is this script again): a write to a dead reader
+# is an EPIPE error and the code is the table's. Every gate still starts with SIGPIPE at SIG_DFL -- the run supervisor
+# resets every disposition but the caller's ignored stop signals (fc_supervisor.py spawn / KEEP_IGNORED).
+trap '' PIPE
 
 # --- resolve this script's own directory, independent of caller's cwd ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -371,11 +399,25 @@ _fc_supervise() {
   # status although its parent restored the default) while passing the caller's
   # ORIGINAL dispositions to every program it execs -- reading bash's own mask
   # made QUIT look "ignored by the caller" and the whole tool unstoppable by it.
-  ign="$(awk '/^SigIgn:/{print $2; exit}' /proc/self/status 2>/dev/null)"
+  # Read with sed, never awk (T048 V4 round 5, census): gawk sets SIGPIPE to SIG_IGN in its OWN process,
+  # so an awk reading /proc/self/status always reported "SIGPIPE ignored by the caller" -- and the run
+  # supervisor then kept SIGPIPE ignored for every gate. (Only HUP/INT/QUIT/TERM are taken from this mask.)
+  ign="$(sed -n 's/^SigIgn:[[:space:]]*//p' /proc/self/status 2>/dev/null)"
   case "$ign" in ''|*[!0-9a-fA-F]*) ign=0 ;; esac
   export FC_BR_OUT_OVERRIDE="$_FC_OUT_OVERRIDE"
-  exec python3 -I "$_FC_SUPERVISOR" main --tmp-parent "${TMPDIR:-/tmp}" --entry-sigign "$ign" \
-    --grace "$_FC_GRACE" "${args[@]}" -- "$BASH" "$SCRIPT_PATH" "$SUBCMD" "${ORIG_ARGS[@]}"
+  # ${a[@]+"${a[@]}"}: an EMPTY array under `set -u` is an "unbound variable" error on bash < 4.4
+  # (selfcheck passes no lock arguments) -- T048 V4 round 5, F10
+  # T048 V4 round 7 (N6): a SIGINT that lands while the Python INTERPRETER starts (before the script's first
+  # statement) is Python's default KeyboardInterrupt: measured "Fatal Python error: init_import_site / init_sys_streams
+  # ... KeyboardInterrupt" -> exit 1, or a stop swallowed during start-up and the replay run to the end (exit 0).
+  # INT is therefore BLOCKED across the exec (coreutils `env --block-signal`, probed first): a stop that arrives
+  # stays pending and is delivered only when the supervisor unblocks it, with its own handler installed (it then
+  # acts as any stop: 128+2). Where env cannot block, the exec happens unblocked and the boundary above remains.
+  # -S: no site import (the supervisor needs only the standard library).
+  local blk=()
+  env --block-signal=INT true >/dev/null 2>&1 && blk=(env --block-signal=INT)
+  exec ${blk[@]+"${blk[@]}"} python3 -I -S "$_FC_SUPERVISOR" main --tmp-parent "${TMPDIR:-/tmp}" --entry-sigign "$ign" \
+    --grace "$_FC_GRACE" ${args[@]+"${args[@]}"} -- "$BASH" "$SCRIPT_PATH" "$SUBCMD" ${ORIG_ARGS[@]+"${ORIG_ARGS[@]}"}
 }
 
 # _fc_worker_init: in the worker, take over the supervisor's hand-off variables
@@ -400,14 +442,32 @@ _fc_worker_init() {
 # `fc_supervisor.py run` (bounded by TIMEOUT_S; whatever CMD leaves running is
 # stopped before this returns), stdout+stderr to LOG, stdin /dev/null. Returns
 # CMD's exit code (124/137 on timeout, 125 if the run supervisor itself failed);
-# MARKER receives the outcome: exited | timed_out | cd_failed | exec_failed.
+# MARKER receives the outcome: exited | timed_out | cd_failed | exec_failed |
+# stopped (the run supervisor got a stop signal) | status_lost | probe_failed.
+# An EMPTY marker (the run supervisor was killed or crashed) never returns: the
+# worker exits 4 so the keeper stops what the command left running (round 6, F2).
+# With _FC_RUN_TIMING set, the run supervisor writes the command's own exit
+# instant and the leftover-stop time there (T048 V4 round 5, F5).
+_FC_RUN_TIMING=""
 _fc_run_child() {
   local log="$1" tmo="$2" mk="$3" cwd="$4"
   shift 4
   [ "${1:-}" = -- ] && shift
-  python3 -I "$_FC_SUPERVISOR" run --timeout "$tmo" --kill-after 5 --grace "$_FC_GRACE" --marker "$mk" \
+  local targs=()
+  [ -n "$_FC_RUN_TIMING" ] && targs=(--timing "$_FC_RUN_TIMING")
+  python3 -I -S "$_FC_SUPERVISOR" run --timeout "$tmo" --kill-after 5 --grace "$_FC_GRACE" --marker "$mk" ${targs[@]+"${targs[@]}"} \
     --cwd "$cwd" --entry-sigign "$_FC_ENTRY_SIGIGN" -- "$@" >"$log" 2>&1 </dev/null &
   wait "$!"
+  local rc=$?
+  [ -s "$mk" ] && return "$rc"
+  # T048 V4 round 6, F2 (reviewer injection I3): the run supervisor recorded NO outcome -- it was SIGKILLed or
+  # crashed. Whatever its command left running (a gate's double-forked daemon, a hook's `sleep &`) was re-parented
+  # to the keeper and is no longer stopped by that run; going on (a HARNESS_ERROR row, a worktree removed under a
+  # still-running daemon, a next run / item / determinism replay beside it) would break "nothing a run starts
+  # outlives it". The whole replay is aborted HERE: the worker exits, the keeper stops every remaining process
+  # and only then processes the ledger (worktree removed, run-log directory marked INTERRUPTED). No report.
+  echo "baseline_replay: BLIND: the run supervisor of one child process (exit $rc) ended without recording an outcome -- it was killed or crashed, so processes its command left running are no longer stopped by it; aborting the whole replay so the supervisor stops them before anything else runs (no report is written)" >&2
+  exit 4
 }
 
 # Ledger (see fc_supervisor.py): one file per worktree / run-log directory,
@@ -419,15 +479,36 @@ _fc_ledger_add() {
   _FC_LEDGER_FILE="$(mktemp "$_FC_TMPDIR/ledger.$kind.XXXXXX")" || return 1
   printf '%s\0' "$@" >"$_FC_LEDGER_FILE" || return 1
 }
+# _fc_ledger_pend PARENT PREFIX -> a `pend` entry (sets _FC_LEDGER_FILE), written
+# BEFORE `mktemp -d PARENT/PREFIX...` creates a directory that is not registered
+# yet; it lists the PREFIX* names that already exist. A stop in the window
+# between mktemp and the real ledger entry makes the supervisor remove the NEW
+# EMPTY directory (rmdir only) -- T048 V4 round 5, F9. Remove the entry once the
+# real one is written.
+_fc_ledger_pend() {
+  local parent="$1" prefix="$2" n names=()
+  for n in "$parent/$prefix"*; do
+    { [ -e "$n" ] || [ -L "$n" ]; } || continue
+    names+=("${n##*/}")
+  done
+  _fc_ledger_add pend "$parent" "$prefix" ${names[@]+"${names[@]}"}
+}
 
 # ---------------------------------------------------------------------------
 # Verdicts (closed set, T048 restart round 1, R6-F8):
 #   PASS          the gate ran and exited 0
 #   FAIL          the gate ran and exited non-zero (including its OWN 124/126/127)
-#   UNMEASURED    the gate did not finish: killed by --timeout-s
+#   UNMEASURED    no verdict could be observed: the gate was killed by --timeout-s
+#                 (marker timed_out), its run supervisor was stopped by a signal
+#                 from OUTSIDE this harness (marker stopped -- the harness itself
+#                 never signals one run; it stops the whole tool, see below), or
+#                 the gate ran but its exit status was reaped elsewhere (marker
+#                 status_lost; T048 V4 round 5, F1/F4)
 #   HARNESS_ERROR the gate never ran: cd into the worktree failed, the command was
-#                 not found / not executable (exec failed), or the run supervisor
-#                 itself failed or recorded no outcome
+#                 not found / not executable (exec failed), the run supervisor's
+#                 start-up control needle failed (probe_failed), or the run
+#                 supervisor wrote a marker this harness does not know. (NO
+#                 marker at all aborts the replay in _fc_run_child, round 6 F2.)
 # Whether the gate ran, and whether it timed out, is OBSERVED, never inferred from
 # the exit code: `fc_supervisor.py run` writes the outcome to a marker file
 # (exited | timed_out | cd_failed | exec_failed). T048 restart round 3: the
@@ -447,6 +528,9 @@ classify_run() {
   case "$mk" in
     cd_failed|exec_failed) printf 'HARNESS_ERROR|%s' "$mk"; return 0 ;;
     timed_out) printf 'UNMEASURED|timed out (exit %s, limit %sms)' "$rc" "$tmo_ms"; return 0 ;;
+    stopped) printf 'UNMEASURED|stopped: the run supervisor received a stop signal from outside this harness (exit %s) -- the gate did not finish; this harness sent it nothing' "$rc"; return 0 ;;
+    status_lost) printf 'UNMEASURED|the gate ran but its exit status was reaped outside the run supervisor (status_lost) -- no verdict can be given'; return 0 ;;
+    probe_failed) printf 'HARNESS_ERROR|probe_failed: the run supervisor cannot see its own children in /proc/<pid>/task/<tid>/children'; return 0 ;;
     exited) ;;
     *) printf 'HARNESS_ERROR|the run supervisor recorded no outcome (exit %s, marker %s)' "$rc" "${mk:-empty}"; return 0 ;;
   esac
@@ -465,6 +549,12 @@ classify_run() {
 # RG_RC RG_VERDICT RG_REASON. Returns 4 only when the clock or a temp file cannot
 # be obtained (BLIND). The measured duration includes the run supervisor's own
 # start-up (a Python process, tens of milliseconds) -- the same for every run.
+# T048 V4 round 5 (F5): the duration ends at the instant the gate COMMAND itself
+# exited (recorded by the run supervisor), never when the run supervisor finished
+# stopping whatever the command left running -- a gate that exits at once but
+# leaves a TERM-ignoring child used to record the whole stop grace period as its
+# own duration. The leftovers are recorded separately: RG_LEFT_N processes,
+# RG_LEFT_MS milliseconds to stop them.
 # ---------------------------------------------------------------------------
 run_gate_once() {
   local cwd="$1" tmo="$2" log="$3"
@@ -473,14 +563,30 @@ run_gate_once() {
   local marker
   marker="$(_fc_mktemp)" || { echo "baseline_replay: mktemp failed (temp directory unusable)" >&2; return 4; }
   RG_START_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
+  _FC_RUN_TIMING="$marker.t"
   _fc_run_child "$log" "$tmo" "$marker" "$cwd" -- "$@"
   RG_RC=$?
-  RG_END_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
+  _FC_RUN_TIMING=""
+  RG_END_NS="$(now_ns)" || { rm -f "$marker" "$marker.t"; return 4; }
+  RG_LEFT_N=0
+  RG_LEFT_MS=0
+  if [ -s "$marker.t" ]; then
+    local _k _v _exit_ns=""
+    while IFS='=' read -r _k _v || [ -n "$_k" ]; do
+      isnum "$_v" || continue
+      case "$_k" in
+        exit_ns) _exit_ns="$_v" ;;
+        leftover_processes) RG_LEFT_N="$_v" ;;
+        leftover_stop_ms) RG_LEFT_MS="$_v" ;;
+      esac
+    done <"$marker.t"
+    [ -n "$_exit_ns" ] && [ "$_exit_ns" -ge "$RG_START_NS" ] && [ "$_exit_ns" -le "$RG_END_NS" ] && RG_END_NS="$_exit_ns"
+  fi
   RG_DURATION_MS=$(( (RG_END_NS - RG_START_NS) / 1000000 ))
   [ "$RG_DURATION_MS" -ge 0 ] || RG_DURATION_MS=0
   local mk=""
   [ -s "$marker" ] && mk="$(cat "$marker")"
-  rm -f "$marker"
+  rm -f "$marker" "$marker.t"
   local cls
   cls="$(classify_run "$RG_RC" "$mk" "$((tmo * 1000))")"
   RG_VERDICT="${cls%%|*}"
@@ -613,14 +719,37 @@ git_subject_freeze() {
 # into the caller's FC_OUT instead of its own temp file and every item was then
 # recorded as a harness error with exit 0.
 # ---------------------------------------------------------------------------
+# T048 V4 round 8 (V4R8-2, STRUCTURAL): "the report was written" is decided from DURABLE state, never from the report
+# writer's exit status. Round 7 took it from `fc_common.py emit`'s status: a stop landing after the writer's rename but
+# before the writer exited gave 143, and the replay exited 128+N ("no report") with the report on disk and its run-log
+# directory marked INTERRUPTED with a false text (30/30 with the reviewer's injection; the same for a SIGKILL of the
+# worker between the report and round 7's `done` marker). Now, BEFORE the writer starts, `fc_supervisor.py
+# report-prepare` records atomically in the private temp directory the report's absolute path, the identity of the
+# file there now, the body_hash the report will carry and the exit code the replay has once it exists (emit_doc's 4th
+# argument). Afterwards worker, keeper and main all ask the same question of the disk (fc_supervisor.py
+# report_verified): is the file at that path a NEW file carrying that body_hash? The keeper and main read that state
+# themselves, so nothing the worker does or fails to do after the rename -- a stop, a SIGKILL, a killed `report-check`
+# -- can change the replay's code: round 7's `done` marker and its stop DEFERRAL in the worker are gone (a stop simply
+# ends the worker, 128+N; once the report exists the keeper keeps the report's code). Outside the supervised worker
+# (freeze) the writer's status is the answer, as before.
 emit_doc() {
-  local schema="$1" body_json="$2" out_path="$3"
+  local schema="$1" body_json="$2" out_path="$3" code_if_written="${4:-0}" emit_rc
   mkdir -p "$(dirname "$out_path")" 2>/dev/null
   local run_meta
   run_meta="$(python3 -c 'import json,platform; print(json.dumps({"host": platform.node()}))')"
+  if [ "$_FC_IS_WORKER" = 1 ]; then
+    python3 -I -S "$_FC_SUPERVISOR" report-prepare --tmpdir "$_FC_TMPDIR" --fc-common "$FC/lib/fc_common.py" \
+      --out "$out_path" --schema "$schema" --body-json "$body_json" --code "$code_if_written" \
+      || { echo "baseline_replay: BLIND: cannot record the report about to be written to $out_path -- it is not written (its existence could not be verified afterwards)" >&2; return 4; }
+  fi
   python3 "$FC/lib/fc_common.py" emit --schema "$schema" --body-json "$body_json" \
     --run-meta-json "$run_meta" --out "$out_path"
-  return $?
+  emit_rc=$?
+  if [ "$_FC_IS_WORKER" = 1 ]; then
+    python3 -I -S "$_FC_SUPERVISOR" report-check --tmpdir "$_FC_TMPDIR" >/dev/null 2>&1 && return 0
+    [ "$emit_rc" = 0 ] && emit_rc=4   # the writer said 0 but the report is not on disk: never a silent success
+  fi
+  return "$emit_rc"
 }
 
 # ---------------------------------------------------------------------------
@@ -732,7 +861,7 @@ print(json.dumps({"result": "ok" if sys.argv[2] == "0" else "FAILED", "checks": 
 PY
 )"
   [ "$sc_rc" = 0 ] || return 3
-  emit_doc "baseline-replay-selfcheck/v1" "$body" "$out"
+  emit_doc "baseline-replay-selfcheck/v1" "$body" "$out" 0
 }
 
 # =============================================================================
@@ -796,8 +925,7 @@ PY
 #   then recursively SRC's own corresponding submodule directory).
 #   Returns the first non-zero exit encountered (or 0).
 # =============================================================================
-# invoked indirectly: exported with export -f and run via bash -c in a child shell below
-# shellcheck disable=SC2329
+# shellcheck disable=SC2329 # invoked indirectly: exported with export -f and run via bash -c in a child shell below
 _fc_submodule_reference_update() {
   local src="$1" tgt="$2"
   [ -f "$tgt/.gitmodules" ] || return 0
@@ -816,8 +944,7 @@ _fc_submodule_reference_update() {
   git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"$list_file" 2>/dev/null
 
   local key path name ref_path rc=0
-  # false positive: the loop only READS list_file via the redirect; rm -f merely unlinks it on early return, nothing is written through the pipeline
-  # shellcheck disable=SC2094
+  # shellcheck disable=SC2094 # false positive: the loop only reads list_file via the redirect; rm -f merely unlinks it on early return, nothing is written through it
   while IFS=' ' read -r key path; do
     [ -n "$key" ] || continue
     name="${key#submodule.}"
@@ -872,29 +999,61 @@ _FC_WT_PATH=""
 _FC_WT_LEDGER=""
 _FC_LOG_DIR=""
 _FC_LOG_LEDGER=""
+# T048 V4 round 5 (F2): a `git worktree add` killed part-way leaves the worktree
+# `locked: initializing`; `remove --force` refuses it and `prune` skips it. It is
+# unlocked and removed with -f -f, and the removal is VERIFIED (directory gone AND
+# no longer in `git worktree list --porcelain`) before the ledger entry is dropped.
+# A removal that cannot be verified returns 1, says so, and KEEPS the ledger entry
+# so the supervisor tries again at teardown (and reports the outcome).
+_fc_wt_listed() { # REPO PATH -> 0 listed, 1 not listed, 2 the list cannot be read
+  local out
+  out="$(git -C "$1" worktree list --porcelain 2>/dev/null)" || return 2
+  # here-strings, never `printf | grep -q`: SIGPIPE is ignored in this script (V4R8-1), so a printf whose reader
+  # `grep -q` already exited would report a write error on a long list
+  grep -qxF "worktree $2" <<<"$out" && return 0
+  grep -qxF "worktree $(realpath -m -- "$2" 2>/dev/null)" <<<"$out" && return 0
+  return 1
+}
 _fc_wt_cleanup() {
+  local rc=0 listed
   if [ -n "$_FC_WT_PATH" ]; then
-    git -C "$_FC_WT_REPO" worktree remove --force "$_FC_WT_PATH" >/dev/null 2>&1
+    git -C "$_FC_WT_REPO" worktree unlock "$_FC_WT_PATH" >/dev/null 2>&1
+    git -C "$_FC_WT_REPO" worktree remove -f -f "$_FC_WT_PATH" >/dev/null 2>&1
     rm -rf "$_FC_WT_PATH" 2>/dev/null
     git -C "$_FC_WT_REPO" worktree prune >/dev/null 2>&1
+    _fc_wt_listed "$_FC_WT_REPO" "$_FC_WT_PATH"
+    listed=$?
+    if [ -e "$_FC_WT_PATH" ] || [ -L "$_FC_WT_PATH" ] || [ "$listed" != 1 ]; then
+      echo "baseline_replay: could NOT remove the replay worktree $_FC_WT_PATH (on disk: $([ -e "$_FC_WT_PATH" ] && echo yes || echo no); git worktree list: $(case "$listed" in 0) echo 'still listed' ;; 2) echo 'unreadable' ;; *) echo 'not listed' ;; esac)) -- left in the cleanup ledger for the supervisor" >&2
+      rc=1
+    fi
   fi
-  [ -n "$_FC_WT_LEDGER" ] && rm -f "$_FC_WT_LEDGER"
+  if [ "$rc" = 0 ] && [ -n "$_FC_WT_LEDGER" ]; then
+    rm -f "$_FC_WT_LEDGER"
+  fi
   _FC_WT_PATH=""; _FC_WT_LEDGER=""
-  return 0
+  return "$rc"
 }
+# T048 V4 round 7 (N3) / round 8 (V4R8-2): the run-log ledger entry of a SUCCESSFUL replay is never dropped here --
+# the report that references the directory is written later (emit_doc). It stays in the ledger; at teardown the
+# supervisor marks the directory INTERRUPTED unless the report exists (verified on disk, fc_supervisor.py read_report)
+# (round 6 dropped it here: a stop before the report left an unexplained log directory).
 do_one_replay() {
   _FC_WT_REPO=""; _FC_WT_PATH=""; _FC_WT_LEDGER=""; _FC_LOG_DIR=""; _FC_LOG_LEDGER=""
   _do_one_replay_body "$@"
   local rc=$?
   _fc_wt_cleanup
   if [ -n "$_FC_LOG_LEDGER" ]; then
-    # a log directory no report will reference (a BLIND return after the runs
-    # began) is marked as such, never left unexplained (V4R3-14)
-    if [ "$rc" != 0 ] && [ -d "$_FC_LOG_DIR" ]; then
-      printf 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc" >"$_FC_LOG_DIR/INTERRUPTED" 2>/dev/null
+    if [ "$rc" != 0 ]; then
+      # a log directory no report will reference (a BLIND return after the runs
+      # began) is marked as such, never left unexplained (V4R3-14)
+      if [ -d "$_FC_LOG_DIR" ]; then
+        printf 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc" >"$_FC_LOG_DIR/INTERRUPTED" 2>/dev/null
+      fi
+      rm -f "$_FC_LOG_LEDGER"
     fi
-    rm -f "$_FC_LOG_LEDGER"
   fi
+  # rc 0: the run-log ledger entry is KEPT until the worker exits -- the supervisor drops it, and marks the directory INTERRUPTED only when no report exists (V4R8-2)
   return "$rc"
 }
 
@@ -928,7 +1087,10 @@ _do_one_replay_body() {
     return 4
   fi
 
-  local wt_path
+  local wt_path wt_pend
+  # the pend entry covers the window from `mktemp -d` to the wt entry (round 5, F9)
+  _fc_ledger_pend "$worktree_root" "replay." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
+  wt_pend="$_FC_LEDGER_FILE"
   wt_path="$(mktemp -d "$worktree_root/replay.XXXXXX")" || { echo "baseline_replay: mktemp -d under $worktree_root failed" >&2; return 4; }
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
@@ -938,6 +1100,7 @@ _do_one_replay_body() {
   _FC_WT_PATH="$wt_path"
   _fc_ledger_add wt "$repo_root" "$wt_path" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   _FC_WT_LEDGER="$_FC_LEDGER_FILE"
+  rm -f "$wt_pend"
   # `git worktree add` runs the repository's post-checkout hook. It runs under
   # the run supervisor, so a process the hook leaves running is stopped as soon
   # as the add returns (V4R3-5's hook `sleep &` used to outlive the tool and
@@ -1180,8 +1343,7 @@ _do_one_replay_body() {
   export -f _fc_submodule_reference_update
   local _sm_mk submodule_rc
   _sm_mk="$(_fc_mktemp)" || { export -fn _fc_submodule_reference_update; echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
-  # the bash -c body is single-quoted on purpose: $1/$2 must expand in the child shell, not here
-  # shellcheck disable=SC2016
+  # shellcheck disable=SC2016 # the bash -c body is single-quoted on purpose: $1/$2 are positional args expanded by the child shell, not by this one
   _fc_run_child /dev/null "$timeout_s" "$_sm_mk" "$repo_root" -- \
       env _FC_TMPDIR="$_FC_TMPDIR" "$BASH" -c '_fc_submodule_reference_update "$1" "$2"' fc-submodule "$repo_root" "$wt_path"
   submodule_rc=$?
@@ -1292,13 +1454,16 @@ _do_one_replay_body() {
   # never touches it. The directory is recorded as the
   # report's log_dir.
   mkdir -p "$worktree_root/replay-logs" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $worktree_root/replay-logs" >&2; return 4; }
-  local run_log_dir
+  local run_log_dir log_pend
+  _fc_ledger_pend "$worktree_root/replay-logs" "${commit:0:12}." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
+  log_pend="$_FC_LEDGER_FILE"
   run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
   # ledger: a stop before the report is written marks this directory INTERRUPTED
   # (V4R3-14) instead of leaving unowned partial evidence behind
   _FC_LOG_DIR="$run_log_dir"
   _fc_ledger_add logs "$run_log_dir" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   _FC_LOG_LEDGER="$_FC_LEDGER_FILE"
+  rm -f "$log_pend"
 
   local rows='[]' harness_error=0
   local phase run_idx n_runs run_log
@@ -1312,13 +1477,14 @@ _do_one_replay_body() {
       run_gate_once "$wt_path" "$timeout_s" "$run_log" -- "${gate_cmd[@]}" || return 4
       [ "$RG_VERDICT" = HARNESS_ERROR ] && harness_error=1
       rows="$(python3 - "$rows" "$phase" "$run_idx" "$RG_START_NS" "$RG_END_NS" "$RG_DURATION_MS" \
-          "$RG_RC" "$RG_VERDICT" "$RG_REASON" "$run_log" <<'PY'
+          "$RG_RC" "$RG_VERDICT" "$RG_REASON" "$run_log" "$RG_LEFT_N" "$RG_LEFT_MS" <<'PY'
 import json, sys
 a = sys.argv
 rows = json.loads(a[1])
 rows.append({"phase": a[2], "run_index": int(a[3]), "start_ns": int(a[4]), "end_ns": int(a[5]),
              "duration_ms": int(a[6]), "exit_code": int(a[7]), "verdict": a[8], "verdict_reason": a[9],
-             "log_path": a[10]})
+             "log_path": a[10], "leftover_processes": int(a[11]), "leftover_stop_ms": int(a[12]),
+             "left_processes_running": int(a[11]) > 0})
 print(json.dumps(rows))
 PY
 )" || { echo "baseline_replay: cannot record run row" >&2; return 4; }
@@ -1326,7 +1492,9 @@ PY
     done
   done
 
-  _fc_wt_cleanup
+  # a worktree that cannot be removed (verified) is a harness failure: no report body,
+  # the log directory is marked INTERRUPTED, the supervisor retries from the ledger (round 5, F2)
+  _fc_wt_cleanup || return 4
 
   # Report body. T048 restart round 1:
   #  - R6-F5: every value is passed through argv; the program text is a quoted
@@ -1357,12 +1525,21 @@ for p in phases:
         d = [r["duration_ms"] for r in rows if r["phase"] == p and r["verdict"] == v]
         by_verdict[p][v] = {"n_runs": len(d), "median_ms": med(d)}
 verdict_set = {p: sorted({r["verdict"] for r in rows if r["phase"] == p}) for p in phases}
+# T048 V4 round 5 (F5): a run whose gate left processes running is FLAGGED (left_processes_running)
+# and counted here. Its duration_ms ends at the gate command's own exit, so it stays in median_ms;
+# the time spent stopping the leftovers is leftover_stop_ms, never part of any duration.
+leftover_runs = {p: sum(1 for r in rows if r["phase"] == p and r.get("leftover_processes", 0) > 0)
+                 for p in phases}
 print(json.dumps({
     "commit": commit, "tree": tree, "tree_verified": tree_verified, "gate_cmd": gate_cmd,
     "cold_runs": cold_runs, "warm_runs": warm_runs, "min_free_kb": min_free_kb,
     "min_free_kb_objects": min_free_kb_objects, "timeout_s": timeout_s,
     "cache_mechanism": "none (T068 verdict_cache.py not landed in this tree, verified 2026-09-28)",
     "median_basis": "PASS runs only (FAIL/UNMEASURED/HARNESS_ERROR excluded, see by_verdict)",
+    "duration_basis": ("from just before the run supervisor starts to the instant the gate command itself "
+                       "exited; stopping processes the gate left running is recorded per run as "
+                       "leftover_stop_ms and is not part of duration_ms"),
+    "leftover_runs": leftover_runs,
     "log_dir": log_dir, "harness_error": harness_error,
     "runs": rows, "median_ms": median_ms, "by_verdict": by_verdict, "verdict_set": verdict_set,
 }))
@@ -1522,12 +1699,14 @@ PY
 )"
     det_rc=$?
     rm -f "$body1" "$body2"
-    echo "$det_body"
+    # T048 V4 round 8 (V4R8-1): the mandatory --out report FIRST, the verdict on stdout after it -- a dead stdout
+    # reader (an EPIPE, SIGPIPE being ignored) can never cost the report.
     # T043 round-3 review finding F3(c): a --out write failure is always
     # surfaced, and escalates a would-be exit 0 to 4 (a caller must never see
     # exit 0 when the mandatory --out contract was not honoured).
-    emit_doc "baseline-replay-determinism/v1" "$det_body" "$out"
+    emit_doc "baseline-replay-determinism/v1" "$det_body" "$out" "$det_rc"
     emit_rc=$?
+    echo "$det_body"
     if [ "$emit_rc" != 0 ]; then
       echo "baseline_replay: WARNING: writing the --determinism-check result to --out ($out) failed (emit_doc exit $emit_rc) -- the determinism verdict printed above is still accurate, but the mandatory --out contract was not honored" >&2
       [ "$det_rc" = 0 ] && return 4
@@ -1539,7 +1718,9 @@ PY
   body="$(cat "$body1")"
   herr="$(body_field "$body1" harness_error)"
   rm -f "$body1"
-  emit_doc "baseline-replay/v1" "$body" "$out" || return $?
+  local rc_written=0
+  [ "$herr" = true ] && rc_written=4
+  emit_doc "baseline-replay/v1" "$body" "$out" "$rc_written" || return $?
   # R6-F8: a gate that could not even be started is BLIND (exit 4), never a
   # recorded "gate FAIL" with exit 0. The report is still written as evidence.
   if [ "$herr" = true ]; then
@@ -1662,7 +1843,9 @@ print(json.dumps({"sample_path": a[1], "gate_cmd": a[5:], "cold_runs": int(a[2])
 PY
 )" || { rm -f "$entries_file"; blind "cannot assemble the replay-sample report"; }
   rm -f "$entries_file"
-  emit_doc "baseline-replay-sample/v1" "$body" "$out" || return $?
+  local rc_written=0
+  [ "$n_harness" -gt 0 ] && rc_written=4
+  emit_doc "baseline-replay-sample/v1" "$body" "$out" "$rc_written" || return $?
   # R6-F3/F8/F12 class: an item that could not be measured because the HARNESS
   # failed (freeze BLIND, worktree/submodule failure, a gate that never started)
   # is recorded per item AND makes the whole run exit 4, never exit 0.
@@ -1685,7 +1868,19 @@ unset FC_OUT
 case "$SUBCMD" in
   replay|replay-sample|selfcheck)
     # the worker (started by the supervisor): take over the hand-off variables
-    [ "${FC_BR_SUPERVISED:-}" = 1 ] && _fc_worker_init ;;
+    if [ "${FC_BR_SUPERVISED:-}" = 1 ]; then
+      _fc_worker_init
+    else
+      # the caller's process, in front of the exec into the supervisor (T048 V4 round 7, N6): nothing is created
+      # yet, so a stop simply ends it -- 128+N. Without these traps bash's wait-and-cooperative-exit rule DROPPED an
+      # INT that arrived while a foreground child ran and then exited normally (the `env --block-signal` probe): the
+      # whole replay ran and exited 0 (test [R7N6] (e)). Signals the caller ignored stay ignored (bash cannot trap
+      # them); `exec` resets these traps, so the supervisor starts with the caller's dispositions.
+      trap 'exit 129' HUP
+      trap 'exit 130' INT
+      trap 'exit 131' QUIT
+      trap 'exit 143' TERM
+    fi ;;
   freeze)
     # T048 restart round 2 (V4-9): one private temp directory, removed by the EXIT
     # trap (freeze starts no child that could outlive it)
