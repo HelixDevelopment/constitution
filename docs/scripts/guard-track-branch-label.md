@@ -1,7 +1,7 @@
 # guard-track-branch-label.sh — §11.4.182 track+branch+alias label guard hook
 
-**Revision:** 3
-**Last modified:** 2026-10-15T00:00:00Z
+**Revision:** 4
+**Last modified:** 2026-11-03T00:00:00Z
 **Authority:** constitution submodule §11.4.182 (Track+branch work-stream identity label — extended 2026-07-26 with the `<model>` + `<effort>` fields) · §11.4.231 clause (F) (effort-tier) · §11.4.177 (inherited-by-reference) · §11.4.6 (no-guessing / honest boundary)
 **Classification:** universal (§11.4.17)
 
@@ -141,6 +141,7 @@ counts). For `Agent`/`Task` dispatches:
 |---|---|---|
 | empty or `general-purpose` | yes | **WARN** (exit 0 + `additionalContext` JSON naming up to 10 types); **BLOCK** (exit 2) with `AGENT_TYPE_LABEL_ENFORCE=1` |
 | `T<M>-...-<model>-<effort>` with `M` != label track | n/a | same WARN / BLOCK |
+| `T<N>-...-<model>-<effort>` of the label's track, with a call `model` (family) or `effort` parameter that differs from the type name (Rev 4) | n/a | same WARN / BLOCK |
 | any other type (`Explore`, `Plan`, `plugin:agent`, a matching label type) | n/a | untouched |
 | any | no | untouched |
 
@@ -151,7 +152,17 @@ alias blocks above have none. A `T?` (unknown-track) label skips the check.
 Honest boundary: agent types are loaded by the agent platform - a type
 generated mid-session became dispatchable after a short delay in one headless
 test (UNVERIFIED for interactive sessions), so WARN-only is the default.
-Tests: `scripts/hooks/test_guard_agent_type_label.sh` (25 cases); gate
+Rev 4 (review 2026-11-03): an Agent call's `model` / `effort` parameters
+override the type's frontmatter, so a call that sets a different model family
+(`opus`, `sonnet`, `haiku`, `fable` by substring, anything else such as
+`inherit` verbatim) or a different effort than the type name is flagged; the
+description label's own model/effort fields are not compared with the type
+(they record the dispatching session's live model). Track numbers compare as
+decimals (T007 == T7). The WARN `additionalContext` is JSON-escaped (quote,
+backslash, control characters). `AGENT_TYPE_LABEL_ENFORCE` and
+`AGENT_TYPE_LABEL_BYPASS` are read from the hook's process environment, so they
+are session-wide; there is no per-dispatch marker.
+Tests: `scripts/hooks/test_guard_agent_type_label.sh` (36 cases); gate
 `CM-AGENT-TYPE-LABEL` (`scripts/gates/cm_agent_type_label.sh`).
 
 ## Tests / gates

@@ -31,10 +31,11 @@
 #   subshell, a failing step is recorded as an ERROR (exit 1) and the next step
 #   still runs; `exit`/unset variables end only that step (a signal can still
 #   end the hook).
-#   4f. (Every pull) regenerates the §11.4.182/§11.4.231(F) agent-type label
-#      definitions T<N>-<branch>-<model>-<effort> into <project>/.claude/agents
-#      via scripts/multitrack/install_agent_label_defs.sh (idempotent, never
-#      touches hand-made agents, non-fatal)
+#   4f. (Every pull) checks the §11.4.182/§11.4.231(F) agent-type label
+#      definitions T<N>-<branch>-<model>-<effort> in <project>/.claude/agents
+#      via scripts/multitrack/install_agent_label_defs.sh: DRY-RUN by default
+#      (reports only); writes only with AGENT_LABEL_DEFS_AUTOWIRE=apply; `off`
+#      skips it (idempotent, never touches hand-made agents, non-fatal)
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -745,12 +746,20 @@ install_action_plugins() {
 # ============================================================================
 # STEP 4f — (Re)generate the §11.4.182 / §11.4.231(F) agent-type label definitions
 # ============================================================================
-# Every pull regenerates the consumer's T<N>-<branch>-<model>-<effort> agent
-# types into <project>/.claude/agents (idempotent; hand-made agents are never
-# touched; a collision is a WARNING, never fatal). Runs on EVERY pull, not only
-# when a tracked category changed, so a consumer that never had the types gets
-# them on its next pull. Definitions are loaded by the agent platform, so new
-# types may only become dispatchable after a short delay or a session restart.
+# Every pull CHECKS the consumer's T<N>-<branch>-<model>-<effort> agent types in
+# <project>/.claude/agents (idempotent; hand-made agents are never touched; a
+# collision is a WARNING, never fatal). Runs on EVERY pull, not only when a
+# tracked category changed, so a consumer that never had the types learns
+# about them on its next pull. Definitions are loaded by the agent platform, so
+# new types may only become dispatchable after a short delay or a restart.
+#
+# DEFAULT IS NON-DESTRUCTIVE (review 2026-11-03, F1; same consent pattern as
+# STEP 4c): without AGENT_LABEL_DEFS_AUTOWIRE=apply the installer runs with
+# --dry-run and this step only REPORTS what it WOULD write or prune; nothing
+# is written to the consumer. Modes (env AGENT_LABEL_DEFS_AUTOWIRE):
+#   dry-run (default) | apply (write + prune stale generated files) | off (skip)
+# The installer itself refuses (exit 6) a project root that is the home
+# directory, an ancestor of it, or a user-level agent config directory.
 install_agent_label_defs() {
     header "STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>)"
 
@@ -761,10 +770,25 @@ install_agent_label_defs() {
         return 0
     fi
 
-    local rc=0
-    bash "$installer" --project-root "$PROJECT_ROOT" || rc=$?
+    local mode="${AGENT_LABEL_DEFS_AUTOWIRE:-dry-run}" rc=0
+    local -a args=()
+    case "$mode" in
+        off)     info "AGENT_LABEL_DEFS_AUTOWIRE=off — agent-type label definitions skipped."; return 0 ;;
+        apply)   args=() ;;
+        dry-run) args=(--dry-run) ;;
+        *)       warn "unknown AGENT_LABEL_DEFS_AUTOWIRE='$mode' — treating as dry-run (non-destructive)."
+                 mode="dry-run"; args=(--dry-run) ;;
+    esac
+    info "Running: install_agent_label_defs.sh --project-root $PROJECT_ROOT ${args[*]:-}  (mode: $mode)"
+    bash "$installer" --project-root "$PROJECT_ROOT" "${args[@]}" || rc=$?
+    if [ "$mode" = "dry-run" ]; then
+        info "agent-type label definitions are in DRY-RUN mode (default, non-destructive): nothing was written."
+        info "  To write them into $PROJECT_ROOT/.claude/agents re-run with AGENT_LABEL_DEFS_AUTOWIRE=apply."
+    fi
     case "$rc" in
-        0) info "  -> Agent-type label definitions current." ;;
+        0) [ "$mode" = apply ] && info "  -> Agent-type label definitions current." ;;
+        6) warn "  -> the installer REFUSED the project root (home directory or user-level config dir); nothing written."
+           WARNINGS+=("agent-type label definitions: installer refused project root $PROJECT_ROOT (exit 6)") ;;
         3) warn "  -> a hand-made agent file collides with a label definition name; left untouched."
            WARNINGS+=("agent-type label definitions: a hand-made file collides with a generated name (hand-made kept)") ;;
         4) warn "  -> a generated label definition was hand-edited; left untouched."

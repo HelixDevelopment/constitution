@@ -264,22 +264,56 @@ _dispatch_effort="$(_label_effort_field "$LABEL")"
 # AGENT-TYPE CHECK (§11.4.182 / §11.4.231(F), added 2026-10-15). The agents list
 # shows only "<subagent_type>  <live progress>", so the work-stream label is
 # also baked into GENERATED agent types named T<N>-<branch>-<model>-<effort>
-# (scripts/multitrack/gen_agent_label_defs.sh; model + effort are enforced by
-# the definition). When such generated types exist for the dispatch label's
-# track, an Agent/Task dispatch whose subagent_type is empty or `general-purpose`
-# (or whose T<N>- type belongs to ANOTHER track) draws a WARN (exit 0 + a
+# (scripts/multitrack/gen_agent_label_defs.sh; model + effort are SET by the
+# definition's frontmatter, but an Agent call's own `model` / `effort`
+# parameters override that frontmatter — see the MODEL/EFFORT check below).
+# When such generated types exist for the dispatch label's track, an
+# Agent/Task dispatch whose subagent_type is empty or `general-purpose` (or
+# whose T<N>- type belongs to ANOTHER track) draws a WARN (exit 0 + a
 # PreToolUse additionalContext note) — or a BLOCK (exit 2) when
 # AGENT_TYPE_LABEL_ENFORCE=1. Specialist / plugin types (Explore, Plan,
 # plugin:agent, ...) are NEVER touched. AGENT_TYPE_LABEL_BYPASS="<reason>"
 # (non-empty) lets a dispatch through and AUDITS the reason on stderr.
+# MODEL/EFFORT check (review 2026-11-03, F2): for a label type
+# T<N>-<branch>-<model>-<effort>, a `tool_input.model` whose family
+# (sonnet/opus/haiku/fable, substring match; anything else verbatim, e.g.
+# `inherit`) differs from <model>, or a `tool_input.effort` that differs from
+# <effort>, would run the agent at a model/effort the type name does not say:
+# a §11.4.182 consistency bluff. Same WARN/BLOCK switch. The description
+# label's own model/effort fields are NOT compared with the type: they record
+# the dispatching session's live model (§11.4.182 extension (7)), which may
+# legitimately differ from the worker's.
+# Track numbers are compared as decimal numbers (T007 == T7 == T07).
+# Both switches are read from the hook's PROCESS environment, so they are
+# SESSION-WIDE (one export affects every dispatch of that session); there is
+# no per-dispatch bypass marker (review 2026-11-03, F8 — documented, not
+# changed).
 # Honest boundary (§11.4.6): types are loaded by the agent platform, so a type
 # generated mid-session may not be dispatchable yet; WARN-only is the default.
 # --------------------------------------------------------------------------
+# JSON string escaping for the additionalContext payload (F7): backslash,
+# quote and the common control characters are escaped; any other control
+# character is dropped.
+_json_esc() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s" | tr -d '\000-\010\013\014\016-\037'
+}
+# model family of a model parameter value: sonnet|opus|haiku|fable, else verbatim
+_model_family() {
+  local v; v="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$v" in *opus*) echo opus ;; *sonnet*) echo sonnet ;; *haiku*) echo haiku ;; *fable*) echo fable ;; *) printf '%s\n' "$v" ;; esac
+}
 _type_check() {
   case "$TOOL_NAME" in Agent|Task) ;; *) return 0 ;; esac
   local ltrack stype pdir adir f b names="" cnt=0 reason="" nmatch=""
-  [[ "$LABEL" =~ ^\(T([0-9]+)/ ]] || return 0
-  ltrack="${BASH_REMATCH[1]}"
+  local pmodel peffort tmodel teffort
+  [[ "$LABEL" =~ ^\(T([0-9]{1,9})/ ]] || return 0
+  ltrack="$((10#${BASH_REMATCH[1]}))"
   stype="$(json_field .tool_input.subagent_type)"
   pdir="${CLAUDE_PROJECT_DIR:-}"
   [[ -n "$pdir" ]] || pdir="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -299,21 +333,37 @@ _type_check() {
       reason="subagent_type is '${stype:-<empty>}' but generated label agent types exist for T${ltrack}" ;;
     T[0-9]*-*-sonnet-*|T[0-9]*-*-opus-*)
       nmatch="${stype#T}"; nmatch="${nmatch%%-*}"
-      [[ "$nmatch" =~ ^[0-9]+$ && "$nmatch" != "$ltrack" ]] || return 0
-      reason="subagent_type '${stype}' belongs to track T${nmatch} but the dispatch label says T${ltrack}" ;;
+      [[ "$nmatch" =~ ^[0-9]{1,9}$ ]] || return 0
+      nmatch="$((10#$nmatch))"
+      if [[ "$nmatch" != "$ltrack" ]]; then
+        reason="subagent_type '${stype}' belongs to track T${nmatch} but the dispatch label says T${ltrack}"
+      elif [[ "$stype" =~ -(sonnet|opus)-(low|medium|high|xhigh|max)$ ]]; then
+        tmodel="${BASH_REMATCH[1]}"; teffort="${BASH_REMATCH[2]}"
+        pmodel="$(json_field .tool_input.model)"; peffort="$(json_field .tool_input.effort)"
+        if [[ -n "$pmodel" && "$(_model_family "$pmodel")" != "$tmodel" ]]; then
+          reason="subagent_type '${stype}' says model ${tmodel} but the call sets model '${pmodel}', which overrides the type's frontmatter"
+        elif [[ -n "$peffort" && "$peffort" != "$teffort" ]]; then
+          reason="subagent_type '${stype}' says effort ${teffort} but the call sets effort '${peffort}', which overrides the type's frontmatter"
+        else
+          return 0
+        fi
+        names=" ${stype} with the model and effort parameters omitted (or equal to the type's)"
+      else
+        return 0
+      fi ;;
     *) return 0 ;;
   esac
   if [[ -n "${AGENT_TYPE_LABEL_BYPASS:-}" ]]; then
     echo "guardrails: AUDIT — §11.4.182 agent-type check bypassed: ${AGENT_TYPE_LABEL_BYPASS} (${reason})" >&2
     return 0
   fi
-  local msg="§11.4.182/§11.4.231(F) agent type: ${reason}. Dispatch with subagent_type = one of:${names:- <none generated>} (T<N>-<branch>-<model>-<effort>; model and effort are enforced by the type) so track/branch/model/effort show in the agents list. Specialist/plugin types are exempt. Types load at session start (a new one may need a short delay or restart). Bypass: AGENT_TYPE_LABEL_BYPASS=<reason>."
+  local msg="§11.4.182/§11.4.231(F) agent type: ${reason}. Dispatch with subagent_type = one of:${names:- <none generated>} (T<N>-<branch>-<model>-<effort>; the type sets model and effort, so leave the call's model and effort parameters unset or equal to them) so track/branch/model/effort show in the agents list. Specialist/plugin types are exempt. Types load at session start (a new one may need a short delay or restart). Bypass: AGENT_TYPE_LABEL_BYPASS=<reason>."
   if [[ "${AGENT_TYPE_LABEL_ENFORCE:-0}" == "1" ]]; then
     echo "guardrails: BLOCKED — ${msg}" >&2
     return 2
   fi
   echo "guardrails: WARN — ${msg}" >&2
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$msg"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$(_json_esc "$msg")"
   return 0
 }
 

@@ -21,10 +21,18 @@
 #   definition per track x model x effort via gen_agent_label_defs.sh.
 # Exit codes: 0 ok · 1 drift (--check) · 2 usage · 3 some target is HAND-MADE
 #   (left untouched) · 4 some target is a HAND-EDITED generated file (left
-#   untouched) · 5 internal error. A refusal never stops the other tracks.
+#   untouched) · 5 internal error · 6 REFUSED: the project root or the out-dir
+#   is the home directory, an ancestor of it, or a user-level agent config
+#   directory (CLAUDE_CONFIG_DIR, ~/.claude, ~/.claude-*) or inside one;
+#   nothing is written. A per-track refusal (3/4) never stops the other tracks.
 # Side-effects: writes generated files; prunes ONLY genuine generated
-#   T<N>-*.md files whose (track, branch) is no longer declared (never a
-#   hand-made or hand-edited file); --no-prune disables pruning.
+#   T<N>-*.md files whose (track, branch) is no longer declared AND whose
+#   model and effort are inside this run's --models / --efforts filter (a
+#   partial run never prunes files outside its filter); never a hand-made or
+#   hand-edited file; --no-prune disables pruning. Track numbers are decimal
+#   (track-007 == T7). Two declared branches of one track that sanitise to the
+#   same type names are a COLLISION: the first is kept, the second skipped
+#   and reported (no flip-flop between reruns).
 # Deps    : bash, git, the sibling gen_agent_label_defs.sh / multitrack_config.sh
 #   / track_branch_label.sh.
 # Cross-refs: §11.4.182, §11.4.231(F), §11.4.164, §11.4.177, §11.4.111,
@@ -56,12 +64,48 @@ done
 [ -d "$project_root" ] || die2 "project root '$project_root' is not a directory"
 project_root="$(cd "$project_root" && pwd -P)"
 [ -n "$out_dir" ] || out_dir="$project_root/.claude/agents"
+
+# --- 0. refuse user-level targets (review 2026-11-03, F1) ----------------------------------
+# The project root must not be the home directory or an ancestor of it, and neither the
+# project root nor the out-dir may be (or lie inside, or contain) a user-level agent
+# config directory: those hold the user's own agents, not a project's.
+canon() { realpath -m -- "$1" 2>/dev/null || printf '%s\n' "$1"; }
+under() { [ "$1" = "$2" ] || case "$1" in "$2"/*) return 0 ;; *) return 1 ;; esac; }  # $1 equal to or inside $2
+refuse6() { echo "install_agent_label_defs: REFUSED: $* — nothing written" >&2; exit 6; }
+home_c=""; [ -n "${HOME:-}" ] && home_c="$(canon "$HOME")"
+declare -a USERCFG=()
+[ -n "${CLAUDE_CONFIG_DIR:-}" ] && USERCFG+=("$(canon "$CLAUDE_CONFIG_DIR")")
+if [ -n "$home_c" ]; then
+  USERCFG+=("$home_c/.claude")
+  for c in "$home_c"/.claude-*; do [ -d "$c" ] && USERCFG+=("$c"); done
+fi
+pr_c="$(canon "$project_root")"; od_c="$(canon "$out_dir")"
+[ "$pr_c" = / ] && refuse6 "project root is the filesystem root"
+if [ -n "$home_c" ] && under "$home_c" "$pr_c"; then refuse6 "project root '$pr_c' is the home directory or an ancestor of it"; fi
+if [ -n "$home_c" ] && under "$home_c" "$od_c"; then refuse6 "out-dir '$od_c' is the home directory or an ancestor of it"; fi
+for c in "${USERCFG[@]:-}"; do
+  [ -n "$c" ] || continue
+  under "$pr_c" "$c" && refuse6 "project root '$pr_c' is a user-level agent config directory or inside one ($c)"
+  under "$od_c" "$c" && refuse6 "out-dir '$od_c' is inside the user-level agent config directory $c"
+  under "$c" "$od_c" && refuse6 "out-dir '$od_c' contains the user-level agent config directory $c"
+done
 [ -x "$GEN" ] || [ -r "$GEN" ] || die2 "generator missing: $GEN"
 
 declare -a PAIRS=()          # "N<TAB>branch"
+declare -A PREFIX_OF=()      # "T<N>-<san>" -> branch that claimed it first
+sanitise() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's#/#-#g' -e 's/[^a-z0-9-]/-/g' -e 's/--*/-/g' -e 's/^-//' -e 's/-$//'; }
 add_pair() { # N branch
-  local n="$1" b="$2" p
+  local n="$1" b="$2" p k
+  [ "${#n}" -le 9 ] || { echo "SKIP     track $n: track number has more than 9 digits"; return 0; }
+  n="$((10#$n))"                                    # track-007 == T7 (review 2026-11-03, F9)
   for p in "${PAIRS[@]:-}"; do [ "$p" = "$n	$b" ] && return 0; done
+  k="T${n}-$(sanitise "$b")"
+  if [ -n "${PREFIX_OF[$k]:-}" ]; then
+    echo "COLLISION T${n}: branch '$b' sanitises to the same type names ($k-*) as branch '${PREFIX_OF[$k]}'; kept '${PREFIX_OF[$k]}', skipped '$b'" >&2
+    echo "COLLISION T${n}: branch '$b' skipped (same type names as '${PREFIX_OF[$k]}')"
+    return 0
+  fi
+  PREFIX_OF[$k]="$b"
   PAIRS+=("$n	$b")
 }
 
@@ -72,6 +116,10 @@ if [ -r "$HERE/multitrack_config.sh" ]; then
   # shellcheck disable=SC1091 # the sourced library path is resolved at runtime from this script directory
   . "$HERE/multitrack_config.sh" 2>/dev/null
   if type mt_resolve_and_load >/dev/null 2>&1 && mt_resolve_and_load >/dev/null 2>&1; then cfg_ok=1; fi
+  # With no host config file the loader falls back to its BUILT-IN default single-track
+  # config (MT_DEFAULT_MODE=1): that is not a consumer declaration, so it is not used
+  # (review 2026-11-03, F10).
+  [ "${MT_DEFAULT_MODE:-0}" = 1 ] && cfg_ok=0
 fi
 if [ "$cfg_ok" -eq 1 ]; then
   i=1
@@ -107,14 +155,16 @@ if [ "${#PAIRS[@]}" -eq 0 ]; then echo "install_agent_label_defs: no track/branc
 gen_flags=(--models "$models" --efforts "$efforts")
 [ "$do_check" -eq 1 ] && gen_flags+=(--check)
 [ "$dry" -eq 1 ] && gen_flags+=(--dry-run)
-declare -A DESIRED=()
+declare -A DECLARED=()       # "T<N>-<san>" prefixes declared in this run
+declare -A INFILTER=()       # "<model>-<effort>" pairs this run generates
 read -r -a ML <<<"$(printf '%s' "$models" | tr ',' ' ')"
 read -r -a EL <<<"$(printf '%s' "$efforts" | tr ',' ' ')"
+for m in "${ML[@]}"; do for e in "${EL[@]}"; do INFILTER["${m}-${e}"]=1; done; done
 any1=0; any3=0; any4=0; any5=0; nw=0; nu=0
 for p in "${PAIRS[@]}"; do
   n="${p%%	*}"; b="${p#*	}"
-  san="$(printf '%s' "$b" | tr '[:upper:]' '[:lower:]' | sed -e 's#/#-#g' -e 's/[^a-z0-9-]/-/g' -e 's/--*/-/g' -e 's/^-//' -e 's/-$//')"
-  for m in "${ML[@]}"; do for e in "${EL[@]}"; do DESIRED["T${n}-${san}-${m}-${e}.md"]=1; done; done
+  san="$(sanitise "$b")"
+  DECLARED["T${n}-${san}"]=1
   out="$(bash "$GEN" --track "$n" --branch "$b" --out-dir "$out_dir" "${gen_flags[@]}")"; r=$?
   printf '%s\n' "$out"
   case "$r" in 0) ;; 1) any1=1 ;; 3) any3=1 ;; 4) any4=1 ;; *) any5=1 ;; esac
@@ -129,8 +179,11 @@ if [ -d "$out_dir" ]; then
   shopt -s nullglob
   for f in "$out_dir"/T[0-9]*-*.md; do
     b="${f##*/}"
-    [[ "$b" =~ ^T[0-9]+-[a-z0-9-]+-(sonnet|opus)-(low|medium|high|xhigh|max)\.md$ ]] || continue
-    [ -n "${DESIRED[$b]:-}" ] && continue
+    [[ "$b" =~ ^(T[0-9]+-[a-z0-9-]+)-(sonnet|opus)-(low|medium|high|xhigh|max)\.md$ ]] || continue
+    # keep every file of a declared (track, branch), whatever its model/effort (F4) ...
+    [ -n "${DECLARED[${BASH_REMATCH[1]}]:-}" ] && continue
+    # ... and never prune a file outside this run's --models/--efforts filter (F4)
+    [ -n "${INFILTER[${BASH_REMATCH[2]}-${BASH_REMATCH[3]}]:-}" ] || continue
     case "$(bash "$GEN" --classify "$f")" in
       genuine)
         if [ "$do_check" -eq 1 ]; then echo "DRIFT    $b (stale generated file; track/branch no longer declared)"; any1=1

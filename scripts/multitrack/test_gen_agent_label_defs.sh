@@ -147,6 +147,14 @@ check "G27a classify genuine" genuine "$(cls "$W/t1/T1-main-opus-low.md")"
 check "G27b classify handmade" handmade "$(cls "$W/h1/T1-main-sonnet-medium.md")"
 check "G27c classify edited" edited "$(cls "$W/he/T1-main-opus-low.md")"
 check "G27d classify absent" absent "$(cls "$W/nope.md")"
+# --- G28 track number is normalised (F9): 007 -> 7 ---------------------------------------------
+check "G28a --track 007 exit 0" 0 "$(run --track 007 --branch main --out-dir "$W/t007" --models sonnet --efforts low)"
+check "G28b --track 007 writes T7-main-sonnet-low.md" "T7-main-sonnet-low.md" "$(ls "$W/t007" 2>/dev/null)"
+grep -q '^name: T7-main-sonnet-low$' "$W/t007/T7-main-sonnet-low.md" 2>/dev/null && ok "G28c frontmatter name uses T7" || bad "G28c frontmatter name uses T7"
+check "G28d over-long track number -> exit 2" 2 "$(run --track 1234567890 --branch main --out-dir "$W/tlong")"
+# --- G29 honest wording (F2): the call's model/effort parameters override the frontmatter -----
+grep -qi 'enforced' "$W/t1/T1-main-sonnet-low.md" && bad "G29a generated file does not claim model/effort are enforced" "$(grep -i enforced "$W/t1/T1-main-sonnet-low.md" | head -1)" || ok "G29a generated file does not claim model/effort are enforced"
+grep -q 'override' "$W/t1/T1-main-sonnet-low.md" && ok "G29b generated file says the call's parameters override the frontmatter" || bad "G29b generated file says the call's parameters override the frontmatter"
 # --- G22 shellcheck ----------------------------------------------------------------------------------
 if command -v shellcheck >/dev/null 2>&1; then
   if shellcheck -s bash "$GEN" >"$W/sc" 2>&1; then ok "G22 shellcheck clean"; else bad "G22 shellcheck clean" "$(head -3 "$W/sc")"; fi

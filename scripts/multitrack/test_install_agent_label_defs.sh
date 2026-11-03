@@ -126,6 +126,11 @@ rm -rf "$W/p3"; mkdir -p "$W/p3"; git -C "$W/p3" init -q -b main; git -C "$W/p3"
 MT_HOST=nohost MT_CONFIG_DIR="$W/p3/config/multitrack" bash "$INST" --project-root "$W/p3" >"$W/out" 2>"$W/err"; rc=$?
 check "I07a config-less exit 0" 0 "$rc"
 check "I07b config-less -> current checkout T1/main (10 files)" 10 "$(find "$W/p3/.claude/agents" -maxdepth 1 -name 'T1-main-*' 2>/dev/null | wc -l)"
+# F10 (review 2026-11-03): with no host config the loader falls back to its BUILT-IN default
+# single-track config (mount = the parent of the repo root). That is not a consumer
+# declaration, so the installer must not derive tracks from it.
+grep -q 'SKIP     track-1' "$W/out" && bad "I07c built-in default config is not used as a declaration" "$(grep 'SKIP' "$W/out")" || ok "I07c built-in default config is not used as a declaration"
+grep -q '^NOTE .*current checkout only' "$W/out" && ok "I07d config-less run says it uses the current checkout only" || bad "I07d config-less run says it uses the current checkout only"
 
 # I08 explicit --out-dir + --models/--efforts passthrough ----------------------------------
 rm -rf "$W/o"; check "I08a custom out-dir/models/efforts" 0 "$(run --out-dir "$W/o" --models opus --efforts xhigh,max)"
@@ -139,9 +144,19 @@ cp "$CONST/scripts/post_update_hook.sh" "$FC/scripts/"
 cp "$HERE/multitrack_config.sh" "$HERE/track_branch_label.sh" "$HERE/gen_agent_label_defs.sh" "$HERE/install_agent_label_defs.sh" "$HERE/agent_label_colors.tsv" "$HERE/agent_label_frontmatter_check.py" "$FC/scripts/multitrack/"
 git -C "$FC" init -q -b main; git -C "$FC" add -A; git -C "$FC" -c user.email=t@t -c user.name=t commit -q -m c
 rm -rf "$W/hp"; mkproj "$W/hp"; HP="$W/hp"
-hookrun() { (cd "$HP" && MT_HOST=fixturehost MT_CONFIG_DIR="$HP/config/multitrack" CONST_DIR="$FC" PROJECT_ROOT="$HP" bash "$FC/scripts/post_update_hook.sh" >"$W/hout" 2>"$W/herr"; echo $?); }
-check "I09a hook exit 0 on a no-change pull" 0 "$(hookrun)"
-check "I09b hook generated 20 label definitions" 20 "$(ls "$HP/.claude/agents" 2>/dev/null | wc -l)"
+# consent (review 2026-11-03, F1): without AGENT_LABEL_DEFS_AUTOWIRE=apply the hook only
+# reports what it WOULD write (dry-run); `off` skips the step; `apply` writes.
+hookrun() { (cd "$HP" && env AGENT_LABEL_DEFS_AUTOWIRE="${AUTOWIRE-apply}" MT_HOST=fixturehost MT_CONFIG_DIR="$HP/config/multitrack" CONST_DIR="$FC" PROJECT_ROOT="$HP" bash "$FC/scripts/post_update_hook.sh" >"$W/hout" 2>"$W/herr"; echo $?); }
+hookrun_noenv() { (cd "$HP" && env -u AGENT_LABEL_DEFS_AUTOWIRE MT_HOST=fixturehost MT_CONFIG_DIR="$HP/config/multitrack" CONST_DIR="$FC" PROJECT_ROOT="$HP" bash "$FC/scripts/post_update_hook.sh" >"$W/hout" 2>"$W/herr"; echo $?); }
+check "I09j hook default (no consent) exit 0" 0 "$(hookrun_noenv)"
+[ ! -e "$HP/.claude" ] && ok "I09k hook default is dry-run: nothing written" || bad "I09k hook default is dry-run: nothing written" "$(ls -R "$HP/.claude" 2>/dev/null | head -3)"
+grep -qi 'dry-run' "$W/hout" "$W/herr" && grep -q 'AGENT_LABEL_DEFS_AUTOWIRE=apply' "$W/hout" "$W/herr" && ok "I09l dry-run is reported with the apply switch named" || bad "I09l dry-run is reported with the apply switch named"
+check "I09m AUTOWIRE=off exit 0" 0 "$(AUTOWIRE=off hookrun)"
+[ ! -e "$HP/.claude" ] && ok "I09n AUTOWIRE=off writes nothing" || bad "I09n AUTOWIRE=off writes nothing"
+check "I09o unknown AUTOWIRE value exit 0" 0 "$(AUTOWIRE=bogus hookrun)"
+[ ! -e "$HP/.claude" ] && ok "I09p unknown AUTOWIRE value is treated as dry-run" || bad "I09p unknown AUTOWIRE value is treated as dry-run"
+check "I09a hook (AUTOWIRE=apply) exit 0 on a no-change pull" 0 "$(hookrun)"
+check "I09b hook (AUTOWIRE=apply) generated 20 label definitions" 20 "$(ls "$HP/.claude/agents" 2>/dev/null | wc -l)"
 hh=$(tree_hash "$HP/.claude/agents"); hookrun >/dev/null; check "I09c hook rerun idempotent" "$hh" "$(tree_hash "$HP/.claude/agents")"
 printf -- '---\nname: T1-main-opus-low\ndescription: "hand"\n---\nH\n' >"$W/hand.md"; cp "$W/hand.md" "$HP/.claude/agents/T1-main-opus-low.md"
 check "I09d hook is NON-fatal when a hand-made file collides" 0 "$(hookrun)"
@@ -149,6 +164,44 @@ cmp -s "$W/hand.md" "$HP/.claude/agents/T1-main-opus-low.md" && ok "I09e hook le
 grep -qi 'hand-made\|label definitions' "$W/hout" "$W/herr" && ok "I09f hook reports the collision as a warning" || bad "I09f hook reports the collision as a warning"
 rm "$FC/scripts/multitrack/install_agent_label_defs.sh"; check "I09g hook non-fatal when installer is missing" 0 "$(hookrun)"
 grep -qi 'install_agent_label_defs' "$W/hout" "$W/herr" && ok "I09h missing installer reported, not silent" || bad "I09h missing installer reported, not silent"
+
+# I11 track number normalised (F9): track-007 -> T7, and a rerun prunes nothing -------------------
+rm -rf "$W/p7"; mkproj "$W/p7"; sed -i 's/id: track-2$/id: track-007/' "$W/p7/config/multitrack/fixturehost.yaml"
+P="$W/p7"; check "I11a track-007 install exit 0" 0 "$(run)"
+check "I11b track-007 -> 10 T7-feature-zeta files" 10 "$(ls "$P/.claude/agents" 2>/dev/null | grep -c '^T7-feature-zeta-')"
+check "I11c rerun exit 0" 0 "$(run)"; grep -q 'pruned=0' "$W/out" && ok "I11d rerun prunes nothing (T007 and T7 are one track)" || bad "I11d rerun prunes nothing" "$(tail -1 "$W/out")"
+# I12 sanitise collision (F9): two branches of one track that map to the same type names ------------
+rm -rf "$W/pc"; mkproj "$W/pc"; sed -i 's/^    branch: main$/    branch: Main/' "$W/pc/config/multitrack/fixturehost.yaml"
+P="$W/pc"; check "I12a collision install exit 0" 0 "$(run)"
+grep -q 'COLLISION' "$W/out" "$W/err" && ok "I12b the sanitise collision is reported" || bad "I12b the sanitise collision is reported" "$(cat "$W/out" "$W/err" | head -5)"
+check "I12c one T1-main set only (10 files)" 10 "$(ls "$P/.claude/agents" 2>/dev/null | grep -c '^T1-main-')"
+h_c=$(tree_hash "$P/.claude/agents"); run >/dev/null; check "I12d rerun byte-identical (no flip-flop)" "$h_c" "$(tree_hash "$P/.claude/agents")"
+grep -q 'written=0' "$W/out" && ok "I12e rerun writes nothing" || bad "I12e rerun writes nothing" "$(tail -1 "$W/out")"
+# I13 prune respects the --models/--efforts filter (F4) --------------------------------------------
+P="$W/proj"; run >/dev/null
+bash "$GEN" --track 9 --branch gone --out-dir "$AG" --models sonnet,opus --efforts low >/dev/null
+check "I13a partial run --models sonnet exit 0" 0 "$(run --models sonnet)"
+check "I13b declared tracks keep all 10 opus files" 10 "$(ls "$AG" | grep -Ec '^T(1-main|2-feature-zeta)-opus-')"
+[ -e "$AG/T1-main-opus-xhigh.md" ] && ok "I13c the opus-xhigh reviewer type survives a --models sonnet run" || bad "I13c the opus-xhigh reviewer type survives a --models sonnet run"
+[ -e "$AG/T9-gone-opus-low.md" ] && ok "I13d undeclared track file OUTSIDE the filter (opus) kept" || bad "I13d undeclared track file OUTSIDE the filter (opus) kept"
+[ ! -e "$AG/T9-gone-sonnet-low.md" ] && ok "I13e undeclared track file INSIDE the filter (sonnet) pruned" || bad "I13e undeclared track file INSIDE the filter (sonnet) pruned"
+check "I13f --efforts low run keeps the declared high files" 0 "$(run --efforts low >/dev/null; ls "$AG" | grep -Ec '^T1-main-(sonnet|opus)-high\.md$' | grep -qx 2 && echo 0 || echo 1)"
+check "I13g undeclared opus file pruned by a full run" 0 "$(run >/dev/null; [ ! -e "$AG/T9-gone-opus-low.md" ] && echo 0 || echo 1)"
+# I14 refuse a project root / out-dir that is the home dir, an ancestor of it, or a user-level config dir (F1)
+# (the HOME cases use --dry-run, so even a broken refusal writes nothing; HOME is never reassigned)
+H="${HOME:?HOME must be set for this test}"
+check "I14a --project-root \$HOME refused (exit 6)" 6 "$(run --project-root "$H" --dry-run)"
+check "I14b --project-root parent of \$HOME refused (exit 6)" 6 "$(run --project-root "$(dirname "$H")" --dry-run)"
+check "I14c --project-root / refused (exit 6)" 6 "$(run --project-root / --dry-run)"
+check "I14d --out-dir \$HOME/.claude/agents refused (exit 6)" 6 "$(run --out-dir "$H/.claude/agents" --dry-run)"
+CP="$W/cfgparent"; mkdir -p "$CP/.claude"; git -C "$CP" init -q -b main; git -C "$CP" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+rc=$(CLAUDE_CONFIG_DIR="$CP/.claude" MT_HOST=nohost MT_CONFIG_DIR="$CP/none" bash "$INST" --project-root "$CP" >"$W/out" 2>"$W/err"; echo $?)
+check "I14e project whose .claude IS CLAUDE_CONFIG_DIR refused (exit 6)" 6 "$rc"
+[ ! -e "$CP/.claude/agents" ] && ok "I14f refused run wrote nothing" || bad "I14f refused run wrote nothing"
+grep -qi 'refus' "$W/err" && ok "I14g refusal is explained on stderr" || bad "I14g refusal is explained on stderr"
+rc=$(CLAUDE_CONFIG_DIR="$CP/.claude" MT_HOST=nohost MT_CONFIG_DIR="$CP/none" bash "$INST" --project-root "$CP/.claude" >"$W/out" 2>"$W/err"; echo $?)
+check "I14h project root equal to CLAUDE_CONFIG_DIR refused (exit 6)" 6 "$rc"
+P="$W/proj"; check "I14i an ordinary project still installs (golden-FALSE)" 0 "$(run)"
 
 # I10 lint -------------------------------------------------------------------------------------
 bash -n "$INST" 2>/dev/null && ok "I10a bash -n clean" || bad "I10a bash -n clean"

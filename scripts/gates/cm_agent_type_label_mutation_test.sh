@@ -17,6 +17,13 @@
 #     M10 installer prunes hand-made files              -> FAIL
 #     M11 generator silently drops the `max` effort     -> FAIL
 #     M12 hook forgets the audited bypass reason        -> FAIL
+#     R1  reviewer text moved from opus-xhigh to opus-max -> FAIL  (review 2026-11-03 M4)
+#     R2  hook drops the cross-track detection             -> FAIL  (review 2026-11-03 M7)
+#     R3  hook ignores the call's model/effort parameters  -> FAIL  (F2)
+#     R4  hook WARN payload built without JSON escaping    -> FAIL  (F7)
+#     R5  installer prunes declared tracks outside filter  -> FAIL  (F4)
+#     R6  installer accepts a user-level config dir        -> FAIL  (F1)
+#     E1  an ambient HP in the caller's environment does not change the verdict (F3)
 #   plus gate-level cases on the dispatch-log audit (warn vs enforce) and a
 #   removed-doc / removed-script case.
 # Usage   : bash scripts/gates/cm_agent_type_label_mutation_test.sh
@@ -100,6 +107,27 @@ expect fail "M11 generator silently drops the max effort" gate_in "$D"
 
 D=$(fresh_tree m12); mutate "$D" "$D/scripts/hooks/guard-track-branch-label.sh" '  if [[ -n "${AGENT_TYPE_LABEL_BYPASS:-}" ]]; then' '  if [[ -n "${AGENT_TYPE_LABEL_BYPASS+x}" ]]; then' || rc=1
 expect fail "M12 empty bypass reason bypasses" gate_in "$D"
+
+D=$(fresh_tree r1); mutate "$D" "$D/scripts/multitrack/gen_agent_label_defs.sh" 'if [ "$m" = opus ] && [ "$e" = xhigh ]; then' 'if [ "$m" = opus ] && [ "$e" = max ]; then' || rc=1
+expect fail "R1 reviewer-substrate body moved from opus-xhigh to opus-max" gate_in "$D"
+
+D=$(fresh_tree r2); mutate "$D" "$D/scripts/hooks/guard-track-branch-label.sh" '      if [[ "$nmatch" != "$ltrack" ]]; then' '      if false; then' || rc=1
+expect fail "R2 hook drops the cross-track detection" gate_in "$D"
+
+D=$(fresh_tree r3); mutate "$D" "$D/scripts/hooks/guard-track-branch-label.sh" '        pmodel="$(json_field .tool_input.model)"; peffort="$(json_field .tool_input.effort)"' '        pmodel=""; peffort=""' || rc=1
+expect fail "R3 hook ignores the call's model/effort parameters" gate_in "$D"
+
+D=$(fresh_tree r4); mutate "$D" "$D/scripts/hooks/guard-track-branch-label.sh" '"$(_json_esc "$msg")"' '"$msg"' || rc=1
+expect fail "R4 WARN payload without JSON escaping" gate_in "$D"
+
+D=$(fresh_tree r5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '    [ -n "${DECLARED[${BASH_REMATCH[1]}]:-}" ] && continue\n' '' || rc=1
+mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '    [ -n "${INFILTER[${BASH_REMATCH[2]}-${BASH_REMATCH[3]}]:-}" ] || continue' '    [ -n "${INFILTER[${BASH_REMATCH[2]}-${BASH_REMATCH[3]}]:-}" ] && [ -n "${DECLARED[${BASH_REMATCH[1]}]:-}" ] && continue' || rc=1
+expect fail "R5 installer prunes a declared track's files outside the --models filter" gate_in "$D"
+
+D=$(fresh_tree r6); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" 'refuse6() { echo' 'refuse6() { return 0; echo' || rc=1
+expect fail "R6 installer accepts a user-level config dir" gate_in "$D"
+
+D=$(fresh_tree e1); expect pass "E1 ambient HP pointing elsewhere does not change the verdict" env HP="$T/nonexistent-hp" bash "$D/scripts/gates/cm_agent_type_label.sh" --quiet
 
 D=$(fresh_tree m13); rm "$D/docs/scripts/gen_agent_label_defs.md"
 expect fail "M13 missing generator doc" gate_in "$D"

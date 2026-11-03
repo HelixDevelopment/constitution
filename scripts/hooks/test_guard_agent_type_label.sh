@@ -89,7 +89,32 @@ if command -v jq >/dev/null 2>&1; then
   mkdir -p "$W/nojq"; for t in bash cat env awk sed grep tr cut head tail basename dirname pwd git ls sort printf python3 sha256sum cmp mktemp rm; do p="$(command -v $t)"; [ -n "$p" ] && ln -sf "$p" "$W/nojq/$t"; done
   printf '%s' "$GP" | env -i PATH="$W/nojq" HOME="$W" CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_CONFIG_DIR="$LIVE_CFG" AGENT_TYPE_LABEL_ENFORCE=1 "$W/nojq/bash" "$HOOK" >/dev/null 2>&1; got=$?
   [ "$got" = 2 ] && ok "U16 no-jq fallback still blocks general-purpose under ENFORCE" || bad "U16 no-jq fallback still blocks general-purpose under ENFORCE" "exit $got"
+  printf '{"tool_name":"Agent","tool_input":{"description":"%s","subagent_type":"T1-main-sonnet-low","prompt":"p","model":"opus"}}' "$L" | env -i PATH="$W/nojq" HOME="$W" CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_CONFIG_DIR="$LIVE_CFG" AGENT_TYPE_LABEL_ENFORCE=1 "$W/nojq/bash" "$HOOK" >/dev/null 2>&1; got=$?
+  [ "$got" = 2 ] && ok "U16b no-jq fallback still sees the model override under ENFORCE" || bad "U16b no-jq fallback still sees the model override under ENFORCE" "exit $got"
 fi
+# --- F2 (review 2026-11-03): the Agent call's model / effort parameters override the
+# type's frontmatter, so a call whose model or effort differs from the type name makes
+# the type label false. WARN by default, BLOCK under ENFORCE.
+mpl() { # desc subagent_type model effort  (empty model/effort = parameter absent)
+  local x=""
+  [ -n "$3" ] && x="$x,\"model\":\"$3\""
+  [ -n "$4" ] && x="$x,\"effort\":\"$4\""
+  printf '{"tool_name":"Agent","tool_input":{"description":"%s","subagent_type":"%s","prompt":"p"%s}}' "$1" "$2" "$x"
+}
+run_case "U18 model override opus on a sonnet type -> WARN"            0 yes "$PROJ" 0 "$(mpl "$L" T1-main-sonnet-low opus "")"
+run_case "U18b same + ENFORCE -> BLOCK"                                2 yes "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low opus "")"
+run_case "U19 effort override high on a -low type + ENFORCE -> BLOCK"  2 yes "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low "" high)"
+run_case "U20 matching model+effort parameters -> silent (enforce)"    0 no  "$PROJ" 1 "$(mpl "$L" T1-main-sonnet-low sonnet low)"
+run_case "U20b full model id naming the same family -> silent"         0 no  "$PROJ" 1 "$(mpl "$L" T1-main-opus-xhigh claude-opus-5-5 xhigh)"
+run_case "U20c model 'inherit' on a label type -> BLOCK (enforce)"     2 yes "$PROJ" 1 "$(mpl "$L" T1-main-opus-xhigh inherit "")"
+printf '%s' "$(mpl "$L" T1-main-sonnet-low opus "")" | env -u AGENT_TYPE_LABEL_ENFORCE CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_CONFIG_DIR="$LIVE_CFG" bash "$HOOK" >"$W/js2" 2>"$W/js2e"
+grep -q "model 'opus'" "$W/js2e" && ok "U18c warning names the overriding model" || bad "U18c warning names the overriding model" "$(head -c 300 "$W/js2e")"
+# --- F7: the WARN additionalContext must be valid JSON even for a hostile subagent_type
+printf '%s' "$(payload Agent "$L" 'T2-x\"y\\z-sonnet-low')" | env -u AGENT_TYPE_LABEL_ENFORCE CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_CONFIG_DIR="$LIVE_CFG" bash "$HOOK" >"$W/js3" 2>/dev/null; got=$?
+if [ "$got" = 0 ] && python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); c=d["hookSpecificOutput"]["additionalContext"]; assert "T2-x" in c and "y" in c' "$W/js3" 2>/dev/null; then ok "U21 quote/backslash in subagent_type -> valid JSON additionalContext"; else bad "U21 quote/backslash in subagent_type -> valid JSON additionalContext" "exit $got: $(head -c 300 "$W/js3")"; fi
+# --- F9: T007 and T7 are the same track
+run_case "U22 label T7 with type T007-main-sonnet-low -> same track, silent (enforce)" 0 no "$PROJ" 1 "$(payload Agent '(T7/main - hooktest - opus - high) x' T007-main-sonnet-low)"
+run_case "U22b label T01 with generated T1 types + general-purpose -> WARN" 0 yes "$PROJ" 0 "$(payload Agent '(T01/main - hooktest - opus - high) x' general-purpose)"
 bash -n "$HOOK" 2>/dev/null && ok "U17 hook bash -n clean" || bad "U17 hook bash -n clean"
 
 echo; echo "  total: PASS=$PASS FAIL=$FAIL"

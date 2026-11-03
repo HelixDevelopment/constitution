@@ -3,15 +3,18 @@
 #
 # ── Purpose ──────────────────────────────────────────────────────────────────
 # §11.4.182/§11.4.231(F) bake the work-stream label into GENERATED agent types
-# named T<N>-<branch>-<model>-<effort> (model + effort enforced by the
-# definition). This gate proves the toolchain really does that, by BEHAVIOUR
+# named T<N>-<branch>-<model>-<effort> (model + effort SET by the definition's
+# frontmatter; an Agent call's own model/effort parameters override it, which
+# the hook flags). This gate proves the toolchain really does that, by BEHAVIOUR
 # (drives the real generator, installer and hook in a throwaway fixture):
 #   1 PRESENCE+EXEC+PARSE  generator, installer, hook, frontmatter checker, colour
 #                          data file and the three convention docs exist; shell
 #                          files parse (bash -n), the python checker compiles.
 #   2 GENERATION           a fixture track/branch yields exactly models x efforts
 #                          files, each named T<N>-<san-branch>-<model>-<effort>,
-#                          each passing the strict independent frontmatter parser.
+#                          each passing the strict independent frontmatter parser;
+#                          the §11.4.209/§11.4.211 reviewer text is in the
+#                          opus-xhigh body ONLY (not opus-max, not sonnet-xhigh).
 #   3 IDEMPOTENCE          a second run is byte-identical and reports written=0.
 #   4 CHECK                --check: clean=0; a deleted file=1; a hand-edited
 #                          generated file=1.
@@ -19,17 +22,31 @@
 #                          overwritten (exit 3, bytes unchanged).
 #   6 INSTALLER            installs into a fixture project's .claude/agents,
 #                          keeps hand-made agents, prunes only stale GENERATED
-#                          files.
+#                          files; a partial --models run keeps the other model's
+#                          files; refuses (exit 6) a project whose .claude is the
+#                          user-level CLAUDE_CONFIG_DIR.
 #   7 HOOK                 general-purpose dispatch with generated types present:
 #                          WARN + exit 0 by default, exit 2 under
 #                          AGENT_TYPE_LABEL_ENFORCE=1; label types, specialist and
 #                          plugin types are never touched; empty bypass reason
-#                          does not bypass.
+#                          does not bypass; a T<N> type of ANOTHER track warns /
+#                          blocks; a call whose model or effort parameter differs
+#                          from the type name blocks under ENFORCE (matching ones
+#                          do not); the WARN payload is valid JSON for a
+#                          subagent_type carrying a quote and a backslash.
 #   8 DISPATCH-LOG (optional, --dispatch-log F --agents-dir D [--mode M])
 #                          audit a JSONL of {subagent_type,description} dispatches:
 #                          each general-purpose/empty dispatch whose label track
 #                          has generated types is a finding — WARN in `warn` mode
 #                          (exit 0), FAIL in `enforce` mode (exit 1).
+# ── What this gate does NOT protect (honest scope, §11.4.6; review 2026-11-03 F5) ─
+#   It drives the generator, installer and hook with a fixed set of probes; it does
+#   NOT run the three unit suites (test_gen_agent_label_defs.sh,
+#   test_install_agent_label_defs.sh, test_guard_agent_type_label.sh), which cover
+#   more cases: the post_update_hook.sh STEP 4f consent modes (dry-run default /
+#   apply / off), the HOME / ancestor-of-HOME refusals, the sanitise collision, the
+#   track-number normalisation (T007 == T7), the no-jq fallback and the checker's
+#   golden-bad fixtures. A regression only those suites see survives this gate.
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_agent_type_label.sh [--gen P] [--installer P] [--hook P] [--checker P]
 #       [--colors P] [--doc-dir D] [--dispatch-log F] [--agents-dir D]
@@ -69,6 +86,7 @@ done
 case "$mode" in warn|enforce) ;; *) echo "${GATE}: --mode must be warn|enforce" >&2; exit 2 ;; esac
 
 fail=0
+HP=""   # hook fixture project override; never read from the ambient environment (F3)
 say() { [ -n "$quiet" ] || echo "$@"; }
 ko() { echo "❌ $*"; fail=1; }
 W="$(mktemp -d "${TMPDIR:-/tmp}/cm_atl.XXXXXX")"
@@ -100,6 +118,10 @@ if [ "$want" = "$got" ]; then say "✅ GENERATION: 10 files, exact T<N>-<branch>
 if ls "$G"/*.md >/dev/null 2>&1; then
   if python3 -I "$chk" "$G"/*.md >"$W/c.out" 2>&1; then say "✅ GENERATION: every file passes the strict independent frontmatter parse"; else ko "GENERATION: strict frontmatter parse failed: $(grep -m2 BAD "$W/c.out")"; fi
 fi
+if grep -q '11.4.209' "$G/T7-gate-branch-x-opus-xhigh.md" 2>/dev/null && grep -q '11.4.211' "$G/T7-gate-branch-x-opus-xhigh.md" 2>/dev/null; then
+  if grep -lq '11.4.209\|11.4.211' "$G/T7-gate-branch-x-opus-max.md" "$G/T7-gate-branch-x-sonnet-xhigh.md" 2>/dev/null; then ko "GENERATION: the reviewer/merge-conflict text also appears outside opus-xhigh"
+  else say "✅ GENERATION: the §11.4.209/§11.4.211 reviewer text is in the opus-xhigh body only"; fi
+else ko "GENERATION: the opus-xhigh body does not name §11.4.209 and §11.4.211"; fi
 # ── 3 IDEMPOTENCE ───────────────────────────────────────────────────────────────
 h1="$(tree_hash "$G")"
 bash "$gen" --track 7 --branch 'Gate/Branch_X' --out-dir "$G" >"$W/g2.out" 2>&1
@@ -133,13 +155,21 @@ n_t1="$(find "$P/.claude/agents" -maxdepth 1 -name 'T1-main-*' | wc -l)"
 if [ "$r_i" -eq 0 ] && [ "$n_t1" -eq 10 ]; then say "✅ INSTALLER: current checkout T1/main installed (10 files)"; else ko "INSTALLER: exit $r_i, T1-main files=$n_t1 (want 0/10): $(head -c 200 "$W/i.err")"; fi
 [ "$m1" = "$(sha256sum "$P/.claude/agents/mine.md" "$P/.claude/agents/T9-handmade.md" "$P/.claude/agents/T9-legacy-opus-high.md")" ] && say "✅ INSTALLER: hand-made agents untouched" || ko "INSTALLER: a hand-made agent file was modified or deleted"
 [ ! -e "$P/.claude/agents/T9-gone-sonnet-low.md" ] && say "✅ INSTALLER: stale GENERATED file pruned" || ko "INSTALLER: stale generated file not pruned"
+# partial --models run must not prune the other model's files of a declared track (F4)
+MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" --models sonnet >"$W/i2.out" 2>"$W/i2.err"; r_i2=$?
+n_op="$(find "$P/.claude/agents" -maxdepth 1 -name 'T1-main-opus-*' | wc -l)"
+if [ "$r_i2" -eq 0 ] && [ "$n_op" -eq 5 ]; then say "✅ INSTALLER: a --models sonnet run keeps the 5 opus files"; else ko "INSTALLER: --models sonnet run exit $r_i2, opus files left=$n_op (want 0/5)"; fi
+# a project whose .claude IS the user-level agent config dir is refused (F1)
+UC="$W/ucfg"; mkdir -p "$UC/.claude"; git -C "$UC" init -q -b main 2>/dev/null; git -C "$UC" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null
+CLAUDE_CONFIG_DIR="$UC/.claude" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$UC" >/dev/null 2>&1; r_uc=$?
+if [ "$r_uc" -eq 6 ] && [ ! -e "$UC/.claude/agents" ]; then say "✅ INSTALLER: refuses the user-level config dir (exit 6, nothing written)"; else ko "INSTALLER: user-level config dir not refused (exit $r_uc)"; fi
 # ── 7 HOOK ───────────────────────────────────────────────────────────────────────
 CFG="/nonexistent/.claude-cmatl"
 LBL="(T1/main - cmatl - sonnet - low) probe"
-hk() { # enforce subagent_type [bypass-empty] -> exit code ; stdout/stderr in $W/h.out/$W/h.err ; project in $HP
-  local enf="$1" st="$2" extra="${3-}" pl P="${HP:-$P}"
-  if [ -n "$st" ]; then pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","subagent_type":"'"$st"'","prompt":"p"}}'
-  else pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","prompt":"p"}}'; fi
+hk() { # enforce subagent_type [bypass-empty] [extra-json-members] -> exit code ; stdout/stderr in $W/h.out/$W/h.err ; project in $HP
+  local enf="$1" st="$2" extra="${3-}" xm="${4-}" pl P="${HP:-$P}"
+  if [ -n "$st" ]; then pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","subagent_type":"'"$st"'","prompt":"p"'"$xm"'}}'
+  else pl='{"tool_name":"Agent","tool_input":{"description":"'"$LBL"'","prompt":"p"'"$xm"'}}'; fi
   if [ -n "$extra" ]; then
     printf '%s' "$pl" | env CLAUDE_PROJECT_DIR="$P" CLAUDE_CONFIG_DIR="$CFG" AGENT_TYPE_LABEL_ENFORCE="$enf" AGENT_TYPE_LABEL_BYPASS="" bash "$hook" >"$W/h.out" 2>"$W/h.err"
   else
@@ -157,6 +187,15 @@ hk 1 T1-main-sonnet-low; r4=$?
 if [ "$r4" -eq 0 ] && ! grep -qi 'agent type' "$W/h.out" "$W/h.err"; then say "✅ HOOK: label type dispatches silently"; else ko "HOOK: label type warned or blocked (exit $r4)"; fi
 hk 1 Explore; r5=$?; hk 1 plugin-dev:agent-creator; r6=$?
 if [ "$r5" -eq 0 ] && [ "$r6" -eq 0 ] && ! grep -qi 'agent type' "$W/h.out" "$W/h.err"; then say "✅ HOOK: specialist/plugin types never touched (enforce)"; else ko "HOOK: specialist/plugin type flagged (exit $r5/$r6)"; fi
+hk 0 T2-other-sonnet-low; r9=$?; w9="$(grep -ci 'agent type' "$W/h.out" "$W/h.err" | awk -F: '{s+=$NF} END{print s+0}')"
+hk 1 T2-other-sonnet-low; r10=$?
+if [ "$r9" -eq 0 ] && [ "$w9" -gt 0 ] && [ "$r10" -eq 2 ]; then say "✅ HOOK: a type of ANOTHER track warns (exit 0) and blocks under ENFORCE (exit 2)"; else ko "HOOK: cross-track type not detected (warn exit $r9 lines $w9, enforce exit $r10)"; fi
+hk 1 T1-main-sonnet-low "" ',"model":"opus"'; r11=$?
+hk 1 T1-main-sonnet-low "" ',"effort":"high"'; r12=$?
+hk 1 T1-main-sonnet-low "" ',"model":"sonnet","effort":"low"'; r13=$?
+if [ "$r11" -eq 2 ] && [ "$r12" -eq 2 ] && [ "$r13" -eq 0 ]; then say "✅ HOOK: a model/effort parameter that overrides the type blocks under ENFORCE; matching parameters pass"; else ko "HOOK: model/effort override check wrong (model $r11, effort $r12 want 2/2; matching $r13 want 0)"; fi
+hk 0 'T2-q\"b\\s-sonnet-low'; r14=$?
+if [ "$r14" -eq 0 ] && python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["hookSpecificOutput"]["additionalContext"]' "$W/h.out" 2>/dev/null; then say "✅ HOOK: WARN payload is valid JSON for a subagent_type with a quote and a backslash"; else ko "HOOK: WARN payload is not valid JSON (exit $r14: $(head -c 160 "$W/h.out"))"; fi
 hk 1 general-purpose bypass-empty; r7=$?
 [ "$r7" -eq 2 ] && say "✅ HOOK: empty bypass reason does not bypass" || ko "HOOK: empty bypass reason bypassed (exit $r7)"
 # a project whose only T1 type is HAND-MADE (no generator marker) must not trigger anything

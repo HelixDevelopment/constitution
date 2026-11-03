@@ -6,9 +6,13 @@
 #
 # Purpose : the agents list shows only "<subagent_type>  <live progress>", so the
 #   work-stream label is baked into the agent TYPE NAME. The definition also
-#   ENFORCES model and effort (frontmatter `model:` / `effort:`), closing the
-#   per-agent effort gap by construction. T<N>-<branch>-opus-xhigh is the
-#   §11.4.209 reviewer / §11.4.211 merge-conflict substrate.
+#   SETS model and effort (frontmatter `model:` / `effort:`). Honest boundary
+#   (review 2026-11-03, F2): an Agent call's own `model` / `effort` parameters
+#   override that frontmatter, so the definition does not enforce them on its
+#   own; guard-track-branch-label.sh warns (or, under AGENT_TYPE_LABEL_ENFORCE=1,
+#   blocks) a call whose parameters disagree with the type name.
+#   T<N>-<branch>-opus-xhigh is the §11.4.209 reviewer / §11.4.211
+#   merge-conflict substrate.
 # Usage   : gen_agent_label_defs.sh --track <N> --branch <name> --out-dir <dir>
 #             [--models sonnet,opus] [--efforts low,medium,high,xhigh,max]
 #             [--colors-file <tsv>] [--check] [--dry-run]
@@ -86,6 +90,8 @@ while [ $# -gt 0 ]; do
 done
 
 case "$track" in ''|*[!0-9]*) die2 "--track must be a decimal number (got '${track}')" ;; esac
+[ "${#track}" -le 9 ] || die2 "--track must have at most 9 digits (got '${track}')"
+track="$((10#$track))"   # T007 and T7 are the same track (review 2026-11-03, F9)
 [ -n "$branch" ]  || die2 "--branch is required"
 [ -n "$out_dir" ] || die2 "--out-dir is required"
 
@@ -123,13 +129,13 @@ cap() { case "$1" in sonnet) echo Sonnet ;; opus) echo Opus ;; *) echo "$1" ;; e
 render() {
   local m="$1" e="$2" name fm body hash
   name="T${track}-${san}-${m}-${e}"
-  fm="$(printf -- '---\nname: %s\ndescription: "(T%s/%s - <alias> - %s - %s) T%s/%s worker on %s at %s effort. The work-stream label is baked into this agent type and model and effort are enforced by this definition (constitution 11.4.182, 11.4.231(F)). The Agent description must still carry the live label and the item id."\nmodel: %s\neffort: %s\ncolor: %s\n---' \
+  fm="$(printf -- '---\nname: %s\ndescription: "(T%s/%s - <alias> - %s - %s) T%s/%s worker on %s at %s effort. The work-stream label is baked into this agent type. This definition sets model and effort, but an Agent call that passes its own model or effort parameter would override them, so leave those parameters unset or equal to the type name (constitution 11.4.182, 11.4.231(F)). The Agent description must still carry the live label and the item id."\nmodel: %s\neffort: %s\ncolor: %s\n---' \
     "$name" "$track" "$label_branch" "$m" "$e" "$track" "$label_branch" "$(cap "$m")" "$e" "$m" "$e" "$color")"
-  body="$(printf 'You are a worker agent for track T%s, branch %s, running on %s at %s effort. The model and the effort are enforced by this agent definition.\nFollow the dispatching prompt exactly and stay inside its scope. Report concrete evidence (commands run, outputs, file paths), never narrated success. Do not commit, push, tag or change shared state unless the prompt says so.' \
+  body="$(printf 'You are a worker agent for track T%s, branch %s, running on %s at %s effort. The model and the effort are set by this agent definition; the dispatching call must not override them with its own model or effort parameter.\nFollow the dispatching prompt exactly and stay inside its scope. Report concrete evidence (commands run, outputs, file paths), never narrated success. Do not commit, push, tag or change shared state unless the prompt says so.' \
     "$track" "$label_branch" "$(cap "$m")" "$e")"
   if [ "$m" = opus ] && [ "$e" = xhigh ]; then
     body="$body
-This type is the independent code-review (11.4.209) and merge-conflict-resolution (11.4.211) substrate: Opus at xhigh effort, enforced by construction. Act as a structurally separate verifier, never as the author of the work under review."
+This type is the independent code-review (11.4.209) and merge-conflict-resolution (11.4.211) substrate: Opus at xhigh effort, as set by this definition (valid only when the dispatching call does not override the model or the effort). Act as a structurally separate verifier, never as the author of the work under review."
   fi
   hash="$({ printf '%s\n' "$fm"; printf '%s\n' "$body"; } | sha256sum | cut -d' ' -f1)"
   printf '%s\n' "$fm"

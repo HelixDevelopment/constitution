@@ -1,7 +1,7 @@
 # gen_agent_label_defs.sh — agent-type label definition generator
 
-**Revision:** 1
-**Last modified:** 2026-10-15T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-11-03T00:00:00Z
 **Authority:** constitution submodule §11.4.182 (work-stream label, agent-type extension) · §11.4.231(F) (effort tiering) · §11.4.209 / §11.4.211 (reviewer / merge-conflict pins) · §11.4.18 (script docs)
 **Classification:** universal (§11.4.17)
 
@@ -10,10 +10,19 @@
 The Claude Code agents list renders `<subagent_type>  <live progress>`. The only
 caller-controlled text in that row is the **type name**, so the §11.4.182 label
 is baked into it: `T<N>-<sanitised-branch>-<model>-<effort>` (for example
-`T1-main-sonnet-medium`). A custom agent definition also **enforces** its
-`model:` and `effort:` frontmatter, which closes the per-agent effort gap
-documented in §11.4.231(F.2) by construction. `T<N>-<branch>-opus-xhigh` is the
-§11.4.209 reviewer / §11.4.211 merge-conflict-resolution substrate.
+`T1-main-sonnet-medium`). A custom agent definition also **sets** its
+`model:` and `effort:` frontmatter. It does not enforce them: an Agent call's
+own `model` and `effort` parameters override the frontmatter (Rev 2, review
+finding F2; observed in Claude Code 2.1.317, the `model` override is documented,
+the `effort` override is UNCONFIRMED and treated as one). A label type runs at
+its named model and effort only when the call leaves those parameters unset or
+equal to the type name; `guard-track-branch-label.sh` warns (blocks under
+`AGENT_TYPE_LABEL_ENFORCE=1`) when they differ. `T<N>-<branch>-opus-xhigh` is
+the §11.4.209 reviewer / §11.4.211 merge-conflict-resolution substrate when
+dispatched that way.
+
+Track numbers are decimal: `--track 007` writes `T7-...` files (Rev 2, F9), and
+more than 9 digits is a usage error.
 
 ## Usage
 
