@@ -81,7 +81,7 @@ exit 0' 'esac
 exit 2'
 mutant "B4 crush hook emits allow"          crush   crush/crush-hook.sh "printf '{\"version\":1}\\n'" "printf '{\"version\":1,\"decision\":\"allow\"}\\n'"
 mutant "B5 wrapper swallows exit code"      run     generic/label-agent-run.sh 'exit "$rc"' 'exit 0'
-mutant "B6 wrapper never marks done"        run     generic/label-agent-run.sh 'cleanup() { [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0; }' 'cleanup() { return 0; }'
+mutant "B6 wrapper never marks done"        run     generic/label-agent-run.sh '  [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0' '  return 0'
 mutant "B7 hostile id not sanitized"        lib     lib/adapter_lib.sh '  local s="${1//[^A-Za-z0-9._-]/_}" max="${2:-64}" h' '  local s="${1}" max="${2:-64}" h'
 mutant "N8 wrapper drops stdin"             run     generic/label-agent-run.sh 'exec "$@" ) <&0 &   # MUT:sigreset' 'exec "$@" ) </dev/null &   # MUT:sigreset'
 mutant "N9a backup takes the config mode"   install _edit_config.py '0o600)  # MUT:bakmode' 'os.stat(path).st_mode & 0o7777)  # MUT:bakmode'
@@ -101,8 +101,11 @@ mutant "C12 spawn seam without test mode"   run     generic/label-agent-run.sh '
 mutant "C13 child never reports ready"     run     generic/label-agent-run.sh 'USR1; kill -s USR1 $$ 2>/dev/null; exec' 'USR1; exec'
 mutant "C14 wait not repeated after USR1"   run     generic/label-agent-run.sh '  { [ "$rc" -gt 128 ] && [ "$traps" != "$t0" ]; } || break' '  break'
 mutant "C15 kill -0 decides (pre-fix loop)"  run     generic/label-agent-run.sh '  { [ "$rc" -gt 128 ] && [ "$traps" != "$t0" ]; } || break' '  kill -0 "$child" 2>/dev/null || break'
-mutant "C16 ready-delay seam without test mode" run  generic/label-agent-run.sh 'if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}" ]; then' 'if [ -n "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}" ]; then'
-mutant "C17 sig-delay seam without test mode" run    generic/label-agent-run.sh '    if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}" ]; then' '    if [ -n "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}" ]; then'
+mutant "C16 ready-delay seam without test mode" run  generic/label-agent-run.sh '  test_delay "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}"' '  sleep "${LABEL_AGENT_RUN_TEST_READY_DELAY:-0}"'
+mutant "C17 sig-delay seam without test mode" run    generic/label-agent-run.sh '    test_delay "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}"' '    sleep "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-0}"'
+mutant "C18 lost status decided by the value 127"  run generic/label-agent-run.sh '[ "$rc" = 127 ] && [ -n "$last" ] && [ -n "$werr" ] && [ -s "$werr" ] && grep -qF -- "$child" "$werr"; then' '[ "$rc" = 127 ] && [ -n "$last" ] && ! kill -0 "$child" 2>/dev/null; then'
+mutant "C19 delay seam value not bounded"  run  generic/label-agent-run.sh '  case "$1" in [0-9]|[0-9].[0-9]|[0-9].[0-9][0-9]) sleep "$1" 2>/dev/null || : ;; esac' '  [ -n "$1" ] && { sleep "$1" 2>/dev/null || :; }'
+mutant "C20 delay helper ignores test mode"   run  generic/label-agent-run.sh '  [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] || return 0' '  :' 
 restore
 echo "---"; echo "prove_adapter_mutations: $killed/$total mutants killed"
 [ "$undet" = 0 ] || { echo "prove_adapter_mutations: UNDETERMINED mutant(s) — not a pass"; exit 2; }

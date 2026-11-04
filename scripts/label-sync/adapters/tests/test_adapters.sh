@@ -258,6 +258,25 @@ for sd in 0.5 5; do
   if [ "$sd" = 0.5 ]; then eq "run: a child that exits while the forwarding handler still runs gives ITS status (7)" "7" "$rc"
   else ok "run: the forwarding-delay seam is inert without LABEL_SYNC_TEST_MODE=1 (rc $rc, ${ms} ms; the seam would add 5000)" test "$rc" = 7 -a "$ms" -lt 4000; fi
 done
+# review 2026-11-04 F-LS1: an agent whose OWN status is 127 after a forwarded TERM must give 127. The wrapper used to
+# treat any 127 after an interrupted wait as "bash lost the status" and returned the interrupted 143 (5 of 5). The child
+# writes a marker after its trap is set, so the TERM never races the agent's own startup. 5 runs, every one must be 127.
+T127="$ROOT/trap127.sh"
+printf '#!/usr/bin/env bash\ntrap '"'"'exit 127'"'"' TERM\n: > "$1"\nsleep 30 & wait\n' >"$T127"
+bad=0
+for i in 1 2 3 4 5; do
+  newstate; mk="$ROOT/t127.$i"
+  bash "$R" --agent codex -- bash "$T127" "$mk" & wp=$!
+  for _ in $(seq 1 100); do [ -e "$mk" ] && break; sleep 0.05; done
+  kill -TERM "$wp"; wait "$wp"; rc=$?
+  [ "$rc" = 127 ] || { bad=$((bad+1)); echo "  wrong status: 127-after-TERM run $i rc $rc"; break; }
+done
+eq "run: an agent that exits 127 after a forwarded TERM gives 127, not 143 (5 runs)" "0" "$bad"
+# review 2026-11-04 F-LS4: a delay seam value that is not a short decimal is ignored, even in test mode (no hang)
+newstate; t0=$(date +%s%N)
+LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_READY_DELAY=infinity timeout 20 bash "$R" --agent codex -- true </dev/null >/dev/null 2>&1; rc=$?
+ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+ok "run: an unbounded delay seam value is ignored (rc $rc, ${ms} ms)" test "$rc" = 0 -a "$ms" -lt 10000
 # review-2 F: a TERM that arrives WHILE registering leaves no running ghost and
 # never starts the agent (deterministic: a labelctl shim slows `register`)
 newstate

@@ -59,14 +59,14 @@ run() {
 
 if t_want U1; then
     fixture u1 yes 0; run
-    [ "$RC" -eq 0 ] && [ "$CALLS" = "pull_all|safe sync|commit|push_all|" ]
-    t_check U1 "populated DB: pull, safe sync, commit, push in order; rc 0" $? "rc=$RC calls=$CALLS out=$OUT"
+    [ "$RC" -eq 0 ] && [ "$CALLS" = "pull_all|safe --wait sync|commit|push_all|" ]
+    t_check U1 "populated DB: pull, safe --wait sync, commit, push in order; rc 0" $? "rc=$RC calls=$CALLS out=$OUT"
 fi
 
 if t_want U2; then
     fixture u2 no 0; run
-    [ "$RC" -eq 0 ] && [ "$CALLS" = "pull_all|safe init|commit|push_all|" ]
-    t_check U2 "no DB: safe init (never stock), rc 0" $? "rc=$RC calls=$CALLS out=$OUT"
+    [ "$RC" -eq 0 ] && [ "$CALLS" = "pull_all|safe --wait init|commit|push_all|" ]
+    t_check U2 "no DB: safe --wait init (never stock), rc 0" $? "rc=$RC calls=$CALLS out=$OUT"
 fi
 
 if t_want U3; then
@@ -83,8 +83,8 @@ fi
 
 if t_want U5; then
     fixture u5 yes 0; rm -f "$W/safe.sh"; run
-    case "$CALLS" in *STOCK*) r=1 ;; *) [ "$RC" -ne 0 ] && r=0 || r=1 ;; esac
-    t_check U5 "missing writer entry: non-zero exit, no stock fallback" $r "rc=$RC calls=$CALLS out=$OUT"
+    case "$CALLS" in *STOCK*) r=1 ;; *) [ "$RC" -eq 127 ] && r=0 || r=1 ;; esac
+    t_check U5 "missing writer entry: exit 127, no stock fallback" $r "rc=$RC calls=$CALLS out=$OUT"
 fi
 
 if t_want U6; then
