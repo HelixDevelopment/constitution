@@ -224,7 +224,7 @@ if [ "$r_q1" = 6 ] && [ "$r_q2" = 6 ] && [ "$r_q3" = 0 ] && [ "$r_q4" = 0 ] && [
 # the kernel cross-check and the canon failure each refuse on their own (unit probes source the installer's
 # own functions); an un-enterable project root stops with exit 2. No /proc or running as root: SKIP-with-reason.
 mkdir -p "$SH/a/b" "$W/ordm/a"; ln -sfn "$SH/a/b" "$SH/deep"; ln -sfn "$W/ordm/a" "$W/ordmlink"; SHB="$(basename "$SH")"; SHP="$(cd -P -- "$SH" && pwd -P)"
-FN="$W/canon_fns.sh"; { sed -n '/^canon() {/,/^}/p' "$inst"; sed -n '/^canon_kcheck() {/,/^}/p' "$inst"; sed -n '/^canon_to() {/,/^}/p' "$inst"; grep '^refuse6() {' "$inst"; } >"$FN"
+FN="$W/canon_fns.sh"; { sed -n '/^exact_out() {/,/^}/p' "$inst"; grep '^cdpwd() {' "$inst"; sed -n '/^canon() {/,/^}/p' "$inst"; sed -n '/^canon_kcheck() {/,/^}/p' "$inst"; sed -n '/^canon_to() {/,/^}/p' "$inst"; grep '^refuse6() {' "$inst"; } >"$FN"
 if [ -L /proc/self ]; then
   r_m1="$(cd "$SH/a/b" && rfs "$SH" --project-root "$P" --out-dir "/proc/self/cwd/../../../$SHB/.claude/agents")"; r_m2="$(rfs "$SH" --project-root "$P" --out-dir /dev/fd/../../agents)"
   r_u2="$(bash -c '. "$1"; canon /proc/self/cwd/..' _ "$FN" >/dev/null 2>&1; echo $?)"
@@ -252,9 +252,48 @@ r_w10="$(bash -c '. "$1"; canon "$2"' _ "$FN" "$R6/nx/y/../z" 2>/dev/null)"
 if [ "$(id -u)" != 0 ]; then mkdir -p "$R6/nox"; chmod 000 "$R6/nox"; r_w4="$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$R6/nox/x" 2>/dev/null; echo $?)"; chmod 755 "$R6/nox"; else r_w4=1; say "ℹ️  INSTALLER: running as root: EACCES probe SKIP-with-reason"; fi
 r_w8="$(cd -- "$R6" && env -u CLAUDE_CONFIG_DIR -u CDPATH OLDPWD="$SH/.claude" HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" --out-dir nxr6/../-/agents >/dev/null 2>&1; echo $?):$([ -n "$(ls -A "$R6/-/agents" 2>/dev/null)" ] && echo 1 || echo 0):$(find "$R6" -maxdepth 1 -name nxr6 | wc -l)"
 r_w9="$(cd -- "$ROOT" && env -u CLAUDE_CONFIG_DIR CDPATH="$W/r6decoy" HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash scripts/multitrack/install_agent_label_defs.sh --project-root "$P" --dry-run >/dev/null 2>&1; echo $?)"
-r_w11="$(cd -- "$R6" && env -u CDPATH OLDPWD="$SH" bash "$gen" --track 1 --branch main --out-dir -- --models sonnet --efforts low >/dev/null 2>&1; echo $?):$(find "$R6/--" -maxdepth 1 -name 'T1-main-sonnet-low.md' 2>/dev/null | wc -l):$(cd -- "$R6" && env -u CDPATH bash "$gen" --track 1 --branch main --out-dir -- --models sonnet --efforts low >/dev/null 2>&1; echo $?)"
+r_w11="$(cd -- "$R6" && env -u CDPATH OLDPWD="$SH" bash "$gen" --track 1 --branch main --out-dir -- --models sonnet --efforts low >/dev/null 2>&1; echo $?):$(find "$R6/--" -maxdepth 1 -name 'T1-main-sonnet-low.md' 2>/dev/null | wc -l):$(cd -- "$R6" && env -u CDPATH bash "$gen" --track 1 --branch main --out-dir -- --models sonnet --efforts low 2>/dev/null | grep -c '^UNCHANGED')"
 r_w12="$(cd -- "$R6" && env -u CLAUDE_CONFIG_DIR -u CDPATH OLDPWD="$SH" HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root - --dry-run >/dev/null 2>&1; echo $?)"
-if [ "$r_w1" = 6 ] && [ "$r_w2" = 0 ] && [ "$r_w3" = 1 ] && [ "$r_w4" = 1 ] && [ "$r_w5" = 1 ] && [ "$r_w6" = 1 ] && [ "$r_w7" = 1 ] && [ "$r_w8" = "0:1:0" ] && [ "$r_w9" = 0 ] && [ "$r_w10" = "$R6P/nx/z" ] && [ "$r_w11" = "0:1:0" ] && [ "$r_w12" = 0 ]; then say "✅ INSTALLER: partial-prefix kernel cross-check, '-' never OLDPWD, CDPATH ignored, PATH_MAX / NAME_MAX / ENOTDIR / EACCES / newline refused, ENOENT lexical, writers get the canonical path"; else ko "INSTALLER: R6 probes wrong (partial-prefix lexical canon $r_w1 want 6; relative '-' $r_w2 want 0; PATH_MAX $r_w3, EACCES $r_w4, ENOTDIR $r_w5, NAME_MAX $r_w6, newline $r_w7 want 1; -/agents via nxr6/.. '$r_w8' want 0:1:0; CDPATH decoy $r_w9 want 0; ENOENT '$r_w10'; generator --out-dir -- write+rerun '$r_w11' want 0:1:0; --project-root - $r_w12 want 0)"; fi
+if [ "$r_w1" = 6 ] && [ "$r_w2" = 0 ] && [ "$r_w3" = 1 ] && [ "$r_w4" = 1 ] && [ "$r_w5" = 1 ] && [ "$r_w6" = 1 ] && [ "$r_w7" = 1 ] && [ "$r_w8" = "0:1:0" ] && [ "$r_w9" = 0 ] && [ "$r_w10" = "$R6P/nx/z" ] && [ "$r_w11" = "0:1:1" ] && [ "$r_w12" = 0 ]; then say "✅ INSTALLER: partial-prefix kernel cross-check, '-' never OLDPWD, CDPATH ignored, PATH_MAX / NAME_MAX / ENOTDIR / EACCES / newline refused, ENOENT lexical, writers get the canonical path"; else ko "INSTALLER: R6 probes wrong (partial-prefix lexical canon $r_w1 want 6; relative '-' $r_w2 want 0; PATH_MAX $r_w3, EACCES $r_w4, ENOTDIR $r_w5, NAME_MAX $r_w6, newline $r_w7 want 1; -/agents via nxr6/.. '$r_w8' want 0:1:0; CDPATH decoy $r_w9 want 0; ENOENT '$r_w10'; generator --out-dir -- write+rerun '$r_w11' want 0:1:1 (rerun UNCHANGED); --project-root - $r_w12 want 0)"; fi
+# R7-1..R7-5: every captured path (readlink target, pwd -P, canon's output, project root, own directory) is
+# byte-exact and refused when it holds a newline; PATH_MAX / NAME_MAX / EACCES / multibyte boundaries hold in both
+# directions; --classify reads an option-like name as a file; a failing sha256 tool never writes an empty hash.
+nl=$'\n'; R7="$W/r7"; mkdir -p "$R7/tgt" "$R7/c$nl" "$R7/d" "$R7/rp/p$nl" "$R7/rp/other"; R7P="$(cd -P -- "$R7" && pwd -P)"
+ln -s "tgt$nl" "$R7/lnl"; ln -s tgt "$R7/lok"; ln -s "$SH/.claude/agents" "$R7/d/foo"; mkdir "$R7/d/foo$nl"; ln -s "d/foo$nl/" "$R7/L"
+r7c() { bash -c '. "$1"; v="$(canon "$2")"; r=$?; printf "%s:%s" "$r" "$v"' _ "$FN" "$1" 2>/dev/null; }
+r_y1="$(r7c "$R7/lnl/x")"; r_y1="${r_y1%%:*}"
+r_y2="$(cd -- "$R7/c$nl" && bash -c '. "$1"; canon x >/dev/null' _ "$FN" 2>/dev/null; echo $?)"
+r_y3="$(cd -- "$R7" && bash -c '. "$1"; B="$2"; canon() { case "$1" in .) printf "%s\n" "$B" ;; *) printf "%s\n" "$B/c" ;; esac; }; canon_kcheck "$3" x' _ "$FN" "$R7P" "c$nl/x" 2>/dev/null; echo $?)"
+r_y4="$(bash -c '. "$1"; canon() { printf "%s\n\n" "$1"; }; canon_kcheck() { return 0; }; canon_to v "$2"' _ "$FN" "$R7P/tgt" >/dev/null 2>&1; echo $?)"
+r_y9="$(bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$R7/lok/x" 2>/dev/null)"
+agn() { find "$SH/dotreal/agents" -maxdepth 1 -name 'T*' 2>/dev/null | wc -l; }
+r_y5="$(env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$P" --out-dir "$R7/L" >/dev/null 2>&1; echo $?):$(agn)"
+for d in "$R7/rp/p$nl" "$R7/rp/other"; do git -C "$d" init -q -b main 2>/dev/null; git -C "$d" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null; done; ln -s "$R7/rp/other" "$R7/rp/p"
+r_y6="$(env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" --project-root "$R7/rp/p$nl" >/dev/null 2>&1; echo $?):$(find "$R7/rp" -name 'T*.md' | wc -l)"
+r_y11="$(cd -- "$R7/rp/p$nl" && env -u CLAUDE_CONFIG_DIR -u CDPATH -u PROJECT_ROOT HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$inst" >/dev/null 2>&1; echo $?):$(find "$R7/rp" -name 'T*.md' | wc -l)"
+cp -r "$ROOT/scripts/multitrack" "$R7/idecoy"; cp -r "$ROOT/scripts/multitrack" "$R7/i$nl"; ln -s "$R7/idecoy" "$R7/i"
+printf '#!/usr/bin/env bash\n: >"%s"\n' "$R7/imarker" >"$R7/idecoy/gen_agent_label_defs.sh"
+r_y8="$(env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=cmatl-nohost MT_CONFIG_DIR="$W/noconfig" bash "$R7/i$nl/install_agent_label_defs.sh" --project-root "$P" --dry-run >/dev/null 2>&1; echo $?):$([ -e "$R7/imarker" ] && echo 1 || echo 0)"
+rm -f "$R7/idecoy/agent_label_colors.tsv"
+r_y10="$(bash "$R7/i$nl/gen_agent_label_defs.sh" --track 1 --branch main --out-dir "$R7/gout" --models sonnet --efforts low >/dev/null 2>&1; echo $?)"
+mkdir -p "$R7/cl"; bash "$gen" --track 1 --branch main --out-dir "$R7/cl" --models sonnet --efforts low >/dev/null 2>&1; cp -- "$R7/cl/T1-main-sonnet-low.md" "$R7/cl/-y.md"
+r_y7="$(cd -- "$R7/cl" && bash "$gen" --classify -y.md 2>/dev/null)"
+mkdir -p "$R7/shabin"; printf '#!/bin/sh\nexit 1\n' >"$R7/shabin/sha256sum"; chmod +x "$R7/shabin/sha256sum"
+r_x6="$(PATH="$R7/shabin:$PATH" bash "$gen" --track 1 --branch main --out-dir "$R7/x6" --models sonnet --efforts low >/dev/null 2>&1; echo $?):$(find "$R7/x6" -name 'T1-*' 2>/dev/null | wc -l)"
+pm7="$(getconf PATH_MAX / 2>/dev/null)"; case "$pm7" in ''|*[!0-9]*) pm7=1024 ;; esac
+nm7="$(getconf NAME_MAX / 2>/dev/null)"; case "$nm7" in ''|*[!0-9]*) nm7=255 ;; esac
+s7="$R7P/nxb"; while [ $((${#s7} + 201)) -lt $((pm7 - 1)) ]; do s7="$s7/$r6seg"; done
+k7=$((pm7 - ${#s7} - 1)); l7="$(printf 'r%.0s' $(seq 1 "$k7"))"
+r_x1="$(r7c "$s7/$l7")"; r_x1="${r_x1%%:*}"; r_x1g="$(r7c "$s7/${l7%r}")"; r_x1g="${r_x1g%%:*}"
+n7="$(printf 'n%.0s' $(seq 1 "$nm7"))"; r_x2="$(r7c "$R7/$n7/x")"; r_x2="${r_x2%%:*}"
+if [ "$(id -u)" != 0 ]; then
+  mkdir -p "$R7/m644" "$R7/m111"; ln -s "$SH/.claude/agents" "$R7/m644/lnk"; chmod 0644 "$R7/m644"; chmod 0111 "$R7/m111"
+  r_x3a="$(r7c "$R7/m644/lnk")"; r_x3a="${r_x3a%%:*}"; r_x3b="$(r7c "$R7/m111/miss/y")"; r_x3b="${r_x3b%%:*}"; chmod 755 "$R7/m644" "$R7/m111"
+else r_x3a=1; r_x3b=0; say "ℹ️  INSTALLER: running as root: EACCES-direction probes SKIP-with-reason"; fi
+u8=""; for lc in C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8; do [ "$(LC_ALL=$lc bash -c 'x=é; echo ${#x}' 2>/dev/null)" = 1 ] && { u8="$lc"; break; }; done
+if [ -n "$u8" ]; then e128="$(printf 'é%.0s' $(seq 1 128))"; r_x4="$(LC_ALL=$u8 bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$R7/$e128/x" 2>/dev/null; echo $?)"; else r_x4=1; say "ℹ️  INSTALLER: no UTF-8 locale: multibyte probe SKIP-with-reason"; fi
+if [ "$r_y1" = 1 ] && [ "$r_y2" = 1 ] && [ "$r_y3" = 1 ] && [ "$r_y4" = 6 ] && [ "$r_y5" = "6:0" ] && [ "$r_y6" = "6:0" ] && [ "$r_y7" = genuine ] && [ "$r_y8" = "5:0" ] && [ "$r_y9" = "$R7P/tgt/x" ] && [ "$r_y10" = 5 ] && [ "$r_y11" = "6:0" ] && [ "$r_x1" = 1 ] && [ "$r_x1g" = 0 ] && [ "$r_x2" = 0 ] && [ "$r_x3a" = 1 ] && [ "$r_x3b" = 0 ] && [ "$r_x4" = 1 ] && [ "$r_x6" = "5:0" ]; then say "✅ INSTALLER: byte-exact captures (newline in a link target / cwd / kernel answer / canon output / project root / own directory refused), PATH_MAX / NAME_MAX / EACCES / multibyte boundaries in both directions, option-like --classify name, failing sha256 never writes"; else ko "INSTALLER: R7 probes wrong (link target 'tgt\\n' $r_y1, cwd 'c\\n' $r_y2, kernel answer $r_y3 want 1; canon output $r_y4 want 6; P/L->'d/foo\\n/' '$r_y5' want 6:0; root 'p\\n' '$r_y6', default root '$r_y11' want 6:0; --classify -y.md '$r_y7' want genuine; own dir installer '$r_y8' want 5:0, generator $r_y10 want 5; ordinary link '$r_y9'; PATH_MAX $r_x1 want 1, PATH_MAX-1 $r_x1g want 0; NAME_MAX $r_x2 want 0; 0644 $r_x3a want 1, 0111 $r_x3b want 0; multibyte $r_x4 want 1; failing sha256 '$r_x6' want 5:0)"; fi
+rm -f "$SH/dotreal/agents/T"*
 if [ "$r_s1" = 6 ] && [ "$r_s2" = 6 ] && [ "$r_s3" = 6 ] && [ "$r_s4" = 6 ] && [ "$r_s5" = 6 ] && [ "$r_s6" = 6 ] && [ "$r_s7" = 0 ]; then say "✅ INSTALLER: refuses a symlinked ~/.claude (out-dir and target), an out-dir containing it, an empty-HOME passwd home, HOME itself and an ancestor of HOME"; else ko "INSTALLER: user-level refusal bypassed (symlink out-dir $r_s1, symlink target $r_s2, out-dir contains $r_s3, empty HOME $r_s4, HOME $r_s5, HOME ancestor $r_s6; want 6; empty-HOME ordinary project $r_s7 want 0)"; fi
 # a project whose .claude IS the user-level agent config dir is refused (F1)
 UC="$W/ucfg"; mkdir -p "$UC/.claude"; git -C "$UC" init -q -b main 2>/dev/null; git -C "$UC" -c user.email=g@g -c user.name=g commit -q --allow-empty -m i 2>/dev/null

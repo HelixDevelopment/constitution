@@ -167,6 +167,22 @@ for od in - -- -x; do
   rc=$(cd "$W/g30" && env -u CDPATH bash "$GEN" --track 1 --branch main --out-dir "$od" --models sonnet --efforts low --check >"$W/out" 2>"$W/err"; echo $?)
   check "G30d relative --out-dir '$od' --check clean (exit 0)" 0 "$rc"
 done
+# --- G31 review round 7 (R7-4): --classify of an option-like relative name is the file, never an option ------------
+mkdir -p "$W/g31"; bash "$GEN" --track 1 --branch main --out-dir "$W/g31" --models sonnet --efforts low >/dev/null 2>&1
+for nm in -y.md --z.md -n.md; do
+  cp -- "$W/g31/T1-main-sonnet-low.md" "$W/g31/$nm"
+  check "G31a --classify '$nm' (relative, a genuine copy) is genuine" genuine "$(cd "$W/g31" && bash "$GEN" --classify "$nm" 2>/dev/null)"
+done
+printf 'hand\n' >"$W/g31/-h.md"
+check "G31b golden-FALSE: --classify '-h.md' (relative, hand-made) is handmade" handmade "$(cd "$W/g31" && bash "$GEN" --classify -h.md 2>/dev/null)"
+# --- G32 (R7-5 / X6): a failing sha256 tool never yields a file with an empty hash ----------------------------------
+mkdir -p "$W/g32bin"; printf '#!/bin/sh\nexit 1\n' >"$W/g32bin/sha256sum"; chmod +x "$W/g32bin/sha256sum"
+rc=$(PATH="$W/g32bin:$PATH" bash "$GEN" --track 1 --branch main --out-dir "$W/g32" --models sonnet --efforts low >"$W/out" 2>"$W/err"; echo $?)
+check "G32a a failing sha256sum: exit 5, no definition written" "5:0" "$rc:$(find "$W/g32" -name 'T1-*.md' 2>/dev/null | wc -l)"
+# --- G33 (R7 class): the generator's own directory is resolved byte-exactly (a copy in 'g\n' beside a decoy 'g')
+nl=$'\n'; mkdir -p "$W/g33decoy"; cp -r "$HERE" "$W/g33$nl"; ln -s "$W/g33decoy" "$W/g33"
+rc=$(bash "$W/g33$nl/gen_agent_label_defs.sh" --track 1 --branch main --out-dir "$W/g33out" --models sonnet --efforts low >"$W/out" 2>"$W/err"; echo $?)
+check "G33a generator copy in 'g33\\n' beside a decoy 'g33': refused (exit 5), never reads the decoy, nothing written" "5:0" "$rc:$(find "$W/g33out" -name 'T1-*' 2>/dev/null | wc -l)"
 # --- G22 shellcheck ----------------------------------------------------------------------------------
 if command -v shellcheck >/dev/null 2>&1; then
   if shellcheck -s bash "$GEN" >"$W/sc" 2>&1; then ok "G22 shellcheck clean"; else bad "G22 shellcheck clean" "$(head -3 "$W/sc")"; fi

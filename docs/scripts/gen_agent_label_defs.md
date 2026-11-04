@@ -73,7 +73,7 @@ writes (the alias is not part of the type name).
 - A target without the marker (hand-made) is **never** overwritten (exit 3); a
   generated file whose hash no longer matches (hand-edited) is not overwritten
   either (exit 4). The check is all-or-nothing: nothing is written if any target
-  is refused. Writes are atomic (temp + rename) and stay inside `--out-dir`. A relative `--out-dir` is used as `./<dir>`, so a name such as `-`, `--` or `-x` is a directory, never an option or `$OLDPWD`, and `CDPATH` is ignored (review round 6; test G30).
+  is refused. Writes are atomic (temp + rename) and stay inside `--out-dir`. A relative `--out-dir` is used as `./<dir>`, so a name such as `-`, `--` or `-x` is a directory, never an option or `$OLDPWD`, and `CDPATH` is ignored (review round 6; test G30). `--classify` and `--colors-file` read a relative name as `./<name>`, so `-y.md` is a file, never an option (review round 7, R7-4; test G31). A failing sha256 tool stops the run with exit 5 and writes nothing (G32). The script's own directory is resolved byte-exactly; a path holding a newline is refused with exit 5 (G33).
 - `--check` reports missing, stale, hand-edited and *extra* generated files for
   the same `T<N>-<branch>-` prefix; hand-made files are never "extra".
 - The strict, generator-independent validator is

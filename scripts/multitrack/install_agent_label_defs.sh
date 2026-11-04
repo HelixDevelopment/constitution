@@ -41,7 +41,12 @@
 #   even where it would land somewhere harmless, and the kernel's own 'cd -P' resolution of the
 #   existing prefix must agree with the pure-bash walk; (g) a cwd or path of PATH_MAX bytes or more, a
 #   component it cannot lstat (EACCES), past a non-directory, or longer than NAME_MAX, and a newline in a
-#   path are REFUSED (exit 6, R6-1); '-' is a directory name, never $OLDPWD; CDPATH is ignored.
+#   path are REFUSED (exit 6, R6-1); '-' is a directory name, never $OLDPWD; CDPATH is ignored; every captured
+#   path (readlink target, pwd -P, canon's own output, the project root, the passwd home, the script's own
+#   directory) is taken byte-exact (sentinel capture), and one holding a newline is REFUSED (exit 6; exit 5 for
+#   the script's own directory) (R7-1/R7-2); (h) the tools are called as builtin cd/pwd and command
+#   readlink/getconf and imported functions of those names are unset, but anyone who controls the environment
+#   (a function named builtin, command or unset, PATH) controls the run: that is outside the threat boundary.
 # Side-effects: writes generated files; prunes ONLY genuine generated
 #   T<N>-*.md files whose (track, branch) is no longer declared (a declared
 #   track whose branch is unresolvable keeps its files; with no usable consumer
@@ -60,7 +65,27 @@
 # =============================================================================
 set -uo pipefail
 unset CDPATH   # a relative cd must never be redirected by CDPATH (review round 6); children inherit no CDPATH
-HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+# exported functions named like the tools (BASH_FUNC_cd%% ...) must not answer for them (review round 7, cheap hardening)
+builtin unset -f cd pwd readlink getconf dirname 2>/dev/null || true
+# exact_out CMD [ARGS...]: EXACT := the byte-exact stdout of CMD minus the ONE trailing newline that pwd,
+# readlink and printf '%s\n' add. A plain $(...) strips EVERY trailing newline, so a link target or a cwd ending
+# in a newline was checked under a different name than the one written (review round 7, R7-1/R7-2). Returns CMD's
+# status, or 97 when CMD succeeded but EXACT still holds a newline (every caller refuses such a path).
+exact_out() {
+  local _eo_r _eo_s=0
+  _eo_r="$("$@"; _eo_s=$?; printf x; exit "$_eo_s")" || _eo_s=$?
+  _eo_r="${_eo_r%x}"; EXACT="${_eo_r%$'\n'}"
+  [ "$_eo_s" -eq 0 ] || return "$_eo_s"
+  case "$EXACT" in *$'\n'*) return 97 ;; esac
+  return 0
+}
+# shellcheck disable=SC2329 # invoked indirectly, as the command argument of exact_out
+cdpwd() { CDPATH='' builtin cd -P -- "$1" 2>/dev/null && builtin pwd -P; }
+# this script's own directory, byte-exact (a copy in 'x\n' beside a decoy 'x' never uses the decoy, R7)
+_src="${BASH_SOURCE[0]}"; case "$_src" in */*) _srcd="${_src%/*}" ;; *) _srcd=. ;; esac
+case "$_srcd" in '') _srcd=/ ;; /*) ;; *) _srcd="./$_srcd" ;; esac
+if ! exact_out cdpwd "$_srcd" || [ -z "$EXACT" ]; then echo "install_agent_label_defs: cannot resolve this script's own directory exactly (unreadable, or its path holds a newline)" >&2; exit 5; fi
+HERE="$EXACT"
 GEN="$HERE/gen_agent_label_defs.sh"
 LABELER="$HERE/track_branch_label.sh"
 
@@ -76,11 +101,17 @@ while [ $# -gt 0 ]; do
     --check)        do_check=1; shift ;;
     --dry-run)      dry=1; shift ;;
     --no-prune)     prune=0; shift ;;
-    -h|--help)      sed -n '2,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)              die2 "unknown argument '$1'" ;;
   esac
 done
-[ -n "$project_root" ] || project_root="${PROJECT_ROOT:-$(pwd -P)}"
+if [ -z "$project_root" ]; then
+  if [ -n "${PROJECT_ROOT:-}" ]; then project_root="$PROJECT_ROOT"
+  else exact_out builtin pwd -P 2>/dev/null; _r=$?
+    # 97: the cwd holds a newline; it is kept byte-exact here and refused (exit 6) by canon below (R7-2)
+    case "$_r" in 0|97) project_root="$EXACT" ;; *) die2 "cannot read the working directory" ;; esac
+  fi
+fi
 [ -d "$project_root" ] || die2 "project root '$project_root' is not a directory"
 # A project root that cannot be entered (e.g. /root for a normal user) is still checked by the
 # refusals below on its raw path, so a system or user-level directory reports exit 6; only
@@ -88,7 +119,8 @@ done
 pr_unentered=0
 # a relative root is entered as ./<root>: 'cd -- -' would mean $OLDPWD (review round 6, R6-1/R6-2)
 case "$project_root" in /*) _prd="$project_root" ;; *) _prd="./$project_root" ;; esac
-if _pr="$(CDPATH='' cd -P -- "$_prd" 2>/dev/null && pwd -P)" && [ -n "$_pr" ]; then project_root="$_pr"; else pr_unentered=1; fi
+# byte-exact (R7-2): a root resolving to a name with a newline is not entered; canon refuses it (exit 6)
+if exact_out cdpwd "$_prd" && [ -n "$EXACT" ]; then project_root="$EXACT"; else pr_unentered=1; fi
 [ -n "$out_dir" ] || out_dir="$project_root/.claude/agents"
 
 # --- 0. refuse user-level targets (review 2026-11-03, F1) ----------------------------------
@@ -113,15 +145,16 @@ if _pr="$(CDPATH='' cd -P -- "$_prd" 2>/dev/null && pwd -P)" && [ -n "$_pr" ]; t
 # /dev/stdin, /dev/stdout, /dev/stderr means something different in every process, and
 # 'readlink' would answer for its own short-lived process (a following '..' then escapes
 # /proc). Such a link is never followed: canon returns 2 and the caller refuses (exit 6).
+# shellcheck disable=SC2329 # invoked indirectly, as the command argument of exact_out
 canon() {
   local rest comp t l cur=/ n=0 base pmax nmax LC_ALL=C
   [ -n "$1" ] || return 1
   case "$1" in *$'\n'*) return 1 ;; esac
-  pmax="$(getconf PATH_MAX / 2>/dev/null)"; case "$pmax" in ''|*[!0-9]*) pmax=1024 ;; esac
-  nmax="$(getconf NAME_MAX / 2>/dev/null)"; case "$nmax" in ''|*[!0-9]*) nmax=255 ;; esac
+  pmax="$(command getconf PATH_MAX / 2>/dev/null)"; case "$pmax" in ''|*[!0-9]*) pmax=1024 ;; esac
+  nmax="$(command getconf NAME_MAX / 2>/dev/null)"; case "$nmax" in ''|*[!0-9]*) nmax=255 ;; esac
   case "$1" in
     /*) rest="$1" ;;
-    *) base="$(pwd -P 2>/dev/null)" || return 1; [ -n "$base" ] || return 1; rest="$base/$1" ;;
+    *) exact_out builtin pwd -P 2>/dev/null || return 1; base="$EXACT"; [ -n "$base" ] || return 1; rest="$base/$1" ;;   # R7-2
   esac
   while [ -n "$rest" ]; do
     comp="${rest%%/*}"
@@ -137,7 +170,8 @@ canon() {
     if [ -L "$t" ]; then
       case "$t" in /proc|/proc/*|/dev/fd|/dev/stdin|/dev/stdout|/dev/stderr) return 2 ;; esac
       n=$((n+1)); [ "$n" -le 40 ] || return 1
-      l="$(readlink -- "$t" 2>/dev/null)" || return 1
+      exact_out command readlink -- "$t" 2>/dev/null || return 1             # byte-exact; a newline refuses (R7-1)
+      l="$EXACT"
       [ -n "$l" ] || return 1
       case "$l" in /*) cur=/ ;; esac
       rest="$l${rest:+/$rest}"
@@ -157,24 +191,28 @@ canon() {
 # equal what canon says for the same prefix. A prefix nobody can enter gives no opinion
 # (return 0); a disagreement, or a canon failure on the prefix, returns 1 (caller refuses).
 canon_kcheck() {
-  local p="$1" kp="" cp="" i=0 cdp
+  local p="$1" kp="" cp="" i=0 cdp ks
   while :; do
     # a relative prefix is entered as ./<prefix>: a bare 'cd -- -' means $OLDPWD (R6-1/R6-2)
     case "$p" in /*) cdp="$p" ;; *) cdp="./$p" ;; esac
-    if [ -d "$cdp" ] && kp="$(CDPATH='' cd -P -- "$cdp" 2>/dev/null && pwd -P)" && [ -n "$kp" ]; then break; fi
+    if [ -d "$cdp" ]; then
+      ks=0; exact_out cdpwd "$cdp" || ks=$?
+      [ "$ks" -ne 97 ] || return 1                       # the kernel's answer holds a newline (R7-1)
+      if [ "$ks" -eq 0 ] && [ -n "$EXACT" ]; then kp="$EXACT"; break; fi
+    fi
     case "$p" in /|.|'') return 0 ;; esac
     case "$p" in */*) p="${p%/*}"; [ -n "$p" ] || p=/ ;; *) p=. ;; esac
     i=$((i+1)); [ "$i" -le 100000 ] || return 1
   done
-  cp="$(canon "$p")" || return 1
+  exact_out canon "$p" || return 1; cp="$EXACT"
   [ "$kp" = "$cp" ]
 }
 # canon_to VAR PATH: VAR := canon PATH, or refuse (exit 6, fail closed, §11.4.201(4)).
 canon_to() {
   local -n _cv="$1"; local _crc=0
-  _cv="$(canon "$2")" || _crc=$?
+  exact_out canon "$2" || _crc=$?; _cv="$EXACT"   # byte-exact: the name checked is the name written (R7-1)
   [ "$_crc" -ne 2 ] || refuse6 "'$2' passes through a per-process magic link (/proc/self, /proc/<pid>/..., /dev/fd, /dev/stdin): its meaning depends on the resolving process, so it cannot be proven not to be a user-level or system directory"
-  [ "$_crc" -eq 0 ] || refuse6 "cannot canonicalise '$2' (unreadable symlink or no usable readlink); cannot prove it is not a user-level or system directory"
+  [ "$_crc" -eq 0 ] || refuse6 "cannot canonicalise '$2' (an unreadable symlink, a newline in the path or in a link target, or no usable readlink); cannot prove it is not a user-level or system directory"
   [ -n "$_cv" ] || refuse6 "cannot canonicalise '$2'"
   canon_kcheck "$2" "$_cv" || refuse6 "'$2': the canonical path disagrees with the kernel's own resolution (cd -P); cannot prove it is not a user-level or system directory"
 }
@@ -194,7 +232,10 @@ add_uniq() { # array-name value
   _a+=("$v")
 }
 pw_home=""
-if command -v getent >/dev/null 2>&1; then pw_home="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"; fi
+# shellcheck disable=SC2329 # invoked indirectly, as the command argument of exact_out
+pwh_raw() { getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6; }
+# byte-exact (R7): a passwd home holding a newline is kept as is and refused by canon_to below (exit 6)
+if command -v getent >/dev/null 2>&1; then exact_out pwh_raw; case $? in 0|97) pw_home="$EXACT" ;; esac; fi
 _cz=""
 [ -n "${HOME:-}" ] && { add_uniq HOMES "$HOME"; canon_to _cz "$HOME"; add_uniq HOMES "$_cz"; }
 [ -n "$pw_home" ] && { add_uniq HOMES "$pw_home"; canon_to _cz "$pw_home"; add_uniq HOMES "$_cz"; }
@@ -315,7 +356,7 @@ fi
 
 # --- 2. the current checkout's own identity ----------------------------------------------------
 if [ -r "$LABELER" ]; then
-  lab="$(cd -- "$project_root" && bash "$LABELER" 2>/dev/null || true)"
+  lab="$(builtin cd -- "$project_root" && bash "$LABELER" 2>/dev/null || true)"
   if [[ "$lab" =~ ^\(T([0-9]+)/([^\ ]+)\ - ]]; then
     case "${BASH_REMATCH[2]}" in '?') : ;; *) add_pair "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;; esac
   fi

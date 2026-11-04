@@ -32,6 +32,7 @@
 #     R13 installer ignores the passwd home when HOME is empty -> FAIL (R2-1)
 #     RV7 R20-R22 RV5 round-5 canonicaliser / per-process link / cross-check / un-enterable root -> FAIL (R5-1..R5-3)
 #     RM3 RM4 R23-R32 round-6 partial-prefix cross-check / OLDPWD / CDPATH / undecidable lstat / raw out-dir -> FAIL (R6-1..R6-3)
+#     X1-X4 X6 S1-S11 round-7 boundaries / byte-exact captures / option-like --classify / failing sha256 -> FAIL (R7-1..R7-5)
 #     E2  an ambient AGENT_TYPE_LABEL_AGENTS_DIR does not change the verdict (R2-4)
 #     E1  an ambient HP in the caller's environment does not change the verdict (F3)
 #   plus gate-level cases on the dispatch-log audit (warn vs enforce) and a
@@ -184,14 +185,14 @@ D=$(fresh_tree r17); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs
 expect fail "R17 canon() falls back to the raw path when realpath -m is unavailable (R4-1)" gate_in "$D"
 D=$(fresh_tree r18); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;' '..) continue ;;' || rc=1
 expect fail "R18 canon() ignores '..'" gate_in "$D"
-D=$(fresh_tree r19); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  _cv="$(canon "$2")" || _crc=$?' '  _cv="$(canon "$2")" || _cv="$2"' || rc=1
+D=$(fresh_tree r19); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  exact_out canon "$2" || _crc=$?; _cv="$EXACT"' '  exact_out canon "$2" || EXACT="$2"; _cv="$EXACT"' || rc=1
 expect fail "R19 an uncanonicalisable path is used raw instead of refused (fail open)" gate_in "$D"
 # review round 5 (R5-1..R5-3)
 D=$(fresh_tree rv7); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '      ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;\n' '      ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;\n      *) case "$rest" in ..|../*) rest="${rest#..}"; rest="${rest#/}"; continue ;; esac ;;\n' || rc=1
 expect fail "RV7 canon() resolves '..' lexically before the symlink in front of it (R5-2)" gate_in "$D"
 D=$(fresh_tree r20); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '      case "$t" in /proc|/proc/*|/dev/fd|/dev/stdin|/dev/stdout|/dev/stderr) return 2 ;; esac\n' '' || rc=1
 expect fail "R20 canon() follows per-process links under /proc and /dev/fd (R5-1)" gate_in "$D"
-D=$(fresh_tree r21); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  cp="$(canon "$p")" || return 1\n  [ "$kp" = "$cp" ]' '  return 0' || rc=1
+D=$(fresh_tree r21); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  exact_out canon "$p" || return 1; cp="$EXACT"\n  [ "$kp" = "$cp" ]' '  return 0' || rc=1
 expect fail "R21 canon_kcheck() always agrees (kernel cross-check blind, R5-1)" gate_in "$D"
 D=$(fresh_tree r22); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" '  canon_kcheck "$2" "$_cv" || refuse6' '  true || refuse6' || rc=1
 expect fail "R22 canon_to() never calls the kernel cross-check (R5-1)" gate_in "$D"
@@ -199,7 +200,7 @@ D=$(fresh_tree rv5); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs
 expect fail "RV5 an un-enterable project root proceeds instead of exit 2 (R5-3)" gate_in "$D"
 # review round 6 (R6-1..R6-3): reviewer mutants RM3/RM4 and one mutant per new guard
 I6="scripts/multitrack/install_agent_label_defs.sh"
-D=$(fresh_tree rm3); mutate "$D" "$D/$I6" '  cp="$(canon "$p")" || return 1\n' '  [ "$p" = "$1" ] || return 0\n  cp="$(canon "$p")" || return 1\n' || rc=1
+D=$(fresh_tree rm3); mutate "$D" "$D/$I6" '  exact_out canon "$p" || return 1; cp="$EXACT"\n' '  [ "$p" = "$1" ] || return 0\n  exact_out canon "$p" || return 1; cp="$EXACT"\n' || rc=1
 expect fail "RM3 canon_kcheck() checks only when the WHOLE path is enterable (R6-3)" gate_in "$D"
 D=$(fresh_tree rm4); mutate "$D" "$D/$I6" '*/*) p="${p%/*}"; [ -n "$p" ] || p=/ ;;' '*/*) p="${p%%/*}"; [ -n "$p" ] || p=/ ;;' || rc=1
 expect fail "RM4 canon_kcheck() jumps straight to the first component (R6-3)" gate_in "$D"
@@ -213,18 +214,55 @@ D=$(fresh_tree r26); mutate "$D" "$D/$I6" '    if [ "$cur" != / ] && [ -e "$cur"
 expect fail "R26 canon() walks past an existing non-directory (ENOTDIR)" gate_in "$D"
 D=$(fresh_tree r27); mutate "$D" "$D/$I6" '    [ "${#comp}" -le "$nmax" ] || return 1' '    true' || rc=1
 expect fail "R27 canon() keeps a component longer than NAME_MAX" gate_in "$D"
-D=$(fresh_tree r28); mutate "$D" "$D/$I6" '*) return 1 ;; esac\n  pmax="$(getconf' '*) : ;; esac\n  pmax="$(getconf' || rc=1
+D=$(fresh_tree r28); mutate "$D" "$D/$I6" '*) return 1 ;; esac\n  pmax="$(command getconf' '*) : ;; esac\n  pmax="$(command getconf' || rc=1
 expect fail "R28 canon() accepts a path containing a newline" gate_in "$D"
 D=$(fresh_tree r29); mutate "$D" "$D/$I6" 'unset CDPATH   #' ': CDPATH   #' || rc=1
-expect fail "R29 the installer honours CDPATH for its own directory" gate_in "$D"
+# R29 is EQUIVALENT since round 7: every cd in the installer is CDPATH=''-prefixed (cdpwd), absolute, or ./-prefixed,
+# and the sourced multitrack_config.sh reaches its only cd solely when MT_REPO_ROOT is unset (the installer exports it),
+# so 'unset CDPATH' is defence in depth. Kept as a pass-expectation so a future relative cd that relies on it is noticed.
+expect pass "R29 (equivalent) dropping 'unset CDPATH' leaves the verdict unchanged" gate_in "$D"
 D=$(fresh_tree r30); mutate "$D" "$D/$I6" 'out_dir="$od_c"\n' '' || rc=1
 expect fail "R30 the writers get the raw out-dir string instead of the checked canonical path" gate_in "$D"
 D=$(fresh_tree r31); mutate "$D" "$D/scripts/multitrack/gen_agent_label_defs.sh" 'case "$out_dir" in /*) ;; *) out_dir="./$out_dir" ;; esac' 'true' || rc=1
 expect fail "R31 the generator hands an option-like relative out-dir (--) to its tools" gate_in "$D"
 D=$(fresh_tree r32); mutate "$D" "$D/$I6" '*) _prd="./$project_root" ;;' '*) _prd="$project_root" ;;' || rc=1
 expect fail "R32 a relative --project-root '-' is entered bare (= OLDPWD)" gate_in "$D"
-D=$(fresh_tree r33); mutate "$D" "$D/scripts/multitrack/gen_agent_label_defs.sh" 'sha256_stdin() { (cd / && sha256sum) |' 'sha256_stdin() { sha256sum |' || rc=1
+D=$(fresh_tree r33); mutate "$D" "$D/scripts/multitrack/gen_agent_label_defs.sh" 'sha256_stdin() { (builtin cd / && sha256sum) |' 'sha256_stdin() { sha256sum |' || rc=1
 expect fail "R33 the generator hashes with sha256sum in a cwd holding a directory named '-' (uutils: empty hash)" gate_in "$D"
+# review round 7 (R7-1..R7-5): the reviewer's mutants X1-X4, X6 and one mutant per byte-exact capture
+G7="scripts/multitrack/gen_agent_label_defs.sh"
+D=$(fresh_tree x1); mutate "$D" "$D/$I6" '    [ "${#t}" -lt "$pmax" ] || return 1' '    [ "${#t}" -le "$pmax" ] || return 1' || rc=1
+expect fail "X1 canon() accepts a candidate of exactly PATH_MAX bytes (R7-3)" gate_in "$D"
+D=$(fresh_tree x2); mutate "$D" "$D/$I6" '    [ "${#comp}" -le "$nmax" ] || return 1' '    [ "${#comp}" -lt "$nmax" ] || return 1' || rc=1
+expect fail "X2 canon() refuses a legal NAME_MAX-byte component (R7-3)" gate_in "$D"
+D=$(fresh_tree x3); mutate "$D" "$D/$I6" '    elif [ -d "$cur" ] && [ ! -x "$cur" ]; then' '    elif [ -d "$cur" ] && [ ! -r "$cur" ]; then' || rc=1
+expect fail "X3 canon() tests read instead of search permission for EACCES (R7-3)" gate_in "$D"
+D=$(fresh_tree x4); mutate "$D" "$D/$I6" 'local rest comp t l cur=/ n=0 base pmax nmax LC_ALL=C' 'local rest comp t l cur=/ n=0 base pmax nmax' || rc=1
+expect fail "X4 canon() counts characters, not bytes (LC_ALL=C dropped, R7-3)" gate_in "$D"
+D=$(fresh_tree x6); mutate "$D" "$D/$G7" '  [[ "$hash" =~ ^[0-9a-f]{64}$ ]] ||' '  true ||' || rc=1
+expect fail "X6 render() writes a file whose sha256 failed (R7-5)" gate_in "$D"
+D=$(fresh_tree s1); mutate "$D" "$D/$I6" '  _eo_r="$("$@"; _eo_s=$?; printf x; exit "$_eo_s")" || _eo_s=$?' '  _eo_r="$("$@")x" || _eo_s=$?' || rc=1
+expect fail "S1 exact_out() captures without the sentinel (trailing newlines stripped, R7-1)" gate_in "$D"
+D=$(fresh_tree s2); mutate "$D" "$D/$I6" "  case \"\$EXACT\" in *\$'\\\\n'*) return 97 ;; esac\n" '' || rc=1
+expect fail "S2 exact_out() accepts a captured path holding a newline (R7-1)" gate_in "$D"
+D=$(fresh_tree s3); mutate "$D" "$D/$I6" '      exact_out command readlink -- "$t" 2>/dev/null || return 1' '      EXACT="$(command readlink -- "$t" 2>/dev/null)" || return 1' || rc=1
+expect fail "S3 canon() captures a link target with a plain \$(...) (R7-1)" gate_in "$D"
+D=$(fresh_tree s4); mutate "$D" "$D/$I6" '    *) exact_out builtin pwd -P 2>/dev/null || return 1; base="$EXACT";' '    *) base="$(builtin pwd -P 2>/dev/null)" || return 1;' || rc=1
+expect fail "S4 canon() captures the cwd with a plain \$(...) (R7-2)" gate_in "$D"
+D=$(fresh_tree s5); mutate "$D" "$D/$I6" '      [ "$ks" -ne 97 ] || return 1' '      true' || rc=1
+expect fail "S5 canon_kcheck() accepts a kernel answer holding a newline (R7-1)" gate_in "$D"
+D=$(fresh_tree s6); mutate "$D" "$D/$I6" '  exact_out canon "$2" || _crc=$?; _cv="$EXACT"' '  _cv="$(canon "$2")" || _crc=$?' || rc=1
+expect fail "S6 canon_to() captures canon's output with a plain \$(...) (R7-1)" gate_in "$D"
+D=$(fresh_tree s7); mutate "$D" "$D/$I6" 'if exact_out cdpwd "$_prd" && [ -n "$EXACT" ]; then project_root="$EXACT";' 'if EXACT="$(cdpwd "$_prd")" && [ -n "$EXACT" ]; then project_root="$EXACT";' || rc=1
+expect fail "S7 the project root is captured with a plain \$(...) (R7-2)" gate_in "$D"
+D=$(fresh_tree s8); mutate "$D" "$D/$G7" '  case "$f" in /*) ;; *) f="./$f" ;; esac\n' '' || rc=1
+expect fail "S8 --classify hands an option-like relative name to sed/awk (R7-4)" gate_in "$D"
+D=$(fresh_tree s9); mutate "$D" "$D/$I6" 'if ! exact_out cdpwd "$_srcd" || [ -z "$EXACT" ]; then' 'if ! EXACT="$(cdpwd "$_srcd")" || [ -z "$EXACT" ]; then' || rc=1
+expect fail "S9 the installer's own directory is captured with a plain \$(...) (R7)" gate_in "$D"
+D=$(fresh_tree s10); mutate "$D" "$D/$G7" 'if ! exact_out cdpwd "$_srcd" || [ -z "$EXACT" ]; then' 'if ! EXACT="$(cdpwd "$_srcd")" || [ -z "$EXACT" ]; then' || rc=1
+expect fail "S10 the generator's own directory is captured with a plain \$(...) (R7)" gate_in "$D"
+D=$(fresh_tree s11); mutate "$D" "$D/$I6" '  else exact_out builtin pwd -P 2>/dev/null; _r=$?' '  else EXACT="$(builtin pwd -P)"; _r=0' || rc=1
+expect fail "S11 the default project root (cwd) is captured with a plain \$(...) (R7-2)" gate_in "$D"
 D=$(fresh_tree ma); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /snap /tmp /Users)' ' /snap /Users)' || rc=1
 expect fail "MA /tmp dropped from SYS_EXACT (R4-2)" gate_in "$D"
 D=$(fresh_tree mb); mutate "$D" "$D/scripts/multitrack/install_agent_label_defs.sh" ' /sbin /srv /sys /usr)' ' /sbin /sys /usr)' || rc=1

@@ -328,7 +328,7 @@ for sp in "" "$RPS"; do
 done
 # I23 unit: the functions themselves, extracted from the installer (each layer must hold on its own)
 FN="$W/canon_fns.sh"
-{ sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
+{ sed -n '/^exact_out() {/,/^}/p' "$INST"; grep '^cdpwd() {' "$INST"; sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
 SHP="$(cd -P -- "$SH" && pwd -P)"
 check "I23a (R5-2) canon: symlink followed before the following '..'" "$SHP/dotreal/agents" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH/deep/../../.claude/agents")"
 check "I23b (R5-2) canon: '..' after a chained relative link" "$SHP/a" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH/deep/..")"
@@ -390,7 +390,7 @@ rm -rf -- "${P:?}/mnt/.claude"
 rc=$(cd -- "$P" && env -u CLAUDE_CONFIG_DIR -u CDPATH PWD="$SH/.claude" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run >"$W/out" 2>"$W/err"; echo $?)
 check "I25k env PWD=~/.claude with cwd=project: default project root is the physical cwd (exit 0)" 0 "$rc"
 # unit (R6-1/R6-3): each guard layer on its own
-{ sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
+{ sed -n '/^exact_out() {/,/^}/p' "$INST"; grep '^cdpwd() {' "$INST"; sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
 check "I25l (R6-3) canon_kcheck over a PARTIAL prefix (tail absent): a lexical canon is caught (exit 6)" 6 "$(bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "$SH/deep/../../.claude/nonexist6/x" >/dev/null 2>&1; echo $?)"
 check "I25m (R6-3) relative partial prefix with a lexical canon is caught (exit 6)" 6 "$(cd -- "$SH" && bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "deep/../../.claude/nonexist6/x" >/dev/null 2>&1; echo $?)"
 check "I25n golden-FALSE: the real canon accepts the same partial-prefix path" "$SHP/dotreal/nonexist6/x:0" "$(bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$SH/deep/../../.claude/nonexist6/x" 2>/dev/null; printf ':%s' "$?")"
@@ -417,6 +417,78 @@ if [ "$(id -u)" != 0 ]; then
   check "I25x (EACCES) canon refuses a component it cannot lstat (dir without search permission, rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$W/u6/nox/x"; echo $?)"
   chmod 755 "$W/u6/nox"
 else ok "I25x running as root: EACCES cannot be produced (SKIP-with-reason)"; fi
+# ---- review round 7 (R7-1..R7-3): a captured path ($(...) of readlink / pwd -P / canon) must be byte-exact --------
+# $(...) strips EVERY trailing newline, so a link target or a cwd ending in a newline was checked under a different
+# name than the one written. Every capture keeps the exact bytes (sentinel) and every captured path holding a
+# newline is REFUSED (exit 6). NON-dry end-to-end first, then each layer on its own, then the boundaries.
+nl=$'\n'; ag_count() { find "$SH/dotreal/agents" -maxdepth 1 -name 'T*' 2>/dev/null | wc -l; }
+for mode in exists absent; do
+  B7="$W/r7$mode"; mkdir -p "$B7/d"; ln -s "$SH/.claude/agents" "$B7/d/foo"
+  [ "$mode" = exists ] && mkdir "$B7/d/foo$nl"
+  ln -s "d/foo$nl/" "$B7/L"
+  rm -f "$SH/dotreal/agents/T"*
+  rc=$(ienv bash "$INST" --project-root "$P" --out-dir "$B7/L" >"$W/out" 2>"$W/err"; echo $?)
+  check "I26a (R7-1, foo\\n $mode) NON-dry --out-dir P/L, L -> 'd/foo\\n/', d/foo -> ~/.claude/agents: refused, 0 files written" "6:0:0" "$rc:$(ag_count):$(find "$B7" -name 'T*.md' | wc -l)"
+  rc=$(cd -- "$B7" && ienv bash "$INST" --project-root "$P" --out-dir L >"$W/out" 2>"$W/err"; echo $?)
+  check "I26b (R7-1, foo\\n $mode) NON-dry relative --out-dir L: refused, 0 files written" "6:0:0" "$rc:$(ag_count):$(find "$B7" -name 'T*.md' | wc -l)"
+  rc=$(ienv bash "$INST" --project-root "$P" --out-dir "$B7/L/agents" >"$W/out" 2>"$W/err"; echo $?)
+  check "I26c (R7-1, foo\\n $mode) NON-dry --out-dir P/L/agents: refused, 0 files written" "6:0:0" "$rc:$(ag_count):$(find "$B7" -name 'T*.md' | wc -l)"
+done
+# R7-2: a project root whose name ends in a newline, beside a sibling WITHOUT it that is a symlink to another repo
+R7P="$W/r7p"; mkdir -p "$R7P/p$nl" "$R7P/other"
+for d in "$R7P/p$nl" "$R7P/other"; do git -C "$d" init -q -b main 2>/dev/null; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i; done
+ln -s "$R7P/other" "$R7P/p"
+rc=$(env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=nohost MT_CONFIG_DIR="$W/nocfg7" bash "$INST" --project-root "$R7P/p$nl" >"$W/out" 2>"$W/err"; echo $?)
+check "I26d (R7-2) --project-root 'p\\n' (p -> another repo): refused, 0 files in either" "6:0:0" "$rc:$(find "$R7P/other" "$R7P/p$nl" -name 'T*.md' | wc -l):$(ag_count)"
+rc=$(cd -- "$R7P" && env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=nohost MT_CONFIG_DIR="$W/nocfg7" bash "$INST" --project-root "p$nl" >"$W/out" 2>"$W/err"; echo $?)
+check "I26e (R7-2) relative --project-root 'p\\n': refused, 0 files" "6:0" "$rc:$(find "$R7P/other" "$R7P/p$nl" -name 'T*.md' | wc -l)"
+rc=$(cd -- "$R7P/p$nl" && env -u CLAUDE_CONFIG_DIR -u CDPATH -u PROJECT_ROOT HOME="$SH" MT_HOST=nohost MT_CONFIG_DIR="$W/nocfg7" bash "$INST" >"$W/out" 2>"$W/err"; echo $?)
+check "I26f (R7-2) default project root = a cwd 'p\\n': refused, 0 files" "6:0" "$rc:$(find "$R7P/other" "$R7P/p$nl" -name 'T*.md' | wc -l)"
+# a relative --out-dir inside a cwd named 'c\n' whose newline-less sibling 'c' is ANOTHER directory
+R7C="$W/r7c"; mkdir -p "$R7C/c$nl" "$R7C/safe"; ln -s "$R7C/safe" "$R7C/c"
+rc=$(cd -- "$R7C/c$nl" && ienv bash "$INST" --project-root "$P" --out-dir agents7 >"$W/out" 2>"$W/err"; echo $?)
+check "I26g (R7-2) relative --out-dir inside a cwd 'c\\n' (c -> another dir): refused, nothing written" "6:0" "$rc:$(find "$R7C" -name 'T*.md' | wc -l)"
+# the installer's own directory: a copy living in 'i7\n' beside a decoy 'i7' must never run the decoy's generator
+cp -r "$HERE" "$W/i7decoy"; cp -r "$HERE" "$W/i7$nl"; ln -s "$W/i7decoy" "$W/i7"
+printf '#!/usr/bin/env bash\n: >"%s"\n' "$W/i7marker" >"$W/i7decoy/gen_agent_label_defs.sh"
+rc=$(ienv bash "$W/i7$nl/install_agent_label_defs.sh" --project-root "$P" --dry-run >"$W/out" 2>"$W/err"; echo $?)
+check "I26h (R7 class) installer copy in 'i7\\n' beside a decoy 'i7': its own directory is never the decoy (exit 5, decoy not run)" "5:0" "$rc:$([ -e "$W/i7marker" ] && echo 1 || echo 0)"
+# unit: each capture on its own (functions extracted from the installer)
+{ sed -n '/^exact_out() {/,/^}/p' "$INST"; grep '^cdpwd() {' "$INST"; sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
+U7="$W/u7"; mkdir -p "$U7/tgt" "$U7/c$nl"; U7P="$(cd -P -- "$U7" && pwd -P)"
+ln -s "tgt$nl" "$U7/lnl"; ln -s "tg${nl}t" "$U7/lmid"
+check "I26i (R7-1) canon refuses a link whose target ENDS in a newline (rc 1, no output)" "1:" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$U7/lnl/x" 2>/dev/null; printf '%s:' "$?")"
+check "I26j (R7-1) canon refuses a link whose target CONTAINS a newline (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$U7/lmid/x" 2>/dev/null; echo $?)"
+check "I26k (R7-2) canon refuses a relative path from a cwd ending in a newline (rc 1)" 1 "$(cd -- "$U7/c$nl" && bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "x" 2>/dev/null; echo $?)"
+check "I26l (R7-1) canon_kcheck refuses when the kernel's answer for a prefix holds a newline (canon stub agrees with the stripped name)" 1 "$(cd -- "$U7" && bash -c '. "$1"; B="$2"; canon() { case "$1" in .) printf "%s\n" "$B" ;; *) printf "%s\n" "$B/c" ;; esac; }; canon_kcheck "$3" x' _ "$FN" "$U7P" "c$nl/x" 2>/dev/null; echo $?)"
+check "I26m (R7-1) canon_to refuses when canon prints a newline-terminated name it never examined (stub)" 6 "$(bash -c '. "$1"; canon() { printf "%s\n\n" "$1"; }; canon_kcheck() { return 0; }; canon_to v "$2"; [ "$v" = "$2" ] && echo SAME' _ "$FN" "$U7P/tgt" >/dev/null 2>&1; echo $?)"
+check "I26n golden-FALSE: an ordinary link and a cwd without newlines still canonicalise (exact path, rc 0)" "$U7P/tgt/x:0" "$(ln -sfn tgt "$U7/lok"; bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$U7/lok/x" 2>/dev/null; printf ':%s' "$?")"
+# R7-3 boundaries: PATH_MAX (X1), NAME_MAX (X2), EACCES direction (X3), multibyte names (X4)
+pmax7="$(getconf PATH_MAX / 2>/dev/null)"; case "$pmax7" in ''|*[!0-9]*) pmax7=1024 ;; esac
+nmax7="$(getconf NAME_MAX / 2>/dev/null)"; case "$nmax7" in ''|*[!0-9]*) nmax7=255 ;; esac
+s7="$U7P/nxb"; while [ $((${#s7} + 201)) -lt $((pmax7 - 1)) ]; do s7="$s7/$SEG"; done
+k7=$((pmax7 - ${#s7} - 1)); last7="$(printf 'r%.0s' $(seq 1 "$k7"))"
+check "I26o (R7-3 X1) a candidate of exactly PATH_MAX bytes is refused (rc 1)" "1:$pmax7" "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$s7/$last7" 2>/dev/null; printf '%s' "$?"):$((${#s7} + 1 + k7))"
+check "I26p (R7-3 X1) golden-FALSE: PATH_MAX-1 bytes is kept lexically (rc 0)" "$s7/${last7%r}:0" "$(bash -c '. "$1"; v="$(canon "$2")" && printf "%s" "$v"' _ "$FN" "$s7/${last7%r}" 2>/dev/null; printf ':%s' "$?")"
+n7="$(printf 'n%.0s' $(seq 1 "$nmax7"))"
+check "I26q (R7-3 X2) golden-FALSE: a component of exactly NAME_MAX bytes is legal (rc 0)" "$U7P/$n7/x:0" "$(bash -c '. "$1"; v="$(canon "$2")" && printf "%s" "$v"' _ "$FN" "$U7/$n7/x" 2>/dev/null; printf ':%s' "$?")"
+check "I26r (R7-3 X2) a component of NAME_MAX+1 bytes is refused (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$U7/${n7}n/x" 2>/dev/null; echo $?)"
+if [ "$(id -u)" != 0 ]; then
+  mkdir -p "$U7/m644" "$U7/m111"; ln -s "$SH/.claude/agents" "$U7/m644/lnk"; chmod 0644 "$U7/m644"; chmod 0111 "$U7/m111"
+  check "I26s (R7-3 X3) a readable but unsearchable dir (0644) holding a link: refused (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$U7/m644/lnk" 2>/dev/null; echo $?)"
+  check "I26t (R7-3 X3) golden-FALSE: a searchable but unreadable dir (0111), missing child: lexical (rc 0)" "$U7P/m111/miss/y:0" "$(bash -c '. "$1"; v="$(canon "$2")" && printf "%s" "$v"' _ "$FN" "$U7/m111/miss/y" 2>/dev/null; printf ':%s' "$?")"
+  chmod 755 "$U7/m644" "$U7/m111"
+else ok "I26s running as root: EACCES cannot be produced (SKIP-with-reason)"; ok "I26t running as root (SKIP-with-reason)"; fi
+U8LOC=""; for l in C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8; do [ "$(LC_ALL=$l bash -c 'x=é; echo ${#x}' 2>/dev/null)" = 1 ] && { U8LOC="$l"; break; }; done
+if [ -n "$U8LOC" ]; then
+  e128="$(printf 'é%.0s' $(seq 1 128))"; e127="$(printf 'é%.0s' $(seq 1 127))"
+  check "I26u (R7-3 X4) under $U8LOC a component of 128 x 'é' (256 bytes) is refused (lengths are bytes, rc 1)" 1 "$(LC_ALL=$U8LOC bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$U7/$e128/x" 2>/dev/null; echo $?)"
+  check "I26v (R7-3 X4) golden-FALSE: under $U8LOC 127 x 'é' (254 bytes) is legal (rc 0)" 0 "$(LC_ALL=$U8LOC bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$U7/$e127/x" 2>/dev/null; echo $?)"
+else ok "I26u no UTF-8 locale on this host (SKIP-with-reason)"; ok "I26v no UTF-8 locale (SKIP-with-reason)"; fi
+# exported shell functions (BASH_FUNC_*) named like the tools must not change the answer (cheap hardening)
+rc=$(env -u CLAUDE_CONFIG_DIR -u CDPATH 'BASH_FUNC_pwd%%=() { echo /; }' 'BASH_FUNC_readlink%%=() { echo /; }' HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "$W/fn7/agents" >"$W/out" 2>"$W/err"; echo $?)
+check "I26w exported functions pwd/readlink do not redirect the run (exit 0, 20 files in the requested out-dir)" "0:20" "$rc:$(find "$W/fn7/agents" -name 'T*.md' 2>/dev/null | wc -l)"
+rm -rf -- "${W:?}/r7exists" "${W:?}/r7absent" "${W:?}/fn7"
 # R5-3: a project root that cannot be entered (not a system dir) stops with exit 2, nothing written
 if [ "$(id -u)" != 0 ]; then
   NE="$W/noenter"; mkdir -p "$NE"; chmod 000 "$NE"

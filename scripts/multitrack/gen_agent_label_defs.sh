@@ -46,8 +46,27 @@
 # =============================================================================
 set -uo pipefail
 unset CDPATH   # a relative cd must never be redirected by CDPATH (review round 6)
-
-HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+# exported functions named like the tools (BASH_FUNC_cd%% ...) must not answer for them (review round 7, cheap hardening)
+builtin unset -f cd pwd readlink getconf dirname 2>/dev/null || true
+# exact_out CMD [ARGS...]: EXACT := the byte-exact stdout of CMD minus the ONE trailing newline that pwd,
+# readlink and printf '%s\n' add. A plain $(...) strips EVERY trailing newline, so a link target or a cwd ending
+# in a newline was checked under a different name than the one written (review round 7, R7-1/R7-2). Returns CMD's
+# status, or 97 when CMD succeeded but EXACT still holds a newline (every caller refuses such a path).
+exact_out() {
+  local _eo_r _eo_s=0
+  _eo_r="$("$@"; _eo_s=$?; printf x; exit "$_eo_s")" || _eo_s=$?
+  _eo_r="${_eo_r%x}"; EXACT="${_eo_r%$'\n'}"
+  [ "$_eo_s" -eq 0 ] || return "$_eo_s"
+  case "$EXACT" in *$'\n'*) return 97 ;; esac
+  return 0
+}
+# shellcheck disable=SC2329 # invoked indirectly, as the command argument of exact_out
+cdpwd() { CDPATH='' builtin cd -P -- "$1" 2>/dev/null && builtin pwd -P; }
+# this script's own directory, byte-exact (a copy in 'x\n' beside a decoy 'x' never uses the decoy, R7)
+_src="${BASH_SOURCE[0]}"; case "$_src" in */*) _srcd="${_src%/*}" ;; *) _srcd=. ;; esac
+case "$_srcd" in '') _srcd=/ ;; /*) ;; *) _srcd="./$_srcd" ;; esac
+if ! exact_out cdpwd "$_srcd" || [ -z "$EXACT" ]; then echo "gen_agent_label_defs: cannot resolve this script's own directory exactly (unreadable, or its path holds a newline)" >&2; exit 5; fi
+HERE="$EXACT"
 MODELS_ALLOWED=(sonnet opus)
 EFFORTS_ALLOWED=(low medium high xhigh max)
 COLORS_ALLOWED=(red blue green yellow purple orange pink cyan)
@@ -55,11 +74,13 @@ COLORS_ALLOWED=(red blue green yellow purple orange pink cyan)
 # --- sha256_stdin: the sha256 of stdin, independent of the working directory. Measured on this
 # host (review round 6): uutils coreutils 0.8.0 'sha256sum' with no file argument fails with
 # "-: Is a directory" when the cwd holds a DIRECTORY named '-', so it runs from '/'.
-sha256_stdin() { (cd / && sha256sum) | cut -d' ' -f1; }
+sha256_stdin() { (builtin cd / && sha256sum) | cut -d' ' -f1; }
 # --- classify <file>: absent | handmade | edited | genuine
 MARK_RE='^<!-- generated-by: gen_agent_label_defs\.sh v1 .*content-sha256: ([0-9a-f]{64});'
 classify() {
   local f="$1" k mk want got
+  # a relative name is read as ./<name>: sed/awk would take "-y.md" for an option (review round 7, R7-4)
+  case "$f" in /*) ;; *) f="./$f" ;; esac
   [ -e "$f" ] || { echo absent; return; }
   [ "$(sed -n 1p "$f" 2>/dev/null)" = "---" ] || { echo handmade; return; }
   k="$(awk 'NR>1 && $0=="---" {print NR; exit}' "$f")"
@@ -102,6 +123,7 @@ track="$((10#$track))"   # T007 and T7 are the same track (review 2026-11-03, F9
 # A relative out-dir is used as ./<dir>, so every path handed to a tool starts with / or ./ and a
 # name such as '-', '--' or '-x' is never read as an option (review round 6, R6-1 hygiene).
 case "$out_dir" in /*) ;; *) out_dir="./$out_dir" ;; esac
+case "$colors_file" in /*) ;; *) colors_file="./$colors_file" ;; esac   # awk must never read it as an option (R7-4)
 
 in_set() { # value set...
   local v="$1"; shift; local x
