@@ -45,12 +45,17 @@
 # Classification: universal (§11.4.17) — no project literal.
 # =============================================================================
 set -uo pipefail
+unset CDPATH   # a relative cd must never be redirected by CDPATH (review round 6)
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 MODELS_ALLOWED=(sonnet opus)
 EFFORTS_ALLOWED=(low medium high xhigh max)
 COLORS_ALLOWED=(red blue green yellow purple orange pink cyan)
 
+# --- sha256_stdin: the sha256 of stdin, independent of the working directory. Measured on this
+# host (review round 6): uutils coreutils 0.8.0 'sha256sum' with no file argument fails with
+# "-: Is a directory" when the cwd holds a DIRECTORY named '-', so it runs from '/'.
+sha256_stdin() { (cd / && sha256sum) | cut -d' ' -f1; }
 # --- classify <file>: absent | handmade | edited | genuine
 MARK_RE='^<!-- generated-by: gen_agent_label_defs\.sh v1 .*content-sha256: ([0-9a-f]{64});'
 classify() {
@@ -62,7 +67,7 @@ classify() {
   mk="$(sed -n "$((k+1))p" "$f")"
   if ! [[ "$mk" =~ $MARK_RE ]]; then echo handmade; return; fi
   want="${BASH_REMATCH[1]}"
-  got="$({ sed -n "1,${k}p" "$f"; sed -n "$((k+2)),\$p" "$f"; } | sha256sum | cut -d' ' -f1)"
+  got="$({ sed -n "1,${k}p" "$f"; sed -n "$((k+2)),\$p" "$f"; } | sha256_stdin)"
   if [ "$want" = "$got" ]; then echo genuine; else echo edited; fi
 }
 
@@ -94,6 +99,9 @@ case "$track" in ''|*[!0-9]*) die2 "--track must be a decimal number (got '${tra
 track="$((10#$track))"   # T007 and T7 are the same track (review 2026-11-03, F9)
 [ -n "$branch" ]  || die2 "--branch is required"
 [ -n "$out_dir" ] || die2 "--out-dir is required"
+# A relative out-dir is used as ./<dir>, so every path handed to a tool starts with / or ./ and a
+# name such as '-', '--' or '-x' is never read as an option (review round 6, R6-1 hygiene).
+case "$out_dir" in /*) ;; *) out_dir="./$out_dir" ;; esac
 
 in_set() { # value set...
   local v="$1"; shift; local x
@@ -137,7 +145,8 @@ render() {
     body="$body
 This type is the independent code-review (11.4.209) and merge-conflict-resolution (11.4.211) substrate: Opus at xhigh effort, as set by this definition (valid only when the dispatching call does not override the model or the effort). Act as a structurally separate verifier, never as the author of the work under review."
   fi
-  hash="$({ printf '%s\n' "$fm"; printf '%s\n' "$body"; } | sha256sum | cut -d' ' -f1)"
+  hash="$({ printf '%s\n' "$fm"; printf '%s\n' "$body"; } | sha256_stdin)"
+  [[ "$hash" =~ ^[0-9a-f]{64}$ ]] || { echo "gen_agent_label_defs: sha256 of the rendered content failed" >&2; return 1; }
   printf '%s\n' "$fm"
   printf '<!-- generated-by: gen_agent_label_defs.sh v1 (constitution 11.4.182/11.4.231(F)); content-sha256: %s; regenerate with the generator, do not edit -->\n' "$hash"
   printf '%s\n' "$body"
@@ -145,7 +154,7 @@ This type is the independent code-review (11.4.209) and merge-conflict-resolutio
 
 TMPS=()
 # shellcheck disable=SC2329 # this function is invoked indirectly through the EXIT trap handler
-cleanup() { local t; for t in "${TMPS[@]:-}"; do [ -n "$t" ] && rm -f "$t"; done; }
+cleanup() { local t; for t in "${TMPS[@]:-}"; do [ -n "$t" ] && rm -f -- "$t"; done; }
 trap cleanup EXIT
 
 declare -A STATE
@@ -220,10 +229,10 @@ for f in "${TARGETS[@]}"; do
     absent|stale)
       b="${f##*/}"; b="${b%.md}"; mo="${b#"T${track}-${san}-"}"
       if [ "$dry" -eq 1 ]; then echo "PLAN     ${f##*/} (${STATE[$f]})"; nw=$((nw+1)); continue; fi
-      mkdir -p "$out_dir" || { echo "gen_agent_label_defs: cannot create $out_dir" >&2; exit 5; }
+      mkdir -p -- "$out_dir" || { echo "gen_agent_label_defs: cannot create $out_dir" >&2; exit 5; }
       tmp="$out_dir/.${f##*/}.tmp.$$"; TMPS+=("$tmp")
       render "${mo%%-*}" "${mo#*-}" >"$tmp" || { echo "gen_agent_label_defs: render failed for ${f##*/}" >&2; exit 5; }
-      mv -f "$tmp" "$f" || { echo "gen_agent_label_defs: cannot place ${f##*/}" >&2; exit 5; }
+      mv -f -- "$tmp" "$f" || { echo "gen_agent_label_defs: cannot place ${f##*/}" >&2; exit 5; }
       echo "WROTE    ${f##*/} (${STATE[$f]})"; nw=$((nw+1)) ;;
   esac
 done

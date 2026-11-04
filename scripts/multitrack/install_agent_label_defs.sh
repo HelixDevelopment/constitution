@@ -39,7 +39,9 @@
 #   read, the run is REFUSED (exit 6), never guessed; (f) a path through a per-process link
 #   (/proc/self, /proc/<pid>/..., /dev/fd, /dev/stdin|stdout|stderr) is REFUSED (exit 6, R5-1),
 #   even where it would land somewhere harmless, and the kernel's own 'cd -P' resolution of the
-#   existing prefix must agree with the pure-bash walk.
+#   existing prefix must agree with the pure-bash walk; (g) a cwd or path of PATH_MAX bytes or more, a
+#   component it cannot lstat (EACCES), past a non-directory, or longer than NAME_MAX, and a newline in a
+#   path are REFUSED (exit 6, R6-1); '-' is a directory name, never $OLDPWD; CDPATH is ignored.
 # Side-effects: writes generated files; prunes ONLY genuine generated
 #   T<N>-*.md files whose (track, branch) is no longer declared (a declared
 #   track whose branch is unresolvable keeps its files; with no usable consumer
@@ -57,7 +59,8 @@
 # Classification: universal (§11.4.17).
 # =============================================================================
 set -uo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+unset CDPATH   # a relative cd must never be redirected by CDPATH (review round 6); children inherit no CDPATH
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 GEN="$HERE/gen_agent_label_defs.sh"
 LABELER="$HERE/track_branch_label.sh"
 
@@ -73,7 +76,7 @@ while [ $# -gt 0 ]; do
     --check)        do_check=1; shift ;;
     --dry-run)      dry=1; shift ;;
     --no-prune)     prune=0; shift ;;
-    -h|--help)      sed -n '2,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)              die2 "unknown argument '$1'" ;;
   esac
 done
@@ -83,7 +86,9 @@ done
 # refusals below on its raw path, so a system or user-level directory reports exit 6; only
 # after those checks does an un-enterable root stop with exit 2.
 pr_unentered=0
-if _pr="$(CDPATH='' cd -- "$project_root" 2>/dev/null && pwd -P)" && [ -n "$_pr" ]; then project_root="$_pr"; else pr_unentered=1; fi
+# a relative root is entered as ./<root>: 'cd -- -' would mean $OLDPWD (review round 6, R6-1/R6-2)
+case "$project_root" in /*) _prd="$project_root" ;; *) _prd="./$project_root" ;; esac
+if _pr="$(CDPATH='' cd -P -- "$_prd" 2>/dev/null && pwd -P)" && [ -n "$_pr" ]; then project_root="$_pr"; else pr_unentered=1; fi
 [ -n "$out_dir" ] || out_dir="$project_root/.claude/agents"
 
 # --- 0. refuse user-level targets (review 2026-11-03, F1) ----------------------------------
@@ -97,14 +102,23 @@ if _pr="$(CDPATH='' cd -- "$project_root" 2>/dev/null && pwd -P)" && [ -n "$_pr"
 # resolved prefix, and components that do not exist are kept lexically (as realpath -m does).
 # It prints nothing and returns 1 when the path cannot be established (empty input, no
 # working directory, an unreadable link, more than 40 links): the caller refuses (exit 6).
+# Undecidable components (review round 6, R6-1): a component whose lstat cannot be decided is
+# never walked lexically. canon returns 1 (refuse) for a path containing a newline, an absolute
+# candidate of PATH_MAX bytes or more (lstat would fail with ENAMETOOLONG and hide a link), a
+# component longer than NAME_MAX, a component after an existing non-directory (ENOTDIR), and a
+# component inside a directory it may not search (EACCES). Only a component whose parent is a
+# searchable directory or itself does not exist is kept lexically (ENOENT, as realpath -m does).
 # Per-process links (review round 5, R5-1): a symlink located under /proc (/proc/self,
 # /proc/thread-self, /proc/<pid>/cwd|root|exe|fd/*, /proc/mounts, ...) or at /dev/fd,
 # /dev/stdin, /dev/stdout, /dev/stderr means something different in every process, and
 # 'readlink' would answer for its own short-lived process (a following '..' then escapes
 # /proc). Such a link is never followed: canon returns 2 and the caller refuses (exit 6).
 canon() {
-  local rest comp t l cur=/ n=0 base
+  local rest comp t l cur=/ n=0 base pmax nmax LC_ALL=C
   [ -n "$1" ] || return 1
+  case "$1" in *$'\n'*) return 1 ;; esac
+  pmax="$(getconf PATH_MAX / 2>/dev/null)"; case "$pmax" in ''|*[!0-9]*) pmax=1024 ;; esac
+  nmax="$(getconf NAME_MAX / 2>/dev/null)"; case "$nmax" in ''|*[!0-9]*) nmax=255 ;; esac
   case "$1" in
     /*) rest="$1" ;;
     *) base="$(pwd -P 2>/dev/null)" || return 1; [ -n "$base" ] || return 1; rest="$base/$1" ;;
@@ -112,11 +126,14 @@ canon() {
   while [ -n "$rest" ]; do
     comp="${rest%%/*}"
     if [ "$comp" = "$rest" ]; then rest=""; else rest="${rest#*/}"; fi
+    if [ "$cur" != / ] && [ -e "$cur" ] && [ ! -d "$cur" ]; then return 1; fi   # ENOTDIR
     case "$comp" in
       ''|.) continue ;;
       ..) cur="${cur%/*}"; [ -n "$cur" ] || cur=/; continue ;;
     esac
+    [ "${#comp}" -le "$nmax" ] || return 1                                     # ENAMETOOLONG (name)
     if [ "$cur" = / ]; then t="/$comp"; else t="$cur/$comp"; fi
+    [ "${#t}" -lt "$pmax" ] || return 1                                        # ENAMETOOLONG (path)
     if [ -L "$t" ]; then
       case "$t" in /proc|/proc/*|/dev/fd|/dev/stdin|/dev/stdout|/dev/stderr) return 2 ;; esac
       n=$((n+1)); [ "$n" -le 40 ] || return 1
@@ -124,8 +141,12 @@ canon() {
       [ -n "$l" ] || return 1
       case "$l" in /*) cur=/ ;; esac
       rest="$l${rest:+/$rest}"
-    else
+    elif [ -e "$t" ]; then
       cur="$t"
+    elif [ -d "$cur" ] && [ ! -x "$cur" ]; then
+      return 1                                                                 # EACCES: undecidable
+    else
+      cur="$t"                                                                 # ENOENT: lexical
     fi
   done
   printf '%s\n' "$cur"
@@ -136,9 +157,11 @@ canon() {
 # equal what canon says for the same prefix. A prefix nobody can enter gives no opinion
 # (return 0); a disagreement, or a canon failure on the prefix, returns 1 (caller refuses).
 canon_kcheck() {
-  local p="$1" kp="" cp="" i=0
+  local p="$1" kp="" cp="" i=0 cdp
   while :; do
-    if [ -d "$p" ] && kp="$(CDPATH='' cd -P -- "$p" 2>/dev/null && pwd -P)" && [ -n "$kp" ]; then break; fi
+    # a relative prefix is entered as ./<prefix>: a bare 'cd -- -' means $OLDPWD (R6-1/R6-2)
+    case "$p" in /*) cdp="$p" ;; *) cdp="./$p" ;; esac
+    if [ -d "$cdp" ] && kp="$(CDPATH='' cd -P -- "$cdp" 2>/dev/null && pwd -P)" && [ -n "$kp" ]; then break; fi
     case "$p" in /|.|'') return 0 ;; esac
     case "$p" in */*) p="${p%/*}"; [ -n "$p" ] || p=/ ;; *) p=. ;; esac
     i=$((i+1)); [ "$i" -le 100000 ] || return 1
@@ -185,7 +208,6 @@ done
 if [ "${#HOMES[@]}" -eq 0 ] && [ "$do_check" -eq 0 ]; then
   refuse6 "the home directory cannot be resolved (HOME empty and no passwd entry); cannot prove the target is not a user-level directory"
 fi
-pr_c=""; od_c=""; canon_to pr_c "$project_root"; canon_to od_c "$out_dir"
 # System directories (R3-6). Mirrors the absolute entries of scripts/lib/protected_paths.list
 # (unit test I17e asserts every absolute entry there except /Users is refused as an out-dir;
 # I17f/g pin both lists below, I17h probes a child of every strict entry, I17i every exact
@@ -194,7 +216,8 @@ pr_c=""; od_c=""; canon_to pr_c "$project_root"; canon_to od_c "$out_dir"
 # because ordinary projects live below them (/var/tmp, /mnt/x, /media/x, /tmp/x).
 SYS_STRICT=(/bin /boot /dev /etc /lib /lib32 /lib64 /libx32 /opt /proc /root /run /sbin /srv /sys /usr)
 SYS_EXACT=(/var /home /mnt /media /snap /tmp /Users)
-for t in "$pr_c" "$od_c"; do
+sys_refuse() { local t sd
+for t in "$@"; do
   [ "$t" = / ] && refuse6 "'$t' is the filesystem root or an ancestor of everything (project root / out-dir)"
   for sd in "${SYS_STRICT[@]}"; do
     under "$t" "$sd" && refuse6 "'$t' is the system directory $sd or inside it"
@@ -205,18 +228,34 @@ for t in "$pr_c" "$od_c"; do
     under "$sd" "$t" && refuse6 "'$t' is an ancestor of the system directory $sd"
   done
 done
+}
+# The project root is checked first, so an un-enterable root stops with exit 2 (R5-3) before its
+# out-dir is canonicalised (canon refuses a component it cannot lstat, R6-1).
+pr_c=""; od_c=""; canon_to pr_c "$project_root"
+sys_refuse "$pr_c"
 for h in "${HOMES[@]:-}"; do
   [ -n "$h" ] || continue
   under "$h" "$pr_c" && refuse6 "project root '$pr_c' is the home directory or an ancestor of it"
-  under "$h" "$od_c" && refuse6 "out-dir '$od_c' is the home directory or an ancestor of it"
 done
 for c in "${USERCFG[@]:-}"; do
   [ -n "$c" ] || continue
   under "$pr_c" "$c" && refuse6 "project root '$pr_c' is a user-level agent config directory or inside one ($c)"
+done
+[ "$pr_unentered" -eq 0 ] || die2 "project root '$project_root' cannot be entered"
+canon_to od_c "$out_dir"
+sys_refuse "$od_c"
+for h in "${HOMES[@]:-}"; do
+  [ -n "$h" ] || continue
+  under "$h" "$od_c" && refuse6 "out-dir '$od_c' is the home directory or an ancestor of it"
+done
+for c in "${USERCFG[@]:-}"; do
+  [ -n "$c" ] || continue
   under "$od_c" "$c" && refuse6 "out-dir '$od_c' is inside the user-level agent config directory $c"
   under "$c" "$od_c" && refuse6 "out-dir '$od_c' contains the user-level agent config directory $c"
 done
-[ "$pr_unentered" -eq 0 ] || die2 "project root '$project_root' cannot be entered"
+# The writers get the checked canonical path, never the raw string (no second interpretation of
+# '-', '--', a relative path or a cwd that changed meaning, R6-1/R6-2).
+out_dir="$od_c"
 [ -x "$GEN" ] || [ -r "$GEN" ] || die2 "generator missing: $GEN"
 
 declare -a PAIRS=()          # "N<TAB>branch"
@@ -276,7 +315,7 @@ fi
 
 # --- 2. the current checkout's own identity ----------------------------------------------------
 if [ -r "$LABELER" ]; then
-  lab="$(cd "$project_root" && bash "$LABELER" 2>/dev/null || true)"
+  lab="$(cd -- "$project_root" && bash "$LABELER" 2>/dev/null || true)"
   if [[ "$lab" =~ ^\(T([0-9]+)/([^\ ]+)\ - ]]; then
     case "${BASH_REMATCH[2]}" in '?') : ;; *) add_pair "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;; esac
   fi

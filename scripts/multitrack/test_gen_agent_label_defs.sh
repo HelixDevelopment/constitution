@@ -155,6 +155,18 @@ check "G28d over-long track number -> exit 2" 2 "$(run --track 1234567890 --bran
 # --- G29 honest wording (F2): the call's model/effort parameters override the frontmatter -----
 grep -qi 'enforced' "$W/t1/T1-main-sonnet-low.md" && bad "G29a generated file does not claim model/effort are enforced" "$(grep -i enforced "$W/t1/T1-main-sonnet-low.md" | head -1)" || ok "G29a generated file does not claim model/effort are enforced"
 grep -q 'override' "$W/t1/T1-main-sonnet-low.md" && ok "G29b generated file says the call's parameters override the frontmatter" || bad "G29b generated file says the call's parameters override the frontmatter"
+# --- G30 option-like relative out-dirs (review round 6, R6-1 hygiene): '-' and '--' are directory
+# names, never options or OLDPWD (every path the generator hands to a tool starts with / or ./)
+mkdir -p "$W/g30"
+for od in - -- -x; do
+  rc=$(cd "$W/g30" && env -u CDPATH OLDPWD="$W" bash "$GEN" --track 1 --branch main --out-dir "$od" --models sonnet --efforts low >"$W/out" 2>"$W/err"; echo $?)
+  check "G30a relative --out-dir '$od' exit 0" 0 "$rc"
+  check "G30b relative --out-dir '$od' writes ./$od/T1-main-sonnet-low.md (not OLDPWD)" "T1-main-sonnet-low.md:0" "$(ls "$W/g30/$od" 2>/dev/null):$(find "$W" -maxdepth 1 -name 'T1-*' | wc -l)"
+  rc=$(cd "$W/g30" && env -u CDPATH bash "$GEN" --track 1 --branch main --out-dir "$od" --models sonnet --efforts low >"$W/out" 2>"$W/err"; echo $?)
+  check "G30c relative --out-dir '$od' rerun is idempotent (exit 0, unchanged=1)" "0:1" "$rc:$(grep -c '^UNCHANGED' "$W/out")"
+  rc=$(cd "$W/g30" && env -u CDPATH bash "$GEN" --track 1 --branch main --out-dir "$od" --models sonnet --efforts low --check >"$W/out" 2>"$W/err"; echo $?)
+  check "G30d relative --out-dir '$od' --check clean (exit 0)" 0 "$rc"
+done
 # --- G22 shellcheck ----------------------------------------------------------------------------------
 if command -v shellcheck >/dev/null 2>&1; then
   if shellcheck -s bash "$GEN" >"$W/sc" 2>&1; then ok "G22 shellcheck clean"; else bad "G22 shellcheck clean" "$(head -3 "$W/sc")"; fi

@@ -342,6 +342,81 @@ check "I23d (R5-1) canon_kcheck: a lexical (wrong) canonicaliser is caught by th
 check "I23e golden-FALSE: canon_to with the real canon accepts the same path" "$SHP/dotreal/agents:0" "$(bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$SH/deep/../../.claude/agents" 2>/dev/null; printf ':%s' "$?" )"
 check "I23f (R4-1/R19) canon_to refuses when canon fails on the full path, even if the kernel cross-check alone would agree" 6 "$(bash -c '. "$1"; canon() { [ "$1" = "$2" ] && return 1; printf "%s\n" "$1"; }; T="$2"; canon() { [ "$1" = "$T" ] && return 1; printf "%s\n" "$1"; }; canon_to v "$T"' _ "$FN" "$SHP/nonexist/x" >/dev/null 2>&1; echo $?)"
 check "I23g (R5-1) canon_to names a per-process link when canon returns 2" 1 "$(bash -c '. "$1"; canon() { return 2; }; canon_to v /x' _ "$FN" 2>&1 >/dev/null | grep -c 'per-process magic link')"
+# ---- review round 6 (R6-1..R6-3): the class "a path string whose meaning depends on process state" --------------
+# cwd, OLDPWD, CDPATH, PWD, option-like names (-, --), tildes, newline/glob/space, trailing slashes and //, very
+# long paths, and ENAMETOOLONG / ELOOP / EACCES / ENOENT / ENOTDIR at a component. Every case either has one
+# fixed meaning or is refused (exit 6); nothing depends on OLDPWD or CDPATH.
+rm -f "$SH/dotreal/agents/T"*; : >"$SH/dotreal/agents/mine.md"; hm_before="$(ls "$SH/dotreal/agents")"
+ienv() { env -u CLAUDE_CONFIG_DIR -u CDPATH HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" "$@"; }
+oldpwd_env() { case "$1" in unset) printf '%s\n' -u OLDPWD ;; bogus) printf '%s\n' OLDPWD=/nonexistent/zz6 ;; *) printf '%s\n' "OLDPWD=$1" ;; esac; }
+mkdir -p "$SH/a/b"
+SEG="$(printf 'q%.0s' $(seq 1 200))"; DEEP="$W/deep6"; mkdir -p "$DEEP"
+( cd -- "$DEEP" || exit 1; for _i in $(seq 1 25); do mkdir -- "$SEG" && cd -- "./$SEG" || exit 1; done; ln -s "$SH/a/b" ./-; ln -s "$SH/a/b" ./lk )
+indeep() { ( cd -- "$DEEP" || exit 99; for _i in $(seq 1 25); do cd -- "./$SEG" || exit 99; done; "$@" ) }
+# R6-1: cwd deeper than PATH_MAX + a symlink literally named '-' + a nonexistent component, OLDPWD unset/invalid/valid
+for mode in unset bogus "$W"; do
+  mapfile -t oe < <(oldpwd_env "$mode")
+  rc=$(indeep env -u CLAUDE_CONFIG_DIR -u CDPATH "${oe[@]}" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "-/nx6/../../../.claude/agents" >"$W/out" 2>"$W/err"; echo $?)
+  check "I25a (R6-1) deep cwd, '-' symlink, OLDPWD=${mode##*/}: NON-dry -/nx6/../../../.claude/agents refused (exit 6)" 6 "$rc"
+  check "I25b (R6-1) OLDPWD=${mode##*/}: the user's ~/.claude/agents is unchanged" "$hm_before" "$(ls "$SH/dotreal/agents")"
+  rm -f "$SH/dotreal/agents/T"*
+done
+rc=$(indeep ienv bash "$INST" --project-root "$P" --out-dir "lk/../../.claude/newagents6" >"$W/out" 2>"$W/err"; echo $?)
+check "I25c (R6-3 shape) deep cwd: NON-dry lk/../../.claude/newagents6 refused (exit 6), nothing created" "6:0" "$rc:$(find "$SH/dotreal" -maxdepth 1 -name newagents6 | wc -l)"
+rc=$(indeep ienv bash "$INST" --project-root "$P" --out-dir "$W/abs6/agents" >"$W/out" 2>"$W/err"; echo $?)
+check "I25d golden-FALSE: deep cwd with a short ABSOLUTE out-dir is accepted and written (exit 0, 10 T1 files)" "0:10" "$rc:$(find "$W/abs6/agents" -name 'T1-main-*' 2>/dev/null | wc -l)"
+# R6-2: a relative '-' / '-/agents' / '--' out-dir means the directory of that name, whatever OLDPWD says
+mkdir -p "$P/-" "$P/--"
+for mode in unset bogus "$W"; do
+  mapfile -t oe < <(oldpwd_env "$mode")
+  for od in - -/agents -- ./-/agents; do
+    rc=$(cd -- "$P" && env -u CLAUDE_CONFIG_DIR -u CDPATH "${oe[@]}" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir "$od" --dry-run >"$W/out" 2>"$W/err"; echo $?)
+    check "I25e (R6-2) OLDPWD=${mode##*/}: relative --out-dir '$od' (a real project dir) accepted (exit 0)" 0 "$rc"
+  done
+done
+rc=$(cd -- "$P" && env -u CLAUDE_CONFIG_DIR -u CDPATH OLDPWD="$SH/.claude" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root "$P" --out-dir -/agents >"$W/out" 2>"$W/err"; echo $?)
+check "I25f (R6-2) NON-dry relative -/agents with OLDPWD=~/.claude writes into the project's '-/agents' only" "0:10:$hm_before" "$rc:$(find "$P/-/agents" -name 'T1-main-*' 2>/dev/null | wc -l):$(ls "$SH/dotreal/agents")"
+rc=$(cd -- "$P" && ienv bash "$INST" --project-root "$P" --out-dir -- >"$W/out" 2>"$W/err"; echo $?)
+check "I25g NON-dry relative --out-dir '--' writes into the project's '--' (exit 0)" "0:10" "$rc:$(find "$P/--" -maxdepth 1 -name 'T1-main-*' | wc -l)"
+rm -rf -- "${P:?}/-" "${P:?}/--"
+# CDPATH must never redirect the installer's own directory or a relative project root
+DECOY="$W/decoy6"; mkdir -p "$DECOY/scripts/multitrack" "$DECOY/mnt"
+rc=$(cd -- "$CONST" && env -u CLAUDE_CONFIG_DIR CDPATH="$DECOY" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash scripts/multitrack/install_agent_label_defs.sh --project-root "$P" --dry-run >"$W/out" 2>"$W/err"; echo $?)
+check "I25h CDPATH pointing at a decoy with scripts/multitrack: installer run by relative path still works (exit 0)" 0 "$rc"
+rc=$(cd -- "$P" && env -u CLAUDE_CONFIG_DIR CDPATH="$DECOY" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --project-root mnt >"$W/out" 2>"$W/err"; echo $?)
+check "I25i CDPATH: a relative --project-root 'mnt' means \$PWD/mnt, not the decoy's mnt" "0:1:0" "$rc:$([ -n "$(ls -A "$P/mnt/.claude/agents" 2>/dev/null)" ] && echo 1 || echo 0):$(find "$DECOY/mnt" -mindepth 1 | wc -l)"
+rm -rf -- "${P:?}/mnt/.claude"
+# PWD in the environment is not trusted (pwd -P is physical)
+rc=$(cd -- "$P" && env -u CLAUDE_CONFIG_DIR -u CDPATH PWD="$SH/.claude" HOME="$SH" MT_HOST=fixturehost MT_CONFIG_DIR="$P/config/multitrack" bash "$INST" --dry-run >"$W/out" 2>"$W/err"; echo $?)
+check "I25k env PWD=~/.claude with cwd=project: default project root is the physical cwd (exit 0)" 0 "$rc"
+# unit (R6-1/R6-3): each guard layer on its own
+{ sed -n '/^canon() {/,/^}/p' "$INST"; sed -n '/^canon_kcheck() {/,/^}/p' "$INST"; sed -n '/^canon_to() {/,/^}/p' "$INST"; grep '^refuse6() {' "$INST"; } >"$FN"
+check "I25l (R6-3) canon_kcheck over a PARTIAL prefix (tail absent): a lexical canon is caught (exit 6)" 6 "$(bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "$SH/deep/../../.claude/nonexist6/x" >/dev/null 2>&1; echo $?)"
+check "I25m (R6-3) relative partial prefix with a lexical canon is caught (exit 6)" 6 "$(cd -- "$SH" && bash -c '. "$1"; canon() { printf "%s\n" "$1"; }; canon_to v "$2"' _ "$FN" "deep/../../.claude/nonexist6/x" >/dev/null 2>&1; echo $?)"
+check "I25n golden-FALSE: the real canon accepts the same partial-prefix path" "$SHP/dotreal/nonexist6/x:0" "$(bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$SH/deep/../../.claude/nonexist6/x" 2>/dev/null; printf ':%s' "$?")"
+mkdir -p "$W/u6/-"
+check "I25o (R6-2) canon_kcheck: a relative '-' prefix is the directory '-', not OLDPWD (exit 0)" 0 "$(cd -- "$W/u6" && OLDPWD="$SH" bash -c '. "$1"; canon_to v "$2"' _ "$FN" "-/nx/y" >/dev/null 2>&1; echo $?)"
+LONGP="$SHP"; for _i in $(seq 1 25); do LONGP="$LONGP/$SEG"; done
+check "I25p (R6-1) canon refuses a path of PATH_MAX or more (rc 1, no output)" "1:0" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$LONGP/x" >"$W/lp.out"; printf '%s:%s' "$?" "$(wc -c <"$W/lp.out")")"
+check "I25p2 (R6-1) canon refuses a relative path that is PATH_MAX or more from a deep cwd (rc 1)" 1 "$(indeep bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "-/nx6/../../../x"; echo $?)"
+check "I25q canon refuses a component longer than NAME_MAX (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$SHP/$SEG$SEG/x"; echo $?)"
+: >"$W/u6/afile"
+check "I25r (ENOTDIR) canon refuses a path through a regular file (afile/../x, rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$W/u6/afile/../x"; echo $?)"
+ln -sfn "$W/u6/loopb" "$W/u6/loopa"; ln -sfn "$W/u6/loopa" "$W/u6/loopb"
+check "I25s (ELOOP) canon refuses a symlink loop (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$W/u6/loopa/x"; echo $?)"
+U6P="$(cd -P -- "$W/u6" && pwd -P)"
+check "I25t (ENOENT) golden-FALSE: nonexistent components stay lexical" "$U6P/nx/z" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$W/u6/nx/y/../z")"
+check "I25u newline in a path: canon refuses (rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$W/u6/a"$'\n'"b"; echo $?)"
+check "I25v trailing slashes and // : ~//deep/// is ~/a/b" "$SHP/a/b" "$(bash -c '. "$1"; canon "$2"' _ "$FN" "$SH//deep///")"
+mkdir -p "$W/u6/~" "$W/u6/~+" "$W/u6/~-" "$W/u6/~root" "$W/u6/g*[x]? s"
+for tw in "~" "~+" "~-" "~root" "g*[x]? s"; do
+  check "I25w '$tw' is a literal name relative to cwd (canon_to rc 0, OLDPWD=~)" "$U6P/$tw/q:0" "$(cd -- "$W/u6" && OLDPWD="$SH" bash -c '. "$1"; canon_to v "$2" && printf "%s" "$v"' _ "$FN" "$tw/q" 2>/dev/null; printf ':%s' "$?")"
+done
+if [ "$(id -u)" != 0 ]; then
+  mkdir -p "$W/u6/nox"; chmod 000 "$W/u6/nox"
+  check "I25x (EACCES) canon refuses a component it cannot lstat (dir without search permission, rc 1)" 1 "$(bash -c '. "$1"; canon "$2" >/dev/null' _ "$FN" "$W/u6/nox/x"; echo $?)"
+  chmod 755 "$W/u6/nox"
+else ok "I25x running as root: EACCES cannot be produced (SKIP-with-reason)"; fi
 # R5-3: a project root that cannot be entered (not a system dir) stops with exit 2, nothing written
 if [ "$(id -u)" != 0 ]; then
   NE="$W/noenter"; mkdir -p "$NE"; chmod 000 "$NE"
