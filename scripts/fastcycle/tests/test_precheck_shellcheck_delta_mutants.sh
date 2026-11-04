@@ -631,14 +631,19 @@ MUTANTS = [
 ]
 PYEOF
 
-python3 - "$TMP/mutants.py" "$TMP/list.tsv" <<'PY'
+python3 - "$TMP/mutants.py" "$TMP/list.tsv" "${MUTANT_ONLY:-}" <<'PY'
+import re
 import sys
 ns = {}
 exec(open(sys.argv[1]).read(), ns)
+only = re.compile(sys.argv[3]) if sys.argv[3] else None
 with open(sys.argv[2], "w") as fh:
     for i, (n, f, o, w, r) in enumerate(ns["MUTANTS"]):
-        fh.write("%d\t%s\t%s\n" % (i, n, f))
+        if only is None or only.search(n):
+            fh.write("%d\t%s\t%s\n" % (i, n, f))
 PY
+# r11: MUTANT_ONLY=<python regex> runs only the mutants whose name matches (a SUBSET run; its totals are the subset's)
+[ -s "$TMP/list.tsv" ] || { echo "no mutant selected (MUTANT_ONLY=${MUTANT_ONLY:-})" >&2; exit 2; }
 
 run_one() { # <idx> <name> <file>
     idx=$1; name=$2; rel=$3
