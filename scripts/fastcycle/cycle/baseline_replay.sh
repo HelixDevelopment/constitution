@@ -257,6 +257,59 @@
 # and the process supervisor, which needs os.pidfd_open / pidfd_send_signal:
 # Linux >= 5.3), coreutils `date`/`df`; Linux /proc with
 # /proc/<pid>/task/<tid>/children.
+# ATM-1220 (root cause of the [R7N6SWEEP] flake, T048 carry): in the CALLER's process every stop signal is BLOCKED
+# before the first foreground child and before the exec into the supervisor. Measured (scratch minimal reproduction,
+# 600 random INTs each, scratchpad atm1220_v4r5_flake.md section 4): an INT that reaches bash while it waits for a
+# foreground child that then exits normally is DROPPED (bash's wait-and-cooperative-exit rule: 107/600 untrapped, still
+# 14/600 with the traps of the dispatch below), and an INT caught by a bash trap in the instant before `exec` is lost
+# with the old image (2/600 with no child at all); blocked from the start: 0/600. Blocked, the stop stays PENDING
+# across every fork and both execs and reaches the supervisor, which unblocks it with its own handler installed
+# (fc_supervisor.py reset_inherited); the worker is excluded (FC_BR_SUPERVISED) and the supervisor's spawn resets
+# the mask, so the worker and every gate stay stoppable. The mask is read with the builtin `read` from /proc/self (the
+# redirection is opened by this shell itself: a compound command with a redirection runs in the current shell, no child).
+# CAPABILITY PROBE: `env --block-signal` (GNU coreutils >= 8.31, uutils) is probed once, as a BACKGROUND child waited
+# for with the `wait` builtin under the stop traps -- a trapped signal makes `wait` return at once and the trap runs
+# (bash manual, SIGNALS), so the probe has no drop window. The traps are reset to the caller's dispositions just
+# before the exec (a stop after that ends bash by the signal itself: killed by INT = 130 to a shell).
+# DEGRADE (never silent): where env cannot block (probe status != 0, or env claimed success but the re-exec'd mask is
+# still not blocked) the tool runs with the earlier trap-only protection and prints one "DEGRADED" line naming
+# --block-signal and the residual risk on stderr ([R7N6BLKDEG]); the replay verdict itself is unaffected.
+# HONEST BOUNDARY (S11.4.6), the price of the block: the caller-side argument checks in front of the exec (`cd`,
+# `dirname`, `sed`, `git rev-parse --git-common-dir`, `_fc_safe mkdir/check`) now run with the stops pending. A
+# pid-targeted stop already waited for such a child before (bash runs a trap only after the foreground child exits;
+# measured: 3.0 s for a 3 s child either way), but a GROUP-delivered stop (terminal Ctrl-C) no longer ends a HUNG child
+# early (measured: 0.8 s trapped vs 3.0 s blocked) -- a hang there is ended only by SIGKILL or by the child itself;
+# these checks are not bounded by a timeout (tracked, ATM-1220 follow-up). `freeze` is out of scope: it never execs
+# into the supervisor, so nothing would ever unblock its stops -- it keeps the default dispositions (see the dispatch).
+case "${1:-}" in
+  replay|replay-sample|selfcheck)
+    if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then
+      _fc_blk=""
+      while read -r _fc_k _fc_v; do [ "$_fc_k" = "SigBlk:" ] && _fc_blk="$_fc_v"; done </proc/self/status
+      case "$_fc_blk" in ''|*[!0-9a-fA-F]*) _fc_blk=0 ;; esac
+      if [ $((16#$_fc_blk & 16#4007)) -ne $((16#4007)) ]; then
+        if [ "${_FC_BR_STOPS_BLOCKED:-}" = 1 ]; then
+          _FC_BR_DEGRADED="env reported --block-signal but the stop signals are still unblocked after the re-exec (SigBlk $_fc_blk)"
+        else
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 131' QUIT
+          trap 'exit 143' TERM
+          env --block-signal=HUP,INT,QUIT,TERM true </dev/null >/dev/null 2>&1 &
+          wait "$!"
+          _fc_probe=$?
+          trap - HUP INT QUIT TERM
+          if [ "$_fc_probe" = 0 ]; then
+            _FC_BR_STOPS_BLOCKED=1 exec env --block-signal=HUP,INT,QUIT,TERM "$BASH" "${BASH_SOURCE[0]}" "$@"
+          fi
+          _FC_BR_DEGRADED="env --block-signal is not available (probe status $_fc_probe)"
+        fi
+        echo "baseline_replay: WARNING: DEGRADED stop protection: $_FC_BR_DEGRADED -- the stop signals are NOT blocked in front of the exec into the supervisor; a stop that lands while bash waits for a child or execs can be lost (ATM-1220). Install an env with --block-signal (GNU coreutils >= 8.31 or uutils)." >&2
+      fi
+      unset _fc_blk _fc_k _fc_v _fc_probe _FC_BR_DEGRADED
+    fi ;;
+esac
+unset _FC_BR_STOPS_BLOCKED
 set -u
 # T048 V4 round 8 (V4R8-1, CLASS 2): a write to a stdout/stderr whose reader is gone must never decide the exit code.
 # With SIGPIPE at its default action the shell DIED of it: `replay --determinism-check` with a dead stdout reader exited

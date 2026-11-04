@@ -602,6 +602,9 @@ HEREDOC_PY_IMPORTS = {"json", "sys", "sqlite3", "statistics"}
 SH_EXEMPT = {
     ("run_gate_once", '"$@"'): "the GATE command line the caller passed with --gate-cmd (parsed into GATE_ARGV), run "
                                "under _fc_run_child: running it is the intent",
+    ("<top>", '"$BASH" "${BASH_SOURCE[0]}" "$@"'):
+        "ATM-1220: the caller-side re-exec of THIS file (same arguments) through `env --block-signal`; the code it "
+        "runs is this file, censused here",
     ("emit_doc", "python3 -c 'import json,platform; print(json.dumps({\"host\": platform.node()}))'"):
         "prints this host's name: the program is a literal and opens nothing",
 }
@@ -1165,7 +1168,9 @@ def sh_census(path):
             classify(cm, [w0] + cm["args"])
             if w0 == "trap" and cm["args"]:
                 act = cm["args"][0]
-                if "$" in act or "`" in act:
+                if act == "-":
+                    pass                                  # ATM-1220: `trap - SIG...` RESETS the disposition, runs no code
+                elif "$" in act or "`" in act:
                     add(cm, "trap", "VIOLATION", "a trap action with an expansion (fail-closed)")
                 else:
                     sub = _ShLex(act[1:-1] if act[:1] in "'\"" else act, cm["line"])
@@ -1879,7 +1884,8 @@ SELF_SH_OK = ['printf -v _intr %s x', 'unset FC_OUT', 'unset -f _needle', 'local
               'local _wr', '_FC_TMPDIR=""', 'declare -i n=1', '[[ -d "${_wr:?}" ]]',
               # read's targets are MODELLED (un-proved, '<read>'): _wr has no path use, so nothing is refused
               'read -r _wr', 'read -ra _wr',
-              'rm -rf "${_wr:?}/x/${_wr:?}"', 'echo "${a[1]}"', 'echo "${HOME:0:2}"', 'case "$x" in a) ;; esac']
+              'rm -rf "${_wr:?}/x/${_wr:?}"', 'echo "${a[1]}"', 'echo "${HOME:0:2}"', 'case "$x" in a) ;; esac',
+              'trap - HUP INT QUIT TERM']                    # ATM-1220: a trap RESET runs no code
 
 
 def self_test(sup, br):

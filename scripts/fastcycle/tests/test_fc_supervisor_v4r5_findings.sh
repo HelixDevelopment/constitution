@@ -83,6 +83,9 @@
 #               (e) INT to bash during a FOREGROUND child in front of exec -> 130 (found by this round's sweep:
 #               the stop was dropped by bash, the replay ran, rc 0; closed by traps in front of the exec).
 #   R7N6SWEEP   (N6, inj I verbatim shape) 40 random start-up INTs: always 130 / killed by INT, never 0/1/4/traceback.
+#   R7N6BLK     (ATM-1220, root cause of the R7N6SWEEP flake) every caller-side child runs with HUP/INT/QUIT/TERM
+#               BLOCKED (a stop in front of the exec stays pending), every worker child with them unblocked.
+#   R7N6BLKDEG  (ATM-1220) an env without --block-signal: rc 0, the old trap-only protection, DEGRADED on stderr.
 #   R7RUNPD     (N1) a run supervisor whose worker dies stops its own tree (a gate's setsid daemon) before exiting.
 #   R7WGRP      (N1, found by this round's r2 run) the worker leads its own process group: a signal to it never
 #               reaches the keeper.
@@ -2128,6 +2131,102 @@ if want("R7N6"):
     else:
         bad("[R7N6] (d) the exec into the supervisor leaves SIGINT unblocked (probe SigBlk %s) -- a start-up INT reaches "
             "the interpreter's default handler (exit 1 'Fatal Python error', or a swallowed stop)" % blk)
+
+# --- ATM-1220 (root cause of the R7N6SWEEP flake): the caller-side bash must start every child with HUP/INT/QUIT/TERM
+# BLOCKED, so a stop in front of the exec stays PENDING and reaches the supervisor (bash can neither drop it in its
+# foreground-child wait nor lose it in the exec window). Oracle, deterministic (no timing): a PATH shim for `dirname`
+# (the first foreground child of the dispatch, SCRIPT_DIR=...) records, per call, whether it runs in the caller (no
+# FC_BR_SUPERVISED) or in the worker, and the SigBlk line of its OWN /proc/self/status -- a child inherits its
+# parent's mask at fork. Required: every caller-side call blocked (0x4007 set), every worker-side call with those four
+# UNBLOCKED (the supervisor's spawn resets the mask: a worker must stay stoppable), rc 0. Control needles: at least one
+# caller-side AND one worker-side record, else the row is BLIND (NOT ok), never a pass. The capability probe that
+# precedes the re-exec is a BACKGROUND child waited with the `wait` builtin (interruptible by the traps), so it is not
+# recorded here. RED on 639979c (caller SigBlk 0), GREEN with the fix.
+_R7N6BLK_NEED = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 14)     # HUP INT QUIT TERM (bit = signo - 1)
+
+
+def _r7n6blk_run(tag, extra_shims, premask=()):
+    d = os.path.join(WORK, tag.lower()); os.makedirs(d)
+    repo = os.path.join(d, "repo"); head = mk_repo(repo)
+    shim = os.path.join(d, "shim"); os.makedirs(shim)
+    rec = os.path.join(d, "sigblk")
+    real = shutil.which("dirname")
+    open(os.path.join(shim, "dirname"), "w").write(
+        "#!/bin/bash\nt=C; p=$PPID\nwhile [ \"${p:-0}\" -gt 1 ]; do\n"
+        "  case \"$(cat /proc/$p/comm 2>/dev/null)\" in fc-supervisor|fc-keeper|fc-run) t=W; break ;; esac\n"
+        "  p=$(sed -n 's/^PPid:[[:space:]]*//p' /proc/$p/status 2>/dev/null)\ndone\n"
+        "printf '%%s %%s\\n' \"$t\" \"$(sed -n 's/^SigBlk:[[:space:]]*//p' /proc/self/status)\" >>%(r)s\n"
+        "exec %(d)s \"$@\"\n" % {"r": rec, "d": real})
+    os.chmod(os.path.join(shim, "dirname"), 0o755)
+    for name, body in extra_shims.items():
+        open(os.path.join(shim, name), "w").write(body); os.chmod(os.path.join(shim, name), 0o755)
+    env = dict(os.environ, PATH=shim + ":" + os.environ["PATH"], TMPDIR=os.path.join(d, "tmp"),
+               FC_REPLAY_LOCK_DIR=os.path.join(d, "locks"))
+    os.makedirs(env["TMPDIR"]); os.makedirs(env["FC_REPLAY_LOCK_DIR"])
+    env.pop("FC_OUT", None)
+    gate = os.path.join(d, "gate.sh"); open(gate, "w").write("#!/bin/bash\nexit 0\n"); os.chmod(gate, 0o755)
+
+    def pre_clean():                 # the caller's mask and dispositions are controlled inputs (default: none blocked)
+        for s in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM):
+            signal.signal(s, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_SETMASK, list(premask))
+    r = subprocess.run(["bash", SCRIPT, "replay", "--commit", head, "--repo-root", repo, "--worktree-root",
+                        os.path.join(d, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", gate,
+                        "--cold-runs", "1", "--warm-runs", "0", "--out", os.path.join(d, "out.json")],
+                       env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                       timeout=120)
+    caller, worker, junk = [], [], []
+    for line in readf(rec).splitlines():
+        parts = line.split()
+        try:
+            v = int(parts[1], 16)
+        except (IndexError, ValueError):
+            junk.append(line); continue
+        (caller if parts[0] == "C" else worker).append(v)
+    return r, caller, worker, junk
+
+
+# Two inputs: a caller with NOTHING blocked, and a caller that already blocks INT only (a PARTIAL mask must still lead
+# to all four blocked -- the "already blocked" test is on all four, never on INT alone; paired mutant M5).
+for _sub, _pm in (("", ()), ("-intonly", (signal.SIGINT,))):
+  if want("R7N6BLK"):
+    r, caller, worker, junk = _r7n6blk_run("R7N6BLK" + _sub, {}, _pm)
+    desc = "input mask %s; caller %s worker %s rc %s" % (_sub or "-empty", ["%x" % v for v in caller],
+                                                          ["%x" % v for v in worker], r.returncode)
+    if junk or not caller or not worker:
+        bad("[R7N6BLK] control needle: the dirname shim did not record both sides (%s; unparsed %r) -- BLIND" % (desc, junk))
+    elif (all(v & _R7N6BLK_NEED == _R7N6BLK_NEED for v in caller) and all(v & _R7N6BLK_NEED == 0 for v in worker)
+          and r.returncode == 0 and "DEGRADED" not in r.stderr):
+        ok("[R7N6BLK] the caller's bash runs every child with HUP/INT/QUIT/TERM blocked and the worker runs with them "
+           "unblocked (%s): a stop in front of the exec stays pending and reaches the supervisor" % desc)
+    else:
+        bad("[R7N6BLK] caller-side children not all blocked, or a worker child blocked (%s; need %x in the caller, "
+            "none in the worker) -- a stop landing in bash's wait/exec windows can be lost (the R7N6SWEEP rc-0 flake)"
+            % (desc, _R7N6BLK_NEED))
+
+# --- ATM-1220 degrade path: an `env` WITHOUT --block-signal (a PATH shim that refuses that option exactly as an old
+# coreutils does: "unrecognized option", exit 125, and otherwise runs the real env). The tool must neither fail nor
+# pretend: it runs the replay with the old (trap-only) protection, rc 0, and says so on stderr with the word DEGRADED
+# and the reason. The caller-side children then run UNBLOCKED (the honest state of the degrade, asserted so a fake
+# "blocked" claim cannot pass). Control needle: the shim's own refusal was exercised (its marker file exists).
+if want("R7N6BLKDEG"):
+    realenv = shutil.which("env")
+    refmark = os.path.join(WORK, "r7n6blkdeg.refused")
+    envshim = ("#!/bin/bash\nfor a in \"$@\"; do case \"$a\" in --block-signal*) : >>%(m)s; "
+               "echo \"env: unrecognized option '$a'\" >&2; exit 125 ;; --) break ;; esac; done\nexec %(e)s \"$@\"\n"
+               % {"m": refmark, "e": realenv})
+    r, caller, worker, junk = _r7n6blk_run("R7N6BLKDEG", {"env": envshim})
+    desc = "caller %s worker %s rc %s" % (["%x" % v for v in caller], ["%x" % v for v in worker], r.returncode)
+    if not os.path.exists(refmark) or junk or not caller:
+        bad("[R7N6BLKDEG] control needle: the refusing env shim was not exercised or no caller record (%s; refused=%s) "
+            "-- BLIND" % (desc, os.path.exists(refmark)))
+    elif (r.returncode == 0 and "DEGRADED" in r.stderr and "--block-signal" in r.stderr
+          and all(v & _R7N6BLK_NEED == 0 for v in caller)):
+        ok("[R7N6BLKDEG] an env without --block-signal: the replay runs (rc 0) with the trap-only protection and says "
+           "DEGRADED on stderr; caller children honestly unblocked (%s)" % desc)
+    else:
+        bad("[R7N6BLKDEG] degrade path wrong (%s; stderr tail %r): expected rc 0, a DEGRADED warning naming "
+            "--block-signal, and unblocked caller children" % (desc, r.stderr.strip()[-300:]))
 
 # --- N6 sweep (injection I, verbatim shape): INT at a random instant 0-250 ms after start, 40 runs of a replay whose
 # gate sleeps 3 s (so a finished replay cannot explain rc 0). Every run must end 130 (or be killed by INT, which a

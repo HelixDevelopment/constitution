@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-13 |
-| Last modified | 2026-10-13 |
+| Last modified | 2026-11-04 |
 | Status | active |
 | Applies to | `scripts/fastcycle/cycle/baseline_replay.sh`, `scripts/fastcycle/cycle/fc_supervisor.py safepath` |
 | Source | T048 V4 rounds 12–14 (`docs/qa/v4_round6_20261012/`, `docs/qa/v4_round7_20261012/`, `docs/qa/v4_round8_20261013/`) |
@@ -119,6 +119,40 @@ does not model is a violation until it is added to one of its tables with a reas
 its docstring; `--self-test` prints every form it refuses and accepts. It runs in the suite as `[R12LINT]` and
 `[R13CENSUS-self]`.
 
+## Stop signals in front of the exec (ATM-1220)
+
+`replay`, `replay-sample` and `selfcheck` start in the caller's bash, check their arguments, and then `exec` into the
+process supervisor. A stop signal (HUP, INT, QUIT, TERM) sent to the tool's pid in that short stretch could be lost:
+bash drops an INT that arrives while it waits for a foreground child that then exits normally, and an INT caught by a
+trap just before `exec` disappears with the old process image. The replay then ran to the end and exited 0. Measured
+before the fix: about 0.16% of INTs, about 6% of 40-INT sweeps (`[R7N6SWEEP]`).
+
+What the tool does now:
+
+- Before its first foreground child, the caller's bash reads its own signal mask (builtin `read` of
+  `/proc/self/status`). If HUP, INT, QUIT and TERM are not all blocked, it runs one probe
+  `env --block-signal=HUP,INT,QUIT,TERM true` in the background (waited with `wait`, which a trapped stop interrupts at
+  once) and then re-executes itself through `env --block-signal=HUP,INT,QUIT,TERM`. A stop that arrives after that
+  stays pending and is handled by the supervisor (exit 128+N). A stop that arrives before the re-exec ends the tool with
+  128+N or with the signal itself.
+- The worker and every gate run with these signals unblocked (the supervisor resets the mask). `[R7N6BLK]` checks both
+  sides, with an empty caller mask and with a caller that blocks only INT.
+- **Degraded mode.** If `env` has no `--block-signal` (GNU coreutils older than 8.31), the tool still runs, with the
+  earlier trap-only protection, and prints one line on stderr starting `baseline_replay: WARNING: DEGRADED stop
+  protection`. In that mode the rare lost stop described above is still possible. Install an `env` that supports
+  `--block-signal` to remove it. `[R7N6BLKDEG]` checks this path.
+
+Limits:
+
+- **Argument checks run with stops pending.** `cd`, `dirname`, `sed`, `git rev-parse --git-common-dir` and the
+  `_fc_safe` path checks run before the exec. A stop sent to the tool's pid already waited for such a child to finish
+  (bash runs a trap only after the foreground child exits). A Ctrl-C sent to the whole process group used to end a hung
+  child at once; it now waits until the child ends, because the child inherits the blocked mask (measured with a 3 s
+  child: 0.8 s before, 3.0 s now). If one of these checks hangs, only SIGKILL ends it. No timeout bounds these checks
+  yet (tracked as an ATM-1220 follow-up).
+- **`freeze` is not covered.** It never execs into the supervisor, so nothing would unblock its stops. It keeps the
+  default dispositions, and a stop that lands while it waits for a child can still be dropped by bash.
+
 ## Test-host limits and the measured r6 paired-mutation run (carry review round 2)
 
 These are limits of the test hosts, not of the tool. They are stated so a red or SKIP in the suites is read correctly.
@@ -126,7 +160,9 @@ These are limits of the test hosts, not of the tool. They are stated so a red or
 - **`env` wrapper reopens closed fds (uutils coreutils).** `baseline_replay.sh` execs the supervisor through
   `env --block-signal=INT`. Where `env` is uutils coreutils (a Rust binary; measured 0.8.0), it re-opens a closed fd
   0-2 on `/dev/null` before it execs, so a caller's closed stream never reaches the supervisor through that entry
-  (`sys.stdout` is a `/dev/null` wrapper, not `None`). The stream matrix probes this with the same wrapper and counts
+  (`sys.stdout` is a `/dev/null` wrapper, not `None`). Since ATM-1220 the caller-side bash also re-executes itself
+  through `env --block-signal=HUP,INT,QUIT,TERM` (see the section above), so on such a host the closed stream is
+  already `/dev/null` in the caller's own argument checks. The stream matrix probes this with the same wrapper and counts
   its `closed-*` cells (`closed-out`, `closed-err`, `closed-both`, `dead-out-closed-err`, `closed-in`) as SKIP
   `[reason=topology_unsupported]` instead of passing them on a null cell. `[R8FDS]` calls the supervisor directly and
   still drives genuinely closed fds on every host. On such a host the paired mutants that live on the closed-fd
