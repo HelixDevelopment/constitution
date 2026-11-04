@@ -988,6 +988,11 @@ expect "L1l mid-word # then a continuation, first line edited -> FAIL, SC2086 at
 #     unit was two lines -> FAIL, SC2086 at 3:6 new (stricter, stated: a different command)
 new_case l1m; wb s.sh '#!/bin/sh\na=$1\neval \\\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a\n'; head; gate
 expect "L1m first line of a base command removed -> FAIL, SC2086 at 3:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 3, 6)], [])"
+# L1m2 (r13 round 4, re-pins mutant U07): L1m's eval is outside the r13 subset, so L1m no longer reaches the unit
+#     comparison (both sides fail closed). The same shape with a credited first line: `printf x &&` / `echo $a` ->
+#     `echo $a`: the head unit is one line, its base line's unit two -> FAIL, SC2086 at 3:6 new
+new_case l1m2; wb s.sh '#!/bin/sh\na=$1\nprintf x &&\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a\n'; head; gate
+expect "L1m2 credited first line of a base command removed -> FAIL full, SC2086 at 3:6 new" '(c["verdict"], e["delta"]["states"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', ['full'], [('SC2086', 3, 6)], [])"
 # L1n1-n5 negative controls (11.4.201(1)): an added plain line (Q7), an added COMMENT ending in `\` (Q9: a comment
 #     never continues), an unchanged 2-line command with a line inserted above, an edited if-condition (a compound
 #     body: separate commands, the stated R12 limit) -> PASS, the debt pre-existing; Q8 (an added `eval echo $a` on its
@@ -1508,7 +1513,7 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
     #   substitution) and a call made before its function is defined (it runs the PATH program, which reads stdin)
     hu r13-ix bash 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'rc=5:a parameter expansion other than'
     shx r13-ix 'bash --posix' 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'Hi'
-    hu r13-fo posix 'head -c 10 >/dev/null\n#xxxxxxxx echo hi |\ntr a-z A-Z\nhead() { :; }\n' 'rc=5:standard input'
+    hu r13-fo posix 'head -c 10 >/dev/null\n#xxxxxxxx echo hi |\ntr a-z A-Z <&-\nhead() { :; }\n' 'rc=5:line 1: the command head may read'
 else
     bad "R13-G1 the census needs the real units helper"
 fi
