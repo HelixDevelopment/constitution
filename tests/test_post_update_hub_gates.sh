@@ -3,11 +3,12 @@
 # really INVOKES the hub-structure gates (and the §11.4.31 manifest gate, against the CONSUMER root) and maps their verdicts honestly (§11.4.196(F): configured is not in use).
 #
 # ── Purpose ───────────────────────────────────────────────────────────────
-# Runs the REAL post_update_hook.sh against a throwaway constitution copy whose six gates are stubs that record
+# Runs the REAL post_update_hook.sh against a throwaway constitution copy whose eight gates are stubs that record
 # that they ran and exit with a chosen code (the fourth is the §11.4.290 CM-PROVISIONAL-DONE-ANCHOR-WIRED gate, the
-# fifth the §11.4.292 CM-REPRO-FIRST-ANCHOR-WIRED gate and the sixth the §11.4.293
-# CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED gate, all three run against the hub itself). Asserts, per case,
-# that ALL SIX stubs ran, that a FAIL (1) is an ERROR
+# fifth the §11.4.292 CM-REPRO-FIRST-ANCHOR-WIRED gate, the sixth the §11.4.293
+# CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED gate, the seventh the §11.4.294 CM-STATE-FIELDS-ANCHOR-WIRED gate and the
+# eighth the §11.4.295 CM-GEO-SUBSTITUTE-ANCHOR-WIRED gate, all five run against the hub itself). Asserts, per case,
+# that ALL EIGHT stubs ran, that a FAIL (1) is an ERROR
 # and makes the hook exit non-zero, that BLIND (2) is a WARNING, that SKIP (3) is reported as SKIP (never PASS),
 # and that PASS (0) leaves the hook successful (golden-FALSE, §11.4.201(1)).
 #
@@ -26,17 +27,17 @@ hook="$here/scripts/post_update_hook.sh"
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 bad=0
-run_case() { # <label> <hub-rc> <llmctl-rc> <manifest-rc> <provisional-done-rc> <repro-first-rc> <noworse-rc> <expect-hook-nonzero:0|1> <expected-output-regex>...
-  local label="$1" hrc="$2" lrc="$3" mrc="$4" prc="$5" rrc="$6" wrc="$7" nz="$8"; shift 8
+run_case() { # <label> <hub-rc> <llmctl-rc> <manifest-rc> <provisional-done-rc> <repro-first-rc> <noworse-rc> <state-fields-rc> <geo-rc> <expect-hook-nonzero:0|1> <expected-output-regex>...
+  local label="$1" hrc="$2" lrc="$3" mrc="$4" prc="$5" rrc="$6" wrc="$7" src="$8" grc="$9" nz="${10}"; shift 10
   local c="$tmp/$label/const" p="$tmp/$label/proj"; mkdir -p "$c/scripts/gates" "$p"
   cp "$hook" "$c/scripts/post_update_hook.sh"; echo '# c' >"$c/Constitution.md"
-  for g in cm_hub_engine_no_ownorg_nesting:"$hrc" cm_llmctl_submodule_nonrecursive:"$lrc" cm_helix_deps_manifest_present:"$mrc" cm_provisional_done_anchor_wired:"$prc" cm_repro_first_anchor_wired:"$rrc" cm_scope_and_image_noworse_anchor_wired:"$wrc"; do
+  for g in cm_hub_engine_no_ownorg_nesting:"$hrc" cm_llmctl_submodule_nonrecursive:"$lrc" cm_helix_deps_manifest_present:"$mrc" cm_provisional_done_anchor_wired:"$prc" cm_repro_first_anchor_wired:"$rrc" cm_scope_and_image_noworse_anchor_wired:"$wrc" cm_state_fields_anchor_wired:"$src" cm_geo_substitute_anchor_wired:"$grc"; do
     printf '#!/usr/bin/env bash\necho "$*" >"%s/ran.%s"\nexit %s\n' "$tmp/$label" "${g%%:*}" "${g##*:}" >"$c/scripts/gates/${g%%:*}.sh"
   done
   git -C "$c" init -q && git -C "$c" add -A && git -C "$c" commit -q -m a && git -C "$c" commit -q --allow-empty -m b
   local out rc; out="$(cd "$p" && CONST_DIR="$c" PROJECT_ROOT="$p" bash "$c/scripts/post_update_hook.sh" 2>&1)"; rc=$?
   local ok=1
-  for g in cm_hub_engine_no_ownorg_nesting cm_llmctl_submodule_nonrecursive cm_helix_deps_manifest_present cm_provisional_done_anchor_wired cm_repro_first_anchor_wired cm_scope_and_image_noworse_anchor_wired; do
+  for g in cm_hub_engine_no_ownorg_nesting cm_llmctl_submodule_nonrecursive cm_helix_deps_manifest_present cm_provisional_done_anchor_wired cm_repro_first_anchor_wired cm_scope_and_image_noworse_anchor_wired cm_state_fields_anchor_wired cm_geo_substitute_anchor_wired; do
     [ -e "$tmp/$label/ran.$g" ] || { echo "BAD  $label: $g was NOT invoked"; ok=0; }
   done
   # the manifest gate must be pointed at the CONSUMER project root, not at the constitution
@@ -51,24 +52,36 @@ run_case() { # <label> <hub-rc> <llmctl-rc> <manifest-rc> <provisional-done-rc> 
   # the §11.4.293 gate inspects the hub's own canon, mirrors and skill: CONSTITUTION root
   if [ -e "$tmp/$label/ran.cm_scope_and_image_noworse_anchor_wired" ] && ! grep -q -- "--root $c" "$tmp/$label/ran.cm_scope_and_image_noworse_anchor_wired"; then
     echo "BAD  $label: no-worse gate not given --root $c (got: $(cat "$tmp/$label/ran.cm_scope_and_image_noworse_anchor_wired"))"; ok=0; fi
+  # the §11.4.294 gate inspects the hub's own canon, mirrors, item template and skills: CONSTITUTION root
+  if [ -e "$tmp/$label/ran.cm_state_fields_anchor_wired" ] && ! grep -q -- "--root $c" "$tmp/$label/ran.cm_state_fields_anchor_wired"; then
+    echo "BAD  $label: state-fields gate not given --root $c (got: $(cat "$tmp/$label/ran.cm_state_fields_anchor_wired"))"; ok=0; fi
+  # the §11.4.295 gate inspects the hub's own canon and mirrors: CONSTITUTION root
+  if [ -e "$tmp/$label/ran.cm_geo_substitute_anchor_wired" ] && ! grep -q -- "--root $c" "$tmp/$label/ran.cm_geo_substitute_anchor_wired"; then
+    echo "BAD  $label: geo-substitute gate not given --root $c (got: $(cat "$tmp/$label/ran.cm_geo_substitute_anchor_wired"))"; ok=0; fi
   if [ "$nz" = 1 ] && [ "$rc" -eq 0 ]; then echo "BAD  $label: hook exited 0 on a gate FAIL"; ok=0; fi
   if [ "$nz" = 0 ] && [ "$rc" -ne 0 ]; then echo "BAD  $label: hook exited $rc, expected 0"; ok=0; fi
   for re in "$@"; do grep -Eq -- "$re" <<<"$out" || { echo "BAD  $label: output lacks /$re/"; ok=0; }; done
   if [ "$ok" = 1 ]; then echo "ok   $label (hook rc=$rc)"; else bad=1; echo "$out" | sed 's/^/     /' | tail -25; fi
 }
-run_case PASS 0 0 0 0 0 0 0 'CM-HUB-ENGINE-NO-OWNORG-NESTING: PASS' 'CM-LLMCTL-SUBMODULE-NONRECURSIVE: PASS' 'CM-HELIX-DEPS-MANIFEST-PRESENT: PASS' 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: PASS' 'CM-REPRO-FIRST-ANCHOR-WIRED: PASS' 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: PASS'
-run_case HUB-FAIL 1 0 0 0 0 0 1 'CM-HUB-ENGINE-NO-OWNORG-NESTING: FAIL'
-run_case LLMCTL-BLIND 0 2 0 0 0 0 0 'CM-LLMCTL-SUBMODULE-NONRECURSIVE: BLIND'
-run_case HUB-SKIP 3 0 0 0 0 0 0 'CM-HUB-ENGINE-NO-OWNORG-NESTING: SKIP'
-run_case MANIFEST-FAIL 0 0 1 0 0 0 1 'CM-HELIX-DEPS-MANIFEST-PRESENT: FAIL'
-run_case MANIFEST-BLIND 0 0 2 0 0 0 0 'CM-HELIX-DEPS-MANIFEST-PRESENT: BLIND'
-run_case PDONE-FAIL 0 0 0 1 0 0 1 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: FAIL'
-run_case PDONE-BLIND 0 0 0 2 0 0 0 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: BLIND'
-run_case PDONE-SKIP 0 0 0 3 0 0 0 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: SKIP'
-run_case REPRO-FAIL 0 0 0 0 1 0 1 'CM-REPRO-FIRST-ANCHOR-WIRED: FAIL'
-run_case REPRO-BLIND 0 0 0 0 2 0 0 'CM-REPRO-FIRST-ANCHOR-WIRED: BLIND'
-run_case REPRO-SKIP 0 0 0 0 3 0 0 'CM-REPRO-FIRST-ANCHOR-WIRED: SKIP'
-run_case NOWORSE-FAIL 0 0 0 0 0 1 1 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: FAIL'
-run_case NOWORSE-BLIND 0 0 0 0 0 2 0 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: BLIND'
-run_case NOWORSE-SKIP 0 0 0 0 0 3 0 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: SKIP'
-[ "$bad" = 0 ] && echo "PASS — post_update_hook.sh invokes the hub gates + the manifest gate + the provisional-done, repro-first and no-worse gates and maps every verdict" || { echo "FAIL"; exit 1; }
+run_case PASS 0 0 0 0 0 0 0 0 0 'CM-HUB-ENGINE-NO-OWNORG-NESTING: PASS' 'CM-LLMCTL-SUBMODULE-NONRECURSIVE: PASS' 'CM-HELIX-DEPS-MANIFEST-PRESENT: PASS' 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: PASS' 'CM-REPRO-FIRST-ANCHOR-WIRED: PASS' 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: PASS' 'CM-STATE-FIELDS-ANCHOR-WIRED: PASS' 'CM-GEO-SUBSTITUTE-ANCHOR-WIRED: PASS'
+run_case HUB-FAIL 1 0 0 0 0 0 0 0 1 'CM-HUB-ENGINE-NO-OWNORG-NESTING: FAIL'
+run_case LLMCTL-BLIND 0 2 0 0 0 0 0 0 0 'CM-LLMCTL-SUBMODULE-NONRECURSIVE: BLIND'
+run_case HUB-SKIP 3 0 0 0 0 0 0 0 0 'CM-HUB-ENGINE-NO-OWNORG-NESTING: SKIP'
+run_case MANIFEST-FAIL 0 0 1 0 0 0 0 0 1 'CM-HELIX-DEPS-MANIFEST-PRESENT: FAIL'
+run_case MANIFEST-BLIND 0 0 2 0 0 0 0 0 0 'CM-HELIX-DEPS-MANIFEST-PRESENT: BLIND'
+run_case PDONE-FAIL 0 0 0 1 0 0 0 0 1 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: FAIL'
+run_case PDONE-BLIND 0 0 0 2 0 0 0 0 0 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: BLIND'
+run_case PDONE-SKIP 0 0 0 3 0 0 0 0 0 'CM-PROVISIONAL-DONE-ANCHOR-WIRED: SKIP'
+run_case REPRO-FAIL 0 0 0 0 1 0 0 0 1 'CM-REPRO-FIRST-ANCHOR-WIRED: FAIL'
+run_case REPRO-BLIND 0 0 0 0 2 0 0 0 0 'CM-REPRO-FIRST-ANCHOR-WIRED: BLIND'
+run_case REPRO-SKIP 0 0 0 0 3 0 0 0 0 'CM-REPRO-FIRST-ANCHOR-WIRED: SKIP'
+run_case NOWORSE-FAIL 0 0 0 0 0 1 0 0 1 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: FAIL'
+run_case NOWORSE-BLIND 0 0 0 0 0 2 0 0 0 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: BLIND'
+run_case NOWORSE-SKIP 0 0 0 0 0 3 0 0 0 'CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED: SKIP'
+run_case STATEFIELDS-FAIL 0 0 0 0 0 0 1 0 1 'CM-STATE-FIELDS-ANCHOR-WIRED: FAIL'
+run_case STATEFIELDS-BLIND 0 0 0 0 0 0 2 0 0 'CM-STATE-FIELDS-ANCHOR-WIRED: BLIND'
+run_case STATEFIELDS-SKIP 0 0 0 0 0 0 3 0 0 'CM-STATE-FIELDS-ANCHOR-WIRED: SKIP'
+run_case GEO-FAIL 0 0 0 0 0 0 0 1 1 'CM-GEO-SUBSTITUTE-ANCHOR-WIRED: FAIL'
+run_case GEO-BLIND 0 0 0 0 0 0 0 2 0 'CM-GEO-SUBSTITUTE-ANCHOR-WIRED: BLIND'
+run_case GEO-SKIP 0 0 0 0 0 0 0 3 0 'CM-GEO-SUBSTITUTE-ANCHOR-WIRED: SKIP'
+[ "$bad" = 0 ] && echo "PASS — post_update_hook.sh invokes the hub gates + the manifest gate + the provisional-done, repro-first, no-worse, state-fields and geo-substitute gates and maps every verdict" || { echo "FAIL"; exit 1; }

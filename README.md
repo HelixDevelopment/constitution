@@ -1,6 +1,6 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-v73.3-green) ![Anchors](https://img.shields.io/badge/anchors-303-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-182%2F182_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-186-green) ![Progressive](https://img.shields.io/badge/progressive-304_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-ready-green) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
+![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-305-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-186%2F186_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-190-green) ![Progressive](https://img.shields.io/badge/progressive-306_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
 
 ## Install / update with one command
 
@@ -108,7 +108,7 @@ README ships in. Re-derive the machine-derived ones with
 | Highest anchor number | §11.4.293 (§11.4.293 scope discipline and image no-worse proof: Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison; §11.4.292 reproduce first: live reproduction record before any fix, UNREPRODUCED cap; §11.4.291 capacity-aware decision-model placement; §11.4.290 optimistic done with parallel background verification: PROVISIONAL-DONE vs VERIFIED-DONE; §11.4.289 no stubs or mocks as evidence, live testing only; §11.4.288 all work on `main`, recursively; §11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
 | Progressive rules | **304** rule files generated from the canon (303 indexed anchors; the 303-vs-304 difference is the recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
 | Governance mirrors | `CLAUDE.md` rev 92, `AGENTS.md` rev 89, `QWEN.md` rev 86, `GEMINI.md` rev 60 (kept in lockstep per §11.4.157) | document headers |
-| Mechanism gates | **181** `cm_*` gates in `scripts/gates/`, **181** with a paired mutation test or outside self-test; **185** mutation tests in total | `compute_badges.sh --facts` |
+| Mechanism gates | **186** `cm_*` gates in `scripts/gates/`, **186** with a paired mutation test or outside self-test; **190** mutation tests in total | `compute_badges.sh --facts` |
 | Propagation gates | **104** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
 | Shell scripts | 924 `*.sh` under `scripts/` | `find` |
 | Submodules | **27** declared, **27** recorded gitlinks (10 own-org, 17 third-party, by remote organisation) | `.gitmodules`, `git ls-files -s` |

@@ -1,7 +1,7 @@
 ---
 name: Workable Item Lifecycle
 description: Use when moving a tracked item through its lifecycle — starting work, marking it ready for testing, closing it, reopening it, marking it obsolete or operator-blocked — or when asked which Status/Type value is legal, how to close a Feature vs a Bug, why the Issues/Fixed docs must be regenerated rather than hand-edited, what a reopen must record, what belongs in a per-item testing diary, or whether an item may be counted as done (PROVISIONAL-DONE) before its verification has run.
-version: 1.3.0
+version: 1.4.0
 # --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
 # Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
 # completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
@@ -94,6 +94,66 @@ line in the item body. A new `Bug` starts with `**Reproduction:** none — UNREP
 
 **Boundary.** The workable-items engine in this repository does not yet validate the
 `Reproduction:` line; the item-level gate is a registered deferral (OWED-GATE-174).
+
+## Reproduction and investigation states (§11.4.294)
+
+Operator rule (2026-11-03): every defect item (Type `Bug`, or any item whose closure
+claims a defect removed) carries TWO tracker fields, and every derived document and the
+external-tracker mirror QUOTE them from the parent item, never retype them. The database
+is the source; the `**Reproduction:**` (§11.4.292) and `**Investigation:**` body lines
+are the mirror and carry the details; a body line whose first token disagrees with its
+field fails the validator. Default `UNSET` = never assessed (permanent for a non-defect
+item); `UNREPRODUCED` = assessed, no capture exists.
+
+| Field | Closed vocabulary |
+|---|---|
+| `reproduction_state` | `UNSET` · `UNREPRODUCED` · `reproduced-live` · `reproduced-host-fixture` · `not-reproducible-with-evidence` · `blocked-no-device-with-recorded-blocker` |
+| `investigation_state` | `UNSET` · `not-started` · `in-progress` · `root-cause-found-with-evidence` · `root-cause-unconfirmed` · `closed-no-defect` |
+
+One spelling of every state: the long `blocked-no-device-with-recorded-blocker` (the §11.4.292(B) spelling) is what is stored, rendered and quoted; the short
+form is an alias that is read and never written (input alias only: `blocked-no-device`): a flag value or an import cell may carry it, the engine
+normalises it before storage, and a `**Reproduction:**` body line that starts with it is a validator problem, not a state.
+
+A state above the defaults needs a captured evidence path + sha256, written in the same
+transaction; if the evidence stops resolving the state is demoted (`reproduced-*` to
+`UNREPRODUCED`, `root-cause-found-with-evidence` to `root-cause-unconfirmed`) and the
+demotion is shown, never silent. A state change is not a status change.
+
+| Transition | `reproduction_state` | `investigation_state` |
+|---|---|---|
+| fix commit; `Ready for testing` / `In testing` (PROVISIONAL-DONE) | `reproduced-live`, `reproduced-host-fixture` or `blocked-no-device-with-recorded-blocker` | `root-cause-found-with-evidence` (`root-cause-unconfirmed`, written `UNCONFIRMED:`, only with `blocked-no-device-with-recorded-blocker`) |
+| PROVISIONAL-DONE to a closure value (VERIFIED-DONE) | `reproduced-live`, or `reproduced-host-fixture` on a `host-only` surface | `root-cause-found-with-evidence` |
+| `Obsolete` with reason `not-reproducible` | `not-reproducible-with-evidence` | `closed-no-defect` |
+| non-defect item | `UNSET`, permanently | `UNSET`, permanently |
+
+`UNSET`, `UNREPRODUCED` and `not-reproducible-with-evidence` never carry a fix commit
+(no fix against a symptom never observed); everything that is not `reproduced-live` /
+`host-only` stays PROVISIONAL-DONE and is labelled `UNREPRODUCED`. **The symptom observed
+again after the fix is the §11.4.290(D) contrary evidence:** reopen the item (§11.4.34),
+set the reproduction back to `reproduced-live` and the investigation back to `in-progress`
+(or `root-cause-unconfirmed` when the capture contradicts the earlier cause) in the same
+transaction, and record `**Reproduction-Regress:**` and `**Investigation-Regress:**` lines.
+Lost evidence demotes the state; it does not reopen the item.
+
+```
+**Reproduction:** none — UNREPRODUCED
+- Symptom signature: <the single machine-checkable predicate that reads TRUE while the defect is present>
+- RED: <exact command, with its environment and the polarity flag at its RED value>
+- RED evidence: <path> sha256 <hash> at <ISO-8601> (target <board serial | rig id | fixture sha256>)
+- GREEN: <the same command with the polarity flag flipped, on the fixed artifact>
+- Rig needed: <board / phone / rig, and whether it is attached now>
+- Missing: <what is absent for the next state: a capture, a device, an artifact>
+**Investigation:** not-started
+- Root cause: <FACT chain with an evidence path per link | UNCONFIRMED: <hypothesis>>
+- Decisive experiment: <cause removed: signature FALSE; cause restored: TRUE; evidence path>
+- Open: <questions, each written UNCONFIRMED: until captured>
+```
+
+A VERIFIED-DONE closure adds `**Closure-Record:**` (final reproduction with the same
+command / target / signature, final investigation, live coverage test with determinism and
+control needle). **Boundary.** The workable-items engine in this repository does not yet
+implement the two columns or the transition validator; the item-level gates are the
+registered deferrals OWED-GATE-177, OWED-GATE-178 and OWED-GATE-179.
 
 ## Reopening (§11.4.34 / §11.4.55)
 
@@ -229,3 +289,7 @@ paperwork.
   flashed image on the same board and harness; only `NO-WORSE-PROVEN` lets it be
   released or tagged as no worse (a baseline PASS that is INCONCLUSIVE, SKIPPED or
   absent is a regression).
+- States (§11.4.294): a defect item carries `reproduction_state` and `investigation_state`
+  (default `UNSET`); VERIFIED-DONE needs `reproduced-live` (or `reproduced-host-fixture` on a
+  `host-only` surface) and `root-cause-found-with-evidence`; derived documents and the
+  tracker mirror quote both from the parent item.

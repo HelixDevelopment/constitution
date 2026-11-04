@@ -1067,8 +1067,10 @@ validate_hub_structure() {
     # against the hub too: a pull that delivers a half-wired §11.4.290 (missing mirror, back-pointer, index row)
     # is reported here instead of being discovered later. cm_repro_first_anchor_wired.sh (§11.4.292) inspects the hub's
     # canon, mirrors, item template and skills the same way, so it also runs against the hub; so does
-    # cm_scope_and_image_noworse_anchor_wired.sh (§11.4.293), which inspects the hub's canon, mirrors and skill.
-    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh; do
+    # cm_scope_and_image_noworse_anchor_wired.sh (§11.4.293), which inspects the hub's canon, mirrors and skill; so does
+    # cm_state_fields_anchor_wired.sh (§11.4.294), which inspects the hub's canon, mirrors, item template and skills; and
+    # cm_geo_substitute_anchor_wired.sh (§11.4.295), which inspects the hub's canon and mirrors.
+    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh cm_state_fields_anchor_wired.sh cm_geo_substitute_anchor_wired.sh; do
         groot="$CONST_DIR"
         case "$gate" in
             cm_hub_engine_no_ownorg_nesting.sh)   tok="CM-HUB-ENGINE-NO-OWNORG-NESTING" ;;
@@ -1077,6 +1079,8 @@ validate_hub_structure() {
             cm_provisional_done_anchor_wired.sh)  tok="CM-PROVISIONAL-DONE-ANCHOR-WIRED" ;;
             cm_repro_first_anchor_wired.sh)       tok="CM-REPRO-FIRST-ANCHOR-WIRED" ;;
             cm_scope_and_image_noworse_anchor_wired.sh) tok="CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED" ;;
+            cm_state_fields_anchor_wired.sh)      tok="CM-STATE-FIELDS-ANCHOR-WIRED" ;;
+            cm_geo_substitute_anchor_wired.sh)    tok="CM-GEO-SUBSTITUTE-ANCHOR-WIRED" ;;
         esac
         if [ ! -f "$CONST_DIR/scripts/gates/$gate" ]; then
             warn "$tok: gate file missing ($gate) — BLIND"; WARNINGS+=("$tok: gate file missing (BLIND)"); continue

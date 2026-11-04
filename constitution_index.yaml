@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-03T12:57:29.002638+00:00'
+generated_at: '2026-11-04T21:13:33.834118+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 1afdfc66449d5c8e368d9ebf7c3cf6ae67dd60e4
-  source_sha256: 98561bfe3d814785372993bf19a46818ab83e4bbbc18e6e6c1400585e1e0387f
+  commit: 820a9025d9c3c4fa68bbeb1eb580815348ca06dd
+  source_sha256: 4543e19c7901099c5c71f0c78fdf234721c04dba458b3ac6acf963c5d1db2dd0
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -34,13 +34,13 @@ groups:
   anchor_count: 52
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
-  anchor_count: 42
+  anchor_count: 43
 - name: translation-and-localization
   path: constitution/groups/translation-and-localization.md
   anchor_count: 3
 - name: workable-items-and-tracking
   path: constitution/groups/workable-items-and-tracking.md
-  anchor_count: 20
+  anchor_count: 21
 anchors:
 - id: '1.1'
   title: False-positive immunity is an invariant
@@ -647,6 +647,7 @@ anchors:
   - 11.4.15
   - 11.4.17
   - 11.4.21
+  - 11.4.294
   - 11.4.34
   - 11.4.6
   - 11.4.7
@@ -1322,6 +1323,7 @@ anchors:
   - 11.4.2
   - 11.4.201
   - 11.4.27
+  - 11.4.295
   - 11.4.5
   - 11.4.50
   - 11.4.52
@@ -1879,6 +1881,7 @@ anchors:
   - 11.4.19
   - 11.4.21
   - 11.4.27
+  - 11.4.294
   - 11.4.30
   - 11.4.33
   - 11.4.34
@@ -2261,6 +2264,7 @@ anchors:
   - 11.4.13
   - 11.4.17
   - 11.4.2
+  - 11.4.295
   - 11.4.3
   - 11.4.35
   - 11.4.4
@@ -2533,6 +2537,7 @@ anchors:
   - 11.4.112
   - 11.4.117
   - 11.4.17
+  - 11.4.295
   - 11.4.3
   - 11.4.35
   - 11.4.48
@@ -3229,6 +3234,7 @@ anchors:
   - 11.4.15
   - 11.4.16
   - 11.4.17
+  - 11.4.295
   - 11.4.3
   - 11.4.35
   - 11.4.48
@@ -3397,6 +3403,7 @@ anchors:
   - 11.4.240
   - 11.4.262
   - 11.4.28
+  - 11.4.294
   - 11.4.33
   - 11.4.34
   - 11.4.35
@@ -7743,6 +7750,7 @@ anchors:
   - 11.4.262
   - 11.4.271
   - 11.4.290
+  - 11.4.294
   - 11.4.33
   - 11.4.34
   - 11.4.35
@@ -7842,6 +7850,7 @@ anchors:
   - 11.4.289
   - 11.4.290
   - 11.4.292
+  - 11.4.294
   - 11.4.3
   - 11.4.33
   - 11.4.34
@@ -7890,6 +7899,7 @@ anchors:
   - 11.4.290
   - 11.4.292
   - 11.4.293
+  - 11.4.295
   - 11.4.35
   - 11.4.40
   - 11.4.50
@@ -7899,6 +7909,76 @@ anchors:
   - 11.4.7
   - 11.4.77
   - '7.1'
+- id: 11.4.294
+  title: '— Reproduction and investigation states are workable-item fields: every
+    defect item carries a reproduction state and an investigation state from closed
+    vocabularies, they gate the lifecycle transitions and the PROVISIONAL-DONE / VERIFIED-DONE
+    levels, a regressed reproduction reopens the item, and every derived document
+    and the external-tracker mirror QUOTE both states from the parent item and never
+    retype them (User mandate, 2026-11-03)'
+  group: workable-items-and-tracking
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-294-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.102
+  - 11.4.106
+  - 11.4.112
+  - 11.4.115
+  - 11.4.146
+  - 11.4.148
+  - 11.4.149
+  - 11.4.15
+  - 11.4.17
+  - 11.4.189
+  - 11.4.199
+  - 11.4.21
+  - 11.4.210
+  - 11.4.227
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.294
+  - 11.4.33
+  - 11.4.34
+  - 11.4.35
+  - 11.4.6
+  - 11.4.69
+  - 11.4.86
+  - 11.4.90
+  - 11.4.93
+- id: 11.4.295
+  title: '— Substitute app, same verdict: when a content API is geo-restricted the
+    refusal is recorded as GEO_RESTRICTED and the SAME test runs with a substitute
+    app under the SAME pass/fail criteria; the restriction is never reported as a
+    failure and never lowers the bar (User mandate, 2026-11-03)'
+  group: testing-and-tdd
+  location: constitution/groups/testing-and-tdd.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-295-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.107
+  - 11.4.117
+  - 11.4.118
+  - 11.4.136
+  - 11.4.143
+  - 11.4.17
+  - 11.4.201
+  - 11.4.202
+  - 11.4.227
+  - 11.4.273
+  - 11.4.289
+  - 11.4.293
+  - 11.4.295
+  - 11.4.3
+  - 11.4.35
+  - 11.4.50
+  - 11.4.6
+  - 11.4.69
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

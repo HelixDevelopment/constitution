@@ -802,6 +802,8 @@ authority — they carry §11.4.69 by definition.
 
 Non-compliance is a release blocker regardless of context.
 
+**Refinement note (2026-11-03).** §11.4.295 reaches the `geo_restricted` reason code of the closed set above only after the substitute chain of a geo-restricted test is exhausted, or for a test whose subject is the restricted app itself; with a probed-reachable substitute the test runs and carries a real verdict. The closed reason set is unchanged.
+
 ### §11.4.83 — docs/qa/ end-user evidence mandate (User mandate, 2026-05-22)
 
 **The mandate.** Every feature that ships MUST carry a recorded end-to-end communication transcript plus any attached materials (screenshots, request/response payloads, audio, file uploads) committed under `docs/qa/<run-id>/` — one directory per feature run. A feature with no QA transcript is itself a §11.4 / §107 PASS-bluff: it claims to work but carries no auditable runtime evidence that an end user actually exercised it through the same interface they will use in production.
@@ -922,6 +924,8 @@ Tier 3 is the anti-annoyance guarantee: the user is never ignored and never has 
 **Canonical authority:** this Constitution.md §11.4.107 in the HelixConstitution submodule. All consuming projects restate + cite via §11.4.35 inheritance.
 
 **Non-compliance is a release blocker.** No escape hatch — no `--single-frame-proves-playback`, `--skip-liveness`, `--byte-identical-freeze-OK`, `--no-frame-advance-counter`, `--skip-not-stale-check`, `--allow-wrong-output-flash`, `--deep-link-shortcut-OK`, `--unvalidated-analyzer-OK`, `--aggregate-rms-suffices`, `--hardcoded-thresholds-OK` flag exists.
+
+**Refinement note (2026-11-03).** For clause 3 above, §11.4.295 first records the refusal as `GEO_RESTRICTED` (with a control probe that separates it from `network_unreachable_external`) and re-runs the SAME test with a substitute app under the SAME pass/fail criteria; the SKIP-with-reason applies only when the declared substitute chain is exhausted. The liveness battery itself is unchanged.
 
 ---
 

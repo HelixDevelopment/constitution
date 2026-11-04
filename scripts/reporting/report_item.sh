@@ -341,10 +341,14 @@ ${ACCEPTANCE}"
 # blocked-no-device-with-recorded-blocker), surface, exact command, RED evidence, build, target, symptom signature.
 # The line is kept short on purpose: intake-match (intake_match.go) scores recurrences by a Jaccard
 # overlap over title + stored description, so every boilerplate token added here widens the union it divides by.
+# §11.4.294(A): the same item is born with its investigation line; the first token of each of the two lines maps to the
+# item's reproduction_state / investigation_state field (UNSET until the first assessment), the line stays the mirror and
+# the carrier of the details. Kept short for the same intake-match reason.
 if [ "$TYPE" = "Bug" ]; then
 	DESCRIPTION="${DESCRIPTION}
 
-**Reproduction:** none — UNREPRODUCED (§11.4.292)"
+**Reproduction:** none — UNREPRODUCED (§11.4.292)
+**Investigation:** not-started (§11.4.294)"
 fi
 
 # ---------------------------------------------------------------------------

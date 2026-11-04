@@ -1877,3 +1877,6 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.293.
 
 **Non-compliance is a release blocker. No escape hatch — no `--unscoped-change-OK`, `--commit-without-roadmap-item`, `--unrecorded-out-of-scope-edit`, `--skip-image-comparison`, `--inconclusive-counts-as-no-worse`, `--missing-baseline-is-pass`, `--compare-across-boards`, `--drop-regressed-test`, `--release-regressed-image`, `--new-feature-image-skips-no-worse` flag exists.**
+
+**Refinement note (2026-11-03).** A geo-restricted content test is run with a substitute app under the same pass/fail criteria (§11.4.295), so it keeps a verdict-bearing run of the same test id in the comparison; the open question recorded for the consuming project in the changelog entry of this anchor (a "geo restriction is never a failure" rule against clause (C)) is answered there. Clauses (A) to (G) above are unchanged.
+
