@@ -106,7 +106,7 @@
 #   default on an unresolvable precondition).
 #
 # Classification: project-specific (HXC-159 Bridge investigation).
-# Last verified: 2026-09-22
+# Last verified: 2026-11-04 (N4 abs_local_source warnings; earlier 2026-09-22)
 set -u
 
 SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
@@ -139,14 +139,24 @@ ROOT=$(cd "$ROOT" 2>/dev/null && pwd) || { echo "install_speckit_superpowers_bri
 case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/$SPECIFY_BIN" ;; esac ;; esac
 # A LOCAL-path --superb-from / SUPERSPEC_FROM given relative to the caller's cwd must also be resolved before the cd
 # (URLs, scp-style and absolute values are left untouched; only an existing relative path is rewritten).
+# A relative value that is left unchanged would resolve against --root after the cd, so it is WARNED on stderr: a
+# relative path that does not exist in the caller's cwd, and an existing local path shaped like scp-style
+# user@host:path (which is treated as remote). abs_local_source <value> <label>
 abs_local_source() {
 	case "$1" in
-		''|/*|*://*|*@*:*) printf '%s' "$1" ;;
-		*) if [ -e "$1" ]; then printf '%s/%s' "$(pwd)" "${1#./}"; else printf '%s' "$1"; fi ;;
+		''|/*|*://*) printf '%s' "$1" ;;
+		*@*:*)
+			[ ! -e "$1" ] || printf 'abs_local_source: WARNING: %s=%s exists as a local path in %s but has the scp-style user@host:path shape; it is treated as REMOTE and passed unchanged (use ./%s or an absolute path for the local one)\n' "$2" "$1" "$(pwd)" "$1" >&2
+			printf '%s' "$1" ;;
+		*) if [ -e "$1" ]; then printf '%s/%s' "$(pwd)" "${1#./}"
+		   else
+			printf 'abs_local_source: WARNING: %s=%s is a relative path that does not exist in the caller cwd %s; it is passed unchanged and will resolve against --root\n' "$2" "$1" "$(pwd)" >&2
+			printf '%s' "$1"
+		   fi ;;
 	esac
 }
-SUPERB_FROM=$(abs_local_source "$SUPERB_FROM")
-[ -z "${SUPERSPEC_FROM:-}" ] || SUPERSPEC_FROM=$(abs_local_source "$SUPERSPEC_FROM")
+SUPERB_FROM=$(abs_local_source "$SUPERB_FROM" --superb-from)
+[ -z "${SUPERSPEC_FROM:-}" ] || SUPERSPEC_FROM=$(abs_local_source "$SUPERSPEC_FROM" SUPERSPEC_FROM)
 export SPECIFY_BIN   # the probe child process must see the resolved (absolute) binary too
 cd "$ROOT" || exit 1
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)

@@ -47,6 +47,20 @@
 #                 detect + clean the stale partial state and complete
 #                 successfully — proving no broken/partial state survives an
 #                 interruption.
+#   REL-2         (stub class, N1) relative local SUPERSPEC_FROM=./localsrc reaches the
+#                 L3 install as <absolute path>@<pin>, called inside --root.
+#   WARN-1        (stub class, N4) a relative --superb-from that does not exist, or an
+#                 existing local path shaped like user@host:path, is warned on stderr.
+#   PROBE-1       (stub class, F8/N2) L2 names EXACTLY the absolutised SPECIFY_BIN.
+#   META-1/META-2 (N3) the reduced fixture-only seam BRIDGE_TEST_LIVE_FIXTURE_ONLY is
+#                 honoured only with a parent nonce (run_reduced_child); a leaked
+#                 value FAILs loudly (SEAM-GUARD); a reduced child prints
+#                 "REDUCED MODE" on stderr and in its verdict line.
+#   NET-CLASS     (stub class, N5) a live-fixture build failure is a network-absent
+#                 SKIP only with a network-error signature AND a down network probe.
+#   NET-LIVE      (LIVE, N5) the real fixture build in a child run inside
+#                 `bwrap --unshare-net` (no network, control-checked) must build or
+#                 SKIP as network-absent, never report LIVE-FIXTURE-BUILD.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   bash constitution/scripts/extensions/install_speckit_superpowers_bridge_test.sh [--quiet]
@@ -78,7 +92,7 @@
 #   · §11.4.98 · §11.4.169 · §11.4.224 · §11.4.84 (sandbox-only mutation)
 #
 # Classification: project-specific (HXC-159 Bridge investigation).
-# Last verified: 2026-11-03 (relabelled stub-class cases per §11.4.289)
+# Last verified: 2026-11-04 (N1-N5 review follow-ups; earlier: 2026-11-03 stub-class relabelling per §11.4.289)
 set -u
 
 NAME="install_speckit_superpowers_bridge tests"
@@ -105,7 +119,8 @@ bad()  { printf '  FAIL  [%s] %s\n' "$NAME" "$*" >&2; FAILS=$((FAILS + 1)); }
 
 finish() {
 	if [ "$FAILS" -eq 0 ]; then
-		say "== $NAME: PASS (live=$((TOTAL_PASS)) stub-class=$STUB_PASS skipped=$SKIPS [skips are not passes; stub-class is not live evidence]) =="
+		_mode="full suite"; [ "${REDUCED:-0}" -eq 0 ] || _mode="REDUCED fixture-only mode, NOT the full suite"
+		say "== $NAME: PASS (live=$((TOTAL_PASS)) stub-class=$STUB_PASS skipped=$SKIPS [skips are not passes; stub-class is not live evidence]; $_mode) =="
 		exit 0
 	fi
 	printf '== %s: FAIL (%s failing case(s)) ==\n' "$NAME" "$FAILS" >&2
@@ -123,6 +138,27 @@ if [ ! -f "$INSTALLER" ]; then
 fi
 
 TMP=$(mktemp -d) || { bad "mktemp -d failed"; exit 1; }
+
+# ── N3: the reduced fixture-only seam (BRIDGE_TEST_LIVE_FIXTURE_ONLY) is honoured ONLY together with a nonce that a
+#    parent run of this suite wrote into its own mktemp dir (BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE, see
+#    run_reduced_child). A seam value leaked into the ambient environment (no nonce file, a stale one of a finished
+#    parent, or a mismatching value) makes the suite FAIL loudly instead of silently running a shrunken suite that
+#    still reports PASS. Residual risk (stated, not closed): a leak WHILE the parent still runs and its nonce file
+#    still exists is honoured, and then the child announces REDUCED MODE on stderr and in its verdict line.
+REDUCED=0
+if [ -n "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ]; then
+	_nf="${BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE:-}"
+	if [ "${#BRIDGE_TEST_LIVE_FIXTURE_ONLY}" -ge 32 ] && [ -n "$_nf" ] && [ -f "$_nf" ] \
+		&& [ "$(cat -- "$_nf" 2>/dev/null)" = "$BRIDGE_TEST_LIVE_FIXTURE_ONLY" ]; then
+		REDUCED=1
+		printf '== %s: REDUCED MODE (fixture-only seam authorised by a parent run; only the live-fixture cases run, this is NOT the full suite) ==\n' "$NAME" >&2
+	else
+		bad "SEAM-GUARD: BRIDGE_TEST_LIVE_FIXTURE_ONLY is set without a valid parent nonce (nonce file '${_nf:-unset}'); refusing to run a silently reduced suite (ambient leak?). Unset BRIDGE_TEST_LIVE_FIXTURE_ONLY and BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE."
+		printf '== %s: FAIL (seam guard) ==\n' "$NAME" >&2
+		exit 1
+	fi
+	unset _nf
+fi
 
 # ── shared fixture helpers ───────────────────────────────────────────────────
 make_report() {
@@ -362,11 +398,13 @@ full_auto_verdict() {
 }
 
 # ── INTEGRATION-1 (real root: SKIP when no .specify/) ───────────────────────
-REAL_HAS_SPECIFY=0; [ -d "$ROOT/.specify" ] && [ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] && REAL_HAS_SPECIFY=1
+REAL_HAS_SPECIFY=0; [ -d "$ROOT/.specify" ] && [ "$REDUCED" -eq 0 ] && REAL_HAS_SPECIFY=1
 if [ "$REAL_HAS_SPECIFY" -eq 1 ]; then
 	v=$(integration_verdict "$ROOT" "$TMP/integration1.out")
 	if [ "$v" = PASS ]; then okl "INTEGRATION-1: real run against the real repo root PASSes, evidence written under $(latest_run_dir "$ROOT")"
 	else bad "INTEGRATION-1: real run did not PASS correctly; output:"; sed 's/^/         /' "$TMP/integration1.out" >&2; fi
+elif [ "$REDUCED" -eq 1 ]; then
+	skip "INTEGRATION-1 (real root): not run in the REDUCED fixture-only mode (only the live-fixture cases run here)"
 else
 	skip "INTEGRATION-1 (real root): reason=topology_unsupported (no .specify/ under $ROOT)"
 fi
@@ -394,6 +432,20 @@ make_live_fixture() {
 		&& git add -A && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -q -m live-fixture ) >/dev/null 2>&1 || return 1
 	[ -d "$r/.specify" ] && [ -f "$r/.specify/extensions/superspec/extension.yml" ] && [ -f "$r/submodules/superspec/extension.yml" ]
 }
+# N5: classify a failed live-fixture build. Prints "network" ONLY when the build output carries a network-error
+# signature AND the independently measured network state ($3) is "down"; otherwise "other" (a FAIL). A signature alone,
+# or a down network alone, is a proxy signal and never turns a failure into a SKIP (§11.4.201, §11.4.289(E)).
+fixture_failure_class() {
+	local init_out="$1" ext_out="$2" net="$3" f
+	if [ "$net" = down ]; then
+		for f in "$init_out" "$ext_out"; do
+			[ -f "$f" ] && grep -qiE 'Temporary failure in name resolution|Name or service not known|nodename nor servname|getaddrinfo failed|Could not resolve host|Network is unreachable|No route to host|ConnectError|ConnectTimeout|Max retries exceeded|Failed to establish a new connection' "$f" && { echo network; return 0; }
+		done
+	fi
+	echo other
+}
+# N5: measured network state, "down" only when a DNS lookup of a well-known host fails within 10 s.
+net_probe_state() { if timeout 10 getent ahosts "${BRIDGE_NET_PROBE_HOST:-github.com}" >/dev/null 2>&1; then echo up; else echo down; fi; }
 LIVE_FX_OK=0; LIVE_SKIP_WHY=""; LIVE_FX_BUILD_FAILED=0
 SSRC=$(find_superspec_src) || SSRC=""
 if [ -z "$LIVE_SPECIFY" ]; then LIVE_SKIP_WHY="missing dependency: no real specify CLI on PATH (no closed-set dependency-absent code exists, so topology_unsupported is used)"
@@ -416,6 +468,8 @@ if [ "$LIVE_FX_OK" -eq 1 ]; then
 	if [ "$v" = FAIL ] && grep -q "L1 (developer workstation)" "$TMP/integration1lm.out"; then
 		okl "INTEGRATION-1L-MUT: real specify project with a carrier removed -> verdict FAIL naming L1 (live verdict is falsifiable)"
 	else bad "INTEGRATION-1L-MUT: mutated live project did not FAIL as required (verdict=$v)"; fi
+elif [ "$LIVE_FX_BUILD_FAILED" -eq 1 ] && [ "$(fixture_failure_class "$TMP/live_fixture.init.out" "$TMP/live_fixture.ext.out" "$(net_probe_state)")" = network ]; then
+	skip "INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported (network-absent: the real fixture build failed with a network-error signature and the network probe found no network; §11.4.289(E))"
 elif [ "$LIVE_FX_BUILD_FAILED" -eq 1 ]; then
 	# Both real prerequisites ARE present, so the topology is supported: a fixture that cannot be built means the real
 	# dependency (or the fixture recipe) is broken, which is a finding, never a skip (§11.4.289(J), §11.4.3).
@@ -425,18 +479,103 @@ else
 	skip "INTEGRATION-1L / FULL-AUTOMATION-1L / INTEGRATION-1L-MUT (live specify-init fixture): reason=topology_unsupported ($LIVE_SKIP_WHY)"
 fi
 
+# run_reduced_child <home> <out-file> [VAR=value ...] [-- prefix-command ...]
+#   Runs THIS suite as a child in the reduced fixture-only mode, authorised by a fresh random nonce written into this
+#   run's own mktemp dir (gone when this run exits, so a leaked seam value can never be honoured later; N3).
+run_reduced_child() {
+	local home="$1" out="$2" nonce nf
+	shift 2
+	local envs=() pre=()
+	while [ $# -gt 0 ] && [ "$1" != "--" ]; do envs+=("$1"); shift; done
+	[ "${1:-}" = "--" ] && { shift; pre=("$@"); }
+	nonce=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n') || return 1
+	[ "${#nonce}" -eq 32 ] || return 1
+	nf="$TMP/reduced_nonce.$$.$RANDOM"
+	( umask 077; printf '%s' "$nonce" > "$nf" ) || return 1
+	"${pre[@]}" env HOME="$home" BRIDGE_TEST_LIVE_FIXTURE_ONLY="$nonce" BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE="$nf" "${envs[@]}" \
+		bash "$0" >"$out" 2>&1
+}
+
 # ── META-1 (F6 guard): a superspec checkout that exists but cannot be used for the real fixture (no .git) must make the
 #    suite FAIL, not SKIP. Runs the suite in the fixture-only mode against such a source (needs the real specify).
-if [ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] && [ -n "$LIVE_SPECIFY" ]; then
+if [ "$REDUCED" -eq 0 ] && [ -n "$LIVE_SPECIFY" ]; then
 	mkdir -p "$TMP/badsrc" && echo "id: badsrc" > "$TMP/badsrc/extension.yml"
-	env HOME="$TMP/meta_home" BRIDGE_TEST_LIVE_FIXTURE_ONLY=1 SUPERSPEC_SRC="$TMP/badsrc" bash "$0" --quiet >"$TMP/meta1.out" 2>&1; rc=$?
-	if [ "$rc" -ne 0 ] && grep -q "LIVE-FIXTURE-BUILD" "$TMP/meta1.out"; then
-		ok "META-1: real specify + an unusable superspec checkout -> the suite FAILs (LIVE-FIXTURE-BUILD), it does not SKIP (rc=$rc)"
+	run_reduced_child "$TMP/meta_home" "$TMP/meta1.out" SUPERSPEC_SRC="$TMP/badsrc"; rc=$?
+	if [ "$rc" -ne 0 ] && grep -q "LIVE-FIXTURE-BUILD" "$TMP/meta1.out" && grep -q "REDUCED MODE" "$TMP/meta1.out"; then
+		ok "META-1: real specify + an unusable superspec checkout -> the suite FAILs (LIVE-FIXTURE-BUILD), it does not SKIP, and the child announced REDUCED MODE (rc=$rc)"
 	else
-		bad "META-1: an unusable superspec checkout did not fail the suite (rc=$rc); output:"; sed 's/^/         /' "$TMP/meta1.out" >&2
+		bad "META-1: an unusable superspec checkout did not fail the suite with a REDUCED MODE banner (rc=$rc); output:"; sed 's/^/         /' "$TMP/meta1.out" >&2
 	fi
 fi
-[ -z "${BRIDGE_TEST_LIVE_FIXTURE_ONLY:-}" ] || finish
+
+# ── META-2 (N3): a seam value leaked into the ambient environment (no nonce, a stale nonce file of a finished parent,
+#    or a wrong value) MUST make the suite FAIL loudly; before N3 it silently shrank to a few cases and exited 0.
+if [ "$REDUCED" -eq 0 ]; then
+	_m2fail=""
+	env HOME="$TMP/meta2_home" BRIDGE_TEST_LIVE_FIXTURE_ONLY=1 bash "$0" --quiet >"$TMP/meta2a.out" 2>&1; rc=$?
+	{ [ "$rc" -ne 0 ] && grep -q "SEAM-GUARD" "$TMP/meta2a.out"; } || _m2fail="$_m2fail no-nonce(rc=$rc)"
+	_stale="0123456789abcdef0123456789abcdef"
+	env HOME="$TMP/meta2_home" BRIDGE_TEST_LIVE_FIXTURE_ONLY="$_stale" BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE="$TMP/gone/nonce" bash "$0" --quiet >"$TMP/meta2b.out" 2>&1; rc=$?
+	{ [ "$rc" -ne 0 ] && grep -q "SEAM-GUARD" "$TMP/meta2b.out"; } || _m2fail="$_m2fail stale-nonce-file(rc=$rc)"
+	printf '%s' "fedcba9876543210fedcba9876543210" > "$TMP/meta2_nonce"
+	env HOME="$TMP/meta2_home" BRIDGE_TEST_LIVE_FIXTURE_ONLY="$_stale" BRIDGE_TEST_LIVE_FIXTURE_NONCE_FILE="$TMP/meta2_nonce" bash "$0" --quiet >"$TMP/meta2c.out" 2>&1; rc=$?
+	{ [ "$rc" -ne 0 ] && grep -q "SEAM-GUARD" "$TMP/meta2c.out"; } || _m2fail="$_m2fail wrong-value(rc=$rc)"
+	if [ -z "$_m2fail" ]; then
+		ok "META-2: a leaked BRIDGE_TEST_LIVE_FIXTURE_ONLY (no nonce / stale nonce file / wrong value) makes the suite FAIL loudly (SEAM-GUARD), never a silent reduced PASS"
+	else
+		bad "META-2: a leaked seam did not fail loudly:$_m2fail; outputs:"; sed 's/^/         /' "$TMP/meta2a.out" "$TMP/meta2b.out" "$TMP/meta2c.out" >&2
+	fi
+	unset _m2fail _stale
+fi
+
+# ── NET-CLASS (N5, gate-logic / stub-class): the LIVE-FIXTURE-BUILD failure classifier. A build failure is a
+#    network-absent SKIP (§11.4.289(E)) ONLY when BOTH the build output carries a network-error signature AND an
+#    independent probe found the network down; any other combination is a FAIL (a finding, §11.4.201: no proxy signal).
+if [ "$REDUCED" -eq 0 ]; then
+	NC="$TMP/netclass"; mkdir -p "$NC"
+	printf 'Error: httpx.ConnectError: [Errno -3] Temporary failure in name resolution\n' > "$NC/net.out"
+	printf 'Error: template directory not found\n' > "$NC/other.out"
+	: > "$NC/empty.out"
+	_ncfail=""
+	[ "$(fixture_failure_class "$NC/net.out" "$NC/empty.out" down)" = network ] || _ncfail="$_ncfail sig+down!=network"
+	[ "$(fixture_failure_class "$NC/empty.out" "$NC/net.out" down)" = network ] || _ncfail="$_ncfail ext-sig+down!=network"
+	[ "$(fixture_failure_class "$NC/net.out" "$NC/empty.out" up)" = other ] || _ncfail="$_ncfail sig+up!=other"
+	[ "$(fixture_failure_class "$NC/other.out" "$NC/empty.out" down)" = other ] || _ncfail="$_ncfail nosig+down!=other"
+	[ "$(fixture_failure_class "$NC/missing.out" "$NC/also_missing.out" down)" = other ] || _ncfail="$_ncfail no-output+down!=other"
+	if [ -z "$_ncfail" ]; then
+		ok "NET-CLASS: fixture-build failure is classified network-absent only with a network signature AND a down network probe; every other case is a FAIL"
+	else
+		bad "NET-CLASS: classifier wrong:$_ncfail"
+	fi
+	unset _ncfail
+fi
+
+# ── NET-LIVE (N5, LIVE): the REAL fixture build (real specify init + real extension add --dev + real submodule add)
+#    run in a child suite inside a network namespace with NO network (bwrap --unshare-net). Measures, rather than
+#    assumes, whether a network-absent host can build the live fixture: the child MUST NOT report LIVE-FIXTURE-BUILD;
+#    it either builds and PASSes the live cases, or SKIPs them as network-absent.
+if [ "$REDUCED" -eq 0 ]; then
+	if [ -z "$LIVE_SPECIFY" ] || [ -z "$SSRC" ]; then
+		skip "NET-LIVE: reason=topology_unsupported (needs the real specify and a superspec checkout: ${LIVE_SKIP_WHY:-fixture prerequisites absent})"
+	elif ! command -v bwrap >/dev/null 2>&1 || ! bwrap --dev-bind / / --unshare-net true >/dev/null 2>&1; then
+		skip "NET-LIVE: reason=topology_unsupported (no usable bwrap --unshare-net on this host to remove the network)"
+	elif [ "$(bwrap --dev-bind / / --unshare-net bash -c "$(declare -f net_probe_state); net_probe_state")" != down ]; then
+		bad "NET-LIVE: control failed: inside bwrap --unshare-net the network probe did NOT report down, so the namespace cannot be trusted to remove the network"
+	else
+		run_reduced_child "$TMP/netlive_home" "$TMP/netlive.out" SUPERSPEC_SRC="$SSRC" -- bwrap --dev-bind / / --unshare-net; rc=$?
+		if [ "$rc" -eq 0 ] && ! grep -q "LIVE-FIXTURE-BUILD" "$TMP/netlive.out" \
+			&& { grep -q "PASS .*INTEGRATION-1L:" "$TMP/netlive.out" || grep -q "network-absent" "$TMP/netlive.out"; }; then
+			if grep -q "PASS .*INTEGRATION-1L:" "$TMP/netlive.out"; then
+				okl "NET-LIVE: with NO network (bwrap --unshare-net; probe inside=down, outside=$(net_probe_state)) the real specify init + extension add --dev fixture still BUILDS and the live cases PASS (so a fixture-build failure is never a network-absent case for this specify)"
+			else
+				okl "NET-LIVE: with NO network the real fixture build failed with a network signature and the child SKIPped it as network-absent (not a LIVE-FIXTURE-BUILD FAIL)"
+			fi
+		else
+			bad "NET-LIVE: network-isolated child did not build-or-skip cleanly (rc=$rc); output:"; sed 's/^/         /' "$TMP/netlive.out" >&2
+		fi
+	fi
+fi
+[ "$REDUCED" -eq 0 ] || finish
 
 # ── CWD-1 (stub-class) — L4 path run from a FOREIGN cwd: specify reads the project from its cwd, so every
 #    specify call must run IN --root. The fake specify below FAILS ("Not a Spec Kit project") outside a .specify dir
@@ -499,6 +638,40 @@ else
 	bad "REL-1: relative inputs mishandled (rc=$RL_RC; calls: $(tr '\n' ';' < "$RL/calls.log" 2>/dev/null)); output:"; sed 's/^/         /' "$RL/run.out" >&2
 fi
 
+# ── REL-2 (N1) — a relative LOCAL SUPERSPEC_FROM (./localsrc, relative to the CALLER's cwd) on the L3 install path:
+#    specify must be called in --root with the ABSOLUTE source path plus @<pin>.
+R2="$TMP/rel2"; mkdir -p "$R2/root/.specify" "$R2/caller/localsrc" "$R2/root/qa-results"
+cp "$RL/caller/specify" "$R2/caller/specify"
+R2PIN="c20ac6c1ba069cc9a72dacb8044b7b193d3dde81"
+make_report "$R2/caller/report.json" WIRED WIRED DESIGNED-ONLY DESIGNED-ONLY
+( cd "$R2/caller" && SUPERSPEC_PIN="$R2PIN" SUPERSPEC_FROM="./localsrc" SPECIFY_BIN="$R2/caller/specify" REL_LOG="$R2/calls.log" \
+	bash "$INSTALLER" --root "$R2/root" --report-file report.json --quiet >"$R2/run.out" 2>&1 ); R2_RC=$?
+if [ "$R2_RC" -eq 0 ] && grep -qxF "CALL cwd=$R2/root args=extension add superspec --from $R2/caller/localsrc@$R2PIN" "$R2/calls.log" 2>/dev/null; then
+	ok "REL-2: relative local SUPERSPEC_FROM=./localsrc reached the L3 install as the absolute path @pin, called inside --root (rc=$R2_RC)"
+else
+	bad "REL-2: relative SUPERSPEC_FROM mishandled on the L3 install path (rc=$R2_RC; calls: $(tr '\n' ';' < "$R2/calls.log" 2>/dev/null)); output:"; sed 's/^/         /' "$R2/run.out" >&2
+fi
+
+# ── WARN-1 (N4) — abs_local_source must WARN (stderr) when it leaves a relative value unresolved: a relative path that
+#    does not exist, and an existing local path shaped like scp-style user@host:path. Golden-FALSE: an existing relative
+#    path and a URL produce no such warning.
+W1="$TMP/warn1"; mkdir -p "$W1/root/.specify" "$W1/caller/pkg" "$W1/caller/u@h:p" "$W1/root/qa-results"
+cp "$RL/caller/specify" "$W1/caller/specify"; : > "$W1/caller/pkg/superb.zip"
+make_report "$W1/caller/report.json" WIRED WIRED WIRED DESIGNED-ONLY
+w1run() { ( cd "$W1/caller" && SUPERSPEC_SHA_OVERRIDE="$R2PIN" SPECIFY_BIN="$W1/caller/specify" REL_LOG="$W1/calls.log" \
+	bash "$INSTALLER" --root "$W1/root" --report-file report.json --quiet --dry-run --superb-from "$1" --superb-vetted-by "operator:test-harness — warn case" >"$W1/$2.out" 2>&1 ); }
+_w1fail=""
+w1run "nothere/superb.zip" missing; grep -q "abs_local_source: WARNING.*nothere/superb.zip.*does not exist" "$W1/missing.out" || _w1fail="$_w1fail missing-relative-not-warned"
+w1run "u@h:p" scp; grep -q "abs_local_source: WARNING.*u@h:p.*scp-style" "$W1/scp.out" || _w1fail="$_w1fail existing-scp-shaped-not-warned"
+w1run "pkg/superb.zip" exists; ! grep -q "abs_local_source: WARNING" "$W1/exists.out" || _w1fail="$_w1fail existing-relative-falsely-warned"
+w1run "https://example.invalid/superb.zip" url; ! grep -q "abs_local_source: WARNING" "$W1/url.out" || _w1fail="$_w1fail url-falsely-warned"
+if [ -z "$_w1fail" ]; then
+	ok "WARN-1: unresolved relative --superb-from values (missing path, existing scp-shaped path) are warned on stderr; an existing relative path and a URL are not"
+else
+	bad "WARN-1:$_w1fail; outputs:"; sed 's/^/         /' "$W1"/*.out >&2
+fi
+unset _w1fail
+
 # ── PROBE-1 (F8) — probe_bridge_layers.sh must honour SPECIFY_BIN (incl. a relative one) for every specify call
 PB="$TMP/probe1"; mkdir -p "$PB/root/.specify" "$PB/caller"
 cat > "$PB/caller/specify" <<'FEOF'
@@ -511,8 +684,10 @@ chmod +x "$PB/caller/specify"
 PBRAW=$(ls -d "$PB"/root/qa-results/hxc159/bridge_layers/*/raw 2>/dev/null | tail -1)
 if [ -n "$PBRAW" ] && grep -q "PROBE_FAKE_SPECIFY extension list" "$PBRAW/L3_extension_list.out" 2>/dev/null \
 	&& grep -q "PROBE_FAKE_SPECIFY extension search superb" "$PBRAW/L4_catalog_search.out" 2>/dev/null \
-	&& grep -q "/specify" "$PBRAW/L2_specify_cli.out" 2>/dev/null && ! grep -q "NOT-ON-PATH" "$PBRAW/L2_specify_cli.out" 2>/dev/null; then
-	ok "PROBE-1: probe_bridge_layers.sh used SPECIFY_BIN for L2 cli presence, L3 extension list and L4 catalog search"
+	&& [ "$(cat "$PBRAW/L2_specify_cli.out" 2>/dev/null)" = "$PB/caller/specify" ]; then
+	# N2: L2 must name EXACTLY the absolutised SPECIFY_BIN; a bare `command -v specify` would pass a looser check on
+	# any host that has some specify on PATH.
+	ok "PROBE-1: probe_bridge_layers.sh used SPECIFY_BIN for L2 cli presence (exactly $PB/caller/specify), L3 extension list and L4 catalog search"
 else
 	bad "PROBE-1: the probe ignored SPECIFY_BIN (raw dir: ${PBRAW:-none}); output:"; sed 's/^/         /' "$PB/run.out" >&2
 fi
