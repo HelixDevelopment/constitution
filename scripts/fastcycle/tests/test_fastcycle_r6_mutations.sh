@@ -14,6 +14,80 @@
 # (same anchors, same replacements as the reviewer's own runner); R2-M1.. are the
 # round-2 fixer's own. They run against test_baseline_replay_r2_findings.sh, the
 # collect_baseline and build_deploy_qa_events suites.
+# T048 restart ROUND 3 (STRUCTURAL; docs/qa/t048_restart_round3_20261008/V4_baseline.md):
+# the stop subsystem was replaced by cycle/fc_supervisor.py. Every mutation whose
+# anchor named a removed mechanism (traps, TERM forwarding, sessions, tokens, the
+# /proc scan) is RE-EXPRESSED against the supervisor with the SAME defect class
+# and the same id (R6-M5/M7/M20/M21, V4-N4/N12, R2-M1/M2/M4/M6/M7/M8/M10); the
+# round-3 reviewer's mutants are V4R3-N*; R3-M* are the round-3 fixer's own. Stop
+# mutations run ONE row of the r2 stop matrix (SM(...) below); the controls run
+# the same rows against an UNMUTATED replica. NEVER add a mutation that removes
+# the supervisor's nesting limit (MAX_NEST): without it a recursion mutant forks
+# without end on the host (§12.12).
+#
+# T048 restart ROUND 4 (R4-S* group; V4 review): the fixer's S1/S2/S3/S5/S5b rows and the round-4
+# reviewer's RA1/RA3/RA4/RA6/RA7(+RA7b) mutants (R4-RA*) all run against tests/test_fc_supervisor_unit.sh,
+# whose oracle cases are [S1] [S1b] [S1-tree] [S2] [S3] [G1] (open_verified / stop_tree parent checks) and
+# [S5] [S5b] [S5d] [S5e] [S5f] [S5g] (process_ledger's rmtree guard). The R4-S*/RA* mutants touch only
+# cycle/fc_supervisor.py in the replica; the unit test's signal spy never signals pid 1 or the test process.
+#
+# T048 V4 round 6 (V4R6-* group): the round-6 fixer's F1/F2/F8 rows and the round-6 reviewer's surviving mutants
+# X2/X3/X5/X8 adopted as permanent rows; R5-F9b re-expressed as a well-formed mutant (F3); R5-F1e/R5-F1i now require
+# the blocked-TERM case to NAME the measured cause (F7). F6 (this suite's own EXIT-trap cleanup) lives in the test
+# file, which the replica does not copy: its RED was shown against the round-5 cleanup function and [CLEANUP] guards it.
+#
+# T048 V4 round 7 (V4R7-* group, STRUCTURAL closure of two recurring classes): the reviewer's mutant RVM-04 adopted
+# verbatim; the fixer's own rows for N1 (ownership), N2 (flush), N3 (ledger/done/deferral), N4 (progress beats / cap),
+# N5 (the documented-code funnel, both layers) and N6 (early INT handler, -S). Their cases live in
+# test_fc_supervisor_v4r5_findings.sh (R7*) and one stop-matrix row (KILL-supervisor-daemon).
+#
+# T048 V4 round 8 (V4R8-* group; CLASS 2 2nd structural attempt): V4R8-1a..d (caller streams: closed-stream flush /
+# say, fd repair, SIGPIPE ignore) against tests/test_fc_supervisor_v4r8_stream_matrix.sh; V4R8-2a..c (report written =
+# durable state: identity half, body_hash half) against the unit file and [R8N3STALE]; the reviewer's mutants RVM-02 /
+# DOC128 / USR2ANY adopted verbatim; V4R8-6a/b (ownership prune). V4R7-N3a/b/c re-expressed against the durable report
+# state; V4R7-N3d retired (the worker's stop deferral was removed -- see its comment).
+#
+# T048 V4 round 9 (V4R9-* group; §11.4.276(E) STRUCTURAL round -- the V4R8-2 class: every state an exit decision
+# reads must outlive every process that still has to decide): the round-2 reviewer's 14 mutants RVM-A..N adopted
+# (verbatim where the anchor still exists; C/D/H re-expressed against decide_code / the 5-field identity), the fixer's
+# own V4R9-M1..M11 (state directory lifetime, one derivation, bounded say, gc). Their oracles: the unit file ([R9*]),
+# the v4r5 R8N3*/R7N3C rows, the extended stream matrix and tests/test_fc_supervisor_v4r9_shutdown_windows.sh.
+# Re-expressed this round (anchors named code round 9 replaced; same defect class, same ids): R6-M20, R3-M1, V4R6-F8,
+# V4R7-N3b (now BOTH layers), V4R7-N3c, V4R8-1b.
+#
+# T048 V4 round 10 (V4R10-* group; §11.4.276(E) STRUCTURAL round -- third member of the V4R8-2 class: a resource whose
+# lifetime spans several processes needs ONE ownership model every deleter and reader obeys -> the state directory's
+# LEASE): the round-3 reviewer's 14 mutants RV3-01..14 adopted VERBATIM; V4R7-N2 re-instated (its round-9 retirement
+# rested on a false equivalence proof, V4R10-2); the fixer's own V4R10-M1..M11. Oracles: the unit file ([R10*]), the
+# windows file ([R10LEASE] [R10DROP]), the stream matrix (fd-direction needle in every role, V4R10-6), r2 [SM].
+#
+# T048 V4 round 11 (V4R11-* group; round-4 review: V4R11-1 IMPORTANT -- a FIFO named `lease` hung gc; fixed CLASS-
+# wide, one open helper pair for every file open of the module): the round-4 reviewer's 16 mutants RV4-01..16 adopted
+# VERBATIM (17 mutants counting RV4-08a/08b: 16 rows + RV4-10 as an EQUIVS row -- its equivalence is itself checked); the fixer's own V4R11-M0..M19 (one
+# per rule of the helpers, one per converted call site). Oracles: the unit file ([R10*] [R11*]) and the windows file
+# ([R10LEASE] [R10LEASE-decide], [R9WIN] keeper _keeper.finally). The runner now reports a test that times out instead
+# of crashing (round 11).
+#
+# T048 V4 round 13 (V4R13-* group; round-6 review: NO-GO, 4 MINOR + 5 NIT; the LAST budget round, §11.4.276): the
+# round-6 reviewer's 16 mutants RV6-01..16 adopted VERBATIM (their anchors, unchanged by this round's code, each matched
+# exactly once; RV6-14 is an EQUIVS row whose premise [R13SH-logs1777] is asserted on the mutant), the fixer's own
+# V4R13-M1..M20 (the group-private clause, the rmtree name guard, NIT-1 lock migration, NIT-4/NIT-3/NIT-5, the three
+# message sites, and the census's own fail-closed rules -- tests/check_safepath_census.py is copied into the replica
+# and mutated there). Oracles: tests/test_fc_safepath_v4r13.sh ([R13*]), the unit file, the v4r12 file.
+#
+# T048 V4 round 14 (V4R14-* group; round-7 review: NO-GO, V4R14-1 IMPORTANT -- a POSIX-ACL write grant passed as
+# "group-private"; operator decision 2026-10-13: a scoped follow-up with a fresh budget): the round-7 reviewer's 10
+# mutants RV7-01..10 adopted VERBATIM (RV7-06 now caught by [R14LOCK-0640], RV7-10 by the behavioural
+# [R14SAMPLE-wtroot-sticky]); the fixer's own V4R14-M1..M18 (the ACL clause and its fail-closed read, both refs of
+# open_owned_dir, the walk's ref, the reason text, the lock-directory fallback, the census's dunder / module-attribute /
+# module-object / printf -v / nameref / unset / xattr-write rules). Re-expressed (the round-14 ref argument; same
+# replacements): V4R11-M8, V4R11-M9, V4R12-RV5-12, V4R12-M9, V4R12-M11, V4R13-RV6-07, V4R13-M14, V4R13-M15.
+# Oracle: tests/test_fc_safepath_v4r14.sh ([R14*]) + the v4r13 file.
+#
+# ATM-1220 r9 / fixer round 15 (V4R15-* group; round-8 review NO-GO, 3 MINOR + 2 NIT): V4R15-1 (the lock home read
+# from the password database, never $HOME; $XDG_RUNTIME_DIR no longer a default), V4R15-2 (the census closes the
+# CLASS: quote removal + non-literal NAMEs refused + every assignment form + the ${V:?} emptiness rule), V4R15-3 (the
+# reviewer's RV8-01..07 adopted). V4R14-M8/M14/M15/M16 re-expressed. Oracle: tests/test_fc_safepath_v4r15.sh ([R15*]).
 #
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
@@ -28,19 +102,43 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 exec python3 - "$FC" "$HERE" <<'PYEOF'
-import os, shutil, subprocess, sys, tempfile
+import os, shutil, signal, subprocess, sys, tempfile
 
 FC, TESTS = sys.argv[1], sys.argv[2]
+if __name__ == "__main__" and signal.getsignal(signal.SIGHUP) == signal.SIG_IGN:
+    # carry review round 1, F4: started with SIGHUP ignored (nohup) every HUP row of the suites it drives would report a
+    # false product FAIL (the tool keeps a caller-ignored HUP ignored by design), and its mutants a false survival
+    print("BLIND: SIGHUP is ignored at entry (inherited, e.g. nohup): the HUP rows cannot observe a stop -- run this "
+          "runner under setsid -w, not nohup [reason=topology_unsupported]")
+    print("----")
+    print("SUMMARY pass=0 fail=0 blind=1")
+    sys.exit(2)
 ONLY = os.environ.get("MUT_ONLY", "").split()
 
 BR = "cycle/baseline_replay.sh"
 CB = "cycle/collect_baseline.py"
 BDQ = "cycle/build_deploy_qa_events.py"
+SUP = "cycle/fc_supervisor.py"
 T_R6 = "test_baseline_replay_r6_findings.sh"
 T_R4 = "test_baseline_replay_r4_findings.sh"
 T_CB = "test_collect_baseline_red.sh"
 T_BDQ = "test_build_deploy_qa_events_red.sh"
 T_R2 = "test_baseline_replay_r2_findings.sh"
+T_SUP = "test_fc_supervisor_unit.sh"
+T_V5 = "test_fc_supervisor_v4r5_findings.sh"
+T_V8 = "test_fc_supervisor_v4r8_stream_matrix.sh"
+T_V9 = "test_fc_supervisor_v4r9_shutdown_windows.sh"
+T_R12 = "test_fc_safepath_v4r12.sh"
+T_R13 = "test_fc_safepath_v4r13.sh"
+T_R14 = "test_fc_safepath_v4r14.sh"
+T_R15 = "test_fc_safepath_v4r15.sh"
+CEN = "tests/check_safepath_census.py"     # round 13: the census itself is mutated in the replica (FC_CENSUS_UNDER_TEST)
+
+
+def SM(sig, target, shape):
+    """env selecting ONE row of the r2 stop matrix (no extra rows)"""
+    return {"R2_ONLY": "SM", "SM_SIGNALS": sig, "SM_TARGETS": target, "SM_SHAPES": shape, "SM_EXTRA": ""}
+
 
 # (id, target file, [(old, new), ...], test file, filter-env, expected failing line prefix)
 MUTS = [
@@ -55,17 +153,16 @@ MUTS = [
     ("R6-M4", BR, [('_fc_submodule_reference_update() {\n  local src="$1" tgt="$2"\n',
                     '_fc_submodule_reference_update() {\n  return 0\n  local src="$1" tgt="$2"\n')],
      T_R6, {"R6_ONLY": "F14sub"}, "NOT ok [R6-F14sub]"),
-    ("R6-M5", BR, [('if { [ "$rc" = 124 ] || [ "$rc" = 137 ]; } && [ "$dur" -ge "$tmo_ms" ]; then',
-                    'if false; then')],
+    # R6-M5 re-expressed (round 3): the timeout is OBSERVED (marker), never inferred from the exit code
+    ("R6-M5", BR, [("    timed_out) printf 'UNMEASURED|timed out (exit %s, limit %sms)' \"$rc\" \"$tmo_ms\"; return 0 ;;\n", "    timed_out) ;;\n")],
      T_R6, {"R6_ONLY": "F8t"}, "NOT ok [R6-F8t]"),
     ("R6-M6", BR, [('${item_re}([^0-9]|$) ]]', '${item_re} ]]')],
      T_R4, {}, "NOT ok B2"),
-    ("R6-M7", BR, [('  trap "$_sig_cleanup_cmd; exit 129" HUP\n'
-                    '  trap "$_sig_cleanup_cmd; exit 130" INT\n'
-                    '  trap "$_sig_cleanup_cmd; exit 131" QUIT\n'
-                    '  trap "$_sig_cleanup_cmd; exit 143" TERM',
-                    "  trap 'exit 129' HUP\n  trap 'exit 130' INT\n  trap 'exit 131' QUIT\n  trap 'exit 143' TERM")],
-     T_R6, {"R6_ONLY": "F11c"}, "NOT ok [R6-F11c]"),
+    # R6-M7 re-expressed (round 3): the stop handlers end the tool WITHOUT stopping the gate tree. Observable
+    # only through a descendant that escapes the PDEATHSIG chain (keeper -> worker -> run -> gate), which
+    # kills a plain gate by itself: the ownsess row's setsid child (measured: the "never" row let it survive).
+    ("R6-M7", SUP, [("    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped", "    n = 0\n    if n:\n        say(\"supervisor (%s): stopped")],
+     T_R2, SM("TERM", "main", "ownsess"), "NOT ok [SM] TERM-main-ownsess"),
     # ---- fixer mutations ----
     ("R6-M8", BDQ, [("    if missing:", "    if False:")], T_BDQ, {}, "FAIL: golden-bad-fp-missing-both"),
     ("R6-M9", BDQ, [("    if not _present(target_serial):", "    if False:")], T_BDQ, {}, "FAIL: golden-bad-target-missing"),
@@ -80,8 +177,8 @@ MUTS = [
                      '    body.update(commit=sha, tree=tree, commit_author_date=adate,'
                      ' commit_subject=subject.encode().decode("unicode_escape"))')],
      T_R6, {"R6_ONLY": "F5"}, "NOT ok [R6-F5]"),
-    ("R6-M13", BR, [('run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")"',
-                     'run_log_dir="$worktree_root/replay-logs"')],
+    ("R6-M13", BR, [('run_log_dir="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root/replay-logs" "${commit:0:12}.")"',
+                     'run_log_dir="$worktree_root/replay-logs"')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_R6, {"R6_ONLY": "F6"}, "NOT ok [R6-F6]"),
     ("R6-M14", BR, [("det = not flaky and not differs", "det = not differs")],
      T_R6, {"R6_ONLY": "F7a"}, "NOT ok [R6-F7a]"),
@@ -96,10 +193,13 @@ MUTS = [
      T_R6, {"R6_ONLY": "F9"}, "NOT ok [R6-F9]"),
     ("R6-M19", BR, [("DEFAULT_MIN_FREE_KB=70254592", "DEFAULT_MIN_FREE_KB=10485760")],
      T_R6, {"R6_ONLY": "F10"}, "NOT ok [R6-F10]"),
-    ("R6-M20", BR, [('    local rr="$1" wp="$2"\n    _fc_kill_child\n', '    local rr="$1" wp="$2"\n')],
-     T_R6, {"R6_ONLY": "F11b"}, "NOT ok [R6-F11b]"),
-    ("R6-M21", BR, [('    kill -s TERM "$p" 2>/dev/null\n    wait "$p" 2>/dev/null\n', '    wait "$p" 2>/dev/null\n')],
-     T_R6, {"R6_ONLY": "F11a"}, "NOT ok [R6-F11a]"),
+    # R6-M20 re-expressed (round 3): the worktree is removed BEFORE the gate tree is stopped
+    ("R6-M20", SUP, [("    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n    process_ledger(tmpdir, reason, statedir)\n",
+                      "    process_ledger(tmpdir, reason, statedir)\n    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n")],
+     T_R2, SM("TERM", "main", "ignterm"), "NOT ok [SM] TERM-main-ignterm"),
+    # R6-M21 re-expressed (round 3): the main pid never forwards the stop to the supervisor
+    ("R6-M21", SUP, [("    if Stop.target_fd is not None:\n        # forward the signal M RECEIVED", "    if False:\n        # forward the signal M RECEIVED")],
+     T_R2, SM("TERM", "main", "never"), "NOT ok [SM] TERM-main-never"),
     ("R6-M22", BR, [("_FC_OUT_OVERRIDE=\"${FC_OUT:-}\"\nunset FC_OUT\n", "_FC_OUT_OVERRIDE=\"${FC_OUT:-}\"\n")],
      T_R6, {"R6_ONLY": "F12"}, "NOT ok [R6-F12]"),
     ("R6-M23", BR, [("      env -u GIT_ALLOW_PROTOCOL -u GIT_PROTOCOL_FROM_USER -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \\\n        git -c protocol.ext.allow=never -c protocol.file.allow=never \\\n        -C \"$tgt\" submodule update --init --quiet --reference",
@@ -129,49 +229,59 @@ MUTS = [
     # ---- round-2 reviewer mutations (verbatim) ----
     ("V4-N3", BR, [('run_log="$run_log_dir/${phase}_${run_idx}.log"', 'run_log="$run_log_dir/${phase}.log"')],
      T_R2, {"R2_ONLY": "V4-10"}, "NOT ok [V4-10]"),
-    ("V4-N4", BR, [('    kill -s TERM "$p" 2>/dev/null\n    wait "$p" 2>/dev/null\n', '    kill -s TERM "$p" 2>/dev/null\n')],
-     T_R2, {"R2_ONLY": "V4-12"}, "NOT ok [V4-12/N4]"),
+    # V4-N4 re-expressed (round 3): the main pid exits before the stop has finished
+    ("V4-N4", SUP, [("    while True:\n        reap()\n        if kpid in REAPED:\n            break\n", "    while True:\n        if Stop.sig:\n            os._exit(128 + Stop.sig)\n        reap()\n        if kpid in REAPED:\n            break\n")],
+     T_R2, SM("TERM", "main", "ignterm"), "NOT ok [SM] TERM-main-ignterm"),
     ("V4-N5", BR, [('if [ "$free_kb" -lt "$min_free_kb" ]; then', 'if false; then')],
      T_R2, {"R2_ONLY": "V4-5"}, "NOT ok [V4-5]"),
     ("V4-N6", BR, [('[ -z "$best_at" ] || [ "$at" -gt "$best_at" ]', '[ -z "$best_at" ] || [ "$at" -ge "$best_at" ]')],
      T_R2, {"R2_ONLY": "N6"}, "NOT ok [N6]"),
     ("V4-N10", BR, [("log --all -i -F --grep=", "log --all -i --grep=")],
      T_R2, {"R2_ONLY": "N10"}, "NOT ok [N10]"),
-    ("V4-N12", BR, [("printf -v _sig_cleanup_cmd \"trap '' HUP INT QUIT TERM; trap - EXIT; cleanup %q %q\"",
-                     "printf -v _sig_cleanup_cmd \"trap - EXIT; cleanup %q %q\"")],
-     T_R2, {"R2_ONLY": "N12"}, "NOT ok [V4-12/N12]"),
+    # V4-N12 re-expressed (round 3, survived round 3 under nohup): a SECOND signal cuts the stop short
+    ("V4-N12", SUP, [("    if Stop.sig:\n        return  # a second signal", "    if Stop.sig:\n        os._exit(128 + signum)  # a second signal")],
+     T_R2, SM("TERM", "main", "ignterm"), "NOT ok [SM] TERM-main-ignterm"),
     # ---- round-2 fixer mutations ----
     # V4-1: no session -> the gate's nested-timeout child survives
-    ("R2-M1", BR, [('FC_REPLAY_RUN_TOKEN="$_FC_CHILD_TOKEN" setsid -w timeout --kill-after=5 "${tmo}s"',
-                    'timeout --kill-after=5 "${tmo}s"')],
-     T_R2, {"R2_ONLY": "V4-1"}, "NOT ok [V4-1]"),
+    # R2-M1/M2 re-expressed (round 3): no child subreaper in the main pid and the keeper ->
+    # a gate child that calls setsid / double-forks escapes the tree
+    ("R2-M1", SUP, [("    _prctl(PR_SET_CHILD_SUBREAPER, 1)\n    _install_stop(entry_mask)\n    old = signal.pthread_sigmask", "    _install_stop(entry_mask)\n    old = signal.pthread_sigmask"),
+                    ("        _prctl(PR_SET_CHILD_SUBREAPER, 1)\n        _install_stop(entry_mask)\n        env = dict", "        _install_stop(entry_mask)\n        env = dict")],
+     T_R2, SM("TERM", "main", "ownsess"), "NOT ok [SM] TERM-main-ownsess"),
     # V4-1: no token match -> a child that called setsid itself survives
-    ("R2-M2", BR, [("    if not hit and want:", "    if False:")],
-     T_R2, {"R2_ONLY": "V4-1"}, "NOT ok [V4-1]"),
+    # R2-M2 re-expressed (round 3): the per-run sweep -- a process a gate run leaves behind survives into the next run
+    ("R2-M2", SUP, [("    n = stop_tree(a.grace, \"run\")\n    if n:", "    n = 0\n    if n:")],
+     T_R2, {"R2_ONLY": "PERRUN"}, "NOT ok [PERRUN]"),
     # V4-2: the round-1 rule (>= 129 = "terminated by signal") restored
     ("R2-M3", BR, [("  if [ \"$rc\" = 0 ]; then printf 'PASS|exit 0'; return 0; fi",
                     "  if [ \"$rc\" -ge 129 ]; then printf 'UNMEASURED|terminated by signal %s' \"$((rc - 128))\"; return 0; fi\n"
                     "  if [ \"$rc\" = 0 ]; then printf 'PASS|exit 0'; return 0; fi")],
      T_R2, {"R2_ONLY": "V4-2"}, "NOT ok [V4-2]"),
     # V4-4: no lock
-    ("R2-M4", BR, [("  flock -n 9 || blind", "  true || blind")], T_R2, {"R2_ONLY": "V4-4"}, "NOT ok [V4-4]"),
+    # R2-M4 re-expressed (round 3): no lock
+    ("R2-M4", SUP, [("        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n", "        pass\n")], T_R2, {"R2_ONLY": "V4-4"}, "NOT ok [V4-4]"),
     # V4-4: the object store's filesystem never checked
     ("R2-M5", BR, [('  if [ "$objects_free_kb" -lt "$min_free_kb_objects" ]; then', '  if false; then')],
      T_R2, {"R2_ONLY": "V4-5"}, "NOT ok [V4-4]"),
     # V4-8: a background watchdog sleep is back on the signal path
-    ("R2-M6", BR, [("  _FC_HARNESS_SIGNALLED=TERM\n", "  _FC_HARNESS_SIGNALLED=TERM\n  ( sleep 10 ) >/dev/null 2>&1 &\n")],
-     T_R2, {"R2_ONLY": "V4-12"}, "NOT ok [V4-12/N4]"),
+    # R2-M6 re-expressed (round 3): the run supervisor is not a subreaper -> a gate's double-forked
+    # daemon is re-parented past it and survives into the next run
+    ("R2-M6", SUP, [("    _prctl(PR_SET_CHILD_SUBREAPER, 1)\n    # the caller's ignored signals stay ignored here too", "    # the caller's ignored signals stay ignored here too")],
+     T_R2, {"R2_ONLY": "PERRUN"}, "NOT ok [PERRUN]"),
     # V4-9: the private temp directory is never removed
-    ("R2-M7", BR, [("trap _fc_rm_tmpdir EXIT\n", "\n")], T_R2, {"R2_ONLY": "V4-9"}, "NOT ok [V4-9]"),
+    # R2-M7 re-expressed (round 3): the private temp directory is never removed
+    ("R2-M7", SUP, [("    if os.path.basename(tmpdir).startswith(\"fc_baseline_replay.\"):\n        remove_tree(tmpdir)", "    if False:\n        pass")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_R2, SM("TERM", "worker", "never"), "NOT ok [SM] TERM-worker-never"),
     # V4-9: selfcheck without signal handlers
-    ("R2-M8", BR, [("  # one must stop it (the same main-shell handlers as replay).\n  _fc_install_main_traps\n",
-                    "  # one must stop it (the same main-shell handlers as replay).\n")],
-     T_R2, {"R2_ONLY": "V4-9"}, "NOT ok [V4-9]"),
+    # R2-M8 re-expressed (round 3): selfcheck runs unsupervised
+    ("R2-M8", BR, [('  # replay (T048 restart round 2 V4-9 / round 3).\n  _fc_supervise "" ""\n', '  # replay (T048 restart round 2 V4-9 / round 3).\n')],
+     T_R2, dict(SM("TERM", "worker", "never"), SM_SHAPES="", SM_EXTRA="selfcheck"), "NOT ok [SM] selfcheck-"),
     # V4-6 class in the freeze CLI: a whitespace-only id accepted
     ("R2-M9", BR, [('  case "$item" in *[[:space:]]*) die', '  case "$item" in "#never") die')],
      T_R2, {"R2_ONLY": "WS"}, "NOT ok [WS]"),
     # V4-6: blank values count as present again (the reviewer's V4-N7 shape, one level up)
-    ("R2-M10", BDQ, [('    return isinstance(value, str) and value.strip() != ""', '    return isinstance(value, str) and value != ""')],
+    # R2-M10 re-expressed (round 3): blank / invisible values count as present again
+    ("R2-M10", BDQ, [('    return isinstance(value, str) and any(unicodedata.category(c)[0] in "LNPS" for c in value)', '    return isinstance(value, str) and value != ""')],
      T_BDQ, {}, "FAIL: golden-bad-fp-whitespace-both"),
     # V4-6: the deploy time field ignored again
     ("R2-M11", BDQ, [("    if not _utc_instant_ok(deploy_time):", "    if False:")],
@@ -194,19 +304,1052 @@ MUTS = [
      T_CB, {"CB_ONLY": "C-V411"}, "NOT ok [C-V411]"),
     # V4-13: unsafe ids used as paths again
     ("R2-M18", CB, [("    if unsafe:\n", "    if False:\n")], T_CB, {"CB_ONLY": "C-V413"}, "NOT ok [C-V413]"),
+    # ---- round-3 reviewer mutations (docs/qa/t048_restart_round3_20261008/V4_baseline.md), re-expressed where
+    # the mechanism they mutated was replaced by the supervisor ----
+    # V4R3-N1 (session match dropped) is the "a descendant escapes the tree" class: R2-M1 above.
+    # V4R3-N2 / V4R3-3: no KILL escalation -- a TERM-ignoring child in its own session outlives the tool
+    ("V4R3-N2", SUP, [("                    signal.pidfd_send_signal(fd, signal.SIGKILL)\n", "                    pass\n")],
+     T_R2, SM("TERM", "main", "ownsess"), "NOT ok [SM] TERM-main-ownsess"),
+    # V4R3-N3 / V4R3-6: the lock on --git-dir instead of the COMMON git dir (linked worktrees)
+    ("V4R3-N3", BR, [('    common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"\n    { [ -n "$common" ]',
+                      '    common="$(git -C "$1" rev-parse --path-format=absolute --git-dir 2>/dev/null)"\n    { [ -n "$common" ]')],
+     T_R2, {"R2_ONLY": "V4-4"}, "NOT ok [V4-4]"),
+    # V4R3-N4 / V4R3-5: the lock fd is inherited by the worker (and so by every gate / hook)
+    ("V4R3-N4", SUP, [("        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n", "        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n        os.set_inheritable(fd, True)\n")],
+     T_R2, SM("TERM", "main", "daemon"), "NOT ok [SM] TERM-main-daemon"),
+    # V4R3-N5 / V4R3-4: the object-store floor measures the worktree root's filesystem
+    ("V4R3-N5", BR, [('  objects_free_kb="$(df -Pk "$objects_dir" 2>/dev/null', '  objects_free_kb="$(df -Pk "$worktree_root" 2>/dev/null')],
+     T_R2, {"R2_ONLY": "V4-5"}, "NOT ok [V4-4]"),
+    # V4R3-N6 / V4R3-7: values echoed without escaping
+    ("V4R3-N6", BDQ, [('    return json.dumps(value, ensure_ascii=True, separators=(",", ":")).replace(" ", "\\\\u0020").replace("/", "\\\\/")', "    return str(value)")],
+     T_BDQ, {}, "FAIL: golden-bad-buildid-newline"),
+    # V4R3-N7 / V4R3-8: the deploy time accepted with trailing garbage
+    ("V4R3-N7", BDQ, [("not _UTC_RE.fullmatch(value)", "not _UTC_RE.match(value)")], T_BDQ, {}, "FAIL: golden-bad-time-trailing-junk"),
+    # V4R3-N10 (zombies counted as live) is NOT in this table: against the supervisor it is an EQUIVALENT mutant.
+    # Every zombie in the tree is either a child of a supervisor role (reaped by reap() on every 50 ms iteration)
+    # or the child of a still-live tree member that is itself being stopped -- counting it changes nothing
+    # observable (measured 2026-10-08: the mutant passed the TERM-main-never row, stop well inside the bound).
+    # The reviewer's underlying gap -- "no test bounds stop latency" -- is closed: every stop-matrix row with a
+    # TERM-honouring gate must stop within 0.75 x the grace period.
+    # V4R3-N11: replay-sample refuses only a space, not other whitespace
+    ("V4R3-N11", BR, [('or "\\0" in iid or any(c.isspace() for c in iid):', 'or "\\0" in iid or " " in iid:')],
+     T_R2, {"R2_ONLY": "WS"}, "NOT ok [WS]"),
+    # V4R3-N12: collect_baseline's safe_item_id lets a bare '/' through
+    ("V4R3-N12", CB, [('if any(c in iid for c in ("/", "\\\\", "\\0"))', 'if any(c in iid for c in ("\\\\", "\\0"))')],
+     T_CB, {"CB_ONLY": "C-V413"}, "NOT ok [C-V413]"),
+    # ---- round-3 fixer mutations ----
+    # V4R3-1 core: the keeper ignores the death of the main pid (SIGKILL of main -> run loop goes on)
+    ("R3-M1", SUP, [("                if not data:\n                    reason, cause", "                if False:\n                    reason, cause")],
+     T_R2, SM("KILL", "main", "quick"), "NOT ok [SM] KILL-main-quick"),
+    # the worker's long-running child back in the FOREGROUND (round-4 B1 class): a stop signal to the
+    # worker is deferred until the gate ends by itself
+    ("R3-M2", BR, [('    --cwd "$cwd" --entry-sigign "$_FC_ENTRY_SIGIGN" -- "$@" >"$log" 2>&1 </dev/null &\n  wait "$!"\n',
+                    '    --cwd "$cwd" --entry-sigign "$_FC_ENTRY_SIGIGN" -- "$@" >"$log" 2>&1 </dev/null\n')],
+     T_R2, SM("TERM", "worker", "never"), "NOT ok [SM] TERM-worker-never"),
+    # the PDEATHSIG chain removed -> with both supervisor processes SIGKILLed the run loop goes on
+    ("R3-M3", SUP, [("            _prctl(PR_SET_PDEATHSIG, signal.SIGKILL)\n            if os.getppid() != parent:\n                os._exit(137)\n", "")],
+     T_R2, dict(SM("KILL", "main", "never"), SM_SHAPES="", SM_EXTRA="doublekill"), "NOT ok [SM] doublekill"),
+    # nohup not respected: a signal ignored by the caller is handled anyway
+    ("R3-M4", SUP, [("        if not ignored(entry_mask, s):\n            signal.signal(s, _on_stop)", "        if True:\n            signal.signal(s, _on_stop)")],
+     T_R2, dict(SM("HUP", "main", "never"), SM_SHAPES="", SM_EXTRA="nohup", SM_TARGETS="main"), "NOT ok [SM] HUP-main-never-nohup"),
+    # the caller's dispositions read from bash's OWN /proc entry (bash ignores QUIT internally) -> QUIT ignored in the
+    # worker. (On the MAIN target the unhandled QUIT just kills the main pid and the keeper cleans up asynchronously --
+    # a race for the "nothing left at exit" check; the worker's disposition check is deterministic.)
+    # (round 5: the instrument reads with sed -- gawk ignores SIGPIPE itself; the anchor follows the line, same defect)
+    # (round 7: the caller's process now TRAPS HUP/INT/QUIT/TERM in front of the exec (N6), which replaces bash's
+    # internal QUIT ignore -- measured: SigIgn of $$ 0x4 without the trap, 0x0 with it -- so the /proc/$$ read alone
+    # became an EQUIVALENT mutant (it survived the round-7 run). Re-expressed: the /proc/$$ read together with the
+    # QUIT trap removed, i.e. the round-3 situation the guard exists for.)
+    ("R3-M5", BR, [("  ign=\"$(sed -n 's/^SigIgn:[[:space:]]*//p' /proc/self/status 2>/dev/null)\"", "  ign=\"$(sed -n 's/^SigIgn:[[:space:]]*//p' \"/proc/$$/status\" 2>/dev/null)\""),
+                   ("\n      trap 'exit 131' QUIT\n", "\n")],     # ATM-1220 r4: "\n" + 6 spaces = the dispatch line only
+     T_R2, SM("QUIT", "worker", "never"), "NOT ok [SM] QUIT-worker-never"),
+    # V4R3-14: the INTERRUPTED marker of an interrupted run-log directory never written
+    ("R3-M6", SUP, [('        elif kind == "logs" and fields and fields[0]:', '        elif False:')],
+     T_R2, SM("TERM", "worker", "never"), "NOT ok [SM] TERM-worker-never"),
+    # V4R3-6: the per-filesystem lock dropped (only the per-repository lock left)
+    ("R3-M7", BR, [(' --lock-dir "$lockdir" --lock-fs "$2" --lock-fs "$common")', ")")],
+     T_R2, {"R2_ONLY": "V4-4"}, "NOT ok [V4-4]"),
+    # the worker re-enters the supervisor (the recursion found while writing round 3; the supervisor's
+    # nesting limit turns it into a BLIND refusal instead of a fork bomb -- never mutate that limit)
+    ("R3-M8", BR, [('  [ "$_FC_IS_WORKER" = 1 ] && return 0\n', '  false && return 0\n')],
+     T_R2, {"R2_ONLY": "V4-10"}, "NOT ok [V4-10]"),
+    # a gate's own 124 read as a timeout again (the run supervisor records every exit as timed_out)
+    ("R3-M9", SUP, [('    _mark(a.marker, "exited")\n', '    _mark(a.marker, "timed_out")\n')],
+     T_R6, {"R6_ONLY": "F8"}, "NOT ok [R6-F8]"),
+    # V4R3-7: a JSON-looking plain value ("5") echoed verbatim -- collides with the number 5
+    ("R3-M10", BDQ, [("_PLAIN_RE.fullmatch(value) and not _is_json(value):", "_PLAIN_RE.fullmatch(value):")],
+     T_BDQ, {}, "FAIL: golden-bad-verdict-json-string"),
+    # the cascade race found by the stop matrix (KILL-supervisor-nested, 1 of 193 rows, 2026-10-08): an empty
+    # walk that saw a zombie ends the stop although the zombie's children are still being reparented
+    ("R3-M11", SUP, [("        if not members and not zombies:\n            return len(seen)", "        if not members:\n            return len(seen)")],
+     T_SUP, {}, "NOT ok [Z1]"),
+    # ---- round-4 reviewer F5 (S1, S5 adopted verbatim) + the fixer's class siblings (S2, S3, S5b) ----
+    ("R4-S1", SUP, [("    ok = sf is not None and sf[1] == parent", "    ok = sf is not None")],
+     T_SUP, {}, "NOT ok [S1]"),
+    ("R4-S2", SUP, [("    if pid <= 1 or pid == os.getpid():", "    if pid == os.getpid():")],
+     T_SUP, {}, "NOT ok [S2]"),
+    ("R4-S3", SUP, [("    if pid <= 1 or pid == os.getpid():", "    if pid <= 1:")],
+     T_SUP, {}, "NOT ok [S3]"),
+    ("R4-S5", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):', "if os.path.isabs(wt):")],
+     T_SUP, {}, "NOT ok [S5]"),
+    ("R4-S5b", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):',
+                      'if os.path.basename(wt).startswith("replay."):')],
+     T_SUP, {}, "NOT ok [S5b]"),
+    # ---- round-4 V4 reviewer's own mutants (test-instrumentation findings F1/F2/F3), adopted as permanent rows ----
+    ("R4-RA1", SUP, [("    ok = sf is not None and sf[1] == parent", "    ok = sf is None or sf[1] == parent")],
+     T_SUP, {}, "NOT ok [S1b]"),
+    ("R4-RA3", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):', 'if os.path.isabs(wt) and os.path.basename(wt).startswith("replay"):')],
+     T_SUP, {}, "NOT ok [S5e]"),
+    ("R4-RA4", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):', 'if os.path.isabs(wt) and "replay." in wt:')],
+     T_SUP, {}, "NOT ok [S5d]"),
+    ("R4-RA6", SUP, [("            fd = open_verified(pid, parent)\n", "            fd = open_verified(pid, me)\n")],
+     T_SUP, {}, "NOT ok [G1]"),
+    ("R4-RA7", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):', 'if os.path.isabs(wt) and (wt.endswith("/") or os.path.basename(wt).startswith("replay.")):')],
+     T_SUP, {}, "NOT ok [S5f]"),
+    ("R4-RA7b", SUP, [('if os.path.isabs(wt) and os.path.basename(wt).startswith("replay."):', 'if os.path.isabs(wt) and os.path.basename(wt.rstrip("/")).startswith("replay."):')],
+     T_SUP, {}, "NOT ok [S5g]"),
+    # ---- T048 V4 round 5 (independent review of b61583e): reviewer mutants RM-A / RM-B adopted verbatim, plus
+    # the fixer's own R5-* rows, against tests/test_fc_supervisor_v4r5_findings.sh (T_V5), the r2 stop matrix's
+    # round-5 extra rows, and the collect_baseline / build_deploy_qa_events suites ----
+    ("RM-A", SUP, [("            signal.pidfd_send_signal(fd, 0)\n", "            pass\n")],
+     T_V5, {"V5_ONLY": "RMA"}, "NOT ok [RMA]"),
+    ("RM-B", SUP, [("stop_deadline = time.monotonic() + a.grace + KILL_WAIT_S + KEEPER_SLACK_S", 'stop_deadline = float("inf")')],
+     T_V5, {"V5_ONLY": "RMB"}, "NOT ok [RMB]"),
+    # F1: SIGCHLD no longer reset -> a SIGCHLD-ignoring caller's run loses every status
+    ("R5-F1a", SUP, [("    signal.signal(signal.SIGCHLD, signal.SIG_DFL)\n    signal.pthread_sigmask(signal.SIG_SETMASK, [])\n",
+                      "    signal.pthread_sigmask(signal.SIG_SETMASK, [])\n")],
+     T_V5, {"V5_ONLY": "F1RUN"}, "NOT ok [F1RUN]"),
+    # F1: the run role's lost-status branch removed -> it waits out the whole timeout on a readable pidfd
+    ("R5-F1b", SUP, [('            if reap_target(pid) == "lost":\n                lost = True\n                break\n',
+                      '            if False:\n                lost = True\n                break\n')],
+     T_V5, {"V5_ONLY": "F1LOST"}, "NOT ok [F1LOST]"),
+    # F1: the keeper's and main's lost-status branches removed -> 100% CPU spin, no exit
+    ("R5-F1c", SUP, [('            if wpid not in REAPED and wfd in ready and reap_target(wpid) == "lost":', '            if False:'),
+                     ('        if ready and reap_target(kpid) == "lost":', '        if False:')],
+     T_V5, {"V5_ONLY": "F1LOSTMAIN"}, "NOT ok [F1LOSTMAIN]"),
+    # F1 class: every caller-ignored disposition kept again (SIGPIPE leaks into the gate)
+    ("R5-F1d", SUP, [("signal.SIG_IGN if (s in KEEP_IGNORED and ignored(entry_mask, s))", "signal.SIG_IGN if (ignored(entry_mask, s))")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] SIGPIPE"),
+    # class: the inherited signal mask restored in main -> a caller-blocked TERM keeps the tool unstoppable by TERM
+    ("R5-F1e", SUP, [("    signal.signal(signal.SIGCHLD, signal.SIG_DFL)\n    signal.pthread_sigmask(signal.SIG_SETMASK, [])\n",
+                      "    signal.signal(signal.SIGCHLD, signal.SIG_DFL)\n"),
+                     ("    signal.pthread_sigmask(signal.SIG_SETMASK, [])   # never the inherited `old` mask",
+                      "    signal.pthread_sigmask(signal.SIG_SETMASK, old)   # never the inherited `old` mask")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] blocked TERM: the inherited mask kept TERM blocked"),
+    # class: the umask pre-flight removed
+    ("R5-F1f", SUP, [("    if um & 0o700:\n", "    if False:\n")], T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] umask"),
+    # census: the entry-mask instrument back on awk (gawk ignores SIGPIPE itself)
+    ("R5-F1g", BR, [("  ign=\"$(sed -n 's/^SigIgn:[[:space:]]*//p' /proc/self/status 2>/dev/null)\"",
+                     "  ign=\"$(awk '/^SigIgn:/{print $2; exit}' /proc/self/status 2>/dev/null)\"")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] entry-mask instrument"),
+    # F1 end to end: the SIGCHLD reset removed -> the stop matrix's sigchld row spins
+    ("R5-F1h", SUP, [("    signal.signal(signal.SIGCHLD, signal.SIG_DFL)\n    signal.pthread_sigmask(signal.SIG_SETMASK, [])\n",
+                      "    signal.pthread_sigmask(signal.SIG_SETMASK, [])\n"),
+                     ("signal.SIG_IGN if (s in KEEP_IGNORED and ignored(entry_mask, s))", "signal.SIG_IGN if (ignored(entry_mask, s))")],
+     T_R2, dict(SM("TERM", "main", "never"), SM_SHAPES="", SM_EXTRA="sigchld"), "NOT ok [SM] sigchld-caller-quick"),
+    # F2: the locked worktree removed the old way (remove --force refuses it, prune skips it)
+    ("R5-F2a", SUP, [('(["worktree", "unlock", wt], ["worktree", "remove", "-f", "-f", wt], ["worktree", "prune"])',
+                      '(["worktree", "remove", "--force", wt], ["worktree", "prune"])')],
+     T_V5, {"V5_ONLY": "F2LEDGER"}, "NOT ok [F2LEDGER]"),
+    # F2: "removed" claimed without the git worktree list verification
+    ("R5-F2b", SUP, [("    if not on_disk and listed is False:", "    if not on_disk:")],
+     T_V5, {"V5_ONLY": "F2HONEST"}, "NOT ok [F2HONEST]"),
+    # F2 in the worker: _fc_wt_cleanup back to remove --force (no unlock, no -f -f)
+    # anchor re-expressed (carry review round 1, F2): the code now guards the path with ${_FC_WT_PATH:?} -- same defect
+    ("R5-F2c", BR, [('    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null 2>&1\n',
+                     '    git -C "$_FC_WT_REPO" worktree remove --force "${_FC_WT_PATH:?}" >/dev/null 2>&1\n')],
+     T_V5, {"V5_ONLY": "F2WORKER"}, "NOT ok [F2WORKER]"),
+    # F2 end to end: the stop matrix's wtaddkill row against the old ledger removal
+    ("R5-F2d", SUP, [('(["worktree", "unlock", wt], ["worktree", "remove", "-f", "-f", wt], ["worktree", "prune"])',
+                      '(["worktree", "remove", "--force", wt], ["worktree", "prune"])')],
+     T_R2, dict(SM("KILL", "worker", "never"), SM_SHAPES="", SM_EXTRA="wtaddkill"), "NOT ok [SM] wtaddkill-worker-KILL"),
+    # F3: the start-up control needle removed (main / run)
+    ("R5-F3a", SUP, [("    if not children_probe():\n        say(BLIND_CHILDREN)\n        sys.exit(4)\n", "")],
+     T_V5, {"V5_ONLY": "F3"}, "NOT ok [F3]"),
+    ("R5-F3b", SUP, [('    if not children_probe():\n        say(BLIND_CHILDREN)\n        _mark(a.marker, "probe_failed")\n        os._exit(125)\n', "")],
+     T_V5, {"V5_ONLY": "F3"}, "NOT ok [F3]"),
+    ("R5-F3c", SUP, [("    if not children_probe():\n        say(BLIND_CHILDREN)\n        sys.exit(4)\n", "")],
+     T_R2, dict(SM("TERM", "main", "never"), SM_SHAPES="", SM_EXTRA="nochildren"), "NOT ok [SM] nochildren-blind"),
+    # F4: the `stopped` marker unknown to classify_run again
+    ("R5-F4", BR, [("    stopped) printf 'UNMEASURED|stopped: the run supervisor received a stop signal from outside this harness (exit %s) -- the gate did not finish; this harness sent it nothing' \"$rc\"; return 0 ;;\n", "")],
+     T_R2, dict(SM("TERM", "main", "never"), SM_SHAPES="", SM_EXTRA="runsig"), "NOT ok [SM] runsig-TERM-fcrun-never"),
+    # F5: the command's own exit instant ignored by the worker / measured after the leftover stop by the run supervisor
+    ("R5-F5a", BR, [('    [ -n "$_exit_ns" ] && [ "$_exit_ns" -ge "$RG_START_NS" ] && [ "$_exit_ns" -le "$RG_END_NS" ] && RG_END_NS="$_exit_ns"\n',
+                     "    :\n")],
+     T_V5, {"V5_ONLY": "F5"}, "NOT ok [F5]"),
+    ("R5-F5b", SUP, [("    _write_timing(a.timing, exit_ns, n,", "    _write_timing(a.timing, time.time_ns(), n,")],
+     T_V5, {"V5_ONLY": "F5"}, "NOT ok [F5]"),
+    # F9: pend entries ignored by the supervisor / never written by the worker / the snapshot ignored
+    ("R5-F9a", SUP, [('        elif kind == "pend":\n            process_pending(fields, reason)\n', '        elif kind == "pend":\n            pass\n')],
+     T_V5, {"V5_ONLY": "F9WT"}, "NOT ok [F9WT]"),
+    # round 6 (F3): re-expressed as a WELL-FORMED mutant. Deleting the line (round 5) left _FC_LEDGER_FILE unset, so the
+    # next line died with `unbound variable` -- a crash, not the defect. Now the pend entry is simply never written.
+    ("R5-F9b", BR, [('  _fc_ledger_pend "$worktree_root" "replay." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }\n', '  _FC_LEDGER_FILE=""\n')],
+     T_V5, {"V5_ONLY": "F9WT"}, "NOT ok [F9WT]"),
+    ("R5-F9c", BR, [('  _fc_ledger_pend "$worktree_root/replay-logs" "${commit:0:12}." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }\n', "")],
+     T_V5, {"V5_ONLY": "F9LOGS"}, "NOT ok [F9LOGS]"),
+    ("R5-F9d", SUP, [("        if not n.startswith(prefix) or n in before:", "        if not n.startswith(prefix):")],
+     T_V5, {"V5_ONLY": "F9LEDGER"}, "NOT ok [F9LEDGER]"),
+    # F10: the empty-array-safe expansion reverted (only observable on bash < 4.4: the static guard [F10])
+    ("R5-F10", BR, [('${args[@]+"${args[@]}"} -- "$BASH"', '"${args[@]}" -- "$BASH"')],
+     T_V5, {"V5_ONLY": "F10"}, "NOT ok [F10]"),
+    # F6: the narrowed except clause restored -> a 5000-digit integer / deep nesting / invalid UTF-8 escapes as a traceback
+    ("R5-F6", BDQ, [("    except (OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError, RecursionError) as exc:",
+                     "    except (OSError, json.JSONDecodeError) as exc:")],
+     T_BDQ, {}, "FAIL: malformed-hugeint"),
+    # F7: the start-up validation of --fresh-execution-json skipped
+    ("R5-F7", CB, [("        if ferr:\n", "        if False:\n")], T_CB, {"CB_ONLY": "C-FRESHJ"}, "NOT ok [C-FRESHJ]"),
+    # F8: the closures window back on the bare timestamp comparison
+    ("R5-F8", CB, [('        "AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",\n', '        "AND ih.on_date BETWEEN ? AND ?",\n')],
+     T_CB, {"CB_ONLY": "C-ONDATE"}, "NOT ok [C-ONDATE]"),
+    # CENSUS blocked-TERM case de-flaked 2026-10-09 (it now waits for main's SigCgt+SigBlk set-up state instead
+    # of matching its own launcher's argv): main no longer catches TERM -> the bounded SigCgt wait times out, the
+    # TERM kills main by its default action (rc -15, not the handled 143) and the case must still say so
+    ("R5-F1i", SUP, [("    _install_stop(entry_mask)\n    old = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGS)\n",
+                      "    old = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGS)\n")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] blocked TERM: no TERM handler"),
+    # ---- T048 V4 round 6 (independent review of the round-5 pack: NO-GO 1 IMPORTANT + 7 MINOR) ----
+    # F1 (IMPORTANT): main forwards a fixed SIGTERM again -- dropped by a keeper that keeps an entry-ignored TERM
+    ("V4R6-F1a", SUP, [("            signal.pidfd_send_signal(Stop.target_fd, signum)", "            signal.pidfd_send_signal(Stop.target_fd, signal.SIGTERM)")],
+     T_V5, {"V5_ONLY": "F1TERMIGN"}, "NOT ok [F1TERMIGN]"),
+    ("V4R6-F1b", SUP, [("        signal.pidfd_send_signal(kfd, Stop.sig)", "        signal.pidfd_send_signal(kfd, signal.SIGTERM)")],
+     T_V5, {"V5_ONLY": "F1LATE"}, "NOT ok [F1LATE]"),
+    ("V4R6-F1c", SUP, [("            signal.pidfd_send_signal(Stop.target_fd, signum)", "            signal.pidfd_send_signal(Stop.target_fd, signal.SIGTERM)")],
+     T_R2, dict(SM("INT", "main", "never"), SM_SHAPES="", SM_EXTRA="termign"), "NOT ok [SM] INT-main-never-termign"),
+    # F2 (injection I3): an empty outcome marker is classified and the replay goes on -- the run's orphaned daemon
+    # outlives its run (the worktree is removed under it, a report is written)
+    ("V4R6-F2", BR, [('  [ -s "$mk" ] && return "$rc"\n', '  return "$rc"\n')],
+     T_R2, dict(SM("KILL", "main", "never"), SM_SHAPES="", SM_EXTRA="runkill"), "NOT ok [SM] runkill-KILL-fcrun-daemon"),
+    # F8: a stop that reached main after the work finished overrides the keeper's 0 with 128+N again
+    ("V4R6-F8", SUP, [("    if kst is not None and os.WIFEXITED(kst):\n        return (\"code\", os.WEXITSTATUS(kst))\n",
+                       "    if kst is not None and os.WIFEXITED(kst) and not sig:\n        return (\"code\", os.WEXITSTATUS(kst))\n")],
+     T_V5, {"V5_ONLY": "F8LATE"}, "NOT ok [F8LATE]"),
+    # F4: reviewer mutant X5 adopted -- an unreadable `git worktree list` treated as "not listed" (removal verified)
+    ("V4R6-X5", BR, [('[ "$listed" != 1 ]; then', '[ "$listed" = 0 ]; then')],
+     T_V5, {"V5_ONLY": "F2WORKER"}, "NOT ok [F2WORKER] unverifiable removal"),
+    # F5: reviewer mutants X2 / X3 / X8 adopted
+    ("V4R6-X2", SUP, [("    if um & 0o700:\n", "    if um & 0o200:\n")],
+     T_V5, {"V5_ONLY": "UMASKS"}, "NOT ok [UMASKS] umask 0100"),
+    ("V4R6-X3", SUP, [("                        signal.pidfd_send_signal(fd, signal.SIGCONT)\n", "")],
+     T_V5, {"V5_ONLY": "STOPCONT"}, "NOT ok [STOPCONT]"),
+    ("V4R6-X8", SUP, [("    os._exit(137 if st is not None and os.WIFSIGNALED(st) and os.WTERMSIG(st) == signal.SIGKILL else 124)",
+                       "    os._exit(124)")],
+     T_V5, {"V5_ONLY": "TMO137"}, "NOT ok [TMO137]"),
+    # ---- T048 V4 round 7 (independent review of the round-6 pack: NO-GO 1 IMPORTANT + 6 MINOR; STRUCTURAL) ----
+    # T1: reviewer mutant RVM-04 adopted VERBATIM -- the F2 guard accepts a marker that exists but is EMPTY
+    ("V4R7-RVM04", BR, [('  [ -s "$mk" ] && return "$rc"\n', '  [ -e "$mk" ] && return "$rc"\n')],
+     T_V5, {"V5_ONLY": "R7EMPTYMK"}, "NOT ok [R7EMPTYMK]"),
+    # N1 (CLASS 1): main stops every descendant again (no ownership) / its teardown ignores the ownership predicate
+    ("V4R7-N1a", SUP, [("    return owner\n", "    return lambda pid: True\n")],
+     T_V5, {"V5_ONLY": "R7N1F"}, "NOT ok [R7N1F]"),
+    ("V4R7-N1b", SUP, [("    OWNER = _main_owner(kpid, kstart, pre)\n", "    OWNER = None\n")],
+     T_V5, {"V5_ONLY": "R7N1L"}, "NOT ok [R7N1L]"),
+    # N1: the keeper's SESSION no longer proves ownership -- a worker's background child orphaned to main is left
+    ("V4R7-N1c", SUP, [("        return (pid == kpid and start == kstart) or sid == kpid\n",
+                        "        return pid == kpid and start == kstart\n")],
+     T_V5, {"V5_ONLY": "R7N2"}, "NOT ok [R7N2]"),
+    # N1: the run supervisor's parent-death signal back to SIGKILL -- a gate's setsid daemon is orphaned past it when
+    # its worker dies (first draft of this row ran the stop-matrix row KILL-supervisor-daemon and SURVIVED: main's
+    # teardown usually still finds the dying run supervisor in the keeper's session and stops the daemon below it --
+    # a race in the mutant's favour; [R7RUNPD] observes the run supervisor alone, deterministically)
+    ("V4R7-N1d", SUP, [("    _prctl(PR_SET_PDEATHSIG, signal.SIGUSR2)\n", "    _prctl(PR_SET_PDEATHSIG, signal.SIGKILL)\n")],
+     T_V5, {"V5_ONLY": "R7RUNPD"}, "NOT ok [R7RUNPD]"),
+    # N1: the keeper's worker back in the keeper's process group -- a SIGKILL to the worker's group then kills keeper,
+    # worker and run supervisor at once, and a gate's setsid daemon is orphaned to main, which cannot attribute it
+    # (found by this round's own r2 run: KILL-worker-group-ownsess / -daemon left the daemon running; the SM row is a
+    # race in the mutant's favour, so the deterministic oracle is [R7WGRP], the group structure + a group TERM)
+    ("V4R7-N1f", SUP, [("        wpid = spawn(a.cmd, env, entry_mask, own_group=True)\n", "        wpid = spawn(a.cmd, env, entry_mask)\n")],
+     T_V5, {"V5_ONLY": "R7WGRP"}, "NOT ok [R7WGRP]"),
+    # N2: the final flush unguarded again. Round 9 RETIRED this row as "equivalent by construction" -- WRONG (round-3
+    # review V4R10-2, a §11.4.6 overclaim): the argument "the buffers are always empty, the flush cannot raise" ignored
+    # the case _flush's own docstring names -- a stream CLOSED when the interpreter started is None, and None.flush()
+    # raises AttributeError (rc 1 + a traceback from _exit_main). It only "survived" because its oracle was [R7N2]
+    # (stderr a broken pipe), which cannot observe it. RE-INSTATED (round 10), the same edit, routed to the oracle that
+    # sees it: [R8MATRIX] ok x closed-out / closed-err / closed-both. The production code needs no change: _flush skips
+    # a None stream and catches every exception class; the defect exists only in the mutant.
+    ("V4R7-N2", SUP, [("    _flush()\n    os._exit(code)\n", "    sys.stdout.flush()\n    sys.stderr.flush()\n    os._exit(code)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out closed-err closed-both", "R8_SCENARIOS": "ok"},
+     "NOT ok [R8MATRIX] ok x closed-"),
+    # N5 (CLASS 2): the documented-code funnel removed (BOTH layers -- main_exit_code and _exit_main each clamp; one
+    # alone is a deliberate second layer, so a single-layer mutant is equivalent by design)
+    ("V4R7-N5", SUP, [("    if code not in DOCUMENTED:\n", "    if False:\n"),
+                      ("    if not isinstance(code, int) or code not in DOCUMENTED:\n", "    if not isinstance(code, int):\n")],
+     T_V5, {"V5_ONLY": "R7TABLE"}, "NOT ok [R7TABLE] exited-undocumented-70"),
+    # N3: the run-log ledger entry dropped before the report again / the keeper ignores the report state / the report
+    # state is never read. Round 8 (V4R8-2) RE-EXPRESSED N3a/N3b/N3c against the durable report state (the `done`
+    # marker and the worker's stop deferral are gone; same defect classes, same ids). V4R7-N3d (no deferral in the
+    # worker) is RETIRED: the deferral was removed -- the keeper and main decide "report written" from the disk, so
+    # the worker's own exit after a stop no longer decides anything (V4R8-2 rows R8N3TERMGRP/KILLW/KILLK guard it).
+    ("V4R7-N3a", BR, [('  # rc 0: the run-log ledger entry is KEPT', '  rm -f "$_FC_LOG_LEDGER"\n  # rc 0: the run-log ledger entry is KEPT')],
+     T_V5, {"V5_ONLY": "R7N3"}, "NOT ok [R7N3]"),
+    # round 9 (V4R9-1): RE-EXPRESSED against the ONE derivation -- BOTH layers (keeper and main) ignore the report state
+    # (a single layer is compensated by the other by design; the keeper-only layer is RVM-C below, observed by [R9SAME])
+    ("V4R7-N3b", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n"),
+                       ("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, None)\n")],
+     T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
+    ("V4R7-N3c", SUP, [("    read_report(statedir)\n", "    pass\n")],
+     T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
+    ("V4R7-N3e", SUP, [('            if DONE.get("code") is None:\n                try:\n                    # never through', '            if True:\n                try:\n                    # never through')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
+    # N4: progress beats ignored by main / no beat while a bounded git call runs / the overall cap removed
+    ("V4R7-N4a", SUP, [("                last_beat = time.monotonic()\n", "                pass\n")],
+     T_V5, {"V5_ONLY": "R7N4"}, "NOT ok [R7N4]"),
+    ("V4R7-N4b", SUP, [("                _beat()\n    except (OSError, subprocess.SubprocessError):\n", "                pass\n    except (OSError, subprocess.SubprocessError):\n")],
+     T_V5, {"V5_ONLY": "R7N4"}, "NOT ok [R7N4]"),
+    ("V4R7-N4c", SUP, [("            if time.monotonic() > min(due, hard_cap):\n", "            if time.monotonic() > due:\n")],
+     T_V5, {"V5_ONLY": "R7N4CAP"}, "NOT ok [R7N4CAP]"),
+    # N6: the early SIGINT handler removed / -S dropped from the main exec
+    ("V4R7-N6a", SUP, [('if __name__ == "__main__" and signal.getsignal(signal.SIGINT) is not signal.SIG_IGN:\n    signal.signal(signal.SIGINT, _early_stop)\n', "")],
+     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (a)"),
+    ("V4R7-N6c", BR, [('  exec ${blk[@]+"${blk[@]}"} python3 -I -S "$_FC_SUPERVISOR" main', '  exec ${blk[@]+"${blk[@]}"} python3 -I "$_FC_SUPERVISOR" main')],
+     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (c)"),
+    # N6: no INT trap in front of the exec -- bash's wait-and-cooperative-exit drops an INT during a foreground child
+    # (ATM-1220 r4: with a healthy env the four-signal block makes this trap unobservable -- the row is the DEGRADED
+    # variant (e-deg); anchor "\n" + 6 spaces = the dispatch line only, never the 10-space probe traps)
+    ("V4R7-N6e", BR, [("\n      trap 'exit 130' INT\n", "\n")],
+     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (e-deg)"),
+    # N6: INT no longer blocked across the exec into the supervisor -- a start-up INT reaches the interpreter itself
+    ("V4R7-N6d", BR, [('  env --block-signal=INT true >/dev/null 2>&1 && blk=(env --block-signal=INT)\n', '')],
+     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (d)"),
+    # ---- T048 V4 round 8 (independent review of the round-7 pack: NO-GO 4 IMPORTANT + 2 MINOR + 1 NIT) ----
+    # V4R8-1 (CLASS 2, caller streams): _flush / say no longer survive a CLOSED stream (None) -- round 7's catch;
+    # main no longer repairs closed fds 0/1/2; the script no longer ignores SIGPIPE
+    ("V4R8-1a", SUP, [("        if stream is None:\n            continue\n        try:\n            stream.flush()\n        except Exception:  # noqa: BLE001\n            pass\n",
+                       "        try:\n            stream.flush()\n        except (OSError, ValueError):\n            pass\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out", "R8_SCENARIOS": "ok"}, "NOT ok [R8MATRIX] ok x closed-out"),
+    # round 9: RE-EXPRESSED (say no longer goes through the stream object -- V4R9-1 (b)): say writes through
+    # sys.stderr again, so a dead stream RAISES out of say (round 7's class) -- the run role's code becomes 125
+    ("V4R8-1b", SUP, [("    _write_bounded(2, data)\n", "    sys.stderr.write(data.decode())\n    sys.stderr.flush()\n")],
+     T_V8, {"R8_ONLY": "R8RUN"}, "NOT ok [R8RUN] exit3-leftover x dead-both"),
+    # re-expressed (carry review round 1, F1): the call moved to module level, before `import ctypes`
+    ("V4R8-1c", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n', "")],
+     T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+    # a standard fd open in the WRONG direction (bash leaves its script on fd 2 when the caller closed stderr) no
+    # longer counts as closed -- found by the round-8 matrix's own control needle
+    # anchor re-expressed (carry review F1: the FD_CLOEXEC clause joined the condition), same defect
+    ("V4R8-1e", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n                continue\n",
+                       "            continue\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-err", "R8_SCENARIOS": "stop-INT-main"},
+     "NOT ok [R8MATRIX] stop-INT-main x closed-err"),
+    ("V4R8-1d", BR, [("trap '' PIPE\n", "")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "usage"}, "NOT ok [R8MATRIX] usage x dead-err"),
+    # V4R8-2 (report written = durable state): the identity half (a stale identical report read as written) / the
+    # body_hash half (any new file read as the report)
+    ("V4R8-2a", SUP, [("    if now is None or now == pre:\n", "    if now is None:\n")],
+     T_SUP, {}, "NOT ok [R1b]"),
+    ("V4R8-2b", SUP, [('    if not isinstance(doc, dict) or doc.get("body_hash") != want:\n', "    if not isinstance(doc, dict):\n")],
+     T_SUP, {}, "NOT ok [R1d]"),
+    ("V4R8-2c", SUP, [("    if now is None or now == pre:\n", "    if now is None:\n")],
+     T_V5, {"V5_ONLY": "R8N3STALE"}, "NOT ok [R8N3STALE]"),
+    # V4R8-5: the reviewer's surviving mutants adopted VERBATIM
+    ("V4R8-RVM02", SUP, [("    if Stop.sig:\n        return  # a second signal never shortens a stop already in progress (V4-N12 class)\n", "")],
+     T_V5, {"V5_ONLY": "R8RVM02"}, "NOT ok [R8RVM02]"),
+    ("V4R8-DOC128", SUP, [("DOCUMENTED = frozenset(range(0, 5)) | frozenset(range(129, 129 + 64))",
+                           "DOCUMENTED = frozenset(range(0, 5)) | frozenset(range(128, 129 + 64))")],
+     T_V5, {"V5_ONLY": "R7TABLE"}, "NOT ok [R7TABLE] exited-undocumented-128"),
+    ("V4R8-USR2ANY", SUP, [("    if os.getppid() != Stop.run_parent:\n        Stop.parent_gone = True\n", "    Stop.parent_gone = True\n")],
+     T_V5, {"V5_ONLY": "R8USR2"}, "NOT ok [R8USR2]"),
+    # V4R8-6: the caller's pre-existing subtrees no longer pruned from main's ownership walk
+    ("V4R8-6a", SUP, [("            if mine is None:\n                continue          # the caller's own pre-existing subtree: pruned (V4R8-6)\n", "")],
+     T_SUP, {}, "NOT ok [P1]"),
+    ("V4R8-6b", SUP, [("            return None          # the caller's own child: never owned, and its subtree is pruned (V4R8-6)\n",
+                       "            return False\n")],
+     T_SUP, {}, "NOT ok [P1]"),
+    # ---- T048 V4 round 9 (round-2 review of the round-8 pack: NO-GO 1 IMPORTANT V4R9-1 + 5 MINOR + 1 NIT) ----
+    # The round-2 reviewer's 14 mutants (v4_round2_review_20261012.md section 2), adopted: VERBATIM where their anchor
+    # still exists (A B E F G I J K L M N), RE-EXPRESSED with the same defect class where round 9 replaced the code
+    # they named (C D: the one derivation decide_code; H: the 5-field identity). Each must now DIE.
+    ("V4R9-RVM-A", SUP, [("    now = _identity(out)\n", "    return code\n    now = _identity(out)\n")],
+     T_SUP, {}, "NOT ok [R1]"),
+    ("V4R9-RVM-B", SUP, [('doc.get("body_hash") != want', 'doc.get("body_hash", want) != want')],
+     T_SUP, {}, "NOT ok [R9B]"),
+    ("V4R9-RVM-C", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "worker", "R9_TAGS": "W2-after-writer", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] worker W2-after-writer x kill-self"),
+    ("V4R9-RVM-D", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, None)\n")],
+     T_V5, {"V5_ONLY": "R8N3KILLK"}, "NOT ok [R8N3KILLK]"),
+    ("V4R9-RVM-E", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):", "            if not cloexec and (fd != 2 or mode != os.O_RDONLY):")],  # anchor re-expressed (carry F1)
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "wrongdir-in wrongdir-out", "R8_SCENARIOS": "stop-TERM-main"},
+     "NOT ok [R8MATRIX] stop-TERM-main x wrongdir-"),
+    ("V4R9-RVM-F", SUP, [("        _install_stop(entry_mask)\n        env = dict(os.environ)\n", "        _install_stop(entry_mask)\n        signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n        env = dict(os.environ)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err dead-both-ign", "R8_SCENARIOS": "kill-worker term-worker stop-TERM-main"},
+     "NOT ok [R8MATRIX]"),
+    ("V4R9-RVM-G", BR, [('  if [ "$_FC_IS_WORKER" = 1 ]; then\n    python3 -I -S "$_FC_SUPERVISOR" report-prepare', '  python3 "$FC/lib/fc_common.py" emit --schema "$schema" --body-json "$body_json" --run-meta-json "$run_meta" --out "$out_path"\n  if [ "$_FC_IS_WORKER" = 1 ]; then\n    python3 -I -S "$_FC_SUPERVISOR" report-prepare')],
+     T_V5, {"V5_ONLY": "R8N3TERMGRP R8N3KILLW R8N3KILLK"}, "NOT ok [R8N3"),
+    ("V4R9-RVM-H", SUP, [("    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]", "    return [s.st_dev, s.st_ino]")],
+     T_SUP, {}, "NOT ok [R9ID-ctime]"),
+    ("V4R9-RVM-I", SUP, [("        if (pid, start) in pre:", "        if any(p == pid for p, _ in pre):")],
+     T_SUP, {}, "NOT ok [R9OWN-I]"),
+    ("V4R9-RVM-J", SUP, [("        return (pid == kpid and start == kstart) or sid == kpid", "        return pid == kpid or sid == kpid")],
+     T_SUP, {}, "NOT ok [R9OWN-J]"),
+    ("V4R9-RVM-K", SUP, [("    ok = sf is not None and sf[1] == parent", "    ok = sf is not None")],
+     T_SUP, {}, "NOT ok [S1]"),
+    ("V4R9-RVM-L", SUP, [('            if DONE.get("code") is None:\n                try:\n                    # never through', '            if os.path.lexists(d):\n                try:\n                    # never through')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
+    ("V4R9-RVM-M", SUP, [("    except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome", "    except ValueError:")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-worker term-worker stop-TERM-main"},
+     "NOT ok [R8MATRIX]"),
+    ("V4R9-RVM-N", BR, [("trap '' PIPE\n", "[ \"${FC_BR_SUPERVISED:-}\" = 1 ] || trap '' PIPE\n")],
+     T_V8, {"R8_ONLY": "R8SIGPIPE"}, "NOT ok [R8SIGPIPE]"),
+    # round-9 fixer's own mutants (V4R9-M*): the state directory's lifetime, the one derivation, the bounded say, gc
+    ("V4R9-M1", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, report_verified(tmpdir))\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M2", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n    remove_statedir(statedir)\n",
+                       "    remove_statedir(statedir)\n    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M3", SUP, [('        if cause[0] == "main_gone":\n            remove_statedir(statedir)\n', "        remove_statedir(statedir)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M4", SUP, [("    if verified is not None:\n        return verified\n    kind, n = cause\n",
+                       "    kind, n = cause\n    if verified is not None and kind != \"killed\":\n        return verified\n")],
+     T_SUP, {}, "NOT ok [R9DEC] decide_code(0, ('killed'"),
+    ("V4R9-M5", SUP, [("    _write_bounded(2, data)\n", "    try:\n        os.write(2, data)\n    except OSError:\n        pass\n")],
+     T_V9, {"R9_ONLY": "R9STALL"}, "NOT ok [R9STALL]"),
+    ("V4R9-M6", SUP, [("    gc_statedirs(a.tmp_parent)   # state directories of DEAD mains", "    pass   # state directories of DEAD mains")],
+     T_V9, {"R9_ONLY": "R9GC2"}, "NOT ok [R9GC2]"),
+    ("V4R9-M7", SUP, [("                continue                       # its owner is alive: not ours to remove\n", "                pass\n")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R9-M8", SUP, [("    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]", "    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_size]")],
+     T_SUP, {}, "NOT ok [R9ID-mtime]"),
+    ("V4R9-M9", SUP, [("    if sig:\n        return (\"stopped\", sig)\n    if kst is None:\n", "    if kst is None and sig:\n        return (\"stopped\", sig)\n    if kst is None:\n")],
+     T_SUP, {}, "NOT ok [R9DEC] main_cause(9, 15)"),
+    ("V4R9-M10", SUP, [("        if b == boot and pid > 1:\n", "        if pid > 1:\n")],
+     T_SUP, {}, "NOT ok [R9GC] other boot removed"),
+    ("V4R9-M11", SUP, [("            if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(\".report.\"):\n                try:\n                    os.unlink(n, dir_fd=dfd)",
+                        "            if True:\n                try:\n                    os.unlink(n, dir_fd=dfd)")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_SUP, {}, "NOT ok [R9GC] unknown file kept"),
+    # ---- T048 V4 round 10 (round-3 review of the round-9 pack: NO-GO V4R10-1 + V4R10-2 IMPORTANT, 5 MINOR, 1 NIT) ----
+    # The round-3 reviewer's 14 mutants RV3-01..RV3-14 (v4_round3_review_20261012.md section 2.2), adopted VERBATIM
+    # (the reviewer's own anchors and replacements, each matched exactly once against this round's code). The 6 that
+    # SURVIVED round 9 (RV3-02 03 09 10 11 13) are routed to the round-10 rows written for them; the 8 the reviewer saw
+    # caught keep the oracle the reviewer used, narrowed to one row (the runner's 600 s bound). RV3-13b is the SAME edit
+    # as RV3-13 (re-run by the reviewer against the full v4r5 file, where it also survived): one row covers both.
+    ("V4R10-RV3-01", SUP, [("statedir = make_statedir(a.tmp_parent)", "statedir = make_statedir(tmpdir)")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R10-RV3-02", SUP, [("            if ident is not None and ident[1] == start:\n", "            if ident is not None:\n")],
+     T_SUP, {}, "NOT ok [R10GC-start]"),
+    ("V4R10-RV3-03", SUP, [('return fh.read().strip().replace("-", "")[:12] or "noboot"', 'return "noboot"')],
+     T_SUP, {}, "NOT ok [R10GC-boot]"),
+    ("V4R10-RV3-04", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "worker", "R9_TAGS": "W2-after-writer", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] worker W2-after-writer x kill-self"),
+    ("V4R10-RV3-05", SUP, [('    teardown(tmpdir, a.grace, reason, "main", statedir)\n', '    remove_statedir(statedir)\n    teardown(tmpdir, a.grace, reason, "main", statedir)\n')],
+     T_V5, {"V5_ONLY": "R8N3KILLK"}, "NOT ok [R8N3KILLK]"),
+    ("V4R10-RV3-06", SUP, [("    if now is None or now == pre:\n", "    if now is None:\n")],
+     T_SUP, {}, "NOT ok [R1b]"),
+    ("V4R10-RV3-07", SUP, [("SAY_BUDGET_S = 2.0 ", "SAY_BUDGET_S = 1e9 ")],
+     T_V9, {"R9_ONLY": "R9STALL"}, "NOT ok [R9STALL]"),
+    ("V4R10-RV3-08", SUP, [("    os.close(r)\n    os.close(hb_w)\n", "    os.close(r)\n    os.close(hb_w)\n    signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-keeper"},
+     "NOT ok [R8MATRIX] kill-keeper x dead-err"),
+    # RV3-09 survived round 9 (V4R10-6): the fd-direction needle is now taken in EVERY role of EVERY supervised cell
+    # re-expressed (carry review F1: the repair runs at module level, before `import sys`), same defect
+    ("V4R10-RV3-09", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n',
+                            'if __name__ == "__main__":\n    import sys as _s\n    if "replay-sample" not in " ".join(_s.argv): _repair_std_fds()\n')],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_SCENARIOS": "replay-sample", "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out wrongdir-err"},
+     "NOT ok [R8MATRIX] replay-sample x"),
+    # RV3-10 survived round 9 (V4R10-5): [R10ATOMIC] -- the marker must be the very inode written under its temp name
+    ("V4R10-RV3-10", SUP, [("        os.replace(tmp, REPORT_MARKER, src_dir_fd=dfd, dst_dir_fd=dfd)\n",
+                            "        _c = os.open(REPORT_MARKER, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600, dir_fd=dfd); "
+                            "os.write(_c, json.dumps(rec, sort_keys=True).encode()); os.close(_c); os.unlink(tmp, dir_fd=dfd)\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_SUP, {}, "NOT ok [R10ATOMIC]"),
+    ("V4R10-RV3-11", SUP, [('    if not isinstance(doc, dict) or doc.get("body_hash") != want:\n', '    if not isinstance(doc, dict) or doc.get("body_hash") not in (want, ""):\n')],
+     T_SUP, {}, "NOT ok [R10HASH]"),
+    ("V4R10-RV3-12", SUP, [("    _flush()\n    os._exit(code)\n", "    sys.stdout.flush()\n    sys.stderr.flush()\n    os._exit(code)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out closed-err closed-both dead-out-closed-err", "R8_SCENARIOS": "ok"},
+     "NOT ok [R8MATRIX] ok x closed-"),
+    # RV3-13 (= RV3-13b) survived round 9 (V4R10-4): [R10DROP] -- main raises after reaping its keeper
+    ("V4R10-RV3-13", SUP, [('    STATE["main_owns"] = True    # the keeper is gone', '    STATE["main_owns"] = False    # the keeper is gone')],
+     T_V9, {"R9_ONLY": "R10DROP"}, "NOT ok [R10DROP]"),
+    ("V4R10-RV3-14", SUP, [('        if cause[0] == "main_gone":\n            remove_statedir(statedir)\n', "        if False:\n            remove_statedir(statedir)\n")],
+     T_R2, SM("KILL", "main", "quick"), "NOT ok [SM] KILL-main-quick"),
+    # round-10 fixer's own mutants (V4R10-M*): the LEASE (V4R10-1), the keeper's late main-gone removal, the exit funnel
+    ("V4R10-M1", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n",
+                        "        pass\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M2", SUP, [("        free, lfd = _lease_free(name, pfd, held)\n", "        free, lfd = True, None; held.append(open_owned_dir(name, pfd))\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M3", SUP, [("        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return False, None\n",
+                        "        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-odd]"),
+    ("V4R10-M4", SUP, [("        except FileNotFoundError:\n            return True, None\n", "        except FileNotFoundError:\n            return False, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-none]"),
+    ("V4R10-M5", SUP, [('        if cause[0] != "main_gone" and _main_gone_now(r):\n', "        if False:\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M6", SUP, [('        return bool(ready) and os.read(r, 1) == b""\n', "        return not ready\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R10-M7", SUP, [('        if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(".report."):', '        if n == REPORT_MARKER or n.startswith(".report."):')],
+     T_SUP, {}, "NOT ok [R10LEASE-free]"),
+    ("V4R10-M8", SUP, [("        if b == boot and pid > 1:\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R10-M9", SUP, [("    for fd in (0, 1, 2):\n        try:\n            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE\n",
+                        "    for fd in (1, 2):\n        try:\n            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-in", "R8_SCENARIOS": "selfcheck"},
+     "NOT ok [R8MATRIX] selfcheck x closed-in"),
+    ("V4R10-M10", SUP, [('    if STATE["main_owns"]:\n        remove_statedir(STATE["dir"])\n', '    if False:\n        remove_statedir(STATE["dir"])\n')],
+     T_V9, {"R9_ONLY": "R10DROP"}, "NOT ok [R10DROP]"),
+    ("V4R10-M11", SUP, [("        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return False, None\n",
+                         "        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    # ---- T048 V4 round 11 (round-4 review of the round-10 pack: NO-GO V4R11-1 IMPORTANT, V4R11-2/3 MINOR, V4R11-4 NIT) ----
+    # The round-4 reviewer's 16 mutants RV4-01..RV4-16 (v4_round4_review_20261012.md section 4), adopted VERBATIM (the
+    # reviewer's own anchors and replacements from its runner, each matched exactly once against this round's code). The
+    # 3 survivors (RV4-08b, RV4-09, RV4-15) are routed to the round-11 rows written for them; RV4-12 and RV4-13 (judged
+    # equivalent / near-equivalent in round 4) are now CAUGHT by rows that test the property the code claims
+    # ([R11GC-held]: the lease is held THROUGH the removal; [R11GC-nofdleak]: gc closes every lease it acquired); RV4-10
+    # stays EQUIVALENT (EQUIVS below, its proof re-run as a row: PEP 446 makes os.open non-inheritable with or without
+    # O_CLOEXEC). RV4-04 used to hang the whole unit file; the gc call is now bounded (in_child) so it fails as a row.
+    ("V4R11-RV4-01", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n",
+                            "        pass\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n"),
+                           ("    _MAIN_TMP[0] = None     # from here",
+                            "    STATE['lease2'] = os.open(os.path.join(statedir, LEASE_NAME), os.O_RDWR | os.O_CLOEXEC); __import__('fcntl').flock(STATE['lease2'], 2 | 4)\n    _MAIN_TMP[0] = None     # from here")],
+     T_SUP, {}, "NOT ok [R10LEASE-made]"),
+    ("V4R11-RV4-02", SUP, [("        os.close(w)\n        os.close(hb_r)\n", "        os.close(w)\n        os.close(hb_r)\n        os.close(STATE['lease'])\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R11-RV4-03", SUP, [("        if not free:\n            continue ", "        if False:\n            continue ")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    ("V4R11-RV4-04", SUP, [("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n", "            fcntl.flock(lfd, fcntl.LOCK_EX)\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    ("V4R11-RV4-05", SUP, [("            if ident is not None and ident[1] == start:\n                continue ", "            if False:\n                continue ")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R11-RV4-06", SUP, [("        lease = os.open(LEASE_NAME,", "        lease = os.open(LEASE_NAME + '.m',"),  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+                           ("        if n in (REPORT_MARKER, LEASE_NAME) or", "        if n in (REPORT_MARKER, LEASE_NAME, LEASE_NAME + '.m') or")],
+     T_SUP, {}, "NOT ok [R10LEASE-made]"),
+    ("V4R11-RV4-07", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n",
+                            "        os.write(lease, str(os.getpid()).encode())\n    except OSError:\n        os.close(lease)\n"),
+                           ("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n",
+                            "            _p = int(os.read(lfd, 32) or b'0')\n            if _p > 1 and _ident(_p) is not None:\n                raise BlockingIOError()\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R11-RV4-08a", SUP, [("        os.close(w)\n        os.close(hb_r)\n", "        os.close(w)\n        os.close(hb_r)\n        __import__('fcntl').flock(STATE['lease'], 8)\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    # RV4-08b SURVIVED round 10 (V4R11-2): [R10LEASE-decide] pauses the keeper between its teardown and its decision
+    ("V4R11-RV4-08b", SUP, [("        code = decide_code(report_verified(statedir), cause)\n        if cause[0] == \"main_gone\":",
+                             "        __import__('fcntl').flock(STATE['lease'], 8)\n        code = decide_code(report_verified(statedir), cause)\n        if cause[0] == \"main_gone\":")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE-decide]"),
+    # RV4-09 SURVIVED round 10 (V4R11-2): [R11MODE] the exact modes; the loosened directory is also no longer trusted
+    ("V4R11-RV4-09", SUP, [("    STATE[\"lease\"] = lease\n    return path\n", "    STATE[\"lease\"] = lease\n    os.chmod(path, 0o777); os.fchmod(lease, 0o666)\n    return path\n")],
+     T_SUP, {}, "NOT ok [R11MODE]"),
+    ("V4R11-RV4-11", SUP, [("        if cause[0] != \"main_gone\" and _main_gone_now(r):\n", "        if cause[0] != \"main_gone\":\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    # RV4-12 (round 4: "equivalent") is CAUGHT: the property the code states -- gc holds the lease THROUGH the removal
+    ("V4R11-RV4-12", SUP, [("        try:\n            if _remove_state_at(pfd, name, held[-1] if held else None):   # the fd _lease_free proved\n                n += 1\n        finally:\n            if lfd is not None:\n                os.close(lfd)\n",
+                            "        if lfd is not None:\n            os.close(lfd)\n        if _remove_state_at(pfd, name, held[-1] if held else None):\n            n += 1\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_SUP, {}, "NOT ok [R11GC-held]"),
+    # RV4-13 (round 4: "near-equivalent", an fd leak) is CAUGHT: [R11GC-nofdleak]
+    ("V4R11-RV4-13", SUP, [("            if lfd is not None:\n                os.close(lfd)\n", "            if lfd is not None:\n                pass\n")],
+     T_SUP, {}, "NOT ok [R11GC-nofdleak]"),
+    ("V4R11-RV4-14", SUP, [("        except FileNotFoundError:\n            return True, None\n", "        except FileNotFoundError:\n            return False, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-none]"),
+    # RV4-15 SURVIVED round 10 (V4R11-2): [R11MKFAIL] injects the flock failure
+    ("V4R11-RV4-15", SUP, [("        os.close(lease)\n        remove_statedir(path)\n        raise\n", "        os.close(lease)\n        raise\n")],
+     T_SUP, {}, "NOT ok [R11MKFAIL]"),
+    ("V4R11-RV4-16", SUP, [("        return bool(ready) and os.read(r, 1) == b\"\"\n", "        return (not ready) or os.read(r, 1) == b\"\"\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    # round-11 fixer's own mutants (V4R11-M*): one per rule of the open helpers + one per converted call site
+    ("V4R11-M0", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n",
+                        "            lfd = os.open(LEASE_NAME, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dfd)\n")],
+     T_SUP, {}, "NOT ok [R11FIFO]"),   # V4R11-1 re-introduced verbatim (round 10's open): the reviewer's FIFO hang
+    ("V4R11-M1", SUP, [("_SAFE_OPEN = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC", "_SAFE_OPEN = os.O_NOFOLLOW | os.O_NOCTTY | os.O_CLOEXEC")],
+     T_SUP, {}, "NOT ok [R11RACE-fifo]"),
+    ("V4R11-M2", SUP, [("    if pre is not None and not _owned_ok(pre, _st.S_ISREG, forbid):\n", "    if False:\n")],
+     T_SUP, {}, "NOT ok [R11NOOPEN-fifo]"),
+    ("V4R11-M3", SUP, [("        if not _owned_ok(st, _st.S_ISREG, forbid):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R11RACE-fifo]"),
+    ("V4R11-M4", SUP, [("_SAFE_OPEN = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC", "_SAFE_OPEN = os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC")],
+     T_SUP, {}, "NOT ok [R11RACE-symlink]"),
+    ("V4R11-M5", SUP, [("        if pre is not None and (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R11RACE-swap]"),
+    ("V4R11-M6", SUP, [("    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)",
+                        "    return bool(is_type(st.st_mode)) and not (st.st_mode & forbid)")],
+     T_SUP, {}, "NOT ok [R11LEASE-uid]"),
+    ("V4R11-M7", SUP, [("    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)",
+                        "    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid()")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    ("V4R11-M8", SUP, [("    if not _owned_ok(pre, _st.S_ISDIR, forbid, (dir_fd, path)):\n", "    if False:\n")],  # anchor re-expressed round 14 (the ACL ref argument)
+     T_SUP, {}, "NOT ok [R11NOOPEN-dirfifo]"),
+    ("V4R11-M9", SUP, [("        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid, fd):\n", "        if False:\n")],  # anchor re-expressed round 14
+     T_SUP, {}, "NOT ok [R11RACE-dirswap]"),
+    ("V4R11-M10", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n", "        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)\n")],
+     T_SUP, {}, "NOT ok [R11LOCK-link]"),
+    ("V4R11-M11", SUP, [("        data = _read_owned(out, REPORT_MAX_BYTES + 1, forbid=0)\n", "        data = open(out, \"rb\").read(REPORT_MAX_BYTES + 1)\n")],
+     T_SUP, {}, "NOT ok [R11OUT-fifo]"),
+    ("V4R11-M12", SUP, [("                    ddfd = open_owned_dir(d)\n                    try:\n                        ifd = open_owned_file(\"INTERRUPTED\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=ddfd,\n                                              mode=0o644, forbid=0)\n                    finally:\n                        os.close(ddfd)\n",
+                         "                    ifd = os.open(os.path.join(d, \"INTERRUPTED\"), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)\n")],
+     T_SUP, {}, "NOT ok [R11INTR-symlink]"),
+    ("V4R11-M13", SUP, [("            fields = _read_owned(name, 1024 * 1024, dir_fd=tfd).split(b\"\\0\")", "            fields = os.read(os.open(name, os.O_RDONLY, dir_fd=tfd), 1 << 20).split(b\"\\0\")")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_SUP, {}, "NOT ok [R11LEDGER-fifo]"),
+    ("V4R11-M14", SUP, [("        fd = open_owned_file(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
+     T_SUP, {}, "NOT ok [R11MARK-fifo]"),
+    ("V4R11-M15", SUP, [("        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
+     T_SUP, {}, "NOT ok [R11TIMING-fifo]"),
+    ("V4R11-M16", SUP, [("    os.close(_trusted_parent(out_abs)[0])     # the report's directory", "    pass     # the report's directory")],
+     T_SUP, {}, "NOT ok [R12PREP-outparent]"),  # round 12: the state-dir proof is now the ONE held fd (dropping it = RV5-13); M16 drops the --out parent proof
+    ("V4R11-M17", SUP, [("        sdfd = open_owned_dir(statedir)", "        sdfd = os.open(statedir, os.O_RDONLY | os.O_DIRECTORY)")],
+     T_SUP, {}, "NOT ok [R11MODE-read]"),
+    ("V4R11-M18", SUP, [("    flags &= ~os.O_TRUNC\n", "    flags &= ~0\n")],
+     T_SUP, {}, "NOT ok [R11TRUNC]"),
+    ("V4R11-M19", SUP, [("        dfd = open_owned_dir(path, dir_fd)\n    except OSError:\n        return False, None\n",
+                         "        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dir_fd)\n    except OSError:\n        return False, None\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
+     T_SUP, {}, "NOT ok [R11DIR-mode]"),
+    # ---- T048 V4 round 12 (round-5 review of the round-11 pack: NO-GO V4R12-1 MINOR source-defect, V4R12-2 MINOR
+    # test-instrumentation, V4R12-3 process-doc, NIT; §11.4.276(E) STRUCTURAL: one trusted-parent rule, both languages) ----
+    # The round-5 reviewer's 15 mutants RV5-01..RV5-15 (v4_round5_review_20261012.md section 5), adopted VERBATIM (the
+    # reviewer's own anchors and replacements, unchanged -- every anchor still matches exactly once in round 12). The 9
+    # round-5 survivors are routed to the round-12 rows written for them; RV5-05 and RV5-08 (round 5: equivalent under
+    # the sticky/owned-parent model / not setuid) are CAUGHT by rows that test the property itself ([R12FD-gc]: one walk,
+    # every action through its fds; [R12UID-real]: the effective uid everywhere); RV5-15 is an EQUIVS row whose premise
+    # ([R12LOCK-parent]) is itself asserted on the mutant.
+    ("V4R12-RV5-01", SUP, [("    if pre is not None and not _owned_ok(pre, _st.S_ISREG, forbid):\n", "    if pre is not None and (_st.S_ISFIFO(pre.st_mode) or pre.st_uid != os.geteuid() or pre.st_mode & forbid):\n")],
+     T_SUP, {}, "NOT ok [R11NOOPEN-"),
+    ("V4R12-RV5-02", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = os.open(LEASE_NAME, os.O_RDONLY | _SAFE_OPEN, dir_fd=dfd)\n"),
+                           ("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n        except OSError:              # BlockingIOError",
+                            "            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n            if not _owned_ok(os.fstat(lfd), _st.S_ISREG, FILE_FORBID):\n                raise UnsafeFile('late')\n        except OSError:              # BlockingIOError")],
+     T_SUP, {}, "NOT ok [R11DEV]"),
+    ("V4R12-RV5-03", SUP, [("    fd = os.open(name, flags | _SAFE_OPEN, mode, dir_fd=dir_fd)\n", "    fd = os.open(name, (flags | _SAFE_OPEN) & ~os.O_NOFOLLOW, mode, dir_fd=dir_fd)\n")],
+     T_SUP, {}, "NOT ok [R11RACE-symlink]"),
+    ("V4R12-RV5-04", SUP, [("                    ddfd = open_owned_dir(d)\n", "                    ddfd = os.open(d, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN)\n")],
+     T_SUP, {}, "NOT ok [R12INTR-dirmode]"),
+    ("V4R12-RV5-05", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = open_owned_file(os.path.join(path, LEASE_NAME), os.O_RDONLY)\n")],
+     T_SUP, {}, "NOT ok [R12FD-gc]"),
+    ("V4R12-RV5-06a", SUP, [("DIR_FORBID = 0o022 ", "DIR_FORBID = 0o002 ")], T_SUP, {}, "NOT ok [R12MASK-dir770]"),
+    ("V4R12-RV5-06b", SUP, [("FILE_FORBID = 0o002 ", "FILE_FORBID = 0o020 ")], T_SUP, {}, "NOT ok [R12MASK-file602]"),
+    ("V4R12-RV5-07", SUP, [("        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)     # never blocks / follows\n",
+                            "        if os.path.lexists(path) and not _st.S_ISREG(os.lstat(path).st_mode):\n            return\n        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)\n")],
+     T_SUP, {}, "NOT ok [R12TIMING-race]"),
+    ("V4R12-RV5-08", SUP, [("st.st_uid == os.geteuid() and not", "st.st_uid == os.getuid() and not")], T_SUP, {}, "NOT ok [R12UID-real]"),
+    ("V4R12-RV5-09", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = os.open(LEASE_NAME, os.O_RDONLY | _SAFE_OPEN, dir_fd=dfd)\n")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    ("V4R12-RV5-10", SUP, [("            rec = json.loads(_read_owned(REPORT_MARKER, 1024 * 1024, dir_fd=sdfd))\n",
+                            "            _f = os.open(REPORT_MARKER, os.O_RDONLY | os.O_NONBLOCK, dir_fd=sdfd)\n            rec = json.loads(os.read(_f, 1024 * 1024)); os.close(_f)\n")],
+     T_SUP, {}, "NOT ok [R12MARKER-mode]"),
+    ("V4R12-RV5-11", SUP, [("        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return False, None\n",
+                            "        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-odd]"),
+    ("V4R12-RV5-12", SUP, [("        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid, fd):\n",
+                            "        if not _owned_ok(st, _st.S_ISDIR, forbid, fd):\n")],  # anchor re-expressed round 14
+     T_SUP, {}, "NOT ok [R11RACE-dirswap]"),
+    ("V4R12-RV5-13", SUP, [("    dfd = open_owned_dir(tmpdir)        # never a directory another user controls (V4R11-1 class)\n",
+                            "    dfd = os.open(tmpdir, os.O_RDONLY)\n")],
+     T_SUP, {}, "NOT ok [R11PREP-dir]"),
+    ("V4R12-RV5-14", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd, forbid=0)\n")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    # the round-12 fixer's own mutants (V4R12-M*): one per rule of the trusted-parent helpers + one per converted site
+    ("V4R12-M1", SUP, [("    if st.st_uid not in (0, os.geteuid()):\n        return False\n", "    if False:\n        return False\n")],
+     T_SUP, {}, "NOT ok [R12WALK-f755]"),                       # rule 1: any owner trusted
+    ("V4R12-M2", SUP, [("    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)",
+                        "    return True")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-own777]"),  # rule 1 (shared group); re-anchored r7: the private-group branch precedes it
+    ("V4R12-M3", SUP, [("st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)", "st.st_mode & 0o022)")],
+     T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-rootsticky]"),  # rule 1: the sticky exemption lost (/tmp refused;
+                                                                # the unit file stops at its first report_prepare)
+    ("V4R12-M4", SUP, [("                if not _trusted_ok(st):\n                    raise UnsafeFile(\"%s: a symlink owned by uid %d -- not followed\"",
+                        "                if False:\n                    raise UnsafeFile(\"%s: a symlink owned by uid %d -- not followed\"")],
+     T_SUP, {}, "NOT ok [R12WALK-flink]"),                      # rule 2: another uid's symlink followed
+    ("V4R12-M5", SUP, [("    fd, real = _walk(head or \".\")\n", "    fd, real = os.open(head or \".\", os.O_PATH | os.O_CLOEXEC), os.path.realpath(head or \".\")\n")],
+     T_SUP, {}, "NOT ok [R12INTR-parent]"),                     # rule 2: path mode resolved by the kernel in one go
+    ("V4R12-M6", SUP, [("            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):\n                os.rmdir(name, dir_fd=pfd)\n        except OSError:\n            pass\n",
+                        "            if True:\n                os.rmdir(name, dir_fd=pfd)\n        except OSError:\n            pass\n")],
+     T_SUP, {}, "NOT ok [R12RM-swap]"),                         # rule 4: rmdir without the identity check
+    ("V4R12-M7", SUP, [("                        if (cst.st_dev, cst.st_ino) == (st.st_dev, st.st_ino):\n                            clear(cfd)\n",
+                        "                        if True:\n                            clear(cfd)\n")],
+     T_SUP, {}, "NOT ok [R12RM-race]"),                         # rule 4: rmtree descends into a swapped-in directory
+    ("V4R12-M8", SUP, [("        pfd, _real = _walk(parent)\n    except OSError:\n        return 0\n",
+                        "        pfd, _real = os.open(parent, os.O_PATH | os.O_CLOEXEC), parent\n    except OSError:\n        return 0\n")],
+     T_SUP, {}, "NOT ok [R12PARENT-foreign777]"),              # gc collects under a parent another uid controls
+    ("V4R12-M9", SUP, [("        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):\n", "        if False:\n")],  # re-expressed r14
+     T_SUP, {}, "NOT ok [R12CREATE-excl]"),                     # a namespace directory that is not ours alone accepted
+    ("V4R12-M10", SUP, [("                    os.mkdir(comp, mode if not todo else 0o755, dir_fd=cur)", "                    os.mkdir(comp, mode if not todo else 0o777, dir_fd=cur)")],
+     T_SUP, {}, "NOT ok [R12CREATE-umask0]"),                   # rule 3: intermediate directories made writable by all
+    ("V4R12-M11", SUP, [("        if exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, pfd):\n", "        if False:\n")],  # re-expressed r14
+     T_SUP, {}, "NOT ok [R12CREATE-mkdtemp]"),                  # --exclusive-parent ignored
+    ("V4R12-M12", SUP, [("        os.replace(tmp, REPORT_MARKER, src_dir_fd=dfd, dst_dir_fd=dfd)\n",
+                         "        _d = os.readlink(\"/proc/self/fd/%d\" % dfd)\n        os.replace(os.path.join(_d, tmp), os.path.join(_d, REPORT_MARKER))\n")],
+     T_SUP, {}, "NOT ok [R12PREP-onefd]"),                      # rule 2: the proved state dir re-resolved by path
+    ("V4R12-M13", SUP, [("            ds = os.fstat(dfd)\n            names = os.listdir(dfd)\n",
+                         "            ds = os.fstat(dfd)\n            if ds.st_uid != os.getuid():\n                return False\n            names = os.listdir(dfd)\n")],
+     T_SUP, {}, "NOT ok [R12UID-real]"),                        # the NIT re-introduced: remove_statedir on the REAL uid
+    ("V4R12-M14", SUP, [("            cfd = open_owned_dir(n, pfd)\n", "            cfd = os.open(n, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=pfd)\n")],
+     T_SUP, {}, "NOT ok [R12PEND-uid]"),                        # process_pending removes another uid's directory
+    ("V4R12-M15", BR, [("  _fc_safe mkdir --exclusive \"$worktree_root/replay-logs\" >/dev/null ||", "  mkdir -p \"$worktree_root/replay-logs\" 2>/dev/null ||"),
+                       ("  run_log_dir=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root/replay-logs\" \"${commit:0:12}.\")\"",
+                        "  run_log_dir=\"$(mktemp -d \"$worktree_root/replay-logs/${commit:0:12}.XXXXXX\")\"")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-plant]"),        # the round-5 run-log code: the reviewer's repro returns
+    ("V4R12-M16", BR, [("  _fc_safe check --exclusive \"$_FC_TMPDIR\" >/dev/null || blind", "  : || blind")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-workerinit]"),   # the worker no longer proves its temp directory
+    ("V4R12-M17", BR, [("  _wr=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || blind \"replay: cannot",
+                        "  _wr=\"$(_fc_safe mkdir \"$worktree_root\")\" || blind \"replay: cannot"),
+                       ("  _wr=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || { echo",
+                        "  _wr=\"$(_fc_safe mkdir \"$worktree_root\")\" || { echo"),
+                       ("  wt_path=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root\" replay.)\"",
+                        "  wt_path=\"$(_fc_safe mkdtemp \"$worktree_root\" replay.)\""),
+                       ("  _fc_safe mkdir --exclusive \"$worktree_root/replay-logs\" >/dev/null ||",
+                        "  _fc_safe mkdir \"$worktree_root/replay-logs\" >/dev/null ||"),
+                       ("  run_log_dir=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root/replay-logs\"",
+                        "  run_log_dir=\"$(_fc_safe mkdtemp \"$worktree_root/replay-logs\"")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-wtroot-sticky]"),  # --worktree-root used as a namespace while shared
+    ("V4R12-M18", BR, [("  # rc 0: the run-log ledger entry is KEPT", "  rm -f \"$out_path.tmp\" 2>/dev/null\n  # rc 0: the run-log ledger entry is KEPT")],
+     T_R12, {"R12_ONLY": "LINT"}, "NOT ok [R12LINT]"),           # closure guard: an unrouted shell path op added
+    ("V4R12-M19", SUP, [("        if _size_in(marker) > 0:                # asked through the proved parent (round 12)\n",
+                         "        if os.path.exists(marker) and os.path.getsize(marker) > 0:\n")],
+     T_R12, {"R12_ONLY": "LINT"}, "NOT ok [R12LINT]"),           # closure guard: the round-11 path probe re-introduced
+    ("V4R12-M20", SUP, [("            dfd = open_owned_dir(d)\n", "            dfd = os.open(d, os.O_RDONLY | os.O_DIRECTORY)\n")],
+     T_R12, {"R12_ONLY": "CLI"}, "NOT ok [R12CLI-write-dirmode]"),  # the shell's INTERRUPTED write without the dir proof
+    ("V4R12-M21", BR, [("_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\"; }", "_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\" || true; }")],
+     T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-own777]"),  # the shell half ignores a refusal (parity broken)
+
+    # ---- T048 V4 round 13 (round-6 review of the round-12 pack: NO-GO, V4R13-1..4 MINOR + NITs; the LAST round) ----
+    # the round-6 reviewer's 16 mutants RV6-01..16 (v4_round6_review_20261012.md section 5), VERBATIM: same anchors,
+    # same replacements as the reviewer's runner. The 7 round-6 survivors (02 05 06 07 08 11 15) are each routed to the
+    # round-13 row written for them; RV6-14 is the EQUIVS row below.
+    ("V4R13-RV6-01", SUP, [("and not st.st_mode & _st.S_ISVTX)", "and not st.st_mode & _st.S_ISGID)")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-root1777]"),
+    ("V4R13-RV6-02", SUP, [("st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX", "st.st_mode & 0o002 and not st.st_mode & _st.S_ISVTX")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-own775-shared]"),
+    ("V4R13-RV6-03", SUP, [("                if len(stack) > 1:\n                    os.close(stack.pop()[0])\n", "                pass\n")],
+     T_SUP, {}, "NOT ok [R12WALK-dotdot]"),
+    ("V4R13-RV6-04", SUP, [("                if target.startswith(\"/\"):\n                    while len(stack) > 1:", "                if False:\n                    while len(stack) > 1:")],
+     T_SUP, {}, "NOT ok [R12WALK-mylink]"),
+    ("V4R13-RV6-05", SUP, [("            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)\n            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):\n                os.rmdir(name, dir_fd=pfd)\n    except FileNotFoundError:",
+                            "            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)\n            if True:\n                os.rmdir(name, dir_fd=pfd)\n    except FileNotFoundError:")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-final-identity]"),
+    ("V4R13-RV6-06", SUP, [("                if (ds.st_dev, ds.st_ino) == (st.st_dev, st.st_ino):\n                    clear(dfd)", "                if True:\n                    clear(dfd)")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-top-swap]"),
+    ("V4R13-RV6-07", SUP, [("                    if flag and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):", "                    if False and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):")],  # same replacement, anchor + the round-14 ref argument
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13EXCL-check]"),
+    ("V4R13-RV6-08", BR, [('_fc_safe check --exclusive "$_FC_TMPDIR" >/dev/null', '_fc_safe check "$_FC_TMPDIR" >/dev/null')],
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13EXCL-workerinit]"),
+    ("V4R13-RV6-09", SUP, [("def _mkdtemp_at(pfd, prefix, mode=0o700):", "def _mkdtemp_at(pfd, prefix, mode=0o755):")],
+     T_SUP, {}, "NOT ok [R11MODE]"),
+    ("V4R13-RV6-10", SUP, [("            dfd = open_owned_dir(d)\n", "            dfd = open_owned_dir(d, forbid=0)\n")],
+     T_R12, {"R12_ONLY": "CLI"}, "NOT ok [R12CLI-write-dirmode]"),
+    ("V4R13-RV6-11", SUP, [('    if name in ("", ".", ".."):', '    if name in ("", "."):')],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13RM-dotdot-cli]"),   # the second layer (_rmtree_at's own guard) still saves the data; the row requires the FIRST layer's reason
+    ("V4R13-RV6-12", SUP, [("mode=0o700 if exclusive else 0o755)", "mode=0o755)")],
+     T_SUP, {}, "NOT ok [R12CREATE-umask0]"),
+    ("V4R13-RV6-13", SUP, [("    if st.st_uid not in (0, os.geteuid()):\n        return False\n    if _private", "    if st.st_uid not in (0, os.getuid()):\n        return False\n    if _private")],
+     T_SUP, {}, "NOT ok [R12UID-real]"),         # RV6-13 verbatim (its one-line anchor now also occurs in _untrusted_why: extended by context, same replacement)
+    ("V4R13-RV6-15", SUP, [("    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022", "    return st.st_uid == 0 or not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-root777]"),
+    ("V4R13-RV6-16", SUP, [("                st = os.stat(e, dir_fd=dfd, follow_symlinks=False)\n                if _st.S_ISDIR(st.st_mode):\n                    cfd",
+                            "                st = os.stat(e, dir_fd=dfd, follow_symlinks=True)\n                if _st.S_ISDIR(st.st_mode):\n                    cfd")],
+     T_SUP, {}, "NOT ok [R12RM-link]"),
+    # ---- the round-13 fixer's own mutants (V4R13-M*) ----
+    ("V4R13-M1", SUP, [("    if gid in _GROUP_PRIVATE:\n        return _GROUP_PRIVATE[gid]\n", "    return True\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-shared]"),       # every group read as private
+    ("V4R13-M2", SUP, [("            ans = not [u for u in grp.getgrgid(gid).gr_mem if u != me] \\\n                and not",
+                        "            ans = True \\\n                and not")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-shared]"),       # the member list ignored
+    ("V4R13-M3", SUP, [("                and not [p for p in pwd.getpwall() if p.pw_gid == gid and p.pw_uid != os.geteuid()]",
+                        "                and True")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-primary]"),      # another account's PRIMARY group ignored
+    ("V4R13-M4", SUP, [("        if gid == os.getegid() or gid in os.getgroups():\n", "        if True:\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-notours]"),      # a group that is not this user's (setgid programs)
+    ("V4R13-M5", SUP, [('    if not isinstance(name, str) or name in ("", ".", "..") or "/" in name or "\\0" in name:\n        return False\n',
+                        "")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-name-guard]"),      # _rmtree_at's own guard: a '..' reaches the parent
+    ("V4R13-M6", SUP, [("                if todo and todo[-1] == \"..\":\n                    # NIT-5", "                if False:\n                    # NIT-5")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13WALK-dotdot-untrusted]"),
+    ("V4R13-M7", SUP, [("                if todo and todo[-1] == \"..\":\n                    # NIT-5", "                if todo:\n                    # NIT-5")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13WALK-untrusted-mid]"),  # an untrusted directory passed over without a `..`
+    ("V4R13-M8", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n", "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-0600]"),        # NIT-1: the lock created readable by others
+    ("V4R13-M9", SUP, [("        if os.fstat(fd).st_mode & 0o077:\n", "        if False:\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-migrate]"),     # an old 0644 lock file kept as it is
+    ("V4R13-M10", SUP, [("            _OLD_LOCKS.append(fd)\n", "            os.close(fd)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-old-held]"),    # the migration releases the old inode's lock
+    ("V4R13-M11", SUP, [('    if [p for p in paths if "\\n" in p]:\n', "    if False:\n")],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13CLI-newline]"),       # NIT-4
+    ("V4R13-M12", SUP, [('        return "refused: %s" % e\n', '        return "refused"\n')],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13RM-dotdot-cli]"),     # NIT-3: the reason swallowed again
+    ("V4R13-M13", BR, [('  _wr="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root',
+                        '  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root')],
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13UMASK-shared]"),       # V4R13-1(b): the message prints an emptied variable
+    ("V4R13-M14", SUP, [("    if forbid & 0o020 and _private_group_write(st, ref):\n        forbid &= ~0o020\n", "    if forbid & 0o020 and _private_group_write(st, ref):\n        forbid &= ~0o022\n")],  # re-expressed r14
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13OWNED-own777]"),       # the group exemption also drops OTHER-write
+    ("V4R13-M15", SUP, [("    if _private_group_write(st, ref):\n        return not (st.st_mode & 0o002 and not _st.S_ISVTX & st.st_mode)\n", "")],  # re-expressed r14
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13UMASK-default]"),      # the round-6 code: the default umask-002 flow refused
+    ("V4R13-M16", CEN, [('        add(cm, w0, "VIOLATION", "a command word not in the census\'s tables (fail-closed: SH_NOOP / SH_READ / "\n                                 "SH_WRITE / git / python3 / this file\'s functions)")',
+                         '        return')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # the census no longer fails closed on an unknown command
+    ("V4R13-M17", CEN, [("for p in _params(fn) if f in calls_of}", "for p in _params(fn)}")],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a parameter with no call site read as proved (A14)
+    ("V4R13-M18", CEN, [('        if re.search(r"(^|/)\\.\\.(/|$)", rest) or "~" in rest', '        if "~" in rest')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # '..' inside a proved operand accepted
+    ("V4R13-M19", CEN, [('    roots = ("$(_fc_safe mkdtemp ", "$(_fc_safe mkdir --exclusive ", "$(_fc_mktemp)")',
+                         '    roots = ("$(_fc_safe mkdtemp ", "$(_fc_safe mkdir ", "$(_fc_mktemp)")')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a plain `_fc_safe mkdir` result read as a namespace
+    ("V4R13-M20", CEN, [("        if not _PLAIN_CMD.match(w0) and w0 not in", "        if False and w0 not in")],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a quoted / escaped / indirect command word accepted
+
+    # ---- T048 V4 round 14 (round-7 review of the round-13 pack: NO-GO, V4R14-1 IMPORTANT; operator-authorised scoped
+    # follow-up with a fresh budget). The round-7 reviewer's 10 mutants RV7-01..10 (v4_round7_review_20261013.md 3.1),
+    # VERBATIM (the reviewer's own anchor and replacement; each anchor matches exactly once in the round-14 code). The
+    # reviewer's survivor RV7-06 and the grep-only RV7-10 are each routed to the behavioural row written for them. ----
+    ("V4R14-RV7-01", SUP, [("            _OLD_LOCKS.append(fd)\n", "            os.close(fd)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-old-held]"),
+    ("V4R14-RV7-02", SUP, [("        if gid == os.getegid() or gid in os.getgroups():\n", "        if True:\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-notours]"),
+    ("V4R14-RV7-03", SUP, [("                if todo and todo[-1] == \"..\":\n", "                if todo:\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13WALK-untrusted-mid]"),
+    ("V4R14-RV7-04", SUP, [("name in (\"\", \".\", \"..\") or \"/\" in name", "name in (\"\", \".\", \"..\")")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-name-guard]"),
+    ("V4R14-RV7-05", SUP, [("    paths = args[2:] if op == \"write\" else args\n", "    paths = args[3:] if op == \"write\" else args[1:]\n")],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13CLI-newline]"),
+    ("V4R14-RV7-06", SUP, [("        if os.fstat(fd).st_mode & 0o077:\n", "        if os.fstat(fd).st_mode & 0o007:\n")],
+     T_R14, {"R14_ONLY": "LOCK"}, "NOT ok [R14LOCK-0640]"),          # NIT-A: round 7's survivor
+    ("V4R14-RV7-07", SUP, [("        return not (st.st_mode & 0o002 and not _st.S_ISVTX & st.st_mode)\n", "        return True\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-own777-private]"),
+    ("V4R14-RV7-08", SUP, [("                and not [p for p in pwd.getpwall() if p.pw_gid == gid and p.pw_uid != os.geteuid()]\n", "\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-primary]"),
+    ("V4R14-RV7-09", SUP, [("                    fcntl.flock(nfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n                    os.replace", "                    os.replace")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-new-held]"),
+    ("V4R14-RV7-10", BR, [("  _wr=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || blind \"replay-sample:", "  _wr=\"$(_fc_safe mkdir \"$worktree_root\")\" || blind \"replay-sample:")],
+     T_R14, {"R14_ONLY": "SH"}, "NOT ok [R14SAMPLE-wtroot-sticky]"),  # NIT-B: now caught BEHAVIOURALLY
+    # ---- the round-14 fixer's own mutants (V4R14-M*): one per clause of the ACL rule, the lock fallback, the census ----
+    ("V4R14-M1", SUP, [("    if ref is None:\n        return False\n    try:\n        if isinstance(ref, tuple):", "    return True\n    try:\n        if isinstance(ref, tuple):")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-check]"),           # every directory read as ACL-free (round 13)
+    ("V4R14-M2", SUP, [("_group_private(st.st_gid) and _acl_free(ref))", "_group_private(st.st_gid))")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-mkdir]"),           # the exemption without the ACL clause
+    ("V4R14-M3", SUP, [("    except (OSError, TypeError, ValueError):\n        return False\n    return not [n for n",
+                        "    except (OSError, TypeError, ValueError):\n        return True\n    return not [n for n")],
+     T_R14, {"R14_ONLY": "CLASS"}, "NOT ok [R14ACL-unreadable-ENOTSUP]"),  # fail OPEN on an unreadable xattr list
+    ("V4R14-M4", SUP, [("    return not [n for n in names if n.startswith(\"system.\")]", "    return \"system.posix_acl_access\" not in names")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-default]"),         # only the access ACL counted
+    ("V4R14-M5", SUP, [("or not _owned_ok(st, _st.S_ISDIR, forbid, fd):", "or not _owned_ok(st, _st.S_ISDIR, forbid, None):")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-cleared]"),         # the post-open check without its ref: a FALSE refusal
+    ("V4R14-M6", SUP, [("    if not _owned_ok(pre, _st.S_ISDIR, forbid, (dir_fd, path)):", "    if not _owned_ok(pre, _st.S_ISDIR, forbid, None):")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-cleared]"),         # the pre-open look without its ref: a FALSE refusal
+    ("V4R14-M7", SUP, [("            trusted = _trusted_ok(st, fd)", "            trusted = _trusted_ok(st)")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-cleared]"),         # the walk without its ref: a private 0770 parent refused
+    ("V4R14-M9", SUP, [("        if _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):\n            return real\n", "        if True:\n            return real\n")],
+     T_R14, {"R14_ONLY": "LOCK"}, "NOT ok [R14LOCK-preplant]"),      # a shared lock directory used as if it were ours
+    ("V4R14-M10", SUP, [("    if _st.S_ISDIR(st.st_mode) and _group_private(st.st_gid) and not _acl_free(ref):\n", "    if False:\n")],
+     T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-walk]"),            # the refusal no longer names the ACL / its remedy
+    ("V4R14-M11", CEN, [("        if node.attr.startswith(\"__\") and node.attr.endswith(\"__\"):", "        if False:")],
+     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # dunder access unseen again (RV7 forms 8, 9, 11)
+    ("V4R14-M12", CEN, [("            if d.count(\".\") == 0 or d.split(\".\")[1] not in MODULE_ATTRS[head]:", "            if False:")],
+     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # argparse.FileType (RV7 form 14)
+    ("V4R14-M13", CEN, [("            if not (isinstance(par0, ast.Attribute) and par0.value is node):", "            if False:")],
+     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # a module object passed as a value
+    ("V4R14-M17", CEN, [("            if name in PY_XATTR_WRITE:", "            if False:")],
+     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # a procfs tag accepted on an xattr WRITE
+    ("V4R14-M18", CEN, [("        if head == \"os\" and d.count(\".\") >= 2 and d.split(\".\")[1] in PY_OPS:", "        if False:")],
+     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # an attribute OF a path operation (os.unlink.func)
+
+    # ---- ATM-1220 r9 (fixer round 15; round-8 review NO-GO: V4R15-1 source-defect, V4R15-2 class recurrence, V4R15-3
+    # 5 surviving reviewer mutants). V4R14-M8/M14/M15/M16 RE-EXPRESSED (their anchors named code round 15 replaced;
+    # same defect class, same ids). The round-8 reviewer's RV8-01..07 adopted (verbatim where the anchor still exists),
+    # each routed to the row written for it; the fixer's own V4R15-M1..M19. Oracle: tests/test_fc_safepath_v4r15.sh. ----
+    ('V4R14-M8', SUP, [('    home = _passwd_home()\n    if not home:\n        return lock_dir\n', '    return lock_dir\n')],
+     T_R14, {'R14_ONLY': 'LOCK'}, 'NOT ok [R14LOCK-preplant]'),  # the pre-planted /tmp lock: BLIND 4 forever again (re-expressed: _passwd_home)
+    ('V4R14-M14', CEN, [('        return ([(vals["v"], "set")] if "v" in vals else []), letters\n', '        return [], letters\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # printf -v (re-expressed: _name_words)
+    ('V4R14-M15', CEN, [('            if w0 in ("local", "declare", "typeset") and "n" in letters and \\\n', '            if False and \\\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # namerefs (re-expressed)
+    ('V4R14-M16', CEN, [('        return ([] if letters & {"f"} else [(_dq_chars(a), "set") for a in ops]), letters\n', '        return [], letters\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # unset of a proved variable (re-expressed: _name_words)
+    ('V4R15-RV8-01', SUP, [('    return not [n for n in names if n.startswith("system.")]', '    return not [n for n in names if n.startswith("system.posix_acl")]')],
+     T_R14, {'R14_ONLY': 'CLASS'}, 'NOT ok [R14ACL-names-nfs4_acl]'),  # NFSv4 / rich / CIFS ACL names dropped (verbatim)
+    ('V4R15-RV8-02', SUP, [('        return ensure_dir(path, exclusive=True)', '        return ensure_dir(path, exclusive=False)')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-cache-shared]'),  # a pre-made SHARED cache lock dir accepted (re-expressed: the anchor moved)
+    ('V4R15-RV8-03', SUP, [('        if _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):\n            return real\n', '        if _owned_ok(os.fstat(fd), _st.S_ISDIR, 0o002, fd):\n            return real\n')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-lockdir-sharedgroup]'),  # a group-shared lock dir taken as ours alone (verbatim)
+    ('V4R15-RV8-04', SUP, [('exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, pfd):', 'exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, None):')],
+     T_R15, {'R15_ONLY': 'EXCL'}, 'NOT ok [R15EXCL-mkdtemp-0775]'),  # mkdtemp_path's exclusive check without its ref: umask-002 false refusal (verbatim)
+    ('V4R15-RV8-05', SUP, [('        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):', '        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, None):')],
+     T_R15, {'R15_ONLY': 'EXCL'}, 'NOT ok [R15EXCL-mkdir-0775]'),  # ensure_dir's exclusive check without its ref: umask-002 false refusal (verbatim)
+    ('V4R15-RV8-06', CEN, [('                if j + 1 < len(ch):\n                    vals[c] = ch[j + 1:]\n', '                if j + 1 < len(ch):\n                    pass\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-self]'),  # printf -v attached form (-v_wr) dropped (re-expressed: _options)
+    ('V4R15-RV8-07', CEN, [('[a for a in args if (_lit(a) or "").startswith("-") and "n" in (_lit(a) or "")]', '[a for a in args if _lit(a) == "-n"]')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # the nameref rule only for a bare -n (declare -gn / local -rn) (re-expressed)
+    ('V4R15-M1', SUP, [('        home = pwd.getpwuid(os.geteuid()).pw_dir\n', '        home = os.environ.get("HOME", "")\n')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-home-env]'),  # V4R15-1: the home read from the ENVIRONMENT again
+    ('V4R15-M2', SUP, [('    except OSError as e:\n        say("BLIND: the per-user lock directory', '    except OSError as e:\n        return lock_dir\n        say("BLIND: the per-user lock directory')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-cache-shared]'),  # an unusable per-user lock dir falls back to the shared one (a second location)
+    ('V4R15-M3', BR, [('lockdir="${FC_REPLAY_LOCK_DIR:-/tmp}"', 'lockdir="${FC_REPLAY_LOCK_DIR:-${XDG_RUNTIME_DIR:-/tmp}}"')],
+     T_R15, {'R15_ONLY': 'SH'}, 'NOT ok [R15LOCK-noxdg]'),  # the class member: $XDG_RUNTIME_DIR as a default lock dir again
+    ('V4R15-M4', CEN, [('            continue\n        if q is None and c in "\'\\"":\n            q = c\n            i += 1\n            continue\n', '            continue\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # no quote removal for NAMEs (quoted names unseen)
+    ('V4R15-M5', CEN, [('                if [1 for _c, d in ch if d]:\n                    add(cm, w0 + " $NAME"', '                if False:\n                    add(cm, w0 + " $NAME"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # a non-literal NAME accepted
+    ('V4R15-M6', CEN, [('        if guard and not m.group(2) and not (copy_ok and rest == ""):', '        if False:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # the ${V:?} guard on the leading expansion dropped
+    ('V4R15-M7', CEN, [('            if v not in known or (guard and not e.group(2)):', '            if v not in known:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # the ${V:?} guard on an inner expansion dropped
+    ('V4R15-M8', CEN, [('            elif m.group(2) in proved:\n                add(no, "${V:=}"', '            elif False:\n                add(no, "${V:=}"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # ${V:=} of a proved variable accepted
+    ('V4R15-M9', CEN, [('            if m.group(1):\n                add(no, "${!R:=}"', '            if False:\n                add(no, "${!R:=}"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # ${!R:=} accepted
+    ('V4R15-M10', CEN, [('            if [sp for sp in spans if pat.search(sp)]:', '            if False:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # arithmetic assignment to a proved variable accepted
+    ('V4R15-M11', CEN, [('    for m in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*\\[", t):\n        spans.append(_balanced(t, m.end(), "[", "]"))\n', '')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # subscripts not scanned as arithmetic
+    ('V4R15-M12', CEN, [('            elif not quoted:\n                out.append((no, raw))', '            elif False:\n                out.append((no, raw))')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-heredoc]'),  # an unquoted here-document body not scanned
+    ('V4R15-M13', CEN, [('            if m.group(1) in proved:\n                add(no, "{V}>"', '            if False:\n                add(no, "{V}>"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # a {V}> fd redirection to a proved variable accepted
+    ('V4R15-M14', CEN, [('                if attrs:\n', '                if False:\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # declare -i / -l / -u ... on a proved variable accepted
+    ('V4R15-M15', CEN, [('            if "$" in letters:\n', '            if False:\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # an option word holding an expansion accepted
+    ('V4R15-M16', CEN, [('DECLARE_FAMILY = ("local", "declare", "typeset", "export", "readonly")', 'DECLARE_FAMILY = ("local", "declare", "export", "readonly")')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # typeset outside the provenance model again
+    ('V4R15-M17', CEN, [('                note(cm["func"], nm, w.split("=", 1)[1] if _ASSIGN_RE.match(w) else "<quoted assignment>")', '                if _ASSIGN_RE.match(w):\n                    note(cm["func"], nm, w.split("=", 1)[1])')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # a quoted NAME=VALUE assignment unseen by provenance
+    ('V4R15-M18', CEN, [('            rest += [v for v in vs if (func, v) not in PARAMS and proved_in(func, v) and\n                     not re.search(r"\\$\\{%s:\\?" % re.escape(v), u)]\n', '')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-param-guard]'),  # the ${V:?} rule skipped for a param-tagged operand
+    ('V4R15-M19', CEN, [('PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars",\n              "breakpoint"}', 'PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars"}')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-py]'),  # breakpoint() accepted
+    # ---- ATM-1220 carry, review round 1 (scratchpad review_atm1220_carry_r1.md): F1 + the reviewer's RV1..RV3 ----
+    # F1: the repair back where it was (in main(), AFTER `import ctypes`): libffi's CLOEXEC fd lands on 0 first
+    ("CARRY-F1-M1", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n', ""),
+                          ("    # the std-fd repair already ran at module level, before `import ctypes` (carry review F1)\n",
+                           "    _repair_std_fds()\n")],
+     T_SUP, {}, "NOT ok [CARRY-F1-order]"),   # carry r2 N1: R8FDS cannot see the order (the CLOEXEC layer repairs a late fd too); the static order check does
+    # F1: a standard fd with FD_CLOEXEC counted as healthy again
+    ("CARRY-F1-M2", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n",
+                           "            if ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n")],
+     T_SUP, {}, "NOT ok [CARRY-F1-cloexec]"),
+    # RV1 (reviewer, verbatim defect): the gate child's signal-mask reset dropped -- caught by a NON-shell gate probe (F3)
+    ("CARRY-RV1", SUP, [("                    pass\n            signal.pthread_sigmask(signal.SIG_SETMASK, [])\n            if cwd is not None:\n",
+                         "                    pass\n            if cwd is not None:\n")],
+     T_V5, {"V5_ONLY": "CENSUS"}, "NOT ok [CENSUS] python gate mask"),
+    # RV2 (reviewer, verbatim): the re-opened /dev/null left non-inheritable -- reachable now that [R8FDS] is green (F1)
+    ("CARRY-RV2", SUP, [("                os.set_inheritable(fd, True)\n", "                os.set_inheritable(fd, False)\n")],
+     T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+    # RW1 (carry review round 2, reviewer): the repaired /dev/null opened O_RDONLY -- right link, unwritable (N3)
+    ("CARRY-RW1", SUP, [("nfd = os.open(os.devnull, os.O_RDWR)    # safepath:devnull", "nfd = os.open(os.devnull, os.O_RDONLY)    # safepath:devnull")],
+     T_SUP, {}, "NOT ok [CARRY-F1-accmode]"),
+    # RV3 (reviewer, verbatim): an undocumented exit code mapped to 0 instead of 4 (F6)
+    ("CARRY-RV3", SUP, [("documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 4\n",
+                         "documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 0\n")],
+     T_SUP, {}, "NOT ok [CARRY-F6-exit]"),
+    # ---- ATM-1220 (the four-signal block in front of the exec, 76ac981) + its round-4 fixes: the fix's own mutants
+    # (author M1-M5 and B2/B3) and the surviving reviewer mutants R3M2/R3M4/R3M10/R3M11, each with its killing row ----
+    ("ATM1220-M1", BR, [('            _FC_BR_STOPS_BLOCKED=1 exec env', '            : _FC_BR_STOPS_BLOCKED=1 exec env')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-M2", BR, [('exec env --block-signal=HUP,INT,QUIT,TERM "$BASH"', 'exec env --block-signal=INT "$BASH"')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-M3", BR, [('        echo "baseline_replay: WARNING: DEGRADED stop protection', '        : "baseline_replay: WARNING: DEGRADED stop protection')],
+     T_V5, {"V5_ONLY": "R7N6BLKDEG"}, "NOT ok [R7N6BLKDEG]"),
+    ("ATM1220-M4", BR, [('          if [ "$_fc_probe" = 0 ]; then\n', '          if :; then\n')],
+     T_V5, {"V5_ONLY": "R7N6BLKDEG"}, "NOT ok [R7N6BLKDEG]"),
+    ("ATM1220-M5", BR, [('      if [ $((16#$_fc_blk & 16#4007)) -ne $((16#4007)) ]; then\n', '      if [ $((16#$_fc_blk & 16#2)) -ne $((16#2)) ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-B2", BR, [("trap '' PIPE\ncase \"${1:-}\" in\n", "case \"${1:-}\" in\n"),
+                        ("unset _FC_BR_STOPS_BLOCKED\nset -u\n", "unset _FC_BR_STOPS_BLOCKED\nset -u\ntrap '' PIPE\n")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-deadpipe]"),
+    ("ATM1220-B3", BR, [("          trap - HUP INT TERM     # QUIT", "          trap - HUP INT QUIT TERM     # QUIT")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-quitreset]"),
+    ("ATM1220-R3M2", BR, [('true </dev/null >/dev/null 2>&1 &\n          wait "$!"\n', 'true </dev/null >/dev/null 2>&1\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-probe-bg]"),
+    ("ATM1220-R3M4", BR, [("unset _FC_BR_STOPS_BLOCKED\nset -u\n", "set -u\n")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-marker]"),
+    ("ATM1220-R3M10", BR, [('  replay|replay-sample|selfcheck)\n    if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then\n',
+                            '  replay|replay-sample|selfcheck|freeze)\n    if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-freeze]"),
+    ("ATM1220-R3M11", BR, [('        if [ "${_FC_BR_STOPS_BLOCKED:-}" = 1 ]; then\n', '        if false; then\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-liar]"),
+    ("ATM1220-QPROBE", BR, [("          trap 'exit 131' QUIT\n          trap 'exit 143' TERM\n          env --block-signal", "          trap 'exit 143' TERM\n          env --block-signal")],
+     T_V5, {"V5_ONLY": "R7N6QUIT"}, "NOT ok [R7N6QUIT-probe]"),
+]
+
+# EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
+# falsifiable row (if the code ever changes so the mutant becomes observable, this row turns NOT ok and forces a new
+# analysis). (id, target, pairs, test, env, the ok-line that must still be printed, the proof)
+EQUIVS = [
+    ("V4R11-RV4-10", SUP, [("os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,", "os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,")],
+     T_SUP, {}, "ok [R10LEASE-made]",
+     "PEP 446: os.open() creates every fd non-inheritable (FD_CLOEXEC set) whether or not O_CLOEXEC is passed; "
+     "[R10LEASE-made] reads FD_CLOEXEC from the kernel and still sees it set -- no observable difference exists"),
+    # round 12: RV5-15 (_lock_one with forbid=0: a lock file of OURS writable by others is accepted). Round 13 (NIT-1)
+    # corrected the proof: the mode bits DO carry meaning -- for AVAILABILITY (flock needs only a read fd: a lock file
+    # others can open lets them hold the lock forever) -- and round 13 closes that by REPLACING any lock file with a
+    # group/other bit (0o077) while its lock is held. Under forbid=0 an other-writable lock file of ours is therefore
+    # migrated instead of refused: both end with a private 0600 lock file or no lock -- still equivalent. The PREMISE
+    # is asserted on the mutant: [R13LOCK-migrate] (and the whole LOCK group) must still pass; anchor re-expressed
+    # (mode=0o600 since round 13).
+    ("V4R12-RV5-15", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n",
+                            "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600, forbid=0)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "ok [R13LOCK-migrate]",
+     "a lock file's content is never read; its identity is pinned by the trusted lock directory; any group/other bit "
+     "(writable included, under this mutant) makes _lock_one replace it with a 0600 file while holding the old lock "
+     "([R13LOCK-migrate] / [R13LOCK-old-held], asserted on this mutant)"),
+    # round 13: RV6-14 (the shell's replay-logs made with a NON-exclusive mkdir). The very next line makes the run-log
+    # directory with `mkdtemp --exclusive-parent` on the same directory, which refuses the same input (a replay-logs that
+    # is not this user's alone); the PREMISE row [R13SH-logs1777] (replay-logs ours 1777 -> BLIND 4, nothing made) must
+    # still pass on the mutant.
+    ("V4R13-RV6-14", BR, [('_fc_safe mkdir --exclusive "$worktree_root/replay-logs"', '_fc_safe mkdir "$worktree_root/replay-logs"')],
+     T_R13, {"R13_ONLY": "SH"}, "ok [R13SH-logs1777]",
+     "the next line's `safepath mkdtemp --exclusive-parent` on the same directory refuses whatever the --exclusive "
+     "mkdir refused ([R13SH-logs1777], asserted on this mutant)"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
             ("control-bdq", T_BDQ, {}, "PASS: golden-bad-fp-mismatch"),
             ("control-cb-F22", T_CB, {"CB_ONLY": "C-F22"}, "ok [C-F22]"),
             ("control-r2-V4-10", T_R2, {"R2_ONLY": "V4-10"}, "ok [V4-10]"),
-            ("control-cb-V43", T_CB, {"CB_ONLY": "C-V43"}, "ok [C-V43]")]
+            ("control-cb-V43", T_CB, {"CB_ONLY": "C-V43"}, "ok [C-V43]"),
+            # every stop-matrix row a mutation below uses must pass on the UNMUTATED replica
+            ("control-sm-rows", T_R2, {"R2_ONLY": "SM", "SM_SIGNALS": "TERM", "SM_TARGETS": "main worker",
+                                       "SM_SHAPES": "never ignterm ownsess daemon", "SM_EXTRA": ""}, "ok [SM] TERM-main-never"),
+            ("control-sm-extra", T_R2, {"R2_ONLY": "SM", "SM_SIGNALS": "KILL QUIT", "SM_TARGETS": "main",
+                                        "SM_SHAPES": "quick never", "SM_EXTRA": "doublekill nohup selfcheck"}, "ok [SM] KILL-main-quick"),
+            ("control-r2-PERRUN", T_R2, {"R2_ONLY": "PERRUN"}, "ok [PERRUN]"),
+            # one control for the whole unit file (rc == 0 requires every [Z*]/[S*]/[G1] case, so a separate
+            # round-4 control would check nothing distinct); the new RA* rows each name their own case
+            ("control-sup-unit", T_SUP, {}, "ok [Z1]"),
+            # round 5: the whole v4r5 file (rc == 0 requires every case), the four new stop-matrix rows, the
+            # new collect_baseline cases (the bdq control above already requires the malformed-* checks)
+            ("control-v5", T_V5, {}, "ok [F1RUN]"),
+            ("control-sm-v5", T_R2, {"R2_ONLY": "SM", "SM_SIGNALS": "TERM", "SM_TARGETS": "main", "SM_SHAPES": "",
+                                     "SM_EXTRA": "sigchld wtaddkill nochildren runsig"}, "ok [SM] sigchld-caller-quick"),
+            ("control-cb-v5", T_CB, {"CB_ONLY": "C-FRESHJ C-ONDATE"}, "ok [C-FRESHJ]"),
+            # round 6: the new stop-matrix rows (the v5 control above already requires every new v5 case)
+            ("control-sm-v6", T_R2, {"R2_ONLY": "SM", "SM_SIGNALS": "INT", "SM_TARGETS": "main", "SM_SHAPES": "",
+                                     "SM_EXTRA": "termign runkill"}, "ok [SM] runkill-KILL-fcrun-daemon"),
+            # round 7: the stop-matrix row V4R7-N1f runs, and the re-expressed wtaddkill row
+            ("control-sm-v7", T_R2, {"R2_ONLY": "SM", "SM_SIGNALS": "KILL", "SM_TARGETS": "worker-group",
+                                     "SM_SHAPES": "daemon", "SM_EXTRA": "wtaddkill"}, "ok [SM] KILL-worker-group-daemon"),
+            # round 8: the stream-matrix rows the V4R8-1 mutants run (one file, every row they name)
+            ("control-v8", T_V8, {"R8_ONLY": "R8MATRIX R8RUN R8FDS", "R8_STREAMS": "closed-out dead-err closed-err",
+                                  "R8_SCENARIOS": "ok usage stop-INT-main"}, "ok [R8FDS]"),
+            # round 9: every row a V4R9-* mutant runs, on the UNMUTATED replica
+            ("control-v8-r9", T_V8, {"R8_ONLY": "R8MATRIX R8RUN R8SIGPIPE",
+                                     "R8_STREAMS": "wrongdir-in wrongdir-out dead-err dead-both dead-both-ign",
+                                     "R8_SCENARIOS": "stop-TERM-main kill-worker term-worker"}, "ok [R8SIGPIPE]"),
+            ("control-v9", T_V9, {"R9_ONLY": "R9WIN R9GC2 R9STALL", "R9_ROLES": "keeper worker",
+                                  "R9_TAGS": "_keeper.try _keeper.finally W2-after-writer", "R9_ACTIONS": "kill-self"},
+                                  "ok [R9STALL]"),
+            # round 10: every row a V4R10-* mutant runs, on the UNMUTATED replica
+            ("control-v9-r10", T_V9, {"R9_ONLY": "R10LEASE R10DROP"}, "ok [R10LEASE]"),
+            ("control-v8-r10", T_V8, {"R8_ONLY": "R8MATRIX",
+                                      "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out "
+                                                    "wrongdir-err dead-out-closed-err dead-err",
+                                      "R8_SCENARIOS": "ok replay-sample selfcheck kill-keeper"},
+             "ok [R8MATRIX] selfcheck x closed-in"),
+            # round 12: the whole new file (rc == 0 requires every row a V4R12-M* shell mutant runs)
+            ("control-r12", T_R12, {}, "ok [R12SH-plant]"),
+            # round 13: the whole new file (rc == 0 requires every row a V4R13-* mutant runs)
+            ("control-r13", T_R13, {}, "ok [R13UMASK-default]"),
+            # round 14: the whole new file (rc == 0 requires every row a V4R14-* mutant runs)
+            ("control-r14", T_R14, {}, "ok [R14ACL-check]"),
+            # round 15: the whole new file (rc == 0 requires every row a V4R15-* mutant runs)
+            ("control-r15", T_R15, {}, "ok [R15LOCK-home-env]")]
 
 
 def replica():
     root = tempfile.mkdtemp(prefix="r6mut.")
     shutil.copytree(os.path.join(FC, "cycle"), os.path.join(root, "cycle"))
     shutil.copytree(os.path.join(FC, "lib"), os.path.join(root, "lib"))
+    os.mkdir(os.path.join(root, "tests"))                      # round 13: the census is mutated in the replica too
+    shutil.copy(os.path.join(TESTS, "check_safepath_census.py"), os.path.join(root, CEN))
     return root
 
 
@@ -217,8 +1360,14 @@ def run_test(root, test, extra_env):
     env["FC_BR_UNDER_TEST"] = os.path.join(root, BR)
     env["FC_CB_UNDER_TEST"] = os.path.join(root, CB)
     env["FC_BDQ_TOOL_UNDER_TEST"] = os.path.join(root, BDQ)
-    p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
-                       timeout=600)
+    env["FC_SUP_UNDER_TEST"] = os.path.join(root, SUP)
+    env["FC_CENSUS_UNDER_TEST"] = os.path.join(root, CEN)
+    try:
+        p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
+                           timeout=600)
+    except subprocess.TimeoutExpired as e:      # round 11: a hung case is reported, never a crash of this runner
+        out = e.stdout.decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return "TIMEOUT", out
     return p.returncode, p.stdout
 
 
@@ -234,6 +1383,18 @@ def report(ok, msg):
         failed += 1
         print("NOT ok " + msg)
 
+
+# carry review round 1, F2: FAIL FAST on a drifted anchor -- the static census applies every pair of every mutant (and
+# of the worktree-cleanup test's mutants) in about a second; the per-mutant drift check below would only meet a
+# drifted anchor when the run reaches it, up to ~1.5 h in. A blind census (exit 2) also stops the run.
+_ac = subprocess.run([sys.executable, "-I", os.path.join(TESTS, "check_mutation_anchors.py"), "--fc", FC, "--tests", TESTS],
+                     capture_output=True, text=True, timeout=120)
+print(_ac.stdout.rstrip())
+if _ac.returncode != 0:
+    print("NOT ok anchor census (rc=%d): fix the drifted anchors before any mutant runs" % _ac.returncode)
+    print("----")
+    print("SUMMARY pass=0 fail=1")
+    sys.exit(1)
 
 for cid, test, envx, want in CONTROLS:
     if ONLY and cid not in ONLY:
@@ -270,6 +1431,31 @@ for mid, target, pairs, test, envx, want in MUTS:
             report(True, "%s CAUGHT by %s: %s" % (mid, test, hit[0][:160]))
         else:
             report(False, "%s SURVIVED %s (rc=%d, no line starting %r)" % (mid, test, rc, want))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+for eid, target, pairs, test, envx, want, proof in EQUIVS:
+    if ONLY and eid not in ONLY:
+        continue
+    root = replica()
+    try:
+        path = os.path.join(root, target)
+        src = open(path).read()
+        bad_anchor = None
+        for old, new in pairs:
+            n = src.count(old)
+            if n != 1:
+                bad_anchor = "anchor matched %d times: %r" % (n, old[:80])
+                break
+            src = src.replace(old, new, 1)
+        if bad_anchor:
+            report(False, "%s: equivalent mutant could not be applied (%s) -- the anchor drifted" % (eid, bad_anchor))
+            continue
+        open(path, "w").write(src)
+        rc, out = run_test(root, test, envx)
+        hit = [l for l in out.splitlines() if l.startswith(want)]
+        report(rc == 0 and bool(hit), "%s EQUIVALENT (still passes %s, %s): %s" % (eid, test, want, proof)
+               if rc == 0 and hit else "%s: the claimed-equivalent mutant is now OBSERVABLE (rc=%s) -- re-analyse" % (eid, rc))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
