@@ -53,7 +53,7 @@ bad() { fail=$((fail+1)); echo "FAIL $1"; }
 # real git repo that records its third_party paths as gitlinks (index records, `update-index --cacheinfo`), and
 # register nested repos as gitlinks of their parent so the walk reaches them. Idempotent; only under $TMP.
 gitify() {
-    local d="$1" m x p r par n pn recs u1 u2 u3 u4 tpf
+    local d="$1" m x p r par n pn recs u1 u2 u3 u4 tpf h
     case "$d" in "$TMP"/*) ;; *) return 0 ;; esac
     [ -d "$d" ] || return 0
     # shellcheck disable=SC1091
@@ -74,7 +74,11 @@ gitify() {
         [ "$x" = "$d" ] && continue
         par="$(dirname "$x")"
         while [ "$par" != "$d" ] && [ ! -e "$par/.git" ]; do par="$(dirname "$par")"; done
-        "${GG[@]}" -C "$par" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,${x#"$par"/}" 2>/dev/null
+        # a populated submodule's HEAD is the commit its parent records (the prune lib refuses a level that is neither the
+        # parent's modules/<path> git dir nor at the recorded commit, killpg follow-ups round 4): commit x, record its HEAD
+        "${GG[@]}" -C "$x" -c user.name=t -c user.email=t@t commit -q --allow-empty -m g 2>/dev/null
+        h="$("${GG[@]}" -C "$x" rev-parse --verify -q HEAD 2>/dev/null)" || continue
+        "${GG[@]}" -C "$par" update-index --add --cacheinfo "160000,$h,${x#"$par"/}" 2>/dev/null
     done
 }
 run() { local a; for a in "$@"; do [ -d "$a" ] && gitify "$a"; done; OUT="$(nice -n 15 "$@" 2>&1)"; RC=$?; }
