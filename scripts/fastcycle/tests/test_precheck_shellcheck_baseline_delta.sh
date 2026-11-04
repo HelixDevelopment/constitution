@@ -1149,6 +1149,225 @@ wh s.sh "#!/bin/sh\n$H STUB_EXTENT cite-12\na=\$1\necho \$a\necho l5\necho l6\ne
 expect "R10-C1 (SIMULATED message cites line 12) the cited two-digit line is another, EDITED statement -> FAIL, SC2086 4:6 new" "$FB" "('FAIL', [('SC2086', 4, 6)], [])"
 new_case r10c1n; wb s.sh "$C1B"; base; wh s.sh "${C1B}echo added\n"; head; gate
 expect "R10-C1n control (SIMULATED cite of line 12, nothing edited, a line appended) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+# --- r11 (ATM-1217 replacement, round-1 review F1-F6 + the 11.4.276(C) class "the parser and the real shell disagree
+# about where a unit ends or what is executed"). Real-gate cases first, then helper-level class cases (the REAL
+# helper binary on a fragment, next to a CONTROL NEEDLE that runs the real dash / bash on the same bytes and proves
+# the claimed shell behaviour, so a disagreement the test asserts is measured, never assumed).
+# FX: (verdict, per-file (state, reason prefix), the pinned debt line is NEW, pre-existing findings)
+FX='(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], ("SC2086", 5) in [(f["rule"], f["line"]) for f in e.get("findings", [])], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])'
+# A2 (review F1, POSIX sh, no opt-in): an alias whose value ends in `|` continues the unchanged `sh -s $args`
+#    through the blank line it replaces (dash and bash --posix expand aliases in scripts) -> FAIL, whole file
+new_case r11a2; wb s.sh '#!/bin/sh\nalias fetch='"'"'curl -s "$1" |'"'"'\nargs=$2\n\nsh -s $args\n'; base
+wh s.sh '#!/bin/sh\nalias fetch='"'"'curl -s "$1" |'"'"'\nargs=$2\nfetch\nsh -s $args\n'; head; gate
+expect "R11-A2 (F1) POSIX alias ending in | continues the unchanged sink -> FAIL, new-file units-unparsed, SC2086 5 new" "$FX" "('FAIL', [('new-file', 'units-unparsed: head')], True, [])"
+# A1 (review F1, bash with expand_aliases) the same in bash
+new_case r11a1; wb s.sh '#!/bin/bash\nshopt -s expand_aliases\nalias fetch='"'"'curl -s "$1" |'"'"'\nargs=$2\n\nsh -s $args\n'; base
+wh s.sh '#!/bin/bash\nshopt -s expand_aliases\nalias fetch='"'"'curl -s "$1" |'"'"'\nargs=$2\nfetch\nsh -s $args\n'; head; gate
+expect "R11-A1 (F1) bash expand_aliases alias ending in | -> FAIL, new-file units-unparsed" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], ("SC2086", 6) in [(f["rule"], f["line"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('new-file', 'units-unparsed: head')], True, [])"
+# A1c control: the literal `curl -s "$1" |` line instead of the alias -> FAIL, SC2086 4:7 new (the parser sees it)
+new_case r11a1c; wb s.sh '#!/bin/sh\nargs=$2\n\nsh -s $args\n'; base
+wh s.sh '#!/bin/sh\nargs=$2\ncurl -s "$1" |\nsh -s $args\n'; head; gate
+expect "R11-A1c control: the literal pipe line -> FAIL, SC2086 4:7 new" "$FB" "('FAIL', [('SC2086', 4, 7)], [])"
+# A2n negative control (11.4.201(1)): the word alias only in a comment and inside a string -> PASS, credited
+new_case r11a2n; wb s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args\n"; base
+wh s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args\necho more\n"; head; gate
+expect "R11-A2n control: alias only in a comment and a string -> PASS, SC2086 5:7 pre-existing" "$FB" "('PASS', [], [('SC2086', 5, 7)])"
+# KQ (review F2) `cat <<"a\\b"`: the parser ends the body at the line a\\b, bash and dash want a\b (the body runs to
+#    end of file) -> the delimiter cross-check refuses -> FAIL, whole file (never the SC2086 at 6 credited)
+KQB='#!/bin/sh\nx=$1\ncat <<"a\\\\b"\nbody\na\\\\b\necho $x\n'
+new_case r11kq; wb s.sh "$KQB"; base
+wh s.sh '#!/bin/sh\nx=$1\ncat <<"a\\\\b" | sh\nbody\na\\\\b\necho $x\n'; head; gate
+expect "R11-KQ (F2) parser and shell disagree on the delimiter a\\\\b -> FAIL, new-file units-unparsed, SC2086 6 new" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], ("SC2086", 6) in [(f["rule"], f["line"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('new-file', 'units-unparsed: head')], True, [])"
+# KQn control: the same file, an unrelated line appended -> still the whole-file verdict (no unit is proven)
+new_case r11kqn; wb s.sh "$KQB"; base; wh s.sh "${KQB}echo more\n"; head; gate
+expect "R11-KQn control: the same delimiter, unrelated append -> FAIL, new-file units-unparsed (no credit either way)" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], e.get("baseline_findings", []))' "('FAIL', [('new-file', 'units-unparsed: head')], [])"
+# KB (review F6) `cat <<"a\b"`: inside double quotes bash keeps the backslash before b; parser and shells end at a\b
+#    -> the units are proven, the unchanged `echo $x` after the here-document keeps its credit -> PASS
+KBB='#!/bin/sh\nx=$1\ncat <<"a\\b"\nbody\na\\b\necho $x\n'
+new_case r11kb; wb s.sh "$KBB"; base; wh s.sh "${KBB}echo more\n"; head; gate
+expect "R11-KB (F6) delimiter a\\\\b in double quotes, parser and shells agree -> PASS, SC2086 6:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 6, 6)])"
+# KD (review F3) `<<-EOF`, a tab-indented body and terminator, an unrelated append -> PASS, credited
+KDB='#!/bin/sh\nx=$1\ncat <<-EOF\n\tbody\n\tEOF\necho $x\n'
+new_case r11kd; wb s.sh "$KDB"; base; wh s.sh "${KDB}echo more\n"; head; gate
+expect "R11-KD (F3) <<- tab-trimmed terminator -> PASS, SC2086 6:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 6, 6)])"
+# DU (class member: /bin/sh is dash on one host and bash --posix on another) `<<$'EOF'`: dash ends the body at
+#    the line $EOF, bash --posix at EOF two lines later (measured by the r11-du needles below). Through the gate the
+#    case is closed one layer earlier: shellcheck 0.11.0 cannot parse that here-document (SC1044) -> head-unparsed,
+#    the whole-file verdict. The union of the posix and bash parses (r11-du, r11-du2, r11-ar below) is the helper's
+#    own guard for a disagreement shellcheck does accept; none was found in this round (stated).
+new_case r11du; wb s.sh "#!/bin/sh\nx=\$1\ncat <<\$'EOF' | cat\n\$EOF\necho X\$x\nEOF\necho after\n"; base
+wh s.sh "#!/bin/sh\nx=\$1\ncat <<\$'EOF' | sh\n\$EOF\necho X\$x\nEOF\necho after\n"; head; gate
+expect "R11-DU dash and bash --posix end the here-document on different lines -> FAIL, head-unparsed (shellcheck SC1044)" '(c["verdict"], [f.get("new_file_reason", "")[:14] for f in e["delta"]["files"]], e.get("baseline_findings", []))' "('FAIL', ['head-unparsed:'], [])"
+# MV (review F4) a `shell=bash` directive in a `#!/bin/sh` file: the parser dialect would disagree with the linted
+#    one -> FAIL, whole file (a credit here would rest on units of a dialect nobody linted)
+new_case r11mv; wb s.sh "#!/bin/sh\n${H} shellcheck shell=bash\na=\$1\necho \$a\n"; base
+wh s.sh "#!/bin/sh\n${H} shellcheck shell=bash\na=\$1\necho \$a\necho more\n"; head; gate
+expect "R11-MV (F4) shell=bash directive in a sh file -> FAIL, new-file units-unparsed" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]], e.get("baseline_findings", []))' "('FAIL', [('new-file', 'units-unparsed: head')], [])"
+# MVn control: a `shell=sh` directive that agrees -> PASS, credited
+new_case r11mvn; wb s.sh "#!/bin/sh\n${H} shellcheck shell=sh\na=\$1\necho \$a\n"; base
+wh s.sh "#!/bin/sh\n${H} shellcheck shell=sh\na=\$1\necho \$a\necho more\n"; head; gate
+expect "R11-MVn control: an agreeing shell=sh directive -> PASS, SC2086 4:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+
+# helper-level class cases. hu <id> <dialect> <printf-%b fragment> <expected>: expected is the JSON units list, or
+# rc=<N>:<substring of the error>. shx <id> <shell argv> <printf-%b fragment> <expected output, newlines as |>: the
+# control needle -- the real shell's behaviour on the same bytes.
+HU_DIR="$TMP/hu"; mkdir -p "$HU_DIR"
+hu() {
+    printf '%b' "$3" >"$HU_DIR/$1.sh"
+    out=$("$REAL_UNITS" -dialect "$2" <"$HU_DIR/$1.sh" 2>/dev/null); hrc=$?
+    got=$(printf '%s' "$out" | python3 -c 'import json, sys
+d = json.load(sys.stdin); rc = int(sys.argv[1])
+print(json.dumps(d.get("units"), separators=(",", ":")) if rc == 0 else "rc=%d:%s" % (rc, d.get("error", "")))' "$hrc" 2>&1)
+    case $4 in
+        rc=*) case $got in "${4%%:*}:"*"${4#*:}"*) ok "$1 [$2: $got]" ;; *) bad "$1 [$2]: got '$got', expected '$4'" ;; esac ;;
+        *) if [ "$got" = "$4" ]; then ok "$1 [$2: $got]"; else bad "$1 [$2]: got '$got', expected '$4'"; fi ;;
+    esac
+}
+shx() {
+    printf '%b' "$3" >"$HU_DIR/$1.x.sh"
+    got=$(cd "$HU_DIR" && env -i PATH=/usr/bin:/bin timeout 10 $2 "$1.x.sh" 2>&1 | tr '\n' '|')
+    case $got in *"$4"*) ok "$1 needle [$2 prints ...$4...]" ;; *) bad "$1 needle [$2]: got '$got', expected to contain '$4'" ;; esac
+}
+if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ] && command -v dash >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
+    # F1 alias class: every way a script can define an alias (or turn alias expansion on) fails closed, rc 5
+    AL='p\ntr a-z A-Z\n'
+    shx r11-al-needle-dash dash "alias p='echo hi |'\n$AL" 'HI|'
+    shx r11-al-needle-bposix 'bash --posix' "alias p='echo hi |'\n$AL" 'HI|'
+    hu r11-al1 posix "alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al2 bash "shopt -s expand_aliases\nalias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al3 posix "\\\\alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al4 posix "'alias' p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al5 posix "command alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al6 bash "builtin alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al7 posix "eval \"alias p='echo hi |'\"\n$AL" 'rc=5:eval'
+    shx r11-al7-needle dash "eval \"alias p='echo hi |'\"\n$AL" 'HI|'
+    hu r11-al8 posix "a=alias\n\$a p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al9 posix "unalias p\nls\n" 'rc=5:alias'
+    hu r11-al10 bash "BASH_ALIASES[p]='echo hi |'\n$AL" 'rc=5:BASH_ALIASES'
+    hu r11-al11 bash "set -o posix\nls\n" 'rc=5:posix'
+    hu r11-al12 bash "shopt -s expand_aliases\nls\n" 'rc=5:expand_aliases'
+    hu r11-al13 bash "export POSIXLY_CORRECT=1\nls\n" 'rc=5:POSIXLY_CORRECT'
+    hu r11-al14 posix "POSIXLY_CORRECT=1 ls\nls\n" 'rc=5:POSIXLY_CORRECT'
+    hu r11-al15 posix "f() {\n  alias p='echo |'\n}\nls\n" 'rc=5:alias'
+    hu r11-al16 posix "x=\$(alias)\nls\n" 'rc=5:alias'
+    # negative controls: data and comments never trigger it
+    hu r11-aln1 posix "# alias p='echo |'\necho \"an alias\"\necho alias\n" '[[1,1],[2,2],[3,3]]'
+    hu r11-aln2 posix "sh -c 'alias p=x'\ncat <<EOF\nalias p=x\nEOF\n" '[[1,1],[2,4]]'
+    hu r11-aln3 bash "echo posix expand_aliases\nls\n" '[[1,1],[2,2]]'
+    # NUL bytes: dash strips a NUL (so `\<NUL><newline>` continues the line), bash refuses the file -> rc 5
+    shx r11-nul-needle dash 'echo a \\\0000\necho b\n' 'a echo b|'
+    hu r11-nul posix 'echo a \\\0000\necho b\n' 'rc=5:NUL'
+    # F2 / F6 here-document delimiters: the terminator line must read as the delimiter the SHELL derives
+    shx r11-kq-needle bash 'cat <<"a\\\\b"\nbody\na\\\\b\necho after\n' 'a\\b|echo after|'
+    hu r11-kq posix 'cat <<"a\\\\b"\nbody\na\\\\b\necho after\n' 'rc=4:not its delimiter'
+    shx r11-kb-needle dash 'cat <<"a\\b"\nbody\na\\b\necho after\n' 'body|after|'
+    hu r11-kb posix 'cat <<"a\\b"\nbody\na\\b\necho after\n' '[[1,3],[4,4]]'
+    # `<<"a\$b"`: bash drops the backslash before $ (delimiter a$b); the parser keeps it and finds no terminator
+    #    -> parse error, fail closed (stricter; stated)
+    shx r11-kbd-needle dash 'cat <<"a\\$b"\nbody\na$b\necho after\n' 'body|after|'
+    hu r11-kbd posix 'cat <<"a\\$b"\nbody\na$b\necho after\n' 'rc=3:unclosed here-document'
+    hu r11-kd posix 'cat <<-EOF\n\tbody\n\tEOF\necho after\n' '[[1,3],[4,4]]'
+    hu r11-kbs posix 'cat <<\\EOF\nbody\nEOF\necho after\n' '[[1,3],[4,4]]'
+    hu r11-kmix posix 'cat <<E"O"F\nbody\nEOF\necho after\n' '[[1,3],[4,4]]'
+    hu r11-ksp posix 'cat <<"E F"\nbody\nE F\necho after\n' '[[1,3],[4,4]]'
+    shx r11-kcont-needle dash 'cat <<E\\\nOF\nbody\nEOF\necho after\n' 'body|after|'
+    hu r11-kcont posix 'cat <<E\\\nOF\nbody\nEOF\necho after\n' '[[1,4],[5,5]]'
+    shx r11-kbody-needle dash 'cat <<EOF\nfoo\\\nEOF\nEOF\necho after\n' 'fooEOF|after|'
+    hu r11-kbody posix 'cat <<EOF\nfoo\\\nEOF\nEOF\necho after\n' '[[1,4],[5,5]]'
+    hu r11-kdol posix 'cat <<$x\nbody\n$x\necho after\n' 'rc=3:heredoc'
+    # dash vs bash --posix for one `#!/bin/sh` file: POSIX units are the UNION of the posix and the bash parse
+    DU='x=hi\ncat <<$'"'"'EOF'"'"' | sh\n$EOF\necho X$x\nEOF\necho after\n'
+    shx r11-du-needle-dash dash "$DU" 'Xhi|'
+    shx r11-du-needle-bposix 'bash --posix' "$DU" 'X|after|'
+    hu r11-du posix "$DU" '[[1,1],[2,5],[6,6]]'
+    hu r11-du2 posix 'x=hi\ncat <<$"EOF" | sh\n$EOF\necho X$x\nEOF\necho after\n' '[[1,1],[2,5],[6,6]]'
+    shx r11-ar-needle 'bash --posix' '((echo a) )\necho after\n' 'a|after|'
+    hu r11-ar posix '((echo a) )\necho after\n' 'rc=3:bash cross-parse'
+    # bash-only syntax in a POSIX file: the POSIX parse refuses (dash refuses too) -> fail closed
+    hu r11-hs posix 'cat <<< x\necho after\n' 'rc=3:herestring'
+    hu r11-fn posix 'function f {\necho in\n}\n' 'rc=3:function'
+    hu r11-ca posix 'case a in a) echo 1 ;&\nb) echo 2 ;;\nesac\n' 'rc=3:'
+    hu r11-pa posix 'echo hi |&\ncat\n' 'rc=3:'
+    # the same constructs in bash: units agree with bash
+    hu r11-hsb bash 'cat <<< x\necho after\nx\n' '[[1,1],[2,2],[3,3]]'
+    hu r11-fnb bash 'function f {\necho in\n}\nf\n' '[[1,3],[4,4]]'
+    hu r11-cab bash 'case a in a) echo 1 ;&\nb) echo 2 ;;\nesac\necho after\n' '[[1,3],[4,4]]'
+    hu r11-pab bash 'echo hi |&\ncat\necho after\n' '[[1,2],[3,3]]'
+    hu r11-cop bash 'coproc cat\necho after\n' '[[1,1],[2,2]]'
+    hu r11-arb bash '((echo a) )\necho after\n' 'rc=3:arithmetic'
+    # constructs both parsers and both shells agree on (pinned)
+    hu r11-dbr posix '[[ a == a ||\nb ]] && echo yes\necho after\n' '[[1,2],[3,3]]'
+    hu r11-bse posix 'echo a \\' '[[1,1]]'
+    hu r11-cmd posix 'x=$(cat <<EOF\nl1\nEOF\n)\necho "$x"\n' '[[1,4],[5,5]]'
+    hu r11-cps posix 'case x in\n(x) echo par ;;\nesac\necho after\n' '[[1,3],[4,4]]'
+    # scoped out (stated in the guide): bash without extglob refuses @( ) at parse time and runs nothing after it
+    shx r11-eg-needle bash 'echo @(a|b)\necho after\n' 'syntax error'
+    hu r11-eg bash 'echo @(a|b)\necho after\n' '[[1,1],[2,2]]'
+else
+    bad "R11 helper-level class cases need the real units helper, dash and bash"
+fi
+# F5 (review MV5 survived): the build cache. Each case calls the REAL _units_helper_path against a private cache
+#    directory (a real go build; no stub). The cache key carries the go version and platform, the stamp is checked
+#    against the recomputed binary sha256 and the stamp's own source hash / go version, an inherited GOCACHE is
+#    never used, and on a toolchain listed in units_helper/BINARY_PINS.tsv the binary must equal the pinned sha256
+#    (so a forged binary + forged stamp, or a poisoned build cache, is refused or rebuilt, never run).
+if command -v go >/dev/null 2>&1; then
+    python3 - "$REVIEW/lib" "$TMP/kcache" <<'PY' >"$TMP/kcache.out" 2>&1
+import hashlib, os, shutil, sys
+sys.path.insert(0, sys.argv[1])
+import precheck_pack_run as m
+base = sys.argv[2]
+os.environ["PRECHECK_UNITS_CACHE_DIR"] = base
+inh = os.path.join(base, "inherited-gocache")
+os.makedirs(inh)
+os.environ["GOCACHE"] = inh
+def sha(p):
+    return hashlib.sha256(open(p, "rb").read()).hexdigest()
+def res(ok, label, detail=""):
+    print(("ok|%s" if ok else "bad|%s|%s") % ((label,) if ok else (label, detail)))
+p, why = m._units_helper_path(None)
+res(p is not None, "R11-K1 a fresh build gives a helper", str(why))
+if p is None:
+    sys.exit(0)
+genuine = sha(p)
+stamp = os.path.join(os.path.dirname(p), "units.sha256")
+pin = m._units_pinned_sha256()
+res(pin is None or pin == genuine, "R11-K1b the built binary equals the pin of this toolchain (or no pin)", "%s vs %s" % (genuine, pin))
+res(os.listdir(inh) == [], "R11-K5 an inherited GOCACHE is never used by the build", repr(os.listdir(inh)[:3]))
+# K2: the binary replaced, the stamp kept -> the recomputed sha256 differs -> rebuilt, never the forged binary
+open(p, "wb").write(b"#!/bin/sh\necho forged\n")
+p2, why = m._units_helper_path(None)
+res(p2 is not None and sha(p2) == genuine, "R11-K2 a replaced cached binary (stamp kept) is rebuilt, never run", str(why))
+# K4: the stamp names another go version -> rebuilt
+fields = open(stamp).read().split()
+open(stamp, "w").write(" ".join(fields).replace(fields[2], "go0.0.0") + "\n")
+t0 = os.stat(p).st_mtime_ns
+p4, why = m._units_helper_path(None)
+res(p4 is not None and sha(p4) == genuine and os.stat(p4).st_mtime_ns != t0,
+    "R11-K4 a stamp naming another go version is not trusted (rebuilt)", str(why))
+# K3: binary AND stamp forged consistently (the stamp holds the forged binary's sha256)
+open(p, "wb").write(b"#!/bin/sh\necho forged\n")
+fields = open(stamp).read().split()
+open(stamp, "w").write(" ".join([sha(p)] + fields[1:]) + "\n")
+p3, why = m._units_helper_path(None)
+if pin is None:
+    res(True, "R11-K3 SKIP (stated limit): no pin for this toolchain, a consistent binary + stamp forgery is not detectable")
+else:
+    res(p3 is not None and sha(p3) == genuine, "R11-K3 a consistent binary + stamp forgery on a pinned toolchain is rebuilt", str(why))
+# K6: go absent -> no helper (the cache key needs the go version), never a guess
+old = os.environ["PATH"]
+os.environ["PATH"] = "/nonexistent"
+p6, why = m._units_helper_path(None)
+os.environ["PATH"] = old
+res(p6 is None and "go" in str(why), "R11-K6 go absent -> no helper, named", "%s %s" % (p6, why))
+PY
+    while IFS='|' read -r k l d; do
+        case $k in ok) ok "$l" ;; bad) bad "$l: $d" ;; *) bad "R11-K* unexpected output: $k $l $d" ;; esac
+    done <"$TMP/kcache.out"
+    grep -q '^ok|R11-K1 ' "$TMP/kcache.out" || bad "R11-K* the cache cases did not run: $(command head -c 300 "$TMP/kcache.out")"
+else
+    bad "R11-K* go is not on PATH: the cache cases cannot run"
+fi
 
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate

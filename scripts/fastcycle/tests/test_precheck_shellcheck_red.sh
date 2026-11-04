@@ -55,7 +55,7 @@ if ! command -v shellcheck >/dev/null 2>&1; then
     exit 2
 fi
 
-TMP=$(mktemp -d)
+TMP=$(mktemp -d) || { echo "cannot create temp dir (TMPDIR unusable)" >&2; exit 2; }
 HOLDER_PID=""
 cleanup() {
     if [ -n "$HOLDER_PID" ]; then kill "$HOLDER_PID" 2>/dev/null; fi
@@ -682,7 +682,7 @@ lcase l28 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,DIR-FORBIDDEN=1
 MUTROOT="$TMP/mut"
 mutant() { # <id> <old=>>new> <case function> [python expr that must hold after the mutation]
     id=$1; edit=$2; fn=$3; want=${4:-'c["verdict"] == "PASS"'}
-    rm -rf "$MUTROOT"; mkdir -p "$MUTROOT/lib"
+    rm -rf "${MUTROOT:?}"; mkdir -p "$MUTROOT/lib"
     cp "$REVIEW/precheck_pack.sh" "$MUTROOT/"; cp "$REVIEW/lib/"*.py "$MUTROOT/lib/"
     if ! python3 - "$MUTROOT/lib/precheck_pack_run.py" "$edit" <<'PY'
 import sys

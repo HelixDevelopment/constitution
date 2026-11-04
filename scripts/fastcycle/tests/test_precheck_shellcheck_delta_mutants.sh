@@ -37,12 +37,14 @@
 # Q01-Q08 (r10; the brief's P1-P8 -- P01-P11 are taken by r5): the structural replacement -- the Go helper's unit span and here-document handling, and the
 # fail-closed seams in lib/precheck_pack_run.py (parse error, timeout, base units, unit walk, dialect map, the
 # unfiltered map on a units failure).
+# MV1b MV2 MV5 MV9 (r11): the round-1 reviewer's surviving mutants of the replacement, VERBATIM; Q02 is no longer
+# EQUIVALENT (review F2). Q09-Q18 (r11): successors on the r11 code (union parse, alias / NUL checks, quote removal, cache).
 # Z07 RETIRED by r7 (the condition is keyed on the full finding key; successor W05).
 # r5 RETIRED: a mutant whose needle the r5 structural change deleted (the window fallback, its lexer, the
 # working-tree activation check) is kept verbatim and marked RETIRED; the harness PROVES its needle is absent
 # (if it ever comes back the mutant is run and must be killed). Retired is never counted as killed.
 #
-# Usage: sh test_precheck_shellcheck_delta_mutants.sh [-j N]   (default -j 4)
+# Usage: [MUTANT_OUT_DIR=<durable dir>] sh test_precheck_shellcheck_delta_mutants.sh [-j N]   (default -j 4)
 # =============================================================================
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -51,8 +53,16 @@ JOBS=4
 [ "${1:-}" = "-j" ] && JOBS=${2:-4}
 SUITE="$HERE/test_precheck_shellcheck_baseline_delta.sh"
 
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT INT TERM
+# r11 (review F7): MUTANT_OUT_DIR=<dir> makes the run durable -- the work dir is that directory, it is NOT deleted on
+# exit, every result line is appended there as it lands (results.txt), and each mutant keeps only its suite.log (the
+# copied tree is removed after its run, to save disk). Without it the work dir is a temp dir removed on exit.
+if [ -n "${MUTANT_OUT_DIR:-}" ]; then
+    mkdir -p "$MUTANT_OUT_DIR" || exit 2
+    TMP=$(cd "$MUTANT_OUT_DIR" && pwd)
+else
+    TMP=$(mktemp -d)
+    trap 'rm -rf "${TMP:?}"' EXIT INT TERM
+fi
 
 cat >"$TMP/mutants.py" <<'PYEOF'
 RUN = "lib/precheck_pack_run.py"
@@ -570,7 +580,7 @@ MUTANTS = [
   '		spans = append(spans, [2]uint{lo, hi})', '		spans = append(spans, [2]uint{lo, lo})', None),
  ('Q02-go-heredoc-body-ignored', GO,
   '			for _, p := range []syntax.Pos{node.Pos(), node.End()} {',
-  '			if r, ok := node.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {\n				return false\n			}\n			for _, p := range []syntax.Pos{node.Pos(), node.End()} {', 'EQUIVALENT: measured on mvdan.cc/sh v3.13.1 -- Stmt.End() of the statement that owns a here-document redirect already reaches the terminator line (probe: `cat <<EOF | sh` / x / EOF gives the inner stmt 1:1-3:4), so skipping the Redirect node still yields units [1,3]; the here-document extent is carried by the parser positions, not by one helper branch. Covered behaviourally by R10-HP and the census here-document fragments.'),
+  '			if r, ok := node.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {\n				return false\n			}\n			for _, p := range []syntax.Pos{node.Pos(), node.End()} {', None),
  ('Q03-parse-error-gives-singletons', RUN,
   '    if p.returncode != 0:\n        why = doc.get',
   '    if p.returncode == 3:\n        n = len(_raw_lines(data))\n        return {"schema": UNITS_SCHEMA, "dialect": dialect, "lines": n, "units": [[i, i] for i in range(1, n + 1)]}\n    if p.returncode != 0:\n        why = doc.get', None),
@@ -585,6 +595,39 @@ MUTANTS = [
   '_UNITS_DIALECTS = {"sh": "posix",', '_UNITS_DIALECTS = {"sh": "bash",', None),
  ('Q08-units-failure-gives-unfiltered-map', RUN,
   '        return None, str(exc)', '        return out, None', None),
+ # MV1b MV2 MV5 MV9 (r11): the round-1 reviewer's surviving mutants of the replacement, VERBATIM (11.4.276(D)). Q02
+ # lost its EQUIVALENT label: skipping the Redirect node also skips the delimiter cross-check (review F2; killed by
+ # R11-KQ and r11-kq).
+ ('MV1b-rv1-delim-check-off', GO,
+  '\t\treturn string(l) == delim', '\t\treturn string(l) == delim || len(l) >= 0', None),
+ ('MV2-rv1-directive-dialect-unchecked', RUN,
+  '        if _UNITS_DIALECTS.get(s) != d:', '        if False:', None),
+ ('MV5-rv1-cache-sha-unchecked', RUN,
+  ' and _file_sha256(binp) == want[0]', '', None),
+ ('MV9-rv1-dashhdoc-tab-trim-off', GO,
+  '\t\t\tl = bytes.TrimLeft(l, "\\t")', '\t\t\t_ = l', None),
+ # Q09-Q18 (r11): successors on the r11 code -- the posix+bash union, the alias / NUL fail-closed checks, the shell's
+ # quote removal for delimiters, and the cache key / stamp / pin / GOCACHE seams (review F5).
+ ('Q09-posix-bash-union-off', GO,
+  '\tif why == "" && lang == syntax.LangPOSIX {', '\tif false && lang == syntax.LangPOSIX {', None),
+ ('Q10-alias-class-not-checked', GO,
+  '\tif why := unmodelled(file); why != "" {', '\tif why := unmodelled(file); false && why != "" {', None),
+ ('Q11-nul-byte-not-checked', GO,
+  '\tif bytes.IndexByte(data, 0) >= 0 {', '\tif false {', None),
+ ('Q12-dq-backslash-always-removed', GO,
+  "\t\t\t\t\t\tif !dq || c == '$'", "\t\t\t\t\t\tif true || c == '$'", None),
+ ('Q13-eval-alias-not-checked', GO,
+  '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") {', '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") && false {', None),
+ ('Q14-builtin-command-prefix-not-skipped', GO,
+  '\t\t\t\tif !ok || (t != "builtin" && t != "command") {', '\t\t\t\tif true || !ok || (t != "builtin" && t != "command") {', None),
+ ('Q15-inherited-gocache-used', RUN,
+  '                   "GOCACHE": os.path.join(base, "gocache"),', '                   "GOCACHE": os.environ.get("GOCACHE") or os.path.join(base, "gocache"),', None),
+ ('Q16-pin-ignored-for-cached-binary', RUN,
+  ' and (pin is None or want[0] == pin)', '', None),
+ ('Q17-stamp-toolchain-not-checked', RUN,
+  'want[1:] == [src, ver, plat]', 'True', None),
+ ('Q18-built-binary-not-checked-against-pin', RUN,
+  '            if pin is not None and digest != pin:', '            if False:', None),
 ]
 PYEOF
 
@@ -635,6 +678,7 @@ PY
         1) echo "KILLED   $name ($(grep -c '^NOT ok' "$d/suite.log") case(s) failed)" ;;
         *) echo "INVALID-RUN $name (suite exit $src)"; tail -n 3 "$d/suite.log" ;;
     esac
+    rm -rf "${d:?}/review"
 }
 
 N=$(wc -l <"$TMP/list.tsv")

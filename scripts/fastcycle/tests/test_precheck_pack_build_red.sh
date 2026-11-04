@@ -45,7 +45,8 @@
 # in the SAME change this file is part of, per house precedent --
 # test_precheck_slicer_red.sh's own sibling tools T-C11/T078 relationship).
 #
-# Exit: 0 all as expected; 1 any FAIL recorded.
+# Exit: 0 all as expected; 1 any FAIL recorded; 2 environment (no local `main` branch to cut the
+#       disposable fixture commits from: SKIP/ENV, never a setup FAIL -- ATM-1217 r11, review F9).
 # =============================================================================
 
 set -u
@@ -56,6 +57,14 @@ CONST_ROOT="$FC"
 REVIEW_DIR="$FC/review"
 PRECHECK="$REVIEW_DIR/precheck_pack.sh"
 BUILD_WRAPPER="$REVIEW_DIR/precheck_pack_build.sh"
+# r11 (ATM-1217 review F9): Sections C and D cut their disposable commits from the LOCAL `main` branch (git worktree
+# add ... main). A clone without one (a review clone made from a feature branch) cannot run them: an honest
+# SKIP/ENV (11.4.3), never six "setup FAILED" lines that read as a product defect.
+if ! git -C "$CONST_ROOT" rev-parse --verify --quiet refs/heads/main >/dev/null 2>&1; then
+    echo "SKIP/ENV: $CONST_ROOT has no local branch main (the disposable fixture commits are cut from it;" \
+        "create it with: git branch main origin/main)" >&2
+    exit 2
+fi
 
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
@@ -93,9 +102,9 @@ cleanup_modes() {
     [ -n "${_SLICER_MODE:-}" ] && chmod "$_SLICER_MODE" "$REVIEW_DIR/slicer.py" >/dev/null 2>&1
     [ -n "${_PRECHECK_MODE:-}" ] && chmod "$_PRECHECK_MODE" "$PRECHECK" >/dev/null 2>&1
 }
-trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "$TMP"' EXIT
-trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "$TMP"; exit 130' INT
-trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "$TMP"; exit 143' TERM
+trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "${TMP:?}"' EXIT
+trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "${TMP:?}"; exit 130' INT
+trap 'reap_children; cleanup_worktrees; cleanup_modes; rm -rf "${TMP:?}"; exit 143' TERM
 
 echo "== T085-adjacent RED: precheck_pack_run.py batch-scoping fix + precheck_pack_build.sh wrapper =="
 

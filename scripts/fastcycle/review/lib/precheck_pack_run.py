@@ -764,7 +764,8 @@ TOO_LARGE_MIN_LINES = 5000
 # ---------------------------------------------------------------------------
 SC_RULES = ("whole-file", "baseline-delta")
 DEFAULT_SC_RULE = "whole-file"
-DELTA_RULE_ID = "shellcheck-baseline-delta/7"  # r10: units from a real parser, outermost statement (stricter only)
+DELTA_RULE_ID = "shellcheck-baseline-delta/8"  # r10: units from a real parser, outermost statement; r11: POSIX = union of
+# the posix and bash parses, in-file aliases / NUL bytes fail closed, shell quote removal for delimiters (stricter only)
 DEFAULT_SC_TIMEOUT_DELTA = 120  # per lint; head + base make a delta run lint twice
 _LINE_REF_RE = re.compile(r"(?i)\bline\s+\d+")
 
@@ -823,6 +824,9 @@ DEFAULT_UNITS_TIMEOUT = 60
 UNITS_BUILD_TIMEOUT = 600
 UNITS_BUILD_MEM_MIB = 4096
 UNITS_GRANULARITY = "outermost-statement"
+UNITS_POSIX_CROSS_PARSE = "bash"  # r11: a POSIX blob's units are the union of its posix and bash parses
+UNITS_PINS = "BINARY_PINS.tsv"   # r11 (review F5): <source hash> <go version> <goos/goarch> <binary sha256>, tracked
+UNITS_GO_TIMEOUT = 60
 _UNITS_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "units_helper")
 # shellcheck dialect -> parser dialect. ksh is UNMAPPED: mvdan/sh parses mksh, shellcheck lints ksh88/93, and no
 # ksh is installed on the reference host to check the two against -> fail closed (whole-file verdict), stated.
@@ -834,7 +838,8 @@ class _UnitsError(Exception):
 
 
 def _units_source_hash():
-    """sha256 over every file of units_helper/ (relative path, size, bytes; sorted): the build cache key."""
+    """sha256 over every file of units_helper/ (relative path, size, bytes; sorted) except BINARY_PINS.tsv: the
+    build input (with the go toolchain, the cache key)."""
     h = hashlib.sha256()
     for dp, dns, fns in os.walk(_UNITS_SRC):
         dns.sort()
@@ -843,6 +848,8 @@ def _units_source_hash():
             rel = os.path.relpath(p, _UNITS_SRC)
             if os.path.islink(p) or not os.path.isfile(p):
                 raise _UnitsError("units helper source %s is not a regular file" % rel)
+            if rel == UNITS_PINS:
+                continue  # the pins name binaries built FROM this hash; they are not an input of the build
             with open(p, "rb") as fh:
                 data = fh.read()
             h.update(rel.encode("utf-8", "surrogateescape") + b"\0" + str(len(data)).encode() + b"\0" + data)
@@ -871,38 +878,87 @@ def _units_parser_version():
     return "unknown"
 
 
+def _go_toolchain(go):
+    """-> (GOVERSION, "GOOS/GOARCH") of the go on PATH, read with a scrubbed environment; _UnitsError otherwise."""
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "GOENV": "off", "GOTOOLCHAIN": "local",
+           "GOTELEMETRY": "off", "GOFLAGS": "-mod=vendor", "HOME": "/nonexistent"}
+    try:
+        p = subprocess.run([go, "env", "GOVERSION", "GOOS", "GOARCH"], capture_output=True, timeout=UNITS_GO_TIMEOUT,
+                           env=env, cwd=_UNITS_SRC)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise _UnitsError("`go env` failed: %s" % exc)
+    out = _txt(p.stdout).split()
+    if p.returncode != 0 or len(out) != 3 or not out[0].startswith("go"):
+        raise _UnitsError("`go env` gave no toolchain (rc=%d): %s" % (p.returncode, _txt(p.stderr)[:200]))
+    return out[0], "%s/%s" % (out[1], out[2])
+
+
+def _units_pins():
+    """{(source hash, go version, platform): binary sha256} from the tracked units_helper/BINARY_PINS.tsv."""
+    pins = {}
+    try:
+        with open(os.path.join(_UNITS_SRC, UNITS_PINS), encoding="utf-8") as fh:
+            for ln in fh:
+                f = ln.split()
+                if len(f) == 4 and not ln.startswith("#"):
+                    pins[(f[0], f[1], f[2])] = f[3]
+    except OSError:
+        pass
+    return pins
+
+
+def _units_pinned_sha256():
+    """The pinned binary sha256 for the current source and the go on PATH, or None (no pin, or no go)."""
+    go = shutil.which("go")
+    if not go:
+        return None
+    try:
+        ver, plat = _go_toolchain(go)
+        return _units_pins().get((_units_source_hash(), ver, plat))
+    except (OSError, _UnitsError):
+        return None
+
+
 def _units_helper_path(mem_cap_mib):
     """-> (path, None) | (None, reason). The helper is built from units_helper/ (offline: -mod=vendor,
     GOPROXY=off, GOTOOLCHAIN=local, CGO_ENABLED=0) into a cache directory named by the source hash, under a lock
-    and the systemd-run memory cap; a cached binary is used only while its recorded sha256 matches. In test mode
+    and the systemd-run memory cap; the directory is named by the source hash AND the go toolchain, and a cached
+    binary is used only while its recomputed sha256 matches a stamp that names the same source hash and toolchain
+    (and, on a toolchain listed in BINARY_PINS.tsv, the pinned sha256). In test mode
     PRECHECK_UNITS_HELPER names a stub instead (the fail-closed cases)."""
     if _test_mode() and os.environ.get(UNITS_HELPER_ENV):
         p = os.environ[UNITS_HELPER_ENV]
         if os.path.isfile(p) and os.access(p, os.X_OK):
             return p, None
         return None, "the test-mode units helper %s is absent or not executable" % p
+    go = shutil.which("go")
+    if not go:  # r11: the cache is keyed by the go toolchain, so even a cached helper needs go to be found
+        return None, "`go` is not on PATH (the units helper is built offline from units_helper/ and cached per go toolchain)"
     try:
         src = _units_source_hash()
+        ver, plat = _go_toolchain(go)
     except (OSError, _UnitsError) as exc:
-        return None, "the units helper source cannot be read: %s" % exc
+        return None, "the units helper source or toolchain cannot be read: %s" % exc
+    pin = _units_pins().get((src, ver, plat))
     base = os.environ.get(UNITS_CACHE_ENV) or os.path.join(
         os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"), "fastcycle-precheck-units")
-    d = os.path.join(base, src[:32])
+    key = hashlib.sha256(("%s\0%s\0%s\0-trimpath -buildvcs=false CGO_ENABLED=0" % (src, ver, plat)).encode()).hexdigest()
+    d = os.path.join(base, key[:32])
     binp, stamp = os.path.join(d, "units"), os.path.join(d, "units.sha256")
 
     def cached():
+        # r11 (review F5): the stamp is never trusted on its own -- its source hash and toolchain must be the ones
+        # recomputed now, the binary's sha256 is recomputed, and on a pinned toolchain it must equal the pin
         try:
             with open(stamp, encoding="utf-8") as fh:
                 want = fh.read().split()
-            return bool(want) and os.path.isfile(binp) and not os.path.islink(binp) and _file_sha256(binp) == want[0]
+            ok = len(want) == 4 and want[1:] == [src, ver, plat] and (pin is None or want[0] == pin)
+            return ok and os.path.isfile(binp) and not os.path.islink(binp) and _file_sha256(binp) == want[0]
         except OSError:
             return False
 
     if cached():
         return binp, None
-    go = shutil.which("go")
-    if not go:
-        return None, "the units helper is not built and `go` is not on PATH (it is built offline from units_helper/)"
     try:
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, ".lock"), "a") as lk:
@@ -918,8 +974,9 @@ def _units_helper_path(mem_cap_mib):
             if cached():
                 return binp, None
             tmpb = "%s.tmp.%d" % (binp, os.getpid())
+            # r11 (review F5): GOCACHE is the cache's own, never inherited from the caller's environment
             env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": d,
-                   "GOCACHE": os.environ.get("GOCACHE") or os.path.join(base, "gocache"),
+                   "GOCACHE": os.path.join(base, "gocache"),
                    "GOPATH": os.path.join(base, "gopath"), "GOPROXY": "off", "GOTOOLCHAIN": "local",
                    "GOFLAGS": "-mod=vendor", "CGO_ENABLED": "0", "GOENV": "off", "GOTELEMETRY": "off"}
             argv = (_cap_prefix(UNITS_BUILD_MEM_MIB) + ["env", "-i"] + ["%s=%s" % (k, env[k]) for k in sorted(env)]
@@ -932,9 +989,13 @@ def _units_helper_path(mem_cap_mib):
             if p.returncode != 0 or not os.path.isfile(tmpb):
                 return None, "the units helper build failed (rc=%d): %s" % (p.returncode, _txt(p.stderr)[:300])
             digest = _file_sha256(tmpb)
+            if pin is not None and digest != pin:
+                os.unlink(tmpb)
+                return None, ("the units helper built with %s %s has sha256 %s, not the pinned %s (%s): refused"
+                              % (ver, plat, digest, pin, UNITS_PINS))
             os.replace(tmpb, binp)
             with open(stamp + ".tmp", "w", encoding="utf-8") as fh:
-                fh.write(digest + "  units\n")
+                fh.write("%s %s %s %s\n" % (digest, src, ver, plat))
             os.replace(stamp + ".tmp", stamp)
     except OSError as exc:
         return None, "the units helper could not be built: %s" % exc
@@ -2113,7 +2174,8 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     if rule == "baseline-delta":
         tool["delta"] = {"rule_id": DELTA_RULE_ID, "lint_inputs": "whole-blob-only",
                          "units": {"parser": _units_parser_version(), "schema": UNITS_SCHEMA,
-                                   "granularity": UNITS_GRANULARITY}}
+                                   "granularity": UNITS_GRANULARITY, "posix_cross_parse": UNITS_POSIX_CROSS_PARSE,
+                                   "binary_pinned": _units_pinned_sha256() is not None}}
     delta_files, baseline_findings, dir_viol_base = [], [], []
     ctx["shellcheck_params"] = {"timeout_s": sc_timeout, "exception_timeout_s": ex_timeout,
                                 "memory_cap_mib": mem_cap, "max_lines": max_lines}

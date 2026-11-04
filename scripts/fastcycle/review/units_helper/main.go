@@ -13,7 +13,18 @@
 //
 // Exit:   0 units printed; 3 the script does not parse in that dialect (JSON {"schema":...,"error":...});
 //
-//	2 usage error or unreadable input; 4 an internal inconsistency (a position outside the file).
+//	2 usage error or unreadable input; 4 an internal inconsistency (a position outside the file, a here-document
+//	terminator that is not the delimiter the shell derives); 5 the script uses a construct whose effect on where a
+//	command ends the parser does not model (an in-file alias definition or alias-expansion switch, a NUL byte).
+//
+// r11 (round-1 review F1, F2, F6 and the 11.4.276(C) class "the parser and the real shell disagree about where a
+// unit ends or what is executed"): (1) a POSIX script is parsed TWICE, as POSIX (dash) and as bash (bash --posix is
+// /bin/sh on some hosts), and its units are the UNION of both partitions (a superset: a line counts as unchanged only
+// when its unit is unchanged under both); a failure of either parse is a failure. (2) dash and bash --posix expand
+// aliases in scripts, so `alias p='x |'` makes the next line continue a pipeline the parser splits: every in-file
+// alias definition or switch fails closed (exit 5); aliases from sourced files are a stated limit. (3) A NUL byte:
+// dash drops it, bash refuses the file, the parser keeps it -> exit 5. (4) The here-document delimiter is derived by
+// the shell's quote removal and the terminator line is checked against it.
 //
 // Every non-zero exit means "no units": the caller (lib/precheck_pack_run.py) then judges the file as a new file
 // (the whole-file verdict). The parser is mvdan.cc/sh/v3/syntax (BSD-3-Clause, vendored under vendor/).
@@ -27,6 +38,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
 )
@@ -96,58 +108,145 @@ func hdocEnd(lines [][]byte, r *syntax.Redirect, nextStart uint) (uint, string) 
 	return 0, fmt.Sprintf("here-document opened on line %d: empty body, delimiter line not found", r.OpPos.Line())
 }
 
-// delimText: the here-document delimiter as it appears on its closing line (quoting removed; a backslash in an
-// unquoted part only quotes the next character).
+// delimText: the here-document delimiter as the shell derives it from the word (quote removal, unquote()).
 func delimText(w *syntax.Word) string {
+	t, _ := unquote(w)
+	return t
+}
+
+// unquote: the word's text after the shell's quote removal, and whether the whole word is literal (no expansion).
+// Unquoted: a backslash quotes the next character, a backslash-newline is removed. Inside double quotes a backslash
+// is removed only before $ ` " \ and newline (bash and dash, measured: `<<"a\b"` ends at the line a\b, and
+// `<<"a\\b"` wants the line a\b). Single quotes: the text as written.
+func unquote(w *syntax.Word) (string, bool) {
 	var buf bytes.Buffer
-	var walk func(parts []syntax.WordPart)
-	walk = func(parts []syntax.WordPart) {
+	lit := true
+	var walk func(parts []syntax.WordPart, dq bool)
+	walk = func(parts []syntax.WordPart, dq bool) {
 		for _, p := range parts {
 			switch x := p.(type) {
 			case *syntax.Lit:
 				v := x.Value
 				for i := 0; i < len(v); i++ {
 					if v[i] == '\\' && i+1 < len(v) {
-						i++
+						c := v[i+1]
+						if !dq || c == '$' || c == '`' || c == '"' || c == '\\' || c == '\n' {
+							i++
+							if c == '\n' {
+								continue
+							}
+						}
 					}
 					buf.WriteByte(v[i])
 				}
 			case *syntax.SglQuoted:
 				buf.WriteString(x.Value)
 			case *syntax.DblQuoted:
-				walk(x.Parts)
+				walk(x.Parts, true)
+			default:
+				lit = false
 			}
 		}
 	}
-	walk(w.Parts)
+	walk(w.Parts, false)
+	return buf.String(), lit
+}
+
+// unmodelled: the first construct of the tree that can change where a LATER command ends in a way the parser does
+// not model, or "". These are the in-file ways to define an alias or to turn alias expansion on (measured with dash
+// 0.5.12 and bash 5.3.9): an `alias` / `unalias` command (also quoted, escaped, after `builtin` / `command`, inside a
+// function or a substitution), an `eval` whose argument mentions alias, a variable set to the word alias (run later
+// as $a), an assignment to BASH_ALIASES or POSIXLY_CORRECT, a command naming POSIXLY_CORRECT, `set` / `shopt` with
+// posix or expand_aliases. A command name built by an expansion and aliases from sourced files are stated limits.
+func unmodelled(f *syntax.File) string {
+	why := ""
+	note := func(n syntax.Node, what string) {
+		if why == "" {
+			why = fmt.Sprintf("line %d: %s (alias expansion can continue a command on a later line; not modelled)", n.Pos().Line(), what)
+		}
+	}
+	syntax.Walk(f, func(node syntax.Node) bool {
+		if node == nil || why != "" {
+			return false
+		}
+		switch x := node.(type) {
+		case *syntax.Assign:
+			if x.Name != nil && (x.Name.Value == "BASH_ALIASES" || x.Name.Value == "POSIXLY_CORRECT") {
+				note(x, "an assignment to "+x.Name.Value)
+			}
+			if x.Value != nil {
+				if t, ok := unquote(x.Value); ok && (t == "alias" || t == "unalias") {
+					note(x, "a variable set to the word "+t)
+				}
+			}
+		case *syntax.CallExpr:
+			args := x.Args
+			i := 0
+			for i < len(args) {
+				t, ok := unquote(args[i])
+				if !ok || (t != "builtin" && t != "command") {
+					break
+				}
+				for i++; i < len(args); i++ {
+					if o, ok := unquote(args[i]); !ok || !strings.HasPrefix(o, "-") {
+						break
+					}
+				}
+			}
+			if i < len(args) {
+				t, _ := unquote(args[i])
+				switch t {
+				case "alias", "unalias":
+					note(x, "an "+t+" command")
+				case "eval":
+					for _, a := range args[i+1:] {
+						if strings.Contains(litPieces(a), "alias") {
+							note(x, "an eval that mentions alias")
+						}
+					}
+				case "set", "shopt":
+					for _, a := range args[i+1:] {
+						if p := litPieces(a); strings.Contains(p, "posix") || strings.Contains(p, "expand_aliases") {
+							note(x, "a "+t+" that mentions posix / expand_aliases")
+						}
+					}
+				}
+			}
+			for _, a := range args {
+				if t, ok := unquote(a); ok && (t == "POSIXLY_CORRECT" || strings.HasPrefix(t, "POSIXLY_CORRECT=")) {
+					note(x, "a command naming POSIXLY_CORRECT")
+				}
+			}
+		}
+		return true
+	})
+	return why
+}
+
+// litPieces: the literal text of every part of a word (expansions skipped), for a substring test.
+func litPieces(w *syntax.Word) string {
+	var buf bytes.Buffer
+	syntax.Walk(w, func(node syntax.Node) bool {
+		switch x := node.(type) {
+		case *syntax.Lit:
+			buf.WriteString(x.Value)
+		case *syntax.SglQuoted:
+			buf.WriteString(x.Value)
+		}
+		return true
+	})
 	return buf.String()
 }
 
-func main() {
-	dialect := flag.String("dialect", "", "posix | bash | mksh")
-	flag.Parse()
-	langs := map[string]syntax.LangVariant{"posix": syntax.LangPOSIX, "bash": syntax.LangBash, "mksh": syntax.LangMirBSDKorn}
-	lang, ok := langs[*dialect]
-	if !ok || flag.NArg() != 0 {
-		emit(result{Schema: schema, Dialect: *dialect, Error: "usage: units -dialect posix|bash|mksh <script"}, 2)
-	}
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		emit(result{Schema: schema, Dialect: *dialect, Error: "read: " + err.Error()}, 2)
-	}
-	n := lineCount(data)
-	res := result{Schema: schema, Dialect: *dialect, Lines: n}
+// stmtSpans: the [first, last] line of every outermost statement of one parse of the script, or (reason, exit code).
+func stmtSpans(data []byte, lines [][]byte, n int, lang syntax.LangVariant) ([][2]uint, string, int) {
 	file, err := syntax.NewParser(syntax.Variant(lang), syntax.KeepComments(false)).Parse(bytes.NewReader(data), "")
 	if err != nil {
-		res.Error = "parse: " + err.Error()
-		emit(res, 3)
+		return nil, "parse: " + err.Error(), 3
 	}
-	lines := bytes.Split(data, []byte("\n"))
-	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
-		lines = lines[:len(lines)-1]
+	if why := unmodelled(file); why != "" {
+		return nil, why, 5
 	}
-	var spans [][2]uint
-	bad := ""
 	// nextStart(l): the first line > l on which a top-level statement starts, or n+1
 	nextStart := func(l uint) uint {
 		for _, st := range file.Stmts {
@@ -157,12 +256,13 @@ func main() {
 		}
 		return uint(n) + 1
 	}
+	var spans [][2]uint
 	for _, st := range file.Stmts {
 		lo, hi := st.Pos().Line(), st.End().Line()
 		if !st.Pos().IsValid() || !st.End().IsValid() || lo == 0 || hi == 0 {
-			bad = "a statement without a valid position"
-			break
+			return nil, "a statement without a valid position", 4
 		}
+		bad := ""
 		syntax.Walk(st, func(node syntax.Node) bool {
 			if node == nil || bad != "" {
 				return false
@@ -185,13 +285,48 @@ func main() {
 			return true
 		})
 		if bad != "" {
-			break
+			return nil, bad, 4
 		}
 		spans = append(spans, [2]uint{lo, hi})
 	}
-	if bad != "" {
-		res.Error = bad
-		emit(res, 4)
+	return spans, "", 0
+}
+
+func main() {
+	dialect := flag.String("dialect", "", "posix | bash | mksh")
+	flag.Parse()
+	langs := map[string]syntax.LangVariant{"posix": syntax.LangPOSIX, "bash": syntax.LangBash, "mksh": syntax.LangMirBSDKorn}
+	lang, ok := langs[*dialect]
+	if !ok || flag.NArg() != 0 {
+		emit(result{Schema: schema, Dialect: *dialect, Error: "usage: units -dialect posix|bash|mksh <script"}, 2)
+	}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		emit(result{Schema: schema, Dialect: *dialect, Error: "read: " + err.Error()}, 2)
+	}
+	n := lineCount(data)
+	res := result{Schema: schema, Dialect: *dialect, Lines: n}
+	if bytes.IndexByte(data, 0) >= 0 {
+		res.Error = "a NUL byte (dash drops it, bash refuses the file, the parser keeps it; not modelled)"
+		emit(res, 5)
+	}
+	lines := bytes.Split(data, []byte("\n"))
+	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
+	spans, why, code := stmtSpans(data, lines, n, lang)
+	if why == "" && lang == syntax.LangPOSIX {
+		// r11: the same bytes as bash parses them (bash --posix is /bin/sh on some hosts); units = the union
+		var bspans [][2]uint
+		bspans, why, code = stmtSpans(data, lines, n, syntax.LangBash)
+		if why != "" {
+			why = "bash cross-parse: " + why
+		}
+		spans = append(spans, bspans...)
+	}
+	if why != "" {
+		res.Error = why
+		emit(res, code)
 	}
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var merged [][2]uint

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-10-13 |
-| Last modified | 2026-11-03 |
-| Status | proposed (ATM-1217 r10, structural replacement; independent review owed); rule id `shellcheck-baseline-delta/7`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Last modified | 2026-11-04 |
+| Status | proposed (ATM-1217 r11, review round 1 fixes on the r10 structural replacement; independent review owed); rule id `shellcheck-baseline-delta/8`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
 | Design | r10: the "Command units" and "Units helper" sections below (the r10 structural replacement); r3-r9: `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
@@ -197,6 +197,57 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
   top-level statement that starts on a later line (a superset, stricter only),
   and the delimiter line must be found in that range, else the helper fails
   closed.
+* **r11: the parser must agree with the shell about where a unit ends.** The
+  r10 review found two places where the parse tree and the real shell disagree
+  (an alias that continues a command on the next line; a here-document
+  delimiter whose quoting the parser reads differently). r11 enumerates the
+  whole class and closes every member it found, each with a control-needled
+  test (the shell itself is run on the fragment and must show the
+  disagreement or agreement the test assumes):
+  * **Aliases fail closed.** dash and `bash --posix` (both can be `/bin/sh`)
+    expand aliases, and an alias ending in `|` or `&&` continues the command on
+    the next line, which no static parser sees. Any of these anywhere in the
+    file (also behind `builtin` / `command`) makes the helper exit 5
+    ("unmodelled construct"), so the file gets the whole-file verdict: an
+    `alias` / `unalias` command; `eval` whose literal text contains `alias`;
+    `set -o posix`, `shopt -s expand_aliases` (any `set` / `shopt` naming
+    `posix` or `expand_aliases`); an assignment to `BASH_ALIASES` or
+    `POSIXLY_CORRECT`, or a word naming `POSIXLY_CORRECT`; an assignment whose
+    value is the word `alias` / `unalias`.
+  * **Here-document delimiters use the shell's quote removal.** Inside double
+    quotes a backslash is removed only before `$`, `` ` ``, `"`, `\` and a
+    newline (POSIX 2.2.3); outside quotes every backslash is removed; inside
+    single quotes nothing is. The terminator of every here-document is
+    cross-checked against that text (also for `<<-`, where leading tabs are
+    stripped first). `<<"a\$b"` is a parse error in the parser and fails closed
+    (stricter than the shell, which accepts it). `<<$'EOF'` and `<<$"EOF"` end at
+    different lines in dash and in `bash --posix`; shellcheck itself refuses
+    them (SC1044), so they reach this rule only as a head-unparsed file.
+  * **POSIX files are parsed twice.** A `sh` / `dash` blob is parsed as POSIX
+    AND as bash (bash can be `/bin/sh`); the units are the union (merged
+    overlaps, stricter only). A blob that parses as POSIX but not as bash fails
+    closed ("bash cross-parse: ..."). Bash-only syntax in a POSIX blob (`<<<`,
+    `function`, `;&`, `|&`) is a POSIX parse error and fails closed; dash
+    refuses it too. `[[ ... ]]` in a POSIX blob is parsed as an ordinary command
+    (as dash runs it); a `||` inside it continues the unit onto the next line in
+    both.
+  * **A NUL byte fails closed** (exit 5): dash drops it, bash refuses the file,
+    the parser keeps it.
+  * **Checked** (tests pin the helper's units; for the delimiter and alias
+    cases a control needle also runs dash or bash on the fragment): `<<\EOF`, `E"O"F`,
+    `"E F"`, `<<-` with tabs, a backslash-newline inside a delimiter word, a
+    body line that only resembles the delimiter, `coproc`, a here-document
+    inside `$( )`, `case` patterns with a leading `(`, a trailing `\` at end of
+    file.
+  * **Scoped out, stated:** `shopt -s extglob` patterns (the parser accepts
+    them; without the `shopt` bash stops at them with a syntax error; the units
+    of a file that does enable extglob are not enumerated); what `eval` /
+    `source` / `.` execute (their argument is not parsed; only their own
+    statement is a unit); aliases or
+    `POSIXLY_CORRECT` coming from outside the file (a sourced file, `ENV`,
+    `BASH_ENV`, the caller's environment) or a command name built at run time
+    (`$cmd`); `((echo a) )`, which the parser refuses in bash mode while bash
+    runs it (fails closed, stricter).
 
 The helper runs under the same scrubbed environment and memory cap as
 shellcheck (`systemd-run` scope), with its own 60 s budget inside the batch
@@ -228,11 +279,26 @@ this pool only; it is not a proof for every script.
   Verdict row: `units_helper/DEPENDENCY_VERDICT.jsonl` (VERIFIED, SHIPPED). It is
   not a git submodule, so it has no `helix-deps.yaml` entry.
 * Build: offline (`-mod=vendor`, `GOPROXY=off`, `GOTOOLCHAIN=local`,
-  `CGO_ENABLED=0`), under a lock and a 4096 MiB memory cap, into
-  `$PRECHECK_UNITS_CACHE_DIR` (default `$XDG_CACHE_HOME` or
-  `~/.cache/fastcycle-precheck-units`) in a directory named by the sha256 of every
-  helper source file; a cached binary is used only while its recorded sha256
-  matches. A host without `go` and without a cached helper fails closed.
+  `CGO_ENABLED=0`, `-trimpath`, `-buildvcs=false`), under a lock and a 4096 MiB
+  memory cap, into `$PRECHECK_UNITS_CACHE_DIR` (default `$XDG_CACHE_HOME` or
+  `~/.cache/fastcycle-precheck-units`). r11: the cache directory is named by the
+  sha256 of the helper sources (`BINARY_PINS.tsv` excluded), the `go` version
+  (`go env GOVERSION`), the platform (`GOOS/GOARCH`) and the build flags.
+  `GOCACHE` is always the cache's own `gocache/` directory, never the caller's.
+  The stamp records the binary's sha256, the source hash, the go version and the
+  platform; a cached binary is used only while all four match the values
+  recomputed now and the binary's sha256 matches the stamp.
+* **Binary pins (r11).** `units_helper/BINARY_PINS.tsv` maps (source hash, go
+  version, platform) to the sha256 of the reproducible build (measured
+  identical across fresh build caches). For a pinned toolchain a cached binary
+  whose sha256 differs from the pin is rebuilt, and a fresh build that differs
+  from the pin is refused (fail closed); this also defeats a forged
+  binary-and-stamp pair. For an unpinned toolchain the stamp is the only check
+  (stated limit). `go` is required even when a cached binary exists (the cache
+  key needs the go version): a host without `go` fails closed.
+* Exit codes of the helper: 0 units, 2 usage, 3 parse error, 4 inconsistency,
+  5 unmodelled construct (r11: alias class, NUL byte). Every non-zero exit is
+  the whole-file verdict.
 * Test mode only (`PRECHECK_TEST_MODE=1`): `PRECHECK_UNITS_HELPER` names a stub
   helper and `PRECHECK_UNITS_TIMEOUT_S` a shorter budget (the fail-closed cases).
 
@@ -350,9 +416,16 @@ another timeout; it never reuses it.
   function on any edit inside it; an empty here-document body widens its unit
   to the next statement. The units' agreement with bash and dash is measured on
   a generated pool, not proven for every script.
-* The units helper's cache is trusted by a sha256 stamp written next to it in
-  the same user-owned directory; a party that can write that directory can
-  replace both. The `go` toolchain version is not part of the cache key.
+* The units helper's cache: for a toolchain listed in `BINARY_PINS.tsv` a
+  replaced binary is rebuilt even with a matching forged stamp; for an unlisted
+  toolchain the stamp in the same user-owned directory is the only check, so a
+  party that can write that directory can replace both. The pin itself lives in
+  the repository and is only as trustworthy as the checkout.
+* r11 units: aliases, `POSIXLY_CORRECT` or `expand_aliases` from outside the
+  file (sourced files, `ENV`, `BASH_ENV`, the environment), command names built
+  at run time, what `eval` / `source` execute, and `extglob` patterns are not
+  modelled (see "Command units"). A file that uses an alias construct gets no
+  credit at all.
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
   identity. The r8 census found one pair where only
   `fix.replacements[].precedence` differed; it was the command-unit class
