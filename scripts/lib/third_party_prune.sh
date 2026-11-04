@@ -98,16 +98,21 @@ _CM_TP_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # name: a swap of the directory (symlink, rename, A-B-A) after the pin cannot redirect any call. The level's result is used
 # only when, after the decision, the expected path is still not a symlink and still names the pinned directory (`-ef`);
 # otherwise it is dropped with a note (scan more). A NESTED level is also accepted only when it is the checkout git made for
-# the parent's gitlink: its git dir is the parent's modules/<path> (absorbed layout, -ef through the fds) or its HEAD is the
-# commit the parent records (_cm_tp_pin_gitlink), so a foreign directory renamed into the path and held there for the
-# whole decision is refused too. Stated limits: the gate ROOT itself has no parent record (a directory held at the root
-# path for the whole decision is the root); a foreign repository at the RECORDED commit with its own .git (a clone whose
-# index was edited) that is held at the path for the whole decision is the level (it is indistinguishable from the real
-# checkout's own index being edited in place, which the custody design already trusts); a nested repository whose git dir
-# is the parent's modules/<path> but whose worktree is a foreign directory reads that git dir's index and blobs, so its
-# decision equals the real checkout's; a same-uid process that writes this call's own private temp files or reaches
-# them through /proc/<pid>/fd has process-level control (it could equally ptrace this process) and is out of scope; a
-# directory fd needs /proc/self/fd or /dev/fd (absent: every level is refused, literal names only, scan more).
+# the parent's gitlink (_cm_tp_pin_gitlink): when the parent's git dir holds a module git dir for the gitlink (found by the
+# submodule NAME its index / HEAD .gitmodules records, or by the path), the level's git dir must BE that module dir (-ef
+# through the fds); only when no module dir exists (the embedded layout) is HEAD == the recorded commit accepted instead.
+# So a foreign directory renamed into the path and held there for the whole decision is refused in the absorbed layout
+# whatever commit it sits at (r4 K1). The root's post-decision identity check is a consistency refusal, not a safety
+# property: the root is the caller's own input and the caller's later use of the path has the same window anyway.
+# Stated limits: the gate ROOT itself has no parent record (a directory held at the root path for the whole decision is
+# the root); in the EMBEDDED layout (no module git dir) a foreign repository at the RECORDED commit with its own .git held
+# at the path for the whole decision is the level (its git dir really lives in the worktree, so it is indistinguishable);
+# a nested repository whose git dir is the module dir but whose worktree is a foreign directory reads that git dir's index
+# and blobs, so its decision equals the real checkout's; a write inside the parent's git dir (which holds the module dirs
+# and the index .gitmodules) is outside the threat model (the custody design trusts the git dir); a same-uid process that
+# writes this call's own private temp files or reaches them through /proc/<pid>/fd has process-level control (it could
+# equally ptrace this process) and is out of scope; a directory fd needs /proc/self/fd or /dev/fd (absent: every level is
+# refused with a note naming that cause, literal names only, scan more).
 _CM_TP_GIT_TIMEOUT=60                                  # seconds per git / reader call; tests may lower it after sourcing
 _CM_TP_MAX_MANIFEST=1048576                            # bytes; a larger worktree manifest is refused, never copied
 _CM_TP_TIMEOUT="$(command -v timeout 2>/dev/null)" || _CM_TP_TIMEOUT=""
@@ -139,7 +144,9 @@ _cm_tp_relfrom() {
 
 # _cm_tp_pin_here <expected canonical path> : the cwd was just entered with cd -P. Pins it as a level, or returns non-zero
 # (not a repository top, entered through a symlink, moved, an odd path): pwd -P BEFORE any git call, git's toplevel, the
-# git dir opened once as an fd through a cwd-relative path and checked against git's answer.
+# git dir opened once as an fd through a cwd-relative path. The fd is what protects: opened relative to the pinned cwd it
+# names the git dir git found from that cwd. The later `-ef` against git's absolute answer is a consistency refusal only
+# (equivalent for safety, r4 RF): a swap makes both names resolve alike, so it can only add refusals.
 _cm_tp_pin_here() {
     local exp="$1" out t gd g
     case "$exp" in /*) ;; *) return 1 ;; esac
@@ -165,14 +172,48 @@ _cm_tp_pin() {
     _cm_tp_pin_here "$here/$rel"
 }
 
+# _cm_tp_modnames <path> : the submodule NAMES the PINNED level's own records give the gitlink <path>: the .gitmodules
+# blob of its INDEX and of its HEAD, read from the pinned git dir (never the worktree .gitmodules, which a worktree-only
+# actor can edit). One name per line; a name that could leave modules/ (empty, absolute, a `.`/`..` segment, a newline)
+# is dropped.
+_cm_tp_modnames() {
+    local p="$1" src rec key val name
+    for src in ':.gitmodules' 'HEAD:.gitmodules'; do
+        while IFS= read -r -d '' rec; do
+            key="${rec%%$'\n'*}"; val="${rec#*$'\n'}"
+            [ "$val" = "$p" ] || continue
+            name="${key#submodule.}"; name="${name%.path}"
+            case "/$name/" in //|*/./*|*/../*|*//*) continue ;; esac
+            case "$name" in /*|*$'\n'*) continue ;; esac
+            printf '%s\n' "$name"
+        done < <(_cm_tp_gitp config --blob "$src" --null --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+    done
+}
+
 # _cm_tp_pin_gitlink <path from the pinned cwd> <recorded commit> : enter a nested level that git itself checked out for
-# that gitlink. After _cm_tp_pin, the level's git dir must be the parent's own modules/<path> (the absorbed layout git
-# creates; compared with -ef through the pinned fds) or its HEAD must be the commit the parent records. A directory
-# renamed into the path (its own .git, another commit) is refused even when it occupies the path for the whole decision.
+# that gitlink (review 11.4.276 follow-ups r4, K1; class "a foreign directory made to look like the recorded checkout").
+# MODULE RULE: the parent's pinned git dir is asked, before the pin, for the module git dirs of this gitlink:
+# modules/<name> for each name its index / HEAD .gitmodules records for the path, and modules/<path>. When ANY of them
+# exists, the level's git dir MUST be (-ef, through the pinned fds) modules/<name> for a recorded name -- or modules/<path>
+# when no name is recorded -- and anything else is refused, at whatever commit it sits. That is the layout git itself
+# makes (`git submodule add` / `update` absorb the git dir into the parent), and a worktree-only actor cannot create or
+# move a module git dir, so a foreign clone, a `.git` file aimed elsewhere, a symlinked or `commondir`-style `.git`, or a
+# `.git` file aimed at ANOTHER submodule's module dir is refused even when it sits at the recorded commit and occupies the
+# path for the whole decision. HEAD RULE, only when no module git dir exists (the embedded layout): HEAD must be the
+# commit the parent records. Stated limit: in an embedded layout a foreign repository at the recorded commit held at the
+# path for the whole decision is the level (its git dir really is in the worktree, so it is indistinguishable).
 _cm_tp_pin_gitlink() {
-    local pgd="$_CM_TP_GD" rel="$1" sha="$2" h
+    local pgd="$_CM_TP_GD" rel="$1" sha="$2" h names nm acc=() trig=0 c
+    names="$(_cm_tp_modnames "$rel")"
+    if [ -n "$names" ]; then
+        while IFS= read -r nm; do acc+=("$pgd/modules/$nm"); done <<<"$names"
+    else acc=("$pgd/modules/$rel"); fi
+    for c in "${acc[@]}" "$pgd/modules/$rel"; do [ -n "$pgd" ] && [ -d "$c" ] && trig=1; done
     _cm_tp_pin "$rel" || return 1
-    if [ -n "$pgd" ] && [ -d "$pgd/modules/$rel" ] && [ "$_CM_TP_GD" -ef "$pgd/modules/$rel" ]; then return 0; fi
+    if [ "$trig" = 1 ]; then
+        for c in "${acc[@]}"; do [ -d "$c" ] && [ "$_CM_TP_GD" -ef "$c" ] && return 0; done
+        return 1
+    fi
     h="$(_cm_tp_gitp rev-parse --verify -q 'HEAD^{commit}' 2>/dev/null)" || return 1
     case "$sha" in ''|*[!0-9a-f]*) return 1 ;; esac
     [ "$h" = "$sha" ]
@@ -487,6 +528,10 @@ _cm_tp_run() {
         trap 'exit 131' QUIT
     else
         echo "third_party_prune: no private temp directory; manifest marks ignored (scanning more)" >&2
+    fi
+    if [ -z "$_CM_TP_FD" ]; then
+        echo "third_party_prune: no /proc/self/fd or /dev/fd (a directory fd is needed to pin a level); pruning literal directory names only (scanning more)" >&2
+        return 0
     fi
     if ! { cd -P -- "$1" 2>/dev/null && _cm_tp_pin_here "$1"; }; then
         echo "third_party_prune: $1 could not be pinned (moved, a symlink, or not the repository top); pruning literal directory names only (scanning more)" >&2

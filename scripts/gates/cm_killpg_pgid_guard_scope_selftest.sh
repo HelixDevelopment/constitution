@@ -578,12 +578,15 @@ mkr8() { # $1=dir $2=A's mark for v
 }
 Z8="$TMP/r8"; mkr8 "$Z8" false || bad "R8 fixture: could not be built"
 Z8T="$TMP/r8t"; mkr8 "$Z8T" true || bad "R8 fixture (golden-FALSE): could not be built"
+Z8E="$TMP/r8e"; mkr8 "$Z8E" false || bad "R8 fixture (embedded): could not be built"
+rm -f -- "$Z8E/R/submodules/a/.git" "$Z8E/dotgit.save"; mv -- "$Z8E/R/.git/modules/submodules/a" "$Z8E/R/submodules/a/.git"; GIT config -f "$Z8E/R/submodules/a/.git/config" --unset core.worktree
+[ -d "$Z8E/R/submodules/a/.git" ] && [ "$(GIT -C "$Z8E/R/submodules/a" rev-parse --absolute-git-dir)" = "$Z8E/R/submodules/a/.git" ] || bad "R8 fixture (embedded): A's .git is not embedded"
 mkshim8() { # $1=shim dir $2=event rootrev|rootlist|pin|entry|hash|glcheck|none $3=pre|post $4=action $5=restore next|never|z $6=tree
     mkdir -p "$1"; rm -rf -- "${1:?}/flag" "${1:?}/restored"
     {   printf '#!/bin/bash\nEV=%q; WHEN=%q; ACT=%q; RST=%q; Z=%q; S=%q; REAL=%q\n' "$2" "$3" "$4" "$5" "$6" "$1" "$R7REALGIT"
         cat <<'SH'
 A="$Z/R/submodules/a"; H="$Z/R/submodules/.hold"; tgt="$(pwd -P)"; prev=""
-for x in "$@"; do [ "$prev" = -C ] && tgt="$x"; prev="$x"; done
+for x in "$@"; do [ "$prev" = -C ] && tgt="$(cd -- "$x" 2>/dev/null && pwd -P || printf '%s' "$x")"; prev="$x"; done   # -C . resolves to the real dir
 a=" $* "; hit=""
 case "$EV" in
     rootrev)  [ "$tgt" = "$Z/R" ] && case "$a" in *" rev-parse "*) case "$a" in *absolute-git-dir*) ;; *) hit=1 ;; esac ;; esac ;;
@@ -603,6 +606,7 @@ swap() {
         rsym2ren) mv -- "$Z/R" "$Z/R.hold" && ln -s -- "$Z/Rb" "$Z/R" ;;
         rplain)   mv -- "$Z/R" "$Z/R.hold" && mkdir -- "$Z/R" && : > "$Z/R/.plainmark" && cp -- "$Z/helix-deps.yaml" "$Z/R/helix-deps.yaml" ;;
         symb)     mv -- "$A" "$H" && ln -s -- "$Z/B" "$A" && cp -- "$Z/B/helix-deps.yaml" "$H/helix-deps.yaml" ;;
+        gdswap)   mv -- "$A/.git" "$Z/dotgit.aside" && cp -a -- "$Z/B/.git" "$A/.git" && cp -- "$Z/B/helix-deps.yaml" "$A/helix-deps.yaml" ;;
     esac
 }
 restore() {
@@ -641,6 +645,7 @@ r8fix() { # $1=tree : back to the canonical layout (whatever the run left), then
     if [ -d "$Z/R.hold" ]; then [ -d "$Z/R" ] && mv -- "$Z/R" "$Z/Rb"; mv -- "$Z/R.hold" "$Z/R"; fi
     if [ -L "$A" ]; then rm -f -- "$A"; fi
     if [ -d "$H" ]; then if [ -d "$A" ]; then if [ -e "$A/.bcmark" ]; then mv -- "$A" "$Z/Bc"; else mv -- "$A" "$Z/Bm"; fi; fi; mv -- "$H" "$A"; fi
+    if [ -d "$A/.git" ] && [ -f "$Z/dotgit.save" ]; then rm -rf -- "${A:?}/.git"; fi; rm -f -- "${Z:?}/dotgit.aside"
     if [ -f "$Z/dotgit.save" ]; then cp -- "$Z/dotgit.save" "$A/.git"; fi; cp -- "$Z/man.save" "$A/helix-deps.yaml"
     [ -d "$Z/R" ] && [ ! -L "$Z/R" ] && [ -d "$A" ] && [ ! -L "$A" ] && [ -d "$Z/Bm/.git" ] && [ -d "$Z/Rb/.git" ] && [ -d "$Z/Bc/.git" ] && [ ! -e "$A/.bcmark" ] && [ -f "$A/f.py" ]
 }
@@ -669,21 +674,18 @@ t_r8entry()   { r8clean "$1" "$Z8" entry pre sym next; }           # swapped aro
 t_r8hash()    { r8clean "$1" "$Z8" hash pre sym next; }            # swapped at the hash
 t_r8glcheck() { r8clean "$1" "$Z8" glcheck pre sym next; }         # swapped around the gitlink check (root deep mark + A's own)
 t_r8gitf()    { r8clean "$1" "$Z8" entry pre gitf next; }          # A's .git file + bytes pointed at B around the index lookup
-t_r8ren()     { r8clean "$1" "$Z8" rootlist pre renc glpost && [ -d "$TMP/r8shim/restored" ]; }   # a clone at the recorded commit renamed INTO the path for the decision, A put back before the identity check
+t_r8ren()     { r8clean "$1" "$Z8E" rootlist pre renc glpost && [ -d "$TMP/r8shim/restored" ]; }   # EMBEDDED layout (r4: absorbed refuses at the pin): a clone at the recorded commit renamed INTO the path for the decision, A put back before the identity check
 for t in rootpin:"root swapped between git's toplevel and the cd (B real at the path before git's check)" \
          pinpwd:"nested top is a symlink at the cd (B real at the path before git's check)" \
          pinpost:"nested top swapped right after the pin" entry:"nested top swapped around the index lookup and the read" \
          hash:"nested top swapped at hash-object" glcheck:"nested top swapped around the gitlink check" \
          gitf:"A's .git file and manifest pointed at B around the index lookup" \
-         ren:"a clone of A at the recorded commit (foreign index) renamed into the path for the decision, A restored before the identity check"; do
+         ren:"embedded layout: a clone of A at the recorded commit (foreign index) renamed into the path for the decision, A restored before the identity check"; do
     n="${t%%:*}"; l="${t#*:}"
     if "t_r8$n" "$GATE"; then ok "R8: $l -> no prune of A's v / non-gitlink w (pinned)"; else bad "R8: $l -> BAD prune or error: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
 done
 # the git dir is pinned as an fd too: A with an EMBEDDED .git directory (its git dir lives under the swapped path); A-B-A
 # swap around the index lookup with B's bytes written into A's worktree. A git dir named by path would read B's index.
-Z8E="$TMP/r8e"; mkr8 "$Z8E" false || bad "R8 fixture (embedded): could not be built"
-rm -f -- "$Z8E/R/submodules/a/.git" "$Z8E/dotgit.save"; cp -a -- "$Z8E/R/.git/modules/submodules/a" "$Z8E/R/submodules/a/.git"; GIT config -f "$Z8E/R/submodules/a/.git/config" --unset core.worktree
-[ -d "$Z8E/R/submodules/a/.git" ] && [ "$(GIT -C "$Z8E/R/submodules/a" rev-parse --absolute-git-dir)" = "$Z8E/R/submodules/a/.git" ] || bad "R8 fixture (embedded): A's .git is not embedded"
 t_r8gdfd() { r8clean "$1" "$Z8E" entry pre symb next; }
 if t_r8gdfd "$GATE"; then ok "R8: embedded git dir under the swapped path, A-B-A around the index lookup -> no prune (git dir pinned as an fd)"; else bad "R8: embedded git dir followed the swap -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
 o8="$(r8run "$GATE" "$Z8E" none pre sym never)"
@@ -707,12 +709,100 @@ echo adv > "$Z8A/R/submodules/a/adv.txt"; GIT -C "$Z8A/R/submodules/a" add adv.t
 t_r8adv() { local o; o="$(r8run "$1" "$Z8A" none pre sym never)"; grep -qx 'submodules/a/submodules/v' <<<"$o"; }
 if t_r8adv "$GATE"; then ok "R8 golden-FALSE: absorbed submodule with HEAD past the recorded commit keeps its legitimate prune"; else bad "R8 golden-FALSE: advanced absorbed submodule lost its prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
 Z8ET="$TMP/r8et"; mkr8 "$Z8ET" true || bad "R8 fixture (embedded, true): could not be built"
-rm -f -- "$Z8ET/R/submodules/a/.git" "$Z8ET/dotgit.save"; cp -a -- "$Z8ET/R/.git/modules/submodules/a" "$Z8ET/R/submodules/a/.git"; GIT config -f "$Z8ET/R/submodules/a/.git/config" --unset core.worktree
+rm -f -- "$Z8ET/R/submodules/a/.git" "$Z8ET/dotgit.save"; mv -- "$Z8ET/R/.git/modules/submodules/a" "$Z8ET/R/submodules/a/.git"; GIT config -f "$Z8ET/R/submodules/a/.git/config" --unset core.worktree
+[ ! -e "$Z8ET/R/.git/modules/submodules/a" ] && [ ! -e "$Z8E/R/.git/modules/submodules/a" ] || bad "R8 fixture (embedded): a module git dir is left behind (git's embedded layout has none)"
 t_r8embT() { local o; o="$(r8run "$1" "$Z8ET" none pre sym never)"; grep -qx 'submodules/a/submodules/v' <<<"$o"; }
 if t_r8embT "$GATE"; then ok "R8 golden-FALSE: embedded .git at the recorded commit keeps its legitimate prune"; else bad "R8 golden-FALSE: embedded submodule at the recorded commit lost its prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
-# stated limit, printed (not asserted): a clone at the recorded commit held at the path for the WHOLE decision is taken as the level
-o8="$(r8run "$GATE" "$Z8" rootlist pre renc never)"; echo "NOTE: R8 stated limit (recorded-commit clone held for the whole decision) prune set: $(tr '\n' ' ' <<<"$o8")"
+# K1 (review follow-ups r4): in the ABSORBED layout (what `git submodule add` makes) a clone at the recorded commit held at
+# the path for the WHOLE decision is refused: the parent's modules/<path> exists, so the level's git dir must be it.
+t_r8renheld() { r8clean "$1" "$Z8" rootlist pre renc never; }
+if t_r8renheld "$GATE"; then ok "R8 (K1): a recorded-commit clone renamed into an absorbed-layout path and held for the whole decision -> no prune (module git dir required)"; else bad "R8 (K1): a held recorded-commit clone was taken as the absorbed level -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# O1 (review follow-ups r4): A's .git swapped for B's git dir and B's bytes AFTER the pin, before the manifest entry
+# lookup, never restored: only the pinned git-dir fd keeps A's index deciding (an entry looked up by name reads B's).
+t_r8gdlate() { r8clean "$1" "$Z8" entry pre gdswap never; }
+if t_r8gdlate "$GATE"; then ok "R8: .git and manifest swapped after the pin (held) -> no prune (the entry is read through the pinned git dir)"; else bad "R8: a late .git swap decided for A -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# stated limit, printed (not asserted): EMBEDDED layout (no module git dir), a clone at the recorded commit held for the
+# whole decision is the level (its git dir really is in the worktree)
+o8="$(r8run "$GATE" "$Z8E" rootlist pre renc never)"; echo "NOTE: R8 stated limit (embedded layout, recorded-commit clone held for the whole decision) prune set: $(tr '\n' ' ' <<<"$o8")"
 if [ -s "$TMP/r8needle" ]; then bad "R8 control needle: $(sort -u "$TMP/r8needle" | tr '\n' ' ')"; else ok "R8 control needle: every swap fired and every tree was restored"; fi
+# ── R9 (review follow-ups r4, K1 class: "a foreign directory made to look like the recorded checkout") ──────────────
+# Each member is HELD at the path for the whole call (no race): a static rename / rewrite, the call, then the canonical
+# tree is put back and proved. A bad prune is submodules/a/submodules/v (A marks v false) or .../w (not A's gitlink).
+r9held() { # $1=gate $2=tree $3=member : prune set on stdout (stderr in $TMP/r7err); the tree is restored
+    local Z="$2" A="$2/R/submodules/a" o r
+    r8fix "$Z" || { bad "R9 fixture: tree not restorable"; return 1; }
+    case "$3" in
+        gitfc) printf 'gitdir: %s\n' "$Z/Bc/.git" > "$A/.git"; cp -- "$Z/Bc/helix-deps.yaml" "$A/helix-deps.yaml" ;;   # .git file -> a recorded-commit clone
+        wt)    mv -- "$A" "$Z/R/submodules/.hold" && mv -- "$Z/Bw" "$A" ;;   # a linked worktree of A's own module dir (commondir)
+        other) printf 'gitdir: %s\n' "$Z/R/.git/modules/submodules/a" > "$A/.git"; cp -- "$Z/Bm/helix-deps.yaml" "$A/helix-deps.yaml" ;;   # .git file -> ANOTHER submodule's module dir
+        held)  mv -- "$A" "$Z/R/submodules/.hold" && mv -- "$Z/Bc" "$A" ;;
+    esac
+    o="$(tplib "$1" "$Z/R")"; r=$?
+    case "$3" in
+        wt)   mv -- "$A" "$Z/Bw" && mv -- "$Z/R/submodules/.hold" "$A" ;;
+        held) mv -- "$A" "$Z/Bc" && mv -- "$Z/R/submodules/.hold" "$A" ;;
+    esac
+    r8fix "$Z" || bad "R9 fixture: tree not restored after $3"
+    printf '%s\n' "$o"; return "$r"
+}
+r9clean() { local o r; o="$(r9held "$@")"; r=$?; [ "$r" -eq 0 ] && grep -qx third_party <<<"$o" && ! grep -q '^submodules/a/submodules/[vw]$' <<<"$o"; }
+t_r9gitfc() { r9clean "$1" "$Z8" gitfc; }
+if t_r9gitfc "$GATE"; then ok "R9: absorbed path whose .git file is aimed at a recorded-commit clone (held) -> no prune"; else bad "R9: .git file aimed at a recorded-commit clone was taken as the level -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# a linked worktree of A's own module git dir (git dir modules/submodules/a/worktrees/Bw, its own index), recorded commit,
+# its manifest staged true and its index recording w: not the module git dir itself -> refused
+Z9W="$TMP/r9w"; mkr8 "$Z9W" false || bad "R9 fixture (worktree): could not be built"
+GIT -C "$Z9W/R/submodules/a" worktree add -q --detach "$Z9W/Bw" HEAD >/dev/null 2>&1 && manifest2 "$Z9W/Bw/helix-deps.yaml" submodules/v true submodules/w true &&
+    GIT -C "$Z9W/Bw" add helix-deps.yaml && GIT -C "$Z9W/Bw" update-index --add --cacheinfo "160000,$(GIT -C "$Z9W/vsrc" rev-parse HEAD),submodules/w" || bad "R9 fixture (worktree): Bw not built"
+[ -f "$Z9W/Bw/.git" ] && [ "$(GIT -C "$Z9W/Bw" rev-parse HEAD)" = "$(GIT -C "$Z9W/R" rev-parse :submodules/a)" ] || bad "R9 fixture (worktree): Bw is not a linked worktree at the recorded commit"
+t_r9wt() { r9clean "$1" "$Z9W" wt; }
+if t_r9wt "$GATE"; then ok "R9: a linked worktree of A's module dir at the recorded commit, held at the path -> no prune"; else bad "R9: a linked worktree was taken as the level -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# name != path (`git mv` of a submodule: its module dir stays modules/<old name>): the module dir is found by NAME through
+# the parent's INDEX .gitmodules; golden-FALSE the real checkout keeps its prune, a held recorded-commit clone is refused
+mkr9n() { # $1=dir $2=A's mark for v : R records submodules/a, name submodules/old; Bc = recorded-commit clone, marks v true
+    local Z="$1"
+    mkrepo "$Z/vsrc" || return 1
+    mkdir -p "$Z/A" && GIT -C "$Z/A" init -q . && manifest2 "$Z/A/helix-deps.yaml" submodules/v "$2" && addsub "$Z/A" "$Z/vsrc" submodules/v "$GO" && commitall "$Z/A" || return 1
+    mkdir -p "$Z/R" && GIT -C "$Z/R" init -q . && printf "def f():\n    return 1\n" > "$Z/R/f.py" && addsub "$Z/R" "$Z/A" submodules/old "$OWN" && commitall "$Z/R" || return 1
+    GIT -C "$Z/R" mv submodules/old submodules/a && commitall "$Z/R" || return 1
+    GIT clone -q "file://$Z/A" "$Z/Bc" && manifest2 "$Z/Bc/helix-deps.yaml" submodules/v true && GIT -C "$Z/Bc" add helix-deps.yaml || return 1
+    [ -d "$Z/R/.git/modules/submodules/old" ] && [ ! -e "$Z/R/.git/modules/submodules/a" ] &&
+        [ "$(GIT -C "$Z/R" config -f .gitmodules submodule.submodules/old.path)" = submodules/a ] &&
+        [ "$(GIT -C "$Z/Bc" rev-parse HEAD)" = "$(GIT -C "$Z/R" rev-parse :submodules/a)" ]
+}
+Z9N="$TMP/r9n"; mkr9n "$Z9N" false || bad "R9 fixture (name != path): could not be built"
+Z9NT="$TMP/r9nt"; mkr9n "$Z9NT" true || bad "R9 fixture (name != path, true): could not be built"
+r9nheld() { # $1=gate $2=tree : Bc held at submodules/a for the whole call
+    local Z="$2" o r; mv -- "$Z/R/submodules/a" "$Z/R/submodules/.hold" && mv -- "$Z/Bc" "$Z/R/submodules/a" || { bad "R9 fixture (name != path): swap failed"; return 1; }
+    o="$(tplib "$1" "$Z/R")"; r=$?
+    mv -- "$Z/R/submodules/a" "$Z/Bc" && mv -- "$Z/R/submodules/.hold" "$Z/R/submodules/a" || bad "R9 fixture (name != path): not restored"
+    printf '%s\n' "$o"; return "$r"
+}
+t_r9nameT() { local o; o="$(tplib "$1" "$Z9NT/R")"; grep -qx 'submodules/a/submodules/v' <<<"$o"; }
+t_r9name()  { local o r; o="$(r9nheld "$1" "$Z9N")"; r=$?; [ "$r" -eq 0 ] && grep -qx third_party <<<"$o" && ! grep -qx 'submodules/a/submodules/v' <<<"$o"; }
+if t_r9nameT "$GATE"; then ok "R9 golden-FALSE: name != path (git mv), the real absorbed checkout keeps its legitimate prune"; else bad "R9 golden-FALSE: name != path lost its legitimate prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+if t_r9name "$GATE"; then ok "R9: name != path, a recorded-commit clone held at the path -> no prune (module dir found by name)"; else bad "R9: name != path, a held clone was taken as the level -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# NAME PRECEDENCE: a second submodule NAMED submodules/a (path submodules/z, = Bm: marks v and w true, records both) owns
+# modules/submodules/a. A's path carries a .git file aimed at that module dir plus Bm's bytes: the recorded name of the
+# path is submodules/old, so modules/<path> must not vouch for it.
+Z9P="$TMP/r9p"; mkr9n "$Z9P" false || bad "R9 fixture (precedence): could not be built"
+mkdir -p "$Z9P/Bm" && GIT -C "$Z9P/Bm" init -q . && manifest2 "$Z9P/Bm/helix-deps.yaml" submodules/v true submodules/w true &&
+    addsub "$Z9P/Bm" "$Z9P/vsrc" submodules/v "$GO" && addsub "$Z9P/Bm" "$Z9P/vsrc" submodules/w "$GO" && commitall "$Z9P/Bm" &&
+    GIT -C "$Z9P/R" submodule add -q --name submodules/a "file://$Z9P/Bm" submodules/z >/dev/null 2>&1 && commitall "$Z9P/R" &&
+    [ "$(GIT -C "$Z9P/R/submodules/z" rev-parse --absolute-git-dir)" = "$Z9P/R/.git/modules/submodules/a" ] || bad "R9 fixture (precedence): second submodule not built"
+cp -- "$Z9P/R/submodules/a/.git" "$Z9P/dotgit.save9"
+t_r9prec() { local o r Z="$Z9P"
+    printf 'gitdir: %s\n' "$Z/R/.git/modules/submodules/a" > "$Z/R/submodules/a/.git"; cp -- "$Z/Bm/helix-deps.yaml" "$Z/R/submodules/a/helix-deps.yaml"
+    o="$(tplib "$1" "$Z/R")"; r=$?
+    cp -- "$Z/dotgit.save9" "$Z/R/submodules/a/.git"; GIT -C "$Z/R/submodules/a" checkout -q -- helix-deps.yaml || bad "R9 fixture (precedence): not restored"
+    [ "$r" -eq 0 ] && grep -qx third_party <<<"$o" && ! grep -q '^submodules/a/submodules/[vw]$' <<<"$o"; }
+if t_r9prec "$GATE"; then ok "R9: a .git file aimed at the module dir of ANOTHER submodule named like the path -> no prune (the recorded name decides)"; else bad "R9: another submodule's module dir vouched for the path -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+o9="$(tplib "$GATE" "$Z9P/R")"; if grep -qx third_party <<<"$o9" && ! grep -q '^submodules/a/' <<<"$o9"; then ok "R9 (precedence) baseline: restored tree, nothing of A pruned"; else bad "R9 (precedence) baseline wrong: $(tr '\n' ' ' <<<"$o9")"; fi
+# held member of the static harness, as a control: the same rename the K1 shim fixture makes, without a shim
+t_r9held() { r9clean "$1" "$Z8" held; }
+if t_r9held "$GATE"; then ok "R9: recorded-commit clone held at the absorbed path, no shim -> no prune"; else bad "R9: held clone (static) -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# nit (review r4): without a directory-fd source the refusal names that cause
+t_r9nofd() { tplib "$1" "$Z8T/R" "" '_CM_TP_FD=""' >/dev/null; grep -q 'no /proc/self/fd or /dev/fd' "$TMP/r7err"; }
+if t_r9nofd "$GATE"; then ok "R9: no /proc/self/fd and no /dev/fd -> the refusal names the missing fd source"; else bad "R9: no-fd refusal does not name its cause: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
 # pintop: an UNPOPULATED gitlink directory holding a copy of the root's own tracked manifest must not be read as a level
 U8="$TMP/r8unpop"; mkrepo "$TMP/r8u/v" && mkrepo "$TMP/r8u/a"; mkdir -p "$U8"; GIT -C "$U8" init -q .; printf "def f():\n    return 1\n" > "$U8/f.py"
 manifest "$U8/helix-deps.yaml" submodules/v true; addsub "$U8" "$TMP/r8u/v" submodules/v "$GO" && addsub "$U8" "$TMP/r8u/a" submodules/a "$OWN" && commitall "$U8"
@@ -876,7 +966,20 @@ chk pinpath   's/^_cm_tp_gitp() { \[ -n "\$_CM_TP_GD" \] || return 1; _cm_tp_git
 chk pingd     's/^_cm_tp_gitp() { \[ -n "\$_CM_TP_GD" \] || return 1; _cm_tp_git --git-dir="\$_CM_TP_GD" --work-tree=. "\$@"; }/_cm_tp_gitp() { _cm_tp_git "$@"; }/' '^_cm_tp_gitp() {' t_r8gitf
 chk gdstr     's/^    _CM_TP_GD="\$_CM_TP_FD\/\$g"; _CM_TP_HERE="\$exp"/    _CM_TP_GD="$gd"; _CM_TP_HERE="$exp"/' '^    _CM_TP_GD="\$_CM_TP_FD/\$g"' t_r8gdfd
 chk pingl     's/^_cm_tp_pin_gitlink() {/_cm_tp_pin_gitlink() { _cm_tp_pin "$1"; return $?/' '^_cm_tp_pin_gitlink() {' t_r8renall
-chk glmod     's/^    if \[ -n "\$pgd" \] .*; then return 0; fi/    :/' '^    if \[ -n "\$pgd" \] ' t_r8adv
+chk glmod     's/^        for c in "\${acc\[@\]}"; do \[ -d "\$c" \] \&\& \[ "\$_CM_TP_GD" -ef "\$c" \] \&\& return 0; done$/        :/' '^        for c in "\${acc\[@\]}"; do \[ -d "\$c" \] && ' t_r8adv
+# R9 (review follow-ups r4, K1 class): the module rule, one behaviour fixture each
+chk glreq     '/^    if \[ "\$trig" = 1 \]; then$/,/^    fi$/ s/^        return 1$/        :/' '^    if \[ "\$trig" = 1 \]; then$' t_r8renheld
+chk glreq2    '/^    if \[ "\$trig" = 1 \]; then$/,/^    fi$/ s/^        return 1$/        :/' '^    if \[ "\$trig" = 1 \]; then$' t_r9gitfc
+chk glreq3    '/^    if \[ "\$trig" = 1 \]; then$/,/^    fi$/ s/^        return 1$/        :/' '^    if \[ "\$trig" = 1 \]; then$' t_r9wt
+chk glname    's/^    names="\$(_cm_tp_modnames "\$rel")"$/    names=""/' '^    names="\$(_cm_tp_modnames "\$rel")"$' t_r9name
+chk glnamesrc 's/for src in .:\.gitmodules. .HEAD:\.gitmodules.; do/for src in ":nonexistent"; do/' "for src in ':.gitmodules' 'HEAD:.gitmodules'; do" t_r9name
+# (glprec -- let modules/<path> vouch even when a name is recorded -- is EQUIVALENT for safety, measured r5: every module
+#  git dir git creates carries core.worktree, so a .git file aimed at ANOTHER submodule's module dir makes git's
+#  --show-toplevel name that submodule's worktree and _cm_tp_pin_here refuses first; t_r9prec still guards the case.
+#  Forging a module dir without core.worktree needs a write inside the parent's git dir, outside the threat model.)
+chk gltrig    's/^    for c in "\${acc\[@\]}" "\$pgd\/modules\/\$rel"; do/    for c in ; do/' '^    for c in "\${acc\[@\]}" "\$pgd/modules/\$rel"; do' t_r8renheld
+chk rcentry   '/^cm_tp_manifest_entry() {/,/^}/ s/< <(_cm_tp_gitp -c core.quotePath=false/< <(_cm_tp_git -C . -c core.quotePath=false/' '^cm_tp_manifest_entry() {' t_r8gdlate
+chk nofdmsg   's/^    if \[ -z "\$_CM_TP_FD" \]; then$/    if false; then/' '^    if \[ -z "\$_CM_TP_FD" \]; then$' t_r9nofd
 chk glhead    's/^    \[ "\$h" = "\$sha" \]$/    false/' '^    \[ "\$h" = "\$sha" \]$' t_r8embT
 chk snapunlink 's/^    rm -f -- "\${f:?}"$/    :/' '^    rm -f -- "\${f:?}"$' t_r8snapname
 chk snapdirpriv 's|^    _CM_TP_SNAPDIR="\$(mktemp -d .*|    _CM_TP_SNAPDIR="${TMPDIR:-/tmp}/tp_manifest.shared"; mkdir -p "$_CM_TP_SNAPDIR" 2>/dev/null \|\| _CM_TP_SNAPDIR=""|' '^    _CM_TP_SNAPDIR="\$(mktemp -d ' t_r8ri
