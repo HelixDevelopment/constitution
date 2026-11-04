@@ -135,14 +135,38 @@ RE_PY_ASSIGNALIAS = re.compile(r"\b(" + NAME + r")\s*=\s*(?:os\.)?environ\b(?!\s
 RE_ENV_GREP = re.compile(r"\^(" + NAME + r")=")
 
 
-def split_code(text):
+RE_JQ_WORD = re.compile(r"(?<![\w./-])(?:jq|yq|gojq)(?![\w.-])")
+RE_OWNER_ASSIGN = re.compile(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=\$?$")
+RE_OWNER_READ = re.compile(r"\bread\b[^;&|]*?\s([A-Za-z_]\w*)\s*$")
+
+
+def _region_owner(logical, prefix):
+    """Owner of a quoted region (single-quoted text or a heredoc body) that opens after `prefix` on a command line whose
+    text (backslash continuations joined) is `logical`: ("jq",) when that command line runs jq/yq/gojq, ("var", NAME) when
+    the region is assigned to NAME (`NAME='...'`, `read ... NAME <<'X'`), else ("other",)."""
+    if RE_JQ_WORD.search(logical):
+        return ("jq",)
+    m = RE_OWNER_ASSIGN.search(prefix)
+    if m:
+        return ("var", m.group(1))
+    m = RE_OWNER_READ.search(prefix)
+    if m:
+        return ("var", m.group(1))
+    return ("other",)
+
+
+def split_code(text, regions=None):
     """Return (expanding, literal) lists of lines (line structure preserved).
     expanding: shell text where $ expands (outside single quotes / $'..' / quoted heredoc bodies; comments blanked).
     literal:   single-quoted text and quoted heredoc bodies: scanned only for env-API calls (embedded python/awk/jq).
     Single-quoted text is rendered as \\x02 (opening quote) + \\x03 per character (including the closing quote): one
     non-blank run, so a word such as `NAME='a b'"$x"` stays ONE word for the structural scanners.
-    Quote state is a stack: `$(`, a backquote and `(`-subshells open a fresh quoting context even inside "..."."""
+    Quote state is a stack: `$(`, a backquote and `(`-subshells open a fresh quoting context even inside "..."
+    When `regions` is a list it receives, per line, a list of (owner, text) for the literal text of that line (owner from
+    _region_owner): the jq whole-environment rule reads only regions that are jq code."""
     exp, lit, code = [], [], []
+    owner = ("other",)
+    cont = ""         # text of the preceding backslash-continued physical lines of the current command line
     lines = text.split("\n")
     i = 0
     stack = ["top"]   # contexts: top | dq | cmd (inside $( ) / backquote) ; sq handled by flag
@@ -150,8 +174,10 @@ def split_code(text):
     while i < len(lines):
         line = lines[i]
         e, l, k = [], [], []
+        rl = []
         pending = []
         j, n = 0, len(line)
+        logical = cont + line
 
         def emit(txt):
             e.append(txt)
@@ -160,26 +186,27 @@ def split_code(text):
             c = line[j]
             if sq:
                 if sq == "$'" and c == "\\" and j + 1 < n:
-                    l.append(line[j:j + 2]); emit("\x03\x03"); j += 2; continue
+                    l.append(line[j:j + 2]); rl.append((owner, line[j:j + 2])); emit("\x03\x03"); j += 2; continue
                 if c == "'":
                     sq = None; emit("\x03")
                 else:
-                    l.append(c); emit("\x03")
+                    l.append(c); rl.append((owner, c)); emit("\x03")
                 j += 1; continue
             top = stack[-1]
             if c == "\\" and j + 1 < n:
                 emit(line[j:j + 2]); j += 2; continue
             if top != "dq":
                 if c == "$" and line.startswith("$'", j):
-                    sq = "$'"; emit("\x02\x03"); j += 2; continue
+                    owner = _region_owner(logical, cont + line[:j]); sq = "$'"; emit("\x02\x03"); j += 2; continue
                 if c == "'":
-                    sq = "'"; emit("\x02"); j += 1; continue
+                    owner = _region_owner(logical, cont + line[:j]); sq = "'"; emit("\x02"); j += 1; continue
                 if c == "#" and (j == 0 or line[j - 1] in " \t;&|()"):
                     break
                 if c == "<" and line.startswith("<<", j) and not line.startswith("<<<", j):
                     m = RE_HEREDOC.match(line, j)
                     if m:
-                        pending.append((m.group(2), bool(m.group(1)), line.startswith("<<-", j)))
+                        pending.append((m.group(2), bool(m.group(1)), line.startswith("<<-", j),
+                                        _region_owner(logical, cont + line[:j])))
                         emit(line[j:m.end()]); j = m.end(); continue
                 if c == ")" and top in ("cmd", "par"):
                     stack.pop(); emit(c); j += 1; continue
@@ -204,16 +231,24 @@ def split_code(text):
                 emit(c); j += 1; continue
             emit(c); j += 1
         exp.append("".join(e)); lit.append("".join(l)); code.append("".join(k))
+        if regions is not None:
+            regions.append(rl)
+        cont = (logical[:-1] + " ") if (not sq and line.endswith("\\") and not line.endswith("\\\\")) else ""
         i += 1
-        for word, quoted, dash in pending:
+        for word, quoted, dash, howner in pending:
             while i < len(lines):
                 body = lines[i]
                 if (body.lstrip("\t") if dash else body) == word:
-                    exp.append(""); lit.append(""); code.append(""); i += 1; break
+                    exp.append(""); lit.append(""); code.append(""); i += 1
+                    if regions is not None:
+                        regions.append([])
+                    break
                 if quoted:
                     exp.append(""); lit.append(body)
                 else:
                     exp.append(body); lit.append(body)
+                if regions is not None:
+                    regions.append([(howner, body)])
                 code.append("")  # heredoc bodies hold no assignments of the gate's own shell
                 i += 1
     return exp, lit, code
@@ -696,7 +731,14 @@ def _py_aliases(blob):
 def census(path, root, _seen=None):
     with open(path, encoding="utf-8", errors="replace") as f:
         text = f.read()
-    exp, lit, code = split_code(text)
+    regions = []
+    exp, lit, code = split_code(text, regions)
+    # variables that a jq command line expands: a quoted region assigned to one of them is jq code
+    jq_vars = set()
+    for e_ in exp:
+        if RE_JQ_WORD.search(e_):
+            jq_vars.update(re.findall(r"\$\{?([A-Za-z_]\w*)", e_))
+    jqlit = ["".join(t for o, t in rl if o[0] == "jq" or (o[0] == "var" and o[1] in jq_vars)) for rl in regions]
     assigned = assigned_names(code, exp)
     # assignments made by sourced libraries count (their reads are censused as their own units)
     found, _unres = resolve_sources(path, code, exp, root, text.split("\n"))
@@ -756,8 +798,9 @@ def census(path, root, _seen=None):
                     for m in rx.finditer(blob):
                         add(m.group(1), "env-api", ln)
             if has_jq and blob is l:
+                # only quoted text that is jq code (see _region_owner); an awk/python program in the same file is not
                 for rx in RE_JQ_ENV_DUMP:
-                    if rx.search(blob):
+                    if rx.search(jqlit[ln - 1]):
                         add("jq-env", "indirect", ln)
             if rx_os_bare.search(blob):
                 add("os.environ", "indirect", ln)
