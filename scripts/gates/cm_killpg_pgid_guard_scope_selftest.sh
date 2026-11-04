@@ -417,6 +417,128 @@ if scanned "$GATE" "$UP/submodules/a" && ! pline "$GATE" "$UP/submodules/a" 'x';
 CR="$TMP/r6crlf"; mkcust "$CR" true; sed -i 's/$/\r/' "$CR/helix-deps.yaml"; commitall "$CR"
 if pruned "$GATE" "$CR" 'submodules/v'; then ok "R6 golden-FALSE: committed CRLF manifest marking true prunes"; else bad "R6 golden-FALSE: committed CRLF manifest not honoured"; fi
 
+# ── R7 (review 11.4.276 follow-ups round 2, G1/G2): the worktree manifest is read by ONE bounded open ─────────────
+# Class closed: "a read of an attacker-influenced worktree path". The reader walks the path with O_NOFOLLOW on every
+# component, opens the last one O_NONBLOCK, and fstat()s the fd (regular file, no exec bit, size <= cap); it reads at
+# most cap+1 bytes into a private snapshot, and that snapshot is both hashed and parsed. Every git / reader call is time
+# bounded. Every fixture runs under a short timeout so a hang FAILS fast (rc 124), and carries a control needle (the
+# literal `third_party` line proves the prune function ran to its end). The race is simulated deterministically by a
+# `git` shim first on PATH (PATH is the one variable _cm_tp_git forwards): on the chosen git call it swaps the file once.
+R7REALGIT="$(command -v git)"
+mkshim() { # $1=shim dir $2=trigger ls|hash|lshang $3=action fifo|zero|dir|inplace $4=worktree file $5=source file
+    mkdir -p "$1"; rm -rf -- "${1:?}/flag"
+    {
+        printf '#!/bin/bash\ntrig=%q; act=%q; W=%q; SRC=%q; FLAG=%q\n' "$2" "$3" "$4" "${5:-}" "$1/flag"
+        cat <<'SH'
+hit=""
+case "$trig" in
+    ls|lshang) case " $* " in *" ls-files "*) hit=1 ;; esac ;;
+    hash) case " $* " in *" hash-object "*) hit=1 ;; esac ;;
+esac
+if [ "$trig" = lshang ] && [ -n "$hit" ]; then exec sleep 30; fi
+if [ -n "$hit" ] && mkdir -- "$FLAG" 2>/dev/null; then
+    case "$act" in
+        fifo) rm -f -- "${W:?}"; mkfifo -- "$W" ;;
+        zero) rm -f -- "${W:?}"; ln -s /dev/zero "$W" ;;
+        dir)  rm -f -- "${W:?}"; mkdir -- "$W" ;;
+        inplace) cat -- "${SRC:?}" > "$W" ;;
+    esac
+fi
+SH
+        printf 'exec %q "$@"\n' "$R7REALGIT"
+    } > "$1/git"
+    chmod +x "$1/git"
+}
+tplib() { # $1=gate $2=root [$3=shim dir] [$4=bash code run after sourcing the lib] : prune set on stdout, stderr in $TMP/r7err
+    local lib p="$PATH"; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"
+    [ -n "${3:-}" ] && p="$3:$PATH"
+    timeout -k 2 15 env PATH="$p" bash -c 'ulimit -f 4096; . "$1" || exit 9; eval "${3:-:}"; cm_third_party_prune_paths "$2"' _ "$lib" "$2" "${4:-}" 2>"$TMP/r7err"
+}
+r7refused() { local o r; o="$(tplib "$@")"; r=$?; [ "$r" -eq 0 ] && grep -qx third_party <<<"$o" && ! grep -qx 'submodules/v' <<<"$o"; }
+r7pruned()  { local o r; o="$(tplib "$@")"; r=$?; [ "$r" -eq 0 ] && grep -qx 'submodules/v' <<<"$o"; }
+r7why() { grep -q "reason=$1" "$TMP/r7err"; }
+r7reset() { rm -rf -- "${1:?}/helix-deps.yaml"; cp -- "$2" "$1/helix-deps.yaml"; }
+manifest "$TMP/r7_true.yaml" submodules/v true; manifest "$TMP/r7_false.yaml" submodules/v false
+# (1) a plain FIFO as the worktree manifest, no race (the index records a true 100644 blob): refused at once
+R7F="$TMP/r7fifo"; mkcust "$R7F" true; rm -f -- "${R7F:?}/helix-deps.yaml"; mkfifo -- "$R7F/helix-deps.yaml"
+t_r7fifo() { r7refused "$1" "$R7F" && r7why notreg; }
+if t_r7fifo "$GATE"; then ok "R7: FIFO worktree manifest refused at once (reason=notreg, no hang)"; else bad "R7: FIFO worktree manifest hung or was honoured: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+if scanned "$GATE" "$R7F"; then ok "R7: FIFO worktree manifest -> the gate scans"; else bad "R7: FIFO manifest pruned or hung through the gate"; fi
+# (2) the G1 race made deterministic: the path is swapped AFTER the index lookup (first ls-files) and BEFORE the open
+R7S="$TMP/r7swap"; mkcust "$R7S" true
+t_r7swap() { r7reset "$R7S" "$TMP/r7_true.yaml"; mkshim "$TMP/r7shim" ls "$2" "$R7S/helix-deps.yaml"; r7refused "$1" "$R7S" "$TMP/r7shim"; }
+for a in fifo:notreg zero:open dir:notreg; do
+    w="${a#*:}"; a="${a%%:*}"
+    if t_r7swap "$GATE" "$a" && r7why "$w" && ! grep -q 'File size limit' "$TMP/r7err"; then ok "R7: race swap to $a between the index lookup and the open -> refused (reason=$w), no hang, nothing past the cap"; else bad "R7: race swap to $a hung, filled TMPDIR or was honoured: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+done
+t_r7swapfifo() { t_r7swap "$1" fifo && r7why notreg; }
+t_r7swapzero() { t_r7swap "$1" zero && r7why open; }
+# control needle: the shim really swaps (without it, the swap fixtures would prove nothing)
+r7reset "$R7S" "$TMP/r7_true.yaml"; mkshim "$TMP/r7shim" ls dir "$R7S/helix-deps.yaml"; env PATH="$TMP/r7shim:$PATH" git -C "$R7S" ls-files >/dev/null 2>&1
+if [ -d "$R7S/helix-deps.yaml" ]; then ok "R7 control needle: the git shim swaps the file on ls-files"; else bad "R7 control needle: the shim did not swap (fixtures prove nothing)"; fi
+r7reset "$R7S" "$TMP/r7_true.yaml"
+# (3) snapshot custody: the file is rewritten IN PLACE when hash-object runs (after the snapshot). The bytes hashed and
+# the bytes parsed must both be the snapshot. A: index false, snapshot false, rewritten to true -> not pruned (kills
+# "parse the worktree"). B: index false, snapshot true, rewritten to false (= the index) -> not pruned (kills "hash the
+# worktree"). C golden-FALSE: index true, snapshot true, rewritten to false -> pruned (the snapshot decides).
+R7A="$TMP/r7snapA"; mkcust "$R7A" false; R7B="$TMP/r7snapB"; mkcust "$R7B" false; R7C="$TMP/r7snapC"; mkcust "$R7C" true
+t_r7snapA() { r7reset "$R7A" "$TMP/r7_false.yaml"; mkshim "$TMP/r7shimA" hash inplace "$R7A/helix-deps.yaml" "$TMP/r7_true.yaml"; r7refused "$1" "$R7A" "$TMP/r7shimA"; }
+t_r7snapB() { r7reset "$R7B" "$TMP/r7_true.yaml"; mkshim "$TMP/r7shimB" hash inplace "$R7B/helix-deps.yaml" "$TMP/r7_false.yaml"; r7refused "$1" "$R7B" "$TMP/r7shimB"; }
+t_r7snapC() { r7reset "$R7C" "$TMP/r7_true.yaml"; mkshim "$TMP/r7shimC" hash inplace "$R7C/helix-deps.yaml" "$TMP/r7_false.yaml"; r7pruned "$1" "$R7C" "$TMP/r7shimC"; }
+if t_r7snapA "$GATE"; then ok "R7: snapshot A (rewritten to true after the snapshot) -> marks come from the snapshot, not pruned"; else bad "R7: snapshot A pruned (the worktree was parsed after the hash)"; fi
+if t_r7snapB "$GATE"; then ok "R7: snapshot B (rewritten to match the index after the snapshot) -> refused, not pruned"; else bad "R7: snapshot B pruned (the worktree was hashed, the snapshot parsed)"; fi
+if t_r7snapC "$GATE"; then ok "R7 golden-FALSE: snapshot C (true snapshot, rewritten after) -> pruned from the snapshot"; else bad "R7 golden-FALSE: snapshot C not pruned"; fi
+if [ "$(cat "$R7C/helix-deps.yaml")" = "$(cat "$TMP/r7_false.yaml")" ]; then ok "R7 control needle: the hash-object shim rewrote the worktree"; else bad "R7 control needle: hash-object shim did not rewrite"; fi
+# (4) an oversized regular manifest (> 1 MiB) whose bytes equal its index entry: refused by size, no full copy
+R7L="$TMP/r7big"; mkcust "$R7L" true; python3 -I -c 'import sys; open(sys.argv[1],"a").write("# pad\n" * 200000)' "$R7L/helix-deps.yaml"; commitall "$R7L"
+[ "$(stat -c %s "$R7L/helix-deps.yaml")" -gt 1048576 ] || bad "R7 fixture BIG: manifest is not over 1 MiB"
+t_r7big() { r7refused "$1" "$R7L" && r7why toolarge; }
+if t_r7big "$GATE"; then ok "R7: manifest over the 1 MiB cap refused (reason=toolarge)"; else bad "R7: oversized manifest honoured or wrong reason: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# (5) a device node as the worktree manifest, when this host lets this uid create one
+R7D="$TMP/r7dev"; mkcust "$R7D" true; rm -f -- "${R7D:?}/helix-deps.yaml"
+if mknod "$R7D/helix-deps.yaml" c 1 5 2>/dev/null; then
+    if r7refused "$GATE" "$R7D" && r7why notreg; then ok "R7: device-node worktree manifest refused"; else bad "R7: device-node manifest not refused"; fi
+else echo "SKIP: R7 device node: mknod is not permitted for this uid (topology_unsupported); the zero-swap case covers a device reached by a symlink"; fi
+# (6) every git call is time bounded: a git that hangs on ls-files is cut off, the prune finishes and scans more
+R7T="$TMP/r7hang"; mkcust "$R7T" true; mkshim "$TMP/r7shimT" lshang x "$R7T/helix-deps.yaml"
+t_r7hang() { r7refused "$1" "$R7T" "$TMP/r7shimT" '_CM_TP_GIT_TIMEOUT=2'; }
+if t_r7hang "$GATE"; then ok "R7: a hanging git ls-files is cut off by the time bound (scan more, no hang)"; else bad "R7: a hanging git call hung the prune"; fi
+# (7) the private snapshot directory is removed on normal exit AND when the prune is killed by TERM mid-run
+R7TD="$TMP/r7tmpd"; mkdir -p "$R7TD"
+t_r7clean() { # $1=gate: normal run leaves nothing; a TERM while git hangs leaves nothing; needle: the dir existed mid-run
+    local lib i seen=""; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"
+    rm -rf -- "${R7TD:?}"; mkdir -p "$R7TD"
+    env TMPDIR="$R7TD" bash -c '. "$1"; cm_third_party_prune_paths "$2"' _ "$lib" "$R7C" >/dev/null 2>&1
+    [ -z "$(ls -A "$R7TD")" ] || return 1
+    timeout -s TERM 3 env TMPDIR="$R7TD" PATH="$TMP/r7shimT:$PATH" bash -c '. "$1"; cm_third_party_prune_paths "$2"' _ "$lib" "$R7T" >/dev/null 2>&1 &
+    local pid=$!
+    for i in $(seq 1 25); do [ -n "$(ls -A "$R7TD")" ] && { seen=1; break; }; sleep 0.1; done
+    wait "$pid"
+    [ -n "$seen" ] && [ -z "$(ls -A "$R7TD")" ]
+}
+if t_r7clean "$GATE"; then ok "R7: the snapshot dir existed mid-run and is removed on exit and on TERM (no tp_manifest.* left)"; else bad "R7: snapshot temp left behind ($(ls -A "$R7TD" | head -3 | tr '\n' ' '))"; fi
+# (8) the reader on its own (unit level, the lib's embedded reader): no-follow on INTERMEDIATE components, and a file
+# that grows past the cap between fstat and read (simulated: fstat returns the stat taken before the file grew)
+R7U="$TMP/r7unit"; mkdir -p "$R7U/real"; cp -- "$TMP/r7_true.yaml" "$R7U/real/helix-deps.yaml"; ln -s real "$R7U/lnk"; : > "$R7U/out"
+r7reader() { # $1=gate $2=python prelude then reader args : rc of the reader
+    local lib; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"; shift
+    timeout -k 2 15 bash -c '. "$1"; pre="$2"; shift 2; python3 -I -B -c "$pre
+$_CM_TP_READ_PY" "$@"' _ "$lib" "$@" 2>/dev/null
+}
+t_r7walk() { r7reader "$1" '' "$R7U" real/helix-deps.yaml "$R7U/out" 1048576 && [ -s "$R7U/out" ] || return 1
+    : > "$R7U/out"; r7reader "$1" '' "$R7U" lnk/helix-deps.yaml "$R7U/out" 1048576; [ $? -eq 7 ] && [ ! -s "$R7U/out" ]; }
+if t_r7walk "$GATE"; then ok "R7 unit: a symlinked intermediate directory is refused (rc 7), the real path reads (needle)"; else bad "R7 unit: intermediate symlink followed or real path unreadable"; fi
+GROWPRE='import os
+_r7f = os.fstat
+def _r7g(fd):
+    st = _r7f(fd)
+    with open("'"$R7U/real/grow.yaml"'", "ab") as g: g.write(b"#" * (2 << 20))
+    return st
+os.fstat = _r7g'
+t_r7grow() { cp -- "$TMP/r7_true.yaml" "$R7U/real/grow.yaml"; : > "$R7U/out"
+    r7reader "$1" "$GROWPRE" "$R7U" real/grow.yaml "$R7U/out" 1048576; [ $? -eq 6 ] && [ ! -s "$R7U/out" ]; }
+if t_r7grow "$GATE"; then ok "R7 unit: a file that grows past the cap after fstat is refused (rc 6) and nothing is written"; else bad "R7 unit: a grown file was copied"; fi
+
 # --- paired mutations of the remaining prune logic: each MUST be caught ---
 mutlib() { # $1=name $2=sed expr ; builds private gate+lib copy, applies expr to the lib, echoes dir
     local D="$TMP/m_$1"; mkdir -p "$D/gates" "$D/lib" "$D/deps_manifest"
@@ -471,11 +593,27 @@ chk hashita   's/^    \[ "\$got" = "\$sha" \]$/    true/' '^    \[ "\$got" = "\$
 chk idxmode   's/        \[ "\$mode" = 100644 \] || return 1/        :/' '\[ "\$mode" = 100644 \] || return 1' t_symtype
 chk idxstage  's/        \[ "\$stage" = 0 \] || return 1/        :/' '\[ "\$stage" = 0 \] || return 1' t_stage2
 chk noentry   's/^cm_tp_manifest_entry() {/cm_tp_manifest_entry() { _cm_tp_git -C "$1" hash-object --no-filters --stdin < "$1\/$2"; return 0/' '^cm_tp_manifest_entry() {' t_untr
-chk wtfile    's/^    \[ -f "\$top\/\$p" \] \&\& \[ ! -L .*/    :/' '\[ -f "\$top/\$p" \] && \[ ! -L' t_wtsym
-chk wtxbit    's/^    \[ ! -x "\$top\/\$p" \] || return 1/    :/' '\[ ! -x "\$top/\$p" \] || return 1' t_xbit
-chk envscrub  's/^    env -i PATH=.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false/        git/' '^    env -i PATH=' t_envg
-chk noreplace 's/^    env -i PATH=.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false/        git/;s/^    cat -- "\$top\/\$p" > "\$out" 2>\/dev\/null || return 1/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null || return 1/;s/^    \[ "\$got" = "\$sha" \]$/    true/' '^    cat -- "\$top/\$p" > "\$out"' t_repl
-chk objread   's/^    cat -- "\$top\/\$p" > "\$out" 2>\/dev\/null || return 1/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null || return 1/' '^    cat -- "\$top/\$p" > "\$out"' t_replg
+chk wtfile    's/fl | os.O_NOFOLLOW | os.O_NONBLOCK/fl | os.O_NONBLOCK/' 'fl | os.O_NOFOLLOW | os.O_NONBLOCK' t_wtsym
+chk wtxbit    's/        if st.st_mode \& 0o111:/        if False:/' 'if st.st_mode & 0o111:' t_xbit
+chk envscrub  's/^    env -i PATH=.*GIT_CONFIG_NOSYSTEM.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "\${to\[@\]}" git -c core.fsmonitor=false/        "${to[@]}" git/' '^    env -i PATH=.*GIT_CONFIG_NOSYSTEM' t_envg
+chk noreplace 's/^    env -i PATH=.*GIT_CONFIG_NOSYSTEM.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "\${to\[@\]}" git -c core.fsmonitor=false/        "${to[@]}" git/;s/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null; rc=$?/;s/^    \[ "\$got" = "\$sha" \]$/    true/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_repl
+chk objread   's/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_replg
+# R7 (review follow-ups r2, G1/G2): the bounded-reader guards, one behaviour fixture each (reviewer RM1 / RM5 / RM9
+# included). RM9 ("drop the -f check") has no literal anchor any more: the regular-file guard is the reader's S_ISREG
+# (rm9isreg) and the no-hang guard is O_NONBLOCK (rm9nonblk); both are killed by the plain FIFO fixture.
+chk rm1parse  's/recs="\$(cm_hdeps_tsv "\$blobf")"/recs="$(cm_hdeps_tsv "$base\/helix-deps.yaml")"/' 'recs="\$(cm_hdeps_tsv "\$blobf")"' t_r7snapA
+chk rm5hash   's/--stdin < "\$out" 2>\/dev\/null)" || return 1/--stdin < "$top\/$p" 2>\/dev\/null)" || return 1/' 'hash-object --no-filters --stdin < "\$out"' t_r7snapB
+chk rm9isreg  's/        if not stat.S_ISREG(st.st_mode):/        if False:/' 'if not stat.S_ISREG(st.st_mode):' t_r7fifo
+chk rm9nonblk 's/ | os.O_NONBLOCK | / | /' 'os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY' t_r7fifo
+chk bounded   's/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    cat -- "$top\/$p" > "$out" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_r7swapfifo
+chk swapzero  's/fl | os.O_NOFOLLOW | os.O_NONBLOCK/fl | os.O_NONBLOCK/' 'fl | os.O_NOFOLLOW | os.O_NONBLOCK' t_r7swapzero
+chk dirnofol  's/fl | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=d/fl | os.O_DIRECTORY, dir_fd=d/' 'os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=d' t_r7walk
+chk sizecap   's/        if st.st_size > cap:/        if False:/' 'if st.st_size > cap:' t_r7big
+chk lencap    's/        if len(buf) > cap:/        if False:/' 'if len(buf) > cap:' t_r7grow
+chk gitto     's/^    local to=(); \[ -n "\$_CM_TP_TIMEOUT" \] \&\& to=.*/    local to=()/' 'local to=(); \[ -n "\$_CM_TP_TIMEOUT" \]' t_r7hang
+# (no separate HUP/INT/TERM trap: measured, bash runs the EXIT trap when a TERM kills the subshell, so a TERM trap
+#  is an equivalent mutant; t_r7clean below kills its removal through the EXIT-trap mutant)
+chk exittrap  's/^        trap .* EXIT .*/        :/' '^        trap .* EXIT ' t_r7clean
 chk depthres  's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 4 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d5
 chk depthres2 's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 2 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d4
 chk depthlev  's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 4 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl4

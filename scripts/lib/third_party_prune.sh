@@ -27,10 +27,25 @@
 #   untracked, intent-to-add, unmerged, recorded with another mode (a symlink 120000, an executable 100755), a symlink
 #   or reached through one in the worktree, executable in the worktree, or byte-different from its index entry
 #   (whatever skip-worktree / assume-unchanged / filter state hides that difference from `git status`).
+#   The worktree file is read by ONE bounded open (review 11.4.276 follow-ups r2, G1): an embedded `python3 -I` reader
+#   walks the path from the repository top with O_NOFOLLOW on EVERY component, opens the last one
+#   O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_NOCTTY, fstat()s that fd (regular file, no exec bit, st_size <= 1 MiB), reads at most
+#   cap+1 bytes and refuses when more arrive, and only then writes the bytes it read into a private snapshot file. That
+#   snapshot is the ONLY input of both the hash and the parse, so swapping the path for a FIFO, a device or symlink, a
+#   directory or other bytes between the index lookup and the read can only cause a refusal (scan more), never a hang,
+#   an unbounded copy or a mark read from bytes that were not hashed. A hard-linked worktree file (nlink > 1) is NOT
+#   refused: the decision rests on the snapshot bytes equalling the index sha, which another link cannot change after
+#   the read; refusing it would add false refusals and no safety. The refusal reason is named on stderr (reason=...).
+#   Every git call and the reader run under `timeout --foreground` (60 s, _CM_TP_GIT_TIMEOUT): a timed-out call is a
+#   failed call, and every failure means scan more. Snapshots live in one mktemp -d directory per call, removed on exit
+#   and on HUP/INT/TERM (a SIGKILL can still leave one `tp_manifest.*` directory behind; stated, not preventable).
 #   Every git call runs under `env -i` (PATH and LC_ALL=C only, no global/system config): no caller GIT_* variable
 #   (GIT_DIR, GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT, GIT_NAMESPACE, ...) and no
 #   ~/.gitconfig reaches git. Repository-local .git/config still applies (writing it is the same trust as writing
-#   the index). Out of scope, stated: a SHA-1/SHA-256 collision, a tampered `git` binary on PATH, case-insensitive
+#   the index). Consequences, stated (both err toward scanning more): a manifest checked out with CRLF line ends by
+#   core.autocrlf or an `eol=crlf` attribute is byte-different from its LF index blob and is refused (scanned); and a
+#   `safe.directory` entry in ~/.gitconfig is not honoured under env -i, so a repository git calls dubious ownership is
+#   not read at all (literal names only, scanned). Out of scope, stated: a SHA-1/SHA-256 collision, a tampered `git` binary on PATH, case-insensitive
 #   file systems (the exact-path checks are byte-exact; a case-folding file system is not modelled).
 #   There is NO ownership-by-URL rule and NO own-org list: .gitmodules URLs never prune anything. An
 #   AMBIGUOUS .gitmodules entry (duplicate path, a name with several paths, a multi-valued url, an
@@ -70,9 +85,95 @@ _CM_TP_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # Every git call: an allowlisted environment (env -i) -- no caller GIT_* / config variables, no global or system config
 # (review 11.4.276 follow-ups r1 F2). core.fsmonitor=false is hardening: no command this library runs refreshes the
 # index, so it is not independently mutation-killable (stated, not claimed load-bearing).
+_CM_TP_GIT_TIMEOUT=60                                  # seconds per git / reader call; tests may lower it after sourcing
+_CM_TP_MAX_MANIFEST=1048576                            # bytes; a larger worktree manifest is refused, never copied
+_CM_TP_TIMEOUT="$(command -v timeout 2>/dev/null)" || _CM_TP_TIMEOUT=""
+_CM_TP_SNAPDIR=""                                      # set per call by _cm_tp_run (private mktemp -d); empty = no marks read
 _cm_tp_git() {
+    local to=(); [ -n "$_CM_TP_TIMEOUT" ] && to=("$_CM_TP_TIMEOUT" --foreground -k 5 "$_CM_TP_GIT_TIMEOUT")
     env -i PATH="${PATH:-/usr/bin:/bin}" LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
-        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false "$@"
+        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "${to[@]}" git -c core.fsmonitor=false "$@"
+}
+
+# The bounded reader (G1). argv: <top> <relative path> <out file> <cap>. Exit 0 = the bytes are in <out file>;
+# 2 usage, 3 not a regular file, 4 executable, 5 larger than cap, 6 grew past cap while read, 7 open/walk failed (a
+# symlinked component, missing, not a directory), 8 read error, 9 write error. Nothing is written unless it exits 0.
+IFS= read -r -d '' _CM_TP_READ_PY <<'PY' || :
+import os, stat, sys
+def main(a):
+    if len(a) != 4:
+        return 2
+    top, rel, outp, cap = a
+    try:
+        cap = int(cap)
+    except ValueError:
+        return 2
+    segs = rel.split("/")
+    if cap < 0 or any(s in ("", ".", "..") for s in segs):
+        return 2
+    fl = os.O_RDONLY | os.O_CLOEXEC
+    try:
+        d = os.open(top, fl | os.O_DIRECTORY)
+    except OSError:
+        return 7
+    try:
+        for s in segs[:-1]:
+            nd = os.open(s, fl | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=d)
+            os.close(d)
+            d = nd
+        fd = os.open(segs[-1], fl | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY, dir_fd=d)
+    except OSError:
+        return 7
+    finally:
+        os.close(d)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            return 3
+        if st.st_mode & 0o111:
+            return 4
+        if st.st_size > cap:
+            return 5
+        buf = bytearray()
+        while len(buf) <= cap:
+            try:
+                chunk = os.read(fd, min(65536, cap + 1 - len(buf)))
+            except OSError:
+                return 8
+            if not chunk:
+                break
+            buf += chunk
+        if len(buf) > cap:
+            return 6
+    finally:
+        os.close(fd)
+    try:
+        o = os.open(outp, os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            v = memoryview(buf)
+            while v:
+                v = v[os.write(o, v):]
+        finally:
+            os.close(o)
+    except OSError:
+        return 9
+    return 0
+sys.exit(main(sys.argv[1:]))
+PY
+
+# _cm_tp_bounded <top> <path-from-top> <out-file> : runs the bounded reader, time bounded; its exit status
+_cm_tp_bounded() {
+    local to=(); [ -n "$_CM_TP_TIMEOUT" ] && to=("$_CM_TP_TIMEOUT" --foreground -k 5 "$_CM_TP_GIT_TIMEOUT")
+    command -v python3 >/dev/null 2>&1 || return 10
+    env -i PATH="${PATH:-/usr/bin:/bin}" LC_ALL=C "${to[@]}" python3 -I -B -c "$_CM_TP_READ_PY" "$1" "$2" "$3" "$_CM_TP_MAX_MANIFEST" 2>/dev/null
+}
+
+# _cm_tp_why <rc> : the name of a reader refusal
+_cm_tp_why() {
+    case "$1" in
+        3) echo notreg ;; 4) echo exec ;; 5) echo toolarge ;; 6) echo grew ;; 7) echo open ;; 8) echo read ;; 9) echo write ;;
+        10) echo nopython ;; 124|137) echo timeout ;; *) echo "error$1" ;;
+    esac
 }
 
 # cm_tp_is_gitlink <repo-top> <path-from-top> : exact gitlink (mode 160000, path field identical)
@@ -160,16 +261,19 @@ cm_tp_manifest_entry() {
 }
 
 # cm_tp_manifest_recorded <repo-top> <path-from-top> <out-file> : writes to <out-file> the manifest bytes the INDEX
-# records, or returns non-zero (then no mark is read). The worktree file must be a regular, non-executable,
-# non-symlink file reached through no symlinked component; a snapshot of it is taken and accepted only when its
-# `hash-object --no-filters` equals the index entry's sha (cm_tp_manifest_entry). The object store is never read.
+# records, or returns non-zero (then no mark is read; the reason is left in _CM_TP_WHY). ONE bounded open (the reader
+# above) takes the snapshot: a regular, non-executable file of at most 1 MiB reached through no symlinked component.
+# The snapshot is accepted only when its `hash-object --no-filters` equals the index entry's sha (cm_tp_manifest_entry),
+# and the caller parses that same snapshot. The object store is never read; the worktree path is opened once.
 cm_tp_manifest_recorded() {
-    local top="$1" p="$2" out="$3" sha got
-    [ -f "$top/$p" ] && [ ! -L "$top/$p" ] && [ -r "$top/$p" ] && cm_tp_no_symlink "$top" "$p" || return 1
-    [ ! -x "$top/$p" ] || return 1
+    local top="$1" p="$2" out="$3" sha got rc
+    _CM_TP_WHY=entry
     sha="$(cm_tp_manifest_entry "$top" "$p")" || return 1
-    cat -- "$top/$p" > "$out" 2>/dev/null || return 1
+    _cm_tp_bounded "$top" "$p" "$out"; rc=$?
+    [ "$rc" -eq 0 ] || { _CM_TP_WHY="$(_cm_tp_why "$rc")"; return 1; }
+    _CM_TP_WHY=hash
     got="$(_cm_tp_git -C "$top" hash-object --no-filters --stdin < "$out" 2>/dev/null)" || return 1
+    _CM_TP_WHY=differs
     [ "$got" = "$sha" ]
 }
 
@@ -181,9 +285,10 @@ cm_tp_level() {
     local rec g rel recs rc n path u r2 tpf pp mf="${prefix:+$prefix/}helix-deps.yaml"
 
     if [ -e "$base/helix-deps.yaml" ] || [ -L "$base/helix-deps.yaml" ]; then
-        local blobf; blobf="$(mktemp "${TMPDIR:-/tmp}/tp_manifest.XXXXXX")" || blobf=""
+        local blobf=""; _CM_TP_WHY=tempfile
+        [ -n "$_CM_TP_SNAPDIR" ] && blobf="$(mktemp "${_CM_TP_SNAPDIR:?}/m.XXXXXX")" || blobf=""
         if [ -z "$blobf" ] || ! cm_tp_manifest_recorded "$top" "$mf" "$blobf"; then
-            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded copy (one stage-0 mode-100644 index entry whose bytes equal the regular, non-executable, non-symlink worktree file); manifest marks ignored" >&2
+            echo "third_party_prune: manifest $base/helix-deps.yaml is not the recorded copy (one stage-0 mode-100644 index entry whose bytes equal the regular, non-executable, non-symlink worktree file of at most 1 MiB; reason=${_CM_TP_WHY:-unknown}); manifest marks ignored" >&2
             [ -n "$blobf" ] && rm -f -- "${blobf:?}"
         else
             recs="$(cm_hdeps_tsv "$blobf")"; rc=$?
@@ -233,8 +338,20 @@ cm_third_party_prune_paths() { # $1=root
     top="$(_cm_tp_git -C "$rootp" rev-parse --show-toplevel 2>/dev/null)" || {
         echo "third_party_prune: no usable git metadata at $root; pruning literal directory names only (fail closed: scanning submodule-like trees too)" >&2; return 0; }
     [ "$rootp" = "$top" ] || prefix="${rootp#"$top"/}"
-    cm_tp_level "$top" "$prefix" "" 0 | LC_ALL=C sort -u
+    ( _cm_tp_run "$top" "$prefix" )
     return 0
+}
+
+# _cm_tp_run <top> <prefix> : run in a subshell. One private snapshot directory, removed by the EXIT trap, which bash
+# also runs when the subshell is killed by HUP/INT/TERM (measured: a TERM-killed subshell ran its EXIT trap).
+_cm_tp_run() {
+    _CM_TP_SNAPDIR="$(mktemp -d "${TMPDIR:-/tmp}/tp_manifest.XXXXXX" 2>/dev/null)" || _CM_TP_SNAPDIR=""
+    if [ -n "$_CM_TP_SNAPDIR" ]; then
+        trap 'rm -rf -- "${_CM_TP_SNAPDIR:?}"' EXIT   # bash also runs it on HUP/INT/TERM (measured, bash 5.3)
+    else
+        echo "third_party_prune: no private temp directory; manifest marks ignored (scanning more)" >&2
+    fi
+    cm_tp_level "$1" "$2" "" 0 | LC_ALL=C sort -u
 }
 
 # cm_tp_glob_escape <string> : escape find(1) -path glob metacharacters.
