@@ -23,7 +23,7 @@
 // when its unit is unchanged under both); a failure of either parse is a failure. (2) dash and bash --posix expand
 // aliases in scripts, so `alias p='x |'` makes the next line continue a pipeline the parser splits. r13 (round-3
 // review H1) replaces the r12 deny-list rules R1-R5 with a POSITIVE, MINIMAL credited subset checked on the parsed
-// AST (unmodelled, rules P1-P9): every node kind is enumerated and an unknown kind fails closed; arithmetic, name
+// AST (unmodelled, rules P1-P10): every node kind is enumerated and an unknown kind fails closed; arithmetic, name
 // operands with computed subscripts, PS4-class variables, code / alias / mode builtins, sourcing and any external
 // command that may read the SHELL's stdin while the script itself is that stdin all exit 5. The census of the repo's
 // 1150 tracked .sh files (r13 report) credits 70 of them; everything else is judged as a whole file. (3) A NUL byte:
@@ -263,6 +263,13 @@ func static(w *syntax.Word) (string, bool) {
 				}
 			case *syntax.SglQuoted:
 				if x.Dollar {
+					// r13 round 5 (review r4 F1, classes W3-W4): \u / \U decode by the locale (LC_ALL=C bash keeps
+					// \u00E9 as text) and \c? is 0x7f in bash: neither has one value, so neither is static. (W2: the
+					// posix parse never yields a $'..' node; it reads $ and a quoted string, as dash 0.5.12 does.)
+					if strings.Contains(x.Value, "\\c") || strings.Contains(x.Value, "\\u") ||
+						strings.Contains(x.Value, "\\U") {
+						ok = false
+					}
 					buf.WriteString(ansiC(x.Value))
 				} else {
 					buf.WriteString(x.Value)
@@ -275,6 +282,9 @@ func static(w *syntax.Word) (string, bool) {
 		}
 	}
 	walk(w.Parts, false)
+	if bytes.IndexByte(buf.Bytes(), 0) >= 0 {
+		ok = false // W1: bash ends a word at a NUL ($'-v\0' is -v to bash, -v\0 to the decoder)
+	}
 	return buf.String(), ok
 }
 
@@ -288,7 +298,7 @@ func static(w *syntax.Word) (string, bool) {
 // the whole-file rule). New parser node kinds fail closed by default (the switches have no permissive default and
 // a second pass over every node rejects any type outside nodeKindsOK).
 //
-// The subset, rule by rule (P1-P9). Each rule is there because the real shell can otherwise run text that the
+// The subset, rule by rule (P1-P10). Each rule is there because the real shell can otherwise run text that the
 // static parse did not show as code, or read the rest of the script from somewhere else:
 //
 //	P1 node kinds: statements, simple commands, if / while / until / for-in / case, { } and ( ) groups, && || |
@@ -325,11 +335,35 @@ func static(w *syntax.Word) (string, bool) {
 //	   with the next line). A command that may read stdin (every external command except a short list that never
 //	   does: mkdir rmdir chmod chown chgrp touch basename dirname sleep uname mktemp realpath readlink id whoami
 //	   nproc printenv ls true false) is credited only where its stdin is NOT the shell's: a later element of a
-//	   pipeline, a here-document / here-string / <&- redirection, or a background command (stdin /dev/null without
-//	   job control). A `< file` redirection does not count (the file can be a committed symlink to /dev/stdin).
-//	   rm is on the list only with static -r/-R/-f/-v/-d options and every computed operand after `--` (rm -i reads).
-//	P9 redirections: numeric file descriptors only (no {var}); <& only to close (<&-).
+//	   pipeline, or a command whose LAST redirection of fd 0 is a here-document, a here-string or <&- (the shell
+//	   applies redirections left to right, so <<E </dev/stdin reads the script). A `< file` redirection does not
+//	   count (the file can be a committed symlink to /dev/stdin). A background command is NOT away (r13 round 5,
+//	   review r4 F3: bash opens an explicit </dev/stdin after its implicit </dev/null, measured). rm is on the list
+//	   only with static -r/-R/-f/-v/-d options and every computed operand after `--` (rm -i reads).
+//	P9 redirections: numeric file descriptors only (no {var}); output to a file (> >> >| &> &>>) on a descriptor
+//	   other than 0; >& only onto 1 or 2 or to close (>&1 >&2 >&-), never on fd 0; <& only to close (<&-); input
+//	   (< <>) and here-documents only on fd 0, and <> never on an explicit fd 0. Measured (review r4 F2): a copy of
+//	   fd 0 made with 3>&0 is restored after the here-document by 0>&3, or read by path (/dev/fd/3), and the
+//	   command then reads the script.
+//	P10 static words (r13 round 5, review r4 F1): a word is static only when every shell decodes it to the same
+//	   bytes: no NUL after decoding (bash ends the word there: [ $'-v\0' .. ] is test -v), no \c (\c? is 0x7f in
+//	   bash) and no \u / \U (their decoding depends on the locale) inside $'..'.
 //
+// The ways the shell can read the script or a word differently from this static parse, and how each is handled
+// (r13 round 5 enumeration, each with a census family in tests/units_r13_census.py or a pinned refusal):
+//	R1 a command reads the script on stdin: P8 (F1 census family, F4 order-*, bg-*).        refused
+//	R2 a copy of stdin on another descriptor, restored or read by path: P9 (F4 dup-*, fd3-*). refused
+//	R3 an external program opens the shell's descriptor by its own path (/proc/$$/fd/0, /proc/$PPID/fd/0) or
+//	   rewrites the script file: an external program is arbitrary code.                       stated limit
+//	R4 data run as code: arithmetic, subscripts, test -v, ${x@P}, PS4, traps, eval, ., alias: P1-P5 (F2 family). refused
+//	R5 a word decoded differently: NUL truncation, locale-dependent \u, \c: P10 (F4 nul-*, u-eval). refused
+//	R6 a dialect difference: dash does not decode $'..' (the posix parse reads it as dash does) and the posix
+//	   file is also parsed as bash (bash --posix): main, cross-parse.                         modelled
+//	R7 the parser and bash split the bytes differently (here-documents, quoting, continuation): hdocEnd and the
+//	   reviewer's 2201-shape differential; a NUL byte in the file is refused (main).          modelled, measured
+//	R8 the environment: inherited PATH, BASH_ENV / ENV, exported functions, a non-UTF-8 multibyte locale.
+//	                                                                                         stated limit
+
 // Stated limits: the subset is a claim about bash 5.3 and dash, measured against them (tests/
 // units_runtime_grammar_census.py and the r13 adversarial census); the external no-stdin list is a claim about the
 // usual GNU / busybox programs and about PATH (PATH is denied in the file; an inherited PATH, exported functions
@@ -455,11 +489,21 @@ func (c *checker) stmts(ss []*syntax.Stmt, stdin bool) {
 	}
 }
 
-// inputAway (P8): the redirection gives the command a standard input that is not the shell's
-func inputAway(r *syntax.Redirect) bool {
-	if r.N != nil && r.N.Value != "0" {
-		return false
+// fd0 (P8): the redirection sets the command's standard input (fd 0)
+func fd0(r *syntax.Redirect) bool {
+	if r.N != nil {
+		return r.N.Value == "0"
 	}
+	switch r.Op {
+	case syntax.RdrIn, syntax.RdrInOut, syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc, syntax.DplIn:
+		return true
+	}
+	return false
+}
+
+// inputAway (P8): the redirection gives the command a standard input that is not the shell's (a here-document,
+// a here-string, or <&- close). Only the LAST redirection of fd 0 counts: the shell applies them left to right.
+func inputAway(r *syntax.Redirect) bool {
 	switch r.Op {
 	case syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
 		return true
@@ -470,7 +514,14 @@ func inputAway(r *syntax.Redirect) bool {
 	return false
 }
 
+// redirect (P9, r13 round 5, review r4 F2 class-wide): a credited command's redirections can only write
+// (> >> >| &> &>> to a file), duplicate output onto 1 or 2 or close it (>&1 >&2 >&-), give fd 0 a here-document,
+// a here-string, a file (< file: not stdin-away, P8) or close it (<&-). Any redirection that reads into another
+// descriptor (3<file, 3<>file), duplicates fd 0 or onto fd 0 (3>&0, 0>&3, 0>&1), or writes / opens fd 0 for
+// writing (0>file, 0<>file) is outside the subset: a copy of the shell's stdin can be restored as fd 0 after the
+// here-document (dd 3>&0 <<E 0>&3 reads the script, measured) or read by path (/dev/fd/3).
 func (c *checker) redirect(r *syntax.Redirect, stdin bool) {
+	n := ""
 	if r.N != nil {
 		for _, ch := range r.N.Value {
 			if ch < '0' || ch > '9' {
@@ -478,10 +529,33 @@ func (c *checker) redirect(r *syntax.Redirect, stdin bool) {
 				return
 			}
 		}
+		n = r.N.Value
 	}
 	switch r.Op {
-	case syntax.RdrOut, syntax.AppOut, syntax.RdrIn, syntax.RdrInOut, syntax.DplOut, syntax.RdrClob,
-		syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc, syntax.RdrAll, syntax.AppAll:
+	case syntax.RdrOut, syntax.AppOut, syntax.RdrClob, syntax.RdrAll, syntax.AppAll:
+		if n == "0" {
+			c.fail(r, "a redirection that opens fd 0 for writing")
+			return
+		}
+	case syntax.RdrIn, syntax.RdrInOut:
+		if n != "" && n != "0" {
+			c.fail(r, "an input redirection to a descriptor other than 0 (it can hold a copy of the script)")
+			return
+		}
+		if r.Op == syntax.RdrInOut && n == "0" {
+			c.fail(r, "a <> redirection of fd 0")
+			return
+		}
+	case syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
+		if n != "" && n != "0" {
+			c.fail(r, "a here-document on a descriptor other than 0")
+			return
+		}
+	case syntax.DplOut:
+		if v, ok := static(r.Word); n == "0" || !ok || (v != "1" && v != "2" && v != "-") {
+			c.fail(r, "a >& redirection other than >&1, >&2 or >&- on a descriptor other than 0")
+			return
+		}
 	case syntax.DplIn:
 		if v, ok := static(r.Word); !ok || v != "-" {
 			c.fail(r, "a <& redirection other than <&- (close)")
@@ -499,19 +573,19 @@ func (c *checker) redirect(r *syntax.Redirect, stdin bool) {
 	}
 }
 
+// stmt (P8): r13 round 5 (review r4 F3): a background command is NOT stdin-away. bash opens an explicit
+// redirection (</dev/stdin) after the implicit </dev/null, and the implicit one depends on job control; the
+// background statement is checked exactly as a foreground one.
 func (c *checker) stmt(s *syntax.Stmt, stdin bool) {
 	if s.Coprocess || s.Disown {
 		c.fail(s, "a coprocess or disown terminator")
 		return
 	}
 	in := stdin
-	if s.Background {
-		in = false
-	}
 	for _, r := range s.Redirs {
 		c.redirect(r, stdin)
-		if inputAway(r) {
-			in = false
+		if fd0(r) {
+			in = stdin && !inputAway(r)
 		}
 	}
 	c.command(s.Cmd, in, stdin)
@@ -973,7 +1047,7 @@ func (c *checker) noStdin(name string, args []*syntax.Word) bool {
 	return true
 }
 
-// unmodelled: "" when the file is inside the r13 positive subset (P1-P9 above), else the first reason.
+// unmodelled: "" when the file is inside the r13 positive subset (P1-P10 above), else the first reason.
 func unmodelled(f *syntax.File, lang syntax.LangVariant) string {
 	if lang != syntax.LangPOSIX && lang != syntax.LangBash {
 		return "line 0: the mksh dialect (outside the r13 positive subset: not modelled)"

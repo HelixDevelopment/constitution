@@ -1266,6 +1266,13 @@ print(json.dumps(d.get("units"), separators=(",", ":")) if rc == 0 else "rc=%d:%
         *) if [ "$got" = "$4" ]; then ok "$1 [$2: $got]"; else bad "$1 [$2]: got '$got', expected '$4'"; fi ;;
     esac
 }
+shxs() {
+    printf '%b' "$3" >"$HU_DIR/$1.x.sh"
+    got=$(cd "$HU_DIR" && python3 -I -c 'import subprocess, sys
+r = subprocess.run(sys.argv[2:], input=open(sys.argv[1], "rb").read(), capture_output=True, timeout=10, env={"PATH": "/usr/bin:/bin"})
+sys.stdout.write((r.stdout + r.stderr).decode("utf-8", "replace"))' "$1.x.sh" $2 2>&1 | tr '\n' '|')
+    case $got in *"$4"*) ok "$1 needle [$2 < script prints ...$4...]" ;; *) bad "$1 needle [$2 < script]: got '$got', expected to contain '$4'" ;; esac
+}
 shx() {
     printf '%b' "$3" >"$HU_DIR/$1.x.sh"
     got=$(cd "$HU_DIR" && env -i PATH=/usr/bin:/bin timeout 10 $2 "$1.x.sh" 2>&1 | tr '\n' '|')
@@ -1514,6 +1521,32 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
     hu r13-ix bash 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'rc=5:a parameter expansion other than'
     shx r13-ix 'bash --posix' 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'Hi'
     hu r13-fo posix 'head -c 10 >/dev/null\n#xxxxxxxx echo hi |\ntr a-z A-Z <&-\nhead() { :; }\n' 'rc=5:line 1: the command head may read'
+    # r13 round 5 (review r4 F1-F4): each refusal is paired with the real shell running data as code or reading the
+    #   script from another point; shxs feeds the script on stdin (sh < file), as curl | sh does
+    hu r13-nul bash '[ $\047-v\1340\047 \047a[$(printf PW\042\042NED >&2)]\047 ]\necho end\n' 'rc=5:outside the r13 positive subset'
+    shx r13-nul bash '[ $\047-v\1340\047 \047a[$(printf PW\042\042NED >&2)]\047 ]\necho end\n' 'PWNED'
+    hu r13-nulev bash '$\047eval\1340z\047 \047printf PW\042\042NED\047 <<E\nE\n' 'rc=5:a command word that is not a static literal'
+    shx r13-nulev 'bash --posix' '$\047eval\1340z\047 \047printf PW\042\042NED\047 <<E\nE\n' 'PWNED'
+    hu r13-locu bash '$\047\134u0065val\047 x <<E\nE\n' 'rc=5:a command word that is not a static literal'
+    shx r13-locu bash 'printf \047[%s]\047 $\047\134u00e9\047\n' '[\u00E9]'
+    hu r13-pxq posix '$\047eval\047 x <<E\nE\n' 'rc=5:bash cross-parse: line 1: the builtin or reserved word eval'  # dash reads $ + 'eval' (shx below); bash --posix runs eval
+    shx r13-pxq dash '$\047eval\047 x <<E\nE\n' '$eval'
+    hu r13-dup posix 'dd bs=1 count=11 3>&0 <<E 0>&3 >/dev/null 2>&1\nE\n#xxxxxxxxx echo PWNED\necho end\n' 'rc=5:a >& redirection'
+    shxs r13-dup 'bash --posix' 'dd bs=1 count=11 3>&0 <<E 0>&3 >/dev/null 2>&1\nE\n#xxxxxxxxx echo PWNED\necho end\n' 'PWNED'
+    hu r13-dupc bash 'dd bs=1 count=11 3>&0 <&- 0>&3 >/dev/null 2>&1\n#xxxxxxxxx echo PWNED\necho end\n' 'rc=5:a >& redirection'
+    shxs r13-dupc bash 'dd bs=1 count=11 3>&0 <&- 0>&3 >/dev/null 2>&1\n#xxxxxxxxx echo PWNED\necho end\n' 'PWNED'
+    hu r13-fd3 posix 'head -c 11 /dev/fd/3 >/dev/null 3</dev/stdin <&-\n#xxxxxxxxx echo PWNED\necho end\n' 'rc=5:an input redirection to a descriptor other than 0'
+    shxs r13-fd3 'bash --posix' 'head -c 11 /dev/fd/3 >/dev/null 3</dev/stdin <&-\n#xxxxxxxxx echo PWNED\necho end\n' 'PWNED'
+    hu r13-ord posix 'head -c 11 >/dev/null <&- </dev/stdin\n#xxxxxxxxx echo PWNED\necho end\n' 'rc=5:the command head may read'
+    hu r13-bg posix 'dd bs=1 count=11 </dev/stdin >/dev/null 2>&1 & wait\n#xxxxxxxxx echo PWNED\necho end\n' 'rc=5:the command dd may read'
+    shxs r13-bg 'bash --posix' 'dd bs=1 count=11 </dev/stdin >/dev/null 2>&1 & wait\n#xxxxxxxxx echo PWNED\necho end\n' 'PWNED'
+    hu r13-trap posix 'trap \047echo PWNED\047 EXIT <<E\nE\n' 'rc=5:the builtin or reserved word trap'
+    shx r13-trap dash 'trap \047echo PWNED\047 EXIT <<E\nE\n' 'PWNED'
+    hu r13-cat posix 'cat\necho after\n' 'rc=5:the command cat may read'
+    shxs r13-cat 'bash --posix' 'cat\necho after\n' 'echo after'
+    hu r13-ps4 posix 'PS4=\047$(echo PWNED >&2)\047\nset -x\n:\n' 'rc=5:the shell variable PS4'
+    shx r13-ps4 dash 'PS4=\047$(echo PWNED >&2)\047\nset -x\n:\n' 'PWNED'
+    hu r13-ok2 posix 'mkdir -p d >/dev/null 2>&1\necho x >&2\nhead -c 3 >/dev/null <<E\nabc\nE\n' '[[1,1],[2,2],[3,5]]'
 else
     bad "R13-G1 the census needs the real units helper"
 fi

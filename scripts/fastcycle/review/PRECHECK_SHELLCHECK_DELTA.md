@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 11 |
+| Revision | 12 |
 | Created | 2026-10-13 |
 | Last modified | 2026-11-04 |
-| Status | proposed (ATM-1217 r13, review round 3: POSITIVE minimal subset for the units helper, gate-owned git dir for every git call; independent review owed); rule id `shellcheck-baseline-delta/9`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Status | proposed (ATM-1217 r13, review round 3: POSITIVE minimal subset for the units helper, gate-owned git dir for every git call of the gate and the builder, not `tower_detector_run.py`; round 5: review r4 F1-F4 closed class-wide, see "r13 round 5"; independent review owed); rule id `shellcheck-baseline-delta/9`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
 | Design | r10: the "Command units" and "Units helper" sections below (the r10 structural replacement); r3-r9: `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
@@ -212,7 +212,7 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
     alias is defined without any alias command. A deny-list cannot close a
     family it does not name, so r13 credits a file ONLY when every node of its
     parse tree is in a small subset checked node kind by node kind
-    (`units_helper/main.go`, rules P1-P9); any other node kind, operator,
+    (`units_helper/main.go`, rules P1-P10); any other node kind, operator,
     builtin, option or variable name exits 5 ("outside the r13 positive
     subset"), and a node type the parser adds later fails closed (a second
     pass rejects every type not listed). In short: no arithmetic of any kind,
@@ -231,8 +231,11 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
     >/dev/null` before a `#xxxxxxxx echo hi |` comment line makes `bash
     --posix` run `echo hi | tr ...` joined with the next line. Every external
     command except a short no-stdin list is therefore credited only where its
-    stdin is not the shell's (later pipeline element, here-document /
-    here-string / `<&-`, background).
+    stdin is not the shell's (later pipeline element, or a command whose LAST
+    fd-0 redirection is a here-document / here-string / `<&-`). A background
+    command is NOT stdin-away (round 5, review r4 F3; an earlier revision of
+    this text said it was, which was wrong: bash opens an explicit
+    `</dev/stdin` after its implicit `</dev/null`, measured).
     **Proof (stated):** the round-3 reviewer corpus (609 scripts) and a new r13
     adversarial census (932 scripts, `tests/units_r13_census.py`: stdin
     consumers in five contexts and every builtin / expansion channel with
@@ -248,6 +251,39 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
     probably equivalent for soundness (UNCONFIRMED); it is killed only by the
     fail-closed policy cases r11-al13/al14 (mutant R13-RM7), not by a
     demonstrated unsound credit.
+    **r13 round 5 (review r4 F1-F4, class-wide).** Review round 4 found three
+    soundness holes, each measured with real bash (`--posix` and default):
+    a NUL inside `$'..'` ends the word in bash (`[ $'-v\0' 'a[$(cmd)]' ]` is
+    `test -v` and runs `cmd`; `$'eval\0z' 'cmd' <<E` runs `eval`), fd 0 can be
+    copied and restored (`dd 3>&0 <<E 0>&3` reads the script after the
+    here-document), and a background command with `</dev/stdin` reads the
+    script (the rule "background is stdin-away" was wrong). Round 5 does not
+    close these three shapes one by one; it enumerates the ways the shell can
+    read the script, or a word, differently from the static parse (the
+    R1-R8 table in `units_helper/main.go`) and closes each class: P8 now
+    takes the LAST fd-0 redirection (left to right), background is never
+    stdin-away; P9 admits only output to a file, `>&1` / `>&2` / `>&-`, `<&-`,
+    and input or here-documents on fd 0 (every duplication of fd 0, input on
+    another descriptor, and fd 0 opened for writing fail closed); P10 makes a
+    word non-static when its decoded bytes contain a NUL or its `$'..'` uses
+    `\c` (`\c?` is 0x7f in bash) or `\u` / `\U` (decoded by the locale:
+    under `LC_ALL=C` bash keeps `\u00E9` as text). Stated limits (not
+    refusable by a static check): an external program that opens the
+    shell's descriptor by path (`/proc/$$/fd/0`) or rewrites the script file,
+    and the caller's environment. The three reviewer mutants that survived
+    (RV4-01 `trap` removed from the shell words, RV4-02 `cat` added to the
+    no-stdin list, RV4-03 `PS4` assignable) are adopted verbatim with pinned
+    refusal cases and real-shell needles (r13-trap, r13-cat, r13-ps4).
+    New mutants: R13-17 is RETIRED (its rule is deleted), R13-17b (background
+    treated as stdin-away again) and R13-24 (fd 0 opened for writing allowed)
+    are EQUIVALENT with measured arguments (the last-redirection rule and the
+    async list's /dev/null make every measured shape inert; the rules are
+    kept conservative), R13-18 (NUL), R13-20 (`\c` / `\u`), R13-21 (any `>&`
+    target), R13-22 (input on fd 3+), R13-23 (first fd-0 redirection wins) and
+    RV4-01..03 are killed. The r13 adversarial census grew to 1006 cases (F4
+    family: duplication, order, background, inherited descriptors, NUL and
+    locale escapes, the three reviewer mutants); the round-4 helper (88431bf)
+    is UNSOUND on 30 of them, the round-5 helper on 0.
     **Cost, measured, plainly:** over the 1150 tracked `.sh` files of this
     repository the r12 helper gave units for 471, the r13 helper for **70**
     (6 %). 1077 files exit 5: 600 because they use a builtin outside the

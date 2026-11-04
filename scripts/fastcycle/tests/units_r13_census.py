@@ -116,6 +116,35 @@ def cases():
         for cid, body in ev.items():
             for d in ("posix", "bash"):
                 out.append(("F2-%s-%s/%s" % (cid, nid, d), d, "n=" + q(needle) + "\n" + body + "\n"))
+    # F4 (fixer round 5, review r4 F1-F4 class-wide): every way found for the shell to read the script from another
+    #    point (fd duplication, redirection order, background, inherited descriptors) or to see a word other than the
+    #    decoded one ($'..' NUL truncation, locale-dependent \u, \c), plus the three reviewer mutants (trap, cat, PS4)
+    hc = "head -c %d >/dev/null" % K
+    sub = NEEDLES["cmdsub"]
+    red = {
+        "dup-hdoc": hc + " 3>&0 <<E 0>&3\nE", "dup-close": hc + " 3>&0 <&- 0>&3", "dup-0to1": hc + " 0>&1 <&-",
+        "dup-out3": "{ " + hc + " 0>&3; } 3>&0 <&-", "order-hdoc-file": "ln -sf /dev/stdin L; " + hc + " <<E <L\nE",
+        "order-close-devstdin": hc + " <&- </dev/stdin", "order-herestr-devstdin": hc + " <<<a </dev/stdin",
+        "rw-devstdin": hc + " <>/dev/stdin", "rw0-devstdin": hc + " 0<>/dev/stdin",
+        "fd3-path": "head -c %d /dev/fd/3 >/dev/null 3</dev/stdin <&-" % K,
+        "fd3-dup-path": "head -c %d /dev/fd/3 >/dev/null 3>&0 <&-" % K,
+        "bg-devstdin": hc + " </dev/stdin & wait", "bg-group-devstdin": "{ " + hc + "; } </dev/stdin & wait",
+        "bg-plain": hc + " & wait", "bg-group": "{ " + hc + "; } & wait", "bg-sub": "( " + hc + " ) & wait",
+        "pipe-first-devstdin": hc + " </dev/stdin | :", "bg-group-inner": "{ " + hc + " </dev/stdin; } & wait",
+        "bg-sub-inner": "( " + hc + " </dev/stdin ) & wait", "w0-devstdin": hc + " 0>/dev/stdin",
+        "nul-test-0": "[ $'-v\\0' %s ]" % q(sub), "nul-test-x00": "[ $'-\\x76\\x00' %s ]" % q(sub),
+        "nul-test-000": "[ $'-v\\000' %s ]" % q(sub), "nul-test-c@": "[ $'-v\\c@' %s ]" % q(sub),
+        "nul-test-u": "[ $'-v\\u0000' %s ]" % q(sub), "nul-test-U": "[ $'-v\\U00000000' %s ]" % q(sub),
+        "nul-eval": "$'eval\\0z' 'printf PW\"\"NED' <<E\nE", "nul-eval-x": "$'ev\\x61l\\x00z' 'printf PW\"\"NED' <<E\nE",
+        "u-eval": "$'\\u0065val' 'printf PW\"\"NED' <<E\nE", "c-test": "[ $'-\\cv' %s ]" % q(sub),
+        "trap": "trap 'printf PW\"\"NED' EXIT <<E\nE", "cat": "cat >/dev/null", "ps4": "PS4='$(printf PW\"\"NED >&2)'\nset -x\n:",
+        # controls the subset still credits (nothing reads the script, every word decodes the same everywhere)
+        "ctl-dup-err": hc + " <<E 2>&1 >/dev/null\nabcdefghijkl\nE", "ctl-close-out": "echo x >&-",
+        "ctl-octal": "printf $'%s\\101\\n' x", "ctl-hdoc-last": hc + " </dev/null <<E\nabcdefghijkl\nE",
+    }
+    for cid, body in red.items():
+        for d in ("posix", "bash"):
+            out.append(("F4-%s/%s" % (cid, d), d, body + "\n" + PAYLOAD + "\n"))
     # F3 controls: static code that prints the marker (proves the oracle sees it) -- excluded from UNSOUND
     for d in ("posix", "bash"):
         out.append(("CTRL-static-marker/%s" % d, d, "printf 'PW''NED\\n'\n"))

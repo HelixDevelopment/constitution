@@ -5,4 +5,4 @@
 # (review G3) a source hash with NO row is refused too (re-pin with review/lib/units_pin_refresh.py --write, which
 # builds twice and refuses a non-reproducible build); an unlisted toolchain is accepted on the recomputed stamp only
 # (stated limit). An absent, unreadable or malformed table is refused. Columns: source-hash go-version goos/goarch binary-sha256
-2f4eb5774e55dd8d84ba4539d21f207da7cb1c1beb77179b09a4d33878252d65 go1.26.8 linux/amd64 4f6c3123bb91d0869f7d2dd1e26caa25f07ae1dcd001f62258bf9a7867b97e90
+43855fc77f0e9dd467a643124d7c4fa07334a5c393e8c0d0747c9824b252b47b go1.26.8 linux/amd64 4ef3a12a23297bd91e1a267a0d2657fa65debad56be22afb2daff71298a16bcc
