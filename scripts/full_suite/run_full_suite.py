@@ -375,6 +375,90 @@ def _reads_status(item):
 ABSORB = ("true", ":", "echo", "printf")
 
 
+def _flat_text(node, acc=None):
+    """Text of a parsed node: literal characters, ${name} for parameters, a space between words."""
+    if acc is None:
+        acc = []
+    if isinstance(node, tuple) and node and node[0] == "lit" and len(node) == 3 and isinstance(node[1], str):
+        acc.append(node[1])
+    elif isinstance(node, tuple) and node and node[0] == "param" and len(node) == 3:
+        acc.append("${%s}" % node[1])
+    elif isinstance(node, (list, tuple)):
+        for x in node:
+            _flat_text(x, acc)
+        acc.append(" ")
+    return "".join(acc) if acc is not None and node is not None else ""
+
+
+def _first_words(item):
+    """Literal text of the first command's words of an and-or list ([] when it is not a simple command)."""
+    try:
+        cmd = item[0][1][2][0]
+    except (IndexError, TypeError):
+        return None
+    if cmd[0] != "simple":
+        return None
+    return [lit_text(w) if all(sg[0] == "lit" for sg in w) else None for w in cmd[1]]
+
+
+def _print_only(item):
+    """Every command of this and-or list is true / : / echo / printf (its outcome reaches nothing)."""
+    for _conn, pipe in item:
+        for cmd in pipe[2]:
+            if cmd[0] != "simple" or not cmd[1] or lit_text(cmd[1][0]) not in ABSORB:
+                return False
+    return True
+
+
+def _assigned_names(item):
+    """Names assigned by an and-or list made of ONE assignment-only simple command, else None."""
+    if len(item) != 1 or len(item[0][1][2]) != 1:
+        return None
+    cmd = item[0][1][2][0]
+    if cmd[0] != "simple" or not cmd[1]:
+        return None
+    names = []
+    for w in cmd[1]:
+        pre = ""
+        for sg in w:
+            if sg[0] != "lit":
+                break
+            pre += sg[1]
+        mm = ASSIGN.match(pre)
+        if not mm:
+            return None
+        names.append(mm.group(1))
+    return names
+
+
+def _status_decides(items, j):
+    """F3 (review r4): the status that items[j] reads ($?, PIPESTATUS) reaches a decision. A read that is
+    only printed (echo / printf / : / true), or stored into variables that no later command of the same
+    list uses outside echo / printf, reaches nothing."""
+    item = items[j]
+    if len(item) > 1:
+        return True  # `[ $? -eq 0 ] || exit 1`: the list reacts
+    if _print_only(item):
+        return False
+    names = _assigned_names(item)
+    if names is None:
+        return True
+    for later in items[j + 1:]:
+        if _print_only(later):
+            continue
+        txt = _flat_text(later)
+        for n in names:
+            if re.search(r"\$\{%s(?![A-Za-z0-9_])" % re.escape(n), txt) or \
+                    re.search(r"(?<![A-Za-z0-9_${])%s(?![A-Za-z0-9_])" % re.escape(n), txt):
+                return True
+    return False
+
+
+def _trivial(lst):
+    """A list whose every command is true / : / echo / printf (an if branch that decides nothing)."""
+    return lst is None or all(_print_only(item) for item in lst)
+
+
 def _absorbing(pipe):
     """`x || <pipe>` throws x's status away when <pipe> is one of true / : / echo / printf."""
     cmds = pipe[2]
@@ -1101,6 +1185,8 @@ class Model:
         _k, neg, cmds = pipe
         status = None
         cons = self.consumed
+        if neg and cons != "cond":
+            cons = False  # F3: `! cmd` outside an if / while condition turns a failure into success
         for j, c in enumerate(cmds):
             last = j == len(cmds) - 1
             self.consumed = cons if last else (cons == "all" or (bool(cons) and self.pipefail))
@@ -1162,11 +1248,13 @@ class Model:
                 if getattr(parts, "bg", False):
                     c = False
                 elif nxt is not None and "PIPESTATUS" in repr(nxt):
-                    c = "all"
+                    c = "all" if _status_decides(items, i + 1) else self.errexit
                 elif nxt is None:
                     c = parent or self.errexit
                 else:
                     c = self.errexit or _reads_status(nxt)
+                    if c is True and not self.errexit and not _status_decides(items, i + 1):
+                        c = False
                 self.consumed = c
                 status = self.run_andor(parts, definite)
         finally:
@@ -1199,8 +1287,10 @@ class Model:
             for p in c[3]:
                 self.cmdsub(p)
             d = definite
+            # F3: an if whose every branch is true / : / echo / printf decides nothing with its conditions
+            cv = False if all(_trivial(b) for _c, b in c[1]) and _trivial(c[2]) else "cond"
             for cond, body in c[1]:
-                st = self._cons(True, self.run_list, cond, d) if d else self.soft(self._cons, True, self.run_list, cond, d)
+                st = self._cons(cv, self.run_list, cond, d) if d else self.soft(self._cons, cv, self.run_list, cond, d)
                 if st is True:
                     return self.run_list(body, d) if d else self.soft(self.run_list, body, d)
                 if st is None:
@@ -1215,7 +1305,7 @@ class Model:
         if k == "while":
             for p in c[3]:
                 self.cmdsub(p)
-            self.soft(self._cons, True, self.run_list, c[1], False)
+            self.soft(self._cons, "cond", self.run_list, c[1], False)
             try:
                 self._cons(False, self.run_list, c[2], False)
             except _Stop:
@@ -1338,7 +1428,7 @@ import sys
 import tempfile
 import time
 
-SCHEMA = "fsr/3"
+SCHEMA = "fsr/4"
 VERDICTS = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR", "SKIPPED-heavy", "NOT-RUN")
 EXECUTED = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR")
 BAD = ("FAIL", "TIMEOUT", "ERROR")
@@ -1370,6 +1460,9 @@ KIND_RUNNERS = {"py": ("python3",), "sh": ("bash", "sh"), "js": ("node",), "bats
 # data    -- input data with a script extension
 EXCL_CATS = ("helper", "library", "oracle", "fake", "gate", "tool", "data")
 EXCL_LOCK = "full_suite_excluded.lock"
+ROSTER = "full_suite_operators.roster"
+WHO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@+-]{0,79}$")
+CHAIN0 = "0" * 16
 IGNORED_NOT_HASHED = (re.compile(r"(^|/)__pycache__/"), re.compile(r"\.pyc$"), re.compile(r"(^|/)\.pytest_cache/"),
                       re.compile(r"^qa-results/"))
 GUIDE_REL = os.path.join("docs", "guides", "full_suite_runner_guide.md")
@@ -1866,6 +1959,77 @@ def excl_set_hash(ex):
     return hashlib.sha256("".join("%s\t%s\n" % (p_, n) for p_, n in ex).encode()).hexdigest()[:16]
 
 
+def acc_chain(prev, ts, who, seth, rows):
+    return hashlib.sha256(("%s|%s|%s|%s|%s" % (prev, ts, who, seth, rows)).encode()).hexdigest()[:16]
+
+
+ACC_RE = re.compile(r"^# accepted (\S+) accepted_by=(\S+)(?: \([^)]*\))? set=([0-9a-f]{16}) rows=(\d+)(?: chain=([0-9a-f]{16}))?$")
+
+
+def acc_problems(acc):
+    """Integrity of the `# accepted` lines (O5): every chained line's chain= is recomputed from the line
+    before it; once a chained line exists every later line must be chained (no downgrade)."""
+    probs, prev, chained = [], CHAIN0, False
+    for line in acc:
+        mm = ACC_RE.match(line)
+        if not mm:
+            probs.append("malformed acceptance line: %r" % line[:120])
+            continue
+        ts, who, seth, rows, ch = mm.groups()
+        if ch is None:
+            if chained:
+                probs.append("acceptance line without chain= after a chained line (edited by hand?): %r" % line[:120])
+            prev = CHAIN0
+            continue
+        chained = True
+        if ch != acc_chain(prev, ts, who, seth, rows):
+            probs.append("acceptance chain broken at %r (edited, reordered or deleted line?)" % line[:120])
+        prev = ch
+    return probs
+
+
+def last_acceptor(acc):
+    mm = ACC_RE.match(acc[-1]) if acc else None
+    return mm.group(2) if mm else None
+
+
+def read_roster(root, path):
+    """(set of operator ids, problem or None). The roster must exist, be tracked and equal HEAD (F6)."""
+    if not os.path.isfile(path):
+        return set(), "no operator roster %s (one `id<TAB>who` line per operator, committed)" % path
+    rel = os.path.relpath(path, root)
+    t = subprocess.run(["git", "-C", root, "ls-files", "--error-unmatch", "--", rel], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+    d = subprocess.run(["git", "-C", root, "diff", "--quiet", "HEAD", "--", rel], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+    ids = set()
+    with open(path, errors="replace") as fh:
+        for line in fh.read().splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            i = line.split("\t", 1)[0].strip()
+            if WHO_RE.match(i):
+                ids.add(i)
+    if t.returncode != 0 or d.returncode != 0:
+        return ids, "operator roster %s is not committed (untracked or differs from HEAD)" % path
+    return ids, None
+
+
+def excl_unaccepted(root, lock_path, rows, roster_path):
+    """'' when the excluded set is empty or its last acceptance names an operator of a committed roster;
+    else the reason the exclusions are not operator-accepted (a run cannot end green, exit 11)."""
+    if not excluded_rows(rows):
+        return ""
+    lk = read_excl_lock(lock_path)
+    who = last_acceptor(lk[2]) if lk else None
+    ids, prob = read_roster(root, roster_path)
+    if prob:
+        return "excluded set last accepted by %r, but %s" % (who, prob)
+    if who not in ids:
+        return "excluded set last accepted by %r, who is not on the operator roster %s" % (who, roster_path)
+    return ""
+
+
 def read_excl_lock(path):
     """(body {path: note_hash}, last accepted set hash or None, accepted lines) or None when absent."""
     if not os.path.isfile(path):
@@ -1895,9 +2059,9 @@ def excl_check(lock_path, rows):
             return ["excluded set (%d row(s)) is not accepted: %s is absent; review the rows and run "
                     "--verify-manifest --accept-excluded-change <reviewer>" % (len(ex), lock_path)]
         return []
-    body, last, _acc = lk
+    body, last, acc = lk
     want = {p_: hashlib.sha256(n.encode()).hexdigest()[:16] for p_, n in ex}
-    probs = []
+    probs = ["%s: %s" % (lock_path, x) for x in acc_problems(acc)]
     if last is None or last != excl_set_hash(sorted((p_, h) for p_, h in body.items())):
         probs.append("%s: body does not match its last `# accepted ... set=` line (edited by hand?)" % lock_path)
     added = sorted(set(want) - set(body))
@@ -1909,13 +2073,24 @@ def excl_check(lock_path, rows):
     return probs
 
 
-def excl_accept(lock_path, rows, who):
+def excl_accept(root, lock_path, rows, who, roster_path):
+    ids, prob = read_roster(root, roster_path)
+    if prob or who not in ids:
+        raise Fatal(3, "--accept-excluded-change %r refused: %s" % (
+            who, prob or "%r is not an operator id in %s" % (who, roster_path)))
     ex = excluded_rows(rows)
     body = sorted((p_, hashlib.sha256(n.encode()).hexdigest()[:16]) for p_, n in ex)
     old = read_excl_lock(lock_path)
     acc = old[2] if old else []
-    acc.append("# accepted %s accepted_by=%s set=%s rows=%d" % (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), who,
-                                                              excl_set_hash(body), len(body)))
+    if acc_problems(acc):
+        raise Fatal(3, "--accept-excluded-change refused: the acceptance lines of %s are not intact" % lock_path)
+    prev = CHAIN0
+    mm = ACC_RE.match(acc[-1]) if acc else None
+    if mm and mm.group(5):
+        prev = mm.group(5)
+    ts, seth = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), excl_set_hash(body)
+    acc.append("# accepted %s accepted_by=%s set=%s rows=%d chain=%s" % (ts, who, seth, len(body),
+                                                                       acc_chain(prev, ts, who, seth, len(body))))
     tmp = lock_path + ".tmp.%d" % os.getpid()
     with open(tmp, "w") as fh:
         fh.write("# %s -- reviewed set of excluded rows of the full-suite manifest (path TAB sha256-16 of the note).\n"
@@ -1930,8 +2105,9 @@ def excl_accept(lock_path, rows, who):
 
 
 def topology(root):
-    """(layout, n_submodules, gaps) of the checkout (P7). gaps: uninitialised submodules and submodules whose
-    recorded commit is absent from their object store."""
+    """(layout, n_submodules, gaps) of the checkout (P7). gaps: uninitialised (`-`), conflicted (`U`) and
+    drifted (`+`: checked out at another commit than the superproject records) submodules, submodules whose
+    recorded commit is absent from their object store, and a failing `git submodule status` (fail closed)."""
     sup = subprocess.run(["git", "-C", root, "rev-parse", "--show-superproject-working-tree"], stdout=subprocess.PIPE,
                          stderr=subprocess.DEVNULL).stdout.decode(errors="replace").strip()
     layout = "consumer (inside %s)" % sup if sup else "standalone"
@@ -1952,6 +2128,12 @@ def topology(root):
         if flag == "U":
             gaps.append("submodule with merge conflicts: %s" % path)
             continue
+        if flag == "+":
+            gaps.append("drifted submodule: %s is checked out at %s, not the recorded commit" % (path, sha[:12]))
+            continue
+        if flag != " ":
+            gaps.append("submodule %s: unknown status flag %r" % (path, flag))
+            continue
         q = subprocess.run(["git", "-C", os.path.join(root, path), "cat-file", "-e", sha + "^{commit}"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if q.returncode != 0:
@@ -1960,6 +2142,40 @@ def topology(root):
         msg = p.stderr.decode(errors="replace").strip().splitlines()
         gaps.append("git submodule status failed (rc %d): %s" % (p.returncode, msg[-1] if msg else ""))
     return layout, n, gaps
+
+
+def tree_ident(root):
+    """Identity of the code that is about to run (F1, review r4): HEAD, the commits the submodules are
+    actually checked out at, and whether anything differs from them. Returns (ident string, dirty paths).
+    dirty = `git status --porcelain` of the root (untracked files, modified or drifted submodules
+    included) plus the same inside every submodule (recursive). Ignored files are not counted as dirty
+    (they are hashed into the tree hash). Any git failure here reads as dirty=unknown (fail closed)."""
+    head = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"], stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL)
+    head_s = head.stdout.decode(errors="replace").strip() if head.returncode == 0 else "nogit"
+    sub = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
+                         stderr=subprocess.DEVNULL)
+    subs = hashlib.sha256(b"\n".join(sorted(l.strip().encode() for l in sub.stdout.decode(errors="replace")
+                                              .splitlines() if l.strip()))).hexdigest()[:16] \
+        if sub.returncode == 0 else "unknown"
+    st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "--untracked-files=all",
+                         "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    fe = subprocess.run(["git", "-C", root, "submodule", "foreach", "--recursive", "--quiet",
+                         'o=$(git status --porcelain=v1 --untracked-files=all --ignore-submodules=none) || exit 1; '
+                         '[ -z "$o" ] || printf "%s\\n" "$o" | sed "s|^|$displaypath: |"'],
+                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    dirty = [l for l in st.stdout.decode(errors="replace").splitlines() if l.strip()]
+    dirty += ["(in submodule) " + l for l in fe.stdout.decode(errors="replace").splitlines() if l.strip()]
+    if st.returncode != 0 or fe.returncode != 0 or head.returncode != 0:
+        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))
+        dh = "unknown"
+    elif dirty:
+        h = hashlib.sha256("\n".join(dirty).encode())
+        h.update(git(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--no-color", binary=True, check=False))
+        dh = h.hexdigest()[:16]
+    else:
+        dh = "clean"
+    return "head=%s subs=%s dirty=%s" % (head_s[:12], subs, dh), dirty
 
 
 def discarded_members(root, rows, heavy_mode):
@@ -2097,8 +2313,31 @@ ITEM = re.compile((
     r"|(?P<wn>(?<![\w-])(?P<wnw>CW)\s+(?P<wnv>\d+)(?![\w.%]))"
     r"|(?P<st>(?<![\w-])(?P<stw>pass|passed|ok|green|success|fail|failed|failure|error|skip|skipped)(?![\w-]))"
     ).replace("NOUN", NOUN).replace("CW", CW), re.I)
-FAILTOK = re.compile(r"(?<![\w-])(fail|fails|failed|failure|failures|failing|errors?|errored|fatal|panic|traceback|not\s+ok)(?![\w-])"
+_FAILWORD = re.compile(r"(?<![\w-])(fail|fails|failed|failure|failures|failing|errors?|errored|fatal|panic|traceback|not\s+ok)(?![\w-])"
                      r"|[\u2717\u2718\u274c]", re.I)
+# F5 (review r4): crash text a unit can print and still exit 0. Decided conservatively: each is a fail
+# signal (no summary => ERROR unparsed_fail_signal; after the last summary => ERROR). `Killed` is matched
+# case-sensitively in bash's own shapes only ("Killed" at line start or after a pid), so a mutation
+# harness line "killed M3 ..." stays description. Measured on the author's r4 run (176 PASS logs): one
+# log has "command not found" anywhere; see the guide for the false-refusal count.
+_CRASH_I = re.compile(r"(?<![\w-])(assertionerror|segmentation fault|command not found|core dumped|permission denied)(?![\w-])", re.I)
+_CRASH_K = re.compile(r"(?:^\s*|\d\s+)Killed(?:\s|$)")
+
+
+class _AnyRe:
+    def __init__(self, *rs):
+        self.rs = rs
+
+    def search(self, s):
+        for r in self.rs:
+            m = r.search(s)
+            if m:
+                return m
+        return None
+
+
+FAILTOK = _AnyRe(_FAILWORD, _CRASH_I, _CRASH_K)
+TAPTODO = re.compile(r"^not ok\b.*#\s*(?:todo|skip)\b", re.I)
 SKIPTOK = re.compile(r"(?<![\w-])(skip|skips|skipped|skipping)(?![\w-])", re.I)
 PASSHEAD = re.compile(r"^\s*(?:\[\s*)?(?:pass(?:ed)?|ok|\u2713|\u2714|\u2705|\u2611)(?:\s*\])?(?=$|[\s:\-\]])", re.I)
 BOUNDFAIL = re.compile(r"(\d+\s*(?:%s)\b)|((?:fail\w*|errors?)\s*[=:]?\s*\d+)" % FAILV, re.I)
@@ -2110,16 +2349,21 @@ COMMENT = re.compile(r"(\s*\([^()]*\)\s*$)|(\s*\[[^\[\]]*\]\s*$)|(\s+--\s+.*$)|(
 TRAIL = re.compile(r"[\s=#*~\-]+$")
 
 
-def norm_lines(text):
+def norm_lines(text, resid=None):
     """Non-empty display lines: CRLF trimmed, a CR progress overwrite reduced to what the terminal
-    finally shows, ANSI CSI/OSC/DCS escapes and other control bytes removed (P2)."""
+    finally shows, ANSI CSI/OSC/DCS escapes and other control bytes removed (P2). When `resid` is a set,
+    the index of every kept line whose OVERWRITTEN CR segments carried a fail word is added to it (F4):
+    a fail word that a progress update painted over is still a fail signal."""
     res = []
     for raw in text.split("\n"):
         l = raw.rstrip("\r")
+        over = ""
         if "\r" in l:
-            l = l.rsplit("\r", 1)[-1]
+            over, l = l.rsplit("\r", 1)
         l = CTRL.sub("", ESC.sub("", l)).rstrip()
         if l.strip():
+            if resid is not None and over and FAILTOK.search(CTRL.sub("", ESC.sub("", over.replace("\r", " ")))):
+                resid.add(len(res))
             res.append(l)
     return res
 
@@ -2215,6 +2459,8 @@ def classify(line):
             return "summary", info
     if SKIPHEAD.match(line) and not FAILTOK.search(line):
         return "skiphead", None
+    if TAPTODO.match(line.strip()):
+        return "other", None  # F9: a TAP `not ok ... # TODO|SKIP` line is not a failure
     if FAILTOK.search(line):
         h = HEADWORD.match(line)
         if h and FAILTOK.search(line[h.end():]):
@@ -2251,7 +2497,8 @@ def summary_verdict(info):
 
 def judge_exit0(text, kind):
     """Return (verdict, reason, source, counts) for a unit that exited 0."""
-    lines = norm_lines(text)
+    resid = set()
+    lines = norm_lines(text, resid)
     if kind == "go-test":
         oks = sum(1 for l in lines if re.match(r"^ok\s", l))
         fails = sum(1 for l in lines if re.match(r"^(FAIL|--- FAIL)\b", l))
@@ -2261,13 +2508,15 @@ def judge_exit0(text, kind):
             return "ERROR", "zero_tests", "summary", {"p": 0, "f": 0}
         return "PASS", "", "summary", {"p": oks, "f": 0}
     win = lines[-WIN:]
+    off = len(lines) - len(win)
+    rw = {i - off for i in resid if i >= off}
     cls = [classify(l) for l in win]
     if any(k == "tapfail" for k, _ in cls):
         return "FAIL", "tap_not_ok", "summary", None
     if any(k == "headfail" for k, _ in cls):
         return "FAIL", "summary_word_FAIL", "summary", None
     sums = [(i, info, summary_verdict(info)) for i, (k, info) in enumerate(cls) if k == "summary"]
-    fails = [i for i, (k, _x) in enumerate(cls) if k == "failsig"]
+    fails = sorted(set(i for i, (k, _x) in enumerate(cls) if k == "failsig") | rw)
     if sums:
         li, linfo, (lv, lr) = sums[-1]
         counts = dict(linfo["counts"])
@@ -2275,7 +2524,7 @@ def judge_exit0(text, kind):
             return "FAIL", lr, "summary", counts
         if any(v == "FAIL" for _i, _inf, (v, _r) in sums[:-1]):
             return "ERROR", "conflicting_summary", "summary", counts
-        if any(i > li for i in fails):
+        if any(i > li or i in rw for i in fails):
             return "ERROR", "fail_signal_after_summary", "summary", counts
         if lv == "PASS" and any(k == "skiphead" for k, _x in cls[li + 1:]):
             return "ERROR", "conflicting_summary", "summary", counts
@@ -2462,7 +2711,7 @@ def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
 # ----------------------------------------------------------------------------- results (hash chain)
 REQ = {"schema": str, "seq": int, "prev": str, "unit": str, "path": str, "sha": str, "tree": str, "ctx": str,
        "runner_hash": str, "verdict": str, "reason": str, "verdict_source": str, "rc": int, "secs": (int, float),
-       "leaked": int, "log": str, "log_sha256": str}
+       "leaked": int, "log": str, "log_sha256": str, "ident": str}
 GENESIS = "0" * 64
 
 
@@ -2681,7 +2930,7 @@ def main(argv):
             sync = True
         elif x == "--accept-excluded-change":
             accept = val()
-            if not re.match(r"^[A-Za-z0-9][A-Za-z0-9 ._@+()-]{0,79}$", accept):
+            if not WHO_RE.match(accept):
                 raise Fatal(2, "bad --accept-excluded-change reviewer %r" % accept)
         elif x == "--allow-topology-gaps":
             allow_topo = True
@@ -2728,6 +2977,7 @@ def main(argv):
         return 0
     rows = read_manifest(manifest)
     lock_path = os.path.join(os.path.dirname(manifest), EXCL_LOCK)
+    roster_path = os.path.join(os.path.dirname(manifest), ROSTER)
     if accept and not verify_only:
         raise Fatal(2, "--accept-excluded-change is used with --verify-manifest")
     if sync:
@@ -2737,7 +2987,7 @@ def main(argv):
     probs = verify(root, rows)
     eprobs = excl_check(lock_path, rows)
     if accept and not probs and eprobs:
-        excl_accept(lock_path, rows, accept)
+        excl_accept(root, lock_path, rows, accept, roster_path)
         out("accepted the excluded set (%d row(s)) as %s in %s" % (len(excluded_rows(rows)), accept, lock_path))
         eprobs = excl_check(lock_path, rows)
     probs = probs + eprobs
@@ -2748,8 +2998,11 @@ def main(argv):
         out(cline)
         out("RESULT: MANIFEST-MISMATCH (%d problem(s); nothing was run)" % len(probs))
         return 3
+    excl_who = excl_unaccepted(root, lock_path, rows, roster_path)
     if verify_only:
         out(cline)
+        if excl_who:
+            out("NOTE: %s; a run cannot end green until an operator on the roster accepts it (exit 11)" % excl_who)
         out("RESULT: MANIFEST-OK")
         return 0
     alone = discarded_members(root, rows, heavy)
@@ -2774,6 +3027,7 @@ def main(argv):
         return 9
     sha = git(root, "rev-parse", "HEAD", check=False).strip() or "nogit"
     tree = tree_state(root)
+    ident, dirty = tree_ident(root)
     with open(os.path.abspath(__file__), "rb") as fh:
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
     ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)
@@ -2801,13 +3055,16 @@ def main(argv):
     out(topo_line)
     for g in gaps:
         out("TOPOLOGY GAP (allowed): " + g)
+    out("identity: %s" % ident)
+    for d_ in dirty:
+        out("DIRTY: " + d_)
     total = len(units)
     interrupted = False
 
     def emit(u, verdict, reason, source, rc, secs, leaked, env_names, counts, logrel, logsha):
         res.append({"schema": SCHEMA, "unit": u["id"], "path": u["path"], "args": u["args"], "sha": sha, "tree": tree,
                     "ctx": ctx, "runner_hash": rhash, "mode": mode, "verdict": verdict, "reason": reason,
-                    "verdict_source": source, "rc": rc, "secs": secs, "timeout": u.get("tmo", 0), "log": logrel,
+                    "verdict_source": source, "rc": rc, "secs": secs, "ident": ident, "timeout": u.get("tmo", 0), "log": logrel,
                     "log_sha256": logsha, "leaked": leaked, "env_names": env_names, "counts": counts or {},
                     "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
 
@@ -2904,12 +3161,19 @@ def main(argv):
     summ.append(topo_line)
     for g in gaps:
         summ.append("TOPOLOGY GAP (allowed): " + g)
+    summ.append("identity of the code that ran: %s" % ident)
+    for d_ in dirty:
+        summ.append("DIRTY (differs from HEAD / the recorded submodule commits): " + d_)
     summ.append("members also run alone because their covering script discards their exit status: %d"
                 % sum(1 for u in units if u.get("alone")))
     ex = excluded_rows(rows)
     summ.append("EXCLUDED (manifest rows never run; reviewed set pinned by %s): %d" % (lock_path, len(ex)))
     for p_, note in ex:
         summ.append("EXCLUDED  %s  (%s)" % (p_, note))
+    if ex:
+        lk_ = read_excl_lock(lock_path)
+        summ.append("EXCLUDED set last accepted_by: %s%s" % (last_acceptor(lk_[2]) if lk_ else None,
+                                                            " -- NOT OPERATOR-ACCEPTED: " + excl_who if excl_who else ""))
     if tree_end != tree:
         summ.append("TREE CHANGED during the run (start %s, end %s): a suite wrote into the repository" % (tree[:12], tree_end[:12]))
     summ.append("--- non-PASS, nondeterministic and exit-code-only units")
@@ -2917,8 +3181,8 @@ def main(argv):
     with open(os.path.join(outdir, "summary.txt"), "w") as fh:
         fh.write("\n".join(summ) + "\n")
     out("\n".join(summ))
-    tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt)"
-            % (cats["SKIP"], exit_only, known_n, nondet, len(ex)))
+    tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt); %s"
+            % (cats["SKIP"], exit_only, known_n, nondet, len(ex), ident))
     nf = " -- not a section 11.4.40 full retest"
     if bad:
         out("RESULT: FAIL (%d unexplained FAIL/TIMEOUT/ERROR/NONDETERMINISTIC; %s)" % (bad, tail))
@@ -2940,6 +3204,13 @@ def main(argv):
     if cats["SKIP"]:
         out("RESULT: PARTIAL-SKIPS (%d unit(s) SKIPPED, listed in summary.txt; %s)%s" % (cats["SKIP"], tail, nf))
         return 6
+    if dirty:
+        out("RESULT: PARTIAL-DIRTY-TREE (%d difference(s) from HEAD / the recorded submodule commits, listed in "
+            "summary.txt: the code that ran is not the commit; %s)%s" % (len(dirty), tail, nf))
+        return 10
+    if excl_who:
+        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED (%s; %s)%s" % (excl_who, tail, nf))
+        return 11
     if known_n:
         out("RESULT: PASS-FULL-WITH-KNOWN (every unit run, none skipped; %d FAIL/TIMEOUT/ERROR matched to open rows of "
             "the known-failures table; %s)%s" % (known_n, tail, nf))

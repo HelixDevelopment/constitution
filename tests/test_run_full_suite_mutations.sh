@@ -11,7 +11,10 @@
 # R5 timer firing not recorded); X1-X9 are the reviewer-authored mutants of review round 3 (any verdict
 # string accepted, window 8->2, KNOWN without the log sha256 check, untracked content not hashed, pgid<=1
 # refusal dropped); V*, E*, S*, K*, T*, C* guard the round-4 parser, excluded audit, status consumption,
-# PASS-FULL-WITH-KNOWN, topology preflight and census additions; M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# PASS-FULL-WITH-KNOWN, topology preflight and census additions; O2 O5 O7 O9 are the reviewer-authored
+# mutants of review round 4 that survived; D*, S5-S8, Y*, W* guard the round-5 fixes (drift / dirty tree /
+# identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
+# acceptance lines); M7+ are the author's own. A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -19,6 +22,9 @@
 # Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
 #   M13 drop the `*_test.sh` name pattern: the broader rule (a .sh whose name contains `test`)
 #       still lists every such file.
+#   (round 5, not added) drop the recursive `submodule foreach` status in tree_ident: the root
+#       `git status --ignore-submodules=none` already reports a dirty submodule as ` M <path>`
+#       (measured 2026-11-04), so the foreach only adds detail; reasoned equivalent for detection.
 # Exit 0 = baseline passes and every selected mutant is killed.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -70,11 +76,11 @@ X4	            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:	         
 X5	        h.update(b"U" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        h.update(b"U" + f.encode())
 X9	    if not isinstance(pgid, int) or pgid <= 1 or pgid == os.getpgrp():	    if not isinstance(pgid, int):
 V1	        l = CTRL.sub("", ESC.sub("", l)).rstrip()	        l = l.rstrip()
-V2	        if "\\r" in l:\n            l = l.rsplit("\\r", 1)[-1]	        if False:\n            pass
+V2	        if "\\r" in l:\n            over, l = l.rsplit("\\r", 1)	        if False:\n            pass
 V3	    if any(k == "tapfail" for k, _ in cls):\n        return "FAIL", "tap_not_ok", "summary", None	    if False:\n        pass
 V4	    if any(k == "headfail" for k, _ in cls):\n        return "FAIL", "summary_word_FAIL", "summary", None	    if False:\n        pass
 V5	        if any(v == "FAIL" for _i, _inf, (v, _r) in sums[:-1]):	        if False:
-V6	        if any(i > li for i in fails):	        if False:
+V6	        if any(i > li or i in rw for i in fails):	        if False:
 V7	    if fails:\n        return "ERROR", "unparsed_fail_signal", "summary", None	    if False:\n        pass
 V8	    if (p or 0) == 0 and (t is None or t == 0 or (s or 0) >= (t or 0)) and skipish and "p" not in st:	    if False:
 V9	    if left:\n        return None	    if False:\n        return None
@@ -96,6 +102,26 @@ T3	        return 8	        return 0
 C1	        if JS_EXT.search(b):\n            scripts[f] = "js"\n            continue	        if False:\n            pass
 C2	            if u["runner"] in ("node", "bats") and shutil.which(u["runner"], path=unit_env_path()) is None:	            if False:
 C3	    return "." not in b and (in_tdir or TEST_KEYWORD.search(b) is not None)	    return "." not in b and in_tdir
+O2	    if "f" in st or info["c_fail"]:	    if "f" in st:
+O5	    if last is None or last != excl_set_hash(sorted((p_, h) for p_, h in body.items())):	    if last is None:
+O7	        if kid and not flip:\n            known_n += 1	        if kid:\n            known_n += 1
+O9	    if p.returncode != 0:\n        msg = p.stderr	    if False:\n        msg = p.stderr
+D1	        if flag == "+":	        if False:
+D2	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if False:\n        out("RESULT: PARTIAL-DIRTY-TREE
+D3	    elif dirty:\n        h = hashlib.sha256	    elif False:\n        h = hashlib.sha256
+D4	, len(ex), ident))	, len(ex), ""))
+S5	        if neg and cons != "cond":	        if False:
+S6	            cv = False if all(	            cv = "cond" if all(
+S7	                    if c is True and not self.errexit and not _status_decides(items, i + 1):	                    if False:
+S8	                    c = "all" if _status_decides(items, i + 1) else self.errexit	                    c = "all"
+Y1	FAILTOK = _AnyRe(_FAILWORD, _CRASH_I, _CRASH_K)	FAILTOK = _AnyRe(_FAILWORD)
+Y2	    rw = {i - off for i in resid if i >= off}	    rw = set()
+Y3	    if TAPTODO.match(line.strip()):\n        return "other", None	    if False:\n        return "other", None
+W1	    if prob or who not in ids:\n        raise Fatal(3	    if False:\n        raise Fatal(3
+W2	    if who not in ids:\n        return "excluded set last accepted by %r, who	    if False:\n        return "excluded set last accepted by %r, who
+W3	    if t.returncode != 0 or d.returncode != 0:	    if False:
+W4	        if ch != acc_chain(prev, ts, who, seth, rows):	        if False:
+W5	    if excl_who:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED	    if False:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED
 EOF
 )
 

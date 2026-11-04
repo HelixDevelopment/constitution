@@ -26,6 +26,11 @@ chk(){ if [ "$2" = "$3" ]; then ok "$1"; else ko "$1 (want '$3' got '$2')"; fi; 
 has(){ if grep -qE -- "$2" "$3" 2>/dev/null; then ok "$1"; else ko "$1 (no /$2/ in $3)"; fi; }
 hasnt(){ if grep -qE -- "$2" "$3" 2>/dev/null; then ko "$1 (unexpected /$2/ in $3)"; else ok "$1"; fi; }
 gitc(){ git -C "$1" -c user.email=a@b -c user.name=t "${@:2}"; }
+roster(){ # $1 root, rest: operator ids -> committed config/full_suite_operators.roster
+  local r=$1; shift; mkdir -p "$r/config"
+  { echo '# id<TAB>who'; for i in "$@"; do printf '%s\toperator %s\n' "$i" "$i"; done; } > "$r/config/full_suite_operators.roster"
+  gitc "$r" add config/full_suite_operators.roster && gitc "$r" commit -q -m roster
+}
 mkroot(){ # $1 dir: empty git repo with one commit
   mkdir -p "$1/tests/a" "$1/config"
   git init -q "$1" && gitc "$1" commit -q --allow-empty -m init
@@ -193,6 +198,25 @@ J = [
  ("RESULT C01 PASS CLI exits 2 (rc=2)", "PASS", "", "exit-code-only"),
  ("ok 4 - refuses fail=1 input\nRESULT: PASS=4 FAIL=0", "PASS", "", "summary"),
  ("\x00\xff junk\npassed=1 failed=0", "PASS", "", "summary"),
+ # round 5 (review r4): O2 a fail word in the trailing comment of a summary line is a FAIL
+ ("5 passed -- 1 failure seen", "FAIL", "summary_word_FAIL", "summary"),
+ ("pass=5; fail later", "FAIL", "summary_word_FAIL", "summary"),
+ ("5 passed -- all green", "PASS", "", "summary"),
+ # F5 crash text with rc 0 is never a silent PASS: no summary -> ERROR, after a summary -> ERROR
+ ("AssertionError: x", "ERROR", "unparsed_fail_signal", "summary"),
+ ("Segmentation fault (core dumped)", "ERROR", "unparsed_fail_signal", "summary"),
+ ("t.sh: line 3: foo: command not found", "ERROR", "unparsed_fail_signal", "summary"),
+ ("Killed", "ERROR", "unparsed_fail_signal", "summary"),
+ ("cp: cannot create x: Permission denied", "ERROR", "unparsed_fail_signal", "summary"),
+ ("passed=3 failed=0\nSegmentation fault", "ERROR", "fail_signal_after_summary", "summary"),
+ # golden-FALSE: a passing check line that quotes a crash word, and a word that only contains one
+ ("ok   prints 'command not found' for a bad name\nRESULT: PASS=1 FAIL=0", "PASS", "", "summary"),
+ ("killed M3 (2 failing check(s))\nSUMMARY mutants=1 killed=1 survivors=0 not_applicable=0", "PASS", "", "summary"),
+ # F4 a fail word overwritten by a CR progress update is still a fail signal
+ ("failed=1 passed=4\rALL OK", "ERROR", None, "summary"),
+ ("progress 1/3\rprogress 3/3\npassed=3 failed=0", "PASS", "", "summary"),
+ # F9 TAP `# TODO` / `# SKIP` exemption also for the bare fail-signal scan
+ ("1..2\nok 1 a\nnot ok 2 b # TODO later", "PASS", "", "summary"),
 ]
 for text, v, r, s in J:
     got = m.judge(0, False, text, "bash")
@@ -209,7 +233,7 @@ chk("parser: 10 MB line then a summary", m.judge(0, False, big, "bash")[:3], ("P
 # --- P10 reviewer mutants of round 3 pinned by behaviour (X1 record verdict, X9 killpg guard)
 base = {"schema": m.SCHEMA, "seq": 0, "prev": m.GENESIS, "unit": "u", "path": "u", "sha": "s", "tree": "t", "ctx": "c",
         "runner_hash": "h", "verdict": "PASS", "reason": "", "verdict_source": "summary", "rc": 0, "secs": 1.0,
-        "leaked": 0, "log": "logs/000000.log", "log_sha256": "x"}
+        "leaked": 0, "log": "logs/000000.log", "log_sha256": "x", "ident": "head=x subs=y dirty=clean"}
 chk("X1: a record with a known verdict is valid (golden-FALSE)", m.valid_record(dict(base)), True)
 for bogus in ("BOGUS", "pass", "", "PASS-FULL"):
     chk("X1: a record with verdict %r is invalid" % bogus, m.valid_record(dict(base, verdict=bogus)), False)
@@ -297,10 +321,22 @@ for n in "abcdef":
 cases = [
     ("bash t/a.sh || true\nbash t/b.sh || rc=1\necho x\nexit $rc", {"t/a.sh"}),
     ("bash t/a.sh\nbash t/b.sh", {"t/a.sh"}),
-    ("bash t/a.sh; rc=$?\nbash t/b.sh | tee x; echo ${PIPESTATUS[0]}", set()),
+    # round 5 (F3): a status read only into a variable that never reaches a decision, or only printed, is discarded
+    ("bash t/a.sh; rc=$?\nbash t/b.sh | tee x; echo ${PIPESTATUS[0]}", {"t/a.sh", "t/b.sh"}),
+    ("bash t/a.sh; rc=$?\nbash t/b.sh | tee x; st=${PIPESTATUS[0]}\n[ \"$rc\" = 0 ] && [ \"$st\" = 0 ] || exit 1", set()),
     ("set -e\nbash t/a.sh\nbash t/b.sh || true\necho ok", {"t/b.sh"}),
     ("if bash t/a.sh; then :; fi\nfor x in 1; do bash t/b.sh; done\nbash t/c.sh &\nwait\nout=$(bash t/d.sh)\nrc=$?\n"
-     "echo $(bash t/e.sh)\nbash t/f.sh | cat\nexit 0", {"t/b.sh", "t/c.sh", "t/e.sh", "t/f.sh"}),
+     "echo $(bash t/e.sh)\nbash t/f.sh | cat\nexit 0", {"t/a.sh", "t/b.sh", "t/c.sh", "t/d.sh", "t/e.sh", "t/f.sh"}),
+    ("! bash t/a.sh", {"t/a.sh"}),
+    ("bash t/a.sh; rc=$?; exit 0", {"t/a.sh"}),
+    ("bash t/a.sh; echo \"rc=$?\"; exit 0", {"t/a.sh"}),
+    ("if bash t/a.sh; then echo ok; else echo bad; fi", {"t/a.sh"}),
+    # golden-FALSE: the status reaches an exit decision
+    ("bash t/a.sh; rc=$?; exit $rc", set()),
+    ("bash t/a.sh; rc=$?\n[ $rc -eq 0 ] || exit 1", set()),
+    ("fail=0\nif ! bash t/a.sh; then fail=1; fi\nexit $fail", set()),
+    ("if bash t/a.sh; then :; else exit 1; fi", set()),
+    ("bash t/a.sh\nexit $?", set()),
     ("f(){ bash t/a.sh; }\nf || exit 1\nbash t/b.sh && bash t/c.sh\necho", {"t/b.sh", "t/c.sh"}),
     ("set -euo pipefail\nbash t/a.sh | cat\nfor x in 1; do bash t/b.sh; done", set()),
     ("bash t/a.sh || echo failed\nexec bash t/b.sh", {"t/a.sh"}),
@@ -318,7 +354,7 @@ PY
 # =========================================================================== CLI cases
 # --- 1 golden-good: full mode, summary-recognised PASS -> rc 0, PASS-FULL
 G="$T/good"; mkroot "$G"; sut "$G" tests/a/test_good.sh 'echo "passed=2 failed=0"'
-gen "$G"; run "$G" "$T/o_good" --include-heavy
+gen "$G"; gitc "$G" add -A; gitc "$G" commit -q -m good; run "$G" "$T/o_good" --include-heavy
 chk "golden-good rc=0" "$RC" "0"
 has "golden-good RESULT: PASS-FULL" '^RESULT: PASS-FULL' "$T/o_good.log"
 chk "golden-good verdict from summary" "$(verdict "$T/o_good" tests/a/test_good.sh)" "PASS||summary"
@@ -451,7 +487,7 @@ if [ -e "$C/h_stress" ]; then ko "heavy entry not run in default"; else ok "heav
 has "heavy entry recorded SKIPPED-heavy" 'SKIPPED-heavy tests/h/test_h_stress.sh' "$T/o_ra_def.log"
 bash "$R" --root "$W" --list > "$T/o_ra_list.log" 2>&1
 has "N10: --list names the --quick drop" 'SKIPPED-heavy tests/q/test_q_chaos.sh .*dropped by --quick' "$T/o_ra_list.log"
-run "$W" "$T/o_ra_full" --include-heavy
+gitc "$W" add -A; gitc "$W" commit -q -m ra; run "$W" "$T/o_ra_full" --include-heavy
 chk "full mode rc=0" "$RC" "0"
 chk "quick run_all without --quick in full mode" "$(sed -n 2p "$C/q_args" 2>/dev/null)x" "x"
 chk "full mode heavy quick member ran once" "$(wc -l < "$C/q_chaos" 2>/dev/null)" "1"
@@ -581,6 +617,7 @@ sut "$N4" tests/a/lib.sh 'f() { :; }'
 sut "$N4" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
 gen "$N4"
 chk "N4: sourced helper is excluded with an evidence reason" "$(awk -F'\t' '$1=="tests/a/lib.sh"{print $3"|"$7}' "$N4/config/full_suite_manifest.tsv")" "excluded|reason: helper: sourced by tests/a/test_uses_lib.sh"
+roster "$N4" n4
 bash "$R" --root "$N4" --verify-manifest --accept-excluded-change n4 > "$T/n4d.log" 2>&1; RC=$?; chk "N4: manifest with an evidenced exclusion verifies" "$RC" "0"
 setrow "$N4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\tUNREVIEWED'
 vfy "$N4" "$T/n4e.log"; chk "N4: exclusion without a reason refused" "$RC" "3"
@@ -745,7 +782,7 @@ run "$X5" "$T/o_x5" --include-heavy
 chk "X5: unchanged untracked file resumes (golden-FALSE)" "$(wc -l < "$X5C")" "2"
 
 # --- 25 P4: excluded rows: closed reason list, test-named files need override, lock + acceptance
-P4="$T/p4"; mkroot "$P4"
+P4="$T/p4"; mkroot "$P4"; roster "$P4" alice bob carol dave
 sut "$P4" tests/a/lib.sh 'f() { :; }'
 sut "$P4" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
 gen "$P4"
@@ -836,6 +873,108 @@ if ! command -v bats >/dev/null 2>&1; then
   run "$P8" "$T/o_p8b" --include-heavy --only 'x.bats'
   chk "P8: absent runner is an honest SKIP" "$(verdict "$T/o_p8b" tests/a/x.bats | cut -d'|' -f1,2)" "SKIP|runner_not_installed"
 fi
+
+# =========================================================================== round 5 (review r4 F1 F2 F6)
+# --- 30 F1: a drifted submodule is a topology gap; a dirty tree never ends PASS-FULL; identity recorded
+TD="$T/tdrift"; mkroot "$TD"; sut "$TD" tests/a/test_td.sh 'echo "passed=1 failed=0"'
+gitc "$TD" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
+gen "$TD"; gitc "$TD" add -A; gitc "$TD" commit -q -m td
+run "$TD" "$T/o_td0" --include-heavy
+chk "F1: clean committed tree -> rc 0 (golden-FALSE)" "$RC" "0"
+has "F1: identity in the PASS-FULL RESULT line" '^RESULT: PASS-FULL .*head=[0-9a-f]{12} subs=[0-9a-f]{16} dirty=clean' "$T/o_td0.log"
+has "F1: identity in summary.txt" '^identity of the code that ran: head=' "$T/o_td0/summary.txt"
+chk "F1: each record carries the identity" "$(rec "$T/o_td0" tests/a/test_td.sh ident | sed 's/head=[0-9a-f]*/H/')" "H subs=$(rec "$T/o_td0" tests/a/test_td.sh ident | sed 's/.*subs=\([0-9a-f]*\).*/\1/') dirty=clean"
+echo z > "$TD/sub/g"; gitc "$TD/sub" add g; gitc "$TD/sub" commit -q -m drift
+run "$TD" "$T/o_td1" --include-heavy
+chk "F1: drifted submodule (+) refused -> rc 9" "$RC" "9"
+has "F1: drift named" 'drifted submodule: sub' "$T/o_td1.log"
+run "$TD" "$T/o_td2" --include-heavy --allow-topology-gaps
+chk "F1: drift allowed -> not green (rc 8)" "$RC" "8"
+hasnt "F1: drift never PASS-FULL" '^RESULT: PASS-FULL' "$T/o_td2.log"
+gitc "$TD/sub" reset -q --hard HEAD~1
+run "$TD" "$T/o_td3" --include-heavy
+chk "F1: submodule back at the recorded commit -> rc 0" "$RC" "0"
+echo "# local edit" >> "$TD/tests/a/test_td.sh"
+run "$TD" "$T/o_td4" --include-heavy
+chk "F1: modified tracked file -> PARTIAL-DIRTY-TREE rc 10" "$RC" "10"
+has "F1: RESULT PARTIAL-DIRTY-TREE" '^RESULT: PARTIAL-DIRTY-TREE .*dirty=[0-9a-f]{16}' "$T/o_td4.log"
+has "F1: dirty path listed" '^DIRTY .*tests/a/test_td.sh' "$T/o_td4/summary.txt"
+gitc "$TD" checkout -q -- tests/a/test_td.sh
+echo u > "$TD/untracked.txt"
+run "$TD" "$T/o_td5" --include-heavy
+chk "F1: untracked file -> rc 10" "$RC" "10"
+rm -f "$TD/untracked.txt"
+echo dirt > "$TD/sub/inner.txt"
+run "$TD" "$T/o_td6" --include-heavy
+chk "F1: untracked file inside a submodule -> rc 10" "$RC" "10"
+has "F1: submodule dirt listed" '^DIRTY .*sub' "$T/o_td6/summary.txt"
+rm -f "$TD/sub/inner.txt"
+
+# --- 31 O9: a failing `git submodule status` is a gap (fail closed), never gaps=0
+TS="$T/tsfail"; mkroot "$TS"; sut "$TS" tests/a/test_ts.sh 'echo "passed=1 failed=0"'
+gitc "$TS" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
+gen "$TS"; gitc "$TS" add -A; gitc "$TS" commit -q -m ts
+gitc "$TS" rm -q --cached .gitmodules >/dev/null 2>&1; rm -f "$TS/.gitmodules"; gitc "$TS" commit -q -m nogm
+git -C "$TS" submodule status --recursive >/dev/null 2>&1; smrc=$?
+if [ "$smrc" -ne 0 ]; then
+  run "$TS" "$T/o_ts" --include-heavy
+  chk "O9: failing submodule status refused -> rc 9" "$RC" "9"
+  has "O9: failure named" 'git submodule status failed' "$T/o_ts.log"
+else
+  ko "O9: fixture did not make git submodule status fail (rc $smrc): instrument blind"
+fi
+
+# --- 32 O5: a hand-edited excluded lock body is refused; F6: acceptance only by a rostered operator
+cp "$P4/config/full_suite_excluded.lock" "$T/p4lock.bak"
+sed -i 's/^\(tests\/a\/lib.sh\t\).*/\10123456789abcdef/' "$P4/config/full_suite_excluded.lock"
+vfy "$P4" "$T/o5.log"; chk "O5: hand-edited lock body -> exit 3" "$RC" "3"
+has "O5: hand edit named" 'edited by hand' "$T/o5.log"
+cp "$T/p4lock.bak" "$P4/config/full_suite_excluded.lock"
+vfy "$P4" "$T/o5b.log"; chk "O5: restored lock verifies (golden-FALSE)" "$RC" "0"
+python3 -I - "$P4/config/full_suite_excluded.lock" <<'PYX'
+import sys,re
+p=sys.argv[1]; s=open(p).read()
+s=re.sub(r"accepted_by=carol", "accepted_by=alice", s, count=1)
+open(p,"w").write(s)
+PYX
+vfy "$P4" "$T/o5c.log"; chk "O5: acceptor rewritten in a chained line -> exit 3" "$RC" "3"
+has "O5: broken chain named" 'acceptance chain broken' "$T/o5c.log"
+cp "$T/p4lock.bak" "$P4/config/full_suite_excluded.lock"
+n0=$(grep -c '^# accepted ' "$P4/config/full_suite_excluded.lock")
+setrow "$P4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: tool: hand-run helper'
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change mallory > "$T/f6a.log" 2>&1; RC=$?
+chk "F6: acceptance by an id that is not on the roster -> exit 3" "$RC" "3"
+has "F6: refusal names the roster" 'not an operator id' "$T/f6a.log"
+chk "F6: refused acceptance appends nothing" "$(grep -c '^# accepted ' "$P4/config/full_suite_excluded.lock")" "$n0"
+printf 'mallory\tself-added\n' >> "$P4/config/full_suite_operators.roster"
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change mallory > "$T/f6b.log" 2>&1; RC=$?
+chk "F6: id added to an uncommitted roster -> exit 3" "$RC" "3"
+has "F6: uncommitted roster named" 'roster .* is not committed' "$T/f6b.log"
+gitc "$P4" checkout -q -- config/full_suite_operators.roster
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change bob > "$T/f6c.log" 2>&1; RC=$?
+chk "F6: rostered operator accepts -> exit 0 (golden-FALSE)" "$RC" "0"
+has "F6: new acceptance line is chained" 'accepted_by=bob set=[0-9a-f]{16} rows=1 chain=[0-9a-f]{16}$' "$P4/config/full_suite_excluded.lock"
+gitc "$P4" add -A; gitc "$P4" commit -q -m f6
+run "$P4" "$T/o_f6" --include-heavy
+chk "F6: run with an operator-accepted exclusion -> rc 0" "$RC" "0"
+has "F6: acceptor printed in summary.txt" '^EXCLUDED set last accepted_by: bob$' "$T/o_f6/summary.txt"
+printf '# id\twho\nalice\toperator alice\n' > "$P4/config/full_suite_operators.roster"; gitc "$P4" commit -q -am "bob leaves"
+run "$P4" "$T/o_f6b" --include-heavy
+chk "F6: acceptor no longer on the roster -> PARTIAL-EXCLUSIONS-UNACCEPTED rc 11" "$RC" "11"
+vfy "$P4" "$T/f6d.log"; chk "F6: verify still structurally OK (exit 0) and says why" "$RC" "0"
+has "F6: verify note" '^NOTE: excluded set last accepted by .bob., who is not on the operator roster' "$T/f6d.log"
+
+# --- 33 O7: KNOWN never applies to a nondeterministic unit (exit 1, never 7)
+FK2="$T/flaky_known"; mkroot "$FK2"; FC2="$T/cnt_flaky_known"
+sut "$FK2" tests/a/test_fk.sh "echo x >> $FC2" "[ \$(wc -l < $FC2) -ge 2 ] || { echo 'boom: lock timeout'; exit 1; }" 'echo "passed=1 failed=0"'
+gen "$FK2"; gitc "$FK2" add -A; gitc "$FK2" commit -q -m fk
+printf 'tests/a/test_fk.sh\tlock timeout\tATM-11\topen\n' > "$T/known_fk.tsv"
+run "$FK2" "$T/o_fk" --include-heavy --known "$T/known_fk.tsv"
+chk "O7: first run KNOWN-only -> rc 7" "$RC" "7"
+run "$FK2" "$T/o_fk" --include-heavy --known "$T/known_fk.tsv" --rerun-nonpass
+chk "O7: flipping unit with a KNOWN row -> rc 1 (never 7)" "$RC" "1"
+has "O7: nondeterminism reported" 'NONDETERMINISTIC=1' "$T/o_fk.log"
+hasnt "O7: no KNOWN tag on a flipping unit" 'KNOWN ATM-11' "$T/o_fk/summary.txt"
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

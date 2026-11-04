@@ -19,22 +19,28 @@
 # EXCLUDED  note `reason: <category>: <why>`, category in helper|library|oracle|fake|gate|
 #   tool|data (`helper: sourced by <path>`, checked by the shell model); a test-named file
 #   needs `override:`. The set is pinned by config/full_suite_excluded.lock; a change is
-#   accepted with --verify-manifest --accept-excluded-change WHO (appended, never replaced).
+#   accepted with --verify-manifest --accept-excluded-change WHO (appended, never replaced, chained);
+#   WHO must be an id of the committed config/full_suite_operators.roster, else refused (exit 3).
+#   A set last accepted by an id not on that roster ends a run PARTIAL-EXCLUSIONS-UNACCEPTED.
 #   Every run lists excluded rows in summary.txt and counts them in the RESULT line.
 # MEMBERSHIP  a member must be run by its covered_by entry according to a shell model
 #   (lexer + parser + abstract interpreter over executable code; comments, heredoc bodies
 #   and quoted text are not code). The model also tracks whether each invocation's exit
-#   status reaches a decision (script status, if/while, a reacting && / ||, $? / PIPESTATUS,
-#   set -e / pipefail); a member whose status is thrown away is also run ALONE.
+#   status reaches a decision (script status, if/while, a reacting && / ||, $? / PIPESTATUS
+#   that is used, set -e / pipefail); `! cmd`, an if with only true/:/echo/printf branches and a
+#   status only printed or stored unused throw it away; such a member is also run ALONE.
 #   Heavy names (mutation mutant mutate chaos stress perf meta_test smoke) are tier heavy
 #   unless `override:`; members of heavy entries are heavy.
 # RUN_ALL  runall-whole (run once) | runall-quick (default --quick, full without; members
 #   that --quick drops are listed SKIPPED-heavy "dropped by --quick of X") | runall-members
 #   (default: its default members run alone; full: the run_all once).
-# TOPOLOGY  `git submodule status --recursive` is read first; an uninitialised, conflicted
-#   or missing-commit submodule is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
+# TOPOLOGY  `git submodule status --recursive` is read first; an uninitialised, conflicted,
+#   drifted (+) or missing-commit submodule, or a failing status command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
 #   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). See the guide for preparing a
 #   checkout cheaply with `git clone --shared` and local submodule urls.
+# IDENTITY  head=<sha12> subs=<hash> dirty=<clean|hash|unknown> is printed, stored in every
+#   record and in every RESULT line; a non-empty git status (root or any submodule, untracked
+#   included) ends the run PARTIAL-DIRTY-TREE (exit 10), never PASS-FULL.
 # VERDICTS  PASS | FAIL | SKIP(reason) | TIMEOUT | ERROR | SKIPPED-heavy | NOT-RUN.
 #   TIMEOUT only from the runner's own timer; 124/137/signal deaths are ERROR. rc 77 is
 #   SKIP; a node/bats unit with no such runner installed is SKIP runner_not_installed.
@@ -47,6 +53,8 @@
 #   or a fail signal after it => ERROR; zero tests, inconsistent counts => ERROR; only skips
 #   => SKIP; no summary + fail signal => ERROR unparsed_fail_signal; no summary, no signal
 #   => PASS verdict_source=exit-code-only (counted and named). A fail word never yields PASS.
+#   Crash text (AssertionError, Segmentation fault, command not found, core dumped, Permission
+#   denied, Killed) is a fail signal; so is a fail word painted over by a CR progress update.
 #   Output over --log-cap-mb (default 64) => ERROR log_overflow; streamed, 1 MiB tail kept.
 # ISOLATION  `nice -n 15 ionice -c3`, own session, stdin /dev/null, clean environment
 #   (PATH LANG LC_ALL LC_CTYPE TERM USER LOGNAME TZ + --env-extra NAMEs), fresh HOME /
@@ -55,7 +63,7 @@
 #   removed with safe_rm_rf (section 11.4.287).
 # KNOWN  config/full_suite_known_failures.tsv: exact path + signature; recomputed at every
 #   report from the current table and the log (sha256 checked).
-# RESULTS + RESUME  <out>/results.jsonl (schema fsr/3, hash-chained, seq numbered; a break
+# RESULTS + RESUME  <out>/results.jsonl (schema fsr/4, hash-chained, seq numbered; a break
 #   is exit 2, a torn last line is dropped with a WARN), one log per record, an exclusive
 #   lock on <out>/.lock. Reuse key: unit, HEAD sha, tree hash (status, diff, untracked,
 #   submodule status+diff recursive, ignored files except __pycache__ *.pyc .pytest_cache
@@ -76,7 +84,9 @@
 #   7 PASS-FULL-WITH-KNOWN  every unit run, none skipped, every failure matched a KNOWN row
 #   8 PARTIAL-TOPOLOGY      run with submodule gaps (--allow-topology-gaps)
 #   9 REFUSED-TOPOLOGY      submodule gaps, no --allow-topology-gaps; nothing run
-#   Exits 4-8 end with "-- not a section 11.4.40 full retest". Only exit 0 of a run with
+#  10 PARTIAL-DIRTY-TREE    the tree differs from HEAD / the recorded submodule commits
+#  11 PARTIAL-EXCLUSIONS-UNACCEPTED  excluded set not accepted by a rostered operator
+#   Exits 4-8, 10, 11 end with "-- not a section 11.4.40 full retest". Only exit 0 of a run with
 #   --include-heavy is a section 11.4.40 retest.
 # USAGE  run_full_suite.sh [--root DIR] [--out DIR] [--timeout SEC] [--include-heavy]
 #          [--known FILE] [--manifest FILE] [--rerun-nonpass] [--only REGEX]
