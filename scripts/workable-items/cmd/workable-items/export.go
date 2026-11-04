@@ -319,17 +319,28 @@ func renderItemRows(items []item) string {
 
 	var b strings.Builder
 	b.WriteString("## Items\n\n")
-	b.WriteString("| ATM ID | Type | Status | Severity | Description |\n")
-	b.WriteString("|---|---|---|---|---|\n")
+	// §11.4.292 (v8): the Reproduction / Investigation columns are APPENDED after
+	// the existing ones, so every prefix-anchored header check (the
+	// CM-*-COLUMN-ALIGNMENT gates, export_test.go) keeps matching.
+	b.WriteString("| ATM ID | Type | Status | Severity | Description | Reproduction | Investigation |\n")
+	b.WriteString("|---|---|---|---|---|---|---|\n")
 	for _, it := range rows {
 		sev := it.Severity
 		if sev == "" {
 			sev = "—"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
-			it.AtmID, it.Type, it.Status, sev, summaryDescription(it))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
+			it.AtmID, it.Type, it.Status, sev, summaryDescription(it),
+			summaryCell(reproSummaryCell(it.States)), summaryCell(invSummaryCell(it.States)))
 	}
 	return b.String()
+}
+
+// summaryCell keeps a state cell single-line and pipe-safe.
+func summaryCell(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "|", "\\|")
+	return strings.TrimSpace(s)
 }
 
 // renderFixedItemRows renders the §11.4.53 closed-archive per-item table with the
@@ -352,8 +363,8 @@ func renderFixedItemRows(items []item) string {
 
 	var b strings.Builder
 	b.WriteString("## Items\n\n")
-	b.WriteString("| # | Level | Status | Type | Fixed-In Tag(s) | One-line description |\n")
-	b.WriteString("|---|---|---|---|---|---|\n")
+	b.WriteString("| # | Level | Status | Type | Fixed-In Tag(s) | One-line description | Reproduction | Investigation |\n")
+	b.WriteString("|---|---|---|---|---|---|---|---|\n")
 	for i, it := range rows {
 		level := it.Severity
 		if level == "" {
@@ -368,8 +379,9 @@ func renderFixedItemRows(items []item) string {
 		// empty, so the two producers stay column-aligned.
 		fixedInTag := "—"
 		desc := it.AtmID + " — " + summaryDescription(it)
-		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s |\n",
-			i+1, level, it.Status, it.Type, fixedInTag, desc)
+		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s | %s |\n",
+			i+1, level, it.Status, it.Type, fixedInTag, desc,
+			summaryCell(reproSummaryCell(it.States)), summaryCell(invSummaryCell(it.States)))
 	}
 	return b.String()
 }

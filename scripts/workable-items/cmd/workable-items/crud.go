@@ -17,6 +17,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // canonicalIDRe matches the canonical HelixCode ticket ID shape: 3+ uppercase
@@ -77,10 +78,15 @@ func addCmd(args []string) int {
 	prefix := fs.String("prefix", defaultKeyPrefix(), "3-letter id prefix for auto-generated ids (derived per §11.4.151)")
 	createdBy := fs.String("created-by", "", "§11.4.104 canonical handle that opened the item (default '')")
 	assignedTo := fs.String("assigned-to", "", "§11.4.104 canonical handle the item is assigned to (default '')")
+	// §11.4.292 (v8): optional initial reproduction / investigation records
+	// (default UNSET — `add` never invents a state).
+	sf := registerStateFlags(fs)
 	pos, flagArgs := partitionArgs(args, nil)
 	if err := fs.Parse(flagArgs); err != nil {
 		return exitUsage
 	}
+	setFlags := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { setFlags[f.Name] = true })
 	if len(pos) < 1 {
 		fmt.Fprintln(os.Stderr, "add: missing positional <type> (Bug | Feature | Task)")
 		return exitUsage
@@ -106,6 +112,15 @@ func addCmd(args []string) int {
 	if wordCount(*description) < 6 && len(*description) < 40 {
 		fmt.Fprintf(os.Stderr, "add: --description fails §11.4.91 floor (%d words / %d chars; need ≥6 words OR ≥40 chars)\n",
 			wordCount(*description), len(*description))
+		return exitUsage
+	}
+	states, _, serr := sf.apply(stateRecord{}, setFlags, time.Now())
+	if serr != nil {
+		fmt.Fprintf(os.Stderr, "add: %v\n", serr)
+		return exitUsage
+	}
+	if probs := stateRecordProblems(states, true); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "add: refusing — %s\n", strings.Join(probs, "; "))
 		return exitUsage
 	}
 
@@ -137,7 +152,7 @@ func addCmd(args []string) int {
 
 	cb := strings.TrimSpace(*createdBy)
 	at := strings.TrimSpace(*assignedTo)
-	body := renderItemBody(id, *title, typ, severity, *description, "Queued", cb, at)
+	body := canonicalizeStateLines(renderItemBody(id, *title, typ, severity, *description, "Queued", cb, at), states, "section")
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -147,9 +162,10 @@ func addCmd(args []string) int {
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(`INSERT INTO items
-		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		id, typ, "Queued", nullable(severity), *title, *description, cb, at, "Issues", body); err != nil {
+		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, `+statesInsertCols+`)
+		VALUES (?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
+		append([]any{id, typ, "Queued", nullable(severity), *title, *description, cb, at, "Issues", body},
+			statesInsertArgs(states)...)...); err != nil {
 		fmt.Fprintf(os.Stderr, "add: insert item: %v\n", err)
 		return exitUsage
 	}
@@ -332,9 +348,22 @@ func closeCmd(args []string) int {
 		return exitUsage
 	}
 
+	// §11.4.292 (v8) closure gate, refused BEFORE any write: a VERIFIED closure
+	// (fixed / implemented / completed) of an item whose reproduction record is
+	// labelled UNREPRODUCED — and, once `states freeze` armed the gate, of a Bug
+	// with no record at all — is the claim §11.4.292(D) forbids. An Obsolete
+	// closure is judged by `validate` once its §11.4.90 reason is recorded.
+	if probs := preventiveClosureCheck(db, *src, mapping.status, false); len(probs) > 0 {
+		fmt.Fprintf(os.Stderr, "close: refusing — %s\n", strings.Join(probs, "\n  "))
+		return exitUsage
+	}
+
 	// §11.4.104: closure preserves the attribution columns unchanged.
 	closedBody := renderItemBody(id, src.Title, src.Type, src.Severity, src.Description, mapping.status, src.CreatedBy, src.AssignedTo)
 	closedBody = appendEvidence(closedBody, *evidence)
+	// §11.4.292: the regenerated body carries the item's records again (the
+	// state columns move with the row below).
+	closedBody = canonicalizeStateLines(closedBody, src.States, src.repOrDefault())
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -379,9 +408,10 @@ func closeCmd(args []string) int {
 	// closing a 'table'-representation item (none exist in Issues today, but
 	// the schema permits it) would otherwise silently retag it 'section'.
 	if _, err := tx.Exec(`INSERT INTO items
-		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, representation, destination, logic_group)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		id, src.Type, mapping.status, nullable(src.Severity), src.Title, src.Description, src.CreatedBy, src.AssignedTo, "Fixed", closedBody, src.repOrDefault(), nullable(src.Destination), nullable(src.LogicGroup)); err != nil {
+		(atm_id, type, status, severity, title, description, created_by, assigned_to, current_location, body_md, representation, destination, logic_group, `+statesInsertCols+`)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,`+statesInsertMarks+`)`,
+		append([]any{id, src.Type, mapping.status, nullable(src.Severity), src.Title, src.Description, src.CreatedBy, src.AssignedTo, "Fixed", closedBody, src.repOrDefault(), nullable(src.Destination), nullable(src.LogicGroup)},
+			statesInsertArgs(src.States)...)...); err != nil {
 		fmt.Fprintf(os.Stderr, "close: insert into Fixed: %v\n", err)
 		return exitUsage
 	}
@@ -504,15 +534,17 @@ func loadItem(db *sql.DB, id, location string) (*item, error) {
 		COALESCE(created_by,''), COALESCE(assigned_to,''),
 		current_location, COALESCE(body_md,''),
 		COALESCE(representation,'section'),
-		COALESCE(destination,''), COALESCE(logic_group,'')
+		COALESCE(destination,''), COALESCE(logic_group,''),
+		`+statesSelectCols+`
 		FROM items WHERE atm_id=? AND current_location=?
 		ORDER BY CASE WHEN COALESCE(representation,'section')='section' THEN 0 ELSE 1 END
 		LIMIT 1`, id, location)
 	var it item
-	err := row.Scan(&it.AtmID, &it.Type, &it.Status, &it.Severity,
+	dest := []any{&it.AtmID, &it.Type, &it.Status, &it.Severity,
 		&it.Title, &it.Description, &it.ForensicAnchor, &it.ClosureCriteria,
 		&it.ComposesWith, &it.CreatedBy, &it.AssignedTo, &it.CurrentLocation, &it.BodyMD,
-		&it.Representation, &it.Destination, &it.LogicGroup)
+		&it.Representation, &it.Destination, &it.LogicGroup}
+	err := row.Scan(append(dest, statesScanDest(&it.States)...)...)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

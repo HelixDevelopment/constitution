@@ -95,10 +95,11 @@ func TestMigrateV3ToV4NonDestructive(t *testing.T) {
 	// item_history.occurred_at migration (§11.4.120 reconciled 2026-09-29 —
 	// same pattern as the prior v6 reconciliation this comment already
 	// documents: the literal tracks whatever migration ran most recently).
+	// Reconciled 2026-11-03: the §11.4.292 states migration runs last (8).
 	var ver string
 	_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-	if ver != "7" {
-		t.Fatalf("post schema_version = %q, want 7", ver)
+	if ver != "8" {
+		t.Fatalf("post schema_version = %q, want 8", ver)
 	}
 
 	// Live sync state preserved (INSERT OR IGNORE did NOT clobber it).
@@ -153,11 +154,12 @@ func TestMigrateIdempotent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("openDB #%d: %v", i, err)
 		}
-		// §11.4.120 reconciled 2026-09-29 (T-A05: schema_version now advances to 7).
+		// §11.4.120 reconciled 2026-09-29 (T-A05: schema_version now advances to 7);
+		// reconciled 2026-11-03 (§11.4.292 states migration: 8).
 		var ver string
 		_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-		if ver != "7" {
-			t.Fatalf("re-open #%d schema_version = %q, want 7", i, ver)
+		if ver != "8" {
+			t.Fatalf("re-open #%d schema_version = %q, want 8", i, ver)
 		}
 		var total int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM items`).Scan(&total)

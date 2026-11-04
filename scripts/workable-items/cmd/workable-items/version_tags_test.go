@@ -235,20 +235,21 @@ func TestVersionTagsMigrationIdempotent(t *testing.T) {
 	} else if !has {
 		t.Fatalf("version_tags column missing after first migration")
 	}
-	if ver := readSchemaVersion(t, db); ver != "7" {
-		t.Fatalf("schema_version = %q after first migration, want \"7\"", ver)
+	// (RECONCILED 2026-11-03, §11.4.292 states columns: 7 -> 8, same process.)
+	if ver := readSchemaVersion(t, db); ver != "8" {
+		t.Fatalf("schema_version = %q after first migration, want \"8\"", ver)
 	}
 
 	// Second migration is a no-op (idempotent) — must not error, must not
-	// duplicate the column, must leave schema_version at 7 (forward-only).
+	// duplicate the column, must leave schema_version at 8 (forward-only).
 	if err := migrateVersionTagsColumn(db); err != nil {
 		t.Fatalf("migrateVersionTagsColumn (2nd): %v", err)
 	}
 	if n := countVersionTagsColumns(t, db); n != 1 {
 		t.Fatalf("version_tags column count = %d after 2nd migration, want exactly 1", n)
 	}
-	if ver := readSchemaVersion(t, db); ver != "7" {
-		t.Fatalf("schema_version = %q after second migration, want \"7\"", ver)
+	if ver := readSchemaVersion(t, db); ver != "8" {
+		t.Fatalf("schema_version = %q after second migration, want \"8\"", ver)
 	}
 }
 

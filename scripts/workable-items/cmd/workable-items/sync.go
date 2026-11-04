@@ -356,6 +356,16 @@ func validateCmd(args []string) int {
 	// agreement).
 	violations = append(violations, typeStatusMismatches(items)...)
 
+	// (i) §11.4.292 (v8) — reproduction / investigation states. Three families:
+	// every record is valid (closed sets, formats, details only with a state,
+	// evidence that resolves, a recorded blocker); the body records agree with
+	// the columns (column↔body, the Status-guard counterpart); and the closure
+	// invariants hold (C1 always; C2/C3 once `states freeze` armed the gate).
+	gateArmed, gerr := statesValidation(db, items, &violations)
+	if gerr != nil {
+		violations = append(violations, fmt.Sprintf("reproduction-state integrity query: %v", gerr))
+	}
+
 	if len(violations) > 0 {
 		sort.Strings(violations)
 		fmt.Fprintf(os.Stderr, "validate: %d violation(s):\n", len(violations))
@@ -364,8 +374,35 @@ func validateCmd(args []string) int {
 		}
 		return exitUsage
 	}
+	if !gateArmed {
+		// Honest scope line: the record checks and C1 ran; the "a closed Bug
+		// carries a record" checks are not armed on this DB yet.
+		fmt.Println("validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked")
+	}
 	fmt.Printf("validate: OK — %d items, all invariants satisfied\n", len(items))
 	return exitOK
+}
+
+// statesValidation appends every §11.4.292 state violation to *violations and
+// reports whether the closure gate is armed. Read-only.
+//
+// §1.1 PAIRED-MUTATION SENTINEL: replacing this body with `return true, nil`
+// removes every state invariant; states_cli_test.go then FAILs.
+func statesValidation(db *sql.DB, items []item, violations *[]string) (bool, error) {
+	for _, it := range items {
+		for _, p := range stateRecordProblems(it.States, true) {
+			*violations = append(*violations, fmt.Sprintf("%s [%s/%s]: %s", it.AtmID, it.CurrentLocation, it.repOrDefault(), p))
+		}
+	}
+	*violations = append(*violations, stateColumnBodyDesyncs(items)...)
+	g, err := loadClosureGate(db)
+	if err != nil {
+		return false, err
+	}
+	for _, it := range items {
+		*violations = append(*violations, closureReproProblems(it, g)...)
+	}
+	return g.armed, nil
 }
 
 // danglingItemSegments returns, for the ATM-627 dangling-doc_segment defect
@@ -933,6 +970,9 @@ func diffCmd(args []string) int {
 	// tooling-integrity gate); see sync_diff_desync_test.go for the RED/GREEN
 	// polarity proof.
 	desyncs := statusColumnBodyDesyncs(dbItems)
+	// §11.4.292 (v8): the same DB-internal guard for the reproduction /
+	// investigation records (malformed, duplicated, or column≠body).
+	desyncs = append(desyncs, stateColumnBodyDesyncs(dbItems)...)
 	for _, d := range desyncs {
 		fmt.Printf("! %s\n", d)
 	}
@@ -1011,6 +1051,11 @@ func diffCmd(args []string) int {
 			}
 			if p.BodyMD != d.BodyMD {
 				fmt.Printf("~ %s body differs (md=%d bytes db=%d bytes)\n", p.AtmID, len(p.BodyMD), len(d.BodyMD))
+				differences++
+			}
+			// §11.4.292 (v8): the parsed records against the state columns.
+			if p.States.norm() != d.States.norm() {
+				fmt.Printf("~ %s states: md=%q db=%q\n", p.AtmID, describeStates(p.States), describeStates(d.States))
 				differences++
 			}
 		}

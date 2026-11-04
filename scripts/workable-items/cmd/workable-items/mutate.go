@@ -42,6 +42,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // reopenReasons is the §11.4.34 closed reason vocabulary. reopen's --why MUST be
@@ -82,6 +83,8 @@ func updateCmd(args []string) int {
 	status := fs.String("status", "", "new status (must be a §11.4.15 closed-set value)")
 	createdBy := fs.String("created-by", "", "new §11.4.104 created-by handle")
 	assignedTo := fs.String("assigned-to", "", "new §11.4.104 assigned-to handle")
+	// §11.4.292 (v8): reproduction / investigation records (states_cli.go).
+	sf := registerStateFlags(fs)
 	// Track which flags were actually set so we mutate ONLY those fields (an
 	// unset --severity must not blank an existing severity).
 	if err := fs.Parse(args); err != nil {
@@ -89,6 +92,7 @@ func updateCmd(args []string) int {
 	}
 	set := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	statesSet := sf.anySet(set)
 
 	if *dbPath == "" {
 		fmt.Fprintln(os.Stderr, "update: --db is required")
@@ -104,9 +108,10 @@ func updateCmd(args []string) int {
 		return exitUsage
 	}
 	if !set["title"] && !set["severity"] && !set["description"] &&
-		!set["type"] && !set["status"] && !set["created-by"] && !set["assigned-to"] {
+		!set["type"] && !set["status"] && !set["created-by"] && !set["assigned-to"] && !statesSet {
 		fmt.Fprintln(os.Stderr, "update: at least one mutable field flag is required "+
-			"(--title / --severity / --description / --type / --status / --created-by / --assigned-to)")
+			"(--title / --severity / --description / --type / --status / --created-by / --assigned-to / "+
+			"--reproduction-* / --investigation-*)")
 		return exitUsage
 	}
 
@@ -293,6 +298,44 @@ func updateCmd(args []string) int {
 		cur.AssignedTo = strings.TrimSpace(*assignedTo)
 	}
 
+	// §11.4.292 (v8): apply the reproduction / investigation flags. The new
+	// record must be valid (closed sets, evidence resolves, blocker recorded),
+	// representable (a pipe-table row cannot carry one; a body that already
+	// carries a malformed record is refused until its Markdown is fixed), and
+	// the item's closure must stay consistent with it.
+	statesReason := ""
+	if statesSet {
+		if cur.repOrDefault() != "section" {
+			fmt.Fprintf(os.Stderr, "update: refusing — %s [%s] is a pipe-table row, which cannot carry a reproduction/investigation record\n", *id, cur.repOrDefault())
+			return exitUsage
+		}
+		if bp := parseStateLines(cur.BodyMD).problems; len(bp) > 0 {
+			fmt.Fprintf(os.Stderr, "update: refusing — %s body carries a malformed record; fix the Markdown first: %s\n", *id, strings.Join(bp, "; "))
+			return exitUsage
+		}
+		next, why, serr := sf.apply(cur.States, set, time.Now())
+		if serr != nil {
+			fmt.Fprintf(os.Stderr, "update: %v\n", serr)
+			return exitUsage
+		}
+		if probs := stateRecordProblems(next, true); len(probs) > 0 {
+			fmt.Fprintf(os.Stderr, "update: refusing — %s\n", strings.Join(probs, "; "))
+			return exitUsage
+		}
+		cur.States, statesReason = next, why
+	}
+	if statesSet || set["status"] {
+		g, gerr := loadClosureGate(db)
+		if gerr != nil {
+			fmt.Fprintf(os.Stderr, "update: %v\n", gerr)
+			return exitUsage
+		}
+		if probs := closureReproProblems(*cur, g); len(probs) > 0 {
+			fmt.Fprintf(os.Stderr, "update: refusing — %s\n", strings.Join(probs, "\n  "))
+			return exitUsage
+		}
+	}
+
 	// §11.4.93 data-integrity: a field-only update MUST mutate only the specified
 	// column(s) and PRESERVE the authored body_md. A real md→db-synced item carries
 	// multi-KB of operator-authored freeform content; regenerating it from
@@ -352,6 +395,10 @@ func updateCmd(args []string) int {
 	// is a strict no-op on an already-"\n"-terminated body (the normal "\n\n"
 	// convention), so it preserves the "diff stays 0 for a non-status field-only
 	// update" invariant while self-healing a no-"\n" body.
+	// §11.4.292: the records follow the state columns (a STRICT no-op when the
+	// body already parses to them — every update that sets no state flag and
+	// does not regenerate the body leaves body_md byte-identical).
+	newBody = canonicalizeStateLines(newBody, cur.States, cur.repOrDefault())
 	newBody = ensureTrailingNewline(newBody)
 
 	tx, err := db.Begin()
@@ -369,16 +416,25 @@ func updateCmd(args []string) int {
 	// See docs/research/f_dbtool_20260712/ROOTCAUSE.md.
 	if _, err := tx.Exec(`UPDATE items SET
 		type=?, status=?, severity=?, title=?, description=?,
-		created_by=?, assigned_to=?, body_md=?, last_modified=datetime('now')
+		created_by=?, assigned_to=?, body_md=?, `+statesUpdateSet+`, last_modified=datetime('now')
 		WHERE atm_id=? AND current_location=? AND representation=?`,
-		cur.Type, cur.Status, nullable(cur.Severity), cur.Title, cur.Description,
-		cur.CreatedBy, cur.AssignedTo, newBody, *id, loc, cur.repOrDefault()); err != nil {
+		append(append([]any{cur.Type, cur.Status, nullable(cur.Severity), cur.Title, cur.Description,
+			cur.CreatedBy, cur.AssignedTo, newBody}, statesInsertArgs(cur.States)...),
+			*id, loc, cur.repOrDefault())...); err != nil {
 		fmt.Fprintf(os.Stderr, "update: %v\n", err)
 		return exitUsage
 	}
-	if err := recordHistory(tx, *id, "Updated", "AI", "", ""); err != nil {
+	if err := recordHistory(tx, *id, "Updated", "AI", statesReason, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "update: history: %v\n", err)
 		return exitUsage
+	}
+	// §11.4.292: a status change ends a grandfather exemption frozen at the
+	// old status (no stale exemption can re-apply if the status returns).
+	if set["status"] {
+		if err := pruneReproExemptions(tx); err != nil {
+			fmt.Fprintf(os.Stderr, "update: prune repro_gate_exemptions: %v\n", err)
+			return exitUsage
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		fmt.Fprintf(os.Stderr, "update: commit: %v\n", err)
@@ -513,6 +569,11 @@ func reopenCmd(args []string) int {
 		fmt.Fprintf(os.Stderr, "reopen: %v\n", err)
 		return exitUsage
 	}
+	// §11.4.292: a reopened item is no longer a grandfathered closure.
+	if err := pruneReproExemptions(tx); err != nil {
+		fmt.Fprintf(os.Stderr, "reopen: prune repro_gate_exemptions: %v\n", err)
+		return exitUsage
+	}
 	// Move the doc_segment with the row when the location changes — mirrors close's
 	// atomic Issues→Fixed segment move, reversed. Without this the regenerated
 	// Markdown would still carry the item under its OLD document (the ATM-627
@@ -590,11 +651,12 @@ func reopenedBody(it *item, by, when, why, incident string) string {
 	}
 	if strings.TrimSpace(it.BodyMD) == "" {
 		body := renderItemBody(it.AtmID, it.Title, it.Type, it.Severity, it.Description, "Reopened", it.CreatedBy, it.AssignedTo)
-		return ensureTrailingNewline(insertMetaLine(body, detail))
+		// §11.4.292: a regenerated body carries the item's records again.
+		return ensureTrailingNewline(canonicalizeStateLines(insertMetaLine(body, detail), it.States, it.repOrDefault()))
 	}
 	body := canonicalizeBodyStatusLine(it.BodyMD, "Reopened")
 	body = upsertMetaLine(body, "**Reopened-Details:**", detail)
-	return ensureTrailingNewline(body)
+	return ensureTrailingNewline(canonicalizeStateLines(body, it.States, it.repOrDefault()))
 }
 
 // upsertMetaLine REPLACES the first `**Key:** …` metadata line whose prefix matches
@@ -783,6 +845,16 @@ func moveCmd(args []string) int {
 			"(§11.4.15; pass --status with a non-terminal value to move it back to Issues)\n", newStatus)
 		return exitUsage
 	}
+	// §11.4.292 closure gate: moving an item INTO a VERIFIED closure is a closure
+	// and is checked like `close` (an item that already sits at Fixed in the
+	// same status keeps a grandfather exemption it still holds).
+	if dest == "Fixed" {
+		keep := srcLoc == "Fixed" && newStatus == cur.Status
+		if probs := preventiveClosureCheck(db, *cur, newStatus, keep); len(probs) > 0 {
+			fmt.Fprintf(os.Stderr, "move: refusing — %s\n", strings.Join(probs, "\n  "))
+			return exitUsage
+		}
+	}
 
 	// Lossless body: preserve the authored content, syncing ONLY the `**Status:**`
 	// line when the status actually changed (canonicalizeBodyStatusLine is a STRICT
@@ -804,6 +876,12 @@ func moveCmd(args []string) int {
 		WHERE atm_id=? AND current_location=? AND representation=?`,
 		newStatus, dest, newBody, *id, srcLoc, cur.repOrDefault()); err != nil {
 		fmt.Fprintf(os.Stderr, "move: %v\n", err)
+		return exitUsage
+	}
+	// §11.4.292: an item that left Fixed (or changed its frozen status) is no
+	// longer a grandfathered closure.
+	if err := pruneReproExemptions(tx); err != nil {
+		fmt.Fprintf(os.Stderr, "move: prune repro_gate_exemptions: %v\n", err)
 		return exitUsage
 	}
 	// The doc_segment moves with the row — otherwise `sync db-to-md` would still
@@ -963,7 +1041,8 @@ func renderBlockedBody(it *item, what, why, unblock, who string) string {
 	if strings.TrimSpace(who) != "" {
 		fmt.Fprintf(&b, " WHO: %s", who)
 	}
-	return insertMetaLine(body, b.String())
+	// §11.4.292: the regenerated body carries the item's records again.
+	return canonicalizeStateLines(insertMetaLine(body, b.String()), it.States, it.repOrDefault())
 }
 
 // replaceHeadingTitle surgically rewrites the title portion of an item body's

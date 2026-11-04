@@ -103,12 +103,16 @@ func classifyRepair(it item) (repairAction, string) {
 	if it.repOrDefault() != "section" {
 		return repairNoop, it.BodyMD
 	}
+	// §11.4.292 (v8): the records are column-authoritative too, so a populated or
+	// rewritten body also carries the state columns' records (a STRICT no-op for
+	// a body that already parses to its columns).
 	if strings.TrimSpace(it.BodyMD) == "" {
 		body := renderItemBody(it.AtmID, it.Title, it.Type, it.Severity,
 			it.Description, it.Status, it.CreatedBy, it.AssignedTo)
-		return repairPopulate, body
+		return repairPopulate, canonicalizeStateLines(body, it.States, it.repOrDefault())
 	}
-	newBody := ensureTrailingNewline(canonicalizeBodyStatusLine(it.BodyMD, it.Status))
+	newBody := ensureTrailingNewline(canonicalizeStateLines(
+		canonicalizeBodyStatusLine(it.BodyMD, it.Status), it.States, it.repOrDefault()))
 	if newBody == it.BodyMD {
 		return repairNoop, it.BodyMD
 	}

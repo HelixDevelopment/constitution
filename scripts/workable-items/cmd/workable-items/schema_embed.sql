@@ -119,6 +119,38 @@ CREATE TABLE IF NOT EXISTS items (
     parent_atm_id    TEXT,
     session_ref      TEXT,
 
+    -- §11.4.292 reproduce-first (v8): the reproduction + investigation state
+    -- machines carried by EVERY item, rendered into body_md as one
+    -- `**Reproduction:**` and one `**Investigation:**` record line (states.go).
+    -- 'UNSET' = never assessed (no record line); a state is never invented.
+    -- Closed sets mirror states.go reproStates / investigationStates /
+    -- reproSurfaces (TestStates_SchemaCheckMatchesGoClosedSets pins them).
+    -- Details are NULL when not recorded. Additive: a pre-v8 DB gets these
+    -- columns from migrateStatesColumns (ALTER TABLE ADD COLUMN, idempotent).
+    reproduction_state       TEXT NOT NULL DEFAULT 'UNSET'
+                             CHECK (reproduction_state IN ('UNSET', 'UNREPRODUCED',
+                                 'reproduced-live', 'reproduced-host-fixture',
+                                 'not-reproducible-with-evidence',
+                                 'blocked-no-device-with-recorded-blocker')),
+    reproduction_surface     TEXT CHECK (reproduction_surface IS NULL OR
+                                 reproduction_surface IN ('live-target', 'host-only')),
+    reproduction_evidence    TEXT,
+    reproduction_red_cmd     TEXT,
+    reproduction_green_cmd   TEXT,
+    reproduction_env         TEXT,
+    reproduction_signature   TEXT,
+    reproduction_blocker     TEXT,
+    reproduction_updated_at  TEXT,
+    reproduction_updated_by  TEXT,
+    investigation_state      TEXT NOT NULL DEFAULT 'UNSET'
+                             CHECK (investigation_state IN ('UNSET', 'not-started',
+                                 'in-progress', 'root-cause-found-with-evidence',
+                                 'root-cause-unconfirmed', 'closed-no-defect')),
+    investigation_root_cause TEXT,
+    investigation_evidence   TEXT,
+    investigation_updated_at TEXT,
+    investigation_updated_by TEXT,
+
     -- Timestamps
     created_at       TEXT NOT NULL DEFAULT (datetime('now')),
     last_modified    TEXT NOT NULL DEFAULT (datetime('now')),
@@ -377,6 +409,22 @@ FROM test_diary d
 GROUP BY d.atm_id;
 
 -- ============================================================
+-- §11.4.292 (v8) — repro_gate_exemptions: items that were ALREADY closed when
+-- the reproduction closure gate was armed (`states freeze`, one-time). The
+-- gate's "a closed defect carries a reproduction record" checks skip an item
+-- only while it still sits at (atm_id, Fixed, representation) in the frozen
+-- status; an exemption is pruned the moment the item leaves Fixed (reopen,
+-- move, md→db), so a re-closure is always checked. Never grows after arming.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS repro_gate_exemptions (
+    atm_id          TEXT NOT NULL,
+    representation  TEXT NOT NULL DEFAULT 'section',
+    status          TEXT NOT NULL,
+    frozen_at       TEXT NOT NULL,
+    PRIMARY KEY (atm_id, representation)
+);
+
+-- ============================================================
 -- meta: schema version + sync state
 -- ============================================================
 CREATE TABLE IF NOT EXISTS meta (
@@ -392,9 +440,11 @@ CREATE TABLE IF NOT EXISTS meta (
 -- advances 'schema_version' to '6' on an older DB (v6 = destination/logic_group
 -- + logic_groups, ASSIGNMENT_MECHANISM_DESIGN.md); migrateItemHistoryOccurredAt
 -- (T-A05) further advances it to '7' (v7 = item_history.occurred_at +
--- occurred_at_source); a fresh DB is seeded '7' here directly.
+-- occurred_at_source); migrateStatesColumns advances it to '8' (v8 = the
+-- §11.4.292 reproduction / investigation state columns +
+-- repro_gate_exemptions); a fresh DB is seeded '8' here directly.
 INSERT OR IGNORE INTO meta(key, value) VALUES
-    ('schema_version', '7'),
+    ('schema_version', '8'),
     ('last_sync_direction', 'none'),
     ('last_sync_timestamp', ''),
     ('integrity_hash', '');
