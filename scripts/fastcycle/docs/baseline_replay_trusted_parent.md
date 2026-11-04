@@ -118,3 +118,28 @@ What these measures do **not** cover (stated, not closed):
 does not model is a violation until it is added to one of its tables with a reason. Its scope is the closed list in
 its docstring; `--self-test` prints every form it refuses and accepts. It runs in the suite as `[R12LINT]` and
 `[R13CENSUS-self]`.
+
+## Test-host limits and the measured r6 paired-mutation run (carry review round 2)
+
+These are limits of the test hosts, not of the tool. They are stated so a red or SKIP in the suites is read correctly.
+
+- **`env` wrapper reopens closed fds (uutils coreutils).** `baseline_replay.sh` execs the supervisor through
+  `env --block-signal=INT`. Where `env` is uutils coreutils (a Rust binary; measured 0.8.0), it re-opens a closed fd
+  0-2 on `/dev/null` before it execs, so a caller's closed stream never reaches the supervisor through that entry
+  (`sys.stdout` is a `/dev/null` wrapper, not `None`). The stream matrix probes this with the same wrapper and counts
+  its `closed-*` cells (`closed-out`, `closed-err`, `closed-both`, `dead-out-closed-err`, `closed-in`) as SKIP
+  `[reason=topology_unsupported]` instead of passing them on a null cell. `[R8FDS]` calls the supervisor directly and
+  still drives genuinely closed fds on every host. On such a host the paired mutants that live on the closed-fd
+  branches (V4R7-N2, V4R8-1a, V4R10-RV3-12, V4R10-M9) cannot be observed and the r6 runner reports them as survivors:
+  that is the instrument being blind, not the product being wrong (UNCONFIRMED on a host with GNU `env`).
+- **uid / ACL rows.** The foreign-uid rows are SKIPped where AppArmor restricts unprivileged user namespaces
+  (`kernel.apparmor_restrict_unprivileged_userns=1`); the cause is printed on each SKIP and the suite SUMMARY carries
+  `skip=`.
+- **Measured full r6 paired-mutation run on the carry (reviewer, round 2; 6090 s): pass 372, fail 26.** The 26 are:
+  19 survivors on rows that SKIP for the uid / ACL cause above (V4R11-M6, V4R11-M16, V4R12-RV5-02, V4R12-M1, M4, M5, M8,
+  M14, M15, V4R13-M19, V4R14-M1, M2, M4 to M10), 2 blind controls (control-r12, control-r14: their unmutated case is one
+  of those skipped rows), 4 closed-* survivors (the `env` cause above, confirmed), and 1 survivor CARRY-F1-M1 (fixed:
+  the row now points at the static order check `[CARRY-F1-order]`, which catches it). Whether the 19 and the 2 pass on
+  a host that allows unprivileged user namespaces is UNCONFIRMED.
+- **Standard-fd repair access mode.** The repaired fds are asserted to be `O_RDWR` (`[R8FDS]` probe modes,
+  `[CARRY-F1-accmode]` behaviour test: writes to 1 and 2 and a read of 0 succeed).

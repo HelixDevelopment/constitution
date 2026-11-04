@@ -1209,7 +1209,7 @@ MUTS = [
     ("CARRY-F1-M1", SUP, [('if __name__ == "__main__":\n    _repair_std_fds()           # before anything that can keep an fd is imported or opened (V4R8-1, carry F1)\n', ""),
                           ("    # the std-fd repair already ran at module level, before `import ctypes` (carry review F1)\n",
                            "    _repair_std_fds()\n")],
-     T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+     T_SUP, {}, "NOT ok [CARRY-F1-order]"),   # carry r2 N1: R8FDS cannot see the order (the CLOEXEC layer repairs a late fd too); the static order check does
     # F1: a standard fd with FD_CLOEXEC counted as healthy again
     ("CARRY-F1-M2", SUP, [("            if not cloexec and ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n",
                            "            if ((mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY)):\n")],
@@ -1221,6 +1221,9 @@ MUTS = [
     # RV2 (reviewer, verbatim): the re-opened /dev/null left non-inheritable -- reachable now that [R8FDS] is green (F1)
     ("CARRY-RV2", SUP, [("                os.set_inheritable(fd, True)\n", "                os.set_inheritable(fd, False)\n")],
      T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
+    # RW1 (carry review round 2, reviewer): the repaired /dev/null opened O_RDONLY -- right link, unwritable (N3)
+    ("CARRY-RW1", SUP, [("nfd = os.open(os.devnull, os.O_RDWR)    # safepath:devnull", "nfd = os.open(os.devnull, os.O_RDONLY)    # safepath:devnull")],
+     T_SUP, {}, "NOT ok [CARRY-F1-accmode]"),
     # RV3 (reviewer, verbatim): an undocumented exit code mapped to 0 instead of 4 (F6)
     ("CARRY-RV3", SUP, [("documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 4\n",
                          "documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 0\n")],

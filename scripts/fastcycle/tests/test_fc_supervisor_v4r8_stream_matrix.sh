@@ -516,14 +516,34 @@ def settle(secs=30):
 # nohup) cannot observe the 129 it asserts: that is the test's environment, not a product FAIL. Such a cell is a
 # counted SKIP with the closed reason code and the measured disposition; run the matrix under `setsid -w` instead.
 HUP_IGN_AT_ENTRY = signal.getsignal(signal.SIGHUP) == signal.SIG_IGN
+_HUP_REAL_AT_ENTRY = signal.getsignal(signal.SIGHUP) == signal.SIG_IGN   # carry r2 N4: an independent read for the closing assertion
 N["skip"] = 0
+HUP_SKIPS = 0
+# carry review round 2, N2: baseline_replay.sh execs the supervisor through `env --block-signal=INT`. On a host whose `env` is
+# uutils coreutils (a Rust binary) `env` RE-OPENS a closed fd 0-2 on /dev/null before it execs, so a "closed-*" cell never
+# gives the tool a closed fd through that entry (measured: sys.stdout is a /dev/null TextIOWrapper, not None) and the
+# mutants that live on the closed-fd branches (V4R7-N2, V4R8-1a, V4R10-RV3-12, V4R10-M9) survive there. Probed here with
+# the same wrapper; the closed-* cells are then counted SKIPs with the closed reason code, never a PASS on a null cell.
+# R8FDS (a direct invocation of the supervisor, no wrapper) still drives genuinely closed fds on every host.
+_pf = os.path.join(ROOT, "env_probe")
+subprocess.run(["bash", "-c", 'exec 0<&- 1>&- 2>&-; exec env --block-signal=INT python3 -I -S -c '
+                '"import os,sys; open(sys.argv[1],\'w\').write(\'%s\' % (\'reopened\' if all(os.path.exists(\'/proc/self/fd/%d\' % i) for i in (0,1,2)) else \'closed\'))" "$0"',
+                _pf], timeout=60)
+ENV_REOPENS_CLOSED = (open(_pf).read() if os.path.exists(_pf) else "unknown") != "closed"
+CLOSED_CELLS = {"closed-out", "closed-err", "closed-both", "dead-out-closed-err", "closed-in"}
 if want("R8MATRIX"):
     skipped = []
     for sname, so, se, ign, si in STREAMS:
         for cname, gate, extra, action, want_rc, want_rep in SCEN:
             tag = "[R8MATRIX] %s x %s" % (cname, sname)
+            if ENV_REOPENS_CLOSED and sname in CLOSED_CELLS:
+                N["skip"] += 1
+                print("SKIP %s: the entry's `env` wrapper re-opens closed fds 0-2 on this host (uutils coreutils; probed) "
+                      "so this cell would run with /dev/null, not a closed fd [reason=topology_unsupported]" % tag, flush=True)
+                continue
             if HUP_IGN_AT_ENTRY and action and action[1] == signal.SIGHUP:
                 N["skip"] += 1
+                HUP_SKIPS += 1
                 print("SKIP %s: SIGHUP is SIG_IGN in this test process at entry (inherited from its caller, e.g. "
                       "nohup) and the tool keeps a caller-ignored HUP ignored by design -- the 129 cannot be observed "
                       "here; run under setsid -w [reason=topology_unsupported]" % tag, flush=True)
@@ -704,13 +724,19 @@ if want("R8SIGPIPE"):
 # the probe reads ITS OWN fds before it opens anything (round 2 of the carry review, F1): a shell probe that reads
 # them through `$(...)` gets the command-substitution pipe on the lowest free fd -- with fd 0 really closed it reported
 # "0=pipe:" and hid that the worker started with NO fd 0. os.readlink opens no fd; CLOSED is reported as such.
-PROBE = ("import os, sys\n"
+PROBE = ("import os, sys, fcntl\n"
          "r = []\n"
          "for i in (0, 1, 2):\n"
          "    try:\n"
          "        r.append('%d=%s' % (i, os.readlink('/proc/self/fd/%d' % i)))\n"
          "    except OSError:\n"
          "        r.append('%d=CLOSED' % i)\n"
+         "# carry r2 N3: the ACCESS MODE of the repaired fd (a /dev/null opened O_RDONLY has the right link and cannot be written)\n"
+         "for i in (0, 1, 2):\n"
+         "    try:\n"
+         "        r.append('m%d=%s' % (i, {os.O_RDONLY: 'RDONLY', os.O_WRONLY: 'WRONLY', os.O_RDWR: 'RDWR'}.get(fcntl.fcntl(i, fcntl.F_GETFL) & os.O_ACCMODE)))\n"
+         "    except OSError:\n"
+         "        r.append('m%d=CLOSED' % i)\n"
          "open(sys.argv[1], 'w').write('\\n'.join(r) + '\\n')\n")
 if want("R8FDS"):
     d = os.path.join(ROOT, "fds"); os.makedirs(os.path.join(d, "tmp"))
@@ -728,13 +754,20 @@ if want("R8FDS"):
     got2 = open(rep + ".open").read().split() if os.path.exists(rep + ".open") else []
     if not any("pipe:" in x for x in got2):
         bad("[R8FDS] control needle: with open fds the probe did not see the caller's pipes (%r)" % got2)
-    elif p.returncode == 0 and got == ["0=/dev/null", "1=/dev/null", "2=/dev/null"] and not os.listdir(os.path.join(d, "tmp")):
-        ok("[R8FDS] fds 0/1/2 closed by the caller: the worker starts with /dev/null on all three (needle: open fds are "
+    elif p.returncode == 0 and got == ["0=/dev/null", "1=/dev/null", "2=/dev/null", "m0=RDWR", "m1=RDWR", "m2=RDWR"] and not os.listdir(os.path.join(d, "tmp")):
+        ok("[R8FDS] fds 0/1/2 closed by the caller: the worker starts with /dev/null on all three, opened read-write (carry r2 N3) (needle: open fds are "
            "seen as the caller's pipes), rc 0, temp dir gone")
     else:
         bad("[R8FDS] closed fds 0/1/2: rc=%s worker fds=%r temp=%r" % (p.returncode, got, os.listdir(os.path.join(d, "tmp"))))
 
 print("----")
+# carry r2 N4 (reviewer mutant RW6): when SIGHUP was NOT ignored at entry, no cell may be skipped for that reason -- a
+# regression of the guard would turn every HUP cell into a counted SKIP with rc 0
+if not _HUP_REAL_AT_ENTRY:
+    (ok if HUP_SKIPS == 0 else bad)("[R8SKIP] SIGHUP not ignored at entry: %d cell(s) skipped for HUP (want 0)" % HUP_SKIPS)
+else:
+    ok("[R8SKIP] SIGHUP ignored at entry (nohup): %d HUP cell(s) skipped with the closed reason (honest SKIP, see above)" % HUP_SKIPS)
+ok("[R8SKIP] env wrapper re-opens closed fds on this host: %s (closed-* cells %s)" % (ENV_REOPENS_CLOSED, "SKIPPED honestly" if ENV_REOPENS_CLOSED else "run with genuinely closed fds"))
 print("SUMMARY pass=%d fail=%d skip=%d" % (N["ok"], N["bad"], N.get("skip", 0)))
 sys.exit(0 if N["bad"] == 0 else 1)
 PY

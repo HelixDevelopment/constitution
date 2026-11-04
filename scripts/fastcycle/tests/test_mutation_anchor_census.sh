@@ -55,6 +55,32 @@ r="$(mkrep blind)"; rm -f "$r/tests/test_fastcycle_r6_mutations.sh"
 out="$(python3 -I "$AC" --fc "$r" --tests "$r/tests" 2>&1)"; rc=$?
 if [ "$rc" = 2 ] && grep -q '^BLIND' <<<"$out"; then ok "[AC-blind] a missing runner is BLIND (exit 2)"; else bad "[AC-blind] rc=$rc $out"; fi
 
+# carry r2 N4 (reviewer mutants RW4/RW5): the census must treat a DUPLICATED anchor (count 2) as drift, and its absent-anchor
+# control needle must be live -- a checker whose anchor test is neutered must report BLIND (2), not a clean 0.
+r="$(mkrep dup)"
+python3 -I - "$r/cycle/baseline_replay.sh" <<'PY'
+import sys
+p = sys.argv[1]; t = open(p).read()
+a = '    git -C "$_FC_WT_REPO" worktree unlock "${_FC_WT_PATH:?}" >/dev/null 2>&1\n    git -C "$_FC_WT_REPO" worktree remove -f -f "${_FC_WT_PATH:?}" >/dev/null 2>&1\n'
+assert t.count(a) == 1
+open(p, "w").write(t + "\n" + a)
+PY
+out="$(python3 -I "$AC" --fc "$r" --tests "$r/tests" 2>&1)"; rc=$?
+if [ "$rc" = 1 ] && grep -q '^DRIFT R5-F2c:.*matched 2 times' <<<"$out"; then ok "[AC-dup] a duplicated anchor is drift (matched 2 times)"; else bad "[AC-dup] rc=$rc $(tail -3 <<<"$out" | tr '\n' ' ')"; fi
+
+r="$(mkrep needle)"
+python3 -I - "$r/tests/check_mutation_anchors.py" <<'PY'
+import sys
+p = sys.argv[1]; t = open(p).read()
+a = "        if n != 1:\n"
+assert t.count(a) == 1
+open(p, "w").write(t.replace(a, "        if False:\n"))
+PY
+out="$(python3 -I "$r/tests/check_mutation_anchors.py" --fc "$r" --tests "$r/tests" 2>&1)"; rc=$?
+if [ "$rc" = 2 ] && grep -q '^BLIND: the absent-anchor needle' <<<"$out"; then ok "[AC-needle] a census whose anchor test accepts everything is BLIND (exit 2) via the absent-anchor needle"; else bad "[AC-needle] rc=$rc $(tail -3 <<<"$out" | tr '\n' ' ')"; fi
+# RW5 (the needle SKIPPED while the anchor test still works) is observationally equivalent on a healthy instrument: the needle only
+# changes the outcome when the instrument is already blind, which [AC-needle] above exercises. Recorded, not claimed killed.
+
 echo "----"
 echo "SUMMARY pass=$PASS fail=$FAIL"
 [ "$FAIL" = 0 ]

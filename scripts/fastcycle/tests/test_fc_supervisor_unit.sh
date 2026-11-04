@@ -84,6 +84,19 @@ def skip(s):
     print("SKIP " + s + " [reason=topology_unsupported]", flush=True)
 
 
+# carry review round 2, N4 (reviewer mutant RW7): skip() itself must COUNT (the SUMMARY's skip= is how a host-limited run is
+# told from a clean one). Stdout is captured around the self-test call and the self-test's count is taken back out.
+import io as _io
+_n0 = N["skip"]; _so = sys.stdout; sys.stdout = _io.StringIO()
+try:
+    skip("selftest: counted")
+finally:
+    _cap = sys.stdout.getvalue(); sys.stdout = _so
+_counted = N["skip"] == _n0 + 1
+N["skip"] = _n0
+(ok if _counted and "[reason=topology_unsupported]" in _cap else bad)("[SKIP-counts] skip() increments the counter and prints the closed reason code (counted=%s)" % _counted)
+
+
 def scripted(views, live):
     """views: list of {pid: [children]} snapshots, one per walk() of stop_tree;
     the last one repeats. live: {pid: state} for _stat_fields (state 'Z' = zombie);
@@ -1721,6 +1734,53 @@ r_nc = _cloexec_case(False)
 (ok if r_cx == repr("/dev/null inheritable=True") and r_nc == repr("%s inheritable=True" % os.path.realpath(os.environ["SUP"]))
  else bad)("[CARRY-F1-cloexec] an fd 0 with FD_CLOEXEC is replaced by an inheritable /dev/null (%s); control: the same fd "
            "without FD_CLOEXEC is kept (%s)" % (r_cx, r_nc))
+
+# ---- [CARRY-F1-accmode] carry review round 2, N3 (reviewer mutant RW1): the repaired standard fds are not only /dev/null,
+# they have the RIGHT access mode -- fd 0 readable, fds 1/2 writable (a /dev/null opened O_RDONLY gives a gate's `echo hi`
+# "Bad file descriptor"). The REAL function, in a forked child with all three closed; the child WRITES to 1 and 2 and
+# READS from 0 (behaviour, not only the mode bits). Control: an fd 1 left open READ-ONLY (wrong direction) is replaced
+# by a writable one -- the same behavioural probe must then pass too, and the probe itself must FAIL on a read-only fd.
+def _accmode_case(mode):
+    def fn():
+        for fd in (0, 1, 2):
+            os.close(fd)
+        if mode == "ro1":
+            os.open(os.devnull, os.O_RDONLY)      # fd 0 (read-only is right there)
+            fd1 = os.open(os.environ["SUP"], os.O_RDONLY); os.set_inheritable(fd1, True)
+            if fd1 != 1:
+                os.dup2(fd1, 1)
+            os.dup2(0, 2)
+        m._repair_std_fds()
+        res = []
+        for fd, what in ((1, "w"), (2, "w"), (0, "r")):
+            try:
+                os.write(fd, b"") if what == "w" else os.read(fd, 1)
+                res.append("%d:%s-ok" % (fd, what))
+            except OSError as e:
+                res.append("%d:%s-%s" % (fd, what, e.errno))
+        res.append("acc=" + ",".join(str(__import__("fcntl").fcntl(fd, __import__("fcntl").F_GETFL) & os.O_ACCMODE) for fd in (0, 1, 2)))
+        return " ".join(res)
+    return in_child(fn, 10)
+
+
+def _write_probe_fails_on_readonly():
+    fd = os.open(os.devnull, os.O_RDONLY)
+    try:
+        os.write(fd, b"x")
+        return False
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+
+
+r_all = _accmode_case("closed")
+r_ro = _accmode_case("ro1")
+_want = repr("1:w-ok 2:w-ok 0:r-ok acc=%d,%d,%d" % (os.O_RDWR, os.O_RDWR, os.O_RDWR))
+(ok if r_all == _want and r_ro == _want and _write_probe_fails_on_readonly()
+ else bad)("[CARRY-F1-accmode] closed fds 0/1/2 and a read-only fd 1 are repaired to /dev/null opened O_RDWR: writes to 1/2 and a "
+           "read of 0 succeed (%s; read-only start: %s; needle: a write to a read-only fd fails = %s)"
+           % (r_all, r_ro, _write_probe_fails_on_readonly()))
 
 # ---- [CARRY-F1-order] the repair runs BEFORE `import ctypes` at module level (a static order check of the module
 # under test: the call site, guarded by __main__, precedes the import; the runtime proof is v4r8 [R8FDS]).
