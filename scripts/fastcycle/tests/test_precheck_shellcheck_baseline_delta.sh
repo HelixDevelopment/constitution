@@ -1360,6 +1360,18 @@ os.environ["PATH"] = "/nonexistent"
 p6, why = m._units_helper_path(None)
 os.environ["PATH"] = old
 res(p6 is None and "go" in str(why), "R11-K6 go absent -> no helper, named", "%s %s" % (p6, why))
+# K7 (r11 mutant Q18 survived): a FRESH build whose sha256 differs from the pin is refused and leaves no binary.
+#    The pin table is replaced in-process by one that pins every key to a sha256 no build can have; a fresh cache dir
+#    forces the build.
+class _WrongPins(object):
+    def get(self, key, default=None):
+        return "0" * 64
+m._units_pins = lambda: _WrongPins()
+os.environ["PRECHECK_UNITS_CACHE_DIR"] = os.path.join(base, "k7")
+p7, why = m._units_helper_path(None)
+left = [f for r, _, fs in os.walk(os.path.join(base, "k7")) for f in fs if f == "units"]
+res(p7 is None and "refused" in str(why) and left == [],
+    "R11-K7 a fresh build that differs from the pin is refused, no binary left", "%s %s %s" % (p7, why, left))
 PY
     while IFS='|' read -r k l d; do
         case $k in ok) ok "$l" ;; bad) bad "$l: $d" ;; *) bad "R11-K* unexpected output: $k $l $d" ;; esac
