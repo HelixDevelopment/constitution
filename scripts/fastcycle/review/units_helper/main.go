@@ -14,18 +14,19 @@
 // Exit:   0 units printed; 3 the script does not parse in that dialect (JSON {"schema":...,"error":...});
 //
 //	2 usage error or unreadable input; 4 an internal inconsistency (a position outside the file, a here-document
-//	terminator that is not the delimiter the shell derives); 5 the script uses a construct whose effect on where a
-//	command ends the parser does not model (r12: anything outside the runtime-grammar allowlist, see unmodelled;
-//	a NUL byte).
+//	terminator that is not the delimiter the shell derives); 5 the script is outside the r13 positive subset (see
+//	unmodelled) or contains a NUL byte.
 //
 // r11 (round-1 review F1, F2, F6 and the 11.4.276(C) class "the parser and the real shell disagree about where a
 // unit ends or what is executed"): (1) a POSIX script is parsed TWICE, as POSIX (dash) and as bash (bash --posix is
 // /bin/sh on some hosts), and its units are the UNION of both partitions (a superset: a line counts as unchanged only
 // when its unit is unchanged under both); a failure of either parse is a failure. (2) dash and bash --posix expand
-// aliases in scripts, so `alias p='x |'` makes the next line continue a pipeline the parser splits. r12 replaces the
-// r11 member list with an allowlist (unmodelled, rules R1-R5): a file is credited only while every command that runs
-// in the current shell is statically known and outside the closed set of alias / code / mode builtins; everything
-// else exits 5. Sourcing always fails closed (the sourced text is never seen). (3) A NUL byte:
+// aliases in scripts, so `alias p='x |'` makes the next line continue a pipeline the parser splits. r13 (round-3
+// review H1) replaces the r12 deny-list rules R1-R5 with a POSITIVE, MINIMAL credited subset checked on the parsed
+// AST (unmodelled, rules P1-P9): every node kind is enumerated and an unknown kind fails closed; arithmetic, name
+// operands with computed subscripts, PS4-class variables, code / alias / mode builtins, sourcing and any external
+// command that may read the SHELL's stdin while the script itself is that stdin all exit 5. The census of the repo's
+// 1150 tracked .sh files (r13 report) credits 70 of them; everything else is judged as a whole file. (3) A NUL byte:
 // dash drops it, bash refuses the file, the parser keeps it -> exit 5. (4) The here-document delimiter is derived by
 // the shell's quote removal and the terminator line is checked against it.
 //
@@ -155,101 +156,6 @@ func unquote(w *syntax.Word) (string, bool) {
 	return buf.String(), lit
 }
 
-// r12 (review round 2 G1, 11.4.276(E)(3) structural round): the class "runtime grammar modifiers the static parser
-// does not model" is closed by an ALLOWLIST, not by naming members. Aliases are the one way a later line can be
-// joined to an earlier command at run time, and only code running in the CURRENT shell can define one (a
-// subshell, a $( ), a pipeline element or a child shell cannot change the parent's alias table; measured: an alias
-// defined in an arithmetic-subscript $( ) does not survive). So the helper credits a file only while every command
-// that runs in the current shell is statically known and harmless:
-//
-//	R1 every command word (after `command` / `builtin` and their options, and after exec-style wrappers) is a
-//	   STATIC word: literal after quote removal ($'..' decoded), no expansion, no pathname or brace expansion
-//	   character (a lone `[` is the test command). Anything else ($cmd, "$@", ${a}, $( ), `..`, alia?, {a,b},
-//	   ~x) is a dynamically computed command word and fails closed.
-//	R2 the closed set of builtins that run text as code or change alias state or the parser's mode fails closed:
-//	   alias, unalias, . , source, enable, fc, bind, complete, compgen, compopt, history; mapfile/readarray -C
-//	   (callback); declare/typeset/local -n (nameref). `eval` is allowed only when every argument is static: the
-//	   joined text is parsed and checked by these same rules (depth <= 8). `trap` is allowed when it lists or
-//	   resets, when every signal is EXIT / 0 (the action runs after the last line was read), or when the action
-//	   is static and passes these rules recursively; a computed action or signal fails closed.
-//	   `set` / `shopt` are allowed only with static option names from an allowlist (posix, expand_aliases, the
-//	   history options and every unlisted name fail closed; `set --` operands are free).
-//	R3 every variable-NAME sink takes a static name: read, printf -v, mapfile/readarray, getopts, declare-family
-//	   names; a computed name fails closed.
-//	R4 the names that change alias state or run prompt expansion fail closed wherever they are ASSIGNED
-//	   (assignment, declare, ${x:=v}): BASH_ALIASES, POSIXLY_CORRECT, PS0-PS4, PROMPT_COMMAND, BASH_ENV, ENV,
-//	   SHELLOPTS, BASHOPTS; the words BASH_ALIASES, POSIXLY_CORRECT and expand_aliases fail closed ANYWHERE
-//	   (in any word, quoted or not, after quote removal and $'..' decoding); the prompt operator ${x@P} fails
-//	   closed; a variable set to the word alias / unalias fails closed.
-//	R5 `exec` with no command and a redirection of fd 0 fails closed (the shell would read the rest of a
-//	   script from another file when the script is read on stdin).
-//
-// The census tests/units_runtime_grammar_census.py runs >= 200 generated channel scripts through dash and
-// bash --posix (and bash) and asserts that no script on which a real shell joins the two lines is split here.
-// Stated limits: the content of a file the script sources is never seen (sourcing fails closed), and a script
-// that rewrites ITSELF at run time is not modelled.
-
-const maxCodeDepth = 8
-
-// assignSinks: names whose assignment changes alias state, the shell's mode, or is expanded as a prompt
-var assignSinks = map[string]bool{"BASH_ALIASES": true, "POSIXLY_CORRECT": true, "PS0": true, "PS1": true,
-	"PS2": true, "PS3": true, "PS4": true, "PROMPT_COMMAND": true, "BASH_ENV": true, "ENV": true,
-	"SHELLOPTS": true, "BASHOPTS": true}
-
-// anywhereTokens: sink NAMES that fail closed wherever they occur in a word (a static name reaches them through
-// printf -v / read / mapfile / getopts / declare / export / unset / [[ -v ]]). expand_aliases is not one: it has an
-// effect only as a shopt operand, and shopt operands are allowlisted (a data word "expand_aliases" stays credited).
-var anywhereTokens = []string{"BASH_ALIASES", "POSIXLY_CORRECT"}
-
-// codeBuiltins: builtins that run text as code, change alias state, or load code
-var codeBuiltins = map[string]bool{"alias": true, "unalias": true, ".": true, "source": true, "enable": true,
-	"fc": true, "bind": true, "complete": true, "compgen": true, "compopt": true, "history": true}
-
-// setOptsOK: `set -o NAME` / `shopt -o NAME` names that cannot change how a later line is read
-var setOptsOK = map[string]bool{"allexport": true, "braceexpand": true, "emacs": true, "errexit": true,
-	"errtrace": true, "functrace": true, "hashall": true, "ignoreeof": true, "keyword": true, "monitor": true,
-	"noclobber": true, "noexec": true, "noglob": true, "nolog": true, "notify": true, "nounset": true,
-	"onecmd": true, "physical": true, "pipefail": true, "privileged": true, "verbose": true, "vi": true,
-	"xtrace": true}
-
-// shoptOK: `shopt -s/-u NAME` names that cannot change how a later line is read (expand_aliases, extglob-like
-// parser options outside this list, and every unlisted name fail closed)
-var shoptOK = map[string]bool{"autocd": true, "cdable_vars": true, "cdspell": true, "checkhash": true,
-	"checkjobs": true, "checkwinsize": true, "direxpand": true, "dirspell": true, "dotglob": true, "execfail": true,
-	"extglob": true, "failglob": true, "globasciiranges": true, "globskipdots": true, "globstar": true,
-	"gnu_errfmt": true, "huponexit": true, "inherit_errexit": true, "lastpipe": true, "localvar_inherit": true,
-	"localvar_unset": true, "mailwarn": true, "nocaseglob": true, "nocasematch": true, "noexpand_translation": true,
-	"nullglob": true, "patsub_replacement": true, "progcomp": true, "progcomp_alias": false, "promptvars": true,
-	"shift_verbose": true, "sourcepath": true, "varredir_close": true, "xpg_echo": true}
-
-// setLetters: single-letter `set` options allowed (H = history expansion is not)
-const setLetters = "abeEfhkmnpPtTuvxBC"
-
-// wrappers: commands that run their operand; the operand is checked as a command word
-var shellWrappers = map[string]bool{"command": true, "builtin": true}
-var execWrappers = map[string]bool{"exec": true, "env": true, "nohup": true, "time": true, "xargs": true,
-	"nice": true, "timeout": true, "stdbuf": true, "setsid": true, "ionice": true, "chrt": true, "taskset": true,
-	"sudo": true, "doas": true}
-
-type checker struct {
-	lang  syntax.LangVariant
-	depth int
-	why   string
-}
-
-func (c *checker) note(n syntax.Node, what string) {
-	if c.why == "" {
-		ln := uint(0)
-		if n != nil && n.Pos().IsValid() {
-			ln = n.Pos().Line()
-		}
-		c.why = fmt.Sprintf("line %d: %s", ln, what)
-		if c.depth == 0 { // the suffix once, on the outermost reason (nested reasons are embedded in it)
-			c.why += " (runtime grammar: not modelled, r12 allowlist)"
-		}
-	}
-}
-
 // ansiC decodes the body of a $'..' string (bash rules; an unknown escape keeps the backslash).
 func ansiC(v string) string {
 	var b strings.Builder
@@ -372,391 +278,739 @@ func static(w *syntax.Word) (string, bool) {
 	return buf.String(), ok
 }
 
-// tokenText: every literal piece of a word after quote removal ($'..' decoded), expansions skipped -- the text in
-// which the anywhere-tokens are searched (so BASH_ALI"AS"ES, BASH_ALI\ASES, "BASH_ALI"ASES all read as the token).
-func tokenText(w *syntax.Word) string {
-	var buf bytes.Buffer
-	syntax.Walk(w, func(node syntax.Node) bool {
-		switch x := node.(type) {
-		case *syntax.Lit:
-			buf.WriteString(strings.NewReplacer("\\", "", "\n", "").Replace(x.Value))
-		case *syntax.SglQuoted:
-			if x.Dollar {
-				buf.WriteString(ansiC(x.Value))
-			} else {
-				buf.WriteString(x.Value)
-			}
+// r13 (ATM-1217 review round 3 H1, 11.4.276(E) change of approach): the r11 member list and the r12 allowlist of
+// "harmless current-shell commands" both enumerated DANGEROUS constructs, and review round 3 found a third family
+// they did not name: bash re-reads DATA as code in the current shell (arithmetic on a variable's value, a name
+// operand's subscript, PS4 under xtrace) and bash 5.3 runs `${ cmd; }` there, so an alias can be defined without
+// any alias command. r13 inverts the rule. A file is credited ONLY when every node of its parse tree is in a small,
+// POSITIVE subset that is checked node kind by node kind (positive, below); any node kind, operator, builtin,
+// option or name the subset does not list makes the helper exit 5 ("no units": the gate then judges the file by
+// the whole-file rule). New parser node kinds fail closed by default (the switches have no permissive default and
+// a second pass over every node rejects any type outside nodeKindsOK).
+//
+// The subset, rule by rule (P1-P9). Each rule is there because the real shell can otherwise run text that the
+// static parse did not show as code, or read the rest of the script from somewhere else:
+//
+//	P1 node kinds: statements, simple commands, if / while / until / for-in / case, { } and ( ) groups, && || |
+//	   |& lists, function definitions, [[ ]] (P7), local / export / readonly (P5), time. Never: arithmetic of any
+//	   kind ($(( )), (( )), let, for (( )), $[ ]), coproc, select, arrays, process substitution, extended globs,
+//	   backquotes, $"..", bash 5.3 function substitution ${ ..; } / ${| ..; }.
+//	P2 words: literals, '..', $'..', "..", plain parameter expansion ($name ${name} and the special parameters),
+//	   ${name-w} ${name:-w} ${name+w} ${name:+w} ${name?w} ${name:?w} ${name#w} ${name##w} ${name%w} ${name%%w}
+//	   (w recursively in the subset), $( ) whose statements are in the subset, and a subscript that is a decimal
+//	   literal, @ or * in an expansion (${BASH_SOURCE[0]}). Never: any other subscript, ${!..},
+//	   ${#..}, slices, replacements, case modifiers, ${x@..}, ${x=w} / ${x:=w}.
+//	P3 command words: a STATIC literal (quote removal, $'..' decoded, no expansion, no glob / brace / tilde
+//	   character). It is a function defined in the file, a builtin on the safe list (P4), or an external command.
+//	   Any other builtin (read, mapfile, printf -v, getopts, declare, typeset, let, eval, ., source, trap, alias,
+//	   unalias, enable, builtin, hash, fc, bind, ...) and a reserved word used as a command name fail closed.
+//	P4 safe builtins and their argument rules: : true false echo pwd times cd kill umask exit return shift break
+//	   continue ulimit type (free arguments; measured: none of them evaluates an argument as arithmetic or code);
+//	   printf (a static first argument that is not an option other than --); test / [ (no -v; a computed word may
+//	   not stand where an operator could be, see testArgs); set (static options from a short list until the first
+//	   operand or --; posix, keyword, monitor and every unlisted option fail closed); shopt (-s/-u/-q of a short
+//	   list of glob options); unset (static plain names); wait (no -p; computed operands only after --);
+//	   command -v / -V; exec WITH a static command (the shell is replaced and reads nothing more; exec without a
+//	   command fails closed).
+//	P5 assignments (prefix, local / export / readonly): a plain name, no subscript, no array, and not a shell
+//	   variable the shell gives a meaning (denied: every variable bash 5.3 documents under "Shell Variables" and
+//	   every BASH* / COMP_* / READLINE_* name, PATH included; allowed: HOME TMPDIR CDPATH SHELL COLUMNS LINES PWD
+//	   OLDPWD; LANG / LC_* only as the prefix of an external command). local / export / readonly take no options.
+//	P6 function definitions: a plain name that is not a builtin or a reserved word; the body is checked as if it
+//	   ran where the shell's standard input is the script (P8).
+//	P7 [[ ]]: string, pattern, regex and file operators only; never -v and never the arithmetic -eq family.
+//	P8 standard input: when the script itself is read on stdin (sh < file, curl | sh), any command that reads stdin
+//	   consumes the rest of the script, so later text starts at a point the static parse did not see (measured:
+//	   `head -c 10 >/dev/null` before a `#xxxxxxxx echo hi |` comment line makes bash --posix run `echo hi | tr ..`
+//	   with the next line). A command that may read stdin (every external command except a short list that never
+//	   does: mkdir rmdir chmod chown chgrp touch basename dirname sleep uname mktemp realpath readlink id whoami
+//	   nproc printenv ls true false) is credited only where its stdin is NOT the shell's: a later element of a
+//	   pipeline, a here-document / here-string / <&- redirection, or a background command (stdin /dev/null without
+//	   job control). A `< file` redirection does not count (the file can be a committed symlink to /dev/stdin).
+//	   rm is on the list only with static -r/-R/-f/-v/-d options and every computed operand after `--` (rm -i reads).
+//	P9 redirections: numeric file descriptors only (no {var}); <& only to close (<&-).
+//
+// Stated limits: the subset is a claim about bash 5.3 and dash, measured against them (tests/
+// units_runtime_grammar_census.py and the r13 adversarial census); the external no-stdin list is a claim about the
+// usual GNU / busybox programs and about PATH (PATH is denied in the file; an inherited PATH, exported functions
+// and a non-UTF-8 multibyte locale belong to the runner's environment, not to the file); a script that rewrites
+// its own file at run time is not modelled.
+
+// denyNames (P5): every variable bash 5.3 documents under "Shell Variables" (bash.1, measured 2026-11-04: 112
+// names), plus PATH; minus the allowed names below. A name with a BASH, COMP_ or READLINE_ prefix is denied too.
+var denyNames = setOf("_ auto_resume BASH BASH_ALIASES BASH_ARGC BASH_ARGV BASH_ARGV0 BASH_CMDS BASH_COMMAND " +
+	"BASH_COMPAT BASH_ENV BASH_EXECUTION_STRING BASH_LINENO BASH_LOADABLES_PATH BASH_MONOSECONDS BASHOPTS BASHPID " +
+	"BASH_REMATCH BASH_SOURCE BASH_SUBSHELL BASH_TRAPSIG BASH_VERSINFO BASH_VERSION BASH_XTRACEFD CHILD_MAX " +
+	"COMP_CWORD COMP_KEY COMP_LINE COMP_POINT COMPREPLY COMP_TYPE COMP_WORDBREAKS COMP_WORDS COPROC DIRSTACK EMACS " +
+	"ENV EPOCHREALTIME EPOCHSECONDS EUID EXECIGNORE FCEDIT FIGNORE FUNCNAME FUNCNEST GLOBIGNORE GLOBSORT GROUPS " +
+	"histchars HISTCMD HISTCONTROL HISTFILE HISTFILESIZE HISTIGNORE HISTSIZE HISTTIMEFORMAT HOSTFILE HOSTNAME " +
+	"HOSTTYPE IFS IGNOREEOF INPUTRC INSIDE_EMACS LINENO MACHTYPE MAIL MAILCHECK MAILPATH MAPFILE OPTARG OPTERR " +
+	"OPTIND OSTYPE PATH PIPESTATUS POSIXLY_CORRECT PPID PROMPT_COMMAND PROMPT_DIRTRIM PS0 PS1 PS2 PS3 PS4 " +
+	"RANDOM READLINE_ARGUMENT READLINE_LINE READLINE_MARK READLINE_POINT REPLY SECONDS SHELLOPTS SHLVL SRANDOM " +
+	"TIMEFORMAT TMOUT UID TERM")
+
+// allowNames: documented variables an assignment to which cannot run code or change how the shell reads text
+var allowNames = setOf("HOME TMPDIR CDPATH SHELL COLUMNS LINES PWD OLDPWD")
+
+// shellWords: bash 5.3 builtins (compgen -b), dash builtins, and reserved words (compgen -k)
+var shellWords = setOf(". : [ alias bg bind break builtin caller cd chdir command compgen complete compopt continue " +
+	"declare dirs disown echo enable eval exec exit export false fc fg getopts hash help history jobs kill let " +
+	"local logout mapfile popd printf pushd pwd read readarray readonly return set shift shopt source suspend test " +
+	"times trap true type typeset ulimit umask unalias unset wait " +
+	"if then else elif fi case esac for select while until do done in function time { } ! [[ ]] coproc")
+
+// freeBuiltins (P4): builtins whose arguments are free (measured with a funsub needle: no argument is evaluated
+// as arithmetic or code, and none reads stdin)
+var freeBuiltins = setOf(": true false echo pwd times cd kill umask exit return shift break continue ulimit type")
+
+// noStdinExternals (P8): external programs that do not read their standard input whatever their arguments
+var noStdinExternals = setOf("mkdir rmdir chmod chown chgrp touch basename dirname sleep uname mktemp realpath " +
+	"readlink id whoami nproc printenv ls true false")
+
+// setLettersOK / setOptsOK / shoptOK (P4)
+const setLettersOK = "euxvfCabhnpTEBt"
+
+var setOptsOK = setOf("errexit nounset xtrace verbose noglob noclobber allexport pipefail errtrace functrace " +
+	"hashall braceexpand noexec physical notify")
+var shoptOK = setOf("nullglob failglob dotglob globstar nocaseglob nocasematch inherit_errexit lastpipe")
+
+// testBinOK: binary operators of test / [ (none evaluates an operand as code, measured)
+var testBinOK = setOf("= == != < > -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o")
+
+// nodeKindsOK: every node type the subset admits (the second pass rejects any other, P1)
+var nodeKindsOK = setOf("File Stmt Comment CallExpr Assign Word Lit SglQuoted DblQuoted ParamExp " +
+	"CmdSubst Redirect BinaryCmd IfClause WhileClause ForClause WordIter CaseClause CaseItem Block Subshell " +
+	"FuncDecl TestClause BinaryTest UnaryTest ParenTest DeclClause TimeClause")
+
+func setOf(s string) map[string]bool {
+	m := map[string]bool{}
+	for _, w := range strings.Fields(s) {
+		m[w] = true
+	}
+	return m
+}
+
+func ident(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, ch := range s {
+		if !(ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (i > 0 && ch >= '0' && ch <= '9')) {
+			return false
 		}
+	}
+	return true
+}
+
+func funcName(s string) bool {
+	return ident(strings.ReplaceAll(s, "-", "_")) && !strings.HasPrefix(s, "-")
+}
+
+// denied (P5): an assignment to this name is not in the subset
+func denied(name string, prefixOfExternal bool) bool {
+	if allowNames[name] {
+		return false
+	}
+	if name == "LANG" || strings.HasPrefix(name, "LC_") {
+		return !prefixOfExternal
+	}
+	return denyNames[name] || strings.HasPrefix(name, "BASH") || strings.HasPrefix(name, "COMP_") ||
+		strings.HasPrefix(name, "READLINE_")
+}
+
+type checker struct {
+	lang   syntax.LangVariant
+	defIdx map[string]int // name -> index (in File.Stmts) of its first top-level definition
+	at     int            // index of the top-level statement being checked
+	inBody bool           // checking the body of the function defined at index at
+	why    string
+}
+
+// isFunc: a call of name runs a function defined in the file. Only top-level, unconditional definitions count
+// (P6); a call made before the definition has run finds a PATH program of the same name instead, so it is an
+// external command for P8.
+func (c *checker) isFunc(name string) bool {
+	i, ok := c.defIdx[name]
+	return ok && (i < c.at || (c.inBody && i <= c.at))
+}
+
+func (c *checker) fail(n syntax.Node, what string) {
+	if c.why != "" {
+		return
+	}
+	ln := uint(0)
+	if n != nil && n.Pos().IsValid() {
+		ln = n.Pos().Line()
+	}
+	c.why = fmt.Sprintf("line %d: %s (outside the r13 positive subset: not modelled)", ln, what)
+}
+
+func kind(n syntax.Node) string {
+	return strings.TrimPrefix(fmt.Sprintf("%T", n), "*syntax.")
+}
+
+func (c *checker) stmts(ss []*syntax.Stmt, stdin bool) {
+	for _, s := range ss {
+		c.stmt(s, stdin)
+	}
+}
+
+// inputAway (P8): the redirection gives the command a standard input that is not the shell's
+func inputAway(r *syntax.Redirect) bool {
+	if r.N != nil && r.N.Value != "0" {
+		return false
+	}
+	switch r.Op {
+	case syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
 		return true
-	})
-	return buf.String()
+	case syntax.DplIn:
+		v, ok := static(r.Word)
+		return ok && v == "-"
+	}
+	return false
 }
 
-// code checks a text that the shell will run in the current shell (a static eval argument, a static trap action)
-// by the same rules, parsed in the checker's dialect.
-func (c *checker) code(n syntax.Node, text, what string) {
-	if c.depth >= maxCodeDepth {
-		c.note(n, what+" nested deeper than the checked depth")
-		return
-	}
-	f, err := syntax.NewParser(syntax.Variant(c.lang), syntax.KeepComments(false)).Parse(strings.NewReader(text), "")
-	if err != nil {
-		c.note(n, what+" whose text does not parse")
-		return
-	}
-	sub := &checker{lang: c.lang, depth: c.depth + 1}
-	sub.file(f)
-	if sub.why != "" {
-		c.note(n, what+": "+sub.why)
-	}
-}
-
-// commandWords: the command name and the arguments that follow it, after the shell-builtin wrappers (command,
-// builtin and their options) and the exec-style wrappers (their options and VAR=val operands). ok=false when a
-// command word is not static (R1).
-func (c *checker) commandWords(x *syntax.CallExpr) (string, []*syntax.Word, bool) {
-	args := x.Args
-	for len(args) > 0 {
-		name, ok := static(args[0])
-		if !ok {
-			c.note(args[0], "a dynamically computed command word")
-			return "", nil, false
-		}
-		if !shellWrappers[name] && !execWrappers[name] {
-			return name, args[1:], true
-		}
-		args = args[1:]
-		for len(args) > 0 {
-			o, ok := static(args[0])
-			if ok && name == "command" && strings.HasPrefix(o, "-") && strings.ContainsAny(o, "vV") {
-				return "", nil, true // command -v / -V only looks a name up; nothing runs
+func (c *checker) redirect(r *syntax.Redirect, stdin bool) {
+	if r.N != nil {
+		for _, ch := range r.N.Value {
+			if ch < '0' || ch > '9' {
+				c.fail(r, "a {variable} file-descriptor redirection")
+				return
 			}
-			if !ok {
-				if execWrappers[name] {
-					return name, args, true // a child process runs the computed operand: no effect on this shell
+		}
+	}
+	switch r.Op {
+	case syntax.RdrOut, syntax.AppOut, syntax.RdrIn, syntax.RdrInOut, syntax.DplOut, syntax.RdrClob,
+		syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc, syntax.RdrAll, syntax.AppAll:
+	case syntax.DplIn:
+		if v, ok := static(r.Word); !ok || v != "-" {
+			c.fail(r, "a <& redirection other than <&- (close)")
+			return
+		}
+	default:
+		c.fail(r, "the redirection operator "+r.Op.String())
+		return
+	}
+	if r.Word != nil {
+		c.word(r.Word, stdin)
+	}
+	if r.Hdoc != nil {
+		c.word(r.Hdoc, stdin)
+	}
+}
+
+func (c *checker) stmt(s *syntax.Stmt, stdin bool) {
+	if s.Coprocess || s.Disown {
+		c.fail(s, "a coprocess or disown terminator")
+		return
+	}
+	in := stdin
+	if s.Background {
+		in = false
+	}
+	for _, r := range s.Redirs {
+		c.redirect(r, stdin)
+		if inputAway(r) {
+			in = false
+		}
+	}
+	c.command(s.Cmd, in, stdin)
+}
+
+func (c *checker) command(cmd syntax.Command, in, outer bool) {
+	switch x := cmd.(type) {
+	case nil:
+	case *syntax.CallExpr:
+		c.call(x, in, outer)
+	case *syntax.IfClause:
+		for ic := x; ic != nil; ic = ic.Else {
+			c.stmts(ic.Cond, in)
+			c.stmts(ic.Then, in)
+		}
+	case *syntax.WhileClause:
+		c.stmts(x.Cond, in)
+		c.stmts(x.Do, in)
+	case *syntax.ForClause:
+		wi, ok := x.Loop.(*syntax.WordIter)
+		if x.Select || !ok {
+			c.fail(x, "a select or arithmetic for loop")
+			return
+		}
+		if wi.Name == nil || !ident(wi.Name.Value) || denied(wi.Name.Value, false) {
+			c.fail(x, "a for loop over a name outside P5")
+			return
+		}
+		for _, w := range wi.Items {
+			c.word(w, in)
+		}
+		c.stmts(x.Do, in)
+	case *syntax.CaseClause:
+		c.word(x.Word, in)
+		for _, it := range x.Items {
+			for _, p := range it.Patterns {
+				c.word(p, in)
+			}
+			c.stmts(it.Stmts, in)
+		}
+	case *syntax.Block:
+		c.stmts(x.Stmts, in)
+	case *syntax.Subshell:
+		c.stmts(x.Stmts, in)
+	case *syntax.BinaryCmd:
+		switch x.Op {
+		case syntax.AndStmt, syntax.OrStmt:
+			c.stmt(x.X, in)
+			c.stmt(x.Y, in)
+		case syntax.Pipe, syntax.PipeAll:
+			c.stmt(x.X, in)
+			c.stmt(x.Y, false) // a later pipeline element reads the pipe
+		default:
+			c.fail(x, "the list operator "+x.Op.String())
+		}
+	case *syntax.FuncDecl:
+		c.fail(x, "a function defined inside another statement (only top-level definitions are in the subset)")
+	case *syntax.TestClause:
+		c.testExpr(x.X, in)
+	case *syntax.DeclClause:
+		if x.Variant == nil || !(x.Variant.Value == "local" || x.Variant.Value == "export" ||
+			x.Variant.Value == "readonly") {
+			c.fail(x, "a declaration builtin other than local / export / readonly")
+			return
+		}
+		for _, a := range x.Args {
+			if a.Naked && a.Name == nil {
+				c.fail(x, "a "+x.Variant.Value+" with an option or a computed name")
+				return
+			}
+			c.assign(a, outer, false)
+		}
+	case *syntax.TimeClause:
+		if x.Stmt != nil {
+			c.stmt(x.Stmt, in)
+		}
+	default:
+		c.fail(cmd, "a "+kind(cmd)+" command")
+	}
+}
+
+func (c *checker) assign(a *syntax.Assign, stdin bool, prefixOfExternal bool) {
+	if a.Name == nil || a.Index != nil || a.Array != nil || !ident(a.Name.Value) {
+		c.fail(a, "an assignment that is not to a plain name")
+		return
+	}
+	if denied(a.Name.Value, prefixOfExternal) {
+		c.fail(a, "an assignment to the shell variable "+a.Name.Value)
+		return
+	}
+	if a.Value != nil {
+		c.word(a.Value, stdin)
+	}
+}
+
+func (c *checker) word(w *syntax.Word, stdin bool) {
+	if w == nil {
+		return
+	}
+	c.parts(w.Parts, stdin)
+}
+
+func (c *checker) parts(ps []syntax.WordPart, stdin bool) {
+	for _, p := range ps {
+		switch x := p.(type) {
+		case *syntax.Lit, *syntax.SglQuoted:
+		case *syntax.DblQuoted:
+			if x.Dollar {
+				c.fail(x, "a $\"..\" locale string")
+				return
+			}
+			c.parts(x.Parts, stdin)
+		case *syntax.ParamExp:
+			c.param(x, stdin)
+		case *syntax.CmdSubst:
+			if x.Backquotes || x.TempFile || x.ReplyVar {
+				c.fail(x, "a backquote or function substitution")
+				return
+			}
+			c.stmts(x.Stmts, stdin)
+		default:
+			c.fail(p, "a "+kind(p)+" word part")
+			return
+		}
+	}
+}
+
+func (c *checker) param(x *syntax.ParamExp, stdin bool) {
+	if x.Param == nil || x.Flags != nil || x.Excl || x.Length || x.Width || x.IsSet || x.NestedParam != nil ||
+		!literalIndex(x.Index) || len(x.Modifiers) > 0 || x.Slice != nil || x.Repl != nil || x.Names != 0 {
+		c.fail(x, "a parameter expansion other than $name / ${name} / ${name<op>word} (P2)")
+		return
+	}
+	p := x.Param.Value
+	if !ident(p) && !(len(p) == 1 && strings.Contains("@*#?$!-0123456789", p)) && !allDigits(p) {
+		c.fail(x, "a parameter expansion of "+p)
+		return
+	}
+	if x.Exp != nil {
+		switch x.Exp.Op {
+		case syntax.AlternateUnset, syntax.AlternateUnsetOrNull, syntax.DefaultUnset, syntax.DefaultUnsetOrNull,
+			syntax.ErrorUnset, syntax.ErrorUnsetOrNull, syntax.RemSmallSuffix, syntax.RemLargeSuffix,
+			syntax.RemSmallPrefix, syntax.RemLargePrefix:
+			c.word(x.Exp.Word, stdin)
+		default:
+			c.fail(x, "the parameter expansion operator "+x.Exp.Op.String())
+		}
+	}
+}
+
+// literalIndex: no subscript, or a subscript that is a decimal literal, @ or * (${BASH_SOURCE[0]}): the shell
+// evaluates the literal itself, never a variable's value (P2)
+func literalIndex(e syntax.ArithmExpr) bool {
+	if e == nil {
+		return true
+	}
+	w, ok := e.(*syntax.Word)
+	if !ok || len(w.Parts) != 1 {
+		return false
+	}
+	l, ok := w.Parts[0].(*syntax.Lit)
+	return ok && (allDigits(l.Value) || l.Value == "@" || l.Value == "*")
+}
+
+func allDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *checker) testExpr(e syntax.TestExpr, stdin bool) {
+	switch x := e.(type) {
+	case *syntax.Word:
+		c.word(x, stdin)
+	case *syntax.BinaryTest:
+		switch x.Op {
+		case syntax.TsReMatch, syntax.TsNewer, syntax.TsOlder, syntax.TsDevIno, syntax.AndTest, syntax.OrTest,
+			syntax.TsMatchShort, syntax.TsMatch, syntax.TsNoMatch, syntax.TsBefore, syntax.TsAfter:
+		default:
+			c.fail(x, "the [[ ]] operator "+x.Op.String()+" (arithmetic)")
+			return
+		}
+		c.testExpr(x.X, stdin)
+		c.testExpr(x.Y, stdin)
+	case *syntax.UnaryTest:
+		if x.Op == syntax.TsVarSet || x.Op == syntax.TsRefVar {
+			c.fail(x, "the [[ ]] operator "+x.Op.String()+" (a name operand)")
+			return
+		}
+		c.testExpr(x.X, stdin)
+	case *syntax.ParenTest:
+		c.testExpr(x.X, stdin)
+	default:
+		c.fail(e, "a "+kind(e)+" in [[ ]]")
+	}
+}
+
+// wordShape: "static" (value known), "one" (exactly one field whatever its value), "many" (field count unknown)
+func wordShape(w *syntax.Word) (string, string) {
+	if v, ok := static(w); ok {
+		return "static", v
+	}
+	if len(w.Parts) == 1 {
+		if dq, ok := w.Parts[0].(*syntax.DblQuoted); ok {
+			for _, p := range dq.Parts {
+				if pe, ok := p.(*syntax.ParamExp); ok && pe.Param != nil &&
+					(pe.Param.Value == "@" || pe.Param.Value == "*") {
+					return "many", ""
 				}
-				c.note(args[0], "a dynamically computed operand of "+name)
-				return "", nil, false
 			}
-			if o == "--" {
-				args = args[1:]
-				break
-			}
-			if strings.HasPrefix(o, "-") || (execWrappers[name] && strings.Contains(o, "=") && !strings.HasPrefix(o, "=")) {
-				args = args[1:]
-				continue
-			}
-			break
+			return "one", ""
 		}
+	}
+	return "many", ""
+}
+
+// testArgs (P4): test / [ with no -v, and no computed word where the test grammar could read an operator
+func (c *checker) testArgs(x syntax.Node, args []*syntax.Word, bracket bool) {
+	if bracket {
 		if len(args) == 0 {
-			return name, nil, true
+			c.fail(x, "a [ without its closing ]")
+			return
+		}
+		if v, ok := static(args[len(args)-1]); !ok || v != "]" {
+			c.fail(x, "a [ whose last word is not a static ]")
+			return
+		}
+		args = args[:len(args)-1]
+	}
+	shape := make([]string, len(args))
+	val := make([]string, len(args))
+	for i, a := range args {
+		shape[i], val[i] = wordShape(a)
+		if shape[i] == "many" {
+			c.fail(x, "a test with a word whose number of fields is not known")
+			return
+		}
+		if shape[i] == "static" && val[i] == "-v" {
+			c.fail(x, "a test -v (a name operand)")
+			return
 		}
 	}
-	return "", nil, true
-}
-
-func (c *checker) staticAll(ws []*syntax.Word) ([]string, bool) {
-	out := make([]string, 0, len(ws))
-	for _, w := range ws {
-		v, ok := static(w)
-		if !ok {
-			return nil, false
+	st := func(i int) bool { return shape[i] == "static" }
+	var two func(i int) bool
+	two = func(i int) bool { return st(i) } // the operator position is static and not -v
+	switch n := len(args); {
+	case n <= 1:
+	case n == 2:
+		if !two(0) {
+			c.fail(x, "a two-word test whose first word is computed")
 		}
-		out = append(out, v)
+	case n == 3:
+		switch {
+		case st(1) && testBinOK[val[1]]:
+		case st(0) && val[0] == "!" && two(1):
+		case st(0) && val[0] == "(" && st(2) && val[2] == ")":
+		default:
+			c.fail(x, "a three-word test whose operator position is computed")
+		}
+	default:
+		for i := range args {
+			if !st(i) {
+				c.fail(x, "a test of four or more words with a computed word")
+				return
+			}
+		}
 	}
-	return out, true
 }
 
-func (c *checker) checkSet(x syntax.Node, args []*syntax.Word, name string) {
+func (c *checker) setArgs(x syntax.Node, args []*syntax.Word) {
 	for i := 0; i < len(args); i++ {
 		v, ok := static(args[i])
 		if !ok {
-			c.note(x, "a "+name+" with a computed option")
+			c.fail(x, "a set with a computed word before its operands")
 			return
 		}
 		if v == "--" || v == "-" || !(strings.HasPrefix(v, "-") || strings.HasPrefix(v, "+")) {
-			return // operands (positional parameters) follow
+			return
 		}
 		for _, l := range v[1:] {
 			if l == 'o' {
 				if i+1 >= len(args) {
-					return // `set -o` / `set +o` alone prints
+					return
 				}
 				i++
 				o, ok := static(args[i])
 				if !ok || !setOptsOK[o] {
-					c.note(x, "a "+name+" -o naming a not allowlisted option ("+o+"; posix and alias-related options are refused)")
+					c.fail(x, "a set -o naming an option outside the subset ("+o+")")
 					return
 				}
-			} else if !strings.ContainsRune(setLetters, l) {
-				c.note(x, fmt.Sprintf("a %s option -%c that is not allowlisted", name, l))
+			} else if !strings.ContainsRune(setLettersOK, l) {
+				c.fail(x, fmt.Sprintf("a set option -%c outside the subset", l))
 				return
 			}
 		}
 	}
 }
 
-func (c *checker) checkShopt(x syntax.Node, args []*syntax.Word) {
-	oMode := false
+func (c *checker) shoptArgs(x syntax.Node, args []*syntax.Word) {
 	for _, a := range args {
 		v, ok := static(a)
 		if !ok {
-			c.note(x, "a shopt with a computed option name")
+			c.fail(x, "a shopt with a computed word")
 			return
 		}
 		if strings.HasPrefix(v, "-") {
-			if strings.Contains(v, "o") {
-				oMode = true
-			}
-			for _, l := range v[1:] {
-				if !strings.ContainsRune("supqo", l) {
-					c.note(x, "a shopt flag that is not allowlisted")
-					return
-				}
+			if len(v) < 2 || strings.Trim(v[1:], "supq") != "" {
+				c.fail(x, "a shopt flag outside -s -u -q -p")
+				return
 			}
 			continue
 		}
-		if (oMode && !setOptsOK[v]) || (!oMode && !shoptOK[v]) {
-			c.note(x, "a shopt naming a not allowlisted option ("+v+"; posix and expand_aliases are refused)")
+		if !shoptOK[v] {
+			c.fail(x, "a shopt option outside the subset ("+v+")")
 			return
 		}
 	}
 }
 
-// signalsAllExit: every signal word is static and names the EXIT pseudo-signal
-func signalsAllExit(ws []*syntax.Word) (bool, bool) {
-	if len(ws) == 0 {
-		return false, true
-	}
-	for _, w := range ws {
+// declArgs: local / export / readonly as a simple command (the POSIX parse): NAME or NAME=word, no options
+func (c *checker) declArgs(x syntax.Node, name string, args []*syntax.Word, stdin bool) {
+	for _, w := range args {
+		if lit, ok := w.Parts[0].(*syntax.Lit); ok && strings.Contains(lit.Value, "=") {
+			n := lit.Value[:strings.IndexByte(lit.Value, '=')]
+			if !ident(n) || denied(n, false) {
+				c.fail(x, "a "+name+" of a name outside P5 ("+n+")")
+				return
+			}
+			c.parts(w.Parts[1:], stdin)
+			continue
+		}
 		v, ok := static(w)
+		if !ok || !ident(v) || denied(v, false) {
+			c.fail(x, "a "+name+" with an option, a computed name or a name outside P5")
+			return
+		}
+	}
+}
+
+func (c *checker) call(x *syntax.CallExpr, in, outer bool) {
+	if len(x.Args) == 0 {
+		for _, a := range x.Assigns {
+			c.assign(a, outer, false)
+		}
+		return
+	}
+	name, ok := static(x.Args[0])
+	if !ok || name == "" {
+		c.fail(x.Args[0], "a command word that is not a static literal")
+		return
+	}
+	args := x.Args[1:]
+	external := !c.isFunc(name) && !shellWords[name]
+	for _, a := range x.Assigns {
+		c.assign(a, outer, external)
+	}
+	for _, w := range args {
+		c.word(w, outer)
+	}
+	if c.why != "" {
+		return
+	}
+	switch {
+	case c.isFunc(name):
+	case freeBuiltins[name]:
+	case name == "printf":
+		if len(args) > 0 {
+			v, ok := static(args[0])
+			if !ok || (strings.HasPrefix(v, "-") && v != "--") {
+				c.fail(x, "a printf whose first word is computed or an option (printf -v)")
+			}
+		}
+	case name == "test" || name == "[":
+		c.testArgs(x, args, name == "[")
+	case name == "set":
+		c.setArgs(x, args)
+	case name == "shopt":
+		c.shoptArgs(x, args)
+	case name == "unset":
+		for _, a := range args {
+			v, ok := static(a)
+			_, fn := c.defIdx[v]
+			if !ok || fn || !(v == "-v" || ident(v)) {
+				c.fail(x, "an unset of a computed, subscripted or function name, or unset -f")
+				return
+			}
+		}
+	case name == "wait":
+		dd := false
+		for _, a := range args {
+			v, ok := static(a)
+			switch {
+			case ok && v == "--":
+				dd = true
+			case !ok && !dd:
+				c.fail(x, "a wait with a computed word before --")
+				return
+			case ok && !dd && strings.HasPrefix(v, "-") && strings.Contains(v, "p"):
+				c.fail(x, "a wait -p (a name operand)")
+				return
+			}
+		}
+	case name == "command":
+		if len(args) == 0 {
+			return
+		}
+		if v, ok := static(args[0]); !ok || (v != "-v" && v != "-V") {
+			c.fail(x, "a command other than command -v / -V")
+		}
+	case name == "exec":
+		if len(args) == 0 {
+			c.fail(x, "an exec without a command (it changes the shell's own file descriptors)")
+			return
+		}
+		if v, ok := static(args[0]); !ok || strings.HasPrefix(v, "-") || shellWords[v] {
+			c.fail(x, "an exec whose command is computed, an option or a builtin")
+		}
+	case name == "local" || name == "export" || name == "readonly":
+		c.declArgs(x, name, args, outer)
+	case shellWords[name]:
+		c.fail(x, "the builtin or reserved word "+name)
+	default:
+		if in && !c.noStdin(name, args) {
+			c.fail(x, "the command "+name+" may read the shell's standard input (the script, when it is read on stdin)")
+		}
+	}
+}
+
+// noStdin (P8): the external command reads no standard input whatever its arguments
+func (c *checker) noStdin(name string, args []*syntax.Word) bool {
+	if noStdinExternals[name] {
+		return true
+	}
+	if name != "rm" {
+		return false
+	}
+	for _, a := range args {
+		v, ok := static(a)
 		if !ok {
-			return false, false
+			return false // a computed operand before -- could be -i
 		}
-		if v != "EXIT" && v != "0" && v != "SIGEXIT" {
-			return false, true
+		if v == "--" {
+			return true
 		}
-	}
-	return true, true
-}
-
-func (c *checker) checkTrap(x syntax.Node, args []*syntax.Word) {
-	if len(args) > 0 {
-		if v, ok := static(args[0]); ok && v == "--" {
-			args = args[1:]
-		} else if ok && strings.HasPrefix(v, "-") && len(v) > 1 {
-			return // -p / -l / -P list
-		}
-	}
-	if len(args) < 2 {
-		return // no action: prints, or resets one signal
-	}
-	act, sigs := args[0], args[1:]
-	allExit, sigStatic := signalsAllExit(sigs)
-	if !sigStatic {
-		c.note(x, "a trap with a computed signal")
-		return
-	}
-	if allExit {
-		return // the EXIT action runs after the last line of the file was read
-	}
-	v, ok := static(act)
-	if !ok {
-		c.note(x, "a trap whose action is computed")
-		return
-	}
-	if v == "-" || v == "" {
-		return
-	}
-	c.code(x, v, "a trap action")
-}
-
-// nameSinks (R3): the operands of read / printf -v / mapfile / getopts that name a variable must be static
-func (c *checker) checkNameSink(x syntax.Node, name string, args []*syntax.Word) {
-	valueOpts := map[string]string{"read": "adinNptu", "mapfile": "dnOscuC", "readarray": "dnOscuC"}
-	switch name {
-	case "printf":
-		if len(args) >= 2 {
-			if v, ok := static(args[0]); ok && v == "-v" {
-				if _, ok := static(args[1]); !ok {
-					c.note(x, "a printf -v with a computed variable name")
-				}
-			} else if !ok {
-				c.note(x, "a printf with a computed first argument (could be -v)")
+		if strings.HasPrefix(v, "--") {
+			if v != "--force" && v != "--recursive" && v != "--verbose" && v != "--dir" {
+				return false
 			}
-		}
-	case "getopts":
-		if len(args) >= 2 {
-			if _, ok := static(args[1]); !ok {
-				c.note(x, "a getopts with a computed variable name")
-			}
-		}
-	case "read", "mapfile", "readarray":
-		vo := valueOpts[name]
-		for i := 0; i < len(args); i++ {
-			v, ok := static(args[i])
-			if !ok {
-				c.note(x, "a "+name+" with a computed variable name or option")
-				return
-			}
-			if v == "--" {
-				continue
-			}
-			if strings.HasPrefix(v, "-") && len(v) > 1 {
-				for k, l := range v[1:] {
-					if (name == "mapfile" || name == "readarray") && l == 'C' {
-						c.note(x, "a "+name+" -C callback (runs code)")
-						return
-					}
-					if strings.ContainsRune(vo, l) {
-						if k == len(v)-2 { // the option's value is the next argument
-							i++
-							if l == 'a' && i < len(args) {
-								if _, ok := static(args[i]); !ok {
-									c.note(x, "a read -a with a computed array name")
-									return
-								}
-							}
-						}
-						break
-					}
-				}
-			}
-		}
-	}
-}
-
-func (c *checker) checkDecl(x *syntax.DeclClause) {
-	for _, a := range x.Args {
-		if a.Naked && a.Name == nil && a.Value != nil {
-			v, ok := static(a.Value)
-			if !ok {
-				c.note(x, "a "+x.Variant.Value+" with a computed name or flag")
-				return
-			}
-			if strings.HasPrefix(v, "-") && strings.Contains(v, "n") {
-				c.note(x, "a "+x.Variant.Value+" -n (nameref)")
-				return
-			}
-		}
-	}
-	if x.Variant.Value == "nameref" {
-		c.note(x, "a nameref declaration")
-	}
-}
-
-func (c *checker) file(f *syntax.File) {
-	syntax.Walk(f, func(node syntax.Node) bool {
-		if node == nil || c.why != "" {
+		} else if strings.HasPrefix(v, "-") && strings.Trim(v[1:], "rRfvd") != "" {
 			return false
 		}
-		switch x := node.(type) {
-		case *syntax.Word:
-			t := tokenText(x)
-			for _, tok := range anywhereTokens {
-				if strings.Contains(t, tok) {
-					c.note(x, "the word "+tok)
-				}
-			}
-		case *syntax.Assign:
-			if x.Name != nil && assignSinks[x.Name.Value] {
-				c.note(x, "an assignment to "+x.Name.Value)
-			}
-			if x.Value != nil {
-				if t, ok := static(x.Value); ok && (t == "alias" || t == "unalias") {
-					c.note(x, "a variable set to the word "+t)
-				}
-			}
-		case *syntax.ParamExp:
-			if x.Exp != nil {
-				switch x.Exp.Op {
-				case syntax.OtherParamOps:
-					if x.Exp.Word != nil {
-						if v, _ := static(x.Exp.Word); strings.Contains(v, "P") {
-							c.note(x, "a prompt expansion ${x@P}")
-						}
-					}
-				case syntax.AssignUnset, syntax.AssignUnsetOrNull:
-					if x.Param != nil && assignSinks[x.Param.Value] {
-						c.note(x, "an assignment to "+x.Param.Value)
-					}
-				}
-			}
-		case *syntax.DeclClause:
-			c.checkDecl(x)
-		case *syntax.Stmt:
-			if ce, ok := x.Cmd.(*syntax.CallExpr); ok && len(ce.Args) == 1 {
-				if v, ok := static(ce.Args[0]); ok && v == "exec" {
-					for _, r := range x.Redirs {
-						in := r.Op == syntax.RdrIn || r.Op == syntax.RdrInOut || r.Op == syntax.DplIn ||
-							r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc || r.Op == syntax.WordHdoc
-						if in && (r.N == nil || r.N.Value == "0") {
-							c.note(x, "an exec that redirects the shell's standard input")
-						}
-					}
-				}
-			}
-		case *syntax.CallExpr:
-			if len(x.Args) == 0 {
-				return true
-			}
-			name, args, ok := c.commandWords(x)
-			if !ok || name == "" {
-				return true
-			}
-			switch {
-			case codeBuiltins[name]:
-				c.note(x, "an "+name+" command (alias state or code from outside the file)")
-			case name == "eval":
-				vs, ok := c.staticAll(args)
-				if !ok {
-					c.note(x, "an eval with a computed argument")
-				} else {
-					c.code(x, strings.Join(vs, " "), "an eval")
-				}
-			case name == "trap":
-				c.checkTrap(x, args)
-			case name == "set":
-				c.checkSet(x, args, "set")
-			case name == "shopt":
-				c.checkShopt(x, args)
-			case name == "declare" || name == "typeset" || name == "local" || name == "export" || name == "readonly":
-				for _, a := range args {
-					v, ok := static(a)
-					if !ok {
-						c.note(x, "a "+name+" with a computed name or flag")
-						break
-					}
-					if strings.HasPrefix(v, "-") && strings.Contains(v, "n") {
-						c.note(x, "a "+name+" -n (nameref)")
-						break
-					}
-					if i := strings.IndexByte(v, '='); i > 0 && assignSinks[strings.SplitN(v[:i], "[", 2)[0]] {
-						c.note(x, "an assignment to "+v[:i])
-						break
-					}
-					if assignSinks[v] {
-						c.note(x, "a "+name+" of "+v)
-						break
-					}
-				}
-			default:
-				c.checkNameSink(x, name, args)
-				for _, a := range args {
-					if v, ok := static(a); ok && (name == "unset" || name == "export") && assignSinks[v] {
-						c.note(x, "a "+name+" of "+v)
-					}
-				}
-			}
-		}
-		return true
-	})
+	}
+	return true
 }
 
-// unmodelled: "" when the file uses no runtime grammar modifier (r12 rules R1-R5 above), else the first reason.
+// unmodelled: "" when the file is inside the r13 positive subset (P1-P9 above), else the first reason.
 func unmodelled(f *syntax.File, lang syntax.LangVariant) string {
-	c := &checker{lang: lang}
-	c.file(f)
+	if lang != syntax.LangPOSIX && lang != syntax.LangBash {
+		return "line 0: the mksh dialect (outside the r13 positive subset: not modelled)"
+	}
+	c := &checker{lang: lang, defIdx: map[string]int{}}
+	for i, s := range f.Stmts {
+		if fd, ok := s.Cmd.(*syntax.FuncDecl); ok && fd.Name != nil {
+			if _, seen := c.defIdx[fd.Name.Value]; !seen {
+				c.defIdx[fd.Name.Value] = i
+			}
+		}
+	}
+	for i, s := range f.Stmts {
+		c.at = i
+		fd, ok := s.Cmd.(*syntax.FuncDecl)
+		if !ok {
+			c.stmt(s, true)
+			continue
+		}
+		if fd.Name == nil || len(fd.Names) > 0 || !funcName(fd.Name.Value) || shellWords[fd.Name.Value] {
+			c.fail(fd, "a function whose name is not a plain name or shadows a builtin or reserved word")
+		} else if len(s.Redirs) > 0 || s.Background || s.Negated || s.Coprocess || s.Disown {
+			c.fail(fd, "a function definition with redirections or a terminator other than ;")
+		}
+		c.inBody = true
+		c.stmt(fd.Body, true) // P6: the body may run where stdin is the script
+		c.inBody = false
+	}
+	if c.why != "" {
+		return c.why
+	}
+	syntax.Walk(f, func(n syntax.Node) bool { // P1 second pass: no node of a kind outside the subset anywhere
+		if n != nil && c.why == "" && !nodeKindsOK[kind(n)] {
+			c.fail(n, "a "+kind(n)+" node")
+		}
+		return c.why == ""
+	})
 	return c.why
 }
 

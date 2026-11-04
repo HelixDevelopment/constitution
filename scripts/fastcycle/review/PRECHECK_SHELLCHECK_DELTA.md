@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 10 |
+| Revision | 11 |
 | Created | 2026-10-13 |
 | Last modified | 2026-11-04 |
-| Status | proposed (ATM-1217 r12, review round 2: structural allowlist for the runtime grammar, git config neutralised, loud pin refusal; independent review owed); rule id `shellcheck-baseline-delta/9`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Status | proposed (ATM-1217 r13, review round 3: POSITIVE minimal subset for the units helper, gate-owned git dir for every git call; independent review owed); rule id `shellcheck-baseline-delta/9`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
 | Design | r10: the "Command units" and "Units helper" sections below (the r10 structural replacement); r3-r9: `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
@@ -204,8 +204,61 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
   whole class and closes every member it found, each with a control-needled
   test (the shell itself is run on the fragment and must show the
   disagreement or agreement the test assumes):
-  * **r12: the runtime grammar is an ALLOWLIST (replaces the r11 alias
-    blacklist).** dash and `bash --posix` (both can be `/bin/sh`) expand
+  * **r13 (review round 3, H1): a POSITIVE, MINIMAL credited subset
+    (replaces the r12 allowlist R1-R5).** Round 3 found 247 of 609 generated
+    scripts unsound under r12: bash re-reads DATA as code in the current shell
+    (arithmetic on a variable's value, a name operand's subscript, `PS4` under
+    `xtrace`), and bash 5.3 runs function substitution `${ cmd; }` there, so an
+    alias is defined without any alias command. A deny-list cannot close a
+    family it does not name, so r13 credits a file ONLY when every node of its
+    parse tree is in a small subset checked node kind by node kind
+    (`units_helper/main.go`, rules P1-P9); any other node kind, operator,
+    builtin, option or variable name exits 5 ("outside the r13 positive
+    subset"), and a node type the parser adds later fails closed (a second
+    pass rejects every type not listed). In short: no arithmetic of any kind,
+    no arrays or computed subscripts (only `${x[0]}` / `[@]` / `[*]` in an
+    expansion), no `${!x}` / `${#x}` / slices / replacements / `${x@..}` /
+    `${x:=w}`, no backquotes, no extended globs (`shopt -s extglob` is not on
+    the shopt list, and an extglob node fails closed), no command word that is
+    not a static literal, no builtin outside a short safe list (`read`,
+    `mapfile`, `printf -v`, `eval`, `.`, `source`, `trap`, `alias`, `declare`,
+    `let` ... all fail closed), no assignment to any variable bash documents
+    under "Shell Variables" (112 names, plus `PATH` and every `BASH*` /
+    `COMP_*` / `READLINE_*` name), and `exec` only with a static command
+    (`exec 0<f`, review mutant RM6, fails closed). New in r13 (P8): when the
+    script is itself read on stdin (`sh < file`, `curl | sh`), a command that
+    reads stdin consumes the rest of the script; measured: `head -c 10
+    >/dev/null` before a `#xxxxxxxx echo hi |` comment line makes `bash
+    --posix` run `echo hi | tr ...` joined with the next line. Every external
+    command except a short no-stdin list is therefore credited only where its
+    stdin is not the shell's (later pipeline element, here-document /
+    here-string / `<&-`, background).
+    **Proof (stated):** the round-3 reviewer corpus (609 scripts) and a new r13
+    adversarial census (932 scripts, `tests/units_r13_census.py`: stdin
+    consumers in five contexts and every builtin / expansion channel with
+    function-substitution, command-substitution and plain needles, run in dash
+    and `bash --posix` for POSIX and bash for bash, with a stub `curl` and
+    controls): r12 helper (901fa52) 247 and 259 unsound; r13 helper 0 and 0.
+    This is a generated pool, not a proof for every script.
+    **Mutants (r13):** the r12 deny-list mutants AL12-02..07/09..18, MR3,
+    MR3b and MR8 are RETIRED (their code is deleted); R13-01..17 target each
+    positive-subset rule, R13-H2a..c the gate-owned git dir. Review mutant RM7
+    (`POSIXLY_CORRECT` dropped from the denied names): no case was found where
+    crediting a `POSIXLY_CORRECT` assignment joins lines differently, so it is
+    probably equivalent for soundness (UNCONFIRMED); it is killed only by the
+    fail-closed policy cases r11-al13/al14 (mutant R13-RM7), not by a
+    demonstrated unsound credit.
+    **Cost, measured, plainly:** over the 1150 tracked `.sh` files of this
+    repository the r12 helper gave units for 471, the r13 helper for **70**
+    (6 %). 1077 files exit 5: 600 because they use a builtin outside the
+    subset (mostly `.` sourcing), 231 because a command may read the shell's
+    stdin, 105 arithmetic, 74 a `test` with an unknown field count. With so
+    little credit the baseline-delta rule saves almost nothing on this
+    repository; the operator's recorded fallback (abandon baseline-delta, keep
+    the whole-file rule) is the expected outcome of this review round, and
+    the rule stays OPT-IN and not activated.
+  * **r12 (superseded by r13): the runtime grammar was an ALLOWLIST
+    (replaced the r11 alias blacklist).** dash and `bash --posix` (both can be `/bin/sh`) expand
     aliases, and an alias ending in `|` or `&&` continues the command on the
     next line, which no static parser sees. r11 refused the ways to define an
     alias one by one; review r2 measured that a trap action, `printf -v`,
@@ -287,9 +340,8 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
     body line that only resembles the delimiter, `coproc`, a here-document
     inside `$( )`, `case` patterns with a leading `(`, a trailing `\` at end of
     file.
-  * **Scoped out, stated:** `shopt -s extglob` patterns (the parser accepts
-    them; without the `shopt` bash stops at them with a syntax error; the units
-    of a file that does enable extglob are not enumerated); aliases or
+  * **Scoped out, stated:** (r13: extglob patterns now fail closed, see
+    above); aliases or
     `POSIXLY_CORRECT` coming from the caller (`ENV`, `BASH_ENV`, the starting
     environment); r12: a computed `eval`, `.` / `source` and a computed command
     word (`$cmd`) are no longer scoped out -- they fail closed (R1, R2);
@@ -475,27 +527,45 @@ another timeout; it never reuses it.
   toolchain the stamp in the same user-owned directory is the only check, so a
   party that can write that directory can replace both. The pin itself lives in
   the repository and is only as trustworthy as the checkout.
-* r12 units: aliases or `POSIXLY_CORRECT` from outside the file (`ENV` /
-  `BASH_ENV` of the caller, the environment the script starts with), a script
-  that rewrites its own file while it runs, and `extglob` patterns are not
-  modelled. Inside the file the allowlist R1-R5 fails closed on every channel
-  the census enumerates; the census is a generated pool of 81 channels, not a
-  proof for every script. A file that breaks a rule gets no credit at all, and
-  that is now 672 of this repository's 1150 shell files (see "Command units").
-* git (r12, review G2): every git call of the gate and the builder pins
-  `core.fsmonitor=false`, `core.hooksPath=/dev/null`, `commit.gpgSign=false`,
-  `diff.external=`, `core.pager=cat`, `core.attributesFile=/dev/null` through
-  `GIT_CONFIG_COUNT` (wins over every config file) and sets `GIT_ATTR_SOURCE`
-  to the empty tree (no tracked `.gitattributes` selects a filter or driver;
-  needs git >= 2.40, measured on 2.53.0; the empty-tree id is the sha1 one, so a
-  sha256 repository fails closed). Not covered: a filter named by
-  `$GIT_DIR/info/attributes` together with a `filter.<name>.*` key in the same
-  local config (local machine state, never part of a commit); transport keys
-  (`core.sshCommand`, `credential.*`, `protocol.*`) are never reached because no
-  gate step talks to a remote. Tests R12-G2 (the real gate: marker empty,
-  verdict PASS) and R12-G2b/c/d (control: plain git runs the fsmonitor, a
-  post-checkout hook and a smudge filter; `_git_env` and the builder's own
-  exports run none).
+* r13 units: aliases, `POSIXLY_CORRECT`, exported functions, an inherited
+  `PATH` or a non-UTF-8 locale from OUTSIDE the file (`ENV` / `BASH_ENV` of the
+  caller, the environment the script starts with) and a script that rewrites
+  its own file while it runs are not modelled; the helper cannot see them. An
+  alias can only be defined inside the file through a node the subset refuses,
+  so aliases defined in the file are closed by construction, not by a list.
+  The no-stdin list of external programs is a claim about the usual GNU /
+  busybox programs. Inside the file the subset fails closed on every channel
+  the two censuses enumerate; the censuses are generated pools, not a proof.
+  A file outside the subset gets no credit at all: 1080 of this repository's
+  1150 shell files (see "Command units").
+* git (r13, review round 3 H2): no git call of the gate or the builder reads
+  the reviewed repository's git dir as a repository. `lib/precheck_common.py`
+  copies the DATA git needs (HEAD, refs, packed-refs, shallow, the index and
+  split-index files) into a fresh temporary directory, writes its own minimal
+  config there, borrows the objects read-only through
+  `objects/info/alternates`, and runs git with `GIT_DIR` / `GIT_WORK_TREE`
+  pointing at it from an environment built from nothing (`env -i`, `PATH`
+  only, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`, the empty tree
+  as attribute source, the r12 pins kept as a belt). The builder's worktree is
+  added from that directory, so the reviewed repository gets no worktree
+  registration either. The repository's config (and its include files),
+  hooks, `info/attributes`, `info/exclude` and `config.worktree` are never
+  opened by git. The one write is `snapshot`: it writes its new objects into
+  the reviewed repository's object store (`GIT_OBJECT_DIRECTORY`), as r12 did.
+  Fail closed: an unknown repository extension (other than `objectFormat`,
+  `worktreeConfig`, `preciousObjects`, `noop`) or a reftable repository stops
+  the build. Test `tests/test_precheck_gate_git_isolation.sh`: a hostile
+  fixture names a marker program for fsmonitor, smudge / clean / process
+  filters (in `info/attributes` and tracked `.gitattributes`), textconv,
+  `diff.external`, `gpg.program` with `log.showSignature` on signed commits,
+  pager, credential helper (also in an include file), `core.sshCommand`,
+  `core.alternateRefsCommand` and hooks; positive controls show plain git runs
+  each (pager and alternateRefsCommand have no control: git pages only a tty,
+  and alternateRefsCommand needs an alternate with refs); the builder on a
+  commit and on a snapshot runs zero; three paired mutants re-open the hole
+  and each runs at least one marker. RED on 901fa52: smudge, filter.process
+  and gpg ran. Not covered: `tower_detector_run.py` (not part of the gate or
+  the builder) still runs `git -C`.
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
   identity. The r8 census found one pair where only
   `fix.replacements[].precedence` differed; it was the command-unit class

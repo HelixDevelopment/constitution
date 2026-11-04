@@ -3,18 +3,19 @@
 
 Class under test: "runtime grammar modifiers the static parser does not model" -- anything that, at run time,
 defines an alias (or turns alias expansion on) in the CURRENT shell, so that a later line continues a command the
-parser split (`alias p='echo hi |'` then the lines `p` and `tr a-z A-Z` become ONE pipeline).
+parser split (`alias p='false &&'` then the lines `p` and `mkdir -p M` become ONE list; r12 used `echo hi |`
+and `tr a-z A-Z`, see AV below for why r13 changed the oracle).
 
-Each generated script is   <prelude> <channel> NEWLINE p NEWLINE tr a-z A-Z NEWLINE
+Each generated script is   <prelude> <channel> NEWLINE p NEWLINE mkdir -p M NEWLINE echo END NEWLINE
 and is run by the real shells of its dialect (posix: dash and bash --posix; bash: bash) with stdin `hello`.
-ORACLE: a shell prints HI  <=>  the runtime text joined the lines `p` and `tr ...` (the boundary moved).
+ORACLE (joined): a shell prints END and M is absent  <=>  the runtime text joined `p` and `mkdir` (boundary moved).
 HELPER: the real units helper on the same bytes; "split" = exit 0 with the `p` line and the `tr` line in
-different units. SOUNDNESS: no script on which some oracle shell prints HI may be split by the helper.
+different units. SOUNDNESS: no script some oracle shell joins may be split by the helper.
 
-Benign shapes (the allowlist of the r12 rule) must be CREDITED (helper exit 0): a refusal there is a false
+Benign shapes the rule still claims (r13: the subset; the r12 claims it no longer makes are marked stricter) must be CREDITED (helper exit 0): a refusal there is a false
 refusal, reported and failed only for the shapes the rule claims to allow.
 
-Control needles (11.4.273): the oracle shells print HI on a literal pipe continuation and do NOT on a bare `p`;
+Control needles (11.4.273): the oracle shells join a literal `&&` continuation and do NOT join a bare `p`;
 the helper splits a plain two-line script. A census whose controls fail proves nothing and exits 2.
 
 Usage:  units_runtime_grammar_census.py --helper PATH [--out TSV] [--min-positive N]
@@ -29,8 +30,12 @@ import subprocess
 import sys
 import tempfile
 
-AV = "echo hi |"                      # the alias value: a pipe that continues onto the next line
-TAIL = "p\ntr a-z A-Z\n"              # line P = the line after the channel; line P+1 = tr
+# r13 (fixer round 4): the oracle no longer pipes into `tr` -- the r13 helper refuses any command that may read the
+# shell's stdin (P8), which would make every case trivially "closed". The alias value now ends in `&&`: when the
+# alias joins the lines, `false && mkdir -p M` skips the mkdir; when it does not, `p` fails and mkdir runs. A case is
+# JOINED <=> the shell printed END and the directory M does not exist.
+AV = "false &&"                       # the alias value: a list that continues onto the next line
+TAIL = "p\nmkdir -p M\necho END\n"   # line P = the line after the channel; line P+1 = mkdir (reads no stdin)
 
 
 def q(s):
@@ -38,7 +43,7 @@ def q(s):
 
 
 # --- channels -------------------------------------------------------------------------------------------------
-# (id, dialects, text): every channel runs in a POSIX file; "bash" adds bash-dialect cases. {D} = a plain alias definition `alias p='echo hi |'`. Every channel is a way to run that
+# (id, dialects, text): every channel runs in a POSIX file; "bash" adds bash-dialect cases. {D} = a plain alias definition `alias p='false &&'`. Every channel is a way to run that
 # definition (or an equivalent) in the current shell at run time.
 D = "alias p=" + q(AV)
 CHANNELS = [
@@ -160,29 +165,29 @@ CONTEXTS = [
 ]
 # benign shapes the r12 rule claims to credit (exit 0, units printed): (id, dialect, text, claimed)
 BENIGN = [
-    ("trap-exit-sq", "posix", "t=$(mktemp)\ntrap 'rm -f \"$t\"' EXIT\necho a\necho b\n", True),
-    ("trap-exit-dq", "posix", "t=$(mktemp)\ntrap \"rm -f $t\" EXIT\necho a\necho b\n", True),
-    ("trap-func-sigs", "posix", "cleanup() { rm -f x; }\ntrap cleanup EXIT INT TERM\necho a\n", True),
-    ("trap-reset", "posix", "trap - INT TERM\ntrap '' HUP\ntrap\necho a\n", True),
-    ("trap-0", "posix", "trap 'echo bye' 0\necho a\n", True),
+    ("trap-exit-sq", "posix", "t=$(mktemp)\ntrap 'rm -f \"$t\"' EXIT\necho a\necho b\n", False),  # r13: refused (stricter, positive subset);
+    ("trap-exit-dq", "posix", "t=$(mktemp)\ntrap \"rm -f $t\" EXIT\necho a\necho b\n", False),  # r13: refused (stricter, positive subset);
+    ("trap-func-sigs", "posix", "cleanup() { rm -f x; }\ntrap cleanup EXIT INT TERM\necho a\n", False),  # r13: refused (stricter, positive subset);
+    ("trap-reset", "posix", "trap - INT TERM\ntrap '' HUP\ntrap\necho a\n", False),  # r13: refused (stricter, positive subset);
+    ("trap-0", "posix", "trap 'echo bye' 0\necho a\n", False),  # r13: refused (stricter, positive subset);
     ("set-eu", "posix", "set -eu\necho a\n", True),
     ("set-euo", "bash", "set -euo pipefail\necho a\n", True),
     ("set-args", "posix", "set -- a b \"$@\"\necho a\n", True),
     ("set-plus-e", "posix", "set +e\nset -x\nset +x\necho a\n", True),
     ("shopt-ok", "bash", "shopt -s nullglob globstar\nshopt -u dotglob\necho a\n", True),
     ("printf-plain", "posix", "printf '%s\\n' \"$x\"\necho a\n", True),
-    ("printf-v-lit", "bash", "printf -v out '%s' \"$x\"\necho \"$out\"\n", True),
-    ("read-lit", "posix", "read -r line <f\necho \"$line\"\n", True),
-    ("read-p", "bash", "read -r -p \"$prompt\" ans\necho \"$ans\"\n", True),
-    ("mapfile-lit", "bash", "mapfile -t lines <f\necho \"${lines[0]}\"\n", True),
-    ("eval-lit", "posix", "eval 'x=1'\necho \"$x\"\n", True),
+    ("printf-v-lit", "bash", "printf -v out '%s' \"$x\"\necho \"$out\"\n", False),  # r13: refused (stricter, positive subset);
+    ("read-lit", "posix", "read -r line <f\necho \"$line\"\n", False),  # r13: refused (stricter, positive subset);
+    ("read-p", "bash", "read -r -p \"$prompt\" ans\necho \"$ans\"\n", False),  # r13: refused (stricter, positive subset);
+    ("mapfile-lit", "bash", "mapfile -t lines <f\necho \"${lines[0]}\"\n", False),  # r13: refused (stricter, positive subset);
+    ("eval-lit", "posix", "eval 'x=1'\necho \"$x\"\n", False),  # r13: refused (stricter, positive subset);
     ("command-v", "posix", "command -v git >/dev/null || exit 1\necho a\n", True),
     ("alias-in-data", "posix", "echo \"an alias here\"\ncat <<'E'\nalias p=x\nE\necho a\n", True),
-    ("arith", "posix", "i=0\ni=$((i+1))\necho \"$i\"\n", True),
-    ("declare-lit", "bash", "declare -A m\nlocal_x() { local -a arr=(1 2); echo \"${arr[0]}\"; }\nlocal_x\n", True),
-    ("child-sh", "posix", "sh -c 'alias p=x; p'\necho a\n", True),
+    ("arith", "posix", "i=0\ni=$((i+1))\necho \"$i\"\n", False),  # r13: refused (stricter, positive subset);
+    ("declare-lit", "bash", "declare -A m\nlocal_x() { local -a arr=(1 2); echo \"${arr[0]}\"; }\nlocal_x\n", False),  # r13: refused (stricter, positive subset);
+    ("child-sh", "posix", "sh -c 'alias p=x; p'\necho a\n", False),  # r13: refused (stricter, positive subset);
     ("test-bracket", "posix", "[ -f x ] && echo y\necho a\n", True),
-    ("exec-out", "posix", "exec 3>/dev/null\necho a >&3\n", True),
+    ("exec-out", "posix", "exec 3>/dev/null\necho a >&3\n", False),  # r13: refused (stricter, positive subset);
     ("dollar-at-word", "posix", "\"$@\"\necho a\n", False),          # stricter: a dynamic command word
     ("dot-lib", "posix", ". ./lib.sh\necho a\n", False),              # stricter: sourcing is not modelled
     ("ps4", "bash", "PS4='+ ${LINENO}: '\nset -x\necho a\n", False),  # stricter: PS4 is expanded at run time
@@ -195,13 +200,23 @@ def run_shell(argv, text, cwd):
         fh.write(text)
     for f in os.listdir(cwd):
         if f not in ("s.sh", "alias"):
-            os.unlink(os.path.join(cwd, f))
+            fp = os.path.join(cwd, f)
+            if os.path.isdir(fp) and not os.path.islink(fp):
+                shutil.rmtree(fp)
+            else:
+                os.unlink(fp)
     try:
         r = subprocess.run(argv + ["s.sh"], input=b"hello\n", capture_output=True, timeout=10, cwd=cwd,
                            env={"PATH": "/usr/bin:/bin", "HOME": cwd, "LC_ALL": "C"})
-        return (r.stdout + r.stderr).decode("utf-8", "replace")
+        out = (r.stdout + r.stderr).decode("utf-8", "replace")
+        return out + ("\n<M-EXISTS>" if os.path.isdir(os.path.join(cwd, "M")) else "")
     except subprocess.TimeoutExpired:
         return "<timeout>"
+
+
+def joined(out):
+    """the oracle: the shell reached the last line AND skipped the mkdir (the alias continued the list)."""
+    return "END" in out and "<M-EXISTS>" not in out
 
 
 def run_helper(helper, dialect, text):
@@ -245,13 +260,13 @@ def main():
         for d, shells in SHELLS.items():
             pre = "shopt -s expand_aliases\n" if d == "bash" else ""
             for sh in shells:
-                if "HI" not in run_shell(sh, "echo hi |\ntr a-z A-Z\n", cwd):
-                    print("CONTROL FAILED: %s does not print HI on a literal pipe" % sh)
+                if not joined(run_shell(sh, "false &&\nmkdir -p M\necho END\n", cwd)):
+                    print("CONTROL FAILED: %s does not join a literal && continuation" % sh)
                     return 2
-                if "HI" in run_shell(sh, pre + "p\ntr a-z A-Z\n", cwd):
-                    print("CONTROL FAILED: %s prints HI without an alias" % sh)
+                if joined(run_shell(sh, pre + TAIL, cwd)):
+                    print("CONTROL FAILED: %s joins without an alias" % sh)
                     return 2
-        rc, doc = run_helper(a.helper, "posix", "echo hi\ntr a-z A-Z\n")
+        rc, doc = run_helper(a.helper, "posix", "echo hi\nmkdir -p M\n")
         if rc != 0 or not split(doc, "", 1):
             print("CONTROL FAILED: the helper does not split a plain two-line script: rc=%d %r" % (rc, doc))
             return 2
@@ -273,7 +288,7 @@ def main():
             text = body + "\n" + TAIL
             pline = text.count("\n", 0, len(body) + 1) + 1
             outs = [(" ".join(sh), run_shell(sh, text, cwd)) for sh in SHELLS[d]]
-            hi = [n for n, o in outs if "HI" in o]
+            hi = [n for n, o in outs if joined(o)]
             rc, doc = run_helper(a.helper, d, text)
             sp = rc == 0 and split(doc, text, pline)
             if hi and sp:

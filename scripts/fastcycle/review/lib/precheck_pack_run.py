@@ -1301,7 +1301,7 @@ def _line_text(lines, n):
 
 def _git(repo, args, timeout=60):
     return subprocess.run(["git", "--literal-pathspecs", "-C", repo] + args,
-                          capture_output=True, timeout=timeout, env=_git_env())
+                          capture_output=True, timeout=timeout, env=_git_env(repo))
 
 
 def _txt(b):
@@ -2026,7 +2026,7 @@ def _verify_binding(root, baseline, binding, batch, head_sha_arg, scope):
         ids.append(p["change_id"])
         try:
             d = subprocess.run(_change_diff_argv(repo, base_sha, head_sha, rel), capture_output=True,
-                               timeout=60, env=_git_env())
+                               timeout=60, env=_git_env(repo))
         except (OSError, subprocess.TimeoutExpired) as exc:
             err.append("git diff failed for %r: %s" % (rel, exc))
             continue

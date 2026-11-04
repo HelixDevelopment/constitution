@@ -158,7 +158,7 @@ def _changed_paths(repo, base, head):
     """NUL-safe [(status, path)] of base..head (renames split into D + A)."""
     p = subprocess.run(["git", "-C", repo] + _DIFF_PIN + ["diff", "-z", "--name-status", "--no-renames",
                                                           "--no-textconv", "--no-ext-diff", base, head],
-                       capture_output=True, timeout=120, env=_git_env())
+                       capture_output=True, timeout=120, env=_git_env(repo))
     if p.returncode != 0:
         raise RuntimeError("git diff --name-status failed: %s" % p.stderr.decode("utf-8", "replace").strip())
     toks = p.stdout.split(b"\0")
@@ -218,7 +218,7 @@ def cmd_prepare(a):
     for i, path in enumerate(paths, start=1):
         try:
             proc = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, path),
-                                  capture_output=True, timeout=60, env=_git_env())
+                                  capture_output=True, timeout=60, env=_git_env(a.repo))
         except (OSError, subprocess.TimeoutExpired) as exc:
             print("precheck_pack_build: real `git diff` for %r failed to run: %s" % (path, exc),
                   file=sys.stderr)
@@ -367,7 +367,7 @@ def cmd_bind(a):
     paths = []
     for st, path in changed:
         d = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, path), capture_output=True,
-                           timeout=60, env=_git_env())
+                           timeout=60, env=_git_env(a.repo))
         if d.returncode != 0:
             print("precheck_pack_build: git diff for %r exited %d" % (path, d.returncode), file=sys.stderr)
             return 2
@@ -391,18 +391,18 @@ def cmd_bind(a):
 def _submodule_head(path):
     """HEAD commit of the git repository whose toplevel IS `path`, else None."""
     top = subprocess.run(["git", "-C", path, "rev-parse", "--show-toplevel"], capture_output=True, timeout=30,
-                         env=_git_env())
+                         env=_git_env(path))
     if top.returncode != 0 or os.path.realpath(top.stdout.decode("utf-8", "surrogateescape").strip()) != \
             os.path.realpath(path):
         return None
     hd = subprocess.run(["git", "-C", path, "rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
-                        capture_output=True, timeout=30, env=_git_env())
+                        capture_output=True, timeout=30, env=_git_env(path))
     sha = hd.stdout.decode("ascii", "replace").strip()
     return sha if hd.returncode == 0 and sha else None
 
 
 def cmd_snapshot(a):
-    env = _git_env()
+    env = _git_env(a.repo, write_objects=True)
     def git(*args, **kw):
         return subprocess.run(["git", "--literal-pathspecs", "-C", a.repo] + list(args), capture_output=True,
                               timeout=120, env=kw.get("env", env), input=kw.get("input"))
@@ -471,7 +471,7 @@ def cmd_snapshot(a):
 
 def _git_out(repo, args, timeout=60):
     return subprocess.run(["git", "--literal-pathspecs", "-C", repo] + args, capture_output=True,
-                          timeout=timeout, env=_git_env())
+                          timeout=timeout, env=_git_env(repo))
 
 
 def _head_blob(repo, head, rel):
@@ -555,7 +555,7 @@ def _batch_readiness(doc, base, head, repo):
             r.append("malformed binding entry %r" % (e,))
             continue
         rel = e["path"]
-        d = subprocess.run(_change_diff_argv(repo, base, head, rel), capture_output=True, timeout=60, env=_git_env())
+        d = subprocess.run(_change_diff_argv(repo, base, head, rel), capture_output=True, timeout=60, env=_git_env(repo))
         if d.returncode != 0 or "sha256:" + hashlib.sha256(d.stdout).hexdigest() != e["change_id"]:
             r.append("change_id of %r does not recompute in %s" % (rel, repo))
         st, blob = _head_blob(repo, head, rel)
@@ -602,7 +602,7 @@ def cmd_snapshot_manifest(a):
         status = ("deleted" if st_h == "absent" else ("UNTRACKED-new" if st_b == "absent" else "tracked-modified"))
         md5 = hashlib.md5(blob).hexdigest() if blob is not None and st_h != "absent" else "-" * 32
         d = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, rel), capture_output=True, timeout=60,
-                           env=_git_env())
+                           env=_git_env(a.repo))
         shown = rel if rel.isprintable() and "  " not in rel else json.dumps(rel, ensure_ascii=False)
         lines.append("%s  %s  (repo=%s, %s, difflines=%d)" % (md5, shown, repo_name, status,
                                                             _lines_changed_of(d.stdout)))

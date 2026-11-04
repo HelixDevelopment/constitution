@@ -521,7 +521,7 @@ elif m == "d1":
     pre = ["echo line%d" % i for i in range(3, 40)]
     pre += [H + " shellcheck disable=SC2164 " + H + " justified: the cd target always exists here", "cd /tmp || exit 1"]
 elif m == "c1":
-    pre = ["d=$1"] + ["echo line%d" % i for i in range(4, 79)] + ["rm -rf \\"]
+    pre = ["d=$1"] + ["echo line%d" % i for i in range(4, 79)] + ["rm -rf -- \\"]   # r13: -- (P8)
     mark = "  \"$d\"/" + {"base": "old_glob", "bad": "* " + H + " brandnew", "clean": "new_glob"}[var]
 elif m == "s1":
     pre = ['if [ -n "$1" ]; then'] + ["    echo l%d" % i for i in range(4, 80)]
@@ -556,14 +556,17 @@ PY
 for gm in q1:SC2164@80 q2:SC2164@80 q3:SC2164@80 h1:SC2164@80 h2:SC2164@80 h3:SC2164@80 h4:SC2164@80 \
           d1:SC2164@80 c1:SC2115@80 s1:SC2164@80 k1:SC2164@80 o1:SC2034@3; do
     m=${gm%%:*}; want=${gm#*:}; wr=${want%@*}; wl=${want#*@}
+    # r13: h2 (backquotes) and h3 (arithmetic) are outside the positive subset -> no units: the lintable controls
+    #    are judged as a new file (stricter); every other member keeps its units (state full)
+    st=full; case $m in h2|h3) st=new-file ;; esac
     new_case "g_$m"; gfix "$m" base brandnew >"$R/a.sh"; cp "$R/a.sh" "$R.base.sh"; base  # base: token never elsewhere
     gfix "$m" bad brandnew >"$R/a.sh"; head; : >"$TMP/lintlog"; gate
     expect "G[$m] head not lintable whole -> FAIL BLIND, no window, no guessed finding" '(c["verdict"], e["delta"]["states"], any("windows" in f for f in e["delta"]["files"]), e.get("findings"))' "('FAIL', ['blind'], False, None)"
     CEN=$(census); if [ "$CEN" = ok ]; then ok "G[$m] census: every lint input is a WHOLE head or base blob"; else bad "G[$m] census: $CEN"; fi
     new_case "g_${m}_ctl"; gfix "$m" base zz_absent >"$R/a.sh"; base; gfix "$m" bad zz_absent >"$R/a.sh"; head; gate
-    expect "G[$m] control needle: lintable head -> FAIL full with the real $wr at line $wl" "(c[\"verdict\"], e[\"delta\"][\"states\"], (\"$wr\", $wl) in [(f[\"rule\"], f[\"line\"]) for f in e.get(\"findings\", [])])" "('FAIL', ['full'], True)"
+    expect "G[$m] control needle: lintable head -> FAIL $st with the real $wr at line $wl" "(c[\"verdict\"], e[\"delta\"][\"states\"], (\"$wr\", $wl) in [(f[\"rule\"], f[\"line\"]) for f in e.get(\"findings\", [])])" "('FAIL', ['$st'], True)"
     new_case "g_${m}_neg"; gfix "$m" base zz_absent >"$R/a.sh"; base; gfix "$m" clean zz_absent >"$R/a.sh"; head; gate
-    expect "G[$m] negative control: lintable head without the defect -> PASS full" '(c["verdict"], e["delta"]["states"])' "('PASS', ['full'])"
+    expect "G[$m] negative control: lintable head without the defect -> PASS $st" '(c["verdict"], e["delta"]["states"])' "('PASS', ['$st'])"
 done
 # --- F4: the delta key ---------------------------------------------------------
 # Q1 fix one SC2086, add a DIFFERENT SC2086 elsewhere -> FAIL (the line text is part of the key; kills R04)
@@ -759,7 +762,8 @@ wh s.sh "#!/bin/sh\necho ok\nif [ -n x ]; then\n    echo fine\nfi fi\n"; head; g
 expect "P3 head introduces a parse error -> FAIL new-file head-unparsed" '(c["verdict"], [f.get("new_file_reason", "")[:14] for f in e["delta"]["files"]])' "('FAIL', ['head-unparsed:'])"
 # P4 negative control (11.4.201(1)): a NON-fatal SC1xxx warning (SC1007) already in the base, head adds a clean line
 #    -> the classifier is not over-broad: state full, the SC1007 is pre-existing, PASS
-new_case p4; wb s.sh "#!/bin/sh\nx= 1\necho finished\n"; base; wh s.sh "#!/bin/sh\nx= 1\necho finished\necho more\n"; head; gate
+# r13: `<&-` keeps the command `1` inside the subset (P8: it then cannot read the shell's stdin)
+new_case p4; wb s.sh "#!/bin/sh\nx= 1 <&-\necho finished\n"; base; wh s.sh "#!/bin/sh\nx= 1 <&-\necho finished\necho more\n"; head; gate
 expect "P4 non-fatal SC1007 in base -> full, pre-existing, PASS" '(c["verdict"], e["delta"]["states"], [f["rule"] for f in e.get("baseline_findings", [])])' "('PASS', ['full'], ['SC1007'])"
 
 # A1 (reviewer A1) the old `cd /tmp` is suppressed by a JUSTIFIED directive, an identical `cd /tmp` is ADDED in a new
@@ -851,9 +855,10 @@ new_case n1n; wb s.sh '#!/bin/sh\na=5\nb=$1\necho $a $b\n'; base; wh s.sh '#!/bi
 expect "N1n negative control: the old \$b finding stays pre-existing at 4:9 -> PASS" '(c["verdict"], [(f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [(4, 9)])"
 # N2 (reviewer J1, realistic; the reviewer's real-gate repro) `rm -rf $root/$sub`: the old unsafe `$sub` is made
 #    constant, `root` becomes the attacker's $1 -> the unquoted root of `rm -rf` is NEW: FAIL (r6: PASS)
-new_case n2j; wb s.sh '#!/bin/sh\nroot=/var/cache/app\nsub=$1\nrm -rf $root/$sub\n'; base
-wh s.sh '#!/bin/sh\nroot=$1\nsub=cache\nrm -rf $root/$sub\n'; head; gate
-expect "N2 (J1) rm -rf \$root/\$sub, the unsafe token moves from \$sub to \$root -> FAIL, SC2086 at 4:8 new; the SC2115 of the whole \$root/\$sub word (same token, same column, in base and head) stays pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 4, 8)], [('SC2115', 4, 8)])"
+# r13: `--` before the computed operand keeps rm inside the subset (P8); the columns move by 3
+new_case n2j; wb s.sh '#!/bin/sh\nroot=/var/cache/app\nsub=$1\nrm -rf -- $root/$sub\n'; base
+wh s.sh '#!/bin/sh\nroot=$1\nsub=cache\nrm -rf -- $root/$sub\n'; head; gate
+expect "N2 (J1) rm -rf \$root/\$sub, the unsafe token moves from \$sub to \$root -> FAIL, SC2086 at 4:11 new; the SC2115 of the whole \$root/\$sub word (same token, same column, in base and head) stays pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 4, 11)], [('SC2115', 4, 11)])"
 # N3 (reviewer J3) STATED LIMIT, pinned so it can never drift silently: the old `cd /tmp` becomes `cd /tmp || exit 1`
 #    and an identical `cd /tmp` is added on the NEXT line. The line diff aligns the added copy with the old line, so the
 #    result is byte-for-byte "kept the old line, inserted a guarded cd above it": the rule judges file content, not
@@ -863,8 +868,8 @@ wh s.sh '#!/bin/sh\nf() {\n    cd /tmp || exit 1\n    cd /tmp\n    rm -rf ./*\n}
 # r10 (outermost unit): inside a function the edit changes the whole `f() { }` statement -> no credit any more,
 #    the SC2164 at 4 is NEW (FLIPPED by r10, stricter); the stated limit is re-pinned at top level as N3t below
 expect "N3 (J3, FLIPPED by r10) the same edit inside a function: the function unit changed -> FAIL, SC2164 at 4 new" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("findings", [])], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2164', 4)], [])"
-new_case n3t; wb s.sh '#!/bin/sh\ncd /tmp\nrm -rf ./*\n'; base
-wh s.sh '#!/bin/sh\ncd /tmp || exit 1\ncd /tmp\nrm -rf ./*\n'; head; gate
+new_case n3t; wb s.sh '#!/bin/sh\ncd /tmp\nrm -rf -- ./*\n'; base
+wh s.sh '#!/bin/sh\ncd /tmp || exit 1\ncd /tmp\nrm -rf -- ./*\n'; head; gate
 expect "N3t (J3 stated limit, top level) a copy the diff aligns with the old one-line statement is the old line -> PASS, SC2164 at 3 pre-existing" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('PASS', [('SC2164', 3)])"
 # N5 (reviewer J2) a multi-line finding (SC2045, lines 2-3) whose start line is unchanged but whose continuation line
 #    CHANGED -> the finding is partly on a changed line: NEW, FAIL (r6 credited it by its start line)
@@ -1192,8 +1197,8 @@ new_case r11a1c; wb s.sh '#!/bin/sh\nargs=$2\n\nsh -s $args\n'; base
 wh s.sh '#!/bin/sh\nargs=$2\ncurl -s "$1" |\nsh -s $args\n'; head; gate
 expect "R11-A1c control: the literal pipe line -> FAIL, SC2086 4:7 new" "$FB" "('FAIL', [('SC2086', 4, 7)], [])"
 # A2n negative control (11.4.201(1)): the word alias only in a comment and inside a string -> PASS, credited
-new_case r11a2n; wb s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args\n"; base
-wh s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args\necho more\n"; head; gate
+new_case r11a2n; wb s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args <&-\n"; base
+wh s.sh "#!/bin/sh\n${H} alias fetch='curl |'\nargs=\$2\necho \"an alias here\"\nsh -s \$args <&-\necho more\n"; head; gate
 expect "R11-A2n control: alias only in a comment and a string -> PASS, SC2086 5:7 pre-existing" "$FB" "('PASS', [], [('SC2086', 5, 7)])"
 # KQ (review F2) `cat <<"a\\b"`: the parser ends the body at the line a\\b, bash and dash want a\b (the body runs to
 #    end of file) -> the delimiter cross-check refuses -> FAIL, whole file (never the SC2086 at 6 credited)
@@ -1270,13 +1275,13 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ] && command -v dash >/dev/null 2>
     hu r11-al2 bash "shopt -s expand_aliases\nalias p='echo hi |'\n$AL" 'rc=5:alias'
     hu r11-al3 posix "\\\\alias p='echo hi |'\n$AL" 'rc=5:alias'
     hu r11-al4 posix "'alias' p='echo hi |'\n$AL" 'rc=5:alias'
-    hu r11-al5 posix "command alias p='echo hi |'\n$AL" 'rc=5:alias'
-    hu r11-al6 bash "builtin alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al5 posix "command alias p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
+    hu r11-al6 bash "builtin alias p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     hu r11-al7 posix "eval \"alias p='echo hi |'\"\n$AL" 'rc=5:eval'
     shx r11-al7-needle dash "eval \"alias p='echo hi |'\"\n$AL" 'HI|'
-    hu r11-al8 posix "a=alias\n\$a p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r11-al8 posix "a=alias\n\$a p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     hu r11-al9 posix "unalias p\nls\n" 'rc=5:alias'
-    hu r11-al10 bash "BASH_ALIASES[p]='echo hi |'\n$AL" 'rc=5:BASH_ALIASES'
+    hu r11-al10 bash "BASH_ALIASES[p]='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     hu r11-al11 bash "set -o posix\nls\n" 'rc=5:posix'
     hu r11-al12 bash "shopt -s expand_aliases\nls\n" 'rc=5:expand_aliases'
     hu r11-al13 bash "export POSIXLY_CORRECT=1\nls\n" 'rc=5:POSIXLY_CORRECT'
@@ -1285,7 +1290,7 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ] && command -v dash >/dev/null 2>
     hu r11-al16 posix "x=\$(alias)\nls\n" 'rc=5:alias'
     # negative controls: data and comments never trigger it
     hu r11-aln1 posix "# alias p='echo |'\necho \"an alias\"\necho alias\n" '[[1,1],[2,2],[3,3]]'
-    hu r11-aln2 posix "sh -c 'alias p=x'\ncat <<EOF\nalias p=x\nEOF\n" '[[1,1],[2,4]]'
+    hu r11-aln2 posix "sh -c 'alias p=x' <&-\ncat <<EOF\nalias p=x\nEOF\n" '[[1,1],[2,4]]'  # r13: <&- (P8)
     hu r11-aln3 bash "echo posix expand_aliases\nls\n" '[[1,1],[2,2]]'
     # NUL bytes: dash strips a NUL (so `\<NUL><newline>` continues the line), bash refuses the file -> rc 5
     shx r11-nul-needle dash 'echo a \\\0000\necho b\n' 'a echo b|'
@@ -1312,8 +1317,8 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ] && command -v dash >/dev/null 2>
     DU='x=hi\ncat <<$'"'"'EOF'"'"' | sh\n$EOF\necho X$x\nEOF\necho after\n'
     shx r11-du-needle-dash dash "$DU" 'Xhi|'
     shx r11-du-needle-bposix 'bash --posix' "$DU" 'X|after|'
-    hu r11-du posix "$DU" '[[1,1],[2,5],[6,6]]'
-    hu r11-du2 posix 'x=hi\ncat <<$"EOF" | sh\n$EOF\necho X$x\nEOF\necho after\n' '[[1,1],[2,5],[6,6]]'
+    hu r11-du posix "$DU" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
+    hu r11-du2 posix 'x=hi\ncat <<$"EOF" | sh\n$EOF\necho X$x\nEOF\necho after\n' 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     shx r11-ar-needle 'bash --posix' '((echo a) )\necho after\n' 'a|after|'
     hu r11-ar posix '((echo a) )\necho after\n' 'rc=3:bash cross-parse'
     # bash-only syntax in a POSIX file: the POSIX parse refuses (dash refuses too) -> fail closed
@@ -1322,20 +1327,20 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ] && command -v dash >/dev/null 2>
     hu r11-ca posix 'case a in a) echo 1 ;&\nb) echo 2 ;;\nesac\n' 'rc=3:'
     hu r11-pa posix 'echo hi |&\ncat\n' 'rc=3:'
     # the same constructs in bash: units agree with bash
-    hu r11-hsb bash 'cat <<< x\necho after\nx\n' '[[1,1],[2,2],[3,3]]'
+    hu r11-hsb bash 'cat <<< x\necho after\nx <&-\n' '[[1,1],[2,2],[3,3]]'  # r13: <&- (P8)
     hu r11-fnb bash 'function f {\necho in\n}\nf\n' '[[1,3],[4,4]]'
     hu r11-cab bash 'case a in a) echo 1 ;&\nb) echo 2 ;;\nesac\necho after\n' '[[1,3],[4,4]]'
     hu r11-pab bash 'echo hi |&\ncat\necho after\n' '[[1,2],[3,3]]'
-    hu r11-cop bash 'coproc cat\necho after\n' '[[1,1],[2,2]]'
+    hu r11-cop bash 'coproc cat\necho after\n' 'rc=5:CoprocClause'  # r13: outside the positive subset (stricter)
     hu r11-arb bash '((echo a) )\necho after\n' 'rc=3:arithmetic'
     # constructs both parsers and both shells agree on (pinned)
-    hu r11-dbr posix '[[ a == a ||\nb ]] && echo yes\necho after\n' '[[1,2],[3,3]]'
+    hu r11-dbr posix '[[ a == a ||\nb ]] && echo yes\necho after\n' 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     hu r11-bse posix 'echo a \\' '[[1,1]]'
     hu r11-cmd posix 'x=$(cat <<EOF\nl1\nEOF\n)\necho "$x"\n' '[[1,4],[5,5]]'
     hu r11-cps posix 'case x in\n(x) echo par ;;\nesac\necho after\n' '[[1,3],[4,4]]'
-    # scoped out (stated in the guide): bash without extglob refuses @( ) at parse time and runs nothing after it
+    # r13: an extglob pattern is outside the positive subset (fails closed; r12 scoped it out)
     shx r11-eg-needle bash 'echo @(a|b)\necho after\n' 'syntax error'
-    hu r11-eg bash 'echo @(a|b)\necho after\n' '[[1,1],[2,2]]'
+    hu r11-eg bash 'echo @(a|b)\necho after\n' 'rc=5:ExtGlob'  # r13: outside the positive subset (stricter)
 else
     bad "R11 helper-level class cases need the real units helper, dash and bash"
 fi
@@ -1473,27 +1478,61 @@ if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
 else
     bad "R12-G1 the census needs the real units helper"
 fi
+# R13-G1 (review round 3 H1): the r13 adversarial census (tests/units_r13_census.py: stdin consumers in five
+#    contexts and every builtin / expansion channel with function-substitution, command-substitution and plain
+#    needles; real dash, bash --posix and bash in file / pipe / seek modes with a stub curl; controls). Exit 0 =
+#    controls ok and zero unsound. Measured: the r12 helper (901fa52) 259 unsound, the r13 helper 0.
+if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
+    python3 "$HERE/units_r13_census.py" "$REAL_UNITS" "$TMP/r13census.tsv" >"$TMP/r13census.out" 2>&1; r13rc=$?
+    if [ "$r13rc" -eq 0 ]; then ok "R13-G1 r13 adversarial census sound: $(tail -1 "$TMP/r13census.out")"
+    else bad "R13-G1 r13 adversarial census rc=$r13rc: $(tail -3 "$TMP/r13census.out" | tr '\n' ' ')"; fi
+    # H3 (RM1) and H5 (RM6) needles, pinned at helper level
+    hu r13-rm1 bash 'read -r BASH_ALI\\ASES\necho after\n' 'rc=5:outside the r13 positive subset'
+    hu r13-rm6 posix 'exec 0<f\necho after\n' 'rc=5:outside the r13 positive subset'
+    hu r13-st posix 'head -c 10 >/dev/null\n#xxxxxxxx echo hi |\ntr a-z A-Z\n' 'rc=5:standard input'
+    hu r13-fs bash 'x=${ echo hi; }\necho "$x"\n' 'rc=5:outside the r13 positive subset'
+    hu r13-ok posix 'set -eu\nmkdir -p d\necho ok\n' '[[1,1],[2,2],[3,3]]'
+    # r13 round-4 mutant needles (each pairs the refusal with the real shell showing the join it prevents):
+    #   a glob command word (ev[a]l runs eval when a file named eval is in the working directory),
+    #   test -v (bash evaluates the subscript, a function substitution there defines an alias),
+    #   ${x@P} (prompt expansion runs the function substitution in the value), rm -i (reads the script on stdin)
+    : >"$HU_DIR/eval"
+    hu r13-glob posix 'ev[a]l echo <&-\necho after\n' 'rc=5:a command word that is not a static literal'
+    shx r13-glob 'bash --posix' 'ev[a]l \042alias p=\134\042echo hi |\134\042\042\np\ntr h H\n' 'Hi'
+    hu r13-tv bash 'test -v \047a[${ alias p=\042echo hi |\042; }0]\047 <&-\np\ntr h H\n' 'rc=5:test -v'
+    shx r13-tv 'bash --posix' 'test -v \047a[${ alias p=\042echo hi |\042; }0]\047 <&-\np\ntr h H\n' 'Hi'
+    hu r13-px bash 'x=\047${ alias p=\042echo hi |\042; }\047\n: "${x@P}" <&-\np\ntr h H\n' 'rc=5:parameter expansion operator'
+    shx r13-px 'bash --posix' 'x=\047${ alias p=\042echo hi |\042; }\047\n: "${x@P}" <&-\np\ntr h H\n' 'Hi'
+    hu r13-rmi posix 'rm -i -- f\necho after\n' 'rc=5:standard input'
+    #   a variable subscript (bash evaluates the variable's value as arithmetic, a subscript there runs the function
+    #   substitution) and a call made before its function is defined (it runs the PATH program, which reads stdin)
+    hu r13-ix bash 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'rc=5:a parameter expansion other than'
+    shx r13-ix 'bash --posix' 'x=\047b[${ alias p=\042echo hi |\042; }0]\047\n: "${a[x]}" <&-\np\ntr h H\n' 'Hi'
+    hu r13-fo posix 'head -c 10 >/dev/null\n#xxxxxxxx echo hi |\ntr a-z A-Z\nhead() { :; }\n' 'rc=5:standard input'
+else
+    bad "R13-G1 the census needs the real units helper"
+fi
 # G7 (reviewer MR3 / MR8): wrappers and multi-argument eval are pinned
 if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
     AL='p\ntr a-z A-Z\n'
     shx r12-cp-needle dash "command -p alias p='echo hi |'\n$AL" 'HI|'
-    hu r12-cp posix "command -p alias p='echo hi |'\n$AL" 'rc=5:alias'
-    hu r12-cpd posix "command -p -- alias p='echo hi |'\n$AL" 'rc=5:alias'
-    hu r12-bd bash "builtin -- alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r12-cp posix "command -p alias p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
+    hu r12-cpd posix "command -p -- alias p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
+    hu r12-bd bash "builtin -- alias p='echo hi |'\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     shx r12-ev2-needle dash "eval 'q=1;' \"alias p='echo hi |'\"\n$AL" 'HI|'
-    hu r12-ev2 posix "eval 'q=1;' \"alias p='echo hi |'\"\n$AL" 'rc=5:alias'
+    hu r12-ev2 posix "eval 'q=1;' \"alias p='echo hi |'\"\n$AL" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     hu r12-cv posix "command -v alias\necho x\n" '[[1,1],[2,2]]'
-    hu r12-evs posix "eval 'q=1' 'r=2'\necho x\n" '[[1,1],[2,2]]'
+    hu r12-evs posix "eval 'q=1' 'r=2'\necho x\n" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     shx r12-trp-needle 'bash --posix' "trap \"alias p='echo hi |'\" USR1\nkill -USR1 \$\$\n$AL" 'HI|'
     hu r12-trp posix "trap \"alias p='echo hi |'\" USR1\nkill -USR1 \$\$\n$AL" 'rc=5:trap'
-    hu r12-trx posix "trap 'rm -f \"\$t\"' EXIT\necho x\n" '[[1,1],[2,2]]'
+    hu r12-trx posix "trap 'rm -f \"\$t\"' EXIT\necho x\n" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     shx r12-pv-needle bash "shopt -s expand_aliases\nn=BASH_ALIASES[p]\nprintf -v \"\$n\" 'echo hi |'\n$AL" 'HI|'
     hu r12-pv bash "shopt -s expand_aliases\nn=x\nprintf -v \"\$n\" 'echo hi |'\n$AL" 'rc=5:'
-    hu r12-pvl bash "printf -v out '%s' x\necho \"\$out\"\n" '[[1,1],[2,2]]'
+    hu r12-pvl bash "printf -v out '%s' x\necho \"\$out\"\n" 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
     shx r12-dot-needle dash "echo \"alias p='echo hi |'\" >al.x\n. ./al.x\n$AL" 'HI|'
     hu r12-dot posix "echo \"alias p='echo hi |'\" | . /dev/stdin\n$AL" 'rc=5:'
-    hu r12-dep posix 'eval eval eval eval eval eval eval eval eval eval echo x\n' 'rc=5:deeper than the checked depth'
-    hu r12-depn posix 'eval eval eval echo x\necho y\n' '[[1,1],[2,2]]'
+    hu r12-dep posix 'eval eval eval eval eval eval eval eval eval eval echo x\n' 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
+    hu r12-depn posix 'eval eval eval echo x\necho y\n' 'rc=5:outside the r13 positive subset'  # r13: outside the positive subset (stricter)
 fi
 # G5 (review: rc=N: with an EMPTY substring gave false failures under bash 5.3 --posix): the matcher itself
 G5T=$(hu_match 'rc=3:' 'rc=3:herestring' && echo m1)$(hu_match 'rc=3:' 'rc=4:x' || echo m2)$(hu_match 'rc=5:alias' 'rc=5:an alias cmd' && echo m3)$(hu_match 'rc=5:alias' 'rc=5:eval' || echo m4)
@@ -1536,22 +1575,34 @@ def run(env, tag):
     subprocess.run(["git", "-C", r, "worktree", "remove", "--force", wt + tag], env=env, capture_output=True)
     return sorted(set(open(marker).read().split()))
 print("control|%s" % ",".join(run(dict(os.environ), "c")))
-print("gitenv|%s" % ",".join(run(pc._git_env(), "e")))
+print("gitenv|%s" % ",".join(run(pc._git_env(r), "e")))
+# r13 (H2): precheck_pack_build.sh's gg = env -i PATH + _GG_ENV + GIT_DIR (a gate-owned dir) + GIT_WORK_TREE
 src = open(build).read()
-blk = re.search(r"\n(for _gv in .*?GIT_CONFIG_VALUE_5\n)", src, re.S)
+blk = re.search(r"\n_GG_ENV='([^']*)'\n", src)
 if not blk:
     print("buildsh|NO-BLOCK")
 else:
-    out = subprocess.run(["sh", "-c", blk.group(1) + "\nenv -0"], capture_output=True).stdout
-    env = dict(x.split("=", 1) for x in out.decode().split("\0") if "=" in x)
+    import tempfile
+    gd = tempfile.mkdtemp()
+    pc.make_gate_git_dir(r, gd)
+    env = dict(x.split("=", 1) for x in blk.group(1).split())
+    env.update(PATH=os.environ["PATH"], GIT_DIR=gd, GIT_WORK_TREE=r)
     print("buildsh|%s" % ",".join(run(env, "b")))
 PY
 grep -q '^control|filter,fsmonitor,hook$' "$TMP/g2.out" && ok "R12-G2b control: plain git runs fsmonitor, the hook and the smudge filter" \
     || bad "R12-G2b control: $(tr '\n' ' ' <"$TMP/g2.out")"
 grep -q '^gitenv|$' "$TMP/g2.out" && ok "R12-G2c _git_env: worktree add + ls-files run none of them" \
     || bad "R12-G2c _git_env: $(tr '\n' ' ' <"$TMP/g2.out")"
-grep -q '^buildsh|$' "$TMP/g2.out" && ok "R12-G2d precheck_pack_build.sh exports: worktree add + ls-files run none of them" \
+grep -q '^buildsh|$' "$TMP/g2.out" && ok "R12-G2d precheck_pack_build.sh gg environment (r13 gate-owned git dir): worktree add + ls-files run none of them" \
     || bad "R12-G2d build.sh: $(tr '\n' ' ' <"$TMP/g2.out")"
+# R13-G2 (review round 3 H2): the real builder of THIS tree on a hostile repository (every program-naming key,
+#    info/attributes, include file, signed commits): positive controls fire under plain git, the builder runs none
+#    (tests/test_precheck_gate_git_isolation.sh, given this suite's review/ so a mutant copy is what runs)
+if env HOME="$TMP" sh "$HERE/test_precheck_gate_git_isolation.sh" "$REVIEW" >"$TMP/iso.out" 2>&1; then
+    ok "R13-G2 gate-owned git dir: $(tail -1 "$TMP/iso.out")"
+else
+    bad "R13-G2 gate-owned git dir: $(grep '^FAIL' "$TMP/iso.out" | head -3 | tr '\n' ' ')"
+fi
 # RV (real gate, the r2 reviewer's channels): a trap action, printf -v into a computed name, and `. /dev/stdin`
 #    that define an alias at run time: the gate must judge the file by the whole-file rule (new-file), never credit
 for rv in "t|trap \"alias p='echo hi |'\" USR1" "p|n=x; printf -v \"\$n\" '%s' 1" "s|printf '%s\\\\n' x | . /dev/stdin"; do

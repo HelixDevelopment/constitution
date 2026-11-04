@@ -125,23 +125,19 @@
 # which stays limited to the three permanent, cacheable artifacts.
 set -eu
 
-# r12 (ATM-1217 review G2): the raw `git` calls below run against the repository's OWN config; pin the keys that
-# make plumbing run a program (the same set precheck_common._git_env pins; see PRECHECK_SHELLCHECK_DELTA.md).
-# GIT_CONFIG_COUNT entries win over every config file; the empty tree as attribute source means no tracked
-# .gitattributes selects a filter or driver.
+# r13 (ATM-1217 review H2): no raw `git` call below reads the reviewed repository's own git dir as a repository.
+# Every call goes through gg/gw: an environment built from nothing (env -i, PATH only), system + global config off,
+# and GIT_DIR = a GATE-OWNED copy of the repository's refs/HEAD/index with its own minimal config and the objects
+# borrowed read-only (lib/precheck_common.py make-git-dir). The repository's config, hooks, info/attributes and
+# include files are never opened, so no filter, fsmonitor, gpg, pager, textconv, diff driver, credential helper or
+# ssh command it names can run. The r12 pins stay as a belt.
 for _gv in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$_gv"; done
-GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0
-GIT_CONFIG_COUNT=6
-GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
-GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null
-GIT_CONFIG_KEY_2=commit.gpgSign GIT_CONFIG_VALUE_2=false
-GIT_CONFIG_KEY_3=diff.external GIT_CONFIG_VALUE_3=
-GIT_CONFIG_KEY_4=core.pager GIT_CONFIG_VALUE_4=cat
-GIT_CONFIG_KEY_5=core.attributesFile GIT_CONFIG_VALUE_5=/dev/null
-GIT_ATTR_SOURCE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
-export GIT_CONFIG_NOSYSTEM GIT_CONFIG_GLOBAL GIT_TERMINAL_PROMPT GIT_CONFIG_COUNT GIT_ATTR_SOURCE \
-    GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0 GIT_CONFIG_KEY_1 GIT_CONFIG_VALUE_1 GIT_CONFIG_KEY_2 GIT_CONFIG_VALUE_2 \
-    GIT_CONFIG_KEY_3 GIT_CONFIG_VALUE_3 GIT_CONFIG_KEY_4 GIT_CONFIG_VALUE_4 GIT_CONFIG_KEY_5 GIT_CONFIG_VALUE_5
+_GG_ENV='GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ATTR_SOURCE=4b825dc642cb6eb9a060e54bf8d69288fbee4904 GIT_CONFIG_COUNT=6 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null GIT_CONFIG_KEY_2=commit.gpgSign GIT_CONFIG_VALUE_2=false GIT_CONFIG_KEY_3=diff.external GIT_CONFIG_VALUE_3= GIT_CONFIG_KEY_4=core.pager GIT_CONFIG_VALUE_4=cat GIT_CONFIG_KEY_5=core.attributesFile GIT_CONFIG_VALUE_5=/dev/null'
+# gg: git against the gate-owned copy of $REPO. gw: git inside the build worktree (its .git names the gate dir).
+# shellcheck disable=SC2086 # _GG_ENV is a fixed list of NAME=VALUE words without spaces
+gg() { env -i PATH="$PATH" $_GG_ENV GIT_DIR="$GATE_GIT" GIT_WORK_TREE="$REPO" git "$@"; }
+# shellcheck disable=SC2086
+gw() { env -i PATH="$PATH" $_GG_ENV git -C "$WT_PATH" "$@"; }
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -150,6 +146,7 @@ PARENT_ROOT=$(cd "$CONST_ROOT/.." && pwd)
 SLICER="$FC/review/slicer.py"
 PRECHECK="$FC/review/precheck_pack.sh"
 BUILD_LIB="$FC/review/lib/precheck_pack_build_run.py"
+COMMON_LIB="$FC/review/lib/precheck_common.py"
 
 COMMIT=""
 LOGIC_GROUP=""
@@ -200,7 +197,7 @@ if ! command -v python3 >/dev/null 2>&1; then
     echo "precheck_pack_build: python3 not found on PATH" >&2
     exit 2
 fi
-for _tool in "$SLICER" "$PRECHECK" "$BUILD_LIB"; do
+for _tool in "$SLICER" "$PRECHECK" "$BUILD_LIB" "$COMMON_LIB"; do
     if [ ! -f "$_tool" ]; then
         echo "precheck_pack_build: required sibling tool is missing: $_tool" >&2
         exit 2
@@ -216,7 +213,7 @@ else
         /*) ;;
         *) echo "precheck_pack_build: --repo-root must be an absolute path" >&2; exit 2 ;;
     esac
-    _top=$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null) || {
+    _top=$(python3 "$COMMON_LIB" toplevel "$REPO_ROOT") || {
         echo "precheck_pack_build: --repo-root is not a git repository: $REPO_ROOT" >&2; exit 2; }
     if [ "$(cd "$_top" && pwd -P)" != "$(cd "$REPO_ROOT" && pwd -P)" ]; then
         echo "precheck_pack_build: --repo-root is not a repository toplevel (toplevel: $_top)" >&2; exit 2
@@ -224,6 +221,25 @@ else
     REPO=$(cd "$REPO_ROOT" && pwd -P)
     [ "$REPO" = "$(cd "$CONST_ROOT" && pwd -P)" ] || SPARSE=1
 fi
+
+# --- The gate-owned git dir (H2). Removed by cleanup on every exit. ---
+WT_PATH=""
+SCRATCH=""
+GATE_TMP=$(mktemp -d)
+GATE_GIT="$GATE_TMP/git"
+# shellcheck disable=SC2329 # invoked indirectly via `trap cleanup ...` below
+cleanup() {
+    if [ -n "$WT_PATH" ]; then
+        gg worktree remove --force "$WT_PATH" >/dev/null 2>&1 || true
+        rm -rf "${WT_PATH:?}"
+    fi
+    if [ -n "$SCRATCH" ]; then rm -rf "${SCRATCH:?}"; fi
+    rm -rf "${GATE_TMP:?}"
+}
+trap cleanup EXIT INT TERM
+mkdir "$GATE_GIT"
+python3 "$COMMON_LIB" make-git-dir --repo "$REPO" --dir "$GATE_GIT" || {
+    echo "precheck_pack_build: cannot create the gate-owned git dir for $REPO" >&2; exit 2; }
 
 KIND=commit
 if [ -n "$SNAPSHOT_PATHS" ]; then
@@ -248,12 +264,12 @@ case "$COMMIT" in
         ;;
 esac
 
-HEAD_SHA=$(git -C "$REPO" rev-parse --verify "${HEAD_REF}^{commit}" 2>/dev/null) || {
+HEAD_SHA=$(gg rev-parse --verify "${HEAD_REF}^{commit}" 2>/dev/null) || {
     echo "precheck_pack_build: --commit's head ref does not resolve to a real commit in $REPO: $HEAD_REF" >&2
     exit 2
 }
-if git -C "$REPO" rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
-    BASE_SHA=$(git -C "$REPO" rev-parse --verify "${BASE_REF}^{commit}")
+if gg rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+    BASE_SHA=$(gg rev-parse --verify "${BASE_REF}^{commit}")
 else
     # A single, parent-less (root) commit: diff against git's real empty-tree id.
     BASE_SHA=4b825dc642cb6eb9a060e54bf8d69288fbee4904
@@ -264,11 +280,11 @@ case "$COMMIT" in
     *) KEY="$HEAD_SHA" ;;
 esac
 
-if [ -z "$SC_EXCEPTIONS" ] && git -C "$REPO" cat-file -e "$HEAD_SHA:config/shellcheck_legacy_exceptions.tsv" 2>/dev/null; then
+if [ -z "$SC_EXCEPTIONS" ] && gg cat-file -e "$HEAD_SHA:config/shellcheck_legacy_exceptions.tsv" 2>/dev/null; then
     SC_EXCEPTIONS=config/shellcheck_legacy_exceptions.tsv
 fi
 
-SHORT_HEAD=$(git -C "$REPO" rev-parse --short=12 "$HEAD_SHA")
+SHORT_HEAD=$(gg rev-parse --short=12 "$HEAD_SHA")
 [ -n "$LOGIC_GROUP" ] || LOGIC_GROUP="precheck-$SHORT_HEAD"
 [ -n "$OUT_DIR" ] || OUT_DIR="$PARENT_ROOT/qa-results/fastcycle/precheck_packs/$KEY"
 
@@ -317,18 +333,11 @@ fi
 WT_PATH=$(mktemp -d "$WT_ROOT/build.XXXXXX")
 SCRATCH=$(mktemp -d "$WT_ROOT/scratch.XXXXXX")
 
-# shellcheck disable=SC2329 # invoked indirectly via `trap cleanup ...` below
-cleanup() {
-    git -C "$REPO" worktree remove --force "$WT_PATH" >/dev/null 2>&1
-    rm -rf "$WT_PATH" "$SCRATCH"
-    git -C "$REPO" worktree prune >/dev/null 2>&1
-}
-trap cleanup EXIT INT TERM
 
 # --- Enumerate the REAL changed paths, NUL-separated and unquoted
 # (core.quotePath=false, -z); renames split into delete + add (--no-renames). ---
 PATHS_FILE="$SCRATCH/paths.nul"
-git -C "$REPO" -c core.quotePath=false diff -z --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" -- > "$PATHS_FILE" || {
+gg -c core.quotePath=false diff -z --name-only --no-renames --no-textconv --no-ext-diff "$BASE_SHA" "$HEAD_SHA" -- > "$PATHS_FILE" || {
     echo "precheck_pack_build: git diff --name-only failed for $BASE_SHA..$HEAD_SHA" >&2
     exit 2
 }
@@ -344,21 +353,21 @@ if [ "$SPARSE" -eq 1 ]; then
     # checkout of the paths that exist at head. No sparse-checkout config is
     # written (nothing changes in the reviewed repo's own config); the index
     # holds only the materialised paths, the commit's tree holds everything.
-    git -C "$REPO" worktree add --no-checkout --detach --quiet "$WT_PATH" "$HEAD_SHA" || {
+    gg worktree add --no-checkout --detach --quiet "$WT_PATH" "$HEAD_SHA" || {
         echo "precheck_pack_build: git worktree add --no-checkout failed for $HEAD_SHA" >&2; exit 2; }
     set -- present-paths --repo "$REPO" --head "$HEAD_SHA" --paths-file "$PATHS_FILE"
     if [ -n "$SC_EXCEPTIONS" ]; then set -- "$@" --extra "$SC_EXCEPTIONS"; fi
     PRESENT_RC=0
     python3 "$BUILD_LIB" "$@" >"$SCRATCH/present.nul" || PRESENT_RC=$?
     if [ "$PRESENT_RC" -eq 0 ]; then
-        GIT_LITERAL_PATHSPECS=1 git -C "$WT_PATH" checkout --quiet --pathspec-from-file="$SCRATCH/present.nul" \
+        gw --literal-pathspecs checkout --quiet --pathspec-from-file="$SCRATCH/present.nul" \
             --pathspec-file-nul "$HEAD_SHA" || {
             echo "precheck_pack_build: partial checkout of $HEAD_SHA failed" >&2; exit 2; }
     elif [ "$PRESENT_RC" -ne 3 ]; then
         echo "precheck_pack_build: cannot list the changed paths present at head" >&2; exit 2
     fi
 else
-    git -C "$REPO" worktree add --detach --quiet "$WT_PATH" "$HEAD_SHA" || {
+    gg worktree add --detach --quiet "$WT_PATH" "$HEAD_SHA" || {
         echo "precheck_pack_build: git worktree add failed for $HEAD_SHA" >&2
         exit 2
     }
