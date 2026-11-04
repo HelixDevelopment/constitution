@@ -99,7 +99,10 @@ mutant "C10 created config kept"            install _edit_config.py '           
 mutant "C11 spawn-window signal lost"       run     generic/label-agent-run.sh 'then fwd "$stop"           # arrived before the fork: plain fwd   # MUT:spawnrecheck' 'then :   # MUT:spawnrecheck'
 mutant "C12 spawn seam without test mode"   run     generic/label-agent-run.sh 'if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then' 'if [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then'
 mutant "C13 child never reports ready"     run     generic/label-agent-run.sh 'USR1; kill -s USR1 $$ 2>/dev/null; exec' 'USR1; exec'
-mutant "C14 wait not repeated after USR1"   run     generic/label-agent-run.sh 'while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done' ':'
+mutant "C14 wait not repeated after USR1"   run     generic/label-agent-run.sh '  { [ "$rc" -gt 128 ] && [ "$traps" != "$t0" ]; } || break' '  break'
+mutant "C15 kill -0 decides (pre-fix loop)"  run     generic/label-agent-run.sh '  { [ "$rc" -gt 128 ] && [ "$traps" != "$t0" ]; } || break' '  kill -0 "$child" 2>/dev/null || break'
+mutant "C16 ready-delay seam without test mode" run  generic/label-agent-run.sh 'if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}" ]; then' 'if [ -n "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}" ]; then'
+mutant "C17 sig-delay seam without test mode" run    generic/label-agent-run.sh '    if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}" ]; then' '    if [ -n "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}" ]; then'
 restore
 echo "---"; echo "prove_adapter_mutations: $killed/$total mutants killed"
 [ "$undet" = 0 ] || { echo "prove_adapter_mutations: UNDETERMINED mutant(s) — not a pass"; exit 2; }

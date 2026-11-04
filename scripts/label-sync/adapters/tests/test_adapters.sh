@@ -246,6 +246,18 @@ for _ in $(seq 1 50); do [ "$(count)" = 1 ] && break; sleep 0.1; done
 sleep 0.3; kill -TERM "$wp"; wait "$wp"; rc=$?
 eq "run: TERM really forwarded (the child trapped it and exited 7)" "7" "$rc"
 ok "run: the child recorded the forwarded TERM" grep -q CHILD_GOT_TERM "$ROOT/term.marker"
+# 2026-11-04: the child exits WHILE the forwarding handler still runs (test seam LABEL_AGENT_RUN_TEST_SIG_DELAY, only
+# with LABEL_SYNC_TEST_MODE=1). bash reaps it during the handler, so a `kill -0` decision (the pre-fix loop) returned the
+# interrupted 143; the wrapper must re-wait and give the child's 7 (measured: fixed 8/8 = 7, pre-fix loop 8/8 = 143).
+for sd in 0.5 5; do
+  newstate; rm -f "$ROOT/term.marker"
+  if [ "$sd" = 0.5 ]; then LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIG_DELAY=$sd bash "$R" --agent codex -- bash "$TRAPC" & wp=$!
+  else LABEL_AGENT_RUN_TEST_SIG_DELAY=$sd bash "$R" --agent codex -- bash "$TRAPC" & wp=$!; fi
+  for _ in $(seq 1 50); do [ "$(count)" = 1 ] && break; sleep 0.1; done
+  sleep 0.3; t0=$(date +%s%N); kill -TERM "$wp"; wait "$wp"; rc=$?; ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+  if [ "$sd" = 0.5 ]; then eq "run: a child that exits while the forwarding handler still runs gives ITS status (7)" "7" "$rc"
+  else ok "run: the forwarding-delay seam is inert without LABEL_SYNC_TEST_MODE=1 (rc $rc, ${ms} ms; the seam would add 5000)" test "$rc" = 7 -a "$ms" -lt 4000; fi
+done
 # review-2 F: a TERM that arrives WHILE registering leaves no running ghost and
 # never starts the agent (deterministic: a labelctl shim slows `register`)
 newstate
@@ -277,9 +289,12 @@ eq "run: ...the wrapper exits 143 for that TERM" "143" "$rc"
 lost=0
 for i in $(seq 1 100); do
   newstate; t0=$(date +%s%N)
-  LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- sleep 3 </dev/null >/dev/null 2>&1; rc=$?
+  # 2026-11-04: the agent sleeps 30 s and the bound is 15 s. The old `sleep 3` with a 2.5 s bound counted the wrapper's own
+  # registration time, so one loaded run (rc 143 = the agent WAS stopped by the TERM, 3166 ms) was reported as "lost".
+  # A really lost TERM lets the agent finish: rc 0 and >= 30 s, both still caught.
+  LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- sleep 30 </dev/null >/dev/null 2>&1; rc=$?
   ms=$(( ($(date +%s%N) - t0) / 1000000 ))
-  { [ "$rc" = 143 ] && [ "$ms" -lt 2500 ]; } || { lost=$((lost+1)); echo "  lost: run $i rc $rc ${ms}ms"; break; }   # first loss decides
+  { [ "$rc" = 143 ] && [ "$ms" -lt 15000 ]; } || { lost=$((lost+1)); echo "  lost: run $i rc $rc ${ms}ms"; break; }   # first loss decides
 done
 eq "run: the spawn-window TERM is never lost (100 runs, stops at the first loss)" "0" "$lost"
 # the USR1 readiness report interrupts the wrapper's `wait`; a child that exits
@@ -290,7 +305,25 @@ for i in $(seq 1 100); do
   [ "$rc" = 3 ] || { bad=$((bad+1)); echo "  wrong status: run $i rc $rc"; break; }
 done
 eq "run: a fast-exiting agent's status is propagated exactly (100 runs)" "0" "$bad"
-LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- true; rc=$?
+# 2026-11-04 (run 76 of one loaded 100-run loop gave rc 138 = 128+USR1): when the wrapper's USR1 handler runs late, the
+# child exits and bash reaps it DURING the handler, so `kill -0` already fails and the interrupted `wait`'s 138 was
+# returned. The test seam LABEL_AGENT_RUN_TEST_READY_DELAY (only with LABEL_SYNC_TEST_MODE=1) delays the handler and
+# makes that interleaving deterministic.
+bad=0
+for i in 1 2 3 4 5; do
+  newstate; LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_READY_DELAY=0.3 bash "$R" --agent codex -- bash -c 'exit 3' </dev/null >/dev/null 2>&1; rc=$?
+  [ "$rc" = 3 ] || { bad=$((bad+1)); echo "  wrong status: delayed-ready run $i rc $rc"; break; }
+done
+eq "run: a child that exits while the readiness handler still runs gives ITS status (5 runs, handler delayed 0.3 s)" "0" "$bad"
+newstate; LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_READY_DELAY=0.3 bash "$R" --agent codex -- bash -c 'kill -s KILL $$' </dev/null >/dev/null 2>&1; rc=$?
+eq "run: ...and a child killed by a signal while the handler runs still gives 128+N (137)" "137" "$rc"
+newstate; t0=$(date +%s%N); LABEL_AGENT_RUN_TEST_READY_DELAY=5 bash "$R" --agent codex -- true </dev/null >/dev/null 2>&1; rc=$?
+ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+ok "run: the ready-delay seam is inert without LABEL_SYNC_TEST_MODE=1 (rc $rc, ${ms} ms; the seam would add 5000)" test "$rc" = 0 -a "$ms" -lt 4000
+# 2026-11-04: the agent sleeps 1 s (was `true`). With the ready poll a remembered TERM is delivered after the poll's
+# sleep, so `true` has already exited 0 and the C12 mutant (seam honoured without test mode) gave 0 too (20/20 measured).
+# A 1 s agent is still alive when the TERM arrives: inert seam -> 0, honoured seam -> 143 (10/10 each, measured).
+LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- sleep 1; rc=$?
 eq "run: the spawn seam is inert without LABEL_SYNC_TEST_MODE=1" "0" "$rc"
 # review-2 N8: the agent reads the wrapper's stdin
 out="$(printf 'IN-CANARY-42' | bash "$R" --agent codex -- cat 2>/dev/null)"
