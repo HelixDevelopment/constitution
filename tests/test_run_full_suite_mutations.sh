@@ -5,8 +5,17 @@
 # tests/test_run_full_suite.sh against the mutated copy (FSR_RUNNER). Each mutant MUST make the
 # self-test fail; the unmutated copy MUST pass first (baseline), otherwise nothing is concluded.
 # M1-M6 are the reviewer-authored mutants of review round 1 (rc 137 as PASS, resume ignores sha,
-# TIMEOUT dropped from the failing set, exit-0 VERDICT: SKIP undetected, --rerun-nonpass ignored);
-# M7+ are the author's own. Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# TIMEOUT dropped from the failing set, exit-0 SKIP word undetected, --rerun-nonpass ignored);
+# R1-R6 are the reviewer-authored mutants of review round 2 (resume ignores the runner hash, tree
+# change not failing, census needle skipped, any dict accepted as a record, rm_tree containment off,
+# R5 timer firing not recorded); M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
+# kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
+#   M9  `any(c.get("f")>0 for c in counts)` -> False: line_counts() already returns FAIL for any line
+#       with a failed>0 binding, so that check cannot decide a verdict.
+#   M13 drop the `*_test.sh` name pattern: the broader rule (a .sh whose name contains `test`)
+#       still lists every such file.
 # Exit 0 = baseline passes and every selected mutant is killed.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -18,31 +27,44 @@ trap 'TMPDIR="$(dirname "$W")" safe_rm_rf "${W:?}" >/dev/null 2>&1' EXIT
 # id <TAB> old <TAB> new   (python string escapes \n \t are decoded)
 MUTANTS=$(cat <<'EOF'
 M1	    if rc in (124, 137):\n        return "ERROR", "rc_%d_without_runner_timeout" % rc, "exit-code", None	    if rc in (124, 137):\n        return "PASS", "", "exit-code", None
-M2	return o["unit"] == u["id"] and o["sha"] == sha and	return o["unit"] == u["id"] and
+M2	return (o["unit"] == u["id"] and o["sha"] == sha and	return (o["unit"] == u["id"] and
 M3	BAD = ("FAIL", "TIMEOUT", "ERROR")	BAD = ("FAIL", "ERROR")
-M5	        if w == "SKIP":	        if w == "SKIPX":
+M5	        if w.startswith("skip"):	        if w.startswith("skipX"):
 M6	                if not (rerun and lv != "PASS"):	                if True:
 M7	and o["tree"] == tree and	and
-M8	            return "FAIL", "zero_checks_run", "summary", counts	            return "PASS", "", "summary", counts
-M9	        if f > 0:\n            return "FAIL", "summary_reports_failures"	        if f > 10 ** 9:\n            return "FAIL", "summary_reports_failures"
+M8	            return "ERROR", "zero_tests", "summary", last_counts	            return "PASS", "", "summary", last_counts
+M9b	    amb_fail = any(f > 0 for f in fails)	    amb_fail = False
 M10	        if p != path:	        if p not in path:
 M11	    env = {k: os.environ[k] for k in ENV_BASE if k in os.environ}	    env = dict(os.environ)
 M12	    leaked = reap_token(token)	    leaked = 0
-M13	SH_PATTERNS = (re.compile(r"^test_.*\\.sh$"), re.compile(r"^.*_test\\.sh$"),	SH_PATTERNS = (re.compile(r"^test_.*\\.sh$"),
 M14	    for f in sorted(set(by) - want):	    for f in []:
-M15	                    add(path, "-", [], tier, False, "heavy_excluded (member of %s)" % cover)\n            continue	                    add(path, "-", [], tier, False, "heavy_excluded (member of %s)" % cover)\n            add(path, "bash", [], tier, True)\n            continue
+M15	                    add(path, "-", [], tier, False, "heavy_excluded (member of %s)" % cover)	                    add(path, "bash", [], tier, True)
 M16	[] if heavy_mode else ["--quick"]	[]
 M17	        run = heavy_mode or not eff_heavy(r)	        run = True
-M18	            % (cats["NOT-RUN"], ", interrupted" if interrupted else "", tail))\n        return 4	            % (cats["NOT-RUN"], ", interrupted" if interrupted else "", tail))\n        return 0
-M19	"run with --include-heavy" % (cats["SKIPPED-heavy"], tail))\n        return 5	"run with --include-heavy" % (cats["SKIPPED-heavy"], tail))\n        return 0
+M18	        return 4\n    if cats	        return 0\n    if cats
+M19	        return 5\n    if cats	        return 0\n    if cats
 M20	        return "ERROR", "killed_by_signal_%d" % -rc, "exit-code", None	        return "TIMEOUT", "killed_by_signal_%d" % -rc, "exit-code", None
-M21	    if outdir == root or outdir.startswith(root + os.sep):	    if False:
+M21	            raise Fatal(2, "--out %s is inside the repository root; suites	            pass  # raise Fatal(2, "--out %s is inside the repository root; suites
 M22	if not re.match(r"^[1-9][0-9]{0,5}$", v):	if not re.match(r"^[0-9]{1,6}$", v):
-M23	    m = WORD.match(term)	    m = next((WORD.match(x.strip()) for x in lines if WORD.match(x.strip())), None)
+M23	        if term_skip and p > 0:	        if False:
 M24	            if needle in env.split(b"\\0"):	            if False:
 M25	        if HEAVY_NAME.search(b) and tier != "heavy" and not o:	        if False:
-M26	            if r[3] == "default" and not mentions(rest, r[0]):	            if False:
+M26	                if r[3] == "default" and r[0] not in q:	                if False:
 M27	        if sig.startswith("reason:"):\n            if reason == sig[len("reason:"):]:\n                return tid\n        elif sig in logtext:	        if True:
+M28	        return 6\n	        return 0\n
+M29	            if overflow and not timed_out:	            if False:
+M30	        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)	        pass
+M31	            if o["seq"] != n or o["prev"] != want_prev:	            if False:
+M32	        h.update(b"I" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        pass
+M33	                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD	                     "true; git status --porcelain=v1 -z --untracked-files=all >/dev/null; git diff HEAD >/dev/null
+M34	        flip = len(set(r["verdict"] for r in mine)) > 1	        flip = False
+M35	        if o["log"] in logs:	        if False:
+R1	 and o["runner_hash"] == rhash	
+R2	    if tree_end != tree:\n        out("RESULT: FAIL	    if False:\n        out("RESULT: FAIL
+R3	    census_needle(scratch)\n	    pass\n
+R4	    if not isinstance(o, dict) or o.get("schema") != SCHEMA:\n        return False\n	    if not isinstance(o, dict):\n        return False\n    return True\n
+R5	                    timed_out, term_at = True, now	                    term_at = now
+R6	    if not real.startswith(sreal + os.sep) or not os.path.basename(real).startswith("fsr_"):	    if False:
 EOF
 )
 
@@ -77,7 +99,11 @@ open(p, "w").write(s.replace(old, new))
 PY
   then echo "BAD  $id: mutation not applicable"; bad=$((bad+1)); continue; fi
   if selftest "$d"; then echo "SURVIVED $id"; survived=$((survived+1))
-  else echo "killed $id ($(grep -c '^FAIL ' "$d.log") failing check(s))"; killed=$((killed+1)); fi
+  else
+    nfail=$(grep -c '^FAIL ' "$d.log")
+    if [ "$nfail" -gt 0 ]; then echo "killed $id ($nfail failing check(s))"; killed=$((killed+1))
+    else echo "SURVIVED $id (self-test exited non-zero with no FAIL line: $(tail -1 "$d.log"))"; survived=$((survived+1)); fi
+  fi
 done <<< "$MUTANTS"
 echo "SUMMARY mutants=$((killed+survived+bad)) killed=$killed survivors=$survived not_applicable=$bad"
 [ "$survived" -eq 0 ] && [ "$bad" -eq 0 ]
