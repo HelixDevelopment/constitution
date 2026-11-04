@@ -520,10 +520,10 @@ if t_r7clean "$GATE"; then ok "R7: the snapshot dir existed mid-run and is remov
 # (8) the reader on its own (unit level, the lib's embedded reader): no-follow on INTERMEDIATE components, and a file
 # that grows past the cap between fstat and read (simulated: fstat returns the stat taken before the file grew)
 R7U="$TMP/r7unit"; mkdir -p "$R7U/real"; cp -- "$TMP/r7_true.yaml" "$R7U/real/helix-deps.yaml"; ln -s real "$R7U/lnk"; : > "$R7U/out"
-r7reader() { # $1=gate $2=python prelude then reader args : rc of the reader
+r7reader() { # $1=gate $2=python prelude $3=top $4=rel $5=out FILE (opened here as the reader's out fd 3) $6=cap : rc of the reader
     local lib; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"; shift
-    timeout -k 2 15 bash -c '. "$1"; pre="$2"; shift 2; python3 -I -B -c "$pre
-$_CM_TP_READ_PY" "$@"' _ "$lib" "$@" 2>/dev/null
+    timeout -k 2 15 bash -c '. "$1"; python3 -I -B -c "$2
+$_CM_TP_READ_PY" "$3" "$4" 3 "$6" 3>"$5"' _ "$lib" "$@" 2>/dev/null
 }
 t_r7walk() { r7reader "$1" '' "$R7U" real/helix-deps.yaml "$R7U/out" 1048576 && [ -s "$R7U/out" ] || return 1
     : > "$R7U/out"; r7reader "$1" '' "$R7U" lnk/helix-deps.yaml "$R7U/out" 1048576; [ $? -eq 7 ] && [ ! -s "$R7U/out" ]; }
@@ -538,6 +538,256 @@ os.fstat = _r7g'
 t_r7grow() { cp -- "$TMP/r7_true.yaml" "$R7U/real/grow.yaml"; : > "$R7U/out"
     r7reader "$1" "$GROWPRE" "$R7U" real/grow.yaml "$R7U/out" 1048576; [ $? -eq 6 ] && [ ! -s "$R7U/out" ]; }
 if t_r7grow "$GATE"; then ok "R7 unit: a file that grows past the cap after fstat is refused (rc 6) and nothing is written"; else bad "R7 unit: a grown file was copied"; fi
+
+# ── R8 (review 11.4.276 follow-ups r3, H1 + H2) ──────────────────────────────────────────────────────────────────────
+# H1 class: "a path string resolved more than once during one prune decision". Each level's directory is entered ONCE
+# (cd -P; then pwd -P, before any git call, and git's toplevel must both equal the expected canonical path), every later
+# git / reader / hash call works on that cwd with the git dir resolved once, and the level's result is used only when the
+# path still names the pinned directory afterwards. A `git` shim swaps a directory at one resolution point:
+#   R (manifest marks submodules/a/submodules/w true) has the populated gitlink submodules/a = A;
+#   A marks v false and w true, and records v but NOT w; B / Bm (attacker repositories) mark v and w true and record both.
+# A bad prune is submodules/a/submodules/v (A says false) or submodules/a/submodules/w (not a gitlink of A).
+mkr8() { # $1=dir $2=A's mark for v
+    local Z="$1" X
+    mkrepo "$Z/vsrc" || return 1
+    for X in A B Bm Rb; do
+        mkdir -p "$Z/$X"; GIT -C "$Z/$X" init -q . || return 1
+        case "$X" in
+            A)  manifest2 "$Z/$X/helix-deps.yaml" submodules/v "$2" submodules/w true ;;
+            Rb) manifest2 "$Z/$X/helix-deps.yaml" submodules/x true ;;
+            *)  manifest2 "$Z/$X/helix-deps.yaml" submodules/v true submodules/w true ;;
+        esac
+        case "$X" in
+            Rb) addsub "$Z/$X" "$Z/vsrc" submodules/x "$GO" || return 1 ;;
+            A)  addsub "$Z/$X" "$Z/vsrc" submodules/v "$GO" || return 1 ;;
+            *)  addsub "$Z/$X" "$Z/vsrc" submodules/v "$GO" && addsub "$Z/$X" "$Z/vsrc" submodules/w "$GO" || return 1 ;;
+        esac
+        printf "def f():\n    return 1\n" > "$Z/$X/f.py"; commitall "$Z/$X"
+    done
+    # Bm also records an (unpopulated, empty) gitlink z: the descent into it is the last git call of the Bm level
+    GIT -C "$Z/Bm" update-index --add --cacheinfo "160000,$(GIT -C "$Z/vsrc" rev-parse HEAD),submodules/z" && commitall "$Z/Bm"; mkdir -p "$Z/Bm/submodules/z"
+    mkdir -p "$Z/R"; GIT -C "$Z/R" init -q .; printf "def f():\n    return 1\n" > "$Z/R/f.py"; manifest2 "$Z/R/helix-deps.yaml" submodules/a/submodules/w true
+    addsub "$Z/R" "$Z/A" submodules/a "$OWN" && commitall "$Z/R" || return 1
+    cp -- "$Z/R/submodules/a/.git" "$Z/dotgit.save"; cp -- "$Z/R/submodules/a/helix-deps.yaml" "$Z/man.save"
+    # Bc: a foreign clone of A at the RECORDED commit (embedded .git) whose index stages marks v and w true and records w;
+    # it passes the recorded-checkout check, so only the post-decision identity check can refuse it
+    GIT clone -q "file://$Z/A" "$Z/Bc" || return 1; : > "$Z/Bc/.bcmark"
+    manifest2 "$Z/Bc/helix-deps.yaml" submodules/v true submodules/w true
+    GIT -C "$Z/Bc" update-index --add --cacheinfo "160000,$(GIT -C "$Z/vsrc" rev-parse HEAD),submodules/w" && GIT -C "$Z/Bc" add helix-deps.yaml || return 1
+    [ "$(GIT -C "$Z/Bc" rev-parse HEAD)" = "$(GIT -C "$Z/R" rev-parse :submodules/a)" ] || return 1
+}
+Z8="$TMP/r8"; mkr8 "$Z8" false || bad "R8 fixture: could not be built"
+Z8T="$TMP/r8t"; mkr8 "$Z8T" true || bad "R8 fixture (golden-FALSE): could not be built"
+mkshim8() { # $1=shim dir $2=event rootrev|rootlist|pin|entry|hash|glcheck|none $3=pre|post $4=action $5=restore next|never|z $6=tree
+    mkdir -p "$1"; rm -rf -- "${1:?}/flag" "${1:?}/restored"
+    {   printf '#!/bin/bash\nEV=%q; WHEN=%q; ACT=%q; RST=%q; Z=%q; S=%q; REAL=%q\n' "$2" "$3" "$4" "$5" "$6" "$1" "$R7REALGIT"
+        cat <<'SH'
+A="$Z/R/submodules/a"; H="$Z/R/submodules/.hold"; tgt="$(pwd -P)"; prev=""
+for x in "$@"; do [ "$prev" = -C ] && tgt="$x"; prev="$x"; done
+a=" $* "; hit=""
+case "$EV" in
+    rootrev)  [ "$tgt" = "$Z/R" ] && case "$a" in *" rev-parse "*) case "$a" in *absolute-git-dir*) ;; *) hit=1 ;; esac ;; esac ;;
+    rootlist) [ "$tgt" = "$Z/R" ] && case "$a" in *" ls-files "*) case "$a" in *" -- "*) ;; *) hit=1 ;; esac ;; esac ;;
+    pin)      [ "$tgt" = "$A" ] && case "$a" in *" rev-parse "*) hit=1 ;; esac ;;
+    entry)    [ "$tgt" = "$A" ] && case "$a" in *":(literal)helix-deps.yaml"*) hit=1 ;; esac ;;
+    hash)     [ "$tgt" = "$A" ] && case "$a" in *" hash-object "*) hit=1 ;; esac ;;
+    glcheck)  [ "$tgt" = "$A" ] && case "$a" in *":(literal)submodules/w"*) hit=1 ;; esac ;;
+esac
+swap() {
+    case "$ACT" in
+        sym)      mv -- "$A" "$H" && ln -s -- "$Z/B" "$A" ;;
+        sym2ren)  mv -- "$A" "$H" && ln -s -- "$Z/Bm" "$A" ;;
+        ren)      mv -- "$A" "$H" && mv -- "$Z/Bm" "$A" ;;
+        renc)     mv -- "$A" "$H" && mv -- "$Z/Bc" "$A" ;;
+        gitf)     printf 'gitdir: %s\n' "$Z/B/.git" > "$A/.git" && cp -- "$Z/B/helix-deps.yaml" "$A/helix-deps.yaml" ;;
+        rsym2ren) mv -- "$Z/R" "$Z/R.hold" && ln -s -- "$Z/Rb" "$Z/R" ;;
+        rplain)   mv -- "$Z/R" "$Z/R.hold" && mkdir -- "$Z/R" && : > "$Z/R/.plainmark" && cp -- "$Z/helix-deps.yaml" "$Z/R/helix-deps.yaml" ;;
+        symb)     mv -- "$A" "$H" && ln -s -- "$Z/B" "$A" && cp -- "$Z/B/helix-deps.yaml" "$H/helix-deps.yaml" ;;
+    esac
+}
+restore() {
+    case "$ACT" in
+        sym)      rm -f -- "$A" && mv -- "$H" "$A" ;;
+        sym2ren)  rm -f -- "$A" && mv -- "$Z/Bm" "$A" ;;
+        ren)      mv -- "$A" "$Z/Bm" && mv -- "$H" "$A" ;;
+        renc)     mv -- "$A" "$Z/Bc" && mv -- "$H" "$A" ;;
+        gitf)     cp -- "$Z/dotgit.save" "$A/.git" && cp -- "$Z/man.save" "$A/helix-deps.yaml" ;;
+        rsym2ren) rm -f -- "$Z/R" && mv -- "$Z/Rb" "$Z/R" ;;
+        symb)     rm -f -- "$A" && mv -- "$H" "$A" ;;
+    esac
+}
+if [ -e "$S/flag" ] && [ ! -e "$S/restored" ]; then
+    case "$RST" in
+        next) mkdir -- "$S/restored" 2>/dev/null && restore ;;
+        z) [ "$tgt" = "$A/submodules/z" ] && case "$a" in *" rev-parse "*) mkdir -- "$S/restored" 2>/dev/null && restore ;; esac ;;
+        hash) [ "$tgt" = "$A" ] && case "$a" in *" hash-object "*) mkdir -- "$S/restored" 2>/dev/null && restore ;; esac ;;
+    esac
+fi
+if [ -n "$hit" ] && [ "$WHEN" = pre ] && mkdir -- "$S/flag" 2>/dev/null; then swap; fi
+"$REAL" "$@"; rc=$?
+if [ "$RST" = glpost ] && [ -e "$S/flag" ] && [ "$tgt" = "$A" ]; then   # restore right AFTER the last listing of the level
+    case "$a" in *":(literal)submodules/"*) mkdir -- "$S/restored" 2>/dev/null && restore ;; esac
+fi
+if [ -n "$hit" ] && [ "$WHEN" = post ] && mkdir -- "$S/flag" 2>/dev/null; then swap; fi
+exit $rc
+SH
+    } > "$1/git"
+    chmod +x "$1/git"
+}
+r8fix() { # $1=tree : back to the canonical layout (whatever the run left), then prove it
+    local Z="$1" A="$1/R/submodules/a" H="$1/R/submodules/.hold"
+    if [ -L "$Z/R" ]; then rm -f -- "$Z/R"; fi
+    if [ -e "$Z/R/.plainmark" ]; then rm -rf -- "${Z:?}/R"; fi
+    if [ -d "$Z/R.hold" ]; then [ -d "$Z/R" ] && mv -- "$Z/R" "$Z/Rb"; mv -- "$Z/R.hold" "$Z/R"; fi
+    if [ -L "$A" ]; then rm -f -- "$A"; fi
+    if [ -d "$H" ]; then if [ -d "$A" ]; then if [ -e "$A/.bcmark" ]; then mv -- "$A" "$Z/Bc"; else mv -- "$A" "$Z/Bm"; fi; fi; mv -- "$H" "$A"; fi
+    if [ -f "$Z/dotgit.save" ]; then cp -- "$Z/dotgit.save" "$A/.git"; fi; cp -- "$Z/man.save" "$A/helix-deps.yaml"
+    [ -d "$Z/R" ] && [ ! -L "$Z/R" ] && [ -d "$A" ] && [ ! -L "$A" ] && [ -d "$Z/Bm/.git" ] && [ -d "$Z/Rb/.git" ] && [ -d "$Z/Bc/.git" ] && [ ! -e "$A/.bcmark" ] && [ -f "$A/f.py" ]
+}
+r8run() { # $1=gate $2=tree $3=event $4=when $5=action $6=restore : prune set on stdout; stderr in $TMP/r7err
+    local S="$TMP/r8shim"; r8fix "$2" || { bad "R8 fixture: tree not restorable"; return 1; }
+    mkshim8 "$S" "$3" "$4" "$5" "$6" "$2"
+    tplib "$1" "$2/R" "$S"; local r=$?
+    [ "$3" = none ] || [ -d "$S/flag" ] || echo "R8NEEDLE: the $3/$5 swap never fired" >> "$TMP/r8needle"
+    r8fix "$2" || echo "R8NEEDLE: tree not restored after $3/$5" >> "$TMP/r8needle"
+    return $r
+}
+r8clean() { local o r; o="$(r8run "$@")"; r=$?; [ "$r" -eq 0 ] && grep -qx third_party <<<"$o" && ! grep -q '^submodules/a/submodules/[vw]$' <<<"$o" && ! grep -q '^submodules/x$' <<<"$o"; }
+: > "$TMP/r8needle"
+# baseline + golden-FALSE: no swap -> nothing of A pruned; A marking v true -> exactly submodules/a/submodules/v pruned
+o8="$(r8run "$GATE" "$Z8" none pre sym never)"
+if grep -qx third_party <<<"$o8" && ! grep -q '^submodules/a/submodules/' <<<"$o8"; then ok "R8 baseline: A marks v false, w is not A's gitlink -> nothing of A pruned"; else bad "R8 baseline wrong: $(tr '\n' ' ' <<<"$o8")"; fi
+o8="$(r8run "$GATE" "$Z8T" none pre sym never)"
+if grep -qx 'submodules/a/submodules/v' <<<"$o8" && ! grep -qx 'submodules/a/submodules/w' <<<"$o8"; then ok "R8 golden-FALSE: A marks v true -> submodules/a/submodules/v pruned (the fixture can see a prune)"; else bad "R8 golden-FALSE: A's legitimate mark not honoured: $(tr '\n' ' ' <<<"$o8")"; fi
+o8="$(r8run "$GATE" "$Z8T" entry pre sym next)"
+if grep -qx 'submodules/a/submodules/v' <<<"$o8"; then ok "R8 golden-FALSE: an A-B-A swap around the index lookup does not suppress A's legitimate prune"; else bad "R8 golden-FALSE: A-B-A swap suppressed a legitimate prune: $(tr '\n' ' ' <<<"$o8")"; fi
+# one fixture per resolution point (each would let B's index or bytes decide for A without the pin)
+t_r8rootpin() { r8clean "$1" "$Z8" rootrev post rsym2ren next; }   # root swapped for a symlink, B moved in before git's check
+t_r8pinpwd()  { r8clean "$1" "$Z8" rootlist pre sym2ren next; }   # nested top a symlink at the cd, B moved in before git's check
+t_r8pinpost() { r8clean "$1" "$Z8" pin post sym never; }           # swapped right after the pin
+t_r8entry()   { r8clean "$1" "$Z8" entry pre sym next; }           # swapped around the index lookup and the read
+t_r8hash()    { r8clean "$1" "$Z8" hash pre sym next; }            # swapped at the hash
+t_r8glcheck() { r8clean "$1" "$Z8" glcheck pre sym next; }         # swapped around the gitlink check (root deep mark + A's own)
+t_r8gitf()    { r8clean "$1" "$Z8" entry pre gitf next; }          # A's .git file + bytes pointed at B around the index lookup
+t_r8ren()     { r8clean "$1" "$Z8" rootlist pre renc glpost && [ -d "$TMP/r8shim/restored" ]; }   # a clone at the recorded commit renamed INTO the path for the decision, A put back before the identity check
+for t in rootpin:"root swapped between git's toplevel and the cd (B real at the path before git's check)" \
+         pinpwd:"nested top is a symlink at the cd (B real at the path before git's check)" \
+         pinpost:"nested top swapped right after the pin" entry:"nested top swapped around the index lookup and the read" \
+         hash:"nested top swapped at hash-object" glcheck:"nested top swapped around the gitlink check" \
+         gitf:"A's .git file and manifest pointed at B around the index lookup" \
+         ren:"a clone of A at the recorded commit (foreign index) renamed into the path for the decision, A restored before the identity check"; do
+    n="${t%%:*}"; l="${t#*:}"
+    if "t_r8$n" "$GATE"; then ok "R8: $l -> no prune of A's v / non-gitlink w (pinned)"; else bad "R8: $l -> BAD prune or error: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+done
+# the git dir is pinned as an fd too: A with an EMBEDDED .git directory (its git dir lives under the swapped path); A-B-A
+# swap around the index lookup with B's bytes written into A's worktree. A git dir named by path would read B's index.
+Z8E="$TMP/r8e"; mkr8 "$Z8E" false || bad "R8 fixture (embedded): could not be built"
+rm -f -- "$Z8E/R/submodules/a/.git" "$Z8E/dotgit.save"; cp -a -- "$Z8E/R/.git/modules/submodules/a" "$Z8E/R/submodules/a/.git"; GIT config -f "$Z8E/R/submodules/a/.git/config" --unset core.worktree
+[ -d "$Z8E/R/submodules/a/.git" ] && [ "$(GIT -C "$Z8E/R/submodules/a" rev-parse --absolute-git-dir)" = "$Z8E/R/submodules/a/.git" ] || bad "R8 fixture (embedded): A's .git is not embedded"
+t_r8gdfd() { r8clean "$1" "$Z8E" entry pre symb next; }
+if t_r8gdfd "$GATE"; then ok "R8: embedded git dir under the swapped path, A-B-A around the index lookup -> no prune (git dir pinned as an fd)"; else bad "R8: embedded git dir followed the swap -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+o8="$(r8run "$GATE" "$Z8E" none pre sym never)"
+if grep -qx third_party <<<"$o8" && ! grep -q '^submodules/a/submodules/' <<<"$o8"; then ok "R8 (embedded) baseline: nothing of A pruned"; else bad "R8 (embedded) baseline wrong: $(tr '\n' ' ' <<<"$o8")"; fi
+# a nested level must be the checkout git made for the parent's gitlink: a foreign repository renamed INTO the path and
+# held there for the whole decision (no restore) is refused; the two ways a real checkout is recognised each keep a
+# legitimate prune (absorbed git dir with HEAD moved past the recorded commit; embedded .git at the recorded commit).
+t_r8renall() { r8clean "$1" "$Z8" rootlist pre ren never; }
+if t_r8renall "$GATE"; then ok "R8: foreign repository renamed into the path for the whole decision -> no prune (not the recorded checkout)"; else bad "R8: a foreign repository held at the path was taken as the level -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# the root's toplevel check: the tree container is itself a repository Q (manifest marks x true, records gitlink x); a
+# plain directory holding Q's manifest bytes replaces the root after git's first toplevel answer. Its toplevel is Q, not
+# the root: refused. Without the toplevel check Q's index (x a gitlink) would decide for the root.
+Z8Q="$TMP/r8q"; mkr8 "$Z8Q" false || bad "R8 fixture (toplevel): could not be built"
+GIT -C "$Z8Q" init -q . && manifest2 "$Z8Q/helix-deps.yaml" submodules/x true && GIT -C "$Z8Q" add helix-deps.yaml &&
+    GIT -C "$Z8Q" update-index --add --cacheinfo "160000,$(GIT -C "$Z8Q/vsrc" rev-parse HEAD),submodules/x" && GIT -C "$Z8Q" commit -q -m q || bad "R8 fixture (toplevel): Q not built"
+t_r8roottop() { r8clean "$1" "$Z8Q" rootrev post rplain never; }
+if t_r8roottop "$GATE"; then ok "R8: root replaced by a plain directory inside another repository -> no prune (toplevel is not the root)"; else bad "R8: a non-top directory was pinned as the root -> BAD prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+Z8A="$TMP/r8adv"; mkr8 "$Z8A" true || bad "R8 fixture (advanced): could not be built"
+echo adv > "$Z8A/R/submodules/a/adv.txt"; GIT -C "$Z8A/R/submodules/a" add adv.txt; GIT -C "$Z8A/R/submodules/a" commit -q -m adv
+[ "$(GIT -C "$Z8A/R/submodules/a" rev-parse HEAD)" != "$(GIT -C "$Z8A/R" rev-parse :submodules/a)" ] || bad "R8 fixture (advanced): HEAD did not move past the recorded commit"
+t_r8adv() { local o; o="$(r8run "$1" "$Z8A" none pre sym never)"; grep -qx 'submodules/a/submodules/v' <<<"$o"; }
+if t_r8adv "$GATE"; then ok "R8 golden-FALSE: absorbed submodule with HEAD past the recorded commit keeps its legitimate prune"; else bad "R8 golden-FALSE: advanced absorbed submodule lost its prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+Z8ET="$TMP/r8et"; mkr8 "$Z8ET" true || bad "R8 fixture (embedded, true): could not be built"
+rm -f -- "$Z8ET/R/submodules/a/.git" "$Z8ET/dotgit.save"; cp -a -- "$Z8ET/R/.git/modules/submodules/a" "$Z8ET/R/submodules/a/.git"; GIT config -f "$Z8ET/R/submodules/a/.git/config" --unset core.worktree
+t_r8embT() { local o; o="$(r8run "$1" "$Z8ET" none pre sym never)"; grep -qx 'submodules/a/submodules/v' <<<"$o"; }
+if t_r8embT "$GATE"; then ok "R8 golden-FALSE: embedded .git at the recorded commit keeps its legitimate prune"; else bad "R8 golden-FALSE: embedded submodule at the recorded commit lost its prune: $(head -c 300 "$TMP/r7err" | tr '\n' ' ')"; fi
+# stated limit, printed (not asserted): a clone at the recorded commit held at the path for the WHOLE decision is taken as the level
+o8="$(r8run "$GATE" "$Z8" rootlist pre renc never)"; echo "NOTE: R8 stated limit (recorded-commit clone held for the whole decision) prune set: $(tr '\n' ' ' <<<"$o8")"
+if [ -s "$TMP/r8needle" ]; then bad "R8 control needle: $(sort -u "$TMP/r8needle" | tr '\n' ' ')"; else ok "R8 control needle: every swap fired and every tree was restored"; fi
+# pintop: an UNPOPULATED gitlink directory holding a copy of the root's own tracked manifest must not be read as a level
+U8="$TMP/r8unpop"; mkrepo "$TMP/r8u/v" && mkrepo "$TMP/r8u/a"; mkdir -p "$U8"; GIT -C "$U8" init -q .; printf "def f():\n    return 1\n" > "$U8/f.py"
+manifest "$U8/helix-deps.yaml" submodules/v true; addsub "$U8" "$TMP/r8u/v" submodules/v "$GO" && addsub "$U8" "$TMP/r8u/a" submodules/a "$OWN" && commitall "$U8"
+rm -rf -- "${U8:?}/submodules/a"; mkdir -p "$U8/submodules/a"; cp -- "$U8/helix-deps.yaml" "$U8/submodules/a/helix-deps.yaml"
+t_r8unpop() { local o; o="$(tplib "$1" "$U8")"; grep -qx submodules/v <<<"$o" && ! grep -q '^submodules/a/' <<<"$o"; }
+if t_r8unpop "$GATE"; then ok "R8: an unpopulated gitlink dir holding a copy of the root manifest is not a level (only the root's v is pruned)"; else bad "R8: unpopulated dir read as a level: $(tplib "$GATE" "$U8" | tr '\n' ' ')"; fi
+# snapshot custody: the snapshot has NO name while it is hashed and parsed (a writer that rewrites tp_manifest.*/m.* after
+# the hash finds nothing). Index false, worktree false; the shim rewrites every m.* to a true manifest after hash-object.
+R8SD="$TMP/r8snapd"; mkdir -p "$R8SD"
+mkshim_snap() { # $1=shim dir $2=TMPDIR of the call $3=bytes to write
+    mkdir -p "$1"; rm -f -- "$1/found" "$1/ran"
+    { printf '#!/bin/bash\nTD=%q; SRC=%q; S=%q; REAL=%q\n' "$2" "$3" "$1" "$R7REALGIT"
+      cat <<'SH'
+"$REAL" "$@"; rc=$?
+case " $* " in *" hash-object "*) : > "$S/ran"; for f in "$TD"/tp_manifest.*/m.*; do [ -f "$f" ] && cat -- "$SRC" > "$f" && echo "$f" >> "$S/found"; done ;; esac
+exit $rc
+SH
+    } > "$1/git"; chmod +x "$1/git"
+}
+t_r8snapname() { r7reset "$R7A" "$TMP/r7_false.yaml"; rm -rf -- "${R8SD:?}"; mkdir -p "$R8SD"; mkshim_snap "$TMP/r8shimS" "$R8SD" "$TMP/r7_true.yaml"
+    r7refused "$1" "$R7A" "$TMP/r8shimS" "TMPDIR='$R8SD'" && [ -e "$TMP/r8shimS/ran" ] && [ ! -s "$TMP/r8shimS/found" ]; }
+if t_r8snapname "$GATE"; then ok "R8: the snapshot has no name while it is hashed and parsed (a rewrite of tp_manifest.*/m.* finds nothing; needle: the shim ran)"; else bad "R8: a named snapshot was rewritten between hash and parse (found: $(tr '\n' ' ' < "$TMP/r8shimS/found" 2>/dev/null))"; fi
+# H2: two concurrent calls with ONE shared TMPDIR get two distinct private (0700) snapshot directories
+R8RD="$TMP/r8ri"; R8H="$TMP/r8h2"; mkcust "$R8H" true || bad "R8 H2 fixture: could not be built"   # own tree: R7C is rewritten by the R7 snapshot tests
+mkshim_ri() { # $1=shim dir $2=shared TMPDIR : at hash-object, wait (bounded) until 2 snapshot dirs exist, log them with modes
+    mkdir -p "$1"; rm -f -- "$1/log"
+    { printf '#!/bin/bash\nTD=%q; S=%q; REAL=%q\n' "$2" "$1" "$R7REALGIT"
+      cat <<'SH'
+case " $* " in *" hash-object "*)
+    for i in $(seq 1 80); do n=0; for d in "$TD"/tp_manifest.*; do [ -d "$d" ] && n=$((n+1)); done; [ "$n" -ge 2 ] && break; sleep 0.1; done
+    blk=""; for d in "$TD"/tp_manifest.*; do [ -d "$d" ] && blk="$blk$(stat -c %a -- "$d") $d"$'\n'; done
+    printf '%s--\n' "$blk" >> "$S/log" ;;   # one write per block (O_APPEND, < PIPE_BUF): concurrent shims cannot interleave lines
+esac
+exec "$REAL" "$@"
+SH
+    } > "$1/git"; chmod +x "$1/git"
+}
+t_r8ri() { # $1=gate
+    local lib p1 p2; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"
+    rm -rf -- "${R8RD:?}"; mkdir -p "$R8RD"; mkshim_ri "$TMP/r8shimR" "$R8RD"
+    timeout -k 2 20 env TMPDIR="$R8RD" PATH="$TMP/r8shimR:$PATH" bash -c '. "$1"; cm_third_party_prune_paths "$2"' _ "$lib" "$R8H" > "$TMP/r8ri1" 2>/dev/null & p1=$!
+    timeout -k 2 20 env TMPDIR="$R8RD" PATH="$TMP/r8shimR:$PATH" bash -c '. "$1"; cm_third_party_prune_paths "$2"' _ "$lib" "$R8H" > "$TMP/r8ri2" 2>/dev/null & p2=$!
+    wait "$p1"; wait "$p2"
+    grep -qx submodules/v "$TMP/r8ri1" && grep -qx submodules/v "$TMP/r8ri2" || return 1
+    awk 'BEGIN{ok=0} /^--$/ { if (n >= 2 && bad == 0) ok=1; n=0; bad=0; delete seen; next }
+         { if ($1 != "700") bad=1; if (!($2 in seen)) { seen[$2]=1; n++ } } END { exit ok ? 0 : 1 }' "$TMP/r8shimR/log" || return 1
+    [ -z "$(ls -A "$R8RD")" ]
+}
+if t_r8ri "$GATE"; then ok "R8 (H2): two concurrent calls on one shared TMPDIR hold two distinct 0700 snapshot dirs at once, both removed"; else bad "R8 (H2): snapshot dirs shared, not private, or left behind: $(tr '\n' ' ' < "$TMP/r8shimR/log" 2>/dev/null | head -c 300)"; fi
+# H2: a DIRECT caller's own EXIT trap and cwd survive an API call (the prune runs in its own subshell)
+t_r8trap() { # $1=gate
+    local lib M="$TMP/r8trap"; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"
+    rm -rf -- "${M:?}"; mkdir -p "$M"
+    ( cd "$M" && timeout -k 2 20 bash -c 'trap "echo ran > \"$3/ran\"" EXIT; . "$1"; cm_third_party_prune_paths "$2" > "$3/out"; trap -p EXIT > "$3/trap"; pwd -P > "$3/pwd"' _ "$lib" "$R8H" "$M" ) >/dev/null 2>&1
+    grep -q 'echo ran' "$M/trap" && [ "$(cat "$M/ran" 2>/dev/null)" = ran ] && [ "$(cat "$M/pwd")" = "$M" ] && grep -qx submodules/v "$M/out"
+}
+if t_r8trap "$GATE"; then ok "R8 (H2): a direct caller's EXIT trap is kept and runs, and its cwd is unchanged (needle: the call pruned v)"; else bad "R8 (H2): the API call replaced the caller's EXIT trap or moved its cwd"; fi
+# H2: QUIT to the process group (no default EXIT trap in bash) leaves no snapshot directory behind
+t_r8quit() { # $1=gate
+    local lib i pg pid seen="" TD="$TMP/r8quitd"; lib="$(cd "$(dirname "$1")/../lib" && pwd -P)/third_party_prune.sh"
+    rm -rf -- "${TD:?}"; mkdir -p "$TD"
+    # an async list starts with QUIT ignored (POSIX, measured: then nothing can trap it and the test proves nothing), so the
+    # launcher restores the default disposition and starts a new session before exec'ing the prune
+    ( ulimit -c 0; exec python3 -I -c 'import os, signal, sys; signal.signal(signal.SIGQUIT, signal.SIG_DFL); os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' \
+        env TMPDIR="$TD" PATH="$TMP/r7shimT:$PATH" bash -c '. "$1"; cm_third_party_prune_paths "$2"' _ "$lib" "$R7T" ) >/dev/null 2>&1 &
+    pid=$!
+    for i in $(seq 1 50); do [ -n "$(ls -A "$TD")" ] && { seen=1; break; }; sleep 0.1; done
+    pg="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+    if [ -n "$seen" ] && [[ "$pg" =~ ^[0-9]+$ ]] && [ "$pg" -gt 1 ] && [ "$pg" = "$pid" ]; then kill -QUIT -- "-$pg"; else kill -TERM "$pid" 2>/dev/null; seen=""; fi
+    wait "$pid" 2>/dev/null
+    [ -n "$seen" ] && [ -z "$(ls -A "$TD")" ]
+}
+if command -v python3 >/dev/null 2>&1; then
+    if t_r8quit "$GATE"; then ok "R8 (H2): SIGQUIT to the prune's process group leaves no tp_manifest.* behind (needle: the dir existed)"; else bad "R8 (H2): SIGQUIT left a snapshot dir behind ($(ls -A "$TMP/r8quitd" | head -3 | tr '\n' ' '))"; fi
+else echo "SKIP: R8 QUIT: python3 not on PATH (topology_unsupported)"; fi
 
 # --- paired mutations of the remaining prune logic: each MUST be caught ---
 mutlib() { # $1=name $2=sed expr ; builds private gate+lib copy, applies expr to the lib, echoes dir
@@ -565,20 +815,20 @@ t_n3()  { scanned "$1" "$N3"; }
 t_mg()  { pruned "$1" "$MG" 'submodules/v'; }
 t_sp()  { ! pline "$1" "$SP" 'sp ace'; }
 t_md2() { ! pline "$1" "$MD2" 'sub/submodules/v'; }
-chk exact     's/\[ "\$path" = "\$2" \]/true/' '\[ "\$path" = "\$2" \]' t_p1
-chk rec       's/if cm_tp_gitlink_deep "\$top" .*; then tp/if true; then tp/' 'if cm_tp_gitlink_deep "\$top"' t_hos
+chk exact     's/\[ "\$path" = "\$1" \]/true/' '\[ "\$path" = "\$1" \]' t_p1
+chk rec       's/if cm_tp_gitlink_deep "\${prefix:+\$prefix\/}\$pp" "\$depth"; then tp/if true; then tp/' 'if cm_tp_gitlink_deep "\${prefix:+\$prefix/}\$pp"' t_hos
 chk toplvl    's/^    \[ "\$rootp" = "\$top" \] || prefix=.*/    prefix=""/' '\[ "\$rootp" = "\$top" \] || prefix=' t_p2
-chk gitmod    's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { grep -Fq "path = $2" "$1\/.gitmodules" 2>\/dev\/null \&\& return 0/' '^cm_tp_is_gitlink() {' t_p3
-chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { cat "$1\/$2" > "$3"; return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
+chk gitmod    's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { grep -Fq "path = $1" .gitmodules 2>\/dev\/null \&\& return 0/' '^cm_tp_is_gitlink() {' t_p3
+chk nogit     's/^cm_tp_is_gitlink() {/cm_tp_is_gitlink() { return 0/;s/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { exec {_CM_TP_RFD}<"$1"; return 0/;s/^_cm_tp_pin_here() {/_cm_tp_pin_here() { _CM_TP_HERE="$1"; return 0/;s/top="\$(_cm_tp_git -C "\$rootp" rev-parse --show-toplevel 2>\/dev\/null)" || {/top="$rootp"; true || {/' 'rev-parse --show-toplevel 2>/dev/null)" || {' t_p4
 chk modecheck 's/\[ "\$mode" = 160000 \] \&\& //' '\[ "\$mode" = 160000 \] \&\& ' t_q1
 chk m_off     's/then tp\["\$pp"\]=1/then :/' 'then tp\["\$pp"\]=1' t_q4
-chk recurse   's/cm_tp_populated "\$base\/\$rel" \&\& cm_tp_level/false \&\& cm_tp_level/' 'cm_tp_populated "\$base/\$rel" && cm_tp_level' t_n1
-chk deepres   's/cm_tp_gitlink_deep "\$top\/\$pre" "\$rest" \$((depth+1)); return \$?/return 1/' 'cm_tp_gitlink_deep "\$top/\$pre" "\$rest"' t_n2
+chk recurse   's/sub="\$(_cm_tp_descend /sub="$(false /' 'sub="\$(_cm_tp_descend ' t_n1
+chk deepres   's/        ( _cm_tp_pin_gitlink "\$pre" .*; return \$?/        return 1/' '( _cm_tp_pin_gitlink "\$pre"' t_n2
 # (deeppop -- dropping the parent-populated check -- is an EQUIVALENT mutant: an unpopulated parent resolves to the outer
 #  repository, whose --full-name path never equals the nested path; recorded in the report, not a test gap)
 chk pathok    's/                    cm_third_party_prune_ok "\$pp" || continue/                    :/' 'cm_third_party_prune_ok "\$pp" || continue' t_sp
 chk nosym     's/                    cm_tp_no_symlink "\$base" "\$pp" || continue/                    :/' 'cm_tp_no_symlink "\$base" "\$pp" || continue' t_md2
-chk ambig     's/^cm_tp_recorded() { cm_tp_is_gitlink "\$1" "\$2" \&\& ! cm_tp_ambiguous "\$1" "\$2"; }/cm_tp_recorded() { cm_tp_is_gitlink "$1" "$2"; }/' '^cm_tp_recorded() {' t_f11
+chk ambig     's/^cm_tp_recorded() { cm_tp_is_gitlink "\$1" \&\& ! cm_tp_ambiguous "\$1"; }/cm_tp_recorded() { cm_tp_is_gitlink "$1"; }/' '^cm_tp_recorded() {' t_f11
 chk ambparse  's/    _cm_tp_git config -f "\$gm" --list >\/dev\/null 2>\&1 || return 0/    :/' '_cm_tp_git config -f "\$gm" --list' t_f11p
 # R6 (review follow-ups r1): the recorded-copy guards, one killing fixture each. EQUIVALENT by construction (stated,
 # not tested): the literal pathspec, the exact-path compare and the one-record count in cm_tp_manifest_entry -- any
@@ -586,26 +836,26 @@ chk ambparse  's/    _cm_tp_git config -f "\$gm" --list >\/dev\/null 2>\&1 || re
 # are the recorded bytes; core.fsmonitor=false -- no command of the library refreshes the index (the fsmonitor
 # fixtures above prove no injected command runs, with or without it). The old tag (`H`) check is gone: a skip-worktree
 # or assume-unchanged entry is now judged by its bytes (hash vs index sha), which that state can no longer hide.
-chk custody   's/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { cat "$1\/$2" > "$3"; return 0/' '^cm_tp_manifest_recorded() {' t_mod
+chk custody   's/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { exec {_CM_TP_RFD}<"$1"; return 0/' '^cm_tp_manifest_recorded() {' t_mod
 chk blobgood  's/^cm_tp_manifest_recorded() {/cm_tp_manifest_recorded() { return 1/' '^cm_tp_manifest_recorded() {' t_cgood
-chk hashchk   's/^    \[ "\$got" = "\$sha" \]$/    true/' '^    \[ "\$got" = "\$sha" \]$' t_mod
-chk hashita   's/^    \[ "\$got" = "\$sha" \]$/    true/' '^    \[ "\$got" = "\$sha" \]$' t_ita
+chk hashchk   's/^    \[ "\$got" = "\$sha" \] || {/    true || {/' '^    \[ "\$got" = "\$sha" \] ||' t_mod
+chk hashita   's/^    \[ "\$got" = "\$sha" \] || {/    true || {/' '^    \[ "\$got" = "\$sha" \] ||' t_ita
 chk idxmode   's/        \[ "\$mode" = 100644 \] || return 1/        :/' '\[ "\$mode" = 100644 \] || return 1' t_symtype
 chk idxstage  's/        \[ "\$stage" = 0 \] || return 1/        :/' '\[ "\$stage" = 0 \] || return 1' t_stage2
-chk noentry   's/^cm_tp_manifest_entry() {/cm_tp_manifest_entry() { _cm_tp_git -C "$1" hash-object --no-filters --stdin < "$1\/$2"; return 0/' '^cm_tp_manifest_entry() {' t_untr
+chk noentry   's/^cm_tp_manifest_entry() {/cm_tp_manifest_entry() { _cm_tp_gitp hash-object --no-filters --stdin < "$1"; return 0/' '^cm_tp_manifest_entry() {' t_untr
 chk wtfile    's/fl | os.O_NOFOLLOW | os.O_NONBLOCK/fl | os.O_NONBLOCK/' 'fl | os.O_NOFOLLOW | os.O_NONBLOCK' t_wtsym
 chk wtxbit    's/        if st.st_mode \& 0o111:/        if False:/' 'if st.st_mode & 0o111:' t_xbit
 chk envscrub  's/^    env -i PATH=.*GIT_CONFIG_NOSYSTEM.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "\${to\[@\]}" git -c core.fsmonitor=false/        "${to[@]}" git/' '^    env -i PATH=.*GIT_CONFIG_NOSYSTEM' t_envg
-chk noreplace 's/^    env -i PATH=.*GIT_CONFIG_NOSYSTEM.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "\${to\[@\]}" git -c core.fsmonitor=false/        "${to[@]}" git/;s/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null; rc=$?/;s/^    \[ "\$got" = "\$sha" \]$/    true/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_repl
-chk objread   's/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    _cm_tp_git -C "$top" cat-file blob "$sha" > "$out" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_replg
+chk noreplace 's/^    env -i PATH=.*GIT_CONFIG_NOSYSTEM.*/    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_CEILING_DIRECTORIES -u GIT_COMMON_DIR \\/;s/^        GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 "\${to\[@\]}" git -c core.fsmonitor=false/        "${to[@]}" git/;s/^    _cm_tp_bounded "\$1" "\$w"; rc=\$?/    _cm_tp_gitp cat-file blob ":$1" >\&"$w" 2>\/dev\/null; rc=$?/;s/^    \[ "\$got" = "\$sha" \] || {/    true || {/' '^    _cm_tp_bounded "\$1" "\$w"; rc=' t_repl
+chk objread   's/^    _cm_tp_bounded "\$1" "\$w"; rc=\$?/    _cm_tp_gitp cat-file blob ":$1" >\&"$w" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$1" "\$w"; rc=' t_replg
 # R7 (review follow-ups r2, G1/G2): the bounded-reader guards, one behaviour fixture each (reviewer RM1 / RM5 / RM9
 # included). RM9 ("drop the -f check") has no literal anchor any more: the regular-file guard is the reader's S_ISREG
 # (rm9isreg) and the no-hang guard is O_NONBLOCK (rm9nonblk); both are killed by the plain FIFO fixture.
-chk rm1parse  's/recs="\$(cm_hdeps_tsv "\$blobf")"/recs="$(cm_hdeps_tsv "$base\/helix-deps.yaml")"/' 'recs="\$(cm_hdeps_tsv "\$blobf")"' t_r7snapA
-chk rm5hash   's/--stdin < "\$out" 2>\/dev\/null)" || return 1/--stdin < "$top\/$p" 2>\/dev\/null)" || return 1/' 'hash-object --no-filters --stdin < "\$out"' t_r7snapB
+chk rm1parse  's/recs="\$(cm_hdeps_tsv "\$_CM_TP_FD\/\$_CM_TP_RFD")"/recs="$(cm_hdeps_tsv "$mf")"/' 'recs="\$(cm_hdeps_tsv "\$_CM_TP_FD/\$_CM_TP_RFD")"' t_r7snapA
+chk rm5hash   's/--stdin < "\$_CM_TP_FD\/\$_CM_TP_RFD" 2>/--stdin < "$p" 2>/' 'hash-object --no-filters --stdin < "\$_CM_TP_FD/\$_CM_TP_RFD"' t_r7snapB
 chk rm9isreg  's/        if not stat.S_ISREG(st.st_mode):/        if False:/' 'if not stat.S_ISREG(st.st_mode):' t_r7fifo
 chk rm9nonblk 's/ | os.O_NONBLOCK | / | /' 'os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY' t_r7fifo
-chk bounded   's/^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=\$?/    cat -- "$top\/$p" > "$out" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$top" "\$p" "\$out"; rc=' t_r7swapfifo
+chk bounded   's/^    _cm_tp_bounded "\$1" "\$w"; rc=\$?/    cat -- "$1" >\&"$w" 2>\/dev\/null; rc=$?/' '^    _cm_tp_bounded "\$1" "\$w"; rc=' t_r7swapfifo
 chk swapzero  's/fl | os.O_NOFOLLOW | os.O_NONBLOCK/fl | os.O_NONBLOCK/' 'fl | os.O_NOFOLLOW | os.O_NONBLOCK' t_r7swapzero
 chk dirnofol  's/fl | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=d/fl | os.O_DIRECTORY, dir_fd=d/' 'os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=d' t_r7walk
 chk sizecap   's/        if st.st_size > cap:/        if False:/' 'if st.st_size > cap:' t_r7big
@@ -614,6 +864,26 @@ chk gitto     's/^    local to=(); \[ -n "\$_CM_TP_TIMEOUT" \] \&\& to=.*/    lo
 # (no separate HUP/INT/TERM trap: measured, bash runs the EXIT trap when a TERM kills the subshell, so a TERM trap
 #  is an equivalent mutant; t_r7clean below kills its removal through the EXIT-trap mutant)
 chk exittrap  's/^        trap .* EXIT .*/        :/' '^        trap .* EXIT ' t_r7clean
+# R8 (review follow-ups r3, H1 + H2): each pin and each temp-custody / trap property, one behaviour fixture each.
+# EQUIVALENT by construction (stated, not tested): the reader's O_NOFOLLOW on its top (the top is always "."); opening the
+# git dir through a cwd-relative path instead of its absolute name and the fd -ef check (no git call sits between
+# rev-parse and the open, so no deterministic fixture can swap there; the hammering harness exercises it).
+chk pinpwd    's/^    \[ "\$(pwd -P 2>\/dev\/null)" = "\$exp" \] || return 1/    :/' '^    \[ "\$(pwd -P 2>/dev/null)" = "\$exp" \] || return 1' t_r8rootpin
+chk pintop    's/^    \[ "\$t" = "\$exp" \] || return 1/    :/' '^    \[ "\$t" = "\$exp" \] || return 1' t_r8roottop
+chk rootpin   's/cd -P -- "\$1" 2>\/dev\/null \&\& _cm_tp_pin_here "\$1"; }/cd -P -- "$1" \&\& _CM_TP_HERE="$1" \&\& exec {_g}<"$(_cm_tp_git rev-parse --absolute-git-dir)" \&\& _CM_TP_GD="$_CM_TP_FD\/$_g"; }/' 'cd -P -- "\$1" 2>/dev/null && _cm_tp_pin_here "\$1"; }' t_r8rootpin
+chk pinpost   's/^_cm_tp_still_here() {/_cm_tp_still_here() { return 0/' '^_cm_tp_still_here() {' t_r8ren
+chk pinpath   's/^_cm_tp_gitp() { \[ -n "\$_CM_TP_GD" \] || return 1; _cm_tp_git --git-dir="\$_CM_TP_GD" --work-tree=. "\$@"; }/_cm_tp_gitp() { _cm_tp_git -C "$_CM_TP_HERE" "$@"; }/' '^_cm_tp_gitp() {' t_r8glcheck
+chk pingd     's/^_cm_tp_gitp() { \[ -n "\$_CM_TP_GD" \] || return 1; _cm_tp_git --git-dir="\$_CM_TP_GD" --work-tree=. "\$@"; }/_cm_tp_gitp() { _cm_tp_git "$@"; }/' '^_cm_tp_gitp() {' t_r8gitf
+chk gdstr     's/^    _CM_TP_GD="\$_CM_TP_FD\/\$g"; _CM_TP_HERE="\$exp"/    _CM_TP_GD="$gd"; _CM_TP_HERE="$exp"/' '^    _CM_TP_GD="\$_CM_TP_FD/\$g"' t_r8gdfd
+chk pingl     's/^_cm_tp_pin_gitlink() {/_cm_tp_pin_gitlink() { _cm_tp_pin "$1"; return $?/' '^_cm_tp_pin_gitlink() {' t_r8renall
+chk glmod     's/^    if \[ -n "\$pgd" \] .*; then return 0; fi/    :/' '^    if \[ -n "\$pgd" \] ' t_r8adv
+chk glhead    's/^    \[ "\$h" = "\$sha" \]$/    false/' '^    \[ "\$h" = "\$sha" \]$' t_r8embT
+chk snapunlink 's/^    rm -f -- "\${f:?}"$/    :/' '^    rm -f -- "\${f:?}"$' t_r8snapname
+chk snapdirpriv 's|^    _CM_TP_SNAPDIR="\$(mktemp -d .*|    _CM_TP_SNAPDIR="${TMPDIR:-/tmp}/tp_manifest.shared"; mkdir -p "$_CM_TP_SNAPDIR" 2>/dev/null \|\| _CM_TP_SNAPDIR=""|' '^    _CM_TP_SNAPDIR="\$(mktemp -d ' t_r8ri
+chk nosub     's/( _cm_tp_run "\$top" "\$prefix" )/_cm_tp_run "$top" "$prefix"/' '( _cm_tp_run "\$top" "\$prefix" )' t_r8trap
+chk quittrap  's/^        trap .exit 131. QUIT/        :/' "^        trap 'exit 131' QUIT" t_r8quit
+chk capv      's/^_CM_TP_MAX_MANIFEST=1048576 /_CM_TP_MAX_MANIFEST=1073741824 /' '^_CM_TP_MAX_MANIFEST=1048576 ' t_r7big
+chk readerrc  's/^    _cm_tp_bounded "\$1" "\$w"; rc=\$?/    _cm_tp_bounded "$1" "$w"; rc=0/' '^    _cm_tp_bounded "\$1" "\$w"; rc=' t_r7fifo
 chk depthres  's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 4 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d5
 chk depthres2 's/    \[ "\$depth" -lt 3 \] || return 1/    [ "$depth" -lt 2 ] || return 1/' '\[ "\$depth" -lt 3 \] || return 1' t_d4
 chk depthlev  's/        \[ "\$depth" -lt 3 \] || continue/        [ "$depth" -lt 4 ] || continue/' '\[ "\$depth" -lt 3 \] || continue' t_dl4
