@@ -79,72 +79,154 @@ def ko(n): NF[0] += 1; print("FAIL " + n)
 def chk(n, got, want):
     (ok if got == want else (lambda x: ko(x + " (want %r got %r)" % (want, got))))(n)
 
-# --- P1 verdict parser (N5): summary-line families measured in this repository's own suite logs,
-# plus the reviewer's false-PASS / false-FAIL shapes. (verdict, reason, source) for rc 0.
+# --- P1 verdict parser (review round 3 P1-P3/P9; round 4 replaced the line-PREFIX rule with a
+# structural summary-line model). Families measured in this repository's own suite logs
+# (author run of 2026-11-04, 182 rc-0 logs, every last line classified), the reviewer's
+# false-PASS / false-FAIL shapes in both directions, and the common external families
+# (pytest, CTest, mocha, bats, TAP). Rows: (text, verdict, reason or None = not checked, source).
 J = [
- # golden-good: real families -> PASS from the summary
+ # golden-good: repository families -> PASS from the summary line
  ("RESULT: PASS=10 FAIL=0", "PASS", "", "summary"),
  ("== RESULT: 39 passed, 0 failed ==", "PASS", "", "summary"),
  ("RESULT: pass=64 fail=0", "PASS", "", "summary"),
+ ("RESULT: e2e pass=21 fail=0 skip=0", "PASS", "", "summary"),
+ ("SELFCHECK\tSUMMARY\tpass=8 fail=0 refusals_observed=1", "PASS", "", "summary"),
+ ("== cli-agent-plugins summary: 16 passed, 0 failed, 0 finding(s) ==", "PASS", "", "summary"),
+ ("== summary: PASS=2 FAIL=0 SKIP=0 (evidence: /x/y) ==", "PASS", "", "summary"),
+ ("RESULT: 14 PASS / 0 FAIL   [evidence: /x/y]", "PASS", "", "summary"),
  ("twins: PASS=16 FAIL=0\nRESULT: PASS", "PASS", "", "summary"),
  ("RESULT: 10 passed, 0 failed\nOK", "PASS", "", "summary"),
  ("SUMMARY cases=91 failed=0", "PASS", "", "summary"),
  ("----\nRan 42 tests in 18.958s\n\nOK", "PASS", "", "summary"),
  ("== Summary: ok 6 / NOT ok 0 ==", "PASS", "", "summary"),
- ("SUMMARY pass=21 fail=0", "PASS", "", "summary"),
+ ("== T1 RED summary: ok 3 / NOT ok 0 ==", "PASS", "", "summary"),
  ("SUMMARY mutants=26 killed=26 survivors=0 not_applicable=0", "PASS", "", "summary"),
  ("TOTAL 3 failed 0", "PASS", "", "summary"),
+ ("TOTAL=5 PASSED=5 FAILED=0", "PASS", "", "summary"),
  ("ran 2, failed 0", "PASS", "", "summary"),
  ("RESULT: PASS (3 of 3)", "PASS", "", "summary"),
- ("passed=3 failed=0", "PASS", "", "summary"),
- # golden-FALSE: a per-item line with a 'failing' count is not a summary FAIL
- # (measured: sol02_verdict_coverage/test_sol02.sh, a check description quoting "5 FAIL")
- ("PASS: B M9 shape (5 FAIL + 56 no-verdict) -> exit 1\n----\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
- ("ok 3 - handles (2 failed) input\nRESULT: PASS=3 FAIL=0", "PASS", "", "summary"),
- # golden-bad control: the same shape with a real failure still FAILs
- ("PASS: B M9 shape (5 FAIL + 56 no-verdict)\nRESULT: PASS=4 FAIL=1", "FAIL", "summary_reports_failures", "summary"),
- ("killed M1 (5 failing check(s))\nSUMMARY mutants=1 killed=1 survivors=0 not_applicable=0", "PASS", "", "summary"),
- ("RESULT: SKIP (one subcase)\nRESULT: SKIPPED subcase x\npassed=3 failed=0", "PASS", "", "summary"),
+ ("RESULT: PASS (all 5 cases)", "PASS", "", "summary"),
+ ("SUMMARY: 12 pass-lines / FAIL=0 of 12 assertions", "PASS", "", "summary"),
+ ("SUMMARY: 5 pass / 0 fail / 1 skip of 6 assertions", "PASS", "", "summary"),
+ ("test_real_agents: 3 passed, 0 failed, 1 skipped; kimi=1.2.3 crush=v0.1", "PASS", "", "summary"),
+ ("unit: PASS 3 FAIL 0", "PASS", "", "summary"),
+ ("=== R1 GUARD (R1-IN): ALL CHECKS PASS ===", "PASS", "", "summary"),
  ("TOTAL: failed_suites=0", "PASS", "", "summary"),
  ("ok   mutation detected\nRESULT: PASS", "PASS", "", "summary"),
+ # golden-good: external families
+ ("===== 3 passed in 0.12s =====", "PASS", "", "summary"),
+ ("100% tests passed, 0 tests failed out of 5", "PASS", "", "summary"),
+ ("  3 passing (5ms)", "PASS", "", "summary"),
+ ("5 tests, 0 failures", "PASS", "", "summary"),
+ ("1..2\nok 1 - a\nok 2 - b", "PASS", "", "summary"),
+ # golden-FALSE: passing check lines quoting fail words are description, never counted (P1 false-FAIL side)
+ ("PASS: B M9 shape (5 FAIL + 56 no-verdict) -> exit 1\n----\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("ok 3 - handles (2 failed) input\nRESULT: PASS=3 FAIL=0", "PASS", "", "summary"),
+ ("  PASS: indented (5 FAIL)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("pass: lower (5 FAIL)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("[PASS] bracket (5 failed)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("✓ tick (2 failed)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("ok: colon (2 failed)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("OK shape (2 failed)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("PASSED: shape (3 failures)\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("killed M1 (5 failing check(s))\nSUMMARY mutants=1 killed=1 survivors=0 not_applicable=0", "PASS", "", "summary"),
+ ("RESULT: SKIP (one subcase)\nRESULT: SKIPPED subcase x\npassed=3 failed=0", "PASS", "", "summary"),
+ # golden-bad: summary shapes behind a passing-looking prefix (P1 false-PASS side)
+ ("PASS: 3, FAIL: 1", "FAIL", "summary_reports_failures", "summary"),
+ ("PASS: total=5 failed=2", "FAIL", "summary_reports_failures", "summary"),
+ ("PASS: checks=5 fail=1", "FAIL", "summary_reports_failures", "summary"),
+ ("PASS: 10 tests run, 3 failed", "FAIL", "summary_reports_failures", "summary"),
+ ("ok - 3 passed, 2 failed", "FAIL", "summary_reports_failures", "summary"),
+ ("PASS: B M9 shape (5 FAIL + 56 no-verdict)\nRESULT: PASS=4 FAIL=1", "FAIL", "summary_reports_failures", "summary"),
+ # P2: ANSI colour, OSC titles and CR progress overwrites are stripped before parsing
+ ("\x1b[31mfailed=2\x1b[0m passed=3", "FAIL", "summary_reports_failures", "summary"),
+ ("\x1b]0;title\x07\x1b[1;32mpassed=3 failed=0\x1b[0m", "PASS", "", "summary"),
+ ("progress 10%\rprogress 100%\rpassed=3 failed=1", "FAIL", "summary_reports_failures", "summary"),
+ ("passed=3 failed=0\r", "PASS", "", "summary"),
+ # P3: a fail word with no bound number, or the CTest / mocha / bats / pytest fail forms, never PASS
+ ("1 tests failed out of 5", "FAIL", "summary_reports_failures", "summary"),
+ ("100% tests passed, 1 tests failed out of 5", "FAIL", "summary_reports_failures", "summary"),
+ ("PASS (3 checks)\nFAIL (2 checks)", "FAIL", "summary_word_FAIL", "summary"),
+ ("FAIL (2 checks)", "FAIL", "summary_word_FAIL", "summary"),
+ ("  1 failing", "FAIL", "summary_reports_failures", "summary"),
+ ("5 tests, 1 failure", "FAIL", "summary_reports_failures", "summary"),
+ ("===== 3 passed, 1 failed in 0.12s =====", "FAIL", "summary_reports_failures", "summary"),
+ ("1..3\nok 1 - a\nnot ok 2 - b\nok 3", "FAIL", "tap_not_ok", "summary"),
+ ("1 passed, 0 failed, a failure was logged", "ERROR", "unparsed_fail_signal", "summary"),
+ ("RESULT: PASS=3 FAIL=0\nFATAL: teardown crashed", "ERROR", "fail_signal_after_summary", "summary"),
  # golden-bad: FAIL however it is spelled
- ("Failed tests: 3", "FAIL", "summary_reports_failures", "summary"),
+ ("Failed tests: 3", "FAIL", None, "summary"),
  ("Result: FAIL", "FAIL", "summary_word_FAIL", "summary"),
  ("result: fail", "FAIL", "summary_word_FAIL", "summary"),
- ("A: failed=2\nB: passed=3 failed=0", "FAIL", "summary_reports_failures", "summary"),
  ("SUMMARY cases=7 failed=1", "FAIL", "summary_reports_failures", "summary"),
  ("== Summary: ok 7 / NOT ok 1 ==", "FAIL", "summary_reports_failures", "summary"),
- ("SUMMARY fails=9 P1b P1c", "FAIL", "summary_reports_failures", "summary"),
  ("SUMMARY: regression check FAILED -- see NOT ok lines above", "FAIL", "summary_word_FAIL", "summary"),
- ("not ok 3 - x\n1..3\n# fail 1", "FAIL", "summary_reports_failures", "summary"),
+ ("SUMMARY: FAILURES present", "FAIL", "summary_word_FAIL", "summary"),
+ ("not ok 3 - x\n1..3\n# fail 1", "FAIL", None, "summary"),
  ("== 1 passed, 2 failed ==", "FAIL", "summary_reports_failures", "summary"),
- ("Tests: 3 failed", "FAIL", "summary_reports_failures", "summary"),
- ("RESULT: FAIL passed=0 failed=3", "FAIL", "summary_reports_failures", "summary"),
+ ("Tests: 3 failed", "FAIL", None, "summary"),
+ ("RESULT: FAIL passed=0 failed=3", "FAIL", None, "summary"),
  ("RESULT: PASS\nVERDICT: FAIL", "FAIL", "summary_word_FAIL", "summary"),
+ ("RESULT: 3 PASS / 1 FAIL", "FAIL", "summary_reports_failures", "summary"),
+ ("SUMMARY fails=9 P1b P1c", "ERROR", "unparsed_fail_signal", "summary"),
+ ("PASS: widget saw 2 failed probes", "ERROR", "unparsed_fail_signal", "summary"),
  # ERROR: zero tests, inconsistent or conflicting summaries
+ ("A: failed=2\nB: passed=3 failed=0", "ERROR", "conflicting_summary", "summary"),
  ("RESULT: PASS (0 of 0)", "ERROR", "zero_tests", "summary"),
  ("ran 0 tests", "ERROR", "zero_tests", "summary"),
  ("passed=0 failed=0", "ERROR", "zero_tests", "summary"),
  ("passed=3 failed=0 total=2", "ERROR", "inconsistent_counts", "summary"),
  ("passed=3 failed=0\nVERDICT: SKIP reason=x", "ERROR", "conflicting_summary", "summary"),
- # SKIP
+ ("passed=3 failed=0\nSKIP: tail case", "ERROR", "conflicting_summary", "summary"),
+ # SKIP (P9: an honest skip summary is SKIP, not ERROR zero_tests)
+ ("SUMMARY pass=0 fail=0 (SKIPPED, environment gap)", "SKIP", "suite_reported_skip", "summary"),
  ("passed=0 failed=0 skipped=3", "SKIP", "all_skipped", "summary"),
  ("noise\nVERDICT: SKIP reason=hardware_not_present", "SKIP", "hardware_not_present", "summary"),
+ ("SKIP: systemd --user bus unreachable (reason: topology_unsupported)", "SKIP", "topology_unsupported", "summary"),
+ ("SKIP - submodules not checked out (nothing to exclude)", "SKIP", "suite_reported_skip", "summary"),
  ("RESULT: SKIPPING", "PASS", "", "exit-code-only"),
+ # window (X3): the summary five lines before the end still decides
+ ("RESULT: PASS=0 FAIL=3\nnoise a\nnoise b\nnoise c\nnoise d", "FAIL", "summary_reports_failures", "summary"),
  # negative controls: no summary at all -> labelled exit-code-only, never hidden
  ("hello", "PASS", "", "exit-code-only"),
  ("GREEN: cold-start grace present (3/3 cases)", "PASS", "", "exit-code-only"),
  ("RESULT C01 PASS CLI exits 2 (rc=2)", "PASS", "", "exit-code-only"),
+ ("ok 4 - refuses fail=1 input\nRESULT: PASS=4 FAIL=0", "PASS", "", "summary"),
  ("\x00\xff junk\npassed=1 failed=0", "PASS", "", "summary"),
 ]
 for text, v, r, s in J:
-    got = m.judge(0, False, text, "bash")[:3]
-    chk("parser: %r -> %s" % (text[:60], v), got, (v, r, s))
+    got = m.judge(0, False, text, "bash")
+    want = (v, got[1] if r is None else r, s)
+    chk("parser: %r -> %s" % (text[:60], v), got[:3], want)
 chk("parser: go ok line", m.judge(0, False, "ok  \tpkg\t0.003s", "go-test")[0], "PASS")
 chk("parser: go FAIL line", m.judge(0, False, "ok  \tpkg\t0.1s\nFAIL\tpkg2\t0.2s\nFAIL", "go-test")[0], "FAIL")
 chk("parser: rc 77 -> SKIP", m.judge(77, False, "x", "bash")[0], "SKIP")
 chk("parser: rc 1 with a pass summary -> FAIL", m.judge(1, False, "passed=3 failed=0", "bash")[0], "FAIL")
 chk("parser: timer -> TIMEOUT", m.judge(0, True, "passed=3 failed=0", "bash")[0], "TIMEOUT")
+big = "x" * (10 << 20) + "\npassed=1 failed=0"
+chk("parser: 10 MB line then a summary", m.judge(0, False, big, "bash")[:3], ("PASS", "", "summary"))
+
+# --- P10 reviewer mutants of round 3 pinned by behaviour (X1 record verdict, X9 killpg guard)
+base = {"schema": m.SCHEMA, "seq": 0, "prev": m.GENESIS, "unit": "u", "path": "u", "sha": "s", "tree": "t", "ctx": "c",
+        "runner_hash": "h", "verdict": "PASS", "reason": "", "verdict_source": "summary", "rc": 0, "secs": 1.0,
+        "leaked": 0, "log": "logs/000000.log", "log_sha256": "x"}
+chk("X1: a record with a known verdict is valid (golden-FALSE)", m.valid_record(dict(base)), True)
+for bogus in ("BOGUS", "pass", "", "PASS-FULL"):
+    chk("X1: a record with verdict %r is invalid" % bogus, m.valid_record(dict(base, verdict=bogus)), False)
+calls = []
+real_killpg = os.killpg
+os.killpg = lambda g, s: calls.append((g, s))
+try:
+    for g in (1, 0, -5, os.getpgrp(), "7", None, True):
+        try:
+            m.killpg_checked(g, 0); ko("X9: killpg_checked(%r) refused" % (g,))
+        except m.Fatal:
+            ok("X9: killpg_checked(%r) refused" % (g,))
+    chk("X9: no refused group reached os.killpg", calls, [])
+    m.killpg_checked(424242, 0)
+    chk("X9: a group id > 1 that is not ours is signalled (golden-FALSE)", calls, [(424242, 0)])
+finally:
+    os.killpg = real_killpg
 
 # --- P2 deletion guard (R6, section 11.4.287): rm_tree refuses anything that is not a runner-made dir
 m.SAFE_RM = os.path.realpath(os.path.join(os.path.dirname(sys.argv[1]), "..", "lib", "safe_rm.sh"))
@@ -208,6 +290,26 @@ try:
     m.invoked(R, "t/run_all3.sh", []); ko("shmodel: unterminated heredoc refused")
 except m.ShParseError:
     ok("shmodel: unterminated heredoc refused")
+# --- P5 status consumption (review r3 P5): a member whose status the cover throws away is run alone
+d5 = os.path.join(scratch, "p5"); os.makedirs(d5 + "/t", exist_ok=True)
+for n in "abcdef":
+    open(d5 + "/t/%s.sh" % n, "w").write("x")
+cases = [
+    ("bash t/a.sh || true\nbash t/b.sh || rc=1\necho x\nexit $rc", {"t/a.sh"}),
+    ("bash t/a.sh\nbash t/b.sh", {"t/a.sh"}),
+    ("bash t/a.sh; rc=$?\nbash t/b.sh | tee x; echo ${PIPESTATUS[0]}", set()),
+    ("set -e\nbash t/a.sh\nbash t/b.sh || true\necho ok", {"t/b.sh"}),
+    ("if bash t/a.sh; then :; fi\nfor x in 1; do bash t/b.sh; done\nbash t/c.sh &\nwait\nout=$(bash t/d.sh)\nrc=$?\n"
+     "echo $(bash t/e.sh)\nbash t/f.sh | cat\nexit 0", {"t/b.sh", "t/c.sh", "t/e.sh", "t/f.sh"}),
+    ("f(){ bash t/a.sh; }\nf || exit 1\nbash t/b.sh && bash t/c.sh\necho", {"t/b.sh", "t/c.sh"}),
+    ("set -euo pipefail\nbash t/a.sh | cat\nfor x in 1; do bash t/b.sh; done", set()),
+    ("bash t/a.sh || echo failed\nexec bash t/b.sh", {"t/a.sh"}),
+    ("bash t/a.sh && bash t/b.sh || exit 1\necho done", set()),
+    ("bash t/a.sh && bash t/b.sh || true\necho done", {"t/a.sh", "t/b.sh"}),
+]
+for txt, want in cases:
+    open(d5 + "/r.sh", "w").write(txt + "\n")
+    chk("P5 model: discarded set of %r" % txt[:48], m.model(d5, "r.sh", []).discarded, want)
 print("engine unit checks failed=%d" % NF[0])
 sys.exit(1 if NF[0] else 0)
 PY
@@ -330,7 +432,7 @@ sut "$W" tests/q/run_all.sh "echo \"\$*\" >> $C/q_args" 'quick=0; [ "${1:-}" = "
   '[ "$quick" = 1 ] || suites+=(test_q_chaos)' 'h=$(cd "$(dirname "$0")" && pwd)' 'for s in "${suites[@]}"; do bash "$h/$s.sh" || exit 1; done' 'echo "RUN_ALL: PASS"'
 sut "$W" tests/m/test_ml.sh "echo x >> $C/m_light" 'echo "passed=1 failed=0"'
 sut "$W" tests/m/test_m_mutants.sh "echo x >> $C/m_heavy" 'echo "passed=1 failed=0"'
-sut "$W" tests/m/run_all.sh "echo x >> $C/m_runall" 'h=$(cd "$(dirname "$0")" && pwd)' 'bash "$h/test_ml.sh" && bash "$h/test_m_mutants.sh"' 'echo "RESULT: PASS=2 FAIL=0"'
+sut "$W" tests/m/run_all.sh "echo x >> $C/m_runall" 'h=$(cd "$(dirname "$0")" && pwd)' 'bash "$h/test_ml.sh" && bash "$h/test_m_mutants.sh" || exit 1' 'echo "RESULT: PASS=2 FAIL=0"'
 sut "$W" tests/h/test_h_stress.sh "echo x >> $C/h_stress" 'echo "passed=1 failed=0"'
 gen "$W"
 setrow "$W/config/full_suite_manifest.tsv" tests/q/run_all.sh 'tests/q/run_all.sh\trunall\tentry\tdefault\trunall-quick\t-\tauto'
@@ -408,7 +510,7 @@ sut "$K2" tests/a/test_kb.sh "echo x >> $KC" 'echo "boom: lock timeout"' 'exit 1
 gen "$K2"; gitc "$K2" add -A; gitc "$K2" commit -q -m k
 printf 'tests/a/test_kb.sh\tlock timeout\tATM-9\topen\n' > "$T/known_ext.tsv"
 run "$K2" "$T/o_k2" --include-heavy --known "$T/known_ext.tsv"
-chk "permissive table: KNOWN failure does not fail the run (rc 0)" "$RC" "0"
+chk "permissive table: KNOWN failure -> rc 7 (PASS-FULL-WITH-KNOWN)" "$RC" "7"
 run "$K2" "$T/o_k2" --include-heavy --known "$T/absent.tsv"
 chk "N1: resume with the table absent fails (rc 1)" "$RC" "1"
 hasnt "N1: no KNOWN tag without the table" 'KNOWN ATM-9' "$T/o_k2/summary.txt"
@@ -478,11 +580,11 @@ vfy "$N4" "$T/n4c.log"; chk "N4 negative control: clean tree verifies" "$RC" "0"
 sut "$N4" tests/a/lib.sh 'f() { :; }'
 sut "$N4" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
 gen "$N4"
-chk "N4: sourced helper is excluded with an evidence reason" "$(awk -F'\t' '$1=="tests/a/lib.sh"{print $3"|"$7}' "$N4/config/full_suite_manifest.tsv")" "excluded|reason: helper, sourced by tests/a/test_uses_lib.sh"
-vfy "$N4" "$T/n4d.log"; chk "N4: manifest with an evidenced exclusion verifies" "$RC" "0"
+chk "N4: sourced helper is excluded with an evidence reason" "$(awk -F'\t' '$1=="tests/a/lib.sh"{print $3"|"$7}' "$N4/config/full_suite_manifest.tsv")" "excluded|reason: helper: sourced by tests/a/test_uses_lib.sh"
+bash "$R" --root "$N4" --verify-manifest --accept-excluded-change n4 > "$T/n4d.log" 2>&1; RC=$?; chk "N4: manifest with an evidenced exclusion verifies" "$RC" "0"
 setrow "$N4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\tUNREVIEWED'
 vfy "$N4" "$T/n4e.log"; chk "N4: exclusion without a reason refused" "$RC" "3"
-setrow "$N4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: helper, sourced by tests/a/test_base.sh'
+setrow "$N4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: helper: sourced by tests/a/test_base.sh'
 vfy "$N4" "$T/n4f.log"; chk "N4: false 'sourced by' evidence refused" "$RC" "3"
 gen "$N4"
 ln -s nowhere "$N4/tests/a/test_dangle.sh"
@@ -615,6 +717,124 @@ if command -v go >/dev/null 2>&1; then
   chk "go module unit PASS from ok line" "$(verdict "$T/o_go" m)" "PASS||summary"
 else
   echo "SKIP go module unit (go not installed)"
+fi
+
+# =========================================================================== round 4 (review r3 P4-P10)
+# --- 23 X4: a resumed KNOWN is applied only when the recorded log still has its sha256
+X4="$T/x4"; mkroot "$X4"; X4C="$T/cnt_x4"
+sut "$X4" tests/a/test_xk.sh "echo x >> $X4C" 'echo "different cause"' 'exit 1'
+gen "$X4"; gitc "$X4" add -A; gitc "$X4" commit -q -m x4
+printf 'tests/a/test_xk.sh\tlock timeout\tATM-7\topen\n' > "$T/known_x4.tsv"
+run "$X4" "$T/o_x4" --include-heavy --known "$T/known_x4.tsv"
+chk "X4: unmatched signature -> rc 1" "$RC" "1"
+echo "boom: lock timeout" >> "$T/o_x4/$(rec "$T/o_x4" tests/a/test_xk.sh log)"
+run "$X4" "$T/o_x4" --include-heavy --known "$T/known_x4.tsv"
+chk "X4: a log edited to carry the signature does not become KNOWN (rc 1)" "$RC" "1"
+hasnt "X4: no KNOWN tag from an edited log" 'KNOWN ATM-7' "$T/o_x4/summary.txt"
+
+# --- 24 X5: untracked file CONTENT is part of the tree hash (same name, new content re-runs)
+X5="$T/x5"; mkroot "$X5"; X5C="$T/cnt_x5"
+sut "$X5" tests/a/test_ud.sh "echo x >> $X5C" 'cat "$(dirname "$0")/data.txt" >/dev/null' 'echo "passed=1 failed=0"'
+gen "$X5"; gitc "$X5" add -A; gitc "$X5" commit -q -m x5
+echo one > "$X5/tests/a/data.txt"
+run "$X5" "$T/o_x5" --include-heavy
+echo two > "$X5/tests/a/data.txt"
+run "$X5" "$T/o_x5" --include-heavy
+chk "X5: edited untracked file re-runs the unit" "$(wc -l < "$X5C")" "2"
+run "$X5" "$T/o_x5" --include-heavy
+chk "X5: unchanged untracked file resumes (golden-FALSE)" "$(wc -l < "$X5C")" "2"
+
+# --- 25 P4: excluded rows: closed reason list, test-named files need override, lock + acceptance
+P4="$T/p4"; mkroot "$P4"
+sut "$P4" tests/a/lib.sh 'f() { :; }'
+sut "$P4" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
+gen "$P4"
+chk "P4: generated exclusion uses the closed category form" "$(awk -F'\t' '$1=="tests/a/lib.sh"{print $3"|"$7}' "$P4/config/full_suite_manifest.tsv")" "excluded|reason: helper: sourced by tests/a/test_uses_lib.sh"
+vfy "$P4" "$T/p4a.log"; chk "P4: excluded set with no lock -> exit 3" "$RC" "3"
+has "P4: missing acceptance named" 'excluded set .*not accepted' "$T/p4a.log"
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change alice > "$T/p4b.log" 2>&1; RC=$?
+chk "P4: --accept-excluded-change records the set -> exit 0" "$RC" "0"
+has "P4: lock names the reviewer" 'accepted_by=alice' "$P4/config/full_suite_excluded.lock"
+has "P4: lock lists the excluded path" 'tests/a/lib.sh' "$P4/config/full_suite_excluded.lock"
+vfy "$P4" "$T/p4c.log"; chk "P4: accepted set verifies" "$RC" "0"
+setrow "$P4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: tool: hand-run helper'
+vfy "$P4" "$T/p4d.log"; chk "P4: changed exclusion note against the lock -> exit 3" "$RC" "3"
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change bob > "$T/p4e.log" 2>&1
+chk "P4: acceptance is appended, never replaced" "$(grep -c '^# accepted ' "$P4/config/full_suite_excluded.lock")" "2"
+setrow "$P4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: whatever: x'
+# accept attempted, so the lock is not the reason for the refusal (mutant E3 survived an rc-only check)
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change dave > "$T/p4f.log" 2>&1; RC=$?
+chk "P4: category outside the closed list -> exit 3 even with an acceptance attempt" "$RC" "3"
+has "P4: closed-list violation named" "exclusion category 'whatever' is not one of" "$T/p4f.log"
+chk "P4: refused acceptance appends no accepted line" "$(grep -c '^# accepted ' "$P4/config/full_suite_excluded.lock")" "2"
+setrow "$P4/config/full_suite_manifest.tsv" tests/a/lib.sh 'tests/a/lib.sh\tsh\texcluded\t-\t-\t-\treason: helper: sourced by tests/a/test_uses_lib.sh'
+setrow "$P4/config/full_suite_manifest.tsv" tests/a/test_uses_lib.sh 'tests/a/test_uses_lib.sh\tsh\texcluded\t-\t-\t-\treason: tool: not a test'
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change carol > "$T/p4g.log" 2>&1; RC=$?
+chk "P4: a test-named file excluded without override: -> exit 3 even when accepted" "$RC" "3"
+has "P4: test-named exclusion named" 'test-named' "$T/p4g.log"
+gen "$P4"; setrow "$P4/config/full_suite_manifest.tsv" tests/a/test_uses_lib.sh 'tests/a/test_uses_lib.sh\tsh\tentry\tdefault\tbash\t-\tauto'
+bash "$R" --root "$P4" --verify-manifest --accept-excluded-change carol > /dev/null 2>&1
+gitc "$P4" add -A; gitc "$P4" commit -q -m p4
+run "$P4" "$T/o_p4" --include-heavy
+chk "P4: run with an accepted exclusion -> rc 0" "$RC" "0"
+has "P4: summary lists the excluded file" '^EXCLUDED  tests/a/lib.sh' "$T/o_p4/summary.txt"
+has "P4: RESULT line carries the excluded count" '^RESULT: PASS-FULL .*1 excluded' "$T/o_p4.log"
+
+# --- 26 P5: a run_all that discards a member's status: that member is also run alone
+P5="$T/p5"; mkroot "$P5"; P5C="$T/cnt_p5"
+sut "$P5" tests/d/test_d1.sh "echo x >> $P5C.d1" 'exit 1'
+sut "$P5" tests/d/test_d2.sh "echo x >> $P5C.d2" 'echo "passed=1 failed=0"'
+sut "$P5" tests/d/run_all.sh 'h=$(cd "$(dirname "$0")" && pwd)' 'rc=0' 'bash "$h/test_d1.sh" || true' 'bash "$h/test_d2.sh" || rc=1' 'echo "RESULT: PASS=2 FAIL=0"' 'exit $rc'
+gen "$P5"; gitc "$P5" add -A; gitc "$P5" commit -q -m p5
+vfy "$P5" "$T/p5v.log"; chk "P5: manifest verifies" "$RC" "0"
+run "$P5" "$T/o_p5" --include-heavy
+chk "P5: status-discarded failing member fails the run (rc 1)" "$RC" "1"
+chk "P5: discarded member verdict FAIL from its own run" "$(verdict "$T/o_p5" tests/d/test_d1.sh | cut -d'|' -f1)" "FAIL"
+chk "P5: discarded member ran alone once more" "$(wc -l < "$P5C.d1")" "2"
+chk "P5: consumed member ran only through run_all (golden-FALSE)" "$(wc -l < "$P5C.d2")" "1"
+
+# --- 27 P6: KNOWN failures give PASS-FULL-WITH-KNOWN, never plain PASS-FULL
+printf 'tests/a/test_kb.sh\tlock timeout\tATM-9\topen\n' > "$T/known_p6.tsv"
+run "$K2" "$T/o_p6" --include-heavy --known "$T/known_p6.tsv"
+chk "P6: KNOWN-only run -> rc 7" "$RC" "7"
+has "P6: RESULT PASS-FULL-WITH-KNOWN" '^RESULT: PASS-FULL-WITH-KNOWN' "$T/o_p6.log"
+hasnt "P6: never a plain PASS-FULL" '^RESULT: PASS-FULL \(' "$T/o_p6.log"
+
+# --- 28 P7: topology preflight: an uninitialised submodule refuses the run unless allowed
+TP="$T/topo"; mkroot "$TP"; sut "$TP" tests/a/test_tp.sh 'echo "passed=1 failed=0"'
+gitc "$TP" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
+gen "$TP"; gitc "$TP" add -A; gitc "$TP" commit -q -m tp
+run "$TP" "$T/o_tp0" --include-heavy
+chk "P7: initialised submodule -> rc 0 (golden-FALSE)" "$RC" "0"
+has "P7: layout reported" 'topology: ' "$T/o_tp0/summary.txt"
+gitc "$TP" submodule deinit -q -f sub >/dev/null 2>&1
+run "$TP" "$T/o_tp1" --include-heavy
+chk "P7: uninitialised submodule -> refused, rc 9" "$RC" "9"
+has "P7: gap named" 'uninitialised submodule: sub' "$T/o_tp1.log"
+if [ -e "$T/o_tp1/results.jsonl" ]; then ko "P7: refused run ran nothing"; else ok "P7: refused run ran nothing"; fi
+run "$TP" "$T/o_tp2" --include-heavy --allow-topology-gaps
+chk "P7: --allow-topology-gaps -> rc 8" "$RC" "8"
+has "P7: RESULT PARTIAL-TOPOLOGY" '^RESULT: PARTIAL-TOPOLOGY' "$T/o_tp2.log"
+
+# --- 29 P8: census covers *.js, *.bats and extension-less shebang smoke files outside tests/
+P8="$T/p8"; mkroot "$P8"; mkdir -p "$P8/tools"
+printf '#!/usr/bin/env node\nconsole.log("passed=1 failed=0");\n' > "$P8/tests/a/test_x.js"
+printf '#!/usr/bin/env bats\n@test "a" { true; }\n' > "$P8/tests/a/x.bats"
+printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$P8/tools/smoke_check"
+gen "$P8"
+chk "P8: js test in the manifest" "$(awk -F'\t' '$1=="tests/a/test_x.js"{print $2"|"$5}' "$P8/config/full_suite_manifest.tsv")" "js|node"
+chk "P8: bats test in the manifest" "$(awk -F'\t' '$1=="tests/a/x.bats"{print $2"|"$5}' "$P8/config/full_suite_manifest.tsv")" "bats|bats"
+chk "P8: extension-less shebang smoke file in the manifest" "$(awk -F'\t' '$1=="tools/smoke_check"{print $2"|"$5}' "$P8/config/full_suite_manifest.tsv")" "sh|bash"
+grep -v '^tests/a/test_x.js' "$P8/config/full_suite_manifest.tsv" > "$T/p8m"; cp "$T/p8m" "$P8/config/full_suite_manifest.tsv"
+vfy "$P8" "$T/p8v.log"; chk "P8: an unlisted js test refuses -> exit 3" "$RC" "3"
+gen "$P8"
+if command -v node >/dev/null 2>&1; then
+  run "$P8" "$T/o_p8" --include-heavy --only 'test_x'
+  chk "P8: js unit runs under node" "$(verdict "$T/o_p8" tests/a/test_x.js | cut -d'|' -f1)" "PASS"
+fi
+if ! command -v bats >/dev/null 2>&1; then
+  run "$P8" "$T/o_p8b" --include-heavy --only 'x.bats'
+  chk "P8: absent runner is an honest SKIP" "$(verdict "$T/o_p8b" tests/a/x.bats | cut -d'|' -f1,2)" "SKIP|runner_not_installed"
 fi
 
 echo "passed=$pass failed=$fail"

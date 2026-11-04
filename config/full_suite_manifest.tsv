@@ -3,13 +3,17 @@
 # reviewed; regeneration keeps existing rows as they are. Every census file must have exactly one row;
 # a census file without a row, or a row without a file, makes the runner refuse (exit 3).
 # Columns (TAB): path kind class tier runner covered_by note
-#   kind    sh | py | go (path = Go module dir) | runall
+#   kind    sh | py | go (path = Go module dir) | runall | js | bats
 #   class   entry (run as a unit) | member (run only through covered_by, which must invoke it)
-#           | fixture (under a fixtures/ dir, never run) | excluded (not a test; note `reason: <why>`)
+#           | fixture (under a fixtures/ dir, never run) | excluded (not a test; see note)
 #   tier    default | heavy (run only with --include-heavy) | - (fixture, excluded)
-#   runner  bash | sh | python3 | go-test | runall-whole | runall-quick | runall-members | -
-#   note    free text; `override:` documents a curated deviation; excluded rows need `reason: <why>`,
-#           and `reason: helper, sourced by <path>` is checked against the shell model of <path>
+#   runner  bash | sh | python3 | go-test | node | bats | runall-whole | runall-quick | runall-members | -
+#   note    free text; `override:` documents a curated deviation; excluded rows need
+#           `reason: <category>: <why>` with category helper|library|oracle|fake|gate|tool|data;
+#           `reason: helper: sourced by <path>` is checked against the shell model of <path>; a
+#           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded
+#           set is pinned by config/full_suite_excluded.lock (accept a change with
+#           --verify-manifest --accept-excluded-change <reviewer>).
 docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh	sh	entry	default	bash	-	auto
@@ -22,9 +26,9 @@ docs/research/quality/solutions/poc/sol09_detection_pressure/test_sol09.sh	sh	en
 docs/research/quality/solutions/poc/sol10_mu_layer/test_sol10.sh	sh	entry	default	bash	-	auto
 meta_test_inheritance.sh	sh	entry	heavy	bash	-	auto
 progressive/mutation_matrix.py	py	entry	heavy	python3	-	auto
-scripts/amendment_log/tests/independent_lossless_rebuild.py	py	excluded	-	-	-	reason: library used by the amendment_log status-summary tests; not a test entry point
+scripts/amendment_log/tests/independent_lossless_rebuild.py	py	excluded	-	-	-	reason: library: library used by the amendment_log status-summary tests; not a test entry point
 scripts/amendment_log/tests/test_status_summary_archive.sh	sh	entry	default	bash	-	auto
-scripts/anchors/tests/_paths.py	py	excluded	-	-	-	reason: path-setup module imported by the anchors python tests
+scripts/anchors/tests/_paths.py	py	excluded	-	-	-	reason: library: path-setup module imported by the anchors python tests
 scripts/anchors/tests/run_all.sh	runall	entry	default	runall-whole	-	auto
 scripts/anchors/tests/test_anchor_lib.py	py	member	default	-	scripts/anchors/tests/run_all.sh	auto: run by scripts/anchors/tests/run_all.sh
 scripts/anchors/tests/test_bare_numbered_heading_form.py	py	member	default	-	scripts/anchors/tests/run_all.sh	auto: run by scripts/anchors/tests/run_all.sh
@@ -42,17 +46,17 @@ scripts/badges/test_static_badges.sh	sh	entry	default	bash	-	auto
 scripts/badges/test_twins_badge_formats_switch.sh	sh	entry	default	bash	-	auto
 scripts/catalog-engine/fixtures/golden_bad_test.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/catalog-engine/fixtures/golden_good_test.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
-scripts/catalog-engine/lib/parse_mutation.py	py	excluded	-	-	-	reason: parser library imported by scripts/catalog-engine/lib/parse_gate.py; tested by scripts/catalog-engine/tests
+scripts/catalog-engine/lib/parse_mutation.py	py	excluded	-	-	-	reason: library: parser library imported by scripts/catalog-engine/lib/parse_gate.py; tested by scripts/catalog-engine/tests
 scripts/catalog-engine/tests/test_parse_gate_wrappers.sh	sh	entry	default	bash	-	auto
-scripts/codegraph/tests/cg_fp.py	py	excluded	-	-	-	reason: fingerprint helper module called by test_codegraph_mcp.sh and test_mcp_readonly.sh
+scripts/codegraph/tests/cg_fp.py	py	excluded	-	-	-	reason: library: fingerprint helper module called by test_codegraph_mcp.sh and test_mcp_readonly.sh
 scripts/codegraph/tests/fixtures/stub_cg/bin/codegraph	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/codegraph/tests/fixtures/stub_cg/bin/codegraph_stock	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/codegraph/tests/fixtures/stub_patch_tool.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/codegraph/tests/fixtures/stub_probe_tool.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/codegraph/tests/lib_test.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/run_scope_tests.sh	sh	entry	default	bash	-	auto
-scripts/codegraph/tests/t_scope_cases.py	py	excluded	-	-	-	reason: case data module used by run_scope_tests.sh
-scripts/codegraph/tests/t_scope_fixture.py	py	excluded	-	-	-	reason: fixture builder module used by run_scope_tests.sh
+scripts/codegraph/tests/t_scope_cases.py	py	excluded	-	-	-	reason: data: case data module used by run_scope_tests.sh
+scripts/codegraph/tests/t_scope_fixture.py	py	excluded	-	-	-	reason: library: fixture builder module used by run_scope_tests.sh
 scripts/codegraph/tests/t_scope_mutations.py	py	member	heavy	-	scripts/codegraph/tests/run_scope_tests.sh	run by run_scope_tests.sh
 scripts/codegraph/tests/test_bulk_classify_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_bulk_classify_mutations.sh	auto: run by scripts/codegraph/tests/test_bulk_classify_mutations.sh
 scripts/codegraph/tests/test_bulk_classify_mutations.sh	sh	entry	heavy	bash	-	auto
@@ -75,14 +79,19 @@ scripts/codegraph/tests/test_owed_report.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_owed_report_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
+scripts/codegraph/tests/test_resolve1_count_hook.js	js	entry	default	node	-	auto
+scripts/codegraph/tests/test_resolve1_drive.js	js	entry	default	node	-	auto
 scripts/codegraph/tests/test_resolve1_dump.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
+scripts/codegraph/tests/test_resolve1_equiv_real.js	js	entry	default	node	-	auto
 scripts/codegraph/tests/test_resolve1_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
 scripts/codegraph/tests/test_resolve1_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve1_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve1_mutations.sh
 scripts/codegraph/tests/test_resolve1_mutations.sh	sh	entry	heavy	bash	-	auto
+scripts/codegraph/tests/test_resolve1_probe.js	js	entry	default	node	-	auto
 scripts/codegraph/tests/test_resolve2.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve2_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve2.sh	auto: run by scripts/codegraph/tests/test_resolve2.sh
 scripts/codegraph/tests/test_resolve2_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve2_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve2_mutations.sh
 scripts/codegraph/tests/test_resolve2_mutations.sh	sh	entry	heavy	bash	-	auto
+scripts/codegraph/tests/test_resolve2_probe.js	js	entry	default	node	-	auto
 scripts/codegraph/tests/test_scope_exceptions.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_scope_exceptions_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_tripwire.sh	sh	entry	default	bash	-	auto
@@ -93,9 +102,9 @@ scripts/credscan/tests/test_credscan.py	py	entry	default	python3	-	auto
 scripts/doc_integrity	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/extensions/install_speckit_superpowers_bridge_test.sh	sh	entry	default	bash	-	auto
 scripts/extensions/validate_bridge_mutation_test.sh	sh	entry	heavy	bash	-	auto
-scripts/fastcycle/gates/mutation_reuse.py	py	excluded	-	-	-	reason: fastcycle gate library; exercised by scripts/fastcycle/tests run_all.sh members
-scripts/fastcycle/tests/capture_fc_timer_triplet.sh	sh	excluded	-	-	-	reason: evidence producer exercised by test_capture_fc_timer_triplet.sh; not a test
-scripts/fastcycle/tests/check_deps.sh	sh	excluded	-	-	-	reason: tool-presence probe used by fastcycle tests; not a test
+scripts/fastcycle/gates/mutation_reuse.py	py	excluded	-	-	-	reason: library: fastcycle gate library; exercised by scripts/fastcycle/tests run_all.sh members
+scripts/fastcycle/tests/capture_fc_timer_triplet.sh	sh	excluded	-	-	-	reason: tool: evidence producer exercised by test_capture_fc_timer_triplet.sh; not a test
+scripts/fastcycle/tests/check_deps.sh	sh	excluded	-	-	-	reason: tool: tool-presence probe used by fastcycle tests; not a test
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_alpha.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_beta.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_docsync.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -202,18 +211,18 @@ scripts/fastcycle/tests/fixtures/triple_harness/sigwin_check.sh	sh	fixture	-	-	-
 scripts/fastcycle/tests/fixtures/triple_harness/sigwin_rig.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
-scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: reference bisector used as an oracle by test_batch_bisect_red.sh
-scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/dec23_key_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: helper, sourced by scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
-scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/review_record_genuine.sh	sh	excluded	-	-	-	reason: helper, sourced by scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh
-scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/tce_normalize_ref.py	py	excluded	-	-	-	reason: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/triple_harness.sh	sh	excluded	-	-	-	reason: self-validation runner library used by fastcycle tests
+scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
+scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/dec23_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
+scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/review_record_genuine.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh
+scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/tce_normalize_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/triple_harness.sh	sh	excluded	-	-	-	reason: library: self-validation runner library used by fastcycle tests
 scripts/fastcycle/tests/run_all.sh	runall	entry	default	runall-members	-	auto: covers 12 heavy member(s)
 scripts/fastcycle/tests/test_2nd_display_triage_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_affected_set_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -378,7 +387,7 @@ scripts/gates/cm_badge_closed_color_vocabulary_mutation_test.sh	sh	entry	heavy	b
 scripts/gates/cm_badge_machine_derived_source_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_badge_self_validated_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_bridge_layer_presence_mutation_test.sh	sh	entry	heavy	bash	-	auto
-scripts/gates/cm_build_on_source_proven_not_test_side.sh	sh	excluded	-	-	-	reason: a gate, not a test; its paired test is cm_build_on_source_proven_not_test_side_mutation_test.sh
+scripts/gates/cm_build_on_source_proven_not_test_side.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_build_on_source_proven_not_test_side_mutation_test.sh
 scripts/gates/cm_build_on_source_proven_not_test_side_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_canonical_root_clarity_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_chain_entry_union_rule_mutation_test.sh	sh	entry	heavy	sh	-	auto
@@ -536,7 +545,7 @@ scripts/gates/cm_llmctl_submodule_nonrecursive_mutation_test.sh	sh	entry	heavy	b
 scripts/gates/cm_machine_evidence_at_every_gate_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_mechanism_observed_refusing_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_multitrack_engine_in_constitution_mutation_test.sh	sh	entry	heavy	bash	-	auto
-scripts/gates/cm_mutation_score_on_diff.sh	sh	excluded	-	-	-	reason: a gate, not a test; its paired test is cm_mutation_score_on_diff_mutation_test.sh
+scripts/gates/cm_mutation_score_on_diff.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_mutation_score_on_diff_mutation_test.sh
 scripts/gates/cm_mutation_score_on_diff_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_no_narrative_only_pass_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_no_nested_markdown_fence_leak_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -548,10 +557,10 @@ scripts/gates/cm_reporting_directives_mutation_test.sh	sh	entry	heavy	bash	-	aut
 scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
-scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: a gate, not a test; run by the pre-build gate sweep
+scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; run by the pre-build gate sweep
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
-scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
+scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_unchallenged_capability_blocks_release_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -567,9 +576,9 @@ scripts/gates/covenant_propagation_suite_default_root_test.sh	sh	entry	default	b
 scripts/gates/covenant_propagation_superspec_exclusion_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/covenant_propagation_third_party_hub_exclusion_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/test_pre_commit_credscan.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
-scripts/gates/lib/covenant_propagation_mutation_engine.sh	sh	excluded	-	-	-	reason: mutation engine library called by the cm_covenant_*_mutation_test.sh entries
-scripts/gates/lib/gate_mutation_harness.sh	sh	excluded	-	-	-	reason: mutation harness library called by cm_*_mutation_test.sh entries
-scripts/gates/lib/shell_mutation_engine.sh	sh	excluded	-	-	-	reason: mutation engine library used by cm_mutation_score_on_diff.sh
+scripts/gates/lib/covenant_propagation_mutation_engine.sh	sh	excluded	-	-	-	reason: library: mutation engine library called by the cm_covenant_*_mutation_test.sh entries
+scripts/gates/lib/gate_mutation_harness.sh	sh	excluded	-	-	-	reason: library: mutation harness library called by cm_*_mutation_test.sh entries
+scripts/gates/lib/shell_mutation_engine.sh	sh	excluded	-	-	-	reason: library: mutation engine library used by cm_mutation_score_on_diff.sh
 scripts/gates/scanner_gate_false_positive_repairs_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/scanner_gate_false_positive_repairs_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/suite_verdict_set_check_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -588,10 +597,10 @@ scripts/hooks/test_guard_track_branch_label.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_guard_work_track_binding.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_label_sync_hooks.sh	sh	entry	default	bash	-	auto
 scripts/label-sync	go	entry	default	go-test	-	auto: Go module with *_test.go
-scripts/label-sync/adapters/tests/fake_openai.py	py	excluded	-	-	-	reason: unit-class fake server used by cm_label_sync_adapters gate tests (section 11.4.289(C)(2))
+scripts/label-sync/adapters/tests/fake_openai.py	py	excluded	-	-	-	reason: fake: unit-class fake server used by cm_label_sync_adapters gate tests (section 11.4.289(C)(2))
 scripts/label-sync/adapters/tests/test_adapters.sh	sh	entry	default	bash	-	auto
 scripts/label-sync/adapters/tests/test_real_agents.sh	sh	entry	default	bash	-	auto
-scripts/label-sync/hook_mutants.py	py	excluded	-	-	-	reason: mutant catalogue module used by prove_hook_mutations.sh and cm_label_sync_hooks
+scripts/label-sync/hook_mutants.py	py	excluded	-	-	-	reason: library: mutant catalogue module used by prove_hook_mutations.sh and cm_label_sync_hooks
 scripts/label-sync/mcp/prove_mcp_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/prove_adapter_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/prove_hook_mutations.sh	sh	entry	heavy	bash	-	auto
@@ -600,11 +609,11 @@ scripts/label-sync/render/prove_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/render/tests/test_render.sh	sh	entry	default	bash	-	auto
 scripts/lib/test_safe_rm.sh	sh	entry	default	bash	-	auto
 scripts/llm-alias-health	go	entry	default	go-test	-	auto: Go module with *_test.go
-scripts/lumen/tests/fake_ollama.py	py	excluded	-	-	-	reason: unit-class fake server used by test_gen_lumenignore.sh (section 11.4.289(C)(2))
+scripts/lumen/tests/fake_ollama.py	py	excluded	-	-	-	reason: fake: unit-class fake server used by test_gen_lumenignore.sh (section 11.4.289(C)(2))
 scripts/lumen/tests/test_gen_lumenignore.sh	sh	entry	default	bash	-	auto
 scripts/lumen/tests/test_lumen_verify.sh	sh	entry	default	bash	-	auto
-scripts/mechanical/mutation_harness.sh	sh	excluded	-	-	-	reason: a tool that applies one named mutation; called by gate mutation tests; not a test
-scripts/mechanical/tests/lib/assert.sh	sh	excluded	-	-	-	reason: helper, sourced by scripts/mechanical/tests/test_anchor_census.sh
+scripts/mechanical/mutation_harness.sh	sh	excluded	-	-	-	reason: tool: a tool that applies one named mutation; called by gate mutation tests; not a test
+scripts/mechanical/tests/lib/assert.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/mechanical/tests/test_anchor_census.sh
 scripts/mechanical/tests/run_all.sh	runall	entry	default	runall-members	-	auto: covers 1 heavy member(s)
 scripts/mechanical/tests/test_anchor_census.sh	sh	member	default	-	scripts/mechanical/tests/run_all.sh	auto: run by scripts/mechanical/tests/run_all.sh
 scripts/mechanical/tests/test_await_condition.sh	sh	member	default	-	scripts/mechanical/tests/run_all.sh	auto: run by scripts/mechanical/tests/run_all.sh
@@ -649,8 +658,8 @@ tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	a
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_register.sh	sh	entry	default	bash	-	auto
-tests/decisions/lib.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/decisions/test_chaos_stress.sh
-tests/decisions/repo_guard.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/decisions/run_all.sh
+tests/decisions/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/test_chaos_stress.sh
+tests/decisions/repo_guard.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/run_all.sh
 tests/decisions/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
 tests/decisions/test_chaos_stress.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 tests/decisions/test_core.sh	sh	member	default	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -670,7 +679,7 @@ tests/decisions/test_round9.sh	sh	member	default	-	tests/decisions/run_all.sh	au
 tests/decisions/test_tty_e2e.sh	sh	member	default	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 tests/docs/test_no_dead_methodology_link.sh	sh	entry	default	bash	-	auto
 tests/extensions/fixtures/hooks-fixture/hooks/session_start.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
-tests/extensions/lib.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/extensions/test_attacks.sh
+tests/extensions/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/extensions/test_attacks.sh
 tests/extensions/run_all.sh	runall	entry	default	runall-quick	-	override: --quick drops exactly its heavy members (verified by the manifest check)
 tests/extensions/test_attacks.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_chaos.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
@@ -701,7 +710,7 @@ tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	au
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
 tests/hooks_range/test_post_update_hook_range.sh	sh	entry	default	bash	-	auto
-tests/install/lib.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/install/test_agent.sh
+tests/install/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/install/test_agent.sh
 tests/install/mutants_round11.sh	sh	entry	heavy	bash	-	auto
 tests/install/run_all.sh	runall	entry	default	runall-members	-	auto: covers 6 heavy member(s)
 tests/install/test_agent.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
@@ -723,7 +732,7 @@ tests/install/test_self_guard.sh	sh	member	default	-	tests/install/run_all.sh	au
 tests/install/test_stress_perf.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
-tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: recording stub used by post_update_hook trigger tests
+tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude-providers	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -735,7 +744,7 @@ tests/jev/fixtures/bin/llmctl	sh	fixture	-	-	-	fixture path (not a test entry po
 tests/jev/fixtures/jev_server.py	py	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/install.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/tools/claude_toolkit/scripts/jev-setup.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
-tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/jev/test_anchor_renumber_integrity.sh
+tests/jev/lib_assert.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/jev/test_anchor_renumber_integrity.sh
 tests/jev/run_all.sh	runall	entry	default	runall-whole	-	auto
 tests/jev/test_anchor_renumber_integrity.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_bootstrap_e2e_stub_server.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
@@ -764,7 +773,7 @@ tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
-tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/layout/test_canonical_root_layout.sh
+tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto
 tests/layout/test_canonical_root_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_constitution_layout_lib.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
@@ -784,10 +793,10 @@ tests/layout/test_round7_ambient.sh	sh	member	default	-	tests/layout/run_all.sh	
 tests/layout/test_round8_git_env.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_setup_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_templates_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
-tests/lib/make_fixture_tracker.sh	sh	excluded	-	-	-	reason: fixture-tracker builder library used by tests/gates tests
-tests/prompts/allowlist_bypass_forms.py	py	excluded	-	-	-	reason: bypass-form injector used by tests/prompts round tests
-tests/prompts/git_allowlist.py	py	excluded	-	-	-	reason: allow-list guard module used by tests/prompts tests
-tests/prompts/lib.sh	sh	excluded	-	-	-	reason: helper, sourced by tests/prompts/test_rotate_chaos.sh
+tests/lib/make_fixture_tracker.sh	sh	excluded	-	-	-	reason: library: fixture-tracker builder library used by tests/gates tests
+tests/prompts/allowlist_bypass_forms.py	py	excluded	-	-	-	reason: library: bypass-form injector used by tests/prompts round tests
+tests/prompts/git_allowlist.py	py	excluded	-	-	-	reason: library: allow-list guard module used by tests/prompts tests
+tests/prompts/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/prompts/test_rotate_chaos.sh
 tests/prompts/run_all.sh	runall	entry	default	runall-members	-	auto: covers 9 heavy member(s)
 tests/prompts/test_rotate_chaos.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_rotate_e2e.sh	sh	member	default	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh

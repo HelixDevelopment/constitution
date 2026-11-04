@@ -8,12 +8,15 @@
 # TIMEOUT dropped from the failing set, exit-0 SKIP word undetected, --rerun-nonpass ignored);
 # R1-R6 are the reviewer-authored mutants of review round 2 (resume ignores the runner hash, tree
 # change not failing, census needle skipped, any dict accepted as a record, rm_tree containment off,
-# R5 timer firing not recorded); M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# R5 timer firing not recorded); X1-X9 are the reviewer-authored mutants of review round 3 (any verdict
+# string accepted, window 8->2, KNOWN without the log sha256 check, untracked content not hashed, pgid<=1
+# refusal dropped); V*, E*, S*, K*, T*, C* guard the round-4 parser, excluded audit, status consumption,
+# PASS-FULL-WITH-KNOWN, topology preflight and census additions; M7+ are the author's own. A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
+#   M5 M8 M9b M23 M36 (their anchors no longer exist; V1-V11 take their place).
 # Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
-#   M9  `any(c.get("f")>0 for c in counts)` -> False: line_counts() already returns FAIL for any line
-#       with a failed>0 binding, so that check cannot decide a verdict.
 #   M13 drop the `*_test.sh` name pattern: the broader rule (a .sh whose name contains `test`)
 #       still lists every such file.
 # Exit 0 = baseline passes and every selected mutant is killed.
@@ -29,24 +32,20 @@ MUTANTS=$(cat <<'EOF'
 M1	    if rc in (124, 137):\n        return "ERROR", "rc_%d_without_runner_timeout" % rc, "exit-code", None	    if rc in (124, 137):\n        return "PASS", "", "exit-code", None
 M2	return (o["unit"] == u["id"] and o["sha"] == sha and	return (o["unit"] == u["id"] and
 M3	BAD = ("FAIL", "TIMEOUT", "ERROR")	BAD = ("FAIL", "ERROR")
-M5	        if w.startswith("skip"):	        if w.startswith("skipX"):
 M6	                if not (rerun and lv != "PASS"):	                if True:
 M7	and o["tree"] == tree and	and
-M8	            return "ERROR", "zero_tests", "summary", last_counts	            return "PASS", "", "summary", last_counts
-M9b	    amb_fail = any(f > 0 for f in fails)	    amb_fail = False
 M10	        if p != path:	        if p not in path:
 M11	    env = {k: os.environ[k] for k in ENV_BASE if k in os.environ}	    env = dict(os.environ)
 M12	    leaked = reap_token(token)	    leaked = 0
 M14	    for f in sorted(set(by) - want):	    for f in []:
 M15	                    add(path, "-", [], tier, False, "heavy_excluded (member of %s)" % cover)	                    add(path, "bash", [], tier, True)
 M16	[] if heavy_mode else ["--quick"]	[]
-M17	        run = heavy_mode or not eff_heavy(r)	        run = True
+M17	        run = heavy_mode or not eff_heavy(r)\n        add(path, runner, [], tier, run,	        run = True\n        add(path, runner, [], tier, run,
 M18	        return 4\n    if cats	        return 0\n    if cats
 M19	        return 5\n    if cats	        return 0\n    if cats
 M20	        return "ERROR", "killed_by_signal_%d" % -rc, "exit-code", None	        return "TIMEOUT", "killed_by_signal_%d" % -rc, "exit-code", None
 M21	            raise Fatal(2, "--out %s is inside the repository root; suites	            pass  # raise Fatal(2, "--out %s is inside the repository root; suites
 M22	if not re.match(r"^[1-9][0-9]{0,5}$", v):	if not re.match(r"^[0-9]{1,6}$", v):
-M23	        if term_skip and p > 0:	        if False:
 M24	            if needle in env.split(b"\\0"):	            if False:
 M25	        if HEAVY_NAME.search(b) and tier != "heavy" and not o:	        if False:
 M26	                if r[3] == "default" and r[0] not in q:	                if False:
@@ -59,13 +58,44 @@ M32	        h.update(b"I" + f.encode())\n        h.update(file_digest(os.path.jo
 M33	                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD	                     "true; git status --porcelain=v1 -z --untracked-files=all >/dev/null; git diff HEAD >/dev/null
 M34	        flip = len(set(r["verdict"] for r in mine)) > 1	        flip = False
 M35	        if o["log"] in logs:	        if False:
-M36	        c = None if CHECKLINE.match(l) else line_counts(l)	        c = line_counts(l)
 R1	 and o["runner_hash"] == rhash	
 R2	    if tree_end != tree:\n        out("RESULT: FAIL	    if False:\n        out("RESULT: FAIL
 R3	    census_needle(scratch)\n	    pass\n
 R4	    if not isinstance(o, dict) or o.get("schema") != SCHEMA:\n        return False\n	    if not isinstance(o, dict):\n        return False\n    return True\n
 R5	                    timed_out, term_at = True, now	                    term_at = now
 R6	    if not real.startswith(sreal + os.sep) or not os.path.basename(real).startswith("fsr_"):	    if False:
+X1	    return o["verdict"] in VERDICTS	    return True
+X3	WIN = 12	WIN = 2
+X4	            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:	            if True:
+X5	        h.update(b"U" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        h.update(b"U" + f.encode())
+X9	    if not isinstance(pgid, int) or pgid <= 1 or pgid == os.getpgrp():	    if not isinstance(pgid, int):
+V1	        l = CTRL.sub("", ESC.sub("", l)).rstrip()	        l = l.rstrip()
+V2	        if "\\r" in l:\n            l = l.rsplit("\\r", 1)[-1]	        if False:\n            pass
+V3	    if any(k == "tapfail" for k, _ in cls):\n        return "FAIL", "tap_not_ok", "summary", None	    if False:\n        pass
+V4	    if any(k == "headfail" for k, _ in cls):\n        return "FAIL", "summary_word_FAIL", "summary", None	    if False:\n        pass
+V5	        if any(v == "FAIL" for _i, _inf, (v, _r) in sums[:-1]):	        if False:
+V6	        if any(i > li for i in fails):	        if False:
+V7	    if fails:\n        return "ERROR", "unparsed_fail_signal", "summary", None	    if False:\n        pass
+V8	    if (p or 0) == 0 and (t is None or t == 0 or (s or 0) >= (t or 0)) and skipish and "p" not in st:	    if False:
+V9	    if left:\n        return None	    if False:\n        return None
+V10	            if not BOUNDFAIL.search(bare):\n                return "other", None	            if True:\n                return "other", None
+V11	        li, linfo, (lv, lr) = sums[-1]	        li, linfo, (lv, lr) = sums[0]
+E1	    if added or removed or changed:	    if False:
+E2	        if ex:\n            return ["excluded set	        if False:\n            return ["excluded set
+E3	                if m.group(1) not in EXCL_CATS:	                if False:
+E4	                if (name_test(b) or GO_PATTERN.match(b)) and not o:	                if False:
+E5	        summ.append("EXCLUDED  %s  (%s)" % (p_, note))	        pass
+S1	        if table is self.invoked and not self.consumed:	        if False:
+S2	            elif path in alone:	            elif False:
+S3	    return lit_text(cmds[0][1][0]) in ABSORB	    return False
+S4	                    c = self.errexit or _reads_status(nxt)	                    c = _reads_status(nxt)
+K1	        return 7	        return 0
+T1	    if gaps and not allow_topo:	    if False:
+T2	        if flag == "-":	        if False:
+T3	        return 8	        return 0
+C1	        if JS_EXT.search(b):\n            scripts[f] = "js"\n            continue	        if False:\n            pass
+C2	            if u["runner"] in ("node", "bats") and shutil.which(u["runner"], path=unit_env_path()) is None:	            if False:
+C3	    return "." not in b and (in_tdir or TEST_KEYWORD.search(b) is not None)	    return "." not in b and in_tdir
 EOF
 )
 

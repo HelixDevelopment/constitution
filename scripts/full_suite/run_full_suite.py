@@ -356,6 +356,33 @@ def lit_text(segs):
 
 
 # ----------------------------------------------------------------------------- parser
+class _Bg(list):
+    """An and-or list run with a trailing `&` (its exit status reaches nobody)."""
+    bg = True
+
+
+def _reads_status(item):
+    """Does this and-or list read the previous command's status ($?, PIPESTATUS, or a bare exit/return)?"""
+    r = repr(item)
+    if "('param', '?'" in r or "$?" in r or "PIPESTATUS" in r:
+        return True
+    first = item[0][1][2][0] if item and item[0][1][2] else None
+    if first and first[0] == "simple" and len(first[1]) == 1:
+        return lit_text(first[1][0]) in ("exit", "return")
+    return False
+
+
+ABSORB = ("true", ":", "echo", "printf")
+
+
+def _absorbing(pipe):
+    """`x || <pipe>` throws x's status away when <pipe> is one of true / : / echo / printf."""
+    cmds = pipe[2]
+    if len(cmds) != 1 or cmds[0][0] != "simple" or not cmds[0][1] or pipe[1]:
+        return False
+    return lit_text(cmds[0][1][0]) in ABSORB
+
+
 class P:
     def __init__(self, toks):
         self.t, self.i = toks, 0
@@ -396,6 +423,8 @@ class P:
             items.append(self.parse_andor(stops))
             tok = self.peek()
             if tok is not None and tok[0] == "OP" and tok[1] in (";", "\n", "&"):
+                if tok[1] == "&":
+                    items[-1] = _Bg(items[-1])
                 self.i += 1
 
     def parse_andor(self, stops):
@@ -603,6 +632,14 @@ class Model:
         self.depth = 0
         self.cur_def = True
         self.steps = 0
+        # P5 (status consumption): consumed = the current command's exit status reaches a decision
+        # (the script's exit status, an if/while condition, a && / || that reacts, $? / PIPESTATUS
+        # read next, set -e). discarded = invoked paths whose status was thrown away at least once.
+        self.consumed = True
+        self.errexit = False
+        self.pipefail = False
+        self.in_assign = False
+        self.discarded = set()
 
     def tick(self):
         self.steps += 1
@@ -711,13 +748,13 @@ class Model:
         except ShParseError:
             self.unknown += 1
             return [None]
-        saved = (dict(self.vars), {k: list(v) for k, v in self.arrays.items()}, self.cwd)
+        saved = (dict(self.vars), {k: list(v) for k, v in self.arrays.items()}, self.cwd, self.errexit, self.pipefail)
         try:
-            self.run_list(ast, self.cur_def)
+            self._cons(self.consumed if self.in_assign else False, self.run_list, ast, self.cur_def)
         except _Stop:
             pass
         finally:
-            self.vars, self.arrays, self.cwd = saved
+            self.vars, self.arrays, self.cwd, self.errexit, self.pipefail = saved
         flat = []
         for item in ast:
             for _conn, pipe in item:
@@ -827,6 +864,8 @@ class Model:
         if not (p == self.root or p.startswith(self.root + os.sep)):
             return None
         rel = os.path.relpath(p, self.root)
+        if table is self.invoked and not self.consumed:
+            self.discarded.add(rel)
         if table.get(rel) != "definite":
             table[rel] = "definite" if definite else "conditional"
         return rel
@@ -886,7 +925,11 @@ class Model:
             k += 1
         if pending and k == len(words):
             for nm, app, segs in pending:
-                vals = self.eval_word(segs, glob_ok=False)
+                was, self.in_assign = self.in_assign, True
+                try:
+                    vals = self.eval_word(segs, glob_ok=False)
+                finally:
+                    self.in_assign = was
                 if app:
                     old = self.lookup(nm)
                     vals = [None if (o is None or v is None) else o + v for o in old for v in vals]
@@ -926,6 +969,9 @@ class Model:
             return True
         if w == "false":
             return False
+        if w == "set":
+            self.set_opts(argv[1:], definite)
+            return True
         if w in ("local", "export", "readonly", "declare", "typeset"):
             for x in argv[1:]:
                 if x is not None and ASSIGN.match(x):
@@ -954,6 +1000,8 @@ class Model:
                 rest.pop(0)
             if w == "command" and argv[1:2] == ["-v"]:
                 return None
+            if w == "exec":
+                return self._cons(True, self.exec_argv, rest, definite)  # exec: its status is the script's
             return self.exec_argv(rest, definite)
         if w in (".", "source"):
             if len(argv) >= 2:
@@ -1018,11 +1066,48 @@ class Model:
             self.record(w, definite, self.invoked)
         return None
 
+    def _cons(self, v, fn, *a):
+        saved = self.consumed
+        self.consumed = v
+        try:
+            return fn(*a)
+        finally:
+            self.consumed = saved
+
+    def set_opts(self, a, definite):
+        """`set -e` / `set -o errexit|pipefail` (only a definite set turns an option on; +e always off)."""
+        j = 0
+        while j < len(a):
+            x = a[j]
+            j += 1
+            if x is None:
+                continue
+            if x in ("-o", "+o") and j < len(a):
+                on = x == "-o"
+                if a[j] in ("errexit", "pipefail") and (definite or not on):
+                    setattr(self, a[j], on)
+                j += 1
+                continue
+            if re.match(r"^[-+][A-Za-z]+$", x):
+                on = x[0] == "-"
+                if "e" in x[1:] and (definite or not on):
+                    self.errexit = on
+                if x.endswith("o") and j < len(a) and a[j] in ("errexit", "pipefail"):
+                    if definite or not on:
+                        setattr(self, a[j], on)
+                    j += 1
+
     def run_pipe(self, pipe, definite):
         _k, neg, cmds = pipe
         status = None
-        for c in cmds:
-            status = self.run_cmd(c, definite)
+        cons = self.consumed
+        for j, c in enumerate(cmds):
+            last = j == len(cmds) - 1
+            self.consumed = cons if last else (cons == "all" or (bool(cons) and self.pipefail))
+            try:
+                status = self.run_cmd(c, definite)
+            finally:
+                self.consumed = cons
         if len(cmds) > 1:
             status = None if status is None else status
         if neg and status is not None:
@@ -1039,8 +1124,19 @@ class Model:
             return None
 
     def run_andor(self, parts, definite):
+        cons = self.consumed
+        try:
+            return self._run_andor(parts, definite, cons)
+        finally:
+            self.consumed = cons
+
+    def _run_andor(self, parts, definite, cons):
         status, ran_def = None, definite
-        for conn, pipe in parts:
+        for k, (conn, pipe) in enumerate(parts):
+            # part k's status flows through the && chain to the first || after it (which reacts unless it
+            # absorbs: true / : / echo / printf); with no || after it, it is the list's status
+            orr = next((pp for cc, pp in parts[k + 1:] if cc == "||"), None)
+            self.consumed = cons if orr is None else (not _absorbing(orr))
             if conn is None:
                 status = self.run_pipe(pipe, definite)
                 continue
@@ -1057,14 +1153,24 @@ class Model:
         return status
 
     def run_list(self, items, definite):
-        saved = self.cur_def
+        saved, parent = self.cur_def, self.consumed
         status = None
         try:
-            for parts in items:
+            for i, parts in enumerate(items):
                 self.cur_def = definite
+                nxt = items[i + 1] if i + 1 < len(items) else None
+                if getattr(parts, "bg", False):
+                    c = False
+                elif nxt is not None and "PIPESTATUS" in repr(nxt):
+                    c = "all"
+                elif nxt is None:
+                    c = parent or self.errexit
+                else:
+                    c = self.errexit or _reads_status(nxt)
+                self.consumed = c
                 status = self.run_andor(parts, definite)
         finally:
-            self.cur_def = saved
+            self.cur_def, self.consumed = saved, parent
         return status
 
     def run_cmd(self, c, definite):
@@ -1076,13 +1182,14 @@ class Model:
             for p in c[2]:
                 self.cmdsub(p)
             if k == "sub":
-                saved = (dict(self.vars), {a: list(v) for a, v in self.arrays.items()}, self.cwd)
+                saved = (dict(self.vars), {a: list(v) for a, v in self.arrays.items()}, self.cwd, self.errexit,
+                         self.pipefail)
                 try:
                     self.run_list(c[1], definite)
                 except _Stop:
                     pass
                 finally:
-                    self.vars, self.arrays, self.cwd = saved
+                    self.vars, self.arrays, self.cwd, self.errexit, self.pipefail = saved
                 return None
             return self.run_list(c[1], definite)
         if k == "func":
@@ -1093,7 +1200,7 @@ class Model:
                 self.cmdsub(p)
             d = definite
             for cond, body in c[1]:
-                st = self.run_list(cond, d) if d else self.soft(self.run_list, cond, d)
+                st = self._cons(True, self.run_list, cond, d) if d else self.soft(self._cons, True, self.run_list, cond, d)
                 if st is True:
                     return self.run_list(body, d) if d else self.soft(self.run_list, body, d)
                 if st is None:
@@ -1108,15 +1215,15 @@ class Model:
         if k == "while":
             for p in c[3]:
                 self.cmdsub(p)
-            self.soft(self.run_list, c[1], False)
+            self.soft(self._cons, True, self.run_list, c[1], False)
             try:
-                self.run_list(c[2], False)
+                self._cons(False, self.run_list, c[2], False)
             except _Stop:
                 pass
             return None
         if k == "afor":
             try:
-                self.run_list(c[1], False)
+                self._cons(False, self.run_list, c[1], False)
             except _Stop:
                 pass
             return None
@@ -1133,7 +1240,7 @@ class Model:
             for val, d in values[:2000]:
                 self.setvar(var, [val], True)
                 try:
-                    self.run_list(body, d)
+                    self._cons(False, self.run_list, body, d)
                 except _Stop as e:
                     if e.kind == "continue":
                         continue
@@ -1208,6 +1315,8 @@ def model(root, rel, args):
     m = Model(root, rel, args)
     with open(m.script, errors="replace") as fh:
         text = fh.read()
+    if re.match(r"^#![^\n]*\s-[A-Za-z]*e", text):
+        m.errexit = True
     ast = parse(text)
     try:
         m.run_list(ast, True)
@@ -1239,13 +1348,28 @@ SH_PATTERNS = (re.compile(r"^test_.*\.sh$"), re.compile(r"^.*_test\.sh$"),
                re.compile(r"^.*selftest.*\.sh$"), re.compile(r"^run_all\.sh$"))
 PY_PATTERNS = (re.compile(r"^test_.*\.py$"), re.compile(r"^.*_test\.py$"))
 GO_PATTERN = re.compile(r"^.*_test\.go$")
+JS_PATTERNS = (re.compile(r"^test_.*\.(js|mjs|cjs)$"), re.compile(r"^.*[._]test\.(js|mjs|cjs)$"),
+               re.compile(r"^.*\.spec\.(js|mjs|cjs)$"))
+JS_EXT = re.compile(r"\.(js|mjs|cjs)$", re.I)
+BATS_EXT = re.compile(r"\.bats$", re.I)
 SCRIPT_EXT = re.compile(r"\.(sh|bash|py)$", re.I)
 TEST_KEYWORD = re.compile(r"(test|mutant|mutation|smoke|selftest)", re.I)
 TEST_DIRS = ("tests", "test")
-KINDS = ("sh", "py", "go", "runall")
+KINDS = ("sh", "py", "go", "runall", "js", "bats")
 CLASSES = ("entry", "member", "fixture", "excluded")
 TIERS = ("default", "heavy", "-")
-RUNNERS = ("bash", "sh", "python3", "go-test", "runall-whole", "runall-quick", "runall-members", "-")
+RUNNERS = ("bash", "sh", "python3", "go-test", "node", "bats", "runall-whole", "runall-quick", "runall-members", "-")
+KIND_RUNNERS = {"py": ("python3",), "sh": ("bash", "sh"), "js": ("node",), "bats": ("bats",)}
+# P4: an excluded row's note is `reason: <category>: <text>`; the category is from this closed list.
+# helper  -- sourced by a test (the text `sourced by <path>` is checked against the shell model)
+# library -- shared code imported by tests, never run on its own
+# oracle  -- a reference implementation / analyzer the tests call
+# fake    -- a stand-in program the tests launch (a fake binary on PATH)
+# gate    -- a gate or check run by the pre-build sweep, not by this runner
+# tool    -- an operator tool that is not a test
+# data    -- input data with a script extension
+EXCL_CATS = ("helper", "library", "oracle", "fake", "gate", "tool", "data")
+EXCL_LOCK = "full_suite_excluded.lock"
 IGNORED_NOT_HASHED = (re.compile(r"(^|/)__pycache__/"), re.compile(r"\.pyc$"), re.compile(r"(^|/)\.pytest_cache/"),
                       re.compile(r"^qa-results/"))
 GUIDE_REL = os.path.join("docs", "guides", "full_suite_runner_guide.md")
@@ -1256,13 +1380,17 @@ MANIFEST_HEADER = ("# config/full_suite_manifest.tsv -- declared set of test ent
                    "# reviewed; regeneration keeps existing rows as they are. Every census file must have exactly one row;\n"
                    "# a census file without a row, or a row without a file, makes the runner refuse (exit 3).\n"
                    "# Columns (TAB): path kind class tier runner covered_by note\n"
-                   "#   kind    sh | py | go (path = Go module dir) | runall\n"
+                   "#   kind    sh | py | go (path = Go module dir) | runall | js | bats\n"
                    "#   class   entry (run as a unit) | member (run only through covered_by, which must invoke it)\n"
-                   "#           | fixture (under a fixtures/ dir, never run) | excluded (not a test; note `reason: <why>`)\n"
+                   "#           | fixture (under a fixtures/ dir, never run) | excluded (not a test; see note)\n"
                    "#   tier    default | heavy (run only with --include-heavy) | - (fixture, excluded)\n"
-                   "#   runner  bash | sh | python3 | go-test | runall-whole | runall-quick | runall-members | -\n"
-                   "#   note    free text; `override:` documents a curated deviation; excluded rows need `reason: <why>`,\n"
-                   "#           and `reason: helper, sourced by <path>` is checked against the shell model of <path>\n")
+                   "#   runner  bash | sh | python3 | go-test | node | bats | runall-whole | runall-quick | runall-members | -\n"
+                   "#   note    free text; `override:` documents a curated deviation; excluded rows need\n"
+                   "#           `reason: <category>: <why>` with category helper|library|oracle|fake|gate|tool|data;\n"
+                   "#           `reason: helper: sourced by <path>` is checked against the shell model of <path>; a\n"
+                   "#           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded\n"
+                   "#           set is pinned by config/full_suite_excluded.lock (accept a change with\n"
+                   "#           --verify-manifest --accept-excluded-change <reviewer>).\n")
 
 
 class Fatal(Exception):
@@ -1313,7 +1441,8 @@ def submodule_paths(root):
 
 
 def name_test(b):
-    return any(p.match(b) for p in SH_PATTERNS) or any(p.match(b) for p in PY_PATTERNS)
+    return (any(p.match(b) for p in SH_PATTERNS) or any(p.match(b) for p in PY_PATTERNS)
+            or any(p.match(b) for p in JS_PATTERNS) or BATS_EXT.search(b) is not None)
 
 
 def broad_candidate(f):
@@ -1326,7 +1455,9 @@ def broad_candidate(f):
         return True
     if ext and (in_tdir or TEST_KEYWORD.search(b)):
         return True
-    return in_tdir and "." not in b
+    if JS_EXT.search(b) and in_tdir and TEST_KEYWORD.search(b):
+        return True
+    return "." not in b and (in_tdir or TEST_KEYWORD.search(b) is not None)
 
 
 def has_shebang(path):
@@ -1369,6 +1500,12 @@ def census(root):
         if GO_PATTERN.match(b):
             gofiles.append(f)
             continue
+        if JS_EXT.search(b):
+            scripts[f] = "js"
+            continue
+        if BATS_EXT.search(b):
+            scripts[f] = "bats"
+            continue
         if not SCRIPT_EXT.search(b) and not has_shebang(p):
             continue
         if b.lower().endswith(".py") or (not SCRIPT_EXT.search(b) and has_shebang(p) and b"python" in open(p, "rb").read(64)):
@@ -1383,6 +1520,8 @@ def census(root):
 NEEDLE = {"a/test_x.sh": 1, "a/y_test.sh": 1, "a/z_selftest.sh": 1, "a/w_selftest_mutations.sh": 1, "a/run_all.sh": 1,
           "a/test_p.py": 1, "a/q_test.py": 1, "tests/helper.sh": 1, "tests/UPPER.SH": 1, "tests/noext": 1,
           "test/t.bash": 1, "b/live_smoke.sh": 1, "b/meta_mutation.sh": 1, "b/x_mutants.py": 1, "m/k_test.go": 2,
+          "a/test_n.js": 1, "a/w.test.mjs": 1, "tests/test_cli.js": 1, "a/k.bats": 1, "tools/smoke_run": 1,
+          "a/app.js": 0, "tests/lib/util.js": 0, "tools/notes": 0,
           "a/plain.sh": 0, "a/test_x.txt": 0, "a/run_all.sh.bak": 0, "a/k_test.go.orig": 0, "tests/data.txt": 0,
           "tests/noshebang": 0, "sub/test_in_submodule.sh": 0}
 
@@ -1509,7 +1648,7 @@ def generate(root, existing):
             continue
         if not name_test(b) and not TEST_KEYWORD.search(b):
             if f in srcby:
-                rows[f] = [f, kind, "excluded", "-", "-", "-", "reason: helper, sourced by %s" % srcby[f]]
+                rows[f] = [f, kind, "excluded", "-", "-", "-", "reason: helper: sourced by %s" % srcby[f]]
             else:
                 rows[f] = [f, kind, "excluded", "-", "-", "-", "UNREVIEWED: helper-like file; write `reason: <why>` or reclassify"]
             continue
@@ -1535,6 +1674,8 @@ def generate(root, existing):
             rows[f] = [f, kind, "member", tier, "-", cover, "auto: invoked by %s" % cover]
         elif kind == "py":
             rows[f] = [f, kind, "entry", tier, "python3", "-", "auto"]
+        elif kind in ("js", "bats"):
+            rows[f] = [f, kind, "entry", tier, KIND_RUNNERS[kind][0], "-", "auto"]
         elif kind == "sh":
             rows[f] = [f, kind, "entry", tier, shebang_runner(root, f), "-", "auto"]
         else:
@@ -1643,11 +1784,18 @@ def verify(root, rows):
             if cls == "fixture" and "/fixtures/" not in "/" + path and not o:
                 probs.append("%s: fixture outside a fixtures/ dir needs an override: note" % path)
             if cls == "excluded":
-                m = re.match(r"^reason:\s*(\S.*)$", note)
+                m = re.match(r"^(?:override:\s*)?reason:\s*([a-z]+):\s*(\S.*)$", note)
                 if not m:
-                    probs.append("%s: excluded row needs a `reason: <why>` note (got %r)" % (path, note))
+                    probs.append("%s: excluded row needs a `reason: <category>: <why>` note (got %r)" % (path, note))
                     continue
-                s = re.match(r"^helper, sourced by (\S+)$", m.group(1))
+                if m.group(1) not in EXCL_CATS:
+                    probs.append("%s: exclusion category %r is not one of %s" % (path, m.group(1), "|".join(EXCL_CATS)))
+                    continue
+                if (name_test(b) or GO_PATTERN.match(b)) and not o:
+                    probs.append("%s: test-named file excluded without an `override:` note" % path)
+                s = re.match(r"^sourced by (\S+)$", m.group(2)) if m.group(1) == "helper" else None
+                if m.group(1) == "helper" and not s:
+                    probs.append("%s: helper exclusion must read `reason: helper: sourced by <path>`" % path)
                 if s:
                     src = s.group(1)
                     mm = ms.get(src) if os.path.isfile(os.path.join(root, src)) else ShParseError("no such file")
@@ -1666,7 +1814,7 @@ def verify(root, rows):
             if cls != "entry" or not runner.startswith("runall-"):
                 probs.append("%s: run_all rows are entry/runall-*" % path)
         elif cls == "entry":
-            if runner not in (("python3",) if kind == "py" else ("bash", "sh")) or cover != "-":
+            if runner not in KIND_RUNNERS.get(kind, ()) or cover != "-":
                 probs.append("%s: entry %s row has runner %s covered_by %s" % (path, kind, runner, cover))
         if cls == "member":
             if runner != "-":
@@ -1710,6 +1858,130 @@ def verify(root, rows):
     return probs
 
 
+def excluded_rows(rows):
+    return sorted((r[0], r[6]) for r in rows if r[2] == "excluded")
+
+
+def excl_set_hash(ex):
+    return hashlib.sha256("".join("%s\t%s\n" % (p_, n) for p_, n in ex).encode()).hexdigest()[:16]
+
+
+def read_excl_lock(path):
+    """(body {path: note_hash}, last accepted set hash or None, accepted lines) or None when absent."""
+    if not os.path.isfile(path):
+        return None
+    body, last, acc = {}, None, []
+    with open(path, errors="replace") as fh:
+        for line in fh.read().splitlines():
+            if line.startswith("# accepted "):
+                acc.append(line)
+                mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
+                last = mm.group(1) if mm else None
+            elif line and not line.startswith("#"):
+                c = line.split("\t")
+                if len(c) == 2:
+                    body[c[0]] = c[1]
+                else:
+                    body["\0malformed"] = line
+    return body, last, acc
+
+
+def excl_check(lock_path, rows):
+    """Problems between the manifest's excluded rows and the reviewed lock (P4)."""
+    ex = excluded_rows(rows)
+    lk = read_excl_lock(lock_path)
+    if lk is None:
+        if ex:
+            return ["excluded set (%d row(s)) is not accepted: %s is absent; review the rows and run "
+                    "--verify-manifest --accept-excluded-change <reviewer>" % (len(ex), lock_path)]
+        return []
+    body, last, _acc = lk
+    want = {p_: hashlib.sha256(n.encode()).hexdigest()[:16] for p_, n in ex}
+    probs = []
+    if last is None or last != excl_set_hash(sorted((p_, h) for p_, h in body.items())):
+        probs.append("%s: body does not match its last `# accepted ... set=` line (edited by hand?)" % lock_path)
+    added = sorted(set(want) - set(body))
+    removed = sorted(set(body) - set(want))
+    changed = sorted(p_ for p_ in set(want) & set(body) if want[p_] != body[p_])
+    if added or removed or changed:
+        probs.append("excluded set differs from the accepted lock %s (added %s, removed %s, note changed %s); review and "
+                     "run --verify-manifest --accept-excluded-change <reviewer>" % (lock_path, added, removed, changed))
+    return probs
+
+
+def excl_accept(lock_path, rows, who):
+    ex = excluded_rows(rows)
+    body = sorted((p_, hashlib.sha256(n.encode()).hexdigest()[:16]) for p_, n in ex)
+    old = read_excl_lock(lock_path)
+    acc = old[2] if old else []
+    acc.append("# accepted %s accepted_by=%s set=%s rows=%d" % (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), who,
+                                                              excl_set_hash(body), len(body)))
+    tmp = lock_path + ".tmp.%d" % os.getpid()
+    with open(tmp, "w") as fh:
+        fh.write("# %s -- reviewed set of excluded rows of the full-suite manifest (path TAB sha256-16 of the note).\n"
+                 "# --verify-manifest refuses any difference; a reviewer accepts a change with\n"
+                 "# --verify-manifest --accept-excluded-change <reviewer>, which appends one `# accepted` line.\n"
+                 % EXCL_LOCK)
+        for line in acc:
+            fh.write(line + "\n")
+        for p_, h in body:
+            fh.write("%s\t%s\n" % (p_, h))
+    os.replace(tmp, lock_path)
+
+
+def topology(root):
+    """(layout, n_submodules, gaps) of the checkout (P7). gaps: uninitialised submodules and submodules whose
+    recorded commit is absent from their object store."""
+    sup = subprocess.run(["git", "-C", root, "rev-parse", "--show-superproject-working-tree"], stdout=subprocess.PIPE,
+                         stderr=subprocess.DEVNULL).stdout.decode(errors="replace").strip()
+    layout = "consumer (inside %s)" % sup if sup else "standalone"
+    p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+    gaps, n = [], 0
+    for line in p.stdout.decode(errors="replace").splitlines():
+        if not line.strip():
+            continue
+        n += 1
+        flag, rest = line[0], line[1:].split()
+        if len(rest) < 2:
+            continue
+        sha, path = rest[0], rest[1]
+        if flag == "-":
+            gaps.append("uninitialised submodule: %s" % path)
+            continue
+        if flag == "U":
+            gaps.append("submodule with merge conflicts: %s" % path)
+            continue
+        q = subprocess.run(["git", "-C", os.path.join(root, path), "cat-file", "-e", sha + "^{commit}"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if q.returncode != 0:
+            gaps.append("submodule %s: recorded commit %s is not in its object store" % (path, sha[:12]))
+    if p.returncode != 0:
+        msg = p.stderr.decode(errors="replace").strip().splitlines()
+        gaps.append("git submodule status failed (rc %d): %s" % (p.returncode, msg[-1] if msg else ""))
+    return layout, n, gaps
+
+
+def discarded_members(root, rows, heavy_mode):
+    """Member rows whose covering script throws their exit status away (P5): they are also run alone."""
+    by = {r[0]: r for r in rows}
+    ms = Models(root)
+    out_ = set()
+    for r in rows:
+        if r[2] != "member":
+            continue
+        c = by.get(r[5])
+        if c is None:
+            continue
+        if c[4] == "runall-members" and not heavy_mode:
+            continue  # members already run alone in this mode
+        args = ["--quick"] if c[4] == "runall-quick" and not heavy_mode else []
+        m = ms.get(r[5], args)
+        if isinstance(m, ShParseError) or r[0] in m.discarded:
+            out_.add(r[0])
+    return out_
+
+
 def write_manifest(path, rows):
     tmp = path + ".tmp.%d" % os.getpid()
     with open(tmp, "w") as fh:
@@ -1720,8 +1992,9 @@ def write_manifest(path, rows):
 
 
 # ----------------------------------------------------------------------------- plan
-def plan(rows, heavy_mode):
-    """Units: list of dicts {id, path, runner, args, tier, run (bool), why}."""
+def plan(rows, heavy_mode, alone=()):
+    """Units: list of dicts {id, path, runner, args, tier, run (bool), why}. `alone`: member paths whose cover
+    discards their status (P5); each is also planned as its own unit."""
     by = {r[0]: r for r in rows}
     units = []
 
@@ -1749,6 +2022,11 @@ def plan(rows, heavy_mode):
                     add(path, "-", [], tier, False, "heavy_excluded (member of %s)" % cover)
             elif c[1] == "runall" and c[4] == "runall-quick" and not heavy_mode and tier == "heavy":
                 add(path, "-", [], tier, False, "heavy_excluded (dropped by --quick of %s)" % cover)
+            elif path in alone:
+                run = heavy_mode or not eff_heavy(r)
+                add(path, "python3" if kind == "py" else shebang_runner(ROOT, path), [], tier, run,
+                    "" if run else "heavy_excluded")
+                units[-1]["alone"] = True
             continue
         if kind == "runall":
             if runner == "runall-quick":
@@ -1768,149 +2046,212 @@ def plan(rows, heavy_mode):
 
 
 # ----------------------------------------------------------------------------- verdict parsing
-# Structural, case-insensitive parse of the last 8 non-empty log lines (N5 of review round 2).
-WIN = 8
-WORDSIG = re.compile(r"^\W*(?:[A-Za-z_-]+\s+)?(result|verdict|run_all|status|summary|overall)\s*[:=](.*)$", re.I)
-NUM = re.compile(r"(?<![\w./])(\d+)(?![\w]|\.\d)")
-TOK = re.compile(r"[A-Za-z_]+")
-FAIL_W = re.compile(r"^(fail|fails|failed|failure|failures|failed_suites|fail_count|errors?|survivors?|survived)$", re.I)
-SKIP_W = re.compile(r"^(skip|skips|skipped)$", re.I)
-PASS_W = re.compile(r"^(pass|passes|passed|ok|killed)$", re.I)
-TOTAL_W = re.compile(r"^(total|tests?|cases|checks|assertions|ran|run)$", re.I)
-PRIO = {"kv=": 0, "nw": 1, "kv:": 2, "wn": 3}
+# Structural summary-line model (review round 3, P1-P3, P9; replaces the round-2/3 count matcher and
+# its line-PREFIX rule). Every normalised line of the window is classified by GRAMMAR:
+#   summary   the whole line is covered by counter items (key=N, key: N, N word, word N, NOT ok N,
+#             N of T, out of T, 1..N), status words (PASS, OK, FAIL, SKIP, ...), filler words,
+#             punctuation and an optional label ("name:"), plus an optional trailing comment
+#             ("(...)", "; ...", " -- ...") that may only add a skip or fail word;
+#   tapfail   a TAP "not ok" line (not # TODO / # SKIP);
+#   failsig   any other line with a fail-class word (fail*, error*, fatal, not ok, panic, traceback,
+#             a cross mark), unless it is a passing check line (head PASS/PASSED/ok/OK/[PASS]/tick)
+#             whose fail words are only inside parentheses or quotes or carry no bound number;
+#   other     description and log lines: never counted.
+# Decision: the LAST summary line decides; an earlier summary that disagrees, or a fail signal
+# after the last summary (or with no summary at all), is ERROR; failed>0 / a fail word / a TAP
+# "not ok" is FAIL; no summary and no fail signal is PASS with verdict_source exit-code-only.
+WIN = 12
+ESC = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[P^_][^\x1b]*(?:\x1b\\)?|\x1b[@-Z\\-_]")
+CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+FAILV = r"fail|fails|failed|failure|failures|failing|error|errors|errored|survivor|survivors|survived|broken"
+PASSV = r"pass|passes|passed|passing|ok|killed|succeeded|success|successes|green|pass-lines"
+SKIPV = r"skip|skips|skipped|pending|todo|ignored|disabled"
+TOTALV = r"total|totals|tests?|cases?|checks?|assertions?|ran|run|suites?|files?|units?|mutants|items"
+CLASS_OF = {}
+for _c, _v in (("f", FAILV), ("p", PASSV), ("s", SKIPV), ("t", TOTALV)):
+    for _w in _v.split("|"):
+        CLASS_OF[_w.replace("?", "")] = _c
+        if _w.endswith("s?"):
+            CLASS_OF[_w[:-2]] = _c
+            CLASS_OF[_w[:-2] + "s"] = _c
+CW = r"(?:%s|%s|%s|%s)" % (FAILV, PASSV, SKIPV, TOTALV)
+NOUN = r"(?:tests?|cases?|checks?|assertions?|suites?|files?|units?)"
+STATUS = {"pass": "p", "passed": "p", "ok": "p", "green": "p", "success": "p", "fail": "f", "failed": "f",
+          "failure": "f", "error": "f", "skip": "s", "skipped": "s"}
+FILLER = {"all", "and", "of", "out", "in", "the", "summary", "result", "results", "verdict", "overall", "status",
+          "run_all", "count", "counts", "s", "total", "totals", "tests", "test", "cases", "case", "checks", "check",
+          "assertions", "assertion", "suites", "suite", "files", "file", "units", "unit", "lines", "line", "run", "ran",
+          "items"}
+ITEM = re.compile((
+    r"(?P<notok>(?<![\w-])not\s+ok\s*[=:]?\s*(?P<nv>\d+)(?![\w.]))"
+    r"|(?P<plan>^\s*1\.\.(?P<pv>\d+)\s*$)"
+    r"|(?P<kv>(?<![\w.-])(?P<k>[A-Za-z][\w-]*)\s*(?P<sep>=|:)\s*(?P<v>\d+)(?![\w.%]))"
+    r"|(?P<kw>(?<![\w.-])(?P<k2>[A-Za-z][\w-]*)=(?P<v2>[^\s,;()]+))"
+    r"|(?P<out>(?<![\w-])out\s+of\s+(?P<ov>\d+)(?![\w.]))"
+    r"|(?P<of>(?<![\w.])(?P<ofa>\d+)\s*(?:/|of)\s*(?P<ofb>\d+)(?![\w.%]))"
+    r"|(?P<dur>(?<![\w.])\d+(?:\.\d+)?\s*(?:ms|s|sec|secs|seconds|m|min)(?![\w.]))"
+    r"|(?P<pct>(?<![\w.])\d+(?:\.\d+)?%)"
+    r"|(?P<nw>(?<![\w.])(?P<nwv>\d+)(?:\s+NOUN)?(?:\s*\(s\))?\s+(?P<nww>CW)(?![\w-]))"
+    r"|(?P<nx>(?<![\w.])\d+\s+(?:findings?|warnings?|notes?)(?:\s*\(s\))?(?![\w-]))"
+    r"|(?P<nn>(?<![\w.])(?P<nnv>\d+)\s+(?P<nnw>NOUN)(?![\w-]))"
+    r"|(?P<wn>(?<![\w-])(?P<wnw>CW)\s+(?P<wnv>\d+)(?![\w.%]))"
+    r"|(?P<st>(?<![\w-])(?P<stw>pass|passed|ok|green|success|fail|failed|failure|error|skip|skipped)(?![\w-]))"
+    ).replace("NOUN", NOUN).replace("CW", CW), re.I)
+FAILTOK = re.compile(r"(?<![\w-])(fail|fails|failed|failure|failures|failing|errors?|errored|fatal|panic|traceback|not\s+ok)(?![\w-])"
+                     r"|[\u2717\u2718\u274c]", re.I)
+SKIPTOK = re.compile(r"(?<![\w-])(skip|skips|skipped|skipping)(?![\w-])", re.I)
+PASSHEAD = re.compile(r"^\s*(?:\[\s*)?(?:pass(?:ed)?|ok|\u2713|\u2714|\u2705|\u2611)(?:\s*\])?(?=$|[\s:\-\]])", re.I)
+BOUNDFAIL = re.compile(r"(\d+\s*(?:%s)\b)|((?:fail\w*|errors?)\s*[=:]?\s*\d+)" % FAILV, re.I)
+SKIPHEAD = re.compile(r"^\s*(?:\[\s*)?(?:skip|skipped)(?:\s*\])?(?=$|[\s:\-])", re.I)
+TAPFAIL = re.compile(r"^not ok\b(?!.*#\s*(?:todo|skip)\b)", re.I)
+HEADWORD = re.compile(r"^\W*(?:[\w-]+\s+)?(?:result|verdict|summary|status|overall|run_all|totals?)\s*[:=]", re.I)
+LABEL = re.compile(r"^\s*[^\s:][^:]{0,80}?:\s+")
+COMMENT = re.compile(r"(\s*\([^()]*\)\s*$)|(\s*\[[^\[\]]*\]\s*$)|(\s+--\s+.*$)|(\s*;\s+.*$)")
+TRAIL = re.compile(r"[\s=#*~\-]+$")
 
 
-def wclass(word, prev):
-    if PASS_W.match(word) and prev and prev.lower() == "not":
-        return "f"
-    if FAIL_W.match(word):
-        return "f"
-    if SKIP_W.match(word):
-        return "s"
-    if PASS_W.match(word):
-        return "p"
-    if TOTAL_W.match(word):
-        return "t"
+def norm_lines(text):
+    """Non-empty display lines: CRLF trimmed, a CR progress overwrite reduced to what the terminal
+    finally shows, ANSI CSI/OSC/DCS escapes and other control bytes removed (P2)."""
+    res = []
+    for raw in text.split("\n"):
+        l = raw.rstrip("\r")
+        if "\r" in l:
+            l = l.rsplit("\r", 1)[-1]
+        l = CTRL.sub("", ESC.sub("", l)).rstrip()
+        if l.strip():
+            res.append(l)
+    return res
+
+
+def key_class(k):
+    """Counter class of a key=N key, or None (a key that is not a counter: refusals_observed=2)."""
+    parts = [x for x in re.split(r"[_-]+", k.lower()) if x]
+    if not parts:
+        return None
+    rest_ok = {"count", "counts", "suites", "tests", "cases", "checks", "lines", "total", "assertions"}
+    if parts[0] in CLASS_OF and all(x in rest_ok for x in parts[1:]):
+        return CLASS_OF[parts[0]]
+    if parts[-1] in CLASS_OF and CLASS_OF[parts[-1]] in "fps" and len(parts) <= 3:
+        return CLASS_OF[parts[-1]]
     return None
 
 
-def line_counts(line):
-    """Return (bindings {p,f,s,t: value}, ambiguous_fail, conflict) for one line, or None."""
-    work = line
-    c4 = {}
-    m = re.search(r"(?<![\w./])(\d+)\s+of\s+(\d+)(?![\w]|\.\d)", work, re.I)
-    if m:
-        c4 = {"p": int(m.group(1)), "t": int(m.group(2))}
-        work = work[:m.start()] + " " * (m.end() - m.start()) + work[m.end():]
-    nums = [(mm.start(), mm.end(), int(mm.group(1))) for mm in NUM.finditer(work)]
-    words = [(mm.start(), mm.end(), mm.group(0)) for mm in TOK.finditer(work)]
-    keys = []
-    for i, (a, b, w) in enumerate(words):
-        prev = words[i - 1][2] if i else ""
-        cl = wclass(w, prev)
-        if cl:
-            keys.append((a, b, w, cl))
-    cands = []  # (num_index, key_index, prio)
-    for ni, (na, nb, _v) in enumerate(nums):
-        for ki, (ka, kb, _w, _cl) in enumerate(keys):
-            gap_after = work[kb:na]
-            gap_before = work[nb:ka]
-            if ka < na:
-                if re.match(r"^=\s*$", gap_after) or re.match(r"^\s*=\s*$", gap_after):
-                    cands.append((ni, ki, PRIO["kv="]))
-                elif re.match(r"^\s*:\s*$", gap_after):
-                    cands.append((ni, ki, PRIO["kv:"]))
-                elif re.match(r"^[ \t]+$", gap_after):
-                    cands.append((ni, ki, PRIO["wn"]))
-            else:
-                if re.match(r"^[ \t]+$", gap_before):
-                    cands.append((ni, ki, PRIO["nw"]))
-    # multiword key before ':' ("Failed tests: 3"): any fail word among the 1-3 words before the colon
-    for ni, (na, nb, _v) in enumerate(nums):
-        mm = re.search(r"([A-Za-z_]+(?:[ \t]+[A-Za-z_]+){1,2})[ \t]*:[ \t]*$", work[:na])
-        if mm:
-            ws = mm.group(1).split()
-            if any(FAIL_W.match(x) for x in ws):
-                ka = mm.start(1)
-                for ki, k in enumerate(keys):
-                    if k[0] == ka:
-                        break
-                else:
-                    keys.append((ka, mm.end(1), mm.group(1), "f"))
-                    ki = len(keys) - 1
-                kidx = [i for i, k in enumerate(keys) if mm.start(1) <= k[0] < mm.end(1) and k[3] == "f"]
-                for ki in kidx:
-                    cands.append((ni, ki, PRIO["kv:"]))
-    if not cands and not c4:
-        return None
-    # all maximum-cardinality matchings with minimal priority score (small: brute force)
-    best = {"size": -1, "score": None, "results": []}
-    nnum = len(nums)
-
-    def rec(ni, used, size, score, binds):
-        if ni == nnum:
-            if size > best["size"] or (size == best["size"] and (best["score"] is None or score < best["score"])):
-                best.update(size=size, score=score, results=[dict(binds)])
-            elif size == best["size"] and score == best["score"]:
-                best["results"].append(dict(binds))
-            return
-        rec(ni + 1, used, size, score, binds)
-        for (a, ki, pr) in cands:
-            if a == ni and ki not in used:
-                cl = keys[ki][3]
-                prev = binds.get(cl)
-                binds[cl] = (prev or 0) + nums[ni][2]
-                rec(ni + 1, used | {ki}, size + 1, score + pr, binds)
-                if prev is None:
-                    del binds[cl]
-                else:
-                    binds[cl] = prev
-    if nnum <= 10:
-        rec(0, frozenset(), 0, 0, {})
-    else:
-        return None
-    results = best["results"] or [{}]
-    for r in results:
-        for k, v in c4.items():
-            r.setdefault(k, v)
-    fails = [r.get("f", 0) for r in results]
-    amb_fail = any(f > 0 for f in fails)
-    conflict = len(set(tuple(sorted(r.items())) for r in results)) > 1
-    chosen = results[0]
-    if amb_fail:
-        chosen = next(r for r in results if r.get("f", 0) > 0)
-    kv_fail = any(keys[ki][3] == "f" for (_n, ki, pr) in cands if pr == PRIO["kv="])
-    if not ("f" in chosen or "t" in chosen or kv_fail):
-        return None
-    return chosen, amb_fail, conflict and not amb_fail
-
-
-def word_signal(line):
-    """'f' / 'p' / 's' (with reason) for a VERDICT/RESULT/... line whose word is not a count."""
-    m = WORDSIG.match(line)
-    if not m:
-        return None
-    rest = m.group(2)
-    for mm in re.finditer(r"(?<![A-Za-z_])(fail|failed|failure|pass|passed|skip|skipped)(?![A-Za-z_])", rest, re.I):
-        before, after = rest[:mm.start()], rest[mm.end():]
-        if re.search(r"\d\s*$", before) or re.match(r"^\s*[=:]?\s*\d", after):
+def cover(core):
+    """Return (counts, statuses, kvs) when `core` is entirely counter items / statuses / filler /
+    punctuation, else None. counts: {p,f,s,t: int}; statuses: set of p/f/s; kvs: {key: value}."""
+    counts, statuses, kvs, rest, n_items = {}, set(), {}, [], 0
+    pos = 0
+    for mm in ITEM.finditer(core):
+        rest.append(core[pos:mm.start()])
+        pos = mm.end()
+        g = mm.lastgroup
+        if g == "notok":
+            counts["f"] = counts.get("f", 0) + int(mm.group("nv"))
+        elif g == "plan":
+            counts["t"] = counts.get("t", 0) + int(mm.group("pv"))
+        elif g == "kv":
+            kc = key_class(mm.group("k"))
+            if kc is None:
+                if mm.group("sep") == ":":
+                    rest.append(mm.group(0))  # "phase: 3" is not a counter
+                    continue
+                kvs[mm.group("k").lower()] = mm.group("v")
+                continue
+            counts[kc] = counts.get(kc, 0) + int(mm.group("v"))
+        elif g == "kw":
+            if key_class(mm.group("k2")) is not None:
+                return None  # a counter key with a non-number value: not a summary
+            kvs[mm.group("k2").lower()] = mm.group("v2")
             continue
-        w = mm.group(1).lower()
-        if w.startswith("fail"):
-            return ("f", "")
-        if w.startswith("skip"):
-            r = re.search(r"reason[= ]([A-Za-z0-9_]+)", after)
-            return ("s", r.group(1) if r else "suite_reported_skip")
-        return ("p", "")
-    return None
+        elif g == "out":
+            counts["t"] = counts.get("t", 0) + int(mm.group("ov"))
+        elif g == "of":
+            counts.setdefault("p", int(mm.group("ofa")))
+            counts["t"] = counts.get("t", 0) + int(mm.group("ofb"))
+        elif g in ("dur", "pct", "nx"):
+            continue
+        elif g == "nw":
+            c = CLASS_OF[mm.group("nww").lower()]
+            counts[c] = counts.get(c, 0) + int(mm.group("nwv"))
+        elif g == "nn":
+            counts["t"] = counts.get("t", 0) + int(mm.group("nnv"))
+        elif g == "wn":
+            c = CLASS_OF[mm.group("wnw").lower()]
+            counts[c] = counts.get(c, 0) + int(mm.group("wnv"))
+        elif g == "st":
+            statuses.add(STATUS[mm.group("stw").lower()])
+            continue
+        n_items += 1
+    rest.append(core[pos:])
+    first = ITEM.search(core)
+    if first and first.lastgroup == "kv" and first.group("sep") == "=" and key_class(first.group("k")):
+        # "RESULT: e2e pass=21 fail=0", "SELFCHECK<TAB>SUMMARY<TAB>pass=8": up to 4 label words before
+        # an unambiguous key=N counter
+        pre = re.findall(r"[^\W_]+", rest[0])
+        if len(pre) <= 4:
+            rest[0] = ""
+    left = [w for w in re.findall(r"[^\W_]+", " ".join(rest)) if w.lower() not in FILLER]
+    if left:
+        return None
+    if not n_items and not statuses:
+        return None
+    return counts, statuses, kvs
 
 
-CHECKLINE = re.compile(r"^(PASS(:|\s+[^\d\s=:])|ok\s+\d+(\s+-|\s+[A-Za-z])|ok\s+-)")
+def classify(line):
+    """('summary', info) | ('tapfail'|'headfail'|'failsig'|'other', None)."""
+    if TAPFAIL.match(line.strip()):
+        return "tapfail", None
+    line = TRAIL.sub("", line) or line
+    for core_full, comment in ((line, ""),) + tuple((line[:m.start()], m.group(0)) for m in [COMMENT.search(line)] if m):
+        for core in (core_full, LABEL.sub("", core_full, count=1)):
+            r = cover(core)
+            if r is None:
+                continue
+            counts, statuses, kvs = r
+            info = {"counts": counts, "status": statuses, "kvs": kvs,
+                    "c_fail": bool(FAILTOK.search(comment)), "c_skip": bool(SKIPTOK.search(comment))}
+            return "summary", info
+    if SKIPHEAD.match(line) and not FAILTOK.search(line):
+        return "skiphead", None
+    if FAILTOK.search(line):
+        h = HEADWORD.match(line)
+        if h and FAILTOK.search(line[h.end():]):
+            return "headfail", None
+        if PASSHEAD.match(line):
+            bare = re.sub(r"\([^()]*\)|'[^']*'|\"[^\"]*\"", " ", line)
+            if not BOUNDFAIL.search(bare):
+                return "other", None
+        return "failsig", None
+    return "other", None
+
+
+def summary_verdict(info):
+    """(verdict, reason) of one summary line."""
+    c, st, kvs = info["counts"], info["status"], info["kvs"]
+    p, f, s, t = c.get("p"), c.get("f"), c.get("s"), c.get("t")
+    reason = kvs.get("reason", "")
+    if (f or 0) > 0:
+        return "FAIL", "summary_reports_failures"
+    if "f" in st or info["c_fail"]:
+        return "FAIL", "summary_word_FAIL"
+    skipish = "s" in st or info["c_skip"] or (s or 0) > 0
+    if t is not None and (p or 0) + (f or 0) + (s or 0) > t:
+        return "ERROR", "inconsistent_counts"
+    zero = (t == 0) or (t is None and p is not None and (p or 0) + (s or 0) == 0)
+    if (p or 0) == 0 and (t is None or t == 0 or (s or 0) >= (t or 0)) and skipish and "p" not in st:
+        return "SKIP", reason or ("all_skipped" if (s or 0) > 0 else "suite_reported_skip")
+    if zero and "p" not in st:
+        return "ERROR", "zero_tests"
+    if zero and "p" in st and (t == 0 or p == 0):
+        return "ERROR", "zero_tests"
+    return "PASS", ""
 
 
 def judge_exit0(text, kind):
     """Return (verdict, reason, source, counts) for a unit that exited 0."""
-    lines = [l.rstrip() for l in text.splitlines() if l.strip()]
+    lines = norm_lines(text)
     if kind == "go-test":
         oks = sum(1 for l in lines if re.match(r"^ok\s", l))
         fails = sum(1 for l in lines if re.match(r"^(FAIL|--- FAIL)\b", l))
@@ -1920,44 +2261,32 @@ def judge_exit0(text, kind):
             return "ERROR", "zero_tests", "summary", {"p": 0, "f": 0}
         return "PASS", "", "summary", {"p": oks, "f": 0}
     win = lines[-WIN:]
-    counts, last_counts, words = [], None, []
-    any_conflict = False
-    for i, l in enumerate(win):
-        # a passing single-check line carries free-text description, never a summary: its numbers
-        # ("PASS: shape (5 FAIL + 56 ...)", "ok 3 - (2 failed) input") are not counts
-        c = None if CHECKLINE.match(l) else line_counts(l)
-        if c:
-            counts.append(c[0])
-            last_counts = c[0]
-            if c[1]:
-                return "FAIL", "summary_reports_failures", "summary", c[0]
-            any_conflict = any_conflict or c[2]
-        w = word_signal(l)
-        if w:
-            words.append((i, w))
-    if any(c.get("f", 0) > 0 for c in counts):
-        return "FAIL", "summary_reports_failures", "summary", next(c for c in counts if c.get("f", 0) > 0)
-    if any(w[0] == "f" for _i, w in words):
-        return "FAIL", "summary_word_FAIL", "summary", last_counts
-    if any_conflict:
-        return "ERROR", "conflicting_summary", "summary", last_counts
-    term_skip = next((w for i, w in words if i == len(win) - 1 and w[0] == "s"), None)
-    if last_counts is not None:
-        p, f, s, t = (last_counts.get(k) for k in ("p", "f", "s", "t"))
-        p, f, s = p or 0, f or 0, s or 0
-        if (t is not None and t == 0) or (t is None and "p" in last_counts and p + f + s == 0):
-            return "ERROR", "zero_tests", "summary", last_counts
-        if t is not None and p + f + s > t:
-            return "ERROR", "inconsistent_counts", "summary", last_counts
-        if term_skip and p > 0:
-            return "ERROR", "conflicting_summary", "summary", last_counts
-        if p == 0 and s > 0:
-            return "SKIP", "all_skipped", "summary", last_counts
-        return "PASS", "", "summary", last_counts
-    if term_skip:
-        return "SKIP", term_skip[1], "summary", None
-    if any(w[0] == "p" for _i, w in words):
-        return "PASS", "", "summary", None
+    cls = [classify(l) for l in win]
+    if any(k == "tapfail" for k, _ in cls):
+        return "FAIL", "tap_not_ok", "summary", None
+    if any(k == "headfail" for k, _ in cls):
+        return "FAIL", "summary_word_FAIL", "summary", None
+    sums = [(i, info, summary_verdict(info)) for i, (k, info) in enumerate(cls) if k == "summary"]
+    fails = [i for i, (k, _x) in enumerate(cls) if k == "failsig"]
+    if sums:
+        li, linfo, (lv, lr) = sums[-1]
+        counts = dict(linfo["counts"])
+        if lv == "FAIL":
+            return "FAIL", lr, "summary", counts
+        if any(v == "FAIL" for _i, _inf, (v, _r) in sums[:-1]):
+            return "ERROR", "conflicting_summary", "summary", counts
+        if any(i > li for i in fails):
+            return "ERROR", "fail_signal_after_summary", "summary", counts
+        if lv == "PASS" and any(k == "skiphead" for k, _x in cls[li + 1:]):
+            return "ERROR", "conflicting_summary", "summary", counts
+        if lv == "SKIP" and any(v == "PASS" for _i, _inf, (v, _r) in sums[:-1]):
+            return "ERROR", "conflicting_summary", "summary", counts
+        return lv, lr, "summary", counts
+    if fails:
+        return "ERROR", "unparsed_fail_signal", "summary", None
+    if cls and cls[-1][0] == "skiphead":
+        r = re.search(r"reason[=: ]+([A-Za-z0-9_]+)", win[-1])
+        return "SKIP", r.group(1) if r else "suite_reported_skip", "summary", None
     return "PASS", "", "exit-code-only", None
 
 
@@ -2033,6 +2362,10 @@ def killpg_checked(pgid, sig):
 
 
 ENV_BASE = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "USER", "LOGNAME", "TZ")
+
+
+def unit_env_path():
+    return os.environ.get("PATH") or "/usr/local/bin:/usr/bin:/bin"
 
 
 def unit_env(home, token, runner, extras, gomodcache):
@@ -2294,7 +2627,8 @@ def main(argv):
     here = os.path.dirname(os.path.abspath(__file__))
     SAFE_RM = os.path.realpath(os.path.join(here, "..", "lib", "safe_rm.sh"))
     root = os.path.realpath(os.path.join(here, "..", ".."))
-    outdir = known = only = manifest = ""
+    outdir = known = only = manifest = accept = ""
+    allow_topo = False
     tmo, heavy, rerun, lst, gen, write, verify_only, sync = 900, False, False, False, False, False, False, False
     cap_mb = 64
     extras = []
@@ -2345,6 +2679,12 @@ def main(argv):
             verify_only = True
         elif x == "--sync-guide":
             sync = True
+        elif x == "--accept-excluded-change":
+            accept = val()
+            if not re.match(r"^[A-Za-z0-9][A-Za-z0-9 ._@+()-]{0,79}$", accept):
+                raise Fatal(2, "bad --accept-excluded-change reviewer %r" % accept)
+        elif x == "--allow-topology-gaps":
+            allow_topo = True
         elif x in ("-h", "--help"):
             usage()
             return 0
@@ -2387,11 +2727,20 @@ def main(argv):
                 out("\t".join(r))
         return 0
     rows = read_manifest(manifest)
+    lock_path = os.path.join(os.path.dirname(manifest), EXCL_LOCK)
+    if accept and not verify_only:
+        raise Fatal(2, "--accept-excluded-change is used with --verify-manifest")
     if sync:
         guide_check(root, rows, fix=True)
         out("guide census block: %s" % guide_block(rows))
         return 0
     probs = verify(root, rows)
+    eprobs = excl_check(lock_path, rows)
+    if accept and not probs and eprobs:
+        excl_accept(lock_path, rows, accept)
+        out("accepted the excluded set (%d row(s)) as %s in %s" % (len(excluded_rows(rows)), accept, lock_path))
+        eprobs = excl_check(lock_path, rows)
+    probs = probs + eprobs
     cline = census_line(rows)
     if probs:
         for p in probs:
@@ -2403,7 +2752,8 @@ def main(argv):
         out(cline)
         out("RESULT: MANIFEST-OK")
         return 0
-    units = plan(rows, heavy)
+    alone = discarded_members(root, rows, heavy)
+    units = plan(rows, heavy, alone)
     if lst:
         out(cline)
         for u in units:
@@ -2412,11 +2762,22 @@ def main(argv):
                                                           sum(not u["run"] for u in units), "full" if heavy else "default"))
         return 0
 
+    layout, nsub, gaps = topology(root)
+    topo_line = "topology: layout=%s submodules=%d gaps=%d%s" % (layout, nsub, len(gaps), " (allowed)" if gaps and allow_topo else "")
+    if gaps and not allow_topo:
+        for g in gaps:
+            err("TOPOLOGY: " + g)
+        out(topo_line)
+        out("RESULT: REFUSED-TOPOLOGY (%d gap(s); nothing was run). Prepare a full checkout "
+            "(git clone --reference <existing> <url> && git submodule update --init --recursive), or pass "
+            "--allow-topology-gaps for a PARTIAL-TOPOLOGY run" % len(gaps))
+        return 9
     sha = git(root, "rev-parse", "HEAD", check=False).strip() or "nogit"
     tree = tree_state(root)
     with open(os.path.abspath(__file__), "rb") as fh:
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
-    ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)).hexdigest()[:16]
+    ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)
+                         + b"\0excluded\0" + file_bytes(lock_path)).hexdigest()[:16]
     if not outdir:
         base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ.get("HOME", "/nonexistent"), ".cache")
         outdir = os.path.realpath(os.path.join(base, "full_suite_runner", "%s-%s-%s" % (os.path.basename(root), sha[:12], tree[:12])))
@@ -2437,6 +2798,9 @@ def main(argv):
     mode = "full" if heavy else "default"
     out("full-suite runner  sha=%s tree=%s ctx=%s mode=%s out=%s" % (sha[:12], tree[:12], ctx, mode, outdir))
     out(cline)
+    out(topo_line)
+    for g in gaps:
+        out("TOPOLOGY GAP (allowed): " + g)
     total = len(units)
     interrupted = False
 
@@ -2465,6 +2829,10 @@ def main(argv):
                 if not (rerun and lv != "PASS"):
                     out("[%d/%d] resumed %s (%s)" % (n, total, u["id"], lv))
                     continue
+            if u["runner"] in ("node", "bats") and shutil.which(u["runner"], path=unit_env_path()) is None:
+                emit(u, "SKIP", "runner_not_installed", "runner-absent", 0, 0, 0, [], None, "", "")
+                out("[%d/%d] SKIP (runner_not_installed: %s) %s" % (n, total, u["runner"], u["id"]))
+                continue
             t = tmo * 2 if u["runner"] in ("go-test",) or u["path"].endswith("run_all.sh") else tmo
             u["tmo"] = t
             logrel = "logs/%06d.log" % len(res.recs)
@@ -2533,6 +2901,15 @@ def main(argv):
     summ.append("KNOWN (failing, matched to an open row of the CURRENT table): %d" % known_n)
     summ.append("NONDETERMINISTIC (records of one key disagree; the worst verdict counts): %d" % nondet)
     summ.append("leaked processes killed after their unit: %d" % leaks)
+    summ.append(topo_line)
+    for g in gaps:
+        summ.append("TOPOLOGY GAP (allowed): " + g)
+    summ.append("members also run alone because their covering script discards their exit status: %d"
+                % sum(1 for u in units if u.get("alone")))
+    ex = excluded_rows(rows)
+    summ.append("EXCLUDED (manifest rows never run; reviewed set pinned by %s): %d" % (lock_path, len(ex)))
+    for p_, note in ex:
+        summ.append("EXCLUDED  %s  (%s)" % (p_, note))
     if tree_end != tree:
         summ.append("TREE CHANGED during the run (start %s, end %s): a suite wrote into the repository" % (tree[:12], tree_end[:12]))
     summ.append("--- non-PASS, nondeterministic and exit-code-only units")
@@ -2540,7 +2917,8 @@ def main(argv):
     with open(os.path.join(outdir, "summary.txt"), "w") as fh:
         fh.write("\n".join(summ) + "\n")
     out("\n".join(summ))
-    tail = "SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d" % (cats["SKIP"], exit_only, known_n, nondet)
+    tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt)"
+            % (cats["SKIP"], exit_only, known_n, nondet, len(ex)))
     nf = " -- not a section 11.4.40 full retest"
     if bad:
         out("RESULT: FAIL (%d unexplained FAIL/TIMEOUT/ERROR/NONDETERMINISTIC; %s)" % (bad, tail))
@@ -2548,6 +2926,9 @@ def main(argv):
     if tree_end != tree:
         out("RESULT: FAIL (repository tree changed during the run; %s)" % tail)
         return 1
+    if gaps:
+        out("RESULT: PARTIAL-TOPOLOGY (%d topology gap(s) allowed by --allow-topology-gaps; %s)%s" % (len(gaps), tail, nf))
+        return 8
     if interrupted or cats["NOT-RUN"]:
         out("RESULT: PARTIAL-NOT-RUN (%d unit(s) not run%s; %s)%s"
             % (cats["NOT-RUN"], ", interrupted" if interrupted else "", tail, nf))
@@ -2559,6 +2940,10 @@ def main(argv):
     if cats["SKIP"]:
         out("RESULT: PARTIAL-SKIPS (%d unit(s) SKIPPED, listed in summary.txt; %s)%s" % (cats["SKIP"], tail, nf))
         return 6
+    if known_n:
+        out("RESULT: PASS-FULL-WITH-KNOWN (every unit run, none skipped; %d FAIL/TIMEOUT/ERROR matched to open rows of "
+            "the known-failures table; %s)%s" % (known_n, tail, nf))
+        return 7
     out("RESULT: PASS-FULL (every unit run, none skipped, no unexplained FAIL/TIMEOUT/ERROR; %s)" % tail)
     return 0
 
