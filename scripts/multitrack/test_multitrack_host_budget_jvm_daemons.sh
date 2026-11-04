@@ -34,19 +34,21 @@
 # proof; the other three tokens (`ScalaCompileDaemon`, `GroovyCompileDaemon`,
 # `kotlin-compiler-embeddable`) are NOT substrings of any pre-existing
 # token and get full RED(missing)+GREEN(detected) pairs, reproduced against
-# the ACTUAL last-committed (git HEAD) pattern (verified to genuinely omit
-# all four new tokens, per direct `git diff HEAD` inspection).
+# the pre-fix pattern (the current default with exactly the four new tokens
+# deleted, verified to omit them; equal to the default at 55998fb^).
 #
 # Purpose (§11.4.114/§11.4.115 RED-on-the-broken-artifact + polarity switch):
 #   RED_MODE=1 (default) — for each of the 3 non-redundant tokens
 #     (ScalaCompileDaemon / GroovyCompileDaemon / kotlin-compiler-embeddable),
 #     sources the guard with MT_HOST_BUDGET_BUILD_PGREP_PATTERN forced to
-#     the ACTUAL git-HEAD (pre-fix) default (extracted via `git show
-#     HEAD:...`, verified to genuinely omit all 4 new tokens), simulates a
+#     the pre-fix default (the current default minus the 4 new tokens,
+#     verified to omit them and keep the 6 old ones), simulates a
 #     realistic live-process cmdline containing ONLY that token (no overlap
 #     with ANY pre-existing alternative, verified below), and asserts
 #     `mt_host_budget_can_spawn 0` wrongly ALLOWS (rc=0) -- the coverage gap,
-#     reproduced functionally, not merely quoted.
+#     reproduced functionally, not merely quoted. A RED-control on the SAME
+#     stubbed path with the CURRENT default must REFUSE (rc=2), so the RED
+#     cannot pass blind.
 #   RED_MODE=0 (GREEN) — sources the CURRENT (fixed) guard and, for ALL 4
 #     tokens (including the redundant `gradle-launcher`), proves
 #     `mt_host_budget_can_spawn 0` correctly REFUSES (rc=2, the build-guard
@@ -166,23 +168,37 @@ HSS="$WORK/hss.sh"
 printf 'host_safe_parallel_jobs() { echo 4; }\nHOST_SAFETY_BUDGET_GB=99\n' > "$HSS"
 export HOST_SAFETY_LIB="$HSS"
 
-# --- git-HEAD (pre-fix) pattern -- extracted once, verified to genuinely
-#     omit all 4 new tokens (mirrors test_multitrack_orchestrator_reconcile.sh's
-#     own "extract + verify before trusting" discipline, §11.4.6). --------
+# --- pre-fix pattern -- DERIVED from the CURRENT guard's default by deleting
+#     exactly the four RB-FIX3 tokens (a durable mutated copy, the same
+#     technique test_multitrack_host_budget_rb02_pgrep.sh uses), then verified
+#     to omit all four and to keep every pre-existing token (§11.4.6).
+#     History (§11.4.124, 2026-11-04): this block used to read `git show
+#     HEAD:` and exit 94 when HEAD already held the tokens. The test and the
+#     token fix landed in the SAME commit (55998fb), so from that commit on the
+#     default RED mode exited 94 on every clean checkout. The pattern at
+#     55998fb^ equals the derived one below (checked by hand 2026-11-04).
+CUR_PATTERN=$(sed -n 's/^MT_HOST_BUDGET_BUILD_PGREP_PATTERN="\${MT_HOST_BUDGET_BUILD_PGREP_PATTERN:-\(.*\)}"$/\1/p' "$GUARD_FILE")
+if [ -z "$CUR_PATTERN" ]; then
+    echo "FATAL: could not extract MT_HOST_BUDGET_BUILD_PGREP_PATTERN's default from $GUARD_FILE" >&2
+    exit 93
+fi
 HEAD_PATTERN=""
 if [ "$RED_MODE" = "1" ]; then
-    HEAD_PATTERN=$(git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_host_budget.sh 2>/dev/null \
-        | sed -n 's/^MT_HOST_BUDGET_BUILD_PGREP_PATTERN="\${MT_HOST_BUDGET_BUILD_PGREP_PATTERN:-\(.*\)}"$/\1/p')
-    if [ -z "$HEAD_PATTERN" ]; then
-        echo "FATAL: could not extract MT_HOST_BUDGET_BUILD_PGREP_PATTERN's default from git HEAD" >&2
-        exit 93
-    fi
+    HEAD_PATTERN=$(printf '%s\n' "$CUR_PATTERN" | tr '|' '\n' \
+        | grep -vxF -e gradle-launcher -e ScalaCompileDaemon -e GroovyCompileDaemon -e kotlin-compiler-embeddable \
+        | paste -sd'|' -)
     for _newtok in gradle-launcher ScalaCompileDaemon GroovyCompileDaemon kotlin-compiler-embeddable; do
         case "$HEAD_PATTERN" in
             *"$_newtok"*)
-                echo "FATAL: git-HEAD pattern unexpectedly ALREADY contains '$_newtok' -- cannot honestly claim RED reproduction (§11.4.6)" >&2
+                echo "FATAL: derived pre-fix pattern still contains '$_newtok' -- cannot honestly claim RED reproduction (§11.4.6)" >&2
                 exit 94
                 ;;
+        esac
+    done
+    for _oldtok in 'm -j' gradle build_maxres GradleDaemon GradleWorkerMain KotlinCompileDaemon; do
+        case "|$HEAD_PATTERN|" in
+            *"|$_oldtok|"*) : ;;
+            *) echo "FATAL: derived pre-fix pattern lost the pre-existing token '$_oldtok' ($HEAD_PATTERN)" >&2; exit 94 ;;
         esac
     done
 fi
@@ -243,21 +259,43 @@ run_iteration() {
     : > "$_norm"
 
     if [ "$RED_MODE" = "1" ]; then
+        # Both seams are stubbed exactly as in GREEN, so the fake matched PID is a
+        # LIVE readable build. Without the stubs the PID is a vanished one, which
+        # the guard skips since c3cd967 (§11.4.201), and rc=0 would come from the
+        # liveness skip, not from the pattern: a blind RED (measured 2026-11-04,
+        # rc=0 with the FIXED pattern). The control below proves the path is
+        # not blind: the same stubbed path with the CURRENT pattern must REFUSE.
         for _pair in "CMD_SCALA:ScalaCompileDaemon" "CMD_GROOVY:GroovyCompileDaemon" "CMD_KOTLIN:kotlin-compiler-embeddable"; do
             _cvar=${_pair%%:*}; _tokname=${_pair##*:}
             eval "_cval=\$$_cvar"
-            _out=$(PATH="$FAKEBIN:$PATH" GUARD_FILE="$GUARD_FILE" \
-                MT_HOST_BUDGET_BUILD_PGREP_PATTERN="$HEAD_PATTERN" \
-                SIM_LIVE_PROC_CMDLINE="$_cval" \
-                sh -c '. "$GUARD_FILE"; mt_host_budget_can_spawn 0; echo "RC=$?"')
-            _rc=$(printf '%s\n' "$_out" | sed -n 's/^RC=//p')
-            if [ "$_rc" = "0" ]; then
-                pass "RED($_tokname): git-HEAD pattern (genuinely omits this token) wrongly ALLOWS (rc=0) while a $_tokname process is alive -- the coverage gap, reproduced" "$EV"
-                echo "RED_${_tokname}=gap_reproduced rc=$_rc" >> "$_norm"
-            else
-                fail "RED($_tokname): expected rc=0 (ALLOW, the gap) on the git-HEAD pattern, got rc=$_rc" "$EV"
-                echo "RED_${_tokname}=UNEXPECTED rc=$_rc" >> "$_norm"
-            fi
+            for _which in prefix control; do
+                if [ "$_which" = prefix ]; then _pat="$HEAD_PATTERN"; else _pat="$CUR_PATTERN"; fi
+                _out=$(PATH="$FAKEBIN:$PATH" GUARD_FILE="$GUARD_FILE" \
+                    MT_HOST_BUDGET_BUILD_PGREP_PATTERN="$_pat" \
+                    SIM_LIVE_PROC_CMDLINE="$_cval" \
+                    sh -c '. "$GUARD_FILE"
+                           _mt_host_budget_pid_cmdline() { printf %s "${SIM_LIVE_PROC_CMDLINE:-}"; }
+                           _mt_host_budget_pid_alive() { return 0; }
+                           mt_host_budget_can_spawn 0; echo "RC=$?"')
+                _rc=$(printf '%s\n' "$_out" | sed -n 's/^RC=//p')
+                if [ "$_which" = prefix ]; then
+                    if [ "$_rc" = "0" ]; then
+                        pass "RED($_tokname): pre-fix pattern (genuinely omits this token) wrongly ALLOWS (rc=0) while a live $_tokname process is alive -- the coverage gap, reproduced" "$EV"
+                        echo "RED_${_tokname}=gap_reproduced rc=$_rc" >> "$_norm"
+                    else
+                        fail "RED($_tokname): expected rc=0 (ALLOW, the gap) on the pre-fix pattern, got rc=$_rc" "$EV"
+                        echo "RED_${_tokname}=UNEXPECTED rc=$_rc" >> "$_norm"
+                    fi
+                else
+                    if [ "$_rc" = "2" ]; then
+                        pass "RED-control($_tokname): the same stubbed path with the CURRENT pattern REFUSES (rc=2) -- the RED is not blind" "$EV"
+                        echo "REDCTL_${_tokname}=refused rc=$_rc" >> "$_norm"
+                    else
+                        fail "RED-control($_tokname): expected rc=2 with the CURRENT pattern on the same path, got rc=$_rc -- the RED is blind (§11.4.115)" "$EV"
+                        echo "REDCTL_${_tokname}=UNEXPECTED rc=$_rc" >> "$_norm"
+                    fi
+                fi
+            done
         done
         return 0
     fi
