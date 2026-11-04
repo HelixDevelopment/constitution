@@ -49,6 +49,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 FC=${FC_OVERRIDE:-$(cd "$HERE/.." && pwd)}
 REVIEW="$FC/review"
 FAIL=0; PASS=0
+SKIPS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok: $1"; }
 
@@ -105,6 +106,8 @@ for c in d.get("comments", []):
         c["column"] = 0
     elif m == "endline-plus-one":  # r10: a SANE extent reaching into the NEXT top-level statement
         c["endLine"] = c["line"] + 1
+    elif m == "endline-plus-two":  # r12 (review G4): a SANE extent over the next TWO top-level statements
+        c["endLine"] = c["line"] + 2
     elif m.startswith("cite-"):    # r10: the message cites another line ("... on line N")
         c["message"] = c["message"] + " on line " + m[5:]
     elif m != "identity":
@@ -742,7 +745,9 @@ expect "P1 (A3) base parse error kept + new lines -> FAIL new-file head-unparsed
 # P1c control needle (reviewer A3c): the same new lines without the base parse error -> FAIL full, real new findings
 P1CB="#!/bin/sh\nf() {\n    echo hi\n}\nif [ -n x ]; then\n    echo bad\nfi\n${FILL30}"
 new_case p1c; wb s.sh "$P1CB"; base; wh s.sh "${P1CB}cd /nonexist\nrm -rf \$UNSET/*\neval \$1\n"; head; gate
-expect "P1c control: same new lines, parseable base -> FAIL full, SC2164 on the added line 38" '(c["verdict"], e["delta"]["states"], ("SC2164", 38) in [(f["rule"], f["line"]) for f in e.get("findings", [])])' "('FAIL', ['full'], True)"
+# r12: the added `eval $1` is an eval of a COMPUTED word (code from outside the file: a runtime-grammar channel), so
+#    the units fail closed and the file is judged whole (new-file; r11: full) -- stricter by design, still FAIL
+expect "P1c control: same new lines, parseable base -> FAIL new-file (r12: eval \$1), SC2164 on the added line 38" '(c["verdict"], e["delta"]["states"], ("SC2164", 38) in [(f["rule"], f["line"]) for f in e.get("findings", [])])' "('FAIL', ['new-file'], True)"
 # P2 the base had a parse error the head FIXES; the head keeps an old warning -> the base is no baseline
 #    (base-unlintable: base-unparsed), the kept warning fails (the whole-file verdict)
 new_case p2; wb s.sh "#!/bin/sh\ncd /tmp\nif [ -n \"\$1\" ]; then\n    echo bad\nfi fi\n"; base
@@ -991,7 +996,8 @@ expect "L1n3 unchanged 2-line command, line inserted above -> PASS, SC2086 at 5:
 new_case l1n4; wb s.sh '#!/bin/sh\na=$1\nif true; then\n  echo $a\nfi\n'; base; wh s.sh '#!/bin/sh\na=$1\nif false; then\n  echo $a\nfi\n'; head; gate
 expect "L1n4 (R12 in-statement half, FLIPPED by r10: the outermost unit) edited if-condition, body line unchanged -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
 new_case l1n5; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval echo $a\necho $a\n'; head; gate
-expect "L1n5 (Q8) added eval echo \$a on its own line -> FAIL, SC2086 3:11 new, 4:6 pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 3, 11)], [('SC2086', 4, 6)])"
+# r12: `eval echo $a` evaluates a COMPUTED word -> units fail closed -> the whole file is judged (both findings new)
+expect "L1n5 (Q8) added eval echo \$a on its own line -> FAIL, r12: computed eval -> whole file, SC2086 3:11 + 4:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 3, 11), ('SC2086', 4, 6)], [])"
 # L2a (reviewer Z2, kills R02) a 13-line case: line 10 `a|x)` edited to `a|y)`; SC2222 on the UNCHANGED line 12 cites
 #      line 10 (two digits) -> the cited line changed: both findings new, FAIL. L2an control: nothing edited -> PASS
 Z2B='#!/bin/sh\n: 2\n: 3\n: 4\n: 5\n: 6\n: 7\n: 8\ncase "$1" in\n  a|x) echo 1;;\n  b) echo 2;;\n  a) echo 3;;\nesac\n'
@@ -1142,6 +1148,23 @@ expect "R10-E1 (SIMULATED extent 4-5) the extent's last line is another, EDITED 
 new_case r10e1n; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho one\n"; base
 wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho one\necho added\n"; head; gate
 expect "R10-E1n control (SIMULATED extent 4-5, both lines unchanged, a line appended) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+# r12 (review G4: V03 / W03 survived the full harness). SIMULATED extents across statements (no real one was found:
+#    measured over the 1150 tracked .sh files of this repository, 96 multi-line extents, 20 inside one unit, 0 across
+#    units, 76 in files whose units fail closed). E2 kills V03 (only the LAST line of the extent checked): extent 4-6,
+#    the MIDDLE line 5 edited, line 6 unchanged. E3 kills W03 (mapped, but not consecutively): extent 4-5, a base
+#    line between them deleted, so head line 5 maps to base line 6.
+new_case r12e2; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-two\na=\$1\necho \$a\necho one\necho tail\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-two\na=\$1\necho \$a\necho two\necho tail\n"; head; gate
+expect "R12-E2 (SIMULATED extent 4-6) the extent's MIDDLE line is edited -> FAIL, SC2086 4:6 new" "$FB" "('FAIL', [('SC2086', 4, 6)], [])"
+new_case r12e2n; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-two\na=\$1\necho \$a\necho one\necho tail\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-two\na=\$1\necho \$a\necho one\necho tail\necho added\n"; head; gate
+expect "R12-E2n control (SIMULATED extent 4-6, unchanged, a line appended) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
+new_case r12e3; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho x\necho y\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho y\n"; head; gate
+expect "R12-E3 (SIMULATED extent 4-5) head line 5 maps to base line 6, not 5 -> FAIL, SC2086 4:6 new" "$FB" "('FAIL', [('SC2086', 4, 6)], [])"
+new_case r12e3n; wb s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho x\necho y\n"; base
+wh s.sh "#!/bin/sh\n$H STUB_EXTENT endline-plus-one\na=\$1\necho \$a\necho x\n"; head; gate
+expect "R12-E3n control (SIMULATED extent 4-5, the line AFTER it deleted) -> PASS, 4:6 credited" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
 # R10-C1 (kills R02) SIMULATED: the SC2086 on line 4 cites line 12 (two digits), another statement, and line 12 is edited
 C1B="#!/bin/sh\n$H STUB_EXTENT cite-12\na=\$1\necho \$a\necho l5\necho l6\necho l7\necho l8\necho l9\necho l10\necho l11\necho l12\n"
 new_case r10c1; wb s.sh "$C1B"; base
@@ -1212,6 +1235,16 @@ expect "R11-MVn control: an agreeing shell=sh directive -> PASS, SC2086 4:6 pre-
 # rc=<N>:<substring of the error>. shx <id> <shell argv> <printf-%b fragment> <expected output, newlines as |>: the
 # control needle -- the real shell's behaviour on the same bytes.
 HU_DIR="$TMP/hu"; mkdir -p "$HU_DIR"
+# hu_match <rc=N:substring> <got>: r12 (review G5) the rc prefix and the substring are matched SEPARATELY; an empty
+#    substring matches any message of that rc. The r11 single pattern gave false failures under bash 5.3.9
+#    --posix when the substring was empty (r11-ca, r11-pa).
+hu_match() {
+    hm_rc=${1%%:*}; hm_sub=${1#*:}
+    case $2 in "$hm_rc:"*) ;; *) return 1 ;; esac
+    [ -z "$hm_sub" ] && return 0
+    case $2 in *"$hm_sub"*) return 0 ;; esac
+    return 1
+}
 hu() {
     printf '%b' "$3" >"$HU_DIR/$1.sh"
     out=$("$REAL_UNITS" -dialect "$2" <"$HU_DIR/$1.sh" 2>/dev/null); hrc=$?
@@ -1219,7 +1252,7 @@ hu() {
 d = json.load(sys.stdin); rc = int(sys.argv[1])
 print(json.dumps(d.get("units"), separators=(",", ":")) if rc == 0 else "rc=%d:%s" % (rc, d.get("error", "")))' "$hrc" 2>&1)
     case $4 in
-        rc=*) case $got in "${4%%:*}:"*"${4#*:}"*) ok "$1 [$2: $got]" ;; *) bad "$1 [$2]: got '$got', expected '$4'" ;; esac ;;
+        rc=*) if hu_match "$4" "$got"; then ok "$1 [$2: $got]"; else bad "$1 [$2]: got '$got', expected '$4'"; fi ;;
         *) if [ "$got" = "$4" ]; then ok "$1 [$2: $got]"; else bad "$1 [$2]: got '$got', expected '$4'"; fi ;;
     esac
 }
@@ -1332,7 +1365,11 @@ if p is None:
 genuine = sha(p)
 stamp = os.path.join(os.path.dirname(p), "units.sha256")
 pin = m._units_pinned_sha256()
-res(pin is None or pin == genuine, "R11-K1b the built binary equals the pin of this toolchain (or no pin)", "%s vs %s" % (genuine, pin))
+# r12 (review G3): no pin is a SKIP, never an ok (the reproducibility claim is then unproven on this host)
+if pin is None:
+    print("skip|R11-K1b no pin for this toolchain: the built binary is not compared with a pin")
+else:
+    res(pin == genuine, "R11-K1b the built binary equals the pin of this toolchain", "%s vs %s" % (genuine, pin))
 res(os.listdir(inh) == [], "R11-K5 an inherited GOCACHE is never used by the build", repr(os.listdir(inh)[:3]))
 # K2: the binary replaced, the stamp kept -> the recomputed sha256 differs -> rebuilt, never the forged binary
 open(p, "wb").write(b"#!/bin/sh\necho forged\n")
@@ -1351,7 +1388,7 @@ fields = open(stamp).read().split()
 open(stamp, "w").write(" ".join([sha(p)] + fields[1:]) + "\n")
 p3, why = m._units_helper_path(None)
 if pin is None:
-    res(True, "R11-K3 SKIP (stated limit): no pin for this toolchain, a consistent binary + stamp forgery is not detectable")
+    print("skip|R11-K3 no pin for this toolchain: a consistent binary + stamp forgery is not detectable (stated limit)")
 else:
     res(p3 is not None and sha(p3) == genuine, "R11-K3 a consistent binary + stamp forgery on a pinned toolchain is rebuilt", str(why))
 # K6: go absent -> no helper (the cache key needs the go version), never a guess
@@ -1360,12 +1397,54 @@ os.environ["PATH"] = "/nonexistent"
 p6, why = m._units_helper_path(None)
 os.environ["PATH"] = old
 res(p6 is None and "go" in str(why), "R11-K6 go absent -> no helper, named", "%s %s" % (p6, why))
+# K8 (r12, review G3 / reviewer MR1): a COMMENT-ONLY edit of main.go changes the source hash; on a reference
+#    toolchain (a pin row names it) a source hash with no row is refused, loudly, and nothing is built
+import shutil as _sh, tempfile as _tf
+orig_src = m._UNITS_SRC
+cp = os.path.join(_tf.mkdtemp(dir=base), "units_helper")
+_sh.copytree(orig_src, cp, symlinks=True)
+with open(os.path.join(cp, "main.go"), "a") as fh:
+    fh.write("// a comment-only edit (r12 K8)\n")
+m._UNITS_SRC = cp
+os.environ["PRECHECK_UNITS_CACHE_DIR"] = os.path.join(base, "k8")
+p8, why = m._units_helper_path(None)
+built = [f for r, _, fs in os.walk(os.path.join(base, "k8")) for f in fs if f == "units"]
+if pin is None:
+    print("skip|R12-K8 this toolchain is not a reference toolchain: an unpinned source is accepted (stated limit)")
+else:
+    res(p8 is None and "no BINARY_PINS.tsv row" in str(why) and built == [],
+        "R12-K8 a comment-only main.go edit with no pin row is refused on a reference toolchain", "%s %s %s" % (p8, why, built))
+# K9 an absent, or a malformed, pin table is refused (never an empty table that reads as "no pin")
+_sh.copy(os.path.join(orig_src, "main.go"), os.path.join(cp, "main.go"))
+os.unlink(os.path.join(cp, "BINARY_PINS.tsv"))
+p9, why = m._units_helper_path(None)
+res(p9 is None and "cannot be read" in str(why), "R12-K9 an absent pin table is refused", "%s %s" % (p9, why))
+open(os.path.join(cp, "BINARY_PINS.tsv"), "w").write("# header\nnot a row\n")
+p9b, why = m._units_helper_path(None)
+res(p9b is None and "is not `source-hash" in str(why), "R12-K9b a malformed pin row is refused", "%s %s" % (p9b, why))
+open(os.path.join(cp, "BINARY_PINS.tsv"), "w").write("# only a comment\n")
+p9c, why = m._units_helper_path(None)
+res(p9c is None and "has no row" in str(why), "R12-K9c a pin table with no row is refused", "%s %s" % (p9c, why))
+m._UNITS_SRC = orig_src
+# G6 (r12): an internal error while deriving units names the side that raised (the label was always "head")
+def _raise_on(which):
+    def f(data, side):
+        if side == which:
+            raise RuntimeError("boom-" + side)
+        return [[1, 1]]
+    return f
+mp, why_b = m._line_map(b"a\n", b"a\n", _raise_on("base"))
+mq, why_h = m._line_map(b"a\n", b"a\n", _raise_on("head"))
+res(mp is None and str(why_b).startswith("base: internal error") and mq is None and str(why_h).startswith("head: internal error"),
+    "R12-G6 an internal error names its side (base / head)", "%r %r" % (why_b, why_h))
 # K7 (r11 mutant Q18 survived): a FRESH build whose sha256 differs from the pin is refused and leaves no binary.
 #    The pin table is replaced in-process by one that pins every key to a sha256 no build can have; a fresh cache dir
 #    forces the build.
 class _WrongPins(object):
     def get(self, key, default=None):
         return "0" * 64
+    def __iter__(self):  # r12: _units_pin_for iterates the keys (reference toolchain); none listed here
+        return iter(())
 m._units_pins = lambda: _WrongPins()
 os.environ["PRECHECK_UNITS_CACHE_DIR"] = os.path.join(base, "k7")
 p7, why = m._units_helper_path(None)
@@ -1374,12 +1453,117 @@ res(p7 is None and "refused" in str(why) and left == [],
     "R11-K7 a fresh build that differs from the pin is refused, no binary left", "%s %s %s" % (p7, why, left))
 PY
     while IFS='|' read -r k l d; do
-        case $k in ok) ok "$l" ;; bad) bad "$l: $d" ;; *) bad "R11-K* unexpected output: $k $l $d" ;; esac
+        case $k in ok) ok "$l" ;; bad) bad "$l: $d" ;; skip) SKIPS=$((SKIPS+1)); echo "SKIP: $l" ;; *) bad "R11-K* unexpected output: $k $l $d" ;; esac
     done <"$TMP/kcache.out"
     grep -q '^ok|R11-K1 ' "$TMP/kcache.out" || bad "R11-K* the cache cases did not run: $(command head -c 300 "$TMP/kcache.out")"
 else
     bad "R11-K* go is not on PATH: the cache cases cannot run"
 fi
+
+# --- r12 (ATM-1217 review r2, structural round) ------------------------------------------------------------------
+# G1 census: the REAL helper of the tree under test against >=200 generated scripts whose ground truth is the real
+#    shell (dash and bash --posix for posix, bash for bash): no script that a shell runs with a changed command
+#    boundary may be split by the helper, every claimed-benign shape must stay credited, and a positive and a
+#    negative control must behave (tests/units_runtime_grammar_census.py; exit 0 sound, 1 unsound, 2 env).
+CENSUS="$HERE/units_runtime_grammar_census.py"   # the census is a test tool of THIS suite's tree
+if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
+    python3 "$CENSUS" --helper "$REAL_UNITS" --out "$TMP/census.tsv" >"$TMP/census.out" 2>&1; crc=$?
+    if [ "$crc" -eq 0 ]; then ok "R12-G1 runtime-grammar census sound: $(tail -1 "$TMP/census.out")"
+    else bad "R12-G1 runtime-grammar census rc=$crc: $(tail -3 "$TMP/census.out" | tr '\n' ' ')"; fi
+else
+    bad "R12-G1 the census needs the real units helper"
+fi
+# G7 (reviewer MR3 / MR8): wrappers and multi-argument eval are pinned
+if [ -n "$REAL_UNITS" ] && [ -x "$REAL_UNITS" ]; then
+    AL='p\ntr a-z A-Z\n'
+    shx r12-cp-needle dash "command -p alias p='echo hi |'\n$AL" 'HI|'
+    hu r12-cp posix "command -p alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r12-cpd posix "command -p -- alias p='echo hi |'\n$AL" 'rc=5:alias'
+    hu r12-bd bash "builtin -- alias p='echo hi |'\n$AL" 'rc=5:alias'
+    shx r12-ev2-needle dash "eval 'q=1;' \"alias p='echo hi |'\"\n$AL" 'HI|'
+    hu r12-ev2 posix "eval 'q=1;' \"alias p='echo hi |'\"\n$AL" 'rc=5:alias'
+    hu r12-cv posix "command -v alias\necho x\n" '[[1,1],[2,2]]'
+    hu r12-evs posix "eval 'q=1' 'r=2'\necho x\n" '[[1,1],[2,2]]'
+    shx r12-trp-needle 'bash --posix' "trap \"alias p='echo hi |'\" USR1\nkill -USR1 \$\$\n$AL" 'HI|'
+    hu r12-trp posix "trap \"alias p='echo hi |'\" USR1\nkill -USR1 \$\$\n$AL" 'rc=5:trap'
+    hu r12-trx posix "trap 'rm -f \"\$t\"' EXIT\necho x\n" '[[1,1],[2,2]]'
+    shx r12-pv-needle bash "shopt -s expand_aliases\nn=BASH_ALIASES[p]\nprintf -v \"\$n\" 'echo hi |'\n$AL" 'HI|'
+    hu r12-pv bash "shopt -s expand_aliases\nn=x\nprintf -v \"\$n\" 'echo hi |'\n$AL" 'rc=5:'
+    hu r12-pvl bash "printf -v out '%s' x\necho \"\$out\"\n" '[[1,1],[2,2]]'
+    shx r12-dot-needle dash "echo \"alias p='echo hi |'\" >al.x\n. ./al.x\n$AL" 'HI|'
+    hu r12-dot posix "echo \"alias p='echo hi |'\" | . /dev/stdin\n$AL" 'rc=5:'
+    hu r12-dep posix 'eval eval eval eval eval eval eval eval eval eval echo x\n' 'rc=5:deeper than the checked depth'
+    hu r12-depn posix 'eval eval eval echo x\necho y\n' '[[1,1],[2,2]]'
+fi
+# G5 (review: rc=N: with an EMPTY substring gave false failures under bash 5.3 --posix): the matcher itself
+G5T=$(hu_match 'rc=3:' 'rc=3:herestring' && echo m1)$(hu_match 'rc=3:' 'rc=4:x' || echo m2)$(hu_match 'rc=5:alias' 'rc=5:an alias cmd' && echo m3)$(hu_match 'rc=5:alias' 'rc=5:eval' || echo m4)
+[ "$G5T" = m1m2m3m4 ] && ok "R12-G5 rc matcher: empty substring matches any message of that rc, never another rc" || bad "R12-G5 rc matcher: $G5T"
+# G2 (review: core.fsmonitor of the gated repository's own config ran from `git ls-files`): the gate and the
+#    builder's git environment must run NO program named by the repository's config or attributes. Marker
+#    programs append to $TMP/g2.marker; the positive control (plain git, same repository) must run them.
+new_case r12g2; wb a.sh "$BASE_SH"; base; wh a.sh "${BASE_SH}echo more\n"; head; gate_prepare
+G2M="$TMP/g2.marker"; : >"$G2M"
+printf '#!/bin/sh\necho fsmonitor >>"%s"\nexit 1\n' "$G2M" >"$TMP/g2.fsm"
+printf '#!/bin/sh\necho hook >>"%s"\n' "$G2M" >"$R/.git/hooks/post-checkout"
+printf '#!/bin/sh\necho filter >>"%s"\ncat\n' "$G2M" >"$TMP/g2.flt"
+chmod +x "$TMP/g2.fsm" "$TMP/g2.flt" "$R/.git/hooks/post-checkout"
+git -C "$R" config core.fsmonitor "$TMP/g2.fsm"
+git -C "$R" config filter.g2.smudge "$TMP/g2.flt"; git -C "$R" config filter.g2.clean "$TMP/g2.flt"
+git -C "$R" config diff.g2.textconv "$TMP/g2.flt"
+printf '*.sh filter=g2 diff=g2\n' >"$TMP/g2.attrs"
+( cd "$R" && cp "$TMP/g2.attrs" .gitattributes && $GIT -c core.fsmonitor=false add .gitattributes \
+    && $GIT -c core.fsmonitor=false -c core.hooksPath=/dev/null commit -q -m attrs ) >/dev/null 2>&1
+: >"$G2M"; git -C "$R.co" ls-files >/dev/null 2>&1
+grep -q fsmonitor "$G2M" && ok "R12-G2 positive control: plain \`git ls-files\` runs the repository's core.fsmonitor" \
+    || bad "R12-G2 positive control: plain git did not run the fsmonitor marker ($(cat "$G2M"))"
+: >"$G2M"; run_rule gate_run
+G2V=$(sc 'c["verdict"]')
+[ ! -s "$G2M" ] && [ "$G2V" = PASS ] && ok "R12-G2 the gate runs no program of the repository's config (marker empty, verdict PASS)" \
+    || bad "R12-G2 the gate ran: [$(tr '\n' ' ' <"$G2M")] verdict=$G2V rc=$RC"
+# the builder's environment (precheck_common._git_env) and precheck_pack_build.sh's own exports, through
+#    `git worktree add` (post-checkout hook, smudge filter from a TRACKED .gitattributes) and `git ls-files`;
+#    the control runs the same commands with plain git
+python3 - "$REVIEW/lib" "$R" "$TMP/g2" "$G2M" "$REVIEW/precheck_pack_build.sh" <<'PY' >"$TMP/g2.out" 2>&1
+import os, re, subprocess, sys
+sys.path.insert(0, sys.argv[1])
+import precheck_common as pc
+r, wt, marker, build = sys.argv[2:6]
+def run(env, tag):
+    open(marker, "w").close()
+    subprocess.run(["git", "-C", r, "worktree", "add", "--detach", "--quiet", wt + tag, "HEAD"], env=env,
+                   capture_output=True)
+    subprocess.run(["git", "-C", wt + tag, "ls-files"], env=env, capture_output=True)
+    subprocess.run(["git", "-C", r, "worktree", "remove", "--force", wt + tag], env=env, capture_output=True)
+    return sorted(set(open(marker).read().split()))
+print("control|%s" % ",".join(run(dict(os.environ), "c")))
+print("gitenv|%s" % ",".join(run(pc._git_env(), "e")))
+src = open(build).read()
+blk = re.search(r"\n(for _gv in .*?GIT_CONFIG_VALUE_5\n)", src, re.S)
+if not blk:
+    print("buildsh|NO-BLOCK")
+else:
+    out = subprocess.run(["sh", "-c", blk.group(1) + "\nenv -0"], capture_output=True).stdout
+    env = dict(x.split("=", 1) for x in out.decode().split("\0") if "=" in x)
+    print("buildsh|%s" % ",".join(run(env, "b")))
+PY
+grep -q '^control|filter,fsmonitor,hook$' "$TMP/g2.out" && ok "R12-G2b control: plain git runs fsmonitor, the hook and the smudge filter" \
+    || bad "R12-G2b control: $(tr '\n' ' ' <"$TMP/g2.out")"
+grep -q '^gitenv|$' "$TMP/g2.out" && ok "R12-G2c _git_env: worktree add + ls-files run none of them" \
+    || bad "R12-G2c _git_env: $(tr '\n' ' ' <"$TMP/g2.out")"
+grep -q '^buildsh|$' "$TMP/g2.out" && ok "R12-G2d precheck_pack_build.sh exports: worktree add + ls-files run none of them" \
+    || bad "R12-G2d build.sh: $(tr '\n' ' ' <"$TMP/g2.out")"
+# RV (real gate, the r2 reviewer's channels): a trap action, printf -v into a computed name, and `. /dev/stdin`
+#    that define an alias at run time: the gate must judge the file by the whole-file rule (new-file), never credit
+for rv in "t|trap \"alias p='echo hi |'\" USR1" "p|n=x; printf -v \"\$n\" '%s' 1" "s|printf '%s\\\\n' x | . /dev/stdin"; do
+    id=${rv%%|*}; line=${rv#*|}
+    new_case "r12rv$id"; wb s.sh "#!/bin/sh\n$line\na=\$1\necho \$a\n"; base
+    wh s.sh "#!/bin/sh\n$line\na=\$1\necho \$a\necho more\n"; head; gate
+    expect "R12-RV-$id real gate: a runtime-grammar channel -> FAIL, new-file units-unparsed" '(c["verdict"], [(f["state"], f.get("new_file_reason", "")[:20]) for f in e["delta"]["files"]])' "('FAIL', [('new-file', 'units-unparsed: head')])"
+done
+# RVn control: the same file without the channel -> PASS, the finding pre-existing
+new_case r12rvn; wb s.sh '#!/bin/sh\necho ok\na=$1\necho $a\n'; base
+wh s.sh '#!/bin/sh\necho ok\na=$1\necho $a\necho more\n'; head; gate
+expect "R12-RVn control: no channel -> PASS, SC2086 4:6 pre-existing" "$FB" "('PASS', [], [('SC2086', 4, 6)])"
 
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate
@@ -1486,6 +1670,8 @@ vsplit v8p gaterel "V8p extracted verifier, --gate-repo is a RELATIVE path -> re
 vsplit v8q gateout "V8q extracted verifier, --gate-repo is the toplevel of a repository OUTSIDE the pack's repository -> refused" "is neither the pack's repository"
 vsplit v8r norepo "V8r the pack names no absolute repository (provenance.repo relative, body hash recomputed) -> refused, never read anywhere" "no pack repository / base commit"
 
-echo "== summary: $PASS passed, $FAIL failed =="
+echo "== summary: $PASS passed, $FAIL failed, $SKIPS skipped =="
 [ "$FAIL" -eq 0 ] || exit 1
+# r12 (review G3): a skipped proof is not a pass -- the run is incomplete (exit 2, the suite's SKIP/ENV code)
+[ "$SKIPS" -eq 0 ] || exit 2
 exit 0

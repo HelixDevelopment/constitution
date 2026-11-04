@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 9 |
+| Revision | 10 |
 | Created | 2026-10-13 |
 | Last modified | 2026-11-04 |
-| Status | proposed (ATM-1217 r11, review round 1 fixes on the r10 structural replacement; independent review owed); rule id `shellcheck-baseline-delta/8`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Status | proposed (ATM-1217 r12, review round 2: structural allowlist for the runtime grammar, git config neutralised, loud pin refusal; independent review owed); rule id `shellcheck-baseline-delta/9`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` (r10: F6 SKIP exit 2, KEEP, no-pack diagnostics, a git identity for `commit-tree`) |
 | Design | r10: the "Command units" and "Units helper" sections below (the r10 structural replacement); r3-r9: `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
@@ -204,16 +204,64 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
   whole class and closes every member it found, each with a control-needled
   test (the shell itself is run on the fragment and must show the
   disagreement or agreement the test assumes):
-  * **Aliases fail closed.** dash and `bash --posix` (both can be `/bin/sh`)
-    expand aliases, and an alias ending in `|` or `&&` continues the command on
-    the next line, which no static parser sees. Any of these anywhere in the
-    file (also behind `builtin` / `command`) makes the helper exit 5
-    ("unmodelled construct"), so the file gets the whole-file verdict: an
-    `alias` / `unalias` command; `eval` whose literal text contains `alias`;
-    `set -o posix`, `shopt -s expand_aliases` (any `set` / `shopt` naming
-    `posix` or `expand_aliases`); an assignment to `BASH_ALIASES` or
-    `POSIXLY_CORRECT`, or a word naming `POSIXLY_CORRECT`; an assignment whose
-    value is the word `alias` / `unalias`.
+  * **r12: the runtime grammar is an ALLOWLIST (replaces the r11 alias
+    blacklist).** dash and `bash --posix` (both can be `/bin/sh`) expand
+    aliases, and an alias ending in `|` or `&&` continues the command on the
+    next line, which no static parser sees. r11 refused the ways to define an
+    alias one by one; review r2 measured that a trap action, `printf -v`,
+    `read`, a nameref, `. /dev/stdin`, `${x@P}`, `mapfile -C` and more still
+    reached `BASH_ALIASES` or ran `alias`. r12 inverts the rule: a statement is
+    accepted only when the helper can see everything it does to the shell's
+    grammar. The helper exits 5 ("runtime grammar: not modelled, r12
+    allowlist") on the first statement that breaks one of:
+    * **R1** every command word is static (quote removal and `$'..'` decoded;
+      no expansion, no unquoted glob character -- a `[` with no `]` after it is
+      literal -- no leading `~`). `command` / `builtin` and their options are
+      skipped (`command -v` / `-V` runs nothing); the exec wrappers (`exec`,
+      `env`, `nohup`, `time`, `xargs`, `nice`, `timeout`, `stdbuf`, `setsid`,
+      `ionice`, `chrt`, `taskset`, `sudo`, `doas`) skip their options and
+      `VAR=val`, and a computed operand under them runs in a child process.
+    * **R2** code builtins: `alias`, `unalias`, `.`, `source`, `enable`, `fc`,
+      `bind`, `complete`, `compgen`, `compopt`, `history` always fail closed
+      (`.` / `source` run code the helper does not read; stricter than "only a
+      non-literal path": a script can write a file and source it by a literal
+      name). `eval` is accepted only when every argument is static, and the
+      joined text is checked recursively (depth 8, then fail closed). `trap`:
+      listing / resetting is accepted; a trap on EXIT only (`EXIT`, `0`,
+      `SIGEXIT`) is accepted with any action (it runs after the last line was
+      read); any other trap needs a static signal list and a static action,
+      checked recursively. `set`: `-o` / `+o` names from an allowlist (not
+      `posix`), option letters from `abeEfhkmnpPtTuvxBC`. `shopt`: names from an
+      allowlist (not `expand_aliases`, not `posix`).
+    * **R3** a variable name given to `printf -v`, `read`, `mapfile` /
+      `readarray`, `getopts` or a `declare`-family command must be static;
+      `mapfile -C` (a callback) and `declare -n` / namerefs fail closed.
+    * **R4** `BASH_ALIASES`, `POSIXLY_CORRECT`, `PS0`-`PS4`, `PROMPT_COMMAND`,
+      `BASH_ENV`, `ENV`, `SHELLOPTS`, `BASHOPTS` must not be assigned (plain,
+      `${X:=}`, `declare` / `export` / `unset`); `BASH_ALIASES` and
+      `POSIXLY_CORRECT` fail closed in any word; `${x@P}` fails closed; a
+      variable set to the word `alias` / `unalias` fails closed.
+    * **R5** `exec` with no command and an input redirection of fd 0 fails
+      closed (the rest of the file is then read from elsewhere).
+    Proof: `tests/units_runtime_grammar_census.py` generates 864 scripts (81
+    channels x contexts x posix/bash, each with `p` on one line and `tr` on the
+    next, where `alias p='echo hi |'` would join them) and runs each in the real
+    shells (dash and `bash --posix` for posix, bash for bash). A script is
+    UNSOUND when a shell prints `HI` and the helper still splits the two lines.
+    Measured: the r11 helper (46fde9c) 356 unsound; the r12 helper 0 unsound,
+    813 positives closed, 23 of 23 claimed-benign shapes credited, 3 shapes
+    refused that are benign (`"$@"` as a command word, `. ./lib.sh`, a `PS4`
+    assignment; stricter, stated). Controls inside the census: a positive
+    control a shell must join and the helper must refuse, a negative control
+    both must keep apart; a failed control is exit 2. The census is case
+    `R12-G1` of the delta suite, run against the helper of the tree under test.
+    **Cost, measured (stated):** over the 1150 tracked `.sh` files of this
+    repository the r11 helper gave units for 1143, the r12 helper for 471: 672
+    files now fall to the whole-file rule, 537 of them because they source a
+    file (`.` / `source`), 95 because of a computed command word (`"$SC" ...`),
+    19 a computed `eval`. This is fail-closed (no credit), not a bluff; a
+    finer rule (units proven only up to the first such statement) is a design
+    option recorded for review, not built.
   * **Here-document delimiters use the shell's quote removal.** Inside double
     quotes a backslash is removed only before `$`, `` ` ``, `"`, `\` and a
     newline (POSIX 2.2.3); outside quotes every backslash is removed; inside
@@ -241,12 +289,11 @@ r10: the units come from a **real shell parser**, `mvdan.cc/sh/v3/syntax`
     file.
   * **Scoped out, stated:** `shopt -s extglob` patterns (the parser accepts
     them; without the `shopt` bash stops at them with a syntax error; the units
-    of a file that does enable extglob are not enumerated); what `eval` /
-    `source` / `.` execute (their argument is not parsed; only their own
-    statement is a unit); aliases or
-    `POSIXLY_CORRECT` coming from outside the file (a sourced file, `ENV`,
-    `BASH_ENV`, the caller's environment) or a command name built at run time
-    (`$cmd`); `((echo a) )`, which the parser refuses in bash mode while bash
+    of a file that does enable extglob are not enumerated); aliases or
+    `POSIXLY_CORRECT` coming from the caller (`ENV`, `BASH_ENV`, the starting
+    environment); r12: a computed `eval`, `.` / `source` and a computed command
+    word (`$cmd`) are no longer scoped out -- they fail closed (R1, R2);
+    `((echo a) )`, which the parser refuses in bash mode while bash
     runs it (fails closed, stricter).
 
 The helper runs under the same scrubbed environment and memory cap as
@@ -288,16 +335,23 @@ this pool only; it is not a proof for every script.
   The stamp records the binary's sha256, the source hash, the go version and the
   platform; a cached binary is used only while all four match the values
   recomputed now and the binary's sha256 matches the stamp.
-* **Binary pins (r11).** `units_helper/BINARY_PINS.tsv` maps (source hash, go
+* **Binary pins (r11, r12).** `units_helper/BINARY_PINS.tsv` maps (source hash, go
   version, platform) to the sha256 of the reproducible build (measured
   identical across fresh build caches). For a pinned toolchain a cached binary
   whose sha256 differs from the pin is rebuilt, and a fresh build that differs
   from the pin is refused (fail closed); this also defeats a forged
-  binary-and-stamp pair. For an unpinned toolchain the stamp is the only check
-  (stated limit). `go` is required even when a cached binary exists (the cache
+  binary-and-stamp pair. r12 (review G3): a toolchain any row names is a
+  REFERENCE toolchain, and on it a source hash with no row is refused (a
+  comment-only edit of `main.go` that is not re-pinned can no longer drop the
+  protection silently); an absent, unreadable, empty or malformed table is
+  refused. Re-pin after review with `python3 lib/units_pin_refresh.py --write`
+  (two builds from empty caches with the gate's flags; refused when they
+  differ). For a toolchain no row names the stamp is the only check (stated
+  limit); the suite reports the pin cases there as SKIP and exits 2, never as a
+  pass. `go` is required even when a cached binary exists (the cache
   key needs the go version): a host without `go` fails closed.
 * Exit codes of the helper: 0 units, 2 usage, 3 parse error, 4 inconsistency,
-  5 unmodelled construct (r11: alias class, NUL byte). Every non-zero exit is
+  5 unmodelled construct (r11: NUL byte; r12: any R1-R5 runtime-grammar rule). Every non-zero exit is
   the whole-file verdict.
 * Test mode only (`PRECHECK_TEST_MODE=1`): `PRECHECK_UNITS_HELPER` names a stub
   helper and `PRECHECK_UNITS_TIMEOUT_S` a shorter budget (the fail-closed cases).
@@ -421,11 +475,27 @@ another timeout; it never reuses it.
   toolchain the stamp in the same user-owned directory is the only check, so a
   party that can write that directory can replace both. The pin itself lives in
   the repository and is only as trustworthy as the checkout.
-* r11 units: aliases, `POSIXLY_CORRECT` or `expand_aliases` from outside the
-  file (sourced files, `ENV`, `BASH_ENV`, the environment), command names built
-  at run time, what `eval` / `source` execute, and `extglob` patterns are not
-  modelled (see "Command units"). A file that uses an alias construct gets no
-  credit at all.
+* r12 units: aliases or `POSIXLY_CORRECT` from outside the file (`ENV` /
+  `BASH_ENV` of the caller, the environment the script starts with), a script
+  that rewrites its own file while it runs, and `extglob` patterns are not
+  modelled. Inside the file the allowlist R1-R5 fails closed on every channel
+  the census enumerates; the census is a generated pool of 81 channels, not a
+  proof for every script. A file that breaks a rule gets no credit at all, and
+  that is now 672 of this repository's 1150 shell files (see "Command units").
+* git (r12, review G2): every git call of the gate and the builder pins
+  `core.fsmonitor=false`, `core.hooksPath=/dev/null`, `commit.gpgSign=false`,
+  `diff.external=`, `core.pager=cat`, `core.attributesFile=/dev/null` through
+  `GIT_CONFIG_COUNT` (wins over every config file) and sets `GIT_ATTR_SOURCE`
+  to the empty tree (no tracked `.gitattributes` selects a filter or driver;
+  needs git >= 2.40, measured on 2.53.0; the empty-tree id is the sha1 one, so a
+  sha256 repository fails closed). Not covered: a filter named by
+  `$GIT_DIR/info/attributes` together with a `filter.<name>.*` key in the same
+  local config (local machine state, never part of a commit); transport keys
+  (`core.sshCommand`, `credential.*`, `protocol.*`) are never reached because no
+  gate step talks to a remote. Tests R12-G2 (the real gate: marker empty,
+  verdict PASS) and R12-G2b/c/d (control: plain git runs the fsmonitor, a
+  post-checkout hook and a smudge filter; `_git_env` and the builder's own
+  exports run none).
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
   identity. The r8 census found one pair where only
   `fix.replacements[].precedence` differed; it was the command-unit class

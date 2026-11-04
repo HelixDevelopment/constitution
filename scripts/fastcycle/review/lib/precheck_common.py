@@ -51,7 +51,25 @@ def _git_env():
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_CONFIG_GLOBAL"] = os.devnull
     env["GIT_TERMINAL_PROMPT"] = "0"
+    # r12 (ATM-1217 review G2): keys of the repository's OWN config (.git/config, never neutralised by the two
+    # lines above) that make plumbing run a program. Measured on git 2.53.0: plain `git ls-files` runs a
+    # core.fsmonitor command twice, `git worktree add`/`checkout` run a post-checkout hook, checkout runs a smudge
+    # filter named by .gitattributes. The command-line-config entries below win over every config file; the
+    # attribute source is the empty tree, so no tracked .gitattributes selects a filter, diff or merge driver.
+    # Not covered (stated in the guide): $GIT_DIR/info/attributes + a filter.<name>.* key in the same local config
+    # (both local machine state, not part of any commit); transport keys (core.sshCommand, credential.*,
+    # protocol.*, uploadpack.*) are never reached because no gate step talks to a remote.
+    pins = (("core.fsmonitor", "false"), ("core.hooksPath", os.devnull), ("commit.gpgSign", "false"),
+            ("diff.external", ""), ("core.pager", "cat"), ("core.attributesFile", os.devnull))
+    env["GIT_CONFIG_COUNT"] = str(len(pins))
+    for i, (k, v) in enumerate(pins):
+        env["GIT_CONFIG_KEY_%d" % i] = k
+        env["GIT_CONFIG_VALUE_%d" % i] = v
+    env["GIT_ATTR_SOURCE"] = EMPTY_TREE
     return env
+
+
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"  # sha1 of the empty tree (sha1 repositories; see the guide)
 
 
 def _canon(obj):

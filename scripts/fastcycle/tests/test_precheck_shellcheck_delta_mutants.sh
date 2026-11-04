@@ -70,6 +70,7 @@ BRUN = "lib/precheck_pack_build_run.py"
 SH = "precheck_pack.sh"
 BUILD = "precheck_pack_build.sh"
 GO = "units_helper/main.go"
+COMMON = "lib/precheck_common.py"
 # 5th field: None = active (must be KILLED); "EQUIVALENT: <argument>" = run, and a survival is reported as EQUIVALENT
 # (listed, never counted as killed; a kill is still a kill); any other string = RETIRED by the r5 structural change: the harness then
 # requires the needle to be ABSENT (it proves the targeted code is gone); if the needle comes back the mutant
@@ -611,15 +612,15 @@ MUTANTS = [
  ('Q09-posix-bash-union-off', GO,
   '\tif why == "" && lang == syntax.LangPOSIX {', '\tif false && lang == syntax.LangPOSIX {', None),
  ('Q10-alias-class-not-checked', GO,
-  '\tif why := unmodelled(file); why != "" {', '\tif why := unmodelled(file); false && why != "" {', None),
+  '\tif why := unmodelled(file); why != "" {', '\tif why := unmodelled(file); false && why != "" {', 'RETIRED by r12 (ATM-1217 review r2 G1): the per-member alias blacklist is replaced by the structural allowlist checker; successors R12-*'),
  ('Q11-nul-byte-not-checked', GO,
   '\tif bytes.IndexByte(data, 0) >= 0 {', '\tif false {', None),
  ('Q12-dq-backslash-always-removed', GO,
   "\t\t\t\t\t\tif !dq || c == '$'", "\t\t\t\t\t\tif true || c == '$'", None),
  ('Q13-eval-alias-not-checked', GO,
-  '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") {', '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") && false {', None),
+  '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") {', '\t\t\t\t\t\tif strings.Contains(litPieces(a), "alias") && false {', 'RETIRED by r12 (ATM-1217 review r2 G1): the per-member alias blacklist is replaced by the structural allowlist checker; successors R12-*'),
  ('Q14-builtin-command-prefix-not-skipped', GO,
-  '\t\t\t\tif !ok || (t != "builtin" && t != "command") {', '\t\t\t\tif true || !ok || (t != "builtin" && t != "command") {', None),
+  '\t\t\t\tif !ok || (t != "builtin" && t != "command") {', '\t\t\t\tif true || !ok || (t != "builtin" && t != "command") {', 'RETIRED by r12 (ATM-1217 review r2 G1): the per-member alias blacklist is replaced by the structural allowlist checker; successors R12-*'),
  ('Q15-inherited-gocache-used', RUN,
   '                   "GOCACHE": os.path.join(base, "gocache"),', '                   "GOCACHE": os.environ.get("GOCACHE") or os.path.join(base, "gocache"),', None),
  ('Q16-pin-ignored-for-cached-binary', RUN,
@@ -628,6 +629,77 @@ MUTANTS = [
   'want[1:] == [src, ver, plat]', 'True', None),
  ('Q18-built-binary-not-checked-against-pin', RUN,
   '            if pin is not None and digest != pin:', '            if False:', None),
+ # r12 (ATM-1217 review r2, structural round): successors on the allowlist checker (R1 static command words,
+ # R2 code builtins / eval / trap / set / shopt, R3 name sinks, R4 sink names and tokens, R5 exec stdin), the
+ # reviewer's MR1 / MR3 / MR8 adopted on the new code (11.4.276(D)), and the G2 / G3 / G6 seams. A mutant of
+ # units_helper/ is re-pinned in its copy (lib/units_pin_refresh.py --once --write) so the run tests the RULE, not
+ # the pin refusal -- except a name carrying "-nopin", whose point is the stale pin.
+ ('AL12-01-glob-command-word-static', GO,
+  "\t\t\t\t\tif !dq && (ch == '*' || ch == '?'", "\t\t\t\t\tif false && !dq && (ch == '*' || ch == '?'", None),
+ ('AL12-02-code-builtin-allowed', GO,
+  '\t\t\t\tc.note(x, "an "+name+" command (alias state or code from outside the file)")', '\t\t\t\t_ = name', None),
+ ('AL12-03-eval-computed-allowed', GO,
+  '\t\t\t\t\tc.note(x, "an eval with a computed argument")', '\t\t\t\t\t_ = vs', None),
+ ('AL12-04-eval-text-not-checked', GO,
+  '\t\t\t\t\tc.code(x, strings.Join(vs, " "), "an eval")', '\t\t\t\t\t_ = vs', None),
+ ('AL12-05-trap-every-signal-like-exit', GO,
+  '\tif allExit {', '\tif allExit || true {', None),
+ ('AL12-06-trap-computed-action-allowed', GO,
+  '\t\tc.note(x, "a trap whose action is computed")', '\t\t_ = v', None),
+ ('AL12-07-trap-computed-signal-allowed', GO,
+  '\t\tc.note(x, "a trap with a computed signal")', '\t\t_ = sigs', None),
+ ('AL12-08-set-option-not-allowlisted', GO,
+  '\t\t\t\tif !ok || !setOptsOK[o] {', '\t\t\t\tif !ok {', None),
+ ('AL12-09-shopt-name-not-allowlisted', GO,
+  '\t\tif (oMode && !setOptsOK[v]) || (!oMode && !shoptOK[v]) {', '\t\tif oMode && !setOptsOK[v] {', None),
+ ('AL12-10-printf-v-computed-name-allowed', GO,
+  '\t\t\t\t\tc.note(x, "a printf -v with a computed variable name")', '\t\t\t\t\t_ = x', None),
+ ('AL12-11-read-computed-name-allowed', GO,
+  '\t\t\t\tc.note(x, "a "+name+" with a computed variable name or option")', '\t\t\t\t_ = v', None),
+ ('AL12-12-anywhere-tokens-off', GO,
+  '\t\t\t\tif strings.Contains(t, tok) {', '\t\t\t\tif false && strings.Contains(t, tok) {', None),
+ ('AL12-13-sink-assignment-allowed', GO,
+  '\t\t\tif x.Name != nil && assignSinks[x.Name.Value] {', '\t\t\tif false && x.Name != nil {', None),
+ ('AL12-14-prompt-expansion-allowed', GO,
+  'strings.Contains(v, "P") {', 'strings.Contains(v, "QQQ") {', None),
+ ('AL12-15-exec-stdin-allowed', GO,
+  '\t\t\t\t\t\tif in && (r.N == nil || r.N.Value == "0") {', '\t\t\t\t\t\tif false && in {', None),
+ ('AL12-16-code-depth-unbounded', GO,
+  '\tif c.depth >= maxCodeDepth {', '\tif false {', None),
+ ('AL12-17-dynamic-command-word-allowed', GO,
+  '\t\t\tc.note(args[0], "a dynamically computed command word")', '\t\t\t_ = ok', None),
+ ('AL12-18-nameref-declaration-allowed', GO,
+  '\t\t\t\tc.note(x, "a "+x.Variant.Value+" -n (nameref)")', '\t\t\t\t_ = v', None),
+ ('AL12-19-checker-not-called', GO,
+  '\tif why := unmodelled(file, lang); why != "" {', '\tif why := unmodelled(file, lang); false && why != "" {', None),
+ ('MR1-rv2-main-go-comment-nopin', GO,
+  '\npackage main\n', '\npackage main\n\n// MR1: a comment-only edit, the pin row is NOT refreshed\n', None),
+ ('MR3-rv2-wrapper-options-not-skipped', GO,
+  '\t\t\tif strings.HasPrefix(o, "-") || (execWrappers[name]', '\t\t\tif false && strings.HasPrefix(o, "-") || (execWrappers[name]', None),
+ ('MR3b-rv2-command-v-shortcut-too-broad', GO,
+  'strings.HasPrefix(o, "-") && strings.ContainsAny(o, "vV") {', 'strings.HasPrefix(o, "-") {', None),
+ ('MR8-rv2-eval-only-first-argument', GO,
+  '\t\t\t\t\tc.code(x, strings.Join(vs, " "), "an eval")', '\t\t\t\t\tc.code(x, strings.Join(vs[:min(len(vs), 1)], " "), "an eval")', None),
+ ('G2-01-fsmonitor-not-pinned', COMMON,
+  '("core.fsmonitor", "false"), ', '', None),
+ ('G2-02-hookspath-not-pinned', COMMON,
+  '("core.hooksPath", os.devnull), ', '', None),
+ ('G2-03-attr-source-not-pinned', COMMON,
+  '    env["GIT_ATTR_SOURCE"] = EMPTY_TREE\n', '', None),
+ ('G2-04-buildsh-fsmonitor-not-pinned', BUILD,
+  'GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false', 'GIT_CONFIG_KEY_0=core.mutant GIT_CONFIG_VALUE_0=false', None),
+ ('G2-05-buildsh-attr-source-not-set', BUILD,
+  'GIT_ATTR_SOURCE=4b825dc642cb6eb9a060e54bf8d69288fbee4904\n', ':\n', None),
+ ('G3-01-missing-pin-row-accepted', RUN,
+  '    if reference and pin is None:', '    if False:', None),
+ ('G3-02-absent-pin-table-accepted', RUN,
+  '        raise _UnitsError("the binary pin table %s cannot be read: %s" % (UNITS_PINS, exc))', '        return {}', None),
+ ('G3-03-malformed-pin-row-skipped', RUN,
+  '            raise _UnitsError("%s line %d is not `source-hash', '            continue; _UnitsError("%s line %d is not `source-hash', None),
+ ('G3-04-empty-pin-table-accepted', RUN,
+  '    if not pins:\n        raise', '    if False:\n        raise', None),
+ ('G6-01-side-label-always-head', RUN,
+  '        side = "base"\n', '        side = "head"\n', None),
 ]
 PYEOF
 
@@ -673,6 +745,15 @@ sys.exit(5 if equiv else 0)
 PY
     rc=$?
     eq=0; [ "$rc" -eq 5 ] && eq=1
+    # r12 (review G3): a units_helper/ mutant changes the source hash; re-pin it in the copy so the suite judges the
+    #    mutated RULE, not the stale-pin refusal (a "-nopin" mutant is about the stale pin and is left unpinned)
+    case $rc/$rel/$name in
+        [05]/units_helper/*-nopin*) ;;
+        [05]/units_helper/*)
+            if ! python3 "$d/review/lib/units_pin_refresh.py" --once --write >"$d/pin.log" 2>&1; then
+                echo "INVALID $name (the mutated helper does not build: $(tail -n 1 "$d/pin.log"))"; return
+            fi ;;
+    esac
     if [ "$rc" -eq 3 ]; then echo "INVALID $name (search string not found exactly once)"; return; fi
     if [ "$rc" -eq 4 ]; then echo "RETIRED  $name (needle absent, also modulo whitespace: removed by a structural round)"; return; fi
     FC_OVERRIDE="$d" sh "$SUITE" >"$d/suite.log" 2>&1

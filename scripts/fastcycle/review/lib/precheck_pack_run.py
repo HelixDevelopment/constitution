@@ -764,8 +764,9 @@ TOO_LARGE_MIN_LINES = 5000
 # ---------------------------------------------------------------------------
 SC_RULES = ("whole-file", "baseline-delta")
 DEFAULT_SC_RULE = "whole-file"
-DELTA_RULE_ID = "shellcheck-baseline-delta/8"  # r10: units from a real parser, outermost statement; r11: POSIX = union of
-# the posix and bash parses, in-file aliases / NUL bytes fail closed, shell quote removal for delimiters (stricter only)
+DELTA_RULE_ID = "shellcheck-baseline-delta/9"  # r10: units from a real parser, outermost statement; r11: POSIX = union of
+# the posix and bash parses, in-file aliases / NUL bytes fail closed, shell quote removal for delimiters (stricter only);
+# r12: the runtime-grammar ALLOWLIST (R1-R5) replaces the alias blacklist -- more files fail closed (stricter only)
 DEFAULT_SC_TIMEOUT_DELTA = 120  # per lint; head + base make a delta run lint twice
 _LINE_REF_RE = re.compile(r"(?i)\bline\s+\d+")
 
@@ -893,18 +894,42 @@ def _go_toolchain(go):
     return out[0], "%s/%s" % (out[1], out[2])
 
 
+_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+
+
 def _units_pins():
-    """{(source hash, go version, platform): binary sha256} from the tracked units_helper/BINARY_PINS.tsv."""
+    """{(source hash, go version, platform): binary sha256} from the tracked units_helper/BINARY_PINS.tsv.
+    r12 (review G3): the table is part of the gate, so an absent or unreadable file, or a row that is not
+    `<64 hex> go<version> <goos>/<goarch> <64 hex>`, raises _UnitsError (never an empty table that reads as
+    "no pin, accept")."""
     pins = {}
+    path = os.path.join(_UNITS_SRC, UNITS_PINS)
     try:
-        with open(os.path.join(_UNITS_SRC, UNITS_PINS), encoding="utf-8") as fh:
-            for ln in fh:
-                f = ln.split()
-                if len(f) == 4 and not ln.startswith("#"):
-                    pins[(f[0], f[1], f[2])] = f[3]
-    except OSError:
-        pass
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise _UnitsError("the binary pin table %s cannot be read: %s" % (UNITS_PINS, exc))
+    for n, ln in enumerate(lines, 1):
+        if not ln.strip() or ln.startswith("#"):
+            continue
+        f = ln.split()
+        if (len(f) != 4 or not _HEX64.match(f[0]) or not _HEX64.match(f[3]) or not f[1].startswith("go")
+                or f[2].count("/") != 1):
+            raise _UnitsError("%s line %d is not `source-hash go-version goos/goarch binary-sha256`" % (UNITS_PINS, n))
+        if (f[0], f[1], f[2]) in pins:
+            raise _UnitsError("%s line %d repeats a pinned key" % (UNITS_PINS, n))
+        pins[(f[0], f[1], f[2])] = f[3]
+    if not pins:
+        raise _UnitsError("the binary pin table %s has no row" % UNITS_PINS)
     return pins
+
+
+def _units_pin_for(src, ver, plat):
+    """-> (pin or None, reference toolchain?). A toolchain is a REFERENCE toolchain when any row of the pin table
+    names it; on a reference toolchain a missing row for the current source hash is a refusal (review G3: a
+    source edit that is not re-pinned must be loud, never a silent fall-back to the unpinned path)."""
+    pins = _units_pins()
+    return pins.get((src, ver, plat)), any(k[1] == ver and k[2] == plat for k in pins)
 
 
 def _units_pinned_sha256():
@@ -914,7 +939,7 @@ def _units_pinned_sha256():
         return None
     try:
         ver, plat = _go_toolchain(go)
-        return _units_pins().get((_units_source_hash(), ver, plat))
+        return _units_pin_for(_units_source_hash(), ver, plat)[0]
     except (OSError, _UnitsError):
         return None
 
@@ -937,9 +962,12 @@ def _units_helper_path(mem_cap_mib):
     try:
         src = _units_source_hash()
         ver, plat = _go_toolchain(go)
+        pin, reference = _units_pin_for(src, ver, plat)
     except (OSError, _UnitsError) as exc:
-        return None, "the units helper source or toolchain cannot be read: %s" % exc
-    pin = _units_pins().get((src, ver, plat))
+        return None, "the units helper source, toolchain or pin table cannot be read: %s" % exc
+    if reference and pin is None:
+        return None, ("the units helper source %s has no %s row for the reference toolchain %s %s: refused (re-pin it "
+                      "with `python3 lib/units_pin_refresh.py --write` after review)" % (src[:16], UNITS_PINS, ver, plat))
     base = os.environ.get(UNITS_CACHE_ENV) or os.path.join(
         os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"), "fastcycle-precheck-units")
     key = hashlib.sha256(("%s\0%s\0%s\0-trimpath -buildvcs=false CGO_ENABLED=0" % (src, ver, plat)).encode()).hexdigest()
@@ -1095,13 +1123,15 @@ def _line_map(bdata, cdata, units):
     for i, j, n in sm.get_matching_blocks():
         for k in range(n):
             out[j + k + 1] = i + k + 1
+    side = "head"  # r12 (review G6): the label names the side whose derivation raised, never always "head"
     try:
         hu = units(cdata, "head")
+        side = "base"
         bu = units(bdata, "base")
     except _UnitsError as exc:
         return None, str(exc)
     except Exception as exc:  # noqa: BLE001 -- fail closed: no unit can be proven intact
-        return None, "head: internal error while deriving units: %r" % (exc,)
+        return None, "%s: internal error while deriving units: %r" % (side, exc)
     keep, intact = {}, {}
     for h, b in out.items():
         hs, he = hu.get(h, (h, h))

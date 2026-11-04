@@ -1,6 +1,8 @@
 # r11 (ATM-1217 review F5): the expected sha256 of the units helper binary, per source hash (sha256 over units_helper/
 # except this file, as _units_source_hash computes it) and go toolchain. The build is reproducible (-trimpath,
 # -buildvcs=false, CGO_ENABLED=0, -mod=vendor; measured: two builds from empty GOCACHE dirs give the same bytes).
-# On a listed toolchain a cached or freshly built binary with any other sha256 is refused; an unlisted toolchain
-# is accepted on the recomputed stamp only (stated limit). Columns: source-hash go-version goos/goarch binary-sha256
-54868c681ca21b225aa4f6468fa8d3e84292bc8ed354b7c370c28af4d3d93891 go1.26.8 linux/amd64 28ea0363925b28bb04092b292bcca80da812586aeacd0540d9f63e576670f2fd
+# On a listed (reference) toolchain a cached or freshly built binary with any other sha256 is refused, and r12
+# (review G3) a source hash with NO row is refused too (re-pin with review/lib/units_pin_refresh.py --write, which
+# builds twice and refuses a non-reproducible build); an unlisted toolchain is accepted on the recomputed stamp only
+# (stated limit). An absent, unreadable or malformed table is refused. Columns: source-hash go-version goos/goarch binary-sha256
+b5aeb1aa181aa7a447c499982b1e7cdb1c1e1e23db98e9e794bffa33c3933800 go1.26.8 linux/amd64 9f58693c94c8eab2a9a44bc9b9a333322875f05e05d50c9f4159c07fd8cd3b84

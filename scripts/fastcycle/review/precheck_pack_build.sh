@@ -125,6 +125,24 @@
 # which stays limited to the three permanent, cacheable artifacts.
 set -eu
 
+# r12 (ATM-1217 review G2): the raw `git` calls below run against the repository's OWN config; pin the keys that
+# make plumbing run a program (the same set precheck_common._git_env pins; see PRECHECK_SHELLCHECK_DELTA.md).
+# GIT_CONFIG_COUNT entries win over every config file; the empty tree as attribute source means no tracked
+# .gitattributes selects a filter or driver.
+for _gv in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$_gv"; done
+GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0
+GIT_CONFIG_COUNT=6
+GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
+GIT_CONFIG_KEY_1=core.hooksPath GIT_CONFIG_VALUE_1=/dev/null
+GIT_CONFIG_KEY_2=commit.gpgSign GIT_CONFIG_VALUE_2=false
+GIT_CONFIG_KEY_3=diff.external GIT_CONFIG_VALUE_3=
+GIT_CONFIG_KEY_4=core.pager GIT_CONFIG_VALUE_4=cat
+GIT_CONFIG_KEY_5=core.attributesFile GIT_CONFIG_VALUE_5=/dev/null
+GIT_ATTR_SOURCE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+export GIT_CONFIG_NOSYSTEM GIT_CONFIG_GLOBAL GIT_TERMINAL_PROMPT GIT_CONFIG_COUNT GIT_ATTR_SOURCE \
+    GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0 GIT_CONFIG_KEY_1 GIT_CONFIG_VALUE_1 GIT_CONFIG_KEY_2 GIT_CONFIG_VALUE_2 \
+    GIT_CONFIG_KEY_3 GIT_CONFIG_VALUE_3 GIT_CONFIG_KEY_4 GIT_CONFIG_VALUE_4 GIT_CONFIG_KEY_5 GIT_CONFIG_VALUE_5
+
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 CONST_ROOT=$(cd "$FC/../.." && pwd)
