@@ -86,6 +86,11 @@
 #   R7N6BLK     (ATM-1220, root cause of the R7N6SWEEP flake) every caller-side child runs with HUP/INT/QUIT/TERM
 #               BLOCKED (a stop in front of the exec stays pending), every worker child with them unblocked.
 #   R7N6BLKDEG  (ATM-1220) an env without --block-signal: rc 0, the old trap-only protection, DEGRADED on stderr.
+#   R7N6R4      (ATM-1220 round 4) the probe is a BACKGROUND child (its INT/QUIT ignored), the marker never leaks
+#               into a child, `freeze` stays unblocked, a lying env is caught (DEGRADED 'still unblocked'), the
+#               reset in front of the exec keeps QUIT trapped, a degraded run with a dead stderr reader still
+#               ends 0 (SIGPIPE ignored before the DEGRADED write), QUIT during the probe = 131, QUIT while the
+#               re-exec'd caller bash waits for a child = a stop (131 / killed by QUIT), never a finished replay.
 #   R7RUNPD     (N1) a run supervisor whose worker dies stops its own tree (a gate's setsid daemon) before exiting.
 #   R7WGRP      (N1, found by this round's r2 run) the worker leads its own process group: a signal to it never
 #               reaches the keeper.
@@ -2095,6 +2100,42 @@ if want("R7N6"):
     else:
         bad("[R7N6] (e) SIGINT during a foreground pre-exec command: rc=%s (want 130) report=%s -- bash dropped the stop "
             "(wait-and-cooperative-exit) and the replay ran" % (rc, rep))
+    # (e-deg) the same, DEGRADED: an env that refuses --block-signal=HUP,INT,QUIT,TERM (exit 125, as an old coreutils)
+    # but runs the `_fc_supervise` probe. Then only the dispatch traps protect the foreground child -- with a healthy env
+    # the four-signal block makes those traps unobservable (round 4: V4R7-N6e survived [R7N6] (e) for that reason).
+    case = os.path.join(d, "edeg"); os.makedirs(os.path.join(case, "tmp")); os.makedirs(os.path.join(case, "locks"))
+    repo = os.path.join(case, "repo"); head = mk_repo(repo)
+    es = os.path.join(case, "eshim"); os.makedirs(es)
+    open(os.path.join(es, "env"), "w").write('#!/bin/bash\ncase " $* " in *" --block-signal=HUP,INT,QUIT,TERM "*) '
+                                             ': >"%s/refused"; exit 125 ;; *" --block-signal=INT true "*) '
+                                             'echo ready >"%s/ready"; sleep 2 ;; esac\nexec %s "$@"\n'
+                                             % (case, case, shutil.which("env")))
+    os.chmod(os.path.join(es, "env"), 0o755)
+    env = dict(os.environ, PATH=es + ":" + os.environ["PATH"], TMPDIR=os.path.join(case, "tmp"),
+               FC_REPLAY_LOCK_DIR=os.path.join(case, "locks"))
+    env.pop("FC_OUT", None)
+    p = subprocess.Popen(["bash", SCRIPT, "replay", "--commit", head, "--repo-root", repo, "--worktree-root",
+                          os.path.join(case, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd",
+                          "true", "--cold-runs", "1", "--warm-runs", "0", "--out", os.path.join(case, "out.json")],
+                         env=env, preexec_fn=pre_b, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    ready = wait_path(os.path.join(case, "ready"), 30)
+    if ready:
+        sig_pid(p.pid, signal.SIGINT)
+    try:
+        _, err = p.communicate(timeout=60); rc = p.returncode
+    except subprocess.TimeoutExpired:
+        sig_pid(p.pid, signal.SIGKILL); _, err = p.communicate(); rc = None
+    rc = 128 - rc if rc is not None and rc < 0 else rc
+    rep = os.path.exists(os.path.join(case, "out.json"))
+    if not ready or not os.path.exists(os.path.join(case, "refused")) or "DEGRADED" not in err:
+        bad("[R7N6] (e-deg) control needle: degraded path not reached (ready=%s refused=%s DEGRADED=%s; %s)"
+            % (ready, os.path.exists(os.path.join(case, "refused")), "DEGRADED" in err, err.strip()[-160:]))
+    elif rc == 130 and not rep and not os.listdir(os.path.join(case, "tmp")):
+        ok("[R7N6] (e-deg) DEGRADED env: SIGINT while the foreground probe in front of exec runs, then exits 0: rc 130, "
+           "no replay ran (the dispatch INT trap)")
+    else:
+        bad("[R7N6] (e-deg) DEGRADED env, SIGINT during a foreground pre-exec command: rc=%s (want 130) report=%s -- "
+            "bash dropped the stop and the replay ran" % (rc, rep))
     # (c) static: every supervisor invocation disables the site import (round 8: main exec, run, report-prepare,
     # report-check -- four)
     src = open(SCRIPT).read()
@@ -2145,7 +2186,7 @@ if want("R7N6"):
 _R7N6BLK_NEED = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 14)     # HUP INT QUIT TERM (bit = signo - 1)
 
 
-def _r7n6blk_run(tag, extra_shims, premask=()):
+def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, markers=None, timeout=120):
     d = os.path.join(WORK, tag.lower()); os.makedirs(d)
     repo = os.path.join(d, "repo"); head = mk_repo(repo)
     shim = os.path.join(d, "shim"); os.makedirs(shim)
@@ -2155,7 +2196,7 @@ def _r7n6blk_run(tag, extra_shims, premask=()):
         "#!/bin/bash\nt=C; p=$PPID\nwhile [ \"${p:-0}\" -gt 1 ]; do\n"
         "  case \"$(cat /proc/$p/comm 2>/dev/null)\" in fc-supervisor|fc-keeper|fc-run) t=W; break ;; esac\n"
         "  p=$(sed -n 's/^PPid:[[:space:]]*//p' /proc/$p/status 2>/dev/null)\ndone\n"
-        "printf '%%s %%s\\n' \"$t\" \"$(sed -n 's/^SigBlk:[[:space:]]*//p' /proc/self/status)\" >>%(r)s\n"
+        "printf '%%s %%s %%s\\n' \"$t\" \"$(sed -n 's/^SigBlk:[[:space:]]*//p' /proc/self/status)\" \"${_FC_BR_STOPS_BLOCKED+M}\" >>%(r)s\n"
         "exec %(d)s \"$@\"\n" % {"r": rec, "d": real})
     os.chmod(os.path.join(shim, "dirname"), 0o755)
     for name, body in extra_shims.items():
@@ -2170,11 +2211,30 @@ def _r7n6blk_run(tag, extra_shims, premask=()):
         for s in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM):
             signal.signal(s, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_SETMASK, list(premask))
-    r = subprocess.run(["bash", SCRIPT, "replay", "--commit", head, "--repo-root", repo, "--worktree-root",
-                        os.path.join(d, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", gate,
-                        "--cold-runs", "1", "--warm-runs", "0", "--out", os.path.join(d, "out.json")],
-                       env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
-                       timeout=120)
+    if argv is None:
+        argv = ["replay", "--commit", head, "--repo-root", repo, "--worktree-root", os.path.join(d, "wt"),
+                "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", gate, "--cold-runs", "1",
+                "--warm-runs", "0", "--out", os.path.join(d, "out.json")]
+    if dead_err:                     # stderr is a pipe whose reader is already gone (a write = EPIPE / SIGPIPE)
+        rfd, wfd = os.pipe(); os.close(rfd)
+        try:
+            r = subprocess.run(["bash", SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
+                               stderr=wfd, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            r = subprocess.CompletedProcess(argv, None, "", "")
+        finally:
+            os.close(wfd)
+        r.stderr = ""
+    else:
+        try:
+            r = subprocess.run(["bash", SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired as e:     # a hang (e.g. an endless re-exec) is a FAIL row, never a crash
+            r = subprocess.CompletedProcess(argv, None, "", (e.stderr or b"").decode("utf-8", "replace")
+                                            if isinstance(e.stderr, bytes) else (e.stderr or ""))
+    r.report = os.path.exists(os.path.join(d, "out.json"))
+    if markers is not None:
+        markers.extend(line.split()[2] for line in readf(rec).splitlines() if len(line.split()) > 2)
     caller, worker, junk = [], [], []
     for line in readf(rec).splitlines():
         parts = line.split()
@@ -2227,6 +2287,139 @@ if want("R7N6BLKDEG"):
     else:
         bad("[R7N6BLKDEG] degrade path wrong (%s; stderr tail %r): expected rc 0, a DEGRADED warning naming "
             "--block-signal, and unblocked caller children" % (desc, r.stderr.strip()[-300:]))
+
+# --- ATM-1220 round 4 (fixer, the independent review's B1-B3 and surviving reviewer mutants, closed as classes).
+_R7N6_REFUSE = ("#!/bin/bash\nfor a in \"$@\"; do case \"$a\" in --block-signal*) : >>%(m)s; "
+                "echo \"env: unrecognized option '$a'\" >&2; exit 125 ;; --) break ;; esac; done\nexec %(e)s \"$@\"\n")
+if want("R7N6R4"):
+    realenv = shutil.which("env")
+    # (probe-bg) the capability probe is a BACKGROUND child (an async list ignores INT and QUIT, bash manual): a
+    # FOREGROUND probe (reviewer mutant R3M2) re-opens the wait-and-cooperative-exit drop the probe exists to avoid.
+    ign = os.path.join(WORK, "r7n6r4.probeign")
+    shim = ("#!/bin/bash\ncase \" $* \" in *\" --block-signal=HUP,INT,QUIT,TERM true \"*) "
+            "sed -n 's/^SigIgn:[[:space:]]*//p' /proc/self/status >>%s ;; esac\nexec %s \"$@\"\n" % (ign, realenv))
+    mk = []
+    r, caller, worker, junk = _r7n6blk_run("R7N6R4-probe", {"env": shim}, markers=mk)
+    lines = readf(ign).split()
+    try:
+        vals = [int(v, 16) for v in lines]
+    except ValueError:
+        vals = []
+    if len(vals) != 1:
+        bad("[R7N6R4-probe-bg] control needle: the probe ran %d times (want exactly 1; %r) -- BLIND" % (len(vals), lines))
+    elif vals[0] & 0b110 == 0b110 and r.returncode == 0:
+        ok("[R7N6R4-probe-bg] the capability probe runs as a background child (its INT and QUIT ignored, SigIgn %x): "
+           "the wait builtin, not a foreground wait, receives the stop" % vals[0])
+    else:
+        bad("[R7N6R4-probe-bg] the probe is not a background child (SigIgn %x, rc %s) -- a foreground probe re-opens "
+            "the wait-and-cooperative-exit drop" % (vals[0], r.returncode))
+    # (marker) _FC_BR_STOPS_BLOCKED never reaches a child (reviewer mutant R3M4: the unset removed -- every child, the
+    # worker and the gates included, would inherit a claim that is false for them)
+    if not caller or not worker:
+        bad("[R7N6R4-marker] control needle: no caller/worker record (%r / %r) -- BLIND" % (caller, worker))
+    elif not mk:
+        ok("[R7N6R4-marker] no caller-side or worker-side child sees _FC_BR_STOPS_BLOCKED (%d records)"
+           % (len(caller) + len(worker)))
+    else:
+        bad("[R7N6R4-marker] _FC_BR_STOPS_BLOCKED leaked into %d child(ren)" % len(mk))
+    # (freeze) `freeze` never execs into the supervisor, so its stops must never be blocked (reviewer mutant R3M10)
+    rf, fc_, fw, fj = _r7n6blk_run("R7N6R4-freeze", {}, argv=["freeze", "--item", "X", "--out",
+                                                              os.path.join(WORK, "r7n6r4.freeze.json")])
+    if not fc_:
+        bad("[R7N6R4-freeze] control needle: no caller-side record from `freeze` (rc %s) -- BLIND" % rf.returncode)
+    elif all(v & _R7N6BLK_NEED == 0 for v in fc_):
+        ok("[R7N6R4-freeze] `freeze` runs its children with the stop signals unblocked (%s)" % ["%x" % v for v in fc_])
+    else:
+        bad("[R7N6R4-freeze] `freeze` children run with stops blocked (%s) -- nothing would ever unblock them"
+            % ["%x" % v for v in fc_])
+    # (liar) an env that ACCEPTS --block-signal but does not block (reviewer mutant R3M11 shape: it drops the option)
+    lmark = os.path.join(WORK, "r7n6r4.liar")
+    liar = ("#!/bin/bash\na=(); for x in \"$@\"; do case \"$x\" in --block-signal*) : >>%s ;; *) a+=(\"$x\") ;; esac; "
+            "done\nexec %s \"${a[@]}\"\n" % (lmark, realenv))
+    rl, lc, lw, lj = _r7n6blk_run("R7N6R4-liar", {"env": liar}, timeout=40)
+    if not os.path.exists(lmark) or not lc:
+        bad("[R7N6R4-liar] control needle: the lying env was not exercised or no caller record -- BLIND")
+    elif rl.returncode == 0 and "still unblocked after the re-exec" in rl.stderr and "DEGRADED" in rl.stderr:
+        ok("[R7N6R4-liar] an env that accepts --block-signal but does not block is caught after the re-exec: DEGRADED "
+           "'still unblocked', rc 0, no loop")
+    else:
+        bad("[R7N6R4-liar] lying env not caught (rc %s; stderr %r)" % (rl.returncode, rl.stderr.strip()[-200:]))
+    # (static) the reset in front of the exec must not list QUIT: `trap - QUIT` restores bash's OWN SIG_IGN (bash
+    # ignores QUIT in itself) and a QUIT in that window is discarded (review r3 B3, measured)
+    src = open(SCRIPT).read()
+    blk = src[src.find("replay|replay-sample|selfcheck)\n    if [ \"${FC_BR_SUPERVISED:-}\" != 1 ]"):
+              src.find("unset _FC_BR_STOPS_BLOCKED\n")]
+    resets = [l.strip() for l in blk.splitlines() if l.strip().startswith("trap - ")]
+    if not blk or not resets:
+        bad("[R7N6R4-quitreset] control needle: the block or its trap reset was not found -- BLIND")
+    elif all("QUIT" not in l.split("#")[0] for l in resets):
+        ok("[R7N6R4-quitreset] the reset in front of the exec keeps QUIT trapped (%r)" % resets)
+    else:
+        bad("[R7N6R4-quitreset] the reset in front of the exec resets QUIT (%r) -- a QUIT there is discarded" % resets)
+    # (deadpipe) DEGRADED + a dead stderr reader: the DEGRADED write must not kill the tool (SIGPIPE ignored first;
+    # review r3 B2: rc -13 and no report)
+    dm = os.path.join(WORK, "r7n6r4.deadref")
+    rd, dc, dw, dj = _r7n6blk_run("R7N6R4-deadpipe", {"env": _R7N6_REFUSE % {"m": dm, "e": realenv}}, dead_err=True)
+    if not os.path.exists(dm):
+        bad("[R7N6R4-deadpipe] control needle: the refusing env was not exercised -- BLIND")
+    elif rd.returncode == 0 and rd.report:
+        ok("[R7N6R4-deadpipe] DEGRADED env + dead stderr reader: rc 0 and the report is written")
+    else:
+        bad("[R7N6R4-deadpipe] DEGRADED env + dead stderr reader: rc %s report=%s (want 0 / True) -- the DEGRADED "
+            "write killed the tool" % (rd.returncode, rd.report))
+
+# --- ATM-1220 round 4: QUIT, the stop bash ignores in itself. (q-probe) QUIT while the probe is held = 131 (the
+# wait builtin + the probe trap). (q-child) QUIT while the RE-EXEC'D caller bash waits for a foreground child (the
+# SCRIPT_DIR `dirname`): blocked since the env, it stays pending and ends the run as a stop (131 or killed by QUIT, -3).
+# On 639979c (no block) the QUIT is ignored there and the whole replay runs (rc 0, report written).
+if want("R7N6QUIT"):
+    realenv = shutil.which("env")
+    for sub in ("probe", "child"):
+        case = os.path.join(WORK, "r7n6q" + sub); os.makedirs(os.path.join(case, "tmp")); os.makedirs(os.path.join(case, "locks"))
+        repo = os.path.join(case, "repo"); head = mk_repo(repo)
+        sh = os.path.join(case, "shim"); os.makedirs(sh)
+        if sub == "probe":
+            open(os.path.join(sh, "env"), "w").write(
+                "#!/bin/bash\ncase \" $* \" in *\" --block-signal=HUP,INT,QUIT,TERM true \"*) echo r >%s/ready; sleep 2 ;; "
+                "esac\nexec %s \"$@\"\n" % (case, realenv))
+            os.chmod(os.path.join(sh, "env"), 0o755)
+        else:
+            open(os.path.join(sh, "dirname"), "w").write(
+                "#!/bin/bash\nif [ ! -e %(c)s/ready ] && [ -z \"${FC_BR_SUPERVISED:-}\" ]; then echo r >%(c)s/ready; sleep 2; fi\n"
+                "exec %(d)s \"$@\"\n" % {"c": case, "d": shutil.which("dirname")})
+            os.chmod(os.path.join(sh, "dirname"), 0o755)
+        env = dict(os.environ, PATH=sh + ":" + os.environ["PATH"], TMPDIR=os.path.join(case, "tmp"),
+                   FC_REPLAY_LOCK_DIR=os.path.join(case, "locks"))
+        env.pop("FC_OUT", None)
+
+        def pre_q():
+            for s_ in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM):
+                signal.signal(s_, signal.SIG_DFL)
+            signal.pthread_sigmask(signal.SIG_SETMASK, [])
+            import resource
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            os.setsid()
+        p = subprocess.Popen(["bash", SCRIPT, "replay", "--commit", head, "--repo-root", repo, "--worktree-root",
+                              os.path.join(case, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0",
+                              "--gate-cmd", "true", "--cold-runs", "1", "--warm-runs", "0", "--out",
+                              os.path.join(case, "out.json")],
+                             env=env, preexec_fn=pre_q, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        ready = wait_path(os.path.join(case, "ready"), 30)
+        if ready:
+            sig_pid(p.pid, signal.SIGQUIT)
+        try:
+            _, err = p.communicate(timeout=60); rc = p.returncode
+        except subprocess.TimeoutExpired:
+            sig_pid(p.pid, signal.SIGKILL); _, err = p.communicate(); rc = None
+        rep = os.path.exists(os.path.join(case, "out.json"))
+        want_rc = (131,) if sub == "probe" else (131, -3)
+        if not ready:
+            bad("[R7N6QUIT-%s] control needle: the hold was never reached (%s) -- BLIND" % (sub, err.strip()[-160:]))
+        elif rc in want_rc and not rep:
+            ok("[R7N6QUIT-%s] SIGQUIT during the held %s: rc %s (a stop), no replay ran" % (sub, sub, rc))
+        else:
+            bad("[R7N6QUIT-%s] SIGQUIT during the held %s: rc %s (want %s) report=%s -- the QUIT was lost"
+                % (sub, sub, rc, want_rc, rep))
 
 # --- N6 sweep (injection I, verbatim shape): INT at a random instant 0-250 ms after start, 40 runs of a replay whose
 # gate sleeps 3 s (so a finished replay cannot explain rc 0). Every run must end 130 (or be killed by INT, which a

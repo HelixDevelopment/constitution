@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-13 |
 | Last modified | 2026-11-04 |
 | Status | active |
@@ -132,15 +132,18 @@ What the tool does now:
 - Before its first foreground child, the caller's bash reads its own signal mask (builtin `read` of
   `/proc/self/status`). If HUP, INT, QUIT and TERM are not all blocked, it runs one probe
   `env --block-signal=HUP,INT,QUIT,TERM true` in the background (waited with `wait`, which a trapped stop interrupts at
-  once) and then re-executes itself through `env --block-signal=HUP,INT,QUIT,TERM`. A stop that arrives after that
-  stays pending and is handled by the supervisor (exit 128+N). A stop that arrives before the re-exec ends the tool with
-  128+N or with the signal itself.
+  once) and then re-executes itself through `env --block-signal=HUP,INT,QUIT,TERM`. HUP, INT and TERM that arrive
+  after the probe stay pending and are handled by the supervisor (exit 128+N); one that arrives before the re-exec ends
+  the tool with 128+N or with the signal itself. QUIT is different, see the QUIT limit below.
 - The worker and every gate run with these signals unblocked (the supervisor resets the mask). `[R7N6BLK]` checks both
   sides, with an empty caller mask and with a caller that blocks only INT.
 - **Degraded mode.** If `env` has no `--block-signal` (GNU coreutils older than 8.31), the tool still runs, with the
   earlier trap-only protection, and prints one line on stderr starting `baseline_replay: WARNING: DEGRADED stop
   protection`. In that mode the rare lost stop described above is still possible. Install an `env` that supports
-  `--block-signal` to remove it. `[R7N6BLKDEG]` checks this path.
+  `--block-signal` to remove it. `[R7N6BLKDEG]` checks this path. The warning is written after SIGPIPE is ignored, so a
+  closed stderr reader does not kill the tool (`[R7N6R4-deadpipe]`). The same warning, with the words "still unblocked
+  after the re-exec", appears if `env` accepts `--block-signal` but does not block, or if the caller set
+  `_FC_BR_STOPS_BLOCKED=1` itself (`[R7N6R4-liar]`).
 
 Limits:
 
@@ -150,6 +153,14 @@ Limits:
   child at once; it now waits until the child ends, because the child inherits the blocked mask (measured with a 3 s
   child: 0.8 s before, 3.0 s now). If one of these checks hangs, only SIGKILL ends it. No timeout bounds these checks
   yet (tracked as an ATM-1220 follow-up).
+- **QUIT is not fully protected.** Bash ignores QUIT in its own process. A QUIT is therefore lost in two short
+  windows that no shell code can close: from the tool's start until its first QUIT trap (bash start-up and the mask
+  read), and inside the re-executed bash from its start until bash ignores QUIT (bash start-up discards a pending
+  QUIT). The QUIT trap is kept until the `exec` (since round 4), so the gap between the probe and the `exec` no longer
+  loses it. Measured with 120 QUITs at random instants 0-300 ms after start, the gate sleeping 3 s: 1 lost (sent 2 ms
+  after start, still in the first bash); the 76ac981 code lost 3 of 120 (2, 2 and 17 ms), the code before ATM-1220
+  9 of 120. `[R7N6QUIT-probe]` (QUIT during the probe gives 131) and `[R7N6QUIT-child]` (QUIT while the re-executed
+  bash waits for a child ends the run as a stop) check the covered parts.
 - **`freeze` is not covered.** It never execs into the supervisor, so nothing would unblock its stops. It keeps the
   default dispositions, and a stop that lands while it waits for a child can still be dropped by bash.
 

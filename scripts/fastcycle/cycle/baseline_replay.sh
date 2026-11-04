@@ -262,15 +262,20 @@
 # 600 random INTs each, scratchpad atm1220_v4r5_flake.md section 4): an INT that reaches bash while it waits for a
 # foreground child that then exits normally is DROPPED (bash's wait-and-cooperative-exit rule: 107/600 untrapped, still
 # 14/600 with the traps of the dispatch below), and an INT caught by a bash trap in the instant before `exec` is lost
-# with the old image (2/600 with no child at all); blocked from the start: 0/600. Blocked, the stop stays PENDING
-# across every fork and both execs and reaches the supervisor, which unblocks it with its own handler installed
+# with the old image (2/600 with no child at all); blocked from the start: 0/600. Blocked, HUP/INT/TERM stay PENDING
+# across every fork and both execs and reach the supervisor, which unblocks them with its own handler installed
 # (fc_supervisor.py reset_inherited); the worker is excluded (FC_BR_SUPERVISED) and the supervisor's spawn resets
 # the mask, so the worker and every gate stay stoppable. The mask is read with the builtin `read` from /proc/self (the
 # redirection is opened by this shell itself: a compound command with a redirection runs in the current shell, no child).
 # CAPABILITY PROBE: `env --block-signal` (GNU coreutils >= 8.31, uutils) is probed once, as a BACKGROUND child waited
 # for with the `wait` builtin under the stop traps -- a trapped signal makes `wait` return at once and the trap runs
-# (bash manual, SIGNALS), so the probe has no drop window. The traps are reset to the caller's dispositions just
-# before the exec (a stop after that ends bash by the signal itself: killed by INT = 130 to a shell).
+# (bash manual, SIGNALS), so the probe has no drop window. HUP/INT/TERM traps are reset to the caller's dispositions
+# just before the exec (a stop after that ends bash by the signal itself: killed by INT = 130 to a shell); the QUIT trap
+# is KEPT up to the exec (round 4): `trap - QUIT` restores bash's OWN SIG_IGN and a QUIT there was lost.
+# QUIT LIMIT (S11.4.6, measured): bash ignores QUIT in itself, so QUIT is NOT "pending across every exec" like the
+# other three -- it is lost (a) from this bash's start until the QUIT trap below is set, and (b) in the re-exec'd bash
+# from its start until bash ignores QUIT (that sigaction discards a pending QUIT). No shell code can close either.
+# 120 QUITs at 0-300 ms: 1 lost (2 ms, first bash); 76ac981: 3/120; before ATM-1220: 9/120 ([R7N6QUIT-*] cover the rest).
 # DEGRADE (never silent): where env cannot block (probe status != 0, or env claimed success but the re-exec'd mask is
 # still not blocked) the tool runs with the earlier trap-only protection and prints one "DEGRADED" line naming
 # --block-signal and the residual risk on stderr ([R7N6BLKDEG]); the replay verdict itself is unaffected.
@@ -281,6 +286,16 @@
 # early (measured: 0.8 s trapped vs 3.0 s blocked) -- a hang there is ended only by SIGKILL or by the child itself;
 # these checks are not bounded by a timeout (tracked, ATM-1220 follow-up). `freeze` is out of scope: it never execs
 # into the supervisor, so nothing would ever unblock its stops -- it keeps the default dispositions (see the dispatch).
+# T048 V4 round 8 (V4R8-1, CLASS 2): a write to a stdout/stderr whose reader is gone must never decide the exit code.
+# With SIGPIPE at its default action the shell DIED of it: `replay --determinism-check` with a dead stdout reader exited
+# 141 without writing the mandatory --out report (the verdict was echoed first), a harness-error replay with a dead
+# stderr reader exited 141 instead of 4, and a usage error in front of the exec died before `exit 2`. Ignored here (in
+# the caller's process in front of the exec AND in the worker, which is this script again): a write to a dead reader
+# is an EPIPE error and the code is the table's. Every gate still starts with SIGPIPE at SIG_DFL -- the run supervisor
+# resets every disposition but the caller's ignored stop signals (fc_supervisor.py spawn / KEEP_IGNORED).
+# ATM-1220 r4 (B2): set BEFORE the stop-signal block below, whose DEGRADED warning is the first write to stderr
+# (measured on 76ac981: degraded env + dead stderr reader = killed by SIGPIPE, rc -13, no report).
+trap '' PIPE
 case "${1:-}" in
   replay|replay-sample|selfcheck)
     if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then
@@ -289,7 +304,7 @@ case "${1:-}" in
       case "$_fc_blk" in ''|*[!0-9a-fA-F]*) _fc_blk=0 ;; esac
       if [ $((16#$_fc_blk & 16#4007)) -ne $((16#4007)) ]; then
         if [ "${_FC_BR_STOPS_BLOCKED:-}" = 1 ]; then
-          _FC_BR_DEGRADED="env reported --block-signal but the stop signals are still unblocked after the re-exec (SigBlk $_fc_blk)"
+          _FC_BR_DEGRADED="env reported --block-signal (or the caller preset _FC_BR_STOPS_BLOCKED=1) but the stop signals are still unblocked after the re-exec (SigBlk $_fc_blk)"
         else
           trap 'exit 129' HUP
           trap 'exit 130' INT
@@ -298,7 +313,7 @@ case "${1:-}" in
           env --block-signal=HUP,INT,QUIT,TERM true </dev/null >/dev/null 2>&1 &
           wait "$!"
           _fc_probe=$?
-          trap - HUP INT QUIT TERM
+          trap - HUP INT TERM     # QUIT stays trapped up to the exec (r4 B3): `trap - QUIT` restores bash's own SIG_IGN
           if [ "$_fc_probe" = 0 ]; then
             _FC_BR_STOPS_BLOCKED=1 exec env --block-signal=HUP,INT,QUIT,TERM "$BASH" "${BASH_SOURCE[0]}" "$@"
           fi
@@ -311,14 +326,6 @@ case "${1:-}" in
 esac
 unset _FC_BR_STOPS_BLOCKED
 set -u
-# T048 V4 round 8 (V4R8-1, CLASS 2): a write to a stdout/stderr whose reader is gone must never decide the exit code.
-# With SIGPIPE at its default action the shell DIED of it: `replay --determinism-check` with a dead stdout reader exited
-# 141 without writing the mandatory --out report (the verdict was echoed first), a harness-error replay with a dead
-# stderr reader exited 141 instead of 4, and a usage error in front of the exec died before `exit 2`. Ignored here (in
-# the caller's process in front of the exec AND in the worker, which is this script again): a write to a dead reader
-# is an EPIPE error and the code is the table's. Every gate still starts with SIGPIPE at SIG_DFL -- the run supervisor
-# resets every disposition but the caller's ignored stop signals (fc_supervisor.py spawn / KEEP_IGNORED).
-trap '' PIPE
 
 # --- resolve this script's own directory, independent of caller's cwd ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

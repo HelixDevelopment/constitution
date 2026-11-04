@@ -361,7 +361,7 @@ MUTS = [
     # became an EQUIVALENT mutant (it survived the round-7 run). Re-expressed: the /proc/$$ read together with the
     # QUIT trap removed, i.e. the round-3 situation the guard exists for.)
     ("R3-M5", BR, [("  ign=\"$(sed -n 's/^SigIgn:[[:space:]]*//p' /proc/self/status 2>/dev/null)\"", "  ign=\"$(sed -n 's/^SigIgn:[[:space:]]*//p' \"/proc/$$/status\" 2>/dev/null)\""),
-                   ("      trap 'exit 131' QUIT\n", "")],
+                   ("\n      trap 'exit 131' QUIT\n", "\n")],     # ATM-1220 r4: "\n" + 6 spaces = the dispatch line only
      T_R2, SM("QUIT", "worker", "never"), "NOT ok [SM] QUIT-worker-never"),
     # V4R3-14: the INTERRUPTED marker of an interrupted run-log directory never written
     ("R3-M6", SUP, [('        elif kind == "logs" and fields and fields[0]:', '        elif False:')],
@@ -604,8 +604,10 @@ MUTS = [
     ("V4R7-N6c", BR, [('  exec ${blk[@]+"${blk[@]}"} python3 -I -S "$_FC_SUPERVISOR" main', '  exec ${blk[@]+"${blk[@]}"} python3 -I "$_FC_SUPERVISOR" main')],
      T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (c)"),
     # N6: no INT trap in front of the exec -- bash's wait-and-cooperative-exit drops an INT during a foreground child
-    ("V4R7-N6e", BR, [("      trap 'exit 130' INT\n", "")],
-     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (e)"),
+    # (ATM-1220 r4: with a healthy env the four-signal block makes this trap unobservable -- the row is the DEGRADED
+    # variant (e-deg); anchor "\n" + 6 spaces = the dispatch line only, never the 10-space probe traps)
+    ("V4R7-N6e", BR, [("\n      trap 'exit 130' INT\n", "\n")],
+     T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (e-deg)"),
     # N6: INT no longer blocked across the exec into the supervisor -- a start-up INT reaches the interpreter itself
     ("V4R7-N6d", BR, [('  env --block-signal=INT true >/dev/null 2>&1 && blk=(env --block-signal=INT)\n', '')],
      T_V5, {"V5_ONLY": "R7N6"}, "NOT ok [R7N6] (d)"),
@@ -1228,6 +1230,34 @@ MUTS = [
     ("CARRY-RV3", SUP, [("documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 4\n",
                          "documented exit code -- reported as 4 (BLIND)\" % (code,))\n        code = 0\n")],
      T_SUP, {}, "NOT ok [CARRY-F6-exit]"),
+    # ---- ATM-1220 (the four-signal block in front of the exec, 76ac981) + its round-4 fixes: the fix's own mutants
+    # (author M1-M5 and B2/B3) and the surviving reviewer mutants R3M2/R3M4/R3M10/R3M11, each with its killing row ----
+    ("ATM1220-M1", BR, [('            _FC_BR_STOPS_BLOCKED=1 exec env', '            : _FC_BR_STOPS_BLOCKED=1 exec env')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-M2", BR, [('exec env --block-signal=HUP,INT,QUIT,TERM "$BASH"', 'exec env --block-signal=INT "$BASH"')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-M3", BR, [('        echo "baseline_replay: WARNING: DEGRADED stop protection', '        : "baseline_replay: WARNING: DEGRADED stop protection')],
+     T_V5, {"V5_ONLY": "R7N6BLKDEG"}, "NOT ok [R7N6BLKDEG]"),
+    ("ATM1220-M4", BR, [('          if [ "$_fc_probe" = 0 ]; then\n', '          if :; then\n')],
+     T_V5, {"V5_ONLY": "R7N6BLKDEG"}, "NOT ok [R7N6BLKDEG]"),
+    ("ATM1220-M5", BR, [('      if [ $((16#$_fc_blk & 16#4007)) -ne $((16#4007)) ]; then\n', '      if [ $((16#$_fc_blk & 16#2)) -ne $((16#2)) ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6BLK"}, "NOT ok [R7N6BLK]"),
+    ("ATM1220-B2", BR, [("trap '' PIPE\ncase \"${1:-}\" in\n", "case \"${1:-}\" in\n"),
+                        ("unset _FC_BR_STOPS_BLOCKED\nset -u\n", "unset _FC_BR_STOPS_BLOCKED\nset -u\ntrap '' PIPE\n")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-deadpipe]"),
+    ("ATM1220-B3", BR, [("          trap - HUP INT TERM     # QUIT", "          trap - HUP INT QUIT TERM     # QUIT")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-quitreset]"),
+    ("ATM1220-R3M2", BR, [('true </dev/null >/dev/null 2>&1 &\n          wait "$!"\n', 'true </dev/null >/dev/null 2>&1\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-probe-bg]"),
+    ("ATM1220-R3M4", BR, [("unset _FC_BR_STOPS_BLOCKED\nset -u\n", "set -u\n")],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-marker]"),
+    ("ATM1220-R3M10", BR, [('  replay|replay-sample|selfcheck)\n    if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then\n',
+                            '  replay|replay-sample|selfcheck|freeze)\n    if [ "${FC_BR_SUPERVISED:-}" != 1 ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-freeze]"),
+    ("ATM1220-R3M11", BR, [('        if [ "${_FC_BR_STOPS_BLOCKED:-}" = 1 ]; then\n', '        if false; then\n')],
+     T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-liar]"),
+    ("ATM1220-QPROBE", BR, [("          trap 'exit 131' QUIT\n          trap 'exit 143' TERM\n          env --block-signal", "          trap 'exit 143' TERM\n          env --block-signal")],
+     T_V5, {"V5_ONLY": "R7N6QUIT"}, "NOT ok [R7N6QUIT-probe]"),
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
