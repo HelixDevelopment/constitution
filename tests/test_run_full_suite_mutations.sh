@@ -14,7 +14,9 @@
 # PASS-FULL-WITH-KNOWN, topology preflight and census additions; O2 O5 O7 O9 are the reviewer-authored
 # mutants of review round 4 that survived; D*, S5-S8, Y*, W* guard the round-5 fixes (drift / dirty tree /
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
-# acceptance lines); M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
+# every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own. A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -122,6 +124,13 @@ W2	    if who not in ids:\n        return "excluded set last accepted by %r, who
 W3	    if t.returncode != 0 or d.returncode != 0:	    if False:
 W4	        if ch != acc_chain(prev, ts, who, seth, rows):	        if False:
 W5	    if excl_who:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED	    if False:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED
+I1	            if qid != qid0 or "?" in qid:\n                id_changed = "before unit	            if False:\n                id_changed = "before unit
+I2	    if not id_changed:\n        qid = quick_ident(root, subs0)	    if False:\n        qid = quick_ident(root, subs0)
+I3	    if id_changed:\n        out("RESULT: FAIL (%sidentity	    if False:\n        out("RESULT: FAIL (%sidentity
+L1	    if os.path.islink(path):\n        return set(), "operator roster	    if False:\n        return set(), "operator roster
+L2	    if os.path.islink(lock_path):	    if False:
+Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
+Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
 EOF
 )
 

@@ -1995,6 +1995,8 @@ def last_acceptor(acc):
 
 def read_roster(root, path):
     """(set of operator ids, problem or None). The roster must exist, be tracked and equal HEAD (F6)."""
+    if os.path.islink(path):
+        return set(), "operator roster %s is a symlink (its edits would leave no trace in git history)" % path
     if not os.path.isfile(path):
         return set(), "no operator roster %s (one `id<TAB>who` line per operator, committed)" % path
     rel = os.path.relpath(path, root)
@@ -2060,6 +2062,9 @@ def excl_check(lock_path, rows):
                     "--verify-manifest --accept-excluded-change <reviewer>" % (len(ex), lock_path)]
         return []
     body, last, acc = lk
+    if os.path.islink(lock_path):
+        return ["%s is a symlink (its edits would leave no trace in git history); commit it as a regular file"
+                % lock_path]
     want = {p_: hashlib.sha256(n.encode()).hexdigest()[:16] for p_, n in ex}
     probs = ["%s: %s" % (lock_path, x) for x in acc_problems(acc)]
     if last is None or last != excl_set_hash(sorted((p_, h) for p_, h in body.items())):
@@ -2176,6 +2181,40 @@ def tree_ident(root):
     else:
         dh = "clean"
     return "head=%s subs=%s dirty=%s" % (head_s[:12], subs, dh), dirty
+
+
+def sub_paths(root):
+    """Paths of the initialised submodules (recursive), from `git submodule status --recursive`."""
+    p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL)
+    out_ = []
+    for line in p.stdout.decode(errors="replace").splitlines():
+        f = line[1:].split()
+        if line[:1] != "-" and len(f) >= 2:
+            out_.append(f[1])
+    return out_
+
+
+def quick_ident(root, subs):
+    """R5-1 (review r5): cheap identity checked before every unit and at the end -- HEAD of the root and
+    of every initialised submodule, and the sha256 of the root `git status --porcelain -z` (tracked,
+    untracked and submodule changes). A git failure gives `?`, which never equals a start value."""
+    parts = []
+    for rel in [""] + list(subs):
+        q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "rev-parse", "HEAD"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        parts.append("%s=%s" % (rel or ".", q.stdout.decode(errors="replace").strip() if q.returncode == 0 else "?"))
+    st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
+                         "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    parts.append("status=%s" % (hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else "?"))
+    return " ".join(parts)
+
+
+def ident_diff(a, b):
+    """The fields of two quick identities that differ, for the report."""
+    da, db = dict(x.split("=", 1) for x in a.split()), dict(x.split("=", 1) for x in b.split())
+    return ", ".join("%s %s -> %s" % (k, da.get(k, "absent")[:12], db.get(k, "absent")[:12])
+                     for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or "?" in db.get(k, "?"))
 
 
 def discarded_members(root, rows, heavy_mode):
@@ -3028,6 +3067,9 @@ def main(argv):
     sha = git(root, "rev-parse", "HEAD", check=False).strip() or "nogit"
     tree = tree_state(root)
     ident, dirty = tree_ident(root)
+    subs0 = sub_paths(root)
+    qid0 = quick_ident(root, subs0)
+    id_changed = ""
     with open(os.path.abspath(__file__), "rb") as fh:
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
     ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)
@@ -3090,6 +3132,11 @@ def main(argv):
                 emit(u, "SKIP", "runner_not_installed", "runner-absent", 0, 0, 0, [], None, "", "")
                 out("[%d/%d] SKIP (runner_not_installed: %s) %s" % (n, total, u["runner"], u["id"]))
                 continue
+            qid = quick_ident(root, subs0)
+            if qid != qid0 or "?" in qid:
+                id_changed = "before unit %s: %s" % (u["id"], ident_diff(qid0, qid))
+                out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
+                break
             t = tmo * 2 if u["runner"] in ("go-test",) or u["path"].endswith("run_all.sh") else tmo
             u["tmo"] = t
             logrel = "logs/%06d.log" % len(res.recs)
@@ -3148,6 +3195,13 @@ def main(argv):
     if sum(cats.values()) != total:
         raise Fatal(2, "internal: category counts %d != units %d" % (sum(cats.values()), total))
     tree_end = tree_state(root)
+    if not id_changed:
+        qid = quick_ident(root, subs0)
+        ident_end = tree_ident(root)[0]
+        if qid != qid0 or "?" in qid:
+            id_changed = "at the end of the run: %s" % ident_diff(qid0, qid)
+        elif ident_end != ident:
+            id_changed = "at the end of the run: %s -> %s" % (ident, ident_end)
     summ = ["full-suite summary  sha=%s tree=%s ctx=%s mode=%s root=%s" % (sha, tree, ctx, mode, root),
             cline,
             "units=%d (run in this mode=%d, heavy not run=%d); known-failures table: %s (%s)"
@@ -3174,6 +3228,9 @@ def main(argv):
         lk_ = read_excl_lock(lock_path)
         summ.append("EXCLUDED set last accepted_by: %s%s" % (last_acceptor(lk_[2]) if lk_ else None,
                                                             " -- NOT OPERATOR-ACCEPTED: " + excl_who if excl_who else ""))
+    if id_changed:
+        summ.append("IDENTITY CHANGED %s (the units after the change did not run the commit this run names)"
+                    % id_changed)
     if tree_end != tree:
         summ.append("TREE CHANGED during the run (start %s, end %s): a suite wrote into the repository" % (tree[:12], tree_end[:12]))
     summ.append("--- non-PASS, nondeterministic and exit-code-only units")
@@ -3184,6 +3241,10 @@ def main(argv):
     tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt); %s"
             % (cats["SKIP"], exit_only, known_n, nondet, len(ex), ident))
     nf = " -- not a section 11.4.40 full retest"
+    if id_changed:
+        out("RESULT: FAIL (%sidentity changed during the run %s; %s)"
+            % ("repository tree changed during the run; " if tree_end != tree else "", id_changed, tail))
+        return 1
     if bad:
         out("RESULT: FAIL (%d unexplained FAIL/TIMEOUT/ERROR/NONDETERMINISTIC; %s)" % (bad, tail))
         return 1

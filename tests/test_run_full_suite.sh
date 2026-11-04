@@ -976,5 +976,91 @@ chk "O7: flipping unit with a KNOWN row -> rc 1 (never 7)" "$RC" "1"
 has "O7: nondeterminism reported" 'NONDETERMINISTIC=1' "$T/o_fk.log"
 hasnt "O7: no KNOWN tag on a flipping unit" 'KNOWN ATM-11' "$T/o_fk/summary.txt"
 
+# =========================================================================== round 6 (review r5 R5-1 R5-2 R5-6)
+# --- 34 R5-1: the identity (HEAD of the root and of every submodule, root status) is verified before
+# every unit and at the end; any change ends FAIL, and no later unit is run or credited to the start HEAD
+HM="$T/headmove"; mkroot "$HM"
+sut "$HM" tests/a/test_1.sh "git -C '$HM' checkout -q bb 2>/dev/null; echo 'passed=1 failed=0'; exit 0"
+sut "$HM" tests/a/test_2.sh 'echo "passed=0 failed=1"; exit 1'
+gen "$HM"; gitc "$HM" add -A; gitc "$HM" commit -q -m A; HMA=$(git -C "$HM" rev-parse HEAD)
+gitc "$HM" checkout -q -b bb; sut "$HM" tests/a/test_2.sh 'echo "passed=1 failed=0"'; gitc "$HM" commit -q -am B
+gitc "$HM" checkout -q "$HMA"
+run "$HM" "$T/o_hm" --include-heavy
+chk "R5-1: HEAD moved by a unit mid-run -> rc 1" "$RC" "1"
+has "R5-1: RESULT names the identity change" '^RESULT: FAIL \(identity changed during the run' "$T/o_hm.log"
+has "R5-1: summary says where it changed" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm/summary.txt"
+chk "R5-1: the unit after the move is not run (never credited to the start HEAD)" "$(verdict "$T/o_hm" tests/a/test_2.sh)" ""
+hasnt "R5-1: never PASS-FULL" '^RESULT: PASS' "$T/o_hm.log"
+gitc "$HM" checkout -q "$HMA"
+HM2="$T/headmove_last"; mkroot "$HM2"
+sut "$HM2" tests/a/test_1.sh "git -C '$HM2' checkout -q bb 2>/dev/null; echo 'passed=1 failed=0'; exit 0"
+gen "$HM2"; gitc "$HM2" add -A; gitc "$HM2" commit -q -m A; HM2A=$(git -C "$HM2" rev-parse HEAD)
+gitc "$HM2" checkout -q -b bb; gitc "$HM2" commit -q --allow-empty -m B; gitc "$HM2" checkout -q "$HM2A"
+run "$HM2" "$T/o_hm2" --include-heavy
+chk "R5-1: HEAD moved by the last unit -> rc 1 (end check)" "$RC" "1"
+has "R5-1: end check named" '^IDENTITY CHANGED at the end of the run' "$T/o_hm2/summary.txt"
+HM3="$T/submove"; mkroot "$HM3"
+gitc "$HM3" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
+sut "$HM3" tests/a/test_1.sh "git -C '$HM3/sub' -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved; echo 'passed=1 failed=0'"
+sut "$HM3" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+gen "$HM3"; gitc "$HM3" add -A; gitc "$HM3" commit -q -m sm
+run "$HM3" "$T/o_hm3" --include-heavy
+chk "R5-1: a submodule HEAD moved mid-run -> rc 1" "$RC" "1"
+has "R5-1: submodule move caught before the next unit" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm3/summary.txt"
+HG="$T/headread"; mkroot "$HG"
+sut "$HG" tests/a/test_1.sh "git -C '$HG' log -1 --oneline >/dev/null; git -C '$HG' status --short >/dev/null; echo 'passed=1 failed=0'"
+sut "$HG" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+gen "$HG"; gitc "$HG" add -A; gitc "$HG" commit -q -m g
+run "$HG" "$T/o_hg" --include-heavy
+chk "R5-1: units that only read git -> rc 0 (golden-FALSE)" "$RC" "0"
+hasnt "R5-1: no identity change reported (golden-FALSE)" 'IDENTITY CHANGED' "$T/o_hg/summary.txt"
+
+# --- 35 R5-6 (M4): a dirty tree with KNOWN failures is PARTIAL-DIRTY-TREE (10), never PASS-FULL-WITH-KNOWN (7)
+DK="$T/dirtyknown"; mkroot "$DK"; sut "$DK" tests/a/test_dk.sh "echo 'boom: lock timeout'; exit 1"
+gen "$DK"; gitc "$DK" add -A; gitc "$DK" commit -q -m dk
+printf 'tests/a/test_dk.sh\tlock timeout\tATM-12\topen\n' > "$T/known_dk.tsv"
+run "$DK" "$T/o_dk0" --include-heavy --known "$T/known_dk.tsv"
+chk "M4 pin: clean tree, KNOWN-only -> rc 7 (control)" "$RC" "7"
+echo u > "$DK/untracked.txt"
+run "$DK" "$T/o_dk1" --include-heavy --known "$T/known_dk.tsv"
+chk "M4 pin: dirty tree + KNOWN -> rc 10" "$RC" "10"
+hasnt "M4 pin: never PASS-FULL-WITH-KNOWN on a dirty tree" '^RESULT: PASS-FULL' "$T/o_dk1.log"
+
+# --- 36 R5-6 (M7): a failing git status in the identity check reads dirty=unknown and is rc 10 (fail closed)
+GS="$T/gitshim"; mkdir -p "$GS"; REALGIT=$(command -v git)
+{ echo '#!/usr/bin/env bash'
+  echo 'z=0; p=0; for a in "$@"; do case "$a" in -z) z=1;; --porcelain=v1) p=1;; esac; done'
+  echo 'if [ "$p" = 1 ] && [ "$z" = 0 ]; then echo "shim: status refused" >&2; exit 128; fi'
+  echo "exec '$REALGIT' \"\$@\""; } > "$GS/git"; chmod +x "$GS/git"
+GF="$T/gitfail"; mkroot "$GF"; sut "$GF" tests/a/test_gf.sh 'echo "passed=1 failed=0"'
+gen "$GF"; gitc "$GF" add -A; gitc "$GF" commit -q -m gf
+run "$GF" "$T/o_gf0" --include-heavy
+chk "M7 pin: control without the shim -> rc 0" "$RC" "0"
+PATH="$GS:$PATH" bash "$R" --root "$GF" --out "$T/o_gf" --include-heavy >"$T/o_gf.log" 2>&1; RC=$?
+chk "M7 pin: failing git status -> rc 10" "$RC" "10"
+has "M7 pin: identity reads dirty=unknown" 'dirty=unknown' "$T/o_gf.log"
+has "M7 pin: the failure is listed" 'git status failed' "$T/o_gf/summary.txt"
+
+# --- 37 R5-2: a roster or excluded lock that is a symlink is refused (its edits would leave no git trace)
+RS="$T/rsym"; mkroot "$RS"
+sut "$RS" tests/a/lib.sh 'f() { :; }'
+sut "$RS" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
+gen "$RS"; gitc "$RS" add -A; gitc "$RS" commit -q -m base
+printf '# id\twho\nalice\toperator alice\n' > "$T/outside_roster"
+ln -s "$T/outside_roster" "$RS/config/full_suite_operators.roster"; gitc "$RS" add -A; gitc "$RS" commit -q -m link
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs1.log" 2>&1; RC=$?
+chk "R5-2: acceptance through a symlinked roster -> exit 3" "$RC" "3"
+has "R5-2: symlinked roster named" 'roster .* is a symlink' "$T/rs1.log"
+hasnt "R5-2: nothing accepted" 'accepted_by=alice' "$RS/config/full_suite_excluded.lock"
+gitc "$RS" rm -q --cached config/full_suite_operators.roster; rm -f "$RS/config/full_suite_operators.roster"
+cp "$T/outside_roster" "$RS/config/full_suite_operators.roster"; gitc "$RS" add -A; gitc "$RS" commit -q -m real
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs2.log" 2>&1; RC=$?
+chk "R5-2: regular committed roster -> accepted (golden-FALSE)" "$RC" "0"
+gitc "$RS" add -A; gitc "$RS" commit -q -m acc
+mv "$RS/config/full_suite_excluded.lock" "$T/outside_lock"; ln -s "$T/outside_lock" "$RS/config/full_suite_excluded.lock"
+gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
+vfy "$RS" "$T/rs3.log"; chk "R5-2: symlinked excluded lock -> exit 3" "$RC" "3"
+has "R5-2: symlinked lock named" 'full_suite_excluded.lock is a symlink' "$T/rs3.log"
+
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

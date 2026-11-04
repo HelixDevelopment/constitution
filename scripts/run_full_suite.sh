@@ -41,6 +41,8 @@
 # IDENTITY  head=<sha12> subs=<hash> dirty=<clean|hash|unknown> is printed, stored in every
 #   record and in every RESULT line; a non-empty git status (root or any submodule, untracked
 #   included) ends the run PARTIAL-DIRTY-TREE (exit 10), never PASS-FULL.
+#   The identity (HEAD of root and submodules, root status) is re-checked before every unit and
+#   at the end; any change stops the run and ends FAIL (exit 1). Roster and lock: no symlinks.
 # VERDICTS  PASS | FAIL | SKIP(reason) | TIMEOUT | ERROR | SKIPPED-heavy | NOT-RUN.
 #   TIMEOUT only from the runner's own timer; 124/137/signal deaths are ERROR. rc 77 is
 #   SKIP; a node/bats unit with no such runner installed is SKIP runner_not_installed.
@@ -75,7 +77,7 @@
 #   an --out inside the repository is refused.
 # EXIT / RESULT line
 #   0 PASS-FULL             every unit run, none skipped, nothing unexplained, no KNOWN
-#   1 FAIL                  unexplained FAIL/TIMEOUT/ERROR/NONDETERMINISTIC, or tree changed
+#   1 FAIL                  unexplained FAIL/TIMEOUT/ERROR/NONDETERMINISTIC, tree or identity changed
 #   2                       usage, configuration, results-integrity or lock error
 #   3 MANIFEST-MISMATCH     census/manifest/rule/excluded-lock problem, blind census, needle
 #   4 PARTIAL-NOT-RUN       some units not run (--only, interrupted)

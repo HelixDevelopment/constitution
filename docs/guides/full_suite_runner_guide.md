@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-11-03 |
 | Last modified | 2026-11-04 |
-| Status | draft; review round 4 returned NO-GO (F1, own mutants O2 O5 O7 O9), this revision is the round-5 fix (the last budgeted round, §11.4.276); independent review owed (§11.4.142) |
+| Status | draft; review round 5 returned NO-GO (R5-1 identity checked at the start only, R5-2 symlinked roster, surviving mutants M4 M7); this revision is the operator-authorised narrow round 6 (§11.4.276(E)(3)); independent review owed (§11.4.142) |
 | Script | `scripts/run_full_suite.sh` (engine `scripts/full_suite/run_full_suite.py`, one file, run with `python3 -I`) |
 | Manifest | `config/full_suite_manifest.tsv` |
 | Excluded lock | `config/full_suite_excluded.lock` |
-| Operator roster | `config/full_suite_operators.roster` (absent at this revision: see Excluded rows) |
+| Operator roster | `config/full_suite_operators.roster` (one operator, by operator decision of 2026-11-04: the operator's git identity) |
 | Known failures | `config/full_suite_known_failures.tsv` |
 | Self-test | `bash tests/test_run_full_suite.sh`; paired mutations `bash tests/test_run_full_suite_mutations.sh` |
 
@@ -80,7 +80,9 @@ A file whose name matches a test pattern can be excluded only with `override: re
 
 The reviewed set is pinned by `config/full_suite_excluded.lock`: one line per excluded path with the sha256 (16 hex) of its note, under `# accepted <time> accepted_by=<operator> set=<hash> rows=<n> chain=<hash>` lines. `chain` is the sha256 (16 hex) of the previous line's chain (zeros for the first chained line), the time, the operator, the set hash and the row count; a rewritten, reordered or deleted acceptance line breaks it (exit 3), and once a chained line exists every later line must be chained. Older lines without `chain=` are read as unchained history. `--verify-manifest` (and every run) refuses with exit 3 when the lock is absent while rows are excluded, when a row is added, removed or has a changed note, or when the lock body does not match its last `accepted` line. An operator accepts a reviewed change with `bash scripts/run_full_suite.sh --verify-manifest --accept-excluded-change "<operator-id>"`; this appends an `accepted` line, it never replaces the earlier ones, and it is refused while any other manifest problem exists. The id must be listed in `config/full_suite_operators.roster` (one `id<TAB>who` line per operator), and the roster must be tracked and equal to HEAD; otherwise the acceptance is refused (exit 3) and nothing is appended. A run whose excluded set was last accepted by an id that is not on the committed roster ends `PARTIAL-EXCLUSIONS-UNACCEPTED` (exit 11), never green; `--verify-manifest` still exits 0 when the structure is consistent and prints a `NOTE:` line naming the acceptor. `summary.txt` prints the last acceptor. The lock bytes are part of the resume key. Every run lists the excluded rows in `summary.txt` and names their count in the RESULT line.
 
-At this revision the 44 excluded rows were recategorised by the author and accepted as `fsr-r4-author (pending independent review)`. That acceptance is the author's own, and no roster exists: creating `config/full_suite_operators.roster` and accepting the set is the operator's act (an agent must not add itself, §11.4.240). Until then every run of this repository ends `PARTIAL-EXCLUSIONS-UNACCEPTED` (exit 11).
+At this revision the 44 excluded rows were recategorised by the author and accepted as `fsr-r4-author (pending independent review)`. That acceptance is the author's own. By operator decision (2026-11-04) the roster holds one operator, the operator's own git identity (`i@mvasic.ru`); it was committed on the operator's instruction, but the acceptance itself was NOT run by an agent: the operator reviews the excluded list and runs `--verify-manifest --accept-excluded-change i@mvasic.ru`. Until then every run of this repository ends `PARTIAL-EXCLUSIONS-UNACCEPTED` (exit 11).
+
+The roster and the lock must be regular committed files. A symlink is refused (`--accept-excluded-change` and `--verify-manifest` exit 3; a run with a symlinked roster ends exit 11): the target of a committed symlink can be edited outside the repository with no trace in git history (review r5 R5-2).
 
 Honest limit (§11.4.240(F)): on a single-uid host the roster and the chain stop a careless or self-named acceptance and make every edit visible in git history; they do not prove that a human typed the command. Anyone who can run the command can type a rostered id, and anyone who can edit the lock can recompute the chain. The achieved separation is `instance`, not `capability`.
 
@@ -100,6 +102,8 @@ git -c protocol.file.allow=always submodule update --init --recursive
 ## Dirty tree and identity
 
 The runner records the identity of the code that ran: `head=<HEAD sha 12> subs=<hash of the commits the submodules are checked out at> dirty=<clean | hash | unknown>`. It is printed at the start, in `summary.txt`, in every result record (`ident`) and at the end of every RESULT line. The tree is dirty when `git status --porcelain --untracked-files=all --ignore-submodules=none` of the root, or of any submodule (recursive), is not empty: a modified or untracked file, or a modified or drifted submodule. A failing git status reads as `dirty=unknown`. A dirty run still runs (useful while developing) but ends `PARTIAL-DIRTY-TREE` (exit 10), never `PASS-FULL` or `PASS-FULL-WITH-KNOWN`, and `summary.txt` lists each difference. Ignored files are not counted as dirty; they are hashed into the tree hash (resume key) only, so a unit that reads an ignored file (a local cache, an `.env`) is not caught by this check.
+
+The identity is verified during the run as well, not only at the start (review r5 R5-1). Before every unit that is run, and once more at the end, the runner reads HEAD of the root and of every initialised submodule and the sha256 of the root `git status --porcelain -z`, and at the end the full identity again. Any difference from the start (a concurrent pull or checkout in the same tree, a unit that checks out a branch or commits, a unit that leaves a file behind) stops the run before the next unit, lists `IDENTITY CHANGED before unit <id>` or `IDENTITY CHANGED at the end of the run` in `summary.txt`, and ends `RESULT: FAIL (identity changed during the run ...)`, exit 1. No unit after the change is run, so no record names the start HEAD for code that did not have it. A git failure in this check reads as a change (fail closed). Limit: a change that is made and reverted inside one unit is not seen; the check costs about 0.5 s per unit on this repository with 32 initialised submodules (measured 2026-11-04).
 
 If a recorded submodule commit is missing from the local source (`fatal: ... not our ref` or `did not contain <sha>`), fetch it from the real upstream (`git -C <dir>/<path> fetch origin <sha>`) or report the gap; never point the submodule at another commit to make the preflight pass.
 
@@ -155,7 +159,7 @@ Output goes to `${XDG_CACHE_HOME:-$HOME/.cache}/full_suite_runner/<repo>-<sha12>
 | Exit | RESULT | Meaning |
 |---|---|---|
 | 0 | `PASS-FULL` | every unit ran, none skipped, nothing failed, no KNOWN failure |
-| 1 | `FAIL` | an unexplained FAIL, TIMEOUT, ERROR or NONDETERMINISTIC unit, or the repository tree changed during the run |
+| 1 | `FAIL` | an unexplained FAIL, TIMEOUT, ERROR or NONDETERMINISTIC unit, the repository tree changed during the run, or the identity changed during the run (HEAD of the root or of a submodule moved, or the root status changed) |
 | 2 | | usage, configuration, results-integrity or lock error |
 | 3 | `MANIFEST-MISMATCH` | census and manifest disagree, a rule is broken, the excluded set is not accepted, the census is blind, or the census needle failed |
 | 4 | `PARTIAL-NOT-RUN` | some units did not run (`--only`, interrupted) |
@@ -167,7 +171,7 @@ Output goes to `${XDG_CACHE_HOME:-$HOME/.cache}/full_suite_runner/<repo>-<sha12>
 | 10 | `PARTIAL-DIRTY-TREE` | the tree differs from HEAD or the recorded submodule commits; the code that ran is not the commit |
 | 11 | `PARTIAL-EXCLUSIONS-UNACCEPTED` | the excluded set was last accepted by an id that is not on the committed operator roster |
 
-Exits 4 to 8, 10 and 11 end with `-- not a section 11.4.40 full retest`. Precedence: FAIL, tree changed, topology gaps, not run, default set, skips, dirty tree, unaccepted exclusions, KNOWN, PASS-FULL; every RESULT line carries the identity. Only exit 0 from a run with `--include-heavy` is a §11.4.40 full-suite retest.
+Exits 4 to 8, 10 and 11 end with `-- not a section 11.4.40 full retest`. Precedence: identity changed, FAIL, tree changed, topology gaps, not run, default set, skips, dirty tree, unaccepted exclusions, KNOWN, PASS-FULL; every RESULT line carries the identity. Only exit 0 from a run with `--include-heavy` is a §11.4.40 full-suite retest.
 
 ## Limits
 

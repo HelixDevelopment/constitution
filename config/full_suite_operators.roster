@@ -1,0 +1,4 @@
+# id<TAB>who -- operators who may accept the excluded set of the full-suite manifest
+# (--verify-manifest --accept-excluded-change <id>). Operator decision 2026-11-04: one operator,
+# the operator's git identity. An agent never adds itself (section 11.4.240).
+i@mvasic.ru	Милош Васић <i@mvasic.ru>
