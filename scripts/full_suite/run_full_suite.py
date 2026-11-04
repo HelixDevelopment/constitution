@@ -1905,6 +1905,9 @@ def word_signal(line):
     return None
 
 
+CHECKLINE = re.compile(r"^(PASS(:|\s+[^\d\s=:])|ok\s+\d+(\s+-|\s+[A-Za-z])|ok\s+-)")
+
+
 def judge_exit0(text, kind):
     """Return (verdict, reason, source, counts) for a unit that exited 0."""
     lines = [l.rstrip() for l in text.splitlines() if l.strip()]
@@ -1920,7 +1923,9 @@ def judge_exit0(text, kind):
     counts, last_counts, words = [], None, []
     any_conflict = False
     for i, l in enumerate(win):
-        c = line_counts(l)
+        # a passing single-check line carries free-text description, never a summary: its numbers
+        # ("PASS: shape (5 FAIL + 56 ...)", "ok 3 - (2 failed) input") are not counts
+        c = None if CHECKLINE.match(l) else line_counts(l)
         if c:
             counts.append(c[0])
             last_counts = c[0]

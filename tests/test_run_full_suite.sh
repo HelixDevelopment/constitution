@@ -98,6 +98,11 @@ J = [
  ("RESULT: PASS (3 of 3)", "PASS", "", "summary"),
  ("passed=3 failed=0", "PASS", "", "summary"),
  # golden-FALSE: a per-item line with a 'failing' count is not a summary FAIL
+ # (measured: sol02_verdict_coverage/test_sol02.sh, a check description quoting "5 FAIL")
+ ("PASS: B M9 shape (5 FAIL + 56 no-verdict) -> exit 1\n----\nRESULT: PASS=5 FAIL=0", "PASS", "", "summary"),
+ ("ok 3 - handles (2 failed) input\nRESULT: PASS=3 FAIL=0", "PASS", "", "summary"),
+ # golden-bad control: the same shape with a real failure still FAILs
+ ("PASS: B M9 shape (5 FAIL + 56 no-verdict)\nRESULT: PASS=4 FAIL=1", "FAIL", "summary_reports_failures", "summary"),
  ("killed M1 (5 failing check(s))\nSUMMARY mutants=1 killed=1 survivors=0 not_applicable=0", "PASS", "", "summary"),
  ("RESULT: SKIP (one subcase)\nRESULT: SKIPPED subcase x\npassed=3 failed=0", "PASS", "", "summary"),
  ("TOTAL: failed_suites=0", "PASS", "", "summary"),

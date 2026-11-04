@@ -59,6 +59,7 @@ M32	        h.update(b"I" + f.encode())\n        h.update(file_digest(os.path.jo
 M33	                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD	                     "true; git status --porcelain=v1 -z --untracked-files=all >/dev/null; git diff HEAD >/dev/null
 M34	        flip = len(set(r["verdict"] for r in mine)) > 1	        flip = False
 M35	        if o["log"] in logs:	        if False:
+M36	        c = None if CHECKLINE.match(l) else line_counts(l)	        c = line_counts(l)
 R1	 and o["runner_hash"] == rhash	
 R2	    if tree_end != tree:\n        out("RESULT: FAIL	    if False:\n        out("RESULT: FAIL
 R3	    census_needle(scratch)\n	    pass\n
