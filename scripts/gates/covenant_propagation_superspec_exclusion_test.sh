@@ -16,5 +16,7 @@ cd "$W" || exit 2
 bash "$HERE/cm_covenant_114_287_propagation.sh" --root "$REPO" >"$W/out" 2>&1
 ok "fixture CLAUDE.md not reported MISSING" "$(grep -c 'submodules/superspec/examples/static-landing-page/CLAUDE.md' "$W/out")" 0
 ok "superspec exclusion reported as applied" "$(grep -c 'EXCLUDED  \*/submodules/superspec/examples/\*' "$W/out" | awk '{print ($1>0)?"yes":"no"}')" yes
+if [ -f "$REPO/submodules/claude_toolkit/CLAUDE.md" ]; then
 ok "control needle: the toolkit carrier is still enumerated by the gate" "$(grep -c 'submodules/claude_toolkit/CLAUDE.md' "$W/out" | awk '{print ($1>0)?"yes":"no"}')" yes
+else echo "skip - control needle: submodules/claude_toolkit is not checked out (topology_unsupported), the carrier cannot be enumerated"; fi
 echo "# pass=$P fail=$F"; [ "$F" -eq 0 ]
