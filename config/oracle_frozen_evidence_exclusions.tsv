@@ -1,0 +1,9 @@
+# oracle_frozen_evidence_exclusions.tsv -- CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245), CON-043 (operator decision 2026-11-05).
+# TAB columns: <literal repo-relative path> <class> <git blob id of the frozen bytes> <reason>. No globs. Class set (closed): frozen-red-evidence.
+# An entry is VOIDED (file scanned again, gate FAILs) when the file's blob id differs. The entry count may only DECREASE (ceiling below).
+# These are the archived P1 RED reproduction harness of llmctl spec 009; the archive README says it can no longer run and is not part of make test.
+# Proof that no runner executes them: tests/gates/test_oracle_frozen_exclusions.sh (part B). Do not annotate them: the archive stays verbatim.
+# ceiling: 3
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/n_tests.py	frozen-red-evidence	3fdb0290af2338a9b69cd25f05022328f828d773	archived P1 RED harness, cannot run (README), not executed by any runner
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_d16_d32.py	frozen-red-evidence	0fbf4aaf2706dea1520d4fba186014ca3d52ab44	archived P1 RED harness, cannot run (README), not executed by any runner
+submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_defects_d01_d15.py	frozen-red-evidence	2d51ab0475a8a6262df3a89797e2dfb68d2437d3	archived P1 RED harness, cannot run (README), not executed by any runner
