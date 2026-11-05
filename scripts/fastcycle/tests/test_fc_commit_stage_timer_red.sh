@@ -36,7 +36,6 @@
 # ok()/bad() are print-only reporters that always return 0, so `cond && ok .. || bad ..` never
 # mis-fires the || branch.
 # shellcheck disable=SC2015
-. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/commit_all.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -45,6 +44,8 @@ REAL_COMMIT_ALL="${FC_COMMIT_STAGE_COMMIT_ALL:-$ROOT/scripts/commit_all.sh}"
 REAL_COMMON="$ROOT/scripts/lib/common.sh"
 REAL_PUSH_ALL="$ROOT/scripts/push_all.sh"
 REAL_FC_TIMER="$ROOT/constitution/scripts/fastcycle/timing/fc_timer.sh"
+# consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$REAL_COMMIT_ALL" "$REAL_COMMON" "$REAL_PUSH_ALL"
 
 fail=0
 ok()  { echo "ok   $1"; }

@@ -85,7 +85,6 @@
 # Producer≠Verifier (§11.4.240): this file is authored as an independent
 # regression guard for an ALREADY-LANDED R3-I5 fix; it does not touch
 # either source file's own implementation.
-. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/testing/meta_test_false_positive_proof.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -97,6 +96,9 @@ RED="$FC/tests/test_metatest_per_mutant_red.sh"
 # mutation, applied to the real file's own text, makes this file exit != 0).
 # Default is the real, unmodified parent-repo file.
 MT="${METATEST_SRC:-$ROOT/scripts/testing/meta_test_false_positive_proof.sh}"
+# consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
+# (section F also reads the real, unmodified file whatever METATEST_SRC says, so it is required too)
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$MT" "$ROOT/scripts/testing/meta_test_false_positive_proof.sh"
 
 fail=0
 failx() { fail=1; }
