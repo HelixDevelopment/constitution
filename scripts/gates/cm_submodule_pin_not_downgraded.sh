@@ -15,16 +15,20 @@
 #
 # ── What it guards (and what it does not — §11.4.6) ───────────────────────
 # It compares the git INDEX with the base commit and guards commit paths that RUN git's pre-commit hook (or call this
-# script). NOT guarded (measured): `git commit --no-verify`; plumbing (commit-tree, update-ref); and commit paths that
-# do not run pre-commit at all: `git merge` (auto-commit and --ff-only), `cherry-pick`, `revert`, `rebase`. Therefore
-# a downgrade made on a vehicle branch can still land on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no
-# hook in scratch clones). Per-commit index diffs also miss a downgrade split across commits or combined with a path
-# move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built). The hook (scripts/hooks/
-# pre-commit-submodule-pin-not-downgraded) is shipped, NOT installed anywhere (operator consent).
-# --amend: git tells a pre-commit hook nothing about --amend, so the hook always uses base HEAD. For an amend that means
-# the transition is judged against the commit being amended, not its parent: amending the waived rollback commit
-# itself shows no gitlink change (PASS); a waiver row already in HEAD never counts (see below), so an amend cannot
-# re-use an old row. Run the gate directly with `--base HEAD^` to judge an amend against the parent.
+# script). Threat model: an ACCIDENT guard (a stale checkout picked up by a snapshot commit), not a guard against a
+# producer who wants to bypass it: that producer controls the environment and can skip hooks anyway.
+# NOT guarded (measured on git 2.53): `git commit --no-verify`; plumbing (commit-tree, update-ref); and commits made
+# without pre-commit: `git merge` (auto-commit and --ff-only), a CLEAN `cherry-pick`, `revert` or `rebase`. (After a
+# conflict, `cherry-pick --continue` does run pre-commit.) Therefore a downgrade made on a vehicle branch can still land
+# on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no hook in scratch clones); run this script with
+# `--base <parent>` on such a commit to judge it. Per-commit index diffs also miss a downgrade split across commits or
+# combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built). The hook
+# (scripts/hooks/pre-commit-submodule-pin-not-downgraded) is shipped, NOT installed anywhere (operator consent).
+# --amend: git tells a pre-commit hook nothing about --amend, so the hook always uses base HEAD, that is the commit being
+# amended, not its parent. Consequences: amending a waived rollback shows no gitlink change (PASS); an amend can strip or
+# change the waiver row of an already waived commit unchecked; and after a WARN (diverged) move, an amend to an ancestor
+# of the PARENT's pin is judged against the WARN commit, so it can land a downgrade against the real parent unwaived.
+# Run the gate directly with `--base HEAD^` to judge an amend against the parent.
 # Partial commit (`git commit -- <paths>`): git builds a temporary index from HEAD plus <paths>, so a waiver file not
 # named in <paths> is not seen.
 #
@@ -39,35 +43,47 @@
 #   PASS  no staged gitlink change, forward bump, diverged (WARN), new/deleted gitlink, or a valid waiver.
 #
 # ── Waiver (intentional rollbacks) — what IS and IS NOT enforced ─────────
-# File `.submodule_pin_waivers`, read from the git INDEX. TAB-separated, exactly 6 fields:
-#   path  old_sha  new_sha  authoriser  expiry  tracked_item
-# A row is valid for ONE transition, in ONE commit:
-#   - it binds the full transition (path, old pin, new pin), full 40/64-hex SHAs;
-#   - it must be NEW in this commit: a row whose exact line is already in the base commit's waiver file never counts, so
-#     a row committed with an earlier rollback cannot permit a later downgrade of the same pin;
+# File `.submodule_pin_waivers`, read from the git INDEX. TAB-separated, exactly 7 fields:
+#   path  old_sha  new_sha  authoriser  expiry  tracked_item  base_sha
+# ONE RULE for the lifetime of a row: a row waives ONE transition (path, old pin, new pin; full SHAs) in ONE commit that
+# has ONE parent, and that parent is base_sha (the full SHA of HEAD at the time the rollback is committed:
+# `git rev-parse HEAD`). It is spent by the first such commit: a commit reachable from a ref (`git rev-list --all`, all
+# worktrees), other than HEAD, whose parent is base_sha and whose waiver file carries the same (path, old, new, base)
+# row. So a row in an earlier commit, a row brought in by a merge, squash, cherry-pick or rebase, and a leftover row
+# from before the last commit never count: each of those commits has a different parent, a second parent (MERGE_HEAD),
+# or a parent whose waiver was already spent. A base_sha that is abbreviated, a name, or not the parent is refused.
+# A spent transition cannot be waived again on the same parent while the first commit is on a ref: make the new
+# rollback on top of a different parent, or remove that ref first.
+# Residual (documented, not detectable): a row bound to the CURRENT HEAD and never committed (an abandoned rollback)
+# still waives the next commit on that HEAD; the row is visible in that commit's diff. A spent commit that is reachable
+# only from a reflog (after `reset`, or a deleted branch) is not counted, so a `reset --soft` + redo works, and a squash
+# of a vehicle whose branch was deleted before the squash commit is not caught.
+# The other checks on a row:
 #   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive);
 #   - tracked_item matches <item_prefix>-NNN (3+ digits; NOT checked to exist in the tracker);
 #   - authoriser: no leading/trailing whitespace, no `<`/`>`, no control characters, and after Unicode NFC + casefold
 #     (locale independent, python3) it equals none of committer name, committer email, author name, author email
-#     (git var GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT); an unresolvable identity, or python3 missing, means not waived;
+#     (git var GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT); an unresolvable identity, python3 missing or failing, means
+#     not waived;
 #   - a row with a CR (CRLF line ending) is refused and says so.
 # Consumer DATA: `.submodule_pin_gate.conf`, read from the BASE commit (so it cannot be loosened in the commit that uses
 # it), lines `key=value`, `#` comments. Keys: max_waiver_days (integer 1..365, default 30), item_prefix (^[A-Z][A-Z0-9]+$,
-# default CON). An unknown key, a duplicate key or a bad value disables ALL waivers (fail safe) and never blocks a
-# non-waiver verdict, so a commit that repairs the config is not itself blocked.
+# default CON). An unknown key, a duplicate key, a bad value or an unreadable file disables ALL waivers (fail safe) and
+# never blocks a non-waiver verdict, so a commit that repairs the config is not itself blocked.
 # NOT ENFORCED: no authoriser ROSTER exists in this repository, so the authoriser is NOT verified to be a rostered
 # non-producer human — a producer can still name a second identity. This is therefore a speed bump with an audit trail,
 # NOT an §11.4.271-conformant waiver; CM-WAIVER-ROSTERED-EXPIRY-TRACKED remains owed. `--waivers FILE` replaces the index
-# copy with a plain file and then the novelty rule compares against an EMPTY base (tests / explicit use only; the hook
-# never uses it).
+# copy with a plain file (tests / explicit use only; the hook never uses it); the same rule applies to its rows.
 #
 # ── Usage ─────────────────────────────────────────────────────────────────
 #   cm_submodule_pin_not_downgraded.sh [--root <repo>] [--base <rev>] [--waivers <file>] [-h]
 #   --root is normalised to the repository top level (so diff.relative and a subdirectory --root cannot hide a path);
 #   --base defaults to HEAD (empty tree when HEAD is unborn). A submodule checkout path that is a symlink is BLIND.
-# Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; submodule git calls run with
-# GIT_NO_LAZY_FETCH=1 and GIT_NO_REPLACE_OBJECTS=1, so no network and no replace refs). Deps: bash, git, awk, date,
-# python3 (waiver authoriser check only).
+# Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; every git call runs with
+# GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no replace refs and no
+# legacy grafts). Deps: bash 4.3+, git, awk, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
+# needs GNU readlink (`readlink -f`). Without GNU date a waiver is refused (never honoured); without GNU readlink the
+# hook prints SKIP (not guarded).
 # Submodule git calls run with every variable from `git rev-parse --local-env-vars` removed except GIT_CONFIG_PARAMETERS
 # and GIT_CONFIG_COUNT (what git itself does for submodules); the superproject reads keep them (needed for `commit -a`'s
 # temporary index and for a linked worktree).
@@ -92,15 +108,18 @@ root="$(cd "$top" && pwd -P)" || blind0 "cannot enter $top"
 mapfile -t lev < <(git rev-parse --local-env-vars 2>/dev/null)
 [ "${#lev[@]}" -gt 0 ] || blind0 "git rev-parse --local-env-vars returned nothing"
 unsets=(); for v in "${lev[@]}"; do case "$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;; *) unsets+=(-u "$v") ;; esac; done
-sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 git "$@"; }
+sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git "$@"; } # submodule
+pg() { GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git -C "$root" "$@"; }        # superproject
+headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"
 if [ -z "$base" ]; then
-  basec="$(git -C "$root" rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)" || basec="$(git -C "$root" hash-object -t tree /dev/null)"
+  basec="$headc"; [ -n "$basec" ] || basec="$(pg hash-object -t tree /dev/null)"
 else
-  basec="$(git -C "$root" rev-parse -q --verify "$base^{commit}" 2>/dev/null)" || blind0 "--base $base does not resolve to a commit"
+  basec="$(pg rev-parse -q --verify "$base^{commit}" 2>/dev/null)" || blind0 "--base $base does not resolve to a commit"
 fi
+mergeh="$(pg rev-parse -q --verify 'MERGE_HEAD^{commit}' 2>/dev/null)"
 blob() { # <treeish> <path> -> content on stdout; rc 0 present, 1 absent, 2 unreadable
-  local id; id="$(git -C "$root" rev-parse -q --verify "$1:$2" 2>/dev/null)" || return 1
-  git -C "$root" cat-file blob "$id" 2>/dev/null || return 2
+  local id; id="$(pg rev-parse -q --verify "$1:$2" 2>/dev/null)" || return 1
+  pg cat-file blob "$id" 2>/dev/null || return 2
 }
 today="$(date +%Y-%m-%d)"
 # consumer DATA from the base commit; a config error disables waivers only
@@ -122,54 +141,82 @@ elif [ "$crc" = 0 ]; then
   done <<<"$ctext"
 fi
 lim="$(date -d "$today +$maxd days" +%Y-%m-%d)"
-if [ -n "$waivers" ]; then wsrc="file $waivers"; wtext="$(cat "$waivers" 2>/dev/null)"; btext=""
-else wsrc="index :.submodule_pin_waivers"; wtext="$(git -C "$root" show :.submodule_pin_waivers 2>/dev/null)"
-  btext="$(blob "$basec" .submodule_pin_waivers)"; [ $? = 2 ] && conferr="waiver file unreadable in base"; fi
-cident="$(git -C "$root" var GIT_COMMITTER_IDENT 2>/dev/null)"; aident="$(git -C "$root" var GIT_AUTHOR_IDENT 2>/dev/null)"
+if [ -n "$waivers" ]; then wsrc="file $waivers"; wtext="$(cat "$waivers" 2>/dev/null)"
+else wsrc="index :.submodule_pin_waivers"; wtext="$(pg show :.submodule_pin_waivers 2>/dev/null)"; fi
+cident="$(pg var GIT_COMMITTER_IDENT 2>/dev/null)"; aident="$(pg var GIT_AUTHOR_IDENT 2>/dev/null)"
 idname() { printf '%s' "${1%% <*}"; }
 idmail() { local m="${1#*<}"; printf '%s' "${m%%>*}"; }
 IDPY='import sys,unicodedata
-try:
+def main():
     p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]
-except Exception:
-    sys.exit(4)
-if len(p)!=5: sys.exit(4)
-a=p[0]
-if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): sys.exit(3)
-f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
-sys.exit(1 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0)'
+    if len(p)!=5: return 4
+    a=p[0]
+    if not a or a!=a.strip() or "<" in a or ">" in a or any(unicodedata.category(c).startswith("C") for c in a): return 3
+    f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())
+    return 10 if any(i.strip() and f(i.strip())==f(a) for i in p[1:]) else 0
+try:
+    rc=main()
+except BaseException:
+    rc=4
+sys.exit(rc)'
+kids=""; kidsrc=""; SPENT=""
+spent() { # <path> <old> <new> -> 0 spent (SPENT=commit), 1 unspent, 2 cannot tell (SPENT=reason)
+  # spent = a commit reachable from a ref, other than HEAD, whose parent is the base and whose waiver file carries the
+  # same (path, old, new, base) row
+  local all k t rc
+  if [ -z "$kidsrc" ]; then
+    if all="$(pg rev-list --all --parents 2>/dev/null)"; then kidsrc=ok
+      kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]; ARGV[1]=ARGV[2]=""}
+        $1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}' "$basec" "$headc")"
+    else kidsrc=err; fi
+  fi
+  [ "$kidsrc" = ok ] || { SPENT="git rev-list --all failed (a broken ref?)"; return 2; }
+  for k in $kids; do
+    t="$(blob "$k" .submodule_pin_waivers)"; rc=$?
+    [ "$rc" = 2 ] && { SPENT="the waiver file of commit ${k:0:12} (same parent) is unreadable"; return 2; }
+    [ "$rc" = 0 ] || continue
+    printf '%s\n' "$t" | awk -F'\t' 'BEGIN{p=ARGV[1]; o=ARGV[2]; n=ARGV[3]; b=ARGV[4]; ARGV[1]=ARGV[2]=ARGV[3]=ARGV[4]=""; f=1}
+      NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b"" {f=0} END{exit f}' "$1" "$2" "$3" "$basec" && { SPENT="$k"; return 0; }
+  done
+  return 1
+}
 WHY=""
-waived() { # <path> <old_sha> <new_sha> -> 0 when a complete, valid, new waiver row exists; sets WHY otherwise
+waived() { # <path> <old_sha> <new_sha> -> 0 when a valid row waives this transition in this commit; sets WHY otherwise
   WHY="no waiver row for ($1, ${2:0:7} -> ${3:0:7}) in $wsrc"
   [ -z "$conferr" ] || { WHY="$conferr (waivers disabled)"; return 1; }
   [ -n "$wtext" ] || { WHY="no waiver data ($wsrc)"; return 1; }
-  local cand row a e i irc
+  local cand row rest a e i bs irc
   cand="$(printf '%s\n' "$wtext" | awk -F'\t' 'BEGIN{p=ARGV[1]; o=ARGV[2]; n=ARGV[3]; ARGV[1]=ARGV[2]=ARGV[3]=""}
-    NF==6 && $1!~/^#/ && $1==p && $2==o && $3==n {print $0 "\036" $4 "\037" $5 "\037" $6}' "$1" "$2" "$3")"
+    NF==7 && $1!~/^#/ && $1""==p"" && $2""==o"" && $3""==n"" {print $0 "\036" $4 "\037" $5 "\037" $6 "\037" $7}' "$1" "$2" "$3")"
   [ -n "$cand" ] || return 1
   while IFS=$'\036' read -r row rest; do
-    IFS=$'\037' read -r a e i <<<"$rest"
+    IFS=$'\037' read -r a e i bs <<<"$rest"
     [[ "$row" != *$'\r'* ]] || { WHY="waiver row has a CR (CRLF line ending); save it with LF"; continue; }
+    [ "$bs" = "$basec" ] || { WHY="waiver row is bound to base '$bs', but this commit's parent is $basec (a row waives one transition in one commit on top of the commit it names; for a new rollback bind a new row to the full SHA of the current HEAD)"; continue; }
     [[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && [ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ] || { WHY="expiry '$e' is not a real YYYY-MM-DD date"; continue; }
     [[ "$e" < "$today" ]] && { WHY="waiver expired $e"; continue; }
     [[ "$e" > "$lim" ]] && { WHY="expiry $e is beyond today + max_waiver_days=$maxd ($lim)"; continue; }
     [[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] || { WHY="tracked item '$i' does not match ${prefix}-NNN"; continue; }
-    case $'\n'"$btext"$'\n' in *$'\n'"$row"$'\n'*) WHY="waiver row already in the base commit (a row counts only in the commit that adds it)"; continue ;; esac
+    [ -z "$mergeh" ] || { WHY="a merge is in progress (MERGE_HEAD ${mergeh:0:12}): a waiver is valid only in a single-parent commit; commit the rollback on its own"; continue; }
     [ -n "$cident" ] && [ -n "$aident" ] || { WHY="committer or author identity unresolvable; cannot check authoriser"; continue; }
     command -v python3 >/dev/null 2>&1 || { WHY="python3 missing; cannot check authoriser"; continue; }
     printf '%s\0%s\0%s\0%s\0%s' "$a" "$(idname "$cident")" "$(idmail "$cident")" "$(idname "$aident")" "$(idmail "$aident")" | python3 -I -c "$IDPY"; irc=$?
     case "$irc" in
-      0) return 0 ;;
-      1) WHY="authoriser '$a' is the committer or author (producer cannot self-waive)" ;;
+      0) spent "$1" "$2" "$3"; case $? in
+           1) return 0 ;;
+           0) WHY="waiver row already spent by commit ${SPENT:0:12} on the same parent ${basec:0:12} (a row waives one commit only)" ;;
+           *) WHY="$SPENT; cannot prove the row is unspent" ;;
+         esac ;;
+      10) WHY="authoriser '$a' is the committer or author (producer cannot self-waive)" ;;
       3) WHY="authoriser '$a' is empty or has surrounding whitespace, <>, or control characters" ;;
-      *) WHY="authoriser check failed (rc $irc, not valid UTF-8?)" ;;
+      *) WHY="authoriser check failed (python3 rc $irc)" ;;
     esac
   done <<<"$cand"
   return 1
 }
 fail=0; blind=0; checked=0
 blindmsg() { echo "$GATE: BLIND $1 — $2. Fix: $3"; blind=1; }
-git -C "$root" diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |
+pg diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |
 while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
   [ -n "$path" ] || continue
   set -- $meta; om="${1#:}"; nm="$2"; osha="$3"; nsha="$4"
@@ -192,7 +239,7 @@ while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
   if [ "$fwd" = 0 ]; then echo "$GATE: ok $path ${osha:0:7} -> ${nsha:0:7} (forward)"; continue; fi
   sg -C "$sub" merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?
   if [ "$back" = 0 ]; then
-    if waived "$path" "$osha" "$nsha"; then echo "$GATE: WAIVED $path ${osha:0:7} -> ${nsha:0:7} (new waiver row in $wsrc)"
+    if waived "$path" "$osha" "$nsha"; then echo "$GATE: WAIVED $path ${osha:0:7} -> ${nsha:0:7} (waiver row bound to parent ${basec:0:12} in $wsrc)"
     else echo "$GATE: FAIL $path — staged pin ${nsha:0:7} is an ANCESTOR of the base pin ${osha:0:7} (downgrade; waiver: $WHY). Advance the submodule checkout to the pin (git submodule update) or stage a valid waiver"; fail=1; fi
   elif [ "$fwd" = 1 ] && [ "$back" = 1 ] && [ "$shallow" = false ]; then
     echo "$GATE: WARN $path ${osha:0:7} -> ${nsha:0:7} DIVERGED (neither is an ancestor of the other; old pin's commits may be dropped — review by hand)"

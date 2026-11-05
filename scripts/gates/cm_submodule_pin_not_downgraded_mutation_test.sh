@@ -3,7 +3,11 @@
 # Part 1: fixtures vs the gate (GATE_UNDER_TEST overrides the path, used to show RED on an older gate; then Part 2 is
 #         skipped because the mutant seds are written against the current gate).
 # Part 2: mutants of a scratch gate copy; each MUST change the verdict vector (be killed). Includes the round-2
-#         reviewer mutants RM1-RM5 and their killer fixtures.
+#         reviewer mutants RM1-RM5, the round-3 reviewer mutants RV1, RV3-RV7 and their killer fixtures. Mutants run in
+#         parallel, MUT_JOBS at a time (default 3), each in its own temp dir.
+# The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
+#         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
+#         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
 # Part 3: the hook end to end through `git commit`, with the hook COPIED next to the gate under test (so GATE_UNDER_TEST
 #         reaches it too): plain repo, a linked worktree with a REAL submodule (gitdir under .git/worktrees/<wt>/modules),
 #         the round-2 waiver-persistence replay, and the layout SKIP.
@@ -18,7 +22,7 @@ tmp="$(mktemp -d)"; [ -n "$tmp" ] && [ -d "$tmp" ] || { echo "META: mktemp faile
 trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
 unset EMAIL
-git config --global protocol.file.allow always; git config --global init.defaultBranch main
+git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
 d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
 d45="$(date -d '+45 days' +%F)"; today="$(date +%F)"
 bad=0; SUBN=sub
@@ -34,7 +38,7 @@ mk2() { mk; cp -a "${R:?}/sub" "$R/sub2"; git -C "$R" update-index --add --cache
 stage() { git -C "$1" update-index --cacheinfo 160000,"$2","${3:-$SUBN}"; }
 waive() { printf '%b' "$2" >"${1:?}/.submodule_pin_waivers"; git -C "$1" add .submodule_pin_waivers; }
 conf() { printf '%b' "$2" >"${1:?}/.submodule_pin_gate.conf"; git -C "$1" add .submodule_pin_gate.conf; }
-wf() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6"; } # path old new authoriser expiry item
+wf() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" "${7:-$(git -C "${r:?}" rev-parse HEAD)}"; } # path old new authoriser expiry item [base, default HEAD of $r]
 run() { # repo gate [env assignments / -u X ...] [-- gate args...]; output in $tmp/out
   local r="$1" g="$2"; shift 2; local e=()
   while [ $# -gt 0 ] && [ "$1" != -- ]; do e+=("$1"); shift; done; [ "${1:-}" = -- ] && shift
@@ -107,8 +111,9 @@ classify() { # gate-path -> one-line verdict vector
   # RM3 killer: a staged rename to a 4-word name that sorts before the gitlink
   mk;r=$R; printf 'one\ntwo\nthree\nfour\nfive\n' >"$r/file.txt"; git -C "$r" add file.txt; git -C "$r" commit -q -m f
   git -C "$r" mv file.txt "a b c d"; stage "$r" "$A"; out+="RENAME=$(run "$r" "$g") "
-  # RM4 killer (7 fields) / RM5 killer (invalid row before a valid row) / CRLF row refused with CR named
-  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 | tr -d '\n')\t\n"; out+="FIELDS7=$(run "$r" "$g") "
+  # RM4 killer (8 fields) / the old 6-field form (no base) / RM5 killer (invalid row before a valid row) / CRLF row
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 | tr -d '\n')\t\n"; out+="FIELDS8=$(run "$r" "$g") "
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 | cut -f1-6)\n"; out+="FIELDS6=$(run "$r" "$g") "
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" '' "$d10" CON-046)\n$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; out+="DUPROW=$(run "$r" "$g") "
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 | tr -d '\n')\r\n"; out+="CRLF=$(run "$r" "$g")/$(cnt 'CR (CRLF') "
   # R2-m2: unreadable index -> BLIND; --root subdir with diff.relative=true still sees the gitlink
@@ -144,18 +149,117 @@ classify() { # gate-path -> one-line verdict vector
   SUBN="süb"; mk;r=$R; stage "$r" "$A"; git -C "$r" commit -q --no-verify -m down; stage "$r" "$B"; out+="NONASCII=$(run "$r" "$g") "; SUBN=sub
   mk;r=$R; stage "$r" "$A"; git -C "$r" commit -q --no-verify -m down; stage "$r" "$B"; lnk="$tmp/lnk.$RANDOM"; ln -s "$r" "$lnk"
   out+="SYMROOT=$(run "$lnk" "$g") "
+  # R3-m3 reviewer killers K1, K3-K5 (RV1, RV3-RV5). K1: base config is a tree (unreadable) -> waivers disabled
+  mk;r=$R; mkdir "$r/.submodule_pin_gate.conf"; echo x >"$r/.submodule_pin_gate.conf/x"; git -C "$r" add .submodule_pin_gate.conf
+  git -C "$r" commit -q -m cfgdir; git -C "$r" rm -rq --cached .submodule_pin_gate.conf; rm -rf "${r:?}/.submodule_pin_gate.conf"
+  stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e="$(run "$r" "$g"),"
+  # K3 duplicate key, K4 item_prefix with a regex metacharacter, K5 max_waiver_days=400 with a 45-day expiry
+  mk;r=$R; conf "$r" 'max_waiver_days=30\nmax_waiver_days=30\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e+="$(run "$r" "$g"),"
+  mk;r=$R; conf "$r" 'item_prefix=C.N\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; e+="$(run "$r" "$g"),"
+  mk;r=$R; conf "$r" 'max_waiver_days=400\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; e+="$(run "$r" "$g")"
+  out+="KCONF=$e "
+  # K6 (RV6): the submodule dir has no .git, the parent holds the submodule's commits, B -> S: BLIND, never read via the parent
+  mk;r=$R; git -C "$r" fetch -q "$r/sub" "$B:refs/x/b" "side:refs/x/s" 2>/dev/null; stage "$r" "$S"; mv "$r/sub/.git" "$tmp/subgit.$RANDOM"
+  out+="NOTOWN=$(run "$r" "$g")/$(cnt 'not its own repository') "
+  # RV7: lazy fetch off. The submodule is a partial clone; the new pin exists only on its promisor remote -> BLIND, nothing fetched
+  mk;r=$R; o="$tmp/lz.$RANDOM"; git init -q "$o"; git -C "$o" config uploadpack.allowfilter true; git -C "$o" config uploadpack.allowanysha1inwant true
+  git -C "$o" commit -q --allow-empty -m l1; c="$(git -C "$o" rev-parse HEAD)"; rm -rf "${r:?}/sub"; git clone -q --filter=blob:none "file://$o" "$r/sub" 2>/dev/null
+  git -C "$o" commit -q --allow-empty -m l2; c2="$(git -C "$o" rev-parse HEAD)"; git -C "$r" update-index --cacheinfo 160000,"$c",sub; git -C "$r" commit -q -m pl
+  stage "$r" "$c2"; e="$(run "$r" "$g")"
+  out+="LAZY=$e/$(git -C "$r/sub" config remote.origin.promisor)/$(GIT_NO_LAZY_FETCH=1 git -C "$r/sub" cat-file -e "$c2^{commit}" 2>/dev/null && echo fetched || echo absent) "
+  # R3-m1: legacy info/grafts in the submodule must not hide ancestry (B made parentless: still a downgrade, not DIVERGED)
+  mk;r=$R; printf '%s\n' "$B" >"$r/sub/.git/info/grafts"; stage "$r" "$A"; out+="GRAFT=$(run "$r" "$g") "
+  # R3-n1: string comparison in awk: a row for path 10 must not waive the gitlink at path 1e1
+  SUBN=1e1; mk;r=$R; stage "$r" "$A" 1e1; waive "$r" "$(wf 10 "$B" "$A" ops "$d10" CON-046)\n"; out+="NUMPATH=$(run "$r" "$g") "; SUBN=sub
+  # R3-n4: a python3 that fails (exit 1) means "authoriser check failed", never "self-waive"
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; mkdir -p "$tmp/fakepy"
+  printf '#!/bin/sh\ncat >/dev/null\nexit 1\n' >"$tmp/fakepy/python3"; chmod +x "$tmp/fakepy/python3"
+  e="$(run "$r" "$g" PATH="$tmp/fakepy:$PATH")"; out+="PYFAIL=$e/$(cnt 'authoriser check failed')/$(cnt 'cannot self-waive') "
+  # spent check reads sibling commits: one on the same base whose waiver path is a tree cannot be read -> not waived
+  mk;r=$R; git -C "$r" checkout -q -b y; mkdir "$r/.submodule_pin_waivers"; echo x >"$r/.submodule_pin_waivers/x"; git -C "$r" add .submodule_pin_waivers
+  git -C "$r" commit -q -m y; git -C "$r" checkout -q main; rm -rf "${r:?}/.submodule_pin_waivers"; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  e="$(run "$r" "$g")"; out+="CHILDTREE=$e/$(cnt 'unreadable') "
+  # a broken ref makes `rev-list --all` fail: the row cannot be proven unspent -> not waived
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; mkdir -p "$r/.git/refs/heads"
+  printf '%s\n' 1111111111111111111111111111111111111111 >"$r/.git/refs/heads/broken"; e="$(run "$r" "$g")"; out+="BADREF=$e/$(cnt 'rev-list --all failed') "
+  # a sibling commit on the same parent carrying a row for the same transition but bound to ANOTHER base spends nothing
+  mk;r=$R; git -C "$r" checkout -q -b y; wf sub "$B" "$A" ops "$d10" CON-046 2222222222222222222222222222222222222222 >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; git -C "$r" commit -q -m y; git -C "$r" checkout -q main; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  out+="SIBOTHER=$(run "$r" "$g") "
+  out+="$(lifecycle "$g")"
   echo "$out"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS7=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 "
+# ── the waiver LIFECYCLE class, through `git commit` with the hook (real submodule, one worktree) ─────────────
+# Rule under test: one row = one transition (path, old, new) in one single-parent commit whose parent is the row's base;
+# the first such commit on a ref spends it. Each member is a way a row could be reused by a commit it was not reviewed for.
+lc_sup() { # sets SR uA uB: superproject with a REAL submodule `sub` at uB (upstream A <- B), file notes, hook $1
+  local up; up="$(mktemp -d "$tmp/up.XXXXXX")"; git -C "$up" init -q; for i in A B; do git -C "$up" commit -q --allow-empty -m "$i"; done
+  uA=$(git -C "$up" rev-parse HEAD~1); uB=$(git -C "$up" rev-parse HEAD); SR="$(mktemp -d "$tmp/sup.XXXXXX")"; git -C "$SR" init -q
+  git -C "$SR" submodule add -q "file://$up" sub >/dev/null 2>&1; echo 0 >"$SR/notes"; git -C "$SR" add -A; git -C "$SR" commit -q --no-verify -m base
+  ln -s "$1" "$SR/.git/hooks/pre-commit"; }
+lrow() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "$uA" ops "$d10" CON-046 "$1"; } # <base>
+lgc() { local r="$1"; shift; git -C "$r" commit -q "$@" >"$tmp/hout" 2>&1; echo $?; }
+lpin() { case "$(git -C "$1" ls-tree "${2:-HEAD}" -- sub | awk '{print $3}')" in "$uA") echo A ;; "$uB") echo B ;; *) echo X ;; esac; }
+lg() { bash "$LG" --root "$@" >"$tmp/gout" 2>&1; echo $?; }
+lrb() { # in $SR: checkout to A (stale against pin B), row bound to HEAD, staged, commit -a = the reviewed rollback
+  git -C "$SR/sub" checkout -q "$uA"; lrow "$(git -C "$SR" rev-parse HEAD)" >"$SR/.submodule_pin_waivers"; git -C "$SR" add .submodule_pin_waivers
+  lgc "$SR" -a -m rollback; }
+lc_x() { # <moved|same> <conflict|-> : vehicle X at main's tip: reviewed rollback, [notes edit], index-only forward to B;
+  # back on main (the checkout stays at A, as after any branch switch), main then moved or not
+  lc_sup "$LH"; git -C "$SR" checkout -q -b X; LX1=$(lrb); if [ "$2" = conflict ]; then echo x >"$SR/notes"; lgc "$SR" -m xn -- notes >/dev/null; fi
+  git -C "$SR" update-index --cacheinfo 160000,"$uB",sub; lgc "$SR" -m fwd >/dev/null; git -C "$SR" checkout -q main
+  if [ "$1" = moved ]; then echo m >"$SR/notes"; lgc "$SR" -m mn -- notes >/dev/null; fi; }
+lifecycle() { # gate path -> vector part
+  local g="$1" o="" r a b c x lay; lay="$(mktemp -d "$tmp/lay.XXXXXX")"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
+  cp "$g" "$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"; cp "$hook" "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"
+  LH="$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"; LG="$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"
+  # legit reviewed rollback; then the R2-I1 snapshot over the stale checkout; then the same snapshot as --amend -a
+  lc_sup "$LH"; r=$SR; a=$(lrb); o+="LEGIT=$a/$(lpin "$r") "
+  git -C "$r" update-index --cacheinfo 160000,"$uB",sub; b=$(lgc "$r" -m fwd); echo 1 >"$r/notes"; c=$(lgc "$r" -a -m snapshot)
+  x=$(lgc "$r" --amend -a -m snapshot2); o+="SNAP=$b,$c/$(lpin "$r") AMENDSNAP=$x/$(lpin "$r") "
+  # amend the message of the reviewed rollback, re-judge it against its parent (--base HEAD^), then reset --soft and redo
+  lc_sup "$LH"; r=$SR; a=$(lrb); b=$(lgc "$r" --amend -m rollback2); c=$(lg "$r" --base HEAD^); git -C "$r" reset -q --soft HEAD^
+  x=$(lgc "$r" -m redo); o+="AMENDMSG=$a,$b,$c REDO=$x/$(lpin "$r") "
+  # integrate the vehicle into main: conflicted merge, squash, --no-commit merge; main moved or not
+  lc_x moved conflict; r=$SR; git -C "$r" merge -q X >/dev/null 2>&1; echo r >"$r/notes"; a=$(lgc "$r" -a -m merge); o+="MERGECONF=$LX1,$a/$(lpin "$r") "
+  lc_x moved -; r=$SR; git -C "$r" merge -q --squash X >/dev/null 2>&1; a=$(lgc "$r" -a -m sq); o+="SQUASHMOVED=$a/$(lpin "$r") "
+  lc_x same -; r=$SR; git -C "$r" merge -q --squash X >/dev/null 2>&1; a=$(lgc "$r" -a -m sq); o+="SQUASHSAME=$a/$(lpin "$r")/$(grep -c 'already spent' "$tmp/hout") "
+  lc_x moved -; r=$SR; git -C "$r" merge -q --no-commit --no-ff X >/dev/null 2>&1; a=$(lgc "$r" -a -m nc); o+="NOCOMMITMOVED=$a/$(lpin "$r") "
+  lc_x same -; r=$SR; git -C "$r" merge -q --no-commit --no-ff X >/dev/null 2>&1; a=$(lgc "$r" -a -m nc); o+="NOCOMMITSAME=$a/$(lpin "$r") "
+  # the one-parent clause alone: the vehicle (and so its rollback) is deleted while the merge is open
+  lc_x same -; r=$SR; git -C "$r" merge -q --no-commit --no-ff X >/dev/null 2>&1; git -C "$r" branch -q -D X; a=$(lgc "$r" -a -m nc)
+  o+="NOCOMMITDEL=$a/$(lpin "$r")/$(grep -c 'single-parent' "$tmp/hout") "
+  # a superproject graft (written after the squash) must not hide the spent rollback (made parentless by the graft)
+  lc_x same -; r=$SR; git -C "$r" merge -q --squash X >/dev/null 2>&1; b=$(git -C "$r" diff --cached --name-only | grep -c '^\.submodule_pin_waivers$')
+  git -C "$r" rev-parse X~1 >"$r/.git/info/grafts"; a=$(lgc "$r" -a -m sq); o+="SQGRAFT=$a/$(lpin "$r")/$b "
+  # cherry-pick and rebase run no pre-commit hook when clean (measured); the gate in --base mode judges the result
+  lc_x moved -; r=$SR; a=$(git -C "$r" cherry-pick X~1 >/dev/null 2>&1; echo $?); b=$(lg "$r" --base HEAD^); o+="CHERRY=$a,$b "
+  # (-x: a clean pick onto the same parent in the same second would otherwise be byte-identical, i.e. the reviewed commit)
+  lc_x same -; r=$SR; a=$(git -C "$r" cherry-pick -x X~1 >/dev/null 2>&1; echo $?); b=$(lg "$r" --base HEAD^)
+  c=$([ "$(git -C "$r" rev-parse HEAD)" != "$(git -C "$r" rev-parse X~1)" ] && echo distinct || echo same); o+="CHERRYSAME=$a,$b/$c "
+  lc_x moved -; r=$SR; git -C "$r" checkout -q X; a=$(git -C "$r" rebase -q main >/dev/null 2>&1; echo $?); git -C "$r" checkout -q --detach X~1
+  b=$(lg "$r" --base HEAD^); o+="REBASE=$a,$b "
+  # leftover worktree rows: bound to the current HEAD (honoured: the documented residual) and to an older HEAD (refused)
+  lc_sup "$LH"; r=$SR; lrow "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r/sub" checkout -q "$uA"; git -C "$r" add -A
+  a=$(lgc "$r" -m snap); o+="LEFTSAME=$a/$(lpin "$r") "
+  lc_sup "$LH"; r=$SR; lrow "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"; echo 1 >"$r/notes"; lgc "$r" -m n -- notes >/dev/null
+  git -C "$r/sub" checkout -q "$uA"; git -C "$r" add -A; a=$(lgc "$r" -m snap); o+="LEFTOLD=$a/$(lpin "$r")/$(grep -c 'bound to base' "$tmp/hout") "
+  # base field forms: an abbreviated sha and the literal HEAD are refused
+  lc_sup "$LH"; r=$SR; git -C "$r/sub" checkout -q "$uA"; lrow "$(git -C "$r" rev-parse --short HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers
+  a=$(lgc "$r" -a -m rb); lrow HEAD >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; b=$(lgc "$r" -a -m rb); o+="BASEFORM=$a,$b/$(lpin "$r") "
+  echo "$o"
+}
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B "
 got="$(classify "$gate")"; echo "gate vector: $got"
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
 # ── Part 2: mutants (skipped under GATE_UNDER_TEST: the seds target the current gate text) ──
-n=0
+# Each mutant is classified in a background job with its own temp dir; MUT_JOBS jobs at a time (bounded, §12.8).
+n=0; mj="${MUT_JOBS:-3}"; [[ "$mj" =~ ^[1-9][0-9]?$ ]] || { echo "META: MUT_JOBS must be 1..99" >&2; exit 2; }; mnames=()
 mutant() { # name sed-expr
-  local m="$tmp/m$((++n)).sh"; sed "$2" "$gate" >"$m"
-  if cmp -s "$m" "$gate"; then echo "BAD  mutant $1 did not change the gate"; bad=1; return; fi
-  local g; g="$(classify "$m")"
-  if [ "$g" = "$got" ]; then echo "BAD  mutant $1 SURVIVED"; bad=1; else echo "ok   mutant $1 killed"; fi
+  local m="$tmp/m$((++n)).sh"; sed "$2" "$gate" >"$m"; mnames[n]="$1"
+  if cmp -s "$m" "$gate"; then echo "BAD  mutant $1 did not change the gate"; bad=1; mnames[n]=""; return; fi
+  ( tmp="$tmp/j$n"; mkdir -p "$tmp"; classify "$m" >"$tmp.res" 2>/dev/null ) &
+  while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
 }
 if [ -z "${GATE_UNDER_TEST:-}" ]; then
   # decision table
@@ -170,7 +274,10 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant blind-outranks-fail 's/^\[ "\$fail" = 1 \] \&\& exit 1$/[ "$blind" = 1 ] \&\& exit 2/'
   mutant presence-checks-removed '/cat-file -e/{N;d}'
   mutant hook-env-inherited 's/^sg() { env .*git "\$@"; }/sg() { git "$@"; }/'
-  mutant replace-refs-honoured 's/ GIT_NO_REPLACE_OBJECTS=1//'
+  mutant replace-refs-honoured '/^sg() /s/ GIT_NO_REPLACE_OBJECTS=1//'
+  mutant R3m1-grafts-honoured '/^sg() /s/ GIT_GRAFT_FILE=\/dev\/null//'
+  mutant RV7-lazy-fetch '/^sg() /s/ GIT_NO_LAZY_FETCH=1//'
+  mutant RV6-own-repo-unchecked 's/^    blindmsg "\$path" "path is not its own repository.*$/    :; fi/'
   # reading the index diff (R2-m2, RM2, RM3)
   mutant diff-status-ignored 's/^\[ "\${dstat\[0\]}" = 0 \] || .*$/:/'
   mutant root-not-normalised 's/^root="\$(cd "\$top" \&\& pwd -P)" || .*$/:/'
@@ -179,15 +286,25 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant no-z-parsing 's/--raw -z/--raw/'
   mutant logical-paths 's/pwd -P/pwd/g'
   mutant base-ignored 's/ --ignore-submodules=none "\$basec"/ --ignore-submodules=none/'
-  # waiver row (R2-I1 and the rest of the class)
-  mutant novelty-unchecked '/waiver row already in the base commit/d'
-  mutant waiver-ignores-old-sha 's/ \&\& \$2==o//'
-  mutant waiver-ignores-new-sha 's/ \&\& \$3==n//'
-  mutant waiver-ignores-path 's/ \&\& \$1==p//'
-  mutant RM4-extra-fields 's/NF==6 \&\&/NF>=6 \&\&/'
+  # waiver lifetime: ONE row = one transition, one commit, one parent (round 4)
+  mutant base-unbound '/waiver row is bound to base/d'
+  mutant merge-allowed '/a waiver is valid only in a single-parent commit/d'
+  mutant spent-unchecked 's/      0) spent "\$1" "\$2" "\$3"; case \$? in/      0) case 1 in/'
+  mutant spent-head-counted 's/        \$1""!=h"" {for/        {for/'
+  mutant spent-base-ignored 's/ \&\& \$7""==b"" {f=0}/ {f=0}/'
+  mutant spent-unreadable-ignored '/(same parent) is unreadable/d'
+  mutant spent-history-error-ignored 's/^  \[ "\$kidsrc" = ok \] || .*$/  :/'
+  mutant spent-grafts-honoured '/^pg() /s/ GIT_GRAFT_FILE=\/dev\/null//'
+  # waiver row form
+  mutant waiver-ignores-old-sha 's/ \&\& \$2""==o""//'
+  mutant waiver-ignores-new-sha 's/ \&\& \$3""==n""//'
+  mutant waiver-ignores-path 's/ \&\& \$1""==p""//'
+  mutant R3n1-numeric-compare 's/\$1""==p""/$1==p/'
+  mutant RM4-extra-fields 's/    NF==7 \&\& \$1!~/    NF>=7 \&\& $1!~/'
+  mutant six-field-rows 's/    NF==7 \&\& \$1!~/    NF>=6 \&\& $1!~/'
   mutant RM5-first-bad-row-aborts 's/3) WHY="\(.*\)" ;;/3) WHY="\1"; return 1 ;;/'
   mutant cr-not-named '/waiver row has a CR/d'
-  mutant waiver-from-worktree 's/git -C "\$root" show :.submodule_pin_waivers/cat "$root\/.submodule_pin_waivers"/'
+  mutant waiver-from-worktree 's/pg show :.submodule_pin_waivers/cat "$root\/.submodule_pin_waivers"/'
   mutant waiver-ignores-expiry '/\[\[ "\$e" < "\$today" \]\]/d'
   mutant expiry-boundary 's/\[\[ "\$e" < "\$today" \]\]/[[ ! "$e" > "$today" ]]/'
   mutant expiry-format-unchecked '/not a real YYYY-MM-DD date/d'
@@ -195,17 +312,31 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant horizon-boundary 's/\[\[ "\$e" > "\$lim" \]\]/[[ ! "$e" < "$lim" ]]/'
   mutant item-format-unchecked '/does not match \${prefix}-NNN/d'
   mutant item-prefix-hardcoded 's/\^\${prefix}-/^CON-/'
+  # consumer DATA (config from the base commit) and the reviewer killers K1, K3-K5
   mutant config-from-index 's/ctext="\$(blob "\$basec" .submodule_pin_gate.conf)"/ctext="$(git -C "$root" show :.submodule_pin_gate.conf 2>\/dev\/null)"/'
   mutant config-error-ignored 's/^  \[ -z "\$conferr" \] || .*$/  :/'
-  # authoriser (R2-m3, RM1)
+  mutant RV1-config-unreadable-as-absent 's/^if \[ "\$crc" = 2 \]; then conferr=.*$/if false; then :/'
+  mutant RV3-duplicate-key-allowed 's/^    case "\$seen" in .*$/    :/'
+  mutant RV4-prefix-unvalidated 's/item_prefix) \[\[ "\$v" =~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\] || /item_prefix) true || /'
+  mutant RV5-365-cap-removed 's/ \&\& \[ "\$v" -le 365 \]//'
+  # authoriser (R2-m3, RM1, R3-n4)
   mutant RM1-ident-guard '/committer or author identity unresolvable/d'
-  mutant self-authoriser-allowed 's/sys.exit(1 if any(.*) else 0)/sys.exit(0)/'
-  mutant no-casefold-no-nfc 's/^f=lambda s: .*/f=lambda s: s/'
+  mutant self-authoriser-allowed 's/    return 10 if any(.*) else 0/    return 0/'
+  mutant R3n4-failure-reported-as-self 's/^      10) WHY=/      1|10) WHY=/'
+  mutant no-casefold-no-nfc 's/^    f=lambda s: .*/    f=lambda s: s/'
   mutant casefold-without-nfc 's/unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())/s.casefold()/'
   mutant authoriser-form-unchecked 's/ or a!=a.strip() or "<" in a or ">" in a//'
   mutant empty-authoriser-allowed 's/if not a or /if /'
   mutant author-not-compared 's/"\$(idname "\$aident")" "\$(idmail "\$aident")"/"" ""/'
   mutant help-truncated 's/-h|--help) awk .*$/-h|--help) sed -n 2,40p "$self"; exit 0 ;;/'
+  wait
+  for ((k=1; k<=n; k++)); do
+    [ -n "${mnames[k]:-}" ] || continue
+    if [ ! -s "$tmp/j$k.res" ]; then echo "BAD  mutant ${mnames[k]} produced no vector"; bad=1
+    elif [ "$(cat "$tmp/j$k.res")" = "$got" ]; then echo "BAD  mutant ${mnames[k]} SURVIVED"; bad=1
+    else echo "ok   mutant ${mnames[k]} killed"; fi
+  done
+  echo "mutants: $n"
 fi
 # ── Part 3: the hook end to end, hook copied next to the gate under test ─────
 lay="$tmp/lay"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
@@ -225,12 +356,12 @@ git -C "$tmp/wtr/sub" checkout -q "$uA"; git -C "$tmp/wtr" commit -q --no-verify
 git -C "$tmp/wtr/sub" checkout -q "$uB"; wf1=$(git -C "$tmp/wtr" commit -q -a -m fwd >"$tmp/hout" 2>&1; echo $?)
 git -C "$tmp/wtr/sub" checkout -q "$uA"; wd1=$(git -C "$tmp/wtr" commit -q -a -m down >"$tmp/hout" 2>&1; echo $?)
 # R2-I1 replay through the hook: reviewed rollback with waiver, re-advance, then a snapshot commit -a over the stale
-# checkout that stages only `notes` must be refused (the row is no longer new)
+# checkout that stages only `notes` must be refused (the row is bound to an earlier parent)
 up2="$tmp/up2"; git init -q "$up2"; for i in A B; do git -C "$up2" commit -q --allow-empty -m "$i"; done
 pA=$(git -C "$up2" rev-parse HEAD~1); pB=$(git -C "$up2" rev-parse HEAD)
 ps="$tmp/ps"; git init -q "$ps"; git -C "$ps" submodule add -q "file://$up2" sub >/dev/null 2>&1; echo 0 >"$ps/notes"; git -C "$ps" add notes
 git -C "$ps" commit -q -m base; inst "$ps"
-git -C "$ps/sub" checkout -q "$pA"; wf sub "$pB" "$pA" ops "$d10" CON-046 >"$ps/.submodule_pin_waivers"; git -C "$ps" add .submodule_pin_waivers
+git -C "$ps/sub" checkout -q "$pA"; wf sub "$pB" "$pA" ops "$d10" CON-046 "$(git -C "$ps" rev-parse HEAD)" >"$ps/.submodule_pin_waivers"; git -C "$ps" add .submodule_pin_waivers
 p1=$(git -C "$ps" commit -q -a -m rollback >"$tmp/hout" 2>&1; echo $?)
 git -C "$ps/sub" checkout -q "$pB"; p2=$(git -C "$ps" commit -q -a -m fwd >"$tmp/hout" 2>&1; echo $?)
 git -C "$ps/sub" checkout -q "$pA"; echo 1 >"$ps/notes"; p3=$(git -C "$ps" commit -q -a -m snapshot >"$tmp/hout" 2>&1; echo $?)

@@ -3,9 +3,10 @@
 # Install (operator consent): ln -s <path-to>/scripts/hooks/pre-commit-submodule-pin-not-downgraded .git/hooks/pre-commit
 # The gate is resolved relative to THIS file's real path (constitution layout, also when vendored as constitution/).
 # Run from a copy or any layout without ../gates/…: prints an honest SKIP and does not block (nothing is guarded then).
-# Guards only commits that run git hooks (not --no-verify, merge/cherry-pick/revert/rebase). BLIND (2) blocks (fail closed).
-# Base is always HEAD: git does not tell a pre-commit hook about --amend (see the gate header). A waiver row counts only
-# in the commit that adds it (the gate header lists every waiver rule).
+# Guards only commits that run git hooks (not --no-verify, merge, or a clean cherry-pick/revert/rebase). BLIND (2) blocks
+# (fail closed). Base is always HEAD: git does not tell a pre-commit hook about --amend (see the gate header). A waiver
+# row waives one transition in one single-parent commit on top of the commit the row names (the gate header has the rule).
+# Needs bash and GNU readlink (`readlink -f`); without them the gate is not found and the hook prints SKIP (not guarded).
 # If the gate later disappears from beside a symlinked hook, the hook prints SKIP on stderr and no longer guards.
 self="$(readlink -f "${BASH_SOURCE[0]:-$0}")"; gate="$(dirname "$self")/../gates/cm_submodule_pin_not_downgraded.sh"
 if [ ! -r "$gate" ]; then
