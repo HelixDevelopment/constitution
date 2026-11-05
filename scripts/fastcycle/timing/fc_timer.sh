@@ -794,15 +794,26 @@ fc_timer_run() {
     return $?
   fi
   local _fcr_pid _fcr_rc _fcr_guard=0
-  # A `( ... ) &` SUBSHELL, never a bare `cmd &`: bash ignores SIGINT/SIGQUIT only in a bare
-  # simple background command (measured, bash 5.2.37: `cmd &` -> SigIgn 0x6; `( exec cmd ) &`
-  # -> 0x0), and the subshell resets the caller's signal HANDLERS to default while keeping an
-  # IGNORE -- exactly what exec'ing the command in the foreground does. Pinned by the selftest
-  # (F-A-run-intquit / F-A-run-ignored), so a bash that behaves otherwise fails loudly.
+  local -a _fcr_reset=()
+  # A `( ... ) &` SUBSHELL, never a bare `cmd &`, and inside it an explicit `trap -` for every
+  # one of SIGINT/SIGQUIT that the CALLER does not ignore. Measured (CON-033 round 2, review I8):
+  #   bash 5.2.15/5.2.37: `cmd &` -> SigIgn 0x6; `( exec cmd ) &` -> 0x0; a caller's
+  #     `trap '' INT` gives 0x2 in `( exec cmd ) &`, but `( trap - INT; exec cmd ) &` gives 0x0
+  #     there (the reset undoes the caller's ignore), so an unconditional reset is wrong;
+  #   bash 5.3.9: `( exec cmd ) &` -> 0x6 too (an asynchronous subshell ignores both), so
+  #     without a reset the child would ignore Ctrl-C.
+  # Hence: ask the caller's dispositions FIRST (`trap -p` in a command substitution shows the
+  # calling shell's traps, and shows a signal ignored on entry as '' too -- measured on both
+  # versions), and reset only the signals the caller does not ignore. The result on both
+  # versions is what exec'ing the command in the foreground gives: handlers become default, an
+  # IGNORE is kept. Pinned by the selftest (F-A-run-intquit / F-A-run-ignored), so a bash that
+  # behaves otherwise fails loudly.
+  [ "$(trap -p INT)" = "trap -- '' SIGINT" ] || _fcr_reset+=(INT)
+  [ "$(trap -p QUIT)" = "trap -- '' SIGQUIT" ] || _fcr_reset+=(QUIT)
   if { true <&0; } 2>/dev/null; then
-    ( exec "$@" ) <&0 &
+    ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) <&0 &
   else
-    ( exec "$@" ) <&- &
+    ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) <&- &
   fi
   _fcr_pid=$!
   # V6 F1: `wait` returns early whenever ANY trap whose handler RETURNS runs -- a composed class

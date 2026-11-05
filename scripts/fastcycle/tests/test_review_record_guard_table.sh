@@ -24,7 +24,7 @@
 #       paired runner whose old text occurs exactly once and lands on that
 #       statement, or to EQUIVALENT(<id>): <reason>.
 #   M4  the KILL LEDGER (fixtures/review_record_subclause_kills.tsv, written
-#       by test_review_record_subclause_sweep.sh) is FRESH -- its sha256 of
+#       by sweep_review_record_subclauses.sh) is FRESH -- its sha256 of
 #       review_record.py, the analyzer, the genuine helper and every suite
 #       equal the current files -- and COMPLETE: its rows are exactly the
 #       current sub-clauses (same id, same leaf, same flip), each KILLED with
@@ -160,7 +160,7 @@ try:
     ltext = open(ledger, encoding="utf-8").read().splitlines()
 except OSError as exc:
     ltext = None
-    fails.append("M4: kill ledger unreadable (%s) -- run test_review_record_subclause_sweep.sh" % exc)
+    fails.append("M4: kill ledger unreadable (%s) -- run sweep_review_record_subclauses.sh --out <this ledger>" % exc)
 if ltext is not None:
     hdr = {}
     got = {}
@@ -189,7 +189,7 @@ if ltext is not None:
         cur["suite:" + name] = sha(p) if os.path.exists(p) else "<missing>"
     for k, v in sorted(cur.items()):
         if hdr.get(k) != v:
-            fails.append("M4: kill ledger is STALE: %s sha256 %s != current %s -- re-run the sweep" % (k, hdr.get(k), v))
+            fails.append("M4: kill ledger is STALE: %s sha256 %s != current %s -- re-run sweep_review_record_subclauses.sh --out <this ledger>" % (k, hdr.get(k), v))
     eq = {}
     try:
         for line in open(equiv, encoding="utf-8").read().splitlines():

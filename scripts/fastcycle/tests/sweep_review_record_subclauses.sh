@@ -1,5 +1,12 @@
 #!/bin/bash
-# test_review_record_subclause_sweep.sh
+# sweep_review_record_subclauses.sh  (renamed from test_review_record_subclause_sweep.sh,
+# CON-033 round 2, review I5: it is a ~70-minute GENERATOR, not a test; under
+# the test_* name run_all.sh ran it under its 240 s default bound, where it
+# always ended rc=124. It is now outside run_all's test_*.sh glob and is run on
+# demand or by a scheduled runner; test_review_record_guard_table.sh proves the
+# tracked ledger FRESH and COMPLETE without running it. Older comments in
+# files the ledger hashes still carry the old name; they are refreshed at the
+# next ledger regeneration, because editing them makes the ledger stale.)
 #
 # T048 restart, V3 round 4, structural item (3) (R4-F3; constitution
 # 11.4.276(C)/(D), 11.4.194(6)(d)): the DYNAMIC half of the guard meta-check.
@@ -12,17 +19,22 @@
 # sub-clause's ISOLATING CASES are the checks that PASS on the unmutated
 # control and do not PASS on that mutant -- measured, never hand-claimed.
 #
-# Output: a kill ledger (default fixtures/review_record_subclause_kills.tsv)
-# bound to the sha256 of review_record.py, the analyzer and every suite, so
+# Output: a kill ledger bound to the sha256 of review_record.py, the analyzer and every suite, so
 # test_review_record_guard_table.sh can prove it is FRESH and COMPLETE
 # without re-running the sweep. Any edit to the tool, the analyzer or a suite
 # makes the ledger stale (the guard table then FAILS until this is re-run).
 #
-# Usage : bash test_review_record_subclause_sweep.sh [-j 1|2] [--out FILE] [ID...]
+# Usage : bash sweep_review_record_subclauses.sh [-j 1|2] [--out FILE] [ID...]
+#         Without --out the ledger goes to a NEW temp file (its path is
+#         printed); the TRACKED ledger is rewritten only when it is named:
+#           --out scripts/fastcycle/tests/fixtures/review_record_subclause_kills.tsv
 #         (ID... restricts the sweep to those sub-clauses and writes no ledger
 #         unless --out is given -- for iterating on one guard)
-# Exit  : 0 control GREEN and every swept mutant KILLED; 1 a SURVIVED or
-#         ERROR mutant (listed), or a RED control; 2 usage/setup error.
+# Exit  : 0 control GREEN, every swept mutant has a result and is KILLED (or
+#         listed EQUIVALENT); 1 a SURVIVED or ERROR mutant (listed), a missing
+#         result, or a RED control; 2 usage/setup error; 129/130/143 when
+#         interrupted by HUP/INT/TERM (an interrupted sweep never reports
+#         success and writes no ledger).
 # Cost  : about 25 s per mutant; ~330 mutants at -j 2 is about 70 minutes --
 #         run it in the background (constitution 11.4.89).
 set -u
@@ -44,10 +56,21 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$JOBS" in 1|2) ;; *) echo "-j must be 1 or 2 (constitution 12.6)" >&2; exit 2 ;; esac
-if [ "${#IDS[@]}" -eq 0 ] && [ -z "$OUT" ]; then OUT="$HERE/fixtures/review_record_subclause_kills.tsv"; fi
+if [ "${#IDS[@]}" -eq 0 ] && [ -z "$OUT" ]; then
+  # Never a tracked file by default (CON-033 round 2, review I5).
+  OUT=$(mktemp "${TMPDIR:-/tmp}/review_record_subclause_kills.XXXXXX") || { echo "cannot create the ledger temp file" >&2; exit 2; }
+fi
 
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
-trap 'chmod -R u+rwx "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
+_sweep_cleanup() { chmod -R u+rwx "${S:?}" 2>/dev/null; rm -rf -- "${S:?}"; }
+trap '_sweep_cleanup' EXIT
+# An interrupt EXITS with the conventional status (the EXIT trap then cleans
+# up). Before round 2 the trap only deleted $S and the script carried on: the
+# result loop read nothing and the sweep printed "every mutant KILLED" with
+# exit 0 (review I5, reproduced with SIGTERM after 2 of 343 mutants).
+trap 'echo "sweep interrupted (HUP): no ledger written" >&2; exit 129' HUP
+trap 'echo "sweep interrupted (INT): no ledger written" >&2; exit 130' INT
+trap 'echo "sweep interrupted (TERM): no ledger written" >&2; exit 143' TERM
 
 # SNAP: one snapshot of the tool, analyzer and suites taken at start, so an
 # edit made while the sweep runs can never mix two versions into one ledger.
@@ -112,7 +135,9 @@ python3 "$ANALYZER" list "$TOOL" > "$S/subclauses.tsv" || { echo "analyzer faile
 if [ "${#IDS[@]}" -gt 0 ]; then
   awk -F'\t' 'NR==FNR{w[$1]=1; next} ($1 in w)' <(printf '%s\n' "${IDS[@]}") "$S/subclauses.tsv" > "$S/todo.tsv"
 else cp "$S/subclauses.tsv" "$S/todo.tsv"; fi
-echo "== sweeping $(wc -l < "$S/todo.tsv") sub-clause mutants at -j $JOBS =="
+N_TODO=$(grep -c . "$S/todo.tsv" || true)
+if [ "$N_TODO" -eq 0 ]; then echo "NOT ok no sub-clause to sweep (analyzer list empty, or no ID matched)" >&2; exit 1; fi
+echo "== sweeping $N_TODO sub-clause mutants at -j $JOBS =="
 
 # shellcheck disable=SC2329 # invoked through `bash -c` by xargs below
 worker() { # worker ID -> $S/res/<ID>.tsv : id status n killers
@@ -164,8 +189,16 @@ while IFS="$(printf '\t')" read -r id fn _kind line leaf repl; do
   fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$leaf" "$repl" "$status" "$n" "$killers" >> "$S/rows.tsv"
 done < "$S/todo.tsv"
+# Every swept sub-clause must have produced a row (a result loop that read a
+# truncated or missing todo list must never look like a clean sweep).
+N_ROWS=$(grep -c . "$S/rows.tsv" || true)
+if [ "$N_ROWS" -ne "$N_TODO" ]; then
+  echo "NOT ok result count $N_ROWS != swept sub-clause count $N_TODO"; FAIL=1
+fi
 
-if [ -n "$OUT" ]; then
+if [ -n "$OUT" ] && [ "$N_ROWS" -ne "$N_TODO" ]; then
+  echo "no ledger written: the sweep is incomplete"
+elif [ -n "$OUT" ]; then
   {
     echo "# review_record sub-clause kill ledger -- generated by test_review_record_subclause_sweep.sh; do not edit"
     echo "# tool_sha256=$(sha256sum "$TOOL" | cut -d' ' -f1)"
@@ -174,7 +207,7 @@ if [ -n "$OUT" ]; then
     for t in $SUITES; do echo "# suite $t sha256=$(sha256sum "$SNAP/tests/$t" | cut -d' ' -f1)"; done
     echo "# columns: id<TAB>leaf<TAB>replacement<TAB>status<TAB>n_isolating_cases<TAB>first isolating cases"
     cat "$S/rows.tsv"
-  } > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"
+  } > "$S/ledger.tmp" && mv "$S/ledger.tmp" "$OUT"
   echo "ledger written: $OUT ($(wc -l < "$S/rows.tsv") rows)"
 fi
 echo ""

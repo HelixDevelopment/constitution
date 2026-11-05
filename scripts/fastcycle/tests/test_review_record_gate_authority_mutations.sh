@@ -14,7 +14,7 @@
 # "kill" meaningless). The live tree is never modified.
 #
 # Scope (V3 round 4, R4-F3 -- REPLACED, not extended): every guard SUB-CLAUSE
-# is now mutated mechanically by test_review_record_subclause_sweep.sh (one
+# is now mutated mechanically by sweep_review_record_subclauses.sh (one
 # AST-derived mutant per and/or operand of every decision construct in the
 # call graph of cmd_gate/cmd_record), so the round-1..3 FIXER-authored
 # mutations (O1..O24, R2-*, G-*-off) that the sweep subsumes were removed
@@ -40,6 +40,17 @@
 # by descent from /, so the parent is already in `dirs` -- the reviewer's
 # own classification).
 #
+# R4-C and the environment (CON-033 round 2, review I4): the R4-CAP cases of
+# the r4 suite, which kill R4-C, need `podman unshare` AND a writable
+# directory whose whole chain is root-owned; with TMPDIR under a home
+# directory there is none, they SKIP, and R4-C survived every suite. The
+# first suite below, test_review_record_store_tier_all_entries_regression.sh,
+# kills R4-C with no podman and no root-owned chain (in-process, injected
+# runner uid, chmod only). test_review_record_guard_table.sh is deliberately
+# NOT a suite here: its kill-ledger freshness check (M4) fails on ANY edit of
+# review_record.py, so it would "kill" every mutant by construction and prove
+# nothing (section 11.4.245, 11.4.201).
+#
 # Usage : bash test_review_record_gate_authority_mutations.sh [MUTATION_ID...]
 # Exit  : 0 control GREEN and every mutation KILLED; 1 otherwise; 2 setup error.
 set -u
@@ -48,7 +59,7 @@ FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
