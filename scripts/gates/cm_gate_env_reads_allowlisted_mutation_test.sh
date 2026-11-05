@@ -136,7 +136,10 @@ cen() { # id desc sed-expr : sabotage a copy of the census, run the closure test
   sed -i "$expr" "$d/scripts/gates/lib/gate_env_census.py"
   if cmp -s "$d/scripts/gates/lib/gate_env_census.py" "$root/scripts/gates/lib/gate_env_census.py"; then echo "  FAIL $id did not apply ($desc)"; bad=$((bad+1)); return; fi
   mkdir -p "$d/tests/gates"; cp "$root/tests/gates/test_gate_env_census_closure.sh" "$d/tests/gates/"
-  if bash "$d/tests/gates/test_gate_env_census_closure.sh" >/dev/null 2>&1; then echo "  FAIL $id SURVIVED: $desc"; bad=$((bad+1)); else echo "  ok   $id killed: $desc"; fi
+  # killed only by a real FAIL (rc 1): rc 3 means only a KNOWN-FAIL case (tracked) is outstanding, which the unmutated tree
+  # also shows, so it does not count as killing the mutant
+  local crc=0; bash "$d/tests/gates/test_gate_env_census_closure.sh" >/dev/null 2>&1 || crc=$?
+  if [ "$crc" != 1 ]; then echo "  FAIL $id SURVIVED (closure rc=$crc): $desc"; bad=$((bad+1)); else echo "  ok   $id killed: $desc"; fi
 }
 cen N3a "builtin/command prefix not recognised" 's/(?:(?:builtin|command)\\s+)?(?:\\.|source)\\s+(?=/(?:\\.|source)\\s+(?=/'
 cen N3b "process-substitution source not reported" 's/if exp.startswith("<", st):/if False:/'
