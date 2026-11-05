@@ -1359,3 +1359,135 @@ Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc)
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 
+## CON-070 — CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_update index freshness)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:25Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Review of CON-033 (finding M5): the HELD snapshot 4b13814 on wip/review-pending-20261014/atm1220_r9 carries scripts/anchors/{regenerate_if_stale,index_commit_seam}.sh, 3 tests and a post_update_hook index-freshness change. They were not brought over (main removed regenerate_if_stale.sh in cf710b2 as untested, with no caller). After the ref is retired the owed seam exists only on the backup tag. Measured in round 1: test_regenerate_if_stale and test_index_commit_seam rc=0, test_post_update_index_freshness rc=1 (depends on the snapshot's superseded post_update_hook).
+
+**Affected scope / file-scope manifest:**
+scripts/anchors/regenerate_if_stale.sh, scripts/anchors/index_commit_seam.sh, their 3 tests, scripts/post_update_hook.sh index-freshness step
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The seam is implemented test-first on current main, or closed with an evidence-backed reason (section 11.4.197); the three tests pass on main; post_update_hook runs the freshness step.
+
+## CON-071 — CON-033 RM1: land the review-round budget boundary suite
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:25Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Reviewer mutant RM1 (rec[round] > round_budget changed to >=, refusing the last legal round of section 11.4.276) survived every suite on main and on the vehicle. The CON-033 vehicle adds test_review_record_round_budget_boundary_regression.sh (real tool 6/0; the mutant fails B1b and B2b) and adopts RM1 into the mutation runner. This item tracks that it lands; it closes when CON-033 lands on main.
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/review_record.py (G-Q-ROUND-BUDGET line 1918, G-R-ROUND-BUDGET line 1076), scripts/fastcycle/tests/test_review_record_round_budget_boundary_regression.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The boundary suite is on main and the mutation runner lists RM1 (gate and record side) as KILLED.
+
+## CON-072 — CON-033: regenerate the review_record sub-clause kill ledger under the new sweep name, and schedule the sweep
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:25Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Round 2 of CON-033 renamed the sweep generator to sweep_review_record_subclauses.sh (it is a ~70-minute generator, not a run_all test). The files whose sha256 binds the ledger still mention the old name in comments, because editing them makes the ledger STALE and guard_table M4 FAIL. Nothing runs the sweep on a schedule; a stale ledger is only caught when guard_table runs.
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/fixtures/review_record_subclause_kills.tsv, scripts/fastcycle/review/review_record.py and lib/review_record_guard_analyzer.py and lib/review_record_genuine.sh and the 9 swept suites (comments name test_review_record_subclause_sweep.sh), scripts/fastcycle/tests/sweep_review_record_subclauses.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerated (about 70 minutes, --out fixtures/review_record_subclause_kills.tsv) and test_review_record_guard_table.sh passes; the sweep runs on a declared cadence (a timer or a heavy-tier entry) so the ledger cannot go stale silently.
+
+## CON-073 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:25Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Review of CON-033 (finding M4): main's SPECKIT004 document has 9 mermaid blocks but only mmd-01..07 images. The HELD snapshot carries an added mmd-09.png and three re-rendered action_prefix DIAGRAMS.mmd-01..03.png, which CON-033 did not bring over. The missing images must be regenerated from main's sources.
+
+**Affected scope / file-scope manifest:**
+the SPECKIT004 document with 9 mermaid blocks and its DIAGRAMS images (main has mmd-01..07 only)
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+mmd-08 and mmd-09 are rendered from main's own mermaid sources, verified non-blank (section 11.4.258), and committed; the snapshot's images are not used.
+
+## CON-074 — kedge gitlink removal: operator ratification (section 11.4.122)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:26Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+fa3a9cb (REHEARSAL: remove kedge submodule, 2026-10-12) deleted the gitlink submodules/kedge. docs/label-sync/REVIEW-FIXES.md:88 records that the deletion had no recorded operator decision; the operator decided on 2026-10-14 to keep the untracked submodules/kedge directory untouched. The HELD snapshot also deletes the gitlink. Whether a ratification exists elsewhere is UNCONFIRMED. Raised by the CON-033 review.
+
+**Affected scope / file-scope manifest:**
+the removed gitlink submodules/kedge (fa3a9cb, 2026-10-12) and docs/label-sync/REVIEW-FIXES.md:88
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+A recorded operator decision keep-removed or restore exists; if restore, the gitlink is restored on main.
+
+## CON-075 — select_sample: stale mutation anchor SS_N3_negative_gap_retroactive
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:26Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Review of CON-033: in a consumer layout (900 s cap) test_select_sample_r5_regression.sh reports mutation SS_N3_negative_gap_retroactive 'could not be applied (anchor drifted)' on both main and the vehicle, so it is a pre-existing stale anchor. The remaining NOT ok lines (S3/S5/S6/S13) need a live tracker DB or snapshot.
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/test_select_sample_r5_regression.sh (mutation SS_N3_negative_gap_retroactive) and scripts/fastcycle/cycle/select_sample*
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The mutation applies to the current source and is killed, or is retired with an evidence-backed reason.
+
