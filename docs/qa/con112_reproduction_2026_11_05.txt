@@ -1,0 +1,521 @@
+# CON-112 reproduction and fix evidence (2026-11-05)
+# Host: Linux 7.0.0-42-generic; git version 2.53.0; Python 3.14.4; /bin/sh -> /usr/bin/dash
+# Tree: scratch clone of origin main bdc3ac43 (vehicle, section 11.4.288(B)); RED = pre-fix code, GREEN = fixed code, same command.
+# Verdict: python3 judge(rc, False, <output>, "bash") from scripts/full_suite/run_full_suite.py (the runner's own judge, unchanged)
+RED   handoff_i4: fix5_red_handoff_i4.out rc=0 ('ERROR', 'fail_signal_after_summary', 'summary', {})
+GREEN handoff_i4: fix5_green_handoff_i4.out rc=0 ('PASS', '', 'summary', {})
+RED   handoff_r9: fix5_red_handoff_r9.out rc=0 ('ERROR', 'fail_signal_after_summary', 'summary', {})
+GREEN handoff_r9: fix5_green_handoff_r9.out rc=0 ('PASS', '', 'summary', {})
+RED   custody_sweep_r17: fix5_red_custody_sweep_r17.out rc=0 ('ERROR', 'fail_signal_after_summary', 'summary', {})
+GREEN custody_sweep_r17: fix5_green_custody_sweep_r17.out rc=0 ('PASS', '', 'summary', {})
+
+===== RED handoff_i4: bash scripts/fastcycle/tests/test_handoff_i4_regression.sh
+----- file: ev/fix5_red_handoff_i4.out
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ===
+ok control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsfix.OCjR/constitution/scripts/fastcycle/orchestration/handoff.py resolves
+ok control needle: all 25 fixtures carry handoff.json + expected_verdict.json, all 5 pinned pre-fix copies present
+
+=== Real-tool invocation (FIXED handoff.py): every fixture reports UNSAFE, matching its own expected_verdict.json ===
+ok rr_unverifiable_external_dependency_kind: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_unverifiable_ground_truth: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_missing_ground_truth_empty_effects: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_file: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_external_dep: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_pending_step: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_id_collision_none: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_pending_step_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_entry_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_effects_performed_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_verified_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_external_dep_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_written_at_not_string: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_verified_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_external_deps_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_pending_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_not_list_gt_present: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_not_list_gt_absent: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_phase_not_string: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_contains_dict: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_mixed_types: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_string_fail_open: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_id_type_collision_bool_int: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+
+=== Guard-viability: each fixture's PINNED pre-fix copy does NOT reproduce the fixed verdict (checked-in, never HEAD-relative) ===
+ok guard-viability (rr_unverifiable_external_dependency_kind): the PINNED pre-I4-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "e9712be24c75c2f4a6d04f1411392646302de2315d74f01bf6b3e7df04e7d897", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": ["EV-RR07-A"], "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-external-dependency", "detail": "external dep https://example.com/releases/artefact-v1.tar.gz has unrecognized dependency kind: http-resource -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"}, {"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing and effects_performed is empty -- an empty effects_performed does NOT prove no effect occurred (the agent may have crashed before it ever recorded one in its own handoff doc), so the absence of an independent ground-truth source is ALWAYS an unverifiable gap, never proof there is nothing to cross-verify; treat as unsafe until an independent ground-truth source is supplied"}]}) --
+   proving this fixture genuinely catches the I4 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_unverifiable_ground_truth): the PINNED pre-I4-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "a25aa7ab2c4b30ff5f3faa3c06304980134c87c8fd535503f90acfbb04b1da62", "effects_not_to_repeat": ["commit-rr08-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr08000000000000000000000000000000000000000000000000000000008", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": ["commit-rr08-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr08000000000000000000000000000000000000000000000000000000008", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing while effects_performed lists 1 effect(s) -- this tool has no independent source to confirm those are ALL the effects that genuinely occurred; treat as unsafe until an independent ground-truth source is supplied"}]}) --
+   proving this fixture genuinely catches the I4 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_missing_ground_truth_empty_effects): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "4757bd839129efadbfaa8e12d41740c1caecef5a939934fc56c3c1ac81ed80c6", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr09000000000000000000000000000000000000000000000000000000009", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr09000000000000000000000000000000000000000000000000000000009", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing and effects_performed is empty -- an empty effects_performed does NOT prove no effect occurred (the agent may have crashed before it ever recorded one in its own handoff doc), so the absence of an independent ground-truth source is ALWAYS an unverifiable gap, never proof there is nothing to cross-verify; treat as unsafe until an independent ground-truth source is supplied"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_file): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "04431ae7b627a5a0c7cd3aa248caee56213a045a8e3d02060a581237750e4a2d", "effects_not_to_repeat": ["commit-rr10-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": ["commit-rr10-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unreadable-ground-truth", "detail": "ground_truth_effects.json exists but could not be read or parsed as JSON (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)) -- this tool has no confirmed-readable independent ground-truth source, which is a DIFFERENT, weaker claim than 'no ground truth effects exist'; treat as unsafe until the file is repaired or an independent source is supplied"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_external_dep): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "a0e272d0c55b49a6c78045f7088f60bc48448b57ed8b2ce8f9a5acbf8b0083e5", "effects_not_to_repeat": ["commit-rr11-0001"], "facts_needing_reverification": ["EV-RR11-A"], "handoff_id": "sha256:rr11000000000000000000000000000000000000000000000000000000011", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": false, "schema": "handoff-resume-check/v1", "unsafe_reasons": [{"class": "unverifiable-external-dependency", "detail": "external dep dep-x has unrecognized dependency kind: None -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"}]} expected={"effects_not_to_repeat": ["commit-rr11-0001"], "facts_needing_reverification": ["EV-RR11-A"], "handoff_id": "sha256:rr11000000000000000000000000000000000000000000000000000000011", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-external-dependency", "detail": "external_deps entry is not a JSON object (got 'not-a-dict-entry') -- DEC-34 requires every dependency be re-hashed, and a non-dict entry cannot be re-hashed or identified; treat as unsafe until independently, manually re-verified"}, {"class": "malformed-external-dependency", "detail": "external dep dep-x has a missing or malformed `kind` field (got None) -- DEC-34 requires every dependency be re-hashed, and this tool cannot re-hash a dependency whose kind it cannot read; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_entry): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "cafdc21d53cf1c89a17e791ee17769b88c2aa8b5f76251f4c424b98510eedc48", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr12000000000000000000000000000000000000000000000000000000012", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr12000000000000000000000000000000000000000000000000000000012", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-ground-truth-entry", "detail": "ground_truth_effects.json entry is not a JSON object (got 'deploy:dep-99') -- this tool cannot read a kind/id off a non-dict value, so it cannot rule out that this entry names an effect absent from effects_performed; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_pending_step): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "506feeee486a8cd5f339dcc1bd1b9f70af4538d3bdf26123efdf249d84a4b1e4", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr13000000000000000000000000000000000000000000000000000000013", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr13000000000000000000000000000000000000000000000000000000013", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-pending-step", "detail": "pending entry is not a JSON object (got 'replay the llm-generated migration with a random seed') -- this tool cannot read a step/precondition off a non-dict value, so it cannot rule out a nondeterministic source for it; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_id_collision_none): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "2b3e86b1cf04e04c339cd6f13b4c66d9b127f938f654f4e0bc358426b747a953", "effects_not_to_repeat": [null], "facts_needing_reverification": [], "handoff_id": "sha256:rr14000000000000000000000000000000000000000000000000000000014", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [null], "facts_needing_reverification": [], "handoff_id": "sha256:rr14000000000000000000000000000000000000000000000000000000014", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unrecorded-external-effect", "detail": "effect delete-prod-db:None genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_pending_step_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_entry_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_effects_performed_entry): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_verified_entry): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_external_dep_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_written_at_not_string): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_verified_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_external_deps_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_pending_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_not_list_gt_present): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_not_list_gt_absent): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_phase_not_string): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_contains_dict): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_mixed_types): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_string_fail_open): the PINNED pre-R5-I1-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "56002e821c111f6c8693aa4a3e501ba939170bd27c8666884e6f7065ce98c51e", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr7100000000000000000000000000000000000000000000000000000000", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr7100000000000000000000000000000000000000000000000000000000", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-handoff-field", "detail": "handoff record field `effects_performed` must be a JSON list when present (got str: 'abc') -- every per-entry check below assumes it can iterate this field as a list, and Python would otherwise either crash iterating a non-iterable value (e.g. an int) or silently iterate a JSON string character-by-character (a genuinely malformed field masquerading as an honestly empty one); treat as unsafe until independently, manually re-verified"}]}) --
+   proving this fixture genuinely catches the R5-I1 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_id_type_collision_bool_int): the PINNED pre-R5-I1-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "81ea33d73e031de8a7be277d093b81b39e959ba3202d6898a67454b35fe48391", "effects_not_to_repeat": [1], "facts_needing_reverification": [], "handoff_id": "sha256:rr7200000000000000000000000000000000000000000000000000000000", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [1], "facts_needing_reverification": [], "handoff_id": "sha256:rr7200000000000000000000000000000000000000000000000000000000", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unrecorded-external-effect", "detail": "effect deploy:True genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"}]}) --
+   proving this fixture genuinely catches the R5-I2 id-type-collision
+   regression if the fix is ever reverted
+
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: ALL CHECKS PASS -- the
+    fixed handoff.py correctly fails CLOSED on every fixture, and every
+    fixture's own pinned pre-fix copy is independently confirmed to NOT
+    reproduce that verdict (I4/R2-I2/R3-I1/R5-I1-fail-open/R5-I2) or to crash
+    uncaught exactly as pre-fix (R4-I1/R5-I1-crash-cases) -- every guard here
+    is load-bearing. ===
+
+===== GREEN handoff_i4
+----- file: ev/fix5_green_handoff_i4.out
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ===
+ok control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsfix.OCjR/constitution/scripts/fastcycle/orchestration/handoff.py resolves
+ok control needle: all 25 fixtures carry handoff.json + expected_verdict.json, all 5 pinned pre-fix copies present
+
+=== Real-tool invocation (FIXED handoff.py): every fixture reports UNSAFE, matching its own expected_verdict.json ===
+ok rr_unverifiable_external_dependency_kind: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_unverifiable_ground_truth: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_missing_ground_truth_empty_effects: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_file: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_external_dep: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_pending_step: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_id_collision_none: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_pending_step_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_ground_truth_entry_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_effects_performed_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_verified_entry: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_malformed_external_dep_wrong_type: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_written_at_not_string: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_verified_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_external_deps_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_pending_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_not_list_gt_present: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_not_list_gt_absent: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_phase_not_string: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_not_list: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_contains_dict: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_affects_verified_mixed_types: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_shape_effects_performed_string_fail_open: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+ok rr_id_type_collision_bool_int: real (fixed) handoff.py resume-check exited 1 (UNSAFE) as
+   expected and its outcome matches expected_verdict.json
+
+=== Guard-viability: each fixture's PINNED pre-fix copy does NOT reproduce the fixed verdict (checked-in, never HEAD-relative) ===
+ok guard-viability (rr_unverifiable_external_dependency_kind): the PINNED pre-I4-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "e9712be24c75c2f4a6d04f1411392646302de2315d74f01bf6b3e7df04e7d897", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": ["EV-RR07-A"], "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-external-dependency", "detail": "external dep https://example.com/releases/artefact-v1.tar.gz has unrecognized dependency kind: http-resource -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"}, {"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing and effects_performed is empty -- an empty effects_performed does NOT prove no effect occurred (the agent may have crashed before it ever recorded one in its own handoff doc), so the absence of an independent ground-truth source is ALWAYS an unverifiable gap, never proof there is nothing to cross-verify; treat as unsafe until an independent ground-truth source is supplied"}]}) --
+   proving this fixture genuinely catches the I4 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_unverifiable_ground_truth): the PINNED pre-I4-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "a25aa7ab2c4b30ff5f3faa3c06304980134c87c8fd535503f90acfbb04b1da62", "effects_not_to_repeat": ["commit-rr08-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr08000000000000000000000000000000000000000000000000000000008", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": ["commit-rr08-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr08000000000000000000000000000000000000000000000000000000008", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing while effects_performed lists 1 effect(s) -- this tool has no independent source to confirm those are ALL the effects that genuinely occurred; treat as unsafe until an independent ground-truth source is supplied"}]}) --
+   proving this fixture genuinely catches the I4 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_missing_ground_truth_empty_effects): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "4757bd839129efadbfaa8e12d41740c1caecef5a939934fc56c3c1ac81ed80c6", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr09000000000000000000000000000000000000000000000000000000009", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr09000000000000000000000000000000000000000000000000000000009", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unverifiable-ground-truth", "detail": "ground_truth_effects.json missing and effects_performed is empty -- an empty effects_performed does NOT prove no effect occurred (the agent may have crashed before it ever recorded one in its own handoff doc), so the absence of an independent ground-truth source is ALWAYS an unverifiable gap, never proof there is nothing to cross-verify; treat as unsafe until an independent ground-truth source is supplied"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_file): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "04431ae7b627a5a0c7cd3aa248caee56213a045a8e3d02060a581237750e4a2d", "effects_not_to_repeat": ["commit-rr10-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": ["commit-rr10-0001"], "facts_needing_reverification": [], "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unreadable-ground-truth", "detail": "ground_truth_effects.json exists but could not be read or parsed as JSON (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)) -- this tool has no confirmed-readable independent ground-truth source, which is a DIFFERENT, weaker claim than 'no ground truth effects exist'; treat as unsafe until the file is repaired or an independent source is supplied"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_external_dep): the PINNED pre-R2-I2-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "a0e272d0c55b49a6c78045f7088f60bc48448b57ed8b2ce8f9a5acbf8b0083e5", "effects_not_to_repeat": ["commit-rr11-0001"], "facts_needing_reverification": ["EV-RR11-A"], "handoff_id": "sha256:rr11000000000000000000000000000000000000000000000000000000011", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": false, "schema": "handoff-resume-check/v1", "unsafe_reasons": [{"class": "unverifiable-external-dependency", "detail": "external dep dep-x has unrecognized dependency kind: None -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"}]} expected={"effects_not_to_repeat": ["commit-rr11-0001"], "facts_needing_reverification": ["EV-RR11-A"], "handoff_id": "sha256:rr11000000000000000000000000000000000000000000000000000000011", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-external-dependency", "detail": "external_deps entry is not a JSON object (got 'not-a-dict-entry') -- DEC-34 requires every dependency be re-hashed, and a non-dict entry cannot be re-hashed or identified; treat as unsafe until independently, manually re-verified"}, {"class": "malformed-external-dependency", "detail": "external dep dep-x has a missing or malformed `kind` field (got None) -- DEC-34 requires every dependency be re-hashed, and this tool cannot re-hash a dependency whose kind it cannot read; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R2-I2
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_entry): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "cafdc21d53cf1c89a17e791ee17769b88c2aa8b5f76251f4c424b98510eedc48", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr12000000000000000000000000000000000000000000000000000000012", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr12000000000000000000000000000000000000000000000000000000012", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-ground-truth-entry", "detail": "ground_truth_effects.json entry is not a JSON object (got 'deploy:dep-99') -- this tool cannot read a kind/id off a non-dict value, so it cannot rule out that this entry names an effect absent from effects_performed; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_pending_step): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "506feeee486a8cd5f339dcc1bd1b9f70af4538d3bdf26123efdf249d84a4b1e4", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr13000000000000000000000000000000000000000000000000000000013", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr13000000000000000000000000000000000000000000000000000000013", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-pending-step", "detail": "pending entry is not a JSON object (got 'replay the llm-generated migration with a random seed') -- this tool cannot read a step/precondition off a non-dict value, so it cannot rule out a nondeterministic source for it; treat as unsafe until independently, manually re-verified"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_id_collision_none): the PINNED pre-R3-I1-fix handoff.py's
+   verdict does NOT match this fixture's expected_verdict.json
+   (MISMATCH derived={"body_hash": "2b3e86b1cf04e04c339cd6f13b4c66d9b127f938f654f4e0bc358426b747a953", "effects_not_to_repeat": [null], "facts_needing_reverification": [], "handoff_id": "sha256:rr14000000000000000000000000000000000000000000000000000000014", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [null], "facts_needing_reverification": [], "handoff_id": "sha256:rr14000000000000000000000000000000000000000000000000000000014", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unrecorded-external-effect", "detail": "effect delete-prod-db:None genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"}]}) -- proving this fixture genuinely catches the R3-I1
+   fail-open regression if the fix is ever reverted
+ok guard-viability (rr_malformed_pending_step_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_ground_truth_entry_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_effects_performed_entry): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_verified_entry): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_malformed_external_dep_wrong_type): the PINNED pre-R4-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R4-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_written_at_not_string): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_verified_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_external_deps_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_pending_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_not_list_gt_present): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_not_list_gt_absent): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_phase_not_string): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_not_list): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_contains_dict): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_affects_verified_mixed_types): the PINNED pre-R5-I1-fix handoff.py CRASHED
+   uncaught (Traceback + TypeError in stderr, NO --out document written) --
+   proving this fixture genuinely catches the R5-I1 crash-into-FAIL
+   regression if the fix is ever reverted
+ok guard-viability (rr_shape_effects_performed_string_fail_open): the PINNED pre-R5-I1-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "56002e821c111f6c8693aa4a3e501ba939170bd27c8666884e6f7065ce98c51e", "effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr7100000000000000000000000000000000000000000000000000000000", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [], "facts_needing_reverification": [], "handoff_id": "sha256:rr7100000000000000000000000000000000000000000000000000000000", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "malformed-handoff-field", "detail": "handoff record field `effects_performed` must be a JSON list when present (got str: 'abc') -- every per-entry check below assumes it can iterate this field as a list, and Python would otherwise either crash iterating a non-iterable value (e.g. an int) or silently iterate a JSON string character-by-character (a genuinely malformed field masquerading as an honestly empty one); treat as unsafe until independently, manually re-verified"}]}) --
+   proving this fixture genuinely catches the R5-I1 fail-open regression
+   if the fix is ever reverted
+ok guard-viability (rr_id_type_collision_bool_int): the PINNED pre-R5-I1-fix handoff.py's verdict
+   does NOT match this fixture's expected_verdict.json (MISMATCH derived={"body_hash": "81ea33d73e031de8a7be277d093b81b39e959ba3202d6898a67454b35fe48391", "effects_not_to_repeat": [1], "facts_needing_reverification": [], "handoff_id": "sha256:rr7200000000000000000000000000000000000000000000000000000000", "run_meta": {"host": "anton"}, "safe_to_resume_without_reverification": true, "schema": "handoff-resume-check/v1", "unsafe_reasons": []} expected={"effects_not_to_repeat": [1], "facts_needing_reverification": [], "handoff_id": "sha256:rr7200000000000000000000000000000000000000000000000000000000", "safe_to_resume_without_reverification": false, "unsafe_reasons": [{"class": "unrecorded-external-effect", "detail": "effect deploy:True genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"}]}) --
+   proving this fixture genuinely catches the R5-I2 id-type-collision
+   regression if the fix is ever reverted
+
+    What this guard proves: the fixed handoff.py correctly fails CLOSED on every
+    fixture, and every fixture's own pinned pre-fix copy is independently confirmed
+    to NOT reproduce that verdict (I4/R2-I2/R3-I1/R5-I1-fail-open/R5-I2) or to crash
+    uncaught exactly as pre-fix (R4-I1/R5-I1-crash-cases) -- every guard here
+    is load-bearing.
+=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: ALL CHECKS PASS ===
+
+===== RED handoff_r9: bash scripts/fastcycle/tests/test_handoff_r9_regression.sh
+----- file: ev/fix5_red_handoff_r9.out
+=== R9 regression guard: control needle -- fixed tool + lib both exist ===
+ok control needle: implementation + lib both resolve
+
+=== R9b-I1: python -OO no longer crashes; a stale --out is never left claiming a wrong verdict ===
+ok R9b-I1 real (fixed) tool: python -OO validate on a tampered handoff does NOT crash
+   (no Traceback, rc=1 honest INVALID), and the pre-seeded STALE 'VALID' --out is
+   correctly overwritten with the FRESH, real INVALID verdict -- never left stale
+ok R9b-I1 (__doc__ fallback) guard-viability: reverting JUST (__doc__ or "") back to
+   bare __doc__ makes the SAME -OO invocation NEVER reach the real INVALID verdict
+   again (caught by the wider boundary as an internal_error/AttributeError instead) --
+   proving the fallback is genuinely necessary for CORRECTNESS, never a tautological mutation
+ok R9b-I1 (stale-out) guard-viability: T140 Round 10 review finding M3 (fixed
+   here) moved pre-invalidation OUT of main()'s unconditional top-of-function
+   call site into the exception-handler path only -- a PURE usage error
+   (validate with no --handoff) now correctly LEAVES a pre-existing, wholly
+   unrelated --out file untouched on the real fixed tool (rc=2, file
+   unchanged), while a copy with the OLD, unconditional call site restored
+   still wrongly deletes it (rc=2, file gone) -- proving M3's relocation is
+   genuinely load-bearing, never a tautological mutation
+
+=== R9-I1: closed/unwritable stderr (2>/dev/full) no longer exits 120 with --out unwritten ===
+ok R9-I1 real (fixed) tool: with a genuine crash escaping to main()'s dispatch
+   boundary AND stderr redirected to /dev/full, the tool no longer exits 120 -- rc
+   stays within its documented {0,1,2} contract, and the --out internal-error
+   document IS written (never lost to a diagnostic-print failure)
+ok R9-I1 (_safe_print) guard-viability: reverting JUST the _safe_print guard (bare,
+   unprotected print()) makes the SAME injected-crash + closed-stderr invocation
+   exit 120 again (outside this tool's documented {0,1,2} contract) -- proving the
+   guard is genuinely load-bearing for the exit-code half of this finding, never a
+   tautological mutation (the doc-presence half is isolated precisely by R9-M2's own
+   guard-viability check above, on a scenario where ONLY _safe_print protects the write)
+
+=== R9-M2: validate on a non-UTF-8 --handoff path never overwrites its own correct
+    VALID report with an internal_error doc just because the success print fails ===
+ok R9-M2 real (fixed) tool: validate on a non-UTF-8 --handoff path writes the correct
+   VALID report and rc=0 -- the stdout success print's own UnicodeEncodeError is
+   swallowed by _safe_print and never corrupts the already-written correct doc
+ok R9-M2 (_safe_print) guard-viability: reverting JUST the _safe_print guard (the SAME
+   mutation as the R9-I1 check above, on a print-only-neutered copy) reproduces the
+   ORIGINAL bug exactly on this DIFFERENT scenario too -- the correct VALID report
+   gets overwritten with an internal_error doc (rc=2) -- proving _safe_print is the
+   SAME genuinely load-bearing fix for both findings
+
+=== R9-M3: resume-check refuses a symlink escaping tree_current/ (lexically-safe, really outside) ===
+ok R9-M3 real (fixed) tool: resume-check refuses the symlink-escaping locator BEFORE
+   _merkle_over_dir ever opens a single file under /etc -- 'malformed-external-dependency',
+   never the honest-but-unintended 'unverifiable-external-dependency' PermissionError path
+ok R9-M3 guard-viability: reverting JUST the realpath containment re-check makes the
+   SAME symlink-escaping locator sail through the lexical check again, and
+   _merkle_over_dir walks into /etc until PermissionError (the ORIGINAL bug) --
+   proving the realpath re-check is genuinely load-bearing, never a tautological mutation
+
+=== R9 REGRESSION GUARD (handoff.py): ALL CHECKS PASS -- python -OO no longer
+    crashes (and the pre-invalidation step independently prevents a stale --out
+    even under a DIFFERENT pre-parse crash), a closed/unwritable stderr no longer
+    exits 120 with --out unwritten, a stdout-print failure after a correct write
+    never corrupts that write, and resume-check refuses a symlink escaping
+    tree_current/ before touching anything outside it. ===
+
+===== GREEN handoff_r9
+----- file: ev/fix5_green_handoff_r9.out
+=== R9 regression guard: control needle -- fixed tool + lib both exist ===
+ok control needle: implementation + lib both resolve
+
+=== R9b-I1: python -OO no longer crashes; a stale --out is never left claiming a wrong verdict ===
+ok R9b-I1 real (fixed) tool: python -OO validate on a tampered handoff does NOT crash
+   (no Traceback, rc=1 honest INVALID), and the pre-seeded STALE 'VALID' --out is
+   correctly overwritten with the FRESH, real INVALID verdict -- never left stale
+ok R9b-I1 (__doc__ fallback) guard-viability: reverting JUST (__doc__ or "") back to
+   bare __doc__ makes the SAME -OO invocation NEVER reach the real INVALID verdict
+   again (caught by the wider boundary as an internal_error/AttributeError instead) --
+   proving the fallback is genuinely necessary for CORRECTNESS, never a tautological mutation
+ok R9b-I1 (stale-out) guard-viability: T140 Round 10 review finding M3 (fixed
+   here) moved pre-invalidation OUT of main()'s unconditional top-of-function
+   call site into the exception-handler path only -- a PURE usage error
+   (validate with no --handoff) now correctly LEAVES a pre-existing, wholly
+   unrelated --out file untouched on the real fixed tool (rc=2, file
+   unchanged), while a copy with the OLD, unconditional call site restored
+   still wrongly deletes it (rc=2, file gone) -- proving M3's relocation is
+   genuinely load-bearing, never a tautological mutation
+
+=== R9-I1: closed/unwritable stderr (2>/dev/full) no longer exits 120 with --out unwritten ===
+ok R9-I1 real (fixed) tool: with a genuine crash escaping to main()'s dispatch
+   boundary AND stderr redirected to /dev/full, the tool no longer exits 120 -- rc
+   stays within its documented {0,1,2} contract, and the --out internal-error
+   document IS written (never lost to a diagnostic-print failure)
+ok R9-I1 (_safe_print) guard-viability: reverting JUST the _safe_print guard (bare,
+   unprotected print()) makes the SAME injected-crash + closed-stderr invocation
+   exit 120 again (outside this tool's documented {0,1,2} contract) -- proving the
+   guard is genuinely load-bearing for the exit-code half of this finding, never a
+   tautological mutation (the doc-presence half is isolated precisely by R9-M2's own
+   guard-viability check above, on a scenario where ONLY _safe_print protects the write)
+
+=== R9-M2: validate on a non-UTF-8 --handoff path never overwrites its own correct
+    VALID report with an internal_error doc just because the success print fails ===
+ok R9-M2 real (fixed) tool: validate on a non-UTF-8 --handoff path writes the correct
+   VALID report and rc=0 -- the stdout success print's own UnicodeEncodeError is
+   swallowed by _safe_print and never corrupts the already-written correct doc
+ok R9-M2 (_safe_print) guard-viability: reverting JUST the _safe_print guard (the SAME
+   mutation as the R9-I1 check above, on a print-only-neutered copy) reproduces the
+   ORIGINAL bug exactly on this DIFFERENT scenario too -- the correct VALID report
+   gets overwritten with an internal_error doc (rc=2) -- proving _safe_print is the
+   SAME genuinely load-bearing fix for both findings
+
+=== R9-M3: resume-check refuses a symlink escaping tree_current/ (lexically-safe, really outside) ===
+ok R9-M3 real (fixed) tool: resume-check refuses the symlink-escaping locator BEFORE
+   _merkle_over_dir ever opens a single file under /etc -- 'malformed-external-dependency',
+   never the honest-but-unintended 'unverifiable-external-dependency' PermissionError path
+ok R9-M3 guard-viability: reverting JUST the realpath containment re-check makes the
+   SAME symlink-escaping locator sail through the lexical check again, and
+   _merkle_over_dir walks into /etc until PermissionError (the ORIGINAL bug) --
+   proving the realpath re-check is genuinely load-bearing, never a tautological mutation
+
+    What this guard proves: python -OO no longer crashes (and the pre-invalidation
+    step independently prevents a stale --out even under a DIFFERENT pre-parse crash),
+    a closed/unwritable stderr no longer exits 120 with --out unwritten, a stdout-print
+    failure after a correct write never corrupts that write, and resume-check refuses
+    a symlink escaping tree_current/ before touching anything outside it.
+=== R9 REGRESSION GUARD (handoff.py): ALL CHECKS PASS ===
+
+===== RED custody_sweep_r17: bash scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh
+----- file: ev/fix5_red_custody_sweep_r17.out
+=== R17 regression guard: control needle -- tool + libs exist, git usable ===
+ok control needle: implementation + libs resolve, git + setsid present
+
+=== IMPORTANT-1 a commit reachable only as the OLD oid of a surviving reflog line ===
+ok R1 evidence: L is reachable from no ref, and appears in logs/HEAD ONLY as an old-oid (never a new-oid)
+ok R1 reflog old-oid-only commit -> REFUSED (detail names: reachable only through this worktree's own f5de7c69037c2c44baf49e777878943ff647c678)
+ok mutation MR1_reflog_old_oid_collected: caught -- mutant ALLOWS what the real tool refuses
+
+=== MINOR-1 a filter that escapes the killed process group (setsid) is bounded, not re-blocked forever ===
+ok MINOR-1 setsid-escaped filter -> REFUSED in 6s (bounded; < the escaped filter's 25s sleep)
+ok MINOR-1 setsid-escaped filter (2nd run, determinism check) -> REFUSED in 6s
+ok mutation MR17_1_abandon_path_disabled: caught -- mutant took 26s (re-blocked on the escaped filter), real tool 6s
+ok mutation MR17_2_kill_only_direct_child: caught -- mutant took 25s (a NON-escaped filter sibling survives a kill() that targets only git itself), real tool 3s -- confirms this round's MINOR-1 fix did NOT weaken detection of a kill-logic defect that never reaches the whole process group
+
+=== MINOR-2 chmod 000 on an admin refs/ subdirectory must REFUSE (fail-closed), never silently ALLOW ===
+ok M2 evidence: refs/worktree/saved exists before the permission attack
+ok M2 chmod 000 on admin refs/worktree/ -> fail-closed REFUSED (never a silent ALLOW) -> REFUSED (detail names: could not read the per-worktree admin dir PermissionError)
+ok mutation MR17_3_walk_onerror_removed: caught -- mutant silently ALLOWS the chmod-000 admin dir (the exact round-16 REFUSED-to-ALLOWED flip), real tool still REFUSES
+
+summary: 11 check(s) passed
+=== R17 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS -- the reflog old-oid branch is now
+    test-covered, a filter that escapes the killed process group (setsid) no longer re-blocks the
+    tool indefinitely (while a kill that never reaches the group at all still stays observable as a
+    hang, per the pre-existing MT1 guard), and a permission-denied admin-dir subtree fails CLOSED. ===
+
+===== GREEN custody_sweep_r17
+----- file: ev/fix5_green_custody_sweep_r17.out
+=== R17 regression guard: control needle -- tool + libs exist, git usable ===
+ok control needle: implementation + libs resolve, git + setsid present
+
+=== IMPORTANT-1 a commit reachable only as the OLD oid of a surviving reflog line ===
+ok R1 evidence: L is reachable from no ref, and appears in logs/HEAD ONLY as an old-oid (never a new-oid)
+ok R1 reflog old-oid-only commit -> REFUSED (detail names: reachable only through this worktree's own b1213ee149a613b4ce505ed7e316704ffefaff86)
+ok mutation MR1_reflog_old_oid_collected: caught -- mutant ALLOWS what the real tool refuses
+
+=== MINOR-1 a filter that escapes the killed process group (setsid) is bounded, not re-blocked forever ===
+ok MINOR-1 setsid-escaped filter -> REFUSED in 6s (bounded; < the escaped filter's 25s sleep)
+ok MINOR-1 setsid-escaped filter (2nd run, determinism check) -> REFUSED in 6s
+ok mutation MR17_1_abandon_path_disabled: caught -- mutant took 25s (re-blocked on the escaped filter), real tool 6s
+ok mutation MR17_2_kill_only_direct_child: caught -- mutant took 26s (a NON-escaped filter sibling survives a kill() that targets only git itself), real tool 3s -- confirms this round's MINOR-1 fix did NOT weaken detection of a kill-logic defect that never reaches the whole process group
+
+=== MINOR-2 chmod 000 on an admin refs/ subdirectory must REFUSE (fail-closed), never silently ALLOW ===
+ok M2 evidence: refs/worktree/saved exists before the permission attack
+ok M2 chmod 000 on admin refs/worktree/ -> fail-closed REFUSED (never a silent ALLOW) -> REFUSED (detail names: could not read the per-worktree admin dir PermissionError)
+ok mutation MR17_3_walk_onerror_removed: caught -- mutant silently ALLOWS the chmod-000 admin dir (the exact round-16 REFUSED-to-ALLOWED flip), real tool still REFUSES
+
+summary: 11 check(s) passed
+    What this guard proves: the reflog old-oid branch is now test-covered, a filter that
+    escapes the killed process group (setsid) no longer re-blocks the tool indefinitely
+    (while a kill that never reaches the group at all still stays observable as a hang,
+    per the pre-existing MT1 guard), and a permission-denied admin-dir subtree fails CLOSED.
+=== R17 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS ===

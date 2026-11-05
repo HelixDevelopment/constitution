@@ -671,12 +671,14 @@ done
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: ALL CHECKS PASS -- the"
-  echo "    fixed handoff.py correctly fails CLOSED on every fixture, and every"
-  echo "    fixture's own pinned pre-fix copy is independently confirmed to NOT"
-  echo "    reproduce that verdict (I4/R2-I2/R3-I1/R5-I1-fail-open/R5-I2) or to crash"
+  # CON-112: the explanatory prose comes first and the summary line last, so the
+  # full-suite runner reads no fail word ("fails CLOSED") after the summary.
+  echo "    What this guard proves: the fixed handoff.py correctly fails CLOSED on every"
+  echo "    fixture, and every fixture's own pinned pre-fix copy is independently confirmed"
+  echo "    to NOT reproduce that verdict (I4/R2-I2/R3-I1/R5-I1-fail-open/R5-I2) or to crash"
   echo "    uncaught exactly as pre-fix (R4-I1/R5-I1-crash-cases) -- every guard here"
-  echo "    is load-bearing. ==="
+  echo "    is load-bearing."
+  echo "=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: ALL CHECKS PASS ==="
 else
   echo "=== I4+R2-I2+R3-I1+R4-I1+R5-I1+R5-I2 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
 fi

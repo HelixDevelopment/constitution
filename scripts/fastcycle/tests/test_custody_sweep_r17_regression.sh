@@ -389,10 +389,13 @@ chmod 755 "$(admin "$M2b")/refs/worktree"
 echo
 echo "summary: $pass check(s) passed"
 if [ "$fail" = 0 ]; then
-  echo "=== R17 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS -- the reflog old-oid branch is now"
-  echo "    test-covered, a filter that escapes the killed process group (setsid) no longer re-blocks the"
-  echo "    tool indefinitely (while a kill that never reaches the group at all still stays observable as a"
-  echo "    hang, per the pre-existing MT1 guard), and a permission-denied admin-dir subtree fails CLOSED. ==="
+  # CON-112: the explanatory prose comes first and the summary line last, so the
+  # full-suite runner reads no fail word ("fails CLOSED") after the summary.
+  echo "    What this guard proves: the reflog old-oid branch is now test-covered, a filter that"
+  echo "    escapes the killed process group (setsid) no longer re-blocks the tool indefinitely"
+  echo "    (while a kill that never reaches the group at all still stays observable as a hang,"
+  echo "    per the pre-existing MT1 guard), and a permission-denied admin-dir subtree fails CLOSED."
+  echo "=== R17 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS ==="
   exit 0
 else
   echo "=== R17 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ==="

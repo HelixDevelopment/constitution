@@ -603,12 +603,14 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== R9 REGRESSION GUARD (handoff.py): ALL CHECKS PASS -- python -OO no longer"
-  echo "    crashes (and the pre-invalidation step independently prevents a stale --out"
-  echo "    even under a DIFFERENT pre-parse crash), a closed/unwritable stderr no longer"
-  echo "    exits 120 with --out unwritten, a stdout-print failure after a correct write"
-  echo "    never corrupts that write, and resume-check refuses a symlink escaping"
-  echo "    tree_current/ before touching anything outside it. ==="
+  # CON-112: the explanatory prose comes first and the summary line last, so the
+  # full-suite runner reads no fail word ("fails CLOSED") after the summary.
+  echo "    What this guard proves: python -OO no longer crashes (and the pre-invalidation"
+  echo "    step independently prevents a stale --out even under a DIFFERENT pre-parse crash),"
+  echo "    a closed/unwritable stderr no longer exits 120 with --out unwritten, a stdout-print"
+  echo "    failure after a correct write never corrupts that write, and resume-check refuses"
+  echo "    a symlink escaping tree_current/ before touching anything outside it."
+  echo "=== R9 REGRESSION GUARD (handoff.py): ALL CHECKS PASS ==="
   exit 0
 else
   echo "=== R9 REGRESSION GUARD (handoff.py): FAILURES ABOVE -- see 'NOT ok' lines. ==="
