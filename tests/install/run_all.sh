@@ -6,7 +6,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; gates="$here/../../scripts/gates"
 quick=0; [ "${1:-}" = "--quick" ] && quick=1
-suites=(test_unit test_integration test_updater test_e2e test_agent test_security test_determinism test_detection test_self_guard test_git_wrapper test_minor test_lock test_round6 test_round8 test_round9 test_round10 test_round11)
+suites=(test_unit test_integration test_updater test_e2e test_agent test_security test_determinism test_detection test_self_guard test_git_wrapper test_minor test_lock test_round6 test_round8 test_round9 test_round10 test_round11 test_upstream_main)
 [ "$quick" = 1 ] || suites+=(test_chaos test_stress_perf)
 failed=()
 for s in "${suites[@]}"; do

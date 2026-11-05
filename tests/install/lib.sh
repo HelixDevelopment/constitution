@@ -69,12 +69,16 @@ make_upstream() {
   fi
   # serve partial clones like GitHub/GitLab do (the installer clones blobless)
   git -C "$d/upstream.git" config uploadpack.allowFilter true || return 1
-  # the suite must not depend on which branch REPO happens to have checked out: the upstream HEAD is main
-  # (a checkout on a vehicle branch made every `push origin main` below fail with "src refspec main does not match")
-  # a REPO checked out on a vehicle branch with no local main (git clone -b) has no refs/heads/main in the bare copy:
-  # create it from the bare HEAD so main exists (the tests push, pull and rev-parse main)
-  git -C "$d/upstream.git" rev-parse -q --verify refs/heads/main >/dev/null \
-    || git -C "$d/upstream.git" update-ref refs/heads/main "$(git -C "$d/upstream.git" rev-parse HEAD)" || return 1
+  # The upstream main IS the commit under test: REPO's checked-out HEAD, whatever branch REPO is on.
+  # (a checkout on a vehicle branch made every `push origin main` below fail with "src refspec main does not match";
+  # and keeping a pre-existing local main put main's tree, not the commit under review, under the fixture commit:
+  # review F8, section 11.4.108 / 11.4.200). update-ref is unconditional; the seed path keeps its own main.
+  if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
+    local under_test
+    under_test="$(git -C "$REPO" rev-parse --verify -q 'HEAD^{commit}')" || return 1
+    git -C "$d/upstream.git" cat-file -e "$under_test^{commit}" || return 1
+    git -C "$d/upstream.git" update-ref refs/heads/main "$under_test" || return 1
+  fi
   git -C "$d/upstream.git" symbolic-ref HEAD refs/heads/main || return 1
   git clone -q "$d/upstream.git" "$d/upwork" || return 1
   if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
