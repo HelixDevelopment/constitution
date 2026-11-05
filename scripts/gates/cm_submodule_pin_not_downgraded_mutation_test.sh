@@ -3,7 +3,8 @@
 # Part 1: fixtures vs the gate (GATE_UNDER_TEST overrides the path, used to show RED on an older gate; then Part 2 is
 #         skipped because the mutant seds are written against the current gate).
 # Part 2: mutants of a scratch gate copy; each MUST change the verdict vector (be killed). Includes the round-2
-#         reviewer mutants RM1-RM5, the round-3 reviewer mutants RV1, RV3-RV7 and their killer fixtures. Mutants run in
+#         reviewer mutants RM1-RM5, the round-3 reviewer mutants RV1, RV3-RV7, the round-4 reviewer mutants RM8-RM14
+#         and their killer fixtures (K1-K14), and the round-5 mutants for M-1, M-2 and N-4. Mutants run in
 #         parallel, MUT_JOBS at a time (default 3), each in its own temp dir.
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
@@ -201,9 +202,12 @@ lrow() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "$uA" ops "$d10" CON-04
 lgc() { local r="$1"; shift; git -C "$r" commit -q "$@" >"$tmp/hout" 2>&1; echo $?; }
 lpin() { case "$(git -C "$1" ls-tree "${2:-HEAD}" -- sub | awk '{print $3}')" in "$uA") echo A ;; "$uB") echo B ;; *) echo X ;; esac; }
 lg() { bash "$LG" --root "$@" >"$tmp/gout" 2>&1; echo $?; }
-lrb() { # in $SR: checkout to A (stale against pin B), row bound to HEAD, staged, commit -a = the reviewed rollback
-  git -C "$SR/sub" checkout -q "$uA"; lrow "$(git -C "$SR" rev-parse HEAD)" >"$SR/.submodule_pin_waivers"; git -C "$SR" add .submodule_pin_waivers
-  lgc "$SR" -a -m rollback; }
+lrb() { # in ${1:-$SR}: checkout to A (stale against pin B), row bound to HEAD, staged, commit -a = the reviewed rollback
+  local r="${1:-$SR}"; git -C "$r/sub" checkout -q "$uA"; lrow "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; lgc "$r" -a -m rollback; }
+lc_veh() { # vehicle X at main's tip: reviewed rollback Rc, index-only forward; back on main (checkout stays at A)
+  lc_sup "$LH"; git -C "$SR" checkout -q -b X; lrb >/dev/null; Rc=$(git -C "$SR" rev-parse HEAD)
+  git -C "$SR" update-index --cacheinfo 160000,"$uB",sub; lgc "$SR" -m fwd >/dev/null; git -C "$SR" checkout -q main; }
 lc_x() { # <moved|same> <conflict|-> : vehicle X at main's tip: reviewed rollback, [notes edit], index-only forward to B;
   # back on main (the checkout stays at A, as after any branch switch), main then moved or not
   lc_sup "$LH"; git -C "$SR" checkout -q -b X; LX1=$(lrb); if [ "$2" = conflict ]; then echo x >"$SR/notes"; lgc "$SR" -m xn -- notes >/dev/null; fi
@@ -247,9 +251,61 @@ lifecycle() { # gate path -> vector part
   # base field forms: an abbreviated sha and the literal HEAD are refused
   lc_sup "$LH"; r=$SR; git -C "$r/sub" checkout -q "$uA"; lrow "$(git -C "$r" rev-parse --short HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers
   a=$(lgc "$r" -a -m rb); lrow HEAD >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; b=$(lgc "$r" -a -m rb); o+="BASEFORM=$a,$b/$(lpin "$r") "
+  # ── round-5: the round-4 reviewer's killer fixtures K8-K14 (probes/p7_killers.sh), adopted as written with the
+  # lc_* helpers in place of the probe library's (sup=lc_sup, rb=lrb, gc=lgc, pin=lpin, row=lrow, vehicle=lc_veh) ──
+  # K8: the spender is reachable only from a tag (vehicle branch deleted) -> refused
+  lc_veh; r=$SR; git -C "$r" tag t "$Rc"; x=$(git -C "$r" rev-parse X); git -C "$r" branch -q -D X; git -C "$r" merge -q --squash "$x" >/dev/null 2>&1
+  o+="K8TAG=$(lgc "$r" -a -m sq)/$(lpin "$r") "
+  # K14: the spender is only the detached HEAD of another worktree -> refused (rev-list --all covers all worktrees)
+  lc_sup "$LH"; r=$SR; w="$tmp/w.$RANDOM"; git -C "$r" worktree add -q --detach "$w" 2>/dev/null; git -C "$w" submodule update -q --init 2>/dev/null
+  lrb "$w" >/dev/null; git -C "$w" update-index --cacheinfo 160000,"$uB",sub; lgc "$w" -m fwd >/dev/null
+  git -C "$r" merge -q --squash "$(git -C "$w" rev-parse HEAD)" >/dev/null 2>&1; git -C "$r/sub" checkout -q "$uA"; o+="K14WT=$(lgc "$r" -a -m sq)/$(lpin "$r") "
+  # K9: a superproject replace ref makes the spender parentless; replace refs must be ignored -> refused
+  lc_veh; r=$SR; git -C "$r" merge -q --squash X >/dev/null 2>&1; git -C "$r" replace --graft "$Rc"; o+="K9REPL=$(lgc "$r" -a -m sq)/$(lpin "$r") "
+  # K11 / K12: a sibling on the same parent whose row is for ANOTHER path / ANOTHER old sha is no spender -> waived
+  lc_sup "$LH"; r=$SR; x=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Y
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub2 "$uB" "$uA" ops "$d10" CON-046 "$x" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; lgc "$r" -m y >/dev/null
+  git -C "$r" checkout -q main; o+="K11PATH=$(lrb)/$(lpin "$r") "
+  lc_sup "$LH"; r=$SR; x=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Y
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub 3333333333333333333333333333333333333333 "$uA" ops "$d10" CON-046 "$x" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; lgc "$r" -m y >/dev/null
+  git -C "$r" checkout -q main; o+="K12OLD=$(lrb)/$(lpin "$r") "
+  # K13: a sibling's waiver path is a tree (the spent check cannot tell) -> refused, through the hook
+  lc_sup "$LH"; r=$SR; git -C "$r" checkout -q -b Y; mkdir "$r/.submodule_pin_waivers"; echo x >"$r/.submodule_pin_waivers/x"; git -C "$r" add .submodule_pin_waivers; lgc "$r" -m y >/dev/null
+  git -C "$r" checkout -q main; rm -rf "${r:?}/.submodule_pin_waivers"; o+="K13TELL=$(lrb)/$(lpin "$r") "
+  # K10: blob:none partial superproject, the spender's waiver blob only on the promisor -> refused as unreadable, nothing fetched
+  lc_veh; r=$SR; git -C "$r/sub" checkout -q "$uB"; git -C "$r" config uploadpack.allowfilter true; git -C "$r" config uploadpack.allowanysha1inwant true
+  b=$(git -C "$r" rev-parse "$Rc:.submodule_pin_waivers"); c="$tmp/bn.$RANDOM"; git clone -q --no-local --filter=blob:none "file://$r" "$c" 2>/dev/null
+  git -C "$c" submodule update -q --init 2>/dev/null; ln -s "$LH" "$c/.git/hooks/pre-commit"
+  lrow "$(git -C "$c" rev-parse HEAD)" | sed 's/\tops\t/\tops2\t/' >"$c/.submodule_pin_waivers"; git -C "$c" add .submodule_pin_waivers; git -C "$c/sub" checkout -q "$uA"
+  x=$(GIT_NO_LAZY_FETCH=1 git -C "$c" cat-file -e "$b" 2>/dev/null && echo present || echo absent)
+  a=$(lgc "$c" -a -m snap); y=$(GIT_NO_LAZY_FETCH=1 git -C "$c" cat-file -e "$b" 2>/dev/null && echo present || echo absent)
+  o+="K10LAZY=$a/$x/$y/$(grep -c unreadable "$tmp/hout") "
+  # ── round-5 M-1: the spender's TREE is missing (incomplete object store) -> unreadable, refused (never "absent") ──
+  lc_sup "$LH"; r=$SR; git -C "$r" checkout -q -b X; lrb >/dev/null; x=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q main; git -C "$r/sub" checkout -q "$uB"
+  b=$(git -C "$r" rev-parse "$x^{tree}"); rm -f "${r:?}/.git/objects/${b:0:2}/${b:2}"
+  lrow "$(git -C "$r" rev-parse HEAD)" | sed 's/\tops\t/\tops2\t/' >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; git -C "$r/sub" checkout -q "$uA"
+  a=$(lgc "$r" -a -m snap); o+="TREEMISS=$a/$(lpin "$r")/$(GIT_NO_LAZY_FETCH=1 git -C "$r" cat-file -e "$b" 2>/dev/null && echo present || echo missing)/$(grep -c unreadable "$tmp/hout") "
+  # M-1: a shallow superproject hides the spender's parent (R is a shallow boundary) -> waivers refused
+  lc_veh; r=$SR; git -C "$r/sub" checkout -q "$uB"; c="$tmp/sh.$RANDOM"; git clone -q --no-local --depth 1 --branch main "file://$r" "$c" 2>/dev/null
+  git -C "$c" fetch -q --depth 2 origin X:refs/remotes/origin/X 2>/dev/null; git -C "$c" submodule update -q --init 2>/dev/null; ln -s "$LH" "$c/.git/hooks/pre-commit"
+  git -C "$c" checkout -q origin/X -- .submodule_pin_waivers; git -C "$c/sub" checkout -q "$uA"; a=$(lgc "$c" -a -m snap)
+  o+="SHALLOWSUP=$a/$(lpin "$c")/$(git -C "$c" rev-parse --is-shallow-repository)/$(grep -c 'superproject is shallow' "$tmp/hout") "
+  # M-2: a stash of the staged reviewed rollback is no spender: stash push, stash apply --index, commit -a -> waived
+  lc_sup "$LH"; r=$SR; git -C "$r/sub" checkout -q "$uA"; lrow "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r" add -A
+  git -C "$r" stash push -q >/dev/null 2>&1; git -C "$r" stash apply -q --index >/dev/null 2>&1; git -C "$r/sub" checkout -q "$uA"
+  a=$(lgc "$r" -a -m rollback); o+="STASH=$a/$(lpin "$r")/$(git -C "$r" rev-parse -q --verify refs/stash >/dev/null && echo kept || echo gone) "
+  # N-4: --base mode, HEAD = the reviewed rollback R. An index equal to HEAD's tree is HEAD (R not counted: waived); an
+  # index that differs from HEAD's tree is another commit, so R counts as a spender (refused)
+  lc_sup "$LH"; r=$SR; x=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; lrb >/dev/null; c=$(git -C "$r" rev-parse HEAD)
+  git -C "$r" read-tree "$x"; git -C "$r" checkout "$c" -- .submodule_pin_waivers; git -C "$r" update-index --cacheinfo 160000,"$uA",sub
+  a=$(lg "$r" --base "$x"); echo n4 >"$r/notes"; git -C "$r" add notes; b=$(lg "$r" --base "$x"); o+="N4INDEX=$a,$b "
+  # M-3 documented residual (pinned): reviewed rollback + index-only forward, then `reset --soft HEAD~2 && commit -a` over
+  # the stale checkout: the rollback is reflog-only, so the row waives again and A lands (header: Residual)
+  lc_sup "$LH"; r=$SR; a=$(lrb); git -C "$r" update-index --cacheinfo 160000,"$uB",sub; b=$(lgc "$r" -m fwd); git -C "$r" reset -q --soft HEAD~2
+  c=$(lgc "$r" -a -m squash); o+="RESETSQ=$a,$b,$c/$(lpin "$r") "
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B "
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A "
 got="$(classify "$gate")"; echo "gate vector: $got"
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
 # ── Part 2: mutants (skipped under GATE_UNDER_TEST: the seds target the current gate text) ──
@@ -295,6 +351,21 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant spent-unreadable-ignored '/(same parent) is unreadable/d'
   mutant spent-history-error-ignored 's/^  \[ "\$kidsrc" = ok \] || .*$/  :/'
   mutant spent-grafts-honoured '/^pg() /s/ GIT_GRAFT_FILE=\/dev\/null//'
+  # round-4 reviewer mutants RM8-RM14 (adopted, §11.4.276(D)). RM9-RM13 are the reviewer's seds unchanged; RM8 and RM14
+  # target the round-5 text `--exclude=refs/stash --all` (RM14 keeps --single-worktree BEFORE --all, else it is equivalent)
+  mutant RM8-scope-branches-only 's/pg rev-list --exclude=refs\/stash --all --parents/pg rev-list --branches --parents/'
+  mutant RM9-super-replace-honoured '/^pg() /s/ GIT_NO_REPLACE_OBJECTS=1//'
+  mutant RM10-super-lazy-fetch '/^pg() /s/GIT_NO_LAZY_FETCH=1 //'
+  mutant RM11-spent-ignores-path 's/^      NF==7 \&\& \$1""==p"" \&\& \$2""==o""/      NF==7 \&\& $2""==o""/'
+  mutant RM12-spent-ignores-old 's/^      NF==7 \&\& \$1""==p"" \&\& \$2""==o"" \&\& /      NF==7 \&\& $1""==p"" \&\& /'
+  mutant RM13-spent-cannot-tell-is-unspent 's/^           \*) WHY="\$SPENT; cannot prove the row is unspent" ;;/           *) return 0 ;;/'
+  mutant RM14-single-worktree 's/pg rev-list --exclude=refs\/stash --all --parents/pg rev-list --exclude=refs\/stash --single-worktree --all --parents/'
+  # round-5: missing tree read as absent (M-1), shallow superproject unchecked (M-1), stash counted (M-2), HEAD always
+  # excluded from spenders (N-4)
+  mutant M1-tree-missing-is-absent '/^  pg cat-file -e "\$1^{tree}" 2>\/dev\/null || return 2$/d'
+  mutant M1-shallow-superproject-unchecked 's/^    if \[ "\$(pg rev-parse --is-shallow-repository 2>\/dev\/null)" != false \]; then kidsrc=shallow$/    if false; then :/'
+  mutant M2-stash-counted '/^    elif all=/s/ --exclude=refs\/stash//'
+  mutant N4-head-always-excluded 's/ 2>\/dev\/null \&\& hx="\$headc"$/; hx="$headc"/'
   # waiver row form
   mutant waiver-ignores-old-sha 's/ \&\& \$2""==o""//'
   mutant waiver-ignores-new-sha 's/ \&\& \$3""==n""//'

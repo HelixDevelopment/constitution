@@ -18,8 +18,9 @@
 # script). Threat model: an ACCIDENT guard (a stale checkout picked up by a snapshot commit), not a guard against a
 # producer who wants to bypass it: that producer controls the environment and can skip hooks anyway.
 # NOT guarded (measured on git 2.53): `git commit --no-verify`; plumbing (commit-tree, update-ref); and commits made
-# without pre-commit: `git merge` (auto-commit and --ff-only), a CLEAN `cherry-pick`, `revert` or `rebase`. (After a
-# conflict, `cherry-pick --continue` does run pre-commit.) Therefore a downgrade made on a vehicle branch can still land
+# without pre-commit: `git merge` (auto-commit and --ff-only), a CLEAN `cherry-pick` or `revert`, and `rebase` (clean
+# AND after a conflict: `rebase --continue` runs no pre-commit). (After a conflict, `cherry-pick --continue` does run
+# pre-commit.) Therefore a downgrade made on a vehicle branch can still land
 # on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no hook in scratch clones); run this script with
 # `--base <parent>` on such a commit to judge it. Per-commit index diffs also miss a downgrade split across commits or
 # combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built). The hook
@@ -28,7 +29,9 @@
 # amended, not its parent. Consequences: amending a waived rollback shows no gitlink change (PASS); an amend can strip or
 # change the waiver row of an already waived commit unchecked; and after a WARN (diverged) move, an amend to an ancestor
 # of the PARENT's pin is judged against the WARN commit, so it can land a downgrade against the real parent unwaived.
-# Run the gate directly with `--base HEAD^` to judge an amend against the parent.
+# Run the gate directly with `--base HEAD^` to judge an amend against the parent. So for an amend the rule's "the
+# parent is base_sha" does not hold: the row is bound to the commit being amended (HEAD), the amended commit's parent is
+# HEAD^, the WAIVED line names HEAD as "parent", and a later `--base HEAD^` re-check of that commit refuses it.
 # Partial commit (`git commit -- <paths>`): git builds a temporary index from HEAD plus <paths>, so a waiver file not
 # named in <paths> is not seen.
 #
@@ -47,17 +50,35 @@
 #   path  old_sha  new_sha  authoriser  expiry  tracked_item  base_sha
 # ONE RULE for the lifetime of a row: a row waives ONE transition (path, old pin, new pin; full SHAs) in ONE commit that
 # has ONE parent, and that parent is base_sha (the full SHA of HEAD at the time the rollback is committed:
-# `git rev-parse HEAD`). It is spent by the first such commit: a commit reachable from a ref (`git rev-list --all`, all
-# worktrees), other than HEAD, whose parent is base_sha and whose waiver file carries the same (path, old, new, base)
-# row. So a row in an earlier commit, a row brought in by a merge, squash, cherry-pick or rebase, and a leftover row
+# `git rev-parse HEAD`). It is spent by ANY other commit (not only the first) that is reachable from a ref (`git
+# rev-list --exclude=refs/stash --all`: branches, tags, remote-tracking refs, notes refs and every worktree's HEAD;
+# refs/stash is excluded because a stash is never a commit on a line of work), has base_sha as a parent (first or
+# second, so a merge with base_sha as second parent counts), and whose waiver file carries the same (path, old, new,
+# base) row. This is conservative: once a later copy S exists, re-judging the first commit R with `--base HEAD^`
+# refuses R too. The commit being judged is not counted: in hook mode it does not exist yet (HEAD is the base), and in
+# `--base` mode HEAD is excluded only when the index IS HEAD's tree (then the index is HEAD); any other index is
+# judged as a new commit, so HEAD counts as a spender. When the spent check cannot tell (a candidate's tree or waiver
+# blob is unreadable, a broken ref, or the superproject is shallow or its shallow state is unknown) the row is NOT
+# honoured. So a row in an earlier commit, a row brought in by a merge, squash, cherry-pick or rebase, and a leftover row
 # from before the last commit never count: each of those commits has a different parent, a second parent (MERGE_HEAD),
 # or a parent whose waiver was already spent. A base_sha that is abbreviated, a name, or not the parent is refused.
 # A spent transition cannot be waived again on the same parent while the first commit is on a ref: make the new
 # rollback on top of a different parent, or remove that ref first.
-# Residual (documented, not detectable): a row bound to the CURRENT HEAD and never committed (an abandoned rollback)
-# still waives the next commit on that HEAD; the row is visible in that commit's diff. A spent commit that is reachable
-# only from a reflog (after `reset`, or a deleted branch) is not counted, so a `reset --soft` + redo works, and a squash
-# of a vehicle whose branch was deleted before the squash commit is not caught.
+# Residual (documented, not detectable by a local pre-commit check; the landing-seam `--range A..B` follow-up is the
+# structural answer): a row bound to the CURRENT HEAD and never committed (an abandoned rollback) still waives the next
+# commit on that HEAD; the row is visible in that commit's diff. A spender that no local ref reaches is not counted, so
+# the same reviewed transition can land a SECOND time on the same parent (each WAIVED, pin back at the old value):
+#   - `git reset --soft HEAD~2 && git commit -a` over [reviewed rollback, index-only forward] with the submodule
+#     checkout still at the old pin: the common local-squash idiom; the forward is dropped and the old pin lands
+#     (the incident shape, reported WAIVED, not FAIL). Mitigation: commit without `-a`, or run `git submodule update`
+#     first. A plain `reset --soft` + redo of the rollback itself is the same mechanism and is intended;
+#   - a squash from FETCH_HEAD only (the vehicle lives in another clone and never had a local ref);
+#   - a vehicle whose branch was deleted before the squash commit (reflog only);
+#   - a worktree that was removed while its HEAD was the spender;
+#   - a spender that is reachable only from a note (refs/notes holds the note commit, not the annotated commit);
+#   - `git merge --no-commit --no-ff X`, then `git merge --quit` (MERGE_HEAD gone, single-parent commit) with the
+#     vehicle deleted: the MERGE_HEAD clause is bypassed by that documented git command, and only the spent check is
+#     left (it refuses while X still has a ref).
 # The other checks on a row:
 #   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive);
 #   - tracked_item matches <item_prefix>-NNN (3+ digits; NOT checked to exist in the tracker);
@@ -79,9 +100,10 @@
 #   cm_submodule_pin_not_downgraded.sh [--root <repo>] [--base <rev>] [--waivers <file>] [-h]
 #   --root is normalised to the repository top level (so diff.relative and a subdirectory --root cannot hide a path);
 #   --base defaults to HEAD (empty tree when HEAD is unborn). A submodule checkout path that is a symlink is BLIND.
-# Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; every git call runs with
-# GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no replace refs and no
-# legacy grafts). Deps: bash 4.3+, git, awk, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
+# Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; every git call that reads
+# objects runs with GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no
+# replace refs and no legacy grafts; `rev-parse --show-toplevel` and `rev-parse --local-env-vars` read no objects and
+# run without them). Deps: bash 4.3+, git, awk, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
 # needs GNU readlink (`readlink -f`). Without GNU date a waiver is refused (never honoured); without GNU readlink the
 # hook prints SKIP (not guarded).
 # Submodule git calls run with every variable from `git rev-parse --local-env-vars` removed except GIT_CONFIG_PARAMETERS
@@ -117,8 +139,10 @@ else
   basec="$(pg rev-parse -q --verify "$base^{commit}" 2>/dev/null)" || blind0 "--base $base does not resolve to a commit"
 fi
 mergeh="$(pg rev-parse -q --verify 'MERGE_HEAD^{commit}' 2>/dev/null)"
-blob() { # <treeish> <path> -> content on stdout; rc 0 present, 1 absent, 2 unreadable
-  local id; id="$(pg rev-parse -q --verify "$1:$2" 2>/dev/null)" || return 1
+blob() { # <treeish> <path> -> content on stdout; rc 0 present, 1 absent, 2 unreadable (a missing TREE is unreadable)
+  local id
+  pg cat-file -e "$1^{tree}" 2>/dev/null || return 2
+  id="$(pg rev-parse -q --verify "$1:$2" 2>/dev/null)" || return 1
   pg cat-file blob "$id" 2>/dev/null || return 2
 }
 today="$(date +%Y-%m-%d)"
@@ -161,15 +185,21 @@ except BaseException:
 sys.exit(rc)'
 kids=""; kidsrc=""; SPENT=""
 spent() { # <path> <old> <new> -> 0 spent (SPENT=commit), 1 unspent, 2 cannot tell (SPENT=reason)
-  # spent = a commit reachable from a ref, other than HEAD, whose parent is the base and whose waiver file carries the
-  # same (path, old, new, base) row
-  local all k t rc
+  # spent = any commit reachable from a ref (refs/stash excluded), other than the commit being judged, that has the
+  # base as a parent and whose waiver file carries the same (path, old, new, base) row
+  local all k t rc hx
   if [ -z "$kidsrc" ]; then
-    if all="$(pg rev-list --all --parents 2>/dev/null)"; then kidsrc=ok
+    # HEAD is excluded only when the judged index IS HEAD's tree (--base HEAD^ re-check of HEAD); otherwise HEAD is
+    # an ordinary candidate (in hook mode HEAD is the base, never its own child)
+    hx=""
+    pg diff --cached --quiet --ignore-submodules=none "${headc:-$basec}" -- 2>/dev/null && hx="$headc"
+    if [ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]; then kidsrc=shallow
+    elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok
       kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]; ARGV[1]=ARGV[2]=""}
-        $1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}' "$basec" "$headc")"
+        $1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}' "$basec" "$hx")"
     else kidsrc=err; fi
   fi
+  [ "$kidsrc" = shallow ] && { SPENT="the superproject is shallow or its shallow state is unknown (a commit on the same parent may be hidden; git fetch --unshallow)"; return 2; }
   [ "$kidsrc" = ok ] || { SPENT="git rev-list --all failed (a broken ref?)"; return 2; }
   for k in $kids; do
     t="$(blob "$k" .submodule_pin_waivers)"; rc=$?

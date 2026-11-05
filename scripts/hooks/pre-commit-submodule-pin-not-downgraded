@@ -3,7 +3,10 @@
 # Install (operator consent): ln -s <path-to>/scripts/hooks/pre-commit-submodule-pin-not-downgraded .git/hooks/pre-commit
 # The gate is resolved relative to THIS file's real path (constitution layout, also when vendored as constitution/).
 # Run from a copy or any layout without ../gates/…: prints an honest SKIP and does not block (nothing is guarded then).
-# Guards only commits that run git hooks (not --no-verify, merge, or a clean cherry-pick/revert/rebase). BLIND (2) blocks
+# Guards only commits that run git hooks (not --no-verify, merge, a clean cherry-pick/revert, or rebase clean or after a
+# conflict). Not caught (a local check cannot see it): `reset --soft HEAD~2 && commit -a` over a reviewed rollback and an
+# index-only forward with a stale submodule checkout re-lands the old pin as WAIVED; commit without -a, or run
+# `git submodule update` first (the gate header lists every such residual). BLIND (2) blocks
 # (fail closed). Base is always HEAD: git does not tell a pre-commit hook about --amend (see the gate header). A waiver
 # row waives one transition in one single-parent commit on top of the commit the row names (the gate header has the rule).
 # Needs bash and GNU readlink (`readlink -f`); without them the gate is not found and the hook prints SKIP (not guarded).

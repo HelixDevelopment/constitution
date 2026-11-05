@@ -1359,3 +1359,21 @@ Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc)
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 
+## CON-070 — CON-046 follow-up: landing-seam --range A..B check, so a waiver row cannot re-land on the same parent from a commit no local ref reaches
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+Follow-up of CON-046 review round 4, section 6 (recommended by the reviewer, kept as tracked work per the coordinator, section 11.4.197). The pre-commit gate scripts/gates/cm_submodule_pin_not_downgraded.sh can only see commits that a LOCAL ref reaches, so a reviewed rollback row can land the same (path, old -> new) transition a second time on the same parent when the first commit is invisible locally: reset --soft HEAD~2 && commit -a over a stale checkout, a squash from FETCH_HEAD only, a deleted vehicle branch, a removed worktree, a spender only in a note, merge --quit with the vehicle deleted (all listed as Residual in the gate header, round 5). The structural answer is a --range A..B mode run at the landing seam (the ff-only landing script, or a pre-receive / pre-push seam on main): judge every commit of main's first-parent history in A..B against its first parent, and refuse a waived commit whose (waiver row, parent) pair already occurs earlier on main. It depends only on main's history, not on local ref visibility. Also judges ff-only merges and clean cherry-pick/rebase results, which run no pre-commit hook.
+
+**Affected scope / file-scope manifest:**
+scripts/gates/cm_submodule_pin_not_downgraded.sh (new --range mode); scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh (fixtures and mutants); the landing script or seam that calls it (to be named when built)
+
+**Reproduction:**
+The residual members are pinned or measured: fixture RESETSQ in the mutation test (WAIVED, pin A) and the round-4 review probes p1, p2, p8 (scratchpad/rv046r4.CjTUj5/probes).
+
+**Acceptance:**
+A --range A..B run over a main history that contains the reviewed rollback and a second commit re-landing the same row on the same parent FAILs naming both commits; the same history with only the first commit PASSes (golden-FALSE, section 11.4.201(1)); a paired mutant that drops the duplicate check survives no fixture; the hook is still not installed without operator consent.
+
