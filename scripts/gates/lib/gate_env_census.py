@@ -140,10 +140,14 @@ RE_OWNER_ASSIGN = re.compile(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=\$?$")
 RE_OWNER_READ = re.compile(r"\bread\b[^;&|]*?\s([A-Za-z_]\w*)\s*$")
 # A command line that PROVABLY runs a non-jq interpreter at command position (awk/perl/python/sed/grep/...; wrappers such as
 # env/command/exec/sudo/nice/time/timeout and VAR=val prefixes allowed). Only such a line disowns the quoted text on it.
-# CLASS RULE (CON-015, 11.4.201(4)): the jq whole-environment check is DISARMED only for a region provably owned by such an
-# interpreter, or assigned to a variable that is expanded only on such lines; every other region -- jq reached through a
-# variable, a ${X:-jq} default, a path (/usr/bin/jq), a wrapper function, an array, a function that returns the program, a
-# pipeline continued on the next line, `cmd=jq; "$cmd"`, or any command word the census cannot resolve -- stays ARMED.
+# CLASS RULE (CON-015, 11.4.201(4)): the jq whole-environment check reads a quoted region unless its owner is decided as
+# non-jq. Owner order: (1) the line has a jq/yq/gojq word -> jq; (2) the region is assigned to / read into a variable ->
+# owned by that variable (armed when a jq line expands it, whatever else the assignment line runs); (3) otherwise the
+# WHOLE logical line runs a known interpreter at some command position -> disarmed; (4) cat/printf/echo/tee writes it to
+# a file not named on a jq line -> disarmed; (5) anything else stays ARMED. Known, pre-existing and NOT closed here (the
+# line is classified as a whole, not per simple command): a jq program inside a line that ALSO runs an interpreter in
+# another pipeline stage (`"${JQ:-jq}" -n '$ENV' | sed ...`), and a jq-through-variable call on a line that also runs an
+# interpreter in a command substitution (`x=$(grep -c f g); jq_run -n 'env | keys'`) -- both quiet on main too (CON-015).
 _INTERP = (r"(?:awk|gawk|mawk|nawk|perl|python[\d.]*|ruby|node|nodejs|php|lua|sed|gsed|grep|egrep|fgrep|rg|expect|tclsh|"
            r"(?:ba|z|da|k)?sh\s+-c)")
 RE_NONJQ_CMD = re.compile(
@@ -173,17 +177,19 @@ def _region_owner(logical, prefix):
     `read ... NAME <<'X'`), ("file", TARGET) when cat/printf/echo/tee writes it to a file, else ("other",), which the census treats as ARMED (undecidable ownership)."""
     if RE_JQ_WORD.search(logical):
         return ("jq",)
-    if _runs_nonjq(logical):
-        return ("nonjq",)
-    m = RE_OUT_FILE.search(logical)
-    if m:
-        return ("file", _norm_target(m.group(1) or m.group(2)))
+    # a region assigned to / read into a variable is owned by whoever expands the variable later, whatever else the
+    # assignment line runs (CON-015 review F1): check this BEFORE the whole-line nonjq / file classification
     m = RE_OWNER_ASSIGN.search(prefix)
     if m:
         return ("var", m.group(1))
     m = RE_OWNER_READ.search(prefix)
     if m:
         return ("var", m.group(1))
+    if _runs_nonjq(logical):
+        return ("nonjq",)
+    m = RE_OUT_FILE.search(logical)
+    if m:
+        return ("file", _norm_target(m.group(1) or m.group(2)))
     return ("other",)
 
 

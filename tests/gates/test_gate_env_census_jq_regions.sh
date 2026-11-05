@@ -197,4 +197,38 @@ awk "$P" f
 echo "${!P}"
 jq -e . "$0" >/dev/null
 EOF
+# --- review round 2 (2026-11-05): F1 a variable-held jq program is owned by the variable even when the assignment line
+# also runs an interpreter or writes a file (G1..G5, RED on dbe1b65); F2 interpreter word boundary and file-writer word.
+case_ G1 fire "P=...; awk on the assignment line, jq expands P later" <<'EOF'
+P='env | keys'; awk 1 f
+jq -n "$P"
+EOF
+case_ G2 fire "read -d '' Q <<X || grep, jq expands Q" <<'EOF'
+read -r -d '' Q <<'X' || grep -q y f
+env | keys
+X
+jq -n "$Q"
+EOF
+case_ G3 fire "P=...; echo > log on the assignment line" <<'EOF'
+P='env | keys'; echo done > "$log"
+jq -n "$P"
+EOF
+case_ G4 fire "P=...; sed on the assignment line (bare \$ENV)" <<'EOF'
+P='$ENV'; sed -n 1p f
+jq -n "$P"
+EOF
+case_ G5 fire "P='\$ENV'; x=\$(sed ...) then jq \"\$P\"" <<'EOF'
+P='$ENV'; x=$(sed -n 1p f)
+jq -n "$P"
+EOF
+# F2 / RM8: a command word that merely STARTS with an interpreter name is not that interpreter
+case_ W1 fire "sedjq is not sed" <<'EOF'
+sedjq -n 'env | keys'
+jq --version
+EOF
+# F2 / RM14: only cat/printf/echo/tee disown a file; any other word before >FILE does not
+case_ W2 fire "other_cmd writing a jq-through-variable region to a file" <<'EOF'
+mycmd 'env | keys' > out.txt
+jq --version
+EOF
 echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]

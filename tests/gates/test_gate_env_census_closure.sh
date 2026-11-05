@@ -78,7 +78,17 @@ append scripts/gates/cm_killpg_pgid_guard.sh; printf '%s\n' 'builtin source "$1"
 append scripts/gates/cm_killpg_pgid_guard.sh; printf '%s\n' 'echo "a command . b"; jq -e . "$0" >/dev/null; # eval ". x"' >>"$sb/w/scripts/gates/cm_killpg_pgid_guard.sh"; run "$sb/w"; rc=$?
 # KNOWN-FAIL (CON-047): the census attributes the awk classifier of cm_killpg_pgid_guard.sh (a quoted heredoc written to a
 # file and run as `awk -f "$SHAWKF"`) to jq once the file also runs jq, and reports it as jq-env. Not counted as PASS.
-[ "$rc" = 0 ]; kchk $? CON-047 "N3 negative: words in echo/jq argument/comment do not trigger (rc=$rc)"
+# Pinned to CON-047's exact signature (review F3): rc 1, exactly one UNCOVERED line and it is a jq-env row of
+# cm_killpg_pgid_guard.sh, and no UNRESOLVED-SOURCE (a BLIND rc 2 would mean the echo/comment source-detection clauses regressed).
+nunc="$(grep -c 'UNCOVERED' <<<"$OUT")"
+if [ "$rc" = 0 ]; then kchk 0 CON-047 "N3 negative (rc=0)"
+elif [ "$rc" = 1 ] && [ "$nunc" = 1 ] && grep -Eq 'UNCOVERED scripts/gates/cm_killpg_pgid_guard\.sh:[0-9]+ jq-env' <<<"$OUT" && ! grep -q 'UNRESOLVED-SOURCE' <<<"$OUT"; then
+  kchk 1 CON-047 "N3 negative: words in echo/jq argument/comment do not trigger (rc=$rc, signature matches CON-047)"
+else chk 1 "N3 negative: failure does NOT match CON-047's signature (rc=$rc uncovered=$nunc): $(printf '%s' "$OUT" | head -c 300)"; fi
+fresh
+# review F1 end to end: a variable-held jq program whose assignment line also runs sed must be UNCOVERED (main's census FAILs it)
+append scripts/gates/cm_repro_first_anchor_wired.sh; printf '%s\n' "P='\$ENV'; x=\$(sed -n 1p /dev/null)" 'jq -n "$P" >/dev/null' >>"$sb/w/scripts/gates/cm_repro_first_anchor_wired.sh"; run "$sb/w"; rc=$?
+[ "$rc" = 1 ] && grep -Eq 'UNCOVERED scripts/gates/cm_repro_first_anchor_wired\.sh:[0-9]+ jq-env' <<<"$OUT"; chk $? "G5 jq program in a variable (assignment line also runs sed) is UNCOVERED (rc=$rc)"
 fresh
 echo "== $pass passed, $fail failed, $known known-failure =="
 [ "$fail" = 0 ] || exit 1
