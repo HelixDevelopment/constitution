@@ -197,4 +197,82 @@ awk "$P" f
 echo "${!P}"
 jq -e . "$0" >/dev/null
 EOF
+# --- CON-017 (closure-test N3 negative): an awk program written to a file and run as `awk -f "$FILE"` is awk's ------------
+# Root cause (2026-11-05): cm_killpg_pgid_guard.sh holds its awk classifier in SHAWK, writes it with
+# `printf '%s\n' "$SHAWK" > "$SHAWKF"` and runs `awk -f "$SHAWKF"`. The census saw SHAWK expanded on a line that is not an
+# interpreter line, kept it ARMED, and so reported the awk text (`|timeout|env|command|`) as a jq env dump as soon as the
+# file gained any jq word (test_gate_env_census_closure.sh "N3 negative"). Only this exact write-then-run-by-the-same-
+# interpreter chain is disowned; every other use of either variable keeps the region armed.
+case_ W1 quiet "program written by printf to \$F, run only as awk -f \$F" <<'EOF'
+read -r -d '' SH <<'X' || true
+/^(timeout|env|command)$/
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"
+awk -f "$F" in
+jq -e . "$0" >/dev/null
+EOF
+case_ W2 fire "same chain, but the file is also read by jq -f" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"
+awk -f "$F" in
+jq -n -f "$F"
+EOF
+case_ W3 fire "same chain, but the file is passed to an unknown command" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"
+run_tool "$F"
+jq -e . "$0" >/dev/null
+EOF
+case_ W4 fire "same chain, but the program variable is also echoed elsewhere" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"
+awk -f "$F" in
+echo "$SH"
+jq -e . "$0" >/dev/null
+EOF
+case_ W5 fire "written to a literal path (the later use cannot be tied to it)" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+printf '%s\n' "$SH" > /tmp/p.awk
+awk -f /tmp/p.awk in
+jq -e . "$0" >/dev/null
+EOF
+case_ W6 fire "file rewritten on a line that also runs jq -f" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"
+awk -f "$F" in
+printf '%s\n' "$SH" > "$F" && jq -n -f "$F"
+EOF
+case_ W7 fire "target also expanded elsewhere on the write line" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F" && cat "$F"
+awk -f "$F" in
+jq -e . "$0" >/dev/null
+EOF
+case_ W8 fire "program variable expanded twice on the write line" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"; echo "$SH"
+awk -f "$F" in
+jq -e . "$0" >/dev/null
+EOF
+case_ W9 fire "write line that also runs jq (no jq program text on it)" <<'EOF'
+read -r -d '' SH <<'X' || true
+env | keys
+X
+F="$d/p.awk"; printf '%s\n' "$SH" > "$F"; jq --version
+awk -f "$F" in
+EOF
 echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]

@@ -157,6 +157,13 @@ RE_NONJQ_CMD = re.compile(
 RE_OUT_FILE = re.compile(r"\b(?:cat|printf|echo)\b[^|;&]*?>>?\s*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)|\btee\s+(?:-[a-z]+\s+)*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)")
 
 
+# one whole command segment `printf FORMAT "$V" > "$F"` / `echo "$V" > "$F"` (V, F plain variable names); sq text in the
+# expanded view is \x02 + \x03 per character
+RE_WRITE_VAR = re.compile(
+    r"^\s*(?:printf\s+(?:--\s+)?(?:\x02\x03+|\"[^\"$]*\")\s+|echo(?:\s+-[neE]+)?\s+)"
+    r"\"\$\{?(" + NAME + r")\}?\"\s*>>?\s*\"\$\{?(" + NAME + r")\}?\"\s*$")
+
+
 def _norm_target(t):
     return t.strip("\"'")
 
@@ -775,7 +782,36 @@ def census(path, root, _seen=None):
     for lg in logical:
         for nm in set(re.findall(r"\$\{?[#!]?([A-Za-z_]\w*)", lg)):
             var_lines.setdefault(nm, []).append(lg)
-    nonjq_vars = {nm for nm, lgs in var_lines.items() if all(_runs_nonjq(lg) for lg in lgs)}
+    # CON-017: `printf '%s\n' "$V" > "$F"` followed by an interpreter running `$F` (`awk -f "$F"`) hands V to that interpreter.
+    # V is disowned only when EVERY expansion of V is on an interpreter line or is the single source of such a write, and
+    # EVERY expansion of the target variable F is on an interpreter line or is the target of a write of that same shape;
+    # a literal-path target, a line that also runs jq, or any other use of V or F leaves V armed.
+    def _write_segs(lg):
+        out = []
+        if RE_JQ_WORD.search(lg):
+            return out
+        for seg in re.split(r"\s*(?:;|&&|\|\|)\s*", lg):
+            m = RE_WRITE_VAR.match(seg)
+            if m:
+                out.append((m.group(1), m.group(2)))
+        return out
+
+    def _benign(lg, name, as_target):
+        if _runs_nonjq(lg):
+            return True
+        ws = _write_segs(lg)
+        if not ws:
+            return False
+        n = len(re.findall(r"\$\{?[#!]?" + name + r"\b", lg))
+        if as_target:   # every expansion of F on this line is the redirect target of one of its write segments
+            return all(f == name for _v, f in ws) and n == len(ws)
+        return len(ws) == 1 and ws[0][0] == name and n == 1
+
+    def _forwarded_ok(nm):
+        targets = {f for lg in var_lines.get(nm, []) for (v, f) in _write_segs(lg) if v == nm}
+        return bool(targets) and all(all(_benign(lg, f, True) for lg in var_lines.get(f, [])) for f in targets)
+    nonjq_vars = {nm for nm, lgs in var_lines.items()
+                  if all(_runs_nonjq(lg) or (_benign(lg, nm, False) and _forwarded_ok(nm)) for lg in lgs)}
     jq_text = "\n".join(lg for lg in logical if RE_JQ_WORD.search(lg))
 
     def _armed(o):
