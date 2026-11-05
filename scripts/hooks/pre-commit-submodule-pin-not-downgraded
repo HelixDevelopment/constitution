@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Git pre-commit hook (CON-046): refuse a commit that moves a staged submodule gitlink back to an ancestor.
+# Install: ln -s ../../scripts/hooks/pre-commit-submodule-pin-not-downgraded .git/hooks/pre-commit (operator consent).
+# Guards only commits that run git hooks (not --no-verify). Calls the gate; BLIND (2) blocks too (fail closed).
+root="$(git rev-parse --show-toplevel)" || exit 1
+exec bash "$root/scripts/gates/cm_submodule_pin_not_downgraded.sh" --root "$root"
