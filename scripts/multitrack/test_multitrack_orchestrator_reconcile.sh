@@ -140,8 +140,15 @@ _rect_evidence_home() {
 EV="${MT_RECONCILE_TEST_EVIDENCE_DIR:-$(_rect_evidence_home)/reconcile_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_recon_test.XXXXXX")
-cleanup() { rm -rf "$WORK" 2>/dev/null || true; }
+cleanup() { _rm_work; }
 trap cleanup EXIT INT TERM
 
 PASS=0; FAIL=0; SKIP=0

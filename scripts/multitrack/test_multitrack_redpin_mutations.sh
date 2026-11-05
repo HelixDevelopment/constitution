@@ -24,6 +24,17 @@
 #             itself): the guard refuses, rc 94 ("not the pre-fix artifact");
 #   (absent)  the guard's RED_PIN names a commit the clone does not have (the
 #             shallow-clone case): the guard FAILs closed, rc 93.
+# Carrier regression (round-1 review F2, §11.4.196(D)), for the two guards
+#   that pin the pre-RB-02 sibling multitrack_host_budget.sh: while a CARRIER
+#   process runs whose command line contains a build word and
+#   `claude -p ... --output-format stream-json` (the shape of an agent prompt),
+#   (carrier-red)   RED_MODE=1 exits 0;  (carrier-green) RED_MODE=0 exits 0;
+#   (carrier-mut)   the guard's CARRIER_IMMUNE block deleted, RED_MODE=1: the
+#                   guard goes RED (the pinned bare-pgrep guard refuses the
+#                   spawn), proving the block is what makes the verdict
+#                   independent of the host's processes.
+#   The carrier is a `sleep` with a replaced argv[0], started and killed by
+#   this suite only (its own child), and lives only for those legs.
 #
 # Environment dependency (honest SKIP, §11.4.3): two guards need the RB-05
 #   mock claude, a CONSUMER-project fixture. The mock is taken from
@@ -34,8 +45,11 @@
 #
 # Usage: bash scripts/multitrack/test_multitrack_redpin_mutations.sh
 # Inputs: MT_TEST_MOCK_CLAUDE (optional); TMPDIR (scratch root, default /tmp).
-# Outputs: PASS/FAIL/SKIP lines, a "PASS=n FAIL=n SKIP=n" summary. Exit 0 iff
-#   no FAIL (77 when nothing could run).
+# Outputs: PASS/FAIL/SKIP lines, a "PASS=n FAIL=n SKIP=n" summary. Exit 1 on
+#   any FAIL; else 77 when any leg was skipped (the last line then names the
+#   reason, so a partial run is never judged a PASS, round-1 review F4); else 0.
+# Evidence class (§11.4.289): UNIT-CLASS for the two mock-driven guards (the
+#   RB-05 mock claude is a test double).
 # Side-effects: one scratch directory (a shared clone plus evidence),
 #   removed with safe_rm_rf (§11.4.287) on exit; never touches this checkout.
 # Dependencies: bash, git, python3, grep, cp, mktemp, and what the guarded
@@ -95,7 +109,7 @@ PY
 # _run TREE TEST -> runs the guard from TREE, prints its rc; output in $S/last.out
 _run() {
     local t=$1 name=$2
-    env MT_TEST_MOCK_CLAUDE="$MOCK" \
+    env ${RUN_RED_MODE:+RED_MODE="$RUN_RED_MODE"} MT_TEST_MOCK_CLAUDE="$MOCK" \
         MT_RECONCILE_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.r" \
         MT_RECONCILE_RC_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.rc" \
         MT_ARGPARSE_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.a" \
@@ -182,10 +196,69 @@ for i in "${!G_NAME[@]}"; do
     fi
 done
 
+# --- carrier regression (round-1 review F2) -----------------------------------
+CARRIER_PID=""
+stop_carrier() {
+    # kill only the carrier this suite started: its pid, and only while its
+    # command line is still the carrier text (§11.4.174 / §11.4.263: pid > 1)
+    if [ -n "$CARRIER_PID" ] && [ "$CARRIER_PID" -gt 1 ] 2>/dev/null \
+       && tr '\0' ' ' < "/proc/$CARRIER_PID/cmdline" 2>/dev/null | grep -q 'redpin-carrier'; then
+        kill "$CARRIER_PID" 2>/dev/null; wait "$CARRIER_PID" 2>/dev/null
+    fi
+    CARRIER_PID=""
+}
+trap 'stop_carrier; cleanup' EXIT INT TERM
+if [ -z "$MOCK" ]; then
+    skip "carrier regression: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent"
+else
+    _bw=$(printf 'gra%s' dle)
+    ( exec -a "claude -p redpin-carrier please fix the $_bw build --output-format stream-json" sleep 300 ) &
+    CARRIER_PID=$!
+    sleep 0.3
+    # control needle: the pinned guard's two default patterns DO see the carrier
+    if pgrep -f 'claude .*--output-format[= ]stream-json' | grep -qx "$CARRIER_PID" \
+       && pgrep -f "m -j|$_bw|build_maxres" | grep -qx "$CARRIER_PID"; then
+        pass "carrier control: the carrier (pid $CARRIER_PID) matches the pre-RB-02 build and worker patterns"
+        for g in sessions_pid_status supervisor_wiring; do
+            t=$(_tree "${g}_carrier") || { fail "$g carrier: scratch clone failed"; continue; }
+            for m in 1 0; do
+                rc=$(RUN_RED_MODE=$m _run "$t" "$g")
+                if [ "$rc" = "0" ]; then pass "$g carrier-$([ $m = 1 ] && echo red || echo green): RED_MODE=$m exits 0 with the carrier running"
+                else fail "$g carrier-$([ $m = 1 ] && echo red || echo green): RED_MODE=$m exited $rc with the carrier running"; tail -5 "$S/last.out"; fi
+            done
+            t=$(_tree "${g}_carriermut") || { fail "$g carrier: scratch clone failed"; continue; }
+            if python3 -I - "$t/scripts/multitrack/test_multitrack_$g.sh" <<'PY'
+import re, sys
+p = sys.argv[1]; s = open(p).read()
+n = len(re.findall(r"^# >>CARRIER_IMMUNE.*?^# <<CARRIER_IMMUNE\n", s, flags=re.S | re.M))
+if n != 1:
+    sys.exit("CARRIER_IMMUNE block found %d times, expected 1" % n)
+open(p, "w").write(re.sub(r"^# >>CARRIER_IMMUNE.*?^# <<CARRIER_IMMUNE\n", "", s, flags=re.S | re.M))
+PY
+            then
+                rc=$(RUN_RED_MODE=1 _run "$t" "$g")
+                if [ "$rc" != "0" ] && [ "$rc" != "77" ] && grep -q '^FAIL: RED' "$S/last.out"; then
+                    pass "$g carrier-mut: without the CARRIER_IMMUNE block the RED leg fails (rc=$rc) while the carrier runs, so the block is load-bearing"
+                else fail "$g carrier-mut: without the CARRIER_IMMUNE block the RED leg did not fail (rc=$rc)"; tail -5 "$S/last.out"; fi
+            else
+                fail "$g carrier-mut: the CARRIER_IMMUNE block was not found exactly once"
+            fi
+        done
+    else
+        fail "carrier control: the carrier is not seen by the pre-RB-02 patterns (the regression legs would prove nothing)"
+    fi
+    stop_carrier
+fi
+
 echo ""
 echo "PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
 if [ "$RAN" = "0" ]; then
     echo "SKIP: no guard could run reason=rb05_mock_absent"
     exit 77
 fi
-[ "$FAIL" -eq 0 ]
+[ "$FAIL" -eq 0 ] || exit 1
+if [ "$SKIP" -gt 0 ]; then
+    echo "SKIP: $SKIP leg group(s) skipped reason=rb05_mock_absent"
+    exit 77
+fi
+exit 0

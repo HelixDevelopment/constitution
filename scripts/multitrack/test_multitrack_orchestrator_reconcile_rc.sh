@@ -83,7 +83,7 @@
 # Side-effects: creates + removes ONE scratch tmp dir (extracted pre-fix
 #   copy for RED_MODE=1, scratch config/alias-dir registries for BOTH
 #   modes); a chmod-555 scratch subdirectory is ALWAYS restored to writable
-#   (chmod -R u+rwx) at the TOP of cleanup(), BEFORE the generic `rm -rf`,
+#   (chmod -R u+rwx) at the TOP of cleanup(), BEFORE the safe_rm_rf removal,
 #   so trap cleanup never leaves orphaned unremovable files (§11.4.14);
 #   `trap ... EXIT INT TERM` on every exit path; writes ONLY under
 #   qa-results/ (project root, if reachable) and the scratch dir; NEVER
@@ -151,12 +151,19 @@ _rcrc_evidence_home() {
 EV="${MT_RECONCILE_RC_TEST_EVIDENCE_DIR:-$(_rcrc_evidence_home)/reconcile_rc_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_recon_rc_test.XXXXXX")
 cleanup() {
     # restore writability BEFORE removal -- a chmod-555 scratch dir left
     # from an interrupted run must never leave unremovable orphans.
-    chmod -R u+rwx "$WORK" 2>/dev/null || true
-    rm -rf "$WORK" 2>/dev/null || true
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] && chmod -R u+rwx "$WORK" 2>/dev/null
+    _rm_work
 }
 trap cleanup EXIT INT TERM
 

@@ -53,7 +53,7 @@
 #           definitionally invoked nothing. This is the review's own
 #           reproduction method (a grep census), run mechanically against
 #           git history rather than merely quoted.
-#       (B) functional: driving a REAL mocked `spawn` through the pinned copy
+#       (B) functional: driving a `spawn` through the RB-05 test double via the pinned copy
 #           of multitrack_sessions.sh, with a scratch MT_RULER_STATE_DIR
 #           that WOULD receive a durable snapshot if anything wired it,
 #           leaves that directory's ruler_state.json genuinely ABSENT --
@@ -66,7 +66,7 @@
 #           its dedicated test, and the Monday-dryrun SIMULATION harness --
 #           a test file, not production code, per the review's own exclusion
 #           convention).
-#       (b) `spawn` (real mock, MT_RULER_STATE_DIR + MT_REPO_ROOT set to a
+#       (b) `spawn` (RB-05 test double, MT_RULER_STATE_DIR + MT_REPO_ROOT set to a
 #           scratch project context -- mirroring what multitrack_bootstrap.sh
 #           already does in real use) genuinely populates ruler_state.json
 #           with the spawned track's alias/session_id, cross-checked against
@@ -104,6 +104,11 @@
 #   (outer project root, where the RB-05 mock fixture lives; default: the git
 #   toplevel above the constitution checkout); optional MT_TEST_MOCK_CLAUDE
 #   (path to the RB-05 mock); optional MT_SUPWIRE_TEST_EVIDENCE_DIR override.
+#
+# Evidence class (§11.4.289): UNIT-CLASS. Every spawn here runs through the
+#   RB-05 mock `claude` and the HSS host-safety stub, which are test doubles,
+#   so a verdict of this test is gate/logic evidence about the engine's code
+#   paths, never live evidence that a real worker spawn works.
 #
 # Environment dependency (honest SKIP, §11.4.3): the RB-05 mock lives in the
 #   CONSUMER project (scripts/multitrack/rb05_fixtures/mock_claude.sh). With no
@@ -214,6 +219,13 @@ RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 EV="${MT_SUPWIRE_TEST_EVIDENCE_DIR:-${REPO_ROOT:-$CONST_ROOT}/qa-results/multitrack/supwire_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_supwire_test.XXXXXX")
 PIDS_FILE="$WORK/pids_to_kill"
 : > "$PIDS_FILE"
@@ -229,7 +241,7 @@ cleanup() {
             kill -9 "$_p" 2>/dev/null || true
         done < "$PIDS_FILE"
     fi
-    rm -rf "$WORK" 2>/dev/null || true
+    _rm_work
 }
 trap cleanup EXIT INT TERM
 
@@ -298,6 +310,22 @@ case " $PHASES " in *" 1 "*)
 # deterministic §12.6 budget arithmetic, never the real host's /proc/meminfo.
 HSS="$WORK/hss.sh"
 printf 'host_safe_parallel_jobs() { echo 4; }\nHOST_SAFETY_BUDGET_GB=99\n' > "$HSS"
+# >>CARRIER_IMMUNE (round-1 review F2, §11.4.196(D) / §11.4.201(1) / §11.4.50)
+# The RED leg runs the PINNED pre-fix sibling multitrack_host_budget.sh, whose
+# build and worker guards are a bare `pgrep -f` (the pre-RB-02 carrier
+# footgun): any process on the host whose command line merely MENTIONS a build
+# word and `claude ... --output-format stream-json` (an agent prompt, for
+# example) made that guard refuse the spawn, so the RED verdict depended on
+# what else was running. This test is about pid/status (resp. supervisor)
+# wiring, not about the host budget (which has its own tests), so both
+# patterns are set, in both modes, to a token built at run time: the joined
+# value is in no command line on the host, so pgrep finds nothing and the
+# verdict depends only on the artifact under test.
+_mt_nomatch=$(printf 'QXZZ_%s_%s_%s' "$$" "$(date +%s%N 2>/dev/null)" nomatch)
+MT_HOST_BUDGET_BUILD_PGREP_PATTERN="${_mt_nomatch}_build"
+MT_HOST_BUDGET_WORKER_PGREP_PATTERN="${_mt_nomatch}_worker"
+export MT_HOST_BUDGET_BUILD_PGREP_PATTERN MT_HOST_BUDGET_WORKER_PGREP_PATTERN
+# <<CARRIER_IMMUNE
 
 FAKEBIN="$WORK/bin"; mkdir -p "$FAKEBIN"
 ln -sf "$MOCK" "$FAKEBIN/claude"
@@ -332,7 +360,7 @@ run_iteration() {
             sh "$PREFIX_SESSIONS" spawn claude1 >"$WORK/red_spawn_$_iter.out" 2>&1
         _redspawn_rc=$?
         if [ "$_redspawn_rc" = "0" ] && [ ! -e "$_rulerdir/ruler_state.json" ]; then
-            pass "RED(B): a real (mocked) spawn via the pinned copy succeeds (rc=0) but ruler_state.json stays genuinely ABSENT (nothing calls snapshot)" "$_rulerdir"
+            pass "RED(B): a spawn through the RB-05 test double via the pinned copy succeeds (rc=0) but ruler_state.json stays genuinely ABSENT (nothing calls snapshot)" "$_rulerdir"
             echo "RED_B_ruler_state=ABSENT spawn_rc=$_redspawn_rc" >> "$_norm"
         else
             fail "RED(B): expected spawn rc=0 + ruler_state.json absent, got spawn_rc=$_redspawn_rc exists=$([ -e "$_rulerdir/ruler_state.json" ] && echo yes || echo no)" "$WORK/red_spawn_$_iter.out"

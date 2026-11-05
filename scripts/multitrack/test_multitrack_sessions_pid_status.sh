@@ -64,6 +64,11 @@
 #   used instead of the project-root copy); MT_PIDSTAT_TEST_EVIDENCE_DIR
 #   (optional).
 #
+# Evidence class (§11.4.289): UNIT-CLASS. Every spawn here runs through the
+#   RB-05 mock `claude` and the HSS host-safety stub, which are test doubles,
+#   so a verdict of this test is gate/logic evidence about the engine's code
+#   paths, never live evidence that a real worker spawn works.
+#
 # Environment dependency (honest SKIP, §11.4.3): the RB-05 mock lives in the
 #   CONSUMER project (scripts/multitrack/rb05_fixtures/mock_claude.sh), not in
 #   this repository. When no mock is reachable (a standalone constitution
@@ -147,14 +152,37 @@ _pst_evidence_home() {
 EV="${MT_PIDSTAT_TEST_EVIDENCE_DIR:-$(_pst_evidence_home)/pidstatus_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_pst_test.XXXXXX")
-cleanup() { rm -rf "$WORK" 2>/dev/null || true; }
+cleanup() { _rm_work; }
 trap cleanup EXIT INT TERM
 
 FAKEBIN="$WORK/bin"; mkdir -p "$FAKEBIN"
 ln -sf "$MOCK" "$FAKEBIN/claude"
 HSS="$WORK/hss.sh"
 printf 'host_safe_parallel_jobs() { echo 4; }\nHOST_SAFETY_BUDGET_GB=99\n' > "$HSS"
+# >>CARRIER_IMMUNE (round-1 review F2, §11.4.196(D) / §11.4.201(1) / §11.4.50)
+# The RED leg runs the PINNED pre-fix sibling multitrack_host_budget.sh, whose
+# build and worker guards are a bare `pgrep -f` (the pre-RB-02 carrier
+# footgun): any process on the host whose command line merely MENTIONS a build
+# word and `claude ... --output-format stream-json` (an agent prompt, for
+# example) made that guard refuse the spawn, so the RED verdict depended on
+# what else was running. This test is about pid/status (resp. supervisor)
+# wiring, not about the host budget (which has its own tests), so both
+# patterns are set, in both modes, to a token built at run time: the joined
+# value is in no command line on the host, so pgrep finds nothing and the
+# verdict depends only on the artifact under test.
+_mt_nomatch=$(printf 'QXZZ_%s_%s_%s' "$$" "$(date +%s%N 2>/dev/null)" nomatch)
+MT_HOST_BUDGET_BUILD_PGREP_PATTERN="${_mt_nomatch}_build"
+MT_HOST_BUDGET_WORKER_PGREP_PATTERN="${_mt_nomatch}_worker"
+export MT_HOST_BUDGET_BUILD_PGREP_PATTERN MT_HOST_BUDGET_WORKER_PGREP_PATTERN
+# <<CARRIER_IMMUNE
 
 PASS=0; FAIL=0; SKIP=0
 pass() { PASS=$((PASS+1)); printf 'PASS: %s [evidence: %s]\n' "$1" "$2" | tee -a "$EV/results.log"; }
