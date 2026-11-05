@@ -79,19 +79,19 @@ scripts/codegraph/tests/test_owed_report.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_owed_report_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
-scripts/codegraph/tests/test_resolve1_count_hook.js	js	entry	default	node	-	auto
-scripts/codegraph/tests/test_resolve1_drive.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve1.sh (shell model cannot see the node invocation), not a standalone entry
+scripts/codegraph/tests/test_resolve1_count_hook.js	js	excluded	-	-	-	override: reason: tool: node --require hook loaded by test_resolve1.sh (shell model cannot see the node invocation); exits 0 alone, so a standalone run is a vacuous PASS; not a test
+scripts/codegraph/tests/test_resolve1_drive.js	js	excluded	-	-	-	override: reason: tool: node driver that needs <distDir> <db> args, run by test_resolve1.sh and test_resolve2.sh (shell model cannot see the node invocation); not a test
 scripts/codegraph/tests/test_resolve1_dump.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
-scripts/codegraph/tests/test_resolve1_equiv_real.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve2.sh (shell model cannot see the node invocation), not a standalone entry
+scripts/codegraph/tests/test_resolve1_equiv_real.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test
 scripts/codegraph/tests/test_resolve1_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
 scripts/codegraph/tests/test_resolve1_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve1_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve1_mutations.sh
 scripts/codegraph/tests/test_resolve1_mutations.sh	sh	entry	heavy	bash	-	auto
-scripts/codegraph/tests/test_resolve1_probe.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve1.sh (shell model cannot see the node invocation), not a standalone entry
+scripts/codegraph/tests/test_resolve1_probe.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve1.sh (shell model cannot see the node invocation); not a test
 scripts/codegraph/tests/test_resolve2.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve2_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve2.sh	auto: run by scripts/codegraph/tests/test_resolve2.sh
 scripts/codegraph/tests/test_resolve2_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve2_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve2_mutations.sh
 scripts/codegraph/tests/test_resolve2_mutations.sh	sh	entry	heavy	bash	-	auto
-scripts/codegraph/tests/test_resolve2_probe.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve2.sh (shell model cannot see the node invocation), not a standalone entry
+scripts/codegraph/tests/test_resolve2_probe.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test
 scripts/codegraph/tests/test_scope_exceptions.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_scope_exceptions_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_tripwire.sh	sh	entry	default	bash	-	auto
@@ -215,11 +215,12 @@ scripts/fastcycle/tests/fixtures/triple_harness/sigwin_rig.sh	sh	fixture	-	-	-	f
 scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
+scripts/fastcycle/tests/lib/consumer_required.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_churn_rank_red.sh
 scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/dec23_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
-scripts/fastcycle/tests/lib/foreign_uid_cause.sh	sh	member	default	-	scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	auto: executed by scripts/fastcycle/tests/test_fc_safepath_v4r12.sh to state the measured foreign-uid SKIP cause
+scripts/fastcycle/tests/lib/foreign_uid_cause.sh	sh	excluded	-	-	-	reason: tool: probe that always exits 0 and prints the measured foreign-uid cause; run by test_fc_safepath_v4r12..v4r15 and test_fc_supervisor_unit; not a test
 scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
 scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
@@ -255,6 +256,7 @@ scripts/fastcycle/tests/test_collect_baseline_red.sh	sh	member	default	-	scripts
 scripts/fastcycle/tests/test_consumer_audit_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_enumerate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -353,6 +355,7 @@ scripts/fastcycle/tests/test_plan_struct_triple_red.sh	sh	member	default	-	scrip
 scripts/fastcycle/tests/test_prebuild_tsv_root_wiring_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_pack_build_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_pack_multi_slice_sibling_search_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_sibling_blast_radius_honest_verdict_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_sibling_search_unmeasured_literal_r6_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_slicer_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -592,6 +595,7 @@ scripts/gates/covenant_propagation_engine_compact_mutation_test.sh	sh	entry	heav
 scripts/gates/covenant_propagation_suite_accounting_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/covenant_propagation_suite_default_root_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/covenant_propagation_superspec_exclusion_test.sh	sh	entry	default	bash	-	auto
+scripts/gates/covenant_propagation_superspec_exclusion_topology_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/covenant_propagation_third_party_hub_exclusion_test.sh	sh	entry	default	bash	-	auto
 scripts/gates/fixtures/cm_git_hooks_installed/golden_false_nonhook_decoys/src_a/test_pre_commit_credscan.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/gates/lib/covenant_propagation_mutation_engine.sh	sh	excluded	-	-	-	reason: library: mutation engine library called by the cm_covenant_*_mutation_test.sh entries
@@ -759,6 +763,7 @@ tests/install/test_self_guard.sh	sh	member	default	-	tests/install/run_all.sh	au
 tests/install/test_stress_perf.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
+tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -859,5 +864,3 @@ tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
-scripts/fastcycle/tests/lib/consumer_required.sh	sh	fixture	-	-	-	override: sourced skip helper library, not a test entry point
-scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
