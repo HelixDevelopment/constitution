@@ -23,7 +23,10 @@
 #   `disable=` carries its justification on the SAME line (>= 16 letters,
 #   >= 3 distinct vowel-bearing non-placeholder words). Symlinked SCRIPT
 #   candidates FAIL, other symlinks are listed. NUL bytes FAIL. /system/bin/sh
-#   is linted as ksh (Android mksh, probed). ONE legacy exception: the
+#   is linted as ksh (Android mksh, probed). The dialect is derived in the
+#   order the linter itself applies (gate review 2026-11-05 F1): a
+#   file-scope `shell=` directive, then the shebang, then the extension,
+#   then sh. ONE legacy exception: the
 #   canonical checked-in TSV, chosen by the gate in a bound run, compared with
 #   the BASE commit's TSV (new rows / raised pins only in a TSV-only batch),
 #   rows evidence-checked, ratcheted per rule over BLOCKING findings, parse
@@ -281,6 +284,64 @@ new_case x8; base; wh bin/s1 '#!/usr/bin/env -Sbash\necho $1\n'; wh bin/s2 '#!/u
     && ok "X8 (F7) extension-less 'env -Sbash', 'env --split-string=bash -e' and 'env -u LANG bash' shebangs are candidates and FAIL" \
     || bad "X8 env options: rc=$RC $(sc 'e["counts"], e.get("findings")')"
 
+# X9-X18 (gate review 2026-11-05, round 1 F1 + M1): the DIALECT of a file without a shebang. The gate lints
+# stdin with an explicit `-s`, and `-s` overrides a 'shell=' directive comment -- so the gate itself must
+# derive the dialect the way shellcheck would for the file on disk: a file-scope canonical `shell=` directive
+# (it overrides the shebang, the FIRST one wins, one after a command is ignored), then the shebang, then the
+# extension (.bash .ksh .dash, any case), then POSIX sh. Probed with shellcheck 0.11.0 on 2026-11-05.
+BRK='[[ -n "$1" ]] && echo "set"\n'
+m_x9() { new_case "${1:-x9}"; base; wh pkg/lib.bash "$BRK"; wh pkg/lib.ksh "$BRK"; wh pkg/lib.dash 'f() { local x=1; [[ -n "$x" ]] && echo "$x"; }\nf\n'; head; gate; }
+m_x9
+X9=$(sc 'c["verdict"], sorted({(f["file"], f["rule"]) for f in e.get("findings", [])})')
+[ "$RC" -eq 1 ] && [ "$X9" = "('FAIL', [('pkg/lib.dash', 'SC3010')])" ] \
+    && ok "X9 (F1/p1/p3) no shebang: '.bash' and '.ksh' are linted in their own dialect ('[[' PASSes); '.dash' as dash ('local' accepted, only '[[' SC3010 -- sh would add SC3043, bash would report nothing)" \
+    || bad "X9 extension dialect: rc=$RC $X9 $(sc 'e.get("findings")')"
+m_x10() { new_case "${1:-x10}"; base; wh pkg/lib.sh "\0043 shellcheck shell=bash\n$BRK"; head; gate; }
+m_x10
+[ "$RC" -eq 0 ] && [ "$(sc 'c["verdict"], e["counts"]["files_linted"]')" = "('PASS', 1)" ] \
+    && ok "X10 (F1/p2) a '.sh' file whose first line is '# shellcheck shell=bash' is linted as bash ('[[' PASSes)" \
+    || bad "X10 directive dialect: rc=$RC $(rules)"
+new_case x11; base; wh pkg/lib.sh "\0043 shellcheck shell=sh\n$BRK"; wh pkg/lib.bash "\0043 shellcheck shell=sh\n$BRK"; head; gate
+X11R=$(printf "# shellcheck shell=sh\n$BRK" | shellcheck --norc -f json1 - | python3 -c 'import json,sys;print(sorted({"SC%d" % c["code"] for c in json.load(sys.stdin)["comments"]}))')
+[ "$RC" -eq 1 ] && [ "$(rules)" = "['SC3010']" ] && [ "$X11R" = "['SC3010']" ] \
+    && [ "$(sc 'sorted({f["file"] for f in e.get("findings", [])})')" = "['pkg/lib.bash', 'pkg/lib.sh']" ] \
+    && ok "X11 (control) 'shell=sh' stays POSIX sh -- the gate and shellcheck itself (no -s, directive honoured) both report SC3010, even on a '.bash' file" \
+    || bad "X11 shell=sh control: rc=$RC gate=$(rules) raw=$X11R"
+SIB="$FC/../label-sync/render/shell-integration.bash"
+if [ -f "$SIB" ]; then
+    new_case x12; base; mkdir -p "$R/render"; cp "$SIB" "$R/render/shell-integration.bash"; head; gate
+    X12G=$(sc 'sorted({f["rule"] for f in e.get("findings", []) + e.get("advisory_findings", [])})')
+    X12R=$(shellcheck --norc -e SC1090,SC1091 -f json1 - <"$SIB" | python3 -c 'import json,sys;print(sorted({"SC%d" % c["code"] for c in json.load(sys.stdin)["comments"]}))')
+    X12P=$(sc '[x for x in d["checks"] if x["check"] == "parse"][0]["verdict"]')
+    case "$X12G" in *SC3*) X12S=yes ;; *) X12S=no ;; esac
+    [ "$X12G" = "$X12R" ] && [ "$X12S" = "no" ] && [ "$X12P" = "PASS" ] \
+        && ok "X12 (F1/p10) the real shell-integration.bash (no shebang, 'shell=bash' directive) gets exactly shellcheck's own honoured findings $X12R, no SC3xxx, and the parse check uses bash -n (PASS)" \
+        || bad "X12 shell-integration.bash: gate=$X12G raw=$X12R sc3=$X12S parse=$X12P"
+else
+    bad "X12 setup: $SIB is missing (positive control for the real-file case)"
+fi
+new_case x13; base; wh bin/a.sh "#!/bin/sh\n\0043 shellcheck shell=bash\n$BRK"; wh bin/b.sh "echo \"pre\"\n\0043 shellcheck shell=bash\n$BRK"
+wh bin/c.sh "\0043 shellcheck shell=sh\n\0043 shellcheck shell=bash\n$BRK"; wh bin/d.sh "\0043 shellcheck shell=bash\n\0043 shellcheck shell=sh\n$BRK"; head; gate
+[ "$RC" -eq 1 ] && [ "$(sc 'sorted({f["file"] for f in e.get("findings", [])})')" = "['bin/b.sh', 'bin/c.sh']" ] && [ "$(rules)" = "['SC3010']" ] \
+    && ok "X13 directive precedence as shellcheck applies it: overrides the shebang (a.sh PASS), ignored after a command (b.sh sh), the FIRST one wins (c.sh sh, d.sh bash)" \
+    || bad "X13 precedence: rc=$RC $(sc 'sorted({(f["file"], f["rule"]) for f in e.get("findings", [])})')"
+new_case x14; base; wh pkg/z.sh "\0043 shellcheck shell=zsh\necho \"hi\"\n"; wh pkg/z.bash "\0043 shellcheck shell=zsh\n$BRK"; head; gate
+[ "$RC" -eq 1 ] && [ "$(sc 'sorted({(f["file"], f["rule"]) for f in e.get("findings", [])})')" = "[('pkg/z.bash', 'SC1103'), ('pkg/z.sh', 'SC1103')]" ] \
+    && ok "X14 an unsupported 'shell=zsh' directive is not a dialect: shellcheck reports SC1103 (an error, blocks) and the file falls back to its extension ('.bash': '[[' accepted)" \
+    || bad "X14 unknown shell value: rc=$RC $(sc 'e.get("errors"), e.get("findings")')"
+m_x15() { new_case "${1:-x15}"; base; printf '\357\273\277#!/bin/bash\n[[ -n "$1" ]] && echo "set"\n' >"$R/bin_bom"; wh pkg/UP.SH 'echo $1\n'
+          wh bin/runner 'echo $1\n'; chmod +x "$R/bin/runner"; wh bin/notes 'echo $1 is a note\n'; head; gate; }
+m_x15
+X15=$(sc 'sorted({f["file"] for f in e.get("findings", [])}), e["counts"]["files_linted"]')
+[ "$RC" -eq 1 ] && [ "$X15" = "(['bin/runner', 'bin_bom', 'pkg/UP.SH'], 3)" ] \
+    && ok "X15 (M1) candidates: a BOM before the shebang, an upper-case '.SH', and an executable text file with no extension and no shebang (the shell runs it as sh) are linted; a non-executable extension-less text file is not" \
+    || bad "X15 candidates: rc=$RC $X15 $(sc 'e.get("findings")')"
+m_x16() { new_case "${1:-x16}"; base; wh pkg/arr.bash 'a=(1 2)\necho "${a[0]}"\n'; wh pkg/arr2.sh "\0043 shellcheck shell=bash\na=(1 2)\necho \"\${a[0]}\"\n"; head; gate; }
+m_x16
+[ "$(sc '[x for x in d["checks"] if x["check"] == "parse"][0]["verdict"]')" = "PASS" ] && [ "$(sc 'c["verdict"]')" = "PASS" ] \
+    && ok "X16 (F1 class: parse check) bash arrays in a shebang-less '.bash' / 'shell=bash' file parse with bash -n, not sh -n" \
+    || bad "X16 parse dialect: $(sc '[x for x in d["checks"] if x["check"] == "parse"][0]')"
+
 # =============================================================================
 # Y. symlinks
 # =============================================================================
@@ -535,6 +596,21 @@ PY
 gate_run
 [ "$RC" -eq 1 ] && has_err "slice-declared paths are not all in the binding" \
     && ok "B8 (GR10) a slice declaring a path the binding does not cover (README.md, unchanged) is refused" || bad "B8 slice paths: rc=$RC $(sc 'e.get("errors")')"
+# B9 (gate review 2026-11-05, round 1 M2, reviewer mutant RM7): --baseline-ref must resolve to the bound base
+m_b9() { new_case "${1:-b9}"; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate --baseline-ref "$HEADC"; }
+m_b9
+[ "$RC" -eq 1 ] && [ "$(sc 'c["verdict"], e["binding"]["state"]')" = "('FAIL', 'binding-failed')" ] && has_err "the batch is bound to base $BASE" \
+    && ok "B9 (M2/RM7) a run whose --baseline-ref (head) is not the bound base fails the binding (binding-failed, FAIL)" \
+    || bad "B9 baseline-ref: rc=$RC $(sc 'c["verdict"], e["binding"]["state"], e.get("errors")')"
+# B10 (gate review 2026-11-05, round 1 M2, reviewer mutant RM6): a binding whose base equals its head. The
+# builder refuses to write one ("changes no path"), so the batch is edited by hand to the shape it refuses.
+m_b10() { new_case "${1:-b10}"; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_prepare
+          python3 -c 'import json,sys;b=json.load(open(sys.argv[1]));b["binding"]["base_sha"]=sys.argv[2];json.dump(b,open(sys.argv[1],"w"))' "$R.batch.json" "$HEADC"
+          BASE_KEEP=$BASE; BASE=$HEADC; gate_run; BASE=$BASE_KEEP; }
+m_b10
+[ "$RC" -eq 1 ] && [ "$(sc 'e["binding"]["state"]')" = "binding-failed" ] && has_err "bound base equals bound head" \
+    && ok "B10 (M2/RM6) a hand-written binding with base == head fails the binding in the gate itself" \
+    || bad "B10 base == head: rc=$RC $(sc 'e["binding"]["state"], e.get("errors")')"
 
 # =============================================================================
 # L. legacy exceptions (canonical checked-in TSV, base-compared, per-rule ratchet)
@@ -792,7 +868,7 @@ mutant GR2 '    return sum(len(w) for w in words) >= 16 and len(real) >= 3=>>   
 mutant GR3 '                  if v > b["pinned_counts"].get(k, 0)}=>>                  if v > b["pinned_counts"].get(k, v)}' m_l23
 mutant GR4 'for x in clines[:20]):=>>for x in clines[:100000]):' m_l24
 mutant GR5 '    if ch != head_sha:=>>    if False:' m_b7
-mutant GR7 '        return "ksh"<NL>    return "sh"=>>        return "bash"<NL>    return "sh"' m_x7c
+mutant GR7 '            return "ksh", "shebang"=>>            return "bash", "shebang"' m_x7c
 mutant GR8 '    big = row is not None or len(clines) >= LARGE_LINES=>>    big = row is not None' m_h7
 mutant GR9 '        if rpath in rows:=>>        if False:' m_l25
 mutant GR10 '    if declared is not None and not set(declared) <= set(rels):=>>    if False:' m_b8
@@ -807,6 +883,21 @@ mutant M34 '        name, rest = _env_program(rest)=>>        rest = [t for t in
 m_l28() { lcase ml28 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,DIR-FORBIDDEN=1 2026-10-09)"; }
 mutant M36 '        if key in _UNPINNABLE_KEYS:=>>        if False:' m_l28
 mutant M35 '            b = base_rows[renames[rel]]=>>            pass' m_l27 'bool(e.get("exceptions_increase"))'
+# Reviewer mutants of gate review 2026-11-05 round 1 (M2), adopted verbatim (11.4.276(D)).
+mutant RM6 '    if base_sha == head_sha:<NL>        err.append("bound base equals bound head")=>>    if False:<NL>        err.append("bound base equals bound head")' 'm_b10 mb10' \
+    'not any("bound base equals bound head" in x["message"] for x in e.get("errors", []))'
+mutant RM7 '    if repos[0].get("commit") != base_sha:=>>    if False:' 'm_b9 mb9'
+# Own mutants of the round-2 F1/M1 fix (dialect derivation + candidate selection).
+mutant MD1 '    val = _shell_directive_value(data)=>>    val = None' 'm_x10 mx10' 'c["verdict"] == "FAIL"'
+mutant MD2 '    if ext in _EXT_DIALECT:=>>    if False:' 'm_x9 mx9' '("pkg/lib.bash", "SC3010") in {(f["file"], f["rule"]) for f in e.get("findings", [])}'
+mutant MD3 '    return "bash" if _shell_dialect(data, path)[0] == "bash" else "sh"=>>    return "sh"' 'm_x16 mx16' \
+    '[x for x in d["checks"] if x["check"] == "parse"][0]["verdict"] == "FAIL"'
+mutant MD4 '    ext = os.path.splitext(path)[1].lower()=>>    ext = os.path.splitext(path)[1]' 'm_x15 mx15' \
+    '"pkg/UP.SH" not in {f["file"] for f in e.get("findings", [])}'
+mutant MD5 '    if data.startswith(_BOM):<NL>        data = data[len(_BOM):]=>>    pass' 'm_x15 mx15b' \
+    '"bin_bom" not in {f["file"] for f in e.get("findings", [])}'
+mutant MD6 '    return _bytes_are_shell(head) or _shebangless_exec_text(path, head)=>>    return _bytes_are_shell(head)' 'm_x15 mx15c' \
+    '"bin/runner" not in {f["file"] for f in e.get("findings", [])}'
 
 echo
 echo "== Summary: ok $PASS / NOT ok $FAIL =="

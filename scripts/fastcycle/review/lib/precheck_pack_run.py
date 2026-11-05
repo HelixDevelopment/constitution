@@ -140,6 +140,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -225,36 +226,56 @@ def _relpath(path, root):
 
 
 _SHELL_EXTS = (".sh", ".bash", ".ksh", ".dash")
+_HEAD_PROBE_BYTES = 8192
+
+
+def _shell_ext(path):
+    """The file's shell extension, lower-cased ('.SH' counts as '.sh'), or '' when it has none."""
+    ext = os.path.splitext(path)[1].lower()
+    return ext if ext in _SHELL_EXTS else ""
 
 
 def _shebang_interpreter(path):
-    """Returns "bash" if the file's own shebang names bash, else the
-    conservative default "sh" (used by the parse check)."""
+    """-> the interpreter of the parse check (`<interp> -n`): "bash" when the file's DIALECT
+    (_shell_dialect: directive, then shebang, then extension) is bash, else the conservative
+    default "sh". Residual: a ksh-dialect file is parsed by `sh -n` (ksh is not assumed installed)."""
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            first = fh.readline()
+        with open(path, "rb") as fh:
+            data = fh.read()
     except OSError:
         return "sh"
-    if first.startswith("#!") and "bash" in first:
-        return "bash"
-    return "sh"
+    return "bash" if _shell_dialect(data, path)[0] == "bash" else "sh"
+
+
+def _shebangless_exec_text(path, head):
+    """M1: an EXECUTABLE regular file with no extension and no shebang whose first bytes hold no NUL
+    (text, not a binary): exec() rejects it with ENOEXEC and the calling shell runs it as sh."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return False
+    if not stat.S_ISREG(st.st_mode) or not st.st_mode & 0o111 or os.path.splitext(os.path.basename(path))[1]:
+        return False
+    body = head[len(_BOM):] if head.startswith(_BOM) else head
+    return bool(body) and b"\0" not in head and not body.startswith(b"#!")
 
 
 def _is_shell_script(path):
-    """True for a regular file with a shell extension OR a sh/bash/dash/ksh/mksh/ash
-    shebang (extension-less scripts included). Symlinks are never reported here --
+    """True for a regular file with a shell extension (any case) OR a sh/bash/dash/ksh/mksh/ash
+    shebang (extension-less scripts included; a UTF-8 BOM before it is skipped) OR an executable
+    extension-less text file with no shebang (run as sh). Symlinks are never reported here --
     check_shellcheck classifies them itself (a symlinked SCRIPT is refused, any
     other symlink is only listed)."""
     if os.path.islink(path):
         return False
-    if path.endswith(_SHELL_EXTS):
+    if _shell_ext(path):
         return True
     try:
         with open(path, "rb") as fh:
-            first = fh.readline(256)
+            head = fh.read(_HEAD_PROBE_BYTES)
     except OSError:
         return False
-    return _interp_of(first.decode("utf-8", "replace").rstrip("\r\n")) in _SHELL_INTERPS
+    return _bytes_are_shell(head) or _shebangless_exec_text(path, head)
 
 
 def _find_shell_scripts(root):
@@ -470,19 +491,35 @@ def check_parse(root, scoped_files, scope_note):
 # 133 SC1090 in the census); they say nothing about the file under review.
 #
 # Candidates: a batch-scoped path is a shell-script candidate when it has a
-# shell extension (.sh .bash .ksh .dash), OR a shell shebang -- sh/bash/dash/
+# shell extension (.sh .bash .ksh .dash, any case), OR an executable text file
+# with no extension and no shebang (the shell runs it as sh), OR a shell
+# shebang (a UTF-8 BOM before it is skipped) -- sh/bash/dash/
 # ksh/mksh/ash with an optional version suffix (`bash5`), through `env [-S]`
 # and through a busybox/toybox multicall (`#!/bin/busybox sh`) -- OR, when a
 # base commit is known, its BASE blob (followed through a rename) was such a
 # script: removing the shebang does not remove the file from the check.
 #
-# Dialect (`-s`): bash* -> bash, dash -> dash, ksh/mksh -> ksh, and the Android
+# Dialect (`-s`, gate review 2026-11-05 round 1 F1). The gate lints STDIN with an
+# explicit `-s`, and `-s` overrides a `# shellcheck shell=` directive, so the gate
+# derives the dialect itself, in the order shellcheck applies to the file on disk
+# (shellcheck 0.11.0, probed 2026-11-05): (1) the FIRST canonical `shell=`
+# directive that stands before the first command (it overrides the shebang; one
+# after a command is ignored; a value shellcheck does not know, e.g. zsh, is
+# skipped -- shellcheck itself reports it as SC1103, an error, even under -s),
+# (2) the shebang, (3) the extension
+# .bash/.ksh/.dash, (4) POSIX sh. The parse check uses the same derivation (bash
+# -> `bash -n`, anything else -> `sh -n`). Linting a bash file as sh is NOT
+# "stricter": its SC3xxx findings are false refusals (11.4.201(1)); before this,
+# a shebang-less file was always linted as sh (measured: the real
+# shell-integration.bash gave 45 findings as sh, 4 as bash). Shebang mapping:
+# bash* -> bash, dash -> dash, ksh/mksh -> ksh, and the Android
 # shebang path /system/bin/sh -> ksh: probed read-only on a device 2026-10-09,
 # /system/bin/sh reports KSH_VERSION "@(#)MIRBSD KSH R59 2020/10/31 Android" and
 # `f(){ local x=1; }` works; linting those scripts as POSIX sh produced 692
 # SC3043 (`local`) + 1,968 SC3037 (`echo -e/-n`) false positives. Any other sh
 # -> sh. Residuals: shellcheck's ksh dialect is ksh93, not mksh; /vendor/bin/sh
-# (2 scripts) was not probed and stays POSIX sh (stricter, never laxer).
+# (2 scripts) was not probed and stays POSIX sh; a ksh-dialect file is parsed by
+# `sh -n`.
 #
 # Host safety (constitution 12 / 12.6, review finding B1): a 51,639-line script
 # needed 136 GiB peak RSS uncapped; under a 16 GiB cap it was killed after 55 s
@@ -603,6 +640,10 @@ _SHELL_INTERPS = ("sh", "bash", "dash", "ksh", "mksh", "ash")
 _SHELL_NAME_RE = re.compile(r"^(sh|bash|dash|ksh|mksh|ash)(?:[0-9][0-9.]*)?$")
 _MULTICALL = ("busybox", "toybox")
 _MKSH_SHEBANG_PATHS = ("/system/bin/sh",)
+_INTERP_DIALECT = {"sh": "sh", "bash": "bash", "dash": "dash", "ksh": "ksh", "mksh": "ksh", "ash": "sh"}
+_EXT_DIALECT = {".sh": "sh", ".bash": "bash", ".ksh": "ksh", ".dash": "dash"}
+_SHELLCHECK_SHELLS = ("sh", "bash", "dash", "ksh", "busybox")  # what shellcheck 0.11 accepts for shell= / -s
+_BOM = b"\xef\xbb\xbf"
 # Directive recognition (F1, gate review round 6) -- STRUCTURAL: three layers, never one regex alone.
 #  1. CANDIDATES (_DIRECTIVE_RE): an OVER-APPROXIMATION, independent of left context -- `#`, optional
 #     blanks, the word shellcheck (any case), then a blank or the end of the line, ANYWHERE in a line
@@ -883,6 +924,8 @@ def _env_program(toks):
 
 
 def _first_line(data):
+    if data.startswith(_BOM):
+        data = data[len(_BOM):]
     return data.split(b"\n", 1)[0][:256].decode("utf-8", "replace").rstrip("\r")
 
 
@@ -890,21 +933,45 @@ def _bytes_are_shell(data):
     return _interp_of(_first_line(data)) in _SHELL_INTERPS
 
 
-def _shell_dialect(data):
-    """-> lint flag for `shellcheck -s` from the bytes' own shebang (a
-    `# shellcheck shell=` directive is honoured by shellcheck itself)."""
+def _shell_directive_value(data):
+    """-> the value of the FIRST `shell=` token of a CANONICAL directive that stands before the first
+    command (_police_directives' file_scope), or None. Probed with shellcheck 0.11.0 (2026-11-05): such a
+    directive overrides the shebang, the first one wins, one after a command is ignored."""
+    lines = _split_lines(data)
+    for d in _police_directives(lines):
+        if not (d["canonical"] and d["file_scope"] and "shell" in d["keys"]):
+            continue
+        line = lines[d["line"] - 1].rstrip("\r")
+        m = _CANON_DIRECTIVE_RE.match(line, d["column"] - 1)
+        body = line[m.end():] if m else ""
+        cut = re.search(r"\s#", body)
+        for tok in (body[:cut.start()] if cut else body).split():
+            key, eq, val = tok.partition("=")
+            if key == "shell" and eq:
+                return val
+    return None
+
+
+def _shell_dialect(data, path=None):
+    """-> (flag for `shellcheck -s`, source). The gate lints stdin with an explicit `-s`, which overrides
+    a `# shellcheck shell=` directive, so the dialect is derived HERE in shellcheck's own order: file-scope
+    directive (source "directive"), shebang ("shebang"), extension ("extension"), else POSIX sh
+    ("default"). A directive value shellcheck does not know (e.g. zsh) is not a dialect: shellcheck reports
+    it itself even under `-s` (SC1103, an error, which blocks), so the derivation falls through."""
+    val = _shell_directive_value(data)
+    if val in _SHELLCHECK_SHELLS:
+        return val, "directive"
     first = _first_line(data)
     interp = _interp_of(first)
-    if interp == "bash":
-        return "bash"
-    if interp == "dash":
-        return "dash"
-    if interp in ("ksh", "mksh"):
-        return "ksh"
-    toks = first[2:].split() if first.startswith("#!") else []
-    if interp == "sh" and toks and toks[0] in _MKSH_SHEBANG_PATHS:
-        return "ksh"
-    return "sh"
+    if interp in _SHELL_INTERPS:
+        toks = first[2:].split() if first.startswith("#!") else []
+        if interp == "sh" and toks and toks[0] in _MKSH_SHEBANG_PATHS:
+            return "ksh", "shebang"
+        return _INTERP_DIALECT[interp], "shebang"
+    ext = _shell_ext(path) if path else ""
+    if ext in _EXT_DIALECT:
+        return _EXT_DIALECT[ext], "extension"
+    return "sh", "default"
 
 
 def _shellcheck_env(empty):
@@ -1326,7 +1393,7 @@ def _reason_evidence_error(row, rel, clines):
 
 
 def _symlink_is_script(path, root, base_was_shell):
-    if path.endswith(_SHELL_EXTS) or base_was_shell:
+    if _shell_ext(path) or base_was_shell:
         return True
     try:
         real = os.path.realpath(path)
@@ -1574,6 +1641,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                                 "memory_cap_mib": mem_cap, "max_lines": max_lines}
     errors, findings, advisory, directives, dir_viol, blocking_disabled = [], [], [], [], [], []
     parity_breaches = []
+    dialects = []  # F1: every linted file's dialect and where it came from (diagnosable, 11.4.201(5))
     exceptions_used, sym_refused, sym_ignored, dirs_refused = [], [], [], []
     files_linted = 0
     bound = None
@@ -1647,7 +1715,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
             else:
                 sym_ignored.append(rel)
             continue
-        if not (path.endswith(_SHELL_EXTS) or b_shell or _is_shell_script(path)):
+        if not (_shell_ext(path) or b_shell or _is_shell_script(path)):
             continue
         hst_blob = bound["head_blobs"].get(rel) if bound_ok else None
         if hst_blob is not None and hst_blob[0] == "tracked":
@@ -1686,7 +1754,8 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                 errors.append({"file": rel, "message": "legacy exception row not backed by evidence: " + why})
         big = row is not None or len(clines) >= LARGE_LINES
         timeout = ex_timeout if row else sc_timeout
-        flag = _shell_dialect(cdata)
+        flag, flag_src = _shell_dialect(cdata, rel)
+        dialects.append({"file": rel, "dialect": flag, "source": flag_src})
 
         def lint(data, _timeout=timeout, _flag=flag):
             left = remaining()
@@ -1848,7 +1917,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                      ("blocking_rule_disabled", blocking_disabled), ("directive_parity_breaches", parity_breaches),
                      ("legacy_exceptions", exceptions_used), ("exceptions_increase", increase),
                      ("symlinks_refused", sym_refused), ("symlinks_ignored", sym_ignored),
-                     ("shellcheckrc_ignored_by_norc", rc_files), ("deleted", deleted),
+                     ("dialects", dialects), ("shellcheckrc_ignored_by_norc", rc_files), ("deleted", deleted),
                      ("gitlinks", bound["gitlinks"] if bound else []), ("directories_refused", dirs_refused)):
         if val:
             evidence[key] = val
