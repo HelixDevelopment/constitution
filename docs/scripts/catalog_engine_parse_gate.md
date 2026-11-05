@@ -65,8 +65,8 @@ killed. `GATE_FILE=<gate file>` additionally asserts that the catalog covers eve
 `lib/parse_mutation.py` (imported by `lib/scan.py`, not by `parse_gate.py`) turns a section 1.1 meta-test file into
 one record per mutation banner. `bash scripts/catalog-engine/tests/test_parse_mutation.sh` checks it through its real
 import path on a golden fixture (one record per gate, first block wins, the 12-line `expect_prebuild_fail` window,
-ATM id, gate-header description, an unreadable path) and kills nine paired mutants of the parser (CON-070).
+ATM id, gate-header description, an unreadable path) and kills nine paired mutants of the parser (CON-083).
 Known behaviour, not changed here: a banner without a closing em-dash keeps the trailing `"` of the echo in the
-description (tracked as CON-072).
+description (tracked as CON-085).
 
 **Last verified:** 2026-11-05 (test 10/10: real parser ALL-OK, 9 of 9 mutants killed, 4.7 s wall).

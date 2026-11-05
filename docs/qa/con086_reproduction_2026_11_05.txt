@@ -1,4 +1,4 @@
-# CON-073 reproduction record (host fixture), 2026-11-05
+# CON-086 reproduction record (host fixture), 2026-11-05 (first minted as CON-067, then CON-073 in the vehicle; re-minted at landing, review F2)
 # Captured by the CON-031 excluded-list investigation (Claude Opus 5.5). Surface: host-only. Section 11.4.292(C) / 11.4.294.
 
 ## Command

@@ -1,4 +1,4 @@
-# CON-072 reproduction record (host fixture), 2026-11-05
+# CON-085 reproduction record (host fixture), 2026-11-05 (first minted as CON-066, then CON-072 in the vehicle; re-minted at landing, review F2)
 # Captured by the CON-031 excluded-list investigation (Claude Opus 5.5). Surface: host-only (parser is host code). Section 11.4.292(C) / 11.4.294.
 
 ## Source identity (sha256)
@@ -33,4 +33,4 @@ meta_ctl.sh description='text'
 Copy of parse_mutation.py with the end alternative of _RE_MUT_DEF changed from (?:—|$) to (?:—|"?\s*$) (an optional closing quote before end of line):
 meta.sh description='text'
 meta_ctl.sh description='text'
-The signature disappears with only the regex changed; the control is unchanged. This is evidence for the cause, not a reviewed fix (CON-072 stays open).
+The signature disappears with only the regex changed; the control is unchanged. This is evidence for the cause, not a reviewed fix (CON-085 stays open).

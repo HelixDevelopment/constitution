@@ -1,0 +1,25 @@
+# CON-083 verification record, 2026-11-05T18:45:43Z (Claude Opus 5.5, landing of vehicle/con031-excluded)
+# Section 11.4.262 machine evidence: the test on the landed tree (merge of main efe2cc6c into the vehicle).
+438c0e1625a8935a1ed06eadd496939e7b75a99ffd6608fdf10bd558ea7d3dfc  scripts/catalog-engine/tests/test_parse_mutation.sh
+edfd1270e19fdc1bcf1c1c63260045d439dc60bbe3ab04d62261cacc91206c71  scripts/catalog-engine/lib/parse_mutation.py
+Before: main efe2cc6c has no test for parse_mutation.py (scripts/catalog-engine/tests/ holds only test_parse_gate_wrappers.sh).
+Command: bash scripts/catalog-engine/tests/test_parse_mutation.sh
+Manifest row: scripts/catalog-engine/tests/test_parse_mutation.sh entry, tier default (override, measured wall time).
+Known gaps: 7 reviewer mutants survive (CON-087).
+## Output
+== real parser
+  PASS  real parser: ALL-OK
+== paired mutants
+  PASS  mutant window11 killed (FAILED:edge-in-window-count-form)
+  PASS  mutant window13 killed (FAILED:far-window-12)
+  PASS  mutant no_dedup killed (FAILED:one-record-per-gate,order-by-line,first-block-wins,one-source-line,one-proves-fail,one-atm,one-step)
+  PASS  mutant no_atm killed (FAILED:one-atm)
+  PASS  mutant no_hdr killed (FAILED:one-gate-desc)
+  PASS  mutant no_count_form killed (FAILED:edge-in-window-count-form)
+  PASS  mutant gap_flip killed (FAILED:one-proves-fail,far-window-12)
+  PASS  mutant crash_missing killed (LOAD-FAILED)
+  PASS  mutant line0 killed (FAILED:one-source-line,edge-in-window-count-form)
+
+RESULT: passed=10 failed=0
+wall=1.54s
+rc=0

@@ -1359,64 +1359,243 @@ Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc)
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 
-## CON-070 — parse_mutation.py had no test; its full-suite excluded note named the wrong importer and a test that does not cover it
+## CON-071 — multitrack_sessions.sh: 'shift 2>/dev/null || true' is fatal under dash on an empty argument list, so the no-argument call prints nothing
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Conductor
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — red-command `sh scripts/multitrack/multitrack_sessions.sh; echo rc=$?` — green-command `sh scripts/multitrack/multitrack_sessions.sh; echo rc=$? (stderr carries the usage text)` — env `host anton, dash 0.5.12-12ubuntu3, file blob 2650500c4ffb1eb6440876f2ef36a913dc2f2485 (sha256 8a84d647c26ab9506f640dc75c7a095dbe1494cdcace2c2870fe3c6bc9bf1b63)` — signature `under sh (dash) the no-argument call exits 2 with zero stderr bytes (usage never printed)` — updated 2026-11-05T17:53:34Z — by `Conductor`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash treats shift on an empty positional list as a special-builtin error that exits the non-interactive shell; '2>/dev/null || true' cannot catch a shell exit. Toggle: guarded '[ $# -gt 0 ] && shift' survives, unguarded aborts (decisive experiment in the record).` — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — updated 2026-11-05T17:53:34Z — by `Conductor`
+
+What: under sh (dash) scripts/multitrack/multitrack_sessions.sh run with no arguments exits 2 with no output; bash prints the usage text on stderr and exits 2. main() does _cmd="${1:-}"; shift 2>/dev/null || true. In dash a shift with no positional parameters is a special-builtin error that exits the non-interactive shell, so the redirect and the || true cannot catch it. The same shape sits at three sites: lines 327 (cmd_spawn), 472 (cmd_drive/resume) and 588 (main). test_multitrack_sessions_pid_status.sh works around it by sourcing with a 'help' argument (C3). Found by the round-1 independent review of vehicle/redpin (docs/qa/redpin_review/review_redpin_r1.md, V12) and the redpin author report (docs/qa/redpin_review/redpin_author_report_r1.md, follow-up 3). Out of scope for the test-only redpin change (section 11.4.293(A)). Supersedes the id CON-064/CON-065 that commit ce775c9 on vehicle/redpin gave this item (those ids belong to other items on main; review R2-1, section 11.4.54). Attribution note: created by an agent (redpin landing subagent) through the engine; if item_history records a different opener, that is the engine default of this intake path and this note is the correction (history is append-only).
+
+**Reproduction / context:**
+reproduced-live on the host (the code runs only on the host), record docs/qa/con071_reproduction_2026_11_05.txt: RED 'sh scripts/multitrack/multitrack_sessions.sh' rc=2 with 0 stderr bytes, 3 of 3 runs; control under bash rc=2 with 490 stderr bytes starting 'usage: multitrack_sessions.sh <command> [args]'. Decisive experiment in the same record: sh -c 'shift 2>/dev/null || true; echo survived' prints nothing (rc 2); sh -c '[ $# -gt 0 ] && shift; echo survived' prints survived (rc 0); bash prints survived for both.
+
+**Acceptance criteria:**
+(1) All three sites use a guarded shift ([ $# -gt 0 ] && shift, or an equivalent that never runs shift on an empty list), class-wide per section 11.4.276(C): every 'shift ... || true' site in scripts/multitrack/ is enumerated with a control-needled scan and fixed or scoped out. (2) A dash regression test that is RED on the current file (no-argument call under sh prints no usage) and GREEN after the fix with the same command, the same host and the same signature (section 11.4.292(E)), plus a paired mutation that restores the unguarded shift and makes the test FAIL. (3) The C3 'help' workaround in test_multitrack_sessions_pid_status.sh is removed or kept with a reason.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/multitrack_sessions.sh lines 327, 472, 588; scripts/multitrack/test_multitrack_sessions_pid_status.sh (C3 workaround)
+
+## CON-072 — Vendor the RB-05 mock claude into the constitution so the two mock-driven multitrack guards and the redpin carrier legs run standalone
 
 **Status:** Queued
 **Type:** Task
-**Severity:** Medium
-**Created-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
+**Severity:** Low
+**Created-By:** Conductor
 
-**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:07Z
-**Reported-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
-
-**What (the report, verbatim):**
-The excluded row of scripts/catalog-engine/lib/parse_mutation.py said: imported by parse_gate.py; tested by scripts/catalog-engine/tests. Measured: parse_gate.py only names it in a comment; scan.py imports it; the only test in scripts/catalog-engine/tests covers parse_gate.py. No runnable manifest unit referenced it. Vehicle vehicle/con031-excluded commit 4db86ed6 adds scripts/catalog-engine/tests/test_parse_mutation.sh (10/10, 9 of 9 paired mutants killed, 4.7 s) and 485c341d corrects the note. Pending independent review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-064 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
-
-**Affected scope / file-scope manifest:**
-scripts/catalog-engine/lib/parse_mutation.py, scripts/catalog-engine/tests/test_parse_mutation.sh, config/full_suite_manifest.tsv
+What: round-1 review finding F4 of vehicle/redpin (docs/qa/redpin_review/review_redpin_r1.md): without the consumer-only RB-05 mock the two mock-driven tests always SKIP in the canonical repository. The suite-level absorption of those SKIPs is fixed in round 2 (the mutation suite exits 77 when any leg skipped). The remaining work is to vendor the mock (it is a test double; verdicts through it stay UNIT-CLASS, section 11.4.289) with its provenance, and have the tests find it in-tree. Same environment class, also open: test_multitrack_sessions_balance_autoselect.sh (rc 90) and test_multitrack_monday_dryrun.sh (rc 91), per docs/qa/redpin_review/redpin_author_report_r1.md follow-up 5. Supersedes the id CON-064/CON-065 that commit ce775c9 on vehicle/redpin gave this item (those ids belong to other items on main; review R2-1, section 11.4.54). Attribution note: created by an agent (redpin landing subagent) through the engine; if item_history records a different opener, that is the engine default of this intake path and this note is the correction (history is append-only).
 
 **Reproduction / context:**
-bash scripts/catalog-engine/tests/test_parse_mutation.sh
+Measured 2026-11-05 on a clean clone of vehicle/redpin with no MT_TEST_MOCK_CLAUDE: test_multitrack_sessions_pid_status.sh and test_multitrack_supervisor_wiring.sh exit 77 reason=rb05_mock_absent; test_multitrack_redpin_mutations.sh exits 77 with 3 leg groups skipped (PASS=12 SKIP=3); re-measured by the round-2 review (docs/qa/redpin_review/review_redpin_r2.md V3, V5). In the canonical repository their coverage is zero.
 
 **Acceptance criteria:**
-The test is on main as a default-tier manifest entry, passes, and every paired mutant is killed; the excluded note names scan.py and the test.
-
-## CON-071 — capture_fc_timer_triplet.sh checks the consumer pre-build file before refusing the stand-in-only override, so test (H15) fails in a standalone clone
-
-**Status:** Queued
-**Type:** Bug
-**Severity:** Medium
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh (standalone clone, no consumer pre-build file)` — green-command `the same command on vehicle 322c25e` — env `host, standalone clone of main 7f72395` — signature `NOT ok (H15) rc=2: FATAL: pre-build script not found` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
-**Investigation:** root-cause-found-with-evidence — root-cause `the existence check of the consumer pre-build file ran before the refusal of the stand-in-only CAPTURE_TRIPLET_TREE_ROOT override, although the mode is decided from paths alone; moving the refusal first flips (H15) RED to GREEN with nothing else changed` — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
-
-RED measured 2026-11-05 on main 7f723954 in a fresh standalone clone: test_capture_fc_timer_triplet.sh check (H15) NOT ok rc=2: FATAL: pre-build script not found: <parent>/device/rockchip/rk3588/tests/pre_build_verification.sh. Root cause: the tool's existence check of the consumer pre-build file ran before the CAPTURE_TRIPLET_TREE_ROOT refusal, though the mode is decided from paths alone. Vehicle commit 322c25ef moves the refusal first; same test, same clone: all checks pass. Pending review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-065 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+On a standalone constitution clone with no MT_TEST_MOCK_CLAUDE, both tests and the redpin mutation suite run their legs and exit 0; the vendored mock carries its source repository, commit and sha256.
 
 **Affected scope / file-scope manifest:**
-scripts/fastcycle/tests/capture_fc_timer_triplet.sh
+scripts/multitrack/rb05_fixtures/mock_claude.sh (new in the constitution; today only in the consumer project), scripts/multitrack/test_multitrack_sessions_pid_status.sh, scripts/multitrack/test_multitrack_supervisor_wiring.sh, scripts/multitrack/test_multitrack_redpin_mutations.sh
 
-## CON-072 — parse_mutation.py keeps the trailing double quote of the echo in the description when a mutation banner has no closing em-dash
+## CON-073 — Census guard tests/test_no_head_red_builder.sh scans its own positive-control copies when TMPDIR is inside tests/ (third self-carrier, review R2-2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the guard writes its ctrl_*.sh positive-control copies into its scratch dir $S and only then builds the census list; with TMPDIR pointing at a non-ignored directory under tests/ the census scans the copies, flags 7 lines and exits 1 (reproduced by the reviewer with TMPDIR=tests/tmpx). Same class as round-1 F1, third instance. Acceptance: build the census list before writing the controls, exclude $S, or refuse a scratch dir inside the repository root; add a mutation leg that runs the guard with TMPDIR inside tests/ and asserts rc 0. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; tests/test_no_head_red_builder_mutations.sh
+
+## CON-074 — Adopt reviewer mutant RM-1 (census file filter drops _mutation_test.sh) as a leg of the census mutation test (review R2-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: deleting the '|_mutation_test\.sh$' alternative from the census grep -E filter survives the whole census mutation suite (13/0) while the scanned set shrinks from 681 to 489 files; a builder line appended to scripts/gates/cm_agent_type_label_mutation_test.sh is then missed. Acceptance: a leg that appends a HEAD-built RED builder to a scripts/gates/*_mutation_test.sh file and requires the census to name it; RM-1 must make that leg FAIL (section 11.4.276(D)). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder_mutations.sh
+
+## CON-075 — Census guard scope is narrower than the full-suite runner's census: 18 runner-run sh/py units are never scanned (review R2-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the guard's own name filter misses *_test.sh (e.g. the five scripts/gates/covenant_propagation_*_test.sh), *_selftest*.sh, scripts/label-sync/prove_*mutations.sh, meta_test_inheritance.sh and progressive/mutation_matrix.py, so any of them could gain a HEAD-built RED artifact unseen. Acceptance: the guard scans the runner's own census set (the file list --verify-manifest uses) instead of a second name filter, with a control-needled count and a leg on one of the formerly missed files. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; scripts/run_full_suite.py (census set reuse)
+
+## CON-076 — HEAD-red builder detector: 25 further blind-spot shapes, header overclaims Python coverage; invert the default instead of closing shapes one at a time (review R2-5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: 25 new probe shapes (process substitution, defaulted revisions, git show :path, implicit HEAD via git log, moving refs main:/origin/main:, git checkout HEAD --, git restore --source=HEAD, worktree add HEAD~1, heredoc bodies, git wrapper functions, HEAD@{0}, prefix redirects, cat-file --textconv, Python shell=True/os.system and string concatenation) are all missed by the detector; header line 19 claims any Python show/cat-file HEAD read is covered, which three shapes contradict. No live instance found (broad tree scan, 3 hits, none builds a RED artifact). The round-2 fix closed exactly the 8 named shapes, the instance-at-a-time closure section 11.4.276(C) warns about. Acceptance: invert the default (flag every HEAD-relative, moving-ref or index blob/tree read in a test; the reason-carrying opt-out marker covers compare-only reads), correct the header to the real limits, and adopt the 25 shapes as mutation legs. If this class reappears in a later round it forces a structural round (section 11.4.276(E)). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; tests/test_no_head_red_builder_mutations.sh
+
+## CON-077 — Adopt reviewer mutant RM-3 (delete the SKIP-to-77 block) as a leg: the round-1 F4 fix has no regression guard (review R2-6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: deleting the 'if [ "$SKIP" -gt 0 ] ... exit 77' block from scripts/multitrack/test_multitrack_redpin_mutations.sh, run without the mock, gives PASS=12 FAIL=0 SKIP=3 rc 0, which the runner's judge() reads as PASS; the unmutated suite is SKIP rb05_mock_absent. Acceptance: a leg that runs the suite with the mock absent and asserts rc 77 and the trailing 'reason=rb05_mock_absent' line; RM-3 must make it FAIL. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+## CON-078 — CARRIER_IMMUNE comment overclaims: its worker half is an equivalent mutant on this path (review R2-8, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: mutant m_worker restores only the worker pattern to the pre-RB-02 default and passes every leg with one and four carriers, because sessions passes its own live-worker count. Acceptance: reword the block comment to say what the worker half protects (or drop it), with the equivalence recorded. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_sessions_pid_status.sh; scripts/multitrack/test_multitrack_supervisor_wiring.sh
+
+## CON-079 — Carrier visibility control needle in the redpin mutation suite is tautological (review R2-9, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the control that proves the carrier process is visible reuses the same _bw token it checks for. Acceptance: prove visibility with an independent read (for example pgrep -f of the real pre-RB-02 build pattern), so the control can fail when the carrier is not visible (section 11.4.273). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+## CON-080 — Stale 'measured 5.6 s' timing note on the census mutation test manifest row (review R2-10, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: config/full_suite_manifest.tsv says override fast (measured 5.6 s) for tests/test_no_head_red_builder_mutations.sh; the reviewer measured 36 s wall time under CPU pressure (load about 33 on 16 CPUs). Acceptance: re-measure and record the figure together with the load it was measured under. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+config/full_suite_manifest.tsv
+
+## CON-081 — Redpin carrier process is visible host-wide for about 40 s and can be counted by other sessions' bare-pgrep guards (review R2-11, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the carrier started by the carrier-immune legs is visible to every bare-pgrep guard on the host for about 40 s. Acceptance: run it in its own PID namespace (unshare --pid --fork --map-root-user) where available, else keep its lifetime minimal, with the choice recorded. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh; scripts/multitrack/test_multitrack_sessions_pid_status.sh; scripts/multitrack/test_multitrack_supervisor_wiring.sh
+
+## CON-082 — tests/layout/test_generator_atomic.sh SIGTERM legs (4) and (10e) give different verdicts on the same committed file (nondeterministic, cause UNCONFIRMED)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Conductor
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T17:53:34Z — by `Conductor`
+**Investigation:** not-started — updated 2026-11-05T17:53:34Z — by `Conductor`
+
+What: observation O1 of review round 2 of vehicle/redpin (docs/qa/redpin_review/review_redpin_r2.md). The same committed file gave PASS=55 FAIL=2 rc 1 (11 m 56 s; failures '(4) staging left after SIGTERM (had 6)' and '(10e) TERM at mid_commit lost files or left staging') and, on re-run of the same tree, PASS=57 FAIL=0 rc 0 (9 m 16 s); main 7f72395 run concurrently passed 57/0. The vehicle changes this file only by a trailing comment. Cause UNCONFIRMED; CPU contention (pressure about 56 % avg10 at the time) is a hypothesis only. Not caused by the redpin change (section 11.4.293(A)). Created by an agent (redpin landing subagent) through the engine.
+
+**Reproduction / context:**
+UNCONFIRMED: no deterministic reproduction yet; the two verdicts come from the reviewer's runs (evidence tracked at docs/qa/redpin_review/r2_evidence/gen_atomic.out, gen_atomic_rerun.out, gen_atomic_main.out, copied from the reviewer's session evidence). A reproduction MUST be established first (section 11.4.292), for example by running legs (4) and (10e) N times under controlled CPU load.
+
+**Acceptance criteria:**
+Legs (4) and (10e) give the same verdict in N >= 3 consecutive runs (section 11.4.50) under the load the full suite runs them with; root cause established by a decisive experiment; a permanent regression guard (section 11.4.135).
+
+**Affected scope / file-scope manifest:**
+tests/layout/test_generator_atomic.sh (SIGTERM legs 4 and 10e) and the generator it drives
+
+## CON-085 — parse_mutation.py keeps the trailing double quote of the echo in the description when a mutation banner has no closing em-dash
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con072_reproduction_2026_11_05.txt` — red-command `python3 -I run.py scripts/catalog-engine/lib/parse_mutation.py meta.sh meta_ctl.sh (fixtures in the evidence file)` — env `host, vehicle 2595f06 (parser identical to main ecfe432)` — signature `meta.sh description='text"'` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
-**Investigation:** root-cause-found-with-evidence — root-cause `_RE_MUT_DEF ends the description at a closing em-dash or at end of line, so without the em-dash the closing double quote of the echo is captured; the closing em-dash control returns text` — evidence `docs/qa/con072_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+**Created-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con085_reproduction_2026_11_05.txt` — red-command `python3 -I run.py scripts/catalog-engine/lib/parse_mutation.py meta.sh meta_ctl.sh (fixtures in the evidence file)` — env `host, vehicle 2595f06 (parser sha256 edfd1270, identical on main efe2cc6c)` — signature `meta.sh description='text"'` — updated 2026-11-05T18:46:04Z — by `AI (Claude Opus 5.5, CON-031 landing)`
+**Investigation:** root-cause-found-with-evidence — root-cause `_RE_MUT_DEF ends the description at a closing em-dash or at end of line, so without the em-dash the closing double quote of the echo is captured; the closing em-dash control returns text; toggling only the regex removes the signature` — evidence `docs/qa/con085_reproduction_2026_11_05.txt` — updated 2026-11-05T18:46:04Z — by `AI (Claude Opus 5.5, CON-031 landing)`
 
-Measured 2026-11-05: for the line  echo "— CM-X mutation: text"  (no closing em-dash) parse_mutation_file returns description 'text"' (with the quote; for an empty text it returns the single character "), because _RE_MUT_DEF ends at an em-dash or end of line. The catalog records a wrong description and derivation_gaps misses no-mutation-description. Not changed in the CON-070 test (it does not pin the defect). Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-066 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+Measured 2026-11-05: for the line  echo "— CM-X mutation: text"  (no closing em-dash) parse_mutation_file returns description 'text"' (with the quote; for an empty text it returns the single character "), because _RE_MUT_DEF ends at an em-dash or end of line. The catalog records a wrong description and derivation_gaps misses no-mutation-description. Not changed by the CON-083 test (it does not pin the defect). The reviewer's surviving mutant rv_require_close belongs with this fix. Id history (review F2, §11.4.214): first minted in the vehicle as CON-066 (commit e581a31), then CON-072 (commit 35e8d53f), re-minted as CON-085 at landing on main, because main already owns CON-064..CON-082 and CON-070 is reserved for the CON-030 vehicle. Vehicle commits 4db86ed6, 485c341d and 322c25ef name the first ids and are not rewritten (§11.4.113). Authorship (review F10): the code commits 4db86ed6, 485c341d, 322c25ef and the first registration e581a31 were written by Claude Sonnet 5.5; the merge 2595f06e, the evidence files and state records (35e8d53f) and the note corrections cd1e55ee were written by Claude Opus 5.5; the landing re-mint was done by Claude Opus 5.5. Sources (tracked, §11.4.215): docs/qa/con031_excluded_review/excluded_analysis.md, excluded_plan.md and the independent review docs/qa/con031_excluded_review/review_con031_excluded_r1.md (round 1, GO-with-follow-ups).
 
 **Affected scope / file-scope manifest:**
 scripts/catalog-engine/lib/parse_mutation.py
 
-## CON-073 — full-suite manifest on main lacks rows for 26 census files, so --verify-manifest ends MANIFEST-MISMATCH and the operator cannot run --accept-excluded-change
+## CON-086 — full-suite manifest lacked rows for 25 census files on main ecfe4325 (26 on 7f72395), so --verify-manifest ended MANIFEST-MISMATCH and the operator could not run --accept-excluded-change
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con073_reproduction_2026_11_05.txt` — red-command `bash scripts/run_full_suite.sh --verify-manifest (fresh clone of main ecfe432)` — env `host, fresh clone of main ecfe432` — signature `census file without manifest row (25 on ecfe432, 26 on 7f72395)` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
-**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: census files land on main without manifest rows because no commit-time or pre-build seam refuses that; the missing rows are measured, the absent seam is not yet shown by a toggling experiment` — evidence `docs/qa/con073_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+**Created-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con086_reproduction_2026_11_05.txt` — red-command `bash scripts/run_full_suite.sh --verify-manifest (fresh clone of main ecfe432)` — env `host, fresh clones of main ecfe432 and efe2cc6c` — signature `census file without manifest row (25 on ecfe432 and efe2cc6c, 26 on 7f72395)` — updated 2026-11-05T18:46:04Z — by `AI (Claude Opus 5.5, CON-031 landing)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: census files land on main without manifest rows because no commit-time or pre-build seam refuses that; the missing rows are measured, the absent seam is not yet shown by a toggling experiment` — evidence `docs/qa/con086_reproduction_2026_11_05.txt` — updated 2026-11-05T18:46:04Z — by `AI (Claude Opus 5.5, CON-031 landing)`
 
-Measured 2026-11-05 on main 7f723954: bash scripts/run_full_suite.sh --verify-manifest exit 3, RESULT: MANIFEST-MISMATCH (26 problems), all 'census file without manifest row' (e.g. test_precheck_shellcheck_red.sh, cm_agent_type_label_mutation_test.sh, states_mutation_runner.py). The runner refuses --accept-excluded-change while any other manifest problem exists, so CON-031 cannot be done on main. Vehicle commit 485c341d regenerates the manifest (27 rows incl. the new CON-070 test, two new excluded rows with reasons) and syncs the guide. Recurrence risk: tests land without their manifest row; no commit-time check. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-067 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+Measured 2026-11-05 on main 7f723954: bash scripts/run_full_suite.sh --verify-manifest exit 3, RESULT: MANIFEST-MISMATCH (26 problems), all 'census file without manifest row'; re-measured 25 on main ecfe4325 and on main efe2cc6c (review F13). The runner refuses --accept-excluded-change while any other manifest problem exists, so CON-031 cannot be done on main. Vehicle commit 485c341d regenerates the manifest (27 rows incl. the new CON-083 test, two new excluded rows with reasons; one of the 27 also landed on main with census-safe, so the net change against ecfe4325 is 26 rows, review F12) and syncs the guide. On the landed tree --verify-manifest reports only the excluded-lock difference, which the operator accepts (O1). The rows are a symptom fix: the recurrence seam (a pre-build check that refuses a census file without a manifest row) is not built, so this item stays open. Id history (review F2, §11.4.214): first minted in the vehicle as CON-067 (commit e581a31), then CON-073 (commit 35e8d53f), re-minted as CON-086 at landing on main, because main already owns CON-064..CON-082 and CON-070 is reserved for the CON-030 vehicle. Vehicle commits 4db86ed6, 485c341d and 322c25ef name the first ids and are not rewritten (§11.4.113). Authorship (review F10): the code commits 4db86ed6, 485c341d, 322c25ef and the first registration e581a31 were written by Claude Sonnet 5.5; the merge 2595f06e, the evidence files and state records (35e8d53f) and the note corrections cd1e55ee were written by Claude Opus 5.5; the landing re-mint was done by Claude Opus 5.5. Sources (tracked, §11.4.215): docs/qa/con031_excluded_review/excluded_analysis.md, excluded_plan.md and the independent review docs/qa/con031_excluded_review/review_con031_excluded_r1.md (round 1, GO-with-follow-ups).
 
 **Affected scope / file-scope manifest:**
 config/full_suite_manifest.tsv, docs/guides/full_suite_runner_guide.md
+
+## CON-087 — CON-031 excluded FU-1 (review F5, F6): adopt the 7 surviving reviewer mutants of test_parse_mutation.sh and report LOAD-FAILED separately
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+
+The independent review (docs/qa/con031_excluded_review/review_con031_excluded_r1.md, findings F5 and F6) ran 10 own mutants of scripts/catalog-engine/lib/parse_mutation.py against scripts/catalog-engine/tests/test_parse_mutation.sh: 3 killed, 7 survive (rv_atm_on_line, rv_hdr_last_wins, rv_strict_utf8, rv_expect_no_b, rv_require_close, rv_hdr_one_dash, rv_type_hardcode). Add the cases that kill them: an ATM id outside the description, two headers for one gate, a non-UTF-8 byte, expect_prebuild_failX, a banner without closing em-dash (with the CON-085 fix), a one-dash header, a second type_root value. Also report a mutant that fails to load separately from killed, or assert that only the named mutant may fail to load (F6). Acceptance: every listed mutant is a paired leg of the test and is killed.
+
+## CON-088 — CON-031 excluded FU-2 (review F1): have a test run render_keys_ref.py against the render_keys key fixtures
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+
+Review finding F1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/fastcycle/tests/lib/render_keys_ref.py is not executed by any test. test_render_keys_red.sh assigns REFKEY (line 75) and only checks that the file exists (lines 323 to 326); the oracle was run once by hand to make the fixtures/render_keys/*/key_*.json files (fixtures README line 115). Add a test step that runs the oracle against the fixtures and compares its output with the recorded keys, so the fixture keys stay grounded in a live computation; then update the excluded note of the row in config/full_suite_manifest.tsv. Acceptance: the oracle runs in a default unit and a paired mutation of it fails that unit.
+
+## CON-089 — CON-031 excluded FU-3 (review X1, X4): test_gen_lumenignore.sh prints SKIP but exits 2, cannot find lumen under the runner's sandbox HOME, and deletes without ${W:?}
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+
+Review finding X1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/lumen/tests/test_gen_lumenignore.sh FAILs in every full-suite run. Its fallback looks for the lumen binary under $HOME/.claude-shared/..., the runner gives each unit a sandbox HOME, and LUMEN_BIN is not in the runner's environment base. It then prints 'SKIP: lumen binary not found' but exits 2, which judge() records as FAIL rc_2. Measured by the reviewer: sandbox HOME without LUMEN_BIN rc 2 in 0 s; with LUMEN_BIN set rc 0, 4 checks pass. Fix: the test prints what it does (a FAIL naming the missing prerequisite, per operator decision O3), and the runner passes LUMEN_BIN or resolves it in a preflight. X4: the same test deletes with a bare rm -rf "$W"; use ${W:?} or safe_rm_rf (§11.4.287(C)(1)). Acceptance: the unit passes under the full-suite runner on a host with lumen installed, and its output matches its exit code.
+
+## CON-090 — CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+
+Review finding X3 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): the workable-items engine stores reproduction_evidence and investigation_evidence as paths only; §11.4.294(C) asks for a captured evidence path plus its sha256 written in the same transaction, and a demotion when the evidence no longer resolves. Add the sha256 columns (computed by the engine at write time), render them in the Reproduction and Investigation body lines, and check them in validate. Acceptance: an item whose evidence file changes after recording is reported by validate.
+
+## CON-091 — CON-031 excluded X2: two orphan reference copies under scripts/fastcycle/lib/ diverge from the copies the test uses (awaiting operator decision O2)
+
+**Status:** Operator-blocked
+**Type:** Task
+**Operator-Block-Details:** WHAT: awaiting operator decision O2 on the two orphan reference copies under scripts/fastcycle/lib/; no agent may delete them (section 11.4.122, 11.4.124) WHY: deleting or re-pointing shipped files needs an operator decision; the evidence is recorded in the review (X2, O2) UNBLOCK: [A] retire both copies as obsolete duplicates (reviewer recommendation, section 11.4.90) · [B] review both versions, point the test at the correct one, retire the other · [C] keep both and document why WHO: AI (Claude Opus 5.5)
+**Severity:** Low
+**Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+
+Review finding X2 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/fastcycle/lib/dec23_key_ref.py and scripts/fastcycle/lib/tce_normalize_ref.py (added in a925a8da on 2026-09-30) are never loaded; the only test reads scripts/fastcycle/tests/lib/. They are not only reworded: for fixture mr_good_killed_reuse/put_envelope.json the used copy prints dc6819b0..., the orphan dec23_key_ref.py prints 4b6e4fc0... (canonical JSON instead of U+001F-joined fields); the product gates/mutation_reuse.py uses U+001F-joined fields like the used copy. Do NOT delete them before the operator decides (§11.4.122, §11.4.124). The reviewer recommends retiring both as obsolete duplicates (§11.4.90). Acceptance: the operator's decision O2 is recorded and applied.
 
