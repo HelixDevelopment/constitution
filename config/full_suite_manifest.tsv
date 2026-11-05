@@ -57,7 +57,7 @@ scripts/codegraph/tests/fixtures/stub_probe_tool.sh	sh	fixture	-	-	-	fixture pat
 scripts/codegraph/tests/lib_test.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/run_scope_tests.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/t_scope_cases.py	py	excluded	-	-	-	reason: data: case data module used by run_scope_tests.sh
-scripts/codegraph/tests/t_scope_fixture.py	py	excluded	-	-	-	reason: library: fixture builder imported by t_scope_cases.py and t_scope_mutations.py, both run by run_scope_tests.sh
+scripts/codegraph/tests/t_scope_fixture.py	py	excluded	-	-	-	reason: library: fixture builder imported by t_scope_cases.py, which run_scope_tests.sh runs directly and t_scope_mutations.py runs against each mutant
 scripts/codegraph/tests/t_scope_mutations.py	py	member	heavy	-	scripts/codegraph/tests/run_scope_tests.sh	run by run_scope_tests.sh
 scripts/codegraph/tests/test_bulk_classify_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_bulk_classify_mutations.sh	auto: run by scripts/codegraph/tests/test_bulk_classify_mutations.sh
 scripts/codegraph/tests/test_bulk_classify_mutations.sh	sh	entry	heavy	bash	-	auto
@@ -216,7 +216,7 @@ scripts/fastcycle/tests/fixtures/triple_harness/sigwin_rig.sh	sh	fixture	-	-	-	f
 scripts/fastcycle/tests/fixtures/triple_harness/stub_tool.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/verdict_cache/gate_script.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/lib/bb_ref_bisect.py	py	excluded	-	-	-	reason: oracle: reference bisector used as an oracle by test_batch_bisect_red.sh
-scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_batch_bisect_red.sh, test_gate_shard_red.sh and test_verdict_cache_red.sh
+scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_verdict_cache_red.sh (test_batch_bisect_red.sh and test_gate_shard_red.sh name it only in comments)
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_flake_ledger_red.sh
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_backstop_red.sh
 scripts/fastcycle/tests/lib/dec23_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_mutation_reuse_red.sh (heavy tier only)
@@ -225,7 +225,7 @@ scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: 
 scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_backstop_red.sh
 scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_render_keys_red.sh
 scripts/fastcycle/tests/lib/review_record_genuine.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh
-scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_gate_shard_red.sh and test_gate_shard_r1_regression.sh
+scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_gate_shard_red.sh (test_gate_shard_r1_regression.sh names it only in a comment)
 scripts/fastcycle/tests/lib/tce_normalize_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_mutation_reuse_red.sh (heavy tier only)
 scripts/fastcycle/tests/lib/triple_harness.sh	sh	excluded	-	-	-	reason: library: self-validation runner library used by fastcycle tests
 scripts/fastcycle/tests/run_all.sh	runall	entry	default	runall-members	-	auto: covers 12 heavy member(s)
