@@ -390,6 +390,104 @@ wlp "$F5P" rollback --backup "$SB/forged-bk"
 eq "F5 forged manifest built from the local MAC refused" 3 "$RC"
 has "F5 refused by the signature check (domain strings differ)" "signature is invalid" "$ERR"
 
+# ── 9c. re-review M1-M4: rollback preflight covers the ledger target, json-entry guard, restore-target probes ──
+la() { printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)[sys.argv[1]]))' "$1"; }
+if [ "$(id -u)" -ne 0 ]; then
+  # M1a: backup WITHOUT a ledger, a row created later, then the .constitution dir becomes unwritable
+  G1="$SB/g1"; make_project "$G1"; printf 'base\n' >"$G1/base.txt"
+  wlp "$G1" backup --path base.txt; G1B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G1/made.txt"; wlp "$G1" record --id g1-made --producer installer --agent claude --path made.txt --kind file
+  printf 'changed\n' >"$G1/base.txt"; chmod 555 "$G1/.constitution"
+  wlp "$G1" rollback --backup "$G1B"
+  eq "M1a unwritable ledger dir: rollback refused rc 3" 3 "$RC"
+  check "M1a nothing changed: the created-later file is still there (no partial apply)" test -f "$G1/made.txt"
+  eq "M1a nothing changed: base.txt not restored" changed "$(cat "$G1/base.txt")"
+  has "M1a refusal names the unwritable directory" "not a writable directory" "$ERR"
+  chmod 755 "$G1/.constitution"
+  wlp "$G1" rollback --backup "$G1B"
+  eq "M1a control: after the permission is fixed the rerun converges" 0 "$RC"
+  check "M1a control: created-later file unlinked" test ! -e "$G1/made.txt"
+  check "M1a control: ledger removed (backup had none)" test ! -e "$G1/.constitution/wiring.json"
+  # M1b: backup HAS a ledger (atomic_write into an unwritable dir would fail mid-apply)
+  G2="$SB/g2"; make_project "$G2"; printf 'base\n' >"$G2/base.txt"; printf 'o\n' >"$G2/o.txt"
+  wlp "$G2" record --id g2-o --producer installer --agent claude --path o.txt --kind file
+  wlp "$G2" backup --path base.txt; G2B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G2/made.txt"; wlp "$G2" record --id g2-made --producer installer --agent claude --path made.txt --kind file
+  chmod 555 "$G2/.constitution"
+  wlp "$G2" rollback --backup "$G2B"
+  eq "M1b unwritable ledger dir with a backed-up ledger: refused rc 3" 3 "$RC"
+  check "M1b nothing changed: made.txt still there" test -f "$G2/made.txt"
+  chmod 755 "$G2/.constitution"
+  # N3b: restore target in an unwritable directory refuses the whole rollback
+  G3="$SB/g3"; make_project "$G3"; mkdir -p "$G3/d"; printf 'base\n' >"$G3/d/f.txt"
+  wlp "$G3" backup --path d/f.txt; G3B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G3/made.txt"; wlp "$G3" record --id g3-made --producer installer --agent claude --path made.txt --kind file
+  chmod 555 "$G3/d"
+  wlp "$G3" rollback --backup "$G3B"
+  eq "N3b restore target in an unwritable dir: refused rc 3" 3 "$RC"
+  check "N3b nothing changed: made.txt still there" test -f "$G3/made.txt"
+  chmod 755 "$G3/d"
+  # N4: an ours created-later row inside an unwritable directory is left alone (reported), rollback still rc 0
+  G4="$SB/g4"; make_project "$G4"; mkdir -p "$G4/d"; printf 'base\n' >"$G4/base.txt"
+  wlp "$G4" backup --path base.txt; G4B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G4/d/made.txt"; wlp "$G4" record --id g4-made --producer installer --agent claude --path d/made.txt --kind file
+  chmod 555 "$G4/d"
+  wlp "$G4" rollback --backup "$G4B"
+  eq "N4 rollback rc 0" 0 "$RC"
+  check "N4 file in an unwritable dir is still there" test -f "$G4/d/made.txt"
+  has "N4 reported as left alone with the reason" "directory is not writable" "$(la left_alone)"
+  chmod 755 "$G4/d"
+else
+  ok "M1/N3b/N4 skipped: running as root (permission bits not enforced)"
+fi
+# M4: preflight creates nothing — a refusal leaves no new directory behind
+G5="$SB/g5"; make_project "$G5"; mkdir -p "$G5/d"; printf 'base\n' >"$G5/d/f.txt"
+wlp "$G5" backup --path d/f.txt; G5B="$(jget "$OUT" backup_dir)"
+rm "$G5/d/f.txt"; rmdir "$G5/d"; printf 'blocker\n' >"$G5/d"        # a FILE where the restore target's parent must be
+wlp "$G5" rollback --backup "$G5B"
+eq "N3a restore target whose ancestor is a file: refused rc 3" 3 "$RC"
+eq "N3a the blocking file is untouched" blocker "$(cat "$G5/d")"
+# N9: a created-later json-entry row is never removed by rollback (the consumer's whole settings file survives)
+G6="$SB/g6"; make_project "$G6"; mkdir -p "$G6/.claude"; printf '{"hooks":{"UserPromptSubmit":[{"command":"x"}]}}\n' >"$G6/.claude/settings.json"
+wlp "$G6" backup --path base.txt; G6B="$(jget "$OUT" backup_dir)"
+wlp "$G6" record --id g6-hook --producer installer --agent claude --path .claude/settings.json --kind json-entry --json-path hooks.UserPromptSubmit.0
+eq "N9 record rc 0" 0 "$RC"
+wlp "$G6" rollback --backup "$G6B"
+eq "N9 rollback rc 0" 0 "$RC"
+check "N9 the consumer's settings.json survives" test -f "$G6/.claude/settings.json"
+has "N9 reported left alone: json entry never removed" "json entry" "$(la left_alone)"
+# N8: a path that is in the backup is restored, never first unlinked (report shows restored, not unlinked)
+G7="$SB/g7"; make_project "$G7"; printf 'base\n' >"$G7/x.txt"
+wlp "$G7" backup --path x.txt; G7B="$(jget "$OUT" backup_dir)"
+wlp "$G7" record --id g7-x --producer installer --agent claude --path x.txt --kind file
+wlp "$G7" rollback --backup "$G7B"
+eq "N8 rollback rc 0" 0 "$RC"
+eq "N8 x.txt is not reported unlinked" "[]" "$(la unlinked)"
+has "N8 x.txt is reported restored" "x.txt" "$(la restored)"
+eq "N8 x.txt content is the backed-up one" base "$(cat "$G7/x.txt")"
+# N11: the ledger file replaced by a directory refuses the rollback before any change
+G8="$SB/g8"; make_project "$G8"; printf 'base\n' >"$G8/base.txt"; printf 'o\n' >"$G8/o.txt"
+wlp "$G8" record --id g8-o --producer installer --agent claude --path o.txt --kind file
+wlp "$G8" backup --path base.txt; G8B="$(jget "$OUT" backup_dir)"
+printf 'made\n' >"$G8/made.txt"; rm "$G8/base.txt"
+rm "$G8/.constitution/extensions.state/wiring.local.json"; mkdir "$G8/.constitution/extensions.state/wiring.local.json"
+wlp "$G8" rollback --backup "$G8B"
+eq "N11 wiring.local.json is now a directory: refused rc 3" 3 "$RC"
+check "N11 nothing changed: made.txt still there" test -f "$G8/made.txt"
+check "N11 nothing changed: base.txt was not restored" test ! -e "$G8/base.txt"
+has "N11 refusal says directory" "directory" "$ERR"
+# N2: a symlinked wiring.local.json is never written through
+G9="$SB/g9"; make_project "$G9"; printf 'base\n' >"$G9/base.txt"; printf 'o\n' >"$G9/o.txt"
+wlp "$G9" record --id g9-o --producer installer --agent claude --path o.txt --kind file
+wlp "$G9" backup --path base.txt; G9B="$(jget "$OUT" backup_dir)"
+printf 'made\n' >"$G9/made.txt"; printf 'victim\n' >"$SB/g9.victim"; rm "$G9/base.txt"
+rm "$G9/.constitution/extensions.state/wiring.local.json"; ln -s "$SB/g9.victim" "$G9/.constitution/extensions.state/wiring.local.json"
+wlp "$G9" rollback --backup "$G9B"
+eq "N2 symlinked wiring.local.json: refused rc 3" 3 "$RC"
+eq "N2 the symlink target was not written through" victim "$(cat "$SB/g9.victim")"
+check "N2 nothing changed: made.txt still there" test -f "$G9/made.txt"
+check "N2 nothing changed: base.txt was not restored" test ! -e "$G9/base.txt"
+
 # ── 10. reference file (D5) with flock ────────────────────────────────────
 RF="$R/extensions/_installed/hello.refs"
 wl refs add --id hello --record-digest d1

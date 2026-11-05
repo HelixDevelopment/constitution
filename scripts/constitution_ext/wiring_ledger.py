@@ -472,6 +472,12 @@ class Ledger:
         rows, local = self.load(), self.local_rows()
         return {"rows": [dict(r, state=self.classify_row(r, local)) for r in sorted(rows, key=lambda r: r["id"])]}
 
+    def check(self):
+        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout."""
+        rows = self.status()["rows"]
+        return {"ok": all(r["state"] == "ours" for r in rows),  # RULE:W-check-ok
+                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows]}
+
     # -- inventory / adopt
     def _const_roots(self):
         roots = {self.root, os.path.abspath(self.root)}
@@ -663,6 +669,17 @@ class Ledger:
                 raise Refused("backup ledger copy %s does not match the manifest" % name)
         return bdir, m
 
+    def _need_writable_dir(self, d, what):
+        """Preflight only, creates nothing: the nearest existing ancestor of d must be a writable directory
+        (and d itself, when it exists, must not be a symlink or file)."""
+        if os.path.lexists(d) and not stat.S_ISDIR(os.lstat(d).st_mode):
+            raise Refused("%s is not a real directory (a symlink or a file); refusing to use it (nothing was changed)" % clean(d))
+        probe = d
+        while not os.path.lexists(probe):
+            probe = os.path.dirname(probe)
+        if not stat.S_ISDIR(os.stat(probe).st_mode) or not os.access(probe, os.W_OK | os.X_OK):
+            raise Refused("cannot restore ledger file %s: %s is not a writable directory (nothing was changed)" % (clean(what), clean(probe)))
+
     def rollback(self, bdir):
         """Two phases. PREFLIGHT verifies the backup and plans every action (nothing is changed, any refusal here
         leaves the project byte-identical). APPLY then runs the plan. A created-later item is unlinked ONLY when its
@@ -714,13 +731,17 @@ class Ledger:
                 report["left_alone"].append({"path": r["path"], "reason": "cannot be checked: %s" % clean(ex)})
         ledger_plan = []
         for name, dst in (("wiring.json", self.led), ("wiring.local.json", self.loc)):
+            if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode) and m["ledger"][name] is not None:
+                raise Refused("%s is a symlink; refusing to write through it (nothing was changed)" % clean(dst))
             if m["ledger"][name] is not None:
                 data = read_nofollow(os.path.join(bdir, "ledger", name), MAX_JSON, "backup ledger")
-                if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode):
-                    raise Refused("%s is a symlink; refusing to write through it (nothing was changed)" % clean(dst))
-                self._need_dir(os.path.dirname(dst), True)
+                if os.path.lexists(dst) and stat.S_ISDIR(os.lstat(dst).st_mode):  # RULE:W-ledger-leaf-dir
+                    raise Refused("%s is a directory; refusing to roll back over it (nothing was changed)" % clean(dst))
+                self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
                 ledger_plan.append((name, dst, data))
             else:
+                if os.path.lexists(dst) and not stat.S_ISDIR(os.lstat(dst).st_mode):
+                    self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
                 ledger_plan.append((name, dst, None))
         blobs = {}
         for e, full in restore:
@@ -745,6 +766,7 @@ class Ledger:
                 if os.path.lexists(dst) and not stat.S_ISDIR(os.lstat(dst).st_mode):
                     os.unlink(dst)
             else:
+                self._need_dir(os.path.dirname(dst), True)
                 atomic_write(dst, data, 0o600 if name.endswith("local.json") else 0o644)
         return report
 
@@ -866,6 +888,7 @@ def usage(msg):
 
 
 MUTATING = ("record", "forget", "rebind", "adopt", "backup", "rollback")
+READING = ("status", "inventory", "check", "classify")   # SHARED project-dir lock: never read mid-write
 
 
 def main(argv):
@@ -886,6 +909,8 @@ def main(argv):
     if out is None:
         return usage("unknown command %r" % clean(cmd))
     sys.stdout.write(json.dumps(out, indent=1, sort_keys=True) + "\n")
+    if cmd == "check" and not out.get("ok"):  # RULE:W-check-rc
+        return 1
     return 0
 
 
@@ -903,6 +928,9 @@ def run(cmd, o, rest):
     if cmd in MUTATING:
         lockfd = os.open(led.project, os.O_RDONLY | os.O_DIRECTORY)
         fcntl.flock(lockfd, fcntl.LOCK_EX)
+    elif cmd in READING:
+        lockfd = os.open(led.project, os.O_RDONLY | os.O_DIRECTORY)
+        fcntl.flock(lockfd, fcntl.LOCK_SH)  # RULE:W-read-lock
     try:
         if cmd in ("record", "classify") and not o["path"]:
             raise Usage("%s needs --path" % cmd)
@@ -913,6 +941,8 @@ def run(cmd, o, rest):
             return led.classify(o["path"][-1])
         if cmd == "status":
             return led.status()
+        if cmd == "check":
+            return led.check()  # RULE:W-check-calls-status
         if cmd == "forget":
             return led.forget(o.get("id", ""))
         if cmd == "rebind":

@@ -658,6 +658,8 @@ tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	a
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_register.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_wiring_cmd.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_wiring_cmd_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/decisions/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/test_chaos_stress.sh
 tests/decisions/repo_guard.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/run_all.sh
 tests/decisions/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
@@ -688,6 +690,8 @@ tests/extensions/test_determinism.sh	sh	member	default	-	tests/extensions/run_al
 tests/extensions/test_e2e.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_integration.sh	sh	member	heavy	-	tests/extensions/run_all.sh	override: tests/extensions/run_all.sh --quick drops it, so it runs only in the full (--include-heavy) mode
 tests/extensions/test_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_ownership_e01.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_ownership_e01_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_provenance.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_reviewfix.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_round10.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
@@ -697,6 +701,8 @@ tests/extensions/test_round9.sh	sh	member	default	-	tests/extensions/run_all.sh	
 tests/extensions/test_security.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_stress_perf.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_unit.py	py	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_wiring_ledger.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_wiring_ledger_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
 tests/gates/test_fastcycle_real_db.sh	sh	entry	default	bash	-	auto
@@ -782,6 +788,7 @@ tests/layout/test_deps_manifest_layout.sh	sh	member	default	-	tests/layout/run_a
 tests/layout/test_fastcycle_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_generator_atomic.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_guard_evidence_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
+tests/layout/test_hermetic_generator.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_layout_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/layout/test_multitrack_sync_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_pending_update_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh

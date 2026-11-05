@@ -57,4 +57,25 @@ kill_mutant M22_no_nofollow_read 'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK' '
 kill_mutant M23_same_mac_domain 'b"wiring-backup\0"' 'b"wiring-local\0"'
 kill_mutant M24_refs_strict_utf8 '.decode("utf-8", "surrogateescape").split' '.decode("utf-8").split'
 kill_mutant M25_refs_write_strict_utf8 'sorted(refs.items())).encode("utf-8", "surrogateescape"))' 'sorted(refs.items())).encode())'
+kill_mutant M26_ledger_dir_not_checked '                self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
+                ledger_plan.append((name, dst, data))' '                ledger_plan.append((name, dst, data))'
+kill_mutant M27_ledger_unlink_dir_not_checked '                    self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
+                ledger_plan.append((name, dst, None))' '                    pass
+                ledger_plan.append((name, dst, None))'
+kill_mutant M28_ledger_leaf_dir_ok 'if os.path.lexists(dst) and stat.S_ISDIR(os.lstat(dst).st_mode):  # RULE:W-ledger-leaf-dir' 'if False:'
+kill_mutant M29_json_entry_unlinked 'if r["kind"] not in ("symlink", "file"):' 'if False:'
+kill_mutant M30_restore_probe_not_dir 'if not stat.S_ISDIR(os.stat(probe).st_mode) or not os.access(probe, os.W_OK | os.X_OK):
+                raise Refused("cannot restore %s' 'if False:
+                raise Refused("cannot restore %s'
+kill_mutant M31_unlink_dir_not_checked 'if not os.access(os.path.dirname(full), os.W_OK | os.X_OK):
+                    report["left_alone"]' 'if False:
+                    report["left_alone"]'
+kill_mutant M32_in_backup_not_skipped 'if r["path"] in in_backup:
+                continue' 'if False:
+                continue'
+kill_mutant M33_ledger_symlink_ok 'if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode) and m["ledger"][name] is not None:' 'if False:'
+# M34 (ValueError not caught in main) and M35 (preflight creates the ledger dir) are EQUIVALENT and deliberately not listed:
+# every ledger row path is validated on load (a NUL path is refused as hostile), so no ValueError can reach main(); and
+# the backup manifest is MAC-verified with the key that lives in .constitution/extensions.state, so any rollback that
+# reaches the ledger preflight already has both ledger directories on disk. Both guards remain as defense in depth.
 finish

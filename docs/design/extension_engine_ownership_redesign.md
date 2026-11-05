@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-02 |
 | Last modified | 2026-11-05 |
-| Status | design proposal; nothing in it is implemented. Read-only investigation of `main` at `ca88eda` plus the dirty working tree present at that time |
+| Status | design proposal; wave 1 (`wiring_ledger.py`, on main) and wave 2 (E01 installed-by-this-checkout fact, L03 `wiring --inventory/--check`, rollback preflight hardening, C02 hermetic generator lint) are implemented on `vehicle/ownership-wave2`, not yet on main; the rest is not implemented. Read-only investigation of `main` at `ca88eda` plus the dirty working tree present at that time |
 | Status summary | Records how the CLI-agent installer and the `/constitution extensions` engine decide what they own today, the defects found, a proposed ownership model, verified wiring for opencode, kimi and pi, a compatibility matrix, a migration and rollback plan, a test plan and phased work items. Operator decisions are listed in section 11 |
 | Authority | §11.4.228 (extension lifecycle), §11.4.272 (on-demand activation), §11.4.122 (no silent removal), §11.4.287 (destructive paths), §11.4.10 (secrets), §11.4.111 (relocation-proof links), §11.4.201 / §11.4.273 (real condition, control needles), §11.4.289 (live evidence), §11.4.288 (all work on `main`) |
 | Inputs | `docs/design/constitution_extensions_plan.md` (rounds 6 to 12), `scripts/install_cli_agent_plugins.sh`, `scripts/install_action_prefix.sh`, `scripts/generate_agent_prefix_commands.sh`, `scripts/post_update_hook.sh`, `scripts/constitution_ext/ext_engine.py`, `tests/constitution_cmd/*`, `CHANGELOG.md` v73 and v73.1, `docs/design/known_failures_v73.md` |
@@ -310,3 +310,12 @@ Note: the grouping of this work into waves (wave 1 = ledger library with invento
 - Gemini CLI, [Custom commands](https://www.geminicli.com/docs/cli/custom-commands): `.gemini/commands/*.toml`, `{{args}}`, `!{...}` (via search summary).
 - pi 1.3.0 package docs on this host: `docs/prompt-templates.md`, `docs/skills.md`, `docs/security.md`, `docs/mcp.md`, `docs/configuration.md` under `~/.pi/agent/install/releases/1.3.0/node_modules/@earendil-works/pi-coding-agent/`.
 - opencode v2.2.0 and kimi-code 2.3.1 installed binaries (string reads, with the absent needle `zzqq_absent_needle_77` returning 0 hits in both).
+
+
+## 15. Wave 2 status (rev 3, 2026-11-05)
+
+- **Rollback preflight (re-review M1/M4).** A refusal changes nothing: the preflight now checks, without creating anything, that the nearest existing ancestor of every ledger file to restore or unlink is a writable directory (`Ledger._need_writable_dir`, rule `W-ledger-dir-writable`), that the target is not a symlink, and that the leaf is not a directory. Apply creates missing parents itself.
+- **E01 (finding F-1 / P10).** `<state>/<id>.added.json` is a signed fact written only by `add` (and by the add-journal roll-forward). It binds `{id, root realpath, sha256, dev, ino}` under the per-checkout key with the domain string `added-fact\0`. `remove` refuses without a valid fact (rc 3) and deletes the tree only when the recorded dev/ino still match; `enable` never writes it. **Consequence for installs made before this change:** they have no fact, so `remove` refuses with a message; the migration path is an operator decision (open question in the wave 2 report), not decided here.
+- **L03.** `constitution_cmd.sh wiring --inventory|--check` (read-only; `check` exits 1 unless every row classifies as ours; read commands take a shared flock on the project dir).
+- **C01 to C04.** C03/C04 (atomic generator, registry-count validation) landed earlier in `1afdfc6`. C01 root cause is reproduced in `docs/qa/ownership_wave2/repro_p8.sh` (pre-fix generator prunes before writing: an invalid registry or a SIGKILL leaves 0 to 14 of 24 files per agent; the current generator keeps 24). C02: installer tests cannot use `HELIX_ACTION_OUT_ROOT` (the installer unsets it by design, test H3), so `tests/layout/test_hermetic_generator.sh` lints direct generator invocations and proves the redirect guard; installer suites keep using throw-away constitution copies.
+- **L02** (signing) was delivered in wave 1.

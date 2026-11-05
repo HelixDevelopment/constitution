@@ -20,6 +20,8 @@
 #                                  delegates to scripts/reporting/report_item.sh (section 11.4.202)
 #     skills [list|status]         delegates to scripts/skill_activation/skill_activate.sh
 #     extensions <list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
+#     wiring <inventory|check>     read-only: what constitution wiring exists / does every ledger row
+#                                  still classify as ours (also --inventory / --check); exit 1 = not ok
 #     install-extension <src>      alias of: extensions add <src>
 #                                  both delegate to scripts/constitution_ext/constitution_ext.sh
 #     jev                          decision-layer status (jev-status.sh --no-validate)
@@ -277,6 +279,19 @@ cmd_extensions() {
     fi
     deleg 300 bash "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" --project-root "$(project_root)" "${REST[@]}"
 }
+cmd_wiring() {     # read-only ownership-ledger views (design 5.2, L03); never mutates, never accepts record/rollback
+    local sub="" a
+    for a in "${REST[@]}"; do
+        case "$a" in
+            inventory|--inventory) [ -z "$sub" ] || { die "wiring takes exactly one of: inventory | check"; return 2; }; sub=inventory ;;
+            check|--check)         [ -z "$sub" ] || { die "wiring takes exactly one of: inventory | check"; return 2; }; sub=check ;;
+            *) die "wiring accepts only: inventory | check (--inventory / --check)"; return 2 ;;
+        esac
+    done
+    [ -n "$sub" ] || { die "wiring needs one of: inventory | check"; return 2; }
+    need_tool "$CONST_DIR/scripts/constitution_ext/wiring_ledger.py" wiring_ledger.py || return 3
+    deleg 60 python3 -I "$CONST_DIR/scripts/constitution_ext/wiring_ledger.py" --project "$(project_root)" --root "$CONST_DIR" "$sub"
+}
 cmd_jev() {
     [ ${#REST[@]} -eq 0 ] || { die "jev takes no arguments"; return 2; }
     need_tool "$CONST_DIR/scripts/jev/jev-status.sh" jev-status.sh || return 3
@@ -367,6 +382,7 @@ case "$SUB" in
     skills)        cmd_skills; exit $? ;;
     extensions)    cmd_extensions; exit $? ;;
     install-extension) REST=(add "${REST[@]}"); cmd_extensions; exit $? ;;
+    wiring)        cmd_wiring; exit $? ;;
     jev)           cmd_jev; exit $? ;;
     release-notes) cmd_release_notes; exit $? ;;
     *) die "unknown subcommand: $(printf '%.40s' "$SUB" | tr -c 'A-Za-z0-9._-' '?')"; usage >&2; exit 2 ;;

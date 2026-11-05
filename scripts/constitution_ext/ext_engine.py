@@ -1437,6 +1437,7 @@ TMP_RE = re.compile(r".*\.tmp-([0-9]+)-[0-9a-f]{8}\Z")
 GITIGNORE_LINES = ("extensions.txn", "*.tmp-*", "extensions.state/")
 STATE_DIR = "extensions.state"
 WIRING_KEYS = frozenset(("id", "command", "agent", "path", "root", "kind", "target", "sha256"))
+ADDED_SUFFIX = ".added.json"  # <state>/<id>.added.json: the signed "added by this checkout" fact (E01)
 SNAP_DIR = "extensions.snapshots"  # consented copies of command directories the Claude shims link to (I2)
 WIRING_RECORD = "wiring.json"  # local, HMAC-signed copy of the entries this checkout created (R20)
 STATE_FILES = ("extensions.lock.yml", "extensions.wiring.yml", "extensions.catalog.json", "extensions.audit.log",
@@ -1757,6 +1758,61 @@ class Engine:
         if os.path.lexists(p):
             os.unlink(p)
 
+    # ── "installed by THIS checkout" fact (ownership redesign E01, defect P10 / plan F-1) ──
+    # Written ONLY by `add` (and by the add journal's roll-forward), never by `enable`. It is signed with the
+    # per-checkout state key under its own domain string and bound to the constitution root realpath and to the
+    # installed tree (digest, device, inode). `remove` requires it; `enable` only refreshes consent records.
+    @staticmethod
+    def _amac(key, body):
+        msg = b"added-fact\0" + json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+    def make_added(self, eid, digest, ident):
+        body = {"id": eid, "root": os.path.realpath(self.root), "sha256": digest, "dev": ident[0], "ino": ident[1]}
+        return dict(body, mac=self._amac(self._key(True), body))
+
+    def write_added(self, fact):
+        self.write_atomic(os.path.join(self._sd(), fact["id"] + ADDED_SUFFIX),
+                          json.dumps(fact, sort_keys=True) + "\n", mode=0o600)
+
+    def delete_added(self, eid):
+        p = os.path.join(self._sd(), eid + ADDED_SUFFIX)
+        if os.path.lexists(p):
+            os.unlink(p)
+
+    def _added_valid(self, f, key):
+        return isinstance(f, dict) and set(f) == {"id", "root", "sha256", "dev", "ino", "mac"} \
+            and isinstance(f["id"], str) and ID_RE.match(f["id"]) and isinstance(f["root"], str) \
+            and isinstance(f["sha256"], str) and SHA256_RE.match(f["sha256"]) \
+            and all(isinstance(f[k], int) and not isinstance(f[k], bool) for k in ("dev", "ino")) \
+            and isinstance(f["mac"], str) and key is not None \
+            and hmac.compare_digest(f["mac"], self._amac(key, {k: v for k, v in f.items() if k != "mac"}))  # RULE:E01-fact-mac
+
+    def added_problems(self, eid, entry):
+        """([], tree_is_ours) when this checkout holds a valid signed fact that it added EID on this constitution
+        root with the lock's digest; else (problems, False). tree_is_ours is False when the installed tree is not
+        the very directory the add created (device and inode differ): the lock entry may then be dropped but the
+        tree must be left alone."""
+        p = os.path.join(self._sd(), eid + ADDED_SUFFIX)
+        if not os.path.lexists(p):
+            return (["no \"installed by this checkout\" fact for %s: this checkout never ran `add` for it (the lock "
+                     "may be a copy of another project's, or %s was installed before facts were recorded)" % (eid, eid)], False)
+        key = self._key(False)
+        if key is None:
+            return (["local state key %s is missing; the install fact cannot be checked" % os.path.join(self._sd(), "key")], False)
+        try:
+            f = json_loads(_read_nofollow(p, 1 << 16, "install fact"))
+        except (ValueError, EngineError):
+            f = None
+        if not self._added_valid(f, key) or f["id"] != eid:
+            return (["the install fact for %s fails its integrity check (forged or corrupted)" % eid], False)
+        if f["root"] != os.path.realpath(self.root):  # RULE:E01-root-binding
+            return (["the install fact for %s was made on another constitution root (%s)" % (eid, disp(f["root"]))], False)
+        if f["sha256"] != entry.get("sha256"):  # RULE:E01-digest-binding
+            return (["the install fact for %s names a different content digest than the lock" % eid], False)
+        idt = _ident_of(os.path.join(self.inst_dir, eid))
+        return ([], idt is not None and [idt[0], idt[1]] == [f["dev"], f["ino"]])  # RULE:E01-tree-identity
+
     def record_problems(self, eid, entry):
         """[] if the tracked lock ENTRY matches the local HMAC-protected state record, else precise problems."""
         p = os.path.join(self._sd(), eid + ".json")
@@ -1792,6 +1848,7 @@ class Engine:
             self.write_record(r)
         for i in dels:
             self.delete_record(i)
+            self.delete_added(i)
         if not outer:
             os.unlink(self.p("extensions.txn"))
         return wrote
@@ -2041,6 +2098,14 @@ class Engine:
                 return "aux path is not _installed/.trash-<pid>-<hex>"
         return None
 
+    def _roll_added(self, fact, lock, digest):
+        """Roll an interrupted add's fact forward, only when it is signed here, bound to this root and digest, and
+        the lock names the same digest."""
+        key = self._key(False)
+        if self._added_valid(fact, key) and fact["id"] in lock and fact["sha256"] == digest \
+                and fact["root"] == os.path.realpath(self.root):
+            self.write_added(fact)
+
     def _roll_records(self, recs, lock):
         key = self._key(False)
         for r in recs if isinstance(recs, list) else []:
@@ -2197,6 +2262,7 @@ class Engine:
                                  "tree (it may belong to another project that shares this constitution root)" % final)
             elif lock[eid].get("sha256") == j.get("sha256"):
                 self._roll_records([j.get("record")], lock)
+                self._roll_added(j.get("added"), lock, j.get("sha256"))
             else:
                 self.err("WARNING: journal for %s disagrees with the lock (different sha256); left the tree alone" % eid)
         elif op == "remove":
@@ -2723,6 +2789,7 @@ class Engine:
                  "components": self._components(m, False)}
         rec = self.make_record(eid, entry)
         jadd = {"op": "add", "id": eid, "final": final, "sha256": digest, "record": rec, "ident": _ident_of(staged)}
+        jadd["added"] = self.make_added(eid, digest, jadd["ident"])  # RULE:E01-fact-from-add
         jadd["mac"] = self._jmac(self._key(True), jadd)  # RULE:F2-journal-mac
         self.write_atomic(self.p("extensions.txn"), json.dumps(jadd))
         kill_point("add:journaled")
@@ -2735,6 +2802,7 @@ class Engine:
         lock[eid] = entry
         self.commit(lock, [eid], outer=True)
         kill_point("add:locked")
+        self.write_added(jadd["added"])  # the only place besides the journal roll-forward that mints the fact
         os.unlink(self.p("extensions.txn"))
         if tree_digest(final) != digest:  # RULE:R7-verify-after-install (§11.4.200)
             raise EngineError(EXIT_VERIFY, "installed tree does not verify; run remove %s" % eid)
@@ -2763,6 +2831,10 @@ class Engine:
             raise EngineError(EXIT_REFUSED, "%s: this checkout has no valid signed state record for it, so this "
                                             "project cannot prove it installed %s (the lock may be a copy of "
                                             "another project's); nothing was removed" % (eid, os.path.join(self.inst_dir, eid)))
+        aprobs, tree_ours = self.added_problems(eid, lock[eid])  # RULE:E01-remove-needs-fact
+        if aprobs:
+            raise EngineError(EXIT_REFUSED, "%s: %s; nothing was removed. Only the checkout that ran `add` can "
+                                            "remove it (enable never creates this fact)" % (eid, "; ".join(aprobs)))
         if self.dry:
             self.say("dry-run: would unwire and remove %s" % eid)
             return EXIT_OK
@@ -2774,7 +2846,7 @@ class Engine:
         # different tree under the same id was put there by another project (or tampered with); the lock entry is
         # still dropped, the tree is left in place and reported.
         mine = False
-        if os.path.lexists(final) and not os.path.islink(final):
+        if os.path.lexists(final) and not os.path.islink(final) and tree_ours:
             try:
                 mine = tree_digest(final) == lock[eid].get("sha256")
             except EngineError:
