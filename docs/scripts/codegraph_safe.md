@@ -1,7 +1,7 @@
 # codegraph_safe.sh — Companion Guide
 
-**Revision:** 4
-**Last modified:** 2026-10-12T14:17:01Z
+**Revision:** 5
+**Last modified:** 2026-11-05T22:20:00Z
 
 Source: `constitution/scripts/codegraph/codegraph_safe.sh` (700 lines at the time of this revision, 2026-10-12; it was 567 lines when this guide was first committed (b3a73cf) and 607 at 1c89813).
 Every statement below cites `codegraph_safe.sh:<line>`.
@@ -218,7 +218,8 @@ echoed. Non-zero → exit 1. Then helper `verify` + `scope`; ledger entry;
 1. `preflight` — FAIL → exit 6 (lines 636-638).
 2. `resolve_runner` (lines 542-568): read stock `--version` (none → 5); run
    the patch tool with `--patches <IDS> --print-bin` (or `--print-bin` for
-   `all`):
+   `all`, which since 2026-11-05 means the patch tool's tested default
+   `fkidx1,resolve1,resolve2`, not every registered patch; CON-109 Option A):
    - exit 0 → runner path must be executable, its parent dir must hold a valid
      `RUNNER_RECEIPT.json` for the stock version, and the runner's
      `--version` must equal stock's; any mismatch → 5;

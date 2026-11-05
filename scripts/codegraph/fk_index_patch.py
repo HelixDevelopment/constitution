@@ -21,6 +21,11 @@
 #               char a digit) and NUL-containing source files are stored as
 #               skip rows (0 nodes, error code data_fragment_skipped /
 #               binary_content_skipped) instead of timing out the parse pool.
+#     resolve1 / resolve2  resolver fixes (see runner_patches/resolve1.py, resolve2.py)
+#     mcpro1    read-only MCP server runner (opt-in, exclusive)
+#   Default set (no --patches): fkidx1, resolve1, resolve2. lockfix1 and
+#   datafrag1 have no behavioural test and are opt-in by name (CON-109, operator
+#   decision 2026-11-05).
 #   Adding a future patch = one module in runner_patches/ + one REGISTRY entry.
 #
 # FAIL-CLOSED / upgrade behaviour
@@ -36,11 +41,13 @@
 #                     [--patches id,id,...] [--force] [--print-bin]
 #                     [--list-patches]
 #   --src      defaults to the globally installed platform package (npm root -g)
-#   --patches  subset of the registry (default: all). `--patches fkidx1`
+#   --patches  subset of the registry (default: the TESTED set fkidx1,resolve1,
+#              resolve2; lockfix1, datafrag1 and mcpro1 only by name, see
+#              runner_patches/__init__.py UNTESTED / OPT_IN). `--patches fkidx1`
 #              reproduces the original single-patch runner (key <ver>-fkidx1).
 #   --dst      defaults to ${HELIX_CODEGRAPH_RUNNER_DIR:-$HOME/.cache/helix/codegraph_runner}/<runner key>
 #              where <runner key> = <version>-<applied ids joined by '-'>,
-#              e.g. 1.6.0-fkidx1-lockfix1-datafrag1
+#              e.g. 1.6.2-fkidx1-resolve1-resolve2 for the default set
 #   --force    rebuild even when a valid receipt exists
 #   --print-bin  print only the runner's `bin/codegraph` path on success
 #

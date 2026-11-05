@@ -11,6 +11,10 @@
 #             P2  the reuse (REUSED) path must verify the WHOLE runner tree and
 #                 an executable launcher, not only the edited files
 #             P3  the default patch set is EXACTLY the tested subset
+#                 (fkidx1,resolve1,resolve2); lockfix1/datafrag1 stay
+#                 selectable by name (P3c); P3b: a BARE run on the REAL
+#                 installed package builds that runner (SKIP with a reason
+#                 when the real package cannot be resolved)
 #             P4  minor: stale <dst>.partial removed on REUSED; a corrupt
 #                 receipt refusal names --force
 # Usage     python3 test_patch_machinery.py            (exit 0 = all PASS)
@@ -58,6 +62,7 @@ DBJS_TMPL = """db.pragma('foreign_keys = ON');
 """
 
 FAILS = []
+SKIPS = []
 
 
 def check(cid, ok, msg):
@@ -164,6 +169,39 @@ def case_p3():
     p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
     got = p.stdout.strip()
     check("P3", got == "fkidx1,resolve1,resolve2", f"default patch set is exactly fkidx1,resolve1,resolve2 (got '{got}')")
+    # the untested patches stay selectable BY NAME (opt-in), they are only out of the default
+    code = ("import sys; sys.dont_write_bytecode=True; sys.path.insert(0, sys.argv[1]); import runner_patches as r;"
+            "print(','.join(m.PATCH_ID for m in r.load(['fkidx1', 'lockfix1', 'datafrag1'])))")
+    p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
+    got = p.stdout.strip()
+    check("P3c", got == "fkidx1,lockfix1,datafrag1",
+          f"lockfix1 and datafrag1 remain selectable by name (got '{got}', rc={p.returncode})")
+
+
+def case_p3b(base):
+    # A BARE run (no --patches) on the REAL installed platform package must not refuse
+    # (operator decision 2026-11-05, Option A). Needs the real package: when it cannot be
+    # resolved the case is SKIP with a reason, never a PASS.
+    code = ("import sys; sys.dont_write_bytecode=True; sys.path.insert(0, sys.argv[1]); import fk_index_patch as m;"
+            "print(m.default_src())")
+    p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
+    src = p.stdout.strip()
+    if p.returncode != 0 or not src or not os.path.isfile(os.path.join(src, "package.json")):
+        print(f"SKIP P3b: artifact_not_yet_built: real codegraph platform package not installed or not resolvable (rc={p.returncode})")
+        SKIPS.append("P3b")
+        return
+    ver = json.load(open(os.path.join(src, "package.json"))).get("version")
+    dst = os.path.join(base, "p3b", "run")
+    q = subprocess.run([sys.executable, TOOL, "--src", src, "--dst", dst],
+                       capture_output=True, text=True, timeout=600)
+    key = ""
+    try:
+        key = json.loads(q.stdout).get("runner_key", "")
+    except Exception:  # noqa: BLE001
+        pass
+    check("P3b", q.returncode == 0 and key == f"{ver}-fkidx1-resolve1-resolve2",
+          f"bare run on the real package {ver} builds the default runner (rc={q.returncode}, key='{key}', "
+          f"out={q.stdout.strip()[:160]!r})")
 
 
 def case_p4(base):
@@ -185,14 +223,14 @@ def main():
     base = tempfile.mkdtemp(prefix="cg_patch_mach.")
     try:
         for name, fn in (("P1", lambda: case_p1(base)), ("P2", lambda: case_p2(base)),
-                         ("P3", case_p3), ("P4", lambda: case_p4(base))):
+                         ("P3", case_p3), ("P3b", lambda: case_p3b(base)), ("P4", lambda: case_p4(base))):
             try:
                 fn()
             except Exception as exc:  # noqa: BLE001  a crashing case is a FAIL, never a silent skip
                 check(name + "-crash", False, f"{type(exc).__name__}: {exc}")
     finally:
         shutil.rmtree(base, ignore_errors=True)
-    print(f"SUMMARY fails={len(FAILS)} {' '.join(FAILS)}")
+    print(f"SUMMARY fails={len(FAILS)} {' '.join(FAILS)} skips={len(SKIPS)} {' '.join(SKIPS)}".rstrip())
     return 1 if FAILS else 0
 
 
