@@ -26,6 +26,12 @@
 #      changed — NON-INTERACTIVE only, fail-open (see install_jev_bootstrap)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   5b. Hub-structure + §11.4.31 manifest gates (every pull, changed files or not)
+#   4f. (Every pull; runs right after 5b, before the no-changes early exit) checks
+#      the §11.4.182/§11.4.231(F) agent-type label definitions
+#      T<N>-<branch>-<model>-<effort> in <project>/.claude/agents via
+#      scripts/multitrack/install_agent_label_defs.sh: DRY-RUN by default
+#      (reports only); writes only with AGENT_LABEL_DEFS_AUTOWIRE=apply; `off`
+#      skips it (idempotent, never touches hand-made agents, non-fatal)
 #   6. Reports a summary of what was installed
 #   Every step 2-5b is ISOLATED (run_step): it runs under `set -e` in a
 #   subshell, a failing step is recorded as an ERROR (exit 1) and the next step
@@ -739,6 +745,62 @@ install_action_plugins() {
 }
 
 # ============================================================================
+# STEP 4f — (Re)generate the §11.4.182 / §11.4.231(F) agent-type label definitions
+# ============================================================================
+# Every pull CHECKS the consumer's T<N>-<branch>-<model>-<effort> agent types in
+# <project>/.claude/agents (idempotent; hand-made agents are never touched; a
+# collision is a WARNING, never fatal). Runs on EVERY pull, not only when a
+# tracked category changed, so a consumer that never had the types learns
+# about them on its next pull. Definitions are loaded by the agent platform, so
+# new types may only become dispatchable after a short delay or a restart.
+#
+# DEFAULT IS NON-DESTRUCTIVE (review 2026-11-03, F1; same consent pattern as
+# STEP 4c): without AGENT_LABEL_DEFS_AUTOWIRE=apply the installer runs with
+# --dry-run and this step only REPORTS what it WOULD write or prune; nothing
+# is written to the consumer. Modes (env AGENT_LABEL_DEFS_AUTOWIRE):
+#   dry-run (default) | apply (write + prune stale generated files) | off (skip)
+# The installer itself refuses (exit 6) a project root that is the home
+# directory, an ancestor of it, or a user-level agent config directory.
+install_agent_label_defs() {
+    header "STEP 4f: Agent-type label definitions (T<N>-<branch>-<model>-<effort>)"
+
+    local installer="${CONST_DIR}/scripts/multitrack/install_agent_label_defs.sh"
+    if [ ! -f "$installer" ]; then
+        warn "install_agent_label_defs.sh missing: $installer — agent-type label definitions NOT generated."
+        WARNINGS+=("install_agent_label_defs.sh missing — agent-type label definitions not generated")
+        return 0
+    fi
+
+    local mode="${AGENT_LABEL_DEFS_AUTOWIRE:-dry-run}" rc=0
+    local -a args=()
+    case "$mode" in
+        off)     info "AGENT_LABEL_DEFS_AUTOWIRE=off — agent-type label definitions skipped."; return 0 ;;
+        apply)   args=() ;;
+        dry-run) args=(--dry-run) ;;
+        *)       warn "unknown AGENT_LABEL_DEFS_AUTOWIRE='$mode' — treating as dry-run (non-destructive)."
+                 mode="dry-run"; args=(--dry-run) ;;
+    esac
+    info "Running: install_agent_label_defs.sh --project-root $PROJECT_ROOT ${args[*]:-}  (mode: $mode)"
+    bash "$installer" --project-root "$PROJECT_ROOT" "${args[@]}" || rc=$?
+    if [ "$mode" = "dry-run" ]; then
+        info "agent-type label definitions are in DRY-RUN mode (default, non-destructive): nothing was written."
+        info "  To write them into $PROJECT_ROOT/.claude/agents re-run with AGENT_LABEL_DEFS_AUTOWIRE=apply."
+    fi
+    case "$rc" in
+        0) [ "$mode" = apply ] && info "  -> Agent-type label definitions current." ;;
+        6) warn "  -> the installer REFUSED the project root (home directory or user-level config dir); nothing written."
+           WARNINGS+=("agent-type label definitions: installer refused project root $PROJECT_ROOT (exit 6)") ;;
+        3) warn "  -> a hand-made agent file collides with a label definition name; left untouched."
+           WARNINGS+=("agent-type label definitions: a hand-made file collides with a generated name (hand-made kept)") ;;
+        4) warn "  -> a generated label definition was hand-edited; left untouched."
+           WARNINGS+=("agent-type label definitions: a generated file was hand-edited (kept; delete it to regenerate)") ;;
+        *) warn "  -> install_agent_label_defs.sh exited $rc — label definitions may be stale."
+           WARNINGS+=("agent-type label definitions: installer exited $rc") ;;
+    esac
+    return 0
+}
+
+# ============================================================================
 # STEP 4c — label-sync auto-wiring (hooks + statusLine into the consumer)
 # ============================================================================
 # §11.4.228(D) + §11.4.164 + §11.4.182: when label-sync scripts, the installer or
@@ -1194,6 +1256,9 @@ main() {
     hint_installed_hook_drift
     detect_changes
     run_step validate_hub_structure   # 5b: every pull, changed files or not; isolated like steps 2-5
+
+    # §11.4.182 / §11.4.231(F): always (idempotent), independent of what changed.
+    run_step install_agent_label_defs
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \
