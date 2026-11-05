@@ -1,0 +1,12 @@
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location("rfs", sys.argv[1]); m = importlib.util.module_from_spec(spec)
+sys.argv = [sys.argv[0]]
+spec.loader.exec_module(m)
+ok3 = "PASS P1 x\nKNOWN-FAIL K1 y [tracked CON-047] (one jq-env row at line 2)\n== 52 passed, 0 failed, 5 known-failure ==\n"
+bad1 = "PASS P1 x\nFAIL P2 regression\nKNOWN-FAIL K1 y [tracked CON-047] (one jq-env row at line 2)\n== 51 passed, 1 failed, 5 known-failure ==\n"
+P = "tests/gates/test_gate_env_census_jq_regions.sh"
+for lab, rc, txt in (("rc3-only-known", 3, ok3), ("rc1-new-FAIL+known", 1, bad1)):
+    v, r, src, _ = m.judge(rc, False, txt, "bash")
+    sub = m.match_known([(P, "[tracked CON-047]", "CON-047", "n")], P, r, txt)
+    rsn = m.match_known([(P, "reason:rc_3", "CON-047", "n")], P, r, txt)
+    print(f"{lab}: verdict={v} reason={r} | substring-row KNOWN={sub or '-'} | reason:rc_3-row KNOWN={rsn or '-'}")

@@ -15,6 +15,10 @@
 #   M12 jq env INDIRECT reads dropped (F3)
 # Out-of-gate mutants (round 8): F1 = execution_record.sh trusts the ambient XR_SELF_PATH again (the dash test must fail);
 # F4 = cm_jev_detection.sh goes GREEN when the llmctl cross-check cannot run (the BLIND test must fail).
+# Census region-owner mutants (review census_safe rounds 1-2, F5/F6): the unmutated closure test and the unmutated
+# jq-region test are run first as baselines (each must exit 3: only its tracked CON-047 KNOWN-FAIL cases outstanding);
+# a mutant is killed only by rc 1. R1 whitespace-prefixed NAME= not an owner (RN1), R2 `+=` not an owner (RN7),
+# R3 no separator between the quoted regions of a line (F7).
 # Usage: cm_gate_env_reads_allowlisted_mutation_test.sh    Exit 0 every mutant killed | 1 survivor | 2 env error.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -136,13 +140,41 @@ cen() { # id desc sed-expr : sabotage a copy of the census, run the closure test
   sed -i "$expr" "$d/scripts/gates/lib/gate_env_census.py"
   if cmp -s "$d/scripts/gates/lib/gate_env_census.py" "$root/scripts/gates/lib/gate_env_census.py"; then echo "  FAIL $id did not apply ($desc)"; bad=$((bad+1)); return; fi
   mkdir -p "$d/tests/gates"; cp "$root/tests/gates/test_gate_env_census_closure.sh" "$d/tests/gates/"
-  if bash "$d/tests/gates/test_gate_env_census_closure.sh" >/dev/null 2>&1; then echo "  FAIL $id SURVIVED: $desc"; bad=$((bad+1)); else echo "  ok   $id killed: $desc"; fi
+  # killed only by a real FAIL (rc 1): rc 3 means only a KNOWN-FAIL case (tracked) is outstanding, which the unmutated tree
+  # also shows, so it does not count as killing the mutant
+  local crc=0; bash "$d/tests/gates/test_gate_env_census_closure.sh" >/dev/null 2>&1 || crc=$?
+  if [ "$crc" != 1 ]; then echo "  FAIL $id SURVIVED (closure rc=$crc): $desc"; bad=$((bad+1)); else echo "  ok   $id killed: $desc"; fi
 }
+# F6: unmutated baseline for the cen kills (a closure test failing for an environmental reason would "kill" every mutant)
+cbase="$tmp/cen_BASE"; mkdir -p "$cbase/config" "$cbase/tests/gates"; cp -R "$root/scripts" "$cbase/scripts"; cp "$root/config/gate_env_allowlist.tsv" "$cbase/config/"
+cp "$root/tests/gates/test_gate_env_census_closure.sh" "$cbase/tests/gates/"
+cbrc=0; bash "$cbase/tests/gates/test_gate_env_census_closure.sh" >/dev/null 2>&1 || cbrc=$?
+if [ "$cbrc" = 3 ]; then echo "  ok   baseline closure test unmutated rc=3 (only the tracked KNOWN-FAIL outstanding)"
+else echo "  FAIL baseline closure test unmutated rc=$cbrc (want 3): the cen kills below would not be evidence"; bad=$((bad+1)); fi
 cen N3a "builtin/command prefix not recognised" 's/(?:(?:builtin|command)\\s+)?(?:\\.|source)\\s+(?=/(?:\\.|source)\\s+(?=/'
 cen N3b "process-substitution source not reported" 's/if exp.startswith("<", st):/if False:/'
 cen N3c "eval-of-source not reported" 's/if RE_SRC_EVAL.match(line, em.start()):/if False:/'
 cen N6a "[ -v X ] not detected" '/# \[ -v NAME \]/d'
 cen N6b "printenv \"\$n\" not flagged" 's/if RE_PRINTENV_VAR.search(l) or RE_PRINTENV_VAR.search(e):/if False:/'
+# F5: region-owner mutants of the census, driven by tests/gates/test_gate_env_census_jq_regions.sh (baseline first)
+jqr() { # id desc sed-expr ("-" = no mutation: the unmutated baseline, which must exit 3)
+  local id="$1" desc="$2" expr="$3" d="$tmp/jqr_$1" jrc=0
+  mkdir -p "$d/scripts/gates/lib" "$d/tests/gates"; cp "$census" "$d/scripts/gates/lib/gate_env_census.py"
+  cp "$root/tests/gates/test_gate_env_census_jq_regions.sh" "$d/tests/gates/"
+  if [ "$expr" != - ]; then
+    sed -i "$expr" "$d/scripts/gates/lib/gate_env_census.py"
+    if cmp -s "$d/scripts/gates/lib/gate_env_census.py" "$census"; then echo "  FAIL $id did not apply ($desc)"; bad=$((bad+1)); return; fi
+  fi
+  bash "$d/tests/gates/test_gate_env_census_jq_regions.sh" >/dev/null 2>&1 || jrc=$?
+  if [ "$expr" = - ]; then
+    if [ "$jrc" = 3 ]; then echo "  ok   $id jq-region test unmutated rc=3 (only tracked KNOWN-FAIL cases outstanding)"
+    else echo "  FAIL $id jq-region test unmutated rc=$jrc (want 3): the R kills below would not be evidence"; bad=$((bad+1)); fi
+  elif [ "$jrc" != 1 ]; then echo "  FAIL $id SURVIVED (jq-region rc=$jrc): $desc"; bad=$((bad+1)); else echo "  ok   $id killed: $desc"; fi
+}
+jqr R0 "baseline" -
+jqr R1 "whitespace-prefixed NAME= not an assignment owner (RN1)" 's/^RE_OWNER_ASSIGN = re.compile(r"(?:^|\[\\s;/RE_OWNER_ASSIGN = re.compile(r"(?:^|[;/'
+jqr R2 "+= not an assignment owner (RN7)" 's/^\(RE_OWNER_ASSIGN = .*\)\\+?=/\1=/'
+jqr R3 "quoted regions of one line glued (no separator, F7)" 's/rl.append((owner, "\\n")); sq = None/sq = None/'
 # N2 mutants: the detection gate with each new BLIND branch weakened must be caught by the blind-without-llmctl test
 jevm() { local id="$1" desc="$2" expr="$3" d="$tmp/jev_$1"; mkdir -p "$d/scripts/gates" "$d/scripts/jev" "$d/scripts/lib"
   cp "$root/scripts/gates/cm_jev_detection.sh" "$d/scripts/gates/"; cp "$root/scripts/jev/"*.sh "$d/scripts/jev/"; cp "$root/scripts/lib/gate_env_override.sh" "$d/scripts/lib/"

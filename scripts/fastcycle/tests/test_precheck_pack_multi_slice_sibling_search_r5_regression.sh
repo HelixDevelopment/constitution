@@ -193,6 +193,7 @@ SCRATCH="$TMP/scratch_mutated"
 mkdir -p "$SCRATCH/lib"
 cp "$PRECHECK" "$SCRATCH/precheck_pack.sh"
 cp "$RUN_PY" "$SCRATCH/lib/precheck_pack_run.py"
+cp "$(dirname "$RUN_PY")/precheck_common.py" "$SCRATCH/lib/precheck_common.py"
 
 # T085 Round 6 (R5-I2): check_sibling_search() was REWRITTEN from a
 # field-reading check into a genuine-measurement one that is INHERENTLY

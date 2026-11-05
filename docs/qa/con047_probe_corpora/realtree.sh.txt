@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# realtree.sh <census.py> <root> <label> <outfile>: census of the real gates of <root> exactly as the gate invokes it
+set -u
+cen="${1:?}"; root="${2:?}"; lab="${3:?}"; out="${4:?}"
+mapfile -t gates < <(cd "$root" && for f in scripts/gates/cm_*.sh; do case "$f" in *_mutation_test.sh|*_selftest.sh) ;; *) [ -f "$f" ] && printf '%s\n' "$root/$f" ;; esac; done)
+err="$(mktemp)"; : "${err:?}"
+(cd / && python3 -I "$cen" --root "$root" --closure "${gates[@]}") >"$out" 2>"$err"
+crc=$?
+rows=$(grep -c . "$out"); jq=$(grep -cP '\tjq-env\t' "$out"); ev=$(grep -c '<eval>' "$out")
+echo "[$lab] gates=${#gates[@]} census_rc=$crc rows=$rows jq_env_rows=$jq eval_rows=$ev stderr_bytes=$(wc -c <"$err") md5=$(md5sum <"$out" | cut -c1-8)"
+rm -f -- "${err:?}"

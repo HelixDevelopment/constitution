@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -uo pipefail
+CEN="${1:?}"; sb="${2:?}"; mkdir -p "$sb"
+p() { local id="$1" f="$sb/$1.sh" out rc; cat > "$f"; out="$(python3 -I "$CEN" --root "$sb" "$f" 2>&1)"; rc=$?
+  if grep -qP '\tjq-env\tindirect\t' <<<"$out"; then g=fire; else g=quiet; fi; echo "$id rc=$rc $g"; }
+p G1 <<'EOF'
+P='env | keys'; awk 1 f
+jq -n "$P"
+EOF
+p G2 <<'EOF'
+read -r -d '' Q <<'X' || grep -q y f
+env | keys
+X
+jq -n "$Q"
+EOF
+p G3 <<'EOF'
+P='env | keys'; echo done > "$log"
+jq -n "$P"
+EOF
+p G4 <<'EOF'
+read -r -d '' Q <<'X' || true; echo start >&2
+env | keys
+X
+jq -n "$Q"
+EOF
+p G5 <<'EOF'
+P='$ENV'; x=$(sed -n 1p f)
+jq -n "$P"
+EOF
+p G6 <<'EOF'
+cat >"$f" <<'X'
+env | keys
+X
+/usr/bin/jq -f "$f"
+EOF
+p G7 <<'EOF'
+cat >"$f" <<'X'
+env | keys
+X
+"${JQ:-jq}" -f "$f"
+EOF

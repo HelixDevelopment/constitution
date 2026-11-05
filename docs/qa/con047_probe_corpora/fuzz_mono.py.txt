@@ -1,0 +1,23 @@
+# fuzz_mono.py <nosep.py> <head.py> <n> <seed>: random multi-region lines; count fire->quiet (must be 0) and quiet->fire
+import sys, os, random, importlib.util, tempfile
+def load(p):
+    s = importlib.util.spec_from_file_location(os.path.basename(p)[:-3], p); m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
+A, B = load(sys.argv[1]), load(sys.argv[2]); n = int(sys.argv[3]); rnd = random.Random(int(sys.argv[4]))
+toks = ["env", "$ENV", ".a", "x", "env | keys", "$ENV.x", "[", ".", "|", ")", "a env", "env.", "keys", " ", "$ENV[", "envx", "(env",
+        "env)", "1", "env|", "$ENV | keys", ".[]", "v", "-", "/", "$", "env ", " env", "\\n", "{}", "envenv", "$ENVx"]
+cmds = ["jq -n", "jq -r", "jq --arg k", "| jq", "; jq -n", "| grep", "; echo", "| sed", "--arg x", "-n", "f", "| tr -d", "&& jq"]
+d = tempfile.mkdtemp(); f2q = q2f = both = 0; ex = []
+for i in range(n):
+    parts = ["jq"]
+    for _ in range(rnd.randint(2, 4)):
+        if rnd.random() < 0.5: parts.append(rnd.choice(cmds))
+        t = rnd.choice(toks)
+        parts.append(("$'" if rnd.random() < 0.15 else "'") + t.replace("'", "") + "'")
+    body = " ".join(parts)
+    p = os.path.join(d, "f.sh"); open(p, "w").write(body + "\n")
+    a = any(r[0] == "jq-env" for r in A.census(p, d)); b = any(r[0] == "jq-env" for r in B.census(p, d))
+    if a and not b: f2q += 1; ex.append(body)
+    elif b and not a: q2f += 1
+    elif a and b: both += 1
+print(f"cases={n} nosep_fire_head_quiet={f2q} nosep_quiet_head_fire={q2f} both_fire={both}")
+for e in ex[:10]: print("REGRESSION", e)

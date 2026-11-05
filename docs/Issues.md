@@ -362,9 +362,9 @@ Run the r6 runner with no MUT_ONLY filter.
 **Acceptance criteria:**
 A full-run log with per-mutant verdicts is committed as evidence; survivors are tracked.
 
-## CON-015 — env census F-EC1: jq detection false negatives (variable, ${X:-jq}, array, function, trailing pipe)
+## CON-015 — env census F-EC1: jq detection false negatives (variable, ${X:-jq}, array, function, trailing pipe) (implemented, PROVISIONAL-DONE)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Conductor
@@ -388,9 +388,13 @@ Feed the five shapes (variable, ${X:-jq}, array, function, trailing pipe) to the
 **Acceptance criteria:**
 Each shape is detected or the region stays armed; cases added to the regions test.
 
-## CON-016 — env census F-EC2: surviving mutants E1 (yq|gojq) and E5 ($'...' owner)
+**Implementation:** vehicle/census-safe, landed 2026-11-05 (fix e37aa4b: the env census keeps the jq environment check armed when region ownership is undecidable and disarms it only for regions provably owned by awk/perl/python/sed; cases G1-G9, W1/W2 and the F-EC1 shapes in tests/gates/test_gate_env_census_jq_regions.sh; reviewer mutants RM8, RM14, RN1, RN7 killed). Independent review round 3 of max 5: GO-with-follow-ups (finding follow-ups CON-064..CON-069; structural rewrite of the regex owner rules deferred to CON-047 by operator decision of 2026-11-05).
 
-**Status:** Queued
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_gate_env_census_jq_regions.sh (expect 52 passed, 0 failed, 5 known-failure, rc 3), tests/gates/test_gate_env_census_closure.sh (31 passed, 0 failed, 1 known-failure, rc 3), scripts/gates/cm_gate_env_reads_allowlisted.sh (VERDICT PASS) and scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh (META PASS) on main after landing -- checks: real-tree census byte-identical across census variants, no false negative for the five shapes of the report -- layer: gate-logic plus real tree (class floor: runtime) -- target: host, repo checkout -- artifact: commit that lands vehicle/census-safe -- due: next full-suite run.
+
+## CON-016 — env census F-EC2: surviving mutants E1 (yq|gojq) and E5 ($'...' owner) (implemented, PROVISIONAL-DONE)
+
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Conductor
@@ -413,6 +417,10 @@ Mutants E1 and E5.
 
 **Acceptance criteria:**
 Both mutants are killed by new cases.
+
+**Implementation:** vehicle/census-safe, landed 2026-11-05 (cases Y1-Y4 (yq/gojq words) and D1/D2 (the $'..' region owner) in tests/gates/test_gate_env_census_jq_regions.sh; whether they kill review-r1 mutants E1 and E5 was not re-measured at landing (UNCONFIRMED; the allowlist mutation test does not run E1/E5); independent review round 3 of max 5: GO-with-follow-ups; follow-ups CON-064 pins the $'..' separator member).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_gate_env_census_jq_regions.sh (52 passed, 0 failed, 5 known-failure, rc 3) and the allowlist mutation test (META PASS) on main after landing -- checks: Y1-Y4 and D1 fire, D2 quiet, E1/E5 mutants (to be re-measured) fail the suite -- layer: gate-logic (class floor: runtime for a gate-logic item) -- target: host, repo checkout -- artifact: commit that lands vehicle/census-safe -- due: next full-suite run.
 
 ## CON-017 — codegraph resync F-CG2: surviving mutants A, B, C of the resync tests
 
@@ -561,18 +569,15 @@ Header references an existing file; evidence stays inside the clone.
 
 ## CON-023 — test_gate_env_overrides_guarded.sh reports 116 passed / 1 failed
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Bug
 **Severity:** Medium
 
-The runner canon-fixes author's report records test_gate_env_overrides_guarded.sh at 116 passed, 1 failed. The reviewers read the log but did not re-run it (review r1 and r2). Cause UNKNOWN: investigate, reproduce first (section 11.4.292) and fix or classify the one failure as pre-existing.
+The runner canon-fixes author reported test_gate_env_overrides_guarded.sh at 116 passed, 1 failed; the reviewers read the log but did not re-run it (review r1 and r2). Commit ef18fea made the cm_jev_detection env-override matrix case hermetic (section 11.4.292). Re-run this session on the vehicle/con043 tree that contains ef18fea (HOME=fresh mktemp dir): 117 passed, 0 failed, rc 0 (the same count was reported by the independent CON-043 round-2 reviewer on f8a45db). The root cause of the original single failure is recorded only in the ef18fea commit subject (non-hermetic case); a RED on the pre-fix tree was not reproduced in this run (UNREPRODUCED), so this is not VERIFIED-DONE.
 
-Source report(s) in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/: review_runner_canon_fixes.md; runner_canon_fixes_report.md
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_gate_env_overrides_guarded.sh on main after landing -- checks: 117 passed, 0 failed -- layer: runtime (host) -- target: host, repo checkout -- artifact: main after the CON-043 landing -- due: next full-suite run.
 
-Origin: independent-review follow-up, section 11.4.276(G.2).
-
-**Affected scope / file-scope manifest:**
-test_gate_env_overrides_guarded.sh
+Source report(s) in the session scratchpad: review_runner_canon_fixes.md; runner_canon_fixes_report.md. Origin: independent-review follow-up, section 11.4.276(G.2).
 
 ## CON-024 — full-suite runner R5-3: ignored files can change the code that runs while ident says dirty=clean
 
@@ -955,27 +960,16 @@ UNKNOWN: n/a, design item.
 **Acceptance criteria:**
 Decision recorded on TOCTOU residual; gc/doctor prune stale X.refs with tests.
 
-## CON-043 — frozen-evidence exclusion gate for the 64 oracle-baseline entries (OPERATOR DECISION PENDING)
+## CON-043 — frozen-evidence exclusion gate for the 64 oracle-baseline entries (implemented, PROVISIONAL-DONE)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Conductor
 
-**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:33Z
-**Reported-By:** Conductor
+The 64 oracle-baseline entries (3 frozen RED-evidence files under submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/) are now covered by a checked-in exclusion list, config/oracle_frozen_evidence_exclusions.tsv, enforced by scripts/gates/cm_oracle_strategy_named_and_independent.sh: closed class set, no globs, the git blob id of the owning repository voids an entry on mismatch, a monotone-nonincreasing ceiling, a malformed list is BLIND, and a path that is not a regular file (/dev/null) means no list. The ratchet baseline went from 64 entries to 0. Tests: tests/gates/test_oracle_frozen_exclusions.sh (79 pass, 0 fail) and tests/gates/test_oracle_ratchet_and_consumer_skips.sh. Landing was ordered by the conductor; the operator decision record itself is not verified by this run (UNKNOWN). Independent review: round 2 of max 5, verdict GO-with-follow-ups (section 11.4.276(G)), report scratchpad/review_con043_r2.md; vehicle head f8a45db. Follow-ups: see the items registered with this landing (CON-049 to CON-053).
 
-**What (the report, verbatim):**
-specs/009-jev-decision-models/evidence/p1-red-original/harness/py/ holds 64 frozen oracle-baseline entries. Proposed gate change: checked-in per-file exclusion list, closed class set, git blob sha voiding an entry on mismatch, no globs, count monotone-nonincreasing, proof that no runner executes them. The operator has not decided; do not implement before the decision (§11.4.66).
-
-**Affected scope / file-scope manifest:**
-oracle gate exclusion list; specs/009-jev-decision-models/evidence/p1-red-original/harness/py/
-
-**Reproduction / context:**
-Run the oracle gate; the 64 entries are counted. UNKNOWN: exact gate name.
-
-**Acceptance criteria:**
-Operator decision recorded; then the gate change implemented with paired mutations.
+**Verification:** provisional (section 11.4.290) -- job: re-run tests/gates/test_oracle_frozen_exclusions.sh, tests/gates/test_oracle_ratchet_and_consumer_skips.sh and the oracle gate on main after landing -- checks: gate on the real tree PASS excluded=3 voided=0, control with --exclusions /dev/null FAIL ratchet total=64 -- layer: gate-logic plus real tree (class floor: runtime) -- target: host, repo checkout -- artifact: commit that lands f8a45db -- due: next full-suite run.
 
 ## CON-044 — the '# basis:' line is not enforced by cm_oracle_strategy_named_and_independent.sh
 
@@ -1020,4 +1014,348 @@ Operator auto-commit 724d818 regressed submodules/containers from 5ea870a to 22b
 
 **Affected scope / file-scope manifest:**
 auto-commit tooling (UNKNOWN: location); submodules/containers
+
+## CON-049 — CON-043 FU-1 (NF1): adopt reviewer mutants N1-N4 as killing mut() cases in test_oracle_frozen_exclusions.sh
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+Four reviewer mutants survive the suite (pass=69 fail=0 in the mutant copy): N1 duplicate '# ceiling:' header check removed; N2 leading '../' path check removed; N3 leading or trailing TAB accepted; N4 a last line without a trailing newline ignored (a false FAIL, section 11.4.201(1)). Adopt each verbatim as a mut() case using the reviewer fixtures ceil_dup_after, lead_dotdot, leadtab, trailtab and no_trailing_nl, so the suite fails on each mutant (section 11.4.194(6)(d), 11.4.276(D)). Classified test-instrumentation, minor: the gate behaviour itself is correct. review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/. Origin: independent-review follow-up, section 11.4.276(G.2), CON-043 round 2. Scope: scripts/gates/cm_oracle_strategy_named_and_independent.sh and tests/gates/test_oracle_frozen_exclusions.sh. Parent: CON-043.
+
+## CON-050 — CON-043 FU-2 (NF2): hash fixtures in the owning repository in test_oracle_frozen_exclusions.sh and add a run-from-sha256-cwd case
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+Lines 69, 210 and 222 of tests/gates/test_oracle_frozen_exclusions.sh call 'git hash-object --no-filters <path>' without -C, so git uses the object format of the repository that contains the cwd. Run from inside a sha256 repository the test reports pass=72 fail=7 (false FAILs), while the gate itself PASSes there with excluded=3. Hash inside the fixture's own repository (git -C $d/frozen hash-object --path=test_frozen.py -- test_frozen.py, as probe_lib does) and add one run-from-sha256-cwd case. Same class as round-1 F3 (section 11.4.276(C)). Classified test-instrumentation, minor. UNCONFIRMED: whether any runner invokes the test from a sha256 cwd. review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/. Origin: independent-review follow-up, section 11.4.276(G.2), CON-043 round 2. Scope: scripts/gates/cm_oracle_strategy_named_and_independent.sh and tests/gates/test_oracle_frozen_exclusions.sh. Parent: CON-043.
+
+## CON-051 — CON-043 FU-3 (NF3): the RED steps in test_oracle_frozen_exclusions.sh assert the exit code, not the reason
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+The step 'RED: pinned pre-change gate FAILs the frozen file (rc=1)' checks rc only. A pinned gate that FAILed for an unrelated reason (a missing lib, for example) would still read as RED. Also assert that the FAIL names the frozen file, or shows 'ratchet total=' with the expected count. Mitigated today by the pin assertion and the T/R_redpin_head kills. Nit, test-instrumentation. review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/. Origin: independent-review follow-up, section 11.4.276(G.2), CON-043 round 2. Scope: scripts/gates/cm_oracle_strategy_named_and_independent.sh and tests/gates/test_oracle_frozen_exclusions.sh. Parent: CON-043.
+
+## CON-052 — CON-043 FU-4 (NF4): print a stderr NOTE when an explicit --exclusions path is not a regular file
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+An explicit --exclusions path with a typo, or one naming a directory or a FIFO, is visible only as exclusion_entries=0. The behaviour is fail-closed (more files are scanned, never fewer), but the operator is not told. Print a NOTE on stderr when the operator names a path explicitly and it is not a regular file; keep /dev/null as the silent idiom. Nit, source-defect (diagnosis only). review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/. Origin: independent-review follow-up, section 11.4.276(G.2), CON-043 round 2. Scope: scripts/gates/cm_oracle_strategy_named_and_independent.sh and tests/gates/test_oracle_frozen_exclusions.sh. Parent: CON-043.
+
+## CON-053 — CON-043 FU-5 (NF5): report a voided exclusion entry before rule 3 resolves the base
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+A voided entry with no candidate files and no remote main gives BLIND no_nonsliding_base (rc 2) instead of a FAIL that names the void. Non-zero and fail-closed, but the reported reason is not the real cause. When a void is the only problem, report it before rule 3 (base resolution). Nit, source-defect (diagnosis only). review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/. Origin: independent-review follow-up, section 11.4.276(G.2), CON-043 round 2. Scope: scripts/gates/cm_oracle_strategy_named_and_independent.sh and tests/gates/test_oracle_frozen_exclusions.sh. Parent: CON-043.
+
+## CON-054 — five default-tier multitrack guard tests build their RED artifact from 'git show HEAD:' and fail on main
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Conductor
+
+Five default-tier tests exit non-zero on main 8e496db, on vehicle/con043 and in a shallow clone, so the full suite is red; this predates CON-043. Two classes. HEAD-RED proper: scripts/multitrack/test_multitrack_orchestrator_reconcile.sh (rc 94), test_multitrack_orchestrator_reconcile_rc.sh (rc 94), test_multitrack_sessions_argparse.sh (rc 1, PASS=1 FAIL=6): the HEAD copy already holds the fix, so the RED construct is absent; each passes with RED_MODE=0. Consumer-layout precondition: test_multitrack_sessions_pid_status.sh (rc 90, no outer project root) and test_multitrack_supervisor_wiring.sh (rc 91, missing consumer fixture rb05_fixtures/mock_claude.sh); the HEAD-RED construct is latent behind the precondition. Census with control needles: 16 files match the HEAD: read query, 5 are runtime RED builders. A candidate fix exists, unreviewed and unlanded: vehicle/redpin commit 2ca4d1b (bundle redpin.bundle in the session directory, report scratchpad/redpin_report.md) pins the RED artifacts to e60cbde. Reproduce first (section 11.4.292), get the independent review, then land. Origin: observation in the CON-043 round-2 review, review report scratchpad/review_con043_r2.md (vehicle/con043 head f8a45db), evidence in scratchpad/review_con043_r2_evidence/.
+
+## CON-055 — atm1217-base FU-1 (R2-1): widen the shell= directive value list in precheck_pack_run.py to the table measured against shellcheck, with a bats parse rule
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:50Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-1, minor, source-defect. _SHELLCHECK_SHELLS = (sh, bash, dash, ksh, busybox) rejects five values that shellcheck 0.11.0 honours for a shell= directive: ash, ksh88, ksh93, oksh, bats (mksh and zsh are unknown to shellcheck, SC1103). The gate then falls back to sh and refuses with findings shellcheck would not report (false refusal, section 11.4.201(1); never a false PASS). The comment claiming the list is what shellcheck 0.11 accepts is false (written from memory, not measured, section 11.4.276(C)). Tree reach is 0 (all directive values in the 18 shebang-less tree files are bash or sh). Fix: derive the accepted-value table by running shellcheck itself (reuse the reviewer fixtures sc/ and matrix/), add the five values, correct the comment, pin each value with a shellcheck-measured fixture row. bats needs its own parse rule: bash -n and sh -n both reject '@test "x" { ... }' with rc=2 (control: bash -n on plain 'echo ok' is rc=0), so passing bats through would trade a lint false refusal for a parse false refusal. ksh88/ksh93/oksh fall under the already documented ksh sh -n residual. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (_SHELLCHECK_SHELLS), scripts/fastcycle/tests/test_precheck_shellcheck_red.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-056 — atm1217-base FU-2 (R2-2 and R2-5): map shebang ash to dash and busybox sh to busybox, adopt reviewer mutant NM5
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:51Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-2, minor, source-defect (pre-existing): the shebangs '#!/bin/ash' and '#!/bin/busybox sh' map to sh, but shellcheck lints them as dash and busybox (matrix rows s1: false refusal, s2: over-refusal). Tree reach is 0 (census with positive control: 233 '#!/bin/sh' matched, 0 ash or busybox shebangs). R2-5, minor, test-instrumentation: reviewer mutant NM5 (_INTERP_DIALECT[ash]: sh to bash) survives (shellcheck_red 176/0); it points in the false-PASS direction (bash-isms in an ash script would pass). Fix together: ash to dash, busybox sh to busybox, and adopt NM5 verbatim as a killing mutation case plus tests for both mappings. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (_INTERP_DIALECT), scripts/fastcycle/tests/test_precheck_shellcheck_red.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-057 — atm1217-base FU-3 (R2-3 and R2-4): adopt reviewer mutants NM1, NM2 and NM3 verbatim as killing cases
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:51Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-3, minor, test-instrumentation: NM1 (_shebangless_exec_text: drop 'b"\0" not in head') and NM2 (drop the has-an-extension exclusion) survive (shellcheck_red 176/0). NM1 would lint the 2 tracked ELF binaries under scripts/workable-items/bin and refuse them with 'shell script contains NUL byte(s)'; NM2 would lint an executable note.txt without a shebang. Head excludes both (probe m1/). Negatives to add: an executable ELF-like file containing a NUL, and an executable file with an extension but no shebang. R2-4, minor, test-instrumentation: NM3 (dialects.append(...) replaced by pass) survives; the evidence.dialects list advertised under section 11.4.201(5) is never asserted. Assert evidence.dialects with file, dialect and source for at least the directive, shebang, extension and default sources. Each mutant must fail the suite before the next review (section 11.4.276(D)). review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (_shebangless_exec_text, dialects evidence), scripts/fastcycle/tests/test_precheck_shellcheck_red.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-058 — atm1217-base FU-4 (R2-6): assert rc == 0 in the D14 RM1 flip of test_precheck_pack_build_red.sh
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:51Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-6, nit, test-instrumentation: the D14 RM1 flip asserts only the absence of the co-pack reason, not rc == 0. At head RM1V=0 so the flip is valid today; it would also pass if the mutated build failed for an unrelated reason. Add the rc == 0 assertion. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/test_precheck_pack_build_red.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-059 — atm1217-base FU-5 (R2-7 and R2-8): correct the _shell_dialect docstring and decide the unknown shell= directive fall-through
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:51Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-7, nit, process-doc: the docstring describes step (4) POSIX sh as if it were shellcheck's own order. shellcheck's fallback for .sh and for files with no extension is bash plus SC2148; defaulting to sh is the gate's own stricter choice (matrix row e4). State it as such. R2-8, nit, source-defect: for an unknown directive value (zsh, mksh) the gate falls through to the shebang while shellcheck falls through to the extension or bash. Both sides refuse (SC1103 is an error) so the outcome is the same; only the extra findings differ (rows u1, u2). Decide the fall-through (shebang or extension) and pin it with a test. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (_shell_dialect docstring and unknown-directive branch)
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-060 — atm1217-base FU-6 (R2-10): route _symlink_is_script and base_is_shell through the main shell detector
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:51Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-10, minor, source-defect (round-1 M1 residue): _symlink_is_script (256-byte probe) and base_is_shell use the shebang-only _bytes_are_shell and not _shebangless_exec_text, unlike the main selection site. Reach today is 0 (1 tracked symlink, a dangling fixture, out of 1110 mode-100755 entries counted as control). Under-detection is possible only for a symlink to, or a base blob of, a shebang-less extensionless executable text file. Route both through the same detector as the main site. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (_symlink_is_script, base_is_shell, _bytes_are_shell)
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-061 — atm1217-base FU-7 (N1, N2, N4 carried from round 1): shellcheck-absent skipped PASS, LOCAL ONLY commit subject, accepted keyboard-mash disable justification
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:52Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Carried from review round 1 (scratchpad/review_atm1217_base.md), nits. N1, process-doc: when shellcheck is absent from PATH check_shellcheck returns verdict PASS with mode skipped (about line 1622); pre-existing, and the verifier refuses such a pack (it requires whole-file mode), but a skip labelled PASS goes against sections 11.4.3 and 11.4.289(E); report it as a SKIP-with-reason. N2, process-doc: the subject of bc0953e contains 'LOCAL ONLY pending independent review' and stays in main history (never rewritten, section 11.4.113); the body of 3be7f1a is empty so the round-6 mechanisms have no recorded RED evidence; noted here, no action on history. N4, source-defect, documented by the author: D5 accepts a keyboard-mash justification (p9: '# aaaa beee ciii dooo' disables SC2086; blocking_rule_disabled lists it); decide whether a justification-quality check is wanted. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/precheck_pack_run.py (check_shellcheck mode skipped, disable-justification check), commit bc0953e subject
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-062 — atm1217-base note (R2-9): Roadmap-Item trailers missing on bc0953e, 3be7f1a, 8ad0e53 and 17dd803
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:52Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+R2-9, nit, process-doc: required by section 11.4.293(A), the commits bc0953e, 3be7f1a, 8ad0e53 and the merge 17dd803 carry no Roadmap-Item trailer (the round-2 commits 4cd886e and a5c5df3 carry Roadmap-Item: CON-033). Recorded here and in the landing merge message; history is NOT rewritten (section 11.4.113). Close as a no-action record once the commit-names-roadmap-item gate (OWED-GATE-175) is evaluated against it. review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+git history of vehicle/atm1217-base (commits bc0953e, 3be7f1a, 8ad0e53, 17dd803)
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-063 — atm1217-base observation: test_precheck_pack_build_red.sh C2 chmod 000 on the live checkout breaks parallel suites
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:21:52Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Observation outside the declared scope of the atm1217-base review, not a finding against that change. C2 sets chmod 000 on precheck_pack.sh and slicer.py in the live checkout for a short window (pre-existing, commit 03f911e). Any other suite reading those files from the same checkout at that moment fails with a misleading error (observed: cp Permission denied in the shellcheck_red M11 case, 173/3 instead of 174/2). Do the chmod on a copy so the suites can run in parallel (section 11.4.230(C)). review report scratchpad/review_atm1217_base_r2.md (vehicle/atm1217-base head a5c5df3, round 2, verdict GO-with-follow-ups, section 11.4.276(G)). Origin: independent-review follow-up, section 11.4.276(G.2), atm1217-base round 2. Scope: scripts/fastcycle/review/precheck_pack_run.py and scripts/fastcycle/tests/test_precheck_*. Parent: CON-033 (Roadmap-Item of the atm1217-base landing).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/test_precheck_pack_build_red.sh (case C2)
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
+
+## CON-047 — Env census false positive: awk -f program attributed to jq (closure N3 negative)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con047_reproduction_2026_11_05.txt` — red-command `append 'echo "a command . b"; jq -e . "$0" >/dev/null; # eval ". x"' to a copy of scripts/gates/cm_killpg_pgid_guard.sh, then bash scripts/gates/cm_gate_env_reads_allowlisted.sh --root <copy> (closure test case N3 negative)` — env `host, python3 -I, census at vehicle/census-safe 7ed1fe7 (sha256 4d98f55f...); control: main 8e496db census gives PASS rc 0` — signature `rc 1, exactly one row: UNCOVERED scripts/gates/cm_killpg_pgid_guard.sh:425 jq-env (indirect)` — updated 2026-11-05T16:53:27Z — by `AI (Claude Sonnet 5.5, landing of vehicle/census-safe; reproduction by Claude Opus 5.5, census round 3)`
+**Investigation:** in-progress — updated 2026-11-05T16:53:27Z — by `AI (Claude Sonnet 5.5, landing of vehicle/census-safe; reproduction by Claude Opus 5.5, census round 3)`
+
+What: the env-read census (scripts/gates/lib/gate_env_census.py, gate CM-GATE-ENV-READS-ALLOWLISTED) gives a false positive on the closure test case "N3 negative: words in echo/jq argument/comment do not trigger" (tests/gates/test_gate_env_census_closure.sh). The case appends `echo "a command . b"; jq -e . "$0" >/dev/null; # eval ". x"` to scripts/gates/cm_killpg_pgid_guard.sh. Once that file runs jq, the census reports `UNCOVERED scripts/gates/cm_killpg_pgid_guard.sh:425 jq-env (indirect)`; line 425 is inside the awk classifier SHAWK (a quoted heredoc read at line 357, written to $SHAWKF at line 1110 and run as `awk -f "$SHAWKF"` at line 1237), not jq code. Measured 2026-11-05: with the census of main cb31e32 and the two allowlist rows of the census-safe landing this case gives PASS (rc 0); with the CON-015/CON-016 census change (keep the jq env check armed when region ownership is undecidable) it gives FAIL (rc 1). So the false positive is the cost of that fail-closed change, not a pre-existing defect of main's census. (On main cb31e32 the case also fails, for a different reason: the real tree itself is FAIL with uncovered=2 because two eval rows of the 11.4.294/295 anchor gates are not allowlisted.) In the census-safe landing the case is kept and marked KNOWN-FAIL pinned to this item (never counted as PASS); the closure test then exits 3 (known failure outstanding), not 0, and the allowlist mutation test counts only closure rc 1 as a kill.
+
+History: a disown rule for this shape (CON-017, commit 0e4b197) and a rewrite of it (commit 94a1d28) each got a NO-GO from an independent Opus review: review_census_delta3_opus.md and review_census_con017_fix.md in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/. Two consecutive NO-GO rounds on regex disown heuristics are a heuristic tower (section 11.4.250, 11.4.276(E)); neither commit was landed.
+
+Structural direction: replace the regex-based disown with a parse of jq's own command line: judge only the program operand of a jq invocation (the first non-option argument, or the file named by -f/--from-file), never its data arguments and never text that belongs to another command (awk, sed, echo). Case corpus to preserve and reuse: commit 94a1d28 (branch fix/con017-class, +212/-32 in gate_env_census.py, +402 jq-region test lines), preserved 2026-11-05 as a self-contained git bundle with complete history (no --shared alternates): /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/con017_evidence_94a1d28.bundle, sha256 9814832c16f5b9fa40a7d53b6d91234d27ce7b8956df282e1ea3efcdd595cf7d (git bundle verify OK; a fresh clone of it has 94a1d28 at fix/con017-class and git fsck --full rc 0). Its review evidence directory rv4_opus_evidence is archived as /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/con017_rv4_opus_evidence.tar.gz, sha256 d417cbefdddd575ac61a48abdb3f42ee7fdadca0f183ad6253b4d35dabf49dec (94 entries). Durable locations (landing of vehicle/census-safe, 2026-11-05): the 94a1d28 bundle is pushed to the wip ref `wip/evidence-con017-94a1d28` on origin (fast-forward, new ref) and the archive con017_rv4_opus_evidence.tar.gz (sha256 above) stays host-local; the probe corpora and review rounds 1-3 are tracked under docs/qa/con047_probe_corpora/ (scripts carry a .txt suffix so no scanner or runner treats them as repository code; rename by dropping .txt to run).
+
+Residual shapes for the structural rewrite (review census_safe rounds 2 and 3, recorded on this item rather than as new ids, section 11.4.214): (1) KNOWN-FAIL corpus cases K1..K5 in tests/gates/test_gate_env_census_jq_regions.sh, each pinned to this item with a signature check: `awk -v re='^(sudo|env|time)$'`, `PAT='env|x' awk ...`, `env PAT='^(env|nice)$' sed ...`, `grep -E -e x='(env|sudo)' f` (the assignment owner rule reads an option argument or an environment prefix as a variable assignment) and `jq -n '.a' 'env'` (a data argument of jq, its own region since the round-3 separator); quiet is the wanted result. (2) Shapes quiet on main and on the census-safe head, not yet cases: the line is classified as a whole, not per simple command (`"${JQ:-jq}" -n '$ENV' | sed ...`, `x=$(grep -c f g); jq_run -n 'env | keys'` and their variable forms); a generated program file read by jq through a path, a default or another spelling (`/usr/bin/jq -f "$f"`, `"${JQ:-jq}" -f "$f"`, `jq -f "${f}"`); a herestring read not recognised as an assignment. Residual shapes added in round 3 (review_census_safe_r3.md): (3) the separator at the closing quote widens the false-positive class of K5: any quoted word that is or starts with `env`, belonging to ANY command on a jq line, is reported (for example `jq -r '.a' f | grep -v 'env'`, `jq '.a' f; echo 'env'`, `jq -r '.k' f | tr -d 'env'`, `jq -n '$x' --arg x 'env'`); zero real instances in the repository (1224 tracked shell files); it needs at least one more KNOWN-FAIL case beside K5, e.g. `jq -r '.a' f | grep -v 'env'`. (4) Still missed (quiet on main and on the head): F08, F09, F26 (`'env'` followed by another region on the line), F11 (`jq -n '$ENV' | jq '.PATH'` read as a named PATH read), F16 (`[env]`), F13 (double-quoted jq dump program, tracked separately). (5) RULE: a false positive of this class is NEVER cured with an allowlist row, because the census keeps one jq-env row per file and the allowlist matches (glob, VAR) for the whole file, so such a row would hide every later real jq dump in that file; the cure is a code change under this item. (6) Full-suite runner: rc 3 is FAIL `rc_3`; a known-failure row for the closure test or the jq-region test MUST use `reason:rc_3`, never a log-substring signature (a substring row also marks a log that carries a new real FAIL beside the known one as KNOWN). Probe sources are tracked under docs/qa/con047_probe_corpora/ (probe.sh.txt..probe5.sh.txt, probe_corpus*.py.txt, judge_probe, fuzz_mono, wide_diff, realtree, runwith, and review_census_safe.md, _r2, _r3).
+
+Operator decision (section 11.4.66, 2026-11-05, interactive question; relayed, not verbatim): ACCEPT the deferral of the structural census rewrite to this item under section 11.4.276(E)(1); the decision names vehicle/census-safe (landed with review round 3 GO-with-follow-ups, head 2e5f352) and CON-047. The 11.4.276(E)(1) structural trigger fired in round 3 (N1 important + N2 minor in one class); the rewrite is not done in the vehicle, and no further regex owner rule may be added meanwhile.
+
+Stop rule: no further regex owner rule in gate_env_census.py; every new residual becomes a case here (section 11.4.250).
+
+Attribution note: this item was created by an agent; its item_history Opened row records `User` (the engine default of that intake path). History rows are append-only, so the correction is recorded here.
+
+**Affected scope / file-scope manifest:**
+scripts/gates/lib/gate_env_census.py; tests/gates/test_gate_env_census_closure.sh; tests/gates/test_gate_env_census_jq_regions.sh
+
+## CON-064 — CON-047 census FU-1 (R3-1, R3-2): pin the separator's $'..' member and its neutrality in test_gate_env_census_jq_regions.sh
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe (review_census_safe_r3.md, docs/qa/con047_probe_corpora/, verdict GO-with-follow-ups, section 11.4.276(G.2)). Reviewer mutant mD (the region separator applied only to plain single-quoted regions, not to $'..') survives the whole suite at 52/0/5 and turns F27-F29 quiet; reviewer mutant mM (separator "|" instead of newline) survives and adds 424 of 3000 fuzz reports. Add test-only cases: F27 `jq --arg nl $'\n' -n 'env | keys'`, F28 `jq -n --arg t $'a\tb' 'env | keys'`, F29 `jq -r $'.a' f; jq -n 'env | keys'` as fire cases (they fire on the head and are quiet on mD, on the version without the separator and on main), and Q02 `jq --arg src 'env' -n '$src'` as a quiet case (quiet on the head, fires on mM); then adopt mD and mM as killing mutants in the allowlist mutation test. Severity minor, finding layer test-instrumentation; no batch claim of the vehicle is invalidated.
+
+**Affected scope / file-scope manifest:**
+tests/gates/test_gate_env_census_jq_regions.sh; scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh
+
+## CON-065 — CON-047 census FU-2 (R3-4, R3-5): record the known-failure row rule (reason:rc_3) and the no-allowlist-cure rule for census false positives
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe, findings R3-4 and R3-5 (minor, section 11.4.276(G.2)). R3-4: the full-suite runner reads exit status 3 as FAIL rc_3 (measured with the runner's own judge and known-row matcher). A known-failure row with a log-substring signature such as [tracked CON-047] also marks a log that carries a NEW real FAIL beside the known one as KNOWN; a reason:rc_3 row does not. When the runner manifest stops refusing, the rows for tests/gates/test_gate_env_census_closure.sh and tests/gates/test_gate_env_census_jq_regions.sh MUST use reason:rc_3. Record this in the runner guide and the manifest header. R5: the census keeps one jq-env row per file and the allowlist matches (glob, variable) for the whole file, so curing a false positive of the K-shape class with an allowlist row hides every later real jq dump in that file; the cure is a code change under CON-047. Record the rule next to config/gate_env_allowlist.tsv. Both rules are also recorded on CON-047. Documentation only.
+
+**Affected scope / file-scope manifest:**
+docs/guides/full_suite_runner_guide.md; config/full_suite_manifest.tsv (comment); config/gate_env_allowlist.tsv (header comment)
+
+## CON-066 — Env census does not report double-quoted jq dump programs (jq -n "env | keys", jq -n "\$ENV")
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe, finding R3-6 (minor, source-defect, pre-existing, section 11.4.276(G.2)). Double-quoted jq whole-environment dump programs (`jq -n "env | keys"`, `jq -n "\$ENV"`) are not reported by the env census on main or on the census-safe head; the census only treats single-quoted regions as jq code. Zero real instances in the repository (1224 tracked shell files scanned). Checked against CON-036 (census blind spots: sed-produced jq program, bash -c inner quote, per-line interpreter detection, literal-path alias) and CON-047 (false positives): neither covers double-quoted jq programs, so this is a separate item, not a duplicate (section 11.4.214). Reproduction: not yet assessed as a tracked record (state UNSET); the shape is quiet in the reviewer probe corpus (docs/qa/con047_probe_corpora/, shape F13), which is the starting point for the RED case. Cure belongs to the structural census rewrite of CON-047, not a new regex rule (stop rule of CON-047).
+
+**Affected scope / file-scope manifest:**
+scripts/gates/lib/gate_env_census.py; tests/gates/test_gate_env_census_jq_regions.sh
+
+## CON-067 — CON-047 census FU-3 (R3-7): record the attribution and out-of-scope reasons for the census-safe vehicle commits
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe, finding R3-7 (minor, process-doc). Commit 7ed1fe7 changes three paths outside CON-047's file-scope manifest without Out-of-scope trailers (section 11.4.293(A)): config/full_suite_manifest.tsv, docs/guides/full_suite_runner_guide.md, scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh (reason class fix-gate-or-test: the jq-region suite joins the manifest and the allowlist mutation test). The cases G6-G9 prove the CON-015 fix but are attributed to CON-047; the region separator closes defect F7, which had no item of its own; earlier vehicle commits (bc788b7 and before) carry no Roadmap-Item trailer. History cannot be rewritten (section 11.4.113), so the attribution is stated on the landing merge commit and recorded here. No code change.
+
+**Affected scope / file-scope manifest:**
+vehicle/census-safe commit history (record only)
+
+## CON-068 — CON-047 census FU-4 (R3-12): durable evidence for the census-safe rounds (bundle ref, probe corpora)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe, finding R3-12 (minor, process-doc). The 94a1d28 bundle, the evidence archive and the probe sources cited by CON-047 sat in the session cache directory only. At landing (2026-11-05) the 94a1d28 history was pushed to the wip ref wip/evidence-con017-94a1d28 on origin (fast-forward new ref) and the probe corpora and review rounds 1-3 were copied into docs/qa/con047_probe_corpora/ (scripts with a .txt suffix). Remaining: the evidence archive con017_rv4_opus_evidence.tar.gz (sha256 d417cbefdddd575ac61a48abdb3f42ee7fdadca0f183ad6253b4d35dabf49dec, 94 entries) is still host-local; decide whether to push it to a wip ref or a tracked docs/qa location, and retire the wip ref under section 11.4.288(B)(4) when CON-047's rewrite lands.
+
+**Affected scope / file-scope manifest:**
+docs/qa/con047_probe_corpora/; wip/evidence-con017-94a1d28 (ref)
+
+## CON-069 — CON-047 census FU-5 (R3-8 to R3-11): nits from review round 3 of vehicle/census-safe
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc): R3-8 the author report counted the runner manifest problems as 26 to 24 while the measured counts are 25 at c41b6c7, bc788b7 and 8e496db and 24 at the head (no action beyond this note); R3-9 the engine's Updated history reason names a state change but not a description change made in the same call (optional engine follow-up); R3-10 the CLASS RULE comment in scripts/gates/lib/gate_env_census.py lists K5 under rule (2) (assignment) while K5 comes from rule (1) plus the separator (fix the comment together with the widened false-positive class of CON-047, which should also be named in that comment); R3-11 CON-047's investigation state was UNSET and is set to in-progress at landing (done through the engine).
+
+**Affected scope / file-scope manifest:**
+scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 

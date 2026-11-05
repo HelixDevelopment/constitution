@@ -1,0 +1,85 @@
+# probe_corpus.py <sandbox> <census.py>...: run a labelled corpus of one-line shapes through each census variant
+import sys, os, importlib.util
+sb = sys.argv[1]; cens = sys.argv[2:]
+mods = []
+for c in cens:
+    spec = importlib.util.spec_from_file_location(os.path.basename(c)[:-3], c); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); mods.append((os.path.basename(c)[:-3], m))
+# (id, want, body)  want: fire = a real whole-environment dump in a jq program; quiet = not one
+C = [
+ ("F01","fire","jq --arg k 'v' -n 'env | keys'"),
+ ("F02","fire","jq -n --arg a 'b' --arg c 'd' 'env | keys'"),
+ ("F03","fire","jq -n \"$(printf '%s' 'env | keys')\""),
+ ("F04","fire","jq -n '.a' | jq 'env'"),
+ ("F05","fire","printf '%s\\n' 'env | keys' | jq -f /dev/stdin"),
+ ("F06","fire","jq -r --arg x 'y' '$ENV | keys'"),
+ ("F07","fire","jq -n --arg x 'y' '$ENV'"),
+ ("F08","fire","jq -n 'env' --arg k 'v'"),
+ ("F09","fire","jq -n 'env' | jq -r 'keys[]'"),
+ ("F10","fire","jq -n '$ENV' | jq -r 'keys[]'"),
+ ("F11","fire","jq -n '$ENV' | jq '.PATH'"),
+ ("F12","fire","jq -c 'env' \"$f\""),
+ ("F13","fire","jq -n \"env | keys\""),
+ ("F14","fire","jq --arg k 'v' -n 'env|keys'"),
+ ("F15","fire","jq -n --argjson n '1' '$ENV|keys'"),
+ ("F16","fire","jq -n --arg mode 'prod' '[env] | length'"),
+ ("F17","fire","jq -n 'x' | jq '. as $x | env'"),
+ ("F18","fire","echo '{}' | jq 'env | keys'"),
+ ("F19","fire","jq -r '.a' <<<'{}'; jq -n 'env'"),
+ ("F20","fire","jq -r '.a' f; jq -n 'env | keys'"),
+ ("F21","fire","jq -r '.name' f && jq -n '$ENV'"),
+ ("F22","fire","jq -r '.a' f; jq -n '$ENV | keys'"),
+ ("F23","fire","jq -S --arg n 'x' -n '(env)'"),
+ ("F24","fire","jq --arg k 'v' -n 'env | to_entries'"),
+ ("F25","fire","jq -n --arg a 'b' 'env | .HOME'"),
+ ("F26","fire","jq -n 'env' 'x'"),
+ ("Q01","quiet","jq -n '.a' 'env'"),
+ ("Q02","quiet","jq --arg src 'env' -n '$src'"),
+ ("Q03","quiet","jq --arg mode 'env' '.x' f"),
+ ("Q04","quiet","jq -r '.x' f --arg m 'env'"),
+ ("Q05","quiet","jq -r '.x' 'my env'"),
+ ("Q06","quiet","jq -n --arg v 'production env' '.'"),
+ ("Q07","quiet","jq -r '.[] | .env' f"),
+ ("Q08","quiet","jq -r '.a' f | grep 'env'"),
+ ("Q09","quiet","jq -r '.a' f | sed 's/env/x/'"),
+ ("Q10","quiet","jq -r '.a' f | grep -c 'env'"),
+ ("Q11","quiet","jq -n '$x' --arg x 'env'"),
+ ("Q12","quiet","jq -r '.a' f > out; echo 'done env'"),
+ ("Q13","quiet","jq -r '.a' f | awk '{print $1}'"),
+ ("Q14","quiet","jq '.a' f; echo 'env'"),
+ ("Q15","quiet","jq --arg e '$ENV' -n '$e'"),
+ ("Q16","quiet","jq -n --arg k 'v' '$k'"),
+ ("Q17","quiet","jq '.' 'environment.json'"),
+ ("Q18","quiet","jq -r '.a' 'env.json'"),
+ ("Q19","quiet","echo 'x' | jq -R . ; grep 'env' f"),
+ ("Q20","quiet","jq -r '.[].name' f | grep -E '^(env|path)$'"),
+ ("Q21","quiet","jq -r '.a' f | grep -v 'env'"),
+ ("Q22","quiet","jq -r '.k' f | tr -d 'env'"),
+ ("Q23","quiet","jq -r '.a' f; printf '%s\\n' 'no env'"),
+ ("Q24","quiet","jq -e '.ok' f || die 'bad env'"),
+ ("Q25","quiet","jq -e '.ok' f || die 'missing env'"),
+ ("Q26","quiet","jq -r '.a' f | cut -d'=' -f1 | grep -x 'env'"),
+ ("F27","fire","jq --arg nl $'\\n' -n 'env | keys'"),
+ ("F28","fire","jq -n --arg t $'a\\tb' 'env | keys'"),
+ ("F29","fire","jq -r $'.a' f; jq -n 'env | keys'"),
+ ("Q27","quiet","jq --arg nl $'\\n' -n '.a'"),
+ ("Q28","quiet","jq -r '.a' f | grep $'env'"),
+]
+def run(m, body, i):
+    p = os.path.join(sb, f"p{i}.sh"); open(p, "w").write(body + "\n")
+    rows = m.census(p, sb)
+    jq = any(k == "jq-env" or v == "jq-env" for v, k, ln in rows)
+    other = [f"{v}:{k}" for v, k, ln in rows if v != "jq-env"]
+    return jq, other
+names = [n for n, _ in mods]
+print("id   want  " + "  ".join(f"{n:>8}" for n in names) + "   other-rows(head)")
+stats = {}
+for i, (cid, want, body) in enumerate(C):
+    res = [run(m, body, f"{i}_{n}") for n, m in mods]
+    cells = ["fire" if j else "quiet" for j, _ in res]
+    print(f"{cid}  {want:5} " + "  ".join(f"{c:>8}" for c in cells) + f"   {','.join(res[-1][1]) or '-'}   | {body}")
+    for n, c in zip(names, cells):
+        s = stats.setdefault(n, {"fn":0,"fp":0,"ok":0})
+        if want == "fire" and c == "quiet": s["fn"] += 1
+        elif want == "quiet" and c == "fire": s["fp"] += 1
+        else: s["ok"] += 1
+print("totals:", {n: stats[n] for n in names}, "cases:", len(C))

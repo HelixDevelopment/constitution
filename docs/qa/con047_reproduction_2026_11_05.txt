@@ -1,0 +1,39 @@
+# CON-047 reproduction record (host fixture), 2026-11-05
+# Captured by the census round-3 fix agent (Claude Opus 5.5) on vehicle/census-safe head 7ed1fe7 (merged with main 8e496db).
+# Surface: host-only (the env census is host code; no device involved). Section 11.4.292(C) / 11.4.294.
+
+## Source identities (sha256)
+4d98f55f6f27d6421f9a640c28c57df4092edcc9a789fafc5e55c21b2c34fb4c  scripts/gates/lib/gate_env_census.py
+d6988d0e4a8d771da71079872369271016da4d74568e8e3e4dc5dba1984d6c45  scripts/gates/cm_gate_env_reads_allowlisted.sh
+a4a1b799f81b8b90a1b17c6e53df0823e842c4a10c9234a6a505ab5eb1b84633  scripts/gates/cm_killpg_pgid_guard.sh
+2bd5304ee1a0d2155a14b1363649037f1dc2b2214e7787dd82069b30a911d862  config/gate_env_allowlist.tsv
+2909bc50832ceac3eeace2728b44e40fceea8821e9d542660c0db3f944e040b0  tests/gates/test_gate_env_census_closure.sh
+96d95042c2ae1c659d3229ae9289a05f2ed45a54634a6830646b8d3fb374be56  tests/gates/test_gate_env_census_jq_regions.sh
+main 8e496db census: 16524bb0b74ad7c6cc9de5d97bb9b1c3bc8216299db191b19c5aea79577fcbe6
+
+## RED command (exact sequence, from tests/gates/test_gate_env_census_closure.sh case N3 negative)
+1. copy scripts/ and config/ of the tree under test to a scratch root W
+2. printf '%s\n' 'echo "a command . b"; jq -e . "$0" >/dev/null; # eval ". x"' >> W/scripts/gates/cm_killpg_pgid_guard.sh
+3. (cd / && bash W/scripts/gates/cm_gate_env_reads_allowlisted.sh --root W)
+
+## RED on the census-safe census (rc=1)
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_killpg_pgid_guard.sh:425 jq-env (indirect): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=187 reads=171 guarded=54 allowlisted=116 uncovered=1 stale=0 needle=ok
+
+## Control: same sequence with main 8e496db's census (rc=0)
+VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=187 reads=170 guarded=54 allowlisted=116 uncovered=0 stale=0 needle=ok
+
+## Line 425 of scripts/gates/cm_killpg_pgid_guard.sh (inside the awk classifier heredoc SHAWK, not jq code)
+        zok = (pv == "" || pv !~ /^[A-Za-z]+$/ || pv ~ /^(sudo|timeout|env|command|exec|nohup|xargs|then|do|else|if|time|system|popen|run|call|check_call|check_output|Popen|Command|sh|bash|eval|trap)$/)
+
+## Closure test on head 7ed1fe7 (rc=3)
+KNOWN-FAIL N3 negative: words in echo/jq argument/comment do not trigger (rc=1, signature matches CON-047) [tracked CON-047]
+== 31 passed, 0 failed, 1 known-failure ==
+
+## jq-region test on head 7ed1fe7 (rc=3): the KNOWN-FAIL corpus cases owned by CON-047
+KNOWN-FAIL K1 awk -v re='^(sudo|env|time)$' (option argument, not a shell variable) [tracked CON-047] (one jq-env row at line 2)
+KNOWN-FAIL K2 PAT='env|x' awk ... (environment prefix of awk) [tracked CON-047] (one jq-env row at line 2)
+KNOWN-FAIL K3 env PAT='^(env|nice)$' sed ... (env wrapper prefix of sed) [tracked CON-047] (one jq-env row at line 2)
+KNOWN-FAIL K4 grep -E -e x='(env|sudo)' f (a grep pattern word containing x=) [tracked CON-047] (one jq-env row at line 2)
+KNOWN-FAIL K5 jq -n '.a' 'env' (a data argument of jq, not its program) [tracked CON-047] (one jq-env row at line 1)
+== 52 passed, 0 failed, 5 known-failure ==
