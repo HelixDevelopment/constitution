@@ -220,10 +220,12 @@ scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: 
 scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/review_record_genuine.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh
+scripts/fastcycle/tests/lib/review_record_guard_analyzer.py	py	excluded	-	-	-	reason: tool: guard-site analyzer (list/mutate) used by sweep_review_record_subclauses.sh and test_review_record_guard_table.sh; not a test entry point
 scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/tce_normalize_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/triple_harness.sh	sh	excluded	-	-	-	reason: library: self-validation runner library used by fastcycle tests
 scripts/fastcycle/tests/run_all.sh	runall	entry	default	runall-members	-	auto: covers 12 heavy member(s)
+scripts/fastcycle/tests/sweep_review_record_subclauses.sh	sh	excluded	-	-	-	reason: tool: ~70-minute generator of fixtures/review_record_subclause_kills.tsv (run by hand with --out); its control logic is tested by test_sweep_review_record_subclauses_red.sh
 scripts/fastcycle/tests/test_2nd_display_triage_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_affected_set_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_alias_spread_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -358,12 +360,17 @@ scripts/fastcycle/tests/test_review_record_gate_authority_mutations.sh	sh	member
 scripts/fastcycle/tests/test_review_record_gate_authority_r1_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_gate_authority_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_gate_authority_r3_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_gate_authority_r4_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_guard_table.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_round_budget_boundary_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_store_tier_all_entries_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_subclause_cases.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_run_all.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_sibling_search_check_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_sweep_review_record_subclauses_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_tier_route_failclosed.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_tier_routing_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_token_attribution_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -381,6 +388,7 @@ scripts/fastcycle/tokens/test_dispatch_stamp_class.sh	sh	entry	default	bash	-	au
 scripts/fastcycle/tokens/test_dispatch_stamp_r4_regression.sh	sh	entry	default	bash	-	auto
 scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh	sh	entry	default	bash	-	auto
 scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh	sh	entry	heavy	bash	-	auto
+scripts/fastcycle/tokens/test_dispatch_stamp_r7_matrix.sh	sh	entry	default	bash	-	auto
 scripts/gates/cm_anchor_detects_tail_truncation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_anchor_record_complete_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_badge_closed_color_vocabulary_mutation_test.sh	sh	entry	heavy	bash	-	auto
