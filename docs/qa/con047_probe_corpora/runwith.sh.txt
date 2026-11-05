@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# runwith.sh <census.py> <test.sh> <label> : run a jq-region test file against a census variant in a throwaway tree
+set -u
+cen="${1:?}"; tst="${2:?}"; lab="${3:?}"
+d="$(mktemp -d)"; : "${d:?}"
+mkdir -p "$d/scripts/gates/lib" "$d/tests/gates"; cp "$cen" "$d/scripts/gates/lib/gate_env_census.py"; cp "$tst" "$d/tests/gates/t.sh"
+out="$(bash "$d/tests/gates/t.sh" 2>&1)"; rc=$?
+np="$(grep -E '^(FAIL|XPASS|KNOWN-FAIL) ' <<<"$out" | awk '{print $1":"$2}' | tr '\n' ' ')"
+echo "[$lab] rc=$rc $(tail -1 <<<"$out") ; non-pass: $np"
+rm -rf -- "${d:?}"

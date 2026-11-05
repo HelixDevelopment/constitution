@@ -8,8 +8,14 @@
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; src="$(cd "$here/../.." && pwd)"
 sb="$(mktemp -d)"; : "${sb:?}"; trap 'rm -rf -- "${sb:?}"' EXIT
-pass=0; fail=0
+# Exit status: 0 = every case PASS; 1 = at least one FAIL (or XPASS); 3 = no FAIL, but at least one KNOWN-FAIL case is
+# outstanding. A KNOWN-FAIL is never counted as PASS; it names the tracked item that owns it. When a KNOWN-FAIL case starts
+# passing it is reported XPASS and counts as a FAIL, so the marker is removed instead of silently kept.
+pass=0; fail=0; known=0
 chk() { if [ "$1" = 0 ]; then pass=$((pass+1)); echo "PASS $2"; else fail=$((fail+1)); echo "FAIL $2"; fi; }
+kchk() { # rc item name
+  if [ "$1" = 0 ]; then fail=$((fail+1)); echo "XPASS $3 (KNOWN-FAIL pinned to $2 now passes: remove the marker)"
+  else known=$((known+1)); echo "KNOWN-FAIL $3 [tracked $2]"; fi; }
 GATE="$src/scripts/gates/cm_gate_env_reads_allowlisted.sh"; AL="$src/config/gate_env_allowlist.tsv"
 mkdir -p "$sb/base/config"; cp -R "$src/scripts" "$sb/base/scripts"; cp "$AL" "$sb/base/config/"
 run() { # root -> rc, output in $OUT
@@ -70,6 +76,20 @@ append scripts/gates/cm_killpg_pgid_guard.sh; printf '%s\n' 'builtin source "$1"
 [ "$rc" = 2 ] && grep -q 'UNRESOLVED-SOURCE' <<<"$OUT"; chk $? "N3 builtin source of an unresolvable word is BLIND (rc=$rc)"
 # negatives stay negative: prose / arguments that merely contain the words do not trigger
 append scripts/gates/cm_killpg_pgid_guard.sh; printf '%s\n' 'echo "a command . b"; jq -e . "$0" >/dev/null; # eval ". x"' >>"$sb/w/scripts/gates/cm_killpg_pgid_guard.sh"; run "$sb/w"; rc=$?
-[ "$rc" = 0 ]; chk $? "N3 negative: words in echo/jq argument/comment do not trigger (rc=$rc)"
+# KNOWN-FAIL (CON-047): the census attributes the awk classifier of cm_killpg_pgid_guard.sh (a quoted heredoc written to a
+# file and run as `awk -f "$SHAWKF"`) to jq once the file also runs jq, and reports it as jq-env. Not counted as PASS.
+# Pinned to CON-047's exact signature (review F3): rc 1, exactly one UNCOVERED line and it is a jq-env row of
+# cm_killpg_pgid_guard.sh, and no UNRESOLVED-SOURCE (a BLIND rc 2 would mean the echo/comment source-detection clauses regressed).
+nunc="$(grep -c 'UNCOVERED' <<<"$OUT")"
+if [ "$rc" = 0 ]; then kchk 0 CON-047 "N3 negative (rc=0)"
+elif [ "$rc" = 1 ] && [ "$nunc" = 1 ] && grep -Eq 'UNCOVERED scripts/gates/cm_killpg_pgid_guard\.sh:[0-9]+ jq-env' <<<"$OUT" && ! grep -q 'UNRESOLVED-SOURCE' <<<"$OUT"; then
+  kchk 1 CON-047 "N3 negative: words in echo/jq argument/comment do not trigger (rc=$rc, signature matches CON-047)"
+else chk 1 "N3 negative: failure does NOT match CON-047's signature (rc=$rc uncovered=$nunc): $(printf '%s' "$OUT" | head -c 300)"; fi
 fresh
-echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]
+# review F1 end to end: a variable-held jq program whose assignment line also runs sed must be UNCOVERED (main's census FAILs it)
+append scripts/gates/cm_repro_first_anchor_wired.sh; printf '%s\n' "P='\$ENV'; x=\$(sed -n 1p /dev/null)" 'jq -n "$P" >/dev/null' >>"$sb/w/scripts/gates/cm_repro_first_anchor_wired.sh"; run "$sb/w"; rc=$?
+[ "$rc" = 1 ] && grep -Eq 'UNCOVERED scripts/gates/cm_repro_first_anchor_wired\.sh:[0-9]+ jq-env' <<<"$OUT"; chk $? "G5 jq program in a variable (assignment line also runs sed) is UNCOVERED (rc=$rc)"
+fresh
+echo "== $pass passed, $fail failed, $known known-failure =="
+[ "$fail" = 0 ] || exit 1
+[ "$known" = 0 ] || exit 3
