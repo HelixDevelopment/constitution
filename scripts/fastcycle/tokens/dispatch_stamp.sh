@@ -11,7 +11,7 @@ unset -f unset builtin exec shopt command 2>/dev/null
 if [[ "${1-}" != "--fc-clean-env" ]]; then
   shopt -s execfail
   _fc_keep=()
-  for _fc_v in PATH HOME FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_RELEASE_PREFIX HELIX_PROJECT_ROOT; do
+  for _fc_v in PATH HOME FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_RELEASE_PREFIX HELIX_PROJECT_ROOT FC_DISPATCH_TIER_POLICY CLAUDE_PROJECT_DIR; do
     [[ -n "${!_fc_v+set}" ]] && _fc_keep+=("$_fc_v=${!_fc_v}")
   done
   # Checked first so a failure is reported by this tool, not by bash's own
@@ -254,8 +254,9 @@ unset _fc_n
 # list of variables: the first lines of this file re-execute it with
 # `exec -c` (an EMPTY environment) and export back only the allowlist PATH,
 # HOME, FC_DISPATCH_ITEM_ID_RE, FC_DISPATCH_EXTRA_ITEM_PREFIXES,
-# HELIX_RELEASE_PREFIX and HELIX_PROJECT_ROOT -- every variable this tool or
-# release_prefix.sh reads. LC_ALL=C is set below. jq additionally runs with
+# HELIX_RELEASE_PREFIX, HELIX_PROJECT_ROOT, FC_DISPATCH_TIER_POLICY and
+# CLAUDE_PROJECT_DIR (the last two are read by the dispatch-tier check,
+# _fc_tier_check) -- every variable this tool or release_prefix.sh reads. LC_ALL=C is set below. jq additionally runs with
 # HOME=/dev/null/fc-no-home, a path that cannot exist, so no ~/.jq can be
 # loaded. Guard: test_dispatch_stamp.sh section N (a hostile environment
 # matrix: bad ~/.jq, POSIXLY_CORRECT, AWKPATH, AWKLIBPATH, GAWK_READ_TIMEOUT,
@@ -357,10 +358,11 @@ unset _fc_n
 #   OWED-TI-1, OWED-TI-2: ingest-side, see transcript_ingest.py's ledger
 #   (OWED-TI-2 is narrowed in round 11: only the full FC_DISPATCH_ITEM_ID_RE
 #   override is still read by two regex engines; extra prefixes are data).
-#   ATM-1133 MISMATCH: tracker item ATM-1133 ("fail-closed on missing jq",
-#   Queued) disagrees with this file. jq is NOT required: the strict awk
+#   TRACKER MISMATCH: the consumer tracker item titled "fail-closed on
+#   missing jq" (Queued; its id lives in the consumer tracker, section
+#   11.4.28(B)) disagrees with this file. jq is NOT required: the strict awk
 #   reader is the gate for both paths, and only a missing awk fails closed
-#   (AWK_MISSING). The conductor must re-scope or close ATM-1133.
+#   (AWK_MISSING). The conductor must re-scope or close that item.
 #
 # Classification: universal.
 
@@ -841,9 +843,14 @@ _fc_build_item_re
 # derived default prefix. This tool now does the same: it keeps only the
 # derived default prefix for this run and says so in GUARD mode (EXTRACTION
 # mode stays silent: its contract is "stdout is the id, no other output").
+# The probe's own stderr is discarded: bash 5.3 prints "[[: invalid regular
+# expression ..." for an invalid pattern (bash 5.2 did not), which broke
+# EXTRACTION mode's silent contract (CON-033 round 2, review I2; guard:
+# test_dispatch_stamp.sh L2). Only the status is used, captured on its own.
 FC_RE_NOTICE=""
-[[ "" =~ $ITEM_RE ]]
-if [ "$?" -eq 2 ]; then
+{ [[ "" =~ $ITEM_RE ]]; } 2>/dev/null
+_fc_re_rc=$?
+if [ "$_fc_re_rc" -eq 2 ]; then
   [ -n "${FC_DEFAULT_PREFIX:-}" ] || _fc_resolve_default_prefix
   FC_RE_NOTICE="dispatch_stamp: NOTICE: the configured item pattern (FC_DISPATCH_ITEM_ID_RE='${FC_DISPATCH_ITEM_ID_RE:-}' FC_DISPATCH_EXTRA_ITEM_PREFIXES='${FC_DISPATCH_EXTRA_ITEM_PREFIXES:-}') is not a valid regex -- only the derived default prefix '$FC_DEFAULT_PREFIX' is accepted for this run"
   ITEM_VALUE_RE="${FC_DEFAULT_PREFIX}-[0-9]+"
@@ -911,7 +918,7 @@ _fc_tier_check() {
   local lab_re='\(T[0-9A-Za-z]+/[^[:space:])]+ - [^[:space:])]+ - ([A-Za-z?]+) - ([A-Za-z?]+)\)'
   local lm="" le="" tm="" rm re rt
   if [[ "$DESCRIPTION" =~ $lab_re ]]; then lm="${BASH_REMATCH[1]}"; le="${BASH_REMATCH[2]}"; fi
-  tm="$(json_field .tool_input.model)" || tm=""
+  tm="$(json_field tool_input model)" || tm=""
   rm="$(_fc_rank_model "$lm")"; rt="$(_fc_rank_model "$tm")"
   [ "$rt" -gt "$rm" ] && rm="$rt"
   re="$(_fc_rank_effort "$le")"

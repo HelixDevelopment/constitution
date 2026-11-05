@@ -93,12 +93,19 @@ def out(kind, text):
     print("%s\t%s" % (kind, text.replace("\n", " | ")), flush=True)
 
 
-def stamp(tool, payload, mode, path_kind, timeout=20):
+def stamp(tool, payload, mode, path_kind, timeout=20, extra_env=None):
     """Run the tool. mode: 'g' (GUARD) or 'x' (EXTRACT). path_kind: 'jq'
     (the caller's PATH, jq present), 'awk' (only awk + cat), 'noawk' (only
-    cat [+ jq])."""
+    cat [+ jq]). extra_env: variables a row sets (the dispatch-tier rows
+    point FC_DISPATCH_TIER_POLICY at a scratch policy file)."""
     env = dict(os.environ)
     env.pop("FC_DISPATCH_EXTRA_ITEM_PREFIXES", None)
+    # The dispatch-tier check (_fc_tier_check) reads these two; the caller's
+    # values must not decide a row's verdict (hermetic).
+    env.pop("FC_DISPATCH_TIER_POLICY", None)
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    if extra_env:
+        env.update(extra_env)
     env["FC_DISPATCH_ITEM_ID_RE"] = QZT
     if path_kind == "awk":
         env["PATH"] = NOJQ
@@ -121,10 +128,17 @@ def stamp(tool, payload, mode, path_kind, timeout=20):
     return (p.returncode, so.decode("utf-8", "replace"), se.decode("utf-8", "replace"))
 
 
-def verdict(tool, payload, path_kind, timeout=20):
-    g = stamp(tool, payload, "g", path_kind, timeout)
-    x = stamp(tool, payload, "x", path_kind, timeout)
-    return g[0], x[0], x[1], x[2]
+def verdict(tool, payload, path_kind, timeout=20, extra_env=None, want_err=None):
+    """(guard rc, extract rc, extract stdout, extract stderr). When the row
+    names a required guard-stderr fragment (want_err), a guard run whose
+    stderr lacks it reports guard rc 'ERRTEXT' instead: the refusal REASON is
+    part of the verdict for branches whose removal another refusal masks."""
+    g = stamp(tool, payload, "g", path_kind, timeout, extra_env)
+    x = stamp(tool, payload, "x", path_kind, timeout, extra_env)
+    grc = g[0]
+    if want_err is not None and want_err not in g[2]:
+        grc = "ERRTEXT"
+    return grc, x[0], x[1], x[2]
 
 
 MODES = ["awk"] + (["jq"] if HAVE_JQ else [])
@@ -136,6 +150,9 @@ MODES = ["awk"] + (["jq"] if HAVE_JQ else [])
 # ---------------------------------------------------------------------------
 A = b'"tool_name":"Agent"'
 ROWS = []
+# Per-row environment and required guard-stderr fragment (keyed by row id).
+ROW_ENV = {}
+ROW_ERR = {}
 
 
 def row(rid, payload, g, x, branches=()):
@@ -303,6 +320,49 @@ row("M43 a 4.2 MB description of 700000 \\u escapes decodes in linear time",
 row("M39b a non-gawk awk (no RT): the guard refuses a TAGGED dispatch, extraction is empty",
     b'{' + A + b',"tool_input":{"description":"(T1) item=QZT-1 x"}}', 2, "")
 
+# CON-033 round 2 (review I1): the dispatch-tier check (_fc_tier_check, the
+# operator order of 2026-10-26 "no heavy agent on a simple task") added five
+# failure branches after this matrix was written. Each row below drives the
+# REAL tool with a policy file in WORK (or the built-in table). Two of the
+# branches are masked by a later refusal when removed (an unreadable policy
+# gives an empty table, which the unknown-class branch refuses; an unknown
+# class gives empty caps, which the unknown-cap branch refuses), so those
+# rows also pin the refusal REASON (ROW_ERR): removing the branch changes the
+# message the operator sees, which is the observable it exists for.
+_POL_BADCAP = os.path.join(WORK, "tier_policy_badcap.tsv")
+with open(_POL_BADCAP, "w", encoding="utf-8") as _fh:
+    _fh.write("simple\tbogusmodel\tmedium\n")
+_POL_MISSING = os.path.join(WORK, "tier_policy_does_not_exist.tsv")
+
+
+def tier_row(rid, payload, g, x, branches=(), env=None, err=None):
+    row(rid, payload, g, x, branches)
+    if env:
+        ROW_ENV[rid] = env
+    if err is not None:
+        ROW_ERR[rid] = err
+
+
+tier_row("T01 class=simple with an opus label is refused (heavy agent on a simple task)",
+         b'{' + A + b',"tool_input":{"description":"(T1/main - a - opus - high) item=QZT-1 class=simple x"}}', 2, "QZT-1",
+         ["return 1#4", "_fc_tier_check || exit 2"], err="no heavy agent on a simple task")
+tier_row("T02 class=simple with tool_input.model=opus is refused (the explicit model counts)",
+         b'{' + A + b',"tool_input":{"description":"(T1) item=QZT-2 class=simple x","model":"opus"}}', 2, "QZT-2",
+         ["return 1#4", "_fc_tier_check || exit 2"], err="no heavy agent on a simple task")
+tier_row("T03 class=simple with a sonnet/medium label is allowed (within the cap)",
+         b'{' + A + b',"tool_input":{"description":"(T1/main - a - sonnet - medium) item=QZT-3 class=simple x"}}', 0, "QZT-3")
+tier_row("T04 an unknown class is refused, naming the unknown class",
+         b'{' + A + b',"tool_input":{"description":"(T1) item=QZT-4 class=bogusclass x"}}', 2, "QZT-4",
+         ["return 1#2"], err="unknown class=bogusclass")
+tier_row("T05 a policy row with an unknown cap is refused (fail closed)",
+         b'{' + A + b',"tool_input":{"description":"(T1) item=QZT-5 class=simple x"}}', 2, "QZT-5",
+         ["return 1#3"], env={"FC_DISPATCH_TIER_POLICY": _POL_BADCAP}, err="unknown cap")
+tier_row("T06 a policy file that cannot be read is refused, naming the file",
+         b'{' + A + b',"tool_input":{"description":"(T1) item=QZT-6 class=simple x"}}', 2, "QZT-6",
+         ["return 1"], env={"FC_DISPATCH_TIER_POLICY": _POL_MISSING}, err="is not readable")
+tier_row("T07 no class= token: the tier check does not apply (allowed)",
+         b'{' + A + b',"tool_input":{"description":"(T1/main - a - opus - max) item=QZT-7 x"}}', 0, "QZT-7")
+
 # Rows that run only under one PATH kind (default: every mode in MODES).
 ONLY = {"M39 no awk on PATH: the guard refuses, extraction is empty": ["noawk"],
         "M39b a non-gawk awk (no RT): the guard refuses a TAGGED dispatch, extraction is empty": ["mawk"]}
@@ -420,7 +480,8 @@ def main():
         for m in ONLY.get(rid, MODES):
             jobs.append((rid, payload, g, x, m))
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
-        res = list(ex.map(lambda j: (j, verdict(TOOL, j[1], j[4])), jobs))
+        res = list(ex.map(lambda j: (j, verdict(TOOL, j[1], j[4], extra_env=ROW_ENV.get(j[0]),
+                                                want_err=ROW_ERR.get(j[0]))), jobs))
     for (rid, _p, g, x, m), (grc, xrc, xo, xe) in res:
         good = grc == g and xrc == 0 and xo == x and xe == ""
         out("OK" if good else "BAD", "%s [%s]: guard=%s extract=%r extract_rc=%s extract_stderr=%r (want guard=%s extract=%r, rc 0, stderr empty)"
@@ -446,7 +507,8 @@ def main():
             for m in ONLY.get(rid, MODES):
                 # A removed exit can make the reader loop; a timeout is a
                 # changed verdict. Stop at the first change.
-                grc, xrc, xo, xe = verdict(mpath, payload, m, timeout=5)
+                grc, xrc, xo, xe = verdict(mpath, payload, m, timeout=5, extra_env=ROW_ENV.get(rid),
+                                           want_err=ROW_ERR.get(rid))
                 if (grc, xo) != (g, x) or xrc != 0:
                     changed.append("%s[%s]" % (rid.split()[0], m))
                     break

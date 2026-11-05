@@ -327,10 +327,11 @@ written down here and in dispatch_stamp.sh, but as of round 3 the tracker DB
 (docs/workable_items.db, read-only to the fixer) holds NO row for OWED-TI-1,
 OWED-TI-2 or OWED-DS-1 -- registering them is the conductor's step, and
 until it happens they are tracked only by this text. Also open: tracker item
-ATM-1133 ("fail-closed on missing jq", Queued) DISAGREES with the code:
+titled "fail-closed on missing jq" (Queued; its id lives in the consumer
+tracker and is not repeated here, section 11.4.28(B)) DISAGREES with the code:
 dispatch_stamp.sh does not require jq -- it ships a strict jq-less reader
 that is also the gate for the jq path, and refuses (fails closed) only when
-awk is missing. ATM-1133 must be re-scoped or closed by the conductor with
+awk is missing. That item must be re-scoped or closed by the conductor with
 that evidence; this module does not change the tracker.
   - OWED-DS-1 (lives in dispatch_stamp.sh): the tokens/ suites are not wired
     into any runner or gate.
@@ -716,7 +717,7 @@ def _build_item_tag_re():
             # (^[A-Z0-9]+$); any other token is IGNORED with a warning --
             # dispatch_stamp.sh applies the same rule and prints the same kind
             # of notice in GUARD mode. Before, the token was pasted into the
-            # pattern and Python and bash ERE read `)`, `{`, `\D` or `ATM-1`
+            # pattern and Python and bash ERE read `)`, `{`, `\D` or `PFX-1`
             # differently. Guard: test_dispatch_stamp.sh section L.
             for tok in re.split(r"[,| \t\n]+", extra):
                 if tok:
