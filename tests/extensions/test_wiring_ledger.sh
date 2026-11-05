@@ -524,6 +524,46 @@ wl refs count --id conc; eq "24 concurrent removes leave 0" 0 "$(jget "$OUT" cou
 printf 'garbage line\n' >"$R/extensions/_installed/bad.refs"
 wl refs count --id bad; eq "corrupt refs file refused" 3 "$RC"
 
+# ── 9d. wave 2 review round 2: F3 (check: never-wired vs ledger-lost), F4 (SOURCE_DATE_EPOCH refused, never a traceback) ──
+# F3: a never-wired project is ok (golden-FALSE); a checkout holding local signatures whose tracked rows are gone is NOT
+H1P="$SB/h1"; make_project "$H1P"
+wlp "$H1P" check
+eq "F3 never wired: check rc 0 (golden-FALSE, nothing to own)" 0 "$RC"
+eq "F3 never wired: no orphan signatures" "[]" "$(jget "$OUT" orphans)"
+mkdir -p "$H1P/.claude/skills"; ln -s "$R/skills/alpha" "$H1P/.claude/skills/alpha"
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" check; eq "F3 control: wired and intact, rc 0" 0 "$RC"
+rm "$H1P/.constitution/wiring.json"
+wlp "$H1P" check
+eq "F3 tracked ledger deleted while this checkout still signs a row: check rc 1" 1 "$RC"
+has "F3 the lost row is named" "h1-a" "$OUT"
+has "F3 the state says the tracked row is missing" "tracked-row-missing" "$OUT"
+eq "F3 ok is false" false "$(jget "$OUT" ok)"
+wlp "$H1P" forget --id h1-a; eq "F3 forget of a row the ledger no longer has is refused" 3 "$RC"
+# after a legitimate forget the signature goes too, so check is ok again (no false positive)
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" forget --id h1-a; wlp "$H1P" check
+eq "F3 after a real forget: check rc 0 (golden-FALSE)" 0 "$RC"
+# F4: SOURCE_DATE_EPOCH that is not a non-negative integer of seconds, or is out of range, is refused rc 3
+H2P="$SB/h2"; make_project "$H2P"; printf 'b\n' >"$H2P/b.txt"
+sde() { local v="$1"; shift; OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH="$v" python3 -I "$IMPL" --project "$H2P" --root "$R" "$@" </dev/null 2>"$SB/err")"; RC=$?; ERR="$(cat "$SB/err")"; }
+sde abc backup --path b.txt
+eq "F4 backup with SOURCE_DATE_EPOCH=abc: refused rc 3" 3 "$RC"
+hasnt "F4 abc: no Python traceback" "Traceback" "$ERR"
+has "F4 abc: the refusal names the variable" "SOURCE_DATE_EPOCH" "$ERR"
+check "F4 abc: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+sde 99999999999999999999 backup --path b.txt
+eq "F4 backup with an out-of-range SOURCE_DATE_EPOCH: refused rc 3" 3 "$RC"
+hasnt "F4 out of range: no Python traceback" "Traceback" "$ERR"
+check "F4 out of range: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+mkdir -p "$H2P/.claude/skills"; ln -s "$R/skills/alpha" "$H2P/.claude/skills/alpha"
+sde abc record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 record refuses the same bad value the same way (rc 3, not silently ignored)" 3 "$RC"
+check "F4 record wrote no ledger" test ! -e "$H2P/.constitution/wiring.json"
+sde "" backup --path b.txt; eq "F4 control: an empty SOURCE_DATE_EPOCH means the clock (rc 0)" 0 "$RC"
+sde 1700000000 record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 control: a valid value is accepted" 0 "$RC"
+
 # ── 11. determinism and meta ──────────────────────────────────────────────
 DS=()
 for n in 1 2 3; do

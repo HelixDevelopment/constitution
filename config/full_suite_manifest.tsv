@@ -779,6 +779,7 @@ tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
 tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto
 tests/layout/test_canonical_root_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh

@@ -23,7 +23,8 @@ per-checkout extensions.state/key, 0600, never committed) and the row's constitu
 root realpath, and (3) the on-disk fingerprint equals the row's. Everything else is never replaced or deleted.
 Fingerprints: symlink = link text; file = sha256; json-entry = canonical-JSON sha256 of that one entry.
 The ledger holds paths and digests only (section 8, §11.4.10). Deletes: unlink of one proven path only, no
-recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created stamp (determinism).
+recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created and backup stamps
+(determinism); a set value that is not a plain integer of seconds, or is out of range, is refused (rc 3).
 """
 import fcntl
 import hashlib
@@ -135,10 +136,25 @@ def canon(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
 
 
-def now_iso():
+def source_epoch():
+    """Seconds from SOURCE_DATE_EPOCH (determinism), else the clock. A set value that is not a plain non-negative
+    integer, or that time.gmtime cannot represent, raises ValueError, which main() maps to a refusal (rc 3); every
+    caller (record's created stamp, backup's directory stamp) behaves the same way (review F4)."""
     t = os.environ.get("SOURCE_DATE_EPOCH")
-    ts = int(t) if t and t.isdigit() else int(time.time())
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+    if not t:
+        return int(time.time())
+    if not re.fullmatch(r"[0-9]{1,20}", t):  # RULE:W-epoch-digits
+        raise ValueError("SOURCE_DATE_EPOCH must be a non-negative integer number of seconds")
+    ts = int(t)
+    try:
+        time.gmtime(ts)
+    except (OverflowError, OSError, ValueError):
+        raise ValueError("SOURCE_DATE_EPOCH is out of range for this platform")  # RULE:W-epoch-range
+    return ts
+
+
+def now_iso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(source_epoch()))
 
 
 def real_dir(path, what):
@@ -473,10 +489,15 @@ class Ledger:
         return {"rows": [dict(r, state=self.classify_row(r, local)) for r in sorted(rows, key=lambda r: r["id"])]}
 
     def check(self):
-        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout."""
+        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout AND this
+        checkout holds no signature for a row the tracked ledger no longer has (review F3: a lost or reverted
+        wiring.json must not read as "nothing wired"; a never-wired project has neither and stays ok)."""
         rows = self.status()["rows"]
-        return {"ok": all(r["state"] == "ours" for r in rows),  # RULE:W-check-ok
-                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows]}
+        ids = {r["id"] for r in rows}
+        orphans = [{"id": i, "state": "tracked-row-missing"} for i in sorted(self.local_rows()) if i not in ids]  # RULE:W-check-orphans
+        return {"ok": all(r["state"] == "ours" for r in rows) and not orphans,  # RULE:W-check-ok
+                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows],
+                "orphans": orphans}
 
     # -- inventory / adopt
     def _const_roots(self):
@@ -600,7 +621,7 @@ class Ledger:
                 entries.append({"path": rel, "type": "file", "mode": stat.S_IMODE(st.st_mode)})
             else:
                 raise Refused("%s is neither a file nor a symlink; refusing to back it up" % clean(rel))
-        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(int(os.environ.get("SOURCE_DATE_EPOCH") or time.time())))
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(source_epoch()))
         os.makedirs(base, exist_ok=True)
         bgi = os.path.join(base, ".gitignore")          # F3: the backups hold copies of consumer files (settings may hold secrets)
         if not os.path.lexists(bgi):

@@ -1,9 +1,9 @@
-registry actions (name: lines): 22
+registry actions: 12 (expected command files per agent: 24, one NAME and one default-NAME each)
 [old] baseline after a clean run:        plugin=24 gemini=24 qwen=24 codex=24
 [old] (A) invalid registry, generator rc=1: plugin=0 gemini=0 qwen=0 codex=0
-[old] (B) SIGKILL after 150ms:          plugin=6 gemini=24 qwen=24 codex=24
-[old] (B) SIGKILL after 400ms:          plugin=0 gemini=0 qwen=21 codex=24
-[old] (B) SIGKILL after 800ms:          plugin=0 gemini=0 qwen=0 codex=0
+[old] (B) SIGKILL after 150ms:          plugin=16 gemini=24 qwen=24 codex=24
+[old] (B) SIGKILL after 400ms:          plugin=0 gemini=17 qwen=24 codex=24
+[old] (B) SIGKILL after 800ms:          plugin=4 gemini=24 qwen=24 codex=24
 [new] baseline after a clean run:        plugin=24 gemini=24 qwen=24 codex=24
 [new] (A) invalid registry, generator rc=1: plugin=24 gemini=24 qwen=24 codex=24
 [new] (B) SIGKILL after 150ms:          plugin=24 gemini=24 qwen=24 codex=24

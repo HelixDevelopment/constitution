@@ -74,8 +74,16 @@ kill_mutant M32_in_backup_not_skipped 'if r["path"] in in_backup:
                 continue' 'if False:
                 continue'
 kill_mutant M33_ledger_symlink_ok 'if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode) and m["ledger"][name] is not None:' 'if False:'
-# M34 (ValueError not caught in main) and M35 (preflight creates the ledger dir) are EQUIVALENT and deliberately not listed:
-# every ledger row path is validated on load (a NUL path is refused as hostile), so no ValueError can reach main(); and
-# the backup manifest is MAC-verified with the key that lives in .constitution/extensions.state, so any rollback that
-# reaches the ledger preflight already has both ledger directories on disk. Both guards remain as defense in depth.
+# M34: main() maps ValueError to a refusal. The wave-2 note called this mutant EQUIVALENT ("no ValueError can reach
+# main()"); the review (F4) showed that claim was wrong: a bad SOURCE_DATE_EPOCH reaches main() as a ValueError. It
+# is killable and listed here; the F4 tests in section 9d kill it (a traceback, rc 1, instead of rc 3).
+kill_mutant M34_valueerror_not_mapped 'except (OSError, ValueError) as ex:                  # includes UnicodeError; never a traceback' 'except OSError as ex:'
+kill_mutant M36_check_ignores_orphans 'if i not in ids]  # RULE:W-check-orphans' 'if False]'
+kill_mutant M37_epoch_digits_unchecked 'if not re.fullmatch(r"[0-9]{1,20}", t):  # RULE:W-epoch-digits' 'if False:'
+kill_mutant M38_epoch_range_unchecked '        time.gmtime(ts)
+    except (OverflowError, OSError, ValueError):' '        pass
+    except (OverflowError, OSError, ValueError):'
+# M35 (preflight creates the ledger dir) is EQUIVALENT and deliberately not listed: the backup manifest is MAC-verified
+# with the key that lives in .constitution/extensions.state, so any rollback that reaches the ledger preflight already
+# has both ledger directories on disk (the review agreed by code reading). The guard remains as defense in depth.
 finish

@@ -36,7 +36,8 @@ import json, os, sys
 root, tree, sd = sys.argv[1:4]
 old = json.load(open(os.path.join(sd, "hooks-fixture.added.json")))
 st = os.lstat(tree)
-print(json.dumps({"id": "hooks-fixture", "root": os.path.realpath(root), "sha256": old["sha256"], "dev": st.st_dev, "ino": st.st_ino}))
+print(json.dumps({"id": "hooks-fixture", "root": os.path.realpath(root), "sha256": old["sha256"], "dev": st.st_dev, "ino": st.st_ino,
+                  "via": old.get("via", "add"), "attest": old.get("attest")}))
 PY
 }
 
@@ -47,6 +48,8 @@ eq "E01 fact file is mode 0600" 600 "$(stat -c %a "$SD2/$FACT" 2>/dev/null)"
 eq "E01 fact is bound to the constitution root realpath" "$(realpath "$R")" "$(jget "$(cat "$SD2/$FACT")" root)"
 has "E01 fact names the tree identity" '"ino"' "$(cat "$SD2/$FACT")"
 hasnt "E01 fact holds no secret key material" "$(cat "$SD2/key")" "$(cat "$SD2/$FACT")"
+eq "E01 a fact made by add says so (via add)" add "$(jget "$(cat "$SD2/$FACT")" via)"
+eq "E01 a fact made by add carries no attestation" null "$(jget "$(cat "$SD2/$FACT")" attest)"
 
 echo "### E01 the F-1 attack: copied lock, then enable, then remove"
 mkdir -p "$P1/.constitution"; cp "$P2/.constitution/extensions.lock.yml" "$P1/.constitution/extensions.lock.yml"
@@ -107,4 +110,111 @@ check "E01 before recovery the fact is not there yet" test ! -e "$KP/.constituti
 e_kp list >/dev/null; e_kp lock >/dev/null     # a read-only run never recovers; a mutating run does
 check "E01 after recovery the fact exists" test -f "$KP/.constitution/extensions.state/$FACT"
 e_kp remove hooks-fixture --yes; eq "E01 the recovered owner can remove (rc 0)" 0 "$RC"
+# ── wave 2 review round 2 ─────────────────────────────────────────────────────────────────────────────────
+# Q1 / F2 (operator decision 2026-11-05): an install made before E01 has a lock entry and a state record but no
+# fact. Nothing is adopted implicitly (D6): re-add stays a no-op; the only way to make it removable is an explicit,
+# operator-attested `adopt-install <id> --waiver-id <ref>` that writes a fact marked "adopt".
+echo "### R2 Q1 legacy install: refusal names adopt-install; adopt-install is explicit and attested"
+P3="$SB/p3"; make_project "$P3"; SD3="$P3/.constitution/extensions.state"
+e3() { eng --root "$R" --project-root "$P3" "$@"; }
+e3 add "$H" --dev --waiver-id WD --yes; eq "R2 setup: P3 adds" 0 "$RC"
+rm -f "$SD3/$FACT"                                  # what an install made by a pre-E01 engine looks like
+e3 remove hooks-fixture --yes; eq "R2 legacy: remove refused rc 3" 3 "$RC"
+has "R2 legacy: the refusal names the next step (adopt-install)" "adopt-install hooks-fixture" "$OUT"
+hasnt "R2 legacy: the refusal no longer claims only the add checkout can remove it" "Only the checkout that ran" "$OUT"
+has "R2 legacy: the refusal says a copy of the checkout carries the fact too" "copy" "$OUT"
+e3 add "$H" --dev --waiver-id WD --yes; eq "R2 legacy: re-add is still a no-op (rc 0)" 0 "$RC"
+check "R2 legacy: re-add created no fact (nothing adopted implicitly, D6)" test ! -e "$SD3/$FACT"
+has "R2 legacy: re-add points at adopt-install" "adopt-install" "$OUT"
+e3 adopt-install hooks-fixture --yes; eq "R2 adopt-install without an attestation reference: usage rc 2" 2 "$RC"
+check "R2 no fact after the usage error" test ! -e "$SD3/$FACT"
+e3 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 adopt-install without confirmation (no tty, no --yes): rc 3" 3 "$RC"
+check "R2 no fact without confirmation" test ! -e "$SD3/$FACT"
+e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes --dry-run; eq "R2 adopt-install dry-run rc 0" 0 "$RC"
+check "R2 dry-run wrote no fact" test ! -e "$SD3/$FACT"
+e3 adopt-install hooks-fixture --waiver-id 'ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' --yes; eq "R2 a token-shaped attestation reference is refused (rc 2)" 2 "$RC"
+e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 adopt-install with attestation and confirmation: rc 0" 0 "$RC"
+check "R2 adopt-install wrote the fact" test -f "$SD3/$FACT"
+eq "R2 the fact is marked adopted, not added" adopt "$(jget "$(cat "$SD3/$FACT")" via)"
+eq "R2 the fact records the attestation reference" OPS-1 "$(jget "$(cat "$SD3/$FACT")" attest)"
+eq "R2 the adopted fact is mode 0600" 600 "$(stat -c %a "$SD3/$FACT" 2>/dev/null)"
+has "R2 the audit log records adopt-install with its attestation" '"op": "adopt-install"' "$(cat "$P3/.constitution/extensions.audit.log")"
+has "R2 the audit line names the attestation" "OPS-1" "$(grep adopt-install "$P3/.constitution/extensions.audit.log")"
+H3="$(sha256sum "$SD3/$FACT" | cut -c1-64)"
+e3 adopt-install hooks-fixture --waiver-id OPS-2 --yes; eq "R2 adopt-install over a valid fact: rc 0, nothing to do" 0 "$RC"
+eq "R2 the valid fact is not rewritten" "$H3" "$(sha256sum "$SD3/$FACT" | cut -c1-64)"
+e3 remove hooks-fixture --yes; eq "R2 after adoption the checkout removes it (rc 0)" 0 "$RC"
+check "R2 tree gone after remove of the adopted install" test ! -e "$INST/hooks-fixture"
+check "R2 adopted fact deleted with the lock entry" test ! -e "$SD3/$FACT"
+e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 adopt-install of an id not in the lock: rc 3" 3 "$RC"
+
+echo "### R2 Q1 adopt-install refuses what it cannot check"
+P4="$SB/p4"; make_project "$P4"; SD4="$P4/.constitution/extensions.state"
+e4() { eng --root "$R" --project-root "$P4" "$@"; }
+e4 add "$H" --dev --waiver-id WD --yes; eq "R2 setup: P4 adds" 0 "$RC"
+rm -f "$SD4/$FACT"
+P5="$SB/p5"; make_project "$P5"; mkdir -p "$P5/.constitution"; cp "$P4/.constitution/extensions.lock.yml" "$P5/.constitution/"
+e5() { eng --root "$R" --project-root "$P5" "$@"; }
+e5 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 copied lock with no state record: adopt-install refused rc 3" 3 "$RC"
+check "R2 no fact in the copied-lock clone" test ! -e "$P5/.constitution/extensions.state/$FACT"
+printf 'tampered\n' >>"$INST/hooks-fixture/extension.yml"
+e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree differs from the lock: adopt-install refused rc 5" 5 "$RC"
+check "R2 no fact for a tree that does not verify" test ! -e "$SD4/$FACT"
+mv "$INST/hooks-fixture" "$SB/moved-tree"
+e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree absent: adopt-install refused rc 3" 3 "$RC"
+ln -s "$SB/moved-tree" "$INST/hooks-fixture"
+e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree is a symlink: adopt-install refused rc 3" 3 "$RC"
+check "R2 no fact through a symlinked tree" test ! -e "$SD4/$FACT"
+rm "$INST/hooks-fixture"; safe_rm_rf "${SB:?}/moved-tree"
+printf '{"forged": true}\n' >"$SD4/$FACT"; chmod 600 "$SD4/$FACT"
+mkdir -p "$INST"; e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes
+eq "R2 adopt-install over a fact that does not verify: refused rc 3" 3 "$RC"
+check "R2 an existing fact that does not verify is never overwritten" grep -q forged "$SD4/$FACT"
+rm -f "$SD4/$FACT"
+
+# a BUNDLED lock entry whose tree now sits under _installed (the bundled copy left the root) is not adoptable
+P9="$SB/p9"; make_project "$P9"
+eng --root "$R" --project-root "$P9" enable hello-fixture --yes; eq "R2 setup: P9 enables the bundled hello-fixture" 0 "$RC"
+mv "$R/extensions/hello-fixture" "$INST/hello-fixture"
+eng --root "$R" --project-root "$P9" adopt-install hello-fixture --waiver-id OPS-1 --yes
+eq "R2 a bundled lock entry is never adopted as an install (rc 3)" 3 "$RC"
+check "R2 no fact for a bundled entry" test ! -e "$P9/.constitution/extensions.state/hello-fixture.added.json"
+mv "$INST/hello-fixture" "$R/extensions/hello-fixture"
+
+echo "### R2 F6 a symlink at a per-id state path fails closed BEFORE anything is staged"
+for leaf in "$FACT" hooks-fixture.json; do
+  P6="$SB/p6-${leaf%%.*}${leaf#*.}"; P6="${P6//./_}"; make_project "$P6"; mkdir -p -m 700 "$P6/.constitution/extensions.state"
+  printf 'victim\n' >"$SB/victim"; ln -s "$SB/victim" "$P6/.constitution/extensions.state/$leaf"
+  eng --root "$R" --project-root "$P6" add "$H" --dev --waiver-id WD --yes
+  eq "R2 F6 $leaf is a symlink: add refused rc 5" 5 "$RC"
+  eq "R2 F6 $leaf: the symlink target was not written" victim "$(cat "$SB/victim")"
+  check "R2 F6 $leaf: no tree was installed" test ! -e "$INST/hooks-fixture"
+  check "R2 F6 $leaf: no journal left behind" test ! -e "$P6/.constitution/extensions.txn"
+  check "R2 F6 $leaf: no lock entry" sh -c "! grep -q hooks-fixture '$P6/.constitution/extensions.lock.yml' 2>/dev/null"
+done
+
+echo "### R2 F7 recovery that deletes the state record deletes the fact too"
+P7="$SB/p7"; make_project "$P7"; SD7="$P7/.constitution/extensions.state"
+e7() { eng --root "$R" --project-root "$P7" "$@"; }
+e7 add "$H" --dev --waiver-id WD --yes; eq "R2 setup: P7 adds" 0 "$RC"
+OUT="$(CONSTITUTION_EXT_TEST_MODE=1 CONSTITUTION_EXT_TEST_KILL_AT=commit:lock-written bash "$ENGINE" --root "$R" --project-root "$P7" remove hooks-fixture --yes </dev/null 2>&1)"; RC=$?
+check "R2 F7 the remove was killed after the lock was written (journal left)" test -f "$P7/.constitution/extensions.txn"
+check "R2 F7 precondition: lock entry already gone" sh -c "! grep -q hooks-fixture '$P7/.constitution/extensions.lock.yml'"
+check "R2 F7 precondition: the fact is still there before recovery" test -f "$SD7/$FACT"
+e7 lock >/dev/null
+check "R2 F7 remove-journal recovery deleted the state record" test ! -e "$SD7/hooks-fixture.json"
+check "R2 F7 remove-journal recovery deleted the fact" test ! -e "$SD7/$FACT"
+check "R2 F7 the tree is gone" test ! -e "$INST/hooks-fixture"
+# commit journals are unsigned and are written by enable/disable/lock (outer=False); a hand-made one with a delete
+# stands in for an interrupted commit whose lock no longer names the id (constructed precondition, real code path)
+P8="$SB/p8"; make_project "$P8"; SD8="$P8/.constitution/extensions.state"
+e8() { eng --root "$R" --project-root "$P8" "$@"; }
+e8 add "$H" --dev --waiver-id WD --yes; eq "R2 setup: P8 adds" 0 "$RC"
+rm "$P8/.constitution/extensions.lock.yml"
+printf '{"op": "commit", "records": [], "deletes": ["hooks-fixture"]}' >"$P8/.constitution/extensions.txn"
+check "R2 F7 precondition: fact present before the commit-journal recovery" test -f "$SD8/$FACT"
+e8 lock >/dev/null
+check "R2 F7 commit-journal recovery deleted the state record" test ! -e "$SD8/hooks-fixture.json"
+check "R2 F7 commit-journal recovery deleted the fact" test ! -e "$SD8/$FACT"
+safe_rm_rf "${INST:?}/hooks-fixture"
 finish

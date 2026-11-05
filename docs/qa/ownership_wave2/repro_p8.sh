@@ -4,6 +4,11 @@
 # incomplete, and shows the current generator (atomic, stage then rename) does not. Everything runs in a mktemp
 # sandbox; the real tree is only read (`git show`). Usage: bash docs/qa/ownership_wave2/repro_p8.sh [OLD_REV]
 # Output: counts per agent after (A) a registry that fails validation, (B) a SIGKILL during generation.
+# Evidence class (section 11.4.115(G)): a CONSTRUCTED-precondition reproduction of the generator mechanism (the
+# invalid registry and the kill are made by this script); it is not an observed recurrence of the reported
+# incident. The (B) rows depend on timing: where the kill lands differs between runs and hosts.
+# Count note (wave 2 review r2, N2): the generator writes two files per entry of `actions:` (NAME and
+# default-NAME); entries of `subsystems:` produce no command file, so the expected count is 2 x actions.
 set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OLD_REV="${1:-1afdfc6^}"
@@ -19,8 +24,8 @@ mk() { # DIR GENERATOR_SOURCE(old|new)
 counts() { printf 'plugin=%s gemini=%s qwen=%s codex=%s' "$(ls "$1"/plugins/helix/commands/*.md 2>/dev/null | wc -l)" \
   "$(ls "$1"/actions/generated/gemini/*.toml 2>/dev/null | wc -l)" "$(ls "$1"/actions/generated/qwen/*.toml 2>/dev/null | wc -l)" \
   "$(ls "$1"/actions/generated/codex/*.md 2>/dev/null | wc -l)"; }
-N="$(grep -c '^  - name:' "$REPO/actions/registry.yaml" 2>/dev/null || echo '?')"
-echo "registry actions (name: lines): $N"
+N="$(awk '/^actions:/{a=1;next} /^[A-Za-z_]+:/{a=0} a && /^  - name:/{n++} END{print n+0}' "$REPO/actions/registry.yaml" 2>/dev/null)"
+echo "registry actions: $N (expected command files per agent: $((N * 2)), one NAME and one default-NAME each)"
 for which in old new; do
   d="$SB/$which"; mk "$d" "$which"
   bash "$d/scripts/generate_agent_prefix_commands.sh" >/dev/null 2>&1
