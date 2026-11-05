@@ -71,6 +71,10 @@ make_upstream() {
   git -C "$d/upstream.git" config uploadpack.allowFilter true || return 1
   # the suite must not depend on which branch REPO happens to have checked out: the upstream HEAD is main
   # (a checkout on a vehicle branch made every `push origin main` below fail with "src refspec main does not match")
+  # a REPO checked out on a vehicle branch with no local main (git clone -b) has no refs/heads/main in the bare copy:
+  # create it from the bare HEAD so main exists (the tests push, pull and rev-parse main)
+  git -C "$d/upstream.git" rev-parse -q --verify refs/heads/main >/dev/null \
+    || git -C "$d/upstream.git" update-ref refs/heads/main "$(git -C "$d/upstream.git" rev-parse HEAD)" || return 1
   git -C "$d/upstream.git" symbolic-ref HEAD refs/heads/main || return 1
   git clone -q "$d/upstream.git" "$d/upwork" || return 1
   if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
