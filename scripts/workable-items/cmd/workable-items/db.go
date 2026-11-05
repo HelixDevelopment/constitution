@@ -81,7 +81,143 @@ func openDB(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate item_history occurred_at: %w", err)
 	}
+	// §11.4.292 (v7→v8): reproduction + investigation state columns. Runs LAST
+	// so every earlier rebuild (migrateRepresentationColumn) has already
+	// produced the final items table. Idempotent, lossless (NOT NULL DEFAULT
+	// 'UNSET' for the two states, nullable details).
+	if err := migrateStatesColumns(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate reproduction/investigation states: %w", err)
+	}
 	return db, nil
+}
+
+// statesColumnDDL is the v8 ADD COLUMN list, in table order. The CHECK lists
+// are the SAME literals as schema_embed.sql (pinned to states.go's closed sets
+// by TestStates_SchemaCheckMatchesGoClosedSets). SQLite tests a CHECK added by
+// ADD COLUMN against every existing row; the DEFAULT 'UNSET' satisfies it, so
+// a populated pre-v8 DB migrates without a rebuild.
+var statesColumnDDL = []struct{ name, ddl string }{
+	{"reproduction_state", `ALTER TABLE items ADD COLUMN reproduction_state TEXT NOT NULL DEFAULT 'UNSET'
+		CHECK (reproduction_state IN ('UNSET', 'UNREPRODUCED',
+		    'reproduced-live', 'reproduced-host-fixture',
+		    'not-reproducible-with-evidence',
+		    'blocked-no-device-with-recorded-blocker'))`},
+	{"reproduction_surface", `ALTER TABLE items ADD COLUMN reproduction_surface TEXT
+		CHECK (reproduction_surface IS NULL OR reproduction_surface IN ('live-target', 'host-only'))`},
+	{"reproduction_evidence", `ALTER TABLE items ADD COLUMN reproduction_evidence TEXT`},
+	{"reproduction_red_cmd", `ALTER TABLE items ADD COLUMN reproduction_red_cmd TEXT`},
+	{"reproduction_green_cmd", `ALTER TABLE items ADD COLUMN reproduction_green_cmd TEXT`},
+	{"reproduction_env", `ALTER TABLE items ADD COLUMN reproduction_env TEXT`},
+	{"reproduction_signature", `ALTER TABLE items ADD COLUMN reproduction_signature TEXT`},
+	{"reproduction_blocker", `ALTER TABLE items ADD COLUMN reproduction_blocker TEXT`},
+	{"reproduction_updated_at", `ALTER TABLE items ADD COLUMN reproduction_updated_at TEXT`},
+	{"reproduction_updated_by", `ALTER TABLE items ADD COLUMN reproduction_updated_by TEXT`},
+	{"investigation_state", `ALTER TABLE items ADD COLUMN investigation_state TEXT NOT NULL DEFAULT 'UNSET'
+		CHECK (investigation_state IN ('UNSET', 'not-started',
+		    'in-progress', 'root-cause-found-with-evidence',
+		    'root-cause-unconfirmed', 'closed-no-defect'))`},
+	{"investigation_root_cause", `ALTER TABLE items ADD COLUMN investigation_root_cause TEXT`},
+	{"investigation_evidence", `ALTER TABLE items ADD COLUMN investigation_evidence TEXT`},
+	{"investigation_updated_at", `ALTER TABLE items ADD COLUMN investigation_updated_at TEXT`},
+	{"investigation_updated_by", `ALTER TABLE items ADD COLUMN investigation_updated_by TEXT`},
+}
+
+// migrateStatesColumns brings a pre-v8 `items` table up to v8 (§11.4.292). Each
+// ADD COLUMN is skipped when the column already exists, so re-opening is a
+// no-op; existing rows read back as UNSET with empty details. The
+// repro_gate_exemptions table comes from the embedded schema (CREATE TABLE IF
+// NOT EXISTS), so it needs no step here.
+func migrateStatesColumns(db *sql.DB) error {
+	have, err := itemColumns(db)
+	if err != nil {
+		return err
+	}
+	for _, c := range statesColumnDDL {
+		if have[c.name] {
+			continue
+		}
+		if _, err := db.Exec(c.ddl); err != nil {
+			return fmt.Errorf("add column %s: %w", c.name, err)
+		}
+	}
+	for _, idx := range []string{
+		`CREATE INDEX IF NOT EXISTS idx_items_reproduction_state ON items(reproduction_state)`,
+		`CREATE INDEX IF NOT EXISTS idx_items_investigation_state ON items(investigation_state)`,
+	} {
+		if _, err := db.Exec(idx); err != nil {
+			return fmt.Errorf("create states index: %w", err)
+		}
+	}
+	// CAST: numeric compare, never the lexicographic '10' < '8' regression
+	// (F15, see migrateColumns / migrateItemHistoryOccurredAt).
+	_, err = db.Exec(`UPDATE meta SET value='8' WHERE key='schema_version' AND CAST(value AS INTEGER) < 8`)
+	return err
+}
+
+// statesSelectCols is the SELECT list for the 15 state columns, in
+// statesScanDest order (COALESCE: a NULL detail reads as "").
+const statesSelectCols = `COALESCE(reproduction_state,'UNSET'), COALESCE(reproduction_surface,''),
+		COALESCE(reproduction_evidence,''), COALESCE(reproduction_red_cmd,''),
+		COALESCE(reproduction_green_cmd,''), COALESCE(reproduction_env,''),
+		COALESCE(reproduction_signature,''), COALESCE(reproduction_blocker,''),
+		COALESCE(reproduction_updated_at,''), COALESCE(reproduction_updated_by,''),
+		COALESCE(investigation_state,'UNSET'), COALESCE(investigation_root_cause,''),
+		COALESCE(investigation_evidence,''), COALESCE(investigation_updated_at,''),
+		COALESCE(investigation_updated_by,'')`
+
+// statesScanDest returns the Scan destinations matching statesSelectCols.
+func statesScanDest(r *stateRecord) []any {
+	return []any{&r.ReproState, &r.ReproSurface, &r.ReproEvidence, &r.ReproRedCmd,
+		&r.ReproGreenCmd, &r.ReproEnv, &r.ReproSignature, &r.ReproBlocker,
+		&r.ReproUpdatedAt, &r.ReproUpdatedBy, &r.InvState, &r.InvRootCause,
+		&r.InvEvidence, &r.InvUpdatedAt, &r.InvUpdatedBy}
+}
+
+// statesInsertCols / statesInsertArgs are the INSERT column list and argument
+// values for the 15 state columns (details stored NULL when empty).
+const statesInsertCols = `reproduction_state, reproduction_surface, reproduction_evidence,
+	reproduction_red_cmd, reproduction_green_cmd, reproduction_env,
+	reproduction_signature, reproduction_blocker, reproduction_updated_at,
+	reproduction_updated_by, investigation_state, investigation_root_cause,
+	investigation_evidence, investigation_updated_at, investigation_updated_by`
+
+const statesInsertMarks = `?,?,?,?,?,?,?,?,?,?,?,?,?,?,?`
+
+func statesInsertArgs(r stateRecord) []any {
+	r = r.norm()
+	return []any{r.ReproState, nullable(r.ReproSurface), nullable(r.ReproEvidence),
+		nullable(r.ReproRedCmd), nullable(r.ReproGreenCmd), nullable(r.ReproEnv),
+		nullable(r.ReproSignature), nullable(r.ReproBlocker), nullable(r.ReproUpdatedAt),
+		nullable(r.ReproUpdatedBy), r.InvState, nullable(r.InvRootCause),
+		nullable(r.InvEvidence), nullable(r.InvUpdatedAt), nullable(r.InvUpdatedBy)}
+}
+
+// statesUpdateSet is the `col=?` list for an UPDATE of the 15 state columns, in
+// statesInsertArgs order.
+const statesUpdateSet = `reproduction_state=?, reproduction_surface=?, reproduction_evidence=?,
+	reproduction_red_cmd=?, reproduction_green_cmd=?, reproduction_env=?,
+	reproduction_signature=?, reproduction_blocker=?, reproduction_updated_at=?,
+	reproduction_updated_by=?, investigation_state=?, investigation_root_cause=?,
+	investigation_evidence=?, investigation_updated_at=?, investigation_updated_by=?`
+
+// sqlExecer is the subset of *sql.DB / *sql.Tx the prune helper needs.
+type sqlExecer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+// pruneReproExemptions drops every repro_gate_exemptions row whose item no
+// longer sits at (atm_id, Fixed, representation) in the frozen status, so a
+// reopened-then-reclosed item is always checked by the closure gate. Called by
+// replaceDocument (md→db), reopen and move, inside their transactions.
+func pruneReproExemptions(x sqlExecer) error {
+	_, err := x.Exec(`DELETE FROM repro_gate_exemptions
+		WHERE NOT EXISTS (SELECT 1 FROM items i
+			WHERE i.atm_id = repro_gate_exemptions.atm_id
+			  AND i.current_location = 'Fixed'
+			  AND COALESCE(i.representation,'section') = repro_gate_exemptions.representation
+			  AND i.status = repro_gate_exemptions.status)`)
+	return err
 }
 
 // migrateColumns brings an existing `items` table up to the current schema by
@@ -453,6 +589,11 @@ type item struct {
 	CommitRef       string // GAP B: pipe-table "Commit(s)" cell ("" = none)
 	Destination     string // ASSIGNMENT_MECHANISM_DESIGN.md §3.1 — "" = not yet classified
 	LogicGroup      string // ASSIGNMENT_MECHANISM_DESIGN.md §3.1 — "" = not yet classified
+
+	// States is the §11.4.292 reproduction + investigation record (schema v8,
+	// states.go). The columns are the source of truth; the body carries the
+	// rendered **Reproduction:** / **Investigation:** lines.
+	States stateRecord
 }
 
 // repOrDefault normalises an item's Representation, defaulting an empty value to
@@ -707,12 +848,15 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 		return fmt.Errorf("clear items: %w", err)
 	}
 
+	// §11.4.292 (v8): the state columns are persisted FROM the body records the
+	// parser read (buildItem → parseStateLines), so md→db never drops a state
+	// the Markdown carries; an item with no record row stores UNSET.
 	insItem, err := tx.Prepare(`INSERT INTO items
 		(atm_id, type, status, severity, title, description,
 		 forensic_anchor, closure_criteria, composes_with,
 		 created_by, assigned_to, current_location, body_md,
-		 representation, closure_date, round, commit_ref)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+		 representation, closure_date, round, commit_ref, ` + statesInsertCols + `)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,` + statesInsertMarks + `)`)
 	if err != nil {
 		return err
 	}
@@ -732,12 +876,13 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 	defer insOBD.Close()
 
 	for _, it := range items {
-		if _, err := insItem.Exec(it.AtmID, it.Type, it.Status,
+		args := []any{it.AtmID, it.Type, it.Status,
 			nullable(it.Severity), it.Title, it.Description,
 			nullable(it.ForensicAnchor), nullable(it.ClosureCriteria),
 			nullable(it.ComposesWith), it.CreatedBy, it.AssignedTo,
 			it.CurrentLocation, it.BodyMD, it.repOrDefault(),
-			nullable(it.ClosureDate), nullable(it.Round), nullable(it.CommitRef)); err != nil {
+			nullable(it.ClosureDate), nullable(it.Round), nullable(it.CommitRef)}
+		if _, err := insItem.Exec(append(args, statesInsertArgs(it.States)...)...); err != nil {
 			return fmt.Errorf("insert item %s [%s]: %w", it.AtmID, it.repOrDefault(), err)
 		}
 		// Repopulate operator_block_details only for Operator-blocked items whose
@@ -767,6 +912,12 @@ func replaceDocument(db *sql.DB, document string, items []item, segs []segment) 
 			nullable(s.AtmID), s.repOrDefault(), nullableRaw(s.Raw, s.Kind)); err != nil {
 			return fmt.Errorf("insert segment %s#%d: %w", s.Document, s.Seq, err)
 		}
+	}
+
+	// §11.4.292: an item that left Fixed (a Markdown-side reopen / move) loses
+	// its closure-gate exemption, so its next closure is checked.
+	if err := pruneReproExemptions(tx); err != nil {
+		return fmt.Errorf("prune repro_gate_exemptions: %w", err)
 	}
 
 	if _, err := tx.Exec(`UPDATE meta SET value=?, last_modified=datetime('now') WHERE key='last_sync_direction'`, "md-to-db"); err != nil {
@@ -811,8 +962,9 @@ func loadItems(db *sql.DB) ([]item, error) {
 		current_location, COALESCE(body_md,''),
 		COALESCE(representation,'section'), COALESCE(closure_date,''),
 		COALESCE(round,''), COALESCE(commit_ref,''),
-		COALESCE(destination,''), COALESCE(logic_group,'')
-		FROM items ORDER BY atm_id, current_location, representation`)
+		COALESCE(destination,''), COALESCE(logic_group,''),
+		` + statesSelectCols +
+		` FROM items ORDER BY atm_id, current_location, representation`)
 	if err != nil {
 		return nil, err
 	}
@@ -820,12 +972,13 @@ func loadItems(db *sql.DB) ([]item, error) {
 	var out []item
 	for rows.Next() {
 		var it item
-		if err := rows.Scan(&it.AtmID, &it.Type, &it.Status, &it.Severity,
+		dest := []any{&it.AtmID, &it.Type, &it.Status, &it.Severity,
 			&it.Title, &it.Description, &it.ForensicAnchor,
 			&it.ClosureCriteria, &it.ComposesWith,
 			&it.CreatedBy, &it.AssignedTo, &it.CurrentLocation,
 			&it.BodyMD, &it.Representation, &it.ClosureDate,
-			&it.Round, &it.CommitRef, &it.Destination, &it.LogicGroup); err != nil {
+			&it.Round, &it.CommitRef, &it.Destination, &it.LogicGroup}
+		if err := rows.Scan(append(dest, statesScanDest(&it.States)...)...); err != nil {
 			return nil, err
 		}
 		out = append(out, it)
@@ -843,14 +996,15 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 	// representations' bodies; the segment carries which representation it points
 	// to, so the lookup key is atm_id + "\x00" + representation.
 	bodyByKey := map[string]string{}
-	brows, err := db.Query(`SELECT atm_id, representation, status, COALESCE(body_md,'')
-		FROM items WHERE current_location = ?`, document)
+	brows, err := db.Query(`SELECT atm_id, representation, status, COALESCE(body_md,''), `+
+		statesSelectCols+` FROM items WHERE current_location = ?`, document)
 	if err != nil {
 		return "", err
 	}
 	for brows.Next() {
 		var id, rep, status, body string
-		if err := brows.Scan(&id, &rep, &status, &body); err != nil {
+		var st stateRecord
+		if err := brows.Scan(append([]any{&id, &rep, &status, &body}, statesScanDest(&st)...)...); err != nil {
 			brows.Close()
 			return "", err
 		}
@@ -862,7 +1016,13 @@ func renderDocument(db *sql.DB, document string) (string, error) {
 		// Status line is rewritten, and its `**Reopened-Details:**` /
 		// `**Operator-Block-Details:**` blocks + all other content are preserved verbatim
 		// (see canonicalizeBodyStatusLine, parse.go).
-		bodyByKey[id+"\x00"+rep] = canonicalizeBodyStatusLine(body, status)
+		//
+		// §11.4.292 (v8) generator symmetry for the records: the
+		// `**Reproduction:**` / `**Investigation:**` lines are emitted from the
+		// authoritative state columns — a STRICT no-op for every item whose body
+		// already parses to its columns (every md→db-synced item, by
+		// construction), so the byte-identical round-trip is preserved.
+		bodyByKey[id+"\x00"+rep] = canonicalizeStateLines(canonicalizeBodyStatusLine(body, status), st, rep)
 	}
 	brows.Close()
 	if err := brows.Err(); err != nil {

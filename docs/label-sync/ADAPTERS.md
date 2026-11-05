@@ -3,11 +3,11 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/ADAPTERS.md` |
-| Revision | 4 (2026-10-15) — re-review 3: a signal is forwarded only after the child reports ready (USR1), so it can no longer be lost in the fork window (§5); revision 3 (2026-10-14) — re-review: a signal in the spawn window reaches the agent (§5); revision 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
+| Revision | 5 (2026-11-04) — wrapper exit status: readiness taken before `wait`, a forwarded-signal `wait` repeated, lost status decided from bash's own error not from the value 127, delay seams bounded (§5); revision 4 (2026-10-15) — re-review 3: a signal is forwarded only after the child reports ready (USR1), so it can no longer be lost in the fork window (§5); revision 3 (2026-10-14) — re-review: a signal in the spawn window reaches the agent (§5); revision 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); capability level per agent below — read it before relying on an agent |
 | Implements | §11.4.182 (label), §11.4.228 (cross-agent extension lifecycle: detect, wire, self-validate, idempotent, dry-run), §11.4.164, §11.4.233 (level-triggered), §11.4.18 |
 | Code | `scripts/label-sync/adapters/` (lib, per-agent adapters, `install_adapters.sh`, `_edit_config.py`) |
-| Tests | `adapters/tests/test_adapters.sh` (hermetic, 191 assertions, measured 2026-10-15), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (32 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
+| Tests | `adapters/tests/test_adapters.sh` (hermetic, 198 assertions, measured 2026-11-04), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (38 mutants, 38 killed, measured 2026-11-04), gate `scripts/gates/cm_label_sync_adapters.sh` |
 | Builds on | [`CONTRACT.md`](CONTRACT.md), [`HOOKS.md`](HOOKS.md) (Claude Code), [`RENDERERS.md`](RENDERERS.md) |
 
 ## Contents
@@ -235,8 +235,16 @@ and F):
   completion with exit 0. The child now resets its traps, sends `USR1` to the
   wrapper and only then `exec`s the agent; nothing is forwarded before that
   `USR1`. Measured after the fix: 300 of 300. Tests: the 100-run spawn loop and
-  the 100-run fast-exit status loop (a `USR1` interrupts the wrapper's `wait`,
-  which is repeated while the child lives). Mutants C11, C13, C14.
+  the 100-run fast-exit status loop. Mutants C11, C13, C14.
+* exit status (2026-11-04): the wrapper takes the `USR1` readiness report by a
+  short poll BEFORE `wait`, so that report never interrupts `wait`. A `wait`
+  interrupted by a FORWARDED signal is repeated; the agent's own status is
+  returned, including 127 (an agent that exits 127 after a TERM gives 127).
+  Only when bash reports the pid as unknown (its own error message, naming the
+  pid, on the re-wait's stderr) is the interrupted 128+N kept. Test-only delay
+  seams `LABEL_AGENT_RUN_TEST_READY_DELAY` / `_SIG_DELAY` act only with
+  `LABEL_SYNC_TEST_MODE=1` and only for a short decimal (0 to 9.99 s); other
+  values are ignored. Mutants C14-C20.
 
 A parent that itself ignores `SIGINT` (e.g. a job started in the background of
 a non-interactive shell) passes that on to the wrapper — no shell can reset a

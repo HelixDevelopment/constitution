@@ -180,6 +180,24 @@ else
 	bad "negative control: an unrelated check changed verdict alongside the L4 mutation (check2: $C2_BEFORE->$C2_AFTER, check7: $C7_BEFORE->$C7_AFTER) — the validator is failing broadly, not discriminating"
 fi
 
+# ── REL-CWD (F4/F5/M8) — a RELATIVE SPECIFY_BIN given relative to the caller's cwd, with a fake that (like the real CLI)
+#    fails outside a spec-kit project: the validator must resolve the binary before cd-ing into --root AND run it there.
+mkdir -p "$S/caller"
+cat > "$S/caller/rel_specify.sh" <<'RFEOF'
+#!/usr/bin/env bash
+[ -d .specify ] || { echo '{"error": "Not a Spec Kit project"}'; exit 1; }
+cat "${FAKE_SPECIFY_STATE:?}"
+RFEOF
+chmod +x "$S/caller/rel_specify.sh"
+echo '[{"id": "superspec", "name": "Superpowers Bridge", "enabled": true}, {"id": "superb", "name": "SuperB", "enabled": true}]' > "$S/state.json"
+( cd "$S/caller" && SPECIFY_BIN="./rel_specify.sh" bash "$VALIDATOR" --root "$S" --report-file "$S/report.json" >"$S/rel.out" 2>&1 )
+V=$(get_check6_verdict "$S")
+if [ "$V" = "PASS" ]; then
+	ok "REL-CWD: relative SPECIFY_BIN + a project-cwd-sensitive specify -> check 6 PASSes (binary resolved before cd, run inside --root)"
+else
+	bad "REL-CWD: relative SPECIFY_BIN / foreign cwd broke the validator's specify call (check 6 got '$V'); output:"; sed 's/^/         /' "$S/rel.out" >&2
+fi
+
 unset SPECIFY_BIN FAKE_SPECIFY_STATE
 
 # ── real-host end-to-end run — honest evidence of the measured 5/7 result ──
@@ -197,7 +215,7 @@ fi
 
 # ── verdict ──────────────────────────────────────────────────────────────────
 if [ "$FAILS" -eq 0 ]; then
-	say "== $NAME: PASS (4/4 cases) =="
+	say "== $NAME: PASS (5/5 cases) =="
 	exit 0
 fi
 printf '== %s: FAIL (%s failing case(s)) ==\n' "$NAME" "$FAILS" >&2

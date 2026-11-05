@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 17
-**Last modified:** 2026-11-03T11:54:28Z
+**Revision:** 19
+**Last modified:** 2026-11-03T16:46:30Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -18,6 +18,10 @@
 **R16 (2026-11-03, §11.4.292):** `OWED-GATE-174` (`CM-REPRODUCTION-RECORD-BEFORE-FIX`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.292; section after the §11.4.230(F) section.
 
 **R17 (2026-11-03, §11.4.293):** `OWED-GATE-175` (`CM-COMMIT-NAMES-ROADMAP-ITEM`) and `OWED-GATE-176` (`CM-IMAGE-NO-WORSE-PROVEN`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.293; section after the §11.4.292 section.
+
+**R18 (2026-11-03, §11.4.294):** `OWED-GATE-177` (`CM-STATE-FIELDS-LIFECYCLE`), `OWED-GATE-178` (`CM-STATE-PROPAGATION`) and `OWED-GATE-179` (`CM-STATE-TRACKER-MIRROR`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.294; section after the §11.4.293 section.
+
+**R19 (2026-11-03, §11.4.295):** `OWED-GATE-180` (`CM-GEO-SUBSTITUTE-SAME-VERDICT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.295; section after the §11.4.294 section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -1023,6 +1027,32 @@ The two item-level gates named in §11.4.293 are registered as deferrals in the 
   - **Must assert:** (per §11.4.293(B)-(F)) no release or non-dev tag of a flashing image without a machine-written comparison record whose verdict is `NO-WORSE-PROVEN`; the record's two runs share board serial, harness fingerprint, suite definition and command and carry both image identities; a baseline-`PASS` test that is `INCONCLUSIVE`, `SKIPPED`, `BLIND`, `ERROR` or absent on the new image is counted as `baseline-pass-lost`; every targeted issue has its RED-to-GREEN flip; golden-FALSE: a purely new-feature image with every pre-existing test unchanged and new tests reported separately
   - **Blocked on:** the constitution ships no flashing tool and no per-test verdict schema; the comparator is the consuming project's work
   - **Paired §1.1 mutation:** flip one baseline-`PASS` test to `INCONCLUSIVE` in the new set, delete the baseline, or drop a targeted flip; the gate MUST FAIL
+
+### §11.4.294 reproduction and investigation states as workable-item fields (registered 2026-11-03)
+
+The three item-level gates named in §11.4.294 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_state_fields_anchor_wired.sh` with its paired mutation test); the two database columns, the transition validator and the tracker mirror are engine and consuming-project work.
+
+- **OWED-GATE-177** — `CM-STATE-FIELDS-LIFECYCLE`
+  - **Must assert:** (per §11.4.294(A)/(C)/(D)/(E)/(F)) both states from the closed vocabularies on every defect item; a body line that disagrees with its column fails; a state above the defaults has a resolving evidence path with a matching sha256; no fix commit and no closure value on an item that does not meet its transition row (T3, T5); a regressed reproduction reopens the item; golden-FALSE: a non-defect item with both states `UNSET`
+  - **Blocked on:** the workable-items engine does not implement the two columns and no state validator exists in-repo
+  - **Paired §1.1 mutation:** set `reproduction_state` to `UNREPRODUCED` on a closed item, set `investigation_state` to `root-cause-unconfirmed` on a closed item, change a body token without the column, or point an evidence path at a missing file; the gate MUST FAIL
+- **OWED-GATE-178** — `CM-STATE-PROPAGATION`
+  - **Must assert:** (per §11.4.294(H)) every derived document class of the clause carries the parent item's two states as plain trailing columns read from the database, never a sort key, never in a numbers-only count cell, and an independent oracle sharing no code with the generator agrees; golden-FALSE: a numbers-only count cell with no state column
+  - **Blocked on:** the derived-document list is consuming-project DATA and the engine columns do not exist in-repo
+  - **Paired §1.1 mutation:** alter one state cell, alter a summary count, or remove a details block; the gate MUST FAIL
+- **OWED-GATE-179** — `CM-STATE-TRACKER-MIRROR`
+  - **Must assert:** (per §11.4.294(I)) the mirror's description header lines and tags match the database for a sample of at least three items that differ in state; the fingerprint includes both values; a tracker-side edit is reported as drift and never flows back; an offline run is `UNCONFIRMED`, never `PASS`; golden-FALSE: an offline run reported `UNCONFIRMED`
+  - **Blocked on:** no tracker credential or network is available to the constitution and the engine mirror is not implemented in-repo
+  - **Paired §1.1 mutation:** change a state in the database without pushing, or push a state different from the database; the gate MUST FAIL
+
+### §11.4.295 substitute app, same verdict (registered 2026-11-03)
+
+The item-level gate named in §11.4.295 is registered as a deferral in the same change that names it, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_geo_substitute_anchor_wired.sh` with its paired mutation test); the content-test harness, the substitute-chain registry and the criteria-set schema are consuming-project work.
+
+- **OWED-GATE-180** — `CM-GEO-SUBSTITUTE-SAME-VERDICT`
+  - **Must assert:** (per §11.4.295(A)/(B)/(C)/(D)/(E)) every `GEO_RESTRICTED` outcome carries a probe record with a refusal signature from the declared list and a successful control probe from the same egress; a geo-restricted test is never reported as a FAIL and is not ended as a SKIP while a probed-reachable substitute is declared; the substitute chain was declared before the run; the substituted run carries the same criteria-set sha256 as the original; the report line names both apps; golden-FALSE: an exhausted chain reported as SKIP-with-reason `geo_restricted` with the chain listed, and an app-specific test left SKIPPED and tracked
+  - **Blocked on:** the constitution ships no content-test harness, no substitute-chain registry and no criteria-set schema
+  - **Paired §1.1 mutation:** delete the control probe from a record, lower one threshold in the substituted run, end a restricted test as a SKIP while a substitute is declared, or report the restriction as a FAIL; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

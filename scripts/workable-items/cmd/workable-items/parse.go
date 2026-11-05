@@ -379,6 +379,12 @@ func buildItem(id, titleRest, body, location string) item {
 			it.AssignedTo = val
 		}
 	}
+	// §11.4.292 (v8): the structured `**Reproduction:**` / `**Investigation:**`
+	// records of the item's OWN region become the state columns. Legacy
+	// free-form lines carrying the same labels set nothing (never invented); a
+	// malformed record contributes only its head state and is reported by
+	// `validate` / `diff` (stateColumnBodyDesyncs re-parses the body).
+	it.States = parseStateLines(body).rec
 	it.Description = deriveDescription(it.Title, body)
 	return it
 }

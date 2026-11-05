@@ -106,7 +106,7 @@
 #   default on an unresolvable precondition).
 #
 # Classification: project-specific (HXC-159 Bridge investigation).
-# Last verified: 2026-09-22
+# Last verified: 2026-11-04 (N4 abs_local_source warnings; earlier 2026-09-22)
 set -u
 
 SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
@@ -132,6 +132,33 @@ while [ $# -gt 0 ]; do
 	shift || true
 done
 
+# specify reads the project from its cwd and `extension add` has no root flag, so EVERY specify call must run
+# inside --root (§11.4.276(C): fix the class). Resolve path-like inputs to absolute BEFORE the cd.
+ROOT=$(cd "$ROOT" 2>/dev/null && pwd) || { echo "install_speckit_superpowers_bridge.sh: --root is not a directory" >&2; exit 2; }
+[ -z "$REPORT_FILE" ] || case "$REPORT_FILE" in /*) ;; *) REPORT_FILE="$(pwd)/$REPORT_FILE" ;; esac
+case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/$SPECIFY_BIN" ;; esac ;; esac
+# A LOCAL-path --superb-from / SUPERSPEC_FROM given relative to the caller's cwd must also be resolved before the cd
+# (URLs, scp-style and absolute values are left untouched; only an existing relative path is rewritten).
+# A relative value that is left unchanged would resolve against --root after the cd, so it is WARNED on stderr: a
+# relative path that does not exist in the caller's cwd, and an existing local path shaped like scp-style
+# user@host:path (which is treated as remote). abs_local_source <value> <label>
+abs_local_source() {
+	case "$1" in
+		''|/*|*://*) printf '%s' "$1" ;;
+		*@*:*)
+			[ ! -e "$1" ] || printf 'abs_local_source: WARNING: %s=%s exists as a local path in %s but has the scp-style user@host:path shape; it is treated as REMOTE and passed unchanged (use ./%s or an absolute path for the local one)\n' "$2" "$1" "$(pwd)" "$1" >&2
+			printf '%s' "$1" ;;
+		*) if [ -e "$1" ]; then printf '%s/%s' "$(pwd)" "${1#./}"
+		   else
+			printf 'abs_local_source: WARNING: %s=%s is a relative path that does not exist in the caller cwd %s; it is passed unchanged and will resolve against --root\n' "$2" "$1" "$(pwd)" >&2
+			printf '%s' "$1"
+		   fi ;;
+	esac
+}
+SUPERB_FROM=$(abs_local_source "$SUPERB_FROM" --superb-from)
+[ -z "${SUPERSPEC_FROM:-}" ] || SUPERSPEC_FROM=$(abs_local_source "$SUPERSPEC_FROM" SUPERSPEC_FROM)
+export SPECIFY_BIN   # the probe child process must see the resolved (absolute) binary too
+cd "$ROOT" || exit 1
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 EVID_DIR="$ROOT/qa-results/hxc159/bridge_install/$RUN_ID"
 mkdir -p "$EVID_DIR" || { echo "cannot create evidence dir: $EVID_DIR" >&2; exit 1; }
@@ -379,10 +406,16 @@ if [ -z "$STATUS_L4" ]; then
 			# rather than colliding with stale state (§11.4.85 chaos
 			# resilience — see the paired test).
 			if [ -d "$ROOT/.specify/extensions/superb" ]; then
-				ALREADY_REGISTERED=$("$SPECIFY_BIN" extension list --json 2>/dev/null | python3 -c 'import json,sys; print(any(e.get("id")=="superb" for e in json.load(sys.stdin)))' 2>/dev/null || echo False)
-				if [ "$ALREADY_REGISTERED" != "True" ]; then
+				# Delete ONLY when the probe really succeeded (rc 0, parseable) and says superb is NOT registered;
+				# a failed/unparseable probe never falls through to a delete.
+				PROBE_JSON=$("$SPECIFY_BIN" extension list --json 2>/dev/null); PROBE_RC=$?
+				ALREADY_REGISTERED=""
+				[ "$PROBE_RC" -eq 0 ] && ALREADY_REGISTERED=$(printf '%s' "$PROBE_JSON" | python3 -c 'import json,sys; print(any(e.get("id")=="superb" for e in json.load(sys.stdin)))' 2>/dev/null)
+				if [ "$ALREADY_REGISTERED" = "False" ]; then
 					warn "   L4: found a stale, unregistered .specify/extensions/superb/ from a prior interrupted attempt — removing before retry."
-					rm -rf "$ROOT/.specify/extensions/superb"
+					rm -rf "${ROOT:?}/.specify/extensions/superb"
+				elif [ "$ALREADY_REGISTERED" != "True" ]; then
+					warn "   L4: could not determine whether superb is registered (probe rc=$PROBE_RC) — NOT deleting .specify/extensions/superb."
 				fi
 			fi
 			INSTALL_OUT=$("$SPECIFY_BIN" extension add superb --from "$SUPERB_FROM" 2>&1)
@@ -402,7 +435,7 @@ fi
 
 # ── RS-19 runtime signature — after running, 'specify extension list' is
 #    non-empty and names the pinned version. ─────────────────────────────────
-RS19_JSON=$("$SPECIFY_BIN" extension list --json 2>&1)
+RS19_JSON=$(cd "$ROOT" && "$SPECIFY_BIN" extension list --json 2>&1)   # live specify resolves .specify/ from cwd, so run it IN the target root
 RS19_RC=$?
 log_only "RS-19 extension list --json (rc=$RS19_RC): $RS19_JSON"
 RS19_PASS=0

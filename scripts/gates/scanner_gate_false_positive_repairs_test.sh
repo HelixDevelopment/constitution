@@ -43,11 +43,45 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/cm_repair.XXXXXX")" || exit 2
 : "${TMP:?}"
 trap 'rm -rf -- "${TMP:?}"' EXIT
 
-pass=0; fail=0
+pass=0; fail=0; skip=0
 ok()  { pass=$((pass+1)); echo "ok   $1"; }
+skp() { skip=$((skip+1)); echo "SKIP $1"; }   # a skip is never counted as ok (§11.4.3)
 bad() { fail=$((fail+1)); echo "FAIL $1"; }
 # run_rc <cmd...> : sets RC and OUT
-run() { OUT="$(nice -n 15 "$@" 2>&1)"; RC=$?; }
+# gitify <dir> : the prune lib honours a manifest `third_party: true` mark only on a RECORDED gitlink (killpg scope
+# review round 3). These fixtures are plain directories, so make each fixture root (and each nested manifest dir) a
+# real git repo that records its third_party paths as gitlinks (index records, `update-index --cacheinfo`), and
+# register nested repos as gitlinks of their parent so the walk reaches them. Idempotent; only under $TMP.
+gitify() {
+    local d="$1" m x p r par n pn recs u1 u2 u3 u4 tpf h
+    case "$d" in "$TMP"/*) ;; *) return 0 ;; esac
+    [ -d "$d" ] || return 0
+    # shellcheck disable=SC1091
+    . "$HERE/../deps_manifest/helix_deps_tsv.sh"
+    local GG=(env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git)
+    [ -e "$d/.git" ] || "${GG[@]}" -C "$d" init -q . 2>/dev/null
+    mapfile -t ms < <(find "$d" -name helix-deps.yaml -not -path '*/.git/*' -printf '%d %h\n' | sort -rn | cut -d' ' -f2-)
+    for x in "${ms[@]}"; do
+        [ -e "$x/.git" ] || "${GG[@]}" -C "$x" init -q . 2>/dev/null
+        recs="$(cm_hdeps_tsv "$x/helix-deps.yaml" 2>/dev/null)" || continue
+        while IFS=$'\x1f' read -r n p u1 u2 tpf; do
+            [ "$tpf" = 1 ] || continue; pn="${p:-submodules/$n}"; pn="${pn%/}"
+            "${GG[@]}" -C "$x" update-index --add --cacheinfo "160000,0123456789abcdef0123456789abcdef01234567,$pn" 2>/dev/null
+        done <<<"$recs"
+        "${GG[@]}" -C "$x" add -- helix-deps.yaml 2>/dev/null   # the manifest must be the RECORDED copy (killpg scope round 5)
+    done
+    for x in "${ms[@]}"; do
+        [ "$x" = "$d" ] && continue
+        par="$(dirname "$x")"
+        while [ "$par" != "$d" ] && [ ! -e "$par/.git" ]; do par="$(dirname "$par")"; done
+        # a populated submodule's HEAD is the commit its parent records (the prune lib refuses a level that is neither the
+        # parent's modules/<path> git dir nor at the recorded commit, killpg follow-ups round 4): commit x, record its HEAD
+        "${GG[@]}" -C "$x" -c user.name=t -c user.email=t@t commit -q --allow-empty -m g 2>/dev/null
+        h="$("${GG[@]}" -C "$x" rev-parse --verify -q HEAD 2>/dev/null)" || continue
+        "${GG[@]}" -C "$par" update-index --add --cacheinfo "160000,$h,${x#"$par"/}" 2>/dev/null
+    done
+}
+run() { local a; for a in "$@"; do [ -d "$a" ] && gitify "$a"; done; OUT="$(nice -n 15 "$@" 2>&1)"; RC=$?; }
 expect_rc() { # desc want cmd...
     local d="$1" w="$2"; shift 2; run "$@"
     if [ "$RC" = "$w" ]; then ok "$d"; else bad "$d (rc=$RC want $w)"; printf '%s\n' "$OUT" | head -5; fi
@@ -186,6 +220,8 @@ expect_out "…dcfc names submodules/mine/m.py" 'submodules/mine/m\.py'
 expect_out "…dcfc names submodules/gm_only/g.py" 'submodules/gm_only/g\.py'
 # lib unit: exact prune list
 . "$GD/../lib/third_party_prune.sh"
+eval "_real_$(declare -f cm_third_party_prune_paths)"
+cm_third_party_prune_paths() { gitify "$1"; _real_cm_third_party_prune_paths "$@"; }
 PL="$(cm_third_party_prune_paths "$H" | LC_ALL=C sort | tr '\n' ' ')"
 [ "$PL" = "ext/bar site-packages submodules/tp third_party " ] && ok "lib unit: helix-deps prune list exact (+ dir names)" || bad "lib unit prune list: '$PL'"
 PL2="$(cm_third_party_prune_paths "$OW" | LC_ALL=C sort | tr '\n' ' ')"
@@ -285,7 +321,12 @@ KL="$(cm_third_party_prune_paths "$K" | LC_ALL=C sort | tr '\n' ' ')"
 [ "$KL" = "ext/q site-packages submodules/tpc third_party " ] && ok "F1 lib unit: comment/value text never read as path:/third_party: keys; block ends at next top-level key" || bad "F1 lib unit prune list: '$KL'"
 # the real canon manifest has comment text such as 'third_party: true' / 'path: ...' (helix-deps.yaml ~95,110,267)
 CL="$(cm_third_party_prune_paths "$CANON" | LC_ALL=C sort | tr '\n' ' ')"
-case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) bad "F1 canon manifest: nested llama.cpp missing: '$CL'" ;; esac
+case "$CL" in *" scripts "*|*" docs "*|*"submodules/llmctl "*|*"submodules/claude_toolkit "*) bad "F1 canon manifest: first-party/own-org dir pruned: '$CL'" ;; *"submodules/llmctl/submodules/llama.cpp"*) ok "F1 canon manifest: own-org not pruned, nested third-party pruned" ;; *) if [ -e "$CANON/submodules/llmctl/.git" ]; then bad "F1 canon manifest: nested llama.cpp missing: '$CL'"; else
+       # llmctl is not populated in this checkout: the nested llama.cpp mark cannot be read (a recorded, POPULATED gitlink is
+       # required). Real assertion that needs no population: the own-org parents are not pruned and no unrecorded
+       # nested path was emitted; the nested-prune half is a SKIP, never an ok.
+       case "$CL" in *"submodules/llmctl/"*|*"submodules/claude_toolkit/"*) bad "F1 canon manifest (unpopulated): nested path pruned without a populated parent: '$CL'" ;; *) ok "F1 canon manifest (unpopulated llmctl): own-org parents not pruned, nothing nested emitted unrecorded"; skp "F1 canon manifest: nested llama.cpp prune needs a populated llmctl (not populated here)" ;; esac
+   fi ;; esac
 # symlink guard: an own-org-looking submodules/* symlink and a symlinked manifest are never followed
 L="$TMP/lnk"; mkdir -p "$L/submodules/real" "$TMP/lnk_out"
 printf 'schema_version: 1\ndeps:\n  - name: evilsym\n    third_party: true\n' > "$TMP/lnk_out/helix-deps.yaml"
@@ -566,5 +607,5 @@ run "$DCFC" --root "$S2" --quiet; D3="$OUT"
 [ "$B0" = "$(sum_tree "$S2")" ] && ok "idempotency/read-only: scanned tree byte-identical after 6 runs" || bad "gate mutated the tree"
 
 echo "======================================================================"
-echo "RESULT: $pass ok, $fail failed"
+echo "RESULT: $pass ok, $fail failed, $skip skipped"
 [ "$fail" -eq 0 ]

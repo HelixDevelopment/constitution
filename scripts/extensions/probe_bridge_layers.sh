@@ -77,6 +77,11 @@ set -u
 SELF_DIR=$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)
 ROOT=$(cd "$SELF_DIR/../../.." >/dev/null 2>&1 && pwd)
 QUIET=0
+# SPECIFY_BIN override (same contract as the installer/validator); a relative path is resolved against the caller's cwd
+# BEFORE any probe changes directory into --root.
+SPECIFY_BIN="${SPECIFY_BIN:-specify}"
+case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/${SPECIFY_BIN#./}" ;; esac ;; esac
+export SPECIFY_BIN
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -121,20 +126,20 @@ run_probe "L1_cli" 'command -v claude || echo "NOT-ON-PATH"'
 
 # ── L2 — Spec-Kit core: `specify` CLI + `.specify/` + speckit-* skills ───────
 run_probe "L2_specify_dir" 'test -d .specify && echo "PRESENT .specify" || echo "ABSENT .specify"'
-run_probe "L2_specify_cli" 'command -v specify || echo "NOT-ON-PATH"'
+run_probe "L2_specify_cli" 'command -v "$SPECIFY_BIN" || echo "NOT-ON-PATH"'
 run_probe "L2_skills_claude" 'ls .claude/skills 2>/dev/null | grep -c "^speckit-" || echo 0'
 run_probe "L2_skills_kimi"   'ls .kimi-code/skills 2>/dev/null | grep -c "^speckit-" || echo 0'
 
 # ── L3 — SuperSpec (orchestration): WangX0111/superspec, extension "superspec" ─
 run_probe "L3_submodule_status" 'git submodule status -- submodules/superspec 2>&1 || echo "NOT-A-SUBMODULE"'
 run_probe "L3_extension_yml"    'test -f .specify/extensions/superspec/extension.yml && echo PRESENT || echo ABSENT'
-run_probe "L3_extension_list"   'specify extension list 2>&1 || echo "specify CLI unavailable or extension list failed"'
+run_probe "L3_extension_list"   '"$SPECIFY_BIN" extension list 2>&1 || echo "specify CLI unavailable or extension list failed"'
 run_probe "L3_extensions_yml_installed" 'grep -A2 "^installed:" .specify/extensions.yml 2>/dev/null || echo "no .specify/extensions.yml or no installed: key"'
 
 # ── L4 — SuperB (discipline): RbBtSn0w/spec-kit-extensions, extension "superb" ─
 run_probe "L4_submodule_search" 'find . -maxdepth 3 -iname "*superb*" -type d 2>/dev/null | grep -v node_modules || echo "no local superb-named directory"'
 run_probe "L4_extensions_yml_installed" 'grep -i "superb" .specify/extensions.yml 2>/dev/null || echo "superb NOT present in .specify/extensions.yml installed list"'
-run_probe "L4_catalog_search" 'specify extension search superb 2>&1 || echo "specify CLI unavailable or catalog search failed"'
+run_probe "L4_catalog_search" '"$SPECIFY_BIN" extension search superb 2>&1 || echo "specify CLI unavailable or catalog search failed"'
 
 # ── L5 — SuperBridge MCP (execution): design corpus records this tier DELETED ─
 # NOTE (§11.4.273 self-caught instrument bug, fixed before first use): the

@@ -90,12 +90,56 @@ CREATE TABLE IF NOT EXISTS items (
     -- doc_segments raw prose) to reproduce the source byte-for-byte.
     body_md          TEXT,
 
+    -- §11.4.292 reproduce-first (v8): reproduction + investigation states on
+    -- EVERY item ('UNSET' = never assessed; never invented). Rendered into
+    -- body_md as one `**Reproduction:**` + one `**Investigation:**` record line
+    -- (cmd/workable-items/states.go). Additive: a pre-v8 DB gets these columns
+    -- from migrateStatesColumns (ALTER TABLE ADD COLUMN, idempotent). The
+    -- binary applies cmd/workable-items/schema_embed.sql, which carries the
+    -- same block.
+    reproduction_state       TEXT NOT NULL DEFAULT 'UNSET'
+                             CHECK (reproduction_state IN ('UNSET', 'UNREPRODUCED',
+                                 'reproduced-live', 'reproduced-host-fixture',
+                                 'not-reproducible-with-evidence',
+                                 'blocked-no-device-with-recorded-blocker')),
+    reproduction_surface     TEXT CHECK (reproduction_surface IS NULL OR
+                                 reproduction_surface IN ('live-target', 'host-only')),
+    reproduction_evidence    TEXT,
+    reproduction_red_cmd     TEXT,
+    reproduction_green_cmd   TEXT,
+    reproduction_env         TEXT,
+    reproduction_signature   TEXT,
+    reproduction_blocker     TEXT,
+    reproduction_updated_at  TEXT,
+    reproduction_updated_by  TEXT,
+    investigation_state      TEXT NOT NULL DEFAULT 'UNSET'
+                             CHECK (investigation_state IN ('UNSET', 'not-started',
+                                 'in-progress', 'root-cause-found-with-evidence',
+                                 'root-cause-unconfirmed', 'closed-no-defect')),
+    investigation_root_cause TEXT,
+    investigation_evidence   TEXT,
+    investigation_updated_at TEXT,
+    investigation_updated_by TEXT,
+
     -- Timestamps
     created_at       TEXT NOT NULL DEFAULT (datetime('now')),
     last_modified    TEXT NOT NULL DEFAULT (datetime('now')),
 
     -- Composite identity: a ticket may be present in both trackers at once.
     PRIMARY KEY (atm_id, current_location)
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_reproduction_state ON items(reproduction_state);
+CREATE INDEX IF NOT EXISTS idx_items_investigation_state ON items(investigation_state);
+
+-- §11.4.292 (v8): items already closed when the reproduction closure gate was
+-- armed (`states freeze`, one-time); pruned when the item leaves Fixed.
+CREATE TABLE IF NOT EXISTS repro_gate_exemptions (
+    atm_id          TEXT NOT NULL,
+    representation  TEXT NOT NULL DEFAULT 'section',
+    status          TEXT NOT NULL,
+    frozen_at       TEXT NOT NULL,
+    PRIMARY KEY (atm_id, representation)
 );
 
 -- Performance: covering indexes for the most frequent query patterns.

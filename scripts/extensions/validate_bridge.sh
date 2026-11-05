@@ -124,6 +124,8 @@ while [ $# -gt 0 ]; do
 	shift || true
 done
 
+# A relative SPECIFY_BIN is resolved against the caller's cwd BEFORE any step cds into --root.
+case "$SPECIFY_BIN" in */*) case "$SPECIFY_BIN" in /*) ;; *) SPECIFY_BIN="$(pwd)/${SPECIFY_BIN#./}" ;; esac ;; esac
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 EVID_DIR="$ROOT/qa-results/hxc159/bridge_validate/$RUN_ID"
 mkdir -p "$EVID_DIR" || { echo "cannot create evidence dir: $EVID_DIR" >&2; exit 1; }
@@ -221,7 +223,7 @@ done
 #    preconditions per the honest-boundary note above ───────────────────────
 SUPERSPEC_CMD="$ROOT/.specify/extensions/superspec/commands/status.md"
 SUPERSPEC_ENABLED=""
-LIST_JSON=$("$SPECIFY_BIN" extension list --json 2>/dev/null || echo "[]")
+LIST_JSON=$(cd "$ROOT" && "$SPECIFY_BIN" extension list --json 2>/dev/null || echo "[]")
 SUPERSPEC_ENABLED=$(printf '%s' "$LIST_JSON" | python3 -c 'import json,sys
 try:
     doc = json.load(sys.stdin)

@@ -183,12 +183,12 @@ include_tp="${ORACLE_GUARD_INCLUDE_THIRD_PARTY:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --root) root="$2"; shift 2 ;;
-        --glob) glob="$2"; shift 2 ;;
+        --root) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; root="$2"; shift 2 ;;
+        --glob) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; glob="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
         --strict) strict=1; shift ;;
-        --baseline) baseline="$2"; shift 2 ;;
-        --base) base_ref="$2"; shift 2 ;;
+        --baseline) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; baseline="$2"; shift 2 ;;
+        --base) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; base_ref="$2"; shift 2 ;;
         --write-baseline) write_baseline=1; shift ;;
         --adopt-new-files) adopt_new=1; shift ;;
         --reason) adopt_reason="${2-}"; adopt_reason_given=1; shift 2 || shift ;;

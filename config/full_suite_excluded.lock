@@ -1,0 +1,48 @@
+# full_suite_excluded.lock -- reviewed set of excluded rows of the full-suite manifest (path TAB sha256-16 of the note).
+# --verify-manifest refuses any difference; a reviewer accepts a change with
+# --verify-manifest --accept-excluded-change <reviewer>, which appends one `# accepted` line.
+# accepted 2026-11-04T10:49:41Z accepted_by=fsr-r4-author (pending independent review) set=d5134c8195764ed3 rows=44
+scripts/amendment_log/tests/independent_lossless_rebuild.py	1ff98c08ece1bf81
+scripts/anchors/tests/_paths.py	c1eceac5bf69b0ff
+scripts/catalog-engine/lib/parse_mutation.py	b330dd9c62b14226
+scripts/codegraph/tests/cg_fp.py	8ac877e8f7c8f721
+scripts/codegraph/tests/t_scope_cases.py	47d68f9231739abf
+scripts/codegraph/tests/t_scope_fixture.py	eab21285fe6ff85f
+scripts/fastcycle/gates/mutation_reuse.py	a175887d5455ee5c
+scripts/fastcycle/tests/capture_fc_timer_triplet.sh	fedd7800f63a8a4d
+scripts/fastcycle/tests/check_deps.sh	9863e80f9de91110
+scripts/fastcycle/tests/lib/bb_ref_bisect.py	da4a4f290aa68abc
+scripts/fastcycle/tests/lib/dec07_key_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/dec15_flake_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/dec17_drift_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/dec23_key_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	20222909e169052e
+scripts/fastcycle/tests/lib/guard_freshness_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/render_keys_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/review_record_genuine.sh	01b8717c7d2dae42
+scripts/fastcycle/tests/lib/shard_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/tce_normalize_ref.py	393d56e045cd6000
+scripts/fastcycle/tests/lib/triple_harness.sh	e6c4b8211c1c78ac
+scripts/gates/cm_build_on_source_proven_not_test_side.sh	d022ed40fc470bfe
+scripts/gates/cm_mutation_score_on_diff.sh	1f26e00735da68e7
+scripts/gates/cm_setup_prompt_latest_present.sh	1851ac02054cac98
+scripts/gates/cm_test_mock_pid_explicit_int.sh	e55c7878955e3f71
+scripts/gates/lib/covenant_propagation_mutation_engine.sh	d32882982ecb344b
+scripts/gates/lib/gate_mutation_harness.sh	40d394af727a1e50
+scripts/gates/lib/shell_mutation_engine.sh	3819e96962e26be1
+scripts/label-sync/adapters/tests/fake_openai.py	f224f7ab7021cae3
+scripts/label-sync/hook_mutants.py	e2209b4de517915e
+scripts/lumen/tests/fake_ollama.py	e81215c4d129bd4c
+scripts/mechanical/mutation_harness.sh	23e59d239c05705e
+scripts/mechanical/tests/lib/assert.sh	0fc801d5228300fa
+tests/decisions/lib.sh	d2fdd247ee504c8f
+tests/decisions/repo_guard.sh	bac042c3d51722f1
+tests/extensions/lib.sh	b0f3a123d377cd0b
+tests/install/lib.sh	52721668ffed0bb0
+tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	a17e73c1f7b0ce47
+tests/jev/lib_assert.sh	4939c80b5808b65a
+tests/layout/lib_layout_harness.sh	931d9dc2cfdf083f
+tests/lib/make_fixture_tracker.sh	645112328ff51ff4
+tests/prompts/allowlist_bypass_forms.py	a01d4b794621f1d4
+tests/prompts/git_allowlist.py	5964f70d9910b7ed
+tests/prompts/lib.sh	f53c11ae05c83f20

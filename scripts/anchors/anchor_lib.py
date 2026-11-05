@@ -293,11 +293,13 @@ ID_RANGE_GROUPS = [
                           (189, 189),  # 189 added — fix round 2, was wrongly reachable via multi-track's range (see report)
                           (199, 199), (224, 224), (238, 239),
                           (242, 250), (278, 278),  # 250 added, was (242,249) # WIDENED; 278 added 2026-10-13 — §11.4.278 HelixQA UI QA with Vision eyes
-                          (292, 292)]),  # 292 added 2026-11-03 — §11.4.292 reproduce first (live reproduction record); sibling of 43/115/199
+                          (292, 292),  # 292 added 2026-11-03 — §11.4.292 reproduce first (live reproduction record); sibling of 43/115/199
+                          (295, 295)]),  # 295 added 2026-11-03 — §11.4.295 substitute app, same verdict (geo-restricted content tests); sibling of 136/143
     ("workable-items-and-tracking", [(15, 16), (21, 21), (33, 34), (54, 55),
                                       (90, 93), (95, 95), (104, 104), (112, 112),
                                       (148, 149), (171, 171), (202, 202), (214, 214),
-                                      (290, 290)]),  # 290 added 2026-10-27 — §11.4.290 optimistic done + parallel background verification
+                                      (290, 290),  # 290 added 2026-10-27 — §11.4.290 optimistic done + parallel background verification
+                                      (294, 294)]),  # 294 added 2026-11-03 — §11.4.294 reproduction + investigation states as item fields; sibling of 34/93/148/290
     ("documentation-and-export", [(12, 12), (18, 19),  # 19 added, was (18,18) # WIDENED
                                    (22, 23), (44, 45),  # 45 added, was (44,44) # WIDENED
                                    (53, 53), (56, 57), (59, 61),  # 61 added, was (59,60) # WIDENED

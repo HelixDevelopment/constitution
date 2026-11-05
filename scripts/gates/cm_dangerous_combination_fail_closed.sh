@@ -632,10 +632,10 @@ cm_gate_env_set maxdepth DANGEROUS_COMBO_MAX_DEPTH 0 value
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --root) root="$2"; shift 2 ;;
+        --root) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; root="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
         --include-third-party) include_tp=1; shift ;;
-        --max-depth) maxdepth="$2"; shift 2 ;;
+        --max-depth) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; maxdepth="$2"; shift 2 ;;
         -h|--help) sed -n "1,${HEADER_LINES}p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac

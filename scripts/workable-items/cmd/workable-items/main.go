@@ -39,6 +39,19 @@ Subcommands:
                                                         Create a new Queued item in Issues.
   update --id <ID> --db <p> [--title|--severity|--description|--type|--status|--created-by|--assigned-to ...] [--location Issues|Fixed]
                                                         Mutate fields on an existing item (§11.4.34 audit).
+         [--reproduction-state S] [--reproduction-surface live-target|host-only] [--reproduction-evidence P]
+         [--reproduction-red-cmd C] [--reproduction-green-cmd C] [--reproduction-env E] [--reproduction-signature T]
+         [--reproduction-blocker T] [--investigation-state S] [--investigation-root-cause T] [--investigation-evidence P]
+         --states-updated-by <who> [--states-updated-at <RFC3339Z>]
+                                                        §11.4.292 reproduction / investigation records (also on add).
+                                                        reproduction: UNSET | UNREPRODUCED | reproduced-live | reproduced-host-fixture |
+                                                        not-reproducible-with-evidence | blocked-no-device-with-recorded-blocker;
+                                                        investigation: UNSET | not-started | in-progress | root-cause-found-with-evidence |
+                                                        root-cause-unconfirmed | closed-no-defect.
+  states import --db <p> --tsv <file> --by <who> [--at <RFC3339Z>] [--dry-run]
+                                                        Apply a canonical states TSV in one transaction (all-or-nothing, idempotent).
+  states freeze --db <p> --by <who> [--at <RFC3339Z>] [--dry-run]
+                                                        Arm the §11.4.292 closure gate once; exempts items already closed.
   reopen --id <ID> --db <p> --why <reason> --who <AI|User> --when <ISO> --incident <p> [--location Issues|Fixed]
   move --id <ID> --db <p> --to <Issues|Fixed> --why <text> [--status <S>] [--evidence <p>]
                                                         Set Status=Reopened with §11.4.34 source attribution.
@@ -164,6 +177,8 @@ func main() {
 		runClassify(args[1:])
 	case "correct-history-evidence":
 		runCorrectHistoryEvidence(args[1:])
+	case "states":
+		runStates(args[1:])
 	case "-h", "--help", "help":
 		usage()
 		os.Exit(exitOK)

@@ -1,0 +1,6 @@
+| WIT-801 | Bug | Queued | High | never assessed bug carries no record | UNSET | UNSET |
+| WIT-802 | Bug | In progress | Medium | planned reproduction not yet run — Body prose that must survive the round trip. | none — UNREPRODUCED | in-progress |
+| WIT-803 | Bug | Ready for testing | Low | host fixture reproduction with a complete record | reproduced-host-fixture — REPRODUCED | root-cause-found-with-evidence |
+| WIT-804 | Bug | Queued | Critical | reproduction blocked on a device without a capture rig | blocked-no-device-with-recorded-blocker — UNREPRODUCED | UNSET |
+| WIT-805 | Task | Queued | Low | legacy prose lines stay prose — Neither line above is a structured record. | UNSET | UNSET |
+| WIT-806 | Bug | Queued | High | live reproduction missing env stays UNREPRODUCED | reproduced-live — UNREPRODUCED (missing env) | UNSET |

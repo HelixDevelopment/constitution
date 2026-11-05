@@ -60,12 +60,22 @@ done
 # Inputs (test only): LABEL_SYNC_TEST_MODE=1 + LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=<SIG>
 # make the wrapper signal itself right before it starts the agent (proves the
 # spawn-window re-check); both ignored otherwise.
+# Also test only (same gating): LABEL_AGENT_RUN_TEST_READY_DELAY / _SIG_DELAY=<seconds>
+# delay the USR1 / forwarding handler, so a child that exits while a handler runs
+# is deterministic in the tests (2026-11-04, wait-status fix below).
 # Signals are trapped BEFORE the entity is registered (review-2 finding F): a
 # TERM that arrives while registering used to kill the wrapper with the default
 # action, leaving a `running` ghost entity. Now it is remembered (stop) and the
 # wrapper exits 128+N right after registering, through the EXIT cleanup —
 # never starting the agent.
-registered=0 id="" child=0 stop="" pend="" ready=0 spawned=0
+registered=0 id="" child=0 stop="" pend="" ready=0 spawned=0 traps=0 werr=""
+# Test-only delay (LABEL_SYNC_TEST_MODE=1): the value must be a short decimal
+# (0 to 9.99 s); anything else (`infinity`, `-1`, `1e9`) is ignored, never slept.
+test_delay() {
+  [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] || return 0
+  case "$1" in [0-9]|[0-9].[0-9]|[0-9].[0-9][0-9]) sleep "$1" 2>/dev/null || : ;; esac
+  return 0
+}
 # Single child pid only, validated > 1 — never a process group (§11.4.263).
 fwd() { case "$child" in ''|*[!0-9]*) return 0 ;; esac; [ "$child" -gt 1 ] && kill -s "$1" "$child" 2>/dev/null; return 0; }
 # INT/QUIT: NOT forwarded when the child sits in the terminal's foreground
@@ -82,8 +92,11 @@ fwd_tty() {
   fwd "$1"
 }
 on_sig() { # signal
+  traps=$((traps + 1))
   if [ "$ready" = 1 ] && [ "$child" -gt 1 ] 2>/dev/null; then
     case "$1" in INT|QUIT) fwd_tty "$1" ;; *) fwd "$1" ;; esac
+    # test-only seam: hold the handler so the child can exit (and be reaped) while it runs
+    test_delay "${LABEL_AGENT_RUN_TEST_SIG_DELAY:-}"
   elif [ "$spawned" = 1 ]; then
     pend="$1"                                   # child forked, not yet ready (see on_ready)
   else
@@ -97,6 +110,9 @@ on_sig() { # signal
 # lost the TERM and the agent ran to completion). So the child reports USR1
 # right after its own trap reset, and nothing is forwarded before that.
 on_ready() {
+  traps=$((traps + 1))
+  # test-only seam: delay the handler so the child can exit (and be reaped) while it runs
+  test_delay "${LABEL_AGENT_RUN_TEST_READY_DELAY:-}"
   [ "$spawned" = 1 ] || return 0
   [ "$child" -gt 1 ] 2>/dev/null || child=$!    # USR1 may run before `child=$!`
   ready=1
@@ -107,7 +123,10 @@ on_ready() {
   pend=""
   return 0
 }
-cleanup() { [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0; }
+cleanup() {
+  [ -n "$werr" ] && rm -f -- "${werr:?}"
+  [ "$registered" = 1 ] && al_ctl unregister --id "$id" >/dev/null; return 0
+}
 trap 'on_sig TERM' TERM
 trap 'on_sig INT' INT
 trap 'on_sig QUIT' QUIT
@@ -150,9 +169,41 @@ child=$!
 # was only remembered (stop / pend): on_ready delivers it — to this ONE child
 # pid (re-review finding 7). One that arrived before the fork did not reach the
 # child through the tty either: plain fwd, not fwd_tty.
-# A trapped signal (the USR1 readiness report, or a forwarded one) makes `wait`
-# return 128+N while the child lives on (a zombie counts): wait again.
-# Measured: 500 of 500 fast-exiting agents gave their own status.
-wait "$child"; rc=$?
-while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done
+# A trapped signal makes `wait` return 128+N whether or not the child is done,
+# and bash 5.3.9 sometimes CONSUMES the child's status in that interrupted wait
+# (measured 2026-11-04 under load: 2 of 1473 interrupted waits, the next `wait`
+# said "not a child of this shell"). The old `while kill -0` loop also returned
+# the interrupted 138 whenever the child had exited and been reaped during the
+# handler (bash reaps in its SIGCHLD handler: no zombie stays), 1 of 100 runs
+# under load, 5 of 5 with the handler delayed.
+# So (1) the USR1 readiness report is taken BEFORE `wait`, by polling: a USR1
+# that arrives during the poll's `sleep` runs its handler after the sleep and
+# interrupts nothing; (2) a wait interrupted by a FORWARDED signal is repeated,
+# and when bash has lost the status the interrupted 128+N is kept (the child
+# normally died of that forwarded signal).   # MUT:readypoll
+# "Lost" is decided from bash's own complaint, never from the value 127: bash
+# keeps a reaped child's status, so a re-wait that returns 127 SILENTLY is the
+# agent's real 127 (review 2026-11-04 F-LS1: deciding on the value turned an
+# agent's 127 after a forwarded TERM into 143, 5 of 5). `wait` prints nothing
+# when it returns a real status and an error naming the pid when the pid is
+# unknown, in any locale; so a non-empty stderr that names the pid means lost.
+# The stderr file exists only for re-waits (mktemp on demand, removed on exit);
+# if it cannot be made, a re-wait's 127 is kept as the agent's status.
+while [ "$ready" != 1 ] && kill -0 "$child" 2>/dev/null; do sleep 0.01 || :; done
+last="" lost=0
+while :; do
+  t0=$traps
+  if [ -n "$last" ] && [ -n "$werr" ]; then
+    wait "$child" 2>"$werr"; rc=$?
+  else
+    wait "$child" 2>/dev/null; rc=$?
+  fi
+  if [ "$rc" = 127 ] && [ -n "$last" ] && [ -n "$werr" ] && [ -s "$werr" ] && grep -qF -- "$child" "$werr"; then
+    lost=1; break                                                # MUT:lostdecide
+  fi
+  { [ "$rc" -gt 128 ] && [ "$traps" != "$t0" ]; } || break   # MUT:waitloop
+  last=$rc
+  [ -n "$werr" ] || werr="$(mktemp "${TMPDIR:-/tmp}/label-agent-run.XXXXXX" 2>/dev/null)" || werr=""
+done
+if [ "$lost" = 1 ]; then rc=$last; fi
 exit "$rc"
