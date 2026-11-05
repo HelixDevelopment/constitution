@@ -16,7 +16,19 @@ cd "$W" || exit 2
 bash "$HERE/cm_covenant_114_287_propagation.sh" --root "$REPO" >"$W/out" 2>&1
 ok "fixture CLAUDE.md not reported MISSING" "$(grep -c 'submodules/superspec/examples/static-landing-page/CLAUDE.md' "$W/out")" 0
 ok "superspec exclusion reported as applied" "$(grep -c 'EXCLUDED  \*/submodules/superspec/examples/\*' "$W/out" | awk '{print ($1>0)?"yes":"no"}')" yes
-if [ -f "$REPO/submodules/claude_toolkit/CLAUDE.md" ]; then
+# The zero in (a) is evidence only when the fixture exists and the control needle proves the gate
+# enumerates submodule carriers (section 11.4.201(7)(b), 11.4.273). Without either submodule checkout
+# the result is an honest SKIP (exit 77), never a PASS on a vacuous zero (review F7).
+MISSING=""
+[ -f "$REPO/submodules/superspec/examples/static-landing-page/CLAUDE.md" ] || MISSING="$MISSING submodules/superspec"
+[ -f "$REPO/submodules/claude_toolkit/CLAUDE.md" ] || MISSING="$MISSING submodules/claude_toolkit"
+if [ -z "$MISSING" ]; then
 ok "control needle: the toolkit carrier is still enumerated by the gate" "$(grep -c 'submodules/claude_toolkit/CLAUDE.md' "$W/out" | awk '{print ($1>0)?"yes":"no"}')" yes
-else echo "skip - control needle: submodules/claude_toolkit is not checked out (topology_unsupported), the carrier cannot be enumerated"; fi
-echo "# pass=$P fail=$F"; [ "$F" -eq 0 ]
+fi
+echo "# pass=$P fail=$F"
+[ "$F" -eq 0 ] || exit 1
+if [ -n "$MISSING" ]; then
+  echo "SKIP: submodule checkout absent:$MISSING; assertion (a) cannot be proven without the fixture and the control needle reason=topology_unsupported"
+  exit 77
+fi
+exit 0
