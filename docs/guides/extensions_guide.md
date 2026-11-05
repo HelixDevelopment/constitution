@@ -64,7 +64,7 @@ $W status | $W classify --path P | $W record ... | $W forget --id ID
 $W refs add|remove|count|list --id EXT --record-digest D   # extensions/_installed/<id>.refs, flock-protected
 ```
 
-Exit 0 ok, 3 refused (nothing changed). `rollback` restores backed-up files byte-for-byte, restores both ledger files, drops rows created after the backup and unlinks a link made since only while it still matches its row; changed items are listed under `left_alone`. Tests: `tests/extensions/test_wiring_ledger.sh` and the paired mutations in `test_wiring_ledger_mutations.sh`.
+Exit 0 ok, 3 refused (nothing changed). `rollback` restores backed-up files byte-for-byte, restores both ledger files, drops rows created after the backup and unlinks a link made since only while it still matches its row; changed items are listed under `left_alone`. Rollback means "back to the backup": a backed-up path whose current content was written after the backup (for example a file you put where our link was) gets the backed-up content again, so copy anything you want to keep before you roll back. A backed-up file whose path now holds a link we did not record is refused (exit 3, nothing changed). Tests: `tests/extensions/test_wiring_ledger.sh` and the paired mutations in `test_wiring_ledger_mutations.sh`.
 
 ## Known limits
 

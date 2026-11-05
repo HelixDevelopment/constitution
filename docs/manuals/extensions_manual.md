@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-29 |
-| Last modified | 2026-10-29T20:00:00Z |
+| Last modified | 2026-11-05T18:00:00Z |
 | Status | draft |
 | Status summary | Engine (E1) implemented with its own tests; experimental, dormant, not independently GO'd (rounds 10 and 11 fixes landed, round 11 fixes and the round 12 A3 staging-pid fix (c252eed) pending independent re-review). `/constitution extensions ...` delegates to it (`constitution_cmd.sh`; `install-extension` maps to `add`); installer and post-update-hook wiring of extensions is UNCONFIRMED; shim formats other than Claude are UNCONFIRMED against live agents. Written 2026-10-29 from `constitution_ext.sh --help` and `scripts/constitution_ext/README.md`. |
 | Authority | Tool documentation for `scripts/constitution_ext/`; design in `docs/design/constitution_extensions_plan.md`. §11.4.228, §11.4.272, §11.4.18, §11.4.257, §11.4.212 govern. |
@@ -24,7 +24,8 @@ constitution_ext.sh [--root DIR] [--project-root DIR] [--json] [--dry-run] <comm
 | `validate <dir>` | check a manifest and tree; print the content sha256 |
 | `list` / `info <id>` | bundled and installed extensions with lock state / manifest summary, capabilities, lock entry, wiring |
 | `add <source> [--sha SHA] [--sha256 H] [--dev] [--waiver-id ID] [--yes]` | install from a local directory (pin `--sha256`) or git URL/repo (pin `--sha` 40-hex AND `--sha256`); unpinned needs `--waiver-id` |
-| `remove <id> [--yes]` | unwire and delete an installed extension (never a bundled one) |
+| `remove <id> [--yes]` | unwire and delete an installed extension (never a bundled one); needs this checkout's signed install fact (ownership wave 2, E01), which only `add` and `adopt-install` write, never `enable` |
+| `adopt-install <id> --waiver-id REF` | for an install made before install facts existed: records a fact marked `adopt` with the attestation reference REF, after checking the lock entry, the local state record and the tree digest. Needs an operator at a terminal: the id is typed at a `/dev/tty` prompt; `--yes` is refused and no flag replaces the prompt. REF is a free-form reference (ticket or decision id), not a §11.4.271 waiver (no roster, expiry or tracked item) |
 | `enable <id> [--yes]` / `disable <id>` | record consent and mark enabled / unwire commands and mark disabled |
 | `verify [<id>]` | recompute checksums, compare with the lock, catalog revocations, consented capabilities, wired shims |
 | `lock` | write or refresh the lock (bundled hashes only; never launders a changed installed tree) |
@@ -33,6 +34,8 @@ constitution_ext.sh [--root DIR] [--project-root DIR] [--json] [--dry-run] <comm
 | `wire [<id>] --agent A [--target DIR]` / `unwire` | create / remove shims, A = claude, opencode, gemini, qwen, pi, all |
 
 Exit codes: 0 ok, 1 failure, 2 usage, 3 precondition or refused by policy, 5 verification failed.
+
+Through the `/constitution` dispatcher (`scripts/constitution_cmd/constitution_cmd.sh extensions ...`) the dispatcher never forwards `--yes`, so `add`, `install-extension` (its alias), `enable` and `adopt-install` always ask at the terminal. The dispatcher runs these four with `timeout --foreground`, so the engine stays in the terminal's foreground process group and can read the answer (review round 3 N1: without `--foreground` the prompt was shown but the answer was never read; uutils `timeout` never returned, GNU `timeout` ended at its budget with nothing done). The budget is `CONSTITUTION_CMD_EXT_TIMEOUT` seconds (1..600, default 300); when it runs out the dispatcher exits 124 and nothing is changed. Without a controlling terminal these routes refuse at once (exit 3). Covered by `tests/constitution_cmd/test_constitution_cmd_pty.sh` (real engine, real pty, both `timeout` implementations when installed).
 
 ## Layout
 
@@ -71,10 +74,10 @@ Plain scalars a YAML 1.1 reader would reinterpret (octal/hex numbers, floats, `y
 
 ### Known limits added in round 12 (not fixed)
 
-- **F-1 (known, not fixed).** `remove` can delete a shared tree after `enable` re-consent in a second clone that holds a copied lock: `enable` writes a signed state record for any id present in the lock, and `remove` accepts that record as proof of ownership.
-- **F-2 (known, not fixed).** A state record / `add` journal is not bound to the constitution root. A project that installed the id under another root can therefore remove a shared tree with an identical digest.
+- **F-1 (narrowed by ownership wave 2, not fully fixed).** `enable` in a second clone that holds a copied lock no longer makes `remove` work there: `remove` now needs the signed install fact (E01) that only `add` writes, or `adopt-install` at a terminal, and `enable` never writes it. What remains: the fact binds the constitution root and the tree identity, not the project path, so a byte copy of a checkout (state directory included) carries the same fact, and `remove` in the copy deletes the tree the original still uses (tracked as CON-108). `adopt-install` is a speed bump, not a security boundary: whoever can type at the terminal (or allocate a pty) can attest.
+- **F-2 (addressed by ownership wave 2, E01).** The install fact `remove` requires is bound to the constitution root realpath, so a fact made under another root does not verify here (`tests/extensions/test_ownership_e01.sh` case "E01 fact is bound to the constitution root realpath", paired mutant E3). The state record and the `add` journal themselves are still not bound to the root.
 - **S2 (known, not fixed).** A parent-directory swap during `_copy_tree` can make the copy read outside content; it is caught afterwards by the pinned-digest check, not prevented.
 - **No reference counting.** `remove` by one project breaks another project's `verify` on the shared tree.
-- Status: the engine is experimental and dormant, and has NOT been independently reviewed to a GO. No GO is claimed. The ownership redesign (an "installed by this checkout" marker set only by `add`, bound to the root realpath and the tree identity, never by `enable`) is a tracked release-2 item.
+- Status: the engine is experimental and dormant, and has NOT been independently reviewed to a GO. No GO is claimed. The ownership redesign's "installed by this checkout" fact (E01: set only by `add` or an attested `adopt-install`, bound to the root realpath and the tree identity, never by `enable`) is implemented on the ownership wave 2 vehicle, under independent review (design `docs/design/extension_engine_ownership_redesign.md` section 15).
 
 Related: [guide](../guides/extensions_guide.md), [FAQ](../faq/extensions_faq.md), [lifecycle diagram](../diagrams/extension_lifecycle.md).
