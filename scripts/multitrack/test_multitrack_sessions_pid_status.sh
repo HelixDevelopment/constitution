@@ -17,8 +17,13 @@
 #            once (a self-inflicted permanent DoS on the spawn pool).
 # -----------------------------------------------------------------------------
 # Purpose (§11.4.114/§11.4.115 RED-on-the-broken-artifact + polarity switch):
-#   RED_MODE=1 (default) — drives the LAST-COMMITTED (git HEAD, pre-fix)
-#     copy of multitrack_sessions.sh against the RB-05 mock `claude`
+#   RED_MODE=1 — drives the PRE-FIX copy of multitrack_sessions.sh (and its
+#     sibling multitrack_host_budget.sh) extracted at the PINNED commit
+#     RED_PIN (the parent of 55998fb, which introduced the fix). It is NEVER
+#     `git show HEAD:`: once the fix is committed HEAD holds the FIXED copy,
+#     so a HEAD-built RED can never go RED on a committed tree (redpin class,
+#     §11.4.115/§11.4.292(E)); an unreachable pin FAILs closed. It runs
+#     against the RB-05 mock `claude`
 #     (device-AND-account-independent, §11.4.98/§12.6/§11.4.133 -- same mock
 #     as the sibling RB-05 test) and proves, on that actual pre-fix
 #     artifact:
@@ -47,14 +52,23 @@
 #   Both modes run their battery 3 times (§11.4.50 determinism).
 #
 # Usage:
-#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_sessions_pid_status.sh   # RED
-#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_sessions_pid_status.sh   # GREEN
-#   (default RED_MODE=1 if unset)
+#   sh constitution/scripts/multitrack/test_multitrack_sessions_pid_status.sh              # RED then GREEN
+#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_sessions_pid_status.sh   # RED only
+#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_sessions_pid_status.sh   # GREEN only
+#   (default RED_MODE=both if unset)
 #
-# Inputs: RED_MODE (0|1, default 1); MT_TEST_CONST_ROOT (optional override for
-#   the constitution submodule root); MT_TEST_PROJECT_ROOT (optional override
-#   for the outer project root, where the RB-05 mock fixture lives);
-#   MT_PIDSTAT_TEST_EVIDENCE_DIR (optional).
+# Inputs: RED_MODE (both|1|0, default both); MT_TEST_CONST_ROOT (optional
+#   override for the constitution submodule root); MT_TEST_PROJECT_ROOT
+#   (optional override for the outer project root, where the RB-05 mock
+#   fixture lives); MT_TEST_MOCK_CLAUDE (optional path to the RB-05 mock,
+#   used instead of the project-root copy); MT_PIDSTAT_TEST_EVIDENCE_DIR
+#   (optional).
+#
+# Environment dependency (honest SKIP, §11.4.3): the RB-05 mock lives in the
+#   CONSUMER project (scripts/multitrack/rb05_fixtures/mock_claude.sh), not in
+#   this repository. When no mock is reachable (a standalone constitution
+#   checkout with no outer project and no MT_TEST_MOCK_CLAUDE) the test exits
+#   77 with "reason=rb05_mock_absent" instead of a false RED.
 #
 # Outputs: PASS/FAIL/SKIP lines on stdout + $EV/results.log; per-iteration
 #   normalized result files under $EV. Exit 0 iff FAIL count is 0.
@@ -99,18 +113,36 @@ _pst_project_root() {
     ( cd "$CONST_ROOT/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null )
 }
 PROJECT_ROOT=$(_pst_project_root)
-[ -n "$PROJECT_ROOT" ] || { echo "FATAL: no outer project root (git toplevel above constitution/ / \$MT_TEST_PROJECT_ROOT)" >&2; exit 90; }
 
 SESSIONS="$CONST_ROOT/scripts/multitrack/multitrack_sessions.sh"
-MOCK="$PROJECT_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
 [ -f "$SESSIONS" ] || { echo "FATAL: primitive not found: $SESSIONS" >&2; exit 91; }
-[ -f "$MOCK" ] || { echo "FATAL: RB-05 mock not found: $MOCK" >&2; exit 91; }
+# The RB-05 mock is a consumer-project fixture. No mock => honest SKIP (rc 77),
+# decided BEFORE any evidence directory is created, never a false RED.
+if [ -n "${MT_TEST_MOCK_CLAUDE:-}" ]; then
+    MOCK=$MT_TEST_MOCK_CLAUDE
+elif [ -n "$PROJECT_ROOT" ]; then
+    MOCK="$PROJECT_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
+else
+    MOCK=""
+fi
+if [ -z "$MOCK" ] || [ ! -f "$MOCK" ]; then
+    echo "SKIP: the RB-05 mock claude is not reachable (no outer project root above $CONST_ROOT, no MT_TEST_MOCK_CLAUDE; looked for '${MOCK:-<none>}'); this test needs the consumer fixture scripts/multitrack/rb05_fixtures/mock_claude.sh reason=rb05_mock_absent"
+    exit 77
+fi
 sh -n "$SESSIONS" 2>/dev/null || { echo "FATAL: primitive fails sh -n: $SESSIONS" >&2; exit 92; }
 
-RED_MODE="${RED_MODE:-1}"
+RED_MODE="${RED_MODE:-both}"
+case "$RED_MODE" in
+    both) PHASES="1 0" ;;
+    1)    PHASES="1" ;;
+    0)    PHASES="0" ;;
+    *)    echo "FATAL: RED_MODE must be both, 1 or 0 (got '$RED_MODE')" >&2; exit 2 ;;
+esac
+REQ_MODE=$RED_MODE
 RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 _pst_evidence_home() {
-    printf '%s/qa-results/multitrack\n' "$PROJECT_ROOT"
+    if [ -n "$PROJECT_ROOT" ]; then printf '%s/qa-results/multitrack\n' "$PROJECT_ROOT"; return 0; fi
+    printf '%s/qa-results/multitrack\n' "$CONST_ROOT"
 }
 EV="${MT_PIDSTAT_TEST_EVIDENCE_DIR:-$(_pst_evidence_home)/pidstatus_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
@@ -136,24 +168,49 @@ skip() { SKIP=$((SKIP+1)); printf 'SKIP: %s (%s) [evidence: %s]\n' "$1" "$2" "$3
 # reaching the persist step this test needs to observe.
 PREFIX_DIR="$WORK/prefix"; mkdir -p "$PREFIX_DIR"
 PREFIX_COPY="$PREFIX_DIR/multitrack_sessions.sh"
-if [ "$RED_MODE" = "1" ]; then
-    if ! git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_sessions.sh > "$PREFIX_COPY" 2>/dev/null; then
-        echo "FATAL: could not extract git HEAD copy of multitrack_sessions.sh from $CONST_ROOT" >&2
+# --- RED artifact pin (§11.4.114/§11.4.115, redpin class) -------------------
+# The RED artifact is the pre-fix copy at a FIXED commit, never `git show
+# HEAD:` (HEAD holds the FIXED copy once the fix is committed). RED_PIN is the
+# parent of 55998fb, which replaced `_spawn_pid=$$` with `_spawn_pid=""`.
+# Assertions: the pin is reachable (else FAIL closed); the pinned copy has the
+# pre-fix construct AND lacks the fix; the CURRENT copy has the fix and not
+# the pre-fix construct (control needle).
+RED_PIN=e60cbde2e33e7d0542a937331763f6be7e739c9a
+RED_PATH=scripts/multitrack/multitrack_sessions.sh
+PREFIX_NEEDLE='_spawn_pid=$$'
+FIX_NEEDLE='_spawn_pid=""'
+_cur_fix=$(grep -cF -- "$FIX_NEEDLE" "$SESSIONS"); _cur_pre=$(grep -cF -- "$PREFIX_NEEDLE" "$SESSIONS")
+if [ "${_cur_fix:-0}" -ge 1 ] && [ "${_cur_pre:-0}" -eq 0 ]; then
+    pass "control: the CURRENT $RED_PATH carries the fix ('$FIX_NEEDLE' x$_cur_fix) and not the pre-fix construct" "$SESSIONS"
+else
+    fail "control: the CURRENT $RED_PATH lost the fix (fix x${_cur_fix:-0}, pre-fix x${_cur_pre:-0})" "$SESSIONS"
+fi
+case " $PHASES " in *" 1 "*)
+    if ! git -C "$CONST_ROOT" cat-file -e "$RED_PIN^{commit}" 2>/dev/null; then
+        echo "FAIL: RED pin $RED_PIN is not reachable from $CONST_ROOT (shallow clone?) -- the RED cannot be reproduced; refusing to pass (§11.4.6)" >&2
         exit 93
     fi
-    if ! git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_host_budget.sh > "$PREFIX_DIR/multitrack_host_budget.sh" 2>/dev/null; then
-        echo "FATAL: could not extract git HEAD copy of multitrack_host_budget.sh from $CONST_ROOT" >&2
+    if ! git -C "$CONST_ROOT" show "$RED_PIN:$RED_PATH" > "$PREFIX_COPY" 2>/dev/null \
+       || ! git -C "$CONST_ROOT" show "$RED_PIN:scripts/multitrack/multitrack_host_budget.sh" > "$PREFIX_DIR/multitrack_host_budget.sh" 2>/dev/null; then
+        echo "FAIL: could not extract the pre-fix engine files at RED pin $RED_PIN from $CONST_ROOT" >&2
         exit 93
     fi
-    if ! grep -qF '_spawn_pid=$$' "$PREFIX_COPY"; then
-        echo "FATAL: extracted HEAD copy does not contain the expected pre-fix '_spawn_pid=\$\$' construct -- cannot honestly claim RED reproduction (§11.4.6)" >&2
+    if ! grep -qF -- "$PREFIX_NEEDLE" "$PREFIX_COPY" || grep -qF -- "$FIX_NEEDLE" "$PREFIX_COPY"; then
+        echo "FAIL: the copy at RED pin $RED_PIN is not the pre-fix artifact (needs '$PREFIX_NEEDLE' and not '$FIX_NEEDLE') -- cannot honestly claim RED reproduction (§11.4.6)" >&2
         exit 94
     fi
-fi
+    pass "RED pin $RED_PIN resolves and its $RED_PATH is the pre-fix artifact (has the pre-fix construct, lacks the fix)" "$PREFIX_COPY"
+;; esac
 
+# Sourcing multitrack_sessions.sh runs its `main "$@"`; with NO positional
+# argument its `shift 2>/dev/null || true` is a fatal special-builtin error
+# under dash (/bin/sh on this host) and the sourcing shell dies before
+# `_mts_live_count` runs (measured: empty count, both copies). The C3 probes
+# therefore source it with the benign argument `help` (usage, rc 0) and
+# discard its output, so only the count reaches stdout.
 run_battery() {
     _iter="$1"
-    _norm="$EV/normalized_iter${_iter}.txt"
+    _norm="$EV/normalized_m${RED_MODE}_iter${_iter}.txt"
     : > "$_norm"
 
     if [ "$RED_MODE" = "1" ]; then
@@ -166,7 +223,7 @@ run_battery() {
         wait "$_wrapper_pid" 2>/dev/null
         _recorded_pid=$(grep '"pid"' "$_reg/tracks/redtrack.json" 2>/dev/null | sed -n 's/.*"pid":"\([^"]*\)".*/\1/p')
         if [ "$_recorded_pid" = "$_wrapper_pid" ] && [ -n "$_recorded_pid" ]; then
-            pass "RED(C2): pre-fix copy recorded pid=$_recorded_pid == wrapper's own \$! ($_wrapper_pid, an already-exited process) -- not any worker" "$_reg/tracks/redtrack.json"
+            pass "RED(C2): pre-fix pinned copy recorded pid=$_recorded_pid == wrapper's own \$! ($_wrapper_pid, an already-exited process) -- not any worker" "$_reg/tracks/redtrack.json"
             echo "RED_C2_RECORDED_EQUALS_WRAPPER=1" >> "$_norm"
         else
             fail "RED(C2): expected recorded pid ($_recorded_pid) == wrapper pid ($_wrapper_pid), defect not reproduced" "$_reg/tracks/redtrack.json"
@@ -181,7 +238,7 @@ run_battery() {
         fi
 
         # --- C3-RED: _mts_live_count reports 1 after ONE finished spawn ----
-        _livecount=$(MT_SESSIONS_DIR="$_reg" sh -c '. "'"$PREFIX_COPY"'" 2>/dev/null; _mts_live_count' 2>/dev/null)
+        _livecount=$(MT_SESSIONS_DIR="$_reg" sh -c '. "'"$PREFIX_COPY"'" >/dev/null 2>&1; _mts_live_count' mt_pst_src help 2>/dev/null)
         if [ "$_livecount" = "1" ]; then
             pass "RED(C3): _mts_live_count==1 after ONE already-finished spawn (pre-fix defect: permanently-live status never demoted)" "$_reg"
             echo "RED_C3_LIVECOUNT=1" >> "$_norm"
@@ -209,7 +266,7 @@ run_battery() {
     fi
 
     # C3-GREEN-a: _mts_live_count reports 0 after the completed spawn above.
-    _livecount0=$(MT_SESSIONS_DIR="$_reg" sh -c '. "'"$SESSIONS"'" 2>/dev/null; _mts_live_count' 2>/dev/null)
+    _livecount0=$(MT_SESSIONS_DIR="$_reg" sh -c '. "'"$SESSIONS"'" >/dev/null 2>&1; _mts_live_count' mt_pst_src help 2>/dev/null)
     if [ "$_livecount0" = "0" ]; then
         pass "GREEN(C3a): _mts_live_count==0 after a completed spawn (the false-permanent-live defect is gone)" "$_reg"
         echo "GREEN_C3a_LIVECOUNT=0" >> "$_norm"
@@ -222,7 +279,7 @@ run_battery() {
     # correctly counted as live (the fix must not hide a genuinely-live entry).
     _reg2="$WORK/g2_reg_$_iter"; mkdir -p "$_reg2/tracks"
     printf '{"track":"liveone","alias":"","session_id":"SEED","cwd":"x","config_dir":"","pid":"","status":"running","updated":"t"}\n' > "$_reg2/tracks/liveone.json"
-    _livecount1=$(MT_SESSIONS_DIR="$_reg2" sh -c '. "'"$SESSIONS"'" 2>/dev/null; _mts_live_count' 2>/dev/null)
+    _livecount1=$(MT_SESSIONS_DIR="$_reg2" sh -c '. "'"$SESSIONS"'" >/dev/null 2>&1; _mts_live_count' mt_pst_src help 2>/dev/null)
     if [ "$_livecount1" = "1" ]; then
         pass "GREEN(C3b): a genuinely status=running snapshot is STILL counted live (no over-correction)" "$_reg2"
         echo "GREEN_C3b_LIVECOUNT=1" >> "$_norm"
@@ -258,18 +315,20 @@ KILLEOF
     fi
 }
 
-for _i in 1 2 3; do run_battery "$_i"; done
+for RED_MODE in $PHASES; do
+    for _i in 1 2 3; do run_battery "$_i"; done
 
-echo "=== §11.4.50 determinism check: normalized_iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
-if diff -q "$EV/normalized_iter1.txt" "$EV/normalized_iter2.txt" >/dev/null 2>&1 \
-   && diff -q "$EV/normalized_iter2.txt" "$EV/normalized_iter3.txt" >/dev/null 2>&1; then
-    pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_iter1.txt"
-else
-    fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
-fi
+    echo "=== §11.4.50 determinism check (RED_MODE=$RED_MODE): normalized iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
+    if diff -q "$EV/normalized_m${RED_MODE}_iter1.txt" "$EV/normalized_m${RED_MODE}_iter2.txt" >/dev/null 2>&1 \
+       && diff -q "$EV/normalized_m${RED_MODE}_iter2.txt" "$EV/normalized_m${RED_MODE}_iter3.txt" >/dev/null 2>&1; then
+        pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_m${RED_MODE}_iter1.txt"
+    else
+        fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
+    fi
+done
 
 echo "" | tee -a "$EV/results.log"
-echo "RED_MODE=$RED_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
+echo "RED_MODE=$REQ_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
 echo "Evidence: $EV"
 
 [ "$FAIL" -eq 0 ]
