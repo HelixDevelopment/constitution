@@ -48,7 +48,7 @@ scripts/catalog-engine/fixtures/golden_bad_test.sh	sh	fixture	-	-	-	fixture path
 scripts/catalog-engine/fixtures/golden_good_test.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/catalog-engine/lib/parse_mutation.py	py	excluded	-	-	-	reason: library: parser library imported by scripts/catalog-engine/lib/scan.py (the catalog generator); tested by scripts/catalog-engine/tests/test_parse_mutation.sh
 scripts/catalog-engine/tests/test_parse_gate_wrappers.sh	sh	entry	default	bash	-	auto
-scripts/catalog-engine/tests/test_parse_mutation.sh	sh	entry	default	bash	-	override: tier default -- the name holds 'mutation' only because it tests parse_mutation.py; measured 4.7 s wall (CON-064)
+scripts/catalog-engine/tests/test_parse_mutation.sh	sh	entry	default	bash	-	override: tier default -- the name holds 'mutation' only because it tests parse_mutation.py; measured 4.7 s wall (CON-070)
 scripts/codegraph/tests/cg_fp.py	py	excluded	-	-	-	reason: library: fingerprint helper module called by test_codegraph_mcp.sh and test_mcp_readonly.sh
 scripts/codegraph/tests/fixtures/stub_cg/bin/codegraph	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/codegraph/tests/fixtures/stub_cg/bin/codegraph_stock	sh	fixture	-	-	-	fixture path (not a test entry point)

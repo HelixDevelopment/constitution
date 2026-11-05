@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_parse_mutation.sh -- behaviour + paired-mutation test of scripts/catalog-engine/lib/parse_mutation.py (CON-064)
+# test_parse_mutation.sh -- behaviour + paired-mutation test of scripts/catalog-engine/lib/parse_mutation.py (CON-070)
 #
 # Purpose
 #   parse_mutation.py turns a section 1.1 meta-test file into one catalog record per mutation block

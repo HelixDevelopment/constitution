@@ -1359,3 +1359,64 @@ Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc)
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 
+## CON-070 — parse_mutation.py had no test; its full-suite excluded note named the wrong importer and a test that does not cover it
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:34:07Z
+**Reported-By:** AI (Claude Opus 5.5, CON-031 excluded-list investigation)
+
+**What (the report, verbatim):**
+The excluded row of scripts/catalog-engine/lib/parse_mutation.py said: imported by parse_gate.py; tested by scripts/catalog-engine/tests. Measured: parse_gate.py only names it in a comment; scan.py imports it; the only test in scripts/catalog-engine/tests covers parse_gate.py. No runnable manifest unit referenced it. Vehicle vehicle/con031-excluded commit 4db86ed6 adds scripts/catalog-engine/tests/test_parse_mutation.sh (10/10, 9 of 9 paired mutants killed, 4.7 s) and 485c341d corrects the note. Pending independent review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-064 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+
+**Affected scope / file-scope manifest:**
+scripts/catalog-engine/lib/parse_mutation.py, scripts/catalog-engine/tests/test_parse_mutation.sh, config/full_suite_manifest.tsv
+
+**Reproduction / context:**
+bash scripts/catalog-engine/tests/test_parse_mutation.sh
+
+**Acceptance criteria:**
+The test is on main as a default-tier manifest entry, passes, and every paired mutant is killed; the excluded note names scan.py and the test.
+
+## CON-071 — capture_fc_timer_triplet.sh checks the consumer pre-build file before refusing the stand-in-only override, so test (H15) fails in a standalone clone
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh (standalone clone, no consumer pre-build file)` — green-command `the same command on vehicle 322c25e` — env `host, standalone clone of main 7f72395` — signature `NOT ok (H15) rc=2: FATAL: pre-build script not found` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the existence check of the consumer pre-build file ran before the refusal of the stand-in-only CAPTURE_TRIPLET_TREE_ROOT override, although the mode is decided from paths alone; moving the refusal first flips (H15) RED to GREEN with nothing else changed` — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+
+RED measured 2026-11-05 on main 7f723954 in a fresh standalone clone: test_capture_fc_timer_triplet.sh check (H15) NOT ok rc=2: FATAL: pre-build script not found: <parent>/device/rockchip/rk3588/tests/pre_build_verification.sh. Root cause: the tool's existence check of the consumer pre-build file ran before the CAPTURE_TRIPLET_TREE_ROOT refusal, though the mode is decided from paths alone. Vehicle commit 322c25ef moves the refusal first; same test, same clone: all checks pass. Pending review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-065 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/capture_fc_timer_triplet.sh
+
+## CON-072 — parse_mutation.py keeps the trailing double quote of the echo in the description when a mutation banner has no closing em-dash
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con072_reproduction_2026_11_05.txt` — red-command `python3 -I run.py scripts/catalog-engine/lib/parse_mutation.py meta.sh meta_ctl.sh (fixtures in the evidence file)` — env `host, vehicle 2595f06 (parser identical to main ecfe432)` — signature `meta.sh description='text"'` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+**Investigation:** root-cause-found-with-evidence — root-cause `_RE_MUT_DEF ends the description at a closing em-dash or at end of line, so without the em-dash the closing double quote of the echo is captured; the closing em-dash control returns text` — evidence `docs/qa/con072_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+
+Measured 2026-11-05: for the line  echo "— CM-X mutation: text"  (no closing em-dash) parse_mutation_file returns description 'text"' (with the quote; for an empty text it returns the single character "), because _RE_MUT_DEF ends at an em-dash or end of line. The catalog records a wrong description and derivation_gaps misses no-mutation-description. Not changed in the CON-070 test (it does not pin the defect). Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-066 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+
+**Affected scope / file-scope manifest:**
+scripts/catalog-engine/lib/parse_mutation.py
+
+## CON-073 — full-suite manifest on main lacks rows for 26 census files, so --verify-manifest ends MANIFEST-MISMATCH and the operator cannot run --accept-excluded-change
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con073_reproduction_2026_11_05.txt` — red-command `bash scripts/run_full_suite.sh --verify-manifest (fresh clone of main ecfe432)` — env `host, fresh clone of main ecfe432` — signature `census file without manifest row (25 on ecfe432, 26 on 7f72395)` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: census files land on main without manifest rows because no commit-time or pre-build seam refuses that; the missing rows are measured, the absent seam is not yet shown by a toggling experiment` — evidence `docs/qa/con073_reproduction_2026_11_05.txt` — updated 2026-11-05T17:35:45Z — by `AI (Claude Opus 5.5, CON-031 excluded-list investigation)`
+
+Measured 2026-11-05 on main 7f723954: bash scripts/run_full_suite.sh --verify-manifest exit 3, RESULT: MANIFEST-MISMATCH (26 problems), all 'census file without manifest row' (e.g. test_precheck_shellcheck_red.sh, cm_agent_type_label_mutation_test.sh, states_mutation_runner.py). The runner refuses --accept-excluded-change while any other manifest problem exists, so CON-031 cannot be done on main. Vehicle commit 485c341d regenerates the manifest (27 rows incl. the new CON-070 test, two new excluded rows with reasons) and syncs the guide. Recurrence risk: tests land without their manifest row; no commit-time check. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle. Re-minted on 2026-11-05 after merging main ecfe432: this item was first registered as CON-067 in vehicle commit e581a31, but main had meanwhile minted CON-064..CON-069 for other work; the vehicle commits 4db86ed6, 485c341d and 322c25ef name the old ids (old to new: CON-064 to CON-070, CON-065 to CON-071, CON-066 to CON-072, CON-067 to CON-073).
+
+**Affected scope / file-scope manifest:**
+config/full_suite_manifest.tsv, docs/guides/full_suite_runner_guide.md
+

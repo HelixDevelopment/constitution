@@ -1,0 +1,36 @@
+# CON-073 reproduction record (host fixture), 2026-11-05
+# Captured by the CON-031 excluded-list investigation (Claude Opus 5.5). Surface: host-only. Section 11.4.292(C) / 11.4.294.
+
+## Command
+bash scripts/run_full_suite.sh --verify-manifest   (in a fresh clone at the named commit)
+Signature (true while the defect is present): census file without manifest row
+
+## RED on main ecfe432 (re-measured after the merge; first measured on main 7f72395 with 26 rows missing)
+MANIFEST: census file without manifest row: scripts/codegraph/tests/test_update_and_resync.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/check_mutation_anchors.py
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/check_safepath_census.py
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/lib/foreign_uid_cause.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_safepath_v4r12.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_safepath_v4r13.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_safepath_v4r14.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_safepath_v4r15.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_supervisor_unit.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_mutation_anchor_census.sh
+MANIFEST: census file without manifest row: scripts/fastcycle/tests/test_precheck_shellcheck_red.sh
+MANIFEST: census file without manifest row: scripts/gates/cm_agent_type_label_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/gates/cm_geo_substitute_anchor_wired_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh
+MANIFEST: census file without manifest row: scripts/hooks/test_guard_agent_type_label.sh
+MANIFEST: census file without manifest row: scripts/multitrack/test_gen_agent_label_defs.sh
+MANIFEST: census file without manifest row: scripts/multitrack/test_install_agent_label_defs.sh
+MANIFEST: census file without manifest row: scripts/workable-items/mutation/states_mutation_runner.py
+MANIFEST: census file without manifest row: tests/extensions/test_wiring_ledger.sh
+MANIFEST: census file without manifest row: tests/extensions/test_wiring_ledger_mutations.sh
+census: go/entry=5 js/entry=5 py/entry=8 py/excluded=21 py/fixture=14 py/member=25 runall/entry=9 sh/entry=317 sh/excluded=23 sh/fixture=111 sh/member=280 total=818
+RESULT: MANIFEST-MISMATCH (25 problem(s); nothing was run)
+rc=3
