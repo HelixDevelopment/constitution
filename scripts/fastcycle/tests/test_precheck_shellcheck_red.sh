@@ -302,7 +302,7 @@ m_x10
     && ok "X10 (F1/p2) a '.sh' file whose first line is '# shellcheck shell=bash' is linted as bash ('[[' PASSes)" \
     || bad "X10 directive dialect: rc=$RC $(rules)"
 new_case x11; base; wh pkg/lib.sh "\0043 shellcheck shell=sh\n$BRK"; wh pkg/lib.bash "\0043 shellcheck shell=sh\n$BRK"; head; gate
-X11R=$(printf "# shellcheck shell=sh\n$BRK" | shellcheck --norc -f json1 - | python3 -c 'import json,sys;print(sorted({"SC%d" % c["code"] for c in json.load(sys.stdin)["comments"]}))')
+X11R=$(printf '%s\n%b' '# shellcheck shell=sh' "$BRK" | shellcheck --norc -f json1 - | python3 -c 'import json,sys;print(sorted({"SC%d" % c["code"] for c in json.load(sys.stdin)["comments"]}))')
 [ "$RC" -eq 1 ] && [ "$(rules)" = "['SC3010']" ] && [ "$X11R" = "['SC3010']" ] \
     && [ "$(sc 'sorted({f["file"] for f in e.get("findings", [])})')" = "['pkg/lib.bash', 'pkg/lib.sh']" ] \
     && ok "X11 (control) 'shell=sh' stays POSIX sh -- the gate and shellcheck itself (no -s, directive honoured) both report SC3010, even on a '.bash' file" \

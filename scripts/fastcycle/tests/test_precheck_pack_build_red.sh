@@ -658,7 +658,7 @@ else
     bad "D4 setup FAILED: could not add a scratch worktree"
 fi
 
-# D5 (directive policy D5): a `# shellcheck disable=` passes only with its
+# D5 (directive policy D5): a `disable=` directive passes only with its
 # justification on the SAME line; the same directive with the reason on the line
 # ABOVE, or with a placeholder reason, FAILs (rc=1).
 D5_PATH="scripts/fastcycle/tests/precheck_build_scratch_d5_SCRATCH.sh"
@@ -809,15 +809,15 @@ fi
 # with a co-cited pack of exactly S1..S2 of that submodule, and NOT-READY again with a pack of S0..S2 (the
 # wrong range). Real repositories, real wrapper, real verifier (11.4.289).
 D12T="$TMP/d12"; mkdir -p "$D12T/P"
-D12G="-c user.name=t -c user.email=t@x -c commit.gpgsign=false"
-printf 'r\n' >"$D12T/P/README.md"; git init -q "$D12T/P" && git -C "$D12T/P" $D12G add -A && git -C "$D12T/P" $D12G commit -q -m base
+d12git() { git -c user.name=t -c user.email=t@x -c commit.gpgsign=false "$@"; }
+printf 'r\n' >"$D12T/P/README.md"; git init -q "$D12T/P" && d12git -C "$D12T/P" add -A && d12git -C "$D12T/P" commit -q -m base
 git init -q "$D12T/P/sub"; printf '#!/bin/sh\necho "s0"\n' >"$D12T/P/sub/s.sh"
-git -C "$D12T/P/sub" $D12G add -A && git -C "$D12T/P/sub" $D12G commit -q -m s0; D12_S0=$(git -C "$D12T/P/sub" rev-parse HEAD)
-printf '#!/bin/sh\necho "s1"\n' >"$D12T/P/sub/s.sh"; git -C "$D12T/P/sub" $D12G commit -q -am s1
-git -C "$D12T/P" $D12G add sub >/dev/null 2>&1 && git -C "$D12T/P" $D12G commit -q -m addsub
-printf '#!/bin/sh\necho "s2"\n' >"$D12T/P/sub/s.sh"; git -C "$D12T/P/sub" $D12G commit -q -am s2; D12_S2=$(git -C "$D12T/P/sub" rev-parse HEAD)
+d12git -C "$D12T/P/sub" add -A && d12git -C "$D12T/P/sub" commit -q -m s0; D12_S0=$(git -C "$D12T/P/sub" rev-parse HEAD)
+printf '#!/bin/sh\necho "s1"\n' >"$D12T/P/sub/s.sh"; d12git -C "$D12T/P/sub" commit -q -am s1
+d12git -C "$D12T/P" add sub >/dev/null 2>&1 && d12git -C "$D12T/P" commit -q -m addsub
+printf '#!/bin/sh\necho "s2"\n' >"$D12T/P/sub/s.sh"; d12git -C "$D12T/P/sub" commit -q -am s2; D12_S2=$(git -C "$D12T/P/sub" rev-parse HEAD)
 printf '#!/bin/sh\necho "p"\n' >"$D12T/P/p.sh"
-git -C "$D12T/P" $D12G add sub p.sh >/dev/null 2>&1 && git -C "$D12T/P" $D12G commit -q -m bump; D12_PH=$(git -C "$D12T/P" rev-parse HEAD)
+d12git -C "$D12T/P" add sub p.sh >/dev/null 2>&1 && d12git -C "$D12T/P" commit -q -m bump; D12_PH=$(git -C "$D12T/P" rev-parse HEAD)
 sh "$BUILD_WRAPPER" --repo-root "$D12T/P" --commit "$D12_PH" --out-dir "$D12T/pp" >"$D12T/pp.out" 2>"$D12T/pp.err"; D12_P=$?
 sh "$BUILD_WRAPPER" --repo-root "$D12T/P/sub" --commit "$D12_S2" --out-dir "$D12T/ps" >"$D12T/ps.out" 2>"$D12T/ps.err"; D12_S=$?
 sh "$BUILD_WRAPPER" --repo-root "$D12T/P/sub" --commit "$D12_S0..$D12_S2" --out-dir "$D12T/pw" >"$D12T/pw.out" 2>"$D12T/pw.err"; D12_W=$?
@@ -845,8 +845,8 @@ fi
 # (PRECHECK_TEST_MODE=1, private lock directory) is refused by the verifier with that as its only reason;
 # the same commit built normally is READY (the control).
 D13R="$TMP/d13repo"; mkdir -p "$D13R/pkg" "$TMP/d13lock"
-printf 'r\n' >"$D13R/README.md"; git init -q "$D13R" && git -C "$D13R" $D12G add -A && git -C "$D13R" $D12G commit -q -m base
-printf '#!/bin/sh\necho "q"\n' >"$D13R/pkg/a.sh"; git -C "$D13R" $D12G add -A && git -C "$D13R" $D12G commit -q -m head
+printf 'r\n' >"$D13R/README.md"; git init -q "$D13R" && d12git -C "$D13R" add -A && d12git -C "$D13R" commit -q -m base
+printf '#!/bin/sh\necho "q"\n' >"$D13R/pkg/a.sh"; d12git -C "$D13R" add -A && d12git -C "$D13R" commit -q -m head
 D13_H=$(git -C "$D13R" rev-parse HEAD)
 PRECHECK_TEST_MODE=1 PRECHECK_TEST_LOCK_DIR="$TMP/d13lock" sh "$BUILD_WRAPPER" --repo-root "$D13R" --commit "$D13_H" \
     --out-dir "$TMP/d13t" >"$TMP/d13t.out" 2>"$TMP/d13t.err"; D13_T=$?
