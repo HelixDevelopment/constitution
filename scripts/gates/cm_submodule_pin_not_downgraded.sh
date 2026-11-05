@@ -49,6 +49,8 @@
 # ── Waiver (intentional rollbacks) — what IS and IS NOT enforced ─────────
 # File `.submodule_pin_waivers`, read from the git INDEX. TAB-separated, exactly 7 fields:
 #   path  old_sha  new_sha  authoriser  expiry  tracked_item  base_sha
+# A row whose first field starts with `#` is a comment and never waives anything (a path that really starts with `#`
+# cannot be waived); a row with any other field count never waives anything either.
 # ONE RULE for the lifetime of a row: a row waives ONE transition (path, old pin, new pin; full SHAs) in ONE commit that
 # has ONE parent, and that parent is base_sha (the full SHA of HEAD at the time the rollback is committed:
 # `git rev-parse HEAD`). It is spent by ANY other commit (not only the first) that is reachable from a ref (`git
