@@ -80,18 +80,18 @@ scripts/codegraph/tests/test_owed_report_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve1_count_hook.js	js	entry	default	node	-	auto
-scripts/codegraph/tests/test_resolve1_drive.js	js	entry	default	node	-	auto
+scripts/codegraph/tests/test_resolve1_drive.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve1.sh (shell model cannot see the node invocation), not a standalone entry
 scripts/codegraph/tests/test_resolve1_dump.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
-scripts/codegraph/tests/test_resolve1_equiv_real.js	js	entry	default	node	-	auto
+scripts/codegraph/tests/test_resolve1_equiv_real.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve2.sh (shell model cannot see the node invocation), not a standalone entry
 scripts/codegraph/tests/test_resolve1_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
 scripts/codegraph/tests/test_resolve1_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve1_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve1_mutations.sh
 scripts/codegraph/tests/test_resolve1_mutations.sh	sh	entry	heavy	bash	-	auto
-scripts/codegraph/tests/test_resolve1_probe.js	js	entry	default	node	-	auto
+scripts/codegraph/tests/test_resolve1_probe.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve1.sh (shell model cannot see the node invocation), not a standalone entry
 scripts/codegraph/tests/test_resolve2.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve2_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve2.sh	auto: run by scripts/codegraph/tests/test_resolve2.sh
 scripts/codegraph/tests/test_resolve2_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve2_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve2_mutations.sh
 scripts/codegraph/tests/test_resolve2_mutations.sh	sh	entry	heavy	bash	-	auto
-scripts/codegraph/tests/test_resolve2_probe.js	js	entry	default	node	-	auto
+scripts/codegraph/tests/test_resolve2_probe.js	js	fixture	-	-	-	override: node helper that needs <distDir> <db> args; invoked by test_resolve2.sh (shell model cannot see the node invocation), not a standalone entry
 scripts/codegraph/tests/test_scope_exceptions.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_scope_exceptions_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_tripwire.sh	sh	entry	default	bash	-	auto
