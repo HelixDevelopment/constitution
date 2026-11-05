@@ -19,8 +19,8 @@
 #                f-string in a new test, a new UNTRACKED test        -> FAIL
 #   own-file     the control run must not name the guard's own file (the
 #                round-1 defect: its fixture text was flagged)
-# The revision word is spelled at run time ($H), so this file never carries a
-# builder line of its own.
+# The revision word and its @ alias are spelled at run time ($H, $AT), so this
+# file never carries a builder line of its own.
 #
 # Usage: bash tests/test_no_head_red_builder_mutations.sh
 # Exit: 0 when every mutant is killed and the control passes; 1 otherwise.
@@ -53,6 +53,7 @@ cp -a "$ROOT/scripts/lib/." "$T/scripts/lib/"
 G="$T/tests/test_no_head_red_builder.sh"
 
 H=$(printf 'HE%s' AD)
+AT=$(printf '\100')   # the @ alias, spelled so that no line of this file reads as a builder
 bash "$G" > "$S/control.out" 2>&1; rc=$?
 if [ "$rc" = "0" ]; then pass "control: unmutated guard passes in the scratch clone"
 else fail "control: unmutated guard exited $rc"; tail -5 "$S/control.out"; fi
@@ -85,7 +86,7 @@ append_leg() {   # $1 = leg name, $2 = text to append
 }
 append_leg new-builder "git -C \"\$CONST_ROOT\" show $H:$A > \"\$WORK/redpin_mutant_copy.sh\""
 append_leg r1-option   "git -C \"\$CONST_ROOT\" show --no-textconv $H:$A > \"\$WORK/m.sh\""
-append_leg r1-at-alias "git -C \"\$CONST_ROOT\" show @:$A > \"\$WORK/m.sh\""
+append_leg r1-at-alias "git -C \"\$CONST_ROOT\" show $AT:$A > \"\$WORK/m.sh\""
 append_leg r1-fd1      "git -C \"\$CONST_ROOT\" show $H:$A 1>\"\$WORK/m.sh\""
 append_leg r1-two-step "_c=\$(git -C \"\$CONST_ROOT\" show $H:$A)
 printf '%s\\n' \"\$_c\" > \"\$WORK/m.sh\""
