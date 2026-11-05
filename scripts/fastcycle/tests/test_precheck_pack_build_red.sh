@@ -56,6 +56,10 @@ CONST_ROOT="$FC"
 REVIEW_DIR="$FC/review"
 PRECHECK="$REVIEW_DIR/precheck_pack.sh"
 BUILD_WRAPPER="$REVIEW_DIR/precheck_pack_build.sh"
+# The scratch worktrees below start from the commit under test (HEAD of this checkout), never from a local
+# `main` branch, which a clone or a vehicle need not have (gate review 2026-11-05 round 1 N3: C1, C3, D1, D4
+# and D5 failed with "setup FAILED" in a clone with no local main). HEAD always resolves in a checkout.
+WT_REF=$(git -C "$CONST_ROOT" rev-parse --verify --quiet 'HEAD^{commit}') || WT_REF=""
 
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
@@ -345,7 +349,7 @@ make_disposable_commit() {
     # ordinary gc.
     _rel="$1"
     _wt="$TMP/mkwt.$$.$(date +%s%N 2>/dev/null || echo 0)"
-    git -C "$CONST_ROOT" worktree add --detach --quiet "$_wt" main >"$TMP/mkwt.out" 2>"$TMP/mkwt.err" || {
+    git -C "$CONST_ROOT" worktree add --detach --quiet "$_wt" "$WT_REF" >"$TMP/mkwt.out" 2>"$TMP/mkwt.err" || {
         echo "FAILED-WORKTREE-ADD" ; return 1
     }
     register_wt "$_wt"
@@ -539,7 +543,7 @@ D1_PATH="scripts/fastcycle/tests/precheck_build_scratch_$(printf '\303\251')_SCR
 # multi-file batch).
 D1_SHA=""
 D1_WT="$TMP/d1wt"
-if git -C "$CONST_ROOT" worktree add --detach --quiet "$D1_WT" main >/dev/null 2>&1; then
+if git -C "$CONST_ROOT" worktree add --detach --quiet "$D1_WT" "$WT_REF" >/dev/null 2>&1; then
     register_wt "$D1_WT"
     cat >"$D1_WT/$D1_PATH" <<'EOF_D1'
 #!/bin/sh
@@ -623,7 +627,7 @@ fi
 # flipped in the second of two scratch commits builds an all_pass pack with
 # files_linted == 1; the same flip on a script with a finding FAILs.
 D4_WT="$TMP/d4wt"
-if git -C "$CONST_ROOT" worktree add --detach --quiet "$D4_WT" main >/dev/null 2>&1; then
+if git -C "$CONST_ROOT" worktree add --detach --quiet "$D4_WT" "$WT_REF" >/dev/null 2>&1; then
     register_wt "$D4_WT"
     D4_G="scripts/fastcycle/tests/precheck_build_scratch_d4_SCRATCH.sh"
     D4_B="scripts/fastcycle/tests/precheck_build_scratch_d4bad_SCRATCH.sh"
@@ -654,7 +658,7 @@ else
     bad "D4 setup FAILED: could not add a scratch worktree"
 fi
 
-# D5 (directive policy D5): a `# shellcheck disable=` passes only with its
+# D5 (directive policy D5): a `disable=` directive passes only with its
 # justification on the SAME line; the same directive with the reason on the line
 # ABOVE, or with a placeholder reason, FAILs (rc=1).
 D5_PATH="scripts/fastcycle/tests/precheck_build_scratch_d5_SCRATCH.sh"
@@ -799,6 +803,93 @@ if [ "$D11" -eq 2 ] && grep -q "canonical" "$TMP/d11.err" && [ ! -f "$TMP/d11_ou
 else
     bad "D11: rc=$D11 ($(head -c 300 "$TMP/d11.err"))"
 fi
+
+# D12 (gate review 2026-11-05, round 1 F2, reviewer mutant RM1): the dispatch verifier's gitlink co-pack
+# rule (_copack_reasons). A parent repo whose range bumps an own submodule S1..S2 is NOT-READY alone, READY
+# with a co-cited pack of exactly S1..S2 of that submodule, and NOT-READY again with a pack of S0..S2 (the
+# wrong range). Real repositories, real wrapper, real verifier (11.4.289).
+D12T="$TMP/d12"; mkdir -p "$D12T/P"
+d12git() { git -c user.name=t -c user.email=t@x -c commit.gpgsign=false "$@"; }
+printf 'r\n' >"$D12T/P/README.md"; git init -q "$D12T/P" && d12git -C "$D12T/P" add -A && d12git -C "$D12T/P" commit -q -m base
+git init -q "$D12T/P/sub"; printf '#!/bin/sh\necho "s0"\n' >"$D12T/P/sub/s.sh"
+d12git -C "$D12T/P/sub" add -A && d12git -C "$D12T/P/sub" commit -q -m s0; D12_S0=$(git -C "$D12T/P/sub" rev-parse HEAD)
+printf '#!/bin/sh\necho "s1"\n' >"$D12T/P/sub/s.sh"; d12git -C "$D12T/P/sub" commit -q -am s1
+d12git -C "$D12T/P" add sub >/dev/null 2>&1 && d12git -C "$D12T/P" commit -q -m addsub
+printf '#!/bin/sh\necho "s2"\n' >"$D12T/P/sub/s.sh"; d12git -C "$D12T/P/sub" commit -q -am s2; D12_S2=$(git -C "$D12T/P/sub" rev-parse HEAD)
+printf '#!/bin/sh\necho "p"\n' >"$D12T/P/p.sh"
+d12git -C "$D12T/P" add sub p.sh >/dev/null 2>&1 && d12git -C "$D12T/P" commit -q -m bump; D12_PH=$(git -C "$D12T/P" rev-parse HEAD)
+sh "$BUILD_WRAPPER" --repo-root "$D12T/P" --commit "$D12_PH" --out-dir "$D12T/pp" >"$D12T/pp.out" 2>"$D12T/pp.err"; D12_P=$?
+sh "$BUILD_WRAPPER" --repo-root "$D12T/P/sub" --commit "$D12_S2" --out-dir "$D12T/ps" >"$D12T/ps.out" 2>"$D12T/ps.err"; D12_S=$?
+sh "$BUILD_WRAPPER" --repo-root "$D12T/P/sub" --commit "$D12_S0..$D12_S2" --out-dir "$D12T/pw" >"$D12T/pw.out" 2>"$D12T/pw.err"; D12_W=$?
+D12_GL=$(git -C "$D12T/P" ls-tree "$D12_PH" sub | cut -c1-6)
+d12_verify() { # <lib> <out> <pack>... -> rc
+    _lib=$1; _out=$2; shift 2; _args=""
+    for _p in "$@"; do _args="$_args --pack $_p"; done
+    # shellcheck disable=SC2086 # the pack word list is built above from fixed fixture paths that hold no blanks
+    python3 "$_lib" verify $_args >"$_out" 2>&1
+}
+D12_COPACK="a gitlink bump needs the submodule's own pack"
+d12_verify "$BUILD_LIB" "$D12T/v1" "$D12T/pp/precheck.json"; D12V1=$?
+d12_verify "$BUILD_LIB" "$D12T/v2" "$D12T/pp/precheck.json" "$D12T/ps/precheck.json"; D12V2=$?
+d12_verify "$BUILD_LIB" "$D12T/v3" "$D12T/pp/precheck.json" "$D12T/pw/precheck.json"; D12V3=$?
+if [ "$D12_P$D12_S$D12_W" = "000" ] && [ "$D12_GL" = "160000" ] \
+   && [ "$D12V1" -eq 1 ] && [ "$(grep -c '^NOT-READY:' "$D12T/v1")" -eq 1 ] && grep -q "$D12_COPACK" "$D12T/v1" \
+   && [ "$D12V2" -eq 0 ] && grep -q '^READY ' "$D12T/v2" \
+   && [ "$D12V3" -eq 1 ] && grep -q "got $D12_S0..$D12_S2" "$D12T/v3"; then
+    ok "D12 (F2/RM1): a gitlink bump is NOT-READY alone (only reason: no co-pack), READY with the submodule's exact-range pack, NOT-READY with a wrong-range pack"
+else
+    bad "D12 (F2/RM1): build rc=$D12_P/$D12_S/$D12_W mode=$D12_GL verify=$D12V1/$D12V2/$D12V3 ($(cat "$D12T/v1" "$D12T/v3" | cut -c1-300))"
+fi
+
+# D13 (gate review 2026-11-05, round 1 F2, reviewer mutant RM2): a pack built in the gate's TEST MODE
+# (PRECHECK_TEST_MODE=1, private lock directory) is refused by the verifier with that as its only reason;
+# the same commit built normally is READY (the control).
+D13R="$TMP/d13repo"; mkdir -p "$D13R/pkg" "$TMP/d13lock"
+printf 'r\n' >"$D13R/README.md"; git init -q "$D13R" && d12git -C "$D13R" add -A && d12git -C "$D13R" commit -q -m base
+printf '#!/bin/sh\necho "q"\n' >"$D13R/pkg/a.sh"; d12git -C "$D13R" add -A && d12git -C "$D13R" commit -q -m head
+D13_H=$(git -C "$D13R" rev-parse HEAD)
+PRECHECK_TEST_MODE=1 PRECHECK_TEST_LOCK_DIR="$TMP/d13lock" sh "$BUILD_WRAPPER" --repo-root "$D13R" --commit "$D13_H" \
+    --out-dir "$TMP/d13t" >"$TMP/d13t.out" 2>"$TMP/d13t.err"; D13_T=$?
+sh "$BUILD_WRAPPER" --repo-root "$D13R" --commit "$D13_H" --out-dir "$TMP/d13n" >"$TMP/d13n.out" 2>"$TMP/d13n.err"; D13_N=$?
+D13_TM="TEST MODE (PRECHECK_TEST_MODE"
+d12_verify "$BUILD_LIB" "$TMP/d13t.v" "$TMP/d13t/precheck.json"; D13VT=$?
+d12_verify "$BUILD_LIB" "$TMP/d13n.v" "$TMP/d13n/precheck.json"; D13VN=$?
+D13_REC=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print([c for c in d['checks'] if c['check']=='shellcheck'][0]['evidence']['tool'].get('test_mode'))" "$TMP/d13t/precheck.json" 2>&1)
+if [ "$D13_T$D13_N" = "00" ] && [ "$D13_REC" = "True" ] && [ "$D13VT" -eq 1 ] && [ "$(grep -c '^NOT-READY:' "$TMP/d13t.v")" -eq 1 ] \
+   && grep -q "$D13_TM" "$TMP/d13t.v" && [ "$D13VN" -eq 0 ]; then
+    ok "D13 (F2/RM2): a pack built in TEST MODE (recorded tool.test_mode) is NOT-READY for exactly that reason; the same commit built normally is READY"
+else
+    bad "D13 (F2/RM2): build rc=$D13_T/$D13_N recorded=$D13_REC verify=$D13VT/$D13VN ($(cut -c1-300 "$TMP/d13t.v"))"
+fi
+
+# D14: the reviewer's mutants RM1 and RM2, adopted verbatim (11.4.276(D), 11.4.194(6)(d)) as paired mutations
+# run against a scratch copy of the builder library: with the mechanism removed, D12 / D13 must flip.
+d14_mutant() { # <id> <old=>>new> -> path of the mutated library (empty on a setup failure)
+    _d="${TMP:?}/mut_${1:?}"; mkdir -p "$_d"; cp "$REVIEW_DIR/lib/"*.py "$_d/"
+    if python3 - "$_d/precheck_pack_build_run.py" "$2" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+old, new = (x.replace("<NL>", "\n") for x in sys.argv[2].split("=>>", 1))
+if s.count(old) != 1:
+    sys.exit("needle found %d times" % s.count(old))
+open(p, "w").write(s.replace(old, new))
+PY
+    then echo "$_d/precheck_pack_build_run.py"; fi
+}
+RM1L=$(d14_mutant RM1 '    r = []<NL>    ranges = {}=>>    return []<NL>    ranges = {}')
+if [ -n "$RM1L" ]; then
+    d12_verify "$RM1L" "$D12T/m1" "$D12T/pp/precheck.json"; RM1V=$?
+    if ! grep -q "$D12_COPACK" "$D12T/m1"; then
+        ok "D14 RM1 mutation-flip: with _copack_reasons returning [] the lone gitlink-bump pack loses its co-pack refusal (verify rc=$RM1V) -- D12 is load-bearing"
+    else bad "D14 RM1 mutation-flip: the co-pack refusal survived the mutation -- D12 does not test the mechanism"; fi
+else bad "D14 RM1 mutation setup: needle not found exactly once"; fi
+RM2L=$(d14_mutant RM2 '    if tool.get("test_mode"):=>>    if False:')
+if [ -n "$RM2L" ]; then
+    d12_verify "$RM2L" "$TMP/d13t.m2" "$TMP/d13t/precheck.json"; RM2V=$?
+    if [ "$RM2V" -eq 0 ] && ! grep -q "$D13_TM" "$TMP/d13t.m2"; then
+        ok "D14 RM2 mutation-flip: with the test-mode refusal disabled the TEST MODE pack is READY -- D13 is load-bearing"
+    else bad "D14 RM2 mutation-flip: verify=$RM2V ($(cut -c1-300 "$TMP/d13t.m2")) -- D13 does not test the mechanism"; fi
+else bad "D14 RM2 mutation setup: needle not found exactly once"; fi
 
 fi  # Section C wrapper-presence guard
 

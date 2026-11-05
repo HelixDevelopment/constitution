@@ -62,6 +62,8 @@
 #     --baseline <f> ratchet baseline file (default: <root>/config/oracle_ratchet_baseline.txt,
 #                    or $ORACLE_GUARD_BASELINE -- the env form is honoured ONLY with HELIX_TEST_MODE=1 and a path under the temp root; the verdict line prints baseline= and overrides=)
 #     --adopt-new-files --reason "<text>"  add baseline entries ONLY for files without one (never raises/lowers an existing entry; audited append to config/oracle_ratchet_adoptions.log; no --reason = refused rc=2)
+#     --exclusions <f>  frozen-evidence exclusion list (default: <root>/config/oracle_frozen_evidence_exclusions.tsv; absent = none).
+#                    TAB columns `path class blob-id reason`, header `# ceiling: N` REQUIRED. See "Frozen-evidence exclusions" below.
 #     --write-baseline  create the baseline from the current counts, or LOWER an existing one
 #                    (refuses, rc=1, when any file's count is above its baseline)
 #     --base <ref>   git ref the NEW/MODIFIED-function check diffs against. Default (and the ONLY
@@ -102,6 +104,29 @@
 # --adopt-new-files --reason "..." to carry the old count over; the ratchet never follows renames by itself.
 # Honest limit: a legacy function edited without annotation is "modified" and must be annotated; a baseline
 # raised by hand is only caught by review/VCS history (stateless check, like the zero-findings ratchet).
+#
+# ── Frozen-evidence exclusions (CON-043, operator decision 2026-11-05) ──────
+# Some test-named files are archived RED evidence that can no longer run and that no runner executes (e.g. the p1-red-original
+# harness inside a submodule). Annotating them would falsify the archive; carrying them in the ratchet baseline hides them.
+# A checked-in list (ratchet mode only; --strict ignores it) excludes them from the scan under these rules, each independent:
+#   (1) a LITERAL repository-relative file path per entry: a glob character (* ? [ ] { }), an absolute path, a `..` or `.`
+#       segment (incl. a leading `./` or a trailing `/.`), `//`, a trailing slash, or a duplicate is a malformed list => BLIND
+#       (rc 2); each entry has EXACTLY 4 TAB-separated non-empty columns (a doubled, leading or trailing TAB is BLIND, never
+#       collapsed); an unreadable regular-file list is BLIND; a path that is not a regular file (absent, /dev/null) = no list;
+#   (2) class from the CLOSED set {frozen-red-evidence}; anything else => BLIND;
+#   (3) the entry records the git blob id of the frozen file as the repository that OWNS it computes it (40-hex sha1 or 64-hex
+#       sha256): `git -C <file's directory> hash-object --path=<name> <name>`, i.e. with that repository's object format and
+#       checkout filters (core.autocrlf, eol, ident), the id `git status` compares and `git ls-tree` shows; independent of the
+#       caller's cwd. When the file's current id differs, or it is not a regular file, or it cannot be hashed, the entry is
+#       VOIDED: the file is scanned again AND the gate FAILs naming the entry (raising the baseline cannot hide it); a vanished
+#       file is only a stale note (an uninitialised submodule looks the same, so the note does not demand removal);
+#       --write-baseline and --adopt-new-files REFUSE (rc 1, reason=exclusions_voided) while an entry is voided or over the
+#       ceiling, so they never print PASS after a FAIL line;
+#   (4) the header `# ceiling: N` is required (else BLIND) and the entry count may not exceed it (FAIL); the ceiling may only
+#       be lowered (stateless like the baseline: a hand-raised ceiling is caught by review/VCS history only);
+#   (5) that no runner executes a listed file is NOT decided by the gate: tests/gates/test_oracle_frozen_exclusions.sh proves it
+#       for the shipped list. The gate does not read the blob contents, so it cannot tell that bytes still "are" frozen
+#       evidence; the blob id only proves they are the bytes that were reviewed when the entry was written.
 #
 # ── Scope: third-party trees are pruned by default (triage 2026-10-31) ──────
 # Only trees the scanned repository does not own are pruned (operator decision
@@ -151,11 +176,40 @@
 #
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — PASS (strict: every test function names a valid closed-set oracle strategy; ratchet: no file
-#       above its baseline and no new/modified unannotated function), or SKIP: no candidate test files.
+#       above its baseline and no new/modified unannotated function), or SKIP: no candidate test files and
+#       no voided exclusion (decided before the rule-3 base, so a missing remote main or a bad --base does not change it).
 #   1 — FAIL (strict: a test function has no/unknown annotation; ratchet: above baseline, or a new/modified
-#       function unannotated, or --write-baseline refused).
-#   2 — environment / argument error, or BLIND: ratchet baseline missing/malformed.
+#       function unannotated, or a frozen-evidence exclusion voided / over its ceiling, or --write-baseline or
+#       --adopt-new-files refused, incl. reason=exclusions_voided).
+#   2 — environment / argument error, or BLIND: ratchet baseline missing/malformed, frozen-evidence exclusion list
+#       malformed/unreadable (reason=exclusions_malformed), no non-sliding base (reason=no_nonsliding_base), or a
+#       refused --base (verdict FAIL, reason=base_not_older_than_nonsliding_base).
 #   A final `ORACLE-VERDICT<TAB>PASS|FAIL|BLIND|SKIP<TAB>mode=...` line is machine-readable.
+#
+# ── The basis line (CON-044): deliberately NOT enforced ─────────────────────
+# Some annotations carry a separate comment line `# basis: <text>` stating where the expected value comes from.
+# That line is NOT part of this gate's annotation grammar and is NOT enforced. Measured facts (base feacc507, scan
+# scope = own-org submodules included, which is why the llmctl numbers matter; §11.4.273 control-needled):
+#   - `# basis:` is defined in no anchor, guide or doc (§11.4.245 requires a NAMED strategy and leaves independence
+#     to the reviewer). It IS used: 115 lines in 8 files under submodules/llmctl/tests/py (llmctl oracle waves b2/b3,
+#     2026-11-05), always as a free-text line ABOVE a bare `# oracle: X`. The other 554 of the 669 annotations use
+#     `# oracle: X (reason)`, the justification in the parenthetical.
+#   - ORDER MATTERS with the gate's 3-line window: the basis line goes ABOVE the oracle line. `# basis:` then
+#     `# oracle: X` then up to two decorators then `def` PASSes; `# oracle: X` then `# basis:` then two decorators
+#     then `def` FAILs, because the basis line uses a window slot.
+# Why it is not enforced:
+#   (b) the gate can check only that the text is PRESENT, not that it is TRUE or independent of the code under test
+#       (§11.4.245 independence stays §11.4.194/§11.4.142 reviewer territory), so a presence-only check would reward
+#       filler text, the "presence >= 1" pattern §11.4.227 warns against;
+#   (c) a MANDATORY basis line would fail the 554 parenthetical-form annotations and would need a baseline or grammar
+#       decision. An either-form rule ("justification as parenthetical OR as basis line") would fail none of the 669
+#       today, but it is still presence-only, so (b) applies to it too.
+# Whether to enforce it (and in which form) remains an operator decision (§11.4.66); if so, define the grammar in the
+# anchor first, then extend this gate.
+# Pinned by the mutation test (section 8): an annotation without a basis line PASSes; the llmctl form (basis above a
+# bare oracle) PASSes; a lone `# basis:` line, with or without a strategy token, is NOT an annotation; oracle-above-basis
+# with two decorators FAILs; gate variants that require a basis line, accept `basis` as an oracle keyword, or reject
+# an annotation preceded by a basis line are killed.
 #
 # Classification: universal (§11.4.17) — no project-specific literal.
 
@@ -176,6 +230,7 @@ cm_gate_env_set baseline ORACLE_GUARD_BASELINE "" path
 base_ref=""            # --base only; NO environment override exists (round 3, I2): an ambient variable must never turn a FAIL into a PASS
 [ -z "${ORACLE_GUARD_BASE:-}" ] || echo "${GATE}: note: ORACLE_GUARD_BASE is ignored (no environment override of the diff base exists; use --base with an older ancestor)" >&2
 write_baseline=0
+excl_file=""            # --exclusions only (CON-043); default <root>/config/oracle_frozen_evidence_exclusions.tsv
 adopt_new=0
 adopt_reason=""
 adopt_reason_given=0
@@ -189,6 +244,7 @@ while [ $# -gt 0 ]; do
         --strict) strict=1; shift ;;
         --baseline) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; baseline="$2"; shift 2 ;;
         --base) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; base_ref="$2"; shift 2 ;;
+        --exclusions) [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }; excl_file="$2"; shift 2 ;;
         --write-baseline) write_baseline=1; shift ;;
         --adopt-new-files) adopt_new=1; shift ;;
         --reason) adopt_reason="${2-}"; adopt_reason_given=1; shift 2 || shift ;;
@@ -253,11 +309,85 @@ mapfile -d '' -t files < <(
     fi
 )
 
-if [ "${#files[@]}" -eq 0 ]; then
+# ── frozen-evidence exclusions (CON-043) -------------------------------------------------------------------
+# Placed BEFORE the rule-3 base resolution (fix round 2, F2): it reads no rule-3 data, and the "no candidate files" SKIP
+# right after it must not depend on a remote main or a valid --base (exit code 0 documented below).
+declare -A excl_sha=() excl_voided=()
+excl_n=0; excl_ceiling=""; excl_active=0; excl_voided_n=0; excl_applied=0; excl_stale=0
+is_glob() { case "$1" in *'*'*|*'?'*|*'['*|*']'*|*'{'*|*'}'*) return 0 ;; esac; return 1; }
+excl_class_ok() { case "$1" in frozen-red-evidence) return 0 ;; esac; return 1; }
+excl_sha_ok() { [ "$1" = "$2" ]; }
+excl_over_ceiling() { [ "$1" -gt "$2" ]; }
+excl_empty_field() { case "$1" in *$'\t\t'*|$'\t'*|*$'\t') return 0 ;; esac; return 1; }
+excl_unreadable() { [ ! -r "$1" ]; }
+excl_refuse_write() { [ "$excl_voided_n" -gt 0 ]; }
+# The id git itself compares (fix round 2, F3): computed by the repository that OWNS the file (`-C` its directory), with
+# that repository's object format (sha1 or sha256) and checkout filters (core.autocrlf, eol, ident: `--path`), exactly
+# like `git status`. Never in the caller's cwd, never on raw bytes. $1 = absolute directory, $2 = file name in it.
+excl_blob_id() { git -C "$1" hash-object --path="$2" -- "$2" 2>/dev/null; }
+excl_blind() { echo "⚠ ${GATE}: BLIND — malformed frozen-evidence exclusion list ${excl_file}: $1" >&2; printf 'ORACLE-VERDICT\tBLIND\tmode=ratchet\treason=exclusions_malformed\n'; exit 2; }
+if [ "$strict" != 1 ]; then
+    [ -n "$excl_file" ] || excl_file="$root/config/oracle_frozen_evidence_exclusions.tsv"
+    # a path that is not a regular file (absent, or e.g. /dev/null) = no exclusions: fail closed toward MORE scanning
+    if [ -f "$excl_file" ]; then
+        excl_unreadable "$excl_file" && excl_blind "the list is unreadable (permissions)"
+        excl_active=1
+        while IFS= read -r eline || [ -n "$eline" ]; do
+            case "$eline" in
+                '# ceiling: '*) [ -z "$excl_ceiling" ] || excl_blind "duplicate ceiling header"
+                    excl_ceiling="${eline#\# ceiling: }"
+                    [[ "$excl_ceiling" =~ ^(0|[1-9][0-9]*)$ ]] || excl_blind "ceiling is not a non-negative integer: '$excl_ceiling'"
+                    continue ;;
+                ''|'#'*) continue ;;
+            esac
+            # strict TAB split (F9): IFS whitespace would collapse an empty field, so a doubled/leading/trailing TAB is refused first
+            excl_empty_field "$eline" && excl_blind "entry '${eline%%$'\t'*}' has an empty TAB-separated field"
+            IFS=$'\t' read -r -a ef <<<"$eline"; excl_nf="${#ef[@]}"
+            ep="${ef[0]}"; ecls="${ef[1]:-}"; esha="${ef[2]:-}"
+            if [ "$excl_nf" -ne 4 ]; then excl_blind "entry '$ep' needs exactly 4 TAB-separated columns (path class blob-sha reason), has $excl_nf"; fi
+            if is_glob "$ep"; then excl_blind "glob character in path '$ep'"; fi
+            case "$ep" in /*|*/|../*|*/../*|*/..|..|./*|*/./*|*//*|*/.|.) excl_blind "path '$ep' is not a normalised literal repository-relative file" ;; esac
+            excl_class_ok "$ecls" || excl_blind "class '$ecls' of '$ep' is not in the closed set {frozen-red-evidence}"
+            [[ "$esha" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || excl_blind "blob id of '$ep' is not 40 (sha1) or 64 (sha256) lowercase hex"
+            [ -z "${excl_sha[$ep]+x}" ] || excl_blind "duplicate entry '$ep'"
+            excl_sha["$ep"]="$esha"; excl_n=$(( excl_n + 1 ))
+        done < "$excl_file"
+        [ -n "$excl_ceiling" ] || excl_blind "missing required header '# ceiling: N'"
+        for ep in "${!excl_sha[@]}"; do
+            if [ -L "$root/$ep" ] || { [ -e "$root/$ep" ] && [ ! -f "$root/$ep" ]; }; then excl_voided["$ep"]="not a regular file"
+            elif [ ! -e "$root/$ep" ]; then excl_stale=$(( excl_stale + 1 )); echo "⚠ ${GATE}: stale exclusion entry ${ep}: no such file under the scan root (an uninitialised submodule, or the file was removed: then remove the entry and lower the ceiling)"
+            else
+                cur_sha="$(excl_blob_id "$root/$(dirname -- "$ep")" "$(basename -- "$ep")" || true)"
+                if excl_sha_ok "$cur_sha" "${excl_sha[$ep]}"; then excl_applied=$(( excl_applied + 1 ))
+                else excl_voided["$ep"]="blob id ${cur_sha:-unreadable} != recorded ${excl_sha[$ep]}"; fi
+            fi
+        done
+        excl_voided_n="${#excl_voided[@]}"
+        for ep in "${!excl_voided[@]}"; do
+            echo "❌ ${GATE}: FAIL — frozen-evidence exclusion VOIDED for ${ep}: ${excl_voided[$ep]} (the file is scanned again; a frozen file must not change)"
+        done
+        if excl_over_ceiling "$excl_n" "$excl_ceiling"; then
+            echo "❌ ${GATE}: FAIL — ${excl_n} exclusion entries exceed the ceiling ${excl_ceiling} (the count may only decrease)"
+            excl_voided_n=$(( excl_voided_n + 1 ))
+        fi
+    fi
+fi
+
+# a voided exclusion must FAIL even when no file is left to scan (e.g. the frozen path became a dangling symlink)
+if [ "${#files[@]}" -eq 0 ] && [ "$excl_voided_n" -eq 0 ]; then
     echo "⏭ ${GATE}: SKIP — topology_unsupported: no candidate test files under scan (root=$root, glob=$glob)"
     printf 'ORACLE-VERDICT\tSKIP\treason=topology_unsupported\n'
     exit 0
 fi
+# F8: --write-baseline / --adopt-new-files never print PASS after an exclusion FAIL line: they refuse, the files untouched
+if { [ "$write_baseline" = 1 ] || [ "$adopt_new" = 1 ]; } && excl_refuse_write; then
+    _m="$([ "$adopt_new" = 1 ] && echo adopt || echo write-baseline)"
+    echo "❌ ${GATE}: FAIL — ${_m} refused: ${excl_voided_n} voided/over-ceiling frozen-evidence exclusion problem(s); fix the list first (baseline not written)"
+    printf 'ORACLE-VERDICT\tFAIL\tmode=%s\treason=exclusions_voided\tvoided=%s\n' "$_m" "$excl_voided_n"
+    exit 1
+fi
+
+
 
 AWK_SCRIPT='
 BEGIN {
@@ -450,6 +580,7 @@ declare -A cnt=() hitsby=() newcnt=()
 violations=0; new_viol=0; new_out=""
 for f in "${files[@]}"; do
     rel="${f#"$root"/}"
+    if [ "$excl_active" = 1 ] && [ -n "${excl_sha[$rel]+x}" ] && [ -z "${excl_voided[$rel]+x}" ]; then continue; fi
     : > "$chg_one"
     if [ -s "$chg_master" ]; then
         awk -F'\t' -v p="$rel" '$1 == p { print $2, $3 }' "$chg_master" > "$chg_one"
@@ -600,12 +731,13 @@ for rel in "${!base[@]}"; do
     fi
 done
 echo "======================================================================"
-echo "${GATE}: ratchet total=${violations} files_over_baseline=${over} new_or_modified_unannotated=${new_viol} lowerable=${lower} stale_entries=${stale} new-function-check: ${diff_state}"
-if [ "$over" -gt 0 ] || [ "$new_viol" -gt 0 ]; then
-    echo "❌ ${GATE}: FAIL — ${over} file(s) above baseline, ${new_viol} new/modified unannotated test function(s) (§${ANCHOR})"
-    printf 'ORACLE-VERDICT\tFAIL\tmode=ratchet\tover=%s\tnew=%s\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$over" "$new_viol" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
+echo "${GATE}: ratchet total=${violations} files_over_baseline=${over} new_or_modified_unannotated=${new_viol} lowerable=${lower} stale_entries=${stale} excluded=${excl_applied} new-function-check: ${diff_state}"
+excl_tail="excluded=${excl_applied}	voided=${excl_voided_n}	exclusion_entries=${excl_n}"
+if [ "$over" -gt 0 ] || [ "$new_viol" -gt 0 ] || [ "$excl_voided_n" -gt 0 ]; then
+    echo "❌ ${GATE}: FAIL — ${over} file(s) above baseline, ${new_viol} new/modified unannotated test function(s), ${excl_voided_n} voided/over-ceiling exclusion problem(s) (§${ANCHOR})"
+    printf 'ORACLE-VERDICT\tFAIL\tmode=ratchet\tover=%s\tnew=%s\t'"${excl_tail}"'\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$over" "$new_viol" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
     exit 1
 fi
 echo "✅ ${GATE}: PASS — no file above its baseline and no new/modified test function lacks an oracle annotation (§${ANCHOR})"
-printf 'ORACLE-VERDICT\tPASS\tmode=ratchet\tunannotated=%s\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$violations" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
+printf 'ORACLE-VERDICT\tPASS\tmode=ratchet\tunannotated=%s\t'"${excl_tail}"'\trule3=%s\tvia=%s\tbaseline=%s\toverrides=%s\tbase=%s\n' "$violations" "$rule3" "$nsb_via" "$baseline" "${CM_GATE_OVERRIDES_HONOURED:-none}" "${base_ref:0:12}"
 exit 0
