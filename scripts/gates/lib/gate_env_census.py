@@ -138,20 +138,65 @@ RE_ENV_GREP = re.compile(r"\^(" + NAME + r")=")
 RE_JQ_WORD = re.compile(r"(?<![\w./-])(?:jq|yq|gojq)(?![\w.-])")
 RE_OWNER_ASSIGN = re.compile(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=\$?$")
 RE_OWNER_READ = re.compile(r"\bread\b[^;&|]*?\s([A-Za-z_]\w*)\s*$")
+# A command line that PROVABLY runs a non-jq interpreter at command position (awk/perl/python/sed/grep/...; wrappers such as
+# env/command/exec/sudo/nice/time/timeout and VAR=val prefixes allowed). Only such a line disowns the quoted text on it.
+# CLASS RULE (CON-015, 11.4.201(4)): the jq whole-environment check reads a quoted region unless its owner is decided as
+# non-jq. Owner order: (1) the line has a jq/yq/gojq word -> jq; (2) the region is assigned to / read into a variable ->
+# owned by that variable, whatever else the assignment line runs; the variable stays ARMED unless EVERY expansion of it
+# is on a line that provably runs a non-jq interpreter (so it is also armed when never expanded, or expanded on an
+# unknown line); (3) otherwise the WHOLE logical line runs a known interpreter at some command position -> disarmed;
+# (4) cat/printf/echo/tee writes it to a file not named on a jq line -> disarmed, where "a jq line" means a line with a
+# bare jq/yq/gojq word (RE_JQ_WORD), so `/usr/bin/jq -f "$f"`, `"${JQ:-jq}" -f "$f"` and `jq -f "${f}"` do NOT arm the
+# generated file (known false negatives, CON-047); (5) anything else stays ARMED. Rule (2) reads any `NAME=` before the
+# quote, so an awk `-v NAME='..'` option or a `NAME='..' interp` environment prefix is armed too (known false positives
+# in the fail-closed direction, pinned as KNOWN-FAIL cases K1..K5 in tests/gates/test_gate_env_census_jq_regions.sh and
+# owned by CON-047; no further regex owner rule is added here, section 11.4.250).
+# Known, pre-existing and NOT closed here (the line is classified as a whole, not per simple command): a jq program
+# inside a line that ALSO runs an interpreter in another pipeline stage (`"${JQ:-jq}" -n '$ENV' | sed ...`), and a
+# jq-through-variable call on a line that also runs an interpreter in a command substitution
+# (`x=$(grep -c f g); jq_run -n 'env | keys'`) -- both quiet on main too (CON-015).
+_INTERP = (r"(?:awk|gawk|mawk|nawk|perl|python[\d.]*|ruby|node|nodejs|php|lua|sed|gsed|grep|egrep|fgrep|rg|expect|tclsh|"
+           r"(?:ba|z|da|k)?sh\s+-c)")
+RE_NONJQ_CMD = re.compile(
+    r"(?:^|[;&|(`!{]|\$\(|\b(?:then|do|else|elif|if|while|until)\b)\s*"
+    r"(?:(?:\w+=\S*|env|command|exec|sudo|nice(?:\s+-n\s*\d+)?|time|builtin|stdbuf\s+\S+|timeout\s+\S+)\s+)*"
+    r"(?:\S*/)?" + _INTERP + r"(?![\w.-])")
+
+
+# text written to a file by cat/tee/printf/echo (`cat >FILE <<'EOF'`, `echo '..' >>FILE`, `tee FILE`): a generated file is
+# someone else's program unless FILE is a jq-looking name or is named on a jq command line (checked in census())
+RE_OUT_FILE = re.compile(r"\b(?:cat|printf|echo)\b[^|;&]*?>>?\s*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)|\btee\s+(?:-[a-z]+\s+)*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)")
+
+
+def _norm_target(t):
+    return t.strip("\"'")
+
+
+def _runs_nonjq(logical):
+    """True when the command line `logical` runs a known non-jq interpreter and mentions no jq/yq/gojq word."""
+    return not RE_JQ_WORD.search(logical) and RE_NONJQ_CMD.search(logical) is not None
 
 
 def _region_owner(logical, prefix):
     """Owner of a quoted region (single-quoted text or a heredoc body) that opens after `prefix` on a command line whose
-    text (backslash continuations joined) is `logical`: ("jq",) when that command line runs jq/yq/gojq, ("var", NAME) when
-    the region is assigned to NAME (`NAME='...'`, `read ... NAME <<'X'`), else ("other",)."""
+    text (backslash continuations joined) is `logical`: ("jq",) when that command line runs jq/yq/gojq, ("nonjq",) when it
+    provably runs another interpreter (see RE_NONJQ_CMD), ("var", NAME) when the region is assigned to NAME (`NAME='...'`,
+    `read ... NAME <<'X'`), ("file", TARGET) when cat/printf/echo/tee writes it to a file, else ("other",), which the census treats as ARMED (undecidable ownership)."""
     if RE_JQ_WORD.search(logical):
         return ("jq",)
+    # a region assigned to / read into a variable is owned by whoever expands the variable later, whatever else the
+    # assignment line runs (CON-015 review F1): check this BEFORE the whole-line nonjq / file classification
     m = RE_OWNER_ASSIGN.search(prefix)
     if m:
         return ("var", m.group(1))
     m = RE_OWNER_READ.search(prefix)
     if m:
         return ("var", m.group(1))
+    if _runs_nonjq(logical):
+        return ("nonjq",)
+    m = RE_OUT_FILE.search(logical)
+    if m:
+        return ("file", _norm_target(m.group(1) or m.group(2)))
     return ("other",)
 
 
@@ -163,7 +208,9 @@ def split_code(text, regions=None):
     non-blank run, so a word such as `NAME='a b'"$x"` stays ONE word for the structural scanners.
     Quote state is a stack: `$(`, a backquote and `(`-subshells open a fresh quoting context even inside "..."
     When `regions` is a list it receives, per line, a list of (owner, text) for the literal text of that line (owner from
-    _region_owner): the jq whole-environment rule reads only regions that are jq code."""
+    _region_owner): the jq whole-environment rule reads only regions that are jq code. Each single-quoted region ends
+    with an (owner, "\n") separator, so two regions of one line are never glued into one word (`'v' 'env | keys'` must
+    not read as `venv | keys`; review round 2 N3 / F7)."""
     exp, lit, code = [], [], []
     owner = ("other",)
     cont = ""         # text of the preceding backslash-continued physical lines of the current command line
@@ -188,7 +235,7 @@ def split_code(text, regions=None):
                 if sq == "$'" and c == "\\" and j + 1 < n:
                     l.append(line[j:j + 2]); rl.append((owner, line[j:j + 2])); emit("\x03\x03"); j += 2; continue
                 if c == "'":
-                    sq = None; emit("\x03")
+                    rl.append((owner, "\n")); sq = None; emit("\x03")
                 else:
                     l.append(c); rl.append((owner, c)); emit("\x03")
                 j += 1; continue
@@ -733,12 +780,28 @@ def census(path, root, _seen=None):
         text = f.read()
     regions = []
     exp, lit, code = split_code(text, regions)
-    # variables that a jq command line expands: a quoted region assigned to one of them is jq code
-    jq_vars = set()
+    # a region assigned to a variable is disowned only when that variable is expanded, and every expansion is on a command
+    # line that provably runs a non-jq interpreter; never expanded, or expanded anywhere else, stays armed
+    logical, cont = [], ""
     for e_ in exp:
-        if RE_JQ_WORD.search(e_):
-            jq_vars.update(re.findall(r"\$\{?([A-Za-z_]\w*)", e_))
-    jqlit = ["".join(t for o, t in rl if o[0] == "jq" or (o[0] == "var" and o[1] in jq_vars)) for rl in regions]
+        logical.append(cont + e_)
+        cont = (cont + e_[:-1] + " ") if e_.endswith("\\") and not e_.endswith("\\\\") else ""
+    var_lines = {}
+    for lg in logical:
+        for nm in set(re.findall(r"\$\{?[#!]?([A-Za-z_]\w*)", lg)):
+            var_lines.setdefault(nm, []).append(lg)
+    nonjq_vars = {nm for nm, lgs in var_lines.items() if all(_runs_nonjq(lg) for lg in lgs)}
+    jq_text = "\n".join(lg for lg in logical if RE_JQ_WORD.search(lg))
+
+    def _armed(o):
+        if o[0] in ("jq", "other"):
+            return True
+        if o[0] == "var":
+            return o[1] not in nonjq_vars
+        if o[0] == "file":   # generated file: armed when it looks like a jq program or a jq command line names it
+            return bool(re.search(r"jq|yq", o[1], re.I)) or (o[1] != "" and o[1] in jq_text)
+        return False
+    jqlit = ["".join(t for o, t in rl if _armed(o)) for rl in regions]
     assigned = assigned_names(code, exp)
     # assignments made by sourced libraries count (their reads are censused as their own units)
     found, _unres = resolve_sources(path, code, exp, root, text.split("\n"))
