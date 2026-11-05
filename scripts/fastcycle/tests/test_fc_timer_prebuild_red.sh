@@ -39,6 +39,7 @@
 # Exit: 0 all pass/skip, 1 any FAIL, 2 setup error.
 # Provenance of the banner shapes (6 decoration conventions, 188 runtime banners on the
 # 2026-09-28/10-02 full runs): see git history of this file before 2026-10-08.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/rk3588/tests/pre_build_verification.sh
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"

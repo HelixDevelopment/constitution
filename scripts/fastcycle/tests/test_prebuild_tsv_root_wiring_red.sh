@@ -34,6 +34,7 @@
 # Producer != Verifier (S11.4.240): this file is authored as an independent
 # regression guard; it does not touch pre_build_verification.sh's own
 # implementation.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/rk3588/tests/pre_build_verification.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

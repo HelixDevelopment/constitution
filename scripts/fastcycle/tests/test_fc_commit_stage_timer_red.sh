@@ -36,6 +36,7 @@
 # ok()/bad() are print-only reporters that always return 0, so `cond && ok .. || bad ..` never
 # mis-fires the || branch.
 # shellcheck disable=SC2015
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/commit_all.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

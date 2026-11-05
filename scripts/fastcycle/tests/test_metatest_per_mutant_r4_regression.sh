@@ -85,6 +85,7 @@
 # Producer≠Verifier (§11.4.240): this file is authored as an independent
 # regression guard for an ALREADY-LANDED R3-I5 fix; it does not touch
 # either source file's own implementation.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/testing/meta_test_false_positive_proof.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

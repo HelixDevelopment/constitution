@@ -147,6 +147,7 @@
 #        confirmation, self-validation quadruple, and all 13 real verdict
 #        checks) -- only possible once T101 is GREEN; nonzero = FAIL
 #        count>0 (today, RED).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

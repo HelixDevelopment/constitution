@@ -855,3 +855,4 @@ tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
+scripts/fastcycle/tests/lib/consumer_required.sh	sh	fixture	-	-	-	override: sourced skip helper library, not a test entry point
