@@ -65,6 +65,10 @@ class Refused(Exception):
     pass
 
 
+class Usage(Exception):
+    pass
+
+
 def clean(s):
     return "".join(c if c.isprintable() else "?" for c in str(s))[:300]
 
@@ -592,6 +596,9 @@ class Ledger:
                 raise Refused("%s is neither a file nor a symlink; refusing to back it up" % clean(rel))
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(int(os.environ.get("SOURCE_DATE_EPOCH") or time.time())))
         os.makedirs(base, exist_ok=True)
+        bgi = os.path.join(base, ".gitignore")          # F3: the backups hold copies of consumer files (settings may hold secrets)
+        if not os.path.lexists(bgi):
+            atomic_write(bgi, b"*\n")
         n, bdir = 0, None
         while True:
             cand = os.path.join(base, "%s-wiring%s" % (stamp, "" if n == 0 else "-%d" % n))
@@ -657,49 +664,88 @@ class Ledger:
         return bdir, m
 
     def rollback(self, bdir):
-        bdir, m = self._load_backup(bdir)          # everything is verified before the first change
+        """Two phases. PREFLIGHT verifies the backup and plans every action (nothing is changed, any refusal here
+        leaves the project byte-identical). APPLY then runs the plan. A created-later item is unlinked ONLY when its
+        row classifies as ours (local HMAC signature + root binding + matching fingerprint); anything else, or any
+        item whose state cannot be read (oversize, reserved path, unreadable), is left alone and reported."""
+        bdir, m = self._load_backup(bdir)
+        in_backup = {e["path"] for e in m["entries"]}
+        backed = set(m["rows_at_backup"])
+        restore = []
         for e in m["entries"]:
             full = safe_rel(self.project, e["path"])
             if os.path.lexists(full) and stat.S_ISDIR(os.lstat(full).st_mode):
                 raise Refused("%s is now a directory; refusing to roll back over it" % clean(e["path"]))
-        backed = set(m["rows_at_backup"])
+            if e["type"] == "absent":
+                continue
+            if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode):
+                raise Refused("%s is now a symlink; refusing to write through it (nothing was changed)" % clean(e["path"]))
+            parent = os.path.dirname(full)
+            probe = parent
+            while not os.path.lexists(probe):
+                probe = os.path.dirname(probe)
+            if not stat.S_ISDIR(os.stat(probe).st_mode) or not os.access(probe, os.W_OK | os.X_OK):
+                raise Refused("cannot restore %s: %s is not a writable directory" % (clean(e["path"]), clean(probe)))
+            restore.append((e, full))
         report = {"restored": [], "unlinked": [], "left_alone": [], "rows_removed": []}
-        in_backup = {e["path"] for e in m["entries"]}
+        unlink = []
+        local = self.local_rows()
         for r in self.load() if os.path.lexists(self.led) else []:
             if r["id"] in backed:
                 continue
             report["rows_removed"].append(r["id"])
             if r["path"] in in_backup:
                 continue
-            full = safe_rel(self.project, r["path"])
-            if r["kind"] in ("symlink", "file") and os.path.lexists(full) \
-                    and fingerprint(full, r["kind"]) == r["fingerprint"]:       # still matches its row
-                os.unlink(full)
-                report["unlinked"].append(r["path"])
-            elif os.path.lexists(full):
-                report["left_alone"].append({"path": r["path"], "reason": "no longer matches its row (consumer changed it) or is a json entry"})
-        for e in m["entries"]:
-            full = safe_rel(self.project, e["path"])
-            if e["type"] == "absent":
-                continue
+            try:
+                full = safe_rel(self.project, r["path"])
+                if not os.path.lexists(full):
+                    continue
+                if r["kind"] not in ("symlink", "file"):
+                    report["left_alone"].append({"path": r["path"], "reason": "json entry: never removed by rollback"})
+                    continue
+                if self.classify_row(r, local) != "ours":
+                    report["left_alone"].append({"path": r["path"], "reason": "not ours (no local signature, another constitution root, or changed since it was recorded)"})
+                    continue
+                if not os.access(os.path.dirname(full), os.W_OK | os.X_OK):
+                    report["left_alone"].append({"path": r["path"], "reason": "its directory is not writable"})
+                    continue
+                unlink.append((r["path"], full))
+            except Refused as ex:
+                report["left_alone"].append({"path": r["path"], "reason": "cannot be checked: %s" % clean(ex)})
+        ledger_plan = []
+        for name, dst in (("wiring.json", self.led), ("wiring.local.json", self.loc)):
+            if m["ledger"][name] is not None:
+                data = read_nofollow(os.path.join(bdir, "ledger", name), MAX_JSON, "backup ledger")
+                if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode):
+                    raise Refused("%s is a symlink; refusing to write through it (nothing was changed)" % clean(dst))
+                self._need_dir(os.path.dirname(dst), True)
+                ledger_plan.append((name, dst, data))
+            else:
+                ledger_plan.append((name, dst, None))
+        blobs = {}
+        for e, full in restore:
+            if e["type"] == "file":
+                blobs[e["path"]] = read_nofollow(os.path.join(bdir, "files", e["path"]), MAX_FILE, "backup blob")
+        # ── apply: nothing below is expected to refuse ──
+        for rel, full in unlink:
+            os.unlink(full)
+            report["unlinked"].append(rel)
+        for e, full in restore:
             os.makedirs(os.path.dirname(full), exist_ok=True)
             if e["type"] == "symlink":
                 tmp = full + ".tmp-%d-%s" % (os.getpid(), os.urandom(4).hex())
                 os.symlink(e["link"], tmp)
                 os.rename(tmp, full)
             else:
-                atomic_write(full, read_nofollow(os.path.join(bdir, "files", e["path"]), MAX_FILE, "backup blob"),
-                             e.get("mode", 0o644))
+                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))
                 os.chmod(full, e.get("mode", 0o644))
             report["restored"].append(e["path"])
-        for name, dst in (("wiring.json", self.led), ("wiring.local.json", self.loc)):
-            if m["ledger"][name] is None:
+        for name, dst, data in ledger_plan:
+            if data is None:
                 if os.path.lexists(dst) and not stat.S_ISDIR(os.lstat(dst).st_mode):
                     os.unlink(dst)
             else:
-                self._need_dir(os.path.dirname(dst), True)
-                atomic_write(dst, read_nofollow(os.path.join(bdir, "ledger", name), MAX_JSON, "backup ledger"),
-                             0o600 if name.endswith("local.json") else 0o644)
+                atomic_write(dst, data, 0o600 if name.endswith("local.json") else 0o644)
         return report
 
 
@@ -734,7 +780,7 @@ class Refs:
         if not os.path.lexists(p):
             return {}
         out = {}
-        for ln in read_nofollow(p, MAX_JSON, "reference file").decode("utf-8").split("\n"):
+        for ln in read_nofollow(p, MAX_JSON, "reference file").decode("utf-8", "surrogateescape").split("\n"):
             if not ln:
                 continue
             f = ln.split("\t")
@@ -760,7 +806,7 @@ class Refs:
             if os.path.lexists(p):
                 os.unlink(p)
             return
-        atomic_write(p, "".join("%s\t%s\n" % kv for kv in sorted(refs.items())).encode())
+        atomic_write(p, "".join("%s\t%s\n" % kv for kv in sorted(refs.items())).encode("utf-8", "surrogateescape"))
 
     def add(self, eid, digest):
         if not DIGEST_RE.match(digest or ""):
@@ -832,8 +878,10 @@ def main(argv):
     except Refused as ex:
         sys.stderr.write("refused: %s\n" % clean(ex))
         return 3
-    except OSError as ex:
-        sys.stderr.write("refused: %s\n" % clean(ex.strerror or ex))
+    except Usage as ex:
+        return usage(clean(ex))
+    except (OSError, ValueError) as ex:                  # includes UnicodeError; never a traceback
+        sys.stderr.write("refused: %s\n" % clean(getattr(ex, "strerror", None) or ex))
         return 3
     if out is None:
         return usage("unknown command %r" % clean(cmd))
@@ -856,11 +904,13 @@ def run(cmd, o, rest):
         lockfd = os.open(led.project, os.O_RDONLY | os.O_DIRECTORY)
         fcntl.flock(lockfd, fcntl.LOCK_EX)
     try:
+        if cmd in ("record", "classify") and not o["path"]:
+            raise Usage("%s needs --path" % cmd)
         if cmd == "record":
-            return led.record(o.get("id", ""), o.get("producer", ""), o.get("agent", ""), o.get("path", [""])[-1] if isinstance(o.get("path"), list) else "",
+            return led.record(o.get("id", ""), o.get("producer", ""), o.get("agent", ""), o["path"][-1],
                               o.get("kind", ""), o.get("json_path"), o.get("scope", "project"))
         if cmd == "classify":
-            return led.classify(o["path"][-1] if o["path"] else "")
+            return led.classify(o["path"][-1])
         if cmd == "status":
             return led.status()
         if cmd == "forget":

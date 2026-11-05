@@ -37,7 +37,7 @@ kill_mutant M5_no_backup_blob_check 'if hashlib.sha256(read_nofollow(blob, MAX_F
 kill_mutant M6_no_backup_mac       'or not hmac.compare_digest(m["mac"], self._bmac(key, m)):  # RULE:W-backup-mac' 'or False:'
 kill_mutant M7_no_parent_containment 'if parent_real != project_real and not parent_real.startswith(project_real + os.sep):' 'if False:'
 kill_mutant M8_adopt_default_all   'led.adopt(o.get("adopt", "none"), o["only"])' 'led.adopt(o.get("adopt", "all-matching"), o["only"])'
-kill_mutant M9_rollback_unlink_any 'and fingerprint(full, r["kind"]) == r["fingerprint"]:       # still matches its row' ':'
+# M9 (unlink on fingerprint match alone) is superseded by M15 (unlink without classify_row == ours)
 kill_mutant M10_launder_signatures 'and self.local_rows().get(r["id"]) == self.row_digest(r)}' '}'
 kill_mutant M11_inventory_all_links 'def _points_into_constitution(self, link):' 'def _points_into_constitution(self, link):
         return True'
@@ -46,4 +46,15 @@ kill_mutant M13_rebind_no_old_fp   'if row["fingerprint"] != old_fp:' 'if False:
 kill_mutant M14_refs_no_unlink_at_zero 'if os.path.lexists(p):
                 os.unlink(p)
             return' 'return'
+kill_mutant M15_rollback_unlink_unsigned 'if self.classify_row(r, local) != "ours":' 'if False:'
+kill_mutant M16_rollback_no_symlink_leaf_preflight 'if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode):' 'if False:'
+kill_mutant M17_rollback_row_error_aborts 'report["left_alone"].append({"path": r["path"], "reason": "cannot be checked: %s" % clean(ex)})' 'raise'
+kill_mutant M18_no_backup_gitignore 'atomic_write(bgi, b"*\n")' 'pass'
+kill_mutant M19_record_without_path_crashes 'if cmd in ("record", "classify") and not o["path"]:' 'if False:'
+kill_mutant M20_no_key_mode_check 'if not stat.S_ISREG(st.st_mode) or st.st_mode & 0o077:' 'if not stat.S_ISREG(st.st_mode):'
+kill_mutant M21_no_git_reserved 'if parts[0] == ".git" or rel == STATE_REL' 'if rel == STATE_REL'
+kill_mutant M22_no_nofollow_read 'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK' 'os.O_RDONLY | os.O_NONBLOCK'
+kill_mutant M23_same_mac_domain 'b"wiring-backup\0"' 'b"wiring-local\0"'
+kill_mutant M24_refs_strict_utf8 '.decode("utf-8", "surrogateescape").split' '.decode("utf-8").split'
+kill_mutant M25_refs_write_strict_utf8 'sorted(refs.items())).encode("utf-8", "surrogateescape"))' 'sorted(refs.items())).encode())'
 finish

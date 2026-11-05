@@ -281,6 +281,115 @@ wlp "$BP" rollback --backup "$SB/nonexistent"; eq "rollback of a missing backup 
 wlp "$BP" rollback --backup "$SB"; eq "rollback of a dir without manifest refused" 3 "$RC"
 wlp "$BP" backup --path ../outside; eq "backup of a hostile path refused" 3 "$RC"
 
+# ── 9b. review fixes F1-F5 (rollback safety, backup ignore, usage errors, mutant killers) ──────────────
+# F1: rollback unlinks ONLY rows that classify as ours (local HMAC + root binding)
+F1P="$SB/f1"; make_project "$F1P"; printf 'mine\n' >"$F1P/consumer.txt"
+wlp "$F1P" backup --path base.txt; F1B="$(jget "$OUT" backup_dir)"
+wlp "$F1P" record --id f1-row --producer installer --agent claude --path consumer.txt --kind file
+rm "$F1P/.constitution/extensions.state/wiring.local.json"          # a tracked row with NO local signature
+wlp "$F1P" rollback --backup "$F1B"
+eq "F1 rollback of an unsigned row rc 0" 0 "$RC"
+eq "F1 consumer file with a matching tracked row is NOT deleted" mine "$(cat "$F1P/consumer.txt" 2>/dev/null)"
+has "F1 report names it left alone" "consumer.txt" "$(printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["left_alone"]))')"
+hasnt "F1 report does not list it as unlinked" 'consumer.txt' "$(printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["unlinked"]))')"
+# F1b: a row signed here but bound to ANOTHER constitution root is not ours either
+F1Q="$SB/f1q"; make_project "$F1Q"; printf 'mine\n' >"$F1Q/consumer.txt"; R2="$SB/croot2"; make_root "$R2"
+wlp "$F1Q" backup --path base.txt; F1QB="$(jget "$OUT" backup_dir)"
+wlp "$F1Q" record --id f1q-row --producer installer --agent claude --path consumer.txt --kind file
+OUT="$(env HOME="$SB/home" python3 -I "$IMPL" --project "$F1Q" --root "$R2" rollback --backup "$F1QB" </dev/null 2>"$SB/err")"; RC=$?
+eq "F1b rollback from another root rc 0" 0 "$RC"
+eq "F1b consumer file bound to another root is NOT deleted" mine "$(cat "$F1Q/consumer.txt" 2>/dev/null)"
+# F1c control: a genuinely ours row IS unlinked (so the guard is not just 'never delete')
+F1C="$SB/f1c"; make_project "$F1C"; printf 'made\n' >"$F1C/made.txt"
+wlp "$F1C" backup --path base.txt; F1CB="$(jget "$OUT" backup_dir)"
+wlp "$F1C" record --id f1c-row --producer installer --agent claude --path made.txt --kind file
+wlp "$F1C" rollback --backup "$F1CB"; check "F1c control: an ours row created after the backup is unlinked" test ! -e "$F1C/made.txt"
+
+# F2: rollback is atomic — every row path and restore target is checked before the first change
+F2P="$SB/f2"; make_project "$F2P"; printf 'base\n' >"$F2P/base.txt"
+wlp "$F2P" backup --path base.txt; F2B="$(jget "$OUT" backup_dir)"
+printf 'a\n' >"$F2P/a.txt"; wlp "$F2P" record --id f2-a --producer installer --agent claude --path a.txt --kind file
+printf 'z\n' >"$F2P/z.txt"; wlp "$F2P" record --id f2-z --producer installer --agent claude --path z.txt --kind file
+printf 'changed\n' >"$F2P/base.txt"
+head -c 17000000 /dev/zero >>"$F2P/z.txt"                           # consumer grew it past the fingerprint limit
+wlp "$F2P" rollback --backup "$F2B"
+eq "F2a oversize created-later file: rollback rc 0 (left alone, not an abort)" 0 "$RC"
+check "F2a oversize file left in place" test -s "$F2P/z.txt"
+eq "F2a base restored" base "$(cat "$F2P/base.txt")"
+check "F2a the ours row a.txt unlinked" test ! -e "$F2P/a.txt"
+has "F2a oversize file reported left alone" "z.txt" "$(printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["left_alone"]))')"
+# F2b: a restore target that is a symlink leaf refuses the WHOLE rollback before any change
+F2Q="$SB/f2q"; make_project "$F2Q"; printf 'base\n' >"$F2Q/base.txt"; printf 'outside\n' >"$SB/f2q.out"
+wlp "$F2Q" backup --path base.txt; F2QB="$(jget "$OUT" backup_dir)"
+printf 'a\n' >"$F2Q/a.txt"; wlp "$F2Q" record --id f2q-a --producer installer --agent claude --path a.txt --kind file
+rm "$F2Q/base.txt"; ln -s "$SB/f2q.out" "$F2Q/base.txt"
+LEDQ="$(sha256sum "$F2Q/.constitution/wiring.json" | cut -c1-64)"
+wlp "$F2Q" rollback --backup "$F2QB"
+eq "F2b symlink leaf at a restore target: refused rc 3" 3 "$RC"
+check "F2b nothing changed: a.txt still there" test -f "$F2Q/a.txt"
+eq "F2b nothing changed: ledger byte-identical" "$LEDQ" "$(sha256sum "$F2Q/.constitution/wiring.json" | cut -c1-64)"
+eq "F2b the symlink target was not written through" outside "$(cat "$SB/f2q.out")"
+check "F2b the link is still a link" test -L "$F2Q/base.txt"
+# F2c: a hostile tracked row path (.git/x) is left alone, never an abort halfway and never touched
+F2R="$SB/f2r"; make_project "$F2R"; printf 'base\n' >"$F2R/base.txt"
+wlp "$F2R" backup --path base.txt; F2RB="$(jget "$OUT" backup_dir)"
+printf 'a\n' >"$F2R/a.txt"; wlp "$F2R" record --id f2r-a --producer installer --agent claude --path a.txt --kind file
+python3 -I - "$F2R/.constitution/wiring.json" <<'PY'
+import json, sys
+f = sys.argv[1]; d = json.load(open(f)); d["rows"].append(dict(d["rows"][0], id="f2r-git", path=".git/x")); json.dump(d, open(f, "w"))
+PY
+printf 'gitfile\n' >"$F2R/.git/x"; printf 'changed\n' >"$F2R/base.txt"
+wlp "$F2R" rollback --backup "$F2RB"
+eq "F2c hostile .git row rc 0" 0 "$RC"
+eq "F2c .git/x untouched" gitfile "$(cat "$F2R/.git/x")"
+eq "F2c base restored (rollback ran to completion)" base "$(cat "$F2R/base.txt")"
+
+# F3: the backup directory is never committable (self-contained .gitignore, works without .git/info/exclude)
+F3P="$SB/f3"; make_project "$F3P"; mkdir -p "$F3P/.claude"; printf '{"k":"v"}\n' >"$F3P/.claude/settings.json"
+wlp "$F3P" backup --path .claude/settings.json
+eq "F3 backup rc 0" 0 "$RC"
+check "F3 backup base has a .gitignore" test -f "$F3P/.constitution-install-backup/.gitignore"
+eq "F3 git sees no backup path (even with --untracked-files=all)" "" "$(git -C "$F3P" status --porcelain --untracked-files=all | grep 'constitution-install-backup')"
+check "F3 control needle: git does see the real untracked settings file" sh -c "git -C '$F3P' status --porcelain --untracked-files=all | grep -q 'settings.json'"
+
+# F4: usage errors and non-UTF8 paths are clean
+wl record --id u1 --producer installer --agent claude --kind file
+eq "F4 record without --path is a usage error (rc 2)" 2 "$RC"
+hasnt "F4 no traceback" "Traceback" "$ERR"
+wl classify; eq "F4 classify without --path is a usage error (rc 2)" 2 "$RC"
+NU="$SB/$(printf 'nu\377dir')"; mkdir -p "$NU"
+OUT="$(env HOME="$SB/home" python3 -I "$IMPL" --project "$NU" --root "$R" refs add --id nu --record-digest d1 </dev/null 2>"$SB/err")"; RC=$?
+hasnt "F4 non-UTF8 project path: no traceback" "Traceback" "$(cat "$SB/err")"
+eq "F4 non-UTF8 project path: refs add works (rc 0)" 0 "$RC"
+OUT="$(env HOME="$SB/home" python3 -I "$IMPL" --project "$NU" --root "$R" refs count --id nu </dev/null 2>"$SB/err")"; eq "F4 non-UTF8 path recorded once" 1 "$(jget "$OUT" count)"
+OUT="$(env HOME="$SB/home" python3 -I "$IMPL" --project "$NU" --root "$R" refs remove --id nu </dev/null 2>"$SB/err")"; eq "F4 non-UTF8 path removed" 0 "$(jget "$OUT" count)"
+
+# F5: tests that kill the reviewer's surviving mutants
+F5P="$SB/f5"; make_project "$F5P"; printf 'x\n' >"$F5P/f.txt"
+wlp "$F5P" record --id f5-a --producer installer --agent claude --path f.txt --kind file
+chmod 644 "$F5P/.constitution/extensions.state/key"
+wlp "$F5P" record --id f5-b --producer installer --agent claude --path README.md --kind file
+eq "F5 key with mode 0644 is refused (key-mode check)" 3 "$RC"
+chmod 600 "$F5P/.constitution/extensions.state/key"
+wlp "$F5P" record --id f5-b --producer installer --agent claude --path README.md --kind file; eq "F5 control: key 0600 accepted" 0 "$RC"
+wlp "$F5P" record --id f5-g --producer installer --agent claude --path .git/config --kind file
+eq "F5 record of a .git path refused (reserved-path check)" 3 "$RC"
+wlp "$F5P" backup --path .git/config; eq "F5 backup of a .git path refused" 3 "$RC"
+mkdir -p "$R/extensions/_installed"; printf '%s\td\n' "$SB/f5p" >"$SB/f5ref.dat"
+ln -s "$SB/f5ref.dat" "$R/extensions/_installed/nf.refs"
+wl refs count --id nf
+eq "F5 refs file that is a symlink is not READ through (O_NOFOLLOW)" 3 "$RC"
+rm "$R/extensions/_installed/nf.refs"
+# domain separation: a local-ledger MAC must not validate as a backup-manifest MAC (reason text proves which check fired)
+python3 -I - "$F5P/.constitution/extensions.state/wiring.local.json" "$SB/forged-bk" <<'PY'
+import json, os, sys
+d = json.load(open(sys.argv[1])); os.makedirs(sys.argv[2], exist_ok=True)
+m = dict(d["rows"]); m["mac"] = d["mac"]; json.dump(m, open(os.path.join(sys.argv[2], "manifest.json"), "w"))
+PY
+wlp "$F5P" rollback --backup "$SB/forged-bk"
+eq "F5 forged manifest built from the local MAC refused" 3 "$RC"
+has "F5 refused by the signature check (domain strings differ)" "signature is invalid" "$ERR"
+
 # ── 10. reference file (D5) with flock ────────────────────────────────────
 RF="$R/extensions/_installed/hello.refs"
 wl refs add --id hello --record-digest d1
