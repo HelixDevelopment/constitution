@@ -25,7 +25,7 @@
 # G3D (the round-2 dict check, whose root `status` key a submodule `status` overwrote) and G3R (unknown checked on
 # the root only) take their place; M32 X4 X5 M30a M30i M30l RB are re-anchored to the round-3 code with the same
 # change; RV1-RV8 are the reviewer-authored mutants of review r2 (RV3 RV7 RV8 re-anchored to the structural code:
-# unknown never detected, a path label without repr(), unknown-at-both-ends not reported); C1-C13 guard the class
+# unknown never detected, a path label without repr(), unknown-at-both-ends not reported); Q1-Q13 guard the class
 # members fixed in round 3 (the `?` Go-module marker, unframed tree hash, `#` and non-UTF-8 census names, CR-safe
 # table readers, the newline-path and doubly-named gaps, bytes symlink targets, the old `<absent>` marker, path
 # display and surrogateescape decoding). A mutant counts as KILLED only when the self-test
@@ -167,24 +167,28 @@ RV5	        i = rest.rfind(" (")	        i = rest.find(" (")
 RV6	        if nl and val.rstrip("/"):\n            paths.append(val.rstrip("/"))	        if nl and val.rstrip("/"):\n            paths.append(val.strip().rstrip("/"))
 RV7	    return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)	    return "root HEAD" if field[1] is None else "submodule %s" % (field[1],)
 RV8	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb or vb is None)	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb)
-C1	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None and not mm.startswith("?"))):
-C2	        h.update(tag + b"%d:" % len(data))	        h.update(tag)
-C3	        if f.startswith("#"):	        if False:
-C4	        if f != os.fsencode(f).decode("utf-8", "replace"):	        if False:
-C5	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols
-C5k	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line
-C5x	        for line in map(crlf_line, fh.read().split("\\n")):	        for line in fh.read().splitlines():
-C5c	    return line[:-1] if line.endswith("\\r") else line	    return line
-C6	    for path in sorted(x for x in known if "\\n" in x):	    for path in []:
-C7	        if path in seen:	        if False:
-C8	            return b"L" + os.readlink(p)	            return b"L" + os.readlink(os.fsdecode(p)).encode()
-C9	        return None\n\n\ndef hrec	        return b"<absent>"\n\n\ndef hrec
-C10	    return os.fsencode(path).decode("utf-8", "backslashreplace")	    return path
-C11	        for rec in os.fsdecode(p.stdout).split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):	        for rec in p.stdout.decode(errors="replace").split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):
-C12	    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))	    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
-C13	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:	        if parsed is not None and parsed[0] != "-":
+Q1	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None and not mm.startswith("?"))):
+Q2	        h.update(tag + b"%d:" % len(data))	        h.update(tag)
+Q3	        if f.startswith("#"):	        if False:
+Q4	        if f != os.fsencode(f).decode("utf-8", "replace"):	        if False:
+Q5	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols
+Q5k	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line
+Q5x	        for line in map(crlf_line, fh.read().split("\\n")):	        for line in fh.read().splitlines():
+Q5c	    return line[:-1] if line.endswith("\\r") else line	    return line
+Q6	    for path in sorted(x for x in known if "\\n" in x):	    for path in []:
+Q7	        if path in seen:	        if False:
+Q8	            return b"L" + os.readlink(p)	            return b"L" + os.readlink(os.fsdecode(p)).encode()
+Q9	        return None\n\n\ndef hrec	        return b"<absent>"\n\n\ndef hrec
+Q10	    return os.fsencode(path).decode("utf-8", "backslashreplace")	    return path
+Q11	        for rec in os.fsdecode(p.stdout).split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):	        for rec in p.stdout.decode(errors="replace").split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):
+Q12	    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))	    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
+Q13	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:	        if parsed is not None and parsed[0] != "-":
 EOF
 )
+
+# An id names exactly one row: selection by id would otherwise run every row that shares it.
+dups=$(printf '%s\n' "$MUTANTS" | cut -f1 | grep -v '^$' | sort | uniq -d)
+if [ -n "$dups" ]; then echo "FAIL mutant table: duplicate id(s): $(echo $dups)"; exit 2; fi
 
 prep() { # $1 dir: fresh copy of the runner
   mkdir -p "$1/scripts/full_suite" "$1/scripts/lib"
