@@ -772,46 +772,194 @@ def census(path, root, _seen=None):
         text = f.read()
     regions = []
     exp, lit, code = split_code(text, regions)
-    # a region assigned to a variable is disowned only when that variable is expanded, and every expansion is on a command
-    # line that provably runs a non-jq interpreter; never expanded, or expanded anywhere else, stays armed
-    logical, cont = [], ""
-    for e_ in exp:
-        logical.append(cont + e_)
-        cont = (cont + e_[:-1] + " ") if e_.endswith("\\") and not e_.endswith("\\\\") else ""
+    # a region assigned to a variable is disowned only when that variable is expanded, and every command SEGMENT that
+    # expands it provably runs a non-jq interpreter; never expanded, or expanded anywhere else, stays armed.
+    # Three parallel views per logical line (backslash continuations joined): exp (where $ expands), code (dq text
+    # blanked, so ; | & inside strings never split a segment) and raw (the text as written: quoted programs included).
+    raw_lines = text.split("\n")
+    logical, lcode, lraw, laligned, cont, cont_c, cont_r = [], [], [], [], "", "", ""
+    for e_, c_, r_ in zip(exp, code, raw_lines):
+        ok = len(c_) == len(e_) and len(e_) <= len(r_)   # exp/code are raw cut at a comment; heredoc bodies are not
+        r_cut = r_[:len(e_)] if ok else r_
+        logical.append(cont + e_); lcode.append(cont_c + (c_ if ok else " " * len(e_))); lraw.append(cont_r + r_cut)
+        laligned.append(ok and (not cont or len(cont) == len(cont_c) == len(cont_r)))
+        if e_.endswith("\\") and not e_.endswith("\\\\"):
+            cont, cont_c, cont_r = cont + e_[:-1] + " ", cont_c + c_[:-1] + " ", cont_r + r_cut[:-1] + " "
+        else:
+            cont = cont_c = cont_r = ""
     var_lines = {}
     for lg in logical:
         for nm in set(re.findall(r"\$\{?[#!]?([A-Za-z_]\w*)", lg)):
             var_lines.setdefault(nm, []).append(lg)
-    # CON-017: `printf '%s\n' "$V" > "$F"` followed by an interpreter running `$F` (`awk -f "$F"`) hands V to that interpreter.
-    # V is disowned only when EVERY expansion of V is on an interpreter line or is the single source of such a write, and
-    # EVERY expansion of the target variable F is on an interpreter line or is the target of a write of that same shape;
-    # a literal-path target, a line that also runs jq, or any other use of V or F leaves V armed.
-    def _write_segs(lg):
-        out = []
-        if RE_JQ_WORD.search(lg):
-            return out
-        for seg in re.split(r"\s*(?:;|&&|\|\|)\s*", lg):
-            m = RE_WRITE_VAR.match(seg)
-            if m:
-                out.append((m.group(1), m.group(2)))
+    # CON-017 (class rule, 2026-11-05): `printf '%s\n' "$V" > "$F"` followed by an interpreter running `$F`
+    # (`awk -f "$F"`) hands V to that interpreter. Both CON-015 (V expanded directly) and CON-017 (V forwarded through F)
+    # disown V ONLY when ALL of these hold; anything the census cannot prove keeps V ARMED (11.4.201(4)):
+    #  (1) every command SEGMENT (split at ; && || | &) that expands V (or F) runs a non-jq interpreter at command position,
+    #      judged on the RAW segment: a quoted program that runs jq (`bash -c 'jq ..'`, python subprocess, awk system())
+    #      is not non-jq, nor is an interpreter whose program variable or program file mentions jq;
+    #  (2) V / F never appear inside quoted text (`eval '..$F..'`, `sh -c '..'`, a quoted heredoc for a child shell);
+    #  (3) V / F are never exported (`export F`, `declare -x`, `set -a`): a child process could run jq on them;
+    #  for a forwarded V additionally: (4) the write is a whole segment `printf FMT "$V" > "$F"` / `echo "$V" > "$F"` on a
+    #  line with no jq word, V expanded once on it; (5) F is assigned only plainly in this file (not by read / for /
+    #  mapfile / printf -v / getopts) and no value names a jq program (jq/yq in it); (6) at least one segment really
+    #  runs F through an interpreter; (7) no jq-capable command in the file (a jq word, a command word held in a variable
+    #  whose value is unknown or jq-ish, a function whose body runs jq) takes its program from a file (-f, --from-file,
+    #  -L, --library-path), a command substitution, a backquote, a process substitution or any variable but $0.
+    # KNOWN LIMITS (pinned quiet in tests/gates/test_gate_env_census_jq_regions.sh K1-K3): a wrapper command defined
+    # outside this file (a sourced library, an alias) that runs jq on the file by a re-spelled path; an interpreter
+    # running a script from disk the census cannot read. Earlier m-2 limits (cd + relative path, find -exec, declare -n,
+    # ${!X}, export F) are now caught by (3) and (7).
+    SEG_SPLIT = re.compile(r"\|\||&&|;;?|\|&?|(?<![<>&])&(?![&>])")
+    RE_EXPANDS = r"\$\{?[#!]?([A-Za-z_]\w*)"
+
+    def _segs(i):
+        lc, le, lr = lcode[i], logical[i], lraw[i]
+        if not laligned[i]:
+            return [(le, lr)]
+        out, st = [], 0
+        for m in SEG_SPLIT.finditer(lc):
+            out.append((le[st:m.start()], lr[st:m.start()])); st = m.end()
+        out.append((le[st:], lr[st:]))
         return out
+    all_segs = [s for i in range(len(logical)) for s in _segs(i)]
+    littext = "\n".join(lit)
+    exptext = "\n".join(logical)
+    allexport = re.search(r"(?:^|[\s;&|(])set\s+(?:-[a-zA-Z]*a[a-zA-Z]*|-o\s+allexport)\b", exptext) is not None
 
-    def _benign(lg, name, as_target):
-        if _runs_nonjq(lg):
+    def _hidden(name):   # an expansion of name inside quoted text (eval '..', sh -c '..', a quoted heredoc body)
+        return re.search(r"\$\{?[#!]?" + name + r"\b", littext) is not None
+
+    def _exported(name):
+        return allexport or re.search(r"(?:^|[\s;&|(])(?:export|(?:declare|typeset|local)\s+-[a-zA-Z]*x[a-zA-Z]*)\s+"
+                                      r"(?:-\S+[ \t]+)*(?:\S+[ \t]+)*?" + name + r"(?:=|\s|$|;)", exptext, re.M) is not None
+    RE_ASSIGN_SEG = r"^\s*(?:(?:local|declare|typeset|readonly|export)\s+(?:-\w+\s+)*)?"
+    # variables whose text mentions jq: assigned on a segment with a jq word, owning a quoted region with a jq word, or a
+    # file written from such a variable (so `python3 "$H"` with H written from a program that runs jq is jq-capable)
+    jqish_vars = set()
+    for es, rs in all_segs:
+        m = re.match(RE_ASSIGN_SEG + r"([A-Za-z_]\w*)\+?=", es)
+        if m and RE_JQ_WORD.search(rs):
+            jqish_vars.add(m.group(1))
+    _vtext = {}
+    for rl in regions:
+        for o, t in rl:
+            if o[0] == "var":
+                _vtext[o[1]] = _vtext.get(o[1], "") + t
+    jqish_vars |= {v for v, t in _vtext.items() if RE_JQ_WORD.search(t)}
+    for _ in range(3):
+        for es, rs in all_segs:
+            m = RE_WRITE_VAR.match(es)
+            if m and m.group(1) in jqish_vars:
+                jqish_vars.add(m.group(2))
+    # shell functions whose body (from the definition line to the next line that ends in `}`) has a jq word; a body
+    # line ending in `${x}` ends the scan early (a known under-approximation; the lines already seen still count)
+    jq_funcs, cur = set(), None
+    for i, lg in enumerate(logical):
+        m = re.match(r"\s*(?:function\s+)?([A-Za-z_][\w:-]*)\s*\(\)", lg) or re.match(r"\s*function\s+([A-Za-z_][\w:-]*)", lg)
+        if m:
+            cur = m.group(1)
+        if cur and RE_JQ_WORD.search(lraw[i]):
+            jq_funcs.add(cur)
+        if cur and (re.search(r"\}\s*;?\s*$", lg) and (m is None or lg.count("{") <= lg.count("}"))):
+            cur = None
+    simple_vals = {}
+    for es, rs in all_segs:
+        m = re.match(RE_ASSIGN_SEG + r"([A-Za-z_]\w*)=(.*)$", es)
+        if m:
+            simple_vals.setdefault(m.group(1), []).append(rs[m.start(2):].strip() if len(rs) == len(es) else None)
+
+    def _cmdword(rs):   # the command word of a segment: skip { ( ! `, keywords, NAME=value words and wrappers
+        j, n = 0, len(rs)
+        while j < n:
+            while j < n and rs[j] in " \t{(!`":
+                j += 1
+            e = scan_word(rs, j)
+            if e <= j:
+                return ""
+            w = rs[j:e]
+            if re.match(r"[A-Za-z_]\w*(?:\[[^\]]*\])?\+?=", w) or w in (
+                    "then", "do", "else", "elif", "if", "while", "until", "env", "command", "exec", "sudo", "time",
+                    "builtin", "nice"):
+                j = e; continue
+            return w
+        return ""
+
+    def _jq_capable(es, rs):
+        if RE_JQ_WORD.search(rs):
             return True
-        ws = _write_segs(lg)
-        if not ws:
-            return False
-        n = len(re.findall(r"\$\{?[#!]?" + name + r"\b", lg))
-        if as_target:   # every expansion of F on this line is the redirect target of one of its write segments
-            return all(f == name for _v, f in ws) and n == len(ws)
-        return len(ws) == 1 and ws[0][0] == name and n == 1
+        w = _cmdword(rs)
+        if w in jq_funcs:
+            return True
+        m = re.match(r"\"?\$\{?([A-Za-z_]\w*)", w)   # command word held in a variable: capable unless every value is a literal non-jq word
+        if m:
+            vals = simple_vals.get(m.group(1))
+            return (m.group(1) in jqish_vars or not vals
+                    or any(v is None or re.search(r"[$`]", v) or RE_JQ_WORD.search(v) for v in vals))
+        return w.startswith("`") or w.startswith("\"`") or w.startswith("$(") or w.startswith("\"$(")
+    jq_segs = [(es, rs) for es, rs in all_segs if _jq_capable(es, rs)]
+    # (7) a jq command whose program can come from a file, a command / process substitution, or a variable
+    jq_prog_open = any(re.search(r"(?:^|\s)(?:-[A-Za-z]*[fL][A-Za-z]*|--from-file|--library-path)(?:[\s=]|$)", rs)
+                       or re.search(r"\$\(|`|<\(", rs)
+                       or any(v != "0" for v in re.findall(r"\$\{?[#!]?([A-Za-z_]\w*|\d)", es))
+                       for es, rs in jq_segs)
 
-    def _forwarded_ok(nm):
-        targets = {f for lg in var_lines.get(nm, []) for (v, f) in _write_segs(lg) if v == nm}
-        return bool(targets) and all(all(_benign(lg, f, True) for lg in var_lines.get(f, [])) for f in targets)
-    nonjq_vars = {nm for nm, lgs in var_lines.items()
-                  if all(_runs_nonjq(lg) or (_benign(lg, nm, False) and _forwarded_ok(nm)) for lg in lgs)}
+    def _seg_nonjq(es, rs):   # (1) the segment runs a non-jq interpreter, judged on its raw text and its program vars
+        return (RE_NONJQ_CMD.search(es) is not None and not RE_JQ_WORD.search(rs)
+                and not any(v in jqish_vars for v in re.findall(RE_EXPANDS, es)))
+
+    def _expands(es, name):
+        return re.search(r"\$\{?[#!]?" + name + r"\b", es) is not None
+
+    def _write_segs(i):   # (4) the write segments of logical line i, as (V, F); none on a line with a jq word
+        if RE_JQ_WORD.search(lraw[i]) or RE_JQ_WORD.search(logical[i]):
+            return []
+        return [(m.group(1), m.group(2)) for es, _rs in _segs(i) for m in [RE_WRITE_VAR.match(es)] if m]
+    line_idx = {}
+    for i, lg in enumerate(logical):
+        for nm in set(re.findall(RE_EXPANDS, lg)):
+            line_idx.setdefault(nm, []).append(i)
+
+    def _value_jqish(name):   # (5) F not plainly assigned (or also read/looped), or its value names a jq program
+        vals = simple_vals.get(name)
+        if not vals or re.search(r"(?:\bread\b|\bmapfile\b|\breadarray\b|\bfor\s+|\bprintf\s+-v\s+|\bgetopts\b)[^;&|]*\b"
+                                 + name + r"\b", exptext):
+            return True
+        return any(v is None or re.search(r"jq|yq", v, re.I) for v in vals)
+
+    def _target_ok(f):
+        if _hidden(f) or _exported(f) or _value_jqish(f):
+            return False
+        runs = False
+        for i in line_idx.get(f, []):
+            ws = _write_segs(i)
+            for es, rs in _segs(i):
+                if not _expands(es, f):
+                    continue
+                if _seg_nonjq(es, rs):
+                    runs = True
+                    continue
+                m = RE_WRITE_VAR.match(es)
+                if not (m and m.group(2) == f and (m.group(1), f) in ws
+                        and len(re.findall(r"\$\{?[#!]?" + f + r"\b", es)) == 1):
+                    return False
+        return runs   # (6)
+
+    def _nonjq_var(nm):
+        if _hidden(nm) or _exported(nm) or nm not in line_idx:
+            return False
+        targets = set()
+        for i in line_idx[nm]:
+            ws = _write_segs(i)
+            for es, rs in _segs(i):
+                if not _expands(es, nm) or _seg_nonjq(es, rs):
+                    continue
+                m = RE_WRITE_VAR.match(es)
+                if not (m and m.group(1) == nm and (nm, m.group(2)) in ws
+                        and len(re.findall(r"\$\{?[#!]?" + nm + r"\b", logical[i])) == 1):
+                    return False
+                targets.add(m.group(2))
+        return not targets or (not jq_prog_open and all(_target_ok(f) for f in targets))
+    nonjq_vars = {nm for nm in var_lines if _nonjq_var(nm)}
     jq_text = "\n".join(lg for lg in logical if RE_JQ_WORD.search(lg))
 
     def _armed(o):
