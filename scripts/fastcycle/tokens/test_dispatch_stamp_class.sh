@@ -64,6 +64,16 @@ got="$(mk '(T1/main - a - opus - high) item=ATM-1 class=custom t' | FC_DISPATCH_
 mkdir -p "$WORK/proj/docs/context"; printf 'simple\tsonnet\tlow\n' > "$WORK/proj/docs/context/dispatch_tier_policy.tsv"
 got="$(mk '(T1/main - a - sonnet - medium) item=ATM-1 class=simple t' | FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' CLAUDE_PROJECT_DIR="$WORK/proj" bash "$HOOK" >/dev/null 2>&1; echo $?)"
 [ "$got" = 2 ] && ok "\$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv is read" || bad "project policy file (rc=$got)"
+# CON-033 round 3 (review R2-F6): both channels set with conflicting caps; the
+# documented order is env first. Env caps simple at sonnet/high, the project
+# file at sonnet/low, so 'sonnet medium' is allowed only if env wins.
+printf 'simple\tsonnet\thigh\n' > "$WORK/pol_env_high.tsv"
+prec() {  # prec <hook> -> rc for 'sonnet medium on simple' with both policies set
+  mk '(T1/main - a - sonnet - medium) item=ATM-1 class=simple t' | FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' \
+    FC_DISPATCH_TIER_POLICY="$WORK/pol_env_high.tsv" CLAUDE_PROJECT_DIR="$WORK/proj" bash "$1" >/dev/null 2>&1; echo $?
+}
+got="$(prec "$HOOK")"
+[ "$got" = 0 ] && ok "both policies set: FC_DISPATCH_TIER_POLICY wins over the project file (sonnet medium allowed by env cap high)" || bad "policy precedence (rc=$got, want 0: env must win)"
 got="$(mk '(T1/main - a - sonnet - low) item=ATM-1 class=simple t' | FC_DISPATCH_TIER_POLICY="$WORK/missing.tsv" bash "$HOOK" >/dev/null 2>&1; echo $?)"
 [ "$got" = 2 ] && ok "unreadable policy file fails closed" || bad "unreadable policy (rc=$got)"
 printf 'simple\tsonnet\tgigantic\n' > "$WORK/badcap.tsv"
@@ -127,6 +137,18 @@ if grep -q 'not readable' "$WORK/m6_real" && ! grep -q 'not readable' "$WORK/m6_
 # M7: a dispatch with no class gets refused (false-positive refusal)
 m7="$(mutate M7 '  [[ "$DESCRIPTION" =~ $cls_re ]] || return 0' '  [[ "$DESCRIPTION" =~ $cls_re ]] || return 1')"
 [ "$(run "$m7" "(T1/main - a - opus - max) item=ATM-1 no class here")" = 2 ] && ok "mutant M7 (class required) killed by 'no class declared is never refused'" || bad "mutant M7 SURVIVED"
+# M8 (= review mutant DSM-B, R2-F6): the policy precedence swapped, so the
+# project file wins over FC_DISPATCH_TIER_POLICY
+m8="$(mutate M8 '  if [ -n "${FC_DISPATCH_TIER_POLICY:-}" ]; then
+    pol="$FC_DISPATCH_TIER_POLICY"
+  elif [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv" ]; then
+    pol="$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv"
+  fi' '  if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv" ]; then
+    pol="$CLAUDE_PROJECT_DIR/docs/context/dispatch_tier_policy.tsv"
+  elif [ -n "${FC_DISPATCH_TIER_POLICY:-}" ]; then
+    pol="$FC_DISPATCH_TIER_POLICY"
+  fi')"
+[ "$(prec "$m8")" = 2 ] && ok "mutant M8 / DSM-B (project file wins) killed: it refuses what the real hook allows (rc 2, real hook rc 0)" || bad "mutant M8 / DSM-B SURVIVED"
 # Mutant effectiveness controls: the unmodified hook gives the opposite verdicts on the same inputs
 [ "$(run "$HOOK" "(T1/main - a - opus - max) item=ATM-1 class=simple t")" = 2 ] && ok "control: the real hook refuses what M1 lets through" || bad "control failed"
 
