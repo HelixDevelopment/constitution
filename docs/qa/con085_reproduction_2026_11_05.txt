@@ -1,0 +1,36 @@
+# CON-085 reproduction record (host fixture), 2026-11-05 (first minted as CON-066, then CON-072 in the vehicle; re-minted at landing, review F2)
+# Captured by the CON-031 excluded-list investigation (Claude Opus 5.5). Surface: host-only (parser is host code). Section 11.4.292(C) / 11.4.294.
+
+## Source identity (sha256)
+edfd1270e19fdc1bcf1c1c63260045d439dc60bbe3ab04d62261cacc91206c71  scripts/catalog-engine/lib/parse_mutation.py (vehicle 2595f06, unchanged from main ecfe432)
+
+## Fixtures
+meta.sh:
+    # meta fixture
+    echo "— CM-X mutation: text"
+    expect_prebuild_fail CM-X
+meta_ctl.sh (control, closing em-dash):
+    # meta fixture, closing em-dash form (control)
+    echo "— CM-X mutation: text —"
+    expect_prebuild_fail CM-X
+
+## Loader (run.py)
+    import importlib.util, sys
+    spec = importlib.util.spec_from_file_location("pm", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    for f in sys.argv[2:]:
+        for r in m.parse_mutation_file(f, "x"):
+            print(f.rsplit("/",1)[-1], "description=%r" % getattr(r, "description", r.get("description") if isinstance(r, dict) else r))
+
+## Command
+python3 -I run.py scripts/catalog-engine/lib/parse_mutation.py meta.sh meta_ctl.sh
+Signature (true while the defect is present): meta.sh description='text"'
+
+## Output
+meta.sh description='text"'
+meta_ctl.sh description='text'
+
+## Decisive experiment (section 11.4.292(G)): toggle the cause, not the input
+Copy of parse_mutation.py with the end alternative of _RE_MUT_DEF changed from (?:—|$) to (?:—|"?\s*$) (an optional closing quote before end of line):
+meta.sh description='text'
+meta_ctl.sh description='text'
+The signature disappears with only the regex changed; the control is unchanged. This is evidence for the cause, not a reviewed fix (CON-085 stays open).

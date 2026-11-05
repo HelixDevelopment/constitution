@@ -1,0 +1,115 @@
+# CON-084 reproduction record (host fixture), 2026-11-05 (first minted as CON-065, then CON-071 in the vehicle; re-minted at landing, review F2)
+# Captured by the CON-031 excluded-list investigation (Claude Opus 5.5). Surface: host-only (the capture tool and its test are host code). Section 11.4.292(C) / 11.4.294.
+
+## Source identities (sha256)
+17ca1cc0c2db48f9df4d9baf3f295b4dbcb53c54273f6f61e9d3a0e45603ad62  scripts/fastcycle/tests/capture_fc_timer_triplet.sh at main 7f72395 (pre-fix, RED)
+9fc4ba1b53c4e0630377f405f196b4e2a84a10e799864611f602355a46243c94  scripts/fastcycle/tests/capture_fc_timer_triplet.sh at vehicle 322c25e (fixed, GREEN)
+17161f03b7237e0f66102fd5ebd6ef759be69a4e1fe606fa94b2acab798bab04  scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh (same in both)
+
+## RED/GREEN command (same command, flip = the source change only)
+In a standalone clone with no consumer pre-build file (no device/ tree): bash scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
+Signature (true while the defect is present): NOT ok (H15) rc=2: FATAL: pre-build script not found
+
+## RED on main 7f72395
+ok   control needle: <scratch>/c/scripts/fastcycle/tests/capture_fc_timer_triplet.sh resolves
+=== (H1)-(H4),(H6) default concurrent capture ===
+ok   (H1) 3 logs + manifest share run-id 20261001T130000Z
+ok   (H2) each member ran with its labelled FC_TIMING and its own exact TSV path (FC1 2 rows, FC0a 0)
+ok   (H3) manifest sha256 values match the logs
+ok   (H4) concurrent: every member started before any member finished
+ok   (H6) stand-in run recorded mode=stand-in
+=== (H5) --sequential ===
+ok   (H5) sequential members run one after another
+=== (H9) round 7 (R6-B1): every member runs with its OWN private TMPDIR ===
+ok   (H9) three distinct private TMPDIRs (none the inherited one) + manifest tmpdir_isolation=per-member
+=== (H10) R6-B1 mechanism: a fixed ${TMPDIR}/<name> evidence dir does NOT collide across concurrent members ===
+ok   (H10) all 3 concurrent members kept their own evidence dir intact
+=== (H11) T048 restart R1-I6/R1-m1: tree drift DURING a capture is recorded (real git tree) ===
+ok   (H11a) control: no drift -> tree_status_sha256 start == end
+ok   (H11b) a tracked file modified mid-capture -> start != end
+ok   (H11c) R1-m1: an untracked file created inside constitution/ mid-capture -> start != end
+ok   (H11d) the golden test refuses the drifted SEQUENTIAL triplet the harness recorded
+=== (H13) R1-m2: a member TSV left by a killed run at the same run-id is refused, never appended ===
+ok   (H13) rc=2, stale TSV untouched, no manifest, no leftover reservation
+=== (H14) R1-m3: two concurrent same-run-id captures -> exactly one publishes, the other refuses ===
+ok   (H14) rc=0/2: the manifest is the winner's own and the refused capture never started a member
+=== (H15) a REAL-mode capture refuses the stand-in-only tree-root override ===
+NOT ok (H15) rc=2: FATAL: pre-build script not found: <scratch>/device/rockchip/rk3588/tests/pre_build_verification.sh
+=== (H7) refusals ===
+ok   (H7a) existing manifest is never overwritten (exit 2)
+ok   (H7b) prefix containing '_' rejected (exit 2)
+=== (H8) end to end: the golden test accepts the harness's own output ===
+ok   (H8) golden test validated + compared the harness triplet (FR-002 PASS)
+=== (M-timing) mutant harness runs FC0b WITH timers ===
+ok   (M-timing) mislabelled member caught by the golden test (rc=1)
+=== (M-concurrent) mutant harness serialises members but still says concurrent ===
+ok   (M-concurrent) serialised mutant fails the (H4) overlap condition
+=== (M-tmpdir) mutant harness drops the per-member TMPDIR (round-6 behaviour) ===
+ok   (M-tmpdir) without isolation concurrent members clobber the shared evidence dir -- (H10) is load-bearing (2 member(s) hit)
+=== (M-CM3) reviewer mutation: tree_status_sha256_end := start (drift hidden) ===
+ok   (M-CM3) the mutant hides real drift -- the (H11b) start!=end check is load-bearing
+=== (M-m1) mutant harness drops the constitution/ status from the fingerprint ===
+ok   (M-m1) constitution drift becomes invisible -- (H11c) is load-bearing
+=== (M-m2) mutant harness appends to a stale member TSV ===
+ok   (M-m2) the mutant appends to the stale TSV -- (H13) is load-bearing
+=== (M-m3) mutant harness without the atomic reservation ===
+ok   (M-m3) without the reservation BOTH captures start members -- (H14) is load-bearing
+
+=== CAPTURE HARNESS TESTS: FAILURES ABOVE ===
+
+## GREEN on vehicle 322c25e
+ok   control needle: <scratch>/v/scripts/fastcycle/tests/capture_fc_timer_triplet.sh resolves
+=== (H1)-(H4),(H6) default concurrent capture ===
+ok   (H1) 3 logs + manifest share run-id 20261001T130000Z
+ok   (H2) each member ran with its labelled FC_TIMING and its own exact TSV path (FC1 2 rows, FC0a 0)
+ok   (H3) manifest sha256 values match the logs
+ok   (H4) concurrent: every member started before any member finished
+ok   (H6) stand-in run recorded mode=stand-in
+=== (H5) --sequential ===
+ok   (H5) sequential members run one after another
+=== (H9) round 7 (R6-B1): every member runs with its OWN private TMPDIR ===
+ok   (H9) three distinct private TMPDIRs (none the inherited one) + manifest tmpdir_isolation=per-member
+=== (H10) R6-B1 mechanism: a fixed ${TMPDIR}/<name> evidence dir does NOT collide across concurrent members ===
+ok   (H10) all 3 concurrent members kept their own evidence dir intact
+=== (H11) T048 restart R1-I6/R1-m1: tree drift DURING a capture is recorded (real git tree) ===
+ok   (H11a) control: no drift -> tree_status_sha256 start == end
+ok   (H11b) a tracked file modified mid-capture -> start != end
+ok   (H11c) R1-m1: an untracked file created inside constitution/ mid-capture -> start != end
+ok   (H11d) the golden test refuses the drifted SEQUENTIAL triplet the harness recorded
+=== (H13) R1-m2: a member TSV left by a killed run at the same run-id is refused, never appended ===
+ok   (H13) rc=2, stale TSV untouched, no manifest, no leftover reservation
+=== (H14) R1-m3: two concurrent same-run-id captures -> exactly one publishes, the other refuses ===
+ok   (H14) rc=2/0: the manifest is the winner's own and the refused capture never started a member
+=== (H15) a REAL-mode capture refuses the stand-in-only tree-root override ===
+ok   (H15) rc=2 before anything ran
+=== (H7) refusals ===
+ok   (H7a) existing manifest is never overwritten (exit 2)
+ok   (H7b) prefix containing '_' rejected (exit 2)
+=== (H8) end to end: the golden test accepts the harness's own output ===
+ok   (H8) golden test validated + compared the harness triplet (FR-002 PASS)
+=== (M-timing) mutant harness runs FC0b WITH timers ===
+ok   (M-timing) mislabelled member caught by the golden test (rc=1)
+=== (M-concurrent) mutant harness serialises members but still says concurrent ===
+ok   (M-concurrent) serialised mutant fails the (H4) overlap condition
+=== (M-tmpdir) mutant harness drops the per-member TMPDIR (round-6 behaviour) ===
+ok   (M-tmpdir) without isolation concurrent members clobber the shared evidence dir -- (H10) is load-bearing (2 member(s) hit)
+=== (M-CM3) reviewer mutation: tree_status_sha256_end := start (drift hidden) ===
+ok   (M-CM3) the mutant hides real drift -- the (H11b) start!=end check is load-bearing
+=== (M-m1) mutant harness drops the constitution/ status from the fingerprint ===
+ok   (M-m1) constitution drift becomes invisible -- (H11c) is load-bearing
+=== (M-m2) mutant harness appends to a stale member TSV ===
+ok   (M-m2) the mutant appends to the stale TSV -- (H13) is load-bearing
+=== (M-m3) mutant harness without the atomic reservation ===
+ok   (M-m3) without the reservation BOTH captures start members -- (H14) is load-bearing
+
+=== CAPTURE HARNESS TESTS: ALL CHECKS PASS ===
+
+## Landing re-run, 2026-11-05T18:45:43Z (Claude Opus 5.5, review con031-excluded F8)
+Same test file on both sides: 17161f03b7237e0f66102fd5ebd6ef759be69a4e1fe606fa94b2acab798bab04  scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
+17ca1cc0c2db48f9df4d9baf3f295b4dbcb53c54273f6f61e9d3a0e45603ad62  scripts/fastcycle/tests/capture_fc_timer_triplet.sh at main efe2cc6c (pre-fix): RED, rc=1
+NOT ok (H15) rc=2: FATAL: pre-build script not found: <scratch>/device/rockchip/rk3588/tests/pre_build_verification.sh
+d4ab4f43c05f328e0b0e52e836236a9b869dc8979336bd46703db92f2c14c285  scripts/fastcycle/tests/capture_fc_timer_triplet.sh as landed (merge of main efe2cc6c into the vehicle; differs from 770c41c9 at cd1e55ee only by the id in the line-135 comment): GREEN, rc=0
+=== (H15) a REAL-mode capture refuses the stand-in-only tree-root override ===
+ok   (H15) rc=2 before anything ran
+=== CAPTURE HARNESS TESTS: ALL CHECKS PASS ===
+The 9fc4ba1b hash above is the file at vehicle 322c25e; the shipped file is d4ab4f43 (the comment id changed twice: 35e8d53 and the landing re-mint).

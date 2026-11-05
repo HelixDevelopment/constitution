@@ -1,0 +1,65 @@
+committed counts: commands=24 gemini=24 qwen=24 codex=24 
+PASS: (1) SIGKILL at after_stage leaves all files in place
+PASS: (4) orphan .gen.* from killed run cleaned on next start (after_stage)
+PASS: (1) rerun after kill at after_stage is byte-identical to committed
+PASS: (1) SIGKILL at mid_commit leaves all files in place
+PASS: (4) orphan .gen.* from killed run cleaned on next start (mid_commit)
+PASS: (1) rerun after kill at mid_commit is byte-identical to committed
+PASS: (1) SIGKILL at before_prune leaves all files in place
+PASS: (4) orphan .gen.* from killed run cleaned on next start (before_prune)
+PASS: (1) rerun after kill at before_prune is byte-identical to committed
+PASS: (2) 3 runs byte-identical to committed HEAD output
+PASS: (3) stale marker-carrying files pruned
+PASS: (3) hand-written files survive
+PASS: (3) removed action's files pruned, others kept (constitution)
+PASS: (4) no staging after normal run
+PASS: (4) no staging after SIGTERM (had 6 while paused)
+PASS: (4) SIGTERM exits promptly (<5 s)
+PASS: (4) tree untouched by SIGTERM at after_stage
+PASS: (5) run A (paused) exits 0 despite concurrent run B
+PASS: (5) run B exits 0
+PASS: (5) files complete after concurrent runs (24/24/24/24 equivalent)
+PASS: (5) concurrent result byte-identical to committed
+PASS: (5) no staging left after concurrent runs
+PASS: (6) dropped-action run aborts (rc!=0)
+PASS: (6) dropped-action abort changed nothing
+PASS: (6) lowercase-collision run aborts (rc!=0)
+PASS: (6) lowercase-collision abort changed nothing
+PASS: (6) invalid registry aborts (rc!=0)
+PASS: (6) invalid registry leaves all files in place
+PASS: (6) no staging left after aborted runs
+PASS: (7) pause hook inert without HELIX_TEST_MODE=1
+PASS: (7) pause hook inert with a pause dir outside the temp root
+PASS: (8) staging dirs live inside each destination dir
+PASS: (8) script header documents the .gen.* staging dirs
+PASS: (8) .gitignore ignores .gen.*
+PASS: (9) generator works copied alone with action_prefix_lib.sh
+PASS: (10) lock: contender fails closed within HELIX_GEN_LOCK_WAIT, live run's staging untouched, live run completes
+PASS: (10b) invalid HELIX_GEN_LOCK_WAIT values refused with a clear message, nothing changed
+PASS: (10b) valid HELIX_GEN_LOCK_WAIT values (0, 5, 300) accepted
+PASS: (10c) stale conforming staging dirs reaped
+PASS: (10c) non-conforming .gen.* paths left untouched
+PASS: (10c) symlinked .gen.* not followed, target intact
+PASS: (10c) strays did not pollute generated output
+PASS: (10d) failed commit exits non-zero (rc=1)
+PASS: (10d) nothing mis-moved INTO the squatting directory
+PASS: (10d) staging cleaned after failed commit
+PASS: (10d) failure message present and no success line
+PASS: (10e) TERM at mid_commit: all outputs present, staging cleaned
+PASS: (10f) no staging after SIGHUP
+PASS: (10f) no staging after SIGINT; tree complete
+PASS: (10f) tree intact after SIGINT
+PASS: (11) mutant A (no flock) is killed
+PASS: (11) mutant B (unbounded wait) is killed
+PASS: (11) mutant G (reap before lock) is killed
+PASS: (11) mutant F (apx_rm_stage guards removed) is killed
+PASS: (11) mutant H (no lock-wait validation) is killed
+PASS: (12) every destination is replaced by rename (old inode untouched, result == committed)
+PASS: (12) mutant X6 (cp -fT && rm instead of mv -fT) is killed
+----
+generator_atomic: PASS=57 FAIL=0
+
+real	9m15.511s
+user	4m54.343s
+sys	2m58.550s
+rc=0
