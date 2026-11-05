@@ -69,6 +69,9 @@ make_upstream() {
   fi
   # serve partial clones like GitHub/GitLab do (the installer clones blobless)
   git -C "$d/upstream.git" config uploadpack.allowFilter true || return 1
+  # the suite must not depend on which branch REPO happens to have checked out: the upstream HEAD is main
+  # (a checkout on a vehicle branch made every `push origin main` below fail with "src refspec main does not match")
+  git -C "$d/upstream.git" symbolic-ref HEAD refs/heads/main || return 1
   git clone -q "$d/upstream.git" "$d/upwork" || return 1
   if [ -z "${HELIX_TEST_UPSTREAM_SEED:-}" ] || [ ! -d "$HELIX_TEST_UPSTREAM_SEED/upstream.git" ]; then
     # the clone carries the REAL follow-ups; drop them so the run depends only on the labelled fixtures below
