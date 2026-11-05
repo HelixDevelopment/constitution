@@ -1753,3 +1753,69 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run).
 
+## CON-108 — custody_sweep.py: stash patch from git stash show -p is garbled on git 2.53.0, so every stash land is refused
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con108_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh (also r13, r15, stash_patch_r22) on the pre-fix tool` — green-command `same commands on the fixed tool` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok B2 stash golden-good: expected ALLOWED, got REFUSED (backup ... does NOT match the entry's freshly re-derived LIVE dirty content)` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `git 2.53.0 git stash show -p ignores the a/ b/ prefix options and emits run-varying header prefixes; git diff over the same two trees is correct` — evidence `docs/qa/con108_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/orchestration/custody_sweep.py derived the stash patch (inventory hash and verify-proposal live hash) with git stash show -p <CANONICAL_PATCH_OPTS>. On git 2.53.0 that command ignores --src-prefix/--dst-prefix and prints headers that change on every run (diff --git f sf, diff --git f |f), so no backup can ever match and every stash land is REFUSED (fails closed, no data loss). Fix: derive with git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>; self-check every diff --git header carries a/ b/ prefixes, else UNMEASURED (never hashed); tests r11, r13, r15 build their backups the same way; new guard scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh (host-independent via git shims, paired mutations M1-M3). Upstream git bug report: not filed (UNCONFIRMED whether fixed in a later git). Acceptance: r11, r13, r15 and the new guard GREEN on git 2.53.0; mutations caught. **Affected scope / file-scope manifest:** scripts/fastcycle/orchestration/custody_sweep.py; scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh; scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh; config/full_suite_manifest.tsv
+
+## CON-109 — host_guard.sh: live thread limit unreadable under dash (ulimit -u), so every shard plan is clamped to N=1
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con109_reproduction_2026_11_05.txt` — red-command `FC_GUARD_NPROC=64 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 sh scripts/fastcycle/lib/host_guard.sh 1000000; sh scripts/fastcycle/tests/test_host_guard_red.sh` — green-command `same commands on the fixed guard` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `N=1 REASON=unreadable_ulimit under sh` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash has no ulimit -u, so the live read returned empty` — evidence `docs/qa/con109_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/lib/host_guard.sh read the soft RLIMIT_NPROC with ulimit -u, which dash (/bin/sh on Debian/Ubuntu) rejects; run via sh it reported N=1 REASON=unreadable_ulimit, so gate_runner.sh serialised every shard plan on such hosts. Fix: read the soft Max processes value from /proc/self/limits, fall back to ulimit -u; FC_GUARD_PROC_LIMITS names a fixture file for tests. Test scripts/fastcycle/tests/test_host_guard_red.sh reads its own expectation the same way, lowers the limit with prlimit when present, and adds fixture checks (soft 777 vs hard 999, unlimited, garbled, live control needle). Acceptance: GREEN under sh (dash) and bash; mutations (file ignored, hard field read) caught. **Affected scope / file-scope manifest:** scripts/fastcycle/lib/host_guard.sh; scripts/fastcycle/tests/test_host_guard_red.sh
+
+## CON-110 — test_custody_sweep_r6: guard-viability pattern misses the Python 3.14 TypeError wording
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con110_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok R6-I3(1)/int guard-viability BLIND` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `Python 3.14 changed the TypeError text of 'k in <int>'` — evidence `docs/qa/con110_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh greps the pinned pre-fix tool's crash for 'is not iterable'; Python 3.14 words it 'is not a container or iterable', so both guard-viability legs reported BLIND. Fix: pattern 'is not (a container or )?iterable' with a self-check (both wordings match, an unrelated TypeError does not). **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh
+
+## CON-111 — test_fc_common_run_gate_reaped_r6: dash echo turns the literal backslash-n into a newline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con111_reproduction_2026_11_05.txt` — red-command `sh scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `FAIL: 4: normal stdout/stderr capture regressed` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash echo interprets backslash escapes` — evidence `docs/qa/con111_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-031 (full-suite runner). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh (#!/bin/sh) piped $RESULT through echo; dash's echo interprets the backslash-n that repr() prints in SECTION_C, so check 4 failed under sh and passed under bash. Fix: printf '%s\n'. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh
+
+## CON-112 — handoff_i4, handoff_r9, custody_sweep_r17: prose with fail words after the summary line, runner reads ERROR
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con112_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_handoff_i4_regression.sh (also handoff_r9, custody_sweep_r17), then judge() of scripts/full_suite/run_full_suite.py on the output` — green-command `same` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `('ERROR', 'fail_signal_after_summary', 'summary', {})` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `prose with fail words printed after the summary line` — evidence `docs/qa/con112_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-031 (full-suite runner). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: the three tests exit 0 with every check passing, but print explanatory prose containing 'fails CLOSED' / 'failure' after their summary line; the full-suite runner's fail-word check (unchanged, deliberately conservative) reports ERROR fail_signal_after_summary. Fix: the prose is printed first and the summary line last. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_handoff_i4_regression.sh; scripts/fastcycle/tests/test_handoff_r9_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh
+
+## CON-113 — test_gate_shard_r3 B1: the M3c mutant copy cannot import fc_common, never plans, and is misread as not flipped
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con113_reproduction_2026_11_05.txt` — red-command `sh scripts/fastcycle/tests/test_gate_shard_r3_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok B1: mutation-flip FAILED -- with M3c applied, g_protected_writer STILL landed outside the parallel set` — updated 2026-11-05T20:42:19Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the mutant copy could not import fc_common (FileNotFoundError plan_m3c/plan.json)` — evidence `docs/qa/con113_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:19Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_gate_shard_r3_regression.sh copied the mutant to $WORK/*.py; gate_runner_shard.py imports fc_common from <its dir>/../../lib, so the copy crashed, wrote no plan.json, and B1 reported 'mutation-flip FAILED'. Fix: the mutant (and an unmutated control copy) run in a scratch copy of the gates/lib + lib layout; a mutant or control that writes no plan reports BLIND. With the fix the mutant flips (g_protected_writer lands in the parallel set). **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_gate_shard_r3_regression.sh
+
