@@ -19,7 +19,7 @@ A fresh session in `/home/milosvasic/Projects/constitution` that receives the si
 - `main` = this CONTINUATION commit on top of `cb31e32` (CON-034..046 registration) on all 8 remotes: gitflic, github_helixdevelopment, github_vasic_digital, gitlab_helixdevelopment1, gitlab_vasic_digital, gitverse, m3w, origin. Verify with `git ls-remote`.
 - Submodule pins on `main`: llmctl 391d817, claude_toolkit d3efb3a, containers 5ea870a. Working tree always shows ` M submodules/*` drift: NEVER commit it.
 - Latest tag: `helixconstitution-v73.3`, PROVISIONAL (§11.4.290). **The FINAL release is NOT out; not every workable item is done.** Tell the operator when it is.
-- Oracle-ratchet baseline = 64 entries, all in 3 frozen RED-evidence files under `submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/`.
+- Oracle-ratchet baseline = 0 entries after the CON-043 landing (PROVISIONAL-DONE, §11.4.290). The former 64 entries sit in 3 frozen RED-evidence files under `submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/`, now covered by `config/oracle_frozen_evidence_exclusions.tsv` (blob-id bound, ceiling 3). Follow-ups CON-049 to CON-053; the five failing multitrack RED-builder tests are CON-054 (candidate fix on unlanded vehicle/redpin 2ca4d1b).
 - All agents were stopped before this reboot (the weekly API limit had killed three earlier; they were respawned and then stopped on purpose). Nothing is running.
 
 ## Unlanded work (NOT on main). Every item is a branch `wip/continue-20261105b/<name>` on all 8 remotes AND a clone on disk
