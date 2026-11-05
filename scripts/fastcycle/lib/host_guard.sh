@@ -6,7 +6,8 @@
 #           N, K, T: positive decimal integers, at most 12 digits.
 # Inputs  : env overrides FC_GUARD_NPROC, FC_GUARD_ULIMIT_U, FC_GUARD_THREADS,
 #           FC_GUARD_MEM_TOTAL_KB, FC_GUARD_MEM_AVAIL_KB, FC_GUARD_ACTIVE_AGENTS;
-#           unset => live read (nproc, ulimit -u, ps -L, /proc/meminfo).
+#           unset => live read (nproc, soft "Max processes" from
+#           /proc/self/limits else ulimit -u, ps -L, /proc/meminfo).
 #           SET-BUT-EMPTY is garbled input, handled like any non-numeric value
 #           of that variable (never silently a live read): unreadable_* N=1.
 #           No live source exists for the active-agent count: for --kind agents
@@ -82,9 +83,11 @@
 #           budget = ulimit_u - threads (12.12); agent cap 6 - active (11.4.58,
 #           agents only); N <= nproc; floor 1 (only when real headroom/budget
 #           is genuinely > 0, see EXHAUSTED above; N=0 when it is <= 0).
-# Portability: NOT POSIX-only. Assumes Linux + procps: `ulimit -u` is a
-#           non-POSIX shell extension and `ps -L --no-headers` is procps-only.
-#           If either is unsupported the live read fails and the script emits
+# Portability: NOT POSIX-only. Assumes Linux + procps: the thread limit is
+#           read from /proc/self/limits (Linux), falling back to `ulimit -u`
+#           (a non-POSIX shell extension, absent in dash), and
+#           `ps -L --no-headers` is procps-only.
+#           If both are unsupported the live read fails and the script emits
 #           N=1 with the named unreadable_ulimit / unreadable_threads reason
 #           (total serialisation, never a mis-report); the FC_GUARD_* overrides
 #           make it usable on such hosts.
@@ -150,8 +153,27 @@ if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -ge 1 ]; then
 else unreadable unreadable_nproc; fi
 
 # threads / ulimit
-# shellcheck disable=SC3045
-if [ -n "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(ulimit -u 2>/dev/null); fi
+# Live soft RLIMIT_NPROC (CON-109): read from the kernel's own record,
+# /proc/self/limits ("Max processes  <soft> <hard> processes"), because
+# `ulimit -u` is not POSIX and dash (Debian/Ubuntu /bin/sh) rejects it, which
+# turned every live read under `sh` into unreadable_ulimit N=1. The awk below
+# runs as a child of this shell and inherits its limits, so "self" is the
+# same value. Only when the file has no readable "Max processes" line (not
+# Linux, no /proc, awk failing) is `ulimit -u` tried. FC_GUARD_PROC_LIMITS
+# names a different limits file, for tests only.
+read_nproc_soft() {
+  _lim_file=${FC_GUARD_PROC_LIMITS-/proc/self/limits}
+  _v=""
+  if [ -r "$_lim_file" ]; then
+    _v=$(awk '/^Max processes[ \t]/ { print $3; exit }' "$_lim_file" 2>/dev/null)
+  fi
+  if [ -z "$_v" ]; then
+    # shellcheck disable=SC3045
+    _v=$(ulimit -u 2>/dev/null)
+  fi
+  printf '%s' "$_v"
+}
+if [ -n "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(read_nproc_soft); fi
 if [ "$ulim" = unlimited ]; then :
 elif isnum "$ulim"; then
   ulim=$(norm "$ulim")
