@@ -23,7 +23,8 @@
 # pre-commit.) Therefore a downgrade made on a vehicle branch can still land
 # on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no hook in scratch clones); run this script with
 # `--base <parent>` on such a commit to judge it. Per-commit index diffs also miss a downgrade split across commits or
-# combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built). The hook
+# combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built; tracked as
+# CON-083, which also lists the residuals below). The hook
 # (scripts/hooks/pre-commit-submodule-pin-not-downgraded) is shipped, NOT installed anywhere (operator consent).
 # --amend: git tells a pre-commit hook nothing about --amend, so the hook always uses base HEAD, that is the commit being
 # amended, not its parent. Consequences: amending a waived rollback shows no gitlink change (PASS); an amend can strip or
@@ -52,12 +53,16 @@
 # has ONE parent, and that parent is base_sha (the full SHA of HEAD at the time the rollback is committed:
 # `git rev-parse HEAD`). It is spent by ANY other commit (not only the first) that is reachable from a ref (`git
 # rev-list --exclude=refs/stash --all`: branches, tags, remote-tracking refs, notes refs and every worktree's HEAD;
-# refs/stash is excluded because a stash is never a commit on a line of work), has base_sha as a parent (first or
+# refs/stash is excluded so that the stash's own W/I/U commits, which are no line of work, are not counted; this also
+# hides every commit reachable ONLY through the stash, see Residual), has base_sha as a parent (first or
 # second, so a merge with base_sha as second parent counts), and whose waiver file carries the same (path, old, new,
 # base) row. This is conservative: once a later copy S exists, re-judging the first commit R with `--base HEAD^`
 # refuses R too. The commit being judged is not counted: in hook mode it does not exist yet (HEAD is the base), and in
-# `--base` mode HEAD is excluded only when the index IS HEAD's tree (then the index is HEAD); any other index is
-# judged as a new commit, so HEAD counts as a spender. When the spent check cannot tell (a candidate's tree or waiver
+# `--base` mode HEAD is excluded only when the index IS HEAD's tree, decided by the plumbing command `git diff-index
+# --cached --quiet --ignore-submodules=none HEAD` (plumbing applies no textconv driver and no external diff, and the
+# flag overrides a `submodule.<name>.ignore` setting in .gitmodules, so an index that differs from HEAD only in a
+# gitlink or only in bytes a textconv maps to the same text is a different index); any other index is judged as a
+# new commit, so HEAD counts as a spender. When the spent check cannot tell (a candidate's tree or waiver
 # blob is unreadable, a broken ref, or the superproject is shallow or its shallow state is unknown) the row is NOT
 # honoured. So a row in an earlier commit, a row brought in by a merge, squash, cherry-pick or rebase, and a leftover row
 # from before the last commit never count: each of those commits has a different parent, a second parent (MERGE_HEAD),
@@ -78,7 +83,13 @@
 #   - a spender that is reachable only from a note (refs/notes holds the note commit, not the annotated commit);
 #   - `git merge --no-commit --no-ff X`, then `git merge --quit` (MERGE_HEAD gone, single-parent commit) with the
 #     vehicle deleted: the MERGE_HEAD clause is bypassed by that documented git command, and only the spent check is
-#     left (it refuses while X still has a ref).
+#     left (it refuses while X still has a ref);
+#   - a spender reachable ONLY as an ancestor of refs/stash (the rollback committed, a stash made on top of it, then
+#     `reset --hard HEAD~1`): `--exclude=refs/stash` drops the whole ref, ancestors included, so the redo on the
+#     same parent is WAIVED (the round-4 gate refused it); `git stash branch` can bring the first commit back;
+#   - a spender reachable only from a PER-WORKTREE ref of ANOTHER worktree (refs/worktree/*, refs/bisect/*; and
+#     refs/rewritten/* during `rebase -r`, UNCONFIRMED): `rev-list --all` run here sees every worktree's HEAD but not
+#     another worktree's per-worktree refs, so the redo is WAIVED.
 # The other checks on a row:
 #   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive);
 #   - tracked_item matches <item_prefix>-NNN (3+ digits; NOT checked to exist in the tracker);
@@ -115,11 +126,12 @@ shopt -s lastpipe
 GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"
 self="${BASH_SOURCE[0]:-$0}"
 root="$(cd "$(dirname "$self")/../.." && pwd -P)"; waivers=""; base=""
+need() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$GATE: $3 needs a value" >&2; exit 2; }; } # <argc> <value> <flag>
 while [ $# -gt 0 ]; do
   case "$1" in
-    --root) root="$(cd "${2:?--root needs a value}" && pwd -P)" || exit 2; shift 2 ;;
-    --base) base="${2:?--base needs a value}"; shift 2 ;;
-    --waivers) waivers="${2:?--waivers needs a value}"; shift 2 ;;
+    --root) need $# "${2:-}" --root; root="$(cd "$2" && pwd -P)" || exit 2; shift 2 ;;
+    --base) need $# "${2:-}" --base; base="$2"; shift 2 ;;
+    --waivers) need $# "${2:-}" --waivers; waivers="$2"; shift 2 ;;
     -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$self"; exit 0 ;;
     *) echo "$GATE: unknown argument $1" >&2; exit 2 ;;
   esac
@@ -192,7 +204,7 @@ spent() { # <path> <old> <new> -> 0 spent (SPENT=commit), 1 unspent, 2 cannot te
     # HEAD is excluded only when the judged index IS HEAD's tree (--base HEAD^ re-check of HEAD); otherwise HEAD is
     # an ordinary candidate (in hook mode HEAD is the base, never its own child)
     hx=""
-    pg diff --cached --quiet --ignore-submodules=none "${headc:-$basec}" -- 2>/dev/null && hx="$headc"
+    pg diff-index --cached --quiet --ignore-submodules=none "${headc:-$basec}" -- 2>/dev/null && hx="$headc"
     if [ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]; then kidsrc=shallow
     elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok
       kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]; ARGV[1]=ARGV[2]=""}

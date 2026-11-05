@@ -559,6 +559,7 @@ scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; run by the pre-build gate sweep
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
+scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto

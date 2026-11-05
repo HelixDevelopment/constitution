@@ -4,8 +4,10 @@
 #         skipped because the mutant seds are written against the current gate).
 # Part 2: mutants of a scratch gate copy; each MUST change the verdict vector (be killed). Includes the round-2
 #         reviewer mutants RM1-RM5, the round-3 reviewer mutants RV1, RV3-RV7, the round-4 reviewer mutants RM8-RM14
-#         and their killer fixtures (K1-K14), and the round-5 mutants for M-1, M-2 and N-4. Mutants run in
-#         parallel, MUT_JOBS at a time (default 3), each in its own temp dir.
+#         and their killer fixtures (K1-K14), the round-5 mutants for M-1, M-2 and N-4, the round-5 reviewer mutants
+#         NM1-NM9 with their killers KNM1-KNM6, KNM9, and (round 6) one mutant per remaining guard of the gate's class
+#         inventory (fixtures in inventory()). Mutants run in parallel, MUT_JOBS at a time (default 3), each in its own
+#         temp dir. MUT_ONLY=<regex> restricts Part 2 to mutant names matching it (diagnosis only; a full proof runs all).
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -26,7 +28,8 @@ unset EMAIL
 git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
 d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
 d45="$(date -d '+45 days' +%F)"; today="$(date +%F)"
-bad=0; SUBN=sub
+bad=0; SUBN=sub; realgit="$(command -v git)"
+
 mk() { # sets globals R A B S (no subshell); submodule dir name $SUBN; super pins B
   local d; d="$(mktemp -d "$tmp/fx.XXXXXX")"; mkdir -p "$d/super/$SUBN"; git -C "$d/super/$SUBN" init -q
   git -C "$d/super/$SUBN" commit -q --allow-empty -m A; A=$(git -C "$d/super/$SUBN" rev-parse HEAD)
@@ -187,8 +190,66 @@ classify() { # gate-path -> one-line verdict vector
   mk;r=$R; git -C "$r" checkout -q -b y; wf sub "$B" "$A" ops "$d10" CON-046 2222222222222222222222222222222222222222 >"$r/.submodule_pin_waivers"
   git -C "$r" add .submodule_pin_waivers; git -C "$r" commit -q -m y; git -C "$r" checkout -q main; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
   out+="SIBOTHER=$(run "$r" "$g") "
+  out+="$(inventory "$g")"
   out+="$(lifecycle "$g")"
   echo "$out"
+}
+# ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
+# each guard's paired mutant is in Part 2. The inventory table is in the round-6 author report (con046_fix_r6_report.md)
+inventory() { # gate path -> vector part
+  local g="$1" o="" r u a c x n
+  # usage errors exit 2 (round 6 found `--base`/`--waivers` without a value exited 1, the FAIL code); run where no
+  # repository is above the cwd (GIT_CEILING_DIRECTORIES), so a mutant that falls through cannot read a real repo
+  mkdir -p "$tmp/plain"; u=""
+  for a in --root --base --waivers --bogus; do u+="$(cd "$tmp/plain" && GIT_CEILING_DIRECTORIES="$tmp" bash "$g" "$a" >/dev/null 2>&1; echo $?),"; done
+  mk;r=$R; stage "$r" "$A"; u+="$(run "$r" "$g" -- --base ''),$(run "$r" "$g" -- --bogus)/$(cnt 'unknown argument'),"
+  u+="$(cd "$tmp/plain" && GIT_CEILING_DIRECTORIES="$tmp" bash "$g" --root "$tmp/nonexist" >"$tmp/out" 2>&1; echo $?)/$(cnt 'not inside a git work tree'),"
+  u+="$(cd "$tmp/plain" && GIT_CEILING_DIRECTORIES="$tmp" bash "$g" --root "$tmp/plain" >"$tmp/out" 2>&1; echo $?)/$(cnt 'not inside a git work tree')"
+  o+="ARGS=$u "
+  # `git rev-parse --local-env-vars` returns nothing (a git that prints nothing for it) -> BLIND, named
+  mkdir -p "$tmp/fklev"; printf '#!/bin/bash\n[ "$1" = rev-parse ] && [ "$2" = --local-env-vars ] && exit 0\nexec %s "$@"\n' "$realgit" >"$tmp/fklev/git"; chmod +x "$tmp/fklev/git"
+  mk;r=$R; o+="LEV=$(run "$r" "$g" PATH="$tmp/fklev:$PATH")/$(cnt 'local-env-vars returned nothing') "
+  # unborn HEAD: base is the empty tree; a new gitlink is no downgrade -> PASS
+  mk; u="$tmp/ub.$RANDOM"; git init -q "$u"; git -C "$u" update-index --add --cacheinfo 160000,"$B",sub; o+="UNBORN=$(run "$u" "$g")/$(cnt 'PASS (0 staged') "
+  # --base that does not resolve, and --base that names a tree (not a commit) -> BLIND, named
+  mk;r=$R; stage "$r" "$A"; o+="BASEBAD=$(run "$r" "$g" -- --base nosuchrev)/$(cnt 'does not resolve to a commit'),$(run "$r" "$g" -- --base 'HEAD^{tree}')/$(cnt 'does not resolve to a commit') "
+  # config: comments and blank lines are skipped; a line without '=' is named; 0 days is refused; an unknown key is named
+  mk;r=$R; conf "$r" '# gate data\n\nmax_waiver_days=60\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; o+="CONFCOMMENT=$(run "$r" "$g") "
+  mk;r=$R; conf "$r" 'garbage\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="CONFNOKV=$(run "$r" "$g")/$(cnt 'is not key=value') "
+  mk;r=$R; conf "$r" 'max_waiver_days=0\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$today" CON-046)\n"; o+="CONFZERO=$(run "$r" "$g") "
+  mk;r=$R; conf "$r" 'foo=bar\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="CONFUNK=$(run "$r" "$g")/$(cnt "key 'foo' unknown") "
+  # --waivers FILE is read (no index row); the index-only "no waiver data" reason is named
+  mk;r=$R; stage "$r" "$A"; x="$tmp/wfile.$RANDOM"; wf sub "$B" "$A" ops "$d10" CON-046 >"$x"; o+="WFILE=$(run "$r" "$g" -- --waivers "$x") "
+  mk;r=$R; stage "$r" "$A"; o+="NODATA=$(run "$r" "$g")/$(cnt 'no waiver data') "
+  # authoriser: a control character is refused; invalid UTF-8 is "check failed (rc 4)", never a crash; python3 missing is
+  # named; an empty authoriser names the form reason
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" $'op\001s' "$d10" CON-046)\n"; o+="AUTHCTRL=$(run "$r" "$g") "
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" $'op\377s' "$d10" CON-046)\n"; o+="AUTHUTF8=$(run "$r" "$g")/$(cnt 'python3 rc 4') "
+  mkdir -p "$tmp/nopy"; for n in git awk date env cat dirname bash; do ln -sf "$(command -v "$n")" "$tmp/nopy/$n"; done
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="NOPY=$(run "$r" "$g" PATH="$tmp/nopy")/$(cnt 'python3 missing') "
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" '' "$d10" CON-046)\n"; o+="EMPTYAUTH=$(run "$r" "$g")/$(cnt 'empty or has surrounding') "
+  # tracked item form: 2 digits refused, a suffix refused
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-46)\n"; u="$(run "$r" "$g"),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046x)\n"; u+="$(run "$r" "$g")"; o+="ITEMFORM=$u "
+  # a waiver line whose first field starts with '#' is a comment, so it never waives (even a gitlink at path '#sub')
+  SUBN='#sub'; mk;r=$R; stage "$r" "$A" '#sub'; waive "$r" "$(wf '#sub' "$B" "$A" ops "$d10" CON-046)\n"; o+="WCOMMENT=$(run "$r" "$g") "; SUBN=sub
+  # spent check, string compare on the path: a sibling row for path 10 does not spend the row for gitlink 1e1
+  SUBN=1e1; mk;r=$R; x=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b y; wf 10 "$B" "$A" ops "$d10" CON-046 "$x" >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; git -C "$r" commit -q -m y; git -C "$r" checkout -q main; stage "$r" "$A" 1e1; waive "$r" "$(wf 1e1 "$B" "$A" ops "$d10" CON-046)\n"
+  o+="SPENTNUM=$(run "$r" "$g") "; SUBN=sub
+  # new and deleted gitlinks are no downgrade (PASS); the inspected count is reported
+  mk;r=$R; git -C "$r" update-index --add --cacheinfo 160000,"$B",sub3; o+="NEWGL=$(run "$r" "$g") "
+  mk;r=$R; git -C "$r" update-index --force-remove sub; o+="DELGL=$(run "$r" "$g") "
+  mk;r=$R; stage "$r" "$A"; git -C "$r" commit -q -m down; stage "$r" "$B"; o+="COUNT=$(run "$r" "$g")/$(cnt 'PASS (1 staged') "
+  # the submodule checkout is gone entirely -> BLIND "checkout missing" (not the symlink reason)
+  mk;r=$R; stage "$r" "$A"; rm -rf "${r:?}/sub"; o+="SUBGONE=$(run "$r" "$g")/$(cnt 'checkout missing') "
+  # shallow submodule: the fix names --unshallow; a complete one does not
+  mk;r=$R; c=$(git -C "$r/sub" rev-parse "$B^{tree}"); stage "$r" "$c"; o+="NEWTREE=$(run "$r" "$g")/$(cnt 'new pin .* not in the submodule object store')/$(cnt 'fetch --unshallow') "
+  # old pin missing from the submodule store, and old pin a tree id -> BLIND "old pin" (not "ancestry")
+  mk;r=$R; git -C "$r" update-index --cacheinfo 160000,2222222222222222222222222222222222222222,sub; git -C "$r" commit -q -m p2; stage "$r" "$A"; u="$(run "$r" "$g")/$(cnt 'old pin'),"
+  mk;r=$R; c=$(git -C "$r/sub" rev-parse "$B^{tree}"); git -C "$r" update-index --cacheinfo 160000,"$c",sub; git -C "$r" commit -q -m pt; stage "$r" "$A"; u+="$(run "$r" "$g")/$(cnt 'old pin')"
+  o+="OLDOBJ=$u "
+  echo "$o"
 }
 # ── the waiver LIFECYCLE class, through `git commit` with the hook (real submodule, one worktree) ─────────────
 # Rule under test: one row = one transition (path, old, new) in one single-parent commit whose parent is the row's base;
@@ -213,6 +274,17 @@ lc_x() { # <moved|same> <conflict|-> : vehicle X at main's tip: reviewed rollbac
   lc_sup "$LH"; git -C "$SR" checkout -q -b X; LX1=$(lrb); if [ "$2" = conflict ]; then echo x >"$SR/notes"; lgc "$SR" -m xn -- notes >/dev/null; fi
   git -C "$SR" update-index --cacheinfo 160000,"$uB",sub; lgc "$SR" -m fwd >/dev/null; git -C "$SR" checkout -q main
   if [ "$1" = moved ]; then echo m >"$SR/notes"; lgc "$SR" -m mn -- notes >/dev/null; fi; }
+k_sup2() { # lc_sup "$LH" plus a second REAL submodule sub2 at u2B (upstream B2 <- C2)
+  lc_sup "$LH"; local up; up="$(mktemp -d "$tmp/up2.XXXXXX")"; git -C "$up" init -q; for i in B2 C2; do git -C "$up" commit -q --allow-empty -m "$i"; done
+  u2B=$(git -C "$up" rev-parse HEAD~1); u2C=$(git -C "$up" rev-parse HEAD)
+  git -C "$SR" submodule add -q "file://$up" sub2 >/dev/null 2>&1; git -C "$SR/sub2" checkout -q "$u2B"; git -C "$SR" add -A; git -C "$SR" commit -q --no-verify -m base2; }
+krow() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' sub "$uB" "${3:-$uA}" "${2:-ops}" "$d10" CON-046 "$1"; } # <base> [authoriser] [new]
+krb() { # reviewed rollback in ${1:-$SR} through the hook, authoriser ${2:-ops}
+  local r="${1:-$SR}"; git -C "$r/sub" checkout -q "$uA"; krow "$(git -C "$r" rev-parse HEAD)" "${2:-ops}" >"$r/.submodule_pin_waivers"
+  git -C "$r" add .submodule_pin_waivers; lgc "$r" -a -m rollback; }
+ksib() { # sibling commit on branch Y at HEAD of $SR carrying waiver text $1 (no hook); back to main
+  git -C "$SR" checkout -q -b Y; printf '%b' "$1" >"$SR/.submodule_pin_waivers"
+  git -C "$SR" add .submodule_pin_waivers; git -C "$SR" commit -q --no-verify -m y; git -C "$SR" checkout -q main; rm -f "$SR/.submodule_pin_waivers"; }
 lifecycle() { # gate path -> vector part
   local g="$1" o="" r a b c x lay; lay="$(mktemp -d "$tmp/lay.XXXXXX")"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
   cp "$g" "$lay/scripts/gates/cm_submodule_pin_not_downgraded.sh"; cp "$hook" "$lay/scripts/hooks/pre-commit-submodule-pin-not-downgraded"
@@ -303,15 +375,68 @@ lifecycle() { # gate path -> vector part
   # the stale checkout: the rollback is reflog-only, so the row waives again and A lands (header: Residual)
   lc_sup "$LH"; r=$SR; a=$(lrb); git -C "$r" update-index --cacheinfo 160000,"$uB",sub; b=$(lgc "$r" -m fwd); git -C "$r" reset -q --soft HEAD~2
   c=$(lgc "$r" -a -m squash); o+="RESETSQ=$a,$b,$c/$(lpin "$r") "
+  # ── round 6: the round-5 reviewer's killer fixtures KNM1-KNM6, KNM9 (rv046r5 probes/killers.sh), adopted with the
+  # lc_* helpers (sup=lc_sup, rb=krb, gc=lgc, pin=lpin, row=krow, gate=lg, sib=ksib); plus KNM1GM, KIDPARENT and the
+  # behaviour probes A1-A3 (A1 and A2 are pinned residuals, A3 is the round-6 plumbing fix)
+  k_sup2; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; krb >/dev/null; git -C "$r/sub2" checkout -q "$u2C"; git -C "$r" add sub2
+  git -C "$r" config diff.ignoreSubmodules all; a=$(lg "$r" --base "$P"); git -C "$r" config --unset diff.ignoreSubmodules; b=$(lg "$r" --base "$P")
+  o+="KNM1=$a,$b "
+  # KNM1GM: the plumbing N-4 diff ignores diff.ignoreSubmodules but honours submodule.<name>.ignore=all in .gitmodules,
+  # so --ignore-submodules=none is load-bearing there: index = R's tree + a forward sub2 gitlink -> R counts -> refused
+  k_sup2; r=$SR; git -C "$r" config -f .gitmodules submodule.sub2.ignore all; git -C "$r" add .gitmodules; git -C "$r" commit -q --no-verify -m ign
+  P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; krb >/dev/null; git -C "$r" update-index --cacheinfo 160000,"$u2C",sub2; a=$(lg "$r" --base "$P")
+  git -C "$r" update-index --cacheinfo 160000,"$u2B",sub2; b=$(lg "$r" --base "$P"); o+="KNM1GM=$a,$b "
+  lc_sup "$LH"; r=$SR; git -C "$r/sub" checkout -q "$uA"; krow "$(git -C "$r" rev-parse HEAD)" >"$r/.submodule_pin_waivers"; git -C "$r" add -A
+  mkdir -p "$tmp/fk"; printf '#!/bin/bash\nfor a in "$@"; do [ "$a" = --is-shallow-repository ] && { echo unknown; exit 0; }; done\nexec %s "$@"\n' "$realgit" >"$tmp/fk/git"; chmod +x "$tmp/fk/git"
+  a=$(PATH="$tmp/fk:$PATH" lg "$r"); c=$(grep -c 'shallow state is unknown' "$tmp/gout"); b=$(lg "$r"); o+="KNM2=$a/$c,$b "
+  x=""; for order in second first; do
+    lc_sup "$LH"; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Q; echo q >"$r/notes"; git -C "$r" commit -q --no-verify -m q -- notes; c=$(git -C "$r" rev-parse HEAD)
+    git -C "$r" checkout -q main; b=$(krow "$P" | git -C "$r" hash-object -w --stdin); a="$tmp/ix.$RANDOM"
+    GIT_INDEX_FILE="$a" git -C "$r" read-tree "$c"; GIT_INDEX_FILE="$a" git -C "$r" update-index --add --cacheinfo 100644,"$b",.submodule_pin_waivers
+    b=$(GIT_INDEX_FILE="$a" git -C "$r" write-tree)
+    if [ "$order" = second ]; then a=$(git -C "$r" commit-tree "$b" -p "$c" -p "$P" -m m); else a=$(git -C "$r" commit-tree "$b" -p "$P" -p "$c" -m m); fi
+    git -C "$r" update-ref refs/heads/M "$a"; a=$(krb); x+="$a/$(lpin "$r"),"
+  done; o+="KNM3=$x "
+  lc_sup "$LH"; ksib "$(krow "$(git -C "$SR" rev-parse HEAD)" ops 4444444444444444444444444444444444444444)\n"; a=$(krb)/$(lpin "$SR")
+  lc_sup "$LH"; ksib "$(krow "$(git -C "$SR" rev-parse HEAD)")\n"; b=$(krb)/$(lpin "$SR"); o+="KNM4=$a,$b "
+  x=""; for c in 'Ops Team' ops; do
+    lc_sup "$LH"; r=$SR; git -C "$r" checkout -q -b X; krb "$r" "$c" >/dev/null; git -C "$r" update-index --cacheinfo 160000,"$uB",sub; lgc "$r" -m fwd >/dev/null
+    git -C "$r" checkout -q main; git -C "$r" merge -q --squash X >/dev/null 2>&1; a=$(lgc "$r" -a -m sq); x+="$a/$(lpin "$r"),"
+  done; o+="KNM5=$x "
+  lc_sup "$LH"; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; krb >/dev/null; echo z >"$r/notes"; a=$(lg "$r" --base "$P")
+  echo n >"$r/notes"; git -C "$r" add notes; echo 0 >"$r/notes"; b=$(lg "$r" --base "$P"); o+="KNM6=$a,$b "
+  lc_sup "$LH"; ksib "$(krow "$(git -C "$SR" rev-parse HEAD)" | tr -d '\n')\textra\n"; o+="KNM9=$(krb)/$(lpin "$SR") "
+  # KIDPARENT: a commit carrying the row whose parent is NOT the base (Y2 on top of Y1 on P) spends nothing -> waived
+  lc_sup "$LH"; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Y; echo y >"$r/notes"; git -C "$r" commit -q --no-verify -m y1 -- notes
+  krow "$P" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers; git -C "$r" commit -q --no-verify -m y2; git -C "$r" checkout -q main; rm -f "$r/.submodule_pin_waivers"
+  o+="KIDPARENT=$(krb)/$(lpin "$r") "
+  # A1 (pinned residual R5-5): the first rollback only behind another worktree's per-worktree ref -> the redo is WAIVED;
+  # control refs/heads/keep -> refused
+  x=""; for c in refs/worktree/keep refs/bisect/bad refs/heads/keep; do
+    lc_sup "$LH"; r=$SR; P=$(git -C "$r" rev-parse HEAD); w="$tmp/w.$RANDOM"; git -C "$r" worktree add -q --detach "$w" 2>/dev/null; git -C "$w" submodule update -q --init 2>/dev/null
+    krb "$w" >/dev/null; a=$(git -C "$w" rev-parse HEAD); git -C "$w" update-ref "$c" "$a"; git -C "$w" checkout -q --detach "$P"
+    b=$(git -C "$r" rev-list --all | grep -c "^$a$"); a=$(krb); x+="$a/$(lpin "$r")/vis$b,"
+  done; o+="A1WTREF=$x "
+  # A2 (pinned residual R5-4): R reachable only as an ancestor of refs/stash -> the redo is WAIVED
+  lc_sup "$LH"; r=$SR; a=$(krb); c=$(git -C "$r" rev-parse HEAD); echo s >"$r/notes"; git -C "$r" stash push -q >/dev/null 2>&1
+  git -C "$r" reset -q --hard HEAD~1; x=$(git -C "$r" rev-list --exclude=refs/stash --all | grep -c "^$c$"); b=$(krb); o+="A2STASHANC=$a,$b/$(lpin "$r")/vis$x "
+  # A3 (R5-3, fixed in round 6): a textconv driver that maps every version of notes to the same text no longer hides an
+  # index that differs from HEAD (plumbing diff-index applies no textconv): R counts -> refused
+  lc_sup "$LH"; r=$SR; P=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b X; krb >/dev/null; echo 'notes diff=same' >"$r/.git/info/attributes"
+  git -C "$r" config diff.same.textconv "sh -c 'echo same' --"; echo n >"$r/notes"; git -C "$r" add notes
+  a=$(git -C "$r" diff --cached --quiet HEAD -- >/dev/null 2>&1; echo $?); b=$(lg "$r" --base "$P")
+  git -C "$r" config diff.external /bin/true; c=$(lg "$r" --base "$P"); git -C "$r" config --unset diff.external
+  rm -f "$r/.git/info/attributes"; x=$(lg "$r" --base "$P"); o+="A3TEXTCONV=$a/$b,$c,$x "
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A "
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 "
 got="$(classify "$gate")"; echo "gate vector: $got"
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
 # ── Part 2: mutants (skipped under GATE_UNDER_TEST: the seds target the current gate text) ──
 # Each mutant is classified in a background job with its own temp dir; MUT_JOBS jobs at a time (bounded, §12.8).
 n=0; mj="${MUT_JOBS:-3}"; [[ "$mj" =~ ^[1-9][0-9]?$ ]] || { echo "META: MUT_JOBS must be 1..99" >&2; exit 2; }; mnames=()
 mutant() { # name sed-expr
+  if [ -n "${MUT_ONLY:-}" ] && ! [[ "$1" =~ $MUT_ONLY ]]; then return; fi
   local m="$tmp/m$((++n)).sh"; sed "$2" "$gate" >"$m"; mnames[n]="$1"
   if cmp -s "$m" "$gate"; then echo "BAD  mutant $1 did not change the gate"; bad=1; mnames[n]=""; return; fi
   ( tmp="$tmp/j$n"; mkdir -p "$tmp"; classify "$m" >"$tmp.res" 2>/dev/null ) &
@@ -400,6 +525,92 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant empty-authoriser-allowed 's/if not a or /if /'
   mutant author-not-compared 's/"\$(idname "\$aident")" "\$(idmail "\$aident")"/"" ""/'
   mutant help-truncated 's/-h|--help) awk .*$/-h|--help) sed -n 2,40p "$self"; exit 0 ;;/'
+  # ── round 6 (§11.4.276(D), §11.4.194(6)(d)): the round-5 reviewer's mutants NM1-NM9, adopted verbatim from
+  # rv046r5.FRc3WD/nm/NM*.sed (here-docs keep the text byte for byte). NM6 is ADAPTED: its target text
+  # `diff --cached --quiet` is now the plumbing `diff-index --cached --quiet` (the A3 fix), so the same mutation
+  # (drop --cached: compare the worktree, not the index) is applied to the new text. NM6-NM8 were controls in round 5.
+  mkdir -p "$tmp/nm"
+  cat >"$tmp/nm/NM1" <<'NMEOF'
+/hx="\$headc"$/s/ --ignore-submodules=none//
+NMEOF
+  cat >"$tmp/nm/NM2" <<'NMEOF'
+s/2>\/dev\/null)" != false \]; then kidsrc=shallow/2>\/dev\/null)" = true ]; then kidsrc=shallow/
+NMEOF
+  cat >"$tmp/nm/NM3" <<'NMEOF'
+s/\$1""!=h"" {for(i=2;i<=NF;i++)/$1""!=h"" {for(i=2;i<=2;i++)/
+NMEOF
+  cat >"$tmp/nm/NM4" <<'NMEOF'
+/\$7""==b"" {f=0}/s/ && \$3""==n""//
+NMEOF
+  cat >"$tmp/nm/NM5" <<'NMEOF'
+/printf '%s\\n' "\$t" | awk -F/s/ -F'\\t'//
+NMEOF
+  cat >"$tmp/nm/NM6" <<'NMEOF'
+/hx="\$headc"$/s/diff-index --cached --quiet/diff-index --quiet/
+NMEOF
+  cat >"$tmp/nm/NM7" <<'NMEOF'
+s/pg cat-file -e "\$1^{tree}"/pg cat-file -e "$1"/
+NMEOF
+  cat >"$tmp/nm/NM8" <<'NMEOF'
+s/rev-list --exclude=refs\/stash --all --parents/rev-list --all --exclude=refs\/stash --parents/
+NMEOF
+  cat >"$tmp/nm/NM9" <<'NMEOF'
+/\$7""==b"" {f=0}/s/NF==7 &&/NF>=7 \&\&/
+NMEOF
+  mutant NM1-n4-ignore-submodules-dropped "$(cat "$tmp/nm/NM1")"
+  mutant NM2-shallow-unknown-is-deep "$(cat "$tmp/nm/NM2")"
+  mutant NM3-first-parent-only "$(cat "$tmp/nm/NM3")"
+  mutant NM4-spent-ignores-new "$(cat "$tmp/nm/NM4")"
+  mutant NM5-spent-whitespace-split "$(cat "$tmp/nm/NM5")"
+  mutant NM6-n4-worktree-not-index-ADAPTED "$(cat "$tmp/nm/NM6")"
+  mutant NM7-tree-check-not-peeled "$(cat "$tmp/nm/NM7")"
+  mutant NM8-stash-exclude-after-all "$(cat "$tmp/nm/NM8")"
+  mutant NM9-spent-extra-fields "$(cat "$tmp/nm/NM9")"
+  # ── round 6: the class inventory, one mutant per guard no earlier mutant falsified (author-written)
+  mutant usage-value-unchecked 's/^need() { .*$/need() { :; }/'
+  mutant usage-empty-value-accepted 's/ \&\& \[ -n "\$2" \] ||/ ||/'
+  mutant unknown-arg-accepted 's/^    \*) echo "\$GATE: unknown argument \$1" >&2; exit 2 ;;$/    *) shift ;;/'
+  mutant root-cd-fail-ignored 's/ \&\& pwd -P)" || exit 2; shift 2 ;;/ \&\& pwd -P)"; shift 2 ;;/'
+  mutant not-a-worktree-unchecked 's/^top="\$(git -C "\$root" rev-parse --show-toplevel 2>\/dev\/null)" || blind0 .*$/top="$(git -C "$root" rev-parse --show-toplevel 2>\/dev\/null)"/'
+  mutant local-env-vars-unchecked '/local-env-vars returned nothing/d'
+  mutant unborn-base-fallback-dropped 's/; \[ -n "\$basec" \] || basec="\$(pg hash-object -t tree \/dev\/null)"//'
+  mutant base-resolve-unchecked 's/ || blind0 "--base \$base does not resolve to a commit"//'
+  mutant base-peel-dropped 's/"\$base^{commit}"/"$base"/'
+  mutant blob-absent-is-unreadable 's/^  id="\$(pg rev-parse -q --verify "\$1:\$2" 2>\/dev\/null)" || return 1$/  id="$(pg rev-parse -q --verify "$1:$2" 2>\/dev\/null)" || return 2/'
+  mutant blob-unreadable-is-absent 's/^  pg cat-file blob "\$id" 2>\/dev\/null || return 2$/  pg cat-file blob "$id" 2>\/dev\/null || return 1/'
+  mutant conf-comments-not-skipped '/^    case "\$line" in /s/.*/    :/'
+  mutant conf-non-kv-unnamed '/is not key=value/d'
+  mutant conf-days-regex-loosened '/max_waiver_days) \[\[/s/\^\[1-9\]\[0-9\]{0,2}\$/^[0-9]+$/'
+  mutant conf-unknown-key-accepted '/config key .\$k. unknown/s/.*/      *) ;;/'
+  mutant waivers-file-not-read 's/wtext="\$(cat "\$waivers" 2>\/dev\/null)"/wtext=""/'
+  mutant no-data-unnamed '/no waiver data (\$wsrc)/d'
+  mutant idname-empty 's/^idname() { .*$/idname() { printf ""; }/'
+  mutant idmail-empty 's/^idmail() { .*$/idmail() { printf ""; }/'
+  mutant authoriser-control-chars-allowed 's/ or any(unicodedata.category(c).startswith("C") for c in a)//'
+  mutant authoriser-crash-uncaught 's/^except BaseException:$/except KeyboardInterrupt:/'
+  mutant python3-missing-unnamed '/python3 missing; cannot check authoriser/d'
+  mutant form-reason-unnamed 's/^      3) WHY=/      33) WHY=/'
+  mutant item-digits-loosened 's/-\[0-9\]{3,}\$ \]\]/-[0-9]+$ ]]/'
+  mutant item-anchor-dropped 's/-\[0-9\]{3,}\$ \]\]/-[0-9]{3,} ]]/'
+  mutant expiry-roundtrip-dropped 's/ \&\& \[ "\$(date -d "\$e" +%Y-%m-%d 2>\/dev\/null)" = "\$e" \]//'
+  mutant waiver-comment-rows-honoured 's/NF==7 \&\& \$1!~\/\^#\/ \&\& /NF==7 \&\& /'
+  mutant spent-numeric-path '/\$7""==b"" {f=0}/s/\$1""==p""/$1==p/'
+  mutant spent-any-parent-is-base 's/if(\$i""==b""){print \$1; break}/if(1){print $1; break}/'
+  mutant spent-no-parents 's/ --all --parents 2>/ --all 2>/'
+  mutant N4-porcelain-diff '/hx="\$headc"$/s/diff-index --cached/diff --cached/'
+  mutant N4-quiet-dropped '/hx="\$headc"$/s/ --quiet//'
+  mutant N4-compares-base '/hx="\$headc"$/s/"\${headc:-\$basec}"/"$basec"/'
+  mutant new-gitlink-judged 's/^  \[ "\$om" = 160000 \] \&\& \[ "\$nm" = 160000 \] || continue$/  [ "$nm" = 160000 ] || continue/'
+  mutant deleted-gitlink-judged 's/^  \[ "\$om" = 160000 \] \&\& \[ "\$nm" = 160000 \] || continue$/  [ "$om" = 160000 ] || continue/'
+  mutant count-not-incremented 's/checked=\$((checked+1)); //'
+  mutant missing-checkout-unnamed 's/^    blindmsg "\$path" "submodule checkout missing.*$/    :; fi/'
+  mutant symlink-unchecked 's/^    blindmsg "\$path" "checkout path is a symlink.*$/    :; fi/'
+  mutant fetchfix-swapped 's/if \[ "\$shallow" = false \]; then fetchfix=/if [ "$shallow" != false ]; then fetchfix=/'
+  mutant old-presence-unnamed 's/^    blindmsg "\$path" "old pin .*$/    :; fi/'
+  mutant new-presence-unnamed 's/^    blindmsg "\$path" "new pin .*$/    :; fi/'
+  mutant old-peel-dropped 's/cat-file -e "\${osha}^{commit}"/cat-file -e "${osha}"/'
+  mutant new-peel-dropped 's/cat-file -e "\${nsha}^{commit}"/cat-file -e "${nsha}"/'
+  mutant diverged-needs-no-rc1 's/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif /'
   wait
   for ((k=1; k<=n; k++)); do
     [ -n "${mnames[k]:-}" ] || continue
