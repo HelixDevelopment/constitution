@@ -130,14 +130,17 @@ done
 if ! printf '%s' "$PREFIX" | grep -qE '^[A-Za-z0-9-]+$'; then
   echo "FATAL: prefix '$PREFIX' must match [A-Za-z0-9-]+" >&2; exit 2
 fi
-if [ ! -f "$PREBUILD" ]; then
-  echo "FATAL: pre-build script not found: $PREBUILD" >&2; exit 2
-fi
+# The mode is decided from the paths alone, so the stand-in-only override is refused before the
+# pre-build file is looked up: the refusal then does not depend on whether this checkout sits in a
+# consumer tree (a standalone constitution clone has no device/... pre-build file; CON-065).
 MODE=real
 [ "$PREBUILD" = "$REAL_PREBUILD" ] || MODE=stand-in
 TREE_ROOT="${CAPTURE_TRIPLET_TREE_ROOT:-$ROOT}"
 if [ "$MODE" = real ] && [ "$TREE_ROOT" != "$ROOT" ]; then
   echo "FATAL: CAPTURE_TRIPLET_TREE_ROOT is a stand-in-only override -- a real capture fingerprints this checkout" >&2; exit 2
+fi
+if [ ! -f "$PREBUILD" ]; then
+  echo "FATAL: pre-build script not found: $PREBUILD" >&2; exit 2
 fi
 
 if [ "$MODE" = real ]; then
