@@ -111,11 +111,12 @@ e_kp list >/dev/null; e_kp lock >/dev/null     # a read-only run never recovers;
 check "E01 after recovery the fact exists" test -f "$KP/.constitution/extensions.state/$FACT"
 e_kp remove hooks-fixture --yes; eq "E01 the recovered owner can remove (rc 0)" 0 "$RC"
 # pty_adopt PROJECT ATTEST TYPED [ID] -> runs adopt-install ID (default hooks-fixture) with a controlling pty (pty.fork, CONSTITUTION_EXT_NO_TTY
-# unset) and types TYPED at the "Type the extension id" prompt. Sets OUT (pty output), RC (engine exit code) and
+# unset; PTY_NO_TTY=1 keeps it set to 1) and types TYPED at the "Type the extension id" prompt. Sets OUT (pty output), RC (engine exit code) and
 # PTY_PROMPT (True when the prompt was seen before anything was typed). The child is killed after 60 s.
 pty_adopt() {
   local res
-  res="$(env -u CONSTITUTION_EXT_NO_TTY python3 -I - "$3" bash "$ENGINE" --root "$R" --project-root "$1" adopt-install "${4:-hooks-fixture}" --waiver-id "$2" <<'PY'
+  local envop=(-u CONSTITUTION_EXT_NO_TTY); [ "${PTY_NO_TTY:-0}" = 1 ] && envop=(CONSTITUTION_EXT_NO_TTY=1)
+  res="$(env "${envop[@]}" python3 -I - "$3" bash "$ENGINE" --root "$R" --project-root "$1" adopt-install "${4:-hooks-fixture}" --waiver-id "$2" <<'PY'
 import os, pty, select, signal, sys, time
 typed, argv = sys.argv[1], sys.argv[2:]
 pid, fd = pty.fork()
@@ -205,6 +206,20 @@ check "R3 R2 no fact after a wrong id" test ! -e "$SD3/$FACT"
 pty_adopt "$P3" OPS-1 ""
 eq "R3 R2 an empty answer at the tty prompt: rc 3" 3 "$RC"
 check "R3 R2 no fact after an empty answer" test ! -e "$SD3/$FACT"
+# review round 3 N3: reviewer mutants RN1 (substring match), RN2 (case-insensitive), RN3 (NO_TTY knob ignored)
+pty_adopt "$P3" OPS-1 hooks-fixture-extra
+eq "R4 N3 a superstring of the id (hooks-fixture-extra) at the tty prompt: rc 3" 3 "$RC"
+eq "R4 N3 the prompt was shown for the superstring case" True "$PTY_PROMPT"
+check "R4 N3 no fact after a superstring of the id" test ! -e "$SD3/$FACT"
+pty_adopt "$P3" OPS-1 HOOKS-FIXTURE
+eq "R4 N3 a case variant of the id (HOOKS-FIXTURE) at the tty prompt: rc 3" 3 "$RC"
+eq "R4 N3 the prompt was shown for the case-variant case" True "$PTY_PROMPT"
+check "R4 N3 no fact after a case variant of the id" test ! -e "$SD3/$FACT"
+PTY_NO_TTY=1 pty_adopt "$P3" OPS-1 hooks-fixture
+eq "R4 N3 CONSTITUTION_EXT_NO_TTY=1 at a real terminal, right id ready: rc 3" 3 "$RC"
+eq "R4 N3 CONSTITUTION_EXT_NO_TTY=1: no prompt is shown" False "$PTY_PROMPT"
+has "R4 N3 CONSTITUTION_EXT_NO_TTY=1: the refusal says terminal prompts are disabled" "terminal prompts are disabled" "$OUT"
+check "R4 N3 no fact with CONSTITUTION_EXT_NO_TTY=1 at a terminal" test ! -e "$SD3/$FACT"
 pty_adopt "$P3" OPS-1 hooks-fixture
 eq "R2 adopt-install with attestation and the id typed at the tty: rc 0" 0 "$RC"
 eq "R3 R2 the tty prompt was shown before the fact was written" True "$PTY_PROMPT"

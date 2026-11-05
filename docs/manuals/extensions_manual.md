@@ -35,6 +35,8 @@ constitution_ext.sh [--root DIR] [--project-root DIR] [--json] [--dry-run] <comm
 
 Exit codes: 0 ok, 1 failure, 2 usage, 3 precondition or refused by policy, 5 verification failed.
 
+Through the `/constitution` dispatcher (`scripts/constitution_cmd/constitution_cmd.sh extensions ...`) the dispatcher never forwards `--yes`, so `add`, `install-extension` (its alias), `enable` and `adopt-install` always ask at the terminal. The dispatcher runs these four with `timeout --foreground`, so the engine stays in the terminal's foreground process group and can read the answer (review round 3 N1: without `--foreground` the prompt was shown but the answer was never read; uutils `timeout` never returned, GNU `timeout` ended at its budget with nothing done). The budget is `CONSTITUTION_CMD_EXT_TIMEOUT` seconds (1..600, default 300); when it runs out the dispatcher exits 124 and nothing is changed. Without a controlling terminal these routes refuse at once (exit 3). Covered by `tests/constitution_cmd/test_constitution_cmd_pty.sh` (real engine, real pty, both `timeout` implementations when installed).
+
 ## Layout
 
 ```text

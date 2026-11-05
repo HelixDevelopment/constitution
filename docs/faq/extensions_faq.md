@@ -37,6 +37,8 @@
 
 **12a. `remove` says this checkout holds no install fact, but I did install it.** Installs made before install facts existed have none. An operator at a terminal runs `adopt-install <id> --waiver-id <ticket-or-decision-id>` and types the id at the prompt; it checks the lock entry, the local state record and the tree digest first and never replaces an existing fact. There is no non-interactive form (`--yes` is refused): the prompt is meant to keep automation from attesting an install.
 
+**12b. Through `/constitution extensions ...` the prompt appears, I answer, and nothing happens.** That was review round 3 finding N1 (the dispatcher ran the engine under `timeout` without `--foreground`, so the engine could not read the terminal). Fixed: `add`, `install-extension`, `enable` and `adopt-install` now run with `timeout --foreground`. If nobody answers, the dispatcher gives up after `CONSTITUTION_CMD_EXT_TIMEOUT` seconds (default 300) with exit 124 and changes nothing.
+
 **13. What are the known limits?** The engine is experimental, dormant and not independently GO'd. F-1 is narrowed (a copied lock plus `enable` no longer lets `remove` delete a shared tree; a byte copy of a checkout still can, CON-070); F-2 is addressed by the root-bound install fact; unfixed: S2 (copy race, caught afterwards by the digest check) and no reference counting. See the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed).
 
 Related: [guide](../guides/extensions_guide.md), [manual](../manuals/extensions_manual.md), [troubleshooting](../guides/troubleshooting_guide.md).

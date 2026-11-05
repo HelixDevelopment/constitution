@@ -89,10 +89,13 @@ kill_mutant M40_restore_without_chmod 'os.fchmod(f.fileno(), mode)  # RULE:R6-fc
 # review round 2 R1 (reviewer mutant RMa): any post-backup symlink row trusted as ours
 kill_mutant RMa_any_new_link_is_ours 'if self.classify_row(r, local) == "ours":' 'if True:'
 # review round 2 R5: unlink-then-write is back (the old link is removed before the write that can fail)
-kill_mutant M43_unlink_before_write '                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644),
+kill_mutant M43_unlink_before_write '                atomic_write(full, blobs[e["path"]], e.get("mode"),
                              over_link=os.path.islink(full))  # RULE:R5-rename-over-link' '                if os.path.islink(full):
                     os.unlink(full)
-                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))'
+                atomic_write(full, blobs[e["path"]], e.get("mode"))'
+# review round 3 N4: a default-mode write sets 0644 exactly again, ignoring a restrictive umask
+kill_mutant M44_default_mode_ignores_umask 'if mode is not None:  # RULE:N4-default-mode-honours-umask
+                os.fchmod(f.fileno(), mode)' 'os.fchmod(f.fileno(), 0o644 if mode is None else mode)'
 kill_mutant M41_replace_any_symlink_at_restore 'and e["path"] not in ours_new:  # RULE:I2-replace-our-link' 'and False:'
 kill_mutant M42_never_replace_our_link 'if r["id"] not in backed and r["kind"] == "symlink":' 'if False:'
 # M35 (preflight creates the ledger dir) is EQUIVALENT and deliberately not listed: the backup manifest is MAC-verified

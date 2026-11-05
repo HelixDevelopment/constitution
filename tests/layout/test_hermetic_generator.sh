@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # tests/layout/test_hermetic_generator.sh -- WIT-C02 (ownership redesign, defect P8): tests must not rewrite the
 # REAL tracked generated command sets. Two checks, both with paired self-mutations (11.4.224, 1.1):
-#  (1) LINT: every test that runs scripts/generate_agent_prefix_commands.sh directly either sets
-#      HELIX_ACTION_OUT_ROOT or runs a private copy of the generator. (Installer tests cannot use the variable: the
-#      installer deliberately unsets it and regenerates against its own const_root -- layout test H3 -- so those tests
-#      must use a throw-away constitution copy; this lint reports them as a count, it does not pretend to cover them.)
+#  (1) LINT (ADVISORY since review round 3 N5; decision recorded in CON-071 and the design doc): a static tripwire
+#      that reports tests running scripts/generate_agent_prefix_commands.sh without HELIX_ACTION_OUT_ROOT, or an
+#      installer, from the real tree. Findings on the real tests are printed as ADVISORY lines and do NOT fail this
+#      suite: what a shell script executes is not decidable statically (the round-3 review measured 8 of 15 new
+#      violator shapes missed), so the BINDING C02 check is the full-suite runner's per-unit fingerprint of the
+#      generated sets plus its end-of-run tree identity (scripts/full_suite/run_full_suite.py gen_fingerprint /
+#      quick_ident, pinned by tests/test_run_full_suite.sh section 39 and its mutants I1 I2 I3 G1). No new shapes are
+#      added to the lint per review round (section 11.4.250). The lint's own documented behaviour stays checked on
+#      its fixtures (1b) and by its paired mutations (1c), so it cannot rot silently.
 #  (2) GUARD: with HELIX_ACTION_OUT_ROOT=<sandbox> the REAL generator writes only into the sandbox: the tracked
 #      generated sets in the repo under test are byte-identical before and after, and the sandbox is complete.
-# Mutations: a test that omits the variable -> lint FAILs; a generator that ignores the variable -> guard FAILs.
+# Mutations: a lint rule removed -> a fixture verdict changes (1c); a generator that ignores the variable -> guard FAILs.
 # Env: LAYOUT_SRC_ROOT (tree under test). Exit 0 iff all pass.
 LT_SUITE="hermetic_generator"
 . "$(cd "$(dirname "$0")" && pwd)/lib_layout_harness.sh"
@@ -24,7 +29,14 @@ EXPECTED_EXEMPT=""
 out="$(lint "$LINT" "$SRC/tests")"
 bad="$(printf '%s\n' "$out" | grep -v '^EXEMPT ' | grep -v '^$')"
 ex="$(printf '%s\n' "$out" | grep '^EXEMPT ' | sed 's/^EXEMPT \([^ ]*\) .*/\1/')"
-if [ -z "$bad" ]; then lt_ok "lint: no test runs the generator without a redirect, or an installer, from the real tree"; else lt_bad "lint: non-hermetic tests: $bad"; fi
+# ADVISORY (N5): findings are reported, never a FAIL here; the binding check is the runner's fingerprint
+if [ -z "$bad" ]; then
+  printf 'ADVISORY lint: 0 findings on the real tests\n'
+else
+  printf 'ADVISORY lint: %d finding(s) on the real tests (not a FAIL; the full-suite fingerprint is binding):\n' "$(printf '%s\n' "$bad" | grep -c .)"
+  printf '%s\n' "$bad" | sed 's/^/ADVISORY   /'
+fi
+lt_ok "lint ran over the real tests (advisory result printed above)"
 lt_eq "lint: the exemptions are exactly the expected list" "$EXPECTED_EXEMPT" "$ex"
 
 # (1b) lint fixtures: the reviewer's six violators (wave 2 review, F5) and two controls, plus installer cases.

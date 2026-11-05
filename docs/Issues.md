@@ -1396,3 +1396,30 @@ Independent review GO on the C02 changes; a full-suite run on a clean checkout e
 **Open after round 3 (measured 2026-11-05):**
 `hermetic_lint.py` flags 13 of the round-2 reviewer's 14 violators; it does not see an installer reached by a path relative to a `cd` into the real tree (violator v08). That gap stays open under this item.
 
+**Decision after review round 3 (N5, recorded 2026-11-05 by the round-4 fix session; the review recommended it and the conductor's brief ordered it, operator confirmation UNCONFIRMED):**
+`tests/layout/hermetic_lint.py` is an ADVISORY tripwire: its findings on the real tests are printed as ADVISORY lines by `tests/layout/test_hermetic_generator.sh` and do not fail it. The BINDING C02 check is the full-suite runner's per-unit fingerprint of the generated sets plus its end-of-run tree identity (`scripts/full_suite/run_full_suite.py` gen_fingerprint / quick_ident, pinned by `tests/test_run_full_suite.sh` section 39 and mutants I1 I2 I3 G1). No new shapes are added to the lint per review round (§11.4.250); the round-3 review's 8 missed shapes and 1 false positive are listed in the lint's docstring as known limits. The acceptance criterion above (a clean full-suite run with no IDENTITY CHANGED) is unchanged.
+
+## CON-072 — ownership wave 2 FU (round 4 N1): on budget expiry timeout --foreground signals only the engine, not its git children
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Found while fixing review round 3 N1 (vehicle/ownership-wave2, round 4). The dispatcher now runs extensions add, install-extension, enable and adopt-install with timeout --foreground so the engine can read /dev/tty. With --foreground, timeout signals only its direct child (the engine, because constitution_ext.sh execs python3); a git subprocess the engine started (git clone/fetch for a git source) is not signalled when the budget expires and may outlive the dispatcher. Measured: the no-answer budget case (4 s) ends with rc 124 and no engine process left, but it does not start git. UNCONFIRMED: whether a git child survives a timeout during a git-source add. Acceptance: a pty test with a git source and a stalled git step shows no process left after rc 124, or the engine forwards SIGTERM to its children.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_cmd/constitution_cmd.sh (tmo); scripts/constitution_ext/ext_engine.py (_git subprocess handling)
+
+## CON-073 — ownership wave 2 FU (round 4): extensions FAQ item 10 still says the /constitution command is planned, not landed
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Found while documenting review round 3 N1 (vehicle/ownership-wave2, round 4). docs/faq/extensions_faq.md item 10 says the /constitution slash command is planned and not landed (UNCONFIRMED), but scripts/constitution_cmd/constitution_cmd.sh ships the extensions route and FAQ 12b (added in round 4) describes it. Acceptance: item 10 states what is shipped (the dispatcher and its generated commands) with a pointer to the dispatcher and its tests, and no longer calls it planned.
+
+**Affected scope / file-scope manifest:**
+docs/faq/extensions_faq.md
+

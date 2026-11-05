@@ -1,0 +1,108 @@
+  info timeout implementations under test: sys:timeout (uutils coreutils) 0.8.0 gnu:timeout (GNU coreutils) 9.7
+### [sys] timeout (uutils coreutils) 0.8.0
+  ok   [sys] add without a controlling terminal: rc 3
+  ok   [sys] add without a controlling terminal: returned within 20 s
+  ok   [sys] add without a terminal: nothing installed
+  ok   [sys] add via dispatcher, answer n: rc 3
+  ok   [sys] add n: prompt shown
+  ok   [sys] add n: not killed by the driver (no hang)
+  ok   [sys] add n: nothing installed
+  ok   [sys] install-extension (alias of add) via dispatcher, answer n: rc 3
+  ok   [sys] install-extension n: prompt shown
+  ok   [sys] install-extension n: not killed by the driver (no hang)
+  ok   [sys] install-extension n: nothing installed
+  ok   [sys] add via dispatcher, answer y: rc 0
+  ok   [sys] add y: prompt shown
+  ok   [sys] add y: not killed by the driver (no hang)
+  ok   [sys] add y: hooks-fixture installed
+  ok   [sys] add y: install fact written
+  ok   [sys] adopt-install without a controlling terminal: rc 3
+  ok   [sys] adopt-install without a controlling terminal: returned within 20 s
+  ok   [sys] adopt-install without a terminal: no fact
+  ok   [sys] adopt-install via dispatcher, wrong id: rc 3
+  ok   [sys] adopt-install wrong id: prompt shown
+  ok   [sys] adopt-install wrong id: not killed by the driver (no hang)
+  ok   [sys] adopt-install wrong id: no fact
+  ok   [sys] adopt-install via dispatcher, right id: rc 0
+  ok   [sys] adopt-install right id: prompt shown
+  ok   [sys] adopt-install right id: not killed by the driver (no hang)
+  ok   [sys] adopt-install right id: fact written
+  ok   [sys] adopt-install right id: the engine's result reaches the operator
+  ok   [sys] adopt-install: no engine process left behind
+  ok   [sys] enable without a controlling terminal: rc 3
+  ok   [sys] enable without a controlling terminal: returned within 20 s
+  ok   [sys] enable without a terminal: lock not enabled
+  ok   [sys] enable via dispatcher, answer n: rc 3
+  ok   [sys] enable n: prompt shown
+  ok   [sys] enable n: not killed by the driver
+  ok   [sys] enable n: lock not enabled
+  ok   [sys] enable via dispatcher, answer y: rc 0
+  ok   [sys] enable y: prompt shown
+  ok   [sys] enable y: not killed by the driver
+  ok   [sys] enable y: lock says enabled
+  ok   [sys] setup: disable hooks-fixture for the budget case
+  ok   [sys] enable, nobody answers, budget 4 s: rc 124 (timed out)
+  ok   [sys] budget case: prompt shown
+  ok   [sys] budget case: ended by the budget, not by the driver
+  ok   [sys] budget case: ended within 20 s
+  ok   [sys] budget case: lock not enabled
+  ok   [sys] budget case: no engine process left behind
+### [gnu] timeout (GNU coreutils) 9.7
+  ok   [gnu] add without a controlling terminal: rc 3
+  ok   [gnu] add without a controlling terminal: returned within 20 s
+  ok   [gnu] add without a terminal: nothing installed
+  ok   [gnu] add via dispatcher, answer n: rc 3
+  ok   [gnu] add n: prompt shown
+  ok   [gnu] add n: not killed by the driver (no hang)
+  ok   [gnu] add n: nothing installed
+  ok   [gnu] install-extension (alias of add) via dispatcher, answer n: rc 3
+  ok   [gnu] install-extension n: prompt shown
+  ok   [gnu] install-extension n: not killed by the driver (no hang)
+  ok   [gnu] install-extension n: nothing installed
+  ok   [gnu] add via dispatcher, answer y: rc 0
+  ok   [gnu] add y: prompt shown
+  ok   [gnu] add y: not killed by the driver (no hang)
+  ok   [gnu] add y: hooks-fixture installed
+  ok   [gnu] add y: install fact written
+  ok   [gnu] adopt-install without a controlling terminal: rc 3
+  ok   [gnu] adopt-install without a controlling terminal: returned within 20 s
+  ok   [gnu] adopt-install without a terminal: no fact
+  ok   [gnu] adopt-install via dispatcher, wrong id: rc 3
+  ok   [gnu] adopt-install wrong id: prompt shown
+  ok   [gnu] adopt-install wrong id: not killed by the driver (no hang)
+  ok   [gnu] adopt-install wrong id: no fact
+  ok   [gnu] adopt-install via dispatcher, right id: rc 0
+  ok   [gnu] adopt-install right id: prompt shown
+  ok   [gnu] adopt-install right id: not killed by the driver (no hang)
+  ok   [gnu] adopt-install right id: fact written
+  ok   [gnu] adopt-install right id: the engine's result reaches the operator
+  ok   [gnu] adopt-install: no engine process left behind
+  ok   [gnu] enable without a controlling terminal: rc 3
+  ok   [gnu] enable without a controlling terminal: returned within 20 s
+  ok   [gnu] enable without a terminal: lock not enabled
+  ok   [gnu] enable via dispatcher, answer n: rc 3
+  ok   [gnu] enable n: prompt shown
+  ok   [gnu] enable n: not killed by the driver
+  ok   [gnu] enable n: lock not enabled
+  ok   [gnu] enable via dispatcher, answer y: rc 0
+  ok   [gnu] enable y: prompt shown
+  ok   [gnu] enable y: not killed by the driver
+  ok   [gnu] enable y: lock says enabled
+  ok   [gnu] setup: disable hooks-fixture for the budget case
+  ok   [gnu] enable, nobody answers, budget 4 s: rc 124 (timed out)
+  ok   [gnu] budget case: prompt shown
+  ok   [gnu] budget case: ended by the budget, not by the driver
+  ok   [gnu] budget case: ended within 20 s
+  ok   [gnu] budget case: lock not enabled
+  ok   [gnu] budget case: no engine process left behind
+  ok   CONSTITUTION_CMD_EXT_TIMEOUT=0 is refused (rc 2)
+  ok   CONSTITUTION_CMD_EXT_TIMEOUT=601 is refused (rc 2)
+  ok   CONSTITUTION_CMD_EXT_TIMEOUT=abc is refused (rc 2)
+  ok   CONSTITUTION_CMD_EXT_TIMEOUT=-1 is refused (rc 2)
+### paired mutations of the dispatcher's interactive routing
+  ok   mutant PM1_no_foreground killed (44 failures)
+  ok   mutant PM2_adopt_not_interactive killed (12 failures)
+  ok   mutant PM3_enable_not_interactive killed (13 failures)
+  ok   mutant PM4_add_not_interactive killed (44 failures)
+  ok   mutant PM5_budget_knob_ignored killed (10 failures)
+constitution-cmd-pty: PASS 103 FAIL 0

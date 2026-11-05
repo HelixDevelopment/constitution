@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """tests/layout/hermetic_lint.py -- WIT-C02 lint (ownership wave 2 review round 2, finding F5).
 
+STATUS: ADVISORY tripwire (review round 3 N5, decision recorded in CON-071). Static detection of what a shell
+script executes is not decidable in general; the round-3 review flagged 7 of 15 new violator shapes and missed 8
+(`bash < file`, `flock ... bash`, `ionice -c3 bash`, `eval "bash ..."`, a function running `bash "$1"`,
+`bash -lc "..."`, `"$(command -v bash)" file`, `chrt -i 0 bash`), plus one known false positive (an
+`export HELIX_ACTION_OUT_ROOT=...` on an earlier line is not seen). The BINDING C02 check is the full-suite
+runner's per-unit fingerprint of the generated sets and its end-of-run tree identity
+(scripts/full_suite/run_full_suite.py gen_fingerprint / quick_ident). New shapes are NOT added per review round
+(section 11.4.250); a miss is caught at run time by the fingerprint.
+
 Flags shell tests that run, from the REAL checkout, a script that rewrites the tracked generated command
 sets (plugins/helix/commands, plugins/helix/README.md, actions/generated):
   * scripts/generate_agent_prefix_commands.sh, unless the same command sets HELIX_ACTION_OUT_ROOT to a

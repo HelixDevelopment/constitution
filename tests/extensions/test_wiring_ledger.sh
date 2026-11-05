@@ -639,6 +639,27 @@ for n in 1 2 3; do
 done
 eq "three runs give identical tracked-ledger hashes (1=2)" "${DS[0]}" "${DS[1]}"
 eq "three runs give identical tracked-ledger hashes (2=3)" "${DS[1]}" "${DS[2]}"
+# review round 3 N4: a default-mode write honours the umask (as a plain open(2) does); an explicit mode stays exact
+UM="$SB/um"; make_project "$UM"; UMR="$SB/umroot"; mkdir -p "$UMR/extensions" "$UMR/skills/alpha" "$UM/.claude/skills"
+ln -s "$UMR/skills/alpha" "$UM/.claude/skills/alpha"
+um_run() { OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$UM" --root "$UMR" "$@" </dev/null 2>"$SB/err")"; RC=$?; }
+OLDUM="$(umask)"; umask 077
+um_run record --id um-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink; UMRC1=$RC
+um_run refs add --id ext-um --record-digest d1; UMRC2=$RC
+umask "$OLDUM"
+eq "N4 setup under umask 077: record rc 0" 0 "$UMRC1"
+eq "N4 setup under umask 077: refs add rc 0" 0 "$UMRC2"
+eq "N4 umask 077: the tracked ledger wiring.json is 600 (umask honoured)" 600 "$(stat -c %a "$UM/.constitution/wiring.json" 2>/dev/null)"
+eq "N4 umask 077: .constitution/.gitignore is 600" 600 "$(stat -c %a "$UM/.constitution/.gitignore" 2>/dev/null)"
+eq "N4 umask 077: the refs file is 600" 600 "$(stat -c %a "$UMR/extensions/_installed/ext-um.refs" 2>/dev/null)"
+eq "N4 umask 077: the signed local record keeps its explicit 600" 600 "$(stat -c %a "$UM/.constitution/extensions.state/wiring.local.json" 2>/dev/null)"
+UM2="$SB/um2"; make_project "$UM2"; mkdir -p "$UM2/.claude/skills"; ln -s "$UMR/skills/alpha" "$UM2/.claude/skills/alpha"
+OLDUM="$(umask)"; umask 022
+OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$UM2" --root "$UMR" record --id um-b --producer installer --agent claude --path .claude/skills/alpha --kind symlink </dev/null 2>"$SB/err")"; RC=$?
+umask "$OLDUM"
+eq "N4 umask 022: record rc 0" 0 "$RC"
+eq "N4 umask 022: wiring.json is 644" 644 "$(stat -c %a "$UM2/.constitution/wiring.json" 2>/dev/null)"
+eq "N4 umask 022: the signed local record is still 600 (explicit mode)" 600 "$(stat -c %a "$UM2/.constitution/extensions.state/wiring.local.json" 2>/dev/null)"
 eq "the constitution tree is unchanged by the whole suite" "$ROOT_FP_BEFORE" "$(rootfp)"
 check "gitignore covers the local state" grep -q 'extensions.state/' "$P/.constitution/.gitignore"
 finish

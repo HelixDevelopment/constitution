@@ -656,6 +656,7 @@ tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_subsystem_shortcuts.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_constitution_cmd_pty.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_register.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_wiring_cmd.sh	sh	entry	default	bash	-	auto

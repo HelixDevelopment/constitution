@@ -64,6 +64,10 @@ kill_mutant E22_adopt_accepts_yes '"adopt-install": (1, 1, {"waiver_id"}),  # RU
 kill_mutant E23_no_tty_message_names_bypass '"adopt-install %s needs an operator at a terminal (%s): an operator runs it interactively and "' '"adopt-install %s: confirmation required (%s): pass --yes or run interactively and "'
 kill_mutant RMc_any_tty_answer_confirms 'if ans != eid:' 'if False:'
 kill_mutant E24_tty_open_failure_confirms 'raise EngineError(EXIT_REFUSED, ADOPT_NEEDS_TTY % (eid, "this process has no controlling terminal"))' 'return'
+# review round 3 N3: reviewer-authored mutants of the prompt comparison and the NO_TTY knob
+kill_mutant RN1_substring_match 'if ans != eid:' 'if eid not in ans:'
+kill_mutant RN2_case_insensitive 'if ans != eid:' 'if ans.lower() != eid.lower():'
+kill_mutant RN3_no_tty_knob_ignored 'if os.environ.get("CONSTITUTION_EXT_NO_TTY") == "1":  # RULE:Q1-adopt-confirm' 'if False:  # RULE:Q1-adopt-confirm'
 # Reviewer mutants R1 and R2 (review of wave 2, section "Reviewer mutants on E01") are EQUIVALENT in effect and are
 # deliberately not listed. R1 drops the f["id"] != eid check: a fact copied under another id still fails, because the
 # digest binding compares against the lock entry of THAT id and tree_digest hashes extension.yml, which holds the id.
