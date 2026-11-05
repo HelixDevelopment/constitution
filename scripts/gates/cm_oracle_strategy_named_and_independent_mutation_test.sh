@@ -177,9 +177,21 @@ printf '# oracle: DERIVED\n# basis: independent reference impl\ndef test_c():\n 
 expect_pass "annotation without a basis line (basis not required)" "$TMP/8_nobasis"
 expect_fail "lone '# basis:' without 'oracle:' is not an annotation" "$TMP/8_basisonly"
 expect_pass "annotation followed by a basis line is still accepted" "$TMP/8_withbasis"
-# 8c. mutants: (i) a gate that REQUIRES a basis line is killed by 8b-style pin; (ii) stripping the header paragraph must be killed by 8a
-_mdoc="$TMP/mut_nodoc.sh"; grep -v "basis line (CON-044)" "$GATE" > "$_mdoc"
-if bash "$_mdoc" --help 2>/dev/null | grep -q "basis line (CON-044)"; then echo "❌ META FAIL: doc-strip mutant survived"; rc=1; else echo "✅ META OK:   doc-strip mutant is killed by the 8a check"; fi
+# 8b-llmctl. the form actually in use (llmctl waves b2/b3): '# basis:' line ABOVE a bare '# oracle: X', method inside a class.
+# Kills reviewer mutant RM2 (an annotation is rejected when the line above it is a basis line).
+mkdir -p "$TMP/8_llmctl" "$TMP/8_basisbare" "$TMP/8_oraclefirst2dec"
+printf 'class TestX:\n    # basis: expected value taken from the spec table, not from the code under test\n    # oracle: SPECIFIED\n    def test_y(self):\n        assert 1\n' > "$TMP/8_llmctl/test_y.py"
+expect_pass "llmctl form: '# basis:' line above a bare '# oracle: X' (method in a class)" "$TMP/8_llmctl"
+# 8b-bare. a lone '# basis: <strategy token>' is NOT an annotation (kills reviewer mutant RM1: gate accepting 'basis' as an oracle keyword).
+printf '# basis: DERIVED\ndef test_z():\n    assert 1\n' > "$TMP/8_basisbare/test_z.py"
+expect_fail "lone '# basis: DERIVED' (a strategy token, but no 'oracle:') is not an annotation" "$TMP/8_basisbare"
+# 8b-order. order matters with the 3-line window: basis ABOVE oracle passes with two decorators, oracle ABOVE basis does not.
+printf '# basis: spec\n# oracle: SPECIFIED\n@a\n@b\ndef test_o1():\n    assert 1\n' > "$TMP/8_oraclefirst2dec/test_o1.py"
+expect_pass "basis ABOVE oracle with two decorators passes (documented order)" "$TMP/8_oraclefirst2dec"
+mkdir -p "$TMP/8_wrongorder"; printf '# oracle: SPECIFIED\n# basis: spec\n@a\n@b\ndef test_o2():\n    assert 1\n' > "$TMP/8_wrongorder/test_o2.py"
+expect_fail "oracle ABOVE basis with two decorators FAILs (basis line eats a window slot; documented order is basis first)" "$TMP/8_wrongorder"
+# 8c. mutant: the require-basis gate variant below is killed by 8b. (A header doc-strip mutant was dropped: it only greps out the literal 8a greps for,
+# a tautology per §11.4.115(F); 8a itself is a documentation check, and its real RED evidence is 'new test against the base gate'.)
 # behavioural mutant: require '# basis:' in the preceding comment zone -> reject annotation-without-basis
 _mbeh="$TMP/mut_beh.sh"; sed 's|if (val in ok) { found = 1 } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1 } else { bad_val = val }|; s|if (val in ok) { found = 1; bad_val = "" } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1; bad_val = "" } else { bad_val = val }|' "$GATE" > "$_mbeh"
 if cmp -s "$GATE" "$_mbeh"; then echo "❌ META FAIL: require-basis mutant was not applied"; rc=1
