@@ -2186,7 +2186,7 @@ if want("R7N6"):
 _R7N6BLK_NEED = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 14)     # HUP INT QUIT TERM (bit = signo - 1)
 
 
-def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, markers=None, timeout=120):
+def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, markers=None, timeout=120, launcher="bash", extra_env_vars=None):
     d = os.path.join(WORK, tag.lower()); os.makedirs(d)
     repo = os.path.join(d, "repo"); head = mk_repo(repo)
     shim = os.path.join(d, "shim"); os.makedirs(shim)
@@ -2205,6 +2205,7 @@ def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, marker
                FC_REPLAY_LOCK_DIR=os.path.join(d, "locks"))
     os.makedirs(env["TMPDIR"]); os.makedirs(env["FC_REPLAY_LOCK_DIR"])
     env.pop("FC_OUT", None)
+    env.update(extra_env_vars or {})
     gate = os.path.join(d, "gate.sh"); open(gate, "w").write("#!/bin/bash\nexit 0\n"); os.chmod(gate, 0o755)
 
     def pre_clean():                 # the caller's mask and dispositions are controlled inputs (default: none blocked)
@@ -2218,7 +2219,7 @@ def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, marker
     if dead_err:                     # stderr is a pipe whose reader is already gone (a write = EPIPE / SIGPIPE)
         rfd, wfd = os.pipe(); os.close(rfd)
         try:
-            r = subprocess.run(["bash", SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
+            r = subprocess.run([launcher, SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
                                stderr=wfd, text=True, timeout=timeout)
         except subprocess.TimeoutExpired:
             r = subprocess.CompletedProcess(argv, None, "", "")
@@ -2227,7 +2228,7 @@ def _r7n6blk_run(tag, extra_shims, premask=(), dead_err=False, argv=None, marker
         r.stderr = ""
     else:
         try:
-            r = subprocess.run(["bash", SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
+            r = subprocess.run([launcher, SCRIPT] + argv, env=env, preexec_fn=pre_clean, stdout=subprocess.DEVNULL,
                                stderr=subprocess.PIPE, text=True, timeout=timeout)
         except subprocess.TimeoutExpired as e:     # a hang (e.g. an endless re-exec) is a FAIL row, never a crash
             r = subprocess.CompletedProcess(argv, None, "", (e.stderr or b"").decode("utf-8", "replace")
@@ -2420,6 +2421,183 @@ if want("R7N6QUIT"):
         else:
             bad("[R7N6QUIT-%s] SIGQUIT during the held %s: rc %s (want %s) report=%s -- the QUIT was lost"
                 % (sub, sub, rc, want_rc, rep))
+
+# --- ATM-1220 follow-ups (CON-009: the r4 review's surviving mutants A, C, G, H, I; real processes and signals, no mocks).
+# A  a caller that already blocks every stop signal EXCEPT one is NOT "already blocked": the re-exec must still add the missing
+#    one. Dropping QUIT from the test (mask 0x4003) left a caller blocking HUP/INT/TERM with QUIT unprotected (bash ignores QUIT
+#    in itself, so a QUIT in front of the exec was lost). DECISION: the tool's behaviour is right (all four blocked, whatever
+#    the caller did) -- the old rows only tried an empty and an INT-only mask. R7N6MASK: each of the four "all but one" masks
+#    ends with all four blocked in the caller's children; R7N6MASKQUIT: that QUIT-only-missing caller, QUIT'd while a
+#    caller-side child runs, ends as a stop (131 / killed by QUIT), never a finished replay.
+# C  the capability probe's status must be exactly 0 (R7N6PROBEST: an env that exits 1 or 126 on the probe only = DEGRADED).
+# G  a malformed or missing SigBlk read must fall back to "nothing blocked" (re-exec), never to "blocked" (R7N6MALF). /proc/self
+#    cannot be faked in this environment (no user namespaces), so the REAL block text is extracted from the script and run with
+#    the one `</proc/self/status` redirection pointed at a fixture file: honest, bounded substitution, control rows included.
+# H  a stop in the probe window ends with its own code for HUP/INT/TERM as well (R7N6PSIG; QUIT is [R7N6QUIT-probe]).
+# I  the re-exec runs the interpreter that is running (`"$BASH"`), never a PATH lookup of `bash` (R7N6BASH: a hostile `bash` first
+#    on PATH is never started with the script).
+_R7_SIGS = (("HUP", signal.SIGHUP, 129), ("INT", signal.SIGINT, 130), ("QUIT", signal.SIGQUIT, 131), ("TERM", signal.SIGTERM, 143))
+if want("R7N6MASK"):
+    for _name, _s, _c in _R7_SIGS:
+        _pm = tuple(x for _n2, x, _c2 in _R7_SIGS if x != _s)
+        r, caller, worker, junk = _r7n6blk_run("R7N6MASK-" + _name, {}, _pm)
+        desc = "premask all but %s; caller %s worker %s rc %s" % (_name, ["%x" % v for v in caller], ["%x" % v for v in worker], r.returncode)
+        if junk or not caller or not worker:
+            bad("[R7N6MASK-%s] control needle: no caller/worker record (%s) -- BLIND" % (_name, desc))
+        elif (all(v & _R7N6BLK_NEED == _R7N6BLK_NEED for v in caller) and all(v & _R7N6BLK_NEED == 0 for v in worker)
+              and r.returncode == 0 and "DEGRADED" not in r.stderr):
+            ok("[R7N6MASK-%s] a caller blocking all stops but %s still gets all four blocked (%s)" % (_name, _name, desc))
+        else:
+            bad("[R7N6MASK-%s] a partial mask (all but %s) is treated as already blocked (%s)" % (_name, _name, desc))
+if want("R7N6MASKQUIT"):
+    _case = os.path.join(WORK, "r7n6maskq"); os.makedirs(os.path.join(_case, "tmp")); os.makedirs(os.path.join(_case, "locks"))
+    _repo = os.path.join(_case, "repo"); _head = mk_repo(_repo)
+    _sh = os.path.join(_case, "shim"); os.makedirs(_sh)
+    open(os.path.join(_sh, "dirname"), "w").write(
+        "#!/bin/bash\nif [ ! -e %(c)s/ready ] && [ -z \"${FC_BR_SUPERVISED:-}\" ]; then echo r >%(c)s/ready; sleep 2; fi\n"
+        "exec %(d)s \"$@\"\n" % {"c": _case, "d": shutil.which("dirname")})
+    os.chmod(os.path.join(_sh, "dirname"), 0o755)
+    _env = dict(os.environ, PATH=_sh + ":" + os.environ["PATH"], TMPDIR=os.path.join(_case, "tmp"), FC_REPLAY_LOCK_DIR=os.path.join(_case, "locks"))
+    _env.pop("FC_OUT", None)
+
+    def _pre_mq():
+        for s_ in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM):
+            signal.signal(s_, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_SETMASK, [signal.SIGHUP, signal.SIGINT, signal.SIGTERM])   # QUIT is the one NOT blocked
+        import resource
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        os.setsid()
+    _p = subprocess.Popen(["bash", SCRIPT, "replay", "--commit", _head, "--repo-root", _repo, "--worktree-root", os.path.join(_case, "wt"),
+                           "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", "true", "--cold-runs", "1", "--warm-runs", "0",
+                           "--out", os.path.join(_case, "out.json")],
+                          env=_env, preexec_fn=_pre_mq, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    _ready = wait_path(os.path.join(_case, "ready"), 30)
+    if _ready:
+        sig_pid(_p.pid, signal.SIGQUIT)
+    try:
+        _, _err = _p.communicate(timeout=60); _rc = _p.returncode
+    except subprocess.TimeoutExpired:
+        sig_pid(_p.pid, signal.SIGKILL); _, _err = _p.communicate(); _rc = None
+    _rep = os.path.exists(os.path.join(_case, "out.json"))
+    if not _ready:
+        bad("[R7N6MASKQUIT] control needle: the hold was never reached (%s) -- BLIND" % _err.strip()[-160:])
+    elif _rc in (131, -3) and not _rep:
+        ok("[R7N6MASKQUIT] a caller blocking HUP/INT/TERM only: SIGQUIT while a caller-side child runs = a stop (rc %s), no replay ran" % _rc)
+    else:
+        bad("[R7N6MASKQUIT] QUIT lost for a caller that blocked every stop but QUIT: rc %s report=%s" % (_rc, _rep))
+if want("R7N6PROBEST"):
+    realenv = shutil.which("env")
+    for _st in (1, 126):
+        _shim = ("#!/bin/bash\ncase \" $* \" in *\" --block-signal=HUP,INT,QUIT,TERM true \"*) echo p >>%%s; exit %d ;; esac\nexec %%s \"$@\"\n" % _st)
+        _mk = os.path.join(WORK, "r7n6probest%d.mk" % _st)
+        r, caller, worker, junk = _r7n6blk_run("R7N6PROBEST%d" % _st, {"env": _shim % (_mk, realenv)})
+        if not os.path.exists(_mk) or not caller:
+            bad("[R7N6PROBEST%d] control needle: the failing probe was not exercised -- BLIND" % _st)
+        elif r.returncode == 0 and r.report and "DEGRADED" in r.stderr and "probe status %d" % _st in r.stderr:
+            ok("[R7N6PROBEST%d] a probe that exits %d (not 0) is DEGRADED, never a re-exec: rc 0, report written" % (_st, _st))
+        else:
+            bad("[R7N6PROBEST%d] probe status %d treated as success (rc %s, report %s, stderr %r)" % (_st, _st, r.returncode, r.report, r.stderr.strip()[-160:]))
+if want("R7N6PSIG"):
+    realenv = shutil.which("env")
+    for _name, _s, _c in _R7_SIGS:
+        if _name == "QUIT":
+            continue                      # [R7N6QUIT-probe]
+        _case = os.path.join(WORK, "r7n6psig" + _name); os.makedirs(os.path.join(_case, "tmp")); os.makedirs(os.path.join(_case, "locks"))
+        _repo = os.path.join(_case, "repo"); _head = mk_repo(_repo)
+        _sh = os.path.join(_case, "shim"); os.makedirs(_sh)
+        open(os.path.join(_sh, "env"), "w").write(
+            "#!/bin/bash\ncase \" $* \" in *\" --block-signal=HUP,INT,QUIT,TERM true \"*) echo r >%s/ready; sleep 2 ;; "
+            "esac\nexec %s \"$@\"\n" % (_case, realenv))
+        os.chmod(os.path.join(_sh, "env"), 0o755)
+        _env = dict(os.environ, PATH=_sh + ":" + os.environ["PATH"], TMPDIR=os.path.join(_case, "tmp"), FC_REPLAY_LOCK_DIR=os.path.join(_case, "locks"))
+        _env.pop("FC_OUT", None)
+
+        def _pre_ps():
+            for s_ in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM):
+                signal.signal(s_, signal.SIG_DFL)
+            signal.pthread_sigmask(signal.SIG_SETMASK, [])
+            os.setsid()
+        _p = subprocess.Popen(["bash", SCRIPT, "replay", "--commit", _head, "--repo-root", _repo, "--worktree-root", os.path.join(_case, "wt"),
+                               "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", "true", "--cold-runs", "1", "--warm-runs", "0",
+                               "--out", os.path.join(_case, "out.json")],
+                              env=_env, preexec_fn=_pre_ps, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        _ready = wait_path(os.path.join(_case, "ready"), 30)
+        if _ready:
+            sig_pid(_p.pid, _s)
+        try:
+            _, _err = _p.communicate(timeout=60); _rc = _p.returncode
+        except subprocess.TimeoutExpired:
+            sig_pid(_p.pid, signal.SIGKILL); _, _err = _p.communicate(); _rc = None
+        _rep = os.path.exists(os.path.join(_case, "out.json"))
+        if not _ready:
+            bad("[R7N6PSIG-%s] control needle: the probe hold was never reached (%s) -- BLIND" % (_name, _err.strip()[-160:]))
+        elif _rc == _c and not _rep:
+            ok("[R7N6PSIG-%s] SIG%s during the capability probe: rc %s (its own stop code), no replay ran" % (_name, _name, _rc))
+        else:
+            bad("[R7N6PSIG-%s] SIG%s during the probe: rc %s (want %s) report=%s" % (_name, _name, _rc, _c, _rep))
+if want("R7N6MALF"):
+    _src = open(SCRIPT).read()
+    _a = _src.index("trap '' PIPE\ncase \"${1:-}\" in\n")
+    _b = _src.index("unset _FC_BR_STOPS_BLOCKED\n", _a)
+    _blk = _src[_a:_b]
+    if _blk.count("</proc/self/status") != 1:
+        bad("[R7N6MALF] setup: the SigBlk read is not exactly one `</proc/self/status` in the extracted block -- BLIND")
+    else:
+        _md = os.path.join(WORK, "r7n6malf"); os.makedirs(_md)
+        _lg = os.path.join(_md, "envlog")
+        _sh = os.path.join(_md, "shim"); os.makedirs(_sh)
+        open(os.path.join(_sh, "env"), "w").write("#!/bin/bash\necho \"$*\" >>%s\nexit 0\n" % _lg)
+        os.chmod(os.path.join(_sh, "env"), 0o755)
+        for _tag, _fix, _want_calls in (("garbage", "Name:\tx\nSigBlk:\tzz zz\nSigIgn:\t0\n", 2), ("nonhex", "SigBlk:\t0x4007\n", 2), ("absent", "Name:\tx\nSigIgn:\t0\n", 2),
+                                        ("unblocked", "SigBlk:\t0000000000000000\n", 2), ("blocked", "SigBlk:\t0000000000004007\n", 0)):
+            _fx = os.path.join(_md, "status." + _tag); open(_fx, "w").write(_fix)
+            _prog = _blk.replace("</proc/self/status", "<" + _fx) + "unset _FC_BR_STOPS_BLOCKED\n"
+            open(_lg, "w").close()
+            rr = subprocess.run(["bash", "-c", _prog, "x", "replay"], env=dict(os.environ, PATH=_sh + ":" + os.environ["PATH"]),
+                                capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+            _calls = [l for l in readf(_lg).splitlines() if "--block-signal" in l]
+            if len(_calls) == _want_calls:
+                ok("[R7N6MALF-%s] SigBlk %r: %d env --block-signal call(s) (%s)" % (_tag, _fix.split("SigBlk:")[-1].split("\n")[0].strip() if "SigBlk" in _fix else "(absent)", len(_calls),
+                   "re-exec attempted: malformed or unblocked falls back to NOT blocked" if _want_calls else "control: a fully blocked mask is left alone"))
+            else:
+                bad("[R7N6MALF-%s] %d env --block-signal call(s), want %d (rc %s, stderr %r)" % (_tag, len(_calls), _want_calls, rr.returncode, rr.stderr.strip()[-160:]))
+if want("R7N6BASH"):
+    _realbash = shutil.which("bash")
+    _d = os.path.join(WORK, "r7n6bash")
+    _rec = _d + ".rec"
+    _shim = "#!/bin/bash\necho \"$*\" >>%s\nexec %s \"$@\"\n" % (_rec, _realbash)
+    r, caller, worker, junk = _r7n6blk_run("R7N6BASH", {"bash": _shim}, launcher=_realbash)
+    _lines = readf(_rec).splitlines()
+    # control needle: the shim IS what `bash` resolves to on this PATH (otherwise an empty record proves nothing)
+    _ctl = subprocess.run(["bash", "-c", "exit 0"], env=dict(os.environ, PATH=os.path.join(_d, "shim") + ":" + os.environ["PATH"]), capture_output=True, text=True)
+    _lines2 = readf(_rec).splitlines()
+    _hits = [l for l in _lines if "baseline_replay.sh" in l]
+    if len(_lines2) != len(_lines) + 1 or not caller:
+        bad("[R7N6BASH] control needle: a bare `bash` on the shimmed PATH did not hit the shim (%d -> %d records) -- BLIND" % (len(_lines), len(_lines2)))
+    elif not _hits and r.returncode == 0 and r.report:
+        ok("[R7N6BASH] the re-exec and the supervisor start the interpreter that is running (\"$BASH\"), never a PATH lookup of `bash` "
+           "(%d other bare-bash calls, none with the script; rc 0)" % len(_lines))
+    else:
+        bad("[R7N6BASH] a PATH `bash` was started with the script (%r; rc %s)" % (_hits[:2], r.returncode))
+
+# CON-011 (the census trusts "$BASH" in the re-exec): an INJECTED BASH in the caller's environment must not reach the re-exec --
+# bash assigns BASH at start-up, overwriting the inherited value, so the hostile interpreter is never started with the script.
+if want("R7N6BASHENV"):
+    _d = os.path.join(WORK, "r7n6bashenv"); _rec = _d + ".rec"
+    _evil = os.path.join(WORK, "r7n6bashenv.evil")
+    open(_evil, "w").write("#!/bin/sh\necho \"$*\" >>%s\nexit 99\n" % _rec); os.chmod(_evil, 0o755)
+    r, caller, worker, junk = _r7n6blk_run("R7N6BASHENV", {}, extra_env_vars={"BASH": _evil})
+    _hit = readf(_rec).splitlines()                                      # what the run itself started (must be nothing)
+    subprocess.run([_evil, "ctl"], capture_output=True)                  # control needle: the evil interpreter records when it runs
+    _ctl = readf(_rec).splitlines()
+    _probe = subprocess.run(["bash", "-c", "echo $BASH"], env=dict(os.environ, BASH=_evil), capture_output=True, text=True).stdout.strip()
+    if _ctl != _hit + ["ctl"] or not caller:
+        bad("[R7N6BASHENV] control needle: the evil interpreter did not record its own run (%r) -- BLIND" % _ctl)
+    elif not _hit and r.returncode == 0 and r.report and _probe.endswith("/bash") and _probe != _evil:
+        ok("[R7N6BASHENV] BASH=<evil> injected in the environment: bash overwrites it at start-up ($BASH=%s), the re-exec ran the "
+           "real interpreter, the evil one was never started (rc %s, report written)" % (_probe, r.returncode))
+    else:
+        bad("[R7N6BASHENV] injected BASH reached the run (rc %s, report %s, $BASH=%r, records %r)" % (r.returncode, r.report, _probe, _hit))
 
 # --- N6 sweep (injection I, verbatim shape): INT at a random instant 0-250 ms after start, 40 runs of a replay whose
 # gate sleeps 3 s (so a finished replay cannot explain rc 0). Every run must end 130 (or be killed by INT, which a

@@ -604,7 +604,11 @@ SH_EXEMPT = {
                                "under _fc_run_child: running it is the intent",
     ("<top>", '"$BASH" "${BASH_SOURCE[0]}" "$@"'):
         "ATM-1220: the caller-side re-exec of THIS file (same arguments) through `env --block-signal`; the code it "
-        "runs is this file, censused here",
+        "runs is this file, censused here. `$BASH` names the running interpreter because bash assigns it AT START-UP, "
+        "overwriting any inherited BASH (measured: BASH=/evil in the environment still gives $BASH=/usr/bin/bash; "
+        "[R7N6BASHENV] drives the real script with an injected BASH), and the census below refuses every script-side "
+        "assignment, unset or rebinding of BASH (ATM-1220 follow-up CON-011), so the exemption never trusts a value "
+        "a caller or this file could have chosen",
     ("emit_doc", "python3 -c 'import json,platform; print(json.dumps({\"host\": platform.node()}))'"):
         "prints this host's name: the program is a literal and opens nothing",
 }
@@ -1211,6 +1215,11 @@ def sh_census(path):
 #               V = .. / V op= .. / V++ / ++V / V-- / --V                -> VIOLATION for a PROVED V
 #   {V}>file / {V}<file           a redirection that stores an fd in V  -> VIOLATION for a PROVED V
 _ARITH_OPS = r"(?:=(?!=)|[-+*/%&|^]=|<<=|>>=|\+\+|--)"
+_BASH_IDENTITY = re.compile(
+    r"(?<![\w$])BASH(?:\[[^\]]*\])?\+?=|"                                            # BASH=x  BASH[0]=x  BASH+=x
+    r"(?<![\w$])(?:unset|export|declare|typeset|local|readonly|read|mapfile|readarray|getopts|wait|coproc)\b"
+    r"[^;&|\n]*?(?<![\w$])BASH(?!\w)|"                                                 # a builtin that rebinds the NAME
+    r"(?<![\w$])printf\s+-v\s*[\"']?BASH(?!\w)|(?<![\w$])(?:for|select)\s+BASH\b|\{BASH\}\s*[<>]")
 
 
 def _sh_text_lines(lines):
@@ -1278,8 +1287,14 @@ def sh_assign_scan(path, lines, proved, extents):
             seen.add((no, kind))
             rows.append((name, no, func_at(extents, no), kind, "VIOLATION", why))
     pats = {v: re.compile(r"(?<![\w$])%s\s*(?:\[[^\]]*\])?\s*%s|(?:\+\+|--)\s*%s(?!\w)"
-                          % (re.escape(v), _ARITH_OPS, re.escape(v))) for v in proved}
+                          % (re.escape(v), _ARITH_OPS, re.escape(v))) for v in set(proved) | {"BASH"}}
     for no, t in _sh_text_lines(lines):
+        # CON-011: BASH is the interpreter identity the re-exec trusts (SH_EXEMPT): any script-side change of it is refused
+        for m in re.finditer(r"\$\{BASH(?:\[[^\]]*\])?:?=", t):       # ${BASH=..} / ${BASH:=..}
+            add(no, "${BASH:=}", "a default assignment of BASH, the interpreter identity the re-exec is exempted on (CON-011)")
+        for m in _BASH_IDENTITY.finditer(t):
+            add(no, "BASH identity", "a script-side assignment, unset, rebinding or read-into of BASH, the interpreter "
+                "identity the re-exec `\"$BASH\"` is exempted on (fail-closed, CON-011)")
         for m in re.finditer(r"\$\{(!?)([A-Za-z_][A-Za-z0-9_]*)(\[[^\]]*\])?:?=", t):
             if m.group(1):
                 add(no, "${!R:=}", "an INDIRECT default assignment ${!%s=...}: it assigns whatever variable %s names "
@@ -1871,10 +1886,13 @@ SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "
            "unset '_wr'", 'unset \\_wr', 'unset "$n"', 'printf -v "$n" %s x', 'printf -v"$n" %s x',
            'read -r -a _FC_TMPDIR', 'IFS= read -r _FC_TMPDIR', 'IFS= read -r "$n"', 'read -a "$n"',
            'declare -g "$n=/etc"', 'local "$n"', 'export "$n=/etc"', 'readonly "$n"', 'typeset "$n"',
+           'BASH=/tmp/x', 'unset BASH', 'export BASH=/x', 'read -r BASH', 'declare BASH=x', 'local BASH', 'printf -v BASH %s x',
+           'for BASH in a; do :; done', '(( BASH = 1 ))', ': "${BASH:=/x}"', 'BASH+=x', 'exec {BASH}>/dev/null',
            'declare -i _wr', 'local -l _wr', 'declare -u _FC_TMPDIR', 'typeset -a _wr', 'declare -A _wr',
            'read "-$o" x', 'mapfile -t _wr', 'readarray _wr', 'getopts ab _wr', 'let "_wr=1"',
            'rm -rf "${_wr:?}/$_wr"', 'declare -g "_FC_TMPDIR=/etc"', 'typeset _FC_TMPDIR=/etc']
-SELF_SH_OK = ['printf -v _intr %s x', 'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
+SELF_SH_OK = ['printf -v _intr %s x', 'echo "$BASH"', 'x="${BASH:-bash}"', 'echo "BASH_SOURCE=$x"', 'BASH_X=1', 'printf "%s" "$BASH"', 'echo "${BASH_SOURCE[0]}"',
+               'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
               'rm -f "${_FC_TMPDIR:?}/x"', 'printf x >"${_FC_TMPDIR:?}/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
               'm="$(_fc_mktemp)"; rm -f "${m:?}.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null',
               # round 15 controls (no false refusal): the same forms on variables that are NOT proved, a literal
