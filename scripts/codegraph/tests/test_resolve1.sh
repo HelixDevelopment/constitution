@@ -56,13 +56,15 @@ run_index() {
         "$NODE" --disable-warning=ExperimentalWarning --require "$HERE/test_resolve1_count_hook.js" \
         "$HERE/test_resolve1_drive.js" "$dist/lib/dist" "$fx" > "$out.out" 2> "$out.err"
     echo "rc=$?" >> "$out.out"
-    python3 "$HERE/test_resolve1_dump.py" "$fx/.codegraph/codegraph.db" "$out" > "$out.dump" 2>&1
+    python3 "$HERE/test_resolve1_dump.py" "$fx/.codegraph/codegraph.db" "$out" > "$out.dump" 2>&1 \
+        || t_bad DUMP "edge dump of $3 written" "rc=$? $(head -c 300 "$out.dump")"
 }
 calls_of() { awk -F'getAllFilePaths=' '{split($2,a," "); s+=a[1]} END{print s+0}' "$W/$1.cnt"; }
 
 probe() {
     # probe <fixture> <label> [vue] — index the fixture, then probe a COPY of its DB
-    python3 "$HERE/test_resolve1_fixture.py" "$1" 300 20 --mixed $( [ -z "${3:-}" ] && echo --novue )
+    python3 "$HERE/test_resolve1_fixture.py" "$1" 300 20 --mixed $( [ -z "${3:-}" ] && echo --novue ) \
+        || t_bad FIXTURE "fixture $2 generated" "rc=$?"
     run_index "$DIST" "$1" "$2"
     cp "$1/.codegraph/codegraph.db" "$W/$2.db"
     "$NODE" --disable-warning=ExperimentalWarning "$HERE/test_resolve1_probe.js" "$DIST/lib/dist" \
@@ -85,13 +87,16 @@ if t_want R3; then
 fi
 if t_want R5; then
     P="$(probe "$W/fx_vue" probe_vue vue)"; echo "probe-vue $P"
-    [ "$(jq_ vue)" = True ] && [ "$(jq_ vue_scan_2nd)" = 0 ] && [ "$(jq_ vue_resolve_ok)" = True ]
+    # vue_scan_1st > 0 proves the probe reached the .vue scan at all (§11.4.199 precondition):
+    # a ref the resolver rejects early scans nothing on stock AND patched, so 2nd==0 alone proves nothing.
+    [ "$(jq_ vue)" = True ] && [ "$(jq_ vue_scan_1st)" -gt 0 ] 2>/dev/null && [ "$(jq_ vue_scan_2nd)" = 0 ] \
+        && [ "$(jq_ vue_resolve_ok)" = True ]
     t_check R5 "vue .vue subset derived once per file-list identity" $? "$P"
 fi
 if t_want R4; then
     F1="$W/fx_r100"; F4="$W/fx_r400"
-    python3 "$HERE/test_resolve1_fixture.py" "$F1" 1500 100
-    python3 "$HERE/test_resolve1_fixture.py" "$F4" 1500 400
+    python3 "$HERE/test_resolve1_fixture.py" "$F1" 1500 100 || t_bad FIXTURE "fixture r100 generated" "rc=$?"
+    python3 "$HERE/test_resolve1_fixture.py" "$F4" 1500 400 || t_bad FIXTURE "fixture r400 generated" "rc=$?"
     run_index "$DIST" "$F1" r100; run_index "$DIST" "$F4" r400
     c1="$(calls_of r100)"; c4="$(calls_of r400)"
     [ "$c1" -eq "$c4" ] && [ "$c4" -le "$R4_MAX" ] && grep -q '^rc=0' "$W/r400.out"
@@ -100,7 +105,8 @@ fi
 eq_stock() {
     # eq_stock <id> <desc> <fixture-args...>
     local id="$1" desc="$2"; shift 2
-    local fx="$W/fx_$id"; python3 "$HERE/test_resolve1_fixture.py" "$fx" "$@"
+    local fx="$W/fx_$id"
+    python3 "$HERE/test_resolve1_fixture.py" "$fx" "$@" || t_bad FIXTURE "fixture $id generated" "rc=$?"
     run_index "$STOCK" "$fx" "${id}_stock"; run_index "$DIST" "$fx" "${id}_dist"
     local s d; s="$(cat "$W/${id}_stock.dump")"; d="$(cat "$W/${id}_dist.dump")"
     [ -n "$s" ] && [ "$s" = "$d" ] && ! grep -q 'edges=0 ' "$W/${id}_dist.dump" \

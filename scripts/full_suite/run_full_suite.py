@@ -2676,6 +2676,35 @@ def unit_env(home, token, runner, extras, gomodcache):
     return env
 
 
+GO_NOT_CACHED = re.compile(r"^go: (\S+@\S+): module lookup disabled by GOPROXY=off\s*$")
+
+
+def go_module_preflight(u, scratch, extras, gomodcache, tmo=120):
+    """Missing-module check for a go-test unit, in the unit's own environment (GOPROXY=off, host GOMODCACHE).
+
+    Returns the sorted list of `<module>@<version>` that are absent from the module cache when, and only
+    when, `go mod download` failed and EVERY error line it printed is the not-cached class (`module lookup
+    disabled by GOPROXY=off`). Any other outcome (success, timeout, a different error, no parsable line)
+    returns [] and the unit runs as usual, so a real defect is never reclassified as an environment SKIP."""
+    home = tempfile.mkdtemp(prefix="fsr_gopre.", dir=scratch)
+    try:
+        env = unit_env(home, secrets.token_hex(16), "go-test", extras, gomodcache)
+        try:
+            p = subprocess.run(["go", "mod", "download"], cwd=os.path.join(ROOT, u["path"]), env=env,
+                               stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=tmo)
+        except (OSError, subprocess.TimeoutExpired):
+            return []
+        if p.returncode == 0:
+            return []
+        errs = [ln for ln in p.stderr.decode("utf-8", "replace").splitlines() if ln.strip()]
+        mods = [GO_NOT_CACHED.match(ln) for ln in errs]
+        if not errs or not all(mods):
+            return []
+        return sorted(set(m.group(1) for m in mods))
+    finally:
+        rm_tree(home, scratch)
+
+
 def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
     """Run one unit; stream its output into `log` up to `cap` bytes. Returns
     (rc, timed_out, secs, leaked, env_names, tail_text, overflow, log_sha256)."""
@@ -3132,6 +3161,16 @@ def main(argv):
                 emit(u, "SKIP", "runner_not_installed", "runner-absent", 0, 0, 0, [], None, "", "")
                 out("[%d/%d] SKIP (runner_not_installed: %s) %s" % (n, total, u["runner"], u["id"]))
                 continue
+            if u["runner"] == "go-test":
+                missing = go_module_preflight(u, scratch, extras, gomodcache)
+                if missing:
+                    # No §11.4.69 code names "dependency not in the offline module cache"; the closest true one is
+                    # network_unreachable_external (the module must come from the network, which GOPROXY=off makes
+                    # unreachable by design). The modules are named in the log line; a SKIP is never a PASS.
+                    emit(u, "SKIP", "network_unreachable_external", "go-module-preflight", 0, 0, 0, [], None, "", "")
+                    out("[%d/%d] SKIP (network_unreachable_external: go_module_not_cached: %s; prepare with "
+                        "`go -C %s mod download`) %s" % (n, total, " ".join(missing), u["path"], u["id"]))
+                    continue
             qid = quick_ident(root, subs0)
             if qid != qid0 or "?" in qid:
                 id_changed = "before unit %s: %s" % (u["id"], ident_diff(qid0, qid))

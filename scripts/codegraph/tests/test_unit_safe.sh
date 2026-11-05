@@ -101,6 +101,34 @@ spawn_cg_identity() {
     sleep 0.3
 }
 
+# ------------------------------------------------------- hermetic host view --
+# U01-U46 test routing/refusal/verification branches, not the host: they run against a COPY of
+# the tooling whose /proc/meminfo read is redirected to a fake file (MemTotal 64 GiB, MemAvailable
+# 48 GiB) and with a stub `df` (default 999999999999 bytes free; CG_FAKE_DF_AVAIL sets it per case),
+# exactly the mechanism U47-U63 use. Without this a busy or small host (MemAvailable < 32 GiB or
+# free disk < 60 GiB) fails ~32 cases with `PREFLIGHT FAIL memory|disk` that say nothing about the
+# code. The stub df also feeds the disk tripwire child, so U17 sets a value ABOVE the 60 GiB
+# preflight floor and BELOW its 400 GiB tripwire: the low-disk condition stays real for the code
+# under test, it just no longer depends on this host's disk. Thread headroom is NOT faked (real
+# /proc read; U14 lowers it with CG_SAFE_TEST_THREADS_USED). The real tool path is restored before
+# U47 (whose control U48 needs the real file).
+HERM_DIR="$(t_workdir herm)"; mkdir -p "$HERM_DIR/tool" "$HERM_DIR/bin"
+cp -r "$CG_DIR"/. "$HERM_DIR/tool/"; rm -rf "$HERM_DIR/tool/__pycache__"
+sed -i 's#/proc/meminfo#${CG_FAKE_MEMINFO:-/proc/meminfo}#g' "$HERM_DIR/tool/codegraph_safe.sh"
+printf '#!/bin/sh\nprintf "Avail\\n%%s\\n" "${CG_FAKE_DF_AVAIL:-999999999999}"\n' > "$HERM_DIR/bin/df"; chmod +x "$HERM_DIR/bin/df"
+printf 'MemTotal: 67108864 kB\nMemAvailable: 50331648 kB\n' > "$HERM_DIR/meminfo"
+# control (§11.4.273): every /proc/meminfo read of the real tool is redirected in the copy, and the
+# stub df answers; a copy that still read the host would make the hermetic claim false.
+if [ "$(grep -c 'CG_FAKE_MEMINFO' "$HERM_DIR/tool/codegraph_safe.sh")" != "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" ] \
+   || [ "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" -lt 1 ] \
+   || [ "$(CG_FAKE_DF_AVAIL=123 "$HERM_DIR/bin/df" -B1 --output=avail . | tail -n 1)" != 123 ]; then
+    t_bad HERMETIC "hermetic copy redirects every /proc/meminfo read and the stub df answers" \
+        "copy=$(grep -c 'CG_FAKE_MEMINFO' "$HERM_DIR/tool/codegraph_safe.sh") real=$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")"
+fi
+SAFE_REAL="$SAFE"; PATH_REAL="$PATH"
+SAFE="$HERM_DIR/tool/codegraph_safe.sh"
+export PATH="$HERM_DIR/bin:$PATH" CG_FAKE_MEMINFO="$HERM_DIR/meminfo"
+
 # ------------------------------------------------------------------- cases --
 if t_want U01; then setup u01; export STUB_PATCH_RC=2
     run_safe --wait init
@@ -227,7 +255,8 @@ if t_want U16; then setup u16; export STUB_PATCH_RC=0 STUB_SLEEP_MS=40000
 fi
 
 if t_want U17; then setup u17; export STUB_PATCH_RC=0 STUB_SLEEP_MS=40000
-    run_safe --wait --tripwire-min-gib 400 init
+    # 200 GiB free: above the 60 GiB preflight floor, below the 400 GiB tripwire (see hermetic host view)
+    CG_FAKE_DF_AVAIL=$((200 * 1073741824)) run_safe --wait --tripwire-min-gib 400 init
     lp="$(cat "$P/.codegraph/codegraph.lock" 2>/dev/null)"
     st="$(t_pid_state "${lp:-0}")"
     [ "$RC" -eq 8 ] && [ "$st" = "T" ]
@@ -614,6 +643,10 @@ if t_want U46; then setup u46
     [ "$hc" = "6144" ] && [ "$hm" = "6144" ]
     t_check U46 "heap_mb clamps to §12.6's real 60%-of-MemTotal ceiling (6144 MiB on a 10 GiB host), overriding even the 8192 floor, never a hardcoded number" $? "heap_mb=$hm heap_cap_mb=$hc out=$(printf '%s' "$OUT" | tr '\n' ' ')"
 fi
+
+# end of the hermetic host view: U47-U63 manage their own redirected copy (rich_setup) and the
+# U48 control reads the real /proc/meminfo, so restore the real tool path and environment.
+SAFE="$SAFE_REAL"; export PATH="$PATH_REAL"; unset CG_FAKE_MEMINFO CG_FAKE_DF_AVAIL
 
 # ----------------------------------------------------------------------------
 # U47-U63: MemAvailable floor (see header). `rich_pf <MemAvailable-kB> [VAR=VAL ...]` runs the preflight op of a COPY of the tooling whose

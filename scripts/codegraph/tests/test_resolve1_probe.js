@@ -20,7 +20,10 @@ const ctx = r.getResolutionContext();
 if (mode === 'vue') {
   // R5: count String#endsWith('.vue') probes per vue.resolve call (stock scans every file per call).
   const vue = r.frameworks.find((f) => f.name === 'vue');
-  const ref = { referenceName: 'Widget', referenceKind: 'calls', filePath: 'probe/q000/p0.cpp', language: 'cpp', line: 2, column: 1, fromNodeId: 'x' };
+  // The ref must be in a language the vue resolver serves: CodeGraph >= 1.6.2 returns null
+  // for any other language before the scan (VUE_SCRIPT_LANGUAGES), so a C++ ref would never
+  // reach the code under test. The shell test also asserts vue_scan_1st > 0 (scan reached).
+  const ref = { referenceName: 'Widget', referenceKind: 'calls', filePath: 'tools/web/src/app.js', language: 'javascript', line: 1, column: 1, fromNodeId: 'x' };
   const ew = String.prototype.endsWith; let n = 0;
   String.prototype.endsWith = function (s) { if (s === '.vue') n++; return ew.apply(this, arguments); };
   const r1 = vue ? vue.resolve(ref, ctx) : null; const s1 = n; n = 0;

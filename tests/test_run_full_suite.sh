@@ -756,6 +756,28 @@ else
   echo "SKIP go module unit (go not installed)"
 fi
 
+# --- 22b Go module whose dependency is not in the module cache (GOPROXY=off): a named SKIP, never FAIL
+# (a host without a prepared cache is not a code defect), and never a PASS; any other `go mod download`
+# failure is not reclassified (the unit runs and reports what it reports).
+if command -v go >/dev/null 2>&1; then
+  Gd="$T/gomoddep"; mkroot "$Gd"; mkdir -p "$Gd/m" "$T/gmc_empty_22b"
+  printf 'module example.com/m\n\ngo 1.21\n\nrequire example.com/notcached v1.0.0\n' > "$Gd/m/go.mod"
+  printf 'package m\nimport _ "example.com/notcached"\nfunc Add(a, b int) int { return a + b }\n' > "$Gd/m/m.go"
+  printf 'package m\nimport "testing"\nfunc TestAdd(t *testing.T) { if Add(1, 2) != 3 { t.Fatal("bad") } }\n' > "$Gd/m/m_test.go"
+  gen "$Gd"; GOMODCACHE="$T/gmc_empty_22b" run "$Gd" "$T/o_god" --include-heavy --timeout 300
+  chk "go module with an uncached dependency -> SKIP named reason" "$(verdict "$T/o_god" m)" "SKIP|network_unreachable_external|go-module-preflight"
+  has "go preflight names the missing module" 'go_module_not_cached: example.com/notcached@v1.0.0' "$T/o_god.log"
+  chk "go module SKIP is not a green run (PARTIAL-SKIPS, exit 6)" "$RC" "6"
+  Gb="$T/gomodbad"; mkroot "$Gb"; mkdir -p "$Gb/m"
+  printf 'module example.com/m\n\ngo 1.21\n\nrequire example.com/x\n' > "$Gb/m/go.mod"
+  printf 'package m\nimport "testing"\nfunc TestA(t *testing.T) {}\n' > "$Gb/m/m_test.go"
+  gen "$Gb"; GOMODCACHE="$T/gmc_empty_22b" run "$Gb" "$T/o_gob" --include-heavy --timeout 300
+  chk "go module with a malformed go.mod is NOT reclassified as a cache SKIP (golden-FALSE)" \
+    "$(verdict "$T/o_gob" m | cut -d'|' -f1)" "FAIL"
+else
+  echo "SKIP go module preflight units (go not installed)"
+fi
+
 # =========================================================================== round 4 (review r3 P4-P10)
 # --- 23 X4: a resumed KNOWN is applied only when the recorded log still has its sha256
 X4="$T/x4"; mkroot "$X4"; X4C="$T/cnt_x4"
