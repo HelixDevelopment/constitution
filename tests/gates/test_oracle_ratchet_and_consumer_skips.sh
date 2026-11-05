@@ -386,8 +386,12 @@ if [ -f "$cb" ]; then
     tot=$(awk -F'\t' '!/^#/ && NF==2 {s+=$2} END{print s+0}' "$cb")
     run "$sb/g_new" "$src" --quiet
     [ "$RC" = 0 ] && grep -q "ratchet total=$tot " <<<"$OUT"; chk $? "e2e canon root: ratchet PASS with live total == baseline total ($tot) (rc=$RC)"
+    # CON-043: strict mode ignores the frozen-evidence exclusion list, so its count is the ratchet scan WITHOUT exclusions
+    # (--exclusions /dev/null: not a regular file => no list), not the baseline total, which no longer holds the frozen files.
+    run "$sb/g_new" "$src" --quiet --exclusions /dev/null
+    stot=$(sed -n 's/.*ratchet total=\([0-9][0-9]*\) .*/\1/p' <<<"$OUT" | head -1)
     run "$sb/g_new" "$src" --quiet --strict
-    grep -q "FAIL — $tot test function" <<<"$OUT"; chk $? "e2e canon root: strict mode count == baseline total ($tot)"
+    [ -n "$stot" ] && [ "$stot" -ge "$tot" ] && grep -q "FAIL — $stot test function" <<<"$OUT"; chk $? "e2e canon root: strict mode count == scan without exclusions ($stot >= baseline total $tot)"
 else
     bad "canon baseline $cb missing"
 fi
