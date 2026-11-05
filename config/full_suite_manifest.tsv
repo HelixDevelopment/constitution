@@ -636,6 +636,7 @@ scripts/multitrack/test_multitrack_orchestrator_reconcile.sh	sh	entry	default	sh
 scripts/multitrack/test_multitrack_orchestrator_reconcile_rc.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_owner_lock_probe_race.sh	sh	entry	default	bash	-	auto
 scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh	sh	entry	default	bash	-	auto
+scripts/multitrack/test_multitrack_redpin_mutations.sh	sh	entry	heavy	bash	-	redpin mutations (~2 min with the RB-05 mock)
 scripts/multitrack/test_multitrack_ruler_suite.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_sessions_argparse.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_sessions_balance_autoselect.sh	sh	entry	default	sh	-	auto
@@ -825,6 +826,8 @@ tests/prompts/test_setup_prompt_round7.sh	sh	member	default	-	tests/prompts/run_
 tests/prompts/test_setup_prompt_round7_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/test_cli_agent_plugins.sh	sh	entry	default	bash	-	auto
+tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
+tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard
 tests/test_post_update_hub_gates.sh	sh	entry	default	bash	-	auto
 tests/test_run_full_suite.sh	sh	entry	default	bash	-	auto
 tests/test_run_full_suite_mutations.sh	sh	entry	heavy	bash	-	auto

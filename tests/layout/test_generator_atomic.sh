@@ -58,7 +58,7 @@ PY
 # committed baseline (F8): output as committed at HEAD of the tree under test, never self-generated.
 CM="$TB/committed"; mkdir -p "$CM"
 if git -C "$GEN_SRC_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
-  git -C "$GEN_SRC_ROOT" archive HEAD actions/generated plugins/helix/commands plugins/helix/README.md | tar -x -C "$CM"
+  git -C "$GEN_SRC_ROOT" archive HEAD actions/generated plugins/helix/commands plugins/helix/README.md | tar -x -C "$CM"   # redpin: not-a-red-builder the committed output is the expected side of a byte compare, not a RED artifact
 else
   ( cd "$GEN_SRC_ROOT" && tar -c actions/generated plugins/helix/commands plugins/helix/README.md ) | tar -x -C "$CM"
 fi
