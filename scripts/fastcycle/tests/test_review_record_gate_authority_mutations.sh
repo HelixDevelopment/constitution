@@ -59,7 +59,7 @@ FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
@@ -80,6 +80,16 @@ run_suites() { # run_suites DIR -> prints the first failing suite (empty if all 
   return 0
 }
 
+# CON-033 round 2 adopted the reviewer's mutants RM1..RM3 (section 11.4.276(D)):
+# RM1 (gate and record side: refuse the last legal round) is killed by
+# test_review_record_round_budget_boundary_regression.sh; RM2 and RM3 by the r1/r4
+# suites (reviewer's run). RM4 (G-V-BACKFILL-SUPERSEDED `>` to `>=`) is NOT listed:
+# it is EQUIVALENT by reading. The two operators differ only when a live and a
+# backfill unit of one batch have the same round; _gate_same_round_conflicts()
+# runs before the decision phase and leaves at most one unit per
+# (batch key, round) -- different bodies exit 4 (G-G-CONFLICTS), identical bodies
+# merge into one unit, which cannot be both live and backfill. Not confirmed by
+# execution.
 # MUTATIONS: id <TAB> python-literal old <TAB> python-literal new
 MUTATIONS="$S/mutations.tsv"
 cat > "$MUTATIONS" <<'EOF'
@@ -110,6 +120,10 @@ R4-H-dispatch-reuse-ignores-batch	'used.setdefault(reviewer["dispatch_id"], set(
 R4-I-binding-padding-allowed	'    if not isinstance(bid, str) or not bid.strip() or bid != bid.strip():'	'    if not isinstance(bid, str) or not bid.strip():'
 G-T-LINK-EDGE-off	'        # guard: G-T-LINK-EDGE\n        edges.append((cur, st))\n'	'        # guard: G-T-LINK-EDGE\n        if not stat.S_ISLNK(st.st_mode):\n            edges.append((cur, st))\n'
 G-E-NONBLOCK-off	'os.O_RDONLY | os.O_NONBLOCK | getattr'	'os.O_RDONLY | getattr'
+RM1-gate-round-budget-last-round	'    if rec["round"] > ctx["round_budget"]:'	'    if rec["round"] >= ctx["round_budget"]:'
+RM1-record-round-budget-last-round	'    if a.round > budget:'	'    if a.round >= budget:'
+RM2-dispatch-reuse-limit	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 1:'	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 2:'
+RM3-subid-range-start	'        if start <= owner_uid < start + count:'	'        if start < owner_uid < start + count:'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss
