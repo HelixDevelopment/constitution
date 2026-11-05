@@ -78,7 +78,12 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 REAL_TOOL="$FC/cycle/select_sample.py"
 TOOL="${SELECT_SAMPLE_UNDER_TEST:-$REAL_TOOL}"
-BUILDER="$FC/tests/fixtures/cycle_report/build_asof_scenario.py"
+# ASOF_BUILDER_UNDER_TEST: a drifted copy of the builder (the round-4 builder-drift
+# paired mutations, V4-2) -- the placement self-check must catch it.
+# The reopen_rate.py copy BESIDE the tool under test: a paired mutation of
+# closure/reopen_rate.py (round 4, B3) reaches S7/S7b through the mutant tree.
+RR_UNDER_TEST="$(cd "$(dirname "$TOOL")/.." && pwd)/closure/reopen_rate.py"
+BUILDER="${ASOF_BUILDER_UNDER_TEST:-$FC/tests/fixtures/cycle_report/build_asof_scenario.py}"
 DB="$ROOT/docs/workable_items.db"
 
 fail=0
@@ -87,6 +92,345 @@ bad() { echo "NOT ok $*"; fail=1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+# The independent reference oracle (round 4): ONE stdlib-only module for this
+# file, used by S9 (the generated matrix) and S13 (the live snapshot). It is
+# written from this heredoc -- it is not shared with, and imports nothing from,
+# the tools or tests/test_cycle_report_red.sh (that file carries its own).
+ORACLE_DIR="$TMP/oracle"
+mkdir -p "$ORACLE_DIR"
+cat >"$ORACLE_DIR/ss_oracle.py" <<'ORACLE_EOF'
+"""Independent reference oracle for select_sample.py (T048 restart round 4).
+Stdlib only; imports nothing from the tools. A deliberately plain re-statement
+of the DEC-03 rules, PARAMETRISED so the test can also evaluate each rule with
+one input field swapped for its sibling (the discrimination table below): a
+field whose swap changes no outcome on the corpus has no disagreement cell,
+and the matrix meta-check fails (round 4, V4-1: the dimension list is derived
+from the fields the tool reads, never from memory)."""
+import ast
+import datetime
+import os
+import re
+import sqlite3
+
+UTC = datetime.timezone.utc
+CLOSE = ("Fixed", "Implemented", "Completed")
+DEFAULT_NEEDLE = ("ATM-953", "Fixed", "2026-07-28")
+TYPES = ("Bug", "Feature", "Task")
+
+BASE = {
+    "cut_field": "on_date",           # as-of cutoff keys on this field's day
+    "closure_field": "on_date",       # closed-in-window keys on this field's day
+    "reopen_field": "on_date",        # reopened-in-window keys on this field's day
+    "day_fn": "local",                # local = first 10 chars; utc = UTC date; raw = whole string
+    "closure_events": CLOSE,
+    "recency": ("created_at", "seq", "atm_id"),
+    "needle": "day_seq_desc",
+    "bulk_key": "dirname_raw",        # (dirname(evidence), raw on_date) of the LAST closure
+    "bulk_closure": "last",
+    "retro_closure": "last",
+    "bulk_ge": True,                  # cluster size >= threshold
+    "precedence": "bulk_first",
+    "retro_lo_incl": True,            # 0 <= gap
+    "retro_hi_incl": False,           # gap < 60
+    "type_strata": True,
+    "from_shift": 0,                  # window.from = as_of - window_days + from_shift
+}
+
+
+def inst(s):
+    """created_at "YYYY-MM-DD HH:MM:SS" (UTC) or an ISO instant (offset or Z)."""
+    s = (s or "").strip().replace("Z", "+00:00")
+    if len(s) == 10:
+        s += "T00:00:00"
+    if "T" not in s:
+        s = s.replace(" ", "T", 1)
+    dt = datetime.datetime.fromisoformat(s)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def day(row, field, P):
+    v = row.get(field) or ""
+    if P["day_fn"] == "raw":
+        return v
+    if P["day_fn"] == "utc" and v:
+        return inst(v).astimezone(UTC).date().isoformat()
+    return v[:10]
+
+
+def evaluate(rows_by_item, type_of, as_of, window_days, n, threshold, P=None):
+    """rows_by_item: {atm_id: [row dicts with event_type, on_date, created_at,
+    evidence_path, seq]} (seq = item_history.id order). Returns the
+    normalised outcome {items, strata, reopened, needle}."""
+    P = dict(BASE, **(P or {}))
+    frm = (datetime.date.fromisoformat(as_of) - datetime.timedelta(days=window_days - P["from_shift"])).isoformat()
+    cut = {i: sorted((r for r in rows if day(r, P["cut_field"], P) <= as_of), key=lambda r: r["seq"])
+           for i, rows in rows_by_item.items() if i in type_of}  # the tracker JOINs items: no type, no candidate
+
+    def in_win(r, field, events):
+        return r["event_type"] in events and frm <= day(r, field, P) <= as_of
+
+    closed = {i for i, rs in cut.items() if any(in_win(r, P["closure_field"], P["closure_events"]) for r in rs)}
+    reopened = {i for i, rs in cut.items() if any(in_win(r, P["reopen_field"], ("Reopened",)) for r in rs)}
+    cands = sorted(closed | reopened)
+
+    def closure(i, which):
+        cl = [r for r in cut[i] if r["event_type"] in P["closure_events"]]
+        return (cl[-1] if which == "last" else cl[0]) if cl else None
+
+    def retro(i):
+        op = next((r for r in cut[i] if r["event_type"] == "Opened"), None)
+        cl = closure(i, P["retro_closure"])
+        if not op or not cl:
+            return False
+        try:
+            gap = (inst(cl["created_at"]) - inst(op["created_at"])).total_seconds()
+        except ValueError:
+            return False
+        lo = gap >= 0 if P["retro_lo_incl"] else gap > 0
+        hi = gap <= 60 if P["retro_hi_incl"] else gap < 60
+        return lo and hi
+
+    groups = {}
+    for i in cands:
+        cl = closure(i, P["bulk_closure"])
+        if cl and cl.get("evidence_path"):
+            ev = cl["evidence_path"]
+            key = {"dirname_raw": (os.path.dirname(ev), cl["on_date"]),
+                   "dirname_day": (os.path.dirname(ev), cl["on_date"][:10]),
+                   "fullpath_raw": (ev, cl["on_date"])}[P["bulk_key"]]
+            groups.setdefault(key, []).append(i)
+    bulk = {i for g in groups.values() if (len(g) >= threshold if P["bulk_ge"] else len(g) > threshold) for i in g}
+
+    def excl(i):
+        b, r = i in bulk, retro(i)
+        if P["precedence"] == "bulk_first":
+            return "bulk" if b else ("retro" if r else None)
+        return "retro" if r else ("bulk" if b else None)
+
+    exclusion = {i: excl(i) for i in cands}
+
+    def recency(i):
+        cl = closure(i, "last")
+        key = []
+        for f in P["recency"]:
+            if f == "created_at":
+                key.append(inst(cl["created_at"]) if cl else datetime.datetime.min.replace(tzinfo=UTC))
+            elif f == "seq":
+                key.append(cl["seq"] if cl else -1)
+            else:
+                key.append(i)
+        return tuple(key)
+
+    reason, strata = {}, {}
+    pools = [(t, [t]) for t in TYPES] if P["type_strata"] else [("*", list(TYPES))]
+    picked_by, listed_by = {}, {}
+    for label, ts in pools:
+        ids = sorted((i for i in cands if i in closed and type_of[i] in ts), key=recency)
+        picked, listed = [], []
+        for i in reversed(ids):
+            if len(picked) >= n:
+                break
+            (picked if exclusion[i] is None else listed).append(i)
+        picked_by[label], listed_by[label] = picked, listed
+    for t in TYPES:
+        if P["type_strata"]:
+            picked, listed = picked_by[t], listed_by[t]
+        else:
+            picked = [i for i in picked_by["*"] if type_of[i] == t]
+            listed = [i for i in listed_by["*"] if type_of[i] == t]
+        avail = [i for i in cands if i in closed and type_of[i] == t]
+        strata[t] = {"n_available": len(avail),
+                     "n_usable_available": sum(1 for i in avail if exclusion[i] is None),
+                     "n_selected": len(picked), "n_usable": len(picked),
+                     "n_listed_excluded": len(listed), "below_required": len(picked) < n}
+        for i in listed:
+            reason[i] = "listed-excluded-" + t.lower()
+        for i in picked:
+            reason[i] = "sampled-" + t.lower()
+    for i in reopened:
+        reason[i] = "reopened-in-window"
+
+    d_id, d_ev, d_date = DEFAULT_NEEDLE
+    if d_date <= as_of:
+        needle = ("default", d_id, d_ev, d_date)
+    else:
+        pool = [(r["on_date"][:10], r["seq"], r["created_at"], i, r) for i, rows in rows_by_item.items()
+                for r in rows if r["event_type"] in CLOSE and r["on_date"][:10] <= as_of]
+        if not pool:
+            needle = ("default-postdates-as-of", d_id, d_ev, d_date)
+        else:
+            if P["needle"] == "day_seq_desc":
+                best = max(pool, key=lambda x: (x[0], x[1]))
+            elif P["needle"] == "day_seq_asc":
+                top = max(x[0] for x in pool)
+                best = min((x for x in pool if x[0] == top), key=lambda x: x[1])
+            else:  # created_desc
+                best = max(pool, key=lambda x: (x[0], inst(x[2])))
+            needle = ("derived-at-as-of", best[3], best[4]["event_type"], best[4]["on_date"])
+    return {"items": {i: (reason[i], exclusion[i]) for i in sorted(reason)}, "strata": strata,
+            "reopened": sorted(reopened), "needle": needle}
+
+
+def tool_outcome(doc):
+    """select_sample's report in the oracle's normalised shape."""
+    def kind(it):
+        if not it["excluded_from_duration"]:
+            return None
+        r = it.get("exclusion_reason") or ""
+        return "bulk" if r.startswith("bulk-import-cluster") else "retro" if r.startswith("retroactive") else "other:" + r
+    n = (doc.get("run_meta") or {}).get("needle") or {}
+    return {"items": {it["item_id"]: (it["selection_reason"], kind(it)) for it in doc.get("items", [])},
+            "strata": {t: {k: (doc.get("strata") or {}).get(t, {}).get(k)
+                           for k in ("n_available", "n_usable_available", "n_selected", "n_usable",
+                                     "n_listed_excluded", "below_required")} for t in TYPES},
+            "reopened": sorted(doc.get("reopened_in_window", [])),
+            "needle": (n.get("source"), n.get("present_id"), n.get("present_event"), n.get("present_on_date"))}
+
+
+def diff(tool, oracle, label):
+    p = []
+    ti, oi = tool["items"], oracle["items"]
+    for i in sorted(set(ti) | set(oi)):
+        if ti.get(i) != oi.get(i):
+            p.append("%s %s tool=%s oracle=%s" % (label, i, ti.get(i), oi.get(i)))
+    for k in ("strata", "reopened", "needle"):
+        if tool[k] != oracle[k]:
+            p.append("%s %s tool=%s oracle=%s" % (label, k, tool[k], oracle[k]))
+    return p
+
+
+# ---- corpora -----------------------------------------------------------------
+def matrix_corpus(man):
+    rows, types = {}, {}
+    for c in man["cells"]:
+        for it in c["items"]:
+            rows[it["atm_id"]] = [dict(r) for r in it["rows"]]
+            types[it["atm_id"]] = it["type"]
+    return rows, types
+
+
+def db_corpus(path):
+    conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+    rows, types = {}, dict(conn.execute("SELECT atm_id, type FROM items").fetchall())
+    for rid, aid, ev, od, evp, ca in conn.execute(
+            "SELECT id, atm_id, event_type, on_date, evidence_path, created_at FROM item_history ORDER BY id"):
+        rows.setdefault(aid, []).append({"seq": rid, "event_type": ev, "on_date": od, "evidence_path": evp,
+                                         "created_at": ca})
+    conn.close()
+    return rows, types
+
+
+def db_columns(paths):
+    cols = set()
+    for path in paths:
+        conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        for table in ("item_history", "items"):
+            cols |= {r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+        conn.close()
+    return cols
+
+
+# ---- field inventory (round 4: the dimension list, derived mechanically) -----
+def fields_read(path, universe):
+    """Every record field the tool's source reads: string subscripts r["f"],
+    .get("f") calls, and identifiers inside SQL string literals -- intersected
+    with the record universe (tracker DB columns + commit/review keys)."""
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    found = {}
+    for node in ast.walk(tree):
+        keys = []
+        if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant) \
+                and isinstance(node.slice.value, str):
+            keys.append(node.slice.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get" \
+                and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+            keys.append(node.args[0].value)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and re.search(r"\b(SELECT|WHERE|ORDER BY)\b", node.value):
+            keys += re.findall(r"[a-z_]+", node.value)
+        for k in keys:
+            if k in universe:
+                found.setdefault(k, set()).add(node.lineno)
+    return found
+
+
+# Every field select_sample's rules read has alternatives that MUST change an
+# outcome on the matrix (else the matrix has no disagreement cell for it).
+FIELD_ALTS = {
+    "on_date": [("closure window keyed on created_at", {"closure_field": "created_at"}),
+                ("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+                ("as-of cutoff keyed on created_at", {"cut_field": "created_at"}),
+                ("day = UTC date of the on_date instant", {"day_fn": "utc"}),
+                ("day = raw on_date string", {"day_fn": "raw"}),
+                ("bulk key day-only on_date", {"bulk_key": "dirname_day"})],
+    "created_at": [("closure window keyed on created_at", {"closure_field": "created_at"}),
+                   ("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+                   ("recency without created_at", {"recency": ("seq", "atm_id")}),
+                   ("needle ordered by created_at", {"needle": "created_desc"}),
+                   ("retroactive gap <= 60 s", {"retro_hi_incl": True}),
+                   ("retroactive gap > 0 s", {"retro_lo_incl": False})],
+    "id": [("recency tie broken by atm_id", {"recency": ("created_at", "atm_id")}),
+           ("needle ordered by created_at", {"needle": "created_desc"}),
+           ("needle tie on lowest id", {"needle": "day_seq_asc"})],
+    "event_type": [("Implemented not a closure", {"closure_events": ("Fixed", "Completed")}),
+                   ("Updated/Obsolete counted as closures", {"closure_events": CLOSE + ("Updated", "Obsolete")})],
+    "evidence_path": [("bulk key on the full evidence path", {"bulk_key": "fullpath_raw"}),
+                      ("bulk on the FIRST closure", {"bulk_closure": "first"})],
+    "type": [("one stratum for every type", {"type_strata": False})],
+    "atm_id": [("recency by atm_id text", {"recency": ("atm_id",)})],
+}
+# Rule choices that are not a field: each MUST also change an outcome.
+RULE_ALTS = [("retroactive before bulk (precedence)", {"precedence": "retro_first"}),
+             ("retroactive on the FIRST closure", {"retro_closure": "first"}),
+             ("bulk cluster size > threshold", {"bulk_ge": False}),
+             ("window.from one day later", {"from_shift": 1}),
+             ("window.from one day earlier", {"from_shift": -1})]
+
+
+def discrimination(rows, types, as_of, days, threshold, ns, alts):
+    """[(name, discriminates?)] -- an alt discriminates when it changes the
+    outcome for at least one of the sample sizes `ns`."""
+    base = [evaluate(rows, types, as_of, days, n, threshold) for n in ns]
+    return [(name, [evaluate(rows, types, as_of, days, n, threshold, P) for n in ns] != base)
+            for name, P in alts]
+
+
+# ---- placement self-check (V4-2) ---------------------------------------------
+def on_date_of(day_s, fmt):
+    return {"date": day_s, "datetime": day_s + " 12:00:00", "iso_t": day_s + "T12:00:00",
+            "iso_offset": day_s + "T23:30:00-05:00"}[fmt]
+
+
+def window_placement(man):
+    """Recompute every window cell's event row from its DECLARED dims (never
+    from the builder's arithmetic) and compare. Returns (problems, n_in,
+    n_out, in_by_dims) where in_by_dims maps atm_id -> expected membership."""
+    as_of = man["as_of"]
+    frm = (datetime.date.fromisoformat(as_of) - datetime.timedelta(days=man["window_days"])).isoformat()
+    p, n_in, n_out, in_by_dims = [], 0, 0, {}
+    for c in man["cells"]:
+        if c["kind"] != "window":
+            continue
+        d = c["dims"]
+        base = frm if d["bound"] == "from" else as_of
+        dd = (datetime.date.fromisoformat(base) + datetime.timedelta(days=d["offset_days"])).isoformat()
+        want_on = on_date_of(dd, d["on_date_format"])
+        want_created = (datetime.date.fromisoformat(dd)
+                        + datetime.timedelta(days=d["created_shift_days"])).isoformat() + " 10:00:00"
+        want_ev = d["closure_event"] if d["event"] == "closure" else "Reopened"
+        (it,) = c["items"]
+        row = it["rows"][-1]
+        got = (row["event_type"], row["on_date"], row["created_at"])
+        if got != (want_ev, want_on, want_created):
+            p.append("placement %s %s row=%s dims say %s" % (c["cell_id"], it["atm_id"], got,
+                                                             (want_ev, want_on, want_created)))
+        inside = (d["bound"] == "from" and d["offset_days"] >= 0) or (d["bound"] == "to" and d["offset_days"] <= 0)
+        in_by_dims[it["atm_id"]] = inside
+        n_in += inside
+        n_out += not inside
+    return p, n_in, n_out, in_by_dims
+ORACLE_EOF
 
 if [ ! -f "$TOOL" ] || [ ! -f "$BUILDER" ]; then
   bad "tool ($TOOL) or fixture builder ($BUILDER) missing -- nothing below can run"
@@ -297,7 +641,7 @@ else
 fi
 
 echo "=== S7 (V2-2 class): the retroactive rule's one out-of-scope copy (closure/reopen_rate.py) agrees on a boundary corpus ==="
-verdict="$(python3 - "$TOOL" "$FC/closure/reopen_rate.py" <<'PY'
+verdict="$(python3 - "$TOOL" "$RR_UNDER_TEST" <<'PY'
 import importlib.util, sys
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -346,20 +690,22 @@ else
   bad "S8 got '$verdict', want 'Bug:7/1/False Feature:1/0/True Task:7/1/False'"
 fi
 
-echo "=== S9 (V3-1/V3-8 class, round 3): GENERATED boundary matrix -- every cell vs an independent oracle ==="
-# The matrix (build_asof_scenario.py matrix-full|matrix-cut) is generated from
-# declarative tables; manifest.json carries every cell's RAW rows and NO
-# expected outcome. The oracle below is a deliberately small, straightforward
-# re-statement of the DEC-03 rules written for this test (it imports nothing
-# from the tool): day = on_date[:10]; cut = rows with day <= as-of; closed /
-# reopened in window = a row of that class with window.from <= day <= as-of;
-# retroactive = first Opened -> LAST closure created_at gap in [0, 60) s;
-# bulk = >= threshold candidates sharing (dirname(evidence), on_date) of their
-# LAST closure, over EVERY candidate (closed or reopened); the derived needle =
-# the closure row with the greatest (day, insert order) among day <= as-of.
-# A meta-check fails if any manifest cell received no assertion, if the
-# manifest is missing a cell the test independently expects, or if the meta-
-# check itself cannot see a phantom cell (control needle).
+echo "=== S9 (V3-1 -> V4-1 class, rounds 3-4): GENERATED boundary matrix -- every cell vs an independent oracle ==="
+# Round 4 (V4-1/V4-2/V4-3): the matrix's DIMENSIONS are derived from the
+# fields select_sample READS. The oracle module ($ORACLE_DIR/ss_oracle.py,
+# written above; stdlib only, imports nothing from the tools) is parametrised:
+# every field the tool's source reads (AST inventory: subscripts, .get(),
+# identifiers in SQL literals, intersected with the tracker columns and the
+# commit/review keys) must either be EXEMPT with a stated reason or have
+# alternatives -- the rule with that field swapped for its sibling (on_date ->
+# created_at, created_at/id -> another recency key, ...) -- that each CHANGE
+# an outcome on the matrix. A field with no such alternative has no
+# disagreement cell, and the check fails (the round-2..4 "missing cell ->
+# missing cells -> missing dimension" class). Cell PLACEMENT is self-verified:
+# every window cell's event row is recomputed from its declared dims and
+# compared, and the in/out totals are asserted, not printed (V4-2). The tool
+# is checked against the oracle at two sample sizes (1000 = take all, 2 = the
+# recency walk) on the full and the as-of-cut DB.
 MX="$TMP/mx"
 mx_ok=1
 for mode in matrix-full matrix-cut; do
@@ -367,14 +713,19 @@ for mode in matrix-full matrix-cut; do
     bad "S9 matrix build ($mode) failed: $(tail -2 "$TMP/mx_build_$mode.err")"; mx_ok=0
   fi
 done
-MX_ARGS=(--as-of 2026-05-20 --window-days 30 --min-per-type 1000 --bulk-threshold 3)
 if [ "$mx_ok" = 1 ]; then
-  for mode in matrix-full matrix-cut; do
-    python3 "$TOOL" "${MX_ARGS[@]}" --db-path "$MX/$mode/db.sqlite" --out "$TMP/mx_ss_$mode.json" \
-      >"$TMP/mx_ss_$mode.err" 2>&1 || bad "S9 select_sample on $mode rc=$? -- $(tail -2 "$TMP/mx_ss_$mode.err")"
+  for n in 1000 2; do
+    for mode in matrix-full matrix-cut; do
+      python3 "$TOOL" --as-of 2026-05-20 --window-days 30 --min-per-type "$n" --bulk-threshold 3 \
+        --db-path "$MX/$mode/db.sqlite" --out "$TMP/mx_ss_${mode}_$n.json" >"$TMP/mx_ss_${mode}_$n.err" 2>&1 \
+        || bad "S9 select_sample on $mode N=$n rc=$? -- $(tail -2 "$TMP/mx_ss_${mode}_$n.err")"
+    done
   done
-  verdict="$(python3 - "$MX/matrix-full/manifest.json" "$TMP/mx_ss_matrix-full.json" "$TMP/mx_ss_matrix-cut.json" <<'PY'
-import datetime, json, os, sys
+  verdict="$(python3 - "$ORACLE_DIR" "$MX" "$TMP" "$TOOL" "$TMP/live_full.db" <<'PY'
+import copy, glob, json, os, sys
+sys.path.insert(0, sys.argv[1])
+import ss_oracle as O
+MX, T, TOOL, LIVE = sys.argv[2:6]
 
 def load(p):
     try:
@@ -383,154 +734,205 @@ def load(p):
         print("missing output %s: %s" % (p, e))
         raise SystemExit
 
-man, full, cut = (load(p) for p in sys.argv[1:4])
-AS_OF = man["as_of"]
-FROM = (datetime.date.fromisoformat(AS_OF) - datetime.timedelta(days=man["window_days"])).isoformat()
-THRESH = man["bulk_threshold"]
-CLOSE = ("Fixed", "Implemented", "Completed")
+man = load(os.path.join(MX, "matrix-full", "manifest.json"))
+AS_OF, DAYS, TH = man["as_of"], man["window_days"], man["bulk_threshold"]
+rows, types = O.matrix_corpus(man)
+problems = []
 
-# ---- independent reference oracle -------------------------------------------
-def day(s):
-    return (s or "")[:10]
+# -- 1. tool vs oracle: N in {1000, 2}, full and cut, whole outcome ------------
+outcomes = {}
+for n in (1000, 2):
+    want = O.evaluate(rows, types, AS_OF, DAYS, n, TH)
+    for mode in ("matrix-full", "matrix-cut"):
+        doc = load(os.path.join(T, "mx_ss_%s_%d.json" % (mode, n)))
+        outcomes[(mode, n)] = doc
+        problems += O.diff(O.tool_outcome(doc), want, "%s N=%d" % (mode, n))
+    if outcomes[("matrix-full", n)].get("body_hash") != outcomes[("matrix-cut", n)].get("body_hash"):
+        problems.append("N=%d matrix full vs cut body_hash differ (future rows leak)" % n)
 
-def ts(s):  # tracker created_at: "YYYY-MM-DD HH:MM:SS", UTC
-    return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
-
-items, order = {}, []
-for c in man["cells"]:
-    for it in c["items"]:
-        items[it["atm_id"]] = it
-        order += [(it["atm_id"], r) for r in it["rows"]]
-cut_rows = {i: [r for r in it["rows"] if day(r["on_date"]) <= AS_OF] for i, it in items.items()}
-
-def in_win(r, ev):
-    hit = r["event_type"] in CLOSE if ev == "closure" else r["event_type"] == "Reopened"
-    return hit and FROM <= day(r["on_date"]) <= AS_OF
-
-def closed(i):
-    return any(in_win(r, "closure") for r in cut_rows[i])
-
-def reopened(i):
-    return any(in_win(r, "reopened") for r in cut_rows[i])
-
-def last_closure(i):
-    cl = [r for r in cut_rows[i] if r["event_type"] in CLOSE]
-    return cl[-1] if cl else None
-
-def retro(i):
-    op = next((r for r in cut_rows[i] if r["event_type"] == "Opened"), None)
-    cl = last_closure(i)
-    if not op or not cl:
-        return False
-    return 0 <= (ts(cl["created_at"]) - ts(op["created_at"])).total_seconds() < 60
-
-cands = sorted(i for i in items if closed(i) or reopened(i))
-groups = {}
-for i in cands:
-    cl = last_closure(i)
-    if cl and cl["evidence_path"]:
-        groups.setdefault((os.path.dirname(cl["evidence_path"]), cl["on_date"]), []).append(i)
-bulk = {i for g in groups.values() if len(g) >= THRESH for i in g}
-
-def expect(i):
-    if i not in cands:
-        return None
-    excl = "bulk" if i in bulk else ("retro" if retro(i) else None)
-    t = items[i]["type"].lower()
-    reason = "reopened-in-window" if reopened(i) else ("listed-excluded-" if excl else "sampled-") + t
-    return (reason, excl)
-
-needle_rows = [(day(r["on_date"]), k, i, r) for k, (i, r) in enumerate(order)
-               if r["event_type"] in CLOSE and day(r["on_date"]) <= AS_OF]
-_, _, n_id, n_row = max(needle_rows)
-want_needle = ("derived-at-as-of", n_id, n_row["event_type"], n_row["on_date"])
-
-# ---- assertions, one per cell -------------------------------------------------
-def tool_view(doc):
-    return {it["item_id"]: (it["selection_reason"],
-                            None if not it["excluded_from_duration"] else
-                            ("bulk" if (it["exclusion_reason"] or "").startswith("bulk-import-cluster") else
-                             "retro" if (it["exclusion_reason"] or "").startswith("retroactive-registration") else
-                             "other:%s" % it["exclusion_reason"]))
-            for it in doc.get("items", [])}
-
-def assert_cells(cells, doc):
-    got = tool_view(doc)
-    asserted, problems = set(), []
+# -- 2. per-cell bookkeeping: every cell asserted, cell set independently known --
+def assert_cells(cells, doc, n):
+    got, want = O.tool_outcome(doc), O.evaluate(rows, types, AS_OF, DAYS, n, TH)
+    asserted, p = set(), []
     for c in cells:
-        if c["kind"] in ("window", "commit", "review", "rule") and c["cell_id"] != "rule/needle_derived":
-            if not c["items"]:
-                continue  # no item => no assertion => the meta-check reports it
-            for it in c["items"]:
-                if got.get(it["atm_id"]) != expect(it["atm_id"]):
-                    problems.append("%s %s: tool=%s oracle=%s" % (c["cell_id"], it["atm_id"],
-                                                                 got.get(it["atm_id"]), expect(it["atm_id"])))
-            asserted.add(c["cell_id"])
-        elif c["cell_id"] == "rule/needle_derived":
-            n = doc.get("run_meta", {}).get("needle", {})
-            got_n = (n.get("source"), n.get("present_id"), n.get("present_event"), n.get("present_on_date"))
-            if got_n != want_needle:
-                problems.append("%s: tool=%s oracle=%s" % (c["cell_id"], got_n, want_needle))
-            asserted.add(c["cell_id"])
-    return asserted, problems
+        cid = c["cell_id"]
+        if cid in ("rule/needle_derived", "rule/needle_seq_vs_created"):
+            if got["needle"] != want["needle"]:
+                p.append("%s needle tool=%s oracle=%s" % (cid, got["needle"], want["needle"]))
+            if cid == "rule/needle_seq_vs_created" and want["needle"][1] != c["items"][0]["atm_id"]:
+                p.append("%s: the cell's late row is not the needle (%s) -- cell inert" % (cid, want["needle"]))
+            asserted.add(cid)
+        if not c["items"]:
+            continue
+        for it in c["items"]:
+            i = it["atm_id"]
+            if got["items"].get(i) != want["items"].get(i):
+                p.append("%s %s tool=%s oracle=%s" % (cid, i, got["items"].get(i), want["items"].get(i)))
+        asserted.add(cid)
+    return asserted, p
+
+def want_ids():
+    w = {"window/%s/%s/%+d/%s/created%+d" % (e, b, o, f, s) for e in ("closure", "reopened")
+         for b in ("from", "to") for o in (-1, 0, 1) for f in ("date", "datetime", "iso_t", "iso_offset")
+         for s in (-1, 0, 1)}
+    w |= {"commit/%s/%+ds/%s" % (k, o, z) for k in ("author", "committer") for o in (-1, 0, 1)
+          for z in ("Z", "+05:00", "-04:00", "+05:30")}
+    w |= {"review/%s/%+ds/%s" % (k, o, z) for k in ("end", "start") for o in (-1, 0, 1)
+          for z in ("Z", "+05:00", "-04:00")} | {"review/straddle/%s" % z for z in ("Z", "+05:00", "-04:00")}
+    w |= {"rule/" + r for r in ("retro_terminal_not_first", "retro_terminal_is_retro", "bulk_latest_shared",
+                                "bulk_first_shared", "pop_retro_reopen_only", "pop_bulk_reopen_only",
+                                "needle_derived", "precedence_bulk_and_retro", "bulk_key_raw_on_date",
+                                "order_created_vs_seq", "needle_seq_vs_created", "event_noise",
+                                "retro_gap_boundaries", "reopen_block_created_axis", "dedup_key_by_reason")}
+    return w
 
 def meta(cells, asserted):
     ids = [c["cell_id"] for c in cells]
-    want = {"window/%s/%s/%+d/%s" % (e, b, o, f) for e in ("closure", "reopened") for b in ("from", "to")
-            for o in (-1, 0, 1) for f in ("date", "datetime")}
-    want |= {"commit/%s/%+ds/%s" % (w, o, z) for w in ("author", "committer") for o in (-1, 0, 1)
-             for z in ("Z", "+05:00")}
-    want |= {"review/%s/%+ds" % (w, o) for w in ("end", "start") for o in (-1, 0, 1)} | {"review/straddle"}
-    want |= {"rule/" + r for r in ("retro_terminal_not_first", "retro_terminal_is_retro", "bulk_latest_shared",
-                                   "bulk_first_shared", "pop_retro_reopen_only", "pop_bulk_reopen_only",
-                                   "needle_derived")}
     p = []
     if len(ids) != len(set(ids)):
         p.append("duplicate cell ids")
-    if set(ids) != want:
+    if set(ids) != want_ids():
         p.append("manifest cells != expected matrix: missing %s extra %s"
-                 % (sorted(want - set(ids)), sorted(set(ids) - want)))
-    unasserted = sorted(set(ids) - asserted)
-    if unasserted:
-        p.append("cells with NO assertion: %s" % unasserted)
+                 % (sorted(want_ids() - set(ids))[:5], sorted(set(ids) - want_ids())[:5]))
+    if set(ids) - asserted:
+        p.append("cells with NO assertion: %s" % sorted(set(ids) - asserted)[:5])
     return p
 
-problems = []
-for label, doc in (("full", full), ("cut", cut)):
-    asserted, p = assert_cells(man["cells"], doc)
-    problems += ["%s: %s" % (label, x) for x in p + meta(man["cells"], asserted)]
-# strata vs the oracle (per type)
-for t in ("Bug", "Feature", "Task"):
-    cl = [i for i in cands if closed(i) and items[i]["type"] == t]
-    usable = [i for i in cl if expect(i)[1] is None]
-    want_s = {"n_available": len(cl), "n_usable_available": len(usable), "n_selected": len(usable),
-              "n_usable": len(usable), "n_listed_excluded": len(cl) - len(usable)}
-    got_s = {k: full.get("strata", {}).get(t, {}).get(k) for k in want_s}
-    if got_s != want_s:
-        problems.append("strata[%s]=%s oracle %s" % (t, got_s, want_s))
-if sorted(full.get("reopened_in_window", [])) != sorted(i for i in cands if reopened(i)):
-    problems.append("reopened_in_window=%s" % full.get("reopened_in_window"))
-if full.get("body_hash") != cut.get("body_hash"):
-    problems.append("matrix full vs cut body_hash differ (future rows leak)")
-# control needles: the meta-check must SEE a phantom cell (no assertion), and
-# the per-cell comparison must SEE a wrong outcome.
-phantom = man["cells"] + [{"cell_id": "phantom/x", "kind": "phantom", "dims": {}, "items": []}]
-a_ph, _ = assert_cells(phantom, full)
-if not any("NO assertion" in x for x in meta(phantom, a_ph)):
-    problems.append("control: meta-check did not report a cell with no assertion")
-bad_doc = dict(full, items=[dict(it, selection_reason="x") for it in full.get("items", [])])
-if not assert_cells(man["cells"], bad_doc)[1]:
+for (mode, n), doc in sorted(outcomes.items()):
+    a, p = assert_cells(man["cells"], doc, n)
+    problems += ["%s N=%d: %s" % (mode, n, x) for x in p + meta(man["cells"], a)]
+
+# -- 3. placement self-check (V4-2): recomputed from dims, totals ASSERTED ------
+place, n_in, n_out, in_by_dims = O.window_placement(man)
+problems += place
+if (n_in, n_out) != (96, 48):
+    problems.append("window cells in/out by dims = %d/%d, the matrix declares 96/48" % (n_in, n_out))
+want_all = O.evaluate(rows, types, AS_OF, DAYS, 1000, TH)["items"]
+for i, inside in in_by_dims.items():
+    if (i in want_all) != inside:
+        problems.append("window cell %s: oracle membership %s but its dims say %s" % (i, i in want_all, inside))
+if sum(1 for c in man["cells"] for _ in c["items"]) != 219 or len(man["cells"]) != 204:
+    problems.append("matrix size %d cells / %d items, expected 204 / 219"
+                    % (len(man["cells"]), sum(1 for c in man["cells"] for _ in c["items"])))
+
+# -- 4. field inventory: every field the tool reads has a disagreement axis ------
+EXEMPT = {"by": "copied into the history dict, read by no select_sample rule",
+          "reason": "copied into the history dict, read by no select_sample rule",
+          "item_id": "the report's own output key (render_md)",
+          "schema": "the report's own schema tag (write_report)"}
+universe = O.db_columns([p for p in (os.path.join(MX, "matrix-full", "db.sqlite"), LIVE) if os.path.isfile(p)])
+universe |= {k for c in man["cells"] for it in c["items"] for x in it["commits"] + it["rounds"] for k in x}
+rr = sorted(glob.glob(os.path.join(MX, "matrix-full", "repo", "review_records", "*", "*.json")))
+universe |= set(load(rr[0])) if rr else set()
+
+def inventory_problems(read, field_alts, rule_alts, rws, tps):
+    p = []
+    for f in sorted(read):
+        if f in EXEMPT:
+            continue
+        if f not in field_alts:
+            p.append("field %r is read by the tool (lines %s) but has NO disagreement axis and no exemption"
+                     % (f, sorted(read[f])[:4]))
+    names = [(f, a) for f in sorted(read) if f in field_alts for a in field_alts[f]]
+    names += [("rule", a) for a in rule_alts]
+    res = O.discrimination(rws, tps, AS_OF, DAYS, TH, (1000, 2), [a for _, a in names])
+    for (f, a), (nm, ok) in zip(names, res):
+        if not ok:
+            p.append("%s alternative %r changes NO outcome on the matrix -- no disagreement cell" % (f, nm))
+    return p
+
+read = O.fields_read(TOOL, universe)
+problems += inventory_problems(read, O.FIELD_ALTS, O.RULE_ALTS, rows, types)
+for must in ("on_date", "created_at", "id", "event_type", "evidence_path", "type"):
+    if must not in read:
+        problems.append("control: the inventory did not find %r in the tool -- the instrument is blind" % must)
+
+# -- 5. controls: each check SEES its own failure mode --------------------------
+ph = dict(read, zzz_phantom={1})
+if not any("zzz_phantom" in x for x in inventory_problems(ph, O.FIELD_ALTS, [], rows, types)):
+    problems.append("control: a field with no axis was not reported")
+flat = copy.deepcopy(rows)   # the round-3 matrix: created_at always on the on_date day
+for rs in flat.values():
+    for r in rs:
+        r["created_at"] = r["on_date"][:10] + " 10:00:00"
+if not any("reopened window keyed on created_at" in x for x in
+           inventory_problems({"created_at": {1}}, O.FIELD_ALTS, [], flat, types)):
+    problems.append("control: a matrix without the created_at axis was not reported")
+drift = copy.deepcopy(man)
+for c in drift["cells"]:
+    if c["kind"] == "window" and c["dims"]["bound"] == "from":
+        r = c["items"][0]["rows"][-1]
+        r["on_date"] = "2026-04-15" + r["on_date"][10:]   # the builder drifting window.from by 5 days
+if not O.window_placement(drift)[0]:
+    problems.append("control: placement self-check accepted a 5-day window.from drift")
+bad_doc = dict(outcomes[("matrix-full", 1000)])
+bad_doc["items"] = [dict(it, selection_reason="x") for it in bad_doc.get("items", [])]
+if not assert_cells(man["cells"], bad_doc, 1000)[1]:
     problems.append("control: per-cell comparison accepted a corrupted report")
-n_present = sum(1 for i in items if expect(i) is not None)
-n_absent = len(items) - n_present
-print("PASS %d cells, %d items (%d in sample, %d outside)" % (len(man["cells"]), len(items), n_present, n_absent)
-      if not problems else " | ".join(problems))
+phantom = man["cells"] + [{"cell_id": "phantom/x", "kind": "phantom", "dims": {}, "items": []}]
+if not any("NO assertion" in x for x in meta(phantom, assert_cells(phantom, outcomes[("matrix-full", 1000)], 1000)[0])):
+    problems.append("control: meta-check did not report a cell with no assertion")
+n_alts = sum(len(O.FIELD_ALTS[f]) for f in read if f in O.FIELD_ALTS) + len(O.RULE_ALTS)
+print("PASS %d cells, %d items (%d in / %d out by dims); %d fields read (%d exempt), %d alternatives all discriminate"
+      % (len(man["cells"]), len(rows), n_in, n_out, len(read), len(set(read) & set(EXEMPT)), n_alts)
+      if not problems else " | ".join(problems[:12]) + (" | ... %d more" % (len(problems) - 12) if len(problems) > 12 else ""))
 PY
 )"
   case "$verdict" in
-    PASS*) ok "S9 boundary matrix: ${verdict#PASS } -- every cell matches the oracle in full and cut DBs; full==cut; meta-check and comparison controls fire" ;;
+    PASS*) ok "S9 boundary matrix: ${verdict#PASS } -- tool == oracle at N=1000 and N=2, full and cut; placement and every control fire" ;;
     *) bad "S9 $verdict" ;;
   esac
+fi
+
+echo "=== S13 (V4-1/V4-3, round 4): REAL-DATA oracle pass -- live snapshot, 16 fixed as-of/window pairs ==="
+# The same independent oracle over a sqlite3 .backup of docs/workable_items.db
+# (taken in S3; the live DB is never opened for write). Real data already
+# carries the dimensions a synthetic table can forget (11 Reopened rows written
+# on a different day than their on_date; items both bulk and retroactive), so
+# the selection must equal the oracle on every pair. Control: on the snapshot,
+# the reopened-on-created_at and the retro-before-bulk alternatives each
+# change at least one pair -- else this pass could not kill those mutants.
+if [ -f "$TMP/live_full.db" ]; then
+  s13=""
+  for d in 2026-06-10 2026-07-10 2026-07-28 2026-08-10 2026-08-23 2026-09-20 2026-09-28 2026-10-08; do
+    for w in 60 90; do
+      python3 "$TOOL" --as-of "$d" --window-days "$w" --db-path "$TMP/live_full.db" \
+        --out "$TMP/real_$d.$w.json" >"$TMP/real_$d.$w.err" 2>&1 || s13="$s13 [$d/$w rc=$?: $(tail -1 "$TMP/real_$d.$w.err")]"
+    done
+  done
+  verdict="$(python3 - "$ORACLE_DIR" "$TMP" "$TMP/live_full.db" <<'PY'
+import glob, json, os, sys
+sys.path.insert(0, sys.argv[1])
+import ss_oracle as O
+T, DB = sys.argv[2], sys.argv[3]
+rows, types = O.db_corpus(DB)
+PAIRS = [(d, w) for d in ("2026-06-10", "2026-07-10", "2026-07-28", "2026-08-10", "2026-08-23", "2026-09-20",
+                          "2026-09-28", "2026-10-08") for w in (60, 90)]
+p, disc = [], {"reopened window keyed on created_at": 0, "retroactive before bulk (precedence)": 0}
+alts = [("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+        ("retroactive before bulk (precedence)", {"precedence": "retro_first"})]
+for d, w in PAIRS:
+    f = os.path.join(T, "real_%s.%d.json" % (d, w))
+    try:
+        doc = json.load(open(f))
+    except Exception as e:
+        p.append("%s/%d no output (%s)" % (d, w, e)); continue
+    p += O.diff(O.tool_outcome(doc), O.evaluate(rows, types, d, w, 5, 10), "%s/%d" % (d, w))
+    for name, ok in O.discrimination(rows, types, d, w, 10, (5,), alts):
+        disc[name] += ok
+for name, k in disc.items():
+    if k == 0:
+        p.append("control: %r changes no live pair -- the real-data pass is inert for it" % name)
+print("PASS %d pairs; discriminating pairs: %s" % (len(PAIRS), ", ".join("%s %d" % kv for kv in disc.items()))
+      if not p else " | ".join(p[:8]))
+PY
+)"
+  case "$s13|$verdict" in
+    "|PASS"*) ok "S13 live snapshot: select_sample == oracle on ${verdict#PASS }" ;;
+    *) bad "S13 runs:${s13:- ok} verdict: $verdict" ;;
+  esac
+else
+  bad "S13 live snapshot unavailable"
 fi
 
 echo "=== S7b (V3-6, round 3): reopen_rate.py's window functions agree with select_sample's on the matrix ==="
@@ -539,7 +941,7 @@ echo "=== S7b (V3-6, round 3): reopen_rate.py's window functions agree with sele
 # py's SQL copies are measured too but only REPORTED (owned by another area:
 # its raw `on_date BETWEEN` lacks the day rule -- a '# note' line, not a check).
 if [ -f "$MX/matrix-full/manifest.json" ]; then
-  verdict="$(python3 - "$TOOL" "$FC/closure/reopen_rate.py" "$MX/matrix-full/manifest.json" <<'PY'
+  verdict="$(python3 - "$TOOL" "$RR_UNDER_TEST" "$MX/matrix-full/manifest.json" <<'PY'
 import datetime, importlib.util, json, sys
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -650,12 +1052,20 @@ else
   bad "S10 could not build the True variant (anchor drifted)"
 fi
 
-echo "=== S11 (V3-4): a broken or missing sibling module is BLIND (exit 4), never exit 1 -- plain and --determinism-check ==="
+echo "=== S11 (V3-4 + V4-4): a broken, missing or API-less sibling module is BLIND (exit 4), never exit 1 -- plain and --determinism-check ==="
+# V4-4 (round 4): a sibling that LOADS but lacks the API (a renamed or removed
+# function -- the realistic refactor-drift case) used to exit 1 with an
+# AttributeError, colliding with C-001's determinism-mismatch code.
 s11=""
-for breakage in missing syntax; do
+for breakage in missing syntax apiless partial; do
   BT="$TMP/broken_$breakage/constitution/scripts/fastcycle"
   mkdir -p "$BT" && cp -r "$(cd "$(dirname "$TOOL")/.." && pwd)/lib" "$(cd "$(dirname "$TOOL")/.." && pwd)/cycle" "$BT/"
-  if [ "$breakage" = missing ]; then rm -f "${BT:?}/lib/fc_common.py"; else printf 'def broken(:\n' > "$BT/lib/fc_common.py"; fi
+  case "$breakage" in
+    missing) rm -f "${BT:?}/lib/fc_common.py" ;;
+    syntax) printf 'def broken(:\n' > "$BT/lib/fc_common.py" ;;
+    apiless) printf 'API_REMOVED = True\n' > "$BT/lib/fc_common.py" ;;
+    partial) python3 -c "import sys; p=sys.argv[1]; t=open(p).read(); open(p,'w').write(t.replace('def body_hash_of(', 'def body_hash_of_renamed('))" "$BT/lib/fc_common.py" ;;
+  esac
   rm -rf "${BT:?}/lib/__pycache__"
   for dc in "" --determinism-check; do
     rm -f "$TMP/s11.json"
@@ -668,7 +1078,7 @@ for breakage in missing syntax; do
   done
 done
 if [ -z "$s11" ]; then
-  ok "S11 missing or broken fc_common.py: select_sample exits 4 with a BLIND message and writes no --out (plain and --determinism-check)"
+  ok "S11 fc_common.py missing / SyntaxError / no API / one function renamed: select_sample exits 4 with a BLIND message and writes no --out (plain and --determinism-check, 8 runs)"
 else
   bad "S11$s11"
 fi
@@ -684,6 +1094,26 @@ if [ "$nd_eq_rc" = 3 ] && grep -q 'NOT FOUND' "$TMP/nd_eq.err" && [ ! -f "$TMP/n
   ok "S12 as-of 2026-07-28 (= default needle date) uses the default needle and fails closed (exit 3)"
 else
   bad "S12 as-of = default needle date: rc=$nd_eq_rc -- $(tail -1 "$TMP/nd_eq.err")"
+fi
+
+echo "=== S14 (round 4): window_days 0 / negative and min_per_type 0 are usage errors (exit 2, nothing written) ==="
+s14=""
+for bad_args in "--window-days 0" "--window-days -1" "--window-days 30 --min-per-type 0"; do
+  rm -f "$TMP/s14.json"
+  # shellcheck disable=SC2086  # word-splitting of the flag pair is intended
+  python3 "$TOOL" --as-of 2026-08-23 $bad_args "${NEEDLE[@]}" --db-path "$TMP/full/db.sqlite" \
+    --out "$TMP/s14.json" >"$TMP/s14.err" 2>&1
+  rc=$?
+  if [ "$rc" != 2 ] || [ -f "$TMP/s14.json" ]; then s14="$s14 [$bad_args: rc=$rc]"; fi
+done
+python3 "$TOOL" --as-of 2026-08-23 --window-days 1 "${NEEDLE[@]}" --db-path "$TMP/full/db.sqlite" \
+  --out "$TMP/s14_one.json" >"$TMP/s14_one.err" 2>&1 || s14="$s14 [--window-days 1 rc=$?]"
+one="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['window'], sorted(i['item_id'] for i in d['items']))" "$TMP/s14_one.json" 2>&1)"
+[ "$one" = "{'from': '2026-08-22', 'to': '2026-08-23'} ['ATM-310']" ] || s14="$s14 [--window-days 1 window/items: $one]"
+if [ -z "$s14" ]; then
+  ok "S14 --window-days 0/-1 and --min-per-type 0 exit 2 and write nothing; --window-days 1 = [08-22, 08-23] -> ATM-310 only"
+else
+  bad "S14$s14"
 fi
 
 # ---------------------------------------------------------------------------
@@ -782,7 +1212,85 @@ def window_for"
   run_mutant R3_bulk_threshold_strict "$SS" 'if ekey is not None and len(members) >= bulk_threshold:' 'if ekey is not None and len(members) > bulk_threshold:'
   run_mutant R3_window_from_off_by_one "$SS" 'datetime.timedelta(days=window_days)).isoformat(),' 'datetime.timedelta(days=window_days - 1)).isoformat(),'
   run_mutant R3_needle_default_strict "$SS" 'if default_date <= as_of:' 'if default_date < as_of:'
-  run_mutant R3_blind_guard_import_error_only "$SS" 'except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, ...) is BLIND' 'except ImportError as _exc:  # mutant'
+  run_mutant R3_blind_guard_import_error_only "$SS" 'except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, AttributeError ...) is BLIND' 'except ImportError as _exc:  # mutant'
+  # Round 4 reviewer mutations (docs/qa/t048_restart_round4_20261008/V2_sampling.md,
+  # verbatim from the reviewer's runmuts.sh / bm/ trees) -- the missing-DIMENSION
+  # class (V4-1, V4-3) killed by S9's derived-dimension matrix and S13's real-data
+  # pass, and the V4-4 API-less sibling.
+  run_mutant R4_reopen_window_on_created_at "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (r.get("created_at") or "")[:10] <= window["to"]'
+  run_mutant R4_sql_reopen_on_created_at "$SS" "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?\"," "\"WHERE ih.event_type = 'Reopened' AND substr(ih.created_at, 1, 10) BETWEEN ? AND ?\","
+  run_mutant R4_window_on_created_at "$SS" 'frm <= (r.get("on_date") or "")[:10] <= to' 'frm <= (r.get("created_at") or "")[:10] <= to'
+  run_mutant R4_retro_before_bulk "$SS" '        if atm_id in bulk_flagged:' '        if detect_retroactive_registration(history_by_id.get(atm_id, [])):
+            reason = RETROACTIVE_REASON
+        elif atm_id in bulk_flagged:'
+  run_mutant R4_bulk_key_day "$SS" 'ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))' 'ekey = (os.path.dirname(closure["evidence_path"]), (closure.get("on_date") or "")[:10])'
+  run_mutant R4_retro_gap_le60 "$SS" 'return 0 <= gap < 60' 'return 0 <= gap <= 60'
+  run_mutant R4_retro_gap_gt0 "$SS" 'return 0 <= gap < 60' 'return 0 < gap < 60'
+  run_mutant R4_needle_tiebreak_asc "$SS" 'id DESC LIMIT 1' 'id ASC LIMIT 1'
+  run_mutant R4_ss_blind_exit1 "$SS" '        sys.exit(4)
+    raise' '        sys.exit(1)
+    raise'
+  run_mutant R4_sql_drop_implemented "$SS" "\"WHERE ih.event_type IN ('Fixed','Implemented','Completed') \"" "\"WHERE ih.event_type IN ('Fixed','Completed') \""
+  # B3 (reviewer, verbatim): closure/reopen_rate.py's reopened_in_window keyed on created_at.
+  run_mutant R4_B3_reopen_rate_on_created_at closure/reopen_rate.py 'r.get("event_type") == "Reopened" and frm <= _day(r.get("on_date")) <= to' 'r.get("event_type") == "Reopened" and frm <= _day(r.get("created_at")) <= to'
+  # Own (round 4): the rest of the created_at / insert-order / day-shape class.
+  run_mutant R4_cut_on_created_at "$SS" 'return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]' 'return [r for r in history if r.get("created_at") and r["created_at"][:10] <= as_of]'
+  run_mutant R4_sql_closure_on_created_at "$SS" '"AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",' '"AND substr(ih.created_at, 1, 10) BETWEEN ? AND ?",'
+  run_mutant R4_needle_on_created_at "$SS" 'ORDER BY substr(on_date, 1, 10) DESC, id DESC LIMIT 1' 'ORDER BY substr(on_date, 1, 10) DESC, created_at DESC LIMIT 1'
+  run_mutant R4_recency_no_row_id "$SS" 'return (created_at, hist_id, atm_id)' 'return (created_at, atm_id)'
+  run_mutant R4_reopen_day_utc "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (parse_iso(r["on_date"]).astimezone(datetime.timezone.utc).date().isoformat() if "T" in (r.get("on_date") or "") else (r.get("on_date") or "")[:10]) <= window["to"]'
+  run_mutant R4_bulk_full_evidence_path "$SS" 'ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))' 'ekey = (closure["evidence_path"], closure.get("on_date"))'
+  run_mutant R4_window_days_zero_allowed "$SS" 'if args.window_days <= 0:' 'if args.window_days < 0:'
+  run_mutant R4_min_per_type_zero_allowed "$SS" 'if args.min_per_type <= 0:' 'if args.min_per_type < 0:'
+  run_mutant R4_api_attr_resolved_lazily "$SS" '    body_hash_of = fc_common.body_hash_of  # V4-4' '    body_hash_of = getattr(fc_common, "body_hash_of", None)  # V4-4'
+
+  # Builder-drift paired mutations (V4-2, reviewer B1 verbatim + own): a drifted
+  # COPY of the matrix builder, alone and with the bound mutant whose cell it
+  # moves -- the placement self-check / the derived-dimension check must fail.
+  run_builder_mutant() {  # name, builder old, builder new [, tool file rel, tool old, tool new]
+    local name="$1" root="$TMP/bmut_$1" tree="" bld
+    mkdir -p "$root"
+    bld="$root/build_asof_scenario.py"
+    cp "$BUILDER" "$bld"
+    if ! python3 - "$bld" "$2" "$3" <<'PY'
+import sys
+path, old, new = sys.argv[1:4]
+text = open(path, encoding="utf-8").read()
+if text.count(old) != 1:
+    raise SystemExit("builder mutation anchor found %d times: %r" % (text.count(old), old))
+open(path, "w", encoding="utf-8").write(text.replace(old, new))
+PY
+    then
+      bad "builder mutation $name could not be applied (anchor drifted)"; return
+    fi
+    local tool="$TOOL"
+    if [ $# -ge 6 ]; then
+      tree="$(mk_mutant_tree "$root/tree")"
+      if ! python3 - "$tree/$4" "$5" "$6" <<'PY'
+import sys
+path, old, new = sys.argv[1:4]
+text = open(path, encoding="utf-8").read()
+if text.count(old) != 1:
+    raise SystemExit("anchor found %d times: %r" % (text.count(old), old))
+open(path, "w", encoding="utf-8").write(text.replace(old, new))
+PY
+      then
+        bad "builder mutation $name: tool anchor drifted"; return
+      fi
+      tool="$tree/cycle/select_sample.py"
+    fi
+    if ASOF_BUILDER_UNDER_TEST="$bld" SELECT_SAMPLE_UNDER_TEST="$tool" FC_R5_MUTANT=1 bash "$0" >"$TMP/bmut_$name.out" 2>&1; then
+      bad "builder mutation $name SURVIVED (suite still exits 0)"
+    else
+      ok "builder mutation $name killed ($(grep -c '^NOT ok' "$TMP/bmut_$name.out") failing check(s))"
+    fi
+    rm -rf "$root"
+  }
+  run_builder_mutant B1_from_drift_alone '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS)' '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS - 5)'
+  run_builder_mutant B1_from_drift_plus_closed_from_exclusive '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS)' '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS - 5)' \
+    "$SS" 'return any(r["event_type"] in CLOSURE_EVENTS and frm <= (r.get("on_date") or "")[:10] <= to' 'return any(r["event_type"] in CLOSURE_EVENTS and frm < (r.get("on_date") or "")[:10] <= to'
+  run_builder_mutant B_created_axis_collapsed_plus_reopen_on_created_at '                        created = _iso_day(day, shift) + " 10:00:00"' '                        created = day + " 10:00:00"' \
+    "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (r.get("created_at") or "")[:10] <= window["to"]'
 fi
 
 exit $fail

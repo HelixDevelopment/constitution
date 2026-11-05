@@ -1009,14 +1009,24 @@ echo
 echo "=== (F) R7 M-c: per-mutant TSV must be bound to the current meta-test ==="
 REAL_MT="$ROOT/scripts/testing/meta_test_false_positive_proof.sh"
 REAL_MT_SHA="$(sha256sum "$REAL_MT" 2>/dev/null | awk '{print $1}')"
-mk_bound_archive() { # mk_bound_archive DIR SHA_LINE
+# V3 round 4 m6: rows carry the writer's real candidate_fingerprint column
+# (fc_timer.sh: `git rev-parse HEAD`); CAND (default: this checkout's HEAD)
+# is what the run claims to have measured, NOCOL=1 drops the column.
+REAL_HEAD="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)"
+mk_bound_archive() { # mk_bound_archive DIR SHA_LINE [CAND] [NOCOL]
+  local cand="${3:-$REAL_HEAD}"
   mkdir -p "$1/20260105T000000Z_run"
-  printf 'label\tstart_ns\tend_ns\tduration_ms\tgate\tcmd\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$1/20260105T000000Z_run/per_mutant.tsv"
-  printf 'M_F\t1\t2\t1\tgate.sh\tgate.sh\tPASS\t1\t1\t0\tKILLED\n' >> "$1/20260105T000000Z_run/per_mutant.tsv"
+  if [ "${4:-}" = "NOCOL" ]; then
+    printf 'run_id\tid\tstart_ns\tend_ns\tduration_ms\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$1/20260105T000000Z_run/per_mutant.tsv"
+    printf 'R\tM_F\t1\t2\t1\tPASS\t1\t1\t0\tKILLED\n' >> "$1/20260105T000000Z_run/per_mutant.tsv"
+  else
+    printf 'run_id\tcandidate_fingerprint\tid\tstart_ns\tend_ns\tduration_ms\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$1/20260105T000000Z_run/per_mutant.tsv"
+    printf 'R\t%s\tM_F\t1\t2\t1\tPASS\t1\t1\t0\tKILLED\n' "$cand" >> "$1/20260105T000000Z_run/per_mutant.tsv"
+  fi
   printf 'pass=1\nfail=0\nskip=0\nts=2026-01-05T00:00:00Z\n%s' "$2" > "$1/20260105T000000Z_run/RUN_COMPLETE"
 }
-if [ -z "$REAL_MT_SHA" ]; then
-  echo "NOT ok (F) control needle: cannot hash $REAL_MT"
+if [ -z "$REAL_MT_SHA" ] || [ -z "$REAL_HEAD" ]; then
+  echo "NOT ok (F) control needle: cannot hash $REAL_MT or resolve HEAD of $ROOT"
   failx
 else
   mk_bound_archive "$TMP/f_bound" "metatest_sha256=$REAL_MT_SHA
@@ -1045,6 +1055,27 @@ else
   else
     echo "NOT ok (F3) stale-bound run was not refused"; failx
   fi
+  # m6 (V3 round 4): the run must also have measured THIS candidate.
+  mk_bound_archive "$TMP/f_oldcand" "metatest_sha256=$REAL_MT_SHA
+" 0123456789abcdef0123456789abcdef01234567
+  mk_bound_archive "$TMP/f_nocol" "metatest_sha256=$REAL_MT_SHA
+" "" NOCOL
+  mk_bound_archive "$TMP/f_unknown" "metatest_sha256=$REAL_MT_SHA
+" UNKNOWN
+  F_OLDCAND="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_oldcand" bash "$RED" 2>&1)"
+  F_NOCOL="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_nocol" bash "$RED" 2>&1)"
+  F_UNKNOWN="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_unknown" bash "$RED" 2>&1)"
+  if printf '%s\n' "$F_BOUND" | grep -q "^ok selected run .* is bound to the current candidate"; then
+    echo "ok (F4) a run whose every row names this checkout's HEAD is accepted as bound to the candidate (negative control)"
+  else echo "NOT ok (F4) a HEAD-bound run was not accepted as bound to the candidate"; failx; fi
+  if printf '%s\n' "$F_OLDCAND" | grep -q "^NOT ok selected run .* is not bound to the current candidate" \
+     && ! printf '%s\n' "$F_OLDCAND" | grep -q "^ok per-mutant TSV contains"; then
+    echo "ok (F5) a run of the CURRENT meta-test measured on ANOTHER candidate is refused (m6)"
+  else echo "NOT ok (F5) a run measured on another candidate still counted"; failx; fi
+  if printf '%s\n' "$F_NOCOL" | grep -q "no candidate_fingerprint column" \
+     && printf '%s\n' "$F_UNKNOWN" | grep -q "^NOT ok selected run .* is not bound to the current candidate"; then
+    echo "ok (F6) a run with no candidate_fingerprint column, or an UNKNOWN fingerprint, is refused"
+  else echo "NOT ok (F6) a run with no/UNKNOWN candidate fingerprint was not refused"; failx; fi
 fi
 
 echo

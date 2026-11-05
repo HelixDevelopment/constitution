@@ -90,7 +90,7 @@ FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
 
-for dep in git python3 grep sort comm; do
+for dep in git python3 grep sort comm sha256sum; do
   command -v "$dep" >/dev/null 2>&1 || { echo "BLIND: required dependency '$dep' not usable" >&2; exit 4; }
 done
 
@@ -101,6 +101,10 @@ done
 # `--show-superproject-working-tree` is the non-guessing mechanism: it resolves the real parent
 # checkout when this constitution tree is embedded as a submodule, and prints nothing otherwise.
 REPO_ROOT=$(git -C "$HERE" rev-parse --show-superproject-working-tree 2>/dev/null)
+# ANCHOR_CITATIONS_REPO_ROOT (test-only) points the real-data steps at another checkout of the same
+# history -- e.g. a scratch `git clone --shared` whose constitution/Constitution.md was amended after
+# the index was generated, the simulation that proves the Step C checksum branch (R4-01).
+if [ -n "${ANCHOR_CITATIONS_REPO_ROOT:-}" ]; then REPO_ROOT=$ANCHOR_CITATIONS_REPO_ROOT; fi
 if [ -z "$REPO_ROOT" ]; then
   # Not currently consumed as a submodule of anything (e.g. constitution tested fully standalone):
   # honestly fall back to its own working tree. The ATM-277 control-needle commits below will then
@@ -245,6 +249,16 @@ else
 fi
 LC_ALL=C comm -23 "$TMP/heading_ids.txt" "$TMP/live_anchor_ids.txt" | paste -sd, - > "$TMP/heading_missing.txt"
 HEADING_MISSING=$(cat "$TMP/heading_missing.txt")
+# R4-01: an INDEPENDENT checksum read (sha256sum, and a sed over the index's generated_from block --
+# not the tool) decides whether the index is checksum-stale. Control needle: the index read must yield
+# a 64-hex value, or the comparison below proves nothing.
+CONSTITUTION_SHA=$(sha256sum < "$CONSTITUTION_MD" | cut -c1-64)
+INDEX_SRC_SHA=$(sed -n '/^generated_from:/,/^[^ ]/s/^  source_sha256: *'"'"'\{0,1\}\([0-9a-f]\{64\}\)'"'"'\{0,1\} *$/\1/p' "$ANCHOR_INDEX" | head -n 1)
+case "$INDEX_SRC_SHA" in
+  [0-9a-f]*) if [ "${#INDEX_SRC_SHA}" -eq 64 ]; then ok "R4-01 control needle: the independent read finds the index's source_sha256 ($INDEX_SRC_SHA)"
+             else bad "R4-01 control needle: the index's source_sha256 read is malformed: '$INDEX_SRC_SHA'"; fi ;;
+  *) bad "R4-01 control needle: no generated_from.source_sha256 found in $ANCHOR_INDEX -- the checksum branch below is blind" ;;
+esac
 echo "info Constitution.md anchor headings missing from $ANCHOR_INDEX_REL (independent grep): ${HEADING_MISSING:-none}"
 if [ -n "$HEADING_MISSING" ]; then
   if [ "$IMPL_RC" -eq 4 ] && python3 -c "
@@ -258,10 +272,30 @@ sys.exit(0 if d.get('BLIND') is True and ic.get('status') == 'stale'
   else
     bad "R2-01 real data: the index lacks $HEADING_MISSING but the tool did not report it (rc=$IMPL_RC): $(cat "$TMP/impl.err")"
   fi
+elif [ "$INDEX_SRC_SHA" != "$CONSTITUTION_SHA" ]; then
+  # R4-01: every heading is indexed but Constitution.md changed after the index was generated (an
+  # amendment that did not regenerate the index). The tool must name EXACTLY that cause -- exit 4,
+  # BLIND, status "stale", one error [E_INDEX_SHA_MISMATCH] carrying both checksums, and nothing else
+  # -- so a stale index is never confused with a genuine tool failure (which falls to the else below).
+  if [ "$IMPL_RC" -eq 4 ] && python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+ic = d.get('index_check') or {}
+errs = d.get('source_errors') or []
+want = ['[E_INDEX_SHA_MISMATCH]' in e for e in errs]
+sys.exit(0 if d.get('BLIND') is True and ic.get('status') == 'stale' and ic.get('headings_missing_from_index') == []
+         and ic.get('index_source_sha256') == sys.argv[2] and ic.get('constitution_sha256') == sys.argv[3]
+         and want == [True] and all(v in ('ok', 'not_supplied') for v in (d.get('source_status') or {}).values()) else 1)
+" "$OUT" "${INDEX_SRC_SHA:-}" "$CONSTITUTION_SHA" 2>/dev/null; then
+    ok "R4-01 real data: index checksum STALE (named cause, not a tool failure) -- exit 4, BLIND, only [E_INDEX_SHA_MISMATCH]; regenerate with: bash $REPO_ROOT/constitution/scripts/anchors/regenerate_if_stale.sh"
+    echo "INDEX-STALE: $ANCHOR_INDEX_REL source_sha256 ${INDEX_SRC_SHA:-<absent>} != sha256 $CONSTITUTION_SHA of constitution/Constitution.md"
+  else
+    bad "R4-01 real data: the index checksum is stale (${INDEX_SRC_SHA:-<absent>} != $CONSTITUTION_SHA) but the tool did not report exactly E_INDEX_SHA_MISMATCH (rc=$IMPL_RC): $(cat "$TMP/impl.err")"
+  fi
 elif [ "$IMPL_RC" -eq 0 ]; then
-  ok "anchor_citations.py ran to completion for --item-id $ITEM_ID (index covers every Constitution.md heading)"
+  ok "anchor_citations.py ran to completion for --item-id $ITEM_ID (index covers every Constitution.md heading, checksum current)"
 else
-  bad "anchor_citations.py exited $IMPL_RC for --item-id $ITEM_ID with a complete index: $(cat "$TMP/impl.err")"
+  bad "anchor_citations.py exited $IMPL_RC for --item-id $ITEM_ID with a complete, checksum-current index (a genuine tool failure): $(cat "$TMP/impl.err")"
 fi
 if [ -f "$OUT" ]; then
   python3 -c "
@@ -381,6 +415,10 @@ commit("fix(ATM-1): per §11.4.62, see the inventory §2.1 rows K/L and §2.1 ro
 commit("fix(ATM-1): tidy two\n\nATM-1 with ATM-7 per 11.4.63")
 # R3-06 positive control: a real constitution citation of §2.1 is still a citation.
 commit("fix(ATM-14): per Constitution §2.1 multi-upstream")
+# R4-05 (W7): the table-row rule is for TWO-segment ids only -- "§11.4.64 rows" is still a citation.
+commit("fix(ATM-16): per §11.4.64 rows of evidence")
+# R4-05 (W8): the table-row rule ignores case -- "§2.1 Rows K" is a table row, not a citation.
+commit("fix(ATM-17): see the inventory §2.1 Rows K")
 os.makedirs(os.path.join(repo, "docs", "issues", "ATM-1"))
 with open(os.path.join(repo, "docs", "issues", "ATM-1", "Reopens.md"), "w", encoding="utf-8") as fh:
     fh.write("reopened per §11.4.30\n")
@@ -515,6 +553,12 @@ os.unlink(os.path.join(fixdir, "docs", "Fixed.md")); os.makedirs(os.path.join(fi
 dbdang = os.path.join(root, "repo_db_dangling"); shutil.copytree(repo, dbdang)
 os.unlink(os.path.join(dbdang, "docs", "workable_items.db"))
 os.symlink(os.path.join(dbdang, "no_such.db"), os.path.join(dbdang, "docs", "workable_items.db"))
+# R4-04 (E_REPO_TOPLEVEL): a work tree whose top-level path holds a non-UTF-8 byte. validate_repo()
+# passes (git prints "true"), but `git rev-parse --show-toplevel` prints the path, which a strict
+# UTF-8 decode rejects -- so the work-tree top cannot be resolved (the reviewer's probe).
+nonutf = os.path.join(os.fsencode(root), b"repo_\xff_dir")
+os.makedirs(nonutf)
+subprocess.run(["git", "init", "-q", nonutf], env=env, check=True, capture_output=True)
 print("built")
 PY
 if [ "$(tail -n 1 "$TMP/fx_build.out")" = "built" ]; then ok "Step D fixture repository built"
@@ -533,6 +577,13 @@ fails = 0
 observed = set()
 unexercised = {}
 CODE_RE = re.compile(r"\[(E_[A-Z][A-Z_]*)\]")
+# R4-03 runtime invariant: every BLIND error line (a source_errors entry, or a "BLIND --" stderr line)
+# starts with one stable code -- "[E_CODE] ..." optionally prefixed by its source name. An error
+# phrased in any syntactic form the source inventory (Step D2) does not inspect is caught here when
+# a fixture reaches it.
+ERROR_LINE_RE = re.compile(r"^(?:(?:commit|diary|review|closure): )?\[E_[A-Z][A-Z_]*\] ")
+error_lines_seen = []
+uncoded = []
 def check(cond, label):
     global fails
     print(("PASS: " if cond else "FAIL: ") + label)
@@ -554,6 +605,15 @@ def run(*extra, item="ATM-1", r=repo, review=rev, extra_kw=None, idx=None):
     observed.update(CODE_RE.findall(p.stderr))
     for e in (doc or {}).get("source_errors") or []:
         observed.update(CODE_RE.findall(e))
+        error_lines_seen.append(e)
+        if not ERROR_LINE_RE.match(e):
+            uncoded.append("source_errors: " + e[:120])
+    for line in p.stderr.splitlines():
+        if line.startswith("anchor_citations: BLIND -- "):
+            rest = line[len("anchor_citations: BLIND -- "):]
+            error_lines_seen.append(rest)
+            if not ERROR_LINE_RE.match(rest):
+                uncoded.append("stderr: " + rest[:120])
     return p.returncode, doc, p.stderr
 def by_source(doc, src):
     return sorted({c["anchor_id"] for c in (doc or {}).get("citations", []) if c.get("source") == src})
@@ -610,6 +670,14 @@ check(rc == 0 and "11.4.99" not in by_source(doc, "commit") and "11.4.108" in by
       and "11.4.25" in by_source(doc, "commit"),
       "D6 A4/N4: --as-of excludes the 2030 commit only, and keeps the noon commit ON the as-of day (rc=%s commit=%s)" % (rc, by_source(doc, "commit")))
 
+rc, doc, _ = run(item="ATM-16", review=None)
+check(rc == 0 and by_source(doc, "commit") == ["11.4.64"],
+      "D1r R4-05 W7: '§11.4.64 rows' (a THREE-segment id) is still a citation (rc=%s %s)" % (rc, by_source(doc, "commit")))
+rc, doc, _ = run(item="ATM-17", review=None)
+check(rc == 0 and by_source(doc, "commit") == [] and (doc or {}).get("document_row_refs_rejected") == {"occurrences": 1, "distinct": ["2.1"]},
+      "D1s R4-05 W8: '§2.1 Rows K' (any case) is a table row, not a citation (rc=%s %s %s)"
+      % (rc, by_source(doc, "commit"), (doc or {}).get("document_row_refs_rejected")))
+
 rc, doc, _ = run(item="ATM-5", review=None)
 check(rc == 0 and by_source(doc, "closure") == [], "D7 A3: an open (Issues) DB row is not closure evidence: %s" % by_source(doc, "closure"))
 rc, doc, _ = run(item="ATM-6", review=None)
@@ -650,6 +718,8 @@ ERROR_CASES = [
      {"extra": ["--constitution", os.path.join(fx, "constitution_bold_added.md")]}, True),
     ("E_INDEX_NO_SHA", "R3-04 the index records no source checksum", {"idx": os.path.join(fx, "index_nosha.yaml")}, True),
     ("E_REPO_NOT_GIT", "--repo is not a git working tree", {"r": os.path.join(fx, "not_a_repo")}, False),
+    ("E_REPO_TOPLEVEL", "R4-04 the work-tree top-level path is not valid UTF-8",
+     {"r": os.fsdecode(os.path.join(os.fsencode(fx), b"repo_\xff_dir"))}, False),
     ("E_INDEX_READ", "--anchor-index cannot be read", {"idx": os.path.join(fx, "no_such_index.yaml")}, False),
     ("E_INDEX_EMPTY", "--anchor-index has zero ids", {"idx": os.path.join(fx, "index_empty.yaml")}, False),
 ]
@@ -685,6 +755,12 @@ ic = (doc or {}).get("index_check") or {}
 check(ic.get("status") == "stale" and ic.get("headings_missing_from_index") == []
       and ic.get("index_source_sha256") != ic.get("constitution_sha256"),
       "D18 R3-04: a changed Constitution.md with unchanged headings is 'stale', never 'ok' (%s)" % ic)
+
+# R4-05 (W10): an index with no source checksum cannot be called stale -- its freshness is unknown.
+rc, doc, _ = run(idx=os.path.join(fx, "index_nosha.yaml"))
+check(((doc or {}).get("index_check") or {}).get("status") == "error",
+      "D19 R4-05 W10: index without source_sha256 -> index_check.status 'error', never 'stale' (%s)"
+      % ((doc or {}).get("index_check") or {}).get("status"))
 
 for bad_id in ("", "  "):
     rc, doc, _ = run(item=bad_id)
@@ -723,6 +799,9 @@ rc, doc, err = run("--determinism-check")
 rc2, doc2, _ = run()
 check(rc == 0 and doc is not None and doc2 is not None and doc.get("body_hash") == doc2.get("body_hash"),
       "D12 --determinism-check exits 0 and its body equals a plain run's body")
+check(len(error_lines_seen) >= 10 and not uncoded,
+      "D20 R4-03 every BLIND error line across %d observed lines starts with one [E_CODE] (uncoded=%s)"
+      % (len(error_lines_seen), uncoded[:3]))
 print("OBSERVED-CODES: " + ",".join(sorted(observed)))
 print("UNEXERCISED-CODES: " + ",".join("%s=%s" % kv for kv in sorted(unexercised.items())))
 sys.exit(min(fails, 100))
@@ -747,11 +826,10 @@ cat > "$TMP/sitecheck.py" <<'PY'
 import ast, re, sys
 impl, harness_out = sys.argv[1], sys.argv[2]
 UNREACHABLE = {
-    # validate_repo() has just run `git rev-parse --is-inside-work-tree` successfully in the same
-    # directory, so `git rev-parse --show-toplevel` failing needs git to change state between two
-    # calls; no fixture can arrange that.
-    "E_REPO_TOPLEVEL": "needs git to fail between two consecutive rev-parse calls",
-    # The catch-all for an exception the tool does not classify; reaching it means a defect.
+    # The catch-all for an exception the tool does not classify; reaching it means a defect. Its
+    # STRUCTURE (catch Exception, print the E_INTERNAL site, return 4) is asserted in (3) instead.
+    # (E_REPO_TOPLEVEL was listed here until R4-04 showed a fixture CAN reach it: a work tree whose
+    # top-level path holds a non-UTF-8 byte.)
     "E_INTERNAL": "reaching it requires a defect in the tool",
 }
 src = open(impl, encoding="utf-8").read()
@@ -777,22 +855,55 @@ for c in sorted(set(codes)):
     if codes.count(c) > 1:
         problems.append("code %s is used at %d sites (lines %s): one fixture would cover several sites"
                         % (c, codes.count(c), ",".join(str(l) for cc, l in sites if cc == c)))
-# (3) every error path goes through _site.
+# (3) every error construct goes through _site (R3-02, extended for R4-03). The inventory above only
+# sees `_site(...)` calls, so an error phrased in ANY other syntactic form would be invisible to it.
+# This section classifies every construct that can carry an error and refuses the ones that are not
+# routed through _site. A construct that is deliberately NOT an error site carries the source tag
+# `# not-an-error-site: <reason>` on its own line, and the tag is checked too (a tag on a line with no
+# such construct is stale). Constructs classified:
+#   raise                  -- must be `raise SourceError(<_site()> | <name bound only to _site()> | "; ".join(bad), ...)`
+#   sys.exit(...)          -- only `sys.exit(main(...))` under `if __name__ == "__main__":`
+#   assert                 -- never (an assert is an error path the catch-all would absorb as E_INTERNAL)
+#   bad / errors           -- `.append(<_site()>)` only; `.extend` / `.insert` / `+=` / rebinding refused,
+#                             except the named pass-throughs in PASSTHROUGH below
+#   except handlers        -- a handler that records nothing (no _site, no raise, no bad/errors append)
+#                             and then returns empty / passes / continues swallows the error
+#   `if err:`-style tests  -- a branch on an error value must route it the same way, or be tagged
+#   return <int>           -- in main/_main_impl a `return 4` must follow a print of a _site() error, and
+#                             a return that follows such a print must be 4 (BLIND), never another code
+TAG = "# not-an-error-site:"
+src_lines = src.split("\n")
+def tagged(lineno):
+    return TAG in src_lines[lineno - 1]
+used_tags = set()
+def flag(node, msg):
+    if tagged(node.lineno):
+        used_tags.add(node.lineno)
+    else:
+        problems.append("line %d: %s (route it through _site(), or tag the line '%s <reason>')" % (node.lineno, msg, TAG))
 funcs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
-# collect() and the run() nested in it only RE-RAISE errors already phrased by a site (pass-through).
-passthrough = {id(n) for n in ast.walk(funcs["collect"]) if isinstance(n, ast.FunctionDef)}
+parent = {}
+for p_ in ast.walk(tree):
+    for c_ in ast.iter_child_nodes(p_):
+        parent[c_] = p_
+def enclosing_func(node):
+    while node in parent:
+        node = parent[node]
+        if isinstance(node, ast.FunctionDef):
+            return node
+    return None
 def site_or_site_name(arg, fn):
     if is_site(arg):
         return True
-    if isinstance(arg, ast.Name):  # every assignment to this name in `fn` must be a _site() (or None)
+    if isinstance(arg, ast.Name) and fn is not None:  # every assignment to it in `fn` is a _site() (or None)
         vals = []
         for n in ast.walk(fn):
             if isinstance(n, ast.Assign):
-                for t in n.targets:
-                    if isinstance(t, ast.Name) and t.id == arg.id:
+                for tg in n.targets:
+                    if isinstance(tg, ast.Name) and tg.id == arg.id:
                         vals.append(n.value)
-                    elif isinstance(t, ast.Tuple) and isinstance(n.value, ast.Tuple):
-                        for te, ve in zip(t.elts, n.value.elts):
+                    elif isinstance(tg, ast.Tuple) and isinstance(n.value, ast.Tuple):
+                        for te, ve in zip(tg.elts, n.value.elts):
                             if isinstance(te, ast.Name) and te.id == arg.id:
                                 vals.append(ve)
         return bool(vals) and all(is_site(v) or (isinstance(v, ast.Constant) and v.value is None) for v in vals)
@@ -800,16 +911,92 @@ def site_or_site_name(arg, fn):
 def is_bad_join(arg):  # "; ".join(bad): every element of `bad` is itself checked below
     return (isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute) and arg.func.attr == "join"
             and len(arg.args) == 1 and isinstance(arg.args[0], ast.Name) and arg.args[0].id == "bad")
+# Named pass-throughs: (function, construct) pairs that move an ALREADY-phrased error, each with the
+# reason. A pass-through that is no longer in the source is stale and fails.
+def is_run_passthrough(call, fn):
+    # collect.run: errors.append("%s: %s" % (name, exc)) -- exc is a SourceError whose text is a _site().
+    a = call.args[0] if call.args else None
+    return (fn is not None and fn.name == "run" and isinstance(a, ast.BinOp) and isinstance(a.op, ast.Mod)
+            and isinstance(a.left, ast.Constant) and a.left.value == "%s: %s"
+            and isinstance(a.right, ast.Tuple) and [getattr(e, "id", None) for e in a.right.elts] == ["name", "exc"])
+def is_index_errs_extend(call, fn):
+    # collect: errors.extend(index_errs) -- index_errs is check_index's error list, checked below.
+    a = call.args[0] if call.args else None
+    return (fn is not None and fn.name == "collect" and isinstance(a, ast.Name) and a.id == "index_errs")
+passthrough_seen = {"run": False, "index_errs": False}
+ERR_NAMES = ("bad", "errors")
+def live(body):
+    """The statements of a block up to and including its first terminator: code after a
+    return/raise/continue/break is dead, so it can never route an error (MC8)."""
+    out = []
+    for st in body:
+        out.append(st)
+        if isinstance(st, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+            break
+    return out
+def routes_error(stmts, allow_print=False):
+    return any(is_site(x) or isinstance(x, ast.Raise)
+               or (isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute) and x.func.attr == "append"
+                   and isinstance(x.func.value, ast.Name) and x.func.value.id in ERR_NAMES)
+               or (allow_print and isinstance(x, ast.Call) and getattr(x.func, "id", None) == "print")
+               for b in stmts for x in ast.walk(b))
+for n in ast.walk(tree):
+    fn = enclosing_func(n)
+    fname = fn.name if fn is not None else "<module>"
+    if isinstance(n, ast.Raise):
+        exc = n.exc
+        if exc is None:
+            flag(n, "bare re-raise")
+        elif isinstance(exc, ast.Call) and getattr(exc.func, "id", None) == "SourceError":
+            a0 = exc.args[0] if exc.args else None
+            if not (site_or_site_name(a0, fn) or is_bad_join(a0)):
+                flag(n, "SourceError raised without _site() (%s)" % fname)
+        else:
+            flag(n, "raise of a non-SourceError / an exception held in a variable (%s)" % fname)
+    elif isinstance(n, ast.Assert):
+        flag(n, "assert used as an error path (%s)" % fname)
+    elif isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
+        tgt = n.func.value
+        if (n.func.attr == "exit" and isinstance(tgt, ast.Name) and tgt.id == "sys"):
+            p_ = parent.get(parent.get(n))
+            main_guard = (fn is None and isinstance(p_, ast.If) and isinstance(p_.test, ast.Compare)
+                          and getattr(p_.test.left, "id", None) == "__name__"
+                          and n.args and isinstance(n.args[0], ast.Call) and getattr(n.args[0].func, "id", None) == "main")
+            if not main_guard:
+                flag(n, "sys.exit() outside the `sys.exit(main(...))` entry point (%s)" % fname)
+        elif isinstance(tgt, ast.Name) and tgt.id in ERR_NAMES:
+            if n.func.attr == "append":
+                if is_site(n.args[0]) if n.args else False:
+                    pass
+                elif is_run_passthrough(n, fn):
+                    passthrough_seen["run"] = True
+                else:
+                    flag(n, "%s.append() of an error not phrased by _site() (%s)" % (tgt.id, fname))
+            elif n.func.attr == "extend" and is_index_errs_extend(n, fn):
+                passthrough_seen["index_errs"] = True
+            elif n.func.attr in ("extend", "insert", "__iadd__"):
+                flag(n, "%s.%s() bypasses the _site() rule (%s)" % (tgt.id, n.func.attr, fname))
+    elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name) and n.target.id in ERR_NAMES:
+        flag(n, "%s += ... bypasses the _site() rule (%s)" % (n.target.id, fname))
+    elif isinstance(n, ast.ExceptHandler):
+        body = live(n.body)
+        records = routes_error(body)
+        last = body[-1] if body else None
+        empty_ret = isinstance(last, ast.Return) and (
+            last.value is None
+            or (isinstance(last.value, ast.Constant) and last.value.value in (None, "", 0, False))
+            or (isinstance(last.value, (ast.List, ast.Tuple, ast.Dict, ast.Set)) and not getattr(last.value, "elts", getattr(last.value, "keys", [1])))
+        )
+        if not records and (empty_ret or isinstance(last, (ast.Pass, ast.Continue))):
+            flag(n, "except handler swallows the error (returns empty / passes / continues) (%s)" % fname)
+    elif isinstance(n, ast.If) and isinstance(n.test, ast.Name) and n.test.id in ("err", "error", "exc", "failed"):
+        if not routes_error(live(n.body), allow_print=True):
+            flag(n, "a branch on the error value %r does not route it (%s)" % (n.test.id, fname))
+for k, seen in sorted(passthrough_seen.items()):
+    if not seen:
+        problems.append("STALE pass-through %s: no longer in the source -- remove it from the sitecheck" % k)
 for fname, fn in funcs.items():
     for n in ast.walk(fn):
-        if isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call) and getattr(n.exc.func, "id", None) == "SourceError":
-            a0 = n.exc.args[0] if n.exc.args else None
-            if not (site_or_site_name(a0, fn) or is_bad_join(a0)):
-                problems.append("line %d (%s): SourceError raised without _site()" % (n.lineno, fname))
-        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "append"
-                and isinstance(n.func.value, ast.Name) and n.func.value.id in ("bad", "errors") and id(fn) not in passthrough):
-            if not (n.args and is_site(n.args[0])):
-                problems.append("line %d (%s): %s.append() of an error not phrased by _site()" % (n.lineno, fname, n.func.value.id))
         if fname == "check_index" and isinstance(n, ast.Return) and isinstance(n.value, ast.Tuple) and len(n.value.elts) == 3:
             e = n.value.elts[2]
             ok_list = isinstance(e, ast.List) and all(is_site(x) for x in e.elts)
@@ -825,14 +1012,30 @@ for fname, fn in funcs.items():
             if not isinstance(body, list):
                 continue
             for i, st in enumerate(body):
-                if isinstance(st, ast.Return) and isinstance(st.value, ast.Constant) and st.value.value == 4:
-                    prev = body[i - 1] if i else None
-                    good = (isinstance(prev, ast.Expr) and isinstance(prev.value, ast.Call)
-                            and getattr(prev.value.func, "id", None) == "print"
-                            and any(is_site(x) or (isinstance(x, ast.Name) and x.id == "err")
-                                    for a in prev.value.args for x in ast.walk(a)))
-                    if not good:
-                        problems.append("line %d (%s): `return 4` not preceded by a print of a _site() error" % (st.lineno, fname))
+                if not (isinstance(st, ast.Return) and isinstance(st.value, ast.Constant) and isinstance(st.value.value, int)):
+                    continue
+                prev = body[i - 1] if i else None
+                site_print = (isinstance(prev, ast.Expr) and isinstance(prev.value, ast.Call)
+                              and getattr(prev.value.func, "id", None) == "print"
+                              and any(is_site(x) or (isinstance(x, ast.Name) and x.id == "err")
+                                      for a in prev.value.args for x in ast.walk(a)))
+                if st.value.value == 4 and not site_print:
+                    problems.append("line %d (%s): `return 4` not preceded by a print of a _site() error" % (st.lineno, fname))
+                if site_print and st.value.value != 4:
+                    problems.append("line %d (%s): a _site() error is printed but the exit code is %d, not 4 (BLIND)"
+                                    % (st.lineno, fname, st.value.value))
+# R4-04: E_INTERNAL stays allowlisted (only a defect reaches it), so its structure is asserted instead:
+# main() must catch Exception, print the E_INTERNAL site and return 4.
+_main = funcs.get("main")
+_catch = [h for h in ast.walk(_main) if isinstance(h, ast.ExceptHandler)
+          and getattr(h.type, "id", None) == "Exception"] if _main else []
+if not (_catch and isinstance(_catch[0].body[-1], ast.Return)
+        and isinstance(_catch[0].body[-1].value, ast.Constant) and _catch[0].body[-1].value.value == 4
+        and any(is_site(x) and x.args[0].value == "E_INTERNAL" for b in _catch[0].body for x in ast.walk(b))):
+    problems.append("main(): the catch-all must print the E_INTERNAL site and return 4")
+for ln, line in enumerate(src_lines, 1):
+    if TAG in line and ln not in used_tags:
+        problems.append("line %d: STALE '%s' tag -- no unrouted error construct on this line" % (ln, TAG))
 # (4) coverage, from the harness's own observation of real runs.
 observed, unexercised = set(), {}
 for line in open(harness_out, encoding="utf-8"):
@@ -991,6 +1194,46 @@ elif python3 "$TMP/sitecheck.py" "$IMPL" "$TMP/harness_lost.out" > "$TMP/site_lo
   bad "Step D2 mutation MC7_lost_fixture SURVIVED: a site no fixture observes passed"
 elif grep -qF 'E_DIARY_LIST has no fixture' "$TMP/site_lost.out"; then ok "Step D2 mutation MC7_lost_fixture caught"
 else bad "Step D2 mutation MC7_lost_fixture failed for another reason: $(tr '\n' ' ' < "$TMP/site_lost.out")"; fi
+
+# R4-03 / R4-04 / R4-05: the round-4 reviewer's surviving mutants W1-W8, W10, W15, adopted verbatim.
+# Each runs BOTH instruments (the behaviour harness and the source inventory, fed the harness output
+# of the SAME mutant run); the mutant is caught when either fails.
+wmut() { # wmut <name> <old> <new>
+  name=$1
+  if ! python3 "$TMP/mutate.py" "$IMPL" "$MUT_DIR/context/anchor_citations.py" "$2" "$3" > "$TMP/mut_apply.out" 2>&1; then
+    bad "mutation $name could not be applied: $(cat "$TMP/mut_apply.out")"; return
+  fi
+  python3 "$TMP/harness.py" "$MUT_DIR/context/anchor_citations.py" "$FX_ROOT" > "$TMP/mut_$name.out" 2>&1; n=$?
+  python3 "$TMP/sitecheck.py" "$MUT_DIR/context/anchor_citations.py" "$TMP/mut_$name.out" > "$TMP/mut_${name}_site.out" 2>&1; s=$?
+  if [ "$n" -gt 0 ] || [ "$s" -ne 0 ]; then
+    ok "mutation $name caught (harness fails=$n sitecheck rc=$s: $(grep -m1 -h '^FAIL\|^PROBLEM' "$TMP/mut_$name.out" "$TMP/mut_${name}_site.out" | cut -c1-110))"
+  else bad "mutation $name SURVIVED both the behaviour harness and the source inventory"; fi
+}
+wmut W1_collect_raw_error "    errors.extend(index_errs)${NL}" "    errors.extend(index_errs)${NL}    if len(citations) > 10 ** 7:${NL}        errors.append(\"too many citations\")${NL}"
+wmut W2_raise_named_exception "        sections.append(section)${NL}    evidence = " "        sections.append(section)${NL}    if len(text) > 10 ** 9:${NL}        _e = SourceError(\"Fixed.md too large\")${NL}        raise _e${NL}    evidence = "
+wmut W3_sys_exit_in_helper "    bad = []${NL}    for path in _review_record_paths" "    bad = []${NL}    if len(review_records_dir) > 10 ** 5:${NL}        print(\"anchor_citations: BLIND -- path too long\", file=sys.stderr)${NL}        sys.exit(4)${NL}    for path in _review_record_paths"
+wmut W4_assert_error_path "    args.append(\"--format=%s\" % _COMMIT_FORMAT)${NL}" "    args.append(\"--format=%s\" % _COMMIT_FORMAT)${NL}    assert len(args) < 10 ** 6, \"too many git args\"${NL}"
+wmut W5_internal_error_exit1 "                                                      % (type(exc).__name__, exc)), file=sys.stderr)${NL}        return 4" "                                                      % (type(exc).__name__, exc)), file=sys.stderr)${NL}        return 1"
+wmut W6_toplevel_fallback "    repo_top = repo_toplevel(a.repo)${NL}" "    repo_top = repo_toplevel(a.repo)${NL}    if repo_top is None:${NL}        repo_top = os.path.abspath(a.repo)${NL}"
+wmut W7_row_rule_all_ids 'if token.count(".") == 1 and _TABLE_ROW_AFTER_RE.match(text[m.end() + len(token) - len(run):]):' 'if token.count(".") >= 1 and _TABLE_ROW_AFTER_RE.match(text[m.end() + len(token) - len(run):]):'
+wmut W8_row_rule_case_sensitive '_TABLE_ROW_AFTER_RE = re.compile(r"^[ \t]+rows?\b", re.I)' '_TABLE_ROW_AFTER_RE = re.compile(r"^[ \t]+rows?\b")'
+wmut W10_no_sha_status_stale '        res["status"] = "stale" if (missing or index_sha256) else "error"' '        res["status"] = "stale"'
+wmut W15_bad_iadd_raw "    for exc in walk_errors:${NL}" "    if len(paths) > 10 ** 7:${NL}        bad += [\"too many record files\"]${NL}    for exc in walk_errors:${NL}"
+
+# This round's own mutations of the extended inventory (R4-03): a swallowing except handler, a widened
+# pass-through, a stale not-an-error-site tag, an untagged branch on an error value, and the runtime
+# invariant (an error line that does not start with its code).
+sitecheck_mut MC8_except_swallows 'except handler swallows the error' \
+  "    except OSError as exc:${NL}        raise SourceError(_site(\"E_DIARY_LIST\"" "    except OSError as exc:${NL}        return []${NL}        raise SourceError(_site(\"E_DIARY_LIST\""
+sitecheck_mut MC9_passthrough_widened 'errors.append() of an error not phrased by _site()' \
+  '            errors.append("%s: %s" % (name, exc))' '            errors.append(str(exc))'
+sitecheck_mut MC10_stale_tag "STALE '# not-an-error-site:' tag" \
+  "def index_generated_from(anchor_index_path):${NL}" "def index_generated_from(anchor_index_path):${NL}    _unused = 0  # not-an-error-site: stale${NL}"
+sitecheck_mut MC11_untagged_error_branch "a branch on the error value 'err' does not route it" \
+  '    if err:  # not-an-error-site: load_live_anchor_ids' '    if err:  # load_live_anchor_ids'
+sitecheck_mut MC13_error_branch_returns_before_routing "a branch on the error value 'err' does not route it" \
+  "    if err:${NL}        raise SourceError(_site(\"E_FIXED_READ\"" "    if err:${NL}        return []${NL}        raise SourceError(_site(\"E_FIXED_READ\""
+mutate MC12_error_line_without_leading_code '    return "[%s] %s" % (code, message)' '    return "%s [%s]" % (message, code)'
 
 # R8 F17: the self-check must be able to fail. The A2 truncating tokenizer, on its own, must make the
 # tool refuse with exit 3 (self-check) on the fixture -- and the SAME mutant with the self-check

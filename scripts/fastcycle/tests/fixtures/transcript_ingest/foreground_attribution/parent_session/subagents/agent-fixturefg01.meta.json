@@ -1,0 +1,1 @@
+{"agentType": "general-purpose", "description": "(T1/main - claude5 - sonnet - high) item=ATM-9999 fixture foreground dispatch", "toolUseId": "toolu_fixture_fg_dispatch", "requestShape": "fixture", "model": "claude-sonnet-5"}
