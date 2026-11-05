@@ -16,7 +16,8 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own; M30a-M30d guard CON-030 (submodule paths with a space or TAB: the
+# sub_paths / topology parser and the newline-joined quick identity). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -131,6 +132,10 @@ L1	    if os.path.islink(path):\n        return set(), "operator roster	    if F
 L2	    if os.path.islink(lock_path):	    if False:
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
+M30a	        parsed = parse_sub_status(line)\n        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
+M30b	    return "\\n".join(parts)	    return " ".join(parts)
+M30c	        flag, sha, path = parsed\n	        flag, rest = line[0], line[1:].split()\n        sha, path = rest[0], rest[1]\n
+M30d	            gaps.append("unparseable git submodule status line: %r" % line)\n            continue	            continue
 EOF
 )
 

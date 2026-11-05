@@ -1062,5 +1062,60 @@ gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
 vfy "$RS" "$T/rs3.log"; chk "R5-2: symlinked excluded lock -> exit 3" "$RC" "3"
 has "R5-2: symlinked lock named" 'full_suite_excluded.lock is a symlink' "$T/rs3.log"
 
+# --- CON-030: a submodule path with a space (or a TAB) survives sub_paths / topology / quick_ident / ident_diff
+# (`git submodule status` is `<flag><sha> <path>[ (<describe>)]`; whitespace splitting truncated "sub dir" to "sub",
+# so topology reported a bogus "recorded commit not in object store" gap and a clean checkout was REFUSED-TOPOLOGY)
+sp="$T/spacesub"; mkdir -p "$sp"; git init -q "$sp/lib"; gitc "$sp/lib" commit -q --allow-empty -m i
+for k in plain spaced tabbed; do mkroot "$sp/$k"; done
+sut "$sp/spaced" tests/a/test_sp.sh 'echo "passed=1 failed=0"'
+git -C "$sp/plain" -c protocol.file.allow=always submodule add -q "$sp/lib" plain >/dev/null 2>&1
+git -C "$sp/spaced" -c protocol.file.allow=always submodule add -q "$sp/lib" "sub dir" >/dev/null 2>&1
+git -C "$sp/tabbed" -c protocol.file.allow=always submodule add -q "$sp/lib" "$(printf 'a\tb')" >/dev/null 2>&1
+gen "$sp/spaced"
+for k in plain spaced tabbed; do gitc "$sp/$k" add -A; gitc "$sp/$k" commit -q -m s; done
+con030() { python3 -I - "$ENGINE" "$1" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+subs = m.sub_paths(sys.argv[2]); a = m.quick_ident(sys.argv[2], subs); b = m.quick_ident(sys.argv[2], subs)
+print(subs, m.topology(sys.argv[2])[2], repr(m.ident_diff(a, b)))
+PY
+}
+chk "CON-030 control: a path without a space is read whole (sub_paths, topology gaps, ident_diff)" "$(con030 "$sp/plain")" "['plain'] [] ''"
+chk "CON-030 sub_paths/topology/ident_diff keep a path with a space" "$(con030 "$sp/spaced")" "['sub dir'] [] ''"
+chk "CON-030 sub_paths/topology/ident_diff keep a path with a TAB" "$(con030 "$sp/tabbed")" "['a\\tb'] [] ''"
+run "$sp/spaced" "$T/o_con030" --include-heavy
+chk "CON-030 end to end: a clean checkout with a spaced submodule path runs (rc 0, not REFUSED-TOPOLOGY rc 9)" "$RC" "0"
+has "CON-030 end to end: topology reports 1 submodule and no gap" 'topology: .*submodules=1 gaps=0' "$T/o_con030/summary.txt"
+# ident_diff must name the spaced submodule when only its HEAD moved (the identity string must round-trip a spaced path)
+git -C "$sp/spaced/sub dir" -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved
+chk "CON-030 ident_diff names a spaced submodule whose HEAD moved (identity round-trips the path)" "$(python3 -I - "$ENGINE" "$sp/spaced" "$sp/plain" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root)
+now = m.quick_ident(root, subs)
+subprocess.run(["git", "-C", root + "/sub dir", "reset", "-q", "--hard", "HEAD~1"], check=True)
+before = m.quick_ident(root, subs)
+d = m.ident_diff(before, now)
+print(("sub dir " in d), d.count("->"))
+PY
+)" "True 2"
+# topology: an unparseable `git submodule status` line is a gap (fail closed), never skipped silently (git shim prints one)
+GB="$T/con030_gitshim"; mkdir -p "$GB"; REALGIT=$(command -v git)
+printf '#!/bin/sh\ncase " $* " in *" submodule status "*) echo "not a status line"; exit 0;; esac\nexec %s "$@"\n' "$REALGIT" > "$GB/git"; chmod +x "$GB/git"
+chk "CON-030 topology: an unparseable submodule status line is a gap" "$(PATH="$GB:$PATH" python3 -I - "$ENGINE" "$sp/plain" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2])
+PY
+)" "[\"unparseable git submodule status line: 'not a status line'\"]"
+# a status line that does not parse (e.g. a path fragment after a newline) is None, never a guess: topology turns it into a gap
+chk "CON-030 parse_sub_status: unparseable line -> None, spaced + described + uninitialised lines parsed whole" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+h = "0123456789abcdef0123456789abcdef01234567"
+print([m.parse_sub_status(x) for x in ("tail of a split path", " " + h + " sub dir (heads/main)", "-" + h + " sub dir", "+" + h + " e (f) (v1-2-gabc)")])
+PY
+)" "[None, (' ', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('-', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('+', '0123456789abcdef0123456789abcdef01234567', 'e (f)')]"
+
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

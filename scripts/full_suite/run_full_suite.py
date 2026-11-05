@@ -2109,6 +2109,24 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     os.replace(tmp, lock_path)
 
 
+_SUB_STATUS_RE = re.compile(r"^(.)([0-9a-f]{40,64}) (.+?)(?: \(([^()]*)\))?$")
+
+
+def parse_sub_status(line):
+    """(flag, sha, path) of one `git submodule status` line, or None. The line is `<flag><sha> <path>[ (<describe>)]`
+    and the path may contain spaces or a TAB (CON-030), so it is taken as everything between the sha and the
+    optional trailing ` (describe)`, never by whitespace splitting. None (an unparseable line) is never guessed
+    at: topology() turns it into a gap, so the run is refused (fail closed). Residual limits, stated honestly:
+    (1) a path that itself ends in ` (xyz)` is ambiguous when git prints no describe (an uninitialised `-` line,
+    or a submodule with no HEAD name) and is then stripped to the part before it; the only effect is a shortened
+    path in a gap message or a missed `-` filter, never a wrong PASS, because `-` is still a gap. (2) A path
+    containing a newline cannot occur: git cannot record it in .gitmodules (measured), and a fragment line that
+    did appear would not parse and would be a gap. (3) git prints the path raw, not C-quoted, so a path with a
+    double quote or a backslash is read as printed."""
+    m = _SUB_STATUS_RE.match(line.rstrip("\n"))
+    return (m.group(1), m.group(2), m.group(3)) if m else None
+
+
 def topology(root):
     """(layout, n_submodules, gaps) of the checkout (P7). gaps: uninitialised (`-`), conflicted (`U`) and
     drifted (`+`: checked out at another commit than the superproject records) submodules, submodules whose
@@ -2123,10 +2141,11 @@ def topology(root):
         if not line.strip():
             continue
         n += 1
-        flag, rest = line[0], line[1:].split()
-        if len(rest) < 2:
+        parsed = parse_sub_status(line)
+        if parsed is None:
+            gaps.append("unparseable git submodule status line: %r" % line)
             continue
-        sha, path = rest[0], rest[1]
+        flag, sha, path = parsed
         if flag == "-":
             gaps.append("uninitialised submodule: %s" % path)
             continue
@@ -2189,16 +2208,18 @@ def sub_paths(root):
                        stderr=subprocess.DEVNULL)
     out_ = []
     for line in p.stdout.decode(errors="replace").splitlines():
-        f = line[1:].split()
-        if line[:1] != "-" and len(f) >= 2:
-            out_.append(f[1])
+        parsed = parse_sub_status(line)
+        if parsed is not None and parsed[0] != "-":
+            out_.append(parsed[2])
     return out_
 
 
 def quick_ident(root, subs):
     """R5-1 (review r5): cheap identity checked before every unit and at the end -- HEAD of the root and
     of every initialised submodule, and the sha256 of the root `git status --porcelain -z` (tracked,
-    untracked and submodule changes). A git failure gives `?`, which never equals a start value."""
+    untracked and submodule changes). A git failure gives `?`, which never equals a start value.
+    The fields are joined by a newline (CON-030): a submodule path may contain a space or a TAB but never a
+    newline, so ident_diff() can split the fields back without truncating a path."""
     parts = []
     for rel in [""] + list(subs):
         q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "rev-parse", "HEAD"],
@@ -2207,12 +2228,12 @@ def quick_ident(root, subs):
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
                          "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     parts.append("status=%s" % (hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else "?"))
-    return " ".join(parts)
+    return "\n".join(parts)
 
 
 def ident_diff(a, b):
     """The fields of two quick identities that differ, for the report."""
-    da, db = dict(x.split("=", 1) for x in a.split()), dict(x.split("=", 1) for x in b.split())
+    da, db = dict(x.split("=", 1) for x in a.split("\n")), dict(x.split("=", 1) for x in b.split("\n"))
     return ", ".join("%s %s -> %s" % (k, da.get(k, "absent")[:12], db.get(k, "absent")[:12])
                      for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or "?" in db.get(k, "?"))
 
