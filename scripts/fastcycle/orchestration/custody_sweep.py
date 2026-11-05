@@ -37,7 +37,7 @@ Three subcommands:
         - last_commit: the stash's own commit (stash entries) or the
           worktree's live HEAD sha (worktree entries)
         - dirty_file_hash: sha256 of the real patch content as RAW BYTES
-          (`git stash show -p <CANONICAL_PATCH_OPTS> <ref>` for a stash;
+          (`git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>` for a stash;
           `git -C <path> diff <CANONICAL_PATCH_OPTS> HEAD` for a worktree
           -- binary-safe, CRLF-preserving; T140 Round 11 finding B1),
           computed FRESH every run -- never cached, never assumed from a
@@ -570,7 +570,8 @@ def _run_bytes(args, cwd=None, env=None, input_bytes=None):
 #                     submodule change (see the submodule check below)
 # An operator creating a backup MUST use the same options, e.g. for a
 # worktree:  git -C <wt> diff HEAD <CANONICAL_PATCH_OPTS> > tracked.patch
-# and for a stash:  git stash show -p <CANONICAL_PATCH_OPTS> <ref> > patch.diff
+# and for a stash:  git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref> > patch.diff
+# (never `git stash show -p`: on git 2.53.0 it ignores the prefixes, CON-108)
 # A backup created with a plain `git diff HEAD` (pre-Round-11 convention)
 # no longer byte-matches (if nothing else, --binary implies --full-index)
 # and is honestly REFUSED -> `keep`, the safe-reversible default.
@@ -691,15 +692,45 @@ def list_stash_entries(root):
     return entries
 
 
+# A canonical `diff --git` header: both sides carry the a/ and b/ prefixes
+# CANONICAL_PATCH_OPTS asks for, plain or C-quoted (a path with a special
+# byte is quoted by git as "a/..." "b/...").
+_CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (a/.* b/.*|"a/.*" "b/.*")$')
+
+
+def stash_patch_bytes(root, ref, env=None):
+    """Returns the canonical raw-bytes patch of a stash (the stash commit's
+    tree against its first parent, i.e. the work-tree part `git stash show
+    -p` would print), or None when it could not be derived faithfully.
+
+    CON-108: derived with `git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>`,
+    never `git stash show -p`. Measured on git 2.53.0: `git stash show -p
+    --src-prefix=a/ --dst-prefix=b/` emits header prefixes that change from
+    run to run (`diff --git f sf`, `diff --git f |f`), so the patch hash is
+    not reproducible and `git apply` cannot use it; `git diff` with the
+    same options over the same two trees is correct. As a self-check every
+    `diff --git` header must carry the a/ b/ prefixes; a patch that does not
+    is reported as underivable (None), never hashed."""
+    rc, out, _ = _run_bytes(["git", "-C", root, "diff"] + list(CANONICAL_PATCH_OPTS)
+                            + ["%s^1" % ref, ref], env=env)
+    if rc != 0:
+        return None
+    for raw_line in out.split(b"\n"):
+        if raw_line.startswith(b"diff --git ") and not _CANONICAL_DIFF_HEADER_RE.match(raw_line):
+            return None
+    return out
+
+
 def stash_files_touched(root, ref, env=None):
     """Returns (files_touched, patch_bytes). T140 Round 11 finding B1: the
     patch is read as RAW BYTES with CANONICAL_PATCH_OPTS (binary-safe,
     CRLF-preserving) -- its sha256 is what a backup must byte-match. The
-    file list is decoded for display only (surrogateescape, I6)."""
-    rc, out, _ = _run_bytes(["git", "-C", root, "stash", "show", "-p"] + list(CANONICAL_PATCH_OPTS) + [ref],
-                            env=env)
-    if rc != 0:
-        return [], b""
+    file list is decoded for display only (surrogateescape, I6).
+    patch_bytes is None when the patch could not be derived faithfully
+    (see stash_patch_bytes); callers treat that as unmeasured."""
+    out = stash_patch_bytes(root, ref, env=env)
+    if out is None:
+        return [], None
     files = []
     for raw_line in out.split(b"\n"):
         if not raw_line.startswith(b"diff --git "):
@@ -759,7 +790,10 @@ def build_stash_entry(root, backup_root, ref, message):
     files, patch_bytes = stash_files_touched(root, ref)
     owner_item = owner_item_from_text(message)
     dirty_hash = sha256_of_bytes(patch_bytes) if patch_bytes else None
-    dirty_status = "dirty" if patch_bytes else "empty_patch"
+    if patch_bytes is None:
+        dirty_status = "UNMEASURED"
+    else:
+        dirty_status = "dirty" if patch_bytes else "empty_patch"
     backup, searched = find_stash_backup(root, backup_root, ref)
     return {
         "entry_kind": "stash",
@@ -1295,7 +1329,7 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
         res.update(found=True,
                    live_hash=sha256_of_bytes(patch_bytes) if patch_bytes else None,
                    has_untracked=stash_has_untracked(root, entry_id, env=env),
-                   dirty_submodules=[], has_unmerged=False, measured=True)
+                   dirty_submodules=[], has_unmerged=False, measured=patch_bytes is not None)
         # T140 Round 15 IMPORTANT-1: the stash's base history must survive
         # the drop (see stash_history_unanchored).
         res["history_problems"], res["history_why"] = stash_history_unanchored(root, entry_id, env=env)

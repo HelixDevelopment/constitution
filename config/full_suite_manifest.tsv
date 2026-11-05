@@ -270,6 +270,7 @@ scripts/fastcycle/tests/test_custody_sweep_r7_regression.sh	sh	member	default	-	
 scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_cycle_report_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_cycle_report_s12_fix_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_disk_floor_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
