@@ -21,11 +21,14 @@
 #     is the defect class, per the operator's brief).
 # -----------------------------------------------------------------------------
 # Purpose (§11.4.114/§11.4.115 RED-on-the-broken-artifact + polarity switch):
-#   RED_MODE=1 (default) — extracts the LAST-COMMITTED (git HEAD, pre-fix)
-#     copy of multitrack_alias_orchestrator.sh from the constitution
-#     submodule (`git show HEAD:scripts/multitrack/
-#     multitrack_alias_orchestrator.sh`) — the actual artifact this fix
-#     replaces, not a synthetic snippet — and drives `reconcile` against a
+#   RED_MODE=1 — extracts the PRE-FIX copy of multitrack_alias_orchestrator.sh
+#     at the PINNED commit RED_PIN (the parent of 55998fb, the commit that
+#     introduced the fix) — the actual artifact this fix replaced, not a
+#     synthetic snippet. It is NEVER `git show HEAD:`: once the fix is
+#     committed HEAD holds the FIXED copy, so a HEAD-built RED can never go
+#     RED on a committed tree (redpin class, §11.4.115/§11.4.292(E)). The
+#     pinned copy must contain the pre-fix construct and lack the fix; an
+#     unreachable pin (shallow clone) FAILs closed. It drives `reconcile` against a
 #     scratch registry seeded with a real BIND event (so the "expires" JSON
 #     key IS present and the awk program actually reaches the `exp=val(...)`
 #     line). Asserts the pre-fix copy: (a) emits "syntax error" on stderr
@@ -61,11 +64,14 @@
 #     claimed here).
 #
 # Usage:
-#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_orchestrator_reconcile.sh   # RED
-#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_orchestrator_reconcile.sh   # GREEN
-#   (default RED_MODE=1 if unset)
+#   sh constitution/scripts/multitrack/test_multitrack_orchestrator_reconcile.sh              # RED then GREEN
+#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_orchestrator_reconcile.sh   # RED only
+#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_orchestrator_reconcile.sh   # GREEN only
+#   (default RED_MODE=both if unset: the default-tier run proves the defect on
+#   the pinned pre-fix copy AND the fix on the current copy in one run, so a
+#   regression of the current copy is caught by the default tier)
 #
-# Inputs: RED_MODE (0|1, default 1); MT_TEST_CONST_ROOT (optional override for
+# Inputs: RED_MODE (both|1|0, default both); MT_TEST_CONST_ROOT (optional override for
 #   the constitution submodule root, else `git rev-parse --show-toplevel`
 #   from this file's own directory); MT_RECONCILE_TEST_EVIDENCE_DIR
 #   (optional).
@@ -117,7 +123,14 @@ ORCH="$CONST_ROOT/scripts/multitrack/multitrack_alias_orchestrator.sh"
 sh -n "$ORCH" 2>/dev/null   || { echo "FATAL: primitive fails sh -n: $ORCH" >&2; exit 92; }
 bash -n "$ORCH" 2>/dev/null || { echo "FATAL: primitive fails bash -n: $ORCH" >&2; exit 92; }
 
-RED_MODE="${RED_MODE:-1}"
+RED_MODE="${RED_MODE:-both}"
+case "$RED_MODE" in
+    both) PHASES="1 0" ;;
+    1)    PHASES="1" ;;
+    0)    PHASES="0" ;;
+    *)    echo "FATAL: RED_MODE must be both, 1 or 0 (got '$RED_MODE')" >&2; exit 2 ;;
+esac
+REQ_MODE=$RED_MODE
 RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 _rect_evidence_home() {
     _ph=$(cd "$CONST_ROOT/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
@@ -127,8 +140,15 @@ _rect_evidence_home() {
 EV="${MT_RECONCILE_TEST_EVIDENCE_DIR:-$(_rect_evidence_home)/reconcile_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_recon_test.XXXXXX")
-cleanup() { rm -rf "$WORK" 2>/dev/null || true; }
+cleanup() { _rm_work; }
 trap cleanup EXIT INT TERM
 
 PASS=0; FAIL=0; SKIP=0
@@ -136,20 +156,39 @@ pass() { PASS=$((PASS+1)); printf 'PASS: %s [evidence: %s]\n' "$1" "$2" | tee -a
 fail() { FAIL=$((FAIL+1)); printf 'FAIL: %s [evidence: %s]\n' "$1" "$2" | tee -a "$EV/results.log"; }
 skip() { SKIP=$((SKIP+1)); printf 'SKIP: %s (%s) [evidence: %s]\n' "$1" "$2" "$3" | tee -a "$EV/results.log"; }
 
-# extract the LAST-COMMITTED (pre-fix, git HEAD) copy of the primitive, once,
-# for RED_MODE=1 (§11.4.114 known-good/known-bad diff oracle -- here
-# "known-bad" is the committed artifact this fix replaces).
+# --- RED artifact pin (§11.4.114/§11.4.115, redpin class) -------------------
+# The RED artifact is the pre-fix copy at a FIXED commit, never `git show
+# HEAD:` (HEAD holds the FIXED copy once the fix is committed). RED_PIN is the
+# parent of 55998fb, which introduced the `xp` rename. Assertions: the pin is
+# reachable (else FAIL closed: a shallow clone cannot reproduce the RED); the
+# pinned copy contains the pre-fix construct AND lacks the fix; the CURRENT
+# copy contains the fix AND lacks the pre-fix construct (control needle).
+RED_PIN=e60cbde2e33e7d0542a937331763f6be7e739c9a
+RED_PATH=scripts/multitrack/multitrack_alias_orchestrator.sh
+PREFIX_NEEDLE='exp=val($0,"expires")'
+FIX_NEEDLE='; xp=val($0,"expires")'
+_cur_fix=$(grep -cF -- "$FIX_NEEDLE" "$ORCH"); _cur_pre=$(grep -cF -- "$PREFIX_NEEDLE" "$ORCH")
+if [ "${_cur_fix:-0}" -ge 1 ] && [ "${_cur_pre:-0}" -eq 0 ]; then
+    pass "control: the CURRENT $RED_PATH carries the fix ('$FIX_NEEDLE' x$_cur_fix) and not the pre-fix construct" "$ORCH"
+else
+    fail "control: the CURRENT $RED_PATH lost the fix (fix x${_cur_fix:-0}, pre-fix x${_cur_pre:-0})" "$ORCH"
+fi
 PREFIX_COPY="$WORK/multitrack_alias_orchestrator_prefix.sh"
-if [ "$RED_MODE" = "1" ]; then
-    if ! git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_alias_orchestrator.sh > "$PREFIX_COPY" 2>/dev/null; then
-        echo "FATAL: could not extract git HEAD copy of multitrack_alias_orchestrator.sh from $CONST_ROOT" >&2
+case " $PHASES " in *" 1 "*)
+    if ! git -C "$CONST_ROOT" cat-file -e "$RED_PIN^{commit}" 2>/dev/null; then
+        echo "FAIL: RED pin $RED_PIN is not reachable from $CONST_ROOT (shallow clone?) -- the RED cannot be reproduced; refusing to pass (§11.4.6)" >&2
         exit 93
     fi
-    if ! grep -qF 'exp=val($0,"expires")' "$PREFIX_COPY"; then
-        echo "FATAL: extracted HEAD copy does not contain the expected pre-fix 'exp=val(\$0,\"expires\")' construct -- cannot honestly claim RED reproduction (§11.4.6)" >&2
+    if ! git -C "$CONST_ROOT" show "$RED_PIN:$RED_PATH" > "$PREFIX_COPY" 2>/dev/null; then
+        echo "FAIL: could not extract $RED_PATH at RED pin $RED_PIN from $CONST_ROOT" >&2
+        exit 93
+    fi
+    if ! grep -qF -- "$PREFIX_NEEDLE" "$PREFIX_COPY" || grep -qF -- "$FIX_NEEDLE" "$PREFIX_COPY"; then
+        echo "FAIL: the copy at RED pin $RED_PIN is not the pre-fix artifact (needs '$PREFIX_NEEDLE' and not '$FIX_NEEDLE') -- cannot honestly claim RED reproduction (§11.4.6)" >&2
         exit 94
     fi
-fi
+    pass "RED pin $RED_PIN resolves and its $RED_PATH is the pre-fix artifact (has the pre-fix construct, lacks the fix)" "$PREFIX_COPY"
+;; esac
 
 # --- portability honesty (§11.4.6/§11.4.67): note which awk this host has ---
 AWK_BIN=$(command -v gawk 2>/dev/null || command -v mawk 2>/dev/null || command -v awk 2>/dev/null || true)
@@ -240,9 +279,9 @@ EOF
 
 run_iteration() {
     _iter="$1"
-    _norm="$EV/normalized_iter${_iter}.txt"
+    _norm="$EV/normalized_m${RED_MODE}_iter${_iter}.txt"
     : > "$_norm"
-    _reg="$WORK/reg_${_iter}"
+    _reg="$WORK/reg_m${RED_MODE}_${_iter}"
     _seed_scratch "$_reg"
 
     if [ "$RED_MODE" = "1" ]; then
@@ -254,7 +293,7 @@ run_iteration() {
         _rc=$?
         _bindbytes=$(wc -c < "$_reg/aliasdir/bindings.snapshot" 2>/dev/null | tr -d ' ')
         if grep -q 'syntax error' "$WORK/red_${_iter}.err" && [ "${_bindbytes:-1}" = "0" ]; then
-            pass "RED: pre-fix HEAD copy's reconcile awk emits a gawk syntax error AND bindings.snapshot stays EMPTY (byte count 0, defect genuinely present)" "$WORK/red_${_iter}.err"
+            pass "RED: pre-fix pinned copy's reconcile awk emits a gawk syntax error AND bindings.snapshot stays EMPTY (byte count 0, defect genuinely present)" "$WORK/red_${_iter}.err"
             echo "RED_defect_present rc=$_rc bindbytes=$_bindbytes" >> "$_norm"
         else
             fail "RED: expected a gawk syntax error + empty bindings.snapshot on the pre-fix copy, got rc=$_rc bindbytes=$_bindbytes -- defect not reproduced" "$WORK/red_${_iter}.err"
@@ -311,18 +350,20 @@ run_iteration() {
     fi
 }
 
-for _i in 1 2 3; do run_iteration "$_i"; done
+for RED_MODE in $PHASES; do
+    for _i in 1 2 3; do run_iteration "$_i"; done
 
-echo "=== §11.4.50 determinism check: normalized_iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
-if diff -q "$EV/normalized_iter1.txt" "$EV/normalized_iter2.txt" >/dev/null 2>&1 \
-   && diff -q "$EV/normalized_iter2.txt" "$EV/normalized_iter3.txt" >/dev/null 2>&1; then
-    pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_iter1.txt"
-else
-    fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
-fi
+    echo "=== §11.4.50 determinism check (RED_MODE=$RED_MODE): normalized iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
+    if diff -q "$EV/normalized_m${RED_MODE}_iter1.txt" "$EV/normalized_m${RED_MODE}_iter2.txt" >/dev/null 2>&1 \
+       && diff -q "$EV/normalized_m${RED_MODE}_iter2.txt" "$EV/normalized_m${RED_MODE}_iter3.txt" >/dev/null 2>&1; then
+        pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_m${RED_MODE}_iter1.txt"
+    else
+        fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
+    fi
+done
 
 echo "" | tee -a "$EV/results.log"
-echo "RED_MODE=$RED_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
+echo "RED_MODE=$REQ_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
 echo "Evidence: $EV"
 
 [ "$FAIL" -eq 0 ]
