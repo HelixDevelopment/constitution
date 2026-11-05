@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# round-2 reviewer probes: real census CLI, real files; prints id rc fire|quiet
+set -uo pipefail
+CEN="${1:?census}"; sb="${2:?sandbox}"; mkdir -p "$sb"
+p() { local id="$1" f="$sb/$1.sh" out rc; cat > "$f"; out="$(python3 -I "$CEN" --root "$sb" "$f" 2>&1)"; rc=$?
+  if grep -qP '\tjq-env\tindirect\t' <<<"$out"; then g=fire; else g=quiet; fi; echo "$id rc=$rc $g"; }
+# --- false-positive probes (should be quiet: text belongs to awk/sed/env-prefix, not jq) ---
+p FP1 <<'EOF'
+awk -v re='^(sudo|env|time)$' '$1 ~ re' f
+jq --version
+EOF
+p FP2 <<'EOF'
+PAT='env|x' awk 'BEGIN{print ENVIRON["PAT"]}'
+jq --version
+EOF
+p FP3 <<'EOF'
+env PAT='^(env|nice)$' sed -n p f
+jq --version
+EOF
+p FP4 <<'EOF'
+grep -E -e x='(env|sudo)' f
+jq --version
+EOF
+p FP5 <<'EOF'
+local re='^(env|sudo)$'; awk -v r="$re" '$1 ~ r' f
+jq --version
+EOF
+p FP6 <<'EOF'
+awk '/^(env|time)$/' f
+jq --version
+EOF
+# --- false-negative probes (should fire: jq program that dumps the environment) ---
+p FN1 <<'EOF'
+local P='env | keys'; awk 1 f
+jq -n "$P"
+EOF
+p FN2 <<'EOF'
+export P='$ENV'; sed -n 1p f
+jq -n "$P"
+EOF
+p FN3 <<'EOF'
+declare -r P='env | keys'; grep -q x f
+jq -n "$P"
+EOF
+p FN4 <<'EOF'
+printf '%s\n' 'env | keys' | "$JQ" -f /dev/stdin
+jq --version
+EOF
+p FN5 <<'EOF'
+jq -n --arg a 'b' --arg c 'd' 'env | keys'
+EOF
+p FN6 <<'EOF'
+P='env | keys'
+"$JQ" -n "$P" | grep -q x
+jq --version
+EOF
+p FN7 <<'EOF'
+P='env|keys'; awk "$P" f; "$JQ" -n "$P"
+jq --version
+EOF
+p FN8 <<'EOF'
+jq -n 'env'"$x"
+EOF
+p FN9 <<'EOF'
+jq -n "$(printf '%s' 'env | keys')"
+EOF
+p FN10 <<'EOF'
+readarray -t A <<'X'
+env | keys
+X
+jq -n "${A[0]}"
+EOF
+p FN11 <<'EOF'
+P=$'env | keys'; awk 1 f
+jq -n "$P"
+EOF
+p FN12 <<'EOF'
+P+='env | keys'; sed -n 1p f
+jq -n "$P"
+EOF
+p FN13 <<'EOF'
+read -r P <<<'env | keys'; grep -q x f
+jq -n "$P"
+EOF
+p FN14 <<'EOF'
+IFS= read -r -d '' P <<'X' || awk 1 f
+$ENV
+X
+jq -n "$P"
+EOF
+p FN15 <<'EOF'
+jq -n '.a' | jq 'env'
+EOF
+p FN16 <<'EOF'
+gojq -n '$ENV' | sed 1p
+EOF

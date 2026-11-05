@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# reviewer probes: real census, real files
+set -uo pipefail
+CEN="${1:?census path}"; sb="${2:?sandbox}"
+p() { local id="$1" f="$sb/$1.sh" out rc; cat > "$f"; out="$(python3 -I "$CEN" --root "$sb" "$f" 2>&1)"; rc=$?
+  if grep -qP '\tjq-env\tindirect\t' <<<"$out"; then g=fire; else g=quiet; fi; echo "$id rc=$rc $g"; }
+p R1 <<'EOF'
+"$JQ" -n 'env | keys' | grep -q x
+EOF
+p R2 <<'EOF'
+"${JQ:-jq}" -n '$ENV' | sed 's/a/b/'
+EOF
+p R3 <<'EOF'
+cat >"$f" <<'X'
+env | keys
+X
+"$JQ" -f "$f"
+jq --version
+EOF
+p R4 <<'EOF'
+cat >"$f" <<'X'
+env | keys
+X
+jq -f "${f}"
+EOF
+p R5 <<'EOF'
+prog='env | keys'
+"$JQ" -n "$prog" | grep -q x
+jq --version
+EOF
+p R6 <<'EOF'
+x=$(grep -c foo bar); jq_run -n 'env | keys'
+jq --version
+EOF
+p R7 <<'EOF'
+cat >"$f" <<'X'
+env | keys
+X
+g="$f"; jq -f "$g"
+EOF
+p R8 <<'EOF'
+echo 'env | keys' > /tmp/p; jq -f /tmp/p
+EOF
+p R9 <<'EOF'
+printf '%s\n' 'env | keys' > "$TMPF"
+jq -n -f "$TMPF"
+EOF
+p R10 <<'EOF'
+JQ=jq
+cat >"$f" <<'X'
+$ENV
+X
+$JQ -f "$f"
+EOF
+p R11 <<'EOF'
+run() { "$@"; }
+run jq -n 'env' | awk 1
+EOF
+p R12 <<'EOF'
+if command -v sed >/dev/null; then "$JQB" -n 'env|keys'; fi
+jq --version
+EOF
