@@ -870,8 +870,8 @@ print(" ".join(SHAPES))
 PYEOF
 )"
 m_time() { # <file> <nojq 0|1> -> "<exit> <ms>" (the faster of two runs)
-  local best="" rc t0 t1 ms i
-  for i in 1 2; do
+  local best="" rc t0 t1 ms
+  for _ in 1 2; do
     t0=$(date +%s%N)
     if [ "$2" -eq 1 ]; then
       PATH="$NOJQ_BIN" FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' "$BASH_ABS" "$TOOL" < "$1" >/dev/null 2>&1
@@ -885,7 +885,7 @@ m_time() { # <file> <nojq 0|1> -> "<exit> <ms>" (the faster of two runs)
   done
   echo "$rc $best"
 }
-check "M control needle: the shape generator wrote 12 payloads" "$([ "$(ls "$M_DIR" | wc -l)" -eq 12 ] && echo 0 || echo 1)" "shapes='$M_SHAPES' files=$(ls "$M_DIR" | wc -l)"
+check "M control needle: the shape generator wrote 12 payloads" "$([ "$(find "$M_DIR" -mindepth 1 -maxdepth 1 | wc -l)" -eq 12 ] && echo 0 || echo 1)" "shapes='$M_SHAPES' files=$(find "$M_DIR" -mindepth 1 -maxdepth 1 | wc -l)"
 for m_shape in $M_SHAPES; do
   for m_nojq in 0 1; do
     if [ "$m_nojq" -eq 1 ] && [ "$NOJQ_AVAILABLE" -ne 1 ]; then continue; fi
@@ -1046,6 +1046,7 @@ done
 echo
 echo "-- P. a failed clean-environment re-execution refuses (GUARD) / stays silent (EXTRACTION) --"
 P_TAGGED='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12 ok"}}'
+# shellcheck disable=SC2016 # $BASH must expand in the child shell, not here
 P_BASH="$(exec -a /nonexistent/fc-no-bash/bash "$BASH_ABS" -c 'printf %s "$BASH"')"
 check "P control needle: bash started as /nonexistent/fc-no-bash/bash reports that path as \$BASH" "$([ "$P_BASH" = /nonexistent/fc-no-bash/bash ] && echo 0 || echo 1)" "BASH='$P_BASH'"
 P_ERR="$(printf '%s' "$P_TAGGED" | (exec -a /nonexistent/fc-no-bash/bash "$BASH_ABS" "$TOOL") 2>&1 >/dev/null)"; P_RC=$?

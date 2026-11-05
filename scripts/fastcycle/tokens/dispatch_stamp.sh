@@ -24,6 +24,7 @@ if [[ "${1-}" != "--fc-clean-env" ]]; then
 fi
 shift
 _fc_n="$1"; shift
+# shellcheck disable=SC2163 # $1 is one NAME=value pair from the allowlist; exporting the pair is intended
 while [[ "$_fc_n" -gt 0 ]]; do export "$1"; shift; _fc_n=$((_fc_n - 1)); done
 unset _fc_n
 # constitution/scripts/fastcycle/tokens/dispatch_stamp.sh
