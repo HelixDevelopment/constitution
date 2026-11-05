@@ -17,7 +17,8 @@
 # malformed inputs cleanly" -- it did NOT:
 #   (1) a --proposal top-level JSON value that is a NON-ITERABLE scalar (a
 #       bare int or `null`) crashed uncaught at `k not in d` ("argument of
-#       type 'int'/'NoneType' is not iterable").
+#       type 'int'/'NoneType' is not iterable"; Python 3.14 words it
+#       "is not a container or iterable").
 #   (2) a wrong-type `backup_artifact_path` (e.g. a JSON list) separately
 #       crashed `derive_verdict` uncaught at `os.path.isabs()`
 #       ("expected str, bytes or os.PathLike object, not list").
@@ -107,10 +108,24 @@ REPO_ROOT_ARG="$ROOT/constitution"
 
 fail=0
 failx() { fail=1; }
+# CON-110: the TypeError text of `k not in <int|None>` changed in Python 3.14
+# from "argument of type 'int' is not iterable" to "... is not a container
+# or iterable"; both forms identify the same crash. Pattern self-checked
+# below (both forms match, an unrelated TypeError does not).
+NOT_ITER_RE="is not (a container or )?iterable"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
+echo "=== R6 regression guard: control needle -- the not-iterable crash pattern ==="
+if printf '%s\n' "TypeError: argument of type 'int' is not iterable" | grep -qiE "$NOT_ITER_RE" \
+   && printf '%s\n' "TypeError: argument of type 'NoneType' is not a container or iterable" | grep -qiE "$NOT_ITER_RE" \
+   && ! printf '%s\n' "TypeError: 'int' object is not subscriptable" | grep -qiE "$NOT_ITER_RE"; then
+  echo "ok control needle: the crash pattern matches the pre-3.14 and 3.14 texts and not an unrelated TypeError"
+else
+  echo "NOT ok control needle: the crash pattern '$NOT_ITER_RE' does not discriminate"
+  failx
+fi
 echo "=== R6 regression guard: control needle -- fixtures + the fixed tool + pinned copy all exist ==="
 for p in "$IMPL" "$LIB" "$PINNED" \
          "$FIXDIR/cs_r6_nondict_int.json" \
@@ -161,7 +176,7 @@ if [ -f "$PIN_OUT" ]; then
   echo "NOT ok R6-I3(1)/int guard-viability FAILED: pinned pre-R6-fix copy WROTE"
   echo "     an --out document instead of crashing"
   failx
-elif grep -q "^Traceback" "$PIN_ERR" 2>/dev/null && grep -qi "is not iterable" "$PIN_ERR" 2>/dev/null; then
+elif grep -q "^Traceback" "$PIN_ERR" 2>/dev/null && grep -qiE "$NOT_ITER_RE" "$PIN_ERR" 2>/dev/null; then
   echo "ok R6-I3(1)/int guard-viability: the PINNED pre-R6-fix custody_sweep.py"
   echo "   CRASHED uncaught (Traceback + 'not iterable' TypeError in stderr,"
   echo "   NO --out document written) -- proving this fixture genuinely"
@@ -193,7 +208,7 @@ if [ -f "$PIN_OUT" ]; then
   echo "NOT ok R6-I3(1)/null guard-viability FAILED: pinned pre-R6-fix copy WROTE"
   echo "     an --out document instead of crashing"
   failx
-elif grep -q "^Traceback" "$PIN_ERR" 2>/dev/null && grep -qi "is not iterable" "$PIN_ERR" 2>/dev/null; then
+elif grep -q "^Traceback" "$PIN_ERR" 2>/dev/null && grep -qiE "$NOT_ITER_RE" "$PIN_ERR" 2>/dev/null; then
   echo "ok R6-I3(1)/null guard-viability: the PINNED pre-R6-fix custody_sweep.py"
   echo "   CRASHED uncaught (Traceback + 'not iterable' TypeError in stderr,"
   echo "   NO --out document written) -- proving this fixture genuinely"
