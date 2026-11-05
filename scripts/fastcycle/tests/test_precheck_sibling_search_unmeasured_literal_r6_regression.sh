@@ -242,6 +242,7 @@ SCRATCH="$TMP/scratch_mutated"
 mkdir -p "$SCRATCH/lib"
 cp "$PRECHECK" "$SCRATCH/precheck_pack.sh"
 cp "$RUN_PY" "$SCRATCH/lib/precheck_pack_run.py"
+cp "$(dirname "$RUN_PY")/precheck_common.py" "$SCRATCH/lib/precheck_common.py"
 
 python3 - "$SCRATCH/lib/precheck_pack_run.py" <<'PYEOF'
 import re, sys

@@ -8,7 +8,7 @@
 #       violates it still FAILs.
 # Test classes: unit/integration/e2e (REAL gates through their real CLI in git sandboxes, no doubles), security (hostile
 # file names, prose carriers), chaos (unreadable/duplicate/malformed baseline, concurrent runs), determinism x3,
-# idempotency, performance budget, RED proof against the committed (pre-change) gate, paired §1.1 mutations.
+# idempotency, performance budget, RED proof against a PINNED pre-change gate (ca88eda, never HEAD), paired §1.1 mutations.
 set -uo pipefail
 export CONSTITUTION_JEV_HOOK=off
 unset ORACLE_GUARD_STRICT ORACLE_GUARD_BASELINE ORACLE_GUARD_BASE ORACLE_GUARD_ROOT CONSUMER_ROOT
@@ -33,8 +33,8 @@ mkgate() { # $1 dir ; $2 = source file for the gate ; optional $3 sed expr to mu
     # (OLDLIB=1, the committed pre-change gate) pairs the gate with the committed lib.
     if [ "${OLDLIB:-0}" = 1 ]; then
         # N2 (round 3): no silent fallback -- if the committed lib cannot be read the RED proof would test the new lib, so stop loudly
-        git -C "$src" show HEAD:scripts/lib/third_party_prune.sh > "$1/scripts/lib/third_party_prune.sh" 2>/dev/null \
-            || { echo "FATAL: git show HEAD:scripts/lib/third_party_prune.sh failed; the RED-proof sandbox cannot be built" >&2; exit 2; }
+        git -C "$src" show "$RED_PIN:scripts/lib/third_party_prune.sh" > "$1/scripts/lib/third_party_prune.sh" 2>/dev/null \
+            || { echo "FATAL: git show $RED_PIN:scripts/lib/third_party_prune.sh failed; the RED-proof sandbox cannot be built" >&2; exit 2; }
     else
         cp "$src/scripts/lib/third_party_prune.sh" "$1/scripts/lib/"
     fi
@@ -43,8 +43,18 @@ mkgate() { # $1 dir ; $2 = source file for the gate ; optional $3 sed expr to mu
     cp "$src"/scripts/deps_manifest/helix_deps_tsv.sh "$src"/scripts/deps_manifest/helix_deps_tsv.py "$src"/scripts/deps_manifest/helix_deps_manifest.py "$src"/scripts/deps_manifest/override_guard.sh "$1/scripts/deps_manifest/"
     [ -z "${3:-}" ] || sed -i -E "$3" "$1/scripts/gates/$OR.sh"
 }
+# RED gate + lib = a PINNED pre-change commit (CON-043 fix round 2, F1), never `git show HEAD:`: once the ratchet is
+# committed HEAD already has it, so a HEAD-built "RED" gate PASSes at its baseline and the RED proof can never go RED on a
+# committed tree. ca88eda = the parent of 1afdfc6, the commit that introduced the ratchet (--write-baseline).
+RED_PIN=ca88eda44ff928e161448d559d0fc07881d3dfea
 mkgate "$sb/g_new" "$src/scripts/gates/$OR.sh"
-git -C "$src" show HEAD:scripts/gates/$OR.sh > "$sb/head_gate.sh" 2>/dev/null || { echo "FATAL: git show HEAD:scripts/gates/$OR.sh failed" >&2; exit 2; }
+git -C "$src" show "$RED_PIN:scripts/gates/$OR.sh" > "$sb/head_gate.sh" 2>/dev/null || { echo "FATAL: git show $RED_PIN:scripts/gates/$OR.sh failed (shallow clone? fetch full history); the RED proof cannot run" >&2; exit 2; }
+if grep -q -- '--write-baseline' "$sb/head_gate.sh" || grep -q 'oracle_ratchet_baseline' "$sb/head_gate.sh"; then
+    bad "RED pin $RED_PIN: the pinned gate already has the ratchet, so it proves nothing"
+else
+    ok "RED pin $RED_PIN: pinned pre-change gate has no --write-baseline / ratchet baseline"
+fi
+grep -q -- '--write-baseline' "$src/scripts/gates/$OR.sh" || bad "control needle: the current gate lacks --write-baseline, so the pin check is blind"
 OLDLIB=1 mkgate "$sb/g_head" "$sb/head_gate.sh"
 
 run() { # $1 gate dir, $2 root, rest args -> OUT RC
@@ -78,10 +88,10 @@ mkrepo() { # $1 dir ; $2 baseline count for test_legacy.py (empty = no baseline 
 markpushed() { git -C "$1" update-ref refs/remotes/origin/main HEAD; }   # everything committed so far counts as pushed
 commit() { "${GIT[@]}" -C "$1" add -A >/dev/null 2>&1; "${GIT[@]}" -C "$1" commit -qm "$2" >/dev/null 2>&1; }
 
-# ── RED proof: the committed (pre-change) gate has no ratchet -----------------------------------------------
+# ── RED proof: the pinned pre-change gate has no ratchet -----------------------------------------------
 mkrepo "$sb/r_eq" 3
 run "$sb/g_head" "$sb/r_eq" --quiet
-[ "$RC" = 1 ]; chk $? "RED: committed gate FAILs a repo that sits exactly at its baseline (rc=$RC) -- no ratchet existed"
+[ "$RC" = 1 ]; chk $? "RED: pinned pre-change gate FAILs a repo that sits exactly at its baseline (rc=$RC) -- no ratchet existed"
 run "$sb/g_new" "$sb/r_eq" --quiet
 [ "$RC" = 0 ] && grep -q $'^ORACLE-VERDICT\tPASS\tmode=ratchet' <<<"$OUT"; chk $? "GREEN: new gate PASSes at baseline (rc=$RC, ORACLE-VERDICT PASS ratchet)"
 
@@ -386,8 +396,12 @@ if [ -f "$cb" ]; then
     tot=$(awk -F'\t' '!/^#/ && NF==2 {s+=$2} END{print s+0}' "$cb")
     run "$sb/g_new" "$src" --quiet
     [ "$RC" = 0 ] && grep -q "ratchet total=$tot " <<<"$OUT"; chk $? "e2e canon root: ratchet PASS with live total == baseline total ($tot) (rc=$RC)"
+    # CON-043: strict mode ignores the frozen-evidence exclusion list, so its count is the ratchet scan WITHOUT exclusions
+    # (--exclusions /dev/null: not a regular file => no list), not the baseline total, which no longer holds the frozen files.
+    run "$sb/g_new" "$src" --quiet --exclusions /dev/null
+    stot=$(sed -n 's/.*ratchet total=\([0-9][0-9]*\) .*/\1/p' <<<"$OUT" | head -1)
     run "$sb/g_new" "$src" --quiet --strict
-    grep -q "FAIL — $tot test function" <<<"$OUT"; chk $? "e2e canon root: strict mode count == baseline total ($tot)"
+    [ -n "$stot" ] && [ "$stot" -ge "$tot" ] && grep -q "FAIL — $stot test function" <<<"$OUT"; chk $? "e2e canon root: strict mode count == scan without exclusions ($stot >= baseline total $tot)"
 else
     bad "canon baseline $cb missing"
 fi

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -uo pipefail
+CEN="${1:?}"; sb="${2:?}"; mkdir -p "$sb"
+p() { local id="$1" f="$sb/$1.sh" out rc; cat > "$f"; out="$(python3 -I "$CEN" --root "$sb" "$f" 2>&1)"; rc=$?
+  if grep -qP '\tjq-env\tindirect\t' <<<"$out"; then g=fire; else g=quiet; fi; echo "$id rc=$rc $g"; }
+p K1 <<'EOF'
+sedjq -n 'env | keys'
+jq --version
+EOF
+p K2 <<'EOF'
+echo "$("$JQ" -n '$ENV')" > "$out"
+jq --version
+EOF
