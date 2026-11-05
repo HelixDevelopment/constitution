@@ -4,4 +4,3 @@
 submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/n_tests.py	29
 submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_d16_d32.py	20
 submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_defects_d01_d15.py	15
-submodules/llmctl/tests/py/test_golden_stats.py	13
