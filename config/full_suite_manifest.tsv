@@ -731,6 +731,7 @@ tests/gates/test_helix_deps_field.sh	sh	entry	default	bash	-	auto
 tests/gates/test_help_full_header.sh	sh	entry	default	bash	-	auto
 tests/gates/test_manifest_structural_parser.sh	sh	entry	default	bash	-	auto
 tests/gates/test_manifest_structural_parser_mutation_test.sh	sh	entry	heavy	bash	-	auto
+tests/gates/test_oracle_frozen_exclusions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
@@ -856,3 +857,4 @@ tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
 scripts/fastcycle/tests/lib/consumer_required.sh	sh	fixture	-	-	-	override: sourced skip helper library, not a test entry point
+scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh

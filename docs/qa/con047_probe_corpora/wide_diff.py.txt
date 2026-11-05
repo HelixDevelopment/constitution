@@ -1,0 +1,18 @@
+# wide_diff.py <root> <listfile> <censusA> <censusB> : per-file jq-env rows of A vs B over every listed shell file
+import sys, os, importlib.util
+root, lst, a, b = sys.argv[1:5]
+def load(p):
+    s = importlib.util.spec_from_file_location(os.path.basename(p)[:-3], p); m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
+A, B = load(a), load(b)
+files = [l.rstrip("\n") for l in open(lst) if l.strip()]
+na = nb = err = 0; diffs = []; ja = jb = 0; anyrow = 0
+for f in files:
+    p = os.path.join(root, f)
+    try:
+        ra = [r for r in A.census(p, root) if r[0] == "jq-env"]; rb = [r for r in B.census(p, root) if r[0] == "jq-env"]
+    except Exception as e:
+        err += 1; continue
+    ja += len(ra); jb += len(rb)
+    if ra != rb: diffs.append((f, ra, rb))
+print(f"files={len(files)} errors={err} jq_env_rows A={ja} B={jb} differing_files={len(diffs)}")
+for f, ra, rb in diffs: print("DIFF", f, "A=", ra, "B=", rb)

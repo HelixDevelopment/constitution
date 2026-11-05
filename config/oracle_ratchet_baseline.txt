@@ -1,6 +1,5 @@
 # oracle_ratchet_baseline.txt -- CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT (§11.4.245) monotone-decreasing ratchet.
 # Format: <path relative to scan root><TAB><count of test functions lacking a valid oracle annotation>. May only DECREASE.
 # Lower with: bash scripts/gates/cm_oracle_strategy_named_and_independent.sh --write-baseline
-submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/n_tests.py	29
-submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_d16_d32.py	20
-submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness/py/test_defects_d01_d15.py	15
+# New files adopted only via: --adopt-new-files --reason "<text>" (audited in config/oracle_ratchet_adoptions.log)
+# CON-043: the 64 former entries (3 frozen RED-evidence files in submodules/llmctl) are covered by config/oracle_frozen_evidence_exclusions.tsv; 0 entries remain.
