@@ -1259,3 +1259,64 @@ UNKNOWN: not stated in the report — a reproduction MUST be established before 
 **Acceptance criteria:**
 The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
 
+## CON-064 — parse_mutation.py had no test; its full-suite excluded note named the wrong importer and a test that does not cover it
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T17:23:21Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+The excluded row of scripts/catalog-engine/lib/parse_mutation.py said: imported by parse_gate.py; tested by scripts/catalog-engine/tests. Measured: parse_gate.py only names it in a comment; scan.py imports it; the only test in scripts/catalog-engine/tests covers parse_gate.py. No runnable manifest unit referenced it. Vehicle vehicle/con031-excluded commit 4db86ed6 adds scripts/catalog-engine/tests/test_parse_mutation.sh (10/10, 9 of 9 paired mutants killed, 4.7 s) and 485c341d corrects the note. Pending independent review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle.
+
+**Affected scope / file-scope manifest:**
+scripts/catalog-engine/lib/parse_mutation.py, scripts/catalog-engine/tests/test_parse_mutation.sh, config/full_suite_manifest.tsv
+
+**Reproduction / context:**
+bash scripts/catalog-engine/tests/test_parse_mutation.sh
+
+**Acceptance criteria:**
+The test is on main as a default-tier manifest entry, passes, and every paired mutant is killed; the excluded note names scan.py and the test.
+
+## CON-065 — capture_fc_timer_triplet.sh checks the consumer pre-build file before refusing the stand-in-only override, so test (H15) fails in a standalone clone
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/triplet_red_main.log` — red-command `bash scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh` — signature `NOT ok (H15) rc=2: FATAL: pre-build script not found` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+**Investigation:** root-cause-found-with-evidence — root-cause `existence check of the consumer pre-build file ran before the mode-only stand-in override refusal` — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/triplet_green_v.log` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+
+RED measured 2026-11-05 on main 7f723954 in a fresh standalone clone: test_capture_fc_timer_triplet.sh check (H15) NOT ok rc=2: FATAL: pre-build script not found: <parent>/device/rockchip/rk3588/tests/pre_build_verification.sh. Root cause: the tool's existence check of the consumer pre-build file ran before the CAPTURE_TRIPLET_TREE_ROOT refusal, though the mode is decided from paths alone. Vehicle commit 322c25ef moves the refusal first; same test, same clone: all checks pass. Pending review and landing. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle.
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/capture_fc_timer_triplet.sh
+
+## CON-066 — parse_mutation.py keeps the trailing double quote of the echo in the description when a mutation banner has no closing em-dash
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/con066_repro.txt` — signature `description 'text"'` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+**Investigation:** root-cause-found-with-evidence — root-cause `_RE_MUT_DEF ends the description at an em-dash or end of line, so the closing quote of the echo is captured` — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/con066_repro.txt` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+
+Measured 2026-11-05: for the line  echo "— CM-X mutation: text"  (no closing em-dash) parse_mutation_file returns description 'text"' (with the quote; for an empty text it returns the single character "), because _RE_MUT_DEF ends at an em-dash or end of line. The catalog records a wrong description and derivation_gaps misses no-mutation-description. Not changed in the CON-064 test (it does not pin the defect). Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle.
+
+**Affected scope / file-scope manifest:**
+scripts/catalog-engine/lib/parse_mutation.py
+
+## CON-067 — full-suite manifest on main lacks rows for 26 census files, so --verify-manifest ends MANIFEST-MISMATCH and the operator cannot run --accept-excluded-change
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/verify_manifest_main.txt` — red-command `bash scripts/run_full_suite.sh --verify-manifest` — signature `RESULT: MANIFEST-MISMATCH (26 problem(s); nothing was run)` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+**Investigation:** root-cause-found-with-evidence — root-cause `26 census files landed without manifest rows; nothing refuses that at commit time` — evidence `/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/xa_ev/verify_manifest_main.txt` — updated 2026-11-05T17:24:12Z — by `Claude Sonnet 5.5 (CON-031 investigation)`
+
+Measured 2026-11-05 on main 7f723954: bash scripts/run_full_suite.sh --verify-manifest exit 3, RESULT: MANIFEST-MISMATCH (26 problems), all 'census file without manifest row' (e.g. test_precheck_shellcheck_red.sh, cm_agent_type_label_mutation_test.sh, states_mutation_runner.py). The runner refuses --accept-excluded-change while any other manifest problem exists, so CON-031 cannot be done on main. Vehicle commit 485c341d regenerates the manifest (27 rows incl. the new CON-064 test, two new excluded rows with reasons) and syncs the guide. Recurrence risk: tests land without their manifest row; no commit-time check. Source: scratchpad/excluded_analysis.md and excluded_plan.md (CON-031 investigation 2026-11-05); vehicle bundle scratchpad/excluded_vehicle.bundle.
+
+**Affected scope / file-scope manifest:**
+config/full_suite_manifest.tsv, docs/guides/full_suite_runner_guide.md
+
