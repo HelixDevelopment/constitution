@@ -157,6 +157,31 @@
 #   2 — environment / argument error, or BLIND: ratchet baseline missing/malformed.
 #   A final `ORACLE-VERDICT<TAB>PASS|FAIL|BLIND|SKIP<TAB>mode=...` line is machine-readable.
 #
+# ── The basis line (CON-044): deliberately NOT enforced ─────────────────────
+# Some annotations carry a separate comment line `# basis: <text>` stating where the expected value comes from.
+# That line is NOT part of this gate's annotation grammar and is NOT enforced. Measured facts (base feacc507, scan
+# scope = own-org submodules included, which is why the llmctl numbers matter; §11.4.273 control-needled):
+#   - `# basis:` is defined in no anchor, guide or doc (§11.4.245 requires a NAMED strategy and leaves independence
+#     to the reviewer). It IS used: 115 lines in 8 files under submodules/llmctl/tests/py (llmctl oracle waves b2/b3,
+#     2026-11-05), always as a free-text line ABOVE a bare `# oracle: X`. The other 554 of the 669 annotations use
+#     `# oracle: X (reason)`, the justification in the parenthetical.
+#   - ORDER MATTERS with the gate's 3-line window: the basis line goes ABOVE the oracle line. `# basis:` then
+#     `# oracle: X` then up to two decorators then `def` PASSes; `# oracle: X` then `# basis:` then two decorators
+#     then `def` FAILs, because the basis line uses a window slot.
+# Why it is not enforced:
+#   (b) the gate can check only that the text is PRESENT, not that it is TRUE or independent of the code under test
+#       (§11.4.245 independence stays §11.4.194/§11.4.142 reviewer territory), so a presence-only check would reward
+#       filler text, the "presence >= 1" pattern §11.4.227 warns against;
+#   (c) a MANDATORY basis line would fail the 554 parenthetical-form annotations and would need a baseline or grammar
+#       decision. An either-form rule ("justification as parenthetical OR as basis line") would fail none of the 669
+#       today, but it is still presence-only, so (b) applies to it too.
+# Whether to enforce it (and in which form) remains an operator decision (§11.4.66); if so, define the grammar in the
+# anchor first, then extend this gate.
+# Pinned by the mutation test (section 8): an annotation without a basis line PASSes; the llmctl form (basis above a
+# bare oracle) PASSes; a lone `# basis:` line, with or without a strategy token, is NOT an annotation; oracle-above-basis
+# with two decorators FAILs; gate variants that require a basis line, accept `basis` as an oracle keyword, or reject
+# an annotation preceded by a basis line are killed.
+#
 # Classification: universal (§11.4.17) — no project-specific literal.
 
 set -uo pipefail
