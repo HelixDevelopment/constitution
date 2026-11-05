@@ -48,6 +48,24 @@ bash $E unwire my_ext --agent all; bash $E disable my_ext; bash $E remove my_ext
 
 `extensions.state/` is local and git-ignored, so `verify` exits 5 until each enabled entry is re-consented (`enable <id> --yes`). That is by design.
 
+## Ownership ledger (ownership redesign, wave 1)
+
+Status: PROVISIONAL, foundation only. `scripts/constitution_ext/wiring_ledger.py` is tested but NOT yet called by the installer, the post-update hook or `constitution_ext.sh`; nothing you run today changes behaviour. Design: [extension_engine_ownership_redesign.md](../design/extension_engine_ownership_redesign.md) sections 5 and 9.
+
+The rule: the constitution treats a file, link or JSON entry in your project as its own only when (1) `.constitution/wiring.json` (tracked) has a row for it, (2) the local, git-ignored `.constitution/extensions.state/wiring.local.json` carries this checkout's HMAC signature for that row and the row names this constitution root, and (3) the item on disk still matches the row's fingerprint. Anything else is reported (`consumer-owned`, `other-checkout`, `diverged`) and never replaced or deleted. The ledger stores paths and digests only.
+
+```
+W="python3 -I scripts/constitution_ext/wiring_ledger.py --project . --root <constitution>"
+$W inventory                          # read-only: what looks constitution-made
+$W adopt                              # adopts NOTHING (decision D6); use --adopt all-matching or --only PATH
+$W backup --path .claude/settings.json --path .claude/skills/x
+$W rollback --backup .constitution-install-backup/<UTC>-wiring
+$W status | $W classify --path P | $W record ... | $W forget --id ID
+$W refs add|remove|count|list --id EXT --record-digest D   # extensions/_installed/<id>.refs, flock-protected
+```
+
+Exit 0 ok, 3 refused (nothing changed). `rollback` restores backed-up files byte-for-byte, restores both ledger files, drops rows created after the backup and unlinks a link made since only while it still matches its row; changed items are listed under `left_alone`. Tests: `tests/extensions/test_wiring_ledger.sh` and the paired mutations in `test_wiring_ledger_mutations.sh`.
+
 ## Known limits
 
 The engine is experimental and dormant and has not been independently reviewed to a GO. Known, unfixed ownership limits (shared-tree removal after re-consent with a copied lock, records not bound to the constitution root, a directory-swap race in the tree copy, no reference counting) are listed in the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed). Do not share one constitution root between projects you do not control.

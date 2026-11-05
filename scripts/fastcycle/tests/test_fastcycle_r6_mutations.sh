@@ -1258,6 +1258,31 @@ MUTS = [
      T_V5, {"V5_ONLY": "R7N6R4"}, "NOT ok [R7N6R4-liar]"),
     ("ATM1220-QPROBE", BR, [("          trap 'exit 131' QUIT\n          trap 'exit 143' TERM\n          env --block-signal", "          trap 'exit 143' TERM\n          env --block-signal")],
      T_V5, {"V5_ONLY": "R7N6QUIT"}, "NOT ok [R7N6QUIT-probe]"),
+    # ---- ATM-1220 follow-ups (CON-009: the r4 reviewer's surviving mutants A, C, G, H, I; CON-013: the r3 reviewer's RW6/RW7) ----
+    # A: the mask test without QUIT (0x4003): a caller blocking HUP/INT/TERM only was treated as already blocked, no re-exec
+    ("ATM1220-R4A", BR, [('      if [ $((16#$_fc_blk & 16#4007)) -ne $((16#4007)) ]; then\n', '      if [ $((16#$_fc_blk & 16#4003)) -ne $((16#4003)) ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6MASK R7N6MASKQUIT"}, "NOT ok [R7N6MASK"),
+    # C: the probe status accepted when <= 1 instead of exactly 0
+    ("ATM1220-R4C", BR, [('          if [ "$_fc_probe" = 0 ]; then\n', '          if [ "$_fc_probe" -le 1 ]; then\n')],
+     T_V5, {"V5_ONLY": "R7N6PROBEST"}, "NOT ok [R7N6PROBEST1]"),
+    # G: a malformed SigBlk read treated as "all blocked" instead of "none"
+    ("ATM1220-R4G", BR, [("case \"$_fc_blk\" in ''|*[!0-9a-fA-F]*) _fc_blk=0 ;; esac\n", "case \"$_fc_blk\" in ''|*[!0-9a-fA-F]*) _fc_blk=4007 ;; esac\n")],
+     T_V5, {"V5_ONLY": "R7N6MALF"}, "NOT ok [R7N6MALF-"),
+    # H: the probe's TERM trap ends with 0 instead of 143
+    ("ATM1220-R4H", BR, [("          trap 'exit 143' TERM\n          env --block-signal", "          trap 'exit 0' TERM\n          env --block-signal")],
+     T_V5, {"V5_ONLY": "R7N6PSIG"}, "NOT ok [R7N6PSIG-TERM]"),
+    # I: the re-exec through a PATH lookup of `bash` instead of "$BASH"
+    ("ATM1220-R4I", BR, [('HUP,INT,QUIT,TERM "$BASH" "${BASH_SOURCE[0]}" "$@"', 'HUP,INT,QUIT,TERM bash "${BASH_SOURCE[0]}" "$@"')],
+     T_V5, {"V5_ONLY": "R7N6BASH"}, "NOT ok [R7N6BASH]"),
+    # RW6 (carry review round 3, reviewer): the v4r8 matrix test pretends SIGHUP is ignored at entry, so every HUP cell SKIPs
+    ("CARRY-RW6", "tests/" + T_V8, [("HUP_IGN_AT_ENTRY = signal.getsignal(signal.SIGHUP) == signal.SIG_IGN", "HUP_IGN_AT_ENTRY = True")],
+     T_V8, {"R8_STREAMS": "open", "R8_SCENARIOS": "stop-HUP-main"}, "NOT ok [R8SKIP]"),
+    # N8 (CON-011): the census no longer refuses a script-side rebinding of BASH, the identity its "$BASH" re-exec exemption trusts
+    ("ATM1220-N8", CEN, [("        for m in _BASH_IDENTITY.finditer(t):\n", "        for m in []:\n")],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),
+    # RW7 (carry review round 3, reviewer): skip() no longer counts, so a host-limited run would read as a clean one
+    ("CARRY-RW7", "tests/" + T_SUP, [('def skip(s):\n    N["skip"] += 1\n', 'def skip(s):\n')],
+     T_SUP, {}, "NOT ok [SKIP-counts]"),
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
@@ -1345,9 +1370,18 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
 
 
 def replica():
+    return replica_for(None)
+
+
+def replica_for(target):
     root = tempfile.mkdtemp(prefix="r6mut.")
     shutil.copytree(os.path.join(FC, "cycle"), os.path.join(root, "cycle"))
     shutil.copytree(os.path.join(FC, "lib"), os.path.join(root, "lib"))
+    if target and target.startswith("tests/") and target != CEN:
+        # ATM-1220 follow-ups (CON-013): the mutated file is a TEST file (a reviewer mutant of the test harness itself, RW6/RW7):
+        # the whole tests directory is replicated and run_test then runs the replica's copy of the test
+        shutil.copytree(TESTS, os.path.join(root, "tests"), symlinks=True)
+        return root
     os.mkdir(os.path.join(root, "tests"))                      # round 13: the census is mutated in the replica too
     shutil.copy(os.path.join(TESTS, "check_safepath_census.py"), os.path.join(root, CEN))
     return root
@@ -1363,7 +1397,8 @@ def run_test(root, test, extra_env):
     env["FC_SUP_UNDER_TEST"] = os.path.join(root, SUP)
     env["FC_CENSUS_UNDER_TEST"] = os.path.join(root, CEN)
     try:
-        p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
+        _rt = os.path.join(root, "tests", test)       # a replica built for a mutated TEST file runs its own (mutated) copy
+        p = subprocess.run(["bash", _rt if os.path.exists(_rt) else os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
                            timeout=600)
     except subprocess.TimeoutExpired as e:      # round 11: a hung case is reported, never a crash of this runner
         out = e.stdout.decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
@@ -1410,7 +1445,7 @@ for cid, test, envx, want in CONTROLS:
 for mid, target, pairs, test, envx, want in MUTS:
     if ONLY and mid not in ONLY:
         continue
-    root = replica()
+    root = replica_for(target)
     try:
         path = os.path.join(root, target)
         src = open(path).read()
@@ -1437,7 +1472,7 @@ for mid, target, pairs, test, envx, want in MUTS:
 for eid, target, pairs, test, envx, want, proof in EQUIVS:
     if ONLY and eid not in ONLY:
         continue
-    root = replica()
+    root = replica_for(target)
     try:
         path = os.path.join(root, target)
         src = open(path).read()
