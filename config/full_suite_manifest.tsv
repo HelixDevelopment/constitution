@@ -719,6 +719,8 @@ tests/extensions/test_round9.sh	sh	member	default	-	tests/extensions/run_all.sh	
 tests/extensions/test_security.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_stress_perf.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_unit.py	py	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_wiring_ledger.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_wiring_ledger_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
 tests/gates/test_fastcycle_real_db.sh	sh	entry	default	bash	-	auto
