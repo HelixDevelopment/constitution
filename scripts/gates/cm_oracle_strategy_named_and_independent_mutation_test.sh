@@ -166,6 +166,38 @@ if [ -n "$_cls" ] && [ "$_help_last" = "$_cls" ]; then echo "✅ META OK:   --he
 _mg="$TMP/help_mut.sh"; sed "s|sed -n \"1,\$(awk '/^# Classification:/{print NR; exit}' \"\$0\")p\" \"\$0\"|sed -n '1,150p' \"\$0\"|" "$GATE" > "$_mg"
 if grep -q "1,150p" "$_mg" && [ "$(bash "$_mg" --help 2>/dev/null | tail -1)" != "$_cls" ]; then echo "✅ META OK:   hardcoded-150 help mutant is killed"; else echo "❌ META FAIL: hardcoded-help mutant survived or was not applied"; rc=1; fi
 
+# --- 8. CON-044: the '# basis:' line is deliberately NOT part of the annotation grammar (documented, pinned) ---
+# 8a. the decision is documented in the gate header AND reaches --help (RED before the header paragraph existed)
+if bash "$GATE" --help 2>/dev/null | grep -q "basis line (CON-044)"; then echo "✅ META OK:   --help documents the '# basis:' decision (CON-044)"; else echo "❌ META FAIL: gate header does not document the '# basis:' decision (CON-044)"; rc=1; fi
+# 8b. behaviour pin: a valid annotation with NO basis line passes; a lone '# basis:' with no 'oracle:' is NOT an annotation (still FAILs)
+mkdir -p "$TMP/8_nobasis" "$TMP/8_basisonly" "$TMP/8_withbasis"
+printf 'def test_a():  # oracle: SPECIFIED\n    assert 1\n' > "$TMP/8_nobasis/test_a.py"
+printf '# basis: some justification\ndef test_b():\n    assert 1\n' > "$TMP/8_basisonly/test_b.py"
+printf '# oracle: DERIVED\n# basis: independent reference impl\ndef test_c():\n    assert 1\n' > "$TMP/8_withbasis/test_c.py"
+expect_pass "annotation without a basis line (basis not required)" "$TMP/8_nobasis"
+expect_fail "lone '# basis:' without 'oracle:' is not an annotation" "$TMP/8_basisonly"
+expect_pass "annotation followed by a basis line is still accepted" "$TMP/8_withbasis"
+# 8b-llmctl. the form actually in use (llmctl waves b2/b3): '# basis:' line ABOVE a bare '# oracle: X', method inside a class.
+# Kills reviewer mutant RM2 (an annotation is rejected when the line above it is a basis line).
+mkdir -p "$TMP/8_llmctl" "$TMP/8_basisbare" "$TMP/8_oraclefirst2dec"
+printf 'class TestX:\n    # basis: expected value taken from the spec table, not from the code under test\n    # oracle: SPECIFIED\n    def test_y(self):\n        assert 1\n' > "$TMP/8_llmctl/test_y.py"
+expect_pass "llmctl form: '# basis:' line above a bare '# oracle: X' (method in a class)" "$TMP/8_llmctl"
+# 8b-bare. a lone '# basis: <strategy token>' is NOT an annotation (kills reviewer mutant RM1: gate accepting 'basis' as an oracle keyword).
+printf '# basis: DERIVED\ndef test_z():\n    assert 1\n' > "$TMP/8_basisbare/test_z.py"
+expect_fail "lone '# basis: DERIVED' (a strategy token, but no 'oracle:') is not an annotation" "$TMP/8_basisbare"
+# 8b-order. order matters with the 3-line window: basis ABOVE oracle passes with two decorators, oracle ABOVE basis does not.
+printf '# basis: spec\n# oracle: SPECIFIED\n@a\n@b\ndef test_o1():\n    assert 1\n' > "$TMP/8_oraclefirst2dec/test_o1.py"
+expect_pass "basis ABOVE oracle with two decorators passes (documented order)" "$TMP/8_oraclefirst2dec"
+mkdir -p "$TMP/8_wrongorder"; printf '# oracle: SPECIFIED\n# basis: spec\n@a\n@b\ndef test_o2():\n    assert 1\n' > "$TMP/8_wrongorder/test_o2.py"
+expect_fail "oracle ABOVE basis with two decorators FAILs (basis line eats a window slot; documented order is basis first)" "$TMP/8_wrongorder"
+# 8c. mutant: the require-basis gate variant below is killed by 8b. (A header doc-strip mutant was dropped: it only greps out the literal 8a greps for,
+# a tautology per §11.4.115(F); 8a itself is a documentation check, and its real RED evidence is 'new test against the base gate'.)
+# behavioural mutant: require '# basis:' in the preceding comment zone -> reject annotation-without-basis
+_mbeh="$TMP/mut_beh.sh"; sed 's|if (val in ok) { found = 1 } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1 } else { bad_val = val }|; s|if (val in ok) { found = 1; bad_val = "" } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1; bad_val = "" } else { bad_val = val }|' "$GATE" > "$_mbeh"
+if cmp -s "$GATE" "$_mbeh"; then echo "❌ META FAIL: require-basis mutant was not applied"; rc=1
+elif bash "$_mbeh" --root "$TMP/8_nobasis" >/dev/null 2>&1; then echo "❌ META FAIL: require-basis mutant survived 8b"; rc=1
+else echo "✅ META OK:   require-basis mutant is killed (annotation without basis now fails, pin detects)"; fi
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT FAILs-on-mutation AND PASSes-on-clean for every fixture, including the cross-contamination regression (§1.1 proof holds)"
