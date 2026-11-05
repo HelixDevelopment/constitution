@@ -151,6 +151,9 @@ mkrepo "$sb/b_over" 0; commit "$sb/b_over" over
 run "$sb/g_new" "$sb/b_over" --quiet
 [ "$RC" = 1 ] && grep -q 'ceiling' <<<"$OUT"; chk $? "more entries than the ceiling -> FAIL rc=1 (count may only decrease)"
 
+# --exclusions /dev/null (not a regular file) = no exclusions, never BLIND (the explicit "no list" idiom)
+run "$sb/g_new" "$sb/r1" --quiet --exclusions /dev/null
+[ "$RC" = 1 ] && grep -q $'\texcluded=0\tvoided=0\texclusion_entries=0\t' <<<"$OUT"; chk $? "--exclusions /dev/null: no exclusions, frozen file counted, FAIL rc=1 not BLIND (rc=$RC)"
 # absent list = no exclusions, existing behaviour unchanged
 mkrepo "$sb/r4" 1; rm -f "$sb/r4/$EXC"; commit "$sb/r4" noexc
 run "$sb/g_new" "$sb/r4" --quiet

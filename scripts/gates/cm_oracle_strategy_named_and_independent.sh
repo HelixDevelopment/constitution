@@ -112,7 +112,7 @@
 #   (1) a LITERAL repository-relative file path per entry: a glob character (* ? [ ] { }), an absolute path, a `..` or `.`
 #       segment (incl. a leading `./` or a trailing `/.`), `//`, a trailing slash, or a duplicate is a malformed list => BLIND
 #       (rc 2); each entry has EXACTLY 4 TAB-separated non-empty columns (a doubled, leading or trailing TAB is BLIND, never
-#       collapsed); an unreadable list, or a list path that is not a regular file, is BLIND;
+#       collapsed); an unreadable regular-file list is BLIND; a path that is not a regular file (absent, /dev/null) = no list;
 #   (2) class from the CLOSED set {frozen-red-evidence}; anything else => BLIND;
 #   (3) the entry records the git blob id of the frozen file as the repository that OWNS it computes it (40-hex sha1 or 64-hex
 #       sha256): `git -C <file's directory> hash-object --path=<name> <name>`, i.e. with that repository's object format and
@@ -328,7 +328,7 @@ excl_blob_id() { git -C "$1" hash-object --path="$2" -- "$2" 2>/dev/null; }
 excl_blind() { echo "⚠ ${GATE}: BLIND — malformed frozen-evidence exclusion list ${excl_file}: $1" >&2; printf 'ORACLE-VERDICT\tBLIND\tmode=ratchet\treason=exclusions_malformed\n'; exit 2; }
 if [ "$strict" != 1 ]; then
     [ -n "$excl_file" ] || excl_file="$root/config/oracle_frozen_evidence_exclusions.tsv"
-    if [ -e "$excl_file" ] && [ ! -f "$excl_file" ]; then excl_blind "the list path exists but is not a regular file"; fi
+    # a path that is not a regular file (absent, or e.g. /dev/null) = no exclusions: fail closed toward MORE scanning
     if [ -f "$excl_file" ]; then
         excl_unreadable "$excl_file" && excl_blind "the list is unreadable (permissions)"
         excl_active=1
