@@ -90,8 +90,10 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # "Classification: universal (§11.4.17)"): universal 191 -> 192 = +1. 192 + 110 + 2 mixed = 304.
         # Re-measured 2026-11-03 (§11.4.295 substitute app, same verdict added,
         # "Classification: universal (§11.4.17)"): universal 192 -> 193 = +1. 193 + 110 + 2 mixed = 305.
-        assert len(universal) == 193, (
-            f"expected exactly 193 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-11-05 (§11.4.296 GitHub Issues as a source of workable items added,
+        # "Classification: universal (§11.4.17)"): universal 193 -> 194 = +1. 194 + 110 + 2 mixed = 306.
+        assert len(universal) == 194, (
+            f"expected exactly 194 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

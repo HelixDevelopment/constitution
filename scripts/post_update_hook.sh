@@ -1131,8 +1131,9 @@ validate_hub_structure() {
     # canon, mirrors, item template and skills the same way, so it also runs against the hub; so does
     # cm_scope_and_image_noworse_anchor_wired.sh (§11.4.293), which inspects the hub's canon, mirrors and skill; so does
     # cm_state_fields_anchor_wired.sh (§11.4.294), which inspects the hub's canon, mirrors, item template and skills; and
-    # cm_geo_substitute_anchor_wired.sh (§11.4.295), which inspects the hub's canon and mirrors.
-    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh cm_state_fields_anchor_wired.sh cm_geo_substitute_anchor_wired.sh; do
+    # cm_geo_substitute_anchor_wired.sh (§11.4.295), which inspects the hub's canon and mirrors; and
+    # cm_github_issues_source_anchor_wired.sh (§11.4.296), which inspects the hub's canon, mirrors and generated rule files.
+    for gate in cm_hub_engine_no_ownorg_nesting.sh cm_llmctl_submodule_nonrecursive.sh cm_helix_deps_manifest_present.sh cm_provisional_done_anchor_wired.sh cm_repro_first_anchor_wired.sh cm_scope_and_image_noworse_anchor_wired.sh cm_state_fields_anchor_wired.sh cm_geo_substitute_anchor_wired.sh cm_github_issues_source_anchor_wired.sh; do
         groot="$CONST_DIR"
         case "$gate" in
             cm_hub_engine_no_ownorg_nesting.sh)   tok="CM-HUB-ENGINE-NO-OWNORG-NESTING" ;;
@@ -1143,6 +1144,7 @@ validate_hub_structure() {
             cm_scope_and_image_noworse_anchor_wired.sh) tok="CM-SCOPE-AND-IMAGE-NOWORSE-ANCHOR-WIRED" ;;
             cm_state_fields_anchor_wired.sh)      tok="CM-STATE-FIELDS-ANCHOR-WIRED" ;;
             cm_geo_substitute_anchor_wired.sh)    tok="CM-GEO-SUBSTITUTE-ANCHOR-WIRED" ;;
+            cm_github_issues_source_anchor_wired.sh) tok="CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED" ;;
         esac
         if [ ! -f "$CONST_DIR/scripts/gates/$gate" ]; then
             warn "$tok: gate file missing ($gate) — BLIND"; WARNINGS+=("$tok: gate file missing (BLIND)"); continue
