@@ -26,6 +26,7 @@
 # ok()/bad() always return 0 (so `c && ok || bad` never mis-fires), and mutation anchors are
 # LITERAL source text (never expanded here).
 # shellcheck disable=SC2015,SC2016
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/rk3588/tests/pre_build_verification.sh
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh

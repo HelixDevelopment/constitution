@@ -127,6 +127,7 @@
 #        (control needles, fixture presence/parse, the four fixture checks
 #        against escape_classify.py's real output, and the count check) held
 #        (only possible once T094 is GREEN); nonzero = FAIL count>0 (today).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer config/fastcycle/fastcycle.yaml docs/workable_items.db
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

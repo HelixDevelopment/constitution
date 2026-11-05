@@ -77,6 +77,7 @@
 #       absent tool).
 # =============================================================================
 
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/atmosphere/presenter
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)

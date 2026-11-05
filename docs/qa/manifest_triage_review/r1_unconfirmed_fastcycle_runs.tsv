@@ -1,0 +1,34 @@
+test_backstop_compare_exit_codes_r2_regression.sh	sh	rc=0	3s	
+test_backstop_compare_r3_regression.sh	sh	rc=0	1s	
+test_backstop_red.sh	sh	rc=1	3s	FAIL: control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself
+test_custody_sweep_r11_regression.sh	bash	rc=1	59s	NOT ok B2 stash golden-good (plain stash, faithful backup): expected ALLOWED, got REFUSED (backup content at '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b
+test_custody_sweep_r13_regression.sh	bash	rc=1	95s	NOT ok B-1.3 stash staged divergence: REFUSED but detail does not name "RESTORABILITY ORACLE" (backup content at '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/
+test_custody_sweep_r15_regression.sh	bash	rc=1	138s	NOT ok G3 plain stash on a live branch: expected ALLOWED, got REFUSED (RESTORABILITY ORACLE: the backup at '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b
+test_custody_sweep_r6_regression.sh	bash	rc=1	6s	NOT ok R6-I3(1)/int guard-viability BLIND: Traceback (most recent call last):
+test_custody_sweep_r9_regression.sh	bash	rc=1	7s	NOT ok R9b-I1 real (fixed) tool FAILED: rc=2 stderr=custody_sweep.py: --repo-root '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de773
+test_escape_classify_malformed_red.sh	bash	rc=1	2s	NOT ok non_mapping_entry: exit 1 (named refusal) (rc=2)
+test_evidence_ref_red.sh	bash	rc=1	10s	NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable
+test_fc_commit_stage_timer_mutations.sh	bash	rc=2	0s	FATAL: commit_all.sh / test not found
+test_fc_entry_r10_regression.sh	bash	rc=1	8s	NOT ok B1 (inventory, WITH --out) FAILED: rc=2 out_exists=yes
+test_fc_timer_prebuild_mutations.sh	bash	rc=2	0s	FATAL: inputs missing
+test_flake_ledger_red.sh	sh	rc=1	10s	FAIL: control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself
+test_gate_shard_r3_regression.sh	sh	rc=1	6s	Traceback (most recent call last):
+test_governance_subset_red.sh	bash	rc=1	3s	NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable
+test_host_attribute_red.sh	bash	rc=1	2s	FAIL: attribute (empty-consumer case) expected exit 0 + output file, got rc=3 stderr=host_report: attribute needle FAILED: btrfs_binary_unavailable -- exclusive-bytes instrument not trustworthy this r
+test_host_guard_red.sh	sh	rc=1	37s	FAIL: R4 live ulimit -u read (=) => N= thread_headroom expected rc=0 N= reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+test_io_trace_build_map_device_safety_r2_regression.sh	sh	rc=0	19s	
+test_io_trace_build_map_r3_regression.sh	sh	rc=0	2s	
+test_io_trace_build_map_r5_regression.sh	sh	rc=0	5s	
+test_io_trace_build_map_r6_regression.sh	sh	rc=1	5s	FAIL: D1: the OLD mechanism did not reproduce the umount-succeeds bypass -- this mutation is not meaningful, re-investigate: OLD_MECHANISM_RUN rc=1 stdout='' stderr='unshare: write failed /proc/self/u
+test_io_trace_build_map_setsid_r5_regression.sh	sh	rc=0	5s	
+test_io_trace_fork_cwd_and_faccessat_r2_regression.sh	sh	rc=0	1s	
+test_mutation_reuse_red.sh	sh	rc=1	7s	FAIL: control needle FAILED: specs/004-fast-dev-cycles/contracts/ itself
+test_precheck_pack_build_red.sh	sh	rc=0	105s	
+test_precheck_pack_multi_slice_sibling_search_r5_regression.sh	sh	rc=0	3s	
+test_precheck_shellcheck_red.sh	sh	rc=124	320s	NOT ok: M11 mutation-flip: 'c["verdict"] == "PASS"' is 'Traceback (most recent call last):
+test_precheck_sibling_blast_radius_honest_verdict_red.sh	sh	rc=0	2s	
+test_precheck_sibling_search_unmeasured_literal_r6_regression.sh	sh	rc=0	2s	
+test_precheck_slicer_red.sh	sh	rc=1	3s	FAIL: B1 self-check FAILED: 'sh -n' against broken_syntax_gate.sh did
+test_reopen_rate_red.sh	bash	rc=1	2s	NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable
+test_resume_revalidate_red.sh	bash	rc=1	5s	NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is
+DONE

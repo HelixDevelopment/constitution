@@ -182,6 +182,7 @@
 #                                   either way and needs no flag change to
 #                                   start reporting PASS once T033 archives
 #                                   real evidence on disk.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/testing/meta_test_false_positive_proof.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

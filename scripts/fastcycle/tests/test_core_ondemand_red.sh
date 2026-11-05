@@ -189,6 +189,7 @@
 #   FC_CORE_ONDEMAND_SKIP_SWEEP=1   skip the full 82-anchor block-integrity/
 #     lockstep sweep (section 5, ~1-2 min wall-clock) -- prints an explicit
 #     "SKIPPED (env override)" line, never silently counted as a PASS.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer CLAUDE.md
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

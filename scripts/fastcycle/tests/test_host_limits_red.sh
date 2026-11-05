@@ -44,6 +44,7 @@
 # test is re-run and its `memory_ceiling` reason/returned_n assertion is
 # confirmed to FAIL, then the mutation is reverted.
 
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/lib/host_session_safety.sh
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC_ROOT=$(cd "$HERE/.." && pwd)

@@ -40,6 +40,8 @@ repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 PREBUILD="${PREBUILD_SRC:-$ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh}"
 REAL_TESTS_DIR="$ROOT/device/rockchip/rk3588/tests"
+# consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$PREBUILD" "$REAL_TESTS_DIR"
 FC_TIMER_LIB="$ROOT/constitution/scripts/fastcycle/timing/fc_timer.sh"
 
 fail=0
