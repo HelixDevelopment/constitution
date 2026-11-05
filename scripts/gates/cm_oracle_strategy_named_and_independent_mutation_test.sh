@@ -166,6 +166,26 @@ if [ -n "$_cls" ] && [ "$_help_last" = "$_cls" ]; then echo "✅ META OK:   --he
 _mg="$TMP/help_mut.sh"; sed "s|sed -n \"1,\$(awk '/^# Classification:/{print NR; exit}' \"\$0\")p\" \"\$0\"|sed -n '1,150p' \"\$0\"|" "$GATE" > "$_mg"
 if grep -q "1,150p" "$_mg" && [ "$(bash "$_mg" --help 2>/dev/null | tail -1)" != "$_cls" ]; then echo "✅ META OK:   hardcoded-150 help mutant is killed"; else echo "❌ META FAIL: hardcoded-help mutant survived or was not applied"; rc=1; fi
 
+# --- 8. CON-044: the '# basis:' line is deliberately NOT part of the annotation grammar (documented, pinned) ---
+# 8a. the decision is documented in the gate header AND reaches --help (RED before the header paragraph existed)
+if bash "$GATE" --help 2>/dev/null | grep -q "basis line (CON-044)"; then echo "✅ META OK:   --help documents the '# basis:' decision (CON-044)"; else echo "❌ META FAIL: gate header does not document the '# basis:' decision (CON-044)"; rc=1; fi
+# 8b. behaviour pin: a valid annotation with NO basis line passes; a lone '# basis:' with no 'oracle:' is NOT an annotation (still FAILs)
+mkdir -p "$TMP/8_nobasis" "$TMP/8_basisonly" "$TMP/8_withbasis"
+printf 'def test_a():  # oracle: SPECIFIED\n    assert 1\n' > "$TMP/8_nobasis/test_a.py"
+printf '# basis: some justification\ndef test_b():\n    assert 1\n' > "$TMP/8_basisonly/test_b.py"
+printf '# oracle: DERIVED\n# basis: independent reference impl\ndef test_c():\n    assert 1\n' > "$TMP/8_withbasis/test_c.py"
+expect_pass "annotation without a basis line (basis not required)" "$TMP/8_nobasis"
+expect_fail "lone '# basis:' without 'oracle:' is not an annotation" "$TMP/8_basisonly"
+expect_pass "annotation followed by a basis line is still accepted" "$TMP/8_withbasis"
+# 8c. mutants: (i) a gate that REQUIRES a basis line is killed by 8b-style pin; (ii) stripping the header paragraph must be killed by 8a
+_mdoc="$TMP/mut_nodoc.sh"; grep -v "basis line (CON-044)" "$GATE" > "$_mdoc"
+if bash "$_mdoc" --help 2>/dev/null | grep -q "basis line (CON-044)"; then echo "❌ META FAIL: doc-strip mutant survived"; rc=1; else echo "✅ META OK:   doc-strip mutant is killed by the 8a check"; fi
+# behavioural mutant: require '# basis:' in the preceding comment zone -> reject annotation-without-basis
+_mbeh="$TMP/mut_beh.sh"; sed 's|if (val in ok) { found = 1 } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1 } else { bad_val = val }|; s|if (val in ok) { found = 1; bad_val = "" } else { bad_val = val }|if (val in ok \&\& lines[k+1] ~ /basis:/) { found = 1; bad_val = "" } else { bad_val = val }|' "$GATE" > "$_mbeh"
+if cmp -s "$GATE" "$_mbeh"; then echo "❌ META FAIL: require-basis mutant was not applied"; rc=1
+elif bash "$_mbeh" --root "$TMP/8_nobasis" >/dev/null 2>&1; then echo "❌ META FAIL: require-basis mutant survived 8b"; rc=1
+else echo "✅ META OK:   require-basis mutant is killed (annotation without basis now fails, pin detects)"; fi
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-ORACLE-STRATEGY-NAMED-AND-INDEPENDENT FAILs-on-mutation AND PASSes-on-clean for every fixture, including the cross-contamination regression (§1.1 proof holds)"

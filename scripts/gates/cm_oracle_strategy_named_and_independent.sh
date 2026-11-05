@@ -157,6 +157,21 @@
 #   2 — environment / argument error, or BLIND: ratchet baseline missing/malformed.
 #   A final `ORACLE-VERDICT<TAB>PASS|FAIL|BLIND|SKIP<TAB>mode=...` line is machine-readable.
 #
+# ── The basis line (CON-044): deliberately NOT enforced ─────────────────────
+# Some annotations are written with a second comment line `# basis: <text>` stating where the expected value
+# comes from. That line is NOT part of this gate's annotation grammar and is NOT enforced, for these reasons:
+#   (a) no corpus convention defines it (measured at base feacc507: no `# basis:` line in any tracked test file,
+#       in any branch or in git history of *.py/*.sh/*.md; the only annotation form in use is `# oracle: X (reason)`,
+#       whose parenthetical already carries free-text justification);
+#   (b) the gate can check only that the text is PRESENT, not that it is TRUE or independent of the code under
+#       test (§11.4.245 independence is a semantic property, stays §11.4.194/§11.4.142 reviewer territory), so a
+#       mandatory basis line would reward filler text, the "presence >= 1" pattern §11.4.227 warns against;
+#   (c) making it mandatory would turn every existing annotated test into a violation and invalidate the frozen
+#       ratchet baseline (config/oracle_ratchet_baseline.txt), which may only decrease.
+# Pinned by the mutation test (section 8): an annotation without a basis line PASSes, a lone `# basis:` line with no
+# `oracle:` is NOT an annotation (the function still FAILs), and a gate variant that requires a basis line is killed.
+# If the operator later wants it enforced, define the grammar in the anchor first (§11.4.66), then extend this gate.
+#
 # Classification: universal (§11.4.17) — no project-specific literal.
 
 set -uo pipefail
