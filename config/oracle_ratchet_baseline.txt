@@ -7,9 +7,7 @@ submodules/llmctl/specs/009-jev-decision-models/evidence/p1-red-original/harness
 submodules/llmctl/tests/py/test_evidence_manifest.py	11
 submodules/llmctl/tests/py/test_evidence_writer.py	17
 submodules/llmctl/tests/py/test_golden_manifest.py	11
-submodules/llmctl/tests/py/test_golden_runner.py	39
-submodules/llmctl/tests/py/test_golden_stats.py	30
-submodules/llmctl/tests/py/test_jevbench_adapter.py	34
+submodules/llmctl/tests/py/test_golden_stats.py	13
 submodules/llmctl/tests/py/test_leak_scan.py	12
 submodules/llmctl/tests/py/test_matrix_harness_fixes.py	25
 submodules/llmctl/tests/py/test_matrix_harness_units.py	14
