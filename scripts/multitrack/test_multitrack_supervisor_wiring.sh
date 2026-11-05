@@ -166,7 +166,7 @@ CWH="$CONST_ROOT/scripts/multitrack/multitrack_cwd_hook.sh"
 MOCK="$REPO_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
 
 for _f in "$SESSIONS" "$BOOT" "$SUP" "$CWH" "$MOCK"; do
-    [ -f "$_f" ] || { echo "FATAL: required file not found: $_f" >&2; exit 91; }
+    [ -f "$_f" ] || { case "$_f" in */rb05_fixtures/*) echo "SKIP topology_unsupported: consumer-project fixture absent (not part of canon alone): $_f" >&2; exit 77 ;; esac; echo "FATAL: required file not found: $_f" >&2; exit 91; }
 done
 sh -n "$SESSIONS" 2>/dev/null   || { echo "FATAL: $SESSIONS fails sh -n" >&2; exit 92; }
 sh -n "$SUP" 2>/dev/null        || { echo "FATAL: $SUP fails sh -n" >&2; exit 92; }

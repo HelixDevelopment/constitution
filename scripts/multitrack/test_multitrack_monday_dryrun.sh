@@ -134,6 +134,7 @@ MOCK="$REPO_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
 
 for _mt_f in "$SESSIONS" "$RESOLVER" "$ORCH" "$FBMON" "$SUP" "$BOOT" "$MOCK"; do
     if [ ! -f "$_mt_f" ]; then
+        case "$_mt_f" in */rb05_fixtures/*) echo "SKIP topology_unsupported: consumer-project fixture absent (not part of canon alone): $_mt_f" >&2; exit 77 ;; esac
         echo "FATAL: required engine/fixture file not found: $_mt_f" >&2
         exit 91
     fi

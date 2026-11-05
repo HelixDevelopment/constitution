@@ -99,7 +99,7 @@ _pst_project_root() {
     ( cd "$CONST_ROOT/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null )
 }
 PROJECT_ROOT=$(_pst_project_root)
-[ -n "$PROJECT_ROOT" ] || { echo "FATAL: no outer project root (git toplevel above constitution/ / \$MT_TEST_PROJECT_ROOT)" >&2; exit 90; }
+[ -n "$PROJECT_ROOT" ] || { echo "SKIP topology_unsupported: no outer project root (git toplevel above constitution/ / \$MT_TEST_PROJECT_ROOT): canon is not nested in a consumer" >&2; exit 77; }
 
 SESSIONS="$CONST_ROOT/scripts/multitrack/multitrack_sessions.sh"
 MOCK="$PROJECT_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
