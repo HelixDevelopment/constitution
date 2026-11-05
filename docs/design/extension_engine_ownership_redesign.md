@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-02 |
-| Last modified | 2026-11-02 |
+| Last modified | 2026-11-05 |
 | Status | design proposal; nothing in it is implemented. Read-only investigation of `main` at `ca88eda` plus the dirty working tree present at that time |
 | Status summary | Records how the CLI-agent installer and the `/constitution extensions` engine decide what they own today, the defects found, a proposed ownership model, verified wiring for opencode, kimi and pi, a compatibility matrix, a migration and rollback plan, a test plan and phased work items. Operator decisions are listed in section 11 |
 | Authority | §11.4.228 (extension lifecycle), §11.4.272 (on-demand activation), §11.4.122 (no silent removal), §11.4.287 (destructive paths), §11.4.10 (secrets), §11.4.111 (relocation-proof links), §11.4.201 / §11.4.273 (real condition, control needles), §11.4.289 (live evidence), §11.4.288 (all work on `main`) |
@@ -123,13 +123,16 @@ Everything else is consumer-owned and is never modified, replaced or deleted. A 
 | Path | `<project>/.constitution/wiring.json` (one file for installer and engine) |
 | Tracked in git | yes, so a clone knows what the constitution placed. Ownership by a CLONE is then proved by the second key below |
 | Local key | the engine's existing per-checkout state key (`.constitution/extensions.state/key`, 0600, never committed) signs a local `wiring.local.json` that records which rows THIS checkout created. Delete and replace need both the tracked row and a valid local signature. This closes the "copied lock" class (P10) for the installer as well |
-| Row fields | `id`, `producer` (`installer`, `post-update`, `engine:<ext-id>`), `agent`, `scope` (`project` or `user`), `path` (project-relative), `kind` (`symlink`, `file`, `json-entry`), `fingerprint`, `constitution_root` (realpath at creation), `created` (UTC), `constitution_version` |
+| Row ids | free-form tokens matching `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`; adopted rows get deterministic ids (`adopted-` plus 12 hex of a hash of path and JSON path) |
+| Row fields | `id`, `producer` (`installer`, `post-update`, `engine:<ext-id>`, and a fourth value `adopt` for rows recorded by an explicit adoption run, section 9), `agent`, `scope` (`project` or `user`), `path` (project-relative), `kind` (`symlink`, `file`, `json-entry`), `fingerprint`, `constitution_root` (realpath at creation), `created` (UTC), `constitution_version` |
 | JSON entries | a hook entry in `.claude/settings.json` is identified by the row's canonical digest of that entry object, not by the command string. A path change rewrites OUR entry in place (old digest matched) instead of appending (fixes P2) |
 | Root binding | `constitution_root` is compared with the current root realpath; a mismatch means "placed by another checkout": eligible for adoption only through an explicit `--adopt` run that shows each row (fixes P1 for layout migration, P11) |
 
 ### 5.3 Engine-specific rule (closes F-1)
 
 The "installed by this checkout" fact is written **only by `add`**, bound to the root realpath and the tree identity (device, inode, digest). `enable` may refresh consent but never creates that fact. `remove` requires it. A per-root reference file `extensions/_installed/<id>.refs` (append-only list of project realpaths with their record digests, written by `add`, pruned by `remove` and by `verify --gc`) gives a reference count; the tree is deleted only when the count reaches zero (fixes P12). This is a design proposal; whether the refs file needs locking across projects is an open point (section 13).
+
+Wave 1 (implemented in `scripts/constitution_ext/wiring_ledger.py`, not yet wired): the refs file is a plain text file, one line per project, `<project realpath>\t<record digest>`, sorted, written atomically under an exclusive `flock` on the `_installed/` directory (the 24-way concurrency test covers it). The realpath is stored as raw bytes with `surrogateescape`, so a non-UTF8 path round-trips; a path with a tab or newline is refused. The digest is a plain token (`[0-9A-Za-z._:-]{1,128}`). A corrupt line makes the whole file refuse (nothing changes). The file is removed when its last line is removed. Versioning: the format has no header line in version 1; if wave 4 adds fields it must add a first line `#refs-v2` (a line starting with `#` is reserved and rejected by v1 readers, so an old engine fails closed instead of misreading). Prune rule: `remove` drops only the calling project's line; lines for projects that were deleted from disk are NOT pruned by wave 1 (wave 4's `verify --gc` must drop a line whose project path no longer exists and report it, never the tree while any live line remains).
 
 ### 5.4 Scope rule
 
@@ -238,7 +241,7 @@ Status vocabulary from §11.4.228: SUPPORTED requires LIVE evidence; UNTESTED = 
 
 1. **Inventory (read-only).** `constitution_cmd.sh wiring --inventory` lists every candidate item: links into any constitution checkout under the project (old and new layout), `UserPromptSubmit` entries whose command ends in `scripts/hooks/action_prefix_expand.sh`, files carrying the generator or engine marker, user-scope plugin and marketplace entries. Output only.
 2. **Adopt.** `--adopt` shows each candidate and records a row only for items that match a known constitution shape; anything else stays consumer-owned. Non-interactive runs adopt nothing unless `--adopt=all-matching` is given.
-3. **Backup.** Before the first ledger-driven change, copy every file to be touched into `.constitution-install-backup/<UTC>-wiring/` (existing installer convention) with a manifest of sha256s.
+3. **Backup.** Before the first ledger-driven change, copy every file to be touched into `.constitution-install-backup/<UTC>-wiring/` (existing installer convention) with a manifest of sha256s. The manifest is HMAC-signed with the per-checkout state key (domain string distinct from the local-ledger signature); a backup made by another checkout or with another key, or an edited manifest, is refused by rollback. The `.constitution-install-backup/` base directory carries its own `.gitignore` containing `*`, so copies of consumer files (which may hold secrets) are never committable. Rollback is atomic in the sense that all checks run before the first change: a refusal in the preflight (symlink leaf or directory at a restore target, unwritable directory, bad backup) changes nothing. A row created after the backup is unlinked only when it classifies as ours (local signature, same root, matching fingerprint); any other row, and any row whose state cannot be read (oversize, reserved path), is left in place and reported.
 4. **Apply.** Rewrite stale hook entries in place, re-point adopted links, link `.agents/skills`, write new shims.
 5. **Rollback.** `--rollback <backup-dir>` restores files byte-for-byte from the backup after checking the manifest, and removes only rows created after the backup; links created by the run are unlinked only when they still match their row.
 6. **Unwire.** `--unwire [--agent X]` removes every row-matched item of this checkout and leaves diverged and consumer-owned items with a report.
@@ -285,6 +288,8 @@ All tests run in `mktemp -d` sandboxes; `HELIX_ACTION_OUT_ROOT` set for anything
 | 6 | Migration | Inventory, adopt, backup, apply, rollback tested on both layouts and on a project with a stale hook entry |
 | 7 | Live verification and matrix | Live rows in section 10 recorded per platform with evidence paths; matrix in `docs/extensions/EXTENSIONS_CATALOG.md` updated from that evidence only |
 | 8 | Independent review and docs | Opus xhigh review to GO within the §11.4.276 budget; guide, manual, FAQ and CHANGELOG updated |
+
+Note: the grouping of this work into waves (wave 1 = ledger library with inventory, adopt, backup, rollback and the refs file) is an implementation grouping of the phases above and is not itself part of the design; phases 2 and 6 are partly delivered by wave 1.
 
 ## 13. UNCONFIRMED list
 

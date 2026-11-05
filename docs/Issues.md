@@ -823,3 +823,201 @@ git rev-list --count origin/main..atm1220_r9 (13 at measurement time).
 **Acceptance criteria:**
 Unique commits are on main on every upstream (or the operator records a drop decision), then the ref is retired on all upstreams.
 
+## CON-034 — atm1217 redirect-target class: appends to /dev/stdin or "$0" are credited by the baseline-delta check
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+The atm1217 census credits 'echo "touch M" >> /dev/stdin' and '>> "$0"' (redirect targets that rewrite the running script or its stdin) via the baseline-delta check. Baseline-delta was ABANDONED and the whole-file check was kept; this item tracks closing the redirect-target class itself (enumerate every member of the class per §11.4.276(C), control-needled).
+
+**Affected scope / file-scope manifest:**
+atm1217 census/check (UNKNOWN: exact script path; locate via git log atm1217 and grep on the check name)
+
+## CON-035 — env-census BASH misses: line continuation after a builtin, quote-spliced name, string-literal false positives
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+The env-census BASH detection misses (a) a line continuation after a builtin, (b) a quote-spliced command name (e.g. ba""sh), and reports false positives on string literals that merely mention the name. Fix the three shapes with golden-TRUE and golden-FALSE-with-carrier fixtures (§11.4.201).
+
+**Affected scope / file-scope manifest:**
+env-census tooling (UNKNOWN: exact path; locate via grep for the census name)
+
+## CON-036 — census blind spots: sed-produced jq program run later; bash -c with inner single quote inside double quotes; per-line interpreter detection; literal-path alias false-disown
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+Census blind spots: (1) a jq program produced by sed and run later is not seen; (2) 'bash -c' whose inner script has a single quote inside a double-quoted string is mis-parsed; (3) interpreter detection is per line, not per command: 'awk -f "$F" in; $cmd "$F"' stays quiet, and the pre-existing 'grep -q x f && "$J" -n "$P"' likewise; add a test pinning that shape; (4) a literal-path alias is falsely disowned.
+
+**Affected scope / file-scope manifest:**
+census tooling (UNKNOWN: exact path)
+
+## CON-037 — replica_for lacks a symlink-write guard
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+replica_for can write through a symlink at the replica path. Add a guard that refuses a symlinked target (lexical and resolved), with a test.
+
+**Affected scope / file-scope manifest:**
+replica_for (UNKNOWN: defining file; locate with grep)
+
+## CON-038 — ownership wave 1 M1: rollback preflight does not check the ledger dir is writable
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+Repro: take a backup with no ledger, record a file, chmod 555 .constitution, run rollback: it exits 3 AFTER unlinking files. Either make the preflight check the ledger dir writability before any unlink, or soften the design doc claim.
+
+**Affected scope / file-scope manifest:**
+ownership wave 1 rollback (UNKNOWN: file paths; see ownership wave1 vehicle merge f4bcb26)
+
+## CON-039 — ownership wave 1 M2: mutant N9 survives (guard stopping rollback from unlinking json-entry rows)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:32Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Mutant N9 (removing the guard that stops rollback unlinking json-entry rows, which would delete a consumer .claude/settings.json) survives the suite. Add a pinning test.
+
+**Affected scope / file-scope manifest:**
+ownership wave 1 tests
+
+**Reproduction / context:**
+Apply mutant N9; suite stays green.
+
+**Acceptance criteria:**
+Pinning test kills N9.
+
+## CON-040 — ownership wave 1 M3: mutants N2, N3, N4, N8, N10, N11 survive
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:32Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Six reviewer mutants survive the ownership wave 1 suite: N2, N3, N4, N8, N10, N11. Add tests that kill each, or record each as equivalent with proof.
+
+**Affected scope / file-scope manifest:**
+ownership wave 1 tests
+
+**Reproduction / context:**
+Apply each mutant; suite stays green.
+
+**Acceptance criteria:**
+Each mutant killed or recorded equivalent with evidence.
+
+## CON-041 — ownership wave 1 M4: preflight may create an empty .constitution dir before refusal
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+The preflight may create an empty .constitution directory before it refuses. A refusal must leave no side effects.
+
+**Affected scope / file-scope manifest:**
+ownership wave 1 preflight
+
+## CON-042 — ownership wave 1 F6: TOCTOU only narrowed; refs never pruned; gc/doctor handling of X.refs (wave 4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:32Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+F6: the check-to-use race is only narrowed, not closed; X.refs files are never pruned; gc/doctor handling of X.refs is owed for wave 4.
+
+**Affected scope / file-scope manifest:**
+ownership wave 4 (gc/doctor)
+
+**Reproduction / context:**
+UNKNOWN: n/a, design item.
+
+**Acceptance criteria:**
+Decision recorded on TOCTOU residual; gc/doctor prune stale X.refs with tests.
+
+## CON-043 — frozen-evidence exclusion gate for the 64 oracle-baseline entries (OPERATOR DECISION PENDING)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:33Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+specs/009-jev-decision-models/evidence/p1-red-original/harness/py/ holds 64 frozen oracle-baseline entries. Proposed gate change: checked-in per-file exclusion list, closed class set, git blob sha voiding an entry on mismatch, no globs, count monotone-nonincreasing, proof that no runner executes them. The operator has not decided; do not implement before the decision (§11.4.66).
+
+**Affected scope / file-scope manifest:**
+oracle gate exclusion list; specs/009-jev-decision-models/evidence/p1-red-original/harness/py/
+
+**Reproduction / context:**
+Run the oracle gate; the 64 entries are counted. UNKNOWN: exact gate name.
+
+**Acceptance criteria:**
+Operator decision recorded; then the gate change implemented with paired mutations.
+
+## CON-044 — the '# basis:' line is not enforced by cm_oracle_strategy_named_and_independent.sh
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+The gate cm_oracle_strategy_named_and_independent.sh does not enforce the '# basis:' line. Enforce it or document why not.
+
+**Affected scope / file-scope manifest:**
+scripts/gates/cm_oracle_strategy_named_and_independent.sh
+
+## CON-045 — re-run Sonnet-reviewed independent reviews on Opus-xhigh (§11.4.209)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T11:02:33Z
+**Reported-By:** Conductor
+
+**What (the report, verbatim):**
+Independent reviews of oracle waves b2/b3 and the census/ownership re-reviews ran on Sonnet 5.5 with no recorded Opus-unavailability fact. Re-run them on Opus at xhigh when available, or record the genuine unavailability fact.
+
+**Affected scope / file-scope manifest:**
+oracle waves b2/b3; census re-review; ownership re-review
+
+**Reproduction / context:**
+UNKNOWN: n/a.
+
+**Acceptance criteria:**
+Each review re-run on Opus-xhigh with captured evidence, or the Opus-unavailability fact recorded.
+
+## CON-046 — auto-commit tooling downgraded the Containers submodule pin (724d818); restored in 84084a2
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+Operator auto-commit 724d818 regressed submodules/containers from 5ea870a to 22b4970 (an ancestor); restored in 84084a2. Investigate the cause first (§11.4.102), then make the auto-commit tooling not downgrade submodule pins (§11.4.288(D)).
+
+**Affected scope / file-scope manifest:**
+auto-commit tooling (UNKNOWN: location); submodules/containers
+
