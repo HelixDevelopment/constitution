@@ -1259,3 +1259,36 @@ UNKNOWN: not stated in the report — a reproduction MUST be established before 
 **Acceptance criteria:**
 The reported behaviour is resolved AND proven by captured physical evidence on a clean deployment (§11.4.5 / §11.4.69 / §11.4.108), with a permanent regression guard (§11.4.135).
 
+## CON-064 — multitrack_sessions.sh: 'shift 2>/dev/null || true' is fatal under dash on an empty argument list, so the no-argument call prints nothing
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+Product defect found by the round-1 independent review of vehicle/redpin (scratchpad/review_redpin.md, V12) and by the redpin author (redpin_report.md follow-up 3). Under dash, main() does _cmd="${1:-}"; shift 2>/dev/null || true; with no arguments the shell aborts and usage is never printed. The same shape sits at lines 327 and 472. test_multitrack_sessions_pid_status.sh works around it by sourcing with a 'help' argument (C3). Out of scope for the test-only redpin change (section 11.4.293(A)). Fix: guard with [ $# -gt 0 ] && shift for every site, with a dash regression test (RED on the current file, GREEN after).
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/multitrack_sessions.sh lines 327, 472, 588 (three sites of the same shape; class per section 11.4.276(C))
+
+## CON-065 — Vendor the RB-05 mock claude into the constitution so the two mock-driven multitrack guards and the redpin carrier legs run standalone
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor (redpin round 2)
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T16:54:50Z
+**Reported-By:** Conductor (redpin round 2)
+
+**What (the report, verbatim):**
+Round-1 review finding F4 of vehicle/redpin (scratchpad/review_redpin.md): without the consumer-only RB-05 mock the two tests always SKIP in the canonical repository. The suite-level absorption of those SKIPs is fixed in round 2 (the mutation suite now exits 77 when any leg skipped). The remaining work is to vendor the mock (it is a test double; verdicts through it stay UNIT-CLASS, section 11.4.289) with its provenance, and have the tests find it in-tree. Same environment class, also open: test_multitrack_sessions_balance_autoselect.sh (rc 90) and test_multitrack_monday_dryrun.sh (rc 91), per redpin_report.md follow-up 5.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/rb05_fixtures/mock_claude.sh (new in the constitution; today only in the consumer project), scripts/multitrack/test_multitrack_sessions_pid_status.sh, scripts/multitrack/test_multitrack_supervisor_wiring.sh, scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+**Reproduction / context:**
+Measured 2026-11-05 on a clean clone of vehicle/redpin 74ec842 with no MT_TEST_MOCK_CLAUDE: sessions_pid_status and supervisor_wiring exit 77 reason=rb05_mock_absent; the redpin mutation suite exits 77 with 3 leg groups skipped (PASS=12 SKIP=3). In the canonical repository their coverage is zero.
+
+**Acceptance criteria:**
+On a standalone constitution clone with no MT_TEST_MOCK_CLAUDE, both tests and the redpin mutation suite run their legs and exit 0; the vendored mock carries its source repository, commit and sha256.
+
