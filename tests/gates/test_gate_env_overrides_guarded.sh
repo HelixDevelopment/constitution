@@ -256,14 +256,20 @@ MCASES=(
   "$R/cm_setup_prompt_latest_present.sh|SETUP_PROMPT_EXTRACT_LIB|$MX/fake_ok.sh|"
   "$R/cm_installer_no_push_no_force.sh|CM_NOPUSH_INVENTORY|1|"
   "$R/cm_installer_no_push_no_force.sh|CM_NOPUSH_COLLECT|1|"
-  "$R/cm_jev_detection.sh|JEV_PROBE_CMD|$MX/fake_ok.sh|"
+  "$R/cm_jev_detection.sh|JEV_PROBE_CMD|$MX/fake_ok.sh||JEVDET"
   "$R/cm_jev_token_reduction.sh|JEV_REDUCTION_FLOOR|0.01||JEVFIX"
   "$R/cm_jev_token_reduction.sh|JEV_GATED_CLASSES|nosuchclass||JEVFIX"
 )
+mkdir -p "$MX/jevdet"
+printf '%s\n' '{"version":1,"generated_at":1793039823,"endpoints":[{"id":"fixture-ep","source":"local-llmctl","model":"decide-nli","reachable":true,"parallel":1,"probed_at":1793039823,"reason":null,"url":"https://127.0.0.1:1","reachable_basis":"probe"}],"reason":null,"capacity":{"instances":1,"decision_instances":1,"parallel_total":1},"tools":{"claude_toolkit":{"path":"","ref":"x","source":"unavailable","reason":"fixture"},"llmctl":{"path":"","ref":"x","source":"unavailable","reason":"fixture"}}}' > "$MX/jevdet/jev-detection.json"
 JF="$R/fixtures/jev/evidence"
 for c in "${MCASES[@]}"; do
   IFS='|' read -r gp var val args ex <<<"$c"
-  XE=(X_NOOP=1); [ "${ex:-}" = JEVFIX ] && XE=(JEV_BEFORE="$JF/before.jsonl" JEV_AFTER="$JF/after.jsonl" JEV_DECISIONS="$JF/decisions.jsonl" JEV_STATS_REPORT="$JF/jev-stats-report.txt")
+  XE=(X_NOOP=1)
+  # CON-023: the cm_jev_detection case must not read the ambient $HOME detection record (without it every variant FAILs on
+  # "record missing" and the raw-var mutant is indistinguishable); pin a hermetic record with one reachable endpoint.
+  [ "${ex:-}" = JEVDET ] && XE=(JEV_DETECTION_FILE="$MX/jevdet/jev-detection.json")
+  [ "${ex:-}" = JEVFIX ] && XE=(JEV_BEFORE="$JF/before.jsonl" JEV_AFTER="$JF/after.jsonl" JEV_DECISIONS="$JF/decisions.jsonl" JEV_STATS_REPORT="$JF/jev-stats-report.txt")
   raw="$(mkraw "$gp" "$var")" || { bad "matrix: could not build the raw-$var mutant of $(basename "$gp")"; continue; }
   # shellcheck disable=SC2086
   A="$(mrun "$gp" - - $args)"; B="$(mrun "$gp" "$var" "$val" $args)"; C="$(mrun "$raw" "$var" "$val" $args)"
