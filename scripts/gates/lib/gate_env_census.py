@@ -138,14 +138,46 @@ RE_ENV_GREP = re.compile(r"\^(" + NAME + r")=")
 RE_JQ_WORD = re.compile(r"(?<![\w./-])(?:jq|yq|gojq)(?![\w.-])")
 RE_OWNER_ASSIGN = re.compile(r"(?:^|[\s;&|(])([A-Za-z_]\w*)\+?=\$?$")
 RE_OWNER_READ = re.compile(r"\bread\b[^;&|]*?\s([A-Za-z_]\w*)\s*$")
+# A command line that PROVABLY runs a non-jq interpreter at command position (awk/perl/python/sed/grep/...; wrappers such as
+# env/command/exec/sudo/nice/time/timeout and VAR=val prefixes allowed). Only such a line disowns the quoted text on it.
+# CLASS RULE (CON-015, 11.4.201(4)): the jq whole-environment check is DISARMED only for a region provably owned by such an
+# interpreter, or assigned to a variable that is expanded only on such lines; every other region -- jq reached through a
+# variable, a ${X:-jq} default, a path (/usr/bin/jq), a wrapper function, an array, a function that returns the program, a
+# pipeline continued on the next line, `cmd=jq; "$cmd"`, or any command word the census cannot resolve -- stays ARMED.
+_INTERP = (r"(?:awk|gawk|mawk|nawk|perl|python[\d.]*|ruby|node|nodejs|php|lua|sed|gsed|grep|egrep|fgrep|rg|expect|tclsh|"
+           r"(?:ba|z|da|k)?sh\s+-c)")
+RE_NONJQ_CMD = re.compile(
+    r"(?:^|[;&|(`!{]|\$\(|\b(?:then|do|else|elif|if|while|until)\b)\s*"
+    r"(?:(?:\w+=\S*|env|command|exec|sudo|nice(?:\s+-n\s*\d+)?|time|builtin|stdbuf\s+\S+|timeout\s+\S+)\s+)*"
+    r"(?:\S*/)?" + _INTERP + r"(?![\w.-])")
+
+
+# text written to a file by cat/tee/printf/echo (`cat >FILE <<'EOF'`, `echo '..' >>FILE`, `tee FILE`): a generated file is
+# someone else's program unless FILE is a jq-looking name or is named on a jq command line (checked in census())
+RE_OUT_FILE = re.compile(r"\b(?:cat|printf|echo)\b[^|;&]*?>>?\s*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)|\btee\s+(?:-[a-z]+\s+)*(\"[^\"]*\"|'[^']*'|[^\s;&|)]+)")
+
+
+def _norm_target(t):
+    return t.strip("\"'")
+
+
+def _runs_nonjq(logical):
+    """True when the command line `logical` runs a known non-jq interpreter and mentions no jq/yq/gojq word."""
+    return not RE_JQ_WORD.search(logical) and RE_NONJQ_CMD.search(logical) is not None
 
 
 def _region_owner(logical, prefix):
     """Owner of a quoted region (single-quoted text or a heredoc body) that opens after `prefix` on a command line whose
-    text (backslash continuations joined) is `logical`: ("jq",) when that command line runs jq/yq/gojq, ("var", NAME) when
-    the region is assigned to NAME (`NAME='...'`, `read ... NAME <<'X'`), else ("other",)."""
+    text (backslash continuations joined) is `logical`: ("jq",) when that command line runs jq/yq/gojq, ("nonjq",) when it
+    provably runs another interpreter (see RE_NONJQ_CMD), ("var", NAME) when the region is assigned to NAME (`NAME='...'`,
+    `read ... NAME <<'X'`), ("file", TARGET) when cat/printf/echo/tee writes it to a file, else ("other",), which the census treats as ARMED (undecidable ownership)."""
     if RE_JQ_WORD.search(logical):
         return ("jq",)
+    if _runs_nonjq(logical):
+        return ("nonjq",)
+    m = RE_OUT_FILE.search(logical)
+    if m:
+        return ("file", _norm_target(m.group(1) or m.group(2)))
     m = RE_OWNER_ASSIGN.search(prefix)
     if m:
         return ("var", m.group(1))
@@ -733,12 +765,28 @@ def census(path, root, _seen=None):
         text = f.read()
     regions = []
     exp, lit, code = split_code(text, regions)
-    # variables that a jq command line expands: a quoted region assigned to one of them is jq code
-    jq_vars = set()
+    # a region assigned to a variable is disowned only when that variable is expanded, and every expansion is on a command
+    # line that provably runs a non-jq interpreter; never expanded, or expanded anywhere else, stays armed
+    logical, cont = [], ""
     for e_ in exp:
-        if RE_JQ_WORD.search(e_):
-            jq_vars.update(re.findall(r"\$\{?([A-Za-z_]\w*)", e_))
-    jqlit = ["".join(t for o, t in rl if o[0] == "jq" or (o[0] == "var" and o[1] in jq_vars)) for rl in regions]
+        logical.append(cont + e_)
+        cont = (cont + e_[:-1] + " ") if e_.endswith("\\") and not e_.endswith("\\\\") else ""
+    var_lines = {}
+    for lg in logical:
+        for nm in set(re.findall(r"\$\{?[#!]?([A-Za-z_]\w*)", lg)):
+            var_lines.setdefault(nm, []).append(lg)
+    nonjq_vars = {nm for nm, lgs in var_lines.items() if all(_runs_nonjq(lg) for lg in lgs)}
+    jq_text = "\n".join(lg for lg in logical if RE_JQ_WORD.search(lg))
+
+    def _armed(o):
+        if o[0] in ("jq", "other"):
+            return True
+        if o[0] == "var":
+            return o[1] not in nonjq_vars
+        if o[0] == "file":   # generated file: armed when it looks like a jq program or a jq command line names it
+            return bool(re.search(r"jq|yq", o[1], re.I)) or (o[1] != "" and o[1] in jq_text)
+        return False
+    jqlit = ["".join(t for o, t in rl if _armed(o)) for rl in regions]
     assigned = assigned_names(code, exp)
     # assignments made by sourced libraries count (their reads are censused as their own units)
     found, _unres = resolve_sources(path, code, exp, root, text.split("\n"))
