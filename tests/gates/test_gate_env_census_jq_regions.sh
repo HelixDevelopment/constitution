@@ -171,4 +171,30 @@ case_ Q7 quiet "awk with a wrapper and an absolute path" <<'EOF'
 LC_ALL=C /usr/bin/awk '/^(timeout|env|command)$/'
 jq -e . "$0" >/dev/null
 EOF
+# --- review census_followups (2026-11-05): cases that kill reviewer mutants M3/M4/M6/M9 --------------------------------
+# M3 (all() -> any() in nonjq_vars): a variable expanded on an awk line AND on a jq line is not awk-only, so it stays armed
+case_ M3 fire "variable expanded on an awk line and on a jq line" <<'EOF'
+P='env | keys'
+awk "$P" f
+jq -n "$P"
+EOF
+# M4 (jq-word guard dropped in _runs_nonjq): one line that runs awk AND jq (pipe) is a jq line, not an awk-only line
+case_ M4 fire "awk 1 f | jq -n \"\$P\" (line runs awk and jq)" <<'EOF'
+P='env | keys'
+awk 1 f | jq -n "$P"
+EOF
+# M6 (backslash-continuation join dropped): the awk command word and the expansion sit on different physical lines
+case_ M6 quiet "awk continued over two lines, variable on the continuation line" <<'EOF'
+P='/^(timeout|env|command)$/'
+awk \
+  "$P" f
+jq -e . "$0" >/dev/null
+EOF
+# M9 (${#X} / ${!X} not seen as expansions): a length/indirect expansion on a non-awk line keeps the variable armed
+case_ M9 fire "variable also read as \${!P} indirect expansion outside awk" <<'EOF'
+P='env | keys'
+awk "$P" f
+echo "${!P}"
+jq -e . "$0" >/dev/null
+EOF
 echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]
