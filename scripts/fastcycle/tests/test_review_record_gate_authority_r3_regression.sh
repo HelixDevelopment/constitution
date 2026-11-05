@@ -36,6 +36,8 @@
 #
 # Usage : bash test_review_record_gate_authority_r3_regression.sh
 # Exit  : 0 all checks pass; 1 any check failed; 2 scratch dir unusable.
+#         77 every check that ran passed, but >= 1 proof leg was SKIPPED (named on
+#            its SKIP: line): SKIP, never PASS (CON-033 round 3, review R2-F3).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -48,6 +50,15 @@ RR_TOOL="$FC/review/review_record.py"
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
+# Skipped proof legs (CON-033 round 3, review R2-F3; constitution 11.4.3,
+# 11.4.289(E)): a leg that cannot run on this host is counted, named on a
+# "SKIP: <leg> -- <why>" line, and makes the suite exit 77 (SKIP), never 0:
+# a suite whose proof legs did not run is not a PASS.
+SKIPPED=0; SKIPPED_LEGS=""
+skip() { # skip "LEG [LEG...]" WHY
+  local leg
+  for leg in $1; do SKIPPED=$((SKIPPED+1)); SKIPPED_LEGS="$SKIPPED_LEGS $leg"; echo "SKIP: $leg -- $2"; done
+}
 expect() { # expect LABEL GOT WANT TEXT
   if [ "$2" = "$3" ]; then ok "$1: $4"; else bad "$1: got '$2' want '$3' ($4)"; fi
 }
@@ -264,10 +275,10 @@ else bad "R3-SYM: rc=$G_RC out=$G_OUT"; fi
 
 # --- R3-F1: capability on THIS single-uid host is never reachable ---------
 if [ "$ME" -eq 0 ]; then
-  echo "NOTE: running as root -- tier cases SKIPPED (os modes cannot bound root)"
+  skip r3-tier-cases "running as root (os modes cannot bound root)"
 elif ! NOBODY=$(python3 -c 'import pwd; print(pwd.getpwnam("nobody").pw_uid)' 2>/dev/null) \
      || ! DAEMON=$(python3 -c 'import pwd; print(pwd.getpwnam("daemon").pw_uid)' 2>/dev/null); then
-  echo "NOTE: no 'nobody'/'daemon' account -- tier cases SKIPPED (need two non-runner uids)"
+  skip r3-tier-cases "no 'nobody'/'daemon' account (need two non-runner uids)"
 else
   fresh_case tcli; chmod 755 "$CASE"
   rr_genuine "$REC/r1.json" B-T c-t 1 GO "$NONE" D-T
@@ -481,5 +492,8 @@ else bad "R3-BD5: rc=$RR_RC err=$(cat "$RR_WORK/r5/record.err")"; fi
 # test_review_record_gate_authority_r4_regression.sh (R4-OO / R4-PT / R4-DECL).
 
 echo ""
+[ "$SKIPPED" -gt 0 ] && echo "== Skipped proof legs: $SKIPPED ($SKIPPED_LEGS ) =="
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
-[ "$FAIL" -eq 0 ] && exit 0 || exit 1
+[ "$FAIL" -eq 0 ] || exit 1
+if [ "$SKIPPED" -gt 0 ]; then echo "SKIP reason=proof_legs_skipped"; exit 77; fi
+exit 0

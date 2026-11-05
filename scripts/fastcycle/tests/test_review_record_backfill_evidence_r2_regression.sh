@@ -11,6 +11,10 @@
 #
 # §11.4.199: every check is a real invocation of the real tool.
 #
+# Exit: 0 all checks pass; 1 any check failed; 77 every check that ran passed
+# but >= 1 proof leg was SKIPPED (named on its SKIP: line): SKIP, never PASS
+# (CON-033 round 3, review R2-F3).
+#
 # Revised 2026-10-08 (T048 restart round 1, R7 B1): backfill rows record
 # history and are NEVER gate coverage, however well cited (R2 below now
 # asserts that). R3b previously asserted that a producer-written verdict
@@ -30,6 +34,14 @@ TOOL="$FC/review/review_record.py"
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
+# Skipped proof legs (CON-033 round 3, review R2-F3; constitution 11.4.3,
+# 11.4.289(E)): a leg that cannot run on this host is counted, named on a
+# "SKIP: <leg> -- <why>" line, and makes the suite exit 77 (SKIP), never 0:
+# a suite whose proof legs did not run is not a PASS.
+SKIPPED=0; SKIPPED_LEGS=""
+skip() { # skip "LEG [LEG...]" WHY
+  for _skip_leg in $1; do SKIPPED=$((SKIPPED+1)); SKIPPED_LEGS="$SKIPPED_LEGS $_skip_leg"; echo "SKIP: $_skip_leg -- $2"; done
+}
 
 echo "== T085 Round 2 I-R2-8 regression: review_record.py gate rejects unbacked backfill rows =="
 
@@ -136,7 +148,7 @@ EOF
     fi
     rm -f "$SCRATCH/records/forged.json"
 else
-    echo "NOTE: /etc/hostname does not exist on this host -- R4 SKIPPED (honest, not fabricated as pass)"
+    skip R4 "/etc/hostname does not exist on this host (honest, not fabricated as pass)"
 fi
 
 # -----------------------------------------------------------------------
@@ -316,7 +328,9 @@ fi
 
 echo ""
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
+[ "$SKIPPED" -gt 0 ] && echo "== Skipped proof legs: $SKIPPED ($SKIPPED_LEGS ) =="
 if [ "$FAIL" -gt 0 ]; then
     exit 1
 fi
+if [ "$SKIPPED" -gt 0 ]; then echo "SKIP reason=proof_legs_skipped"; exit 77; fi
 exit 0

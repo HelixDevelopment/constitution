@@ -52,6 +52,7 @@ EQUIV="$HERE/fixtures/review_record_equivalent_subclauses.tsv"
 DATA_GUARDS=$(cat <<'EOF'
 G-T-LINK-EDGE	G-T-LINK-EDGE-off
 G-T-STORE-ALL-ENTRIES	R4-C-store-tier-records-only
+G-T-STORE-ROOTS	RVM-B-store-tier-ledger-dropped,RVM-B2-store-tier-records-dir-dropped
 G-K-BATCH-KEY	R3-M3-batchkey-str
 G-V-LATEST-ROUND	R7-M4
 G-S-MERGE	EQUIVALENT(R3-M12): the merged unit carries EVERY copy's path (G-S-MERGE-PATHS, killed by R4-A) and every copy is admitted on its own first, so which copy is the representative cannot change a decision

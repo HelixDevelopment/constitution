@@ -27,6 +27,21 @@
 #   E3  an other-writable file with no extension makes it "instance";
 #   E4  control: a group-writable *.json record makes it "instance" too.
 #
+# CON-033 round 3, review R2-F2: the two ROOTS of the store (the --records
+# directory itself and the dispatch ledger, `paths = [records_dir,
+# ledger_path]`, guard G-T-STORE-ROOTS) were proven only by R4-CAP5, which
+# SKIPS without podman and an all-root-owned chain; reviewer mutant RVM-B
+# (ledger dropped from `paths`) survived every suite. In-process now:
+#   L1  a group-writable ledger makes it "instance", naming the ledger;
+#   L2  an absent ledger makes it "instance" (does not resolve), naming it;
+#   L3  a ledger that resolves to a file owned by another uid (a symlink to
+#       a root-owned regular file, /etc/passwd) makes it "instance";
+#   D1  a sticky, other-writable --records directory whose entries are all
+#       owner-owned makes it "instance", naming the records directory: the
+#       chains of its entries accept a sticky directory, so only the
+#       records directory as a leaf of its own sees this (RVM-B2, records
+#       directory dropped from `paths`).
+#
 # Exit 0 = all passed; 1 = a check failed; 2 = setup error. When the needle
 # cannot be made capability-shaped on this host the suite FAILS: it never
 # skips silently (a skip is what let R4-C survive).
@@ -102,6 +117,39 @@ case_mode E2 "$REC/sub" 0775 "$REC/sub" "a group-writable sub-directory makes th
 case_mode E2b "$REC/drop" 0775 "$REC/drop" "a group-writable EMPTY sub-directory (no record below it) makes the store instance"
 case_mode E3 "$REC/notes" 0646 notes "an other-writable file without an extension makes the store instance"
 case_mode E4 "$REC/r1.json" 0664 r1.json "control: a group-writable record makes the store instance"
+
+# --- the two roots of the store (R2-F2) ---------------------------------------
+case_mode L1 "$LED" 0664 "$LED" "a group-writable dispatch ledger makes the store instance"
+mv "$LED" "$LED.away"
+out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+mv "$LED.away" "$LED"
+if [ "$t" = instance ] && case "$why" in *"$LED"*"does not resolve"*) true ;; *) false ;; esac; then
+  ok "L2: an absent dispatch ledger makes the store instance (does not resolve, naming the ledger)"
+else
+  bad "L2: an absent dispatch ledger -- got '$t' ($why), want instance naming $LED as not resolving"
+fi
+FOREIGN=/etc/passwd
+if [ -f "$FOREIGN" ] && [ ! -L "$FOREIGN" ] && [ "$(stat -c %u "$FOREIGN")" -eq 0 ]; then
+  mv "$LED" "$LED.away"; ln -s "$FOREIGN" "$LED"
+  out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+  rm -f -- "${LED:?}"; mv "$LED.away" "$LED"
+  if [ "$t" = instance ] && case "$why" in *"$FOREIGN"*"owned by uid 0"*) true ;; *) false ;; esac; then
+    ok "L3: a ledger that resolves to a file owned by another uid (root) makes the store instance"
+  else
+    bad "L3: a ledger resolving to root-owned $FOREIGN -- got '$t' ($why), want instance naming it as owned by uid 0"
+  fi
+else
+  # never a silent skip: the needle file this case needs is missing on this host
+  bad "L3: $FOREIGN is not a root-owned regular file on this host -- the case cannot run (setup)"
+fi
+chmod 1777 "$REC"
+out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+chmod 0755 "$REC"
+if [ "$t" = instance ] && case "$why" in "$REC is group- or other-writable"*) true ;; *) false ;; esac; then
+  ok "D1: a sticky, other-writable records directory makes the store instance, naming the records directory"
+else
+  bad "D1: a sticky other-writable records directory -- got '$t' ($why), want instance naming $REC as writable"
+fi
 
 out=$(tier); t=${out%%$'\t'*}
 [ "$t" = capability ] && ok "N2: after the cases the store is capability again (modes restored)" \

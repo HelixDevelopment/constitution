@@ -3,7 +3,7 @@
 #
 # T048 restart, V3 round 4, R4-F3 (constitution 11.4.276(D), 11.4.194(6)(d)):
 # ISOLATING cases for guard sub-clauses that the mechanical sweep
-# (test_review_record_subclause_sweep.sh) found SURVIVING every earlier
+# (sweep_review_record_subclauses.sh) found SURVIVING every earlier
 # suite. Each case below is named after the sub-clause id it isolates
 # (<GUARD-ID>#<n>, as printed by lib/review_record_guard_analyzer.py list)
 # and holds every OTHER condition of that guard, so flipping only that
@@ -18,6 +18,8 @@
 #
 # Usage : bash test_review_record_subclause_cases.sh
 # Exit  : 0 all checks pass; 1 any failed; 2 scratch dir unusable.
+#         77 every check that ran passed, but >= 1 proof leg was SKIPPED (named on
+#            its SKIP: line): SKIP, never PASS (CON-033 round 3, review R2-F3).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -30,6 +32,15 @@ RR_TOOL="$FC/review/review_record.py"
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
+# Skipped proof legs (CON-033 round 3, review R2-F3; constitution 11.4.3,
+# 11.4.289(E)): a leg that cannot run on this host is counted, named on a
+# "SKIP: <leg> -- <why>" line, and makes the suite exit 77 (SKIP), never 0:
+# a suite whose proof legs did not run is not a PASS.
+SKIPPED=0; SKIPPED_LEGS=""
+skip() { # skip "LEG [LEG...]" WHY
+  local leg
+  for leg in $1; do SKIPPED=$((SKIPPED+1)); SKIPPED_LEGS="$SKIPPED_LEGS $leg"; echo "SKIP: $leg -- $2"; done
+}
 expect() { if [ "$2" = "$3" ]; then ok "$1: $4"; else bad "$1: got '$2' want '$3' ($4)"; fi; }
 
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
@@ -278,8 +289,8 @@ PY
 )
     expect G-T-LEAF-DIR-NO-ACL "$AT" "instance True instance True" \
       "a read-only ACL entry (no group-write mask) on the evidence file, or on a chain directory, makes the tier instance"
-  else echo "NOTE: setfacl refused by this filesystem -- G-T-LEAF/DIR-NO-ACL cases SKIPPED"; fi
-else echo "NOTE: setfacl or nobody/daemon unavailable -- G-T-LEAF/DIR-NO-ACL cases SKIPPED"; fi
+  else skip "G-T-LEAF-NO-ACL G-T-DIR-NO-ACL" "setfacl refused by this filesystem"; fi
+else skip "G-T-LEAF-NO-ACL G-T-DIR-NO-ACL" "setfacl or nobody/daemon unavailable"; fi
 
 # --- _load_ledger ----------------------------------------------------------------
 fresh_case lrs
@@ -315,7 +326,7 @@ expect G-T-OWNER-DECLARED#3 "$OD" True "a non-integer evidence-owner value is 'n
 
 # =============================================================================
 # V3 round 4, fixer F-C5 (respawn): isolating cases for the sub-clauses the
-# FULL mechanical sweep (test_review_record_subclause_sweep.sh, run 2026-10-08)
+# FULL mechanical sweep (sweep_review_record_subclauses.sh, run 2026-10-08)
 # found SURVIVING every suite. Each holds every other condition of its guard.
 # =============================================================================
 ME=$(id -u)
@@ -473,7 +484,7 @@ for k in ("runner", "prod", "subid", "split", "loop", "store", "subline", "acl",
 PY
 )
 row() { printf '%s\n' "$TIER" | grep "^$1=" | cut -d= -f2-; }
-if [ "$ME" -eq 0 ]; then echo "NOTE: running as root -- tier internals cases SKIPPED"
+if [ "$ME" -eq 0 ]; then skip tier-internals "running as root"
 else
   expect G-T-RUNNER-NOT-ROOT#1 "$(row runner)" "('capability', 'instance')" "a root runner is instance; the same evidence with a non-root runner is capability (control)"
   expect G-T-PRODUCER-DECLARED#2/#3 "$(row prod)" "('instance', 'instance')" "a bool (True) or string ('65534') producer uid is not declared (never uid 1, never a TypeError)"
@@ -630,10 +641,13 @@ b = rr._path_tier([into], 65534, me, runner_uid=me + 12345, ranges=[], getpw=pw)
 print(a, b)
 PY
 )
-if [ "$ME" -eq 0 ]; then echo "NOTE: running as root -- G-T-DOTDOT#1 SKIPPED"
+if [ "$ME" -eq 0 ]; then skip "G-T-DOTDOT#1" "running as root"
 else expect G-T-DOTDOT#1 "$DD" "capability instance" \
   "a link through fw/../tgt with fw mode 777 is capability (control: a file looked up INSIDE the 777 directory is instance)"; fi
 
 echo ""
+[ "$SKIPPED" -gt 0 ] && echo "== Skipped proof legs: $SKIPPED ($SKIPPED_LEGS ) =="
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
-[ "$FAIL" -eq 0 ] && exit 0 || exit 1
+[ "$FAIL" -eq 0 ] || exit 1
+if [ "$SKIPPED" -gt 0 ]; then echo "SKIP reason=proof_legs_skipped"; exit 77; fi
+exit 0

@@ -33,7 +33,7 @@ derived from the source itself:
     re-raises).
 
 Used by test_review_record_guard_table.sh (static completeness) and
-test_review_record_subclause_sweep.sh (the dynamic kill sweep). Python
+sweep_review_record_subclauses.sh (the dynamic kill sweep). Python
 stdlib only.
 
 CLI: review_record_guard_analyzer.py list TOOL        (TSV of sub-clauses)

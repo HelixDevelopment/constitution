@@ -46,13 +46,18 @@
 # directory there is none, they SKIP, and R4-C survived every suite. The
 # first suite below, test_review_record_store_tier_all_entries_regression.sh,
 # kills R4-C with no podman and no root-owned chain (in-process, injected
-# runner uid, chmod only). test_review_record_guard_table.sh is deliberately
+# runner uid, chmod only); since CON-033 round 3 (review R2-F2) it also
+# kills RVM-B / RVM-B2 (the dispatch ledger or the records directory dropped
+# from the store roots, guard G-T-STORE-ROOTS), which only R4-CAP5 killed
+# before. test_review_record_guard_table.sh is deliberately
 # NOT a suite here: its kill-ledger freshness check (M4) fails on ANY edit of
 # review_record.py, so it would "kill" every mutant by construction and prove
 # nothing (section 11.4.245, 11.4.201).
 #
 # Usage : bash test_review_record_gate_authority_mutations.sh [MUTATION_ID...]
-# Exit  : 0 control GREEN and every mutation KILLED; 1 otherwise; 2 setup error.
+# Exit  : 0 control GREEN and every mutation KILLED; 77 every mutation KILLED
+#         but a control suite skipped proof legs (SKIP, not PASS); 1 otherwise;
+#         2 setup error.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -69,11 +74,28 @@ build_mirror() { # build_mirror DIR
   for t in $SUITES; do cp "$HERE/$t" "$1/tests/"; done
 }
 
-run_suites() { # run_suites DIR -> prints the first failing suite (empty if all pass)
-  local t
+# Suite status (CON-033 round 3, review R2-F3): a suite exits 0 (PASS), 77
+# (SKIP: every check that ran passed, but a proof leg could not run on this
+# host) or anything else (FAIL). The control must be 0 or 77 for every suite;
+# a 77 is reported, and makes the runner's own result SKIP (exit 77), never
+# PASS. A mutant is KILLED by a suite whose status DIFFERS from the control's
+# status for that suite: a 77 on both is not a kill (nothing more ran), and a
+# 0 on a suite the control skipped is not a pass either way.
+run_control() { # run_control DIR -> writes $S/control.rc ("suite rc" lines)
+  local t rc
+  : > "$S/control.rc"
   for t in $SUITES; do
-    if ! timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; then
-      echo "$t"
+    timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; rc=$?
+    echo "$t $rc" >> "$S/control.rc"
+  done
+}
+run_suites() { # run_suites DIR -> prints "suite (rc N, control M)" of the first suite whose status differs from the control's (empty if none)
+  local t rc want
+  for t in $SUITES; do
+    timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; rc=$?
+    want=$(awk -v t="$t" '$1==t {print $2}' "$S/control.rc")
+    if [ "$rc" != "$want" ]; then
+      echo "$t (rc $rc, control $want)"
       return 0
     fi
   done
@@ -113,6 +135,8 @@ R3-M10-collect-bool-round	'            if not isinstance(rnd, int) or isinstance
 R3-M11-complete-anywhere	'    if events[-1] != "complete":'	'    if "complete" not in events:'
 R4-A-merge-paths-dropped	'        merged["paths"] = sorted({p for r, _p in members for p in r["paths"]})\n'	'        merged["paths"] = list(merged["paths"])\n'
 R4-C-store-tier-records-only	'        paths.extend(os.path.join(dirpath, n) for n in sorted(dirnames) + sorted(filenames))'	'        paths.extend(os.path.join(dirpath, n) for n in sorted(filenames) if n.endswith(".json"))'
+RVM-B-store-tier-ledger-dropped	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir]'
+RVM-B2-store-tier-records-dir-dropped	'    paths = [records_dir, ledger_path]'	'    paths = [ledger_path]'
 R4-D-ledger-dupkey-ignored	'            except _DuplicateKeyError:\n                raise\n'	'            except _DuplicateKeyError:\n                continue\n'
 R4-E-evidence-dupkey-allowed	'        doc = json.loads(data.decode("utf-8"), object_pairs_hook=_strict_object)'	'        doc = json.loads(data.decode("utf-8"))'
 R4-F-record-dispatch-unchecked	'            or rec.get("reviewer_dispatch_id") != reviewer["dispatch_id"]\n'	'            or False\n'
@@ -140,13 +164,20 @@ PY
 FAIL=0
 echo "== control: unmutated mirror must be fully GREEN =="
 build_mirror "$S/control"
-FIRST_RED=$(run_suites "$S/control")
-if [ -n "$FIRST_RED" ]; then
-  echo "NOT ok control mirror is RED at $FIRST_RED -- kills would be meaningless"
-  tail -20 "$S/control/$FIRST_RED.log"
-  exit 1
-fi
-echo "ok control mirror GREEN across: $SUITES"
+run_control "$S/control"
+CONTROL_SKIP=""
+while read -r t rc; do
+  case "$rc" in
+    0) ;;
+    77) CONTROL_SKIP="$CONTROL_SKIP $t"
+        echo "SKIP control: $t skipped proof legs on this host: $(grep '^SKIP: ' "$S/control/$t.log" | cut -d' ' -f2 | tr '\n' ' ')" ;;
+    *) echo "NOT ok control mirror is RED at $t (rc $rc) -- kills would be meaningless"
+       tail -20 "$S/control/$t.log"
+       exit 1 ;;
+  esac
+done < "$S/control.rc"
+if [ -z "$CONTROL_SKIP" ]; then echo "ok control mirror GREEN across: $SUITES"
+else echo "ok control mirror GREEN (no suite failed) across: $SUITES -- with skipped proof legs in:$CONTROL_SKIP"; fi
 
 WANT=" $* "
 while IFS="$(printf '\t')" read -r id old new; do
@@ -169,5 +200,9 @@ while IFS="$(printf '\t')" read -r id old new; do
 done < "$MUTATIONS"
 
 echo ""
+if [ "$FAIL" -eq 0 ] && [ -n "$CONTROL_SKIP" ]; then
+  echo "== all mutations KILLED, but the control skipped proof legs in:$CONTROL_SKIP (SKIP, not PASS) =="
+  echo "SKIP reason=control_proof_legs_skipped"; exit 77
+fi
 [ "$FAIL" -eq 0 ] && { echo "== all mutations KILLED =="; exit 0; }
 echo "== mutation runner FAILED (see NOT ok lines) =="; exit 1

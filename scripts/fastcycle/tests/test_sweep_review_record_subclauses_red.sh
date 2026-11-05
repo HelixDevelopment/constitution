@@ -1,5 +1,5 @@
 #!/bin/bash
-# fastcycle-timeout-s: 1200
+# fastcycle-timeout-s: 1500
 # test_sweep_review_record_subclauses_red.sh
 #
 # CON-033 round 2, review I5: the sweep generator (sweep_review_record_subclauses.sh)
@@ -25,6 +25,19 @@
 #      file, never to the tracked fixture (whose sha256 stays the same);
 #   C  control: the stand-in suite really distinguishes the control from a
 #      mutant (otherwise S3's "every mutant KILLED" would prove nothing).
+#
+# CON-033 round 3 (review R2-F5, R2-F3):
+#   S4 HUP and INT exit 129 and 130, print no success line, write no ledger
+#      (only TERM was driven before);
+#   S5 a result that never appears (a worker that cannot write its result
+#      file) is "no result", the row count differs from the swept count, the
+#      sweep exits 1 and writes NO ledger even with --out (without the row
+#      count refusal a short ledger would be written);
+#   S6 a control suite that exits 77 (skipped proof legs) is accepted and
+#      named, the mutants are killed by the other suites, the sweep exits 77
+#      (SKIP, not PASS) and the ledger header names the skipping suite;
+#   S7 a mutant on which every suite gives the control's status (77 on the
+#      skipping suite, 0 on the rest) SURVIVED: a 77 is not a kill (exit 1).
 #
 # Exit 0 = all checks passed; 1 = a check failed; 2 = setup error.
 set -u
@@ -61,6 +74,13 @@ for s in $SUITES; do
 #!/bin/bash
 h=\$(cd "\$(dirname "\$0")/.." && pwd)
 [ -n "\${SWEEP_FAKE_SLEEP:-}" ] && sleep "\$SWEEP_FAKE_SLEEP"
+if [ "\${SWEEP_FAKE_SKIP_SUITE:-}" = "$s" ]; then
+  echo "PASS: stand-in $s"; echo "SKIP: FAKE-LEG -- stand-in"; echo "SKIP reason=proof_legs_skipped"; exit 77
+fi
+[ -n "\${SWEEP_FAKE_CONSTANT:-}" ] && { echo "PASS: stand-in $s sees the unmutated tool"; exit 0; }
+if [ -n "\${SWEEP_FAKE_NORESULT:-}" ] && [ "\$(basename "\$h")" = "\$SWEEP_FAKE_NORESULT" ]; then
+  mkdir -p "\$(dirname "\$(dirname "\$h")")/res/\$SWEEP_FAKE_NORESULT.tsv"
+fi
 if [ "\$(sha256sum "\$h/review/review_record.py" | cut -d' ' -f1)" = "$WANT" ]; then
   echo "PASS: stand-in $s sees the unmutated tool"; exit 0
 fi
@@ -85,10 +105,11 @@ else
 fi
 
 # --- S1: interrupt --------------------------------------------------------------
-OUT1="$T/out1/ledger.tsv"; mkdir -p "$T/out1"
-s1out=$(SWEEP_FAKE_SLEEP=0.3 python3 - "$SW" "$OUT1" <<'PY'
+# interrupt SIGNAL OUT -> "RC=<rc> SENT=<bool>" then the sweep's output
+interrupt() {
+SWEEP_FAKE_SLEEP=0.3 python3 - "$SW" "$2" "$1" <<'PY'
 import os, signal, subprocess, sys, time
-sw, out = sys.argv[1], sys.argv[2]
+sw, out, signame = sys.argv[1], sys.argv[2], sys.argv[3]
 p = subprocess.Popen(["bash", sw, "-j", "1", "--out", out], stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, start_new_session=True)
 buf = b""
@@ -101,7 +122,7 @@ while True:
     buf += line
     if not sent and line.startswith(b"  done "):
         if p.pid > 1:
-            os.killpg(p.pid, signal.SIGTERM)
+            os.killpg(p.pid, getattr(signal, signame))
         sent = True
     if time.time() > deadline:
         if p.pid > 1:
@@ -111,7 +132,9 @@ rc = p.wait()
 sys.stdout.write("RC=%d SENT=%s\n" % (rc, sent))
 sys.stdout.write(buf.decode("utf-8", "replace"))
 PY
-)
+}
+OUT1="$T/out1/ledger.tsv"; mkdir -p "$T/out1"
+s1out=$(interrupt SIGTERM "$OUT1")
 s1rc=$(printf '%s\n' "$s1out" | sed -n '1s/^RC=\(-\{0,1\}[0-9]*\) .*/\1/p')
 if printf '%s\n' "$s1out" | head -1 | grep -q 'SENT=True'; then
   [ "$s1rc" = 143 ] && ok "S1: an interrupted sweep exits 143" || bad "S1: an interrupted sweep exits $s1rc (want 143)"
@@ -149,6 +172,63 @@ nrows=$(grep -vc '^#' "$led" 2>/dev/null || echo 0)
 nsub=$(cd "$T/fc/tests" && python3 lib/review_record_guard_analyzer.py list ../review/review_record.py 2>/dev/null | grep -c .)
 [ "$nrows" -gt 0 ] && [ "$nrows" = "$nsub" ] && ok "S3: the ledger has one row per sub-clause ($nrows)" \
   || bad "S3: ledger rows $nrows != sub-clauses $nsub"
+
+# --- S4: HUP and INT -------------------------------------------------------------
+for pair in SIGHUP:129 SIGINT:130; do
+  sig=${pair%%:*}; want=${pair#*:}
+  o4="$T/out4_$sig/ledger.tsv"; mkdir -p "$T/out4_$sig"
+  s4out=$(interrupt "$sig" "$o4")
+  s4rc=$(printf '%s\n' "$s4out" | sed -n '1s/^RC=\(-\{0,1\}[0-9]*\) .*/\1/p')
+  if ! printf '%s\n' "$s4out" | head -1 | grep -q 'SENT=True'; then
+    bad "S4: $sig: the sweep produced no mutant result to interrupt after"
+  elif [ "$s4rc" = "$want" ] && ! printf '%s\n' "$s4out" | grep -q 'every mutant KILLED' && [ ! -e "$o4" ]; then
+    ok "S4: $sig exits $want, no success line, no ledger"
+  else
+    bad "S4: $sig: rc=$s4rc (want $want), success lines: $(printf '%s\n' "$s4out" | grep -c 'every mutant KILLED'), ledger present: $([ -e "$o4" ] && echo yes || echo no)"
+  fi
+done
+
+# two sub-clause ids not listed EQUIVALENT, for the short runs below
+EQF="$T/fc/tests/fixtures/review_record_equivalent_subclauses.tsv"
+IDS2=$(cd "$T/fc/tests" && python3 lib/review_record_guard_analyzer.py list ../review/review_record.py 2>/dev/null | cut -f1 \
+       | { if [ -f "$EQF" ]; then grep -vxF -f <(grep -v '^#' "$EQF" | cut -f1); else cat; fi; } | head -2 | tr '\n' ' ')
+ID1=${IDS2%% *}
+if [ "$(echo "$IDS2" | wc -w)" != 2 ]; then bad "S5-S7: cannot pick two sub-clause ids (got '$IDS2')"; fi
+
+# --- S5: a missing result is refused, and no short ledger is written ------------
+o5="$T/out5/ledger.tsv"; mkdir -p "$T/out5"
+# shellcheck disable=SC2086 # IDS2 is a deliberately word-split id list
+s5out=$(SWEEP_FAKE_NORESULT="$ID1" bash "$SW" -j 1 --out "$o5" $IDS2 2>&1); s5rc=$?
+if [ "$s5rc" = 1 ] && printf '%s\n' "$s5out" | grep -qxF "NOT ok $ID1: no result" \
+   && printf '%s\n' "$s5out" | grep -q '^NOT ok result count 1 != swept sub-clause count 2$' \
+   && printf '%s\n' "$s5out" | grep -q '^no ledger written: the sweep is incomplete$' && [ ! -e "$o5" ]; then
+  ok "S5: a missing result is refused (rc 1, result count 1 != 2) and no ledger is written"
+else
+  bad "S5: rc=$s5rc (want 1), ledger present: $([ -e "$o5" ] && echo yes || echo no): $(printf '%s\n' "$s5out" | grep -E 'NOT ok|ledger' | head -4 | tr '\n' '|')"
+fi
+
+# --- S6: a control suite that exits 77 ---------------------------------------------
+SKS=$(echo "$SUITES" | awk '{print $1}')
+o6="$T/out6/ledger.tsv"; mkdir -p "$T/out6"
+# shellcheck disable=SC2086
+s6out=$(SWEEP_FAKE_SKIP_SUITE="$SKS" bash "$SW" -j 1 --out "$o6" $IDS2 2>&1); s6rc=$?
+if [ "$s6rc" = 77 ] && printf '%s\n' "$s6out" | grep -q "^SKIP control: $SKS skipped proof legs on this host: FAKE-LEG" \
+   && [ "$(printf '%s\n' "$s6out" | tail -1)" = "SKIP reason=control_proof_legs_skipped" ] \
+   && ! printf '%s\n' "$s6out" | grep -q '^NOT ok' && grep -qx "# control_skipped_suites= $SKS" "$o6" 2>/dev/null \
+   && [ "$(grep -vc '^#' "$o6")" = 2 ] && [ "$(grep -v '^#' "$o6" | cut -f4 | sort -u)" = KILLED ]; then
+  ok "S6: a 77 control suite is named, both mutants KILLED by the other suites, exit 77 (SKIP), the ledger header names it"
+else
+  bad "S6: rc=$s6rc (want 77): $(printf '%s\n' "$s6out" | grep -E 'NOT ok|SKIP|==' | head -4 | tr '\n' '|') header: $(grep '^# control' "$o6" 2>/dev/null)"
+fi
+
+# --- S7: 77 on both sides is not a kill --------------------------------------------
+# shellcheck disable=SC2086
+s7out=$(SWEEP_FAKE_SKIP_SUITE="$SKS" SWEEP_FAKE_CONSTANT=1 bash "$SW" -j 1 $IDS2 2>&1); s7rc=$?
+if [ "$s7rc" = 1 ] && [ "$(printf '%s\n' "$s7out" | grep -c '^NOT ok .* SURVIVED (')" = 2 ]; then
+  ok "S7: a mutant with the control's status on every suite (77 and 0) SURVIVED; exit 1"
+else
+  bad "S7: rc=$s7rc (want 1): $(printf '%s\n' "$s7out" | grep -E 'ok|==' | head -4 | tr '\n' '|')"
+fi
 
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

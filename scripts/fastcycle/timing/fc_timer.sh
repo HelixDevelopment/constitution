@@ -784,6 +784,23 @@ _FC_TIMER_SIGNAL_RC=" "$sig"
 #     reached by any realistic signal rate.
 #   * call it DIRECTLY in the armed shell: inside `$(...)` or a pipeline it cannot help (see the
 #     --signals obligation above).
+# _fc_timer_run_resets: appends to the CALLER's `_fcr_reset` array each of INT and QUIT that
+# the calling shell does NOT ignore (fc_timer_run resets exactly those in its child). An
+# ignored signal is the empty action, which `trap -p` prints in two spellings (CON-033 round
+# 3, review R2-F1, measured): `trap -- '' SIGINT` normally, and `trap -- '' INT` in posix
+# mode (`set -o posix`, POSIXLY_CORRECT, `bash --posix`, sh-named bash). Matching only the
+# first spelling made a posix-mode caller's ignore look like "not ignored", so the reset
+# undid it (bash 5.2.15 / 5.2.37: SigIgn 0x0 instead of 0x2 in the child).
+_fc_timer_run_resets() {
+  case "$(trap -p INT)" in
+    "trap -- '' SIGINT"|"trap -- '' INT") ;;
+    *) _fcr_reset+=(INT) ;;
+  esac
+  case "$(trap -p QUIT)" in
+    "trap -- '' SIGQUIT"|"trap -- '' QUIT") ;;
+    *) _fcr_reset+=(QUIT) ;;
+  esac
+}
 fc_timer_run() {
   if [ $# -eq 0 ]; then
     echo "fc_timer_run: missing <command>" >&2
@@ -806,10 +823,10 @@ fc_timer_run() {
   # calling shell's traps, and shows a signal ignored on entry as '' too -- measured on both
   # versions), and reset only the signals the caller does not ignore. The result on both
   # versions is what exec'ing the command in the foreground gives: handlers become default, an
-  # IGNORE is kept. Pinned by the selftest (F-A-run-intquit / F-A-run-ignored), so a bash that
-  # behaves otherwise fails loudly.
-  [ "$(trap -p INT)" = "trap -- '' SIGINT" ] || _fcr_reset+=(INT)
-  [ "$(trap -p QUIT)" = "trap -- '' SIGQUIT" ] || _fcr_reset+=(QUIT)
+  # IGNORE is kept. Pinned by the selftest (F-A-run-intquit / F-A-run-ignored, and the list
+  # itself by F-A-run-resets in normal and posix mode), so a bash that behaves otherwise fails
+  # loudly.
+  _fc_timer_run_resets
   if { true <&0; } 2>/dev/null; then
     ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) <&0 &
   else

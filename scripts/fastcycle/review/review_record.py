@@ -925,6 +925,7 @@ def _store_tier(records_dir, ledger_path, producer_uid, owner_uid, runner_uid=No
     --records directory, EVERY entry beneath it -- live records, backfill
     rows, archives, sub-directories, anything else -- and the dispatch
     ledger. A directory that cannot be listed degrades to "instance"."""
+    # guard: G-T-STORE-ROOTS
     paths = [records_dir, ledger_path]
     walk_errors = []
     for dirpath, dirnames, filenames in os.walk(records_dir, onerror=walk_errors.append):

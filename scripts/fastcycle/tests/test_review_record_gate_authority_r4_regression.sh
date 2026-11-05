@@ -33,6 +33,8 @@
 #
 # Usage : bash test_review_record_gate_authority_r4_regression.sh
 # Exit  : 0 all checks pass; 1 any check failed; 2 scratch dir unusable.
+#         77 every check that ran passed, but >= 1 proof leg was SKIPPED (named on
+#            its SKIP: line): SKIP, never PASS (CON-033 round 3, review R2-F3).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -45,6 +47,15 @@ RR_TOOL="$FC/review/review_record.py"
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
+# Skipped proof legs (CON-033 round 3, review R2-F3; constitution 11.4.3,
+# 11.4.289(E)): a leg that cannot run on this host is counted, named on a
+# "SKIP: <leg> -- <why>" line, and makes the suite exit 77 (SKIP), never 0:
+# a suite whose proof legs did not run is not a PASS.
+SKIPPED=0; SKIPPED_LEGS=""
+skip() { # skip "LEG [LEG...]" WHY
+  local leg
+  for leg in $1; do SKIPPED=$((SKIPPED+1)); SKIPPED_LEGS="$SKIPPED_LEGS $leg"; echo "SKIP: $leg -- $2"; done
+}
 expect() { # expect LABEL GOT WANT TEXT
   if [ "$2" = "$3" ]; then ok "$1: $4"; else bad "$1: got '$2' want '$3' ($4)"; fi
 }
@@ -145,7 +156,7 @@ else bad "R4-BF5: rc=$G_RC out=$G_OUT"; fi
 # m1: a sub-directory that cannot be listed is exit 4, never silently skipped
 # =============================================================================
 if [ "$ME" -eq 0 ]; then
-  echo "NOTE: running as root -- R4-OE SKIPPED (root lists any directory)"
+  skip R4-OE "running as root (root lists any directory)"
 else
   p3_case oe
   mkdir "$REC/hide"
@@ -402,14 +413,15 @@ while p != "/" and not root_chain(p):
 print(p if p != "/" else "")
 PY
 )
+CAP_LEGS="R4-CAP-needle R4-CAP1 R4-CAP2 R4-CAP3 R4-CAP4 R4-CAP5 R4-CAP6 R4-CAP7"
 if [ "$ME" -eq 0 ]; then
-  echo "NOTE: running as root -- R4-CAP SKIPPED (root is excluded from the tier on purpose)"
+  skip "$CAP_LEGS" "running as root (root is excluded from the tier on purpose)"
 elif ! podman_ok; then
-  echo "NOTE: podman unshare unavailable on this host -- R4-CAP1..7 SKIPPED (need a user-namespace subordinate-uid owner)"
+  skip "$CAP_LEGS" "podman unshare unavailable on this host (need a user-namespace subordinate-uid owner)"
 elif [ -z "$SUBRANGE" ]; then
-  echo "NOTE: $(id -un) has no /etc/subuid range -- R4-CAP1..7 SKIPPED"
+  skip "$CAP_LEGS" "$(id -un) has no /etc/subuid range"
 elif [ -z "$CAPBASE" ] || [ ! -w "$CAPBASE" ]; then
-  echo "NOTE: no writable directory with an all-root-owned chain above $S -- R4-CAP1..7 SKIPPED"
+  skip "$CAP_LEGS" "no writable directory with an all-root-owned chain above $S"
 else
   SUBUID=$SUBRANGE   # `podman unshare chown 1:1` maps namespace uid 1 to the first subordinate uid
   CAPROOT=$(mktemp -d "$CAPBASE/rr_r4cap.XXXXXX")
@@ -501,5 +513,8 @@ PY
 fi
 
 echo ""
+[ "$SKIPPED" -gt 0 ] && echo "== Skipped proof legs: $SKIPPED ($SKIPPED_LEGS ) =="
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
-[ "$FAIL" -eq 0 ] && exit 0 || exit 1
+[ "$FAIL" -eq 0 ] || exit 1
+if [ "$SKIPPED" -gt 0 ]; then echo "SKIP reason=proof_legs_skipped"; exit 77; fi
+exit 0

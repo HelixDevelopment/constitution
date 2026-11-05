@@ -756,6 +756,46 @@ chk "F-A-run-builtin-read: fc_timer_run read assigns the CALLER's variable (got 
 # V6 review round 3 (reviewer mutant AM8): with fd 0 CLOSED the command must still run (a `<&0`
 # redirection on a closed fd fails, and the child would never start).
 chk "F-A-run-closed-stdin: with stdin closed the command still runs and returns 0 (got '$(sed -n 's/^closedstdin=//p' "$TMP/sub.out")', marker='$(cat "$TMP/fa_closed.mark" 2>/dev/null)')" "$(grep -qx 'closedstdin=0' "$TMP/sub.out" && [ "$(cat "$TMP/fa_closed.mark" 2>/dev/null)" = closed-stdin-ran ] && echo 1 || echo 0)"
+# CON-033 round 3, review R2-F1 / R2-F4: the reset list itself, in normal AND posix mode.
+#   F-A-run-resets[-posix]: _fc_timer_run_resets names exactly the signals of INT/QUIT the
+#     caller does not ignore (a handler counts as "not ignored": the child must get the
+#     default, as a foreground exec would). Asserting the LIST catches an unconditional
+#     reset on every bash version; the SigIgn check below catches it only on bash 5.2,
+#     because 5.3.9 keeps a caller's ignore across `trap -` in an async subshell (measured).
+#   F-A-run-ignored-posix: in posix mode `trap -p` prints `trap -- '' INT` (not SIGINT); a
+#     caller-ignored INT must still stay ignored in the child (bash 5.2.15/5.2.37 gave 0x0
+#     before the fix), and with nothing ignored the child ignores neither.
+for _fa_mode in normal posix; do
+  cat > "$TMP/fa_resets_$_fa_mode.sh" <<EOF
+set -u
+$([ "$_fa_mode" = posix ] && echo 'set -o posix')
+export FC_TIMER_TSV="$TMP/fa_resets_$_fa_mode.tsv"
+source "$FC_TIMER"
+show() { _fcr_reset=(); _fc_timer_run_resets; echo "\$1=\${_fcr_reset[*]:-none}"; }
+show default
+trap '' INT; show int-ignored
+trap '' QUIT; show both-ignored
+trap 'echo handled' INT; show int-handler-quit-ignored
+trap - INT QUIT; show restored
+fc_timer_install_exit_flush --signals
+fc_timer_run grep '^SigIgn' /proc/self/status > "$TMP/fa_rp_def.txt"; sed 's/^/default-/' "$TMP/fa_rp_def.txt"
+trap '' INT
+fc_timer_run grep '^SigIgn' /proc/self/status > "$TMP/fa_rp_ign.txt"; sed 's/^/ignored-/' "$TMP/fa_rp_ign.txt"
+EOF
+  RC=$(run_subprocess "$TMP/fa_resets_$_fa_mode.sh")
+  _sfx=""; [ "$_fa_mode" = posix ] && _sfx="-posix"
+  _got="$(grep -E '^(default|int-ignored|both-ignored|int-handler-quit-ignored|restored)=' "$TMP/sub.out" | tr '\n' ';')"
+  chk "F-A-run-resets$_sfx: the reset list is INT QUIT / QUIT / none / INT / INT QUIT for default, INT ignored, both ignored, INT handled + QUIT ignored, restored (got '$_got', rc=$RC)" \
+    "$([ "$_got" = 'default=INT QUIT;int-ignored=QUIT;both-ignored=none;int-handler-quit-ignored=INT;restored=INT QUIT;' ] && echo 1 || echo 0)"
+  if [ "$_fa_mode" = posix ]; then
+    _rp_def="$(sed -n 's/^default-SigIgn:[[:space:]]*//p' "$TMP/sub.out")"
+    _rp_ign="$(sed -n 's/^ignored-SigIgn:[[:space:]]*//p' "$TMP/sub.out")"
+    chk "F-A-run-intquit-posix: in posix mode the child does NOT ignore SIGINT/SIGQUIT (SigIgn=$_rp_def)" \
+      "$([ -n "$_rp_def" ] && [ "$(_bit "$_rp_def" 2)" = 0 ] && [ "$(_bit "$_rp_def" 4)" = 0 ] && echo 1 || echo 0)"
+    chk "F-A-run-ignored-posix: in posix mode a caller-ignored INT stays ignored in the child (SigIgn=$_rp_ign)" \
+      "$([ "$(_bit "$_rp_ign" 2)" = 1 ] && echo 1 || echo 0)"
+  fi
+done
 if command -v python3 >/dev/null 2>&1; then
   cat > "$TMP/fa_compose.sh" <<EOF
 set -u
@@ -977,7 +1017,7 @@ fi
 # V6 review round 4, F6: the assertion count is pinned (skip() counts too, so a host without python3
 # / shellcheck / a non-root user still reaches the same N). A selftest that silently loses
 # assertions -- a loop over a list the library under test shrank -- fails here.
-FC_SELFTEST_EXPECTED_N=165
+FC_SELFTEST_EXPECTED_N=169
 chk "assertion count: $N assertions ran before this one (want $FC_SELFTEST_EXPECTED_N)" "$([ "$N" = "$FC_SELFTEST_EXPECTED_N" ] && echo 1 || echo 0)"
 
 echo "SUMMARY: $((N - FAIL - SKIPPED)) pass / $FAIL fail / $SKIPPED skip of $N assertions"

@@ -163,11 +163,37 @@ mutate FA1 "F-A-default-TERM" \
 mutate FA2 "F-A-run-TERM" \
   '  if [ "$_FC_TIMER_SIGNALS_ARMED" != 1 ] || ! _fc_timer_enabled || [ "$(type -t -- "$1")" != file ]; then' '  if true; then'
 # FA3: a bare background job instead of the subshell -- the child IGNORES SIGINT/SIGQUIT.
+# (CON-033 round 3: the FA3/FA4 anchors were re-derived from the round-2 subshell line, which
+# gained the conditional reset; the old anchors no longer matched anything.)
 mutate FA3 "F-A-run-intquit" \
-  '    ( exec "$@" ) <&0 &' '    "$@" <&0 &'
+  '    ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) <&0 &' '    "$@" <&0 &'
 # FA4: stdin not passed -- a background job reads /dev/null.
 mutate FA4 "F-A-run-stdin" \
-  '    ( exec "$@" ) <&0 &' '    ( exec "$@" ) &'
+  '    ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) <&0 &' '    ( if [ "${#_fcr_reset[@]}" -gt 0 ]; then trap - "${_fcr_reset[@]}"; fi; exec "$@" ) &'
+# CON-033 round 2/3 reviewer mutants (review R2-F1, R2-F4), on the reset list:
+# FTM-3: reset INT and QUIT unconditionally (the variant round 2 rejected). Killed on EVERY
+#   bash by F-A-run-resets (the list is asserted directly). The SigIgn check F-A-run-ignored
+#   kills it ONLY on bash 5.2.x (5.2.15, 5.2.37: the child gets 0x0); bash 5.3.9 keeps a
+#   caller's ignore across `trap -` in an async subshell, so there it passes (measured).
+mutate FTM-3 "F-A-run-resets" \
+  '  case "$(trap -p INT)" in
+    "trap -- '"''"' SIGINT"|"trap -- '"''"' INT") ;;
+    *) _fcr_reset+=(INT) ;;
+  esac
+  case "$(trap -p QUIT)" in
+    "trap -- '"''"' SIGQUIT"|"trap -- '"''"' QUIT") ;;
+    *) _fcr_reset+=(QUIT) ;;
+  esac' '  _fcr_reset+=(INT QUIT)'
+# FTM-4: no reset at all -- on bash 5.3.9 the child of an async subshell ignores INT and QUIT.
+mutate FTM-4 "F-A-run-intquit" \
+  '  _fc_timer_run_resets
+' '  :
+'
+# R2F1: only the non-posix spelling of an ignored signal is recognised (the round-2 code): in
+#   posix mode a caller's ignore reads as "not ignored". F-A-run-resets-posix kills it on
+#   every bash; F-A-run-ignored-posix additionally on bash 5.2.x.
+mutate R2F1 "F-A-run-resets-posix" \
+  '    "trap -- '"''"' SIGINT"|"trap -- '"''"' INT") ;;' '    "trap -- '"''"' SIGINT") ;;'
 # FA5: no re-wait after a composed handler returns (fc_timer_run reports 143, not the child).
 mutate FA5 "F-A-run-compose" \
   '    if kill -0 "$_fcr_pid" 2>/dev/null && [ "$_fcr_guard" -lt 10000 ]; then' '    if false; then'

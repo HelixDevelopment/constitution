@@ -4,9 +4,9 @@
 # the test_* name run_all.sh ran it under its 240 s default bound, where it
 # always ended rc=124. It is now outside run_all's test_*.sh glob and is run on
 # demand or by a scheduled runner; test_review_record_guard_table.sh proves the
-# tracked ledger FRESH and COMPLETE without running it. Older comments in
-# files the ledger hashes still carry the old name; they are refreshed at the
-# next ledger regeneration, because editing them makes the ledger stale.)
+# tracked ledger FRESH and COMPLETE without running it. The comments in the
+# files the ledger hashes were moved to the new name at the round-3
+# regeneration.)
 #
 # T048 restart, V3 round 4, structural item (3) (R4-F3; constitution
 # 11.4.276(C)/(D), 11.4.194(6)(d)): the DYNAMIC half of the guard meta-check.
@@ -31,7 +31,9 @@
 #         (ID... restricts the sweep to those sub-clauses and writes no ledger
 #         unless --out is given -- for iterating on one guard)
 # Exit  : 0 control GREEN, every swept mutant has a result and is KILLED (or
-#         listed EQUIVALENT); 1 a SURVIVED or ERROR mutant (listed), a missing
+#         listed EQUIVALENT); 77 the same, but a control suite exited 77 (it
+#         skipped proof legs on this host): SKIP, never PASS (CON-033 round 3,
+#         review R2-F3); 1 a SURVIVED or ERROR mutant (listed), a missing
 #         result, or a RED control; 2 usage/setup error; 129/130/143 when
 #         interrupted by HUP/INT/TERM (an interrupted sweep never reports
 #         success and writes no ledger).
@@ -44,7 +46,7 @@ TOOL="$FC/review/review_record.py"
 ANALYZER="$HERE/lib/review_record_guard_analyzer.py"
 # cheapest first: a mutant stops at the FIRST suite that fails (its lost PASS
 # lines are the isolating cases recorded); only survivors pay for every suite.
-SUITES="test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_round_budget_boundary_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
 
 JOBS=2; OUT=""; IDS=()
 while [ "$#" -gt 0 ]; do
@@ -86,14 +88,18 @@ build_mirror() { # build_mirror DIR
   cp -r "$SNAP/review" "$SNAP/tests" "$1/"
 }
 # run_all DIR [stop] -> DIR/<suite>.log + DIR/<suite>.rc; with "stop", stops
-# after the first failing suite (later suites get no .log/.rc).
+# after the first suite whose status differs from the control's (later suites
+# get no .log/.rc). A suite's status is its exit code: 0 PASS, 77 SKIP (a
+# proof leg could not run on this host), anything else FAIL (CON-033 round 3,
+# review R2-F3). A mutant is red on a suite whose status differs from the
+# control's for that suite; 77 on both is not a kill.
 run_all() {
   local t rc
   for t in $SUITES; do
     timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1
     rc=$?
     echo "$rc" > "$1/$t.rc"
-    if [ "${2:-}" = stop ] && [ "$rc" -ne 0 ]; then return 0; fi
+    if [ "${2:-}" = stop ] && [ "$rc" != "$(cat "$S/control/$t.rc")" ]; then return 0; fi
   done
 }
 # pass_ids DIR -> one "suite::normalised PASS text" per line, sorted unique
@@ -123,13 +129,17 @@ PY
 echo "== control: unmutated mirror must be fully GREEN =="
 build_mirror "$S/control"
 run_all "$S/control"
+CONTROL_SKIP=""
 for t in $SUITES; do
-  if [ "$(cat "$S/control/$t.rc")" != "0" ]; then
-    echo "NOT ok control RED at $t -- kills would be meaningless"; tail -20 "$S/control/$t.log"; exit 1
-  fi
+  case "$(cat "$S/control/$t.rc")" in
+    0) ;;
+    77) CONTROL_SKIP="$CONTROL_SKIP $t"
+        echo "SKIP control: $t skipped proof legs on this host: $(grep '^SKIP: ' "$S/control/$t.log" | cut -d' ' -f2 | tr '\n' ' ')" ;;
+    *) echo "NOT ok control RED at $t (rc $(cat "$S/control/$t.rc")) -- kills would be meaningless"; tail -20 "$S/control/$t.log"; exit 1 ;;
+  esac
 done
 pass_ids "$S/control" > "$S/control.pass"
-echo "ok control GREEN: $(wc -l < "$S/control.pass") passing checks across $(echo "$SUITES" | wc -w) suites"
+echo "ok control GREEN: $(wc -l < "$S/control.pass") passing checks across $(echo "$SUITES" | wc -w) suites${CONTROL_SKIP:+ -- with skipped proof legs in:$CONTROL_SKIP}"
 
 python3 "$ANALYZER" list "$TOOL" > "$S/subclauses.tsv" || { echo "analyzer failed" >&2; exit 2; }
 if [ "${#IDS[@]}" -gt 0 ]; then
@@ -153,7 +163,7 @@ worker() { # worker ID -> $S/res/<ID>.tsv : id status n killers
   for t in $SUITES; do
     [ -f "$m/$t.rc" ] || continue
     printf '%s::\n' "$t" >> "$m/ran"
-    [ "$(cat "$m/$t.rc")" != "0" ] && any_red=1
+    [ "$(cat "$m/$t.rc")" != "$(cat "$S/control/$t.rc")" ] && any_red=1
   done
   pass_ids "$m" > "$m/pass"
   local killers n
@@ -200,7 +210,8 @@ if [ -n "$OUT" ] && [ "$N_ROWS" -ne "$N_TODO" ]; then
   echo "no ledger written: the sweep is incomplete"
 elif [ -n "$OUT" ]; then
   {
-    echo "# review_record sub-clause kill ledger -- generated by test_review_record_subclause_sweep.sh; do not edit"
+    echo "# review_record sub-clause kill ledger -- generated by sweep_review_record_subclauses.sh; do not edit"
+    echo "# control_skipped_suites=${CONTROL_SKIP:- none}"
     echo "# tool_sha256=$(sha256sum "$TOOL" | cut -d' ' -f1)"
     echo "# analyzer_sha256=$(sha256sum "$ANALYZER" | cut -d' ' -f1)"
     echo "# genuine_sha256=$(sha256sum "$SNAP/tests/lib/review_record_genuine.sh" | cut -d' ' -f1)"
@@ -211,5 +222,9 @@ elif [ -n "$OUT" ]; then
   echo "ledger written: $OUT ($(wc -l < "$S/rows.tsv") rows)"
 fi
 echo ""
+if [ "$FAIL" -eq 0 ] && [ -n "$CONTROL_SKIP" ]; then
+  echo "== sub-clause sweep: every mutant KILLED, but the control skipped proof legs in:$CONTROL_SKIP (SKIP, not PASS) =="
+  echo "SKIP reason=control_proof_legs_skipped"; exit 77
+fi
 [ "$FAIL" -eq 0 ] && { echo "== sub-clause sweep: every mutant KILLED =="; exit 0; }
 echo "== sub-clause sweep: SURVIVED/ERROR mutants above (each needs an isolating case, or an EQUIVALENT entry with its reason in the guard table) =="; exit 1
