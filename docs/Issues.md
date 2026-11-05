@@ -1359,3 +1359,169 @@ Round-3 review of vehicle/census-safe, nits (section 11.4.276(G.2), process-doc)
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py (comment); scripts/workable-items (engine, optional)
 
+## CON-071 — multitrack_sessions.sh: 'shift 2>/dev/null || true' is fatal under dash on an empty argument list, so the no-argument call prints nothing
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Conductor
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — red-command `sh scripts/multitrack/multitrack_sessions.sh; echo rc=$?` — green-command `sh scripts/multitrack/multitrack_sessions.sh; echo rc=$? (stderr carries the usage text)` — env `host anton, dash 0.5.12-12ubuntu3, file blob 2650500c4ffb1eb6440876f2ef36a913dc2f2485 (sha256 8a84d647c26ab9506f640dc75c7a095dbe1494cdcace2c2870fe3c6bc9bf1b63)` — signature `under sh (dash) the no-argument call exits 2 with zero stderr bytes (usage never printed)` — updated 2026-11-05T17:53:34Z — by `Conductor`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash treats shift on an empty positional list as a special-builtin error that exits the non-interactive shell; '2>/dev/null || true' cannot catch a shell exit. Toggle: guarded '[ $# -gt 0 ] && shift' survives, unguarded aborts (decisive experiment in the record).` — evidence `docs/qa/con071_reproduction_2026_11_05.txt` — updated 2026-11-05T17:53:34Z — by `Conductor`
+
+What: under sh (dash) scripts/multitrack/multitrack_sessions.sh run with no arguments exits 2 with no output; bash prints the usage text on stderr and exits 2. main() does _cmd="${1:-}"; shift 2>/dev/null || true. In dash a shift with no positional parameters is a special-builtin error that exits the non-interactive shell, so the redirect and the || true cannot catch it. The same shape sits at three sites: lines 327 (cmd_spawn), 472 (cmd_drive/resume) and 588 (main). test_multitrack_sessions_pid_status.sh works around it by sourcing with a 'help' argument (C3). Found by the round-1 independent review of vehicle/redpin (docs/qa/redpin_review/review_redpin_r1.md, V12) and the redpin author report (docs/qa/redpin_review/redpin_author_report_r1.md, follow-up 3). Out of scope for the test-only redpin change (section 11.4.293(A)). Supersedes the id CON-064/CON-065 that commit ce775c9 on vehicle/redpin gave this item (those ids belong to other items on main; review R2-1, section 11.4.54). Attribution note: created by an agent (redpin landing subagent) through the engine; if item_history records a different opener, that is the engine default of this intake path and this note is the correction (history is append-only).
+
+**Reproduction / context:**
+reproduced-live on the host (the code runs only on the host), record docs/qa/con071_reproduction_2026_11_05.txt: RED 'sh scripts/multitrack/multitrack_sessions.sh' rc=2 with 0 stderr bytes, 3 of 3 runs; control under bash rc=2 with 490 stderr bytes starting 'usage: multitrack_sessions.sh <command> [args]'. Decisive experiment in the same record: sh -c 'shift 2>/dev/null || true; echo survived' prints nothing (rc 2); sh -c '[ $# -gt 0 ] && shift; echo survived' prints survived (rc 0); bash prints survived for both.
+
+**Acceptance criteria:**
+(1) All three sites use a guarded shift ([ $# -gt 0 ] && shift, or an equivalent that never runs shift on an empty list), class-wide per section 11.4.276(C): every 'shift ... || true' site in scripts/multitrack/ is enumerated with a control-needled scan and fixed or scoped out. (2) A dash regression test that is RED on the current file (no-argument call under sh prints no usage) and GREEN after the fix with the same command, the same host and the same signature (section 11.4.292(E)), plus a paired mutation that restores the unguarded shift and makes the test FAIL. (3) The C3 'help' workaround in test_multitrack_sessions_pid_status.sh is removed or kept with a reason.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/multitrack_sessions.sh lines 327, 472, 588; scripts/multitrack/test_multitrack_sessions_pid_status.sh (C3 workaround)
+
+## CON-072 — Vendor the RB-05 mock claude into the constitution so the two mock-driven multitrack guards and the redpin carrier legs run standalone
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: round-1 review finding F4 of vehicle/redpin (docs/qa/redpin_review/review_redpin_r1.md): without the consumer-only RB-05 mock the two mock-driven tests always SKIP in the canonical repository. The suite-level absorption of those SKIPs is fixed in round 2 (the mutation suite exits 77 when any leg skipped). The remaining work is to vendor the mock (it is a test double; verdicts through it stay UNIT-CLASS, section 11.4.289) with its provenance, and have the tests find it in-tree. Same environment class, also open: test_multitrack_sessions_balance_autoselect.sh (rc 90) and test_multitrack_monday_dryrun.sh (rc 91), per docs/qa/redpin_review/redpin_author_report_r1.md follow-up 5. Supersedes the id CON-064/CON-065 that commit ce775c9 on vehicle/redpin gave this item (those ids belong to other items on main; review R2-1, section 11.4.54). Attribution note: created by an agent (redpin landing subagent) through the engine; if item_history records a different opener, that is the engine default of this intake path and this note is the correction (history is append-only).
+
+**Reproduction / context:**
+Measured 2026-11-05 on a clean clone of vehicle/redpin with no MT_TEST_MOCK_CLAUDE: test_multitrack_sessions_pid_status.sh and test_multitrack_supervisor_wiring.sh exit 77 reason=rb05_mock_absent; test_multitrack_redpin_mutations.sh exits 77 with 3 leg groups skipped (PASS=12 SKIP=3); re-measured by the round-2 review (docs/qa/redpin_review/review_redpin_r2.md V3, V5). In the canonical repository their coverage is zero.
+
+**Acceptance criteria:**
+On a standalone constitution clone with no MT_TEST_MOCK_CLAUDE, both tests and the redpin mutation suite run their legs and exit 0; the vendored mock carries its source repository, commit and sha256.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/rb05_fixtures/mock_claude.sh (new in the constitution; today only in the consumer project), scripts/multitrack/test_multitrack_sessions_pid_status.sh, scripts/multitrack/test_multitrack_supervisor_wiring.sh, scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+## CON-073 — Census guard tests/test_no_head_red_builder.sh scans its own positive-control copies when TMPDIR is inside tests/ (third self-carrier, review R2-2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the guard writes its ctrl_*.sh positive-control copies into its scratch dir $S and only then builds the census list; with TMPDIR pointing at a non-ignored directory under tests/ the census scans the copies, flags 7 lines and exits 1 (reproduced by the reviewer with TMPDIR=tests/tmpx). Same class as round-1 F1, third instance. Acceptance: build the census list before writing the controls, exclude $S, or refuse a scratch dir inside the repository root; add a mutation leg that runs the guard with TMPDIR inside tests/ and asserts rc 0. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; tests/test_no_head_red_builder_mutations.sh
+
+## CON-074 — Adopt reviewer mutant RM-1 (census file filter drops _mutation_test.sh) as a leg of the census mutation test (review R2-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: deleting the '|_mutation_test\.sh$' alternative from the census grep -E filter survives the whole census mutation suite (13/0) while the scanned set shrinks from 681 to 489 files; a builder line appended to scripts/gates/cm_agent_type_label_mutation_test.sh is then missed. Acceptance: a leg that appends a HEAD-built RED builder to a scripts/gates/*_mutation_test.sh file and requires the census to name it; RM-1 must make that leg FAIL (section 11.4.276(D)). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder_mutations.sh
+
+## CON-075 — Census guard scope is narrower than the full-suite runner's census: 18 runner-run sh/py units are never scanned (review R2-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the guard's own name filter misses *_test.sh (e.g. the five scripts/gates/covenant_propagation_*_test.sh), *_selftest*.sh, scripts/label-sync/prove_*mutations.sh, meta_test_inheritance.sh and progressive/mutation_matrix.py, so any of them could gain a HEAD-built RED artifact unseen. Acceptance: the guard scans the runner's own census set (the file list --verify-manifest uses) instead of a second name filter, with a control-needled count and a leg on one of the formerly missed files. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; scripts/run_full_suite.py (census set reuse)
+
+## CON-076 — HEAD-red builder detector: 25 further blind-spot shapes, header overclaims Python coverage; invert the default instead of closing shapes one at a time (review R2-5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: 25 new probe shapes (process substitution, defaulted revisions, git show :path, implicit HEAD via git log, moving refs main:/origin/main:, git checkout HEAD --, git restore --source=HEAD, worktree add HEAD~1, heredoc bodies, git wrapper functions, HEAD@{0}, prefix redirects, cat-file --textconv, Python shell=True/os.system and string concatenation) are all missed by the detector; header line 19 claims any Python show/cat-file HEAD read is covered, which three shapes contradict. No live instance found (broad tree scan, 3 hits, none builds a RED artifact). The round-2 fix closed exactly the 8 named shapes, the instance-at-a-time closure section 11.4.276(C) warns about. Acceptance: invert the default (flag every HEAD-relative, moving-ref or index blob/tree read in a test; the reason-carrying opt-out marker covers compare-only reads), correct the header to the real limits, and adopt the 25 shapes as mutation legs. If this class reappears in a later round it forces a structural round (section 11.4.276(E)). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+tests/test_no_head_red_builder.sh; tests/test_no_head_red_builder_mutations.sh
+
+## CON-077 — Adopt reviewer mutant RM-3 (delete the SKIP-to-77 block) as a leg: the round-1 F4 fix has no regression guard (review R2-6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: deleting the 'if [ "$SKIP" -gt 0 ] ... exit 77' block from scripts/multitrack/test_multitrack_redpin_mutations.sh, run without the mock, gives PASS=12 FAIL=0 SKIP=3 rc 0, which the runner's judge() reads as PASS; the unmutated suite is SKIP rb05_mock_absent. Acceptance: a leg that runs the suite with the mock absent and asserts rc 77 and the trailing 'reason=rb05_mock_absent' line; RM-3 must make it FAIL. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+## CON-078 — CARRIER_IMMUNE comment overclaims: its worker half is an equivalent mutant on this path (review R2-8, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: mutant m_worker restores only the worker pattern to the pre-RB-02 default and passes every leg with one and four carriers, because sessions passes its own live-worker count. Acceptance: reword the block comment to say what the worker half protects (or drop it), with the equivalence recorded. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_sessions_pid_status.sh; scripts/multitrack/test_multitrack_supervisor_wiring.sh
+
+## CON-079 — Carrier visibility control needle in the redpin mutation suite is tautological (review R2-9, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the control that proves the carrier process is visible reuses the same _bw token it checks for. Acceptance: prove visibility with an independent read (for example pgrep -f of the real pre-RB-02 build pattern), so the control can fail when the carrier is not visible (section 11.4.273). Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh
+
+## CON-080 — Stale 'measured 5.6 s' timing note on the census mutation test manifest row (review R2-10, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: config/full_suite_manifest.tsv says override fast (measured 5.6 s) for tests/test_no_head_red_builder_mutations.sh; the reviewer measured 36 s wall time under CPU pressure (load about 33 on 16 CPUs). Acceptance: re-measure and record the figure together with the load it was measured under. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+config/full_suite_manifest.tsv
+
+## CON-081 — Redpin carrier process is visible host-wide for about 40 s and can be counted by other sessions' bare-pgrep guards (review R2-11, nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+What: the carrier started by the carrier-immune legs is visible to every bare-pgrep guard on the host for about 40 s. Acceptance: run it in its own PID namespace (unshare --pid --fork --map-root-user) where available, else keep its lifetime minimal, with the choice recorded. Source: review round 2 of vehicle/redpin, docs/qa/redpin_review/review_redpin_r2.md (section 11.4.276(G.2) follow-up; the code slice landed GO-with-follow-ups). Created by an agent (redpin landing subagent) through the engine.
+
+**Affected scope / file-scope manifest:**
+scripts/multitrack/test_multitrack_redpin_mutations.sh; scripts/multitrack/test_multitrack_sessions_pid_status.sh; scripts/multitrack/test_multitrack_supervisor_wiring.sh
+
+## CON-082 — tests/layout/test_generator_atomic.sh SIGTERM legs (4) and (10e) give different verdicts on the same committed file (nondeterministic, cause UNCONFIRMED)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Conductor
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T17:53:34Z — by `Conductor`
+**Investigation:** not-started — updated 2026-11-05T17:53:34Z — by `Conductor`
+
+What: observation O1 of review round 2 of vehicle/redpin (docs/qa/redpin_review/review_redpin_r2.md). The same committed file gave PASS=55 FAIL=2 rc 1 (11 m 56 s; failures '(4) staging left after SIGTERM (had 6)' and '(10e) TERM at mid_commit lost files or left staging') and, on re-run of the same tree, PASS=57 FAIL=0 rc 0 (9 m 16 s); main 7f72395 run concurrently passed 57/0. The vehicle changes this file only by a trailing comment. Cause UNCONFIRMED; CPU contention (pressure about 56 % avg10 at the time) is a hypothesis only. Not caused by the redpin change (section 11.4.293(A)). Created by an agent (redpin landing subagent) through the engine.
+
+**Reproduction / context:**
+UNCONFIRMED: no deterministic reproduction yet; the two verdicts come from the reviewer's runs (evidence tracked at docs/qa/redpin_review/r2_evidence/gen_atomic.out, gen_atomic_rerun.out, gen_atomic_main.out, copied from the reviewer's session evidence). A reproduction MUST be established first (section 11.4.292), for example by running legs (4) and (10e) N times under controlled CPU load.
+
+**Acceptance criteria:**
+Legs (4) and (10e) give the same verdict in N >= 3 consecutive runs (section 11.4.50) under the load the full suite runs them with; root cause established by a decisive experiment; a permanent regression guard (section 11.4.135).
+
+**Affected scope / file-scope manifest:**
+tests/layout/test_generator_atomic.sh (SIGTERM legs 4 and 10e) and the generator it drives
+

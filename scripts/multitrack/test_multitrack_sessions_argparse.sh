@@ -11,11 +11,13 @@
 #     stderr with "shift count out of range" at ~5.7MB/s).
 # -----------------------------------------------------------------------------
 # Purpose (§11.4.114/§11.4.115 RED-on-the-broken-artifact + polarity switch):
-#   RED_MODE=1 (default) — reproduces the defect against the LAST-COMMITTED
-#     (git HEAD, pre-fix) copy of multitrack_sessions.sh inside the
-#     constitution submodule (`git show HEAD:scripts/multitrack/
-#     multitrack_sessions.sh`), NOT a synthetic snippet — the actual artifact
-#     this fix replaces. Drives `spawn sometrack --cwd` (dangling flag, no
+#   RED_MODE=1 — reproduces the defect against the PRE-FIX copy of
+#     multitrack_sessions.sh extracted at the PINNED commit RED_PIN (the parent
+#     of 55998fb, which introduced the "missing value" guard), NOT a synthetic
+#     snippet — the actual artifact this fix replaced. It is NEVER `git show
+#     HEAD:`: once the fix is committed HEAD holds the FIXED copy, so a
+#     HEAD-built RED can never go RED on a committed tree (redpin class,
+#     §11.4.115/§11.4.292(E)); an unreachable pin FAILs closed. Drives `spawn sometrack --cwd` (dangling flag, no
 #     value) under a bounded `timeout` (this test itself NEVER lets a hung
 #     child run unbounded, §12 host-safety) and asserts the pre-fix copy IS
 #     killed by the timeout (exit 124) — proving the loop is real, not
@@ -30,11 +32,13 @@
 #   the normalized results are byte-identical across all 3 iterations.
 #
 # Usage:
-#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_sessions_argparse.sh   # RED
-#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_sessions_argparse.sh   # GREEN
-#   (default RED_MODE=1 if unset)
+#   sh constitution/scripts/multitrack/test_multitrack_sessions_argparse.sh              # RED then GREEN
+#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_sessions_argparse.sh   # RED only
+#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_sessions_argparse.sh   # GREEN only
+#   (default RED_MODE=both if unset: one default-tier run proves the defect on
+#   the pinned pre-fix copy AND the fix on the current copy)
 #
-# Inputs: RED_MODE (0|1, default 1); MT_TEST_CONST_ROOT (optional override for
+# Inputs: RED_MODE (both|1|0, default both); MT_TEST_CONST_ROOT (optional override for
 #   the constitution submodule root, else `git rev-parse --show-toplevel`
 #   from this file's own directory); MT_ARGPARSE_TEST_EVIDENCE_DIR (optional).
 #
@@ -79,7 +83,14 @@ SESSIONS="$CONST_ROOT/scripts/multitrack/multitrack_sessions.sh"
 sh -n "$SESSIONS" 2>/dev/null || { echo "FATAL: primitive fails sh -n: $SESSIONS" >&2; exit 92; }
 bash -n "$SESSIONS" 2>/dev/null || { echo "FATAL: primitive fails bash -n: $SESSIONS" >&2; exit 92; }
 
-RED_MODE="${RED_MODE:-1}"
+RED_MODE="${RED_MODE:-both}"
+case "$RED_MODE" in
+    both) PHASES="1 0" ;;
+    1)    PHASES="1" ;;
+    0)    PHASES="0" ;;
+    *)    echo "FATAL: RED_MODE must be both, 1 or 0 (got '$RED_MODE')" >&2; exit 2 ;;
+esac
+REQ_MODE=$RED_MODE
 RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 # best-effort project-root qa-results/ home; falls back to a scratch dir if
 # this checkout is not embedded under a project with qa-results/ (the
@@ -92,8 +103,15 @@ _argt_evidence_home() {
 EV="${MT_ARGPARSE_TEST_EVIDENCE_DIR:-$(_argt_evidence_home)/argparse_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_argt_test.XXXXXX")
-cleanup() { rm -rf "$WORK" 2>/dev/null || true; }
+cleanup() { _rm_work; }
 trap cleanup EXIT INT TERM
 
 PASS=0; FAIL=0; SKIP=0
@@ -101,38 +119,86 @@ pass() { PASS=$((PASS+1)); printf 'PASS: %s [evidence: %s]\n' "$1" "$2" | tee -a
 fail() { FAIL=$((FAIL+1)); printf 'FAIL: %s [evidence: %s]\n' "$1" "$2" | tee -a "$EV/results.log"; }
 skip() { SKIP=$((SKIP+1)); printf 'SKIP: %s (%s) [evidence: %s]\n' "$1" "$2" "$3" | tee -a "$EV/results.log"; }
 
-# extract the LAST-COMMITTED (pre-fix, git HEAD) copy of the primitive, once,
-# for RED_MODE=1 (§11.4.114 known-good/known-bad diff oracle -- here "known-
-# bad" is the committed artifact this fix replaces).
+# --- RED artifact pin (§11.4.114/§11.4.115, redpin class) -------------------
+# The RED artifact is the pre-fix copy at a FIXED commit, never `git show
+# HEAD:` (HEAD holds the FIXED copy once the fix is committed; the old
+# 'shift 2' sanity check could not tell the two apart, because the fixed copy
+# still uses 'shift 2' behind its guard). RED_PIN is the parent of 55998fb,
+# which introduced the "missing value" guard. Assertions: the pin is reachable
+# (else FAIL closed); the pinned copy has the unguarded 'shift 2' loop AND no
+# "missing value" guard; the CURRENT copy has the guard (control needle).
+RED_PIN=e60cbde2e33e7d0542a937331763f6be7e739c9a
+RED_PATH=scripts/multitrack/multitrack_sessions.sh
+PREFIX_NEEDLE='shift 2'
+FIX_NEEDLE='missing value for'
+_cur_fix=$(grep -cF -- "$FIX_NEEDLE" "$SESSIONS")
+if [ "${_cur_fix:-0}" -ge 1 ]; then
+    pass "control: the CURRENT $RED_PATH carries the fix ('$FIX_NEEDLE' x$_cur_fix)" "$SESSIONS"
+else
+    fail "control: the CURRENT $RED_PATH lost the fix ('$FIX_NEEDLE' x${_cur_fix:-0})" "$SESSIONS"
+fi
 PREFIX_COPY="$WORK/multitrack_sessions_prefix.sh"
-if [ "$RED_MODE" = "1" ]; then
-    if ! git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_sessions.sh > "$PREFIX_COPY" 2>/dev/null; then
-        echo "FATAL: could not extract git HEAD copy of multitrack_sessions.sh from $CONST_ROOT" >&2
+case " $PHASES " in *" 1 "*)
+    if ! git -C "$CONST_ROOT" cat-file -e "$RED_PIN^{commit}" 2>/dev/null; then
+        echo "FAIL: RED pin $RED_PIN is not reachable from $CONST_ROOT (shallow clone?) -- the RED cannot be reproduced; refusing to pass (§11.4.6)" >&2
         exit 93
     fi
-    if ! grep -qF 'shift 2' "$PREFIX_COPY"; then
-        echo "FATAL: extracted HEAD copy does not contain the expected pre-fix 'shift 2' construct -- cannot honestly claim RED reproduction (§11.4.6)" >&2
+    if ! git -C "$CONST_ROOT" show "$RED_PIN:$RED_PATH" > "$PREFIX_COPY" 2>/dev/null; then
+        echo "FAIL: could not extract $RED_PATH at RED pin $RED_PIN from $CONST_ROOT" >&2
+        exit 93
+    fi
+    if ! grep -qF -- "$PREFIX_NEEDLE" "$PREFIX_COPY" || grep -qF -- "$FIX_NEEDLE" "$PREFIX_COPY"; then
+        echo "FAIL: the copy at RED pin $RED_PIN is not the pre-fix artifact (needs '$PREFIX_NEEDLE' and not '$FIX_NEEDLE') -- cannot honestly claim RED reproduction (§11.4.6)" >&2
         exit 94
     fi
-fi
+    pass "RED pin $RED_PIN resolves and its $RED_PATH is the pre-fix artifact (has the pre-fix construct, lacks the fix)" "$PREFIX_COPY"
+;; esac
+
+# _shift_survives SHELL -> "yes" when a failed over-count `shift` lets SHELL
+# carry on (bash), "no" when it aborts the shell (dash). Probed, not assumed.
+_shift_survives() {
+    if [ "$("$1" -c 'set -- a; shift 2 2>/dev/null; echo survived' 2>/dev/null)" = "survived" ]; then
+        echo yes
+    else
+        echo no
+    fi
+}
 
 run_battery() {
     _iter="$1"
-    _norm="$EV/normalized_iter${_iter}.txt"
+    _norm="$EV/normalized_m${RED_MODE}_iter${_iter}.txt"
     : > "$_norm"
 
     if [ "$RED_MODE" = "1" ]; then
-        # RED: the pre-fix HEAD copy's cmd_spawn arg loop spins forever on a
+        # RED: the pre-fix pinned copy's cmd_spawn arg loop has no guard for a
         # dangling --cwd (no value) -- bounded by `timeout` (this test's own
-        # host-safety guard). Both shells.
+        # host-safety guard). Both shells. What an over-count `shift 2` does
+        # is SHELL-dependent (probed once, below, never assumed): a shell that
+        # survives a failed shift (bash) leaves $1 unchanged and spins
+        # forever (rc=124); a shell whose failed shift is a fatal
+        # special-builtin error (dash as /bin/sh) aborts with rc!=0 and a
+        # "shift" diagnostic. Both are the pre-fix defect (no "missing value"
+        # guard); only the first is the unbounded loop.
         for _shell in sh bash; do
             _t0=$(date +%s%N 2>/dev/null || date +%s)
             timeout 2 "$_shell" "$PREFIX_COPY" spawn redtrack --cwd \
                 > "$WORK/red_${_shell}_${_iter}.out" 2> "$WORK/red_${_shell}_${_iter}.err"
             _rc=$?
             _bytes=$(wc -c < "$WORK/red_${_shell}_${_iter}.err" 2>/dev/null | tr -d ' ')
+            if [ "$(_shift_survives "$_shell")" = "no" ]; then
+                if [ "$_rc" != "0" ] && [ "$_rc" != "124" ] \
+                   && grep -q 'shift' "$WORK/red_${_shell}_${_iter}.err" 2>/dev/null \
+                   && ! grep -qi 'missing value' "$WORK/red_${_shell}_${_iter}.err" 2>/dev/null; then
+                    pass "RED($_shell): this $_shell aborts on a failed shift, so the pre-fix pinned copy dies on the dangling --cwd with a raw shift error (rc=$_rc) and no 'missing value' guard -- the unguarded loop, as this shell exposes it" "$WORK/red_${_shell}_${_iter}.err"
+                    echo "RED_${_shell}_SHIFT_FATAL_NO_GUARD" >> "$_norm"
+                else
+                    fail "RED($_shell): expected a raw shift abort without a 'missing value' guard from the pre-fix copy, got rc=$_rc (bytes=$_bytes) -- defect not reproduced" "$WORK/red_${_shell}_${_iter}.err"
+                    echo "RED_${_shell}_RC=$_rc bytes=$_bytes" >> "$_norm"
+                fi
+                continue
+            fi
             if [ "$_rc" = "124" ]; then
-                pass "RED($_shell): pre-fix HEAD copy's dangling --cwd loops UNBOUNDED, killed by timeout (rc=124, stderr_bytes=$_bytes)" "$WORK/red_${_shell}_${_iter}.err"
+                pass "RED($_shell): pre-fix pinned copy's dangling --cwd loops UNBOUNDED, killed by timeout (rc=124, stderr_bytes=$_bytes)" "$WORK/red_${_shell}_${_iter}.err"
                 # NOTE: stderr byte-count is CPU-speed-dependent (not part of
                 # the normalized/determinism-compared line) -- the qualitative
                 # rc=124 timeout-kill verdict is what §11.4.50 compares.
@@ -191,18 +257,20 @@ run_battery() {
     done
 }
 
-for _i in 1 2 3; do run_battery "$_i"; done
+for RED_MODE in $PHASES; do
+    for _i in 1 2 3; do run_battery "$_i"; done
 
-echo "=== §11.4.50 determinism check: normalized_iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
-if diff -q "$EV/normalized_iter1.txt" "$EV/normalized_iter2.txt" >/dev/null 2>&1 \
-   && diff -q "$EV/normalized_iter2.txt" "$EV/normalized_iter3.txt" >/dev/null 2>&1; then
-    pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_iter1.txt"
-else
-    fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
-fi
+    echo "=== §11.4.50 determinism check (RED_MODE=$RED_MODE): normalized iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
+    if diff -q "$EV/normalized_m${RED_MODE}_iter1.txt" "$EV/normalized_m${RED_MODE}_iter2.txt" >/dev/null 2>&1 \
+       && diff -q "$EV/normalized_m${RED_MODE}_iter2.txt" "$EV/normalized_m${RED_MODE}_iter3.txt" >/dev/null 2>&1; then
+        pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_m${RED_MODE}_iter1.txt"
+    else
+        fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
+    fi
+done
 
 echo "" | tee -a "$EV/results.log"
-echo "RED_MODE=$RED_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
+echo "RED_MODE=$REQ_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
 echo "Evidence: $EV"
 
 [ "$FAIL" -eq 0 ]

@@ -39,17 +39,21 @@
 #       has not opted in (§11.4.1 non-breaking; proven explicitly below).
 #
 # Purpose (§11.4.114/§11.4.115 RED-on-the-broken-artifact + polarity switch):
-#   RED_MODE=1 (default) — reproduces the exact review finding against the
-#     REAL git-history artifacts (never synthetic):
-#       (A) grep census against git HEAD: the LAST-COMMITTED copy of
-#           multitrack_sessions.sh (`git show HEAD:...` -- a REAL, tracked,
-#           previously-shipped artifact) contains ZERO references to
-#           "multitrack_supervisor"; multitrack_bootstrap.sh does not exist
-#           in HEAD AT ALL (`git show HEAD:...` genuinely fails) -- so it
+#   RED_MODE=1 — reproduces the exact review finding against the REAL
+#     git-history artifacts (never synthetic), extracted at the PINNED commit
+#     RED_PIN (the parent of 55998fb, which wired the supervisor in). It is
+#     NEVER `git show HEAD:`: once the fix is committed HEAD holds the FIXED
+#     copy, so a HEAD-built RED can never go RED on a committed tree (redpin
+#     class, §11.4.115/§11.4.292(E)); an unreachable pin FAILs closed:
+#       (A) grep census against the pin: the pre-fix copy of
+#           multitrack_sessions.sh (a REAL, tracked, previously-shipped
+#           artifact) contains ZERO references to "multitrack_supervisor";
+#           multitrack_bootstrap.sh does not exist at the pin AT ALL
+#           (`git show <pin>:...` genuinely fails) -- so it
 #           definitionally invoked nothing. This is the review's own
 #           reproduction method (a grep census), run mechanically against
 #           git history rather than merely quoted.
-#       (B) functional: driving a REAL mocked `spawn` through the HEAD copy
+#       (B) functional: driving a `spawn` through the RB-05 test double via the pinned copy
 #           of multitrack_sessions.sh, with a scratch MT_RULER_STATE_DIR
 #           that WOULD receive a durable snapshot if anything wired it,
 #           leaves that directory's ruler_state.json genuinely ABSENT --
@@ -62,7 +66,7 @@
 #           its dedicated test, and the Monday-dryrun SIMULATION harness --
 #           a test file, not production code, per the review's own exclusion
 #           convention).
-#       (b) `spawn` (real mock, MT_RULER_STATE_DIR + MT_REPO_ROOT set to a
+#       (b) `spawn` (RB-05 test double, MT_RULER_STATE_DIR + MT_REPO_ROOT set to a
 #           scratch project context -- mirroring what multitrack_bootstrap.sh
 #           already does in real use) genuinely populates ruler_state.json
 #           with the spawned track's alias/session_id, cross-checked against
@@ -91,12 +95,27 @@
 #   all 3 iterations.
 #
 # Usage:
-#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_supervisor_wiring.sh   # RED
-#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_supervisor_wiring.sh   # GREEN
-#   (default RED_MODE=1 if unset)
+#   sh constitution/scripts/multitrack/test_multitrack_supervisor_wiring.sh              # RED then GREEN
+#   RED_MODE=1 sh constitution/scripts/multitrack/test_multitrack_supervisor_wiring.sh   # RED only
+#   RED_MODE=0 sh constitution/scripts/multitrack/test_multitrack_supervisor_wiring.sh   # GREEN only
+#   (default RED_MODE=both if unset)
 #
-# Inputs: RED_MODE (0|1, default 1); optional
-#   MT_SUPWIRE_TEST_EVIDENCE_DIR override.
+# Inputs: RED_MODE (both|1|0, default both); optional MT_TEST_PROJECT_ROOT
+#   (outer project root, where the RB-05 mock fixture lives; default: the git
+#   toplevel above the constitution checkout); optional MT_TEST_MOCK_CLAUDE
+#   (path to the RB-05 mock); optional MT_SUPWIRE_TEST_EVIDENCE_DIR override.
+#
+# Evidence class (§11.4.289): UNIT-CLASS. Every spawn here runs through the
+#   RB-05 mock `claude` and the HSS host-safety stub, which are test doubles,
+#   so a verdict of this test is gate/logic evidence about the engine's code
+#   paths, never live evidence that a real worker spawn works.
+#
+# Environment dependency (honest SKIP, §11.4.3): the RB-05 mock lives in the
+#   CONSUMER project (scripts/multitrack/rb05_fixtures/mock_claude.sh). With no
+#   reachable mock the test exits 77 with "reason=rb05_mock_absent" (decided
+#   before any evidence directory is created) instead of a false RED. The
+#   evidence default is <project>/qa-results, else <constitution>/qa-results;
+#   it is never the bare parent directory of the checkout.
 #
 # Outputs: PASS/FAIL/SKIP lines on stdout + $EV/results.log; per-iteration
 #   captured logs + normalized-result files under $EV. Exit 0 iff FAIL count
@@ -156,27 +175,57 @@ _supwire_const_root() {
 }
 CONST_ROOT=$(_supwire_const_root)
 [ -n "$CONST_ROOT" ] || { echo "FATAL: no constitution submodule root (git toplevel / \$MT_TEST_CONST_ROOT)" >&2; exit 90; }
-REPO_ROOT=$(cd "$CONST_ROOT/.." 2>/dev/null && pwd)
-[ -n "$REPO_ROOT" ] || { echo "FATAL: could not derive parent project root from $CONST_ROOT" >&2; exit 90; }
+# outer project = the git toplevel ABOVE the constitution checkout (or
+# MT_TEST_PROJECT_ROOT); empty when this checkout stands alone. Never the bare
+# parent directory: that is not a project and must not receive evidence.
+_supwire_project_root() {
+    if [ -n "${MT_TEST_PROJECT_ROOT:-}" ]; then printf '%s\n' "$MT_TEST_PROJECT_ROOT"; return 0; fi
+    ( cd "$CONST_ROOT/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null )
+}
+REPO_ROOT=$(_supwire_project_root)
 
 SESSIONS="$CONST_ROOT/scripts/multitrack/multitrack_sessions.sh"
 BOOT="$CONST_ROOT/scripts/multitrack/multitrack_bootstrap.sh"
 SUP="$CONST_ROOT/scripts/multitrack/multitrack_supervisor.sh"
 CWH="$CONST_ROOT/scripts/multitrack/multitrack_cwd_hook.sh"
-MOCK="$REPO_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
+if [ -n "${MT_TEST_MOCK_CLAUDE:-}" ]; then
+    MOCK=$MT_TEST_MOCK_CLAUDE
+elif [ -n "$REPO_ROOT" ]; then
+    MOCK="$REPO_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
+else
+    MOCK=""
+fi
+if [ -z "$MOCK" ] || [ ! -f "$MOCK" ]; then
+    echo "SKIP: the RB-05 mock claude is not reachable (no outer project root above $CONST_ROOT, no MT_TEST_MOCK_CLAUDE; looked for '${MOCK:-<none>}'); this test needs the consumer fixture scripts/multitrack/rb05_fixtures/mock_claude.sh reason=rb05_mock_absent"
+    exit 77
+fi
 
 for _f in "$SESSIONS" "$BOOT" "$SUP" "$CWH" "$MOCK"; do
-    [ -f "$_f" ] || { case "$_f" in */rb05_fixtures/*) echo "SKIP topology_unsupported: consumer-project fixture absent (not part of canon alone): $_f" >&2; exit 77 ;; esac; echo "FATAL: required file not found: $_f" >&2; exit 91; }
+    [ -f "$_f" ] || { echo "FATAL: required file not found: $_f" >&2; exit 91; }
 done
 sh -n "$SESSIONS" 2>/dev/null   || { echo "FATAL: $SESSIONS fails sh -n" >&2; exit 92; }
 sh -n "$SUP" 2>/dev/null        || { echo "FATAL: $SUP fails sh -n" >&2; exit 92; }
 bash -n "$BOOT" 2>/dev/null     || { echo "FATAL: $BOOT fails bash -n" >&2; exit 92; }
 
-RED_MODE="${RED_MODE:-1}"
+RED_MODE="${RED_MODE:-both}"
+case "$RED_MODE" in
+    both) PHASES="1 0" ;;
+    1)    PHASES="1" ;;
+    0)    PHASES="0" ;;
+    *)    echo "FATAL: RED_MODE must be both, 1 or 0 (got '$RED_MODE')" >&2; exit 2 ;;
+esac
+REQ_MODE=$RED_MODE
 RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
-EV="${MT_SUPWIRE_TEST_EVIDENCE_DIR:-$REPO_ROOT/qa-results/multitrack/supwire_test_${RUN_TS}-$$}"
+EV="${MT_SUPWIRE_TEST_EVIDENCE_DIR:-${REPO_ROOT:-$CONST_ROOT}/qa-results/multitrack/supwire_test_${RUN_TS}-$$}"
 mkdir -p "$EV"
 
+# Remove $WORK through safe_rm_rf (§11.4.287(B)). scripts/lib/safe_rm.sh is
+# bash-only, so it runs in a bash child; when bash or the library is missing
+# nothing is removed (a leaked scratch dir, never an unguarded delete).
+_rm_work() {
+    [ -n "${WORK:-}" ] && [ -d "$WORK" ] || return 0
+    bash -c '. "$1" && safe_rm_rf "${2:?}"' _rm_work "$CONST_ROOT/scripts/lib/safe_rm.sh" "$WORK" >/dev/null 2>&1 || true
+}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_supwire_test.XXXXXX")
 PIDS_FILE="$WORK/pids_to_kill"
 : > "$PIDS_FILE"
@@ -192,7 +241,7 @@ cleanup() {
             kill -9 "$_p" 2>/dev/null || true
         done < "$PIDS_FILE"
     fi
-    rm -rf "$WORK" 2>/dev/null || true
+    _rm_work
 }
 trap cleanup EXIT INT TERM
 
@@ -201,10 +250,12 @@ pass() { PASS=$((PASS+1)); printf 'PASS: %s [evidence: %s]\n' "$1" "$2" | tee -a
 fail() { FAIL=$((FAIL+1)); printf 'FAIL: %s [evidence: %s]\n' "$1" "$2" | tee -a "$EV/results.log"; }
 skip() { SKIP=$((SKIP+1)); printf 'SKIP: %s (%s) [evidence: %s]\n' "$1" "$2" "$3" | tee -a "$EV/results.log"; }
 
-# extract the LAST-COMMITTED (pre-fix, git HEAD) copy of sessions.sh, once,
-# into its OWN scratch directory alongside SYMLINKS to its REAL, CURRENT,
-# UNMODIFIED-by-this-fix sibling scripts (multitrack_host_budget.sh /
-# multitrack_resolve_worktree.sh) -- sibling resolution inside
+# extract the PRE-FIX copy of sessions.sh at the PINNED commit RED_PIN, once,
+# into its OWN scratch directory alongside its sibling scripts
+# (multitrack_host_budget.sh / multitrack_resolve_worktree.sh) taken from the
+# SAME pin, so the pre-fix world is consistent (the siblings have changed
+# since the pin, and today's copies are not what the pre-fix copy shipped
+# with) -- sibling resolution inside
 # multitrack_sessions.sh is directory-relative (`$MTS_DIR/multitrack_host_
 # budget.sh`, MTS_DIR derived from `$0`'s dirname at runtime), so a bare
 # extracted copy sitting alone in $WORK cannot find its budget guard and
@@ -214,25 +265,67 @@ skip() { SKIP=$((SKIP+1)); printf 'SKIP: %s (%s) [evidence: %s]\n' "$1" "$2" "$3
 PREFIX_DIR="$WORK/prefix_engine"
 mkdir -p "$PREFIX_DIR"
 PREFIX_SESSIONS="$PREFIX_DIR/multitrack_sessions.sh"
-BOOTSTRAP_ABSENT_AT_HEAD=0
-if [ "$RED_MODE" = "1" ]; then
-    if ! git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_sessions.sh > "$PREFIX_SESSIONS" 2>/dev/null; then
-        echo "FATAL: could not extract git HEAD copy of multitrack_sessions.sh" >&2
+# --- RED artifact pin (§11.4.114/§11.4.115, redpin class) -------------------
+# The RED artifact is the pre-fix copy at a FIXED commit, never `git show
+# HEAD:` (HEAD holds the FIXED copy once the fix is committed). RED_PIN is the
+# parent of 55998fb, which wired multitrack_supervisor into sessions.sh and
+# added multitrack_bootstrap.sh. Assertions: the pin is reachable (else FAIL
+# closed); the pinned sessions.sh lacks every 'multitrack_supervisor'
+# reference; the CURRENT sessions.sh has the 'MTS_SUPERVISOR=' wiring
+# (control needle).
+RED_PIN=e60cbde2e33e7d0542a937331763f6be7e739c9a
+RED_PATH=scripts/multitrack/multitrack_sessions.sh
+FIX_NEEDLE='MTS_SUPERVISOR='
+_cur_fix=$(grep -cF -- "$FIX_NEEDLE" "$SESSIONS")
+if [ "${_cur_fix:-0}" -ge 1 ]; then
+    pass "control: the CURRENT $RED_PATH carries the fix ('$FIX_NEEDLE' x$_cur_fix)" "$SESSIONS"
+else
+    fail "control: the CURRENT $RED_PATH lost the fix ('$FIX_NEEDLE' x${_cur_fix:-0})" "$SESSIONS"
+fi
+BOOTSTRAP_ABSENT_AT_PIN=0
+case " $PHASES " in *" 1 "*)
+    if ! git -C "$CONST_ROOT" cat-file -e "$RED_PIN^{commit}" 2>/dev/null; then
+        echo "FAIL: RED pin $RED_PIN is not reachable from $CONST_ROOT (shallow clone?) -- the RED cannot be reproduced; refusing to pass (§11.4.6)" >&2
         exit 93
     fi
-    ln -sf "$CONST_ROOT/scripts/multitrack/multitrack_host_budget.sh" "$PREFIX_DIR/multitrack_host_budget.sh"
-    ln -sf "$CONST_ROOT/scripts/multitrack/multitrack_resolve_worktree.sh" "$PREFIX_DIR/multitrack_resolve_worktree.sh"
-    if git -C "$CONST_ROOT" show HEAD:scripts/multitrack/multitrack_bootstrap.sh > "$WORK/boot_head_probe" 2>/dev/null; then
-        BOOTSTRAP_ABSENT_AT_HEAD=0
-    else
-        BOOTSTRAP_ABSENT_AT_HEAD=1
+    for _sib in multitrack_sessions.sh multitrack_host_budget.sh multitrack_resolve_worktree.sh; do
+        if ! git -C "$CONST_ROOT" show "$RED_PIN:scripts/multitrack/$_sib" > "$PREFIX_DIR/$_sib" 2>/dev/null; then
+            echo "FAIL: could not extract scripts/multitrack/$_sib at RED pin $RED_PIN from $CONST_ROOT" >&2
+            exit 93
+        fi
+    done
+    if grep -qF 'multitrack_supervisor' "$PREFIX_SESSIONS" || ! grep -qF 'cmd_spawn' "$PREFIX_SESSIONS"; then
+        echo "FAIL: the copy at RED pin $RED_PIN is not the pre-fix artifact (needs cmd_spawn and no 'multitrack_supervisor') -- cannot honestly claim RED reproduction (§11.4.6)" >&2
+        exit 94
     fi
-fi
+    pass "RED pin $RED_PIN resolves and its $RED_PATH is the pre-fix artifact (cmd_spawn present, no supervisor wiring)" "$PREFIX_SESSIONS"
+    if git -C "$CONST_ROOT" show "$RED_PIN:scripts/multitrack/multitrack_bootstrap.sh" > "$WORK/boot_pin_probe" 2>/dev/null; then
+        BOOTSTRAP_ABSENT_AT_PIN=0
+    else
+        BOOTSTRAP_ABSENT_AT_PIN=1
+    fi
+;; esac
 
 # HOST_SAFETY_LIB stub (mirrors test_multitrack_sessions_spawn.sh's $HSS) --
 # deterministic §12.6 budget arithmetic, never the real host's /proc/meminfo.
 HSS="$WORK/hss.sh"
 printf 'host_safe_parallel_jobs() { echo 4; }\nHOST_SAFETY_BUDGET_GB=99\n' > "$HSS"
+# >>CARRIER_IMMUNE (round-1 review F2, §11.4.196(D) / §11.4.201(1) / §11.4.50)
+# The RED leg runs the PINNED pre-fix sibling multitrack_host_budget.sh, whose
+# build and worker guards are a bare `pgrep -f` (the pre-RB-02 carrier
+# footgun): any process on the host whose command line merely MENTIONS a build
+# word and `claude ... --output-format stream-json` (an agent prompt, for
+# example) made that guard refuse the spawn, so the RED verdict depended on
+# what else was running. This test is about pid/status (resp. supervisor)
+# wiring, not about the host budget (which has its own tests), so both
+# patterns are set, in both modes, to a token built at run time: the joined
+# value is in no command line on the host, so pgrep finds nothing and the
+# verdict depends only on the artifact under test.
+_mt_nomatch=$(printf 'QXZZ_%s_%s_%s' "$$" "$(date +%s%N 2>/dev/null)" nomatch)
+MT_HOST_BUDGET_BUILD_PGREP_PATTERN="${_mt_nomatch}_build"
+MT_HOST_BUDGET_WORKER_PGREP_PATTERN="${_mt_nomatch}_worker"
+export MT_HOST_BUDGET_BUILD_PGREP_PATTERN MT_HOST_BUDGET_WORKER_PGREP_PATTERN
+# <<CARRIER_IMMUNE
 
 FAKEBIN="$WORK/bin"; mkdir -p "$FAKEBIN"
 ln -sf "$MOCK" "$FAKEBIN/claude"
@@ -241,21 +334,21 @@ PIN_ID_BASE="RB-SUPWIRE-$$"
 
 run_iteration() {
     _iter="$1"
-    _norm="$EV/normalized_iter${_iter}.txt"
+    _norm="$EV/normalized_m${RED_MODE}_iter${_iter}.txt"
     : > "$_norm"
 
     if [ "$RED_MODE" = "1" ]; then
-        # --- RED(A): grep census against git HEAD ---------------------------
+        # --- RED(A): grep census against the pinned pre-fix copy --------------
         _headhit=$(grep -c 'multitrack_supervisor' "$PREFIX_SESSIONS" 2>/dev/null); _headhit=${_headhit:-0}
-        if [ "${_headhit:-0}" -eq 0 ] && [ "$BOOTSTRAP_ABSENT_AT_HEAD" = "1" ]; then
-            pass "RED(A): git-HEAD sessions.sh has ZERO 'multitrack_supervisor' references AND bootstrap.sh is genuinely absent from HEAD (definitionally invokes nothing)" "$PREFIX_SESSIONS"
-            echo "RED_A_census=defect_present headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_HEAD" >> "$_norm"
+        if [ "${_headhit:-0}" -eq 0 ] && [ "$BOOTSTRAP_ABSENT_AT_PIN" = "1" ]; then
+            pass "RED(A): pinned pre-fix sessions.sh has ZERO 'multitrack_supervisor' references AND bootstrap.sh is genuinely absent at the pin (definitionally invokes nothing)" "$PREFIX_SESSIONS"
+            echo "RED_A_census=defect_present headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_PIN" >> "$_norm"
         else
-            fail "RED(A): expected zero HEAD hits + bootstrap absent from HEAD, got headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_HEAD" "$PREFIX_SESSIONS"
-            echo "RED_A_census=UNEXPECTED headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_HEAD" >> "$_norm"
+            fail "RED(A): expected zero hits at the pin + bootstrap absent at the pin, got headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_PIN" "$PREFIX_SESSIONS"
+            echo "RED_A_census=UNEXPECTED headhit=$_headhit boot_absent=$BOOTSTRAP_ABSENT_AT_PIN" >> "$_norm"
         fi
 
-        # --- RED(B): functional -- HEAD sessions.sh spawn never populates
+        # --- RED(B): functional -- the pinned sessions.sh spawn never populates
         #     ruler_state.json even when a durable target IS available. ------
         _reg="$WORK/red_reg_$_iter"; _cwd="$WORK/red_wt_$_iter"; mkdir -p "$_cwd"
         _rulerdir="$WORK/red_ruler_$_iter"
@@ -267,7 +360,7 @@ run_iteration() {
             sh "$PREFIX_SESSIONS" spawn claude1 >"$WORK/red_spawn_$_iter.out" 2>&1
         _redspawn_rc=$?
         if [ "$_redspawn_rc" = "0" ] && [ ! -e "$_rulerdir/ruler_state.json" ]; then
-            pass "RED(B): a real (mocked) spawn via the HEAD copy succeeds (rc=0) but ruler_state.json stays genuinely ABSENT (nothing calls snapshot)" "$_rulerdir"
+            pass "RED(B): a spawn through the RB-05 test double via the pinned copy succeeds (rc=0) but ruler_state.json stays genuinely ABSENT (nothing calls snapshot)" "$_rulerdir"
             echo "RED_B_ruler_state=ABSENT spawn_rc=$_redspawn_rc" >> "$_norm"
         else
             fail "RED(B): expected spawn rc=0 + ruler_state.json absent, got spawn_rc=$_redspawn_rc exists=$([ -e "$_rulerdir/ruler_state.json" ] && echo yes || echo no)" "$WORK/red_spawn_$_iter.out"
@@ -454,18 +547,20 @@ FIXEOF
     fi
 }
 
-for _i in 1 2 3; do run_iteration "$_i"; done
+for RED_MODE in $PHASES; do
+    for _i in 1 2 3; do run_iteration "$_i"; done
 
-echo "=== §11.4.50 determinism check: normalized_iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
-if diff -q "$EV/normalized_iter1.txt" "$EV/normalized_iter2.txt" >/dev/null 2>&1 \
-   && diff -q "$EV/normalized_iter2.txt" "$EV/normalized_iter3.txt" >/dev/null 2>&1; then
-    pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_iter1.txt"
-else
-    fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
-fi
+    echo "=== §11.4.50 determinism check (RED_MODE=$RED_MODE): normalized iter1/2/3 byte-identical? ===" | tee -a "$EV/results.log"
+    if diff -q "$EV/normalized_m${RED_MODE}_iter1.txt" "$EV/normalized_m${RED_MODE}_iter2.txt" >/dev/null 2>&1 \
+       && diff -q "$EV/normalized_m${RED_MODE}_iter2.txt" "$EV/normalized_m${RED_MODE}_iter3.txt" >/dev/null 2>&1; then
+        pass "determinism: 3/3 iterations byte-identical (normalized, RED_MODE=$RED_MODE)" "$EV/normalized_m${RED_MODE}_iter1.txt"
+    else
+        fail "determinism: iterations diverged (RED_MODE=$RED_MODE)" "$EV"
+    fi
+done
 
 echo "" | tee -a "$EV/results.log"
-echo "RED_MODE=$RED_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
+echo "RED_MODE=$REQ_MODE  PASS=$PASS FAIL=$FAIL SKIP=$SKIP" | tee -a "$EV/results.log"
 echo "Evidence: $EV"
 
 [ "$FAIL" -eq 0 ]
