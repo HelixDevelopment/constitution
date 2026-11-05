@@ -1520,16 +1520,22 @@ def sourced(root, rel):
 
 # ----------------------------------------------------------------------------- census
 def submodule_paths(root):
-    p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--get-regexp", r"^submodule\..*\.path$"],
-                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    """Top-level submodule paths: the `path` values of .gitmodules and the gitlinks of the index. Both are read from
+    NUL-separated machine formats (`git config --null`: `<key>\\n<value>\\0`; `git ls-files -s -z`:
+    `<mode> <sha> <stage>\\t<path>\\0`), so a path with a space, a TAB, a leading or trailing space or a non-ASCII
+    character is read whole (CON-030 round 2, review r1 F4; the key holds the submodule name, which may contain a
+    space, so splitting `<key> <value>` on whitespace was wrong)."""
+    p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--null", "--get-regexp",
+                        r"^submodule\..*\.path$"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     paths = []
-    for line in p.stdout.decode(errors="replace").splitlines():
-        parts = line.split(None, 1)
-        if len(parts) == 2:
-            paths.append(parts[1].strip().rstrip("/"))
-    for line in git(root, "ls-files", "-s").splitlines():
-        if line.startswith("160000 "):
-            paths.append(line.split("\t", 1)[1])
+    for rec in p.stdout.decode(errors="replace").split("\0"):
+        _key, nl, val = rec.partition("\n")
+        if nl and val.rstrip("/"):
+            paths.append(val.rstrip("/"))
+    for rec in git(root, "ls-files", "-s", "-z").split("\0"):
+        meta, tab, path = rec.partition("\t")
+        if tab and meta.startswith("160000 "):
+            paths.append(path)
     return sorted(set(paths))
 
 
@@ -2109,22 +2115,65 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     os.replace(tmp, lock_path)
 
 
-_SUB_STATUS_RE = re.compile(r"^(.)([0-9a-f]{40,64}) (.+?)(?: \(([^()]*)\))?$")
+_HEX = frozenset("0123456789abcdef")
 
 
-def parse_sub_status(line):
+def known_sub_paths(root):
+    """Every submodule path `git submodule status --recursive` can print, from the machine format `git ls-files -s -z`
+    (NUL-separated, never quoted): the gitlinks of the root and, recursively, of every submodule whose working tree
+    holds a `.git` (only those can be recursed into; without that check `git -C <empty dir>` would read the parent).
+    Nested paths are `<parent>/<path>`, as git prints them. A failing `ls-files` contributes nothing, so its lines do
+    not match and become gaps (fail closed). CON-030 round 2: the paths come from here, never from the status text."""
+    out_, todo = set(), [""]
+    while todo:
+        rel = todo.pop()
+        p = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "ls-files", "-s", "-z"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if p.returncode != 0:
+            continue
+        for rec in p.stdout.decode(errors="replace").split("\0"):
+            meta, tab, path = rec.partition("\t")
+            if not tab or not meta.startswith("160000 "):
+                continue
+            full = rel + "/" + path if rel else path
+            if full not in out_:
+                out_.add(full)
+                if os.path.lexists(os.path.join(root, full, ".git")):
+                    todo.append(full)
+    return out_
+
+
+def status_lines(stdout):
+    """The lines of `git submodule status` output, split on "\\n" only (review r1 F2: str.splitlines() also splits on
+    CR, FF, VT, FS, GS, RS, NEL, LS and PS, which git allows in a path). Empty lines are dropped."""
+    return [l for l in stdout.decode(errors="replace").split("\n") if l]
+
+
+def parse_sub_status(line, known):
     """(flag, sha, path) of one `git submodule status` line, or None. The line is `<flag><sha> <path>[ (<describe>)]`
-    and the path may contain spaces or a TAB (CON-030), so it is taken as everything between the sha and the
-    optional trailing ` (describe)`, never by whitespace splitting. None (an unparseable line) is never guessed
-    at: topology() turns it into a gap, so the run is refused (fail closed). Residual limits, stated honestly:
-    (1) a path that itself ends in ` (xyz)` is ambiguous when git prints no describe (an uninitialised `-` line,
-    or a submodule with no HEAD name) and is then stripped to the part before it; the only effect is a shortened
-    path in a gap message or a missed `-` filter, never a wrong PASS, because `-` is still a gap. (2) A path
-    containing a newline cannot occur: git cannot record it in .gitmodules (measured), and a fragment line that
-    did appear would not parse and would be a gap. (3) git prints the path raw, not C-quoted, so a path with a
-    double quote or a backslash is read as printed."""
-    m = _SUB_STATUS_RE.match(line.rstrip("\n"))
-    return (m.group(1), m.group(2), m.group(3)) if m else None
+    with the path printed raw (not quoted), so the path is never cut out of the text (CON-030): it must be one of
+    `known` (known_sub_paths(), a machine format). The sha is exactly 40 or 64 lowercase hex digits followed by a
+    space. The rest of the line must equal a known path, or, on a ` ` or `+` line only, a known path followed by
+    ` (<describe>)` where the describe is non-empty and has no space (git prints a describe only on those two flags,
+    and a ref name or an abbreviated sha cannot contain a space; it may contain `(` and `)`, review r1 F1). Only the
+    last ` (` can start such a describe. Zero candidates (unknown path, malformed line, a fragment of a path that
+    contains a newline) or more than one (the rest reads both as a path and as a path plus a describe, for
+    example `x (y)` with both `x` and `x (y)` known) give None, which topology() turns into a gap (fail closed);
+    nothing is guessed."""
+    flag, cands = line[:1], set()
+    for w in (40, 64):
+        sha = line[1:1 + w]
+        if len(sha) != w or line[1 + w:2 + w] != " " or not _HEX.issuperset(sha):
+            continue
+        rest = line[2 + w:]
+        if rest in known:
+            cands.add((flag, sha, rest))
+        i = rest.rfind(" (")
+        if flag in (" ", "+") and i >= 0 and rest.endswith(")"):
+            d = rest[i + 2:-1]
+            if d and " " not in d and rest[:i] in known:
+                cands.add((flag, sha, rest[:i]))
+    return cands.pop() if len(cands) == 1 else None
 
 
 def topology(root):
@@ -2136,14 +2185,13 @@ def topology(root):
     layout = "consumer (inside %s)" % sup if sup else "standalone"
     p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
-    gaps, n = [], 0
-    for line in p.stdout.decode(errors="replace").splitlines():
-        if not line.strip():
-            continue
+    gaps, n, known = [], 0, known_sub_paths(root)
+    for line in status_lines(p.stdout):
         n += 1
-        parsed = parse_sub_status(line)
+        parsed = parse_sub_status(line, known)
         if parsed is None:
-            gaps.append("unparseable git submodule status line: %r" % line)
+            gaps.append("unparseable git submodule status line (not <flag><sha> <one known submodule path>"
+                        "[ (<describe>)]): %r" % line)
             continue
         flag, sha, path = parsed
         if flag == "-":
@@ -2206,9 +2254,9 @@ def sub_paths(root):
     """Paths of the initialised submodules (recursive), from `git submodule status --recursive`."""
     p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                        stderr=subprocess.DEVNULL)
-    out_ = []
-    for line in p.stdout.decode(errors="replace").splitlines():
-        parsed = parse_sub_status(line)
+    out_, known = [], known_sub_paths(root)
+    for line in status_lines(p.stdout):
+        parsed = parse_sub_status(line, known)
         if parsed is not None and parsed[0] != "-":
             out_.append(parsed[2])
     return out_
@@ -2218,8 +2266,9 @@ def quick_ident(root, subs):
     """R5-1 (review r5): cheap identity checked before every unit and at the end -- HEAD of the root and
     of every initialised submodule, and the sha256 of the root `git status --porcelain -z` (tracked,
     untracked and submodule changes). A git failure gives `?`, which never equals a start value.
-    The fields are joined by a newline (CON-030): a submodule path may contain a space or a TAB but never a
-    newline, so ident_diff() can split the fields back without truncating a path."""
+    The fields are `<path>=<value>` joined by a newline (CON-030). A submodule path may contain a space, a TAB or
+    `=`; it can contain a newline in git, but no path sub_paths() returns does, because each comes from one
+    newline-free status line (review r1 F3). The value is a sha, `?` or a hash and never contains `=`."""
     parts = []
     for rel in [""] + list(subs):
         q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "rev-parse", "HEAD"],
@@ -2231,11 +2280,22 @@ def quick_ident(root, subs):
     return "\n".join(parts)
 
 
+def ident_fields(q):
+    """{path: value} of a quick identity; the value is after the LAST `=` (a path may contain `=`, review r1 F8)."""
+    return dict((k, v) for k, _eq, v in (x.rpartition("=") for x in q.split("\n")))
+
+
+def ident_unknown(q):
+    """True when a field of the quick identity is `?` (a git failure). Read per field value, so a `?` in a submodule
+    PATH is not mistaken for one (review r1 F8)."""
+    return "?" in ident_fields(q).values()
+
+
 def ident_diff(a, b):
     """The fields of two quick identities that differ, for the report."""
-    da, db = dict(x.split("=", 1) for x in a.split("\n")), dict(x.split("=", 1) for x in b.split("\n"))
+    da, db = ident_fields(a), ident_fields(b)
     return ", ".join("%s %s -> %s" % (k, da.get(k, "absent")[:12], db.get(k, "absent")[:12])
-                     for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or "?" in db.get(k, "?"))
+                     for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or db.get(k, "?") == "?")
 
 
 def discarded_members(root, rows, heavy_mode):
@@ -3154,7 +3214,7 @@ def main(argv):
                 out("[%d/%d] SKIP (runner_not_installed: %s) %s" % (n, total, u["runner"], u["id"]))
                 continue
             qid = quick_ident(root, subs0)
-            if qid != qid0 or "?" in qid:
+            if qid != qid0 or ident_unknown(qid):
                 id_changed = "before unit %s: %s" % (u["id"], ident_diff(qid0, qid))
                 out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
                 break
@@ -3219,7 +3279,7 @@ def main(argv):
     if not id_changed:
         qid = quick_ident(root, subs0)
         ident_end = tree_ident(root)[0]
-        if qid != qid0 or "?" in qid:
+        if qid != qid0 or ident_unknown(qid):
             id_changed = "at the end of the run: %s" % ident_diff(qid0, qid)
         elif ident_end != ident:
             id_changed = "at the end of the run: %s -> %s" % (ident, ident_end)

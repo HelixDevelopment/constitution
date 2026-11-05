@@ -16,8 +16,10 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own; M30a-M30d guard CON-030 (submodule paths with a space or TAB: the
-# sub_paths / topology parser and the newline-joined quick identity). A mutant counts as KILLED only when the self-test
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own; M30a-M30n guard CON-030 (submodule paths read whole: the
+# sub_paths / topology parser, the known-path set from `git ls-files -s -z`, the newline-joined quick identity; they
+# are unrelated to the lock mutant M30, the ids are selected by exact token) and RA RB RF are the reviewer-authored
+# mutants of CON-030 review r1 (section 11.4.276(D)). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -125,17 +127,30 @@ W2	    if who not in ids:\n        return "excluded set last accepted by %r, who
 W3	    if t.returncode != 0 or d.returncode != 0:	    if False:
 W4	        if ch != acc_chain(prev, ts, who, seth, rows):	        if False:
 W5	    if excl_who:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED	    if False:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED
-I1	            if qid != qid0 or "?" in qid:\n                id_changed = "before unit	            if False:\n                id_changed = "before unit
+I1	            if qid != qid0 or ident_unknown(qid):\n                id_changed = "before unit	            if False:\n                id_changed = "before unit
 I2	    if not id_changed:\n        qid = quick_ident(root, subs0)	    if False:\n        qid = quick_ident(root, subs0)
 I3	    if id_changed:\n        out("RESULT: FAIL (%sidentity	    if False:\n        out("RESULT: FAIL (%sidentity
 L1	    if os.path.islink(path):\n        return set(), "operator roster	    if False:\n        return set(), "operator roster
 L2	    if os.path.islink(lock_path):	    if False:
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
-M30a	        parsed = parse_sub_status(line)\n        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
+M30a	        parsed = parse_sub_status(line, known)\n        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
 M30b	    return "\\n".join(parts)	    return " ".join(parts)
 M30c	        flag, sha, path = parsed\n	        flag, rest = line[0], line[1:].split()\n        sha, path = rest[0], rest[1]\n
-M30d	            gaps.append("unparseable git submodule status line: %r" % line)\n            continue	            continue
+M30d	                        "[ (<describe>)]): %r" % line)\n            continue	                        "[ (<describe>)]): %r" % line)\n            gaps.pop()\n            continue
+M30e	            if d and " " not in d and rest[:i] in known:	            if d and " " not in d and "(" not in d and ")" not in d and rest[:i] in known:
+M30f	        if rest in known:\n            cands.add	        if True:\n            cands.add
+M30g	    return cands.pop() if len(cands) == 1 else None	    return cands.pop() if cands else None
+M30h	        if flag in (" ", "+") and i >= 0	        if i >= 0
+M30i	    return [l for l in stdout.decode(errors="replace").split("\\n") if l]	    return [l for l in stdout.decode(errors="replace").splitlines() if l]
+M30j	                    todo.append(full)	                    pass
+M30k	"config", "-f", ".gitmodules", "--null", "--get-regexp",	"config", "-f", ".gitmodules", "--get-regexp",
+M30l	    for rec in git(root, "ls-files", "-s", "-z").split("\\0"):	    for rec in git(root, "ls-files", "-s").split("\\n"):
+M30m	(x.rpartition("=") for x in q.split("\\n"))	(x.partition("=") for x in q.split("\\n"))
+M30n	    return "?" in ident_fields(q).values()	    return "?" in q
+RA	    for w in (40, 64):	    for w in (40,):
+RB	        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        if parsed is not None:\n            out_.append(parsed[2])
+RF	            out_.append(parsed[2])	            out_.append(parsed[2].strip())
 EOF
 )
 

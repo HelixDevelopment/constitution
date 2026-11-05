@@ -35,8 +35,12 @@
 #   that --quick drops are listed SKIPPED-heavy "dropped by --quick of X") | runall-members
 #   (default: its default members run alone; full: the run_all once).
 # TOPOLOGY  `git submodule status --recursive` is read first; an uninitialised, conflicted,
-#   drifted (+) or missing-commit submodule, or a failing status command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
-#   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). See the guide for preparing a
+#   drifted (+) or missing-commit submodule, an unknown flag, an unparseable status line, or a failing status
+#   command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
+#   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). Paths are never cut out of the status
+#   text (git prints them unquoted): they come from `git ls-files -s -z` (recursive), and a status
+#   line that does not name exactly one of them (for example a path containing a newline, which git
+#   prints across two lines) is the gap "unparseable git submodule status line". See the guide for preparing a
 #   checkout cheaply with `git clone --shared` and local submodule urls.
 # IDENTITY  head=<sha12> subs=<hash> dirty=<clean|hash|unknown> is printed, stored in every
 #   record and in every RESULT line; a non-empty git status (root or any submodule, untracked

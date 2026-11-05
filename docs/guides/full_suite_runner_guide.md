@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-11-03 |
-| Last modified | 2026-11-04 |
+| Last modified | 2026-11-05 (CON-030: submodule paths read from `git ls-files -s -z`; the unparseable status line gap documented) |
 | Status | draft; review round 5 returned NO-GO (R5-1 identity checked at the start only, R5-2 symlinked roster, surviving mutants M4 M7); this revision is the operator-authorised narrow round 6 (§11.4.276(E)(3)); independent review owed (§11.4.142) |
 | Script | `scripts/run_full_suite.sh` (engine `scripts/full_suite/run_full_suite.py`, one file, run with `python3 -I`) |
 | Manifest | `config/full_suite_manifest.tsv` |
@@ -88,7 +88,7 @@ Honest limit (§11.4.240(F)): on a single-uid host the roster and the chain stop
 
 ## Topology preflight
 
-Before a run starts, `git submodule status --recursive` is read. An uninitialised submodule (`-`), a submodule with merge conflicts (`U`), a drifted submodule (`+`: checked out at another commit than the superproject records), a submodule whose recorded commit is not in its object store, an unknown status flag, and a failing `git submodule status` (fail closed) are gaps. With any gap the runner refuses (exit 9, `RESULT: REFUSED-TOPOLOGY`) and runs nothing, because suites that need submodule content would fail for the checkout, not for the code. `--allow-topology-gaps` runs anyway and labels the result `PARTIAL-TOPOLOGY` (exit 8). The summary line `topology: layout=... submodules=N gaps=K` reports whether the root is a standalone checkout or a submodule inside a consumer.
+Before a run starts, `git submodule status --recursive` is read. An uninitialised submodule (`-`), a submodule with merge conflicts (`U`), a drifted submodule (`+`: checked out at another commit than the superproject records), a submodule whose recorded commit is not in its object store, an unknown status flag, an unparseable status line, and a failing `git submodule status` (fail closed) are gaps. The submodule paths are never cut out of the status text, which git prints unquoted (CON-030): they come from `git ls-files -s -z` (the gitlinks of the root and, recursively, of every checked-out submodule), and each status line must read as `<flag><sha> <one of those paths>`, optionally followed by ` (<describe>)` on a ` ` or `+` line. A path with a space, a TAB, a CR, a leading or trailing space, `(`, `)`, `?` or `=` is read whole, and so is a describe such as `heads/feat(x)` or `v1(beta)`. A status line that does not name exactly one known path is the gap `unparseable git submodule status line (...)`. Known cases that end this way (fail closed, never a wrong PASS): a path that contains a newline (possible only with a hand-written `.gitmodules`; git prints it across two lines), and a ` `/`+` line without a describe whose text is both a known path and a known path plus a describe (for example `x (y)` when both `x` and `x (y)` are submodules). With any gap the runner refuses (exit 9, `RESULT: REFUSED-TOPOLOGY`) and runs nothing, because suites that need submodule content would fail for the checkout, not for the code. `--allow-topology-gaps` runs anyway and labels the result `PARTIAL-TOPOLOGY` (exit 8). The summary line `topology: layout=... submodules=N gaps=K` reports whether the root is a standalone checkout or a submodule inside a consumer.
 
 Preparing a full checkout cheaply, without copying object stores:
 

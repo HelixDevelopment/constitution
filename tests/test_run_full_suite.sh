@@ -1088,7 +1088,7 @@ chk "CON-030 end to end: a clean checkout with a spaced submodule path runs (rc 
 has "CON-030 end to end: topology reports 1 submodule and no gap" 'topology: .*submodules=1 gaps=0' "$T/o_con030/summary.txt"
 # ident_diff must name the spaced submodule when only its HEAD moved (the identity string must round-trip a spaced path)
 git -C "$sp/spaced/sub dir" -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved
-chk "CON-030 ident_diff names a spaced submodule whose HEAD moved (identity round-trips the path)" "$(python3 -I - "$ENGINE" "$sp/spaced" "$sp/plain" <<'PY'
+chk "CON-030 ident_diff names a spaced submodule whose HEAD moved (identity round-trips the path)" "$(python3 -I - "$ENGINE" "$sp/spaced" <<'PY'
 import sys, importlib.util, subprocess
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 root = sys.argv[2]; subs = m.sub_paths(root)
@@ -1107,15 +1107,111 @@ import sys, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 print(m.topology(sys.argv[2])[2])
 PY
-)" "[\"unparseable git submodule status line: 'not a status line'\"]"
+)" "[\"unparseable git submodule status line (not <flag><sha> <one known submodule path>[ (<describe>)]): 'not a status line'\"]"
 # a status line that does not parse (e.g. a path fragment after a newline) is None, never a guess: topology turns it into a gap
 chk "CON-030 parse_sub_status: unparseable line -> None, spaced + described + uninitialised lines parsed whole" "$(python3 -I - "$ENGINE" <<'PY'
 import sys, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
-h = "0123456789abcdef0123456789abcdef01234567"
-print([m.parse_sub_status(x) for x in ("tail of a split path", " " + h + " sub dir (heads/main)", "-" + h + " sub dir", "+" + h + " e (f) (v1-2-gabc)")])
+h = "0123456789abcdef0123456789abcdef01234567"; k = {"sub dir", "e (f)"}
+print([m.parse_sub_status(x, k) for x in ("tail of a split path", " " + h + " sub dir (heads/main)", "-" + h + " sub dir", "+" + h + " e (f) (v1-2-gabc)")])
 PY
 )" "[None, (' ', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('-', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('+', '0123456789abcdef0123456789abcdef01234567', 'e (f)')]"
+
+# --- CON-030 round 2 (review r1 F1 F2 F4 F6 F8 F9): submodule paths come from the machine format `git ls-files -s -z`
+# (recursive); the `git submodule status` line supplies only the flag and the sha and must name exactly one of those
+# paths. Round 1 stripped a trailing ` (describe)` only when it held no parenthesis, so a branch `feat(x)` or a tag
+# `v1(beta)` was swallowed into the path (a valid checkout refused, rc 9). Each case below is real git output.
+mp="$T/manysub"; mkroot "$mp"; git init -q "$mp.ln"; gitc "$mp.ln" commit -q --allow-empty -m i
+git -C "$mp.ln" -c protocol.file.allow=always submodule add -q "$sp/lib" "in ner" >/dev/null 2>&1; gitc "$mp.ln" commit -q -m n
+for p in plainb plaint plainc 'x (xyz)' ' lead' 'trail ' "$(printf 'cr\rx')" 'par(1)' 'q?' 'k=v'; do
+  git -C "$mp" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1
+done
+git -C "$mp" -c protocol.file.allow=always submodule add -q "$mp.ln" "nest ed" >/dev/null 2>&1
+git -C "$mp" -c protocol.file.allow=always submodule update -q --init --recursive >/dev/null 2>&1
+gitc "$mp/plainb" checkout -q -b 'feat(x)'; gitc "$mp/plainb" branch -q -D master >/dev/null 2>&1; gitc "$mp/plainb" branch -q -D main >/dev/null 2>&1
+gitc "$mp/plaint" tag 'v1(beta)'; gitc "$mp/plainc" tag 'v2)'
+sut "$mp" tests/a/test_mp.sh 'echo "passed=1 failed=0"'; gen "$mp"; gitc "$mp" add -A; gitc "$mp" commit -q -m s
+git -C "$mp" submodule status --recursive > "$T/mp_status.txt" 2>&1
+# precondition (section 11.4.199): git really printed each describe shape this case is about
+for d in ' plainb (heads/feat(x))' ' plaint (v1(beta))' ' plainc (v2))' ' x (xyz) (heads/' ' nest ed/in ner (heads/'; do
+  if grep -qF -- "$d" "$T/mp_status.txt"; then ok "CON-030 r2 precondition: status prints '$d'"
+  else ko "CON-030 r2 precondition: status prints '$d' ($(tr '\n' '|' < "$T/mp_status.txt"))"; fi
+done
+con030b() { python3 -I - "$ENGINE" "$1" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); a = m.quick_ident(root, subs); b = m.quick_ident(root, subs)
+print(sorted(subs), sorted(m.topology(root)[2]), repr(m.ident_diff(a, b)), m.ident_unknown(a))
+PY
+}
+want_mp="[' lead', 'cr\\rx', 'k=v', 'nest ed', 'nest ed/in ner', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)'] [] '' False"
+chk "CON-030 r2: describe with ( ) / a ')'-only tag / 'x (xyz)' / leading+trailing space / CR / '?' / '=' / nested paths read whole, 0 gaps" "$(con030b "$mp")" "$want_mp"
+run "$mp" "$T/o_con030b" --include-heavy
+chk "CON-030 r2 end to end: branch feat(x), tag v1(beta), tag v2) and the rest run (rc 0, not REFUSED-TOPOLOGY)" "$RC" "0"
+has "CON-030 r2 end to end: 12 submodules, no gap" 'topology: .*submodules=12 gaps=0' "$T/o_con030b/summary.txt"
+chk "CON-030 r2 submodule_paths (census exclusion): .gitmodules + gitlinks read whole (-z / --null)" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.submodule_paths(sys.argv[2]))
+PY
+)" "[' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+# F8: a '=' in a path keeps its own key in ident_diff (the value is after the LAST '=')
+chk "CON-030 r2 ident_diff names a submodule 'k=v' whose HEAD moved" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); before = m.quick_ident(root, subs)
+subprocess.run(["git", "-C", root + "/k=v", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "mv"], check=True)
+d = m.ident_diff(before, m.quick_ident(root, subs))
+subprocess.run(["git", "-C", root + "/k=v", "reset", "-q", "--hard", "HEAD~1"], check=True)
+print(d.startswith("k=v "), d.count("->"))
+PY
+)" "True 2"
+# uninitialised (fresh clone): every path whole, `x (xyz)` included (git prints no describe on a `-` line), and
+# sub_paths() returns none of them (the `-` filter)
+git clone -q "$mp" "$mp.fresh" >/dev/null 2>&1
+chk "CON-030 r2 uninitialised: gaps name each path whole, sub_paths() is empty" "$(python3 -I - "$ENGINE" "$mp.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.sub_paths(sys.argv[2]), sorted(g.split(": ", 1)[1] for g in m.topology(sys.argv[2])[2]))
+PY
+)" "[] [' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+# F3 / F9: a path with a newline (a hand-written .gitmodules; `git submodule add` refuses it) is printed by git across
+# two lines; neither fragment names a known path, so both are gaps (fail closed) -- real git output, no shim
+nlr="$T/nlsub"; mkroot "$nlr"; lsha=$(git -C "$sp/lib" rev-parse HEAD)
+printf '[submodule "nl"]\n\tpath = "nl\\nx"\n\turl = %s\n' "$sp/lib" > "$nlr/.gitmodules"
+gitc "$nlr" update-index --add --cacheinfo "160000,$lsha,$(printf 'nl\nx')"; gitc "$nlr" add .gitmodules; gitc "$nlr" commit -q -m nl
+chk "CON-030 r2 newline path: both status fragments are unparseable gaps, sub_paths() empty" "$(python3 -I - "$ENGINE" "$nlr" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+g = m.topology(sys.argv[2])[2]
+print(m.sub_paths(sys.argv[2]), len(g), all(x.startswith("unparseable git submodule status line") for x in g), sorted(m.known_sub_paths(sys.argv[2])))
+PY
+)" "[] 2 True ['nl\\nx']"
+# parse_sub_status table: SHA-256 width, ambiguity, unknown path, describe with a space, '-'/'U' never carry a describe
+chk "CON-030 r2 parse_sub_status table (sha256, ambiguous, unknown, spaced describe, '-' and 'U')" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+h = "0123456789abcdef0123456789abcdef01234567"; h2 = h + "89abcdef0123456789abcdef"
+rows = [(" " + h2 + " sub dir (heads/main)", {"sub dir"}), ("+" + h2 + " sub dir", {"sub dir"}),
+        (" " + h + " x (y)", {"x", "x (y)"}), (" " + h + " x (y) (heads/main)", {"x", "x (y)"}),
+        (" " + h + " zz (heads/main)", {"sub dir"}), (" " + h + " a (b c)", {"a"}),
+        ("-" + h + " x (xyz)", {"x", "x (xyz)"}), ("U" + "0" * 40 + " con flict", {"con flict"}),
+        (" " + h.upper() + " a", {"a"}), (" " + h + "  lead (heads/main)", {" lead", "lead"}), ("", {""})]
+print([None if r is None else (r[0], len(r[1]), r[2]) for r in (m.parse_sub_status(l, k) for l, k in rows)])
+PY
+)" "[(' ', 64, 'sub dir'), ('+', 64, 'sub dir'), None, (' ', 40, 'x (y)'), None, None, ('-', 40, 'x (xyz)'), ('U', 40, 'con flict'), None, (' ', 40, ' lead'), None]"
+
+# --- F11 (review r1): a suite that writes an IGNORED file into the tree changes tree_state() but not the quick
+# identity (which hashes `git status`, and an ignored file is not in it), so the tree branch itself must decide.
+# Old reviewer mutant R2 (`if tree_end != tree:` -> `if False:`) survived because the untracked-file case above is
+# also caught by the identity check; with R2 this case ends PASS-FULL.
+WI="$T/wti"; mkroot "$WI"; printf 'out.dat\n' > "$WI/.gitignore"
+sut "$WI" tests/a/test_writer.sh 'echo junk > "$(git rev-parse --show-toplevel)/out.dat"' 'echo "passed=1 failed=0"'
+gen "$WI"; gitc "$WI" add -A; gitc "$WI" commit -q -m wti
+run "$WI" "$T/o_wti" --include-heavy
+chk "R2b: suite writing an ignored file into the tree -> rc 1" "$RC" "1"
+has "R2b: tree change named by the tree branch" '^RESULT: FAIL \(repository tree changed during the run; SKIP=' "$T/o_wti.log"
+hasnt "R2b: not reported as an identity change" 'identity changed|IDENTITY CHANGED' "$T/o_wti.log"
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]
