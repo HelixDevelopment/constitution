@@ -707,11 +707,13 @@ tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
 tests/gates/test_fastcycle_real_db.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_census_closure.sh	sh	entry	default	bash	-	auto
+tests/gates/test_gate_env_census_jq_regions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_overrides_guarded.sh	sh	entry	default	bash	-	auto
 tests/gates/test_helix_deps_field.sh	sh	entry	default	bash	-	auto
 tests/gates/test_help_full_header.sh	sh	entry	default	bash	-	auto
 tests/gates/test_manifest_structural_parser.sh	sh	entry	default	bash	-	auto
 tests/gates/test_manifest_structural_parser_mutation_test.sh	sh	entry	heavy	bash	-	auto
+tests/gates/test_oracle_frozen_exclusions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
