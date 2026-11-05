@@ -1,0 +1,9 @@
+schema_version: 1
+db: docs/workable_items.db
+id_prefix: CON
+default_severity: Low
+default_reported_by: Conductor
+sync_command: scripts/workable-items/bin/workable-items export --db {db} --out-dir docs --no-formats
+evidence_dir: qa-results/reporting
+workable_items_bin: scripts/workable-items/bin/workable-items
+trackers: []

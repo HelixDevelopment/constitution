@@ -1,6 +1,6 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-305-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-186%2F186_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-190-green) ![Progressive](https://img.shields.io/badge/progressive-306_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
+![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-305-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-187%2F187_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-191-green) ![Progressive](https://img.shields.io/badge/progressive-306_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
 
 ## Install / update with one command
 
