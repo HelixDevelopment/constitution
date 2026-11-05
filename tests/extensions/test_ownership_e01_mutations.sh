@@ -45,4 +45,23 @@ kill_mutant E9_no_journal_roll_forward '                self._roll_added(j.get("
 kill_mutant E10_fact_not_deleted_with_entry '            self.delete_added(i)
 ' '            pass
 '
+# wave 2 review round 2 (operator decision Q1, review F6/F7)
+kill_mutant E11_adopt_without_attestation 'if not att:  # RULE:Q1-adopt-needs-attest' 'if False:'
+kill_mutant E12_adopt_without_record 'if rp:  # RULE:Q1-adopt-needs-record' 'if False:'
+kill_mutant E13_adopt_without_digest 'if digest != entry.get("sha256"):  # RULE:Q1-adopt-digest' 'if False:'
+kill_mutant E14_adopt_replaces_fact 'if os.path.lexists(fp):  # RULE:Q1-adopt-never-replaces' 'if False:'
+kill_mutant E15_adopt_without_confirmation 'if os.environ.get("CONSTITUTION_EXT_NO_TTY") == "1":  # RULE:Q1-adopt-confirm' 'if True:
+            return
+        if False:'
+kill_mutant E16_adopt_through_symlink 'if not os.path.lexists(final) or os.path.islink(final) or not os.path.isdir(final):  # RULE:Q1-adopt-real-tree' 'if not os.path.lexists(final):'
+kill_mutant E17_adopt_not_in_lock 'if entry is None or entry.get("origin") != "installed":  # RULE:Q1-adopt-lock-entry' 'if entry is None:'
+kill_mutant E18_no_per_id_upfront_check 'files += [os.path.join(sd, n) for n in sorted(os.listdir(sd)) if n.endswith(".json")]  # RULE:R18-per-id' 'pass'
+kill_mutant E19_commit_recovery_keeps_fact '                    self.delete_added(i)  # RULE:F7-recover-commit-fact' '                    pass'
+kill_mutant E20_remove_recovery_keeps_fact '                self.delete_added(eid)  # RULE:F7-recover-remove-fact' '                pass'
+kill_mutant E21_adopt_message_drops_next_step 'operator can attest that and make it removable with: adopt-install %s --waiver-id <ref>' 'operator can attest that and make it removable %s'
+# Reviewer mutants R1 and R2 (review of wave 2, section "Reviewer mutants on E01") are EQUIVALENT in effect and are
+# deliberately not listed. R1 drops the f["id"] != eid check: a fact copied under another id still fails, because the
+# digest binding compares against the lock entry of THAT id and tree_digest hashes extension.yml, which holds the id.
+# R2 drops the root check in the journal roll-forward: a fact for another root that is rolled forward is still
+# refused at remove by the root binding (E3 kills that rule). Both checks stay as defense in depth.
 finish

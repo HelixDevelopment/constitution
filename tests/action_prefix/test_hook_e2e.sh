@@ -276,11 +276,22 @@ emit ""
 
 # ── Installer wiring sub-test (sandbox, NOT the real project) ────────────────
 emit "--- installer wiring into a SANDBOX .claude/settings.json (§11.4.75) ---"
-SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/apx_install_sandbox.XXXXXX")"
-cleanup_sandbox() { rm -rf "$SANDBOX"; }
+# WIT-C02 (ownership wave 2 review r2, F5): the installer regenerates the command sets of the
+# constitution it lives in and unsets HELIX_ACTION_OUT_ROOT on purpose, so running the REAL installer
+# rewrote the real tracked plugins/helix/commands + actions/generated (new inodes, same content). It now
+# runs from a throw-away constitution copy; the wired hook must be that copy's hook, by reference.
+OUTER="$(mktemp -d "${TMPDIR:-/tmp}/apx_install_sandbox.XXXXXX")"
+: "${OUTER:?}"
+SANDBOX="$OUTER/proj"; CCOPY="$OUTER/const"
+mkdir -p "$SANDBOX" "$CCOPY/scripts/hooks" "$CCOPY/plugins/helix"
+cp -a "$INSTALLER" "$CONST_ROOT/scripts/action_prefix_lib.sh" "$CONST_ROOT/scripts/generate_agent_prefix_commands.sh" "$CCOPY/scripts/"
+cp -a "$HOOK" "$CCOPY/scripts/hooks/"
+cp -a "$CONST_ROOT/actions" "$CCOPY/actions"
+cleanup_sandbox() { rm -rf -- "${OUTER:?}"; }
 trap cleanup_sandbox EXIT
 INSTALL_LOG="$EVID_DIR/installer_run.log"
-if bash "$INSTALLER" "$SANDBOX" >"$INSTALL_LOG" 2>&1; then
+HOOK_COPY="$CCOPY/scripts/hooks/action_prefix_expand.sh"
+if bash "$CCOPY/scripts/install_action_prefix.sh" "$SANDBOX" >"$INSTALL_LOG" 2>&1; then
   SETTINGS="$SANDBOX/.claude/settings.json"
   cp -f "$SETTINGS" "$EVID_DIR/sandbox_settings.json" 2>/dev/null || true
   WIRED_CMD="$(jq -r '.hooks.UserPromptSubmit[0].hooks[0].command // empty' "$SETTINGS" 2>/dev/null || true)"
@@ -295,7 +306,7 @@ if bash "$INSTALLER" "$SANDBOX" >"$INSTALL_LOG" 2>&1; then
     "$SANDBOX"/*) IS_BY_REFERENCE=no ;;  # a copy inside the project = WRONG
     *) IS_BY_REFERENCE=yes ;;
   esac
-  if [ -n "$WIRED_CMD" ] && [ "$RESOLVED" = "$HOOK" ] && [ -f "$RESOLVED" ] && [ -x "$RESOLVED" ] && [ "$IS_BY_REFERENCE" = yes ]; then
+  if [ -n "$WIRED_CMD" ] && [ "$RESOLVED" = "$HOOK_COPY" ] && [ -f "$RESOLVED" ] && [ -x "$RESOLVED" ] && [ "$IS_BY_REFERENCE" = yes ]; then
     PASS_COUNT=$((PASS_COUNT+1))
     emit "PASS [installer-wiring] UserPromptSubmit hook wired by-reference -> $WIRED_CMD (resolves, executable)  [evidence: $EVID_DIR/sandbox_settings.json]"
   else

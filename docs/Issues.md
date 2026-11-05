@@ -1021,3 +1021,36 @@ Operator auto-commit 724d818 regressed submodules/containers from 5ea870a to 22b
 **Affected scope / file-scope manifest:**
 auto-commit tooling (UNKNOWN: location); submodules/containers
 
+## CON-049 — ownership F1: a byte copy of a checkout can remove the shared extension tree
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+
+Reported by the independent wave 2 review (finding F1), not reproduced by the reporter of this item. The E01 install fact binds the constitution root and the tree identity, not the project path. A byte copy of a checkout that holds the state directory carries the same signed fact, so running remove from the copy deletes the tree the original still uses. Pre-existing. Wave 2 round 2 made the refusal text honest about this; the defect itself is NOT fixed. Fix belongs with E03 (per-checkout refcount) or a project-realpath binding in the fact; related to CON-042.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_ext/ext_engine.py (remove, E01 fact); E03 refcount
+
+## CON-050 — WIT-C02 stays open: confirm the hermetic-suite remedy with an independent review and a full-suite run
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** ownership wave 2 WIP session (re-minted round 3)
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T12:59:59Z
+**Reported-By:** ownership wave 2 WIP session (minted 2026-11-05 12:59 UTC; that session recorded its model as Opus 5.5, UNCONFIRMED by round 3). Re-minted through the workable-items engine in round 3 with the same id and text so the item_history row is engine-written.
+
+**What (the report, verbatim):**
+Operator decision 2026-11-05 (relayed): the C02 reinterpretation is rejected; C02 stays open. Wave 2 round 2 landed: a per-unit fingerprint (inode, mtime, size, content) of the tracked generated sets checked after every unit by the full-suite runner; a rewritten lint that flags the reviewer's six violators; the two suites measured rewriting the real tree converted to throw-away constitution copies. Open: an independent review of that work, and a full-suite run showing no unit trips the fingerprint, before C02 is closed.
+
+**Affected scope / file-scope manifest:**
+scripts/full_suite/run_full_suite.py (gen_fingerprint); tests/layout/hermetic_lint.py; tests/layout/test_hermetic_generator.sh; tests/action_prefix/test_hook_e2e.sh; tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+Independent review GO on the C02 changes; a full-suite run on a clean checkout ends without IDENTITY CHANGED for the gen field; then close WIT-C02 in the design doc.
+

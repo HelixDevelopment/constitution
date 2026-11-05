@@ -19,7 +19,7 @@
 #     report|issue|bug|task|feature <text>
 #                                  delegates to scripts/reporting/report_item.sh (section 11.4.202)
 #     skills [list|status]         delegates to scripts/skill_activation/skill_activate.sh
-#     extensions <list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
+#     extensions <list|info|add|remove|adopt-install|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
 #     wiring <inventory|check>     read-only: what constitution wiring exists / does every ledger row
 #                                  still classify as ours (also --inventory / --check); exit 1 = not ok
 #     install-extension <src>      alias of: extensions add <src>
@@ -257,14 +257,15 @@ cmd_skills() {
 cmd_extensions() {
     local sub="${REST[0]:-}"
     case "$sub" in
-        list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
+        list|info|add|remove|adopt-install|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
         update) die "extensions update is not implemented (the extension engine has no update command; remove and add to change a version)"; return 2 ;;
-        *) die "extensions subcommands: list info add remove enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
+        *) die "extensions subcommands: list info add remove adopt-install enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
     esac
     local a
     local allow
     case "$sub" in
         add) allow=" --json --dry-run --dev --sha --sha256 " ;;
+        adopt-install) allow=" --json --dry-run --waiver-id " ;;   # confirmation stays interactive (no --yes here)
         *)   allow=" --json --dry-run " ;;
     esac
     for a in "${REST[@]:1}"; do

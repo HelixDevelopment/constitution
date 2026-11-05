@@ -524,6 +524,83 @@ wl refs count --id conc; eq "24 concurrent removes leave 0" 0 "$(jget "$OUT" cou
 printf 'garbage line\n' >"$R/extensions/_installed/bad.refs"
 wl refs count --id bad; eq "corrupt refs file refused" 3 "$RC"
 
+# ── 9d. wave 2 review round 2: F3 (check: never-wired vs ledger-lost), F4 (SOURCE_DATE_EPOCH refused, never a traceback) ──
+# F3: a never-wired project is ok (golden-FALSE); a checkout holding local signatures whose tracked rows are gone is NOT
+H1P="$SB/h1"; make_project "$H1P"
+wlp "$H1P" check
+eq "F3 never wired: check rc 0 (golden-FALSE, nothing to own)" 0 "$RC"
+eq "F3 never wired: no orphan signatures" "[]" "$(jget "$OUT" orphans)"
+mkdir -p "$H1P/.claude/skills"; ln -s "$R/skills/alpha" "$H1P/.claude/skills/alpha"
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" check; eq "F3 control: wired and intact, rc 0" 0 "$RC"
+rm "$H1P/.constitution/wiring.json"
+wlp "$H1P" check
+eq "F3 tracked ledger deleted while this checkout still signs a row: check rc 1" 1 "$RC"
+has "F3 the lost row is named" "h1-a" "$OUT"
+has "F3 the state says the tracked row is missing" "tracked-row-missing" "$OUT"
+eq "F3 ok is false" false "$(jget "$OUT" ok)"
+wlp "$H1P" forget --id h1-a; eq "F3 forget of a row the ledger no longer has is refused" 3 "$RC"
+# after a legitimate forget the signature goes too, so check is ok again (no false positive)
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" forget --id h1-a; wlp "$H1P" check
+eq "F3 after a real forget: check rc 0 (golden-FALSE)" 0 "$RC"
+# F4: SOURCE_DATE_EPOCH that is not a non-negative integer of seconds, or is out of range, is refused rc 3
+H2P="$SB/h2"; make_project "$H2P"; printf 'b\n' >"$H2P/b.txt"
+sde() { local v="$1"; shift; OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH="$v" python3 -I "$IMPL" --project "$H2P" --root "$R" "$@" </dev/null 2>"$SB/err")"; RC=$?; ERR="$(cat "$SB/err")"; }
+sde abc backup --path b.txt
+eq "F4 backup with SOURCE_DATE_EPOCH=abc: refused rc 3" 3 "$RC"
+hasnt "F4 abc: no Python traceback" "Traceback" "$ERR"
+has "F4 abc: the refusal names the variable" "SOURCE_DATE_EPOCH" "$ERR"
+check "F4 abc: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+sde 99999999999999999999 backup --path b.txt
+eq "F4 backup with an out-of-range SOURCE_DATE_EPOCH: refused rc 3" 3 "$RC"
+hasnt "F4 out of range: no Python traceback" "Traceback" "$ERR"
+check "F4 out of range: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+mkdir -p "$H2P/.claude/skills"; ln -s "$R/skills/alpha" "$H2P/.claude/skills/alpha"
+sde abc record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 record refuses the same bad value the same way (rc 3, not silently ignored)" 3 "$RC"
+check "F4 record wrote no ledger" test ! -e "$H2P/.constitution/wiring.json"
+sde "" backup --path b.txt; eq "F4 control: an empty SOURCE_DATE_EPOCH means the clock (rc 0)" 0 "$RC"
+sde 1700000000 record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 control: a valid value is accepted" 0 "$RC"
+
+# ── 10b. CON-045 re-review I-1, I-2, O2 (rollback of items our run created or replaced) ──────────────
+# I-1: an item backed up while ABSENT, then created and recorded by the run, is removed again by rollback
+I1="$SB/i1"; make_project "$I1"; mkdir -p "$I1/.claude/skills"
+wlp "$I1" backup --path .claude/skills/alpha; I1B="$(jget "$OUT" backup_dir)"
+ln -s "$R/skills/alpha" "$I1/.claude/skills/alpha"
+wlp "$I1" record --id i1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$I1" rollback --backup "$I1B"
+eq "I-1 rollback rc 0" 0 "$RC"
+check "I-1 the link the run created (path absent at backup) is removed" test ! -L "$I1/.claude/skills/alpha"
+has "I-1 reported as unlinked" ".claude/skills/alpha" "$(printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["unlinked"]))')"
+# I-1 control: a consumer symlink at that path that is NOT ours (no row) is left alone
+I1C="$SB/i1c"; make_project "$I1C"; mkdir -p "$I1C/.claude/skills"
+wlp "$I1C" backup --path .claude/skills/alpha; I1CB="$(jget "$OUT" backup_dir)"
+ln -s "$R/skills/alpha" "$I1C/.claude/skills/alpha"
+wlp "$I1C" rollback --backup "$I1CB"
+check "I-1 control: an item with no ours-row is left alone" test -L "$I1C/.claude/skills/alpha"
+# I-2: a consumer file backed up, then replaced by our recorded symlink: rollback restores the file
+I2="$SB/i2"; make_project "$I2"; mkdir -p "$I2/.claude/skills"; printf 'legacy copy\n' >"$I2/.claude/skills/alpha"; chmod 664 "$I2/.claude/skills/alpha"
+wlp "$I2" backup --path .claude/skills/alpha; I2B="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2/.claude/skills/alpha"
+wlp "$I2" record --id i2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+OLDUM="$(umask)"; umask 077   # a restrictive umask: only an explicit chmod can give back 0664 (O2)
+wlp "$I2" rollback --backup "$I2B"
+umask "$OLDUM"
+eq "I-2 rollback of copy-to-link migration: rc 0" 0 "$RC"
+check "I-2 the path is a regular file again" test -f "$I2/.claude/skills/alpha" -a ! -L "$I2/.claude/skills/alpha"
+eq "I-2 the legacy content is back" "legacy copy" "$(cat "$I2/.claude/skills/alpha")"
+# O2: the restored mode is the backed-up mode (0664 above), not the umask default
+eq "O2 restored file mode is the backed-up mode (664 survives a 022 umask only via chmod)" 664 "$(stat -c %a "$I2/.claude/skills/alpha")"
+# I-2 control: a symlink at the restore target that is NOT ours still refuses the whole rollback
+I2C="$SB/i2c"; make_project "$I2C"; mkdir -p "$I2C/.claude/skills"; printf 'legacy\n' >"$I2C/.claude/skills/alpha"
+wlp "$I2C" backup --path .claude/skills/alpha; I2CB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2C:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2C/.claude/skills/alpha"
+wlp "$I2C" rollback --backup "$I2CB"
+eq "I-2 control: a foreign (unrecorded) symlink at a restore target is refused rc 3" 3 "$RC"
+check "I-2 control: the foreign symlink is untouched" test -L "$I2C/.claude/skills/alpha"
+
 # ── 11. determinism and meta ──────────────────────────────────────────────
 DS=()
 for n in 1 2 3; do

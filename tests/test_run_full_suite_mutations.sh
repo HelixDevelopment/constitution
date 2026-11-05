@@ -16,7 +16,8 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own. A mutant counts as KILLED only when the self-test
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit fingerprint of the generated command sets
+# (ownership wave 2 review r2: gen field, inode, mtime, after-unit check); M7+ are the author's own. A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -131,6 +132,10 @@ L1	    if os.path.islink(path):\n        return set(), "operator roster	    if F
 L2	    if os.path.islink(lock_path):	    if False:
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
+G1	    parts.append("gen=%s" % gen_fingerprint(root))	    pass
+G2	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, st.st_ino,	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, 0,
+G3	                                                     st.st_mtime_ns, st.st_size, dig)).encode())	                                                     0, st.st_size, dig)).encode())
+G4	            if qid != qid0 or "?" in qid:\n                id_changed = "after unit	            if False:\n                id_changed = "after unit
 EOF
 )
 

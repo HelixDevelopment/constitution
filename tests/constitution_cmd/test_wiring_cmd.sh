@@ -77,6 +77,11 @@ run wiring --check;            eqv "restored link: rc 0 again" 0 "$RC"
 rm "$P/.constitution/extensions.state/wiring.local.json"
 run wiring --check;            eqv "row with no local signature (another checkout): rc 1" 1 "$RC"
 check "check names other-checkout" has "$OUT" "other-checkout"
+# review F3: a deleted tracked ledger while this checkout still signs a row is NOT "nothing wired"
+rm -f "$P/.constitution/wiring.json"; led record --id sk-alpha --producer installer --agent claude --path .claude/skills/alpha --kind symlink >/dev/null
+rm "$P/.constitution/wiring.json"
+run wiring --check;            eqv "tracked ledger lost, local signature kept: rc 1" 1 "$RC"
+check "check names the missing tracked row" has "$OUT" "tracked-row-missing"
 # a corrupted ledger is a refusal, not a pass
 printf 'not json\n' >"$P/.constitution/wiring.json"
 run wiring --check;            check "corrupted ledger: nonzero, never ok" test "$RC" -ne 0

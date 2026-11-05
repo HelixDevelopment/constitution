@@ -23,7 +23,8 @@ per-checkout extensions.state/key, 0600, never committed) and the row's constitu
 root realpath, and (3) the on-disk fingerprint equals the row's. Everything else is never replaced or deleted.
 Fingerprints: symlink = link text; file = sha256; json-entry = canonical-JSON sha256 of that one entry.
 The ledger holds paths and digests only (section 8, §11.4.10). Deletes: unlink of one proven path only, no
-recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created stamp (determinism).
+recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created and backup stamps
+(determinism); a set value that is not a plain integer of seconds, or is out of range, is refused (rc 3).
 """
 import fcntl
 import hashlib
@@ -135,16 +136,25 @@ def canon(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
 
 
-def now_iso():
+def source_epoch():
+    """Seconds from SOURCE_DATE_EPOCH (determinism), else the clock. A set value that is not a plain non-negative
+    integer, or that time.gmtime cannot represent, raises ValueError, which main() maps to a refusal (rc 3); every
+    caller (record's created stamp, backup's directory stamp) behaves the same way (review F4)."""
     t = os.environ.get("SOURCE_DATE_EPOCH")
-    ts = int(t) if t and t.isdigit() else int(time.time())
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+    if not t:
+        return int(time.time())
+    if not re.fullmatch(r"[0-9]{1,20}", t):  # RULE:W-epoch-digits
+        raise ValueError("SOURCE_DATE_EPOCH must be a non-negative integer number of seconds")
+    ts = int(t)
+    try:
+        time.gmtime(ts)
+    except (OverflowError, OSError, ValueError):
+        raise ValueError("SOURCE_DATE_EPOCH is out of range for this platform")  # RULE:W-epoch-range
+    return ts
 
 
-def real_dir(path, what):
-    if not os.path.isdir(path) or stat.S_ISLNK(os.lstat(path).st_mode) and False:
-        raise Refused("%s is not a directory" % what)
-    return os.path.realpath(path)
+def now_iso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(source_epoch()))
 
 
 # ── paths ────────────────────────────────────────────────────────────────────
@@ -473,10 +483,15 @@ class Ledger:
         return {"rows": [dict(r, state=self.classify_row(r, local)) for r in sorted(rows, key=lambda r: r["id"])]}
 
     def check(self):
-        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout."""
+        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout AND this
+        checkout holds no signature for a row the tracked ledger no longer has (review F3: a lost or reverted
+        wiring.json must not read as "nothing wired"; a never-wired project has neither and stays ok)."""
         rows = self.status()["rows"]
-        return {"ok": all(r["state"] == "ours" for r in rows),  # RULE:W-check-ok
-                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows]}
+        ids = {r["id"] for r in rows}
+        orphans = [{"id": i, "state": "tracked-row-missing"} for i in sorted(self.local_rows()) if i not in ids]  # RULE:W-check-orphans
+        return {"ok": all(r["state"] == "ours" for r in rows) and not orphans,  # RULE:W-check-ok
+                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows],
+                "orphans": orphans}
 
     # -- inventory / adopt
     def _const_roots(self):
@@ -600,7 +615,7 @@ class Ledger:
                 entries.append({"path": rel, "type": "file", "mode": stat.S_IMODE(st.st_mode)})
             else:
                 raise Refused("%s is neither a file nor a symlink; refusing to back it up" % clean(rel))
-        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(int(os.environ.get("SOURCE_DATE_EPOCH") or time.time())))
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(source_epoch()))
         os.makedirs(base, exist_ok=True)
         bgi = os.path.join(base, ".gitignore")          # F3: the backups hold copies of consumer files (settings may hold secrets)
         if not os.path.lexists(bgi):
@@ -686,8 +701,19 @@ class Ledger:
         row classifies as ours (local HMAC signature + root binding + matching fingerprint); anything else, or any
         item whose state cannot be read (oversize, reserved path, unreadable), is left alone and reported."""
         bdir, m = self._load_backup(bdir)
-        in_backup = {e["path"] for e in m["entries"]}
+        # paths the backup holds CONTENT for (file/symlink): the restore step replaces them. A path backed up while
+        # ABSENT has nothing to restore, so an item our run created there is unlinked like any created-later item (I-1).
+        in_backup = {e["path"] for e in m["entries"] if e["type"] != "absent"}
         backed = set(m["rows_at_backup"])
+        local = self.local_rows()
+        ours_new = {}  # path -> row, for rows created after the backup that classify as ours (I-2)
+        for r in self.load() if os.path.lexists(self.led) else []:
+            if r["id"] not in backed and r["kind"] == "symlink":
+                try:
+                    if self.classify_row(r, local) == "ours":
+                        ours_new[r["path"]] = r
+                except Refused:
+                    pass
         restore = []
         for e in m["entries"]:
             full = safe_rel(self.project, e["path"])
@@ -695,7 +721,8 @@ class Ledger:
                 raise Refused("%s is now a directory; refusing to roll back over it" % clean(e["path"]))
             if e["type"] == "absent":
                 continue
-            if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode):
+            if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode) \
+                    and e["path"] not in ours_new:  # RULE:I2-replace-our-link: only a link our run recorded is replaced
                 raise Refused("%s is now a symlink; refusing to write through it (nothing was changed)" % clean(e["path"]))
             parent = os.path.dirname(full)
             probe = parent
@@ -706,7 +733,6 @@ class Ledger:
             restore.append((e, full))
         report = {"restored": [], "unlinked": [], "left_alone": [], "rows_removed": []}
         unlink = []
-        local = self.local_rows()
         for r in self.load() if os.path.lexists(self.led) else []:
             if r["id"] in backed:
                 continue
@@ -758,6 +784,8 @@ class Ledger:
                 os.symlink(e["link"], tmp)
                 os.rename(tmp, full)
             else:
+                if os.path.islink(full):  # preflight allowed this only for a link our run recorded (I-2)
+                    os.unlink(full)
                 atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))
                 os.chmod(full, e.get("mode", 0o644))
             report["restored"].append(e["path"])

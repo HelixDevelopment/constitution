@@ -1438,6 +1438,14 @@ GITIGNORE_LINES = ("extensions.txn", "*.tmp-*", "extensions.state/")
 STATE_DIR = "extensions.state"
 WIRING_KEYS = frozenset(("id", "command", "agent", "path", "root", "kind", "target", "sha256"))
 ADDED_SUFFIX = ".added.json"  # <state>/<id>.added.json: the signed "added by this checkout" fact (E01)
+# The remove refusal when the fact is missing or does not verify (review F1/F2, operator decision Q1 2026-11-05).
+# It states only what the fact proves, and names the one engine path for an install made before facts existed.
+ADOPT_HINT = ("%s: %s; nothing was removed. The install fact is written by `add` (or by `adopt-install` on an operator's attestation, never by "
+              "`enable`) into this checkout's local state directory; it proves that a checkout holding that state directory installed "
+              "the tree on this constitution root (a byte copy of the checkout carries the same fact, so it does not "
+              "prove which project path ran add). If THIS checkout installed it before install facts existed, an "
+              "operator can attest that and make it removable with: adopt-install %s --waiver-id <ref> (nothing is "
+              "adopted implicitly)")
 SNAP_DIR = "extensions.snapshots"  # consented copies of command directories the Claude shims link to (I2)
 WIRING_RECORD = "wiring.json"  # local, HMAC-signed copy of the entries this checkout created (R20)
 STATE_FILES = ("extensions.lock.yml", "extensions.wiring.yml", "extensions.catalog.json", "extensions.audit.log",
@@ -1582,6 +1590,10 @@ class Engine:
             # every state file is checked BEFORE any change, so no command half-completes and then
             # fails on a symlinked audit log, lock or wiring file (R18)
             files = [self.p(n) for n in STATE_FILES] + [os.path.join(sd, n) for n in ("key", WIRING_RECORD)]
+            # review F6: the per-id record <id>.json and fact <id>.added.json too, so an add never gets as far as
+            # the rename and the lock commit before it meets a planted link (an id has no dots, see ID_RE)
+            if os.path.isdir(sd) and not os.path.islink(sd):
+                files += [os.path.join(sd, n) for n in sorted(os.listdir(sd)) if n.endswith(".json")]  # RULE:R18-per-id
             for f in files:
                 if os.path.lexists(f) and not stat.S_ISREG(os.lstat(f).st_mode):  # RULE:R18-upfront
                     raise EngineError(EXIT_VERIFY, "%s is not a regular file (a symlink?); refusing to run "
@@ -1767,8 +1779,13 @@ class Engine:
         msg = b"added-fact\0" + json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
         return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
-    def make_added(self, eid, digest, ident):
-        body = {"id": eid, "root": os.path.realpath(self.root), "sha256": digest, "dev": ident[0], "ino": ident[1]}
+    def make_added(self, eid, digest, ident, via="add", attest=None):
+        """VIA is "add" (minted by add or its journal roll-forward) or "adopt" (an operator-attested adopt-install
+        of an install made before facts existed, with ATTEST = the operator's reference). What the fact proves:
+        a checkout holding THIS state directory and key installed (or adopted) the tree on THIS constitution
+        root. It does not bind the project path, so a byte copy of the checkout carries it too (review F1)."""
+        body = {"id": eid, "root": os.path.realpath(self.root), "sha256": digest, "dev": ident[0], "ino": ident[1],
+                "via": via, "attest": attest}
         return dict(body, mac=self._amac(self._key(True), body))
 
     def write_added(self, fact):
@@ -1781,7 +1798,9 @@ class Engine:
             os.unlink(p)
 
     def _added_valid(self, f, key):
-        return isinstance(f, dict) and set(f) == {"id", "root", "sha256", "dev", "ino", "mac"} \
+        return isinstance(f, dict) and set(f) == {"id", "root", "sha256", "dev", "ino", "via", "attest", "mac"} \
+            and (f["via"], f["attest"] is None) in (("add", True), ("adopt", False)) \
+            and (f["attest"] is None or isinstance(f["attest"], str) and WAIVER_RE.match(f["attest"])) \
             and isinstance(f["id"], str) and ID_RE.match(f["id"]) and isinstance(f["root"], str) \
             and isinstance(f["sha256"], str) and SHA256_RE.match(f["sha256"]) \
             and all(isinstance(f[k], int) and not isinstance(f[k], bool) for k in ("dev", "ino")) \
@@ -1844,6 +1863,7 @@ class Engine:
             self._refuse_bad_journal()  # RULE:F2-keep-bad-journal: never overwrite (and so destroy) a journal we ignored
             self.write_atomic(self.p("extensions.txn"), json.dumps({"op": "commit", "records": recs, "deletes": dels}))
         wrote = self.write_lock(lock, stage=stage, force=force)
+        kill_point("commit:lock-written")
         for r in recs:
             self.write_record(r)
         for i in dels:
@@ -2102,7 +2122,7 @@ class Engine:
         """Roll an interrupted add's fact forward, only when it is signed here, bound to this root and digest, and
         the lock names the same digest."""
         key = self._key(False)
-        if self._added_valid(fact, key) and fact["id"] in lock and fact["sha256"] == digest \
+        if self._added_valid(fact, key) and fact["via"] == "add" and fact["id"] in lock and fact["sha256"] == digest \
                 and fact["root"] == os.path.realpath(self.root):
             self.write_added(fact)
 
@@ -2246,6 +2266,7 @@ class Engine:
             for i in j.get("deletes") or []:
                 if i not in lock:
                     self.delete_record(i)
+                    self.delete_added(i)  # RULE:F7-recover-commit-fact
             return
         final = j["final"]
         if op == "add":
@@ -2293,6 +2314,7 @@ class Engine:
                                  "hand if it is yours; the state record of %s was kept too" % (aux, eid))
                         return
                 self.delete_record(eid)
+                self.delete_added(eid)  # RULE:F7-recover-remove-fact
                 self.err("recovered: completed interrupted remove of %s" % eid)
 
     def _aux_owned(self, aux, final, ident):
@@ -2741,7 +2763,12 @@ class Engine:
             raise EngineError(EXIT_REFUSED, "%s is a bundled extension; use enable/disable" % eid)
         if borigin == "installed" or os.path.lexists(os.path.join(self.inst_dir, eid)):
             if borigin == "installed" and eid in lock and lock[eid].get("sha256") == digest:
-                self.say("%s %s already installed (sha256 %s); nothing to do" % (eid, ver, digest))
+                hint = ""
+                if not os.path.lexists(os.path.join(self._sd(), eid + ADDED_SUFFIX)):  # review F2: name the real next step
+                    hint = ("; note: this checkout holds no install fact for it, so remove refuses; nothing is adopted "
+                            "implicitly. If THIS checkout installed it before install facts existed, an operator can "
+                            "attest that with: adopt-install %s --waiver-id <ref>" % eid)
+                self.say("%s %s already installed (sha256 %s); nothing to do%s" % (eid, ver, digest, hint))
                 return EXIT_OK
             raise EngineError(EXIT_REFUSED, "%s is already present in the shared constitution root and %s; this project "
                                             "does not replace it (remove only works on an id in this project's lock)"
@@ -2833,8 +2860,7 @@ class Engine:
                                             "another project's); nothing was removed" % (eid, os.path.join(self.inst_dir, eid)))
         aprobs, tree_ours = self.added_problems(eid, lock[eid])  # RULE:E01-remove-needs-fact
         if aprobs:
-            raise EngineError(EXIT_REFUSED, "%s: %s; nothing was removed. Only the checkout that ran `add` can "
-                                            "remove it (enable never creates this fact)" % (eid, "; ".join(aprobs)))
+            raise EngineError(EXIT_REFUSED, ADOPT_HINT % (eid, "; ".join(aprobs), eid))
         if self.dry:
             self.say("dry-run: would unwire and remove %s" % eid)
             return EXIT_OK
@@ -2872,6 +2898,81 @@ class Engine:
         self.audit("remove", eid)
         self.say("removed %s" % eid)
         return EXIT_OK
+
+    def cmd_adopt_install(self, eid):
+        """Operator-attested adoption of an install made before E01 facts existed (operator decision Q1, review F2).
+        Writes a fact marked via=adopt with the attestation reference, ONLY when: the id is an installed entry of
+        this project's lock; this checkout holds a valid signed state record that matches the entry exactly; the
+        tree at _installed/<id> is a real directory whose digest equals the lock's; no fact exists yet; and the
+        operator confirmed (a tty prompt that must be answered with the id, or --yes). Nothing is adopted
+        implicitly (D6): add, enable and recovery never call this. An existing fact is never replaced."""
+        self.need_project()
+        att = self.o.get("waiver_id")
+        if not att:  # RULE:Q1-adopt-needs-attest
+            raise EngineError(EXIT_USAGE, "adopt-install needs --waiver-id REF: the operator's attestation reference "
+                                          "(a ticket or decision id) that THIS checkout installed %s" % eid)
+        self.acquire(True)
+        self._refuse_bad_journal()
+        tree, origin = self.tree_of(eid)
+        if origin == "bundled":
+            raise EngineError(EXIT_REFUSED, "%s is bundled with the constitution; nothing to adopt" % eid)
+        lock = self.read_lock()
+        entry = lock.get(eid)
+        if entry is None or entry.get("origin") != "installed":  # RULE:Q1-adopt-lock-entry
+            raise EngineError(EXIT_REFUSED, "%s is not an installed entry of this project's lock; nothing adopted" % eid)
+        rp = self.record_problems(eid, entry)
+        if rp:  # RULE:Q1-adopt-needs-record
+            raise EngineError(EXIT_REFUSED, "%s: %s; nothing adopted (the local signed state record must match the "
+                                            "lock entry exactly)" % (eid, rp[0]))
+        fp = os.path.join(self._sd(), eid + ADDED_SUFFIX)
+        if os.path.lexists(fp):  # RULE:Q1-adopt-never-replaces
+            aprobs, ours = self.added_problems(eid, entry)
+            if not aprobs and ours:
+                self.say("%s: this checkout already holds a valid install fact; nothing to do" % eid)
+                return EXIT_OK
+            raise EngineError(EXIT_REFUSED, "%s: an install fact already exists but does not verify for the tree in "
+                                            "place (%s); it was not replaced, nothing adopted"
+                                            % (eid, "; ".join(aprobs) or "the tree is not the one it names"))
+        final = os.path.join(self.inst_dir, eid)
+        if not os.path.lexists(final) or os.path.islink(final) or not os.path.isdir(final):  # RULE:Q1-adopt-real-tree
+            raise EngineError(EXIT_REFUSED, "%s: %s is absent or not a real directory; nothing adopted" % (eid, final))
+        digest = tree_digest(final)
+        if digest != entry.get("sha256"):  # RULE:Q1-adopt-digest
+            raise EngineError(EXIT_VERIFY, "%s: the tree at %s does not match the lock (sha256 %s, lock %s); nothing "
+                                           "adopted" % (eid, final, digest, entry.get("sha256")))
+        ident = _ident_of(final)
+        if ident is None:
+            raise EngineError(EXIT_REFUSED, "%s: cannot read the identity of %s; nothing adopted" % (eid, final))
+        lines = ["adopt-install %s: record an operator-attested install fact (attestation reference %s)." % (eid, disp(att)),
+                 "  This says THIS checkout installed %s (sha256 %s) before install facts existed." % (final, digest),
+                 "  After it, remove %s from this checkout deletes the shared tree at that path." % eid]
+        for ln in lines:
+            print(ln, file=sys.stderr)
+        if self.dry:
+            self.say("dry-run: would record an adopted install fact for %s" % eid)
+            return EXIT_OK
+        self._confirm_adopt(eid, lines)
+        self.write_added(self.make_added(eid, digest, ident, via="adopt", attest=att))  # RULE:Q1-adopt-writes-fact
+        self.audit("adopt-install", eid, "attest=%s sha256=%s" % (att, digest))
+        self.say("adopted %s: install fact recorded (via adopt, attestation %s); remove %s now works from this checkout"
+                 % (eid, att, eid))
+        return EXIT_OK
+
+    def _confirm_adopt(self, eid, lines):
+        if self.o["yes"]:
+            return
+        if os.environ.get("CONSTITUTION_EXT_NO_TTY") == "1":  # RULE:Q1-adopt-confirm
+            raise EngineError(EXIT_REFUSED, "confirmation required: pass --yes or run interactively; nothing adopted")
+        try:
+            tty = open(os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY), "r+b", buffering=0)
+        except OSError:
+            raise EngineError(EXIT_REFUSED, "confirmation required: pass --yes or run interactively; nothing adopted")
+        with tty:
+            tty.write(("\n".join(lines) + "\n").encode("utf-8", "replace"))
+            tty.write(("Type the extension id (%s) to attest this: " % eid).encode())
+            ans = tty.readline(128).decode("utf-8", "replace").strip()
+        if ans != eid:
+            raise EngineError(EXIT_REFUSED, "attestation not confirmed; nothing adopted")
 
     def _entry_for(self, eid, lock, refresh_bundled=False):
         """(tree, manifest, lock entry). A tree that differs from its lock entry is refused, except that
@@ -3798,11 +3899,12 @@ GLOBAL = {"root", "project_root", "json", "dry_run", "help"}
 CMDS = {
     "validate": (1, 1, set()), "list": (0, 0, set()), "info": (1, 1, set()),
     "add": (1, 1, {"sha", "sha256", "dev", "yes", "waiver_id"}), "remove": (1, 1, {"yes"}),
+    "adopt-install": (1, 1, {"yes", "waiver_id"}),
     "enable": (1, 1, {"yes"}), "disable": (1, 1, set()), "verify": (0, 1, set()), "lock": (0, 0, set()),
     "doctor": (0, 0, set()), "catalog": (1, 1, {"replace"}), "wire": (0, 1, {"agent", "target"}),
     "unwire": (0, 1, {"agent", "target"}),
 }
-ID_ARG_CMDS = {"info", "remove", "enable", "disable", "verify", "wire", "unwire"}
+ID_ARG_CMDS = {"info", "remove", "adopt-install", "enable", "disable", "verify", "wire", "unwire"}
 
 
 def parse_args(argv):
@@ -3919,6 +4021,8 @@ def _main(argv, usage_text):
             return eng.cmd_add(a0)
         if cmd == "remove":
             return eng.cmd_remove(a0)
+        if cmd == "adopt-install":
+            return eng.cmd_adopt_install(a0)
         if cmd == "enable":
             return eng.cmd_enable(a0)
         if cmd == "disable":

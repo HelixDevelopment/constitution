@@ -988,7 +988,7 @@ gitc "$HM" checkout -q "$HMA"
 run "$HM" "$T/o_hm" --include-heavy
 chk "R5-1: HEAD moved by a unit mid-run -> rc 1" "$RC" "1"
 has "R5-1: RESULT names the identity change" '^RESULT: FAIL \(identity changed during the run' "$T/o_hm.log"
-has "R5-1: summary says where it changed" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm/summary.txt"
+has "R5-1: summary says where it changed (C02: checked after every unit too)" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm/summary.txt"
 chk "R5-1: the unit after the move is not run (never credited to the start HEAD)" "$(verdict "$T/o_hm" tests/a/test_2.sh)" ""
 hasnt "R5-1: never PASS-FULL" '^RESULT: PASS' "$T/o_hm.log"
 gitc "$HM" checkout -q "$HMA"
@@ -998,7 +998,7 @@ gen "$HM2"; gitc "$HM2" add -A; gitc "$HM2" commit -q -m A; HM2A=$(git -C "$HM2"
 gitc "$HM2" checkout -q -b bb; gitc "$HM2" commit -q --allow-empty -m B; gitc "$HM2" checkout -q "$HM2A"
 run "$HM2" "$T/o_hm2" --include-heavy
 chk "R5-1: HEAD moved by the last unit -> rc 1 (end check)" "$RC" "1"
-has "R5-1: end check named" '^IDENTITY CHANGED at the end of the run' "$T/o_hm2/summary.txt"
+has "R5-1: a move by the last unit is caught after that unit" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm2/summary.txt"
 HM3="$T/submove"; mkroot "$HM3"
 gitc "$HM3" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
 sut "$HM3" tests/a/test_1.sh "git -C '$HM3/sub' -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved; echo 'passed=1 failed=0'"
@@ -1006,7 +1006,7 @@ sut "$HM3" tests/a/test_2.sh 'echo "passed=1 failed=0"'
 gen "$HM3"; gitc "$HM3" add -A; gitc "$HM3" commit -q -m sm
 run "$HM3" "$T/o_hm3" --include-heavy
 chk "R5-1: a submodule HEAD moved mid-run -> rc 1" "$RC" "1"
-has "R5-1: submodule move caught before the next unit" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm3/summary.txt"
+has "R5-1: submodule move caught after the moving unit" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm3/summary.txt"
 HG="$T/headread"; mkroot "$HG"
 sut "$HG" tests/a/test_1.sh "git -C '$HG' log -1 --oneline >/dev/null; git -C '$HG' status --short >/dev/null; echo 'passed=1 failed=0'"
 sut "$HG" tests/a/test_2.sh 'echo "passed=1 failed=0"'
@@ -1061,6 +1061,32 @@ mv "$RS/config/full_suite_excluded.lock" "$T/outside_lock"; ln -s "$T/outside_lo
 gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
 vfy "$RS" "$T/rs3.log"; chk "R5-2: symlinked excluded lock -> exit 3" "$RC" "3"
 has "R5-2: symlinked lock named" 'full_suite_excluded.lock is a symlink' "$T/rs3.log"
+
+# --- 38 WIT-C02 (wave 2 review r2, F5): a unit that rewrites the tracked generated command sets is caught
+# even when the content is identical (new inode or new mtime); the run ends FAIL and names the unit.
+genroot(){ # $1 dir: root with tracked generated sets and two units ($2 = body of unit 1)
+  mkroot "$1"; mkdir -p "$1/plugins/helix/commands" "$1/actions/generated"
+  echo cmd > "$1/plugins/helix/commands/x.md"; echo readme > "$1/actions/generated/README.md"
+  echo top > "$1/plugins/helix/README.md"
+  sut "$1" tests/a/test_1.sh "$2" 'echo "passed=1 failed=0"'
+  sut "$1" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+  gen "$1"; gitc "$1" add -A; gitc "$1" commit -q -m g
+}
+G1="$T/genrw"; genroot "$G1" "f='$G1/actions/generated/README.md'; cp \"\$f\" \"\$f.t\" && mv \"\$f.t\" \"\$f\""
+run "$G1" "$T/o_g1" --include-heavy
+chk "C02: identical-content rewrite (new inode) -> rc 1" "$RC" "1"
+has "C02: the rewriting unit is named" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g1/summary.txt"
+chk "C02: the next unit is not run" "$(verdict "$T/o_g1" tests/a/test_2.sh)" ""
+G2="$T/gentouch"; genroot "$G2" "touch -d '2001-01-01' '$G2/plugins/helix/commands/x.md'"
+run "$G2" "$T/o_g2" --include-heavy
+chk "C02: mtime-only change of a tracked generated file -> rc 1" "$RC" "1"
+G3="$T/gendir"; genroot "$G3" "touch '$G3/plugins/helix/commands/y.md'; rm -f '$G3/plugins/helix/commands/y.md'"
+run "$G3" "$T/o_g3" --include-heavy
+chk "C02: a file created and removed in a generated directory -> rc 1 (directory mtime)" "$RC" "1"
+G4="$T/genread"; genroot "$G4" "cat '$G4/plugins/helix/commands/x.md' '$G4/actions/generated/README.md' >/dev/null"
+run "$G4" "$T/o_g4" --include-heavy
+chk "C02: a unit that only reads the generated sets -> rc 0 (golden-FALSE)" "$RC" "0"
+hasnt "C02: no identity change reported (golden-FALSE)" 'IDENTITY CHANGED' "$T/o_g4/summary.txt"
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]
