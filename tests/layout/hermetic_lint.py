@@ -11,8 +11,14 @@ sets (plugins/helix/commands, plugins/helix/README.md, actions/generated):
 How it reads a file (stated so its limits are visible): heredoc bodies are skipped; `\\` continuations
 are joined; each logical line is split with shlex into commands at ; && || | & ( ) { }; comments start at
 a word beginning with `#`. A command is an INVOCATION when its command word (after NAME=VALUE prefixes and
-the wrappers env, nice, timeout, nohup, exec, command, time, stdbuf, setsid) is the script path, or is
-bash/sh/dash/zsh/ksh followed by the script path, or is a variable that the file assigns to such a path.
+the wrappers env, nice, timeout, nohup, exec, command, time, stdbuf, setsid, xargs, and any shell function of
+the file whose body runs "$@" as a command; a wrapper's options are skipped with their values, e.g.
+`nice -n 10`, `timeout -s KILL 60`) is the script path, or is bash/sh/dash/zsh/ksh/"$BASH"/"$SHELL" (options
+skipped, `-o NAME` with its value; a `-c` string is read as commands) or source/`.` followed by the script
+path, or is a variable that the file assigns to such a path. A `$VAR` after the first path segment is
+expanded with every value the file assigns to it (so `"$REPO/scripts/$N"` with N=<script> is seen). `xargs`
+fed by `echo`/`printf` through a pipe takes its path from that command's words.
+Known limit (review round 2, R4): a relative path after `cd "$REPO"` is not flagged.
 A path is REAL when it is rooted at a variable that is never assigned in the file (conservative) or at a
 variable assigned from the test's own location (dirname, $0, BASH_SOURCE, git rev-parse --show-toplevel,
 LAYOUT_SRC_ROOT, GEN_SRC_ROOT) or from another REAL variable. A path rooted at any other assigned variable
@@ -34,8 +40,19 @@ GEN = "generate_agent_prefix_commands.sh"
 INSTALLERS = ("install_action_prefix.sh", "install_cli_agent_plugins.sh")
 TARGETS = (GEN,) + INSTALLERS
 KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "function"}
-WRAPPERS = {"env", "nice", "timeout", "nohup", "exec", "command", "time", "stdbuf", "setsid"}
+WRAPPERS = {"env", "nice", "timeout", "nohup", "exec", "command", "time", "stdbuf", "setsid", "xargs"}
+# options of a wrapper that take the NEXT word as their value (an attached value, -n10 or --x=v, is one word)
+WRAP_VALUE_OPTS = {"nice": {"-n", "--adjustment"}, "timeout": {"-s", "--signal", "-k", "--kill-after"},
+                   "env": {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"},
+                   "stdbuf": {"-i", "-o", "-e"}, "time": {"-f", "--format", "-o", "--output"},
+                   "xargs": {"-n", "-I", "-P", "-d", "-a", "-L", "-s", "-E", "--max-args", "--max-procs",
+                             "--delimiter", "--arg-file"}}
 SHELLS = {"bash", "sh", "dash", "zsh", "ksh"}
+SHELL_VARS = {"$BASH", "${BASH}", "$SHELL", "${SHELL}"}
+SOURCERS = {"source", "."}
+SHELL_VALUE_OPTS = {"-o", "+o", "-O", "+O"}
+FUNC_DEF = re.compile(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*\{?(.*)$")
+RUNS_ARGS = re.compile(r"(?:^|[;{&|(]\s*|\bthen\s+|\bdo\s+|\bexec\s+|\bcommand\s+)\"?\$(?:@|\{@\})\"?(?:\s|;|$|\})")
 SEPS = {";", "&&", "||", "|", "&", "(", ")", "{", "}", ";;", "|&"}
 ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
 REAL_SRC = re.compile(r"dirname|\$0\b|BASH_SOURCE|show-toplevel|LAYOUT_SRC_ROOT|GEN_SRC_ROOT")
@@ -69,7 +86,9 @@ def logical_lines(text):
     return out
 
 
-def split(line):
+def split(line, seps=None):
+    """Commands of a logical line. When SEPS is a list, the separator that FOLLOWS each command is appended
+    to it (None after the last), so a pipe between two commands can be seen."""
     lx = shlex.shlex(line, posix=True, punctuation_chars=";&|(){}")
     lx.commenters = ""
     lx.whitespace_split = True
@@ -81,11 +100,15 @@ def split(line):
         if t in SEPS or (t and all(ch in ";&|(){}" for ch in t)):  # RULE:C02-lint-punct-sep
             if cur:
                 cmds.append(cur)
+                if seps is not None:
+                    seps.append(t)
             cur = []
         else:
             cur.append(t)
     if cur:
         cmds.append(cur)
+        if seps is not None:
+            seps.append(None)
     return cmds
 
 
@@ -141,15 +164,27 @@ def scan(path):
     raw = {}  # var -> list of raw values (used to decide REAL)
     parsed = []
     unparsed = []
+    funcs = set()  # shell functions of this file that run their arguments as a command ("$@")
+    infunc = None
     for n, line in lines:
+        fm = FUNC_DEF.match(line)  # RULE:C02-lint-func-wrapper
+        if fm and line.rstrip().endswith("}") and RUNS_ARGS.search(fm.group(2).strip()):
+            funcs.add(fm.group(1))
+        elif fm and not line.rstrip().endswith("}"):
+            infunc = fm.group(1)
+        elif infunc and line.strip() == "}":
+            infunc = None
+        elif infunc and RUNS_ARGS.search(line.strip()):
+            funcs.add(infunc)
+        seps = []
         try:
-            cmds = split(line)
+            cmds = split(line, seps)
         except ValueError:
             # an unbalanced quote that spans lines: only a problem when it names a target
             if any(t in line for t in TARGETS):
                 unparsed.append(n)
             continue
-        parsed.append((n, line, cmds))
+        parsed.append((n, line, cmds, seps))
         for name, val in raw_assignments(line):  # RULE:C02-lint-raw-assign
             raw.setdefault(name, []).append(val)
         for c in cmds:
@@ -180,12 +215,27 @@ def scan(path):
         return v in real or (v not in assigned and v not in raw)  # RULE:C02-lint-unassigned-is-real
 
     held = {v: vals for v, vals in assigned.items() if any(any(t in x for t in TARGETS) for x in vals)}
+
+    def expand_tail(p):
+        """P plus every variant with a non-head $VAR / ${VAR} replaced by a value the file assigns to it."""
+        out = [p]
+        for name in REF.findall(p)[1:] if head_var(p) else REF.findall(p):  # RULE:C02-lint-tail-var
+            nxt = []
+            for q in out:
+                for val in assigned.get(name, []):
+                    if "$" not in val:
+                        nxt.append(q.replace("${%s}" % name, val).replace("$" + name, val))
+            out += nxt[:32]
+        return out
     finds, exempt = [], []
-    for n, line, cmds in parsed:
+    for n, line, cmds0, seps0 in parsed:
         em = EXEMPT.search(line)
-        for c in cmds:
+        todo = list(zip(cmds0, [None] + cmds0[:-1], [None] + seps0[:-1]))
+        while todo:
+            c, prev, sep = todo.pop(0)
             env = {}
             i = 0
+            stdin_paths = []
             while i < len(c):
                 m = ASSIGN.match(c[i])
                 if m:
@@ -196,34 +246,56 @@ def scan(path):
                 if w in KEYWORDS:  # RULE:C02-lint-keyword
                     i += 1
                     continue
-                if w in WRAPPERS:
+                if w in WRAPPERS or w in funcs:
+                    if w == "xargs" and sep == "|" and prev and prev[0] in ("echo", "printf"):  # RULE:C02-lint-xargs
+                        stdin_paths = [x for x in prev[1:] if not x.startswith("-")]
+                    vopts = WRAP_VALUE_OPTS.get(w, set())
                     i += 1
                     while i < len(c) and (c[i].startswith("-") or ASSIGN.match(c[i]) or
                                           (w == "timeout" and re.match(r"^[0-9.]+[smhd]?$", c[i]))):
-                        if c[i] == "-u" and i + 1 < len(c):  # env -u NAME: an unset never redirects
+                        if c[i] in ("-u", "--unset") and w == "env" and i + 1 < len(c):  # an unset never redirects
                             env.pop(c[i + 1], None)
                             i += 2
                             continue
                         m = ASSIGN.match(c[i])
                         if m:
                             env[m.group(1)] = m.group(2)
+                        if c[i] in vopts:  # RULE:C02-lint-wrapper-opt-value
+                            i += 1
                         i += 1
+                        if w == "timeout" and i < len(c) and re.match(r"^[0-9.]+[smhd]?$", c[i]):
+                            i += 1  # the DURATION after timeout's options
+                            break
                     continue
                 break
             if i >= len(c):
                 continue
             word = c[i]
-            if os.path.basename(word) in SHELLS:
+            if os.path.basename(word) in SHELLS or word in SHELL_VARS or word in SOURCERS:  # RULE:C02-lint-shell-words
                 j = i + 1
-                while j < len(c) and c[j].startswith("-"):
-                    j += 1
+                while word not in SOURCERS and j < len(c) and (c[j].startswith("-") or c[j].startswith("+")):
+                    if c[j] == "-c" and j + 1 < len(c):  # RULE:C02-lint-dash-c
+                        try:
+                            todo.extend((x, None, None) for x in split(c[j + 1]))
+                        except ValueError:
+                            pass
+                        j = len(c)
+                        break
+                    j += 2 if c[j] in SHELL_VALUE_OPTS else 1  # RULE:C02-lint-shell-opt-value
                 if j >= len(c):
-                    continue
-                word = c[j]
-            v = head_var(word)
-            paths = [word]
-            if v in held and word in ("$" + v, "${%s}" % v):  # RULE:C02-lint-held-var
-                paths = held[v]
+                    if not stdin_paths:
+                        continue
+                    word = None
+                else:
+                    word = c[j]
+            if word is None:
+                paths = stdin_paths
+            else:
+                v = head_var(word)
+                paths = [word]
+                if v in held and word in ("$" + v, "${%s}" % v):  # RULE:C02-lint-held-var
+                    paths = held[v]
+            paths = [x for p_ in paths for x in expand_tail(p_)]
             for p in paths:
                 target = next((t for t in TARGETS if p.endswith(t)), None)
                 if target is None or not is_real(p):

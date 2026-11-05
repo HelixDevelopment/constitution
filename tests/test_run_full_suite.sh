@@ -1077,6 +1077,15 @@ run "$G1" "$T/o_g1" --include-heavy
 chk "C02: identical-content rewrite (new inode) -> rc 1" "$RC" "1"
 has "C02: the rewriting unit is named" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g1/summary.txt"
 chk "C02: the next unit is not run" "$(verdict "$T/o_g1" tests/a/test_2.sh)" ""
+# R3c (review r2): the case above also gives the file a new mtime, so the inode field was never the only signal.
+# Here only the inode changes: cp -p keeps the file mtime, the temp file is made outside the directory, and the
+# directory's own mtime is put back with touch -r, so path, type, mtime, size and content are all unchanged.
+G1I="$T/geninode"; genroot "$G1I" "d='$G1I/actions/generated'; f=\"\$d/README.md\"; touch -r \"\$d\" '$G1I/dref'; cp -p \"\$f\" '$G1I/f.t' && mv '$G1I/f.t' \"\$f\" && touch -r '$G1I/dref' \"\$d\"; rm -f '$G1I/dref'"
+I0=$(stat -c %i "$G1I/actions/generated/README.md")
+run "$G1I" "$T/o_g1i" --include-heavy
+chk "C02 R3c: precondition, the unit changed the inode" "$([ "$(stat -c %i "$G1I/actions/generated/README.md")" != "$I0" ] && echo y)" "y"
+chk "C02 R3c: an inode-only rewrite (same mtime, size, content) -> rc 1" "$RC" "1"
+has "C02 R3c: the inode-only rewrite is named as a gen change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g1i/summary.txt"
 G2="$T/gentouch"; genroot "$G2" "touch -d '2001-01-01' '$G2/plugins/helix/commands/x.md'"
 run "$G2" "$T/o_g2" --include-heavy
 chk "C02: mtime-only change of a tracked generated file -> rc 1" "$RC" "1"
@@ -1087,6 +1096,48 @@ G4="$T/genread"; genroot "$G4" "cat '$G4/plugins/helix/commands/x.md' '$G4/actio
 run "$G4" "$T/o_g4" --include-heavy
 chk "C02: a unit that only reads the generated sets -> rc 0 (golden-FALSE)" "$RC" "0"
 hasnt "C02: no identity change reported (golden-FALSE)" 'IDENTITY CHANGED' "$T/o_g4/summary.txt"
+# R3 (review r2, reviewer mutant RMb): in a consumer project the generated sets live under the vendored
+# constitution/, so the fingerprint must cover that prefix too; here the sets exist ONLY under constitution/
+G5="$T/genvend"; mkroot "$G5"; mkdir -p "$G5/constitution/actions/generated" "$G5/constitution/plugins/helix/commands"
+echo readme > "$G5/constitution/actions/generated/README.md"; echo cmd > "$G5/constitution/plugins/helix/commands/x.md"
+sut "$G5" tests/a/test_1.sh "f='$G5/constitution/actions/generated/README.md'; cp \"\$f\" \"\$f.t\" && mv \"\$f.t\" \"\$f\"" 'echo "passed=1 failed=0"'
+sut "$G5" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+gen "$G5"; gitc "$G5" add -A; gitc "$G5" commit -q -m g
+run "$G5" "$T/o_g5" --include-heavy
+chk "C02 R3: a rewrite of a generated set under constitution/ -> rc 1" "$RC" "1"
+has "C02 R3: the vendored-prefix rewrite is named as a gen change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g5/summary.txt"
+
+# --- 39 R3b (review r2): the before-unit and end-of-run identity checks stay pinned now that the after-unit
+# check fires first for a change a unit makes.
+# (a) before-unit: a change between the start identity and the first unit (here the runner's own `go env
+# GOMODCACHE` call, answered by a go shim that commits) is caught BEFORE that unit runs, never after it.
+BU="$T/beforeunit"; mkroot "$BU"; sut "$BU" tests/a/test_1.sh 'echo "passed=1 failed=0"'
+mkdir -p "$BU/gm"; printf 'module example.invalid/gm\n\ngo 1.21\n' > "$BU/gm/go.mod"
+printf 'package gm\n\nimport "testing"\n\nfunc TestX(t *testing.T) {}\n' > "$BU/gm/x_test.go"
+gen "$BU"; gitc "$BU" add -A; gitc "$BU" commit -q -m bu
+GO="$T/goshim"; mkdir -p "$GO"
+{ echo '#!/usr/bin/env bash'
+  echo "if [ \"\$1\" = env ]; then git -C '$BU' -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved-before-first-unit; echo '$T/nomodcache'; exit 0; fi"
+  echo 'echo "go shim: only env is answered" >&2; exit 1'; } > "$GO/go"; chmod +x "$GO/go"
+PATH="$GO:$PATH" bash "$R" --root "$BU" --out "$T/o_bu" --include-heavy >"$T/o_bu.log" 2>&1; RC=$?
+chk "R3b I1: a change before the first unit -> rc 1" "$RC" "1"
+has "R3b I1: summary says the change was seen before a unit" '^IDENTITY CHANGED before unit ' "$T/o_bu/summary.txt"
+hasnt "R3b I1: it is not attributed to a unit that ran" '^IDENTITY CHANGED after unit' "$T/o_bu/summary.txt"
+chk "R3b I1: no unit ran on the moved HEAD" "$(python3 -I -c 'import json,sys
+print(sum(1 for l in open(sys.argv[1]) if json.loads(l).get("verdict") not in ("SKIPPED-heavy",)))' "$T/o_bu/results.jsonl" 2>/dev/null || echo 0)" "0"
+# (b) end-of-run: a unit changes the CONTENT of a file that was already modified at the start. The quick identity
+# (HEADs, `git status --porcelain`, gen) does not change; the full tree_ident (dirty diff hash) does, so only the
+# end-of-run comparison names it.
+ER="$T/endrun"; mkroot "$ER"; echo one > "$ER/notes.txt"
+sut "$ER" tests/a/test_1.sh "echo three > '$ER/notes.txt'" 'echo "passed=1 failed=0"'
+gen "$ER"; gitc "$ER" add -A; gitc "$ER" commit -q -m er
+echo two > "$ER/notes.txt"
+run "$ER" "$T/o_er" --include-heavy
+chk "R3b I2: a dirty file rewritten by the last unit -> rc 1" "$RC" "1"
+chk "R3b I2: the unit ran" "$(verdict "$T/o_er" tests/a/test_1.sh | cut -d'|' -f1)" "PASS"
+hasnt "R3b I2: the quick identity did not see it (no after-unit change)" '^IDENTITY CHANGED after unit' "$T/o_er/summary.txt"
+has "R3b I2: the end-of-run tree_ident comparison names it" '^IDENTITY CHANGED at the end of the run: head=.*dirty=.* -> head=' "$T/o_er/summary.txt"
+has "R3b I2: RESULT names the identity change" '^RESULT: FAIL \(.*identity changed during the run at the end of the run' "$T/o_er.log"
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

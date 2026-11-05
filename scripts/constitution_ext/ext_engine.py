@@ -1440,12 +1440,15 @@ WIRING_KEYS = frozenset(("id", "command", "agent", "path", "root", "kind", "targ
 ADDED_SUFFIX = ".added.json"  # <state>/<id>.added.json: the signed "added by this checkout" fact (E01)
 # The remove refusal when the fact is missing or does not verify (review F1/F2, operator decision Q1 2026-11-05).
 # It states only what the fact proves, and names the one engine path for an install made before facts existed.
+# A1: the only confirmation of adopt-install is the id typed at /dev/tty; the refusal names no flag that skips it
+ADOPT_NEEDS_TTY = ("adopt-install %s needs an operator at a terminal (%s): an operator runs it interactively and "
+                   "types the extension id at the prompt; nothing adopted")
 ADOPT_HINT = ("%s: %s; nothing was removed. The install fact is written by `add` (or by `adopt-install` on an operator's attestation, never by "
               "`enable`) into this checkout's local state directory; it proves that a checkout holding that state directory installed "
               "the tree on this constitution root (a byte copy of the checkout carries the same fact, so it does not "
               "prove which project path ran add). If THIS checkout installed it before install facts existed, an "
-              "operator can attest that and make it removable with: adopt-install %s --waiver-id <ref> (nothing is "
-              "adopted implicitly)")
+              "operator can attest that and make it removable by running, at a terminal, adopt-install %s --waiver-id "
+              "<ref> and typing the id at its prompt (nothing is adopted implicitly)")
 SNAP_DIR = "extensions.snapshots"  # consented copies of command directories the Claude shims link to (I2)
 WIRING_RECORD = "wiring.json"  # local, HMAC-signed copy of the entries this checkout created (R20)
 STATE_FILES = ("extensions.lock.yml", "extensions.wiring.yml", "extensions.catalog.json", "extensions.audit.log",
@@ -2767,7 +2770,8 @@ class Engine:
                 if not os.path.lexists(os.path.join(self._sd(), eid + ADDED_SUFFIX)):  # review F2: name the real next step
                     hint = ("; note: this checkout holds no install fact for it, so remove refuses; nothing is adopted "
                             "implicitly. If THIS checkout installed it before install facts existed, an operator can "
-                            "attest that with: adopt-install %s --waiver-id <ref>" % eid)
+                            "attest that by running, at a terminal, adopt-install %s --waiver-id <ref> and typing the id at "
+                            "its prompt" % eid)
                 self.say("%s %s already installed (sha256 %s); nothing to do%s" % (eid, ver, digest, hint))
                 return EXIT_OK
             raise EngineError(EXIT_REFUSED, "%s is already present in the shared constitution root and %s; this project "
@@ -2904,8 +2908,10 @@ class Engine:
         Writes a fact marked via=adopt with the attestation reference, ONLY when: the id is an installed entry of
         this project's lock; this checkout holds a valid signed state record that matches the entry exactly; the
         tree at _installed/<id> is a real directory whose digest equals the lock's; no fact exists yet; and the
-        operator confirmed (a tty prompt that must be answered with the id, or --yes). Nothing is adopted
-        implicitly (D6): add, enable and recovery never call this. An existing fact is never replaced."""
+        operator confirmed at a terminal (a /dev/tty prompt that must be answered with the id; no flag replaces it,
+        review round 2 A1). Nothing is adopted implicitly (D6): add, enable and recovery never call this. An
+        existing fact is never replaced. Honest boundary: the prompt is a speed bump, not a security boundary; a
+        caller that allocates a pty can still type the id."""
         self.need_project()
         att = self.o.get("waiver_id")
         if not att:  # RULE:Q1-adopt-needs-attest
@@ -2959,14 +2965,12 @@ class Engine:
         return EXIT_OK
 
     def _confirm_adopt(self, eid, lines):
-        if self.o["yes"]:
-            return
         if os.environ.get("CONSTITUTION_EXT_NO_TTY") == "1":  # RULE:Q1-adopt-confirm
-            raise EngineError(EXIT_REFUSED, "confirmation required: pass --yes or run interactively; nothing adopted")
+            raise EngineError(EXIT_REFUSED, ADOPT_NEEDS_TTY % (eid, "terminal prompts are disabled here"))
         try:
             tty = open(os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY), "r+b", buffering=0)
         except OSError:
-            raise EngineError(EXIT_REFUSED, "confirmation required: pass --yes or run interactively; nothing adopted")
+            raise EngineError(EXIT_REFUSED, ADOPT_NEEDS_TTY % (eid, "this process has no controlling terminal"))
         with tty:
             tty.write(("\n".join(lines) + "\n").encode("utf-8", "replace"))
             tty.write(("Type the extension id (%s) to attest this: " % eid).encode())
@@ -3899,7 +3903,7 @@ GLOBAL = {"root", "project_root", "json", "dry_run", "help"}
 CMDS = {
     "validate": (1, 1, set()), "list": (0, 0, set()), "info": (1, 1, set()),
     "add": (1, 1, {"sha", "sha256", "dev", "yes", "waiver_id"}), "remove": (1, 1, {"yes"}),
-    "adopt-install": (1, 1, {"yes", "waiver_id"}),
+    "adopt-install": (1, 1, {"waiver_id"}),  # RULE:A1-adopt-no-yes: confirmation is the /dev/tty prompt only
     "enable": (1, 1, {"yes"}), "disable": (1, 1, set()), "verify": (0, 1, set()), "lock": (0, 0, set()),
     "doctor": (0, 0, set()), "catalog": (1, 1, {"replace"}), "wire": (0, 1, {"agent", "target"}),
     "unwire": (0, 1, {"agent", "target"}),

@@ -50,6 +50,27 @@ fx R11_quoted_heredoc_marker 'echo "a <<EOF"' 'bash "$REPO/scripts/generate_agen
 fx R12_installer_with_redirect 'HELIX_ACTION_OUT_ROOT="$X" bash "$REPO/scripts/install_action_prefix.sh" "$P"'
 fx G6_continued_redirect 'HELIX_ACTION_OUT_ROOT="$X" \' '  bash "$REPO/scripts/generate_agent_prefix_commands.sh"'
 fx E1_exempt 'bash "$REPO/scripts/install_action_prefix.sh" "$P" # C02-hermetic: fixture reason'
+# review round 2 R4: the reviewer's violators the round-2 lint missed (attacks/lint/t/v01..v14 of that review)
+fx V01_nice_n 'nice -n 10 bash "$REPO/scripts/install_action_prefix.sh" --yes'
+fx V02_timeout_s 'timeout -s KILL 60 bash "$REPO/scripts/install_cli_agent_plugins.sh"'
+fx V03_source 'source "$REPO/scripts/install_action_prefix.sh"'
+fx V04_dot '. "$REPO/scripts/install_action_prefix.sh"'
+fx V05_dollar_bash '"$BASH" "$REPO/scripts/install_action_prefix.sh"'
+fx V06_bash_o 'bash -o pipefail "$REPO/scripts/install_action_prefix.sh"'
+fx V07_func 'run() { "$@"; }' 'run bash "$REPO/scripts/install_action_prefix.sh"'
+fx V07b_func_multiline 'run() {' '  echo running' '  "$@"' '}' 'run bash "$REPO/scripts/install_action_prefix.sh"'
+fx V09_name_var 'N=install_action_prefix.sh' 'bash "$REPO/scripts/$N"'
+fx V10_gen_nice 'nice -n 5 bash "$REPO/scripts/generate_agent_prefix_commands.sh"'
+fx V14_xargs 'echo "$REPO/scripts/install_action_prefix.sh" | xargs bash'
+fx V15_bash_c 'bash -c "bash $REPO/scripts/install_action_prefix.sh"'
+# golden-FALSE carriers of the round-3 rules (nothing here runs a target from the real tree)
+fx G7_source_lib 'source "$REPO/tests/extensions/lib.sh"'
+fx G8_nice_copy 'C="$(mktemp -d)"; cp -a "$REPO/scripts" "$C/"; nice -n 10 bash "$C/scripts/install_action_prefix.sh"'
+fx G9_echo_no_xargs 'echo "$REPO/scripts/install_action_prefix.sh" > "$T/list"'
+fx G10_func_not_wrapper 'run() { echo "$@"; }' 'run bash "$REPO/scripts/install_action_prefix.sh"'
+# G11: the echo and the xargs are joined by ";" not "|", so xargs never reads that path (it reads the test's stdin)
+fx G11_xargs_not_piped 'echo "$REPO/scripts/install_action_prefix.sh"; xargs -r bash'
+fx G12_name_var_other 'N=other_script.sh' 'bash "$REPO/scripts/$N"'
 fx_expect() { # LINT_SCRIPT -> one line per fixture: name flagged|clean|exempt
   local d r
   for d in "$TB"/fx/*/; do
@@ -65,6 +86,12 @@ G3_printf_carrier clean
 G4_heredoc_carrier clean
 G5_env_redirect clean
 G6_continued_redirect clean
+G7_source_lib clean
+G8_nice_copy clean
+G9_echo_no_xargs clean
+G10_func_not_wrapper clean
+G11_xargs_not_piped clean
+G12_name_var_other clean
 R10_for_var_real flagged
 R11_quoted_heredoc_marker flagged
 R12_installer_with_redirect flagged
@@ -77,12 +104,24 @@ R6_var_holds_path flagged
 R7_empty_redirect flagged
 R8_if_keyword flagged
 R9_real_root_var flagged
+V01_nice_n flagged
+V02_timeout_s flagged
+V03_source flagged
+V04_dot flagged
+V05_dollar_bash flagged
+V06_bash_o flagged
+V07_func flagged
+V07b_func_multiline flagged
+V09_name_var flagged
+V10_gen_nice flagged
+V14_xargs flagged
+V15_bash_c flagged
 ctrl_bad flagged
 ctrl_good clean
 EOF
 )"
 got="$(fx_expect "$LINT" | LC_ALL=C sort)"
-lt_eq "lint fixtures: 6 reviewer violators + 6 more flagged, 7 golden-FALSE carriers clean, 1 exemption seen" "$(printf '%s\n' "$WANT" | LC_ALL=C sort)" "$got"
+lt_eq "lint fixtures: 6+12 reviewer violators + 6 more flagged, 13 golden-FALSE carriers clean, 1 exemption seen" "$(printf '%s\n' "$WANT" | LC_ALL=C sort)" "$got"
 
 # (1c) paired mutations of the lint itself: each RULE removed must change at least one fixture verdict
 lint_mut() { # id old new
@@ -107,6 +146,16 @@ lint_mut L8_unset_redirects 'env.pop(c[i + 1], None)' 'env[c[i + 1]] = "x"'
 lint_mut L9_no_heredoc_skip '            term = m.group(2)' '            term = None'
 lint_mut L11_heredoc_in_quotes 'QUOTED.sub("", buf)' 'buf'
 lint_mut L10_installers_redirectable 'if target == GEN and env.get' 'if env.get'
+# round 3 (review round 2 R4) rules
+lint_mut L12_no_wrapper_opt_value 'if c[i] in vopts:  # RULE:C02-lint-wrapper-opt-value' 'if False:'
+lint_mut L13_no_source_or_shell_vars 'if os.path.basename(word) in SHELLS or word in SHELL_VARS or word in SOURCERS:' 'if os.path.basename(word) in SHELLS:'
+lint_mut L14_no_shell_opt_value 'j += 2 if c[j] in SHELL_VALUE_OPTS else 1' 'j += 1'
+lint_mut L15_no_func_wrapper 'if w in WRAPPERS or w in funcs:' 'if w in WRAPPERS:'
+lint_mut L16_no_tail_var 'paths = [x for p_ in paths for x in expand_tail(p_)]' 'pass'
+lint_mut L17_no_xargs_stdin 'stdin_paths = [x for x in prev[1:] if not x.startswith("-")]' 'pass'
+lint_mut L18_no_dash_c 'if c[j] == "-c" and j + 1 < len(c):  # RULE:C02-lint-dash-c' 'if False:'
+lint_mut L19_xargs_any_sep 'if w == "xargs" and sep == "|" and prev' 'if w == "xargs" and prev'
+lint_mut L20_func_any_body 'if fm and line.rstrip().endswith("}") and RUNS_ARGS.search(fm.group(2).strip()):' 'if fm and line.rstrip().endswith("}"):'
 
 # (2) guard on the real generator
 gd() { # generator_script sandbox_root -> runs it redirected

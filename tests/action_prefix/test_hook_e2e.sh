@@ -287,7 +287,9 @@ mkdir -p "$SANDBOX" "$CCOPY/scripts/hooks" "$CCOPY/plugins/helix"
 cp -a "$INSTALLER" "$CONST_ROOT/scripts/action_prefix_lib.sh" "$CONST_ROOT/scripts/generate_agent_prefix_commands.sh" "$CCOPY/scripts/"
 cp -a "$HOOK" "$CCOPY/scripts/hooks/"
 cp -a "$CONST_ROOT/actions" "$CCOPY/actions"
-cleanup_sandbox() { rm -rf -- "${OUTER:?}"; }
+# shellcheck source=../../scripts/lib/safe_rm.sh
+. "$CONST_ROOT/scripts/lib/safe_rm.sh"   # §11.4.287(B): recursive deletes go through safe_rm_rf
+cleanup_sandbox() { safe_rm_rf "${OUTER:?}"; }
 trap cleanup_sandbox EXIT
 INSTALL_LOG="$EVID_DIR/installer_run.log"
 HOOK_COPY="$CCOPY/scripts/hooks/action_prefix_expand.sh"

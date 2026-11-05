@@ -58,7 +58,12 @@ kill_mutant E17_adopt_not_in_lock 'if entry is None or entry.get("origin") != "i
 kill_mutant E18_no_per_id_upfront_check 'files += [os.path.join(sd, n) for n in sorted(os.listdir(sd)) if n.endswith(".json")]  # RULE:R18-per-id' 'pass'
 kill_mutant E19_commit_recovery_keeps_fact '                    self.delete_added(i)  # RULE:F7-recover-commit-fact' '                    pass'
 kill_mutant E20_remove_recovery_keeps_fact '                self.delete_added(eid)  # RULE:F7-recover-remove-fact' '                pass'
-kill_mutant E21_adopt_message_drops_next_step 'operator can attest that and make it removable with: adopt-install %s --waiver-id <ref>' 'operator can attest that and make it removable %s'
+kill_mutant E21_adopt_message_drops_next_step 'operator can attest that and make it removable by running, at a terminal, adopt-install %s --waiver-id "' 'operator can attest that and make it removable %s "'
+# review round 2 A1 and R2 (tty-only adoption, operator decision 2026-11-05 by the 11.4.101 safe default)
+kill_mutant E22_adopt_accepts_yes '"adopt-install": (1, 1, {"waiver_id"}),  # RULE:A1-adopt-no-yes' '"adopt-install": (1, 1, {"yes", "waiver_id"}),'
+kill_mutant E23_no_tty_message_names_bypass '"adopt-install %s needs an operator at a terminal (%s): an operator runs it interactively and "' '"adopt-install %s: confirmation required (%s): pass --yes or run interactively and "'
+kill_mutant RMc_any_tty_answer_confirms 'if ans != eid:' 'if False:'
+kill_mutant E24_tty_open_failure_confirms 'raise EngineError(EXIT_REFUSED, ADOPT_NEEDS_TTY % (eid, "this process has no controlling terminal"))' 'return'
 # Reviewer mutants R1 and R2 (review of wave 2, section "Reviewer mutants on E01") are EQUIVALENT in effect and are
 # deliberately not listed. R1 drops the f["id"] != eid check: a fact copied under another id still fails, because the
 # digest binding compares against the lock entry of THAT id and tree_digest hashes extension.yml, which holds the id.

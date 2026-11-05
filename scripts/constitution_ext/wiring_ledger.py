@@ -99,15 +99,21 @@ def read_nofollow(path, limit, what):
         os.close(fd)
 
 
-def atomic_write(path, data, mode=0o644):
-    """temp in the same directory, fsync, rename; never through a symlink."""
-    if os.path.lexists(path) and stat.S_ISLNK(os.lstat(path).st_mode):
+def atomic_write(path, data, mode=0o644, over_link=False):
+    """temp in the same directory, mode set on the temp fd, fsync, rename; never through a symlink.
+
+    OVER_LINK=True lets the rename REPLACE a symlink at PATH (rename(2) replaces the link itself, never its
+    target); the caller has proven the link is ours (I-2). Until the rename the old path is untouched, so a write
+    that fails leaves it as it was (R5). The mode is set with fchmod on the temp file BEFORE the rename, so it is
+    exact under any umask and a path-based chmod can never follow a link swapped in after the rename (R6)."""
+    if os.path.lexists(path) and stat.S_ISLNK(os.lstat(path).st_mode) and not over_link:
         raise Refused("%s is a symlink; refusing to write through it" % path)
     d = os.path.dirname(path)
     tmp = os.path.join(d, ".%s.tmp-%d-%s" % (os.path.basename(path), os.getpid(), os.urandom(4).hex()))
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
     try:
         with os.fdopen(fd, "wb") as f:
+            os.fchmod(f.fileno(), mode)  # RULE:R6-fchmod-before-rename
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
@@ -784,10 +790,11 @@ class Ledger:
                 os.symlink(e["link"], tmp)
                 os.rename(tmp, full)
             else:
-                if os.path.islink(full):  # preflight allowed this only for a link our run recorded (I-2)
-                    os.unlink(full)
-                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))
-                os.chmod(full, e.get("mode", 0o644))
+                # preflight allowed a link here only when our run recorded it (I-2); the rename replaces it in one
+                # step (R5). Residual: a link an outside actor swaps in between preflight and this rename is replaced
+                # too (only the link is lost, never its target); the window is narrowed, not closed.
+                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644),
+                             over_link=os.path.islink(full))  # RULE:R5-rename-over-link
             report["restored"].append(e["path"])
         for name, dst, data in ledger_plan:
             if data is None:

@@ -30,7 +30,7 @@ CMDF=scripts/constitution_cmd/constitution_cmd.sh; LED=scripts/constitution_ext/
 kill_mutant W1_unknown_arg_accepted $CMDF '*) die "wiring accepts only: inventory | check (--inventory / --check)"; return 2 ;;' '*) ;;'
 kill_mutant W2_two_subcommands_ok   $CMDF '[ -z "$sub" ] || { die "wiring takes exactly one of: inventory | check"; return 2; }; sub=check ;;' 'sub=check ;;'
 kill_mutant W3_no_subcommand_ok     $CMDF '[ -n "$sub" ] || { die "wiring needs one of: inventory | check"; return 2; }' ':'
-kill_mutant W4_check_always_ok      $LED '"ok": all(r["state"] == "ours" for r in rows),  # RULE:W-check-ok' '"ok": True,'
+kill_mutant W4_check_always_ok      $LED '"ok": all(r["state"] == "ours" for r in rows) and not orphans,  # RULE:W-check-ok' '"ok": True,'
 kill_mutant W5_check_rc_not_mapped  $LED 'if cmd == "check" and not out.get("ok"):  # RULE:W-check-rc' 'if False:'
 kill_mutant W6_no_shared_lock       $LED 'fcntl.flock(lockfd, fcntl.LOCK_SH)  # RULE:W-read-lock' 'pass'
 kill_mutant W7_check_skips_classify $LED 'led.check()  # RULE:W-check-calls-status' '{"ok": True, "rows": []}'

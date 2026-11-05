@@ -110,6 +110,54 @@ check "E01 before recovery the fact is not there yet" test ! -e "$KP/.constituti
 e_kp list >/dev/null; e_kp lock >/dev/null     # a read-only run never recovers; a mutating run does
 check "E01 after recovery the fact exists" test -f "$KP/.constitution/extensions.state/$FACT"
 e_kp remove hooks-fixture --yes; eq "E01 the recovered owner can remove (rc 0)" 0 "$RC"
+# pty_adopt PROJECT ATTEST TYPED [ID] -> runs adopt-install ID (default hooks-fixture) with a controlling pty (pty.fork, CONSTITUTION_EXT_NO_TTY
+# unset) and types TYPED at the "Type the extension id" prompt. Sets OUT (pty output), RC (engine exit code) and
+# PTY_PROMPT (True when the prompt was seen before anything was typed). The child is killed after 60 s.
+pty_adopt() {
+  local res
+  res="$(env -u CONSTITUTION_EXT_NO_TTY python3 -I - "$3" bash "$ENGINE" --root "$R" --project-root "$1" adopt-install "${4:-hooks-fixture}" --waiver-id "$2" <<'PY'
+import os, pty, select, signal, sys, time
+typed, argv = sys.argv[1], sys.argv[2:]
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp(argv[0], argv)
+buf, sent, st = b"", False, None
+deadline = time.time() + 60
+while time.time() < deadline:
+    r, _, _ = select.select([fd], [], [], 0.2)
+    if r:
+        try:
+            d = os.read(fd, 4096)
+        except OSError:
+            d = b""
+        if d:
+            buf += d
+            if not sent and b"Type the extension id" in buf:
+                os.write(fd, (typed + "\n").encode()); sent = True
+            continue
+    w, s = os.waitpid(pid, os.WNOHANG)
+    if w:
+        st = s
+        break
+if st is None:
+    os.kill(pid, signal.SIGKILL); _, st = os.waitpid(pid, 0)
+sys.stdout.write(buf.decode("utf-8", "replace").replace("\r", ""))
+print("\nPTY_PROMPT=%s PTY_RC=%d" % (sent, os.waitstatus_to_exitcode(st)))
+PY
+)"
+  OUT="$res"; RC="$(printf '%s\n' "$res" | sed -n 's/.*PTY_RC=\(-\{0,1\}[0-9]*\)$/\1/p' | tail -1)"
+  PTY_PROMPT="$(printf '%s\n' "$res" | sed -n 's/^PTY_PROMPT=\([A-Za-z]*\) .*/\1/p' | tail -1)"
+}
+# pty_refused LABEL PROJECT ID WANT_RC FACT_PATH -> the same refusal with an operator at a terminal who would type
+# the right id: the refusal comes BEFORE the prompt (no prompt shown), so a precondition check is not masked by
+# the no-terminal refusal (review round 2: mutants E12 and E17 survived while every refusal case had no tty).
+pty_refused() {
+  pty_adopt "$2" OPS-1 "$3" "$3"
+  eq "$1 (operator at a terminal, right id ready): rc $4" "$4" "$RC"
+  eq "$1: refused before the confirmation prompt" False "$PTY_PROMPT"
+  check "$1: no fact written" test ! -e "$5"
+}
+
 # ── wave 2 review round 2 ─────────────────────────────────────────────────────────────────────────────────
 # Q1 / F2 (operator decision 2026-11-05): an install made before E01 has a lock entry and a state record but no
 # fact. Nothing is adopted implicitly (D6): re-add stays a no-op; the only way to make it removable is an explicit,
@@ -126,14 +174,40 @@ has "R2 legacy: the refusal says a copy of the checkout carries the fact too" "c
 e3 add "$H" --dev --waiver-id WD --yes; eq "R2 legacy: re-add is still a no-op (rc 0)" 0 "$RC"
 check "R2 legacy: re-add created no fact (nothing adopted implicitly, D6)" test ! -e "$SD3/$FACT"
 has "R2 legacy: re-add points at adopt-install" "adopt-install" "$OUT"
-e3 adopt-install hooks-fixture --yes; eq "R2 adopt-install without an attestation reference: usage rc 2" 2 "$RC"
+e3 adopt-install hooks-fixture; eq "R2 adopt-install without an attestation reference: usage rc 2" 2 "$RC"
 check "R2 no fact after the usage error" test ! -e "$SD3/$FACT"
-e3 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 adopt-install without confirmation (no tty, no --yes): rc 3" 3 "$RC"
+e3 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 adopt-install without a terminal (CONSTITUTION_EXT_NO_TTY=1): rc 3" 3 "$RC"
 check "R2 no fact without confirmation" test ! -e "$SD3/$FACT"
-e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes --dry-run; eq "R2 adopt-install dry-run rc 0" 0 "$RC"
+# R3 A1 (operator decision 2026-11-05, safe default 11.4.101): confirmation is the /dev/tty prompt only; no flag
+# replaces it, and no refusal names a bypass flag
+has "R3 A1 the no-terminal refusal says an operator at a terminal is needed" "an operator at a terminal" "$OUT"
+hasnt "R3 A1 the no-terminal refusal names no bypass flag (--yes)" "--yes" "$OUT"
+has "R3 A1 the no-terminal refusal says nothing was adopted" "nothing adopted" "$OUT"
+e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R3 A1 adopt-install does not accept --yes (usage rc 2)" 2 "$RC"
+has "R3 A1 the --yes refusal is the usage error" "does not accept --yes" "$OUT"
+check "R3 A1 no fact after adopt-install --yes" test ! -e "$SD3/$FACT"
+# no controlling terminal at all (setsid, NO_TTY unset): the /dev/tty open fails; same refusal, no bypass named
+OUT="$(env -u CONSTITUTION_EXT_NO_TTY setsid -w bash "$ENGINE" --root "$R" --project-root "$P3" adopt-install hooks-fixture --waiver-id OPS-1 </dev/null 2>&1)"; RC=$?
+eq "R3 A1 no controlling terminal: rc 3" 3 "$RC"
+has "R3 A1 the /dev/tty refusal says an operator at a terminal is needed" "an operator at a terminal" "$OUT"
+hasnt "R3 A1 the /dev/tty refusal names no bypass flag (--yes)" "--yes" "$OUT"
+check "R3 A1 no fact without a controlling terminal" test ! -e "$SD3/$FACT"
+e3 adopt-install hooks-fixture --waiver-id OPS-1 --dry-run; eq "R2 adopt-install dry-run rc 0" 0 "$RC"
 check "R2 dry-run wrote no fact" test ! -e "$SD3/$FACT"
-e3 adopt-install hooks-fixture --waiver-id 'ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' --yes; eq "R2 a token-shaped attestation reference is refused (rc 2)" 2 "$RC"
-e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 adopt-install with attestation and confirmation: rc 0" 0 "$RC"
+e3 adopt-install hooks-fixture --waiver-id 'ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; eq "R2 a token-shaped attestation reference is refused (rc 2)" 2 "$RC"
+has "R2 the token refusal is about the reference, not a flag" "waiver" "$OUT"
+# R3 R2: drive the real /dev/tty prompt through a pty (reviewer attack a2_tty_confirm.sh)
+pty_adopt "$P3" OPS-1 not-the-id
+eq "R3 R2 a wrong id typed at the tty prompt: rc 3" 3 "$RC"
+eq "R3 R2 the tty prompt was shown" True "$PTY_PROMPT"
+has "R3 R2 a wrong id is refused as not confirmed" "attestation not confirmed" "$OUT"
+check "R3 R2 no fact after a wrong id" test ! -e "$SD3/$FACT"
+pty_adopt "$P3" OPS-1 ""
+eq "R3 R2 an empty answer at the tty prompt: rc 3" 3 "$RC"
+check "R3 R2 no fact after an empty answer" test ! -e "$SD3/$FACT"
+pty_adopt "$P3" OPS-1 hooks-fixture
+eq "R2 adopt-install with attestation and the id typed at the tty: rc 0" 0 "$RC"
+eq "R3 R2 the tty prompt was shown before the fact was written" True "$PTY_PROMPT"
 check "R2 adopt-install wrote the fact" test -f "$SD3/$FACT"
 eq "R2 the fact is marked adopted, not added" adopt "$(jget "$(cat "$SD3/$FACT")" via)"
 eq "R2 the fact records the attestation reference" OPS-1 "$(jget "$(cat "$SD3/$FACT")" attest)"
@@ -141,12 +215,13 @@ eq "R2 the adopted fact is mode 0600" 600 "$(stat -c %a "$SD3/$FACT" 2>/dev/null
 has "R2 the audit log records adopt-install with its attestation" '"op": "adopt-install"' "$(cat "$P3/.constitution/extensions.audit.log")"
 has "R2 the audit line names the attestation" "OPS-1" "$(grep adopt-install "$P3/.constitution/extensions.audit.log")"
 H3="$(sha256sum "$SD3/$FACT" | cut -c1-64)"
-e3 adopt-install hooks-fixture --waiver-id OPS-2 --yes; eq "R2 adopt-install over a valid fact: rc 0, nothing to do" 0 "$RC"
+e3 adopt-install hooks-fixture --waiver-id OPS-2; eq "R2 adopt-install over a valid fact: rc 0, nothing to do" 0 "$RC"
 eq "R2 the valid fact is not rewritten" "$H3" "$(sha256sum "$SD3/$FACT" | cut -c1-64)"
 e3 remove hooks-fixture --yes; eq "R2 after adoption the checkout removes it (rc 0)" 0 "$RC"
 check "R2 tree gone after remove of the adopted install" test ! -e "$INST/hooks-fixture"
 check "R2 adopted fact deleted with the lock entry" test ! -e "$SD3/$FACT"
-e3 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 adopt-install of an id not in the lock: rc 3" 3 "$RC"
+e3 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 adopt-install of an id not in the lock: rc 3" 3 "$RC"
+pty_refused "R3 adopt-install of an id not in the lock" "$P3" hooks-fixture 3 "$SD3/$FACT"
 
 echo "### R2 Q1 adopt-install refuses what it cannot check"
 P4="$SB/p4"; make_project "$P4"; SD4="$P4/.constitution/extensions.state"
@@ -155,19 +230,22 @@ e4 add "$H" --dev --waiver-id WD --yes; eq "R2 setup: P4 adds" 0 "$RC"
 rm -f "$SD4/$FACT"
 P5="$SB/p5"; make_project "$P5"; mkdir -p "$P5/.constitution"; cp "$P4/.constitution/extensions.lock.yml" "$P5/.constitution/"
 e5() { eng --root "$R" --project-root "$P5" "$@"; }
-e5 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 copied lock with no state record: adopt-install refused rc 3" 3 "$RC"
+e5 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 copied lock with no state record: adopt-install refused rc 3" 3 "$RC"
 check "R2 no fact in the copied-lock clone" test ! -e "$P5/.constitution/extensions.state/$FACT"
+pty_refused "R3 copied lock with no state record" "$P5" hooks-fixture 3 "$P5/.constitution/extensions.state/$FACT"
 printf 'tampered\n' >>"$INST/hooks-fixture/extension.yml"
-e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree differs from the lock: adopt-install refused rc 5" 5 "$RC"
+e4 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 tree differs from the lock: adopt-install refused rc 5" 5 "$RC"
 check "R2 no fact for a tree that does not verify" test ! -e "$SD4/$FACT"
+pty_refused "R3 tree differs from the lock" "$P4" hooks-fixture 5 "$SD4/$FACT"
 mv "$INST/hooks-fixture" "$SB/moved-tree"
-e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree absent: adopt-install refused rc 3" 3 "$RC"
+e4 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 tree absent: adopt-install refused rc 3" 3 "$RC"
 ln -s "$SB/moved-tree" "$INST/hooks-fixture"
-e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes; eq "R2 tree is a symlink: adopt-install refused rc 3" 3 "$RC"
+e4 adopt-install hooks-fixture --waiver-id OPS-1; eq "R2 tree is a symlink: adopt-install refused rc 3" 3 "$RC"
 check "R2 no fact through a symlinked tree" test ! -e "$SD4/$FACT"
+pty_refused "R3 tree is a symlink" "$P4" hooks-fixture 3 "$SD4/$FACT"
 rm "$INST/hooks-fixture"; safe_rm_rf "${SB:?}/moved-tree"
 printf '{"forged": true}\n' >"$SD4/$FACT"; chmod 600 "$SD4/$FACT"
-mkdir -p "$INST"; e4 adopt-install hooks-fixture --waiver-id OPS-1 --yes
+mkdir -p "$INST"; e4 adopt-install hooks-fixture --waiver-id OPS-1
 eq "R2 adopt-install over a fact that does not verify: refused rc 3" 3 "$RC"
 check "R2 an existing fact that does not verify is never overwritten" grep -q forged "$SD4/$FACT"
 rm -f "$SD4/$FACT"
@@ -176,9 +254,10 @@ rm -f "$SD4/$FACT"
 P9="$SB/p9"; make_project "$P9"
 eng --root "$R" --project-root "$P9" enable hello-fixture --yes; eq "R2 setup: P9 enables the bundled hello-fixture" 0 "$RC"
 mv "$R/extensions/hello-fixture" "$INST/hello-fixture"
-eng --root "$R" --project-root "$P9" adopt-install hello-fixture --waiver-id OPS-1 --yes
+eng --root "$R" --project-root "$P9" adopt-install hello-fixture --waiver-id OPS-1
 eq "R2 a bundled lock entry is never adopted as an install (rc 3)" 3 "$RC"
 check "R2 no fact for a bundled entry" test ! -e "$P9/.constitution/extensions.state/hello-fixture.added.json"
+pty_refused "R3 a bundled lock entry" "$P9" hello-fixture 3 "$P9/.constitution/extensions.state/hello-fixture.added.json"
 mv "$INST/hello-fixture" "$R/extensions/hello-fixture"
 
 echo "### R2 F6 a symlink at a per-id state path fails closed BEFORE anything is staged"
@@ -217,4 +296,24 @@ e8 lock >/dev/null
 check "R2 F7 commit-journal recovery deleted the state record" test ! -e "$SD8/hooks-fixture.json"
 check "R2 F7 commit-journal recovery deleted the fact" test ! -e "$SD8/$FACT"
 safe_rm_rf "${INST:?}/hooks-fixture"
+
+echo "### R3 A1 the P10 chain stays closed: copied lock + enable + adopt-install without a terminal keeps the tree"
+# reviewer attack a1_adopt_after_enable.sh: P10 installs; P11 is another project holding a copy of P10's tracked lock
+# (the P10 precondition) and runs enable, which writes a valid signed state record. Round 2 let P11 then run
+# adopt-install --waiver-id X --yes and remove the shared tree. Now no non-interactive path adopts.
+P10="$SB/p10"; P11="$SB/p11"; make_project "$P10"; make_project "$P11"
+e10() { eng --root "$R" --project-root "$P10" "$@"; }; e11() { eng --root "$R" --project-root "$P11" "$@"; }
+e10 add "$H" --dev --waiver-id WD --yes; eq "R3 A1 setup: P10 adds" 0 "$RC"
+mkdir -p "$P11/.constitution"; cp "$P10/.constitution/extensions.lock.yml" "$P11/.constitution/"
+e11 enable hooks-fixture --yes; eq "R3 A1 setup: P11 enable on the copied lock writes a state record" 0 "$RC"
+check "R3 A1 precondition: P11 holds a state record" test -f "$P11/.constitution/extensions.state/hooks-fixture.json"
+e11 remove hooks-fixture --yes; eq "R3 A1 P11 remove refused (no install fact)" 3 "$RC"
+hasnt "R3 A1 the remove refusal names no bypass flag for adopt-install" "adopt-install hooks-fixture --waiver-id <ref> --yes" "$OUT"
+e11 adopt-install hooks-fixture --waiver-id NOT-AN-OPERATOR --yes; eq "R3 A1 P11 adopt-install --yes is a usage error" 2 "$RC"
+e11 adopt-install hooks-fixture --waiver-id NOT-AN-OPERATOR; eq "R3 A1 P11 adopt-install without a terminal refused" 3 "$RC"
+check "R3 A1 P11 holds no install fact" test ! -e "$P11/.constitution/extensions.state/$FACT"
+e11 remove hooks-fixture --yes; eq "R3 A1 P11 remove still refused" 3 "$RC"
+check "R3 A1 the shared tree P10 installed is still there" test -d "$INST/hooks-fixture"
+e10 verify hooks-fixture; eq "R3 A1 P10 still verifies its install" 0 "$RC"
+e10 remove hooks-fixture --yes; eq "R3 A1 cleanup: P10 removes its own install" 0 "$RC"
 finish

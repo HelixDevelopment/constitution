@@ -592,7 +592,7 @@ eq "I-2 rollback of copy-to-link migration: rc 0" 0 "$RC"
 check "I-2 the path is a regular file again" test -f "$I2/.claude/skills/alpha" -a ! -L "$I2/.claude/skills/alpha"
 eq "I-2 the legacy content is back" "legacy copy" "$(cat "$I2/.claude/skills/alpha")"
 # O2: the restored mode is the backed-up mode (0664 above), not the umask default
-eq "O2 restored file mode is the backed-up mode (664 survives a 022 umask only via chmod)" 664 "$(stat -c %a "$I2/.claude/skills/alpha")"
+eq "O2 restored file mode is the backed-up mode (664 survives a 077 umask only through an explicit mode set)" 664 "$(stat -c %a "$I2/.claude/skills/alpha")"
 # I-2 control: a symlink at the restore target that is NOT ours still refuses the whole rollback
 I2C="$SB/i2c"; make_project "$I2C"; mkdir -p "$I2C/.claude/skills"; printf 'legacy\n' >"$I2C/.claude/skills/alpha"
 wlp "$I2C" backup --path .claude/skills/alpha; I2CB="$(jget "$OUT" backup_dir)"
@@ -600,6 +600,35 @@ rm -f -- "${I2C:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2C/.claude/
 wlp "$I2C" rollback --backup "$I2CB"
 eq "I-2 control: a foreign (unrecorded) symlink at a restore target is refused rc 3" 3 "$RC"
 check "I-2 control: the foreign symlink is untouched" test -L "$I2C/.claude/skills/alpha"
+# I-2 swapped link (review round 2 R1, reviewer probe P1; pins mutant RMa): our recorded link is replaced by a
+# link to ANOTHER target before rollback. The row no longer classifies as ours, so the whole rollback refuses
+# and the project stays byte-identical.
+I2S="$SB/i2s"; make_project "$I2S"; mkdir -p "$I2S/.claude/skills" "$R/skills/beta"; printf 'legacy\n' >"$I2S/.claude/skills/alpha"
+wlp "$I2S" backup --path .claude/skills/alpha; I2SB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2S:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2S/.claude/skills/alpha"
+wlp "$I2S" record --id i2s-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+rm -f -- "${I2S:?}/.claude/skills/alpha"; ln -s "$R/skills/beta" "$I2S/.claude/skills/alpha"
+I2S_FP="$(tree_fp "$I2S")"
+wlp "$I2S" rollback --backup "$I2SB"
+eq "I-2 swapped link: rollback refused rc 3" 3 "$RC"
+eq "I-2 swapped link: project byte-identical" "$I2S_FP" "$(tree_fp "$I2S")"
+eq "I-2 swapped link: still points to the other target" "$R/skills/beta" "$(readlink "$I2S/.claude/skills/alpha")"
+rmdir "$R/skills/beta"
+# I-2 failed write (review round 2 R5, reviewer probe P6): the restore writes a temp file and renames it over the
+# link, so a write that fails (EFBIG under ulimit -f; Python ignores SIGXFSZ) leaves our link in place, never an
+# absent path, and leaves no temp file behind. A rerun without the limit restores the file.
+I2F="$SB/i2f"; make_project "$I2F"; mkdir -p "$I2F/.claude/skills"
+head -c 200000 /dev/zero | tr '\0' 'x' >"$I2F/.claude/skills/alpha"; I2F_SHA="$(sha256sum <"$I2F/.claude/skills/alpha")"
+wlp "$I2F" backup --path .claude/skills/alpha; I2FB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2F:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2F/.claude/skills/alpha"
+wlp "$I2F" record --id i2f-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+I2F_RC="$( (ulimit -f 64; env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$I2F" --root "$R" rollback --backup "$I2FB" </dev/null >/dev/null 2>"$SB/err"; echo $?) )"
+check "I-2 failed write: rollback does not report success" test "$I2F_RC" != 0
+check "I-2 failed write: our link is still in place (not an absent path)" test -L "$I2F/.claude/skills/alpha"
+eq "I-2 failed write: no temp file left in the directory" "alpha" "$(ls -A "$I2F/.claude/skills")"
+wlp "$I2F" rollback --backup "$I2FB"
+eq "I-2 failed write: a rerun without the limit succeeds" 0 "$RC"
+eq "I-2 failed write: the rerun restored the backed-up bytes" "$I2F_SHA" "$(sha256sum <"$I2F/.claude/skills/alpha")"
 
 # ── 11. determinism and meta ──────────────────────────────────────────────
 DS=()

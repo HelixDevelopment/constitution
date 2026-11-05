@@ -85,7 +85,14 @@ kill_mutant M38_epoch_range_unchecked '        time.gmtime(ts)
     except (OverflowError, OSError, ValueError):'
 # CON-045 re-review mutants O1/O2 (survived the old suite) and the I-2 guard:
 kill_mutant M39_rollback_skips_absent_backup_paths 'in_backup = {e["path"] for e in m["entries"] if e["type"] != "absent"}' 'in_backup = {e["path"] for e in m["entries"]}'
-kill_mutant M40_restore_without_chmod '                os.chmod(full, e.get("mode", 0o644))' '                pass'
+kill_mutant M40_restore_without_chmod 'os.fchmod(f.fileno(), mode)  # RULE:R6-fchmod-before-rename' 'pass'
+# review round 2 R1 (reviewer mutant RMa): any post-backup symlink row trusted as ours
+kill_mutant RMa_any_new_link_is_ours 'if self.classify_row(r, local) == "ours":' 'if True:'
+# review round 2 R5: unlink-then-write is back (the old link is removed before the write that can fail)
+kill_mutant M43_unlink_before_write '                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644),
+                             over_link=os.path.islink(full))  # RULE:R5-rename-over-link' '                if os.path.islink(full):
+                    os.unlink(full)
+                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))'
 kill_mutant M41_replace_any_symlink_at_restore 'and e["path"] not in ours_new:  # RULE:I2-replace-our-link' 'and False:'
 kill_mutant M42_never_replace_our_link 'if r["id"] not in backed and r["kind"] == "symlink":' 'if False:'
 # M35 (preflight creates the ledger dir) is EQUIVALENT and deliberately not listed: the backup manifest is MAC-verified

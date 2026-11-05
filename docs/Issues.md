@@ -1054,3 +1054,6 @@ UNKNOWN: not stated in the report — a reproduction MUST be established before 
 **Acceptance criteria:**
 Independent review GO on the C02 changes; a full-suite run on a clean checkout ends without IDENTITY CHANGED for the gen field; then close WIT-C02 in the design doc.
 
+**Open after round 3 (measured 2026-11-05):**
+`hermetic_lint.py` flags 13 of the round-2 reviewer's 14 violators; it does not see an installer reached by a path relative to a `cd` into the real tree (violator v08). That gap stays open under this item.
+
