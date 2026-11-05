@@ -96,6 +96,7 @@ scripts/codegraph/tests/test_scope_exceptions.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_scope_exceptions_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_tripwire.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_unit_safe.sh	sh	entry	default	bash	-	auto
+scripts/codegraph/tests/test_update_and_resync.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_watch_startup_race.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_watch_startup_race_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/credscan/tests/test_credscan.py	py	entry	default	python3	-	auto
@@ -105,6 +106,8 @@ scripts/extensions/validate_bridge_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/fastcycle/gates/mutation_reuse.py	py	excluded	-	-	-	reason: library: fastcycle gate library; exercised by scripts/fastcycle/tests run_all.sh members
 scripts/fastcycle/tests/capture_fc_timer_triplet.sh	sh	excluded	-	-	-	reason: tool: evidence producer exercised by test_capture_fc_timer_triplet.sh; not a test
 scripts/fastcycle/tests/check_deps.sh	sh	excluded	-	-	-	reason: tool: tool-presence probe used by fastcycle tests; not a test
+scripts/fastcycle/tests/check_mutation_anchors.py	py	member	heavy	-	scripts/fastcycle/tests/test_mutation_anchor_census.sh	auto: invoked by scripts/fastcycle/tests/test_mutation_anchor_census.sh
+scripts/fastcycle/tests/check_safepath_census.py	py	member	default	-	scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	auto: invoked by scripts/fastcycle/tests/test_fc_safepath_v4r12.sh (census oracle; also --self-test via v4r13)
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_alpha.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_beta.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
 scripts/fastcycle/tests/fixtures/affected_set/_shared/gates/gate_docsync.sh	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -216,6 +219,7 @@ scripts/fastcycle/tests/lib/dec07_key_ref.py	py	excluded	-	-	-	reason: oracle: r
 scripts/fastcycle/tests/lib/dec15_flake_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/dec17_drift_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/dec23_key_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
+scripts/fastcycle/tests/lib/foreign_uid_cause.sh	sh	member	default	-	scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	auto: executed by scripts/fastcycle/tests/test_fc_safepath_v4r12.sh to state the measured foreign-uid SKIP cause
 scripts/fastcycle/tests/lib/golden_triplet_fixture.sh	sh	excluded	-	-	-	reason: helper: sourced by scripts/fastcycle/tests/test_capture_fc_timer_triplet.sh
 scripts/fastcycle/tests/lib/guard_freshness_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
 scripts/fastcycle/tests/lib/render_keys_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by fastcycle RED tests
@@ -278,6 +282,14 @@ scripts/fastcycle/tests/test_fc_common_red.sh	sh	member	default	-	scripts/fastcy
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_entry_r10_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_v4r12.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_v4r13.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_v4r14.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_safepath_v4r15.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_supervisor_unit.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_timer_golden_output.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_timer_golden_output_r10_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_fc_timer_golden_output_r14_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -332,6 +344,7 @@ scripts/fastcycle/tests/test_limit_class_r9_regression.sh	sh	member	default	-	sc
 scripts/fastcycle/tests/test_limit_class_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_metatest_per_mutant_r4_regression.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_metatest_per_mutant_red.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_mutation_anchor_census.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_mutation_reuse_red.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_plan_struct_causes_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_plan_struct_full_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -381,6 +394,7 @@ scripts/fastcycle/tokens/test_dispatch_stamp_class.sh	sh	entry	default	bash	-	au
 scripts/fastcycle/tokens/test_dispatch_stamp_r4_regression.sh	sh	entry	default	bash	-	auto
 scripts/fastcycle/tokens/test_dispatch_stamp_r5_regression.sh	sh	entry	default	bash	-	auto
 scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_agent_type_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_anchor_detects_tail_truncation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_anchor_record_complete_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_badge_closed_color_vocabulary_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -502,6 +516,8 @@ scripts/gates/cm_covenant_114_290_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_291_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_292_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_293_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -516,6 +532,7 @@ scripts/gates/cm_feature_directive_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_first_refusal_observed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_gate_ledger_ratchet_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_geo_substitute_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_git_hooks_installed_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_gitlink_on_remote_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_guard_class_p_not_overridable_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -559,6 +576,7 @@ scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_scope_and_image_noworse_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_setup_prompt_latest_present.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; run by the pre-build gate sweep
 scripts/gates/cm_setup_prompt_latest_present_mutation_test.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
+scripts/gates/cm_state_fields_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_subsystem_shortcuts_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -587,6 +605,7 @@ scripts/gates/test_wiring_sweep_precondition.sh	sh	entry	default	sh	-	auto
 scripts/hooks/test_credential_scan_lib.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_credential_scan_lib_akia_literal_free.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_credential_scan_lib_subsuite_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/hooks/test_guard_agent_type_label.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_guard_branch_consistency.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_guard_bypasses.py	py	member	default	-	scripts/hooks/test_guard_destructive_paths.sh	auto: run by scripts/hooks/test_guard_destructive_paths.sh
 scripts/hooks/test_guard_destructive_paths.sh	sh	entry	default	bash	-	auto
@@ -622,6 +641,8 @@ scripts/mechanical/tests/test_mech_common.sh	sh	member	default	-	scripts/mechani
 scripts/mechanical/tests/test_mutation_harness.sh	sh	member	heavy	-	scripts/mechanical/tests/run_all.sh	auto: run by scripts/mechanical/tests/run_all.sh
 scripts/mechanical/tests/test_residue_scan.sh	sh	member	default	-	scripts/mechanical/tests/run_all.sh	auto: run by scripts/mechanical/tests/run_all.sh
 scripts/mechanical/tests/test_suite_fanout.sh	sh	member	default	-	scripts/mechanical/tests/run_all.sh	auto: run by scripts/mechanical/tests/run_all.sh
+scripts/multitrack/test_gen_agent_label_defs.sh	sh	entry	default	bash	-	auto
+scripts/multitrack/test_install_agent_label_defs.sh	sh	entry	default	bash	-	auto
 scripts/multitrack/test_multitrack_alias_priority_limits.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_bootstrap.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_conductor_autoarm.sh	sh	entry	default	sh	-	auto
@@ -650,6 +671,7 @@ scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
+scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
 tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	auto
 tests/action_prefix/test_action_prefix_grammar.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
@@ -701,6 +723,7 @@ tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
 tests/gates/test_fastcycle_real_db.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_census_closure.sh	sh	entry	default	bash	-	auto
+tests/gates/test_gate_env_census_jq_regions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_overrides_guarded.sh	sh	entry	default	bash	-	auto
 tests/gates/test_helix_deps_field.sh	sh	entry	default	bash	-	auto
 tests/gates/test_help_full_header.sh	sh	entry	default	bash	-	auto
