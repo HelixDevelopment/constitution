@@ -7,11 +7,15 @@
 # (`...|timeout|env|command|...`, a quoted heredoc read into SHAWK) as a jq env dump at line 423; that made
 # test_gate_env_census_closure.sh "N3 negative" FAIL.
 # Real census module, real files in a mktemp dir. Positives must still fire (no lost coverage); negatives must not.
+# Exit status: 0 = every case PASS; 1 = at least one FAIL (or XPASS); 3 = no FAIL, but at least one KNOWN-FAIL case is
+# outstanding (the same convention as test_gate_env_census_closure.sh). A KNOWN-FAIL is never counted as PASS; it names
+# the tracked item that owns it, and its exact failure signature is checked (a different failure is a FAIL). When a
+# KNOWN-FAIL case starts to pass it is reported XPASS and counted as FAIL, so the marker has to be removed.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; src="$(cd "$here/../.." && pwd)"
 CEN="$src/scripts/gates/lib/gate_env_census.py"
 sb="$(mktemp -d)"; : "${sb:?}"; trap 'rm -rf -- "${sb:?}"' EXIT
-pass=0; fail=0
+pass=0; fail=0; known=0
 chk() { if [ "$1" = 0 ]; then pass=$((pass+1)); echo "PASS $2"; else fail=$((fail+1)); echo "FAIL $2"; fi; }
 # case <id> <expect:fire|quiet> <description> ; file body on stdin
 case_() {
@@ -21,6 +25,23 @@ case_() {
   if [ "$rc" != 0 ]; then chk 1 "$id $desc (census rc=$rc: $out)"; return; fi
   if grep -qP '\tjq-env\tindirect\t' <<<"$out"; then got=fire; else got=quiet; fi
   [ "$got" = "$want" ]; chk $? "$id $desc (want=$want got=$got)"
+}
+# kcase_ <id> <line> <description>: KNOWN-FAIL pinned to CON-047 (a shape the census reports although it is not jq code;
+# the fail-closed direction). Signature: census rc 0 and exactly ONE jq-env row, at <line>. No jq-env row -> XPASS (FAIL:
+# turn it into `case_ <id> quiet`); any other result -> FAIL. These are corpus cases for the structural rewrite (CON-047):
+# they are recorded, not fixed by another regex owner rule (section 11.4.250).
+kcase_() {
+  local id="$1" ln="$2" desc="$3" f="$sb/$1.sh" out rc rows
+  cat > "$f"
+  out="$(python3 -I "$CEN" --root "$sb" "$f" 2>&1)"; rc=$?
+  if [ "$rc" != 0 ]; then fail=$((fail+1)); echo "FAIL $id $desc (census rc=$rc: $out)"; return; fi
+  rows="$(grep -cP '\tjq-env\t' <<<"$out")"
+  if [ "$rows" = 0 ]; then fail=$((fail+1)); echo "XPASS $id $desc (KNOWN-FAIL pinned to CON-047 is now quiet: make it a quiet case)"; return; fi
+  if [ "$rows" = 1 ] && grep -qP "\tjq-env\tindirect\t${ln}\$" <<<"$out"; then
+    known=$((known+1)); echo "KNOWN-FAIL $id $desc [tracked CON-047] (one jq-env row at line $ln)"
+  else
+    fail=$((fail+1)); echo "FAIL $id $desc: failure does NOT match the CON-047 signature (rows=$rows: $out)"
+  fi
 }
 # --- positives: jq code, must still be reported -------------------------------------------------------------------
 case_ P1 fire "jq -n 'env | keys' on the jq line" <<'EOF'
@@ -231,4 +252,61 @@ case_ W2 fire "other_cmd writing a jq-through-variable region to a file" <<'EOF'
 mycmd 'env | keys' > out.txt
 jq --version
 EOF
-echo "== $pass passed, $fail failed =="; [ "$fail" = 0 ]
+# review round 2 N1 (2026-11-05): keyword-prefixed and append assignments are assignments too. RED on the old order
+# (dbe1b65); kill reviewer mutants RN1 (no whitespace before NAME= in RE_OWNER_ASSIGN: G6 G7 G8) and RN7 (`+=` not
+# counted: G9).
+case_ G6 fire "local P=...; awk on the assignment line" <<'EOF'
+f() {
+  local P='env | keys'; awk 1 f
+  jq -n "$P"
+}
+EOF
+case_ G7 fire "export P=...; sed on the assignment line" <<'EOF'
+export P='$ENV'; sed -n 1p f
+jq -n "$P"
+EOF
+case_ G8 fire "declare -r P=...; grep on the assignment line" <<'EOF'
+declare -r P='env | keys'; grep -q x f
+jq -n "$P"
+EOF
+case_ G9 fire "P+=...; sed on the assignment line" <<'EOF'
+P+='env | keys'; sed -n 1p f
+jq -n "$P"
+EOF
+# review round 2 N3 / F7: two quoted regions of one line are not glued into one word (RED before the separator that
+# split_code appends at each closing single quote)
+case_ S1 fire "jq --arg k 'v' -n 'env | keys' (an earlier --arg value on the jq line)" <<'EOF'
+jq --arg k 'v' -n 'env | keys'
+EOF
+case_ S2 fire "jq -n '.a' | jq 'env' (two jq programs on one line)" <<'EOF'
+jq -n '.a' | jq 'env'
+EOF
+case_ S3 fire "jq -n \"\$(printf '%s' 'env | keys')\" (printf format before the program)" <<'EOF'
+jq -n "$(printf '%s' 'env | keys')"
+EOF
+# --- KNOWN-FAIL corpus (CON-047): not jq code, reported anyway; quiet is the wanted result -------------------------------
+# K1..K4 (review round 2 N2): the assignment rule (2) runs before the interpreter rule (3), so a NAME= that is an awk -v
+# option, an environment prefix of an interpreter, or a word in an option argument owns the region. K5: with the round-3
+# separator a data argument of jq is its own region (`jq -n '.a' 'env'`: 'env' is a file name), the program-operand class.
+kcase_ K1 2 "awk -v re='^(sudo|env|time)\$' (option argument, not a shell variable)" <<'EOF'
+jq --version
+awk -v re='^(sudo|env|time)$' '$1 ~ re' f
+EOF
+kcase_ K2 2 "PAT='env|x' awk ... (environment prefix of awk)" <<'EOF'
+jq --version
+PAT='env|x' awk 'BEGIN{print ENVIRON["PAT"]}'
+EOF
+kcase_ K3 2 "env PAT='^(env|nice)\$' sed ... (env wrapper prefix of sed)" <<'EOF'
+jq --version
+env PAT='^(env|nice)$' sed -n p f
+EOF
+kcase_ K4 2 "grep -E -e x='(env|sudo)' f (a grep pattern word containing x=)" <<'EOF'
+jq --version
+grep -E -e x='(env|sudo)' f
+EOF
+kcase_ K5 1 "jq -n '.a' 'env' (a data argument of jq, not its program)" <<'EOF'
+jq -n '.a' 'env'
+EOF
+echo "== $pass passed, $fail failed, $known known-failure =="
+[ "$fail" = 0 ] || exit 1
+[ "$known" = 0 ] || exit 3

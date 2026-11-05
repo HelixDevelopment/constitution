@@ -701,6 +701,7 @@ tests/gates/test_default_scan_root.sh	sh	entry	default	bash	-	auto
 tests/gates/test_execution_record_selfpath.sh	sh	entry	default	bash	-	auto
 tests/gates/test_fastcycle_real_db.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_census_closure.sh	sh	entry	default	bash	-	auto
+tests/gates/test_gate_env_census_jq_regions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_gate_env_overrides_guarded.sh	sh	entry	default	bash	-	auto
 tests/gates/test_helix_deps_field.sh	sh	entry	default	bash	-	auto
 tests/gates/test_help_full_header.sh	sh	entry	default	bash	-	auto

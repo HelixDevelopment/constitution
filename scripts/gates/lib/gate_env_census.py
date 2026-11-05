@@ -142,12 +142,19 @@ RE_OWNER_READ = re.compile(r"\bread\b[^;&|]*?\s([A-Za-z_]\w*)\s*$")
 # env/command/exec/sudo/nice/time/timeout and VAR=val prefixes allowed). Only such a line disowns the quoted text on it.
 # CLASS RULE (CON-015, 11.4.201(4)): the jq whole-environment check reads a quoted region unless its owner is decided as
 # non-jq. Owner order: (1) the line has a jq/yq/gojq word -> jq; (2) the region is assigned to / read into a variable ->
-# owned by that variable (armed when a jq line expands it, whatever else the assignment line runs); (3) otherwise the
-# WHOLE logical line runs a known interpreter at some command position -> disarmed; (4) cat/printf/echo/tee writes it to
-# a file not named on a jq line -> disarmed; (5) anything else stays ARMED. Known, pre-existing and NOT closed here (the
-# line is classified as a whole, not per simple command): a jq program inside a line that ALSO runs an interpreter in
-# another pipeline stage (`"${JQ:-jq}" -n '$ENV' | sed ...`), and a jq-through-variable call on a line that also runs an
-# interpreter in a command substitution (`x=$(grep -c f g); jq_run -n 'env | keys'`) -- both quiet on main too (CON-015).
+# owned by that variable, whatever else the assignment line runs; the variable stays ARMED unless EVERY expansion of it
+# is on a line that provably runs a non-jq interpreter (so it is also armed when never expanded, or expanded on an
+# unknown line); (3) otherwise the WHOLE logical line runs a known interpreter at some command position -> disarmed;
+# (4) cat/printf/echo/tee writes it to a file not named on a jq line -> disarmed, where "a jq line" means a line with a
+# bare jq/yq/gojq word (RE_JQ_WORD), so `/usr/bin/jq -f "$f"`, `"${JQ:-jq}" -f "$f"` and `jq -f "${f}"` do NOT arm the
+# generated file (known false negatives, CON-047); (5) anything else stays ARMED. Rule (2) reads any `NAME=` before the
+# quote, so an awk `-v NAME='..'` option or a `NAME='..' interp` environment prefix is armed too (known false positives
+# in the fail-closed direction, pinned as KNOWN-FAIL cases K1..K5 in tests/gates/test_gate_env_census_jq_regions.sh and
+# owned by CON-047; no further regex owner rule is added here, section 11.4.250).
+# Known, pre-existing and NOT closed here (the line is classified as a whole, not per simple command): a jq program
+# inside a line that ALSO runs an interpreter in another pipeline stage (`"${JQ:-jq}" -n '$ENV' | sed ...`), and a
+# jq-through-variable call on a line that also runs an interpreter in a command substitution
+# (`x=$(grep -c f g); jq_run -n 'env | keys'`) -- both quiet on main too (CON-015).
 _INTERP = (r"(?:awk|gawk|mawk|nawk|perl|python[\d.]*|ruby|node|nodejs|php|lua|sed|gsed|grep|egrep|fgrep|rg|expect|tclsh|"
            r"(?:ba|z|da|k)?sh\s+-c)")
 RE_NONJQ_CMD = re.compile(
@@ -201,7 +208,9 @@ def split_code(text, regions=None):
     non-blank run, so a word such as `NAME='a b'"$x"` stays ONE word for the structural scanners.
     Quote state is a stack: `$(`, a backquote and `(`-subshells open a fresh quoting context even inside "..."
     When `regions` is a list it receives, per line, a list of (owner, text) for the literal text of that line (owner from
-    _region_owner): the jq whole-environment rule reads only regions that are jq code."""
+    _region_owner): the jq whole-environment rule reads only regions that are jq code. Each single-quoted region ends
+    with an (owner, "\n") separator, so two regions of one line are never glued into one word (`'v' 'env | keys'` must
+    not read as `venv | keys`; review round 2 N3 / F7)."""
     exp, lit, code = [], [], []
     owner = ("other",)
     cont = ""         # text of the preceding backslash-continued physical lines of the current command line
@@ -226,7 +235,7 @@ def split_code(text, regions=None):
                 if sq == "$'" and c == "\\" and j + 1 < n:
                     l.append(line[j:j + 2]); rl.append((owner, line[j:j + 2])); emit("\x03\x03"); j += 2; continue
                 if c == "'":
-                    sq = None; emit("\x03")
+                    rl.append((owner, "\n")); sq = None; emit("\x03")
                 else:
                     l.append(c); rl.append((owner, c)); emit("\x03")
                 j += 1; continue
