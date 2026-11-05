@@ -168,7 +168,14 @@ fi
 # =============================================================================
 echo "-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --"
 
-MUT_M3C="$WORK/gate_runner_shard_mut_m3c.py"
+# CON-113: the mutant runs inside a scratch copy of the tool's own layout
+# (<fc>/gates/lib/gate_runner_shard.py beside <fc>/lib/fc_common.py), because
+# the tool imports fc_common from <its dir>/../../lib. A bare copy in $WORK
+# could not import it, never wrote plan.json, and was misread as "not flipped".
+MUT_FC="$WORK/fc_m3c"
+mkdir -p "$MUT_FC/gates/lib" "$MUT_FC/lib"
+cp "$FC/lib/fc_common.py" "$MUT_FC/lib/fc_common.py"
+MUT_M3C="$MUT_FC/gates/lib/gate_runner_shard.py"
 cp "$SHARD_TOOL" "$MUT_M3C"
 if ! python3 - "$MUT_M3C" <<'PYEOF'
 import sys
@@ -195,7 +202,14 @@ then
     bad "B0: mutation setup could not uniquely locate the normal/protected split in a fresh copy"
 else
     ok "B0: M3c mutation setup uniquely located and applied in a scratch copy"
-    run_plan "$MUT_M3C" "$WORK/plan_m3c"
+    # The unmutated copy in the same layout must plan cleanly first (control
+    # needle: the scratch layout itself works), else the flip says nothing.
+    cp "$SHARD_TOOL" "$MUT_FC/gates/lib/gate_runner_shard_ctl.py"
+    if ! run_plan "$MUT_FC/gates/lib/gate_runner_shard_ctl.py" "$WORK/plan_ctl" || [ ! -f "$WORK/plan_ctl/plan.json" ]; then
+        bad "B1: BLIND -- the unmutated tool copied into the scratch layout did not write a plan ($(cat "$WORK/plan.stderr")); the mutation flip cannot be judged"
+    elif ! run_plan "$MUT_M3C" "$WORK/plan_m3c" || [ ! -f "$WORK/plan_m3c/plan.json" ]; then
+        bad "B1: BLIND -- the M3c mutant did not write a plan ($(cat "$WORK/plan.stderr")); a failed mutant run is not a flip and not a non-flip"
+    else
     shard_of "$WORK/plan_m3c" > "$WORK/map_m3c.txt"
     PARALLEL_M3C=$(parallel_shards_of "$WORK/plan_m3c")
     PW_SHARD_M3C=$(shard_index_of_gate g_protected_writer "$WORK/map_m3c.txt")
@@ -204,6 +218,7 @@ else
         ok "B1: mutation-flip -- with M3c applied, g_protected_writer is now (incorrectly) scheduled into the ORDINARY PARALLEL batch (shard $PW_SHARD_M3C), confirming Section A1's guard is genuinely load-bearing, not tautological"
     else
         bad "B1: mutation-flip FAILED -- with M3c applied, g_protected_writer STILL landed outside the parallel set; this test cannot distinguish fixed from broken"
+    fi
     fi
 fi
 

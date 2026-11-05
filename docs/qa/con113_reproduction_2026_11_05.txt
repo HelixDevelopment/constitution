@@ -1,0 +1,112 @@
+# CON-113 reproduction and fix evidence (2026-11-05)
+# Host: Linux 7.0.0-42-generic; git version 2.53.0; Python 3.14.4; /bin/sh -> /usr/bin/dash
+# Tree: scratch clone of origin main bdc3ac43 (vehicle, section 11.4.288(B)); RED = pre-fix code, GREEN = fixed code, same command.
+
+===== RED: sh scripts/fastcycle/tests/test_gate_shard_r3_regression.sh (before)
+----- file: ev/fix6_red.out
+-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --
+ok real tool 'plan' invocation succeeded
+ok A1: g_protected_writer (writes docs/workable_items.db) is routed into a DEDICATED SERIAL shard (2), not the parallel batch (0 1)
+ok A2: g_protected_reader (reads the SAME protected path) is co-scheduled with its writer into the same dedicated serial shard -- the reader-of-protected-path sweep holds
+ok A3 (negative control): g_iso_a/g_iso_b (independent, non-protected writers) remain in the ORDINARY parallel batch, never swept into protected treatment -- the §11.4.201(1) false-positive guard
+-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --
+ok B0: M3c mutation setup uniquely located and applied in a scratch copy
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json, sys; d = json.load(open(sys.argv[1])); print(" ".join(str(i) for i in d["parallel_shards"]))
+                                    ~~~~^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/milosvasic/.cache/claude-tmp/tmp.Lq9HFT2POB/plan_m3c/plan.json'
+NOT ok B1: mutation-flip FAILED -- with M3c applied, g_protected_writer STILL landed outside the parallel set; this test cannot distinguish fixed from broken
+-- Section C: REAL gate_runner.sh --mode shard -- protected gate runs strictly after the parallel batch --
+ok C1: gate_runner.sh --mode shard exits 0 against the timed manifest
+ok C2: all 3 gates genuinely ran and recorded their own start/end timestamps
+par_a=[1793910908.079,1793910908.496] par_b=[1793910908.076,1793910908.494] prot=[1793910908.904,1793910909.319] latest_parallel_end=1793910908.496
+OK: protected gate's start (1793910908.904) is >= the latest parallel gate's end (1793910908.496) -- strictly-after ordering holds
+ok C3: REAL RUNTIME PROOF -- the protected gate's actual process only started after BOTH parallel gates had actually finished, verified by wall-clock timestamps the gates themselves recorded (never merely the planning-level JSON) -- THE R3-B2 FIX, closing the 'zero test coverage' gap
+---
+test_gate_shard_r3_regression.sh: FAIL -- see NOT ok lines above
+rc=1
+
+===== GREEN: same command (sh)
+----- file: ev/fix6_green_sh.out
+-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --
+ok real tool 'plan' invocation succeeded
+ok A1: g_protected_writer (writes docs/workable_items.db) is routed into a DEDICATED SERIAL shard (2), not the parallel batch (0 1)
+ok A2: g_protected_reader (reads the SAME protected path) is co-scheduled with its writer into the same dedicated serial shard -- the reader-of-protected-path sweep holds
+ok A3 (negative control): g_iso_a/g_iso_b (independent, non-protected writers) remain in the ORDINARY parallel batch, never swept into protected treatment -- the §11.4.201(1) false-positive guard
+-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --
+ok B0: M3c mutation setup uniquely located and applied in a scratch copy
+ok B1: mutation-flip -- with M3c applied, g_protected_writer is now (incorrectly) scheduled into the ORDINARY PARALLEL batch (shard 0), confirming Section A1's guard is genuinely load-bearing, not tautological
+-- Section C: REAL gate_runner.sh --mode shard -- protected gate runs strictly after the parallel batch --
+ok C1: gate_runner.sh --mode shard exits 0 against the timed manifest
+ok C2: all 3 gates genuinely ran and recorded their own start/end timestamps
+par_a=[1793910919.633,1793910920.057] par_b=[1793910919.629,1793910920.051] prot=[1793910920.578,1793910921.007] latest_parallel_end=1793910920.057
+OK: protected gate's start (1793910920.578) is >= the latest parallel gate's end (1793910920.057) -- strictly-after ordering holds
+ok C3: REAL RUNTIME PROOF -- the protected gate's actual process only started after BOTH parallel gates had actually finished, verified by wall-clock timestamps the gates themselves recorded (never merely the planning-level JSON) -- THE R3-B2 FIX, closing the 'zero test coverage' gap
+---
+test_gate_shard_r3_regression.sh: GREEN -- T071's tracker-DB/registry parallel-write protection holds at the planning layer (A), is proven genuinely load-bearing by mutation (B), AND is proven to hold at REAL RUNTIME through the actual shell orchestration (C) -- closing the R3-B2 zero-coverage gap at all three layers
+rc=0
+
+===== GREEN: bash
+----- file: ev/fix6_green_bash.out
+-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --
+ok real tool 'plan' invocation succeeded
+ok A1: g_protected_writer (writes docs/workable_items.db) is routed into a DEDICATED SERIAL shard (2), not the parallel batch (0 1)
+ok A2: g_protected_reader (reads the SAME protected path) is co-scheduled with its writer into the same dedicated serial shard -- the reader-of-protected-path sweep holds
+ok A3 (negative control): g_iso_a/g_iso_b (independent, non-protected writers) remain in the ORDINARY parallel batch, never swept into protected treatment -- the §11.4.201(1) false-positive guard
+-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --
+ok B0: M3c mutation setup uniquely located and applied in a scratch copy
+ok B1: mutation-flip -- with M3c applied, g_protected_writer is now (incorrectly) scheduled into the ORDINARY PARALLEL batch (shard 0), confirming Section A1's guard is genuinely load-bearing, not tautological
+-- Section C: REAL gate_runner.sh --mode shard -- protected gate runs strictly after the parallel batch --
+ok C1: gate_runner.sh --mode shard exits 0 against the timed manifest
+ok C2: all 3 gates genuinely ran and recorded their own start/end timestamps
+par_a=[1793910923.886,1793910924.311] par_b=[1793910923.863,1793910924.278] prot=[1793910924.795,1793910925.225] latest_parallel_end=1793910924.311
+OK: protected gate's start (1793910924.795) is >= the latest parallel gate's end (1793910924.311) -- strictly-after ordering holds
+ok C3: REAL RUNTIME PROOF -- the protected gate's actual process only started after BOTH parallel gates had actually finished, verified by wall-clock timestamps the gates themselves recorded (never merely the planning-level JSON) -- THE R3-B2 FIX, closing the 'zero test coverage' gap
+---
+test_gate_shard_r3_regression.sh: GREEN -- T071's tracker-DB/registry parallel-write protection holds at the planning layer (A), is proven genuinely load-bearing by mutation (B), AND is proven to hold at REAL RUNTIME through the actual shell orchestration (C) -- closing the R3-B2 zero-coverage gap at all three layers
+rc=0
+
+===== MUTATION A: fc_common not copied into the scratch layout -> must report BLIND
+----- file: ev/fix6_mutA.out
+-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --
+ok real tool 'plan' invocation succeeded
+ok A1: g_protected_writer (writes docs/workable_items.db) is routed into a DEDICATED SERIAL shard (2), not the parallel batch (0 1)
+ok A2: g_protected_reader (reads the SAME protected path) is co-scheduled with its writer into the same dedicated serial shard -- the reader-of-protected-path sweep holds
+ok A3 (negative control): g_iso_a/g_iso_b (independent, non-protected writers) remain in the ORDINARY parallel batch, never swept into protected treatment -- the §11.4.201(1) false-positive guard
+-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --
+ok B0: M3c mutation setup uniquely located and applied in a scratch copy
+NOT ok B1: BLIND -- the unmutated tool copied into the scratch layout did not write a plan (Traceback (most recent call last):
+  File "/home/milosvasic/.cache/claude-tmp/tmp.J52GKVhxe3/fc_m3c/gates/lib/gate_runner_shard_ctl.py", line 142, in <module>
+    import fc_common  # noqa: E402  (path-inserted import, see above)
+    ^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'fc_common'); the mutation flip cannot be judged
+-- Section C: REAL gate_runner.sh --mode shard -- protected gate runs strictly after the parallel batch --
+ok C1: gate_runner.sh --mode shard exits 0 against the timed manifest
+ok C2: all 3 gates genuinely ran and recorded their own start/end timestamps
+par_a=[1793910938.982,1793910939.419] par_b=[1793910939.001,1793910939.436] prot=[1793910939.948,1793910940.367] latest_parallel_end=1793910939.436
+OK: protected gate's start (1793910939.948) is >= the latest parallel gate's end (1793910939.436) -- strictly-after ordering holds
+ok C3: REAL RUNTIME PROOF -- the protected gate's actual process only started after BOTH parallel gates had actually finished, verified by wall-clock timestamps the gates themselves recorded (never merely the planning-level JSON) -- THE R3-B2 FIX, closing the 'zero test coverage' gap
+---
+test_gate_shard_r3_regression.sh: FAIL -- see NOT ok lines above
+rc=1
+
+===== MUTATION B: M3c replacement made a no-op -> B1 must report not flipped
+----- file: ev/fix6_mutB.out
+-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --
+ok real tool 'plan' invocation succeeded
+ok A1: g_protected_writer (writes docs/workable_items.db) is routed into a DEDICATED SERIAL shard (2), not the parallel batch (0 1)
+ok A2: g_protected_reader (reads the SAME protected path) is co-scheduled with its writer into the same dedicated serial shard -- the reader-of-protected-path sweep holds
+ok A3 (negative control): g_iso_a/g_iso_b (independent, non-protected writers) remain in the ORDINARY parallel batch, never swept into protected treatment -- the §11.4.201(1) false-positive guard
+-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --
+ok B0: M3c mutation setup uniquely located and applied in a scratch copy
+NOT ok B1: mutation-flip FAILED -- with M3c applied, g_protected_writer STILL landed outside the parallel set; this test cannot distinguish fixed from broken
+-- Section C: REAL gate_runner.sh --mode shard -- protected gate runs strictly after the parallel batch --
+ok C1: gate_runner.sh --mode shard exits 0 against the timed manifest
+ok C2: all 3 gates genuinely ran and recorded their own start/end timestamps
+par_a=[1793910942.999,1793910943.434] par_b=[1793910943.030,1793910943.456] prot=[1793910943.928,1793910944.356] latest_parallel_end=1793910943.456
+OK: protected gate's start (1793910943.928) is >= the latest parallel gate's end (1793910943.456) -- strictly-after ordering holds
+ok C3: REAL RUNTIME PROOF -- the protected gate's actual process only started after BOTH parallel gates had actually finished, verified by wall-clock timestamps the gates themselves recorded (never merely the planning-level JSON) -- THE R3-B2 FIX, closing the 'zero test coverage' gap
+---
+test_gate_shard_r3_regression.sh: FAIL -- see NOT ok lines above
+rc=1
