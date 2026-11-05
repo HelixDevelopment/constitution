@@ -1416,6 +1416,7 @@ def model(root, rel, args):
     return m
 
 # =============================================================================== runner engine
+import collections
 import fcntl
 import hashlib
 import json
@@ -1502,6 +1503,12 @@ def err(msg):
     sys.stderr.flush()
 
 
+def shown(path):
+    """A path for a message: never raises on output. A path decoded with os.fsdecode() (surrogateescape) may hold
+    the bytes of a name that is not UTF-8; they are shown as \\xNN (review r2 G1)."""
+    return os.fsencode(path).decode("utf-8", "backslashreplace")
+
+
 def git(root, *args, binary=False, check=True):
     p = subprocess.run(["git", "-C", root] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if check and p.returncode != 0:
@@ -1528,11 +1535,11 @@ def submodule_paths(root):
     p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--null", "--get-regexp",
                         r"^submodule\..*\.path$"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     paths = []
-    for rec in p.stdout.decode(errors="replace").split("\0"):
+    for rec in os.fsdecode(p.stdout).split("\0"):
         _key, nl, val = rec.partition("\n")
         if nl and val.rstrip("/"):
             paths.append(val.rstrip("/"))
-    for rec in git(root, "ls-files", "-s", "-z").split("\0"):
+    for rec in os.fsdecode(git(root, "ls-files", "-s", "-z", binary=True)).split("\0"):
         meta, tab, path = rec.partition("\t")
         if tab and meta.startswith("160000 "):
             paths.append(path)
@@ -1573,7 +1580,7 @@ def census(root):
                       stderr=subprocess.DEVNULL).returncode != 0:
         raise Fatal(2, "census impossible: %s is not a git work tree" % root)
     subs = submodule_paths(root)
-    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
+    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))
     listed = sorted(set(x for x in raw.split("\0") if x))
     if not listed:
         raise Fatal(3, "census instrument blind: git ls-files listed nothing under %s (positive control failed)" % root)
@@ -1586,6 +1593,16 @@ def census(root):
         p = os.path.join(root, f)
         if "\n" in f or "\t" in f:
             probs.append("census: file name with a newline or TAB cannot be listed in the manifest: %r" % f)
+            continue
+        if f != os.fsencode(f).decode("utf-8", "replace"):
+            # not UTF-8 (os.fsdecode kept the bytes as surrogates): the manifest is UTF-8 text, so the name cannot be
+            # written there; before CON-030 round 3 it was decoded to U+FFFD, not found on disk, and dropped silently
+            probs.append("census: file name that is not UTF-8 cannot be listed in the manifest: %s" % shown(f))
+            continue
+        if f.startswith("#"):
+            # a manifest line that starts with `#` is a comment, so such a row would be read as one and lost
+            probs.append("census: file name that starts with '#' (the manifest comment marker) cannot be listed in "
+                         "the manifest: %r" % f)
             continue
         if os.path.islink(p) and not os.path.exists(p):
             if "/fixtures/" in "/" + f:
@@ -1786,21 +1803,31 @@ def generate(root, existing):
         if heavy:
             rows[r][4] = "runall-members"
             rows[r][6] = "auto: invokes %d heavy member(s)" % len(heavy)
-    for m in sorted(set(go_module(root, g) or ("?" + g) for g in gofiles)):
+    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):
+        # a *_test.go outside every module gives None and no row; the old `"?" + path` marker also dropped a real
+        # module whose directory name starts with `?` (CON-030 round 3 class)
         if m in existing:
             rows[m] = existing[m]
-        elif not m.startswith("?"):
+        else:
             rows[m] = [m, "go", "entry", "default", "go-test", "-", "auto: Go module with *_test.go"]
     return [rows[k] for k in sorted(rows)]
+
+
+def crlf_line(line):
+    """One line of a TAB-separated table read split on "\\n": a trailing CR (a CRLF file) is dropped. It can only
+    belong to the LAST column (a note, a signature or a hash), never to the path in the first column."""
+    return line[:-1] if line.endswith("\r") else line
 
 
 def read_manifest(path):
     if not os.path.isfile(path):
         raise Fatal(3, "manifest missing: %s (generate with --generate-manifest --write)" % path)
     rows, seen = [], set()
-    with open(path, errors="replace") as fh:
-        for n, line in enumerate(fh, 1):
-            line = line.rstrip("\n")
+    with open(path, errors="replace", newline="") as fh:
+        # split on "\n" only: text-mode iteration also ends a line at a CR, which a path may hold (CON-030 r3 class);
+        # crlf_line() keeps a CRLF file readable (the CR it drops belongs to the last column, never to a path)
+        for n, line in enumerate(fh.read().split("\n"), 1):
+            line = crlf_line(line)
             if not line or line.startswith("#"):
                 continue
             cols = line.split("\t")
@@ -2043,8 +2070,8 @@ def read_excl_lock(path):
     if not os.path.isfile(path):
         return None
     body, last, acc = {}, None, []
-    with open(path, errors="replace") as fh:
-        for line in fh.read().splitlines():
+    with open(path, errors="replace", newline="") as fh:
+        for line in map(crlf_line, fh.read().split("\n")):
             if line.startswith("# accepted "):
                 acc.append(line)
                 mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
@@ -2131,7 +2158,7 @@ def known_sub_paths(root):
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         if p.returncode != 0:
             continue
-        for rec in p.stdout.decode(errors="replace").split("\0"):
+        for rec in os.fsdecode(p.stdout).split("\0"):
             meta, tab, path = rec.partition("\t")
             if not tab or not meta.startswith("160000 "):
                 continue
@@ -2146,7 +2173,7 @@ def known_sub_paths(root):
 def status_lines(stdout):
     """The lines of `git submodule status` output, split on "\\n" only (review r1 F2: str.splitlines() also splits on
     CR, FF, VT, FS, GS, RS, NEL, LS and PS, which git allows in a path). Empty lines are dropped."""
-    return [l for l in stdout.decode(errors="replace").split("\n") if l]
+    return [l for l in os.fsdecode(stdout).split("\n") if l]
 
 
 def parse_sub_status(line, known):
@@ -2185,7 +2212,12 @@ def topology(root):
     layout = "consumer (inside %s)" % sup if sup else "standalone"
     p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
-    gaps, n, known = [], 0, known_sub_paths(root)
+    gaps, n, known, seen = [], 0, known_sub_paths(root), set()
+    for path in sorted(x for x in known if "\n" in x):
+        # git prints such a path across lines, so its own status cannot be read, and its fragments may each equal a
+        # known path (review r2 G2, fixture nlD): a gap always, whatever the fragments parse as (fail closed)
+        gaps.append("submodule path contains a newline (git prints it across lines; its status cannot be read): %r"
+                    % (path,))
     for line in status_lines(p.stdout):
         n += 1
         parsed = parse_sub_status(line, known)
@@ -2194,22 +2226,26 @@ def topology(root):
                         "[ (<describe>)]): %r" % line)
             continue
         flag, sha, path = parsed
+        if path in seen:
+            gaps.append("submodule %s is named by more than one status line" % shown(path))
+            continue
+        seen.add(path)
         if flag == "-":
-            gaps.append("uninitialised submodule: %s" % path)
+            gaps.append("uninitialised submodule: %s" % shown(path))
             continue
         if flag == "U":
-            gaps.append("submodule with merge conflicts: %s" % path)
+            gaps.append("submodule with merge conflicts: %s" % shown(path))
             continue
         if flag == "+":
-            gaps.append("drifted submodule: %s is checked out at %s, not the recorded commit" % (path, sha[:12]))
+            gaps.append("drifted submodule: %s is checked out at %s, not the recorded commit" % (shown(path), sha[:12]))
             continue
         if flag != " ":
-            gaps.append("submodule %s: unknown status flag %r" % (path, flag))
+            gaps.append("submodule %s: unknown status flag %r" % (shown(path), flag))
             continue
         q = subprocess.run(["git", "-C", os.path.join(root, path), "cat-file", "-e", sha + "^{commit}"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if q.returncode != 0:
-            gaps.append("submodule %s: recorded commit %s is not in its object store" % (path, sha[:12]))
+            gaps.append("submodule %s: recorded commit %s is not in its object store" % (shown(path), sha[:12]))
     if p.returncode != 0:
         msg = p.stderr.decode(errors="replace").strip().splitlines()
         gaps.append("git submodule status failed (rc %d): %s" % (p.returncode, msg[-1] if msg else ""))
@@ -2257,45 +2293,59 @@ def sub_paths(root):
     out_, known = [], known_sub_paths(root)
     for line in status_lines(p.stdout):
         parsed = parse_sub_status(line, known)
-        if parsed is not None and parsed[0] != "-":
+        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:
             out_.append(parsed[2])
     return out_
+
+
+QuickIdent = collections.namedtuple("QuickIdent", "heads status")
+QuickIdent.__doc__ = """In-memory quick identity (never written, never parsed back). heads: a tuple of (path, value)
+pairs in the order quick_ident() was given, the root first with path None (a path is always a str, so the root can
+never be confused with a submodule); status: the root status hash. A value is the hex string git printed, or None
+when git failed (None is not a str, so no value git prints can read as unknown). CON-030 round 3 (review r2 G3,
+section 11.4.276(E)(3)): this replaces the flat `<path>=<value>` text, whose `status` key and `.`/`?` markers a
+submodule path could collide with."""
 
 
 def quick_ident(root, subs):
     """R5-1 (review r5): cheap identity checked before every unit and at the end -- HEAD of the root and
     of every initialised submodule, and the sha256 of the root `git status --porcelain -z` (tracked,
-    untracked and submodule changes). A git failure gives `?`, which never equals a start value.
-    The fields are `<path>=<value>` joined by a newline (CON-030). A submodule path may contain a space, a TAB or
-    `=`; it can contain a newline in git, but no path sub_paths() returns does, because each comes from one
-    newline-free status line (review r1 F3). The value is a sha, `?` or a hash and never contains `=`."""
-    parts = []
-    for rel in [""] + list(subs):
-        q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "rev-parse", "HEAD"],
+    untracked and submodule changes). A git failure gives None, which never equals a start value and makes
+    ident_unknown() true. Returns a QuickIdent (structured, no in-band keys or sentinels)."""
+    heads = []
+    for rel in [None] + list(subs):
+        q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel is not None else root, "rev-parse", "HEAD"],
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        parts.append("%s=%s" % (rel or ".", q.stdout.decode(errors="replace").strip() if q.returncode == 0 else "?"))
+        heads.append((rel, os.fsdecode(q.stdout).strip() if q.returncode == 0 else None))
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
                          "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    parts.append("status=%s" % (hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else "?"))
-    return "\n".join(parts)
-
-
-def ident_fields(q):
-    """{path: value} of a quick identity; the value is after the LAST `=` (a path may contain `=`, review r1 F8)."""
-    return dict((k, v) for k, _eq, v in (x.rpartition("=") for x in q.split("\n")))
+    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)
 
 
 def ident_unknown(q):
-    """True when a field of the quick identity is `?` (a git failure). Read per field value, so a `?` in a submodule
-    PATH is not mistaken for one (review r1 F8)."""
-    return "?" in ident_fields(q).values()
+    """True when any value of the quick identity is None (a git failure), whatever the submodule is called."""
+    return q.status is None or any(v is None for _p, v in q.heads)
+
+
+def ident_label(field):
+    """Report label of one identity field: ("head", None) root HEAD, ("head", path) a submodule (the path in repr(),
+    so a CR, a TAB, a quote, `=`, `?` or non-UTF-8 bytes are shown exactly and never read as a separator),
+    ("status",) the root status. The three shapes cannot produce the same label."""
+    if field[0] == "status":
+        return "root status"
+    return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)
 
 
 def ident_diff(a, b):
-    """The fields of two quick identities that differ, for the report."""
-    da, db = ident_fields(a), ident_fields(b)
-    return ", ".join("%s %s -> %s" % (k, da.get(k, "absent")[:12], db.get(k, "absent")[:12])
-                     for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or db.get(k, "?") == "?")
+    """The fields of two quick identities that differ, or that are unknown (None) in b, compared by position (both
+    identities are built from the same submodule list); unknown is shown as `?`."""
+    fa = [(("head", p), v) for p, v in a.heads] + [(("status",), a.status)]
+    fb = [(("head", p), v) for p, v in b.heads] + [(("status",), b.status)]
+    if [k for k, _v in fa] != [k for k, _v in fb]:
+        return "the two identities list different fields (%d / %d)" % (len(fa), len(fb))
+    show = lambda v: "?" if v is None else v[:12]
+    return ", ".join("%s %s -> %s" % (ident_label(k), show(va), show(vb))
+                     for (k, va), (_k, vb) in zip(fa, fb) if va != vb or vb is None)
 
 
 def discarded_members(root, rows, heavy_mode):
@@ -2901,44 +2951,47 @@ def tree_state(root):
     """Hash of the working tree: status, diff vs HEAD, untracked contents, every submodule's own status
     and diff (recursive), and ignored files (name, size, content hash) except IGNORED_NOT_HASHED."""
     h = hashlib.sha256()
-    h.update(git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none", binary=True))
-    h.update(git(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--no-color", binary=True, check=False))
-    for f in sorted(x for x in git(root, "ls-files", "-o", "--exclude-standard", "-z", binary=True).decode(errors="replace").split("\0") if x):
-        h.update(b"U" + f.encode())
-        h.update(file_digest(os.path.join(root, f)))
+    hrec(h, b"status", git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none", binary=True))
+    hrec(h, b"diff", git(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--no-color", binary=True, check=False))
+    for f in sorted(x for x in git(root, "ls-files", "-o", "--exclude-standard", "-z", binary=True).split(b"\0") if x):
+        hrec(h, b"U", f)
+        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))
     if os.path.isfile(os.path.join(root, ".gitmodules")) or "160000 " in git(root, "ls-files", "-s", check=False):
-        h.update(git(root, "submodule", "foreach", "--recursive", "--quiet",
-                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD --binary --no-ext-diff --no-color",
-                     binary=True, check=False))
-    ign = git(root, "ls-files", "-o", "-i", "--exclude-standard", "-z", binary=True, check=False).decode(errors="replace")
-    for f in sorted(x for x in ign.split("\0") if x):
-        if any(p.search(f) for p in IGNORED_NOT_HASHED):
+        hrec(h, b"subs", git(root, "submodule", "foreach", "--recursive", "--quiet",
+                             "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD --binary --no-ext-diff --no-color",
+                             binary=True, check=False))
+    ign = git(root, "ls-files", "-o", "-i", "--exclude-standard", "-z", binary=True, check=False)
+    for f in sorted(x for x in ign.split(b"\0") if x):
+        if any(p.search(os.fsdecode(f)) for p in IGNORED_NOT_HASHED):
             continue
-        h.update(b"I" + f.encode())
-        h.update(file_digest(os.path.join(root, f)))
+        hrec(h, b"I", f)
+        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))
     return h.hexdigest()
 
 
 def file_digest(p):
+    """Content identity of one path (bytes): b"L" + the symlink target, b"F" + the sha256 of a file, None when it
+    cannot be read. The path and the target are bytes, so a name or a target that is not UTF-8 is hashed as git
+    gave it (review r2 G1 class; the old str path crashed on such a target). Callers frame it with hrec()."""
     try:
         if os.path.islink(p):
-            return b"L" + os.readlink(p).encode()
+            return b"L" + os.readlink(p)
         hh = hashlib.sha256()
         with open(p, "rb") as fh:
             for blk in iter(lambda: fh.read(1 << 20), b""):
                 hh.update(blk)
-        return hh.digest()
+        return b"F" + hh.digest()
     except OSError:
-        return b"?"
+        return None
 
 
 def load_known(path):
     rows = []
     if not os.path.isfile(path):
         return rows, "absent"
-    with open(path, errors="replace") as fh:
-        for n, line in enumerate(fh, 1):
-            line = line.rstrip("\n")
+    with open(path, errors="replace", newline="") as fh:
+        for n, line in enumerate(fh.read().split("\n"), 1):
+            line = crlf_line(line)
             if not line or line.startswith("#"):
                 continue
             c = line.split("\t")
@@ -2962,11 +3015,24 @@ def match_known(known, path, reason, logtext):
 
 
 def file_bytes(p):
+    """The bytes of a file, or None when it cannot be read (an absent file is not a content any file can have;
+    CON-030 round 3 class: the old b"<absent>" marker equalled a file with exactly that content)."""
     try:
         with open(p, "rb") as fh:
             return fh.read()
     except OSError:
-        return b"<absent>"
+        return None
+
+
+def hrec(h, tag, data):
+    """Feed one length-framed record into a hash: tag, the byte count, then the data (None: an absent record).
+    Two different sequences of records can never feed the same bytes, so no name, symlink target or file content
+    can absorb or imitate a neighbouring record (CON-030 round 3 class, section 11.4.276(C))."""
+    if data is None:
+        h.update(tag + b"-;")
+    else:
+        h.update(tag + b"%d:" % len(data))
+        h.update(data)
 
 
 # ----------------------------------------------------------------------------- main
@@ -3153,8 +3219,10 @@ def main(argv):
     id_changed = ""
     with open(os.path.abspath(__file__), "rb") as fh:
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
-    ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)
-                         + b"\0excluded\0" + file_bytes(lock_path)).hexdigest()[:16]
+    ch = hashlib.sha256()
+    for tag, fp in ((b"manifest", manifest), (b"known", known), (b"excluded", lock_path)):
+        hrec(ch, tag, file_bytes(fp))
+    ctx = ch.hexdigest()[:16]
     if not outdir:
         base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ.get("HOME", "/nonexistent"), ".cache")
         outdir = os.path.realpath(os.path.join(base, "full_suite_runner", "%s-%s-%s" % (os.path.basename(root), sha[:12], tree[:12])))
@@ -3255,7 +3323,7 @@ def main(argv):
         if v in BAD:
             lp = os.path.join(outdir, o["log"])
             body = file_bytes(lp)
-            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:
+            if body is not None and hashlib.sha256(body).hexdigest() == o["log_sha256"]:
                 kid = match_known(known_rows, u["path"], o["reason"], body.decode("utf-8", errors="replace"))
             elif known_rows:
                 err("WARN: log %s does not match its recorded sha256; KNOWN not applied" % lp)

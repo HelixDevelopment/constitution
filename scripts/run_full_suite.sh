@@ -13,7 +13,7 @@
 #   .js under a test directory with one of those words. A Go file counts toward its nearest
 #   go.mod module (`go test -count=1 ./...`). Every census file needs exactly one manifest
 #   row of class entry | member | fixture | excluded. A file without a row, a stale row, a
-#   broken rule, a file name with a newline/TAB, a dangling symlink outside fixtures/, an
+#   broken rule, a file name with a newline/TAB, not UTF-8 or starting with `#`, a dangling symlink outside fixtures/, an
 #   empty ls-files (blind census) or a failed census needle => exit 3, nothing runs.
 #   NOT covered: submodule contents.
 # EXCLUDED  note `reason: <category>: <why>`, category in helper|library|oracle|fake|gate|
@@ -38,9 +38,10 @@
 #   drifted (+) or missing-commit submodule, an unknown flag, an unparseable status line, or a failing status
 #   command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
 #   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). Paths are never cut out of the status
-#   text (git prints them unquoted): they come from `git ls-files -s -z` (recursive), and a status
-#   line that does not name exactly one of them (for example a path containing a newline, which git
-#   prints across two lines) is the gap "unparseable git submodule status line". See the guide for preparing a
+#   text (git prints them unquoted): they come from `git ls-files -s -z` (recursive, read as the bytes git
+#   gave), and a status line that does not name exactly one of them is the gap "unparseable git submodule
+#   status line"; a path containing a newline (git prints it across lines) and a path named by two status
+#   lines are gaps of their own. See the guide for preparing a
 #   checkout cheaply with `git clone --shared` and local submodule urls.
 # IDENTITY  head=<sha12> subs=<hash> dirty=<clean|hash|unknown> is printed, stored in every
 #   record and in every RESULT line; a non-empty git status (root or any submodule, untracked

@@ -1096,7 +1096,7 @@ now = m.quick_ident(root, subs)
 subprocess.run(["git", "-C", root + "/sub dir", "reset", "-q", "--hard", "HEAD~1"], check=True)
 before = m.quick_ident(root, subs)
 d = m.ident_diff(before, now)
-print(("sub dir " in d), d.count("->"))
+print(d.startswith("submodule 'sub dir' "), d.count("->"))
 PY
 )" "True 2"
 # topology: an unparseable `git submodule status` line is a gap (fail closed), never skipped silently (git shim prints one)
@@ -1163,7 +1163,7 @@ root = sys.argv[2]; subs = m.sub_paths(root); before = m.quick_ident(root, subs)
 subprocess.run(["git", "-C", root + "/k=v", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "mv"], check=True)
 d = m.ident_diff(before, m.quick_ident(root, subs))
 subprocess.run(["git", "-C", root + "/k=v", "reset", "-q", "--hard", "HEAD~1"], check=True)
-print(d.startswith("k=v "), d.count("->"))
+print(d.startswith("submodule 'k=v' "), d.count("->"))
 PY
 )" "True 2"
 # uninitialised (fresh clone): every path whole, `x (xyz)` included (git prints no describe on a `-` line), and
@@ -1184,9 +1184,9 @@ chk "CON-030 r2 newline path: both status fragments are unparseable gaps, sub_pa
 import sys, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 g = m.topology(sys.argv[2])[2]
-print(m.sub_paths(sys.argv[2]), len(g), all(x.startswith("unparseable git submodule status line") for x in g), sorted(m.known_sub_paths(sys.argv[2])))
+print(m.sub_paths(sys.argv[2]), len(g), g[0].startswith("submodule path contains a newline"), all(x.startswith("unparseable git submodule status line") for x in g[1:]), sorted(m.known_sub_paths(sys.argv[2])))
 PY
-)" "[] 2 True ['nl\\nx']"
+)" "[] 3 True True ['nl\\nx']"
 # parse_sub_status table: SHA-256 width, ambiguity, unknown path, describe with a space, '-'/'U' never carry a describe
 chk "CON-030 r2 parse_sub_status table (sha256, ambiguous, unknown, spaced describe, '-' and 'U')" "$(python3 -I - "$ENGINE" <<'PY'
 import sys, importlib.util
@@ -1196,10 +1196,206 @@ rows = [(" " + h2 + " sub dir (heads/main)", {"sub dir"}), ("+" + h2 + " sub dir
         (" " + h + " x (y)", {"x", "x (y)"}), (" " + h + " x (y) (heads/main)", {"x", "x (y)"}),
         (" " + h + " zz (heads/main)", {"sub dir"}), (" " + h + " a (b c)", {"a"}),
         ("-" + h + " x (xyz)", {"x", "x (xyz)"}), ("U" + "0" * 40 + " con flict", {"con flict"}),
-        (" " + h.upper() + " a", {"a"}), (" " + h + "  lead (heads/main)", {" lead", "lead"}), ("", {""})]
+        (" " + h.upper() + " a", {"a"}), (" " + h + "  lead (heads/main)", {" lead", "lead"}), ("", {""}),
+        (" " + h + " x (yz", {"x", "x (yz"}), (" " + h + " x ()", {"x", "x ()"})]
 print([None if r is None else (r[0], len(r[1]), r[2]) for r in (m.parse_sub_status(l, k) for l, k in rows)])
 PY
-)" "[(' ', 64, 'sub dir'), ('+', 64, 'sub dir'), None, (' ', 40, 'x (y)'), None, None, ('-', 40, 'x (xyz)'), ('U', 40, 'con flict'), None, (' ', 40, ' lead'), None]"
+)" "[(' ', 64, 'sub dir'), ('+', 64, 'sub dir'), None, (' ', 40, 'x (y)'), None, None, ('-', 40, 'x (xyz)'), ('U', 40, 'con flict'), None, (' ', 40, ' lead'), None, (' ', 40, 'x (yz'), (' ', 40, 'x ()')]"
+
+# --- CON-030 round 3 (review r2 G1-G4, G12; section 11.4.276(E)(3) structural round): the quick identity is a
+# structure (QuickIdent: (path, value) pairs, root path None, unknown value None), not `<path>=<value>` text whose
+# `status` key and `.`/`?` markers a submodule path could collide with. Every check below drives the real engine
+# against repositories made with real git.
+# G3: a submodule named `status` whose HEAD does not resolve. Round 2 read the identity into a dict, the root status
+# field overwrote the submodule's `?`, and the run ended PASS-FULL (rc 0). The control is the same break on `other`.
+for nm in status other; do
+  g3="$T/g3_$nm"; mkroot "$g3"; sut "$g3" tests/a/test_g3.sh 'echo "passed=1 failed=0"'
+  for p in plain "$nm"; do git -C "$g3" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1; done
+  gen "$g3"; gitc "$g3" add -A; gitc "$g3" commit -q -m s
+  gd=$(git -C "$g3/$nm" rev-parse --absolute-git-dir); printf 'ref: refs/heads/unborn-r3\n' > "$gd/HEAD"
+  if git -C "$g3/$nm" rev-parse HEAD >/dev/null 2>&1; then ko "CON-030 r3 G3 precondition: HEAD of '$nm' does not resolve"
+  else ok "CON-030 r3 G3 precondition: HEAD of '$nm' does not resolve"; fi
+  run "$g3" "$T/o_g3_$nm" --include-heavy
+  chk "CON-030 r3 G3: unresolvable HEAD in submodule '$nm' -> rc 1 (never PASS-FULL)" "$RC" "1"
+  has "CON-030 r3 G3: RESULT FAIL names the identity ('$nm')" '^RESULT: FAIL \(identity changed during the run' "$T/o_g3_$nm.log"
+  has "CON-030 r3 G3: IDENTITY CHANGED names submodule '$nm' as unknown at both ends" "^IDENTITY CHANGED before unit tests/a/test_g3.sh: submodule '$nm' \? -> \?" "$T/o_g3_$nm.log"
+  hasnt "CON-030 r3 G3: the root status is not reported for '$nm' (its value did not change)" 'root status' "$T/o_g3_$nm.log"
+done
+# QuickIdent: unknown is per value, whatever the path; labels of the root fields cannot be produced by any path
+chk "CON-030 r3 QuickIdent: unknown per value, never per path; labels distinct" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+Q, h = m.QuickIdent, "0" * 40
+good = Q(((None, h), ("status", h), ("?", h), ("status=?", h), (".", h)), "abc")
+print(m.ident_unknown(good), m.ident_unknown(Q(((None, h), ("status", None)), "abc")),
+      m.ident_unknown(Q(((None, h),), None)), m.ident_unknown(Q(((None, None),), "abc")),
+      len(set(map(m.ident_label, [("head", None), ("status",), ("head", "status"), ("head", "root HEAD"),
+                                    ("head", "root status"), ("head", ".")]))),
+      m.ident_diff(good, Q(((None, h), ("status", None), ("?", h), ("status=?", h), (".", h)), "abc")))
+PY
+)" "False True True True 6 submodule 'status' 000000000000 -> ?"
+# RV7 successor: a CR-class path is named exactly in IDENTITY CHANGED (repr), never cut at the CR
+chk "CON-030 r3 ident_diff names a submodule 'cr\\rx' whose HEAD moved, exactly" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); before = m.quick_ident(root, subs); p = root + "/cr\rx"
+subprocess.run(["git", "-C", p, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "mv"], check=True)
+d = m.ident_diff(before, m.quick_ident(root, subs))
+subprocess.run(["git", "-C", p, "reset", "-q", "--hard", "HEAD~1"], check=True)
+print(d.split(" -> ")[0].rsplit(" ", 1)[0], d.count("->"))
+PY
+)" "submodule 'cr\\rx' 2"
+
+# G1: a submodule path that is not UTF-8 is read as the bytes git gave (os.fsdecode, surrogateescape), so `git -C`
+# finds it: round 2 decoded it to U+FFFD and refused a clean checkout (REFUSED-TOPOLOGY rc 9)
+u8="$T/u8sub"; mkroot "$u8"; sut "$u8" tests/a/test_u8.sh 'echo "passed=1 failed=0"'
+git -C "$u8" -c protocol.file.allow=always submodule add -q "$sp/lib" "$(printf 'bad\377name')" >/dev/null 2>&1
+gen "$u8"; gitc "$u8" add -A; gitc "$u8" commit -q -m s
+if [ -n "$(git -C "$u8" ls-files -s -z | tr '\0' '\n' | grep -a "$(printf 'bad\377name')")" ]; then ok "CON-030 r3 G1 precondition: git recorded the non-UTF-8 path"
+else ko "CON-030 r3 G1 precondition: git recorded the non-UTF-8 path"; fi
+run "$u8" "$T/o_u8" --include-heavy
+chk "CON-030 r3 G1: a clean checkout with a non-UTF-8 submodule path runs (rc 0, not REFUSED-TOPOLOGY)" "$RC" "0"
+has "CON-030 r3 G1: topology reports 1 submodule and no gap" 'topology: .*submodules=1 gaps=0' "$T/o_u8/summary.txt"
+git clone -q "$u8" "$u8.fresh" >/dev/null 2>&1
+chk "CON-030 r3 G1: an uninitialised non-UTF-8 path is named with \\xNN in its gap" "$(python3 -I - "$ENGINE" "$u8.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2], m.known_sub_paths(sys.argv[2]) == {"bad\udcffname"})
+PY
+)" "['uninitialised submodule: bad\\\\xffname'] True"
+
+# G2: a newline path whose status fragments each equal a known path (nlD: submodules `a`, `b` and `a\n <sha> b`).
+# Round 2 parsed the fragments as `a` and `b` (0 gaps, `b` twice); now the newline path is a gap of its own and a
+# path named by two lines is a gap, so such a checkout is REFUSED-TOPOLOGY, never silently half-read.
+nld="$T/nldsub"; mkroot "$nld"; sut "$nld" tests/a/test_nl.sh 'echo "passed=1 failed=0"'
+for p in a b; do git -C "$nld" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1; done
+gen "$nld"; lsha=$(git -C "$sp/lib" rev-parse HEAD)
+printf '[submodule "nl"]\n\tpath = "a\\n %s b"\n\turl = %s\n' "$lsha" "$sp/lib" >> "$nld/.gitmodules"
+gitc "$nld" add -A; gitc "$nld" update-index --add --cacheinfo "160000,$lsha,$(printf 'a\n %s b' "$lsha")"; gitc "$nld" commit -q -m nl
+git -C "$nld" submodule status --recursive > "$T/nld_status.txt" 2>&1
+if [ "$(grep -c "^-$lsha a\$" "$T/nld_status.txt")" = 1 ] && [ "$(grep -c "^ $lsha b\$" "$T/nld_status.txt")" = 1 ]; then
+  ok "CON-030 r3 G2 precondition: git prints the newline path as fragments equal to 'a' and 'b'"
+else ko "CON-030 r3 G2 precondition: git prints the newline path as fragments equal to 'a' and 'b' ($(tr '\n' '|' < "$T/nld_status.txt"))"; fi
+chk "CON-030 r3 G2: newline path gap + one gap per doubly named path, sub_paths without duplicates" "$(python3 -I - "$ENGINE" "$nld" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+g = m.topology(sys.argv[2])[2]
+print(m.sub_paths(sys.argv[2]), [x.split(" (", 1)[0] if x.startswith("submodule path") else x for x in g])
+PY
+)" "['a', 'b'] ['submodule path contains a newline', 'submodule a is named by more than one status line', 'submodule b is named by more than one status line']"
+run "$nld" "$T/o_nld" --include-heavy
+chk "CON-030 r3 G2 end to end: the nlD checkout is REFUSED-TOPOLOGY (rc 9), never PASS-FULL" "$RC" "9"
+
+# class members outside the identity (section 11.4.276(C)): other in-band markers a user-controlled name can hit
+# (1) Go module directory whose name starts with `?`: the census used `"?" + path` as its "no module" marker
+gm="$T/gomodq"; mkroot "$gm"; mkdir -p "$gm/?mod" "$gm/plainmod"
+for d in "?mod" plainmod; do printf 'module example.com/m\n\ngo 1.21\n' > "$gm/$d/go.mod"
+  printf 'package m\nimport "testing"\nfunc TestX(t *testing.T) {}\n' > "$gm/$d/x_test.go"; done
+gitc "$gm" add -A; gitc "$gm" commit -q -m go; gen "$gm"
+chk "CON-030 r3 class: a Go module in directory '?mod' gets its go-test row (was dropped)" \
+  "$(awk -F'\t' '$5=="go-test"{printf "[%s]", $1}' "$gm/config/full_suite_manifest.tsv")" "[?mod][plainmod]"
+# (2) a file name that starts with `#` (the manifest comment marker): named, not "census file without manifest row"
+hm="$T/hashname"; mkroot "$hm"; sut "$hm" '#t/test_h.sh' 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m h
+gen "$hm"; gitc "$hm" add -A; gitc "$hm" commit -q -m m; vfy "$hm" "$T/hm.log"
+chk "CON-030 r3 class: a '#'-leading test path -> --verify-manifest rc 3" "$RC" "3"
+has "CON-030 r3 class: the '#' path is named as such" "census: file name that starts with '#' \(the manifest comment marker\) cannot be listed in the manifest: '#t/test_h.sh'" "$T/hm.log"
+hasnt "CON-030 r3 class: not misreported as a missing manifest row" 'census file without manifest row' "$T/hm.log"
+# (3) a test path with a CR: the manifest is read split on "\n" only (text-mode iteration also splits on a CR)
+cr="$T/crname"; mkroot "$cr"; sut "$cr" "$(printf 'c\rd')/test_c.sh" 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m c
+gen "$cr"; gitc "$cr" add -A; gitc "$cr" commit -q -m m; vfy "$cr" "$T/cr.log"
+chk "CON-030 r3 class: a test path with a CR -> --verify-manifest rc 0 (was 'want 7 TAB columns', rc 3)" "$RC" "0"
+run "$cr" "$T/o_cr" --include-heavy
+chk "CON-030 r3 class: the CR path runs end to end (rc 0)" "$RC" "0"
+chk "CON-030 r3 class: the CR path's unit passed" "$(verdict "$T/o_cr" "$(printf 'c\rd')/test_c.sh")" "PASS||summary"
+# (4) a test file whose name is not UTF-8: named; round 2 decoded it to U+FFFD, did not find it and dropped it silently
+nu="$T/nonutf8"; mkroot "$nu"; sut "$nu" "tests/a/$(printf 'test_\377.sh')" 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m u
+gen "$nu"; gitc "$nu" add -A; gitc "$nu" commit -q -m m; vfy "$nu" "$T/nu.log"
+chk "CON-030 r3 class: a non-UTF-8 test file name -> --verify-manifest rc 3 (was MANIFEST-OK without it)" "$RC" "3"
+has "CON-030 r3 class: the non-UTF-8 name is named with \\xNN" 'census: file name that is not UTF-8 cannot be listed in the manifest: tests/a/test_\\xff\.sh' "$T/nu.log"
+# (5) tree_state records are length-framed: a symlink target can no longer absorb the records after it, a non-UTF-8
+# target is hashed (round 2 crashed on it), and an unreadable file is not a content
+chk "CON-030 r3 class: tree_state framing (no absorbed record, non-UTF-8 target hashed)" "$(python3 -I - "$ENGINE" "$T/tsframe" <<'PY'
+import sys, os, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; os.makedirs(root)
+subprocess.run(["git", "init", "-q", root], check=True); open(os.path.join(root, ".gitignore"), "w").write("a\nb\n")
+a, b, res = os.path.join(root, "a"), os.path.join(root, "b"), []
+for t1 in ("xIbLy", "xIbDLy"):  # the two record shapes an unframed hash merges (old tags, and the D tag added here)
+    os.symlink("x", a); os.symlink("y", b); s2 = m.tree_state(root); os.remove(a); os.remove(b)
+    os.symlink(t1, a); s1 = m.tree_state(root); os.remove(a); res.append(s1 != s2)
+os.symlink(b"t\xff", a.encode()); s3 = m.tree_state(root); os.remove(a)
+os.symlink(b"t\xfe", a.encode()); res.append(s3 != m.tree_state(root)); os.remove(a)
+print(res, m.file_bytes(os.path.join(root, "nope")), m.file_digest(os.path.join(root, "nope").encode()))
+PY
+)" "[True, True, True] None None"
+chk "CON-030 r3 class: file_bytes of an absent file differs from a file holding '<absent>'" "$(python3 -I - "$ENGINE" "$T/fbabs" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+os.makedirs(sys.argv[2]); p = os.path.join(sys.argv[2], "k"); open(p, "wb").write(b"<absent>")
+print(m.file_bytes(os.path.join(sys.argv[2], "nope")) is None, m.file_bytes(p))
+PY
+)" "True b'<absent>'"
+# (6) the other two TAB tables a path can be in (known failures, excluded lock) are split on "\n" only too, and a
+# CRLF file is still read (its CR belongs to the last column, never to the path)
+chk "CON-030 r3 class: known table and excluded lock keep a CR in a path; CRLF tolerated" "$(python3 -I - "$ENGINE" "$T/crtab" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+d = sys.argv[2]; os.makedirs(d); k, l = os.path.join(d, "known.tsv"), os.path.join(d, "lock")
+open(k, "w", newline="").write("# c\nc\rd/t.sh\treason:x\tCON-1\tnote\r\nplain\treason:y\tCON-2\tn\n")
+open(l, "w", newline="").write("# h\r\nc\rd/t.sh\t0123456789abcdef\nq\tfedcba9876543210\r\n")
+print(m.load_known(k)[0], sorted(m.read_excl_lock(l)[0].items()))
+PY
+)" "[['c\\rd/t.sh', 'reason:x', 'CON-1', 'note'], ['plain', 'reason:y', 'CON-2', 'n']] [('c\\rd/t.sh', '0123456789abcdef'), ('q', 'fedcba9876543210')]"
+
+# G4 / G12 (review r2): exact known_sub_paths() sets (a runaway recursion into an empty gitlink directory adds
+# bogus `./` entries), a nested uninitialised path with parentheses, a real `U` line on a spaced path, and a real
+# SHA-256 superproject
+chk "CON-030 r3 G4: known_sub_paths() of a fresh clone is exactly the top-level paths" "$(python3 -I - "$ENGINE" "$mp.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(sorted(m.known_sub_paths(sys.argv[2])))
+PY
+)" "[' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+g12="$T/g12"; git init -q "$g12.inner"; gitc "$g12.inner" commit -q --allow-empty -m i
+git -C "$g12.inner" -c protocol.file.allow=always submodule add -q "$sp/lib" "in (ner)" >/dev/null 2>&1; gitc "$g12.inner" commit -q -m n
+mkroot "$g12"; git -C "$g12" -c protocol.file.allow=always submodule add -q "$g12.inner" "nest (ed)" >/dev/null 2>&1
+gitc "$g12" commit -q -m s; git clone -q "$g12" "$g12.c" >/dev/null 2>&1
+git -C "$g12.c" -c protocol.file.allow=always submodule update -q --init >/dev/null 2>&1
+chk "CON-030 r3 G12: nested uninitialised 'nest (ed)/in (ner)' is one whole gap, known set exact" "$(python3 -I - "$ENGINE" "$g12.c" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2], sorted(m.known_sub_paths(sys.argv[2])), m.sub_paths(sys.argv[2]))
+PY
+)" "['uninitialised submodule: nest (ed)/in (ner)'] ['nest (ed)', 'nest (ed)/in (ner)'] ['nest (ed)']"
+uc="$T/ucon"; git init -q "$uc.lib"; gitc "$uc.lib" commit -q --allow-empty -m one; gitc "$uc.lib" commit -q --allow-empty -m two
+mkroot "$uc"; git -C "$uc" -c protocol.file.allow=always submodule add -q "$uc.lib" "con (flict) )" >/dev/null 2>&1
+gitc "$uc" commit -q -m s; base=$(git -C "$uc" rev-parse --abbrev-ref HEAD); s1=$(git -C "$uc.lib" rev-parse HEAD~1)
+gitc "$uc.lib" commit -q --allow-empty -m three; s3=$(git -C "$uc.lib" rev-parse HEAD)
+gitc "$uc" checkout -q -b side; gitc "$uc" update-index --cacheinfo "160000,$s1,con (flict) )"; gitc "$uc" commit -q -m side
+gitc "$uc" checkout -q "$base"; gitc "$uc" update-index --cacheinfo "160000,$s3,con (flict) )"; gitc "$uc" commit -q -m main3
+gitc "$uc" merge -q side >/dev/null 2>&1
+if git -C "$uc" submodule status 2>/dev/null | grep -q '^U'; then ok "CON-030 r3 G12 precondition: git prints a real U line"
+else ko "CON-030 r3 G12 precondition: git prints a real U line ($(git -C "$uc" submodule status 2>&1 | tr '\n' '|'))"; fi
+chk "CON-030 r3 G12: a real U line on 'con (flict) )' names the path whole" "$(python3 -I - "$ENGINE" "$uc" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2])
+PY
+)" "['submodule with merge conflicts: con (flict) )']"
+s256="$T/s256"
+if git init -q --object-format=sha256 "$s256.lib" 2>/dev/null; then
+  gitc "$s256.lib" commit -q --allow-empty -m i; git init -q --object-format=sha256 "$s256"; gitc "$s256" commit -q --allow-empty -m i
+  for p in plaint 'sub dir' 'x (xyz)'; do git -C "$s256" -c protocol.file.allow=always submodule add -q "$s256.lib" "$p" >/dev/null 2>&1; done
+  gitc "$s256/plaint" tag 'v1(beta)'; gitc "$s256" commit -q -m s
+  if git -C "$s256" submodule status | grep -qE '^ [0-9a-f]{64} plaint \(v1\(beta\)\)$'; then ok "CON-030 r3 G12 precondition: SHA-256 status lines (64 hex, describe v1(beta))"
+  else ko "CON-030 r3 G12 precondition: SHA-256 status lines ($(git -C "$s256" submodule status 2>&1 | tr '\n' '|'))"; fi
+  chk "CON-030 r3 G12: a real SHA-256 superproject reads every path whole, 0 gaps" "$(python3 -I - "$ENGINE" "$s256" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(sorted(m.sub_paths(sys.argv[2])), m.topology(sys.argv[2])[2])
+PY
+)" "['plaint', 'sub dir', 'x (xyz)'] []"
+else echo "SKIP CON-030 r3 G12 SHA-256 case: reason sha256_unsupported (git cannot init --object-format=sha256)"; fi
 
 # --- F11 (review r1): a suite that writes an IGNORED file into the tree changes tree_state() but not the quick
 # identity (which hashes `git status`, and an ignored file is not in it), so the tree branch itself must decide.

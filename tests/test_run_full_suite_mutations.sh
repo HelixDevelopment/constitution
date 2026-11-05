@@ -19,7 +19,16 @@
 # dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own; M30a-M30n guard CON-030 (submodule paths read whole: the
 # sub_paths / topology parser, the known-path set from `git ls-files -s -z`, the newline-joined quick identity; they
 # are unrelated to the lock mutant M30, the ids are selected by exact token) and RA RB RF are the reviewer-authored
-# mutants of CON-030 review r1 (section 11.4.276(D)). A mutant counts as KILLED only when the self-test
+# mutants of CON-030 review r1 (section 11.4.276(D)). CON-030 round 3 (review r2, structural round): the quick
+# identity became a structure (QuickIdent), so M30b (identity fields joined by a space), M30m (partition instead of
+# rpartition of `<path>=<value>`) and M30n (`?` searched in the whole text) are removed with the text they mutated;
+# G3D (the round-2 dict check, whose root `status` key a submodule `status` overwrote) and G3R (unknown checked on
+# the root only) take their place; M32 X4 X5 M30a M30i M30l RB are re-anchored to the round-3 code with the same
+# change; RV1-RV8 are the reviewer-authored mutants of review r2 (RV3 RV7 RV8 re-anchored to the structural code:
+# unknown never detected, a path label without repr(), unknown-at-both-ends not reported); C1-C13 guard the class
+# members fixed in round 3 (the `?` Go-module marker, unframed tree hash, `#` and non-UTF-8 census names, CR-safe
+# table readers, the newline-path and doubly-named gaps, bytes symlink targets, the old `<absent>` marker, path
+# display and surrogateescape decoding). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -65,7 +74,7 @@ M28	        return 6\n	        return 0\n
 M29	            if overflow and not timed_out:	            if False:
 M30	        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)	        pass
 M31	            if o["seq"] != n or o["prev"] != want_prev:	            if False:
-M32	        h.update(b"I" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        pass
+M32	        hrec(h, b"I", f)\n        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))	        pass
 M33	                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD	                     "true; git status --porcelain=v1 -z --untracked-files=all >/dev/null; git diff HEAD >/dev/null
 M34	        flip = len(set(r["verdict"] for r in mine)) > 1	        flip = False
 M35	        if o["log"] in logs:	        if False:
@@ -77,8 +86,8 @@ R5	                    timed_out, term_at = True, now	                    term_a
 R6	    if not real.startswith(sreal + os.sep) or not os.path.basename(real).startswith("fsr_"):	    if False:
 X1	    return o["verdict"] in VERDICTS	    return True
 X3	WIN = 12	WIN = 2
-X4	            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:	            if True:
-X5	        h.update(b"U" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        h.update(b"U" + f.encode())
+X4	            if body is not None and hashlib.sha256(body).hexdigest() == o["log_sha256"]:	            if True:
+X5	        hrec(h, b"U", f)\n        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))	        hrec(h, b"U", f)
 X9	    if not isinstance(pgid, int) or pgid <= 1 or pgid == os.getpgrp():	    if not isinstance(pgid, int):
 V1	        l = CTRL.sub("", ESC.sub("", l)).rstrip()	        l = l.rstrip()
 V2	        if "\\r" in l:\n            over, l = l.rsplit("\\r", 1)	        if False:\n            pass
@@ -134,23 +143,46 @@ L1	    if os.path.islink(path):\n        return set(), "operator roster	    if F
 L2	    if os.path.islink(lock_path):	    if False:
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
-M30a	        parsed = parse_sub_status(line, known)\n        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
-M30b	    return "\\n".join(parts)	    return " ".join(parts)
+M30a	        parsed = parse_sub_status(line, known)\n        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
 M30c	        flag, sha, path = parsed\n	        flag, rest = line[0], line[1:].split()\n        sha, path = rest[0], rest[1]\n
 M30d	                        "[ (<describe>)]): %r" % line)\n            continue	                        "[ (<describe>)]): %r" % line)\n            gaps.pop()\n            continue
 M30e	            if d and " " not in d and rest[:i] in known:	            if d and " " not in d and "(" not in d and ")" not in d and rest[:i] in known:
 M30f	        if rest in known:\n            cands.add	        if True:\n            cands.add
 M30g	    return cands.pop() if len(cands) == 1 else None	    return cands.pop() if cands else None
 M30h	        if flag in (" ", "+") and i >= 0	        if i >= 0
-M30i	    return [l for l in stdout.decode(errors="replace").split("\\n") if l]	    return [l for l in stdout.decode(errors="replace").splitlines() if l]
+M30i	    return [l for l in os.fsdecode(stdout).split("\\n") if l]	    return [l for l in os.fsdecode(stdout).splitlines() if l]
 M30j	                    todo.append(full)	                    pass
 M30k	"config", "-f", ".gitmodules", "--null", "--get-regexp",	"config", "-f", ".gitmodules", "--get-regexp",
-M30l	    for rec in git(root, "ls-files", "-s", "-z").split("\\0"):	    for rec in git(root, "ls-files", "-s").split("\\n"):
-M30m	(x.rpartition("=") for x in q.split("\\n"))	(x.partition("=") for x in q.split("\\n"))
-M30n	    return "?" in ident_fields(q).values()	    return "?" in q
+M30l	    for rec in os.fsdecode(git(root, "ls-files", "-s", "-z", binary=True)).split("\\0"):	    for rec in git(root, "ls-files", "-s").split("\\n"):
 RA	    for w in (40, 64):	    for w in (40,):
-RB	        if parsed is not None and parsed[0] != "-":\n            out_.append(parsed[2])	        if parsed is not None:\n            out_.append(parsed[2])
+RB	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:\n            out_.append(parsed[2])	        if parsed is not None and parsed[2] not in out_:\n            out_.append(parsed[2])
 RF	            out_.append(parsed[2])	            out_.append(parsed[2].strip())
+G3D	    return q.status is None or any(v is None for _p, v in q.heads)	    return None in dict([(p or ".", v) for p, v in q.heads] + [("status", q.status)]).values()
+G3R	    return q.status is None or any(v is None for _p, v in q.heads)	    return q.status is None or q.heads[0][1] is None
+RV1	        if flag in (" ", "+") and i >= 0 and rest.endswith(")"):	        if flag in (" ", "+") and i >= 0:
+RV2	            if d and " " not in d and rest[:i] in known:	            if " " not in d and rest[:i] in known:
+RV3	    return q.status is None or any(v is None for _p, v in q.heads)	    return False
+RV4	                if os.path.lexists(os.path.join(root, full, ".git")):	                if True:
+RV5	        i = rest.rfind(" (")	        i = rest.find(" (")
+RV6	        if nl and val.rstrip("/"):\n            paths.append(val.rstrip("/"))	        if nl and val.rstrip("/"):\n            paths.append(val.strip().rstrip("/"))
+RV7	    return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)	    return "root HEAD" if field[1] is None else "submodule %s" % (field[1],)
+RV8	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb or vb is None)	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb)
+C1	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None and not mm.startswith("?"))):
+C2	        h.update(tag + b"%d:" % len(data))	        h.update(tag)
+C3	        if f.startswith("#"):	        if False:
+C4	        if f != os.fsencode(f).decode("utf-8", "replace"):	        if False:
+C5	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols
+C5k	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line
+C5x	        for line in map(crlf_line, fh.read().split("\\n")):	        for line in fh.read().splitlines():
+C5c	    return line[:-1] if line.endswith("\\r") else line	    return line
+C6	    for path in sorted(x for x in known if "\\n" in x):	    for path in []:
+C7	        if path in seen:	        if False:
+C8	            return b"L" + os.readlink(p)	            return b"L" + os.readlink(os.fsdecode(p)).encode()
+C9	        return None\n\n\ndef hrec	        return b"<absent>"\n\n\ndef hrec
+C10	    return os.fsencode(path).decode("utf-8", "backslashreplace")	    return path
+C11	        for rec in os.fsdecode(p.stdout).split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):	        for rec in p.stdout.decode(errors="replace").split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):
+C12	    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))	    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
+C13	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:	        if parsed is not None and parsed[0] != "-":
 EOF
 )
 
