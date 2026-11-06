@@ -1813,3 +1813,15 @@ scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket 
 
 ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after).
 
+## CON-113 — env-read census reported cm_github_issues_source_anchor_wired.sh:334 eval as UNCOVERED since 090e8062
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `same command` — signature `UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (indirect)` — updated 2026-11-06T08:56:46Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `new gate from 090e8062 shipped without its allowlist row` — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — updated 2026-11-06T08:56:46Z — by `AI`
+
+Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added.
+

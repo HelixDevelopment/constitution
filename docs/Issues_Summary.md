@@ -6,13 +6,13 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 6 |
+| Bug | In progress | 7 |
 | Bug | Queued | 21 |
 | Bug | Ready for testing | 1 |
 | Task | Operator-blocked | 1 |
 | Task | Queued | 76 |
 | Task | Ready for testing | 3 |
-| **TOTAL** | | **108** |
+| **TOTAL** | | **109** |
 
 ## Items
 
@@ -126,3 +126,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-110 | Bug | In progress | medium | scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-111 | Bug | In progress | low | scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-112 | Bug | In progress | medium | ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
+| CON-113 | Bug | In progress | medium | Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
