@@ -41,7 +41,7 @@
 #     --pending-threshold N  sync is BULK when pending unresolved refs >= N, N >= 1
 #                            (default $CG_SAFE_PENDING_BULK_MIN, else 150000)
 #     --patches IDS          comma list of runner patches to apply (default
-#                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the VALIDATED subset,
+#                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the subset validated on a live index,
 #                            see below); `all` = the patch tool's registry default
 #                            (fkidx1,resolve1,resolve2; lockfix1/datafrag1 only by name,
 #                            CON-109 Option A). fkidx1 must be

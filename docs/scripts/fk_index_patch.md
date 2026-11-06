@@ -1,7 +1,14 @@
 # fk_index_patch — guide
 
-**Revision:** 3
-**Last modified:** 2026-11-05T22:20:00Z
+**Revision:** 4
+**Last modified:** 2026-11-06T09:30:00Z
+
+Revision 4 note (2026-11-06): `tests/test_patch_machinery.py` has 19 cases
+(P2g, P2h, P4d, P4e added from the review round-1 cases X1-X4: a planted symlink,
+an exec bit on a non-launcher file, a `.partial` that is a regular file, a `[]`
+receipt). Its summary line is now `SUMMARY pass=N fail=F skip=S (ids)`; exit 0
+all PASS, 1 a FAIL, 77 no FAIL but P3b SKIPped (`reason=artifact_not_yet_built`),
+so the full-suite runner reads a skipped run as SKIP, never as PASS or ERROR.
 
 Revision 3 note: on 2026-11-05 the operator decided CON-109 (Option A). The
 registry default is now the tested set `fkidx1,resolve1,resolve2`; lockfix1 and
@@ -331,8 +338,8 @@ Relations, all verified from `plan_all` on stock 1.6.0:
 These are facts about the tree on the verification date, recorded so nobody
 relies on the tool doing more than it does.
 
-1. **`tests/test_patch_machinery.py`: one case stays RED (P3), by design until
-   an operator decision.** On 2026-11-05 the tool gained the behaviours P1, P2
+1. **`tests/test_patch_machinery.py`: all cases pass since revision 3 (P3 was
+   RED until the CON-109 Option A decision of 2026-11-05).** On 2026-11-05 the tool gained the behaviours P1, P2
    and P4 pin: list-anchor uniqueness in fkidx1 (a commented or duplicated
    `static BULK_*_NAMES = [...]` refuses, exit 2, no runner), whole-tree and
    launcher checks before `REUSED` / `--print-bin`, removal of a stale
@@ -435,4 +442,7 @@ directory listing was identical before and after):
 - `tests/test_resolve2.sh` 3/3 PASS, `test_resolve1.sh` 7/7 PASS,
   `test_mcp_readonly.sh` 13/13 PASS; mutation harnesses: resolve2 golden + 5/5
   mutants killed, resolve1 golden + 5/5 killed, mcp_readonly 10/10 killed.
-- `tests/test_patch_machinery.py`: 1 FAIL (P3) / 12 PASS on 2026-11-05 (see Known discrepancies).
+- `tests/test_patch_machinery.py`: 1 FAIL (P3) / 12 PASS on 2026-11-05 before the CON-109 decision;
+  `SUMMARY fails=0` after it (revision 3); 19/19 PASS on 2026-11-06 (revision 4,
+  `SUMMARY pass=19 fail=0 skip=0`), and the four review mutants R1a2, R1b, R1d, R1e
+  are each killed by one of P2h, P2g, P4d, P4e.

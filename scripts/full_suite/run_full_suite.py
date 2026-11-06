@@ -2679,28 +2679,65 @@ def unit_env(home, token, runner, extras, gomodcache):
 GO_NOT_CACHED = re.compile(r"^go: (\S+@\S+): module lookup disabled by GOPROXY=off\s*$")
 
 
+def go_mod_escape(path):
+    """Module-cache case escaping (golang.org/x/mod/module.EscapePath): each upper-case letter becomes `!` + lower."""
+    return "".join("!" + c.lower() if "A" <= c <= "Z" else c for c in path)
+
+
+def go_not_cached_modules(rc, stderr_text, cachedir):
+    """Pure classifier for go_module_preflight. Returns the sorted `<module>@<version>` list ONLY when the probe
+    failed, EVERY non-empty error line is the `module lookup disabled by GOPROXY=off` class, and EVERY named module
+    is genuinely absent from the module cache (no `<cache>/cache/download/<escaped module>/@v/<escaped version>.zip`).
+    The error line alone is a proxy (section 11.4.201): Go prints the same line for a module that IS cached when
+    go.sum lacks its entry (the checksum lookup goes through the disabled proxy), and that is a source defect that
+    must stay a FAIL. Any other outcome returns [] and the unit runs as usual."""
+    if rc == 0 or not cachedir:
+        return []
+    errs = [ln for ln in stderr_text.splitlines() if ln.strip()]
+    mods = [GO_NOT_CACHED.match(ln) for ln in errs]
+    if not errs or not all(mods):
+        return []
+    found = sorted(set(m.group(1) for m in mods))
+    for mv in found:
+        mod, _, ver = mv.rpartition("@")
+        z = os.path.join(cachedir, "cache", "download", *go_mod_escape(mod).split("/"), "@v", go_mod_escape(ver) + ".zip")
+        if os.path.lexists(z):
+            return []
+    return found
+
+
 def go_module_preflight(u, scratch, extras, gomodcache, tmo=120):
     """Missing-module check for a go-test unit, in the unit's own environment (GOPROXY=off, host GOMODCACHE).
 
-    Returns the sorted list of `<module>@<version>` that are absent from the module cache when, and only
-    when, `go mod download` failed and EVERY error line it printed is the not-cached class (`module lookup
-    disabled by GOPROXY=off`). Any other outcome (success, timeout, a different error, no parsable line)
-    returns [] and the unit runs as usual, so a real defect is never reclassified as an environment SKIP."""
+    The probe never writes into the repository under test: copies of go.mod and go.sum go to a scratch directory
+    and `go mod download -modfile=<scratch>/go.mod` reads and writes only those copies (the module root is still
+    the unit directory, so relative `replace` paths resolve as in the real run). The verdict comes from
+    go_not_cached_modules, which also checks the cache itself; a real defect is never reclassified as an
+    environment SKIP."""
     home = tempfile.mkdtemp(prefix="fsr_gopre.", dir=scratch)
     try:
         env = unit_env(home, secrets.token_hex(16), "go-test", extras, gomodcache)
+        mdir = os.path.join(ROOT, u["path"])
+        probe = os.path.join(home, "probe")
+        os.makedirs(probe)
+        for name in ("go.mod", "go.sum"):
+            src = os.path.join(mdir, name)
+            if os.path.isfile(src):
+                shutil.copyfile(src, os.path.join(probe, name))
+        if not os.path.isfile(os.path.join(probe, "go.mod")):
+            return []
         try:
-            p = subprocess.run(["go", "mod", "download"], cwd=os.path.join(ROOT, u["path"]), env=env,
-                               stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=tmo)
+            cachedir = gomodcache
+            if not cachedir:
+                q = subprocess.run(["go", "env", "GOMODCACHE"], cwd=home, env=env, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=tmo)
+                cachedir = q.stdout.decode("utf-8", "replace").strip() if q.returncode == 0 else ""
+            p = subprocess.run(["go", "mod", "download", "-modfile=" + os.path.join(probe, "go.mod")], cwd=mdir,
+                               env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               timeout=tmo)
         except (OSError, subprocess.TimeoutExpired):
             return []
-        if p.returncode == 0:
-            return []
-        errs = [ln for ln in p.stderr.decode("utf-8", "replace").splitlines() if ln.strip()]
-        mods = [GO_NOT_CACHED.match(ln) for ln in errs]
-        if not errs or not all(mods):
-            return []
-        return sorted(set(m.group(1) for m in mods))
+        return go_not_cached_modules(p.returncode, p.stderr.decode("utf-8", "replace"), cachedir)
     finally:
         rm_tree(home, scratch)
 

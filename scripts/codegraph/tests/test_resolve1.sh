@@ -13,6 +13,8 @@
 #                    `calls` ref once vue is detected) and stay <= R4_MAX
 #                R5  vue.resolveComponent's .vue subset is derived once per file-list
 #                    identity (probe counts files scanned per resolve call)
+#                R5b a .vue file added after the first resolve, then clearCaches(), is
+#                    found (the subset is never served stale from an older list)
 #                R6  resolution output (sorted edge dump sha256) is byte-identical
 #                    to the STOCK package on a mixed-language fixture (vue present)
 #                R7  same on a vue-free fixture
@@ -62,17 +64,20 @@ run_index() {
 calls_of() { awk -F'getAllFilePaths=' '{split($2,a," "); s+=a[1]} END{print s+0}' "$W/$1.cnt"; }
 
 probe() {
-    # probe <fixture> <label> [vue] — index the fixture, then probe a COPY of its DB
+    # probe <fixture> <label> [vue] — index the fixture, then probe a COPY of its DB; sets P to the
+    # probe's JSON. Runs in the CALLER's shell (never inside $(...)), so a helper failure reported
+    # with t_bad here is counted (review I5-1: inside a command substitution it was lost).
     python3 "$HERE/test_resolve1_fixture.py" "$1" 300 20 --mixed $( [ -z "${3:-}" ] && echo --novue ) \
         || t_bad FIXTURE "fixture $2 generated" "rc=$?"
     run_index "$DIST" "$1" "$2"
-    cp "$1/.codegraph/codegraph.db" "$W/$2.db"
+    cp "$1/.codegraph/codegraph.db" "$W/$2.db" || t_bad PROBE "DB copy of $2" "rc=$?"
     "$NODE" --disable-warning=ExperimentalWarning "$HERE/test_resolve1_probe.js" "$DIST/lib/dist" \
-        "$W/$2.db" "$1" ${3:-} > "$W/$2.json" 2> "$W/$2.perr"
-    cat "$W/$2.json"
+        "$W/$2.db" "$1" ${3:-} > "$W/$2.json" 2> "$W/$2.perr" \
+        || t_bad PROBE "probe $2 ran" "rc=$? $(head -c 300 "$W/$2.perr")"
+    P="$(cat "$W/$2.json" 2>/dev/null)"
 }
 jq_() { python3 -c "import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2]))" "$P" "$1"; }
-if t_want R1 || t_want R2 || t_want R3; then P="$(probe "$W/fx_novue" probe_novue)"; echo "probe $P"; fi
+if t_want R1 || t_want R2 || t_want R3; then probe "$W/fx_novue" probe_novue; echo "probe $P"; fi
 if t_want R1; then
     [ "$(jq_ same)" = True ] && [ "$(jq_ frozen)" = True ] && [ "$(jq_ order_ok)" = True ]
     t_check R1 "one frozen ORDER BY path array per generation" $? "$P"
@@ -86,12 +91,15 @@ if t_want R3; then
     t_check R3 "initialize() re-detects frameworks against the current file set" $? "$P"
 fi
 if t_want R5; then
-    P="$(probe "$W/fx_vue" probe_vue vue)"; echo "probe-vue $P"
+    probe "$W/fx_vue" probe_vue vue; echo "probe-vue $P"
     # vue_scan_1st > 0 proves the probe reached the .vue scan at all (§11.4.199 precondition):
     # a ref the resolver rejects early scans nothing on stock AND patched, so 2nd==0 alone proves nothing.
     [ "$(jq_ vue)" = True ] && [ "$(jq_ vue_scan_1st)" -gt 0 ] 2>/dev/null && [ "$(jq_ vue_scan_2nd)" = 0 ] \
         && [ "$(jq_ vue_resolve_ok)" = True ]
     t_check R5 "vue .vue subset derived once per file-list identity" $? "$P"
+    # R5b (review I2-1): a .vue file added after the first resolve + clearCaches() is found (no stale subset)
+    [ "$(jq_ vue_new_found)" = True ]
+    t_check R5b "a .vue file added after clearCaches() is found (subset not stale)" $? "$P"
 fi
 if t_want R4; then
     F1="$W/fx_r100"; F4="$W/fx_r400"

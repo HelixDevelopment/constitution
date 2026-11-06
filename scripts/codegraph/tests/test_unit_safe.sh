@@ -18,6 +18,8 @@
 #              reaps short-lived stub processes (identity-checked before signals)
 # Dependencies bash, node (node:sqlite), python3
 # Cross-refs   ../codegraph_safe.sh, run_all.sh, test_mutation.sh
+# U64         the preflight's REAL df read (no stub df; memory faked): free_bytes numeric, equal to an
+#             independent df of the same target (review I3-1)
 # U47-U63     consumer-data MemAvailable floor (limits file key min_mem_avail_gib = the only mechanism that can LOWER it;
 #             env CG_SAFE_MIN_MEM_AVAIL_KB may only RAISE it; lower bound 16 GiB = 2 x heap floor; strict decimal
 #             grammar; regular-file/size/duplicate/nested/empty refusals; sanitised echo; byte-identical default output;
@@ -115,13 +117,16 @@ spawn_cg_identity() {
 HERM_DIR="$(t_workdir herm)"; mkdir -p "$HERM_DIR/tool" "$HERM_DIR/bin"
 cp -r "$CG_DIR"/. "$HERM_DIR/tool/"; rm -rf "$HERM_DIR/tool/__pycache__"
 sed -i 's#/proc/meminfo#${CG_FAKE_MEMINFO:-/proc/meminfo}#g' "$HERM_DIR/tool/codegraph_safe.sh"
-printf '#!/bin/sh\nprintf "Avail\\n%%s\\n" "${CG_FAKE_DF_AVAIL:-999999999999}"\n' > "$HERM_DIR/bin/df"; chmod +x "$HERM_DIR/bin/df"
+# The stub answers ONLY the invocation the real code makes (`df -B1 --output=avail <existing path>`) and
+# refuses anything else (review I3-1: an argument-blind stub let a broken real df call pass unseen).
+printf '#!/bin/sh\nif [ "$#" -ne 3 ] || [ "$1" != -B1 ] || [ "$2" != --output=avail ] || [ ! -e "$3" ]; then echo "stub df: unexpected args: $*" >&2; exit 2; fi\nprintf "Avail\\n%%s\\n" "${CG_FAKE_DF_AVAIL:-999999999999}"\n' > "$HERM_DIR/bin/df"; chmod +x "$HERM_DIR/bin/df"
 printf 'MemTotal: 67108864 kB\nMemAvailable: 50331648 kB\n' > "$HERM_DIR/meminfo"
 # control (§11.4.273): every /proc/meminfo read of the real tool is redirected in the copy, and the
 # stub df answers; a copy that still read the host would make the hermetic claim false.
 if [ "$(grep -c 'CG_FAKE_MEMINFO' "$HERM_DIR/tool/codegraph_safe.sh")" != "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" ] \
    || [ "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" -lt 1 ] \
-   || [ "$(CG_FAKE_DF_AVAIL=123 "$HERM_DIR/bin/df" -B1 --output=avail . | tail -n 1)" != 123 ]; then
+   || [ "$(CG_FAKE_DF_AVAIL=123 "$HERM_DIR/bin/df" -B1 --output=avail . | tail -n 1)" != 123 ] \
+   || "$HERM_DIR/bin/df" -B1 --output=pcent . >/dev/null 2>&1; then
     t_bad HERMETIC "hermetic copy redirects every /proc/meminfo read and the stub df answers" \
         "copy=$(grep -c 'CG_FAKE_MEMINFO' "$HERM_DIR/tool/codegraph_safe.sh") real=$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")"
 fi
@@ -526,7 +531,7 @@ if t_want U38; then setup u38; export STUB_PATCH_RC=0
     [ "$d1" = "patch_tool --patches fkidx1,resolve1 --print-bin" ] && [ "$d2" = "patch_tool --patches fkidx1,lockfix1,resolve1 --print-bin" ] \
         && [ "$d3" = "patch_tool --patches fkidx1 --print-bin" ] && [ "$d4" = "patch_tool --print-bin" ] \
         && [ "$e1" -eq 2 ] && [ "$e2" -eq 2 ] && [ "$e3" -eq 2 ] && [ "$n1" -eq 0 ]
-    t_check U38 "patch set: default = validated subset fkidx1,resolve1 (untested lockfix1/datafrag1 NOT default); --patches / CG_SAFE_PATCHES pass through; 'all' = registry default; malformed -> exit 2" $? "d1=[$d1] d2=[$d2] d3=[$d3] d4=[$d4] e=$e1,$e2,$e3 n1=$n1"
+    t_check U38 "patch set: default = the live-index-validated subset fkidx1,resolve1 (untested lockfix1/datafrag1 NOT default); --patches / CG_SAFE_PATCHES pass through; 'all' = registry default; malformed -> exit 2" $? "d1=[$d1] d2=[$d2] d3=[$d3] d4=[$d4] e=$e1,$e2,$e3 n1=$n1"
 fi
 
 if t_want U39; then setup u39; export STUB_PATCH_RC=0
@@ -659,7 +664,7 @@ rich_setup() {
     RICH_DIR="$(t_workdir rich)"; mkdir -p "$RICH_DIR/tool" "$RICH_DIR/bin"
     cp -r "$CG_DIR"/. "$RICH_DIR/tool/"; rm -rf "$RICH_DIR/tool/__pycache__"
     sed -i 's#/proc/meminfo#${CG_FAKE_MEMINFO:-/proc/meminfo}#g' "$RICH_DIR/tool/codegraph_safe.sh"
-    printf '#!/bin/sh\nprintf "Avail\\n999999999999\\n"\n' > "$RICH_DIR/bin/df"; chmod +x "$RICH_DIR/bin/df"
+    printf '#!/bin/sh\nif [ "$#" -ne 3 ] || [ "$1" != -B1 ] || [ "$2" != --output=avail ] || [ ! -e "$3" ]; then echo "stub df: unexpected args: $*" >&2; exit 2; fi\nprintf "Avail\\n999999999999\\n"\n' > "$RICH_DIR/bin/df"; chmod +x "$RICH_DIR/bin/df"
     [ "$(grep -c 'CG_FAKE_MEMINFO' "$RICH_DIR/tool/codegraph_safe.sh")" = "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" ]
 }
 rich_pf() {
@@ -902,6 +907,21 @@ if t_want U63; then setup u63; rich_setup
     rich_pf $((64 * GK))
     [ "$(pf_val db_bytes)" = 3145728 ]
     t_check U63 "symlinked .codegraph/codegraph.db: db_bytes is the TARGET size (3145728), not the link size" $? "db_bytes=$(pf_val db_bytes)"
+fi
+
+if t_want U64; then setup u64; rich_setup
+    # review I3-1: the REAL disk read of the preflight (codegraph_safe.sh `df -B1 --output=avail <target>`), with
+    # only memory faked. No stub df on PATH: free_bytes must be the number the real df reports for the same target
+    # (control needle: an independent real df read of that target, taken right after; equal within 1 GiB, since
+    # other writers on the volume move it between the two reads).
+    printf 'MemTotal: 67108864 kB\nMemAvailable: %s kB\n' $((64 * GK)) > "$W/meminfo"
+    OUT="$(env -u CG_SAFE_LIMITS_FILE -u CG_SAFE_MIN_MEM_AVAIL_KB CG_FAKE_MEMINFO="$W/meminfo" CG_SAFE_MIN_THREAD_HEADROOM=0 \
+        bash "$RICH_DIR/tool/codegraph_safe.sh" --project "$P" preflight 2>&1)"; RC=$?
+    fb="$(pf_val free_bytes)"; tgt="$P/.codegraph"; [ -d "$tgt" ] || tgt="$P"
+    ref="$(df -B1 --output=avail "$tgt" 2>/dev/null | tail -n 1 | tr -d ' ')"
+    case "$fb$ref" in ''|*[!0-9]*) false ;; *) d=$((fb - ref)); [ "${d#-}" -lt 1073741824 ] ;; esac
+    t_check U64 "preflight's real df read: free_bytes is numeric and matches an independent df of the same target (no stub df)" $? \
+        "free_bytes=$fb ref=$ref rc=$RC out=$(printf '%s' "$OUT" | head -c 300 | tr '\n' ' ')"
 fi
 
 t_finish

@@ -112,7 +112,7 @@ If a recorded submodule commit is missing from the local source (`fatal: ... not
 `PASS`, `FAIL`, `SKIP(reason)`, `TIMEOUT`, `ERROR`, plus `SKIPPED-heavy` (heavy unit, not run in default mode) and `NOT-RUN` (filtered by `--only` or interrupted).
 
 - `TIMEOUT` only when the runner's own timer fired. A suite's own exit 124 or 137, or a death by signal, is `ERROR` with the reason.
-- `SKIP`: exit 77, a SKIP decision of the summary parser, or a `node` / `bats` unit whose runner is not installed (`SKIP runner_not_installed`)., or a Go unit whose module dependency is not in the module cache (`SKIP network_unreachable_external`, see below). Never counted as PASS: a run with any SKIP ends `PARTIAL-SKIPS` (exit 6) or a worse result, never `PASS-FULL`.
+- `SKIP`: exit 77, a SKIP decision of the summary parser, or a `node` / `bats` unit whose runner is not installed (`SKIP runner_not_installed`), or a Go unit whose module dependency is not in the module cache (`SKIP network_unreachable_external`, see below). Never counted as PASS: a run with any SKIP ends `PARTIAL-SKIPS` (exit 6) or a worse result, never `PASS-FULL`.
 - Exit 0 otherwise: the summary parser reads the last 12 non-empty display lines of the log.
   - Display lines first: CRLF is trimmed, a CR progress overwrite is reduced to what the terminal last shows, ANSI CSI / OSC / DCS escapes and other control bytes are removed.
   - Each line is classified by grammar, not by its first word. A **summary line** is one whose whole text is covered by counter items (`key=N`, `key: N`, `N word`, `word N`, `NOT ok N`, `N of T`, `out of T`, `1..N`), status words (`PASS`, `OK`, `FAIL`, `SKIP`, ...), filler words (`all`, `of`, `tests`, `summary`, ...), punctuation, an optional `name:` label, and an optional trailing comment (`(...)`, `[...]`, `; ...`, ` -- ...`) that may only add a skip or fail word. A TAP `not ok` line (not `# TODO` / `# SKIP`) is a **TAP failure**. A `RESULT:`, `VERDICT:`, `SUMMARY:`, `STATUS:`, `OVERALL:`, `RUN_ALL:` or `TOTAL:` line with a fail word is a **headed failure**. Any other line with a fail-class word (`fail*`, `error*`, `fatal`, `panic`, `traceback`, `not ok`, a cross mark) is a **fail signal**, unless it starts like a passing check (`PASS`, `ok`, `[PASS]`, a tick) and its fail words are only in parentheses or quotes or carry no number. Everything else is description and is never counted.
@@ -124,7 +124,7 @@ If a recorded submodule commit is missing from the local source (`fatal: ... not
 
 ## Preparing Go units (module cache)
 
-Go units run with `GOPROXY=off` and the host `GOMODCACHE`, so a module that is not already in the cache cannot be fetched during the run. Before each Go unit the runner runs `go mod download` in the unit's own environment. When that fails and every error it printed is `module lookup disabled by GOPROXY=off`, the unit is not run and is recorded `SKIP network_unreachable_external` (`verdict_source=go-module-preflight`); the progress line names the first missing module as `go_module_not_cached: <module>@<version>` (`go mod download` stops at the first one) and the prepare command. Any other `go mod download` failure is not reclassified: the unit runs and reports what it reports.
+Go units run with `GOPROXY=off` and the host `GOMODCACHE`, so a module that is not already in the cache cannot be fetched during the run. Before each Go unit the runner runs `go mod download -modfile=<scratch copy>` in the unit's own environment, on scratch copies of the unit's `go.mod` and `go.sum`, so the probe never writes into the repository under test. When that fails, every error it printed is `module lookup disabled by GOPROXY=off`, AND each named module is really absent from the cache (no `<GOMODCACHE>/cache/download/<module>/@v/<version>.zip`), the unit is not run and is recorded `SKIP network_unreachable_external` (`verdict_source=go-module-preflight`); the progress line names the first missing module as `go_module_not_cached: <module>@<version>` (`go mod download` stops at the first one) and the prepare command. Any other `go mod download` failure is not reclassified: the unit runs and reports what it reports. The error line alone is not proof: Go prints the same line for a module that IS cached when `go.sum` lacks its entry, and that is a source defect (every clone fails `go test -mod=readonly`), so it stays a FAIL.
 
 `network_unreachable_external` is the closest code in the §11.4.69 closed reason set; there is no code for "dependency not in the offline cache". It is true here (the module must come from the network, which the runner makes unreachable on purpose), but it does not say "cache", so read the progress line for the module name.
 
@@ -134,7 +134,9 @@ Prepare the cache once per host, with network, before the run:
 for m in $(awk -F'\t' '$5=="go-test"{print $1}' config/full_suite_manifest.tsv); do go -C "$m" mod download; done
 ```
 
-This writes only into the host `GOMODCACHE`. Its effect is that later runs on this host find the modules; a host that skips this step gets honest SKIPs, never FAILs and never PASSes, for those units.
+This writes into the host `GOMODCACHE`, and also into the module directory when its `go.sum` is incomplete (`go mod download` then adds the missing lines to `<module>/go.sum`; check `git status` afterwards and commit or drop that change on purpose). Its effect is that later runs on this host find the modules; a host that skips this step gets honest SKIPs, never PASSes, for those units.
+
+After preparing the cache, start a fresh run: use a new `--out` directory (or remove the default one). A resumed run keeps the recorded SKIP, and `--rerun-nonpass` reports the SKIP-then-PASS pair as `NONDETERMINISTIC`.
 
 ## Isolation
 

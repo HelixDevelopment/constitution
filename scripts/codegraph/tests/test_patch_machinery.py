@@ -15,9 +15,12 @@
 #                 selectable by name (P3c); P3b: a BARE run on the REAL
 #                 installed package builds that runner (SKIP with a reason
 #                 when the real package cannot be resolved)
-#             P4  minor: stale <dst>.partial removed on REUSED; a corrupt
-#                 receipt refusal names --force
-# Usage     python3 test_patch_machinery.py            (exit 0 = all PASS)
+#             P4  minor: stale <dst>.partial (dir or file) removed on REUSED;
+#                 a corrupt or non-object receipt refusal names --force
+#             (P2g/P2h/P4d/P4e are the review round-1 cases X1-X4: symlink,
+#             exec bit on a non-launcher, .partial file, `[]` receipt)
+# Usage     python3 test_patch_machinery.py            (exit 0 = all PASS, 1 = a FAIL,
+#                                                     77 = no FAIL but a case SKIPped)
 #           PATCH_TOOL_ROOT=<dir> python3 ...          (test a copied/mutated tool)
 # Inputs    PATCH_TOOL_ROOT (default: this file's parent's parent)
 # Outputs   one PASS/FAIL line per case on stdout; exit 1 on any FAIL
@@ -63,12 +66,12 @@ DBJS_TMPL = """db.pragma('foreign_keys = ON');
 
 FAILS = []
 SKIPS = []
+PASSES = []
 
 
 def check(cid, ok, msg):
     print(f"{'PASS' if ok else 'FAIL'} {cid}: {msg}")
-    if not ok:
-        FAILS.append(cid)
+    (PASSES if ok else FAILS).append(cid)
 
 
 def make_pkg(base, pre="", parse=PARSE_LIST):
@@ -161,6 +164,23 @@ def case_p2(base):
     path = out.strip()
     check("P2f", rc == 0 and os.path.isfile(path) and os.access(path, os.X_OK),
           f"legacy receipt + missing launcher is not reused (rc={rc}, exists={os.path.isfile(path)})")
+    # review round 1 X1: a planted SYMLINK in the runner tree is not reused (the manifest must see links)
+    src = make_pkg(os.path.join(base, "p2g"))
+    dst = os.path.join(base, "p2g", "run")
+    run(src, dst)
+    os.symlink("/etc/hostname", os.path.join(dst, "lib", "dist", "planted_link.js"))
+    rc, out, _ = run(src, dst)
+    check("P2g", rc == 0 and status(out) == "CREATED" and not os.path.lexists(os.path.join(dst, "lib/dist/planted_link.js")),
+          f"a planted symlink is NOT reused (status={status(out)})")
+    # review round 1 X2: an exec bit added to a file that is not the launcher is not reused
+    src = make_pkg(os.path.join(base, "p2h"))
+    dst = os.path.join(base, "p2h", "run")
+    run(src, dst)
+    other = os.path.join(dst, "lib", "dist", "other.js")
+    os.chmod(other, 0o755)
+    rc, out, _ = run(src, dst)
+    check("P2h", rc == 0 and status(out) == "CREATED" and not os.access(other, os.X_OK),
+          f"an exec-bit change on a non-launcher file is NOT reused (status={status(out)})")
 
 
 def case_p3():
@@ -217,6 +237,16 @@ def case_p4(base):
     check("P4b", rc == 2 and "--force" in err, f"corrupt receipt refuses and names --force (rc={rc})")
     rc, out, err = run(src, dst, "--force")
     check("P4c", rc == 0 and status(out) == "CREATED", f"--force rebuilds over a corrupt receipt (rc={rc})")
+    # review round 1 X3: a stale <dst>.partial that is a regular FILE is removed on REUSED too
+    open(dst + ".partial", "w").write("stale\n")
+    rc, out, _ = run(src, dst)
+    check("P4d", rc == 0 and status(out) == "REUSED" and not os.path.lexists(dst + ".partial"),
+          f"stale .partial FILE removed on REUSED (status={status(out)}, left={os.path.lexists(dst + '.partial')})")
+    # review round 1 X4: a receipt that is valid JSON but not an object refuses and names --force
+    open(os.path.join(dst, "RUNNER_RECEIPT.json"), "w").write("[]\n")
+    rc, out, err = run(src, dst)
+    check("P4e", rc == 2 and "--force" in err and status(out) is None,
+          f"a non-object receipt ([]) refuses and names --force (rc={rc})")
 
 
 def main():
@@ -230,8 +260,21 @@ def main():
                 check(name + "-crash", False, f"{type(exc).__name__}: {exc}")
     finally:
         shutil.rmtree(base, ignore_errors=True)
-    print(f"SUMMARY fails={len(FAILS)} {' '.join(FAILS)} skips={len(SKIPS)} {' '.join(SKIPS)}".rstrip())
-    return 1 if FAILS else 0
+    # One summary shape the full-suite runner's structural parser reads (review I6-3): counters only, ids in
+    # parentheses. A FAIL exits 1; a SKIP with no FAIL exits 77 with its reason (the unit is a SKIP, never a
+    # green PASS, because a skipped case was not run); all PASS exits 0.
+    npass = len(PASSES)
+    ids = "; ".join(x for x in (("failed: " + " ".join(FAILS)) if FAILS else "",
+                                 ("skipped: " + " ".join(SKIPS)) if SKIPS else "") if x)
+    line = f"SUMMARY pass={npass} fail={len(FAILS)} skip={len(SKIPS)}" + (f" ({ids})" if ids else "")
+    if FAILS:
+        print(line)
+        return 1
+    if SKIPS:
+        print(line + " reason=artifact_not_yet_built")
+        return 77
+    print(line)
+    return 0
 
 
 if __name__ == "__main__":
