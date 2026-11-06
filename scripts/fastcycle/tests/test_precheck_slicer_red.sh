@@ -253,7 +253,9 @@ if [ ! -f "$BROKEN_SYNTAX" ]; then
 else
     sh -n "$BROKEN_SYNTAX" >"$TMP/b1_sh.out" 2>"$TMP/b1_sh.err"
     B1_SH_RC=$?
-    if [ "$B1_SH_RC" -ne 0 ] && grep -q 'syntax error' "$TMP/b1_sh.err"; then
+    # -i: dash prints "Syntax error", bash "syntax error"; /bin/sh is dash on
+    # Debian/Ubuntu, so a case-sensitive match read a detected error as missed.
+    if [ "$B1_SH_RC" -ne 0 ] && grep -qi 'syntax error' "$TMP/b1_sh.err"; then
         ok "B1 self-check: a real 'sh -n' run against broken_syntax_gate.sh"
         echo "   genuinely reports a syntax error (rc=$B1_SH_RC,"
         echo "   '$(cat "$TMP/b1_sh.err")') -- the underlying parse-check"
@@ -419,7 +421,7 @@ checks = doc.get("checks") or []
 hit = any(
     isinstance(c, dict)
     and c.get("verdict") == "FAIL"
-    and ("SC2086" in str(c.get("evidence", "")) or "syntax error" in str(c.get("evidence", "")))
+    and ("SC2086" in str(c.get("evidence", "")) or "syntax error" in str(c.get("evidence", "")).lower())
     for c in checks
 )
 print("YES" if hit else "NO")
