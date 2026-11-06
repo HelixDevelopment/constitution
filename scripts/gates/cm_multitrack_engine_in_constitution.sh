@@ -35,8 +35,11 @@
 #      shell is checked with `sh -n`; a script declaring bash is checked with
 #      `bash -n`; a script declaring PYTHON (`#!/usr/bin/env python3`, any
 #      `python`/`pythonN[.M]` interpreter word, through `env` and its options)
-#      is parsed with python3's own grammar (`python3 -I -c 'ast.parse(..)'`:
-#      isolated, writes no bytecode, executes nothing). Demanding `sh -n` of a
+#      is COMPILED with python3's own compiler (`python3 -I -c 'compile(..)'`:
+#      isolated, writes no bytecode, executes nothing; the compile step, not
+#      `ast.parse`, because the parser alone accepts what python3 refuses at
+#      load time: a top-level `return`/`break`/`yield`/`await`, a bad `nonlocal`
+#      or `global`, a misplaced `from __future__`, `def f(a, a)`). Demanding `sh -n` of a
 #      declared-bash script would be a §11.4.201(1) false-positive refusal —
 #      §11.4.67 clause 4 ("Honest shebangs") expressly sanctions bash-shebang
 #      + `bash script.sh` callers for scripts using the clause-3 bash-only
@@ -82,7 +85,7 @@
 #   None (read-only; no network, no commit, no device mutation).
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, sh, POSIX find + grep; python3 (stdlib `ast` only) when the engine
+#   bash, sh, POSIX find + grep; python3 (the built-in compile() only) when the engine
 #   ships a python-declaring script. Parses clean under bash -n.
 #
 # ── Cross-references ──────────────────────────────────────────────────────────
@@ -94,7 +97,7 @@
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — presence + decoupling + parseability all hold.
 #   1 — at least one invariant violated.
-#   2 — environment error (engine directory not found).
+#   2 — environment error (engine directory not found; no temporary file can be created).
 #
 # Classification: universal (§11.4.17) — no project-specific data (the
 # literal patterns checked FOR are project-shaped examples, not hardcoded
@@ -230,23 +233,28 @@ fi
 # scripts that DECLARE a POSIX shell — where the mksh forensic anchor bites.
 # declared_interpreter <shebang-line>: prints bash | python | sh -- the interpreter the line DECLARES.
 # The interpreter word is the first word after "#!", or, when that word is `env`, the first following word that is not
-# an option (-S, -i, -u X is not special-cased: option words are skipped) and not a VAR=value assignment. bash and
-# python/pythonN[.M] are recognised by that word's basename; every other line keeps the legacy rule (bash when the
-# line names bash anywhere, else sh), so no existing verdict changes for a non-python script.
+# an option (-S, -i, ... are skipped; -u, -C, -P, --unset and --chdir take an ARGUMENT, so the word after them is skipped
+# too) and not a VAR=value assignment. bash and python / pythonN / pythonN.M are recognised by that word's basename (not
+# `python3-config`, not a bare `python*`); every other line keeps the legacy rule (bash when the line names bash anywhere,
+# else sh), so no existing verdict changes for a non-python script.
 declared_interpreter() {
-    local _line="${1#\#!}" _w=() _b _x
+    local _line="${1#\#!}" _w=() _b _x _skip=0
     read -r -a _w <<<"$_line"
     _b="${_w[0]:-}"; _b="${_b##*/}"
     if [ "$_b" = env ]; then
         _b=""
         for _x in ${_w[@]:+"${_w[@]:1}"}; do
-            case "$_x" in -*|*=*) continue ;; esac
+            if [ "$_skip" -eq 1 ]; then _skip=0; continue; fi
+            case "$_x" in
+                -u|-C|-P|--unset|--chdir) _skip=1; continue ;;
+                -*|*=*) continue ;;
+            esac
             _b="${_x##*/}"; break
         done
     fi
     case "$_b" in
-        bash)                    echo bash ;;
-        python|python[0-9]*)     echo python ;;
+        bash)                                  echo bash ;;
+        python|python[0-9]|python[0-9].[0-9]*) echo python ;;
         *) case "$_line" in *bash*) echo bash ;; *) echo sh ;; esac ;;
     esac
 }
@@ -257,14 +265,18 @@ for f in "${scripts[@]}"; do
     shebang="$(head -n 1 "$f")"
     declared_sh="$(declared_interpreter "$shebang")"
 
-    parse_err="$(mktemp "${TMPDIR:-/tmp}/cm_mtec_parse.XXXXXX")"
+    # a temp file that cannot be created is an environment error (exit 2), never a parse verdict on the script
+    parse_err="$(mktemp "${TMPDIR:-/tmp}/cm_mtec_parse.XXXXXX")" || {
+        echo "❌ ${GATE}: cannot create a temporary file under '${TMPDIR:-/tmp}' (mktemp failed); environment error, no parse verdict is possible" >&2
+        exit 2
+    }
     case "$declared_sh" in
         python)
-            parse_cmd="python3 -I ast.parse"
+            parse_cmd="python3 -I compile"
             if ! command -v python3 >/dev/null 2>&1; then
                 echo "python3: command not found (cannot verify a python-declaring script; fail closed)" >"$parse_err"
                 parse_ok=1
-            elif python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1], "rb").read(), sys.argv[1])' "$f" 2>"$parse_err"; then
+            elif python3 -I -c 'import sys; compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)' "$f" 2>"$parse_err"; then
                 parse_ok=0
             else
                 parse_ok=1
