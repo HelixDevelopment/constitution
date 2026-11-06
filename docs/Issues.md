@@ -1765,3 +1765,15 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 
 scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh tests (backfill_evidence_r2, evidence_hash_r5, finding_layer_red). Since ef82977b its rr_record used local pre=(...) and "${pre[@]}", which dash rejects with Syntax error: "(" unexpected, so all three exit 2 before running a case. Fix: rebuild the argument list with POSIX set --, keeping the original order so the caller's extra options still come last (argparse last-wins). The bash users (gate_authority r1/r2/r3 and the mutation driver) stay GREEN. Known gap, not caused by this change: a mutant that drops --precheck survives all six tests.
 
+## CON-109 — multitrack ruler suite discovered zero tests on a standalone canon, and leaked RED_MODE=0 into redpin's children
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — red-command `bash scripts/multitrack/test_multitrack_ruler_suite.sh (canon checkout not named constitution, env -i)` — green-command `same command` — signature `TOTAL=0 then exit 2; redpin with RED_MODE=0: FAIL 6` — updated 2026-11-06T08:51:15Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `test directory derived from a vendored-layout path; RED_MODE inherited by redpin children` — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — updated 2026-11-06T08:51:15Z — by `AI`
+
+scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as $ROOT/constitution/scripts/multitrack, which exists only when the canon is vendored, so on the constitution repository itself it discovered 0 tests and exited 2; a sibling directory named constitution could also hijack discovery. ROOT is now the parent only when the canon is a submodule named constitution of a real git toplevel; discovery reads the canon's own directory. A member's exit 77 is counted as SKIP and the summary prints SKIP=. Second defect, found when the suite ran its members: the suite exports RED_MODE=0, and test_multitrack_redpin_mutations.sh passed it on to its children, which skipped the RED leg (6 FAIL). _run now clears RED_MODE unless RUN_RED_MODE sets it.
+
