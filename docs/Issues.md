@@ -1685,6 +1685,8 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 fixu round 2 (2026-11-06), test_precheck_slicer_red.sh only (review F099-1): case C2a accepted the dash parse error OR the shellcheck finding, so a mutant that dropped the case-insensitive match survived on the shellcheck leg; it now requires both legs (parse error, case-insensitive, AND SC2086) and prints each leg. GREEN 16/0; the no-lower() mutant is now killed (15/1). The other ten tests of this item are untouched.
 
+fixu round 3 (2026-11-06), test_precheck_slicer_red.sh only (review F099-2, F099-3): the shellcheck leg of C2a matched SC2086 in the FAIL entries, which also carry the pack's severity_floor config echo (a carrier); it now reads evidence.findings[].rule == SC2086 in the planted file and requires files_linted > 0. With shellcheck off PATH the pack reports an honest skip and the leg is SKIP (control needle: command -v), the parse leg still required. New test_precheck_slicer_c2a_mutants.sh adopts the reviewer's mutants (blind leg, defect removed) plus a config-echo stub and the no-shellcheck case: old test 1/4 (RED), new test 5/0. Evidence docs/qa/fixu3_round3/f099/. Awaits re-review of this slice.
+
 ## CON-100 — test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
 
 **Status:** Queued
@@ -1966,4 +1968,100 @@ Found by the F-PRE-1 class sweep (CON-120). scripts/label-sync/adapters/tests/te
 **Investigation:** not-started — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
 
 Review finding F112-2 of the fixu review: CON-112 did not name the item owning these cases. In a clean clone at the fixu head, scripts/fastcycle/tests/test_select_sample_r5_regression.sh prints NOT ok 'S3 sqlite3 or live tracker DB unavailable' (line 213) and 'S5 live snapshot unavailable' (line 268) and S6, so the unit is red in the full suite. Same class as CON-121 (environment-dependent reds labelled as unavailability but exiting as FAIL). Not investigated past the reviewer's report; root cause UNCONFIRMED (suspected: sqlite3 CLI absent and the vendored DB path, as in CON-121).
+
+## CON-124 — SQLite readers opened with immutable=1 are blind to rows still in the WAL (F121-1, F047-3, and two older codegraph readers)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). One class of four members. (1) F121-1 scripts/.../test_reopen_rate_red.sh needle #2 opens the tracker DB with mode=ro&immutable=1, which ignores the -wal file: a colliding row held only in the WAL is reported CLEAN, rc 0 (reviewer ev/rr_mut_wal_only.out). (2) F047-3 scripts/full_suite/run_full_suite.py check_known_open (around line 2913) reads immutable=1 and prints KNOWN-OPEN rc 0 for a closure still in the WAL (reviewer ev/kopen_wal.out.walonly), a clean 0 on a state it did not see. (3) scripts/codegraph/tests/test_resolve1_equiv_real.js:21 and (4) scripts/codegraph/tests/test_resolve2_probe.js:15 use the same pattern; scripts/codegraph/tests/test_mcp_readonly.sh:28 already records the lesson. Fix shape: open with immutable=1 only when no non-empty -wal exists, else copy the DB and its -wal to a temp directory and read the copy. Enumerate all members with git grep -n immutable=1 (section 11.4.276(C)). Exposure is transient (a writer must hold the WAL open).
+
+## CON-125 — Env-read gate eval pin hashes the first physical line only, so a continuation line of an eval can change unseen (F113-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The CON-113 census walks physical lines and hashes the stripped first line of an eval. An eval whose argument continues after a backslash is pinned by its first line; the continuation can be edited without changing the hash (reviewer fixture ev/ge_probe_cont.out: gate PASS). Latent today: none of the nine pinned eval lines ends with a backslash. Fix: hash the full logical statement (join continuation lines and multi-line quoted arguments) and add the continuation fixture.
+
+## CON-126 — Env-read gate documents one row per eval but keys rows by (var, kind), so an identical copy shares a row (F113-3, N113-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The allowlist header and census docstring say each eval needs its own row. Rows are keyed by (var, kind), so an identical copy of a reviewed eval in the same file shares the row (reviewer ev/ge_probe_dup.out: PASS); live instance scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh lines 340 and 348, one row. Either reword to covers this eval text in this file or add the line number to the key. N113-1: add an indented-eval fixture so the self-test kills the no-strip mutant too (the live gate already does).
+
+## CON-127 — Full-suite self-test lets two reviewer mutants survive: foreign-only tracked token and unreadable DB (F047-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Head code is correct; the tests do not cover it. FM6: replacing ids != {tid} with len(ids) != 1 in match_known survives 252/0 (a log with only another item's tracked token is attributed to the row); add a foreign-only case to 11b. FM3: the cannot-read branch of check_known_open returning 0 instead of 2 survives 252/0; add an unreadable (non-database) file case to 11c. Also N047-1 (commit message RED count 244/1 does not match a run of the committed test, 246/6) and N047-2 (an items table without current_location or status raises an uncaught OperationalError instead of exit 2).
+
+## CON-128 — user_bus_env.sh unit test lets two helper mutants survive (F117-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Two mutants of scripts/lib/user_bus_env.sh survive its unit test 9/0. rv1: the derived branch no longer exports XDG_RUNTIME_DIR (killed only by the persistent-launch integration test). rv2: -S becomes -e in the inherited-XDG branch (integration kill UNCONFIRMED). Fix: a unit case that reads XDG_RUNTIME_DIR from a child after sourcing, and a case with a regular file named bus in the inherited directory.
+
+## CON-129 — Ruler aggregator unstated-reason branch has no discriminating case (F109-4, N109-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Mutant rs_rv1 (the case pattern *" "*|unstated) becomes *" "*) survives the discovery meta-test 12/0 and prints reason=unstated as if it were a shared reason code. Add a meta-test case where every member SKIPs without a reason. N109-1: the sed takes the last reason occurrence on the line while the runner judge() takes the first, so the comment the same way the runner reads it is not exact.
+
+## CON-130 — Supervisor wiring test sends only SIGTERM, not SIGINT or SIGHUP (F120-1, N120-1..3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Mutant noint (INT trap removed) orphans the sleep on SIGINT and survives the wiring test. Add an f3 variant per signal (a daemon launched with nohup ignores HUP on entry, so launch with default dispositions). Nits: N120-1 between sleep "$_iv" & and _sup_sleep_pid=$! a signal finds no pid; N120-2 the foreground sleep 1 fallback is not covered by the stop path; N120-3 f3 reads the children list once (race UNCONFIRMED).
+
+## CON-131 — test_reopen_rate_red.sh falls back to the canon DB whenever the consumer DB is absent, without saying so (F121-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The line [ -f $DB ] || [ ! -f $ROOT/constitution/docs/workable_items.db ] || DB=... switches to the canon DB whenever the consumer DB is absent, not only for a standalone canon checkout, so a consumer with a missing DB is silently checked against the canon DB. Fix: print which DB was read, and switch only when ROOT is the canon itself.
 
