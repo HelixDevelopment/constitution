@@ -414,20 +414,54 @@ doc = json.load(open(sys.argv[1], encoding="utf-8"))
 print(doc.get("all_pass", "MISSING"))
 PY
 )
+    # Review finding F099-2/F099-3 (fixu round 3). The shellcheck leg reads
+    # the pack's FINDING RECORDS (evidence.findings[].rule == SC2086 in the
+    # planted file) and requires evidence.counts.files_linted > 0, never a
+    # substring of the FAIL entries: those also carry the pack's own
+    # severity_floor.blocking_info_rules configuration, which lists SC2086
+    # (a carrier, section 11.4.201(7)(a)). A BLIND leg (files_linted 0) is
+    # NO. When shellcheck is genuinely not on PATH the pack reports an
+    # honest skip (PASS, mode skipped) and the leg is SKIP, accepted only
+    # when this test's own `command -v shellcheck` agrees (control needle).
     C2A_HAS_LINT=$(python3 - "$C2_DIR/precheck.json" <<'PY'
 import json, sys
 doc = json.load(open(sys.argv[1], encoding="utf-8"))
-checks = doc.get("checks") or []
-fails = [str(c.get("evidence", "")) for c in checks if isinstance(c, dict) and c.get("verdict") == "FAIL"]
-# Both legs are required, as the golden case documents (review finding
-# F099-1): a parse FAIL citing the syntax error (case-insensitively: dash
-# says "Syntax error", bash "syntax error") AND a shellcheck FAIL citing
-# SC2086. With an OR, either leg alone hid the other.
+checks = [c for c in (doc.get("checks") or []) if isinstance(c, dict)]
+fails = [str(c.get("evidence", "")) for c in checks if c.get("verdict") == "FAIL"]
+# Parse leg: a parse FAIL citing the syntax error (case-insensitively: dash
+# says "Syntax error", bash "syntax error"), review finding F099-1.
 parse_leg = any("syntax error" in e.lower() for e in fails)
-sc_leg = any("SC2086" in e for e in fails)
-print("YES" if parse_leg and sc_leg else "NO parse=%s shellcheck=%s" % (parse_leg, sc_leg))
+sc = [c for c in checks if c.get("check") == "shellcheck"]
+sc_leg = "NO"
+if sc:
+    ev = sc[0].get("evidence")
+    ev = ev if isinstance(ev, dict) else {}
+    counts = ev.get("counts") if isinstance(ev.get("counts"), dict) else {}
+    linted = counts.get("files_linted", 0)
+    findings = ev.get("findings") if isinstance(ev.get("findings"), list) else []
+    real = any(isinstance(f, dict) and f.get("rule") == "SC2086"
+               and f.get("file") == "unquoted_var_gate.sh" for f in findings)
+    if sc[0].get("verdict") == "FAIL" and isinstance(linted, int) and linted > 0 and real:
+        sc_leg = "YES"
+    elif (sc[0].get("verdict") == "PASS" and ev.get("mode") == "skipped"
+          and "not found on PATH" in str(ev.get("skipped", ""))):
+        sc_leg = "SKIP"
+if parse_leg and sc_leg in ("YES", "SKIP"):
+    print(sc_leg)
+else:
+    print("NO parse=%s shellcheck=%s" % (parse_leg, sc_leg))
 PY
 )
+    if [ "$C2A_HAS_LINT" = "SKIP" ]; then
+        if command -v shellcheck >/dev/null 2>&1; then
+            C2A_HAS_LINT="NO pack skipped shellcheck although it is on PATH"
+        else
+            echo "SKIP: C2a shellcheck leg: shellcheck is not on PATH here"
+            echo "   (the pack reports an honest skip, 11.4.3); the parse leg"
+            echo "   is still required and was found"
+            C2A_HAS_LINT=YES
+        fi
+    fi
     if [ "$C2A_ALL_PASS" = "False" ] && [ "$C2A_HAS_LINT" = "YES" ]; then
         ok "C2a: precheck_pack.sh reports all_pass=false with a FAIL check"
         echo "   citing the planted SC2086/syntax defect -- the error is in"
