@@ -343,5 +343,22 @@ done
 kill "$BIG_PID" 2>/dev/null
 chk "$alive_n" "3" "LIVENESS: a live session with a large environment reads as alive under pipefail (3 probes)"
 
+# LIVENESS IS AN EXACT LITERAL MATCH (CON-114 follow-up F114-1): the config dir
+# is a literal, not a regex (-F), and the whole environ entry must match (-x).
+# Live peers are named so that a regex "." or a prefix would wrongly match:
+#   dot   : live "$T/cfg-dotXtest"   probed as "$T/cfg-dot.test"  -> dead
+#   prefix: live "$T/cfg-prefix-live" probed as "$T/cfg-prefix"   -> dead
+# The exact names are the positive control (both alive), so a 0 is trusted.
+(CLAUDE_CONFIG_DIR="$T/cfg-dotXtest" exec sleep 300) &
+DOT_PID=$!
+(CLAUDE_CONFIG_DIR="$T/cfg-prefix-live" exec sleep 300) &
+PRE_PID=$!
+sleep 0.3
+_lv() { ( . "$SA_DIR/skill_activation_lib.sh"; sa_session_alive "$1" ) && echo alive || echo dead; }
+chk "$(_lv "$T/cfg-dotXtest")/$(_lv "$T/cfg-prefix-live")" "alive/alive" "LIVENESS control: the exact live config dirs read as alive"
+chk "$(_lv "$T/cfg-dot.test")" "dead" "LIVENESS: a '.' in the probed dir is a literal, not a regex wildcard (-F)"
+chk "$(_lv "$T/cfg-prefix")" "dead" "LIVENESS: a strict prefix of a live dir is not that session (-x)"
+kill "$DOT_PID" "$PRE_PID" 2>/dev/null
+
 echo "== $PASS passed, $FAIL failed =="
 [ "$FAIL" = "0" ]
