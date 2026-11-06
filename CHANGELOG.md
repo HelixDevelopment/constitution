@@ -1,5 +1,34 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-06 — gate fixes for two consumer reds: CM-MULTITRACK-ENGINE-IN-CONSTITUTION reads a python-declaring engine script with python's own grammar; CM-KILLPG-PGID-GUARD gets an explicit, printed `--exclude` flag
+
+**Status of this entry: UNRELEASED; implemented on host evidence only; not VERIFIED-DONE; not accepted.** No tag exists for it. Prepared in a scratch clone at `b939266a13a3` (the pin of the consuming repository) and re-applied on upstream `main` `bdc3ac430b01`; the two code commits apply cleanly on both bases and produce the same gate verdicts on both. Driver: the consuming repository's pre-build run r10 (2026-11-06) failed the rows `CM-MULTITRACK-ENGINE-IN-CONSTITUTION` and `CM-KILLPG-PGID-GUARD`, and both causes sit in the gates shipped here.
+
+#### What changed
+
+- `scripts/gates/cm_multitrack_engine_in_constitution.sh`: the parseability leg reads the interpreter the shebang DECLARES (`bash`, `python`/`pythonN[.M]`, through `env` and its options; every other line keeps the legacy bash-or-sh rule). A python-declaring script is parsed with `python3 -I` and `ast.parse` (no execution, no bytecode); a host without python3 FAILS closed. Before: `agent_label_frontmatter_check.py` (shebang `python3`) was demanded to pass `sh -n` and failed at line 24. The "clean" line is printed only for a file that parsed clean.
+- `scripts/gates/cm_multitrack_engine_in_constitution_mutation_test.sh`: cases 4a to 4d (valid-python-invalid-shell PASS with a control needle, python syntax error FAIL, bash/sh-declaring script with python-only content still FAIL, `env -S python3 -I`, no python3 FAIL).
+- `scripts/gates/cm_killpg_pgid_guard.sh`: `--exclude <glob>` (repeatable, additive to the default prune list, same matching as `KILLPG_GUARD_EXCLUDE`), always printed (`EXCLUDED (explicit --exclude, not scanned): <dir> (N source file(s))` plus the files), a no-match NOTE, exit 2 on an empty, absolute, `..`, wildcard-only or unsafe value, ignored with a NOTE for a single-file root. `KILLPG_GUARD_EXCLUDE` stays a guarded override (honoured only under `HELIX_TEST_MODE=1`).
+- `scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh`: round 9, cases X1 to X8 with their own mutants.
+- Not changed: any anchor, `Constitution.md`, the carriers, the generated index and groups, `scripts/anchors`, `scripts/lib`, the workable-items engine.
+
+#### VERIFIED (commands run on 2026-11-06 in the scratch clone, output seen; each on base `b939266a13a3` and on `bdc3ac430b01`, unpatched and patched)
+
+- `bash scripts/gates/cm_multitrack_engine_in_constitution.sh --quiet`: unpatched exit 1 (one PARSEABILITY violation, `agent_label_frontmatter_check.py` line 24), patched exit 0 (`all 51 script(s) parse clean under their declared interpreter`).
+- `bash scripts/gates/cm_multitrack_engine_in_constitution_mutation_test.sh`: unpatched `META PASS` (11 lines), patched `META PASS` (21 lines, cases 4a to 4d).
+- `bash scripts/gates/cm_killpg_pgid_guard_mutation_test.sh`: `META PASS` before and after (154 lines each).
+- `bash scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh`: `SCOPE TEST PASS` before (229 `OK` lines) and after (243 `OK` lines, X1 to X8).
+- `bash tests/gates/test_gate_env_overrides_guarded.sh`: `117 passed, 0 failed` before and after.
+- Independent mutants of the patched gates (in scratch only): the python parse forced to succeed makes the engine mutation test print 3 `META FAIL` lines; removing the python branch from `declared_interpreter` makes it print 5; making `--exclude` a no-op makes X2, X3 and X8 of the scope selftest FAIL.
+- Consumer rows (the ATMOSphere pre-build rows run verbatim in a scratch root, gate taken from the patched tree): `CM-MULTITRACK-ENGINE-IN-CONSTITUTION` FAIL before, PASS after; `CM-KILLPG-PGID-GUARD` with the explicit `--exclude` and the pinned fixtures PASS on the consumer's real `scripts/` tree (2 call sites, all guarded), FAIL (2 unguarded sites in the frozen fixtures) with the unpatched gate and the ambient variable.
+
+#### PROVISIONAL / UNCONFIRMED
+
+- No independent §11.4.142 / §11.4.209 review has run on this change.
+- Not changed and still red in this repository: the killpg gate scanning the constitution's own `scripts/` reports 3 unguarded sites (`scripts/fastcycle/tests/test_baseline_replay_r2_findings.sh:450`, `scripts/fastcycle/tests/test_fc_supervisor_v4r5_findings.sh:1705`, `scripts/full_suite/run_full_suite.py:2645`), identical on both bases before and after.
+- A consumer that left a tree out through `KILLPG_GUARD_EXCLUDE` must move to `--exclude`; the variable is ignored outside test mode, as before.
+- UNCONFIRMED: whether a tracker item (CON-nnn) is to be registered for this change.
+
 ## Unreleased — 2026-11-05 — §11.4.296 GitHub Issues are a source of workable items (the issues assigned to a declared account are imported on a declared interval, one tracker item per issue, re-checked by content hash, answered by a guarded status write-back and proven by a fail-closed gate; GitHub to tracker only)
 
 **Status of this entry: UNRELEASED; the change is PROVISIONAL-DONE (§11.4.290 labelling), not VERIFIED-DONE.** No tag exists for it. It was prepared in a scratch copy of the constitution at `cb31e32a1a06` (the pin of the consuming repository) by worker GH-RULES of effort BG-20261105-GITHUB-ISSUES-SYNC, on the operator order of 2026-11-05 22:18 +05 and the scope ruling of 22:24 +05 (quoted in the anchor). The push to the remotes and the move of the consuming repository's gitlink are separate steps that the conductor makes.
