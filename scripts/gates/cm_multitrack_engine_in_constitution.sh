@@ -33,10 +33,19 @@
 #      the interpreter its OWN shebang DECLARES (target-shell-parseability:
 #      the "target shell" is the declared one). A script declaring a POSIX
 #      shell is checked with `sh -n`; a script declaring bash is checked with
-#      `bash -n`. Demanding `sh -n` of a declared-bash script would be a
-#      §11.4.201(1) false-positive refusal — §11.4.67 clause 4 ("Honest
-#      shebangs") expressly sanctions bash-shebang + `bash script.sh` callers
-#      for scripts using the clause-3 bash-only constructs.
+#      `bash -n`; a script declaring PYTHON (`#!/usr/bin/env python3`, any
+#      `python`/`pythonN[.M]` interpreter word, through `env` and its options)
+#      is parsed with python3's own grammar (`python3 -I -c 'ast.parse(..)'`:
+#      isolated, writes no bytecode, executes nothing). Demanding `sh -n` of a
+#      declared-bash script would be a §11.4.201(1) false-positive refusal —
+#      §11.4.67 clause 4 ("Honest shebangs") expressly sanctions bash-shebang
+#      + `bash script.sh` callers for scripts using the clause-3 bash-only
+#      constructs — and demanding `sh -n` of a declared-python script (the
+#      engine ships `agent_label_frontmatter_check.py`) is the same refusal,
+#      reproduced 2026-11-06: `sh -n` reads `MODELS = ("sonnet", "opus")` as
+#      shell. A python-declaring script on a host with no python3 FAILS
+#      (cannot verify; never a silent skip). Any other shebang keeps the
+#      legacy rule (bash if the line names bash, else `sh -n`).
 #
 # Known false-positive this gate's exemption clause specifically closes
 # (verified 2026-07-09 against the real constitution/scripts/multitrack/
@@ -73,7 +82,8 @@
 #   None (read-only; no network, no commit, no device mutation).
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, sh, POSIX find + grep. Parses clean under bash -n.
+#   bash, sh, POSIX find + grep; python3 (stdlib `ast` only) when the engine
+#   ships a python-declaring script. Parses clean under bash -n.
 #
 # ── Cross-references ──────────────────────────────────────────────────────────
 #   §11.4.187 (automatic multi-track ruler orchestration), §11.4.28(B) +
@@ -218,21 +228,61 @@ fi
 # under, instead of its real invocation path). So: parse each script under the
 # interpreter it DECLARES, and additionally demand POSIX-cleanliness only from
 # scripts that DECLARE a POSIX shell — where the mksh forensic anchor bites.
+# declared_interpreter <shebang-line>: prints bash | python | sh -- the interpreter the line DECLARES.
+# The interpreter word is the first word after "#!", or, when that word is `env`, the first following word that is not
+# an option (-S, -i, -u X is not special-cased: option words are skipped) and not a VAR=value assignment. bash and
+# python/pythonN[.M] are recognised by that word's basename; every other line keeps the legacy rule (bash when the
+# line names bash anywhere, else sh), so no existing verdict changes for a non-python script.
+declared_interpreter() {
+    local _line="${1#\#!}" _w=() _b _x
+    read -r -a _w <<<"$_line"
+    _b="${_w[0]:-}"; _b="${_b##*/}"
+    if [ "$_b" = env ]; then
+        _b=""
+        for _x in ${_w[@]:+"${_w[@]:1}"}; do
+            case "$_x" in -*|*=*) continue ;; esac
+            _b="${_x##*/}"; break
+        done
+    fi
+    case "$_b" in
+        bash)                    echo bash ;;
+        python|python[0-9]*)     echo python ;;
+        *) case "$_line" in *bash*) echo bash ;; *) echo sh ;; esac ;;
+    esac
+}
+
 parse_fail=0
 for f in "${scripts[@]}"; do
     rel="${f#"$engine_dir"/}"
     shebang="$(head -n 1 "$f")"
-    case "$shebang" in
-        *bash*) declared_sh="bash" ;;
-        *)      declared_sh="sh"   ;;
-    esac
+    declared_sh="$(declared_interpreter "$shebang")"
 
-    if ! "$declared_sh" -n "$f" 2>/tmp/cm_mtec_parse.$$; then
-        echo "❌ PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_mtec_parse.$$)"
+    parse_err="$(mktemp "${TMPDIR:-/tmp}/cm_mtec_parse.XXXXXX")"
+    case "$declared_sh" in
+        python)
+            parse_cmd="python3 -I ast.parse"
+            if ! command -v python3 >/dev/null 2>&1; then
+                echo "python3: command not found (cannot verify a python-declaring script; fail closed)" >"$parse_err"
+                parse_ok=1
+            elif python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1], "rb").read(), sys.argv[1])' "$f" 2>"$parse_err"; then
+                parse_ok=0
+            else
+                parse_ok=1
+            fi
+            ;;
+        *)
+            parse_cmd="${declared_sh} -n"
+            if "$declared_sh" -n "$f" 2>"$parse_err"; then parse_ok=0; else parse_ok=1; fi
+            ;;
+    esac
+    if [ "$parse_ok" -ne 0 ]; then
+        echo "❌ PARSEABILITY: ${rel} fails ${parse_cmd} (its DECLARED interpreter): $(tr '\n' ' ' < "$parse_err")"
         parse_fail=$((parse_fail + 1))
+    elif [ -z "$quiet" ]; then
+        # a "clean" line is printed ONLY for a file that parsed clean (it used to follow a failure line too)
+        echo "✅ PARSEABILITY: ${rel} clean under its declared interpreter (${parse_cmd})"
     fi
-    rm -f /tmp/cm_mtec_parse.$$
-    [ -n "$quiet" ] || echo "✅ PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
+    rm -f "$parse_err"
 done
 
 if [ "$parse_fail" -eq 0 ]; then

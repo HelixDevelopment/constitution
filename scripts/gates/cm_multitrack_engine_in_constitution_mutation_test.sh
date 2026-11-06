@@ -17,6 +17,18 @@
 #       multitrack_bootstrap.sh:107 case) → still PASSes (proves the
 #       exemption fires correctly and is not itself a bluff-through).
 #   3.  Parse-broken fixture (unbalanced quote) → PARSEABILITY FAILs.
+#   4a. A python-declaring script whose content is valid python but INVALID
+#       shell (the exact shape of the real agent_label_frontmatter_check.py:
+#       `MODELS = ("sonnet", "opus")`) → PASSes (RED before the gate learned
+#       python: `sh -n` was demanded of a declared-python script).
+#   4b. A python-declaring script with a python syntax error → FAILs (the
+#       python parse is a real parse, not a skip).
+#   4c. Negative control: a bash-declaring script carrying that same
+#       python-only content → still FAILs (the python rule did not relax the
+#       bash/sh rule), and a `#!/bin/sh` one likewise.
+#   4d. `#!/usr/bin/env -S python3 -I` (env options) is read as python; a
+#       python-declaring script on a host with NO python3 FAILs (fail closed,
+#       never a silent skip).
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_multitrack_engine_in_constitution_mutation_test.sh
@@ -142,6 +154,86 @@ echo "unbalanced quote
 SH
 expect_fail "parse-broken fixture (unbalanced quote)" \
     bash "$GATE" --engine-dir "$MUT_PARSE" --quiet
+
+# --- 4a. python-declaring script: valid python, INVALID shell ---
+PY_OK="$TMP/engine_py_ok"
+mkdir -p "$PY_OK"
+cp -r "$CLEAN"/. "$PY_OK"/
+cat > "$PY_OK/agent_label_check.py" <<'PYSRC'
+#!/usr/bin/env python3
+"""generic python helper shipped in the engine directory."""
+MODELS = ("sonnet", "opus")
+print(MODELS)
+PYSRC
+chmod +x "$PY_OK/agent_label_check.py"
+# the control needle for 4a: the SAME content under `sh -n` really fails, so the PASS below is the interpreter choice, not a blind check
+if sh -n "$PY_OK/agent_label_check.py" >/dev/null 2>&1; then
+    note "❌ META FAIL: 4a control needle — sh -n accepted the python content (the fixture cannot discriminate)"
+    rc=1
+else
+    note "✅ META OK:   4a control needle — sh -n rejects the python-only content (the fixture discriminates)"
+fi
+expect_pass "python-declaring script (valid python, invalid shell) is parsed as python" \
+    bash "$GATE" --engine-dir "$PY_OK" --quiet
+
+# --- 4b. python-declaring script with a python syntax error ---
+PY_BAD="$TMP/engine_py_bad"
+mkdir -p "$PY_BAD"
+cp -r "$PY_OK"/. "$PY_BAD"/
+printf '%s\n' 'def broken(:' >> "$PY_BAD/agent_label_check.py"
+expect_fail "python-declaring script with a python syntax error" \
+    bash "$GATE" --engine-dir "$PY_BAD" --quiet
+
+# a file that FAILED to parse never gets a "clean" line (non-quiet run; control needle: the python-ok fixture prints one)
+pybad_out="$(bash "$GATE" --engine-dir "$PY_BAD" 2>&1 || true)"
+pyok_out="$(bash "$GATE" --engine-dir "$PY_OK" 2>&1 || true)"
+if grep -qF '✅ PARSEABILITY: agent_label_check.py clean' <<<"$pyok_out" \
+   && ! grep -qF '✅ PARSEABILITY: agent_label_check.py clean' <<<"$pybad_out"; then
+    note "✅ META OK:   a file that failed to parse gets no 'clean' line (and a clean one does)"
+else
+    note "❌ META FAIL: 'clean' line missing for a clean file, or printed for a file that failed to parse"
+    rc=1
+fi
+
+# --- 4c. negative controls: the python rule does not relax bash / sh ---
+for decl in '#!/usr/bin/env bash' '#!/bin/sh'; do
+    NEG="$TMP/engine_neg_$(printf '%s' "$decl" | tr -c 'a-z' '_')"
+    mkdir -p "$NEG"
+    cp -r "$CLEAN"/. "$NEG"/
+    { printf '%s\n' "$decl"; printf '%s\n' 'MODELS = ("sonnet", "opus")'; } > "$NEG/not_really_python.sh"
+    chmod +x "$NEG/not_really_python.sh"
+    expect_fail "negative control: '${decl}' script carrying python-only content still FAILs" \
+        bash "$GATE" --engine-dir "$NEG" --quiet
+done
+
+# --- 4d. env options before the interpreter word; fail closed when python3 is absent ---
+PY_ENV="$TMP/engine_py_env"
+mkdir -p "$PY_ENV"
+cp -r "$CLEAN"/. "$PY_ENV"/
+{ printf '%s\n' '#!/usr/bin/env -S python3 -I'; printf '%s\n' 'MODELS = ("sonnet", "opus")'; } > "$PY_ENV/env_option_check.py"
+chmod +x "$PY_ENV/env_option_check.py"
+expect_pass "'#!/usr/bin/env -S python3 -I' is read as python" \
+    bash "$GATE" --engine-dir "$PY_ENV" --quiet
+NOPY="$TMP/nopy_path"
+mkdir -p "$NOPY"
+for t in bash sh head find grep sort tr sed cat rm mktemp dirname basename readlink; do
+    p="$(command -v "$t" 2>/dev/null)" && [ -n "$p" ] && ln -sf "$p" "$NOPY/$t"
+done
+# control needle for the next case: the SAME minimal PATH runs the gate green on the python-free CLEAN fixture, so the
+# FAIL below is the missing python3 and nothing else
+expect_pass "minimal no-python3 PATH still runs the gate green on a python-free engine (control needle)" \
+    env PATH="$NOPY" "$NOPY/bash" "$GATE" --engine-dir "$CLEAN" --quiet
+expect_fail "python-declaring script on a host with no python3 fails closed" \
+    env PATH="$NOPY" "$NOPY/bash" "$GATE" --engine-dir "$PY_OK" --quiet
+# ... and it fails FOR THAT REASON (the verdict line names the missing interpreter), not by chance
+# (output captured first and matched with a here-string: `cmd | grep -q` under pipefail is the SIGPIPE class, 11.4.276(C))
+nopy_out="$(env PATH="$NOPY" "$NOPY/bash" "$GATE" --engine-dir "$PY_OK" --quiet 2>&1 || true)"
+if grep -qF 'cannot verify a python-declaring script' <<<"$nopy_out"; then
+    note "✅ META OK:   no-python3 failure names the missing interpreter (cannot verify a python-declaring script)"
+else
+    note "❌ META FAIL: no-python3 failure does not name the missing interpreter (failed for another reason, or silently)"
+    rc=1
+fi
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
