@@ -233,21 +233,39 @@ fi
 # scripts that DECLARE a POSIX shell — where the mksh forensic anchor bites.
 # declared_interpreter <shebang-line>: prints bash | python | sh -- the interpreter the line DECLARES.
 # The interpreter word is the first word after "#!", or, when that word is `env`, the first following word that is not
-# an option (-S, -i, ... are skipped; -u, -C, -P, --unset and --chdir take an ARGUMENT, so the word after them is skipped
-# too) and not a VAR=value assignment. bash and python / pythonN / pythonN.M are recognised by that word's basename (not
-# `python3-config`, not a bare `python*`); every other line keeps the legacy rule (bash when the line names bash anywhere,
-# else sh), so no existing verdict changes for a non-python script.
+# an option and not a VAR=value assignment. Options are read the way env reads them (review round 2, L2): a cluster of short
+# options (-i, -iS...) is walked letter by letter; -u, -C and -P take an ARGUMENT (the rest of the word when there is one:
+# -uFOO, else the next word, which is skipped), so do --unset and --chdir (the next word, unless written --unset=FOO);
+# -S takes a STRING, and when the string is attached (-Spython3, -iSpython3, -S'python3 -I') or written --split-string=python3
+# the string is read as the next word (quotes dropped); a bare -S or --split-string leaves the next word as it is. bash and
+# python / pythonN / pythonN.M are recognised by that word's basename (not `python3-config`, not a bare `python*`); every other
+# line keeps the legacy rule (bash when the line names bash anywhere, else sh), so no existing verdict changes for a non-python
+# script.
 declared_interpreter() {
-    local _line="${1#\#!}" _w=() _b _x _skip=0
+    local _line="${1#\#!}" _w=() _b _x _c _o _skip=0 _pend="" _i=1 _n
     read -r -a _w <<<"$_line"
+    _n="${#_w[@]}"
     _b="${_w[0]:-}"; _b="${_b##*/}"
     if [ "$_b" = env ]; then
         _b=""
-        for _x in ${_w[@]:+"${_w[@]:1}"}; do
+        while [ -n "$_pend" ] || [ "$_i" -lt "$_n" ]; do
+            if [ -n "$_pend" ]; then _x="$_pend"; _pend=""; else _x="${_w[$_i]}"; _i=$((_i + 1)); fi
             if [ "$_skip" -eq 1 ]; then _skip=0; continue; fi
             case "$_x" in
-                -u|-C|-P|--unset|--chdir) _skip=1; continue ;;
-                -*|*=*) continue ;;
+                --unset|--chdir)  _skip=1; continue ;;
+                --split-string=*) _pend="${_x#--split-string=}"; _pend="${_pend//[\'\"]/}"; continue ;;
+                --*)              continue ;;
+                -?*)
+                    _c="${_x#-}"
+                    while [ -n "$_c" ]; do
+                        _o="${_c:0:1}"; _c="${_c:1}"
+                        case "$_o" in
+                            u|C|P) [ -n "$_c" ] || _skip=1; _c="" ;;
+                            S)     _pend="${_c//[\'\"]/}"; _c="" ;;
+                        esac
+                    done
+                    continue ;;
+                -|*=*)            continue ;;
             esac
             _b="${_x##*/}"; break
         done

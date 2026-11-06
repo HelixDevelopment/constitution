@@ -307,8 +307,8 @@ mk_sb() { # $1=name $2=shebang line : CLEAN + one script carrying python-only co
     { printf '%s\n' "$2"; printf '%s\n' "$SB_PY"; } > "$D/sb_script"; chmod +x "$D/sb_script"
 }
 sb_run() { bash "$1" --engine-dir "$TMP/engine_sb_$2" --quiet >/dev/null 2>&1; echo $?; }   # prints the exit code
-SB_PASS="envu envunset envC envchdir envP py312 envpy312 envpy py3"
-SB_FAIL="envCbash envUbash py3cfg pythonista shpy"
+SB_PASS="envu envunset envC envchdir envP py312 envpy312 envpy py3 envvar envSvar envSatt envSattI envScluster envSsplit envSsplitI envSquote envSsplitvar envSsep envuatt envclusteru"
+SB_FAIL="envCbash envUbash py3cfg pythonista shpy envSbash envSpycfg envSsplitpycfg envuSbash"
 mk_sb envu '#!/usr/bin/env -u FOO python3'
 mk_sb envunset '#!/usr/bin/env --unset FOO python3'
 mk_sb envC '#!/usr/bin/env -C /tmp python3'
@@ -323,6 +323,24 @@ mk_sb envUbash '#!/usr/bin/env -u python3 bash'
 mk_sb py3cfg '#!/usr/bin/env python3-config'
 mk_sb pythonista '#!/usr/bin/env pythonista'
 mk_sb shpy '#!/bin/sh # python'
+# (review round 2, L2) a VAR=value word before the interpreter, and the two spellings of env's split-string option that carry the
+# interpreter INSIDE the option word: the attached short form (-Spython3, also in a cluster: -iSpython3) and --split-string=...
+mk_sb envvar '#!/usr/bin/env FOO=1 python3'
+mk_sb envSvar '#!/usr/bin/env -S FOO=1 BAR=2 python3 -I'
+mk_sb envSatt '#!/usr/bin/env -Spython3'
+mk_sb envSattI '#!/usr/bin/env -Spython3 -I'
+mk_sb envScluster '#!/usr/bin/env -iSpython3'
+mk_sb envSsplit '#!/usr/bin/env --split-string=python3'
+mk_sb envSsplitI '#!/usr/bin/env --split-string=python3 -I'
+mk_sb envSquote "#!/usr/bin/env -S'python3 -I'"
+mk_sb envSsplitvar '#!/usr/bin/env --split-string=FOO=1 python3'
+mk_sb envSsep '#!/usr/bin/env --split-string python3'
+mk_sb envuatt '#!/usr/bin/env -uFOO python3'
+mk_sb envSbash '#!/usr/bin/env -Sbash'
+mk_sb envSpycfg '#!/usr/bin/env -Spython3-config'
+mk_sb envSsplitpycfg '#!/usr/bin/env --split-string=python3-config'
+mk_sb envuSbash '#!/usr/bin/env -uSpython3 bash'
+mk_sb envclusteru '#!/usr/bin/env -iu FOO python3'
 # control needles: the content is valid python, and the shells the FAIL cases are read under reject it (so the verdict is the interpreter choice)
 printf '%s\n' "$SB_PY" > "$TMP/sb_content.py"
 if python3 -I -c 'import sys; compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)' "$TMP/sb_content.py" >/dev/null 2>&1 \
@@ -399,8 +417,14 @@ mutant_caught ast_parse_without_isolation c_isolated "$SED_COMPILE" "$SED_NOI"
 mutant_caught any_shebang_mentioning_python c_shebangs 's/\*bash\*) echo bash ;; \*) echo sh ;; esac/*python*) echo python ;; *bash*) echo bash ;; *) echo sh ;; esac/'
 mutant_caught python_star_widened c_shebangs 's/python|python\[0-9\]|python\[0-9\]\.\[0-9\]\*) echo python/python*) echo python/'
 mutant_caught python_digit_star_widened c_shebangs 's/python|python\[0-9\]|python\[0-9\]\.\[0-9\]\*) echo python/python|python[0-9]*) echo python/'
-mutant_caught env_argument_not_skipped c_shebangs 's/-u|-C|-P|--unset|--chdir) _skip=1; continue ;;/--NEVER_MATCHES_ZZ) _skip=1; continue ;;/'
+mutant_caught env_argument_not_skipped c_shebangs 's/--unset|--chdir)  _skip=1; continue ;;/--NEVER_MATCHES_ZZ)  _skip=1; continue ;;/' 's/u|C|P) \[ -n "\$_c" \] || _skip=1; _c="" ;;/u|C|P) _c="" ;;/'
 mutant_caught mktemp_failure_ignored c_tmpfail 's/^        exit 2$/        :/'
+# (review round 2, L2) the VAR=value skip and the split-string forms, one mutant each
+mutant_caught varassign_not_skipped c_shebangs 's/-|\*=\*)/-)/'
+mutant_caught split_string_long_ignored c_shebangs 's/--split-string=\*) _pend=/--NEVER_MATCHES_ZZ) _pend=/'
+mutant_caught split_string_short_ignored c_shebangs 's/S) *_pend=/Z)     _pend=/'
+mutant_caught cluster_read_first_letter_only c_shebangs 's/_o="\${_c:0:1}"; _c="\${_c:1}"/_o="${_c:0:1}"; _c=""/'
+mutant_caught attached_argument_read_as_cluster c_shebangs 's/u|C|P) \[ -n "\$_c" \] || _skip=1; _c="" ;;/u|C|P) [ -n "$_c" ] || _skip=1 ;;/'
 
 # --- 10. the harness itself: expect_fail accepts exit 1 and nothing else (control: the 1 case is accepted) ---
 ef_out() { ( expect_fail "stub" bash -c "exit $1" ) 2>&1; }   # a stub gate with a chosen exit code; rc changes stay inside the subshell
@@ -409,6 +433,7 @@ if grep -q 'META OK' <<<"$(ef_out 1)" && grep -q 'META FAIL' <<<"$(ef_out 0)" &&
 else
     note "❌ META FAIL: 10 expect_fail accepts an exit code other than 1"; rc=1
 fi
+
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
