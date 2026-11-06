@@ -6,13 +6,13 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 5 |
+| Bug | In progress | 6 |
 | Bug | Queued | 21 |
 | Bug | Ready for testing | 1 |
 | Task | Operator-blocked | 1 |
 | Task | Queued | 76 |
 | Task | Ready for testing | 3 |
-| **TOTAL** | | **107** |
+| **TOTAL** | | **108** |
 
 ## Items
 
@@ -125,3 +125,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-109 | Bug | In progress | medium | scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as $ROOT/constitution/scripts/multitrack, which exists only when the canon is vendored, so on the constitution repository itself it discovered 0 tests and exited 2; a sibling directory named constitution could also hijack discovery. ROOT is now the parent only when the canon is a submodule named constitution of a real git toplevel; discovery reads the canon's own directory. A member's exit 77 is counted as SKIP and the summary prints SKIP=. Second defect, found when the suite ran its members: the suite exports RED_MODE=0, and test_multitrack_redpin_mutations.sh passed it on to its children, which skipped the RED leg (6 FAIL). _run now clears RED_MODE unless RUN_RED_MODE sets it. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-110 | Bug | In progress | medium | scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-111 | Bug | In progress | low | scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
+| CON-112 | Bug | In progress | medium | ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |

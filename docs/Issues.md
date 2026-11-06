@@ -1801,3 +1801,15 @@ scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.s
 
 scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path.
 
+## CON-112 — select_sample.py lost the retroactive_state tri-state (unparseable history) when f77a7851 replaced the file from a held snapshot
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — red-command `bash scripts/fastcycle/tests/test_select_sample_unparseable (see U6_unparseable_RED.out)` — green-command `same command` — signature `AttributeError: module has no attribute retroactive_state` — updated 2026-11-06T08:51:55Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `f77a7851 restored the file from snapshot 4b13814 that predates ee581e37` — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — updated 2026-11-06T08:51:55Z — by `AI`
+
+ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after).
+

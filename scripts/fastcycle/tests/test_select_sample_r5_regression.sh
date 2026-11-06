@@ -782,7 +782,7 @@ def window_for"
   run_mutant R3_bulk_threshold_strict "$SS" 'if ekey is not None and len(members) >= bulk_threshold:' 'if ekey is not None and len(members) > bulk_threshold:'
   run_mutant R3_window_from_off_by_one "$SS" 'datetime.timedelta(days=window_days)).isoformat(),' 'datetime.timedelta(days=window_days - 1)).isoformat(),'
   run_mutant R3_needle_default_strict "$SS" 'if default_date <= as_of:' 'if default_date < as_of:'
-  run_mutant R3_blind_guard_import_error_only "$SS" 'except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, ...) is BLIND' 'except ImportError as _exc:  # mutant'
+  run_mutant R3_blind_guard_import_error_only "$SS" 'except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, AttributeError ...) is BLIND' 'except ImportError as _exc:  # mutant'
 fi
 
 exit $fail
