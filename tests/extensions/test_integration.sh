@@ -13,6 +13,10 @@ new_sandbox
 
 UP="$SB/up"; mkdir -p "$UP"
 git clone -q --bare --no-recurse-submodules "$REPO" "$UP/c.git" || { nok "bare clone"; finish; exit 1; }
+# N1 (wave 2 review r2): the test commit is pushed to `main` of this throw-away bare clone. Its `main` is the
+# checkout's LOCAL main, which need not be an ancestor of the HEAD under test (a vehicle whose main moved on), so
+# point it at the HEAD under test first; the push below is then a fast-forward in every checkout.
+git -C "$UP/c.git" update-ref refs/heads/main "$(git -C "$REPO" rev-parse HEAD)" || nok "bare main at HEAD"
 git clone -q "$UP/c.git" "$UP/work" || { nok "work clone"; finish; exit 1; }
 # the clone must be a constitution (Constitution.md) on branch main: the submodule add below follows the bare
 # repository's HEAD, so a clone whose HEAD is another branch (a reviewer sandbox on master) would test nothing
