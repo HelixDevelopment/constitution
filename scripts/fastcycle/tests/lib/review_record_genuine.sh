@@ -116,7 +116,8 @@ PY
   if [ "${RR_SKIP_LEDGER:-0}" != "1" ]; then
     rr_ledger_row "$dispatch" opus xhigh
   fi
-  # POSIX form (no bash arrays): the tests that source this file run
+  # dash- and busybox-compatible form (no bash arrays; it still uses
+  # `local`, which POSIX does not define but dash and busybox accept): the tests that source this file run
   # under /bin/sh, which is dash on Debian/Ubuntu hosts. The argument
   # vector is rebuilt with set -- so the order stays exactly
   #   --batch --round --verdict-file [--precheck F] --tier --effort
