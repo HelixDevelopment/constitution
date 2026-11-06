@@ -540,6 +540,42 @@ has "golden-FALSE: path cited only in the markdown doc fails" '^FAIL  tests/c/te
 printf 'bad row\n' > "$K/config/full_suite_known_failures.tsv"
 run "$K" "$T/o_known2" --include-heavy
 chk "malformed known table -> exit 2" "$RC" "2"
+# 11b F047-1 (CON-047 review): `reason:<code>+tracked` also requires every "[tracked <id>]" token in the log to name
+# the row's tracked_id (at least one present), so an rc 3 owned by another item is never attributed to this row.
+K3="$T/known3"; mkroot "$K3"
+sut "$K3" tests/a/test_own.sh 'echo "KNOWN-FAIL K1 [tracked ATM-5]"' 'exit 3'
+sut "$K3" tests/a/test_mixed.sh 'echo "KNOWN-FAIL K1 [tracked ATM-5]"' 'echo "KNOWN-FAIL K9 [tracked ATM-6]"' 'exit 3'
+sut "$K3" tests/a/test_untagged.sh 'echo "no marker"' 'exit 3'
+sut "$K3" tests/a/test_rc1.sh 'echo "KNOWN-FAIL K1 [tracked ATM-5]"' 'exit 1'
+gen "$K3"
+printf 'tests/a/test_own.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/test_mixed.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/test_untagged.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/test_rc1.sh\treason:rc_3+tracked\tATM-5\to\n' > "$K3/config/full_suite_known_failures.tsv"
+run "$K3" "$T/o_known3" --include-heavy
+has "11b: rc 3 whose only tracked token is the row id -> KNOWN" 'KNOWN ATM-5\]  tests/a/test_own.sh' "$T/o_known3/summary.txt"
+hasnt "11b: rc 3 that also names another item is not KNOWN" 'KNOWN ATM-5\]  tests/a/test_mixed.sh' "$T/o_known3/summary.txt"
+hasnt "11b: rc 3 without any tracked token is not KNOWN" 'KNOWN ATM-5\]  tests/a/test_untagged.sh' "$T/o_known3/summary.txt"
+hasnt "11b: rc 1 is never KNOWN under a reason row" 'KNOWN ATM-5\]  tests/a/test_rc1.sh' "$T/o_known3/summary.txt"
+chk "11b: three unexplained units -> rc 1" "$RC" "1"
+# control: the same mixed unit under a plain reason row is KNOWN (the modifier, not the fixture, makes the difference)
+printf 'tests/a/test_mixed.sh\treason:rc_3\tATM-5\to\n' > "$T/known3_plain.tsv"
+run "$K3" "$T/o_known3p" --include-heavy --known "$T/known3_plain.tsv"
+has "11b control: plain reason row matches the mixed unit" 'KNOWN ATM-5\]  tests/a/test_mixed.sh' "$T/o_known3p/summary.txt"
+# 11c F047-2 (CON-047 review): --check-known-open names a row whose tracked item is closed or unknown (exit 1),
+# passes when every item is open (exit 0), and is BLIND (exit 2) on an absent or empty DB, never a clean 0.
+KO="$T/known_open"; mkdir -p "$KO"
+python3 -I -c 'import sqlite3,sys
+c=sqlite3.connect(sys.argv[1]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)")
+c.executemany("INSERT INTO items VALUES(?,?,?)",[("ATM-5","Queued","Issues"),("ATM-6","Fixed (→ Fixed.md)","Fixed")]); c.commit()
+c=sqlite3.connect(sys.argv[2]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)"); c.commit()' "$KO/db.sqlite" "$KO/empty.sqlite"
+printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\n' > "$KO/open.tsv"
+printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/y.sh\treason:rc_3\tATM-6\to\ntests/a/z.sh\tsig\tATM-77\to\n' > "$KO/stale.tsv"
+bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/db.sqlite" >"$KO/o1" 2>&1; chk "11c: every tracked item open -> rc 0" "$?" "0"
+bash "$R" --root "$K3" --check-known-open --known "$KO/stale.tsv" --db "$KO/db.sqlite" >"$KO/o2" 2>&1; chk "11c: a closed and an unknown item -> rc 1" "$?" "1"
+has "11c: closed item named STALE" '^STALE ATM-6  tests/a/y.sh' "$KO/o2"
+has "11c: unknown item named STALE" '^STALE ATM-77  tests/a/z.sh' "$KO/o2"
+has "11c: open item still listed as open" '^open  ATM-5  tests/a/x.sh' "$KO/o2"
+bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/empty.sqlite" >"$KO/o3" 2>&1; chk "11c: empty DB is BLIND -> rc 2" "$?" "2"
+bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/absent.sqlite" >"$KO/o4" 2>&1; chk "11c: absent DB is BLIND -> rc 2" "$?" "2"
+bash "$R" --root "$K3" --known "$KO/open.tsv" --db "$KO/db.sqlite" --list >"$KO/o5" 2>&1; chk "11c: --db without --check-known-open -> rc 2" "$?" "2"
 # N1: KNOWN is recomputed from the CURRENT table; a resume without the table cannot stay green
 K2="$T/known2"; mkroot "$K2"; KC="$T/cnt_known2"
 sut "$K2" tests/a/test_kb.sh "echo x >> $KC" 'echo "boom: lock timeout"' 'exit 1'
