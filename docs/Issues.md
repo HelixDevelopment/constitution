@@ -1789,3 +1789,15 @@ scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as
 
 scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2).
 
+## CON-111 — fc_supervisor_unit spy socket bound a full path and failed with AF_UNIX path too long under a deep TMPDIR
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — red-command `TMPDIR=<195-char dir> bash scripts/fastcycle/tests/test_fc_supervisor_unit.sh` — green-command `same command` — signature `AF_UNIX path too long` — updated 2026-11-06T08:51:45Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `absolute socket path longer than sun_path (108 bytes) under a deep TMPDIR` — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — updated 2026-11-06T08:51:45Z — by `AI`
+
+scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path.
+
