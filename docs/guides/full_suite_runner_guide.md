@@ -130,7 +130,7 @@ After a unit ends (on timeout: SIGTERM to its process group, SIGKILL after 10 s;
 
 ## Known failures
 
-`config/full_suite_known_failures.tsv` lists OPEN failures only: path, signature (a literal substring of the unit log, or `reason:<code>`), tracked id, note. A failure is KNOWN only on an exact path match AND a matching signature. KNOWN is recomputed at every report from the CURRENT table and the unit log, and only when the log still has the sha256 recorded when it was written; an edited log is never matched. The table is empty at this revision, so every failure fails the run. A run whose only failures are KNOWN ends `PASS-FULL-WITH-KNOWN` (exit 7), never `PASS-FULL`.
+`config/full_suite_known_failures.tsv` lists OPEN failures only: path, signature (a literal substring of the unit log, or `reason:<code>`), tracked id, note. A failure is KNOWN only on an exact path match AND a matching signature. KNOWN is recomputed at every report from the CURRENT table and the unit log, and only when the log still has the sha256 recorded when it was written; an edited log is never matched. At this revision the table has two rows, `tests/gates/test_gate_env_census_jq_regions.sh` and `tests/gates/test_gate_env_census_closure.sh`, each with signature `reason:rc_3` and tracked as CON-047 (exit 3 means no FAIL and only the KNOWN-FAIL cases pinned to CON-047; exit 1 still fails the run). Every other failure fails the run. A run whose only failures are KNOWN ends `PASS-FULL-WITH-KNOWN` (exit 7), never `PASS-FULL`.
 
 ## Results file and resume
 

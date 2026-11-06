@@ -9,3 +9,11 @@
 # Paths that the doc cites only as passing evidence (for example tests/gates/test_default_scan_root.sh,
 # passed=25 failed=0) are NOT known failures. This table therefore has no rows: every failure fails
 # the run. Add a row only for a failure that is open, reproduced, and tracked under the given id.
+#
+# 2026-11-06: two rows added. tests/gates/test_gate_env_census_jq_regions.sh and
+# tests/gates/test_gate_env_census_closure.sh (case N3) each exit 3 by its own documented
+# convention when it has no FAIL but its KNOWN-FAIL cases pinned to CON-047 are still open (Queued,
+# reproduced-host-fixture). Each row matches the verdict reason rc_3 only, so exit 1 still fails the run.
+# Remove both rows when CON-047 closes (the test then exits 0, or 1 on an XPASS).
+tests/gates/test_gate_env_census_jq_regions.sh	reason:rc_3	CON-047	exit 3 = no FAIL, five KNOWN-FAIL cases K1-K5 pinned to CON-047 (the census reports jq-env rows for text that is not jq code); exit 1 (a real FAIL or an XPASS) is never matched
+tests/gates/test_gate_env_census_closure.sh	reason:rc_3	CON-047	exit 3 = no FAIL, KNOWN-FAIL case N3 pinned to CON-047 (words in an echo/jq argument/comment counted as jq code); exit 1 (a real FAIL or an XPASS) is never matched

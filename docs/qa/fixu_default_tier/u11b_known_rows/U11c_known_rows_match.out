@@ -1,0 +1,5 @@
+load: 2 open row(s)
+test_gate_env_census_closure.sh rc_3 'CON-047'
+test_gate_env_census_closure.sh rc_1 ''
+test_gate_env_census_jq_regions.sh rc_3 'CON-047'
+test_gate_env_census_jq_regions.sh rc_1 ''
