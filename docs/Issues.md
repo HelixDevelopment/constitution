@@ -1777,3 +1777,15 @@ scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh
 
 scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as $ROOT/constitution/scripts/multitrack, which exists only when the canon is vendored, so on the constitution repository itself it discovered 0 tests and exited 2; a sibling directory named constitution could also hijack discovery. ROOT is now the parent only when the canon is a submodule named constitution of a real git toplevel; discovery reads the canon's own directory. A member's exit 77 is counted as SKIP and the summary prints SKIP=. Second defect, found when the suite ran its members: the suite exports RED_MODE=0, and test_multitrack_redpin_mutations.sh passed it on to its children, which skipped the RED leg (6 FAIL). _run now clears RED_MODE unless RUN_RED_MODE sets it.
 
+## CON-110 — persistent-launch test read a present systemd user bus as absent under a clean environment and exited 2
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh` — green-command `same command` — signature `SKIP printed, exit 2 under env -i` — updated 2026-11-06T08:51:30Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `capability probe ran without XDG_RUNTIME_DIR, which the clean environment does not carry` — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — updated 2026-11-06T08:51:30Z — by `AI`
+
+scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2).
+

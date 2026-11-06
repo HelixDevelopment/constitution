@@ -39,7 +39,7 @@
 # Side-effects: starts + stops its own short-lived `systemd-run --user
 #   --scope` units and their child processes only (never touches
 #   /mnt/trackN, crontab, or any real ccr/supervisor process). SKIPs the
-#   whole suite honestly (exit 2) on a host with no reachable systemd --user
+#   whole suite honestly (exit 77, reason=topology_unsupported) on a host with no reachable systemd --user
 #   bus, since the defect + fix are both systemd-specific by construction.
 # Dependencies: bash, systemd-run, systemctl (both --user), date, tr,
 #   mktemp, sleep, kill.
@@ -76,14 +76,29 @@ echo "=== persistent-launch survives-session-teardown (ATM-1041) — UUT: $UUT"
 
 # --- host-topology gate (§11.4.3 honest SKIP, never a fake PASS) -----------
 if ! command -v systemd-run >/dev/null 2>&1 || ! command -v systemctl >/dev/null 2>&1; then
-    echo "SKIP: systemd-run/systemctl absent (reason: topology_unsupported)"
-    exit 2
+    echo "SKIP: systemd-run/systemctl absent reason=topology_unsupported"
+    exit 77
+fi
+# A clean environment (env -i, the full-suite runner) drops XDG_RUNTIME_DIR,
+# which makes `systemctl --user` blind even though the user manager runs.
+# Recover the standard pam_systemd location when its bus socket exists and
+# belongs to us, so the probe asks the real question.
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    _xrd="/run/user/$(id -u)"
+    if [ -S "$_xrd/bus" ] && [ -O "$_xrd/bus" ]; then
+        export XDG_RUNTIME_DIR="$_xrd"
+    fi
 fi
 if ! systemctl --user list-units >/dev/null 2>&1; then
-    echo "SKIP: systemd --user bus unreachable (reason: topology_unsupported)"
-    exit 2
+    if [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]; then
+        # the socket is there but the manager does not answer: a real fault
+        echo "FAIL: systemd --user bus socket present at ${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus but systemctl --user does not answer"
+        exit 1
+    fi
+    echo "SKIP: no systemd --user bus on this host reason=topology_unsupported"
+    exit 77
 fi
-[ -r "$UUT" ] || { echo "SKIP: UUT absent (reason: tool_absent)"; exit 2; }
+[ -r "$UUT" ] || { echo "FAIL: unit under test absent: $UUT"; exit 1; }
 
 _uniq() {
     _n="$(date +%s%N 2>/dev/null)"
