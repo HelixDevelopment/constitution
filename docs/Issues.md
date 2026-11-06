@@ -1865,3 +1865,120 @@ Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the
 **Affected scope / file-scope manifest:**
 the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
 
+## CON-116 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031 (full-suite failures root-cause report of 2026-11-05). What: tests/test_patch_machinery.py cases P1b P1c P2c P2d P2e P2f P4a P4b were RED against scripts/codegraph/fk_index_patch.py (SUMMARY fails=9). Fix (fix vehicle 2026-11-05): fkidx1.parse_lists refuses a list anchor that occurs more than once; receipt_valid requires an executable launcher and a whole-tree equality (sha256 + exec bit per file, symlink targets) between <dst> and the source with this run's edits; a stale <dst>.partial is removed on REUSED; load_receipt refuses an unreadable/corrupt receipt with a message naming --force. RED/GREEN: same command PYTHONDONTWRITEBYTECODE=1 python3 scripts/codegraph/tests/test_patch_machinery.py; before fails=9, after fails=1 (P3, see CON-117). Paired mutants M1 M2 M4 M5 M6 M23 killed; M3 (launcher check alone) equivalent, subsumed by the tree check. Cost: REUSED on the real 1.6.2 package 1.13 s vs 0.30 s before (both trees hashed). Reproduction surface host-only; evidence was captured in the vehicle scratch area and is not committed: re-run the command to reproduce. Acceptance: independent review, then the state fields set with committed evidence. Round 2 (2026-11-06): test_patch_machinery.py gained P2g (planted symlink), P2h (exec bit), P4d (.partial file) and P4e ([] receipt refused, --force named); reviewer mutants R1a2/R1b/R1d/R1e killed; the summary line is now SUMMARY pass=N fail=F skip=S and a skip-only result exits 77 with reason=artifact_not_yet_built so the runner reads SKIP (it used to read the old shape as ERROR unparsed_fail_signal). Round 3 (2026-11-06): P2i (planted directory symlink, reviewer X6) and P2j (retargeted shipped symlink, X7) added; P5 pins the skip contract (a forced P3b skip exits 77, counted line, reason=topology_unsupported); the reason code is now topology_unsupported, not artifact_not_yet_built (review I1-5/I1-6/I1-7); mutants N1a/N1b/N1c killed by scripts/codegraph/tests/test_patch_machinery_mutations.sh.
+
+## CON-117 — CON-117 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
+
+**Status:** In progress
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. P3 of scripts/codegraph/tests/test_patch_machinery.py expects runner_patches.load() with no ids to give fkidx1,resolve1,resolve2; the registry gives fkidx1,lockfix1,datafrag1,resolve1,resolve2. Not changed, by brief: the operator decides. Option A, make the registry default the tested subset (drop lockfix1 and datafrag1 from the default, keep them opt-in): matches the test, CLAUDE.md §11.4.78 note (untested patches excluded) and codegraph_safe.sh (default fkidx1,resolve1); consequence: a bare fk_index_patch.py run builds a different runner key, and on the installed 1.6.2 it would stop refusing (measured 2026-11-05: the five-patch default refuses with 'datafrag1: anchor const MAX_FILE_SIZE occurs 0x'). Option B, keep five and change P3 to expect five: the test then pins a default that includes two patches with no behavioural test and that refuses on 1.6.2. Until decided, the test stays RED on P3 only. Decision (operator, AskUserQuestion 2026-11-05 21:50 CET, relayed by the conductor): Option A. Implemented in the fix vehicle, second commit: runner_patches/__init__.py adds UNTESTED={lockfix1,datafrag1} and DEFAULT_EXCLUDED=OPT_IN|UNTESTED, so load() with no ids gives fkidx1,resolve1,resolve2; lockfix1/datafrag1 stay selectable by name. test_patch_machinery.py gains P3b (bare run on the real installed package must build <ver>-fkidx1-resolve1-resolve2; SKIP artifact_not_yet_built when the package cannot be resolved) and P3c (opt-in by name). RED: fails=2 P3 P3b; GREEN: fails=0; bare run on 1.6.2 went from REFUSED (datafrag1 anchor) to CREATED 1.6.2-fkidx1-resolve1-resolve2. codegraph_safe.sh default unchanged (fkidx1,resolve1); its --patches all now means the tested default. Review (§11.4.142/§11.4.209) owed.
+
+## CON-118 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. R5: CodeGraph 1.6.2 vue.resolve returns null for languages outside VUE_SCRIPT_LANGUAGES before scanning; the probe ref (language cpp) never reached the code. Fix: probe ref language javascript (tools/web/src/app.js) and R5 also requires vue_scan_1st > 0 (precondition reached). RED: ONLY=R5 bash scripts/codegraph/tests/test_resolve1.sh -> vue_resolve_ok=false FAIL; GREEN same command -> 1st=335 2nd=0 PASS; negative control DIST=<stock 1.6.2> -> 1st=335 2nd=335 FAIL; full file 7/7 PASS. Helpers: every test_resolve1_dump.py / test_resolve1_fixture.py call now consumes its status (|| t_bad DUMP/FIXTURE), so the runner's P5 model no longer plans them alone (discarded_members for codegraph drops from 6 to 4) without any manifest or excluded-lock change. Mutants: dump exits 3, fixture exits 4, probe back to cpp: all killed. Out of scope, still planned alone: test_bulk_classify_mutate.py, test_memfloor_mutate.py, test_resolve1_mutate.py, test_resolve2_mutate.py. Round 2 (2026-11-06): R5b adds a stale .vue subset case (a .vue file added after the first scan must be found after clearCaches); mutant R2a now dies on R5b. probe() no longer runs inside a command substitution, so its helper-exit t_bad is counted (mutant I5: cases=2 failed=1, was cases=1 uncounted).
+
+## CON-119 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Fix: U01-U46 now run against a copy of the tooling with /proc/meminfo redirected to a fake file (64 GiB total, 48 GiB available) and a stub df (default 999999999999 bytes; CG_FAKE_DF_AVAIL per case), the U47-U63 mechanism, plus a control that fails HERMETIC if any meminfo read is not redirected. U17 keeps its low-disk condition: 200 GiB free, above the 60 GiB preflight floor and below the 400 GiB tripwire. Thread headroom stays real. RED (host MemAvailable 22 GiB, free disk 57 GB): SUMMARY cases=63 failed=33; GREEN same command: failed=3 (U28, U35, U59; see CON-120, CON-121). Mutants: drop the U17 df value -> U17 FAIL; drop the meminfo redirect -> HERMETIC FAIL + preflight FAILs; set U17 df above the tripwire -> U17 FAIL: all killed. Round 2 (2026-11-06): the stub df refuses any call other than -B1 --output=avail <existing path>, and new U64 runs the REAL df in the codegraph_safe.sh preflight and checks free_bytes against an independent df within 1 GiB; mutant U3a now dies on U01, U17 and U64. Round 3 (2026-11-06): U65, the stub df logs its argument and the preflight's df read must name the target (review I3-4); reviewer mutant N3b (df on HOME) is killed by U65 and survives U64.
+
+## CON-120 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-119 removed the preflight failures)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Observed 2026-11-05 at host load ~30: full run U28 FAIL (r1=1 r2=1 r3=1) and U35 FAIL (rc=4, lock refused); ONLY=U28,U35 run twice: 1 of 2 runs U28 FAIL; ONLY=U28 alone 16 of 16 PASS. Root cause UNCONFIRMED (candidate classes: stub timing with --poll-s 1 under load, or a stub process of an earlier case still alive; not investigated). Acceptance: reproduce with the exact sequence, root cause, fix. Also observed 2026-11-05 (load about 37): U38 failed once inside the GOLD copy of test_bulk_classify_mutations.sh (d3 and d4 empty: the CG_SAFE_PATCHES=fkidx1 and --patches all runs never reached the stub patch tool), then passed in the full test_unit_safe.sh run and in the next GOLD rerun; U35 failed once in a full run and passed 3/3 alone. Root cause UNCONFIRMED. GOLD of test_bulk_classify_mutations.sh, three runs the same evening: FAIL (U38), PASS, FAIL (U36, ra=4 rb=4: both runs exited 4); a different case each time. In that change set the codegraph_safe.sh diff is comment-only, so the flake is not caused by it. Round 2 (2026-11-06): the reviewer also saw U20, U22 and U27 fail intermittently under load in the full run; they join this item (same unconfirmed root-cause classes). Not investigated in round 2.
+
+## CON-121 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. The tool echoes min_mem_avail_source through san (cut -c1-200); U59's r1 check has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' is not compared through s200, so with a work dir longer than about 140 characters the suffix is cut and the case FAILs (seen with TMPDIR under the vehicle scratch area, 2026-11-05; the case's own helper s200 exists for exactly this). Not fixed in the fix vehicle (out of scope).
+
+## CON-122 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Before: the runner sets GOPROXY=off with the host GOMODCACHE, so a missing module made the unit FAIL rc_1 (scripts/doc_integrity with an empty cache). Fix: before each go-test unit the runner runs go mod download in the unit env; when it fails and every error line is 'module lookup disabled by GOPROXY=off', the unit is SKIP network_unreachable_external (verdict_source go-module-preflight) and the progress line names go_module_not_cached: <mod>@<ver> (first missing only) and the prepare command; any other failure is not reclassified. Guide gained a prepare step. FLAG for the operator: the §11.4.69 closed set has no code for 'dependency not in the offline cache'; network_unreachable_external is the closest true one. RED/GREEN (tests/test_run_full_suite.sh sections 22/22b, run as a slice): 3 FAIL -> 5/5 ok; mutants no-skip, any-error-is-missing, SKIP-as-PASS killed. Real unit: old runner + empty GOMODCACHE FAIL rc_1; new runner SKIP naming github.com/mattn/go-sqlite3@v1.14.48; new runner + prepared private cache PASS. A SKIP keeps the run PARTIAL-SKIPS (exit 6), never PASS-FULL. Round 2 (2026-11-06, after review NO-GO): the probe now runs go mod download -modfile=<scratch copy> on scratch copies of go.mod and go.sum, so the unit's own tree is never written (RV-G3, a committed module with GOSUMDB=off, used to leave m/go.sum and trip IDENTITY CHANGED); and a unit is SKIP only when every named module is also absent from GOMODCACHE/cache/download (a cached module with a go.sum gap gives the same Go message and now stays FAIL, RV-G1). Tests 22c: RV-G0/G1/G3 and a classifier table; RED 7/15, GREEN 15/15; mutants M1, M2, gR1 (all->any), M4, G1, G3 killed. Guide: fresh --out after preparing, typo fixed. Round 3 (structural, review round 2 G5/G7b): the go mod download preflight is removed; every Go unit runs and only its own go test output, under a closed grammar, can turn a FAIL into SKIP network_unreachable_external (verdict_source go-test-output). One fixture and one paired mutant per axis in tests/test_run_full_suite_go.sh and tests/test_run_full_suite_go_mutations.sh.
+
+## CON-123 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source), not fixed in round 2. A commented line '// static BULK_PARSE_INDEX_NAMES = [' with no closer placed before the real list merges with it into one LIST_RE match, so the exactly-once check passes; the reviewer's shape A still edits the real list, shape B refuses later. Acceptance: count list openers, RED test with the commented-opener shape, paired mutation.
+
+## CON-124 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source). The force build then fails loudly; the live runner is not corrupted. UNCONFIRMED: whether this race is reachable through codegraph_safe.sh (which serialises writers). Acceptance: reproduce or show unreachable with evidence, then fix or close.
+
+## CON-125 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-117 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. The round-1 review asked whether Option A covers the writer default; UNCONFIRMED. The default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66). Round 2 only fixed the comment wording at codegraph_safe.sh line 44.
+
+## CON-126 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from sum.golang.org was returned, so the unit environment can reach the network. The CON-122 go mod download preflight inherits the same environment and so has the same property. Also UNCONFIRMED: the end-to-end behaviour of the classifier on real mixed Go error output (the all-versus-any mutant gR1 is killed only by the classifier table). Acceptance: decide GOSUMDB/GOFLAGS for go-test units (for example GOSUMDB=off or GONOSUMDB plus GOFLAGS=-mod=mod), test with a network-blocked run. Round 3: the classifier reads GOPROXY and GOFLAGS from the environment the unit really ran with; a host GOPROXY=file:// or GOSUMDB is replaced by the unit env (fixtures A5x, A3).
+
+## CON-127 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_check_deps.sh raced against a marker the tool itself carries (r6b TERM/HUP/INT failed at HEAD, 750 s under load) and built 3402 PATH shims 17 times; check_deps.sh ran its timeout self-probe before its traps, so a signal then gave 143 or 4 instead of 2. (2) test_cycle_report_red.sh and test_cycle_report_s12_fix_red.sh read the consumer tracker DB and named ATM items, so in canon or a consumer without those items they FAILed (HEAD: rc=1, 15 and 31 NOT ok, 1034 s and 1163 s); the red file's R5 block then counted 51 mutant kills against that red baseline; s12 check 8 re-ran the whole red suite. Round 2: ready-file wait in a G7 git shim, shim template built once and copied, self-probe moved after the traps, consumer guard (fc_require_consumer docs/workable_items.db plus a content check on the ATM items, SKIP 77 topology_unsupported), R5 block reports BLIND when the baseline failed, check 8 behind FC_S12_NESTED_RED=1. Round 3: the cycle_report guard moved into fc_require_items (lib/consumer_required.sh): SKIP only on proven absence, both atm_id and ticket_id, a lost item or a query error never SKIPs (review CR-1/CR-3, mutants MG1..MG6); s12 prints a counted SUMMARY naming the skipped check 8 (C2-2); the self-probe signal loop checks for survivors (C2-1, N7b); the signal-window flake C2-3 stays UNCONFIRMED, a FAIL now prints its timing.
+
+## CON-128 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Measured with Go 1.26.8 under GOPROXY=off GOFLAGS=-mod=readonly (fixture A4, tests/test_run_full_suite_go.sh): when go.sum carries a module's zip hash but not its /go.mod line and the module is not cached, go test stops at the lookup-disabled line, so the runner records SKIP network_unreachable_external; with the module cached the same tree fails with missing go.sum entry. The repository defect is therefore visible only on a host with a full cache. Honest limit of classifying from go test output; a fix would need a go.sum completeness check that does not predict network needs (review round 2 axis cached-with-go.sum-gap).
+

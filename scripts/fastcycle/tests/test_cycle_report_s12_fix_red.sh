@@ -149,7 +149,27 @@
 # cycle/cycle_report.py; it touches no other fastcycle tool, no tracker DB
 # write path, and reads docs/workable_items.db strictly read-only (sqlite3
 # -readonly / cycle_report.py's own open_db_readonly).
+# Summary (review C2-2): the file re-runs itself once with its stdout copied to a temp file and then prints one
+# counted line, `SUMMARY pass=<ok lines> fail=<NOT ok lines> skip=<0|1>[ (skipped: check8)]`, so the full-suite
+# runner's parser records that check 8 did not run (a PASS with s=1, never a bare PASS). The exit code is the
+# inner run's; a SKIP (exit 77) or any other code passes through with no SUMMARY line appended.
 set -u
+if [ "${FC_S12_INNER:-0}" != 1 ]; then
+  _s12_out=$(mktemp "${TMPDIR:-/tmp}/s12_out.XXXXXX") || { echo "NOT ok mktemp for the summary copy failed"; exit 1; }
+  FC_S12_INNER=1 bash "$0" "$@" | tee "$_s12_out"
+  _s12_rc=${PIPESTATUS[0]}
+  if [ "$_s12_rc" = 0 ] || [ "$_s12_rc" = 1 ]; then
+    _s12_p=$(grep -c '^ok ' "$_s12_out"); _s12_f=$(grep -c '^NOT ok ' "$_s12_out")
+    if grep -q '^skip check 8:' "$_s12_out"; then
+      echo "SUMMARY pass=$_s12_p fail=$_s12_f skip=1 (skipped: check8)"
+    else
+      echo "SUMMARY pass=$_s12_p fail=$_s12_f skip=0"
+    fi
+    if [ "$_s12_rc" = 0 ] && [ "$_s12_f" -gt 0 ]; then _s12_rc=1; fi
+  fi
+  rm -f "${_s12_out:?}"
+  exit "$_s12_rc"
+fi
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
@@ -161,22 +181,12 @@ DB="$ROOT/docs/workable_items.db"
 # (<consumer>/docs/workable_items.db) and named real items in it. In canon
 # alone, or in a consumer whose register does not hold those items, it is an
 # honest SKIP (exit 77, reason=topology_unsupported, section 11.4.3), never a
-# FAIL that hides the real result and never a PASS. The content check runs only
-# when the DB answers a positive control (a readable items table); a DB that
-# cannot be read is left to the checks below, which report it as NOT ok.
-. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db
-if command -v sqlite3 >/dev/null 2>&1; then
-  _fc_items=$(sqlite3 -readonly "$DB" "SELECT COUNT(*) FROM items;" 2>/dev/null) || _fc_items=""
-  _fc_have=$(sqlite3 -readonly "$DB" "SELECT COUNT(DISTINCT atm_id) FROM items WHERE atm_id='ATM-1025' OR atm_id='ATM-343';" 2>/dev/null) || _fc_have=""
-  case $_fc_items in
-    ''|*[!0-9]*) : ;;
-    *) if [ "$_fc_items" -gt 0 ] && [ "$_fc_have" != "2" ]; then
-         echo "SKIP: tracker DB at $DB has $_fc_items items but not the real items this suite reads (ATM-1025 ATM-343; found $_fc_have of 2) reason=topology_unsupported"
-         exit 77
-       fi ;;
-  esac
-  unset _fc_items _fc_have
-fi
+# FAIL that hides the real result and never a PASS. fc_require_items SKIPs only on
+# PROVEN absence (items present, none with the ATM- prefix, under atm_id or
+# ticket_id); a query error, a register that lost a named item, or an empty
+# table falls through to the checks below, which report it (review CR-1/CR-3).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db \
+  && fc_require_items "$DB" ATM-1025 ATM-343
 RED_MODE="${RED_MODE:-0}"
 
 fail=0

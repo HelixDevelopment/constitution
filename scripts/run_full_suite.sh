@@ -46,10 +46,12 @@
 # VERDICTS  PASS | FAIL | SKIP(reason) | TIMEOUT | ERROR | SKIPPED-heavy | NOT-RUN.
 #   TIMEOUT only from the runner's own timer; 124/137/signal deaths are ERROR. rc 77 is
 #   SKIP; a node/bats unit with no such runner installed is SKIP runner_not_installed.
-#   A go-test unit whose `go mod download` probe (run on scratch copies of go.mod/go.sum,
-#   never in the tree) fails only with `module lookup disabled by GOPROXY=off`, for modules
-#   whose zip is absent from GOMODCACHE, is SKIP network_unreachable_external
-#   (go_module_not_cached named; see guide). A cached module with a go.sum gap stays FAIL.
+#   A go-test unit ALWAYS runs. A FAIL (rc 1, output complete, no vendor/, run with the
+#   runner's GOPROXY=off + GOFLAGS=-mod=readonly) whose every output line is in the closed
+#   "needs network" grammar (go: downloading / module lookup disabled by GOPROXY=off /
+#   [setup failed] / ok / no test files) is SKIP network_unreachable_external,
+#   verdict_source go-test-output (go_test_needs_network named; see guide). Any other line
+#   (a test failure, missing go.sum entry, go.mod requires go >=) keeps it FAIL.
 #   rc 0: a structural parser over the last 12 non-empty DISPLAY lines (CR overwrites, ANSI
 #   CSI/OSC and control bytes removed). Lines are classified by grammar: summary (whole line
 #   covered by counter items, status words, filler, label, trailing comment), TAP `not ok`,

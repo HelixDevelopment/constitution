@@ -285,7 +285,12 @@ for sg in TERM INT; do
   [ -e "$G7/ready" ] || { echo "FAIL self-probe signal $sg: self-probe never started"; failx; }
   kill -s "$sg" "$hp"; wait "$hp"; rc=$?
   [ "$rc" -eq 2 ] || { echo "FAIL self-probe signal $sg: expected exit 2 got $rc"; failx; }
-  sleep 0.5; lo_kill "r6f$$"
+  # review C2-1 (reviewer mutant N7b, self-probe backgrounded + `wait $!`): the exit code alone is the same when
+  # the signal orphans the self-probe child, so check, as r6b does, that no process carrying the marker survives.
+  # The shim lingers 2 s, so an orphaned self-probe is still alive 0.5 s after the SUT exited.
+  sleep 0.5
+  [ -z "$(lo_pids r6f$$)" ] || { echo "FAIL self-probe signal $sg: the self-probe child survived the signal: $(lo_pids r6f$$ | tr '\n' ' ')"; failx; }
+  lo_kill "r6f$$"
   [ -z "$(ls -A "$TD6")" ] || { echo "FAIL self-probe signal $sg: scratch dir leaked: $(ls "$TD6")"; failx; }
   mv -f "$G7/timeout.real" "$G7/timeout" 2>/dev/null
 done
@@ -346,9 +351,17 @@ if unshare -Urpf --mount-proc sh -c : >/dev/null 2>&1 && command -v strace >/dev
 else echo "SKIP r6b pid reuse: userns_unavailable (unshare -Urpf --mount-proc or strace cannot run)"; fi
 # R6-F1 / R6-F2 / R7 signal windows (plain, inherit, postwait, shim, shimord: see fixtures/triple_harness/sigwin_rig.sh):
 # a TERM must exit 2, kill the probe's whole group in every window and spare an inherited stale tpid's group.
+# Review C2-3 (UNCONFIRMED flake, once under load ~15-33: the postwait window returned ''; not reproduced in 4
+# standalone runs): a FAIL here prints the window's wall time and the load average, so a recurrence carries the
+# timing needed to tell a budget problem from a real defect. No retry: a retry would hide either.
+sw_t0=$(date +%s)
 res=$(bash "$HERE/fixtures/triple_harness/sigwin_check.sh" deps "$HERE")
+sw_el=$(( $(date +%s) - sw_t0 ))
 [ -z "$res" ] || printf '%s\n' "$res"
-printf '%s\n' "$res" | grep -q '^FAIL' && failx
+if printf '%s\n' "$res" | grep -q '^FAIL'; then
+  echo "note: signal windows took ${sw_el}s; load average $(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null)"
+  failx
+fi
 # R7b: reap_jobs pid source shimmed (see fixtures/triple_harness/jobs_shim_check.sh): no pgid <= 1 ever reaches kill,
 # dash-like `jobs -r` rejection falls back to `jobs -p`, the pid-namespace canary (stale done job) survives, silent stderr.
 res=$(bash "$HERE/fixtures/triple_harness/jobs_shim_check.sh" deps "$HERE")

@@ -18,9 +18,13 @@
 #             P4  minor: stale <dst>.partial (dir or file) removed on REUSED;
 #                 a corrupt or non-object receipt refusal names --force
 #             (P2g/P2h/P4d/P4e are the review round-1 cases X1-X4: symlink,
-#             exec bit on a non-launcher, .partial file, `[]` receipt)
+#             exec bit on a non-launcher, .partial file, `[]` receipt;
+#             P2i/P2j are the round-2 cases X6/X7: a directory symlink and a
+#             retargeted shipped symlink)
+#             P5  the skip contract: a forced P3b skip exits 77 with a counted
+#                 summary line ending reason=topology_unsupported
 # Usage     python3 test_patch_machinery.py            (exit 0 = all PASS, 1 = a FAIL,
-#                                                     77 = no FAIL but a case SKIPped)
+#                                                     77 = no FAIL but a case SKIPped, reason=topology_unsupported)
 #           PATCH_TOOL_ROOT=<dir> python3 ...          (test a copied/mutated tool)
 # Inputs    PATCH_TOOL_ROOT (default: this file's parent's parent)
 # Outputs   one PASS/FAIL line per case on stdout; exit 1 on any FAIL
@@ -181,6 +185,29 @@ def case_p2(base):
     rc, out, _ = run(src, dst)
     check("P2h", rc == 0 and status(out) == "CREATED" and not os.access(other, os.X_OK),
           f"an exec-bit change on a non-launcher file is NOT reused (status={status(out)})")
+    # review round 2 X6 (mutant N1a): a planted DIRECTORY symlink is not reused (the manifest must list
+    # symlinked directories, which os.walk reports in dirnames, not in filenames)
+    src = make_pkg(os.path.join(base, "p2i"))
+    dst = os.path.join(base, "p2i", "run")
+    run(src, dst)
+    os.symlink("/etc", os.path.join(dst, "lib", "dist", "planted_dir"))
+    rc, out, _ = run(src, dst)
+    check("P2i", rc == 0 and status(out) == "CREATED" and not os.path.lexists(os.path.join(dst, "lib/dist/planted_dir")),
+          f"a planted directory symlink is NOT reused (status={status(out)})")
+    # review round 2 X7 (mutant N1b): a symlink the SOURCE package ships, retargeted in the runner, is not
+    # reused (the manifest must record each link's target, not only that a link exists)
+    src = make_pkg(os.path.join(base, "p2j"))
+    os.symlink("other.js", os.path.join(src, "lib", "dist", "alias.js"))
+    dst = os.path.join(base, "p2j", "run")
+    run(src, dst)
+    link = os.path.join(dst, "lib", "dist", "alias.js")
+    shipped = os.path.islink(link) and os.readlink(link) == "other.js"
+    os.unlink(link)
+    os.symlink("/etc/hostname", link)
+    rc, out, _ = run(src, dst)
+    target = os.readlink(link) if os.path.islink(link) else None
+    check("P2j", shipped and rc == 0 and status(out) == "CREATED" and target == "other.js",
+          f"a retargeted shipped symlink is NOT reused (shipped={shipped}, status={status(out)}, target={target!r})")
 
 
 def case_p3():
@@ -206,8 +233,12 @@ def case_p3b(base):
             "print(m.default_src())")
     p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
     src = p.stdout.strip()
+    if os.environ.get("PATCH_MACH_FORCE_P3B_SKIP") == "1":  # test hook for P5 only: exercise the skip path
+        src = ""
     if p.returncode != 0 or not src or not os.path.isfile(os.path.join(src, "package.json")):
-        print(f"SKIP P3b: artifact_not_yet_built: real codegraph platform package not installed or not resolvable (rc={p.returncode})")
+        # reason topology_unsupported (review I1-7): the real package is a third-party install on the host,
+        # not a build output of this project, so artifact_not_yet_built was the wrong code (section 11.4.69)
+        print(f"SKIP P3b: topology_unsupported: real codegraph platform package not installed or not resolvable (rc={p.returncode})")
         SKIPS.append("P3b")
         return
     ver = json.load(open(os.path.join(src, "package.json"))).get("version")
@@ -249,11 +280,27 @@ def case_p4(base):
           f"a non-object receipt ([]) refuses and names --force (rc={rc})")
 
 
+def case_p5():
+    # review I1-6 (mutant N1c): pin the skip contract the full-suite runner relies on. A child run of this
+    # file with P3b forced to skip must exit 77 and end in a counted summary line with reason=topology_unsupported;
+    # exit 0, or a line without the reason, would be judged PASS by the runner's parser.
+    if os.environ.get("PATCH_MACH_CHILD") == "1":
+        return
+    env = dict(os.environ, PATCH_MACH_FORCE_P3B_SKIP="1", PATCH_MACH_CHILD="1")
+    p = subprocess.run([sys.executable, os.path.abspath(__file__)], capture_output=True, text=True, env=env, timeout=600)
+    lines = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    last = lines[-1] if lines else ""
+    check("P5", p.returncode == 77 and last.startswith("SUMMARY ") and " skip=1 " in last
+          and "(skipped: P3b)" in last and last.endswith(" reason=topology_unsupported"),
+          f"a forced P3b skip exits 77 with a counted reason line (rc={p.returncode}, last={last!r})")
+
+
 def main():
     base = tempfile.mkdtemp(prefix="cg_patch_mach.")
     try:
         for name, fn in (("P1", lambda: case_p1(base)), ("P2", lambda: case_p2(base)),
-                         ("P3", case_p3), ("P3b", lambda: case_p3b(base)), ("P4", lambda: case_p4(base))):
+                         ("P3", case_p3), ("P3b", lambda: case_p3b(base)), ("P4", lambda: case_p4(base)),
+                         ("P5", case_p5)):
             try:
                 fn()
             except Exception as exc:  # noqa: BLE001  a crashing case is a FAIL, never a silent skip
@@ -271,7 +318,7 @@ def main():
         print(line)
         return 1
     if SKIPS:
-        print(line + " reason=artifact_not_yet_built")
+        print(line + " reason=topology_unsupported")
         return 77
     print(line)
     return 0

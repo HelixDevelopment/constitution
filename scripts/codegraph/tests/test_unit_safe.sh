@@ -20,6 +20,8 @@
 # Cross-refs   ../codegraph_safe.sh, run_all.sh, test_mutation.sh
 # U64         the preflight's REAL df read (no stub df; memory faked): free_bytes numeric, equal to an
 #             independent df of the same target (review I3-1)
+# U65         the preflight's df read names the target path itself (stub df logs its argument; review I3-4,
+#             reviewer mutant N3b: df on $HOME passed U64 because HOME and the target share a filesystem)
 # U47-U63     consumer-data MemAvailable floor (limits file key min_mem_avail_gib = the only mechanism that can LOWER it;
 #             env CG_SAFE_MIN_MEM_AVAIL_KB may only RAISE it; lower bound 16 GiB = 2 x heap floor; strict decimal
 #             grammar; regular-file/size/duplicate/nested/empty refusals; sanitised echo; byte-identical default output;
@@ -664,7 +666,9 @@ rich_setup() {
     RICH_DIR="$(t_workdir rich)"; mkdir -p "$RICH_DIR/tool" "$RICH_DIR/bin"
     cp -r "$CG_DIR"/. "$RICH_DIR/tool/"; rm -rf "$RICH_DIR/tool/__pycache__"
     sed -i 's#/proc/meminfo#${CG_FAKE_MEMINFO:-/proc/meminfo}#g' "$RICH_DIR/tool/codegraph_safe.sh"
-    printf '#!/bin/sh\nif [ "$#" -ne 3 ] || [ "$1" != -B1 ] || [ "$2" != --output=avail ] || [ ! -e "$3" ]; then echo "stub df: unexpected args: $*" >&2; exit 2; fi\nprintf "Avail\\n999999999999\\n"\n' > "$RICH_DIR/bin/df"; chmod +x "$RICH_DIR/bin/df"
+    # CG_FAKE_DF_LOG (U65, review I3-4): when set, the stub appends the path it was asked about, so a case can
+    # assert the preflight measured the TARGET and not some other existing path (reviewer mutant N3b: df on $HOME)
+    printf '#!/bin/sh\nif [ "$#" -ne 3 ] || [ "$1" != -B1 ] || [ "$2" != --output=avail ] || [ ! -e "$3" ]; then echo "stub df: unexpected args: $*" >&2; exit 2; fi\n[ -z "${CG_FAKE_DF_LOG:-}" ] || printf "%%s\\n" "$3" >> "$CG_FAKE_DF_LOG"\nprintf "Avail\\n999999999999\\n"\n' > "$RICH_DIR/bin/df"; chmod +x "$RICH_DIR/bin/df"
     [ "$(grep -c 'CG_FAKE_MEMINFO' "$RICH_DIR/tool/codegraph_safe.sh")" = "$(grep -c '/proc/meminfo' "$CG_DIR/codegraph_safe.sh")" ]
 }
 rich_pf() {
@@ -922,6 +926,19 @@ if t_want U64; then setup u64; rich_setup
     case "$fb$ref" in ''|*[!0-9]*) false ;; *) d=$((fb - ref)); [ "${d#-}" -lt 1073741824 ] ;; esac
     t_check U64 "preflight's real df read: free_bytes is numeric and matches an independent df of the same target (no stub df)" $? \
         "free_bytes=$fb ref=$ref rc=$RC out=$(printf '%s' "$OUT" | head -c 300 | tr '\n' ' ')"
+fi
+
+if t_want U65; then setup u65; rich_setup
+    # review I3-4 (reviewer mutant N3b): the stub df records each path it is asked about; the preflight's df read
+    # must name the target (.codegraph when it exists, else the project), never another existing directory such
+    # as $HOME, which shares a filesystem with the target on most hosts and so passed U64 unseen.
+    mkdir -p "$P/.codegraph"; : > "$W/df.log"
+    rich_pf $((64 * GK)) CG_FAKE_DF_LOG="$W/df.log"
+    want="$(cd "$P/.codegraph" && pwd -P)"; got="$(head -n 1 "$W/df.log")"
+    gotr="$( [ -n "$got" ] && cd "$got" 2>/dev/null && pwd -P )"
+    [ "$(pf_val free_bytes)" = 999999999999 ] && [ -n "$got" ] && [ "$gotr" = "$want" ]
+    t_check U65 "preflight's df read names the target (.codegraph), not another path" $? \
+        "df_paths=$(tr '\n' ' ' < "$W/df.log") want=$want free_bytes=$(pf_val free_bytes) rc=$RC"
 fi
 
 t_finish

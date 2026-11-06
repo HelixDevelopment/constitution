@@ -12,6 +12,16 @@
 #           Part 2 drives two REAL callers in this checkout, only where the consumer data they default to is
 #           genuinely absent (canon alone): the env override is honoured (no SKIP when the override points at a
 #           present file), and monday_dryrun needs the RB-05 mock only for RED_MODE=0 (F2).
+#           Part 3 (review round 2 CR-1/CR-3 of the full-suite fix vehicle) drives fc_require_items, from the
+#           same fake-test layout, against fixture tracker DBs: SKIP 77 only for another consumer's register
+#           (items present, none with the named ids' prefix), under atm_id AND ticket_id; no SKIP for the
+#           real register, a register that LOST a named item, a query error (no id column, not a database),
+#           an empty table, or no database at all.
+#           Part 4 (CR-2) runs the two REAL cycle_report suites from a scratch consumer layout whose
+#           constitution/scripts/fastcycle links to this checkout, so the guard under test is the one the
+#           suites really execute (never a text extract): the renamed-column, lost-item and query-error DBs
+#           must not SKIP, another consumer's register must; s12 ends in a counted SUMMARY line naming the
+#           skipped check 8 (review C2-2).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_helper.sh
 # Exit    : 0 all pass; 1 any fail; 77 (reason=topology_unsupported) when no dash is installed, so the
 #           dash leg could not run (the bash leg still ran and passed).
@@ -19,7 +29,7 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CANON="$(cd "$HERE/../../.." && pwd)"
-HELPER="$HERE/lib/consumer_required.sh"
+HELPER="${FC_HELPER_UNDER_TEST:-$HERE/lib/consumer_required.sh}"   # the mutation harness points this at a mutated copy
 # shellcheck source=../../../scripts/lib/safe_rm.sh
 . "$CANON/scripts/lib/safe_rm.sh"
 P=0; F=0
@@ -108,6 +118,109 @@ else
   RED_MODE=0 MT_RB13_TEST_EVIDENCE_DIR="$W/mon0_ev" sh "$MON" >"$o" 2>&1; rc=$?
   expect "monday_dryrun RED_MODE=0 without the mock -> SKIP 77" 77 "mock_claude\.sh reason=topology_unsupported$" "$o" "$rc"
   [ -e "$W/mon0_ev" ] && bad "monday_dryrun RED_MODE=0 created its evidence dir before the SKIP" || ok "monday_dryrun RED_MODE=0 SKIP is decided before any evidence dir is created"
+fi
+
+echo "=== Part 3: fc_require_items against fixture tracker DBs (CR-1, CR-3) under $SHELLS"
+mkdb() { # mkdb FILE COLUMN ID... ; COLUMN "-" = items table with no id column; FILE gets the ids as rows
+  local f="$1" col="$2"; shift 2
+  rm -f "$f"
+  if [ "$col" = "-" ]; then sqlite3 "$f" "CREATE TABLE items(id TEXT, title TEXT); INSERT INTO items VALUES('ATM-953','t');" || return 1; return 0; fi
+  sqlite3 "$f" "CREATE TABLE items($col TEXT, title TEXT);" || return 1
+  local i; for i in "$@"; do sqlite3 "$f" "INSERT INTO items VALUES('$i','t');" || return 1; done
+}
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  echo "note: sqlite3 is not installed; Part 3 and Part 4 cannot build fixture DBs"
+  NOSQL=1
+else
+  NOSQL=0
+  FX="$W/fix"; mkdir -p "$FX"
+  mkdb "$FX/real_atm.db"     atm_id    ATM-953 ATM-1025 ATM-343 ATM-1
+  mkdb "$FX/real_ticket.db"  ticket_id ATM-953 ATM-1025 ATM-343 ATM-1
+  mkdb "$FX/other_atm.db"    atm_id    CON-001 CON-002
+  mkdb "$FX/other_ticket.db" ticket_id CON-001 CON-002
+  mkdb "$FX/lost_atm.db"     atm_id    ATM-1 ATM-1025
+  mkdb "$FX/lost_ticket.db"  ticket_id ATM-1 ATM-1025
+  mkdb "$FX/nocol.db"        -
+  mkdb "$FX/empty.db"        atm_id
+  printf 'this is not a sqlite database\n' >"$FX/garbage.db"
+  C="$W/items/consumer"; mk_layout "$C" >/dev/null || bad "Part 3 layout setup failed"
+  T="$C/canon/scripts/fastcycle/tests/items_test.sh"
+  cat >"$T" <<'EOF'
+#!/bin/sh
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_items "$@"
+echo "BODY RAN"
+EOF
+  for sh in $SHELLS; do
+    o="$W/out3"
+    # case: db ids... -> want
+    while read -r db want ids; do
+      [ -n "$db" ] || continue
+      # shellcheck disable=SC2086
+      "$sh" "$T" "$FX/$db" $ids >"$o" 2>&1; rc=$?
+      if [ "$want" = skip ]; then
+        expect "[$sh] $db, $ids -> SKIP 77 (another consumer's register)" 77 "reason=topology_unsupported$" "$o" "$rc"
+      else
+        expect "[$sh] $db, $ids -> no SKIP, the suite's checks run" 0 "^BODY RAN$" "$o" "$rc"
+      fi
+    done <<'CASES'
+real_atm.db     run  ATM-953
+real_atm.db     run  ATM-1025 ATM-343
+real_ticket.db  run  ATM-953
+real_ticket.db  run  ATM-1025 ATM-343
+other_atm.db    skip ATM-953
+other_atm.db    skip ATM-1025 ATM-343
+other_ticket.db skip ATM-953
+other_ticket.db skip ATM-1025 ATM-343
+lost_atm.db     run  ATM-953
+lost_atm.db     run  ATM-1025 ATM-343
+lost_ticket.db  run  ATM-953
+lost_ticket.db  run  ATM-1025 ATM-343
+nocol.db        run  ATM-953
+empty.db        run  ATM-953
+garbage.db      run  ATM-953
+absent.db       run  ATM-953
+CASES
+    for badid in "ATM-1'; DROP TABLE items; --" "A'X-1" "atm-953" "ATM953" "ATM-" "-953" "ATM--1" "ATM-9x"; do
+      "$sh" "$T" "$FX/real_atm.db" "$badid" >"$o" 2>&1; rc=$?
+      expect "[$sh] id [$badid] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL" 2 "-" "$o" "$rc"
+    done
+    [ "$(sqlite3 -readonly "$FX/real_atm.db" 'SELECT COUNT(*) FROM items;')" = 4 ] \
+      && ok "[$sh] the fixture DB is unchanged after the usage error" || bad "[$sh] the fixture DB changed"
+    "$sh" "$T" "$FX/other_atm.db" ATM-953 >"$o" 2>&1
+    grep -q 'found 0 of 1' "$o" && ok "[$sh] the SKIP line states the measured count (found 0 of 1)" \
+      || bad "[$sh] the SKIP line does not state the measured count: $(cat "$o")"
+  done
+fi
+
+echo "=== Part 4: the REAL cycle_report suites decide SKIP through fc_require_items (CR-2)"
+if [ "${FC_HELPER_UNDER_TEST:-}" != "" ]; then
+  echo "note: FC_HELPER_UNDER_TEST is set; Part 4 runs the checkout's real helper, so it is skipped for a mutated copy"
+elif [ "$NOSQL" = 1 ]; then
+  echo "note: no sqlite3; Part 4 not run"
+else
+  RC="$W/real/consumer"
+  mkdir -p "$RC/constitution/scripts" "$RC/docs"
+  ln -s "$(cd "$HERE/.." && pwd)" "$RC/constitution/scripts/fastcycle"
+  for suite in test_cycle_report_red.sh test_cycle_report_s12_fix_red.sh; do
+    for db in real_ticket lost_atm nocol other_atm other_ticket; do
+      cp "$FX/$db.db" "$RC/docs/workable_items.db"
+      o="$W/out4"
+      timeout 600 bash "$RC/constitution/scripts/fastcycle/tests/$suite" >"$o" 2>&1; rc=$?
+      case $db in
+        other_*) expect "$suite on $db -> SKIP 77" 77 "reason=topology_unsupported$" "$o" "$rc" ;;
+        *) if [ "$rc" != 77 ] && ! grep -q 'reason=topology_unsupported' "$o"; then
+             ok "$suite on $db -> not SKIPped; the suite's own checks ran (rc $rc)"
+           else bad "$suite on $db SKIPped: $(grep -m1 SKIP "$o")"; fi
+           if [ "$suite" = test_cycle_report_s12_fix_red.sh ]; then
+             # review C2-2: the counted summary line names the skipped check 8 and matches the ok / NOT ok lines
+             last="$(grep -v '^[[:space:]]*$' "$o" | tail -1)"
+             wantl="SUMMARY pass=$(grep -c '^ok ' "$o") fail=$(grep -c '^NOT ok ' "$o") skip=1 (skipped: check8)"
+             if [ "$last" = "$wantl" ]; then ok "s12 on $db ends in the counted summary line [$last]"
+             else bad "s12 on $db summary line [$last], want [$wantl]"; fi
+           fi ;;
+      esac
+    done
+  done
 fi
 
 echo "SUMMARY: $P pass / $F fail"
