@@ -1848,3 +1848,11 @@ Parent: CON-031. The round-1 review asked whether Option A covers the writer def
 
 Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from sum.golang.org was returned, so the unit environment can reach the network. The CON-114 go mod download preflight inherits the same environment and so has the same property. Also UNCONFIRMED: the end-to-end behaviour of the classifier on real mixed Go error output (the all-versus-any mutant gR1 is killed only by the classifier table). Acceptance: decide GOSUMDB/GOFLAGS for go-test units (for example GOSUMDB=off or GONOSUMDB plus GOFLAGS=-mod=mod), test with a network-blocked run.
 
+## CON-119 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+
+Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_check_deps.sh raced against a marker the tool itself carries (r6b TERM/HUP/INT failed at HEAD, 750 s under load) and built 3402 PATH shims 17 times; check_deps.sh ran its timeout self-probe before its traps, so a signal then gave 143 or 4 instead of 2. (2) test_cycle_report_red.sh and test_cycle_report_s12_fix_red.sh read the consumer tracker DB and named ATM items, so in canon or a consumer without those items they FAILed (HEAD: rc=1, 15 and 31 NOT ok, 1034 s and 1163 s); the red file's R5 block then counted 51 mutant kills against that red baseline; s12 check 8 re-ran the whole red suite. Round 2: ready-file wait in a G7 git shim, shim template built once and copied, self-probe moved after the traps, consumer guard (fc_require_consumer docs/workable_items.db plus a content check on the ATM items, SKIP 77 topology_unsupported), R5 block reports BLIND when the baseline failed, check 8 behind FC_S12_NESTED_RED=1.
+

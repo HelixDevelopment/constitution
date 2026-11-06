@@ -142,6 +142,9 @@
 # (mirrors the §11.4.115 polarity-switch convention used throughout this
 # submodule's Go regression guards, e.g. atm627_status_desync_test.go).
 #
+# Exit 77 = SKIP (reason=topology_unsupported): no consumer tracker DB, or a DB without
+# ATM-1025 and ATM-343. Check 8 (a nested run of test_cycle_report_red.sh) runs only
+# with FC_S12_NESTED_RED=1.
 # Scope discipline: this file ONLY exercises constitution/scripts/fastcycle/
 # cycle/cycle_report.py; it touches no other fastcycle tool, no tracker DB
 # write path, and reads docs/workable_items.db strictly read-only (sqlite3
@@ -153,6 +156,27 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 CYCLE_REPORT="$FC/cycle/cycle_report.py"
 DB="$ROOT/docs/workable_items.db"
+
+# Consumer guard (CON-031 round 2): this suite reads the CONSUMER tracker DB
+# (<consumer>/docs/workable_items.db) and named real items in it. In canon
+# alone, or in a consumer whose register does not hold those items, it is an
+# honest SKIP (exit 77, reason=topology_unsupported, section 11.4.3), never a
+# FAIL that hides the real result and never a PASS. The content check runs only
+# when the DB answers a positive control (a readable items table); a DB that
+# cannot be read is left to the checks below, which report it as NOT ok.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db
+if command -v sqlite3 >/dev/null 2>&1; then
+  _fc_items=$(sqlite3 -readonly "$DB" "SELECT COUNT(*) FROM items;" 2>/dev/null) || _fc_items=""
+  _fc_have=$(sqlite3 -readonly "$DB" "SELECT COUNT(DISTINCT atm_id) FROM items WHERE atm_id='ATM-1025' OR atm_id='ATM-343';" 2>/dev/null) || _fc_have=""
+  case $_fc_items in
+    ''|*[!0-9]*) : ;;
+    *) if [ "$_fc_items" -gt 0 ] && [ "$_fc_have" != "2" ]; then
+         echo "SKIP: tracker DB at $DB has $_fc_items items but not the real items this suite reads (ATM-1025 ATM-343; found $_fc_have of 2) reason=topology_unsupported"
+         exit 77
+       fi ;;
+  esac
+  unset _fc_items _fc_have
+fi
 RED_MODE="${RED_MODE:-0}"
 
 fail=0
@@ -1322,7 +1346,15 @@ fi
 
 echo
 echo "=== check 8: pre-existing T023 fixture suite + full suite still GREEN (no regression) ==="
-if bash "$FC/tests/test_cycle_report_red.sh" >"$TMP/preexisting.out" 2>&1; then
+# CON-031 round 2: the nested run of the whole T023 suite is opt-in. That suite
+# is a registered unit of its own (the full-suite runner runs it), so running it
+# again here doubled its cost and made this file's verdict depend on it. Set
+# FC_S12_NESTED_RED=1 to run it from here; otherwise this check is reported
+# skipped, never ok.
+if [ "${FC_S12_NESTED_RED:-0}" != 1 ]; then
+  echo "skip check 8: nested test_cycle_report_red.sh run not requested (FC_S12_NESTED_RED=1 runs it);"
+  echo "   that suite is run as its own unit"
+elif bash "$FC/tests/test_cycle_report_red.sh" >"$TMP/preexisting.out" 2>&1; then
   echo "ok test_cycle_report_red.sh (T023 contract suite) still exits 0 after this fix"
 else
   echo "NOT ok test_cycle_report_red.sh regressed -- $(tail -20 "$TMP/preexisting.out")"

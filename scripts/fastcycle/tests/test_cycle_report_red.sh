@@ -88,6 +88,8 @@
 #         (both original control needles, fixture presence, the four
 #         exact-match contract checks against cycle_report.py's real output,
 #         and the two self-validation control needles) held.
+#         Exit 77 = SKIP (reason=topology_unsupported): no consumer tracker DB, or a DB
+#         without ATM-953. The R5 mutation block reports BLIND when the unmutated run failed.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -95,6 +97,27 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/cycle_report"
 DB="$ROOT/docs/workable_items.db"
+
+# Consumer guard (CON-031 round 2): this suite reads the CONSUMER tracker DB
+# (<consumer>/docs/workable_items.db) and named real items in it. In canon
+# alone, or in a consumer whose register does not hold those items, it is an
+# honest SKIP (exit 77, reason=topology_unsupported, section 11.4.3), never a
+# FAIL that hides the real result and never a PASS. The content check runs only
+# when the DB answers a positive control (a readable items table); a DB that
+# cannot be read is left to the checks below, which report it as NOT ok.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db
+if command -v sqlite3 >/dev/null 2>&1; then
+  _fc_items=$(sqlite3 -readonly "$DB" "SELECT COUNT(*) FROM items;" 2>/dev/null) || _fc_items=""
+  _fc_have=$(sqlite3 -readonly "$DB" "SELECT COUNT(DISTINCT atm_id) FROM items WHERE atm_id='ATM-953';" 2>/dev/null) || _fc_have=""
+  case $_fc_items in
+    ''|*[!0-9]*) : ;;
+    *) if [ "$_fc_items" -gt 0 ] && [ "$_fc_have" != "1" ]; then
+         echo "SKIP: tracker DB at $DB has $_fc_items items but not the real items this suite reads (ATM-953; found $_fc_have of 1) reason=topology_unsupported"
+         exit 77
+       fi ;;
+  esac
+  unset _fc_items _fc_have
+fi
 
 fail=0
 failx() { fail=1; }
@@ -1572,7 +1595,16 @@ fi
 # is re-run against the copy and MUST exit non-zero. M1/M3 (round 1) and
 # CR_N1..CR_N7, R8-C1/C2 (round 2) are the reviewers' own mutations.
 # ---------------------------------------------------------------------------
-if [ "${FC_R5_MUTANT:-0}" != 1 ]; then
+if [ "${FC_R5_MUTANT:-0}" != 1 ] && [ "$fail" -ne 0 ]; then
+  # CON-031 round 2: a mutant counts as KILLED when the suite exits non-zero
+  # against it. If the UNMUTATED suite already failed, every mutant "dies" for
+  # that reason and the kills prove nothing, so the block reports BLIND
+  # (section 11.4.201(6)) instead of running.
+  echo
+  echo "=== R5 paired mutations ==="
+  echo "NOT ok R5 paired mutations BLIND: the unmutated baseline is not green (fail=$fail),"
+  echo "     so a non-zero exit against a mutant would not show the mutant was caught"
+elif [ "${FC_R5_MUTANT:-0}" != 1 ]; then
   echo
   echo "=== R5 paired mutations ==="
   # The mutant tree mirrors the repository layout under $TMP so the tools'
