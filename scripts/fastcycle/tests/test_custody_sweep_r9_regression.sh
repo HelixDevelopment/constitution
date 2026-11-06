@@ -383,12 +383,14 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== R9 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS -- python -OO no"
-  echo "    longer crashes (and pre-invalidation independently prevents a stale --out"
-  echo "    even under a different pre-parse crash), a closed/unwritable stderr no"
-  echo "    longer exits 120 with --out unwritten, and a success-print failure (the"
-  echo "    print embeds --out's own path) after a correct write never corrupts that"
-  echo "    write. ==="
+  # CON-112 review finding F5-1: the explanatory prose comes first and the
+  # summary line last, so the full-suite runner reads no fail word after it.
+  echo "    What this guard proves: python -OO no longer crashes (and pre-invalidation"
+  echo "    independently prevents a stale --out even under a different pre-parse crash),"
+  echo "    a closed/unwritable stderr no longer exits 120 with --out unwritten, and a"
+  echo "    success-print failure (the print embeds --out's own path) after a correct"
+  echo "    write never corrupts that write."
+  echo "=== R9 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS ==="
   exit 0
 else
   echo "=== R9 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ==="
