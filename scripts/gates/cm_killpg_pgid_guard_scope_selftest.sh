@@ -23,7 +23,7 @@ GIT() { env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_AUTHOR_N
     git -c protocol.file.allow=always -c core.hooksPath=/dev/null -c init.defaultBranch=main "$@"; }
 mkrepo() { # $1=dir [$2=file to hold a bad call, default bad.py] : real repo with one commit; a build failure is a hard FAIL (F9)
     mkdir -p "$1"; GIT -C "$1" init -q . || { bad "fixture: git init failed ($1)"; return 1; }
-    printf "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i || { bad "fixture: commit failed ($1)"; return 1; }
+    printf '%b' "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i || { bad "fixture: commit failed ($1)"; return 1; }
 }
 addsub() { # $1=parent repo $2=remote repo $3=path $4=.gitmodules URL
     GIT -C "$1" submodule add -q "file://$2" "$3" >/dev/null 2>&1 || { bad "fixture: submodule add failed ($3)"; return 1; }
@@ -58,7 +58,7 @@ manifest2() { # $1=file then pairs of <dep path> <third_party>
 # fixture A: manifest-marked third-party gitlink `vend` (pruned) + own gitlink `mine` + golang-URL gitlink `url`
 # (no mark: SCANNED -- a URL never prunes)
 mkA() { # $1=dir
-    local R="$TMP/rem_$(basename "$1")"; mkrepo "$R/vend" && mkrepo "$R/mine" && mkrepo "$R/url" || return 1
+    local R; R="$TMP/rem_$(basename "$1")"; mkrepo "$R/vend" && mkrepo "$R/mine" && mkrepo "$R/url" || return 1
     mkdir -p "$1"; GIT -C "$1" init -q . ; manifest "$1/helix-deps.yaml" submodules/vend true
     addsub "$1" "$R/vend" submodules/vend 'file:///x/vend.git' && addsub "$1" "$R/mine" submodules/mine "$OWN" && addsub "$1" "$R/url" submodules/url "$GO" || return 1
     commitall "$1"
@@ -103,7 +103,7 @@ for n in "$N0" "$N1" "$N2"; do
 done
 # N3: the root manifest names a nested path whose PARENT is not populated -> cannot be resolved -> scanned
 N3="$TMP/nest3"; mkdir -p "$N3"; GIT -C "$N3" init -q .; manifest "$N3/helix-deps.yaml" submodules/a/submodules/b true
-addsub "$N3" "$TMP/rn/a" submodules/a "$OWN" && commitall "$N3"; rm -rf "${N3:?}/submodules/a"; mkdir -p "$N3/submodules/a/submodules/b"; printf "$BADPY" > "$N3/submodules/a/submodules/b/bad.py"
+addsub "$N3" "$TMP/rn/a" submodules/a "$OWN" && commitall "$N3"; rm -rf "${N3:?}/submodules/a"; mkdir -p "$N3/submodules/a/submodules/b"; printf '%b' "$BADPY" > "$N3/submodules/a/submodules/b/bad.py"
 if scanned "$GATE" "$N3" && ! pline "$GATE" "$N3" 'submodules/a/submodules/b'; then ok "N3: nested path under an unpopulated parent is not pruned (plain dir scanned)"; else bad "N3: nested path pruned through an unpopulated parent"; fi
 # N4: root manifest names a nested path that is NOT a gitlink of the populated parent -> scanned
 N4="$TMP/nest4"; mknest "$N4" "$TMP/rn/a" submodules/a/a_clean.py
@@ -111,12 +111,12 @@ if ! pline "$GATE" "$N4" 'submodules/a/a_clean'; then ok "N4: nested manifest pa
 
 # P1: dir `src` whose first inner entry is a gitlink; manifest marks `src` third-party -> src/main.py must stay scanned
 P1="$TMP/p1"; mkrepo "$TMP/rp1/inner" ; mkdir -p "$P1/src"; GIT -C "$P1" init -q .
-manifest "$P1/helix-deps.yaml" src true; printf "$BADPY" > "$P1/src/main.py"
+manifest "$P1/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$P1/src/main.py"
 addsub "$P1" "$TMP/rp1/inner" src/aaa "$GO"; commitall "$P1"
 if scanned "$GATE" "$P1"; then ok "P1: directory whose first inner entry is a gitlink is NOT pruned (exact match) -> FAIL on first-party call"; else bad "P1: first-party src/ hidden by a prefix-listing gitlink"; fi
 # P2: gate root is a subdirectory of a repo (no .git at the root); hostile manifest there must not hide src
 P2="$TMP/p2"; mkdir -p "$P2/sub/src"; GIT -C "$P2" init -q .; manifest "$P2/sub/helix-deps.yaml" src true
-printf "$BADPY" > "$P2/sub/src/bad.py"; commitall "$P2"
+printf '%b' "$BADPY" > "$P2/sub/src/bad.py"; commitall "$P2"
 if scanned "$GATE" "$P2/sub"; then ok "P2: subdirectory gate root with hostile manifest is still scanned"; else bad "P2: subdirectory root hid first-party code"; fi
 # P2 golden-FALSE: a REAL recorded, manifest-marked gitlink under a subdirectory root is pruned, path relative to the gate root
 mkrepo "$TMP/rp2/v"; P2B="$TMP/p2b"; mkdir -p "$P2B/sub"; GIT -C "$P2B" init -q .; printf "def f():\n    return 1\n" > "$P2B/sub/f.py"
@@ -124,25 +124,25 @@ manifest "$P2B/sub/helix-deps.yaml" submodules/v true; addsub "$P2B" "$TMP/rp2/v
 if pruned "$GATE" "$P2B/sub" 'submodules/v'; then ok "P2: real marked gitlink under a subdirectory root pruned (root-relative)"; else bad "P2 golden-FALSE: not pruned"; fi
 # P3: .gitmodules entry (and manifest) but NO gitlink -> not recorded
 P3="$TMP/p3"; mkdir -p "$P3/src"; GIT -C "$P3" init -q .; manifest "$P3/helix-deps.yaml" src true
-printf "$BADPY" > "$P3/src/bad.py"; printf '[submodule "src"]\n\tpath = src\n\turl = %s\n' "$GO" > "$P3/.gitmodules"; commitall "$P3"
+printf '%b' "$BADPY" > "$P3/src/bad.py"; printf '[submodule "src"]\n\tpath = src\n\turl = %s\n' "$GO" > "$P3/.gitmodules"; commitall "$P3"
 if scanned "$GATE" "$P3"; then ok "P3: .gitmodules entry without a gitlink is not recorded -> scanned"; else bad "P3: gitmodules-only entry hid first-party code"; fi
 # P4: no git metadata at all -> fail closed, manifest never prunes
-P4="$TMP/p4"; mkdir -p "$P4/src"; manifest "$P4/helix-deps.yaml" src true; printf "$BADPY" > "$P4/src/bad.py"
+P4="$TMP/p4"; mkdir -p "$P4/src"; manifest "$P4/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$P4/src/bad.py"
 o4="$(bash "$GATE" --root "$P4" 2>&1)"; r4=$?
 if [ "$r4" -eq 1 ] && grep -q 'no usable git metadata' <<<"$o4"; then ok "P4: no git metadata -> fail closed (scanned, stated on stderr)"; else bad "P4: exported tree hid first-party code (rc=$r4)"; fi
 # hostile manifest with git present and no gitlink; prefix collision
-H="$TMP/hostile"; mkdir -p "$H/src"; GIT -C "$H" init -q .; manifest "$H/helix-deps.yaml" src true; printf "$BADPY" > "$H/src/bad.py"; commitall "$H"
+H="$TMP/hostile"; mkdir -p "$H/src"; GIT -C "$H" init -q .; manifest "$H/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$H/src/bad.py"; commitall "$H"
 if scanned "$GATE" "$H"; then ok "hostile manifest (path: src, not a gitlink) still scanned -> FAIL"; else bad "hostile manifest hid first-party src/"; fi
-P="$TMP/pc"; mkA "$P"; mkdir -p "$P/submodules/vend-bar"; printf "$BADPY" > "$P/submodules/vend-bar/bad.py"
+P="$TMP/pc"; mkA "$P"; mkdir -p "$P/submodules/vend-bar"; printf '%b' "$BADPY" > "$P/submodules/vend-bar/bad.py"
 if grep -q 'submodules/vend-bar/bad.py' <<<"$(gout "$GATE" --root "$P")"; then ok "vend does not prune its prefix sibling vend-bar"; else bad "vend pruned vend-bar"; fi
 # spaces / newline / symlink components are never pruned (dropped -> scanned)
 SP="$TMP/sp"; mkrepo "$TMP/rsp/s"; mkdir -p "$SP"; GIT -C "$SP" init -q .; manifest2 "$SP/helix-deps.yaml" 'sp ace' true; addsub "$SP" "$TMP/rsp/s" 'sp ace' "$GO"; commitall "$SP"
 o="$(bash "$GATE" --root "$SP" 2>&1)"
 if ! grep -q 'PRUNED.*sp ace' <<<"$o" && grep -q 'sp ace/bad.py' <<<"$o"; then ok "marked gitlink path with a space is not pruned (scan more)"; else bad "space path pruned"; fi
 NL="$TMP/nl"; mkdir -p "$NL/src"; GIT -C "$NL" init -q .; printf 'schema_version: 1\ndeps:\n  - name: x\n    path: "src\\nx"\n    ssh_url: git@example.invalid:o/x.git\n    ref: abc\n    why: "x"\n    layout: grouped\n    third_party: true\n    licence: MIT\n' > "$NL/helix-deps.yaml"
-printf "$BADPY" > "$NL/src/bad.py"; commitall "$NL"
+printf '%b' "$BADPY" > "$NL/src/bad.py"; commitall "$NL"
 if scanned "$GATE" "$NL" && ! grep -q 'PRUNED.*src' <<<"$(gout "$GATE" --root "$NL")"; then ok "newline in a manifest path is dropped, not pruned"; else bad "newline path handling wrong"; fi
-SY="$TMP/sy"; mkA "$SY"; rm -rf "${SY:?}/submodules/vend"; mkdir -p "$SY/realdir"; printf "$BADPY" > "$SY/realdir/bad.py"; ln -s ../realdir "$SY/submodules/vend"
+SY="$TMP/sy"; mkA "$SY"; rm -rf "${SY:?}/submodules/vend"; mkdir -p "$SY/realdir"; printf '%b' "$BADPY" > "$SY/realdir/bad.py"; ln -s ../realdir "$SY/submodules/vend"
 if ! grep -q 'PRUNED.*submodules/vend' <<<"$(gout "$GATE" --root "$SY")"; then ok "marked gitlink path replaced by a symlink is not pruned"; else bad "symlink component pruned"; fi
 
 # ── round 5: the removed own-org/URL rule stays removed ───────────────────────────────────────────────────
@@ -173,7 +173,7 @@ rm -rf "${TR:?}/config"; printf 'bogus\n' > "$TMP/elsewhere/own_orgs.list"; ln -
 t_r5b() { noprune "$1" "$TR"; }
 # --own-orgs no longer exists: it is an unknown argument (exit 2), never silently accepted
 for v in '--own-orgs vasic-digital' '--own-orgs --quiet' '--own-orgs'; do
-    # shellcheck disable=SC2086
+    # shellcheck disable=SC2086 # the unquoted $v is split into separate arguments on purpose: it holds a flag and its value
     timeout 20 bash "$GATE" --root "$TR" $v >/dev/null 2>&1; r=$?
     if [ "$r" -eq 2 ]; then ok "R5: '$v' is an unknown argument (exit 2)"; else bad "R5: '$v' accepted (rc=$r)"; fi
 done
@@ -183,7 +183,7 @@ for v in 'vasić-digital' '.' '..' '-' '-x' '_' 'a..b' '.git' 'github.com'; do
     mkdir -p "$PR/config"; printf '%s\n' "$v" > "$PR/config/own_orgs.list"
     for L in C.UTF-8 en_US.UTF-8; do
         o="$(LC_ALL=$L bash "$GATE" --root "$PR" 2>&1)"; r=$?
-        if [ "$r" -eq 1 ] && ! grep -q PRUNED.*submodules <<<"$o"; then ok "R5(c): own_orgs.list '$v' under $L -> scanned (rc 1)"; else bad "R5(c): '$v' $L rc=$r"; fi
+        if [ "$r" -eq 1 ] && ! grep -q 'PRUNED.*submodules' <<<"$o"; then ok "R5(c): own_orgs.list '$v' under $L -> scanned (rc 1)"; else bad "R5(c): '$v' $L rc=$r"; fi
     done
 done
 rm -rf "${PR:?}/config"
@@ -251,7 +251,7 @@ t_cgood() { pruned "$1" "$CG" 'submodules/v' && pruned "$1" "$CD" 'submodules/v'
 #   root-manifest resolution: a 4-hop path (s1/s2/s3/s4, resolved in the depth-3 repository) prunes; a 5-hop path stays scanned.
 #   own-manifest descent: the depth-3 repository's manifest is read; the depth-4 repository's manifest is not.
 mkchain() { # $1=dir $2=level whose own repository carries a manifest marking its gitlink (3 or 4, or 0 for none) $3=root mark or ''
-    local d="$1" R="$TMP/rch_$(basename "$1")" i
+    local d="$1" R i; R="$TMP/rch_$(basename "$1")"
     mkrepo "$R/r5" || return 1
     for i in 4 3 2 1; do
         mkdir -p "$R/r$i"; GIT -C "$R/r$i" init -q . || return 1; printf "def f():\n    return 1\n" > "$R/r$i/f.py"
@@ -316,7 +316,7 @@ if pline "$GATE" "$Q4" 'submodules/q'; then ok "F6/Q4: own-org URL + manifest ma
 t_q4() { pline "$1" "$Q4" 'submodules/q'; }
 # F7/Q1: typechange -- the INDEX records a regular file at src, the worktree has a directory src/ holding code; manifest marks src
 Q1="$TMP/q1"; mkdir -p "$Q1"; GIT -C "$Q1" init -q .; manifest "$Q1/helix-deps.yaml" src true; printf 'x\n' > "$Q1/src"; GIT -C "$Q1" add -A >/dev/null; GIT -C "$Q1" commit -q -m c
-rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf "$BADPY" > "$Q1/src/main.py"
+rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf '%b' "$BADPY" > "$Q1/src/main.py"
 if scanned "$GATE" "$Q1"; then ok "F7/Q1: typechange (index blob, worktree dir) is not a gitlink -> scanned -> FAIL"; else bad "F7/Q1: typechange hid first-party code"; fi
 t_q1() { scanned "$1" "$Q1"; }
 
@@ -411,7 +411,7 @@ if scanned "$GATE" "$S2"; then ok "R6: a lone stage-2 (unmerged) entry is refuse
 t_stage2() { scanned "$1" "$S2"; }
 # gate root inside an UNPOPULATED gitlink holding a stray manifest + plain dir: not the recorded copy -> scanned
 UP="$TMP/r6unpop"; mkrepo "$TMP/r6rup/a"; mkdir -p "$UP"; GIT -C "$UP" init -q .; printf "def f():\n    return 1\n" > "$UP/f.py"; addsub "$UP" "$TMP/r6rup/a" submodules/a "$GO" && commitall "$UP"
-rm -rf "${UP:?}/submodules/a"; mkdir -p "$UP/submodules/a/x"; manifest2 "$UP/submodules/a/helix-deps.yaml" x true; printf "$BADPY" > "$UP/submodules/a/x/bad.py"
+rm -rf "${UP:?}/submodules/a"; mkdir -p "$UP/submodules/a/x"; manifest2 "$UP/submodules/a/helix-deps.yaml" x true; printf '%b' "$BADPY" > "$UP/submodules/a/x/bad.py"
 if scanned "$GATE" "$UP/submodules/a" && ! pline "$GATE" "$UP/submodules/a" 'x'; then ok "R6: root inside an unpopulated gitlink with a stray manifest is scanned"; else bad "R6: unpopulated-gitlink root pruned"; fi
 # golden-FALSE: a committed CRLF manifest marking true (bytes equal to the index blob) still prunes
 CR="$TMP/r6crlf"; mkcust "$CR" true; sed -i 's/$/\r/' "$CR/helix-deps.yaml"; commitall "$CR"
@@ -1036,5 +1036,109 @@ if grep -q 'while (match(txt, /' "$BM/gates/cm_killpg_pgid_guard.sh"; then
         else ok "mutant (brace strip disabled) FAILs the guarded braced case: test is load-bearing"; fi
     else bad "brace mutation did not apply"; fi
 else bad "brace mutation anchor absent"; fi
+# ── round 9: explicit --exclude, the consumer's sanctioned and PRINTED way to leave a tree out ─────────────────
+# (a consumer cannot use the ambient KILLPG_GUARD_EXCLUDE any more: it is a guarded override, honoured only under
+#  HELIX_TEST_MODE=1; byte-frozen snapshots of old code whose prose spells `kill(0, 0)` need an explicit flag instead)
+XC="$TMP/xcl"; mkdir -p "$XC/scripts/hooks/fixtures" "$XC/scripts/live" "$XC/node_modules"
+printf 'x="$(python3 - <<'"'"'PYEOF'"'"'\ndef f(pid):\n    # The pid answered kill(0, 0) -- it exists\n    return pid\nPYEOF\n)"\n' > "$XC/scripts/hooks/fixtures/frozen.fixture.sh"
+printf '%b' "$BADPY" > "$XC/scripts/live/real_bad.py"; printf '%b' "$BADPY" > "$XC/node_modules/vendored_bad.py"
+printf 'def ok():\n    return 1\n' > "$XC/scripts/live/ok.py"
+xg() { local g="$1"; shift; bash "$g" --root "$XC" --quiet "$@" 2>&1; }   # rc of the gate
+fx_found() { grep -q 'FAIL — UNGUARD.*frozen\.fixture\.sh' <<<"$1"; }
+live_found() { grep -q 'FAIL — UNGUARD.*real_bad\.py' <<<"$1"; }
+nm_found() { grep -q 'vendored_bad\.py' <<<"$1"; }
+excl_line() { grep -q 'EXCLUDED (explicit --exclude, not scanned): .*scripts/hooks/fixtures (1 source file(s))' <<<"$1" && grep -q 'excluded file: .*frozen\.fixture\.sh' <<<"$1"; }
+x_default() { local o r; o="$(xg "$1")"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && live_found "$o" && ! nm_found "$o" && ! grep -q 'EXCLUDED' <<<"$o"; }
+x_path() { local o r; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?
+    [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && ! nm_found "$o" && excl_line "$o"; }
+x_name() { local o r; o="$(xg "$1" --exclude fixtures)"; r=$?; [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && excl_line "$o"; }
+x_refuse() { local v r; for v in '*' '' '/abs' '../x' 'a b' '.' '*/*' 'x;y' 'a$b'; do bash "$1" --root "$XC" --exclude "$v" --quiet >/dev/null 2>&1; r=$?; [ "$r" -eq 2 ] || return 1; done
+    bash "$1" --root "$XC" --exclude >/dev/null 2>&1; [ $? -eq 2 ]; }
+x_nomatch() { local o r; o="$(xg "$1" --exclude nothere)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'NOTE — --exclude (nothere) matched no directory' <<<"$o"; }
+x_env() { local o r; o="$(env KILLPG_GUARD_EXCLUDE=scripts/hooks/fixtures bash "$1" --root "$XC" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'ignoring KILLPG_GUARD_EXCLUDE' <<<"$o"; }
+x_file() { local o; o="$(bash "$1" --root "$XC/scripts/hooks/fixtures/frozen.fixture.sh" --exclude fixtures --quiet 2>&1)"; fx_found "$o" && grep -q 'no effect on a single-file scan root' <<<"$o"; }
+x_clean() { local o r; rm -f "$XC/scripts/live/real_bad.py"; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?; printf '%b' "$BADPY" > "$XC/scripts/live/real_bad.py"
+    [ "$r" -eq 0 ] && grep -q 'PASS' <<<"$o" && excl_line "$o"; }
+if x_default "$GATE"; then ok "X1: no --exclude: the frozen fixture and the live file are both reported, node_modules stays default-pruned"; else bad "X1: baseline wrong"; fi
+if x_path "$GATE"; then ok "X2: --exclude scripts/hooks/fixtures: fixture not reported, live file STILL reported, default prune kept (additive), exclusion printed with its file"; else bad "X2: path exclusion wrong"; fi
+if x_name "$GATE"; then ok "X3: --exclude fixtures (directory-name form) behaves the same"; else bad "X3: name exclusion wrong"; fi
+if x_refuse "$GATE"; then ok "X4: unsafe / empty / valueless --exclude refused with exit 2 (*, empty, /abs, .., space, ., */*, ;, \$)"; else bad "X4: an unsafe --exclude was accepted"; fi
+if x_nomatch "$GATE"; then ok "X5: an exclusion that matches nothing prints a NOTE and scans everything"; else bad "X5: no-match exclusion silent or hid something"; fi
+if x_env "$GATE"; then ok "X6: the ambient KILLPG_GUARD_EXCLUDE is still ignored without test mode (the flag is the only way)"; else bad "X6: ambient exclude honoured or not announced"; fi
+if x_file "$GATE"; then ok "X7: --exclude with a single-file root has no effect and says so"; else bad "X7: single-file root + --exclude silent or effective"; fi
+if x_clean "$GATE"; then ok "X8: with only the excluded fixture left unclean, the gate PASSes and still prints what it skipped"; else bad "X8: clean tree + exclusion did not PASS with a printed exclusion"; fi
+# paired mutants of the --exclude feature: each must break at least one of X1..X8
+mkxg() { # $1=name $2=sed script : a gate copy with its libs, mutated
+    local D="$TMP/xm_$1"; mkdir -p "$D/gates" "$D/lib" "$D/deps_manifest"
+    cp "$HERE/cm_killpg_pgid_guard.sh" "$D/gates/"; cp "$HERE"/../lib/*.sh "$D/lib/"; cp "$HERE"/../deps_manifest/*.* "$D/deps_manifest/" 2>/dev/null
+    sed -i "$2" "$D/gates/cm_killpg_pgid_guard.sh"; echo "$D/gates/cm_killpg_pgid_guard.sh"
+}
+x_all() { x_path "$1" && x_name "$1" && x_refuse "$1" && x_nomatch "$1" && x_file "$1" && x_clean "$1"; }
+x_mut() { # $1=label $2=anchor-grep $3=sed
+    local G; G="$(mkxg "$1" "$3")"
+    if ! grep -qF -- "$2" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: anchor absent"
+    elif cmp -s "$G" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1 did not apply"
+    elif x_all "$G"; then bad "mutant $1 SURVIVED (--exclude tests are not load-bearing for it)"; else ok "mutant $1 caught"; fi
+}
+x_mut ignored '[ "${#cli_prune_expr[@]}" -eq 0 ] || prune_expr+=' 's/^\[ "\${#cli_prune_expr\[@\]}" -eq 0 \] || prune_expr+=.*/:/'
+x_mut silent 'EXCLUDED (explicit --exclude, not scanned)' 's/EXCLUDED (explicit --exclude, not scanned)/(quiet)/; s/excluded file: /(quiet) /'
+x_mut accepts_all 'exclude_glob_ok() {' 's/^exclude_glob_ok() {/exclude_glob_ok() { return 0;/'
+x_mut replaces_default 'for ex in $excludes; do' 's/^for ex in \$excludes; do/for ex in ${cli_excludes:-$excludes}; do/'
+x_mut nonote 'matched no directory under' 's/NOTE — --exclude (\${cli_ex_txt}) matched no directory under/(quiet) matched no directory under/'
+x_mut filenote 'has no effect on a single-file scan root' 's/has no effect on a single-file scan root/applies/'
+
+# ── round 10 (independent review round 1, NO-GO): an --exclude may not prune the scan ROOT or an ancestor of it (find applies -name /
+# -path to its starting point, so the gate ended in SKIP, exit 0, with every call site unread), is taken literally (never glob-expanded
+# against the caller's working directory), and may not empty the scan into a SKIP ──────────────────────────────────────────────
+# fixture: $XR is the scan root, basename `live`, parent `scripts`, grandparent `xcl`; it holds a real bad call (real_bad.py)
+XR="$XC/scripts/live"
+XZ="$TMP/xz"; mkdir -p "$XZ/fixtures"; cp "$XC/scripts/hooks/fixtures/frozen.fixture.sh" "$XZ/fixtures/"   # the only source file lives under the excluded dir
+XN="$TMP/xn"; mkdir -p "$XN/fixtures"; printf 'notes\n' > "$XN/fixtures/notes.txt"                          # no source file anywhere
+XW="$TMP/xcwd"; mkdir -p "$XW/fixonly"                                                                      # a working directory holding an entry that `fix*` would expand to
+xroot_refused() { # $1=gate $2=value : exit 2, the refusal says the value matches the scan root or an ancestor, no SKIP, no scan verdict
+    local o r; o="$(bash "$1" --root "$XR" --exclude "$2" --quiet 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q "matches the scan root itself or one of its ancestors" <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o" && ! grep -q 'FAIL —' <<<"$o"; }
+x_rootctl() { local o r; o="$(bash "$1" --root "$XR" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1   # control needle: the unexcluded scan sees the bad call
+    o="$(bash "$1" --root "$XR" --exclude 'zz*' --quiet 2>&1)"; r=$?                                                    # and an exclusion that matches neither the root nor an ancestor is NOT refused
+    [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'matches the scan root' <<<"$o"; }
+x_rootname() { xroot_refused "$1" live; }
+x_roottail() { xroot_refused "$1" scripts/live; }
+x_rootanc() { xroot_refused "$1" xcl/scripts && xroot_refused "$1" 'xc*/scripts'; }
+x_rootglob() { xroot_refused "$1" 'li*' && xroot_refused "$1" '*ve' && xroot_refused "$1" 'l*' && xroot_refused "$1" 'scripts/l*'; }
+x_zero() { local o r; o="$(bash "$1" --root "$XZ" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" || return 1       # control needle: unexcluded, the file is reported
+    o="$(bash "$1" --root "$XZ" --exclude fixtures --quiet 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q 'left no source file to scan' <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o"; }
+x_zeroskip() { local o r; o="$(bash "$1" --root "$XN" --quiet 2>&1)"; r=$?; [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o" || return 1   # a tree with no source file SKIPs, as before
+    o="$(bash "$1" --root "$XN" --exclude fixtures --quiet 2>&1)"; r=$?                                                  # ... and the exclusion is not what emptied it: still SKIP
+    [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o"; }
+x_cwd() { local o r; o="$(cd "$XW" && bash "$1" --root "$XC" --exclude 'fix*' --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && excl_line "$o" && ! grep -q 'matched no directory' <<<"$o"; }
+x_applied() { local o; o="$(bash "$1" --root "$XC" --exclude nothere --exclude 'a/b' --quiet 2>&1)"
+    grep -q "matched no directory under .* (applied as: -name 'nothere'; -path '\*/a/b' -o -path '\*/a/b/\*')" <<<"$o"; }
+if x_rootctl "$GATE"; then ok "X9: control: the unexcluded root scan reports the bad call, and an exclusion unrelated to the root ('zz*') is not refused"; else bad "X9: root-exclusion control wrong"; fi
+if x_rootname "$GATE"; then ok "X10: --exclude <basename of the scan root> is refused with exit 2 (no SKIP)"; else bad "X10: an exclusion naming the scan root was accepted"; fi
+if x_roottail "$GATE"; then ok "X11: --exclude <tail path of the scan root> is refused with exit 2 (no SKIP)"; else bad "X11: a tail-path exclusion of the scan root was accepted"; fi
+if x_rootanc "$GATE"; then ok "X12: --exclude <tail path of an ANCESTOR of the scan root> (also as a glob) is refused with exit 2 (no SKIP)"; else bad "X12: an exclusion naming an ancestor of the scan root was accepted"; fi
+if x_rootglob "$GATE"; then ok "X13: --exclude <glob matching the scan root> (name and path forms) is refused with exit 2 (no SKIP)"; else bad "X13: a glob matching the scan root was accepted"; fi
+if x_zero "$GATE"; then ok "X14: an exclusion that leaves NO source file to scan exits 2 (not SKIP), where the unexcluded scan has a finding"; else bad "X14: exclusion emptied the scan into SKIP or the control is wrong"; fi
+if x_zeroskip "$GATE"; then ok "X15: a tree with no source file at all still SKIPs, with or without an unrelated --exclude (the exit-2 rule is only for an exclusion that emptied the scan)"; else bad "X15: no-source tree no longer SKIPs"; fi
+if x_cwd "$GATE"; then ok "X16: --exclude 'fix*' run from a directory holding 'fixonly' still excludes 'fixtures' (the value is not glob-expanded against the working directory)"; else bad "X16: --exclude glob expanded against the caller's working directory"; fi
+if x_applied "$GATE"; then ok "X17: the no-match NOTE prints the find test that was applied"; else bad "X17: the NOTE does not print the applied test"; fi
+x2_mut() { # $1=label $2=anchor-grep $3=sed $4=case function : it must PASS on the real gate (checked) and FAIL on the mutant
+    local G; G="$(mkxg "$1" "$3")"
+    if ! grep -qF -- "$2" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: anchor absent"
+    elif cmp -s "$G" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1 did not apply"
+    elif ! "$4" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: case $4 does not hold on the real gate"
+    elif "$4" "$G"; then bad "mutant $1 SURVIVED ($4 is not load-bearing for it)"; else ok "mutant $1 caught by $4"; fi
+}
+x2_mut rootcheck_off '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_rootname
+x2_mut rootcheck_off_tail '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_roottail
+x2_mut rootcheck_off_glob '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_rootglob
+x2_mut rootcheck_no_ancestor '-maxdepth 0 -type d' 's/\\( "\${one_expr\[@\]}" \\) -print -quit/\\( "${one_expr[@]:0:2}" \\) -print -quit/' x_rootanc
+x2_mut zero_skips 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cli_would_scan" \]; then/if false; then/' x_zero
+x2_mut zero_always_refuses 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cli_would_scan" \]; then/if true; then/' x_zeroskip
+x2_mut cwd_glob 'for ex in ${cli_excludes[@]+"${cli_excludes[@]}"}; do' 's/^for ex in \${cli_excludes\[@\]+"\${cli_excludes\[@\]}"}; do/for ex in ${cli_excludes[*]}; do/' x_cwd
+x2_mut note_without_applied '(applied as: ${cli_applied})' 's/ (applied as: \${cli_applied})//' x_applied
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
