@@ -80,23 +80,27 @@ if ! command -v systemd-run >/dev/null 2>&1 || ! command -v systemctl >/dev/null
     exit 77
 fi
 # A clean environment (env -i, the full-suite runner) drops XDG_RUNTIME_DIR,
-# which makes `systemctl --user` blind even though the user manager runs.
-# Recover the standard pam_systemd location when its bus socket exists and
-# belongs to us, so the probe asks the real question.
-if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
-    _xrd="/run/user/$(id -u)"
-    if [ -S "$_xrd/bus" ] && [ -O "$_xrd/bus" ]; then
-        export XDG_RUNTIME_DIR="$_xrd"
-    fi
-fi
+# or carries one without a bus, which makes `systemctl --user` blind even
+# though the user manager runs. The shared helper (scripts/lib/user_bus_env.sh,
+# CON-117) exports XDG_RUNTIME_DIR to the caller's OWN bus (a socket owned by
+# this user, the same rule for every branch), so the probe asks the real
+# question (CON-110 follow-ups F110-1, F110-2, F110-3).
+_ub_lib="$SELF_DIR/../lib/user_bus_env.sh"
+[ -r "$_ub_lib" ] || { echo "FAIL: helper absent: $_ub_lib"; exit 1; }
+# shellcheck source=../lib/user_bus_env.sh
+. "$_ub_lib"
+ub_user_bus_env
+case $? in
+    0) ;;
+    2)  echo "SKIP: the only systemd --user bus socket ($UB_BUS_PATH) is not owned by uid $(id -u) reason=topology_unsupported"
+        exit 77 ;;
+    *)  echo "SKIP: no systemd --user bus on this host reason=topology_unsupported"
+        exit 77 ;;
+esac
 if ! systemctl --user list-units >/dev/null 2>&1; then
-    if [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]; then
-        # the socket is there but the manager does not answer: a real fault
-        echo "FAIL: systemd --user bus socket present at ${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus but systemctl --user does not answer"
-        exit 1
-    fi
-    echo "SKIP: no systemd --user bus on this host reason=topology_unsupported"
-    exit 77
+    # an owned bus socket is there but the manager does not answer: a real fault
+    echo "FAIL: systemd --user bus socket present at $UB_BUS_PATH (owned by uid $(id -u), $UB_SOURCE) but systemctl --user does not answer"
+    exit 1
 fi
 [ -r "$UUT" ] || { echo "FAIL: unit under test absent: $UUT"; exit 1; }
 

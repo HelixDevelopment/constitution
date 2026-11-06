@@ -634,6 +634,7 @@ scripts/label-sync/prove_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/render/prove_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/render/tests/test_render.sh	sh	entry	default	bash	-	auto
 scripts/lib/test_safe_rm.sh	sh	entry	default	bash	-	auto
+scripts/lib/test_user_bus_env.sh	sh	entry	default	sh	-	auto
 scripts/llm-alias-health	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/lumen/tests/fake_ollama.py	py	excluded	-	-	-	reason: fake: unit-class fake server used by test_gen_lumenignore.sh (section 11.4.289(C)(2))
 scripts/lumen/tests/test_gen_lumenignore.sh	sh	entry	default	bash	-	auto
