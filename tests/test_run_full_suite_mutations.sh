@@ -28,7 +28,15 @@
 # unknown never detected, a path label without repr(), unknown-at-both-ends not reported); Q1-Q13 guard the class
 # members fixed in round 3 (the `?` Go-module marker, unframed tree hash, `#` and non-UTF-8 census names, CR-safe
 # table readers, the newline-path and doubly-named gaps, bytes symlink targets, the old `<absent>` marker, path
-# display and surrogateescape decoding). A mutant counts as KILLED only when the self-test
+# display and surrogateescape decoding). CON-030 round 4 (review r3, structural round again): Q5 Q5k Q5x Q5c are
+# re-anchored to the ONE governance reader gov_lines (universal-newline split, refusal dropped, read_roster reading
+# its file by itself with splitlines() = the H2 mutant, CRLF tolerance dropped); M2 is re-anchored to the structured
+# key; H1a-H1d guard the structured unit key (joined id compared again = the H1 mutant, the display and key
+# refusals of plan(), args dropped from the key); H2a H2b the reader (manifest read with splitlines(), C1 and the
+# Unicode separators dropped from the class); H3a-H3d the output escaping (raw stdout = the H3 mutant, raw
+# summary.txt, CR names listed again, the escape itself dropped); RW1-RW6 are the reviewer-authored mutants of
+# review r3, adopted verbatim (RW6 re-anchored: the joined uid it mutated is display-only now, so it drops the
+# args from the structured key instead). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -50,7 +58,7 @@ trap 'TMPDIR="$(dirname "$W")" safe_rm_rf "${W:?}" >/dev/null 2>&1' EXIT
 # id <TAB> old <TAB> new   (python string escapes \n \t are decoded)
 MUTANTS=$(cat <<'EOF'
 M1	    if rc in (124, 137):\n        return "ERROR", "rc_%d_without_runner_timeout" % rc, "exit-code", None	    if rc in (124, 137):\n        return "PASS", "", "exit-code", None
-M2	return (o["unit"] == u["id"] and o["sha"] == sha and	return (o["unit"] == u["id"] and
+M2	return (rec_key(o) == u["key"] and o["sha"] == sha and	return (rec_key(o) == u["key"] and
 M3	BAD = ("FAIL", "TIMEOUT", "ERROR")	BAD = ("FAIL", "ERROR")
 M6	                if not (rerun and lv != "PASS"):	                if True:
 M7	and o["tree"] == tree and	and
@@ -171,10 +179,10 @@ Q1	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if
 Q2	        h.update(tag + b"%d:" % len(data))	        h.update(tag)
 Q3	        if f.startswith("#"):	        if False:
 Q4	        if f != os.fsencode(f).decode("utf-8", "replace"):	        if False:
-Q5	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            cols
-Q5k	        for n, line in enumerate(fh.read().split("\\n"), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line	        for n, line in enumerate(fh.read().splitlines(), 1):\n            line = crlf_line(line)\n            if not line or line.startswith("#"):\n                continue\n            c = line
-Q5x	        for line in map(crlf_line, fh.read().split("\\n")):	        for line in fh.read().splitlines():
-Q5c	    return line[:-1] if line.endswith("\\r") else line	    return line
+Q5	    for n, line in enumerate(text.split("\\n"), 1):	    for n, line in enumerate(text.splitlines(), 1):
+Q5k	        if mm:\n            raise GovLineError(path, n, mm.group(0))	        if False:\n            raise GovLineError(path, n, mm.group(0))
+Q5x	    try:\n        lines = gov_lines(path)\n    except GovLineError as e:\n        # review r3 H2	    try:\n        lines = list(enumerate(open(path, errors="replace").read().splitlines(), 1))\n    except GovLineError as e:\n        # review r3 H2
+Q5c	        if line.endswith("\\r"):\n            line = line[:-1]\n        mm = LINE_BREAKERS	        if False:\n            line = line[:-1]\n        mm = LINE_BREAKERS
 Q6	    for path in sorted(x for x in known if "\\n" in x):	    for path in []:
 Q7	        if path in seen:	        if False:
 Q8	            return b"L" + os.readlink(p)	            return b"L" + os.readlink(os.fsdecode(p)).encode()
@@ -183,6 +191,22 @@ Q10	    return os.fsencode(path).decode("utf-8", "backslashreplace")	    return 
 Q11	        for rec in os.fsdecode(p.stdout).split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):	        for rec in p.stdout.decode(errors="replace").split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):
 Q12	    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))	    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
 Q13	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:	        if parsed is not None and parsed[0] != "-":
+H1a	    return (rec_key(o) == u["key"] and o["sha"] == sha	    return (o["unit"] == u["id"] and o["sha"] == sha
+H1b	        if u["id"] in ids:	        if False:
+H1c	        if u["key"] in keys:	        if False:
+H1d	        units.append({"id": uid, "key": (path, tuple(args)),	        units.append({"id": uid, "key": (path, ()),
+H2a	        lines = gov_lines(path)\n    except GovLineError as e:\n        raise Fatal(3, "manifest	        lines = list(enumerate(open(path).read().splitlines(), 1))\n    except GovLineError as e:\n        raise Fatal(3, "manifest
+H2b	LINE_BREAKERS = re.compile("[\\x00-\\x08\\x0a-\\x1f\\x7f-\\x9f\\u2028\\u2029]")	LINE_BREAKERS = re.compile("[\\x00-\\x08\\x0a-\\x1f\\x7f]")
+H3a	    sys.stdout.write(esc_out(msg) + "\\n")	    sys.stdout.write(msg + "\\n")
+H3b	        fh.write("".join(esc_out(l) + "\\n" for l in summ))	        fh.write("".join(l + "\\n" for l in summ))
+H3c	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\n\\t]", f)
+H3d	    s = LINE_BREAKERS.sub(one, s)	    pass
+RW1	    return q.status is None or any(v is None for _p, v in q.heads)	    return any(v is None for _p, v in q.heads)
+RW2	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)	    return QuickIdent(tuple(heads), "s")
+RW3	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16])
+RW4	        h.update(tag + b"-;")	        h.update(tag + b"0:")
+RW5	        if path in seen:	        if path in seen and flag == " ":
+RW6	    return (rec_key(o) == u["key"] and	    return (rec_key(o)[0] == u["key"][0] and
 EOF
 )
 

@@ -1366,7 +1366,7 @@ class Model:
         raise ShParseError("unknown node %r" % k)
 
     def interpret_file(self, rel, definite):
-        with open(os.path.join(self.root, rel), errors="replace") as fh:
+        with open(os.path.join(self.root, rel), errors="replace") as fh:  # io: not-gov (a python test's source, parsed)
             ast = parse(fh.read())
         self.depth += 1
         try:
@@ -1403,7 +1403,7 @@ def _strip(b, op, pat):
 def model(root, rel, args):
     """Interpret `rel` (relative to `root`) with positional `args`; return the Model."""
     m = Model(root, rel, args)
-    with open(m.script, errors="replace") as fh:
+    with open(m.script, errors="replace") as fh:  # io: not-gov (a runall script's source, parsed as shell)
         text = fh.read()
     if re.match(r"^#![^\n]*\s-[A-Za-z]*e", text):
         m.errexit = True
@@ -1493,14 +1493,69 @@ class Fatal(Exception):
         self.code = code
 
 
+# Every C0 control except TAB (LF and CR included), DEL, every C1 control (NEL included) and the two Unicode line
+# and paragraph separators: the characters that end, overwrite or split a line in some reader (a terminal, Python
+# text mode, str.splitlines()). CON-030 round 4 (review r3 H2, H3): ONE class, used by the one governance-file
+# reader, by the census name check and by the one output escaping function.
+LINE_BREAKERS = re.compile("[\x00-\x08\x0a-\x1f\x7f-\x9f\u2028\u2029]")
+CHAR_NAMES = {"\n": "LF", "\r": "CR", "\x0b": "VT", "\x0c": "FF", "\x00": "NUL", "\x1b": "ESC", "\x7f": "DEL",
+              "\x85": "NEL", "\u2028": "LINE SEPARATOR", "\u2029": "PARAGRAPH SEPARATOR"}
+
+
+def char_name(c):
+    """`U+0085 (NEL)`: how a refused character is named in a message."""
+    return "U+%04X%s" % (ord(c), " (%s)" % CHAR_NAMES[c] if c in CHAR_NAMES else "")
+
+
+def esc_out(s):
+    """THE output escaping function (review r3 H3): every LINE_BREAKERS character as \\r, \\n or \\xNN / \\uNNNN, and
+    a lone surrogate (a non-UTF-8 byte kept by os.fsdecode) as \\xNN. One message is one line on every reader, so no
+    path, unit id, label, gap or git text can forge or overwrite a line (a `RESULT:` line above all). TAB is kept
+    (the manifest printed to stdout is TAB separated, and a TAB ends no line)."""
+    def one(mm):
+        c = mm.group(0)
+        return {"\n": "\\n", "\r": "\\r"}.get(c) or ("\\x%02x" % ord(c) if ord(c) < 0x100 else "\\u%04x" % ord(c))
+    s = LINE_BREAKERS.sub(one, s)
+    try:
+        return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
+    except UnicodeEncodeError:
+        return s.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
 def out(msg):
-    sys.stdout.write(msg + "\n")
+    sys.stdout.write(esc_out(msg) + "\n")
     sys.stdout.flush()
 
 
 def err(msg):
-    sys.stderr.write(msg + "\n")
+    sys.stderr.write(esc_out(msg) + "\n")
     sys.stderr.flush()
+
+
+class GovLineError(Exception):
+    """A governance-file line that holds a LINE_BREAKERS character (other than the CR of a CRLF line end)."""
+    def __init__(self, path, n, c):
+        Exception.__init__(self, "%s line %d holds the character %s, which a governance file may not hold (a "
+                           "reader that splits on it would see another line than git shows)" % (path, n, char_name(c)))
+
+
+def gov_lines(path):
+    """THE reader of every governance file (manifest, known-failures table, excluded lock, operator roster, guide):
+    [(line number, line)]. Bytes are read and split on "\\n" only; the CR of a CRLF line end is dropped (a CRLF file
+    stays readable); any other LINE_BREAKERS character in a line raises GovLineError, so no NEL, LS, PS, VT, FF or
+    bare CR can make one committed line read as two (review r3 H2: str.splitlines() split a `#` comment line on a
+    NEL and read an operator id hidden behind it). OSError propagates to the caller."""
+    with open(path, "rb") as fh:  # io: gov (the one governance reader)
+        text = fh.read().decode("utf-8", "replace")
+    res = []
+    for n, line in enumerate(text.split("\n"), 1):
+        if line.endswith("\r"):
+            line = line[:-1]
+        mm = LINE_BREAKERS.search(line)
+        if mm:
+            raise GovLineError(path, n, mm.group(0))
+        res.append((n, line))
+    return res
 
 
 def shown(path):
@@ -1568,7 +1623,7 @@ def broad_candidate(f):
 
 def has_shebang(path):
     try:
-        with open(path, "rb") as fh:
+        with open(path, "rb") as fh:  # io: not-gov (a script's first bytes, shebang)
             return re.match(rb"^#!\s*\S*(sh|bash|python3?|env\s+(ba)?sh|env\s+python3?)\b", fh.read(128)) is not None
     except OSError:
         return False
@@ -1591,8 +1646,13 @@ def census(root):
         if not broad_candidate(f):
             continue
         p = os.path.join(root, f)
-        if "\n" in f or "\t" in f:
-            probs.append("census: file name with a newline or TAB cannot be listed in the manifest: %r" % f)
+        bad = LINE_BREAKERS.search(f) or ("\t" if "\t" in f else None)
+        if bad:
+            # a TAB splits a manifest column; a LINE_BREAKERS character (LF, CR, NEL, LS, ...) is refused by the one
+            # governance reader (gov_lines) and could forge an output line (review r3 H3), so no table can hold it
+            c = bad if isinstance(bad, str) else bad.group(0)
+            probs.append("census: file name with a newline, TAB or other control or line-separator character (%s) "
+                         "cannot be listed in the manifest: %r" % (char_name(c), f))
             continue
         if f != os.fsencode(f).decode("utf-8", "replace"):
             # not UTF-8 (os.fsdecode kept the bytes as surrogates): the manifest is UTF-8 text, so the name cannot be
@@ -1624,7 +1684,7 @@ def census(root):
             continue
         if not SCRIPT_EXT.search(b) and not has_shebang(p):
             continue
-        if b.lower().endswith(".py") or (not SCRIPT_EXT.search(b) and has_shebang(p) and b"python" in open(p, "rb").read(64)):
+        if b.lower().endswith(".py") or (not SCRIPT_EXT.search(b) and has_shebang(p) and b"python" in open(p, "rb").read(64)):  # io: not-gov (a script's first bytes)
             scripts[f] = "py"
         elif b == "run_all.sh":
             scripts[f] = "runall"
@@ -1649,11 +1709,11 @@ def census_needle(scratch):
     try:
         for f in NEEDLE:
             os.makedirs(os.path.join(d, os.path.dirname(f)), exist_ok=True)
-            with open(os.path.join(d, f), "w") as fh:
+            with open(os.path.join(d, f), "w") as fh:  # io: write
                 fh.write("#!/usr/bin/env bash\necho x\n" if f != "tests/noshebang" else "data\n")
         env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": d, "GIT_CONFIG_NOSYSTEM": "1"}
         subprocess.run(["git", "init", "-q", d], env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        with open(os.path.join(d, ".gitmodules"), "w") as fh:
+        with open(os.path.join(d, ".gitmodules"), "w") as fh:  # io: write
             fh.write('[submodule "sub"]\n\tpath = sub\n\turl = x\n')
         scripts, gofiles, probs = census(d)
         want_s = sorted(f for f, v in NEEDLE.items() if v == 1)
@@ -1690,7 +1750,7 @@ def rm_tree(path, scratch):
 # ----------------------------------------------------------------------------- manifest
 def read_text(root, rel):
     try:
-        with open(os.path.join(root, rel), errors="replace") as fh:
+        with open(os.path.join(root, rel), errors="replace") as fh:  # io: not-gov (a script's source)
             return fh.read()
     except OSError:
         return ""
@@ -1813,30 +1873,24 @@ def generate(root, existing):
     return [rows[k] for k in sorted(rows)]
 
 
-def crlf_line(line):
-    """One line of a TAB-separated table read split on "\\n": a trailing CR (a CRLF file) is dropped. It can only
-    belong to the LAST column (a note, a signature or a hash), never to the path in the first column."""
-    return line[:-1] if line.endswith("\r") else line
-
-
 def read_manifest(path):
     if not os.path.isfile(path):
         raise Fatal(3, "manifest missing: %s (generate with --generate-manifest --write)" % path)
     rows, seen = [], set()
-    with open(path, errors="replace", newline="") as fh:
-        # split on "\n" only: text-mode iteration also ends a line at a CR, which a path may hold (CON-030 r3 class);
-        # crlf_line() keeps a CRLF file readable (the CR it drops belongs to the last column, never to a path)
-        for n, line in enumerate(fh.read().split("\n"), 1):
-            line = crlf_line(line)
-            if not line or line.startswith("#"):
-                continue
-            cols = line.split("\t")
-            if len(cols) != 7:
-                raise Fatal(3, "manifest line %d: want 7 TAB columns, got %d" % (n, len(cols)))
-            if cols[0] in seen:
-                raise Fatal(3, "manifest line %d: duplicate path %s" % (n, cols[0]))
-            seen.add(cols[0])
-            rows.append(cols)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(3, "manifest: %s" % e)
+    for n, line in lines:
+        if not line or line.startswith("#"):
+            continue
+        cols = line.split("\t")
+        if len(cols) != 7:
+            raise Fatal(3, "manifest line %d: want 7 TAB columns, got %d" % (n, len(cols)))
+        if cols[0] in seen:
+            raise Fatal(3, "manifest line %d: duplicate path %s" % (n, cols[0]))
+        seen.add(cols[0])
+        rows.append(cols)
     return rows
 
 
@@ -1858,8 +1912,10 @@ def guide_check(root, rows, fix=False):
     p = os.path.join(root, GUIDE_REL)
     if not os.path.isfile(p):
         return None
-    with open(p, errors="replace") as fh:
-        text = fh.read()
+    try:
+        text = "\n".join(l for _n, l in gov_lines(p))
+    except GovLineError as e:
+        return str(e)
     if GUIDE_BEGIN not in text:
         return None
     a = text.index(GUIDE_BEGIN) + len(GUIDE_BEGIN)
@@ -1871,7 +1927,7 @@ def guide_check(root, rows, fix=False):
         return None
     if fix:
         tmp = p + ".tmp.%d" % os.getpid()
-        with open(tmp, "w") as fh:
+        with open(tmp, "w") as fh:  # io: write
             fh.write(text[:a] + want + text[b:])
         os.replace(tmp, p)
         return None
@@ -2038,13 +2094,18 @@ def read_roster(root, path):
     d = subprocess.run(["git", "-C", root, "diff", "--quiet", "HEAD", "--", rel], stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL)
     ids = set()
-    with open(path, errors="replace") as fh:
-        for line in fh.read().splitlines():
-            if not line.strip() or line.startswith("#"):
-                continue
-            i = line.split("\t", 1)[0].strip()
-            if WHO_RE.match(i):
-                ids.add(i)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        # review r3 H2: a NEL / LS / CR inside a committed `#` comment line hid an operator id that git shows as
+        # part of the comment; such a roster names nobody (an acceptance by any id is refused, a run ends exit 11)
+        return set(), "operator roster %s" % e
+    for _n, line in lines:
+        if not line.strip() or line.startswith("#"):
+            continue
+        i = line.split("\t", 1)[0].strip()
+        if WHO_RE.match(i):
+            ids.add(i)
     if t.returncode != 0 or d.returncode != 0:
         return ids, "operator roster %s is not committed (untracked or differs from HEAD)" % path
     return ids, None
@@ -2070,18 +2131,21 @@ def read_excl_lock(path):
     if not os.path.isfile(path):
         return None
     body, last, acc = {}, None, []
-    with open(path, errors="replace", newline="") as fh:
-        for line in map(crlf_line, fh.read().split("\n")):
-            if line.startswith("# accepted "):
-                acc.append(line)
-                mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
-                last = mm.group(1) if mm else None
-            elif line and not line.startswith("#"):
-                c = line.split("\t")
-                if len(c) == 2:
-                    body[c[0]] = c[1]
-                else:
-                    body["\0malformed"] = line
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(3, "excluded lock: %s" % e)
+    for _n, line in lines:
+        if line.startswith("# accepted "):
+            acc.append(line)
+            mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
+            last = mm.group(1) if mm else None
+        elif line and not line.startswith("#"):
+            c = line.split("\t")
+            if len(c) == 2:
+                body[c[0]] = c[1]
+            else:
+                body["\0malformed"] = line
     return body, last, acc
 
 
@@ -2130,7 +2194,7 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     acc.append("# accepted %s accepted_by=%s set=%s rows=%d chain=%s" % (ts, who, seth, len(body),
                                                                        acc_chain(prev, ts, who, seth, len(body))))
     tmp = lock_path + ".tmp.%d" % os.getpid()
-    with open(tmp, "w") as fh:
+    with open(tmp, "w") as fh:  # io: write
         fh.write("# %s -- reviewed set of excluded rows of the full-suite manifest (path TAB sha256-16 of the note).\n"
                  "# --verify-manifest refuses any difference; a reviewer accepts a change with\n"
                  "# --verify-manifest --accept-excluded-change <reviewer>, which appends one `# accepted` line.\n"
@@ -2247,7 +2311,7 @@ def topology(root):
         if q.returncode != 0:
             gaps.append("submodule %s: recorded commit %s is not in its object store" % (shown(path), sha[:12]))
     if p.returncode != 0:
-        msg = p.stderr.decode(errors="replace").strip().splitlines()
+        msg = p.stderr.decode(errors="replace").strip().splitlines()  # io: not-gov (git stderr)
         gaps.append("git submodule status failed (rc %d): %s" % (p.returncode, msg[-1] if msg else ""))
     return layout, n, gaps
 
@@ -2263,7 +2327,7 @@ def tree_ident(root):
     head_s = head.stdout.decode(errors="replace").strip() if head.returncode == 0 else "nogit"
     sub = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                          stderr=subprocess.DEVNULL)
-    subs = hashlib.sha256(b"\n".join(sorted(l.strip().encode() for l in sub.stdout.decode(errors="replace")
+    subs = hashlib.sha256(b"\n".join(sorted(l.strip().encode() for l in sub.stdout.decode(errors="replace")  # io: not-gov (git submodule output)
                                               .splitlines() if l.strip()))).hexdigest()[:16] \
         if sub.returncode == 0 else "unknown"
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "--untracked-files=all",
@@ -2272,8 +2336,8 @@ def tree_ident(root):
                          'o=$(git status --porcelain=v1 --untracked-files=all --ignore-submodules=none) || exit 1; '
                          '[ -z "$o" ] || printf "%s\\n" "$o" | sed "s|^|$displaypath: |"'],
                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    dirty = [l for l in st.stdout.decode(errors="replace").splitlines() if l.strip()]
-    dirty += ["(in submodule) " + l for l in fe.stdout.decode(errors="replace").splitlines() if l.strip()]
+    dirty = [l for l in st.stdout.decode(errors="replace").splitlines() if l.strip()]  # io: not-gov (git status output)
+    dirty += ["(in submodule) " + l for l in fe.stdout.decode(errors="replace").splitlines() if l.strip()]  # io: not-gov (git status output)
     if st.returncode != 0 or fe.returncode != 0 or head.returncode != 0:
         dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))
         dh = "unknown"
@@ -2370,7 +2434,7 @@ def discarded_members(root, rows, heavy_mode):
 
 def write_manifest(path, rows):
     tmp = path + ".tmp.%d" % os.getpid()
-    with open(tmp, "w") as fh:
+    with open(tmp, "w") as fh:  # io: write
         fh.write(MANIFEST_HEADER)
         for r in rows:
             fh.write("\t".join(c.replace("\t", " ") for c in r) + "\n")
@@ -2385,8 +2449,12 @@ def plan(rows, heavy_mode, alone=()):
     units = []
 
     def add(path, runner, args, tier, run, why=""):
+        # `key` is the unit's identity (resume, nondeterminism grouping): a structure, never a joined string (review
+        # r3 H1: path + " " + args gave a Go module in a directory named `x/run_all.sh --quick` the id of the
+        # runall-quick unit of x/run_all.sh, which resumed it from that unit's PASS record). `id` is display only.
         uid = path + ("" if not args else " " + " ".join(args))
-        units.append({"id": uid, "path": path, "runner": runner, "args": list(args), "tier": tier, "run": run, "why": why})
+        units.append({"id": uid, "key": (path, tuple(args)), "path": path, "runner": runner, "args": list(args),
+                      "tier": tier, "run": run, "why": why})
 
     def eff_heavy(r):
         while r[2] == "member":
@@ -2428,7 +2496,35 @@ def plan(rows, heavy_mode, alone=()):
             continue
         run = heavy_mode or not eff_heavy(r)
         add(path, runner, [], tier, run, "" if run else "heavy_excluded")
+    keys, ids = {}, {}
+    for u in units:
+        if u["key"] in keys:
+            raise Fatal(3, "plan: two units have one key (path %r, args %r)" % u["key"])
+        keys[u["key"]] = u
+        if u["id"] in ids:
+            # distinct keys, one display text: every message, --only filter and summary line would name both units
+            # at once, so the run refuses (exit 3) rather than print evidence a reader cannot attribute
+            o = ids[u["id"]]
+            raise Fatal(3, "plan: two different units are both shown as %r (path %r args %r, and path %r args %r); "
+                        "rename one of the paths" % (u["id"], o["path"], o["args"], u["path"], u["args"]))
+        ids[u["id"]] = u
     return units
+
+
+def rec_key(o):
+    """The structured unit key of a result record: (path, tuple of its args), or None when the record carries no
+    list of string args (an older record, never resumed). Compared with a unit's `key`, never its display id."""
+    a = o.get("args")
+    if not isinstance(a, list) or not all(isinstance(x, str) for x in a):
+        return None
+    return (o["path"], tuple(a))
+
+
+def rec_matches(o, u, sha, tree, rhash, ctx):
+    """True when result record `o` was written for unit `u` in this run's resume key: the structured unit key
+    (path, args), HEAD sha, working-tree hash, runner hash and context hash. The display id is never compared."""
+    return (rec_key(o) == u["key"] and o["sha"] == sha and o["tree"] == tree and o["runner_hash"] == rhash
+            and o["ctx"] == ctx)
 
 
 # ----------------------------------------------------------------------------- verdict parsing
@@ -2717,7 +2813,7 @@ def judge(rc, timed_out, text, runner):
     if rc == 0:
         return judge_exit0(text, runner)
     if rc == 77:
-        lines = [l for l in text.splitlines() if l.strip()]
+        lines = [l for l in text.splitlines() if l.strip()]  # io: not-gov (suite output)
         r = re.search(r"reason[= ]([A-Za-z0-9_]+)", lines[-1]) if lines else None
         return "SKIP", (r.group(1) if r else "suite_reported_skip"), "exit-code", None
     if rc in (124, 137):
@@ -2751,7 +2847,7 @@ def reap_token(token):
             if pid <= 1 or pid == os.getpid():
                 continue
             try:
-                with open("/proc/%d/environ" % pid, "rb") as fh:
+                with open("/proc/%d/environ" % pid, "rb") as fh:  # io: not-gov (/proc environ)
                     env = fh.read()
             except OSError:
                 continue
@@ -2826,7 +2922,7 @@ def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
     pgid = proc.pid
     fd = proc.stdout.fileno()
     try:
-        with open(log, "wb") as fh:
+        with open(log, "wb") as fh:  # io: write
             term_at = exit_at = None
             killed = False
             while True:
@@ -2907,17 +3003,17 @@ class Results:
         self.path, self.recs, self.last = path, [], None
         if not os.path.exists(path):
             return
-        with open(path, "rb") as fh:
+        with open(path, "rb") as fh:  # io: not-gov (results.jsonl: JSON lines, CR/LF escaped by json.dumps)
             data = fh.read()
         if data and not data.endswith(b"\n"):
             cut = data.rfind(b"\n") + 1
             err("WARN: torn last line in %s dropped (%d bytes; an interrupted write left no complete record)"
                 % (path, len(data) - cut))
             data = data[:cut]
-            with open(path, "r+b") as fh:
+            with open(path, "r+b") as fh:  # io: write
                 fh.truncate(cut)
         logs = set()
-        for n, raw in enumerate(data.splitlines()):
+        for n, raw in enumerate(data.splitlines()):  # io: not-gov (results.jsonl bytes)
             try:
                 o = json.loads(raw.decode("utf-8"))
             except (ValueError, UnicodeDecodeError):
@@ -2939,7 +3035,7 @@ class Results:
         o["seq"] = len(self.recs)
         o["prev"] = GENESIS if self.last is None else line_hash(self.last)
         raw = json.dumps(o, sort_keys=True).encode()
-        with open(self.path, "ab") as fh:
+        with open(self.path, "ab") as fh:  # io: write
             fh.write(raw + b"\n")
             fh.flush()
             os.fsync(fh.fileno())
@@ -2977,7 +3073,7 @@ def file_digest(p):
         if os.path.islink(p):
             return b"L" + os.readlink(p)
         hh = hashlib.sha256()
-        with open(p, "rb") as fh:
+        with open(p, "rb") as fh:  # io: not-gov (file content hash)
             for blk in iter(lambda: fh.read(1 << 20), b""):
                 hh.update(blk)
         return b"F" + hh.digest()
@@ -2989,16 +3085,18 @@ def load_known(path):
     rows = []
     if not os.path.isfile(path):
         return rows, "absent"
-    with open(path, errors="replace", newline="") as fh:
-        for n, line in enumerate(fh.read().split("\n"), 1):
-            line = crlf_line(line)
-            if not line or line.startswith("#"):
-                continue
-            c = line.split("\t")
-            if len(c) != 4 or not c[0] or not c[1] or not c[2]:
-                raise Fatal(2, "known-failures %s line %d: want 4 TAB columns path, signature, tracked_id, note (first three non-empty)"
-                            % (path, n))
-            rows.append(c)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(2, "known-failures: %s" % e)
+    for n, line in lines:
+        if not line or line.startswith("#"):
+            continue
+        c = line.split("\t")
+        if len(c) != 4 or not c[0] or not c[1] or not c[2]:
+            raise Fatal(2, "known-failures %s line %d: want 4 TAB columns path, signature, tracked_id, note (first three non-empty)"
+                        % (path, n))
+        rows.append(c)
     return rows, "%d open row(s)" % len(rows)
 
 
@@ -3018,7 +3116,7 @@ def file_bytes(p):
     """The bytes of a file, or None when it cannot be read (an absent file is not a content any file can have;
     CON-030 round 3 class: the old b"<absent>" marker equalled a file with exactly that content)."""
     try:
-        with open(p, "rb") as fh:
+        with open(p, "rb") as fh:  # io: not-gov (file bytes, hashed whole)
             return fh.read()
     except OSError:
         return None
@@ -3040,8 +3138,8 @@ ROOT = ""
 
 
 def usage():
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "run_full_suite.sh")) as fh:
-        for line in fh.read().splitlines()[1:]:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "run_full_suite.sh")) as fh:  # io: not-gov (the runner's own usage header)
+        for line in fh.read().splitlines()[1:]:  # io: not-gov (the runner's own usage header)
             if not line.startswith("#"):
                 break
             out(line[2:] if line.startswith("# ") else line[1:])
@@ -3049,7 +3147,7 @@ def usage():
 
 def lock_out(outdir):
     os.makedirs(os.path.join(outdir, "logs"), exist_ok=True)
-    fd = os.open(os.path.join(outdir, ".lock"), os.O_RDWR | os.O_CREAT, 0o600)
+    fd = os.open(os.path.join(outdir, ".lock"), os.O_RDWR | os.O_CREAT, 0o600)  # io: not-gov (the --out lock file descriptor)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -3217,7 +3315,7 @@ def main(argv):
     subs0 = sub_paths(root)
     qid0 = quick_ident(root, subs0)
     id_changed = ""
-    with open(os.path.abspath(__file__), "rb") as fh:
+    with open(os.path.abspath(__file__), "rb") as fh:  # io: not-gov (the engine's own bytes, hashed)
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
     ch = hashlib.sha256()
     for tag, fp in ((b"manifest", manifest), (b"known", known), (b"excluded", lock_path)):
@@ -3237,8 +3335,7 @@ def main(argv):
         gomodcache = p.stdout.decode().strip()
 
     def key_ok(o, u):
-        return (o["unit"] == u["id"] and o["sha"] == sha and o["tree"] == tree and o["runner_hash"] == rhash
-                and o["ctx"] == ctx)
+        return rec_matches(o, u, sha, tree, rhash, ctx)
 
     mode = "full" if heavy else "default"
     out("full-suite runner  sha=%s tree=%s ctx=%s mode=%s out=%s" % (sha[:12], tree[:12], ctx, mode, outdir))
@@ -3384,9 +3481,11 @@ def main(argv):
         summ.append("TREE CHANGED during the run (start %s, end %s): a suite wrote into the repository" % (tree[:12], tree_end[:12]))
     summ.append("--- non-PASS, nondeterministic and exit-code-only units")
     summ.extend(lines)
-    with open(os.path.join(outdir, "summary.txt"), "w") as fh:
-        fh.write("\n".join(summ) + "\n")
-    out("\n".join(summ))
+    with open(os.path.join(outdir, "summary.txt"), "w") as fh:  # io: write
+        # one escaping function for every line of the evidence file and of stdout (review r3 H3)
+        fh.write("".join(esc_out(l) + "\n" for l in summ))
+    for l in summ:
+        out(l)
     tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt); %s"
             % (cats["SKIP"], exit_only, known_n, nondet, len(ex), ident))
     nf = " -- not a section 11.4.40 full retest"

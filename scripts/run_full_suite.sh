@@ -13,7 +13,8 @@
 #   .js under a test directory with one of those words. A Go file counts toward its nearest
 #   go.mod module (`go test -count=1 ./...`). Every census file needs exactly one manifest
 #   row of class entry | member | fixture | excluded. A file without a row, a stale row, a
-#   broken rule, a file name with a newline/TAB, not UTF-8 or starting with `#`, a dangling symlink outside fixtures/, an
+#   broken rule, a file name with a TAB or a control/line-separator character (CR, NEL, LS, ...), not UTF-8 or
+#   starting with `#`, a dangling symlink outside fixtures/, an
 #   empty ls-files (blind census) or a failed census needle => exit 3, nothing runs.
 #   NOT covered: submodule contents.
 # EXCLUDED  note `reason: <category>: <why>`, category in helper|library|oracle|fake|gate|
@@ -72,12 +73,13 @@
 #   report from the current table and the log (sha256 checked).
 # RESULTS + RESUME  <out>/results.jsonl (schema fsr/4, hash-chained, seq numbered; a break
 #   is exit 2, a torn last line is dropped with a WARN), one log per record, an exclusive
-#   lock on <out>/.lock. Reuse key: unit, HEAD sha, tree hash (status, diff, untracked,
-#   submodule status+diff recursive, ignored files except __pycache__ *.pyc .pytest_cache
+#   lock on <out>/.lock. Reuse key: unit (the structure path + args), HEAD sha, tree hash (status, diff, untracked,
+#   submodule status+diff recursive, ignored files of the root except __pycache__ *.pyc .pytest_cache
 #   qa-results/), runner hash, context hash (manifest + known table + excluded lock bytes).
 #   Disagreeing records of one key => NONDETERMINISTIC (worst verdict counts); a resume never
 #   upgrades. The chain has no external anchor: a forged record with a recomputed chain is
-#   not detected (section 11.4.268(C)).
+#   not detected (section 11.4.268(C)). Governance files are read by one reader (split on LF only, CRLF kept
+#   readable, any other line-breaking character refused); every output line is escaped (no forged lines).
 # OUTPUT  default ${XDG_CACHE_HOME:-$HOME/.cache}/full_suite_runner/<repo>-<sha12>-<tree12>;
 #   an --out inside the repository is refused.
 # EXIT / RESULT line

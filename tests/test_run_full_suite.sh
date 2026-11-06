@@ -1300,13 +1300,13 @@ gen "$hm"; gitc "$hm" add -A; gitc "$hm" commit -q -m m; vfy "$hm" "$T/hm.log"
 chk "CON-030 r3 class: a '#'-leading test path -> --verify-manifest rc 3" "$RC" "3"
 has "CON-030 r3 class: the '#' path is named as such" "census: file name that starts with '#' \(the manifest comment marker\) cannot be listed in the manifest: '#t/test_h.sh'" "$T/hm.log"
 hasnt "CON-030 r3 class: not misreported as a missing manifest row" 'census file without manifest row' "$T/hm.log"
-# (3) a test path with a CR: the manifest is read split on "\n" only (text-mode iteration also splits on a CR)
+# (3) a test path with a CR. Round 3 listed it; round 4 refuses it as a named census problem, like LF and TAB
+# (review r3 H3: its unit id forged RESULT lines on a terminal and in summary.txt), so no table holds a CR
 cr="$T/crname"; mkroot "$cr"; sut "$cr" "$(printf 'c\rd')/test_c.sh" 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m c
 gen "$cr"; gitc "$cr" add -A; gitc "$cr" commit -q -m m; vfy "$cr" "$T/cr.log"
-chk "CON-030 r3 class: a test path with a CR -> --verify-manifest rc 0 (was 'want 7 TAB columns', rc 3)" "$RC" "0"
-run "$cr" "$T/o_cr" --include-heavy
-chk "CON-030 r3 class: the CR path runs end to end (rc 0)" "$RC" "0"
-chk "CON-030 r3 class: the CR path's unit passed" "$(verdict "$T/o_cr" "$(printf 'c\rd')/test_c.sh")" "PASS||summary"
+chk "CON-030 r4 H3: a test path with a CR -> --verify-manifest rc 3" "$RC" "3"
+has "CON-030 r4 H3: the CR path is named, the CR escaped" "census: file name with a newline, TAB or other control or line-separator character \(U\+000D \(CR\)\) cannot be listed in the manifest: 'c\\\\rd/test_c.sh'" "$T/cr.log"
+hasnt "CON-030 r4 H3: no raw CR byte on the output" $'\r' "$T/cr.log"
 # (4) a test file whose name is not UTF-8: named; round 2 decoded it to U+FFFD, did not find it and dropped it silently
 nu="$T/nonutf8"; mkroot "$nu"; sut "$nu" "tests/a/$(printf 'test_\377.sh')" 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m u
 gen "$nu"; gitc "$nu" add -A; gitc "$nu" commit -q -m m; vfy "$nu" "$T/nu.log"
@@ -1335,17 +1335,25 @@ os.makedirs(sys.argv[2]); p = os.path.join(sys.argv[2], "k"); open(p, "wb").writ
 print(m.file_bytes(os.path.join(sys.argv[2], "nope")) is None, m.file_bytes(p))
 PY
 )" "True b'<absent>'"
-# (6) the other two TAB tables a path can be in (known failures, excluded lock) are split on "\n" only too, and a
-# CRLF file is still read (its CR belongs to the last column, never to the path)
-chk "CON-030 r3 class: known table and excluded lock keep a CR in a path; CRLF tolerated" "$(python3 -I - "$ENGINE" "$T/crtab" <<'PY'
+# (6) the known table and the excluded lock go through the one governance reader (round 4, review r3 H2): a CRLF
+# file is still read; a CR inside a line is refused by name (exit 2 / exit 3), never split into two lines
+chk "CON-030 r4: known table and excluded lock: CRLF tolerated, a CR inside a line refused by name" "$(python3 -I - "$ENGINE" "$T/crtab" <<'PY'
 import sys, os, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 d = sys.argv[2]; os.makedirs(d); k, l = os.path.join(d, "known.tsv"), os.path.join(d, "lock")
-open(k, "w", newline="").write("# c\nc\rd/t.sh\treason:x\tCON-1\tnote\r\nplain\treason:y\tCON-2\tn\n")
-open(l, "w", newline="").write("# h\r\nc\rd/t.sh\t0123456789abcdef\nq\tfedcba9876543210\r\n")
-print(m.load_known(k)[0], sorted(m.read_excl_lock(l)[0].items()))
+open(k, "w", newline="").write("# c\r\ncd/t.sh\treason:x\tCON-1\tnote\r\nplain\treason:y\tCON-2\tn\n")
+open(l, "w", newline="").write("# h\r\ncd/t.sh\t0123456789abcdef\nq\tfedcba9876543210\r\n")
+res = [m.load_known(k)[0], sorted(m.read_excl_lock(l)[0].items())]
+open(k, "w", newline="").write("c\rd/t.sh\treason:x\tCON-1\tnote\n")
+open(l, "w", newline="").write("c\rd/t.sh\t0123456789abcdef\n")
+for f, p in ((m.load_known, k), (m.read_excl_lock, l)):
+    try:
+        f(p); res.append("read")
+    except m.Fatal as e:
+        res.append((e.code, "line 1 holds the character U+000D (CR)" in str(e)))
+print(res)
 PY
-)" "[['c\\rd/t.sh', 'reason:x', 'CON-1', 'note'], ['plain', 'reason:y', 'CON-2', 'n']] [('c\\rd/t.sh', '0123456789abcdef'), ('q', 'fedcba9876543210')]"
+)" "[[['cd/t.sh', 'reason:x', 'CON-1', 'note'], ['plain', 'reason:y', 'CON-2', 'n']], [('cd/t.sh', '0123456789abcdef'), ('q', 'fedcba9876543210')], (2, True), (3, True)]"
 
 # G4 / G12 (review r2): exact known_sub_paths() sets (a runaway recursion into an empty gitlink directory adds
 # bogus `./` entries), a nested uninitialised path with parentheses, a real `U` line on a spaced path, and a real
@@ -1396,6 +1404,233 @@ print(sorted(m.sub_paths(sys.argv[2])), m.topology(sys.argv[2])[2])
 PY
 )" "['plaint', 'sub dir', 'x (xyz)'] []"
 else echo "SKIP CON-030 r3 G12 SHA-256 case: reason sha256_unsupported (git cannot init --object-format=sha256)"; fi
+
+# =========================================================================== CON-030 round 4 (review r3 H1 H2 H3 H6)
+# Structural round (section 11.4.276(E)(3)). (1) ONE reader for every governance file (gov_lines): split on "\n"
+# only, the CR of a CRLF line end dropped, any other line-breaking character refused by name. (2) A unit's key is
+# the structure (path, args); plan() refuses two units with one key and two units shown with one text. (3) ONE
+# output escaping function (esc_out) on stdout, stderr and summary.txt, and the census refuses control characters.
+
+# --- (1) the one reader: each line-breaking class refused by name, CRLF and a plain space are not (controls)
+chk "CON-030 r4 gov_lines: NEL LS PS CR VT FF ESC NUL DEL C1 refused by name; CRLF, TAB and space read" "$(python3 -I - "$ENGINE" "$T/govl" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+d = sys.argv[2]; os.makedirs(d); p = os.path.join(d, "t"); res = []
+for c in ("\x85", "\u2028", "\u2029", "\r", "\x0b", "\x0c", "\x1b", "\x00", "\x7f", "\x9b"):
+    open(p, "wb").write(("# a\n# comment%seve\tx\n" % c).encode())
+    try:
+        m.gov_lines(p); res.append("read")
+    except m.GovLineError as e:
+        res.append(str(e).split(" holds the character ")[1].split(",")[0])
+open(p, "wb").write(b"# a\r\nalice\tx y\r\n# comment eve\tx\n")
+res.append(m.gov_lines(p))
+print(res)
+PY
+)" "['U+0085 (NEL)', 'U+2028 (LINE SEPARATOR)', 'U+2029 (PARAGRAPH SEPARATOR)', 'U+000D (CR)', 'U+000B (VT)', 'U+000C (FF)', 'U+001B (ESC)', 'U+0000 (NUL)', 'U+007F (DEL)', 'U+009B', [(1, '# a'), (2, 'alice\tx y'), (3, '# comment eve\tx'), (4, '')]]"
+
+# --- (1) lint: every file read in the engine is classed `# io: ...`; the governance readers use gov_lines only.
+# Control needles: the lint run on a copy of the engine with an unclassed open() and with read_roster reading its
+# file by itself must FAIL; on the engine it must find a known number of classed sites (positive control).
+fsr_io_lint() { python3 -I - "$1" <<'PY'
+import ast, sys
+src = open(sys.argv[1]).read(); L = src.split("\n"); t = ast.parse(src); probs = []; sites = 0
+IO = {"open", "splitlines", "readlines", "readline"}
+GOV = ("read_manifest", "load_known", "read_excl_lock", "read_roster", "guide_check")
+funcs = {n.name: n for n in ast.walk(t) if isinstance(n, ast.FunctionDef)}
+def io_calls(node):
+    for n in ast.walk(node):
+        if isinstance(n, ast.Call):
+            f = n.func
+            nm = f.id if isinstance(f, ast.Name) and f.id == "open" else (f.attr if isinstance(f, ast.Attribute) and (f.attr in IO or f.attr in ("read_text", "read_bytes")) else None)
+            if nm:
+                yield n
+for n in io_calls(t):
+    sites += 1
+    tag = [x.split("# io:", 1)[1].strip().split(" ")[0] for x in L[n.lineno - 1:n.end_lineno] if "# io:" in x]
+    if not tag or tag[0] not in ("gov", "write", "not-gov"):
+        probs.append("line %d: I/O call without an `# io: gov|write|not-gov` class" % n.lineno)
+    elif tag[0] == "gov" and not (funcs["gov_lines"].lineno <= n.lineno <= funcs["gov_lines"].end_lineno):
+        probs.append("line %d: `io: gov` outside gov_lines" % n.lineno)
+for g in GOV:
+    f = funcs.get(g)
+    if f is None:
+        probs.append("%s missing" % g); continue
+    if not any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == "gov_lines" for c in ast.walk(f)):
+        probs.append("%s does not read through gov_lines" % g)
+    for c in io_calls(f):
+        if "# io: write" not in L[c.lineno - 1]:
+            probs.append("%s reads a file itself (line %d)" % (g, c.lineno))
+print("sites=%d problems=%d %s" % (sites, len(probs), probs[:3]))
+PY
+}
+lint_real=$(fsr_io_lint "$ENGINE")
+case "$lint_real" in
+  "sites="*" problems=0 []") ok "CON-030 r4 io lint: every engine I/O site classed, governance readers use gov_lines ($lint_real)";;
+  *) ko "CON-030 r4 io lint: $lint_real";;
+esac
+n_sites=${lint_real#sites=}; n_sites=${n_sites%% *}
+if [ "$n_sites" -ge 25 ]; then ok "CON-030 r4 io lint positive control: $n_sites I/O sites found (>= 25)"
+else ko "CON-030 r4 io lint positive control: only $n_sites I/O sites found (instrument blind?)"; fi
+mkdir -p "$T/lint"
+python3 -I -c 'import sys
+s = open(sys.argv[1]).read()
+open(sys.argv[2], "w").write(s.replace("def char_name(c):", "def char_name(c):\n    open(\"/dev/null\").read()", 1))
+a = "    try:\n        lines = gov_lines(path)\n    except GovLineError as e:\n        # review r3 H2"
+b = "    try:\n        lines = list(enumerate(open(path).read().splitlines(), 1))  # io: not-gov\n    except GovLineError as e:\n        # review r3 H2"
+assert s.count(a) == 1
+open(sys.argv[3], "w").write(s.replace(a, b))' "$ENGINE" "$T/lint/needle_open.py" "$T/lint/needle_roster.py"
+case "$(fsr_io_lint "$T/lint/needle_open.py")" in *"I/O call without"*) ok "CON-030 r4 io lint control needle: an unclassed open() is caught";;
+  *) ko "CON-030 r4 io lint control needle: an unclassed open() is NOT caught";; esac
+case "$(fsr_io_lint "$T/lint/needle_roster.py")" in *"read_roster does not read through gov_lines"*) ok "CON-030 r4 io lint control needle: read_roster reading by itself is caught";;
+  *) ko "CON-030 r4 io lint control needle: read_roster reading by itself is NOT caught";; esac
+
+# --- (1) H2 end to end: an operator id hidden behind a NEL / LS / CR in a committed `#` comment line. git shows one
+# comment line; round 3 read `eve` as an operator (accepted, then PASS-FULL accepted_by: eve). Control: a plain space.
+for sep in nel ls cr none; do
+  case "$sep" in nel) sc=$'\xc2\x85';; ls) sc=$'\xe2\x80\xa8';; cr) sc=$'\r';; none) sc=' ';; esac
+  h2="$T/h2_$sep"; mkroot "$h2"
+  printf 'f() { :; }\n' > "$h2/tests/a/lib.sh"
+  sut "$h2" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
+  gen "$h2"
+  { printf '# id<TAB>who\nalice\toperator alice\n'; printf '# former operator, removed%seve\tnot an operator\n' "$sc"; } > "$h2/config/full_suite_operators.roster"
+  gitc "$h2" add -A; gitc "$h2" commit -q -m roster
+  bash "$R" --root "$h2" --verify-manifest --accept-excluded-change eve > "$T/h2_$sep.eve.log" 2>&1; rc_eve=$?
+  bash "$R" --root "$h2" --verify-manifest --accept-excluded-change alice > "$T/h2_$sep.alice.log" 2>&1; rc_alice=$?
+  if [ "$sep" = none ]; then
+    chk "CON-030 r4 H2 control (plain space): eve is not an operator, refused (rc 3)" "$rc_eve" "3"
+    has "CON-030 r4 H2 control: refused because eve is not on the roster" 'not on the operator roster|is not an operator|not listed' "$T/h2_$sep.eve.log"
+    chk "CON-030 r4 H2 control (plain space): alice is accepted (rc 0)" "$rc_alice" "0"
+  else
+    chk "CON-030 r4 H2 ($sep in a comment line): --accept-excluded-change eve refused (rc 3)" "$rc_eve" "3"
+    has "CON-030 r4 H2 ($sep): the refused character is named" 'operator roster .* line 3 holds the character U\+' "$T/h2_$sep.eve.log"
+    chk "CON-030 r4 H2 ($sep): the whole roster is refused, alice too (rc 3)" "$rc_alice" "3"
+    hasnt "CON-030 r4 H2 ($sep): no acceptance line written for eve" 'accepted_by=eve' "$h2/config/full_suite_excluded.lock"
+  fi
+done
+chk "CON-030 r4 H2: read_roster ids per separator (NEL, LS, CR: none; space: alice)" "$(python3 -I - "$ENGINE" "$T" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = []
+for sep in ("nel", "ls", "cr", "none"):
+    root = sys.argv[2] + "/h2_" + sep; ids, prob = m.read_roster(root, root + "/config/full_suite_operators.roster")
+    r.append((sep, sorted(ids), prob is None))
+print(r)
+PY
+)" "[('nel', [], False), ('ls', [], False), ('cr', [], False), ('none', ['alice'], True)]"
+
+# --- (2) H1: unit keys are structures. A Go module in a directory named `x/run_all.sh --quick` next to the
+# runall-quick unit of x/run_all.sh: round 3 gave both the id `x/run_all.sh --quick`, resumed the failing module from
+# the runall's PASS record and ended PASS-FULL rc 0. Round 4 refuses the plan (rc 3). Control: the module in x/gomod.
+h1fx() { # $1 root $2 module dir under x/
+  local r=$1; mkdir -p "$r/x/$2" "$r/config"; git init -q "$r"; gitc "$r" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\n# accepts --quick\n[ "${1:-}" = --quick ] && echo quick\necho "passed=1 failed=0"\n' > "$r/x/run_all.sh"
+  printf 'module example.com/m\n\ngo 1.21\n' > "$r/x/$2/go.mod"
+  printf 'package m\nimport "testing"\nfunc TestFails(t *testing.T) { t.Fatal("this module FAILS") }\n' > "$r/x/$2/m_test.go"
+  gitc "$r" add -A; gitc "$r" commit -q -m fx; gen "$r"
+  python3 -I -c 'import sys
+p = sys.argv[1]; L = open(p).read().split("\n")
+L = ["\t".join(l.split("\t")[:4] + ["runall-quick"] + l.split("\t")[5:]) if l.startswith("x/run_all.sh\t") else l for l in L]
+open(p, "w").write("\n".join(L))' "$r/config/full_suite_manifest.tsv"
+  gitc "$r" add -A; gitc "$r" commit -q -m manifest
+}
+if command -v go >/dev/null 2>&1; then
+  h1fx "$T/h1" "run_all.sh --quick"; h1fx "$T/h1c" "gomod"
+  run "$T/h1" "$T/o_h1"
+  chk "CON-030 r4 H1: module dir 'x/run_all.sh --quick' next to runall-quick x/run_all.sh -> refused (rc 3)" "$RC" "3"
+  has "CON-030 r4 H1: both units named" "plan: two different units are both shown as 'x/run_all.sh --quick' \(path 'x/run_all.sh' args \['--quick'\], and path 'x/run_all.sh --quick' args \[\]\)" "$T/o_h1.log"
+  hasnt "CON-030 r4 H1: never PASS-FULL, never resumed" 'PASS-FULL|resumed' "$T/o_h1.log"
+  run "$T/h1" "$T/o_h1h" --include-heavy
+  chk "CON-030 r4 H1 (--include-heavy, fresh out): the module runs and fails (rc 1)" "$RC" "1"
+  chk "CON-030 r4 H1 (--include-heavy): the module's own record is FAIL" "$(verdict "$T/o_h1h" "x/run_all.sh --quick" | cut -d'|' -f1)" "FAIL"
+  run "$T/h1c" "$T/o_h1c"
+  chk "CON-030 r4 H1 control (module in x/gomod): FAIL rc 1" "$RC" "1"
+else echo "SKIP CON-030 r4 H1 end-to-end cases: reason go_not_installed"; fi
+chk "CON-030 r4 H1: plan() keys, display refusal (default), heavy plan, duplicate-key refusal; record matching" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+ra = ["x/run_all.sh", "runall", "entry", "default", "runall-quick", "-", "n"]
+go = ["x/run_all.sh --quick", "go", "entry", "default", "go-test", "-", "auto"]
+res = []
+for rows, heavy in (([ra, go], False), ([ra, go], True), ([go, go], True)):
+    try:
+        res.append(sorted(u["key"] for u in m.plan(rows, heavy)))
+    except m.Fatal as e:
+        res.append((e.code, str(e).split(" (")[0].split(" shown as")[0]))
+q = {"path": "x/run_all.sh", "args": ["--quick"], "unit": "x/run_all.sh --quick", "sha": "s", "tree": "t", "runner_hash": "h", "ctx": "c"}
+gom = {"key": ("x/run_all.sh --quick", ()), "id": "x/run_all.sh --quick"}
+rq = {"key": ("x/run_all.sh", ("--quick",)), "id": "x/run_all.sh --quick"}
+rh = {"key": ("x/run_all.sh", ()), "id": "x/run_all.sh"}
+old = dict(q); del old["args"]
+res.append([m.rec_matches(q, u, "s", "t", "h", "c") for u in (gom, rq, rh)])
+res.append([m.rec_matches(q, rq, *k) for k in (("S", "t", "h", "c"), ("s", "T", "h", "c"), ("s", "t", "H", "c"), ("s", "t", "h", "C"))])
+res.append((m.rec_key(old), m.rec_matches(old, rq, "s", "t", "h", "c")))
+print(res)
+PY
+)" "[(3, 'plan: two different units are both'), [('x/run_all.sh', ()), ('x/run_all.sh --quick', ())], (3, 'plan: two units have one key'), [False, True, False], [False, False, False, False], (None, False)]"
+
+# --- (2) RW6 (review r3, adopted): a runall whose --quick mode passes and whose full mode fails; a default run writes
+# --out D, then an --include-heavy run reuses D. The heavy unit (path, no args) must not resume the --quick record.
+rw6="$T/rw6"; mkdir -p "$rw6/x"; git init -q "$rw6"; gitc "$rw6" commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\n# accepts --quick\nif [ "${1:-}" = --quick ]; then echo "passed=1 failed=0"; exit 0; fi\necho "passed=0 failed=1"; exit 1\n' > "$rw6/x/run_all.sh"
+gen "$rw6"
+python3 -I -c 'import sys
+p = sys.argv[1]; L = open(p).read().split("\n")
+L = ["\t".join(l.split("\t")[:4] + ["runall-quick"] + l.split("\t")[5:]) if l.startswith("x/run_all.sh\t") else l for l in L]
+open(p, "w").write("\n".join(L))' "$rw6/config/full_suite_manifest.tsv"
+gitc "$rw6" add -A; gitc "$rw6" commit -q -m s
+run "$rw6" "$T/o_rw6"
+chk "CON-030 r4 RW6 precondition: the default run passes (--quick)" "$RC" "0"
+run "$rw6" "$T/o_rw6" --include-heavy
+chk "CON-030 r4 RW6: the heavy run over the default run's --out runs the full runall and fails (rc 1)" "$RC" "1"
+hasnt "CON-030 r4 RW6: the full runall is not resumed from the --quick record" 'resumed x/run_all.sh' "$T/o_rw6.log"
+
+# --- RW3 (review r3, adopted): `git status` fails between two units on a clean tree (unit 1 makes .git/index
+# unreadable, unit 2 restores it). The failing status is unknown, never the hash of its empty output: the run stops.
+rw3="$T/rw3"; mkroot "$rw3"
+sut "$rw3" tests/a/test_1.sh 'cd "$(dirname "$0")/../.."' 'chmod 000 .git/index' 'echo "passed=1 failed=0"'
+sut "$rw3" tests/a/test_2.sh 'cd "$(dirname "$0")/../.."' 'chmod 644 .git/index' 'echo "passed=1 failed=0"'
+gen "$rw3"; gitc "$rw3" add -A; gitc "$rw3" commit -q -m s
+chmod 000 "$rw3/.git/index"; git -C "$rw3" status --porcelain -z >/dev/null 2>&1; pre=$?; chmod 644 "$rw3/.git/index"
+if [ "$pre" -ne 0 ]; then ok "CON-030 r4 RW3 precondition: git status with an unreadable index fails (rc $pre)"
+else ko "CON-030 r4 RW3 precondition: git status with an unreadable index fails (rc 0: running as root?)"; fi
+run "$rw3" "$T/o_rw3" --include-heavy
+chmod 644 "$rw3/.git/index" 2>/dev/null
+chk "CON-030 r4 RW3: a failing git status mid-run stops the run (rc 2)" "$RC" "2"
+has "CON-030 r4 RW3: named as an unknown root status before unit 2" 'IDENTITY CHANGED before unit tests/a/test_2.sh: root status [0-9a-f]+ -> \?' "$T/o_rw3.log"
+hasnt "CON-030 r4 RW3: never PASS-FULL" 'PASS-FULL' "$T/o_rw3.log"
+
+# --- RW4 (review r3): an absent record (None) and a present empty record feed different bytes into the hash
+chk "CON-030 r4 RW4: hrec(None) != hrec(b''), and both differ from no record" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util, hashlib
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+hs = []
+for d in (None, b"", "skip"):
+    h = hashlib.sha256()
+    if d != "skip":
+        m.hrec(h, b"k", d)
+    hs.append(h.hexdigest())
+print(len(set(hs)))
+PY
+)" "3"
+
+# --- (3) H3: one output escaping function. Unit: every line-breaking class escaped, TAB kept, a lone surrogate shown.
+chk "CON-030 r4 H3 esc_out: CR LF NEL LS ESC escaped, TAB kept, surrogate as \\xNN" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(repr(m.esc_out("a\rRESULT: PASS-FULL\nb\x85c\u2028d\x1be\tf\udcff")))
+PY
+)" "'a\\\\rRESULT: PASS-FULL\\\\nb\\\\x85c\\\\u2028d\\\\x1be\\tf\\\\xff'"
+# end to end, a text the census does not control: git's submodule paths in TOPOLOGY GAP lines on stdout and in
+# summary.txt. The uninitialised fresh clone of the many-path fixture has a submodule `cr<CR>x`.
+run "$mp.fresh" "$T/o_mpf" --allow-topology-gaps --include-heavy
+chk "CON-030 r4 H3 precondition: the fresh clone runs with gaps (PARTIAL-TOPOLOGY, rc 8)" "$RC" "8"
+has "CON-030 r4 H3: the CR submodule path is printed escaped on stdout" 'TOPOLOGY GAP \(allowed\): uninitialised submodule: cr\\rx' "$T/o_mpf.log"
+has "CON-030 r4 H3: ... and in summary.txt" 'TOPOLOGY GAP \(allowed\): uninitialised submodule: cr\\rx' "$T/o_mpf/summary.txt"
+hasnt "CON-030 r4 H3: no raw CR on stdout/stderr" $'\r' "$T/o_mpf.log"
+hasnt "CON-030 r4 H3: no raw CR in summary.txt" $'\r' "$T/o_mpf/summary.txt"
+chk "CON-030 r4 H3: summary.txt read in text mode has no RESULT line and one gap line per gap" "$(python3 -I -c 'import sys
+L = list(open(sys.argv[1]))
+print(sum(l.startswith("RESULT") for l in L), sum(l.startswith("TOPOLOGY GAP") for l in L))' "$T/o_mpf/summary.txt")" "0 11"
 
 # --- F11 (review r1): a suite that writes an IGNORED file into the tree changes tree_state() but not the quick
 # identity (which hashes `git status`, and an ignored file is not in it), so the tree branch itself must decide.

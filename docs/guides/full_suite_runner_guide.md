@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 8 |
+| Revision | 9 |
 | Created | 2026-11-03 |
-| Last modified | 2026-11-05 (CON-030 round 3: structured quick identity; a newline path is a gap of its own; non-UTF-8 submodule paths read as git gave them; `#`, non-UTF-8 and CR census names) |
+| Last modified | 2026-11-06 (CON-030 round 4: one reader for every governance file; a unit's key is (path, arguments); one output escaping function; a CR or other control character in a census name is refused; ignored files hashed in the root only) |
 | Status | draft; review round 5 returned NO-GO (R5-1 identity checked at the start only, R5-2 symlinked roster, surviving mutants M4 M7); this revision is the operator-authorised narrow round 6 (§11.4.276(E)(3)); independent review owed (§11.4.142) |
 | Script | `scripts/run_full_suite.sh` (engine `scripts/full_suite/run_full_suite.py`, one file, run with `python3 -I`) |
 | Manifest | `config/full_suite_manifest.tsv` |
@@ -23,7 +23,9 @@ The runner covers the test entry points that a **census** finds and the **manife
   - a `.js` file under a test directory whose name contains one of those words, or
   - a file with no extension and a shell or python shebang that lives under a test directory or whose name contains one of those words (for example `tools/smoke_check`).
   A Go test file counts toward its nearest `go.mod` module, which runs as `go test -count=1 ./...`.
-- A file name with a newline or TAB, a file name that is not UTF-8 (the manifest is UTF-8 text), a file name that starts with `#` (a manifest line that starts with `#` is a comment), and a dangling symlink outside a `fixtures/` directory, are census problems (exit 3), each named as such. A file name with a CR is listed (the manifest, the known-failures table and the excluded lock are split on `\n` only; a CRLF file is still read). A dangling symlink inside `fixtures/` is listed and needs a fixture row.
+- A file name with a TAB or with a character that ends, overwrites or splits a line in some reader (any C0 control but TAB, so LF and CR too; DEL; any C1 control, NEL included; U+2028 and U+2029), a file name that is not UTF-8 (the manifest is UTF-8 text), a file name that starts with `#` (a manifest line that starts with `#` is a comment), and a dangling symlink outside a `fixtures/` directory, are census problems (exit 3), each named as such (the character by its code point, for example `U+000D (CR)`). A dangling symlink inside `fixtures/` is listed and needs a fixture row.
+- One reader reads every governance file: the manifest, the known-failures table, the excluded lock, the operator roster and this guide's census block. It splits on `\n` only, drops the CR of a CRLF line end (a CRLF file is still read), and refuses any other of the characters above inside a line, naming the file, the line and the character: the manifest and the lock exit 3, the known-failures table exits 2, a roster with such a line names nobody (every acceptance is refused, exit 3; a run ends exit 11). A NEL, a line separator or a bare CR inside a committed `#` comment line can therefore never make an operator id that `git show` displays as part of the comment count (CON-030 round 4, review r3 H2).
+- Every message on stdout and stderr and every line of `summary.txt` goes through one escaping function: those characters are written as `\r`, `\n`, `\xNN` or `\uNNNN`, a byte that is not UTF-8 as `\xNN`, and a TAB is kept. A path git gives (a submodule path in a `TOPOLOGY GAP` line), the root path or any other text can therefore never start, overwrite or forge a line such as `RESULT:` (review r3 H3). A literal backslash is not escaped, so `\r` in a message can also be a path that holds a backslash and an `r`.
 - Positive control: if `git ls-files` lists nothing, the census is blind and the runner stops (exit 3).
 - Before anything else the census function runs on a built-in fixture (the needle) with one known file per rule (shell, python, Go, JavaScript, bats, extension-less smoke), decoys and a submodule path. If it does not return exactly the expected set, the runner stops with exit 3.
 - Every census file needs exactly one manifest row. A file without a row, a row without a file, or a row that breaks a rule stops the runner with exit 3 and `RESULT: MANIFEST-MISMATCH`; nothing runs.
@@ -136,7 +138,7 @@ After a unit ends (on timeout: SIGTERM to its process group, SIGKILL after 10 s;
 
 `<out>/results.jsonl`, schema `fsr/4` (adds `ident`). Each record carries a sequence number and the sha256 of the previous line (a hash chain from a zero genesis). A broken chain, a gap, a duplicate sequence number or an invalid record (a verdict outside the closed set included) stops the runner (exit 2, "results integrity"); a torn LAST line (no newline, from an interrupted write) is dropped with a WARN. Each record has its own log file `logs/NNNNNN.log`. An exclusive lock on `<out>/.lock` stops a second runner on the same output directory (exit 2).
 
-A record is reused only when its key matches: unit (path plus arguments), HEAD sha, working-tree hash, runner hash, and a context hash of the manifest bytes, the known-failures table bytes and the excluded-lock bytes. The working-tree hash covers git status, `git diff HEAD`, untracked file names and contents, the status and diff of every submodule (recursively), and the names and content hashes of ignored files, except `__pycache__/`, `*.pyc`, `.pytest_cache/` and `qa-results/` (suites write evidence there). A resume never upgrades a verdict: when several records of one key disagree, the unit is `NONDETERMINISTIC` and the worst verdict counts. `--rerun-nonpass` re-runs recorded FAIL, TIMEOUT, ERROR and SKIP units.
+A record is reused only when its key matches: the unit's key, which is the structure (path, arguments) and never a joined text (CON-030 round 4, review r3 H1: a Go module in a directory named `x/run_all.sh --quick` was resumed from the record of `x/run_all.sh` run with `--quick`), HEAD sha, working-tree hash, runner hash, and a context hash of the manifest bytes, the known-failures table bytes and the excluded-lock bytes. The working-tree hash covers git status, `git diff HEAD`, untracked file names and contents, the status and diff of every submodule (recursively), and the names and content hashes of the ignored files of the root (not of the ignored files inside a submodule, see Limits), except `__pycache__/`, `*.pyc`, `.pytest_cache/` and `qa-results/` (suites write evidence there). A resume never upgrades a verdict: when several records of one key disagree, the unit is `NONDETERMINISTIC` and the worst verdict counts. `--rerun-nonpass` re-runs recorded FAIL, TIMEOUT, ERROR and SKIP units.
 
 ## Usage
 
@@ -153,6 +155,8 @@ bash scripts/run_full_suite.sh --rerun-nonpass
 ```
 
 Output goes to `${XDG_CACHE_HOME:-$HOME/.cache}/full_suite_runner/<repo>-<sha12>-<tree12>` unless `--out` is given; an `--out` inside the repository is refused. Progress: `wc -l <out>/results.jsonl` and the per-unit lines on stdout; final report in `<out>/summary.txt`.
+
+Two units shown with the same text (for example that module next to `x/run_all.sh` run with `--quick`; the shown text is the path, then a space and the arguments) are refused before anything runs (exit 3, `plan: two different units are both shown as ...`), because every message, `--only` filter and summary line would name both. Rename one of the paths. Two units with one key are refused the same way.
 
 ## Exit status and RESULT line
 
@@ -182,5 +186,7 @@ Exits 4 to 8, 10 and 11 end with `-- not a section 11.4.40 full retest`. Precede
 - The hash chain detects an edited, deleted, reordered or hand-appended record. A forger who appends a record and recomputes the chain from it is not detected: the chain has no external anchor (§11.4.268(C)). Keep `--out` where only the runner writes.
 - The checkout's preflight does not check for a local `main` branch; units that need one (tests/install) fail for the checkout (review r4 F10).
 - `qa-results/` is not part of the tree hash, so a change there does not invalidate a resume record.
+- Ignored files are listed and hashed in the root only. A suite that writes an ignored file inside a submodule during the run is not seen by the tree-changed check (it can end `PASS-FULL`), and a change of the ignored files inside a submodule does not change the resume key (review r3 H4; tracked as its own item).
+- Every file read in the engine carries a class comment (`# io: gov`, `write` or `not-gov`); a self-test lint fails when a read has none, or when a governance reader reads its file itself instead of through the one reader. The lint follows calls named `open`, `splitlines`, `readlines`, `readline`, `read_text` and `read_bytes`; a file read through another API is not seen by it.
 - Leak detection depends on the token staying in the environment; a process that cleared its environment and left the group is not found.
 - A test can still pass while testing nothing; the runner checks what ran and what it reported, not the strength of each test.
