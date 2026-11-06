@@ -267,6 +267,9 @@ SCHEMA_VERIFY = "custody-sweep-verify/v1"
 ATM_RE = re.compile(r"ATM-\d+")
 DESTRUCTIVE_ACTIONS = ("land", "retire")
 VALID_ACTIONS = ("keep", "land", "retire")
+# Pre-CON-119 file-list pattern: no longer used by the tool (see
+# _patch_file_paths); kept because the r22 regression guard rebuilds the old
+# list from it as its L1 paired mutation.
 DIFF_FILE_RE = re.compile(r"^diff --git a/(.+?) b/")
 
 
@@ -748,14 +751,99 @@ def stash_files_touched_why(root, ref, env=None):
     out, why = stash_patch_bytes_why(root, ref, env=env)
     if out is None:
         return [], None, why
-    files = []
-    for raw_line in out.split(b"\n"):
-        if not raw_line.startswith(b"diff --git "):
-            continue
-        m = DIFF_FILE_RE.match(raw_line.decode("utf-8", "surrogateescape"))
-        if m:
-            files.append(m.group(1))
+    files = _patch_file_paths(out)
     return files, out, None
+
+
+_C_ESCAPES = {b"a": 7, b"b": 8, b"t": 9, b"n": 10, b"v": 11, b"f": 12, b"r": 13, b'"': 34, b"\\": 92}
+
+
+def _git_unquote(tok):
+    """Undo git's C-quoting of one path token (bytes). A token that does
+    not start and end with a double quote is returned unchanged."""
+    if len(tok) < 2 or not (tok.startswith(b'"') and tok.endswith(b'"')):
+        return tok
+    body, out, i = tok[1:-1], bytearray(), 0
+    while i < len(body):
+        ch = body[i:i + 1]
+        if ch == b"\\" and i + 1 < len(body):
+            nx = body[i + 1:i + 2]
+            if nx in _C_ESCAPES:
+                out.append(_C_ESCAPES[nx]); i += 2; continue
+            octal = body[i + 1:i + 4]
+            if len(octal) == 3 and all(48 <= c <= 55 for c in octal):
+                out.append(int(octal, 8) & 0xFF); i += 4; continue
+        out += ch
+        i += 1
+    return bytes(out)
+
+
+def _strip_prefix(path, prefix):
+    return path[len(prefix):] if path.startswith(prefix) else None
+
+
+def _same_path_header(rest):
+    """Path of a `diff --git` header whose two sides name the same file
+    (no rename): `a/P b/P` or `"a/P" "b/P"`. None when it is not that shape."""
+    if rest.startswith(b'"'):
+        half = (len(rest) - 1) // 2
+        a, b = rest[:half], rest[half + 1:]
+        if rest[half:half + 1] == b" " and a.endswith(b'"') and b.startswith(b'"'):
+            pa, pb = _strip_prefix(_git_unquote(a), b"a/"), _strip_prefix(_git_unquote(b), b"b/")
+            if pa is not None and pa == pb:
+                return pa
+        return None
+    if (len(rest) - 5) % 2 or len(rest) < 7:
+        return None
+    p = (len(rest) - 5) // 2
+    if rest[:2] == b"a/" and rest[p + 2:p + 5] == b" b/" and rest[2:p + 2] == rest[p + 5:]:
+        return rest[2:p + 2]
+    return None
+
+
+def _patch_file_paths(out):
+    """Display-only list of the paths a canonical patch touches (CON-119):
+    both paths of a rename, the new path of a copy, every other path once,
+    in patch order. Paths come from the lines git writes unambiguously --
+    `rename from/to`, `copy to`, `--- a/X`, `+++ b/Y` (C-quoted when git
+    needs it; a trailing TAB git adds after a name with a space is dropped)
+    -- and, for a section with none of them (binary, mode change, empty
+    new file), from the header when both sides name the same file. Decoded
+    with surrogateescape. No hash or verdict reads this list."""
+    sections, cur = [], None
+    for raw_line in out.split(b"\n"):
+        if raw_line.startswith(b"diff --git "):
+            cur = {"hdr": raw_line[len(b"diff --git "):], "rf": None, "rt": None, "ct": None,
+                   "minus": None, "plus": None}
+            sections.append(cur)
+        elif cur is None:
+            continue
+        elif raw_line.startswith(b"rename from "):
+            cur["rf"] = _git_unquote(raw_line[len(b"rename from "):])
+        elif raw_line.startswith(b"rename to "):
+            cur["rt"] = _git_unquote(raw_line[len(b"rename to "):])
+        elif raw_line.startswith(b"copy to "):
+            cur["ct"] = _git_unquote(raw_line[len(b"copy to "):])
+        elif raw_line.startswith(b"--- ") and cur["minus"] is None:
+            cur["minus"] = _strip_prefix(_git_unquote(raw_line[4:].rstrip(b"\t")), b"a/")
+        elif raw_line.startswith(b"+++ ") and cur["plus"] is None:
+            cur["plus"] = _strip_prefix(_git_unquote(raw_line[4:].rstrip(b"\t")), b"b/")
+    files, seen = [], set()
+    for s in sections:
+        if s["rf"] is not None or s["rt"] is not None:
+            paths = [s["rf"], s["rt"]]
+        elif s["ct"] is not None:
+            paths = [s["ct"]]
+        elif s["minus"] is not None or s["plus"] is not None:
+            paths = [s["minus"], s["plus"]]
+        else:
+            paths = [_same_path_header(s["hdr"])]
+        for p in paths:
+            if p is None or p in seen:
+                continue
+            seen.add(p)
+            files.append(p.decode("utf-8", "surrogateescape"))
+    return files
 
 
 def stash_has_untracked(root, ref, env=None):
