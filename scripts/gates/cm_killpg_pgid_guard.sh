@@ -133,6 +133,11 @@
 #                    or one of its ancestors (the root's basename, a tail of the root path, or a glob matching either: it would prune
 #                    the whole scan), and so is an exclusion that leaves no source file to scan although the tree has some (never
 #                    SKIP, exit 0). Ignored (with a NOTE) for a single-file root.
+#     A scan root that the DEFAULT prune list or the THIRD-PARTY list itself matches is refused with exit 2, naming the list and the
+#     find alternative (find applies -name / -path to its starting point): a root named like a default entry (`out`, `build`,
+#     `dist`, `vendor`, `node_modules`, `.venv`, `__pycache__`, `.git`), standing at or below `scripts/gates`, or named
+#     `third_party` / `site-packages` (the last two only without --include-third-party). It used to be pruned as a whole and end in
+#     SKIP, exit 0. Scan the directory above it instead.
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
@@ -175,7 +180,7 @@
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — PASS (no dangerous call site found, or every one found is guarded).
 #   1 — FAIL (an unguarded process-group signal call site found, or a file that cannot be analysed).
-#   2 — environment / argument error.
+#   2 — environment / argument error (also: a scan root that a prune list, default, third-party or --exclude, would prune whole).
 #
 # Classification: universal (§11.4.17) — no project-specific literal.
 
@@ -305,6 +310,32 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
         done < <(cm_third_party_prune_paths "$root" 2>/dev/null)
     else
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
+    fi
+fi
+# The root check that every explicit --exclude value passes above, run over the DEFAULT list and the THIRD-PARTY list too (review
+# round 2, M2): find applies -name / -path to its starting point, so a scan root named like a default entry (`build`, `out`,
+# `dist`, `vendor`, `node_modules`, ...), like `third_party` / `site-packages`, or standing under a directory that a path entry
+# such as `scripts/gates` names, was pruned as a whole and the gate ended in SKIP (exit 0, read as a pass by a consumer).
+# root_prune_hit <find alternatives...>: prints the first alternative (one -name or -path test) that matches the scan ROOT, rc 0.
+root_prune_hit() {
+    local seg=() t
+    for t in "$@" -o; do
+        if [ "$t" != -o ]; then seg+=("$t"); continue; fi
+        if [ "${#seg[@]}" -gt 0 ] && [ -n "$(find "$root" -maxdepth 0 -type d \( "${seg[@]}" \) -print -quit 2>/dev/null)" ]; then
+            printf '%s\n' "${seg[*]}"; return 0
+        fi
+        seg=()
+    done
+    return 1
+}
+if [ "$root_is_file" -eq 0 ]; then
+    if rp_hit="$(root_prune_hit ${prune_expr[@]+"${prune_expr[@]:0:n_default_prune}"})"; then
+        echo "${GATE}: the scan root ${root} matches the default prune list (find alternative: ${rp_hit}): it would prune the whole scan and end in a SKIP; refused (scan the directory above it, or a root whose name is not on the list)" >&2
+        exit 2
+    fi
+    if rp_hit="$(root_prune_hit ${prune_expr[@]+"${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}"})"; then
+        echo "${GATE}: the scan root ${root} matches the third-party prune list (find alternative: ${rp_hit}): it would prune the whole scan and end in a SKIP; refused (scan the directory above it, or pass --include-third-party)" >&2
+        exit 2
     fi
 fi
 # the same prune list WITHOUT the explicit --exclude entries (default + third-party): used only to tell, when nothing is left

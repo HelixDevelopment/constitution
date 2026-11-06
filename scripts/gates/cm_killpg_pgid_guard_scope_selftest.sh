@@ -1158,5 +1158,32 @@ if x_symroot "$GATE"; then ok "X18: a --root that is a symlink to a directory (t
 x2_mut symroot_logical_path 'pwd -P)"' 's/root="\$(cd "\$root" \&\& pwd -P)"/root="$(cd "$root" \&\& pwd)"/' x_symroot
 x2_mut symroot_silent 'is a symlink; scanning the directory it resolves to' 's/is a symlink; scanning the directory it resolves to/(quiet)/' x_symroot
 
+# M2: a scan root named like an entry of the DEFAULT prune list (out build dist vendor node_modules .venv __pycache__ and the path
+# entry scripts/gates, which also prunes everything below it) or of the THIRD-PARTY list (third_party site-packages) was pruned
+# as a whole by find(1) and ended in SKIP (exit 0). It is refused with exit 2, as an --exclude value that names the root already is.
+XM="$TMP/xrootprune"; XM_DEF="out build dist vendor node_modules .venv __pycache__ scripts/gates scripts/gates/sub"; XM_TP="third_party site-packages"
+for n in plainroot $XM_DEF $XM_TP; do mkdir -p "$XM/$n"; printf '%b' "$BADPY" > "$XM/$n/real_bad.py"; done
+xm_refused() { # $1=gate $2=root name $3=list label (default|third-party) [$4...=extra gate args] : exit 2 naming the list, no SKIP, no verdict
+    local g="$1" n="$2" l="$3" o r; shift 3
+    o="$(bash "$g" --root "$XM/$n" --quiet "$@" 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q "the scan root .*/${n} matches the ${l} prune list" <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o" && ! grep -q 'FAIL —' <<<"$o"
+}
+x_rootdef() { local o r n
+    o="$(bash "$1" --root "$XM/plainroot" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1          # control needle: a root with an ordinary name is scanned and its bad call reported
+    for n in $XM_DEF; do xm_refused "$1" "$n" default || return 1; done
+    for n in $XM_DEF; do xm_refused "$1" "$n" default --include-third-party || return 1; done                               # --include-third-party does not switch the default list off
+}
+x_roottp() { local o r n
+    for n in $XM_TP; do xm_refused "$1" "$n" third-party || return 1; done
+    for n in $XM_TP; do                                                                                                  # control needle: with --include-third-party the same roots are scanned (the list is what refused them)
+        o="$(bash "$1" --root "$XM/$n" --include-third-party --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1
+    done
+}
+if x_rootdef "$GATE"; then ok "X19: a scan root named like a DEFAULT prune entry (out build dist vendor node_modules .venv __pycache__, scripts/gates, below scripts/gates) is refused with exit 2 naming the list, not a SKIP; an ordinary root is scanned"; else bad "X19: a root named like a default prune entry ended in SKIP, or was not refused with exit 2"; fi
+if x_roottp "$GATE"; then ok "X20: a scan root named third_party / site-packages is refused with exit 2 naming the third-party list; with --include-third-party it is scanned"; else bad "X20: a root named like a third-party prune entry ended in SKIP, or the control is wrong"; fi
+x2_mut rootprune_default_off 'matches the default prune list' 's/if rp_hit="\$(root_prune_hit \${prune_expr\[@\]+"\${prune_expr\[@\]:0:n_default_prune}"})"; then/if false; then/' x_rootdef
+x2_mut rootprune_tp_off 'matches the third-party prune list' 's/if rp_hit="\$(root_prune_hit \${prune_expr\[@\]+"\${prune_expr\[@\]:\$((n_default_prune + \${#cli_prune_expr\[@\]}))}"})"; then/if false; then/' x_roottp
+x2_mut rootprune_path_alternatives_skipped 'root_prune_hit()' 's/if \[ "\${#seg\[@\]}" -gt 0 \] \&\&/if [ "${#seg[@]}" -gt 0 ] \&\& [ "${seg[0]}" = -name ] \&\&/' x_rootdef
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
