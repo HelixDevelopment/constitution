@@ -15,8 +15,16 @@
 # Method  : the REAL host_report.py, imported by path. A PATH shim `sh` that
 #           rejects `ulimit -u` the way dash does makes the dash case the same
 #           on every host; real dash is also used when it is installed.
-#           FC_GUARD_PROC_LIMITS fixtures pin soft != hard values. Paired
-#           mutations on a copy of the tool prove each part is load-bearing.
+#           FC_GUARD_PROC_LIMITS fixtures pin soft != hard values.
+#           Fixture axes (CON-109 review round 2, finding R2-F2-A: a fixture on
+#           which a partial implementation gives the same answer as the correct
+#           one proves nothing): WHOSE limits (this process, lowered with
+#           setrlimit to a value pid 1 does not have, versus pid 1), WHICH
+#           column (soft 4242 / hard 99999), WHICH source wins (file before
+#           `ulimit -u`, FC_GUARD_ULIMIT_U before both), a MISSING or
+#           UNREADABLE limits file (fallback to `ulimit -u`), no Max processes
+#           line, `unlimited`. Paired mutations on a copy of the tool: each
+#           must fail at least the functional check named for it.
 set -u
 
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
@@ -54,87 +62,136 @@ if PATH="$TMP/dashlike:$PATH" sh -c 'ulimit -u' >/dev/null 2>&1; then
   notok "shim self-check: dash-like sh still accepts 'ulimit -u'"
 else ok "shim self-check: dash-like sh rejects 'ulimit -u'"; fi
 
-# read IMPL [PATHPREFIX] [LIMITSFILE|-] -> "ulim<TAB>unlimited"
-read_lim() {
-  _impl=$1 _pre=${2:-} _lf=${3:--}
+# The live soft/hard values of THIS process and pid 1's soft value.
+CURH=$(awk '/^Max processes[ \t]/ { print $4; exit }' /proc/self/limits 2>/dev/null)
+P1S=$(awk '/^Max processes[ \t]/ { print $3; exit }' /proc/1/limits 2>/dev/null)
+THR=$(ps -L --no-headers -U "$(id -ru)" 2>/dev/null | wc -l)
+TAB=$(printf '\t')
+
+# run_py IMPL [PATHPREFIX] [LIMITSFILE|-] [ULIMIT_U|-] [SOFT:HARD|-] -- python body on stdin
+# Imports IMPL and runs the body with `m` bound to the module. SOFT:HARD lowers
+# RLIMIT_NPROC of the python process itself (setrlimit, then exec).
+run_py() {
+  _impl=$1 _pre=${2:-} _lf=${3:--} _uu=${4:--} _rl=${5:--}
+  _body=$(cat)
   (
     unset FC_GUARD_ULIMIT_U FC_GUARD_PROC_LIMITS
-    [ "$_lf" = - ] || FC_GUARD_PROC_LIMITS=$_lf
-    [ "$_lf" = - ] || export FC_GUARD_PROC_LIMITS
+    [ "$_lf" = - ] || { FC_GUARD_PROC_LIMITS=$_lf; export FC_GUARD_PROC_LIMITS; }
+    [ "$_uu" = - ] || { FC_GUARD_ULIMIT_U=$_uu; export FC_GUARD_ULIMIT_U; }
     FC_GUARD_THREADS=100; export FC_GUARD_THREADS
     [ -z "$_pre" ] || PATH="$_pre:$PATH"
-    python3 - "$_impl" <<'PYEOF'
+    if [ "$_rl" = - ]; then set -- python3; else
+      set -- python3 -c 'import os, resource, sys
+s, h = (int(x) for x in sys.argv[1].split(":"))
+resource.setrlimit(resource.RLIMIT_NPROC, (s, h))
+os.execvp(sys.argv[2], sys.argv[2:])' "$_rl" python3
+    fi
+    "$@" - "$_impl" "$_body" <<'PYEOF'
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("host_report_under_test", sys.argv[1])
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
-u, t, unl = m._read_ulimit_threads()
-print("%s\t%s" % (u, unl))
+exec(sys.argv[2])
 PYEOF
   )
 }
-TAB=$(printf '\t')
-
-# L1 live read under a dash-like sh.
-R=$(read_lim "$IMPL" "$TMP/dashlike")
-if [ "$R" = "$SOFT${TAB}False" ]; then ok "L1 dash-like sh: live soft limit read = $SOFT (not unmeasured)"
-else notok "L1 dash-like sh: expected '$SOFT False', got '$R'"; fi
-# L2 real dash, when installed.
-if command -v dash >/dev/null 2>&1; then
-  mkdir -p "$TMP/realdash"; ln -s "$(command -v dash)" "$TMP/realdash/sh"
-  if PATH="$TMP/realdash:$PATH" sh -c 'ulimit -u' >/dev/null 2>&1; then
-    echo "info: this dash accepts 'ulimit -u'; L2 does not discriminate here"
-  fi
-  R=$(read_lim "$IMPL" "$TMP/realdash")
-  if [ "$R" = "$SOFT${TAB}False" ]; then ok "L2 real dash as sh: live soft limit read = $SOFT"
-  else notok "L2 real dash as sh: expected '$SOFT False', got '$R'"; fi
-else
-  echo "SKIP: L2 dash not installed (hardware_not_present-class: tool absent)"
-fi
-# L3 the same under the host's own sh (bash or dash, whatever it is).
-R=$(read_lim "$IMPL")
-if [ "$R" = "$SOFT${TAB}False" ]; then ok "L3 host sh ($REALSH): live soft limit read = $SOFT"
-else notok "L3 host sh: expected '$SOFT False', got '$R'"; fi
+LIM_BODY='u, t, unl = m._read_ulimit_threads(); print("%s\t%s" % (u, unl))'
+# read IMPL [PATHPREFIX] [LIMITSFILE|-] [ULIMIT_U|-] [SOFT:HARD|-] -> "ulim<TAB>unlimited"
+read_lim() { echo "$LIM_BODY" | run_py "$@"; }
 
 # Fixtures: soft != hard so a hard-limit read is caught.
 mklim() { printf 'Limit                     Soft Limit           Hard Limit           Units     \nMax cpu time              unlimited            unlimited            seconds   \nMax processes             %s               %s               processes \nMax open files            1024                 524288               files     \n' "$1" "$2" > "$3"; }
 mklim 4242 99999 "$TMP/lim_num"
 mklim unlimited unlimited "$TMP/lim_unl"
 printf 'Limit                     Soft Limit           Hard Limit           Units     \nMax open files            1024                 524288               files     \n' > "$TMP/lim_none"
-R=$(read_lim "$IMPL" "$TMP/dashlike" "$TMP/lim_num")
-if [ "$R" = "4242${TAB}False" ]; then ok "L4 fixture soft 4242 / hard 99999 -> 4242 (the soft value)"
-else notok "L4 expected '4242 False', got '$R'"; fi
-R=$(read_lim "$IMPL" "$TMP/dashlike" "$TMP/lim_unl")
-if [ "$R" = "None${TAB}True" ]; then ok "L5 fixture 'unlimited' -> unlimited (never 0)"
-else notok "L5 expected 'None True', got '$R'"; fi
-R=$(read_lim "$IMPL" "$TMP/dashlike" "$TMP/lim_none")
-if [ "$R" = "None${TAB}False" ]; then ok "L6 no 'Max processes' line + dash-like sh -> unmeasured (None), never guessed"
-else notok "L6 expected 'None False', got '$R'"; fi
+cp "$TMP/lim_num" "$TMP/lim_unreadable"; chmod 000 "$TMP/lim_unreadable"
+UNREADABLE=yes; cat "$TMP/lim_unreadable" >/dev/null 2>&1 && UNREADABLE=no
+
+HAVE_BASH=no
 if command -v bash >/dev/null 2>&1; then
+  HAVE_BASH=yes
   mkdir -p "$TMP/bashsh"; ln -s "$(command -v bash)" "$TMP/bashsh/sh"
   BU=$(bash -c 'ulimit -u')
-  R=$(read_lim "$IMPL" "$TMP/bashsh" "$TMP/lim_none")
-  if [ "$R" = "$BU${TAB}False" ]; then ok "L7 no 'Max processes' line + bash as sh -> 'ulimit -u' fallback = $BU"
-  else notok "L7 expected '$BU False', got '$R'"; fi
-else
-  echo "SKIP: L7 bash not installed"
+  [ "$BU" != 4242 ] || notok "control needle: bash 'ulimit -u' equals the fixture value 4242; L4B cannot discriminate"
+fi
+HAVE_DASH=no
+if command -v dash >/dev/null 2>&1; then
+  HAVE_DASH=yes; mkdir -p "$TMP/realdash"; ln -s "$(command -v dash)" "$TMP/realdash/sh"
 fi
 
-# L8 end to end: probe_thread_headroom under the dash-like sh is measured.
-R=$(
-  unset FC_GUARD_ULIMIT_U FC_GUARD_PROC_LIMITS
-  PATH="$TMP/dashlike:$PATH" python3 - "$IMPL" <<'PYEOF'
-import importlib.util, sys
-spec = importlib.util.spec_from_file_location("host_report_under_test", sys.argv[1])
-m = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(m)
-print(m.probe_thread_headroom().get("reason"))
-PYEOF
-)
-if [ -n "$R" ] && [ "$R" != unmeasured ] && [ "$R" != None ]; then ok "L8 probe_thread_headroom under dash-like sh: reason '$R' (measured)"
-else notok "L8 probe_thread_headroom under dash-like sh: reason '$R' (expected a measured reason)"; fi
+# Lowered limit for the WHOSE-limits leg: above this user's live thread count,
+# below this process's hard limit, and different from pid 1's soft value.
+RL=-
+case "$CURH" in ''|*[!0-9]*) CURHN=999999999 ;; *) CURHN=$CURH ;; esac
+case "$THR" in ''|*[!0-9]*) THR=0 ;; esac
+LS=$((THR + 3000)); [ "$LS" != "$P1S" ] || LS=$((LS + 1))
+LH=$((LS + 1000)); [ "$LH" -le "$CURHN" ] || LH=$CURHN
+if [ "$LS" -lt "$LH" ]; then
+  RL="$LS:$LH"
+  GOT=$(echo 'print(open("/proc/self/limits").read())' | run_py "$IMPL" - - - "$RL" | awk '/^Max processes[ \t]/ { print $3 ":" $4; exit }')
+  if [ "$GOT" = "$RL" ] && [ "$LS" != "$P1S" ]; then
+    ok "control needle: setrlimit leg lowers this process to $RL (pid 1 soft '$P1S', user threads $THR)"
+  else
+    notok "control needle: setrlimit leg read '$GOT', wanted '$RL' (pid 1 soft '$P1S')"; RL=-
+  fi
+else
+  echo "SKIP: P1 cannot lower RLIMIT_NPROC below the hard limit $CURH on this host (topology_unsupported)"
+fi
 
-# --- paired mutations (each on a fresh copy of the tool) ---
+# battery IMPL MODE: every functional check. MODE=report prints ok/NOT ok;
+# MODE=collect prints only the ids of the checks that FAILED.
+battery() {
+  _bi=$1 _bm=$2 BF=""
+  chk() {  # ID PASS(0|1) MESSAGE
+    if [ "$2" = 0 ]; then [ "$_bm" = report ] && ok "$1 $3"
+    else BF="$BF $1"; [ "$_bm" = report ] && notok "$1 $3"; fi
+  }
+  R=$(read_lim "$_bi" "$TMP/dashlike")
+  [ "$R" = "$SOFT${TAB}False" ]; chk L1 $? "dash-like sh: live soft limit read = '$R' (want $SOFT, not unmeasured)"
+  if [ "$HAVE_DASH" = yes ]; then
+    R=$(read_lim "$_bi" "$TMP/realdash")
+    [ "$R" = "$SOFT${TAB}False" ]; chk L2 $? "real dash as sh: live soft limit read = '$R' (want $SOFT)"
+  fi
+  R=$(read_lim "$_bi")
+  [ "$R" = "$SOFT${TAB}False" ]; chk L3 $? "host sh ($REALSH): live soft limit read = '$R' (want $SOFT)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_num")
+  [ "$R" = "4242${TAB}False" ]; chk L4 $? "fixture soft 4242 / hard 99999 -> '$R' (want the soft value 4242)"
+  if [ "$HAVE_BASH" = yes ]; then
+    R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/lim_num")
+    [ "$R" = "4242${TAB}False" ]; chk L4B $? "fixture 4242 with a working 'ulimit -u' ($BU) -> '$R' (the file wins, want 4242)"
+  fi
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_unl")
+  [ "$R" = "None${TAB}True" ]; chk L5 $? "fixture 'unlimited' -> '$R' (want unlimited, never 0)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_none")
+  [ "$R" = "None${TAB}False" ]; chk L6 $? "no 'Max processes' line + dash-like sh -> '$R' (want unmeasured, never guessed)"
+  if [ "$HAVE_BASH" = yes ]; then
+    R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/lim_none")
+    [ "$R" = "$BU${TAB}False" ]; chk L7 $? "no 'Max processes' line + bash as sh -> '$R' (want the 'ulimit -u' fallback $BU)"
+    R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/does_not_exist")
+    [ "$R" = "$BU${TAB}False" ]; chk X1 $? "limits file MISSING + bash as sh -> '$R' (want the 'ulimit -u' fallback $BU)"
+    if [ "$UNREADABLE" = yes ]; then
+      R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/lim_unreadable")
+      [ "$R" = "$BU${TAB}False" ]; chk X3 $? "limits file UNREADABLE (mode 000) + bash as sh -> '$R' (want the fallback $BU)"
+    fi
+  fi
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/does_not_exist")
+  [ "$R" = "None${TAB}False" ]; chk X2 $? "limits file MISSING + dash-like sh -> '$R' (want unmeasured)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_num" 777)
+  [ "$R" = "777${TAB}False" ]; chk O1 $? "FC_GUARD_ULIMIT_U=777 over a 4242 file -> '$R' (want the override 777)"
+  if [ "$RL" != - ]; then
+    R=$(read_lim "$_bi" "$TMP/dashlike" - - "$RL")
+    [ "$R" = "$LS${TAB}False" ]; chk P1 $? "this process lowered to $RL, pid 1 soft $P1S -> '$R' (want THIS process's soft $LS)"
+  fi
+  R=$(echo 'print(m.probe_thread_headroom().get("reason"))' | (unset FC_GUARD_THREADS; run_py "$_bi" "$TMP/dashlike"))
+  [ -n "$R" ] && [ "$R" != unmeasured ] && [ "$R" != None ]
+  chk L8 $? "probe_thread_headroom under dash-like sh: reason '$R' (want a measured reason)"
+  [ "$_bm" = collect ] && printf '%s' "$BF"
+  return 0
+}
+
+battery "$IMPL" report
+
+# --- paired mutations (each a copy of the tool; each must fail its named check) ---
 mk_mutant() {  # NAME OLD NEW -> prints the mutant path, or "" when the anchor is not unique
   _d="$TMP/mut_$1"
   mkdir -p "$_d/host" "$_d/lib"
@@ -149,34 +206,54 @@ open(p, "w", encoding="utf-8").write(c.replace(old, new))
 PYEOF
   then echo "$_d/host/host_report.py"; fi
 }
+mutation() {  # NAME "NAMED IDS" OLD NEW   (a named id absent on this host is not required)
+  _m=$(mk_mutant "$1" "$3" "$4")
+  if [ -z "$_m" ]; then notok "mutation $1: anchor not unique in the tool (not a catch)"; return; fi
+  _got=$(battery "$_m" collect)
+  _miss=""
+  for _e in $2; do case " $_got " in *" $_e "*) ;; *) _miss="$_miss $_e" ;; esac; done
+  if [ -z "$_got" ]; then notok "mutation $1 SURVIVED every functional check"
+  elif [ -n "$_miss" ]; then notok "mutation $1: caught by$_got but NOT by its named check(s)$_miss"
+  else ok "mutation $1: caught by$_got (named: $2)"; fi
+}
+NEED_BASH() { [ "$HAVE_BASH" = yes ] && echo "$1"; }
+NEED_RL() { [ "$RL" != - ] && echo "$1"; }
+NEED_UNR() { [ "$HAVE_BASH" = yes ] && [ "$UNREADABLE" = yes ] && echo "$1"; }
+
 # M1: the pre-fix read (`sh -c "ulimit -u"` only).
-M=$(mk_mutant M1_ulimit_only 'ulim = _read_nproc_soft()' \
+mutation M1_ulimit_only "L1" 'ulim = _read_nproc_soft()' \
   'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
-        ulim = out.strip() if rc == 0 and out else None')
-if [ -z "$M" ]; then notok "mutation M1_ulimit_only: anchor not unique in the tool"
-else
-  R=$(read_lim "$M" "$TMP/dashlike")
-  if [ "$R" = "$SOFT${TAB}False" ]; then notok "mutation M1_ulimit_only SURVIVED"
-  else ok "mutation M1_ulimit_only: caught -- mutant read '$R'"; fi
-fi
+        ulim = out.strip() if rc == 0 and out else None'
 # M2: read the HARD column instead of the soft one.
-M=$(mk_mutant M2_hard_column 'return parts[2]' 'return parts[3]')
-if [ -z "$M" ]; then notok "mutation M2_hard_column: anchor not unique in the tool"
-else
-  R=$(read_lim "$M" "$TMP/dashlike" "$TMP/lim_num")
-  if [ "$R" = "4242${TAB}False" ]; then notok "mutation M2_hard_column SURVIVED"
-  else ok "mutation M2_hard_column: caught -- mutant read '$R'"; fi
-fi
-# M3: drop the `ulimit -u` fallback.
-M=$(mk_mutant M3_no_fallback 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
-    return out.strip() if rc == 0 and out else None' 'return None')
-if [ -z "$M" ]; then notok "mutation M3_no_fallback: anchor not unique in the tool"
-elif ! command -v bash >/dev/null 2>&1; then echo "SKIP: M3 needs bash"
-else
-  R=$(read_lim "$M" "$TMP/bashsh" "$TMP/lim_none")
-  if [ "$R" = "$BU${TAB}False" ]; then notok "mutation M3_no_fallback SURVIVED"
-  else ok "mutation M3_no_fallback: caught -- mutant read '$R'"; fi
-fi
+mutation M2_hard_column "L4" 'return parts[2]' 'return parts[3]'
+# M3: drop the `ulimit -u` fallback. (L6 is not named: with no line and a
+# dash-like sh the correct tool also gives None, so L6 cannot tell them apart.)
+mutation M3_no_fallback "$(NEED_BASH L7) $(NEED_BASH X1)" 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+    return out.strip() if rc == 0 and out else None' 'return None'
+# HR1 (round-2 reviewer): no fallback when the file is missing or unreadable.
+if [ "$HAVE_BASH" = yes ]; then
+  mutation HR1_missing_file_no_fallback "X1 $(NEED_UNR X3)" '    except OSError:
+        pass
+    rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)' '    except OSError:
+        return None
+    rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)'
+else echo "SKIP: HR1 needs bash as sh for a working fallback"; fi
+# HR2 (round-2 reviewer): read pid 1's limits instead of this process's.
+if [ "$RL" != - ]; then
+  mutation HR2_pid1_limits "P1" 'path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/self/limits")' \
+    'path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/1/limits")'
+else echo "SKIP: HR2 needs the setrlimit leg (topology_unsupported)"; fi
+# HR3 (round-2 reviewer): try `ulimit -u` before the file.
+if [ "$HAVE_BASH" = yes ]; then
+  mutation HR3_ulimit_first "L4B" '    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:' '    rc0, out0, _e0 = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+    if rc0 == 0 and out0 and out0.strip():
+        return out0.strip()
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:'
+else echo "SKIP: HR3 needs bash as sh"; fi
+# M4: ignore the FC_GUARD_ULIMIT_U override.
+mutation M4_override_ignored "O1" 'ulim = os.environ.get("FC_GUARD_ULIMIT_U")' 'ulim = None'
 
 echo "=== host_report thread limit regression guard (CON-109 F2-1): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]
