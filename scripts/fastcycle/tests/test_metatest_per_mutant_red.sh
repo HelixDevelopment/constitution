@@ -555,4 +555,8 @@ echo "  remains deliberately inert (documentation only) -- assertion (3) above i
 echo "  file's real, flippable done-signal, so this stub being inert does not leave the"
 echo "  file unable to ever flip GREEN."
 
+# CON-118 / review round 2 finding R2-F5-A: the summary line is printed LAST,
+# after every explanatory line (the full-suite runner reports a fail word
+# with no summary after it as ERROR unparsed_fail_signal).
+echo "=== metatest per-mutant RED baseline (T017): fail=$fail ==="
 exit $fail
