@@ -43,6 +43,8 @@ set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 PRE_BUILD="${FC_TIMER_RED_PREBUILD:-$ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh}"
+# consumer-data guard on the EFFECTIVE inputs this run reads (after env overrides; review F2)
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$PRE_BUILD"
 EVIDENCE_DIR="${FC_TIMER_RED_EVIDENCE_DIR:-$ROOT/qa-results/fastcycle/us1/red/T015}"
 BOUND="${FC_TIMER_RED_BOUND_S:-90}"
 NEEDLE_PRESENT="CM-COVENANT-114-182-PROPAGATION"

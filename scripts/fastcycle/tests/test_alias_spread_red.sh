@@ -108,6 +108,7 @@
 #         `orchestration/limit_class.py` genuinely does not exist yet (T136
 #         is a separate, later, not-yet-started task) -- this is the T128
 #         RED baseline, not a bug in this test.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer specs/004-fast-dev-cycles/research.md
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

@@ -20,7 +20,13 @@
 #                                         install from a local dir (pin: --sha256) or a git URL/repo
 #                                         (pin: --sha 40-hex AND --sha256, as printed by validate);
 #                                         unpinned needs --waiver-id (recorded; refused if token-shaped)
-#     remove <id> [--yes]                 unwire and delete an installed extension (never a bundled one)
+#     remove <id> [--yes]                 unwire and delete an installed extension (never a bundled one); needs
+#                                         this checkout's signed install fact (written by add, or by adopt-install)
+#     adopt-install <id> --waiver-id REF  operator attestation that THIS checkout installed <id> before install
+#                                         facts existed: records a fact marked "adopt" (REF = ticket/decision id)
+#                                         when the lock entry, the local state record and the tree digest agree.
+#                                         Needs an operator at a terminal: the id is typed at a /dev/tty prompt;
+#                                         no flag replaces the prompt (--yes is refused). Never implicit.
 #     enable <id> [--yes]                 record consent; mark enabled (hooks/MCP enabled in the lock)
 #     disable <id>                        unwire its commands; mark disabled
 #     verify [<id>]                       recompute CHECKSUMS, compare to the lock, catalog revocations,

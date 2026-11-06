@@ -166,6 +166,7 @@
 #         disclosed-and-out-of-scope Phase-0 gap, never merely "not yet
 #         evaluated"). Matches the T017/T024/T026/T025 sibling files' "exit
 #         0 = PASS" convention for every OTHER assertion in this file.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer specs/004-fast-dev-cycles/plan.md specs/004-fast-dev-cycles/research.md
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

@@ -1599,3 +1599,269 @@ Review finding X3 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md):
 
 Review finding X2 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/fastcycle/lib/dec23_key_ref.py and scripts/fastcycle/lib/tce_normalize_ref.py (added in a925a8da on 2026-09-30) are never loaded; the only test reads scripts/fastcycle/tests/lib/. They are not only reworded: for fixture mr_good_killed_reuse/put_envelope.json the used copy prints dc6819b0..., the orphan dec23_key_ref.py prints 4b6e4fc0... (canonical JSON instead of U+001F-joined fields); the product gates/mutation_reuse.py uses U+001F-joined fields like the used copy. Do NOT delete them before the operator decides (§11.4.122, §11.4.124). The reviewer recommends retiring both as obsolete duplicates (§11.4.90). Acceptance: the operator's decision O2 is recorded and applied.
 
+## CON-092 — Fastcycle consumer-data guard: skip per section, not the whole test (review F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: finding F3 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). The 24 fastcycle tests that source scripts/fastcycle/tests/lib/consumer_required.sh SKIP as a whole (exit 77) when consumer-project data is absent. Before the change they ran about 400 assertions that work on canon alone (for example consumer_audit 66 ok, catchset 67, plan_struct_causes 56, plan_struct_full 36, capture_triplet 25, escape_classify 23, limit_class 18, host_limits 17, alias_spread 15), and those assertions and their failures are now hidden. Scope: the 24 tests listed by 'grep -l consumer_required.sh scripts/fastcycle/tests/*.sh'. Reproduction: run any of them on canon alone; it prints one SKIP line and none of its canon-runnable checks. Acceptance: only the sections that read consumer data are skipped, each naming the effective path it reads; the canon-runnable sections run and report pass/fail; the runner records the remaining skips with reason=topology_unsupported.
+
+## CON-093 — Nine more fastcycle tests fail on canon alone for missing consumer data, not converted (review F13)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: finding F13 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md, inventory class A). Nine tests fail on canon alone because they read consumer-project data, the same class as the 24 converted tests: test_backstop_red.sh, test_flake_ledger_red.sh, test_mutation_reuse_red.sh (control needle needs specs/004-fast-dev-cycles/contracts/); test_evidence_ref_red.sh, test_governance_subset_red.sh, test_reopen_rate_red.sh, test_resume_revalidate_red.sh (tracker DB read at the consumer root; verified for test_reopen_rate_red.sh, which reads DB=$ROOT/docs/workable_items.db with ROOT four levels up; the other three are UNCONFIRMED); test_fc_commit_stage_timer_mutations.sh and test_fc_timer_prebuild_mutations.sh (inputs missing). Reviewer runs: docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv. Acceptance: each test checks the effective path it reads and skips only the consumer-dependent sections (fold into CON-092, never another whole-test SKIP); a tracker-DB needle uses the canon DB where that is the intent.
+
+## CON-094 — Manifest-triage wording nits: 24 not 26 tests, census 844 not 843, row order (review F10)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: finding F10 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). Commit 1f65b061 and the round-1 author report said 26 tests source the consumer-data helper; grep finds 24. Merge 0313ffd said census 843; verify-manifest gave 844. Two appended manifest rows were out of sort order. Scope: commit messages and reports only (history is not rewritten). Acceptance: the round-2 commit message and report state the measured numbers (24 tests; the census as printed by --verify-manifest), the manifest rows are in sorted order, and this item closes when that round lands.
+
+## CON-095 — Bisect escape probe: compute the ../ depth from TMPDIR and use a per-run victim file (review F11)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: finding F11 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). scripts/fastcycle/tests/test_batch_bisect_r3_regression.sh hard-codes a chain of 40 '../' and its victim file is a shared name /tmp/m1_escape_probe*.txt. A TMPDIR deeper than 40 levels breaks the probe, and concurrent runs share the victim. Acceptance: the depth is computed from the real TMPDIR depth plus a margin, the victim is a per-run mktemp name outside the sandbox root, and the test is RED on the pre-fix bisect code and GREEN on the current one at TMPDIR depths 5 and 60.
+
+## CON-096 — Two multitrack RED tests pinned to history fail when their dependency is present (review F12)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: finding F12 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). With the RB-05 mock and project root present, scripts/multitrack/test_multitrack_sessions_pid_status.sh gives rc 94 and scripts/multitrack/test_multitrack_supervisor_wiring.sh fails 'RED(A) headhit=3'. They are RED tests pinned to history (same class as orchestrator_reconcile); on canon alone the SKIP hides them. Reporter: the reviewer's own runs with the dependency present but a broken mock; not reproduced by the author. Reproduction: run each with MT_TEST_MOCK_CLAUDE pointing at the real consumer mock. Acceptance: reproduce live (section 11.4.292), find the root cause, and either fix the pin or re-anchor the RED leg to a recorded commit, with a deterministic live test.
+
+## CON-097 — 62 fastcycle tests hard-code $ROOT/constitution/, so they run only when the canon directory is named constitution (inventory class A)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: the wider pattern under inventory class A of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md): 62 of the 160 fastcycle tests reach canon files as $ROOT/constitution/..., where ROOT is the consumer root four levels above the test. Canon checked out under another name (submodules/constitution, a scratch clone, a review clone) breaks them. Scope: grep -l 'ROOT/constitution/' scripts/fastcycle/tests/*.sh (count to be re-measured with a control needle before work). Acceptance: canon paths are resolved from the test's own location (three levels up), consumer paths from the consumer root, and a test proves a test still finds canon when the directory is renamed.
+
+## CON-098 — Eleven fastcycle tests pass alone but fail in the batch (inventory class B)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class B of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md; reviewer runs docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv). Each gives rc 0 when run alone and fails in the batch: test_backstop_compare_exit_codes_r2_regression.sh, test_backstop_compare_r3_regression.sh, test_io_trace_build_map_device_safety_r2_regression.sh, test_io_trace_build_map_r3_regression.sh, test_io_trace_build_map_r5_regression.sh, test_io_trace_build_map_setsid_r5_regression.sh, test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_pack_build_red.sh, test_precheck_pack_multi_slice_sibling_search_r5_regression.sh, test_precheck_sibling_blast_radius_honest_verdict_red.sh, test_precheck_sibling_search_unmeasured_literal_r6_regression.sh. Cause UNCONFIRMED (load, ordering, shared state or the batch timeout). Reproduction: run scripts/fastcycle/tests/run_all.sh with the exact batch order and record each failure (section 11.4.199). Acceptance: a recorded live reproduction in the batch, a proven root cause per test, and a fix with a deterministic test.
+
+## CON-099 — Eleven fastcycle tests show behaviour mismatches that need a root cause (inventory class C)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class C of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md; reviewer runs docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv). Custody-sweep family: r11, r13 and r15 REFUSE a plain stash that should be ALLOWED (backup patch sha256 does not match the re-derived live content; suspected git config or version effect in a sandbox HOME, UNCONFIRMED), r6 hits a Python traceback in guard-viability, r9 gets rc 2 from custody_sweep.py --repo-root on a long sandbox path. Also: test_escape_classify_malformed_red.sh (non_mapping_entry exits 2, expected a named refusal exit 1), test_fc_entry_r10_regression.sh (B1 inventory with --out gets rc 2), test_gate_shard_r3_regression.sh (Python traceback), test_io_trace_build_map_r6_regression.sh (mutation precondition not reached on this host, proves nothing either way), test_precheck_slicer_red.sh (sh -n under dash did not reject broken_syntax_gate.sh), test_host_guard_red.sh (got reason=unreadable_ulimit where thread_headroom was expected under sh; dash ulimit has no -u is a suspicion, UNCONFIRMED). Acceptance: each reproduced live first (section 11.4.292), root cause proven, fixed or honestly reclassified, with a deterministic test.
+
+## CON-100 — test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class D of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). scripts/fastcycle/tests/test_host_attribute_red.sh reports btrfs_binary_unavailable because the exclusive-bytes instrument needs a btrfs tool this host lacks. Whether the tool is truly absent was not checked. Reproduction: run the test on a host with no btrfs binary and record the output and rc. Acceptance: when the tool is proven absent (control needle), the affected legs SKIP with reason=hardware_not_present or topology_unsupported, never FAIL; when present, they run.
+
+## CON-101 — test_precheck_shellcheck_red.sh times out under load with an M11 mutation-flip traceback (inventory class D2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+
+Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class D2 of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md). scripts/fastcycle/tests/test_precheck_shellcheck_red.sh got rc 124 after 240 s in the reviewer's run, with 'NOT ok: M11 mutation-flip ... Traceback' before the timeout. The failure predates the vehicle (the vehicle only added its member row, which the reviewer judged correct). Reproduction: run it alone with its shebang interpreter and nice -n 10 at host load about 40, record rc, time and the traceback. Acceptance: live reproduction, root cause of the M11 traceback, a fix, and a run time inside the fastcycle per-test bound.
+
+## CON-102 — Fastcycle consumer-data helper test: directory case, absolute-path-with-space, pin commit_stage/prebuild_tsv/metatest_r4/monday effective paths (review R2-1, R2-2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Surviving mutants M1A, M1G, M2A, M2C, M2D; protected behaviour proven live by the reviewer. Acceptance: tests that kill all five.
+
+## CON-103 — Superspec exclusion topology guard: add a blinded-gate layout and a missing-carrier failure layout (review R2-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Surviving mutants M7B, M7C. Acceptance: both killed.
+
+## CON-104 — test_multitrack_sessions_balance_autoselect.sh: align with siblings (mock override, honest SKIP) (review R2-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Still FATAL 91 with project root present and no mock; no MT_TEST_MOCK_CLAUDE override.
+
+## CON-105 — Map reason=rb05_mock_absent to a section 11.4.69 closed reason on main (review R2-6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Not in the closed set; affects pid_status, supervisor_wiring, redpin_mutations. Use topology_unsupported.
+
+## CON-106 — Tracker hygiene for CON-092..CON-101: split the per-test bundles, correct created_by, parent links (review R2-7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). CON-098 and CON-099 each bundle 11 tests; the engine has no parent flag, so parents are recorded as a Parent line only (UNCONFIRMED whether a parent column exists).
+
+## CON-107 — Clear CDPATH in the consumer-data helper root cd (review R2-5); name more sourcing tests in its manifest note (R2-8)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
+
+Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run).
+
+## CON-108 — ownership F1: a byte copy of a checkout can remove the shared extension tree
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Conductor
+
+First minted on the vehicle as CON-070 (CON-070 is reserved on main for the CON-030 class item), re-minted at landing as CON-108. Reported by the independent wave 2 review (finding F1), not reproduced by the reporter of this item. The E01 install fact binds the constitution root and the tree identity, not the project path. A byte copy of a checkout that holds the state directory carries the same signed fact, so running remove from the copy deletes the tree the original still uses. Pre-existing. Wave 2 round 2 made the refusal text honest about this; the defect itself is NOT fixed. Fix belongs with E03 (per-checkout refcount) or a project-realpath binding in the fact; related to CON-042.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_ext/ext_engine.py (remove, E01 fact); E03 refcount
+
+## CON-109 — WIT-C02 stays open: confirm the hermetic-suite remedy with an independent review and a full-suite run
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T12:59:59Z
+**Reported-By:** ownership wave 2 WIP session (minted 2026-11-05 12:59 UTC; that session recorded its model as Opus 5.5, UNCONFIRMED by round 3). First minted on the vehicle as CON-050; main had already given CON-050 to another item, so round 3 re-minted it as CON-071; main then gave CON-071 to another item, so it was re-minted at landing (wave 2 round 4) as CON-109 (§11.4.54: an id is never reused).
+
+**What (the report, verbatim):**
+Operator decision 2026-11-05 (relayed): the C02 reinterpretation is rejected; C02 stays open. Wave 2 round 2 landed: a per-unit fingerprint (inode, mtime, size, content) of the tracked generated sets checked after every unit by the full-suite runner; a rewritten lint that flags the reviewer's six violators; the two suites measured rewriting the real tree converted to throw-away constitution copies. Open: an independent review of that work, and a full-suite run showing no unit trips the fingerprint, before C02 is closed.
+
+**Affected scope / file-scope manifest:**
+scripts/full_suite/run_full_suite.py (gen_fingerprint); tests/layout/hermetic_lint.py; tests/layout/test_hermetic_generator.sh; tests/action_prefix/test_hook_e2e.sh; tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh
+
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
+
+**Acceptance criteria:**
+Independent review GO on the C02 changes; a full-suite run on a clean checkout ends without IDENTITY CHANGED for the gen field; then close WIT-C02 in the design doc.
+
+**Open after round 3 (measured 2026-11-05):**
+`hermetic_lint.py` flags 13 of the round-2 reviewer's 14 violators; it does not see an installer reached by a path relative to a `cd` into the real tree (violator v08). That gap stays open under this item.
+
+**Decision after review round 3 (N5, recorded 2026-11-05 by the round-4 fix session; the review recommended it and the conductor's brief ordered it, operator confirmation UNCONFIRMED):**
+`tests/layout/hermetic_lint.py` is an ADVISORY tripwire: its findings on the real tests are printed as ADVISORY lines by `tests/layout/test_hermetic_generator.sh` and do not fail it. The BINDING C02 check is the full-suite runner's per-unit fingerprint of the generated sets plus its end-of-run tree identity (`scripts/full_suite/run_full_suite.py` gen_fingerprint / quick_ident, pinned by `tests/test_run_full_suite.sh` section 39 and mutants I1 I2 I3 G1). No new shapes are added to the lint per review round (§11.4.250); the round-3 review's 8 missed shapes and 1 false positive are listed in the lint's docstring as known limits. The acceptance criterion above (a clean full-suite run with no IDENTITY CHANGED) is unchanged.
+
+## CON-110 — ownership wave 2 FU (round 4 N1): on budget expiry timeout --foreground signals only the engine, not its git children
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+First minted on the vehicle as CON-072, re-minted at landing as CON-110. Found while fixing review round 3 N1 (vehicle/ownership-wave2, round 4). The dispatcher now runs extensions add, install-extension, enable and adopt-install with timeout --foreground so the engine can read /dev/tty. With --foreground, timeout signals only its direct child (the engine, because constitution_ext.sh execs python3); a git subprocess the engine started (git clone/fetch for a git source) is not signalled when the budget expires and may outlive the dispatcher. Measured: the no-answer budget case (4 s) ends with rc 124 and no engine process left, but it does not start git. UNCONFIRMED: whether a git child survives a timeout during a git-source add. Round 4 review (N9) CONFIRMED by measurement: in the real topology both timeout implementations return 124 after 5 s while the engine's git clone child is alive at +10 s (reparented to systemd --user). Fix direction: the engine installs a SIGTERM handler that kills its own child process group (pgid > 1 checked, §11.4.263) and then runs the normal cleanup, or starts git in a new process group and kills that group on exit. Acceptance: a pty test with a git source and a stalled git step shows no process left after rc 124, or the engine forwards SIGTERM to its children.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_cmd/constitution_cmd.sh (tmo); scripts/constitution_ext/ext_engine.py (_git subprocess handling)
+
+## CON-111 — ownership wave 2 FU (round 4): extensions FAQ item 10 still says the /constitution command is planned, not landed
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+First minted on the vehicle as CON-073, re-minted at landing as CON-111. Found while documenting review round 3 N1 (vehicle/ownership-wave2, round 4). docs/faq/extensions_faq.md item 10 says the /constitution slash command is planned and not landed (UNCONFIRMED), but scripts/constitution_cmd/constitution_cmd.sh ships the extensions route and FAQ 12b (added in round 4) describes it. Acceptance: item 10 states what is shipped (the dispatcher and its generated commands) with a pointer to the dispatcher and its tests, and no longer calls it planned.
+
+**Affected scope / file-scope manifest:**
+docs/faq/extensions_faq.md
+
+## CON-112 — ownership wave 2 FU (round 4 N8): gates run cm_label_sync_render hangs forever at a terminal under uutils timeout; structural terminal handling for every delegated route plus a class-wide pty probe
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N8, minor source-defect, pre-existing on main; the second occurrence of the N1 mechanism class, so §11.4.276(E)(3) was triggered and the operator decided on 2026-11-05 to land as GO-with-follow-ups and register the structural rework as this tracked follow-up, no round 5). Mechanism: scripts/constitution_cmd/constitution_cmd.sh cmd_gates runs the gate via deleg/tmo without --foreground; a gate that touches the controlling terminal (cm_label_sync_render runs util-linux script, which calls tcgetattr/tcsetattr on its tty stdin) is in a background process group and is stopped by SIGTTOU. Measured by the reviewer: uutils timeout 0.8.0 not exited at 130 s with a 40 s budget (unbounded); GNU timeout ends at the budget with rc 124. With no controlling tty the run is bounded. The author's enumeration of the N1 class searched for /dev/tty opens and could not see terminal access through an inherited tty stdin or tcsetattr (§11.4.273 class-incomplete needle). Fix direction: non-interactive routes run detached from the controlling terminal (setsid -w, stdin </dev/null) so no member of the class can exist for them and timeout's group kill covers their children; add a class-wide pty probe that runs EVERY dispatcher route (all 189 gates included) at a real pty under both timeout implementations and asserts exit within budget. Acceptance: the probe reports 0 STOPPED routes; paired mutation. Severity minor: fails safe, agents have no controlling tty. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_cmd/constitution_cmd.sh (cmd_gates, deleg, tmo); tests/constitution_cmd/test_constitution_cmd_pty.sh (class-wide probe)
+
+## CON-113 — ownership wave 2 FU (round 4 N10): adopt the reviewer's surviving mutants RV4-2, RV4-3, RV4-4, RV4-7, RV4-8 as killing legs
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N10). Five reviewer mutants survived their suites and are non-equivalent; adopt each verbatim as a leg that kills it (§11.4.276(D)). RV4-2 (minor source-defect, attacks the N1 fix): dispatcher interactive routing made conditional on [ -t 0 ]; at a pty with stdin </dev/null typing y to enable gives rc 0 on the real code, the mutant is killed only by a driver timeout. RV4-3 (minor test-instrumentation, pre-existing consent()): consent defaults to yes on an empty answer; survives every suite including tests/run_all.sh --quick. RV4-4 (minor test-instrumentation, pre-existing): the CONSTITUTION_EXT_NO_TTY=1 refusal removed in consent(); RN3 covers that knob for _confirm_adopt only. RV4-7 (nit): ledger default mode 0o644 to 0o666, not pinned under umask 002. RV4-8 (minor): restored wiring.local.json written with mode None instead of 0600, no test checks a restored record mode under umask 022. Acceptance: each mutant fails a suite leg in the vehicle's own suites; the mutant patterns are listed in the round-4 review record. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+tests/constitution_cmd/test_constitution_cmd_pty.sh; tests/extensions/test_ownership_e01.sh; tests/extensions/test_wiring_ledger.sh; scripts/constitution_ext/ext_engine.py (consent)
+
+## CON-114 — ownership wave 2 FU (round 4 N11): three documentation overclaims about the dispatcher budget and the pty test coverage
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N11, minor process-doc). (1) Manual and FAQ 12b say when the budget runs out the dispatcher exits 124 and nothing is changed; for add a clone may remain in a staging dir until the next mutating command and the git child may still run (CON-110). (2) The tmo comment says the budget still bounds it; false when the operator backgrounds an interactive route (engine and timeout are stopped by SIGTTIN, measured not exited at 40 s with a 5 s budget under both timeout implementations); a backgrounded prompt being stopped is normal job control, so wording only. (3) The pty test header says these four routes are the whole class; it should name the class it closes (engine /dev/tty prompts) and state that terminal access by other delegated tools is not covered (CON-112). Acceptance: the three texts corrected. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+docs/manuals/extensions_manual.md; docs/faq/extensions_faq.md; scripts/constitution_cmd/constitution_cmd.sh (tmo comment); tests/constitution_cmd/test_constitution_cmd_pty.sh (header)
+
+## CON-115 — ownership wave 2 FU (round 4 N5): make the C02 hermetic property hold by construction (the lint stays advisory)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the hermetic lint stays advisory, the by-construction fix is this tracked follow-up). tests/layout/hermetic_lint.py is an ADVISORY tripwire (§11.4.250: no new shapes per round); the binding check is the full-suite runner per-unit fingerprint, which is detective and sees a rewrite of the tracked generated sets only under run_full_suite.py (a test run directly can rewrite the real tree and only git status sees it). Primitive fix per §11.4.250 steps 2-4: the generator refuses to write into the checkout's own tracked tree unless HELIX_ACTION_OUT_ROOT is explicit, or tests run against a copy by construction. Related: CON-109 (WIT-C02 stays open). Acceptance: a test run directly cannot rewrite the tracked generated sets; paired mutation; then the lint can be retired or kept as documentation. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
+

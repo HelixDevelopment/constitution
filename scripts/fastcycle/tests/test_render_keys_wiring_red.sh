@@ -54,6 +54,7 @@
 # Usage: sh test_render_keys_wiring_red.sh
 # Exit: 0 all sections held; 1 any FAIL.
 # =============================================================================
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/testing/sync_all_markdown_exports.sh
 set -u
 
 REPO_ROOT_REAL=$(cd "$(dirname "$0")/../../../.." && pwd)

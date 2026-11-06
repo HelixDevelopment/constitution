@@ -26,8 +26,8 @@ for a in claude kimi opencode pi aider codex gemini qwen cursor-agent amp goose;
   eq "$a tier" "$t" "$(field "$a" tier)"
 done
 if command -v claude-list-accounts >/dev/null 2>&1; then
-  oracle="$(timeout 20 claude-list-accounts 2>/dev/null | awk '{print $1}' | grep -E '^claude[0-9]+$' | sort -u | tr '\n' ' ')"
-  got="$(python3 -I -c 'import json,sys; print(" ".join(sorted(x["id"] for x in json.loads(sys.argv[1]) if x.get("kind")=="native-alias"))+" ")' "$json")"
+  oracle="$(timeout 20 claude-list-accounts 2>/dev/null | awk '{print $1}' | grep -E '^claude[0-9]+$' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+  got="$(python3 -I -c 'import json,sys; print(" ".join(sorted(x["id"] for x in json.loads(sys.argv[1]) if x.get("kind")=="native-alias")))' "$json")"
   eq "native aliases match claude-list-accounts" "$oracle" "$got"
 else
   echo "  SKIP native aliases: claude-list-accounts not installed (reason: topology_unsupported)"

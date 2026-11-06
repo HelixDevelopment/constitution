@@ -135,6 +135,7 @@
 #        held (only possible once T132 lands `$FC/orchestration/heartbeat.sh`
 #        implementing the plan T-B03 rule correctly); nonzero = FAIL count>0
 #        (today, RED, by design -- Section 3's real after-check).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/requests/agent_registry.status.tsv
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

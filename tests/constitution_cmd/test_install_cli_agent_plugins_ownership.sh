@@ -5,10 +5,17 @@
 #   Tree checksums of the project sandbox and of an outside decoy prove "untouched".
 # Env: none. Exit 0 all pass. One mktemp sandbox, safe_rm_rf. Does not reassign HOME.
 set -uo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-. "$here/scripts/lib/safe_rm.sh"
+real="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+. "$real/scripts/lib/safe_rm.sh"
 sb="$(mktemp -d)"; : "${sb:?}"
 trap 'safe_rm_rf "$sb"' EXIT
+# WIT-C02 (ownership wave 2 review r2, F5): the installer regenerates the command sets of the constitution it
+# lives in (and unsets HELIX_ACTION_OUT_ROOT by design, layout test H3), so running it from the real tree rewrote
+# the real tracked generated sets. Every installer run below uses this throw-away constitution copy instead.
+here="$sb/const"; mkdir -p "$here/scripts" "$here/docs/guides"
+cp -a "$real"/scripts/*.sh "$here/scripts/"; cp -a "$real/scripts/lib" "$real/scripts/hooks" "$here/scripts/"
+cp -a "$real/actions" "$real/plugins" "$real/skills" "$here/"
+cp -a "$real/docs/guides/constitution_command_guide.md" "$here/docs/guides/"
 fail=0; ck(){ if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fail=1; fi; }
 tsum(){ ( cd "$1" && find . -mindepth 1 -type l -printf 'L %p -> %l\n' | LC_ALL=C sort; find . -mindepth 1 -type d | LC_ALL=C sort; find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum ) | sha256sum; }
 inst(){ RC=0; HOME="$sb/home" bash "$here/scripts/install_cli_agent_plugins.sh" --no-plugin "$1" >"$sb/out" 2>&1 || RC=$?; }
