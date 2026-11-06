@@ -116,15 +116,22 @@ PY
   if [ "${RR_SKIP_LEDGER:-0}" != "1" ]; then
     rr_ledger_row "$dispatch" opus xhigh
   fi
-  local pre=(--precheck "$d/precheck.json")
+  # POSIX form (no bash arrays): the tests that source this file run
+  # under /bin/sh, which is dash on Debian/Ubuntu hosts. The argument
+  # vector is rebuilt with set -- so the order stays exactly
+  #   --batch --round --verdict-file [--precheck F] --tier --effort
+  #   --producer-id --out <caller's extra arguments>
+  # (the caller's extras stay last, so argparse last-wins still lets a
+  # caller override a fixed option, as before).
+  set -- --tier opus --effort xhigh --producer-id "${RR_PRODUCER-PRODUCER-MAIN}" \
+    --out "$out" "$@"
   if [ "${RR_NO_PRECHECK:-0}" = "1" ]; then
     rm -f "$d/precheck.json"
-    pre=()
+  else
+    set -- --precheck "$d/precheck.json" "$@"
   fi
   python3 "$RR_TOOL" record --batch "$d/batch.json" --round "$round" \
-    --verdict-file "$d/verdict.json" "${pre[@]}" \
-    --tier opus --effort xhigh --producer-id "${RR_PRODUCER-PRODUCER-MAIN}" \
-    --out "$out" "$@" >"$d/record.out" 2>"$d/record.err"
+    --verdict-file "$d/verdict.json" "$@" >"$d/record.out" 2>"$d/record.err"
   # shellcheck disable=SC2034  # RR_RC is consumed by the sourcing test
   RR_RC=$?
   return 0

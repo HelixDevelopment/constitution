@@ -1,0 +1,28 @@
+# U1: review_record_genuine.sh is sourced by three /bin/sh tests and used a bash array (dash: Syntax error)
+host /bin/sh -> dash; base origin/main bdc3ac43
+RED command: sh scripts/fastcycle/tests/<test>.sh   (lib at bdc3ac43)
+GREEN command: same, lib fixed
+symptom signature: review_record_genuine.sh: 119: Syntax error: "(" unexpected (expecting "}")
+== RED test_review_record_backfill_evidence_r2_regression sha256=da11d794823b10a84f9b2ca7d4d4df2fc65f0b2a45450ae4684044e14fe4c51a
+scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh: 119: <S>/fixu/constitution/scripts/fastcycle/tests/lib/review_record_genuine.sh: Syntax error: "(" unexpected (expecting "}")
+== RED test_review_record_evidence_hash_r5_regression sha256=dbfeb4a5677b15199a38221ae203c7e969b56753b7cf15f84335257d82ce5973
+scripts/fastcycle/tests/test_review_record_evidence_hash_r5_regression.sh: 119: <S>/fixu/constitution/scripts/fastcycle/tests/lib/review_record_genuine.sh: Syntax error: "(" unexpected (expecting "}")
+== RED test_review_record_finding_layer_red sha256=b64ec80089fb5809fdbcfd059d75526d65cf99108f4cb8cff13fd5c751a124c9
+scripts/fastcycle/tests/test_review_record_finding_layer_red.sh: 119: <S>/fixu/constitution/scripts/fastcycle/tests/lib/review_record_genuine.sh: Syntax error: "(" unexpected (expecting "}")
+== GREEN test_review_record_backfill_evidence_r2_regression sha256=4ca13aac23b1c2b48d43aa7e291e27e8dfd6ff31a364390d60e3aef8338af5eb
+== Summary: ok 11 / NOT ok 0 ==
+== GREEN test_review_record_evidence_hash_r5_regression sha256=92688f4a0ed7336e4383ffdb5d347914433ccbca958b727d106dd8c5887d904c
+== Summary: ok 7 / NOT ok 0 ==
+== GREEN test_review_record_finding_layer_red sha256=62db897fadc8dc1d0df34adb51eedb6741890369cfcd2475d80fee51697de158
+== Summary: ok 21 / NOT ok 0 ==
+== MUT test_review_record_backfill_evidence_r2_regression sha256=4ca13aac23b1c2b48d43aa7e291e27e8dfd6ff31a364390d60e3aef8338af5eb
+== Summary: ok 11 / NOT ok 0 ==
+== MUT test_review_record_evidence_hash_r5_regression sha256=92688f4a0ed7336e4383ffdb5d347914433ccbca958b727d106dd8c5887d904c
+== Summary: ok 7 / NOT ok 0 ==
+== MUT test_review_record_finding_layer_red sha256=62db897fadc8dc1d0df34adb51eedb6741890369cfcd2475d80fee51697de158
+== Summary: ok 21 / NOT ok 0 ==
+MUT = --precheck no longer prepended (survives all three sh tests and gate_authority r1-r3: pre-existing gap, the precheck path is not load-bearing in these suites)
+== MUT_B (caller extras moved before fixed options) gate_authority_r1: 1 fail lines
+== MUT_B (caller extras moved before fixed options) gate_authority_r2: 0 fail lines
+== MUT_B (caller extras moved before fixed options) gate_authority_r3: 0 fail lines
+bash users after fix: r1 r2 r3 rc=0 (see U1_bashusers_*.out)

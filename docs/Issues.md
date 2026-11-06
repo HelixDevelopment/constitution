@@ -1753,3 +1753,15 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run).
 
+## CON-108 — review_record_genuine.sh used a bash array while sourced by /bin/sh tests (dash syntax error)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — red-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — green-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — signature `Syntax error: "(" unexpected` — updated 2026-11-06T08:50:13Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `bash array syntax in a library sourced by /bin/sh (dash) tests; introduced by ef82977b` — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — updated 2026-11-06T08:50:13Z — by `AI`
+
+scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh tests (backfill_evidence_r2, evidence_hash_r5, finding_layer_red). Since ef82977b its rr_record used local pre=(...) and "${pre[@]}", which dash rejects with Syntax error: "(" unexpected, so all three exit 2 before running a case. Fix: rebuild the argument list with POSIX set --, keeping the original order so the caller's extra options still come last (argparse last-wins). The bash users (gate_authority r1/r2/r3 and the mutation driver) stay GREEN. Known gap, not caused by this change: a mutant that drops --precheck survives all six tests.
+

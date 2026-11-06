@@ -6,13 +6,13 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 1 |
+| Bug | In progress | 2 |
 | Bug | Queued | 21 |
 | Bug | Ready for testing | 1 |
 | Task | Operator-blocked | 1 |
 | Task | Queued | 76 |
 | Task | Ready for testing | 3 |
-| **TOTAL** | | **103** |
+| **TOTAL** | | **104** |
 
 ## Items
 
@@ -121,3 +121,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-105 | Task | Queued | Low | Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Not in the closed set; affects pid_status, supervisor_wiring, redpin_mutations. Use topology_unsupported. | UNSET | UNSET |
 | CON-106 | Task | Queued | Low | Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). CON-098 and CON-099 each bundle 11 tests; the engine has no parent flag, so parents are recorded as a Parent line only (UNCONFIRMED whether a parent column exists). | UNSET | UNSET |
 | CON-107 | Task | Queued | Low | Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run). | UNSET | UNSET |
+| CON-108 | Bug | In progress | medium | scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh tests (backfill_evidence_r2, evidence_hash_r5, finding_layer_red). Since ef82977b its rr_record used local pre=(...) and "${pre[@]}", which dash rejects with Syntax error: "(" unexpected, so all three exit 2 before running a case. Fix: rebuild the argument list with POSIX set --, keeping the original order so the caller's extra options still come last (argparse last-wins). The bash users (gate_authority r1/r2/r3 and the mutation driver) stay GREEN. Known gap, not caused by this change: a mutant that drops --precheck survives all six tests. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |

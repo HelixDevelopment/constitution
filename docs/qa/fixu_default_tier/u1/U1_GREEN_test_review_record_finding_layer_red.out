@@ -1,0 +1,41 @@
+== 11.4.235(D) RED: review_record.py optional per-finding finding_layer ==
+PASS: fixture self-check: pre_existing_real_record.json exists
+PASS: fixture self-check: pre-existing record genuinely has NO finding_layer key (predates the field)
+-- 1: a REAL pre-existing record (no finding_layer) still loads via gate's own record-collection path --
+PASS: 1: pre-existing finding_layer-less record parses cleanly through gate (no parse/field error); its honest outcome is 'inadmissible: no reviewer evidence' (exit 4, V3 round 3)
+PASS: 1b: a genuine record whose finding names no finding_layer is admitted and decided normally (UNCOVERED, rc=1) -- backward compatible
+-- 2: a valid finding_layer value is accepted and round-trips verbatim --
+PASS: 2: valid finding_layer 'source-defect' accepted (rc=0) and round-trips verbatim into the output record
+-- 3: an invalid finding_layer value is refused with a clear error, no file written --
+PASS: 3: invalid finding_layer value refused (exit 2), no file written, error names 'finding_layer'
+-- 4: a fresh finding with no finding_layer key behaves exactly as before (absent in output too) --
+PASS: 4: absent finding_layer -- accepted, class still 'mechanical', no finding_layer key emitted (additive, no behaviour change for non-adopters)
+-- 5: setting only 'rule' (no finding_layer) leaves 'class' computation unaffected --
+PASS: 5: 'class' still resolves to 'mechanical' from 'rule' alone -- finding_layer absence does not perturb the pre-existing classifier
+-- 6: setting only finding_layer (no rule) leaves 'class' at its normal 'judgment' value, and finding_layer survives --
+PASS: 6: 'class' resolves to its normal 'judgment' value AND finding_layer='process-doc' is independently preserved -- the two fields are orthogonal
+-- 7: backfill accepts + round-trips a valid finding_layer, and rejects an invalid one --
+PASS: 7a: backfill round-trips a valid finding_layer ('test-instrumentation')
+PASS: 7b: backfill refuses an invalid finding_layer value (exit 2), no file written
+-- 8: record refuses a wrong-case near-miss 'Source-Defect' (no silent case-fold) --
+PASS: 8: record refuses wrong-case 'Source-Defect' (exit 2), no file written
+-- 9: record refuses an underscore near-miss 'source_defect' (no silent underscore-to-hyphen) --
+PASS: 9: record refuses underscore near-miss 'source_defect' (exit 2), no file written
+-- 10: record refuses the empty string '' (present-but-empty is not absent) --
+PASS: 10: record refuses empty string '' (exit 2), no file written
+-- 11: record refuses the falsy non-string value 'false' (present-but-falsy is not absent) --
+PASS: 11: record refuses falsy non-string 'false' (exit 2), no file written
+-- 12: backfill refuses a wrong-case near-miss 'Source-Defect' --
+PASS: 12: backfill refuses wrong-case 'Source-Defect' (exit 2), no file written
+-- 13: backfill refuses an underscore near-miss 'source_defect' --
+PASS: 13: backfill refuses underscore near-miss 'source_defect' (exit 2), no file written
+-- 14: backfill refuses the empty string '' --
+PASS: 14: backfill refuses empty string '' (exit 2), no file written
+-- 15: backfill refuses the falsy non-string value 'false' --
+PASS: 15: backfill refuses falsy non-string 'false' (exit 2), no file written
+-- 16: record accepts explicit JSON null as absent; output omits the finding_layer key --
+PASS: 16: record accepts explicit null (rc=0), output omits finding_layer key -- null == absent, pinned
+-- 17: backfill accepts explicit JSON null as absent; output omits the finding_layer key --
+PASS: 17: backfill accepts explicit null (rc=0), output omits finding_layer key -- null == absent, pinned
+
+== Summary: ok 21 / NOT ok 0 ==

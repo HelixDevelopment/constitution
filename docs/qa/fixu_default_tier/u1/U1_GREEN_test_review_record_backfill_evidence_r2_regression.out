@@ -1,0 +1,14 @@
+== T085 Round 2 I-R2-8 regression: review_record.py gate rejects unbacked backfill rows ==
+PASS: R1 setup: fabricated backfill record written (backfill itself is legal -- the GATE consultation is what must refuse it)
+PASS: R1 (I-R2-8 core repro): a fabricated backfill row with an untraceable source_evidence placeholder is REFUSED as coverage (UNCOVERED, exit 1)
+PASS: R2 (R7 B1): even a well-cited backfill row (real, in-tree, hash-pinned evidence) is history only -- never gate coverage
+PASS: R4 (R3-I4 part a): a forged backfill row citing a REAL-but-unrelated existing file (/etc/hostname, the reviewer's own example) is correctly REFUSED as coverage -- a file that merely EXISTS is not traceable evidence
+PASS: R5 (R3-I4 part b): a genuine live record's COVERED verdict (rc=0) is IDENTICAL from a cwd holding a same-named forged decoy -- never cwd-dependent
+PASS: R3 (T085 Round 5 R4-I1): a hand-written live record with precheck_used:true and NO archived/hash-verifiable evidence is INADMISSIBLE (exit 4) -- closes 'gate trusts any .json file under --records'
+PASS: R3r: the same forgery with a correct body_hash is still inadmissible (no reviewer evidence to derive it from)
+PASS: R3b (R7 B1): a producer-written verdict with no reviewer identity and no binding is inadmissible (exit 4), even through the real record CLI with a passing precheck
+PASS: R3c (true negative control): a genuine reviewer-authored live record is COVERED -- the fix does not over-reject legitimate coverage
+PASS: R6 (R3-I4 'precheck_used' half): a LIVE record whose own precheck_used==false (no precheck genuinely consulted) is correctly REFUSED as qualifying coverage -- closes the still-open second half of the original Round 2 finding
+PASS: R7 (closed-set source guard): a record with an unrecognised source value is inadmissible (exit 4), regardless of how plausible its other fields look
+
+== Summary: ok 11 / NOT ok 0 ==
