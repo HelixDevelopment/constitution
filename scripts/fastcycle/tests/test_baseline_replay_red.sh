@@ -61,6 +61,7 @@
 # Usage : bash test_baseline_replay_red.sh   Exit 0 = every real assertion
 #         below (control needle, presence, replay determinism x2 incl. the
 #         golden-bad control, select_sample re-run stability, needle) held.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

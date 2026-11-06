@@ -1817,3 +1817,4 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.295.
 
 **Non-compliance is a release blocker. No escape hatch — no `--geo-restricted-is-failure`, `--geo-restricted-is-pass`, `--skip-instead-of-substitute`, `--weaker-criteria-for-substitute`, `--substitute-chosen-after-result`, `--geo-label-without-probe-record`, `--geo-label-without-control-probe`, `--substitute-proves-original-app` flag exists.**
+

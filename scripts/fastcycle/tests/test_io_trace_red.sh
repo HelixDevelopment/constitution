@@ -48,6 +48,7 @@
 #       since they exercise only strace itself, not the absent tool).
 # =============================================================================
 
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer CLAUDE.md
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)

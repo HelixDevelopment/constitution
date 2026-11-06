@@ -118,6 +118,7 @@
 #         `orchestration/limit_class.py` genuinely does not exist yet (T135
 #         is a separate, later, not-yet-started task) -- this is the T127
 #         RED baseline, not a bug in this test.
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/requests/agent_registry.jsonl
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

@@ -299,7 +299,8 @@ ID_RANGE_GROUPS = [
                                       (90, 93), (95, 95), (104, 104), (112, 112),
                                       (148, 149), (171, 171), (202, 202), (214, 214),
                                       (290, 290),  # 290 added 2026-10-27 — §11.4.290 optimistic done + parallel background verification
-                                      (294, 294)]),  # 294 added 2026-11-03 — §11.4.294 reproduction + investigation states as item fields; sibling of 34/93/148/290
+                                      (294, 294),  # 294 added 2026-11-03 — §11.4.294 reproduction + investigation states as item fields; sibling of 34/93/148/290
+                                      (296, 296)]),  # 296 added 2026-11-05 — §11.4.296 GitHub Issues as a source of workable items; sibling of 93/148/202/294
     ("documentation-and-export", [(12, 12), (18, 19),  # 19 added, was (18,18) # WIDENED
                                    (22, 23), (44, 45),  # 45 added, was (44,44) # WIDENED
                                    (53, 53), (56, 57), (59, 61),  # 61 added, was (59,60) # WIDENED
