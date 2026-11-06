@@ -1837,3 +1837,51 @@ Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_a
 
 scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa_session_alive matched CLAUDE_CONFIG_DIR with tr '\0' '\n' < /proc/<pid>/environ | grep -qx ...; grep -q exits on the first match, tr then dies of SIGPIPE (141) and pipefail makes the match a failure. A live session therefore read as dead whenever the environment took more than one write: 72 of 200 probes on a 14 KB environment, every probe at 114 KB. A claim read as dead is reaped, and deactivate/prune then unlinks a skill that another live session holds. The reader now uses grep -qzxF on the environ file directly (no pipe; -F so the dir is a literal). Second, test-side: test_skill_activation.sh depended on a live claude5 alias on the host and inherited the caller's CLAUDE_CONFIG_DIR; it now uses per-session fixture config dirs and a real live peer process, and has a new LIVENESS case with a 114 KB environment.
 
+## CON-115 — label-sync opencode adapter is not loaded by opencode 2.x (plugin path must be a directory; serve needs auth)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — red-command `bash scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode` — green-command `same command` — signature `configured plugin path must be a directory` — updated 2026-11-06T09:01:03Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `upstream opencode 2.x requires a directory plugin and authenticated serve; the adapter and its test target 1.x` — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — updated 2026-11-06T09:01:03Z — by `AI`
+
+scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode fails 4 of 4 in the normal environment too, so it is not a fresh-HOME artefact. The host now has opencode v2.2.0 (installed 2026-10-27, after the adapter landed in 7c77547c on 2026-10-12). Measured: install_adapters.sh writes a file:// URL to label-sync.mjs under the plugin key; opencode 2.2 logs WARN configured plugin path must be a directory and does not load it (no plugin debug log is written); debug config now prints an array of sources with the key plugins, so the test's .plugin[0] jq expression no longer matches; opencode serve prints a per-run server password and POST /session returns an empty body without it. So the adapter is broken for opencode 2.x users and the test is stale. Fix is not small: package the plugin as a directory in the layout opencode 2.x accepts, verify the 2.x event names, and authenticate the serve leg; UNCONFIRMED whether the 1.x session.created/deleted events are unchanged in 2.x.
+
+## CON-116 — test_run_all.sh signal cases fail when the test has no controlling terminal (full-suite units run in a new session)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — red-command `setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_run_all.sh </dev/null` — green-command `same command` — signature `set: can't access tty; job control turned off; NOT ok r7f2 ...` — updated 2026-11-06T09:01:17Z — by `AI`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: no controlling terminal disables set -m; the HUP part and the setsid signature are not explained` — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — updated 2026-11-06T09:01:17Z — by `AI`
+
+The full-suite runner starts each unit with start_new_session=True, so it has no controlling terminal. test_run_all.sh relies on set -m (job control) so that a backgrounded runner does not start with SIGINT ignored and leads its own process group; without a terminal dash prints set: can't access tty; job control turned off and the premise does not hold. Full-suite log 000204: pid-HUP and pid-INT NOT ok (runner still alive after 15 s), group-INT and group-TERM SKIP (no own process group). Reproduction: rc 0 with a terminal-bearing session under env -i, under the normal environment, and with INT or INT+HUP inherited as ignored; under setsid -w env -i (no terminal) rc 1, but the failing case is graceful-TERM (the test never got a TERM before the KILL), not pid-HUP/INT. Root cause proven only for the missing job control; why HUP was ignored in the full-suite run, and why the failing case differs under setsid, is UNCONFIRMED. A fix needs a launch that resets INT/HUP to default without job control (for example env --default-signal or a small exec helper) and a decision on the group cases.
+
+## CON-117 — systemd user-bus callers do not find a live bus when XDG_RUNTIME_DIR is unset (clean environments, full-suite units)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — red-command `full-suite default run (clean env) of scripts/fastcycle/tests/test_precheck_shellcheck_red.sh` — green-command `same command after the helper lands` — signature `Failed to connect to user scope bus via local transport` — updated 2026-11-06T09:04:26Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `callers rely on an inherited XDG_RUNTIME_DIR that clean environments do not carry` — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — updated 2026-11-06T09:04:26Z — by `AI`
+
+The full-suite runner gives each unit a clean environment without XDG_RUNTIME_DIR. systemctl --user and systemd-run --user then fail with Failed to connect to user scope bus via local transport although /run/user/<uid>/bus is live (control needle measured for CON-110: env -i rc 1, with XDG_RUNTIME_DIR=/run/user/1000 rc 0). test_precheck_shellcheck_red.sh fails its N2 control needle (the hard memory cap mechanism is not usable) and test_io_trace_build_map_r6_regression.sh fails on systemd-run exit 1. Inventory (inventory.tsv, by line pattern, a lead not a finding): 13 files call the user bus, only the CON-110 test derives XDG_RUNTIME_DIR; the non-deriving set includes product code (scripts/fastcycle/review/precheck_pack.sh, precheck_pack_run.py, fc_common.py, fc_supervisor.py, multitrack_persistent_launch.sh, credscan/install_timer.sh), so under cron or any clean environment the memory-capped scope is unavailable there too. Proposed fix: one shared helper that exports XDG_RUNTIME_DIR from a bus socket the caller owns, used by every caller; a genuinely absent bus stays a reasoned refusal or SKIP. Not done here: it touches product code across several subsystems.
+
+## CON-118 — test_precheck_pack_build_red.sh fails when run alone (not only in a batch), and it chmods real repository files during its run
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — red-command `setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin sh scripts/fastcycle/tests/test_precheck_pack_build_red.sh` — green-command `same command` — signature `FAIL: B1: expected rc=0/all_pass=true, got rc=1 all_pass=False` — updated 2026-11-06T09:04:26Z — by `AI`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: not investigated past the failing case list` — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — updated 2026-11-06T09:04:26Z — by `AI`
+
+Run alone and serially under setsid env -i: 14 FAIL without shellcheck on PATH, 16 FAIL with ~/.local/bin/shellcheck on PATH; clean fixtures (B1, B3) report all_pass=false, D2/D7/D8 report NOT-READY (provenance binding, shellcheck mode). So CON-098's classification of this test as passes-alone-fails-in-batch does not hold here. Separately, case C2 does chmod 000 on the real scripts/fastcycle/review/slicer.py and precheck_pack.sh for a window; any other test reading those files at the same time fails with Permission denied (observed: a parallel run in the same tree), which is a plausible contributor to the batch-only failures of the precheck family, UNCONFIRMED. Modes were restored at the end of the run (git status clean). Root cause of the alone failures not established.
+

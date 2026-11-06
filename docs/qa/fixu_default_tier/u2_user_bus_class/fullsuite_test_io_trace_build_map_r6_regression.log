@@ -1,0 +1,25 @@
+== T085 Round 6 R5-B1 regression: D-Bus/systemd-run escape + USB-unmount-reversibility closure ==
+-- Section A: systemd-run-via-split-binary-name bypass, through the real build-map CLI (R5-B1 repro #1) --
+build-map: 1 script(s) under /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsr_tmp/fsr_home.1wxyxi_0/tmp/tmp.SZJv1v91vV/corpus_a -- 0 cache hit(s) (sha256 unchanged AND trace_status=ok), 1 re-traced (1 ok, 0 error, 0 timeout), 0 skipped as device-mutating (re-run with --allow-device-scripts to trace them). Persisted to /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsr_tmp/fsr_home.1wxyxi_0/tmp/tmp.SZJv1v91vV/a.sqlite.
+build-map: this project does not yet ship a separate 'declared inputs' source for gate scripts to diff against -- this is a traced-only summary, stated honestly rather than fabricating a declared-vs-traced comparison (§11.4.6).
+PASS: A1: build-map (default, no opt-in) exits 0 against the systemd-run-bypass corpus
+PASS: A2: THE FIX -- systemd-run NEVER dispatched a real host-side unit (marker absent) -- R5-B1 bypass #1 closed
+-- Section B: guard-viability mutation -- same repro with the D-Bus hide-paths REMOVED --
+MUTATION_RUN rc=0 stdout='systemd-run exit: 1'
+FAIL: B1: the mutation did NOT reproduce the bypass -- this mutation is not meaningful, re-investigate: MUTATION_RUN rc=0 stdout='systemd-run exit: 1'
+-- Section C: umount-then-reveal-real-USB-tree bypass, against the real, current sandbox (R5-B1 repro #2) --
+REAL_SANDBOX_RUN rc=0 stdout='before: 0 entries
+umount: /dev/bus/usb: must be superuser to unmount.
+umount_rc=32
+after: 0 entries'
+PASS: C1: THE FIX -- 'umount /dev/bus/usb' FAILS from inside the real, current sandbox (umount_rc != 0) -- R5-B1 bypass #2 closed
+PASS: C2: the real USB device-node tree remains genuinely hidden (0 entries) even AFTER the failed umount attempt -- the hide is NOT merely 'not yet reversed', it is structurally un-reversible from inside
+-- Section D: guard-viability mutation -- the OLD raw-unshare mechanism (no --disable-userns) --
+OLD_MECHANISM_RUN rc=1 stdout='' stderr='unshare: write failed /proc/self/uid_map: Operation not permitted'
+FAIL: D1: the OLD mechanism did not reproduce the umount-succeeds bypass -- this mutation is not meaningful, re-investigate: OLD_MECHANISM_RUN rc=1 stdout='' stderr='unshare: write failed /proc/self/uid_map: Operation not permitted'
+FAIL: D2: the OLD mechanism's device-node tree did not reappear as expected -- re-investigate: OLD_MECHANISM_RUN rc=1 stdout='' stderr='unshare: write failed /proc/self/uid_map: Operation not permitted'
+-- Section E: --allow-device-scripts still disables the sandbox entirely (regression guard) --
+PASS: E1: --allow-device-scripts still genuinely disables sandboxing entirely, unchanged by this round's fix
+PASS: SAFETY: 'adb devices' output is byte-identical before and after this entire regression file
+
+== Summary: ok 6 / NOT ok 3 ==
