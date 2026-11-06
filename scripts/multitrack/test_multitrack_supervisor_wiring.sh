@@ -229,16 +229,41 @@ _rm_work() {
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/mt_supwire_test.XXXXXX")
 PIDS_FILE="$WORK/pids_to_kill"
 : > "$PIDS_FILE"
+# _children <pid>: the direct children of <pid> (Linux /proc), one per line.
+_children() {
+    cat /proc/"$1"/task/*/children 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true
+}
+# _kill_tree <signal> <pid>: signal the children of <pid> first, then <pid>
+# itself. Killing only the daemon's sh pid orphaned its foreground
+# `sleep <interval>` for days (review finding F-PRE-1, CON-120). Every pid is
+# a single positive pid greater than 1, never a process group (section
+# 11.4.263); the children are read from the pid's own /proc entry, so they are
+# ours by construction.
+_kill_tree() {
+    _kt_sig=$1; _kt_pid=$2
+    case "$_kt_pid" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$_kt_pid" -gt 1 ] || return 0
+    for _kt_c in $(_children "$_kt_pid"); do
+        [ "$_kt_c" -gt 1 ] && kill "-$_kt_sig" "$_kt_c" 2>/dev/null
+    done
+    kill "-$_kt_sig" "$_kt_pid" 2>/dev/null || true
+}
+# _count_tok <interval>: how many live processes carry the watch interval
+# token in their real command line (the daemon or its sleep). pgrep never
+# matches itself, and no other process of this test carries the token.
+_count_tok() {
+    pgrep -f "^(sleep $1\$|.*multitrack_supervisor\.sh watch --interval $1( |\$))" 2>/dev/null | grep -c . || true
+}
 cleanup() {
     if [ -f "$PIDS_FILE" ]; then
         while IFS= read -r _p; do
             [ -n "$_p" ] || continue
-            kill "$_p" 2>/dev/null || true
+            _kill_tree TERM "$_p"
         done < "$PIDS_FILE"
         sleep 1 2>/dev/null || true
         while IFS= read -r _p; do
             [ -n "$_p" ] || continue
-            kill -9 "$_p" 2>/dev/null || true
+            _kill_tree KILL "$_p"
         done < "$PIDS_FILE"
     fi
     _rm_work
@@ -500,7 +525,9 @@ tracks:
     drive_serial: "SUPWIRE-FIXTURE-SERIAL-NOPE-ON"
     mount: "/tmp/supwire-nonexistent-track2-on-$_iter"
 FIXEOF
-    _fintv="99872$_iter"
+    # The interval doubles as a per-run token: the test pid makes it unique,
+    # so another run's (or an old leaked) daemon never counts in (f2)/(f3).
+    _fintv="99872$_iter$$"
     CMA_CWD_HOOK="$_fhook" MT_CONFIG="$_ffixture" MT_ALIAS_DIR="$_falias" \
         MT_REPO_ROOT="$_fproot" \
         MT_FIXTURE_DRIVES='SUPWIRE-FIXTUREDISK|/dev/supwirefixture0||0' \
@@ -530,20 +557,48 @@ FIXEOF
         fail "GREEN(f): rc=$_fboot_rc running=$_frunning saw_line=$_fsaw_watch_line pid=$_fwatchpid log=$_flog" "$WORK/boot_on_$_iter.log"
         echo "GREEN_f_optin_on=UNEXPECTED rc=$_fboot_rc running=$_frunning saw_line=$_fsaw_watch_line" >> "$_norm"
     fi
-    # kill it NOW (in addition to the unconditional trap sweep below).
+    # (f3) the daemon itself stops its own sleep on SIGTERM (CON-120): the
+    #      children read before the signal must all be gone afterwards. The
+    #      positive control is that the token scan sees the daemon and its
+    #      sleep before the signal (a blind scan would read 0 both times).
+    _fkids=""
+    [ -n "$_fwatchpid" ] && _fkids=$(_children "$_fwatchpid" | tr '\n' ' ')
+    _fbefore=$(_count_tok "$_fintv")
     if [ -n "$_fwatchpid" ]; then
-        kill "$_fwatchpid" 2>/dev/null || true
+        kill -TERM "$_fwatchpid" 2>/dev/null || true
         sleep 1 2>/dev/null || true
-        kill -9 "$_fwatchpid" 2>/dev/null || true
     fi
-    _fstill=0
-    if [ -n "$_fwatchpid" ] && kill -0 "$_fwatchpid" 2>/dev/null; then _fstill=1; fi
-    if [ "$_fstill" = "0" ]; then
-        pass "GREEN(f2): watch daemon (pid=$_fwatchpid) killed cleanly by this test, no orphan left (§11.4.14)" "$WORK"
+    _fkids_left=""
+    for _fk in $_fkids; do
+        kill -0 "$_fk" 2>/dev/null && _fkids_left="$_fkids_left $_fk"
+    done
+    if [ -n "$_fkids" ] && [ -z "$_fkids_left" ] && [ "${_fbefore:-0}" -ge 2 ]; then
+        pass "GREEN(f3): watch daemon stopped its own child(ren) [$_fkids] on SIGTERM (control: $_fbefore token processes before the signal)" "$_flog"
+        echo "GREEN_f3_term_stops_children=yes" >> "$_norm"
+    else
+        fail "GREEN(f3): children before TERM=[$_fkids] still alive after TERM=[$_fkids_left] token processes before=$_fbefore" "$_flog"
+        echo "GREEN_f3_term_stops_children=NO" >> "$_norm"
+    fi
+    # kill the rest of the tree NOW (in addition to the unconditional trap
+    # sweep below), children first.
+    if [ -n "$_fwatchpid" ]; then
+        _kill_tree TERM "$_fwatchpid"
+        sleep 1 2>/dev/null || true
+        _kill_tree KILL "$_fwatchpid"
+    fi
+    for _fk in $_fkids_left; do
+        [ "$_fk" -gt 1 ] && kill -KILL "$_fk" 2>/dev/null
+    done
+    sleep 1 2>/dev/null || true
+    # (f2) no process carrying the interval token remains: asserted from a
+    #      real command-line scan, not from the parent pid alone (F-PRE-1).
+    _fafter=$(_count_tok "$_fintv")
+    if [ "${_fbefore:-0}" -ge 1 ] && [ "${_fafter:-1}" -eq 0 ]; then
+        pass "GREEN(f2): watch daemon (pid=$_fwatchpid) and its children gone, no orphan carries the interval token (before=$_fbefore after=$_fafter, §11.4.14)" "$WORK"
         echo "GREEN_f2_killed=clean" >> "$_norm"
     else
-        fail "GREEN(f2): watch daemon pid=$_fwatchpid still alive after kill" "$WORK"
-        echo "GREEN_f2_killed=STILL_ALIVE" >> "$_norm"
+        fail "GREEN(f2): token processes before=$_fbefore after=$_fafter (an orphan remains, or the scan is blind)" "$WORK"
+        echo "GREEN_f2_killed=ORPHAN_OR_BLIND" >> "$_norm"
     fi
 }
 
