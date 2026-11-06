@@ -434,6 +434,38 @@ else
     note "❌ META FAIL: 10 expect_fail accepts an exit code other than 1"; rc=1
 fi
 
+# --- 11. (review round 2, L3) a python failure is reported as ONE line `<name>:<line>: <ErrorType>: <message>`, not as a traceback ---
+# The consumer's report row cuts a gate message at 400 bytes; the traceback of a compile error (two frames and the echoed source
+# line) was 487 bytes on the real engine and the part that says what is wrong was cut off.
+PY_LONG="$TMP/engine_py_long"
+mkdir -p "$PY_LONG"
+cp -r "$CLEAN"/. "$PY_LONG"/
+{
+    printf '%s\n' '#!/usr/bin/env python3' '"""generic python helper shipped in the engine directory."""' 'MODELS = ("sonnet", "opus")' 'print(MODELS)'
+    printf 'def broken(:   # %s\n' "$(printf 'x%.0s' {1..320})"
+} > "$PY_LONG/agent_label_check.py"
+chmod +x "$PY_LONG/agent_label_check.py"
+# control needle: the plain traceback of this very fixture is longer than the consumer's 400-byte cut (the fixture discriminates)
+old_msg="$(python3 -I -c 'import sys; compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)' "$PY_LONG/agent_label_check.py" 2>&1 | tr '\n' ' ')"
+if [ "$(printf '%s' "$old_msg" | wc -c)" -gt 400 ] && grep -q 'Traceback' <<<"$old_msg"; then
+    note "✅ META OK:   11 control needle — the plain traceback of the fixture is $(printf '%s' "$old_msg" | wc -c) bytes (> 400) and carries 'Traceback'"
+else
+    note "❌ META FAIL: 11 control needle — the fixture's plain traceback is not longer than 400 bytes (the fixture cannot discriminate)"; rc=1
+fi
+c_pymsg() { # $1=gate : exit 1, ONE failure line, no traceback, `agent_label_check.py:5: SyntaxError: ...`, the whole line under 400 bytes
+    local o r l
+    o="$(bash "$1" --engine-dir "$PY_LONG" --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] || return 1
+    l="$(grep -F 'PARSEABILITY: agent_label_check.py fails python3 -I compile' <<<"$o")" || return 1
+    [ "$(grep -c . <<<"$l")" -eq 1 ] || return 1
+    ! grep -qE 'Traceback|File "' <<<"$o" || return 1
+    grep -qF '(its DECLARED interpreter): agent_label_check.py:5: SyntaxError: ' <<<"$l" || return 1
+    [ "$(printf '%s' "$l" | wc -c)" -lt 400 ]
+}
+if c_pymsg "$GATE"; then note "✅ META OK:   11 python failure message — one line 'agent_label_check.py:5: SyntaxError: ...', no traceback, under 400 bytes"
+else note "❌ META FAIL: 11 python failure message is a traceback, has no file:line:, or is longer than 400 bytes"; rc=1; fi
+mutant_caught traceback_not_caught c_pymsg 's/^except Exception as e:$/except ZeroDivisionError as e:/'
+mutant_caught line_number_dropped c_pymsg 's/getattr(e, "lineno", None) or 0/0/'
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then

@@ -39,7 +39,9 @@
 #      isolated, writes no bytecode, executes nothing; the compile step, not
 #      `ast.parse`, because the parser alone accepts what python3 refuses at
 #      load time: a top-level `return`/`break`/`yield`/`await`, a bad `nonlocal`
-#      or `global`, a misplaced `from __future__`, `def f(a, a)`). Demanding `sh -n` of a
+#      or `global`, a misplaced `from __future__`, `def f(a, a)`). A python failure is reported as ONE line,
+#      `<name>:<line>: <ErrorType>: <message>`, never as a traceback (the consumer's report row cuts a message at 400
+#      bytes; the traceback was 487 bytes on the real engine). Demanding `sh -n` of a
 #      declared-bash script would be a §11.4.201(1) false-positive refusal —
 #      §11.4.67 clause 4 ("Honest shebangs") expressly sanctions bash-shebang
 #      + `bash script.sh` callers for scripts using the clause-3 bash-only
@@ -277,6 +279,16 @@ declared_interpreter() {
     esac
 }
 
+# The python compile leg (isolated, executes nothing). On failure it prints ONE line, `<name>:<line>: <ErrorType>: <message>`,
+# never the traceback: the consumer's report row cuts a message at 400 bytes, and the traceback (two frames and the echoed
+# source line, 487 bytes on the real engine) pushed the part that says what is wrong out of the row (review round 2, L3).
+PY_COMPILE_SRC='import sys
+try:
+    compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)
+except Exception as e:
+    sys.stderr.write("%s:%s: %s: %s\n" % (sys.argv[2], getattr(e, "lineno", None) or 0, type(e).__name__, " ".join(str(getattr(e, "msg", None) or e).split())[:200]))
+    sys.exit(1)'
+
 parse_fail=0
 for f in "${scripts[@]}"; do
     rel="${f#"$engine_dir"/}"
@@ -294,7 +306,7 @@ for f in "${scripts[@]}"; do
             if ! command -v python3 >/dev/null 2>&1; then
                 echo "python3: command not found (cannot verify a python-declaring script; fail closed)" >"$parse_err"
                 parse_ok=1
-            elif python3 -I -c 'import sys; compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)' "$f" 2>"$parse_err"; then
+            elif python3 -I -c "$PY_COMPILE_SRC" "$f" "$rel" 2>"$parse_err"; then
                 parse_ok=0
             else
                 parse_ok=1
