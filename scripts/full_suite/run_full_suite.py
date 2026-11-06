@@ -1423,6 +1423,7 @@ import secrets
 import select
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -2207,7 +2208,46 @@ def quick_ident(root, subs):
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
                          "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     parts.append("status=%s" % (hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else "?"))
+    parts.append("gen=%s" % gen_fingerprint(root))
     return " ".join(parts)
+
+
+# WIT-C02 (ownership wave 2 review r2, F5): the tracked generated command sets that installer and generator
+# tests must never rewrite in the real tree. `git status` cannot see an identical-content rewrite, so the
+# fingerprint covers inode, mtime and size of every entry (directories included) plus the content hash.
+GENERATED_SETS = ("plugins/helix/commands", "plugins/helix/README.md", "actions/generated")
+
+
+def gen_fingerprint(root):
+    """sha256 (16 hex) over (path, type, inode, mtime_ns, size, content sha256) of every entry of the
+    generated sets under the root and under a vendored constitution/. An absent set is recorded as absent;
+    an unreadable entry gives `?` (fail closed: it never equals a start value)."""
+    h = hashlib.sha256()
+    for pre in ("", "constitution"):
+        for rel in GENERATED_SETS:
+            top = os.path.join(root, pre, rel)
+            if not os.path.lexists(top):
+                h.update(("absent %s/%s\0" % (pre, rel)).encode())
+                continue
+            todo = [top]
+            while todo:  # RULE:C02-gen-walk
+                p = todo.pop()
+                try:
+                    st = os.lstat(p)
+                    kind = "d" if stat.S_ISDIR(st.st_mode) else ("l" if stat.S_ISLNK(st.st_mode) else "f")
+                    dig = ""
+                    if kind == "f":
+                        with open(p, "rb") as fh:
+                            dig = hashlib.sha256(fh.read()).hexdigest()
+                    elif kind == "l":
+                        dig = os.readlink(p)
+                    else:
+                        todo.extend(os.path.join(p, n) for n in sorted(os.listdir(p), reverse=True))
+                except OSError:
+                    return "?"
+                h.update(("%s %s %d %d %d %s\0" % (os.path.relpath(p, root), kind, st.st_ino,  # RULE:C02-gen-stat
+                                                     st.st_mtime_ns, st.st_size, dig)).encode())
+    return h.hexdigest()[:16]
 
 
 def ident_diff(a, b):
@@ -3225,6 +3265,11 @@ def main(argv):
             emit(u, verdict, reason, source, rc, secs, leaked, env_names, counts, logrel, logsha)
             out("[%d/%d] %s%s %s %ss%s" % (n, total, verdict, " (%s)" % reason if reason else "", u["id"], secs,
                                             " leaked=%d" % leaked if leaked else ""))
+            qid = quick_ident(root, subs0)  # RULE:C02-after-unit
+            if qid != qid0 or "?" in qid:
+                id_changed = "after unit %s: %s" % (u["id"], ident_diff(qid0, qid))
+                out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
+                break
     except KeyboardInterrupt:
         interrupted = True
         out("INTERRUPTED: stopping; the summary below is partial")

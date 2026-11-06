@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-29 |
-| Last modified | 2026-10-29T20:00:00Z |
+| Last modified | 2026-11-05T18:00:00Z |
 | Status | draft |
 | Status summary | Engine (E1) implemented with its own tests; experimental, dormant, not independently GO'd (rounds 10 and 11 fixes landed, round 11 fixes and the round 12 A3 staging-pid fix (c252eed) pending independent re-review). `/constitution extensions ...` delegates to it (`constitution_cmd.sh`; `install-extension` maps to `add`); installer and post-update-hook wiring of extensions is UNCONFIRMED; shim formats other than Claude are UNCONFIRMED against live agents. Written 2026-10-29 from `constitution_ext.sh --help` and `scripts/constitution_ext/README.md`. |
 | Authority | Tool documentation for `scripts/constitution_ext/`; design in `docs/design/constitution_extensions_plan.md`. §11.4.228, §11.4.272, §11.4.18, §11.4.257, §11.4.212 govern. |
@@ -33,8 +33,12 @@
 
 **11. Exit codes?** 0 ok, 1 failure, 2 usage, 3 refused by policy, 5 verification failed.
 
-**12. Is it safe with two projects sharing one constitution?** Locks serialise them, but one project's `remove` deletes a tree another project's lock still names.
+**12. Is it safe with two projects sharing one constitution?** Locks serialise them. Since ownership wave 2 (E01), `remove` needs this checkout's signed install fact, which only `add` writes (or `adopt-install`, typed by an operator at a terminal); a project that only copied the lock and ran `enable` is refused. A byte copy of a whole checkout still carries the fact (CON-108), and there is no reference counting yet, so a project that did install the tree can still remove it while another project uses it.
 
-**13. What are the known limits?** The engine is experimental, dormant and not independently GO'd. Unfixed: F-1 and F-2 (a project can remove a shared tree it did not install, via a copied lock or another root), S2 (copy race, caught afterwards by the digest check), no reference counting. See the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed). The ownership redesign is a tracked release-2 item.
+**12a. `remove` says this checkout holds no install fact, but I did install it.** Installs made before install facts existed have none. An operator at a terminal runs `adopt-install <id> --waiver-id <ticket-or-decision-id>` and types the id at the prompt; it checks the lock entry, the local state record and the tree digest first and never replaces an existing fact. There is no non-interactive form (`--yes` is refused): the prompt is meant to keep automation from attesting an install.
+
+**12b. Through `/constitution extensions ...` the prompt appears, I answer, and nothing happens.** That was review round 3 finding N1 (the dispatcher ran the engine under `timeout` without `--foreground`, so the engine could not read the terminal). Fixed: `add`, `install-extension`, `enable` and `adopt-install` now run with `timeout --foreground`. If nobody answers, the dispatcher gives up after `CONSTITUTION_CMD_EXT_TIMEOUT` seconds (default 300) with exit 124 and changes nothing.
+
+**13. What are the known limits?** The engine is experimental, dormant and not independently GO'd. F-1 is narrowed (a copied lock plus `enable` no longer lets `remove` delete a shared tree; a byte copy of a checkout still can, CON-108); F-2 is addressed by the root-bound install fact; unfixed: S2 (copy race, caught afterwards by the digest check) and no reference counting. See the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed).
 
 Related: [guide](../guides/extensions_guide.md), [manual](../manuals/extensions_manual.md), [troubleshooting](../guides/troubleshooting_guide.md).

@@ -23,7 +23,8 @@ per-checkout extensions.state/key, 0600, never committed) and the row's constitu
 root realpath, and (3) the on-disk fingerprint equals the row's. Everything else is never replaced or deleted.
 Fingerprints: symlink = link text; file = sha256; json-entry = canonical-JSON sha256 of that one entry.
 The ledger holds paths and digests only (section 8, §11.4.10). Deletes: unlink of one proven path only, no
-recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created stamp (determinism).
+recursive delete anywhere (§11.4.287). Time: SOURCE_DATE_EPOCH is honoured for the created and backup stamps
+(determinism); a set value that is not a plain integer of seconds, or is out of range, is refused (rc 3).
 """
 import fcntl
 import hashlib
@@ -98,15 +99,25 @@ def read_nofollow(path, limit, what):
         os.close(fd)
 
 
-def atomic_write(path, data, mode=0o644):
-    """temp in the same directory, fsync, rename; never through a symlink."""
-    if os.path.lexists(path) and stat.S_ISLNK(os.lstat(path).st_mode):
+def atomic_write(path, data, mode=None, over_link=False):
+    """temp in the same directory, mode set on the temp fd, fsync, rename; never through a symlink.
+
+    OVER_LINK=True lets the rename REPLACE a symlink at PATH (rename(2) replaces the link itself, never its
+    target); the caller has proven the link is ours (I-2). Until the rename the old path is untouched, so a write
+    that fails leaves it as it was (R5). MODE None (the default) creates the file 0644 filtered by the process umask,
+    exactly as a plain open(2) does, so a restrictive umask keeps a ledger, .gitignore or refs file private (review
+    round 3 N4). An explicit MODE (a backed-up mode being restored, a 0600 secret file) is set with fchmod on the
+    temp file BEFORE the rename, so it is exact under any umask and a path-based chmod can never follow a link
+    swapped in after the rename (R6)."""
+    if os.path.lexists(path) and stat.S_ISLNK(os.lstat(path).st_mode) and not over_link:
         raise Refused("%s is a symlink; refusing to write through it" % path)
     d = os.path.dirname(path)
     tmp = os.path.join(d, ".%s.tmp-%d-%s" % (os.path.basename(path), os.getpid(), os.urandom(4).hex()))
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644 if mode is None else mode)
     try:
         with os.fdopen(fd, "wb") as f:
+            if mode is not None:  # RULE:N4-default-mode-honours-umask
+                os.fchmod(f.fileno(), mode)  # RULE:R6-fchmod-before-rename
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
@@ -135,16 +146,25 @@ def canon(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
 
 
-def now_iso():
+def source_epoch():
+    """Seconds from SOURCE_DATE_EPOCH (determinism), else the clock. A set value that is not a plain non-negative
+    integer, or that time.gmtime cannot represent, raises ValueError, which main() maps to a refusal (rc 3); every
+    caller (record's created stamp, backup's directory stamp) behaves the same way (review F4)."""
     t = os.environ.get("SOURCE_DATE_EPOCH")
-    ts = int(t) if t and t.isdigit() else int(time.time())
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+    if not t:
+        return int(time.time())
+    if not re.fullmatch(r"[0-9]{1,20}", t):  # RULE:W-epoch-digits
+        raise ValueError("SOURCE_DATE_EPOCH must be a non-negative integer number of seconds")
+    ts = int(t)
+    try:
+        time.gmtime(ts)
+    except (OverflowError, OSError, ValueError):
+        raise ValueError("SOURCE_DATE_EPOCH is out of range for this platform")  # RULE:W-epoch-range
+    return ts
 
 
-def real_dir(path, what):
-    if not os.path.isdir(path) or stat.S_ISLNK(os.lstat(path).st_mode) and False:
-        raise Refused("%s is not a directory" % what)
-    return os.path.realpath(path)
+def now_iso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(source_epoch()))
 
 
 # ── paths ────────────────────────────────────────────────────────────────────
@@ -472,6 +492,17 @@ class Ledger:
         rows, local = self.load(), self.local_rows()
         return {"rows": [dict(r, state=self.classify_row(r, local)) for r in sorted(rows, key=lambda r: r["id"])]}
 
+    def check(self):
+        """Read-only health view (L03): ok only when every tracked row classifies as ours on THIS checkout AND this
+        checkout holds no signature for a row the tracked ledger no longer has (review F3: a lost or reverted
+        wiring.json must not read as "nothing wired"; a never-wired project has neither and stays ok)."""
+        rows = self.status()["rows"]
+        ids = {r["id"] for r in rows}
+        orphans = [{"id": i, "state": "tracked-row-missing"} for i in sorted(self.local_rows()) if i not in ids]  # RULE:W-check-orphans
+        return {"ok": all(r["state"] == "ours" for r in rows) and not orphans,  # RULE:W-check-ok
+                "rows": [{"id": r["id"], "path": r["path"], "state": r["state"]} for r in rows],
+                "orphans": orphans}
+
     # -- inventory / adopt
     def _const_roots(self):
         roots = {self.root, os.path.abspath(self.root)}
@@ -594,7 +625,7 @@ class Ledger:
                 entries.append({"path": rel, "type": "file", "mode": stat.S_IMODE(st.st_mode)})
             else:
                 raise Refused("%s is neither a file nor a symlink; refusing to back it up" % clean(rel))
-        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(int(os.environ.get("SOURCE_DATE_EPOCH") or time.time())))
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(source_epoch()))
         os.makedirs(base, exist_ok=True)
         bgi = os.path.join(base, ".gitignore")          # F3: the backups hold copies of consumer files (settings may hold secrets)
         if not os.path.lexists(bgi):
@@ -663,14 +694,36 @@ class Ledger:
                 raise Refused("backup ledger copy %s does not match the manifest" % name)
         return bdir, m
 
+    def _need_writable_dir(self, d, what):
+        """Preflight only, creates nothing: the nearest existing ancestor of d must be a writable directory
+        (and d itself, when it exists, must not be a symlink or file)."""
+        if os.path.lexists(d) and not stat.S_ISDIR(os.lstat(d).st_mode):
+            raise Refused("%s is not a real directory (a symlink or a file); refusing to use it (nothing was changed)" % clean(d))
+        probe = d
+        while not os.path.lexists(probe):
+            probe = os.path.dirname(probe)
+        if not stat.S_ISDIR(os.stat(probe).st_mode) or not os.access(probe, os.W_OK | os.X_OK):
+            raise Refused("cannot restore ledger file %s: %s is not a writable directory (nothing was changed)" % (clean(what), clean(probe)))
+
     def rollback(self, bdir):
         """Two phases. PREFLIGHT verifies the backup and plans every action (nothing is changed, any refusal here
         leaves the project byte-identical). APPLY then runs the plan. A created-later item is unlinked ONLY when its
         row classifies as ours (local HMAC signature + root binding + matching fingerprint); anything else, or any
         item whose state cannot be read (oversize, reserved path, unreadable), is left alone and reported."""
         bdir, m = self._load_backup(bdir)
-        in_backup = {e["path"] for e in m["entries"]}
+        # paths the backup holds CONTENT for (file/symlink): the restore step replaces them. A path backed up while
+        # ABSENT has nothing to restore, so an item our run created there is unlinked like any created-later item (I-1).
+        in_backup = {e["path"] for e in m["entries"] if e["type"] != "absent"}
         backed = set(m["rows_at_backup"])
+        local = self.local_rows()
+        ours_new = {}  # path -> row, for rows created after the backup that classify as ours (I-2)
+        for r in self.load() if os.path.lexists(self.led) else []:
+            if r["id"] not in backed and r["kind"] == "symlink":
+                try:
+                    if self.classify_row(r, local) == "ours":
+                        ours_new[r["path"]] = r
+                except Refused:
+                    pass
         restore = []
         for e in m["entries"]:
             full = safe_rel(self.project, e["path"])
@@ -678,7 +731,8 @@ class Ledger:
                 raise Refused("%s is now a directory; refusing to roll back over it" % clean(e["path"]))
             if e["type"] == "absent":
                 continue
-            if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode):
+            if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode) \
+                    and e["path"] not in ours_new:  # RULE:I2-replace-our-link: only a link our run recorded is replaced
                 raise Refused("%s is now a symlink; refusing to write through it (nothing was changed)" % clean(e["path"]))
             parent = os.path.dirname(full)
             probe = parent
@@ -689,7 +743,6 @@ class Ledger:
             restore.append((e, full))
         report = {"restored": [], "unlinked": [], "left_alone": [], "rows_removed": []}
         unlink = []
-        local = self.local_rows()
         for r in self.load() if os.path.lexists(self.led) else []:
             if r["id"] in backed:
                 continue
@@ -714,13 +767,17 @@ class Ledger:
                 report["left_alone"].append({"path": r["path"], "reason": "cannot be checked: %s" % clean(ex)})
         ledger_plan = []
         for name, dst in (("wiring.json", self.led), ("wiring.local.json", self.loc)):
+            if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode) and m["ledger"][name] is not None:
+                raise Refused("%s is a symlink; refusing to write through it (nothing was changed)" % clean(dst))
             if m["ledger"][name] is not None:
                 data = read_nofollow(os.path.join(bdir, "ledger", name), MAX_JSON, "backup ledger")
-                if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode):
-                    raise Refused("%s is a symlink; refusing to write through it (nothing was changed)" % clean(dst))
-                self._need_dir(os.path.dirname(dst), True)
+                if os.path.lexists(dst) and stat.S_ISDIR(os.lstat(dst).st_mode):  # RULE:W-ledger-leaf-dir
+                    raise Refused("%s is a directory; refusing to roll back over it (nothing was changed)" % clean(dst))
+                self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
                 ledger_plan.append((name, dst, data))
             else:
+                if os.path.lexists(dst) and not stat.S_ISDIR(os.lstat(dst).st_mode):
+                    self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
                 ledger_plan.append((name, dst, None))
         blobs = {}
         for e, full in restore:
@@ -737,15 +794,19 @@ class Ledger:
                 os.symlink(e["link"], tmp)
                 os.rename(tmp, full)
             else:
-                atomic_write(full, blobs[e["path"]], e.get("mode", 0o644))
-                os.chmod(full, e.get("mode", 0o644))
+                # preflight allowed a link here only when our run recorded it (I-2); the rename replaces it in one
+                # step (R5). Residual: a link an outside actor swaps in between preflight and this rename is replaced
+                # too (only the link is lost, never its target); the window is narrowed, not closed.
+                atomic_write(full, blobs[e["path"]], e.get("mode"),
+                             over_link=os.path.islink(full))  # RULE:R5-rename-over-link
             report["restored"].append(e["path"])
         for name, dst, data in ledger_plan:
             if data is None:
                 if os.path.lexists(dst) and not stat.S_ISDIR(os.lstat(dst).st_mode):
                     os.unlink(dst)
             else:
-                atomic_write(dst, data, 0o600 if name.endswith("local.json") else 0o644)
+                self._need_dir(os.path.dirname(dst), True)
+                atomic_write(dst, data, 0o600 if name.endswith("local.json") else None)
         return report
 
 
@@ -866,6 +927,7 @@ def usage(msg):
 
 
 MUTATING = ("record", "forget", "rebind", "adopt", "backup", "rollback")
+READING = ("status", "inventory", "check", "classify")   # SHARED project-dir lock: never read mid-write
 
 
 def main(argv):
@@ -886,6 +948,8 @@ def main(argv):
     if out is None:
         return usage("unknown command %r" % clean(cmd))
     sys.stdout.write(json.dumps(out, indent=1, sort_keys=True) + "\n")
+    if cmd == "check" and not out.get("ok"):  # RULE:W-check-rc
+        return 1
     return 0
 
 
@@ -903,6 +967,9 @@ def run(cmd, o, rest):
     if cmd in MUTATING:
         lockfd = os.open(led.project, os.O_RDONLY | os.O_DIRECTORY)
         fcntl.flock(lockfd, fcntl.LOCK_EX)
+    elif cmd in READING:
+        lockfd = os.open(led.project, os.O_RDONLY | os.O_DIRECTORY)
+        fcntl.flock(lockfd, fcntl.LOCK_SH)  # RULE:W-read-lock
     try:
         if cmd in ("record", "classify") and not o["path"]:
             raise Usage("%s needs --path" % cmd)
@@ -913,6 +980,8 @@ def run(cmd, o, rest):
             return led.classify(o["path"][-1])
         if cmd == "status":
             return led.status()
+        if cmd == "check":
+            return led.check()  # RULE:W-check-calls-status
         if cmd == "forget":
             return led.forget(o.get("id", ""))
         if cmd == "rebind":
