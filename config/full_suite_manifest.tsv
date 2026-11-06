@@ -748,6 +748,7 @@ tests/gates/test_oracle_frozen_exclusions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
+tests/gates/test_workable_items_db_sidecars_ignored.sh	sh	entry	default	bash	-	auto
 tests/hooks_range/test_post_update_hook_range.sh	sh	entry	default	bash	-	auto
 tests/install/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/install/test_agent.sh
 tests/install/mutants_round11.sh	sh	entry	heavy	bash	-	auto

@@ -1140,5 +1140,100 @@ x2_mut zero_always_refuses 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cl
 x2_mut cwd_glob 'for ex in ${cli_excludes[@]+"${cli_excludes[@]}"}; do' 's/^for ex in \${cli_excludes\[@\]+"\${cli_excludes\[@\]}"}; do/for ex in ${cli_excludes[*]}; do/' x_cwd
 x2_mut note_without_applied '(applied as: ${cli_applied})' 's/ (applied as: \${cli_applied})//' x_applied
 
+# ── round 11 (independent review round 2, non-blocking follow-ups M1, M2, L1, L4) ───────────────────────────────
+# M1: a --root that is a SYMLINK to a directory. find(1) does not follow a symlink given as its starting point, so the logical
+# path used to match no file and the gate ended in SKIP (exit 0, read as a pass by a consumer) with every call site unread.
+# The root is resolved with pwd -P; the NOTE says so.
+XS="$TMP/xsym"; mkdir -p "$XS/real/live"; printf '%b' "$BADPY" > "$XS/real/live/real_bad.py"
+ln -s real "$XS/link"; ln -s real/live "$XS/linklive"   # relative links: one to the tree, one to a subdirectory
+x_symroot() { # $1=gate : a symlinked root is scanned (rc 1, the finding reported), never a SKIP, and the resolution is announced
+    local o r p
+    o="$(bash "$1" --root "$XS/real" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'is a symlink' <<<"$o" || return 1   # control needle: the real path reports the bad call, with no symlink NOTE
+    for p in link link/ linklive; do
+        o="$(bash "$1" --root "$XS/$p" --quiet 2>&1)"; r=$?
+        [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'SKIP' <<<"$o" && grep -q "scan root .*/xsym/${p} is a symlink; scanning the directory it resolves to: .*/xsym/real" <<<"$o" || return 1
+    done
+}
+if x_symroot "$GATE"; then ok "X18: a --root that is a symlink to a directory (to the tree, with a trailing slash, to a subdirectory) is resolved and scanned: the bad call is reported (exit 1), not a SKIP, and the NOTE names the resolution"; else bad "X18: a symlinked --root ended in SKIP, lost its finding or was not announced"; fi
+x2_mut symroot_logical_path 'pwd -P)"' 's/root="\$(cd "\$root" \&\& pwd -P)"/root="$(cd "$root" \&\& pwd)"/' x_symroot
+x2_mut symroot_silent 'is a symlink; scanning the directory it resolves to' 's/is a symlink; scanning the directory it resolves to/(quiet)/' x_symroot
+
+# M2: a scan root named like an entry of the DEFAULT prune list (out build dist vendor node_modules .venv __pycache__ and the path
+# entry scripts/gates, which also prunes everything below it) or of the THIRD-PARTY list (third_party site-packages) was pruned
+# as a whole by find(1) and ended in SKIP (exit 0). It is refused with exit 2, as an --exclude value that names the root already is.
+XM="$TMP/xrootprune"; XM_DEF="out build dist vendor node_modules .venv __pycache__ scripts/gates scripts/gates/sub"; XM_TP="third_party site-packages"
+for n in plainroot $XM_DEF $XM_TP; do mkdir -p "$XM/$n"; printf '%b' "$BADPY" > "$XM/$n/real_bad.py"; done
+xm_refused() { # $1=gate $2=root name $3=list label (default|third-party) [$4...=extra gate args] : exit 2 naming the list, no SKIP, no verdict
+    local g="$1" n="$2" l="$3" o r; shift 3
+    o="$(bash "$g" --root "$XM/$n" --quiet "$@" 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q "the scan root .*/${n} matches the ${l} prune list" <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o" && ! grep -q 'FAIL —' <<<"$o"
+}
+x_rootdef() { local o r n
+    o="$(bash "$1" --root "$XM/plainroot" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1          # control needle: a root with an ordinary name is scanned and its bad call reported
+    for n in $XM_DEF; do xm_refused "$1" "$n" default || return 1; done
+    for n in $XM_DEF; do xm_refused "$1" "$n" default --include-third-party || return 1; done                               # --include-third-party does not switch the default list off
+}
+x_roottp() { local o r n
+    for n in $XM_TP; do xm_refused "$1" "$n" third-party || return 1; done
+    for n in $XM_TP; do                                                                                                  # control needle: with --include-third-party the same roots are scanned (the list is what refused them)
+        o="$(bash "$1" --root "$XM/$n" --include-third-party --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1
+    done
+}
+if x_rootdef "$GATE"; then ok "X19: a scan root named like a DEFAULT prune entry (out build dist vendor node_modules .venv __pycache__, scripts/gates, below scripts/gates) is refused with exit 2 naming the list, not a SKIP; an ordinary root is scanned"; else bad "X19: a root named like a default prune entry ended in SKIP, or was not refused with exit 2"; fi
+if x_roottp "$GATE"; then ok "X20: a scan root named third_party / site-packages is refused with exit 2 naming the third-party list; with --include-third-party it is scanned"; else bad "X20: a root named like a third-party prune entry ended in SKIP, or the control is wrong"; fi
+x2_mut rootprune_default_off 'matches the default prune list' 's/if rp_hit="\$(root_prune_hit \${prune_expr\[@\]+"\${prune_expr\[@\]:0:n_default_prune}"})"; then/if false; then/' x_rootdef
+x2_mut rootprune_tp_off 'matches the third-party prune list' 's/if rp_hit="\$(root_prune_hit \${prune_expr\[@\]+"\${prune_expr\[@\]:\$((n_default_prune + \${#cli_prune_expr\[@\]}))}"})"; then/if false; then/' x_roottp
+x2_mut rootprune_path_alternatives_skipped 'root_prune_hit()' 's/if \[ "\${#seg\[@\]}" -gt 0 \] \&\&/if [ "${#seg[@]}" -gt 0 ] \&\& [ "${seg[0]}" = -name ] \&\&/' x_rootdef
+
+# L1: the "would the same scan without the --exclude entries find a source file" check (nocli_prune_expr) was only tested for a
+# file under the excluded directory (X14). Its DEFAULT-prune part and its THIRD-PARTY part had no case: with that expression
+# emptied, a tree whose only source files sit under node_modules / site-packages (pruned anyway) and that has an unrelated
+# `--exclude fixtures` ended in exit 2 ("left no source file") instead of the SKIP it always was, and no case noticed.
+XD1="$TMP/xdef1"; mkdir -p "$XD1/node_modules" "$XD1/fixtures"; printf '%b' "$BADPY" > "$XD1/node_modules/vend.py"; printf 'notes\n' > "$XD1/fixtures/notes.txt"
+XD2="$TMP/xdef2"; mkdir -p "$XD2/site-packages" "$XD2/fixtures"; printf '%b' "$BADPY" > "$XD2/site-packages/vend.py"; printf 'notes\n' > "$XD2/fixtures/notes.txt"
+XD3="$TMP/xdef3"; mkdir -p "$XD3/node_modules" "$XD3/fixtures"; printf '%b' "$BADPY" > "$XD3/node_modules/vend.py"; printf '%b' "$BADPY" > "$XD3/fixtures/frozen.py"
+x_defprune() { # $1=gate
+    local o r d
+    # control needles: the vendored files ARE findings when their prune is off (a test-mode override of the default list; --include-third-party)
+    o="$(env HELIX_TEST_MODE=1 KILLPG_GUARD_EXCLUDE=.git bash "$1" --root "$XD1" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && grep -q 'node_modules/vend\.py' <<<"$o" || return 1
+    o="$(bash "$1" --root "$XD2" --include-third-party --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && grep -q 'site-packages/vend\.py' <<<"$o" || return 1
+    # the cases: their only source files sit under pruned trees and the exclusion is not what emptied the scan: SKIP, exit 0
+    for d in "$XD1" "$XD2"; do
+        o="$(bash "$1" --root "$d" --exclude fixtures --quiet 2>&1)"; r=$?; [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o" || return 1
+    done
+    # ... while an exclusion that does empty the scan (a finding under fixtures, vend.py still pruned) stays exit 2
+    o="$(bash "$1" --root "$XD3" --exclude fixtures --quiet 2>&1)"; r=$?; [ "$r" -eq 2 ] && grep -q 'left no source file to scan' <<<"$o"
+}
+if x_defprune "$GATE"; then ok "X21: files only under node_modules / site-packages (pruned anyway) with an unrelated --exclude fixtures still SKIP (exit 0); an exclusion that empties the scan stays exit 2 (the default and third-party parts of the would-scan check)"; else bad "X21: the default / third-party prune is not part of the would-scan check"; fi
+NOCLI_ANCHOR='nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}"'
+x2_mut nocli_empty "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=()/' x_defprune
+x2_mut nocli_default_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}")/' x_defprune
+x2_mut nocli_tp_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}")/' x_defprune
+
+# L4: the "EXCLUDED (explicit --exclude, not scanned)" listing ignored the default and third-party prunes: with `--exclude fixtures`
+# it also listed `node_modules/pkg/fixtures` and `site-packages/lib/fixtures` (never scanned anyway) as exclusions of the flag,
+# counted `fixtures/node_modules/deep.py` among the excluded files, and an --exclude that matches only inside pruned trees printed
+# no "matched no directory" NOTE. The prunes now come first in both finds (the directory walk and the per-directory file count).
+XL="$TMP/xlist"; mkdir -p "$XL/fixtures/node_modules" "$XL/node_modules/pkg/fixtures" "$XL/site-packages/lib/fixtures" "$XL/live"
+for f in fixtures/frozen.py fixtures/node_modules/deep.py node_modules/pkg/fixtures/inner.py site-packages/lib/fixtures/sp.py live/real_bad.py; do printf '%b' "$BADPY" > "$XL/$f"; done
+x_listing() { # $1=gate
+    local o r
+    # control needles: every file of the fixture is a finding when no prune applies (test-mode override of the default list, --include-third-party)
+    o="$(env HELIX_TEST_MODE=1 KILLPG_GUARD_EXCLUDE=.git bash "$1" --root "$XL" --include-third-party --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && grep -q 'fixtures/frozen\.py' <<<"$o" && grep -q 'fixtures/node_modules/deep\.py' <<<"$o" && grep -q 'node_modules/pkg/fixtures/inner\.py' <<<"$o" && grep -q 'site-packages/lib/fixtures/sp\.py' <<<"$o" || return 1
+    # --exclude fixtures: exactly ONE exclusion is listed (the one that changes the scan), with ONE file (the one under it that would be scanned)
+    o="$(bash "$1" --root "$XL" --exclude fixtures --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && live_found "$o" && [ "$(grep -c 'EXCLUDED (explicit --exclude, not scanned)' <<<"$o")" -eq 1 ] \
+        && grep -q 'EXCLUDED (explicit --exclude, not scanned): .*/xlist/fixtures (1 source file(s))' <<<"$o" \
+        && grep -q 'excluded file: .*/xlist/fixtures/frozen\.py' <<<"$o" && [ "$(grep -c 'excluded file:' <<<"$o")" -eq 1 ] \
+        && ! grep -q 'matched no directory' <<<"$o" || return 1
+    # --exclude pkg: it matches only inside node_modules (pruned anyway): no exclusion is listed, the NOTE says nothing was matched
+    o="$(bash "$1" --root "$XL" --exclude pkg --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'EXCLUDED (explicit --exclude' <<<"$o" && grep -q 'NOTE — --exclude (pkg) matched no directory' <<<"$o"
+}
+if x_listing "$GATE"; then ok "X22: the EXCLUDED listing skips directories below node_modules / site-packages (pruned anyway) and does not count files under a pruned subtree; an --exclude matching only there gets the 'matched no directory' NOTE"; else bad "X22: the exclusion listing ignores the default / third-party prunes"; fi
+x2_mut listing_walk_unpruned 'list_pre=()' 's/done < <(find "\$root" \${list_pre\[@\]+"\${list_pre\[@\]}"} -type d/done < <(find "$root" -type d/' x_listing
+x2_mut listing_count_unpruned 'list_pre=()' 's/find "\$_xd" \${list_pre\[@\]+"\${list_pre\[@\]}"} -type f/find "$_xd" -type f/' x_listing
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"

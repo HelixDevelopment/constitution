@@ -117,6 +117,8 @@
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_killpg_pgid_guard.sh [--root <dir|file>] [--window N] [--exclude <glob>]... [--quiet]
 #     --root <dir>   scan root (default: $KILLPG_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
+#                    A root that is a symlink to a directory is resolved to the directory it names (pwd -P: find(1) does not follow
+#                    a symlink given as its starting point, which used to end in SKIP, exit 0) and a NOTE names the resolution.
 #     --exclude <glob>
 #                    ADD one directory to the prune list (repeatable; the default list stays in force): a directory-name glob
 #                    (`fixtures`) or a tail path (`scripts/hooks/fixtures`), matched exactly like the entries of
@@ -126,11 +128,18 @@
 #                    excluded directory is printed as `EXCLUDED (explicit --exclude, not scanned): <dir> (N source file(s))`
 #                    followed by the files, and an exclusion that matches no directory under the root is printed as a NOTE (with the
 #                    find(1) test applied). A value is taken literally: it is never expanded against the caller's working directory.
+#                    A directory below a default- or third-party-pruned tree (`node_modules/x/fixtures`) is never scanned, so it is not
+#                    listed, its files are not counted, and an exclusion that matches only there gets the no-match NOTE.
 #                    A value that is empty, absolute, holds `..` or a character outside [A-Za-z0-9._/*+-], or has no letter, digit,
 #                    `_`, `+` or `-` in it (`*`, `.`, `*/*`) is refused with exit 2. So is a value that matches the scan root itself
 #                    or one of its ancestors (the root's basename, a tail of the root path, or a glob matching either: it would prune
 #                    the whole scan), and so is an exclusion that leaves no source file to scan although the tree has some (never
 #                    SKIP, exit 0). Ignored (with a NOTE) for a single-file root.
+#     A scan root that the DEFAULT prune list or the THIRD-PARTY list itself matches is refused with exit 2, naming the list and the
+#     find alternative (find applies -name / -path to its starting point): a root named like a default entry (`out`, `build`,
+#     `dist`, `vendor`, `node_modules`, `.venv`, `__pycache__`, `.git`), standing at or below `scripts/gates`, or named
+#     `third_party` / `site-packages` (the last two only without --include-third-party). It used to be pruned as a whole and end in
+#     SKIP, exit 0. Scan the directory above it instead.
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
@@ -173,7 +182,7 @@
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — PASS (no dangerous call site found, or every one found is guarded).
 #   1 — FAIL (an unguarded process-group signal call site found, or a file that cannot be analysed).
-#   2 — environment / argument error.
+#   2 — environment / argument error (also: a scan root that a prune list, default, third-party or --exclude, would prune whole).
 #
 # Classification: universal (§11.4.17) — no project-specific literal.
 
@@ -236,7 +245,11 @@ if [ -f "$root" ]; then
     root_is_file=1
     root="$(cd "$(dirname "$root")" && pwd)/$(basename "$root")"
 elif [ -d "$root" ]; then
-    root="$(cd "$root" && pwd)"
+    root_arg="$root"
+    # the PHYSICAL path (pwd -P): find(1) does not follow a symlink given as its starting point, so the logical path of a
+    # symlinked directory matched no file at all and the gate ended in SKIP (exit 0, read as a pass by a consumer)
+    root="$(cd "$root" && pwd -P)"
+    if [ -L "${root_arg%/}" ]; then echo "ℹ️  ${GATE}: scan root ${root_arg} is a symlink; scanning the directory it resolves to: ${root}"; fi
 else
     echo "${GATE}: scan root not found: $root" >&2; exit 2
 fi
@@ -301,6 +314,32 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
     fi
 fi
+# The root check that every explicit --exclude value passes above, run over the DEFAULT list and the THIRD-PARTY list too (review
+# round 2, M2): find applies -name / -path to its starting point, so a scan root named like a default entry (`build`, `out`,
+# `dist`, `vendor`, `node_modules`, ...), like `third_party` / `site-packages`, or standing under a directory that a path entry
+# such as `scripts/gates` names, was pruned as a whole and the gate ended in SKIP (exit 0, read as a pass by a consumer).
+# root_prune_hit <find alternatives...>: prints the first alternative (one -name or -path test) that matches the scan ROOT, rc 0.
+root_prune_hit() {
+    local seg=() t
+    for t in "$@" -o; do
+        if [ "$t" != -o ]; then seg+=("$t"); continue; fi
+        if [ "${#seg[@]}" -gt 0 ] && [ -n "$(find "$root" -maxdepth 0 -type d \( "${seg[@]}" \) -print -quit 2>/dev/null)" ]; then
+            printf '%s\n' "${seg[*]}"; return 0
+        fi
+        seg=()
+    done
+    return 1
+}
+if [ "$root_is_file" -eq 0 ]; then
+    if rp_hit="$(root_prune_hit ${prune_expr[@]+"${prune_expr[@]:0:n_default_prune}"})"; then
+        echo "${GATE}: the scan root ${root} matches the default prune list (find alternative: ${rp_hit}): it would prune the whole scan and end in a SKIP; refused (scan the directory above it, or a root whose name is not on the list)" >&2
+        exit 2
+    fi
+    if rp_hit="$(root_prune_hit ${prune_expr[@]+"${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}"})"; then
+        echo "${GATE}: the scan root ${root} matches the third-party prune list (find alternative: ${rp_hit}): it would prune the whole scan and end in a SKIP; refused (scan the directory above it, or pass --include-third-party)" >&2
+        exit 2
+    fi
+fi
 # the same prune list WITHOUT the explicit --exclude entries (default + third-party): used only to tell, when nothing is left
 # to scan, whether the explicit exclusions are the cause (exit 2) or the tree simply has no source file (SKIP)
 nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}" "${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}")
@@ -331,9 +370,13 @@ if [ "${#cli_excludes[@]}" -gt 0 ]; then
     else
         cli_cut=0
         cli_list_expr=("${cli_prune_expr[@]}"); unset 'cli_list_expr[${#cli_list_expr[@]}-1]'   # drop the trailing -o
+        # the default and third-party prunes come FIRST (review round 2, L4): a directory below a pruned tree (`node_modules/x/fixtures`,
+        # `site-packages/y/fixtures`) is not scanned whatever this flag says, so it is not listed as one of its exclusions, its files
+        # are not counted, and an --exclude that matches only inside pruned trees gets the "matched no directory" NOTE
+        list_pre=(); [ "${#nocli_prune_expr[@]}" -eq 0 ] || list_pre=(-type d \( "${nocli_prune_expr[@]}" \) -prune -o)
         while IFS= read -r -d '' _xd; do
             cli_cut=$((cli_cut + 1))
-            mapfile -d '' -t _xf < <(find "$_xd" -type f \( "${find_name_expr[@]}" \) -print0 2>/dev/null | sort -z)
+            mapfile -d '' -t _xf < <(find "$_xd" ${list_pre[@]+"${list_pre[@]}"} -type f \( "${find_name_expr[@]}" \) -print0 2>/dev/null | sort -z)
             echo "ℹ️  ${GATE}: EXCLUDED (explicit --exclude, not scanned): ${_xd} (${#_xf[@]} source file(s))"
             _xn=0
             for _xp in ${_xf[@]+"${_xf[@]}"}; do
@@ -341,7 +384,7 @@ if [ "${#cli_excludes[@]}" -gt 0 ]; then
                 if [ "$_xn" -le 50 ]; then echo "ℹ️  ${GATE}:   excluded file: ${_xp}"; fi
             done
             [ "$_xn" -le 50 ] || echo "ℹ️  ${GATE}:   ... and $((_xn - 50)) more excluded file(s)"
-        done < <(find "$root" -type d \( "${cli_list_expr[@]}" \) -prune -print0 2>/dev/null | sort -z)
+        done < <(find "$root" ${list_pre[@]+"${list_pre[@]}"} -type d \( "${cli_list_expr[@]}" \) -prune -print0 2>/dev/null | sort -z)
         [ "$cli_cut" -gt 0 ] || echo "⚠ ${GATE}: NOTE — --exclude (${cli_ex_txt}) matched no directory under ${root} (applied as: ${cli_applied})"
     fi
 fi
