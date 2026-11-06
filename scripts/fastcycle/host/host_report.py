@@ -1057,11 +1057,35 @@ def _read_meminfo():
         return None, None
 
 
+def _read_nproc_soft():
+    """Live soft RLIMIT_NPROC as text ("123694", "unlimited"), or None.
+
+    CON-109 review finding F2-1: read the same way lib/host_guard.sh reads
+    it, from the kernel's own record /proc/self/limits ("Max processes
+    <soft> <hard> processes"; this process's limits, which every child it
+    starts inherits). The former `sh -c "ulimit -u"` read returned nothing
+    on a host whose /bin/sh is dash (dash has no `ulimit -u`), so the thread
+    headroom was always "unmeasured" there. `sh -c "ulimit -u"` stays only
+    as the fallback when the file has no readable "Max processes" line.
+    FC_GUARD_PROC_LIMITS names a different limits file, for tests only."""
+    path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/self/limits")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if line.startswith("Max processes") and line[13:14] in (" ", "\t"):
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        return parts[2]
+    except OSError:
+        pass
+    rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+    return out.strip() if rc == 0 and out else None
+
+
 def _read_ulimit_threads():
     ulim = os.environ.get("FC_GUARD_ULIMIT_U")
     if ulim is None:
-        rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
-        ulim = out.strip() if rc == 0 and out else None
+        ulim = _read_nproc_soft()
     unlimited = (ulim == "unlimited")
     thr = os.environ.get("FC_GUARD_THREADS")
     if thr is None:

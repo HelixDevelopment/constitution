@@ -12,6 +12,10 @@
 #           of that variable (never silently a live read): unreadable_* N=1.
 #           No live source exists for the active-agent count: for --kind agents
 #           FC_GUARD_ACTIVE_AGENTS MUST be supplied, else unreadable_active_agents.
+#           FC_GUARD_PROC_LIMITS (tests only): the limits file read instead of
+#           /proc/self/limits for the soft "Max processes" value; when it is
+#           unreadable or has no such line (set-but-empty included) the
+#           `ulimit -u` fallback is used, exactly as for the live file.
 # Outputs : stdout "N=<int>" and "REASON=<none|thread_headroom|memory_ceiling|
 #           agent_cap|nproc|thread_headroom_exhausted|memory_ceiling_exhausted|
 #           agent_cap_exhausted|unreadable_nproc|unreadable_ulimit|
