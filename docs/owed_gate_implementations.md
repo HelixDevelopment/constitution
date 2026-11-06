@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 19
-**Last modified:** 2026-11-03T16:46:30Z
+**Revision:** 20
+**Last modified:** 2026-11-05T17:30:00Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -22,6 +22,8 @@
 **R18 (2026-11-03, §11.4.294):** `OWED-GATE-177` (`CM-STATE-FIELDS-LIFECYCLE`), `OWED-GATE-178` (`CM-STATE-PROPAGATION`) and `OWED-GATE-179` (`CM-STATE-TRACKER-MIRROR`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.294; section after the §11.4.293 section.
 
 **R19 (2026-11-03, §11.4.295):** `OWED-GATE-180` (`CM-GEO-SUBSTITUTE-SAME-VERDICT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.295; section after the §11.4.294 section.
+
+**R20 (2026-11-05, §11.4.296):** `OWED-GATE-181` (`CM-GITHUB-ISSUES-SYNC-EVIDENCE`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.296; section after the §11.4.295 section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -1053,6 +1055,15 @@ The item-level gate named in §11.4.295 is registered as a deferral in the same 
   - **Must assert:** (per §11.4.295(A)/(B)/(C)/(D)/(E)) every `GEO_RESTRICTED` outcome carries a probe record with a refusal signature from the declared list and a successful control probe from the same egress; a geo-restricted test is never reported as a FAIL and is not ended as a SKIP while a probed-reachable substitute is declared; the substitute chain was declared before the run; the substituted run carries the same criteria-set sha256 as the original; the report line names both apps; golden-FALSE: an exhausted chain reported as SKIP-with-reason `geo_restricted` with the chain listed, and an app-specific test left SKIPPED and tracked
   - **Blocked on:** the constitution ships no content-test harness, no substitute-chain registry and no criteria-set schema
   - **Paired §1.1 mutation:** delete the control probe from a record, lower one threshold in the substituted run, end a restricted test as a SKIP while a substitute is declared, or report the restriction as a FAIL; the gate MUST FAIL
+
+### §11.4.296 GitHub Issues as a source of workable items (registered 2026-11-05)
+
+The item-level gate named in §11.4.296 is registered as a deferral in the same change that names it, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_github_issues_source_anchor_wired.sh` with its paired mutation test); the sync engine, the platform client, the snapshot and the run-record store are consuming-project work.
+
+- **OWED-GATE-181** — `CM-GITHUB-ISSUES-SYNC-EVIDENCE`
+  - **Must assert:** (per §11.4.296(B)/(C)/(D)/(E)/(F)/(H)/(J)) from a snapshot of the platform issues assigned to a declared account, a read-only copy of the workable-items database and the run records: every issue has exactly one item carrying the marker line `GitHub-Issue` exactly once; no marker is duplicated or points at another repository; the content hash stored in each item equals the hash recomputed from the snapshot; consecutive run starts are at most the interval plus the grace apart; every created item has a first-response comment posted or planned in its run; the derived documents are recorded fresh after a changing run; an external-tracker leg configured as blocked is never recorded synced; the sync tooling holds no issue-creating command and no write-back path for an unmarked item; the verdict is INCONCLUSIVE (exit 3) when offline or when no snapshot or database is supplied, never a PASS without evidence; golden-FALSE: an unchanged snapshot imported twice leaves exactly one item per issue
+  - **Blocked on:** the constitution ships no sync engine, no platform client and no run-record store; the consuming project implements the gate
+  - **Paired §1.1 mutation:** duplicate a marker, drop an item, edit the issue body without re-importing, widen the run gap, add an issue-creating command or a write-back for an unmarked item to the tooling; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

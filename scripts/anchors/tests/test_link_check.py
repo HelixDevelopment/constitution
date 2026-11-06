@@ -155,11 +155,11 @@ def test_unresolved_citation_names_a_real_line_number_never_capped_at_50():
             f"got: {r.stdout}"
         )
         # Line 1 (1-indexed) carries §11.4.99990 -- assert its EXACT reported line number.
-        assert "§11.4.99990 in " in r.stdout and ":1\n" in r.stdout.split("§11.4.99990 in ")[1][:80], (
+        assert "§11.4.99990 in " in r.stdout and r.stdout.split("§11.4.99990 in ")[1].split("\n")[0].endswith(":1"), (
             f"the first fabricated citation's line number was not reported correctly: {r.stdout}"
         )
         # Line 60 carries §11.4.999959 -- assert its line number too, at the other end.
-        assert "§11.4.999959 in " in r.stdout and ":60\n" in r.stdout.split("§11.4.999959 in ")[1][:80], (
+        assert "§11.4.999959 in " in r.stdout and r.stdout.split("§11.4.999959 in ")[1].split("\n")[0].endswith(":60"), (
             f"the last fabricated citation's line number was not reported correctly: {r.stdout}"
         )
 

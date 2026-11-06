@@ -52,6 +52,7 @@
 #       today, since they exercise only git itself, not the absent tool).
 # =============================================================================
 
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer config/fastcycle/fastcycle.yaml
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)

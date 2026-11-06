@@ -241,7 +241,7 @@ with open(os.path.join(patches_dir, "patch.txt"), "w") as fh:
 # Calling build_tree() DIRECTLY (never through cmd_run()'s own earlier
 # syntactic validation) with a target_file that escapes the disposable
 # tree -- proves build_tree()'s OWN check, independent of any caller.
-changes = [{"change_id": "chg-escape", "target_file": "../../../../tmp/m1_escape_probe.txt", "patch": "patch.txt"}]
+changes = [{"change_id": "chg-escape", "target_file": "../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../tmp/m1_escape_probe.txt", "patch": "patch.txt"}]
 try:
     mod.build_tree(base_tree, patches_dir, changes)
     print("FAIL: build_tree() did NOT raise TargetPathEscapeError for an escaping target_file called directly")
@@ -318,7 +318,7 @@ with open(os.path.join(patches_dir, "patch.txt"), "w") as fh:
 victim = "/tmp/m1_escape_probe_mutflip.txt"
 if os.path.exists(victim):
     os.remove(victim)
-changes = [{"change_id": "chg-escape", "target_file": "../../../../tmp/m1_escape_probe_mutflip.txt", "patch": "patch.txt"}]
+changes = [{"change_id": "chg-escape", "target_file": "../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../tmp/m1_escape_probe_mutflip.txt", "patch": "patch.txt"}]
 try:
     mod.build_tree(base_tree, patches_dir, changes)
 except mod.TargetPathEscapeError:

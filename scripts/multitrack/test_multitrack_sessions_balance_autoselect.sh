@@ -76,7 +76,7 @@ _bat_project_root() {
     ( cd "$CONST_ROOT/.." 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null )
 }
 PROJECT_ROOT=$(_bat_project_root)
-[ -n "$PROJECT_ROOT" ] || { echo "FATAL: no outer project root" >&2; exit 90; }
+[ -n "$PROJECT_ROOT" ] || { echo "SKIP: no outer project root: canon is not nested in a consumer reason=topology_unsupported"; exit 77; }
 
 SESSIONS="$CONST_ROOT/scripts/multitrack/multitrack_sessions.sh"
 BALANCE="$CONST_ROOT/scripts/multitrack/multitrack_balance.sh"

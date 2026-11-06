@@ -132,8 +132,17 @@ SUP="$CONST_DIR/scripts/multitrack/multitrack_supervisor.sh"
 BOOT="$CONST_DIR/scripts/multitrack/multitrack_bootstrap.sh"
 MOCK="$REPO_ROOT/scripts/multitrack/rb05_fixtures/mock_claude.sh"
 
+RED_MODE="${RED_MODE:-1}"
 for _mt_f in "$SESSIONS" "$RESOLVER" "$ORCH" "$FBMON" "$SUP" "$BOOT" "$MOCK"; do
     if [ ! -f "$_mt_f" ]; then
+        # The RB-05 mock is a consumer-project fixture, and only the GREEN battery
+        # (RED_MODE other than 1) runs it: the default RED battery never reads it,
+        # so its absence SKIPs (rc 77) only a run that needs it (review F2).
+        case "$_mt_f" in */rb05_fixtures/*)
+            [ "$RED_MODE" = "1" ] && continue
+            echo "SKIP: consumer-project fixture absent (not part of canon alone), needed by RED_MODE=$RED_MODE: $_mt_f reason=topology_unsupported"
+            exit 77 ;;
+        esac
         echo "FATAL: required engine/fixture file not found: $_mt_f" >&2
         exit 91
     fi
@@ -145,7 +154,6 @@ bash -n "$ORCH"     2>/dev/null || { echo "FATAL: $ORCH fails bash -n"     >&2; 
 bash -n "$FBMON"    2>/dev/null || { echo "FATAL: $FBMON fails bash -n"    >&2; exit 92; }
 bash -n "$BOOT"     2>/dev/null || { echo "FATAL: $BOOT fails bash -n"     >&2; exit 92; }
 
-RED_MODE="${RED_MODE:-1}"
 RUN_TS=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 EV="${MT_RB13_TEST_EVIDENCE_DIR:-$REPO_ROOT/qa-results/multitrack/rb13_test_${RUN_TS}-$$}"
 mkdir -p "$EV"

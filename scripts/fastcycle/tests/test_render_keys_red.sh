@@ -65,6 +65,7 @@
 #       and real host tools, never the absent render_keys.py).
 # =============================================================================
 
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer scripts/testing/sync_all_markdown_exports.sh
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)

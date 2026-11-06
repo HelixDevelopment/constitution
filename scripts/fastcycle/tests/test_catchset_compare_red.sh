@@ -99,6 +99,7 @@
 #         per-fixture expected outcome); exit 1 today = correct RED state
 #         (the real tool is absent, so every real-invocation assertion
 #         below correctly cannot match its fixture's expected outcome).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer device/rockchip/rk3588/tests/regression_guard/registry.tsv scripts/testing/meta_test_false_positive_proof.sh
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }

@@ -117,6 +117,7 @@
 #         different "exit 0 only once GREEN" convention -- both conventions
 #         coexist in this suite; T025 follows T017/T024/T026's, per this
 #         task's own instruction to match that qa-results evidence format).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer specs/004-fast-dev-cycles/research.md
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
