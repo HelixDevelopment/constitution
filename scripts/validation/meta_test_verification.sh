@@ -1,103 +1,129 @@
 #!/usr/bin/env bash
 # meta_test_verification.sh — Paired mutation proving the verification gate catches regressions
 # Constitution §1.1: Every gate MUST have a paired mutation proving it's not a bluff gate.
+#
+# Usage   : bash scripts/validation/meta_test_verification.sh
+#           Exit 0 when both mutations behave as required, 1 otherwise. The
+#           last line is the summary line.
+# Method  : (CON-120) the checked tree is NEVER changed. Each mutation runs on
+#           a scratch root under $TMPDIR (mktemp -d): a COPY of
+#           run_verification.sh plus one symlink per real submodule, so a stop
+#           at any moment (TERM, KILL) cannot leave a renamed submodule or an
+#           edited tracked gate behind; the scratch root is removed on exit.
+#           Mutation 1: the real gate on a root that lacks the 'verification'
+#           submodule must FAIL. Mutation 2: a copy of the gate with the
+#           'verification' requirement and check removed (a weakened gate that
+#           still parses) must PASS on that same root -- so the real gate's
+#           failure in mutation 1 comes from that check and nothing else.
+#           Control: the real gate on the real tree (read-only) must PASS.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONSTITUTION_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 VERIFICATION_SCRIPT="${CONSTITUTION_ROOT}/scripts/validation/run_verification.sh"
+SUBMODULES_DIR="${CONSTITUTION_ROOT}/submodules"
+TEST_SUBMODULE="verification"
+
+pass=0
+fail=0
+ok() { pass=$((pass + 1)); echo "✓ $*"; }
+notok() { fail=$((fail + 1)); echo "✗ $*"; }
+finish() {
+    echo
+    echo "=== meta-test verification: pass=${pass} fail=${fail} ==="
+    [ "${fail}" = 0 ] && exit 0
+    exit 1
+}
+
+W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 1; }
+cleanup() { [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "=== Meta-Test Mutation for Verification Gate ==="
 echo "Constitution root: ${CONSTITUTION_ROOT}"
 echo "Verification script: ${VERIFICATION_SCRIPT}"
+echo "Scratch root: ${W} (the checked tree is never changed)"
 echo
 
-# Mutation 1: Remove a required submodule → gate must FAIL
-echo "=== Mutation 1: Missing submodule detection ==="
-SUBMODULES_DIR="${CONSTITUTION_ROOT}/submodules"
-TEST_SUBMODULE="${SUBMODULES_DIR}/verification"
+# build_root NAME [GATEFILE]: a scratch root with a copy of the gate (or GATEFILE)
+# and a symlink to every real submodule except the test submodule.
+build_root() {
+    local r="${W}/$1" s
+    mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1
+    cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 1
+    for s in "${SUBMODULES_DIR}"/*; do
+        [ -e "${s}" ] || continue
+        [ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue
+        ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 1
+    done
+    printf '%s' "${r}"
+}
 
-if [[ -d "${TEST_SUBMODULE}" ]]; then
-    echo "✓ Found test submodule: verification"
-    echo "→ Creating mutation backup (renaming submodule)..."
-    mv -- "${TEST_SUBMODULE}" "${TEST_SUBMODULE}.mut.bak"
-    
-    echo "→ Running verification with missing submodule (should FAIL)..."
-    if bash "${VERIFICATION_SCRIPT}" > /tmp/verify_missing.txt 2>&1; then
-        echo "✗ META-TEST FAILED: Verification passed despite missing submodule (gate is a bluff!)"
-        mv -- "${TEST_SUBMODULE}.mut.bak" "${TEST_SUBMODULE}"
-        exit 1
-    else
-        echo "✓ META-TEST PASSED: Verification correctly FAILED with missing submodule"
-        cat /tmp/verify_missing.txt | grep -E "(FAIL|Missing|not cloned)" | head -5
-    fi
-    
-    echo "→ Restoring submodule..."
-    mv -- "${TEST_SUBMODULE}.mut.bak" "${TEST_SUBMODULE}"
-    
-    echo "→ Verifying restored submodule works..."
-    if bash "${VERIFICATION_SCRIPT}" > /tmp/verify_restored.txt 2>&1; then
-        echo "✓ Restored verification passes with submodule present"
-    else
-        echo "✗ Restored verification broken!"
-        cat /tmp/verify_restored.txt
-        exit 1
-    fi
-else
-    echo "WARN: Test submodule not found, skipping mutation 1"
-    exit 1
+if [[ ! -f "${VERIFICATION_SCRIPT}" ]]; then
+    notok "verification script not found: ${VERIFICATION_SCRIPT}"
+    finish
+fi
+if [[ ! -d "${SUBMODULES_DIR}/${TEST_SUBMODULE}" ]]; then
+    notok "test submodule not present: ${SUBMODULES_DIR}/${TEST_SUBMODULE} (initialise the submodules first)"
+    finish
 fi
 
-# Mutation 2: Corrupt the verification script to skip a check → gate must FAIL
-echo
-echo "=== Mutation 2: Corrupted verification logic ==="
-CI_TARGET="${VERIFICATION_SCRIPT}"
-
-if [[ -f "${CI_TARGET}" ]]; then
-    echo "✓ Found verification script"
-    echo "→ Creating mutation backup..."
-    cp -- "${CI_TARGET}" "${CI_TARGET}.mut.bak"
-    
-    echo "→ Injecting mutation (removing a required check - making verification skip verification submodule)..."
-    # Remove the check for 'verification' submodule by commenting it out
-    sed -i 's/if \[\[ -d "\${SUBMODULES_DIR}\/verification" \]\]; then/# MUTATED: if [[ -d "\${SUBMODULES_DIR}\/verification" ]]; then/' "${CI_TARGET}"
-    sed -i 's/run_check "verification (agent-skills)"/# MUTATED: run_check "verification (agent-skills)"/' "${CI_TARGET}"
-    sed -i 's/else/# MUTATED: else/' "${CI_TARGET}"
-    sed -i 's/SKIPPED+=("verification (agent-skills) - not cloned")/# MUTATED: SKIPPED+=("verification (agent-skills) - not cloned")/' "${CI_TARGET}"
-    sed -i 's/fi/# MUTATED: fi/' "${CI_TARGET}"
-    
-    echo "→ Running mutated verification (should FAIL because verification submodule is missing from checks)..."
-    # The mutated script should now fail because it's not checking the verification submodule
-    # but we want the test to show the gate catches this. Actually the gate SHOULD fail
-    # because we're not checking a required submodule. Let's run it.
-    if bash "${CI_TARGET}" > /tmp/verify_mutated.txt 2>&1; then
-        echo "✗ META-TEST FAILED: Mutated verification passed (gate is a bluff!)"
-        mv -- "${CI_TARGET}.mut.bak" "${CI_TARGET}"
-        exit 1
-    else
-        echo "✓ META-TEST PASSED: Mutated verification correctly FAILED"
-        cat /tmp/verify_mutated.txt | grep -E "(FAIL|MISSING|Missing)" | head -3
-    fi
-    
-    echo "→ Restoring original verification script..."
-    mv -- "${CI_TARGET}.mut.bak" "${CI_TARGET}"
-    
-    echo "→ Verifying restored script works..."
-    if bash "${VERIFICATION_SCRIPT}" > /tmp/verify_restored2.txt 2>&1; then
-        echo "✓ Restored verification script passes"
-    else
-        echo "✗ Restored verification script broken!"
-        cat /tmp/verify_restored2.txt
-        exit 1
-    fi
+# Control: the real gate on the real tree (read-only) passes.
+echo "=== Control: real gate, real tree ==="
+if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt" 2>&1; then
+    ok "real gate passes with every submodule present"
 else
-    echo "ERROR: Target verification script not found"
-    exit 1
+    notok "real gate does not pass on the real tree; output:"
+    sed 's/^/    /' "${W}/verify_real.txt"
 fi
 
+# Mutation 1: the real gate on a root missing the test submodule must fail.
 echo
-echo "=== ALL META-TESTS PASSED ==="
-echo "The verification gate is proven NOT to be a bluff gate."
-echo "Both mutations were caught and correctly failed the gate."
-exit 0
+echo "=== Mutation 1: missing submodule detection ==="
+R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; finish; }
+if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt" 2>&1; then
+    notok "real gate passed despite the missing '${TEST_SUBMODULE}' submodule (gate is a bluff)"
+else
+    ok "real gate exits non-zero when '${TEST_SUBMODULE}' is missing"
+    grep -E "(MISSING|not cloned)" "${W}/verify_missing.txt" | head -5 | sed 's/^/    /'
+fi
+
+# Mutation 2: weaken a COPY of the gate (drop the test submodule's requirement
+# and check); it must still parse, and it must pass on the same missing root.
+echo
+echo "=== Mutation 2: weakened gate (requirement removed) ==="
+if python3 -I - "${VERIFICATION_SCRIPT}" "${W}/run_verification_weak.sh" "${TEST_SUBMODULE}" <<'PYEOF'
+import sys
+src, dst, name = sys.argv[1:4]
+c = open(src, encoding="utf-8").read()
+edits = ['    "%s"\n' % name,
+         'run_check "%s (agent-skills)" \\\n    "ls -la %s/ && [ -f %s/README.md ]" \\\n    "${SUBMODULES_DIR}"\n' % (name, name, name)]
+for old in edits:
+    if c.count(old) != 1:
+        sys.exit("anchor not unique: %r" % old)
+    c = c.replace(old, "")
+open(dst, "w", encoding="utf-8").write(c)
+PYEOF
+then
+    if bash -n "${W}/run_verification_weak.sh" 2> "${W}/weak_syntax.txt"; then
+        ok "the weakened gate parses (bash -n): a real mutation, not a syntax error"
+        R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; finish; }
+        if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt" 2>&1; then
+            ok "weakened gate passes on the same missing root: the '${TEST_SUBMODULE}' check is what makes the real gate exit non-zero"
+        else
+            notok "weakened gate still exits non-zero; the real gate's mutation-1 result is not tied to the '${TEST_SUBMODULE}' check; output:"
+            tail -5 "${W}/verify_weak.txt" | sed 's/^/    /'
+        fi
+    else
+        notok "the weakened gate does not parse:"
+        sed 's/^/    /' "${W}/weak_syntax.txt"
+    fi
+else
+    notok "could not build the weakened gate (gate text changed; update the mutation anchors)"
+fi
+
+finish

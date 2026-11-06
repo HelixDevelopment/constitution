@@ -680,6 +680,7 @@ scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
 scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
+scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
 tests/action_prefix/meta_test_action_prefix_grammar.sh	sh	entry	heavy	bash	-	auto
