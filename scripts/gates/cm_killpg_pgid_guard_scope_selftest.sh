@@ -1036,5 +1036,56 @@ if grep -q 'while (match(txt, /' "$BM/gates/cm_killpg_pgid_guard.sh"; then
         else ok "mutant (brace strip disabled) FAILs the guarded braced case: test is load-bearing"; fi
     else bad "brace mutation did not apply"; fi
 else bad "brace mutation anchor absent"; fi
+# ── round 9: explicit --exclude, the consumer's sanctioned and PRINTED way to leave a tree out ─────────────────
+# (a consumer cannot use the ambient KILLPG_GUARD_EXCLUDE any more: it is a guarded override, honoured only under
+#  HELIX_TEST_MODE=1; byte-frozen snapshots of old code whose prose spells `kill(0, 0)` need an explicit flag instead)
+XC="$TMP/xcl"; mkdir -p "$XC/scripts/hooks/fixtures" "$XC/scripts/live" "$XC/node_modules"
+printf 'x="$(python3 - <<'"'"'PYEOF'"'"'\ndef f(pid):\n    # The pid answered kill(0, 0) -- it exists\n    return pid\nPYEOF\n)"\n' > "$XC/scripts/hooks/fixtures/frozen.fixture.sh"
+printf "$BADPY" > "$XC/scripts/live/real_bad.py"; printf "$BADPY" > "$XC/node_modules/vendored_bad.py"
+printf 'def ok():\n    return 1\n' > "$XC/scripts/live/ok.py"
+xg() { local g="$1"; shift; bash "$g" --root "$XC" --quiet "$@" 2>&1; }   # rc of the gate
+fx_found() { grep -q 'FAIL — UNGUARD.*frozen\.fixture\.sh' <<<"$1"; }
+live_found() { grep -q 'FAIL — UNGUARD.*real_bad\.py' <<<"$1"; }
+nm_found() { grep -q 'vendored_bad\.py' <<<"$1"; }
+excl_line() { grep -q 'EXCLUDED (explicit --exclude, not scanned): .*scripts/hooks/fixtures (1 source file(s))' <<<"$1" && grep -q 'excluded file: .*frozen\.fixture\.sh' <<<"$1"; }
+x_default() { local o r; o="$(xg "$1")"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && live_found "$o" && ! nm_found "$o" && ! grep -q 'EXCLUDED' <<<"$o"; }
+x_path() { local o r; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?
+    [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && ! nm_found "$o" && excl_line "$o"; }
+x_name() { local o r; o="$(xg "$1" --exclude fixtures)"; r=$?; [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && excl_line "$o"; }
+x_refuse() { local v r; for v in '*' '' '/abs' '../x' 'a b' '.' '*/*' 'x;y' 'a$b'; do bash "$1" --root "$XC" --exclude "$v" --quiet >/dev/null 2>&1; r=$?; [ "$r" -eq 2 ] || return 1; done
+    bash "$1" --root "$XC" --exclude >/dev/null 2>&1; [ $? -eq 2 ]; }
+x_nomatch() { local o r; o="$(xg "$1" --exclude nothere)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'NOTE — --exclude (nothere) matched no directory' <<<"$o"; }
+x_env() { local o r; o="$(env KILLPG_GUARD_EXCLUDE=scripts/hooks/fixtures bash "$1" --root "$XC" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'ignoring KILLPG_GUARD_EXCLUDE' <<<"$o"; }
+x_file() { local o; o="$(bash "$1" --root "$XC/scripts/hooks/fixtures/frozen.fixture.sh" --exclude fixtures --quiet 2>&1)"; fx_found "$o" && grep -q 'no effect on a single-file scan root' <<<"$o"; }
+x_clean() { local o r; rm -f "$XC/scripts/live/real_bad.py"; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?; printf "$BADPY" > "$XC/scripts/live/real_bad.py"
+    [ "$r" -eq 0 ] && grep -q 'PASS' <<<"$o" && excl_line "$o"; }
+if x_default "$GATE"; then ok "X1: no --exclude: the frozen fixture and the live file are both reported, node_modules stays default-pruned"; else bad "X1: baseline wrong"; fi
+if x_path "$GATE"; then ok "X2: --exclude scripts/hooks/fixtures: fixture not reported, live file STILL reported, default prune kept (additive), exclusion printed with its file"; else bad "X2: path exclusion wrong"; fi
+if x_name "$GATE"; then ok "X3: --exclude fixtures (directory-name form) behaves the same"; else bad "X3: name exclusion wrong"; fi
+if x_refuse "$GATE"; then ok "X4: unsafe / empty / valueless --exclude refused with exit 2 (*, empty, /abs, .., space, ., */*, ;, \$)"; else bad "X4: an unsafe --exclude was accepted"; fi
+if x_nomatch "$GATE"; then ok "X5: an exclusion that matches nothing prints a NOTE and scans everything"; else bad "X5: no-match exclusion silent or hid something"; fi
+if x_env "$GATE"; then ok "X6: the ambient KILLPG_GUARD_EXCLUDE is still ignored without test mode (the flag is the only way)"; else bad "X6: ambient exclude honoured or not announced"; fi
+if x_file "$GATE"; then ok "X7: --exclude with a single-file root has no effect and says so"; else bad "X7: single-file root + --exclude silent or effective"; fi
+if x_clean "$GATE"; then ok "X8: with only the excluded fixture left unclean, the gate PASSes and still prints what it skipped"; else bad "X8: clean tree + exclusion did not PASS with a printed exclusion"; fi
+# paired mutants of the --exclude feature: each must break at least one of X1..X8
+mkxg() { # $1=name $2=sed script : a gate copy with its libs, mutated
+    local D="$TMP/xm_$1"; mkdir -p "$D/gates" "$D/lib" "$D/deps_manifest"
+    cp "$HERE/cm_killpg_pgid_guard.sh" "$D/gates/"; cp "$HERE"/../lib/*.sh "$D/lib/"; cp "$HERE"/../deps_manifest/*.* "$D/deps_manifest/" 2>/dev/null
+    sed -i "$2" "$D/gates/cm_killpg_pgid_guard.sh"; echo "$D/gates/cm_killpg_pgid_guard.sh"
+}
+x_all() { x_path "$1" && x_name "$1" && x_refuse "$1" && x_nomatch "$1" && x_file "$1" && x_clean "$1"; }
+x_mut() { # $1=label $2=anchor-grep $3=sed
+    local G; G="$(mkxg "$1" "$3")"
+    if ! grep -qF -- "$2" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: anchor absent"
+    elif cmp -s "$G" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1 did not apply"
+    elif x_all "$G"; then bad "mutant $1 SURVIVED (--exclude tests are not load-bearing for it)"; else ok "mutant $1 caught"; fi
+}
+x_mut ignored '[ "${#cli_prune_expr[@]}" -eq 0 ] || prune_expr+=' 's/^\[ "\${#cli_prune_expr\[@\]}" -eq 0 \] || prune_expr+=.*/:/'
+x_mut silent 'EXCLUDED (explicit --exclude, not scanned)' 's/EXCLUDED (explicit --exclude, not scanned)/(quiet)/; s/excluded file: /(quiet) /'
+x_mut accepts_all 'exclude_glob_ok() {' 's/^exclude_glob_ok() {/exclude_glob_ok() { return 0;/'
+x_mut replaces_default 'for ex in $excludes; do' 's/^for ex in \$excludes; do/for ex in ${cli_excludes:-$excludes}; do/'
+x_mut nonote 'matched no directory under' 's/NOTE — --exclude (\${cli_excludes}) matched no directory under/(quiet) matched no directory under/'
+x_mut filenote 'has no effect on a single-file scan root' 's/has no effect on a single-file scan root/applies/'
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
