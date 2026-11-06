@@ -1185,5 +1185,30 @@ x2_mut rootprune_default_off 'matches the default prune list' 's/if rp_hit="\$(r
 x2_mut rootprune_tp_off 'matches the third-party prune list' 's/if rp_hit="\$(root_prune_hit \${prune_expr\[@\]+"\${prune_expr\[@\]:\$((n_default_prune + \${#cli_prune_expr\[@\]}))}"})"; then/if false; then/' x_roottp
 x2_mut rootprune_path_alternatives_skipped 'root_prune_hit()' 's/if \[ "\${#seg\[@\]}" -gt 0 \] \&\&/if [ "${#seg[@]}" -gt 0 ] \&\& [ "${seg[0]}" = -name ] \&\&/' x_rootdef
 
+# L1: the "would the same scan without the --exclude entries find a source file" check (nocli_prune_expr) was only tested for a
+# file under the excluded directory (X14). Its DEFAULT-prune part and its THIRD-PARTY part had no case: with that expression
+# emptied, a tree whose only source files sit under node_modules / site-packages (pruned anyway) and that has an unrelated
+# `--exclude fixtures` ended in exit 2 ("left no source file") instead of the SKIP it always was, and no case noticed.
+XD1="$TMP/xdef1"; mkdir -p "$XD1/node_modules" "$XD1/fixtures"; printf '%b' "$BADPY" > "$XD1/node_modules/vend.py"; printf 'notes\n' > "$XD1/fixtures/notes.txt"
+XD2="$TMP/xdef2"; mkdir -p "$XD2/site-packages" "$XD2/fixtures"; printf '%b' "$BADPY" > "$XD2/site-packages/vend.py"; printf 'notes\n' > "$XD2/fixtures/notes.txt"
+XD3="$TMP/xdef3"; mkdir -p "$XD3/node_modules" "$XD3/fixtures"; printf '%b' "$BADPY" > "$XD3/node_modules/vend.py"; printf '%b' "$BADPY" > "$XD3/fixtures/frozen.py"
+x_defprune() { # $1=gate
+    local o r d
+    # control needles: the vendored files ARE findings when their prune is off (a test-mode override of the default list; --include-third-party)
+    o="$(env HELIX_TEST_MODE=1 KILLPG_GUARD_EXCLUDE=.git bash "$1" --root "$XD1" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && grep -q 'node_modules/vend\.py' <<<"$o" || return 1
+    o="$(bash "$1" --root "$XD2" --include-third-party --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && grep -q 'site-packages/vend\.py' <<<"$o" || return 1
+    # the cases: their only source files sit under pruned trees and the exclusion is not what emptied the scan: SKIP, exit 0
+    for d in "$XD1" "$XD2"; do
+        o="$(bash "$1" --root "$d" --exclude fixtures --quiet 2>&1)"; r=$?; [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o" || return 1
+    done
+    # ... while an exclusion that does empty the scan (a finding under fixtures, vend.py still pruned) stays exit 2
+    o="$(bash "$1" --root "$XD3" --exclude fixtures --quiet 2>&1)"; r=$?; [ "$r" -eq 2 ] && grep -q 'left no source file to scan' <<<"$o"
+}
+if x_defprune "$GATE"; then ok "X21: files only under node_modules / site-packages (pruned anyway) with an unrelated --exclude fixtures still SKIP (exit 0); an exclusion that empties the scan stays exit 2 (the default and third-party parts of the would-scan check)"; else bad "X21: the default / third-party prune is not part of the would-scan check"; fi
+NOCLI_ANCHOR='nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}"'
+x2_mut nocli_empty "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=()/' x_defprune
+x2_mut nocli_default_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}")/' x_defprune
+x2_mut nocli_tp_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}")/' x_defprune
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
