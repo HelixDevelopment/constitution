@@ -1,0 +1,2 @@
+RESULT U59 PASS convention file <project>/config/index/writer_limits.yaml is dis
+SUMMARY cases=1 failed=0

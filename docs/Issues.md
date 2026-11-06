@@ -2854,3 +2854,21 @@ Parent: CON-144. Source: independent review of the CON-144 fix, GO-with-follow-u
 
 Parent: CON-144. Source: independent review of the CON-144 fix, GO-with-follow-ups. F3 (nit, test-instrumentation): guard mutant M1 does not mutate the gate under test in the real tree; it re-proves the census sees the old text in a copy (overlaps N0). It is fail-closed, so not a bluff; checks C1/C2/C3 already kill a reintroduced read. Optional: relabel M1 as a census control in the header comment. Finding layer: test-instrumentation, nit. No fix is claimed: Queued, reproduction and investigation UNSET (section 11.4.290).
 
+## CON-211 — Writer default patch set of codegraph_safe.sh follows the fk_index_patch.py registry default (one source of truth: fkidx1,resolve1,resolve2); resolve2 was never deliberately excluded (review I6-2)
+
+**Status:** In progress
+**Type:** Task
+**Severity:** Low
+**Assigned-To:** Claude Sonnet 5.5 (cg117 re-vehicle subagent)
+
+Parent: CON-031. Operator instruction 2026-11-06 (relayed): investigate and fix on evidence. Investigation (section 11.4.124): the writer list fkidx1,resolve1 and resolve2 with its tests arrived in the same cascade commit b3a73cf5 (2026-09-25); the writer comment then said only fkidx1 and resolve1 had tests, which was already false, and mutant MB5 shows the list existed to keep the untested lockfix1/datafrag1 (then in the registry default) out. No record of a deliberate resolve2 exclusion was found; the round-2 wording 'validated on a live index' has no supporting record (the only writer runs on record, an ATMOSphere ledger, are three FAILs with 1.6.0-fkidx1-resolve1). resolve2 fixes the swift-objc bridge heap OOM of bulk resolve on large indexes. Since CON-164 Option A the registry default holds only tested patches, so the reason for a separate writer list is gone. Change: codegraph_safe.sh default is 'default' (synonym 'all'), which forwards no --patches, so the writer uses runner_patches/__init__.py DEFAULT_EXCLUDED complement; an explicit --patches fkidx1,resolve1 still selects the old runner. Test first: U38 RED (d1=--patches fkidx1,resolve1, d5) then GREEN; mutants MB4, MB5 (own list back), MB5b killed; test_patch_machinery 19/0/0; test_resolve2 Q1-Q3 PASS on 1.6.2; scratch A/B old vs new vs stock runner on the resolve2 fixture: byte-identical edge/ref dumps (evidence docs/qa/con117_writer_default/). Writer-level e2e REFUSED by the host disk floor (41 GB free < 60 GiB), not bypassed. Docs: codegraph_safe.md rev 6, fk_index_patch.md rev 5, resolve2.md rev 2, resolve1.md rev 4, lockfix1.md rev 3, fkidx1.md rev 2. Review (section 11.4.142/11.4.209) owed before landing. Effect after landing: the next writer bulk run builds a new runner key <version>-fkidx1-resolve1-resolve2 (one package copy, about 286 MB on 1.6.2) and existing indexes are not rewritten by the switch itself. Id map (re-minted 2026-11-11 at landing, CON-117 and CON-120 collided with other items on main): bundle CON-117 = this item; bundle CON-120 = CON-212.
+
+## CON-212 — test_unit_safe.sh U59 fails when TMPDIR is long: r1 matches the untruncated limits-file path text while codegraph_safe.sh echoes it through san (cut -c1-200)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (cg117 subagent)
+
+Parent: CON-031. Found while running the full test_unit_safe.sh for CON-117 on 2026-11-06: U59 FAIL detail r=1000 on the bundle head 6435c2c3 without any CON-117 change, with TMPDIR under the session scratch directory (about 150 characters). With a short TMPDIR U59 passes. r1 checks has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' but the tool prints min_mem_avail_source= through san, which cuts at 200 characters, so the file name is truncated. Fix in the test (use the s200 helper as other cases do), test first; evidence docs/qa/con117_writer_default/unit_safe_full.txt and u59_short_tmpdir.txt. Id map (re-minted 2026-11-11): bundle CON-120 = this item; its sibling bundle CON-117 = CON-211.
+
