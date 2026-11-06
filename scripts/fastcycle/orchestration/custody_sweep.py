@@ -693,9 +693,27 @@ def list_stash_entries(root):
 
 
 # A canonical `diff --git` header: both sides carry the a/ and b/ prefixes
-# CANONICAL_PATCH_OPTS asks for, plain or C-quoted (a path with a special
-# byte is quoted by git as "a/..." "b/...").
-_CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (a/.* b/.*|"a/.*" "b/.*")$')
+# CANONICAL_PATCH_OPTS asks for. git C-quotes EACH path on its own, so one
+# header may mix a bare and a quoted path (a rename to a name with a TAB
+# prints `diff --git a/c.txt "b/sp ace\ttab.txt"`, measured on git 2.53.0;
+# CON-108 review finding F1-1). Each side is therefore matched separately.
+_CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (?:a/.*|"a/.*") (?:b/.*|"b/.*")$')
+
+
+def stash_patch_bytes_why(root, ref, env=None):
+    """Like stash_patch_bytes, but returns (patch_bytes, why). why is None
+    when the patch was derived, otherwise a short text naming the real
+    cause (a failed git diff, or the first non-canonical header), so a
+    refusal never names the wrong cause (CON-108 review finding F1-1)."""
+    rc, out, _ = _run_bytes(["git", "-C", root, "diff"] + list(CANONICAL_PATCH_OPTS)
+                            + ["%s^1" % ref, ref], env=env)
+    if rc != 0:
+        return None, "git diff %s^1 %s failed (rc=%s)" % (ref, ref, rc)
+    for raw_line in out.split(b"\n"):
+        if raw_line.startswith(b"diff --git ") and not _CANONICAL_DIFF_HEADER_RE.match(raw_line):
+            return None, ("its patch has a diff --git header without the a/ b/ prefixes: %r -- "
+                          "the patch bytes are not trusted" % raw_line[:200])
+    return out, None
 
 
 def stash_patch_bytes(root, ref, env=None):
@@ -711,14 +729,7 @@ def stash_patch_bytes(root, ref, env=None):
     same options over the same two trees is correct. As a self-check every
     `diff --git` header must carry the a/ b/ prefixes; a patch that does not
     is reported as underivable (None), never hashed."""
-    rc, out, _ = _run_bytes(["git", "-C", root, "diff"] + list(CANONICAL_PATCH_OPTS)
-                            + ["%s^1" % ref, ref], env=env)
-    if rc != 0:
-        return None
-    for raw_line in out.split(b"\n"):
-        if raw_line.startswith(b"diff --git ") and not _CANONICAL_DIFF_HEADER_RE.match(raw_line):
-            return None
-    return out
+    return stash_patch_bytes_why(root, ref, env=env)[0]
 
 
 def stash_files_touched(root, ref, env=None):
@@ -728,9 +739,15 @@ def stash_files_touched(root, ref, env=None):
     file list is decoded for display only (surrogateescape, I6).
     patch_bytes is None when the patch could not be derived faithfully
     (see stash_patch_bytes); callers treat that as unmeasured."""
-    out = stash_patch_bytes(root, ref, env=env)
+    return stash_files_touched_why(root, ref, env=env)[:2]
+
+
+def stash_files_touched_why(root, ref, env=None):
+    """Returns (files_touched, patch_bytes, why); why names the cause when
+    patch_bytes is None (see stash_patch_bytes_why)."""
+    out, why = stash_patch_bytes_why(root, ref, env=env)
     if out is None:
-        return [], None
+        return [], None, why
     files = []
     for raw_line in out.split(b"\n"):
         if not raw_line.startswith(b"diff --git "):
@@ -738,7 +755,7 @@ def stash_files_touched(root, ref, env=None):
         m = DIFF_FILE_RE.match(raw_line.decode("utf-8", "surrogateescape"))
         if m:
             files.append(m.group(1))
-    return files, out
+    return files, out, None
 
 
 def stash_has_untracked(root, ref, env=None):
@@ -1313,7 +1330,9 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
       head_unreachable  True when a DETACHED worktree's HEAD is reachable
                         from no ref (its commits die with the worktree)
       measured          False when the live state could not be read at all
-                        (a failed git status/diff) -- the caller refuses
+                        (a failed git status/diff, or a stash patch with a
+                        non-canonical header) -- the caller refuses
+      unmeasured_why    (stash only) the cause when measured is False
     """
     res = {"found": False, "ambiguous": False, "live_hash": None, "has_untracked": None,
            "dirty_submodules": None, "has_unmerged": None, "is_main": False, "path": None,
@@ -1325,7 +1344,8 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
                                check=False, env=env)
         if rc != 0:
             return res
-        _files, patch_bytes = stash_files_touched(root, entry_id, env=env)
+        _files, patch_bytes, why = stash_files_touched_why(root, entry_id, env=env)
+        res["unmeasured_why"] = why
         res.update(found=True,
                    live_hash=sha256_of_bytes(patch_bytes) if patch_bytes else None,
                    has_untracked=stash_has_untracked(root, entry_id, env=env),
@@ -1948,8 +1968,9 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
         return "REFUSED", ("worktree %r is the repository's MAIN worktree / the checkout this tool was "
                             "pointed at (%r) -- it is never a retire candidate" % (entry_id, live.get("path")))
     if not live.get("measured"):
-        return "REFUSED", ("the live state of %s %r could not be read (git status/diff failed) -- "
-                            "cannot confirm the backup covers it" % (entry_kind, entry_id))
+        return "REFUSED", ("the live state of %s %r could not be read (%s) -- "
+                            "cannot confirm the backup covers it"
+                            % (entry_kind, entry_id, live.get("unmeasured_why") or "git status/diff failed"))
     has_untracked = live.get("has_untracked")
     if has_untracked is not False:
         # True, or None (undeterminable) -- either way a tracked-diff-only

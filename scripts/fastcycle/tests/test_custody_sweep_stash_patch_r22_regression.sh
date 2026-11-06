@@ -53,7 +53,7 @@ REALGIT=$(command -v git) || notok "control needle: git not on PATH"
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 
 # Shims. Each forwards to the real git; only the named output is rewritten.
-mkshim() {  # DIR MODE   MODE = stashshow | diffparent
+mkshim() {  # DIR MODE   MODE = stashshow | diffparent | diffsecond
   mkdir -p "$1"
   cat > "$1/git" <<EOF
 #!/bin/bash
@@ -64,9 +64,17 @@ for a in "\$@"; do
   case \$mode:\$a in
     stashshow:show) hit=1 ;;
     diffparent:*'^1') hit=1 ;;
+    diffsecond:*'^1') hit=1 ;;
   esac
 done
 [ "\$mode" = stashshow ] && { case " \$* " in *" stash "*) ;; *) hit=0 ;; esac; }
+if [ \$hit = 1 ] && [ "\$mode" = diffsecond ]; then
+  # Mangles ONLY the second 'diff --git' header (F1-2: proves every
+  # header is checked, not just the first).
+  set -o pipefail
+  "\$real" "\$@" | awk '/^diff --git /{n++; if (n == 2) {print "diff --git f xf"; next}} {print}'
+  exit \$?
+fi
 if [ \$hit = 1 ]; then
   set -o pipefail
   "\$real" "\$@" | sed -e 's#^diff --git .*#diff --git f xf#'
@@ -78,6 +86,7 @@ EOF
 }
 mkshim "$TMP/shim_stashshow" stashshow
 mkshim "$TMP/shim_diffparent" diffparent
+mkshim "$TMP/shim_diffsecond" diffsecond
 
 # Repo with one plain stash (one tracked change) and its faithful backup.
 R="$TMP/r"
@@ -106,15 +115,42 @@ fi
 HS=$(git -C "$R" stash show -p "${CANON[@]}" 'stash@{0}' | head -1)
 echo "info: host $(git --version): 'git stash show -p' first header = '$HS'"
 
-run_vp() {  # IMPL [PATHPREFIX] -> "VERDICT<TAB>DETAIL"
-  local impl="$1" pre="${2:-}" pj="$TMP/prop.$RANDOM.json" oj="$TMP/out.$RANDOM.json"
-  python3 - "$pj" "$(sha "$TMP/st.patch")" "$TMP/st.patch" <<'PYEOF'
+# Repo 2 (F1-1 / F1-2): a two-file stash whose SECOND header mixes a bare and
+# a C-quoted path. git quotes each path on its own, so a rename to a name with
+# a TAB prints `diff --git a/c.txt "b/sp ace\ttab.txt"`. Measured on git
+# 2.53.0; the control needle below checks this host prints the same shape.
+R2="$TMP/r2"
+g init --quiet "$R2"
+printf 'cee\n' > "$R2/c.txt"; printf 'dee\n' > "$R2/d.txt"
+g -C "$R2" add c.txt d.txt; g -C "$R2" commit --quiet -m init
+g -C "$R2" mv c.txt "sp ace$(printf '\t')tab.txt"; printf 'dee2\n' > "$R2/d.txt"
+g -C "$R2" stash --quiet
+g -C "$R2" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}' > "$TMP/st2.patch"
+H2=$(grep '^diff --git ' "$TMP/st2.patch")
+if [ "$(printf '%s\n' "$H2" | sed -n 1p)" = 'diff --git a/d.txt b/d.txt' ] \
+   && [ "$(printf '%s\n' "$H2" | sed -n 2p)" = 'diff --git a/c.txt "b/sp ace\ttab.txt"' ] \
+   && [ "$(printf '%s\n' "$H2" | wc -l)" = 2 ]; then
+  ok "control needle: repo 2 patch = plain header then mixed-quoting header"
+else
+  notok "control needle: repo 2 headers are '$(printf '%s' "$H2" | tr '\n' '|')'"
+fi
+if PATH="$TMP/shim_diffsecond:$PATH" git -C "$R2" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}' | grep '^diff --git ' \
+     | tr '\n' '|' | grep -qx 'diff --git a/d.txt b/d.txt|diff --git f xf|'; then
+  ok "shim self-check: diffsecond mangles only the second 'diff --git' header"
+else
+  notok "shim self-check: diffsecond shim does not behave as designed"
+fi
+WANT_SHA2=$(sha "$TMP/st2.patch")
+
+run_vp() {  # IMPL [PATHPREFIX [REPO PATCH]] -> "VERDICT<TAB>DETAIL"
+  local impl="$1" pre="${2:-}" repo="${3:-$R}" patch="${4:-$TMP/st.patch}" pj="$TMP/prop.$RANDOM.json" oj="$TMP/out.$RANDOM.json"
+  python3 - "$pj" "$(sha "$patch")" "$patch" <<'PYEOF'
 import json, sys
 p, h, path = sys.argv[1:]
 json.dump({"entry_kind": "stash", "entry_id": "stash@{0}", "action": "land",
            "backup_hash": h, "backup_artifact_path": path}, open(p, "w"))
 PYEOF
-  PATH="$pre${pre:+:}$PATH" python3 "$impl" verify-proposal --proposal "$pj" --repo-root "$R" --out "$oj" >/dev/null 2>&1
+  PATH="$pre${pre:+:}$PATH" python3 "$impl" verify-proposal --proposal "$pj" --repo-root "$repo" --out "$oj" >/dev/null 2>&1
   python3 - "$oj" <<'PYEOF'
 import json, sys
 try:
@@ -124,9 +160,9 @@ except Exception as e:
     print("NO_DOC\t%s" % e)
 PYEOF
 }
-run_inv() {  # IMPL [PATHPREFIX] -> "STATUS<TAB>SHA256<TAB>FILES"
-  local impl="$1" pre="${2:-}" oj="$TMP/inv.$RANDOM.json"
-  PATH="$pre${pre:+:}$PATH" python3 "$impl" inventory --repo-root "$R" --backup-root "$TMP/nobackups" --out "$oj" >/dev/null 2>&1
+run_inv() {  # IMPL [PATHPREFIX [REPO]] -> "STATUS<TAB>SHA256<TAB>FILES"
+  local impl="$1" pre="${2:-}" repo="${3:-$R}" oj="$TMP/inv.$RANDOM.json"
+  PATH="$pre${pre:+:}$PATH" python3 "$impl" inventory --repo-root "$repo" --backup-root "$TMP/nobackups" --out "$oj" >/dev/null 2>&1
   python3 - "$oj" <<'PYEOF'
 import json, sys
 try:
@@ -154,14 +190,35 @@ V=$(run_vp "$IMPL" "$TMP/shim_stashshow")
 if [ "$(verdict "$V")" = ALLOWED ]; then ok "G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (tool never uses it)"
 else notok "G3 expected ALLOWED under the stashshow shim, got $(verdict "$V"): $(detail "$V" | cut -c1-300)"; fi
 V=$(run_vp "$IMPL" "$TMP/shim_diffparent")
-if [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"could not be read"* ]]; then
-  ok "B1 non-canonical stash patch headers -> REFUSED as unmeasured ('could not be read')"
+if [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"could not be read"* ]] \
+   && [[ "$(detail "$V")" == *"diff --git header"* ]] && [[ "$(detail "$V")" != *"git status/diff failed"* ]]; then
+  ok "B1 non-canonical stash patch headers -> REFUSED as unmeasured, naming the bad diff --git header"
 else
-  notok "B1 expected REFUSED naming 'could not be read', got $(verdict "$V"): $(detail "$V" | cut -c1-300)"
+  notok "B1 expected REFUSED naming the bad 'diff --git header' (not 'git status/diff failed'), got $(verdict "$V"): $(detail "$V" | cut -c1-300)"
 fi
 I=$(run_inv "$IMPL" "$TMP/shim_diffparent")
 if [ "${I%%$'\t'*}" = UNMEASURED ]; then ok "B2 inventory with non-canonical headers -> status UNMEASURED (never hashed)"
 else notok "B2 inventory expected status UNMEASURED, got '$I'"; fi
+
+# --- repo 2: mixed-quoting header (F1-1) and a bad SECOND header (F1-2) ---
+I=$(run_inv "$IMPL" "" "$R2")
+if [ "${I%%$'\t'*}" = dirty ] && [ "$(printf '%s' "$I" | cut -f2)" = "$WANT_SHA2" ]; then
+  ok "G4 mixed-quoting rename header -> inventory status dirty, sha256 = backup sha256"
+else
+  notok "G4 mixed-quoting inventory expected 'dirty $WANT_SHA2', got '$I'"
+fi
+V=$(run_vp "$IMPL" "" "$R2" "$TMP/st2.patch")
+if [ "$(verdict "$V")" = ALLOWED ]; then ok "G5 mixed-quoting stash, faithful backup -> ALLOWED"
+else notok "G5 expected ALLOWED, got $(verdict "$V"): $(detail "$V" | cut -c1-300)"; fi
+I=$(run_inv "$IMPL" "$TMP/shim_diffsecond" "$R2")
+if [ "${I%%$'\t'*}" = UNMEASURED ]; then ok "B3 only the SECOND header non-canonical -> inventory UNMEASURED"
+else notok "B3 expected status UNMEASURED when only the second header is bad, got '$I'"; fi
+V=$(run_vp "$IMPL" "$TMP/shim_diffsecond" "$R2" "$TMP/st2.patch")
+if [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"diff --git header"* ]]; then
+  ok "B4 only the SECOND header non-canonical -> REFUSED naming the bad header"
+else
+  notok "B4 expected REFUSED naming the bad header, got $(verdict "$V"): $(detail "$V" | cut -c1-300)"
+fi
 
 # --- paired mutations (each on a fresh copy of the tool) ---
 mk_mutant() {  # NAME OLD NEW -> prints the mutant path, or "" when the anchor is not unique
@@ -209,6 +266,31 @@ else
   V=$(run_vp "$M" "$TMP/shim_diffparent")
   if [[ "$(detail "$V")" == *"could not be read"* ]]; then notok "mutation M3_measured_true SURVIVED"
   else ok "mutation M3_measured_true: caught -- mutant detail no longer names 'could not be read' ($(verdict "$V"))"; fi
+fi
+
+# M4 (reviewer R1g): check only the FIRST header, then stop.
+M=$(mk_mutant M4_first_header_only \
+  '                          "the patch bytes are not trusted" % raw_line[:200])
+    return out, None' \
+  '                          "the patch bytes are not trusted" % raw_line[:200])
+        if raw_line.startswith(b"diff --git "):
+            break
+    return out, None')
+if [ -z "$M" ]; then notok "mutation M4_first_header_only: anchor not unique in the tool"
+else
+  I=$(run_inv "$M" "$TMP/shim_diffsecond" "$R2")
+  if [ "${I%%$'\t'*}" = UNMEASURED ]; then notok "mutation M4_first_header_only SURVIVED (still UNMEASURED)"
+  else ok "mutation M4_first_header_only: caught -- mutant inventory status '${I%%$'\t'*}'"; fi
+fi
+# M5: the pre-F1-1 header pattern (both paths bare, or both quoted).
+M=$(mk_mutant M5_no_mixed_quoting \
+  "_CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (?:a/.*|\"a/.*\") (?:b/.*|\"b/.*\")\$')" \
+  "_CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (a/.* b/.*|\"a/.*\" \"b/.*\")\$')")
+if [ -z "$M" ]; then notok "mutation M5_no_mixed_quoting: anchor not unique in the tool"
+else
+  I=$(run_inv "$M" "" "$R2")
+  if [ "${I%%$'\t'*}" = dirty ]; then notok "mutation M5_no_mixed_quoting SURVIVED (mixed header still dirty)"
+  else ok "mutation M5_no_mixed_quoting: caught -- mutant inventory status '${I%%$'\t'*}'"; fi
 fi
 
 echo "=== stash patch regression guard (CON-108): pass=$pass fail=$fail ==="
