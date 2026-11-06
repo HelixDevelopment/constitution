@@ -1,0 +1,4 @@
+decisive experiment, same reader, one live pid, env 14148 bytes, 200 probes each:
+old reader, pipefail=off: alive in 200/200
+old reader, pipefail=on: alive in 128/200
+new reader (grep -qzxF), pipefail=on: alive in 200/200

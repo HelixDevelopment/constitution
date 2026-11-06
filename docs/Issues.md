@@ -1825,3 +1825,15 @@ ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive,
 
 Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added.
 
+## CON-114 — skill-activation liveness probe read a live session as dead under pipefail, so a skill another session held could be stripped
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** high
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/skill_activation/test_skill_activation.sh` — green-command `same command` — signature `LIVENESS ... (expected 3, got 0); normal env: CONCURRENCY: skill stripped while another session held it` — updated 2026-11-06T08:58:01Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `tr | grep -q under set -o pipefail: SIGPIPE on tr turns a match into a non-zero pipeline status` — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — updated 2026-11-06T08:58:01Z — by `AI`
+
+scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa_session_alive matched CLAUDE_CONFIG_DIR with tr '\0' '\n' < /proc/<pid>/environ | grep -qx ...; grep -q exits on the first match, tr then dies of SIGPIPE (141) and pipefail makes the match a failure. A live session therefore read as dead whenever the environment took more than one write: 72 of 200 probes on a 14 KB environment, every probe at 114 KB. A claim read as dead is reaped, and deactivate/prune then unlinks a skill that another live session holds. The reader now uses grep -qzxF on the environ file directly (no pipe; -F so the dir is a literal). Second, test-side: test_skill_activation.sh depended on a live claude5 alias on the host and inherited the caller's CLAUDE_CONFIG_DIR; it now uses per-session fixture config dirs and a real live peer process, and has a new LIVENESS case with a 114 KB environment.
+

@@ -1,0 +1,42 @@
+== skill-activation integration tests ==
+  PASS  session-init activates core (link readable)
+  PASS  on-demand not active by default
+  PASS  inactive skill still DISCOVERABLE via list
+  PASS  activate makes skill readable
+  PASS  unknown skill exits non-zero (got 1)
+  PASS  unknown skill reports explicitly
+  PASS  MUTATION broken-skill: activation refused (rc=1)
+  PASS  MUTATION broken-skill: no dangling link left
+  PASS  deactivating a CORE skill is refused (got 1)
+  PASS  core skill still active after refused deactivate
+  FAIL  CONCURRENCY: skill stripped while another session held it
+  PASS  MUTATION dead-claim: dead claim reaped, deactivate proceeded
+  PASS  budget gate PASSes under limit (got 0)
+  PASS  MUTATION tight-budget: gate FAILs (name-only) (got 1)
+  PASS  MUTATION tight-budget: gate FAILs (description-eager 14x cliff guard) (got 1)
+  SKIP  MODE C tests - shim not installed at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/tmp.d6jK1DUz8A/.claude-shared/bin/skill-activate (honest skip, not a pass)
+-- prune-by-default --
+  PASS  prune: 2 non-core active before session-init (got 2)
+  PASS  prune BY DEFAULT: session-init reduced active set to core only (got 1)
+  PASS  prune: core survived
+  PASS  prune: non-core symlink demoted
+  PASS  prune: non-core real dir demoted
+  PASS  §11.4.122: pruned real dir CONTENT PRESERVED verbatim (moved, never deleted)
+  PASS  §11.4.122: pruned symlink's TARGET untouched
+  PASS  §11.4.122: pruned real dir still LISTED by catalogue
+  PASS  §11.4.122: pruned symlink still LISTED by catalogue
+  PASS  §11.4.122: pruned real dir is ACTIVATABLE again, with its content intact
+  FAIL  CONCURRENCY: prune STRIPPED a skill another live session holds
+  PASS  MUTATION dead-claim-prune: dead claim reaped, prune proceeded
+  PASS  OPT-OUT env: HELIX_SKILL_PRUNE=0 left non-core active
+  PASS  OPT-OUT manifest: 'prune: false' left non-core active
+  PASS  OPT-OUT precedence: env overrides manifest
+  PASS  §9.2: attic collision REFUSED — skill kept active, preserved copy untouched
+  PASS  MUTATION destructive-prune: content DESTROYED by the mutated engine (guard 14 is load-bearing, not decoration)
+  PASS  rel-symlink fixture: readable before prune
+  PASS  REGRESSION rel-symlink: demotion SUCCEEDED and content still reachable
+  PASS  REGRESSION rel-symlink: no longer active
+  PASS  MUTATION no-absolutize: demotion REFUSED, skill kept ACTIVE and intact (guard 24 load-bearing; fail-safe real)
+  PASS  budget gate PASSes on pruned project (got 0)
+  PASS  MUTATION tight-budget on pruned project: gate FAILs (got 1)
+== 36 passed, 2 failed ==

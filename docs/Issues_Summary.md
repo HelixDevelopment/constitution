@@ -6,13 +6,13 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 
 | Type | Status | Count |
 |---|---|---|
-| Bug | In progress | 7 |
+| Bug | In progress | 8 |
 | Bug | Queued | 21 |
 | Bug | Ready for testing | 1 |
 | Task | Operator-blocked | 1 |
 | Task | Queued | 76 |
 | Task | Ready for testing | 3 |
-| **TOTAL** | | **109** |
+| **TOTAL** | | **110** |
 
 ## Items
 
@@ -127,3 +127,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-111 | Bug | In progress | low | scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-112 | Bug | In progress | medium | ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after). | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
 | CON-113 | Bug | In progress | medium | Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
+| CON-114 | Bug | In progress | high | scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa_session_alive matched CLAUDE_CONFIG_DIR with tr '\0' '\n' < /proc/<pid>/environ \| grep -qx ...; grep -q exits on the first match, tr then dies of SIGPIPE (141) and pipefail makes the match a failure. A live session therefore read as dead whenever the environment took more than one write: 72 of 200 probes on a 14 KB environment, every probe at 114 KB. A claim read as dead is reaped, and deactivate/prune then unlinks a skill that another live session holds. The reader now uses grep -qzxF on the environ file directly (no pipe; -F so the dir is a literal). Second, test-side: test_skill_activation.sh depended on a live claude5 alias on the host and inherited the caller's CLAUDE_CONFIG_DIR; it now uses per-session fixture config dirs and a real live peer process, and has a new LIVENESS case with a 114 KB environment. | reproduced-host-fixture — UNREPRODUCED (missing env) | root-cause-found-with-evidence |
