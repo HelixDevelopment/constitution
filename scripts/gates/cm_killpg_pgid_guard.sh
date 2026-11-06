@@ -117,6 +117,8 @@
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_killpg_pgid_guard.sh [--root <dir|file>] [--window N] [--exclude <glob>]... [--quiet]
 #     --root <dir>   scan root (default: $KILLPG_GUARD_ROOT or the gate-location default: superproject if vendored as a submodule, else the canon repo itself)
+#                    A root that is a symlink to a directory is resolved to the directory it names (pwd -P: find(1) does not follow
+#                    a symlink given as its starting point, which used to end in SKIP, exit 0) and a NOTE names the resolution.
 #     --exclude <glob>
 #                    ADD one directory to the prune list (repeatable; the default list stays in force): a directory-name glob
 #                    (`fixtures`) or a tail path (`scripts/hooks/fixtures`), matched exactly like the entries of
@@ -236,7 +238,11 @@ if [ -f "$root" ]; then
     root_is_file=1
     root="$(cd "$(dirname "$root")" && pwd)/$(basename "$root")"
 elif [ -d "$root" ]; then
-    root="$(cd "$root" && pwd)"
+    root_arg="$root"
+    # the PHYSICAL path (pwd -P): find(1) does not follow a symlink given as its starting point, so the logical path of a
+    # symlinked directory matched no file at all and the gate ended in SKIP (exit 0, read as a pass by a consumer)
+    root="$(cd "$root" && pwd -P)"
+    if [ -L "${root_arg%/}" ]; then echo "ℹ️  ${GATE}: scan root ${root_arg} is a symlink; scanning the directory it resolves to: ${root}"; fi
 else
     echo "${GATE}: scan root not found: $root" >&2; exit 2
 fi

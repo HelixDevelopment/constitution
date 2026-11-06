@@ -1140,5 +1140,23 @@ x2_mut zero_always_refuses 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cl
 x2_mut cwd_glob 'for ex in ${cli_excludes[@]+"${cli_excludes[@]}"}; do' 's/^for ex in \${cli_excludes\[@\]+"\${cli_excludes\[@\]}"}; do/for ex in ${cli_excludes[*]}; do/' x_cwd
 x2_mut note_without_applied '(applied as: ${cli_applied})' 's/ (applied as: \${cli_applied})//' x_applied
 
+# ── round 11 (independent review round 2, non-blocking follow-ups M1, M2, L1, L4) ───────────────────────────────
+# M1: a --root that is a SYMLINK to a directory. find(1) does not follow a symlink given as its starting point, so the logical
+# path used to match no file and the gate ended in SKIP (exit 0, read as a pass by a consumer) with every call site unread.
+# The root is resolved with pwd -P; the NOTE says so.
+XS="$TMP/xsym"; mkdir -p "$XS/real/live"; printf '%b' "$BADPY" > "$XS/real/live/real_bad.py"
+ln -s real "$XS/link"; ln -s real/live "$XS/linklive"   # relative links: one to the tree, one to a subdirectory
+x_symroot() { # $1=gate : a symlinked root is scanned (rc 1, the finding reported), never a SKIP, and the resolution is announced
+    local o r p
+    o="$(bash "$1" --root "$XS/real" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'is a symlink' <<<"$o" || return 1   # control needle: the real path reports the bad call, with no symlink NOTE
+    for p in link link/ linklive; do
+        o="$(bash "$1" --root "$XS/$p" --quiet 2>&1)"; r=$?
+        [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'SKIP' <<<"$o" && grep -q "scan root .*/xsym/${p} is a symlink; scanning the directory it resolves to: .*/xsym/real" <<<"$o" || return 1
+    done
+}
+if x_symroot "$GATE"; then ok "X18: a --root that is a symlink to a directory (to the tree, with a trailing slash, to a subdirectory) is resolved and scanned: the bad call is reported (exit 1), not a SKIP, and the NOTE names the resolution"; else bad "X18: a symlinked --root ended in SKIP, lost its finding or was not announced"; fi
+x2_mut symroot_logical_path 'pwd -P)"' 's/root="\$(cd "\$root" \&\& pwd -P)"/root="$(cd "$root" \&\& pwd)"/' x_symroot
+x2_mut symroot_silent 'is a symlink; scanning the directory it resolves to' 's/is a symlink; scanning the directory it resolves to/(quiet)/' x_symroot
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
