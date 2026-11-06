@@ -23,7 +23,7 @@ GIT() { env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_AUTHOR_N
     git -c protocol.file.allow=always -c core.hooksPath=/dev/null -c init.defaultBranch=main "$@"; }
 mkrepo() { # $1=dir [$2=file to hold a bad call, default bad.py] : real repo with one commit; a build failure is a hard FAIL (F9)
     mkdir -p "$1"; GIT -C "$1" init -q . || { bad "fixture: git init failed ($1)"; return 1; }
-    printf "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i || { bad "fixture: commit failed ($1)"; return 1; }
+    printf '%b' "$BADPY" > "$1/${2:-bad.py}"; GIT -C "$1" add -A >/dev/null; GIT -C "$1" commit -q -m i || { bad "fixture: commit failed ($1)"; return 1; }
 }
 addsub() { # $1=parent repo $2=remote repo $3=path $4=.gitmodules URL
     GIT -C "$1" submodule add -q "file://$2" "$3" >/dev/null 2>&1 || { bad "fixture: submodule add failed ($3)"; return 1; }
@@ -58,7 +58,7 @@ manifest2() { # $1=file then pairs of <dep path> <third_party>
 # fixture A: manifest-marked third-party gitlink `vend` (pruned) + own gitlink `mine` + golang-URL gitlink `url`
 # (no mark: SCANNED -- a URL never prunes)
 mkA() { # $1=dir
-    local R="$TMP/rem_$(basename "$1")"; mkrepo "$R/vend" && mkrepo "$R/mine" && mkrepo "$R/url" || return 1
+    local R; R="$TMP/rem_$(basename "$1")"; mkrepo "$R/vend" && mkrepo "$R/mine" && mkrepo "$R/url" || return 1
     mkdir -p "$1"; GIT -C "$1" init -q . ; manifest "$1/helix-deps.yaml" submodules/vend true
     addsub "$1" "$R/vend" submodules/vend 'file:///x/vend.git' && addsub "$1" "$R/mine" submodules/mine "$OWN" && addsub "$1" "$R/url" submodules/url "$GO" || return 1
     commitall "$1"
@@ -103,7 +103,7 @@ for n in "$N0" "$N1" "$N2"; do
 done
 # N3: the root manifest names a nested path whose PARENT is not populated -> cannot be resolved -> scanned
 N3="$TMP/nest3"; mkdir -p "$N3"; GIT -C "$N3" init -q .; manifest "$N3/helix-deps.yaml" submodules/a/submodules/b true
-addsub "$N3" "$TMP/rn/a" submodules/a "$OWN" && commitall "$N3"; rm -rf "${N3:?}/submodules/a"; mkdir -p "$N3/submodules/a/submodules/b"; printf "$BADPY" > "$N3/submodules/a/submodules/b/bad.py"
+addsub "$N3" "$TMP/rn/a" submodules/a "$OWN" && commitall "$N3"; rm -rf "${N3:?}/submodules/a"; mkdir -p "$N3/submodules/a/submodules/b"; printf '%b' "$BADPY" > "$N3/submodules/a/submodules/b/bad.py"
 if scanned "$GATE" "$N3" && ! pline "$GATE" "$N3" 'submodules/a/submodules/b'; then ok "N3: nested path under an unpopulated parent is not pruned (plain dir scanned)"; else bad "N3: nested path pruned through an unpopulated parent"; fi
 # N4: root manifest names a nested path that is NOT a gitlink of the populated parent -> scanned
 N4="$TMP/nest4"; mknest "$N4" "$TMP/rn/a" submodules/a/a_clean.py
@@ -111,12 +111,12 @@ if ! pline "$GATE" "$N4" 'submodules/a/a_clean'; then ok "N4: nested manifest pa
 
 # P1: dir `src` whose first inner entry is a gitlink; manifest marks `src` third-party -> src/main.py must stay scanned
 P1="$TMP/p1"; mkrepo "$TMP/rp1/inner" ; mkdir -p "$P1/src"; GIT -C "$P1" init -q .
-manifest "$P1/helix-deps.yaml" src true; printf "$BADPY" > "$P1/src/main.py"
+manifest "$P1/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$P1/src/main.py"
 addsub "$P1" "$TMP/rp1/inner" src/aaa "$GO"; commitall "$P1"
 if scanned "$GATE" "$P1"; then ok "P1: directory whose first inner entry is a gitlink is NOT pruned (exact match) -> FAIL on first-party call"; else bad "P1: first-party src/ hidden by a prefix-listing gitlink"; fi
 # P2: gate root is a subdirectory of a repo (no .git at the root); hostile manifest there must not hide src
 P2="$TMP/p2"; mkdir -p "$P2/sub/src"; GIT -C "$P2" init -q .; manifest "$P2/sub/helix-deps.yaml" src true
-printf "$BADPY" > "$P2/sub/src/bad.py"; commitall "$P2"
+printf '%b' "$BADPY" > "$P2/sub/src/bad.py"; commitall "$P2"
 if scanned "$GATE" "$P2/sub"; then ok "P2: subdirectory gate root with hostile manifest is still scanned"; else bad "P2: subdirectory root hid first-party code"; fi
 # P2 golden-FALSE: a REAL recorded, manifest-marked gitlink under a subdirectory root is pruned, path relative to the gate root
 mkrepo "$TMP/rp2/v"; P2B="$TMP/p2b"; mkdir -p "$P2B/sub"; GIT -C "$P2B" init -q .; printf "def f():\n    return 1\n" > "$P2B/sub/f.py"
@@ -124,25 +124,25 @@ manifest "$P2B/sub/helix-deps.yaml" submodules/v true; addsub "$P2B" "$TMP/rp2/v
 if pruned "$GATE" "$P2B/sub" 'submodules/v'; then ok "P2: real marked gitlink under a subdirectory root pruned (root-relative)"; else bad "P2 golden-FALSE: not pruned"; fi
 # P3: .gitmodules entry (and manifest) but NO gitlink -> not recorded
 P3="$TMP/p3"; mkdir -p "$P3/src"; GIT -C "$P3" init -q .; manifest "$P3/helix-deps.yaml" src true
-printf "$BADPY" > "$P3/src/bad.py"; printf '[submodule "src"]\n\tpath = src\n\turl = %s\n' "$GO" > "$P3/.gitmodules"; commitall "$P3"
+printf '%b' "$BADPY" > "$P3/src/bad.py"; printf '[submodule "src"]\n\tpath = src\n\turl = %s\n' "$GO" > "$P3/.gitmodules"; commitall "$P3"
 if scanned "$GATE" "$P3"; then ok "P3: .gitmodules entry without a gitlink is not recorded -> scanned"; else bad "P3: gitmodules-only entry hid first-party code"; fi
 # P4: no git metadata at all -> fail closed, manifest never prunes
-P4="$TMP/p4"; mkdir -p "$P4/src"; manifest "$P4/helix-deps.yaml" src true; printf "$BADPY" > "$P4/src/bad.py"
+P4="$TMP/p4"; mkdir -p "$P4/src"; manifest "$P4/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$P4/src/bad.py"
 o4="$(bash "$GATE" --root "$P4" 2>&1)"; r4=$?
 if [ "$r4" -eq 1 ] && grep -q 'no usable git metadata' <<<"$o4"; then ok "P4: no git metadata -> fail closed (scanned, stated on stderr)"; else bad "P4: exported tree hid first-party code (rc=$r4)"; fi
 # hostile manifest with git present and no gitlink; prefix collision
-H="$TMP/hostile"; mkdir -p "$H/src"; GIT -C "$H" init -q .; manifest "$H/helix-deps.yaml" src true; printf "$BADPY" > "$H/src/bad.py"; commitall "$H"
+H="$TMP/hostile"; mkdir -p "$H/src"; GIT -C "$H" init -q .; manifest "$H/helix-deps.yaml" src true; printf '%b' "$BADPY" > "$H/src/bad.py"; commitall "$H"
 if scanned "$GATE" "$H"; then ok "hostile manifest (path: src, not a gitlink) still scanned -> FAIL"; else bad "hostile manifest hid first-party src/"; fi
-P="$TMP/pc"; mkA "$P"; mkdir -p "$P/submodules/vend-bar"; printf "$BADPY" > "$P/submodules/vend-bar/bad.py"
+P="$TMP/pc"; mkA "$P"; mkdir -p "$P/submodules/vend-bar"; printf '%b' "$BADPY" > "$P/submodules/vend-bar/bad.py"
 if grep -q 'submodules/vend-bar/bad.py' <<<"$(gout "$GATE" --root "$P")"; then ok "vend does not prune its prefix sibling vend-bar"; else bad "vend pruned vend-bar"; fi
 # spaces / newline / symlink components are never pruned (dropped -> scanned)
 SP="$TMP/sp"; mkrepo "$TMP/rsp/s"; mkdir -p "$SP"; GIT -C "$SP" init -q .; manifest2 "$SP/helix-deps.yaml" 'sp ace' true; addsub "$SP" "$TMP/rsp/s" 'sp ace' "$GO"; commitall "$SP"
 o="$(bash "$GATE" --root "$SP" 2>&1)"
 if ! grep -q 'PRUNED.*sp ace' <<<"$o" && grep -q 'sp ace/bad.py' <<<"$o"; then ok "marked gitlink path with a space is not pruned (scan more)"; else bad "space path pruned"; fi
 NL="$TMP/nl"; mkdir -p "$NL/src"; GIT -C "$NL" init -q .; printf 'schema_version: 1\ndeps:\n  - name: x\n    path: "src\\nx"\n    ssh_url: git@example.invalid:o/x.git\n    ref: abc\n    why: "x"\n    layout: grouped\n    third_party: true\n    licence: MIT\n' > "$NL/helix-deps.yaml"
-printf "$BADPY" > "$NL/src/bad.py"; commitall "$NL"
+printf '%b' "$BADPY" > "$NL/src/bad.py"; commitall "$NL"
 if scanned "$GATE" "$NL" && ! grep -q 'PRUNED.*src' <<<"$(gout "$GATE" --root "$NL")"; then ok "newline in a manifest path is dropped, not pruned"; else bad "newline path handling wrong"; fi
-SY="$TMP/sy"; mkA "$SY"; rm -rf "${SY:?}/submodules/vend"; mkdir -p "$SY/realdir"; printf "$BADPY" > "$SY/realdir/bad.py"; ln -s ../realdir "$SY/submodules/vend"
+SY="$TMP/sy"; mkA "$SY"; rm -rf "${SY:?}/submodules/vend"; mkdir -p "$SY/realdir"; printf '%b' "$BADPY" > "$SY/realdir/bad.py"; ln -s ../realdir "$SY/submodules/vend"
 if ! grep -q 'PRUNED.*submodules/vend' <<<"$(gout "$GATE" --root "$SY")"; then ok "marked gitlink path replaced by a symlink is not pruned"; else bad "symlink component pruned"; fi
 
 # ── round 5: the removed own-org/URL rule stays removed ───────────────────────────────────────────────────
@@ -173,7 +173,7 @@ rm -rf "${TR:?}/config"; printf 'bogus\n' > "$TMP/elsewhere/own_orgs.list"; ln -
 t_r5b() { noprune "$1" "$TR"; }
 # --own-orgs no longer exists: it is an unknown argument (exit 2), never silently accepted
 for v in '--own-orgs vasic-digital' '--own-orgs --quiet' '--own-orgs'; do
-    # shellcheck disable=SC2086
+    # shellcheck disable=SC2086 # the unquoted $v is split into separate arguments on purpose: it holds a flag and its value
     timeout 20 bash "$GATE" --root "$TR" $v >/dev/null 2>&1; r=$?
     if [ "$r" -eq 2 ]; then ok "R5: '$v' is an unknown argument (exit 2)"; else bad "R5: '$v' accepted (rc=$r)"; fi
 done
@@ -183,7 +183,7 @@ for v in 'vasić-digital' '.' '..' '-' '-x' '_' 'a..b' '.git' 'github.com'; do
     mkdir -p "$PR/config"; printf '%s\n' "$v" > "$PR/config/own_orgs.list"
     for L in C.UTF-8 en_US.UTF-8; do
         o="$(LC_ALL=$L bash "$GATE" --root "$PR" 2>&1)"; r=$?
-        if [ "$r" -eq 1 ] && ! grep -q PRUNED.*submodules <<<"$o"; then ok "R5(c): own_orgs.list '$v' under $L -> scanned (rc 1)"; else bad "R5(c): '$v' $L rc=$r"; fi
+        if [ "$r" -eq 1 ] && ! grep -q 'PRUNED.*submodules' <<<"$o"; then ok "R5(c): own_orgs.list '$v' under $L -> scanned (rc 1)"; else bad "R5(c): '$v' $L rc=$r"; fi
     done
 done
 rm -rf "${PR:?}/config"
@@ -251,7 +251,7 @@ t_cgood() { pruned "$1" "$CG" 'submodules/v' && pruned "$1" "$CD" 'submodules/v'
 #   root-manifest resolution: a 4-hop path (s1/s2/s3/s4, resolved in the depth-3 repository) prunes; a 5-hop path stays scanned.
 #   own-manifest descent: the depth-3 repository's manifest is read; the depth-4 repository's manifest is not.
 mkchain() { # $1=dir $2=level whose own repository carries a manifest marking its gitlink (3 or 4, or 0 for none) $3=root mark or ''
-    local d="$1" R="$TMP/rch_$(basename "$1")" i
+    local d="$1" R i; R="$TMP/rch_$(basename "$1")"
     mkrepo "$R/r5" || return 1
     for i in 4 3 2 1; do
         mkdir -p "$R/r$i"; GIT -C "$R/r$i" init -q . || return 1; printf "def f():\n    return 1\n" > "$R/r$i/f.py"
@@ -316,7 +316,7 @@ if pline "$GATE" "$Q4" 'submodules/q'; then ok "F6/Q4: own-org URL + manifest ma
 t_q4() { pline "$1" "$Q4" 'submodules/q'; }
 # F7/Q1: typechange -- the INDEX records a regular file at src, the worktree has a directory src/ holding code; manifest marks src
 Q1="$TMP/q1"; mkdir -p "$Q1"; GIT -C "$Q1" init -q .; manifest "$Q1/helix-deps.yaml" src true; printf 'x\n' > "$Q1/src"; GIT -C "$Q1" add -A >/dev/null; GIT -C "$Q1" commit -q -m c
-rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf "$BADPY" > "$Q1/src/main.py"
+rm -f "${Q1:?}/src"; mkdir -p "$Q1/src"; printf '%b' "$BADPY" > "$Q1/src/main.py"
 if scanned "$GATE" "$Q1"; then ok "F7/Q1: typechange (index blob, worktree dir) is not a gitlink -> scanned -> FAIL"; else bad "F7/Q1: typechange hid first-party code"; fi
 t_q1() { scanned "$1" "$Q1"; }
 
@@ -411,7 +411,7 @@ if scanned "$GATE" "$S2"; then ok "R6: a lone stage-2 (unmerged) entry is refuse
 t_stage2() { scanned "$1" "$S2"; }
 # gate root inside an UNPOPULATED gitlink holding a stray manifest + plain dir: not the recorded copy -> scanned
 UP="$TMP/r6unpop"; mkrepo "$TMP/r6rup/a"; mkdir -p "$UP"; GIT -C "$UP" init -q .; printf "def f():\n    return 1\n" > "$UP/f.py"; addsub "$UP" "$TMP/r6rup/a" submodules/a "$GO" && commitall "$UP"
-rm -rf "${UP:?}/submodules/a"; mkdir -p "$UP/submodules/a/x"; manifest2 "$UP/submodules/a/helix-deps.yaml" x true; printf "$BADPY" > "$UP/submodules/a/x/bad.py"
+rm -rf "${UP:?}/submodules/a"; mkdir -p "$UP/submodules/a/x"; manifest2 "$UP/submodules/a/helix-deps.yaml" x true; printf '%b' "$BADPY" > "$UP/submodules/a/x/bad.py"
 if scanned "$GATE" "$UP/submodules/a" && ! pline "$GATE" "$UP/submodules/a" 'x'; then ok "R6: root inside an unpopulated gitlink with a stray manifest is scanned"; else bad "R6: unpopulated-gitlink root pruned"; fi
 # golden-FALSE: a committed CRLF manifest marking true (bytes equal to the index blob) still prunes
 CR="$TMP/r6crlf"; mkcust "$CR" true; sed -i 's/$/\r/' "$CR/helix-deps.yaml"; commitall "$CR"
@@ -1041,7 +1041,7 @@ else bad "brace mutation anchor absent"; fi
 #  HELIX_TEST_MODE=1; byte-frozen snapshots of old code whose prose spells `kill(0, 0)` need an explicit flag instead)
 XC="$TMP/xcl"; mkdir -p "$XC/scripts/hooks/fixtures" "$XC/scripts/live" "$XC/node_modules"
 printf 'x="$(python3 - <<'"'"'PYEOF'"'"'\ndef f(pid):\n    # The pid answered kill(0, 0) -- it exists\n    return pid\nPYEOF\n)"\n' > "$XC/scripts/hooks/fixtures/frozen.fixture.sh"
-printf "$BADPY" > "$XC/scripts/live/real_bad.py"; printf "$BADPY" > "$XC/node_modules/vendored_bad.py"
+printf '%b' "$BADPY" > "$XC/scripts/live/real_bad.py"; printf '%b' "$BADPY" > "$XC/node_modules/vendored_bad.py"
 printf 'def ok():\n    return 1\n' > "$XC/scripts/live/ok.py"
 xg() { local g="$1"; shift; bash "$g" --root "$XC" --quiet "$@" 2>&1; }   # rc of the gate
 fx_found() { grep -q 'FAIL — UNGUARD.*frozen\.fixture\.sh' <<<"$1"; }
@@ -1057,7 +1057,7 @@ x_refuse() { local v r; for v in '*' '' '/abs' '../x' 'a b' '.' '*/*' 'x;y' 'a$b
 x_nomatch() { local o r; o="$(xg "$1" --exclude nothere)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'NOTE — --exclude (nothere) matched no directory' <<<"$o"; }
 x_env() { local o r; o="$(env KILLPG_GUARD_EXCLUDE=scripts/hooks/fixtures bash "$1" --root "$XC" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" && grep -q 'ignoring KILLPG_GUARD_EXCLUDE' <<<"$o"; }
 x_file() { local o; o="$(bash "$1" --root "$XC/scripts/hooks/fixtures/frozen.fixture.sh" --exclude fixtures --quiet 2>&1)"; fx_found "$o" && grep -q 'no effect on a single-file scan root' <<<"$o"; }
-x_clean() { local o r; rm -f "$XC/scripts/live/real_bad.py"; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?; printf "$BADPY" > "$XC/scripts/live/real_bad.py"
+x_clean() { local o r; rm -f "$XC/scripts/live/real_bad.py"; o="$(xg "$1" --exclude scripts/hooks/fixtures)"; r=$?; printf '%b' "$BADPY" > "$XC/scripts/live/real_bad.py"
     [ "$r" -eq 0 ] && grep -q 'PASS' <<<"$o" && excl_line "$o"; }
 if x_default "$GATE"; then ok "X1: no --exclude: the frozen fixture and the live file are both reported, node_modules stays default-pruned"; else bad "X1: baseline wrong"; fi
 if x_path "$GATE"; then ok "X2: --exclude scripts/hooks/fixtures: fixture not reported, live file STILL reported, default prune kept (additive), exclusion printed with its file"; else bad "X2: path exclusion wrong"; fi

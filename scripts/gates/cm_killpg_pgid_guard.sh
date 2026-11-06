@@ -179,7 +179,7 @@ GATE="CM-KILLPG-PGID-GUARD"
 ANCHOR="11.4.263"
 
 # verdict-affecting ambient overrides are guarded (11.4.276 r8): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
-_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
+_ge_lib="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/gate_env_override.sh"
 # shellcheck source=/dev/null
 if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
 cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empty dir would SKIP); empty => resolved from the gate location after arg parsing (lib/default_scan_root.sh), NOT from cwd; --root stays honoured
@@ -213,8 +213,8 @@ done
 
 if [ -z "$root" ]; then
     # shellcheck source=/dev/null
-    . "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
-        && root="$(cm_default_scan_root "$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
+    . "$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/default_scan_root.sh" 2>/dev/null \
+        && root="$(cm_default_scan_root "$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)")"
     [ -n "$root" ] || { echo "${GATE}: cannot resolve a default scan root from the gate location; pass --root" >&2; exit 2; }
 fi
 
@@ -236,6 +236,8 @@ else
     echo "${GATE}: scan root not found: $root" >&2; exit 2
 fi
 
+# declared (not assigned) so the analyser sees the names cm_gate_env_set assigns through printf -v; a declared-but-unset name is still an unbound-variable error under set -u
+declare exts excludes
 cm_gate_env_set exts KILLPG_GUARD_EXT "py go rs c cc cpp h hpp sh bash" value
 cm_gate_env_set excludes KILLPG_GUARD_EXCLUDE ".git node_modules vendor .venv __pycache__ scripts/gates out build dist" value
 [ -z "${CM_GATE_OVERRIDES_HONOURED:-}" ] || echo "⚠ ${GATE}: NOTE — test-mode override(s) honoured: ${CM_GATE_OVERRIDES_HONOURED} (HELIX_TEST_MODE=1; never a production verdict)"
@@ -270,7 +272,7 @@ done
 # cm_third_party_prune_find_expr in scripts/lib/third_party_prune.sh
 if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
     # shellcheck source=/dev/null
-    tp_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
+    tp_lib="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/third_party_prune.sh"
     if [ -r "$tp_lib" ] && . "$tp_lib" 2>/dev/null; then
         cm_third_party_prune_find_expr "$root"
         # make the exclusion visible: every pruned path is listed (a reader sees what was NOT scanned)
@@ -1186,7 +1188,7 @@ allow_path_ok() {
     case "$_ap_base" in test_*|*_test.*|*_tests.*) return 0 ;; esac
     for _ap_g in "${allow_globs[@]}"; do
         [ -n "$_ap_g" ] || continue
-        # shellcheck disable=SC2254
+        # shellcheck disable=SC2254 # allow-list entries are shell globs on purpose, so the pattern must stay unquoted
         case "$_ap_rel" in $_ap_g) return 0 ;; esac
     done
     return 1
@@ -1235,7 +1237,7 @@ for f in "${files[@]}"; do
 
     case "${f##*.}" in
         py) langx=py ;;
-        sh|bash) langx=sh ;;
+        sh|bash) langx="sh" ;;
         *) langx=c ;;
     esac
     # Cheap prefilter: every finding type contains `kill` or `Kill`. A Python file is also analysed when it
