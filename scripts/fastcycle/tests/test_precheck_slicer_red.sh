@@ -418,13 +418,14 @@ PY
 import json, sys
 doc = json.load(open(sys.argv[1], encoding="utf-8"))
 checks = doc.get("checks") or []
-hit = any(
-    isinstance(c, dict)
-    and c.get("verdict") == "FAIL"
-    and ("SC2086" in str(c.get("evidence", "")) or "syntax error" in str(c.get("evidence", "")).lower())
-    for c in checks
-)
-print("YES" if hit else "NO")
+fails = [str(c.get("evidence", "")) for c in checks if isinstance(c, dict) and c.get("verdict") == "FAIL"]
+# Both legs are required, as the golden case documents (review finding
+# F099-1): a parse FAIL citing the syntax error (case-insensitively: dash
+# says "Syntax error", bash "syntax error") AND a shellcheck FAIL citing
+# SC2086. With an OR, either leg alone hid the other.
+parse_leg = any("syntax error" in e.lower() for e in fails)
+sc_leg = any("SC2086" in e for e in fails)
+print("YES" if parse_leg and sc_leg else "NO parse=%s shellcheck=%s" % (parse_leg, sc_leg))
 PY
 )
     if [ "$C2A_ALL_PASS" = "False" ] && [ "$C2A_HAS_LINT" = "YES" ]; then
