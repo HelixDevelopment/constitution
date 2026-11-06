@@ -1,0 +1,88 @@
+# [C1] rc=2 total=0 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c1/canonX
+NOT ok C1_standalone_pass_skip: want rc=0 total=2 dev=0, got rc=2 total=0 dev=0
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c1/canonX
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C1
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C1/verdicts.jsonl
+#   
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=0 PASS=0 FAIL=0
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C1/verdicts.jsonl
+#   =================================================
+#   FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+# [C2] rc=2 total=0 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c2/canonY
+NOT ok C2_all_skip: want rc=77 total=2 dev=0, got rc=2 total=0 dev=0
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c2/canonY
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2/verdicts.jsonl
+#   
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=0 PASS=0 FAIL=0
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2/verdicts.jsonl
+#   =================================================
+#   FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+NOT ok C2: aggregate SKIP does not carry the shared member reason artifact_not_yet_built: FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+# [C2m] rc=2 total=0 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c2m/canonM
+NOT ok C2m_mixed_skip: want rc=77 total=2 dev=0, got rc=2 total=0 dev=0
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c2m/canonM
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2m
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2m/verdicts.jsonl
+#   
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=0 PASS=0 FAIL=0
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C2m/verdicts.jsonl
+#   =================================================
+#   FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+NOT ok C2m: mixed reasons not named on the last line: FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+# [C3] rc=2 total=0 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c3/canonZ
+NOT ok C3_fail: want rc=1 total=2 dev=0, got rc=2 total=0 dev=0
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c3/canonZ
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C3
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C3/verdicts.jsonl
+#   
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=0 PASS=0 FAIL=0
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C3/verdicts.jsonl
+#   =================================================
+#   FATAL: zero test_multitrack_*.sh files discovered under either roster directory
+# [C4] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c4/P
+ok C4_vendored: rc=0 total=3 dev=1
+# [C5] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c5link/P
+ok C5_vendored_via_symlink: rc=0 total=3 dev=1
+# [C6] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c6
+NOT ok C6_parent_not_git: want rc=0 total=2 dev=0, got rc=0 total=3 dev=1
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c6
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6/verdicts.jsonl
+#   
+#   test_multitrack_a.sh                                    PASS (exit=0)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6/test_multitrack_a.sh.log
+#   test_multitrack_b.sh                                    PASS (exit=0)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6/test_multitrack_b.sh.log
+#   test_multitrack_dev.sh                                  PASS (exit=0)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6/test_multitrack_dev.sh.log
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=3 PASS=3 FAIL=0
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C6/verdicts.jsonl
+#   =================================================
+# [C7] rc=1 total=3 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c7
+NOT ok C7_sibling_not_hijacked: want rc=0 total=2 dev=0, got rc=1 total=3 dev=0
+#   RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c7
+#   RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7
+#   RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7/verdicts.jsonl
+#   
+#   test_multitrack_a.sh                                    FAIL (exit=3)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7/test_multitrack_a.sh.log
+#   test_multitrack_b.sh                                    FAIL (exit=3)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7/test_multitrack_b.sh.log
+#   test_multitrack_ruler_suite.sh                          FAIL (exit=1)  evidence=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7/test_multitrack_ruler_suite.sh.log
+#   
+#   =================================================
+#   RB-11 ruler-suite summary: TOTAL=3 PASS=0 FAIL=3
+#   JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/ev_C7/verdicts.jsonl
+#   =================================================
+# [C8] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c4/P
+ok C8_relative_invocation: rc=0 total=3 dev=1
+# [C9] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.Ve0njE/c9/P
+ok C9_nested_repo: rc=0 total=3 dev=1
+
+RESULT: pass=4 fail=8

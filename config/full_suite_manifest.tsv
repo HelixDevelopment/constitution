@@ -673,6 +673,7 @@ scripts/multitrack/test_multitrack_sessions_pid_status.sh	sh	entry	default	sh	-	
 scripts/multitrack/test_multitrack_supervisor.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_supervisor_wiring.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_work_binding_submodule_db.sh	sh	entry	default	bash	-	auto
+scripts/multitrack/test_ruler_suite_discovery.sh	sh	entry	default	bash	-	auto
 scripts/scheduled-work-engine	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto

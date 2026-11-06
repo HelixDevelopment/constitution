@@ -83,10 +83,14 @@ _self_dir=$(cd "$_self_dir" 2>/dev/null && pwd)
 # directory and the parent is a git working tree of its own; a sibling
 # directory that merely happens to be named `constitution` next to a
 # standalone clone is never mistaken for this canon.
+# Every path compared below is PHYSICAL (pwd -P): `git rev-parse
+# --show-toplevel` always answers with the physical path, so comparing it with
+# a logical path made a consumer reached through a symlinked directory lose its
+# device roster while the suite still passed (CON-109, review finding F109-1).
 CANON=$(cd "$_self_dir/../.." 2>/dev/null && pwd)
 [ -n "$CANON" ] || { echo "FATAL: could not resolve the canon root" >&2; exit 2; }
 ROOT=$CANON
-_parent=$(cd "$CANON/.." 2>/dev/null && pwd)
+_parent=$(cd "$CANON/.." 2>/dev/null && pwd -P)
 if [ -n "$_parent" ] && [ "$(basename "$CANON")" = "constitution" ] &&
    [ "$(cd "$_parent/constitution" 2>/dev/null && pwd -P)" = "$(cd "$CANON" && pwd -P)" ] &&
    [ "$(cd "$_parent" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)" = "$_parent" ]; then
@@ -130,6 +134,7 @@ _total=0
 _pass=0
 _fail=0
 _skip=0
+_skip_reasons=""
 
 echo "RB-11 ruler-suite: repo root  = $ROOT"
 echo "RB-11 ruler-suite: evidence   = $EVDIR"
@@ -177,6 +182,16 @@ for _t in $_tests; do
         _evpath="$_log"
     fi
 
+    if [ "$_verdict" = "SKIP" ]; then
+        # The member's own SKIP reason, read from its last line the same way
+        # the full-suite runner reads it; "unstated" when it names none.
+        _r=$(tail -n 1 "$_log" 2>/dev/null | sed -n 's/.*reason[= ]\([A-Za-z0-9_][A-Za-z0-9_]*\).*/\1/p')
+        case " $_skip_reasons " in
+            *" ${_r:-unstated} "*) ;;
+            *) _skip_reasons="${_skip_reasons:+$_skip_reasons }${_r:-unstated}" ;;
+        esac
+    fi
+
     printf '{"name":"%s","verdict":"%s","evidence":"%s","exit_code":%d}\n' \
         "$_name" "$_verdict" "$_evpath" "$_rc" >> "$JSONL"
     printf '%-55s %-4s (exit=%d)  evidence=%s\n' "$_name" "$_verdict" "$_rc" "$_evpath"
@@ -195,7 +210,16 @@ fi
 
 [ "$_fail" -eq 0 ] || exit 1
 if [ "$_pass" -eq 0 ] && [ "$_skip" -gt 0 ]; then
-    echo "SKIP: every discovered ruler test skipped reason=topology_unsupported"
+    # Restate the members' reason only when they all share one closed code
+    # (CON-109, F109-2); otherwise name the set without a single reason token,
+    # so the runner records its own "suite_reported_skip" rather than a code
+    # no member reported.
+    case "$_skip_reasons" in
+        *" "*|unstated)
+            echo "SKIP: every discovered ruler test skipped; member reasons: $_skip_reasons" ;;
+        *)
+            echo "SKIP: every discovered ruler test skipped reason=$_skip_reasons" ;;
+    esac
     exit 77
 fi
 exit 0
