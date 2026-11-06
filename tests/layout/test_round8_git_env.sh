@@ -164,7 +164,10 @@ lt_check "SU-4 (control, nothing ambient): same effects, no notice (rc=$rc)" \
 # PU: the REAL post_update_hook.sh under an ambient GIT_DIR
 # ============================================================================
 RC="$LT_SB/realc"; mkdir -p "$RC"; lt_git init -q "$RC"
-for p in scripts Constitution.md CLAUDE.md AGENTS.md; do lt_copy "$p" "$RC"; done
+# .gitignore too: a real canon ships it, and it ignores the __pycache__/ that the hook's Python gates
+# (STEP 5b) leave in the submodule; without it the fixture submodule reads dirty (CM-2) and the next
+# update_constitution.sh --check refuses with rc 3 (CM-3), a state no real consumer reaches.
+for p in scripts Constitution.md CLAUDE.md AGENTS.md .gitignore; do lt_copy "$p" "$RC"; done
 find "$RC" -name __pycache__ -type d -prune -exec rm -r {} + 2>/dev/null
 lt_git -C "$RC" add -A >/dev/null; lt_git -C "$RC" commit -q -m v1; RV1="$(git -C "$RC" rev-parse HEAD)"
 for p in templates .claude-plugin plugins actions skills mcp helix-deps.yaml; do

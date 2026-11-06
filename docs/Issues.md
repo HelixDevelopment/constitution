@@ -1885,3 +1885,15 @@ The full-suite runner gives each unit a clean environment without XDG_RUNTIME_DI
 
 Run alone and serially under setsid env -i: 14 FAIL without shellcheck on PATH, 16 FAIL with ~/.local/bin/shellcheck on PATH; clean fixtures (B1, B3) report all_pass=false, D2/D7/D8 report NOT-READY (provenance binding, shellcheck mode). So CON-098's classification of this test as passes-alone-fails-in-batch does not hold here. Separately, case C2 does chmod 000 on the real scripts/fastcycle/review/slicer.py and precheck_pack.sh for a window; any other test reading those files at the same time fails with Permission denied (observed: a parallel run in the same tree), which is a plausible contributor to the batch-only failures of the precheck family, UNCONFIRMED. Modes were restored at the end of the run (git status clean). Root cause of the alone failures not established.
 
+## CON-119 — test_round8_git_env CM-2/CM-3 fail: fixture copy lacks .gitignore, hook leaves scripts/deps_manifest/__pycache__ untracked
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u10_round8` — red-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — green-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — signature `FAIL: CM-2 porcelain ?? scripts/deps_manifest/__pycache__/` — updated 2026-11-06T09:08:52Z — by `AI`
+**Investigation:** root-cause-found-with-evidence — root-cause `fixture missing .gitignore; pycache from hook gates shows as untracked` — evidence `docs/qa/fixu_default_tier/u10_round8` — updated 2026-11-06T09:08:52Z — by `AI`
+
+The round8 fixture copies scripts/Constitution.md/CLAUDE.md/AGENTS.md into a fake submodule but not .gitignore. The post-update hook's STEP 5b Python gates write scripts/deps_manifest/__pycache__/, porcelain is non-empty, CM-2 and CM-3 fail (and the real update_constitution.sh --check refuses on local changes). Fix: copy .gitignore into the fixture. test_round7_ambient.sh:138 has the same list but no porcelain check (not changed).
+
