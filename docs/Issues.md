@@ -1293,6 +1293,8 @@ Attribution note: this item was created by an agent; its item_history Opened row
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py; tests/gates/test_gate_env_census_closure.sh; tests/gates/test_gate_env_census_jq_regions.sh
 
+fixu round 2 (2026-11-06), review F047-1 and F047-2: the two known-failure rows use the new signature form reason:rc_3+tracked (the reason AND every [tracked <id>] token in the unit log names CON-047, at least one), so an rc 3 from a KNOWN-FAIL case pinned to another item is not attributed to CON-047; and bash scripts/run_full_suite.sh --check-known-open exits 1 naming a row whose tracked item has left Issues (2 when the DB is absent or empty). Runner self-test 11b/11c (RED 244/1 before the change, GREEN 253/0) and runner mutants F47a-F47c. Evidence docs/qa/fixu2_round2/f047/.
+
 ## CON-064 — CON-047 census FU-1 (R3-1, R3-2): pin the separator's $'..' member and its neutrality in test_gate_env_census_jq_regions.sh
 
 **Status:** Queued
@@ -1573,12 +1575,16 @@ Review finding F1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md):
 
 ## CON-089 — CON-031 excluded FU-3 (review X1, X4): test_gen_lumenignore.sh prints SKIP but exits 2, cannot find lumen under the runner's sandbox HOME, and deletes without ${W:?}
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con031_excluded_review/review_con031_excluded_r1.md` — red-command `full-suite runner unit for scripts/lumen/tests/test_gen_lumenignore.sh (sandbox HOME, no LUMEN_BIN)` — green-command `same command after the runner half lands` — env `host anton, full-suite runner sandbox HOME, lumen installed only under the real HOME` — signature `SKIP: lumen binary not found, then exit 2 (judge records FAIL rc_2)` — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the runner gives a sandbox HOME and does not pass LUMEN_BIN; the test labelled the absence SKIP but exited 2` — evidence `docs/qa/con031_excluded_review/review_con031_excluded_r1.md` — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
 
-Review finding X1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/lumen/tests/test_gen_lumenignore.sh FAILs in every full-suite run. Its fallback looks for the lumen binary under $HOME/.claude-shared/..., the runner gives each unit a sandbox HOME, and LUMEN_BIN is not in the runner's environment base. It then prints 'SKIP: lumen binary not found' but exits 2, which judge() records as FAIL rc_2. Measured by the reviewer: sandbox HOME without LUMEN_BIN rc 2 in 0 s; with LUMEN_BIN set rc 0, 4 checks pass. Fix: the test prints what it does (a FAIL naming the missing prerequisite, per operator decision O3), and the runner passes LUMEN_BIN or resolves it in a preflight. X4: the same test deletes with a bare rm -rf "$W"; use ${W:?} or safe_rm_rf (§11.4.287(C)(1)). Acceptance: the unit passes under the full-suite runner on a host with lumen installed, and its output matches its exit code.
+Review finding X1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/lumen/tests/test_gen_lumenignore.sh FAILs in every full-suite run. Its fallback looks for the lumen binary under $HOME/.claude-shared/..., the runner gives each unit a sandbox HOME, and LUMEN_BIN is not in the runner's environment base. It then prints 'SKIP: lumen binary not found' but exits 2, which judge() records as FAIL rc_2. Measured by the reviewer: sandbox HOME without LUMEN_BIN rc 2 in 0 s; with LUMEN_BIN set rc 0, 4 checks pass. Fix: the test prints what it does (a FAIL naming the missing prerequisite; operator decision O3, missing tool FAIL or SKIP, is still PENDING, so FAIL is the interim reading and changes if O3 decides SKIP), and the runner passes LUMEN_BIN or resolves it in a preflight. X4: the same test deletes with a bare rm -rf "$W"; use ${W:?} or safe_rm_rf (§11.4.287(C)(1)). Acceptance: the unit passes under the full-suite runner on a host with lumen installed, and its output matches its exit code.
+
+fixu round 2 (2026-11-06): the test half landed in 3e423d43 (FAIL naming the missing lumen binary, guarded cleanup); review F089-1 fixed here: an unchecked mktemp no longer lets the test write to /repo, /scope.json and /a.ignore (it now exits 2 with a clear message; RED rc 1 mkdir Permission denied, GREEN rc 2, evidence docs/qa/fixu2_round2/f089/). Still open (review F089-3): the runner half. ENV_BASE does not pass LUMEN_BIN and there is no preflight, so the unit still FAILs rc_2 in the full suite on a host where lumen is installed under the real HOME. The item stays Queued until that lands.
 
 ## CON-090 — CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256
 
@@ -1668,14 +1674,16 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 ## CON-099 — Eleven fastcycle tests show behaviour mismatches that need a root cause (inventory class C)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
-**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** in-progress — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
 
 Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class C of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md; reviewer runs docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv). Custody-sweep family: r11, r13 and r15 REFUSE a plain stash that should be ALLOWED (backup patch sha256 does not match the re-derived live content; suspected git config or version effect in a sandbox HOME, UNCONFIRMED), r6 hits a Python traceback in guard-viability, r9 gets rc 2 from custody_sweep.py --repo-root on a long sandbox path. Also: test_escape_classify_malformed_red.sh (non_mapping_entry exits 2, expected a named refusal exit 1), test_fc_entry_r10_regression.sh (B1 inventory with --out gets rc 2), test_gate_shard_r3_regression.sh (Python traceback), test_io_trace_build_map_r6_regression.sh (mutation precondition not reached on this host, proves nothing either way), test_precheck_slicer_red.sh (sh -n under dash did not reject broken_syntax_gate.sh), test_host_guard_red.sh (got reason=unreadable_ulimit where thread_headroom was expected under sh; dash ulimit has no -u is a suspicion, UNCONFIRMED). Acceptance: each reproduced live first (section 11.4.292), root cause proven, fixed or honestly reclassified, with a deterministic test.
+
+fixu round 2 (2026-11-06), test_precheck_slicer_red.sh only (review F099-1): case C2a accepted the dash parse error OR the shellcheck finding, so a mutant that dropped the case-insensitive match survived on the shellcheck leg; it now requires both legs (parse error, case-insensitive, AND SC2086) and prints each leg. GREEN 16/0; the no-lower() mutant is now killed (15/1). The other ten tests of this item are untouched.
 
 ## CON-100 — test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
 
@@ -1760,7 +1768,7 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — red-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — green-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — signature `Syntax error: "(" unexpected` — updated 2026-11-06T08:50:13Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — red-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — green-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — env `host anton, sh = dash, scratch clone of main bdc3ac43 plus the fixu vehicle` — signature `Syntax error: "(" unexpected` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `bash array syntax in a library sourced by /bin/sh (dash) tests; introduced by ef82977b` — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — updated 2026-11-06T08:50:13Z — by `AI`
 
 scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh tests (backfill_evidence_r2, evidence_hash_r5, finding_layer_red). Since ef82977b its rr_record used local pre=(...) and "${pre[@]}", which dash rejects with Syntax error: "(" unexpected, so all three exit 2 before running a case. Fix: rebuild the argument list with POSIX set --, keeping the original order so the caller's extra options still come last (argparse last-wins). The bash users (gate_authority r1/r2/r3 and the mutation driver) stay GREEN. Known gap, not caused by this change: a mutant that drops --precheck survives all six tests.
@@ -1772,10 +1780,12 @@ scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — red-command `bash scripts/multitrack/test_multitrack_ruler_suite.sh (canon checkout not named constitution, env -i)` — green-command `same command` — signature `TOTAL=0 then exit 2; redpin with RED_MODE=0: FAIL 6` — updated 2026-11-06T08:51:15Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — red-command `bash scripts/multitrack/test_multitrack_ruler_suite.sh (canon checkout not named constitution, env -i)` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, canon checkout not named constitution` — signature `TOTAL=0 then exit 2; redpin with RED_MODE=0: FAIL 6` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `test directory derived from a vendored-layout path; RED_MODE inherited by redpin children` — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — updated 2026-11-06T08:51:15Z — by `AI`
 
 scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as $ROOT/constitution/scripts/multitrack, which exists only when the canon is vendored, so on the constitution repository itself it discovered 0 tests and exited 2; a sibling directory named constitution could also hijack discovery. ROOT is now the parent only when the canon is a submodule named constitution of a real git toplevel; discovery reads the canon's own directory. A member's exit 77 is counted as SKIP and the summary prints SKIP=. Second defect, found when the suite ran its members: the suite exports RED_MODE=0, and test_multitrack_redpin_mutations.sh passed it on to its children, which skipped the RED leg (6 FAIL). _run now clears RED_MODE unless RUN_RED_MODE sets it.
+
+fixu round 2 (2026-11-06), review NO-GO F109-1 fixed: the repository root was taken from a logical pwd, so a consumer reached through a symlinked directory was not recognised as vendored and its device-roster member was dropped (reviewer fixture C5: total 2, dev 0). The parent is now resolved with pwd -P. F109-2: an all-SKIP aggregate restated reason=topology_unsupported regardless of the members; it now carries the members' shared reason, and when the reasons differ it names them all without a single reason= token. F109-3: new meta-test scripts/multitrack/test_ruler_suite_discovery.sh (cases C1-C9 plus C2/C2m; its name avoids the test_multitrack_* glob so the aggregator never runs it). RED at the fixu head 9/3, GREEN 12/0; mutants (pwd reverted, hard-coded reason, mixed branch disabled) each killed. Evidence docs/qa/fixu2_round2/f109/.
 
 ## CON-110 — persistent-launch test read a present systemd user bus as absent under a clean environment and exited 2
 
@@ -1784,10 +1794,12 @@ scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh` — green-command `same command` — signature `SKIP printed, exit 2 under env -i` — updated 2026-11-06T08:51:30Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, live user manager at /run/user/1000/bus` — signature `SKIP printed, exit 2 under env -i` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `capability probe ran without XDG_RUNTIME_DIR, which the clean environment does not carry` — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — updated 2026-11-06T08:51:30Z — by `AI`
 
 scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2).
+
+fixu round 2 (2026-11-06), review F110-1/F110-2/F110-3: the inline derivation is replaced by the shared helper scripts/lib/user_bus_env.sh (CON-117). F110-1: an inherited XDG_RUNTIME_DIR pointing at a directory without a bus no longer hides a live standard bus (RED SKIP 77 with the bus live, GREEN rc 0 PASS=3). F110-2: a bus socket not owned by the caller is a SKIP naming it, never used. A present owned bus whose systemctl --user does not answer stays a FAIL naming the bus path. Evidence docs/qa/fixu2_round2/f110/.
 
 ## CON-111 — fc_supervisor_unit spy socket bound a full path and failed with AF_UNIX path too long under a deep TMPDIR
 
@@ -1796,7 +1808,7 @@ scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.s
 **Severity:** low
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — red-command `TMPDIR=<195-char dir> bash scripts/fastcycle/tests/test_fc_supervisor_unit.sh` — green-command `same command` — signature `AF_UNIX path too long` — updated 2026-11-06T08:51:45Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — red-command `TMPDIR=<195-char dir> bash scripts/fastcycle/tests/test_fc_supervisor_unit.sh` — green-command `same command` — env `host anton, TMPDIR = a 195-character scratch directory` — signature `AF_UNIX path too long` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `absolute socket path longer than sun_path (108 bytes) under a deep TMPDIR` — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — updated 2026-11-06T08:51:45Z — by `AI`
 
 scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path.
@@ -1808,10 +1820,12 @@ scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket 
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — red-command `bash scripts/fastcycle/tests/test_select_sample_unparseable (see U6_unparseable_RED.out)` — green-command `same command` — signature `AttributeError: module has no attribute retroactive_state` — updated 2026-11-06T08:51:55Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — red-command `bash scripts/fastcycle/tests/test_select_sample_unparseable (see U6_unparseable_RED.out)` — green-command `same command` — env `host anton, clean clone, python3 -I` — signature `AttributeError: module has no attribute retroactive_state` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `f77a7851 restored the file from snapshot 4b13814 that predates ee581e37` — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — updated 2026-11-06T08:51:55Z — by `AI`
 
-ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, none), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after).
+ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, normal), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after).
+
+fixu round 2 (2026-11-06): the anchor-census sentence above is withdrawn as evidence for this file (review F112-1): scripts/fastcycle/tests/check_mutation_anchors.py covers only test_fastcycle_r6_mutations.sh and test_baseline_replay_worktree_cleanup.sh (its docstring now says so); the R3 anchor is proven by the r5 test's own mutation leg, which refuses a drifted anchor. The r5 cases S3, S5 and S6 that stay NOT ok in a clean clone are owned by CON-123 (review F112-2).
 
 ## CON-113 — env-read census reported cm_github_issues_source_anchor_wired.sh:334 eval as UNCOVERED since 090e8062
 
@@ -1820,10 +1834,12 @@ ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive,
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `same command` — signature `UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (indirect)` — updated 2026-11-06T08:56:46Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `same command` — env `host anton, clean clone at 090e8062 and later, python3 -I` — signature `UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (indirect)` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `new gate from 090e8062 shipped without its allowlist row` — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — updated 2026-11-06T08:56:46Z — by `AI`
 
 Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added.
+
+fixu round 2 (2026-11-06), review F113-1 (class recurrence: <eval> rows were file-scoped, so a later env-reading eval in the same file was hidden): the census now emits one pseudo-variable per eval statement, <eval>#<first 12 hex of sha256 of the stripped source line>, and the 8 eval rows of config/gate_env_allowlist.tsv are pinned to their own statements (5 *_anchor_wired.sh gates bea59a1ee0f8, shell_mutation_engine 44edb45288f3, constitution_layout 33c450208749, safe_rm fa157096b76d). RED: a second eval appended to the github gate gave VERDICT PASS; GREEN: real tree PASS (allowlisted=117), the second eval is UNCOVERED <eval>#b1e750228c4a (rc 1). The meta-test has two new discriminators (pinned row covers its own eval rc 0; second eval uncovered rc 1, its hash computed independently with sha256sum) and mutant M13 (hash the path instead of the statement) is killed. Evidence docs/qa/fixu2_round2/f113/. Honest limit: a byte change of a pinned eval line makes its row stale (it then reports UNCOVERED and the row must be re-pinned after review), which is the intended direction.
 
 ## CON-114 — skill-activation liveness probe read a live session as dead under pipefail, so a skill another session held could be stripped
 
@@ -1832,10 +1848,12 @@ Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_a
 **Severity:** high
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/skill_activation/test_skill_activation.sh` — green-command `same command` — signature `LIVENESS ... (expected 3, got 0); normal env: CONCURRENCY: skill stripped while another session held it` — updated 2026-11-06T08:58:01Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/skill_activation/test_skill_activation.sh` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, 114 KB peer environment` — signature `LIVENESS ... (expected 3, got 0); normal env: CONCURRENCY: skill stripped while another session held it` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `tr | grep -q under set -o pipefail: SIGPIPE on tr turns a match into a non-zero pipeline status` — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — updated 2026-11-06T08:58:01Z — by `AI`
 
 scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa_session_alive matched CLAUDE_CONFIG_DIR with tr '\0' '\n' < /proc/<pid>/environ | grep -qx ...; grep -q exits on the first match, tr then dies of SIGPIPE (141) and pipefail makes the match a failure. A live session therefore read as dead whenever the environment took more than one write: 72 of 200 probes on a 14 KB environment, every probe at 114 KB. A claim read as dead is reaped, and deactivate/prune then unlinks a skill that another live session holds. The reader now uses grep -qzxF on the environ file directly (no pipe; -F so the dir is a literal). Second, test-side: test_skill_activation.sh depended on a live claude5 alias on the host and inherited the caller's CLAUDE_CONFIG_DIR; it now uses per-session fixture config dirs and a real live peer process, and has a new LIVENESS case with a 114 KB environment.
+
+fixu round 2 (2026-11-06), review F114-1: the liveness test now has killing cases for the two grep flags of the fix: a live peer whose CLAUDE_CONFIG_DIR differs only by a regex metacharacter (cfg-dotXtest vs cfg-dot.test, kills a mutant without -F) and a live peer whose dir has the probed dir as a prefix (cfg-prefix-live vs cfg-prefix, kills a mutant without -x); control: both exact dirs read alive. Evidence docs/qa/fixu2_round2/f114/.
 
 ## CON-115 — label-sync opencode adapter is not loaded by opencode 2.x (plugin path must be a directory; serve needs auth)
 
@@ -1844,7 +1862,7 @@ scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — red-command `bash scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode` — green-command `same command` — signature `configured plugin path must be a directory` — updated 2026-11-06T09:01:03Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — red-command `bash scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode` — green-command `same command` — env `host anton, opencode v2.2.0, normal environment` — signature `configured plugin path must be a directory` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `upstream opencode 2.x requires a directory plugin and authenticated serve; the adapter and its test target 1.x` — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — updated 2026-11-06T09:01:03Z — by `AI`
 
 scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode fails 4 of 4 in the normal environment too, so it is not a fresh-HOME artefact. The host now has opencode v2.2.0 (installed 2026-10-27, after the adapter landed in 7c77547c on 2026-10-12). Measured: install_adapters.sh writes a file:// URL to label-sync.mjs under the plugin key; opencode 2.2 logs WARN configured plugin path must be a directory and does not load it (no plugin debug log is written); debug config now prints an array of sources with the key plugins, so the test's .plugin[0] jq expression no longer matches; opencode serve prints a per-run server password and POST /session returns an empty body without it. So the adapter is broken for opencode 2.x users and the test is stale. Fix is not small: package the plugin as a directory in the layout opencode 2.x accepts, verify the 2.x event names, and authenticate the serve leg; UNCONFIRMED whether the 1.x session.created/deleted events are unchanged in 2.x.
@@ -1856,7 +1874,7 @@ scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode fails 4 of
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — red-command `setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_run_all.sh </dev/null` — green-command `same command` — signature `set: can't access tty; job control turned off; NOT ok r7f2 ...` — updated 2026-11-06T09:01:17Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — red-command `setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_run_all.sh </dev/null` — green-command `same command` — env `host anton, setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin, no controlling terminal` — signature `set: can't access tty; job control turned off; NOT ok r7f2 ...` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: no controlling terminal disables set -m; the HUP part and the setsid signature are not explained` — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — updated 2026-11-06T09:01:17Z — by `AI`
 
 The full-suite runner starts each unit with start_new_session=True, so it has no controlling terminal. test_run_all.sh relies on set -m (job control) so that a backgrounded runner does not start with SIGINT ignored and leads its own process group; without a terminal dash prints set: can't access tty; job control turned off and the premise does not hold. Full-suite log 000204: pid-HUP and pid-INT NOT ok (runner still alive after 15 s), group-INT and group-TERM SKIP (no own process group). Reproduction: rc 0 with a terminal-bearing session under env -i, under the normal environment, and with INT or INT+HUP inherited as ignored; under setsid -w env -i (no terminal) rc 1, but the failing case is graceful-TERM (the test never got a TERM before the KILL), not pid-HUP/INT. Root cause proven only for the missing job control; why HUP was ignored in the full-suite run, and why the failing case differs under setsid, is UNCONFIRMED. A fix needs a launch that resets INT/HUP to default without job control (for example env --default-signal or a small exec helper) and a decision on the group cases.
@@ -1868,10 +1886,12 @@ The full-suite runner starts each unit with start_new_session=True, so it has no
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — red-command `full-suite default run (clean env) of scripts/fastcycle/tests/test_precheck_shellcheck_red.sh` — green-command `same command after the helper lands` — signature `Failed to connect to user scope bus via local transport` — updated 2026-11-06T09:04:26Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — red-command `full-suite default run (clean env) of scripts/fastcycle/tests/test_precheck_shellcheck_red.sh` — green-command `same command after the helper lands` — env `host anton, full-suite runner clean environment (no XDG_RUNTIME_DIR), live user manager` — signature `Failed to connect to user scope bus via local transport` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `callers rely on an inherited XDG_RUNTIME_DIR that clean environments do not carry` — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — updated 2026-11-06T09:04:26Z — by `AI`
 
 The full-suite runner gives each unit a clean environment without XDG_RUNTIME_DIR. systemctl --user and systemd-run --user then fail with Failed to connect to user scope bus via local transport although /run/user/<uid>/bus is live (control needle measured for CON-110: env -i rc 1, with XDG_RUNTIME_DIR=/run/user/1000 rc 0). test_precheck_shellcheck_red.sh fails its N2 control needle (the hard memory cap mechanism is not usable) and test_io_trace_build_map_r6_regression.sh fails on systemd-run exit 1. Inventory (inventory.tsv, by line pattern, a lead not a finding): 13 files call the user bus, only the CON-110 test derives XDG_RUNTIME_DIR; the non-deriving set includes product code (scripts/fastcycle/review/precheck_pack.sh, precheck_pack_run.py, fc_common.py, fc_supervisor.py, multitrack_persistent_launch.sh, credscan/install_timer.sh), so under cron or any clean environment the memory-capped scope is unavailable there too. Proposed fix: one shared helper that exports XDG_RUNTIME_DIR from a bus socket the caller owns, used by every caller; a genuinely absent bus stays a reasoned refusal or SKIP. Not done here: it touches product code across several subsystems.
+
+fixu round 2 (2026-11-06): the shared helper landed: scripts/lib/user_bus_env.sh (ub_user_bus_env, dash/busybox/bash; returns 0 inherited or derived and exports XDG_RUNTIME_DIR, 1 absent, 2 a bus socket not owned by the caller; the same -S and -O rule in every branch), with scripts/lib/test_user_bus_env.sh (U1-U6, U5 foreign via a symlink to a root-owned socket, SKIP topology_unsupported when the host has none). The CON-110 test now calls it (review F110-1: an inherited XDG_RUNTIME_DIR pointing at a dir without a bus no longer hides a live standard bus; F110-2: a foreign bus is a SKIP, never used; F110-3: the inline duplicate is gone). Remaining callers, NOT converted (product code across subsystems, still this item): scripts/fastcycle/lib/fc_common.py, scripts/fastcycle/lib/fc_supervisor.py, scripts/fastcycle/review/precheck_pack_run.py, scripts/fastcycle/review/precheck_pack.sh, scripts/multitrack/multitrack_persistent_launch.sh, scripts/credscan/install_timer.sh, probe_bridge_layers.sh, the r3/r6 io_trace tests and test_precheck_shellcheck_red.sh. The Python callers need a Python twin of the rule (UNCONFIRMED whether they can source a shell helper). Stays open.
 
 ## CON-118 — test_precheck_pack_build_red.sh fails when run alone (not only in a batch), and it chmods real repository files during its run
 
@@ -1880,20 +1900,70 @@ The full-suite runner gives each unit a clean environment without XDG_RUNTIME_DI
 **Severity:** medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — red-command `setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin sh scripts/fastcycle/tests/test_precheck_pack_build_red.sh` — green-command `same command` — signature `FAIL: B1: expected rc=0/all_pass=true, got rc=1 all_pass=False` — updated 2026-11-06T09:04:26Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — red-command `setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin sh scripts/fastcycle/tests/test_precheck_pack_build_red.sh` — green-command `same command` — env `host anton, setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin, serial run` — signature `FAIL: B1: expected rc=0/all_pass=true, got rc=1 all_pass=False` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: not investigated past the failing case list` — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — updated 2026-11-06T09:04:26Z — by `AI`
 
 Run alone and serially under setsid env -i: 14 FAIL without shellcheck on PATH, 16 FAIL with ~/.local/bin/shellcheck on PATH; clean fixtures (B1, B3) report all_pass=false, D2/D7/D8 report NOT-READY (provenance binding, shellcheck mode). So CON-098's classification of this test as passes-alone-fails-in-batch does not hold here. Separately, case C2 does chmod 000 on the real scripts/fastcycle/review/slicer.py and precheck_pack.sh for a window; any other test reading those files at the same time fails with Permission denied (observed: a parallel run in the same tree), which is a plausible contributor to the batch-only failures of the precheck family, UNCONFIRMED. Modes were restored at the end of the run (git status clean). Root cause of the alone failures not established.
 
 ## CON-119 — test_round8_git_env CM-2/CM-3 fail: fixture copy lacks .gitignore, hook leaves scripts/deps_manifest/__pycache__ untracked
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** AI
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — UNREPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u10_round8` — red-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — green-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — signature `FAIL: CM-2 porcelain ?? scripts/deps_manifest/__pycache__/` — updated 2026-11-06T09:08:52Z — by `AI`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u10_round8` — red-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — green-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — env `host anton, env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin` — signature `FAIL: CM-2 porcelain ?? scripts/deps_manifest/__pycache__/` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
 **Investigation:** root-cause-found-with-evidence — root-cause `fixture missing .gitignore; pycache from hook gates shows as untracked` — evidence `docs/qa/fixu_default_tier/u10_round8` — updated 2026-11-06T09:08:52Z — by `AI`
 
 The round8 fixture copies scripts/Constitution.md/CLAUDE.md/AGENTS.md into a fake submodule but not .gitignore. The post-update hook's STEP 5b Python gates write scripts/deps_manifest/__pycache__/, porcelain is non-empty, CM-2 and CM-3 fail (and the real update_constitution.sh --check refuses on local changes). Fix: copy .gitignore into the fixture. test_round7_ambient.sh:138 has the same list but no porcelain check (not changed).
+
+Review N119-1 (class note): tests/layout/test_round7_ambient.sh:138 copies the same file list without .gitignore; it has no porcelain check, so the defect is latent there (not changed).
+
+## CON-120 — multitrack supervisor watch left its sleep child running after SIGTERM, and its wiring test checked orphans by the parent pid only
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu2_round2/fpre1/fpre1_product_red.out` — red-command `start multitrack_supervisor.sh watch --interval <token> in the background, SIGTERM it, list sleep <token> processes` — green-command `same command; and bash scripts/multitrack/test_multitrack_supervisor_wiring.sh (step f3)` — env `host anton, bash, scratch clone` — signature `orphan sleep <token> with a new ppid after the daemon died` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `foreground sleep in cmd_watch is not signalled when the shell gets SIGTERM; the test checked orphans by the dead parent's pid` — evidence `docs/qa/fixu2_round2/fpre1/fpre1_test_red.out` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Pre-existing finding F-PRE-1 of the fixu review (S/scratchpad/review_fixu.md). Product: scripts/multitrack/multitrack_supervisor.sh cmd_watch slept with a foreground sleep; SIGTERM to the daemon killed the shell but the sleep child kept running with a new parent (measured: an orphan sleep with ppid 2441 after the daemon died, evidence docs/qa/fixu2_round2/fpre1/fpre1_product_red.out). Fix: the loop sleeps in the background and waits on it, and TERM/INT/HUP traps kill that child (pid > 1, section 11.4.263) before exiting 143/130/129; --once clears the traps. Test: scripts/multitrack/test_multitrack_supervisor_wiring.sh asserted no orphan from the dead parent's pid (always true once the parent is gone) with a token shared by other runs; it now uses a per-run token, counts token processes host-wide with a positive control before the signal, kills its own process tree children first, and a new step f3 requires the daemon to stop its own children on SIGTERM. Host note: about 100 orphan sleep 99872N processes from earlier runs of other sessions exist on the host; not ours, left alone. Class sweep: scripts/label-sync/adapters/tests/test_adapters.sh:237 has the same vacuous parent-pid orphan check (registered as CON-122).
+
+## CON-121 — test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and the vendored DB path, so it failed (rc 1) in a clean environment while calling it a SKIP
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu2_round2/fpre2/fpre2_red.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_reopen_rate_red.sh` — green-command `same command` — env `host anton, env -i, no sqlite3 CLI on PATH, standalone canon` — signature `NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable; rc 1` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `needle #2 shelled out to the sqlite3 CLI and looked only at the vendored DB path` — evidence `docs/qa/fixu2_round2/fpre2/fpre2_red.out` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Pre-existing finding F-PRE-2 of the fixu review. Under env -i PATH=/usr/bin:/bin (no sqlite3 CLI) and on a standalone canon (no constitution/docs/workable_items.db under ROOT) needle #2 printed SKIPPED but returned FAIL (rc 1). The conductor's brief proposed exit 77 with a closed reason code, but no section 11.4.69 code fits a missing tool and operator decision O3 (missing tool: FAIL or SKIP) is pending, so the dependency was removed instead: the needle reads the DB with python3's sqlite3 module (file: URI, mode=ro, immutable=1, so no -wal/-shm side files), with a positive control (the first atm_id must be found; CLEAN/HIT/BLIND), and falls back to the standalone path docs/workable_items.db. RED rc 1, GREEN rc 0 (18 ok); mutants collide and blind both killed (rc 1). Same class still open elsewhere: test_cycle_report_red.sh uses the sqlite3 CLI; the r5 select_sample live-DB cases (CON-123).
+
+## CON-122 — test_adapters.sh 'no orphan sleep left' check is vacuous: pgrep -P of a dead parent, global 'sleep 30' token
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: read from the code only (pgrep -P of an exited parent)` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Found by the F-PRE-1 class sweep (CON-120). scripts/label-sync/adapters/tests/test_adapters.sh:237 asserts ok 'run: no orphan sleep left' with ! pgrep -f 'sleep 30' -P $wp. Once the wrapper $wp has exited, an orphaned sleep is re-parented, so pgrep -P $wp can never find it and the check always passes; the token 'sleep 30' is also shared with any other process on the host. Not fixed in fixu2 (outside its items). Fix shape: the CON-120 pattern (unique per-run token, host-wide count with a positive control before the kill, children-first cleanup). Not reproduced live as a leak; the vacuity is a reading of the code (UNCONFIRMED whether the adapter actually leaks).
+
+## CON-123 — test_select_sample_r5_regression.sh S3, S5 and S6 report NOT ok in a clean clone (live tracker DB / live snapshot unavailable)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** not-started — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Review finding F112-2 of the fixu review: CON-112 did not name the item owning these cases. In a clean clone at the fixu head, scripts/fastcycle/tests/test_select_sample_r5_regression.sh prints NOT ok 'S3 sqlite3 or live tracker DB unavailable' (line 213) and 'S5 live snapshot unavailable' (line 268) and S6, so the unit is red in the full suite. Same class as CON-121 (environment-dependent reds labelled as unavailability but exiting as FAIL). Not investigated past the reviewer's report; root cause UNCONFIRMED (suspected: sqlite3 CLI absent and the vendored DB path, as in CON-121).
 
