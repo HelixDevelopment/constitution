@@ -1210,5 +1210,30 @@ x2_mut nocli_empty "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=()
 x2_mut nocli_default_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}")/' x_defprune
 x2_mut nocli_tp_only "$NOCLI_ANCHOR" 's/^nocli_prune_expr=(.*$/nocli_prune_expr=("${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}")/' x_defprune
 
+# L4: the "EXCLUDED (explicit --exclude, not scanned)" listing ignored the default and third-party prunes: with `--exclude fixtures`
+# it also listed `node_modules/pkg/fixtures` and `site-packages/lib/fixtures` (never scanned anyway) as exclusions of the flag,
+# counted `fixtures/node_modules/deep.py` among the excluded files, and an --exclude that matches only inside pruned trees printed
+# no "matched no directory" NOTE. The prunes now come first in both finds (the directory walk and the per-directory file count).
+XL="$TMP/xlist"; mkdir -p "$XL/fixtures/node_modules" "$XL/node_modules/pkg/fixtures" "$XL/site-packages/lib/fixtures" "$XL/live"
+for f in fixtures/frozen.py fixtures/node_modules/deep.py node_modules/pkg/fixtures/inner.py site-packages/lib/fixtures/sp.py live/real_bad.py; do printf '%b' "$BADPY" > "$XL/$f"; done
+x_listing() { # $1=gate
+    local o r
+    # control needles: every file of the fixture is a finding when no prune applies (test-mode override of the default list, --include-third-party)
+    o="$(env HELIX_TEST_MODE=1 KILLPG_GUARD_EXCLUDE=.git bash "$1" --root "$XL" --include-third-party --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && grep -q 'fixtures/frozen\.py' <<<"$o" && grep -q 'fixtures/node_modules/deep\.py' <<<"$o" && grep -q 'node_modules/pkg/fixtures/inner\.py' <<<"$o" && grep -q 'site-packages/lib/fixtures/sp\.py' <<<"$o" || return 1
+    # --exclude fixtures: exactly ONE exclusion is listed (the one that changes the scan), with ONE file (the one under it that would be scanned)
+    o="$(bash "$1" --root "$XL" --exclude fixtures --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && live_found "$o" && [ "$(grep -c 'EXCLUDED (explicit --exclude, not scanned)' <<<"$o")" -eq 1 ] \
+        && grep -q 'EXCLUDED (explicit --exclude, not scanned): .*/xlist/fixtures (1 source file(s))' <<<"$o" \
+        && grep -q 'excluded file: .*/xlist/fixtures/frozen\.py' <<<"$o" && [ "$(grep -c 'excluded file:' <<<"$o")" -eq 1 ] \
+        && ! grep -q 'matched no directory' <<<"$o" || return 1
+    # --exclude pkg: it matches only inside node_modules (pruned anyway): no exclusion is listed, the NOTE says nothing was matched
+    o="$(bash "$1" --root "$XL" --exclude pkg --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'EXCLUDED (explicit --exclude' <<<"$o" && grep -q 'NOTE — --exclude (pkg) matched no directory' <<<"$o"
+}
+if x_listing "$GATE"; then ok "X22: the EXCLUDED listing skips directories below node_modules / site-packages (pruned anyway) and does not count files under a pruned subtree; an --exclude matching only there gets the 'matched no directory' NOTE"; else bad "X22: the exclusion listing ignores the default / third-party prunes"; fi
+x2_mut listing_walk_unpruned 'list_pre=()' 's/done < <(find "\$root" \${list_pre\[@\]+"\${list_pre\[@\]}"} -type d/done < <(find "$root" -type d/' x_listing
+x2_mut listing_count_unpruned 'list_pre=()' 's/find "\$_xd" \${list_pre\[@\]+"\${list_pre\[@\]}"} -type f/find "$_xd" -type f/' x_listing
+
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"

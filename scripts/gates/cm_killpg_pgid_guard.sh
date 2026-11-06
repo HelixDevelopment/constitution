@@ -128,6 +128,8 @@
 #                    excluded directory is printed as `EXCLUDED (explicit --exclude, not scanned): <dir> (N source file(s))`
 #                    followed by the files, and an exclusion that matches no directory under the root is printed as a NOTE (with the
 #                    find(1) test applied). A value is taken literally: it is never expanded against the caller's working directory.
+#                    A directory below a default- or third-party-pruned tree (`node_modules/x/fixtures`) is never scanned, so it is not
+#                    listed, its files are not counted, and an exclusion that matches only there gets the no-match NOTE.
 #                    A value that is empty, absolute, holds `..` or a character outside [A-Za-z0-9._/*+-], or has no letter, digit,
 #                    `_`, `+` or `-` in it (`*`, `.`, `*/*`) is refused with exit 2. So is a value that matches the scan root itself
 #                    or one of its ancestors (the root's basename, a tail of the root path, or a glob matching either: it would prune
@@ -368,9 +370,13 @@ if [ "${#cli_excludes[@]}" -gt 0 ]; then
     else
         cli_cut=0
         cli_list_expr=("${cli_prune_expr[@]}"); unset 'cli_list_expr[${#cli_list_expr[@]}-1]'   # drop the trailing -o
+        # the default and third-party prunes come FIRST (review round 2, L4): a directory below a pruned tree (`node_modules/x/fixtures`,
+        # `site-packages/y/fixtures`) is not scanned whatever this flag says, so it is not listed as one of its exclusions, its files
+        # are not counted, and an --exclude that matches only inside pruned trees gets the "matched no directory" NOTE
+        list_pre=(); [ "${#nocli_prune_expr[@]}" -eq 0 ] || list_pre=(-type d \( "${nocli_prune_expr[@]}" \) -prune -o)
         while IFS= read -r -d '' _xd; do
             cli_cut=$((cli_cut + 1))
-            mapfile -d '' -t _xf < <(find "$_xd" -type f \( "${find_name_expr[@]}" \) -print0 2>/dev/null | sort -z)
+            mapfile -d '' -t _xf < <(find "$_xd" ${list_pre[@]+"${list_pre[@]}"} -type f \( "${find_name_expr[@]}" \) -print0 2>/dev/null | sort -z)
             echo "ℹ️  ${GATE}: EXCLUDED (explicit --exclude, not scanned): ${_xd} (${#_xf[@]} source file(s))"
             _xn=0
             for _xp in ${_xf[@]+"${_xf[@]}"}; do
@@ -378,7 +384,7 @@ if [ "${#cli_excludes[@]}" -gt 0 ]; then
                 if [ "$_xn" -le 50 ]; then echo "ℹ️  ${GATE}:   excluded file: ${_xp}"; fi
             done
             [ "$_xn" -le 50 ] || echo "ℹ️  ${GATE}:   ... and $((_xn - 50)) more excluded file(s)"
-        done < <(find "$root" -type d \( "${cli_list_expr[@]}" \) -prune -print0 2>/dev/null | sort -z)
+        done < <(find "$root" ${list_pre[@]+"${list_pre[@]}"} -type d \( "${cli_list_expr[@]}" \) -prune -print0 2>/dev/null | sort -z)
         [ "$cli_cut" -gt 0 ] || echo "⚠ ${GATE}: NOTE — --exclude (${cli_ex_txt}) matched no directory under ${root} (applied as: ${cli_applied})"
     fi
 fi
