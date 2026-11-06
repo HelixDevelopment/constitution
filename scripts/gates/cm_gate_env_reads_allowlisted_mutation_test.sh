@@ -48,6 +48,15 @@ mkdir -p "$tmp/unres/scripts/gates" "$tmp/unres/config"
 printf '#!/usr/bin/env bash\n. "$(some_unknown_cmd)/lib.sh"\necho "$DEMO_ROOT"\n' >"$tmp/unres/scripts/gates/cm_demo.sh"
 cp "$fx/golden_good/allowlist.tsv" "$tmp/unres/config/gate_env_allowlist.tsv"
 
+# content-pinned eval rows (CON-113 F113-1): the row names <eval>#<sha12> of its own eval line; the hash is computed HERE
+# with sha256sum, independently of the census, so the census and this oracle must agree. A second eval in the same file
+# is a different statement and must stay UNCOVERED.
+mkdir -p "$tmp/evalone/scripts/gates" "$tmp/evalone/config"
+printf '#!/usr/bin/env bash\neval "A=\\$DEMO_E1"\n' >"$tmp/evalone/scripts/gates/cm_demo.sh"
+ev1="$(sed -n 2p "$tmp/evalone/scripts/gates/cm_demo.sh" | tr -d '\n' | sha256sum | cut -c1-12)"
+printf 'scripts/gates/cm_*.sh\t<eval>#%s\tindirect-mechanism\tthe one reviewed eval of the demo gate\n' "$ev1" >"$tmp/evalone/config/gate_env_allowlist.tsv"
+cp -R "$tmp/evalone" "$tmp/evaltwo"; printf 'eval "B=\\$DEMO_E2"\n' >>"$tmp/evaltwo/scripts/gates/cm_demo.sh"
+
 # a sandbox copy of the gate + instrument + needle (HERE resolves inside it)
 GS=scripts/gates/cm_gate_env_reads_allowlisted.sh; CS=scripts/gates/lib/gate_env_census.py
 mkgate() { # dir
@@ -75,6 +84,8 @@ CASES=(
   "unresolvable source statement|2|G|--root $tmp/unres"
   "blind needle|2|BLIND|--root $tmp/good"
   "needle negative hit|2|NEG|--root $tmp/good"
+  "pinned eval row covers its own eval|0|G|--root $tmp/evalone"
+  "second eval in the same file is uncovered|1|G|--root $tmp/evaltwo"
 )
 gpath() { # sandbox-dir tag -> gate path (G: the sandbox, BLIND/NEG: its sabotaged-needle copies)
   case "$2" in G) echo "$1/$GS" ;; BLIND) echo "$1.blind/$GS" ;; NEG) echo "$1.neg/$GS" ;; esac
@@ -115,6 +126,7 @@ mutant M9 "bare export treated as assignment" "$CS" 's/if has_val or kw == "loca
 mutant M10 "source closure not followed" "$CS" 's/^        todo.extend(found)/        pass/'
 mutant M11 "python os.environ indirect dropped" "$CS" 's/add("os.environ", "indirect", ln)/pass/'
 mutant M12 "jq env indirect dropped" "$CS" 's/add("jq-env", "indirect", ln)/pass/'
+mutant M13 "eval rows pinned per file, not per statement" "$CS" 's/hashlib.sha256(src.encode("utf-8"))/hashlib.sha256(path.encode("utf-8"))/'
 
 # out-of-gate mutants: sabotaged copies of the real files, driven by the real regression tests
 root="$(cd "$here/../.." && pwd)"

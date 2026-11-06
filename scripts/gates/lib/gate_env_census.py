@@ -21,7 +21,8 @@ pseudo-variable, because the census cannot say WHICH variable is read -- indirec
     %ENV                 perl whole-hash or non-literal $ENV{$k}
     <env-dump>           `env` / `printenv` with no variable name (env | grep ^X= also reports X as env-api)
     <declare-dump>       declare -p / typeset -p / export -p / compgen -e|-v / bare `set`
-    <eval>               `eval` whose argument is built from an expansion (the code it runs is not visible)
+    <eval>#<sha12>       `eval` whose argument is built from an expansion (the code it runs is not visible); <sha12> is
+                         the first 12 hex digits of sha256(the stripped source line), so each eval needs its own row
     <proc-environ>       a read of /proc/<pid>/environ
     jq-env               jq bare `env` / `$ENV`
     <name>               ${!name}, os.environ.get(name), getenv(name), ENVIRON[name] with a non-literal key
@@ -61,6 +62,7 @@ steer by PATH/HOME is out of scope of this instrument and is covered by the host
 allowlist). A gate that exports or reads them to change behaviour deliberately is a finding for review, not for the census.
 """
 import glob as _glob
+import hashlib
 import os
 import re
 import sys
@@ -814,6 +816,7 @@ def census(path, root, _seen=None):
         except OSError:
             pass
     rows = {}
+    raw_lines = text.split("\n")
 
     def add(var, kind, ln):
         rows.setdefault((var, kind), ln)
@@ -891,7 +894,10 @@ def census(path, root, _seen=None):
             add("<printenv-var>", "indirect", ln)
         mv = RE_EVAL.search(e)
         if mv and ("$" in mv.group(1) or "`" in mv.group(1) or "$" in l or "`" in l):
-            add("<eval>", "indirect", ln)
+            # content-pinned: one pseudo-variable per distinct eval statement (sha256 of the stripped source line),
+            # so an allowlist row covers that eval only, never a later one in the same file (CON-113 F113-1)
+            src = raw_lines[ln - 1].strip() if ln <= len(raw_lines) else (e + l).strip()
+            add("<eval>#" + hashlib.sha256(src.encode("utf-8")).hexdigest()[:12], "indirect", ln)
     # an env-API read (embedded python/awk) of a variable this file guards through cm_gate_env_set AND re-assigns
     # (export NAME="$guarded") reads the guarded value: covered by the guard, reported as guarded.
     guarded = {v for (v, k) in rows if k == "guarded"}
