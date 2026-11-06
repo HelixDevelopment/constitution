@@ -124,9 +124,13 @@
 #                    (for example byte-frozen snapshots of old code whose prose spells a kill): an explicit CLI flag is not an
 #                    ambient variable (scripts/lib/gate_env_override.sh), so it stays honoured, and it is never silent: every
 #                    excluded directory is printed as `EXCLUDED (explicit --exclude, not scanned): <dir> (N source file(s))`
-#                    followed by the files, and an exclusion that matches no directory under the root is printed as a NOTE. A value
-#                    that is empty, absolute, holds `..` or a character outside [A-Za-z0-9._/*+-], or has no letter, digit,
-#                    `_`, `+` or `-` in it (`*`, `.`, `*/*`) is refused with exit 2. Ignored (with a NOTE) for a single-file root.
+#                    followed by the files, and an exclusion that matches no directory under the root is printed as a NOTE (with the
+#                    find(1) test applied). A value is taken literally: it is never expanded against the caller's working directory.
+#                    A value that is empty, absolute, holds `..` or a character outside [A-Za-z0-9._/*+-], or has no letter, digit,
+#                    `_`, `+` or `-` in it (`*`, `.`, `*/*`) is refused with exit 2. So is a value that matches the scan root itself
+#                    or one of its ancestors (the root's basename, a tail of the root path, or a glob matching either: it would prune
+#                    the whole scan), and so is an exclusion that leaves no source file to scan although the tree has some (never
+#                    SKIP, exit 0). Ignored (with a NOTE) for a single-file root.
 #     --window N     guard-proximity window in preceding lines
 #                     (default: $KILLPG_GUARD_WINDOW or 6)
 #     --quiet        suppress per-file PASS lines (FAIL lines always shown)
@@ -186,10 +190,11 @@ cm_gate_env_set root KILLPG_GUARD_ROOT "" path   # ambient root guarded (an empt
 cm_gate_env_set window KILLPG_GUARD_WINDOW 6 value
 cm_gate_env_set include_tp KILLPG_GUARD_INCLUDE_THIRD_PARTY 0 value
 quiet=0
-cli_excludes=""   # directories added with --exclude (explicit, printed; see the usage header)
+cli_excludes=()   # directories added with --exclude (explicit, printed; see the usage header). An ARRAY: a value is never word-split and never glob-expanded against the caller's working directory
 # exclude_glob_ok <value>: a relative directory-name glob or tail path that names SOMETHING (an empty value, an absolute
 # path, '..', a character outside the safe set, or a value made only of wildcards, dots and slashes would prune the
-# whole scan or an unintended tree)
+# whole scan or an unintended tree). A value that matches the scan root itself or one of its ancestors is refused later,
+# once the root is resolved (see "explicit --exclude entries" below).
 exclude_glob_ok() {
     case "$1" in ''|/*|*..*|*[!A-Za-z0-9._/*+-]*) return 1 ;; esac
     case "$1" in *[A-Za-z0-9_+-]*) return 0 ;; esac
@@ -205,7 +210,7 @@ while [ $# -gt 0 ]; do
         --exclude)
             [ $# -ge 2 ] || { echo "${GATE}: $1 requires a value" >&2; exit 2; }
             exclude_glob_ok "$2" || { echo "${GATE}: --exclude value refused (must be a relative directory-name glob or tail path of [A-Za-z0-9._/*+-], no '..', with at least one letter, digit, '_', '+' or '-'): '$2'" >&2; exit 2; }
-            cli_excludes="${cli_excludes:+$cli_excludes }$2"; shift 2 ;;
+            cli_excludes+=("$2"); shift 2 ;;
         -h|--help) awk 'NR>1 && !/^#/ {exit} {sub(/^# ?/, ""); print}' "$0"; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -259,13 +264,26 @@ for ex in $excludes; do
         *)   prune_expr+=(-name "$ex" -o) ;;
     esac
 done
-# explicit --exclude entries: same predicate shape, kept in their own array too so the exclusion can be listed
-cli_prune_expr=()
-for ex in $cli_excludes; do
+# explicit --exclude entries: same predicate shape, kept in their own array too so the exclusion can be listed.
+# The values are iterated from the ARRAY (quoted), so a glob in a value reaches find(1) as typed and is never expanded against
+# the caller's working directory (review round 1, finding 2). Each value is also tried against the scan ROOT with
+# `find -maxdepth 0`: find applies -name / -path to its starting point, and `-path '*/tail/*'` matches every ancestor path, so
+# a value naming the root's own basename, a tail of the root path, or a glob matching either would prune the WHOLE scan and the
+# gate would end in SKIP (exit 0, read as a pass by a consumer). That is refused with exit 2 (review round 1, finding 1).
+cli_prune_expr=(); cli_ex_txt=""; cli_applied=""
+n_default_prune="${#prune_expr[@]}"
+for ex in ${cli_excludes[@]+"${cli_excludes[@]}"}; do
+    cli_ex_txt="${cli_ex_txt:+$cli_ex_txt }$ex"
     case "$ex" in
-        */*) cli_prune_expr+=(-path "*/${ex}" -o -path "*/${ex}/*" -o) ;;
-        *)   cli_prune_expr+=(-name "$ex" -o) ;;
+        */*) one_expr=(-path "*/${ex}" -o -path "*/${ex}/*"); one_txt="-path '*/${ex}' -o -path '*/${ex}/*'" ;;
+        *)   one_expr=(-name "$ex"); one_txt="-name '${ex}'" ;;
     esac
+    cli_applied="${cli_applied:+$cli_applied; }${one_txt}"
+    if [ "$root_is_file" -eq 0 ] && [ -n "$(find "$root" -maxdepth 0 -type d \( "${one_expr[@]}" \) -print -quit 2>/dev/null)" ]; then
+        echo "${GATE}: --exclude '${ex}' (applied as ${one_txt}) matches the scan root itself or one of its ancestors (${root}): it would prune the whole scan and end in a SKIP; refused" >&2
+        exit 2
+    fi
+    cli_prune_expr+=("${one_expr[@]}" -o)
 done
 [ "${#cli_prune_expr[@]}" -eq 0 ] || prune_expr+=("${cli_prune_expr[@]}")
 # third-party prune (same resolver as the sibling scanner gates): root-anchored, see
@@ -283,9 +301,15 @@ if [ "$include_tp" != 1 ] && [ "$root_is_file" -eq 0 ]; then
         echo "${GATE}: third_party_prune lib unavailable; scanning third-party trees too (fail closed)" >&2
     fi
 fi
+# the same prune list WITHOUT the explicit --exclude entries (default + third-party): used only to tell, when nothing is left
+# to scan, whether the explicit exclusions are the cause (exit 2) or the tree simply has no source file (SKIP)
+nocli_prune_expr=("${prune_expr[@]:0:n_default_prune}" "${prune_expr[@]:$((n_default_prune + ${#cli_prune_expr[@]}))}")
 # drop trailing -o
 if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
+fi
+if [ "${#nocli_prune_expr[@]}" -gt 0 ]; then
+    unset 'nocli_prune_expr[${#nocli_prune_expr[@]}-1]'
 fi
 
 if [ "$root_is_file" -eq 1 ]; then
@@ -301,9 +325,9 @@ mapfile -d '' -t files < <(
 fi
 
 # make every explicit exclusion visible: the excluded directories, their source-file counts and (up to 50) the files
-if [ -n "$cli_excludes" ]; then
+if [ "${#cli_excludes[@]}" -gt 0 ]; then
     if [ "$root_is_file" -eq 1 ]; then
-        echo "⚠ ${GATE}: NOTE — --exclude (${cli_excludes}) has no effect on a single-file scan root"
+        echo "⚠ ${GATE}: NOTE — --exclude (${cli_ex_txt}) has no effect on a single-file scan root"
     else
         cli_cut=0
         cli_list_expr=("${cli_prune_expr[@]}"); unset 'cli_list_expr[${#cli_list_expr[@]}-1]'   # drop the trailing -o
@@ -318,7 +342,21 @@ if [ -n "$cli_excludes" ]; then
             done
             [ "$_xn" -le 50 ] || echo "ℹ️  ${GATE}:   ... and $((_xn - 50)) more excluded file(s)"
         done < <(find "$root" -type d \( "${cli_list_expr[@]}" \) -prune -print0 2>/dev/null | sort -z)
-        [ "$cli_cut" -gt 0 ] || echo "⚠ ${GATE}: NOTE — --exclude (${cli_excludes}) matched no directory under ${root}"
+        [ "$cli_cut" -gt 0 ] || echo "⚠ ${GATE}: NOTE — --exclude (${cli_ex_txt}) matched no directory under ${root} (applied as: ${cli_applied})"
+    fi
+fi
+
+if [ "${#files[@]}" -eq 0 ] && [ "${#cli_excludes[@]}" -gt 0 ] && [ "$root_is_file" -eq 0 ]; then
+    # nothing left to scan: when the SAME scan without the explicit --exclude entries finds a source file, the exclusions
+    # emptied it, and a SKIP (exit 0, read as a pass by a consumer) would hide every call site: refuse with exit 2 instead
+    if [ "${#nocli_prune_expr[@]}" -gt 0 ]; then
+        cli_would_scan="$(find "$root" -type d \( "${nocli_prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print -quit 2>/dev/null)"
+    else
+        cli_would_scan="$(find "$root" -type f \( "${find_name_expr[@]}" \) -print -quit 2>/dev/null)"
+    fi
+    if [ -n "$cli_would_scan" ]; then
+        echo "${GATE}: --exclude (${cli_ex_txt}) left no source file to scan under ${root} (without it, e.g. ${cli_would_scan} would be scanned); refused, not a SKIP" >&2
+        exit 2
     fi
 fi
 

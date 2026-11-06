@@ -1084,8 +1084,61 @@ x_mut ignored '[ "${#cli_prune_expr[@]}" -eq 0 ] || prune_expr+=' 's/^\[ "\${#cl
 x_mut silent 'EXCLUDED (explicit --exclude, not scanned)' 's/EXCLUDED (explicit --exclude, not scanned)/(quiet)/; s/excluded file: /(quiet) /'
 x_mut accepts_all 'exclude_glob_ok() {' 's/^exclude_glob_ok() {/exclude_glob_ok() { return 0;/'
 x_mut replaces_default 'for ex in $excludes; do' 's/^for ex in \$excludes; do/for ex in ${cli_excludes:-$excludes}; do/'
-x_mut nonote 'matched no directory under' 's/NOTE — --exclude (\${cli_excludes}) matched no directory under/(quiet) matched no directory under/'
+x_mut nonote 'matched no directory under' 's/NOTE — --exclude (\${cli_ex_txt}) matched no directory under/(quiet) matched no directory under/'
 x_mut filenote 'has no effect on a single-file scan root' 's/has no effect on a single-file scan root/applies/'
+
+# ── round 10 (independent review round 1, NO-GO): an --exclude may not prune the scan ROOT or an ancestor of it (find applies -name /
+# -path to its starting point, so the gate ended in SKIP, exit 0, with every call site unread), is taken literally (never glob-expanded
+# against the caller's working directory), and may not empty the scan into a SKIP ──────────────────────────────────────────────
+# fixture: $XR is the scan root, basename `live`, parent `scripts`, grandparent `xcl`; it holds a real bad call (real_bad.py)
+XR="$XC/scripts/live"
+XZ="$TMP/xz"; mkdir -p "$XZ/fixtures"; cp "$XC/scripts/hooks/fixtures/frozen.fixture.sh" "$XZ/fixtures/"   # the only source file lives under the excluded dir
+XN="$TMP/xn"; mkdir -p "$XN/fixtures"; printf 'notes\n' > "$XN/fixtures/notes.txt"                          # no source file anywhere
+XW="$TMP/xcwd"; mkdir -p "$XW/fixonly"                                                                      # a working directory holding an entry that `fix*` would expand to
+xroot_refused() { # $1=gate $2=value : exit 2, the refusal says the value matches the scan root or an ancestor, no SKIP, no scan verdict
+    local o r; o="$(bash "$1" --root "$XR" --exclude "$2" --quiet 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q "matches the scan root itself or one of its ancestors" <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o" && ! grep -q 'FAIL —' <<<"$o"; }
+x_rootctl() { local o r; o="$(bash "$1" --root "$XR" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && live_found "$o" || return 1   # control needle: the unexcluded scan sees the bad call
+    o="$(bash "$1" --root "$XR" --exclude 'zz*' --quiet 2>&1)"; r=$?                                                    # and an exclusion that matches neither the root nor an ancestor is NOT refused
+    [ "$r" -eq 1 ] && live_found "$o" && ! grep -q 'matches the scan root' <<<"$o"; }
+x_rootname() { xroot_refused "$1" live; }
+x_roottail() { xroot_refused "$1" scripts/live; }
+x_rootanc() { xroot_refused "$1" xcl/scripts && xroot_refused "$1" 'xc*/scripts'; }
+x_rootglob() { xroot_refused "$1" 'li*' && xroot_refused "$1" '*ve' && xroot_refused "$1" 'l*' && xroot_refused "$1" 'scripts/l*'; }
+x_zero() { local o r; o="$(bash "$1" --root "$XZ" --quiet 2>&1)"; r=$?; [ "$r" -eq 1 ] && fx_found "$o" || return 1       # control needle: unexcluded, the file is reported
+    o="$(bash "$1" --root "$XZ" --exclude fixtures --quiet 2>&1)"; r=$?
+    [ "$r" -eq 2 ] && grep -q 'left no source file to scan' <<<"$o" && ! grep -q 'SKIP — topology_unsupported' <<<"$o"; }
+x_zeroskip() { local o r; o="$(bash "$1" --root "$XN" --quiet 2>&1)"; r=$?; [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o" || return 1   # a tree with no source file SKIPs, as before
+    o="$(bash "$1" --root "$XN" --exclude fixtures --quiet 2>&1)"; r=$?                                                  # ... and the exclusion is not what emptied it: still SKIP
+    [ "$r" -eq 0 ] && grep -q 'SKIP — topology_unsupported' <<<"$o"; }
+x_cwd() { local o r; o="$(cd "$XW" && bash "$1" --root "$XC" --exclude 'fix*' --quiet 2>&1)"; r=$?
+    [ "$r" -eq 1 ] && ! fx_found "$o" && live_found "$o" && excl_line "$o" && ! grep -q 'matched no directory' <<<"$o"; }
+x_applied() { local o; o="$(bash "$1" --root "$XC" --exclude nothere --exclude 'a/b' --quiet 2>&1)"
+    grep -q "matched no directory under .* (applied as: -name 'nothere'; -path '\*/a/b' -o -path '\*/a/b/\*')" <<<"$o"; }
+if x_rootctl "$GATE"; then ok "X9: control: the unexcluded root scan reports the bad call, and an exclusion unrelated to the root ('zz*') is not refused"; else bad "X9: root-exclusion control wrong"; fi
+if x_rootname "$GATE"; then ok "X10: --exclude <basename of the scan root> is refused with exit 2 (no SKIP)"; else bad "X10: an exclusion naming the scan root was accepted"; fi
+if x_roottail "$GATE"; then ok "X11: --exclude <tail path of the scan root> is refused with exit 2 (no SKIP)"; else bad "X11: a tail-path exclusion of the scan root was accepted"; fi
+if x_rootanc "$GATE"; then ok "X12: --exclude <tail path of an ANCESTOR of the scan root> (also as a glob) is refused with exit 2 (no SKIP)"; else bad "X12: an exclusion naming an ancestor of the scan root was accepted"; fi
+if x_rootglob "$GATE"; then ok "X13: --exclude <glob matching the scan root> (name and path forms) is refused with exit 2 (no SKIP)"; else bad "X13: a glob matching the scan root was accepted"; fi
+if x_zero "$GATE"; then ok "X14: an exclusion that leaves NO source file to scan exits 2 (not SKIP), where the unexcluded scan has a finding"; else bad "X14: exclusion emptied the scan into SKIP or the control is wrong"; fi
+if x_zeroskip "$GATE"; then ok "X15: a tree with no source file at all still SKIPs, with or without an unrelated --exclude (the exit-2 rule is only for an exclusion that emptied the scan)"; else bad "X15: no-source tree no longer SKIPs"; fi
+if x_cwd "$GATE"; then ok "X16: --exclude 'fix*' run from a directory holding 'fixonly' still excludes 'fixtures' (the value is not glob-expanded against the working directory)"; else bad "X16: --exclude glob expanded against the caller's working directory"; fi
+if x_applied "$GATE"; then ok "X17: the no-match NOTE prints the find test that was applied"; else bad "X17: the NOTE does not print the applied test"; fi
+x2_mut() { # $1=label $2=anchor-grep $3=sed $4=case function : it must PASS on the real gate (checked) and FAIL on the mutant
+    local G; G="$(mkxg "$1" "$3")"
+    if ! grep -qF -- "$2" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: anchor absent"
+    elif cmp -s "$G" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1 did not apply"
+    elif ! "$4" "$HERE/cm_killpg_pgid_guard.sh"; then bad "mutant $1: case $4 does not hold on the real gate"
+    elif "$4" "$G"; then bad "mutant $1 SURVIVED ($4 is not load-bearing for it)"; else ok "mutant $1 caught by $4"; fi
+}
+x2_mut rootcheck_off '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_rootname
+x2_mut rootcheck_off_tail '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_roottail
+x2_mut rootcheck_off_glob '-maxdepth 0 -type d' 's/-maxdepth 0 -type d/-maxdepth 0 -type d -name NEVER_MATCHES_ZZ/' x_rootglob
+x2_mut rootcheck_no_ancestor '-maxdepth 0 -type d' 's/\\( "\${one_expr\[@\]}" \\) -print -quit/\\( "${one_expr[@]:0:2}" \\) -print -quit/' x_rootanc
+x2_mut zero_skips 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cli_would_scan" \]; then/if false; then/' x_zero
+x2_mut zero_always_refuses 'if [ -n "$cli_would_scan" ]; then' 's/if \[ -n "\$cli_would_scan" \]; then/if true; then/' x_zeroskip
+x2_mut cwd_glob 'for ex in ${cli_excludes[@]+"${cli_excludes[@]}"}; do' 's/^for ex in \${cli_excludes\[@\]+"\${cli_excludes\[@\]}"}; do/for ex in ${cli_excludes[*]}; do/' x_cwd
+x2_mut note_without_applied '(applied as: ${cli_applied})' 's/ (applied as: \${cli_applied})//' x_applied
 
 [ "$rc" -eq 0 ] && echo "SCOPE TEST PASS" || echo "SCOPE TEST FAIL"
 exit "$rc"
