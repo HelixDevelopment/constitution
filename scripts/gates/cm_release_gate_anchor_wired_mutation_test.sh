@@ -8,7 +8,10 @@
 #     * golden-FALSE     changes that must NOT trip the gate (a mid-body citation of §11.4.298
 #                        elsewhere, an unrelated project section after a mirror block, a
 #                        prefix-colliding decoy heading §11.4.2980, a whitespace-only edit inside
-#                        the block) MUST still pass (§11.4.201(1));
+#                        the block, inside a pinned mirror block and inside the pinned release-gate
+#                        note) MUST still pass (§11.4.201(1)); --print-digests on the genuine tree MUST
+#                        print exactly the pinned values, and a gate copy re-pinned from it after a text
+#                        change MUST pass that change;
 #     * RED mutations    every required marker phrase, every clause heading (A)..(G), every row of
 #                        the closed gate-state table and a fifth row, every escape-hatch flag, every
 #                        cross-reference, the back-pointer in §11.4.293, every mirror and its
@@ -16,9 +19,14 @@
 #                        catalog, the data-pack row, the generated wrappers, the seam binding, the
 #                        deferral row, the hook bindings, a duplicated canon block, a stray second
 #                        block-start form and a demoted heading are removed or broken ONE AT A TIME,
-#                        and the gate MUST exit 1 and name that exact failed check;
-#     * BLIND            a broken block extractor, a missing Constitution.md and a lost real-file
-#                        control needle MUST exit 2 (never a silent PASS).
+#                        and the gate MUST exit 1 and name that exact failed check; each of the 10
+#                        marker-preserving weakenings of audit 2 (R1..R10: canon, the §11.4.293
+#                        release-gate note, each mirror) MUST exit 1 and name the pin of the text it
+#                        edits, and with the pin check disabled in a gate copy R5 MUST pass (the pin is
+#                        what names it);
+#     * BLIND            a broken block extractor, a missing Constitution.md, a lost real-file
+#                        control needle and a pin digest that keeps whitespace MUST exit 2 (never a
+#                        silent PASS).
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug
 #   (exit 2), never a green. No product or device name is stored in this file.
 #
@@ -423,6 +431,87 @@ fresh; mut file-sub scripts/post_update_hook.sh 'CM-RELEASE-GATE-ANCHOR-WIRED' '
 expect_red "hook no longer names the token" "FAIL  seam: post_update_hook.sh names the token CM-RELEASE-GATE-ANCHOR-WIRED"
 fresh; rm -f "${W:?}/scripts/post_update_hook.sh"
 expect_red "hook file missing" "FAIL  seam: scripts/post_update_hook.sh missing"
+
+# ── text pins (audit 2, F1): each marker-preserving weakening of audit 2 is named by its pin ─
+fresh; mut block-sub Constitution.md 298 '; for a product in any other state it is refused, and no text describes it as covering that product.' '; a product in another state may ride along when the release note marks it partial.'
+expect_red 'audit-2 R1-multiproduct-ride-along keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'the target identity read from the hardware, ' ''
+expect_red 'audit-2 R2-record-no-target-identity keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'deterministically (§11.4.50) and LIVE (§11.4.289),' 'LIVE (§11.4.289),'
+expect_red 'audit-2 R3-not-deterministic keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'A missing baseline is cured only as §11.4.293(C) states;' 'A missing baseline is cured by the operator'"'"'s acceptance of the current build;'
+expect_red 'audit-2 R4-baseline-by-acceptance keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'There is no fifth state and no default state.' 'There is no fifth state and no default state. A product whose hardware is temporarily unavailable may reuse its last `RELEASABLE` state.'
+expect_red 'audit-2 R5-additive-reuse-last-state keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'A consumer rule that lets a dev tag be cut at any time yields to this point:' 'A consumer rule that lets a dev tag be cut at any time prevails over this point:'
+expect_red 'audit-2 R6-consumer-devtag-prevails keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'or handing it to manual QA (§11.4.185, §11.4.236) or to a user' 'or handing it to a user'
+expect_red 'audit-2 R7-manual-QA-not-deployment keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 298 'no existing test is dropped, skipped or quarantined out of the comparison to let a build pass' 'no existing test is dropped, skipped or quarantined out of the comparison, unless it is marked flaky, to let a build pass'
+expect_red 'audit-2 R8-flaky-may-be-dropped keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.298 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 293 'a build without a completed live run on connected hardware of its product gets no tag of any class.' 'a build without a completed live run on connected hardware of its product gets no release tag.'
+expect_red 'audit-2 R9-CONTROL-293note-release-tag-only keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.293 refinement note (2026-11-07, release gate) matches PIN_NOTE_293'
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    fresh; mut carrier-sub "$f" 298 'an emulator, a host run, a replayed record or another product'"'"'s hardware is never this run' 'a host run, a replayed record or another product'"'"'s hardware is never this run (an emulator may stand in when no board is attached)'
+    expect_red "audit-2 R10-carriers-emulator-ok keeps every marker, caught by its pin: $f" "FAIL  pinned: mirror $f §11.4.298 block matches PIN_CARRIER"
+done
+# golden-FALSE: whitespace-only edits inside a pinned mirror block and a pinned note keep the gate green
+fresh; mut carrier-sub CLAUDE.md "$N" 'Classification: universal (§11.4.17).' 'Classification:   universal (§11.4.17).'
+expect_green "whitespace-only change inside a pinned mirror block keeps the gate green"
+fresh; mut block-sub Constitution.md 293 'makes the verdict of this anchor the condition' 'makes the verdict  of this anchor  the condition'
+expect_green "whitespace-only change inside a pinned refinement note keeps the gate green"
+# --print-digests reads the texts the pins check: on the genuine tree it prints exactly the pinned values
+fresh; PD="$(bash "$GATE" --root "$W" --print-digests 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && python3 - "$GATE" "$PD" <<'PYEOF'
+import re, sys
+src = open(sys.argv[1], encoding='utf-8').read()
+pins = dict(re.findall(r"^(PIN_[A-Z0-9_]+)='([0-9a-f]{64})'", src, re.M))
+out = re.findall(r"^(PIN_[A-Z0-9_]+)='([0-9a-f]{64})'", sys.argv[2], re.M)
+sys.exit(0 if pins and out and all(pins.get(k) == v for k, v in out) and {k for k, _ in out} == set(pins) else 1)
+PYEOF
+then NGF=$((NGF + 1)); quiet_say "GREEN kept: --print-digests on the genuine tree prints the pinned values"
+else say "PRINT-DIGESTS MISMATCH: exit $rc"; printf '%s\n' "$PD" | head -n 4; RESULT=1; fi
+# re-pinned: after a reviewed text change, a gate copy re-pinned from --print-digests passes again
+fresh; mut block-sub Constitution.md "$N" 'There is no fifth state and no default state.' 'There is no fifth state and no default state. A product whose hardware is temporarily unavailable may reuse its last `RELEASABLE` state.'
+G2="$W/scripts/gates/${GATE##*/}"
+NEWPIN="$(bash "$G2" --root "$W" --print-digests | sed -n "s/^PIN_CANON='\([0-9a-f]*\)'.*/\1/p")"
+python3 - "$G2" "$NEWPIN" <<'PYEOF' || { say "SETUP FAILURE: could not re-pin the gate copy"; exit 2; }
+import re, sys
+p, v = sys.argv[1], sys.argv[2]
+t = open(p, encoding='utf-8').read()
+t2, k = re.subn(r"^PIN_CANON='[0-9a-f]{64}'", "PIN_CANON='%s'" % v, t, count=1, flags=re.M)
+if k != 1 or t2 == t or len(v) != 64:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t2)
+PYEOF
+out="$(bash "$G2" --root "$W" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then NGF=$((NGF + 1)); quiet_say "GREEN kept: a gate copy re-pinned from --print-digests passes the reviewed text change"
+else say "RE-PIN CASE FAILED: exit $rc"; printf '%s\n' "$out" | grep FAIL | head -n 4; RESULT=1; fi
+# gate mutant: with the pin check disabled in a copy, the same change passes; so the pin check is what names it
+fresh; mut block-sub Constitution.md "$N" 'There is no fifth state and no default state.' 'There is no fifth state and no default state. A product whose hardware is temporarily unavailable may reuse its last `RELEASABLE` state.'
+G3="$W/scripts/gates/pins_off_gate.sh"; cp "$GATE" "$G3"
+python3 - "$G3" <<'PYEOF' || { say "SETUP FAILURE: could not disable the pin check in the copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = 'if [ -n "$cur" ] && [ "$cur" = "$2" ]; then pass "$1"'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, 'if true; then pass "$1"'))
+PYEOF
+bash "$G3" --root "$W" >/dev/null 2>&1; rc3=$?; bash "$GATE" --root "$W" >/dev/null 2>&1; rc1=$?
+if [ "$rc3" -eq 0 ] && [ "$rc1" -eq 1 ]; then NRED=$((NRED + 1)); quiet_say "RED flip: the pin check alone names audit-2 R5 (pins off: exit 0; gate: exit 1)"
+else say "PIN MUTANT SURVIVED OR MISWIRED: pins-off copy exit $rc3, gate exit $rc1 (expected 0 and 1)"; RESULT=1; fi
+# BLIND: a digest that no longer normalises whitespace fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_digest.sh"
+python3 - "$W/scripts/gates/broken_digest.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the digest copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = """digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }"""
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, """digest() { "${SHA[@]}" | awk '{ print $1 }'; }"""))
+PYEOF
+expect_blind "pin digest that keeps whitespace -> the digest control needle refuses (BLIND)" "$W/scripts/gates/broken_digest.sh"
 
 # ── BLIND: an untrustworthy instrument never reports PASS ────────────────────
 fresh; cp "$GATE" "$W/scripts/gates/broken_gate.sh"

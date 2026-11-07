@@ -10,8 +10,10 @@
 #   `main`, read back and then retired;
 #   evidence it cites resolves from its head tree; a submodule change lands as its own pull
 #   request before the parent pin bump with mirror parity read back; enforcement claims carry
-#   ENFORCED, PROVISIONAL or UNCONFIRMED) is present exactly once, complete, and
-#   cross-referenced in BOTH directions across the canon:
+#   ENFORCED, PROVISIONAL or UNCONFIRMED) is present exactly once, carries its load-bearing
+#   phrases, matches its pinned text (section 0: the canon block, the mirror block and the three
+#   refinement notes, each pinned by the sha256 of its text without whitespace), and is cross-referenced in BOTH
+#   directions across the canon:
 #     * Constitution.md        one `### §11.4.297` block carrying the forensic order, the
 #                              nine clauses (A)..(I) with the three amendment points
 #                              (A.1)..(A.3) of §11.4.288, the honest boundary, every gate
@@ -43,6 +45,8 @@
 #   cm_pr_delivery_anchor_wired.sh [--root <constitution-dir>] [--quiet]
 #   cm_pr_delivery_anchor_wired.sh --help
 #   --root defaults to the constitution directory that holds this script.
+#   --print-digests prints the current text digests in the form of the PIN_ lines of section 0 and exits 0
+#   (used to re-pin after a reviewed text change; it checks nothing).
 #
 # Exit codes
 #   0  PASS    every check passed
@@ -58,24 +62,26 @@
 # answer is known (positive needle, prefix-collision needle, mid-body-citation decoy) and
 # against the real neighbouring anchor §11.4.286 in the real files.
 #
-# Dependencies: bash, awk, grep, mktemp. Classification: universal (§11.4.17).
+# Dependencies: bash, awk, grep, mktemp, sha256sum or shasum. Classification: universal (§11.4.17).
 set -u -o pipefail
 export LC_ALL=C
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SELF_DIR/../.." && pwd)"
 QUIET=0
+PRINT=0
 GATE="CM-PR-DELIVERY-ANCHOR-WIRED"
 # The account-name gate's token is read from that gate's own GATE= line at run time, so this file names only its
 # own token and the §11.4.227(A) ledger attributes the account-name gate to its real site, never to this file.
 NAMEGATE_FILE="scripts/gates/cm_pr_delivery_account_name_free.sh"
 N=297
 
-usage() { echo "usage: ${0##*/} [--root <constitution-dir>] [--quiet] | --help" >&2; exit 64; }
+usage() { echo "usage: ${0##*/} [--root <constitution-dir>] [--quiet] | --print-digests | --help" >&2; exit 64; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) [ $# -ge 2 ] || usage; ROOT="$2"; shift 2 ;;
         --quiet) QUIET=1; shift ;;
+        --print-digests) PRINT=1; shift ;;
         -h|--help) awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$0"; exit 0 ;;
         *) usage ;;
     esac
@@ -168,6 +174,48 @@ NAMEGATE="${NAMEGATE:-<account-name gate token unreadable>}"
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     [ -f "$ROOT/$f" ] || continue
     [ "$(count_blockstarts "$ROOT/$f" 286)" = 1 ] || blind "real-file control needle: expected exactly one §11.4.286 block-start in $f"
+done
+
+# ── 0. text pins: the whole wording of each rule text, not only its markers ───
+# The marker list proves that load-bearing phrases are present; it cannot see a sentence added between them (an
+# exception, a weaker condition, a duty no marker spans: audit 2 of 2026-11-07 kept every marker and weakened the text
+# in 27 of 30 ways). Each rule text below is therefore pinned by the sha256 of its text with all whitespace removed: ANY
+# change of wording turns this gate red until its pin is updated here, a reviewed edit of this file in the same
+# commit as the text (--print-digests prints the current values). A whitespace-only change keeps the pin. A pin
+# proves that the text is the reviewed text; it says nothing about whether that text is right.
+PIN_CANON='f492ef1638ead21cc17a199082323b414e11b5079efe1918372a2ad6e4ea4287'       # the §11.4.297 block of Constitution.md
+PIN_CARRIER='37e69a1012661856a78c6ff421163e1ce12bf6f8e79501bed098c8c47809b4fb'     # the §11.4.297 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
+PIN_NOTE_288='9bd14bfd64117be09395b474610cce5ed7fb6287a18b3d3605d5f3168cad0352'    # the "Refinement note (2026-11-07)." line of §11.4.288
+PIN_NOTE_292='f42431ef5888ffbda7c5aa4fa41a0ed7ce6e6a909e1511e159f9690cc4d82d56'    # the "Refinement note (2026-11-07)." line of §11.4.292
+PIN_NOTE_293='58cc6e8b8fc88f53b733c5e3183da26ae7e735c3f3c5bb1033f183c8f70634db'    # the "Refinement note (2026-11-07)." line of §11.4.293
+command -v sha256sum >/dev/null 2>&1 && SHA=(sha256sum) || { command -v shasum >/dev/null 2>&1 && SHA=(shasum -a 256); } || blind "sha256sum or shasum is needed for the text pins"
+# digest -> the sha256 of stdin with every blank, tab and newline removed (so a whitespace-only change, also one that
+# splits or joins words, keeps the digest; any other change of the text alters it)
+digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }
+[ "$(printf 'a  b\n\tc \n' | digest)" = "$(printf 'abc' | digest)" ] || blind "pin digest control needle: a whitespace-only change altered the digest"
+[ "$(printf 'a b c' | digest)" != "$(printf 'a b d' | digest)" ]      || blind "pin digest control needle: a changed word kept the digest"
+pin_chk() { # pin_chk <label> <pinned digest> <text file>
+    local cur=""
+    [ -s "$3" ] && cur="$(digest <"$3")"
+    if [ -n "$cur" ] && [ "$cur" = "$2" ]; then pass "$1"; else fail "$1"; printf '      pinned %s, now %s\n' "$2" "${cur:-<no text>}"; fi
+}
+note_pin() { case "$1" in 288) printf '%s' "$PIN_NOTE_288" ;; 292) printf '%s' "$PIN_NOTE_292" ;; 293) printf '%s' "$PIN_NOTE_293" ;; esac; }
+block_of "$CANON" "$N" >"$TMP/pin_canon.txt"
+for n in 288 292 293; do block_of "$CANON" "$n" | grep -F -- '**Refinement note (2026-11-07).**' >"$TMP/pin_note_$n.txt"; done
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$ROOT/$f" ] && carrier_block "$ROOT/$f" "$N" >"$TMP/pin_car_$f.txt"; done
+if [ "$PRINT" = 1 ]; then
+    printf "PIN_CANON='%s'\n" "$(digest <"$TMP/pin_canon.txt")"
+    for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$TMP/pin_car_$f.txt" ] && printf "PIN_CARRIER='%s'  # %s\n" "$(digest <"$TMP/pin_car_$f.txt")" "$f"; done
+    for n in 288 292 293; do printf "PIN_NOTE_%s='%s'\n" "$n" "$(digest <"$TMP/pin_note_$n.txt")"; done
+    exit 0
+fi
+pin_chk "pinned: the §11.4.$N block of Constitution.md matches PIN_CANON" "$PIN_CANON" "$TMP/pin_canon.txt"
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    [ -f "$ROOT/$f" ] || continue
+    pin_chk "pinned: mirror $f §11.4.$N block matches PIN_CARRIER" "$PIN_CARRIER" "$TMP/pin_car_$f.txt"
+done
+for n in 288 292 293; do
+    pin_chk "pinned: the §11.4.$n refinement note (2026-11-07) matches PIN_NOTE_$n" "$(note_pin "$n")" "$TMP/pin_note_$n.txt"
 done
 
 # The nine clause headings of §11.4.297, (A) to (I), and the three amendment points of (A).
