@@ -54,7 +54,24 @@ fi
 # feature branch + track) is still a supported registry shape and keeps its coverage; the
 # group id is test data, not a statement about any consumer's live registry.
 # ---------------------------------------------------------------------------
+# Fixture root outside /mnt/track<N>. The hook derives the CURRENT TRACK from its physical cwd
+# (current_track: /mnt/track<N>/... -> track-<N>, anything else -> '?') and every commit-path case
+# below runs the hook from a cwd inside this root and is written for track '?'. With TMPDIR under
+# /mnt/track4 (exported by a consumer's pre-build launcher) the hook derived 'track-4' and BLOCKED
+# the two pinned-track ALLOW cases (track-2 mistiq on its branch, track-1 unified on main): 2 FAIL
+# while the hook behaved as designed. TMPDIR is kept when it resolves outside /mnt/track<N>, else /tmp is used; when neither
+# does, the suite refuses (exit 1) rather than run cases whose premise is false.
+_outside_track_mounts() { case "$(cd "$1" 2>/dev/null && pwd -P)" in /mnt/track[0-9]*) return 1 ;; esac; return 0; }
 TMP="$(mktemp -d)"
+if ! _outside_track_mounts "$TMP"; then
+  rm -rf "$TMP"
+  TMP="$(mktemp -d /tmp/gwtb.XXXXXX 2>/dev/null)" && _outside_track_mounts "$TMP" || {
+    [ -n "$TMP" ] && rm -rf "$TMP"
+    echo "  PRECONDITION FAIL: no fixture root outside /mnt/track<N> (TMPDIR=${TMPDIR:-unset}; /tmp unusable or under a track mount)"
+    echo "  RESULT: FAIL"
+    exit 1
+  }
+fi
 EMPTYDIR="$(mktemp -d)"
 trap 'rm -rf "$TMP" "$EMPTYDIR"' EXIT
 DB="$TMP/registry.db"
@@ -128,6 +145,20 @@ echo "§11.4.191 guard-work-track-binding.sh hermetic test suite"
 echo "hook: $HOOK"
 echo "resolver: $RES"
 echo "registry: $DB (mistiq-vader=feature/mistiq-vader/track-2, unified-product=main/track-1)"
+# Control needle (§11.4.201: the real condition, read from the hook itself, not a copy of its glob):
+# the track the hook derives for a cwd inside $REPO must be '?', the premise of every commit-path
+# case. A mistiq file staged on main is a known BLOCK whose refusal names the derived track; a
+# needle that reads nothing (blind) refuses as well.
+stage device/rockchip/atmosphere/remote_host/Foo.kt
+TRACK_SEEN="$( cd "$REPO" && WI_DB="$DB" bash "$HOOK" <<<'{"tool_name":"Bash","tool_input":{"command":"git commit -m wip"}}' 2>&1 >/dev/null \
+  | sed -n "s/^  Current checkout: branch '[^']*' \/ track '\([^']*\)'\.\$/\1/p" | head -n 1 )"
+unstage_all
+if [ "$TRACK_SEEN" != "?" ]; then
+  echo "  PRECONDITION FAIL: the hook derives track '${TRACK_SEEN:-<none read>}' for the fixture cwd $REPO; every commit-path case is written for track '?'"
+  echo "  RESULT: FAIL"
+  exit 1
+fi
+echo "precondition: the hook derives track '${TRACK_SEEN}' for the fixture cwd (fixture root $TMP)"
 echo
 
 # ===========================================================================
