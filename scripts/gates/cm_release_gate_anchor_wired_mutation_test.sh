@@ -9,7 +9,8 @@
 #                        elsewhere, an unrelated project section after a mirror block, a
 #                        prefix-colliding decoy heading §11.4.2980, a whitespace-only edit inside
 #                        the block, inside a pinned mirror block and inside the pinned release-gate
-#                        note) MUST still pass (§11.4.201(1)); --print-digests on the genuine tree MUST
+#                        note, the release-gate note re-wrapped across two lines) MUST still pass
+#                        (§11.4.201(1)); --print-digests on the genuine tree MUST
 #                        print exactly the pinned values, and a gate copy re-pinned from it after a text
 #                        change MUST pass that change;
 #     * RED mutations    every required marker phrase, every clause heading (A)..(G), every row of
@@ -23,10 +24,12 @@
 #                        marker-preserving weakenings of audit 2 (R1..R10: canon, the §11.4.293
 #                        release-gate note, each mirror) MUST exit 1 and name the pin of the text it
 #                        edits, and with the pin check disabled in a gate copy R5 MUST pass (the pin is
-#                        what names it);
+#                        what names it); a sentence added on the line after the release-gate note, and
+#                        on the line before it, with no blank line between (audit 3, B1), MUST exit 1
+#                        and name the pin of the note;
 #     * BLIND            a broken block extractor, a missing Constitution.md, a lost real-file
-#                        control needle and a pin digest that keeps whitespace MUST exit 2 (never a
-#                        silent PASS).
+#                        control needle, a pin digest that keeps whitespace and a note extractor that
+#                        reads only the marker line MUST exit 2 (never a silent PASS).
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug
 #   (exit 2), never a green. No product or device name is stored in this file.
 #
@@ -460,6 +463,19 @@ fresh; mut carrier-sub CLAUDE.md "$N" 'Classification: universal (§11.4.17).' '
 expect_green "whitespace-only change inside a pinned mirror block keeps the gate green"
 fresh; mut block-sub Constitution.md 293 'makes the verdict of this anchor the condition' 'makes the verdict  of this anchor  the condition'
 expect_green "whitespace-only change inside a pinned refinement note keeps the gate green"
+# audit 3 (B1): the release-gate note is pinned as its whole paragraph, so a sentence on the line after it (or on the
+# line before it) with no blank line between is caught by its pin; the note re-wrapped across lines is not
+fresh; mut block-sub Constitution.md 293 'and clauses (A) to (E) and (G) are unchanged.' 'and clauses (A) to (E) and (G) are unchanged.
+A consumer dev tag may skip this gate.'
+expect_red "audit-3 B1 continuation line after the release-gate note, caught by its pin" "FAIL  pinned: the §11.4.293 refinement note (2026-11-07, release gate) matches PIN_NOTE_293"
+fresh; mut block-sub Constitution.md 293 '
+**Refinement note (2026-11-07, release gate).**' '
+A consumer dev tag may skip this gate.
+**Refinement note (2026-11-07, release gate).**'
+expect_red "audit-3 B1 lead-in line directly before the release-gate note, caught by its pin" "FAIL  pinned: the §11.4.293 refinement note (2026-11-07, release gate) matches PIN_NOTE_293"
+fresh; mut block-sub Constitution.md 293 'makes the verdict of this anchor the condition' 'makes the verdict
+of this anchor the condition'
+expect_green "the release-gate note re-wrapped across two lines (a whitespace-only change) keeps the gate green"
 # --print-digests reads the texts the pins check: on the genuine tree it prints exactly the pinned values
 fresh; PD="$(bash "$GATE" --root "$W" --print-digests 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ] && python3 - "$GATE" "$PD" <<'PYEOF'
@@ -512,6 +528,17 @@ if t.count(old) != 1:
 open(p, 'w', encoding='utf-8').write(t.replace(old, """digest() { "${SHA[@]}" | awk '{ print $1 }'; }"""))
 PYEOF
 expect_blind "pin digest that keeps whitespace -> the digest control needle refuses (BLIND)" "$W/scripts/gates/broken_digest.sh"
+# BLIND: a note extractor that reads only the marker line (the audit-3 B1 defect) fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_note.sh"
+python3 - "$W/scripts/gates/broken_note.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the note extractor copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = r'{ buf = buf $0 "\n"; if (index($0, m)) hit = 1 }'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, r'{ if (index($0, m)) { buf = buf $0 "\n"; hit = 1 } }'))
+PYEOF
+expect_blind "note extractor that reads only the marker line -> the note paragraph control needle refuses (BLIND)" "$W/scripts/gates/broken_note.sh"
 
 # ── BLIND: an untrustworthy instrument never reports PASS ────────────────────
 fresh; cp "$GATE" "$W/scripts/gates/broken_gate.sh"

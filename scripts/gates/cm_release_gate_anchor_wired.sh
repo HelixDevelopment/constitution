@@ -7,7 +7,7 @@
 #   hardware of its product and a §11.4.293 comparison against the build that hardware carried
 #   before; a product without connected hardware or without a baseline is BLOCKED, never green)
 #   is present exactly once, carries its load-bearing phrases, matches its pinned text (section 0:
-#   the canon block, the mirror block and the release-gate note of §11.4.293, each pinned by a
+#   the canon block, the mirror block and the release-gate note of §11.4.293 as its whole paragraph, each pinned by a
 #   sha256 of its text without whitespace), and is cross-referenced in BOTH directions across the canon:
 #     * Constitution.md        one `### §11.4.298` block carrying the forensic note, the seven
 #                              clauses (A)..(G), the closed four-value gate-state table, the
@@ -178,23 +178,36 @@ CLAUSES=(
 # in 27 of 30 ways). Each rule text below is therefore pinned by the sha256 of its text with all whitespace removed: ANY
 # change of wording turns this gate red until its pin is updated here, a reviewed edit of this file in the same
 # commit as the text (--print-digests prints the current values). A whitespace-only change keeps the pin. A pin
-# proves that the text is the reviewed text; it says nothing about whether that text is right.
+# proves that the text is the reviewed text; it says nothing about whether that text is right. The release-gate note is
+# pinned as its whole paragraph (the lines between two blank lines or headings around the marker line), so a sentence
+# added on the line after the note, or on the line before it, with no blank line between, is pinned text too (audit 3
+# of 2026-11-07, B1: a pin of the marker line alone let a continuation line through).
 PIN_CANON='5aafcf3eec9ee7fac0adea98968c04f09a97e592f8cae371c79926f862c78d58'       # the §11.4.298 block of Constitution.md
 PIN_CARRIER='eb016761e99f592c9970613132817b2afa09a141748d27cc5afbf0091ee1f05d'     # the §11.4.298 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
-PIN_NOTE_293='e9d1cf2e393560c04e5e8873270692ca3364de23acbe1f0b823ae97911eb6724'    # the "Refinement note (2026-11-07, release gate)." line of §11.4.293
+PIN_NOTE_293='e9d1cf2e393560c04e5e8873270692ca3364de23acbe1f0b823ae97911eb6724'    # the paragraph of the "Refinement note (2026-11-07, release gate)." of §11.4.293
 command -v sha256sum >/dev/null 2>&1 && SHA=(sha256sum) || { command -v shasum >/dev/null 2>&1 && SHA=(shasum -a 256); } || blind "sha256sum or shasum is needed for the text pins"
 # digest -> the sha256 of stdin with every blank, tab and newline removed (so a whitespace-only change, also one that
 # splits or joins words, keeps the digest; any other change of the text alters it)
 digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }
 [ "$(printf 'a  b\n\tc \n' | digest)" = "$(printf 'abc' | digest)" ] || blind "pin digest control needle: a whitespace-only change altered the digest"
 [ "$(printf 'a b c' | digest)" != "$(printf 'a b d' | digest)" ]      || blind "pin digest control needle: a changed word kept the digest"
+# note_para MARKER -> the whole paragraph of stdin (the lines between two blank lines or headings) of every line that
+# holds MARKER (a fixed string)
+note_para() {
+    awk -v m="$1" 'function flush() { if (hit) printf "%s", buf; buf = ""; hit = 0 }
+        /^[ \t]*$/ || /^#/ { flush(); next }
+        { buf = buf $0 "\n"; if (index($0, m)) hit = 1 }
+        END { flush() }'
+}
+[ "$(printf 'intro\n\nlead-in\n**N (x).** first\ncontinued\n\nlater\n### h\nnext\n' | note_para '**N (x).**')" = "$(printf 'lead-in\n**N (x).** first\ncontinued')" ] \
+    || blind "note paragraph control needle: the paragraph of a note was not read whole (lead-in and continuation line), or a neighbouring paragraph was read"
 pin_chk() { # pin_chk <label> <pinned digest> <text file>
     local cur=""
     [ -s "$3" ] && cur="$(digest <"$3")"
     if [ -n "$cur" ] && [ "$cur" = "$2" ]; then pass "$1"; else fail "$1"; printf '      pinned %s, now %s\n' "$2" "${cur:-<no text>}"; fi
 }
 block_of "$CANON" "$N" >"$TMP/pin_canon.txt"
-block_of "$CANON" 293 | grep -F -- '**Refinement note (2026-11-07, release gate).**' >"$TMP/pin_note_293.txt"
+block_of "$CANON" 293 | note_para '**Refinement note (2026-11-07, release gate).**' >"$TMP/pin_note_293.txt"
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$ROOT/$f" ] && carrier_block "$ROOT/$f" "$N" >"$TMP/pin_car_$f.txt"; done
 if [ "$PRINT" = 1 ]; then
     printf "PIN_CANON='%s'\n" "$(digest <"$TMP/pin_canon.txt")"

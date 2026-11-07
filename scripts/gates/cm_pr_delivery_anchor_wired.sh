@@ -12,7 +12,7 @@
 #   request before the parent pin bump with mirror parity read back; enforcement claims carry
 #   ENFORCED, PROVISIONAL or UNCONFIRMED) is present exactly once, carries its load-bearing
 #   phrases, matches its pinned text (section 0: the canon block, the mirror block and the three
-#   refinement notes, each pinned by the sha256 of its text without whitespace), and is cross-referenced in BOTH
+#   refinement notes, each note as its whole paragraph, each pinned by the sha256 of its text without whitespace), and is cross-referenced in BOTH
 #   directions across the canon:
 #     * Constitution.md        one `### §11.4.297` block carrying the forensic order, the
 #                              nine clauses (A)..(I) with the three amendment points
@@ -182,18 +182,31 @@ done
 # in 27 of 30 ways). Each rule text below is therefore pinned by the sha256 of its text with all whitespace removed: ANY
 # change of wording turns this gate red until its pin is updated here, a reviewed edit of this file in the same
 # commit as the text (--print-digests prints the current values). A whitespace-only change keeps the pin. A pin
-# proves that the text is the reviewed text; it says nothing about whether that text is right.
+# proves that the text is the reviewed text; it says nothing about whether that text is right. A refinement note is
+# pinned as its whole paragraph (the lines between two blank lines or headings around the marker line), so a sentence
+# added on the line after the note, or on the line before it, with no blank line between, is pinned text too (audit 3
+# of 2026-11-07, B1: a pin of the marker line alone let a continuation line through).
 PIN_CANON='f492ef1638ead21cc17a199082323b414e11b5079efe1918372a2ad6e4ea4287'       # the §11.4.297 block of Constitution.md
 PIN_CARRIER='37e69a1012661856a78c6ff421163e1ce12bf6f8e79501bed098c8c47809b4fb'     # the §11.4.297 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
-PIN_NOTE_288='9bd14bfd64117be09395b474610cce5ed7fb6287a18b3d3605d5f3168cad0352'    # the "Refinement note (2026-11-07)." line of §11.4.288
-PIN_NOTE_292='f42431ef5888ffbda7c5aa4fa41a0ed7ce6e6a909e1511e159f9690cc4d82d56'    # the "Refinement note (2026-11-07)." line of §11.4.292
-PIN_NOTE_293='58cc6e8b8fc88f53b733c5e3183da26ae7e735c3f3c5bb1033f183c8f70634db'    # the "Refinement note (2026-11-07)." line of §11.4.293
+PIN_NOTE_288='9bd14bfd64117be09395b474610cce5ed7fb6287a18b3d3605d5f3168cad0352'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.288
+PIN_NOTE_292='f42431ef5888ffbda7c5aa4fa41a0ed7ce6e6a909e1511e159f9690cc4d82d56'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.292
+PIN_NOTE_293='58cc6e8b8fc88f53b733c5e3183da26ae7e735c3f3c5bb1033f183c8f70634db'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.293
 command -v sha256sum >/dev/null 2>&1 && SHA=(sha256sum) || { command -v shasum >/dev/null 2>&1 && SHA=(shasum -a 256); } || blind "sha256sum or shasum is needed for the text pins"
 # digest -> the sha256 of stdin with every blank, tab and newline removed (so a whitespace-only change, also one that
 # splits or joins words, keeps the digest; any other change of the text alters it)
 digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }
 [ "$(printf 'a  b\n\tc \n' | digest)" = "$(printf 'abc' | digest)" ] || blind "pin digest control needle: a whitespace-only change altered the digest"
 [ "$(printf 'a b c' | digest)" != "$(printf 'a b d' | digest)" ]      || blind "pin digest control needle: a changed word kept the digest"
+# note_para MARKER -> the whole paragraph of stdin (the lines between two blank lines or headings) of every line that
+# holds MARKER (a fixed string)
+note_para() {
+    awk -v m="$1" 'function flush() { if (hit) printf "%s", buf; buf = ""; hit = 0 }
+        /^[ \t]*$/ || /^#/ { flush(); next }
+        { buf = buf $0 "\n"; if (index($0, m)) hit = 1 }
+        END { flush() }'
+}
+[ "$(printf 'intro\n\nlead-in\n**N (x).** first\ncontinued\n\nlater\n### h\nnext\n' | note_para '**N (x).**')" = "$(printf 'lead-in\n**N (x).** first\ncontinued')" ] \
+    || blind "note paragraph control needle: the paragraph of a note was not read whole (lead-in and continuation line), or a neighbouring paragraph was read"
 pin_chk() { # pin_chk <label> <pinned digest> <text file>
     local cur=""
     [ -s "$3" ] && cur="$(digest <"$3")"
@@ -201,7 +214,7 @@ pin_chk() { # pin_chk <label> <pinned digest> <text file>
 }
 note_pin() { case "$1" in 288) printf '%s' "$PIN_NOTE_288" ;; 292) printf '%s' "$PIN_NOTE_292" ;; 293) printf '%s' "$PIN_NOTE_293" ;; esac; }
 block_of "$CANON" "$N" >"$TMP/pin_canon.txt"
-for n in 288 292 293; do block_of "$CANON" "$n" | grep -F -- '**Refinement note (2026-11-07).**' >"$TMP/pin_note_$n.txt"; done
+for n in 288 292 293; do block_of "$CANON" "$n" | note_para '**Refinement note (2026-11-07).**' >"$TMP/pin_note_$n.txt"; done
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$ROOT/$f" ] && carrier_block "$ROOT/$f" "$N" >"$TMP/pin_car_$f.txt"; done
 if [ "$PRINT" = 1 ]; then
     printf "PIN_CANON='%s'\n" "$(digest <"$TMP/pin_canon.txt")"
