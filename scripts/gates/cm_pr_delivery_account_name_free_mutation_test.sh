@@ -9,8 +9,9 @@
 #     * GREEN control    the unmodified copy with the fixture consumer MUST pass (exit 0);
 #     * golden-FALSE     a longer account name that contains a fixture account, a fixture account written
 #                        into a file outside the corpus, a NUL byte in a file outside the corpus, an empty
-#                        assignee list and a changed file outside the corpus without --changed-since MUST
-#                        still pass (§11.4.201(1));
+#                        assignee list, a changed file outside the corpus without --changed-since and a
+#                        number (a serial of 0s and 1s) under an account of the letters l and o and a rule
+#                        of bars under an account of the letter l (audit 3, B2) MUST still pass (§11.4.201(1));
 #     * RED              a fixture account written into each corpus file class (the canon block, each of
 #                        the four mirrors, the group file, the progressive rule file, the index, the rules
 #                        manifest, the changelog, the readme, the owed-gates page, the three registries, each
@@ -22,7 +23,8 @@
 #                        Hangul filler, a halfwidth Hangul filler, a Braille blank, full-width letters, a
 #                        combining mark, non-breaking hyphens), each disguise the skeleton form undoes (a
 #                        Cyrillic letter for l, Cyrillic letters for the digits, an upper-case name with a
-#                        Cyrillic letter for L, a vertical bar for 1, a long s for f) and a sign that
+#                        Cyrillic letter for L, a vertical bar for 1, a long s for f, a 1 for i and a 0
+#                        for o inside a name) and a sign that
 #                        decomposes into letters, an assignee account,
 #                        an account given only by --forbid-login, a file named by --changed-since (changed,
 #                        untracked, committed after the base) and an @-mention in a mirror block MUST exit 1
@@ -39,7 +41,9 @@
 #                        reported SKIP;
 #     * gate mutants     edits of a copy of the gate (the matcher, the case rule, each normaliser step, the
 #                        table before and after NFKD, the table rows added by audit 2, the fillers, each
-#                        skeleton step, each of the three scans, the NUL report and its verdict, SKIP
+#                        skeleton step, the digits or the bars read as letters in every word, the digits in
+#                        none, the bar left
+#                        out of a word, each of the three scans, the NUL report and its verdict, SKIP
 #                        reported as PASS, present-means-mandatory removed, an empty reviewer list accepted
 #                        or not detected, an empty assignee list refused, the assignee list ignored or its
 #                        malformed value accepted, --changed-since ignored, a corpus file, file pattern or
@@ -197,6 +201,14 @@ for d in 'the audit-2 Cyrillic and Greek set in lower case|\u043a\u043c\u0442\u0
     fresh; canon_with "${d#*|}" subesc
     expect "RED: a fixture account disguised by ${d%%|*}" 1 "appears in Constitution.md:" --forbid-login "$F3" --forbid-login "$F4"
 done
+# audit 3 (B2): a 0 or a 1 is a letter only inside a word that holds a letter, so a digit inside a name is seen and a
+# number is not read as an account
+fresh; canon_with 'f1xtw0'
+expect "RED: a fixture account disguised by a 1 for i and a 0 for o inside the name" 1 "appears in Constitution.md:"
+fresh; canon_with '101-100-011'
+expect "golden-FALSE: a serial of 0s and 1s is not read as an account of the letters l and o" 0 'PASS' --forbid-login lol-loo-oll
+fresh; canon_with '||-|||'
+expect "golden-FALSE: a rule of bars is not read as an account of the letter l" 0 'PASS' --forbid-login ll-lll
 
 # ── assignees, --forbid-login, structure ─────────────────────────────────────
 fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=fixture-asg' >"$L/consumer/config/delivery.conf"; canon_with fixture-asg
@@ -306,6 +318,14 @@ G="$(mutant skeleton_bar_map_off "SKEL_MAP = {ord('0'): 'o', ord('1'): 'l', ord(
 fresh; canon_with 'fixloc|0' subesc; killed skeleton_bar_map_off 1 "$(outcome --forbid-login "$F3")"
 G="$(mutant skeleton_il_class_off "return ''.join('[il]' if ch in 'il' else ch for ch in s.lower().translate(SKEL_MAP))" "return s.lower().translate(SKEL_MAP)")"
 fresh; canon_with 'FIX\u0406OC10' subesc; killed skeleton_il_class_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_digits_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_DIGITS)")"
+fresh; canon_with '101-100-011'; killed skeleton_digits_in_numbers 0 "$(outcome --forbid-login lol-loo-oll)"
+G="$(mutant skeleton_bars_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_BARS)")"
+fresh; canon_with '||-|||'; killed skeleton_bars_in_numbers 0 "$(outcome --forbid-login ll-lll)"
+G="$(mutant skeleton_digits_never "return w.translate(SKEL_DIGITS).translate(SKEL_BARS) if SKEL_LETTER.search(w) else w" "return w")"
+fresh; canon_with 'f1xtw0'; killed skeleton_digits_never 1 "$(outcome)"
+G="$(mutant skeleton_word_without_bar "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9-]+')")"
+fresh; canon_with 'fixloc|0' subesc; killed skeleton_word_without_bar 1 "$(outcome --forbid-login "$F3")"
 G="$(mutant hyphen_map_off 'return s.translate(CONF).translate(DASH)' 'return s.translate(CONF)')"
 fresh; canon_with 'fixture\u2011rev\u2011one' subesc; killed hyphen_map_off 1 "$(outcome)"
 G="$(mutant raw_scan_dropped '{ grep -I -n -E $GREP_CASE -- "$re" "$1"' '{ :')"

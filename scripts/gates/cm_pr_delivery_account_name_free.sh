@@ -24,7 +24,9 @@
 #     and untracked-not-ignored), so a later pull request is scanned over exactly the files it touches.
 #   The gate scans this corpus, NOT the whole tree: a PASS says nothing about files outside it.
 #
-# Normalisation (each step is exercised by its own control-needle line and its own mutant)
+# Normalisation (the steps are exercised by control-needle lines and by gate mutants in the mutation test; audit 3
+#   of 2026-11-07 found steps that no case discriminates yet: the U+01C0 mapping, the i side of the i/l class,
+#   the upper-case Greek row and the U+2212 minus; they are open follow-ups, not claimed here)
 #   A line is a hit when the account is a whole word in the raw line or in its normalised form, OR when its
 #   skeleton pattern is a whole word in the skeleton form of the line. The normalised form is: compatibility
 #   decomposition (NFKD: full-width and mathematical letters become ASCII), format characters dropped
@@ -33,9 +35,13 @@
 #   letters or symbols that render as blank), the Cyrillic and Greek letters that imitate Latin letters or
 #   digits mapped to them (a confusables table, applied before and after NFKD), and hyphen look-alikes mapped
 #   to '-'. The skeleton form is the normalised form (with a long s mapped to f before NFKD, which would make
-#   it s) lower-cased, with 0 mapped to o and 1, | and U+01C0 mapped to l; the skeleton pattern of an account
-#   is the account lower-cased with 0 -> o and 1 -> l, where each i or l matches either letter, so a
-#   look-alike that stands for i, l, I or 1, or for o or 0, is seen whichever it imitates. The raw scan stays,
+#   it s) lower-cased, with 0 mapped to o and 1, | and U+01C0 mapped to l only inside a word (a run of a-z,
+#   0-9, '-', '|' and U+01C0) that holds a letter a-z, so a number such as 11.4, 2026-11-07 or 101 and a
+#   shell || stay as they are (audit 3, B2: mapped everywhere, every section number and every || read as
+#   two letters l); the skeleton
+#   pattern of an account is the account lower-cased with 0 -> o and 1 -> l, where each i or l matches either
+#   letter, so inside such a word a 1, a bar, an I or a Cyrillic or Greek look-alike of i or l is seen as
+#   either letter, and a 0 or a look-alike of o as o. The raw scan stays,
 #   so normalisation only ever adds hits (an account followed by a sign that decomposes into letters, such as
 #   a trademark sign, is still seen in the raw line).
 #
@@ -73,7 +79,10 @@
 # also a common word is reported wherever that word appears in the corpus; the raw scan counts every
 # non-ASCII character as a boundary, so a name that directly touches a letter of another script is reported
 # (the safe direction: a reported line is read, never silently passed), and the skeleton form over-reports in
-# the same safe direction (an account with an l is also reported where an i stands for it, and the other way round); a corpus file
+# the same safe direction (an account with an l is also reported where an i stands for it, and the other way round);
+# a 0, a 1 or a bar is read as a letter only inside a word that holds a letter, so a name of the letters l, i and o
+# written with digits or bars only is seen only in its raw form, and a disguised name glued to a table bar (|fixtw0|: the bar reads as l
+# and joins the word) is not seen in the skeleton form; a corpus file
 # with a NUL byte makes the gate BLIND instead of being skipped as binary; the confusables table covers the
 # Cyrillic and Greek letters that imitate Latin letters and digits, not every script: letters of other scripts
 # (Armenian, Cherokee, Canadian syllabics, Lisu and others), Latin small capitals and other Latin look-alikes,
@@ -131,7 +140,7 @@ blind() { echo "$GATE: BLIND — $*" >&2; exit 2; }
 # ── the normaliser (one definition; the mutation test breaks each step on a copy) ──
 NORM="$TMP/norm.py"
 cat >"$NORM" <<'PYEOF'
-import os, sys, unicodedata
+import os, re, sys, unicodedata
 CONF = {}
 for _src, _dst in (('\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0458\u0455\u0501\u04bb\u04cf\u051b\u051d\u04af', 'aeopcyxijsdhlqwy'), ('\u0410\u0412\u0415\u041a\u041c\u041d\u041e\u0420\u0421\u0422\u0425\u0405\u0406\u0408', 'ABEKMHOPCTXSIJ'),
                    ('\u03b1\u03bf\u03c1\u03b9\u03c5\u03bd\u03ba', 'aopiuvk'), ('\u0391\u0392\u0395\u0396\u0397\u0399\u039a\u039c\u039d\u039f\u03a1\u03a4\u03a5\u03a7', 'ABEZHIKMNOPTYX'), ('\u0131\u0261\u0251', 'iga'),
@@ -143,14 +152,23 @@ DROP = ('Cf', 'Mn', 'Me')
 FILL = (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800)
 SKEL_PRE = {0x017F: 'f'}
 SKEL_MAP = {ord('0'): 'o', ord('1'): 'l', ord('|'): 'l', 0x01C0: 'l'}
+SKEL_DIGITS = {k: v for k, v in SKEL_MAP.items() if chr(k).isdigit()}
+SKEL_BARS = {k: v for k, v in SKEL_MAP.items() if not chr(k).isdigit()}
+SKEL_WORD = re.compile('[a-z0-9|\u01c0-]+')
+SKEL_LETTER = re.compile('[a-z]')
 def norm(s):
     # the table is applied before NFKD too: some look-alikes decompose into a letter the table does not list
     # (U+03F2 GREEK LUNATE SIGMA SYMBOL becomes U+03C2 under NFKD)
     s = unicodedata.normalize('NFKD', s.translate(CONF))
     s = ''.join(ch for ch in s if unicodedata.category(ch) not in DROP and ord(ch) not in FILL)
     return s.translate(CONF).translate(DASH)
+def skel_word(m):
+    # a 0, a 1 or a bar stands for a letter only inside a word that holds a letter (a bar is part of the word, not
+    # a letter): a number such as 11.4, 2026-11-07 or 101 and a shell || stay as they are (audit 3, B2)
+    w = m.group(0)
+    return w.translate(SKEL_DIGITS).translate(SKEL_BARS) if SKEL_LETTER.search(w) else w
 def skel(s):
-    return norm(s.translate(SKEL_PRE)).lower().translate(SKEL_MAP)
+    return SKEL_WORD.sub(skel_word, norm(s.translate(SKEL_PRE)).lower())
 def skel_login(s):
     # the account as a pattern over the skeleton form: i and l both match [il], so an I, a 1, a | or a look-alike
     # of either letter is seen whichever of the two it stands for
@@ -172,7 +190,9 @@ NEEDLE = ['line one names needle-login-a in prose.',
           'line fifteen names needle-10x, another account.',
           'line sixteen writes needle-\u03f2\u017f with a lunate sigma for c (it decomposes into a final sigma) and a long s for f.',
           'line seventeen spells n\u0451edle-login-a with a Cyrillic io (it decomposes into a Cyrillic e and a mark).',
-          'line eighteen writes |n\u0435edle-login-a| in a table cell without spaces (the skeleton reads each bar as an l).']
+          'line eighteen writes |n\u0435edle-login-a| in a table cell without spaces (the skeleton reads each bar as an l).',
+          'line nineteen cites \u00a711.4.297, 2026-11-07, the serial 101-100-011 and the rule ||-|||: numbers and bars, never accounts.',
+          'line twenty writes needle-l0gin-a with a zero for o.']
 if sys.argv[1] == '--needle':
     with open(sys.argv[2], 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(NEEDLE) + '\n')
@@ -232,7 +252,9 @@ NDOC="$TMP/needle/needle.txt"; mkdir -p "$TMP/needle" "$TMP/nneedle" "$TMP/sneed
 python3 -I "$NORM" --needle "$NDOC" || blind "the needle text could not be written"
 printf '%s\n' needle.txt | normalise "$TMP/needle" "$TMP/nneedle" "$TMP/sneedle" >/dev/null || blind "the normaliser failed on the needle text"
 NHITS="$(hits "$NDOC" "$TMP/nneedle/needle.txt" "$TMP/sneedle/needle.txt" needle-login-a "$(skel_login needle-login-a)" | cut -d: -f1 | tr '\n' ' ')"
-[ "$NHITS" = "1 2 4 5 6 7 8 9 10 11 12 13 17 18 " ] || blind "matcher control needle: expected whole-name hits on lines '1 2 4 5 6 7 8 9 10 11 12 13 17 18' (plain, case, zero-width, Cyrillic, full width, combining mark, non-breaking hyphen, trademark sign in another case, a Cyrillic letter for l, a Hangul filler, a Braille blank, a Cyrillic pe, a Cyrillic io, a disguised name between bars), got '$NHITS'"
+[ "$NHITS" = "1 2 4 5 6 7 8 9 10 11 12 13 17 18 20 " ] || blind "matcher control needle: expected whole-name hits on lines '1 2 4 5 6 7 8 9 10 11 12 13 17 18 20' (plain, case, zero-width, Cyrillic, full width, combining mark, non-breaking hyphen, trademark sign in another case, a Cyrillic letter for l, a Hangul filler, a Braille blank, a Cyrillic pe, a Cyrillic io, a disguised name between bars, a zero for o inside the name), got '$NHITS'"
+NHITS="$( { hits "$NDOC" "$TMP/nneedle/needle.txt" "$TMP/sneedle/needle.txt" lol-loo-oll "$(skel_login lol-loo-oll)"; hits "$NDOC" "$TMP/nneedle/needle.txt" "$TMP/sneedle/needle.txt" ll-lll "$(skel_login ll-lll)"; } | cut -d: -f1 | tr '\n' ' ')"
+[ -z "$NHITS" ] || blind "number control needle: the serial 101-100-011 or the rule ||-||| was read as the account lol-loo-oll or ll-lll on line(s) '$NHITS': a 0, a 1 or a bar is a letter only inside a word that holds a letter"
 NHITS="$(hits "$NDOC" "$TMP/nneedle/needle.txt" "$TMP/sneedle/needle.txt" needle-10 "$(skel_login needle-10)" | cut -d: -f1 | tr '\n' ' ')"
 [ "$NHITS" = "14 " ] || blind "skeleton control needle: expected the second needle (digits written as Cyrillic letters) on line '14' only, got '$NHITS'"
 NHITS="$(hits "$NDOC" "$TMP/nneedle/needle.txt" "$TMP/sneedle/needle.txt" needle-cf "$(skel_login needle-cf)" | cut -d: -f1 | tr '\n' ' ')"
