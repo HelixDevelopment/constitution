@@ -279,6 +279,8 @@ MARKERS=(
     'standing list of tool-written paths'
     'with the reason `generated-regeneration`'
     'No fifth reason is added to §11.4.293(A)(4)'
+    'is an INTERPRETATION of §11.4.293(A)(4), stated here as one and not an amendment of it'
+    'a row written or edited by hand, and any other path, is never `generated-regeneration`'
     'on a task branch with the same name as the parent'"'"'s'
     'The submodule pull request lands first'
     'only after the submodule pull request is read back as merged'
@@ -356,6 +358,7 @@ chk "refined §11.4.288: the note names the author agent's read-back self-review
 chk "refined §11.4.288: the note names the human merge gate" has "$RB288" "where the project configures a human merge gate"
 chk "refined §11.4.288: the note requires the reviewed head to contain the base tip" has "$RB288" "and the reviewed head contains the base tip as (B)(3) requires"
 chk "refined §11.4.293: the note adds no fifth reason" has "$TMP/refined_293.txt" "gains no fifth"
+chk "refined §11.4.293: the note states the generated-regeneration reading as an interpretation" has "$TMP/refined_293.txt" "is an interpretation of (A)(4), stated as one in §11.4.297(E)(3), not an amendment"
 
 # ── 3. the four context mirrors ──────────────────────────────────────────────
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do

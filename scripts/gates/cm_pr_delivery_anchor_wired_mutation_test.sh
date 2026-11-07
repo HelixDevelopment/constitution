@@ -353,6 +353,8 @@ fresh; mut block-sub Constitution.md 288 'where the project configures a human m
 expect_red "the §11.4.288 note no longer names the human merge gate" "FAIL  refined §11.4.288: the note names the human merge gate"
 fresh; mut block-sub Constitution.md 293 'gains no fifth' 'gains a fifth'
 expect_red "the §11.4.293 note adds a fifth reason" "FAIL  refined §11.4.293: the note adds no fifth reason"
+fresh; mut block-sub Constitution.md 293 'is an interpretation of (A)(4), stated as one in §11.4.297(E)(3), not an amendment' 'is a fifth reason'
+expect_red "the §11.4.293 note no longer calls the reading an interpretation" "FAIL  refined §11.4.293: the note states the generated-regeneration reading as an interpretation"
 
 # ── RED: the four mirrors ────────────────────────────────────────────────────
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
