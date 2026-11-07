@@ -242,6 +242,9 @@ PYEOF
 )
 [ "${#CLAUSES[@]}" -eq 7 ] || { say "SETUP FAILURE: could not parse CLAUSES from the gate (${#CLAUSES[@]})"; exit 2; }
 
+# mk PREFIX -> the full gate marker that starts with PREFIX (the long load-bearing spans are not repeated here)
+mk() { local m; for m in "${MARKERS[@]}"; do case "$m" in "$1"*) printf '%s' "$m"; return 0 ;; esac; done; printf 'NO-MARKER-STARTS-WITH:%s' "$1"; }
+
 # ── GREEN control ────────────────────────────────────────────────────────────
 fresh
 expect_green "GREEN control: genuine tree"
@@ -290,6 +293,26 @@ fresh; mut block-sub Constitution.md "$N" '**Canonical authority:**' 'Canonical 
 expect_red "Canonical authority line removed" "FAIL  canon: block carries a Canonical authority line"
 fresh; mut block-sub Constitution.md "$N" 'Non-compliance is a release blocker' 'Non-compliance is tolerated'
 expect_red "non-compliance line weakened" "FAIL  canon: block carries the non-compliance release-blocker line"
+
+# ── RED: semantic weakenings found by the independent audit of 2026-11-07 ────
+fresh; mut block-sub Constitution.md "$N" '| refused | refused | refused |' '| refused | refused | allowed |'
+expect_red "W6 a dev-class tag without hardware" "FAIL  canon: block carries marker '$(mk '| `BLOCKED-NO-HARDWARE` |')'"
+fresh; mut block-sub Constitution.md "$N" 'verdict is `INCOMPARABLE-BASELINE-MISSING` | refused |' 'verdict is `INCOMPARABLE-BASELINE-MISSING` | allowed |'
+expect_red "W6b deployment without a baseline" "FAIL  canon: block carries marker '$(mk '| `BLOCKED-NO-BASELINE` |')'"
+fresh; mut block-sub Constitution.md "$N" 'verdict is `REGRESSED` | refused | refused |' 'verdict is `REGRESSED` | refused | allowed |'
+expect_red "W6c release tag of a regressed build" "FAIL  canon: block carries marker '$(mk '| `REFUSED-REGRESSED` |')'"
+fresh; mut block-sub Constitution.md "$N" 'An emulator, a simulator, a host-only run, a replayed or copied record, or a run on hardware of another product is never this run.' 'A host-only run or a run on hardware of another product is never this run; an emulator is acceptable when no hardware is connected.'
+expect_red "W7 emulator accepted" "FAIL  canon: block carries marker 'An emulator, a simulator, a host-only run, a replayed or copied record, or a run on hardware of another product is never this run'"
+fresh; mut block-sub Constitution.md "$N" '(the complete retest of §11.4.40; a subset, a spot check or the tests touched by the change is not this run)' '(the complete retest of §11.4.40, or the tests touched by the change when the full run exceeds the window)'
+expect_red "W8 a subset run" "FAIL  canon: block carries marker 'a subset, a spot check or the tests touched by the change is not this run'"
+fresh; mut block-sub Constitution.md "$N" 'never stand for another, even when the products share code or a build.' 'never stand for another, unless the products share a build.'
+expect_red "W10 one product's verdict reused for another" "FAIL  canon: block carries marker 'never stand for another, even when the products share code or a build'"
+fresh; mut block-sub Constitution.md "$N" 'it stays `BLOCKED-NO-BASELINE` (no deployment, no release tag) until the operator records' 'it may be deployed once its own live run passes, until the operator records'
+expect_red "M3 a first build deployed without a baseline" "FAIL  canon: block carries marker '$(mk 'A product'"'"'s first deployable build')'"
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    fresh; mut carrier-sub "$f" "$N" 'a first build has no baseline and stays `BLOCKED-NO-BASELINE`' '@@'
+    expect_red "mirror loses the first-build rule: $f" "FAIL  mirror $f: block names the first-build rule"
+done
 
 # ── RED: heading integrity, decoys and duplicates ────────────────────────────
 fresh; mut file-sub Constitution.md "### §11.4.$N — Release gate per product" "#### §11.4.$N — Release gate per product"

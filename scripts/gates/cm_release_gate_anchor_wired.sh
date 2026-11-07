@@ -189,7 +189,8 @@ done
 chk "canon: gate-state table has exactly four state rows" \
     [ "$(grep -c -E '^\| `(RELEASABLE|BLOCKED-NO-HARDWARE|BLOCKED-NO-BASELINE|REFUSED-REGRESSED)` \|' "$BLK")" = 4 ]
 
-# Required marker phrases (fixed strings) — the rule's load-bearing content.
+# Required marker phrases (fixed strings) — the rule's load-bearing content. The long markers at the end of the list are
+# whole sentences with their neighbours, so a word inserted inside a rule (an exception, a weaker condition) turns the gate red.
 MARKERS=(
     'an image or build may be deployed or tagged only after full deterministic LIVE testing on connected target hardware'
     'a baseline PASS that becomes INCONCLUSIVE, SKIPPED or absent counts as a regression'
@@ -234,6 +235,11 @@ MARKERS=(
     'CM-RELEASE-GATE-ANCHOR-WIRED'
     'OWED-GATE-185'
     'OWED-GATE-176'
+    '| `RELEASABLE` | the live run of clause (B) completed on connected hardware of the product AND its §11.4.293 verdict against the product'"'"'s baseline is `NO-WORSE-PROVEN` | allowed, subject to every other seam | allowed, subject to every other seam | allowed |'
+    '| `BLOCKED-NO-HARDWARE` | no target hardware of the product was connected and identified for the live run, or the run did not complete on it | refused | refused | refused |'
+    '| `BLOCKED-NO-BASELINE` | the live run completed and the §11.4.293 verdict is `INCOMPARABLE-BASELINE-MISSING` | refused | refused | only as §11.4.293(F) states, the blocker stated first |'
+    '| `REFUSED-REGRESSED` | the live run completed and the §11.4.293 verdict is `REGRESSED` | refused | refused | only as §11.4.293(F) states, the regressions stated first |'
+    'A product'"'"'s first deployable build has no previous build and so no baseline: it stays `BLOCKED-NO-BASELINE` (no deployment, no release tag) until the operator records how a first baseline is accepted (OPERATOR-DECISION-REQUIRED, §11.4.66); this anchor decides nothing about it.'
 )
 for m in "${MARKERS[@]}"; do
     chk "canon: block carries marker '$m'" has "$BLK" "$m"
@@ -275,6 +281,7 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     chk "mirror $f: block names the connected-hardware rule" has "$CB" "connected while the run executes and identified from the target"
     chk "mirror $f: block names the per-product rule" has "$CB" "one product's verdict never stands for another"
     chk "mirror $f: block names the one-point amendment of §11.4.293(F)" has "$CB" "no tag of any class without the live run"
+    chk "mirror $f: block names the first-build rule" has "$CB" "a first build has no baseline and stays \`BLOCKED-NO-BASELINE\`"
     chk "mirror $f: block names gate $GATE" has "$CB" "$GATE"
     chk "mirror $f: block points at Constitution.md §11.4.$N" has "$CB" "[\`Constitution.md\`](Constitution.md) §11.4.$N"
 done

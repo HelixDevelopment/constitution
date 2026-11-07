@@ -204,7 +204,8 @@ for c in "${CLAUSES[@]}"; do
     chk "canon: block carries clause heading $c" has "$BLK" "$c"
 done
 
-# Required marker phrases (fixed strings) — the rule's load-bearing content.
+# Required marker phrases (fixed strings) — the rule's load-bearing content. The long markers at the end of the list are
+# whole sentences with their neighbours, so a word inserted inside a rule (an exception, a weaker condition) turns the gate red.
 MARKERS=(
     'except the project-specific parts (the account names of assignees and reviewers)'
     'no account name enters this constitution'
@@ -248,7 +249,7 @@ MARKERS=(
     'it is never the source-correctness GO'
     'the producer never gates its own change'
     'By default the merger is the author agent, which owns the merge process'
-    '(a) the source-correctness GO is recorded for the head being merged'
+    '(a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged'
     'the merge call pins the reviewed head where the platform offers it'
     'A project configures a HUMAN MERGE GATE (merger `human`)'
     'no agent presses a merge button or calls a merge interface of the hosting platform'
@@ -293,7 +294,9 @@ MARKERS=(
     'a test double is legal here because the test proves the tooling'"'"'s own logic'
     'a scan proving that the commit and publish steps hold no merge, close, force-push or delete call'
     'and any merge call under a human merge gate'
-    'that was merged without a self-review read back for the merged head or by an agent under a human merge gate'
+    'that was merged without a source-correctness GO recorded for the merged head'
+    'while the remote base tip was not an ancestor of the merged head'
+    'a merge without a recorded GO for the merged head, a merge on a stale base'
     'A stub run is `PROVISIONAL` evidence of the tooling'
     'read at run time from the consumer'"'"'s own configuration and never stored here'
     '`SKIP` (exit 3) when no consumer list exists'
@@ -305,12 +308,21 @@ MARKERS=(
     'OWED-GATE-182'
     'OWED-GATE-183'
     'OWED-GATE-184'
+    'It merges only when all of these are read back: (a) the source-correctness GO is recorded, as a record the merger reads, for exactly the head being merged (a GO for an earlier head, a GO that cannot be read, or no GO refuses the merge); (b) its self-review of that head is on the platform with every finding answered; (c) the reviewer requests of clause (D) are shown by the platform, or a refused reviewer is reported under clause (D)(4); (d) the head on the platform equals the reviewed head (a head that moved after the self-review or the GO is reviewed again first, and the merge call pins the reviewed head where the platform offers it); (e) the serial order of clause (B)(5) admits it; (f) every approval the project configures as required is present; (g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head (when the base has moved, it is merged into the task branch under clause (B)(5) and the new head is reviewed again first). It merges only in the declared form of point (A.3).'
+    'then no agent presses a merge button or calls a merge interface of the hosting platform: the author agent self-reviews, reports the pull request ready with (a) to (g) read back, and the human merger lands it.'
+    '(A.3) THE LANDING FORM. The landing is a fast-forward of `main` to the reviewed head (the form of §11.4.288(B)(3)) or a merge commit on `main` whose first parent is the previous `main` tip and whose second parent is the reviewed head.'
+    'the task branch is deleted locally and on every upstream that holds it only when its head is an ancestor of `main` on every declared upstream (the §11.4.288(B)(4) count is zero). A platform option that deletes the branch at merge time is used only when the platform is the only declared upstream; otherwise the branch is deleted after the parity read-back of clause (F)(4), never at merge time. A task id whose merged branch'
+    '(A.1) NECESSITY. The declared decision is the recorded necessity of §11.4.288(B)(2) for every task branch the delivery tooling creates; its identifier in the configuration is the record. It legitimises no other vehicle.'
+    '(A.2) THE MERGE IS THE LANDING. The merge of a pull request that holds its source-correctness GO (§11.4.288 Terms), made under clause (C) by its author agent after the read-back self-review or, where the project configures a human merge gate, by the human merger, is the landing step of §11.4.288(B)(1). It adds no wait beyond the merge conditions of clause (C)(2): no manual QA, no open hardening item and no approval beyond what the project configures as required holds a GO'"'"'d pull request open. A pull request whose GO is older than the declared merge window is reported as stale in every report until it lands or is closed; it is never parked silently.'
+    'A review with no reading record (an approval alone, a bare "looks good" or an empty body) is not a self-review. A platform that refuses an approval by the author records the self-review as a comment review; it is never posted through another account to obtain an approval. The self-review is read back from the platform (the review entry, the head commit id it names and its comments) before the merge.'
+    'It is the author'"'"'s own multi-pass check (§11.4.92) made visible in the pull request: it is never the source-correctness GO, which stays the independent review of §11.4.142 / §11.4.209 / §11.4.235 (§11.4.240: the producer never gates its own change), and it never replaces the configured reviewers of clause (D).'
+    'In both forms the reviewed head already contains the remote base tip (merge condition (g) of clause (C)(2)), so the content that lands is the content that was reviewed and tested, as §11.4.288(B)(3) requires; a merge commit made on a stale base is not this form.'
 )
 for m in "${MARKERS[@]}"; do
     chk "canon: block carries marker '$m'" has "$BLK" "$m"
 done
 chk "canon: block names gate $NAMEGATE" has "$BLK" "$NAMEGATE"
-for fl in --squash-merge-OK --rebase-merge-OK --merge-without-self-review --self-review-is-the-GO \
+for fl in --squash-merge-OK --rebase-merge-OK --merge-without-GO --merge-on-stale-base --merge-without-self-review --self-review-is-the-GO \
           --agent-merges-under-human-gate --merge-moved-head --multi-task-branch --annotated-roadmap-item \
           --skip-push-readback --skip-reviewer-readback --drop-refused-reviewer --reviewer-names-in-constitution \
           --evidence-outside-repo-OK --delete-branch-before-parity --pin-before-submodule-merge \
@@ -342,6 +354,7 @@ chk "refined §11.4.288: the note forbids squash and rebase landings" has "$RB28
 chk "refined §11.4.288: the note keeps every other sentence binding" has "$RB288" "binds such a project unchanged"
 chk "refined §11.4.288: the note names the author agent's read-back self-review" has "$RB288" "by its author agent after a read-back self-review"
 chk "refined §11.4.288: the note names the human merge gate" has "$RB288" "where the project configures a human merge gate"
+chk "refined §11.4.288: the note requires the reviewed head to contain the base tip" has "$RB288" "and the reviewed head contains the base tip as (B)(3) requires"
 chk "refined §11.4.293: the note adds no fifth reason" has "$TMP/refined_293.txt" "gains no fifth"
 
 # ── 3. the four context mirrors ──────────────────────────────────────────────
@@ -354,6 +367,7 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     chk "mirror $f: block forbids squash and rebase landings" has "$CB" "never a squash or rebase merge"
     chk "mirror $f: block names the author agent's self-review and merge" has "$CB" "The author agent self-reviews the pull request on the platform"
     chk "mirror $f: block names the human merge gate" has "$CB" "under a human merge gate only the human merger merges"
+    chk "mirror $f: block names the GO and base-tip merge conditions" has "$CB" "once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip"
     chk "mirror $f: block names the default reviewer key" has "$CB" "default key \`pr_reviewers\`"
     chk "mirror $f: block says the reviewers are never named here" has "$CB" "never named here"
     chk "mirror $f: block names the parity words" has "$CB" "(\`PRESENT\`, \`MIRROR-LAG <tip>\`, \`UNREACHABLE\`)"

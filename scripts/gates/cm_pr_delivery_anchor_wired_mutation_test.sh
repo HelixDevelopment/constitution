@@ -218,7 +218,7 @@ expect_blind() {
 # ── lists kept in lock-step with the gate source ─────────────────────────────
 XREFS="6 17 35 66 92 113 142 181 188 202 209 227 233 235 240 273 288 289 290 292 293 296"
 REFINED="288 292 293"
-FLAGS=(--squash-merge-OK --rebase-merge-OK --merge-without-self-review --self-review-is-the-GO --agent-merges-under-human-gate --merge-moved-head --multi-task-branch --annotated-roadmap-item --skip-push-readback --skip-reviewer-readback --drop-refused-reviewer --reviewer-names-in-constitution --evidence-outside-repo-OK --delete-branch-before-parity --pin-before-submodule-merge --claim-mirror-parity-without-readback --claim-server-side-protection)
+FLAGS=(--squash-merge-OK --rebase-merge-OK --merge-without-GO --merge-on-stale-base --merge-without-self-review --self-review-is-the-GO --agent-merges-under-human-gate --merge-moved-head --multi-task-branch --annotated-roadmap-item --skip-push-readback --skip-reviewer-readback --drop-refused-reviewer --reviewer-names-in-constitution --evidence-outside-repo-OK --delete-branch-before-parity --pin-before-submodule-merge --claim-mirror-parity-without-readback --claim-server-side-protection)
 grep -F -q -- "for n in $XREFS; do" "$GATE" || { say "SETUP FAILURE: gate cross-reference list differs from this test's list"; exit 2; }
 grep -F -q -- "for n in $REFINED; do" "$GATE" || { say "SETUP FAILURE: gate refined-anchor list differs from this test's list"; exit 2; }
 for fl in "${FLAGS[@]}"; do
@@ -242,6 +242,9 @@ for tok in shlex.split(m.group(1)):
 PYEOF
 )
 [ "${#CLAUSES[@]}" -eq 12 ] || { say "SETUP FAILURE: could not parse CLAUSES from the gate (${#CLAUSES[@]})"; exit 2; }
+
+# mk PREFIX -> the full gate marker that starts with PREFIX (the long load-bearing spans are not repeated here)
+mk() { local m; for m in "${MARKERS[@]}"; do case "$m" in "$1"*) printf '%s' "$m"; return 0 ;; esac; done; printf 'NO-MARKER-STARTS-WITH:%s' "$1"; }
 
 # ── GREEN control ────────────────────────────────────────────────────────────
 fresh
@@ -288,6 +291,28 @@ fresh; mut block-sub Constitution.md "$N" '**Canonical authority:**' 'Canonical 
 expect_red "Canonical authority line removed" "FAIL  canon: block carries a Canonical authority line"
 fresh; mut block-sub Constitution.md "$N" 'Non-compliance is a release blocker' 'Non-compliance is tolerated'
 expect_red "non-compliance line weakened" "FAIL  canon: block carries the non-compliance release-blocker line"
+
+# ── RED: semantic weakenings found by the independent audit of 2026-11-07 (insertions inside a rule) ─
+fresh; mut block-sub Constitution.md "$N" 'It merges only when all of these are read back:' 'It merges when any of these is read back:'
+expect_red "W1 any condition suffices" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
+fresh; mut block-resub Constitution.md "$N" '\(b\) its self-review of that head.*?\(f\) every approval the project configures as required is present;' '(b) the merge call pins the reviewed head where the platform offers it;'
+expect_red "W2 conditions (b) to (f) dropped" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
+fresh; mut block-sub Constitution.md "$N" 'or no GO refuses the merge);' 'or no GO refuses the merge, except that where no independent reviewer is available within the merge window the self-review stands in for it);'
+expect_red "W3 the self-review may stand in for the GO" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
+fresh; mut block-sub Constitution.md "$N" 'then no agent presses a merge button or calls a merge interface of the hosting platform:' 'then no agent presses a merge button or calls a merge interface of the hosting platform, except the author agent when the human merger has not answered within the merge window:'
+expect_red "W4 an agent may merge under a human merge gate" "FAIL  canon: block carries marker '$(mk 'then no agent presses a merge button')'"
+fresh; mut block-sub Constitution.md "$N" '(A.3) THE LANDING FORM. The landing is a fast-forward' '(A.3) THE LANDING FORM. The landing is a squash merge, a fast-forward'
+expect_red "W5 squash allowed in (A.3)" "FAIL  canon: block carries marker '$(mk '(A.3) THE LANDING FORM.')'"
+fresh; mut block-sub Constitution.md "$N" '(the §11.4.288(B)(4) count is zero).' '(the §11.4.288(B)(4) count is zero). The author agent may also delete it on every upstream right after the merge.'
+expect_red "W9 retirement before parity" "FAIL  canon: block carries marker '$(mk 'the task branch is deleted locally')'"
+fresh; mut block-sub Constitution.md "$N" '(g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head' '(g) the remote base tip was an ancestor of the reviewed head when it was pushed'
+expect_red "H2 base ancestry read only at push time" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
+fresh; mut block-sub Constitution.md 288 'and the reviewed head contains the base tip as (B)(3) requires' '@@'
+expect_red "the §11.4.288 note loses the base-tip condition" "FAIL  refined §11.4.288: the note requires the reviewed head to contain the base tip"
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    fresh; mut carrier-sub "$f" "$N" 'once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip' '@@'
+    expect_red "mirror loses the GO and base-tip conditions: $f" "FAIL  mirror $f: block names the GO and base-tip merge conditions"
+done
 
 # ── RED: heading integrity, decoys and duplicates ────────────────────────────
 fresh; mut file-sub Constitution.md "### §11.4.$N — Pull-request delivery" "#### §11.4.$N — Pull-request delivery"
