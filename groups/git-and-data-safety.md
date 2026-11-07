@@ -1068,3 +1068,4 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.297.
 
 **Non-compliance is a release blocker. No escape hatch — no `--squash-merge-OK`, `--rebase-merge-OK`, `--merge-without-self-review`, `--self-review-is-the-GO`, `--agent-merges-under-human-gate`, `--merge-moved-head`, `--multi-task-branch`, `--annotated-roadmap-item`, `--skip-push-readback`, `--skip-reviewer-readback`, `--drop-refused-reviewer`, `--reviewer-names-in-constitution`, `--evidence-outside-repo-OK`, `--delete-branch-before-parity`, `--pin-before-submodule-merge`, `--claim-mirror-parity-without-readback`, `--claim-server-side-protection` flag exists.**
+

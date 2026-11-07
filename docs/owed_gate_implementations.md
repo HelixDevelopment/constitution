@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 21
-**Last modified:** 2026-11-07T11:18:35Z
+**Revision:** 22
+**Last modified:** 2026-11-07T12:31:31Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -26,6 +26,8 @@
 **R20 (2026-11-05, §11.4.296):** `OWED-GATE-181` (`CM-GITHUB-ISSUES-SYNC-EVIDENCE`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.296; section after the §11.4.295 section.
 
 **R21 (2026-11-07, §11.4.297):** `OWED-GATE-182` (`CM-PR-LANDING-READBACK`), `OWED-GATE-183` (`CM-PR-EVIDENCE-RESOLVES-FROM-TIP`) and `OWED-GATE-184` (`CM-SUBMODULE-PIN-MIRROR-PARITY`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.297; section after the §11.4.296 section.
+
+**R22 (2026-11-07, §11.4.298):** `OWED-GATE-185` (`CM-RELEASE-GATE-PER-PRODUCT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.298; section after the §11.4.297 section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -1083,6 +1085,15 @@ The item-level gates named in §11.4.297 are registered as deferrals in the same
   - **Must assert:** (per §11.4.297(F)(3)/(4)) a parent pin bump follows the submodule pull request's merge read-back, records a gitlink reachable from the submodule's `main`, and is reported ready to land only when `git ls-remote` of every declared upstream shows the pinned commit (`PRESENT`)
   - **Blocked on:** the upstream list, the sanctioned push path and network access belong to the consuming project
   - **Paired §1.1 mutation:** mark a pin bump ready while one mirror lags, or while one upstream was not read; the gate MUST FAIL
+
+### §11.4.298 Release gate per product (registered 2026-11-07)
+
+The item-level gate named in §11.4.298 is registered as a deferral in the same change that names it, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_release_gate_anchor_wired.sh` with its paired mutation test); the live runs, the comparison records, the gate records and the deployment and tag tooling are consuming-project work.
+
+- **OWED-GATE-185** — `CM-RELEASE-GATE-PER-PRODUCT`
+  - **Must assert:** (per §11.4.298(A) to (F)) every deployment and every tag of a deployable build carries one machine-written gate record per covered product; each state is computed from the live-run record and the §11.4.293 comparison record it names; the live run re-ran every baseline test on connected hardware of that product identified from the target; only `RELEASABLE` products are deployed or released; no `BLOCKED-NO-HARDWARE` build carries a tag of any class; a multi-product release reports no blocked or refused product as covered
+  - **Blocked on:** the products, artifact kinds, hardware, harness, suites and records are consuming-project DATA; the constitution ships no flashing, deployment or comparison tool
+  - **Paired §1.1 mutation:** an emulator run in place of the connected target, one baseline test dropped from the new run, one product's verdict reused for another, a `BLOCKED-NO-BASELINE` build deployed, a build tagged with no live run; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

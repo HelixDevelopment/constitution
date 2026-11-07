@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-07T12:22:52.189078+00:00'
+generated_at: '2026-11-07T12:34:16.334931+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 6dd9eca4ee4782be3018ed5981d08fab99152631
-  source_sha256: 48a7096d7b24cdd9899965c7b1b74102370d2a0dcbfa44f11af51c8a265e4a44
+  commit: 1fe7c1bf71c87b8398ffc9f11d77f8f4bf464241
+  source_sha256: c4e41ce83fa1df4e277380374b446a1a9f06069b85997f51ad4f37ccbe08b5df
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 52
+  anchor_count: 53
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 43
@@ -7906,6 +7906,7 @@ anchors:
   - 11.4.293
   - 11.4.295
   - 11.4.297
+  - 11.4.298
   - 11.4.35
   - 11.4.40
   - 11.4.50
@@ -8066,6 +8067,44 @@ anchors:
   - 11.4.92
   - '2.1'
   - '9.2'
+- id: 11.4.298
+  title: '— Release gate per product: a deployable build is deployed or tagged only
+    after a full, deterministic LIVE run of every existing test on connected target
+    hardware of its product and a §11.4.293 comparison against the build that hardware
+    carried before; a product without connected hardware or without a baseline is
+    BLOCKED, never green (User mandate, 2026-11-07)'
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-298-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.108
+  - 11.4.114
+  - 11.4.115
+  - 11.4.118
+  - 11.4.135
+  - 11.4.151
+  - 11.4.17
+  - 11.4.185
+  - 11.4.200
+  - 11.4.227
+  - 11.4.236
+  - 11.4.248
+  - 11.4.251
+  - 11.4.262
+  - 11.4.264
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.293
+  - 11.4.298
+  - 11.4.35
+  - 11.4.40
+  - 11.4.50
+  - 11.4.6
+  - 11.4.66
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety
