@@ -81,8 +81,8 @@
 # (the safe direction: a reported line is read, never silently passed), and the skeleton form over-reports in
 # the same safe direction (an account with an l is also reported where an i stands for it, and the other way round);
 # a 0, a 1 or a bar is read as a letter only inside a word that holds a letter, so a name of the letters l, i and o
-# written with digits or bars only is seen only in its raw form, and a disguised name glued to a table bar (|fixtw0|: the bar reads as l
-# and joins the word) is not seen in the skeleton form; a corpus file
+# written with digits or bars only is seen only in its raw form, and a disguised name glued to a table bar
+# with no space between (the bar reads as l and joins the word) is not seen in the skeleton form; a corpus file
 # with a NUL byte makes the gate BLIND instead of being skipped as binary; the confusables table covers the
 # Cyrillic and Greek letters that imitate Latin letters and digits, not every script: letters of other scripts
 # (Armenian, Cherokee, Canadian syllabics, Lisu and others), Latin small capitals and other Latin look-alikes,

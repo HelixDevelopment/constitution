@@ -205,10 +205,11 @@ done
 # number is not read as an account
 fresh; canon_with 'f1xtw0'
 expect "RED: a fixture account disguised by a 1 for i and a 0 for o inside the name" 1 "appears in Constitution.md:"
-fresh; canon_with '101-100-011'
-expect "golden-FALSE: a serial of 0s and 1s is not read as an account of the letters l and o" 0 'PASS' --forbid-login lol-loo-oll
-fresh; canon_with '||-|||'
-expect "golden-FALSE: a rule of bars is not read as an account of the letter l" 0 'PASS' --forbid-login ll-lll
+# (the accounts below appear in no corpus file: the gate's own needle accounts are in its source, which is in the corpus)
+fresh; canon_with '1001-011'
+expect "golden-FALSE: a serial of 0s and 1s is not read as an account of the letters l and o" 0 'PASS' --forbid-login lool-oll
+fresh; canon_with '|||-||'
+expect "golden-FALSE: a rule of bars is not read as an account of the letter l" 0 'PASS' --forbid-login lll-ll
 
 # ── assignees, --forbid-login, structure ─────────────────────────────────────
 fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=fixture-asg' >"$L/consumer/config/delivery.conf"; canon_with fixture-asg
@@ -319,9 +320,9 @@ fresh; canon_with 'fixloc|0' subesc; killed skeleton_bar_map_off 1 "$(outcome --
 G="$(mutant skeleton_il_class_off "return ''.join('[il]' if ch in 'il' else ch for ch in s.lower().translate(SKEL_MAP))" "return s.lower().translate(SKEL_MAP)")"
 fresh; canon_with 'FIX\u0406OC10' subesc; killed skeleton_il_class_off 1 "$(outcome --forbid-login "$F3")"
 G="$(mutant skeleton_digits_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_DIGITS)")"
-fresh; canon_with '101-100-011'; killed skeleton_digits_in_numbers 0 "$(outcome --forbid-login lol-loo-oll)"
+fresh; canon_with '1001-011'; killed skeleton_digits_in_numbers 0 "$(outcome --forbid-login lool-oll)"
 G="$(mutant skeleton_bars_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_BARS)")"
-fresh; canon_with '||-|||'; killed skeleton_bars_in_numbers 0 "$(outcome --forbid-login ll-lll)"
+fresh; canon_with '|||-||'; killed skeleton_bars_in_numbers 0 "$(outcome --forbid-login lll-ll)"
 G="$(mutant skeleton_digits_never "return w.translate(SKEL_DIGITS).translate(SKEL_BARS) if SKEL_LETTER.search(w) else w" "return w")"
 fresh; canon_with 'f1xtw0'; killed skeleton_digits_never 1 "$(outcome)"
 G="$(mutant skeleton_word_without_bar "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9-]+')")"
