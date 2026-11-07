@@ -1880,3 +1880,5 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 
 **Refinement note (2026-11-03).** A geo-restricted content test is run with a substitute app under the same pass/fail criteria (§11.4.295), so it keeps a verdict-bearing run of the same test id in the comparison; the open question recorded for the consuming project in the changelog entry of this anchor (a "geo restriction is never a failure" rule against clause (C)) is answered there. Clauses (A) to (G) above are unchanged.
 
+**Refinement note (2026-11-07).** Under pull-request delivery (§11.4.297(E)(3)) a row that the project's own commit or delivery tooling writes into a tracked ledger enters a commit only when its path is on the project's standing list of tool-written paths and is listed with the reason `generated-regeneration` and a justification naming the tool; clause (A)(4) keeps its four reasons and gains no fifth.
+

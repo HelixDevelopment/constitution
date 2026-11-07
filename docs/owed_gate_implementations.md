@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 20
-**Last modified:** 2026-11-05T17:30:00Z
+**Revision:** 21
+**Last modified:** 2026-11-07T11:18:35Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -24,6 +24,8 @@
 **R19 (2026-11-03, §11.4.295):** `OWED-GATE-180` (`CM-GEO-SUBSTITUTE-SAME-VERDICT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.295; section after the §11.4.294 section.
 
 **R20 (2026-11-05, §11.4.296):** `OWED-GATE-181` (`CM-GITHUB-ISSUES-SYNC-EVIDENCE`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.296; section after the §11.4.295 section.
+
+**R21 (2026-11-07, §11.4.297):** `OWED-GATE-182` (`CM-PR-LANDING-READBACK`), `OWED-GATE-183` (`CM-PR-EVIDENCE-RESOLVES-FROM-TIP`) and `OWED-GATE-184` (`CM-SUBMODULE-PIN-MIRROR-PARITY`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.297; section after the §11.4.296 section.
 
 **R12 (2026-10-26, §11.4.288 fix round):** `OWED-GATE-153` to `OWED-GATE-155` (`CM-WORK-TRACK-BINDING-REGISTRY-MAIN-DEFAULT`, `CM-WORK-TRACK-BINDING-HOOK-MAIN-DEFAULT-TESTED`, `CM-PHANTOM-CLAUSE-CITATION-RESOLVES`) were registered in `gate_ledger_deferrals.tsv` after the independent review of the §11.4.288 change; the section below lists them. The ledger stayed at unimplemented 394 = baseline 394. Also tracked, not done here: the progressive layer (`progressive/rules/` lacks 11.4.285 to 11.4.288 and serves unamended 11.4.195, 11.4.188, 11.4.211 text), `CLAUDE_ANCHORS_FULL.md` (no 11.4.288, still cites the phantom `167(I)`), and the stale html/pdf/docx twins; none regenerated, and the index-freshness gate does not cover progressive output.
 
@@ -1064,6 +1066,23 @@ The item-level gate named in §11.4.296 is registered as a deferral in the same 
   - **Must assert:** (per §11.4.296(B)/(C)/(D)/(E)/(F)/(H)/(J)) from a snapshot of the platform issues assigned to a declared account, a read-only copy of the workable-items database and the run records: every issue has exactly one item carrying the marker line `GitHub-Issue` exactly once; no marker is duplicated or points at another repository; the content hash stored in each item equals the hash recomputed from the snapshot; consecutive run starts are at most the interval plus the grace apart; every created item has a first-response comment posted or planned in its run; the derived documents are recorded fresh after a changing run; an external-tracker leg configured as blocked is never recorded synced; the sync tooling holds no issue-creating command and no write-back path for an unmarked item; the verdict is INCONCLUSIVE (exit 3) when offline or when no snapshot or database is supplied, never a PASS without evidence; golden-FALSE: an unchanged snapshot imported twice leaves exactly one item per issue
   - **Blocked on:** the constitution ships no sync engine, no platform client and no run-record store; the consuming project implements the gate
   - **Paired §1.1 mutation:** duplicate a marker, drop an item, edit the issue body without re-importing, widen the run gap, add an issue-creating command or a write-back for an unmarked item to the tooling; the gate MUST FAIL
+
+### §11.4.297 Pull-request delivery (registered 2026-11-07)
+
+The item-level gates named in §11.4.297 are registered as deferrals in the same change that names them, so the §11.4.227(A) unimplemented count does not rise. The anchor-level wiring is implemented (`scripts/gates/cm_pr_delivery_anchor_wired.sh` and `scripts/gates/cm_pr_delivery_account_name_free.sh`, each with its paired mutation test); the delivery tooling, the hosting-platform client and the read-back records are consuming-project work.
+
+- **OWED-GATE-182** — `CM-PR-LANDING-READBACK`
+  - **Must assert:** (per §11.4.297(A.3)/(C)/(D)(3)) every pull request reported as landed has a read-back from the hosting platform (state merged, merge commit id) and passes the form check (merge commit with the reviewed head as second parent, or a fast-forward to it); every reviewer counted as assigned is shown by the platform; the merged head carries the author agent's self-review read back from the platform with every finding answered, and no agent merged under a human merge gate; no task branch was deleted before its head was on `main` on every declared upstream
+  - **Blocked on:** the constitution ships no delivery tool and no hosting-platform client; the consuming project implements the gate against its platform interface
+  - **Paired §1.1 mutation:** report a squash landing as landed, merge with no self-review on the platform, count a reviewer without the read-back, delete the task branch while one upstream lacks its head; the gate MUST FAIL
+- **OWED-GATE-183** — `CM-PR-EVIDENCE-RESOLVES-FROM-TIP`
+  - **Must assert:** (per §11.4.297(E)) every evidence path a commit of a pull request cites is repository-relative and resolves in the head tree with the cited sha256; every tool-written ledger path is on the project's list with the `generated-regeneration` reason naming its tool
+  - **Blocked on:** the evidence directory, the trailer field names and the tool-written path list are consuming-project DATA
+  - **Paired §1.1 mutation:** move an evidence path outside the repository, change one byte of the cited file, add an unlisted ledger path; the gate MUST FAIL
+- **OWED-GATE-184** — `CM-SUBMODULE-PIN-MIRROR-PARITY`
+  - **Must assert:** (per §11.4.297(F)(3)/(4)) a parent pin bump follows the submodule pull request's merge read-back, records a gitlink reachable from the submodule's `main`, and is reported ready to land only when `git ls-remote` of every declared upstream shows the pinned commit (`PRESENT`)
+  - **Blocked on:** the upstream list, the sanctioned push path and network access belong to the consuming project
+  - **Paired §1.1 mutation:** mark a pin bump ready while one mirror lags, or while one upstream was not read; the gate MUST FAIL
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

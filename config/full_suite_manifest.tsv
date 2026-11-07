@@ -523,6 +523,7 @@ scripts/gates/cm_covenant_114_293_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -574,6 +575,8 @@ scripts/gates/cm_no_narrative_only_pass_mutation_test.sh	sh	entry	heavy	bash	-	a
 scripts/gates/cm_no_nested_markdown_fence_leak_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_opendesign_ui_system_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_oracle_strategy_named_and_independent_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_provisional_done_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_readme_badge_row_at_top_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_reporting_directives_mutation_test.sh	sh	entry	heavy	bash	-	auto
