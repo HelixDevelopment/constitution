@@ -309,6 +309,8 @@ fresh; mut block-sub Constitution.md "$N" '(g) the remote base tip, fetched righ
 expect_red "H2 base ancestry read only at push time" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
 fresh; mut block-sub Constitution.md 288 'and the reviewed head contains the base tip as (B)(3) requires' '@@'
 expect_red "the §11.4.288 note loses the base-tip condition" "FAIL  refined §11.4.288: the note requires the reviewed head to contain the base tip"
+fresh; mut block-sub Constitution.md 288 'that step admits exactly two waits' 'that step admits waits'
+expect_red "the §11.4.288 note no longer bounds the admitted waits to two" "FAIL  refined §11.4.288: the note names the two waits (B)(1) otherwise forbids"
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     fresh; mut carrier-sub "$f" "$N" 'once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip' '@@'
     expect_red "mirror loses the GO and base-tip conditions: $f" "FAIL  mirror $f: block names the GO and base-tip merge conditions"

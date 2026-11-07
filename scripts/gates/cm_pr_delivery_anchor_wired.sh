@@ -223,6 +223,7 @@ MARKERS=(
     'is the recorded necessity of §11.4.288(B)(2)'
     'It legitimises no other vehicle'
     'is the landing step of §11.4.288(B)(1)'
+    'Against §11.4.288(B)(1), which lets no approval wait hold a GO'"'"'d change off `main`, this point admits exactly two: an approval the project configures as required (condition (f) of clause (C)(2)) and, under a human merge gate, the merge by the human merger.'
     'it is never parked silently'
     'whose second parent is the reviewed head'
     'A squash merge and a rebase merge are FORBIDDEN'
@@ -357,6 +358,7 @@ chk "refined §11.4.288: the note keeps every other sentence binding" has "$RB28
 chk "refined §11.4.288: the note names the author agent's read-back self-review" has "$RB288" "by its author agent after a read-back self-review"
 chk "refined §11.4.288: the note names the human merge gate" has "$RB288" "where the project configures a human merge gate"
 chk "refined §11.4.288: the note requires the reviewed head to contain the base tip" has "$RB288" "and the reviewed head contains the base tip as (B)(3) requires"
+chk "refined §11.4.288: the note names the two waits (B)(1) otherwise forbids" has "$RB288" 'that step admits exactly two waits that the "no approval wait" of (B)(1) otherwise forbids: an approval the project configures as required (merge condition (f) of §11.4.297(C)(2)) and, under a human merge gate, the human merger'"'"'s merge;'
 chk "refined §11.4.293: the note adds no fifth reason" has "$TMP/refined_293.txt" "gains no fifth"
 chk "refined §11.4.293: the note states the generated-regeneration reading as an interpretation" has "$TMP/refined_293.txt" "is an interpretation of (A)(4), stated as one in §11.4.297(E)(3), not an amendment"
 
