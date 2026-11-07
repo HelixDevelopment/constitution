@@ -1,6 +1,6 @@
 # Helix Constitution
 
-![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-306-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-189%2F189_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-193-green) ![Progressive](https://img.shields.io/badge/progressive-307_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
+![Version](https://img.shields.io/badge/version-Unreleased-amber?color=ffbf00) ![Anchors](https://img.shields.io/badge/anchors-308-green) ![Groups](https://img.shields.io/badge/groups-12-green) ![Gates](https://img.shields.io/badge/gates-194%2F194_paired-green) ![Mutation](https://img.shields.io/badge/mutation__tests-198-green) ![Progressive](https://img.shields.io/badge/progressive-309_rules-green) ![Submodules](https://img.shields.io/badge/submodules-27%2F27_linked-green) ![Twins](https://img.shields.io/badge/twins-markdown_only-gray) ![Readiness](https://img.shields.io/badge/readiness-attention-amber?color=ffbf00) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelixDevelopment/constitution)
 
 ## Install / update with one command
 
@@ -103,13 +103,13 @@ README ships in. Re-derive the machine-derived ones with
 | Fact | Value | Source of truth |
 |---|---|---|
 | Latest release tag | `helixconstitution-v72.2` (2026-10-30; previous: `helixconstitution-v72.1`, 2026-10-28; `helixconstitution-v72`, 2026-10-27; `helixconstitution-v71`, 2026-10-23; `helixconstitution-v70`, 2026-10-19; `helixconstitution-v69`, 2026-10-05) | `git tag`, `CHANGELOG.md` |
-| Canon | `Constitution.md`, revision 92, 13,003 lines, 2,193,936 bytes | `wc`, document header |
-| Indexed anchors | **306**, in **12** groups | `constitution_index.yaml` |
-| Highest anchor number | §11.4.296 (§11.4.296 GitHub Issues as a source of workable items: declared interval, one tracker item per issue, content-hash re-check, guarded status write-back, no issue creation or export, fail-closed evidence gate; §11.4.295 substitute app, same verdict; §11.4.294 reproduction and investigation states as item fields; §11.4.293 scope discipline and image no-worse proof: Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison; §11.4.292 reproduce first: live reproduction record before any fix, UNREPRODUCED cap; §11.4.291 capacity-aware decision-model placement; §11.4.290 optimistic done with parallel background verification: PROVISIONAL-DONE vs VERIFIED-DONE; §11.4.289 no stubs or mocks as evidence, live testing only; §11.4.288 all work on `main`, recursively; §11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
-| Progressive rules | **307** rule files generated from the canon (306 indexed anchors; the 306-vs-307 difference is the recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
-| Governance mirrors | `CLAUDE.md` rev 95, `AGENTS.md` rev 92, `QWEN.md` rev 89, `GEMINI.md` rev 63 (kept in lockstep per §11.4.157) | document headers |
-| Mechanism gates | **189** `cm_*` gates in `scripts/gates/`, **189** with a paired mutation test or outside self-test; **193** mutation tests in total | `compute_badges.sh --facts` |
-| Propagation gates | **107** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
+| Canon | `Constitution.md`, revision 95, 13,090 lines, 2,238,534 bytes | `wc`, document header |
+| Indexed anchors | **308**, in **12** groups | `constitution_index.yaml` |
+| Highest anchor number | §11.4.298 (§11.4.298 release gate per product: a deployable build is deployed or tagged only after a full live run of every existing test on connected hardware of its product and a no-worse comparison, closed gate state RELEASABLE / BLOCKED-NO-HARDWARE / BLOCKED-NO-BASELINE / REFUSED-REGRESSED; §11.4.297 pull-request delivery: a declared mode, one task branch and one pull request per task id, configured reviewers requested and read back and never named in the constitution, a self-review and merge by the author agent unless a human merge gate is configured, landing only by fast-forward or merge commit, read-back and retirement, evidence resolvable from the head tree, submodule pull request before the pin bump with mirror parity, enforcement words; §11.4.296 GitHub Issues as a source of workable items: declared interval, one tracker item per issue, content-hash re-check, guarded status write-back, no issue creation or export, fail-closed evidence gate; §11.4.295 substitute app, same verdict; §11.4.294 reproduction and investigation states as item fields; §11.4.293 scope discipline and image no-worse proof: Roadmap-Item trailers, closed out-of-scope reasons, per-test image comparison; §11.4.292 reproduce first: live reproduction record before any fix, UNREPRODUCED cap; §11.4.291 capacity-aware decision-model placement; §11.4.290 optimistic done with parallel background verification: PROVISIONAL-DONE vs VERIFIED-DONE; §11.4.289 no stubs or mocks as evidence, live testing only; §11.4.288 all work on `main`, recursively; §11.4.287 destructive-path safeguard; §11.4.279–§11.4.286 decision layer (Jev); §11.4.277 llmctl model validation gate; §11.4.278 HelixQA UI QA with Vision eyes — PROPOSED, evidence pending) | `Constitution.md` |
+| Progressive rules | **309** rule files generated from the canon (308 indexed anchors; the 308-vs-309 difference is the recorded discrepancy, see `progressive/EVIDENCE/DISCREPANCIES.md`) | `progressive/catalog.json` |
+| Governance mirrors | `CLAUDE.md` rev 98, `AGENTS.md` rev 95, `QWEN.md` rev 92, `GEMINI.md` rev 66 (kept in lockstep per §11.4.157) | document headers |
+| Mechanism gates | **194** `cm_*` gates in `scripts/gates/`, **194** with a paired mutation test or outside self-test; **198** mutation tests in total | `compute_badges.sh --facts` |
+| Propagation gates | **109** `cm_covenant_114_*_propagation.sh` gates | `ls scripts/gates` |
 | Shell scripts | 924 `*.sh` under `scripts/` | `find` |
 | Submodules | **27** declared, **27** recorded gitlinks (10 own-org, 17 third-party, by remote organisation) | `.gitmodules`, `git ls-files -s` |
 | Remotes | 6 upstreams (GitHub ×2, GitLab ×2, GitFlic, GitVerse) | `git remote -v` |
@@ -128,15 +128,15 @@ are the index's own.
 | code-review-and-quality | 12 | `groups/code-review-and-quality.md` |
 | design-system-and-ui | 11 | `groups/design-system-and-ui.md` |
 | documentation-and-export | 27 | `groups/documentation-and-export.md` |
-| git-and-data-safety | 25 | `groups/git-and-data-safety.md` |
+| git-and-data-safety | 26 | `groups/git-and-data-safety.md` |
 | governance-and-constitution-meta | 40 | `groups/governance-and-constitution-meta.md` |
 | host-and-resource-safety | 23 | `groups/host-and-resource-safety.md` |
 | multi-track-and-parallelism | 13 | `groups/multi-track-and-parallelism.md` |
-| project-lifecycle-and-release | 52 | `groups/project-lifecycle-and-release.md` |
+| project-lifecycle-and-release | 53 | `groups/project-lifecycle-and-release.md` |
 | testing-and-tdd | 43 | `groups/testing-and-tdd.md` |
 | translation-and-localization | 3 | `groups/translation-and-localization.md` |
 | workable-items-and-tracking | 22 | `groups/workable-items-and-tracking.md` |
-| **Total** | **306** | `constitution_index.yaml` |
+| **Total** | **308** | `constitution_index.yaml` |
 
 Foundational clauses a reader meets first (each carries its verbatim
 operator mandate in a forensic-anchor block inside `Constitution.md`):

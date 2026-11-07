@@ -1111,3 +1111,4 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.296.
 
 **Non-compliance is a release blocker. No escape hatch — no `--create-issue-on-platform`, `--export-items-to-platform`, `--writeback-unmarked-item`, `--writeback-default-apply`, `--import-unassigned-issues`, `--dedupe-by-delete`, `--skip-hash-recheck`, `--external-leg-fake-synced`, `--offline-run-is-pass`, `--close-issue-before-done` flag exists.**
+
