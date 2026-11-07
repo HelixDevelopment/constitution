@@ -194,7 +194,7 @@ chk "canon: exactly one §11.4.$N block-start of any form in Constitution.md (no
 chk "canon: block is non-empty (heading found)" [ -s "$BLK" ]
 HEADLINE="$TMP/headline.txt"; head -n 1 "$BLK" >"$HEADLINE"
 chk "canon: heading names 'Pull-request delivery'" has "$HEADLINE" "Pull-request delivery"
-chk "canon: heading names 'one pull request per task id'" has "$HEADLINE" "one pull request per task id"
+chk "canon: heading names 'one pull request per task id at a time'" has "$HEADLINE" "one pull request per task id at a time"
 chk "canon: heading names 'no account is named in this constitution'" has "$HEADLINE" "no account is named in this constitution"
 chk "canon: heading names 'self-reviewed on the platform by its author agent'" has "$HEADLINE" "self-reviewed on the platform by its author agent"
 chk "canon: heading names 'where the project configures a human merge gate'" has "$HEADLINE" "where the project configures a human merge gate"
@@ -233,6 +233,9 @@ MARKERS=(
     'one task branch named `<prefix>/<id>-<slug>`'
     '`Multi-Task-Reason:`'
     'is reused for every later commit of that task'
+    'and one open pull request against the base at a time: after that pull request has landed and its branch is retired and pruned (clause (C)(4)), a later commit of the same task id opens a new task branch and a new pull request.'
+    'For a submodule pull request clause (F)(2) keeps the task branch until the parent pull request that records it has landed, so a delete-at-merge option is never used there, even on a single declared upstream.'
+    'the pull request stays open (the refusal never closes it, and once it is reported as this point requires, merge condition (c) of clause (C)(2) holds for that account)'
     'the delivery refuses and lists those commits'
     'A detached `HEAD` is refused'
     'the remote tip is read with `git ls-remote`'
@@ -373,6 +376,10 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     chk "mirror $f: block names the author agent's self-review and merge" has "$CB" "The author agent self-reviews the pull request on the platform"
     chk "mirror $f: block names the human merge gate" has "$CB" "under a human merge gate only the human merger merges"
     chk "mirror $f: block names the GO and base-tip merge conditions" has "$CB" "once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip"
+    chk "mirror $f: block names the configured approvals among the merge conditions" has "$CB" "the serial order and every approval the project configures as required are read back"
+    chk "mirror $f: headline merges only after the source-correctness GO" has "$CB" "only after its source-correctness GO and only in a form that keeps every reviewed commit on \`main\`"
+    chk "mirror $f: block says one open pull request per task id at a time" has "$CB" "= one open pull request at a time;"
+    chk "mirror $f: block keeps the submodule branch until the parent lands" has "$CB" "landed first, its branch kept until the parent lands;"
     chk "mirror $f: block names the default reviewer key" has "$CB" "default key \`pr_reviewers\`"
     chk "mirror $f: block says the reviewers are never named here" has "$CB" "never named here"
     chk "mirror $f: block names the parity words" has "$CB" "(\`PRESENT\`, \`MIRROR-LAG <tip>\`, \`UNREACHABLE\`)"

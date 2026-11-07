@@ -314,6 +314,14 @@ expect_red "the §11.4.288 note no longer bounds the admitted waits to two" "FAI
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     fresh; mut carrier-sub "$f" "$N" 'once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip' '@@'
     expect_red "mirror loses the GO and base-tip conditions: $f" "FAIL  mirror $f: block names the GO and base-tip merge conditions"
+    fresh; mut carrier-sub "$f" "$N" ' and every approval the project configures as required are read back' ' are read back'
+    expect_red "mirror drops the configured approvals: $f" "FAIL  mirror $f: block names the configured approvals among the merge conditions"
+    fresh; mut carrier-sub "$f" "$N" 'only after its source-correctness GO and only in a form' 'only in a form'
+    expect_red "mirror headline drops the GO condition: $f" "FAIL  mirror $f: headline merges only after the source-correctness GO"
+    fresh; mut carrier-sub "$f" "$N" '= one open pull request at a time;' '= one pull request;'
+    expect_red "mirror drops 'at a time': $f" "FAIL  mirror $f: block says one open pull request per task id at a time"
+    fresh; mut carrier-sub "$f" "$N" 'landed first, its branch kept until the parent lands;' 'landed first;'
+    expect_red "mirror drops the kept submodule branch: $f" "FAIL  mirror $f: block keeps the submodule branch until the parent lands"
 done
 
 # ── RED: heading integrity, decoys and duplicates ────────────────────────────
@@ -325,8 +333,10 @@ fresh; mut append Constitution.md "**§11.4.$N — stray second block-start form
 expect_red "second block-start form in canon" "FAIL  canon: exactly one §11.4.$N block-start of any form in Constitution.md (no duplicate form)"
 fresh; mut file-sub Constitution.md "### §11.4.$N — Pull-request delivery:" "### §11.4.$N — Review rules:"
 expect_red "heading no longer names 'Pull-request delivery'" "FAIL  canon: heading names 'Pull-request delivery'"
-fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)one pull request per task id" '\1one review per change'
-expect_red "heading no longer names 'one pull request per task id'" "FAIL  canon: heading names 'one pull request per task id'"
+fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)one pull request per task id at a time" '\1one review per change'
+expect_red "heading no longer names 'one pull request per task id at a time'" "FAIL  canon: heading names 'one pull request per task id at a time'"
+fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?one pull request per task id) at a time" '\1'
+expect_red "heading drops 'at a time'" "FAIL  canon: heading names 'one pull request per task id at a time'"
 fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)no account is named in this constitution" '\1accounts are listed here'
 expect_red "heading no longer names 'no account is named in this constitution'" "FAIL  canon: heading names 'no account is named in this constitution'"
 fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)self-reviewed on the platform by its author agent" '\1merged by a person'

@@ -1305,7 +1305,7 @@
   },
   "§11.4.297": {
    "file": "progressive/rules/11.4.297.md",
-   "hash": "sha256:bc75f2a56ae031db59f8e748f51694f4edabacca16a5480eb04105a7653cc2ae",
+   "hash": "sha256:361d30edcbd94fd6e426170fe41151a24c5c96b4fdf5eb88b24cb7012d916092",
    "line_end": 13052,
    "line_start": 13013
   },
@@ -1858,5 +1858,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "2560a425eaee1ba7be148b0a4924c3b6bc7da941fd99e60c155b7d3e2f302eda"
+ "source_sha256": "e83af8bda6caef0c6ba959d4142f8a64b1350ed98f70c0546cc1600df5d22d48"
 }
