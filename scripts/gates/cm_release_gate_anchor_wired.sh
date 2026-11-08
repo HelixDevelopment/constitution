@@ -192,15 +192,16 @@ digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | a
 [ "$(printf 'a  b\n\tc \n' | digest)" = "$(printf 'abc' | digest)" ] || blind "pin digest control needle: a whitespace-only change altered the digest"
 [ "$(printf 'a b c' | digest)" != "$(printf 'a b d' | digest)" ]      || blind "pin digest control needle: a changed word kept the digest"
 # note_para MARKER -> the whole paragraph of stdin (the lines between two blank lines or headings) of every line that
-# holds MARKER (a fixed string)
+# holds MARKER (a fixed string). A heading is a CommonMark ATX heading: up to three spaces, one to six '#', then a blank
+# or the end of the line; a line such as "#1 ..." or "####### ..." is paragraph text (audit-3 re-audit, R1).
 note_para() {
     awk -v m="$1" 'function flush() { if (hit) printf "%s", buf; buf = ""; hit = 0 }
-        /^[ \t]*$/ || /^#/ { flush(); next }
+        /^[ \t]*$/ || /^ ? ? ?#(#?#?#?#?#?)([ \t]|$)/ { flush(); next }
         { buf = buf $0 "\n"; if (index($0, m)) hit = 1 }
         END { flush() }'
 }
-[ "$(printf 'intro\n\nlead-in\n**N (x).** first\ncontinued\n\nlater\n### h\nnext\n' | note_para '**N (x).**')" = "$(printf 'lead-in\n**N (x).** first\ncontinued')" ] \
-    || blind "note paragraph control needle: the paragraph of a note was not read whole (lead-in and continuation line), or a neighbouring paragraph was read"
+[ "$(printf 'intro\n\n#1 lead-in\n**N (x).** first\ncontinued\n####### seven\n\nlater\n### h\nnext\n' | note_para '**N (x).**')" = "$(printf '#1 lead-in\n**N (x).** first\ncontinued\n####### seven')" ] \
+    || blind "note paragraph control needle: the paragraph of a note was not read whole (a lead-in line, a continuation line, lines that start with '#' but are no heading), or a neighbouring paragraph was read"
 pin_chk() { # pin_chk <label> <pinned digest> <text file>
     local cur=""
     [ -s "$3" ] && cur="$(digest <"$3")"

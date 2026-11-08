@@ -26,11 +26,13 @@
 #                        and name the pin of the text it edits, and with the pin check disabled in a gate
 #                        copy the first of them MUST pass (the pin is what names it); a sentence added on
 #                        the line after each of the three refinement notes, and on the line before the
-#                        §11.4.288 note, with no blank line between (audit 3, B1), MUST exit 1 and name the
-#                        pin of that note;
+#                        §11.4.288 note, with no blank line between (audit 3, B1), also one that starts
+#                        with '#' but is no heading (its re-audit, R1), MUST exit 1 and name the pin of
+#                        that note;
 #     * BLIND            a broken block extractor, a missing Constitution.md, a lost real-file
-#                        control needle, a pin digest that keeps whitespace and a note extractor that
-#                        reads only the marker line MUST exit 2 (never a silent PASS).
+#                        control needle, a pin digest that keeps whitespace, a note extractor that reads
+#                        only the marker line and one that ends a note at any line starting with '#' MUST
+#                        exit 2 (never a silent PASS).
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug
 #   (exit 2), never a green. No account name is stored in this file.
 #
@@ -547,6 +549,21 @@ fresh; mut block-sub Constitution.md 288 '
 Merged task branches may be kept indefinitely.
 **Refinement note (2026-11-07).**'
 expect_red "audit-3 B1 lead-in line directly before the §11.4.288 note, caught by its pin" "FAIL  pinned: the §11.4.288 refinement note (2026-11-07) matches PIN_NOTE_288"
+# audit-3 re-audit (R1): a line that starts with '#' but is no ATX heading ("#1 ...", seven '#') is paragraph text too
+for spec in '288|a project without the declaration keeps this anchor as written.|#1 A squash merge is also a landing under pull-request delivery.' \
+            '292|The vocabulary and the clauses of this anchor are unchanged.|####### A squash merge is also a landing.'; do
+    n="${spec%%|*}"; rest="${spec#*|}"; e="${rest%%|*}"; add="${rest#*|}"
+    fresh; mut block-sub Constitution.md "$n" "$e
+" "$e
+$add
+"
+    expect_red "audit-3 R1 '#' line that is no heading after the §11.4.$n note, caught by its pin" "FAIL  pinned: the §11.4.$n refinement note (2026-11-07) matches PIN_NOTE_$n"
+done
+fresh; mut block-sub Constitution.md 288 '
+**Refinement note (2026-11-07).**' '
+#NB: merged task branches may be kept indefinitely.
+**Refinement note (2026-11-07).**'
+expect_red "audit-3 R1 '#' lead-in line that is no heading before the §11.4.288 note, caught by its pin" "FAIL  pinned: the §11.4.288 refinement note (2026-11-07) matches PIN_NOTE_288"
 fresh; mut block-sub Constitution.md 288 'held as DATA' 'held
 as DATA'
 expect_green "a refinement note re-wrapped across two lines (a whitespace-only change) keeps the gate green"
@@ -613,6 +630,17 @@ if t.count(old) != 1:
 open(p, 'w', encoding='utf-8').write(t.replace(old, r'{ if (index($0, m)) { buf = buf $0 "\n"; hit = 1 } }'))
 PYEOF
 expect_blind "note extractor that reads only the marker line -> the note paragraph control needle refuses (BLIND)" "$W/scripts/gates/broken_note.sh"
+# BLIND: a note extractor that ends a note at any line starting with '#' (the R1 defect) fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_note_hash.sh"
+python3 - "$W/scripts/gates/broken_note_hash.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the note heading rule in the copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = r'/^ ? ? ?#(#?#?#?#?#?)([ \t]|$)/'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, r'/^#/'))
+PYEOF
+expect_blind "note extractor that ends a note at any line starting with '#' -> the note paragraph control needle refuses (BLIND)" "$W/scripts/gates/broken_note_hash.sh"
 
 # ── BLIND: an untrustworthy instrument never reports PASS ────────────────────
 fresh; cp "$GATE" "$W/scripts/gates/broken_gate.sh"
