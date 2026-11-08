@@ -24,7 +24,7 @@
 #                        combining mark, non-breaking hyphens), each disguise the skeleton form undoes (a
 #                        Cyrillic letter for l, Cyrillic letters for the digits, an upper-case name with a
 #                        Cyrillic letter for L, a vertical bar for 1, a long s for f, a 1 for i and a 0
-#                        for o inside a name) and a sign that
+#                        for o inside a name, digits after a hyphen in a name) and a sign that
 #                        decomposes into letters, an assignee account,
 #                        an account given only by --forbid-login, a file named by --changed-since (changed,
 #                        untracked, committed after the base) and an @-mention in a mirror block MUST exit 1
@@ -42,7 +42,7 @@
 #     * gate mutants     edits of a copy of the gate (the matcher, the case rule, each normaliser step, the
 #                        table before and after NFKD, the table rows added by audit 2, the fillers, each
 #                        skeleton step, the digits or the bars read as letters in every word, the digits in
-#                        none, the bar left
+#                        none, the bar or the hyphen left
 #                        out of a word, each of the three scans, the NUL report and its verdict, SKIP
 #                        reported as PASS, present-means-mandatory removed, an empty reviewer list accepted
 #                        or not detected, an empty assignee list refused, the assignee list ignored or its
@@ -205,7 +205,11 @@ done
 # number is not read as an account
 fresh; canon_with 'f1xtw0'
 expect "RED: a fixture account disguised by a 1 for i and a 0 for o inside the name" 1 "appears in Constitution.md:"
-# (the accounts below appear in no corpus file: the gate's own needle accounts are in its source, which is in the corpus)
+fresh; canon_with 'fix-10'
+expect "RED: a hyphenated account whose last part is disguised by digits (the hyphen joins the word)" 1 "appears in Constitution.md:" --forbid-login fix-lo
+# (the accounts below appear in no corpus file of the scratch copy, which does not hold this file; the gate's needle
+# accounts are in the gate source, which it does hold; on the real tree both files are in the corpus, so these accounts
+# hit there, as the fixture accounts do)
 fresh; canon_with '1001-011'
 expect "golden-FALSE: a serial of 0s and 1s is not read as an account of the letters l and o" 0 'PASS' --forbid-login lool-oll
 fresh; canon_with '|||-||'
@@ -327,6 +331,8 @@ G="$(mutant skeleton_digits_never "return w.translate(SKEL_DIGITS).translate(SKE
 fresh; canon_with 'f1xtw0'; killed skeleton_digits_never 1 "$(outcome)"
 G="$(mutant skeleton_word_without_bar "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9-]+')")"
 fresh; canon_with 'fixloc|0' subesc; killed skeleton_word_without_bar 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_word_without_hyphen "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9|\\u01c0]+')")"
+fresh; canon_with 'fix-10'; killed skeleton_word_without_hyphen 1 "$(outcome --forbid-login fix-lo)"
 G="$(mutant hyphen_map_off 'return s.translate(CONF).translate(DASH)' 'return s.translate(CONF)')"
 fresh; canon_with 'fixture\u2011rev\u2011one' subesc; killed hyphen_map_off 1 "$(outcome)"
 G="$(mutant raw_scan_dropped '{ grep -I -n -E $GREP_CASE -- "$re" "$1"' '{ :')"
