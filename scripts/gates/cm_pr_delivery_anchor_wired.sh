@@ -10,8 +10,10 @@
 #   `main`, read back and then retired;
 #   evidence it cites resolves from its head tree; a submodule change lands as its own pull
 #   request before the parent pin bump with mirror parity read back; enforcement claims carry
-#   ENFORCED, PROVISIONAL or UNCONFIRMED) is present exactly once, complete, and
-#   cross-referenced in BOTH directions across the canon:
+#   ENFORCED, PROVISIONAL or UNCONFIRMED) is present exactly once, carries its load-bearing
+#   phrases, matches its pinned text (section 0: the canon block, the mirror block and the three
+#   refinement notes, each note as its whole paragraph, each pinned by the sha256 of its text without whitespace), and is cross-referenced in BOTH
+#   directions across the canon:
 #     * Constitution.md        one `### §11.4.297` block carrying the forensic order, the
 #                              nine clauses (A)..(I) with the three amendment points
 #                              (A.1)..(A.3) of §11.4.288, the honest boundary, every gate
@@ -43,6 +45,8 @@
 #   cm_pr_delivery_anchor_wired.sh [--root <constitution-dir>] [--quiet]
 #   cm_pr_delivery_anchor_wired.sh --help
 #   --root defaults to the constitution directory that holds this script.
+#   --print-digests prints the current text digests in the form of the PIN_ lines of section 0 and exits 0
+#   (used to re-pin after a reviewed text change; it checks nothing).
 #
 # Exit codes
 #   0  PASS    every check passed
@@ -58,24 +62,26 @@
 # answer is known (positive needle, prefix-collision needle, mid-body-citation decoy) and
 # against the real neighbouring anchor §11.4.286 in the real files.
 #
-# Dependencies: bash, awk, grep, mktemp. Classification: universal (§11.4.17).
+# Dependencies: bash, awk, grep, mktemp, sha256sum or shasum. Classification: universal (§11.4.17).
 set -u -o pipefail
 export LC_ALL=C
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SELF_DIR/../.." && pwd)"
 QUIET=0
+PRINT=0
 GATE="CM-PR-DELIVERY-ANCHOR-WIRED"
 # The account-name gate's token is read from that gate's own GATE= line at run time, so this file names only its
 # own token and the §11.4.227(A) ledger attributes the account-name gate to its real site, never to this file.
 NAMEGATE_FILE="scripts/gates/cm_pr_delivery_account_name_free.sh"
 N=297
 
-usage() { echo "usage: ${0##*/} [--root <constitution-dir>] [--quiet] | --help" >&2; exit 64; }
+usage() { echo "usage: ${0##*/} [--root <constitution-dir>] [--quiet] | --print-digests | --help" >&2; exit 64; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) [ $# -ge 2 ] || usage; ROOT="$2"; shift 2 ;;
         --quiet) QUIET=1; shift ;;
+        --print-digests) PRINT=1; shift ;;
         -h|--help) awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$0"; exit 0 ;;
         *) usage ;;
     esac
@@ -170,6 +176,62 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     [ "$(count_blockstarts "$ROOT/$f" 286)" = 1 ] || blind "real-file control needle: expected exactly one §11.4.286 block-start in $f"
 done
 
+# ── 0. text pins: the whole wording of each rule text, not only its markers ───
+# The marker list proves that load-bearing phrases are present; it cannot see a sentence added between them (an
+# exception, a weaker condition, a duty no marker spans: audit 2 of 2026-11-07 kept every marker and weakened the text
+# in 27 of 30 ways). Each rule text below is therefore pinned by the sha256 of its text with all whitespace removed: ANY
+# change of wording turns this gate red until its pin is updated here, a reviewed edit of this file in the same
+# commit as the text (--print-digests prints the current values). A whitespace-only change keeps the pin. A pin
+# proves that the text is the reviewed text; it says nothing about whether that text is right. A refinement note is
+# pinned as its whole paragraph (the lines between two blank lines or headings around the marker line), so a sentence
+# added on the line after the note, or on the line before it, with no blank line between, is pinned text too (audit 3
+# of 2026-11-07, B1: a pin of the marker line alone let a continuation line through).
+PIN_CANON='f492ef1638ead21cc17a199082323b414e11b5079efe1918372a2ad6e4ea4287'       # the §11.4.297 block of Constitution.md
+PIN_CARRIER='37e69a1012661856a78c6ff421163e1ce12bf6f8e79501bed098c8c47809b4fb'     # the §11.4.297 block of each mirror (CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md)
+PIN_NOTE_288='9bd14bfd64117be09395b474610cce5ed7fb6287a18b3d3605d5f3168cad0352'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.288
+PIN_NOTE_292='f42431ef5888ffbda7c5aa4fa41a0ed7ce6e6a909e1511e159f9690cc4d82d56'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.292
+PIN_NOTE_293='58cc6e8b8fc88f53b733c5e3183da26ae7e735c3f3c5bb1033f183c8f70634db'    # the paragraph of the "Refinement note (2026-11-07)." of §11.4.293
+command -v sha256sum >/dev/null 2>&1 && SHA=(sha256sum) || { command -v shasum >/dev/null 2>&1 && SHA=(shasum -a 256); } || blind "sha256sum or shasum is needed for the text pins"
+# digest -> the sha256 of stdin with every blank, tab and newline removed (so a whitespace-only change, also one that
+# splits or joins words, keeps the digest; any other change of the text alters it)
+digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }
+[ "$(printf 'a  b\n\tc \n' | digest)" = "$(printf 'abc' | digest)" ] || blind "pin digest control needle: a whitespace-only change altered the digest"
+[ "$(printf 'a b c' | digest)" != "$(printf 'a b d' | digest)" ]      || blind "pin digest control needle: a changed word kept the digest"
+# note_para MARKER -> the whole paragraph of stdin (the lines between two blank lines or headings) of every line that
+# holds MARKER (a fixed string). A heading is a CommonMark ATX heading: up to three spaces, one to six '#', then a blank
+# or the end of the line; a line such as "#1 ..." or "####### ..." is paragraph text (audit-3 re-audit, R1).
+note_para() {
+    awk -v m="$1" 'function flush() { if (hit) printf "%s", buf; buf = ""; hit = 0 }
+        /^[ \t]*$/ || /^ ? ? ?#(#?#?#?#?#?)([ \t]|$)/ { flush(); next }
+        { buf = buf $0 "\n"; if (index($0, m)) hit = 1 }
+        END { flush() }'
+}
+[ "$(printf 'intro\n\n#1 lead-in\n**N (x).** first\ncontinued\n####### seven\n\nlater\n### h\nnext\n' | note_para '**N (x).**')" = "$(printf '#1 lead-in\n**N (x).** first\ncontinued\n####### seven')" ] \
+    || blind "note paragraph control needle: the paragraph of a note was not read whole (a lead-in line, a continuation line, lines that start with '#' but are no heading), or a neighbouring paragraph was read"
+pin_chk() { # pin_chk <label> <pinned digest> <text file>
+    local cur=""
+    [ -s "$3" ] && cur="$(digest <"$3")"
+    if [ -n "$cur" ] && [ "$cur" = "$2" ]; then pass "$1"; else fail "$1"; printf '      pinned %s, now %s\n' "$2" "${cur:-<no text>}"; fi
+}
+note_pin() { case "$1" in 288) printf '%s' "$PIN_NOTE_288" ;; 292) printf '%s' "$PIN_NOTE_292" ;; 293) printf '%s' "$PIN_NOTE_293" ;; esac; }
+block_of "$CANON" "$N" >"$TMP/pin_canon.txt"
+for n in 288 292 293; do block_of "$CANON" "$n" | note_para '**Refinement note (2026-11-07).**' >"$TMP/pin_note_$n.txt"; done
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$ROOT/$f" ] && carrier_block "$ROOT/$f" "$N" >"$TMP/pin_car_$f.txt"; done
+if [ "$PRINT" = 1 ]; then
+    printf "PIN_CANON='%s'\n" "$(digest <"$TMP/pin_canon.txt")"
+    for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do [ -f "$TMP/pin_car_$f.txt" ] && printf "PIN_CARRIER='%s'  # %s\n" "$(digest <"$TMP/pin_car_$f.txt")" "$f"; done
+    for n in 288 292 293; do printf "PIN_NOTE_%s='%s'\n" "$n" "$(digest <"$TMP/pin_note_$n.txt")"; done
+    exit 0
+fi
+pin_chk "pinned: the §11.4.$N block of Constitution.md matches PIN_CANON" "$PIN_CANON" "$TMP/pin_canon.txt"
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    [ -f "$ROOT/$f" ] || continue
+    pin_chk "pinned: mirror $f §11.4.$N block matches PIN_CARRIER" "$PIN_CARRIER" "$TMP/pin_car_$f.txt"
+done
+for n in 288 292 293; do
+    pin_chk "pinned: the §11.4.$n refinement note (2026-11-07) matches PIN_NOTE_$n" "$(note_pin "$n")" "$TMP/pin_note_$n.txt"
+done
+
 # The nine clause headings of §11.4.297, (A) to (I), and the three amendment points of (A).
 CLAUSES=(
     '**(A) DECLARATION, AND THE RECONCILIATION WITH §11.4.288.**'
@@ -194,7 +256,7 @@ chk "canon: exactly one §11.4.$N block-start of any form in Constitution.md (no
 chk "canon: block is non-empty (heading found)" [ -s "$BLK" ]
 HEADLINE="$TMP/headline.txt"; head -n 1 "$BLK" >"$HEADLINE"
 chk "canon: heading names 'Pull-request delivery'" has "$HEADLINE" "Pull-request delivery"
-chk "canon: heading names 'one pull request per task id'" has "$HEADLINE" "one pull request per task id"
+chk "canon: heading names 'one pull request per task id at a time'" has "$HEADLINE" "one pull request per task id at a time"
 chk "canon: heading names 'no account is named in this constitution'" has "$HEADLINE" "no account is named in this constitution"
 chk "canon: heading names 'self-reviewed on the platform by its author agent'" has "$HEADLINE" "self-reviewed on the platform by its author agent"
 chk "canon: heading names 'where the project configures a human merge gate'" has "$HEADLINE" "where the project configures a human merge gate"
@@ -223,6 +285,7 @@ MARKERS=(
     'is the recorded necessity of §11.4.288(B)(2)'
     'It legitimises no other vehicle'
     'is the landing step of §11.4.288(B)(1)'
+    'Against §11.4.288(B)(1), which lets no approval wait hold a GO'"'"'d change off `main`, this point admits exactly two: an approval the project configures as required (condition (f) of clause (C)(2)) and, under a human merge gate, the merge by the human merger.'
     'it is never parked silently'
     'whose second parent is the reviewed head'
     'A squash merge and a rebase merge are FORBIDDEN'
@@ -232,6 +295,9 @@ MARKERS=(
     'one task branch named `<prefix>/<id>-<slug>`'
     '`Multi-Task-Reason:`'
     'is reused for every later commit of that task'
+    'and one open pull request against the base at a time: after that pull request has landed and its branch is retired and pruned (clause (C)(4)), a later commit of the same task id opens a new task branch and a new pull request.'
+    'For a submodule pull request clause (F)(2) keeps the task branch until the parent pull request that records it has landed, so a delete-at-merge option is never used there, even on a single declared upstream.'
+    'the pull request stays open (the refusal never closes it, and once it is reported as this point requires, merge condition (c) of clause (C)(2) holds for that account)'
     'the delivery refuses and lists those commits'
     'A detached `HEAD` is refused'
     'the remote tip is read with `git ls-remote`'
@@ -279,6 +345,8 @@ MARKERS=(
     'standing list of tool-written paths'
     'with the reason `generated-regeneration`'
     'No fifth reason is added to §11.4.293(A)(4)'
+    'is an INTERPRETATION of §11.4.293(A)(4), stated here as one and not an amendment of it'
+    'a row written or edited by hand, and any other path, is never `generated-regeneration`'
     'on a task branch with the same name as the parent'"'"'s'
     'The submodule pull request lands first'
     'only after the submodule pull request is read back as merged'
@@ -355,7 +423,9 @@ chk "refined §11.4.288: the note keeps every other sentence binding" has "$RB28
 chk "refined §11.4.288: the note names the author agent's read-back self-review" has "$RB288" "by its author agent after a read-back self-review"
 chk "refined §11.4.288: the note names the human merge gate" has "$RB288" "where the project configures a human merge gate"
 chk "refined §11.4.288: the note requires the reviewed head to contain the base tip" has "$RB288" "and the reviewed head contains the base tip as (B)(3) requires"
+chk "refined §11.4.288: the note names the two waits (B)(1) otherwise forbids" has "$RB288" 'that step admits exactly two waits that the "no approval wait" of (B)(1) otherwise forbids: an approval the project configures as required (merge condition (f) of §11.4.297(C)(2)) and, under a human merge gate, the human merger'"'"'s merge;'
 chk "refined §11.4.293: the note adds no fifth reason" has "$TMP/refined_293.txt" "gains no fifth"
+chk "refined §11.4.293: the note states the generated-regeneration reading as an interpretation" has "$TMP/refined_293.txt" "is an interpretation of (A)(4), stated as one in §11.4.297(E)(3), not an amendment"
 
 # ── 3. the four context mirrors ──────────────────────────────────────────────
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
@@ -368,6 +438,10 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     chk "mirror $f: block names the author agent's self-review and merge" has "$CB" "The author agent self-reviews the pull request on the platform"
     chk "mirror $f: block names the human merge gate" has "$CB" "under a human merge gate only the human merger merges"
     chk "mirror $f: block names the GO and base-tip merge conditions" has "$CB" "once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip"
+    chk "mirror $f: block names the configured approvals among the merge conditions" has "$CB" "the serial order and every approval the project configures as required are read back"
+    chk "mirror $f: headline merges only after the source-correctness GO" has "$CB" "only after its source-correctness GO and only in a form that keeps every reviewed commit on \`main\`"
+    chk "mirror $f: block says one open pull request per task id at a time" has "$CB" "= one open pull request at a time;"
+    chk "mirror $f: block keeps the submodule branch until the parent lands" has "$CB" "landed first, its branch kept until the parent lands;"
     chk "mirror $f: block names the default reviewer key" has "$CB" "default key \`pr_reviewers\`"
     chk "mirror $f: block says the reviewers are never named here" has "$CB" "never named here"
     chk "mirror $f: block names the parity words" has "$CB" "(\`PRESENT\`, \`MIRROR-LAG <tip>\`, \`UNREACHABLE\`)"

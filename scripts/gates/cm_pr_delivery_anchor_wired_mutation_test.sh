@@ -8,7 +8,11 @@
 #     * golden-FALSE     changes that must NOT trip the gate (a mid-body citation of §11.4.297
 #                        elsewhere, an unrelated project section after a mirror block, a
 #                        prefix-colliding decoy heading §11.4.2970, a whitespace-only edit inside
-#                        the block) MUST still pass (§11.4.201(1));
+#                        the block, inside a pinned mirror block and inside a pinned refinement note, a
+#                        refinement note re-wrapped across two lines)
+#                        MUST still pass (§11.4.201(1)); --print-digests on the genuine tree MUST print
+#                        exactly the pinned values, and a gate copy re-pinned from it after a text change
+#                        MUST pass that change;
 #     * RED mutations    every required marker phrase, every clause heading (A)..(I) and amendment
 #                        point (A.1)..(A.3), every escape-hatch flag, every cross-reference, every
 #                        back-pointer in the three composed anchors, every mirror and its phrases,
@@ -17,9 +21,18 @@
 #                        deferral rows, the account-name gate and its test, the hook bindings, a
 #                        duplicated canon block, a stray second block-start form and a demoted
 #                        heading are removed or broken ONE AT A TIME, and the gate MUST exit 1 and
-#                        name that exact failed check;
-#     * BLIND            a broken block extractor, a missing Constitution.md and a lost real-file
-#                        control needle MUST exit 2 (never a silent PASS).
+#                        name that exact failed check; each of the 20 marker-preserving weakenings of
+#                        audit 2 (P1..P20: canon, §11.4.288 and §11.4.293 notes, each mirror) MUST exit 1
+#                        and name the pin of the text it edits, and with the pin check disabled in a gate
+#                        copy the first of them MUST pass (the pin is what names it); a sentence added on
+#                        the line after each of the three refinement notes, and on the line before the
+#                        §11.4.288 note, with no blank line between (audit 3, B1), also one that starts
+#                        with '#' but is no heading (its re-audit, R1), MUST exit 1 and name the pin of
+#                        that note;
+#     * BLIND            a broken block extractor, a missing Constitution.md, a lost real-file
+#                        control needle, a pin digest that keeps whitespace, a note extractor that reads
+#                        only the marker line and one that ends a note at any line starting with '#' MUST
+#                        exit 2 (never a silent PASS).
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug
 #   (exit 2), never a green. No account name is stored in this file.
 #
@@ -309,9 +322,19 @@ fresh; mut block-sub Constitution.md "$N" '(g) the remote base tip, fetched righ
 expect_red "H2 base ancestry read only at push time" "FAIL  canon: block carries marker '$(mk 'It merges only when all of these are read back:')'"
 fresh; mut block-sub Constitution.md 288 'and the reviewed head contains the base tip as (B)(3) requires' '@@'
 expect_red "the §11.4.288 note loses the base-tip condition" "FAIL  refined §11.4.288: the note requires the reviewed head to contain the base tip"
+fresh; mut block-sub Constitution.md 288 'that step admits exactly two waits' 'that step admits waits'
+expect_red "the §11.4.288 note no longer bounds the admitted waits to two" "FAIL  refined §11.4.288: the note names the two waits (B)(1) otherwise forbids"
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     fresh; mut carrier-sub "$f" "$N" 'once the GO for that exact head, the self-review, the reviewer read-back, an unmoved head that contains the base tip' '@@'
     expect_red "mirror loses the GO and base-tip conditions: $f" "FAIL  mirror $f: block names the GO and base-tip merge conditions"
+    fresh; mut carrier-sub "$f" "$N" ' and every approval the project configures as required are read back' ' are read back'
+    expect_red "mirror drops the configured approvals: $f" "FAIL  mirror $f: block names the configured approvals among the merge conditions"
+    fresh; mut carrier-sub "$f" "$N" 'only after its source-correctness GO and only in a form' 'only in a form'
+    expect_red "mirror headline drops the GO condition: $f" "FAIL  mirror $f: headline merges only after the source-correctness GO"
+    fresh; mut carrier-sub "$f" "$N" '= one open pull request at a time;' '= one pull request;'
+    expect_red "mirror drops 'at a time': $f" "FAIL  mirror $f: block says one open pull request per task id at a time"
+    fresh; mut carrier-sub "$f" "$N" 'landed first, its branch kept until the parent lands;' 'landed first;'
+    expect_red "mirror drops the kept submodule branch: $f" "FAIL  mirror $f: block keeps the submodule branch until the parent lands"
 done
 
 # ── RED: heading integrity, decoys and duplicates ────────────────────────────
@@ -323,8 +346,10 @@ fresh; mut append Constitution.md "**§11.4.$N — stray second block-start form
 expect_red "second block-start form in canon" "FAIL  canon: exactly one §11.4.$N block-start of any form in Constitution.md (no duplicate form)"
 fresh; mut file-sub Constitution.md "### §11.4.$N — Pull-request delivery:" "### §11.4.$N — Review rules:"
 expect_red "heading no longer names 'Pull-request delivery'" "FAIL  canon: heading names 'Pull-request delivery'"
-fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)one pull request per task id" '\1one review per change'
-expect_red "heading no longer names 'one pull request per task id'" "FAIL  canon: heading names 'one pull request per task id'"
+fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)one pull request per task id at a time" '\1one review per change'
+expect_red "heading no longer names 'one pull request per task id at a time'" "FAIL  canon: heading names 'one pull request per task id at a time'"
+fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?one pull request per task id) at a time" '\1'
+expect_red "heading drops 'at a time'" "FAIL  canon: heading names 'one pull request per task id at a time'"
 fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)no account is named in this constitution" '\1accounts are listed here'
 expect_red "heading no longer names 'no account is named in this constitution'" "FAIL  canon: heading names 'no account is named in this constitution'"
 fresh; mut file-resub Constitution.md "^(### §11\\.4\\.$N .*?)self-reviewed on the platform by its author agent" '\1merged by a person'
@@ -353,6 +378,8 @@ fresh; mut block-sub Constitution.md 288 'where the project configures a human m
 expect_red "the §11.4.288 note no longer names the human merge gate" "FAIL  refined §11.4.288: the note names the human merge gate"
 fresh; mut block-sub Constitution.md 293 'gains no fifth' 'gains a fifth'
 expect_red "the §11.4.293 note adds a fifth reason" "FAIL  refined §11.4.293: the note adds no fifth reason"
+fresh; mut block-sub Constitution.md 293 'is an interpretation of (A)(4), stated as one in §11.4.297(E)(3), not an amendment' 'is a fifth reason'
+expect_red "the §11.4.293 note no longer calls the reading an interpretation" "FAIL  refined §11.4.293: the note states the generated-regeneration reading as an interpretation"
 
 # ── RED: the four mirrors ────────────────────────────────────────────────────
 for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
@@ -450,6 +477,170 @@ fresh; mut file-sub scripts/post_update_hook.sh 'CM-PR-DELIVERY-ACCOUNT-NAME-FRE
 expect_red "hook no longer names the account-name token" "FAIL  seam: post_update_hook.sh names the token CM-PR-DELIVERY-ACCOUNT-NAME-FREE"
 fresh; rm -f "${W:?}/scripts/post_update_hook.sh"
 expect_red "hook file missing" "FAIL  seam: scripts/post_update_hook.sh missing"
+
+# ── text pins (audit 2, F1): each marker-preserving weakening of audit 2 is named by its pin ─
+fresh; mut block-sub Constitution.md 297 'It merges only in the declared form of point (A.3). A project configures' 'It merges only in the declared form of point (A.3). Where the independent reviewer has not answered within the declared merge window, the author agent may merge on its read-back self-review alone. A project configures'
+expect_red 'audit-2 P1-additive-selfreview-merge-after-window keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'The pin bump is reported ready to land only when every declared upstream reads `PRESENT`' 'The pin bump is reported ready to land only when every declared upstream reads `PRESENT` or `UNREACHABLE`'
+expect_red 'audit-2 P2-parity-accepts-unreachable keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'For a merge commit, its second parent equals the reviewed head;' 'For a merge commit, one of its parents equals the reviewed head;'
+expect_red 'audit-2 P3-formcheck-any-parent keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'A list holds at least one account; an empty or malformed list is refused before anything is committed,' 'A list may be empty; a malformed list is refused before anything is committed,'
+expect_red 'audit-2 P4-empty-reviewer-list-ok keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'and the file at that path in the tree of the pull request'"'"'s head commit has the cited sha256' 'and the file at that path exists in the tree of the pull request'"'"'s head commit'
+expect_red 'audit-2 P5-evidence-no-sha keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'The task branch is pushed fast-forward only (no force, no delete, no tag push),' 'The task branch may be force-pushed while its pull request is open,'
+expect_red 'audit-2 P6-task-branch-force-push keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'A claim never exceeds the weakest essential mechanism behind it. ' ''
+expect_red 'audit-2 P7-drop-weakest-mechanism keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'and every finding is answered by a follow-up commit (whose delta is reviewed again) or by a written reply that states why no change is needed.' 'and findings may be answered after the merge.'
+expect_red 'audit-2 P8-findings-after-merge keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'A project without the declaration keeps §11.4.288 as written.
+' 'A project without the declaration keeps §11.4.288 as written. Task branches are exempt from the retirement of §11.4.288(B)(4).
+'
+expect_red 'audit-2 P9-I-exempts-retirement keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'makes the delivery refuse before anything is committed; it is never ignored.' 'makes the delivery refuse before anything is committed; an unknown key is instead ignored with a warning.'
+expect_red 'audit-2 P10-unknown-key-ignored keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'land one at a time in a recorded order.' 'land one at a time in a recorded order, except when the author agent judges the overlap trivial.'
+expect_red 'audit-2 P11-serial-exception keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 ', or whose task branch was deleted before every upstream held its head' ''
+expect_red 'audit-2 P12-drop-H3-early-delete-FAIL keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 '**Non-compliance is a release blocker. No escape hatch — no `--squash-merge-OK`,' '**Non-compliance is a release blocker. One escape hatch exists, `--emergency-merge` (no GO needed); no other — no `--squash-merge-OK`,'
+expect_red 'audit-2 P13-escape-hatch-added keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 '(g) the remote base tip, fetched right before the merge, is an ancestor of the reviewed head' '(g) the reviewed head, fetched right before the merge, is an ancestor of the remote base tip'
+expect_red 'audit-2 P14-CONTROL-g-direction-swapped keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 297 'no reviewer is possible: the delivery reports it and ends non-zero, never silently.' 'no reviewer is possible: the self-review then counts as the configured review.'
+expect_red 'audit-2 P15-sole-author-selfreview-counts keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+fresh; mut block-sub Constitution.md 288 'a project without the declaration keeps this anchor as written.
+' 'a project without the declaration keeps this anchor as written. Merged task branches may be kept indefinitely.
+'
+expect_red 'audit-2 P16-288note-keep-branches keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.288 refinement note (2026-11-07) matches PIN_NOTE_288'
+fresh; mut block-sub Constitution.md 293 'enters a commit only when its path is on the project'"'"'s standing list of tool-written paths and is listed' 'enters a commit whenever the tool wrote it and is listed'
+expect_red 'audit-2 P17-293note-any-tool-row keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.293 refinement note (2026-11-07) matches PIN_NOTE_293'
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    fresh; mut carrier-sub "$f" 297 'never through another account, never the source-correctness GO)' 'never through another account; it may stand in for the source-correctness GO)'
+    expect_red "audit-2 P18-carriers-selfreview-is-GO keeps every marker, caught by its pin: $f" "FAIL  pinned: mirror $f §11.4.297 block matches PIN_CARRIER"
+done
+fresh; mut block-sub Constitution.md 297 'A project configures a HUMAN MERGE GATE (merger `human`) by a recorded decision (§11.4.66);' 'A project configures a HUMAN MERGE GATE (merger `human`) by a recorded decision (§11.4.66), which lapses after the merge window;'
+expect_red 'audit-2 P19-human-gate-lapses keeps every marker, caught by its pin' 'FAIL  pinned: the §11.4.297 block of Constitution.md matches PIN_CANON'
+for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
+    fresh; mut carrier-sub "$f" 297 'under a human merge gate only the human merger merges' 'under a human merge gate the author agent may still merge'
+    expect_red "audit-2 P20-carriers-drop-human-gate keeps every marker, caught by its pin: $f" "FAIL  pinned: mirror $f §11.4.297 block matches PIN_CARRIER"
+done
+# golden-FALSE: whitespace-only edits inside a pinned mirror block and a pinned note keep the gate green
+fresh; mut carrier-sub CLAUDE.md "$N" 'Classification: universal (§11.4.17).' 'Classification:   universal (§11.4.17).'
+expect_green "whitespace-only change inside a pinned mirror block keeps the gate green"
+fresh; mut block-sub Constitution.md 288 'held as DATA' 'held  as   DATA'
+expect_green "whitespace-only change inside a pinned refinement note keeps the gate green"
+# audit 3 (B1): a refinement note is pinned as its whole paragraph, so a sentence on the line after it (or on the line
+# before it) with no blank line between is caught by the pin of that note; a note re-wrapped across lines is not
+for spec in '288|a project without the declaration keeps this anchor as written.' \
+            '292|The vocabulary and the clauses of this anchor are unchanged.' \
+            '293|and a row written or edited by hand never is.'; do
+    n="${spec%%|*}"; e="${spec#*|}"
+    fresh; mut block-sub Constitution.md "$n" "$e
+" "$e
+A squash merge is also a landing under pull-request delivery.
+"
+    expect_red "audit-3 B1 continuation line after the §11.4.$n note, caught by its pin" "FAIL  pinned: the §11.4.$n refinement note (2026-11-07) matches PIN_NOTE_$n"
+done
+fresh; mut block-sub Constitution.md 288 '
+**Refinement note (2026-11-07).**' '
+Merged task branches may be kept indefinitely.
+**Refinement note (2026-11-07).**'
+expect_red "audit-3 B1 lead-in line directly before the §11.4.288 note, caught by its pin" "FAIL  pinned: the §11.4.288 refinement note (2026-11-07) matches PIN_NOTE_288"
+# audit-3 re-audit (R1): a line that starts with '#' but is no ATX heading ("#1 ...", seven '#') is paragraph text too
+for spec in '288|a project without the declaration keeps this anchor as written.|#1 A squash merge is also a landing under pull-request delivery.' \
+            '292|The vocabulary and the clauses of this anchor are unchanged.|####### A squash merge is also a landing.'; do
+    n="${spec%%|*}"; rest="${spec#*|}"; e="${rest%%|*}"; add="${rest#*|}"
+    fresh; mut block-sub Constitution.md "$n" "$e
+" "$e
+$add
+"
+    expect_red "audit-3 R1 '#' line that is no heading after the §11.4.$n note, caught by its pin" "FAIL  pinned: the §11.4.$n refinement note (2026-11-07) matches PIN_NOTE_$n"
+done
+fresh; mut block-sub Constitution.md 288 '
+**Refinement note (2026-11-07).**' '
+#NB: merged task branches may be kept indefinitely.
+**Refinement note (2026-11-07).**'
+expect_red "audit-3 R1 '#' lead-in line that is no heading before the §11.4.288 note, caught by its pin" "FAIL  pinned: the §11.4.288 refinement note (2026-11-07) matches PIN_NOTE_288"
+fresh; mut block-sub Constitution.md 288 'held as DATA' 'held
+as DATA'
+expect_green "a refinement note re-wrapped across two lines (a whitespace-only change) keeps the gate green"
+# --print-digests reads the texts the pins check: on the genuine tree it prints exactly the pinned values
+fresh; PD="$(bash "$GATE" --root "$W" --print-digests 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && python3 - "$GATE" "$PD" <<'PYEOF'
+import re, sys
+src = open(sys.argv[1], encoding='utf-8').read()
+pins = dict(re.findall(r"^(PIN_[A-Z0-9_]+)='([0-9a-f]{64})'", src, re.M))
+out = re.findall(r"^(PIN_[A-Z0-9_]+)='([0-9a-f]{64})'", sys.argv[2], re.M)
+sys.exit(0 if pins and out and all(pins.get(k) == v for k, v in out) and {k for k, _ in out} == set(pins) else 1)
+PYEOF
+then NGF=$((NGF + 1)); quiet_say "GREEN kept: --print-digests on the genuine tree prints the pinned values"
+else say "PRINT-DIGESTS MISMATCH: exit $rc"; printf '%s\n' "$PD" | head -n 4; RESULT=1; fi
+# re-pinned: after a reviewed text change, a gate copy re-pinned from --print-digests passes again
+fresh; mut block-sub Constitution.md "$N" 'It merges only in the declared form of point (A.3). A project configures' 'It merges only in the declared form of point (A.3). Where the independent reviewer has not answered within the declared merge window, the author agent may merge on its read-back self-review alone. A project configures'
+G2="$W/scripts/gates/${GATE##*/}"
+NEWPIN="$(bash "$G2" --root "$W" --print-digests | sed -n "s/^PIN_CANON='\([0-9a-f]*\)'.*/\1/p")"
+python3 - "$G2" "$NEWPIN" <<'PYEOF' || { say "SETUP FAILURE: could not re-pin the gate copy"; exit 2; }
+import re, sys
+p, v = sys.argv[1], sys.argv[2]
+t = open(p, encoding='utf-8').read()
+t2, k = re.subn(r"^PIN_CANON='[0-9a-f]{64}'", "PIN_CANON='%s'" % v, t, count=1, flags=re.M)
+if k != 1 or t2 == t or len(v) != 64:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t2)
+PYEOF
+out="$(bash "$G2" --root "$W" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ]; then NGF=$((NGF + 1)); quiet_say "GREEN kept: a gate copy re-pinned from --print-digests passes the reviewed text change"
+else say "RE-PIN CASE FAILED: exit $rc"; printf '%s\n' "$out" | grep FAIL | head -n 4; RESULT=1; fi
+# gate mutant: with the pin check disabled in a copy, the same change passes; so the pin check is what names it
+fresh; mut block-sub Constitution.md "$N" 'It merges only in the declared form of point (A.3). A project configures' 'It merges only in the declared form of point (A.3). Where the independent reviewer has not answered within the declared merge window, the author agent may merge on its read-back self-review alone. A project configures'
+G3="$W/scripts/gates/pins_off_gate.sh"; cp "$GATE" "$G3"
+python3 - "$G3" <<'PYEOF' || { say "SETUP FAILURE: could not disable the pin check in the copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = 'if [ -n "$cur" ] && [ "$cur" = "$2" ]; then pass "$1"'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, 'if true; then pass "$1"'))
+PYEOF
+bash "$G3" --root "$W" >/dev/null 2>&1; rc3=$?; bash "$GATE" --root "$W" >/dev/null 2>&1; rc1=$?
+if [ "$rc3" -eq 0 ] && [ "$rc1" -eq 1 ]; then NRED=$((NRED + 1)); quiet_say "RED flip: the pin check alone names audit-2 P1 (pins off: exit 0; gate: exit 1)"
+else say "PIN MUTANT SURVIVED OR MISWIRED: pins-off copy exit $rc3, gate exit $rc1 (expected 0 and 1)"; RESULT=1; fi
+# BLIND: a digest that no longer normalises whitespace fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_digest.sh"
+python3 - "$W/scripts/gates/broken_digest.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the digest copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = """digest() { awk '{ for (i = 1; i <= NF; i++) printf "%s", $i }' | "${SHA[@]}" | awk '{ print $1 }'; }"""
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, """digest() { "${SHA[@]}" | awk '{ print $1 }'; }"""))
+PYEOF
+expect_blind "pin digest that keeps whitespace -> the digest control needle refuses (BLIND)" "$W/scripts/gates/broken_digest.sh"
+# BLIND: a note extractor that reads only the marker line (the audit-3 B1 defect) fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_note.sh"
+python3 - "$W/scripts/gates/broken_note.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the note extractor copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = r'{ buf = buf $0 "\n"; if (index($0, m)) hit = 1 }'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, r'{ if (index($0, m)) { buf = buf $0 "\n"; hit = 1 } }'))
+PYEOF
+expect_blind "note extractor that reads only the marker line -> the note paragraph control needle refuses (BLIND)" "$W/scripts/gates/broken_note.sh"
+# BLIND: a note extractor that ends a note at any line starting with '#' (the R1 defect) fails its control needle
+fresh; cp "$GATE" "$W/scripts/gates/broken_note_hash.sh"
+python3 - "$W/scripts/gates/broken_note_hash.sh" <<'PYEOF' || { say "SETUP FAILURE: could not break the note heading rule in the copy"; exit 2; }
+import sys
+p = sys.argv[1]; t = open(p, encoding='utf-8').read()
+old = r'/^ ? ? ?#(#?#?#?#?#?)([ \t]|$)/'
+if t.count(old) != 1:
+    sys.exit(3)
+open(p, 'w', encoding='utf-8').write(t.replace(old, r'/^#/'))
+PYEOF
+expect_blind "note extractor that ends a note at any line starting with '#' -> the note paragraph control needle refuses (BLIND)" "$W/scripts/gates/broken_note_hash.sh"
 
 # ── BLIND: an untrustworthy instrument never reports PASS ────────────────────
 fresh; cp "$GATE" "$W/scripts/gates/broken_gate.sh"

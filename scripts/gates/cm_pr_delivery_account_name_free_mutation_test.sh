@@ -8,32 +8,46 @@
 #   is stored in this file) and runs the gate:
 #     * GREEN control    the unmodified copy with the fixture consumer MUST pass (exit 0);
 #     * golden-FALSE     a longer account name that contains a fixture account, a fixture account written
-#                        into a file outside the corpus, and a changed file outside the corpus without
-#                        --changed-since MUST still pass (§11.4.201(1));
+#                        into a file outside the corpus, a NUL byte in a file outside the corpus, an empty
+#                        assignee list, a changed file outside the corpus without --changed-since and a
+#                        number (a serial of 0s and 1s) under an account of the letters l and o and a rule
+#                        of bars under an account of the letter l (audit 3, B2) MUST still pass (§11.4.201(1));
 #     * RED              a fixture account written into each corpus file class (the canon block, each of
 #                        the four mirrors, the group file, the progressive rule file, the index, the rules
 #                        manifest, the changelog, the readme, the owed-gates page, the three registries, each
 #                        pull-request and release-gate file, the generated propagation gates, the hub test,
 #                        the post-update hook, the suite manifest, the anchor library and its test, a guide),
 #                        a case variant, each disguise the normaliser undoes (Cyrillic and Greek look-alike
-#                        letters, a zero-width space, a soft hyphen, full-width letters, a combining mark,
-#                        non-breaking hyphens) and a sign that decomposes into letters, an assignee account,
+#                        letters, the Cyrillic and Greek set of audit 2 written all at once in lower and in
+#                        upper case, a Cyrillic io, a lunate sigma, a zero-width space, a soft hyphen, a
+#                        Hangul filler, a halfwidth Hangul filler, a Braille blank, full-width letters, a
+#                        combining mark, non-breaking hyphens), each disguise the skeleton form undoes (a
+#                        Cyrillic letter for l, Cyrillic letters for the digits, an upper-case name with a
+#                        Cyrillic letter for L, a vertical bar for 1, a long s for f, a 1 for i and a 0
+#                        for o inside a name, digits after a hyphen in a name) and a sign that
+#                        decomposes into letters, an assignee account,
 #                        an account given only by --forbid-login, a file named by --changed-since (changed,
 #                        untracked, committed after the base) and an @-mention in a mirror block MUST exit 1
 #                        and name the file;
 #     * SKIP / BLIND     no consumer data MUST exit 3 (never 0); a configuration without the reviewer key,
-#                        a malformed reviewer or assignee value, a missing configuration file and an
-#                        unresolvable --changed-since MUST exit 2; equal reviewer and assignee keys exit 64;
+#                        an empty reviewer list (bare, or with a comment only), a malformed reviewer or
+#                        assignee value, a missing configuration file, a corpus file with a NUL byte (also
+#                        one that hides a fixture account after the NUL) and an unresolvable --changed-since
+#                        MUST exit 2; equal reviewer and assignee keys exit 64;
 #     * REAL consumer    when a consumer configuration exists next to this constitution
 #                        (<root>/../config/delivery.conf, or PR_DELIVERY_REAL_CONSUMER_CONFIG), the gate
 #                        MUST pass on the real tree with it, and each account read from it AT RUN TIME,
 #                        written into a copy of the canon block, MUST exit 1; without such a file this leg is
 #                        reported SKIP;
-#     * gate mutants     edits of a copy of the gate (the matcher, the case rule, each normaliser step, each
-#                        of the two scans, SKIP reported as PASS, present-means-mandatory removed, the
-#                        assignee list ignored or its malformed value accepted, --changed-since ignored, a
-#                        corpus file, file pattern or guide directory dropped, the scan skipped) MUST each be
-#                        killed by a scenario above.
+#     * gate mutants     edits of a copy of the gate (the matcher, the case rule, each normaliser step, the
+#                        table before and after NFKD, the table rows added by audit 2, the fillers, each
+#                        skeleton step, the digits or the bars read as letters in every word, the digits in
+#                        none, the bar or the hyphen left
+#                        out of a word, each of the three scans, the NUL report and its verdict, SKIP
+#                        reported as PASS, present-means-mandatory removed, an empty reviewer list accepted
+#                        or not detected, an empty assignee list refused, the assignee list ignored or its
+#                        malformed value accepted, --changed-since ignored, a corpus file, file pattern or
+#                        guide directory dropped, the scan skipped) MUST each be killed by a scenario above.
 #   Each mutation operator asserts it really changed the file; a no-op mutation is a test bug (exit 2).
 #
 # Usage
@@ -64,7 +78,7 @@ BASE="$TMPD/base"; L="$TMPD/layout"; C="$L/consumer/constitution"; PY="$TMPD/op.
 RESULT=0; NOK=0; NKILL=0; NMUT=0
 say() { printf '[mutation:account-name] %s\n' "$*"; }
 qsay() { [ "$QUIET" = 1 ] || say "$@"; }
-F1="fixture-rev-one"; F2="fixtwo"
+F1="fixture-rev-one"; F2="fixtwo"; F3="fixloc10"; F4="kmtnrvw-ejyx36"
 
 FILES=(Constitution.md CLAUDE.md AGENTS.md QWEN.md GEMINI.md README.md CHANGELOG.md constitution_index.yaml
        progressive/catalog.json progressive/rules_manifest.json progressive/rules/11.4.297.md groups/git-and-data-safety.md
@@ -174,6 +188,32 @@ for d in 'Cyrillic look-alike letters|fixtur\u0435-r\u0435v-\u043ene' 'a Greek l
     fresh; canon_with "${d#*|}" subesc
     expect "RED: a fixture account disguised by ${d%%|*}" 1 "appears in Constitution.md:"
 done
+# audit 2: the Cyrillic and Greek letters it found missed, the fillers, and the skeleton disguises (fixture
+# accounts given by --forbid-login, so the fixture consumer stays unchanged)
+for d in 'the audit-2 Cyrillic and Greek set in lower case|\u043a\u043c\u0442\u043f\u0433\u0475\u0461-\u04bd\u03f3\u03b3\u03c7\u0437\u0431' \
+         'the audit-2 Cyrillic set with capital letters|kmtnrvw-ejyx\u04176' \
+         'a Cyrillic io|fixtur\u0451-rev-one' 'a Hangul filler|fix\u3164two' 'a halfwidth Hangul filler|fixt\uffa0wo' \
+         'a Hangul choseong filler|fi\u115fxtwo' 'a Hangul jungseong filler|fixtw\u1160o' 'a Braille blank|fixt\u2800wo' \
+         'a lunate sigma for c|fixlo\u03f210' 'a long s for f|\u017fixloc10' 'a Cyrillic letter for l|fix\u0406oc10' \
+         'a Cyrillic palochka for l|fix\u04c0oc10' 'Cyrillic letters for the digits|fixloc\u04cf\u041e' \
+         'an upper-case name with a Cyrillic letter for L|FIX\u0406OC10' 'a vertical bar for 1|fixloc|0' \
+         'a Latin capital I for l|fixIoc10'; do
+    fresh; canon_with "${d#*|}" subesc
+    expect "RED: a fixture account disguised by ${d%%|*}" 1 "appears in Constitution.md:" --forbid-login "$F3" --forbid-login "$F4"
+done
+# audit 3 (B2): a 0 or a 1 is a letter only inside a word that holds a letter, so a digit inside a name is seen and a
+# number is not read as an account
+fresh; canon_with 'f1xtw0'
+expect "RED: a fixture account disguised by a 1 for i and a 0 for o inside the name" 1 "appears in Constitution.md:"
+fresh; canon_with 'fix-10'
+expect "RED: a hyphenated account whose last part is disguised by digits (the hyphen joins the word)" 1 "appears in Constitution.md:" --forbid-login fix-lo
+# (the accounts below appear in no corpus file of the scratch copy, which does not hold this file; the gate's needle
+# accounts are in the gate source, which it does hold; on the real tree both files are in the corpus, so these accounts
+# hit there, as the fixture accounts do)
+fresh; canon_with '1001-011'
+expect "golden-FALSE: a serial of 0s and 1s is not read as an account of the letters l and o" 0 'PASS' --forbid-login lool-oll
+fresh; canon_with '|||-||'
+expect "golden-FALSE: a rule of bars is not read as an account of the letter l" 0 'PASS' --forbid-login lll-ll
 
 # ── assignees, --forbid-login, structure ─────────────────────────────────────
 fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=fixture-asg' >"$L/consumer/config/delivery.conf"; canon_with fixture-asg
@@ -183,6 +223,8 @@ expect "RED: an assignee key declared with --assignees-key" 1 "appears in Consti
 fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=org/team' >"$L/consumer/config/delivery.conf"
 expect "BLIND: a malformed assignee value" 2 "BLIND — .*the 'pr_assignees' value is not a list of account names"
 fresh; expect "usage: equal reviewer and assignee keys" 64 'must differ' --assignees-key pr_reviewers
+fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=' >"$L/consumer/config/delivery.conf"
+expect "golden-FALSE: an empty assignee list is not an error" 0 'PASS — .*1 reviewer and 0 assignee entries'
 fresh; rm -f "$L/consumer/config/delivery.conf"; op append "$C/CHANGELOG.md" "named fixture-extra here"
 expect "RED: an account given only by --forbid-login" 1 "appears in CHANGELOG.md:" --forbid-login fixture-extra
 fresh; op sub "$C/AGENTS.md" "$MIRROR_SPOT" "(D) Reviewers (ask @some-other-account) are a configured list"
@@ -205,6 +247,16 @@ fresh; printf '%s\n' 'mode=pr' >"$L/consumer/config/delivery.conf"
 expect "BLIND: a consumer configuration without the reviewer key" 2 'BLIND — .*carries no .pr_reviewers. key'
 fresh; printf '%s\n' 'pr_reviewers=org/team' >"$L/consumer/config/delivery.conf"
 expect "BLIND: a malformed reviewer value" 2 'BLIND — .*not a list of account names'
+fresh; printf '%s\n' 'mode=pr' 'pr_reviewers=' >"$L/consumer/config/delivery.conf"
+expect "BLIND: an empty reviewer list" 2 "BLIND — .*the 'pr_reviewers' value is empty"
+fresh; printf '%s\n' 'mode=pr' 'pr_reviewers=   # nobody' >"$L/consumer/config/delivery.conf"
+expect "BLIND: a reviewer list that holds only a comment" 2 "BLIND — .*the 'pr_reviewers' value is empty"
+fresh; printf 'x\000y\n' >>"$C/CHANGELOG.md"
+expect "BLIND: a corpus file with a NUL byte" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte.*CHANGELOG.md'
+fresh; printf 'x\000y reviewer %s\n' "$F1" >>"$C/CHANGELOG.md"
+expect "BLIND: a fixture account hidden after a NUL byte in a corpus file" 2 'BLIND — 1 corpus file\(s\) hold a NUL byte'
+fresh; printf 'x\000y reviewer %s\n' "$F1" >>"$C/docs/research/note.md"
+expect "golden-FALSE: a NUL byte in a file outside the corpus" 0 'PASS'
 fresh; expect "BLIND: a named consumer configuration that does not exist" 2 'BLIND — consumer configuration not found' --consumer-config "$L/nowhere.conf"
 fresh; printf '%s\n' 'mode=pr' 'reviewers_of_record=fixture-rev-one' >"$L/consumer/config/delivery.conf"
 canon_with "$F1"
@@ -240,27 +292,61 @@ killed() { # killed <name> <want-rc-of-original> <rc-of-mutant>
     else say "MUTANT SURVIVED: $1 (exit $3, same as the original)"; RESULT=1; fi
 }
 # the matcher and the case rule
-G="$(mutant blind_matcher 'local re="(^|[^A-Za-z0-9-])$3([^A-Za-z0-9-]|\$)"' 'local re="(^|[^A-Za-z0-9-])$3XNEVER([^A-Za-z0-9-]|\$)"')"
+G="$(mutant blind_matcher 'local re="(^|[^A-Za-z0-9-])$4([^A-Za-z0-9-]|\$)" rs="(^|[^A-Za-z0-9-])$5([^A-Za-z0-9-]|\$)"' 'local re="(^|[^A-Za-z0-9-])$4XNEVER([^A-Za-z0-9-]|\$)" rs="(^|[^A-Za-z0-9-])$5XNEVER([^A-Za-z0-9-]|\$)"')"
 fresh; killed blind_matcher 0 "$(outcome)"
 G="$(mutant case_sensitive "GREP_CASE='-i'" "GREP_CASE=''")"
 fresh; killed case_sensitive 0 "$(outcome)"
-G="$(mutant substring_matcher 'local re="(^|[^A-Za-z0-9-])$3([^A-Za-z0-9-]|\$)"' 'local re="$3"')"
+G="$(mutant substring_matcher 'local re="(^|[^A-Za-z0-9-])$4([^A-Za-z0-9-]|\$)" rs="(^|[^A-Za-z0-9-])$5([^A-Za-z0-9-]|\$)"' 'local re="$4" rs="$5"')"
 fresh; killed substring_matcher 0 "$(outcome)"
 # each normaliser step and each of the two scans
-G="$(mutant nfkd_off "s = unicodedata.normalize('NFKD', s)" "s = s")"
+G="$(mutant nfkd_off "s = unicodedata.normalize('NFKD', s.translate(CONF))" "s = s.translate(CONF)")"
 fresh; canon_with '\uff46\uff49\uff58\uff54\uff57\uff4f' subesc; killed nfkd_off 1 "$(outcome)"
 G="$(mutant format_chars_kept "DROP = ('Cf', 'Mn', 'Me')" "DROP = ('Mn', 'Me')")"
 fresh; canon_with 'fix\u200bture-rev-one' subesc; killed format_chars_kept 1 "$(outcome)"
 G="$(mutant combining_marks_kept "DROP = ('Cf', 'Mn', 'Me')" "DROP = ('Cf',)")"
 fresh; canon_with 'fi\u0301xtwo' subesc; killed combining_marks_kept 1 "$(outcome)"
-G="$(mutant confusables_off 'return s.translate(CONF).translate(DASH)' 'return s.translate(DASH)')"
+G="$(mutant confusables_off '        CONF[ord(_a)] = _b' '        pass')"
 fresh; canon_with 'fixtur\u0435-r\u0435v-\u043ene' subesc; killed confusables_off 1 "$(outcome)"
+G="$(mutant confusables_before_nfkd_off "s = unicodedata.normalize('NFKD', s.translate(CONF))" "s = unicodedata.normalize('NFKD', s)")"
+fresh; canon_with 'fixlo\u03f210' subesc; killed confusables_before_nfkd_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant confusables_after_nfkd_off 'return s.translate(CONF).translate(DASH)' 'return s.translate(DASH)')"
+fresh; canon_with 'fixtur\u0451-rev-one' subesc; killed confusables_after_nfkd_off 1 "$(outcome)"
+G="$(mutant audit2_rows_dropped "('\\u043a\\u043c\\u0442\\u043f\\u0433\\u0475\\u0461\\u04bd\\u0437\\u0431\\u04c0\\u0417', 'kmtnrvwe36I3'), ('\\u03f2\\u03f3\\u03b3\\u03c7', 'cjyx')" "")"
+fresh; canon_with '\u043a\u043c\u0442\u043f\u0433\u0475\u0461-\u04bd\u03f3\u03b3\u03c7\u0437\u0431' subesc; killed audit2_rows_dropped 1 "$(outcome --forbid-login "$F4")"
+G="$(mutant fillers_kept 'FILL = (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800)' 'FILL = ()')"
+fresh; canon_with 'fix\u3164two' subesc; killed fillers_kept 1 "$(outcome)"
+G="$(mutant long_s_off "SKEL_PRE = {0x017F: 'f'}" "SKEL_PRE = {}")"
+fresh; canon_with '\u017fixloc10' subesc; killed long_s_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_digit_map_off "SKEL_MAP = {ord('0'): 'o', ord('1'): 'l', ord('|'): 'l', 0x01C0: 'l'}" "SKEL_MAP = {ord('|'): 'l', 0x01C0: 'l'}")"
+fresh; canon_with 'fixloc\u04cf\u041e' subesc; killed skeleton_digit_map_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_bar_map_off "SKEL_MAP = {ord('0'): 'o', ord('1'): 'l', ord('|'): 'l', 0x01C0: 'l'}" "SKEL_MAP = {ord('0'): 'o', ord('1'): 'l'}")"
+fresh; canon_with 'fixloc|0' subesc; killed skeleton_bar_map_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_il_class_off "return ''.join('[il]' if ch in 'il' else ch for ch in s.lower().translate(SKEL_MAP))" "return s.lower().translate(SKEL_MAP)")"
+fresh; canon_with 'FIX\u0406OC10' subesc; killed skeleton_il_class_off 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_digits_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_DIGITS)")"
+fresh; canon_with '1001-011'; killed skeleton_digits_in_numbers 0 "$(outcome --forbid-login lool-oll)"
+G="$(mutant skeleton_bars_in_numbers "if SKEL_LETTER.search(w) else w" "if SKEL_LETTER.search(w) else w.translate(SKEL_BARS)")"
+fresh; canon_with '|||-||'; killed skeleton_bars_in_numbers 0 "$(outcome --forbid-login lll-ll)"
+G="$(mutant skeleton_digits_never "return w.translate(SKEL_DIGITS).translate(SKEL_BARS) if SKEL_LETTER.search(w) else w" "return w")"
+fresh; canon_with 'f1xtw0'; killed skeleton_digits_never 1 "$(outcome)"
+G="$(mutant skeleton_word_without_bar "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9-]+')")"
+fresh; canon_with 'fixloc|0' subesc; killed skeleton_word_without_bar 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant skeleton_word_without_hyphen "SKEL_WORD = re.compile('[a-z0-9|\\u01c0-]+')" "SKEL_WORD = re.compile('[a-z0-9|\\u01c0]+')")"
+fresh; canon_with 'fix-10'; killed skeleton_word_without_hyphen 1 "$(outcome --forbid-login fix-lo)"
 G="$(mutant hyphen_map_off 'return s.translate(CONF).translate(DASH)' 'return s.translate(CONF)')"
 fresh; canon_with 'fixture\u2011rev\u2011one' subesc; killed hyphen_map_off 1 "$(outcome)"
 G="$(mutant raw_scan_dropped '{ grep -I -n -E $GREP_CASE -- "$re" "$1"' '{ :')"
 fresh; canon_with 'fixtwo\u2122' subesc; killed raw_scan_dropped 1 "$(outcome)"
-G="$(mutant normalised_scan_dropped '      grep -I -n -E $GREP_CASE -- "$re" "$2"; }' '      :; }')"
-fresh; canon_with 'fixtur\u0435-r\u0435v-\u043ene' subesc; killed normalised_scan_dropped 1 "$(outcome)"
+G="$(mutant normalised_scan_dropped '      grep -I -n -E $GREP_CASE -- "$re" "$2"
+' '      :
+')"
+fresh; canon_with '|fixtw\u03bf|' subesc; killed normalised_scan_dropped 1 "$(outcome)"
+G="$(mutant skeleton_scan_dropped '      grep -I -n -E $GREP_CASE -- "$rs" "$3"; }' '      :; }')"
+fresh; canon_with 'fix\u0406oc10' subesc; killed skeleton_scan_dropped 1 "$(outcome --forbid-login "$F3")"
+G="$(mutant nul_not_reported "    if '\\x00' in raw:" "    if False:")"
+fresh; killed nul_not_reported 0 "$(outcome)"
+G="$(mutant nul_verdict_dropped '[ -s "$TMP/nul.txt" ] && blind' '[ -s "$TMP/nul.txt" ] && :')"
+fresh; printf 'x\000y reviewer %s\n' "$F1" >>"$C/CHANGELOG.md"; killed nul_verdict_dropped 2 "$(outcome)"
 # verdict and consumer data
 G="$(mutant skip_as_pass 'the account scan did not run (not a PASS)"
     exit 3' 'the account scan did not run (not a PASS)"
@@ -268,6 +354,12 @@ G="$(mutant skip_as_pass 'the account scan did not run (not a PASS)"
 fresh; rm -f "$L/consumer/config/delivery.conf"; killed skip_as_pass 3 "$(outcome)"
 G="$(mutant key_optional "3) blind \"consumer configuration \$c carries no" "3) : \"consumer configuration \$c carries no")"
 fresh; printf '%s\n' 'mode=pr' >"$L/consumer/config/delivery.conf"; killed key_optional 2 "$(outcome)"
+G="$(mutant empty_reviewers_accepted "5) blind \"consumer configuration \$c: the '\$KEY' value is empty" "5) : \"consumer configuration \$c: the '\$KEY' value is empty")"
+fresh; printf '%s\n' 'mode=pr' 'pr_reviewers=' >"$L/consumer/config/delivery.conf"; killed empty_reviewers_accepted 2 "$(outcome)"
+G="$(mutant empty_list_not_detected 'if (bad) exit 4; if (!cnt) exit 5 }' 'if (bad) exit 4 }')"
+fresh; killed empty_list_not_detected 0 "$(outcome)"
+G="$(mutant empty_assignees_refused '        0|3|5) ;;' '        0|3) ;;')"
+fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=' >"$L/consumer/config/delivery.conf"; killed empty_assignees_refused 0 "$(outcome)"
 G="$(mutant assignees_ignored 'cat "$TMP/rev.txt" "$TMP/asg.txt" >>"$LOGINS"' 'cat "$TMP/rev.txt" >>"$LOGINS"')"
 fresh; printf '%s\n' 'mode=pr' "pr_reviewers=$F1" 'pr_assignees=fixture-asg' >"$L/consumer/config/delivery.conf"; canon_with fixture-asg
 killed assignees_ignored 1 "$(outcome)"
