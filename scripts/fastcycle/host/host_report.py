@@ -1067,6 +1067,9 @@ def _read_nproc_soft():
     on a host whose /bin/sh is dash (dash has no `ulimit -u`), so the thread
     headroom was always "unmeasured" there. `sh -c "ulimit -u"` stays only
     as the fallback when the file has no readable "Max processes" line.
+    A readable line has all four fields (name, soft, hard, units); a shorter
+    one is skipped, and host_guard.sh's awk skips it the same way (CON-117
+    round 5, review round 4 F8: the awk used to take field 3 of any length).
     FC_GUARD_PROC_LIMITS names a different limits file, for tests only."""
     path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/self/limits")
     try:

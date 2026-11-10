@@ -542,6 +542,19 @@ mklim() { printf '%s\n' 'Limit                     Soft Limit           Hard Lim
   "Max processes             $1               $2               processes" \
   'Max open files            1024                 4096                 files' > "$LIMD/$3"; }
 mklim 777 999 l777; mklim unlimited unlimited lunl; mklim abc 999 lbad
+# CON-117 round 5 (review round 4, F8): a 'Max processes' line with fewer than
+# four fields is skipped, as host_report.py skips it: alone it gives the same
+# result as a file with no such line (the ulimit fallback), and before a full
+# line the full line's soft value is used.
+printf '%s\n' 'Max cpu time              unlimited            unlimited            seconds' > "$LIMD/lnone"
+printf '%s\n' 'Max processes 5' > "$LIMD/l3f"
+printf '%s\n' 'Max processes 5' 'Max processes             888               999               processes' > "$LIMD/l3f888"
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lnone" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG; NOLINE="$RAW_RC|$RAW_OUT"
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l3f" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+if [ "$RAW_RC|$RAW_OUT" = "$NOLINE" ]; then ok "CON-117 r5 three-field 'Max processes 5' line is skipped: same result as no line ($(printf '%s' "$RAW_OUT" | tr '\n' ' '))"
+else bad "CON-117 r5 three-field line read: '$(printf '%s' "$RAW_OUT" | tr '\n' ' ')' vs no line '$(printf '%s' "$NOLINE" | tr '\n' ' ')'"; fi
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l3f888" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+chk "CON-117 r5 three-field line then a full soft-888 line => N=888 thread_headroom" 0 888 thread_headroom
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l777" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
 chk "CON-117 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom" 0 777 thread_headroom
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lunl" FC_GUARD_NPROC=64 FC_GUARD_THREADS=100 -- 8

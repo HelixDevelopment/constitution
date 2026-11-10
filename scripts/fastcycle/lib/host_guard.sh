@@ -169,7 +169,11 @@ read_nproc_soft() {
   _lim_file=${FC_GUARD_PROC_LIMITS-/proc/self/limits}
   _v=""
   if [ -r "$_lim_file" ]; then
-    _v=$(awk '/^Max processes[ \t]/ { print $3; exit }' "$_lim_file" 2>/dev/null)
+    # CON-117 round 5 (review round 4, F8): only a line with all four fields
+    # (name, soft, hard, units) counts, exactly as host_report.py's
+    # _read_nproc_soft reads it; a shorter line is skipped and a later full line
+    # is used, else the fallback below.
+    _v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)
   fi
   if [ -z "$_v" ]; then
     # shellcheck disable=SC3045

@@ -108,6 +108,7 @@ cp "$TMP/lim_num" "$TMP/lim_unreadable"; chmod 000 "$TMP/lim_unreadable"
 UNREADABLE=yes; cat "$TMP/lim_unreadable" >/dev/null 2>&1 && UNREADABLE=no
 
 printf 'Max processes 4242\n' > "$TMP/lim_short"
+printf 'Max processes 4242\nMax processes             8888                 99999                processes\n' > "$TMP/lim_short_full"
 printf 'Max processes\t5151\t88888\tprocesses\n' > "$TMP/lim_tabs"
 printf 'Max processes             6161                 99999                processes\nMax processes             7171                 99999                processes\n' > "$TMP/lim_dup"
 printf 'Max processesX            4242                 99999                processes\n' > "$TMP/lim_prefix"
@@ -196,6 +197,8 @@ battery() {
   fi
   R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_short")
   [ "$R" = "None${TAB}False" ]; chk RX3 $? "reviewer: malformed 'Max processes' line (2 fields) + dash-like sh -> '$R' (want unmeasured, no crash)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_short_full")
+  [ "$R" = "8888${TAB}False" ]; chk RX9 $? "round 5 (F8): a three-field 'Max processes' line, then a full one (soft 8888) -> '$R' (want 8888; host_guard.sh's awk reads the same line)"
   R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_tabs")
   [ "$R" = "5151${TAB}False" ]; chk RX4 $? "reviewer: TAB-separated line soft 5151 hard 88888 -> '$R' (want 5151)"
   R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_dup")
