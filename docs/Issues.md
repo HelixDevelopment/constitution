@@ -1783,3 +1783,12 @@ Class follow-up of CON-030 (parent: CON-030; review r1 F5 and review r2 G9, sect
 
 **UNKNOWN:** the run-time cost of `git ls-files -o -i` in every submodule on this repository (not measured).
 
+## CON-109 — full-suite runner: tree_ident splits git status and submodule status output with str.splitlines() (CON-030 round 4 class sweep, no verdict effect)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent)
+
+**What:** found by the CON-030 round 4 class sweep (docs/qa/con030_review/con030_class_sweep_r4.py, shape B sites at tree_ident: the 'subs' hash of 'git submodule status --recursive' and the dirty-list hash of 'git status --porcelain=v1'). Both outputs are split with str.splitlines() (which also splits on NEL, LS, PS, CR, VT, FF) and joined with LF before hashing. With core.quotePath=false a path holding U+0085 is printed raw, so one untracked path 'a<NEL>?? b' and the two untracked paths 'a' and 'b' give the same dirty fragments and the same dirty hash. Parent: CON-030. **Why no verdict effect (reasoned from the code, not measured):** a dirty tree at the start already ends RESULT: PARTIAL-DIRTY-TREE rc 10, never PASS-FULL, and content changes during the run are caught by tree_state (TREE CHANGED, rc 1) and by the structured quick identity; so the collision changes only which identity message is shown. With the default core.quotePath=true git quotes these bytes. **Acceptance:** read both outputs NUL-terminated (git status -z, and the submodule list from git ls-files -s -z as quick_ident already does) or frame each line with hrec(); a test with core.quotePath=false and a NEL path shows two different dirty hashes; a paired mutation restoring splitlines() is killed. **UNKNOWN:** whether any consumer sets core.quotePath=false.
+

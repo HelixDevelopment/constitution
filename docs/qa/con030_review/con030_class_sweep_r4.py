@@ -32,6 +32,9 @@ def text_built(n):
     conditional whose branch is one of these."""
     if isinstance(n, ast.IfExp):
         return text_built(n.body) or text_built(n.orelse)
+    if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in ("encode", "decode") \
+            and text_built(n.func.value):
+        return True  # "\n".join(x).encode(): built text, then encoded
     if isinstance(n, ast.Call) and name_of(n.func) == "join" and isinstance(n.func, ast.Attribute) \
             and isinstance(n.func.value, ast.Constant) and isinstance(n.func.value.value, (str, bytes)):
         return True
