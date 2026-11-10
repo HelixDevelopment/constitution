@@ -360,5 +360,34 @@ if want A12; then
   GOMODCACHE="$CEMPTY" run "$D" "$T/o_a12"; chk "A12 malformed go.mod -> FAIL" "$(v1 "$T/o_a12" m)" "FAIL"
 fi
 
+# A13: more than 1 MiB of output from a REAL test failure in package a, plus package z whose dependency is not
+# cached (reviewer fixture R14, round 3 G3-3). The kept tail (last 1 MiB) can then hold only z's grammar lines;
+# the completeness check is what keeps the unit FAIL. Regression fixture; the paired mutant RG1 is a reasoned equivalent (see the mutations file, GM20).
+if want A13; then
+  D="$T/a13"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/dep v1.9.9\n'
+  mkdir -p "$D/m/a" "$D/m/z"
+  printf 'package a\n\nfunc A() int { return 1 }\n' > "$D/m/a/a.go"
+  printf 'package a\n\nimport (\n\t"strings"\n\t"testing"\n)\n\nfunc TestBig(t *testing.T) {\n\tl := strings.Repeat("x", 1000)\n\tfor i := 0; i < 1500; i++ {\n\t\tt.Log(l)\n\t}\n\tt.Fatal("real failure")\n}\n' > "$D/m/a/a_test.go"
+  printf 'package z\n\nimport "example.com/dep"\n\nfunc Z() int { return dep.F() }\n' > "$D/m/z/z.go"
+  printf 'package z\n\nimport "testing"\n\nfunc TestZ(t *testing.T) { _ = Z() }\n' > "$D/m/z/z_test.go"
+  printf 'example.com/dep v1.9.9 h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\nexample.com/dep v1.9.9/go.mod h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n' > "$D/m/go.sum"; commit_all "$D"
+  GOMODCACHE="$CFULL" run "$D" "$T/o_a13"
+  chk "A13 fixture: the unit log is over 1 MiB (control needle)" "$([ "$(wc -c < "$T/o_a13/logs/000000.log" 2>/dev/null || echo 0)" -gt 1048576 ] && echo yes)" "yes"
+  chk "A13 big real failure + uncached dep in another package -> FAIL" "$(v1 "$T/o_a13" m)" "FAIL"
+fi
+
+# A14: a vendor/ directory WITHOUT vendor/modules.txt is not a vendored module (reviewer round 3 G3-3): the
+# runner forces -mod=readonly, so the unit behaves as without vendor/ and an uncached dependency is SKIP.
+# Pins GM21 (the guard widened to "a vendor/ directory exists").
+if want A14; then
+  D="$T/a14"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/dep v1.0.0\n'
+  one_dep "$D/m" example.com/dep 'dep.F()' 1; tidy "$D/m"
+  mkdir -p "$D/m/vendor"; : > "$D/m/vendor/.keep"
+  chk "A14 fixture: vendor/ exists and vendor/modules.txt does not (control needle)" "$(test -d "$D/m/vendor" && ! test -e "$D/m/vendor/modules.txt" && echo yes)" "yes"
+  commit_all "$D"
+  GOMODCACHE="$CEMPTY" run "$D" "$T/o_a14"
+  chk "A14 vendor/ without modules.txt, cache empty -> SKIP (module not vendored)" "$(verdict "$T/o_a14" m | cut -d'|' -f1,3)" "SKIP|go-test-output"
+fi
+
 echo "SUMMARY pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]

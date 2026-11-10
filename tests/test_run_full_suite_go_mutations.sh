@@ -21,11 +21,25 @@
 #   GMP  classifier expects GOPROXY=direct (GOPROXY axis: off is the runner's policy, a host file:// never reaches it)
 #   GMT  `go.mod requires go >=` read as a network line (toolchain axis)
 #   GMM  the unit command reaches a nested module (multi-module axis)
+#   GM21 vendor guard widened to a bare vendor/ directory (A14)
 # Reasoned EQUIVALENT, not listed (each with its differential; see the guide):
 #   GM8  drop `verdict == "FAIL"` in main: a non-FAIL verdict has rc 0 (judge_exit0) or rc 77 / >= 124, which the
 #        classifier's own rc != 1 guard refuses (GM1 is the killed mutant of that guard).
 #   GM10 go_env built from GO_POLICY instead of the unit's env: identical while unit_env sets the policy; GMF is the
 #        killed mutant that changes the env the unit really runs with.
+#   GM20 (reviewer RG1) `complete = True`: tried as a mutant and it SURVIVES fixture A13 (a 1.5 MB log from a real
+#        failure plus an uncached dependency in another package): equivalent for the shapes measured, because
+#        `overflow` already makes the verdict ERROR before the classifier and Go prints every failing package's own
+#        `FAIL<TAB>pkg<TAB>time` line, which is outside the grammar. A13 stays as a regression fixture (it pins FAIL
+#        for a big log); the classifier's own completeness test is P11 (killed GM2).
+#   GM22 (reviewer RG2) `[setup failed]` widened to `[setup|build failed]`: equivalent for the shapes Go prints
+#        (`[build failed]` comes with compile or vet lines, which are outside the grammar). UNCONFIRMED: no Go
+#        version prints `[build failed]` with only grammar lines (measured on Go 1.26.8 only).
+#   GM23 (RG3) package header `^# \S+$` widened to `^# .*$`: equivalent, a test cannot print a header line without
+#        Go also printing an out-of-grammar `FAIL<TAB>pkg<TAB>time` line.
+#   GM24 (RG17) the policy check accepting an unset variable: unreachable, unit_env always sets GOPROXY and GOFLAGS.
+#   GM25 (RG23) `if fetch is not None` -> `if fetch`: fail-closed (an empty module list stays FAIL); whether Go can
+#        print a lookup-disabled line with no module is UNCONFIRMED, so the branch has no fixture.
 #   retract axis: go test does not consult retractions (A10 measured PASS); no classifier code is specific to it.
 # Usage: bash tests/test_run_full_suite_go_mutations.sh [MUTANT_ID...]. Exit 0 = baseline passes, every selected
 # mutant is killed.
@@ -56,6 +70,7 @@ GMF	A2,A5	"GOFLAGS": "-mod=readonly",\n                    "GOPROXY": "off"	"GOF
 GMP	A5	GO_POLICY = {"GOPROXY": "off", "GOFLAGS": "-mod=readonly"}	GO_POLICY = {"GOPROXY": "direct", "GOFLAGS": "-mod=readonly"}
 GMT	A9	        m = GO_NET_LINE.match(ln)\n        if m:	        m = GO_NET_LINE.match(ln) or re.match(r"^go: go\\.mod requires go >= .*(?P<a>)(?P<b>)$", ln)\n        if m:\n            failed = True
 GMM	A11	["go", "test", "-count=1", "./..."]	["go", "test", "-count=1", "./...", "./sub/..."]
+GM21	A14	vendored = os.path.isfile(os.path.join(ROOT, u["path"], "vendor", "modules.txt"))	vendored = os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))
 EOF
 )
 

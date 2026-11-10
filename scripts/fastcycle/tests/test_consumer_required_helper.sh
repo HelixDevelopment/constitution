@@ -16,7 +16,9 @@
 #           same fake-test layout, against fixture tracker DBs: SKIP 77 only for another consumer's register
 #           (items present, none with the named ids' prefix), under atm_id AND ticket_id; no SKIP for the
 #           real register, a register that LOST a named item, a query error (no id column, not a database),
-#           an empty table, or no database at all.
+#           an empty table, no database at all, a data query that errors after the pragma answered (view
+#           failing at step time), no sqlite3 on PATH (CR3-1), and a register with BOTH id columns whose named
+#           items sit only in ticket_id (CR3-2); both columns are examined.
 #           Part 4 (CR-2) runs the two REAL cycle_report suites from a scratch consumer layout whose
 #           constitution/scripts/fastcycle links to this checkout, so the guard under test is the one the
 #           suites really execute (never a text extract): the renamed-column, lost-item and query-error DBs
@@ -143,6 +145,20 @@ else
   mkdb "$FX/nocol.db"        -
   mkdb "$FX/empty.db"        atm_id
   printf 'this is not a sqlite database\n' >"$FX/garbage.db"
+  # CR3-1: the pragma answers (atm_id, title) but the COUNT query errors at step time (integer overflow in
+  # the view); the guard cannot prove absence, so it must not SKIP (the literal CR-1 shape).
+  rm -f "$FX/viewfail.db"
+  sqlite3 "$FX/viewfail.db" "CREATE TABLE t(atm_id TEXT, title TEXT); INSERT INTO t VALUES('CON-1','t'); CREATE VIEW items AS SELECT atm_id, title FROM t WHERE abs(-9223372036854775808) > 0;" || bad "viewfail fixture setup failed"
+  # CR3-2: both id columns exist; the named items live only in ticket_id (atm_id holds another prefix)
+  rm -f "$FX/both_ticket.db" "$FX/both_other.db"
+  sqlite3 "$FX/both_ticket.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','ATM-953');" || bad "both_ticket fixture setup failed"
+  sqlite3 "$FX/both_other.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','CON-2');" || bad "both_other fixture setup failed"
+  # CR3-1: a PATH holding the shells and the tools the helper uses, but no sqlite3 (needle: the shell is found,
+  # `command -v sqlite3` is not)
+  NB="$W/nosql_bin"; mkdir -p "$NB"
+  for _t in bash dash sh cat dirname grep tr; do
+    _p=$(command -v "$_t" 2>/dev/null) && [ -n "$_p" ] && ln -sf "$_p" "$NB/$_t"
+  done
   C="$W/items/consumer"; mk_layout "$C" >/dev/null || bad "Part 3 layout setup failed"
   T="$C/canon/scripts/fastcycle/tests/items_test.sh"
   cat >"$T" <<'EOF'
@@ -179,7 +195,16 @@ nocol.db        run  ATM-953
 empty.db        run  ATM-953
 garbage.db      run  ATM-953
 absent.db       run  ATM-953
+viewfail.db     run  ATM-953
+both_ticket.db  run  ATM-953
+both_other.db   skip ATM-953
 CASES
+    # CR3-1: no sqlite3 on PATH -> the guard cannot prove absence -> never SKIPs
+    shp=$(command -v "$sh"); nbneedle=$(PATH="$NB" command -v "$sh" 2>/dev/null; PATH="$NB" command -v sqlite3 >/dev/null 2>&1 && echo HAS_SQLITE3)
+    if [ -x "$NB/$sh" ] && ! PATH="$NB" command -v sqlite3 >/dev/null 2>&1; then
+      PATH="$NB" "$shp" "$T" "$FX/other_atm.db" ATM-953 >"$o" 2>&1; rc=$?
+      expect "[$sh] no sqlite3 on PATH (needle: shell found, sqlite3 not) -> no SKIP, the suite's checks run" 0 "^BODY RAN$" "$o" "$rc"
+    else bad "[$sh] the no-sqlite3 PATH fixture is broken (needle: $nbneedle)"; fi
     for badid in "ATM-1'; DROP TABLE items; --" "A'X-1" "atm-953" "ATM953" "ATM-" "-953" "ATM--1" "ATM-9x"; do
       "$sh" "$T" "$FX/real_atm.db" "$badid" >"$o" 2>&1; rc=$?
       expect "[$sh] id [$badid] outside [A-Z][A-Z0-9]*-[0-9]+ is a usage error (exit 2), never SQL" 2 "-" "$o" "$rc"

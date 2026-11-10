@@ -45,7 +45,8 @@ fc_require_consumer() {
 # fc_require_items <db> <id>...   (review round 2 CR-1, CR-3 of the full-suite fix vehicle)
 #   A suite that reads named real items of ONE consumer's tracker (for example ATM-953) SKIPs (exit 77,
 #   reason=topology_unsupported) only when the database PROVES it is another consumer's register: the
-#   items table answers, its id column is found (atm_id, or ticket_id after the section 11.4.54 rename),
+#   items table answers, an id column is found (atm_id and/or ticket_id after the section 11.4.54 rename;
+#   when both exist BOTH are examined, CR3-2),
 #   the table holds at least one item, the count of the named ids is a NUMBER below the number named,
 #   AND the table holds no id with the named ids' prefix at all (e.g. no ATM-* row). Every other outcome
 #   returns 0 and the suite's own checks run and report what they find:
@@ -55,7 +56,9 @@ fc_require_consumer() {
 #       must FAIL, not SKIP (CR-3);
 #     - an empty items table: nothing is proven; the checks run.
 #   Ids must match [A-Z][A-Z0-9]*-[0-9]+ (they are interpolated into SQL); another shape is a usage error
-#   (exit 2). The last stdout line of a SKIP ends in reason=topology_unsupported.
+#   (exit 2). A foreign register that happens to hold any <PREFIX>-* row runs the checks and FAILs; that is
+#   the intended CR-3 trade-off, so such a FAIL is not read as a lost item (CR3-5).
+#   The last stdout line of a SKIP ends in reason=topology_unsupported.
 fc_require_items() {
   _fci_db=$1; shift
   _fci_need=$#; _fci_in=""; _fci_pfx=""
@@ -70,14 +73,17 @@ fc_require_items() {
   done
   command -v sqlite3 >/dev/null 2>&1 || return 0
   _fci_cols=$(sqlite3 -readonly "$_fci_db" "SELECT name FROM pragma_table_info('items');" 2>/dev/null) || return 0
-  _fci_key=""
+  _fci_src=""; _fci_key=""
   for _fci_c in atm_id ticket_id; do
-    if printf '%s\n' "$_fci_cols" | grep -qx "$_fci_c"; then _fci_key=$_fci_c; break; fi
+    if printf '%s\n' "$_fci_cols" | grep -qx "$_fci_c"; then
+      _fci_src="$_fci_src${_fci_src:+ UNION ALL }SELECT $_fci_c AS k FROM items"
+      _fci_key="$_fci_key${_fci_key:+,}$_fci_c"
+    fi
   done
-  [ -n "$_fci_key" ] || return 0
+  [ -n "$_fci_src" ] || return 0
   _fci_like=""
-  for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }$_fci_key LIKE '$_fci_p-%'"; done
-  _fci_q=$(sqlite3 -readonly -separator ' ' "$_fci_db" "SELECT (SELECT COUNT(*) FROM items), (SELECT COUNT(DISTINCT $_fci_key) FROM items WHERE $_fci_key IN ($_fci_in)), (SELECT COUNT(*) FROM items WHERE $_fci_like);" 2>/dev/null) || return 0
+  for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }k LIKE '$_fci_p-%'"; done
+  _fci_q=$(sqlite3 -readonly -separator ' ' "$_fci_db" "SELECT (SELECT COUNT(*) FROM items), (SELECT COUNT(DISTINCT k) FROM ($_fci_src) WHERE k IN ($_fci_in)), (SELECT COUNT(*) FROM ($_fci_src) WHERE $_fci_like);" 2>/dev/null) || return 0
   set -- $_fci_q
   [ $# -eq 3 ] || return 0
   for _fci_v in "$1" "$2" "$3"; do case $_fci_v in ''|*[!0-9]*) return 0 ;; esac; done
@@ -85,6 +91,6 @@ fc_require_items() {
     echo "SKIP: tracker DB $_fci_db ($1 items, column $_fci_key) is another consumer's register: it holds no $_fci_pfx-* item, so not the real items this suite reads ($(echo "$_fci_in" | tr -d "'"); found $2 of $_fci_need) reason=topology_unsupported"
     exit 77
   fi
-  unset _fci_db _fci_need _fci_in _fci_pfx _fci_id _fci_p _fci_n _fci_cols _fci_key _fci_c _fci_like _fci_q _fci_v
+  unset _fci_db _fci_need _fci_in _fci_pfx _fci_id _fci_p _fci_n _fci_cols _fci_key _fci_src _fci_c _fci_like _fci_q _fci_v
   return 0
 }

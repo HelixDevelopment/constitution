@@ -12,6 +12,9 @@
 #   MG3  ticket_id dropped from the id-column candidates (the section 11.4.54 rename)
 #   MG5  the prefix character check dropped (ids are interpolated into SQL: A'X-1 would reach the query)
 #   MG6  the "table holds at least one item" condition dropped (an empty table SKIPs)
+#   MG7  the data query's error returns SKIP (CR3-1, reviewer mutant RMG-A: the pragma answered, the count errors)
+#   MG8  no sqlite3 returns SKIP (CR3-1, reviewer mutant RMG-B)
+#   MG9  only the first id column found is examined (CR3-2, a register with both columns)
 # Reasoned EQUIVALENT, not listed: `-lt need` -> `-ne need`: COUNT(DISTINCT key) over `key IN (need ids)`
 #   cannot exceed need, so the two agree on every input. The numeric check on the three counts cannot be
 #   reached with a non-number from sqlite3's COUNT, and `[ -gt ]` on a non-number is false (no SKIP) anyway.
@@ -30,12 +33,15 @@ export SAFE_RM_ALLOWED_ROOTS="$W"
 trap 'safe_rm_rf "${W:?}"' EXIT
 
 MUTANTS=$(cat <<'EOF'
-MG1	  [ -n "$_fci_key" ] || return 0	  [ -n "$_fci_key" ] || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
+MG1	  [ -n "$_fci_src" ] || return 0	  [ -n "$_fci_src" ] || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
 MG1b	"SELECT name FROM pragma_table_info('items');" 2>/dev/null) || return 0	"SELECT name FROM pragma_table_info('items');" 2>/dev/null) || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
 MG2	[ "$2" -lt "$_fci_need" ] && [ "$3" -eq 0 ]; then	[ "$2" -lt "$_fci_need" ]; then
 MG3	  for _fci_c in atm_id ticket_id; do	  for _fci_c in atm_id; do
 MG5	    case $_fci_p in ''|[!A-Z]*|*[!A-Z0-9]*) echo	    case $_fci_p in ''|[!A-Z]*) echo
 MG6	  if [ "$1" -gt 0 ] && [ "$2" -lt "$_fci_need" ]	  if [ "$2" -lt "$_fci_need" ]
+MG7	FROM ($_fci_src) WHERE $_fci_like);" 2>/dev/null) || return 0	FROM ($_fci_src) WHERE $_fci_like);" 2>/dev/null) || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
+MG8	  command -v sqlite3 >/dev/null 2>&1 || return 0	  command -v sqlite3 >/dev/null 2>&1 || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
+MG9	      _fci_key="$_fci_key${_fci_key:+,}$_fci_c"	      _fci_key="$_fci_key${_fci_key:+,}$_fci_c"; break
 EOF
 )
 
