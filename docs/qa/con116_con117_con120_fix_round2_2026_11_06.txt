@@ -1,4 +1,5 @@
-# CON-108 / CON-109 / CON-112 fix round 2 -- captured RED/GREEN evidence (2026-11-06)
+# CON-116 (vehicle id before re-mint: CON-108) / CON-117 (vehicle id before re-mint: CON-109) / CON-120 (vehicle id before re-mint: CON-112) fix round 2 -- captured RED/GREEN evidence (2026-11-06)
+# Ids: this file was written under the vehicle ids before the re-mint of 2026-11-10 (merge 3d050dc3 of main 90efceb8, section 11.4.214): CON-108 is now CON-116, CON-109 is now CON-117, CON-112 is now CON-120. The body below keeps the old ids verbatim; on main CON-108..CON-115 are other items.
 # Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, /bin/sh -> /usr/bin/dash, bash 5.3.9(1)-release, nproc 16, load: 29.86 30.01 29.46
 # Base of this round: bundle head 2aabb298 (round 1), main bdc3ac43. Review: independent Opus review round 1 (F1-1, F1-2, F2-1..F2-3, F5-1).
 
