@@ -740,18 +740,47 @@ def _has_acl(path):
     return "system.posix_acl_access" in names
 
 
+def _path_components(text):
+    """The components the kernel looks up for `text` (path_resolution(7)):
+    empty components ("a//b", a leading "/") are dropped; a TRAILING slash
+    requires the last component to be a directory, so it is kept as a final
+    "." lookup ("x/" and "x/." both fail with ENOTDIR for a file x and both
+    name the directory x otherwise). Never normalises lexically: ".." stays a
+    lookup, because the kernel resolves the component BEFORE it first (CON-033
+    round 4: os.path.abspath collapsed "link/.." to the directory holding the
+    link while the kernel steps back from the link's TARGET)."""
+    # guard: G-T-SPLIT
+    comps = [c for c in text.split("/") if c]
+    # guard: G-T-TRAILING-SLASH
+    if text.endswith("/"):
+        comps.append(".")  # "/" itself becomes ["."]: "." in the root is the root
+    return comps
+
+
 def _resolution_chain(path):
-    """Resolve `path` one component at a time WITHOUT trusting realpath, so
-    every inode an attacker could use to redirect the path is seen (V3
-    round-3 m3: realpath alone hides the directory that HOLDS a symlink).
+    """Resolve `path` one component at a time, exactly as the kernel does
+    (path_resolution(7); openat semantics for ".", ".." and symlinks met in
+    the middle of a path), WITHOUT trusting realpath, so every inode an
+    attacker could use to redirect the path is seen (V3 round-3 m3: realpath
+    alone hides the directory that HOLDS a symlink). Ground truth (CON-033
+    round 4, section 11.4.276(B)): test_review_record_resolution_ground_truth.sh
+    compares the leaf with os.stat() and the traversed directories and entries
+    with an openat(O_PATH|O_NOFOLLOW) walk in which the kernel itself performs
+    every lookup and every "..".
     Returns (leaf_path, leaf_lstat, dirs, edges): `dirs` maps every directory
     traversed (real paths, root included) to its stat; `edges` lists
     (directory, child_lstat) for every entry looked up -- symlinks included,
     so the directory holding each link is checked for that entry too. The
     leaf is a regular file or a directory. Raises OSError (callers degrade to
-    "instance") on a missing component, a loop, or any other leaf type."""
-    # guard: G-T-SPLIT
-    pending = [c for c in os.path.abspath(path).split("/") if c]
+    "instance") on an empty path, a missing component, a non-directory in the
+    middle of the path or before a trailing slash, a loop, or any other leaf
+    type."""
+    # guard: G-T-PATH-NONEMPTY
+    if not path:
+        raise OSError("empty path (the kernel resolves '' to ENOENT)")
+    # guard: G-T-RELATIVE-BASE
+    start = path if path.startswith("/") else os.getcwd() + "/" + path
+    pending = _path_components(start)
     cur = "/"
     dirs = {"/": os.stat("/")}
     edges = []
@@ -784,8 +813,7 @@ def _resolution_chain(path):
             # guard: G-T-ABS-TARGET
             if target.startswith("/"):
                 cur = "/"
-            # guard: G-T-LINK-SPLIT
-            pending = [c for c in target.split("/") if c] + pending
+            pending = _path_components(target) + pending
             continue
         # guard: G-T-CHAIN-DIR
         if not stat.S_ISDIR(st.st_mode) and pending:

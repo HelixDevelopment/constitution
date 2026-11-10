@@ -411,6 +411,31 @@ G_OUT=$(timeout 20 python3 "$RR_TOOL" gate --change c-fifo --records "$REC" --di
 if blind "r1.json" && has "verdict_evidence missing"; then ok "R3-A5: a FIFO planted as evidence is refused promptly (exit 4), never a hang"
 else bad "R3-A5: rc=$G_RC (124 = hung) out=$G_OUT"; fi
 rm -f "$REC/$EVF"
+# CON-033 round 4 (refuted equivalence claim G-E-REGULAR#1): a FIFO whose
+# writer holds EXACTLY the hash-pinned bytes. Without the regular-file test
+# the read returns those bytes, the hash matches and the record is admitted;
+# the evidence must be refused because it is not a regular file, whatever it
+# delivers. The writer is this shell (read-write open, so no hang and no EPIPE).
+fresh_case fifow
+rr_genuine "$REC/r1.json" B-FIFOW c-fifow 1 GO "$NONE" D-FIFOW
+EVF=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict_evidence"])' "$REC/r1.json")
+cp "$REC/$EVF" "$CASE/ev.bytes"; rm -f "$REC/$EVF"; mkfifo "$REC/$EVF"
+exec 7<>"$REC/$EVF"; cat "$CASE/ev.bytes" >&7
+G_OUT=$(timeout 20 python3 "$RR_TOOL" gate --change c-fifow --records "$REC" --dispatch-ledger "$RR_LEDGER" 2>&1); G_RC=$?
+exec 7>&-
+if blind "r1.json" && has "verdict_evidence missing"; then ok "R3-A5b: a FIFO holding the hash-pinned bytes is still refused (exit 4): evidence must be a regular file"
+else bad "R3-A5b: rc=$G_RC out=$G_OUT"; fi
+rm -f "$REC/$EVF"
+# CON-033 round 4 (refuted equivalence claim G-E-HASH-SHAPE#2): an evidence
+# name holding a NUL byte AND a malformed hash. The hash-shape test must
+# refuse it as inadmissible; without it the path reaches the OS and the gate
+# ends with an internal error (same exit 4, different meaning).
+fresh_case nulname
+rr_genuine "$REC/r1.json" B-NUL c-nul 1 GO "$NONE" D-NUL
+edit "$REC/r1.json" 'd["verdict_evidence"]="a\x00b"; d["verdict_evidence_sha256"]="A"*64' rehash
+gate c-nul
+if blind "r1.json" && has "not hash-verifiable" && ! has "internal error"; then ok "R3-A5c: a NUL-byte evidence name with a malformed hash is inadmissible (exit 4, not hash-verifiable), never an internal error"
+else bad "R3-A5c: rc=$G_RC out=$G_OUT"; fi
 # backfill admission
 fresh_case bfa
 echo "# genuine historical notes" > "$REC/notes.md"

@@ -28,7 +28,18 @@
 #                  store walk; the re-expression drops every non-record file
 #                  from that walk, the same defect on the new structure);
 #   G-T-LINK-EDGE-off, G-E-NONBLOCK-off   data-flow guards (not decision
-#                  constructs) bound to these by the guard table.
+#                  constructs) bound to these by the guard table;
+#   RVR1/RVR3b     the round-3 reviewer's store-tier ledger mutants;
+#   RF-chain-*     CON-033 round 4 (structural): refactor-style rewrites of
+#                  _resolution_chain (realpath/abspath first, an unresolved
+#                  relative start, "." as a lookup, a dropped trailing slash,
+#                  a reordered walk, edges kept for the leaf only, the last
+#                  or first link edge dropped, only the deepest directory
+#                  checked, an absolute link target resolved from `cur`).
+#                  The sweep flips one operand at a time and cannot write
+#                  these; test_review_record_resolution_ground_truth.sh (a
+#                  kernel oracle: os.stat for the leaf, an openat walk for
+#                  every directory and entry) kills them.
 # Obsoleted by structural replacement this round (their target code no
 # longer exists; the replacing code's sub-clauses are swept): V3-N1/N2
 # (_principal_can_replace), R3-M4/M5 (_uid_gids / group membership -- any
@@ -36,9 +47,11 @@
 # run), R4-B (the ev_reals merge line -- ev_reals is consumed only before the
 # merge, by _orphaned_evidence).
 # EQUIVALENT (recorded in the guard table with the reason): R3-M12 (merge
-# representative), R4-G (".." in _resolution_chain: `cur` is always reached
-# by descent from /, so the parent is already in `dirs` -- the reviewer's
-# own classification).
+# representative). R4-G (".." in _resolution_chain) was listed equivalent
+# until CON-033 round 4; the walk now follows the kernel (".." looks up the
+# parent of the directory reached so far, after symlinks), and the sweep's
+# G-T-DOTDOT#1 mutant is killed by the ground-truth suite, so the claim is
+# withdrawn.
 #
 # R4-C and the environment (CON-033 round 2, review I4): the R4-CAP cases of
 # the r4 suite, which kill R4-C, need `podman unshare` AND a writable
@@ -64,7 +77,7 @@ FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
@@ -148,6 +161,20 @@ RM1-gate-round-budget-last-round	'    if rec["round"] > ctx["round_budget"]:'	' 
 RM1-record-round-budget-last-round	'    if a.round > budget:'	'    if a.round >= budget:'
 RM2-dispatch-reuse-limit	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 1:'	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 2:'
 RM3-subid-range-start	'        if start <= owner_uid < start + count:'	'        if start < owner_uid < start + count:'
+RVR3b-store-tier-ledger-realpath	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir, os.path.realpath(ledger_path) if ledger_path else ledger_path]'
+RVR1-store-tier-ledger-dirname	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir, os.path.dirname(ledger_path)]'
+RF-chain-realpath-first	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = os.path.realpath(path)\n'
+RF-chain-abspath-lexical	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = os.path.abspath(path)\n'
+RF-chain-relative-unresolved	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = "/" + path\n'
+RF-chain-dot-is-lookup	'        if comp == ".":\n            continue\n'	'        if False:\n            continue\n'
+RF-chain-trailing-slash-dropped	'    if text.endswith("/"):\n'	'    if False:\n'
+RF-chain-link-target-trailing-dropped	'            pending = _path_components(target) + pending\n'	'            pending = [c for c in target.split("/") if c] + pending\n'
+RF-chain-walk-reordered	'        comp = pending.pop(0)\n'	'        comp = pending.pop()\n'
+RF-chain-edges-leaf-only	'        edges.append((cur, st))\n'	'        if not pending:\n            edges.append((cur, st))\n'
+RF-chain-edges-drop-last	'    for dpath, child_st in edges:\n'	'    for dpath, child_st in edges[:-1]:\n'
+RF-chain-edges-drop-first-link	'        # guard: G-T-LINK-EDGE\n        edges.append((cur, st))\n'	'        # guard: G-T-LINK-EDGE\n        if not (stat.S_ISLNK(st.st_mode) and hops == 0):\n            edges.append((cur, st))\n'
+RF-chain-dirs-last-only	'    for dpath, dst in sorted(dirs.items()):\n'	'    for dpath, dst in sorted(dirs.items())[-1:]:\n'
+RF-chain-abs-target-from-cur	'            if target.startswith("/"):\n                cur = "/"\n'	'            if target.startswith("/"):\n                cur = cur\n'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss

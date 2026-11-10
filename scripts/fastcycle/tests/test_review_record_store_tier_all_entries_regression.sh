@@ -42,6 +42,19 @@
 #       records directory as a leaf of its own sees this (RVM-B2, records
 #       directory dropped from `paths`).
 #
+# CON-033 round 4 (structural round, review R3-F2): the DIRECTORY THAT HOLDS
+# a symlink is part of the chain too. Reviewer mutant RVR3b resolved the
+# ledger with os.path.realpath before the tier (`paths = [records_dir,
+# realpath(ledger_path)]`), which drops the edge from the directory holding
+# a ledger symlink, and survived every suite:
+#   L4  a ledger given as a symlink inside a group-writable directory makes
+#       the store "instance", naming that directory (control L4c: the same
+#       link in an owner-only directory is capability);
+#   E5  a record-tree symlink whose TARGET lies in a group-writable
+#       directory makes the store "instance", naming that directory
+#       (control E5c: the same link with the directory owner-only is
+#       capability).
+#
 # Exit 0 = all passed; 1 = a check failed; 2 = setup error. When the needle
 # cannot be made capability-shaped on this host the suite FAILS: it never
 # skips silently (a skip is what let R4-C survive).
@@ -72,8 +85,8 @@ printf '{}\n' > "$REC/sub/r2.json"; chmod 0644 "$REC/sub/r2.json"
 printf 'n\n' > "$REC/notes"; chmod 0644 "$REC/notes"
 mkdir -m 0755 "$REC/drop"   # an EMPTY sub-directory: no record below it
 
-tier() { # tier -> "<tier>\t<reason>" from the REAL module, in-process
-  python3 - "$TOOL" "$REC" "$LED" <<'PY'
+tier() { # tier -> "<tier>\t<reason>" from the REAL module, in-process (ledger: ${TIER_LED:-$LED})
+  python3 - "$TOOL" "$REC" "${TIER_LED:-$LED}" <<'PY'
 import importlib.util, os, sys
 spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
 rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
@@ -150,6 +163,34 @@ if [ "$t" = instance ] && case "$why" in "$REC is group- or other-writable"*) tr
 else
   bad "D1: a sticky other-writable records directory -- got '$t' ($why), want instance naming $REC as writable"
 fi
+
+# --- the directory that holds a link (R3-F2) ------------------------------------
+LDIR="$S/ldir"; mkdir -m 0755 "$LDIR"; ln -s "$LED" "$LDIR/led"
+out=$(TIER_LED="$LDIR/led" tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+[ "$t" = capability ] && ok "L4c: a ledger symlink in an owner-only directory is capability (control)" \
+  || bad "L4c: a ledger symlink in an owner-only directory -- got '$t' ($why), want capability"
+chmod 0775 "$LDIR"
+out=$(TIER_LED="$LDIR/led" tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+chmod 0755 "$LDIR"
+if [ "$t" = instance ] && case "$why" in "directory $LDIR is writable by others"*) true ;; *) false ;; esac; then
+  ok "L4: a ledger symlink inside a group-writable directory makes the store instance, naming that directory"
+else
+  bad "L4: a ledger symlink inside a group-writable directory -- got '$t' ($why), want instance naming $LDIR"
+fi
+ODIR="$S/odir"; mkdir -m 0755 "$ODIR"; printf 'o\n' > "$ODIR/f"; chmod 0644 "$ODIR/f"
+ln -s "$ODIR/f" "$REC/lnk"
+out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+[ "$t" = capability ] && ok "E5c: a record-tree symlink to an owner-only file in an owner-only directory is capability (control)" \
+  || bad "E5c: a record-tree symlink to an owner-only target -- got '$t' ($why), want capability"
+chmod 0775 "$ODIR"
+out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
+chmod 0755 "$ODIR"
+if [ "$t" = instance ] && case "$why" in "directory $ODIR is writable by others"*) true ;; *) false ;; esac; then
+  ok "E5: a record-tree symlink whose target sits in a group-writable directory makes the store instance, naming it"
+else
+  bad "E5: a record-tree symlink into a group-writable directory -- got '$t' ($why), want instance naming $ODIR"
+fi
+rm -f -- "${REC:?}/lnk"
 
 out=$(tier); t=${out%%$'\t'*}
 [ "$t" = capability ] && ok "N2: after the cases the store is capability again (modes restored)" \

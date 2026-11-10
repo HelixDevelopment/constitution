@@ -408,9 +408,25 @@ def root_chain(p):  # p and every ancestor owned by root
             return True
         p = os.path.dirname(p)
 p = os.path.realpath(sys.argv[1])
-while p != "/" and not root_chain(p):
+while p != "/" and not (root_chain(p) and os.access(p, os.W_OK)):
     p = os.path.dirname(p)
-print(p if p != "/" else "")
+if p != "/":
+    print(p)
+else:
+    # CON-033 round 4: a work area under $HOME has no root-owned ancestor
+    # below "/", which skipped every R4-CAP leg (control_proof_legs_skipped): the walk stopped at the root-owned but NOT writable /home.
+    # The legs only need SOME writable directory whose whole chain is
+    # root-owned; the system temp directories are exactly that (each leg makes
+    # its own mktemp -d inside and removes it with podman unshare).
+    for cand in ("/tmp", "/var/tmp", "/dev/shm"):
+        try:
+            if os.path.isdir(cand) and os.access(cand, os.W_OK) and root_chain(os.path.realpath(cand)):
+                print(os.path.realpath(cand))
+                break
+        except OSError:
+            pass
+    else:
+        print("")
 PY
 )
 CAP_LEGS="R4-CAP-needle R4-CAP1 R4-CAP2 R4-CAP3 R4-CAP4 R4-CAP5 R4-CAP6 R4-CAP7"
