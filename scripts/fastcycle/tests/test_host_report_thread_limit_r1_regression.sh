@@ -107,6 +107,12 @@ printf 'Limit                     Soft Limit           Hard Limit           Unit
 cp "$TMP/lim_num" "$TMP/lim_unreadable"; chmod 000 "$TMP/lim_unreadable"
 UNREADABLE=yes; cat "$TMP/lim_unreadable" >/dev/null 2>&1 && UNREADABLE=no
 
+printf 'Max processes 4242\n' > "$TMP/lim_short"
+printf 'Max processes\t5151\t88888\tprocesses\n' > "$TMP/lim_tabs"
+printf 'Max processes             6161                 99999                processes\nMax processes             7171                 99999                processes\n' > "$TMP/lim_dup"
+printf 'Max processesX            4242                 99999                processes\n' > "$TMP/lim_prefix"
+mklim unlimited 99999 "$TMP/lim_soft_unl"
+mklim 3131 unlimited "$TMP/lim_hard_unl"
 HAVE_BASH=no
 if command -v bash >/dev/null 2>&1; then
   HAVE_BASH=yes
@@ -182,6 +188,24 @@ battery() {
     R=$(read_lim "$_bi" "$TMP/dashlike" - - "$RL")
     [ "$R" = "$LS${TAB}False" ]; chk P1 $? "this process lowered to $RL, pid 1 soft $P1S -> '$R' (want THIS process's soft $LS)"
   fi
+  if [ "$RL" != - ] && [ "$HAVE_BASH" = yes ]; then
+    R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/does_not_exist" - "$RL")
+    [ "$R" = "$LS${TAB}False" ]; chk RX1 $? "reviewer: lowered to $RL + limits file MISSING + bash as sh -> '$R' (want fallback SOFT $LS)"
+    R=$(read_lim "$_bi" "$TMP/bashsh" "$TMP/lim_unreadable" - "$RL")
+    [ "$R" = "$LS${TAB}False" ]; chk RX2 $? "reviewer: lowered to $RL + limits file UNREADABLE + bash as sh -> '$R' (want fallback SOFT $LS)"
+  fi
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_short")
+  [ "$R" = "None${TAB}False" ]; chk RX3 $? "reviewer: malformed 'Max processes' line (2 fields) + dash-like sh -> '$R' (want unmeasured, no crash)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_tabs")
+  [ "$R" = "5151${TAB}False" ]; chk RX4 $? "reviewer: TAB-separated line soft 5151 hard 88888 -> '$R' (want 5151)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_dup")
+  [ "$R" = "6161${TAB}False" ]; chk RX5 $? "reviewer: first of two 'Max processes' lines (6161 then 7171) -> '$R' (want the first, 6161)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_prefix")
+  [ "$R" = "None${TAB}False" ]; chk RX6 $? "reviewer: only 'Max processesX' line -> '$R' (want unmeasured, the prefix guard)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_soft_unl")
+  [ "$R" = "None${TAB}True" ]; chk RX7 $? "reviewer: soft unlimited / hard 99999 -> '$R' (want unlimited)"
+  R=$(read_lim "$_bi" "$TMP/dashlike" "$TMP/lim_hard_unl")
+  [ "$R" = "3131${TAB}False" ]; chk RX8 $? "reviewer: soft 3131 / hard unlimited -> '$R' (want 3131)"
   R=$(echo 'print(m.probe_thread_headroom().get("reason"))' | (unset FC_GUARD_THREADS; run_py "$_bi" "$TMP/dashlike"))
   [ -n "$R" ] && [ "$R" != unmeasured ] && [ "$R" != None ]
   chk L8 $? "probe_thread_headroom under dash-like sh: reason '$R' (want a measured reason)"
@@ -254,6 +278,40 @@ if [ "$HAVE_BASH" = yes ]; then
 else echo "SKIP: HR3 needs bash as sh"; fi
 # M4: ignore the FC_GUARD_ULIMIT_U override.
 mutation M4_override_ignored "O1" 'ulim = os.environ.get("FC_GUARD_ULIMIT_U")' 'ulim = None'
+
+
+# ---- reviewer round-3 mutants (adopted verbatim, CON-109 round 4) ----
+mutation RVH1_fallback_hard_column "RX1" 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+    return out.strip()' 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -Hu"], timeout=10)
+    return out.strip()'
+mutation RVH2_parent_limits "P1" 'path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/self/limits")' 'path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/%d/limits" % os.getppid())'
+mutation RVH3_last_but_one "L4" 'return parts[2]' 'return parts[-2]'
+mutation RVH4_name_column "L1" 'return parts[2]' 'return parts[1]'
+mutation RVH5_fnf_only "X3" '                        return parts[2]
+    except OSError:
+        pass' '                        return parts[2]
+    except FileNotFoundError:
+        pass'
+mutation RVH6_no_len_guard "RX3" '                    if len(parts) >= 4:
+                        return parts[2]' '                    return parts[2]'
+mutation RVH7_no_prefix_guard "RX6" 'if line.startswith("Max processes") and line[13:14] in (" ", "\t"):' 'if line.startswith("Max processes"):'
+mutation RVH8_last_match "RX5" '                    if len(parts) >= 4:
+                        return parts[2]
+    except OSError:
+        pass' '                    if len(parts) >= 4:
+                        globals()["_lastm"] = parts[2]
+        if globals().get("_lastm"):
+            return globals()["_lastm"]
+    except OSError:
+        pass'
+mutation RVH9_unlimited_as_zero "L5" 'unlimited = (ulim == "unlimited")' 'unlimited = False; ulim = "0" if ulim == "unlimited" else ulim'
+mutation RVH10_bash_explicit "L6" 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+    return out.strip()' 'rc, out, _err = run_cmd(["bash", "-c", "ulimit -u"], timeout=10)
+    return out.strip()'
+mutation RVH11_space_only_sep "RX4" 'if line.startswith("Max processes") and line[13:14] in (" ", "\t"):' 'if line.startswith("Max processes "):'
+# RVH12 (reviewer: `return out.strip() if out else None`, ignoring the exit status)
+# is EQUIVALENT, not a survivor to kill: when `ulimit -u` fails (dash) its error
+# goes to stderr and stdout is empty, so the result is None either way.
 
 echo "=== host_report thread limit regression guard (CON-109 F2-1): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]
