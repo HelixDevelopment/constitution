@@ -48,6 +48,17 @@
 #           (core.quotePath=false, Latin-1 name). The reviewer mutants NM1..NM13
 #           (header tripwire) and FL1/3..10 (file list) run as self-tests, each
 #           against the named checks. Run time is about 7 minutes.
+#           Round 5 (CON-116 review round 4): F2 -- the matrix repositories were
+#           made by mkdtemp under $TMPDIR and never removed (measured: 35 dirs,
+#           168 MB per run); the matrix now removes its base at exit, runs with
+#           its own TMPDIR, and check MX fails when anything is left there; the
+#           whole test runs with TMPDIR under its own temp dir and check TD
+#           fails when anything is left there at the end. F3 -- an empty stash
+#           patch (untracked-only `stash -u`: EP1; index-only change: EP2) is
+#           `empty_patch`, never UNMEASURED, and `land` of an untracked-only
+#           stash is refused for its untracked content, not as unreadable
+#           (EP1V); reviewer mutant RD and its live-path twin RD2 run as
+#           self-tests.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -75,6 +86,12 @@ notok() { fail=$((fail + 1)); echo "NOT ok $*"; }
 
 TMP=$(mktemp -d)
 trap 'rm -rf "${TMP:?}"' EXIT
+# CON-116 round 5 (review round 4, F2: the matrix left 35 dirs / 168 MB in the
+# caller's TMPDIR per run): every child of this test writes its temporaries
+# under $TMP, which the EXIT trap removes; the leak checks are MX (per matrix
+# run) and TD (the whole run) below.
+export TMPDIR="$TMP/tmpdir"
+mkdir -p "$TMPDIR"
 
 for p in "$IMPL" "$LIB" "$EXLIB"; do [ -f "$p" ] || notok "control needle: $p not found"; done
 REALGIT=$(command -v git) || notok "control needle: git not on PATH"
@@ -226,6 +243,21 @@ if grep -q '^deleted file mode' "$TMP/stm.patch" && grep -q '^new file mode' "$T
   ok "control needle: repo M has deleted, new and mode-only sections"; else notok "control needle: repo M shapes"; fi
 grep -q 'caf' "$TMP/stq.patch" && ! grep -q '^diff --git a/"' "$TMP/stq.patch" && ok "control needle: repo Q patch holds unquoted non-ASCII names" || notok "control needle: repo Q names"
 
+# --- round-5 repos (F3): REU = untracked-only stash, REP = index-only change
+# whose worktree equals HEAD; control needles: both tracked patches are empty,
+# REU has the untracked third parent, REP has none.
+REU="$TMP/reu"; mkrepo "$REU"; printf 'one\n' > "$REU/f"; g -C "$REU" add f; g -C "$REU" commit --quiet -m i
+printf 'u\n' > "$REU/u.txt"; g -C "$REU" stash -u --quiet
+REP="$TMP/rep"; mkrepo "$REP"; printf 'one\n' > "$REP/f"; g -C "$REP" add f; g -C "$REP" commit --quiet -m i
+printf 'two\n' > "$REP/f"; g -C "$REP" add f; printf 'one\n' > "$REP/f"; g -C "$REP" stash --quiet
+: > "$TMP/empty.patch"
+if [ -z "$(g -C "$REU" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}')" ] && [ -z "$(g -C "$REP" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}')" ] \
+   && g -C "$REU" rev-parse -q --verify 'stash@{0}^3' >/dev/null && ! g -C "$REP" rev-parse -q --verify 'stash@{0}^3' >/dev/null; then
+  ok "control needle: repos EU and EP have empty tracked patches; EU has an untracked parent, EP none"
+else
+  notok "control needle: repos EU / EP do not have the shapes they are named for"
+fi
+
 # --- the MATRIX over the whole class "which headers does the tripwire see".
 # Cells = fixture (header count 1..7 x two section orders x three git configs)
 # x header position x garble form (a half, b half, both halves, bare no-prefix,
@@ -241,7 +273,7 @@ grep -q 'caf' "$TMP/stq.patch" && ! grep -q '^diff --git a/"' "$TMP/stq.patch" &
 # (they print as `--- a/zz.txt` / `+++ b/zz.txt` and look like path lines),
 # header-like body lines, a CR).
 cat > "$TMP/matrix.py" <<'PYEOF'
-import importlib.util, os, re, subprocess, sys, tempfile
+import atexit, importlib.util, os, re, shutil, subprocess, sys, tempfile
 
 impl = sys.argv[1]
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(impl)), "lib"))
@@ -255,6 +287,9 @@ ENV = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null",
 CANON = ["--binary", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
          "--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none"]
 base = tempfile.mkdtemp(prefix="matrix.")
+# CON-116 round 5 (review round 4, F2): the fixture repositories are removed on
+# every exit path the interpreter controls (normal end, sys.exit, an exception).
+atexit.register(shutil.rmtree, base, True)
 
 
 def git(repo, *a, raw=False):
@@ -528,9 +563,24 @@ battery() {
   chk XGV $? "the same stash, faithful backup -> ALLOWED (got $(verdict "$V"): $(detail "$V" | cut -c1-120))"
   I=$(run_inv "$impl" "$RQ" "PATH=$PATH"); [ "$(status "$I")" = dirty ] && [ "$(printf '%s' "$I" | cut -f2)" = "$WANT_SHAQ" ]
   chk XQ $? "core.quotePath=false with a Latin-1 and a UTF-8 name -> dirty, sha = backup (got '$I')"
-  V=$(python3 "$TMP/matrix.py" "$impl" 2>&1); k=$?
-  [ "$k" = 0 ] && [[ "$V" == *"MATRIX cells="* ]] && [[ "$V" != *"cells=0 "* ]]
-  chk MX $? "matrix over header count x position x side x section type x git config, oracle = git name-status (got: $(printf '%s' "$V" | head -3 | tr '\n' ' ' | cut -c1-200))"
+  local mxd="$TMP/mxtmp.$RANDOM$RANDOM"; mkdir -p "$mxd"
+  V=$(TMPDIR="$mxd" python3 "$TMP/matrix.py" "$impl" 2>&1); k=$?
+  [ -z "$(ls -A "$mxd")" ] || V="LEFT UNDER TMPDIR: $(ls -A "$mxd" | head -3 | tr '\n' ' ') $V"
+  [ "$k" = 0 ] && [[ "$V" == *"MATRIX cells="* ]] && [[ "$V" != *"cells=0 "* ]] && [[ "$V" != "LEFT UNDER TMPDIR"* ]]
+  chk MX $? "matrix over header count x position x side x section type x git config, oracle = git name-status; nothing left under its TMPDIR (got: $(printf '%s' "$V" | head -3 | tr '\n' ' ' | cut -c1-200))"
+  rm -rf "${mxd:?}"
+  # --- round-5 axis (review round 4, F3: no check pinned empty_patch vs
+  # UNMEASURED). An untracked-only stash and an index-only stash whose worktree
+  # equals HEAD both have an EMPTY tracked patch: a measured empty patch, never
+  # UNMEASURED; the untracked one is refused for its untracked content, not as
+  # unreadable.
+  I=$(run_inv "$impl" "$REU" "PATH=$PATH"); [ "$I" = "empty_patch${TAB}None${TAB}" ]
+  chk EP1 $? "untracked-only stash (git stash -u) -> empty_patch, no sha256, no files (got '$I')"
+  I=$(run_inv "$impl" "$REP" "PATH=$PATH"); [ "$I" = "empty_patch${TAB}None${TAB}" ]
+  chk EP2 $? "index-only stash, worktree = HEAD -> empty_patch, no sha256, no files (got '$I')"
+  V=$(run_vp "$impl" "$REU" "$TMP/empty.patch" "PATH=$PATH")
+  [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"has untracked content"* ]] && [[ "$(detail "$V")" != *"could not be read"* ]]
+  chk EP1V $? "untracked-only stash, land -> REFUSED for its untracked content, not as unreadable (got $(verdict "$V"): $(detail "$V" | cut -c1-120))"
   [ "$mode" = collect ] && printf '%s' "$BF"
   return 0
 }
@@ -713,8 +763,18 @@ pymutation FL7_minus_overwritten_by_body "MX"
 pymutation FL10_plus_overwritten_by_body "MX"
 pymutation FL8_octal_ignored "L1 MX"
 pymutation FL9_sorted "G4 L1 MX"
+# RD (round-4 reviewer, verbatim): an empty patch reported as UNMEASURED.
+mutation RD_empty_patch_is_unmeasured "EP1 EP2" '    if patch_bytes is None:
+        dirty_status = "UNMEASURED"' '    if not patch_bytes:
+        dirty_status = "UNMEASURED"'
+# RD2 (round-5 sibling of RD in verify-proposal): an empty live patch read as unmeasured.
+mutation RD2_empty_live_patch_unmeasured "EP1V" \
+  'dirty_submodules=[], has_unmerged=False, measured=patch_bytes is not None)' \
+  'dirty_submodules=[], has_unmerged=False, measured=bool(patch_bytes))'
 # FL2 (reviewer: unquote of the `---`/`+++` lines dropped) is EQUIVALENT: the
 # header fallback names the same path, so no input separates it; not adopted.
 
+# TD: nothing this run started is left in its TMPDIR (F2, whole-run check).
+[ -z "$(ls -A "$TMPDIR")" ] && ok "TD nothing left under the run's TMPDIR" || notok "TD left under the run's TMPDIR: $(ls -A "$TMPDIR" | head -5 | tr '\n' ' ')"
 echo "=== stash patch regression guard (CON-116): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]
