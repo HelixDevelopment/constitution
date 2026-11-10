@@ -39,6 +39,14 @@
 #   S7 a mutant on which every suite gives the control's status (77 on the
 #      skipping suite, 0 on the rest) SURVIVED: a 77 is not a kill (exit 1).
 #
+# CON-033 round 4 (review R3-F4):
+#   S8 a PASS line that differs between the control and a mutant ONLY by a
+#      path under $HOME (each mirror has its own directory) is not an
+#      isolating case: the killed mutant's n_isolating_cases is 1 (the real
+#      lost check), not 2, and the ledger row names no $HOME path. HOME is a
+#      prefix outside /tmp on purpose, so the case discriminates even where
+#      TMPDIR is /tmp (round 3 normalised only /tmp/...).
+#
 # Exit 0 = all checks passed; 1 = a check failed; 2 = setup error.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -77,6 +85,7 @@ h=\$(cd "\$(dirname "\$0")/.." && pwd)
 if [ "\${SWEEP_FAKE_SKIP_SUITE:-}" = "$s" ]; then
   echo "PASS: stand-in $s"; echo "SKIP: FAKE-LEG -- stand-in"; echo "SKIP reason=proof_legs_skipped"; exit 77
 fi
+[ -n "\${SWEEP_FAKE_NOISE:-}" ] && echo "PASS: stand-in $s noise record written at \$HOME/\$(basename "\$h")/out.json"
 [ -n "\${SWEEP_FAKE_CONSTANT:-}" ] && { echo "PASS: stand-in $s sees the unmutated tool"; exit 0; }
 if [ -n "\${SWEEP_FAKE_NORESULT:-}" ] && [ "\$(basename "\$h")" = "\$SWEEP_FAKE_NORESULT" ]; then
   mkdir -p "\$(dirname "\$(dirname "\$h")")/res/\$SWEEP_FAKE_NORESULT.tsv"
@@ -228,6 +237,19 @@ if [ "$s7rc" = 1 ] && [ "$(printf '%s\n' "$s7out" | grep -c '^NOT ok .* SURVIVED
   ok "S7: a mutant with the control's status on every suite (77 and 0) SURVIVED; exit 1"
 else
   bad "S7: rc=$s7rc (want 1): $(printf '%s\n' "$s7out" | grep -E 'ok|==' | head -4 | tr '\n' '|')"
+fi
+
+# --- S8: a PASS line differing only by a $HOME path is not an isolating case -----
+o8="$T/out8/ledger.tsv"; mkdir -p "$T/out8"
+H8="/rr_sweep_noise_home_$$"   # never created: only its spelling is printed
+s8out=$(HOME="$H8" SWEEP_FAKE_NOISE=1 bash "$SW" -j 1 --out "$o8" "$ID1" 2>&1); s8rc=$?
+row8=$(grep -v '^#' "$o8" 2>/dev/null)
+n8=$(printf '%s\n' "$row8" | cut -f5)
+if [ "$s8rc" = 0 ] && [ "$(printf '%s\n' "$row8" | cut -f4)" = KILLED ] && [ "$n8" = 1 ] \
+   && ! printf '%s\n' "$row8" | grep -qF "$H8"; then
+  ok "S8: a mutant whose only other difference is a \$HOME path in a PASS line has n_isolating_cases 1, and the row names no \$HOME path"
+else
+  bad "S8: rc=$s8rc (want 0), n=$n8 (want 1), row: $(printf '%s' "$row8" | tr '\t' ' ' | cut -c1-300)"
 fi
 
 echo "== RESULT: $PASS passed, $FAIL failed =="

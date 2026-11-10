@@ -46,7 +46,7 @@ TOOL="$FC/review/review_record.py"
 ANALYZER="$HERE/lib/review_record_guard_analyzer.py"
 # cheapest first: a mutant stops at the FIRST suite that fails (its lost PASS
 # lines are the isolating cases recorded); only survivors pay for every suite.
-SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_round_budget_boundary_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
 
 JOBS=2; OUT=""; IDS=()
 while [ "$#" -gt 0 ]; do
@@ -108,6 +108,17 @@ pass_ids() {
   python3 - "$1" $SUITES <<'PY'
 import os, re, sys
 d, suites = sys.argv[1], sys.argv[2:]
+# Paths that differ from run to run are not checks (CON-033 round 4, review
+# R3-F4): every mirror lives under a fresh temp directory, so a PASS line
+# that merely names a file under $TMPDIR or $HOME (or /tmp) differs between
+# the control and a mutant and was counted as an "isolating case". Each of
+# those prefixes -- as given and resolved -- is replaced, longest first.
+PREFIXES = set()
+for raw in (os.environ.get("TMPDIR"), os.environ.get("HOME"), "/tmp"):
+    if raw and raw.strip("/"):
+        PREFIXES.add(raw.rstrip("/"))
+        PREFIXES.add(os.path.realpath(raw).rstrip("/"))
+PREFIXES = sorted((p for p in PREFIXES if p.strip("/")), key=len, reverse=True)
 out = set()
 for t in suites:
     try:
@@ -118,7 +129,9 @@ for t in suites:
         m = re.match(r"^PASS(?:\[\d+\])?: (.*)$", line)
         if not m:
             continue
-        text = re.sub(r"/tmp/\S+", "<P>", m.group(1))
+        text = m.group(1)
+        for pre in PREFIXES:
+            text = re.sub(re.escape(pre) + r"\S*", "<P>", text)
         text = re.sub(r"\d{5,}", "<N>", text)
         out.add("%s::%s" % (t, text[:90]))
 for x in sorted(out):

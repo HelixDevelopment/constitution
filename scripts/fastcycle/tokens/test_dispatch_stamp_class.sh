@@ -74,8 +74,18 @@ prec() {  # prec <hook> -> rc for 'sonnet medium on simple' with both policies s
 }
 got="$(prec "$HOOK")"
 [ "$got" = 0 ] && ok "both policies set: FC_DISPATCH_TIER_POLICY wins over the project file (sonnet medium allowed by env cap high)" || bad "policy precedence (rc=$got, want 0: env must win)"
-got="$(mk '(T1/main - a - sonnet - low) item=ATM-1 class=simple t' | FC_DISPATCH_TIER_POLICY="$WORK/missing.tsv" bash "$HOOK" >/dev/null 2>&1; echo $?)"
-[ "$got" = 2 ] && ok "unreadable policy file fails closed" || bad "unreadable policy (rc=$got)"
+# CON-033 round 4 (review R3-F3, mutant DSM-H `${FC_DISPATCH_TIER_POLICY+x}`):
+# FC_DISPATCH_TIER_POLICY set but EMPTY is "no env policy": the project file
+# applies (it caps simple at sonnet/low, so 'sonnet medium' is refused).
+emptyenv() {  # emptyenv <hook> -> rc for 'sonnet medium on simple', env policy set to ''
+  mk '(T1/main - a - sonnet - medium) item=ATM-1 class=simple t' | FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' \
+    FC_DISPATCH_TIER_POLICY= CLAUDE_PROJECT_DIR="$WORK/proj" bash "$1" >/dev/null 2>&1; echo $?
+}
+got="$(emptyenv "$HOOK")"
+[ "$got" = 2 ] && ok "FC_DISPATCH_TIER_POLICY set but empty: the project file applies (sonnet medium refused by its cap low)" || bad "empty env policy (rc=$got, want 2: the project file must apply)"
+got="$(mk '(T1/main - a - sonnet - low) item=ATM-1 class=simple t' | FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' FC_DISPATCH_TIER_POLICY="$WORK/missing.tsv" bash "$HOOK" >/dev/null 2>"$WORK/unread_err"; echo $?)"
+# CON-033 round 4 (review O3): with the item regex set, rc 2 can only come from the policy guard; the reason is checked too
+[ "$got" = 2 ] && grep -q 'not readable' "$WORK/unread_err" && ok "unreadable policy file fails closed (named 'not readable')" || bad "unreadable policy (rc=$got, err=$(head -c 200 "$WORK/unread_err"))"
 printf 'simple\tsonnet\tgigantic\n' > "$WORK/badcap.tsv"
 got="$(mk '(T1/main - a - sonnet - low) item=ATM-1 class=simple t' | FC_DISPATCH_TIER_POLICY="$WORK/badcap.tsv" bash "$HOOK" >/dev/null 2>&1; echo $?)"
 [ "$got" = 2 ] && ok "a policy row with an unknown cap fails closed" || bad "bad cap row (rc=$got)"
@@ -149,6 +159,10 @@ m8="$(mutate M8 '  if [ -n "${FC_DISPATCH_TIER_POLICY:-}" ]; then
     pol="$FC_DISPATCH_TIER_POLICY"
   fi')"
 [ "$(prec "$m8")" = 2 ] && ok "mutant M8 / DSM-B (project file wins) killed: it refuses what the real hook allows (rc 2, real hook rc 0)" || bad "mutant M8 / DSM-B SURVIVED"
+# M9 (= review mutant DSM-H, R3-F3): an env policy that is set but empty still
+# counts as set, so the project file is skipped and the built-in table applies
+m9="$(mutate M9 '  if [ -n "${FC_DISPATCH_TIER_POLICY:-}" ]; then' '  if [ -n "${FC_DISPATCH_TIER_POLICY+x}" ]; then')"
+[ "$(emptyenv "$m9")" = 0 ] && ok "mutant M9 / DSM-H (set-but-empty env counts as set) killed: it allows what the real hook refuses (rc 0, real hook rc 2)" || bad "mutant M9 / DSM-H SURVIVED"
 # Mutant effectiveness controls: the unmodified hook gives the opposite verdicts on the same inputs
 [ "$(run "$HOOK" "(T1/main - a - opus - max) item=ATM-1 class=simple t")" = 2 ] && ok "control: the real hook refuses what M1 lets through" || bad "control failed"
 

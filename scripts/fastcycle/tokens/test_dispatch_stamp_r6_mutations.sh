@@ -32,7 +32,7 @@
 # (the static transcript fixtures use ATM ids). No secret is involved.
 #
 # SKIP: when this constitution checkout has no superproject carrying those two
-# consumer files, the harness prints SKIP and exits 0 without claiming a
+# consumer files, the harness prints SKIP and exits 77 without claiming a
 # result (it can only prove kills it actually ran).
 #
 # Round 2 (T048 restart, §11.4.276(D)): the nine reviewer mutants that
@@ -135,7 +135,10 @@ SETTINGS_SRC="${SUPER:+$SUPER/.claude/settings.json}"
 
 if [ -z "$SUPER" ] || [ ! -f "$WRITER_SRC" ] || [ ! -f "$SETTINGS_SRC" ]; then
   echo "SKIP: no consuming superproject with scripts/hooks/agent_registry_writer.sh and .claude/settings.json was found (superproject='${SUPER}'); the attribution suite's PART A cannot run, so no mutant result is claimed"
-  exit 0
+  # CON-033 round 4 (review R3-F7; section 11.4.289(E)): a run that proved
+  # nothing is SKIP (77), never PASS (0).
+  echo "SKIP reason=topology_unsupported"
+  exit 77
 fi
 
 WORK="$(mktemp -d)" || { echo "FAIL: mktemp"; exit 1; }
