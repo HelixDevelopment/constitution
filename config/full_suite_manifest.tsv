@@ -525,6 +525,8 @@ scripts/gates/cm_covenant_114_293_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -576,8 +578,11 @@ scripts/gates/cm_no_narrative_only_pass_mutation_test.sh	sh	entry	heavy	bash	-	a
 scripts/gates/cm_no_nested_markdown_fence_leak_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_opendesign_ui_system_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_oracle_strategy_named_and_independent_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_provisional_done_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_readme_badge_row_at_top_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_release_gate_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_reporting_directives_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
@@ -750,6 +755,7 @@ tests/gates/test_oracle_frozen_exclusions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
+tests/gates/test_workable_items_db_sidecars_ignored.sh	sh	entry	default	bash	-	auto
 tests/hooks_range/test_post_update_hook_range.sh	sh	entry	default	bash	-	auto
 tests/install/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/install/test_agent.sh
 tests/install/mutants_round11.sh	sh	entry	heavy	bash	-	auto
