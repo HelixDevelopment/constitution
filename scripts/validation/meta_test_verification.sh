@@ -17,8 +17,8 @@
 #           failure in mutation 1 comes from that check and nothing else.
 #           Control: the real gate on the real tree (read-only) must PASS.
 # Known gap: the scratch root is removed by an EXIT trap (TERM, INT and HUP also
-#           run it), but SIGKILL cannot run a trap, so after a KILL the scratch
-#           root stays under $TMPDIR. It holds only SYMLINKS to the real
+#           run it, and are ignored while it runs), but SIGKILL cannot run a
+#           trap, so after a KILL the scratch root stays under $TMPDIR. It holds only SYMLINKS to the real
 #           submodules and a copy of the gate: `rm -rf` removes the links and
 #           leaves their targets alone, but a tool that follows links (`find
 #           -L`, `cp -rL`, `chmod -R` with -L) would reach the checked tree.
@@ -44,7 +44,13 @@ finish() {
 }
 
 W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 1; }
-cleanup() { [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+# CON-128 round 5 (measured: a TERM sent to the process group while the EXIT
+# trap's `rm -rf` ran killed the rm and left the scratch root; 3 of the first 21
+# stops at 90%..105% of the run). cleanup IGNORES the stop signals before it
+# starts the rm, and a child inherits an ignored signal, so the rm cannot be
+# stopped half way. Window left (stated): a second stop signal that arrives
+# between the start of the EXIT trap and its first command.
+cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
