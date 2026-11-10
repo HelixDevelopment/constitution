@@ -82,9 +82,9 @@ scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve1_count_hook.js	js	excluded	-	-	-	override: reason: tool: node --require hook loaded by test_resolve1.sh (shell model cannot see the node invocation); exits 0 alone, so a standalone run is a vacuous PASS; not a test
 scripts/codegraph/tests/test_resolve1_drive.js	js	excluded	-	-	-	override: reason: tool: node driver that needs <distDir> <db> args, run by test_resolve1.sh and test_resolve2.sh (shell model cannot see the node invocation); not a test
-scripts/codegraph/tests/test_resolve1_dump.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
+scripts/codegraph/tests/test_resolve1_dump.py	py	excluded	-	-	-	override: reason: tool: argv-driven helper (usage: test_resolve1_dump.py <db> <outprefix>) invoked by test_resolve1.sh and test_resolve2.sh, which check its output; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test
 scripts/codegraph/tests/test_resolve1_equiv_real.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test
-scripts/codegraph/tests/test_resolve1_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
+scripts/codegraph/tests/test_resolve1_fixture.py	py	excluded	-	-	-	override: reason: tool: argv-driven fixture generator (usage: test_resolve1_fixture.py <outdir> <n_filler> <n_probe> [--mixed|--novue]) invoked by test_resolve1.sh; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test
 scripts/codegraph/tests/test_resolve1_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve1_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve1_mutations.sh
 scripts/codegraph/tests/test_resolve1_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_resolve1_probe.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve1.sh (shell model cannot see the node invocation); not a test
