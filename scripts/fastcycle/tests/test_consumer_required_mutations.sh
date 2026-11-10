@@ -24,6 +24,19 @@
 #   MG13 C3 reads the last id column only
 #   MG14 C3 counts the first named prefix only (ids with two prefixes)
 #   MG15 C3 counts the last named prefix only
+#   Round 6 (review round 5 CR5-1..CR5-4; the operator authorised round 6 for CON-122/CON-127/CON-031 under section
+#   11.4.276(G), 2026-11-10): one mutant per remaining input axis, legs L11..L17 in Part 3. RED first: every one
+#   below except MG17 SURVIVED the round-5 suite (158/0); MG17 was killed there only through m2_half.
+#   MG16 (reviewer RV5-1, verbatim) each id column is read from its first row only (L11 rows; the CR-3 false SKIP)
+#   MG17 (reviewer RV5-1b, verbatim) C3 over a two-row sample (L11)
+#   MG18 (reviewer RV5-3, verbatim; round-3 RMG-G) the dash dropped from the prefix test (L12)
+#   MG19 (reviewer RV5-4, verbatim) id column matched by substring (L13)
+#   MG20 (reviewer RV5-5, verbatim) -readonly dropped from the pragma call: an absent path gets a 0-byte file (L14)
+#   MG21 (reviewer R4-G) LIKE to GLOB, case-sensitive prefix (L15)
+#   MG22 id column matched case-insensitively (L13)
+#   MG23 (reviewer R4-I) items counted as non-NULL keys (L16; pins current behaviour, the direction is CON-131's)
+#   MG24 trim(k) in the prefix count C3 (L17 whitespace)
+#   MG25 the pragma reads the first table of the schema instead of items (L17 other tables)
 # Reasoned EQUIVALENT, not listed: `-lt need` -> `-ne need`: COUNT(DISTINCT key) over `key IN (need ids)`
 #   cannot exceed need, so the two agree on every input. The numeric check on the three counts cannot be
 #   reached with a non-number from sqlite3's COUNT, and `[ -gt ]` on a non-number is false (no SKIP) anyway.
@@ -34,9 +47,12 @@
 #   R4-F `[ -n "$_fci_src" ]` -> `[ -n "$_fci_key" ]`: the two are appended in the same branch, so both are set or
 #        both empty.
 #   R4-J the `$2 -lt need` clause dropped: measured equivalent; C3 = 0 implies C2 = 0 < need (same reason as R4-D).
-# Pinned to open nits, not listed (CON-131, adopt with a fixture when the nit is decided):
-#   R4-G `LIKE` -> `GLOB` (case-sensitive prefix): CR3-4, lowercase atm-* ids (fixture v3) would SKIP.
-#   R4-I items counted as non-NULL keys only: CR3-3, NULL-only ids (fixture v6) would run instead of SKIP.
+# Reasoned EQUIVALENTS of review round 5 / round 6 (not listed):
+#   RV5-5b `-readonly` dropped from the data query only: it runs only after the read-only pragma answered, so the
+#        file exists; a SELECT writes nothing.
+#   trim(k) in C2 (`trim(k) IN (...)`): a named id carries a named prefix, so with C3 correct C2 cannot decide a
+#        SKIP (the R4-D reason).
+# Round 5 pinned R4-G and R4-I to CON-131; round 6 adopted them as MG21 and MG23 with fixtures (see above).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh [MUTANT_ID...]
 # Exit    : 0 baseline passes and every selected mutant is killed; 1 otherwise; 77 (reason=topology_unsupported)
 #           when sqlite3 is absent (the fixtures cannot be built, so no mutant could be killed).
@@ -67,6 +83,16 @@ MG12	  for _fci_c in atm_id ticket_id; do	  for _fci_c in ticket_id; do
 MG13	(SELECT COUNT(*) FROM ($_fci_src) WHERE $_fci_like)	(SELECT COUNT(*) FROM (${_fci_src##* UNION ALL }) WHERE $_fci_like)
 MG14	for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }k LIKE '$_fci_p-%'"; done	for _fci_p in $_fci_pfx; do _fci_like="k LIKE '$_fci_p-%'"; break; done
 MG15	for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }k LIKE '$_fci_p-%'"; done	for _fci_p in $_fci_pfx; do _fci_like="k LIKE '$_fci_p-%'"; done
+MG16	SELECT $_fci_c AS k FROM items"	SELECT $_fci_c AS k FROM items WHERE rowid = (SELECT MIN(rowid) FROM items)"
+MG17	(SELECT COUNT(*) FROM ($_fci_src) WHERE $_fci_like)	(SELECT COUNT(*) FROM (SELECT * FROM ($_fci_src) LIMIT 2) WHERE $_fci_like)
+MG18	k LIKE '$_fci_p-%'"	k LIKE '$_fci_p%'"
+MG19	grep -qx "$_fci_c"	grep -q "$_fci_c"
+MG20	_fci_cols=$(sqlite3 -readonly "$_fci_db"	_fci_cols=$(sqlite3 "$_fci_db"
+MG21	k LIKE '$_fci_p-%'"	k GLOB '$_fci_p-*'"
+MG22	grep -qx "$_fci_c"	grep -qix "$_fci_c"
+MG23	SELECT (SELECT COUNT(*) FROM items), 	SELECT (SELECT COUNT(k) FROM ($_fci_src)), 
+MG24	}k LIKE '$_fci_p-%'"	}trim(k) LIKE '$_fci_p-%'"
+MG25	pragma_table_info('items')	pragma_table_info((SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid LIMIT 1))
 EOF
 )
 

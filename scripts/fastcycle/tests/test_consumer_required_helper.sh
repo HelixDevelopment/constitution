@@ -18,7 +18,8 @@
 #           real register, a register that LOST a named item, a query error (no id column, not a database),
 #           an empty table, no database at all, a data query that errors after the pragma answered (view
 #           failing at step time), no sqlite3 on PATH (CR3-1), and a register with BOTH id columns whose named
-#           items sit only in ticket_id (CR3-2); both columns are examined.
+#           items sit only in ticket_id (CR3-2); both columns are examined. Round 6 adds the legs L11..L17
+#           (rows, prefix shape, column names, no write, id case, NULL ids, whitespace and other tables).
 #           Part 4 (CR-2) runs the two REAL cycle_report suites from a scratch consumer layout whose
 #           constitution/scripts/fastcycle links to this checkout, so the guard under test is the one the
 #           suites really execute (never a text extract): the renamed-column, lost-item and query-error DBs
@@ -162,8 +163,24 @@ else
   #   L9 several prefixes in the ids: C3 over the first prefix only (MG14), the last only (MG15)
   #   L10 C2 legs: reasoned equivalents (R4-D first-column C2, R4-J clause dropped; named ids carry a named prefix,
   #       so C3 = 0 implies C2 = 0); R4-E UNION vs UNION ALL and R4-F src vs key test: equivalents (see the mutation
-  #       file). Open, not pinned here (CON-131): NULL-only ids count as items (CR3-3, R4-I), LIKE is case-insensitive
-  #       (CR3-4, R4-G).
+  #       file).
+  # Round 6 (review round 5 CR5-1, section 11.4.276(G) operator-authorised round): every remaining input axis of the
+  # decision, each with a fixture (the L11..L17 fixtures below) and a paired mutant:
+  #   L11 rows: multiplicity and position. A foreign row first and the prefixed row later (lost or named), per id
+  #       column; three rows with the prefixed one last; several foreign rows only. MG16 (reviewer RV5-1 verbatim:
+  #       each column read from its first row only), MG17 (RV5-1b: C3 over a two-row sample).
+  #   L12 prefix shape: the dash is part of the prefix test (ATMX-1 is not ATM-*). MG18 (RV5-3).
+  #   L13 column names: exact match (parent_atm_id is not atm_id) and case (a column spelled ATM_ID is not found, so
+  #       the checks run). MG19 (RV5-4: substring match), MG22 (case-insensitive match).
+  #   L14 no write: the helper opens the database read-only; an absent tracker path stays absent. MG20 (RV5-5).
+  #   L15 case of ids: LIKE is case-insensitive, so atm-5 counts as the prefix and the checks run (the fail-closed
+  #       direction). MG21 (reviewer R4-G: LIKE to GLOB, case-sensitive).
+  #   L16 NULL ids: rows whose id is NULL count as items, so a table of NULL ids only SKIPs (current behaviour,
+  #       pinned; the direction stays CON-131's decision, CR3-3). MG23 (reviewer R4-I: items counted as non-NULL keys).
+  #   L17 whitespace and other tables: an id with a leading space is not the prefix (SKIP), a trailing space is (RUN);
+  #       only the items table is read (another table holding ATM-953, or no id column, changes nothing).
+  #       MG24 (trim(k) in C3), MG25 (the pragma reads the first table of the schema).
+  #   Empty table: L5 (MG6). C2 under whitespace (trim(k) IN): equivalent for the reason of R4-D.
   # m2_<order>_<datacol>_<data>_<other>: both columns, declared in <order> (at = atm_id,ticket_id; ta = reversed);
   # <datacol> holds <data> (named ATM-953 | lost ATM-5, the prefix with the named id lost | foreign CON-7) and the
   # other column holds <other> (foreign CON-1 | NULL). Want: named, lost -> run; foreign -> skip (no ATM row at all).
@@ -194,6 +211,32 @@ else
   rm -f "$FX/both_lost.db" "$FX/ticket_null.db"
   sqlite3 "$FX/both_lost.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','ATM-5');" || bad "both_lost fixture setup failed"
   sqlite3 "$FX/ticket_null.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('ATM-953',NULL);" || bad "ticket_null fixture setup failed"
+  # Round 6 legs L11..L17 (see the leg table above): one fixture per cell, built with literal SQL.
+  for _sq in \
+    "l11_lostlater_atm.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-9','t'),('ATM-5','t');" \
+    "l11_lostlater_ticket.db|CREATE TABLE items(ticket_id TEXT, title TEXT); INSERT INTO items VALUES('CON-9','t'),('ATM-5','t');" \
+    "l11_namedlater_atm.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-9','t'),('ATM-953','t');" \
+    "l11_namedlater_ticket.db|CREATE TABLE items(ticket_id TEXT, title TEXT); INSERT INTO items VALUES('CON-9','t'),('ATM-953','t');" \
+    "l11_lost3_atm.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t'),('CON-2','t'),('ATM-5','t');" \
+    "l11_lostlater_both.db|CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','CON-2'),('CON-3','ATM-5');" \
+    "l11_foreign3_atm.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t'),('CON-2','t'),('CON-3','t');" \
+    "l12_atmx.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('ATMX-1','t');" \
+    "l13_parentcol.db|CREATE TABLE items(parent_atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('ATM-953','CON-1');" \
+    "l13_colcase.db|CREATE TABLE items(ATM_ID TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t');" \
+    "l15_lower.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('atm-5','t');" \
+    "l16_nullonly.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES(NULL,'t'),(NULL,'u');" \
+    "l16_nullthen.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES(NULL,'t'),('ATM-5','u');" \
+    "l17_lead.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES(' ATM-5','t');" \
+    "l17_trail.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('ATM-5 ','t');" \
+    "l17_tables.db|CREATE TABLE aaa(x TEXT); INSERT INTO aaa VALUES('ATM-953'); CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t');" \
+    "l17_tables2.db|CREATE TABLE aaa(atm_id TEXT); INSERT INTO aaa VALUES('CON-1'); CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('ATM-5','t');"; do
+    _f=${_sq%%|*}; rm -f "$FX/$_f"
+    sqlite3 "$FX/$_f" "${_sq#*|}" || bad "$_f fixture setup failed"
+  done
+  # needle: each L11 fixture holds its foreign row FIRST (rowid order), so the later rows are what the leg tests
+  [ "$(sqlite3 -readonly "$FX/l11_lostlater_atm.db" "SELECT group_concat(atm_id) FROM (SELECT atm_id FROM items ORDER BY rowid);")" = "CON-9,ATM-5" ] \
+    && [ "$(sqlite3 -readonly "$FX/l11_lost3_atm.db" "SELECT atm_id FROM items ORDER BY rowid LIMIT 1;")" = "CON-1" ] \
+    && ok "L11 row fixtures built (needle: l11_lostlater_atm rows in order CON-9,ATM-5)" || bad "L11 row fixtures broken"
   # needle: the matrix produced 24 + 2 cases and each fixture answers the pragma with both columns
   [ "$(wc -l <"$FX/m2cases.txt")" -eq 26 ] && [ "$(sqlite3 -readonly "$FX/m2_ta_atm_id_named_null.db" "SELECT group_concat(name) FROM pragma_table_info('items');")" = "ticket_id,atm_id" ] \
     && ok "decision-leg matrix built: 26 two-column cases (needle: m2_ta_* declares ticket_id,atm_id)" || bad "decision-leg matrix fixture broken"
@@ -247,7 +290,29 @@ absent.db       run  ATM-953
 viewfail.db     run  ATM-953
 both_ticket.db  run  ATM-953
 both_other.db   skip ATM-953
+l11_lostlater_atm.db     run  ATM-953
+l11_lostlater_ticket.db  run  ATM-953
+l11_namedlater_atm.db    run  ATM-953
+l11_namedlater_ticket.db run  ATM-953
+l11_lost3_atm.db         run  ATM-953
+l11_lostlater_both.db    run  ATM-953
+l11_foreign3_atm.db      skip ATM-953
+l12_atmx.db              skip ATM-953
+l13_parentcol.db         skip ATM-953
+l13_colcase.db           run  ATM-953
+l15_lower.db             run  ATM-953
+l16_nullonly.db          skip ATM-953
+l16_nullthen.db          run  ATM-953
+l17_lead.db              skip ATM-953
+l17_trail.db             run  ATM-953
+l17_tables.db            skip ATM-953
+l17_tables2.db           run  ATM-953
 CASES
+    # L14 (review round 5 CR5-2): the helper never writes; an absent tracker path is still absent afterwards
+    rm -f "$FX/absent.db"
+    "$sh" "$T" "$FX/absent.db" ATM-953 >"$o" 2>&1; rc=$?
+    if [ "$rc" = 0 ] && [ ! -e "$FX/absent.db" ]; then ok "[$sh] absent tracker path -> checks run and the path is still absent (no file created)"
+    else bad "[$sh] absent tracker path: rc $rc, exists after the call: $([ -e "$FX/absent.db" ] && echo yes || echo no)"; fi
     # CR3-1: no sqlite3 on PATH -> the guard cannot prove absence -> never SKIPs
     shp=$(command -v "$sh"); nbneedle=$(PATH="$NB" command -v "$sh" 2>/dev/null; PATH="$NB" command -v sqlite3 >/dev/null 2>&1 && echo HAS_SQLITE3)
     if [ -x "$NB/$sh" ] && ! PATH="$NB" command -v sqlite3 >/dev/null 2>&1; then
