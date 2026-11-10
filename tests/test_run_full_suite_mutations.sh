@@ -42,6 +42,13 @@
 # args from the structured key instead). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# CON-030 round 5 (review r4, R_max passed by operator decision): RX1-RX8 are the reviewer-authored mutants of
+# review r4, adopted verbatim (RX1 RX2 RX5 RX6 survived round 4; RX8 re-anchored to the decode-first esc_out, H3d
+# likewise); GU GN GC guard the merged generated-set fingerprint (unreadable entry kept unknown, file-system bytes
+# for names, the content record); K1a-K1e the whole-line census markers and the byte-exact guide rewrite; K2n the
+# failing --sync-guide; K12m the refused --generate-manifest; K9m plan() asked by --verify-manifest. Reasoned
+# EQUIVALENT, not in the table: K2m (drop the re-check after the rewrite: guide_check(fix=True) already returns
+# every problem it cannot fix, and a rewrite always produces the current block).
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
 #   M5 M8 M9b M23 M36 (their anchors no longer exist; V1-V11 take their place).
 # Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
@@ -203,7 +210,7 @@ H2b	LINE_BREAKERS = re.compile("[\\x00-\\x08\\x0a-\\x1f\\x7f-\\x9f\\u2028\\u2029
 H3a	    sys.stdout.write(esc_out(msg) + "\\n")	    sys.stdout.write(msg + "\\n")
 H3b	        fh.write("".join(esc_out(l) + "\\n" for l in summ))	        fh.write("".join(l + "\\n" for l in summ))
 H3c	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\n\\t]", f)
-H3d	    s = LINE_BREAKERS.sub(one, s)	    pass
+H3d	    return LINE_BREAKERS.sub(one, s)	    return s
 RW1	    return q.status is None or any(v is None for _p, v in q.heads)	    return any(v is None for _p, v in q.heads)
 RW2	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = "s"
 RW3	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = hashlib.sha256(st.stdout).hexdigest()[:16]
@@ -215,6 +222,25 @@ G2	                hrec(h, b"i", b"%d" % st.st_ino)	                hrec(h, b"i"
 G3	                hrec(h, b"m", b"%d" % st.st_mtime_ns)	                hrec(h, b"m", b"%d" % 0)
 G4	            if qid != qid0 or ident_unknown(qid):  # review r4 K5	            if False:  # review r4 K5
 RMb	    for pre in ("", "constitution"):	    for pre in ("",):
+RX1	    sys.stderr.write(esc_out(msg) + "\\n")	    sys.stderr.write(msg + "\\n")
+RX2	    except GovLineError as e:\n        return str(e)	    except GovLineError as e:\n        return None
+RX3	        return set(), "operator roster %s" % e	        return set(), None
+RX4	        uid = path + ("" if not args else " " + " ".join(args))	        uid = path
+RX5	    for l in summ:\n        out(l)	    out("\\n".join(summ))
+RX6	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\x00-\\x1f\\x7f]", f) or ("\\t" if "\\t" in f else None)
+RX7	    return (rec_key(o) == u["key"] and o["sha"] == sha	    return ((rec_key(o) == u["key"] or o["unit"] == u["id"]) and o["sha"] == sha
+RX8	        s = s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")	        pass
+GU	                except OSError:\n                    return None\n                hrec(h, b"p"	                except OSError:\n                    continue\n                hrec(h, b"p"
+GN	                hrec(h, b"p", os.fsencode(os.path.relpath(p, root)))	                hrec(h, b"p", os.path.relpath(p, root).encode())
+GC	                hrec(h, b"c", dig)	                hrec(h, b"c", b"")
+K1a	    begins = [n for n, l in lines if l == GUIDE_BEGIN]	    begins = [n for n, l in lines if GUIDE_BEGIN in l]
+K1b	    if near:	    if False:
+K1c	    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:	    if not begins or not ends:
+K1d	    eol = b"\\r" if raw[a - 1].endswith(b"\\r") else b""	    eol = b""
+K1e	    data = b"\\n".join(raw[:a] + 	    data = b"\\n".join([l.encode("utf-8") for n, l in lines if n <= a] + 
+K2n	            return 3\n        lines, a, _b, _prob = guide_parse(root)	            return 0\n        lines, a, _b, _prob = guide_parse(root)
+K12m	        if cprobs:\n	        if False:\n
+K9m	    if verify_only and not probs:\n	    if False:\n
 EOF
 )
 

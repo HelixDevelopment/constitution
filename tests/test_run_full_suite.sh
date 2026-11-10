@@ -1298,21 +1298,22 @@ gitc "$gm" add -A; gitc "$gm" commit -q -m go; gen "$gm"
 chk "CON-030 r3 class: a Go module in directory '?mod' gets its go-test row (was dropped)" \
   "$(awk -F'\t' '$5=="go-test"{printf "[%s]", $1}' "$gm/config/full_suite_manifest.tsv")" "[?mod][plainmod]"
 # (2) a file name that starts with `#` (the manifest comment marker): named, not "census file without manifest row"
-hm="$T/hashname"; mkroot "$hm"; sut "$hm" '#t/test_h.sh' 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m h
-gen "$hm"; gitc "$hm" add -A; gitc "$hm" commit -q -m m; vfy "$hm" "$T/hm.log"
+# (CON-030 r5 K12: --generate-manifest refuses a census problem, so the manifest is written before the bad file)
+hm="$T/hashname"; mkroot "$hm"; sut "$hm" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m ok; gen "$hm"; gitc "$hm" add -A; gitc "$hm" commit -q -m m
+sut "$hm" '#t/test_h.sh' 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m h; vfy "$hm" "$T/hm.log"
 chk "CON-030 r3 class: a '#'-leading test path -> --verify-manifest rc 3" "$RC" "3"
 has "CON-030 r3 class: the '#' path is named as such" "census: file name that starts with '#' \(the manifest comment marker\) cannot be listed in the manifest: '#t/test_h.sh'" "$T/hm.log"
 hasnt "CON-030 r3 class: not misreported as a missing manifest row" 'census file without manifest row' "$T/hm.log"
 # (3) a test path with a CR. Round 3 listed it; round 4 refuses it as a named census problem, like LF and TAB
 # (review r3 H3: its unit id forged RESULT lines on a terminal and in summary.txt), so no table holds a CR
-cr="$T/crname"; mkroot "$cr"; sut "$cr" "$(printf 'c\rd')/test_c.sh" 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m c
-gen "$cr"; gitc "$cr" add -A; gitc "$cr" commit -q -m m; vfy "$cr" "$T/cr.log"
+cr="$T/crname"; mkroot "$cr"; sut "$cr" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m ok; gen "$cr"; gitc "$cr" add -A; gitc "$cr" commit -q -m m
+sut "$cr" "$(printf 'c\rd')/test_c.sh" 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m c; vfy "$cr" "$T/cr.log"
 chk "CON-030 r4 H3: a test path with a CR -> --verify-manifest rc 3" "$RC" "3"
 has "CON-030 r4 H3: the CR path is named, the CR escaped" "census: file name with a newline, TAB or other control or line-separator character \(U\+000D \(CR\)\) cannot be listed in the manifest: 'c\\\\rd/test_c.sh'" "$T/cr.log"
 hasnt "CON-030 r4 H3: no raw CR byte on the output" $'\r' "$T/cr.log"
 # (4) a test file whose name is not UTF-8: named; round 2 decoded it to U+FFFD, did not find it and dropped it silently
-nu="$T/nonutf8"; mkroot "$nu"; sut "$nu" "tests/a/$(printf 'test_\377.sh')" 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m u
-gen "$nu"; gitc "$nu" add -A; gitc "$nu" commit -q -m m; vfy "$nu" "$T/nu.log"
+nu="$T/nonutf8"; mkroot "$nu"; sut "$nu" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m ok; gen "$nu"; gitc "$nu" add -A; gitc "$nu" commit -q -m m
+sut "$nu" "tests/a/$(printf 'test_\377.sh')" 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m u; vfy "$nu" "$T/nu.log"
 chk "CON-030 r3 class: a non-UTF-8 test file name -> --verify-manifest rc 3 (was MANIFEST-OK without it)" "$RC" "3"
 has "CON-030 r3 class: the non-UTF-8 name is named with \\xNN" 'census: file name that is not UTF-8 cannot be listed in the manifest: tests/a/test_\\xff\.sh' "$T/nu.log"
 # (5) tree_state records are length-framed: a symlink target can no longer absorb the records after it, a non-UTF-8
@@ -1438,7 +1439,7 @@ fsr_io_lint() { python3 -I - "$1" <<'PY'
 import ast, sys
 src = open(sys.argv[1]).read(); L = src.split("\n"); t = ast.parse(src); probs = []; sites = 0
 IO = {"open", "splitlines", "readlines", "readline"}
-GOV = ("read_manifest", "load_known", "read_excl_lock", "read_roster", "guide_check")
+GOV = ("read_manifest", "load_known", "read_excl_lock", "read_roster", "guide_parse")  # CON-030 r5: guide_parse is the guide reader
 funcs = {n.name: n for n in ast.walk(t) if isinstance(n, ast.FunctionDef)}
 def io_calls(node):
     for n in ast.walk(node):
@@ -1725,6 +1726,173 @@ chk "R3b I2: the unit ran" "$(verdict "$T/o_er" tests/a/test_1.sh | cut -d'|' -f
 hasnt "R3b I2: the quick identity did not see it (no after-unit change)" '^IDENTITY CHANGED after unit' "$T/o_er/summary.txt"
 has "R3b I2: the end-of-run tree_ident comparison names it" '^IDENTITY CHANGED at the end of the run: head=.*dirty=.* -> head=' "$T/o_er/summary.txt"
 has "R3b I2: RESULT names the identity change" '^RESULT: FAIL \(.*identity changed during the run at the end of the run' "$T/o_er.log"
+
+# =========================================================================== CON-030 round 5 (review r4 K1-K12, M1-M6)
+# --- (1) K5: the WIT-C02 fingerprint of the generated sets, merged from main, is a field of the structured QuickIdent.
+# Unknown is None (never the in-band "?" main's text identity used), names are fed as file-system bytes, and every
+# field is a length-framed record. Unreadable entry at the start: refused before the first unit (never PASS-FULL).
+GU="$T/genunread"; genroot "$GU" 'echo ran'
+chmod 000 "$GU/actions/generated/README.md"
+if cat "$GU/actions/generated/README.md" >/dev/null 2>&1; then
+  ko "CON-030 r5 K5 precondition: a mode-000 file cannot be read (running as root?)"
+else ok "CON-030 r5 K5 precondition: a mode-000 file cannot be read"; fi
+chk "CON-030 r5 K5: gen_fingerprint of an unreadable entry is None" "$(python3 -I - "$ENGINE" "$GU" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.gen_fingerprint(sys.argv[2]))
+PY
+)" "None"
+run "$GU" "$T/o_gu" --include-heavy
+chmod 644 "$GU/actions/generated/README.md"
+chk "CON-030 r5 K5: an unreadable generated-set entry -> rc 1 (never PASS-FULL)" "$RC" "1"
+has "CON-030 r5 K5: named as the unknown generated sets before the first unit" '^IDENTITY CHANGED before unit tests/a/test_1.sh: generated sets \? -> \?' "$T/o_gu.log"
+hasnt "CON-030 r5 K5: the unit after the unknown identity is not run" '^\[1/[0-9]+\] PASS tests/a/test_1.sh' "$T/o_gu.log"
+# a name that is not UTF-8 inside a generated set: main's text fingerprint raised UnicodeEncodeError on it
+GN="$T/gennonutf"; genroot "$GN" 'echo ran'
+python3 -I -c 'import os,sys; open(os.path.join(os.fsencode(sys.argv[1]), b"actions/generated/x\xff.md"), "wb").write(b"x\n")' "$GN"
+gitc "$GN" add -A; gitc "$GN" commit -q -m nonutf
+chk "CON-030 r5 K5: gen_fingerprint reads a non-UTF-8 entry name (16 hex, two calls equal)" "$(python3 -I - "$ENGINE" "$GN" <<'PY'
+import sys, importlib.util, re
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+a, b = m.gen_fingerprint(sys.argv[2]), m.gen_fingerprint(sys.argv[2])
+print(bool(re.fullmatch("[0-9a-f]{16}", a or "")), a == b)
+PY
+)" "True True"
+run "$GN" "$T/o_gn" --include-heavy
+chk "CON-030 r5 K5: a non-UTF-8 name in a generated set does not break the run (rc 0)" "$RC" "0"
+hasnt "CON-030 r5 K5: no traceback on a non-UTF-8 generated-set name" 'Traceback|UnicodeEncodeError' "$T/o_gn.log"
+# the content record: an ignored file in a generated set changes content only (same inode, size and mtime); git status
+# cannot see an ignored file, so only the fingerprint's content record names it as a gen change after the unit
+GC="$T/gencontent"; genroot "$GC" "f='$GC/actions/generated/cache.txt'; touch -r \"\$f\" '$GC/../gc_ref'; printf 'B\n' > \"\$f\"; touch -r '$GC/../gc_ref' \"\$f\"; rm -f '$GC/../gc_ref'"
+printf 'actions/generated/cache.txt\n' > "$GC/.gitignore"; printf 'A\n' > "$GC/actions/generated/cache.txt"
+gitc "$GC" add -A; gitc "$GC" commit -q -m ign
+I0=$(stat -c '%i %s %Y' "$GC/actions/generated/cache.txt")
+run "$GC" "$T/o_gc" --include-heavy
+chk "CON-030 r5 K5 precondition: inode, size and mtime unchanged by the unit" "$(stat -c '%i %s %Y' "$GC/actions/generated/cache.txt")" "$I0"
+chk "CON-030 r5 K5: a content-only change in a generated set -> rc 1" "$RC" "1"
+has "CON-030 r5 K5: named by the after-unit check as a generated-sets change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: generated sets [0-9a-f]+ -> [0-9a-f]+' "$T/o_gc/summary.txt"
+
+# --- (2) K1: the census markers of the guide are whole lines. Round 4 found them with text.index(), so a prose line
+# that quoted the begin marker above the real block made --sync-guide delete everything in between (rc 0).
+gd(){ # $1 root, $2 guide text with \uNNNN escapes -> root with a committed manifest and that guide
+  local r=$1; mkdir -p "$r/x" "$r/config" "$r/docs/guides"; git init -q "$r"; gitc "$r" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$r/x/run_all.sh"
+  gitc "$r" add -A; gitc "$r" commit -q -m fx; gen "$r"
+  python3 -I -c 'import sys; open(sys.argv[1], "wb").write(sys.argv[2].encode("ascii").decode("unicode_escape").encode())' \
+    "$r/docs/guides/full_suite_runner_guide.md" "$2"
+  gitc "$r" add -A; gitc "$r" commit -q -m guide
+}
+gsum(){ sha256sum < "$1/docs/guides/full_suite_runner_guide.md"; }
+sync_g(){ bash "$R" --root "$1" --sync-guide >"$2" 2>&1; RC=$?; }
+GQ="$T/gq"; gd "$GQ" '# guide\n\nThe block starts at a line `<!-- census:begin -->` and ends at the end marker.\n\nIMPORTANT PROSE THAT MUST SURVIVE\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n\ntail\n'
+vfy "$GQ" "$T/gq_v1.log"; chk "CON-030 r5 K1: quoted marker + stale real block: verify rc 3" "$RC" "3"
+has "CON-030 r5 K1: verify names the stale block" 'census block is stale' "$T/gq_v1.log"
+sync_g "$GQ" "$T/gq_s.log"; chk "CON-030 r5 K1: --sync-guide rc 0" "$RC" "0"
+chk "CON-030 r5 K1: the prose between the quoted and the real marker survives" "$(grep -c 'IMPORTANT PROSE THAT MUST SURVIVE' "$GQ/docs/guides/full_suite_runner_guide.md")" "1"
+chk "CON-030 r5 K1: the prose line quoting the marker survives" "$(grep -c 'The block starts at a line' "$GQ/docs/guides/full_suite_runner_guide.md")" "1"
+chk "CON-030 r5 K1: only the block line changed (1 added, 1 removed)" "$(git -C "$GQ" diff --numstat | cut -f1,2)" "1	1"
+vfy "$GQ" "$T/gq_v2.log"; chk "CON-030 r5 K1: verify after sync rc 0" "$RC" "0"
+for c in two:'<!-- census:begin -->\nA\n<!-- census:begin -->\nstale\n<!-- census:end -->\n' \
+         space:'<!-- census:begin --> \nstale\n<!-- census:end -->\n' \
+         order:'<!-- census:end -->\nstale\n<!-- census:begin -->\n' \
+         noend:'x\n<!-- census:begin -->\nstale\n'; do
+  k=${c%%:*}; g="$T/gm_$k"; gd "$g" "# guide\n\n${c#*:}"
+  s0=$(gsum "$g")
+  vfy "$g" "$T/gm_${k}_v.log"; chk "CON-030 r5 K1 ($k): a malformed census block -> verify rc 3" "$RC" "3"
+  has "CON-030 r5 K1 ($k): verify names the marker problem" 'census block needs exactly one line|surrounding white space' "$T/gm_${k}_v.log"
+  sync_g "$g" "$T/gm_${k}_s.log"; chk "CON-030 r5 K1 ($k): --sync-guide refuses (rc 3)" "$RC" "3"
+  has "CON-030 r5 K1 ($k): --sync-guide says nothing was written" '^RESULT: GUIDE-NOT-SYNCED' "$T/gm_${k}_s.log"
+  chk "CON-030 r5 K1 ($k): the guide is unchanged" "$(gsum "$g")" "$s0"
+done
+# the rewrite is byte-exact outside the block: CRLF line ends and a byte that is not UTF-8 are written back unchanged
+GB="$T/gbytes"; gd "$GB" '# guide\n'
+python3 -I -c 'import sys; open(sys.argv[1], "wb").write(b"# guide\r\nbad byte \xff here\r\n<!-- census:begin -->\r\nstale\r\n<!-- census:end -->\r\ntail\r\n")' "$GB/docs/guides/full_suite_runner_guide.md"
+gitc "$GB" add -A; gitc "$GB" commit -q -m crlf
+sync_g "$GB" "$T/gb_s.log"; chk "CON-030 r5 K1: --sync-guide on a CRLF guide with a non-UTF-8 byte: rc 0" "$RC" "0"
+chk "CON-030 r5 K1: every byte outside the block is unchanged (CRLF kept, the 0xff byte kept)" "$(python3 -I -c '
+import sys; d = open(sys.argv[1], "rb").read().split(b"\n")
+print(d[:3] == [b"# guide\r", b"bad byte \xff here\r", b"<!-- census:begin -->\r"], d[3].endswith(b"\r"), d[3] != b"stale\r", d[4:] == [b"<!-- census:end -->\r", b"tail\r", b""])' "$GB/docs/guides/full_suite_runner_guide.md")" "True True True True"
+vfy "$GB" "$T/gb_v.log"; chk "CON-030 r5 K1: verify after the CRLF sync rc 0" "$RC" "0"
+GO0="$T/gnone"; gd "$GO0" '# guide\n\nno census block, but a quoted `<!-- census:end -->` marker in prose\n'
+sync_g "$GO0" "$T/gnone_s.log"; chk "CON-030 r5 K1 control: a guide without a block: --sync-guide rc 0" "$RC" "0"
+has "CON-030 r5 K1 control: says the guide has no block and nothing was written" 'has no census block; nothing was written' "$T/gnone_s.log"
+vfy "$GO0" "$T/gnone_v.log"; chk "CON-030 r5 K1 control: a guide without a block: verify rc 0" "$RC" "0"
+
+# --- (3) K2 and M2 (reviewer mutant RX2): a guide holding a NEL in prose with a stale block. Round 4's --sync-guide
+# printed the census line, wrote nothing and returned 0; RX2 (the GovLineError path returning None) made verify say
+# MANIFEST-OK on that stale guide.
+GNL="$T/gnel"; gd "$GNL" '# guide\n\nprose with a NEL\u0085here\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+s0=$(gsum "$GNL")
+vfy "$GNL" "$T/gnel_v.log"; chk "CON-030 r5 M2: NEL in the guide -> verify rc 3 (never MANIFEST-OK)" "$RC" "3"
+has "CON-030 r5 M2: verify names the guide and the character" 'full_suite_runner_guide.md line 3 holds the character U\+0085 \(NEL\)' "$T/gnel_v.log"
+sync_g "$GNL" "$T/gnel_s.log"; chk "CON-030 r5 K2: --sync-guide on a guide it cannot read -> rc 3" "$RC" "3"
+has "CON-030 r5 K2: --sync-guide names the character" 'GUIDE: .*U\+0085 \(NEL\)' "$T/gnel_s.log"
+hasnt "CON-030 r5 K2: --sync-guide does not print the census line as if it had written it" '^guide census block: census' "$T/gnel_s.log"
+chk "CON-030 r5 K2: the guide is unchanged" "$(gsum "$GNL")" "$s0"
+
+# --- (4) K3: esc_out decodes the surrogate escapes first, then escapes; surrogates holding a valid UTF-8 sequence
+# of NEL or LINE SEPARATOR became a raw line breaker in round 4
+chk "CON-030 r5 K3: esc_out escapes a line breaker hidden in surrogate escapes" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = [m.esc_out("\udcc2\udc85"), m.esc_out("x\udce2\udc80\udca8y"), m.esc_out("a\udcff"), m.esc_out("t\tu")]
+print("|".join(r), any(m.LINE_BREAKERS.search(x) for x in r))
+PY
+)" '\x85|x\u2028y|a\xff|t	u False'
+
+# --- (5) K12 and M6 (reviewer mutant RX6): a test file whose name holds a NEL or a LINE SEPARATOR. Round 4 wrote the
+# manifest WITHOUT that file ("1 row", rc 0); RX6 (the census check narrowed to C0 + DEL) let the name through.
+for k in nel ls; do
+  cn="$T/cn_$k"; mkdir -p "$cn/x" "$cn/config"; git init -q "$cn"; gitc "$cn" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$cn/x/run_all.sh"; gitc "$cn" add -A; gitc "$cn" commit -q -m fx
+  gen "$cn"; gitc "$cn" add -A; gitc "$cn" commit -q -m manifest
+  case $k in nel) c=$'\xc2\x85'; want='U\+0085 \(NEL\)';; ls) c=$'\xe2\x80\xa8'; want='U\+2028 \(LINE SEPARATOR\)';; esac
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$cn/x/test_a${c}b.sh"; gitc "$cn" add -A; gitc "$cn" commit -q -m name
+  m0=$(sha256sum < "$cn/config/full_suite_manifest.tsv")
+  vfy "$cn" "$T/cn_${k}_v.log"; chk "CON-030 r5 M6 ($k): verify rc 3" "$RC" "3"
+  has "CON-030 r5 M6 ($k): verify names the character" "census: file name with .*$want" "$T/cn_${k}_v.log"
+  hasnt "CON-030 r5 M6 ($k): the name is refused, not reported as a missing row" 'census file without manifest row' "$T/cn_${k}_v.log"
+  bash "$R" --root "$cn" --generate-manifest --write >"$T/cn_${k}_g.log" 2>&1; RC=$?
+  chk "CON-030 r5 K12 ($k): --generate-manifest --write refuses (rc 3)" "$RC" "3"
+  has "CON-030 r5 K12 ($k): it names the character" "MANIFEST: census: file name with .*$want" "$T/cn_${k}_g.log"
+  has "CON-030 r5 K12 ($k): it says nothing was written" '^RESULT: MANIFEST-NOT-GENERATED \(1 census problem\(s\); nothing was written\)' "$T/cn_${k}_g.log"
+  chk "CON-030 r5 K12 ($k): the manifest is unchanged" "$(sha256sum < "$cn/config/full_suite_manifest.tsv")" "$m0"
+  bash "$R" --root "$cn" --generate-manifest >"$T/cn_${k}_p.log" 2>&1; RC=$?
+  chk "CON-030 r5 K12 ($k): --generate-manifest (print) refuses too (rc 3)" "$RC" "3"
+done
+
+# --- (6) M1 (reviewer mutant RX1): err() escapes. An uninitialised submodule whose path holds a CR followed by a
+# forged RESULT line: the TOPOLOGY line on stderr must carry the CR as \r, never raw.
+ec="$T/errcr"; mkdir -p "$ec/x" "$ec/config"; git init -q "$ec"; gitc "$ec" commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$ec/x/run_all.sh"
+git init -q "$T/errcr_src"; gitc "$T/errcr_src" commit -q --allow-empty -m s; ecs=$(git -C "$T/errcr_src" rev-parse HEAD)
+ecp=$(printf 's\rRESULT: PASS-FULL (forged)')
+printf '[submodule "s"]\n\tpath = %s\n\turl = %s\n' "$ecp" "$T/errcr_src" > "$ec/.gitmodules"
+gitc "$ec" add -A; git -C "$ec" update-index --add --cacheinfo "160000,$ecs,$ecp"; gitc "$ec" commit -q -m fx
+gen "$ec"; gitc "$ec" add config; gitc "$ec" commit -q -m manifest   # add -A would stage the gitlink as deleted
+chk "CON-030 r5 M1 precondition: the gitlink is committed" "$(git -C "$ec" ls-files -s | grep -c '^160000')" "1"
+bash "$R" --root "$ec" --out "$T/o_ec" >"$T/o_ec.out" 2>"$T/o_ec.err"; RC=$?
+chk "CON-030 r5 M1: an uninitialised submodule is a topology gap (rc 9)" "$RC" "9"
+chk "CON-030 r5 M1: no raw CR on stderr" "$(tr -cd '\r' < "$T/o_ec.err" | wc -c)" "0"
+chk "CON-030 r5 M1: no raw CR on stdout" "$(tr -cd '\r' < "$T/o_ec.out" | wc -c)" "0"
+has "CON-030 r5 M1: the TOPOLOGY line shows the CR as \\r" '^TOPOLOGY: .*s\\rRESULT: PASS-FULL \(forged\)' "$T/o_ec.err"
+
+# --- (7) M5 (reviewer mutant RX5): the terminal summary is written line by line; every line of summary.txt is a whole
+# line of the terminal output (one joined out() call made the summary one line with escaped \n)
+chk "CON-030 r5 M5: every summary.txt line is a whole terminal line" "$(python3 -I - "$T/o_g4/summary.txt" "$T/o_g4.log" <<'PY'
+import sys
+s = open(sys.argv[1]).read().split("\n")[:-1]; t = set(open(sys.argv[2]).read().split("\n"))
+print(len(s) > 5, [l for l in s if l not in t])
+PY
+)" "True []"
+
+# --- (8) K9: --verify-manifest asks plan() too, so a manifest that a run refuses is not MANIFEST-OK
+if command -v go >/dev/null 2>&1; then
+  vfy "$T/h1" "$T/h1_v.log"
+  chk "CON-030 r5 K9: verify on the H1 fixture -> rc 3 (the run is refused too)" "$RC" "3"
+  has "CON-030 r5 K9: verify names the plan refusal" '^MANIFEST: plan \(default mode\): plan: two different units are both shown as' "$T/h1_v.log"
+  vfy "$T/h1c" "$T/h1c_v.log"; chk "CON-030 r5 K9 control: verify on the x/gomod control -> rc 0" "$RC" "0"
+else echo "SKIP CON-030 r5 K9 cases: reason go_not_installed"; fi
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

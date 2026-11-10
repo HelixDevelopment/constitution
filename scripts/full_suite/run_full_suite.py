@@ -1516,11 +1516,13 @@ def esc_out(s):
     def one(mm):
         c = mm.group(0)
         return {"\n": "\\n", "\r": "\\r"}.get(c) or ("\\x%02x" % ord(c) if ord(c) < 0x100 else "\\u%04x" % ord(c))
-    s = LINE_BREAKERS.sub(one, s)
+    # review r4 K3: the round trip first. Surrogates that together hold the bytes of a valid UTF-8 sequence decode
+    # back to that character (\udcc2\udc85 is NEL), so the line-breaker substitution must see the decoded text.
     try:
-        return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
+        s = s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
     except UnicodeEncodeError:
-        return s.encode("utf-8", "backslashreplace").decode("utf-8")
+        s = s.encode("utf-8", "backslashreplace").decode("utf-8")
+    return LINE_BREAKERS.sub(one, s)
 
 
 def out(msg):
@@ -1796,8 +1798,9 @@ class Models:
 
 
 def generate(root, existing):
-    """Draft manifest; rows already in `existing` (path -> row) are kept as they are."""
-    scripts, gofiles, _probs = census(root)
+    """Draft manifest and the census problems: (rows, problems). Rows already in `existing` (path -> row) are
+    kept as they are. A file the census refuses (review r4 K12) is in problems, never silently left out of rows."""
+    scripts, gofiles, probs = census(root)
     ms = Models(root)
     rows = {}
     shells = [f for f, k in scripts.items() if k in ("sh", "runall") and "/fixtures/" not in "/" + f]
@@ -1871,7 +1874,7 @@ def generate(root, existing):
             rows[m] = existing[m]
         else:
             rows[m] = [m, "go", "entry", "default", "go-test", "-", "auto: Go module with *_test.go"]
-    return [rows[k] for k in sorted(rows)]
+    return [rows[k] for k in sorted(rows)], probs
 
 
 def read_manifest(path):
@@ -1908,29 +1911,63 @@ def guide_block(rows):
             % census_line(rows)[len("census: "):])
 
 
-def guide_check(root, rows, fix=False):
-    """None when the guide has no census block or it is current; else a problem string (or rewrites it)."""
+def guide_parse(root):
+    """Read the guide and find its census block. Returns (lines, begin, end, problem): lines from gov_lines() (None
+    when there is no guide), begin and end the line numbers of the marker lines (None, None when the guide has no
+    block), problem a string or None. GovLineError (a refused character) propagates to the caller. CON-030 round 5 (review r4 K1): a marker is a WHOLE line equal to GUIDE_BEGIN or
+    GUIDE_END (after the CR of a CRLF line end), never a substring, so prose or code that quotes a marker is text, not
+    a marker; the guide must hold exactly one begin line and, after it, exactly one end line, and a line that equals a
+    marker only after stripping spaces is refused (a marker that the reader would silently not see)."""
     p = os.path.join(root, GUIDE_REL)
     if not os.path.isfile(p):
-        return None
+        return None, None, None, None
+    lines = gov_lines(p)
+    begins = [n for n, l in lines if l == GUIDE_BEGIN]
+    ends = [n for n, l in lines if l == GUIDE_END]
+    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and l.strip() in (GUIDE_BEGIN, GUIDE_END)]
+    if near:
+        return lines, None, None, ("%s: line(s) %s hold a census marker with surrounding white space; a marker line "
+                                   "must be exactly %s or %s" % (GUIDE_REL, near, GUIDE_BEGIN, GUIDE_END))
+    if not begins and not ends:
+        return lines, None, None, None
+    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:
+        return lines, None, None, ("%s: the census block needs exactly one line %s and, after it, exactly one line %s "
+                                   "(begin line(s) %s, end line(s) %s)" % (GUIDE_REL, GUIDE_BEGIN, GUIDE_END, begins, ends))
+    return lines, begins[0], ends[0], None
+
+
+def replace_lines(p, a, b, want):
+    """Write file p with the lines strictly between line numbers a and b (1-based, as gov_lines() numbers them)
+    replaced by want, atomically. Every other byte is copied unchanged: the file is split on b"\\n" exactly as
+    gov_lines() splits it, so a CRLF line end or a byte that is not UTF-8 outside the block is kept (CON-030 round 5);
+    a new line gets the CR of the begin-marker line when that line has one. The bytes are copied, never parsed."""
+    with open(p, "rb") as fh:  # io: not-gov (bytes copied unchanged around the block; the parse is gov_lines in guide_parse)
+        raw = fh.read().split(b"\n")
+    eol = b"\r" if raw[a - 1].endswith(b"\r") else b""
+    data = b"\n".join(raw[:a] + [w.encode("utf-8") + eol for w in want] + raw[b - 1:])
+    tmp = p + ".tmp.%d" % os.getpid()
+    with open(tmp, "wb") as fh:  # io: write
+        fh.write(data)
+    os.replace(tmp, p)
+
+
+def guide_check(root, rows, fix=False):
+    """None when the guide has no census block or it is current; else a problem string. With fix=True a stale block is
+    rewritten (and None returned); every other problem is returned with fix=True too and nothing is written (review r4
+    K2: the caller must never report a rewrite that did not happen)."""
     try:
-        text = "\n".join(l for _n, l in gov_lines(p))
+        lines, a, b, prob = guide_parse(root)
     except GovLineError as e:
         return str(e)
-    if GUIDE_BEGIN not in text:
+    if prob:
+        return prob
+    if a is None:
         return None
-    a = text.index(GUIDE_BEGIN) + len(GUIDE_BEGIN)
-    b = text.find(GUIDE_END, a)
-    if b < 0:
-        return "%s: %s without %s" % (GUIDE_REL, GUIDE_BEGIN, GUIDE_END)
-    want = "\n" + guide_block(rows) + "\n"
-    if text[a:b] == want:
+    want = [guide_block(rows)]
+    if [l for n, l in lines if a < n < b] == want:
         return None
     if fix:
-        tmp = p + ".tmp.%d" % os.getpid()
-        with open(tmp, "w") as fh:  # io: write
-            fh.write(text[:a] + want + text[b:])
-        os.replace(tmp, p)
+        replace_lines(os.path.join(root, GUIDE_REL), a, b, want)
         return None
     return "%s: census block is stale (run --sync-guide)" % GUIDE_REL
 
@@ -3303,7 +3340,14 @@ def main(argv):
         existing = {}
         if os.path.isfile(manifest):
             existing = {r[0]: r for r in read_manifest(manifest)}
-        rows = generate(root, existing)
+        rows, cprobs = generate(root, existing)
+        if cprobs:
+            # review r4 K12: a manifest without a census file would be reported as written while it is not complete
+            for c in cprobs:
+                err("MANIFEST: " + c)
+            out("RESULT: MANIFEST-NOT-GENERATED (%d census problem(s); nothing was %s)"
+                % (len(cprobs), "written" if write else "printed"))
+            return 3
         if write:
             os.makedirs(os.path.dirname(manifest), exist_ok=True)
             write_manifest(manifest, rows)
@@ -3319,7 +3363,17 @@ def main(argv):
     if accept and not verify_only:
         raise Fatal(2, "--accept-excluded-change is used with --verify-manifest")
     if sync:
-        guide_check(root, rows, fix=True)
+        prob = guide_check(root, rows, fix=True) or guide_check(root, rows)
+        if prob:
+            # review r4 K2: a problem the rewrite cannot fix (a refused character, a missing or doubled marker) is
+            # reported and the command fails; it never prints the census line as if the block had been written
+            err("GUIDE: " + prob)
+            out("RESULT: GUIDE-NOT-SYNCED (nothing was written)")
+            return 3
+        lines, a, _b, _prob = guide_parse(root)
+        if lines is None or a is None:
+            out("guide census block: %s has no census block; nothing was written" % GUIDE_REL)
+            return 0
         out("guide census block: %s" % guide_block(rows))
         return 0
     probs = verify(root, rows)
@@ -3329,6 +3383,14 @@ def main(argv):
         out("accepted the excluded set (%d row(s)) as %s in %s" % (len(excluded_rows(rows)), accept, lock_path))
         eprobs = excl_check(lock_path, rows)
     probs = probs + eprobs
+    if verify_only and not probs:
+        # review r4 K9: the pre-flight answer is the run's answer; plan() refuses two units with one key or one display
+        # id, so verify asks it too, in both modes
+        for hv in (False, True):
+            try:
+                plan(rows, hv, discarded_members(root, rows, hv))
+            except Fatal as e:
+                probs.append("plan (%s mode): %s" % ("full" if hv else "default", e))
     cline = census_line(rows)
     if probs:
         for p in probs:
