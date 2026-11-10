@@ -127,7 +127,7 @@ fi
 # The lookup uses python3's own sqlite3 module (read-only URI), not the
 # sqlite3 command-line tool: the CLI is often not installed, and its absence
 # made this needle report "SKIPPED" while the test exited 1 (review finding
-# F-PRE-2, CON-121). python3 is already required by every other check here.
+# F-PRE-2, CON-129). python3 is already required by every other check here.
 # The query is checked first against a KNOWN-PRESENT id read from the same
 # table (control needle), so an empty answer can be trusted as absence.
 NEEDLE2=$(python3 -I - "$DB" B-001 MB-004 NB-001 <<'PYN' 2>&1

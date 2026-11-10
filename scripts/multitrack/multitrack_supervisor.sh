@@ -309,7 +309,7 @@ cmd_watch() {
     # The sleep between iterations runs in the background and is waited for,
     # so a SIGTERM/SIGINT/SIGHUP to the daemon stops that sleep too. With a
     # foreground `sleep` the shell died on the signal and its sleep was
-    # orphaned to init for a whole interval (CON-120, review F-PRE-1). The
+    # orphaned to init for a whole interval (CON-128, review F-PRE-1). The
     # child pid is a single positive pid (section 11.4.263), never a group.
     _sup_sleep_pid=""
     trap '_sup_watch_stop 143' TERM

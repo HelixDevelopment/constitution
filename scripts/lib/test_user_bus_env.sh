@@ -1,6 +1,6 @@
 #!/bin/sh
 # scripts/lib/test_user_bus_env.sh -- tests of scripts/lib/user_bus_env.sh
-# (CON-117 helper; CON-110 follow-ups F110-1 and F110-2).
+# (CON-125 helper; CON-118 follow-ups F110-1 and F110-2).
 #
 # Each case builds runtime directories in a temp tree, with a real AF_UNIX
 # socket (made by python3) or a symlink named `bus` to a root-owned socket,

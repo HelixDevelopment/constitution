@@ -86,7 +86,7 @@ _self_dir=$(cd "$_self_dir" 2>/dev/null && pwd)
 # Every path compared below is PHYSICAL (pwd -P): `git rev-parse
 # --show-toplevel` always answers with the physical path, so comparing it with
 # a logical path made a consumer reached through a symlinked directory lose its
-# device roster while the suite still passed (CON-109, review finding F109-1).
+# device roster while the suite still passed (CON-117, review finding F109-1).
 CANON=$(cd "$_self_dir/../.." 2>/dev/null && pwd)
 [ -n "$CANON" ] || { echo "FATAL: could not resolve the canon root" >&2; exit 2; }
 ROOT=$CANON
@@ -211,7 +211,7 @@ fi
 [ "$_fail" -eq 0 ] || exit 1
 if [ "$_pass" -eq 0 ] && [ "$_skip" -gt 0 ]; then
     # Restate the members' reason only when they all share one closed code
-    # (CON-109, F109-2); otherwise name the set without a single reason token,
+    # (CON-117, F109-2); otherwise name the set without a single reason token,
     # so the runner records its own "suite_reported_skip" rather than a code
     # no member reported.
     case "$_skip_reasons" in

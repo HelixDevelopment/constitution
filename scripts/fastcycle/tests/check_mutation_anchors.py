@@ -14,7 +14,7 @@ What it reads:
     bash $'...' escapes it uses.
 A pair drifts when its anchor occurs != 1 times in the (progressively mutated) target -- the runners' own rule.
 
-NOT covered (stated so the census is never cited for them; CON-112 review F112-1): every other paired-mutation suite,
+NOT covered (stated so the census is never cited for them; CON-120 review F112-1): every other paired-mutation suite,
 in particular test_select_sample_r5_regression.sh (its run_mutant anchors on cycle/select_sample.py). Those suites
 refuse a drifted anchor only when their own mutation leg reaches it ("could not be applied (anchor drifted)"), so the
 evidence for their anchors is that leg's output, never this census.

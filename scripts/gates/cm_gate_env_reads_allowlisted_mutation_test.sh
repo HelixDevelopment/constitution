@@ -48,7 +48,7 @@ mkdir -p "$tmp/unres/scripts/gates" "$tmp/unres/config"
 printf '#!/usr/bin/env bash\n. "$(some_unknown_cmd)/lib.sh"\necho "$DEMO_ROOT"\n' >"$tmp/unres/scripts/gates/cm_demo.sh"
 cp "$fx/golden_good/allowlist.tsv" "$tmp/unres/config/gate_env_allowlist.tsv"
 
-# content-pinned eval rows (CON-113 F113-1): the row names <eval>#<sha12> of its own eval line; the hash is computed HERE
+# content-pinned eval rows (CON-121 F113-1): the row names <eval>#<sha12> of its own eval line; the hash is computed HERE
 # with sha256sum, independently of the census, so the census and this oracle must agree. A second eval in the same file
 # is a different statement and must stay UNCOVERED.
 mkdir -p "$tmp/evalone/scripts/gates" "$tmp/evalone/config"

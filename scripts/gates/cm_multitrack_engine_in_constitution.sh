@@ -33,10 +33,24 @@
 #      the interpreter its OWN shebang DECLARES (target-shell-parseability:
 #      the "target shell" is the declared one). A script declaring a POSIX
 #      shell is checked with `sh -n`; a script declaring bash is checked with
-#      `bash -n`. Demanding `sh -n` of a declared-bash script would be a
-#      §11.4.201(1) false-positive refusal — §11.4.67 clause 4 ("Honest
-#      shebangs") expressly sanctions bash-shebang + `bash script.sh` callers
-#      for scripts using the clause-3 bash-only constructs.
+#      `bash -n`; a script declaring PYTHON (`#!/usr/bin/env python3`, any
+#      `python`/`pythonN[.M]` interpreter word, through `env` and its options)
+#      is COMPILED with python3's own compiler (`python3 -I -c 'compile(..)'`:
+#      isolated, writes no bytecode, executes nothing; the compile step, not
+#      `ast.parse`, because the parser alone accepts what python3 refuses at
+#      load time: a top-level `return`/`break`/`yield`/`await`, a bad `nonlocal`
+#      or `global`, a misplaced `from __future__`, `def f(a, a)`). A python failure is reported as ONE line,
+#      `<name>:<line>: <ErrorType>: <message>`, never as a traceback (the consumer's report row cuts a message at 400
+#      bytes; the traceback was 487 bytes on the real engine). Demanding `sh -n` of a
+#      declared-bash script would be a §11.4.201(1) false-positive refusal —
+#      §11.4.67 clause 4 ("Honest shebangs") expressly sanctions bash-shebang
+#      + `bash script.sh` callers for scripts using the clause-3 bash-only
+#      constructs — and demanding `sh -n` of a declared-python script (the
+#      engine ships `agent_label_frontmatter_check.py`) is the same refusal,
+#      reproduced 2026-11-06: `sh -n` reads `MODELS = ("sonnet", "opus")` as
+#      shell. A python-declaring script on a host with no python3 FAILS
+#      (cannot verify; never a silent skip). Any other shebang keeps the
+#      legacy rule (bash if the line names bash, else `sh -n`).
 #
 # Known false-positive this gate's exemption clause specifically closes
 # (verified 2026-07-09 against the real constitution/scripts/multitrack/
@@ -73,7 +87,8 @@
 #   None (read-only; no network, no commit, no device mutation).
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, sh, POSIX find + grep. Parses clean under bash -n.
+#   bash, sh, POSIX find + grep; python3 (the built-in compile() only) when the engine
+#   ships a python-declaring script. Parses clean under bash -n.
 #
 # ── Cross-references ──────────────────────────────────────────────────────────
 #   §11.4.187 (automatic multi-track ruler orchestration), §11.4.28(B) +
@@ -84,7 +99,7 @@
 # ── Exit codes ───────────────────────────────────────────────────────────────
 #   0 — presence + decoupling + parseability all hold.
 #   1 — at least one invariant violated.
-#   2 — environment error (engine directory not found).
+#   2 — environment error (engine directory not found; no temporary file can be created).
 #
 # Classification: universal (§11.4.17) — no project-specific data (the
 # literal patterns checked FOR are project-shaped examples, not hardcoded
@@ -97,7 +112,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 GATE="CM-MULTITRACK-ENGINE-IN-CONSTITUTION"
 
 # verdict-affecting ambient overrides are guarded (11.4.201(6)-(8)): honoured only under HELIX_TEST_MODE=1 (+ temp path for paths)
-_ge_lib="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
+_ge_lib="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)/../lib/gate_env_override.sh"
 # shellcheck source=/dev/null
 if [ -r "$_ge_lib" ]; then . "$_ge_lib"; else cm_gate_env_set() { printf -v "$1" '%s' "$3"; [ -z "${!2:-}" ] || echo "gate_env_override: ignoring $2 (guard lib missing: fail closed)" >&2; }; fi
 cm_gate_env_set engine_dir MULTITRACK_ENGINE_DIR "${SCRIPT_DIR}/../multitrack" path
@@ -218,21 +233,98 @@ fi
 # under, instead of its real invocation path). So: parse each script under the
 # interpreter it DECLARES, and additionally demand POSIX-cleanliness only from
 # scripts that DECLARE a POSIX shell — where the mksh forensic anchor bites.
+# declared_interpreter <shebang-line>: prints bash | python | sh -- the interpreter the line DECLARES.
+# The interpreter word is the first word after "#!", or, when that word is `env`, the first following word that is not
+# an option and not a VAR=value assignment. Options are read the way env reads them (review round 2, L2): a cluster of short
+# options (-i, -iS...) is walked letter by letter; -u, -C and -P take an ARGUMENT (the rest of the word when there is one:
+# -uFOO, else the next word, which is skipped), so do --unset and --chdir (the next word, unless written --unset=FOO);
+# -S takes a STRING, and when the string is attached (-Spython3, -iSpython3, -S'python3 -I') or written --split-string=python3
+# the string is read as the next word (quotes dropped); a bare -S or --split-string leaves the next word as it is. bash and
+# python / pythonN / pythonN.M are recognised by that word's basename (not `python3-config`, not a bare `python*`); every other
+# line keeps the legacy rule (bash when the line names bash anywhere, else sh), so no existing verdict changes for a non-python
+# script.
+declared_interpreter() {
+    local _line="${1#\#!}" _w=() _b _x _c _o _skip=0 _pend="" _i=1 _n
+    read -r -a _w <<<"$_line"
+    _n="${#_w[@]}"
+    _b="${_w[0]:-}"; _b="${_b##*/}"
+    if [ "$_b" = env ]; then
+        _b=""
+        while [ -n "$_pend" ] || [ "$_i" -lt "$_n" ]; do
+            if [ -n "$_pend" ]; then _x="$_pend"; _pend=""; else _x="${_w[$_i]}"; _i=$((_i + 1)); fi
+            if [ "$_skip" -eq 1 ]; then _skip=0; continue; fi
+            case "$_x" in
+                --unset|--chdir)  _skip=1; continue ;;
+                --split-string=*) _pend="${_x#--split-string=}"; _pend="${_pend//[\'\"]/}"; continue ;;
+                --*)              continue ;;
+                -?*)
+                    _c="${_x#-}"
+                    while [ -n "$_c" ]; do
+                        _o="${_c:0:1}"; _c="${_c:1}"
+                        case "$_o" in
+                            u|C|P) [ -n "$_c" ] || _skip=1; _c="" ;;
+                            S)     _pend="${_c//[\'\"]/}"; _c="" ;;
+                        esac
+                    done
+                    continue ;;
+                -|*=*)            continue ;;
+            esac
+            _b="${_x##*/}"; break
+        done
+    fi
+    case "$_b" in
+        bash)                                  echo bash ;;
+        python|python[0-9]|python[0-9].[0-9]*) echo python ;;
+        *) case "$_line" in *bash*) echo bash ;; *) echo sh ;; esac ;;
+    esac
+}
+
+# The python compile leg (isolated, executes nothing). On failure it prints ONE line, `<name>:<line>: <ErrorType>: <message>`,
+# never the traceback: the consumer's report row cuts a message at 400 bytes, and the traceback (two frames and the echoed
+# source line, 487 bytes on the real engine) pushed the part that says what is wrong out of the row (review round 2, L3).
+PY_COMPILE_SRC='import sys
+try:
+    compile(open(sys.argv[1], "rb").read(), sys.argv[1], "exec", dont_inherit=True)
+except Exception as e:
+    sys.stderr.write("%s:%s: %s: %s\n" % (sys.argv[2], getattr(e, "lineno", None) or 0, type(e).__name__, " ".join(str(getattr(e, "msg", None) or e).split())[:200]))
+    sys.exit(1)'
+
 parse_fail=0
 for f in "${scripts[@]}"; do
     rel="${f#"$engine_dir"/}"
     shebang="$(head -n 1 "$f")"
-    case "$shebang" in
-        *bash*) declared_sh="bash" ;;
-        *)      declared_sh="sh"   ;;
-    esac
+    declared_sh="$(declared_interpreter "$shebang")"
 
-    if ! "$declared_sh" -n "$f" 2>/tmp/cm_mtec_parse.$$; then
-        echo "❌ PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_mtec_parse.$$)"
+    # a temp file that cannot be created is an environment error (exit 2), never a parse verdict on the script
+    parse_err="$(mktemp "${TMPDIR:-/tmp}/cm_mtec_parse.XXXXXX")" || {
+        echo "❌ ${GATE}: cannot create a temporary file under '${TMPDIR:-/tmp}' (mktemp failed); environment error, no parse verdict is possible" >&2
+        exit 2
+    }
+    case "$declared_sh" in
+        python)
+            parse_cmd="python3 -I compile"
+            if ! command -v python3 >/dev/null 2>&1; then
+                echo "python3: command not found (cannot verify a python-declaring script; fail closed)" >"$parse_err"
+                parse_ok=1
+            elif python3 -I -c "$PY_COMPILE_SRC" "$f" "$rel" 2>"$parse_err"; then
+                parse_ok=0
+            else
+                parse_ok=1
+            fi
+            ;;
+        *)
+            parse_cmd="${declared_sh} -n"
+            if "$declared_sh" -n "$f" 2>"$parse_err"; then parse_ok=0; else parse_ok=1; fi
+            ;;
+    esac
+    if [ "$parse_ok" -ne 0 ]; then
+        echo "❌ PARSEABILITY: ${rel} fails ${parse_cmd} (its DECLARED interpreter): $(tr '\n' ' ' < "$parse_err")"
         parse_fail=$((parse_fail + 1))
+    elif [ -z "$quiet" ]; then
+        # a "clean" line is printed ONLY for a file that parsed clean (it used to follow a failure line too)
+        echo "✅ PARSEABILITY: ${rel} clean under its declared interpreter (${parse_cmd})"
     fi
-    rm -f /tmp/cm_mtec_parse.$$
-    [ -n "$quiet" ] || echo "✅ PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
+    rm -f "$parse_err"
 done
 
 if [ "$parse_fail" -eq 0 ]; then

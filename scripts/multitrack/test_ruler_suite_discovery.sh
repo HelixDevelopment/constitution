@@ -3,7 +3,7 @@
 # test_ruler_suite_discovery.sh -- meta-test of the ruler-suite aggregator
 # (scripts/multitrack/test_multitrack_ruler_suite.sh): which members it
 # discovers, which repository root it picks, and its exit and SKIP-reason
-# semantics (CON-109, review findings F109-1, F109-2, F109-3).
+# semantics (CON-117, review findings F109-1, F109-2, F109-3).
 #
 # The file name deliberately does NOT match `test_multitrack_*.sh`, so the
 # aggregator never discovers and re-runs this meta-test.

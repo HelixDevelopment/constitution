@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 # scripts/lib/user_bus_env.sh -- find the caller's own systemd --user bus
-# (CON-117, CON-110 follow-ups F110-1/F110-2/F110-3).
+# (CON-125, CON-118 follow-ups F110-1/F110-2/F110-3).
 #
 # A clean environment (env -i, the full-suite runner, cron) carries no
 # XDG_RUNTIME_DIR, or one that points somewhere without a bus; `systemctl

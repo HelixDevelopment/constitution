@@ -343,7 +343,7 @@ done
 kill "$BIG_PID" 2>/dev/null
 chk "$alive_n" "3" "LIVENESS: a live session with a large environment reads as alive under pipefail (3 probes)"
 
-# LIVENESS IS AN EXACT LITERAL MATCH (CON-114 follow-up F114-1): the config dir
+# LIVENESS IS AN EXACT LITERAL MATCH (CON-122 follow-up F114-1): the config dir
 # is a literal, not a regex (-F), and the whole environ entry must match (-x).
 # Live peers are named so that a regex "." or a prefix would wrongly match:
 #   dot   : live "$T/cfg-dotXtest"   probed as "$T/cfg-dot.test"  -> dead

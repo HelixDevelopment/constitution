@@ -82,9 +82,9 @@ fi
 # A clean environment (env -i, the full-suite runner) drops XDG_RUNTIME_DIR,
 # or carries one without a bus, which makes `systemctl --user` blind even
 # though the user manager runs. The shared helper (scripts/lib/user_bus_env.sh,
-# CON-117) exports XDG_RUNTIME_DIR to the caller's OWN bus (a socket owned by
+# CON-125) exports XDG_RUNTIME_DIR to the caller's OWN bus (a socket owned by
 # this user, the same rule for every branch), so the probe asks the real
-# question (CON-110 follow-ups F110-1, F110-2, F110-3).
+# question (CON-118 follow-ups F110-1, F110-2, F110-3).
 _ub_lib="$SELF_DIR/../lib/user_bus_env.sh"
 [ -r "$_ub_lib" ] || { echo "FAIL: helper absent: $_ub_lib"; exit 1; }
 # shellcheck source=../lib/user_bus_env.sh

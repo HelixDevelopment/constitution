@@ -895,7 +895,7 @@ def census(path, root, _seen=None):
         mv = RE_EVAL.search(e)
         if mv and ("$" in mv.group(1) or "`" in mv.group(1) or "$" in l or "`" in l):
             # content-pinned: one pseudo-variable per distinct eval statement (sha256 of the stripped source line),
-            # so an allowlist row covers that eval only, never a later one in the same file (CON-113 F113-1)
+            # so an allowlist row covers that eval only, never a later one in the same file (CON-121 F113-1)
             src = raw_lines[ln - 1].strip() if ln <= len(raw_lines) else (e + l).strip()
             add("<eval>#" + hashlib.sha256(src.encode("utf-8")).hexdigest()[:12], "indirect", ln)
     # an env-API read (embedded python/awk) of a variable this file guards through cm_gate_env_set AND re-assigns

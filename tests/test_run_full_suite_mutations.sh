@@ -16,7 +16,9 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own. F47a-F47c guard CON-047 F047-1/F047-2 (`+tracked` accepts a foreign
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit fingerprint of the generated command sets
+# (ownership wave 2 review r2: gen field, inode, mtime, after-unit check; RMb = the reviewer's mutant of
+# review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in round 3); M7+ are the author's own. F47a-F47c guard CON-047 F047-1/F047-2 (`+tracked` accepts a foreign
 # tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
@@ -132,6 +134,11 @@ L1	    if os.path.islink(path):\n        return set(), "operator roster	    if F
 L2	    if os.path.islink(lock_path):	    if False:
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
+G1	    parts.append("gen=%s" % gen_fingerprint(root))	    pass
+G2	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, st.st_ino,	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, 0,
+G3	                                                     st.st_mtime_ns, st.st_size, dig)).encode())	                                                     0, st.st_size, dig)).encode())
+G4	            if qid != qid0 or "?" in qid:\n                id_changed = "after unit	            if False:\n                id_changed = "after unit
+RMb	    for pre in ("", "constitution"):	    for pre in ("",):
 F47a	                if ids != {tid}:	                if tid not in ids:
 F47b	        elif r[1] != "Issues":	        elif False:
 F47c	    if not total:	    if False:

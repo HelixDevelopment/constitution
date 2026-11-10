@@ -1,0 +1,106 @@
+  info timeout implementations under test: sys:timeout (uutils coreutils) 0.8.0 gnu:timeout (GNU coreutils) 9.7
+### [sys] timeout (uutils coreutils) 0.8.0
+  ok   [sys] add without a controlling terminal: rc 3
+  ok   [sys] add without a controlling terminal: returned within 20 s
+  ok   [sys] add without a terminal: nothing installed
+  FAIL [sys] add via dispatcher, answer n: rc 3 (expected [3] got [255])
+  ok   [sys] add n: prompt shown
+  FAIL [sys] add n: not killed by the driver (no hang) (expected [False] got [True])
+  ok   [sys] add n: nothing installed
+  FAIL [sys] add via dispatcher, answer y: rc 0 (expected [0] got [255])
+  ok   [sys] add y: prompt shown
+  FAIL [sys] add y: not killed by the driver (no hang) (expected [False] got [True])
+  FAIL [sys] add y: hooks-fixture installed
+  FAIL [sys] add y: install fact written
+  ok   [sys] adopt-install without a controlling terminal: rc 3
+  ok   [sys] adopt-install without a controlling terminal: returned within 20 s
+  ok   [sys] adopt-install without a terminal: no fact
+  ok   [sys] adopt-install via dispatcher, wrong id: rc 3
+  FAIL [sys] adopt-install wrong id: prompt shown (expected [True] got [False])
+  ok   [sys] adopt-install wrong id: not killed by the driver (no hang)
+  ok   [sys] adopt-install wrong id: no fact
+  FAIL [sys] adopt-install via dispatcher, right id: rc 0 (expected [0] got [3])
+  FAIL [sys] adopt-install right id: prompt shown (expected [True] got [False])
+  ok   [sys] adopt-install right id: not killed by the driver (no hang)
+  FAIL [sys] adopt-install right id: fact written
+  FAIL [sys] adopt-install right id: the engine's result reaches the operator (missing [adopted hooks-fixture] in: constitution_ext: hooks-fixture is not an installed entry of this project's lock; nothing adopted
+
+PTY_PROMPT=False PTY_KILLED=False PTY_SECS=0 PTY_RC=3)
+  ok   [sys] adopt-install: no engine process left behind
+  FAIL [sys] enable without a controlling terminal: rc 3 (expected [3] got [1])
+  ok   [sys] enable without a controlling terminal: returned within 20 s
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_sys/.constitution/extensions.lock.yml: No such file or directory
+  ok   [sys] enable without a terminal: lock not enabled
+  FAIL [sys] enable via dispatcher, answer n: rc 3 (expected [3] got [1])
+  FAIL [sys] enable n: prompt shown (expected [True] got [False])
+  ok   [sys] enable n: not killed by the driver
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_sys/.constitution/extensions.lock.yml: No such file or directory
+  ok   [sys] enable n: lock not enabled
+  FAIL [sys] enable via dispatcher, answer y: rc 0 (expected [0] got [1])
+  FAIL [sys] enable y: prompt shown (expected [True] got [False])
+  ok   [sys] enable y: not killed by the driver
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_sys/.constitution/extensions.lock.yml: No such file or directory
+  FAIL [sys] enable y: lock says enabled
+  FAIL [sys] setup: disable hooks-fixture for the budget case (expected [0] got [1])
+  FAIL [sys] enable, nobody answers, budget 4 s: rc 124 (timed out) (expected [124] got [1])
+  FAIL [sys] budget case: prompt shown (expected [True] got [False])
+  ok   [sys] budget case: ended by the budget, not by the driver
+  ok   [sys] budget case: ended within 20 s
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_sys/.constitution/extensions.lock.yml: No such file or directory
+  ok   [sys] budget case: lock not enabled
+  ok   [sys] budget case: no engine process left behind
+### [gnu] timeout (GNU coreutils) 9.7
+  ok   [gnu] add without a controlling terminal: rc 3
+  ok   [gnu] add without a controlling terminal: returned within 20 s
+  ok   [gnu] add without a terminal: nothing installed
+  FAIL [gnu] add via dispatcher, answer n: rc 3 (expected [3] got [255])
+  ok   [gnu] add n: prompt shown
+  FAIL [gnu] add n: not killed by the driver (no hang) (expected [False] got [True])
+  ok   [gnu] add n: nothing installed
+  FAIL [gnu] add via dispatcher, answer y: rc 0 (expected [0] got [255])
+  ok   [gnu] add y: prompt shown
+  FAIL [gnu] add y: not killed by the driver (no hang) (expected [False] got [True])
+  FAIL [gnu] add y: hooks-fixture installed
+  FAIL [gnu] add y: install fact written
+  ok   [gnu] adopt-install without a controlling terminal: rc 3
+  ok   [gnu] adopt-install without a controlling terminal: returned within 20 s
+  ok   [gnu] adopt-install without a terminal: no fact
+  ok   [gnu] adopt-install via dispatcher, wrong id: rc 3
+  FAIL [gnu] adopt-install wrong id: prompt shown (expected [True] got [False])
+  ok   [gnu] adopt-install wrong id: not killed by the driver (no hang)
+  ok   [gnu] adopt-install wrong id: no fact
+  FAIL [gnu] adopt-install via dispatcher, right id: rc 0 (expected [0] got [3])
+  FAIL [gnu] adopt-install right id: prompt shown (expected [True] got [False])
+  ok   [gnu] adopt-install right id: not killed by the driver (no hang)
+  FAIL [gnu] adopt-install right id: fact written
+  FAIL [gnu] adopt-install right id: the engine's result reaches the operator (missing [adopted hooks-fixture] in: constitution_ext: hooks-fixture is not an installed entry of this project's lock; nothing adopted
+
+PTY_PROMPT=False PTY_KILLED=False PTY_SECS=0 PTY_RC=3)
+  ok   [gnu] adopt-install: no engine process left behind
+  FAIL [gnu] enable without a controlling terminal: rc 3 (expected [3] got [1])
+  ok   [gnu] enable without a controlling terminal: returned within 20 s
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_gnu/.constitution/extensions.lock.yml: No such file or directory
+  ok   [gnu] enable without a terminal: lock not enabled
+  FAIL [gnu] enable via dispatcher, answer n: rc 3 (expected [3] got [1])
+  FAIL [gnu] enable n: prompt shown (expected [True] got [False])
+  ok   [gnu] enable n: not killed by the driver
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_gnu/.constitution/extensions.lock.yml: No such file or directory
+  ok   [gnu] enable n: lock not enabled
+  FAIL [gnu] enable via dispatcher, answer y: rc 0 (expected [0] got [1])
+  FAIL [gnu] enable y: prompt shown (expected [True] got [False])
+  ok   [gnu] enable y: not killed by the driver
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_gnu/.constitution/extensions.lock.yml: No such file or directory
+  FAIL [gnu] enable y: lock says enabled
+  FAIL [gnu] setup: disable hooks-fixture for the budget case (expected [0] got [1])
+  FAIL [gnu] enable, nobody answers, budget 4 s: rc 124 (timed out) (expected [124] got [1])
+  FAIL [gnu] budget case: prompt shown (expected [True] got [False])
+  ok   [gnu] budget case: ended by the budget, not by the driver
+  ok   [gnu] budget case: ended within 20 s
+grep: /home/milosvasic/.cache/claude-tmp/helix-ext-test.HwXXEY/p_gnu/.constitution/extensions.lock.yml: No such file or directory
+  ok   [gnu] budget case: lock not enabled
+  ok   [gnu] budget case: no engine process left behind
+  FAIL CONSTITUTION_CMD_EXT_TIMEOUT=0 is refused (rc 2) (expected [2] got [0])
+  FAIL CONSTITUTION_CMD_EXT_TIMEOUT=601 is refused (rc 2) (expected [2] got [0])
+  FAIL CONSTITUTION_CMD_EXT_TIMEOUT=abc is refused (rc 2) (expected [2] got [0])
+  FAIL CONSTITUTION_CMD_EXT_TIMEOUT=-1 is refused (rc 2) (expected [2] got [0])
+constitution-cmd-pty: PASS 46 FAIL 44

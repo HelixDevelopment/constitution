@@ -235,7 +235,7 @@ _children() {
 }
 # _kill_tree <signal> <pid>: signal the children of <pid> first, then <pid>
 # itself. Killing only the daemon's sh pid orphaned its foreground
-# `sleep <interval>` for days (review finding F-PRE-1, CON-120). Every pid is
+# `sleep <interval>` for days (review finding F-PRE-1, CON-128). Every pid is
 # a single positive pid greater than 1, never a process group (section
 # 11.4.263); the children are read from the pid's own /proc entry, so they are
 # ours by construction.
@@ -557,7 +557,7 @@ FIXEOF
         fail "GREEN(f): rc=$_fboot_rc running=$_frunning saw_line=$_fsaw_watch_line pid=$_fwatchpid log=$_flog" "$WORK/boot_on_$_iter.log"
         echo "GREEN_f_optin_on=UNEXPECTED rc=$_fboot_rc running=$_frunning saw_line=$_fsaw_watch_line" >> "$_norm"
     fi
-    # (f3) the daemon itself stops its own sleep on SIGTERM (CON-120): the
+    # (f3) the daemon itself stops its own sleep on SIGTERM (CON-128): the
     #      children read before the signal must all be gone afterwards. The
     #      positive control is that the token scan sees the daemon and its
     #      sleep before the signal (a blind scan would read 0 both times).
