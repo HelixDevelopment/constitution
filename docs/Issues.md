@@ -1687,6 +1687,8 @@ fixu round 2 (2026-11-06), test_precheck_slicer_red.sh only (review F099-1): cas
 
 fixu round 3 (2026-11-06), test_precheck_slicer_red.sh only (review F099-2, F099-3): the shellcheck leg of C2a matched SC2086 in the FAIL entries, which also carry the pack's severity_floor config echo (a carrier); it now reads evidence.findings[].rule == SC2086 in the planted file and requires files_linted > 0. With shellcheck off PATH the pack reports an honest skip and the leg is SKIP (control needle: command -v), the parse leg still required. New test_precheck_slicer_c2a_mutants.sh adopts the reviewer's mutants (blind leg, defect removed) plus a config-echo stub and the no-shellcheck case: old test 1/4 (RED), new test 5/0. Evidence docs/qa/fixu3_round3/f099/. Awaits re-review of this slice.
 
+fixu round 3 re-review (2026-11-06, docs/qa/fixu_review/review_fixu_r3.md, landed 2026-11-10): F099-2 and F099-3 closed, verdict GO-with-follow-ups, every open finding minor-class (section 11.4.276(G.2)). Follow-ups: CON-140 (F099-4, the parse leg is still a carrier match), CON-141 (F099-5, F099-6, N099-1, N099-3, harness strength), CON-142 (F099-8, N099-2, N099-4, harness SIGTERM leak), CON-143 (F099-7, the C2a FAIL message). Verdict change (F099-7): under the full-suite runner default isolation (no XDG_RUNTIME_DIR, no bus) test_precheck_slicer_red.sh and test_precheck_slicer_c2a_mutants.sh FAIL since ec047648, because the shellcheck leg is now reported BLIND instead of passed by the config echo; the cause is CON-125, and with the bus variables passed through (--env-extra XDG_RUNTIME_DIR --env-extra DBUS_SESSION_BUS_ADDRESS) both PASS. Round count (section 11.4.276(E)(1), N099-6): this slice has used 3 review rounds; the fixer recorded no round-3 convergence assessment. The reviewer's class inventory (review section 6) found the carrier class open in exactly one member, line 433 (CON-140); the next fix of this slice is round 4 of at most 5 and must close that class, not only that line. The other ten tests of this item are untouched. Stays open.
+
 ## CON-100 — test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
 
 **Status:** Queued
@@ -2027,6 +2029,8 @@ fixu round 2 (2026-11-06): the shared helper landed: scripts/lib/user_bus_env.sh
 
 Id history (§11.4.214): first minted in the fixu vehicle as CON-117 (commit 7b51c4bf), re-minted as CON-125 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
 
+fixu landing (2026-11-10, review F099-7 of docs/qa/fixu_review/review_fixu_r3.md): add to the affected list scripts/fastcycle/tests/test_precheck_slicer_red.sh (its C2a shellcheck leg is BLIND without the bus and the test FAILs under the full-suite runner default isolation since ec047648) and scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh (FAILs the same way).
+
 ## CON-126 — test_precheck_pack_build_red.sh fails when run alone (not only in a batch), and it chmods real repository files during its run
 
 **Status:** Queued
@@ -2123,7 +2127,7 @@ Id history (§11.4.214): first minted in the fixu vehicle as CON-123 (commit 351
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
 **Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
 
-Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). One class of four members. (1) F121-1 scripts/.../test_reopen_rate_red.sh needle #2 opens the tracker DB with mode=ro&immutable=1, which ignores the -wal file: a colliding row held only in the WAL is reported CLEAN, rc 0 (reviewer ev/rr_mut_wal_only.out). (2) F047-3 scripts/full_suite/run_full_suite.py check_known_open (around line 2913) reads immutable=1 and prints KNOWN-OPEN rc 0 for a closure still in the WAL (reviewer ev/kopen_wal.out.walonly), a clean 0 on a state it did not see. (3) scripts/codegraph/tests/test_resolve1_equiv_real.js:21 and (4) scripts/codegraph/tests/test_resolve2_probe.js:15 use the same pattern; scripts/codegraph/tests/test_mcp_readonly.sh:28 already records the lesson. Fix shape: open with immutable=1 only when no non-empty -wal exists, else copy the DB and its -wal to a temp directory and read the copy. Enumerate all members with git grep -n immutable=1 (section 11.4.276(C)). Exposure is transient (a writer must hold the WAL open).
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). One class of four members. (1) F121-1 scripts/fastcycle/tests/test_reopen_rate_red.sh needle #2 opens the tracker DB with mode=ro&immutable=1, which ignores the -wal file: a colliding row held only in the WAL is reported CLEAN, rc 0 (reviewer ev/rr_mut_wal_only.out). (2) F047-3 scripts/full_suite/run_full_suite.py check_known_open (around line 2913) reads immutable=1 and prints KNOWN-OPEN rc 0 for a closure still in the WAL (reviewer ev/kopen_wal.out.walonly), a clean 0 on a state it did not see. (3) scripts/codegraph/tests/test_resolve1_equiv_real.js:21 and (4) scripts/codegraph/tests/test_resolve2_probe.js:15 use the same pattern; scripts/codegraph/tests/test_mcp_readonly.sh:28 already records the lesson. Fix shape: open with immutable=1 only when no non-empty -wal exists, else copy the DB and its -wal to a temp directory and read the copy. Enumerate all members with git grep -n immutable=1 (section 11.4.276(C)). Exposure is transient (a writer must hold the WAL open). (N099-8 of docs/qa/fixu_review/review_fixu_r3.md: the elided path above was written in full at the landing, 2026-11-10.)
 
 Id history (§11.4.214): first minted in the fixu vehicle as CON-124 (commit 5dc6097e), re-minted as CON-132 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
 
@@ -2224,4 +2228,76 @@ Id history (§11.4.214): first minted in the fixu vehicle as CON-130 (commit 5dc
 Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The line [ -f $DB ] || [ ! -f $ROOT/constitution/docs/workable_items.db ] || DB=... switches to the canon DB whenever the consumer DB is absent, not only for a standalone canon checkout, so a consumer with a missing DB is silently checked against the canon DB. Fix: print which DB was read, and switch only when ROOT is the canon itself.
 
 Id history (§11.4.214): first minted in the fixu vehicle as CON-131 (commit 5dc6097e), re-minted as CON-139 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-140 — Slicer test C2a parse leg is still a carrier match: any FAIL evidence that contains "syntax error" satisfies it (F099-4, N099-5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_red.sh line 433 computes parse_leg = any("syntax error" in e.lower() for e in fails) over the string form of the evidence of EVERY FAIL check, so a shellcheck finding text, a message or a fixture comment satisfies it; the reviewer showed it on the real pack (P5: parse check broken plus one innocent fixture comment, C2a PASSes) and with a stub (S6). Same carrier class as F099-2 (section 11.4.201(7)(a)), in the sibling leg; the reviewer's class inventory (section 6) found this line the only open member. Fix: select the check whose check == "parse", require verdict == "FAIL" and an evidence.failures[] entry with file == "broken_syntax_gate.sh" and a case-insensitive "syntax error" message; add P5 and S6 as harness cases. Parent: CON-099.
+
+## CON-141 — C2a mutants harness lets 7 of 8 reviewer mutants survive and never proves its cases reached their precondition (F099-5, F099-6, N099-1, N099-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh: reviewer mutants TM1-TM7 of test_precheck_slicer_red.sh survive the harness 5/0 (TM1, TM4 and TM7 are not equivalent on the real pack); under section 11.4.276(D) a surviving reviewer mutation is adopted and must fail the suite before the next review. The harness asserts only "FAIL: C2a" and rc != 0: M1 blinds the shellcheck leg indirectly (env -i, no bus, relying on open CON-125), so a fixed CON-125 turns M1 into a false FAIL; when the baseline B0 fails, M1, M2 and M4 are still counted PASS (section 11.4.199(2)). Fix: real-pack cases P1, P2, P4 and stub cases S2, S3, S8, S10; blind the leg directly with a stub and assert shellcheck=NO or files_linted 0; assert each case's precondition line; stop or report not-proven when B0 fails; exit 77 (SKIP with a reason) when shellcheck is absent instead of a full PASS (N099-1); add the positive needle for M2 (the unmodified fixture yields SC2086, N099-3). Parent: CON-099.
+
+## CON-142 — C2a mutants harness leaks its temp tree on SIGTERM under dash because it traps EXIT only (F099-8, N099-2, N099-4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh installs trap cleanup EXIT only; under sh (dash) SIGTERM does not run the EXIT trap. Reviewer measurement: timeout -s TERM 2 gives rc 124 and leaves tmp.*/{b0,m1,out}, 42 MB, after 2 s; a full run copies the 21 MB scripts/fastcycle five times. Which signal the full-suite runner sends on its own timeout is UNCONFIRMED. Also: BASEENV is expanded unquoted with SC2086 disabled (N099-2), and the cleanup guard case $TMP in /*/tmp.*|/*/*.*) is nearly vacuous because * matches / in case (N099-4; safety rests on mktemp -d plus ${TMP:?}; section 11.4.287(B) prefers safe_rm_rf). Fix: trap cleanup on INT, TERM and HUP with exit 130/143/129, a SIGTERM case in the test, and safe_rm_rf. Reproduction: by the reviewer only, not re-run at the landing. Parent: CON-099.
+
+## CON-143 — Slicer test C2a FAIL message does not say BLIND and does not quote the shellcheck check verdict, files_linted or the pack error (F099-7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). Under the full-suite runner default isolation (no XDG_RUNTIME_DIR, no bus) test_precheck_slicer_red.sh and the c2a mutants harness FAIL since ec047648 (the base 351fe277 passed through the carrier); with --env-extra XDG_RUNTIME_DIR --env-extra DBUS_SESSION_BUS_ADDRESS they PASS. The new red is a true red (a blind shellcheck leg is now reported) whose cause is open CON-125, but the C2a FAIL message does not name the cause (section 11.4.201(5)). The process-doc parts of F099-7 (CON-125 affected list, CON-099 note) are done at the landing. Fix left: make the C2a FAIL print the shellcheck check verdict, files_linted and any pack error, and say BLIND when the leg could not see. Parent: CON-099.
+
+## CON-144 — Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assign in the PR-delivery and release-gate anchor-wired gates
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_review/landing/envgate_main_90efceb8.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — env `clean git worktree of main 90efceb8d0e5583c70888c78dc05ea189f85b0e3` — signature `UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign)` — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, bash scripts/gates/cm_gate_env_reads_allowlisted.sh exits 1 with uncovered=3: scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (fixed by the fixu vehicle, CON-121), scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign) and scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign); on the merged tree the first one is gone and the other two remain (uncovered=2). Both lines are the names_cm_gate_in_block() helper, added by c87745de (section 11.4.297) and 2d783401 (section 11.4.298), which reads $BLK inside a function defined before BLK is assigned. Whether the read can happen before the assignment, or the census reports a safe read, is UNCONFIRMED (not investigated at the landing; out of the landing scope, section 11.4.293). Fix: route BLK through cm_gate_env_set, or add allowlist rows with a reason, after reading when the helper runs. Evidence: docs/qa/fixu_review/landing/envgate_main_90efceb8.out (main) and docs/qa/fixu_review/landing/envgate_merged.out (merged tree).
+
+## CON-145 — Full-suite manifest auto note of scripts/fastcycle/tests/run_all.sh says 12 heavy members while 14 are listed (N099-7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). config/full_suite_manifest.tsv row scripts/fastcycle/tests/run_all.sh carries the note "auto: covers 12 heavy member(s)"; at the landing 14 rows name run_all.sh as their heavy member runner (13 at the base of the vehicle). The note is pre-existing and stale, --verify-manifest does not check it. Fix: regenerate the auto note, or make --verify-manifest compare the count with the member rows.
 

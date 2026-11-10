@@ -1,0 +1,4 @@
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (indirect): route it through cm_gate_env_set or add an allowlist row
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=173 guarded=54 allowlisted=116 uncovered=3 stale=0 needle=ok
