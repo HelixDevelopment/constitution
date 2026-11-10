@@ -809,7 +809,10 @@ def _patch_file_paths(out):
     needs it; a trailing TAB git adds after a name with a space is dropped)
     -- and, for a section with none of them (binary, mode change, empty
     new file), from the header when both sides name the same file. Decoded
-    with surrogateescape. No hash or verdict reads this list."""
+    with surrogateescape. No custody verdict reads this list and it is not
+    part of the stash patch hash; it is a field of the inventory entry, so
+    it is inside the entry's `body_hash` (fc_common.body_hash_of), which
+    compares two runs of the same version for determinism."""
     sections, cur = [], None
     for raw_line in out.split(b"\n"):
         if raw_line.startswith(b"diff --git "):
