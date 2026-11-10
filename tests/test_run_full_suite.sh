@@ -988,7 +988,7 @@ gitc "$HM" checkout -q "$HMA"
 run "$HM" "$T/o_hm" --include-heavy
 chk "R5-1: HEAD moved by a unit mid-run -> rc 1" "$RC" "1"
 has "R5-1: RESULT names the identity change" '^RESULT: FAIL \(identity changed during the run' "$T/o_hm.log"
-has "R5-1: summary says where it changed" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm/summary.txt"
+has "R5-1: summary says where it changed (C02: checked after every unit too)" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm/summary.txt"
 chk "R5-1: the unit after the move is not run (never credited to the start HEAD)" "$(verdict "$T/o_hm" tests/a/test_2.sh)" ""
 hasnt "R5-1: never PASS-FULL" '^RESULT: PASS' "$T/o_hm.log"
 gitc "$HM" checkout -q "$HMA"
@@ -998,7 +998,7 @@ gen "$HM2"; gitc "$HM2" add -A; gitc "$HM2" commit -q -m A; HM2A=$(git -C "$HM2"
 gitc "$HM2" checkout -q -b bb; gitc "$HM2" commit -q --allow-empty -m B; gitc "$HM2" checkout -q "$HM2A"
 run "$HM2" "$T/o_hm2" --include-heavy
 chk "R5-1: HEAD moved by the last unit -> rc 1 (end check)" "$RC" "1"
-has "R5-1: end check named" '^IDENTITY CHANGED at the end of the run' "$T/o_hm2/summary.txt"
+has "R5-1: a move by the last unit is caught after that unit" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm2/summary.txt"
 HM3="$T/submove"; mkroot "$HM3"
 gitc "$HM3" -c protocol.file.allow=always submodule add -q "$SMR" sub >/dev/null 2>&1
 sut "$HM3" tests/a/test_1.sh "git -C '$HM3/sub' -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved; echo 'passed=1 failed=0'"
@@ -1006,7 +1006,7 @@ sut "$HM3" tests/a/test_2.sh 'echo "passed=1 failed=0"'
 gen "$HM3"; gitc "$HM3" add -A; gitc "$HM3" commit -q -m sm
 run "$HM3" "$T/o_hm3" --include-heavy
 chk "R5-1: a submodule HEAD moved mid-run -> rc 1" "$RC" "1"
-has "R5-1: submodule move caught before the next unit" '^IDENTITY CHANGED before unit tests/a/test_2.sh' "$T/o_hm3/summary.txt"
+has "R5-1: submodule move caught after the moving unit" '^IDENTITY CHANGED after unit tests/a/test_1.sh' "$T/o_hm3/summary.txt"
 HG="$T/headread"; mkroot "$HG"
 sut "$HG" tests/a/test_1.sh "git -C '$HG' log -1 --oneline >/dev/null; git -C '$HG' status --short >/dev/null; echo 'passed=1 failed=0'"
 sut "$HG" tests/a/test_2.sh 'echo "passed=1 failed=0"'
@@ -1226,14 +1226,17 @@ chk "CON-030 r3 QuickIdent: unknown per value, never per path; labels distinct" 
 import sys, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 Q, h = m.QuickIdent, "0" * 40
-good = Q(((None, h), ("status", h), ("?", h), ("status=?", h), (".", h)), "abc")
-print(m.ident_unknown(good), m.ident_unknown(Q(((None, h), ("status", None)), "abc")),
-      m.ident_unknown(Q(((None, h),), None)), m.ident_unknown(Q(((None, None),), "abc")),
-      len(set(map(m.ident_label, [("head", None), ("status",), ("head", "status"), ("head", "root HEAD"),
-                                    ("head", "root status"), ("head", ".")]))),
-      m.ident_diff(good, Q(((None, h), ("status", None), ("?", h), ("status=?", h), (".", h)), "abc")))
+good = Q(((None, h), ("status", h), ("?", h), ("status=?", h), (".", h), ("gen", h)), "abc", "def")
+print(m.ident_unknown(good), m.ident_unknown(Q(((None, h), ("status", None)), "abc", "def")),
+      m.ident_unknown(Q(((None, h),), None, "def")), m.ident_unknown(Q(((None, None),), "abc", "def")),
+      m.ident_unknown(Q(((None, h),), "abc", None)),
+      len(set(map(m.ident_label, [("head", None), ("status",), ("gen",), ("head", "status"), ("head", "root HEAD"),
+                                    ("head", "root status"), ("head", "."), ("head", "gen"),
+                                    ("head", "generated sets")]))),
+      m.ident_diff(good, Q(((None, h), ("status", None), ("?", h), ("status=?", h), (".", h), ("gen", h)), "abc", "def")),
+      "|", m.ident_diff(good, good._replace(gen=None)))
 PY
-)" "False True True True 6 submodule 'status' 000000000000 -> ?"
+)" "False True True True True 9 submodule 'status' 000000000000 -> ? | generated sets def -> ?"
 # RV7 successor: a CR-class path is named exactly in IDENTITY CHANGED (repr), never cut at the CR
 chk "CON-030 r3 ident_diff names a submodule 'cr\\rx' whose HEAD moved, exactly" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
 import sys, importlib.util, subprocess
@@ -1596,7 +1599,9 @@ else ko "CON-030 r4 RW3 precondition: git status with an unreadable index fails 
 run "$rw3" "$T/o_rw3" --include-heavy
 chmod 644 "$rw3/.git/index" 2>/dev/null
 chk "CON-030 r4 RW3: a failing git status mid-run stops the run (rc 2)" "$RC" "2"
-has "CON-030 r4 RW3: named as an unknown root status before unit 2" 'IDENTITY CHANGED before unit tests/a/test_2.sh: root status [0-9a-f]+ -> \?' "$T/o_rw3.log"
+# CON-030 round 5 (merge of WIT-C02): the identity is now also checked after every unit, so the unit that broke the
+# index is named; the failing status is still unknown (None shown as `?`), never the hash of an empty output
+has "CON-030 r4 RW3: named as an unknown root status after unit 1" 'IDENTITY CHANGED after unit tests/a/test_1.sh: root status [0-9a-f]+ -> \?' "$T/o_rw3.log"
 hasnt "CON-030 r4 RW3: never PASS-FULL" 'PASS-FULL' "$T/o_rw3.log"
 
 # --- RW4 (review r3): an absent record (None) and a present empty record feed different bytes into the hash
@@ -1643,6 +1648,83 @@ run "$WI" "$T/o_wti" --include-heavy
 chk "R2b: suite writing an ignored file into the tree -> rc 1" "$RC" "1"
 has "R2b: tree change named by the tree branch" '^RESULT: FAIL \(repository tree changed during the run; SKIP=' "$T/o_wti.log"
 hasnt "R2b: not reported as an identity change" 'identity changed|IDENTITY CHANGED' "$T/o_wti.log"
+
+# --- 38 WIT-C02 (wave 2 review r2, F5): a unit that rewrites the tracked generated command sets is caught
+# even when the content is identical (new inode or new mtime); the run ends FAIL and names the unit.
+genroot(){ # $1 dir: root with tracked generated sets and two units ($2 = body of unit 1)
+  mkroot "$1"; mkdir -p "$1/plugins/helix/commands" "$1/actions/generated"
+  echo cmd > "$1/plugins/helix/commands/x.md"; echo readme > "$1/actions/generated/README.md"
+  echo top > "$1/plugins/helix/README.md"
+  sut "$1" tests/a/test_1.sh "$2" 'echo "passed=1 failed=0"'
+  sut "$1" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+  gen "$1"; gitc "$1" add -A; gitc "$1" commit -q -m g
+}
+G1="$T/genrw"; genroot "$G1" "f='$G1/actions/generated/README.md'; cp \"\$f\" \"\$f.t\" && mv \"\$f.t\" \"\$f\""
+run "$G1" "$T/o_g1" --include-heavy
+chk "C02: identical-content rewrite (new inode) -> rc 1" "$RC" "1"
+has "C02: the rewriting unit is named" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g1/summary.txt"
+chk "C02: the next unit is not run" "$(verdict "$T/o_g1" tests/a/test_2.sh)" ""
+# R3c (review r2): the case above also gives the file a new mtime, so the inode field was never the only signal.
+# Here only the inode changes: cp -p keeps the file mtime, the temp file is made outside the directory, and the
+# directory's own mtime is put back with touch -r, so path, type, mtime, size and content are all unchanged.
+G1I="$T/geninode"; genroot "$G1I" "d='$G1I/actions/generated'; f=\"\$d/README.md\"; touch -r \"\$d\" '$G1I/dref'; cp -p \"\$f\" '$G1I/f.t' && mv '$G1I/f.t' \"\$f\" && touch -r '$G1I/dref' \"\$d\"; rm -f '$G1I/dref'"
+I0=$(stat -c %i "$G1I/actions/generated/README.md")
+run "$G1I" "$T/o_g1i" --include-heavy
+chk "C02 R3c: precondition, the unit changed the inode" "$([ "$(stat -c %i "$G1I/actions/generated/README.md")" != "$I0" ] && echo y)" "y"
+chk "C02 R3c: an inode-only rewrite (same mtime, size, content) -> rc 1" "$RC" "1"
+has "C02 R3c: the inode-only rewrite is named as a gen change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g1i/summary.txt"
+G2="$T/gentouch"; genroot "$G2" "touch -d '2001-01-01' '$G2/plugins/helix/commands/x.md'"
+run "$G2" "$T/o_g2" --include-heavy
+chk "C02: mtime-only change of a tracked generated file -> rc 1" "$RC" "1"
+G3="$T/gendir"; genroot "$G3" "touch '$G3/plugins/helix/commands/y.md'; rm -f '$G3/plugins/helix/commands/y.md'"
+run "$G3" "$T/o_g3" --include-heavy
+chk "C02: a file created and removed in a generated directory -> rc 1 (directory mtime)" "$RC" "1"
+G4="$T/genread"; genroot "$G4" "cat '$G4/plugins/helix/commands/x.md' '$G4/actions/generated/README.md' >/dev/null"
+run "$G4" "$T/o_g4" --include-heavy
+chk "C02: a unit that only reads the generated sets -> rc 0 (golden-FALSE)" "$RC" "0"
+hasnt "C02: no identity change reported (golden-FALSE)" 'IDENTITY CHANGED' "$T/o_g4/summary.txt"
+# R3 (review r2, reviewer mutant RMb): in a consumer project the generated sets live under the vendored
+# constitution/, so the fingerprint must cover that prefix too; here the sets exist ONLY under constitution/
+G5="$T/genvend"; mkroot "$G5"; mkdir -p "$G5/constitution/actions/generated" "$G5/constitution/plugins/helix/commands"
+echo readme > "$G5/constitution/actions/generated/README.md"; echo cmd > "$G5/constitution/plugins/helix/commands/x.md"
+sut "$G5" tests/a/test_1.sh "f='$G5/constitution/actions/generated/README.md'; cp \"\$f\" \"\$f.t\" && mv \"\$f.t\" \"\$f\"" 'echo "passed=1 failed=0"'
+sut "$G5" tests/a/test_2.sh 'echo "passed=1 failed=0"'
+gen "$G5"; gitc "$G5" add -A; gitc "$G5" commit -q -m g
+run "$G5" "$T/o_g5" --include-heavy
+chk "C02 R3: a rewrite of a generated set under constitution/ -> rc 1" "$RC" "1"
+has "C02 R3: the vendored-prefix rewrite is named as a gen change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: .*gen' "$T/o_g5/summary.txt"
+
+# --- 39 R3b (review r2): the before-unit and end-of-run identity checks stay pinned now that the after-unit
+# check fires first for a change a unit makes.
+# (a) before-unit: a change between the start identity and the first unit (here the runner's own `go env
+# GOMODCACHE` call, answered by a go shim that commits) is caught BEFORE that unit runs, never after it.
+BU="$T/beforeunit"; mkroot "$BU"; sut "$BU" tests/a/test_1.sh 'echo "passed=1 failed=0"'
+mkdir -p "$BU/gm"; printf 'module example.invalid/gm\n\ngo 1.21\n' > "$BU/gm/go.mod"
+printf 'package gm\n\nimport "testing"\n\nfunc TestX(t *testing.T) {}\n' > "$BU/gm/x_test.go"
+gen "$BU"; gitc "$BU" add -A; gitc "$BU" commit -q -m bu
+GO="$T/goshim"; mkdir -p "$GO"
+{ echo '#!/usr/bin/env bash'
+  echo "if [ \"\$1\" = env ]; then git -C '$BU' -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved-before-first-unit; echo '$T/nomodcache'; exit 0; fi"
+  echo 'echo "go shim: only env is answered" >&2; exit 1'; } > "$GO/go"; chmod +x "$GO/go"
+PATH="$GO:$PATH" bash "$R" --root "$BU" --out "$T/o_bu" --include-heavy >"$T/o_bu.log" 2>&1; RC=$?
+chk "R3b I1: a change before the first unit -> rc 1" "$RC" "1"
+has "R3b I1: summary says the change was seen before a unit" '^IDENTITY CHANGED before unit ' "$T/o_bu/summary.txt"
+hasnt "R3b I1: it is not attributed to a unit that ran" '^IDENTITY CHANGED after unit' "$T/o_bu/summary.txt"
+chk "R3b I1: no unit ran on the moved HEAD" "$(python3 -I -c 'import json,sys
+print(sum(1 for l in open(sys.argv[1]) if json.loads(l).get("verdict") not in ("SKIPPED-heavy",)))' "$T/o_bu/results.jsonl" 2>/dev/null || echo 0)" "0"
+# (b) end-of-run: a unit changes the CONTENT of a file that was already modified at the start. The quick identity
+# (HEADs, `git status --porcelain`, gen) does not change; the full tree_ident (dirty diff hash) does, so only the
+# end-of-run comparison names it.
+ER="$T/endrun"; mkroot "$ER"; echo one > "$ER/notes.txt"
+sut "$ER" tests/a/test_1.sh "echo three > '$ER/notes.txt'" 'echo "passed=1 failed=0"'
+gen "$ER"; gitc "$ER" add -A; gitc "$ER" commit -q -m er
+echo two > "$ER/notes.txt"
+run "$ER" "$T/o_er" --include-heavy
+chk "R3b I2: a dirty file rewritten by the last unit -> rc 1" "$RC" "1"
+chk "R3b I2: the unit ran" "$(verdict "$T/o_er" tests/a/test_1.sh | cut -d'|' -f1)" "PASS"
+hasnt "R3b I2: the quick identity did not see it (no after-unit change)" '^IDENTITY CHANGED after unit' "$T/o_er/summary.txt"
+has "R3b I2: the end-of-run tree_ident comparison names it" '^IDENTITY CHANGED at the end of the run: head=.*dirty=.* -> head=' "$T/o_er/summary.txt"
+has "R3b I2: RESULT names the identity change" '^RESULT: FAIL \(.*identity changed during the run at the end of the run' "$T/o_er.log"
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

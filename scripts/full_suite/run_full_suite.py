@@ -1424,6 +1424,7 @@ import secrets
 import select
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -2362,13 +2363,14 @@ def sub_paths(root):
     return out_
 
 
-QuickIdent = collections.namedtuple("QuickIdent", "heads status")
+QuickIdent = collections.namedtuple("QuickIdent", "heads status gen")
 QuickIdent.__doc__ = """In-memory quick identity (never written, never parsed back). heads: a tuple of (path, value)
 pairs in the order quick_ident() was given, the root first with path None (a path is always a str, so the root can
 never be confused with a submodule); status: the root status hash. A value is the hex string git printed, or None
 when git failed (None is not a str, so no value git prints can read as unknown). CON-030 round 3 (review r2 G3,
 section 11.4.276(E)(3)): this replaces the flat `<path>=<value>` text, whose `status` key and `.`/`?` markers a
-submodule path could collide with."""
+submodule path could collide with. gen (WIT-C02, merged in CON-030 round 5): the fingerprint of the generated
+command sets (gen_fingerprint), or None when an entry could not be read."""
 
 
 def quick_ident(root, subs):
@@ -2383,28 +2385,80 @@ def quick_ident(root, subs):
         heads.append((rel, os.fsdecode(q.stdout).strip() if q.returncode == 0 else None))
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
                          "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)
+    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None
+    return QuickIdent(tuple(heads), status, gen_fingerprint(root))
 
 
 def ident_unknown(q):
-    """True when any value of the quick identity is None (a git failure), whatever the submodule is called."""
+    """True when any value of the quick identity is None (a git failure, or an unreadable entry of the generated
+    sets), whatever the submodule is called."""
+    if q.gen is None:
+        return True
     return q.status is None or any(v is None for _p, v in q.heads)
 
 
 def ident_label(field):
     """Report label of one identity field: ("head", None) root HEAD, ("head", path) a submodule (the path in repr(),
     so a CR, a TAB, a quote, `=`, `?` or non-UTF-8 bytes are shown exactly and never read as a separator),
-    ("status",) the root status. The three shapes cannot produce the same label."""
+    ("status",) the root status, ("gen",) the fingerprint of the generated sets. The four shapes cannot produce the
+    same label."""
     if field[0] == "status":
         return "root status"
+    if field[0] == "gen":
+        return "generated sets"
     return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)
+
+
+# WIT-C02 (ownership wave 2 review r2, F5): the tracked generated command sets that installer and generator
+# tests must never rewrite in the real tree. `git status` cannot see an identical-content rewrite, so the
+# fingerprint covers inode, mtime and size of every entry (directories included) plus the content hash.
+GENERATED_SETS = ("plugins/helix/commands", "plugins/helix/README.md", "actions/generated")
+
+
+def gen_fingerprint(root):
+    """sha256 (16 hex) over (path, type, inode, mtime_ns, size, content sha256 or link target) of every entry of the
+    generated sets under the root and under a vendored constitution/. An absent set is recorded as absent; an
+    unreadable entry gives None (fail closed: None never equals a start value and makes ident_unknown() true).
+    CON-030 round 5 (review r4 K5): every field is a length-framed record (hrec), names and link targets are fed as
+    the bytes the file system holds (os.fsencode, so a non-UTF-8 name neither raises nor collides), and unknown is
+    None instead of the in-band "?"."""
+    h = hashlib.sha256()
+    for pre in ("", "constitution"):
+        for rel in GENERATED_SETS:
+            top = os.path.join(root, pre, rel)
+            if not os.path.lexists(top):
+                hrec(h, b"absent", os.fsencode(os.path.join(pre, rel)))
+                continue
+            todo = [top]
+            while todo:  # RULE:C02-gen-walk
+                p = todo.pop()
+                try:
+                    st = os.lstat(p)
+                    kind = b"d" if stat.S_ISDIR(st.st_mode) else (b"l" if stat.S_ISLNK(st.st_mode) else b"f")
+                    dig = b""
+                    if kind == b"f":
+                        with open(p, "rb") as fh:  # io: not-gov
+                            dig = hashlib.sha256(fh.read()).hexdigest().encode()
+                    elif kind == b"l":
+                        dig = os.fsencode(os.readlink(p))
+                    else:
+                        todo.extend(os.path.join(p, n) for n in sorted(os.listdir(p), reverse=True))
+                except OSError:
+                    return None
+                hrec(h, b"p", os.fsencode(os.path.relpath(p, root)))  # RULE:C02-gen-stat
+                hrec(h, b"k", kind)
+                hrec(h, b"i", b"%d" % st.st_ino)
+                hrec(h, b"m", b"%d" % st.st_mtime_ns)
+                hrec(h, b"s", b"%d" % st.st_size)
+                hrec(h, b"c", dig)
+    return h.hexdigest()[:16]
 
 
 def ident_diff(a, b):
     """The fields of two quick identities that differ, or that are unknown (None) in b, compared by position (both
     identities are built from the same submodule list); unknown is shown as `?`."""
-    fa = [(("head", p), v) for p, v in a.heads] + [(("status",), a.status)]
-    fb = [(("head", p), v) for p, v in b.heads] + [(("status",), b.status)]
+    fa = [(("head", p), v) for p, v in a.heads] + [(("status",), a.status), (("gen",), a.gen)]
+    fb = [(("head", p), v) for p, v in b.heads] + [(("status",), b.status), (("gen",), b.gen)]
     if [k for k, _v in fa] != [k for k, _v in fb]:
         return "the two identities list different fields (%d / %d)" % (len(fa), len(fb))
     show = lambda v: "?" if v is None else v[:12]
@@ -3395,6 +3449,11 @@ def main(argv):
             emit(u, verdict, reason, source, rc, secs, leaked, env_names, counts, logrel, logsha)
             out("[%d/%d] %s%s %s %ss%s" % (n, total, verdict, " (%s)" % reason if reason else "", u["id"], secs,
                                             " leaked=%d" % leaked if leaked else ""))
+            qid = quick_ident(root, subs0)  # RULE:C02-after-unit
+            if qid != qid0 or ident_unknown(qid):  # review r4 K5: on a QuickIdent, unknown is None, never "?"
+                id_changed = "after unit %s: %s" % (u["id"], ident_diff(qid0, qid))
+                out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
+                break
     except KeyboardInterrupt:
         interrupted = True
         out("INTERRUPTED: stopping; the summary below is partial")

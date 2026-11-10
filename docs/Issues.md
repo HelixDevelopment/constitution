@@ -740,8 +740,6 @@ Four rows added; each mutant killed.
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con030_review/con030_reproduction_2026_11_05.txt` — red-command `bash docs/qa/con030_review/con030_class_repro.sh <checkout at efe2cc6> <new dir>  (case 0: submodule path 'sub dir')` — green-command `bash docs/qa/con030_review/con030_class_repro.sh <checkout at f6567349> <new dir>  (case 0)` — env `host-only fixture: real git 2.53.0, python 3.14.4, engine scripts/full_suite/run_full_suite.py; record sha256 1520da66765645d83cfa3f82f09bedadaaeeddf7ac0106e6c5d0f23411d7ba9a` — signature `RED: rc=9 'TOPOLOGY: submodule sub: recorded commit ... is not in its object store' RESULT: REFUSED-TOPOLOGY for a clean checkout with submodule 'sub dir'; GREEN: rc=0 RESULT: PASS-FULL` — updated 2026-11-06T08:21:34Z — by `Claude Opus 5.5 (CON-030 round 4 fixer subagent)`
-**Investigation:** root-cause-found-with-evidence — root-cause `sub_paths split the human-oriented 'git submodule status' line on whitespace, so the path 'sub dir' was read as 'sub' and topology looked for a non-existent submodule (decisive: same fixture without the space runs; with it refuses). Rounds 2-3 moved paths to 'git ls-files -s -z' and the quick identity to a structured QuickIdent. Round 4 (structural, review r3 H1 H2 H3) removes the remaining members of the same class found by the whole-engine enumeration: every governance file (manifest, known table, lock, roster) is read by one reader gov_lines() that splits on LF only, tolerates CRLF and refuses any other control or line-separator character by name (str.splitlines() had split on NEL/LS/CR, H2); the unit identity is the structured key (path, tuple(args)) end to end and plan() refuses duplicate keys and duplicate display ids (the joined 'path + space + args' uid collided, H1); every output line passes one escape function esc_out() and the census refuses control/line-separator names (raw CR forged output lines, H3). Class inventory: docs/qa/con030_review/con030_class_sweep_r4.py.` — evidence `docs/qa/con030_review/con030_reproduction_2026_11_05.txt` — updated 2026-11-06T08:21:34Z — by `Claude Opus 5.5 (CON-030 round 4 fixer subagent)`
 
 Review r6 follow-up 2: sub_paths splits the status line on whitespace, so a submodule path containing a space is truncated (probe E ended REFUSED-TOPOLOGY rc 9: fail-closed, cause not isolated). Latent: the real repository has none. Reproduce first (section 11.4.292), isolate the cause, then fix.
 
@@ -1755,40 +1753,115 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run).
 
-## CON-070 — CON-030 class follow-up: whitespace and line splitting of git submodule names/paths in validate_submodule.py, three gates, baseline_replay.sh and helix_deps_manifest.py
+## CON-108 — ownership F1: a byte copy of a checkout can remove the shared extension tree
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
-**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent)
+**Created-By:** Conductor
 
-Class follow-up of CON-030 (parent: CON-030; review r1 F5 and review r2 G9, section 11.4.276(C)): tools outside the full-suite runner parse human-oriented git output by whitespace or by lines where a field is a submodule name or path, so a name or path with a space (and, for (7), a leading or trailing space, a CR-class character or a newline) is truncated, merged or not found. Members, each with its measured effect (2026-11-05, fixtures with submodules "submodules/my engine" and "submodules/plain"; control: the plain path is read correctly every time): (1) progressive/validate_submodule.py:60 `l.split()[1]` on `-` status lines: with a crafted --status-file an orphan path "x y" and a declared path "x" gives PASS (false PASS, measured by the r1 reviewer; control "zz" FAILs); with real git output a spaced uninitialised path gives a false FAIL. (2) scripts/gates/cm_hub_engine_no_ownorg_nesting.sh:68 `--get-regexp` plus an awk match on field 2: drops "submodules/my engine" from the inspected set (measured by the r1 reviewer), so that engine is never inspected: potential false PASS, end to end UNCONFIRMED. (3) scripts/gates/cm_gitlink_on_remote.sh:55 and :57 `ls-tree` / `ls-files -s` plus awk field 4 as the path: truncated at the first space (UNCONFIRMED end to end); :63 `--get-regexp` plus an awk equality on field 2 returns no key for "submodules/my engine" (measured). (4) scripts/fastcycle/cycle/baseline_replay.sh:1049-1052 `IFS=' ' read -r key path` over `--get-regexp` output: measured name=[submodules/my] path=[engine.path submodules/my engine] for the spaced submodule, plain one correct; effect on the replay (wrong modules/<name> reference) UNCONFIRMED. (5) scripts/gates/cm_helix_deps_ref_matches_gitlink.sh:79, :95, :105 `--get-regexp` plus an awk equality on field 2: measured key=[] for "submodules/my engine" (key found for the plain path), so line 79 reports a false DRIFT with url <none> (fail closed); end to end UNCONFIRMED. (6) low: scripts/fastcycle/consumers/migrate.sh:2432-2433 and docs/prompts/setup/latest.md:290 compare against fixed constitution paths. (7) scripts/deps_manifest/helix_deps_manifest.py:318-325 (review r2 G9): reads .gitmodules with `git config --get-regexp` text, `splitlines()`, the regex `^submodule\.(.*)\.(path|url) (.*)$` and `.strip()`, so a path with a leading or trailing space, a CR-class character or a newline is read wrong (by reading; not measured end to end, UNCONFIRMED). Fix shape proven in CON-030: NUL-separated machine formats (git config --null, git ls-files -s -z, git ls-tree -z), bytes decoded with os.fsdecode (surrogateescape), never whitespace or line splitting of a path. Each member needs its own RED on a spaced-path fixture first (section 11.4.292). Sources (tracked, section 11.4.215): docs/qa/con030_review/review_con030_r1.md (finding F5, with its measurements) and docs/qa/con030_review/review_con030_r2.md (finding G9, census of other users).
+First minted on the vehicle as CON-070 (CON-070 is reserved on main for the CON-030 class item), re-minted at landing as CON-108. Reported by the independent wave 2 review (finding F1), not reproduced by the reporter of this item. The E01 install fact binds the constitution root and the tree identity, not the project path. A byte copy of a checkout that holds the state directory carries the same signed fact, so running remove from the copy deletes the tree the original still uses. Pre-existing. Wave 2 round 2 made the refusal text honest about this; the defect itself is NOT fixed. Fix belongs with E03 (per-checkout refcount) or a project-realpath binding in the fact; related to CON-042.
 
-## CON-108 — full-suite runner: tree_state hashes ignored files in the root only, so an ignored write inside a submodule is not detected (CON-030 review r3 H4)
+**Affected scope / file-scope manifest:**
+scripts/constitution_ext/ext_engine.py (remove, E01 fact); E03 refcount
+
+## CON-109 — WIT-C02 stays open: confirm the hermetic-suite remedy with an independent review and a full-suite run
 
 **Status:** Queued
-**Type:** Bug
+**Type:** Task
 **Severity:** Medium
-**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent)
+**Created-By:** Conductor
 
-**What:** the full-suite runner's tree-changed check misses an ignored file written inside a submodule. tree_state() in scripts/full_suite/run_full_suite.py lists and hashes ignored files with `git ls-files -o -i --exclude-standard -z` in the ROOT only; the `subs` record holds each submodule's status and diff, never its ignored files. A suite that writes an ignored file inside a submodule during the run therefore ends `RESULT: PASS-FULL` (rc 0), while the same write at the root (ignored by the root) ends `TREE CHANGED ... RESULT: FAIL` (rc 1). The same gap means a change of a submodule's ignored files does not change the resume key.
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T12:59:59Z
+**Reported-By:** ownership wave 2 WIP session (minted 2026-11-05 12:59 UTC; that session recorded its model as Opus 5.5, UNCONFIRMED by round 3). First minted on the vehicle as CON-050; main had already given CON-050 to another item, so round 3 re-minted it as CON-071; main then gave CON-071 to another item, so it was re-minted at landing (wave 2 round 4) as CON-109 (§11.4.54: an id is never reused).
 
-**Found by:** independent review of CON-030 round 3 (finding H4, pre-existing on main efe2cc6; outside CON-030's encoding/framing class, so registered as its own item per section 11.4.276(E)(2)). Parent: CON-030.
+**What (the report, verbatim):**
+Operator decision 2026-11-05 (relayed): the C02 reinterpretation is rejected; C02 stays open. Wave 2 round 2 landed: a per-unit fingerprint (inode, mtime, size, content) of the tracked generated sets checked after every unit by the full-suite runner; a rewritten lint that flags the reviewer's six violators; the two suites measured rewriting the real tree converted to throw-away constitution copies. Open: an independent review of that work, and a full-suite run showing no unit trips the fingerprint, before C02 is closed.
 
-**Reproduction (reviewer's measurement, round-3 review sandbox, not repeated in this item):** submodule `lib` ignores `out/`, the suite writes `lib/out/x`, `--include-heavy` ends PASS-FULL rc 0; control: the same write at the root (`out/x`, ignored by the root) ends FAIL rc 1. Driver and log: docs/qa/con030_review/review_con030_r3.md (H4 row) and the driver copy docs/qa/con030_review/review_r3_drv_ign_sub.sh (sha256 0588354be227047b80d0531c65c96ee3c9560dae1b169d8dbb94a3328454fcef, as recorded in that review).
+**Affected scope / file-scope manifest:**
+scripts/full_suite/run_full_suite.py (gen_fingerprint); tests/layout/hermetic_lint.py; tests/layout/test_hermetic_generator.sh; tests/action_prefix/test_hook_e2e.sh; tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh
 
-**Affected scope / file-scope manifest:** scripts/full_suite/run_full_suite.py (tree_state, IGNORED_NOT_HASHED), tests/test_run_full_suite.sh, tests/test_run_full_suite_mutations.sh, docs/guides/full_suite_runner_guide.md (the Results section and Limits; round 4 already states the root-only limit).
+**Reproduction / context:**
+UNKNOWN: not stated in the report — a reproduction MUST be established before any fix (§11.4.102 / §11.4.146 / §11.4.199 / §11.4.292)
 
-**Acceptance:** RED first on the broken engine with the reviewer's fixture (submodule ignored write ends PASS-FULL); the fix hashes the ignored files of every checked-out submodule (recursive), framed with hrec(), with the same exclusions; GREEN: the submodule write ends FAIL rc 1 and the control stays FAIL; a paired mutation that drops the submodule ignored-file records is killed; the guide's Limits line for this is removed.
+**Acceptance criteria:**
+Independent review GO on the C02 changes; a full-suite run on a clean checkout ends without IDENTITY CHANGED for the gen field; then close WIT-C02 in the design doc.
 
-**UNKNOWN:** the run-time cost of `git ls-files -o -i` in every submodule on this repository (not measured).
+**Open after round 3 (measured 2026-11-05):**
+`hermetic_lint.py` flags 13 of the round-2 reviewer's 14 violators; it does not see an installer reached by a path relative to a `cd` into the real tree (violator v08). That gap stays open under this item.
 
-## CON-109 — full-suite runner: tree_ident splits git status and submodule status output with str.splitlines() (CON-030 round 4 class sweep, no verdict effect)
+**Decision after review round 3 (N5, recorded 2026-11-05 by the round-4 fix session; the review recommended it and the conductor's brief ordered it, operator confirmation UNCONFIRMED):**
+`tests/layout/hermetic_lint.py` is an ADVISORY tripwire: its findings on the real tests are printed as ADVISORY lines by `tests/layout/test_hermetic_generator.sh` and do not fail it. The BINDING C02 check is the full-suite runner's per-unit fingerprint of the generated sets plus its end-of-run tree identity (`scripts/full_suite/run_full_suite.py` gen_fingerprint / quick_ident, pinned by `tests/test_run_full_suite.sh` section 39 and mutants I1 I2 I3 G1). No new shapes are added to the lint per review round (§11.4.250); the round-3 review's 8 missed shapes and 1 false positive are listed in the lint's docstring as known limits. The acceptance criterion above (a clean full-suite run with no IDENTITY CHANGED) is unchanged.
+
+## CON-110 — ownership wave 2 FU (round 4 N1): on budget expiry timeout --foreground signals only the engine, not its git children
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
-**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent)
+**Created-By:** Conductor
 
-**What:** found by the CON-030 round 4 class sweep (docs/qa/con030_review/con030_class_sweep_r4.py, shape B sites at tree_ident: the 'subs' hash of 'git submodule status --recursive' and the dirty-list hash of 'git status --porcelain=v1'). Both outputs are split with str.splitlines() (which also splits on NEL, LS, PS, CR, VT, FF) and joined with LF before hashing. With core.quotePath=false a path holding U+0085 is printed raw, so one untracked path 'a<NEL>?? b' and the two untracked paths 'a' and 'b' give the same dirty fragments and the same dirty hash. Parent: CON-030. **Why no verdict effect (reasoned from the code, not measured):** a dirty tree at the start already ends RESULT: PARTIAL-DIRTY-TREE rc 10, never PASS-FULL, and content changes during the run are caught by tree_state (TREE CHANGED, rc 1) and by the structured quick identity; so the collision changes only which identity message is shown. With the default core.quotePath=true git quotes these bytes. **Acceptance:** read both outputs NUL-terminated (git status -z, and the submodule list from git ls-files -s -z as quick_ident already does) or frame each line with hrec(); a test with core.quotePath=false and a NEL path shows two different dirty hashes; a paired mutation restoring splitlines() is killed. **UNKNOWN:** whether any consumer sets core.quotePath=false.
+First minted on the vehicle as CON-072, re-minted at landing as CON-110. Found while fixing review round 3 N1 (vehicle/ownership-wave2, round 4). The dispatcher now runs extensions add, install-extension, enable and adopt-install with timeout --foreground so the engine can read /dev/tty. With --foreground, timeout signals only its direct child (the engine, because constitution_ext.sh execs python3); a git subprocess the engine started (git clone/fetch for a git source) is not signalled when the budget expires and may outlive the dispatcher. Measured: the no-answer budget case (4 s) ends with rc 124 and no engine process left, but it does not start git. UNCONFIRMED: whether a git child survives a timeout during a git-source add. Round 4 review (N9) CONFIRMED by measurement: in the real topology both timeout implementations return 124 after 5 s while the engine's git clone child is alive at +10 s (reparented to systemd --user). Fix direction: the engine installs a SIGTERM handler that kills its own child process group (pgid > 1 checked, §11.4.263) and then runs the normal cleanup, or starts git in a new process group and kills that group on exit. Acceptance: a pty test with a git source and a stalled git step shows no process left after rc 124, or the engine forwards SIGTERM to its children.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_cmd/constitution_cmd.sh (tmo); scripts/constitution_ext/ext_engine.py (_git subprocess handling)
+
+## CON-111 — ownership wave 2 FU (round 4): extensions FAQ item 10 still says the /constitution command is planned, not landed
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+First minted on the vehicle as CON-073, re-minted at landing as CON-111. Found while documenting review round 3 N1 (vehicle/ownership-wave2, round 4). docs/faq/extensions_faq.md item 10 says the /constitution slash command is planned and not landed (UNCONFIRMED), but scripts/constitution_cmd/constitution_cmd.sh ships the extensions route and FAQ 12b (added in round 4) describes it. Acceptance: item 10 states what is shipped (the dispatcher and its generated commands) with a pointer to the dispatcher and its tests, and no longer calls it planned.
+
+**Affected scope / file-scope manifest:**
+docs/faq/extensions_faq.md
+
+## CON-112 — ownership wave 2 FU (round 4 N8): gates run cm_label_sync_render hangs forever at a terminal under uutils timeout; structural terminal handling for every delegated route plus a class-wide pty probe
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N8, minor source-defect, pre-existing on main; the second occurrence of the N1 mechanism class, so §11.4.276(E)(3) was triggered and the operator decided on 2026-11-05 to land as GO-with-follow-ups and register the structural rework as this tracked follow-up, no round 5). Mechanism: scripts/constitution_cmd/constitution_cmd.sh cmd_gates runs the gate via deleg/tmo without --foreground; a gate that touches the controlling terminal (cm_label_sync_render runs util-linux script, which calls tcgetattr/tcsetattr on its tty stdin) is in a background process group and is stopped by SIGTTOU. Measured by the reviewer: uutils timeout 0.8.0 not exited at 130 s with a 40 s budget (unbounded); GNU timeout ends at the budget with rc 124. With no controlling tty the run is bounded. The author's enumeration of the N1 class searched for /dev/tty opens and could not see terminal access through an inherited tty stdin or tcsetattr (§11.4.273 class-incomplete needle). Fix direction: non-interactive routes run detached from the controlling terminal (setsid -w, stdin </dev/null) so no member of the class can exist for them and timeout's group kill covers their children; add a class-wide pty probe that runs EVERY dispatcher route (all 189 gates included) at a real pty under both timeout implementations and asserts exit within budget. Acceptance: the probe reports 0 STOPPED routes; paired mutation. Severity minor: fails safe, agents have no controlling tty. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+scripts/constitution_cmd/constitution_cmd.sh (cmd_gates, deleg, tmo); tests/constitution_cmd/test_constitution_cmd_pty.sh (class-wide probe)
+
+## CON-113 — ownership wave 2 FU (round 4 N10): adopt the reviewer's surviving mutants RV4-2, RV4-3, RV4-4, RV4-7, RV4-8 as killing legs
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N10). Five reviewer mutants survived their suites and are non-equivalent; adopt each verbatim as a leg that kills it (§11.4.276(D)). RV4-2 (minor source-defect, attacks the N1 fix): dispatcher interactive routing made conditional on [ -t 0 ]; at a pty with stdin </dev/null typing y to enable gives rc 0 on the real code, the mutant is killed only by a driver timeout. RV4-3 (minor test-instrumentation, pre-existing consent()): consent defaults to yes on an empty answer; survives every suite including tests/run_all.sh --quick. RV4-4 (minor test-instrumentation, pre-existing): the CONSTITUTION_EXT_NO_TTY=1 refusal removed in consent(); RN3 covers that knob for _confirm_adopt only. RV4-7 (nit): ledger default mode 0o644 to 0o666, not pinned under umask 002. RV4-8 (minor): restored wiring.local.json written with mode None instead of 0600, no test checks a restored record mode under umask 022. Acceptance: each mutant fails a suite leg in the vehicle's own suites; the mutant patterns are listed in the round-4 review record. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+tests/constitution_cmd/test_constitution_cmd_pty.sh; tests/extensions/test_ownership_e01.sh; tests/extensions/test_wiring_ledger.sh; scripts/constitution_ext/ext_engine.py (consent)
+
+## CON-114 — ownership wave 2 FU (round 4 N11): three documentation overclaims about the dispatcher budget and the pty test coverage
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N11, minor process-doc). (1) Manual and FAQ 12b say when the budget runs out the dispatcher exits 124 and nothing is changed; for add a clone may remain in a staging dir until the next mutating command and the git child may still run (CON-110). (2) The tmo comment says the budget still bounds it; false when the operator backgrounds an interactive route (engine and timeout are stopped by SIGTTIN, measured not exited at 40 s with a 5 s budget under both timeout implementations); a backgrounded prompt being stopped is normal job control, so wording only. (3) The pty test header says these four routes are the whole class; it should name the class it closes (engine /dev/tty prompts) and state that terminal access by other delegated tools is not covered (CON-112). Acceptance: the three texts corrected. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+docs/manuals/extensions_manual.md; docs/faq/extensions_faq.md; scripts/constitution_cmd/constitution_cmd.sh (tmo comment); tests/constitution_cmd/test_constitution_cmd_pty.sh (header)
+
+## CON-115 — ownership wave 2 FU (round 4 N5): make the C02 hermetic property hold by construction (the lint stays advisory)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Conductor
+
+Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the hermetic lint stays advisory, the by-construction fix is this tracked follow-up). tests/layout/hermetic_lint.py is an ADVISORY tripwire (§11.4.250: no new shapes per round); the binding check is the full-suite runner per-unit fingerprint, which is detective and sees a rewrite of the tracked generated sets only under run_full_suite.py (a test run directly can rewrite the real tree and only git status sees it). Primitive fix per §11.4.250 steps 2-4: the generator refuses to write into the checkout's own tracked tree unless HELIX_ACTION_OUT_ROOT is explicit, or tests run against a copy by construction. Related: CON-109 (WIT-C02 stays open). Acceptance: a test run directly cannot rewrite the tracked generated sets; paired mutation; then the lint can be retired or kept as documentation. Roadmap-Item: wave 2 round 4.
+
+**Affected scope / file-scope manifest:**
+the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
 

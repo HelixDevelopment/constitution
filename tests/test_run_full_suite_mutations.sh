@@ -16,7 +16,10 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); M7+ are the author's own; M30a-M30n guard CON-030 (submodule paths read whole: the
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit
+# fingerprint of the generated command sets (ownership wave 2 review r2: gen field, inode, mtime, after-unit check;
+# RMb = the reviewer's mutant of review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in
+# round 3; re-anchored in CON-030 round 5 to the structured QuickIdent.gen field); M7+ are the author's own; M30a-M30n guard CON-030 (submodule paths read whole: the
 # sub_paths / topology parser, the known-path set from `git ls-files -s -z`, the newline-joined quick identity; they
 # are unrelated to the lock mutant M30, the ids are selected by exact token) and RA RB RF are the reviewer-authored
 # mutants of CON-030 review r1 (section 11.4.276(D)). CON-030 round 3 (review r2, structural round): the quick
@@ -202,11 +205,16 @@ H3b	        fh.write("".join(esc_out(l) + "\\n" for l in summ))	        fh.write
 H3c	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\n\\t]", f)
 H3d	    s = LINE_BREAKERS.sub(one, s)	    pass
 RW1	    return q.status is None or any(v is None for _p, v in q.heads)	    return any(v is None for _p, v in q.heads)
-RW2	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)	    return QuickIdent(tuple(heads), "s")
-RW3	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None)	    return QuickIdent(tuple(heads), hashlib.sha256(st.stdout).hexdigest()[:16])
+RW2	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = "s"
+RW3	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = hashlib.sha256(st.stdout).hexdigest()[:16]
 RW4	        h.update(tag + b"-;")	        h.update(tag + b"0:")
 RW5	        if path in seen:	        if path in seen and flag == " ":
 RW6	    return (rec_key(o) == u["key"] and	    return (rec_key(o)[0] == u["key"][0] and
+G1	    return QuickIdent(tuple(heads), status, gen_fingerprint(root))	    return QuickIdent(tuple(heads), status, "g")
+G2	                hrec(h, b"i", b"%d" % st.st_ino)	                hrec(h, b"i", b"%d" % 0)
+G3	                hrec(h, b"m", b"%d" % st.st_mtime_ns)	                hrec(h, b"m", b"%d" % 0)
+G4	            if qid != qid0 or ident_unknown(qid):  # review r4 K5	            if False:  # review r4 K5
+RMb	    for pre in ("", "constitution"):	    for pre in ("",):
 EOF
 )
 
