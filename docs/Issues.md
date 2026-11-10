@@ -737,9 +737,11 @@ Four rows added; each mutant killed.
 
 ## CON-030 — full-suite runner: sub_paths splits the status line on whitespace (submodule path with a space)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con030_review/con030_reproduction_2026_11_05.txt` — red-command `bash docs/qa/con030_review/con030_class_repro.sh <checkout at efe2cc6> <new dir>  (case 0: submodule path 'sub dir')` — green-command `bash docs/qa/con030_review/con030_class_repro.sh <checkout at f6567349> <new dir>  (case 0)` — env `host-only fixture: real git 2.53.0, python 3.14.4, engine scripts/full_suite/run_full_suite.py; record sha256 1520da66765645d83cfa3f82f09bedadaaeeddf7ac0106e6c5d0f23411d7ba9a` — signature `RED: rc=9 'TOPOLOGY: submodule sub: recorded commit ... is not in its object store' RESULT: REFUSED-TOPOLOGY for a clean checkout with submodule 'sub dir'; GREEN: rc=0 RESULT: PASS-FULL` — updated 2026-11-10T23:16:06Z — by `Claude Opus 5.5 (CON-030 round 5 fixer subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `sub_paths split the human-oriented 'git submodule status' line on whitespace, so the path 'sub dir' was read as 'sub' and topology looked for a non-existent submodule (decisive: same fixture without the space runs; with it refuses). Rounds 2-3 moved paths to 'git ls-files -s -z' and the quick identity to a structured QuickIdent. Round 4 (structural, review r3 H1 H2 H3) removes the remaining members of the same class found by the whole-engine enumeration: every governance file (manifest, known table, lock, roster) is read by one reader gov_lines() that splits on LF only, tolerates CRLF and refuses any other control or line-separator character by name (str.splitlines() had split on NEL/LS/CR, H2); the unit identity is the structured key (path, tuple(args)) end to end and plan() refuses duplicate keys and duplicate display ids (the joined 'path + space + args' uid collided, H1); every output line passes one escape function esc_out() and the census refuses control/line-separator names (raw CR forged output lines, H3). Class inventory: docs/qa/con030_review/con030_class_sweep_r4.py. Round 5 (review r4): the census markers of the guide are whole lines found structurally (K1, shape D of docs/qa/con030_review/con030_class_sweep_r5.py: a marker or delimiter found by substring); --sync-guide and --generate-manifest fail instead of reporting a write they did not do (K2, K12); esc_out decodes before it escapes (K3); --verify-manifest runs the plan check (K9).` — evidence `docs/qa/con030_review/con030_reproduction_2026_11_05.txt` — updated 2026-11-10T23:16:06Z — by `Claude Opus 5.5 (CON-030 round 5 fixer subagent)`
 
 Review r6 follow-up 2: sub_paths splits the status line on whitespace, so a submodule path containing a space is truncated (probe E ended REFUSED-TOPOLOGY rc 9: fail-closed, cause not isolated). Latent: the real repository has none. Reproduce first (section 11.4.292), isolate the cause, then fix.
 
@@ -749,6 +751,11 @@ Origin: independent-review follow-up, section 11.4.276(G.2).
 
 **Affected scope / file-scope manifest:**
 full-suite runner sub_paths
+
+
+**Operator decision (section 11.4.276(E)(3)), recorded 2026-11-10, relayed verbatim by the conductor and naming this item:** "Keep running rounds until GO is reached!" CON-030 reached R_max at review round 4 (NO-GO); by this decision its review loop continues past R_max (round 5 onward) with the same bar: a zero-finding GO (section 11.4.134) on the section 11.4.209 substrate.
+
+**Round history:** rounds 1-4 on vehicle/con030 (reviews in docs/qa/con030_review/); round 5 fixes review r4 K1-K12 and M1-M6, merges live main 90efceb8 (K5) and re-mints the vehicle ids CON-108 -> CON-116 and CON-109 -> CON-117 (K6, section 11.4.214); K4 is registered as CON-118.
 
 ## CON-031 — OPERATOR ACTION: review the full-suite runner excluded list and run --accept-excluded-change i@mvasic.ru
 
@@ -1864,4 +1871,68 @@ Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the
 
 **Affected scope / file-scope manifest:**
 the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
+
+## CON-070 — CON-030 class follow-up: whitespace and line splitting of git submodule names/paths in validate_submodule.py, three gates, baseline_replay.sh and helix_deps_manifest.py
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent); re-applied by Claude Opus 5.5 (CON-030 round 5 fixer subagent)
+
+Class follow-up of CON-030 (parent: CON-030; review r1 F5 and review r2 G9, section 11.4.276(C)): tools outside the full-suite runner parse human-oriented git output by whitespace or by lines where a field is a submodule name or path, so a name or path with a space (and, for (7), a leading or trailing space, a CR-class character or a newline) is truncated, merged or not found. Members, each with its measured effect (2026-11-05, fixtures with submodules "submodules/my engine" and "submodules/plain"; control: the plain path is read correctly every time): (1) progressive/validate_submodule.py:60 `l.split()[1]` on `-` status lines: with a crafted --status-file an orphan path "x y" and a declared path "x" gives PASS (false PASS, measured by the r1 reviewer; control "zz" FAILs); with real git output a spaced uninitialised path gives a false FAIL. (2) scripts/gates/cm_hub_engine_no_ownorg_nesting.sh:68 `--get-regexp` plus an awk match on field 2: drops "submodules/my engine" from the inspected set (measured by the r1 reviewer), so that engine is never inspected: potential false PASS, end to end UNCONFIRMED. (3) scripts/gates/cm_gitlink_on_remote.sh:55 and :57 `ls-tree` / `ls-files -s` plus awk field 4 as the path: truncated at the first space (UNCONFIRMED end to end); :63 `--get-regexp` plus an awk equality on field 2 returns no key for "submodules/my engine" (measured). (4) scripts/fastcycle/cycle/baseline_replay.sh:1049-1052 `IFS=' ' read -r key path` over `--get-regexp` output: measured name=[submodules/my] path=[engine.path submodules/my engine] for the spaced submodule, plain one correct; effect on the replay (wrong modules/<name> reference) UNCONFIRMED. (5) scripts/gates/cm_helix_deps_ref_matches_gitlink.sh:79, :95, :105 `--get-regexp` plus an awk equality on field 2: measured key=[] for "submodules/my engine" (key found for the plain path), so line 79 reports a false DRIFT with url <none> (fail closed); end to end UNCONFIRMED. (6) low: scripts/fastcycle/consumers/migrate.sh:2432-2433 and docs/prompts/setup/latest.md:290 compare against fixed constitution paths. (7) scripts/deps_manifest/helix_deps_manifest.py:318-325 (review r2 G9): reads .gitmodules with `git config --get-regexp` text, `splitlines()`, the regex `^submodule\.(.*)\.(path|url) (.*)$` and `.strip()`, so a path with a leading or trailing space, a CR-class character or a newline is read wrong (by reading; not measured end to end, UNCONFIRMED). Fix shape proven in CON-030: NUL-separated machine formats (git config --null, git ls-files -s -z, git ls-tree -z), bytes decoded with os.fsdecode (surrogateescape), never whitespace or line splitting of a path. Each member needs its own RED on a spaced-path fixture first (section 11.4.292). Sources (tracked, section 11.4.215): docs/qa/con030_review/review_con030_r1.md (finding F5, with its measurements) and docs/qa/con030_review/review_con030_r2.md (finding G9, census of other users).
+
+**Id note (section 11.4.214):** CON-070 is the id reserved on main for this CON-030 class item (docs/CONTINUATION.md); it is registered on main's tracker in CON-030 round 5 after the merge of main 90efceb8, which did not carry it.
+
+## CON-116 — full-suite runner: tree_state hashes ignored files in the root only, so an ignored write inside a submodule is not detected (CON-030 review r3 H4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent); re-minted by Claude Opus 5.5 (CON-030 round 5 fixer subagent)
+
+**What:** the full-suite runner's tree-changed check misses an ignored file written inside a submodule. tree_state() in scripts/full_suite/run_full_suite.py lists and hashes ignored files with `git ls-files -o -i --exclude-standard -z` in the ROOT only; the `subs` record holds each submodule's status and diff, never its ignored files. A suite that writes an ignored file inside a submodule during the run therefore ends `RESULT: PASS-FULL` (rc 0), while the same write at the root (ignored by the root) ends `TREE CHANGED ... RESULT: FAIL` (rc 1). The same gap means a change of a submodule's ignored files does not change the resume key.
+
+**Found by:** independent review of CON-030 round 3 (finding H4, pre-existing on main efe2cc6; outside CON-030's encoding/framing class, so registered as its own item per section 11.4.276(E)(2)). Parent: CON-030.
+
+**Reproduction (reviewer's measurement, round-3 review sandbox, not repeated in this item):** submodule `lib` ignores `out/`, the suite writes `lib/out/x`, `--include-heavy` ends PASS-FULL rc 0; control: the same write at the root (`out/x`, ignored by the root) ends FAIL rc 1. Driver and log: docs/qa/con030_review/review_con030_r3.md (H4 row) and the driver copy docs/qa/con030_review/review_r3_drv_ign_sub.sh (sha256 0588354be227047b80d0531c65c96ee3c9560dae1b169d8dbb94a3328454fcef, as recorded in that review).
+
+**Affected scope / file-scope manifest:** scripts/full_suite/run_full_suite.py (tree_state, IGNORED_NOT_HASHED), tests/test_run_full_suite.sh, tests/test_run_full_suite_mutations.sh, docs/guides/full_suite_runner_guide.md (the Results section and Limits; round 4 already states the root-only limit).
+
+**Acceptance:** RED first on the broken engine with the reviewer's fixture (submodule ignored write ends PASS-FULL); the fix hashes the ignored files of every checked-out submodule (recursive), framed with hrec(), with the same exclusions; GREEN: the submodule write ends FAIL rc 1 and the control stays FAIL; a paired mutation that drops the submodule ignored-file records is killed; the guide's Limits line for this is removed.
+
+**UNKNOWN:** the run-time cost of `git ls-files -o -i` in every submodule on this repository (not measured).
+
+**Id history (section 11.4.214):** first minted on vehicle/con030 as CON-108 (commit 6a645831); re-minted as CON-116 in CON-030 round 5 (review r4 K6), because live main 90efceb8 already owns CON-108 for another item. The vehicle commits that name CON-108 are not rewritten (section 11.4.113).
+
+## CON-117 — full-suite runner: tree_ident splits git status and submodule status output with str.splitlines() (CON-030 round 4 class sweep, no verdict effect)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (CON-030 round 4 fixer subagent); re-minted by Claude Opus 5.5 (CON-030 round 5 fixer subagent)
+
+**What:** found by the CON-030 round 4 class sweep (docs/qa/con030_review/con030_class_sweep_r4.py, shape B sites at tree_ident: the 'subs' hash of 'git submodule status --recursive' and the dirty-list hash of 'git status --porcelain=v1'). Both outputs are split with str.splitlines() (which also splits on NEL, LS, PS, CR, VT, FF) and joined with LF before hashing. With core.quotePath=false a path holding U+0085 is printed raw, so one untracked path 'a<NEL>?? b' and the two untracked paths 'a' and 'b' give the same dirty fragments and the same dirty hash. Parent: CON-030. **Why no verdict effect (reasoned from the code, not measured):** a dirty tree at the start already ends RESULT: PARTIAL-DIRTY-TREE rc 10, never PASS-FULL, and content changes during the run are caught by tree_state (TREE CHANGED, rc 1) and by the structured quick identity; so the collision changes only which identity message is shown. With the default core.quotePath=true git quotes these bytes. **Acceptance:** read both outputs NUL-terminated (git status -z, and the submodule list from git ls-files -s -z as quick_ident already does) or frame each line with hrec(); a test with core.quotePath=false and a NEL path shows two different dirty hashes; a paired mutation restoring splitlines() is killed. **UNKNOWN:** whether any consumer sets core.quotePath=false.
+
+**Type (review r4 K11):** retyped from Task to Bug: an identity hash that two different trees can share is a defect, even when no verdict effect was found.
+
+**Id history (section 11.4.214):** first minted on vehicle/con030 as CON-109 (commit a14824bd); re-minted as CON-117 in CON-030 round 5 (review r4 K6), because live main 90efceb8 already owns CON-109 for another item. The vehicle commits that name CON-109 are not rewritten (section 11.4.113).
+
+## CON-118 — full-suite runner: the resume context omits --timeout and the --env-extra variables, so a changed timeout or variable value reuses an earlier verdict (CON-030 review r4 K4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (CON-030 round 5 fixer subagent)
+
+**What:** a record in <out>/results.jsonl is reused when its key matches; the context part of the key (scripts/full_suite/run_full_suite.py, ctx) hashes the manifest, the known-failures table and the excluded lock only. The names and values of --env-extra variables, the caller environment the runner passes on (ENV_BASE) and --timeout are not in it. A run with a different value therefore resumes an earlier verdict.
+
+**Found by:** independent review of CON-030 round 4 (finding K4, outside CON-030's declared class; pre-existing on main 90efceb8), registered as its own item per section 11.4.276(E)(2). Parent: CON-030.
+
+**Reproduction (reviewer's measurement, round-4 review sandbox, not repeated in this item):** a fixture test passes only when FOO=1. Run 1 FOO=1 --env-extra FOO: PASS-FULL; run 2 FOO=0 --env-extra FOO with the same --out: resumed (PASS), PASS-FULL rc 0; control FOO=0 with a fresh --out: FAIL rc 1. A 3 s unit recorded with --timeout 60 is resumed by --timeout 1 (PASS-FULL rc 0; fresh control TIMEOUT rc 1). Drivers: drv/envextra_resume.sh and drv/timeout_resume.sh of the round-4 review (docs/qa/con030_review/review_con030_r4.md, K4 row).
+
+**Why not fixed in CON-030 round 5:** putting variable VALUES into the context hash raises a credential question: the context hash is printed, and a truncated hash of a low-entropy secret can be guessed. The fix needs a decision: hash the values with a per-output-directory secret salt, refuse resume when --env-extra is given, or key on names plus --timeout only and document the rest. Round 5 documents the limit in docs/guides/full_suite_runner_guide.md (Results file and resume: use a new --out when these change).
+
+**Affected scope / file-scope manifest:** scripts/full_suite/run_full_suite.py (ctx, ENV_BASE, env-extra handling), tests/test_run_full_suite.sh, tests/test_run_full_suite_mutations.sh, docs/guides/full_suite_runner_guide.md.
+
+**Acceptance:** RED first with the reviewer's two fixtures on the unfixed engine; after the fix a changed --timeout and a changed --env-extra value each re-run the unit (GREEN), no value is printed or derivable from printed output (section 11.4.10), a paired mutation that drops each new key part is killed, and the guide states the rule.
 
