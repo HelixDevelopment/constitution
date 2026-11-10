@@ -1865,3 +1865,195 @@ Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the
 **Affected scope / file-scope manifest:**
 the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
 
+## CON-132 — CON-033 round 4 (structural): path-resolution and store-tier class fixed against a kernel oracle; the R4-CAP legs run on this host
+
+**Status:** Ready for testing
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Conductor
+
+Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_con033_r3.md) found R3-F1 (G-T-DOT#1 listed equivalent but refuted) and R3-F2 (RVR3b survives) in the recurring class of path-resolution and tier mutants. Round 4: _resolution_chain follows the kernel; test_review_record_resolution_ground_truth.sh compares it with os.stat and an openat O_PATH walk over a 12348-path grid; store-tier suite gains L4/E5; RVR1, RVR3b and 12 RF-chain mutants are adopted into the mutation runner; R3-F3 (DSM-H), R3-F4, R3-F5, R3-F7 (r6 harness) folded in; the r4 capability legs now find /tmp as a writable all-root-owned base (the old walk stopped at the root-owned but non-writable /home), so they run (26 ok, rc 0). Verification of the sweep and the full mutation runner is recorded in the landing commit message.
+
+## CON-116 — CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_update index freshness)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-092, re-minted at the merge of main bdc3ac43 as CON-108 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-116 (main owns up to CON-115); old to new map: CON-092 -> CON-108 -> CON-116.
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:40Z
+**Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
+
+**What (the report, verbatim):**
+Review of CON-033 (finding M5): the HELD snapshot 4b13814 on wip/review-pending-20261014/atm1220_r9 carries scripts/anchors/{regenerate_if_stale,index_commit_seam}.sh, 3 tests and a post_update_hook index-freshness change. They were not brought over (main removed regenerate_if_stale.sh in cf710b2 as untested, with no caller). After the ref is retired the owed seam exists only on the backup tag. Measured in round 1: test_regenerate_if_stale and test_index_commit_seam rc=0, test_post_update_index_freshness rc=1 (depends on the snapshot's superseded post_update_hook). Id history: vehicle/con033 at dd8bd9c registered this as CON-070 (that id stays reserved for the CON-030 vehicle). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/anchors/regenerate_if_stale.sh, scripts/anchors/index_commit_seam.sh, their 3 tests, scripts/post_update_hook.sh index-freshness step
+
+**Reproduction / context:**
+UNKNOWN: no reproduction yet; the round-1 measurement is in the report text.
+
+**Acceptance criteria:**
+The seam is implemented test-first on current main, or closed with an evidence-backed reason (section 11.4.197); the three tests pass on main; post_update_hook runs the freshness step.
+
+## CON-117 — CON-033 RM1: land the review-round budget boundary suite
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-093, re-minted at the merge of main bdc3ac43 as CON-109 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-117 (main owns up to CON-115); old to new map: CON-093 -> CON-109 -> CON-117.
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
+**Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
+
+**What (the report, verbatim):**
+Reviewer mutant RM1 (rec[round] > round_budget changed to >=, refusing the last legal round of section 11.4.276) survived every suite on main and on the vehicle. The CON-033 vehicle adds test_review_record_round_budget_boundary_regression.sh (real tool 6/0; the mutant fails B1b and B2b) and adopts RM1 into the mutation runner. In round 3 the suite is also in the sub-clause sweep's SUITES (review R2-F5). This item tracks that it lands; it closes when CON-033 lands on main. Id history: vehicle/con033 at dd8bd9c registered this as CON-071. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/review/review_record.py (G-Q-ROUND-BUDGET, G-R-ROUND-BUDGET), scripts/fastcycle/tests/test_review_record_round_budget_boundary_regression.sh
+
+**Reproduction / context:**
+Reviewer mutant RM1 (rec[round] > round_budget changed to >=) survived every suite on main.
+
+**Acceptance criteria:**
+The boundary suite is on main and the mutation runner lists RM1 (gate and record side) as KILLED. Closes when CON-033 lands on main.
+
+## CON-118 — CON-033: regenerate the review_record sub-clause kill ledger under the new sweep name, and schedule the sweep
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-094, re-minted at the merge of main bdc3ac43 as CON-110 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-118 (main owns up to CON-115); old to new map: CON-094 -> CON-110 -> CON-118.
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
+**Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
+
+**What (the report, verbatim):**
+Round 2 of CON-033 renamed the sweep generator to sweep_review_record_subclauses.sh (a ~70-minute generator, not a run_all test). In round 3 the old name was replaced in the hashed files (test_review_record_subclause_cases.sh, lib/review_record_guard_analyzer.py) and in the ledger header, and the ledger was regenerated. NOT done: nothing runs the sweep on a schedule; a stale ledger is still only caught when guard_table runs. Id history: vehicle/con033 at dd8bd9c registered this as CON-072. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/fixtures/review_record_subclause_kills.tsv, the hashed files (review_record.py, lib/review_record_guard_analyzer.py, lib/review_record_genuine.sh, the swept suites), scripts/fastcycle/tests/sweep_review_record_subclauses.sh
+
+**Reproduction / context:**
+A stale ledger is caught only when guard_table runs (M4).
+
+**Acceptance criteria:**
+The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerated and test_review_record_guard_table.sh passes; the sweep runs on a declared cadence (a timer or a heavy-tier entry) so the ledger cannot go stale silently.
+
+## CON-119 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-095, re-minted at the merge of main bdc3ac43 as CON-111 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-119 (main owns up to CON-115); old to new map: CON-095 -> CON-111 -> CON-119.
+
+Review of CON-033 (finding M4): main's SPECKIT004 document has 9 mermaid blocks but only mmd-01..07 images. The HELD snapshot carries an added mmd-09.png and three re-rendered action_prefix DIAGRAMS.mmd-01..03.png, which CON-033 did not bring over. The missing images must be regenerated from main's sources. Typed Bug (a defect: a shipped document lacks its images; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-073 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+the SPECKIT004 document with 9 mermaid blocks and its DIAGRAMS images (main has mmd-01..07 only)
+
+## CON-120 — kedge gitlink removal: operator ratification (section 11.4.122)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-096, re-minted at the merge of main bdc3ac43 as CON-112 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-120 (main owns up to CON-115); old to new map: CON-096 -> CON-112 -> CON-120.
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:42Z
+**Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
+
+**What (the report, verbatim):**
+fa3a9cb (REHEARSAL: remove kedge submodule, 2026-10-12) deleted the gitlink submodules/kedge. docs/label-sync/REVIEW-FIXES.md:88 records that the deletion had no recorded operator decision; the operator decided on 2026-10-14 to keep the untracked submodules/kedge directory untouched. The HELD snapshot also deletes the gitlink. Whether a ratification exists elsewhere is UNCONFIRMED. Raised by the CON-033 review. Id history: vehicle/con033 at dd8bd9c registered this as CON-074. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+the removed gitlink submodules/kedge (fa3a9cb, 2026-10-12) and docs/label-sync/REVIEW-FIXES.md:88
+
+**Reproduction / context:**
+UNKNOWN: whether a ratification exists elsewhere.
+
+**Acceptance criteria:**
+A recorded operator decision keep-removed or restore exists; if restore, the gitlink is restored on main.
+
+## CON-121 — select_sample: stale mutation anchor SS_N3_negative_gap_retroactive
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-097, re-minted at the merge of main bdc3ac43 as CON-113 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-121 (main owns up to CON-115); old to new map: CON-097 -> CON-113 -> CON-121.
+
+Review of CON-033: in a consumer layout (900 s cap) test_select_sample_r5_regression.sh reports mutation SS_N3_negative_gap_retroactive 'could not be applied (anchor drifted)' on both main and the vehicle, so it is a pre-existing stale anchor. The remaining NOT ok lines (S3/S5/S6/S13) need a live tracker DB or snapshot. Typed Bug (a defect: a mutation that cannot apply guards nothing; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-075 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/test_select_sample_r5_regression.sh (mutation SS_N3_negative_gap_retroactive) and scripts/fastcycle/cycle/select_sample*
+
+## CON-128 — test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (its shebang), on main 9eea893 too
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-104, re-minted at the merge of main bdc3ac43 as CON-120 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-128 (main owns up to CON-115); old to new map: CON-104 -> CON-120 -> CON-128.
+
+Found in CON-033 fix round 3. Measured 2026-11-05 on main 9eea893 (wt_main), the merge b3cecf7 and the round-3 tree: sh -> rc 2, bash -> rc 0. run_all.sh picks sh for a file whose first line has no 'bash'; the full suite uses the shebang. The mutation runner and the sub-clause sweep run it with bash, so it is green there. Outside the CON-033 scope (section 11.4.293); not fixed. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh (#!/bin/sh), scripts/fastcycle/tests/lib/review_record_genuine.sh (bash-only)
+
+## CON-129 — Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-105, re-minted at the merge of main bdc3ac43 as CON-121 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-129 (main owns up to CON-115); old to new map: CON-105 -> CON-121 -> CON-129.
+
+**Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:46Z
+**Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
+
+**What (the report, verbatim):**
+CON-033 round 3 fixed the review_record suites only (R2-F3). Measured: run_all.sh prints FAIL for a member that exits 77 (still not-PASS; in default mode the full suite runs members alone and its judge maps 77 to SKIP); test_dispatch_stamp_class.sh prints '  SKIP  consumer policy file not present' and exits 0. The rest of the class is not measured: UNCONFIRMED. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
+
+**Affected scope / file-scope manifest:**
+scripts/fastcycle/tests/run_all.sh; scripts/fastcycle/tokens/test_dispatch_stamp_class.sh (consumer policy file SKIP, exit 0); other suites UNCONFIRMED (dispatch r6, fc_timer selftest named by the conductor)
+
+**Reproduction / context:**
+grep -n 'SKIP' in each suite and compare its exit status with its skip lines.
+
+**Acceptance criteria:**
+Every suite that skips a proof leg exits 77 with the leg named; run_all.sh reports a 77 as SKIP and exits 77 when nothing failed; a census lists the remaining suites.
+
+**Census (CON-033 review round 3, finding R3-F7, reviewer probe skipexit0.py over 1193 tracked .sh files on main b939266a; an `echo SKIP` line not carrying `exit 77`, followed within 3 lines by `exit 0`):** 11 sites in 8 files. CON-033 round 4 fixed one of them in the vehicle (scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh:137, now `SKIP reason=topology_unsupported` and exit 77, measured rc 77). The other 10, pre-existing on main and NOT fixed here: test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_shellcheck_red.sh, test_guard_branch_consistency.sh, test_guard_work_track_binding.sh (2 sites), test_multitrack_redpin_mutations.sh, test_multitrack_work_binding_submodule_db.sh (2 sites), tests/action_prefix/test_subsystem_shortcuts.sh (2 sites). Acceptance per site: the skip exits 77 with a section 11.4.69 reason, and a red test proves a skipped run is never counted as PASS.
+
+## CON-130 — CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record_subclauses.sh)
+
+**Status:** Operator-blocked
+**Type:** Task
+**Operator-Block-Details:** WHAT: accepting the two excluded manifest rows needs run_full_suite.sh --accept-excluded-change WHY: the excluded set was locked on the operator's order (CON-031); changing it is the operator's decision UNBLOCK: [A] operator accepts both rows via --accept-excluded-change · [B] operator rejects them and names another treatment (for example a non-manifest location) · [C] operator accepts one row and names a treatment for the other WHO: Operator
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). Found in CON-033 fix round 4 at the merge of main bdc3ac43: scripts/run_full_suite.sh --verify-manifest reports one problem, the excluded lock. The vehicle adds scripts/fastcycle/tests/lib/review_record_guard_analyzer.py and scripts/fastcycle/tests/sweep_review_record_subclauses.sh as excluded manifest rows (a helper library and a ~70-minute generator, neither a test entry), and main bdc3ac43 locked the excluded set at 52 rows on the operator's order (CON-031). Changing the lock needs the operator's --accept-excluded-change; the round-4 fixer did not run it. Acceptance: the operator decides (accept both rows, or name another treatment); after the decision --verify-manifest reports 0 problems.
+
+## CON-131 — CON-033: run the review_record R4-CAP proof legs on a schedule (they SKIP when TMPDIR is under a home directory)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Parent: CON-033 (vehicle/con033). The R4-CAP legs of test_review_record_gate_authority_r4_regression.sh need podman unshare, a subordinate-uid range and a writable directory whose whole chain is root-owned. With TMPDIR under a home directory they SKIP (exit 77). CON-033 round 4 ran them once with TMPDIR=/tmp: 26 PASS, 0 FAIL, 0 SKIP, R4-CAP-needle..R4-CAP7 all PASS (log sha256 221ab05de2da4f64075658b7682d8a00840d6e50f4b5bf56a56729285118e525, cited in the round-4 report). Nothing runs them regularly, so a regression in the capability tier would be seen only on a host and TMPDIR where they run. Acceptance: a scheduled or pre-landing run with TMPDIR=/tmp (or another root-owned-chain directory) whose result is recorded; a SKIP of these legs is reported, never read as PASS.
+
