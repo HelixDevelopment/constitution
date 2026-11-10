@@ -16,6 +16,13 @@
 #           still parses) must PASS on that same root -- so the real gate's
 #           failure in mutation 1 comes from that check and nothing else.
 #           Control: the real gate on the real tree (read-only) must PASS.
+# Known gap: the scratch root is removed by an EXIT trap (TERM, INT and HUP also
+#           run it), but SIGKILL cannot run a trap, so after a KILL the scratch
+#           root stays under $TMPDIR. It holds only SYMLINKS to the real
+#           submodules and a copy of the gate: `rm -rf` removes the links and
+#           leaves their targets alone, but a tool that follows links (`find
+#           -L`, `cp -rL`, `chmod -R` with -L) would reach the checked tree.
+#           The checked tree itself is never changed (see the regression test).
 
 set -uo pipefail
 
