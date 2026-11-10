@@ -2742,8 +2742,10 @@ def go_test_needs_network(rc, text, complete, env, vendored):
     `<module>@<version>` Go said it tried to fetch (possibly empty when Go named none). It is SKIP-worthy only when
     ALL of these hold: the unit exited 1 (go test's failure status); its whole output is at hand (`complete`);
     it ran under the runner's offline policy (`env` has GOPROXY=off and GOFLAGS=-mod=readonly: the ground truth
-    above holds only there); the module ships no vendor/modules.txt (then the module IS in the repository and the
-    runner's -mod=readonly merely ignores it: not reclassified); every non-empty output line is in the closed
+    above holds only there); the module has no vendor/ directory (with vendor/modules.txt the module IS in the
+    repository and the runner's -mod=readonly merely ignores it; a vendor/ WITHOUT modules.txt is a repository defect
+    that plain `go test` reports offline as "inconsistent vendoring" (measured, Go 1.26.8, review round 4 G4-1); either
+    way not reclassified, fail-closed); every non-empty output line is in the closed
     grammar; at least one network line exists; and a package failed setup or Go aborted on a network line."""
     if rc != 1 or not complete or vendored:
         return None
@@ -3251,7 +3253,8 @@ def main(argv):
             if u["runner"] == "go-test" and verdict == "FAIL" and not timed_out:
                 lp = os.path.join(outdir, logrel)
                 complete = not overflow and os.path.getsize(lp) < TAIL_BYTES
-                vendored = os.path.isfile(os.path.join(ROOT, u["path"], "vendor", "modules.txt"))
+                # G4-1 (review round 4): any vendor/ directory keeps the FAIL (fail-closed, section 11.4.201(4)).
+                vendored = os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))
                 fetch = go_test_needs_network(rc, tail, complete, go_env, vendored)
                 if fetch is not None:
                     # No section 11.4.69 code names "dependency not in the offline module cache"; the true one is
@@ -3262,8 +3265,9 @@ def main(argv):
                         "cache: `go -C %s mod download`, see the guide) %s"
                         % (n, total, " ".join(fetch) or "(module not named by go)", u["path"], u["id"]))
                 elif vendored and go_test_needs_network(rc, tail, complete, go_env, False) is not None:
-                    out("[%d/%d] note: vendor/modules.txt present: the runner's GOFLAGS=-mod=readonly does not use "
-                        "vendor/, so the module is in the repository; not reclassified %s" % (n, total, u["id"]))
+                    out("[%d/%d] note: vendor/ present: the runner's GOFLAGS=-mod=readonly does not use vendor/; with "
+                        "vendor/modules.txt the module is in the repository, without it plain `go test` fails with "
+                        "inconsistent vendoring; not reclassified %s" % (n, total, u["id"]))
             emit(u, verdict, reason, source, rc, secs, leaked, env_names, counts, logrel, logsha)
             out("[%d/%d] %s%s %s %ss%s" % (n, total, verdict, " (%s)" % reason if reason else "", u["id"], secs,
                                             " leaked=%d" % leaked if leaked else ""))

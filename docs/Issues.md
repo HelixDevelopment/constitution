@@ -2007,7 +2007,7 @@ Parent: CON-031. Review round 3 US3-1 (test-instrumentation, minor). The reviewe
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Review round 3 CR3-3, CR3-4, CR3-5 (nits). CR3-3: rows whose id is NULL count as items present (fixture v6 SKIPs); the real schema has atm_id NOT NULL; COUNT(key) would close it (reviewer mutant RMG-H). CR3-4: LIKE is case-insensitive, so atm-* ids count as the prefix (fail-closed direction: the checks run); no fixture pins the dash in 'ATM-%' (RMG-G). CR3-5: a foreign register that holds any ATM-* row runs the checks and FAILs; the helper header now says so (done in round 4). Acceptance: decide CR3-3/CR3-4, adopt RMG-G and RMG-H as mutants with fixtures v5 and v6, or record them as equivalent with the reason.
+Parent: CON-031. Review round 3 CR3-3, CR3-4, CR3-5 (nits). CR3-3: rows whose id is NULL count as items present (fixture v6 SKIPs); the real schema has atm_id NOT NULL; COUNT(key) would close it (reviewer mutant RMG-H). CR3-4: LIKE is case-insensitive, so atm-* ids count as the prefix (fail-closed direction: the checks run); no fixture pins the dash in 'ATM-%' (RMG-G). CR3-5: a foreign register that holds any ATM-* row runs the checks and FAILs; the helper header now says so (done in round 4). Acceptance: decide CR3-3/CR3-4, adopt RMG-G and RMG-H as mutants with fixtures v5 and v6, or record them as equivalent with the reason. Round 5: review round 4 adopted reviewer mutants R4-G (LIKE to GLOB, the CR3-4 direction, fixture v3) and R4-I (items counted as non-NULL keys, the CR3-3 direction, fixture v6) as the pins of these two nits; test_consumer_required_mutations.sh records them as pinned to this item, to be adopted as mutants with their fixtures when the nits are decided.
 
 ## CON-132 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
 
@@ -2026,4 +2026,22 @@ Parent: CON-031. Review round 3 G3-4 and G3-5 (nits). G3-4 (source-defect, fail-
 **Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
 
 Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in the full-suite vehicle (for example CON-116, CON-119, CON-122) stay Queued in the vehicle. At landing they need the §11.4.290 status (Ready for testing with a Verification line), not Queued. Acceptance: at the landing step, set the status of each fixed item through the engine and re-export the trackers.
+
+## CON-134 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 note, registered in round 5 (review round 4 item 4, unregistered nit). The s12 wrapper of the cycle_report suite writes a temp copy of stdout and removes it only on a normal exit; a SIGTERM or SIGKILL of the outer process leaves the file behind under the temp root. Type test-instrumentation, fail-safe (no verdict changes). Acceptance: add an EXIT/INT/TERM trap that removes the copy through safe_rm_rf or a ${VAR:?}-guarded rm, with a test that kills the wrapper and checks no copy is left.
+
+## CON-135 — full-suite vehicle merge messages must say how a census conflict was resolved
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 4 item 5, unregistered nit (process-doc). The round-4 merge 97be3740 of main 90efceb8 resolved a conflict in the census line of docs/guides/full_suite_runner_guide.md by regenerating it, but the merge message does not say so. Acceptance: every merge of main into the vehicle that touches the generated census states in its message that the census was regenerated with run_full_suite.sh --sync-guide and checked with --verify-manifest, naming the resulting total.
 

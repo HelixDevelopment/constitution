@@ -10,7 +10,7 @@
 # `module lookup disabled`; in workspace mode a missing checksum prints `lookup disabled` because only the
 # checksum database (network) can supply it. Each case below pins one axis with a real module graph served
 # by a private file:// proxy (no network), a private GOMODCACHE, and the real runner. Every case also checks
-# that the run wrote nothing into the repository under test.
+# that the run wrote nothing into the repository under test (`tree clean`; A9..A14 gained it in review round 5, G4-3).
 #
 # Cases are named A<n>; tests/test_run_full_suite_go_mutations.sh runs this file against mutated copies of
 # the engine (one mutant per axis). FSR_RUNNER selects the runner; FSR_GO_CASES=A1,A5 selects cases.
@@ -307,7 +307,7 @@ if want A8; then
   commit_all "$D"
   GOMODCACHE="$CEMPTY" run "$D" "$T/o_a8"
   chk "A8 vendored module, cache empty -> FAIL (not reclassified)" "$(v1 "$T/o_a8" m)" "FAIL"
-  has "A8 the log names the vendor reason" 'vendor/modules.txt present' "$T/o_a8.log"
+  has "A8 the log names the vendor reason" 'vendor/ present' "$T/o_a8.log"
   chk "A8 tree clean" "$(clean "$D")" ""
 fi
 
@@ -322,6 +322,7 @@ if want A9; then
     GOMODCACHE="$CFULL" run "$D" "$T/o_a9$v"
     exp=FAIL; [ $v = toolchain ] && exp=PASS
     chk "A9 $v -> $exp" "$(v1 "$T/o_a9$v" m)" "$exp"
+    chk "A9 $v tree clean" "$(clean "$D")" ""
   done
 fi
 
@@ -331,6 +332,7 @@ if want A10; then
   D="$T/a10"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/dep v1.0.0\n'
   one_dep "$D/m" example.com/dep 'dep.F()' 1; tidy "$D/m"; commit_all "$D"
   GOMODCACHE="$CFULL" run "$D" "$T/o_a10"; chk "A10 retracted version required, cached -> PASS" "$(v1 "$T/o_a10" m)" "PASS"
+  chk "A10 tree clean" "$(clean "$D")" ""
 fi
 
 # A11: multi-module. A nested module inside the unit directory is not part of `./...`: its uncached
@@ -358,11 +360,15 @@ if want A12; then
   D="$T/a12"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/x\n'
   printf 'package m\nimport "testing"\nfunc TestA(t *testing.T) {}\n' > "$D/m/m_test.go"; commit_all "$D"
   GOMODCACHE="$CEMPTY" run "$D" "$T/o_a12"; chk "A12 malformed go.mod -> FAIL" "$(v1 "$T/o_a12" m)" "FAIL"
+  chk "A12 tree clean" "$(clean "$D")" ""
 fi
 
 # A13: more than 1 MiB of output from a REAL test failure in package a, plus package z whose dependency is not
-# cached (reviewer fixture R14, round 3 G3-3). The kept tail (last 1 MiB) can then hold only z's grammar lines;
-# the completeness check is what keeps the unit FAIL. Regression fixture; the paired mutant RG1 is a reasoned equivalent (see the mutations file, GM20).
+# cached (reviewer fixture R14, round 3 G3-3). Measured (review rounds 3 and 4): the kept tail (last 1 MiB) still
+# holds package a's own `FAIL<TAB>example.com/m/a<TAB>time` line, which is outside the grammar, so the unit stays
+# FAIL even without the completeness check (reviewer mutant RG1 / RG4-1, `complete = True`, survives this case:
+# recorded as the reasoned equivalent GM20). Regression fixture for a big log, not a pin of the completeness check
+# (that is P11, GM2). Comment corrected in review round 5 (G4-2).
 if want A13; then
   D="$T/a13"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/dep v1.9.9\n'
   mkdir -p "$D/m/a" "$D/m/z"
@@ -374,11 +380,14 @@ if want A13; then
   GOMODCACHE="$CFULL" run "$D" "$T/o_a13"
   chk "A13 fixture: the unit log is over 1 MiB (control needle)" "$([ "$(wc -c < "$T/o_a13/logs/000000.log" 2>/dev/null || echo 0)" -gt 1048576 ] && echo yes)" "yes"
   chk "A13 big real failure + uncached dep in another package -> FAIL" "$(v1 "$T/o_a13" m)" "FAIL"
+  chk "A13 tree clean" "$(clean "$D")" ""
 fi
 
-# A14: a vendor/ directory WITHOUT vendor/modules.txt is not a vendored module (reviewer round 3 G3-3): the
-# runner forces -mod=readonly, so the unit behaves as without vendor/ and an uncached dependency is SKIP.
-# Pins GM21 (the guard widened to "a vendor/ directory exists").
+# A14: a vendor/ directory WITHOUT vendor/modules.txt (reviewer round 3 G3-3). Decided in review round 5 (G4-1,
+# conservative, section 11.4.201(4)): FAIL, not reclassified. Measured on Go 1.26.8 (review round 4,
+# ev/g41_vendor.txt): plain `go test` in Go's default mode fails this module offline and deterministically with
+# `inconsistent vendoring`; only the runner's forced -mod=readonly reaches the module lookup. A repository defect
+# every developer sees is never an environment SKIP. Pins GM21 (the guard narrowed back to vendor/modules.txt).
 if want A14; then
   D="$T/a14"; newroot "$D"; mod "$D/m" 'module example.com/m\n\ngo 1.21\n\nrequire example.com/dep v1.0.0\n'
   one_dep "$D/m" example.com/dep 'dep.F()' 1; tidy "$D/m"
@@ -386,7 +395,9 @@ if want A14; then
   chk "A14 fixture: vendor/ exists and vendor/modules.txt does not (control needle)" "$(test -d "$D/m/vendor" && ! test -e "$D/m/vendor/modules.txt" && echo yes)" "yes"
   commit_all "$D"
   GOMODCACHE="$CEMPTY" run "$D" "$T/o_a14"
-  chk "A14 vendor/ without modules.txt, cache empty -> SKIP (module not vendored)" "$(verdict "$T/o_a14" m | cut -d'|' -f1,3)" "SKIP|go-test-output"
+  chk "A14 vendor/ without modules.txt, cache empty -> FAIL (not reclassified, G4-1)" "$(v1 "$T/o_a14" m)" "FAIL"
+  has "A14 the log names the vendor reason" 'vendor/ present' "$T/o_a14.log"
+  chk "A14 tree clean" "$(clean "$D")" ""
 fi
 
 echo "SUMMARY pass=$pass fail=$fail"

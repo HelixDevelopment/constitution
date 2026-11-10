@@ -15,9 +15,28 @@
 #   MG7  the data query's error returns SKIP (CR3-1, reviewer mutant RMG-A: the pragma answered, the count errors)
 #   MG8  no sqlite3 returns SKIP (CR3-1, reviewer mutant RMG-B)
 #   MG9  only the first id column found is examined (CR3-2, a register with both columns)
+#   Round 5, structural (section 11.4.276(E), review round 4 CR4-1): one mutant per decision leg of the helper; the
+#   leg table is in Part 3 of test_consumer_required_helper.sh. RED first: MG10, MG11, MG13, MG14, MG15 SURVIVED the
+#   round-4 suite (97/0); MG12 was already killed by other_atm.db (evidence of the round-5 fix vehicle).
+#   MG10 (reviewer R4-C, verbatim) the prefix count C3 reads the first id column only (both_lost shape)
+#   MG11 (reviewer R4-H, verbatim) only the last id column found is examined (ticket_null shape)
+#   MG12 atm_id dropped from the id-column candidates
+#   MG13 C3 reads the last id column only
+#   MG14 C3 counts the first named prefix only (ids with two prefixes)
+#   MG15 C3 counts the last named prefix only
 # Reasoned EQUIVALENT, not listed: `-lt need` -> `-ne need`: COUNT(DISTINCT key) over `key IN (need ids)`
 #   cannot exceed need, so the two agree on every input. The numeric check on the three counts cannot be
 #   reached with a non-number from sqlite3's COUNT, and `[ -gt ]` on a non-number is false (no SKIP) anyway.
+# Reasoned EQUIVALENTS of review round 4 (reviewer mutants, each measured to survive; not listed):
+#   R4-D the named-id count C2 over the first column only (or the last only): every named id carries a named
+#        prefix, so with C3 correct a named id in ANY column makes C3 >= 1 and the SKIP is refused whatever C2 says.
+#   R4-E `UNION ALL` -> `UNION`: C2 is COUNT(DISTINCT k) and C3 is only tested against 0; duplicates change neither.
+#   R4-F `[ -n "$_fci_src" ]` -> `[ -n "$_fci_key" ]`: the two are appended in the same branch, so both are set or
+#        both empty.
+#   R4-J the `$2 -lt need` clause dropped: measured equivalent; C3 = 0 implies C2 = 0 < need (same reason as R4-D).
+# Pinned to open nits, not listed (CON-131, adopt with a fixture when the nit is decided):
+#   R4-G `LIKE` -> `GLOB` (case-sensitive prefix): CR3-4, lowercase atm-* ids (fixture v3) would SKIP.
+#   R4-I items counted as non-NULL keys only: CR3-3, NULL-only ids (fixture v6) would run instead of SKIP.
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh [MUTANT_ID...]
 # Exit    : 0 baseline passes and every selected mutant is killed; 1 otherwise; 77 (reason=topology_unsupported)
 #           when sqlite3 is absent (the fixtures cannot be built, so no mutant could be killed).
@@ -42,6 +61,12 @@ MG6	  if [ "$1" -gt 0 ] && [ "$2" -lt "$_fci_need" ]	  if [ "$2" -lt "$_fci_need
 MG7	FROM ($_fci_src) WHERE $_fci_like);" 2>/dev/null) || return 0	FROM ($_fci_src) WHERE $_fci_like);" 2>/dev/null) || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
 MG8	  command -v sqlite3 >/dev/null 2>&1 || return 0	  command -v sqlite3 >/dev/null 2>&1 || { echo "SKIP: m reason=topology_unsupported"; exit 77; }
 MG9	      _fci_key="$_fci_key${_fci_key:+,}$_fci_c"	      _fci_key="$_fci_key${_fci_key:+,}$_fci_c"; break
+MG10	(SELECT COUNT(*) FROM ($_fci_src) WHERE $_fci_like)	(SELECT COUNT(*) FROM (${_fci_src%% UNION ALL*}) WHERE $_fci_like)
+MG11	_fci_src="$_fci_src${_fci_src:+ UNION ALL }SELECT $_fci_c AS k FROM items"	_fci_src="SELECT $_fci_c AS k FROM items"
+MG12	  for _fci_c in atm_id ticket_id; do	  for _fci_c in ticket_id; do
+MG13	(SELECT COUNT(*) FROM ($_fci_src) WHERE $_fci_like)	(SELECT COUNT(*) FROM (${_fci_src##* UNION ALL }) WHERE $_fci_like)
+MG14	for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }k LIKE '$_fci_p-%'"; done	for _fci_p in $_fci_pfx; do _fci_like="k LIKE '$_fci_p-%'"; break; done
+MG15	for _fci_p in $_fci_pfx; do _fci_like="$_fci_like${_fci_like:+ OR }k LIKE '$_fci_p-%'"; done	for _fci_p in $_fci_pfx; do _fci_like="k LIKE '$_fci_p-%'"; done
 EOF
 )
 

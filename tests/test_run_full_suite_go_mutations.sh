@@ -21,7 +21,8 @@
 #   GMP  classifier expects GOPROXY=direct (GOPROXY axis: off is the runner's policy, a host file:// never reaches it)
 #   GMT  `go.mod requires go >=` read as a network line (toolchain axis)
 #   GMM  the unit command reaches a nested module (multi-module axis)
-#   GM21 vendor guard widened to a bare vendor/ directory (A14)
+#   GM21 vendor guard narrowed to vendor/modules.txt (A14: a bare vendor/ must stay FAIL, G4-1 decided in round 5;
+#        until round 4 this row was the reverse mutant, when A14 pinned SKIP)
 # Reasoned EQUIVALENT, not listed (each with its differential; see the guide):
 #   GM8  drop `verdict == "FAIL"` in main: a non-FAIL verdict has rc 0 (judge_exit0) or rc 77 / >= 124, which the
 #        classifier's own rc != 1 guard refuses (GM1 is the killed mutant of that guard).
@@ -60,7 +61,7 @@ GM4	P	    if any(env.get(k) != v for k, v in GO_POLICY.items()):	    if False:
 GM5	A6	        return None\n    if not (net and failed):	        continue\n    if not (net and failed):
 GM6	P	    if not (net and failed):	    if not net:
 GM7	P	    if not (net and failed):	    if False:
-GM9	A8	os.path.join(ROOT, u["path"], "vendor", "modules.txt")	os.path.join(ROOT, "vendor", "modules.txt")
+GM9	A8,A14	os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))	os.path.isdir(os.path.join(ROOT, "vendor"))
 GM12	A5	            names.add("%s@%s" % (m.group(1), m.group(2)))	            pass
 GM15	A7	\.go:\d+:\d+: (?:(?P<b>[^\s:]+@[^\s:]+): )?)"	\.go:\d+:\d+: (?P<b>))"
 GM16	P	GO_ABORT_NET = re.compile(r"^go: [^\s:]+@[^\s:]+: module lookup disabled by GOPROXY=off$")	GO_ABORT_NET = re.compile(r"^$NEVER")
@@ -70,7 +71,7 @@ GMF	A2,A5	"GOFLAGS": "-mod=readonly",\n                    "GOPROXY": "off"	"GOF
 GMP	A5	GO_POLICY = {"GOPROXY": "off", "GOFLAGS": "-mod=readonly"}	GO_POLICY = {"GOPROXY": "direct", "GOFLAGS": "-mod=readonly"}
 GMT	A9	        m = GO_NET_LINE.match(ln)\n        if m:	        m = GO_NET_LINE.match(ln) or re.match(r"^go: go\\.mod requires go >= .*(?P<a>)(?P<b>)$", ln)\n        if m:\n            failed = True
 GMM	A11	["go", "test", "-count=1", "./..."]	["go", "test", "-count=1", "./...", "./sub/..."]
-GM21	A14	vendored = os.path.isfile(os.path.join(ROOT, u["path"], "vendor", "modules.txt"))	vendored = os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))
+GM21	A14	vendored = os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))	vendored = os.path.isfile(os.path.join(ROOT, u["path"], "vendor", "modules.txt"))
 EOF
 )
 

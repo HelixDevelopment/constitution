@@ -126,7 +126,7 @@ If a recorded submodule commit is missing from the local source (`fatal: ... not
 
 Go units run with `GOPROXY=off`, `GOFLAGS=-mod=readonly` and the host `GOMODCACHE`, so a module that is not already in the cache cannot be fetched during the run. The runner does not predict this before the run: every Go unit RUNS, and only a unit that FAILED is examined, from its own `go test` output (Go is the oracle; there is no pre-run probe, no cache-path computation, and, with the default environment, nothing is written into the repository under test; see the `--env-extra` row below). The FAIL becomes `SKIP network_unreachable_external` (`verdict_source=go-test-output`) only when ALL of these hold:
 
-- the unit exited 1, its output was not cut (the log is under the tail limit), and the unit's module has no `vendor/modules.txt`;
+- the unit exited 1, its output was not cut (the log is under the tail limit), and the unit's module has no `vendor/` directory at all (with or without `vendor/modules.txt`; decided fail-closed in review round 5, G4-1);
 - the unit really ran with the runner's offline policy (`GOPROXY=off`, `GOFLAGS=-mod=readonly`, read from the environment the unit was started with, not from a constant);
 - every non-empty output line belongs to a closed grammar: `go: downloading <mod> <ver>`, `[<file>:<l>:<c>: ][<mod>@<ver>: ]module lookup disabled by GOPROXY=off` (module mode and workspace mode), the graph-level abort `go: <mod>@<ver>: module lookup disabled by GOPROXY=off`, `FAIL<TAB><pkg> [setup failed]`, a `# <pkg>` header, passing `ok` lines, `[no test files]` lines, and a bare `FAIL`;
 - at least one lookup-disabled line AND at least one failing package (`[setup failed]`) or graph-level abort.
@@ -145,12 +145,13 @@ Measured with Go 1.26.8 (tests/test_run_full_suite_go.sh, one fixture per axis; 
 | build-tag-only imports (also host `GOFLAGS=-tags=...`, which the unit env replaces) | the unit's own result | PASS / FAIL as Go reports |
 | mixed: one package needs the network, another fails a test or does not compile | the failing package's own lines | FAIL |
 | workspace (`go.work`), module not cached or checksum not in go.work.sum | `<file>:l:c: mod@ver: module lookup disabled` | SKIP |
-| `vendor/` present | ignored under `-mod=readonly`; not reclassified, the log says why | FAIL |
+| `vendor/` present with `vendor/modules.txt` | ignored under `-mod=readonly`; the module is in the repository; not reclassified, the log says why | FAIL |
+| `vendor/` present WITHOUT `vendor/modules.txt` | under `-mod=readonly` Go reaches the module lookup; plain `go test` (default mode) fails offline with `inconsistent vendoring` (measured, Go 1.26.8, review round 4 G4-1), a repository defect; not reclassified (fail-closed), the log says why | FAIL |
 | `go 1.99` in go.mod | `go.mod requires go >= 1.99` | FAIL |
 | a `toolchain` line alone, a retracted version | Go does not consult them here | PASS |
 | a nested module (its own go.mod) | excluded from `./...` | not part of the unit |
 | host `GOPROXY=file://...`, `GOSUMDB` / `GONOSUMDB` in the HOST environment | not passed to the unit; the unit env sets the policy variables | as above |
-| `--env-extra GOSUMDB` / `GONOSUMDB` (named on purpose) | reaches the unit. Measured (review round 3, workspace without a checksum, cache full): the unit can PASS and Go writes `go.work.sum` into the repository under test, and the runner's identity guard then stops the run (`IDENTITY CHANGED`). Do not pass these for go-test units. Whether the same unit passes with network for a private module is UNCONFIRMED (CON-126) | PASS, then the run stops |
+| `--env-extra GOSUMDB` / `GONOSUMDB` (named on purpose) | reaches the unit. Measured (review round 3, workspace without a checksum, cache full): the unit can PASS and Go writes `go.work.sum` into the repository under test, and the runner's identity guard then stops the run (`IDENTITY CHANGED`). Do not pass these for go-test units. The other privacy variables that `go help environment` / `go help private` document, `GOPRIVATE` (which also sets the `GONOPROXY` and `GONOSUMDB` defaults), `GONOPROXY` and `GOINSECURE`, reach the unit the same way when named; their effect on writes into the repository is UNCONFIRMED (not measured). `GONOSUMCHECK` is not a variable `go help environment` documents on Go 1.26.8 (checked in review round 5; control needle: `GONOSUMDB` and `GOINSECURE` are found in the same output). Whether the same unit passes with network for a private module is UNCONFIRMED (CON-126) | PASS, then the run stops |
 | malformed go.mod | the parse error | FAIL |
 
 `network_unreachable_external` is the closest code in the §11.4.69 closed reason set; there is no code for "dependency not in the offline cache". It is true here (the module must come from the network, which the runner makes unreachable on purpose), but it does not say "cache", so read the progress line for the module name.

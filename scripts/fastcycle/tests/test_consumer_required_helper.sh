@@ -153,6 +153,50 @@ else
   rm -f "$FX/both_ticket.db" "$FX/both_other.db"
   sqlite3 "$FX/both_ticket.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','ATM-953');" || bad "both_ticket fixture setup failed"
   sqlite3 "$FX/both_other.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','CON-2');" || bad "both_other fixture setup failed"
+  # Round 5 (structural, section 11.4.276(E), review round 4 CR4-1): the decision-leg matrix. fc_require_items SKIPs
+  # only when C1 (items) > 0, C2 (named ids found) < need and C3 (rows with a named prefix) = 0, C2 and C3 read over
+  # every id column found. Each input leg gets a fixture and a paired mutant in test_consumer_required_mutations.sh:
+  #   L1 no sqlite3 (MG8)  L2 pragma fails: garbage, absent (MG1b)  L3 no known id column (MG1)  L4 count errors (MG7)
+  #   L5 C1 = 0: empty (MG6)  L6 C3 dropped: lost_* (MG2)  L7 candidate column dropped: atm_id (MG12), ticket_id (MG3)
+  #   L8 two columns, examined: first only (MG9), last only (MG11); C3 over first only (MG10), last only (MG13)
+  #   L9 several prefixes in the ids: C3 over the first prefix only (MG14), the last only (MG15)
+  #   L10 C2 legs: reasoned equivalents (R4-D first-column C2, R4-J clause dropped; named ids carry a named prefix,
+  #       so C3 = 0 implies C2 = 0); R4-E UNION vs UNION ALL and R4-F src vs key test: equivalents (see the mutation
+  #       file). Open, not pinned here (CON-131): NULL-only ids count as items (CR3-3, R4-I), LIKE is case-insensitive
+  #       (CR3-4, R4-G).
+  # m2_<order>_<datacol>_<data>_<other>: both columns, declared in <order> (at = atm_id,ticket_id; ta = reversed);
+  # <datacol> holds <data> (named ATM-953 | lost ATM-5, the prefix with the named id lost | foreign CON-7) and the
+  # other column holds <other> (foreign CON-1 | NULL). Want: named, lost -> run; foreign -> skip (no ATM row at all).
+  : >"$FX/m2cases.txt"
+  for _o in at ta; do
+    if [ $_o = at ]; then _decl="atm_id TEXT, ticket_id TEXT"; else _decl="ticket_id TEXT, atm_id TEXT"; fi
+    for _dc in atm_id ticket_id; do
+      if [ $_dc = atm_id ]; then _oc=ticket_id; else _oc=atm_id; fi
+      for _d in named lost foreign; do
+        case $_d in named) _dv="'ATM-953'"; _w=run ;; lost) _dv="'ATM-5'"; _w=run ;; foreign) _dv="'CON-7'"; _w=skip ;; esac
+        for _ot in foreign null; do
+          if [ $_ot = foreign ]; then _ov="'CON-1'"; else _ov=NULL; fi
+          _f="m2_${_o}_${_dc}_${_d}_${_ot}.db"; rm -f "$FX/$_f"
+          sqlite3 "$FX/$_f" "CREATE TABLE items($_decl); INSERT INTO items($_dc, $_oc) VALUES($_dv, $_ov);" || bad "$_f fixture setup failed"
+          printf '%s %s ATM-953\n' "$_f" "$_w" >>"$FX/m2cases.txt"
+        done
+      done
+    done
+  done
+  # C2 split across the columns: ATM-1025 in atm_id, ATM-343 in ticket_id (found 2 of 2), and one named id present in
+  # ticket_id only with the other lost (found 1 of 2, prefix present): both run.
+  rm -f "$FX/m2_split.db" "$FX/m2_half.db"
+  sqlite3 "$FX/m2_split.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('ATM-1025',NULL),('CON-1','ATM-343');" || bad "m2_split fixture setup failed"
+  sqlite3 "$FX/m2_half.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','ATM-1025'),('CON-2',NULL);" || bad "m2_half fixture setup failed"
+  printf '%s\n' "m2_split.db run ATM-1025 ATM-343" "m2_half.db run ATM-1025 ATM-343" >>"$FX/m2cases.txt"
+  # the reviewer's round-4 fixture names (CR4-1), the same data as two matrix cells: both_lost = atm_id CON-1,
+  # ticket_id ATM-5 (named item lost, prefix only in the second column); ticket_null = atm_id ATM-953, ticket_id NULL
+  rm -f "$FX/both_lost.db" "$FX/ticket_null.db"
+  sqlite3 "$FX/both_lost.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('CON-1','ATM-5');" || bad "both_lost fixture setup failed"
+  sqlite3 "$FX/ticket_null.db" "CREATE TABLE items(atm_id TEXT, ticket_id TEXT); INSERT INTO items VALUES('ATM-953',NULL);" || bad "ticket_null fixture setup failed"
+  # needle: the matrix produced 24 + 2 cases and each fixture answers the pragma with both columns
+  [ "$(wc -l <"$FX/m2cases.txt")" -eq 26 ] && [ "$(sqlite3 -readonly "$FX/m2_ta_atm_id_named_null.db" "SELECT group_concat(name) FROM pragma_table_info('items');")" = "ticket_id,atm_id" ] \
+    && ok "decision-leg matrix built: 26 two-column cases (needle: m2_ta_* declares ticket_id,atm_id)" || bad "decision-leg matrix fixture broken"
   # CR3-1: a PATH holding the shells and the tools the helper uses, but no sqlite3 (needle: the shell is found,
   # `command -v sqlite3` is not)
   NB="$W/nosql_bin"; mkdir -p "$NB"
@@ -178,7 +222,12 @@ EOF
       else
         expect "[$sh] $db, $ids -> no SKIP, the suite's checks run" 0 "^BODY RAN$" "$o" "$rc"
       fi
-    done <<'CASES'
+    done <<CASES
+$(cat "$FX/m2cases.txt")
+both_lost.db    run  ATM-953
+ticket_null.db  run  ATM-953
+other_atm.db    run  ATM-953 CON-001
+other_atm.db    run  CON-001 ATM-953
 real_atm.db     run  ATM-953
 real_atm.db     run  ATM-1025 ATM-343
 real_ticket.db  run  ATM-953
