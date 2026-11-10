@@ -525,6 +525,8 @@ scripts/gates/cm_covenant_114_293_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_294_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -576,8 +578,11 @@ scripts/gates/cm_no_narrative_only_pass_mutation_test.sh	sh	entry	heavy	bash	-	a
 scripts/gates/cm_no_nested_markdown_fence_leak_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_opendesign_ui_system_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_oracle_strategy_named_and_independent_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_account_name_free_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_provisional_done_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_readme_badge_row_at_top_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_release_gate_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_reporting_directives_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
@@ -689,8 +694,11 @@ tests/action_prefix/test_hook_e2e.sh	sh	entry	default	bash	-	auto
 tests/action_prefix/test_subsystem_shortcuts.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/mutation_test_constitution_cmd.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_constitution_cmd.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_constitution_cmd_pty.sh	sh	entry	heavy	bash	-	auto
 tests/constitution_cmd/test_install_cli_agent_plugins_ownership.sh	sh	entry	default	bash	-	auto
 tests/constitution_cmd/test_register.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_wiring_cmd.sh	sh	entry	default	bash	-	auto
+tests/constitution_cmd/test_wiring_cmd_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/decisions/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/test_chaos_stress.sh
 tests/decisions/repo_guard.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/decisions/run_all.sh
 tests/decisions/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
@@ -721,6 +729,8 @@ tests/extensions/test_determinism.sh	sh	member	default	-	tests/extensions/run_al
 tests/extensions/test_e2e.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_integration.sh	sh	member	heavy	-	tests/extensions/run_all.sh	override: tests/extensions/run_all.sh --quick drops it, so it runs only in the full (--include-heavy) mode
 tests/extensions/test_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_ownership_e01.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
+tests/extensions/test_ownership_e01_mutations.sh	sh	member	heavy	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_provenance.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_reviewfix.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
 tests/extensions/test_round10.sh	sh	member	default	-	tests/extensions/run_all.sh	auto: run by tests/extensions/run_all.sh
@@ -746,6 +756,7 @@ tests/gates/test_oracle_frozen_exclusions.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_ratchet_and_consumer_skips.sh	sh	entry	default	bash	-	auto
 tests/gates/test_oracle_verdict_fields.sh	sh	entry	default	bash	-	auto
 tests/gates/test_standalone_canon_gates.sh	sh	entry	default	bash	-	auto
+tests/gates/test_workable_items_db_sidecars_ignored.sh	sh	entry	default	bash	-	auto
 tests/hooks_range/test_post_update_hook_range.sh	sh	entry	default	bash	-	auto
 tests/install/lib.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/install/test_agent.sh
 tests/install/mutants_round11.sh	sh	entry	heavy	bash	-	auto
@@ -811,6 +822,7 @@ tests/jev/test_review_fixes_r5.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_review_fixes_r6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
 tests/layout/lib_layout_harness.sh	sh	excluded	-	-	-	reason: helper: sourced by tests/layout/test_canonical_root_layout.sh
 tests/layout/run_all.sh	runall	entry	default	runall-whole	-	auto
 tests/layout/test_canonical_root_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
@@ -820,6 +832,7 @@ tests/layout/test_deps_manifest_layout.sh	sh	member	default	-	tests/layout/run_a
 tests/layout/test_fastcycle_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_generator_atomic.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_guard_evidence_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
+tests/layout/test_hermetic_generator.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_layout_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/layout/test_multitrack_sync_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh
 tests/layout/test_pending_update_layout.sh	sh	member	default	-	tests/layout/run_all.sh	auto: run by tests/layout/run_all.sh

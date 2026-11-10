@@ -325,7 +325,8 @@ ID_RANGE_GROUPS = [
                               (84, 84), (88, 88), (113, 113), (121, 121),
                               (179, 181), (188, 188), (195, 195),
                               (206, 206), (234, 234), (252, 253),
-                              (288, 288)]),  # 288 added 2026-10-26 — all work on main, recursively; sibling of 113/188/195
+                              (288, 288),  # 288 added 2026-10-26 — all work on main, recursively; sibling of 113/188/195
+                              (297, 297)]),  # 297 added 2026-11-07 — §11.4.297 pull-request delivery (declared mode, author-agent self-review and merge unless a human merge gate, reviewers read back); sibling of 113/181/188/288
     ("host-and-resource-safety", [(24, 24), (58, 58), (96, 96), (111, 111),
                                    (119, 119), (128, 128), (144, 144), (147, 147),
                                    (154, 155), (174, 174),  # 174 added — T006/T007 283-corpus widening (see report)
@@ -379,7 +380,8 @@ ID_RANGE_GROUPS = [
                                         (207, 207), (208, 208), (210, 211), (213, 213),
                                         (229, 229), (235, 236), (260, 261), (264, 267),
                                         (279, 281), (285, 286),  # 279-281, 285-286 added 2026-10-23 — Jev decision-layer: detection, wiring, bootstrap, auto-tuning, dependency submodules
-                                        (293, 293)]),  # 293 added 2026-11-03 — §11.4.293 scope discipline + image no-worse proof; sibling of 40/235/236
+                                        (293, 293),  # 293 added 2026-11-03 — §11.4.293 scope discipline + image no-worse proof; sibling of 40/235/236
+                                        (298, 298)]),  # 298 added 2026-11-07 — §11.4.298 release gate per product (live run on connected hardware, closed gate state); sibling of 40/236/293
 ]
 
 EXPLICIT_ID_GROUPS = {

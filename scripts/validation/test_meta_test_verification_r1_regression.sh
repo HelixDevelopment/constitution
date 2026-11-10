@@ -1,5 +1,5 @@
 #!/bin/bash
-# Purpose : CON-120 regression guard for scripts/validation/meta_test_verification.sh
+# Purpose : CON-128 regression guard for scripts/validation/meta_test_verification.sh
 #           (the paired-mutation meta-test of scripts/validation/run_verification.sh):
 #           the meta-test never changes the tree it checks -- no renamed
 #           submodule, no edited tracked gate script -- even when it is stopped
@@ -7,7 +7,7 @@
 #           mutations are real (a weakened gate that parses, not a syntax
 #           error); it fails when the gate is blind to a missing required
 #           submodule or always fails; and on its PASS path the summary line
-#           is printed last (CON-118 class, review round 2 finding R2-F5-A).
+#           is printed last (CON-126 class, review round 2 finding R2-F5-A).
 # Forensic: before the fix the meta-test renamed submodules/verification in
 #           place and ran `sed -i` on the tracked run_verification.sh, with no
 #           trap; measured 2026-11-06 on a scratch tree, a TERM at 0.02 s left
@@ -15,7 +15,7 @@
 #           tracked gate mutated (4 of 15 delays). Its "mutation 2" seds also
 #           rewrote every `fi`/`else` on every line, so the mutated gate was a
 #           syntax error that fails whatever the gate checks.
-# Known gap (stated, not fixed; CON-120 review round 3, FU-7): SIGKILL cannot
+# Known gap (stated, not fixed; CON-128 review round 3, FU-7): SIGKILL cannot
 #           run a trap, so after a KILL the scratch root stays under $TMPDIR.
 #           It holds only SYMLINKS to the real submodules and a copy of the
 #           gate (measured: 503 symlinks over 30 runs). `rm -rf` (GNU and
@@ -194,5 +194,5 @@ mtv_mutation() {  # NAME NEEDED_INDEX(1=B3, 2=B4) OLD NEW
 mtv_mutation MT1_mut2_verdict_ignored 1 'notok "weakened gate still exits non-zero; the real gate'"'"'s mutation-1 result' 'ok "weakened gate still exits non-zero; the real gate'"'"'s mutation-1 result'
 mtv_mutation MT9_anchor_failure_ok 2 'notok "could not build the weakened gate (gate text changed; update the mutation anchors)"' 'ok "could not build the weakened gate (gate text changed; update the mutation anchors)"'
 
-echo "=== meta_test_verification regression guard (CON-120): pass=$pass fail=$fail ==="
+echo "=== meta_test_verification regression guard (CON-128): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]

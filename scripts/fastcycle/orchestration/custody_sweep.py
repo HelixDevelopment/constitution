@@ -267,7 +267,7 @@ SCHEMA_VERIFY = "custody-sweep-verify/v1"
 ATM_RE = re.compile(r"ATM-\d+")
 DESTRUCTIVE_ACTIONS = ("land", "retire")
 VALID_ACTIONS = ("keep", "land", "retire")
-# Pre-CON-119 file-list pattern: no longer used by the tool (see
+# Pre-CON-127 file-list pattern: no longer used by the tool (see
 # _patch_file_paths); kept because the r22 regression guard rebuilds the old
 # list from it as its L1 paired mutation.
 DIFF_FILE_RE = re.compile(r"^diff --git a/(.+?) b/")
@@ -574,7 +574,7 @@ def _run_bytes(args, cwd=None, env=None, input_bytes=None):
 # An operator creating a backup MUST use the same options, e.g. for a
 # worktree:  git -C <wt> diff HEAD <CANONICAL_PATCH_OPTS> > tracked.patch
 # and for a stash:  git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref> > patch.diff
-# (never `git stash show -p`: on git 2.53.0 it ignores the prefixes, CON-108)
+# (never `git stash show -p`: on git 2.53.0 it ignores the prefixes, CON-116)
 # A backup created with a plain `git diff HEAD` (pre-Round-11 convention)
 # no longer byte-matches (if nothing else, --binary implies --full-index)
 # and is honestly REFUSED -> `keep`, the safe-reversible default.
@@ -699,7 +699,7 @@ def list_stash_entries(root):
 # CANONICAL_PATCH_OPTS asks for. git C-quotes EACH path on its own, so one
 # header may mix a bare and a quoted path (a rename to a name with a TAB
 # prints `diff --git a/c.txt "b/sp ace\ttab.txt"`, measured on git 2.53.0;
-# CON-108 review finding F1-1). Each side is therefore matched separately.
+# CON-116 review finding F1-1). Each side is therefore matched separately.
 _CANONICAL_DIFF_HEADER_RE = re.compile(rb'^diff --git (?:a/.*|"a/.*") (?:b/.*|"b/.*")$')
 
 
@@ -707,7 +707,7 @@ def stash_patch_bytes_why(root, ref, env=None):
     """Like stash_patch_bytes, but returns (patch_bytes, why). why is None
     when the patch was derived, otherwise a short text naming the real
     cause (a failed git diff, or the first non-canonical header), so a
-    refusal never names the wrong cause (CON-108 review finding F1-1)."""
+    refusal never names the wrong cause (CON-116 review finding F1-1)."""
     rc, out, _ = _run_bytes(["git", "-C", root, "diff"] + list(CANONICAL_PATCH_OPTS)
                             + ["%s^1" % ref, ref], env=env)
     if rc != 0:
@@ -724,7 +724,7 @@ def stash_patch_bytes(root, ref, env=None):
     tree against its first parent, i.e. the work-tree part `git stash show
     -p` would print), or None when it could not be derived faithfully.
 
-    CON-108: derived with `git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>`,
+    CON-116: derived with `git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>`,
     never `git stash show -p`. Measured on git 2.53.0: `git stash show -p
     --src-prefix=a/ --dst-prefix=b/` emits header prefixes that change from
     run to run (`diff --git f sf`, `diff --git f |f`), so the patch hash is
@@ -802,7 +802,7 @@ def _same_path_header(rest):
 
 
 def _patch_file_paths(out):
-    """Display-only list of the paths a canonical patch touches (CON-119):
+    """Display-only list of the paths a canonical patch touches (CON-127):
     both paths of a rename, the new path of a copy, every other path once,
     in patch order. Paths come from the lines git writes unambiguously --
     `rename from/to`, `copy to`, `--- a/X`, `+++ b/Y` (C-quoted when git

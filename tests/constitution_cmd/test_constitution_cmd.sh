@@ -394,6 +394,9 @@ run "$EA" extensions list --root /tmp; check "S4 rejects --root /tmp" test $RC -
 run "$EA" extensions add src --yes; check "S4 add --yes rejected" test $RC -eq 2
 run "$EA" extensions list --json; check "S4 allows --json" test $RC -eq 0
 run "$EA" extensions add src --sha abc123; check "S4 add --sha allowed" test $RC -eq 0
+run "$EA" extensions adopt-install hooks-x --waiver-id OPS-1; check "R2 adopt-install --waiver-id delegated rc 0" test $RC -eq 0
+check "R2 adopt-install delegated with its attestation" has "$(tr '\n' ' ' < "$CA/scripts/constitution_ext/constitution_ext.sh.argv")" "adopt-install hooks-x --waiver-id OPS-1"
+run "$EA" extensions adopt-install hooks-x --waiver-id OPS-1 --yes; check "R2 adopt-install --yes rejected by the dispatcher (confirmation stays interactive)" test $RC -eq 2
 run "$EA" extensions info '-x;y'; check "S4 weird single-dash rejected" test $RC -eq 2
 run "$EA" extensions info '--json;y'; check "S4 --json;y rejected" test $RC -eq 2
 # ---- S6: extra args rejected ------------------------------------------------------------------------

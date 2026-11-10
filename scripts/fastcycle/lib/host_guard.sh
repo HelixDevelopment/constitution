@@ -157,7 +157,7 @@ if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -ge 1 ]; then
 else unreadable unreadable_nproc; fi
 
 # threads / ulimit
-# Live soft RLIMIT_NPROC (CON-109): read from the kernel's own record,
+# Live soft RLIMIT_NPROC (CON-117): read from the kernel's own record,
 # /proc/self/limits ("Max processes  <soft> <hard> processes"), because
 # `ulimit -u` is not POSIX and dash (Debian/Ubuntu /bin/sh) rejects it, which
 # turned every live read under `sh` into unreadable_ulimit N=1. The awk below

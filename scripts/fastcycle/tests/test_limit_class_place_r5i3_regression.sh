@@ -256,7 +256,7 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  # CON-112 review finding F5-1: the explanatory prose comes first and the
+  # CON-120 review finding F5-1: the explanatory prose comes first and the
   # summary line last, so the full-suite runner reads no fail word after it.
   echo "    What this guard proves: the fixed limit_class.py correctly fails with"
   echo "    EXIT_USAGE (2), genuinely distinct from EXIT_OK (0) and EXIT_PLACE_REFUSED"

@@ -383,7 +383,7 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  # CON-112 review finding F5-1: the explanatory prose comes first and the
+  # CON-120 review finding F5-1: the explanatory prose comes first and the
   # summary line last, so the full-suite runner reads no fail word after it.
   echo "    What this guard proves: python -OO no longer crashes (and pre-invalidation"
   echo "    independently prevents a stale --out even under a different pre-parse crash),"

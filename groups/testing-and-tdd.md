@@ -1788,6 +1788,8 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 
 **Refinement note (2026-11-03).** §11.4.294 turns the result of this anchor and the outcome of its clause (G) investigation into two workable-item fields (`reproduction_state`, `investigation_state`) that gate the lifecycle transitions and are quoted by every derived document and the external-tracker mirror; the `**Reproduction:**` line stays the carrier of the details and this anchor's clauses are unchanged.
 
+**Refinement note (2026-11-07).** In a pull request (§11.4.297(E)) the `red` and `green` evidence paths of the `Reproduction:` line are repository-relative and resolve, with the recorded sha256, in the tree of the pull request's head commit; a line that cites only a path a reviewer cannot resolve is INCONCLUSIVE for that pull request. The vocabulary and the clauses of this anchor are unchanged.
+
 ### §11.4.295 — Substitute app, same verdict: when a content API is geo-restricted the refusal is recorded as GEO_RESTRICTED and the SAME test runs with a substitute app under the SAME pass/fail criteria; the restriction is never reported as a failure and never lowers the bar (User mandate, 2026-11-03)
 
 **Forensic anchor — operator ruling (2026-11-03), "Substitute app, same verdict", as relayed by the conductor in the operator's words of intent (the operator's own message is not quoted here):** when a content API is geo-restricted, record `GEO_RESTRICTED`, run the same test with a substitute app, and apply the same pass/fail verdict criteria — never report the restriction as a failure, never apply weaker criteria.

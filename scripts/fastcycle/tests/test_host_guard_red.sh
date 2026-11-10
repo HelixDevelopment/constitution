@@ -227,7 +227,7 @@ chk "R3 unreadable ulimit value => unreadable_ulimit N=1" 0 1 unreadable_ulimit
 # the test itself, so a literal in the guard differs from the real value.
 BIG=999999999999   # request and injected nproc: never the binding limit
 # MXV: live soft RLIMIT_NPROC (no FC_GUARD_ULIMIT_U). THREADS=0 => N = soft/1.
-# CON-109: the expectation is read the way the kernel records it,
+# CON-117: the expectation is read the way the kernel records it,
 # /proc/self/limits, not with `ulimit -u` (dash, a common /bin/sh, rejects
 # -u, which left S empty and the check meaningless under sh). Falls back to
 # `ulimit -u` only where the file is absent.
@@ -250,7 +250,7 @@ fi
 # second, different live value: lower the soft limit inside a subshell (never raises)
 if [ "$S" != unlimited ] && [ "$S" -le 1 ]; then echo "SKIP: ulimit -u too small to vary"
 else
-  # CON-109: lower the soft limit with prlimit(1) where present (works under
+  # CON-117: lower the soft limit with prlimit(1) where present (works under
   # any /bin/sh); else with the shell's `ulimit -u` (bash, ksh, busybox).
   if command -v prlimit >/dev/null 2>&1; then
     RAW_OUT=$(env FC_GUARD_NPROC="$BIG" FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 prlimit --nproc="$LOWA": timeout "$RAW_TIMEOUT_S" sh "$GUARD" "$BIG" 2>/dev/null); RAW_RC=$?
@@ -408,7 +408,7 @@ rawrun x FC_GUARD_NPROC=64 FC_GUARD_ULIMIT_U=unlimited FC_GUARD_MEM_TOTAL_KB=100
 chk "R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted" 0 1 none
 # ulimit diagnostics must be swallowed: a ulimit that writes stderr must not leak (bash-only, BASH_ENV shim)
 if command -v bash >/dev/null 2>&1; then
-  # FC_GUARD_PROC_LIMITS points at no file, so the guard takes its ulimit fallback (CON-109).
+  # FC_GUARD_PROC_LIMITS points at no file, so the guard takes its ulimit fallback (CON-117).
   RAW_OUT=$(env BASH_ENV="$HD/be_ulimit_leak.sh" FC_GUARD_PROC_LIMITS=/nonexistent/limits $MEMOK FC_GUARD_NPROC=4 FC_GUARD_THREADS=10 timeout "$RAW_TIMEOUT_S" bash "$GUARD" 2 2>"$ERRF"); RAW_RC=$?
   RAW_ERR=$(cat "$ERRF")
   RAW_N=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^N=//p'); RAW_R=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^REASON=//p')
@@ -533,7 +533,7 @@ echo "# T014/B1 insurance: TWO separate exhaustions (thread first in eval order,
 rawrun x FC_GUARD_NPROC=64 FC_GUARD_ULIMIT_U=10 FC_GUARD_THREADS=20 FC_GUARD_ACTIVE_AGENTS=9 -- 10 --kind agents
 chk "T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)" 0 0 thread_headroom_exhausted
 
-# ---- CON-109: soft RLIMIT_NPROC read from a limits file, not from `ulimit -u` ----
+# ---- CON-117: soft RLIMIT_NPROC read from a limits file, not from `ulimit -u` ----
 # Fixture limits files (the /proc/self/limits layout); the guard runs under
 # `sh`, which is dash on Debian/Ubuntu, so these pin the dash-safe path.
 LIMD=$(mktemp -d); trap 'rm -f "$ERRF"; rm -rf "${LIMD:?}"' EXIT
@@ -543,15 +543,15 @@ mklim() { printf '%s\n' 'Limit                     Soft Limit           Hard Lim
   'Max open files            1024                 4096                 files' > "$LIMD/$3"; }
 mklim 777 999 l777; mklim unlimited unlimited lunl; mklim abc 999 lbad
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l777" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
-chk "CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom" 0 777 thread_headroom
+chk "CON-117 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom" 0 777 thread_headroom
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lunl" FC_GUARD_NPROC=64 FC_GUARD_THREADS=100 -- 8
-chk "CON-109 soft unlimited in the limits file => no thread clamp" 0 8 none
+chk "CON-117 soft unlimited in the limits file => no thread clamp" 0 8 none
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lbad" FC_GUARD_NPROC=64 FC_GUARD_THREADS=0 -- 8
-chk "CON-109 garbled soft value in the limits file => unreadable_ulimit N=1" 0 1 unreadable_ulimit
+chk "CON-117 garbled soft value in the limits file => unreadable_ulimit N=1" 0 1 unreadable_ulimit
 # Control needle: the live file read under `sh` must give the soft value the test read itself.
 rawrun x $MEMOK FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
-if [ "$S" = unlimited ]; then chk "CON-109 live read under sh (soft unlimited) => none" 0 "$BIG" none
-else chk "CON-109 live read under sh (soft=$S) => N=$S thread_headroom, never unreadable_ulimit" 0 "$S" thread_headroom; fi
+if [ "$S" = unlimited ]; then chk "CON-117 live read under sh (soft unlimited) => none" 0 "$BIG" none
+else chk "CON-117 live read under sh (soft=$S) => N=$S thread_headroom, never unreadable_ulimit" 0 "$S" thread_headroom; fi
 
 echo "SUMMARY pass=$PASS fail=$FAIL"
 [ $FAIL -eq 0 ]

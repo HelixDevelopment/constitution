@@ -5,7 +5,7 @@
 # Usage   : bash scripts/validation/meta_test_verification.sh
 #           Exit 0 when both mutations behave as required, 1 otherwise. The
 #           last line is the summary line.
-# Method  : (CON-120) the checked tree is NEVER changed. Each mutation runs on
+# Method  : (CON-128) the checked tree is NEVER changed. Each mutation runs on
 #           a scratch root under $TMPDIR (mktemp -d): a COPY of
 #           run_verification.sh plus one symlink per real submodule, so a stop
 #           at any moment (TERM, KILL) cannot leave a renamed submodule or an

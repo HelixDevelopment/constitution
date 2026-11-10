@@ -108,7 +108,7 @@ REPO_ROOT_ARG="$ROOT/constitution"
 
 fail=0
 failx() { fail=1; }
-# CON-110: the TypeError text of `k not in <int|None>` changed in Python 3.14
+# CON-118: the TypeError text of `k not in <int|None>` changed in Python 3.14
 # from "argument of type 'int' is not iterable" to "... is not a container
 # or iterable"; both forms identify the same crash. Pattern self-checked
 # below (both forms match, an unrelated TypeError does not).

@@ -1060,7 +1060,7 @@ def _read_meminfo():
 def _read_nproc_soft():
     """Live soft RLIMIT_NPROC as text ("123694", "unlimited"), or None.
 
-    CON-109 review finding F2-1: read the same way lib/host_guard.sh reads
+    CON-117 review finding F2-1: read the same way lib/host_guard.sh reads
     it, from the kernel's own record /proc/self/limits ("Max processes
     <soft> <hard> processes"; this process's limits, which every child it
     starts inherits). The former `sh -c "ulimit -u"` read returned nothing

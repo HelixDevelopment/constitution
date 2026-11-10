@@ -671,7 +671,7 @@ done
 
 echo
 if [ "$fail" = 0 ]; then
-  # CON-112: the explanatory prose comes first and the summary line last, so the
+  # CON-120: the explanatory prose comes first and the summary line last, so the
   # full-suite runner reads no fail word ("fails CLOSED") after the summary.
   echo "    What this guard proves: the fixed handoff.py correctly fails CLOSED on every"
   echo "    fixture, and every fixture's own pinned pre-fix copy is independently confirmed"
