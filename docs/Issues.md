@@ -2308,7 +2308,7 @@ Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed 
 **Severity:** Medium
 **Created-By:** Conductor
 
-Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_con033_r3.md) found R3-F1 (G-T-DOT#1 listed equivalent but refuted) and R3-F2 (RVR3b survives) in the recurring class of path-resolution and tier mutants. Round 4: _resolution_chain follows the kernel; test_review_record_resolution_ground_truth.sh compares it with os.stat and an openat O_PATH walk over a 12348-path grid; store-tier suite gains L4/E5; RVR1, RVR3b and 12 RF-chain mutants are adopted into the mutation runner; R3-F3 (DSM-H), R3-F4, R3-F5, R3-F7 (r6 harness) folded in; the r4 capability legs now find /tmp as a writable all-root-owned base (the old walk stopped at the root-owned but non-writable /home), so they run (26 ok, rc 0). Verification of the sweep and the full mutation runner is recorded in the landing commit message.
+Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_con033_r3.md) found R3-F1 (G-T-DOT#1 listed equivalent but refuted) and R3-F2 (RVR3b survives) in the recurring class of path-resolution and tier mutants. Round 4: _resolution_chain follows the kernel; test_review_record_resolution_ground_truth.sh compares it with os.stat and an openat O_PATH walk over a 12348-path grid; store-tier suite gains L4/E5; RVR1, RVR3b and 12 RF-chain mutants are adopted into the mutation runner; R3-F3 (DSM-H), R3-F4, R3-F5, R3-F7 (r6 harness) folded in; the r4 capability legs now find /tmp as a writable all-root-owned base (the old walk stopped at the root-owned but non-writable /home), so they run (26 ok, rc 0). Verification of the sweep and the full mutation runner is recorded in the landing commit message. Id history (section 11.4.214): minted in vehicle/con033 as CON-132 (round 4), re-minted at the merge of main 2e8cfb90 as CON-162 (main owns up to CON-145); old to new map: CON-132 -> CON-162.
 
 ## CON-146 — CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_update index freshness)
 
@@ -2317,7 +2317,7 @@ Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_c
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-092, re-minted at the merge of main bdc3ac43 as CON-108 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-146 (main owns up to CON-115); old to new map: CON-092 -> CON-108 -> CON-146.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-092, re-minted at the merge of main bdc3ac43 as CON-108 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-116 (main owns up to CON-115); old to new map: CON-092 -> CON-108 -> CON-116. Re-minted again at the merge of main 2e8cfb90 as CON-146 (main owns up to CON-145); old to new map: CON-116 -> CON-146.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:40Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2341,7 +2341,7 @@ The seam is implemented test-first on current main, or closed with an evidence-b
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-093, re-minted at the merge of main bdc3ac43 as CON-109 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-147 (main owns up to CON-115); old to new map: CON-093 -> CON-109 -> CON-147.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-093, re-minted at the merge of main bdc3ac43 as CON-109 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-117 (main owns up to CON-115); old to new map: CON-093 -> CON-109 -> CON-117. Re-minted again at the merge of main 2e8cfb90 as CON-147 (main owns up to CON-145); old to new map: CON-117 -> CON-147.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2365,7 +2365,7 @@ The boundary suite is on main and the mutation runner lists RM1 (gate and record
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-094, re-minted at the merge of main bdc3ac43 as CON-110 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-148 (main owns up to CON-115); old to new map: CON-094 -> CON-110 -> CON-148.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-094, re-minted at the merge of main bdc3ac43 as CON-110 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-118 (main owns up to CON-115); old to new map: CON-094 -> CON-110 -> CON-118. Re-minted again at the merge of main 2e8cfb90 as CON-148 (main owns up to CON-145); old to new map: CON-118 -> CON-148.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2389,7 +2389,7 @@ The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerat
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-095, re-minted at the merge of main bdc3ac43 as CON-111 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-149 (main owns up to CON-115); old to new map: CON-095 -> CON-111 -> CON-149.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-095, re-minted at the merge of main bdc3ac43 as CON-111 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-119 (main owns up to CON-115); old to new map: CON-095 -> CON-111 -> CON-119. Re-minted again at the merge of main 2e8cfb90 as CON-149 (main owns up to CON-145); old to new map: CON-119 -> CON-149.
 
 Review of CON-033 (finding M4): main's SPECKIT004 document has 9 mermaid blocks but only mmd-01..07 images. The HELD snapshot carries an added mmd-09.png and three re-rendered action_prefix DIAGRAMS.mmd-01..03.png, which CON-033 did not bring over. The missing images must be regenerated from main's sources. Typed Bug (a defect: a shipped document lacks its images; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-073 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
@@ -2403,7 +2403,7 @@ the SPECKIT004 document with 9 mermaid blocks and its DIAGRAMS images (main has 
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-096, re-minted at the merge of main bdc3ac43 as CON-112 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-150 (main owns up to CON-115); old to new map: CON-096 -> CON-112 -> CON-150.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-096, re-minted at the merge of main bdc3ac43 as CON-112 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-120 (main owns up to CON-115); old to new map: CON-096 -> CON-112 -> CON-120. Re-minted again at the merge of main 2e8cfb90 as CON-150 (main owns up to CON-145); old to new map: CON-120 -> CON-150.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:42Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2427,7 +2427,7 @@ A recorded operator decision keep-removed or restore exists; if restore, the git
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-097, re-minted at the merge of main bdc3ac43 as CON-113 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-151 (main owns up to CON-115); old to new map: CON-097 -> CON-113 -> CON-151.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-097, re-minted at the merge of main bdc3ac43 as CON-113 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-121 (main owns up to CON-115); old to new map: CON-097 -> CON-113 -> CON-121. Re-minted again at the merge of main 2e8cfb90 as CON-151 (main owns up to CON-145); old to new map: CON-121 -> CON-151.
 
 Review of CON-033: in a consumer layout (900 s cap) test_select_sample_r5_regression.sh reports mutation SS_N3_negative_gap_retroactive 'could not be applied (anchor drifted)' on both main and the vehicle, so it is a pre-existing stale anchor. The remaining NOT ok lines (S3/S5/S6/S13) need a live tracker DB or snapshot. Typed Bug (a defect: a mutation that cannot apply guards nothing; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-075 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
@@ -2441,7 +2441,7 @@ scripts/fastcycle/tests/test_select_sample_r5_regression.sh (mutation SS_N3_nega
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-104, re-minted at the merge of main bdc3ac43 as CON-150 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-158 (main owns up to CON-115); old to new map: CON-104 -> CON-150 -> CON-158.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-104, re-minted at the merge of main bdc3ac43 as CON-120 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-128 (main owns up to CON-115); old to new map: CON-104 -> CON-120 -> CON-128. Re-minted again at the merge of main 2e8cfb90 as CON-158 (main owns up to CON-145); old to new map: CON-128 -> CON-158.
 
 Found in CON-033 fix round 3. Measured 2026-11-05 on main 9eea893 (wt_main), the merge b3cecf7 and the round-3 tree: sh -> rc 2, bash -> rc 0. run_all.sh picks sh for a file whose first line has no 'bash'; the full suite uses the shebang. The mutation runner and the sub-clause sweep run it with bash, so it is green there. Outside the CON-033 scope (section 11.4.293); not fixed. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
@@ -2455,7 +2455,7 @@ scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh (#
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-105, re-minted at the merge of main bdc3ac43 as CON-151 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-159 (main owns up to CON-115); old to new map: CON-105 -> CON-151 -> CON-159.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-105, re-minted at the merge of main bdc3ac43 as CON-121 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-129 (main owns up to CON-115); old to new map: CON-105 -> CON-121 -> CON-129. Re-minted again at the merge of main 2e8cfb90 as CON-159 (main owns up to CON-145); old to new map: CON-129 -> CON-159.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:46Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
