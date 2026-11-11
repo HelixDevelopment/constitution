@@ -2800,6 +2800,8 @@ Parent: CON-116..CON-145 fixu landing (3bd34494, e6b16598, 2e8cfb90). Source: in
 
 Parent: CON-099. Source: docs/qa/fixu_review/landing/review_fixu_landing.md M4 (minor, process). Round 3 of CON-099 ended GO-with-follow-ups without the round-3 convergence assessment of section 11.4.276(E). The assessment is NOT written here: UNKNOWN: the author's round-3 assessment inputs (class-sharing findings, reappearing findings, wrong-layer evidence) are not recoverable from the tracker text alone, and inventing one would be a section 11.4.6 fabrication. Acceptance: before CON-099 round 4 the fixer records the assessment (or records why none was needed) in CON-099. Finding layer: process-doc, minor-class under section 11.4.276(G.2). Status Queued; no fix claimed (section 11.4.290).
 
+Inputs for the assessment are tracked (CON-191 N4): docs/qa/fixu_review/review_fixu_r3.md section 5 (F099-4, same carrier class as F099-2), section 6 (reviewer class inventory; line 433 is the only open member) and the N099-6 note on CON-099. The fixer can write the section 11.4.276(E) assessment from them; it is still not written here (section 11.4.6). Status stays Queued.
+
 ## CON-188 — fixu landing review notes N1 and N2: no CHANGELOG entry for the landing; main red on the env-reads allowlist gate until CON-144
 
 **Status:** Queued
@@ -2811,30 +2813,39 @@ Parent: CON-116..CON-145 fixu landing. Source: docs/qa/fixu_review/landing/revie
 
 ## CON-189 — Case 11c pins no unknown-id-only stale row: reviewer mutant Y3 (drop stale += 1 for an unknown id) survives (fixu follow-ups review F1, Y1 nit)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
 Parent: CON-186. Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. F1 (minor, test-instrumentation): tests/test_run_full_suite.sh case 11c always pairs the unknown id with a closed one, so the exit code of check_known_open never proves that an unknown id alone counts as stale; reviewer mutant Y3 (remove stale += 1 in the r is None branch) survived 276 passed / 0 failed, and on a known table holding only ATM-77 it prints the STALE line and then RESULT: KNOWN-OPEN with rc 0. Pre-existing gap in the fixture M1 extended, not introduced by it. Acceptance: a --known table with only an unknown id, asserting rc 1 and RESULT: KNOWN-STALE, with Y3 adopted as a paired mutant that must fail the suite. Nit Y1: mutant elif r[1] == Fixed (any other location read as open) survived and is equivalent only because schema.sql closes current_location to Issues/Fixed while the test fixture DB has no such CHECK; optional fixture row with another location, or a note that the set is closed by the schema. Finding layer: test-instrumentation, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
 
+Fix (section 11.4.224, test-first): tests/test_run_full_suite.sh case 11c gains a table holding only ATM-77 (asserts rc 1, STALE line, RESULT: KNOWN-STALE) and a fixture row ATM-10 with location Archive (asserts STALE); paired mutants F47d (Y3) and F47e (Y1) added to tests/test_run_full_suite_mutations.sh. Evidence: with the new cases, mutant F47d (Y3) is killed (2 failing checks) and F47e (Y1) is killed (1 failing check); baseline 280 passed, 0 failed. Not reproduced by me on the old suite: the survival of Y3/Y1 on the old suite is the reviewer's recorded measurement (UNCONFIRMED here).
+**Verification:** provisional (section 11.4.290) -- job: bash tests/test_run_full_suite.sh (expect passed=280 failed=0) and bash tests/test_run_full_suite_mutations.sh F47d F47e (expect both killed) on the final main -- checks: unknown-id-only table gives rc 1 and RESULT: KNOWN-STALE; a non-Issues/non-Fixed location is named STALE -- layer: host-only (test instrumentation) -- target: host, repo checkout -- artifact: the commit that lands the CON-189 change -- due: next full-suite run. Not VERIFIED-DONE; no independent review yet.
+
 ## CON-190 — Runner guide acceptance paragraph: per-commit relay wording, unsupported instance label, stale 44-row opening, undersold enforcement (fixu follow-ups review F2, F3, N2)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
 Parent: CON-186 (M2). Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. F2 (minor, process-doc): docs/guides/full_suite_runner_guide.md says the acceptances 2739c26b, bdc3ac43 and e6b16598 were run by the landing agent on an order relayed by the conductor and that each commit message says so; bdc3ac43's message records an operator acceptance from a genuine user message (2026-11-05 20:41 CET) run by the landing agent on that order, not a conductor relay; only 2739c26b and e6b16598 say relayed by the conductor. Reword per commit. F3 (minor, process-doc): the guide calls the achieved separation instance, but in e6b16598 the same landing agent replaced the two manifest rows and ran the acceptance of that change, so under section 11.4.240(F) no separate verifier instance is shown; state what the record supports (change and acceptance by one agent, on a recorded operator order, with a roster id) or record why instance applies (this also corrects the earlier review M2 suggestion). N2 (nit): the same paragraph still opens with 44 excluded rows accepted as fsr-r4-author, while the lock now has 55 rows last accepted by i@mvasic.ru on 2026-11-10; and the sentence that the runner enforces only the rostered id undersells the other refusals (roster tracked, equal to HEAD, not a symlink; chain intact; no other manifest problem); the accurate point is that it checks the id, not who typed it. Finding layer: process-doc, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
 
+Fix: docs/guides/full_suite_runner_guide.md acceptance paragraph rewritten: per-commit wording (2739c26b relayed by the conductor; bdc3ac43 genuine operator message run by the landing agent; e6b16598 relayed, operator message not seen), the unsupported 'instance' label replaced by what the record supports (one agent, recorded order, roster id; no separate verifier instance shown), stale 44-row opening replaced by the 55-row lock with its last acceptor i@mvasic.ru 2026-11-10, enforcement listed in full (roster tracked, equal to HEAD, not a symlink, chain intact, no other manifest problem; id checked, not who typed it); the closing honest-limit sentence aligned.
+**Verification:** provisional (section 11.4.290) -- job: bash scripts/run_full_suite.sh --verify-manifest (expect MANIFEST-OK; the guide census line is untouched) and a read of the paragraph against git log of the three commits -- layer: host-only (documentation) -- target: host, repo checkout -- artifact: the commit that lands the CON-190 change -- due: next full-suite run. Documentation item, no code behaviour changed. Not VERIFIED-DONE; no independent review yet.
+
 ## CON-191 — Tracked resolve1 proposal says not applied though e6b16598 applied it; CON-187 should cite the tracked round-3 inputs (fixu follow-ups review N3, N4)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
 Parent: CON-186 (M3), CON-187 (M4). Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. N3 (nit): docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md still says Status: PROPOSAL. Not applied in any tracked tree, but e6b16598 applied it; a one-line header note (applied in e6b16598, kept as the record under section 11.4.215) would stop it misleading. N4 (nit): CON-187 says the round-3 convergence-assessment inputs of CON-099 are not recoverable from the tracker text alone, but they are in tracked files: docs/qa/fixu_review/review_fixu_r3.md section 5 (F099-4 same carrier class as F099-2), section 6 (reviewer class inventory, line 433 the only open member) and the N099-6 note; CON-187 should cite them so the fixer can write the assessment from them. Finding layer: process-doc, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+Fix: N3 -- docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md header now says APPLIED in e6b16598 (lock 53 -> 55 rows) and keeps the original status text as the record; N4 -- CON-187 now cites the tracked round-3 inputs.
+**Verification:** provisional (section 11.4.290) -- job: read both texts; scripts/workable-items validate and diff in sync -- layer: host-only (documentation) -- target: host, repo checkout -- artifact: the commit that lands the CON-191 change -- due: next tracker review. Not VERIFIED-DONE; no independent review yet.
 
 ## CON-192 — Census CLI gate_env_census.py crashes with a traceback on --help; reject unknown options with exit 64 and a test (CON-144 review F1)
 
