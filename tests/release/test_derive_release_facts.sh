@@ -53,6 +53,18 @@ printf '%s\n' "$OUT" | grep -q 'T-004' && ok "positive control T-004 present" ||
 printf '%s\n' "$OUT" | grep -q 'T-999' && bad "negative control T-999 absent" || ok "negative control T-999 absent"
 # missing data fails closed (exit 3), never a partial set of facts
 ( cd "$R" && bash "$S" --base HEAD --prev-tag no-such-tag >/dev/null 2>&1 ); [ $? = 3 ] && ok "unknown tag exits 3" || bad "unknown tag exits 3"
+# a value with a quote must neither break nor alter any query (no DB value is put back into SQL)
+sqlite3 -bail "$DB" "INSERT INTO items VALUES ('T-011','Queued','x''y) or 1=1 --','Issues','plain','UN''SET','not-started',NULL);" \
+  || { echo "FAIL quote fixture could not be built"; exit 1; }
+( cd "$R" && "${G[@]}" add -A && "${G[@]}" commit -qm quote )
+OUT="$(cd "$R" && bash "$S" --base HEAD --prev-tag prev-v1 --today 2026-06-01 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "quote value: exit 0" || bad "quote value: exit 0 (got $RC)"
+has "quote severity counted" "open_severity[x'y) or 1=1 --]=1"
+has "quote severity ids exact" "open_severity_ids[x'y) or 1=1 --]=T-011"
+has "quote state ids exact" "open_states_ids[UN'SET/not-started]=T-011"
+has "other severity unchanged" "open_severity_ids[medium]=T-002 T-003 T-010"
+has "quote: open count" "items_open=6"
+printf '%s\n' "$OUT" | grep -qi 'error\|parse' && bad "no sqlite error printed" || ok "no sqlite error printed"
 ( cd "$R" && "${G[@]}" rm -q docs/workable_items.db && "${G[@]}" commit -qm rmdb )
 ( cd "$R" && bash "$S" --base HEAD --prev-tag prev-v1 >/dev/null 2>&1 ); [ $? = 3 ] && ok "no tracker exits 3" || bad "no tracker exits 3"
 left="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'rf_db.*' -newer "$DB" 2>/dev/null | wc -l)"

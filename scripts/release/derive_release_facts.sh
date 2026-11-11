@@ -46,6 +46,9 @@ cleanup() { for _f in "$DB" "$DB-shm" "$DB-wal" "$DB-journal"; do [ -f "$_f" ] &
 trap cleanup EXIT
 git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
 q() { sqlite3 -readonly -batch -noheader "$DB" "$1"; }
+# ascii mode: columns end with US (0x1f), rows with RS (0x1e), values raw (the default mode escapes
+# control characters, so a separator built with char(31) would come back as the two characters ^_)
+qa() { sqlite3 -readonly -batch -noheader -ascii "$DB" "$1"; }
 ids() { q "$1" | sort -V | tr '\n' ' ' | sed 's/ $//'; }
 kv() { printf '%s=%s\n' "$1" "$2"; }
 
@@ -62,39 +65,44 @@ O="current_location='Issues'"
 kv items_total "$(q "select count(*) from items")"
 kv items_open "$(q "select count(*) from items where $O")"
 kv items_fixed "$(q "select count(*) from items where current_location='Fixed'")"
-q "select status, count(*) from items where $O group by status order by status" | while IFS='|' read -r s n; do
-  kv "open_status[$s]" "$n"
-done
-# status is a closed set (schema CHECK), so its values carry no quote characters
-q "select distinct status from items where $O and status!='Queued' order by status" | while IFS= read -r s; do
-  kv "open_status_ids[$s]" "$(ids "select atm_id from items where $O and status='$s'")"
-done
-# severity is not a closed set in the schema; counts are case-folded and the raw spellings are listed
-q "select lower(coalesce(severity,'none')), count(*) from items where $O group by 1 order by 1" | while IFS='|' read -r s n; do
-  kv "open_severity[$s]" "$n"
-  kv "open_severity_ids[$s]" "$(ids "select atm_id from items where $O and lower(coalesce(severity,'none'))='$s'")"
-done
+# No value read from the database is ever put back into SQL text (review of this script: a severity
+# or state value with a quote would have altered the query). Each grouping is ONE query returning
+# key,id rows in ascii mode; counts and id lists are built here, so any text in a value works.
+grp() {   # grp PREFIX SQL-yielding-key,id [skipkey]  -> PREFIX[key]=count and PREFIX_ids[key]=ids
+  qa "$2" | awk '
+    BEGIN { FS = "\037"; RS = "\036" }
+    { n[$1]++; ids[$1] = ids[$1] $2 "\n" }
+    END { for (k in n) printf "%s\036%s\036%s\035", k, n[k], ids[k] }' |
+  while IFS=$'\x1e' read -r -d $'\x1d' k n idl; do
+    kv "$1[$k]" "$n"
+    [ -n "${3:-}" ] && [ "$k" = "$3" ] && continue
+    kv "$1_ids[$k]" "$(printf '%s' "$idl" | sort -V | tr '\n' ' ' | sed 's/ $//')"
+  done | sort
+}
+grp open_status "select status, atm_id from items where $O" | grep -v '^open_status_ids\[Queued\]=' 
+grp open_severity "select lower(coalesce(severity,'none')), atm_id from items where $O"
 kv open_severity_raw_spellings "$(q "select distinct coalesce(severity,'none') from items where $O order by 1" | tr '\n' ' ' | sed 's/ $//')"
-q "select reproduction_state||'/'||investigation_state, count(*) from items where $O group by 1 order by 1" | while IFS='|' read -r s n; do
-  kv "open_states[$s]" "$n"
-  case "$s" in UNSET/UNSET) ;; *) kv "open_states_ids[$s]" "$(ids "select atm_id from items where $O and reproduction_state||'/'||investigation_state='$s'")" ;; esac
-done
+grp open_states "select reproduction_state||'/'||investigation_state, atm_id from items where $O" UNSET/UNSET
 kv open_items_with_any_state "$(q "select count(*) from items where $O and (reproduction_state!='UNSET' or investigation_state!='UNSET')")"
 kv reopened_ids "$(ids "select atm_id from items where status='Reopened'")"
 
-# §11.4.290(4): V verified + P provisional (O overdue)
-PROV="$(ids "select atm_id from items where $O and body_md like '%**Verification:** provisional%'")"
-kv provisional_ids "$PROV"
-OVER=""
-for id in $PROV; do
-  due="$(q "select body_md from items where $O and atm_id='$id'" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
+# §11.4.290(4): V verified + P provisional (O overdue). Bodies come out with newlines replaced by RS
+# (ascii mode, one RS-terminated row per item); the id is never interpolated back into SQL.
+PROV="" OVER=""
+while IFS=$'\x1f' read -r -d $'\x1e' id body; do
+  PROV="$PROV $id"
+  due="$(printf '%s\n' "$body" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
   if printf '%s' "$due" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
     [ "${due:0:10}" \< "$TODAY" ] && OVER="$OVER $id"
   else
     OVER="$OVER $id"     # no date: UNSCHEDULED, treated as OVERDUE
   fi
-done
-OVER="${OVER# }"; kv overdue_ids "$OVER"
+done < <(qa "select atm_id, body_md from items where $O and body_md like '%**Verification:** provisional%'")
+sv() { printf '%s\n' $1 | sed '/^$/d' | sort -V | tr '\n' ' ' | sed 's/ $//'; }
+PROV="$(sv "$PROV")"; OVER="$(sv "$OVER")"
+kv provisional_ids "$PROV"; kv overdue_ids "$OVER"
+# PREV_DATE is git's %cs (YYYY-MM-DD); checked before it is used in SQL
+printf '%s' "$PREV_DATE" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || die "tag date $PREV_DATE is not YYYY-MM-DD" 3
 VER="$(ids "select atm_id from items where current_location='Fixed' and coalesce(closure_date,'') > '$PREV_DATE'")"
 kv verified_since_prev_ids "$VER"
 words() { printf '%s\n' "$1" | wc -w | tr -d ' '; }
