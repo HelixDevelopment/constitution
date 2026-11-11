@@ -111,7 +111,7 @@ mkrepo() {
   g -C "$d/main" worktree add --quiet -b feat "$d/wt" >/dev/null 2>&1
 }
 wt_backup() { g -C "$1/wt" diff "${CANON[@]}" HEAD > "$1/wt.patch"; }
-st_backup() { g -C "$1/main" stash show -p "${CANON[@]}" "$2" > "$1/st.patch"; }
+st_backup() { g -C "$1/main" diff "${CANON[@]}" "$2^1" "$2" > "$1/st.patch"; }
 admin() { echo "$1/main/.git/worktrees/wt"; }
 
 echo
