@@ -64,7 +64,12 @@ fc_require_consumer() {
 #   connection is read-only (here docs/workable_items.db-wal and -shm are gitignored). A BLOB-stored id (the real schema
 #   stores TEXT): LIKE reads it as text, so a BLOB id with the prefix makes C3 >= 1 and the checks run; IN never
 #   matches a BLOB to a TEXT id, which cannot cause a SKIP while C3 >= 1. Legs, bounds and paired mutants are in
-#   test_consumer_required_helper.sh Part 3 (round 7 of the full-suite fix vehicle, CON-152/CON-157).
+#   test_consumer_required_helper.sh Part 3 (rounds 7 and 8 of the full-suite fix vehicle, CON-152/CON-157).
+#   The reads see committed content of a WAL-mode database that is not yet checkpointed (a live writer or a crash
+#   leaves it in <db>-wal); opening the file immutable would hide it and SKIP a register that lost an item (L26).
+#   IFS: the prefix list and the three counts are split with the caller's IFS. With an IFS that lacks a space
+#   (IFS=, or IFS=) the counts arrive as one field, so the helper never SKIPs and the checks run (fail-closed); an
+#   IFS holding a digit can produce an empty field, which also never SKIPs. Callers keep the default IFS.
 fc_require_items() {
   _fci_db=$1; shift
   _fci_need=$#; _fci_in=""; _fci_pfx=""

@@ -21,7 +21,9 @@
 #           items sit only in ticket_id (CR3-2); both columns are examined. Round 6 adds the legs L11..L17
 #           (rows, prefix shape, column names, no write, id case, NULL ids, whitespace and other tables);
 #           round 7 adds L11b (row count), L17b, L18..L23 (quoted path, view, empty ids, BLOB ids, stdout
-#           and stderr contract) and measures L14 (read-only calls, side files).
+#           and stderr contract) and measures L14 (read-only calls, side files); round 8 adds L26 (committed
+#           content only in the -wal), L27 (a column named k), L28 (a path ending in a newline), L29 (locale)
+#           and L22b (the whole SKIP line).
 #           Part 4 (CR-2) runs the two REAL cycle_report suites from a scratch consumer layout whose
 #           constitution/scripts/fastcycle links to this checkout, so the guard under test is the one the
 #           suites really execute (never a text extract): the renamed-column, lost-item and query-error DBs
@@ -228,8 +230,31 @@ else
   #       else (sqlite leaves them when the last connection is read-only; docs/workable_items.db-wal and -shm are
   #       gitignored). Round 6 said "the helper never writes": that holds only for the database's own bytes.
   #   Error / lock: RV6-9 (data-query error -> SKIP) is killed by viewfail (L4).
-  # The systematic sweep (sweep_consumer_required_mutants.py) generates every single-edit mutant of the helper's
-  # SQL, tests, greps, redirections and exit codes and checks each is killed or registered equivalent with a proof.
+  # Round 8 (review round 7 CR7-1..CR7-4, N7-1..N7-4; the operator authorised round 8 for this item on 2026-11-11,
+  # section 11.4.276(E)(3)/(G), scoped to those findings):
+  #   L26 WAL content: a WAL-mode register whose ATM-5 row is committed only in the -wal file (not checkpointed; the
+  #       state a live writer or a crash leaves) runs the checks: the read sees committed WAL content. RV7-4 (data
+  #       query opened with immutable=1, -readonly kept: it reads the main file alone and SKIPs). RV7-11 (nolock=1)
+  #       reads the WAL like the helper here and is killed by the L14 side-file leg.
+  #   L27 a real column named k: items(atm_id, k) with the prefixed row's k = ''. CR7-2 (from-items-sample.2, a filter
+  #       on k inside the column subquery, reads the column, not the alias: the registry row was not equivalent).
+  #   L28 path quoting, newline: a tracker path ending in a newline is passed whole (control: the same name without
+  #       the newline is a foreign register and SKIPs). RV7-7 (the path through a command substitution).
+  #   L29 locale: an id whose prefix starts with A-umlaut is a usage error (exit 2) in every UTF-8 locale where bash
+  #       classes A-umlaut as [:upper:] (needle). RV7-10 ([:upper:] classes instead of [A-Z]; bash only, dash has no
+  #       multibyte classes and exits 2 either way).
+  #   L22b the whole SKIP line is pinned (message mutants of the sweep's param class).
+  #   Bound (CR7-4): the systematic sweep enumerates the operator classes sql, test, grep, redir, exit and (round 8)
+  #   param (parameter expansions, the argument shift and count, the relative-path root, the SQL quoting of an id, the
+  #   quoting of the db path, the unset statements). It does not enumerate command substitutions, word splitting of
+  #   the path, locale classes or multi-edit mutants; those are pinned by hand mutants (RV7-7, RV7-10 and the rest of
+  #   the table in test_consumer_required_mutations.sh), not claimed closed by the sweep.
+  #   Bound (N7-4): the helper splits its prefix list and the three counts with the caller's IFS. With an IFS that
+  #   lacks a space (IFS=, or empty) it never SKIPs (the checks run and FAIL on a foreign register: fail-closed).
+  #   Measured by the reviewer, documented in the helper; not tested here (no caller sets such an IFS).
+  # The systematic sweep (embedded in test_consumer_required_mutations.sh, run with --sweep) generates every
+  # single-edit mutant of the helper for the operator classes above and checks each is killed or registered
+  # equivalent with a proof (consumer_required_equivalents.tsv).
   # m2_<order>_<datacol>_<data>_<other>: both columns, declared in <order> (at = atm_id,ticket_id; ta = reversed);
   # <datacol> holds <data> (named ATM-953 | lost ATM-5, the prefix with the named id lost | foreign CON-7) and the
   # other column holds <other> (foreign CON-1 | NULL). Want: named, lost -> run; foreign -> skip (no ATM row at all).
@@ -350,6 +375,41 @@ EOF
     _f=${_sq%%|*}; rm -f "$FX/$_f"
     sqlite3 "$FX/$_f" "${_sq#*|}" || bad "$_f fixture setup failed"
   done
+  # Round 8 fixtures (review round 7 CR7-1, CR7-2, RV7-7, RV7-10; legs L26..L29).
+  # L26 (CR7-1): a WAL-mode register whose ATM-5 row is COMMITTED but lives only in the -wal file (not checkpointed):
+  # the state a live writer or a crash leaves. Built by copying db + -wal while the writing connection is still open
+  # (the crash shape): the sqlite3 CLI runs the copy with .system before it exits, and wal_autocheckpoint=0 keeps the
+  # row out of the main file. A reader that ignores the WAL (immutable=1, RV7-4) sees only CON-1 and would SKIP.
+  rm -f "$FX/l26_src.db" "$FX/l26_src.db-wal" "$FX/l26_src.db-shm" "$FX/l26_walonly.db" "$FX/l26_walonly.db-wal" "$FX/l26_walonly.db-shm"
+  ( cd "$FX" && sqlite3 l26_src.db "PRAGMA journal_mode=wal; PRAGMA wal_autocheckpoint=0; CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t'); PRAGMA wal_checkpoint(TRUNCATE); INSERT INTO items VALUES('ATM-5','t');" \
+      ".system cp l26_src.db l26_walonly.db && cp l26_src.db-wal l26_walonly.db-wal" >/dev/null ) || bad "l26 WAL fixture setup failed"
+  rm -f "$FX/l26_src.db" "$FX/l26_src.db-wal" "$FX/l26_src.db-shm"
+  # needle: the WAL copy holds a non-empty -wal; a normal read sees CON-1,ATM-5; a read of the main file alone
+  # (immutable=1) sees CON-1 only, so ATM-5 really lives only in the WAL (read from a scratch copy, the fixture is kept)
+  _nd="$W/l26_needle"; mkdir -p "$_nd"; cp "$FX/l26_walonly.db" "$FX/l26_walonly.db-wal" "$_nd/"
+  if [ -s "$FX/l26_walonly.db-wal" ] \
+     && [ "$(sqlite3 -readonly "$_nd/l26_walonly.db" "SELECT group_concat(atm_id) FROM (SELECT atm_id FROM items ORDER BY rowid);")" = "CON-1,ATM-5" ] \
+     && [ "$(sqlite3 -readonly "file:$FX/l26_walonly.db?immutable=1" "SELECT group_concat(atm_id) FROM items;")" = "CON-1" ]; then
+    ok "L26 WAL fixture built (needle: -wal non-empty; full read CON-1,ATM-5; main file alone CON-1)"
+  else bad "L26 WAL fixture broken"; fi
+  # L27 (CR7-2): items has a REAL column named k (the alias of the helper's subqueries). The prefixed row carries
+  # k = '': a filter written on k inside the subquery reads the column, not the alias (from-items-sample.2).
+  rm -f "$FX/l27_kcol.db"
+  sqlite3 "$FX/l27_kcol.db" "CREATE TABLE items(atm_id TEXT, k TEXT); INSERT INTO items VALUES('ATM-5',''),('CON-1','x');" || bad "l27 fixture setup failed"
+  # L28 (RV7-7): a tracker path that ENDS in a newline; beside it the same name without the newline holds a foreign
+  # register. The path must be passed whole: a command substitution would strip the newline and read the other file.
+  NLD="$FX/nl"; mkdir -p "$NLD"; NLP="$NLD/x.db
+"
+  cp "$FX/lost_atm.db" "$NLP" && cp "$FX/other_atm.db" "$NLD/x.db" \
+    && [ "$(sqlite3 -readonly "$NLD/x.db" "SELECT COUNT(*) FROM items WHERE atm_id LIKE 'ATM-%';")" = 0 ] && [ -s "$NLP" ] && ! cmp -s "$NLP" "$NLD/x.db" \
+    && ok "L28 newline-path fixtures built (needle: 'x.db<LF>' is the lost register, 'x.db' a foreign one)" || bad "L28 newline-path fixtures broken"
+  # L29 (RV7-10): the locales the id check is run under. A locale counts only when bash classes A-umlaut as
+  # [:upper:] in it (needle), so a [:upper:] class would accept the id there while [A-Z] does not.
+  L29LOC=""
+  for _l in C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8; do
+    if LC_ALL=$_l bash -c 'case "$1" in [[:upper:]]) exit 0 ;; esac; exit 1' _ "$(printf '\303\204')" 2>/dev/null; then L29LOC="$L29LOC $_l"; fi
+  done
+  [ -n "$L29LOC" ] && ok "L29 locales where bash classes A-umlaut as upper:$L29LOC" || bad "L29: no UTF-8 locale classes A-umlaut as upper; the leg cannot run"
   for sh in $SHELLS; do
     o="$W/out3"
     # case: db ids... -> want
@@ -414,6 +474,7 @@ l21_blob.db              run  ATM-953
 l21_blob953.db           run  ATM-953
 l24_at.db                run  ATM-953 AT-1
 l25_dashonly.db          run  ATM-953
+l27_kcol.db              run  ATM-953
 CASES
     # S6 (round 7 sweep): the function's own return code is 0 on every run path (sqlite3 missing, pragma error, no id
     # column, data-query error, found, absent path)
@@ -444,6 +505,12 @@ CASES
       if [ "$rc" = 2 ] && [ ! -s "$o" ] && grep -q '^fc_require_items: ' "$o.err"; then ok "[$sh] S7 usage error [$_ids]: exit 2, message on stderr only"
       else bad "[$sh] S7 usage error [$_ids]: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 120 "$o.err")]"; fi
     done
+    # S7b (round 8 CR7-4): the usage message names the id in single quotes, for each of the three id checks
+    for _bi in "ATM953" "9X-1" "ATM-9x"; do
+      "$sh" "$T" "$FX/real_atm.db" "$_bi" >"$o" 2>"$o.err"; rc=$?
+      [ "$rc" = 2 ] && [ "$(cat "$o.err")" = "fc_require_items: bad item id '$_bi'" ] && ok "[$sh] S7b usage message for [$_bi] is exact" \
+        || bad "[$sh] S7b usage message for [$_bi]: rc $rc, stderr [$(head -c 120 "$o.err")]"
+    done
     "$sh" "$T" "$FX/other_atm.db" A1B-7 >"$o" 2>&1; rc=$?
     expect "[$sh] S7 a digit inside the prefix (A1B-7) is a valid id (SKIP on a foreign register, not exit 2)" 77 "reason=topology_unsupported$" "$o" "$rc"
     "$sh" "$T" "$FX/both_other.db" ATM-953 >"$o" 2>&1
@@ -465,6 +532,27 @@ CASES
       if [ "$rc" = 0 ] && [ "$(cat "$o")" = "BODY RAN" ] && [ ! -s "$o.err" ]; then ok "[$sh] $_q: run, stdout is only the body, stderr empty"
       else bad "[$sh] $_q: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 200 "$o.err")]"; fi
     done
+    # L26 (round 8 CR7-1, RV7-4): the read sees committed WAL content; per shell a fresh copy of db + -wal
+    _d="$W/l26_${sh##*/}"; mkdir -p "$_d"; rm -f "$_d"/t.db*; cp "$FX/l26_walonly.db" "$_d/t.db"; cp "$FX/l26_walonly.db-wal" "$_d/t.db-wal"
+    _h0=$(cat "$_d/t.db" "$_d/t.db-wal" | sha256sum)
+    "$sh" "$T" "$_d/t.db" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] L26 WAL register, ATM-5 committed only in the -wal -> no SKIP (the lost item is seen)" 0 "^BODY RAN$" "$o" "$rc"
+    [ "$(cat "$_d/t.db" "$_d/t.db-wal" | sha256sum)" = "$_h0" ] && ok "[$sh] L26 db and -wal bytes unchanged by the read" || bad "[$sh] L26 db or -wal bytes changed"
+    # L28 (round 8 RV7-7): the path with a trailing newline is passed whole
+    "$sh" "$T" "$NLP" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] L28 path ending in a newline (lost register) -> no SKIP" 0 "^BODY RAN$" "$o" "$rc"
+    "$sh" "$T" "$NLD/x.db" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] L28 control: the same name without the newline (foreign) -> SKIP 77" 77 "reason=topology_unsupported$" "$o" "$rc"
+    # L29 (round 8 RV7-10): an id whose prefix starts with A-umlaut is a usage error in every UTF-8 locale listed
+    for _l in $L29LOC; do
+      LC_ALL=$_l "$sh" "$T" "$FX/other_atm.db" "$(printf '\303\204')TM-5" >"$o" 2>"$o.err"; rc=$?
+      if [ "$rc" = 2 ] && [ ! -s "$o" ] && grep -q '^fc_require_items: bad item id' "$o.err"; then ok "[$sh] L29 LC_ALL=$_l: A-umlaut prefix is a usage error (exit 2)"
+      else bad "[$sh] L29 LC_ALL=$_l: A-umlaut prefix: rc $rc, stdout [$(head -c 120 "$o")]"; fi
+    done
+    # L22b (round 8 CR7-4): the whole SKIP line is pinned, not only its tail
+    "$sh" "$T" "$FX/other_atm.db" ATM-953 >"$o" 2>&1; rc=$?
+    _want="SKIP: tracker DB $FX/other_atm.db (2 items, column atm_id) is another consumer's register: it holds no ATM-* item, so not the real items this suite reads (ATM-953; found 0 of 1) reason=topology_unsupported"
+    [ "$rc" = 77 ] && [ "$(cat "$o")" = "$_want" ] && ok "[$sh] L22b the SKIP line is exactly the documented text" || bad "[$sh] L22b SKIP line [$(cat "$o")], want [$_want]"
     # L14 (round 7 CR6-3, RV6-12): every sqlite3 call carries -readonly (shim log); bytes and side files
     for _q in other_atm.db real_atm.db viewfail.db; do
       : >"$W/shim.log"

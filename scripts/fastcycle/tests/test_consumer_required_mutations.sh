@@ -49,6 +49,15 @@
 #   RV6-9  a data-query error read as SKIP (L4 viewfail)     RV6-10 C3 over TEXT keys only (L21 BLOB ids; CR6-6)
 #   RV6-11 the SKIP returns 77 instead of exiting (m2 matrix)
 #   RV6-12 -readonly dropped from the data query (L14 shim log; the round-6 "equivalent" RV5-5b, CR6-3)
+#   Round 8 (review round 7 CR7-1..CR7-4; the operator authorised round 8 for this item on 2026-11-11, section
+#   11.4.276(E)(3)/(G), scoped to the round-7 findings): reviewer mutants verbatim. RED first: on the round-7 suite
+#   (309/0) RV7-4, RV7-7, RV7-10 and CR7-2 SURVIVED; RV7-11 was already killed (L14 side files). A row may carry
+#   several anchor/replacement pairs (TAB separated); every anchor must occur exactly once when it is applied.
+#   RV7-4  the data query opens file:<db>?immutable=1 (-readonly kept): committed WAL content is not read (L26)
+#   RV7-7  both calls read the path through "$(printf '%s' ...)", which strips a trailing newline (L28)
+#   RV7-10 the prefix classes [![:upper:]] / [![:upper:][:digit:]] instead of [A-Z] (L29, UTF-8 locales, bash)
+#   RV7-11 the data query opens file:<db>?nolock=1 (L14 side files)
+#   CR7-2  the column subquery filtered on k (WHERE k IS NOT ''), the former registry row from-items-sample.2 (L27)
 # Systematic sweep (round 7, closes the class, section 11.4.274): `--sweep [JOBS]` generates EVERY single-edit
 #   mutant of the helper's SQL clauses, shell tests and connectives, greps, redirections and exit codes (the
 #   operator catalogue OPS in the embedded sweep below), checks with independent site enumerators that every such
@@ -59,7 +68,13 @@
 #   that the sweep has not seen fails here.
 # Equivalents: the reasoned-equivalent notes of rounds 4 to 6 are replaced by the registry
 #   consumer_required_equivalents.tsv, one row per sweep mutant that cannot be killed, each with its proof, checked
-#   on every run. Corrected in round 7 (review round 6, CR6-2 and CR6-3): `trim(k) IN` in C2 and `-readonly`
+#   on every run. Round 8 adds the param class (parameter expansions, shift and argument count, the relative-path
+#   root, the SQL quoting of an id, the quoting of the db path, unset) and a per-run timeout (FC_SWEEP_TIMEOUT,
+#   default 1800 s; a TIMEOUT mutant fails the verdict, review round 7 N7-2). The sweep enumerates single edits of
+#   those classes only; command substitutions, word splitting of the path, locale classes and multi-edit mutants are
+#   pinned by the hand table below (RV7-7, RV7-10), not claimed closed by the sweep (CR7-4). --sweep is run on demand
+#   (about an hour at JOBS 8): the manifest runs this file without it, so routinely only the cheap check runs.
+#   Corrected in round 7 (review round 6, CR6-2 and CR6-3): `trim(k) IN` in C2 and `-readonly`
 #   dropped from the data query are NOT equivalent; both are now killed (RV6-7 by l17b_lead953, RV6-12 by the L14
 #   read-only shim). R4-D (C2 over one column), R4-E (UNION) and R4-J (the C2 clause dropped) are covered by the
 #   registry's Lemma L rows; R4-F (`-n "$_fci_key"`) is not a single-edit sweep mutant and stays a reasoned note:
@@ -156,6 +171,18 @@ OPS = [
  ("test", "case-subject", r"case \$\w+ in", ["case x in"]),
  # word splitting of the three counts
  ("test", "split", r"set -- \$_fci_q", ['set -- "$_fci_q"']),
+ # parameter expansions, arguments and statements (round 8, review round 7 CR7-4): the helper lines that had no
+ # sweep mutant (relative-path root, shift and argument count, id split, IN list, key list, unset)
+ ("param", "alt",       r":\+", [":-", "+"]),
+ ("param", "pfx-strip", r"%%-\*", ["%-*"]),
+ ("param", "num-strip", r"#\*-\}", ["##*-}"]),
+ ("param", "shift",     r"; shift$", [""]),
+ ("param", "arg1",      r"=\$1;", ["=$2;"]),
+ ("param", "argc-need", r"=\$#;", ["=1;", "=0;"]),
+ ("param", "root",      r"\$_fcr_root/", [""]),
+ ("param", "sql-quote", r"'\$_fci_id'", ["$_fci_id"]),
+ ("param", "db-quote",  r'"\$_fci_db"', ["$_fci_db"]),
+ ("param", "unset",     r"^\s*unset \S.*$", ["  :"]),
 ]
 # Independent site enumerators: every site of each class must be touched by at least one generated mutant.
 SITES = [
@@ -164,6 +191,7 @@ SITES = [
  ("grep",  r"\bgrep -\w+"),
  ("redir", r"[0-9]?>/dev/null|>&2|2>&1"),
  ("exit",  r"\bexit [0-9]+|\breturn [0-9]+"),
+ ("param", r"\$\{[^}]*\}|\bunset\b|\bshift\b|=\$#;|=\$1;|\$_fcr_root/|'\$_fci_id'|\"\$_fci_db\""),
 ]
 
 def code_lines(src):
@@ -220,11 +248,16 @@ def gen(helper, out):
     print("uncovered_sites=%d" % len(unc))
     print("mutants=%d" % len(idx))
 
+TIMEOUT = int(os.environ.get("FC_SWEEP_TIMEOUT", "1800"))   # seconds per helper-test run (N7-2: a hanging mutant)
+
 def run_one(test, path):
     if subprocess.run(["sh", "-n", path], capture_output=True).returncode != 0:
         return "invalid", 0
     env = dict(os.environ, FC_HELPER_UNDER_TEST=os.path.abspath(path))   # the test links it: a relative path dangles
-    r = subprocess.run(["bash", test], capture_output=True, text=True, env=env)
+    try:
+        r = subprocess.run(["bash", test], capture_output=True, text=True, env=env, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "timeout", 0   # neither killed nor survived: the verdict fails on it
     n = sum(1 for x in r.stdout.splitlines() if x.startswith("NOT ok"))
     return ("killed" if r.returncode == 1 and n > 0 else "survived"), n
 
@@ -234,7 +267,7 @@ def run(helper, out, test, jobs):
     base = os.path.join(out, "baseline_copy.sh")
     open(base, "w").write(open(helper).read())
     v, n = run_one(test, base)
-    if v != "survived" or n != 0:
+    if v != "survived" or n != 0:   # a baseline timeout aborts here too
         sys.exit("BASELINE FAIL: the unmutated helper copy does not pass through the sweep's own path (%s, %d NOT ok)" % (v, n))
     print("baseline: the unmutated helper copy passes through the sweep path")
     res = {}
@@ -246,7 +279,7 @@ def run(helper, out, test, jobs):
         for r in idx:
             v, n = res[r[0]]
             f.write("\t".join([r[0], v, str(n), r[3], r[4], r[5]]) + "\n")
-    print("results killed=%d survived=%d invalid=%d" % tuple(sum(1 for v in res.values() if v[0] == k) for k in ("killed", "survived", "invalid")))
+    print("results killed=%d survived=%d invalid=%d timeout=%d" % tuple(sum(1 for v in res.values() if v[0] == k) for k in ("killed", "survived", "invalid", "timeout")))
 
 def registry(path):
     reg = {}
@@ -287,6 +320,8 @@ def verdict(out, reg_path):
         print("REGISTERED equivalent is not a survivor (killed or not generated; drop it): %s" % k); bad += 1
     for k in inval:
         print("INVALID mutant (does not parse; the operator needs a fix): %s" % k); bad += 1
+    for k in [r[0] for r in res if r[1] == "timeout"]:
+        print("TIMEOUT mutant (the helper test did not finish within FC_SWEEP_TIMEOUT): %s" % k); bad += 1
     print("verdict mutants=%d killed=%d equivalent=%d unregistered_survivors=%d stale=%d invalid=%d" % (
         len(res), sum(1 for r in res if r[1] == "killed"), len(surv & set(reg)), len(surv - set(reg)),
         len(set(reg) - surv), len(inval)))
@@ -355,6 +390,11 @@ RV6-9	WHERE $_fci_like);" 2>/dev/null) || return 0	WHERE $_fci_like);" 2>/dev/nu
 RV6-10	FROM ($_fci_src) WHERE $_fci_like)	FROM ($_fci_src) WHERE typeof(k)='text' AND ($_fci_like))
 RV6-11	found $2 of $_fci_need) reason=topology_unsupported"\n    exit 77	found $2 of $_fci_need) reason=topology_unsupported"\n    return 77
 RV6-12	sqlite3 -readonly -separator	sqlite3 -separator
+RV7-4	sqlite3 -readonly -separator ' ' "$_fci_db"	sqlite3 -readonly -separator ' ' "file:$_fci_db?immutable=1"
+RV7-7	sqlite3 -readonly "$_fci_db"	sqlite3 -readonly "$(printf '%s' "$_fci_db")"	-separator ' ' "$_fci_db"	-separator ' ' "$(printf '%s' "$_fci_db")"
+RV7-10	''|[!A-Z]*|*[!A-Z0-9]*)	''|[![:upper:]]*|*[![:upper:][:digit:]]*)
+RV7-11	sqlite3 -readonly -separator ' ' "$_fci_db"	sqlite3 -readonly -separator ' ' "file:$_fci_db?nolock=1"
+CR7-2	AS k FROM items"	AS k FROM items WHERE k IS NOT ''"
 EOF
 )
 
@@ -372,17 +412,22 @@ fi
 killed=0; survived=0; bad=0
 while IFS= read -r line; do
   [ -n "$line" ] || continue
-  id=${line%%$'\t'*}; rest=${line#*$'\t'}; old=${rest%%$'\t'*}; new=${rest#*$'\t'}
+  id=${line%%$'\t'*}; rest=${line#*$'\t'}
   if [ $# -gt 0 ]; then case " $* " in *" $id "*) ;; *) continue;; esac; fi
   m="$W/$id.sh"
-  if ! python3 -I - "$HERE/lib/consumer_required.sh" "$m" "$old" "$new" <<'PY'
+  if ! python3 -I - "$HERE/lib/consumer_required.sh" "$m" "$rest" <<'PY'
 import sys
-src, dst, old, new = sys.argv[1:5]
-old, new = old.replace("\\n", "\n"), new.replace("\\n", "\n")   # a literal backslash-n in the table is a newline
+src, dst, rest = sys.argv[1:4]
+f = rest.split("\t")   # anchor TAB replacement, repeated for a multi-edit mutant (RV7-7 edits two calls)
+if len(f) % 2:
+    sys.exit("odd number of fields: anchor/replacement pairs expected")
 s = open(src).read()
-if s.count(old) != 1:
-    sys.exit("anchor occurs %d times" % s.count(old))
-open(dst, "w").write(s.replace(old, new))
+for old, new in zip(f[0::2], f[1::2]):
+    old, new = old.replace("\\n", "\n"), new.replace("\\n", "\n")   # a literal backslash-n in the table is a newline
+    if s.count(old) != 1:
+        sys.exit("anchor occurs %d times: %s" % (s.count(old), old[:60]))
+    s = s.replace(old, new)
+open(dst, "w").write(s)
 PY
   then echo "BAD  $id: mutation not applicable"; bad=$((bad+1)); continue; fi
   sh -n "$m" || { echo "BAD  $id: the mutant does not parse"; bad=$((bad+1)); continue; }
