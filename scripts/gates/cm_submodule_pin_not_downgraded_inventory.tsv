@@ -14,7 +14,7 @@ I001	set -uo pipefail	lastpipe-dropped	-	ch	shell options; the pipefail/lastpipe
 I002	shopt -s lastpipe	lastpipe-dropped	-	fo	dropping it loses fail=1 set inside the loop: a refusal passes; no false-refusal form exists
 I003	GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"	diverged-silent,undecided-is-ok	-	ch	message prefix; the fixtures count prefixed lines (cnt '^CM-SUBMODULE-PIN-NOT-DOWNGRADED: WARN')
 I004	self="${BASH_SOURCE[0]:-$0}"	help-truncated,root-default-wrong	-	ch	source of the help text and the default root
-I005	root="$(cd "$(dirname "$self")/../.." && pwd -P)"	root-default-wrong	-	ch	default root (no --root): ROOTDEFAULT
+I005	root="$(cd "$(dirname "$self")/../.." && pwd -P)"	root-default-wrong	-	ch	default root (no --root): ROOTDEFAULT; round 8: ROOTNEST kills root-default-wrong (scripts/ is its own repository; ROOTDEFAULT alone could not, the root is normalised to --show-toplevel)
 I006	need() { [ "$1" -ge 2 ]	usage-value-unchecked,usage-argc-off-by-one	-	both	argc member: dropped (fo: a flag without value accepted) / off by one (fr: a valid flag refused); round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
 I007	&& [ -n "$2" ] ||	usage-empty-value-accepted,usage-argc-off-by-one	-	both	empty-value member; round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
 I007b	"$1" -ge 2 ] && [ -n	-	eq-need-argc-redundant	none	round 8 generated member (argc test dropped): equivalent, every caller passes "${2:-}", so argc < 2 implies an empty value which the -n member refuses (differential probe pr_needargc)
@@ -112,8 +112,8 @@ I081	elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)";
 I082	kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]	spent-head-counted	-	ch	children filter
 I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches	-	both	child-of-base: any parent (fr) / none (fo)
 I084	else kidsrc=err; fi	kidsrc-err-is-ok	-	fo	rev-list failure -> cannot tell; as ok (fo)
-I085	[ "$kidsrc" = shallow ] &&	shallow-test-never	-	fo	test member: shallow never seen (fo)
-I085b	git fetch --unshallow)"; return 2; }	shallow-reason-dropped,shallow-says-spent	-	both	reaction member: dropped (fo) / spent (fr)
+I085	[ "$kidsrc" = shallow ] &&	shallow-test-never	-	ch	test member: exit-equivalent, any kidsrc other than ok refuses on the next line ([ "$kidsrc" = ok ] || return 2), so the member only selects the reason (SHALLOWSUP / KNM2 count it); the fo form of shallow detection is I084 (M1-shallow-superproject-unchecked); round 8 need corrected from fo
+I085b	git fetch --unshallow)"; return 2; }	shallow-reason-dropped,shallow-says-spent	-	ch	reaction member: dropped falls through to the ok check (return 2, other reason), says-spent returns spent (refused, other reason): every form refuses, only the reason differs (SHALLOWSUP / KNM2); round 8 need corrected from both
 I086	[ "$kidsrc" = ok ] ||	history-test-always	-	fr	test member: history always failed (fr)
 I086b	--all failed (a broken ref?)"; return 2; }	spent-history-error-ignored	-	fo	reaction member (BADREF)
 I087	for k in $kids; do	spender-ignored	-	ch	scan
@@ -195,7 +195,7 @@ I142	[ "$osha" != "$nsha" ]	unchanged-test-inverted	-	fo	test member: inverted (
 I142b	[ "$osha" != "$nsha" ] || continue	-	eq-unchanged-entry-dropped	none	reaction member: equivalent, diff --raw lists no unchanged gitlink (differential proof)
 I143	checked=$((checked+1)); sub="$root/$path"	count-not-incremented	-	ch	count (COUNT)
 I144	if [ -z "$subp" ] ||	-	eq-V28-missing-checkout-no-empty-check	none	empty-subp member: equivalent, every shape that empties subp also fails the git check (differential proof: absent, file, mode 000, empty dir)
-I144b	! sg -C "$sub" rev-parse --git-dir	checkout-check-dropped,checkout-always-missing	-	both	git-dir member: dropped (fo) / always (fr)
+I144b	! sg -C "$sub" rev-parse --git-dir	checkout-check-dropped,checkout-always-missing	-	fr	git-dir member: always (fr, checkout-always-missing); dropped (checkout-check-dropped) is exit-equivalent, a directory that is not its own repository is refused by the toplevel member I145 with another reason (SUBBROKEN, a checkout with a dangling .git file, counts both reasons); round 8 need corrected from both
 I145	"submodule checkout missing or not a repository"	missing-checkout-unnamed	-	ch	BLIND dropped (fo); round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
 I146	if [ "$subp" != "$root/$path" ]; then	symlink-always	-	fr	test member: always (fr)
 I146b	"checkout path is a symlink (resolves to $subp)"	symlink-unchecked	-	fo	reaction member: SYMSUB (downgrade, 2 -> 1) and round-8 SYMSUBFWD (a forward bump through the link: 2 -> 0, fo)
