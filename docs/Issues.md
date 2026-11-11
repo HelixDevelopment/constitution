@@ -767,6 +767,8 @@ Source report(s) in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosva
 
 Origin: independent-review follow-up, section 11.4.276(G.2).
 
+Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 (by the ids of that day; CON-122 and CON-127 are re-minted since as CON-152 and CON-157) and authorises review round 6 under section 11.4.276(G).
+
 **Affected scope / file-scope manifest:**
 config/full_suite_excluded.lock and config/full_suite_operators.roster
 
@@ -775,6 +777,12 @@ Run the runner with --verify-manifest.
 
 **Acceptance criteria:**
 Operator reviewed the excluded rows and accepted; a full run no longer ends exit 11.
+
+Round 7 (2026-11-11): the same operator decision ("Keep running rounds until GO is reached!", relayed verbatim 2026-11-10) authorises review round 7 of CON-152 and CON-157. Section 11.4.276(G) caps any extension at round 7 by recorded decision naming the item (review round 6 N6-3), so round 7 is the last round this decision can authorise; a further round needs the section 11.4.276(E)(3) escalation to an operator decision.
+
+Round 8 (2026-11-11): operator decision on record (relayed by the conductor, verbatim, 2026-11-11, section 11.4.276(E)(3)/(G)): "Authorise round 8". It names this item (the codegraph/full-suite vehicle, CON-152/CON-157/CON-031 line) and is scoped to the review round 7 findings CR7-1..CR7-4 and N7-1..N7-4.
+
+Id map, round 8 (§11.4.214): at the merge of main 27dcf518 into the full-suite fix vehicle head 4118f145 (2026-11-11) the vehicle's items were re-minted CON-146..CON-165 -> CON-163..CON-182 (+17, in order), because main already owns CON-146..CON-162. Ids CON-146..CON-165 in the text above this note that were written on the vehicle name the vehicle's items; read them through this map. The text above is kept unchanged.
 
 ## CON-032 — post_update_hook.sh captures CONST_DIR, _pu_owner and PROJECT_ROOT with plain $(...) (newline class)
 
@@ -1720,6 +1728,8 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Surviving mutants M1A, M1G, M2A, M2C, M2D; protected behaviour proven live by the reviewer. Acceptance: tests that kill all five.
 
+Recurrence link (§11.4.214, review round 8 R8-2, 2026-11-11): the review of round 8 of the full-suite fix vehicle (docs/qa/review_cgs8_round8_2026_11_11.md) found that mutant M1G of this item (for _fcr_p in "$@" -> $*, in fc_require_consumer of scripts/fastcycle/tests/lib/consumer_required.sh) still survives; the reviewer's M6 is the same edit, and a path argument that contains a space gets a false SKIP (head RAN, M6 SKIP, bash and dash). This item is open, so the recurrence is linked here and no new item is minted. Acceptance addition: adopt M6 as a paired mutant when this item is fixed. No fix is claimed (§11.4.290).
+
 ## CON-103 — Superspec exclusion topology guard: add a blinded-gate layout and a missing-carrier failure layout (review R2-3)
 
 **Status:** Queued
@@ -2279,15 +2289,16 @@ Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed 
 
 ## CON-144 — Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assign in the PR-delivery and release-gate anchor-wired gates
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Bug
 **Severity:** medium
 **Created-By:** AI (Claude Opus 5.5, fixu landing)
 **Assigned-To:** AI
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_review/landing/envgate_main_90efceb8.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — env `clean git worktree of main 90efceb8d0e5583c70888c78dc05ea189f85b0e3` — signature `UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign)` — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
-**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con144_reproduction_2026_11_11.txt` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh (same command on the fixed tree; guard: bash tests/gates/test_con144_blk_read_order.sh)` — env `clean checkouts of main 27dcf518, 9cd7cacd and 64ac151d; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9` — signature `UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign)` — updated 2026-11-11T10:51:47Z — by `AI (Claude Opus 5.5, CON-144 fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the static env census judges text order: names_cm_gate_in_block() reads $BLK in a body defined above the top-level BLK= assignment; the only call runs after it (ambient BLK changes nothing; moving the definition removes the row)` — evidence `docs/qa/con144_reproduction_2026_11_11.txt` — updated 2026-11-11T10:51:47Z — by `AI (Claude Opus 5.5, CON-144 fix subagent)`
 
-Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, bash scripts/gates/cm_gate_env_reads_allowlisted.sh exits 1 with uncovered=3: scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (fixed by the fixu vehicle, CON-121), scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign) and scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign); on the merged tree the first one is gone and the other two remain (uncovered=2). Both lines are the names_cm_gate_in_block() helper, added by c87745de (section 11.4.297) and 2d783401 (section 11.4.298), which reads $BLK inside a function defined before BLK is assigned. Whether the read can happen before the assignment, or the census reports a safe read, is UNCONFIRMED (not investigated at the landing; out of the landing scope, section 11.4.293). Fix: route BLK through cm_gate_env_set, or add allowlist rows with a reason, after reading when the helper runs. Evidence: docs/qa/fixu_review/landing/envgate_main_90efceb8.out (main) and docs/qa/fixu_review/landing/envgate_merged.out (merged tree).
+Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, bash scripts/gates/cm_gate_env_reads_allowlisted.sh exits 1 with uncovered=3: scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (fixed by the fixu vehicle, CON-121), scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign) and scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign); on the merged tree the first one is gone and the other two remain (uncovered=2). Both lines are the names_cm_gate_in_block() helper, added by c87745de (section 11.4.297) and 2d783401 (section 11.4.298), which reads $BLK inside a function defined before BLK is assigned. Whether the read can happen before the assignment, or the census reports a safe read, is UNCONFIRMED (not investigated at the landing; out of the landing scope, section 11.4.293). Fix: route BLK through cm_gate_env_set, or add allowlist rows with a reason, after reading when the helper runs. Evidence: docs/qa/fixu_review/landing/envgate_main_90efceb8.out (main) and docs/qa/fixu_review/landing/envgate_merged.out (merged tree). Fix (2026-11-11, CON-144 fix vehicle, commit 77553d02 on main 27dcf518, merged with main 64ac151d in c41cf08f): reproduced first on clean 27dcf518, 9cd7cacd and 64ac151d (rc 1, uncovered=2, byte-identical output). Root cause established: the census judges text order; names_cm_gate_in_block() is defined above the top-level BLK= assignment, so its body read of $BLK is reported read-before-assign although its only call runs after the assignment. Decisive experiments: an ambient BLK=/nonexistent leaves both gates' output byte-identical (rc 0); moving only the definition below BLK= removes the census row. The UNCONFIRMED question above is answered: the read cannot happen before the assignment; the census row is a text-order report, not an ambient read. Fix: the helper takes the block file as its second argument and the call site passes "$BLK". Guard tests/gates/test_con144_blk_read_order.sh (needles N0/N1, C1..C5, paired mutants M1..M3): RED 7 FAIL with the fix stashed, GREEN 15/0; env gate PASS uncovered=0 stale=0 on the merged tree; the two anchor gates' mutation tests and the env gate's mutation test PASS. Evidence: docs/qa/con144_reproduction_2026_11_11.txt. Not done: full suite; independent review pending. **Affected scope / file-scope manifest:** scripts/gates/cm_pr_delivery_anchor_wired.sh; scripts/gates/cm_release_gate_anchor_wired.sh; tests/gates/test_con144_blk_read_order.sh; config/full_suite_manifest.tsv; docs/guides/full_suite_runner_guide.md
+**Verification:** provisional (section 11.4.290) -- job: re-run scripts/gates/cm_gate_env_reads_allowlisted.sh (expect PASS uncovered=0) and the guard tests/gates/test_con144_blk_read_order.sh (expect 15 passed, 0 failed) on the final main -- checks: census no longer reports BLK read-before-assign for the two anchor-wired gates; guard mutants M1..M3 fail -- layer: host-only (class floor: runtime for a gate item) -- target: host, repo checkout -- artifact: the commit that lands the CON-144 vehicle (9a4ea101 plus the tracker commit) -- due: next full-suite run. Independent Opus review GO-with-follow-ups (0 critical, 0 important, 1 minor, 1 nit); follow-ups CON-192 (F1) and CON-193 (F3). Not VERIFIED-DONE.
 
 ## CON-145 — Full-suite manifest auto note of scripts/fastcycle/tests/run_all.sh says 12 heavy members while 14 are listed (N099-7)
 
@@ -2468,23 +2479,398 @@ Review finding m3 (minor, test-instrumentation, pre-existing, outside round 6, C
 
 Review nits n1 to n4. n1: the census run_bounded kills its own process group on timeout, but GNU timeout starts a new process group, so children can run up to 125 s into the next mutant (host load only). n2: a ledger entry is STALE only when its key is no longer generated; an entry whose mutant is later KILLED (equivalence proof now false) is accepted silently; flag it stale. n3: stash_index_unpatched uses porcelain git diff --quiet, subject to diff.ignoreSubmodules and external drivers; use git diff-tree --quiet ^1 ^2. n4: the 13 vehicle items stay Queued while fix rounds run; consider In progress for CON-146, CON-147, CON-158. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
 
-## CON-179 — CON-033 round 4 (structural): path-resolution and store-tier class fixed against a kernel oracle; the R4-CAP legs run on this host
+## CON-163 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031 (full-suite failures root-cause report of 2026-11-05). What: tests/test_patch_machinery.py cases P1b P1c P2c P2d P2e P2f P4a P4b were RED against scripts/codegraph/fk_index_patch.py (SUMMARY fails=9). Fix (fix vehicle 2026-11-05): fkidx1.parse_lists refuses a list anchor that occurs more than once; receipt_valid requires an executable launcher and a whole-tree equality (sha256 + exec bit per file, symlink targets) between <dst> and the source with this run's edits; a stale <dst>.partial is removed on REUSED; load_receipt refuses an unreadable/corrupt receipt with a message naming --force. RED/GREEN: same command PYTHONDONTWRITEBYTECODE=1 python3 scripts/codegraph/tests/test_patch_machinery.py; before fails=9, after fails=1 (P3, see CON-147). Paired mutants M1 M2 M4 M5 M6 M23 killed; M3 (launcher check alone) equivalent, subsumed by the tree check. Cost: REUSED on the real 1.6.2 package 1.13 s vs 0.30 s before (both trees hashed). Reproduction surface host-only; evidence was captured in the vehicle scratch area and is not committed: re-run the command to reproduce. Acceptance: independent review, then the state fields set with committed evidence. Round 2 (2026-11-06): test_patch_machinery.py gained P2g (planted symlink), P2h (exec bit), P4d (.partial file) and P4e ([] receipt refused, --force named); reviewer mutants R1a2/R1b/R1d/R1e killed; the summary line is now SUMMARY pass=N fail=F skip=S and a skip-only result exits 77 with reason=artifact_not_yet_built so the runner reads SKIP (it used to read the old shape as ERROR unparsed_fail_signal). Round 3 (2026-11-06): P2i (planted directory symlink, reviewer X6) and P2j (retargeted shipped symlink, X7) added; P5 pins the skip contract (a forced P3b skip exits 77, counted line, reason=topology_unsupported); the reason code is now topology_unsupported, not artifact_not_yet_built (review I1-5/I1-6/I1-7); mutants N1a/N1b/N1c killed by scripts/codegraph/tests/test_patch_machinery_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-108 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-116 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-116, re-minted as CON-146 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-146 (rounds 7-8), re-minted as CON-163 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-164 — CON-147 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
+
+**Status:** In progress
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. P3 of scripts/codegraph/tests/test_patch_machinery.py expects runner_patches.load() with no ids to give fkidx1,resolve1,resolve2; the registry gives fkidx1,lockfix1,datafrag1,resolve1,resolve2. Not changed, by brief: the operator decides. Option A, make the registry default the tested subset (drop lockfix1 and datafrag1 from the default, keep them opt-in): matches the test, CLAUDE.md §11.4.78 note (untested patches excluded) and codegraph_safe.sh (default fkidx1,resolve1); consequence: a bare fk_index_patch.py run builds a different runner key, and on the installed 1.6.2 it would stop refusing (measured 2026-11-05: the five-patch default refuses with 'datafrag1: anchor const MAX_FILE_SIZE occurs 0x'). Option B, keep five and change P3 to expect five: the test then pins a default that includes two patches with no behavioural test and that refuses on 1.6.2. Until decided, the test stays RED on P3 only. Decision (operator, AskUserQuestion 2026-11-05 21:50 CET, relayed by the conductor): Option A. Implemented in the fix vehicle, second commit: runner_patches/__init__.py adds UNTESTED={lockfix1,datafrag1} and DEFAULT_EXCLUDED=OPT_IN|UNTESTED, so load() with no ids gives fkidx1,resolve1,resolve2; lockfix1/datafrag1 stay selectable by name. test_patch_machinery.py gains P3b (bare run on the real installed package must build <ver>-fkidx1-resolve1-resolve2; SKIP artifact_not_yet_built when the package cannot be resolved) and P3c (opt-in by name). RED: fails=2 P3 P3b; GREEN: fails=0; bare run on 1.6.2 went from REFUSED (datafrag1 anchor) to CREATED 1.6.2-fkidx1-resolve1-resolve2. codegraph_safe.sh default unchanged (fkidx1,resolve1); its --patches all now means the tested default. Review (§11.4.142/§11.4.209) owed. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-109 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-117 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-117, re-minted as CON-147 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-147 (rounds 7-8), re-minted as CON-164 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-165 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. R5: CodeGraph 1.6.2 vue.resolve returns null for languages outside VUE_SCRIPT_LANGUAGES before scanning; the probe ref (language cpp) never reached the code. Fix: probe ref language javascript (tools/web/src/app.js) and R5 also requires vue_scan_1st > 0 (precondition reached). RED: ONLY=R5 bash scripts/codegraph/tests/test_resolve1.sh -> vue_resolve_ok=false FAIL; GREEN same command -> 1st=335 2nd=0 PASS; negative control DIST=<stock 1.6.2> -> 1st=335 2nd=335 FAIL; full file 7/7 PASS. Helpers: every test_resolve1_dump.py / test_resolve1_fixture.py call now consumes its status (|| t_bad DUMP/FIXTURE), so the runner's P5 model no longer plans them alone (discarded_members for codegraph drops from 6 to 4) without any manifest or excluded-lock change. Mutants: dump exits 3, fixture exits 4, probe back to cpp: all killed. Out of scope, still planned alone: test_bulk_classify_mutate.py, test_memfloor_mutate.py, test_resolve1_mutate.py, test_resolve2_mutate.py. Round 2 (2026-11-06): R5b adds a stale .vue subset case (a .vue file added after the first scan must be found after clearCaches); mutant R2a now dies on R5b. probe() no longer runs inside a command substitution, so its helper-exit t_bad is counted (mutant I5: cases=2 failed=1, was cases=1 uncounted). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-110 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-118 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-118, re-minted as CON-148 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-148 (rounds 7-8), re-minted as CON-165 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-166 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Fix: U01-U46 now run against a copy of the tooling with /proc/meminfo redirected to a fake file (64 GiB total, 48 GiB available) and a stub df (default 999999999999 bytes; CG_FAKE_DF_AVAIL per case), the U47-U63 mechanism, plus a control that fails HERMETIC if any meminfo read is not redirected. U17 keeps its low-disk condition: 200 GiB free, above the 60 GiB preflight floor and below the 400 GiB tripwire. Thread headroom stays real. RED (host MemAvailable 22 GiB, free disk 57 GB): SUMMARY cases=63 failed=33; GREEN same command: failed=3 (U28, U35, U59; see CON-150, CON-151). Mutants: drop the U17 df value -> U17 FAIL; drop the meminfo redirect -> HERMETIC FAIL + preflight FAILs; set U17 df above the tripwire -> U17 FAIL: all killed. Round 2 (2026-11-06): the stub df refuses any call other than -B1 --output=avail <existing path>, and new U64 runs the REAL df in the codegraph_safe.sh preflight and checks free_bytes against an independent df within 1 GiB; mutant U3a now dies on U01, U17 and U64. Round 3 (2026-11-06): U65, the stub df logs its argument and the preflight's df read must name the target (review I3-4); reviewer mutant N3b (df on HOME) is killed by U65 and survives U64. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-111 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-119 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-119, re-minted as CON-149 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-149 (rounds 7-8), re-minted as CON-166 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-167 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-149 removed the preflight failures)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Observed 2026-11-05 at host load ~30: full run U28 FAIL (r1=1 r2=1 r3=1) and U35 FAIL (rc=4, lock refused); ONLY=U28,U35 run twice: 1 of 2 runs U28 FAIL; ONLY=U28 alone 16 of 16 PASS. Root cause UNCONFIRMED (candidate classes: stub timing with --poll-s 1 under load, or a stub process of an earlier case still alive; not investigated). Acceptance: reproduce with the exact sequence, root cause, fix. Also observed 2026-11-05 (load about 37): U38 failed once inside the GOLD copy of test_bulk_classify_mutations.sh (d3 and d4 empty: the CG_SAFE_PATCHES=fkidx1 and --patches all runs never reached the stub patch tool), then passed in the full test_unit_safe.sh run and in the next GOLD rerun; U35 failed once in a full run and passed 3/3 alone. Root cause UNCONFIRMED. GOLD of test_bulk_classify_mutations.sh, three runs the same evening: FAIL (U38), PASS, FAIL (U36, ra=4 rb=4: both runs exited 4); a different case each time. In that change set the codegraph_safe.sh diff is comment-only, so the flake is not caused by it. Round 2 (2026-11-06): the reviewer also saw U20, U22 and U27 fail intermittently under load in the full run; they join this item (same unconfirmed root-cause classes). Not investigated in round 2. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-112 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-120 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-120, re-minted as CON-150 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-150 (rounds 7-8), re-minted as CON-167 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-168 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. The tool echoes min_mem_avail_source through san (cut -c1-200); U59's r1 check has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' is not compared through s200, so with a work dir longer than about 140 characters the suffix is cut and the case FAILs (seen with TMPDIR under the vehicle scratch area, 2026-11-05; the case's own helper s200 exists for exactly this). Not fixed in the fix vehicle (out of scope). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-113 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-121 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-121, re-minted as CON-151 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-151 (rounds 7-8), re-minted as CON-168 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-169 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Before: the runner sets GOPROXY=off with the host GOMODCACHE, so a missing module made the unit FAIL rc_1 (scripts/doc_integrity with an empty cache). Fix: before each go-test unit the runner runs go mod download in the unit env; when it fails and every error line is 'module lookup disabled by GOPROXY=off', the unit is SKIP network_unreachable_external (verdict_source go-module-preflight) and the progress line names go_module_not_cached: <mod>@<ver> (first missing only) and the prepare command; any other failure is not reclassified. Guide gained a prepare step. FLAG for the operator: the §11.4.69 closed set has no code for 'dependency not in the offline cache'; network_unreachable_external is the closest true one. RED/GREEN (tests/test_run_full_suite.sh sections 22/22b, run as a slice): 3 FAIL -> 5/5 ok; mutants no-skip, any-error-is-missing, SKIP-as-PASS killed. Real unit: old runner + empty GOMODCACHE FAIL rc_1; new runner SKIP naming github.com/mattn/go-sqlite3@v1.14.48; new runner + prepared private cache PASS. A SKIP keeps the run PARTIAL-SKIPS (exit 6), never PASS-FULL. Round 2 (2026-11-06, after review NO-GO): the probe now runs go mod download -modfile=<scratch copy> on scratch copies of go.mod and go.sum, so the unit's own tree is never written (RV-G3, a committed module with GOSUMDB=off, used to leave m/go.sum and trip IDENTITY CHANGED); and a unit is SKIP only when every named module is also absent from GOMODCACHE/cache/download (a cached module with a go.sum gap gives the same Go message and now stays FAIL, RV-G1). Tests 22c: RV-G0/G1/G3 and a classifier table; RED 7/15, GREEN 15/15; mutants M1, M2, gR1 (all->any), M4, G1, G3 killed. Guide: fresh --out after preparing, typo fixed. Round 3 (structural, review round 2 G5/G7b): the go mod download preflight is removed; every Go unit runs and only its own go test output, under a closed grammar, can turn a FAIL into SKIP network_unreachable_external (verdict_source go-test-output). One fixture and one paired mutant per axis in tests/test_run_full_suite_go.sh and tests/test_run_full_suite_go_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-114 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-122 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 6: Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 (by the ids of that day; CON-122 and CON-127 are re-minted since as CON-152 and CON-157) and authorises review round 6 under section 11.4.276(G).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-122, re-minted as CON-152 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Round 7 (2026-11-11, the last round §11.4.276(G) allows; authorised by the recorded operator decision "Keep running rounds until GO is reached!", relayed 2026-11-10, which named this item as CON-122/CON-127 by the ids of that day): review round 6 NO-GO on CR6-1 (C3 over a bounded sample survived). Fixed in the tests: L11b row count (10 000 foreign rows, ATM-5 last, want run; a sample larger than the fixture is out of scope and stated in the leg table); all 12 reviewer mutants RV6-1..RV6-12 adopted verbatim, RED first (9 of 12 survived the round-6 suite), then all 12 killed; L17b, L18 quoted path, L19 view, L20 empty string, L21 BLOB, L22 stdout contract, L23 stderr silence, L14 read-only shim and WAL side files. The class is closed by a scripted single-edit sweep embedded in test_consumer_required_mutations.sh (--sweep; the cheap coverage/stale check runs on every run): 144 mutants over every SQL clause, shell test, grep, redirection and exit code, 0 uncovered sites, 125 killed, 19 registered equivalents with proofs in scripts/fastcycle/tests/consumer_required_equivalents.tsv. The round-6 equivalence claims for trim(k) in C2 and -readonly dropped are withdrawn (both now killed). The helper's code is unchanged; only its header comment was corrected.
+
+Round 8 (2026-11-11): operator decision on record (relayed by the conductor, verbatim, 2026-11-11, section 11.4.276(E)(3)/(G)): "Authorise round 8". It names this item (the codegraph/full-suite vehicle, CON-152/CON-157/CON-031 line) and is scoped to the review round 7 findings CR7-1..CR7-4 and N7-1..N7-4.
+
+Round 8 work: CR7-1 L26 WAL fixture (ATM-5 committed only in the uncheckpointed -wal, built by copying db + -wal while the writer is open; want run) with reviewer mutants RV7-4 (immutable=1) and RV7-11 (nolock=1) adopted verbatim; CR7-2 registry row from-items-sample.2 removed (not equivalent when items has a column named k) and pinned by L27 l27_kcol.db; CR7-3 the runner guide again states the two CON-047 rows of config/full_suite_known_failures.tsv (signature reason:rc_3+tracked); CR7-4 the sweep gains a param operator class (19 sites: parameter expansions, shift and argument count, relative-path root, SQL quoting of an id, db-path quoting, unset) and its bound is stated; RV7-7 (L28 path ending in a newline) and RV7-10 (L29 [:upper:] in UTF-8 locales) pinned as hand mutants; L22b and S7b pin the SKIP line and the usage messages; N7-1 citation fixed, N7-2 per-run sweep timeout (FC_SWEEP_TIMEOUT) and --sweep stated as on-demand, N7-3 case-alt.0 proof corrected, N7-4 IFS bound documented in the helper. RED: on the round-7 suite (309/0) RV7-4, RV7-7, RV7-10 and CR7-2 SURVIVED, RV7-11 was killed. GREEN: hand table 42/42 killed; sweep 169 mutants, 0 uncovered, 3 new param survivors registered with proofs (21 rows). The helper code is unchanged (comment only). Not claimed GO; an independent review follows.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-152 (rounds 7-8), re-minted as CON-169 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-170 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source), not fixed in round 2. A commented line '// static BULK_PARSE_INDEX_NAMES = [' with no closer placed before the real list merges with it into one LIST_RE match, so the exactly-once check passes; the reviewer's shape A still edits the real list, shape B refuses later. Acceptance: count list openers, RED test with the commented-opener shape, paired mutation. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-115 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-123 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-123, re-minted as CON-153 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-153 (rounds 7-8), re-minted as CON-170 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-171 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source). The force build then fails loudly; the live runner is not corrupted. UNCONFIRMED: whether this race is reachable through codegraph_safe.sh (which serialises writers). Acceptance: reproduce or show unreachable with evidence, then fix or close. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-116 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-124 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-124, re-minted as CON-154 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-154 (rounds 7-8), re-minted as CON-171 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-172 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-147 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. The round-1 review asked whether Option A covers the writer default; UNCONFIRMED. The default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66). Round 2 only fixed the comment wording at codegraph_safe.sh line 44. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-117 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-125 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-125, re-minted as CON-155 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-155 (rounds 7-8), re-minted as CON-172 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-173 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from sum.golang.org was returned, so the unit environment can reach the network. The CON-152 go mod download preflight inherits the same environment and so has the same property. Also UNCONFIRMED: the end-to-end behaviour of the classifier on real mixed Go error output (the all-versus-any mutant gR1 is killed only by the classifier table). Acceptance: decide GOSUMDB/GOFLAGS for go-test units (for example GOSUMDB=off or GONOSUMDB plus GOFLAGS=-mod=mod), test with a network-blocked run. Round 3: the classifier reads GOPROXY and GOFLAGS from the environment the unit really ran with; a host GOPROXY=file:// or GOSUMDB is replaced by the unit env (fixtures A5x, A3). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-118 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-126 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 G3-2): the guide row and the 'nothing is written' claim are corrected (host GOSUMDB/GONOSUMDB are not passed; --env-extra GOSUMDB/GONOSUMDB reaches the unit, and a workspace without a checksum then makes Go write go.work.sum into the repository under test, which the identity guard stops). Still open: either reject GOSUMDB/GONOSUMDB/GONOSUMCHECK/GOFLAGS/GOPROXY in --env-extra for go-test units, or keep the documented caveat; and the source comment at scripts/full_suite/run_full_suite.py near line 2726 ('with network the same unit passes') holds only for modules the public checksum database knows (UNCONFIRMED for a private module).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-126, re-minted as CON-156 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-156 (rounds 7-8), re-minted as CON-173 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-174 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_check_deps.sh raced against a marker the tool itself carries (r6b TERM/HUP/INT failed at HEAD, 750 s under load) and built 3402 PATH shims 17 times; check_deps.sh ran its timeout self-probe before its traps, so a signal then gave 143 or 4 instead of 2. (2) test_cycle_report_red.sh and test_cycle_report_s12_fix_red.sh read the consumer tracker DB and named ATM items, so in canon or a consumer without those items they FAILed (HEAD: rc=1, 15 and 31 NOT ok, 1034 s and 1163 s); the red file's R5 block then counted 51 mutant kills against that red baseline; s12 check 8 re-ran the whole red suite. Round 2: ready-file wait in a G7 git shim, shim template built once and copied, self-probe moved after the traps, consumer guard (fc_require_consumer docs/workable_items.db plus a content check on the ATM items, SKIP 77 topology_unsupported), R5 block reports BLIND when the baseline failed, check 8 behind FC_S12_NESTED_RED=1. Round 3: the cycle_report guard moved into fc_require_items (lib/consumer_required.sh): SKIP only on proven absence, both atm_id and ticket_id, a lost item or a query error never SKIPs (review CR-1/CR-3, mutants MG1..MG6); s12 prints a counted SUMMARY naming the skipped check 8 (C2-2); the self-probe signal loop checks for survivors (C2-1, N7b); the signal-window flake C2-3 stays UNCONFIRMED, a FAIL now prints its timing. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-119 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-127 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 CD3-1, recurrence of the flaky-under-load class now CONFIRMED): in the round-3 review run test_check_deps.sh failed once with an empty result for the 'r6-f1/f2/r7 signal window (deps, postwait)' check (signal windows 172 s, load average 19.6 on 16 CPUs; the load was partly the reviewer's own parallel run). The rig prints a RESULT line when it completes, so an empty result means the rig did not finish its protocol, not that check_deps.sh gave a wrong verdict; that reading is UNCONFIRMED. Acceptance: give the window its own measured, bounded wait so a slow rig reports BLIND or SKIP with its timing instead of FAIL, and track the test under §11.4.248 until stable. Round 4 (review round 3 CR3-1, CR3-2): fc_require_items now has fixtures and paired mutants for a data query that errors after the pragma answered (view failing at step time; MG7 = reviewer RMG-A) and for no sqlite3 on PATH (MG8 = RMG-B), and examines both atm_id and ticket_id when both exist (MG9). RED: with the round-3 test file MG7 and MG8 SURVIVE; GREEN: all 9 mutants killed. Round 6 (review round 5 CR5-1, important; CR5-2..CR5-4, minor): fc_require_items gains a leg per remaining input axis, L11 rows (multiplicity and position: a foreign row first, the prefixed row later), L12 the dash of the prefix, L13 column names (exact and case), L14 no write (an absent path stays absent), L15 case of ids, L16 NULL ids (current behaviour pinned), L17 whitespace and other tables; each with fixtures and a paired mutant MG16..MG25 (reviewer RV5-1, RV5-1b, RV5-3, RV5-4, RV5-5 verbatim as MG16..MG20; R4-G as MG21, R4-I as MG23). RED: on the round-5 suite MG16, MG18..MG25 SURVIVE and MG17 dies only through m2_half; GREEN: all killed. Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 (by the ids of that day; CON-122 and CON-127 are re-minted since as CON-152 and CON-157) and authorises review round 6 under section 11.4.276(G).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-127, re-minted as CON-157 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Round 7 (2026-11-11, the last round §11.4.276(G) allows; authorised by the recorded operator decision "Keep running rounds until GO is reached!", relayed 2026-11-10, which named this item as CON-122/CON-127 by the ids of that day): review round 6 NO-GO on CR6-1 (C3 over a bounded sample survived). Fixed in the tests: L11b row count (10 000 foreign rows, ATM-5 last, want run; a sample larger than the fixture is out of scope and stated in the leg table); all 12 reviewer mutants RV6-1..RV6-12 adopted verbatim, RED first (9 of 12 survived the round-6 suite), then all 12 killed; L17b, L18 quoted path, L19 view, L20 empty string, L21 BLOB, L22 stdout contract, L23 stderr silence, L14 read-only shim and WAL side files. The class is closed by a scripted single-edit sweep embedded in test_consumer_required_mutations.sh (--sweep; the cheap coverage/stale check runs on every run): 144 mutants over every SQL clause, shell test, grep, redirection and exit code, 0 uncovered sites, 125 killed, 19 registered equivalents with proofs in scripts/fastcycle/tests/consumer_required_equivalents.tsv. The round-6 equivalence claims for trim(k) in C2 and -readonly dropped are withdrawn (both now killed). The helper's code is unchanged; only its header comment was corrected.
+
+Round 8 (2026-11-11): operator decision on record (relayed by the conductor, verbatim, 2026-11-11, section 11.4.276(E)(3)/(G)): "Authorise round 8". It names this item (the codegraph/full-suite vehicle, CON-152/CON-157/CON-031 line) and is scoped to the review round 7 findings CR7-1..CR7-4 and N7-1..N7-4.
+
+Round 8 work: CR7-1 L26 WAL fixture (ATM-5 committed only in the uncheckpointed -wal, built by copying db + -wal while the writer is open; want run) with reviewer mutants RV7-4 (immutable=1) and RV7-11 (nolock=1) adopted verbatim; CR7-2 registry row from-items-sample.2 removed (not equivalent when items has a column named k) and pinned by L27 l27_kcol.db; CR7-3 the runner guide again states the two CON-047 rows of config/full_suite_known_failures.tsv (signature reason:rc_3+tracked); CR7-4 the sweep gains a param operator class (19 sites: parameter expansions, shift and argument count, relative-path root, SQL quoting of an id, db-path quoting, unset) and its bound is stated; RV7-7 (L28 path ending in a newline) and RV7-10 (L29 [:upper:] in UTF-8 locales) pinned as hand mutants; L22b and S7b pin the SKIP line and the usage messages; N7-1 citation fixed, N7-2 per-run sweep timeout (FC_SWEEP_TIMEOUT) and --sweep stated as on-demand, N7-3 case-alt.0 proof corrected, N7-4 IFS bound documented in the helper. RED: on the round-7 suite (309/0) RV7-4, RV7-7, RV7-10 and CR7-2 SURVIVED, RV7-11 was killed. GREEN: hand table 42/42 killed; sweep 169 mutants, 0 uncovered, 3 new param survivors registered with proofs (21 rows). The helper code is unchanged (comment only). Not claimed GO; an independent review follows.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-157 (rounds 7-8), re-minted as CON-174 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-175 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Measured with Go 1.26.8 under GOPROXY=off GOFLAGS=-mod=readonly (fixture A4, tests/test_run_full_suite_go.sh): when go.sum carries a module's zip hash but not its /go.mod line and the module is not cached, go test stops at the lookup-disabled line, so the runner records SKIP network_unreachable_external; with the module cached the same tree fails with missing go.sum entry. The repository defect is therefore visible only on a host with a full cache. Honest limit of classifying from go test output; a fix would need a go.sum completeness check that does not predict network needs (review round 2 axis cached-with-go.sum-gap). Round 4 (review round 3 G3-1): the limit is general, not specific to the go.sum shape. A SKIP network_unreachable_external means 'could not be decided offline'; any defect that Go would only see AFTER fetching the module is hidden behind it until the cache is prepared. Measured instances: untidy go.mod (R3a), a non-existent package in an uncached module (R4e), a tampered zip hash (R7e), a version that does not exist upstream (R12): all SKIP offline and would FAIL once fetched. Acceptance: the guide states the general limit (not one shape); the SKIP stays honest (never a PASS).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-128, re-minted as CON-158 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-158 (rounds 7-8), re-minted as CON-175 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-176 — fastcycle tests: patch-machinery whole-tree manifest does not pin the launcher bin/codegraph content (reviewer mutant RP3 survives)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 PM3-1 (test-instrumentation, minor). The reviewer's mutant RP3 removes the launcher bin/codegraph from the whole-tree manifest (the condition 'rel in (RECEIPT_NAME, "bin/codegraph")') and survives test_patch_machinery_mutations.sh (22 pass, 0 fail): no case changes the launcher's content while keeping it executable (P2d only deletes it). Acceptance: add a case that truncates or rewrites the launcher and expects CREATED, and adopt RP3 as a paired mutant. Evidence: scratchpad rev_cgs3/ev/pm_RP3.txt in the review of round 3.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-129, re-minted as CON-159 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-159 (rounds 7-8), re-minted as CON-176 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-177 — fastcycle tests: U65 reads only the first logged df path, so a df on the target followed by a df on HOME survives (reviewer mutant N3c)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 US3-1 (test-instrumentation, minor). The reviewer's mutant N3c calls df on the target first, discards it, then reads the value from df on $HOME; U64 and U65 both still pass because U65 reads only the first logged path and the stub prints the same value for every path. Acceptance: assert the df log holds exactly one line equal to the target, or make the stub print a value that depends on the path and check free_bytes; adopt N3c as a paired mutant.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-130, re-minted as CON-160 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-160 (rounds 7-8), re-minted as CON-177 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-178 — fc_require_items residual nits: NULL-id rows count as items present, LIKE is case-insensitive, a foreign register with any ATM-* row runs the checks
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 CR3-3, CR3-4, CR3-5 (nits). CR3-3: rows whose id is NULL count as items present (fixture v6 SKIPs); the real schema has atm_id NOT NULL; COUNT(key) would close it (reviewer mutant RMG-H). CR3-4: LIKE is case-insensitive, so atm-* ids count as the prefix (fail-closed direction: the checks run); no fixture pins the dash in 'ATM-%' (RMG-G). CR3-5: a foreign register that holds any ATM-* row runs the checks and FAILs; the helper header now says so (done in round 4). Acceptance: decide CR3-3/CR3-4, adopt RMG-G and RMG-H as mutants with fixtures v5 and v6, or record them as equivalent with the reason. Round 5: review round 4 recorded reviewer mutants R4-G (LIKE to GLOB, the CR3-4 direction, fixture v3) and R4-I (items counted as non-NULL keys, the CR3-3 direction, fixture v6); the author adopted them as the pins of these two nits in test_consumer_required_mutations.sh. Naming: RMG-G (round 3, the dash dropped from 'ATM-%') and R4-G (round 4, LIKE to GLOB) are two different mutants. Round 6 (review round 5 N5-1, CR5-4): the dash is pinned (fixture l12_atmx, mutant MG18 = RV5-3 = RMG-G); R4-G is adopted as MG21 (fixture l15_lower: atm-5 runs the checks, the current fail-closed direction) and R4-I as MG23 (fixture l16_nullonly: a table of NULL ids SKIPs, the current behaviour). Both pins hold the CURRENT behaviour; the CR3-3 direction (should NULL-only ids run the checks?) remains this item's decision, and changing it means flipping l16_nullonly together with MG23.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-131, re-minted as CON-161 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Round 7 (review round 6 N6-2, CR6-2, CR6-5): three more pins hold the CURRENT, non-conservative direction (section 11.4.201(4)) and are registered here as open directions, like L16: L17 (fixture l17_lead: an id with a leading space, ' ATM-5', is not the prefix, the register SKIPs), L17b (fixture l17b_lead953: the named id with a leading space, ' ATM-953', SKIPs; paired mutant RV6-7 = trim(k) IN in C2, which runs the checks) and L20 (fixture l20_emptystr: a table of empty-string ids only SKIPs, like NULL ids in L16; paired mutant RV6-6). Changing any of these directions means flipping the fixture's want together with its paired mutant. The round-6 claim that trim(k) in C2 is equivalent was false (review round 6 CR6-2) and is withdrawn.
+
+Round 8 (review round 7 N7-4, recorded open direction): with a caller IFS that lacks a space (IFS=, or empty) fc_require_items never SKIPs (the counts arrive as one field; the checks run and FAIL on a foreign register: fail-closed). Measured by the reviewer, now documented in the helper header; not changed (no caller sets such an IFS). Whether the helper should set IFS locally is this item's decision.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-161 (rounds 7-8), re-minted as CON-178 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-179 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 G3-4 and G3-5 (nits). G3-4 (source-defect, fail-closed): GO_NET_LINE requires the file part to match [^\s:]+\.go, so a Go file path containing a space gives a false FAIL, never a false SKIP. G3-5 (test-instrumentation): tests/test_run_full_suite_go_mutations.sh decodes anchors with unicode_escape; regex anchors with backslash-dot and backslash-s print three DeprecationWarning lines, and a future Python that rejects them would turn those mutants into BAD. Acceptance: decide G3-4; replace the decoder (for example a literal-backslash-safe decode).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-132, re-minted as CON-162 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-162 (rounds 7-8), re-minted as CON-179 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-180 — status of items fixed in the full-suite vehicle must be set at landing (CON-146, CON-149, CON-152 and others stay Queued)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in the full-suite vehicle (for example CON-146, CON-149, CON-152) stay Queued in the vehicle. At landing they need the §11.4.290 status (Ready for testing with a Verification line), not Queued. Acceptance: at the landing step, set the status of each fixed item through the engine and re-export the trackers.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-133, re-minted as CON-163 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-163 (rounds 7-8), re-minted as CON-180 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-181 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 3 note, registered in round 5 (review round 4 item 4, unregistered nit). The s12 wrapper of the cycle_report suite writes a temp copy of stdout and removes it only on a normal exit; a SIGTERM or SIGKILL of the outer process leaves the file behind under the temp root. Type test-instrumentation, fail-safe (no verdict changes). Acceptance: add an EXIT/INT/TERM trap that removes the copy through safe_rm_rf or a ${VAR:?}-guarded rm, with a test that kills the wrapper and checks no copy is left.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-134, re-minted as CON-164 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-164 (rounds 7-8), re-minted as CON-181 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-182 — full-suite vehicle merge messages must say how a census conflict was resolved
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Review round 4 item 5, unregistered nit (process-doc). The round-4 merge 97be3740 of main 90efceb8 resolved a conflict in the census line of docs/guides/full_suite_runner_guide.md by regenerating it, but the merge message does not say so. Acceptance: every merge of main into the vehicle that touches the generated census states in its message that the census was regenerated with run_full_suite.sh --sync-guide and checked with --verify-manifest, naming the resulting total.
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-135, re-minted as CON-165 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-165 (rounds 7-8), re-minted as CON-182 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-183 — Mutation harness cannot see Part 4: test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set, so a mutant only Part 4 kills is reported survived (review round 8 R8-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 R8-1. test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set (test_consumer_required_helper.sh:600 at vehicle head 4118f145), and both the sweep and the hand table set it, so a mutant that only the Part 4 legs kill is reported as survived. The reviewer's mutant M4 ($(cd "$(dirname -> $(cd -P "$(dirname) survives 338/0 through the harness path, while the same edit in the real helper fails Part 4 nine times (342/9). Acceptance: run Part 4 against the mutant (link the mutant into the scratch consumer layout instead of the checkout's helper), or state this bound beside the sweep's claim; then adopt M4 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+## CON-184 — fc_require_items id contract: a lowercase letter inside the prefix (AtM-5) is a usage error but no fixture asserts it; mutant M3 [[:alnum:]] survives (review round 8 R8-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 R8-3. The id contract [A-Z][A-Z0-9]*-[0-9]+ is not fully pinned: the reviewer's mutant M3 changes the rest-of-prefix class *[!A-Z0-9]* to *[![:alnum:]]* and survives 338/0; on a foreign register the id AtM-5 exits 2 (usage error) on head and SKIPs 77 under M3, in bash and dash. Acceptance: add AtM-5 (and, for example, A_B-1) to the S7 or S7b usage-error list, and adopt M3 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+## CON-185 — L29 calls bad, not SKIP-with-reason, on a host with no UTF-8 locale that classes A-umlaut as [:upper:] (review round 8 N8-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 N8-1 (nit). Leg L29 of test_consumer_required_helper.sh calls bad when the host classes no listed UTF-8 locale's A-umlaut as [:upper:], so a host without such a locale FAILs the whole helper suite when only that leg lacks topology. Acceptance: that leg records a §11.4.3 SKIP-with-reason naming the missing locale class instead of a FAIL, with a test that proves both branches. On the review host the locales are present, so the leg ran. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+## CON-186 — fixu landing review follow-ups M1, M2, M3: case 11c closure-by-location, runner guide acceptance wording, tracked resolve1 proposal
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-116..CON-145 fixu landing (3bd34494, e6b16598, 2e8cfb90). Source: independent review docs/qa/fixu_review/landing/review_fixu_landing.md (GO-with-follow-ups, 0 critical, 0 important, 4 minor, 2 nit). M1: tests/test_run_full_suite.sh case 11c now also puts an Obsolete and a Completed item located in Fixed in the fixture and asserts both are named STALE; mutant X1 (check_known_open deciding closure from a status text starting with Fixed) survived the old fixture and fails exactly those 2 new assertions (274 passed, 2 failed). M2: docs/guides/full_suite_runner_guide.md no longer says an agent never runs the acceptance; it states that the runner enforces only that the id is on the committed roster and that the acceptances so far (2739c26b, bdc3ac43, e6b16598) were run by the landing agent on a conductor-relayed order, tier instance. M3: the cited proposal resolve1_lock_PROPOSAL_r2.md was recovered from a scratchpad and is now tracked as docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md (section 11.4.215). Finding layer: test-instrumentation and process-doc, minor-class under section 11.4.276(G.2). Fixes are in the change that registers this item and are not verified by an independent review: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+## CON-187 — CON-099 reached GO-with-follow-ups at round 3 with no section 11.4.276(E) convergence assessment recorded (fixu landing review M4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-099. Source: docs/qa/fixu_review/landing/review_fixu_landing.md M4 (minor, process). Round 3 of CON-099 ended GO-with-follow-ups without the round-3 convergence assessment of section 11.4.276(E). The assessment is NOT written here: UNKNOWN: the author's round-3 assessment inputs (class-sharing findings, reappearing findings, wrong-layer evidence) are not recoverable from the tracker text alone, and inventing one would be a section 11.4.6 fabrication. Acceptance: before CON-099 round 4 the fixer records the assessment (or records why none was needed) in CON-099. Finding layer: process-doc, minor-class under section 11.4.276(G.2). Status Queued; no fix claimed (section 11.4.290).
+
+## CON-188 — fixu landing review notes N1 and N2: no CHANGELOG entry for the landing; main red on the env-reads allowlist gate until CON-144
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-116..CON-145 fixu landing. Source: docs/qa/fixu_review/landing/review_fixu_landing.md N1, N2 (nits, recorded as notes). N1: the landing (162 files) has no CHANGELOG entry; UNCONFIRMED whether the project expects one for a fix landing; the lander decides. N2: main stays red on CM-GATE-ENV-READS-ALLOWLISTED and the census closure test after the landing, as before it; it is tracked as CON-144 (medium) and should be fixed soon because a red gate hides a new failure of the same gate. Nothing is changed by this item. Finding layer: process-doc, minor-class under section 11.4.276(G.2). Status Queued; no fix claimed (section 11.4.290).
+
+## CON-189 — Case 11c pins no unknown-id-only stale row: reviewer mutant Y3 (drop stale += 1 for an unknown id) survives (fixu follow-ups review F1, Y1 nit)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-186. Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. F1 (minor, test-instrumentation): tests/test_run_full_suite.sh case 11c always pairs the unknown id with a closed one, so the exit code of check_known_open never proves that an unknown id alone counts as stale; reviewer mutant Y3 (remove stale += 1 in the r is None branch) survived 276 passed / 0 failed, and on a known table holding only ATM-77 it prints the STALE line and then RESULT: KNOWN-OPEN with rc 0. Pre-existing gap in the fixture M1 extended, not introduced by it. Acceptance: a --known table with only an unknown id, asserting rc 1 and RESULT: KNOWN-STALE, with Y3 adopted as a paired mutant that must fail the suite. Nit Y1: mutant elif r[1] == Fixed (any other location read as open) survived and is equivalent only because schema.sql closes current_location to Issues/Fixed while the test fixture DB has no such CHECK; optional fixture row with another location, or a note that the set is closed by the schema. Finding layer: test-instrumentation, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+## CON-190 — Runner guide acceptance paragraph: per-commit relay wording, unsupported instance label, stale 44-row opening, undersold enforcement (fixu follow-ups review F2, F3, N2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-186 (M2). Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. F2 (minor, process-doc): docs/guides/full_suite_runner_guide.md says the acceptances 2739c26b, bdc3ac43 and e6b16598 were run by the landing agent on an order relayed by the conductor and that each commit message says so; bdc3ac43's message records an operator acceptance from a genuine user message (2026-11-05 20:41 CET) run by the landing agent on that order, not a conductor relay; only 2739c26b and e6b16598 say relayed by the conductor. Reword per commit. F3 (minor, process-doc): the guide calls the achieved separation instance, but in e6b16598 the same landing agent replaced the two manifest rows and ran the acceptance of that change, so under section 11.4.240(F) no separate verifier instance is shown; state what the record supports (change and acceptance by one agent, on a recorded operator order, with a roster id) or record why instance applies (this also corrects the earlier review M2 suggestion). N2 (nit): the same paragraph still opens with 44 excluded rows accepted as fsr-r4-author, while the lock now has 55 rows last accepted by i@mvasic.ru on 2026-11-10; and the sentence that the runner enforces only the rostered id undersells the other refusals (roster tracked, equal to HEAD, not a symlink; chain intact; no other manifest problem); the accurate point is that it checks the id, not who typed it. Finding layer: process-doc, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+## CON-191 — Tracked resolve1 proposal says not applied though e6b16598 applied it; CON-187 should cite the tracked round-3 inputs (fixu follow-ups review N3, N4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-186 (M3), CON-187 (M4). Source: independent review of the fixu landing follow-ups 65383536 (CON-186..CON-188), GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit, kept as docs/qa/fixu_review/landing/review_fixu_fu.md. N3 (nit): docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md still says Status: PROPOSAL. Not applied in any tracked tree, but e6b16598 applied it; a one-line header note (applied in e6b16598, kept as the record under section 11.4.215) would stop it misleading. N4 (nit): CON-187 says the round-3 convergence-assessment inputs of CON-099 are not recoverable from the tracker text alone, but they are in tracked files: docs/qa/fixu_review/review_fixu_r3.md section 5 (F099-4 same carrier class as F099-2), section 6 (reviewer class inventory, line 433 the only open member) and the N099-6 note; CON-187 should cite them so the fixer can write the assessment from them. Finding layer: process-doc, minor-class under section 11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+## CON-192 — Census CLI gate_env_census.py crashes with a traceback on --help; reject unknown options with exit 64 and a test (CON-144 review F1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (lander subagent)
+
+Parent: CON-144. Source: independent review of the CON-144 fix, GO-with-follow-ups. F1 (minor, test-instrumentation): scripts/gates/lib/gate_env_census.py has no argument validation; --help or any unknown option is treated as a file and dies with FileNotFoundError traceback. The gate wrapper is not affected (it builds argv itself). Acceptance: reject unknown options with a usage message and exit 64, with a test. Finding layer: test-instrumentation, minor-class under section 11.4.276(G.2). No fix is claimed: Queued, reproduction and investigation UNSET (section 11.4.290).
+
+## CON-193 — Guard test_con144_blk_read_order.sh mutant M1 re-checks the census rather than mutating the gate under test (CON-144 review F3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (lander subagent)
+
+Parent: CON-144. Source: independent review of the CON-144 fix, GO-with-follow-ups. F3 (nit, test-instrumentation): guard mutant M1 does not mutate the gate under test in the real tree; it re-proves the census sees the old text in a copy (overlaps N0). It is fail-closed, so not a bluff; checks C1/C2/C3 already kill a reintroduced read. Optional: relabel M1 as a census control in the header comment. Finding layer: test-instrumentation, nit. No fix is claimed: Queued, reproduction and investigation UNSET (section 11.4.290).
+
+## CON-210 — CON-033 round 4 (structural): path-resolution and store-tier class fixed against a kernel oracle; the R4-CAP legs run on this host
 
 **Status:** Ready for testing
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Conductor
 
-Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_con033_r3.md) found R3-F1 (G-T-DOT#1 listed equivalent but refuted) and R3-F2 (RVR3b survives) in the recurring class of path-resolution and tier mutants. Round 4: _resolution_chain follows the kernel; test_review_record_resolution_ground_truth.sh compares it with os.stat and an openat O_PATH walk over a 12348-path grid; store-tier suite gains L4/E5; RVR1, RVR3b and 12 RF-chain mutants are adopted into the mutation runner; R3-F3 (DSM-H), R3-F4, R3-F5, R3-F7 (r6 harness) folded in; the r4 capability legs now find /tmp as a writable all-root-owned base (the old walk stopped at the root-owned but non-writable /home), so they run (26 ok, rc 0). Verification of the sweep and the full mutation runner is recorded in the landing commit message. Id history (section 11.4.214): minted in vehicle/con033 as CON-132 (round 4), re-minted at the merge of main 2e8cfb90 as CON-162 (main owns up to CON-145); old to new map: CON-132 -> CON-162. Re-minted again at the merge of main 27dcf518 as CON-179 (main owns up to CON-162); old to new map: CON-162 -> CON-179.
+Parent: CON-033 (vehicle/con033). Review round 3 (docs/qa/con033_review/review_con033_r3.md) found R3-F1 (G-T-DOT#1 listed equivalent but refuted) and R3-F2 (RVR3b survives) in the recurring class of path-resolution and tier mutants. Round 4: _resolution_chain follows the kernel; test_review_record_resolution_ground_truth.sh compares it with os.stat and an openat O_PATH walk over a 12348-path grid; store-tier suite gains L4/E5; RVR1, RVR3b and 12 RF-chain mutants are adopted into the mutation runner; R3-F3 (DSM-H), R3-F4, R3-F5, R3-F7 (r6 harness) folded in; the r4 capability legs now find /tmp as a writable all-root-owned base (the old walk stopped at the root-owned but non-writable /home), so they run (26 ok, rc 0). Verification of the sweep and the full mutation runner is recorded in the landing commit message. Id history (section 11.4.214): minted in vehicle/con033 as CON-132 (round 4), re-minted at the merge of main 2e8cfb90 as CON-162 (main owns up to CON-145); old to new map: CON-132 -> CON-162. Re-minted again at the merge of main 27dcf518 as CON-179 (main owns up to CON-162); old to new map: CON-162 -> CON-179. Re-minted again at the merge of main fc57ad0c as CON-210 (main owns up to CON-193); old to new map: CON-179 -> CON-210.
 
-## CON-163 — CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_update index freshness)
+## CON-194 — CON-033 M5: owed anchors seam (regenerate_if_stale + index_commit_seam + post_update index freshness)
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-092, re-minted at the merge of main bdc3ac43 as CON-108 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-116 (main owns up to CON-115); old to new map: CON-092 -> CON-108 -> CON-116. Re-minted again at the merge of main 2e8cfb90 as CON-146 (main owns up to CON-145); old to new map: CON-116 -> CON-146. Re-minted again at the merge of main 27dcf518 as CON-163 (main owns up to CON-162); old to new map: CON-146 -> CON-163.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-092, re-minted at the merge of main bdc3ac43 as CON-108 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-116 (main owns up to CON-115); old to new map: CON-092 -> CON-108 -> CON-116. Re-minted again at the merge of main 2e8cfb90 as CON-146 (main owns up to CON-145); old to new map: CON-116 -> CON-146. Re-minted again at the merge of main 27dcf518 as CON-163 (main owns up to CON-162); old to new map: CON-146 -> CON-163. Re-minted again at the merge of main fc57ad0c as CON-194 (main owns up to CON-193); old to new map: CON-163 -> CON-194.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:40Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2501,14 +2887,14 @@ UNKNOWN: no reproduction yet; the round-1 measurement is in the report text.
 **Acceptance criteria:**
 The seam is implemented test-first on current main, or closed with an evidence-backed reason (section 11.4.197); the three tests pass on main; post_update_hook runs the freshness step.
 
-## CON-164 — CON-033 RM1: land the review-round budget boundary suite
+## CON-195 — CON-033 RM1: land the review-round budget boundary suite
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-093, re-minted at the merge of main bdc3ac43 as CON-109 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-117 (main owns up to CON-115); old to new map: CON-093 -> CON-109 -> CON-117. Re-minted again at the merge of main 2e8cfb90 as CON-147 (main owns up to CON-145); old to new map: CON-117 -> CON-147. Re-minted again at the merge of main 27dcf518 as CON-164 (main owns up to CON-162); old to new map: CON-147 -> CON-164.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-093, re-minted at the merge of main bdc3ac43 as CON-109 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-117 (main owns up to CON-115); old to new map: CON-093 -> CON-109 -> CON-117. Re-minted again at the merge of main 2e8cfb90 as CON-147 (main owns up to CON-145); old to new map: CON-117 -> CON-147. Re-minted again at the merge of main 27dcf518 as CON-164 (main owns up to CON-162); old to new map: CON-147 -> CON-164. Re-minted again at the merge of main fc57ad0c as CON-195 (main owns up to CON-193); old to new map: CON-164 -> CON-195.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2525,14 +2911,14 @@ Reviewer mutant RM1 (rec[round] > round_budget changed to >=) survived every sui
 **Acceptance criteria:**
 The boundary suite is on main and the mutation runner lists RM1 (gate and record side) as KILLED. Closes when CON-033 lands on main.
 
-## CON-165 — CON-033: regenerate the review_record sub-clause kill ledger under the new sweep name, and schedule the sweep
+## CON-196 — CON-033: regenerate the review_record sub-clause kill ledger under the new sweep name, and schedule the sweep
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-094, re-minted at the merge of main bdc3ac43 as CON-110 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-118 (main owns up to CON-115); old to new map: CON-094 -> CON-110 -> CON-118. Re-minted again at the merge of main 2e8cfb90 as CON-148 (main owns up to CON-145); old to new map: CON-118 -> CON-148. Re-minted again at the merge of main 27dcf518 as CON-165 (main owns up to CON-162); old to new map: CON-148 -> CON-165.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-094, re-minted at the merge of main bdc3ac43 as CON-110 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-118 (main owns up to CON-115); old to new map: CON-094 -> CON-110 -> CON-118. Re-minted again at the merge of main 2e8cfb90 as CON-148 (main owns up to CON-145); old to new map: CON-118 -> CON-148. Re-minted again at the merge of main 27dcf518 as CON-165 (main owns up to CON-162); old to new map: CON-148 -> CON-165. Re-minted again at the merge of main fc57ad0c as CON-196 (main owns up to CON-193); old to new map: CON-165 -> CON-196.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:41Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2549,28 +2935,28 @@ A stale ledger is caught only when guard_table runs (M4).
 **Acceptance criteria:**
 The hashed files name sweep_review_record_subclauses.sh; the ledger is regenerated and test_review_record_guard_table.sh passes; the sweep runs on a declared cadence (a timer or a heavy-tier entry) so the ledger cannot go stale silently.
 
-## CON-166 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
+## CON-197 — SPECKIT004 diagrams: mmd-08 and mmd-09 images missing on main
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-095, re-minted at the merge of main bdc3ac43 as CON-111 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-119 (main owns up to CON-115); old to new map: CON-095 -> CON-111 -> CON-119. Re-minted again at the merge of main 2e8cfb90 as CON-149 (main owns up to CON-145); old to new map: CON-119 -> CON-149. Re-minted again at the merge of main 27dcf518 as CON-166 (main owns up to CON-162); old to new map: CON-149 -> CON-166.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-095, re-minted at the merge of main bdc3ac43 as CON-111 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-119 (main owns up to CON-115); old to new map: CON-095 -> CON-111 -> CON-119. Re-minted again at the merge of main 2e8cfb90 as CON-149 (main owns up to CON-145); old to new map: CON-119 -> CON-149. Re-minted again at the merge of main 27dcf518 as CON-166 (main owns up to CON-162); old to new map: CON-149 -> CON-166. Re-minted again at the merge of main fc57ad0c as CON-197 (main owns up to CON-193); old to new map: CON-166 -> CON-197.
 
 Review of CON-033 (finding M4): main's SPECKIT004 document has 9 mermaid blocks but only mmd-01..07 images. The HELD snapshot carries an added mmd-09.png and three re-rendered action_prefix DIAGRAMS.mmd-01..03.png, which CON-033 did not bring over. The missing images must be regenerated from main's sources. Typed Bug (a defect: a shipped document lacks its images; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-073 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
 **Affected scope / file-scope manifest:**
 the SPECKIT004 document with 9 mermaid blocks and its DIAGRAMS images (main has mmd-01..07 only)
 
-## CON-167 — kedge gitlink removal: operator ratification (section 11.4.122)
+## CON-198 — kedge gitlink removal: operator ratification (section 11.4.122)
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-096, re-minted at the merge of main bdc3ac43 as CON-112 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-120 (main owns up to CON-115); old to new map: CON-096 -> CON-112 -> CON-120. Re-minted again at the merge of main 2e8cfb90 as CON-150 (main owns up to CON-145); old to new map: CON-120 -> CON-150. Re-minted again at the merge of main 27dcf518 as CON-167 (main owns up to CON-162); old to new map: CON-150 -> CON-167.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-096, re-minted at the merge of main bdc3ac43 as CON-112 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-120 (main owns up to CON-115); old to new map: CON-096 -> CON-112 -> CON-120. Re-minted again at the merge of main 2e8cfb90 as CON-150 (main owns up to CON-145); old to new map: CON-120 -> CON-150. Re-minted again at the merge of main 27dcf518 as CON-167 (main owns up to CON-162); old to new map: CON-150 -> CON-167. Re-minted again at the merge of main fc57ad0c as CON-198 (main owns up to CON-193); old to new map: CON-167 -> CON-198.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:42Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2587,42 +2973,42 @@ UNKNOWN: whether a ratification exists elsewhere.
 **Acceptance criteria:**
 A recorded operator decision keep-removed or restore exists; if restore, the gitlink is restored on main.
 
-## CON-168 — select_sample: stale mutation anchor SS_N3_negative_gap_retroactive
+## CON-199 — select_sample: stale mutation anchor SS_N3_negative_gap_retroactive
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-097, re-minted at the merge of main bdc3ac43 as CON-113 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-121 (main owns up to CON-115); old to new map: CON-097 -> CON-113 -> CON-121. Re-minted again at the merge of main 2e8cfb90 as CON-151 (main owns up to CON-145); old to new map: CON-121 -> CON-151. Re-minted again at the merge of main 27dcf518 as CON-168 (main owns up to CON-162); old to new map: CON-151 -> CON-168.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-097, re-minted at the merge of main bdc3ac43 as CON-113 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-121 (main owns up to CON-115); old to new map: CON-097 -> CON-113 -> CON-121. Re-minted again at the merge of main 2e8cfb90 as CON-151 (main owns up to CON-145); old to new map: CON-121 -> CON-151. Re-minted again at the merge of main 27dcf518 as CON-168 (main owns up to CON-162); old to new map: CON-151 -> CON-168. Re-minted again at the merge of main fc57ad0c as CON-199 (main owns up to CON-193); old to new map: CON-168 -> CON-199.
 
 Review of CON-033: in a consumer layout (900 s cap) test_select_sample_r5_regression.sh reports mutation SS_N3_negative_gap_retroactive 'could not be applied (anchor drifted)' on both main and the vehicle, so it is a pre-existing stale anchor. The remaining NOT ok lines (S3/S5/S6/S13) need a live tracker DB or snapshot. Typed Bug (a defect: a mutation that cannot apply guards nothing; review R2-F7). Id history: vehicle/con033 at dd8bd9c registered this as CON-075 (typed Task there). Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
 **Affected scope / file-scope manifest:**
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh (mutation SS_N3_negative_gap_retroactive) and scripts/fastcycle/cycle/select_sample*
 
-## CON-175 — test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (its shebang), on main 9eea893 too
+## CON-206 — test_review_record_backfill_evidence_r2_regression.sh exits 2 when run as sh (its shebang), on main 9eea893 too
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-104, re-minted at the merge of main bdc3ac43 as CON-120 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-128 (main owns up to CON-115); old to new map: CON-104 -> CON-120 -> CON-128. Re-minted again at the merge of main 2e8cfb90 as CON-158 (main owns up to CON-145); old to new map: CON-128 -> CON-158. Re-minted again at the merge of main 27dcf518 as CON-175 (main owns up to CON-162); old to new map: CON-158 -> CON-175.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-104, re-minted at the merge of main bdc3ac43 as CON-120 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-128 (main owns up to CON-115); old to new map: CON-104 -> CON-120 -> CON-128. Re-minted again at the merge of main 2e8cfb90 as CON-158 (main owns up to CON-145); old to new map: CON-128 -> CON-158. Re-minted again at the merge of main 27dcf518 as CON-175 (main owns up to CON-162); old to new map: CON-158 -> CON-175. Re-minted again at the merge of main fc57ad0c as CON-206 (main owns up to CON-193); old to new map: CON-175 -> CON-206.
 
 Found in CON-033 fix round 3. Measured 2026-11-05 on main 9eea893 (wt_main), the merge b3cecf7 and the round-3 tree: sh -> rc 2, bash -> rc 0. run_all.sh picks sh for a file whose first line has no 'bash'; the full suite uses the shebang. The mutation runner and the sub-clause sweep run it with bash, so it is green there. Outside the CON-033 scope (section 11.4.293); not fixed. Parent: CON-033 (Roadmap-Item of the CON-033 landing; parent_atm_id stays NULL because the engine sets it only for CON-033-NNN child ids, the same convention as CON-058).
 
 **Affected scope / file-scope manifest:**
 scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh (#!/bin/sh), scripts/fastcycle/tests/lib/review_record_genuine.sh (bash-only)
 
-## CON-176 — Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
+## CON-207 — Wider SKIP class: suites and runners that print SKIP but exit 0, and run_all.sh labels exit 77 FAIL
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude
 
-Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-105, re-minted at the merge of main bdc3ac43 as CON-121 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-129 (main owns up to CON-115); old to new map: CON-105 -> CON-121 -> CON-129. Re-minted again at the merge of main 2e8cfb90 as CON-159 (main owns up to CON-145); old to new map: CON-129 -> CON-159. Re-minted again at the merge of main 27dcf518 as CON-176 (main owns up to CON-162); old to new map: CON-159 -> CON-176.
+Parent: CON-033 (vehicle/con033). Id history (section 11.4.214): minted in vehicle/con033 as CON-105, re-minted at the merge of main bdc3ac43 as CON-121 (main owned CON-092..CON-107), re-minted again at the merge of main 90efceb8 as CON-129 (main owns up to CON-115); old to new map: CON-105 -> CON-121 -> CON-129. Re-minted again at the merge of main 2e8cfb90 as CON-159 (main owns up to CON-145); old to new map: CON-129 -> CON-159. Re-minted again at the merge of main 27dcf518 as CON-176 (main owns up to CON-162); old to new map: CON-159 -> CON-176. Re-minted again at the merge of main fc57ad0c as CON-207 (main owns up to CON-193); old to new map: CON-176 -> CON-207.
 
 **Reported-Via:** §11.4.202 reporting directive `task` on 2026-11-05T19:37:46Z
 **Reported-By:** Conductor (CON-033 fix round 3 subagent, Opus 5.5)
@@ -2641,7 +3027,7 @@ Every suite that skips a proof leg exits 77 with the leg named; run_all.sh repor
 
 **Census (CON-033 review round 3, finding R3-F7, reviewer probe skipexit0.py over 1193 tracked .sh files on main b939266a; an `echo SKIP` line not carrying `exit 77`, followed within 3 lines by `exit 0`):** 11 sites in 8 files. CON-033 round 4 fixed one of them in the vehicle (scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh:137, now `SKIP reason=topology_unsupported` and exit 77, measured rc 77). The other 10, pre-existing on main and NOT fixed here: test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_shellcheck_red.sh, test_guard_branch_consistency.sh, test_guard_work_track_binding.sh (2 sites), test_multitrack_redpin_mutations.sh, test_multitrack_work_binding_submodule_db.sh (2 sites), tests/action_prefix/test_subsystem_shortcuts.sh (2 sites). Acceptance per site: the skip exits 77 with a section 11.4.69 reason, and a red test proves a skipped run is never counted as PASS.
 
-## CON-177 — CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record_subclauses.sh)
+## CON-208 — CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record_subclauses.sh)
 
 **Status:** Operator-blocked
 **Type:** Task
@@ -2651,7 +3037,7 @@ Every suite that skips a proof leg exits 77 with the leg named; run_all.sh repor
 
 Parent: CON-033 (vehicle/con033). Found in CON-033 fix round 4 at the merge of main bdc3ac43: scripts/run_full_suite.sh --verify-manifest reports one problem, the excluded lock. The vehicle adds scripts/fastcycle/tests/lib/review_record_guard_analyzer.py and scripts/fastcycle/tests/sweep_review_record_subclauses.sh as excluded manifest rows (a helper library and a ~70-minute generator, neither a test entry), and main bdc3ac43 locked the excluded set at 52 rows on the operator's order (CON-031). Changing the lock needs the operator's --accept-excluded-change; the round-4 fixer did not run it. Acceptance: the operator decides (accept both rows, or name another treatment); after the decision --verify-manifest reports 0 problems.
 
-## CON-178 — CON-033: run the review_record R4-CAP proof legs on a schedule (they SKIP when TMPDIR is under a home directory)
+## CON-209 — CON-033: run the review_record R4-CAP proof legs on a schedule (they SKIP when TMPDIR is under a home directory)
 
 **Status:** Queued
 **Type:** Task

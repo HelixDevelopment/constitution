@@ -88,6 +88,8 @@
 #         (both original control needles, fixture presence, the four
 #         exact-match contract checks against cycle_report.py's real output,
 #         and the two self-validation control needles) held.
+#         Exit 77 = SKIP (reason=topology_unsupported): no consumer tracker DB, or a DB
+#         that is another consumer's register (no ATM- item; fc_require_items). The R5 mutation block reports BLIND when the unmutated run failed.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -98,6 +100,17 @@ FIXDIR="$FC/tests/fixtures/cycle_report"
 # round-4 builder-drift paired mutations, V4-2) -- placement must catch it.
 ASOF_BUILDER="${ASOF_BUILDER_UNDER_TEST:-$FIXDIR/build_asof_scenario.py}"
 DB="$ROOT/docs/workable_items.db"
+
+# Consumer guard (CON-031 round 2): this suite reads the CONSUMER tracker DB
+# (<consumer>/docs/workable_items.db) and named real items in it. In canon
+# alone, or in a consumer whose register does not hold those items, it is an
+# honest SKIP (exit 77, reason=topology_unsupported, section 11.4.3), never a
+# FAIL that hides the real result and never a PASS. fc_require_items SKIPs only on
+# PROVEN absence (items present, none with the ATM- prefix, under atm_id or
+# ticket_id); a query error, a register that lost a named item, or an empty
+# table falls through to the checks below, which report it (review CR-1/CR-3).
+. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer docs/workable_items.db \
+  && fc_require_items "$DB" ATM-953
 
 fail=0
 failx() { fail=1; }
@@ -2130,7 +2143,16 @@ fi
 # is re-run against the copy and MUST exit non-zero. M1/M3 (round 1) and
 # CR_N1..CR_N7, R8-C1/C2 (round 2) are the reviewers' own mutations.
 # ---------------------------------------------------------------------------
-if [ "${FC_R5_MUTANT:-0}" != 1 ]; then
+if [ "${FC_R5_MUTANT:-0}" != 1 ] && [ "$fail" -ne 0 ]; then
+  # CON-031 round 2: a mutant counts as KILLED when the suite exits non-zero
+  # against it. If the UNMUTATED suite already failed, every mutant "dies" for
+  # that reason and the kills prove nothing, so the block reports BLIND
+  # (section 11.4.201(6)) instead of running.
+  echo
+  echo "=== R5 paired mutations ==="
+  echo "NOT ok R5 paired mutations BLIND: the unmutated baseline is not green (fail=$fail),"
+  echo "     so a non-zero exit against a mutant would not show the mutant was caught"
+elif [ "${FC_R5_MUTANT:-0}" != 1 ]; then
   echo
   echo "=== R5 paired mutations ==="
   # The mutant tree mirrors the repository layout under $TMP so the tools'
