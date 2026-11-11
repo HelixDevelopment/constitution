@@ -1,0 +1,542 @@
+ok   parser: 'RESULT: PASS=10 FAIL=0' -> PASS
+ok   parser: '== RESULT: 39 passed, 0 failed ==' -> PASS
+ok   parser: 'RESULT: pass=64 fail=0' -> PASS
+ok   parser: 'RESULT: e2e pass=21 fail=0 skip=0' -> PASS
+ok   parser: 'SELFCHECK\tSUMMARY\tpass=8 fail=0 refusals_observed=1' -> PASS
+ok   parser: '== cli-agent-plugins summary: 16 passed, 0 failed, 0 finding' -> PASS
+ok   parser: '== summary: PASS=2 FAIL=0 SKIP=0 (evidence: /x/y) ==' -> PASS
+ok   parser: 'RESULT: 14 PASS / 0 FAIL   [evidence: /x/y]' -> PASS
+ok   parser: 'twins: PASS=16 FAIL=0\nRESULT: PASS' -> PASS
+ok   parser: 'RESULT: 10 passed, 0 failed\nOK' -> PASS
+ok   parser: 'SUMMARY cases=91 failed=0' -> PASS
+ok   parser: '----\nRan 42 tests in 18.958s\n\nOK' -> PASS
+ok   parser: '== Summary: ok 6 / NOT ok 0 ==' -> PASS
+ok   parser: '== T1 RED summary: ok 3 / NOT ok 0 ==' -> PASS
+ok   parser: 'SUMMARY mutants=26 killed=26 survivors=0 not_applicable=0' -> PASS
+ok   parser: 'TOTAL 3 failed 0' -> PASS
+ok   parser: 'TOTAL=5 PASSED=5 FAILED=0' -> PASS
+ok   parser: 'ran 2, failed 0' -> PASS
+ok   parser: 'RESULT: PASS (3 of 3)' -> PASS
+ok   parser: 'RESULT: PASS (all 5 cases)' -> PASS
+ok   parser: 'SUMMARY: 12 pass-lines / FAIL=0 of 12 assertions' -> PASS
+ok   parser: 'SUMMARY: 5 pass / 0 fail / 1 skip of 6 assertions' -> PASS
+ok   parser: 'test_real_agents: 3 passed, 0 failed, 1 skipped; kimi=1.2.3 ' -> PASS
+ok   parser: 'unit: PASS 3 FAIL 0' -> PASS
+ok   parser: '=== R1 GUARD (R1-IN): ALL CHECKS PASS ===' -> PASS
+ok   parser: 'TOTAL: failed_suites=0' -> PASS
+ok   parser: 'ok   mutation detected\nRESULT: PASS' -> PASS
+ok   parser: '===== 3 passed in 0.12s =====' -> PASS
+ok   parser: '100% tests passed, 0 tests failed out of 5' -> PASS
+ok   parser: '  3 passing (5ms)' -> PASS
+ok   parser: '5 tests, 0 failures' -> PASS
+ok   parser: '1..2\nok 1 - a\nok 2 - b' -> PASS
+ok   parser: 'PASS: B M9 shape (5 FAIL + 56 no-verdict) -> exit 1\n----\nRES' -> PASS
+ok   parser: 'ok 3 - handles (2 failed) input\nRESULT: PASS=3 FAIL=0' -> PASS
+ok   parser: '  PASS: indented (5 FAIL)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: 'pass: lower (5 FAIL)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: '[PASS] bracket (5 failed)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: '✓ tick (2 failed)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: 'ok: colon (2 failed)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: 'OK shape (2 failed)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: 'PASSED: shape (3 failures)\nRESULT: PASS=5 FAIL=0' -> PASS
+ok   parser: 'killed M1 (5 failing check(s))\nSUMMARY mutants=1 killed=1 su' -> PASS
+ok   parser: 'RESULT: SKIP (one subcase)\nRESULT: SKIPPED subcase x\npassed=' -> PASS
+ok   parser: 'PASS: 3, FAIL: 1' -> FAIL
+ok   parser: 'PASS: total=5 failed=2' -> FAIL
+ok   parser: 'PASS: checks=5 fail=1' -> FAIL
+ok   parser: 'PASS: 10 tests run, 3 failed' -> FAIL
+ok   parser: 'ok - 3 passed, 2 failed' -> FAIL
+ok   parser: 'PASS: B M9 shape (5 FAIL + 56 no-verdict)\nRESULT: PASS=4 FAI' -> FAIL
+ok   parser: '\x1b[31mfailed=2\x1b[0m passed=3' -> FAIL
+ok   parser: '\x1b]0;title\x07\x1b[1;32mpassed=3 failed=0\x1b[0m' -> PASS
+ok   parser: 'progress 10%\rprogress 100%\rpassed=3 failed=1' -> FAIL
+ok   parser: 'passed=3 failed=0\r' -> PASS
+ok   parser: '1 tests failed out of 5' -> FAIL
+ok   parser: '100% tests passed, 1 tests failed out of 5' -> FAIL
+ok   parser: 'PASS (3 checks)\nFAIL (2 checks)' -> FAIL
+ok   parser: 'FAIL (2 checks)' -> FAIL
+ok   parser: '  1 failing' -> FAIL
+ok   parser: '5 tests, 1 failure' -> FAIL
+ok   parser: '===== 3 passed, 1 failed in 0.12s =====' -> FAIL
+ok   parser: '1..3\nok 1 - a\nnot ok 2 - b\nok 3' -> FAIL
+ok   parser: '1 passed, 0 failed, a failure was logged' -> ERROR
+ok   parser: 'RESULT: PASS=3 FAIL=0\nFATAL: teardown crashed' -> ERROR
+ok   parser: 'Failed tests: 3' -> FAIL
+ok   parser: 'Result: FAIL' -> FAIL
+ok   parser: 'result: fail' -> FAIL
+ok   parser: 'SUMMARY cases=7 failed=1' -> FAIL
+ok   parser: '== Summary: ok 7 / NOT ok 1 ==' -> FAIL
+ok   parser: 'SUMMARY: regression check FAILED -- see NOT ok lines above' -> FAIL
+ok   parser: 'SUMMARY: FAILURES present' -> FAIL
+ok   parser: 'not ok 3 - x\n1..3\n# fail 1' -> FAIL
+ok   parser: '== 1 passed, 2 failed ==' -> FAIL
+ok   parser: 'Tests: 3 failed' -> FAIL
+ok   parser: 'RESULT: FAIL passed=0 failed=3' -> FAIL
+ok   parser: 'RESULT: PASS\nVERDICT: FAIL' -> FAIL
+ok   parser: 'RESULT: 3 PASS / 1 FAIL' -> FAIL
+ok   parser: 'SUMMARY fails=9 P1b P1c' -> ERROR
+ok   parser: 'PASS: widget saw 2 failed probes' -> ERROR
+ok   parser: 'A: failed=2\nB: passed=3 failed=0' -> ERROR
+ok   parser: 'RESULT: PASS (0 of 0)' -> ERROR
+ok   parser: 'ran 0 tests' -> ERROR
+ok   parser: 'passed=0 failed=0' -> ERROR
+ok   parser: 'passed=3 failed=0 total=2' -> ERROR
+ok   parser: 'passed=3 failed=0\nVERDICT: SKIP reason=x' -> ERROR
+ok   parser: 'passed=3 failed=0\nSKIP: tail case' -> ERROR
+ok   parser: 'SUMMARY pass=0 fail=0 (SKIPPED, environment gap)' -> SKIP
+ok   parser: 'passed=0 failed=0 skipped=3' -> SKIP
+ok   parser: 'noise\nVERDICT: SKIP reason=hardware_not_present' -> SKIP
+ok   parser: 'SKIP: systemd --user bus unreachable (reason: topology_unsup' -> SKIP
+ok   parser: 'SKIP - submodules not checked out (nothing to exclude)' -> SKIP
+ok   parser: 'RESULT: SKIPPING' -> PASS
+ok   parser: 'RESULT: PASS=0 FAIL=3\nnoise a\nnoise b\nnoise c\nnoise d' -> FAIL
+ok   parser: 'hello' -> PASS
+ok   parser: 'GREEN: cold-start grace present (3/3 cases)' -> PASS
+ok   parser: 'RESULT C01 PASS CLI exits 2 (rc=2)' -> PASS
+ok   parser: 'ok 4 - refuses fail=1 input\nRESULT: PASS=4 FAIL=0' -> PASS
+ok   parser: '\x00ÿ junk\npassed=1 failed=0' -> PASS
+ok   parser: '5 passed -- 1 failure seen' -> FAIL
+ok   parser: 'pass=5; fail later' -> FAIL
+ok   parser: '5 passed -- all green' -> PASS
+ok   parser: 'AssertionError: x' -> ERROR
+ok   parser: 'Segmentation fault (core dumped)' -> ERROR
+ok   parser: 't.sh: line 3: foo: command not found' -> ERROR
+ok   parser: 'Killed' -> ERROR
+ok   parser: 'cp: cannot create x: Permission denied' -> ERROR
+ok   parser: 'passed=3 failed=0\nSegmentation fault' -> ERROR
+ok   parser: "ok   prints 'command not found' for a bad name\nRESULT: PASS=" -> PASS
+ok   parser: 'killed M3 (2 failing check(s))\nSUMMARY mutants=1 killed=1 su' -> PASS
+ok   parser: 'failed=1 passed=4\rALL OK' -> ERROR
+ok   parser: 'progress 1/3\rprogress 3/3\npassed=3 failed=0' -> PASS
+ok   parser: '1..2\nok 1 a\nnot ok 2 b # TODO later' -> PASS
+ok   parser: go ok line
+ok   parser: go FAIL line
+ok   parser: rc 77 -> SKIP
+ok   parser: rc 1 with a pass summary -> FAIL
+ok   parser: timer -> TIMEOUT
+ok   parser: 10 MB line then a summary
+ok   X1: a record with a known verdict is valid (golden-FALSE)
+ok   X1: a record with verdict 'BOGUS' is invalid
+ok   X1: a record with verdict 'pass' is invalid
+ok   X1: a record with verdict '' is invalid
+ok   X1: a record with verdict 'PASS-FULL' is invalid
+ok   X9: killpg_checked(1) refused
+ok   X9: killpg_checked(0) refused
+ok   X9: killpg_checked(-5) refused
+ok   X9: killpg_checked(2387446) refused
+ok   X9: killpg_checked('7') refused
+ok   X9: killpg_checked(None) refused
+ok   X9: killpg_checked(True) refused
+ok   X9: no refused group reached os.killpg
+ok   X9: a group id > 1 that is not ours is signalled (golden-FALSE)
+ok   rm_tree refuses outside scratch
+ok   rm_tree left outside scratch in place
+ok   rm_tree refuses no fsr_ prefix
+ok   rm_tree left no fsr_ prefix in place
+ok   rm_tree removes its own runner-made dir (golden-FALSE)
+ok   shmodel full: t/test_a.sh invoked=True
+ok   shmodel full: t/test_b.sh invoked=True
+ok   shmodel full: t/test_f.sh invoked=True
+ok   shmodel full: t/test_g.sh invoked=True
+ok   shmodel full: t/h.py invoked=True
+ok   shmodel full: t/test_h.sh invoked=True
+ok   shmodel full: t/test_x_heavy.sh invoked=True
+ok   shmodel full: t/test_c.sh invoked=False
+ok   shmodel full: t/test_d.sh invoked=False
+ok   shmodel full: t/test_e.sh invoked=False
+ok   shmodel --quick drops the guarded append
+ok   shmodel --quick keeps the plain array
+ok   shmodel nested literal loops
+ok   shmodel unknown command-substitution assignment keeps the later path
+ok   shmodel definite empty assignment then exit stops the path
+ok   shmodel: unterminated heredoc refused
+ok   P5 model: discarded set of 'bash t/a.sh || true\nbash t/b.sh || rc=1\necho x\ne'
+ok   P5 model: discarded set of 'bash t/a.sh\nbash t/b.sh'
+ok   P5 model: discarded set of 'bash t/a.sh; rc=$?\nbash t/b.sh | tee x; echo ${P'
+ok   P5 model: discarded set of 'bash t/a.sh; rc=$?\nbash t/b.sh | tee x; st=${PIP'
+ok   P5 model: discarded set of 'set -e\nbash t/a.sh\nbash t/b.sh || true\necho ok'
+ok   P5 model: discarded set of 'if bash t/a.sh; then :; fi\nfor x in 1; do bash t'
+ok   P5 model: discarded set of '! bash t/a.sh'
+ok   P5 model: discarded set of 'bash t/a.sh; rc=$?; exit 0'
+ok   P5 model: discarded set of 'bash t/a.sh; echo "rc=$?"; exit 0'
+ok   P5 model: discarded set of 'if bash t/a.sh; then echo ok; else echo bad; fi'
+ok   P5 model: discarded set of 'bash t/a.sh; rc=$?; exit $rc'
+ok   P5 model: discarded set of 'bash t/a.sh; rc=$?\n[ $rc -eq 0 ] || exit 1'
+ok   P5 model: discarded set of 'fail=0\nif ! bash t/a.sh; then fail=1; fi\nexit $f'
+ok   P5 model: discarded set of 'if bash t/a.sh; then :; else exit 1; fi'
+ok   P5 model: discarded set of 'bash t/a.sh\nexit $?'
+ok   P5 model: discarded set of 'f(){ bash t/a.sh; }\nf || exit 1\nbash t/b.sh && b'
+ok   P5 model: discarded set of 'set -euo pipefail\nbash t/a.sh | cat\nfor x in 1; '
+ok   P5 model: discarded set of 'bash t/a.sh || echo failed\nexec bash t/b.sh'
+ok   P5 model: discarded set of 'bash t/a.sh && bash t/b.sh || exit 1\necho done'
+ok   P5 model: discarded set of 'bash t/a.sh && bash t/b.sh || true\necho done'
+engine unit checks failed=0
+fatal: cannot change to '<scratch>/tmp/rfs_selftest.erU6fP/good': No such file or directory
+fatal: cannot change to '<scratch>/tmp/rfs_selftest.erU6fP/good': No such file or directory
+<scratch>/snap/merge/tests/test_run_full_suite.sh: line 45: <scratch>/tmp/rfs_selftest.erU6fP/o_good.log: No such file or directory
+FAIL golden-good rc=0 (want '0' got '1')
+FAIL golden-good RESULT: PASS-FULL (no /^RESULT: PASS-FULL/ in <scratch>/tmp/rfs_selftest.erU6fP/o_good.log)
+FAIL golden-good verdict from summary (want 'PASS||summary' got '')
+FAIL no summary -> PASS exit-code-only (want 'PASS||exit-code-only' got '')
+FAIL exit-code-only counted in RESULT (no /exit-code-only-PASS=1/ in <scratch>/tmp/rfs_selftest.erU6fP/o_quiet.log)
+ok   exit0 + RESULT: FAIL -> FAIL
+ok   exit0 + '2 failed' -> FAIL
+ok   exit0 + ran 0 tests -> ERROR zero_tests
+ok   exit0 + all skipped -> SKIP
+ok   exit0 + terminal VERDICT: SKIP -> SKIP with reason
+ok   lies run rc=1
+ok   SIGKILL at 0 s -> ERROR
+ok   exit 137 without timer -> ERROR
+ok   exit 124 without timer -> ERROR
+ok   exit 77 -> SKIP reason
+ok   exit 127 -> ERROR
+ok   ALL PASS then exit 1 -> FAIL
+ok   sleep past timer -> TIMEOUT
+ok   TIMEOUT-only run rc=1
+ok   TIMEOUT-only RESULT: FAIL
+ok   TERM-ignoring grandchild reaped
+ok   leaked processes killed
+ok   leaks counted in record
+ok   ambient env not passed, fresh HOME/XDG
+ok   variable values are never logged
+ok   --env-extra passes a named variable
+ok   unlisted test file -> exit 3
+ok   unlisted test file named
+ok   nothing runs on mismatch
+ok   stale manifest row -> exit 3
+ok   Go test file without go.mod -> exit 3
+ok   malformed manifest -> exit 3
+ok   heavy-looking name declared default -> exit 3
+ok   runall-quick whose --quick drops a default member -> exit 3
+ok   quick-dropped default member named
+ok   default mode rc=5 (heavy not run)
+ok   default RESULT: PARTIAL-DEFAULT-SET
+ok   default run never prints a RESULT: PASS line (N12)
+ok   default run never prints a RESULT: OK line (N12)
+ok   whole run_all: member m1 ran once
+ok   quick run_all got --quick in default mode
+ok   heavy quick member not run in default
+ok   N10: heavy member dropped by --quick listed SKIPPED-heavy
+ok   members run_all: light member ran alone once
+ok   members run_all / heavy member not run in default
+ok   heavy entry not run in default
+ok   heavy entry recorded SKIPPED-heavy
+ok   N10: --list names the --quick drop
+ok   full mode rc=0
+ok   quick run_all without --quick in full mode
+ok   full mode heavy quick member ran once
+ok   full mode members run_all ran once
+ok   full mode light member ran once more (through the run_all)
+ok   whole member once per run
+ok   resume: second run executes nothing
+ok   resume reported
+ok   --rerun-nonpass re-executes the FAIL
+ok   --rerun-nonpass keeps the PASS
+ok   dirty tree re-runs (same --out)
+ok   new sha re-runs (same --out)
+ok   flaky re-run executed
+ok   flaky: resume never upgrades FAIL to PASS (rc 1)
+ok   flaky: nondeterminism reported
+ok   flaky: both verdicts named
+ok   exact path + signature -> KNOWN with id
+ok   known run rc=1 (two unexplained)
+ok   golden-FALSE: substring path / other signature not KNOWN
+ok   golden-FALSE: path cited only in the markdown doc fails
+ok   malformed known table -> exit 2
+ok   permissive table: KNOWN failure -> rc 7 (PASS-FULL-WITH-KNOWN)
+ok   N1: resume with the table absent fails (rc 1)
+ok   N1: no KNOWN tag without the table
+ok   N1: table hash is in the resume key (unit re-ran)
+ok   N1: same path, emptied table -> re-run and FAIL
+ok   N13: edited external manifest re-runs
+FAIL --only run -> PARTIAL-NOT-RUN rc=4 (want '4' got '3')
+FAIL PARTIAL-NOT-RUN RESULT line (no /^RESULT: PARTIAL-NOT-RUN/ in <scratch>/tmp/rfs_selftest.erU6fP/o_only.log)
+ok   --timeout 0 refused
+ok   --out inside the root refused
+ok   inside --out not created
+ok   N2: 3 SKIP + 1 PASS -> rc 6
+ok   N2: RESULT PARTIAL-SKIPS
+ok   N2: never PASS-FULL with SKIPs
+ok   N2: SKIP units listed
+ok   N2: all-SKIP run -> rc 6, never green
+ok   N3: comment-only member is generated as an entry
+ok   N3: echo-only member is generated as an entry
+ok   N3 control needle: real invocation is a member
+ok   N3 control needle: generated manifest verifies
+ok   N3: comment-only membership refused (exit 3)
+ok   N3: refusal names the member
+ok   N4: unlisted tests/a/meta_test_x.sh fails closed
+ok   N4: unlisted tests/a/mutation_test_y.sh fails closed
+ok   N4: unlisted tests/a/mutants_z.sh fails closed
+ok   N4: unlisted tests/a/run_scope_tests.sh fails closed
+ok   N4: unlisted tests/a/t_case.py fails closed
+ok   N4: unlisted test/live_smoke.sh fails closed
+ok   N4: unlisted scripts/x/meta_mutation.sh fails closed
+ok   N4: unlisted lib/mytest_helper.sh fails closed
+ok   N4: unlisted tests/a/foo.bash fails closed
+ok   N4: unlisted tests/a/UPPER.SH fails closed
+ok   N4: unlisted scripts/prove_mutations.sh fails closed
+ok   N4: unlisted tests/a/helper_noext fails closed
+ok   N4 negative control: clean tree verifies
+ok   N4: sourced helper is excluded with an evidence reason
+ok   N4: manifest with an evidenced exclusion verifies
+ok   N4: exclusion without a reason refused
+ok   N4: false 'sourced by' evidence refused
+ok   N9: dangling test symlink fails closed
+ok   N9: name with a newline fails closed
+ok   N6: hand-appended record (chain not extended) -> exit 2
+ok   N6: integrity named
+ok   N6: deleted record -> exit 2
+ok   R4: chain-valid but schema-less record -> exit 2
+ok   N6: chain-valid record reusing a log path -> exit 2
+ok   N6: log reuse named
+ok   N6: torn last line dropped, run continues (rc 1 from test_j)
+ok   N6: torn line reported honestly
+ok   N6: no false 're-run' claim
+ok   N6: second run on a locked --out -> exit 2
+ok   N6: lock named
+ok   N7: overflow -> ERROR log_overflow
+ok   N7: log file capped (1048670 bytes)
+ok   R1: changed runner hash re-runs the unit
+ok   R2: suite writing into the tree -> rc 1
+ok   R2: tree change named
+ok   R3: blinded census -> exit 3
+ok   R3: instrument blindness named
+ok   N13: dirty submodule content re-runs
+ok   N13: a second edit inside an already-dirty submodule re-runs
+ok   N13: a changed ignored file re-runs
+ok   N12: stale guide census block -> exit 3
+FAIL N12: --sync-guide makes the block current (want '0' got '3')
+ok   go module unit PASS from ok line
+ok   X4: unmatched signature -> rc 1
+ok   X4: a log edited to carry the signature does not become KNOWN (rc 1)
+ok   X4: no KNOWN tag from an edited log
+ok   X5: edited untracked file re-runs the unit
+ok   X5: unchanged untracked file resumes (golden-FALSE)
+ok   P4: generated exclusion uses the closed category form
+ok   P4: excluded set with no lock -> exit 3
+ok   P4: missing acceptance named
+ok   P4: --accept-excluded-change records the set -> exit 0
+ok   P4: lock names the reviewer
+ok   P4: lock lists the excluded path
+ok   P4: accepted set verifies
+ok   P4: changed exclusion note against the lock -> exit 3
+ok   P4: acceptance is appended, never replaced
+ok   P4: category outside the closed list -> exit 3 even with an acceptance attempt
+ok   P4: closed-list violation named
+ok   P4: refused acceptance appends no accepted line
+ok   P4: a test-named file excluded without override: -> exit 3 even when accepted
+ok   P4: test-named exclusion named
+ok   P4: run with an accepted exclusion -> rc 0
+ok   P4: summary lists the excluded file
+ok   P4: RESULT line carries the excluded count
+ok   P5: manifest verifies
+ok   P5: status-discarded failing member fails the run (rc 1)
+ok   P5: discarded member verdict FAIL from its own run
+ok   P5: discarded member ran alone once more
+ok   P5: consumed member ran only through run_all (golden-FALSE)
+ok   P6: KNOWN-only run -> rc 7
+ok   P6: RESULT PASS-FULL-WITH-KNOWN
+ok   P6: never a plain PASS-FULL
+ok   P7: initialised submodule -> rc 0 (golden-FALSE)
+ok   P7: layout reported
+ok   P7: uninitialised submodule -> refused, rc 9
+ok   P7: gap named
+ok   P7: refused run ran nothing
+ok   P7: --allow-topology-gaps -> rc 8
+ok   P7: RESULT PARTIAL-TOPOLOGY
+ok   P8: js test in the manifest
+ok   P8: bats test in the manifest
+ok   P8: extension-less shebang smoke file in the manifest
+ok   P8: an unlisted js test refuses -> exit 3
+ok   P8: js unit runs under node
+ok   P8: absent runner is an honest SKIP
+ok   F1: clean committed tree -> rc 0 (golden-FALSE)
+ok   F1: identity in the PASS-FULL RESULT line
+ok   F1: identity in summary.txt
+ok   F1: each record carries the identity
+ok   F1: drifted submodule (+) refused -> rc 9
+ok   F1: drift named
+ok   F1: drift allowed -> not green (rc 8)
+ok   F1: drift never PASS-FULL
+ok   F1: submodule back at the recorded commit -> rc 0
+ok   F1: modified tracked file -> PARTIAL-DIRTY-TREE rc 10
+ok   F1: RESULT PARTIAL-DIRTY-TREE
+ok   F1: dirty path listed
+ok   F1: untracked file -> rc 10
+ok   F1: untracked file inside a submodule -> rc 10
+ok   F1: submodule dirt listed
+ok   O9: failing submodule status refused -> rc 9
+ok   O9: failure named
+ok   O5: hand-edited lock body -> exit 3
+ok   O5: hand edit named
+ok   O5: restored lock verifies (golden-FALSE)
+ok   O5: acceptor rewritten in a chained line -> exit 3
+ok   O5: broken chain named
+ok   F6: acceptance by an id that is not on the roster -> exit 3
+ok   F6: refusal names the roster
+ok   F6: refused acceptance appends nothing
+ok   F6: id added to an uncommitted roster -> exit 3
+ok   F6: uncommitted roster named
+ok   F6: rostered operator accepts -> exit 0 (golden-FALSE)
+ok   F6: new acceptance line is chained
+ok   F6: run with an operator-accepted exclusion -> rc 0
+ok   F6: acceptor printed in summary.txt
+ok   F6: acceptor no longer on the roster -> PARTIAL-EXCLUSIONS-UNACCEPTED rc 11
+ok   F6: verify still structurally OK (exit 0) and says why
+ok   F6: verify note
+ok   O7: first run KNOWN-only -> rc 7
+ok   O7: flipping unit with a KNOWN row -> rc 1 (never 7)
+ok   O7: nondeterminism reported
+ok   O7: no KNOWN tag on a flipping unit
+ok   R5-1: HEAD moved by a unit mid-run -> rc 1
+ok   R5-1: RESULT names the identity change
+ok   R5-1: summary says where it changed (C02: checked after every unit too)
+ok   R5-1: the unit after the move is not run (never credited to the start HEAD)
+ok   R5-1: never PASS-FULL
+ok   R5-1: HEAD moved by the last unit -> rc 1 (end check)
+ok   R5-1: a move by the last unit is caught after that unit
+ok   R5-1: a submodule HEAD moved mid-run -> rc 1
+ok   R5-1: submodule move caught after the moving unit
+ok   R5-1: units that only read git -> rc 0 (golden-FALSE)
+ok   R5-1: no identity change reported (golden-FALSE)
+ok   M4 pin: clean tree, KNOWN-only -> rc 7 (control)
+ok   M4 pin: dirty tree + KNOWN -> rc 10
+ok   M4 pin: never PASS-FULL-WITH-KNOWN on a dirty tree
+ok   M7 pin: control without the shim -> rc 0
+ok   M7 pin: failing git status -> rc 10
+ok   M7 pin: identity reads dirty=unknown
+ok   M7 pin: the failure is listed
+ok   R5-2: acceptance through a symlinked roster -> exit 3
+ok   R5-2: symlinked roster named
+ok   R5-2: nothing accepted
+ok   R5-2: regular committed roster -> accepted (golden-FALSE)
+ok   R5-2: symlinked excluded lock -> exit 3
+ok   R5-2: symlinked lock named
+ok   CON-030 control: a path without a space is read whole (sub_paths, topology gaps, ident_diff)
+ok   CON-030 sub_paths/topology/ident_diff keep a path with a space
+ok   CON-030 sub_paths/topology/ident_diff keep a path with a TAB
+ok   CON-030 end to end: a clean checkout with a spaced submodule path runs (rc 0, not REFUSED-TOPOLOGY rc 9)
+ok   CON-030 end to end: topology reports 1 submodule and no gap
+ok   CON-030 ident_diff names a spaced submodule whose HEAD moved (identity round-trips the path)
+ok   CON-030 topology: an unparseable submodule status line is a gap
+ok   CON-030 parse_sub_status: unparseable line -> None, spaced + described + uninitialised lines parsed whole
+ok   CON-030 r2 precondition: status prints ' plainb (heads/feat(x))'
+ok   CON-030 r2 precondition: status prints ' plaint (v1(beta))'
+ok   CON-030 r2 precondition: status prints ' plainc (v2))'
+ok   CON-030 r2 precondition: status prints ' x (xyz) (heads/'
+ok   CON-030 r2 precondition: status prints ' nest ed/in ner (heads/'
+ok   CON-030 r2: describe with ( ) / a ')'-only tag / 'x (xyz)' / leading+trailing space / CR / '?' / '=' / nested paths read whole, 0 gaps
+ok   CON-030 r2 end to end: branch feat(x), tag v1(beta), tag v2) and the rest run (rc 0, not REFUSED-TOPOLOGY)
+ok   CON-030 r2 end to end: 12 submodules, no gap
+ok   CON-030 r2 submodule_paths (census exclusion): .gitmodules + gitlinks read whole (-z / --null)
+ok   CON-030 r2 ident_diff names a submodule 'k=v' whose HEAD moved
+ok   CON-030 r2 uninitialised: gaps name each path whole, sub_paths() is empty
+ok   CON-030 r2 newline path: both status fragments are unparseable gaps, sub_paths() empty
+ok   CON-030 r2 parse_sub_status table (sha256, ambiguous, unknown, spaced describe, '-' and 'U')
+ok   CON-030 r3 G3 precondition: HEAD of 'status' does not resolve
+ok   CON-030 r3 G3: unresolvable HEAD in submodule 'status' -> rc 1 (never PASS-FULL)
+ok   CON-030 r3 G3: RESULT FAIL names the identity ('status')
+ok   CON-030 r3 G3: IDENTITY CHANGED names submodule 'status' as unknown at both ends
+ok   CON-030 r3 G3: the root status is not reported for 'status' (its value did not change)
+ok   CON-030 r3 G3 precondition: HEAD of 'other' does not resolve
+ok   CON-030 r3 G3: unresolvable HEAD in submodule 'other' -> rc 1 (never PASS-FULL)
+ok   CON-030 r3 G3: RESULT FAIL names the identity ('other')
+ok   CON-030 r3 G3: IDENTITY CHANGED names submodule 'other' as unknown at both ends
+ok   CON-030 r3 G3: the root status is not reported for 'other' (its value did not change)
+ok   CON-030 r3 QuickIdent: unknown per value, never per path; labels distinct
+ok   CON-030 r3 ident_diff names a submodule 'cr\rx' whose HEAD moved, exactly
+ok   CON-030 r3 G1 precondition: git recorded the non-UTF-8 path
+ok   CON-030 r3 G1: a clean checkout with a non-UTF-8 submodule path runs (rc 0, not REFUSED-TOPOLOGY)
+ok   CON-030 r3 G1: topology reports 1 submodule and no gap
+ok   CON-030 r3 G1: an uninitialised non-UTF-8 path is named with \xNN in its gap
+ok   CON-030 r3 G2 precondition: git prints the newline path as fragments equal to 'a' and 'b'
+ok   CON-030 r3 G2: newline path gap + one gap per doubly named path, sub_paths without duplicates
+ok   CON-030 r3 G2 end to end: the nlD checkout is REFUSED-TOPOLOGY (rc 9), never PASS-FULL
+ok   CON-030 r3 class: a Go module in directory '?mod' gets its go-test row (was dropped)
+ok   CON-030 r3 class: a '#'-leading test path -> --verify-manifest rc 3
+ok   CON-030 r3 class: the '#' path is named as such
+ok   CON-030 r3 class: not misreported as a missing manifest row
+ok   CON-030 r4 H3: a test path with a CR -> --verify-manifest rc 3
+ok   CON-030 r4 H3: the CR path is named, the CR escaped
+ok   CON-030 r4 H3: no raw CR byte on the output
+ok   CON-030 r3 class: a non-UTF-8 test file name -> --verify-manifest rc 3 (was MANIFEST-OK without it)
+ok   CON-030 r3 class: the non-UTF-8 name is named with \xNN
+ok   CON-030 r3 class: tree_state framing (no absorbed record, non-UTF-8 target hashed)
+ok   CON-030 r3 class: file_bytes of an absent file differs from a file holding '<absent>'
+ok   CON-030 r4: known table and excluded lock: CRLF tolerated, a CR inside a line refused by name
+ok   CON-030 r3 G4: known_sub_paths() of a fresh clone is exactly the top-level paths
+ok   CON-030 r3 G12: nested uninitialised 'nest (ed)/in (ner)' is one whole gap, known set exact
+ok   CON-030 r3 G12 precondition: git prints a real U line
+ok   CON-030 r3 G12: a real U line on 'con (flict) )' names the path whole
+ok   CON-030 r3 G12 precondition: SHA-256 status lines (64 hex, describe v1(beta))
+ok   CON-030 r3 G12: a real SHA-256 superproject reads every path whole, 0 gaps
+ok   CON-030 r4 gov_lines: NEL LS PS CR VT FF ESC NUL DEL C1 refused by name; CRLF, TAB and space read
+ok   CON-030 r4 io lint: every engine I/O site classed, governance readers use gov_lines (sites=30 problems=0 [])
+ok   CON-030 r4 io lint positive control: 30 I/O sites found (>= 25)
+ok   CON-030 r4 io lint control needle: an unclassed open() is caught
+ok   CON-030 r4 io lint control needle: read_roster reading by itself is caught
+ok   CON-030 r4 H2 (nel in a comment line): --accept-excluded-change eve refused (rc 3)
+ok   CON-030 r4 H2 (nel): the refused character is named
+ok   CON-030 r4 H2 (nel): the whole roster is refused, alice too (rc 3)
+ok   CON-030 r4 H2 (nel): no acceptance line written for eve
+ok   CON-030 r4 H2 (ls in a comment line): --accept-excluded-change eve refused (rc 3)
+ok   CON-030 r4 H2 (ls): the refused character is named
+ok   CON-030 r4 H2 (ls): the whole roster is refused, alice too (rc 3)
+ok   CON-030 r4 H2 (ls): no acceptance line written for eve
+ok   CON-030 r4 H2 (cr in a comment line): --accept-excluded-change eve refused (rc 3)
+ok   CON-030 r4 H2 (cr): the refused character is named
+ok   CON-030 r4 H2 (cr): the whole roster is refused, alice too (rc 3)
+ok   CON-030 r4 H2 (cr): no acceptance line written for eve
+ok   CON-030 r4 H2 control (plain space): eve is not an operator, refused (rc 3)
+ok   CON-030 r4 H2 control: refused because eve is not on the roster
+ok   CON-030 r4 H2 control (plain space): alice is accepted (rc 0)
+ok   CON-030 r4 H2: read_roster ids per separator (NEL, LS, CR: none; space: alice)
+ok   CON-030 r4 H1: module dir 'x/run_all.sh --quick' next to runall-quick x/run_all.sh -> refused (rc 3)
+ok   CON-030 r4 H1: both units named
+ok   CON-030 r4 H1: never PASS-FULL, never resumed
+ok   CON-030 r4 H1 (--include-heavy, fresh out): the module runs and fails (rc 1)
+ok   CON-030 r4 H1 (--include-heavy): the module's own record is FAIL
+ok   CON-030 r4 H1 control (module in x/gomod): FAIL rc 1
+ok   CON-030 r4 H1: plan() keys, display refusal (default), heavy plan, duplicate-key refusal; record matching
+ok   CON-030 r4 RW6 precondition: the default run passes (--quick)
+ok   CON-030 r4 RW6: the heavy run over the default run's --out runs the full runall and fails (rc 1)
+ok   CON-030 r4 RW6: the full runall is not resumed from the --quick record
+ok   CON-030 r4 RW3 precondition: git status with an unreadable index fails (rc 128)
+ok   CON-030 r4 RW3: a failing git status mid-run stops the run (rc 2)
+ok   CON-030 r4 RW3: named as an unknown root status after unit 1
+ok   CON-030 r4 RW3: never PASS-FULL
+ok   CON-030 r4 RW4: hrec(None) != hrec(b''), and both differ from no record
+ok   CON-030 r4 H3 esc_out: CR LF NEL LS ESC escaped, TAB kept, surrogate as \xNN
+ok   CON-030 r4 H3 precondition: the fresh clone runs with gaps (PARTIAL-TOPOLOGY, rc 8)
+ok   CON-030 r4 H3: the CR submodule path is printed escaped on stdout
+ok   CON-030 r4 H3: ... and in summary.txt
+ok   CON-030 r4 H3: no raw CR on stdout/stderr
+ok   CON-030 r4 H3: no raw CR in summary.txt
+ok   CON-030 r4 H3: summary.txt read in text mode has no RESULT line and one gap line per gap
+ok   R2b: suite writing an ignored file into the tree -> rc 1
+ok   R2b: tree change named by the tree branch
+ok   R2b: not reported as an identity change
+ok   C02: identical-content rewrite (new inode) -> rc 1
+ok   C02: the rewriting unit is named
+ok   C02: the next unit is not run
+ok   C02 R3c: precondition, the unit changed the inode
+ok   C02 R3c: an inode-only rewrite (same mtime, size, content) -> rc 1
+ok   C02 R3c: the inode-only rewrite is named as a gen change
+ok   C02: mtime-only change of a tracked generated file -> rc 1
+ok   C02: a file created and removed in a generated directory -> rc 1 (directory mtime)
+ok   C02: a unit that only reads the generated sets -> rc 0 (golden-FALSE)
+ok   C02: no identity change reported (golden-FALSE)
+ok   C02 R3: a rewrite of a generated set under constitution/ -> rc 1
+ok   C02 R3: the vendored-prefix rewrite is named as a gen change
+ok   R3b I1: a change before the first unit -> rc 1
+ok   R3b I1: summary says the change was seen before a unit
+ok   R3b I1: it is not attributed to a unit that ran
+ok   R3b I1: no unit ran on the moved HEAD
+ok   R3b I2: a dirty file rewritten by the last unit -> rc 1
+ok   R3b I2: the unit ran
+ok   R3b I2: the quick identity did not see it (no after-unit change)
+ok   R3b I2: the end-of-run tree_ident comparison names it
+ok   R3b I2: RESULT names the identity change
+passed=356 failed=8
+rc=1 passed=356 failed=8 skips=0
