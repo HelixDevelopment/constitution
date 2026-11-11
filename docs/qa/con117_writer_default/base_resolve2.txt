@@ -1,0 +1,9 @@
+workdir <scratch>/tmp/cg_safe_tests/resolve2.bAAoon
+DIST=<scratch>/tmp/cg_safe_tests/resolve2.bAAoon/pkg_resolve2
+probe-stock {"methodMaterialized":true,"methodCached":true,"kinds":["module","method"],"targets":{"p.play":"objc/ObjA.m|playWithSong:|framework|0.6","fetch":"objc/ObjA.m|fetchWithKey:|framework|0.6","p.send":"objc/ObjA.m|sendToHost:|framework|0.6","render":"objc/ObjA.m|renderInView:|framework|0.6","p.load":null,"nosuchthing":null}}
+probe-dist  {"methodMaterialized":false,"methodCached":false,"kinds":["module"],"targets":{"p.play":"objc/ObjA.m|playWithSong:|framework|0.6","fetch":"objc/ObjA.m|fetchWithKey:|framework|0.6","p.send":"objc/ObjA.m|sendToHost:|framework|0.6","render":"objc/ObjA.m|renderInView:|framework|0.6","p.load":null,"nosuchthing":null}}
+RESULT Q1 PASS bridge never materializes/pins the method node set (stock does)
+RESULT Q2 PASS bridge targets identical to stock (order + objc filter)
+RESULT Q3 PASS full-index edge+ref dump byte-identical to stock
+SUMMARY cases=3 failed=0
+rc=0

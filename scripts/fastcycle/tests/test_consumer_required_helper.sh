@@ -31,7 +31,11 @@
 #           skipped check 8 (review C2-2).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_helper.sh
 # Exit    : 0 all pass; 1 any fail; 77 (reason=topology_unsupported) when no dash is installed, so the
-#           dash leg could not run (the bash leg still ran and passed).
+#           dash leg could not run (the bash leg still ran and passed), or when a leg recorded a
+#           SKIP-with-reason (today only L29, a host without a usable locale; CON-222): a skipped leg
+#           is never folded into a green exit 0, and the SUMMARY line counts it ("N skip (skipped: L29)").
+# Env     : FC_L29_CANDIDATES (test hook, CON-185) replaces the L29 locale list; when it is set at all,
+#           a note line names its value (CON-223), and a SKIP it causes ends the run with 77 (CON-222).
 # Safety  : one mktemp -d root, removed with safe_rm_rf restricted to it; $HOME is never reassigned.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -39,9 +43,10 @@ CANON="$(cd "$HERE/../../.." && pwd)"
 HELPER="${FC_HELPER_UNDER_TEST:-$HERE/lib/consumer_required.sh}"   # the mutation harness points this at a mutated copy
 # shellcheck source=../../../scripts/lib/safe_rm.sh
 . "$CANON/scripts/lib/safe_rm.sh"
-P=0; F=0
+P=0; F=0; S=0; SKIPPED=""
 ok()  { P=$((P+1)); echo "ok   $*"; }
 bad() { F=$((F+1)); echo "NOT ok $*"; }
+skipped() { S=$((S+1)); SKIPPED="$SKIPPED $1"; }   # CON-222: a leg that did not run is counted, never a pass
 expect() { # expect DESC WANT_RC WANT_LASTLINE_REGEX(or -) OUTFILE RC
   local d="$1" wrc="$2" wre="$3" out="$4" rc="$5" last
   last="$(grep -v '^[[:space:]]*$' "$out" | tail -1)"
@@ -405,11 +410,40 @@ EOF
     && ok "L28 newline-path fixtures built (needle: 'x.db<LF>' is the lost register, 'x.db' a foreign one)" || bad "L28 newline-path fixtures broken"
   # L29 (RV7-10): the locales the id check is run under. A locale counts only when bash classes A-umlaut as
   # [:upper:] in it (needle), so a [:upper:] class would accept the id there while [A-Z] does not.
-  L29LOC=""
-  for _l in C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8; do
-    if LC_ALL=$_l bash -c 'case "$1" in [[:upper:]]) exit 0 ;; esac; exit 1' _ "$(printf '\303\204')" 2>/dev/null; then L29LOC="$L29LOC $_l"; fi
-  done
-  [ -n "$L29LOC" ] && ok "L29 locales where bash classes A-umlaut as upper:$L29LOC" || bad "L29: no UTF-8 locale classes A-umlaut as upper; the leg cannot run"
+  # CON-185: a host without such a locale lacks the topology for this leg: that is a section 11.4.3 SKIP-with-reason
+  # (reason=topology_unsupported), never a FAIL. l29_locales prints the usable ones; l29_verdict maps a list to the line.
+  l29_locales() {
+    for _l in "$@"; do
+      if LC_ALL=$_l bash -c 'case "$1" in [[:upper:]]) exit 0 ;; esac; exit 1' _ "$(printf '\303\204')" 2>/dev/null; then printf ' %s' "$_l"; fi
+    done
+  }
+  l29_verdict() { # $1 = the usable-locale list
+    if [ -n "$1" ]; then echo "ok   L29 locales where bash classes A-umlaut as upper:$1"
+    else echo "SKIP: L29 no listed UTF-8 locale classes A-umlaut as [:upper:], so the [:upper:] mutant is not observable on this host; the leg did not run reason=topology_unsupported"; fi
+  }
+  # both branches proven on every run: a name no host has -> SKIP line; the host's own list is probed below
+  _l29_none=$(l29_locales zz_ZZ.nosuchlocale); _l29_line=$(l29_verdict "$_l29_none")
+  case $_l29_line in "SKIP: L29 "*"reason=topology_unsupported") ok "L29 branch: no usable locale -> SKIP-with-reason, not a FAIL (needle: zz_ZZ.nosuchlocale yields an empty list)" ;; *) bad "L29 branch: no usable locale gave [$_l29_line]" ;; esac
+  # CON-222: the dispatch of the verdict line is a function, so its SKIP branch is proven on every run (below):
+  # the SKIP line is printed AND counted by skipped(); it never goes through ok() (reviewer mutant RV-E) and is
+  # never dropped (RV-F). The final exit turns a counted skip into 77.
+  l29_dispatch() { # $1 = the verdict line
+    case $1 in ok*) ok "${1#ok   }" ;; SKIP*) echo "$1"; skipped L29 ;; *) bad "L29 verdict line unreadable: $1" ;; esac
+  }
+  _l29_probe=$(P=0; F=0; S=0; SKIPPED=""; l29_dispatch "SKIP: L29 probe line reason=topology_unsupported"; echo "P=$P F=$F S=$S SKIPPED=$SKIPPED")
+  _l29_want="SKIP: L29 probe line reason=topology_unsupported
+P=0 F=0 S=1 SKIPPED= L29"
+  if [ "$_l29_probe" = "$_l29_want" ]; then ok "L29 dispatch: a SKIP line is printed and counted as a skip, not a pass (CON-222)"
+  else bad "L29 dispatch: a SKIP line gave [$(printf '%s' "$_l29_probe" | tr '\n' '|')]"; fi
+  _l29_probe=$(P=0; F=0; S=0; SKIPPED=""; l29_dispatch "ok   L29 probe"; echo "P=$P F=$F S=$S")
+  if [ "$_l29_probe" = "ok   L29 probe
+P=1 F=0 S=0" ]; then ok "L29 dispatch: an ok line is a pass and no skip (control)"
+  else bad "L29 dispatch: an ok line gave [$(printf '%s' "$_l29_probe" | tr '\n' '|')]"; fi
+  # CON-223: the override is a test hook; when it is set (even to an empty or blank value) the run says so.
+  if [ "${FC_L29_CANDIDATES+set}" = set ]; then echo "note: FC_L29_CANDIDATES override in effect: [$FC_L29_CANDIDATES] (CON-223; a SKIP it causes ends the run with 77)"; fi
+  L29LOC=$(l29_locales ${FC_L29_CANDIDATES:-C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8})   # FC_L29_CANDIDATES: a test hook for a host without locales
+  _l29_line=$(l29_verdict "$L29LOC")
+  l29_dispatch "$_l29_line"
   for sh in $SHELLS; do
     o="$W/out3"
     # case: db ids... -> want
@@ -506,7 +540,7 @@ CASES
       else bad "[$sh] S7 usage error [$_ids]: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 120 "$o.err")]"; fi
     done
     # S7b (round 8 CR7-4): the usage message names the id in single quotes, for each of the three id checks
-    for _bi in "ATM953" "9X-1" "ATM-9x"; do
+    for _bi in "ATM953" "9X-1" "ATM-9x" "AtM-5" "A_B-1"; do   # CON-184: a lowercase letter or an underscore inside the prefix
       "$sh" "$T" "$FX/real_atm.db" "$_bi" >"$o" 2>"$o.err"; rc=$?
       [ "$rc" = 2 ] && [ "$(cat "$o.err")" = "fc_require_items: bad item id '$_bi'" ] && ok "[$sh] S7b usage message for [$_bi] is exact" \
         || bad "[$sh] S7b usage message for [$_bi]: rc $rc, stderr [$(head -c 120 "$o.err")]"
@@ -596,9 +630,53 @@ CASES
   done
 fi
 
+echo "=== Part 3b: the helper under test in a SYMLINKED canon layout (CON-183; runs for a mutated copy too)"
+# Part 4 (below) is skipped for a mutated copy, because it runs the checkout's real helper. Its only layout-specific
+# property the mutation harness can lose is the symlinked canon (<consumer>/constitution/scripts/fastcycle -> a checkout):
+# there $0 is the logical path, so the root must be resolved LOGICALLY (cd without -P), not through the link target.
+# This leg builds that layout around the helper UNDER TEST ($HELPER), so a mutant such as cd -P is judged here.
+SYM="$W/symcanon"; SYMREAL="$SYM/realcanon/scripts/fastcycle/tests"; SYMC="$SYM/consumer"
+mkdir -p "$SYMREAL/lib" "$SYMC/constitution/scripts" "$SYMC/docs" && : >"$SYMC/docs/present.txt" && : >"$SYMC/docs/my data.txt" \
+  && ln -s "$HELPER" "$SYMREAL/lib/consumer_required.sh" \
+  && ln -s "$SYM/realcanon/scripts/fastcycle" "$SYMC/constitution/scripts/fastcycle" \
+  && printf '%s\n' '#!/bin/sh' '. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$@"' 'echo "BODY RAN"' >"$SYMREAL/fake_test.sh" \
+  && [ -e "$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh" ] \
+  && ok "symlinked canon layout built (needle: the consumer data docs/present.txt sits only under the logical root)" \
+  || bad "symlinked canon layout setup failed"
+# CON-224 (reviewer mutant RV-C, `&& pwd)` -> `&& pwd -P)`): the consumer root reached through a symlinked PARENT
+# directory. The root is resolved logically, so the SKIP message names the path as given ($SYM/lp/consumer), not the
+# physical one ($SYM/consumer). Needle: both names reach the same fake test.
+ln -s "$SYM" "$SYM/lp" && [ -e "$SYM/lp/consumer/constitution/scripts/fastcycle/tests/fake_test.sh" ] \
+  && [ "$(cd "$SYM/lp/consumer" && pwd)" != "$(cd "$SYM/lp/consumer" && pwd -P)" ] \
+  && ok "symlinked-parent consumer root built (needle: logical and physical root differ)" \
+  || bad "symlinked-parent consumer root setup failed"
+for sh in $SHELLS; do
+  o="$W/out3b"
+  "$sh" "$SYM/lp/consumer/constitution/scripts/fastcycle/tests/fake_test.sh" docs/absent.txt >"$o" 2>&1; rc=$?
+  _l="$(grep -v '^[[:space:]]*$' "$o" | tail -1)"
+  case $_l in "SKIP: consumer-project files absent under $SYM/lp/consumer: docs/absent.txt "*"reason=topology_unsupported")
+      [ "$rc" = 77 ] && ok "[$sh] symlinked parent: the SKIP names the logical consumer root (CON-224)" || bad "[$sh] symlinked parent: rc $rc, want 77" ;;
+    *) bad "[$sh] symlinked parent: SKIP line [$_l] does not name the logical root $SYM/lp/consumer (rc $rc)" ;;
+  esac
+done
+for sh in $SHELLS; do
+  ST="$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh"; o="$W/out3b"
+  "$sh" "$ST" docs/present.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] symlinked canon: the consumer data under the logical root is found (no false SKIP)" 0 "^BODY RAN$" "$o" "$rc"
+  # CON-102 (mutant M1G / reviewer M6, for _fcr_p in "$@" -> $*): a path argument that contains a space is one path
+  "$sh" "$ST" "docs/my data.txt" >"$o" 2>&1; rc=$?
+  expect "[$sh] a path argument with a space is passed whole (docs/my data.txt present -> no false SKIP)" 0 "^BODY RAN$" "$o" "$rc"
+  "$sh" "$ST" "docs/my data.txt" docs/absent.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] a spaced path beside an absent one: only the absent one is named" 77 "absent under .*: docs/absent.txt \\(test targets" "$o" "$rc"
+  "$sh" "$ST" docs/absent.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] symlinked canon: an absent consumer path still SKIPs" 77 "reason=topology_unsupported$" "$o" "$rc"
+done
+
 echo "=== Part 4: the REAL cycle_report suites decide SKIP through fc_require_items (CR-2)"
 if [ "${FC_HELPER_UNDER_TEST:-}" != "" ]; then
-  echo "note: FC_HELPER_UNDER_TEST is set; Part 4 runs the checkout's real helper, so it is skipped for a mutated copy"
+  echo "note: FC_HELPER_UNDER_TEST is set; Part 4 runs the checkout's real helper, so it is skipped for a mutated copy."
+  echo "note: BOUND (CON-183): of Part 4 only the symlinked-canon layout is replayed against the copy (Part 3b); a mutant that only"
+  echo "note: the real cycle_report suites kill is reported survived here and must be probed on the real helper (Part 4 on the checkout)."
 elif [ "$NOSQL" = 1 ]; then
   echo "note: no sqlite3; Part 4 not run"
 else
@@ -627,11 +705,15 @@ else
   done
 fi
 
-echo "SUMMARY: $P pass / $F fail"
+echo "SUMMARY: $P pass / $F fail / $S skip${SKIPPED:+ (skipped:$SKIPPED)}"
 [ "$F" -eq 0 ] || exit 1
 [ "$P" -gt 0 ] || exit 1
 if [ -z "$DASH" ]; then
   echo "SKIP: dash is not installed, so the dash leg did not run reason=topology_unsupported"
+  exit 77
+fi
+if [ "$S" -gt 0 ]; then   # CON-222: a skipped leg is never a green exit 0
+  echo "SKIP: $S leg(s) did not run:$SKIPPED reason=topology_unsupported"
   exit 77
 fi
 exit 0

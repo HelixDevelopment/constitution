@@ -1,0 +1,72 @@
+# CON-236 reproduction (section 11.4.292, surface host-only), base 24bdca78
+# a scratch copy of tests/test_run_full_suite_mutations.sh with a second row repeating M3; the self-test is a
+# stand-in that passes on the unmutated engine and prints a FAIL line on any other engine (exercises the harness loop only)
+# command: (cd <copy> && bash tests/test_run_full_suite_mutations.sh M3)
+# RED (unfixed harness): the duplicate row runs twice, exit 0
+ok   baseline: unmutated copy passes the self-test
+killed M3 (1 failing check(s))
+killed M3 (1 failing check(s))
+SUMMARY mutants=2 killed=2 survivors=0 not_applicable=0
+rc=0
+
+# --- mkharness.sh (fixture builder) ---
+#!/usr/bin/env bash
+# mkharness.sh SRC_ROOT DEST [dup]: copy the mutation harness + runner into DEST with a stub self-test
+# (the stub fails with a FAIL line iff the engine differs from the unmutated copy); "dup" appends a
+# second row whose id repeats M3 to the MUTANTS table.
+set -u
+src=${1:?}; d=${2:?}; mode=${3:-}
+mkdir -p "$d/tests" "$d/scripts/full_suite" "$d/scripts/lib"
+cp "$src/tests/test_run_full_suite_mutations.sh" "$d/tests/"
+cp "$src/scripts/run_full_suite.sh" "$d/scripts/"; cp "$src/scripts/full_suite/run_full_suite.py" "$d/scripts/full_suite/"
+cp "$src/scripts/lib/safe_rm.sh" "$src/scripts/lib/protected_paths.list" "$d/scripts/lib/"
+ref=$(sha256sum "$d/scripts/full_suite/run_full_suite.py" | cut -c1-64)
+cat > "$d/tests/test_run_full_suite.sh" <<STUB
+#!/usr/bin/env bash
+e="\$(dirname "\$FSR_RUNNER")/full_suite/run_full_suite.py"
+if [ "\$(sha256sum "\$e" | cut -c1-64)" = "$ref" ]; then echo "ok   stub: engine unmutated"; exit 0; fi
+echo "FAIL stub: engine mutated"; exit 1
+STUB
+if [ "$mode" = dup ]; then
+  python3 -I - "$d/tests/test_run_full_suite_mutations.sh" <<'PY'
+import sys
+p=sys.argv[1]; s=open(p).read()
+row=[l for l in s.split("\n") if l.startswith("M3\t")]
+assert len(row)==1
+s=s.replace("\nEOF\n)\n", "\n"+row[0]+"\nEOF\n)\n",1); open(p,"w").write(s)
+PY
+fi
+
+# test-first: tests/test_run_full_suite_mutations_table.sh on the unfixed harness
+ok   [real] no duplicate: exit 0
+ok   [real] no duplicate: baseline ran
+ok   [real] no duplicate: M3 killed exactly once
+FAIL [real] duplicate (args: 'M3'): exit 2 (want '2' got '0')
+FAIL [real] duplicate (args: 'M3'): refusal names M3 (want '1' got '0')
+FAIL [real] duplicate (args: 'M3'): baseline not run (want '0' got '1')
+FAIL [real] duplicate (args: 'M3'): no mutant run (want '0' got '2')
+FAIL [real] duplicate (args: ''): exit 2 (want '2' got '1')
+FAIL [real] duplicate (args: ''): refusal names M3 (want '1' got '0')
+FAIL [real] duplicate (args: ''): baseline not run (want '0' got '1')
+FAIL [real] duplicate (args: ''): no mutant run (want '0' got '105')
+FAIL real harness: 8 case check(s) failed
+FAIL the duplicate-id check line occurs 0 time(s) in <scratch>/constitution/tests/test_run_full_suite_mutations.sh (want 1)
+passed=0 failed=2
+rc=1
+
+# GREEN: same test after the fix (includes the paired mutant: duplicate-id check removed -> killed)
+ok   [real] no duplicate: exit 0
+ok   [real] no duplicate: baseline ran
+ok   [real] no duplicate: M3 killed exactly once
+ok   [real] duplicate (args: 'M3'): exit 2
+ok   [real] duplicate (args: 'M3'): refusal names M3
+ok   [real] duplicate (args: 'M3'): baseline not run
+ok   [real] duplicate (args: 'M3'): no mutant run
+ok   [real] duplicate (args: ''): exit 2
+ok   [real] duplicate (args: ''): refusal names M3
+ok   [real] duplicate (args: ''): baseline not run
+ok   [real] duplicate (args: ''): no mutant run
+ok   real harness: all cases pass
+ok   paired mutant (duplicate-id check removed) is killed: 8 case check(s) fail
+passed=2 failed=0
+rc=0

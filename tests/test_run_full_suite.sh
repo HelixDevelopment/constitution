@@ -238,7 +238,7 @@ chk("X1: a record with a known verdict is valid (golden-FALSE)", m.valid_record(
 for bogus in ("BOGUS", "pass", "", "PASS-FULL"):
     chk("X1: a record with verdict %r is invalid" % bogus, m.valid_record(dict(base, verdict=bogus)), False)
 calls = []
-real_killpg = os.killpg
+real_killpg = os.killpg  # killpg-gate:allow test saves the real function to restore after patching
 os.killpg = lambda g, s: calls.append((g, s))
 try:
     for g in (1, 0, -5, os.getpgrp(), "7", None, True):
@@ -564,17 +564,23 @@ has "11b control: plain reason row matches the mixed unit" 'KNOWN ATM-5\]  tests
 KO="$T/known_open"; mkdir -p "$KO"
 python3 -I -c 'import sqlite3,sys
 c=sqlite3.connect(sys.argv[1]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)")
-c.executemany("INSERT INTO items VALUES(?,?,?)",[("ATM-5","Queued","Issues"),("ATM-6","Fixed (→ Fixed.md)","Fixed"),("ATM-8","Obsolete","Fixed"),("ATM-9","Completed","Fixed")]); c.commit()
+c.executemany("INSERT INTO items VALUES(?,?,?)",[("ATM-5","Queued","Issues"),("ATM-6","Fixed (→ Fixed.md)","Fixed"),("ATM-8","Obsolete","Fixed"),("ATM-9","Completed","Fixed"),("ATM-10","Queued","Archive")]); c.commit()
 c=sqlite3.connect(sys.argv[2]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)"); c.commit()' "$KO/db.sqlite" "$KO/empty.sqlite"
 printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\n' > "$KO/open.tsv"
-printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/y.sh\treason:rc_3\tATM-6\to\ntests/a/z.sh\tsig\tATM-77\to\ntests/a/w.sh\treason:rc_3\tATM-8\to\ntests/a/v.sh\treason:rc_3\tATM-9\to\n' > "$KO/stale.tsv"
+printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/y.sh\treason:rc_3\tATM-6\to\ntests/a/z.sh\tsig\tATM-77\to\ntests/a/w.sh\treason:rc_3\tATM-8\to\ntests/a/v.sh\treason:rc_3\tATM-9\to\ntests/a/u.sh\treason:rc_3\tATM-10\to\n' > "$KO/stale.tsv"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/db.sqlite" >"$KO/o1" 2>&1; chk "11c: every tracked item open -> rc 0" "$?" "0"
 bash "$R" --root "$K3" --check-known-open --known "$KO/stale.tsv" --db "$KO/db.sqlite" >"$KO/o2" 2>&1; chk "11c: a closed and an unknown item -> rc 1" "$?" "1"
 has "11c: closed item named STALE" '^STALE ATM-6  tests/a/y.sh' "$KO/o2"
 has "11c: unknown item named STALE" '^STALE ATM-77  tests/a/z.sh' "$KO/o2"
 has "11c: Obsolete item located in Fixed named STALE (closure is the location, not the status text; review fixu M1)" '^STALE ATM-8  tests/a/w.sh' "$KO/o2"
 has "11c: Completed item located in Fixed named STALE (review fixu M1)" '^STALE ATM-9  tests/a/v.sh' "$KO/o2"
+has "11c: item in a location other than Issues named STALE (closure is not only the word Fixed; review fixu-fu Y1, CON-189)" '^STALE ATM-10  tests/a/u.sh' "$KO/o2"
 has "11c: open item still listed as open" '^open  ATM-5  tests/a/x.sh' "$KO/o2"
+# CON-189 (review fixu-fu F1, mutant Y3): a table whose ONLY stale row is an unknown id must still be KNOWN-STALE rc 1
+printf 'tests/a/z.sh\tsig\tATM-77\to\n' > "$KO/unknown_only.tsv"
+bash "$R" --root "$K3" --check-known-open --known "$KO/unknown_only.tsv" --db "$KO/db.sqlite" >"$KO/o6" 2>&1; chk "11c: an unknown id alone -> rc 1 (CON-189)" "$?" "1"
+has "11c: unknown id alone is named STALE" '^STALE ATM-77  tests/a/z.sh' "$KO/o6"
+has "11c: unknown id alone ends RESULT: KNOWN-STALE" '^RESULT: KNOWN-STALE' "$KO/o6"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/empty.sqlite" >"$KO/o3" 2>&1; chk "11c: empty DB is BLIND -> rc 2" "$?" "2"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/absent.sqlite" >"$KO/o4" 2>&1; chk "11c: absent DB is BLIND -> rc 2" "$?" "2"
 bash "$R" --root "$K3" --known "$KO/open.tsv" --db "$KO/db.sqlite" --list >"$KO/o5" 2>&1; chk "11c: --db without --check-known-open -> rc 2" "$?" "2"
@@ -1103,6 +1109,19 @@ mv "$RS/config/full_suite_excluded.lock" "$T/outside_lock"; ln -s "$T/outside_lo
 gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
 vfy "$RS" "$T/rs3.log"; chk "R5-2: symlinked excluded lock -> exit 3" "$RC" "3"
 has "R5-2: symlinked lock named" 'full_suite_excluded.lock is a symlink' "$T/rs3.log"
+# CON-235: --accept-excluded-change on a symlinked lock fails closed (refused, exit 3, lock untouched)
+olsha=$(sha256sum "$T/outside_lock" | cut -c1-64)
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs4.log" 2>&1; RC=$?
+chk "CON-235: acceptance onto a symlinked lock -> exit 3" "$RC" "3"
+has "CON-235: refusal names the symlinked lock" 'accept-excluded-change .*refused: .*full_suite_excluded.lock is a symlink' "$T/rs4.log"
+hasnt "CON-235: no MANIFEST-OK after the refusal" 'RESULT: MANIFEST-OK' "$T/rs4.log"
+chk "CON-235: the lock is still the symlink" "$(readlink "$RS/config/full_suite_excluded.lock")" "$T/outside_lock"
+chk "CON-235: the symlink target is unchanged" "$(sha256sum "$T/outside_lock" | cut -c1-64)" "$olsha"
+rm -f "$T/outside_lock"
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs5.log" 2>&1; RC=$?
+chk "CON-235: acceptance onto a dangling symlinked lock -> exit 3" "$RC" "3"
+chk "CON-235: the dangling lock symlink is left in place" "$([ -L "$RS/config/full_suite_excluded.lock" ] && echo link || echo replaced)" "link"
+chk "CON-235: nothing written through the dangling symlink" "$([ -e "$T/outside_lock" ] && echo written || echo absent)" "absent"
 
 # --- 38 WIT-C02 (wave 2 review r2, F5): a unit that rewrites the tracked generated command sets is caught
 # even when the content is identical (new inode or new mtime); the run ends FAIL and names the unit.

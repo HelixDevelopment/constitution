@@ -1,0 +1,81 @@
+# Evidence: CON-216, CON-217, CON-218, CON-219, CON-220 (follow-ups of the fu_a review, docs/qa/review_fu_a_2026_11_11.md)
+# Host: Linux 7.0.0-42-generic, bash 5.3.9(1)-release, python 3.14.4; base main 24bdca78; vehicle/fix216; captured 2026-11-11T15:04:25Z by AI (Claude Opus 5.5, fixer fix216)
+
+## CON-216 RED (source): FC_GUARD_THREADS unset, PATH shim ps that exits 3, FC_GUARD_ULIMIT_U=1000, real host_report.py at 24bdca78
+read: (1000, 0, False)
+probe: {'enforced': True, 'requested_n': 1000000, 'returned_n': 1, 'reason': 'unreadable_threads', 'thread_headroom': 1000, 'threads_per_job_probed': 1001}
+## CON-216 RED (new test case PS_FAILS on the pre-fix source)
+(the unmutated-tool line, PS_FAILS case only)
+NOT ok PS_FAILS got={'enforced': True, 'reason': 'unreadable_threads', 'note': '<absent>'} want={'enforced': None, 'reason': 'unmeasured', 'note': 'ulimit_or_threads_unreadable'}
+=== host_report probe_thread_headroom r2: pass=6 fail=1 ===
+## CON-216 GREEN (after the fix: ps run directly, no pipeline)
+ok unmutated tool: all 7 cases pass
+ok mutant Y4_per_job_not_plus_1 killed
+ok mutant Y5_headroom_minus_1 killed
+ok mutant Y6_drop_thr_none_guard killed
+ok mutant Y9_drop_unlimited killed
+ok mutant Y10_floor_not_one killed
+ok mutant RD_failed_ps_reads_zero killed
+=== host_report probe_thread_headroom r2: pass=7 fail=0 ===
+## CON-216 neighbours after the fix (sh variant of r2; r1 regression; test_host_limits_red)
+=== host_report probe_thread_headroom r2: pass=7 fail=0 ===
+=== host_report thread limit regression guard (CON-147 F2-1): pass=45 fail=0 ===
+SKIP: consumer-project files absent under /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix_216: scripts/lib/host_session_safety.sh (test targets a consumer layout, not canon alone) reason=topology_unsupported
+
+## CON-217 / CON-218 RED: reviewer mutants RG and RI against the PRE-change r2 test (rc 0 = survived)
+UNMUTATED on OLD r2 test: rc=0 (=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=4 fail=0 ===)
+RG on OLD r2 test: rc=0 (=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=4 fail=0 ===)
+RI on OLD r2 test: rc=0 (=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=4 fail=0 ===)
+## CON-219 RED: reviewer mutant RH against the PRE-change wording guard
+ok tool docstring does not claim EVERY decision point
+ok tool docstring states the scope: decision points matched by the closed operator list
+ok meta-test header does not claim every decision point
+ok CON-158 text does not claim the census closes the class
+OLD guard on RH: rc=0
+## CON-219 GREEN
+  | ok tool docstring does not claim EVERY decision point
+  | ok tool docstring states the scope: decision points matched by the closed operator list
+  | ok tool docstring keeps the pinned scope sentences
+  | ok tool docstring does not claim all/every/each decision point
+  | ok meta-test header does not claim every decision point
+  | ok CON-158 text does not claim the census closes the class
+ok real files: all 6 wording checks pass
+ok mutant M1_tool_claims_every killed
+ok mutant M2_meta_header_claims_every killed
+ok mutant M3_tracker_claims_closes_class killed
+ok mutant RH_enumerates_all killed
+ok mutant M4_scope_sentence_dropped killed
+=== census wording r1 (CON-159): pass=6 fail=0 ===
+## CON-220 RED: new KILLED-TIMEOUT check on the pre-fix classifier (check lines; mutant lines omitted)
+  | NOT ok n2 KILLED-TIMEOUT mutant with a ledger entry is stale (CON-220)
+  | ok n2 KILLED-TIMEOUT mutant without a ledger entry is not stale (CON-220)
+  | ok m3 main(): KILLED mutant with a ledger entry prints its STALE line (CON-218) out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\nSTALE\tfc36302f887d\tsyn\tledger entry\'s mutant is KILLED, so its equivalence proof is false: [ -n "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=1 ===\n'
+  | ok m3 control: no ledger entry -> main() returns 0, no STALE line rc=0 out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=0 ===\n'
+NOT ok unmutated tool fails (1 failing)
+## CON-217 / CON-218 / CON-220 GREEN
+  | ok n1 run_bounded reports the timeout (rc None) rc=None
+  | ok n1 no process of the run's session survives the timeout kill left=[]
+  | ok n1 control needle: a fabricated session id has no members
+  | ok n2 KILLED mutant with a ledger entry is stale
+  | ok n2 EQUIVALENT mutant with a ledger entry is not stale
+  | ok n2 KILLED mutant without a ledger entry is not stale
+  | ok n2 SURVIVED mutant with a ledger entry is not stale (reported as survived/equivalent)
+  | ok n2 KILLED-TIMEOUT mutant with a ledger entry is stale (CON-220)
+  | ok n2 KILLED-TIMEOUT mutant without a ledger entry is not stale (CON-220)
+  | ok n1 kill_session(1) refused with ValueError (CON-217)
+  | ok n1 kill_session(0) refused with ValueError (CON-217)
+  | ok n1 kill_session(-5) refused with ValueError (CON-217)
+  | ok n1 kill_session('7') refused with ValueError (CON-217)
+  | ok n1 kill_session refusals sent zero signals (CON-217) kills=[]
+  | ok m3 synthetic target yields exactly one nz_flip mutant n=1
+  | ok m3 main(): KILLED mutant with a ledger entry prints its STALE line (CON-218) out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\nSTALE\tfc36302f887d\tsyn\tledger entry\'s mutant is KILLED, so its equivalence proof is false: [ -n "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=1 ===\n'
+  | ok m3 main(): ... and returns 1 (CON-218) rc=1
+  | ok m3 control: no ledger entry -> main() returns 0, no STALE line rc=0 out='CONTROL\tsyn\tunmutated copy passes (0 s)\nKILLED\tfc36302f887d\tsyn:2\tnz_flip\t[ -n "$1" ] || exit 3\t->\t[ -z "$1" ] || exit 3\n=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=0 ===\n'
+ok unmutated tool: all 18 checks pass
+ok mutant M1_kill_group_only killed
+ok mutant M2_stale_ignores_verdict killed
+ok mutant M3_stale_any_verdict killed
+ok mutant RG_drop_sid_le_1_refusal killed
+ok mutant RI_stale_call_site_off killed
+ok mutant M4_stale_ignores_timeout killed
+=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=7 fail=0 ===

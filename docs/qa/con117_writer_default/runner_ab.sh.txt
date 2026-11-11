@@ -1,0 +1,27 @@
+# (copy of the scratch script, shebang removed so it is not a runnable census member; run with bash)
+# runner_ab.sh — scratch-DB A/B for CON-117 at the runner layer: build the OLD writer runner
+# (--patches fkidx1,resolve1) and the NEW one (bare run = registry default) with the REAL
+# fk_index_patch.py into a scratch cache, then run each runner exactly as the writer does
+# (`init -y -v <P>`) on its own scratch copy of the resolve2 fixture, and compare dumps.
+# Also runs stock on a third copy. Never touches a live index or the real runner cache.
+set -u
+S="${1:?scratch root}"
+C="$S/constitution/scripts/codegraph"
+E="$S/ev/runner_ab"; rm -rf "$E"; mkdir -p "$E"
+R="$S/ab_runner_cache"; rm -rf "$R"; mkdir -p "$R"
+export HELIX_CODEGRAPH_RUNNER_DIR="$R"
+PKG="$(npm root -g)/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-linux-x64"
+OLD="$(python3 "$C/fk_index_patch.py" --src "$PKG" --patches fkidx1,resolve1 --print-bin 2> "$E/build_old.err")"; echo "old_rc=$? $OLD" > "$E/build.txt"
+NEW="$(python3 "$C/fk_index_patch.py" --src "$PKG" --print-bin 2> "$E/build_new.err")"; echo "new_rc=$? $NEW" >> "$E/build.txt"
+STK="$PKG/bin/codegraph"
+for lab in stock old new; do
+    case $lab in stock) B="$STK" ;; old) B="$OLD" ;; new) B="$NEW" ;; esac
+    P="$S/ab_proj_$lab"
+    python3 "$C/tests/test_resolve2_fixture.py" "$P" 500 > /dev/null
+    /usr/bin/time -v "$B" init -y -v "$P" > "$E/$lab.out" 2> "$E/$lab.err"; echo "rc=$?" >> "$E/$lab.out"
+    grep -E 'Maximum resident|Elapsed' "$E/$lab.err" > "$E/$lab.time"
+    python3 "$C/tests/test_resolve1_dump.py" "$P/.codegraph/codegraph.db" "$E/$lab" > "$E/$lab.dump" 2>&1
+    sqlite3 "$P/.codegraph/codegraph.db" "select 'nodes',count(*) from nodes; select 'edges',count(*) from edges; select 'files',count(*) from files; select 'unresolved',status,count(*) from unresolved_refs group by status;" > "$E/$lab.counts" 2>&1
+done
+for d in "$R"/*/; do python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print(r.get('runner_key'), r.get('patch_set'))" "$d/RUNNER_RECEIPT.json"; done > "$E/receipts.txt"
+sha256sum "$E"/*.edges.tsv "$E"/*.refs.tsv > "$E/sha256.txt"
