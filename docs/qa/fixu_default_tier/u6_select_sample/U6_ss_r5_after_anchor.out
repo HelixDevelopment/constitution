@@ -1,0 +1,57 @@
+=== S1 (R5 B1): as-of freeze -- full DB and cut DB give the identical body ===
+ok S1 full-vs-cut body_hash identical: rows dated after --as-of change nothing
+=== S2 (R5 B1/B2/M2 + V2-1 + V2-4): exact hand-derived selection, strata and listing ===
+ok S2 exclude-first then most-recent-2 USABLE per type; walked-past excluded rows listed; boundary rows (as-of day, window.from, negative gap, row-id/created_at disagreement) counted correctly
+=== S3 (R5 B1, reviewer experiment): live DB snapshot vs the same snapshot with every row after 2026-08-23 deleted ===
+NOT ok S3 sqlite3 or live tracker DB unavailable -- cannot run the reviewer experiment
+=== S4 (R5 M10): --determinism-check writes --out (and the result equals a plain run) ===
+ok S4 --determinism-check rc=0 and wrote --out with the same body_hash as a plain run
+=== S5 (V2-1, live): the per-type quota is filled with USABLE rows whenever they exist ===
+NOT ok S5 live snapshot unavailable
+=== S6 (V2-8): with no needle overrides, an as-of before the default needle's date derives the needle at the as-of ===
+NOT ok S6 rc=0 needle=derived-at-as-of|ATM-603|2026-07-20 default_rc=3 live_rc=skip -- select_sample: needle ok: ATM-603 Completed/2026-07-20 present, ATM-99999-NEGATIVE-CONTROL absent (needle source: derived-at-as-of) / 
+=== S7 (V2-2 class): the retroactive rule's one out-of-scope copy (closure/reopen_rate.py) agrees on a boundary corpus ===
+ok S7 select_sample's rule and reopen_rate.py's copy agree on 8 boundary cases (gap 0, 59, 60, -60, offset-aware, missing rows, unparseable)
+=== S8 (R5 B2): below_required is computed on USABLE rows -- a stratum with enough rows but none usable is below ===
+ok S8 min 1: Feature 1 available / 0 usable -> below_required true (Bug, Task 1 usable each -> false)
+=== S9 (V3-1/V3-8 class, round 3): GENERATED boundary matrix -- every cell vs an independent oracle ===
+ok S9 boundary matrix: 50 cells, 55 items (47 in sample, 8 outside) -- every cell matches the oracle in full and cut DBs; full==cut; meta-check and comparison controls fire
+=== S7b (V3-6, round 3): reopen_rate.py's window functions agree with select_sample's on the matrix ===
+ok S7b reopen_rate closed/reopened-in-window + retroactive == select_sample on 110 histories (every matrix cell, full and cut)
+# note S7b (not a check, collect_baseline.py is out of this area): no divergence
+=== S10 (V3-3): the recorded operator decision's OTHER setting (EXCLUDED_ROWS_COUNT_TOWARD_N = True) is positively specified ===
+ok S10 EXCLUDED_ROWS_COUNT_TOWARD_N=True: most-recent N rows usable or not; Task 2 selected / 0 usable / below_required; excluded rows sampled and flagged
+=== S11 (V3-4): a broken or missing sibling module is BLIND (exit 4), never exit 1 -- plain and --determinism-check ===
+ok S11 missing or broken fc_common.py: select_sample exits 4 with a BLIND message and writes no --out (plain and --determinism-check)
+=== S12 (bound class, round 3): an --as-of EQUAL to the default needle's date keeps the default needle ===
+ok S12 as-of 2026-07-28 (= default needle date) uses the default needle and fails closed (exit 3)
+=== paired mutations ===
+ok mutation M2_oldest_n killed (4 failing check(s))
+ok mutation SS_N1_asof_day_dropped killed (7 failing check(s))
+ok mutation SS_N3_negative_gap_retroactive killed (6 failing check(s))
+ok mutation SS_N4_recency_row_id_only killed (5 failing check(s))
+ok mutation excluded_count_toward_n killed (7 failing check(s))
+ok mutation classifier_bypassed killed (7 failing check(s))
+ok mutation asof_cutoff_dropped killed (7 failing check(s))
+ok mutation b2_available killed (5 failing check(s))
+ok mutation atm_id_ranking killed (5 failing check(s))
+ok mutation needle_never_derived killed (6 failing check(s))
+ok mutation R3_closed_from_exclusive killed (5 failing check(s))
+ok mutation R3_sql_discovery_from_strict killed (4 failing check(s))
+ok mutation R3_reopen_to_exclusive killed (5 failing check(s))
+ok mutation R3_sql_reopen_to_strict killed (4 failing check(s))
+ok mutation R3_retro_first_closure killed (5 failing check(s))
+ok mutation R3_bulk_uses_first_closure killed (4 failing check(s))
+ok mutation R3_exclusion_per_candidate_only_closed killed (4 failing check(s))
+ok mutation R3_needle_derived_strict killed (4 failing check(s))
+ok mutation R3_sql_closure_to_strict killed (7 failing check(s))
+ok mutation R3_closed_to_exclusive killed (8 failing check(s))
+ok mutation R3_sql_reopen_from_strict killed (4 failing check(s))
+ok mutation R3_sql_closure_raw_on_date killed (4 failing check(s))
+ok mutation R3_sql_reopen_raw_on_date killed (4 failing check(s))
+ok mutation R3_cutoff_raw_on_date killed (4 failing check(s))
+ok mutation R3_bulk_threshold_strict killed (6 failing check(s))
+ok mutation R3_window_from_off_by_one killed (6 failing check(s))
+ok mutation R3_needle_default_strict killed (4 failing check(s))
+ok mutation R3_blind_guard_import_error_only killed (4 failing check(s))
+rc=1

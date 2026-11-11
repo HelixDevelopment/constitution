@@ -109,7 +109,11 @@ PY
 # _run TREE TEST -> runs the guard from TREE, prints its rc; output in $S/last.out
 _run() {
     local t=$1 name=$2
-    env ${RUN_RED_MODE:+RED_MODE="$RUN_RED_MODE"} MT_TEST_MOCK_CLAUDE="$MOCK" \
+    # -u RED_MODE: with RUN_RED_MODE unset the guard must run in its own default
+    # (both legs); an inherited RED_MODE (the RB-11 ruler suite exports RED_MODE=0
+    # to every member) would otherwise skip the RED leg this suite mutates, and
+    # every "RED pin ... refused" case would read rc 0.
+    env -u RED_MODE ${RUN_RED_MODE:+RED_MODE="$RUN_RED_MODE"} MT_TEST_MOCK_CLAUDE="$MOCK" \
         MT_RECONCILE_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.r" \
         MT_RECONCILE_RC_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.rc" \
         MT_ARGPARSE_TEST_EVIDENCE_DIR="$S/ev/$RANDOM.a" \

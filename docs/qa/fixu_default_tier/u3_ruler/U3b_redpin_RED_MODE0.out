@@ -1,0 +1,48 @@
+PASS: orchestrator_reconcile control: unmutated scratch tree exits 0
+PASS: orchestrator_reconcile fix removed from the current artifact: the guard goes RED (rc=1, 6 behavioural GREEN failure(s))
+FAIL: orchestrator_reconcile RED pinned back to HEAD was not refused (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/30884.r/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=11 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/30884.r
+FAIL: orchestrator_reconcile RED pin missing from the clone was not a closed failure (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/30115.r/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=11 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/30115.r
+PASS: orchestrator_reconcile_rc control: unmutated scratch tree exits 0
+PASS: orchestrator_reconcile_rc fix removed from the current artifact: the guard goes RED (rc=1, 9 behavioural GREEN failure(s))
+FAIL: orchestrator_reconcile_rc RED pinned back to HEAD was not refused (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/16226.rc/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=20 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/16226.rc
+FAIL: orchestrator_reconcile_rc RED pin missing from the clone was not a closed failure (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/12197.rc/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=20 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/12197.rc
+PASS: sessions_argparse control: unmutated scratch tree exits 0
+PASS: sessions_argparse fix removed from the current artifact: the guard goes RED (rc=1, 30 behavioural GREEN failure(s))
+FAIL: sessions_argparse RED pinned back to HEAD was not refused (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/19309.a/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=38 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/19309.a
+FAIL: sessions_argparse RED pin missing from the clone was not a closed failure (rc=0)
+=== §11.4.50 determinism check (RED_MODE=0): normalized iter1/2/3 byte-identical? ===
+PASS: determinism: 3/3 iterations byte-identical (normalized, RED_MODE=0) [evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/31560.a/normalized_m0_iter1.txt]
+
+RED_MODE=0  PASS=38 FAIL=0 SKIP=0
+Evidence: /home/milosvasic/.cache/claude-tmp/mt_redpin_mut.rvfZ7r/ev/31560.a
+SKIP: sessions_pid_status: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+SKIP: supervisor_wiring: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+SKIP: carrier regression: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+
+PASS=6 FAIL=6 SKIP=3
+rc=1

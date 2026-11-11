@@ -91,7 +91,8 @@ expect = {("NEEDLE_PLAIN", "ambient"), ("NEEDLE_BRACE", "ambient"), ("NEEDLE_DEF
           ("NEEDLE_ENVGREP", "env-api"), ("NEEDLE_JQENV", "env-api"), ("NEEDLE_JQENV2", "env-api"), ("jq-env", "indirect"),
           ("NEEDLE_NODE", "env-api"), ("process.env", "indirect"), ("NEEDLE_DECLP", "env-api"), ("<declare-dump>", "indirect"),
           ("NEEDLE_EVALCMD", "ambient"), ("<eval>", "indirect")}
-seen = {(r[1], r[2]) for r in needle}
+# an eval is reported content-pinned as <eval>#<sha12> (CON-121 F113-1); the needle must show that form
+seen = {(("<eval>" if r[1].startswith("<eval>#") and len(r[1]) == 19 else r[1]), r[2]) for r in needle}
 missing = sorted(expect - seen)
 negatives = sorted(v for v, _ in seen if v in ("NEEDLE_ASSIGNED", "NEEDLE_FABRICATED_ZQX", "NEEDLE_EXPVAL"))
 if missing or negatives:

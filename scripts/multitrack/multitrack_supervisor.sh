@@ -306,6 +306,15 @@ cmd_watch() {
             *) shift ;;
         esac
     done
+    # The sleep between iterations runs in the background and is waited for,
+    # so a SIGTERM/SIGINT/SIGHUP to the daemon stops that sleep too. With a
+    # foreground `sleep` the shell died on the signal and its sleep was
+    # orphaned to init for a whole interval (CON-128, review F-PRE-1). The
+    # child pid is a single positive pid (section 11.4.263), never a group.
+    _sup_sleep_pid=""
+    trap '_sup_watch_stop 143' TERM
+    trap '_sup_watch_stop 130' INT
+    trap '_sup_watch_stop 129' HUP
     while :; do
         _recorded_pid=""
         [ -f "$STATE_FILE" ] && _recorded_pid=$(head -n1 "$STATE_FILE" 2>/dev/null | _sup_json_str ruler_pid)
@@ -319,9 +328,22 @@ cmd_watch() {
             _n=$(_sup_all_tracks | grep -c . 2>/dev/null)
             printf 'REHYDRATE: state=%s tracks_recovered=%s\n' "$STATE_FILE" "${_n:-0}"
         fi
-        [ "$_once" = "1" ] && return 0
-        sleep "$_interval" 2>/dev/null || sleep 1
+        [ "$_once" = "1" ] && { trap - TERM INT HUP; return 0; }
+        sleep "$_interval" 2>/dev/null &
+        _sup_sleep_pid=$!
+        wait "$_sup_sleep_pid" || sleep 1
+        _sup_sleep_pid=""
     done
+}
+
+# _sup_watch_stop <rc>: signal handler of `watch`; stops the pending sleep
+# child, then exits with <rc>.
+_sup_watch_stop() {
+    case "${_sup_sleep_pid:-}" in
+        ''|*[!0-9]*) ;;
+        *) [ "$_sup_sleep_pid" -gt 1 ] && kill "$_sup_sleep_pid" 2>/dev/null ;;
+    esac
+    exit "$1"
 }
 
 cmd_status() {

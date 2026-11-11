@@ -39,7 +39,8 @@
 # Unicode separators dropped from the class); H3a-H3d the output escaping (raw stdout = the H3 mutant, raw
 # summary.txt, CR names listed again, the escape itself dropped); RW1-RW6 are the reviewer-authored mutants of
 # review r3, adopted verbatim (RW6 re-anchored: the joined uid it mutated is display-only now, so it drops the
-# args from the structured key instead). A mutant counts as KILLED only when the self-test
+# args from the structured key instead). F47a-F47c guard CON-047 F047-1/F047-2
+# (`+tracked` accepts a foreign tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
 # CON-030 round 5 (review r4, R_max passed by operator decision): RX1-RX8 are the reviewer-authored mutants of
@@ -87,7 +88,7 @@ M22	if not re.match(r"^[1-9][0-9]{0,5}$", v):	if not re.match(r"^[0-9]{1,6}$", v
 M24	            if needle in env.split(b"\\0"):	            if False:
 M25	        if HEAVY_NAME.search(b) and tier != "heavy" and not o:	        if False:
 M26	                if r[3] == "default" and r[0] not in q:	                if False:
-M27	        if sig.startswith("reason:"):\n            if reason == sig[len("reason:"):]:\n                return tid\n        elif sig in logtext:	        if True:
+M27	        if sig.startswith("reason:"):\n            code = sig[len("reason:"):]\n            need_tracked = code.endswith("+tracked")\n            if need_tracked:\n                code = code[:-len("+tracked")]\n            if reason != code:\n                continue\n            if need_tracked:\n                ids = set(TRACKED_RE.findall(logtext))\n                if ids != {tid}:\n                    continue\n            return tid\n        elif sig in logtext:	        if True:
 M28	        return 6\n	        return 0\n
 M29	            if overflow and not timed_out:	            if False:
 M30	        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)	        pass
@@ -222,6 +223,9 @@ G2	                hrec(h, b"i", b"%d" % st.st_ino)	                hrec(h, b"i"
 G3	                hrec(h, b"m", b"%d" % st.st_mtime_ns)	                hrec(h, b"m", b"%d" % 0)
 G4	            if qid != qid0 or ident_unknown(qid):  # review r4 K5	            if False:  # review r4 K5
 RMb	    for pre in ("", "constitution"):	    for pre in ("",):
+F47a	                if ids != {tid}:	                if tid not in ids:
+F47b	        elif r[1] != "Issues":	        elif False:
+F47c	    if not total:	    if False:
 RX1	    sys.stderr.write(esc_out(msg) + "\\n")	    sys.stderr.write(msg + "\\n")
 RX2	    except GovLineError as e:\n        return str(e)	    except GovLineError as e:\n        return None
 RX3	        return set(), "operator roster %s" % e	        return set(), None

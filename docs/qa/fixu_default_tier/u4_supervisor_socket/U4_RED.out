@@ -1,0 +1,90 @@
+ok [SKIP-counts] skip() increments the counter and prints the closed reason code (counted=True)
+ok [Z1] an empty walk that saw a zombie is not the end of the stop: the process reparented after the walk read the subreaper's children was found and stopped (SIGTERM, 1 process(es), 0.10s)
+ok [Z2] control: an empty tree with no zombie ends the stop immediately (0.000s)
+baseline_replay: supervisor (unit): 1 zombie(s) in the tree were never reaped by their parent -- reported, not hidden
+ok [Z3] a zombie nobody reaps cannot hold the stop forever (returned after 5.22s)
+ok [S1] open_verified refuses a pid whose /proc parent (4242) is not the tree node it was found under (pid reuse): no pidfd, no signal
+baseline_replay: supervisor (unit): could not stop process(es) 2168025 (unkillable or not ours) -- reported, not hidden
+ok [S1-tree] stop_tree never signals a tree member whose parent changed between the walk and the pidfd open (the reused pid survived, 0 signals)
+ok [S1b] open_verified refuses a live pid whose /proc stat is unreadable (parent unverifiable): no pidfd, no signal
+ok [S2] open_verified refuses pid 1 outright (no pidfd, no signal-0 probe)
+ok [S3] open_verified refuses this process itself
+ok [G1] stop_tree signalled a grandchild directly (SIGTERM) -- the expected parent handed to open_verified is the node it was found under, not this process (2 processes)
+ok [S5] a ledger 'wt' entry naming a non-'replay.' directory is left untouched and reported
+ok [S5d] a ledger 'wt' entry naming a path whose ANCESTOR is replay.* (basename is not) is left untouched
+ok [S5e] a ledger 'wt' entry naming a basename that starts with 'replay' but not 'replay.' is left untouched
+ok [S5f] a ledger 'wt' entry naming a trailing-slash path with a non-replay basename is left untouched
+ok [S5g] a ledger 'wt' entry naming a trailing-slash path (basename is empty) -- conservative: not removed is left untouched
+ok [S5b] a RELATIVE 'replay.*' ledger path is never resolved against the cwd and removed
+ok [S5c] control: an absolute replay.* worktree IS removed and every ledger entry is consumed
+ok [P1] the caller's pre-existing child's subtree is pruned: a reused keeper pid as a session id below it is never owned (G/G2 not returned, G never read); keeper + worker owned
+ok [P2] control: an owned process below a non-owned node that is not a caller's child is still found
+ok [R1] report_verified: no file at the path yet -> None
+ok [R1c] report_verified: a new file carrying the recorded body_hash -> 0
+ok [R1b] report_verified: the identical report that was there BEFORE the writer started -> None
+ok [R1d] report_verified: a new file with a different body_hash -> None
+ok [R1f] report_verified: the code recorded with the report (4) is the one returned -> 4
+ok [R1e] report_verified: a torn marker -> None
+ok [R9B] a new file at --out with NO body_hash key is not the report -> None
+ok [R9ID-ctime] a written report whose (dev, ino) equal the old file's but whose ctime differs is WRITTEN
+ok [R9ID-mtime] a written report whose (dev, ino) equal the old file's but whose mtime differs is WRITTEN
+ok [R9ID-size] a written report whose (dev, ino) equal the old file's but whose size differs is WRITTEN
+ok [R9ID-needle] control: pre == the current identity -> not written
+ok [R9OWN-I] pid 910002 with another start time than the caller's recorded child is NOT the caller's child (it is in the keeper's session: owned)
+ok [R9OWN-J] the keeper's pid with another start time (reused, other session) is NOT owned
+ok [R9DEC] decide_code(None, ('code', 3)) = 3 (want 3)
+ok [R9DEC] decide_code(0, ('code', 3)) = 0 (want 0)
+ok [R9DEC] decide_code(None, ('stopped', 15)) = 143 (want 143)
+ok [R9DEC] decide_code(0, ('stopped', 15)) = 0 (want 0)
+ok [R9DEC] decide_code(None, ('killed', 9)) = 137 (want 137)
+ok [R9DEC] decide_code(0, ('killed', 9)) = 0 (want 0)
+ok [R9DEC] decide_code(None, ('main_gone', 0)) = 137 (want 137)
+ok [R9DEC] decide_code(0, ('main_gone', 0)) = 0 (want 0)
+ok [R9DEC] decide_code(None, ('lost', 0)) = 4 (want 4)
+ok [R9DEC] decide_code(0, ('lost', 0)) = 0 (want 0)
+ok [R9DEC] decide_code(None, ('internal', 0)) = 4 (want 4)
+ok [R9DEC] decide_code(4, ('internal', 0)) = 4 (want 4)
+ok [R9DEC] decide_code(2, ('stopped', 2)) = 2 (want 2)
+ok [R9DEC] main_cause(0, 0) = ('code', 0) (want ('code', 0))
+ok [R9DEC] main_cause(768, 15) = ('code', 3) (want ('code', 3))
+ok [R9DEC] main_cause(9, 0) = ('killed', 9) (want ('killed', 9))
+ok [R9DEC] main_cause(9, 15) = ('stopped', 15) (want ('stopped', 15))
+ok [R9DEC] main_cause(None, 2) = ('stopped', 2) (want ('stopped', 2))
+ok [R9DEC] main_cause(None, 0) = ('lost', 0) (want ('lost', 0))
+ok [R9DEC] main_exit_code(kst=9, stop=0, verified=0) = 0 (want 0)
+ok [R9DEC] main_exit_code(kst=9, stop=15, verified=0) = 0 (want 0)
+ok [R9DEC] main_exit_code(kst=None, stop=15, verified=0) = 0 (want 0)
+ok [R9DEC] main_exit_code(kst=9, stop=15, verified=None) = 143 (want 143)
+ok [R9DEC] main_exit_code(kst=0, stop=0, verified=3) = 3 (want 3)
+ok [R9GC] live owner kept
+ok [R9GC] dead owner removed
+ok [R9GC] other boot removed
+ok [R9GC] unknown file kept (no recursive delete)
+ok [R9GC] non-state dir untouched
+ok [R9GC] symlink untouched, its target's content intact
+ok [R9GC] count = 2
+ok [R10GC-start] gc_statedirs: same boot + a live pid with ANOTHER start time (pid reused) -> removed
+ok [R10GC-boot] gc_statedirs: named with the boot id read from /proc by the test + a live owner -> kept
+ok [R10LEASE-held] gc_statedirs: dead owner, lease held by a live process -> kept, and gc RETURNED (3)
+ok [R10LEASE-free] gc_statedirs: dead owner, a free lease -> removed (lease included)
+ok [R10LEASE-odd] gc_statedirs: dead owner, the lease is a symlink (not provably free) -> kept
+ok [R10LEASE-none] gc_statedirs: dead owner, never leased (no keeper can exist) -> removed
+ok [R10GC-bootname] make_statedir names the directory with the real boot id 8740544f69aa (fc_baseline_replay.state.8740544f69aa.2163399.6752733.wDCD6dccTq)
+ok [R10LEASE-made] make_statedir holds the lease (independent flock LOCK_NB refused: True) on a close-on-exec fd (True)
+ok [R10LEASE] main SIGKILLed, its keeper alive: another process's gc KEEPS the state directory (removed 0); once the keeper is gone too the next gc removes it (removed 1)
+ok [R10HASH] a new file at --out whose body_hash is EMPTY is not the report -> None
+ok [R10ATOMIC] the marker is the inode written + fsynced under its temp name (atomic rename, no temp left)
+ok [R11FIFO-needle] control: dead owner + a free regular lease of this user's -> removed (1)
+ok [R11FIFO] dead owner, `lease` is a FIFO -> gc RETURNS (0) and keeps the directory (the reviewer's repro: round 10 blocked here forever)
+SKIP [R11FIFO-foreign] no foreign uid (namespace root cannot act as another uid (chown: Operation not permitted; setpriv: setresuid failed: Operation not permitted); subuid entry present; kernel.apparmor_restrict_unprivileged_userns=1) -- not counted [reason=topology_unsupported]
+ok [R11LEASE-uid] SIMULATED (no subordinate uid: os.geteuid shifted) -> _lease_free False
+ok [R11LEASE-dir] the lease is a directory -> gc returns (0), kept
+ok [R11LEASE-sock] the lease is a socket -> gc returns (0), kept
+ok [R11LEASE-mode] the lease is writable by others (0666) -> kept (0)
+ok [R11DIR-mode] the state directory is writable by others (0777), lease free -> kept (0)
+ok [R11UID-file] open_owned_file refuses a file owned by another uid (SIMULATED: os.geteuid shifted) -> raise UnsafeFile: f: not a regular file owned by uid 1007 (mode 100664)
+ok [R11UID-dir] open_owned_dir refuses a directory owned by another uid (SIMULATED: os.geteuid shifted) -> raise UnsafeFile: /home/milosvasic: owned by uid 1000 (neither root nor this user, uid 100
+SKIP [R11DEV] no user+mount namespace () -- not counted [reason=topology_unsupported]
+Traceback (most recent call last):
+  File "<stdin>", line 983, in <module>
+OSError: AF_UNIX path too long

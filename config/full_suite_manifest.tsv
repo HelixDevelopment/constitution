@@ -82,9 +82,9 @@ scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve1_count_hook.js	js	excluded	-	-	-	override: reason: tool: node --require hook loaded by test_resolve1.sh (shell model cannot see the node invocation); exits 0 alone, so a standalone run is a vacuous PASS; not a test
 scripts/codegraph/tests/test_resolve1_drive.js	js	excluded	-	-	-	override: reason: tool: node driver that needs <distDir> <db> args, run by test_resolve1.sh and test_resolve2.sh (shell model cannot see the node invocation); not a test
-scripts/codegraph/tests/test_resolve1_dump.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
+scripts/codegraph/tests/test_resolve1_dump.py	py	excluded	-	-	-	override: reason: tool: argv-driven helper (usage: test_resolve1_dump.py <db> <outprefix>) invoked by test_resolve1.sh and test_resolve2.sh, which check its output; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test
 scripts/codegraph/tests/test_resolve1_equiv_real.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve2.sh (shell model cannot see the node invocation); not a test
-scripts/codegraph/tests/test_resolve1_fixture.py	py	member	default	-	scripts/codegraph/tests/test_resolve1.sh	auto: run by scripts/codegraph/tests/test_resolve1.sh
+scripts/codegraph/tests/test_resolve1_fixture.py	py	excluded	-	-	-	override: reason: tool: argv-driven fixture generator (usage: test_resolve1_fixture.py <outdir> <n_filler> <n_probe> [--mixed|--novue]) invoked by test_resolve1.sh; with no arguments it raises IndexError, so a standalone run is a false FAIL; not a test
 scripts/codegraph/tests/test_resolve1_mutate.py	py	member	heavy	-	scripts/codegraph/tests/test_resolve1_mutations.sh	auto: run by scripts/codegraph/tests/test_resolve1_mutations.sh
 scripts/codegraph/tests/test_resolve1_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_resolve1_probe.js	js	excluded	-	-	-	override: reason: tool: node probe that needs <distDir> <db> args, run by test_resolve1.sh (shell model cannot see the node invocation); not a test
@@ -359,6 +359,7 @@ scripts/fastcycle/tests/test_precheck_pack_multi_slice_sibling_search_r5_regress
 scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_sibling_blast_radius_honest_verdict_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_sibling_search_unmeasured_literal_r6_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_precheck_slicer_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_prefix_cache_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_render_keys_concurrent_edit_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -639,6 +640,7 @@ scripts/label-sync/prove_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/render/prove_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/label-sync/render/tests/test_render.sh	sh	entry	default	bash	-	auto
 scripts/lib/test_safe_rm.sh	sh	entry	default	bash	-	auto
+scripts/lib/test_user_bus_env.sh	sh	entry	default	sh	-	auto
 scripts/llm-alias-health	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/lumen/tests/fake_ollama.py	py	excluded	-	-	-	reason: fake: unit-class fake server used by test_gen_lumenignore.sh (section 11.4.289(C)(2))
 scripts/lumen/tests/test_gen_lumenignore.sh	sh	entry	default	bash	-	auto
@@ -677,6 +679,7 @@ scripts/multitrack/test_multitrack_sessions_pid_status.sh	sh	entry	default	sh	-	
 scripts/multitrack/test_multitrack_supervisor.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_supervisor_wiring.sh	sh	entry	default	sh	-	auto
 scripts/multitrack/test_multitrack_work_binding_submodule_db.sh	sh	entry	default	bash	-	auto
+scripts/multitrack/test_ruler_suite_discovery.sh	sh	entry	default	bash	-	auto
 scripts/scheduled-work-engine	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
