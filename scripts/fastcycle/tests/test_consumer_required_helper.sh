@@ -176,7 +176,7 @@ else
   #   L15 case of ids: LIKE is case-insensitive, so atm-5 counts as the prefix and the checks run (the fail-closed
   #       direction). MG21 (reviewer R4-G: LIKE to GLOB, case-sensitive).
   #   L16 NULL ids: rows whose id is NULL count as items, so a table of NULL ids only SKIPs (current behaviour,
-  #       pinned; the direction stays CON-131's decision, CR3-3). MG23 (reviewer R4-I: items counted as non-NULL keys).
+  #       pinned; the direction stays CON-161's decision, CR3-3). MG23 (reviewer R4-I: items counted as non-NULL keys).
   #   L17 whitespace and other tables: an id with a leading space is not the prefix (SKIP), a trailing space is (RUN);
   #       only the items table is read (another table holding ATM-953, or no id column, changes nothing).
   #       MG24 (trim(k) in C3), MG25 (the pragma reads the first table of the schema).

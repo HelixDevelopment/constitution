@@ -767,7 +767,7 @@ Source report(s) in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosva
 
 Origin: independent-review follow-up, section 11.4.276(G.2).
 
-Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 and authorises review round 6 under section 11.4.276(G).
+Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-152, CON-157 and CON-031 and authorises review round 6 under section 11.4.276(G).
 
 **Affected scope / file-scope manifest:**
 config/full_suite_excluded.lock and config/full_suite_operators.roster
@@ -1295,6 +1295,8 @@ Attribution note: this item was created by an agent; its item_history Opened row
 **Affected scope / file-scope manifest:**
 scripts/gates/lib/gate_env_census.py; tests/gates/test_gate_env_census_closure.sh; tests/gates/test_gate_env_census_jq_regions.sh
 
+fixu round 2 (2026-11-06), review F047-1 and F047-2: the two known-failure rows use the new signature form reason:rc_3+tracked (the reason AND every [tracked <id>] token in the unit log names CON-047, at least one), so an rc 3 from a KNOWN-FAIL case pinned to another item is not attributed to CON-047; and bash scripts/run_full_suite.sh --check-known-open exits 1 naming a row whose tracked item has left Issues (2 when the DB is absent or empty). Runner self-test 11b/11c (RED 244/1 before the change, GREEN 253/0) and runner mutants F47a-F47c. Evidence docs/qa/fixu2_round2/f047/.
+
 ## CON-064 — CON-047 census FU-1 (R3-1, R3-2): pin the separator's $'..' member and its neutrality in test_gate_env_census_jq_regions.sh
 
 **Status:** Queued
@@ -1575,12 +1577,16 @@ Review finding F1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md):
 
 ## CON-089 — CON-031 excluded FU-3 (review X1, X4): test_gen_lumenignore.sh prints SKIP but exits 2, cannot find lumen under the runner's sandbox HOME, and deletes without ${W:?}
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** AI (Claude Opus 5.5, CON-031 landing)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con031_excluded_review/review_con031_excluded_r1.md` — red-command `full-suite runner unit for scripts/lumen/tests/test_gen_lumenignore.sh (sandbox HOME, no LUMEN_BIN)` — green-command `same command after the runner half lands` — env `host anton, full-suite runner sandbox HOME, lumen installed only under the real HOME` — signature `SKIP: lumen binary not found, then exit 2 (judge records FAIL rc_2)` — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the runner gives a sandbox HOME and does not pass LUMEN_BIN; the test labelled the absence SKIP but exited 2` — evidence `docs/qa/con031_excluded_review/review_con031_excluded_r1.md` — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
 
-Review finding X1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/lumen/tests/test_gen_lumenignore.sh FAILs in every full-suite run. Its fallback looks for the lumen binary under $HOME/.claude-shared/..., the runner gives each unit a sandbox HOME, and LUMEN_BIN is not in the runner's environment base. It then prints 'SKIP: lumen binary not found' but exits 2, which judge() records as FAIL rc_2. Measured by the reviewer: sandbox HOME without LUMEN_BIN rc 2 in 0 s; with LUMEN_BIN set rc 0, 4 checks pass. Fix: the test prints what it does (a FAIL naming the missing prerequisite, per operator decision O3), and the runner passes LUMEN_BIN or resolves it in a preflight. X4: the same test deletes with a bare rm -rf "$W"; use ${W:?} or safe_rm_rf (§11.4.287(C)(1)). Acceptance: the unit passes under the full-suite runner on a host with lumen installed, and its output matches its exit code.
+Review finding X1 (docs/qa/con031_excluded_review/review_con031_excluded_r1.md): scripts/lumen/tests/test_gen_lumenignore.sh FAILs in every full-suite run. Its fallback looks for the lumen binary under $HOME/.claude-shared/..., the runner gives each unit a sandbox HOME, and LUMEN_BIN is not in the runner's environment base. It then prints 'SKIP: lumen binary not found' but exits 2, which judge() records as FAIL rc_2. Measured by the reviewer: sandbox HOME without LUMEN_BIN rc 2 in 0 s; with LUMEN_BIN set rc 0, 4 checks pass. Fix: the test prints what it does (a FAIL naming the missing prerequisite; operator decision O3, missing tool FAIL or SKIP, is still PENDING, so FAIL is the interim reading and changes if O3 decides SKIP), and the runner passes LUMEN_BIN or resolves it in a preflight. X4: the same test deletes with a bare rm -rf "$W"; use ${W:?} or safe_rm_rf (§11.4.287(C)(1)). Acceptance: the unit passes under the full-suite runner on a host with lumen installed, and its output matches its exit code.
+
+fixu round 2 (2026-11-06): the test half landed in 3e423d43 (FAIL naming the missing lumen binary, guarded cleanup); review F089-1 fixed here: an unchecked mktemp no longer lets the test write to /repo, /scope.json and /a.ignore (it now exits 2 with a clear message; RED rc 1 mkdir Permission denied, GREEN rc 2, evidence docs/qa/fixu2_round2/f089/). Still open (review F089-3): the runner half. ENV_BASE does not pass LUMEN_BIN and there is no preflight, so the unit still FAILs rc_2 in the full suite on a host where lumen is installed under the real HOME. The item stays Queued until that lands.
 
 ## CON-090 — CON-031 excluded FU-4 (review X3): workable-items update records an evidence path but no sha256
 
@@ -1670,14 +1676,20 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 ## CON-099 — Eleven fastcycle tests show behaviour mismatches that need a root cause (inventory class C)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
-**Investigation:** not-started — updated 2026-11-05T19:43:29Z — by `Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)`
+**Investigation:** in-progress — updated 2026-11-06T10:56:14Z — by `AI (Claude Opus 5.5, fixu2)`
 
 Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in vehicle/manifest-triage as CON-100..CON-109 (CON-092 was CON-100, and so on in order), re-minted at landing because main already owns CON-064..CON-091. What: inventory class C of review round 1 of vehicle/manifest-triage (docs/qa/manifest_triage_review/review_manifest_triage_r1.md; reviewer runs docs/qa/manifest_triage_review/r1_unconfirmed_fastcycle_runs.tsv). Custody-sweep family: r11, r13 and r15 REFUSE a plain stash that should be ALLOWED (backup patch sha256 does not match the re-derived live content; suspected git config or version effect in a sandbox HOME, UNCONFIRMED), r6 hits a Python traceback in guard-viability, r9 gets rc 2 from custody_sweep.py --repo-root on a long sandbox path. Also: test_escape_classify_malformed_red.sh (non_mapping_entry exits 2, expected a named refusal exit 1), test_fc_entry_r10_regression.sh (B1 inventory with --out gets rc 2), test_gate_shard_r3_regression.sh (Python traceback), test_io_trace_build_map_r6_regression.sh (mutation precondition not reached on this host, proves nothing either way), test_precheck_slicer_red.sh (sh -n under dash did not reject broken_syntax_gate.sh), test_host_guard_red.sh (got reason=unreadable_ulimit where thread_headroom was expected under sh; dash ulimit has no -u is a suspicion, UNCONFIRMED). Acceptance: each reproduced live first (section 11.4.292), root cause proven, fixed or honestly reclassified, with a deterministic test.
+
+fixu round 2 (2026-11-06), test_precheck_slicer_red.sh only (review F099-1): case C2a accepted the dash parse error OR the shellcheck finding, so a mutant that dropped the case-insensitive match survived on the shellcheck leg; it now requires both legs (parse error, case-insensitive, AND SC2086) and prints each leg. GREEN 16/0; the no-lower() mutant is now killed (15/1). The other ten tests of this item are untouched.
+
+fixu round 3 (2026-11-06), test_precheck_slicer_red.sh only (review F099-2, F099-3): the shellcheck leg of C2a matched SC2086 in the FAIL entries, which also carry the pack's severity_floor config echo (a carrier); it now reads evidence.findings[].rule == SC2086 in the planted file and requires files_linted > 0. With shellcheck off PATH the pack reports an honest skip and the leg is SKIP (control needle: command -v), the parse leg still required. New test_precheck_slicer_c2a_mutants.sh adopts the reviewer's mutants (blind leg, defect removed) plus a config-echo stub and the no-shellcheck case: old test 1/4 (RED), new test 5/0. Evidence docs/qa/fixu3_round3/f099/. Awaits re-review of this slice.
+
+fixu round 3 re-review (2026-11-06, docs/qa/fixu_review/review_fixu_r3.md, landed 2026-11-10): F099-2 and F099-3 closed, verdict GO-with-follow-ups, every open finding minor-class (section 11.4.276(G.2)). Follow-ups: CON-140 (F099-4, the parse leg is still a carrier match), CON-141 (F099-5, F099-6, N099-1, N099-3, harness strength), CON-142 (F099-8, N099-2, N099-4, harness SIGTERM leak), CON-143 (F099-7, the C2a FAIL message). Verdict change (F099-7): under the full-suite runner default isolation (no XDG_RUNTIME_DIR, no bus) test_precheck_slicer_red.sh and test_precheck_slicer_c2a_mutants.sh FAIL since ec047648, because the shellcheck leg is now reported BLIND instead of passed by the config echo; the cause is CON-125, and with the bus variables passed through (--env-extra XDG_RUNTIME_DIR --env-extra DBUS_SESSION_BUS_ADDRESS) both PASS. Round count (section 11.4.276(E)(1), N099-6): this slice has used 3 review rounds; the fixer recorded no round-3 convergence assessment. The reviewer's class inventory (review section 6) found the carrier class open in exactly one member, line 433 (CON-140); the next fix of this slice is round 4 of at most 5 and must close that class, not only that line. The other ten tests of this item are untouched. Stays open.
 
 ## CON-100 — test_host_attribute_red.sh fails btrfs_binary_unavailable when the tool is absent (reported, not reproduced) (inventory class D)
 
@@ -1867,115 +1879,563 @@ Review round 4 of vehicle/ownership-wave2 (N5; operator decision 2026-11-05: the
 **Affected scope / file-scope manifest:**
 the action generator scripts; tests/layout/test_hermetic_generator.sh; tests/layout/hermetic_lint.py; scripts/full_suite/run_full_suite.py (gen_fingerprint)
 
-## CON-116 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
+## CON-116 — review_record_genuine.sh used a bash array while sourced by /bin/sh tests (dash syntax error)
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — red-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — green-command `sh scripts/fastcycle/tests/test_review_record_finding_layer_red.sh` — env `host anton, sh = dash, scratch clone of main bdc3ac43 plus the fixu vehicle` — signature `Syntax error: "(" unexpected` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `bash array syntax in a library sourced by /bin/sh (dash) tests; introduced by ef82977b` — evidence `docs/qa/fixu_default_tier/u1/U1_RED_test_review_record_finding_layer_red.out` — updated 2026-11-06T08:50:13Z — by `AI`
+
+scripts/fastcycle/tests/lib/review_record_genuine.sh is sourced by three /bin/sh tests (backfill_evidence_r2, evidence_hash_r5, finding_layer_red). Since ef82977b its rr_record used local pre=(...) and "${pre[@]}", which dash rejects with Syntax error: "(" unexpected, so all three exit 2 before running a case. Fix: rebuild the argument list with POSIX set --, keeping the original order so the caller's extra options still come last (argparse last-wins). The bash users (gate_authority r1/r2/r3 and the mutation driver) stay GREEN. Known gap, not caused by this change: a mutant that drops --precheck survives all six tests.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-108 (commit 64c338e3), re-minted as CON-116 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-117 — multitrack ruler suite discovered zero tests on a standalone canon, and leaked RED_MODE=0 into redpin's children
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — red-command `bash scripts/multitrack/test_multitrack_ruler_suite.sh (canon checkout not named constitution, env -i)` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, canon checkout not named constitution` — signature `TOTAL=0 then exit 2; redpin with RED_MODE=0: FAIL 6` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `test directory derived from a vendored-layout path; RED_MODE inherited by redpin children` — evidence `docs/qa/fixu_default_tier/u3_ruler/U3_ruler_RED.out` — updated 2026-11-06T08:51:15Z — by `AI`
+
+scripts/multitrack/test_multitrack_ruler_suite.sh resolved its test directory as $ROOT/constitution/scripts/multitrack, which exists only when the canon is vendored, so on the constitution repository itself it discovered 0 tests and exited 2; a sibling directory named constitution could also hijack discovery. ROOT is now the parent only when the canon is a submodule named constitution of a real git toplevel; discovery reads the canon's own directory. A member's exit 77 is counted as SKIP and the summary prints SKIP=. Second defect, found when the suite ran its members: the suite exports RED_MODE=0, and test_multitrack_redpin_mutations.sh passed it on to its children, which skipped the RED leg (6 FAIL). _run now clears RED_MODE unless RUN_RED_MODE sets it.
+
+fixu round 2 (2026-11-06), review NO-GO F109-1 fixed: the repository root was taken from a logical pwd, so a consumer reached through a symlinked directory was not recognised as vendored and its device-roster member was dropped (reviewer fixture C5: total 2, dev 0). The parent is now resolved with pwd -P. F109-2: an all-SKIP aggregate restated reason=topology_unsupported regardless of the members; it now carries the members' shared reason, and when the reasons differ it names them all without a single reason= token. F109-3: new meta-test scripts/multitrack/test_ruler_suite_discovery.sh (cases C1-C9 plus C2/C2m; its name avoids the test_multitrack_* glob so the aggregator never runs it). RED at the fixu head 9/3, GREEN 12/0; mutants (pwd reverted, hard-coded reason, mixed branch disabled) each killed. Evidence docs/qa/fixu2_round2/f109/.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-109 (commit c1881ae1), re-minted as CON-117 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-118 — persistent-launch test read a present systemd user bus as absent under a clean environment and exited 2
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, live user manager at /run/user/1000/bus` — signature `SKIP printed, exit 2 under env -i` — updated 2026-11-06T10:48:38Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `capability probe ran without XDG_RUNTIME_DIR, which the clean environment does not carry` — evidence `docs/qa/fixu_default_tier/u2_persistent_launch/U2_persistent_launch_RED.out` — updated 2026-11-06T08:51:30Z — by `AI`
+
+scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh probed systemctl --user without XDG_RUNTIME_DIR. The full-suite runner gives each unit a clean environment with no XDG_RUNTIME_DIR, so the probe failed although /run/user/<uid>/bus was live, and the test printed SKIP but exited 2 (a FAIL to the runner). Control needle: env -i systemctl --user rc 1, the same with XDG_RUNTIME_DIR=/run/user/1000 rc 0. The test now derives XDG_RUNTIME_DIR from a bus socket we own; a present socket that does not answer is a FAIL; a genuinely absent bus or missing systemd-run/systemctl exits 77 reason=topology_unsupported; an absent unit under test is a FAIL (it was SKIP tool_absent with exit 2).
+
+fixu round 2 (2026-11-06), review F110-1/F110-2/F110-3: the inline derivation is replaced by the shared helper scripts/lib/user_bus_env.sh (CON-125). F110-1: an inherited XDG_RUNTIME_DIR pointing at a directory without a bus no longer hides a live standard bus (RED SKIP 77 with the bus live, GREEN rc 0 PASS=3). F110-2: a bus socket not owned by the caller is a SKIP naming it, never used. A present owned bus whose systemctl --user does not answer stays a FAIL naming the bus path. Evidence docs/qa/fixu2_round2/f110/.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-110 (commit 258b2bb3), re-minted as CON-118 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-119 — fc_supervisor_unit spy socket bound a full path and failed with AF_UNIX path too long under a deep TMPDIR
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — red-command `TMPDIR=<195-char dir> bash scripts/fastcycle/tests/test_fc_supervisor_unit.sh` — green-command `same command` — env `host anton, TMPDIR = a 195-character scratch directory` — signature `AF_UNIX path too long` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `absolute socket path longer than sun_path (108 bytes) under a deep TMPDIR` — evidence `docs/qa/fixu_default_tier/u4_supervisor_socket/U4_RED.out` — updated 2026-11-06T08:51:45Z — by `AI`
+
+scripts/fastcycle/tests/test_fc_supervisor_unit.sh bound its spy AF_UNIX socket by absolute path. AF_UNIX paths are limited to 108 bytes; with the scratch TMPDIR (195 characters) the bind failed with AF_UNIX path too long. The lease bind in the same file already used chdir plus a relative name; the spy bind now does the same. Every other .bind( site in the file was checked and none binds a full path.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-111 (commit ee2c4261), re-minted as CON-119 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-120 — select_sample.py lost the retroactive_state tri-state (unparseable history) when f77a7851 replaced the file from a held snapshot
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — red-command `bash scripts/fastcycle/tests/test_select_sample_unparseable (see U6_unparseable_RED.out)` — green-command `same command` — env `host anton, clean clone, python3 -I` — signature `AttributeError: module has no attribute retroactive_state` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `f77a7851 restored the file from snapshot 4b13814 that predates ee581e37` — evidence `docs/qa/fixu_default_tier/u6_select_sample/U6_unparseable_RED.out` — updated 2026-11-06T08:51:55Z — by `AI`
+
+ee581e37 (2026-10-31) added retroactive_state() with three results (retroactive, unparseable, normal), UNPARSEABLE_REASON and the matching branch in classify_exclusions. f77a7851 (2026-11-03) took scripts/fastcycle/cycle/select_sample.py from the held snapshot 4b13814, which is not an ancestor of main and predates ee581e37, so those lines were dropped while their tests stayed: the unparseable-history test fails with AttributeError retroactive_state. Decided by git history (section 11.4.124): the product regressed, the test is current. The function, the reason and the branch are restored; the V4-4 and V4-6 changes of f77a7851 are kept. test_select_sample_r5_regression.sh mutant R3 anchor updated to the current except line (mutation anchor census drift 0 before and after).
+
+fixu round 2 (2026-11-06): the anchor-census sentence above is withdrawn as evidence for this file (review F112-1): scripts/fastcycle/tests/check_mutation_anchors.py covers only test_fastcycle_r6_mutations.sh and test_baseline_replay_worktree_cleanup.sh (its docstring now says so); the R3 anchor is proven by the r5 test's own mutation leg, which refuses a drifted anchor. The r5 cases S3, S5 and S6 that stay NOT ok in a clean clone are owned by CON-131 (review F112-2).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-112 (commit 1113e352), re-minted as CON-120 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-121 — env-read census reported cm_github_issues_source_anchor_wired.sh:334 eval as UNCOVERED since 090e8062
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — green-command `same command` — env `host anton, clean clone at 090e8062 and later, python3 -I` — signature `UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (indirect)` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `new gate from 090e8062 shipped without its allowlist row` — evidence `docs/qa/fixu_default_tier/u11_env_census/U11_RED.out` — updated 2026-11-06T08:56:46Z — by `AI`
+
+Commit 090e8062 (section 11.4.296) added scripts/gates/cm_github_issues_source_anchor_wired.sh, which at line 334 evals a fixed case statement over its own local DG, the same shape as the four sibling anchor-wired gates (repro_first, scope_and_image_noworse, state_fields, geo_substitute) that are registered in config/gate_env_allowlist.tsv as indirect-mechanism. The new gate got no row, so CM-GATE-ENV-READS-ALLOWLISTED reported uncovered=1 and tests/gates/test_gate_env_census_closure.sh failed its control. Read of the eval: it reads only DG and BLK, both set by the gate itself; no environment variable is read through it. A row with the same class and wording as the siblings is added.
+
+fixu round 2 (2026-11-06), review F113-1 (class recurrence: <eval> rows were file-scoped, so a later env-reading eval in the same file was hidden): the census now emits one pseudo-variable per eval statement, <eval>#<first 12 hex of sha256 of the stripped source line>, and the 8 eval rows of config/gate_env_allowlist.tsv are pinned to their own statements (5 *_anchor_wired.sh gates bea59a1ee0f8, shell_mutation_engine 44edb45288f3, constitution_layout 33c450208749, safe_rm fa157096b76d). RED: a second eval appended to the github gate gave VERDICT PASS; GREEN: real tree PASS (allowlisted=117), the second eval is UNCOVERED <eval>#b1e750228c4a (rc 1). The meta-test has two new discriminators (pinned row covers its own eval rc 0; second eval uncovered rc 1, its hash computed independently with sha256sum) and mutant M13 (hash the path instead of the statement) is killed. Evidence docs/qa/fixu2_round2/f113/. Honest limit: a byte change of a pinned eval line makes its row stale (it then reports UNCOVERED and the row must be re-pinned after review), which is the intended direction.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-113 (commit a7fc8328), re-minted as CON-121 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-122 — skill-activation liveness probe read a live session as dead under pipefail, so a skill another session held could be stripped
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** high
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/skill_activation/test_skill_activation.sh` — green-command `same command` — env `host anton, env -i HOME=<tmp> PATH=/usr/bin:/bin, 114 KB peer environment` — signature `LIVENESS ... (expected 3, got 0); normal env: CONCURRENCY: skill stripped while another session held it` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `tr | grep -q under set -o pipefail: SIGPIPE on tr turns a match into a non-zero pipeline status` — evidence `docs/qa/fixu_default_tier/u8_skill_activation/U8b_liveness_RED_envi.out` — updated 2026-11-06T08:58:01Z — by `AI`
+
+scripts/skill_activation/skill_activation_lib.sh runs under set -uo pipefail. sa_session_alive matched CLAUDE_CONFIG_DIR with tr '\0' '\n' < /proc/<pid>/environ | grep -qx ...; grep -q exits on the first match, tr then dies of SIGPIPE (141) and pipefail makes the match a failure. A live session therefore read as dead whenever the environment took more than one write: 72 of 200 probes on a 14 KB environment, every probe at 114 KB. A claim read as dead is reaped, and deactivate/prune then unlinks a skill that another live session holds. The reader now uses grep -qzxF on the environ file directly (no pipe; -F so the dir is a literal). Second, test-side: test_skill_activation.sh depended on a live claude5 alias on the host and inherited the caller's CLAUDE_CONFIG_DIR; it now uses per-session fixture config dirs and a real live peer process, and has a new LIVENESS case with a 114 KB environment.
+
+fixu round 2 (2026-11-06), review F114-1: the liveness test now has killing cases for the two grep flags of the fix: a live peer whose CLAUDE_CONFIG_DIR differs only by a regex metacharacter (cfg-dotXtest vs cfg-dot.test, kills a mutant without -F) and a live peer whose dir has the probed dir as a prefix (cfg-prefix-live vs cfg-prefix, kills a mutant without -x); control: both exact dirs read alive. Evidence docs/qa/fixu2_round2/f114/.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-114 (commit 3f1c0934), re-minted as CON-122 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-123 — label-sync opencode adapter is not loaded by opencode 2.x (plugin path must be a directory; serve needs auth)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — red-command `bash scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode` — green-command `same command` — env `host anton, opencode v2.2.0, normal environment` — signature `configured plugin path must be a directory` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `upstream opencode 2.x requires a directory plugin and authenticated serve; the adapter and its test target 1.x` — evidence `docs/qa/fixu_default_tier/u9_opencode2/U9_opencode_only_normal.out` — updated 2026-11-06T09:01:03Z — by `AI`
+
+scripts/label-sync/adapters/tests/test_real_agents.sh --only opencode fails 4 of 4 in the normal environment too, so it is not a fresh-HOME artefact. The host now has opencode v2.2.0 (installed 2026-10-27, after the adapter landed in 7c77547c on 2026-10-12). Measured: install_adapters.sh writes a file:// URL to label-sync.mjs under the plugin key; opencode 2.2 logs WARN configured plugin path must be a directory and does not load it (no plugin debug log is written); debug config now prints an array of sources with the key plugins, so the test's .plugin[0] jq expression no longer matches; opencode serve prints a per-run server password and POST /session returns an empty body without it. So the adapter is broken for opencode 2.x users and the test is stale. Fix is not small: package the plugin as a directory in the layout opencode 2.x accepts, verify the 2.x event names, and authenticate the serve leg; UNCONFIRMED whether the 1.x session.created/deleted events are unchanged in 2.x.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-115 (commit 7b51c4bf), re-minted as CON-123 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-124 — test_run_all.sh signal cases fail when the test has no controlling terminal (full-suite units run in a new session)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — red-command `setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_run_all.sh </dev/null` — green-command `same command` — env `host anton, setsid -w env -i HOME=<tmp> PATH=/usr/bin:/bin, no controlling terminal` — signature `set: can't access tty; job control turned off; NOT ok r7f2 ...` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: no controlling terminal disables set -m; the HUP part and the setsid signature are not explained` — evidence `docs/qa/fixu_default_tier/u7_run_all_signals/U7_run_all_setsid_RED.out` — updated 2026-11-06T09:01:17Z — by `AI`
+
+The full-suite runner starts each unit with start_new_session=True, so it has no controlling terminal. test_run_all.sh relies on set -m (job control) so that a backgrounded runner does not start with SIGINT ignored and leads its own process group; without a terminal dash prints set: can't access tty; job control turned off and the premise does not hold. Full-suite log 000204: pid-HUP and pid-INT NOT ok (runner still alive after 15 s), group-INT and group-TERM SKIP (no own process group). Reproduction: rc 0 with a terminal-bearing session under env -i, under the normal environment, and with INT or INT+HUP inherited as ignored; under setsid -w env -i (no terminal) rc 1, but the failing case is graceful-TERM (the test never got a TERM before the KILL), not pid-HUP/INT. Root cause proven only for the missing job control; why HUP was ignored in the full-suite run, and why the failing case differs under setsid, is UNCONFIRMED. A fix needs a launch that resets INT/HUP to default without job control (for example env --default-signal or a small exec helper) and a decision on the group cases.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-116 (commit 7b51c4bf), re-minted as CON-124 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-125 — systemd user-bus callers do not find a live bus when XDG_RUNTIME_DIR is unset (clean environments, full-suite units)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — red-command `full-suite default run (clean env) of scripts/fastcycle/tests/test_precheck_shellcheck_red.sh` — green-command `same command after the helper lands` — env `host anton, full-suite runner clean environment (no XDG_RUNTIME_DIR), live user manager` — signature `Failed to connect to user scope bus via local transport` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `callers rely on an inherited XDG_RUNTIME_DIR that clean environments do not carry` — evidence `docs/qa/fixu_default_tier/u2_user_bus_class/fullsuite_test_precheck_shellcheck_red.log` — updated 2026-11-06T09:04:26Z — by `AI`
+
+The full-suite runner gives each unit a clean environment without XDG_RUNTIME_DIR. systemctl --user and systemd-run --user then fail with Failed to connect to user scope bus via local transport although /run/user/<uid>/bus is live (control needle measured for CON-118: env -i rc 1, with XDG_RUNTIME_DIR=/run/user/1000 rc 0). test_precheck_shellcheck_red.sh fails its N2 control needle (the hard memory cap mechanism is not usable) and test_io_trace_build_map_r6_regression.sh fails on systemd-run exit 1. Inventory (inventory.tsv, by line pattern, a lead not a finding): 13 files call the user bus, only the CON-118 test derives XDG_RUNTIME_DIR; the non-deriving set includes product code (scripts/fastcycle/review/precheck_pack.sh, precheck_pack_run.py, fc_common.py, fc_supervisor.py, multitrack_persistent_launch.sh, credscan/install_timer.sh), so under cron or any clean environment the memory-capped scope is unavailable there too. Proposed fix: one shared helper that exports XDG_RUNTIME_DIR from a bus socket the caller owns, used by every caller; a genuinely absent bus stays a reasoned refusal or SKIP. Not done here: it touches product code across several subsystems.
+
+fixu round 2 (2026-11-06): the shared helper landed: scripts/lib/user_bus_env.sh (ub_user_bus_env, dash/busybox/bash; returns 0 inherited or derived and exports XDG_RUNTIME_DIR, 1 absent, 2 a bus socket not owned by the caller; the same -S and -O rule in every branch), with scripts/lib/test_user_bus_env.sh (U1-U6, U5 foreign via a symlink to a root-owned socket, SKIP topology_unsupported when the host has none). The CON-118 test now calls it (review F110-1: an inherited XDG_RUNTIME_DIR pointing at a dir without a bus no longer hides a live standard bus; F110-2: a foreign bus is a SKIP, never used; F110-3: the inline duplicate is gone). Remaining callers, NOT converted (product code across subsystems, still this item): scripts/fastcycle/lib/fc_common.py, scripts/fastcycle/lib/fc_supervisor.py, scripts/fastcycle/review/precheck_pack_run.py, scripts/fastcycle/review/precheck_pack.sh, scripts/multitrack/multitrack_persistent_launch.sh, scripts/credscan/install_timer.sh, probe_bridge_layers.sh, the r3/r6 io_trace tests and test_precheck_shellcheck_red.sh. The Python callers need a Python twin of the rule (UNCONFIRMED whether they can source a shell helper). Stays open.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-117 (commit 7b51c4bf), re-minted as CON-125 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+fixu landing (2026-11-10, review F099-7 of docs/qa/fixu_review/review_fixu_r3.md): add to the affected list scripts/fastcycle/tests/test_precheck_slicer_red.sh (its C2a shellcheck leg is BLIND without the bus and the test FAILs under the full-suite runner default isolation since ec047648) and scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh (FAILs the same way).
+
+## CON-126 — test_precheck_pack_build_red.sh fails when run alone (not only in a batch), and it chmods real repository files during its run
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — red-command `setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin sh scripts/fastcycle/tests/test_precheck_pack_build_red.sh` — green-command `same command` — env `host anton, setsid -w env -i HOME=<tmp> PATH=$HOME/.local/bin:/usr/bin:/bin, serial run` — signature `FAIL: B1: expected rc=0/all_pass=true, got rc=1 all_pass=False` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: not investigated past the failing case list` — evidence `docs/qa/fixu_default_tier/u5_pack_build/U5_pack_build_serial_withSC.out` — updated 2026-11-06T09:04:26Z — by `AI`
+
+Run alone and serially under setsid env -i: 14 FAIL without shellcheck on PATH, 16 FAIL with ~/.local/bin/shellcheck on PATH; clean fixtures (B1, B3) report all_pass=false, D2/D7/D8 report NOT-READY (provenance binding, shellcheck mode). So CON-098's classification of this test as passes-alone-fails-in-batch does not hold here. Separately, case C2 does chmod 000 on the real scripts/fastcycle/review/slicer.py and precheck_pack.sh for a window; any other test reading those files at the same time fails with Permission denied (observed: a parallel run in the same tree), which is a plausible contributor to the batch-only failures of the precheck family, UNCONFIRMED. Modes were restored at the end of the run (git status clean). Root cause of the alone failures not established.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-118 (commit 7b51c4bf), re-minted as CON-126 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-127 — test_round8_git_env CM-2/CM-3 fail: fixture copy lacks .gitignore, hook leaves scripts/deps_manifest/__pycache__ untracked
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** AI
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_default_tier/u10_round8` — red-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — green-command `env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin bash tests/layout/test_round8_git_env.sh` — env `host anton, env -i HOME=$(mktemp -d) PATH=/usr/bin:/bin` — signature `FAIL: CM-2 porcelain ?? scripts/deps_manifest/__pycache__/` — updated 2026-11-06T10:48:39Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `fixture missing .gitignore; pycache from hook gates shows as untracked` — evidence `docs/qa/fixu_default_tier/u10_round8` — updated 2026-11-06T09:08:52Z — by `AI`
+
+The round8 fixture copies scripts/Constitution.md/CLAUDE.md/AGENTS.md into a fake submodule but not .gitignore. The post-update hook's STEP 5b Python gates write scripts/deps_manifest/__pycache__/, porcelain is non-empty, CM-2 and CM-3 fail (and the real update_constitution.sh --check refuses on local changes). Fix: copy .gitignore into the fixture. test_round7_ambient.sh:138 has the same list but no porcelain check (not changed).
+
+Review N119-1 (class note): tests/layout/test_round7_ambient.sh:138 copies the same file list without .gitignore; it has no porcelain check, so the defect is latent there (not changed).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-119 (commit 270e4867), re-minted as CON-127 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-128 — multitrack supervisor watch left its sleep child running after SIGTERM, and its wiring test checked orphans by the parent pid only
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu2_round2/fpre1/fpre1_product_red.out` — red-command `start multitrack_supervisor.sh watch --interval <token> in the background, SIGTERM it, list sleep <token> processes` — green-command `same command; and bash scripts/multitrack/test_multitrack_supervisor_wiring.sh (step f3)` — env `host anton, bash, scratch clone` — signature `orphan sleep <token> with a new ppid after the daemon died` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `foreground sleep in cmd_watch is not signalled when the shell gets SIGTERM; the test checked orphans by the dead parent's pid` — evidence `docs/qa/fixu2_round2/fpre1/fpre1_test_red.out` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Pre-existing finding F-PRE-1 of the fixu review (S/scratchpad/review_fixu.md). Product: scripts/multitrack/multitrack_supervisor.sh cmd_watch slept with a foreground sleep; SIGTERM to the daemon killed the shell but the sleep child kept running with a new parent (measured: an orphan sleep with ppid 2441 after the daemon died, evidence docs/qa/fixu2_round2/fpre1/fpre1_product_red.out). Fix: the loop sleeps in the background and waits on it, and TERM/INT/HUP traps kill that child (pid > 1, section 11.4.263) before exiting 143/130/129; --once clears the traps. Test: scripts/multitrack/test_multitrack_supervisor_wiring.sh asserted no orphan from the dead parent's pid (always true once the parent is gone) with a token shared by other runs; it now uses a per-run token, counts token processes host-wide with a positive control before the signal, kills its own process tree children first, and a new step f3 requires the daemon to stop its own children on SIGTERM. Host note: about 100 orphan sleep 99872N processes from earlier runs of other sessions exist on the host; not ours, left alone. Class sweep: scripts/label-sync/adapters/tests/test_adapters.sh:237 has the same vacuous parent-pid orphan check (registered as CON-130).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-120 (commit 351fe277), re-minted as CON-128 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-129 — test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and the vendored DB path, so it failed (rc 1) in a clean environment while calling it a SKIP
+
+**Status:** In progress
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu2_round2/fpre2/fpre2_red.out` — red-command `env -i HOME=<tmp> PATH=/usr/bin:/bin bash scripts/fastcycle/tests/test_reopen_rate_red.sh` — green-command `same command` — env `host anton, env -i, no sqlite3 CLI on PATH, standalone canon` — signature `NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable; rc 1` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-found-with-evidence — root-cause `needle #2 shelled out to the sqlite3 CLI and looked only at the vendored DB path` — evidence `docs/qa/fixu2_round2/fpre2/fpre2_red.out` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Pre-existing finding F-PRE-2 of the fixu review. Under env -i PATH=/usr/bin:/bin (no sqlite3 CLI) and on a standalone canon (no constitution/docs/workable_items.db under ROOT) needle #2 printed SKIPPED but returned FAIL (rc 1). The conductor's brief proposed exit 77 with a closed reason code, but no section 11.4.69 code fits a missing tool and operator decision O3 (missing tool: FAIL or SKIP) is pending, so the dependency was removed instead: the needle reads the DB with python3's sqlite3 module (file: URI, mode=ro, immutable=1, so no -wal/-shm side files), with a positive control (the first atm_id must be found; CLEAN/HIT/BLIND), and falls back to the standalone path docs/workable_items.db. RED rc 1, GREEN rc 0 (18 ok); mutants collide and blind both killed (rc 1). Same class still open elsewhere: test_cycle_report_red.sh uses the sqlite3 CLI; the r5 select_sample live-DB cases (CON-131).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-121 (commit 351fe277), re-minted as CON-129 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-130 — test_adapters.sh 'no orphan sleep left' check is vacuous: pgrep -P of a dead parent, global 'sleep 30' token
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** root-cause-unconfirmed — root-cause `UNCONFIRMED: read from the code only (pgrep -P of an exited parent)` — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Found by the F-PRE-1 class sweep (CON-128). scripts/label-sync/adapters/tests/test_adapters.sh:237 asserts ok 'run: no orphan sleep left' with ! pgrep -f 'sleep 30' -P $wp. Once the wrapper $wp has exited, an orphaned sleep is re-parented, so pgrep -P $wp can never find it and the check always passes; the token 'sleep 30' is also shared with any other process on the host. Not fixed in fixu2 (outside its items). Fix shape: the CON-128 pattern (unique per-run token, host-wide count with a positive control before the kill, children-first cleanup). Not reproduced live as a leak; the vacuity is a reading of the code (UNCONFIRMED whether the adapter actually leaks).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-122 (commit 351fe277), re-minted as CON-130 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-131 — test_select_sample_r5_regression.sh S3, S5 and S6 report NOT ok in a clean clone (live tracker DB / live snapshot unavailable)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu2)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+**Investigation:** not-started — updated 2026-11-06T10:49:32Z — by `AI (Claude Opus 5.5, fixu2)`
+
+Review finding F112-2 of the fixu review: CON-120 did not name the item owning these cases. In a clean clone at the fixu head, scripts/fastcycle/tests/test_select_sample_r5_regression.sh prints NOT ok 'S3 sqlite3 or live tracker DB unavailable' (line 213) and 'S5 live snapshot unavailable' (line 268) and S6, so the unit is red in the full suite. Same class as CON-129 (environment-dependent reds labelled as unavailability but exiting as FAIL). Not investigated past the reviewer's report; root cause UNCONFIRMED (suspected: sqlite3 CLI absent and the vendored DB path, as in CON-129).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-123 (commit 351fe277), re-minted as CON-131 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-132 — SQLite readers opened with immutable=1 are blind to rows still in the WAL (F121-1, F047-3, and two older codegraph readers)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). One class of four members. (1) F121-1 scripts/fastcycle/tests/test_reopen_rate_red.sh needle #2 opens the tracker DB with mode=ro&immutable=1, which ignores the -wal file: a colliding row held only in the WAL is reported CLEAN, rc 0 (reviewer ev/rr_mut_wal_only.out). (2) F047-3 scripts/full_suite/run_full_suite.py check_known_open (around line 2913) reads immutable=1 and prints KNOWN-OPEN rc 0 for a closure still in the WAL (reviewer ev/kopen_wal.out.walonly), a clean 0 on a state it did not see. (3) scripts/codegraph/tests/test_resolve1_equiv_real.js:21 and (4) scripts/codegraph/tests/test_resolve2_probe.js:15 use the same pattern; scripts/codegraph/tests/test_mcp_readonly.sh:28 already records the lesson. Fix shape: open with immutable=1 only when no non-empty -wal exists, else copy the DB and its -wal to a temp directory and read the copy. Enumerate all members with git grep -n immutable=1 (section 11.4.276(C)). Exposure is transient (a writer must hold the WAL open). (N099-8 of docs/qa/fixu_review/review_fixu_r3.md: the elided path above was written in full at the landing, 2026-11-10.)
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-124 (commit 5dc6097e), re-minted as CON-132 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-133 — Env-read gate eval pin hashes the first physical line only, so a continuation line of an eval can change unseen (F113-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The CON-121 census walks physical lines and hashes the stripped first line of an eval. An eval whose argument continues after a backslash is pinned by its first line; the continuation can be edited without changing the hash (reviewer fixture ev/ge_probe_cont.out: gate PASS). Latent today: none of the nine pinned eval lines ends with a backslash. Fix: hash the full logical statement (join continuation lines and multi-line quoted arguments) and add the continuation fixture.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-125 (commit 5dc6097e), re-minted as CON-133 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-134 — Env-read gate documents one row per eval but keys rows by (var, kind), so an identical copy shares a row (F113-3, N113-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:09Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The allowlist header and census docstring say each eval needs its own row. Rows are keyed by (var, kind), so an identical copy of a reviewed eval in the same file shares the row (reviewer ev/ge_probe_dup.out: PASS); live instance scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh lines 340 and 348, one row. Either reword to covers this eval text in this file or add the line number to the key. N113-1: add an indented-eval fixture so the self-test kills the no-strip mutant too (the live gate already does).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-126 (commit 5dc6097e), re-minted as CON-134 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-135 — Full-suite self-test lets two reviewer mutants survive: foreign-only tracked token and unreadable DB (F047-4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Head code is correct; the tests do not cover it. FM6: replacing ids != {tid} with len(ids) != 1 in match_known survives 252/0 (a log with only another item's tracked token is attributed to the row); add a foreign-only case to 11b. FM3: the cannot-read branch of check_known_open returning 0 instead of 2 survives 252/0; add an unreadable (non-database) file case to 11c. Also N047-1 (commit message RED count 244/1 does not match a run of the committed test, 246/6) and N047-2 (an items table without current_location or status raises an uncaught OperationalError instead of exit 2).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-127 (commit 5dc6097e), re-minted as CON-135 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-136 — user_bus_env.sh unit test lets two helper mutants survive (F117-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Two mutants of scripts/lib/user_bus_env.sh survive its unit test 9/0. rv1: the derived branch no longer exports XDG_RUNTIME_DIR (killed only by the persistent-launch integration test). rv2: -S becomes -e in the inherited-XDG branch (integration kill UNCONFIRMED). Fix: a unit case that reads XDG_RUNTIME_DIR from a child after sourcing, and a case with a regular file named bus in the inherited directory.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-128 (commit 5dc6097e), re-minted as CON-136 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-137 — Ruler aggregator unstated-reason branch has no discriminating case (F109-4, N109-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Mutant rs_rv1 (the case pattern *" "*|unstated) becomes *" "*) survives the discovery meta-test 12/0 and prints reason=unstated as if it were a shared reason code. Add a meta-test case where every member SKIPs without a reason. N109-1: the sed takes the last reason occurrence on the line while the runner judge() takes the first, so the comment the same way the runner reads it is not exact.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-129 (commit 5dc6097e), re-minted as CON-137 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-138 — Supervisor wiring test sends only SIGTERM, not SIGINT or SIGHUP (F120-1, N120-1..3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). Mutant noint (INT trap removed) orphans the sleep on SIGINT and survives the wiring test. Add an f3 variant per signal (a daemon launched with nohup ignores HUP on entry, so launch with default dispositions). Nits: N120-1 between sleep "$_iv" & and _sup_sleep_pid=$! a signal finds no pid; N120-2 the foreground sleep 1 fallback is not covered by the stop path; N120-3 f3 reads the children list once (race UNCONFIRMED).
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-130 (commit 5dc6097e), re-minted as CON-138 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-139 — test_reopen_rate_red.sh falls back to the canon DB whenever the consumer DB is absent, without saying so (F121-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Sonnet 5.5, fixu3)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+**Investigation:** not-started — updated 2026-11-06T12:22:10Z — by `AI (Claude Sonnet 5.5, fixu3)`
+
+Review follow-up of fixu round 2 (S/scratchpad/review_fixu2.md, reviewer evidence under the reviewer's scratch ev/ directory, not tracked). Not fixed in fixu3 (registered only). The line [ -f $DB ] || [ ! -f $ROOT/constitution/docs/workable_items.db ] || DB=... switches to the canon DB whenever the consumer DB is absent, not only for a standalone canon checkout, so a consumer with a missing DB is silently checked against the canon DB. Fix: print which DB was read, and switch only when ROOT is the canon itself.
+
+Id history (§11.4.214): first minted in the fixu vehicle as CON-131 (commit 5dc6097e), re-minted as CON-139 at the landing on main (2026-11-10), because main already owns CON-108..CON-115 (merge f3751e51). The vehicle commits and the evidence files under docs/qa/fixu_default_tier/, docs/qa/fixu2_round2/ and docs/qa/fixu3_round3/ name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-140 — Slicer test C2a parse leg is still a carrier match: any FAIL evidence that contains "syntax error" satisfies it (F099-4, N099-5)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_red.sh line 433 computes parse_leg = any("syntax error" in e.lower() for e in fails) over the string form of the evidence of EVERY FAIL check, so a shellcheck finding text, a message or a fixture comment satisfies it; the reviewer showed it on the real pack (P5: parse check broken plus one innocent fixture comment, C2a PASSes) and with a stub (S6). Same carrier class as F099-2 (section 11.4.201(7)(a)), in the sibling leg; the reviewer's class inventory (section 6) found this line the only open member. Fix: select the check whose check == "parse", require verdict == "FAIL" and an evidence.failures[] entry with file == "broken_syntax_gate.sh" and a case-insensitive "syntax error" message; add P5 and S6 as harness cases. Parent: CON-099.
+
+## CON-141 — C2a mutants harness lets 7 of 8 reviewer mutants survive and never proves its cases reached their precondition (F099-5, F099-6, N099-1, N099-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh: reviewer mutants TM1-TM7 of test_precheck_slicer_red.sh survive the harness 5/0 (TM1, TM4 and TM7 are not equivalent on the real pack); under section 11.4.276(D) a surviving reviewer mutation is adopted and must fail the suite before the next review. The harness asserts only "FAIL: C2a" and rc != 0: M1 blinds the shellcheck leg indirectly (env -i, no bus, relying on open CON-125), so a fixed CON-125 turns M1 into a false FAIL; when the baseline B0 fails, M1, M2 and M4 are still counted PASS (section 11.4.199(2)). Fix: real-pack cases P1, P2, P4 and stub cases S2, S3, S8, S10; blind the leg directly with a stub and assert shellcheck=NO or files_linted 0; assert each case's precondition line; stop or report not-proven when B0 fails; exit 77 (SKIP with a reason) when shellcheck is absent instead of a full PASS (N099-1); add the positive needle for M2 (the unmodified fixture yields SC2086, N099-3). Parent: CON-099.
+
+## CON-142 — C2a mutants harness leaks its temp tree on SIGTERM under dash because it traps EXIT only (F099-8, N099-2, N099-4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). scripts/fastcycle/tests/test_precheck_slicer_c2a_mutants.sh installs trap cleanup EXIT only; under sh (dash) SIGTERM does not run the EXIT trap. Reviewer measurement: timeout -s TERM 2 gives rc 124 and leaves tmp.*/{b0,m1,out}, 42 MB, after 2 s; a full run copies the 21 MB scripts/fastcycle five times. Which signal the full-suite runner sends on its own timeout is UNCONFIRMED. Also: BASEENV is expanded unquoted with SC2086 disabled (N099-2), and the cleanup guard case $TMP in /*/tmp.*|/*/*.*) is nearly vacuous because * matches / in case (N099-4; safety rests on mktemp -d plus ${TMP:?}; section 11.4.287(B) prefers safe_rm_rf). Fix: trap cleanup on INT, TERM and HUP with exit 130/143/129, a SIGTERM case in the test, and safe_rm_rf. Reproduction: by the reviewer only, not re-run at the landing. Parent: CON-099.
+
+## CON-143 — Slicer test C2a FAIL message does not say BLIND and does not quote the shellcheck check verdict, files_linted or the pack error (F099-7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). Under the full-suite runner default isolation (no XDG_RUNTIME_DIR, no bus) test_precheck_slicer_red.sh and the c2a mutants harness FAIL since ec047648 (the base 351fe277 passed through the carrier); with --env-extra XDG_RUNTIME_DIR --env-extra DBUS_SESSION_BUS_ADDRESS they PASS. The new red is a true red (a blind shellcheck leg is now reported) whose cause is open CON-125, but the C2a FAIL message does not name the cause (section 11.4.201(5)). The process-doc parts of F099-7 (CON-125 affected list, CON-099 note) are done at the landing. Fix left: make the C2a FAIL print the shellcheck check verdict, files_linted and any pack error, and say BLIND when the leg could not see. Parent: CON-099.
+
+## CON-144 — Env-read gate CM-GATE-ENV-READS-ALLOWLISTED fails on main: BLK read-before-assign in the PR-delivery and release-gate anchor-wired gates
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** medium
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/fixu_review/landing/envgate_main_90efceb8.out` — red-command `bash scripts/gates/cm_gate_env_reads_allowlisted.sh` — env `clean git worktree of main 90efceb8d0e5583c70888c78dc05ea189f85b0e3` — signature `UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign)` — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, bash scripts/gates/cm_gate_env_reads_allowlisted.sh exits 1 with uncovered=3: scripts/gates/cm_github_issues_source_anchor_wired.sh:334 <eval> (fixed by the fixu vehicle, CON-121), scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign) and scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign); on the merged tree the first one is gone and the other two remain (uncovered=2). Both lines are the names_cm_gate_in_block() helper, added by c87745de (section 11.4.297) and 2d783401 (section 11.4.298), which reads $BLK inside a function defined before BLK is assigned. Whether the read can happen before the assignment, or the census reports a safe read, is UNCONFIRMED (not investigated at the landing; out of the landing scope, section 11.4.293). Fix: route BLK through cm_gate_env_set, or add allowlist rows with a reason, after reading when the helper runs. Evidence: docs/qa/fixu_review/landing/envgate_main_90efceb8.out (main) and docs/qa/fixu_review/landing/envgate_merged.out (merged tree).
+
+## CON-145 — Full-suite manifest auto note of scripts/fastcycle/tests/run_all.sh says 12 heavy members while 14 are listed (N099-7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** low
+**Created-By:** AI (Claude Opus 5.5, fixu landing)
+**Assigned-To:** AI
+**Reproduction:** none — UNREPRODUCED — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+**Investigation:** not-started — updated 2026-11-10T22:30:00Z — by `AI (Claude Opus 5.5, fixu landing)`
+
+Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). config/full_suite_manifest.tsv row scripts/fastcycle/tests/run_all.sh carries the note "auto: covers 12 heavy member(s)"; at the landing 14 rows name run_all.sh as their heavy member runner (13 at the base of the vehicle). The note is pre-existing and stale, --verify-manifest does not check it. Fix: regenerate the auto note, or make --verify-manifest compare the count with the member rows.
+
+## CON-146 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031 (full-suite failures root-cause report of 2026-11-05). What: tests/test_patch_machinery.py cases P1b P1c P2c P2d P2e P2f P4a P4b were RED against scripts/codegraph/fk_index_patch.py (SUMMARY fails=9). Fix (fix vehicle 2026-11-05): fkidx1.parse_lists refuses a list anchor that occurs more than once; receipt_valid requires an executable launcher and a whole-tree equality (sha256 + exec bit per file, symlink targets) between <dst> and the source with this run's edits; a stale <dst>.partial is removed on REUSED; load_receipt refuses an unreadable/corrupt receipt with a message naming --force. RED/GREEN: same command PYTHONDONTWRITEBYTECODE=1 python3 scripts/codegraph/tests/test_patch_machinery.py; before fails=9, after fails=1 (P3, see CON-117). Paired mutants M1 M2 M4 M5 M6 M23 killed; M3 (launcher check alone) equivalent, subsumed by the tree check. Cost: REUSED on the real 1.6.2 package 1.13 s vs 0.30 s before (both trees hashed). Reproduction surface host-only; evidence was captured in the vehicle scratch area and is not committed: re-run the command to reproduce. Acceptance: independent review, then the state fields set with committed evidence. Round 2 (2026-11-06): test_patch_machinery.py gained P2g (planted symlink), P2h (exec bit), P4d (.partial file) and P4e ([] receipt refused, --force named); reviewer mutants R1a2/R1b/R1d/R1e killed; the summary line is now SUMMARY pass=N fail=F skip=S and a skip-only result exits 77 with reason=artifact_not_yet_built so the runner reads SKIP (it used to read the old shape as ERROR unparsed_fail_signal). Round 3 (2026-11-06): P2i (planted directory symlink, reviewer X6) and P2j (retargeted shipped symlink, X7) added; P5 pins the skip contract (a forced P3b skip exits 77, counted line, reason=topology_unsupported); the reason code is now topology_unsupported, not artifact_not_yet_built (review I1-5/I1-6/I1-7); mutants N1a/N1b/N1c killed by scripts/codegraph/tests/test_patch_machinery_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-108 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-116 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031 (full-suite failures root-cause report of 2026-11-05). What: tests/test_patch_machinery.py cases P1b P1c P2c P2d P2e P2f P4a P4b were RED against scripts/codegraph/fk_index_patch.py (SUMMARY fails=9). Fix (fix vehicle 2026-11-05): fkidx1.parse_lists refuses a list anchor that occurs more than once; receipt_valid requires an executable launcher and a whole-tree equality (sha256 + exec bit per file, symlink targets) between <dst> and the source with this run's edits; a stale <dst>.partial is removed on REUSED; load_receipt refuses an unreadable/corrupt receipt with a message naming --force. RED/GREEN: same command PYTHONDONTWRITEBYTECODE=1 python3 scripts/codegraph/tests/test_patch_machinery.py; before fails=9, after fails=1 (P3, see CON-147). Paired mutants M1 M2 M4 M5 M6 M23 killed; M3 (launcher check alone) equivalent, subsumed by the tree check. Cost: REUSED on the real 1.6.2 package 1.13 s vs 0.30 s before (both trees hashed). Reproduction surface host-only; evidence was captured in the vehicle scratch area and is not committed: re-run the command to reproduce. Acceptance: independent review, then the state fields set with committed evidence. Round 2 (2026-11-06): test_patch_machinery.py gained P2g (planted symlink), P2h (exec bit), P4d (.partial file) and P4e ([] receipt refused, --force named); reviewer mutants R1a2/R1b/R1d/R1e killed; the summary line is now SUMMARY pass=N fail=F skip=S and a skip-only result exits 77 with reason=artifact_not_yet_built so the runner reads SKIP (it used to read the old shape as ERROR unparsed_fail_signal). Round 3 (2026-11-06): P2i (planted directory symlink, reviewer X6) and P2j (retargeted shipped symlink, X7) added; P5 pins the skip contract (a forced P3b skip exits 77, counted line, reason=topology_unsupported); the reason code is now topology_unsupported, not artifact_not_yet_built (review I1-5/I1-6/I1-7); mutants N1a/N1b/N1c killed by scripts/codegraph/tests/test_patch_machinery_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-108 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-146 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-117 — CON-117 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-116, re-minted as CON-146 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-147 — CON-147 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
 
 **Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. P3 of scripts/codegraph/tests/test_patch_machinery.py expects runner_patches.load() with no ids to give fkidx1,resolve1,resolve2; the registry gives fkidx1,lockfix1,datafrag1,resolve1,resolve2. Not changed, by brief: the operator decides. Option A, make the registry default the tested subset (drop lockfix1 and datafrag1 from the default, keep them opt-in): matches the test, CLAUDE.md §11.4.78 note (untested patches excluded) and codegraph_safe.sh (default fkidx1,resolve1); consequence: a bare fk_index_patch.py run builds a different runner key, and on the installed 1.6.2 it would stop refusing (measured 2026-11-05: the five-patch default refuses with 'datafrag1: anchor const MAX_FILE_SIZE occurs 0x'). Option B, keep five and change P3 to expect five: the test then pins a default that includes two patches with no behavioural test and that refuses on 1.6.2. Until decided, the test stays RED on P3 only. Decision (operator, AskUserQuestion 2026-11-05 21:50 CET, relayed by the conductor): Option A. Implemented in the fix vehicle, second commit: runner_patches/__init__.py adds UNTESTED={lockfix1,datafrag1} and DEFAULT_EXCLUDED=OPT_IN|UNTESTED, so load() with no ids gives fkidx1,resolve1,resolve2; lockfix1/datafrag1 stay selectable by name. test_patch_machinery.py gains P3b (bare run on the real installed package must build <ver>-fkidx1-resolve1-resolve2; SKIP artifact_not_yet_built when the package cannot be resolved) and P3c (opt-in by name). RED: fails=2 P3 P3b; GREEN: fails=0; bare run on 1.6.2 went from REFUSED (datafrag1 anchor) to CREATED 1.6.2-fkidx1-resolve1-resolve2. codegraph_safe.sh default unchanged (fkidx1,resolve1); its --patches all now means the tested default. Review (§11.4.142/§11.4.209) owed. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-109 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-117 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. P3 of scripts/codegraph/tests/test_patch_machinery.py expects runner_patches.load() with no ids to give fkidx1,resolve1,resolve2; the registry gives fkidx1,lockfix1,datafrag1,resolve1,resolve2. Not changed, by brief: the operator decides. Option A, make the registry default the tested subset (drop lockfix1 and datafrag1 from the default, keep them opt-in): matches the test, CLAUDE.md §11.4.78 note (untested patches excluded) and codegraph_safe.sh (default fkidx1,resolve1); consequence: a bare fk_index_patch.py run builds a different runner key, and on the installed 1.6.2 it would stop refusing (measured 2026-11-05: the five-patch default refuses with 'datafrag1: anchor const MAX_FILE_SIZE occurs 0x'). Option B, keep five and change P3 to expect five: the test then pins a default that includes two patches with no behavioural test and that refuses on 1.6.2. Until decided, the test stays RED on P3 only. Decision (operator, AskUserQuestion 2026-11-05 21:50 CET, relayed by the conductor): Option A. Implemented in the fix vehicle, second commit: runner_patches/__init__.py adds UNTESTED={lockfix1,datafrag1} and DEFAULT_EXCLUDED=OPT_IN|UNTESTED, so load() with no ids gives fkidx1,resolve1,resolve2; lockfix1/datafrag1 stay selectable by name. test_patch_machinery.py gains P3b (bare run on the real installed package must build <ver>-fkidx1-resolve1-resolve2; SKIP artifact_not_yet_built when the package cannot be resolved) and P3c (opt-in by name). RED: fails=2 P3 P3b; GREEN: fails=0; bare run on 1.6.2 went from REFUSED (datafrag1 anchor) to CREATED 1.6.2-fkidx1-resolve1-resolve2. codegraph_safe.sh default unchanged (fkidx1,resolve1); its --patches all now means the tested default. Review (§11.4.142/§11.4.209) owed. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-109 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-147 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-118 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-117, re-minted as CON-147 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-148 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. R5: CodeGraph 1.6.2 vue.resolve returns null for languages outside VUE_SCRIPT_LANGUAGES before scanning; the probe ref (language cpp) never reached the code. Fix: probe ref language javascript (tools/web/src/app.js) and R5 also requires vue_scan_1st > 0 (precondition reached). RED: ONLY=R5 bash scripts/codegraph/tests/test_resolve1.sh -> vue_resolve_ok=false FAIL; GREEN same command -> 1st=335 2nd=0 PASS; negative control DIST=<stock 1.6.2> -> 1st=335 2nd=335 FAIL; full file 7/7 PASS. Helpers: every test_resolve1_dump.py / test_resolve1_fixture.py call now consumes its status (|| t_bad DUMP/FIXTURE), so the runner's P5 model no longer plans them alone (discarded_members for codegraph drops from 6 to 4) without any manifest or excluded-lock change. Mutants: dump exits 3, fixture exits 4, probe back to cpp: all killed. Out of scope, still planned alone: test_bulk_classify_mutate.py, test_memfloor_mutate.py, test_resolve1_mutate.py, test_resolve2_mutate.py. Round 2 (2026-11-06): R5b adds a stale .vue subset case (a .vue file added after the first scan must be found after clearCaches); mutant R2a now dies on R5b. probe() no longer runs inside a command substitution, so its helper-exit t_bad is counted (mutant I5: cases=2 failed=1, was cases=1 uncounted). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-110 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-118 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. R5: CodeGraph 1.6.2 vue.resolve returns null for languages outside VUE_SCRIPT_LANGUAGES before scanning; the probe ref (language cpp) never reached the code. Fix: probe ref language javascript (tools/web/src/app.js) and R5 also requires vue_scan_1st > 0 (precondition reached). RED: ONLY=R5 bash scripts/codegraph/tests/test_resolve1.sh -> vue_resolve_ok=false FAIL; GREEN same command -> 1st=335 2nd=0 PASS; negative control DIST=<stock 1.6.2> -> 1st=335 2nd=335 FAIL; full file 7/7 PASS. Helpers: every test_resolve1_dump.py / test_resolve1_fixture.py call now consumes its status (|| t_bad DUMP/FIXTURE), so the runner's P5 model no longer plans them alone (discarded_members for codegraph drops from 6 to 4) without any manifest or excluded-lock change. Mutants: dump exits 3, fixture exits 4, probe back to cpp: all killed. Out of scope, still planned alone: test_bulk_classify_mutate.py, test_memfloor_mutate.py, test_resolve1_mutate.py, test_resolve2_mutate.py. Round 2 (2026-11-06): R5b adds a stale .vue subset case (a .vue file added after the first scan must be found after clearCaches); mutant R2a now dies on R5b. probe() no longer runs inside a command substitution, so its helper-exit t_bad is counted (mutant I5: cases=2 failed=1, was cases=1 uncounted). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-110 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-148 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-119 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-118, re-minted as CON-148 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-149 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Fix: U01-U46 now run against a copy of the tooling with /proc/meminfo redirected to a fake file (64 GiB total, 48 GiB available) and a stub df (default 999999999999 bytes; CG_FAKE_DF_AVAIL per case), the U47-U63 mechanism, plus a control that fails HERMETIC if any meminfo read is not redirected. U17 keeps its low-disk condition: 200 GiB free, above the 60 GiB preflight floor and below the 400 GiB tripwire. Thread headroom stays real. RED (host MemAvailable 22 GiB, free disk 57 GB): SUMMARY cases=63 failed=33; GREEN same command: failed=3 (U28, U35, U59; see CON-120, CON-121). Mutants: drop the U17 df value -> U17 FAIL; drop the meminfo redirect -> HERMETIC FAIL + preflight FAILs; set U17 df above the tripwire -> U17 FAIL: all killed. Round 2 (2026-11-06): the stub df refuses any call other than -B1 --output=avail <existing path>, and new U64 runs the REAL df in the codegraph_safe.sh preflight and checks free_bytes against an independent df within 1 GiB; mutant U3a now dies on U01, U17 and U64. Round 3 (2026-11-06): U65, the stub df logs its argument and the preflight's df read must name the target (review I3-4); reviewer mutant N3b (df on HOME) is killed by U65 and survives U64. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-111 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-119 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. Fix: U01-U46 now run against a copy of the tooling with /proc/meminfo redirected to a fake file (64 GiB total, 48 GiB available) and a stub df (default 999999999999 bytes; CG_FAKE_DF_AVAIL per case), the U47-U63 mechanism, plus a control that fails HERMETIC if any meminfo read is not redirected. U17 keeps its low-disk condition: 200 GiB free, above the 60 GiB preflight floor and below the 400 GiB tripwire. Thread headroom stays real. RED (host MemAvailable 22 GiB, free disk 57 GB): SUMMARY cases=63 failed=33; GREEN same command: failed=3 (U28, U35, U59; see CON-150, CON-151). Mutants: drop the U17 df value -> U17 FAIL; drop the meminfo redirect -> HERMETIC FAIL + preflight FAILs; set U17 df above the tripwire -> U17 FAIL: all killed. Round 2 (2026-11-06): the stub df refuses any call other than -B1 --output=avail <existing path>, and new U64 runs the REAL df in the codegraph_safe.sh preflight and checks free_bytes against an independent df within 1 GiB; mutant U3a now dies on U01, U17 and U64. Round 3 (2026-11-06): U65, the stub df logs its argument and the preflight's df read must name the target (review I3-4); reviewer mutant N3b (df on HOME) is killed by U65 and survives U64. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-111 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-149 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-120 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-119 removed the preflight failures)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-119, re-minted as CON-149 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
 
-**Status:** Queued
-**Type:** Bug
-**Severity:** Low
-**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
-
-Parent: CON-031. Observed 2026-11-05 at host load ~30: full run U28 FAIL (r1=1 r2=1 r3=1) and U35 FAIL (rc=4, lock refused); ONLY=U28,U35 run twice: 1 of 2 runs U28 FAIL; ONLY=U28 alone 16 of 16 PASS. Root cause UNCONFIRMED (candidate classes: stub timing with --poll-s 1 under load, or a stub process of an earlier case still alive; not investigated). Acceptance: reproduce with the exact sequence, root cause, fix. Also observed 2026-11-05 (load about 37): U38 failed once inside the GOLD copy of test_bulk_classify_mutations.sh (d3 and d4 empty: the CG_SAFE_PATCHES=fkidx1 and --patches all runs never reached the stub patch tool), then passed in the full test_unit_safe.sh run and in the next GOLD rerun; U35 failed once in a full run and passed 3/3 alone. Root cause UNCONFIRMED. GOLD of test_bulk_classify_mutations.sh, three runs the same evening: FAIL (U38), PASS, FAIL (U36, ra=4 rb=4: both runs exited 4); a different case each time. In that change set the codegraph_safe.sh diff is comment-only, so the flake is not caused by it. Round 2 (2026-11-06): the reviewer also saw U20, U22 and U27 fail intermittently under load in the full run; they join this item (same unconfirmed root-cause classes). Not investigated in round 2. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-112 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-120 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
-
-## CON-121 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
+## CON-150 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-149 removed the preflight failures)
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. The tool echoes min_mem_avail_source through san (cut -c1-200); U59's r1 check has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' is not compared through s200, so with a work dir longer than about 140 characters the suffix is cut and the case FAILs (seen with TMPDIR under the vehicle scratch area, 2026-11-05; the case's own helper s200 exists for exactly this). Not fixed in the fix vehicle (out of scope). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-113 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-121 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. Observed 2026-11-05 at host load ~30: full run U28 FAIL (r1=1 r2=1 r3=1) and U35 FAIL (rc=4, lock refused); ONLY=U28,U35 run twice: 1 of 2 runs U28 FAIL; ONLY=U28 alone 16 of 16 PASS. Root cause UNCONFIRMED (candidate classes: stub timing with --poll-s 1 under load, or a stub process of an earlier case still alive; not investigated). Acceptance: reproduce with the exact sequence, root cause, fix. Also observed 2026-11-05 (load about 37): U38 failed once inside the GOLD copy of test_bulk_classify_mutations.sh (d3 and d4 empty: the CG_SAFE_PATCHES=fkidx1 and --patches all runs never reached the stub patch tool), then passed in the full test_unit_safe.sh run and in the next GOLD rerun; U35 failed once in a full run and passed 3/3 alone. Root cause UNCONFIRMED. GOLD of test_bulk_classify_mutations.sh, three runs the same evening: FAIL (U38), PASS, FAIL (U36, ra=4 rb=4: both runs exited 4); a different case each time. In that change set the codegraph_safe.sh diff is comment-only, so the flake is not caused by it. Round 2 (2026-11-06): the reviewer also saw U20, U22 and U27 fail intermittently under load in the full run; they join this item (same unconfirmed root-cause classes). Not investigated in round 2. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-112 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-150 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-122 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-120, re-minted as CON-150 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
 
-**Status:** Queued
-**Type:** Bug
-**Severity:** Low
-**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
-
-Parent: CON-031. Before: the runner sets GOPROXY=off with the host GOMODCACHE, so a missing module made the unit FAIL rc_1 (scripts/doc_integrity with an empty cache). Fix: before each go-test unit the runner runs go mod download in the unit env; when it fails and every error line is 'module lookup disabled by GOPROXY=off', the unit is SKIP network_unreachable_external (verdict_source go-module-preflight) and the progress line names go_module_not_cached: <mod>@<ver> (first missing only) and the prepare command; any other failure is not reclassified. Guide gained a prepare step. FLAG for the operator: the §11.4.69 closed set has no code for 'dependency not in the offline cache'; network_unreachable_external is the closest true one. RED/GREEN (tests/test_run_full_suite.sh sections 22/22b, run as a slice): 3 FAIL -> 5/5 ok; mutants no-skip, any-error-is-missing, SKIP-as-PASS killed. Real unit: old runner + empty GOMODCACHE FAIL rc_1; new runner SKIP naming github.com/mattn/go-sqlite3@v1.14.48; new runner + prepared private cache PASS. A SKIP keeps the run PARTIAL-SKIPS (exit 6), never PASS-FULL. Round 2 (2026-11-06, after review NO-GO): the probe now runs go mod download -modfile=<scratch copy> on scratch copies of go.mod and go.sum, so the unit's own tree is never written (RV-G3, a committed module with GOSUMDB=off, used to leave m/go.sum and trip IDENTITY CHANGED); and a unit is SKIP only when every named module is also absent from GOMODCACHE/cache/download (a cached module with a go.sum gap gives the same Go message and now stays FAIL, RV-G1). Tests 22c: RV-G0/G1/G3 and a classifier table; RED 7/15, GREEN 15/15; mutants M1, M2, gR1 (all->any), M4, G1, G3 killed. Guide: fresh --out after preparing, typo fixed. Round 3 (structural, review round 2 G5/G7b): the go mod download preflight is removed; every Go unit runs and only its own go test output, under a closed grammar, can turn a FAIL into SKIP network_unreachable_external (verdict_source go-test-output). One fixture and one paired mutant per axis in tests/test_run_full_suite_go.sh and tests/test_run_full_suite_go_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-114 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-122 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 6: Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 and authorises review round 6 under section 11.4.276(G).
-
-## CON-123 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
+## CON-151 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Found by the round-1 review (nit, source), not fixed in round 2. A commented line '// static BULK_PARSE_INDEX_NAMES = [' with no closer placed before the real list merges with it into one LIST_RE match, so the exactly-once check passes; the reviewer's shape A still edits the real list, shape B refuses later. Acceptance: count list openers, RED test with the commented-opener shape, paired mutation. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-115 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-123 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. The tool echoes min_mem_avail_source through san (cut -c1-200); U59's r1 check has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' is not compared through s200, so with a work dir longer than about 140 characters the suffix is cut and the case FAILs (seen with TMPDIR under the vehicle scratch area, 2026-11-05; the case's own helper s200 exists for exactly this). Not fixed in the fix vehicle (out of scope). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-113 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-151 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-124 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-121, re-minted as CON-151 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-152 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Found by the round-1 review (nit, source). The force build then fails loudly; the live runner is not corrupted. UNCONFIRMED: whether this race is reachable through codegraph_safe.sh (which serialises writers). Acceptance: reproduce or show unreachable with evidence, then fix or close. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-116 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-124 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. Before: the runner sets GOPROXY=off with the host GOMODCACHE, so a missing module made the unit FAIL rc_1 (scripts/doc_integrity with an empty cache). Fix: before each go-test unit the runner runs go mod download in the unit env; when it fails and every error line is 'module lookup disabled by GOPROXY=off', the unit is SKIP network_unreachable_external (verdict_source go-module-preflight) and the progress line names go_module_not_cached: <mod>@<ver> (first missing only) and the prepare command; any other failure is not reclassified. Guide gained a prepare step. FLAG for the operator: the §11.4.69 closed set has no code for 'dependency not in the offline cache'; network_unreachable_external is the closest true one. RED/GREEN (tests/test_run_full_suite.sh sections 22/22b, run as a slice): 3 FAIL -> 5/5 ok; mutants no-skip, any-error-is-missing, SKIP-as-PASS killed. Real unit: old runner + empty GOMODCACHE FAIL rc_1; new runner SKIP naming github.com/mattn/go-sqlite3@v1.14.48; new runner + prepared private cache PASS. A SKIP keeps the run PARTIAL-SKIPS (exit 6), never PASS-FULL. Round 2 (2026-11-06, after review NO-GO): the probe now runs go mod download -modfile=<scratch copy> on scratch copies of go.mod and go.sum, so the unit's own tree is never written (RV-G3, a committed module with GOSUMDB=off, used to leave m/go.sum and trip IDENTITY CHANGED); and a unit is SKIP only when every named module is also absent from GOMODCACHE/cache/download (a cached module with a go.sum gap gives the same Go message and now stays FAIL, RV-G1). Tests 22c: RV-G0/G1/G3 and a classifier table; RED 7/15, GREEN 15/15; mutants M1, M2, gR1 (all->any), M4, G1, G3 killed. Guide: fresh --out after preparing, typo fixed. Round 3 (structural, review round 2 G5/G7b): the go mod download preflight is removed; every Go unit runs and only its own go test output, under a closed grammar, can turn a FAIL into SKIP network_unreachable_external (verdict_source go-test-output). One fixture and one paired mutant per axis in tests/test_run_full_suite_go.sh and tests/test_run_full_suite_go_mutations.sh. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-114 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-152 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 6: Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-152, CON-157 and CON-031 and authorises review round 6 under section 11.4.276(G).
 
-## CON-125 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-117 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-122, re-minted as CON-152 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-153 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source), not fixed in round 2. A commented line '// static BULK_PARSE_INDEX_NAMES = [' with no closer placed before the real list merges with it into one LIST_RE match, so the exactly-once check passes; the reviewer's shape A still edits the real list, shape B refuses later. Acceptance: count list openers, RED test with the commented-opener shape, paired mutation. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-115 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-153 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-123, re-minted as CON-153 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-154 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review (nit, source). The force build then fails loudly; the live runner is not corrupted. UNCONFIRMED: whether this race is reachable through codegraph_safe.sh (which serialises writers). Acceptance: reproduce or show unreachable with evidence, then fix or close. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-146 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-154 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-124, re-minted as CON-154 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-155 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-147 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. The round-1 review asked whether Option A covers the writer default; UNCONFIRMED. The default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66). Round 2 only fixed the comment wording at codegraph_safe.sh line 44. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-117 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-125 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+Parent: CON-031. The round-1 review asked whether Option A covers the writer default; UNCONFIRMED. The default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66). Round 2 only fixed the comment wording at codegraph_safe.sh line 44. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-147 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-155 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
 
-## CON-126 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-125, re-minted as CON-155 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
 
-**Status:** Queued
-**Type:** Bug
-**Severity:** Low
-**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
-
-Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from sum.golang.org was returned, so the unit environment can reach the network. The CON-122 go mod download preflight inherits the same environment and so has the same property. Also UNCONFIRMED: the end-to-end behaviour of the classifier on real mixed Go error output (the all-versus-any mutant gR1 is killed only by the classifier table). Acceptance: decide GOSUMDB/GOFLAGS for go-test units (for example GOSUMDB=off or GONOSUMDB plus GOFLAGS=-mod=mod), test with a network-blocked run. Round 3: the classifier reads GOPROXY and GOFLAGS from the environment the unit really ran with; a host GOPROXY=file:// or GOSUMDB is replaced by the unit env (fixtures A5x, A3). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-118 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-126 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 G3-2): the guide row and the 'nothing is written' claim are corrected (host GOSUMDB/GONOSUMDB are not passed; --env-extra GOSUMDB/GONOSUMDB reaches the unit, and a workspace without a checksum then makes Go write go.work.sum into the repository under test, which the identity guard stops). Still open: either reject GOSUMDB/GONOSUMDB/GONOSUMCHECK/GOFLAGS/GOPROXY in --env-extra for go-test units, or keep the documented caveat; and the source comment at scripts/full_suite/run_full_suite.py near line 2726 ('with network the same unit passes') holds only for modules the public checksum database knows (UNCONFIRMED for a private module).
-
-## CON-127 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+## CON-156 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
 
 **Status:** Queued
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_check_deps.sh raced against a marker the tool itself carries (r6b TERM/HUP/INT failed at HEAD, 750 s under load) and built 3402 PATH shims 17 times; check_deps.sh ran its timeout self-probe before its traps, so a signal then gave 143 or 4 instead of 2. (2) test_cycle_report_red.sh and test_cycle_report_s12_fix_red.sh read the consumer tracker DB and named ATM items, so in canon or a consumer without those items they FAILed (HEAD: rc=1, 15 and 31 NOT ok, 1034 s and 1163 s); the red file's R5 block then counted 51 mutant kills against that red baseline; s12 check 8 re-ran the whole red suite. Round 2: ready-file wait in a G7 git shim, shim template built once and copied, self-probe moved after the traps, consumer guard (fc_require_consumer docs/workable_items.db plus a content check on the ATM items, SKIP 77 topology_unsupported), R5 block reports BLIND when the baseline failed, check 8 behind FC_S12_NESTED_RED=1. Round 3: the cycle_report guard moved into fc_require_items (lib/consumer_required.sh): SKIP only on proven absence, both atm_id and ticket_id, a lost item or a query error never SKIPs (review CR-1/CR-3, mutants MG1..MG6); s12 prints a counted SUMMARY naming the skipped check 8 (C2-2); the self-probe signal loop checks for survivors (C2-1, N7b); the signal-window flake C2-3 stays UNCONFIRMED, a FAIL now prints its timing. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-119 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-127 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 CD3-1, recurrence of the flaky-under-load class now CONFIRMED): in the round-3 review run test_check_deps.sh failed once with an empty result for the 'r6-f1/f2/r7 signal window (deps, postwait)' check (signal windows 172 s, load average 19.6 on 16 CPUs; the load was partly the reviewer's own parallel run). The rig prints a RESULT line when it completes, so an empty result means the rig did not finish its protocol, not that check_deps.sh gave a wrong verdict; that reading is UNCONFIRMED. Acceptance: give the window its own measured, bounded wait so a slow rig reports BLIND or SKIP with its timing instead of FAIL, and track the test under §11.4.248 until stable. Round 4 (review round 3 CR3-1, CR3-2): fc_require_items now has fixtures and paired mutants for a data query that errors after the pragma answered (view failing at step time; MG7 = reviewer RMG-A) and for no sqlite3 on PATH (MG8 = RMG-B), and examines both atm_id and ticket_id when both exist (MG9). RED: with the round-3 test file MG7 and MG8 SURVIVE; GREEN: all 9 mutants killed. Round 6 (review round 5 CR5-1, important; CR5-2..CR5-4, minor): fc_require_items gains a leg per remaining input axis, L11 rows (multiplicity and position: a foreign row first, the prefixed row later), L12 the dash of the prefix, L13 column names (exact and case), L14 no write (an absent path stays absent), L15 case of ids, L16 NULL ids (current behaviour pinned), L17 whitespace and other tables; each with fixtures and a paired mutant MG16..MG25 (reviewer RV5-1, RV5-1b, RV5-3, RV5-4, RV5-5 verbatim as MG16..MG20; R4-G as MG21, R4-I as MG23). RED: on the round-5 suite MG16, MG18..MG25 SURVIVE and MG17 dies only through m2_half; GREEN: all killed. Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-122, CON-127 and CON-031 and authorises review round 6 under section 11.4.276(G).
+Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from sum.golang.org was returned, so the unit environment can reach the network. The CON-152 go mod download preflight inherits the same environment and so has the same property. Also UNCONFIRMED: the end-to-end behaviour of the classifier on real mixed Go error output (the all-versus-any mutant gR1 is killed only by the classifier table). Acceptance: decide GOSUMDB/GOFLAGS for go-test units (for example GOSUMDB=off or GONOSUMDB plus GOFLAGS=-mod=mod), test with a network-blocked run. Round 3: the classifier reads GOPROXY and GOFLAGS from the environment the unit really ran with; a host GOPROXY=file:// or GOSUMDB is replaced by the unit env (fixtures A5x, A3). Id history (§11.4.214): minted in the full-suite fix vehicle as CON-148 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-156 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 G3-2): the guide row and the 'nothing is written' claim are corrected (host GOSUMDB/GONOSUMDB are not passed; --env-extra GOSUMDB/GONOSUMDB reaches the unit, and a workspace without a checksum then makes Go write go.work.sum into the repository under test, which the identity guard stops). Still open: either reject GOSUMDB/GONOSUMDB/GONOSUMCHECK/GOFLAGS/GOPROXY in --env-extra for go-test units, or keep the documented caveat; and the source comment at scripts/full_suite/run_full_suite.py near line 2726 ('with network the same unit passes') holds only for modules the public checksum database knows (UNCONFIRMED for a private module).
 
-## CON-128 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-126, re-minted as CON-156 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-157 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+
+Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_check_deps.sh raced against a marker the tool itself carries (r6b TERM/HUP/INT failed at HEAD, 750 s under load) and built 3402 PATH shims 17 times; check_deps.sh ran its timeout self-probe before its traps, so a signal then gave 143 or 4 instead of 2. (2) test_cycle_report_red.sh and test_cycle_report_s12_fix_red.sh read the consumer tracker DB and named ATM items, so in canon or a consumer without those items they FAILed (HEAD: rc=1, 15 and 31 NOT ok, 1034 s and 1163 s); the red file's R5 block then counted 51 mutant kills against that red baseline; s12 check 8 re-ran the whole red suite. Round 2: ready-file wait in a G7 git shim, shim template built once and copied, self-probe moved after the traps, consumer guard (fc_require_consumer docs/workable_items.db plus a content check on the ATM items, SKIP 77 topology_unsupported), R5 block reports BLIND when the baseline failed, check 8 behind FC_S12_NESTED_RED=1. Round 3: the cycle_report guard moved into fc_require_items (lib/consumer_required.sh): SKIP only on proven absence, both atm_id and ticket_id, a lost item or a query error never SKIPs (review CR-1/CR-3, mutants MG1..MG6); s12 prints a counted SUMMARY naming the skipped check 8 (C2-2); the self-probe signal loop checks for survivors (C2-1, N7b); the signal-window flake C2-3 stays UNCONFIRMED, a FAIL now prints its timing. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-149 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-157 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2). Round 4 (review round 3 CD3-1, recurrence of the flaky-under-load class now CONFIRMED): in the round-3 review run test_check_deps.sh failed once with an empty result for the 'r6-f1/f2/r7 signal window (deps, postwait)' check (signal windows 172 s, load average 19.6 on 16 CPUs; the load was partly the reviewer's own parallel run). The rig prints a RESULT line when it completes, so an empty result means the rig did not finish its protocol, not that check_deps.sh gave a wrong verdict; that reading is UNCONFIRMED. Acceptance: give the window its own measured, bounded wait so a slow rig reports BLIND or SKIP with its timing instead of FAIL, and track the test under §11.4.248 until stable. Round 4 (review round 3 CR3-1, CR3-2): fc_require_items now has fixtures and paired mutants for a data query that errors after the pragma answered (view failing at step time; MG7 = reviewer RMG-A) and for no sqlite3 on PATH (MG8 = RMG-B), and examines both atm_id and ticket_id when both exist (MG9). RED: with the round-3 test file MG7 and MG8 SURVIVE; GREEN: all 9 mutants killed. Round 6 (review round 5 CR5-1, important; CR5-2..CR5-4, minor): fc_require_items gains a leg per remaining input axis, L11 rows (multiplicity and position: a foreign row first, the prefixed row later), L12 the dash of the prefix, L13 column names (exact and case), L14 no write (an absent path stays absent), L15 case of ids, L16 NULL ids (current behaviour pinned), L17 whitespace and other tables; each with fixtures and a paired mutant MG16..MG25 (reviewer RV5-1, RV5-1b, RV5-3, RV5-4, RV5-5 verbatim as MG16..MG20; R4-G as MG21, R4-I as MG23). RED: on the round-5 suite MG16, MG18..MG25 SURVIVE and MG17 dies only through m2_half; GREEN: all killed. Operator decision on record (relayed by the conductor, verbatim, 2026-11-10): "Keep running rounds until GO is reached!"; it names the codegraph/full-suite items CON-152, CON-157 and CON-031 and authorises review round 6 under section 11.4.276(G).
+
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-127, re-minted as CON-157 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-158 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
 
 **Status:** Queued
 **Type:** Bug
@@ -1984,7 +2444,9 @@ Parent: CON-031. Found by the round-1 review of the full-suite fixes. (1) test_c
 
 Measured with Go 1.26.8 under GOPROXY=off GOFLAGS=-mod=readonly (fixture A4, tests/test_run_full_suite_go.sh): when go.sum carries a module's zip hash but not its /go.mod line and the module is not cached, go test stops at the lookup-disabled line, so the runner records SKIP network_unreachable_external; with the module cached the same tree fails with missing go.sum entry. The repository defect is therefore visible only on a host with a full cache. Honest limit of classifying from go test output; a fix would need a go.sum completeness check that does not predict network needs (review round 2 axis cached-with-go.sum-gap). Round 4 (review round 3 G3-1): the limit is general, not specific to the go.sum shape. A SKIP network_unreachable_external means 'could not be decided offline'; any defect that Go would only see AFTER fetching the module is hidden behind it until the cache is prepared. Measured instances: untidy go.mod (R3a), a non-existent package in an uncached module (R4e), a tampered zip hash (R7e), a version that does not exist upstream (R12): all SKIP offline and would FAIL once fetched. Acceptance: the guide states the general limit (not one shape); the SKIP stays honest (never a PASS).
 
-## CON-129 — fastcycle tests: patch-machinery whole-tree manifest does not pin the launcher bin/codegraph content (reviewer mutant RP3 survives)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-128, re-minted as CON-158 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-159 — fastcycle tests: patch-machinery whole-tree manifest does not pin the launcher bin/codegraph content (reviewer mutant RP3 survives)
 
 **Status:** Queued
 **Type:** Task
@@ -1993,7 +2455,9 @@ Measured with Go 1.26.8 under GOPROXY=off GOFLAGS=-mod=readonly (fixture A4, tes
 
 Parent: CON-031. Review round 3 PM3-1 (test-instrumentation, minor). The reviewer's mutant RP3 removes the launcher bin/codegraph from the whole-tree manifest (the condition 'rel in (RECEIPT_NAME, "bin/codegraph")') and survives test_patch_machinery_mutations.sh (22 pass, 0 fail): no case changes the launcher's content while keeping it executable (P2d only deletes it). Acceptance: add a case that truncates or rewrites the launcher and expects CREATED, and adopt RP3 as a paired mutant. Evidence: scratchpad rev_cgs3/ev/pm_RP3.txt in the review of round 3.
 
-## CON-130 — fastcycle tests: U65 reads only the first logged df path, so a df on the target followed by a df on HOME survives (reviewer mutant N3c)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-129, re-minted as CON-159 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-160 — fastcycle tests: U65 reads only the first logged df path, so a df on the target followed by a df on HOME survives (reviewer mutant N3c)
 
 **Status:** Queued
 **Type:** Task
@@ -2002,7 +2466,9 @@ Parent: CON-031. Review round 3 PM3-1 (test-instrumentation, minor). The reviewe
 
 Parent: CON-031. Review round 3 US3-1 (test-instrumentation, minor). The reviewer's mutant N3c calls df on the target first, discards it, then reads the value from df on $HOME; U64 and U65 both still pass because U65 reads only the first logged path and the stub prints the same value for every path. Acceptance: assert the df log holds exactly one line equal to the target, or make the stub print a value that depends on the path and check free_bytes; adopt N3c as a paired mutant.
 
-## CON-131 — fc_require_items residual nits: NULL-id rows count as items present, LIKE is case-insensitive, a foreign register with any ATM-* row runs the checks
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-130, re-minted as CON-160 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-161 — fc_require_items residual nits: NULL-id rows count as items present, LIKE is case-insensitive, a foreign register with any ATM-* row runs the checks
 
 **Status:** Queued
 **Type:** Task
@@ -2011,7 +2477,9 @@ Parent: CON-031. Review round 3 US3-1 (test-instrumentation, minor). The reviewe
 
 Parent: CON-031. Review round 3 CR3-3, CR3-4, CR3-5 (nits). CR3-3: rows whose id is NULL count as items present (fixture v6 SKIPs); the real schema has atm_id NOT NULL; COUNT(key) would close it (reviewer mutant RMG-H). CR3-4: LIKE is case-insensitive, so atm-* ids count as the prefix (fail-closed direction: the checks run); no fixture pins the dash in 'ATM-%' (RMG-G). CR3-5: a foreign register that holds any ATM-* row runs the checks and FAILs; the helper header now says so (done in round 4). Acceptance: decide CR3-3/CR3-4, adopt RMG-G and RMG-H as mutants with fixtures v5 and v6, or record them as equivalent with the reason. Round 5: review round 4 recorded reviewer mutants R4-G (LIKE to GLOB, the CR3-4 direction, fixture v3) and R4-I (items counted as non-NULL keys, the CR3-3 direction, fixture v6); the author adopted them as the pins of these two nits in test_consumer_required_mutations.sh. Naming: RMG-G (round 3, the dash dropped from 'ATM-%') and R4-G (round 4, LIKE to GLOB) are two different mutants. Round 6 (review round 5 N5-1, CR5-4): the dash is pinned (fixture l12_atmx, mutant MG18 = RV5-3 = RMG-G); R4-G is adopted as MG21 (fixture l15_lower: atm-5 runs the checks, the current fail-closed direction) and R4-I as MG23 (fixture l16_nullonly: a table of NULL ids SKIPs, the current behaviour). Both pins hold the CURRENT behaviour; the CR3-3 direction (should NULL-only ids run the checks?) remains this item's decision, and changing it means flipping l16_nullonly together with MG23.
 
-## CON-132 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-131, re-minted as CON-161 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-162 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
 
 **Status:** Queued
 **Type:** Task
@@ -2020,16 +2488,20 @@ Parent: CON-031. Review round 3 CR3-3, CR3-4, CR3-5 (nits). CR3-3: rows whose id
 
 Parent: CON-031. Review round 3 G3-4 and G3-5 (nits). G3-4 (source-defect, fail-closed): GO_NET_LINE requires the file part to match [^\s:]+\.go, so a Go file path containing a space gives a false FAIL, never a false SKIP. G3-5 (test-instrumentation): tests/test_run_full_suite_go_mutations.sh decodes anchors with unicode_escape; regex anchors with backslash-dot and backslash-s print three DeprecationWarning lines, and a future Python that rejects them would turn those mutants into BAD. Acceptance: decide G3-4; replace the decoder (for example a literal-backslash-safe decode).
 
-## CON-133 — status of items fixed in the full-suite vehicle must be set at landing (CON-116, CON-119, CON-122 and others stay Queued)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-132, re-minted as CON-162 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-163 — status of items fixed in the full-suite vehicle must be set at landing (CON-146, CON-149, CON-152 and others stay Queued)
 
 **Status:** Queued
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fix-vehicle subagent)
 
-Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in the full-suite vehicle (for example CON-116, CON-119, CON-122) stay Queued in the vehicle. At landing they need the §11.4.290 status (Ready for testing with a Verification line), not Queued. Acceptance: at the landing step, set the status of each fixed item through the engine and re-export the trackers.
+Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in the full-suite vehicle (for example CON-146, CON-149, CON-152) stay Queued in the vehicle. At landing they need the §11.4.290 status (Ready for testing with a Verification line), not Queued. Acceptance: at the landing step, set the status of each fixed item through the engine and re-export the trackers.
 
-## CON-134 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-133, re-minted as CON-163 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-164 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
 
 **Status:** Queued
 **Type:** Task
@@ -2038,7 +2510,9 @@ Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in t
 
 Parent: CON-031. Review round 3 note, registered in round 5 (review round 4 item 4, unregistered nit). The s12 wrapper of the cycle_report suite writes a temp copy of stdout and removes it only on a normal exit; a SIGTERM or SIGKILL of the outer process leaves the file behind under the temp root. Type test-instrumentation, fail-safe (no verdict changes). Acceptance: add an EXIT/INT/TERM trap that removes the copy through safe_rm_rf or a ${VAR:?}-guarded rm, with a test that kills the wrapper and checks no copy is left.
 
-## CON-135 — full-suite vehicle merge messages must say how a census conflict was resolved
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-134, re-minted as CON-164 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
+
+## CON-165 — full-suite vehicle merge messages must say how a census conflict was resolved
 
 **Status:** Queued
 **Type:** Task
@@ -2046,4 +2520,6 @@ Parent: CON-031. Review round 3 note, registered in round 5 (review round 4 item
 **Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
 
 Parent: CON-031. Review round 4 item 5, unregistered nit (process-doc). The round-4 merge 97be3740 of main 90efceb8 resolved a conflict in the census line of docs/guides/full_suite_runner_guide.md by regenerating it, but the merge message does not say so. Acceptance: every merge of main into the vehicle that touches the generated census states in its message that the census was regenerated with run_full_suite.sh --sync-guide and checked with --verify-manifest, naming the resulting total.
+
+Id history (§11.4.214): first minted on the full-suite fix vehicle as CON-135, re-minted as CON-165 at the merge of main 2e8cfb90 into the vehicle (round 7, 2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the first ids and are not rewritten (§11.4.113); this note is the map.
 

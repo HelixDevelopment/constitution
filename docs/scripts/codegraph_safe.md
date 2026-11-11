@@ -219,7 +219,7 @@ echoed. Non-zero → exit 1. Then helper `verify` + `scope`; ledger entry;
 2. `resolve_runner` (lines 542-568): read stock `--version` (none → 5); run
    the patch tool with `--patches <IDS> --print-bin` (or `--print-bin` for
    `all`, which since 2026-11-05 means the patch tool's tested default
-   `fkidx1,resolve1,resolve2`, not every registered patch; CON-117 Option A):
+   `fkidx1,resolve1,resolve2`, not every registered patch; CON-147 Option A):
    - exit 0 → runner path must be executable, its parent dir must hold a valid
      `RUNNER_RECEIPT.json` for the stock version, and the runner's
      `--version` must equal stock's; any mismatch → 5;

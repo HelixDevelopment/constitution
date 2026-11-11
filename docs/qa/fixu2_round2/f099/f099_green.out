@@ -1,0 +1,75 @@
+== T061 RED: machine pre-check pack, review slicing and batching (plan T-C11; FR-023, SC-009, SC-002) ==
+ok slicer.py exists at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu2/constitution/scripts/fastcycle/review/slicer.py -- T-C11 has landed; Section C's
+   real invocation checks below are the functional tests to run
+ok precheck_pack.sh exists at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu2/constitution/scripts/fastcycle/review/precheck_pack.sh -- T-C11 has landed
+NOTE: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu2/constitution/scripts/fastcycle/review/ holds 6 unexpected file(s) --
+      re-check whether T-C11 (or a sibling task) has partially
+      landed before trusting A1/A2 above
+PASS: control needle: review_record.py's `gate` subcommand is now
+   registered and landed (T078) -- a real invocation against a
+   genuinely nonexistent --records dir correctly refuses with
+   the contract's own exit code 4 ('records unreadable'),
+   naming the unreadable path (rc=4,
+   stderr='review_record: gate refused -- --records is not a readable directory: y') -- confirmed by a real invocation, not
+   assumed from reading source
+PASS: control needle: no review_dispatch_guard.sh (or similarly-named
+   file) exists in scripts/hooks/ or constitution/scripts/hooks/
+   -- confirmed by real, bounded finds, not assumed -- there is
+   currently NO mechanism that could refuse an unpacked review
+   request
+PASS: B1 self-check: a real 'sh -n' run against broken_syntax_gate.sh
+   genuinely reports a syntax error (rc=2,
+   '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu2/constitution/scripts/fastcycle/tests/fixtures/precheck_slicer/case2_lint_in_pack/broken_syntax_gate.sh: 11: Syntax error: end of file unexpected (expecting "fi")') -- the underlying parse-check
+   mechanism T-C11 depends on is proven sound on this host,
+   not merely assumed present (§11.4.273 -- the null-hypothesis
+   needle: had 'sh -n' reported success, that would mean this
+   fixture's own planted defect is not real, and case 2's
+   golden premise would be false)
+PASS: B2 self-check: a real 'shellcheck -s sh' run against
+   unquoted_var_gate.sh genuinely reports SC2086 (rc=1)
+   -- the underlying shellcheck mechanism T-C11 depends on is
+   proven sound on this host, not merely assumed present
+   (§11.4.273 -- had shellcheck NOT reported SC2086, that would
+   mean this fixture's own planted defect is not real)
+PASS: C1 setup: scratch dir genuinely has no precheck.json (confirmed by
+   real -e check, not assumed)
+PASS: C1: review_record.py record ACCEPTED (exit 0) a review with no
+   --precheck flag and no sibling precheck.json -- a genuine review
+   is recordable today with no machine pre-check pack at all
+PASS: C1: the real recorded review's precheck_used field is False --
+   proving, from the tool's own real output JSON, that this review
+   genuinely proceeded with NO machine pre-check consulted (the
+   exact baseline the absent dispatcher/precheck_pack.sh must
+   change once T-C11 lands)
+PASS: C2a: precheck_pack.sh reports all_pass=false with a FAIL check
+   citing the planted SC2086/syntax defect -- the error is in
+   the pack, as the golden case requires
+PASS: C2b: review_record.py record accepted the clean (zero-finding)
+   verdict for the same batch (real exit 0)
+PASS: C2b: the real recorded review's findings array is genuinely EMPTY
+   -- the mechanical lint/parse defect the pack caught (C2a) is NOT
+   independently re-reported inside the review record; the error
+   is in the pack, not in the review, proven with two real
+   artifacts
+PASS: C3 setup: backfill genuinely wrote a real, on-disk record with
+   model_tier=sonnet (rc=0) -- backfill does not enforce tier,
+   confirmed here by a real invocation, not by reading source
+PASS: C3 setup: backfill genuinely wrote a real, on-disk record with
+   effort=high (rc=0) -- backfill does not enforce effort either,
+   confirmed here by a real invocation
+PASS: C3a: gate refused (exit 1) to treat the sonnet-tier record as
+   covering sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472, naming it in stdout, as the golden-bad
+   case requires
+PASS: C3b: gate refused (exit 1) to treat the below-xhigh-effort record as
+   covering sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472, naming it in stdout
+PASS: C3c control needle: the already-landed record subcommand genuinely
+   refuses --tier sonnet (real exit 1, nothing written) -- case 3's
+   premise that a bad-tier record can ONLY reach disk via backfill
+   is grounded in real, current tool behaviour
+PASS: C4: slicer.py batched the 2 related widget_a changes together
+   and kept the unrelated widget_c change out of that batch,
+   with every one of the 3 changes conserved across all
+   produced batches (RB-001)
+
+== Summary: ok 16 / NOT ok 0 ==
+rc=0

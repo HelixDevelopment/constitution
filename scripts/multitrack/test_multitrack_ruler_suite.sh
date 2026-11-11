@@ -51,8 +51,10 @@
 #                         <repo-root>/qa-results/multitrack/rb11_suite_<ts>-<pid>/)
 #   MTRS_TIMEOUT         — per-test timeout in seconds (default: 200)
 #
-# Exit code: 0 iff every discovered test exits 0 (GREEN); 1 if any test FAILs;
-#   2 on a self-locate / evidence-dir-creation FATAL.
+# Exit code: 0 iff no discovered test FAILs and at least one PASSes (a member's
+#   exit 77 is counted as SKIP, never as FAIL); 1 if any test FAILs; 77 when
+#   every discovered test SKIPped; 2 on a self-locate / evidence-dir-creation
+#   FATAL or when zero tests are discovered.
 #
 # Cross-references:
 #   device/rockchip/rk3588/tests/pre_build_verification.sh SECTION MTH
@@ -74,11 +76,25 @@ esac
 _self_dir=$(cd "$_self_dir" 2>/dev/null && pwd)
 [ -n "$_self_dir" ] || { echo "FATAL: could not resolve this script's own directory" >&2; exit 2; }
 
-# constitution/scripts/multitrack -> ../../.. == the consumer project's root.
-ROOT=$(cd "$_self_dir/../../.." 2>/dev/null && pwd)
-if [ -z "$ROOT" ] || [ ! -d "$ROOT/constitution" ]; then
-    # fall back to git's own notion of the top-level working tree from here.
-    ROOT=$(cd "$_self_dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+# This script lives at <canon>/scripts/multitrack. The canon is either
+# vendored as <consumer>/constitution (then the consumer root is its parent)
+# or checked out standalone (then the root is the canon itself). The parent
+# is taken as the consumer root ONLY when this canon IS its `constitution`
+# directory and the parent is a git working tree of its own; a sibling
+# directory that merely happens to be named `constitution` next to a
+# standalone clone is never mistaken for this canon.
+# Every path compared below is PHYSICAL (pwd -P): `git rev-parse
+# --show-toplevel` always answers with the physical path, so comparing it with
+# a logical path made a consumer reached through a symlinked directory lose its
+# device roster while the suite still passed (CON-117, review finding F109-1).
+CANON=$(cd "$_self_dir/../.." 2>/dev/null && pwd)
+[ -n "$CANON" ] || { echo "FATAL: could not resolve the canon root" >&2; exit 2; }
+ROOT=$CANON
+_parent=$(cd "$CANON/.." 2>/dev/null && pwd -P)
+if [ -n "$_parent" ] && [ "$(basename "$CANON")" = "constitution" ] &&
+   [ "$(cd "$_parent/constitution" 2>/dev/null && pwd -P)" = "$(cd "$CANON" && pwd -P)" ] &&
+   [ "$(cd "$_parent" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)" = "$_parent" ]; then
+    ROOT=$_parent
 fi
 [ -n "$ROOT" ] || { echo "FATAL: could not resolve repo root" >&2; exit 2; }
 
@@ -99,7 +115,7 @@ JSONL="$EVDIR/verdicts.jsonl"
 # skip any discovered test whose realpath matches.
 _self_realpath="$_self_dir/$(basename "$_self")"
 _tests=""
-_dir1="$ROOT/constitution/scripts/multitrack"
+_dir1="$CANON/scripts/multitrack"
 _dir2="$ROOT/device/rockchip/rk3588/tests"
 if [ -d "$_dir1" ]; then
     _tests="$_tests $(find "$_dir1" -maxdepth 1 -type f -name 'test_multitrack_*.sh' ! -samefile "$_self_realpath" 2>/dev/null | sort)"
@@ -117,6 +133,8 @@ fi
 _total=0
 _pass=0
 _fail=0
+_skip=0
+_skip_reasons=""
 
 echo "RB-11 ruler-suite: repo root  = $ROOT"
 echo "RB-11 ruler-suite: evidence   = $EVDIR"
@@ -140,6 +158,12 @@ for _t in $_tests; do
     if [ "$_rc" -eq 0 ]; then
         _verdict="PASS"
         _pass=$((_pass + 1))
+    elif [ "$_rc" -eq 77 ]; then
+        # exit 77 is a member's honest SKIP-with-reason (section 11.4.3); it
+        # is neither a PASS nor a FAIL (counting it as FAIL is the 11.4.201(1)
+        # false refusal), and it is reported in its own column.
+        _verdict="SKIP"
+        _skip=$((_skip + 1))
     else
         _verdict="FAIL"
         _fail=$((_fail + 1))
@@ -158,6 +182,16 @@ for _t in $_tests; do
         _evpath="$_log"
     fi
 
+    if [ "$_verdict" = "SKIP" ]; then
+        # The member's own SKIP reason, read from its last line the same way
+        # the full-suite runner reads it; "unstated" when it names none.
+        _r=$(tail -n 1 "$_log" 2>/dev/null | sed -n 's/.*reason[= ]\([A-Za-z0-9_][A-Za-z0-9_]*\).*/\1/p')
+        case " $_skip_reasons " in
+            *" ${_r:-unstated} "*) ;;
+            *) _skip_reasons="${_skip_reasons:+$_skip_reasons }${_r:-unstated}" ;;
+        esac
+    fi
+
     printf '{"name":"%s","verdict":"%s","evidence":"%s","exit_code":%d}\n' \
         "$_name" "$_verdict" "$_evpath" "$_rc" >> "$JSONL"
     printf '%-55s %-4s (exit=%d)  evidence=%s\n' "$_name" "$_verdict" "$_rc" "$_evpath"
@@ -165,7 +199,7 @@ done
 
 echo
 echo "================================================="
-echo "RB-11 ruler-suite summary: TOTAL=$_total PASS=$_pass FAIL=$_fail"
+echo "RB-11 ruler-suite summary: TOTAL=$_total PASS=$_pass FAIL=$_fail SKIP=$_skip"
 echo "JSONL verdict stream: $JSONL"
 echo "================================================="
 
@@ -174,4 +208,18 @@ if [ "$_total" -eq 0 ]; then
     exit 2
 fi
 
-[ "$_fail" -eq 0 ]
+[ "$_fail" -eq 0 ] || exit 1
+if [ "$_pass" -eq 0 ] && [ "$_skip" -gt 0 ]; then
+    # Restate the members' reason only when they all share one closed code
+    # (CON-117, F109-2); otherwise name the set without a single reason token,
+    # so the runner records its own "suite_reported_skip" rather than a code
+    # no member reported.
+    case "$_skip_reasons" in
+        *" "*|unstated)
+            echo "SKIP: every discovered ruler test skipped; member reasons: $_skip_reasons" ;;
+        *)
+            echo "SKIP: every discovered ruler test skipped reason=$_skip_reasons" ;;
+    esac
+    exit 77
+fi
+exit 0

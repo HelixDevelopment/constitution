@@ -1,0 +1,10 @@
+RB-11 ruler-suite: repo root  = /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/iso/a/rep_nc
+RB-11 ruler-suite: evidence   = /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/mtrs_ev_red2
+RB-11 ruler-suite: JSONL      = /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/mtrs_ev_red2/verdicts.jsonl
+
+
+=================================================
+RB-11 ruler-suite summary: TOTAL=0 PASS=0 FAIL=0
+JSONL verdict stream: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/mtrs_ev_red2/verdicts.jsonl
+=================================================
+FATAL: zero test_multitrack_*.sh files discovered under either roster directory

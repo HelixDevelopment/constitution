@@ -44,7 +44,7 @@
 #                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the subset validated on a live index,
 #                            see below); `all` = the patch tool's registry default
 #                            (fkidx1,resolve1,resolve2; lockfix1/datafrag1 only by name,
-#                            CON-117 Option A). fkidx1 must be
+#                            CON-147 Option A). fkidx1 must be
 #                            in the set (the receipt gate requires it, else exit 5)
 #     --wait                 block until a detached bulk run finishes (poll)
 #     --poll-s N             --wait poll period, seconds (default 10)
@@ -66,7 +66,7 @@
 #   (tests/test_resolve1*.sh + mutations) and resolve2 (tests/test_resolve2*.sh + mutations)
 #   have tests. lockfix1 and datafrag1 have ZERO tests, so a multi-hour bulk job must not
 #   silently run them: they are opt-in by name via --patches / CG_SAFE_PATCHES, and since
-#   2026-11-05 (CON-117 Option A) they are out of the patch tool's own registry default
+#   2026-11-05 (CON-147 Option A) they are out of the patch tool's own registry default
 #   too, so `--patches all` no longer reaches them either. (lockfix1 is also redundant
 #   here: this wrapper already refuses to start while a live codegraph holds the lock.)
 #   This wrapper's default stays fkidx1,resolve1 (runner key <version>-fkidx1-resolve1);

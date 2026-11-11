@@ -24,7 +24,7 @@
 #   MG13 C3 reads the last id column only
 #   MG14 C3 counts the first named prefix only (ids with two prefixes)
 #   MG15 C3 counts the last named prefix only
-#   Round 6 (review round 5 CR5-1..CR5-4; the operator authorised round 6 for CON-122/CON-127/CON-031 under section
+#   Round 6 (review round 5 CR5-1..CR5-4; the operator authorised round 6 for CON-152/CON-157/CON-031 under section
 #   11.4.276(G), 2026-11-10): one mutant per remaining input axis, legs L11..L17 in Part 3. RED first: every one
 #   below except MG17 SURVIVED the round-5 suite (158/0); MG17 was killed there only through m2_half.
 #   MG16 (reviewer RV5-1, verbatim) each id column is read from its first row only (L11 rows; the CR-3 false SKIP)
@@ -34,7 +34,7 @@
 #   MG20 (reviewer RV5-5, verbatim) -readonly dropped from the pragma call: an absent path gets a 0-byte file (L14)
 #   MG21 (reviewer R4-G) LIKE to GLOB, case-sensitive prefix (L15)
 #   MG22 id column matched case-insensitively (L13)
-#   MG23 (reviewer R4-I) items counted as non-NULL keys (L16; pins current behaviour, the direction is CON-131's)
+#   MG23 (reviewer R4-I) items counted as non-NULL keys (L16; pins current behaviour, the direction is CON-161's)
 #   MG24 trim(k) in the prefix count C3 (L17 whitespace)
 #   MG25 the pragma reads the first table of the schema instead of items (L17 other tables)
 # Reasoned EQUIVALENT, not listed: `-lt need` -> `-ne need`: COUNT(DISTINCT key) over `key IN (need ids)`
@@ -52,7 +52,7 @@
 #        file exists; a SELECT writes nothing.
 #   trim(k) in C2 (`trim(k) IN (...)`): a named id carries a named prefix, so with C3 correct C2 cannot decide a
 #        SKIP (the R4-D reason).
-# Round 5 pinned R4-G and R4-I to CON-131; round 6 adopted them as MG21 and MG23 with fixtures (see above).
+# Round 5 pinned R4-G and R4-I to CON-161; round 6 adopted them as MG21 and MG23 with fixtures (see above).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh [MUTANT_ID...]
 # Exit    : 0 baseline passes and every selected mutant is killed; 1 otherwise; 77 (reason=topology_unsupported)
 #           when sqlite3 is absent (the fixtures cannot be built, so no mutant could be killed).

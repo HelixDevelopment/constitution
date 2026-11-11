@@ -1,0 +1,19 @@
+EVIDENCE db=/home/milosvasic/.cache/claude-tmp/tmp.lQrggzyf7H/p/docs/workable_items.db items=17 item_history=35
+EVIDENCE ATM-953: Bug|Fixed (→ Fixed.md)|Fixed|2026-07-28
+EVIDENCE ATM-603: Task|Completed (→ Fixed.md)|Completed|2026-07-20
+EVIDENCE rows after 2026-08-23: 1  engine: validate: OK — 17 items, all invariants satisfied
+ok   fixture DB is populated by the real engine (items=17 history=35)
+=== real DB: run both suites ===
+ok   select_sample suite rc=0 (41 ok lines, 0 NOT ok)
+ok   reopen_rate suite rc=0
+ok   genuinely exercised: S3 live experiment: deleted 1 future rows, selection body_hash unchanged (e3b83d56)
+ok   genuinely exercised: S5 live as-of 2026-08-23: usable taken/available Bug 5/6, Feature 1/1, Task 5/6
+ok   genuinely exercised: S6 as-of 07-20 derives the needle (ATM-603 on 2026-07-20); as-of 08-23 keeps the default and still fails closed (exit 3) when that row is absent; live snapshot cut at 07-10 replays with defaults
+ok   genuinely exercised: control needle #2: the synthetic fixture id prefixes (B-/MB-/NB-...) do
+ok   no SKIPPED needle in reopen_rate output
+=== paired mutations ===
+ok   mutation empty killed: select_sample rc=1, S5 and S6/S3 report NOT ok
+ok   mutation garbage killed: select_sample rc=1, S5 and S6/S3 report NOT ok
+ok   mutation garbage killed: reopen_rate needle #2 NOT ok
+RESULT: PASS
+rc=0

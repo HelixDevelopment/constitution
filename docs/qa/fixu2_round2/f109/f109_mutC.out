@@ -1,0 +1,24 @@
+# [C1] rc=0 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c1/canonX
+ok C1_standalone_pass_skip: rc=0 total=2 dev=0
+# [C2] rc=77 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c2/canonY
+ok C2_all_skip: rc=77 total=2 dev=0
+ok C2: aggregate SKIP keeps the members' shared reason (SKIP: every discovered ruler test skipped reason=artifact_not_yet_built)
+# [C2m] rc=77 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c2m/canonM
+ok C2m_mixed_skip: rc=77 total=2 dev=0
+NOT ok C2m: mixed member reasons restated as one code: SKIP: every discovered ruler test skipped reason=artifact_not_yet_built topology_unsupported
+# [C3] rc=1 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c3/canonZ
+ok C3_fail: rc=1 total=2 dev=0
+# [C4] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c4/P
+ok C4_vendored: rc=0 total=3 dev=1
+# [C5] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c4/P
+ok C5_vendored_via_symlink: rc=0 total=3 dev=1
+# [C6] rc=0 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c6/constitution
+ok C6_parent_not_git: rc=0 total=2 dev=0
+# [C7] rc=0 total=2 dev=0 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c7/canonQ
+ok C7_sibling_not_hijacked: rc=0 total=2 dev=0
+# [C8] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c4/P
+ok C8_relative_invocation: rc=0 total=3 dev=1
+# [C9] rc=0 total=3 dev=1 root=/home/milosvasic/.cache/claude-tmp/ruler_suite_discovery.bINR0H/c9/P
+ok C9_nested_repo: rc=0 total=3 dev=1
+
+RESULT: pass=11 fail=1
