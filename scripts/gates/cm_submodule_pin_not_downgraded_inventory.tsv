@@ -89,7 +89,7 @@ I063	p=[x.decode("utf-8") for x in sys.stdin.buffer.read().split(b"\0")]	idpy-sp
 I064	if len(p)!=5: return 4	-	eq-idpy-len-dropped	none	equivalent: the shell always sends five fields (differential proof)
 I065	a=p[0]	auth-arg-is-committer	-	ch	authoriser field
 I066	if not a or a!=a.strip()	empty-authoriser-allowed,auth-form-always	-	both	empty authoriser: allowed (fo) / every form refused (fr)
-I067	a!=a.strip() or "<" in a	authoriser-form-unchecked	-	fo	surrounding whitespace allowed (fo); fr form is auth-form-always (I066)
+I067	a!=a.strip() or "<" in a	authoriser-form-unchecked,RV8-02-authoriser-ascii-strip	-	fo	surrounding whitespace allowed (fo); an ASCII-only strip allows a non-ASCII space (RV8-02, ZSAUTH: fo); fr form is auth-form-always (I066)
 I067b	!=a.strip() or "<"	RV7-04-authoriser-lstrip-only	-	fo	trailing half of strip() (RV7-04; F_SELFTRAIL): lstrip only lets the committer self-waive with a trailing space; no false-refusal form for this half (the leading half is the generated STRIP member)
 I068	or "<" in a	auth-lt-dropped	-	fo	'<' member (AUTHLTGT); fr form is auth-form-always (I066)
 I068b	or ">" in a	auth-gt-dropped	-	fo	'>' member (AUTHLTGT); fr form is auth-form-always (I066)
@@ -97,7 +97,7 @@ I069	any(unicodedata.category(c).startswith("C") for c in a)	authoriser-control-
 I070	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr)
 I071	return 10 if any(	self-authoriser-allowed,self-always	-	both	self-waive: allowed (fo) / always (fr)
 I071b	i.strip() and f(i.strip())==f(a)	-	eq-idpy-strip-and-dropped	none	equivalent: an empty identity field never equals a non-empty authoriser (an empty authoriser is refused first; differential proof)
-I071c	==f(a) for i in p[1:]	-	eq-ident-strip-half	none	round 8 generated members (lstrip / rstrip halves of the ident strip): equivalent, git var strips both ident fields itself (measured 2026-11-11), so i == i.strip() for every field read (differential probe pr_identpad)
+I071c	==f(a) for i in p[1:]	RV8-01-ident-compare-unstripped	eq-ident-strip-truthiness	fo	round 9: the comparison strips the identity, and git keeps a non-ASCII space in a name, so an unstripped compare (RV8-01) or a one-sided strip (generated gen-strip-38f694f31b / gen-strip-a8ce0752e7) lets the committer self-waive (ZSID, fo; no false-refusal form); the truthiness halves (i.lstrip() / i.rstrip() and) are equivalent for every string (eq-ident-strip-truthiness). Round 8 claimed all halves equivalent (FALSE, review F1)
 I072	rc=main()	crash-is-ok	-	ch	run
 I073	except BaseException:	authoriser-crash-uncaught	-	ch	crash caught
 I074	rc=4	crash-is-ok	-	fo	crash rc 4 -> 0 (fo)
@@ -151,7 +151,7 @@ I104	[[ "$row" != *$'\r'* ]] ||	cr-not-named,cr-always	-	both	CR row: honoured (
 I105	save it with LF"; continue; }	site-cr-aborts	-	fr	site: abort instead of next row (SITECR)
 I106	[ "$bs" = "$basec" ] ||	base-unbound,base-always-mismatch	-	both	base binding: dropped (fo) / always (fr)
 I107	current HEAD)"; continue; }	V19-base-mismatch-aborts-rows	-	fr	site (KV19STALEFIRST)
-I108	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	expiry-format-unchecked,expiry-always-bad	eq-expiry-regex-dropped	both	expiry form: unchecked (fo) / always (fr); the regex member alone is equivalent given the round trip (differential proof)
+I108	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	expiry-format-unchecked,expiry-always-bad	eq-expiry-tail-by-roundtrip	both	expiry form: unchecked (fo) / always (fr). Round 9: the year part ({4}, ^) is NOT given by the round trip (GNU date round-trips a five-digit year; the dropped regex is generated member gen-andor-3d5462c23c, killed by YEAR5; round 8 claimed it equivalent, FALSE, review F2); the tail (month and day widths, $) is (differential proof under both dates)
 I109	[ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ]	expiry-roundtrip-dropped	-	fo	round trip dropped (fo)
 I110	is not a real YYYY-MM-DD date"; continue; }	V20-bad-expiry-aborts-rows	-	fr	site (KV20BADEXPFIRST)
 I111	[[ "$e" < "$today" ]] &&	waiver-ignores-expiry,expiry-boundary,expired-always	-	both	expired: ignored (fo) / today expired (fr, TODAY) / always (fr)

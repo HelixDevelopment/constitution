@@ -122,8 +122,8 @@
 # objects runs with GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no
 # replace refs and no legacy grafts; `rev-parse --show-toplevel` and `rev-parse --local-env-vars` read no objects and
 # run without them). Deps: bash 4.3+, git, awk, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
-# needs GNU readlink (`readlink -f`). Without GNU date a waiver is refused (never honoured); without GNU readlink the
-# hook prints SKIP (not guarded).
+# needs GNU readlink (`readlink -f`). Its paired test pins GNU date (9.7) and gets the same verdicts under uutils date
+# 0.8.0 (round 9, CON-146); without GNU readlink the hook prints SKIP (not guarded).
 # Submodule git calls run with every variable from `git rev-parse --local-env-vars` removed except GIT_CONFIG_PARAMETERS
 # and GIT_CONFIG_COUNT (what git itself does for submodules); the superproject reads keep them (needed for `commit -a`'s
 # temporary index and for a linked worktree).

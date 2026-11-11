@@ -15,6 +15,10 @@
 #         job on another date than the real vector is INCONCLUSIVE and re-run, never killed (a `date` skew self-test
 #         proves it), a count or message change counts as `ch`, the dynamic lint has a control needle, and each job's
 #         fixture tree is deleted once its result is written.
+# Round 9 (CON-146, review of round 8 F1-F6): GNU date is pinned first on PATH and the host's other date (uutils) is the
+#         alternative: the real vector and every equivalence claim must hold under both; four false claims are withdrawn
+#         (their members are killed by the new fixtures ZSID, ZSAUTH, YEAR5); the reviewer mutants RV8-01/02 are adopted;
+#         the generator covers tests whose body holds `]` and the `[[ ]]` compares (CMPS).
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -33,6 +37,28 @@ trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
 unset EMAIL
 git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
+# ── round 9 (CON-146, review F3): the date implementation is PINNED. The gate needs `date -d` (GNU coreutils). The suite
+# finds GNU date (`date`, `gnudate` or `gdate`, the first whose --version says "GNU coreutils"), puts it first on PATH as
+# `date` for everything it runs, and prints its version. When the host's default `date` is NOT GNU (uutils on the
+# reference host), that is the ALTERNATIVE date: the real gate's whole vector and every equivalence claim (whole-suite
+# survival and the targeted probe with its control) are run under it as well (review F2), and both must hold.
+gnud=""; for c in date gnudate gdate; do p="$(command -v "$c" 2>/dev/null)" || continue
+  "$p" --version 2>/dev/null | head -1 | grep -q 'GNU coreutils' && { gnud="$p"; break; }; done
+[ -n "$gnud" ] || { echo "META: GNU date not found (date, gnudate, gdate); the gate needs GNU date" >&2; exit 2; }
+hostd="$(command -v date)"; altd=""; mkdir -p "$tmp/dpin/gnu"; ln -s "$gnud" "$tmp/dpin/gnu/date"
+if ! "$hostd" --version 2>/dev/null | head -1 | grep -q 'GNU coreutils'; then altd="$hostd"; mkdir -p "$tmp/dpin/alt"; ln -s "$altd" "$tmp/dpin/alt/date"; fi
+export PATH="$tmp/dpin/gnu:$PATH"; altp="$tmp/dpin/alt:$PATH"
+echo "date (pinned, first on PATH): $gnud: $(date --version | head -1)"
+if [ -n "$altd" ]; then echo "date (alternative, the host default): $altd: $(PATH="$altp" date --version 2>/dev/null | head -1)"
+else echo "date (alternative): none, the host default date is GNU; the alternative-date runs are skipped"; fi
+# needle for the YEAR5 fixture (review F1/F2): the pinned date round-trips a five-digit year (GNU 9.7 does), else the
+# fixture could not see the year member of the expiry regex and its zero would prove nothing
+[ "$(date -d 20269-01-01 +%Y-%m-%d 2>/dev/null)" = 20269-01-01 ] || { echo "META: the pinned date does not round-trip a five-digit year (YEAR5 would be blind)" >&2; exit 2; }
+# the Unicode Zs class (space separators), enumerated from python's unicodedata, NUL-separated (review F4, RV8-01/02)
+mapfile -d '' zsl < <(python3 -I -c 'import sys,unicodedata
+sys.stdout.buffer.write(b"".join(chr(c).encode()+b"\0" for c in range(0x110000) if unicodedata.category(chr(c))=="Zs"))')
+[ "${#zsl[@]}" -ge 17 ] || { echo "META: the Unicode Zs enumeration found ${#zsl[@]} characters (expected 17 or more)" >&2; exit 2; }
+zscat="$(printf '%s' "${zsl[@]}")"; echo "Unicode Zs: ${#zsl[@]} characters enumerated"
 setdates() { # R7-7 (round 8): every date fixture is computed at the start of the classify that uses it (inside its own
   # job), and the job's vector carries the date it started and ended on; a job whose dates differ is INCONCLUSIVE
   d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
@@ -54,6 +80,7 @@ mk() { # sets globals R A B S (no subshell); submodule dir name $SUBN; super pin
   git -C "$d/super" init -q; git -C "$d/super" update-index --add --cacheinfo 160000,"$B","$SUBN"
   git -C "$d/super" commit -q -m base; R="$d/super"
 }
+mknopy() { mkdir -p "$tmp/nopy"; for n in git awk date env cat dirname bash; do ln -sf "$(command -v "$n")" "$tmp/nopy/$n"; done; } # a PATH without python3 (its date is the current PATH's)
 mk2() { mk; cp -a "${R:?}/sub" "$R/sub2"; git -C "$R" update-index --add --cacheinfo 160000,"$B",sub2; git -C "$R" commit -q -m base2; }
 stage() { git -C "$1" update-index --cacheinfo 160000,"$2","${3:-$SUBN}"; }
 waive() { printf '%b' "$2" >"${1:?}/.submodule_pin_waivers"; git -C "$1" add .submodule_pin_waivers; }
@@ -245,7 +272,7 @@ inventory() { # gate path -> vector part
   # named; an empty authoriser names the form reason
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" $'op\001s' "$d10" CON-046)\n"; o+="AUTHCTRL=$(run "$r" "$g") "
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" $'op\377s' "$d10" CON-046)\n"; o+="AUTHUTF8=$(run "$r" "$g")/$(cnt 'python3 rc 4') "
-  mkdir -p "$tmp/nopy"; for n in git awk date env cat dirname bash; do ln -sf "$(command -v "$n")" "$tmp/nopy/$n"; done
+  mknopy
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="NOPY=$(run "$r" "$g" PATH="$tmp/nopy")/$(cnt 'python3 missing') "
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" '' "$d10" CON-046)\n"; o+="EMPTYAUTH=$(run "$r" "$g")/$(cnt 'empty or has surrounding') "
   # tracked item form: 2 digits refused, a suffix refused
@@ -565,7 +592,7 @@ members7() { # gate path -> vector part (round 7: killers for member/site mutant
 members8() { # gate path -> vector part (round 8): the four round-7 reviewer probes, adopted VERBATIM (§11.4.194(6)(d);
   # sha256 in cm_submodule_pin_not_downgraded_probes/SHA256SUMS), each token prefixed S_/D_/F_/G_ so their keys cannot
   # collide; then killers for the fail-open (fo) needs the round-7 dynamic lint found unmet
-  local g="$1" o="" r f d p t k
+  local g="$1" o="" r f d p t k w z
   for p in safedir:S decide_oneway:D rv7_fresh:F graph_missing:G; do
     t="$(TMPDIR="$tmp" bash "$here/cm_submodule_pin_not_downgraded_probes/p_${p%%:*}.sh" "$g" 2>/dev/null)"; t="${t#*: }"
     for k in $t; do o+="${p##*:}_$k "; done
@@ -600,9 +627,28 @@ members8() { # gate path -> vector part (round 8): the four round-7 reviewer pro
   # refuses with "not its own repository" (same exit, other reason). An EMPTY directory does not separate them: git
   # discovers the superproject there, the git-dir member passes and the toplevel member refuses in both gates.
   mk;r=$R; stage "$r" "$A"; rm -rf "${r:?}/sub"; mkdir "$r/sub"; printf 'gitdir: %s\n' "$tmp/no-such-gitdir" >"$r/sub/.git"; o+="SUBBROKEN=$(run "$r" "$g")/$(cnt 'checkout missing')/$(cnt 'not its own repository') "
+  # round 9 (review F4; reviewer mutants RV8-01, RV8-02 adopted below): git keeps a NON-ASCII space in an ident name
+  # (it strips ASCII whitespace only), so the self-waive check must strip the whole Unicode Zs class (python strip()).
+  # ZSID: committer and author name "t" + every Zs character (all 17 in one string), then every Zs character + "t", with
+  # authoriser "t": both refused as self-waive. A strip that misses ANY Zs character (or one side) stops at it, so the
+  # name no longer equals "t" and the row is honoured (0). Needles: the Zs count, and the pad "tx" (not a space) is honoured.
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" t "$d10" CON-046)\n"
+  f="$(run "$r" "$g" GIT_COMMITTER_NAME="t$zscat" GIT_AUTHOR_NAME="t$zscat")/$(cnt 'self-waive'),"
+  f+="$(run "$r" "$g" GIT_COMMITTER_NAME="${zscat}t" GIT_AUTHOR_NAME="${zscat}t")/$(cnt 'self-waive')"
+  o+="ZSID=$f/${#zsl[@]}/$(run "$r" "$g" GIT_COMMITTER_NAME=tx GIT_AUTHOR_NAME=tx) "
+  # ZSAUTH: one waiver row per Zs character and side, authoriser "me" + z and z + "me" (34 rows for the same transition):
+  # every row is refused by the authoriser form check (exit 1, no row honoured); a check that strips only ASCII honours
+  # the first non-ASCII row. Needle: a lone row with authoriser "mex" is honoured.
+  mk;r=$R; stage "$r" "$A"; w=""; for z in "${zsl[@]}"; do w+="$(wf sub "$B" "$A" "me$z" "$d10" CON-046)\n$(wf sub "$B" "$A" "${z}me" "$d10" CON-046)\n"; done
+  waive "$r" "$w"; f="$(run "$r" "$g")/$(cnt ': WAIVED')/$(grep -c '' "$r/.submodule_pin_waivers")"
+  waive "$r" "$(wf sub "$B" "$A" mex "$d10" CON-046)\n"; o+="ZSAUTH=$f/$(run "$r" "$g") "
+  # YEAR5 (review F1/F2): max_waiver_days=365 and expiry "<this year>9-01-01", a five-digit year that sorts after today and
+  # before the horizon and that GNU date round-trips (needle at the top): only the {4} year of the regex refuses it
+  mk;r=$R; conf "$r" 'max_waiver_days=365\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "${today%%-*}9-01-01" CON-046)\n"
+  o+="YEAR5=$(run "$r" "$g")/$(cnt 'not a real YYYY-MM-DD') "
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 "
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -702,6 +748,12 @@ for _ in 1 2; do gotf="$(classify "$gate")"; [ "$(jv "$gotf" "$gotf")" != inconc
 got="$(vec "$gotf")"; echo "gate vector: $got"; echo "gate vector date: $(stamp "$gotf")"
 [ "$(jv "$gotf" "$gotf")" = inconclusive ] && { echo "BAD  the real gate's vector crossed midnight twice"; bad=1; }
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
+if [ -n "$altd" ]; then # round 9 (F2/F3): the real gate's whole vector under the alternative date must equal want too
+  for _ in 1 2; do gotaf="$(PATH="$altp" classify "$gate")"; [ "$(jv "$gotaf" "$gotaf")" != inconclusive ] && break; done
+  gota="$(vec "$gotaf")"; echo "gate vector date under the alternative date: $(stamp "$gotaf")"
+  if [ "$gota" = "$want" ]; then echo "ok   gate vector under the alternative date ($altd) equals want"
+  else echo "BAD  classification under the alternative date ($altd):"; echo "  want [$want]"; echo "  got  [$gota]"; bad=1; fi
+fi
 if [ -z "${GATE_UNDER_TEST:-}" ]; then
   lint static || bad=1
   # control needle for the lint's own zero: an inventory with the 2nd member row of a 3-member line removed (I141b) and
@@ -754,7 +806,10 @@ launch() { # k: classify job k in the background; its kind picks the subject. On
       dateskew) PATH="$o/skew:$PATH"; classify "$gate" ;;
       *) classify "$o/m$k.sh" ;;
     esac >"$tmp.res" 2>/dev/null
-    chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}" ) &
+    chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}"
+    # round 9 (F2): an equivalence claim must hold under the alternative date as well: a second classify, own temp dir
+    case "${mkind[k]:-}" in eq|geneq) if [ -n "$altd" ]; then tmp="$o/j$k.a"; mkdir -p "$tmp"
+        PATH="$o/dpin/alt:$PATH" classify "$o/m$k.sh" >"$o/j$k.alt.res" 2>/dev/null; chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}"; fi ;; esac ) &
   while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
 }
 mutpath() { # name file: a generated member mutant (the whole mutated gate is written by the generator)
@@ -797,7 +852,8 @@ pr_auth() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"
   waive "$r" "$(wf sub "$B" "$A" t "$d10" CON-046)\n"; x+="self:$(run "$r" "$g"),"
   waive "$r" "$(wf sub "$B" "$A" $'o\xffps' "$d10" CON-046)\n"; x+="badutf8:$(run "$r" "$g")/$(cnt 'python3 rc 4')"; echo "$x"; }
 pr_expiry() { local g="$1" x="" e; mk;r=$R; stage "$r" "$A"
-  for e in "$d10" never 9999 "$(date -d '+5 days' +%Y-%-m-%-d)" tomorrow '+5 days' "$(date -d '+5 days' +%Y%m%d)" "$(date -d '+5 days' +%F)T00"; do
+  for e in "$d10" never 9999 "$(date -d '+5 days' +%Y-%-m-%-d)" tomorrow '+5 days' "$(date -d '+5 days' +%Y%m%d)" "$(date -d '+5 days' +%F)T00" \
+      "$(date -d '+5 days' +%Y-0%m-%d)" "$(date -d '+5 days' +%Y-%m-0%d)" "$(date -d '+5 days' +%F)x"; do
     waive "$r" "$(wf sub "$B" "$A" ops "$e" CON-046)\n"; x+="$(run "$r" "$g")/$(cnt 'not a real YYYY-MM-DD'),"; done; echo "$x"; }
 pr_paths() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; x+="down:$(run "$r" "$g"),"
   mk;r=$R; printf 'one\ntwo\n' >"$r/f"; git -C "$r" add f; git -C "$r" commit -q -m f; git -C "$r" mv f "a b c d"; stage "$r" "$A"; x+="ren:$(run "$r" "$g")/$(cnt 'ANCESTOR'),"
@@ -818,6 +874,7 @@ pr_maxdays() { local g="$1" x="" v; for v in 999 1000 365; do mk;r=$R; conf "$r"
     waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; x+="$v:$(run "$r" "$g"),"; done; echo "$x"; }
 pr_identpad() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
   x+="padname:$(run "$r" "$g" GIT_COMMITTER_NAME='  ops ' GIT_AUTHOR_NAME=$' ops\t')/$(cnt 'self-waive\|authoriser'),"
+  x+="zsname:$(run "$r" "$g" GIT_COMMITTER_NAME="${zscat}ops$zscat" GIT_AUTHOR_NAME="ops${zsl[1]}")/$(cnt 'self-waive\|authoriser'),"
   waive "$r" "$(wf sub "$B" "$A" t@t "$d10" CON-046)\n"; x+="padmail:$(run "$r" "$g" GIT_COMMITTER_EMAIL=' t@t ')"; echo "$x"; }
 pr_merge() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; git -C "$r" rev-parse HEAD >"$r/.git/MERGE_HEAD"
   waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n$(wf sub "$B" "$A" ops2 "$d10" CON-047)\n"; x+="merge:$(run "$r" "$g")/$(cnt 'merge is in progress')"; echo "$x"; }
@@ -825,7 +882,7 @@ pr_ident() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "
   git -C "$r" config user.useConfigOnly true
   x+="ident:$(run "$r" "$g" -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL)/$(cnt 'identity unresolvable')"; echo "$x"; }
 pr_nopy() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n$(wf sub "$B" "$A" ops2 "$d10" CON-047)\n"
-  x+="nopy:$(run "$r" "$g" PATH="$tmp/nopy")/$(cnt 'python3 missing')"; echo "$x"; }
+  mknopy; x+="nopy:$(run "$r" "$g" PATH="$tmp/nopy")/$(cnt 'python3 missing')"; echo "$x"; }
 pr_spent() { local g="$1" x="" p; mk;r=$R; p=$(git -C "$r" rev-parse HEAD); git -C "$r" checkout -q -b Y
   wf sub "$B" "$A" ops "$d10" CON-046 "$p" >"$r/.submodule_pin_waivers"; git -C "$r" add -A; git -C "$r" commit -q -m y; git -C "$r" checkout -q main; rm -f "$r/.submodule_pin_waivers"
   stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$p")\n$(wf sub "$B" "$A" ops2 "$d10" CON-047 "$p")\n"; x+="spent:$(run "$r" "$g")/$(cnt 'already spent')"; echo "$x"; }
@@ -1450,6 +1507,14 @@ MEOF
   mutf RV7-05-help-long-dropped <<'MEOF'
 s/^    -h|--help) awk/    -h) awk/
 MEOF
+  # round-8 reviewer mutants RV8-01, RV8-02 (review_con046_r8.md section 3; rv8/mut/RV8-0[12].sh): the seds give the
+  # reviewer's mutated gate byte for byte (checked with cmp against rv8/mut/RV8-0[12].sh when adopted)
+  mutf RV8-01-ident-compare-unstripped <<'MEOF'
+s/i.strip() and f(i.strip())==f(a)/i.strip() and f(i)==f(a)/
+MEOF
+  mutf RV8-02-authoriser-ascii-strip <<'MEOF'
+s/a!=a\.strip() or "<"/a!=a.strip(" \\t\\n") or "<"/
+MEOF
   # ── round 8: generated member mutants (§11.4.274, §11.4.276(C)): cm_submodule_pin_not_downgraded_members.py
   # enumerates every case alternative, regex quantifier / anchor / class part, strip half, test comparison operator,
   # && / || operand, python or / and operand and `if !` of the gate. The committed ledger must equal a fresh listing
@@ -1490,11 +1555,13 @@ s/\^\[1-9\]\[0-9\]{0,2}\$ \]\] \&\& \[ "\$v" -le 365 \]/^[1-9][0-9]{0,3}$ ]] \&\
 --
 s/\^\[1-9\]\[0-9\]{0,2}\$ \]\] \&\& \[ "\$v" -le 365 \]/^[1-9][0-9]{0,2}$ ]]/
 MEOF
-  # strip halves of the self-waive check: git itself strips whitespace from both ident fields (`git var`, measured
-  # 2026-11-11: name '  ops <TAB>' -> 'ops'), so i == i.strip() == i.lstrip() == i.rstrip() for every i the gate reads;
-  # the truthiness of lstrip / rstrip equals that of strip (all three are empty exactly when i is whitespace only)
-  eqp eq-ident-strip-half pr_identpad <<'MEOF'
-s/i.strip() and f(i.strip())==f(a)/i.strip() and f(i.lstrip())==f(a)/
+  # truthiness half of the self-waive check: for every string i, i.lstrip() and i.rstrip() are empty exactly when
+  # i.strip() is (i is whitespace only), so `i.lstrip() and ...` decides as `i.strip() and ...` does. Round 9 (review F1):
+  # the round-8 proof `eq-ident-strip-half` claimed the COMPARISON half (f(i.lstrip())) equivalent too, because "git
+  # strips whitespace from both ident fields"; that holds for ASCII only (git keeps U+00A0 in a name), so it is withdrawn
+  # and the comparison members gen-strip-38f694f31b / gen-strip-a8ce0752e7 are killed members now (fixture ZSID)
+  eqp eq-ident-strip-truthiness pr_identpad <<'MEOF'
+s/any(i.strip() and f(i.strip())==f(a)/any(i.lstrip() and f(i.strip())==f(a)/
 --
 s/    return 10 if any(.*) else 0/    return 0/
 MEOF
@@ -1528,8 +1595,15 @@ s/i.strip() and f(i.strip())==f(a)/f(i.strip())==f(a)/
 --
 s/    return 10 if any(.*) else 0/    return 0/
 MEOF
-  eqp eq-expiry-regex-dropped pr_expiry <<'MEOF'
-s/\[\[ "\$e" =~ \^\[0-9\]{4}-\[0-9\]{2}-\[0-9\]{2}\$ \]\] \&\& //
+  # round 9 (review F2): the round-8 proof `eq-expiry-regex-dropped` (the whole regex dropped) was FALSE under GNU date,
+  # which round-trips a five-digit year (`date -d 20269-01-01 +%Y-%m-%d` prints 20269-01-01; the round-7 note "GNU date
+  # rejects five-digit years" measured uutils). It is withdrawn; the same edit is now the generated member
+  # gen-andor-3d5462c23c (the round-9 generator sees `[[ ... ]]` tests whose body holds `]`), killed by YEAR5, like the
+  # year members gen-rxq-9efb96babf ({4,}) and gen-rxq-07a5aa0cf0 (^ dropped). What stays equivalent is the TAIL of the
+  # regex: `date +%Y-%m-%d` always prints a two-digit month and day and nothing after them, under GNU and uutils alike,
+  # so `= "$e"` refuses every other month or day width and any trailing text whatever the regex says after the year
+  eqp eq-expiry-tail-by-roundtrip pr_expiry <<'MEOF'
+s/\^\[0-9\]{4}-\[0-9\]{2}-\[0-9\]{2}\$ \]\]/^[0-9]{4}-[0-9]+-[0-9]+ ]]/
 --
 /not a real YYYY-MM-DD date/d
 MEOF
@@ -1569,8 +1643,14 @@ s/cannot prove the row is unspent" ;;/cannot prove the row is unspent"; return 1
 s/^           \*) WHY="\$SPENT; cannot prove the row is unspent" ;;/           *) return 0 ;;/
 MEOF
   wait
-  judge() { # k -> J = killed | survived | inconclusive | none (no result)
-    if [ ! -s "$tmp/j$1.res" ]; then J=none; else J="$(jv "$gotf" "$(cat "$tmp/j$1.res")")"; fi; }
+  judge() { # k -> J = killed | survived | inconclusive | none (no result); for an equivalence claim (eq, geneq) both
+    # dates count (round 9, F2): none or inconclusive under either is that, killed under either is killed. JD names both.
+    local J1 J2; if [ ! -s "$tmp/j$1.res" ]; then J1=none; else J1="$(jv "$gotf" "$(cat "$tmp/j$1.res")")"; fi; J="$J1"; JD="$J1"
+    case "${mkind[$1]:-}" in eq|geneq) [ -n "$altd" ] || return 0
+      if [ ! -s "$tmp/j$1.alt.res" ]; then J2=none; else J2="$(jv "$gotaf" "$(cat "$tmp/j$1.alt.res")")"; fi
+      JD="pinned date $J1, alternative date $J2"
+      case "$J1/$J2" in none/*|*/none) J=none ;; inconclusive/*|*/inconclusive) J=inconclusive ;; killed/*|*/killed) J=killed ;; *) J=survived ;; esac ;;
+    esac; }
   # unit check of the judge (R7-7): equal dates and vectors -> survived; another vector -> killed; another day, or a
   # job that crossed midnight -> inconclusive (never killed); a result without a stamp -> inconclusive
   jvu="$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1 DATE=2026-01-01~2026-01-01'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=2 DATE=2026-01-01~2026-01-01'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=2 DATE=2026-01-02~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1 DATE=2026-01-01~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-02' 'A=1 DATE=2026-01-01~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1')"
@@ -1583,7 +1663,8 @@ MEOF
   done
   if [ "${#inc[@]}" -gt 0 ]; then # the date changed: recompute the real vector, re-run only those jobs (once)
     echo "note ${#inc[@]} job(s) INCONCLUSIVE (another date than the real gate's vector); recomputing it and re-running them"
-    gotf="$(classify "$gate")"; got="$(vec "$gotf")"; for k in "${inc[@]}"; do launch "$k"; done; wait
+    gotf="$(classify "$gate")"; got="$(vec "$gotf")"; [ -n "$altd" ] && gotaf="$(PATH="$altp" classify "$gate")"
+    for k in "${inc[@]}"; do launch "$k"; done; wait
   fi
   : >"$tmp/dirs.tsv"; nk=0; ns=0; ne=0; ni=0; gsurv=()
   for ((k=1; k<=n; k++)); do
@@ -1595,29 +1676,32 @@ MEOF
       continue
     fi
     case "$J" in
-      none) echo "BAD  mutant ${mnames[k]} produced no vector"; bad=1 ;;
+      none) echo "BAD  mutant ${mnames[k]} produced no vector ($JD)"; bad=1 ;;
       inconclusive) echo "BAD  mutant ${mnames[k]} still INCONCLUSIVE after a re-run ($(stamp "$(cat "$tmp/j$k.res")") vs $(stamp "$gotf"))"; bad=1; ni=$((ni+1)) ;;
       survived) if [ "${mkind[k]:-}" = geneq ]; then echo "ok   generated member ${mnames[k]} survives: claimed equivalent by proof ${geneqp[k]} (checked below)"; gsurv+=("$k")
                 elif [ "${mkind[k]:-}" = eq ]; then echo "ok   eqproof ${mnames[k]}: whole-suite vector equals the real gate's"
                 else echo "BAD  mutant ${mnames[k]} SURVIVED"; bad=1; ns=$((ns+1)); fi ;;
-      killed) if [ "${mkind[k]:-}" = geneq ]; then echo "BAD  generated member ${mnames[k]} is claimed equivalent (${geneqp[k]}) but the suite kills it"; bad=1
-              elif [ "${mkind[k]:-}" = eq ]; then echo "BAD  eqproof ${mnames[k]}: the suite kills it, so it is NOT equivalent"; bad=1
+      killed) if [ "${mkind[k]:-}" = geneq ]; then echo "BAD  generated member ${mnames[k]} is claimed equivalent (${geneqp[k]}) but the suite kills it ($JD)"; bad=1
+              elif [ "${mkind[k]:-}" = eq ]; then echo "BAD  eqproof ${mnames[k]}: the suite kills it, so it is NOT equivalent ($JD)"; bad=1
               else echo "ok   mutant ${mnames[k]} killed"; nk=$((nk+1)); fi ;;
     esac
-    case "$J" in killed|survived) printf '%s\t%s\n' "${mnames[k]}" "$(vdir "$got" "$(vec "$(cat "$tmp/j$k.res")")")" >>"$tmp/dirs.tsv" ;; esac
+    case "$J" in killed|survived) printf '%s\t%s\n' "${mnames[k]}" "$(vdir "$got" "$(vec "$(cat "$tmp/j$k.res")")")" >>"$tmp/dirs.tsv" ;; esac # directions: pinned date
   done
   # differential proof of every equivalence claim (targeted probe on real / equivalent / control gates); the three
-  # probe runs are repeated once if the date changed between them (R7-7)
+  # probe runs are repeated once if the date changed between them (R7-7). Round 9 (F2): the probe triple runs under the
+  # pinned date AND the alternative date, and the claim holds only when it holds under both (and the job survived both)
   : >"$tmp/eqok"
   for ((q=1; q<=eqn; q++)); do
     [ -n "${mnames[${eqk[q]}]:-}" ] || continue
     for _ in 1 2; do t0="$(date +%F)"; setdates
       pa="$("${eqprobe[q]}" "$gate")"; pb="$("${eqprobe[q]}" "${eqfile[q]}")"; pc="$("${eqprobe[q]}" "${eqctl[q]}")"
+      if [ -n "$altd" ]; then qa="$(PATH="$altp" "${eqprobe[q]}" "$gate")"; qb="$(PATH="$altp" "${eqprobe[q]}" "${eqfile[q]}")"; qc="$(PATH="$altp" "${eqprobe[q]}" "${eqctl[q]}")"
+      else qa=x; qb=x; qc=y; fi
       [ "$(date +%F)" = "$t0" ] && break; done
     judge "${eqk[q]}"
-    if [ "$(date +%F)" = "$t0" ] && [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ "$J" = survived ]; then
-      echo "ok   eqproof ${eqnames[q]}: probe real=eq [$pa]; control differs [$pc]"; echo "${eqnames[q]}" >>"$tmp/eqok"; ne=$((ne+1))
-    else echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc] (job $J)"; bad=1; fi
+    if [ "$(date +%F)" = "$t0" ] && [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ -n "$qa" ] && [ "$qa" = "$qb" ] && [ "$qa" != "$qc" ] && [ "$J" = survived ]; then
+      echo "ok   eqproof ${eqnames[q]}: probe real=eq [$pa]; control differs [$pc]; alternative date: real=eq [$qa], control differs [$qc] ($JD)"; echo "${eqnames[q]}" >>"$tmp/eqok"; ne=$((ne+1))
+    else echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc]; alternative date real [$qa] eq [$qb] control [$qc] ($JD)"; bad=1; fi
   done
   for k in "${gsurv[@]}"; do # a generated member claimed equivalent counts only when its proof passed
     if grep -qx -- "${geneqp[k]}" "$tmp/eqok"; then ne=$((ne+1)); else echo "BAD  generated member ${mnames[k]}: its proof ${geneqp[k]} did not pass"; bad=1; fi

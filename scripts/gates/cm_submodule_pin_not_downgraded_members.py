@@ -11,7 +11,10 @@ What it enumerates (one single-line edit per mutant; the closed operator set, no
   RXQ      every member of a bash `=~` regex: each quantifier ({m,n} {m,} {m} + ) loosened and tightened, each anchor
            (^ $) dropped, each part of a bracket class with two or more parts dropped, [1-9] widened to [0-9]
   STRIP    every python `.strip()`: replaced by `.lstrip()` and by `.rstrip()`
-  CMP      every operator of a single-bracket test `[ x OP y ]`: = <-> !=, -ge -gt -le -lt to their neighbours, -z <-> -n
+  CMP      every operator of a single-bracket test `[ x OP y ]` (the body may contain `]`, e.g. `${a[@]}`; it ends at
+           the first ` ]`): = <-> !=, -ge -gt -le -lt to their neighbours, -z <-> -n
+  CMPS     every operator of a `[[ x OP y ]]` test that is not a regex match (round 9, review F5): < <-> >, = and ==
+           -> !=, != -> =, the numeric operators and -z / -n as for CMP
   ANDOR    every operand of a shell `&&` / `||` chain that is a test: dropped (forced true before `&&`, forced false before `||`)
   PYBOOL   every operand of a python ` or ` / ` and ` chain in the authoriser check: dropped
   NEG      every `if ! ` / `elif ! `: the `!` dropped
@@ -69,7 +72,12 @@ def top_level_ops(x):
         i += 1
     return res
 
-TEST = re.compile(r'(!\s+)?\[\[? [^\]]*? \]\]?')
+# a test is `[[ body ]]` (body up to the first ` ]]`) or `[ body ]` (body up to the first ` ]`, not followed by `]`);
+# round 9 (review F5): the body may contain `]` (`${a[@]}`, `${dstat[0]}`), which the round-8 `[^\]]` excluded
+TEST = re.compile(r'(!\s+)?(?:\[\[ (?:(?! \]\]).)+? \]\]|(?<!\[)\[ (?:(?! \]).)+? \](?!\]))')
+SB = re.compile(r'(?<!\[)\[ ((?:(?! \]).)+?) \](?!\])')
+DB = re.compile(r'\[\[ ((?:(?! \]\]).)+?) \]\]')
+OPMAP = {'=': ['!='], '!=': ['='], '-ge': ['-gt'], '-gt': ['-ge'], '-le': ['-lt'], '-lt': ['-le']}
 
 def gen_line(i, x, py):
     muts = []  # (kind, before, after)
@@ -112,15 +120,21 @@ def gen_line(i, x, py):
                         rsub(q.start(), q.end(), '[' + ''.join(parts[:k] + parts[k + 1:]) + ']')
                 if q.group(1) == '1-9': rsub(q.start(), q.end(), '[0-9]')
         # CMP in single-bracket tests
-        for m in re.finditer(r'(?<!\[)\[ ([^\]]*?) \](?!\])', x):
-            body = m.group(1); bs = m.start(1)
-            for q in re.finditer(r' (=|!=|-ge|-gt|-le|-lt) ', ' ' + body + ' '):
-                op = q.group(1); a = bs + q.start(1) - 1; b = a + len(op)
-                for rep in {'=': ['!='], '!=': ['='], '-ge': ['-gt'], '-gt': ['-ge'], '-le': ['-lt'], '-lt': ['-le']}[op]:
-                    sub('CMP', a, b, rep)
-            for q in re.finditer(r'(^|\s)(-z|-n) ', body):
-                a = bs + q.start(2)
-                sub('CMP', a, a + 2, '-n' if q.group(2) == '-z' else '-z')
+        for kind, rx, opre, opmap in (
+                ('CMP', SB, r' (=|!=|-ge|-gt|-le|-lt) ', OPMAP),
+                ('CMPS', DB, r' (==|=|!=|<|>|-ge|-gt|-le|-lt) ',
+                 dict(OPMAP, **{'==': ['!='], '=': ['!='], '<': ['>'], '>': ['<']}))):
+            for m in rx.finditer(x):
+                body = m.group(1); bs = m.start(1)
+                if kind == 'CMPS' and ' =~ ' in ' ' + body + ' ':
+                    continue  # a regex match: RXQ owns it
+                for q in re.finditer(opre, ' ' + body + ' '):
+                    op = q.group(1); a = bs + q.start(1) - 1; b = a + len(op)
+                    for rep in opmap[op]:
+                        sub(kind, a, b, rep)
+                for q in re.finditer(r'(^|\s)(-z|-n) ', body):
+                    a = bs + q.start(2)
+                    sub(kind, a, a + 2, '-n' if q.group(2) == '-z' else '-z')
         # ANDOR
         ops = top_level_ops(x)
         for (o, kind, depth) in ops:
