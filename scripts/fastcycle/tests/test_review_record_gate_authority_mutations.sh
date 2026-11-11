@@ -178,6 +178,8 @@ RF-chain-abs-target-from-cur	'            if target.startswith("/"):\n          
 RV5-A-sticky-root-entry	'child_st.st_uid in (owner_uid, 0)'	'child_st.st_uid == owner_uid'
 RV5-C-acl-error-fail-open	'return exc.errno not in (errno.ENOTSUP, errno.EOPNOTSUPP)'	'return False'
 RV5-D-nsswitch-any-to-all	'any(src != "files" for src in fields[1:])'	'all(src != "files" for src in fields[1:])'
+RV6-B-subid-default-drops-subgid	'_SUBID_FILES = ("/etc/subuid", "/etc/subgid")'	'_SUBID_FILES = ("/etc/subuid",)'
+RV6-E-gate-store-tier-ledger-is-records	'_store_tier(a.records, a.dispatch_ledger, a.producer_uid, a.evidence_owner_uid)'	'_store_tier(a.records, a.records, a.producer_uid, a.evidence_owner_uid)'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss

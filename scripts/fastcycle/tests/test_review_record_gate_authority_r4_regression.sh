@@ -429,7 +429,7 @@ else:
         print("")
 PY
 )
-CAP_LEGS="R4-CAP-needle R4-CAP1 R4-CAP2 R4-CAP3 R4-CAP4 R4-CAP5 R4-CAP6 R4-CAP7"
+CAP_LEGS="R4-CAP-needle R4-CAP1 R4-CAP2 R4-CAP3 R4-CAP4 R4-CAP5 R4-CAP6 R4-CAP7 R4-CAP8"
 if [ "$ME" -eq 0 ]; then
   skip "$CAP_LEGS" "running as root (root is excluded from the tier on purpose)"
 elif ! podman_ok; then
@@ -523,6 +523,43 @@ PY
     if ( : > "$REC/zz_backfill.json" ) 2>/dev/null; then
       bad "R4-CAP7: the producer could create a file inside the owner-only store"
     else ok "R4-CAP7: in a capability-shaped store the producer cannot add a backfill row at all (permission denied) -- and any file it could add would be outside the owner allowlist"; fi
+    # R4-CAP8 (CON-033 round 7, review R6-F1 / mutant RV6-E): the REAL gate command (cmd_gate, driven
+    # in-process so the host's real subordinate ranges and passwd lookup can be satisfied by injection,
+    # exactly like R4-CAP3) on the capability-shaped store, at EVERY high-blast seam. The ledger is
+    # what authenticates the reviewer dispatch, so a ledger the producer can forge must never stand
+    # beside a "capability" verdict: control = the ledger owned by the evidence owner (COVERED with
+    # capability); attack = the same ledger handed back to the invoking uid (refused, ledger named).
+    cap8() { # cap8 SEAM -> "RC|independence-word|ledger-named"
+      python3 - "$RR_TOOL" "$REC" "$RR_LEDGER" "$SUBUID" "$1" <<'PY'
+import argparse, contextlib, importlib.util, io, sys
+spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
+rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
+rr._subid_ranges = lambda: ([], None)
+rr.pwd.getpwuid = lambda u: object()
+ns = argparse.Namespace(change="c-cap", round_budget=None, records=sys.argv[2], dispatch_ledger=sys.argv[3],
+                        producer_uid=65534, evidence_owner_uid=int(sys.argv[4]), seam=sys.argv[5])
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+    rc = rr.cmd_gate(ns)
+out = buf.getvalue()
+word = "capability" if "independence=capability" in out else ("instance" if "achieved instance" in out else "?")
+print("%d|%s|%s" % (rc, word, sys.argv[3] in out))
+PY
+    }
+    CAP8_OK=1; CAP8_DET=""
+    for SEAM in release-tag qa-deploy manual-qa-handoff; do
+      C8=$(cap8 "$SEAM"); CAP8_DET="$CAP8_DET [$SEAM control $C8"
+      [ "$C8" = "0|capability|False" ] || CAP8_OK=0
+    done
+    podman unshare chown 0:0 "$RR_LEDGER"
+    for SEAM in release-tag qa-deploy manual-qa-handoff; do
+      C8=$(cap8 "$SEAM"); CAP8_DET="$CAP8_DET | attack $C8]"
+      [ "$C8" = "1|instance|True" ] || CAP8_OK=0
+    done
+    podman unshare chown 1:1 "$RR_LEDGER"
+    if [ "$CAP8_OK" -eq 1 ]; then
+      ok "R4-CAP8: through the real gate at release-tag, qa-deploy and manual-qa-handoff the capability-shaped store is COVERED when the dispatch ledger is owner-owned, and REFUSED (instance, ledger named) when the ledger is not -- the ledger is part of the gate's store tier"
+    else bad "R4-CAP8: $CAP8_DET"; fi
   else
     bad "R4-CAP-needle: podman unshare chown did not produce a subordinate-owned tree (uid $(stat -c %u "$REC/r1.json"), want $SUBUID)"
   fi

@@ -26,6 +26,13 @@ Mutation kinds (each yields one mutant per site):
   exc     one element dropped from an `except (A, B)` tuple; a single `except E` -> `except KeyError`
   loop    `continue` / `break` -> `pass`
   bits    a `a | b` of two operands reduced to a, and to b
+  arg-none / arg-sibling   (CALL SITES, CON-033 round 7, review R6-F1) for EVERY call of a tier function
+          anywhere in the module -- the gate's own `_store_tier(a.records, a.dispatch_ledger, ...)`
+          included, which lies outside TARGETS -- each argument replaced by None, and by each OTHER
+          argument of the same call. Reviewer mutant RV6-E (the ledger argument replaced by the
+          records argument) is exactly an arg-sibling mutant. A census of the call sites is printed
+          first and checked with a control needle (a known site must be present, a fabricated callee
+          must not): an empty or blind census exits 2, never "no call sites, nothing to mutate".
 
 Two stages: stage 1 runs the fast tier suites; a mutant surviving stage 1 goes to stage 2 (every
 review_record suite). The control must be GREEN. KILLED = a suite's exit status differs from its
@@ -230,10 +237,69 @@ class Gen(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+CALLEES = frozenset(TARGETS)
+# call sites the census MUST find (positive needles): the gate's store-tier call and one internal chain
+NEEDLE_SITES = (("cmd_gate", "_store_tier"), ("_store_tier", "_path_tier"), ("_path_tier", "_owner_only_error"),
+                ("_path_tier", "_owner_declaration_error"), ("_owner_only_error", "_has_acl"),
+                ("_path_tier", "_resolution_chain"), ("_path_tier", "_subid_ranges"))
+NEGATIVE_NEEDLE = "_no_such_tier_function_xyz"
+
+
+class CallGen(ast.NodeVisitor):
+    """Argument mutants for every call of a tier function (anywhere in the module)."""
+    def __init__(self, src):
+        self.b = src.encode("utf-8")
+        self.starts = offsets(src)
+        self.stack = []
+        self.sites = []     # (enclosing, callee, line, nargs)
+        self.out = []
+
+    def pos(self, node):
+        return (self.starts[node.lineno - 1] + node.col_offset,
+                self.starts[node.end_lineno - 1] + node.end_col_offset)
+
+    def visit_FunctionDef(self, node):
+        self.stack.append(node.name)
+        self.generic_visit(node)
+        self.stack.pop()
+
+    def visit_Call(self, node):
+        name = node.func.id if isinstance(node.func, ast.Name) else None
+        if name in CALLEES and self.stack:
+            fn = self.stack[-1]
+            args = list(node.args) + [k.value for k in node.keywords]
+            self.sites.append((fn, name, node.lineno, len(args)))
+            texts = [self.b[self.pos(x)[0]:self.pos(x)[1]].decode("utf-8") for x in args]
+            for i, x in enumerate(args):
+                a, e = self.pos(x)
+                if texts[i] != "None":
+                    self.out.append(("arg-none", "%s>%s#%d" % (fn, name, i), a, e, "None"))
+                for j, t in enumerate(texts):
+                    if j != i and t != texts[i]:
+                        self.out.append(("arg-sibling", "%s>%s#%d" % (fn, name, i), a, e, t))
+        self.generic_visit(node)
+
+
+def census(src):
+    """Call-site census with control needles. Returns (sites, error-or-None)."""
+    g = CallGen(src)
+    g.visit(ast.parse(src))
+    have = {(fn, callee) for fn, callee, _l, _n in g.sites}
+    missing = [n for n in NEEDLE_SITES if n not in have]
+    if missing:
+        return g.sites, "census is BLIND: known call site(s) not found: %r" % (missing,)
+    if any(callee == NEGATIVE_NEEDLE for _fn, callee, _l, _n in g.sites):
+        return g.sites, "census is too broad: a fabricated callee was 'found'"
+    return g.sites, None
+
+
 def enumerate_mutants(src):
     tree = ast.parse(src)
     g = Gen(src)
     g.visit(tree)
+    cgen = CallGen(src)
+    cgen.visit(tree)
+    g.out.extend(cgen.out)
     b = src.encode("utf-8")
     seen = {}
     ordinal = {}
@@ -301,9 +367,16 @@ def main():
     ap.add_argument("--tool", default=TOOL)
     a = ap.parse_args()
     src = open(a.tool, encoding="utf-8").read()
+    sites, cerr = census(src)
+    print("# call-site census: %d call(s) of %d tier functions; %s" % (
+        len(sites), len(CALLEES), "control needles ok (positive sites found, fabricated callee absent)" if not cerr else cerr),
+        file=sys.stderr)
+    if cerr:
+        print("NOT ok %s" % cerr)
+        return 2
     muts = enumerate_mutants(src)
     if a.only:
-        muts = [m for m in muts if m["kind"] == a.only]
+        muts = [m for m in muts if m["kind"] == a.only or m["kind"].startswith(a.only + "-")]
     if a.keys:
         want = set()
         for raw in open(a.keys, encoding="utf-8"):

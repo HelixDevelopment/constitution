@@ -78,10 +78,14 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 REAL_TOOL="$FC/cycle/select_sample.py"
 TOOL="${SELECT_SAMPLE_UNDER_TEST:-$REAL_TOOL}"
-# This suite targets a CONSUMER layout (canon at <consumer>/constitution/). Canon checked out
-# on its own has no such tool path: an honest SKIP (section 11.4.3), never a FAIL (review R5-F3).
-if [ -z "${SELECT_SAMPLE_UNDER_TEST:-}" ] && [ ! -f "$REAL_TOOL" ]; then
-  echo "SKIP: $REAL_TOOL absent (test targets a consumer layout with canon at constitution/, not canon alone) reason=topology_unsupported"
+# This suite targets a CONSUMER layout (canon at <consumer>/constitution/ and the consumer's tracker DB
+# at <consumer>/docs/workable_items.db). Canon checked out on its own -- including a checkout that is
+# itself NAMED `constitution`, whose parent then holds the tool but no DB (CON-033 review R6-F3) -- is an
+# honest SKIP (section 11.4.3), never a FAIL (review R5-F3). The condition tests the DB the suite reads,
+# not just the tool.
+DB="$ROOT/docs/workable_items.db"
+if [ -z "${SELECT_SAMPLE_UNDER_TEST:-}" ] && { [ ! -f "$REAL_TOOL" ] || [ ! -f "$DB" ]; }; then
+  echo "SKIP: $REAL_TOOL or the consumer tracker DB $DB absent (test targets a consumer layout with canon at constitution/, not canon alone) reason=topology_unsupported"
   exit 77
 fi
 # ASOF_BUILDER_UNDER_TEST: a drifted copy of the builder (the round-4 builder-drift
@@ -1146,7 +1150,8 @@ if [ "${FC_R5_MUTANT:-0}" != 1 ]; then
   run_mutant() {  # name, file relative to $FC, python-literal old, python-literal new
     local name="$1" rel="$2" root="$TMP/mut_$1" tree
     tree="$(mk_mutant_tree "$root")"
-    if ! python3 - "$tree/$rel" "$3" "$4" <<'PY'
+    local why
+    if ! why=$(python3 - "$tree/$rel" "$3" "$4" 2>&1 <<'PY'
 import sys
 path, old, new = sys.argv[1:4]
 text = open(path, encoding="utf-8").read()
@@ -1154,8 +1159,9 @@ if text.count(old) != 1:
     raise SystemExit("mutation anchor found %d times (need exactly 1): %r" % (text.count(old), old))
 open(path, "w", encoding="utf-8").write(text.replace(old, new))
 PY
+)
     then
-      bad "mutation $name could not be applied (anchor drifted)"
+      bad "mutation $name could not be applied (anchor drifted): $why"
       return
     fi
     if SELECT_SAMPLE_UNDER_TEST="$tree/cycle/select_sample.py" FC_R5_MUTANT=1 bash "$0" >"$TMP/mut_$name.out" 2>&1; then
@@ -1230,8 +1236,11 @@ def window_for"
             reason = RETROACTIVE_REASON
         elif atm_id in bulk_flagged:'
   run_mutant R4_bulk_key_day "$SS" 'ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))' 'ekey = (os.path.dirname(closure["evidence_path"]), (closure.get("on_date") or "")[:10])'
-  run_mutant R4_retro_gap_le60 "$SS" 'return 0 <= gap < 60' 'return 0 <= gap <= 60'
-  run_mutant R4_retro_gap_gt0 "$SS" 'return 0 <= gap < 60' 'return 0 < gap < 60'
+  # Re-anchored (CON-033 round 7, review R6-F2) on main's current line 'return "retroactive" if 0 <= gap < 60
+  # else "normal"' (ee581e37); the anchor is the unique 'if 0 <= gap < 60 else' so the next rewording of
+  # the return statement does not silently disarm the boundary mutants again.
+  run_mutant R4_retro_gap_le60 "$SS" 'if 0 <= gap < 60 else' 'if 0 <= gap <= 60 else'
+  run_mutant R4_retro_gap_gt0 "$SS" 'if 0 <= gap < 60 else' 'if 0 < gap < 60 else'
   run_mutant R4_needle_tiebreak_asc "$SS" 'id DESC LIMIT 1' 'id ASC LIMIT 1'
   run_mutant R4_ss_blind_exit1 "$SS" '        sys.exit(4)
     raise' '        sys.exit(1)

@@ -144,6 +144,52 @@ rec("G-T-PRODUCER-DECLARED producer uid 1 is a declared non-root producer",
     rr._path_tier([], 1, 2000, 1000, [], getpw_ok), ("capability", None))
 rec("G-T-PRODUCER-DECLARED producer uid 0 is refused",
     rr._path_tier([], 0, 2000, 1000, [], getpw_ok)[0], "instance")
+
+# --- R6-F1 (round 7): the gate's call site binds the store tier to the RIGHT arguments ------
+# Reviewer mutant RV6-E passed --records where --dispatch-ledger belongs: a producer-owned ledger
+# then stood beside a "capability" verdict. The real cmd_gate is driven (no tier logic stubbed
+# out of it except the tier function, replaced by a spy that records its arguments) at EVERY
+# high-blast seam and at the ordinary one. Unit class (11.4.289(C)(1)): the spy is the unit
+# under observation's collaborator; the real-process leg is R4-CAP8 in the r4 suite.
+import argparse, contextlib, io
+def run_gate(seam, rec, led, producer=1234, owner=5678):
+    calls = []
+    orig = rr._store_tier
+    def spy(records_dir, ledger_path, producer_uid, owner_uid, *more, **kw):
+        calls.append((records_dir, ledger_path, producer_uid, owner_uid, more, kw)); return ("capability", None)
+    rr._store_tier = spy
+    ns = argparse.Namespace(change="c1", round_budget=None, records=rec, dispatch_ledger=led,
+                            producer_uid=producer, evidence_owner_uid=owner, seam=seam)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            rc = rr.cmd_gate(ns)
+    finally:
+        rr._store_tier = orig
+    return calls, rc
+grec = os.path.join(W, "gate_records"); os.mkdir(grec)
+gled = os.path.join(W, "gate_ledger.jsonl"); open(gled, "w").write("")
+for seam in ("ordinary",) + tuple(rr.HIGH_BLAST_SEAMS):
+    calls, rc = run_gate(seam, grec, gled)
+    rec("G-G-TIER-CALL gate(%s) calls _store_tier exactly once" % seam, len(calls), 1)
+    rec("G-G-TIER-CALL gate(%s) passes (records, dispatch_ledger, producer_uid, evidence_owner_uid) in that order" % seam,
+        calls[0][:4] if calls else None, (grec, gled, 1234, 5678))
+rec("G-G-TIER-CALL the records directory and the dispatch ledger are different paths (the check can tell them apart)", grec != gled, True)
+
+# --- R6-F4 (round 7): the DEFAULT sub-id file list is exercised, subgid included ----------
+import builtins
+fake = {"/etc/nsswitch.conf": "subid: files\n", "/etc/subuid": "u:100000:65536\n", "/etc/subgid": "g:300000:65536\n"}
+real_open = builtins.open
+def fake_open(p, *a, **k):
+    if p in fake:
+        return io.StringIO(fake[p])
+    return real_open(p, *a, **k)
+builtins.open = fake_open
+try:
+    got = rr._subid_ranges()
+finally:
+    builtins.open = real_open
+rec("G-SUB-DEFAULT-FILES the default call reads /etc/subuid AND /etc/subgid", got, ([(100000, 65536), (300000, 65536)], None))
+rec("G-SUB-DEFAULT-FILES the default list is exactly the two files", tuple(rr._SUBID_FILES), ("/etc/subuid", "/etc/subgid"))
 for line in res: print(line)
 PY
 )
