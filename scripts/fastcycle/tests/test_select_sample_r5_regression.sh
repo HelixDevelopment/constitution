@@ -78,6 +78,12 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 REAL_TOOL="$FC/cycle/select_sample.py"
 TOOL="${SELECT_SAMPLE_UNDER_TEST:-$REAL_TOOL}"
+# This suite targets a CONSUMER layout (canon at <consumer>/constitution/). Canon checked out
+# on its own has no such tool path: an honest SKIP (section 11.4.3), never a FAIL (review R5-F3).
+if [ -z "${SELECT_SAMPLE_UNDER_TEST:-}" ] && [ ! -f "$REAL_TOOL" ]; then
+  echo "SKIP: $REAL_TOOL absent (test targets a consumer layout with canon at constitution/, not canon alone) reason=topology_unsupported"
+  exit 77
+fi
 # ASOF_BUILDER_UNDER_TEST: a drifted copy of the builder (the round-4 builder-drift
 # paired mutations, V4-2) -- the placement self-check must catch it.
 # The reopen_rate.py copy BESIDE the tool under test: a paired mutation of

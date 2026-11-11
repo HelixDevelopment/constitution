@@ -421,6 +421,23 @@ if covered c-qm2; then ok "G-Q-MULTI-SLICE#1: slice_lines \"UNKNOWN\" (len 7, no
 else bad "G-Q-MULTI-SLICE#1 (evidence slices): rc=$G_RC out=$G_OUT"; fi
 
 # --- tier internals, in-process on REAL files (unit level, 11.4.27(A)) ------------
+# Precondition (review R5-N2): the capability-tier controls below need a store whose whole path chain
+# is owner-only. When an ancestor of TMPDIR is group/other-writable the tier is honestly "instance"
+# there, so those controls cannot hold: SKIP them with the cause, never FAIL.
+CHAIN_OK=$(python3 - "$S" <<'PY'
+import os, stat, sys
+# independent of the tool under test: every directory above the probe is owned by me or root
+# and carries no group/other write bit, unless it is sticky (the /tmp case)
+me = os.geteuid(); p = os.path.realpath(sys.argv[1]); ok = 1
+while True:
+    st = os.stat(p)
+    if st.st_uid not in (me, 0) or (st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) and not st.st_mode & stat.S_ISVTX):
+        ok = 0
+    if p == "/": break
+    p = os.path.dirname(p)
+print(ok)
+PY
+)
 TIER=$(cd "$S" && timeout 20 python3 - "$RR_TOOL" "$S" "$ME" <<'PY'
 import importlib.util, os, stat, sys
 spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
@@ -485,6 +502,7 @@ PY
 )
 row() { printf '%s\n' "$TIER" | grep "^$1=" | cut -d= -f2-; }
 if [ "$ME" -eq 0 ]; then skip tier-internals "running as root"
+elif [ "$CHAIN_OK" != 1 ]; then skip tier-internals "the TMPDIR chain is not owner-only (an ancestor is group/other-writable); tier is instance there"
 else
   expect G-T-RUNNER-NOT-ROOT#1 "$(row runner)" "('capability', 'instance')" "a root runner is instance; the same evidence with a non-root runner is capability (control)"
   expect G-T-PRODUCER-DECLARED#2/#3 "$(row prod)" "('instance', 'instance')" "a bool (True) or string ('65534') producer uid is not declared (never uid 1, never a TypeError)"
@@ -642,6 +660,7 @@ print(a, b)
 PY
 )
 if [ "$ME" -eq 0 ]; then skip "G-T-DOTDOT#1" "running as root"
+elif [ "$CHAIN_OK" != 1 ]; then skip "G-T-DOTDOT#1" "the TMPDIR chain is not owner-only (an ancestor is group/other-writable)"
 else expect G-T-DOTDOT#1 "$DD" "capability instance" \
   "a link through fw/../tgt with fw mode 777 is capability (control: a file looked up INSIDE the 777 directory is instance)"; fi
 

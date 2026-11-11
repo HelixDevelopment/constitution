@@ -74,6 +74,9 @@ for base in "${TMPDIR:-}" /tmp; do
   S=$(mktemp -d "$base/rr_store_tier.XXXXXX") && break
 done
 [ -n "$S" ] || { echo "setup: no writable temp base" >&2; exit 2; }
+# The tier reason names RESOLVED paths: use the canonical spelling of the base so a
+# TMPDIR with "." / ".." components or a symlink does not change the expected names.
+S=$(readlink -f -- "$S") || { echo "setup: cannot resolve $S" >&2; exit 2; }
 trap 'chmod -R u+rwx "${S:?}" 2>/dev/null; rm -rf -- "${S:?}"' EXIT
 chmod 0755 "$S"
 REC="$S/records"; mkdir -m 0755 "$REC"
@@ -110,7 +113,27 @@ out=$(tier); t=${out%%$'\t'*}; why=${out#*$'\t'}
 if [ "$t" = capability ]; then
   ok "N: an owner-only store (records, an archive, a sub-directory, a plain file) is capability"
 else
-  bad "N: the owner-only store is '$t' ($why) -- the chain above $S is not owner-only on this host, so the cases below prove nothing"
+  CHAIN_OK=$(python3 - "$S" <<'PY'
+import os, stat, sys
+# independent of the tool under test: every directory above the probe is owned by me or root
+# and carries no group/other write bit, unless it is sticky (the /tmp case)
+me = os.geteuid(); p = os.path.realpath(sys.argv[1]); ok = 1
+while True:
+    st = os.stat(p)
+    if st.st_uid not in (me, 0) or (st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) and not st.st_mode & stat.S_ISVTX):
+        ok = 0
+    if p == "/": break
+    p = os.path.dirname(p)
+print(ok)
+PY
+)
+  if [ "$CHAIN_OK" != 1 ]; then
+    # an ancestor of TMPDIR is group/other-writable (checked independently of the tool): the
+    # tier is honestly instance there and the capability controls cannot hold (review R5-N2)
+    echo "SKIP: the chain above $S is not owner-only on this host (an ancestor is group/other-writable); the capability controls cannot hold -- use TMPDIR under an owner-only chain reason=topology_unsupported"
+    exit 77
+  fi
+  bad "N: the owner-only store is '$t' ($why) although the chain above $S is owner-only -- the tier is wrong, so the cases below prove nothing"
 fi
 
 case_mode() { # case_mode ID PATH MODE WANT_NAME DESCRIPTION
