@@ -169,10 +169,13 @@ read_nproc_soft() {
   _lim_file=${FC_GUARD_PROC_LIMITS-/proc/self/limits}
   _v=""
   if [ -r "$_lim_file" ]; then
-    # CON-147 round 5 (review round 4, F8): only a line with all four fields
-    # (name, soft, hard, units) counts, exactly as host_report.py's
+    # CON-147 round 5 (review round 4, F8): only a line with at least four
+    # words counts -- the name is two words ("Max processes"), then soft and
+    # hard; the units word is not required -- exactly as host_report.py's
     # _read_nproc_soft reads it; a shorter line is skipped and a later full line
-    # is used, else the fallback below.
+    # is used, else the fallback below. Round 6 (review fsfix5 M2/H1): the
+    # four-word line 'Max processes 5 6' is read (soft 5), pinned by
+    # test_host_guard_red.sh.
     _v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)
   fi
   if [ -z "$_v" ]; then
