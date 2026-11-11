@@ -896,6 +896,7 @@ tests/test_run_full_suite.sh	sh	entry	default	bash	-	auto
 tests/test_run_full_suite_go.sh	sh	entry	default	bash	-	auto
 tests/test_run_full_suite_go_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_run_full_suite_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/test_run_full_suite_mutations_table.sh	sh	entry	heavy	bash	-	auto
 tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto
 tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bash	-	auto

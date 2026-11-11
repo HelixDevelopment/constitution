@@ -22,6 +22,8 @@
 # tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# A MUTANTS table whose ids are not unique is refused with exit 2 before anything runs (CON-236;
+# guarded by tests/test_run_full_suite_mutations_table.sh).
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
 #   M5 M8 M9b M23 M36 (their anchors no longer exist; V1-V11 take their place).
 # Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
@@ -147,6 +149,10 @@ F47d	        if r is None:\n            stale += 1	        if r is None:\n      
 F47e	        elif r[1] != "Issues":	        elif r[1] == "Fixed":
 EOF
 )
+
+# CON-236: every mutant id occurs once; a repeated id is refused before the baseline or any mutant runs.
+dup_ids=$(printf '%s\n' "$MUTANTS" | cut -f1 | grep -v '^$' | sort | uniq -d | tr '\n' ' ' | sed 's/ $//')
+if [ -n "$dup_ids" ]; then echo "FAIL mutant table: duplicate mutant id(s): $dup_ids (each id must occur once; nothing was run)"; exit 2; fi
 
 prep() { # $1 dir: fresh copy of the runner
   mkdir -p "$1/scripts/full_suite" "$1/scripts/lib"
