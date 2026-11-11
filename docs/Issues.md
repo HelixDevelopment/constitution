@@ -1012,8 +1012,11 @@ Each review re-run on Opus-xhigh with captured evidence, or the Opus-unavailabil
 
 Operator auto-commit 724d818 regressed submodules/containers from 5ea870a to 22b4970 (an ancestor); restored in 84084a2. Investigate the cause first (§11.4.102), then make the auto-commit tooling not downgrade submodule pins (§11.4.288(D)).
 
+**Review history (vehicle/con046, defensive hardening per §11.4.115(G); the item stays OPEN and UNREPRODUCED for the real tool, §11.4.292(D)):**
+The vehicle ships the pre-commit gate scripts/gates/cm_submodule_pin_not_downgraded.sh, its paired mutation test and the hook scripts/hooks/pre-commit-submodule-pin-not-downgraded (not installed). Review round 5 (docs/qa/con046_review/review_con046_r5.md) returned NO-GO at R_max = 5 with one blocking finding, R5-1 (six reviewer mutants NM1-NM5 and NM9 survived the suite). Operator decision, recorded 2026-11-05 (AskUserQuestion, §11.4.66, §11.4.276(E)(3) and (G)): extend the review budget for CON-046 by ONE round, R_max = 6 for this item only. Round 6 adopts the reviewer's killers and mutants, adds a class inventory with one fixture and one mutant per guard, fixes R5-3 with plumbing diff-index, documents R5-4 and R5-5 as residuals, and re-mints the --range follow-up as CON-083. Round 6 (docs/qa/con046_review/review_con046_r6.md) returned NO-GO: 12 real reviewer mutants survived (R6-1, R6-2) in a class that recurred for three rounds. Operator decision 2026-11-05 (AskUserQuestion): replace by a new structural item, CON-108, with a fresh review budget; the --range follow-up is re-minted as CON-109 (main had assigned CON-083 to another item).
+
 **Affected scope / file-scope manifest:**
-auto-commit tooling (UNKNOWN: location); submodules/containers
+auto-commit tooling (UNKNOWN: location); submodules/containers; scripts/gates/cm_submodule_pin_not_downgraded.sh; scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh; scripts/hooks/pre-commit-submodule-pin-not-downgraded; scripts/gates/cm_submodule_pin_not_downgraded_inventory.tsv
 
 ## CON-049 — CON-043 FU-1 (NF1): adopt reviewer mutants N1-N4 as killing mut() cases in test_oracle_frozen_exclusions.sh
 
@@ -1752,4 +1755,39 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 **Created-By:** Claude Opus 5.5 (author subagent, landed by Claude Sonnet 5.5)
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). R2-5 impact UNCONFIRMED (found by reading, not run).
+
+## CON-108 — CON-046 structural round: adopt the round-6 killers, per-variant and per-site inventory with a direction and equivalence lint
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+**Assigned-To:** AI
+
+Parent: CON-046. Structural round of the CON-046 pre-commit gate (scripts/gates/cm_submodule_pin_not_downgraded.sh), opened by operator decision 2026-11-05 (AskUserQuestion, §11.4.66, §11.4.276(E)(3)) after the round-6 review (docs/qa/con046_review/review_con046_r6.md) returned NO-GO with 12 real surviving reviewer mutants (V07, V08, V12, V13, V16, V17, V18, V19, V20, V22, V29; V28 equivalent). Fresh review budget. Work: adopt the reviewer's 11 killing probes verbatim in the mutation test (KV17ORDER, KV22SUBUNKNOWN, KVREFS, KV19STALEFIRST, KV20BADEXPFIRST, KV18HASHMID, KV365, KV13SHARPS, KV12ZWSP, KV29B, KV02HELP); redo the inventory per variant and per site in scripts/gates/cm_submodule_pin_not_downgraded_inventory.tsv; add a lint that every guard has at least one mutant per declared fail direction (fail-open and false-refusal) and that every equivalent claim has a passing differential proof; control needles for every zero; fix review nits R6-3, R6-4, R6-6; re-mint the --range follow-up as CON-109.
+
+**Affected scope / file-scope manifest:**
+scripts/gates/cm_submodule_pin_not_downgraded.sh (header only); scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh; scripts/gates/cm_submodule_pin_not_downgraded_inventory.tsv; docs/qa/con046_review/; config/full_suite_manifest.tsv; docs/guides/full_suite_runner_guide.md
+
+**Acceptance:**
+The 12 survivor seds of round 6 survive the round-6 test (RED) and are killed by the new test (GREEN) with the same harness command; the full mutation file runs twice with identical counts and zero unexplained survivors; every equivalent mutant has a passing differential proof; the lint and its control needle pass; an independent Opus review returns GO.
+
+## CON-109 — CON-046 follow-up: landing-seam --range A..B check, so a waiver row cannot re-land on the same parent from a commit no local ref reaches
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+**Assigned-To:** AI
+
+Parent: CON-046. Follow-up of CON-046 (review rounds 4 and 5; recommended by the reviewer, kept as tracked work per the coordinator, section 11.4.197). Minted first on vehicle/con046 as CON-070; re-minted as CON-083 because main reserves CON-070 for another vehicle (round-5 finding R5-8), and re-minted again as CON-109 by the structural round CON-108 because main assigned CON-083 to another item. The pre-commit gate scripts/gates/cm_submodule_pin_not_downgraded.sh can only see commits that a LOCAL ref of THIS worktree reaches, so a reviewed rollback row can land the same (path, old -> new) transition a second time on the same parent when the first commit is invisible locally: reset --soft HEAD~2 && commit -a over a stale checkout, a squash from FETCH_HEAD only, a deleted vehicle branch, a removed worktree, a spender only in a note, merge --quit with the vehicle deleted, a spender reachable only as an ancestor of refs/stash (round-5 finding R5-4: --exclude=refs/stash drops the whole ref, ancestors included), and a spender reachable only from a per-worktree ref of ANOTHER worktree (refs/worktree/*, refs/bisect/*; refs/rewritten/* during rebase -r UNCONFIRMED; round-5 finding R5-5). All are listed as Residual in the gate header (round 6). The structural answer is a --range A..B mode run at the landing seam (the ff-only landing script, or a pre-receive / pre-push seam on main): judge every commit of main's first-parent history in A..B against its first parent, and refuse a waived commit whose (waiver row, parent) pair already occurs earlier on main. It depends only on main's history, not on local ref visibility. Also judges ff-only merges and clean cherry-pick/rebase results, which run no pre-commit hook. Optional narrower local fix for R5-4: exclude only the stash's own W, I and U commits (refs/stash, ^2, ^3) from the candidates instead of the whole ref.
+
+**Affected scope / file-scope manifest:**
+scripts/gates/cm_submodule_pin_not_downgraded.sh (new --range mode); scripts/gates/cm_submodule_pin_not_downgraded_mutation_test.sh (fixtures and mutants); the landing script or seam that calls it (to be named when built)
+
+**Reproduction:**
+The residual members are pinned in the mutation test: fixture RESETSQ (WAIVED, pin A), A1WTREF (refs/worktree/keep and refs/bisect/bad: WAIVED, pin A; control refs/heads/keep: refused, pin B) and A2STASHANC (redo WAIVED, pin A). The round-5 review and its probes are tracked in docs/qa/con046_review/ (review_con046_r5.md section 6, r5_probes/killers.sh.txt).
+
+**Acceptance:**
+A --range A..B run over a main history that contains the reviewed rollback and a second commit re-landing the same row on the same parent FAILs naming both commits; the same history with only the first commit PASSes (golden-FALSE, section 11.4.201(1)); a paired mutant that drops the duplicate check survives no fixture; the fixtures A1WTREF and A2STASHANC are re-pinned to the refusal when the local exclusion is narrowed; the hook is still not installed without operator consent.
 

@@ -1,0 +1,1 @@
+s/aident="\$(pg var GIT_AUTHOR_IDENT 2>\/dev\/null)"/aident="$cident"/
