@@ -1,0 +1,17 @@
+start 2026-11-11T14:57:18+01:00 old=1dba697eda87bba9b785d13793942e7b07e5b152
+old base-nocase rc=0
+old base-suffix12 rc=0
+old days-min-2 rc=1
+old lev-gt-1 rc=0
+old prefix-min-3 rc=0
+old RV9-02-expired-yesterday-ok rc=0
+old RV9-05-base-prefix-bind rc=0
+old RV9-10-auth-zs-only-pad rc=0
+old RV9-11-ident-zs-only-strip rc=0
+old spent-base-prefix12 rc=0
+old spent-new-prefix12 rc=0
+old spent-old-prefix12 rc=0
+old waiver-new-prefix12 rc=0
+old waiver-old-prefix12 rc=0
+end 2026-11-11T15:54:36+01:00
+DONE
