@@ -405,11 +405,23 @@ EOF
     && ok "L28 newline-path fixtures built (needle: 'x.db<LF>' is the lost register, 'x.db' a foreign one)" || bad "L28 newline-path fixtures broken"
   # L29 (RV7-10): the locales the id check is run under. A locale counts only when bash classes A-umlaut as
   # [:upper:] in it (needle), so a [:upper:] class would accept the id there while [A-Z] does not.
-  L29LOC=""
-  for _l in C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8; do
-    if LC_ALL=$_l bash -c 'case "$1" in [[:upper:]]) exit 0 ;; esac; exit 1' _ "$(printf '\303\204')" 2>/dev/null; then L29LOC="$L29LOC $_l"; fi
-  done
-  [ -n "$L29LOC" ] && ok "L29 locales where bash classes A-umlaut as upper:$L29LOC" || bad "L29: no UTF-8 locale classes A-umlaut as upper; the leg cannot run"
+  # CON-185: a host without such a locale lacks the topology for this leg: that is a section 11.4.3 SKIP-with-reason
+  # (reason=topology_unsupported), never a FAIL. l29_locales prints the usable ones; l29_verdict maps a list to the line.
+  l29_locales() {
+    for _l in "$@"; do
+      if LC_ALL=$_l bash -c 'case "$1" in [[:upper:]]) exit 0 ;; esac; exit 1' _ "$(printf '\303\204')" 2>/dev/null; then printf ' %s' "$_l"; fi
+    done
+  }
+  l29_verdict() { # $1 = the usable-locale list
+    if [ -n "$1" ]; then echo "ok   L29 locales where bash classes A-umlaut as upper:$1"
+    else echo "SKIP: L29 no listed UTF-8 locale classes A-umlaut as [:upper:], so the [:upper:] mutant is not observable on this host; the leg did not run reason=topology_unsupported"; fi
+  }
+  # both branches proven on every run: a name no host has -> SKIP line; the host's own list is probed below
+  _l29_none=$(l29_locales zz_ZZ.nosuchlocale); _l29_line=$(l29_verdict "$_l29_none")
+  case $_l29_line in "SKIP: L29 "*"reason=topology_unsupported") ok "L29 branch: no usable locale -> SKIP-with-reason, not a FAIL (needle: zz_ZZ.nosuchlocale yields an empty list)" ;; *) bad "L29 branch: no usable locale gave [$_l29_line]" ;; esac
+  L29LOC=$(l29_locales ${FC_L29_CANDIDATES:-C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8})   # FC_L29_CANDIDATES: a test hook for a host without locales
+  _l29_line=$(l29_verdict "$L29LOC")
+  case $_l29_line in ok*) ok "${_l29_line#ok   }" ;; SKIP*) echo "$_l29_line" ;; *) bad "L29 verdict line unreadable: $_l29_line" ;; esac
   for sh in $SHELLS; do
     o="$W/out3"
     # case: db ids... -> want

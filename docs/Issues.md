@@ -2781,12 +2781,18 @@ Fix note (follow-up fu_b, 2026-11-11): the S7b usage-error list of scripts/fastc
 
 ## CON-185 — L29 calls bad, not SKIP-with-reason, on a host with no UTF-8 locale that classes A-umlaut as [:upper:] (review round 8 N8-1)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con185_reproduction_2026_11_11.txt` — red-command `bash <copy of test_consumer_required_helper.sh with the L29 candidate list set to zz_ZZ.UTF-8>` — green-command `FC_L29_CANDIDATES=zz_ZZ.UTF-8 bash scripts/fastcycle/tests/test_consumer_required_helper.sh` — env `host fixture: simulated no-locale host; Linux 7.0.0, bash 5.3.9` — signature `NOT ok L29: no UTF-8 locale classes A-umlaut as upper; the leg cannot run (rc 1)` — updated 2026-11-11T12:40:32Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
+**Investigation:** root-cause-found-with-evidence — root-cause `leg L29 reported a missing locale class as bad() instead of a SKIP-with-reason` — evidence `docs/qa/con185_reproduction_2026_11_11.txt` — updated 2026-11-11T12:40:32Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
 
 Parent: CON-178 (fc_require_items). Review round 8 N8-1 (nit). Leg L29 of test_consumer_required_helper.sh calls bad when the host classes no listed UTF-8 locale's A-umlaut as [:upper:], so a host without such a locale FAILs the whole helper suite when only that leg lacks topology. Acceptance: that leg records a §11.4.3 SKIP-with-reason naming the missing locale class instead of a FAIL, with a test that proves both branches. On the review host the locales are present, so the leg ran. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+Fix note (follow-up fu_b, 2026-11-11): leg L29 of scripts/fastcycle/tests/test_consumer_required_helper.sh now prints a section 11.4.3 SKIP-with-reason line (reason=topology_unsupported) and does not count a failure when no listed locale classes A-umlaut as upper; both branches are proven on every run (the empty-list branch with a locale name no host has, the other with the host list), and FC_L29_CANDIDATES lets a test simulate such a host. Helper test on this host: 356 pass / 0 fail; simulated host: 347 pass / 0 fail with the SKIP line; paired mutant (SKIP line made a NOT ok) killed.
+
+**Verification:** provisional (section 11.4.290) -- job: re-run bash scripts/fastcycle/tests/test_consumer_required_helper.sh and FC_L29_CANDIDATES=zz_ZZ.UTF-8 bash scripts/fastcycle/tests/test_consumer_required_helper.sh on main after landing -- checks: rc 0 both, the second prints the L29 SKIP line -- layer: gate-logic (test-instrumentation; class floor: runtime for a test item) -- target: host, repo checkout; a real host without locales is UNCONFIRMED (not available) -- artifact: commit that lands the fu_b CON-185 change -- due: next full-suite run.
 
 ## CON-186 — fixu landing review follow-ups M1, M2, M3: case 11c closure-by-location, runner guide acceptance wording, tracked resolve1 proposal
 

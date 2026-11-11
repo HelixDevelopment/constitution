@@ -1,0 +1,14 @@
+CON-185 reproduction record (section 11.4.292), 2026-11-11, host-fixture (the topology is simulated: this host has the locales)
+Base: c69f0b06 (main fc57ad0c plus CON-184); Linux 7.0.0, bash 5.3.9.
+RED : a copy of scripts/fastcycle/tests/test_consumer_required_helper.sh whose L29 candidate list is replaced by one name no host
+      has (zz_ZZ.UTF-8), i.e. a host with no UTF-8 locale that classes A-umlaut as [:upper:]; run: bash <copy>
+      NOT ok L29: no UTF-8 locale classes A-umlaut as upper; the leg cannot run
+      SUMMARY: 346 pass / 1 fail          rc=1
+GREEN (fixed test, same simulated topology via the new hook FC_L29_CANDIDATES=zz_ZZ.UTF-8):
+      ok   L29 branch: no usable locale -> SKIP-with-reason, not a FAIL (needle: zz_ZZ.nosuchlocale yields an empty list)
+      SKIP: L29 no listed UTF-8 locale classes A-umlaut as [:upper:] ... the leg did not run reason=topology_unsupported
+      SUMMARY: 347 pass / 0 fail          rc=0
+Real host (locales present): ok L29 locales ... C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 ; SUMMARY: 356 pass / 0 fail rc=0.
+Mutant (test-file mutant: the SKIP line of l29_verdict printed as "NOT ok"): NOT ok L29 branch: no usable locale gave [NOT ok L29 ...]
+      SUMMARY: 355 pass / 1 fail rc=1  (killed).
+Signature: rc 1 with "NOT ok L29: no UTF-8 locale classes A-umlaut as upper" on a host without the locale class.
