@@ -3,7 +3,7 @@
 **Revision:** 2
 **Last modified:** 2026-11-05T22:20:00Z
 
-Revision 2 note: since 2026-11-05 (CON-147, operator decision Option A) this patch is also out of
+Revision 2 note: since 2026-11-05 (CON-164, operator decision Option A) this patch is also out of
 `fk_index_patch.py`'s own default set (`UNTESTED` in `runner_patches/__init__.py`); it is applied only when named
 in `--patches`, and `codegraph_safe.sh --patches all` no longer reaches it.
 

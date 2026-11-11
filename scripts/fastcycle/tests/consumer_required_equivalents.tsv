@@ -1,5 +1,5 @@
 # Registered EQUIVALENT mutants of scripts/fastcycle/tests/lib/consumer_required.sh (round 7 of the full-suite fix
-# vehicle, CON-152/CON-157). One row per single-edit mutant that the systematic sweep of
+# vehicle, CON-169/CON-174). One row per single-edit mutant that the systematic sweep of
 # test_consumer_required_mutations.sh --sweep generates and that no test can kill, with the proof that it decides
 # exactly like the helper on every input. Key = operator.variant|sha256(line)[:8][~k for the k-th identical line]|occurrence.
 # The sweep requires the survivors to be EXACTLY these keys; `check` fails on a key that no longer matches a mutant.

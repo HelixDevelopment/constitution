@@ -24,7 +24,7 @@
 #     resolve1 / resolve2  resolver fixes (see runner_patches/resolve1.py, resolve2.py)
 #     mcpro1    read-only MCP server runner (opt-in, exclusive)
 #   Default set (no --patches): fkidx1, resolve1, resolve2. lockfix1 and
-#   datafrag1 have no behavioural test and are opt-in by name (CON-147, operator
+#   datafrag1 have no behavioural test and are opt-in by name (CON-164, operator
 #   decision 2026-11-05).
 #   Adding a future patch = one module in runner_patches/ + one REGISTRY entry.
 #

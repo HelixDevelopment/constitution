@@ -782,6 +782,8 @@ Round 7 (2026-11-11): the same operator decision ("Keep running rounds until GO 
 
 Round 8 (2026-11-11): operator decision on record (relayed by the conductor, verbatim, 2026-11-11, section 11.4.276(E)(3)/(G)): "Authorise round 8". It names this item (the codegraph/full-suite vehicle, CON-152/CON-157/CON-031 line) and is scoped to the review round 7 findings CR7-1..CR7-4 and N7-1..N7-4.
 
+Id map, round 8 (§11.4.214): at the merge of main 27dcf518 into the full-suite fix vehicle head 4118f145 (2026-11-11) the vehicle's items were re-minted CON-146..CON-165 -> CON-163..CON-182 (+17, in order), because main already owns CON-146..CON-162. Ids CON-146..CON-165 in the text above this note that were written on the vehicle name the vehicle's items; read them through this map. The text above is kept unchanged.
+
 ## CON-032 — post_update_hook.sh captures CONST_DIR, _pu_owner and PROJECT_ROOT with plain $(...) (newline class)
 
 **Status:** Queued
@@ -1726,6 +1728,8 @@ Parent: CON-031 (manifest-triage vehicle). Id history (§11.4.214): minted in ve
 
 Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manifest_triage_review/review_manifest_triage_r2.md). Surviving mutants M1A, M1G, M2A, M2C, M2D; protected behaviour proven live by the reviewer. Acceptance: tests that kill all five.
 
+Recurrence link (§11.4.214, review round 8 R8-2, 2026-11-11): the review of round 8 of the full-suite fix vehicle (docs/qa/review_cgs8_round8_2026_11_11.md) found that mutant M1G of this item (for _fcr_p in "$@" -> $*, in fc_require_consumer of scripts/fastcycle/tests/lib/consumer_required.sh) still survives; the reviewer's M6 is the same edit, and a path argument that contains a space gets a false SKIP (head RAN, M6 SKIP, bash and dash). This item is open, so the recurrence is linked here and no new item is minted. Acceptance addition: adopt M6 as a paired mutant when this item is fixed. No fix is claimed (§11.4.290).
+
 ## CON-103 — Superspec exclusion topology guard: add a blinded-gate layout and a missing-carrier failure layout (review R2-3)
 
 **Status:** Queued
@@ -2307,7 +2311,174 @@ Found at the fixu landing (2026-11-10). On a clean worktree of main 90efceb8, ba
 
 Review follow-up of fixu round 3 (docs/qa/fixu_review/review_fixu_r3.md, landed with this item; the reviewer evidence named there as ev/... lived in the reviewer's scratch directory and is not tracked). Not fixed at the landing (registered only). config/full_suite_manifest.tsv row scripts/fastcycle/tests/run_all.sh carries the note "auto: covers 12 heavy member(s)"; at the landing 14 rows name run_all.sh as their heavy member runner (13 at the base of the vehicle). The note is pre-existing and stale, --verify-manifest does not check it. Fix: regenerate the auto note, or make --verify-manifest compare the count with the member rows.
 
-## CON-146 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
+## CON-146 — custody_sweep.py: stash patch from git stash show -p is garbled on git 2.53.0, so every stash land is refused
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con146_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh (also r13, r15, stash_patch_r22) on the pre-fix tool` — green-command `same commands on the fixed tool` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok B2 stash golden-good: expected ALLOWED, got REFUSED (backup ... does NOT match the entry's freshly re-derived LIVE dirty content)` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `git 2.53.0 git stash show -p ignores the a/ b/ prefix options and emits run-varying header prefixes; git diff over the same two trees is correct` — evidence `docs/qa/con146_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-108 (rounds 1 to 3), then CON-116 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-146 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/orchestration/custody_sweep.py derived the stash patch (inventory hash and verify-proposal live hash) with git stash show -p <CANONICAL_PATCH_OPTS>. On git 2.53.0 that command ignores --src-prefix/--dst-prefix and prints headers that change on every run (diff --git f sf, diff --git f |f), so no backup can ever match and every stash land is REFUSED (fails closed, no data loss). Fix: derive with git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>; self-check every diff --git header carries a/ b/ prefixes, else UNMEASURED (never hashed); tests r11, r13, r15 build their backups the same way; new guard scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh (host-independent via git shims, paired mutations M1-M3). Upstream git bug report: not filed (UNCONFIRMED whether fixed in a later git). Acceptance: r11, r13, r15 and the new guard GREEN on git 2.53.0; mutations caught. Fix round 2 (independent review round 1: NO-GO, findings F1-1 and F1-2): F1-1, git C-quotes each path on its own, so a header can mix a bare and a quoted path (diff --git a/c.txt "b/sp ace\ttab.txt"); the old header pattern refused that correct patch as UNMEASURED and the verify-proposal refusal named the wrong cause (git status/diff failed). The pattern now matches each side separately, ^diff --git (?:a/.*|"a/.*") (?:b/.*|"b/.*")$ (checked on 11 header shapes, still rejects f sf, f xf, c/x d/x, f |f), and the refusal names the real cause (the bad diff --git header, or the failed git diff with its rc) via stash_patch_bytes_why / unmeasured_why. F1-2, r22 gains a two-file mixed-quoting stash (G4, G5 GREEN), a shim that mangles only the SECOND header (B3, B4) and mutants M4 (reviewer R1g, check only the first header) and M5 (old pattern), both caught; r22 RED pass=15 fail=5 on the round-1 tool, GREEN pass=20 fail=0; r11, r13, r15 GREEN. Follow-up CON-157 (display-only file list). **Affected scope / file-scope manifest:** scripts/fastcycle/orchestration/custody_sweep.py; scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r15_regression.sh; scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh; config/full_suite_manifest.tsv Fix round 3 (structural, independent review round 2 NO-GO, findings R2-F1-A/B/C; root-cause class: the guard's fixtures did not separate the mutants' axes): r22 now has a three-header stash (plain, mixed-quoting rename, plain) and a positional shim that garbles exactly the first, the middle, the last or every header, bare and as a quoted header with no prefixes (diff --git "f" "xf"); every mutant has named functional checks: M4 first-header-only, M5 old pattern, RV1 last-only, RV2 first-and-last, RV3 quoted headers trusted, RV4 loose pattern, RV5 rc cause dropped, RV6 first-two-only, all killed by their named checks (P1-P3, Q1-Q3, V2, V3, F1, G4, G5). R2-F1-B: F1 checks the refusal names 'git diff stash@{0}^1 stash@{0} failed (rc=3)'. R2-F1-C: the round-2 log said r22 RED pass=15 fail=5 on the round-1 tool; re-running that committed test gives pass=14 fail=6 (the reviewer's number), so the round-2 number was not reproducible; round-3 numbers are recorded with their commands in docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt. Old r22 (round 2) against the round-3 mutants: RV2, RV5, RV6 survive (rc 0); new r22: all 8 killed, GREEN pass=36 fail=0; the new r22 on the round-1 tool pass=24 fail=12, on the round-2 tool pass=33 fail=3 (G4, L1: the CON-157 file list). r6-r21 custody_sweep regressions rerun on the round-3 tool: same results as on the round-2 tool (r9 and custody_sweep_red fail identically on both, known and unrelated). Round 4 (review r22 NO-GO, recurrence 3 of the fixture class): the r22 test rebuilds its fixtures as a matrix over the whole class (header count 1..7, forward and reversed, three git configs, every header position, five garble forms, sections of type text-with-a-removed-line-that-looks-like-a-header, binary, new, empty new, deleted, mode-only, rename with tab and space name, copy, C-quoted) with an oracle independent of the tool (git diff -z --name-status), 527 cells; cases XS, XC, XB, XB1, XM, XG, XQ added; reviewer mutants NM1..NM13 adopted verbatim plus the FL1,3,4,5,6,7,8,9,10 set, each RED (survives the round-3 battery 24/0) then GREEN (killed by the new test); FL2 is equivalent and not adopted; result pass=81 fail=0, 34 mutation self-tests. Evidence: scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh. Round 5 (review of fsfix4 NO-GO, F2 and F3): Rounds continue past R_max by operator decision relayed 2026-11-10, verbatim: "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)). The r22 matrix removed none of its mkdtemp repositories (measured on the round-4 test: one matrix.* dir per matrix run left under TMPDIR; the review measured 35 dirs, 168 MB per full run); the matrix now removes its base at exit and runs with its own TMPDIR, check MX fails on any leftover, and the whole test runs with TMPDIR under its own temp dir (check TD). An empty stash patch is now pinned: EP1 (untracked-only git stash -u) and EP2 (index-only change) give empty_patch, never UNMEASURED; EP1V: land of an untracked-only stash is refused for its untracked content, not as unreadable. Reviewer mutant RD adopted verbatim, RED (survives the round-4 test, pass=47 fail=1 with RD as a self-test) then killed by EP1/EP2; live-path twin RD2 killed by EP1V. Result pass=88 fail=0, nothing left under TMPDIR. Not changed, recorded: land of an index-only stash with an empty backup is REFUSED with a hash mismatch (the live hash of an empty patch is None); fail-closed, whether intended is UNCONFIRMED. Evidence: docs/qa/con146_con147_con158_fix_round5_2026_11_11.txt. Round 6 (review of fsfix5 NO-GO: N1..N3, M1, M2, n1, n2): the operator decision relayed 2026-11-10 is "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)/(G)): rounds continue past R_max, the GO bar is unchanged. Merge 4003395b of main 2e8cfb90 re-minted the vehicle items CON-116..CON-128 as CON-146..CON-158. M1: custody_sweep.py records index_unpatched for a stash (git diff --quiet ref^1 ref^2, run only when the tracked patch is empty), and verify refuses land of such a stash for its index (staged) content with a message that names it and says the backup is not stale (the round-5 hash-mismatch refusal was incidental). New check EP2V and paired mutant EP2M (the check disabled): EP2M caught by EP2V; r22 regression test pass=90 fail=0 (9 m 45 s). Evidence: docs/qa/con146_con147_con158_fix_round6_2026_11_11.txt.
+
+## CON-147 — host_guard.sh: live thread limit unreadable under dash (ulimit -u), so every shard plan is clamped to N=1
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con147_reproduction_2026_11_05.txt` — red-command `FC_GUARD_NPROC=64 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 sh scripts/fastcycle/lib/host_guard.sh 1000000; sh scripts/fastcycle/tests/test_host_guard_red.sh` — green-command `same commands on the fixed guard` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `N=1 REASON=unreadable_ulimit under sh` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash has no ulimit -u, so the live read returned empty` — evidence `docs/qa/con147_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-109 (rounds 1 to 3), then CON-117 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-147 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/lib/host_guard.sh read the soft RLIMIT_NPROC with ulimit -u, which dash (/bin/sh on Debian/Ubuntu) rejects; run via sh it reported N=1 REASON=unreadable_ulimit, so gate_runner.sh serialised every shard plan on such hosts. Fix: read the soft Max processes value from /proc/self/limits, fall back to ulimit -u; FC_GUARD_PROC_LIMITS names a fixture file for tests. Test scripts/fastcycle/tests/test_host_guard_red.sh reads its own expectation the same way, lowers the limit with prlimit when present, and adds fixture checks (soft 777 vs hard 999, unlimited, garbled, live control needle). Acceptance: GREEN under sh (dash) and bash; mutations (file ignored, hard field read) caught. Fix round 2 (independent review round 1: NO-GO, findings F2-1, F2-2, F2-3): F2-1, scripts/fastcycle/host/host_report.py _read_ulimit_threads still ran sh -c "ulimit -u" only, so probe_thread_headroom reported unmeasured on dash hosts; it now reads the soft Max processes value from /proc/self/limits (new _read_nproc_soft, same FC_GUARD_PROC_LIMITS test seam) with sh -c "ulimit -u" as the fallback; new guard scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh (dash-like sh shim, real dash, fixtures soft 4242 / hard 99999, unlimited, no line + bash fallback, end-to-end probe; mutants M1 old read, M2 hard column, M3 no fallback, all caught), RED pass=5 fail=9 / GREEN pass=14 fail=0 under sh and bash. Class census (git grep ulimit -u, control needles): host_guard.sh fixed in round 1, host_report.py fixed here, test_host_guard_red.sh:258 no-prlimit branch scoped out as CON-155, codegraph_safe.sh (bash) and prose not members. F2-2, behaviour change for callers, checked: on a dash host four callers that were silently serial (N=1) now get the guard's real limits: scripts/fastcycle/gates/gate_runner.sh:174 (xargs -P over at most --n-shards shards), scripts/fastcycle/gates/lib/backstop_run.py:223 (--jobs, never above the caller's request), scripts/fastcycle/host/host_report.py:1021 (a probe that only reads N, starts no jobs) and scripts/fastcycle/tests/test_foundational_mutations.sh:107 (MAXJ, at most 9). Each stays bounded by the guard's nproc, thread-headroom (section 12.12) and 60 % memory-ceiling (section 12.6) rules; the guard does not size N by per-job memory when no --per-job-mem-kb is passed (its existing I1 design). The reviewer measured the foundational driver at MAXJ 9: peak 43 processes, at most 30.1 % of MemTotal in use (all users), 2796 of 123694 threads. F2-3, FC_GUARD_PROC_LIMITS added to the host_guard.sh header Inputs list. **Affected scope / file-scope manifest:** scripts/fastcycle/lib/host_guard.sh; scripts/fastcycle/tests/test_host_guard_red.sh; scripts/fastcycle/host/host_report.py; scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh; config/full_suite_manifest.tsv Fix round 3 (structural, review round 2 finding R2-F2: HR1 and HR2 survived): the guard now lowers its own process limit with setrlimit before exec (soft THR+3000, hard soft+1000, a control needle checks it differs from pid 1), so reading /proc/1/limits instead of /proc/self/limits fails P1 (HR2 killed); missing (X1) and unreadable mode-000 (X3) limits files with a working 'ulimit -u' must use the fallback (HR1 killed); a fixture with a working 'ulimit -u' (L4B) proves the file wins (HR3 ulimit-first killed; in production both read the same kernel value, differential recorded); FC_GUARD_ULIMIT_U override (O1). Fixture axes listed in the test header. Old guard: HR1, HR2 survive (rc 0) under sh and bash; new guard pass=25 fail=0 under sh and bash, every mutant killed by its named check. Evidence: docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt. Round 4 (review r1 NO-GO): the thread-limit regression test adds RX1/RX2 (lower the limit to 5333:6333, then a missing and an unreadable limits file, read under bash as sh) killing mutant RVH1, plus RX3..RX8 and mutants RVH1..RVH11 (RVH12 is equivalent, documented); result pass=44 fail=0 under sh (dash) and under bash (both measured). Round 5 (review of fsfix4, F8): Rounds continue past R_max by operator decision relayed 2026-11-10, verbatim: "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)). host_guard.sh's awk now skips a 'Max processes' line with fewer than four fields, as host_report.py does (it used to print the third field of a three-field line). RED: with the old awk, test_host_guard_red.sh fails its two new checks (three-field line read as N=5; three-field line then a full soft-888 line read as N=5), pass=135 fail=2; GREEN pass=137 fail=0 under sh and bash. host_report's test adds RX9 (three-field line, then a full line with soft 8888 -> 8888): pass=45 fail=0 under sh and bash. Evidence: docs/qa/con146_con147_con158_fix_round5_2026_11_11.txt. Round 6 (review of fsfix5 NO-GO: N1..N3, M1, M2, n1, n2): the operator decision relayed 2026-11-10 is "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)/(G)): rounds continue past R_max, the GO bar is unchanged. Merge 4003395b of main 2e8cfb90 re-minted the vehicle items CON-116..CON-128 as CON-146..CON-158. M2: the RLIMIT_NPROC readers' comments in host_guard.sh and host_report.py state the real boundary (four words: a two-word name, soft, hard; units not required). Reviewer mutant H1 adopted: RED, it survives the round-5 test (pass=137 fail=0 with H1 applied); new fixture "Max processes 5 6" must give N=5, H1 now killed (pass=137 fail=1). The decision-mutant census (scripts/validation/enumerate_decision_mutants.py, section 11.4.274) found host_guard's awk 2>/dev/null redirect unpinned: a directory as the limits path must give the no-line result with stderr empty (new checks). test_host_guard_red.sh pass=140 fail=0; host_report thread-limit test pass=45 fail=0. Census over host_guard.sh (46 mutants) and host_report.py's _read_nproc_soft (9): every mutant KILLED except three floor-at-1 comparisons (-lt 1 -> -le 1) proven equivalent in scripts/validation/decision_mutants_equivalent.tsv. Evidence: docs/qa/con146_con147_con158_fix_round6_2026_11_11.txt.
+
+## CON-148 — test_custody_sweep_r6: guard-viability pattern misses the Python 3.14 TypeError wording
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con148_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok R6-I3(1)/int guard-viability BLIND` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `Python 3.14 changed the TypeError text of 'k in <int>'` — evidence `docs/qa/con148_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-110 (rounds 1 to 3), then CON-118 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-148 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh greps the pinned pre-fix tool's crash for 'is not iterable'; Python 3.14 words it 'is not a container or iterable', so both guard-viability legs reported BLIND. Fix: pattern 'is not (a container or )?iterable' with a self-check (both wordings match, an unrelated TypeError does not). **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_custody_sweep_r6_regression.sh
+
+## CON-149 — test_fc_common_run_gate_reaped_r6: dash echo turns the literal backslash-n into a newline
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con149_reproduction_2026_11_05.txt` — red-command `sh scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `FAIL: 4: normal stdout/stderr capture regressed` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `dash echo interprets backslash escapes` — evidence `docs/qa/con149_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-111 (rounds 1 to 3), then CON-119 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-149 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-031 (full-suite runner). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh (#!/bin/sh) piped $RESULT through echo; dash's echo interprets the backslash-n that repr() prints in SECTION_C, so check 4 failed under sh and passed under bash. Fix: printf '%s\n'. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh
+
+## CON-150 — handoff_i4, handoff_r9, custody_sweep_r17: prose with fail words after the summary line, runner reads ERROR
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con150_reproduction_2026_11_05.txt` — red-command `bash scripts/fastcycle/tests/test_handoff_i4_regression.sh (also handoff_r9, custody_sweep_r17), then judge() of scripts/full_suite/run_full_suite.py on the output` — green-command `same` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `('ERROR', 'fail_signal_after_summary', 'summary', {})` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `prose with fail words printed after the summary line` — evidence `docs/qa/con150_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:18Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-112 (rounds 1 to 3), then CON-120 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-150 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-031 (full-suite runner). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: the three tests exit 0 with every check passing, but print explanatory prose containing 'fails CLOSED' / 'failure' after their summary line; the full-suite runner's fail-word check (unchanged, deliberately conservative) reports ERROR fail_signal_after_summary. Fix: the prose is printed first and the summary line last. Fix round 2 (independent review round 1: GO-with-follow-ups, finding F5-1 minor-class, class not exhausted): the reviewer's census found two more members, both edited the same way: scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh (live: judged ERROR fail_signal_after_summary before, PASS after, rc 0 both) and scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh (latent: that test still fails for the known consumer-root reason, same two NOT ok lines as the reviewer's run). Census TOTAL 2 before, 0 after; a planted needle is still found. Census gate registered as CON-156. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_handoff_i4_regression.sh; scripts/fastcycle/tests/test_handoff_r9_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r17_regression.sh; scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh; scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh Fix round 3: scripts/fastcycle/tests/test_metatest_per_mutant_red.sh ended without a summary line, so the full-suite runner judged its PASS output ERROR unparsed_fail_signal (review round 2 finding R2-F5-A); it now prints '=== metatest per-mutant RED baseline (T017): fail=N ===' last; runner judge PASS after. Evidence: docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt.
+
+## CON-151 — test_gate_shard_r3 B1: the M3c mutant copy cannot import fc_common, never plans, and is misread as not flipped
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (full-suite fix subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con151_reproduction_2026_11_05.txt` — red-command `sh scripts/fastcycle/tests/test_gate_shard_r3_regression.sh` — green-command `same command` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, /bin/sh = dash, load ~30 on 16 CPUs` — signature `NOT ok B1: mutation-flip FAILED -- with M3c applied, g_protected_writer STILL landed outside the parallel set` — updated 2026-11-05T20:42:19Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the mutant copy could not import fc_common (FileNotFoundError plan_m3c/plan.json)` — evidence `docs/qa/con151_reproduction_2026_11_05.txt` — updated 2026-11-05T20:42:19Z — by `Claude Opus 5.5 (full-suite fix subagent)`
+
+Vehicle ids before re-mint: CON-113 (rounds 1 to 3), then CON-121 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-151 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099 (inventory class C, manifest-triage; split out per CON-106). Source: full-suite root-cause report of 2026-11-05 (root cause proven there, reproduced again in the fix vehicle). What: scripts/fastcycle/tests/test_gate_shard_r3_regression.sh copied the mutant to $WORK/*.py; gate_runner_shard.py imports fc_common from <its dir>/../../lib, so the copy crashed, wrote no plan.json, and B1 reported 'mutation-flip FAILED'. Fix: the mutant (and an unmutated control copy) run in a scratch copy of the gates/lib + lib layout; a mutant or control that writes no plan reports BLIND. With the fix the mutant flips (g_protected_writer lands in the parallel set). **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_gate_shard_r3_regression.sh
+
+## CON-152 — test_foundational_mutations.sh spins one CPU after a process-group TERM and leaks its work dir (up to 334 MB) on KILL
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-114 (rounds 1 to 3), then CON-122 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-152 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-147. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding PRE-1 (pre-existing; present on base and fix). What: run as timeout -k N T bash scripts/fastcycle/tests/test_foundational_mutations.sh (the run_all.sh shape: TERM to the whole process group), the driver stays in state R with no children at about 100 % of one CPU until the kill-after (measured 10.6 s and 11.4 s at -k 12); a direct TERM to the driver alone exits in 2-4 s. The spin is inside cleanup() before rm -rf "$W", so a run ending in KILL leaves $W behind (three leftovers of 334 MB, 21 MB, 334 MB measured by the reviewer; section 12.9). A minimal model (helpers/spinrepro) spun in 5 of 16 runs when the TERM trap's cleanup runs wait, 0 of 8 without it; mechanism UNCONFIRMED (intermittent). **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_foundational_mutations.sh **Reproduction / context:** timeout -k 12 20 bash scripts/fastcycle/tests/test_foundational_mutations.sh, sample /proc/<pid>/stat utime while it runs, then look for the leftover $TMPDIR/tmp.* work dir. **Acceptance criteria:** reproduce with the run_all.sh shape; root cause decided by experiment; no spin and no leftover work dir in many repeated group-TERM runs; the reproduction becomes a regression guard.
+
+## CON-153 — triple harness fails standalone on the signal-window checks (postwait, postcanary), about 815 s at load about 30
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-115 (rounds 1 to 3), then CON-123 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-153 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding PRE-2 (pre-existing; base and fix identical). What: the triple-harness test run on its own exits rc 1 after about 815 s with r6-f1/f2/r7 signal window (harness, postwait): got '' want 'RESULT fired=1 rc=2 orphan=0 sleeper=na canary=na' and the postcanary variant. It makes the foundational driver's M2 and M4 controls fail (control th rc=1) on this host regardless of CON-147. Root cause UNCONFIRMED (the signal-window checks may be load-sensitive). **Affected scope / file-scope manifest:** the triple-harness test under scripts/fastcycle/tests (the th control of test_foundational_mutations.sh) **Reproduction / context:** run the triple-harness test standalone with sh on a 16-CPU host at load about 30; evidence th_base.* and th_fix.* in the review evidence dir. **Acceptance criteria:** reproduced, root cause proven by a decisive experiment, the two checks GREEN under load or honestly bounded; regression guard added.
+
+## CON-154 — test_foundational_mutations.sh 900 s bound is too tight on a loaded 16-CPU host
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-116 (rounds 1 to 3), then CON-124 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-154 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-099. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding PRE-3 (pre-existing). What: the driver declares fastcycle-timeout-s 900, set on a 64-CPU host (header: 68 s at load about 38). Measured by the reviewer on 16 CPUs at load 14-50: serial (old guard under dash) 1382 s, parallel (fixed guard, MAXJ 9) 883 s, of which the triple-harness control alone was about 815 s, so the margin is 17 s. Severity minor, test-instrumentation. UNCONFIRMED how much of the 815 s is load-dependent. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_foundational_mutations.sh (fastcycle-timeout-s header); the triple-harness control **Reproduction / context:** time the driver under run_all.sh on a 16-CPU host under load. **Acceptance criteria:** a host-adaptive bound or a shortened triple-harness control, measured to finish with margin on the small host; no change to what the driver proves.
+
+## CON-155 — test_host_guard_red.sh no-prlimit branch lowers the limit with sh -c 'ulimit -u', which dash rejects
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-117 (rounds 1 to 3), then CON-125 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-155 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-147. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding F2-1 class census (scope-out row). What: the F2-1 census (git grep ulimit -u, with control needles) found one executable member left outside host_report.py and host_guard.sh: scripts/fastcycle/tests/test_host_guard_red.sh:258, the branch taken only when prlimit(1) is absent, which runs sh -c 'ulimit -u "$1" && ...'. On a dash host without prlimit that check FAILs (RAW_OUT empty), it never gives a false PASS. Scoped out of the CON-147 fix round 2 because no portable /bin/sh way to lower RLIMIT_NPROC exists; a python3 resource.setrlimit wrapper is the likely fix. Other census rows: codegraph_safe.sh:416 runs under bash (not a member); host_guard.sh:172 is the fallback after /proc/self/limits (fixed member); cm_killpg_pgid_guard_scope_selftest.sh:455 uses ulimit -f under bash (not a member); Constitution.md and mirrors are prose. **Affected scope / file-scope manifest:** scripts/fastcycle/tests/test_host_guard_red.sh **Reproduction / context:** run test_host_guard_red.sh under dash with prlimit removed from PATH. **Acceptance criteria:** the lowered-limit check works under dash without prlimit (or SKIPs with a closed reason), proven by a run with prlimit hidden.
+
+## CON-156 — Census gate for test PASS branches that print fail words after the summary line
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-118 (rounds 1 to 3), then CON-126 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-156 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-150. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding F5-1 follow-up. What: the reviewer's static census (helpers/census5.py: an echo or printf holding ALL CHECKS PASS or similar, then the rest of that line and the following echo lines up to exit/else/fi, tested with the runner's own _FAILWORD) found two more members after CON-150, both fixed in round 2 (test_limit_class_place_r5i3_regression.sh, test_custody_sweep_r9_regression.sh; census TOTAL 0 after, a planted needle still found). Making the census a gate would stop new members landing; not done in round 2 because a gate needs its own self-test, paired mutation and manifest row. **Affected scope / file-scope manifest:** scripts/gates (new gate), scripts/full_suite/run_full_suite.py (_FAILWORD reused, not changed) **Reproduction / context:** python3 census5.py scripts/full_suite/run_full_suite.py . on the tree. **Acceptance criteria:** a gate with golden-TRUE (planted member) and golden-FALSE fixtures, control needle, paired mutation; TOTAL 0 on main. Round 3 decision: the gate is NOT built in this round. Review round 2 (R2-F5-A) named two more members, both fixed here: test_metatest_per_mutant_red.sh (CON-150 round 3) and scripts/validation/meta_test_verification.sh (CON-158, PASS path judged ERROR unparsed_fail_signal before, PASS after). A census over the runner's classify() needs a model of which output a test prints last on each path; the static census tried here gave false leads (5 of 10 candidates were false on reading), so a precise gate is not small; it stays the open work of this item.
+
+## CON-157 — custody_sweep stash_files_touched lists only the source path of a rename and misses C-quoted paths
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (custody/host_guard fix round 2 subagent)
+
+Vehicle ids before re-mint: CON-119 (rounds 1 to 3), then CON-127 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-157 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-146. Source: independent Opus review of the custody/host_guard fix vehicle (scratchpad review_custody_hostguard_fixes.md, evidence dir review_custody_hostguard_ev/), finding item 1 note (not a finding of that batch) plus round 2 observation. What: stash_files_touched parses headers with DIFF_FILE_RE ^diff --git a/(.+?) b/, so a rename lists only its source path, and a header with a C-quoted path (diff --git a/c.txt "b/sp ace\ttab.txt", now accepted by the round-2 header check) is not listed at all. The list is display-only per its docstring and no hash or verdict uses it; UNCONFIRMED whether anything relies on it. **Affected scope / file-scope manifest:** scripts/fastcycle/orchestration/custody_sweep.py (stash_files_touched_why, DIFF_FILE_RE) **Reproduction / context:** inventory a stash holding git mv c.txt 'sp ace<TAB>tab.txt' plus an edit to d.txt; files_touched shows only d.txt. **Acceptance criteria:** decide (display-only, documented) or list both rename paths and unquoted names; covered by a test. Fixed in round 3 (test first): stash_files_touched_why now reads paths with _patch_file_paths: both paths of a rename (rename from/to), copy targets, ---/+++ lines (C-quoted names unquoted, the trailing TAB git adds after names with spaces dropped), and the same-path header fallback for binary, mode-only and deleted sections, so 'x b/y.txt', non-ASCII, quoted and spaced names are listed whole. Still display-only; no hash or verdict uses it. r22 checks L1 (nine shapes, expected list from git diff -z --name-status) and G4 (rename both paths): RED on the round-2 tool (G4, L1 fail), GREEN after; mutation L1_old_file_list (the old DIFF_FILE_RE parse) killed by G4 and L1. Evidence: docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt. Round 4: the docstring of _patch_file_paths now says no custody verdict reads the list and it is not part of the patch hash, but it is a field of the inventory entry and so inside body_hash (fc_common.body_hash_of); mutants FL6 (copies), FL7 (removed line starting with two dashes and a space) adopted and killed in the r22 test.
+
+## CON-158 — meta_test_verification.sh renamed a submodule and sed -i edited the tracked gate in place, and its mutation 2 was a syntax error
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (custody/host_guard structural round 3 subagent)
+**Reproduction:** reproduced-live — REPRODUCED — surface host-only — evidence `docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt` — red-command `bash scripts/validation/test_meta_test_verification_r1_regression.sh (against the pre-fix meta_test_verification.sh, plus the TERM-at-delay loop; evidence file section 'CON-120 reproduction' and 'CON-120 RED', vehicle id before re-mint)` — green-command `same command, on the fixed meta-test` — env `Linux 7.0.0, git 2.53.0, Python 3.14.4, bash, load ~30 on 16 CPUs` — signature `old meta_test_verification.sh stopped by TERM at 0.02 s: SUBMODULE_MOVED; at 0.12/0.25/0.30 s: TRACKED_FILE_MUTATED+bak_left` — updated 2026-11-10T23:30:39Z — by `Claude Opus 5.5 (fsfix round 5 subagent)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the old meta-test renamed the real verification submodule and edited the tracked gate in place, so a stop between the change and its restore left the checked tree changed; proven by the TERM-at-delay table (tree changed only at delays inside those windows) and by the scratch-root rewrite, which removed the windows (GREEN 11/0, then round 4/5 tests)` — evidence `docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt` — updated 2026-11-10T23:30:39Z — by `Claude Opus 5.5 (fsfix round 5 subagent)`
+
+Vehicle ids before re-mint: CON-120 (rounds 1 to 3), then CON-128 (rounds 4 and 5, re-minted by merge 3d050dc3 of main 90efceb8 on 2026-11-10, map CON-108..CON-120 -> CON-116..CON-128); re-minted to CON-158 by merge 4003395b of main 2e8cfb90 on 2026-11-11 (section 11.4.214; map CON-116..CON-128 -> CON-146..CON-158; on main CON-116..CON-145 are other items). Parent: CON-150 / CON-156 class (review round 2 finding R2-F5-A, risk raised UNCONFIRMED by the conductor). What: scripts/validation/meta_test_verification.sh (manifest row: entry, heavy) renamed submodules/verification to verification.mut.bak and ran sed -i on the tracked scripts/validation/run_verification.sh, with fixed /tmp names and no trap. Reproduced on a scratch tree (docs/qa/con146_con147_con150_fix_round3_2026_11_06.txt): a TERM at 0.02 s left the submodule renamed and at 0.12, 0.25 and 0.30 s left the tracked gate mutated with a .mut.bak beside it (4 of 15 delays); a heavy-tier run on a real checkout that has submodules/verification would do the same to it (section 9.2). Its mutation 2 seds also rewrote every fi/else, so the mutated gate did not parse (bash -n rc 2): a syntax error fails whatever the gate checks, a bluff mutation. Its PASS path ended with prose the full-suite runner judged ERROR unparsed_fail_signal. Fix: the checked tree is never changed; each mutation runs on a mktemp -d scratch root under TMPDIR (a copy of the gate plus one symlink per real submodule), removed by an EXIT trap; mutation 2 edits a copy with two exact anchors and must pass bash -n; the summary line is printed last. New guard scripts/validation/test_meta_test_verification_r1_regression.sh (fake tree; full run unchanged tree, empty TMPDIR, runner judge PASS, mutation-2 parse; TERM and KILL at 12 delays (superseded in round 4 by 14 delays scaled to the measured run time); blind gate and always-fail gate make it fail): RED on the old script pass=6 fail=5, GREEN pass=11 fail=0. **Affected scope / file-scope manifest:** scripts/validation/meta_test_verification.sh; scripts/validation/test_meta_test_verification_r1_regression.sh; config/full_suite_manifest.tsv; docs/guides/full_suite_runner_guide.md (census line) Round 4 (review r1 NO-GO): the regression test adds fixtures B3 (gate that needs git) and B4 (reformatted gate) killing mutants MT1 and MT9, scales the TERM and KILL delays to the measured run time (14 points from 2 to 98 percent, with a control needle), and the script header documents the KILL gap: SIGKILL cannot run the EXIT trap, so the mktemp scratch root with symlinks is left behind; the checked tree is never changed. Result pass=17 fail=0. Round 5 (review of fsfix4 NO-GO, F1 and F7): Rounds continue past R_max by operator decision relayed 2026-11-10, verbatim: "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)). Reviewer mutants Ma (control verdict ignored) and Mb (mutation-1 verdict ignored) adopted verbatim: RED, both survive the round-4 test; the test now lists every decision point of meta_test_verification.sh (DP1..DP13) and pins each with a fixture and a paired mutant: B5 always-pass gate with intact anchors (kills Mb), B6 README missing in the checked tree (kills Ma), B7 gate missing, B8 test submodule missing, B9/B10 scratch-root sabotage of mutation 1 and 2, B11 weakened gate that does not parse, signal fixtures TERM/INT/HUP (exit 143/130/129, nothing left) and a TERM during cleanup's rm. A real defect found while doing it: a TERM to the process group while the EXIT trap's rm ran killed the rm and left the scratch root (measured 8 of 280 stops at 90..105% of the run); cleanup now ignores HUP, INT and TERM before its rm (0 of 280); remaining window stated in the script: a second signal between the start of the EXIT trap and its first command. F7: after each timed stop the test waits until no process with the scratch path, or the meta-test's own command line (a killed meta-test's build_root subshell keeps running), is left before it removes the scratch root. Result pass=51 fail=0 (runs 3 and 4), nothing left under TMPDIR. Evidence: docs/qa/con146_con147_con158_fix_round5_2026_11_11.txt. Round 6 (review of fsfix5 NO-GO: N1..N3, M1, M2, n1, n2): the operator decision relayed 2026-11-10 is "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)/(G)): rounds continue past R_max, the GO bar is unchanged. Merge 4003395b of main 2e8cfb90 re-minted the vehicle items CON-116..CON-128 as CON-146..CON-158. N1: every signal of the regression test is sent on an observed event (the sigwait gate's marker during the control run, or an rm shim's marker when the cleanup's rm starts), launched by sigrun.py in its own session with HUP/INT/TERM reset. N2: every wait is bounded (30 s, then SIGKILL of the process group; leftover session processes are killed and counted; a timeout or nomark verdict is BLIND and repeated once). N3: reviewer mutants R1b (twice), R2, R3, R4, R5b and R7 adopted verbatim: RED, 5 survive the round-5 test (pass=52 fail=5); new fixtures B12 (mktemp fails), B13 (duplicate anchor), B14 (cp fails), B15 (ln fails) kill them; TERM/INT/HUP pinned to exit 143/130/129. n1: every fixture runs in its own mktemp directory (the counter bumped inside $(...) is gone). Class closed (section 11.4.274): scripts/validation/enumerate_decision_mutants.py enumerates every decision point of meta_test_verification.sh (60 single-edit mutants) and runs each against the regression test. Census run 1 on the round-6 test: 15 survivors; the test then adds the diag= field (both streams of each gate run captured and indented; gates false, needs_git and stderr_missing write to stderr; mutants DP14a-g) and the stop= field (a scratch-root failure stops the run; mutants DP15a-c). Census run 2: killed=109 survived=0 equivalent=6 blind=0 over all three targets, the meta target's three equivalents proven in the ledger. Regression test pass=75 fail=0, three runs. Evidence: docs/qa/con146_con147_con158_fix_round6_2026_11_11.txt.
+
+## CON-159 — CON-158 census wording overstates coverage: every decision point matched by the closed operator list, not every decision point
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+
+Review finding m1 (minor, process-doc, parent CON-158). The CON-158 body and commit 02e681a6 say enumerate_decision_mutants.py enumerates every decision point of meta_test_verification.sh and closes the class. It covers only decision points its closed list of single-edit operators matches. Reviewer mutants Y1, Y2, Y8, Y9 and Y10 are real decision-point mutants the operators do not generate (all five killed by existing tests, so nothing is unguarded today). Fix: reword the tracker text and commit-derived docs to every decision point matched by the closed operator list; optionally add operators for if-condition negation and awk field shifts. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
+
+## CON-160 — EP2V does not pin stash_index_unpatched True vs None and no fixture makes git fail (reviewer mutants Y12, Y14 survive)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+
+Review finding m2 (minor, test-instrumentation, parent CON-146). EP2V checks only that the refusal message names index (staged) content. Mutant Y12 (rc==1 returns None instead of True) and mutant Y14 (final return None becomes False, a git failure reads as no index content) both survive r22 (90/0). The verdict stays REFUSED either way, so this is message precision, not safety. Fix: assert index_unpatched=True in EP2V, and add a git-failure fixture (a PATH shim making git diff --quiet ^1 ^2 return 128) asserting index_unpatched=None; both must kill Y12 and Y14. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
+
+## CON-161 — host_report probe_thread_headroom arithmetic and thr-is-None guard have no canon-runnable test (reviewer mutants Y4, Y5, Y6 survive)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+
+Review finding m3 (minor, test-instrumentation, pre-existing, outside round 6, CON-147 neighbourhood). Y4 (per_job = headroom), Y5 (headroom = ulim - 1) and Y6 (drop the thr is None guard, giving an uncaught TypeError in host_report.py limits) survive the only test that runs in a canon checkout (host_report r1, 45/0); test_host_limits_red.sh SKIPs outside a consumer layout. The source is correct today. Fix: a canon fixture pinning thread_headroom, threads_per_job_probed and reason=unmeasured when FC_GUARD_THREADS is unset and ps fails; optionally widen the census host_report scope to the probe. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
+
+## CON-162 — fsfix6 review nits: census timeout kill misses timeout's process groups, ledger KILLED-key staleness, porcelain git diff in stash_index_unpatched, vehicle items left Queued
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+
+Review nits n1 to n4. n1: the census run_bounded kills its own process group on timeout, but GNU timeout starts a new process group, so children can run up to 125 s into the next mutant (host load only). n2: a ledger entry is STALE only when its key is no longer generated; an entry whose mutant is later KILLED (equivalence proof now false) is accepted silently; flag it stale. n3: stash_index_unpatched uses porcelain git diff --quiet, subject to diff.ignoreSubmodules and external drivers; use git diff-tree --quiet ^1 ^2. n4: the 13 vehicle items stay Queued while fix rounds run; consider In progress for CON-146, CON-147, CON-158. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
+
+## CON-163 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
 
 **Status:** Queued
 **Type:** Bug
@@ -2318,7 +2489,9 @@ Parent: CON-031 (full-suite failures root-cause report of 2026-11-05). What: tes
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-116, re-minted as CON-146 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-147 — CON-147 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-146 (rounds 7-8), re-minted as CON-163 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-164 — CON-147 decided Option A: default runner patch set of fk_index_patch.py is the tested set fkidx1,resolve1,resolve2 (lockfix1, datafrag1 opt-in by name)
 
 **Status:** In progress
 **Type:** Task
@@ -2329,7 +2502,9 @@ Parent: CON-031. P3 of scripts/codegraph/tests/test_patch_machinery.py expects r
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-117, re-minted as CON-147 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-148 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-147 (rounds 7-8), re-minted as CON-164 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-165 — test_resolve1.sh: R5 probe used a cpp ref the 1.6.2 vue resolver rejects; helper exit statuses were discarded (P5 ran test_resolve1_dump.py / _fixture.py alone)
 
 **Status:** Queued
 **Type:** Bug
@@ -2340,7 +2515,9 @@ Parent: CON-031. R5: CodeGraph 1.6.2 vue.resolve returns null for languages outs
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-118, re-minted as CON-148 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-149 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-148 (rounds 7-8), re-minted as CON-165 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-166 — test_unit_safe.sh U01-U46 read the host's real /proc/meminfo and df, so a busy or small host failed ~32 cases
 
 **Status:** Queued
 **Type:** Bug
@@ -2351,7 +2528,9 @@ Parent: CON-031. Fix: U01-U46 now run against a copy of the tooling with /proc/m
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-119, re-minted as CON-149 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-150 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-149 removed the preflight failures)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-149 (rounds 7-8), re-minted as CON-166 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-167 — test_unit_safe.sh U28 and U35 fail intermittently under host load (newly visible once CON-149 removed the preflight failures)
 
 **Status:** Queued
 **Type:** Bug
@@ -2362,7 +2541,9 @@ Parent: CON-031. Observed 2026-11-05 at host load ~30: full run U28 FAIL (r1=1 r
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-120, re-minted as CON-150 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-151 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-150 (rounds 7-8), re-minted as CON-167 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-168 — test_unit_safe.sh U59 fails when TMPDIR is deep: the r1 check greps the full source path the tool truncates to 200 characters
 
 **Status:** Queued
 **Type:** Bug
@@ -2373,7 +2554,9 @@ Parent: CON-031. The tool echoes min_mem_avail_source through san (cut -c1-200);
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-121, re-minted as CON-151 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-152 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-151 (rounds 7-8), re-minted as CON-168 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-169 — full-suite runner: a Go unit whose module dependency is not in the offline module cache was FAIL; now a named SKIP (closest reason code network_unreachable_external, flagged)
 
 **Status:** Queued
 **Type:** Bug
@@ -2390,7 +2573,9 @@ Round 8 (2026-11-11): operator decision on record (relayed by the conductor, ver
 
 Round 8 work: CR7-1 L26 WAL fixture (ATM-5 committed only in the uncheckpointed -wal, built by copying db + -wal while the writer is open; want run) with reviewer mutants RV7-4 (immutable=1) and RV7-11 (nolock=1) adopted verbatim; CR7-2 registry row from-items-sample.2 removed (not equivalent when items has a column named k) and pinned by L27 l27_kcol.db; CR7-3 the runner guide again states the two CON-047 rows of config/full_suite_known_failures.tsv (signature reason:rc_3+tracked); CR7-4 the sweep gains a param operator class (19 sites: parameter expansions, shift and argument count, relative-path root, SQL quoting of an id, db-path quoting, unset) and its bound is stated; RV7-7 (L28 path ending in a newline) and RV7-10 (L29 [:upper:] in UTF-8 locales) pinned as hand mutants; L22b and S7b pin the SKIP line and the usage messages; N7-1 citation fixed, N7-2 per-run sweep timeout (FC_SWEEP_TIMEOUT) and --sweep stated as on-demand, N7-3 case-alt.0 proof corrected, N7-4 IFS bound documented in the helper. RED: on the round-7 suite (309/0) RV7-4, RV7-7, RV7-10 and CR7-2 SURVIVED, RV7-11 was killed. GREEN: hand table 42/42 killed; sweep 169 mutants, 0 uncovered, 3 new param survivors registered with proofs (21 rows). The helper code is unchanged (comment only). Not claimed GO; an independent review follows.
 
-## CON-153 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-152 (rounds 7-8), re-minted as CON-169 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-170 — fk_index_patch.py fkidx1 counts LIST_RE matches, not list openers: a commented opener before the real list merges into one match (review I1-2)
 
 **Status:** Queued
 **Type:** Bug
@@ -2401,7 +2586,9 @@ Parent: CON-031. Found by the round-1 review (nit, source), not fixed in round 2
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-123, re-minted as CON-153 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-154 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-153 (rounds 7-8), re-minted as CON-170 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-171 — fk_index_patch.py REUSED path removes <dst>.partial without a lock; a concurrent --force build of the same key could lose its .partial (review I1-3)
 
 **Status:** Queued
 **Type:** Bug
@@ -2412,7 +2599,9 @@ Parent: CON-031. Found by the round-1 review (nit, source). The force build then
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-124, re-minted as CON-154 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-155 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-147 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-154 (rounds 7-8), re-minted as CON-171 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-172 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-147 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
 
 **Status:** Queued
 **Type:** Task
@@ -2423,7 +2612,9 @@ Parent: CON-031. The round-1 review asked whether Option A covers the writer def
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-125, re-minted as CON-155 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-156 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-155 (rounds 7-8), re-minted as CON-172 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-173 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
 
 **Status:** Queued
 **Type:** Bug
@@ -2434,7 +2625,9 @@ Parent: CON-031. Pre-existing, observed by the round-1 review: the 404 text from
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-126, re-minted as CON-156 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-157 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-156 (rounds 7-8), re-minted as CON-173 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-174 — fastcycle tests: test_check_deps.sh signal race and cost; test_cycle_report_red/s12 FAIL in canon and give empty mutation kills on a red baseline
 
 **Status:** Queued
 **Type:** Bug
@@ -2451,7 +2644,9 @@ Round 8 (2026-11-11): operator decision on record (relayed by the conductor, ver
 
 Round 8 work: CR7-1 L26 WAL fixture (ATM-5 committed only in the uncheckpointed -wal, built by copying db + -wal while the writer is open; want run) with reviewer mutants RV7-4 (immutable=1) and RV7-11 (nolock=1) adopted verbatim; CR7-2 registry row from-items-sample.2 removed (not equivalent when items has a column named k) and pinned by L27 l27_kcol.db; CR7-3 the runner guide again states the two CON-047 rows of config/full_suite_known_failures.tsv (signature reason:rc_3+tracked); CR7-4 the sweep gains a param operator class (19 sites: parameter expansions, shift and argument count, relative-path root, SQL quoting of an id, db-path quoting, unset) and its bound is stated; RV7-7 (L28 path ending in a newline) and RV7-10 (L29 [:upper:] in UTF-8 locales) pinned as hand mutants; L22b and S7b pin the SKIP line and the usage messages; N7-1 citation fixed, N7-2 per-run sweep timeout (FC_SWEEP_TIMEOUT) and --sweep stated as on-demand, N7-3 case-alt.0 proof corrected, N7-4 IFS bound documented in the helper. RED: on the round-7 suite (309/0) RV7-4, RV7-7, RV7-10 and CR7-2 SURVIVED, RV7-11 was killed. GREEN: hand table 42/42 killed; sweep 169 mutants, 0 uncovered, 3 new param survivors registered with proofs (21 rows). The helper code is unchanged (comment only). Not claimed GO; an independent review follows.
 
-## CON-158 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-157 (rounds 7-8), re-minted as CON-174 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-175 — full-suite runner Go units: a go.sum with only the zip line plus an empty module cache hides the go.sum gap (SKIP where a full cache gives FAIL)
 
 **Status:** Queued
 **Type:** Bug
@@ -2462,7 +2657,9 @@ Measured with Go 1.26.8 under GOPROXY=off GOFLAGS=-mod=readonly (fixture A4, tes
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-128, re-minted as CON-158 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-159 — fastcycle tests: patch-machinery whole-tree manifest does not pin the launcher bin/codegraph content (reviewer mutant RP3 survives)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-158 (rounds 7-8), re-minted as CON-175 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-176 — fastcycle tests: patch-machinery whole-tree manifest does not pin the launcher bin/codegraph content (reviewer mutant RP3 survives)
 
 **Status:** Queued
 **Type:** Task
@@ -2473,7 +2670,9 @@ Parent: CON-031. Review round 3 PM3-1 (test-instrumentation, minor). The reviewe
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-129, re-minted as CON-159 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-160 — fastcycle tests: U65 reads only the first logged df path, so a df on the target followed by a df on HOME survives (reviewer mutant N3c)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-159 (rounds 7-8), re-minted as CON-176 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-177 — fastcycle tests: U65 reads only the first logged df path, so a df on the target followed by a df on HOME survives (reviewer mutant N3c)
 
 **Status:** Queued
 **Type:** Task
@@ -2484,7 +2683,9 @@ Parent: CON-031. Review round 3 US3-1 (test-instrumentation, minor). The reviewe
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-130, re-minted as CON-160 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-161 — fc_require_items residual nits: NULL-id rows count as items present, LIKE is case-insensitive, a foreign register with any ATM-* row runs the checks
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-160 (rounds 7-8), re-minted as CON-177 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-178 — fc_require_items residual nits: NULL-id rows count as items present, LIKE is case-insensitive, a foreign register with any ATM-* row runs the checks
 
 **Status:** Queued
 **Type:** Task
@@ -2499,7 +2700,9 @@ Round 7 (review round 6 N6-2, CR6-2, CR6-5): three more pins hold the CURRENT, n
 
 Round 8 (review round 7 N7-4, recorded open direction): with a caller IFS that lacks a space (IFS=, or empty) fc_require_items never SKIPs (the counts arrive as one field; the checks run and FAIL on a foreign register: fail-closed). Measured by the reviewer, now documented in the helper header; not changed (no caller sets such an IFS). Whether the helper should set IFS locally is this item's decision.
 
-## CON-162 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-161 (rounds 7-8), re-minted as CON-178 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-179 — full-suite runner Go classifier nits: file paths with a space give a false FAIL; the mutation harness decodes anchors with unicode_escape and prints DeprecationWarning
 
 **Status:** Queued
 **Type:** Task
@@ -2510,7 +2713,9 @@ Parent: CON-031. Review round 3 G3-4 and G3-5 (nits). G3-4 (source-defect, fail-
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-132, re-minted as CON-162 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-163 — status of items fixed in the full-suite vehicle must be set at landing (CON-146, CON-149, CON-152 and others stay Queued)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-162 (rounds 7-8), re-minted as CON-179 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-180 — status of items fixed in the full-suite vehicle must be set at landing (CON-146, CON-149, CON-152 and others stay Queued)
 
 **Status:** Queued
 **Type:** Task
@@ -2521,7 +2726,9 @@ Parent: CON-031. Review round 3 D3-2 (process-doc, nit). Items whose fix is in t
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-133, re-minted as CON-163 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-164 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-163 (rounds 7-8), re-minted as CON-180 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-181 — cycle_report s12 wrapper: the temp copy of stdout is not removed when the outer process is killed (no trap)
 
 **Status:** Queued
 **Type:** Task
@@ -2532,7 +2739,9 @@ Parent: CON-031. Review round 3 note, registered in round 5 (review round 4 item
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-134, re-minted as CON-164 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
 
-## CON-165 — full-suite vehicle merge messages must say how a census conflict was resolved
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-164 (rounds 7-8), re-minted as CON-181 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-182 — full-suite vehicle merge messages must say how a census conflict was resolved
 
 **Status:** Queued
 **Type:** Task
@@ -2542,4 +2751,33 @@ Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-1
 Parent: CON-031. Review round 4 item 5, unregistered nit (process-doc). The round-4 merge 97be3740 of main 90efceb8 resolved a conflict in the census line of docs/guides/full_suite_runner_guide.md by regenerating it, but the merge message does not say so. Acceptance: every merge of main into the vehicle that touches the generated census states in its message that the census was regenerated with run_full_suite.sh --sync-guide and checked with --verify-manifest, naming the resulting total.
 
 Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-135, re-minted as CON-165 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-165 (rounds 7-8), re-minted as CON-182 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+## CON-183 — Mutation harness cannot see Part 4: test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set, so a mutant only Part 4 kills is reported survived (review round 8 R8-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 R8-1. test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set (test_consumer_required_helper.sh:600 at vehicle head 4118f145), and both the sweep and the hand table set it, so a mutant that only the Part 4 legs kill is reported as survived. The reviewer's mutant M4 ($(cd "$(dirname -> $(cd -P "$(dirname) survives 338/0 through the harness path, while the same edit in the real helper fails Part 4 nine times (342/9). Acceptance: run Part 4 against the mutant (link the mutant into the scratch consumer layout instead of the checkout's helper), or state this bound beside the sweep's claim; then adopt M4 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+## CON-184 — fc_require_items id contract: a lowercase letter inside the prefix (AtM-5) is a usage error but no fixture asserts it; mutant M3 [[:alnum:]] survives (review round 8 R8-3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 R8-3. The id contract [A-Z][A-Z0-9]*-[0-9]+ is not fully pinned: the reviewer's mutant M3 changes the rest-of-prefix class *[!A-Z0-9]* to *[![:alnum:]]* and survives 338/0; on a foreign register the id AtM-5 exits 2 (usage error) on head and SKIPs 77 under M3, in bash and dash. Acceptance: add AtM-5 (and, for example, A_B-1) to the S7 or S7b usage-error list, and adopt M3 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+## CON-185 — L29 calls bad, not SKIP-with-reason, on a host with no UTF-8 locale that classes A-umlaut as [:upper:] (review round 8 N8-1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Parent: CON-178 (fc_require_items). Review round 8 N8-1 (nit). Leg L29 of test_consumer_required_helper.sh calls bad when the host classes no listed UTF-8 locale's A-umlaut as [:upper:], so a host without such a locale FAILs the whole helper suite when only that leg lacks topology. Acceptance: that leg records a §11.4.3 SKIP-with-reason naming the missing locale class instead of a FAIL, with a test that proves both branches. On the review host the locales are present, so the leg ran. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
 

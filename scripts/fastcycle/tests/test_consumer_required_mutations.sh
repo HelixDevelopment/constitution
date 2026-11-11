@@ -24,7 +24,7 @@
 #   MG13 C3 reads the last id column only
 #   MG14 C3 counts the first named prefix only (ids with two prefixes)
 #   MG15 C3 counts the last named prefix only
-#   Round 6 (review round 5 CR5-1..CR5-4; the operator authorised round 6 for CON-152/CON-157/CON-031 under section
+#   Round 6 (review round 5 CR5-1..CR5-4; the operator authorised round 6 for CON-169/CON-174/CON-031 under section
 #   11.4.276(G), 2026-11-10): one mutant per remaining input axis, legs L11..L17 in Part 3. RED first: every one
 #   below except MG17 SURVIVED the round-5 suite (158/0); MG17 was killed there only through m2_half.
 #   MG16 (reviewer RV5-1, verbatim) each id column is read from its first row only (L11 rows; the CR-3 false SKIP)
@@ -34,7 +34,7 @@
 #   MG20 (reviewer RV5-5, verbatim) -readonly dropped from the pragma call: an absent path gets a 0-byte file (L14)
 #   MG21 (reviewer R4-G) LIKE to GLOB, case-sensitive prefix (L15)
 #   MG22 id column matched case-insensitively (L13)
-#   MG23 (reviewer R4-I) items counted as non-NULL keys (L16; pins current behaviour, the direction is CON-161's)
+#   MG23 (reviewer R4-I) items counted as non-NULL keys (L16; pins current behaviour, the direction is CON-178's)
 #   MG24 trim(k) in the prefix count C3 (L17 whitespace)
 #   MG25 the pragma reads the first table of the schema instead of items (L17 other tables)
 #   Round 7 (review round 6 CR6-1..CR6-6, N6-1; the last round section 11.4.276(G) allows under the operator decision
@@ -79,7 +79,7 @@
 #   read-only shim). R4-D (C2 over one column), R4-E (UNION) and R4-J (the C2 clause dropped) are covered by the
 #   registry's Lemma L rows; R4-F (`-n "$_fci_key"`) is not a single-edit sweep mutant and stays a reasoned note:
 #   _fci_src and _fci_key are appended in the same branch, so both are set or both are empty.
-# Round 5 pinned R4-G and R4-I to CON-161; round 6 adopted them as MG21 and MG23 with fixtures (see above).
+# Round 5 pinned R4-G and R4-I to CON-178; round 6 adopted them as MG21 and MG23 with fixtures (see above).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh [MUTANT_ID...]
 #           bash scripts/fastcycle/tests/test_consumer_required_mutations.sh --sweep [JOBS]   (default JOBS 4)
 # Exit    : 0 baseline passes and every selected mutant is killed (with --sweep: the sweep verdict holds); 1 otherwise; 77 (reason=topology_unsupported)

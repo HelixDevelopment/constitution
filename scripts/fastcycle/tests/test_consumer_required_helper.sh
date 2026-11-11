@@ -198,7 +198,7 @@ else
   #   L15 case of ids: LIKE is case-insensitive, so atm-5 counts as the prefix and the checks run (the fail-closed
   #       direction). MG21 (reviewer R4-G: LIKE to GLOB, case-sensitive).
   #   L16 NULL ids: rows whose id is NULL count as items, so a table of NULL ids only SKIPs (current behaviour,
-  #       pinned; the direction stays CON-161's decision, CR3-3). MG23 (reviewer R4-I: items counted as non-NULL keys).
+  #       pinned; the direction stays CON-178's decision, CR3-3). MG23 (reviewer R4-I: items counted as non-NULL keys).
   #   L17 whitespace and other tables: an id with a leading space is not the prefix (SKIP), a trailing space is (RUN);
   #       only the items table is read (another table holding ATM-953, or no id column, changes nothing).
   #       MG24 (trim(k) in C3), MG25 (the pragma reads the first table of the schema).
@@ -211,11 +211,11 @@ else
   #       items), so such a sample reads the whole register in every real case. Recorded, not tested.
   #   L17b whitespace in C2: ' ATM-953' (leading space, the named id) SKIPs: C3 = 0 and C2 = 0. RV6-7 (trim(k) IN in
   #       C2) RUNs it. The round-6 claim that trim(k) in C2 is equivalent was false (C2 and C3 read different values);
-  #       the direction (SKIP, the non-conservative one) is pinned and registered with CON-161, like L16 and L17.
+  #       the direction (SKIP, the non-conservative one) is pinned and registered with CON-178, like L16 and L17.
   #   L18 path quoting: a tracker path holding a space, a single and a double quote. RV6-4 (path unquoted).
   #   L19 items is a VIEW over foreign rows: SKIP (a view answers the pragma and the counts like a table); a view
   #       over a lost item: run. RV6-5 (pragma only for a table).
-  #   L20 empty-string ids only: SKIP (they count as items, like NULL ids in L16; direction registered with CON-161).
+  #   L20 empty-string ids only: SKIP (they count as items, like NULL ids in L16; direction registered with CON-178).
   #       RV6-6 (items counted as non-empty keys).
   #   L21 BLOB-stored ids: CAST('ATM-5' AS BLOB) and CAST('ATM-953' AS BLOB) run the checks (LIKE reads a BLOB as
   #       text, so C3 >= 1). The real schema stores TEXT; the helper needs no change. RV6-10 (C3 over text keys only).

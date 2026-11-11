@@ -21,7 +21,7 @@ OPT_IN = frozenset(["mcpro1"])
 EXCLUSIVE = frozenset(["mcpro1"])
 # UNTESTED writer patches have no behavioural test of their own, so they are opt-in by
 # name only (`--patches fkidx1,lockfix1,...`) and never part of the default set
-# (operator decision 2026-11-05, CON-147 Option A). Moving one into the default needs
+# (operator decision 2026-11-05, CON-164 Option A). Moving one into the default needs
 # its own RED/GREEN test and paired mutation first. datafrag1 also refuses on 1.6.2.
 UNTESTED = frozenset(["lockfix1", "datafrag1"])
 DEFAULT_EXCLUDED = OPT_IN | UNTESTED

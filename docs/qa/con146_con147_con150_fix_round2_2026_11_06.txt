@@ -1,0 +1,222 @@
+# CON-116 (vehicle id before re-mint: CON-108) / CON-117 (vehicle id before re-mint: CON-109) / CON-120 (vehicle id before re-mint: CON-112) fix round 2 -- captured RED/GREEN evidence (2026-11-06)
+# Ids: this file was written under the vehicle ids before the re-mint of 2026-11-10 (merge 3d050dc3 of main 90efceb8, section 11.4.214): CON-108 is now CON-116, CON-109 is now CON-117, CON-112 is now CON-120. The body below keeps the old ids verbatim; on main CON-108..CON-115 are other items.
+# Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, /bin/sh -> /usr/bin/dash, bash 5.3.9(1)-release, nproc 16, load: 29.86 30.01 29.46
+# Base of this round: bundle head 2aabb298 (round 1), main bdc3ac43. Review: independent Opus review round 1 (F1-1, F1-2, F2-1..F2-3, F5-1).
+
+===== f1_regex_shapes.txt: header pattern on 11 shapes (new / old / wanted)
+new old want header
+1 1 1 diff --git a/f b/f
+1 0 1 diff --git a/c.txt "b/sp ace\ttab.txt"
+1 0 1 diff --git "a/sp ace\ttab.txt" b/c.txt
+1 1 1 diff --git "a/x\ty" "b/x\ty"
+1 1 1 diff --git a/a b/c b/a b/c
+0 0 0 diff --git f sf
+0 0 0 diff --git f xf
+0 0 0 diff --git c/x d/x
+0 0 0 diff --git f |f
+0 0 0 diff --git a/f
+0 0 0 diff --git b/f a/f
+
+===== F1 RED: bash scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh on the round-1 tool (rc=1)
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffparent mangles 'diff <ref>^1 <ref>' headers
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git uf f'
+ok control needle: repo 2 patch = plain header then mixed-quoting header
+ok shim self-check: diffsecond mangles only the second 'diff --git' header
+ok G1 plain stash, faithful backup, host git -> ALLOWED
+ok G2 inventory: status dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (tool never uses it)
+NOT ok B1 expected REFUSED naming the bad 'diff --git header' (not 'git status/diff failed'), got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok B2 inventory with non-canonical headers -> status UNMEASURED (never hashed)
+NOT ok G4 mixed-quoting inventory expected 'dirty 0e4aa0f072fa04074627976fd457bb1dd3232ab6a240094083089b64bb10e3f4', got 'UNMEASURED	None	'
+NOT ok G5 expected ALLOWED, got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok B3 only the SECOND header non-canonical -> inventory UNMEASURED
+NOT ok B4 expected REFUSED naming the bad header, got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok mutation M1_stash_show: caught -- mutant REFUSED under the stashshow shim
+ok mutation M2_no_header_check: caught -- mutant inventory status 'dirty'
+ok mutation M3_measured_true: caught -- mutant detail no longer names 'could not be read' (REFUSED)
+ok mutation M4_first_header_only: caught -- mutant inventory status 'dirty'
+NOT ok mutation M5_no_mixed_quoting: anchor not unique in the tool
+=== stash patch regression guard (CON-108): pass=15 fail=5 ===
+
+===== F1 GREEN: same command on the fixed tool (rc=0)
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffparent mangles 'diff <ref>^1 <ref>' headers
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git rf f'
+ok control needle: repo 2 patch = plain header then mixed-quoting header
+ok shim self-check: diffsecond mangles only the second 'diff --git' header
+ok G1 plain stash, faithful backup, host git -> ALLOWED
+ok G2 inventory: status dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (tool never uses it)
+ok B1 non-canonical stash patch headers -> REFUSED as unmeasured, naming the bad diff --git header
+ok B2 inventory with non-canonical headers -> status UNMEASURED (never hashed)
+ok G4 mixed-quoting rename header -> inventory status dirty, sha256 = backup sha256
+ok G5 mixed-quoting stash, faithful backup -> ALLOWED
+ok B3 only the SECOND header non-canonical -> inventory UNMEASURED
+ok B4 only the SECOND header non-canonical -> REFUSED naming the bad header
+ok mutation M1_stash_show: caught -- mutant REFUSED under the stashshow shim
+ok mutation M2_no_header_check: caught -- mutant inventory status 'dirty'
+ok mutation M3_measured_true: caught -- mutant detail no longer names 'could not be read' (REFUSED)
+ok mutation M4_first_header_only: caught -- mutant inventory status 'dirty'
+ok mutation M5_no_mixed_quoting: caught -- mutant inventory status 'UNMEASURED'
+=== stash patch regression guard (CON-108): pass=20 fail=0 ===
+
+===== F1 hand mutation: refusal text back to 'git status/diff failed' (expected FAIL)
+NOT ok B1 expected REFUSED naming the bad 'diff --git header' (not 'git status/diff failed'), got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+NOT ok B4 expected REFUSED naming the bad header, got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+=== stash patch regression guard (CON-108): pass=18 fail=2 ===
+
+===== F1 no-regression: test_custody_sweep_r11_regression.sh (rc=0)
+    dirty submodule/MAIN/unreachable-detached cases are refused; every safety check is reached by a real
+    case and proven load-bearing by a paired mutation. ===
+
+===== F1 no-regression: test_custody_sweep_r13_regression.sh (rc=0)
+    (worktree + stash)/lossy-filter/ignored-file cases are refused, restorable work is not,
+    and every check is proven load-bearing by a paired mutation. ===
+
+===== F1 no-regression: test_custody_sweep_r15_regression.sh (rc=0)
+    in-progress operations, unanchored stash base history), ignore ambient git-redirection
+    variables, bound every git call, and every check is proven load-bearing by a mutation. ===
+
+===== F2 RED: sh scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh on the round-1 host_report.py (sh rc=1)
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+NOT ok L1 dash-like sh: expected '123694 False', got 'None	False'
+NOT ok L2 real dash as sh: expected '123694 False', got 'None	False'
+NOT ok L3 host sh: expected '123694 False', got 'None	False'
+NOT ok L4 expected '4242 False', got 'None	False'
+NOT ok L5 expected 'None True', got 'None	False'
+ok L6 no 'Max processes' line + dash-like sh -> unmeasured (None), never guessed
+ok L7 no 'Max processes' line + bash as sh -> 'ulimit -u' fallback = 123694
+NOT ok L8 probe_thread_headroom under dash-like sh: reason 'unmeasured' (expected a measured reason)
+NOT ok mutation M1_ulimit_only: anchor not unique in the tool
+NOT ok mutation M2_hard_column: anchor not unique in the tool
+NOT ok mutation M3_no_fallback: anchor not unique in the tool
+=== host_report thread limit regression guard (CON-109 F2-1): pass=5 fail=9 ===
+
+===== F2 RED: bash scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh on the round-1 host_report.py (bash rc=1)
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+NOT ok L1 dash-like sh: expected '123694 False', got 'None	False'
+NOT ok L2 real dash as sh: expected '123694 False', got 'None	False'
+NOT ok L3 host sh: expected '123694 False', got 'None	False'
+NOT ok L4 expected '4242 False', got 'None	False'
+NOT ok L5 expected 'None True', got 'None	False'
+ok L6 no 'Max processes' line + dash-like sh -> unmeasured (None), never guessed
+ok L7 no 'Max processes' line + bash as sh -> 'ulimit -u' fallback = 123694
+NOT ok L8 probe_thread_headroom under dash-like sh: reason 'unmeasured' (expected a measured reason)
+NOT ok mutation M1_ulimit_only: anchor not unique in the tool
+NOT ok mutation M2_hard_column: anchor not unique in the tool
+NOT ok mutation M3_no_fallback: anchor not unique in the tool
+=== host_report thread limit regression guard (CON-109 F2-1): pass=5 fail=9 ===
+
+===== F2 GREEN: same command, fixed host_report.py (sh rc=0)
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok L1 dash-like sh: live soft limit read = 123694 (not unmeasured)
+ok L2 real dash as sh: live soft limit read = 123694
+ok L3 host sh (/usr/bin/sh): live soft limit read = 123694
+ok L4 fixture soft 4242 / hard 99999 -> 4242 (the soft value)
+ok L5 fixture 'unlimited' -> unlimited (never 0)
+ok L6 no 'Max processes' line + dash-like sh -> unmeasured (None), never guessed
+ok L7 no 'Max processes' line + bash as sh -> 'ulimit -u' fallback = 123694
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (measured)
+ok mutation M1_ulimit_only: caught -- mutant read 'None	False'
+ok mutation M2_hard_column: caught -- mutant read '99999	False'
+ok mutation M3_no_fallback: caught -- mutant read 'None	False'
+=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+
+===== F2 GREEN: same command, fixed host_report.py (bash rc=0)
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok L1 dash-like sh: live soft limit read = 123694 (not unmeasured)
+ok L2 real dash as sh: live soft limit read = 123694
+ok L3 host sh (/usr/bin/sh): live soft limit read = 123694
+ok L4 fixture soft 4242 / hard 99999 -> 4242 (the soft value)
+ok L5 fixture 'unlimited' -> unlimited (never 0)
+ok L6 no 'Max processes' line + dash-like sh -> unmeasured (None), never guessed
+ok L7 no 'Max processes' line + bash as sh -> 'ulimit -u' fallback = 123694
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (measured)
+ok mutation M1_ulimit_only: caught -- mutant read 'None	False'
+ok mutation M2_hard_column: caught -- mutant read '99999	False'
+ok mutation M3_no_fallback: caught -- mutant read 'None	False'
+=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+
+===== F2 no-regression: sh scripts/fastcycle/tests/test_host_guard_red.sh after the F2-3 header edit
+SUMMARY pass=135 fail=0
+
+===== F2 note: bash scripts/fastcycle/tests/test_host_limits_red.sh (rc=77) -- SKIP in a standalone clone:
+SKIP: consumer-project files absent under /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsfix2: scripts/lib/host_session_safety.sh (test targets a consumer layout, not canon alone) reason=topology_unsupported
+
+===== F2-1 class census (git grep, positive control = host_guard.sh lines, negative control = fabricated needle)
+## census 1: ulimit -<..u..> anywhere (git grep -n -E "ulimit[[:space:]]+-[a-zA-Z]*u")
+Binary file docs/workable_items.db matches
+scripts/codegraph/codegraph_safe.sh:416:    tl="$(ulimit -u)"
+scripts/codegraph/codegraph_safe.sh:424:        [ "$head" -ge "$minh" ] || { echo "PREFLIGHT FAIL threads: headroom $head < $minh (ulimit -u $tl, used $used) — §12.12"; ok=1; }
+scripts/fastcycle/host/host_report.py:1063:        rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+scripts/fastcycle/lib/host_guard.sh:10:#           /proc/self/limits else ulimit -u, ps -L, /proc/meminfo).
+scripts/fastcycle/lib/host_guard.sh:87:#           read from /proc/self/limits (Linux), falling back to `ulimit -u`
+scripts/fastcycle/lib/host_guard.sh:158:# `ulimit -u` is not POSIX and dash (Debian/Ubuntu /bin/sh) rejects it, which
+scripts/fastcycle/lib/host_guard.sh:162:# Linux, no /proc, awk failing) is `ulimit -u` tried. FC_GUARD_PROC_LIMITS
+scripts/fastcycle/lib/host_guard.sh:172:    _v=$(ulimit -u 2>/dev/null)
+scripts/fastcycle/tests/test_host_guard_red.sh:11:#   Never raises any limit (no `ulimit -u <bigger>`), exit 0 on success.
+scripts/fastcycle/tests/test_host_guard_red.sh:14:#     FC_GUARD_ULIMIT_U       soft RLIMIT_NPROC (live: ulimit -u)
+scripts/fastcycle/tests/test_host_guard_red.sh:221:# R2-F13: ulimit -u unreadable live => named unreadable_ulimit (never a mis-report).
+scripts/fastcycle/tests/test_host_guard_red.sh:231:# /proc/self/limits, not with `ulimit -u` (dash, a common /bin/sh, rejects
+scripts/fastcycle/tests/test_host_guard_red.sh:233:# `ulimit -u` only where the file is absent.
+scripts/fastcycle/tests/test_host_guard_red.sh:236:[ -n "$S" ] || S=$(ulimit -u 2>/dev/null)
+scripts/fastcycle/tests/test_host_guard_red.sh:238:  bad "R4 live soft RLIMIT_NPROC readable by the test itself (neither /proc/self/limits nor ulimit -u)"
+scripts/fastcycle/tests/test_host_guard_red.sh:248:  chk "R4 live ulimit -u read (=$S) => N=$S thread_headroom" 0 "$S" thread_headroom
+scripts/fastcycle/tests/test_host_guard_red.sh:251:if [ "$S" != unlimited ] && [ "$S" -le 1 ]; then echo "SKIP: ulimit -u too small to vary"
+scripts/fastcycle/tests/test_host_guard_red.sh:254:  # any /bin/sh); else with the shell's `ulimit -u` (bash, ksh, busybox).
+scripts/fastcycle/tests/test_host_guard_red.sh:258:    RAW_OUT=$(sh -c 'ulimit -u "$1" && FC_GUARD_NPROC=$2 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB="$4" FC_GUARD_MEM_AVAIL_KB="$5" exec timeout '"$RAW_TIMEOUT_S"' sh "$3"
+scripts/fastcycle/tests/test_host_guard_red.sh:536:# ---- CON-109: soft RLIMIT_NPROC read from a limits file, not from `ulimit -u` ----
+Binary file scripts/workable-items/bin/workable-items matches
+Binary file scripts/workable-items/bin/workable-items-linux matches
+## census 2: any ulimit invocation via sh -c or ["sh"
+scripts/fastcycle/host/host_report.py:1063:        rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
+scripts/fastcycle/tests/test_host_guard_red.sh:258:    RAW_OUT=$(sh -c 'ulimit -u "$1" && FC_GUARD_NPROC=$2 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB="$4" FC_GUARD_MEM_AVAIL_KB="$5" exec timeout '"$RAW_TIMEOUT_S"' sh "$3"
+scripts/gates/cm_killpg_pgid_guard_scope_selftest.sh:455:    timeout -k 2 15 env PATH="$p" bash -c 'ulimit -f 4096; . "$1" || exit 9; eval "${3:-:}"; cm_third_party_prune_paths "$2"' _ "$lib" "$2" "${4:-}" 2>"$TMP/r7err"
+## census 3: RLIMIT_NPROC / Max processes readers
+scripts/fastcycle/lib/host_guard.sh:9:#           unset => live read (nproc, soft "Max processes" from
+scripts/fastcycle/lib/host_guard.sh:77:#           never the USER env var: RLIMIT_NPROC is charged to the real uid and
+scripts/fastcycle/lib/host_guard.sh:156:# Live soft RLIMIT_NPROC (CON-109): read from the kernel's own record,
+scripts/fastcycle/lib/host_guard.sh:157:# /proc/self/limits ("Max processes  <soft> <hard> processes"), because
+scripts/fastcycle/lib/host_guard.sh:161:# same value. Only when the file has no readable "Max processes" line (not
+scripts/fastcycle/lib/host_guard.sh:168:    _v=$(awk '/^Max processes[ \t]/ { print $3; exit }' "$_lim_file" 2>/dev/null)
+scripts/fastcycle/tests/test_host_guard_red.sh:14:#     FC_GUARD_ULIMIT_U       soft RLIMIT_NPROC (live: ulimit -u)
+scripts/fastcycle/tests/test_host_guard_red.sh:188:# ROUND 7 (R6-F6, contract CHANGED again): RLIMIT_NPROC is charged to the REAL uid, so the census is
+scripts/fastcycle/tests/test_host_guard_red.sh:229:# MXV: live soft RLIMIT_NPROC (no FC_GUARD_ULIMIT_U). THREADS=0 => N = soft/1.
+scripts/fastcycle/tests/test_host_guard_red.sh:234:S=$(awk '/^Max processes[ \t]/ { print $3; exit }' /proc/self/limits 2>/dev/null)
+scripts/fastcycle/tests/test_host_guard_red.sh:238:  bad "R4 live soft RLIMIT_NPROC readable by the test itself (neither /proc/self/limits nor ulimit -u)"
+scripts/fastcycle/tests/test_host_guard_red.sh:536:# ---- CON-109: soft RLIMIT_NPROC read from a limits file, not from `ulimit -u` ----
+scripts/fastcycle/tests/test_host_guard_red.sh:542:  "Max processes             $1               $2               processes" \
+## negative control (fabricated needle)
+rc=1
+
+===== F5-1 census (reviewer helpers/census5.py with the runner's own _FAILWORD): before
+scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh:386: echo "    longer exits 120 with --out unwritten, and a success-print failure (the"
+scripts/fastcycle/tests/test_limit_class_place_r5i3_regression.sh:259: echo "    correctly fails with EXIT_USAGE (2), genuinely distinct from EXIT_OK (0)"
+TOTAL 2
+----- after
+TOTAL 0
+----- positive control: planted member
+plant.sh:2: echo "  and it fails CLOSED"
+TOTAL 1
+
+===== F5-1 live member: runner judge() on test_limit_class_place_r5i3_regression.sh output
+f5_r5i3_before.out rc=0 ('ERROR', 'fail_signal_after_summary', 'summary', {})
+f5_r5i3_after.out rc=0 ('PASS', '', 'summary', {})
+
+===== F5-1 latent member: test_custody_sweep_r9_regression.sh after the edit (rc=1) -- known consumer-root failure, same NOT ok lines as the reviewer's run
+NOT ok R9b-I1 real (fixed) tool FAILED: rc=2 stderr=custody_sweep.py: --repo-root '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-cons
+NOT ok R9-M2 real (fixed) tool FAILED: RESULT_FAIL rc=2
+=== R9 REGRESSION GUARD (custody_sweep.py): FAILURES ABOVE -- see 'NOT ok' lines. ===
