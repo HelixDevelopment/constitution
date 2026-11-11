@@ -291,7 +291,8 @@ def run_bounded(cmd, cwd, env, timeout):
         return p.returncode, out.decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
         try:
-            os.killpg(p.pid, signal.SIGKILL)
+            if isinstance(p.pid, int) and p.pid > 1 and p.pid != os.getpgrp():   # section 11.4.263
+                os.killpg(p.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
         out, _ = p.communicate()

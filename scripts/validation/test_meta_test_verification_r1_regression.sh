@@ -365,7 +365,8 @@ while time.monotonic() < t_end:
         got = 1
         seen = 1 if os.listdir(tt) else 0
         try:
-            os.killpg(p.pid, sig)
+            if isinstance(p.pid, int) and p.pid > 1 and p.pid != os.getpgrp():   # section 11.4.263
+                os.killpg(p.pid, sig)
         except ProcessLookupError:
             pass
         break
@@ -379,7 +380,8 @@ try:
 except subprocess.TimeoutExpired:
     end = end or "timeout"
     try:
-        os.killpg(p.pid, signal.SIGKILL)
+        if isinstance(p.pid, int) and p.pid > 1 and p.pid != os.getpgrp():   # section 11.4.263
+            os.killpg(p.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
     rc = p.wait()

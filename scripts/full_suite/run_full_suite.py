@@ -2682,7 +2682,7 @@ def reap_token(token):
 def killpg_checked(pgid, sig):
     # section 11.4.263: never signal a group id <= 1 or our own group
     if not isinstance(pgid, int) or pgid <= 1 or pgid == os.getpgrp():
-        raise Fatal(2, "refusing killpg(%r)" % (pgid,))
+        raise Fatal(2, "refusing to signal process group %r" % (pgid,))
     try:
         os.killpg(pgid, sig)
     except ProcessLookupError:

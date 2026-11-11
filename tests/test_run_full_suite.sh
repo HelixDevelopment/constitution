@@ -238,7 +238,7 @@ chk("X1: a record with a known verdict is valid (golden-FALSE)", m.valid_record(
 for bogus in ("BOGUS", "pass", "", "PASS-FULL"):
     chk("X1: a record with verdict %r is invalid" % bogus, m.valid_record(dict(base, verdict=bogus)), False)
 calls = []
-real_killpg = os.killpg
+real_killpg = os.killpg  # killpg-gate:allow test saves the real function to restore after patching
 os.killpg = lambda g, s: calls.append((g, s))
 try:
     for g in (1, 0, -5, os.getpgrp(), "7", None, True):
