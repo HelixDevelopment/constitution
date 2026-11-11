@@ -19,6 +19,11 @@
 #         alternative: the real vector and every equivalence claim must hold under both; four false claims are withdrawn
 #         (their members are killed by the new fixtures ZSID, ZSAUTH, YEAR5); the reviewer mutants RV8-01/02 are adopted;
 #         the generator covers tests whose body holds `]` and the `[[ ]]` compares (CMPS).
+# Round 10 (CON-194, review of round 9 N1-N5, §11.4.276(E) structural pass): every date / number compare of the gate
+#         gets a boundary pair from one table (members10: EXPBND, HORBND, DAYSBND, PFXBND, ITEMBND, LEVBND); the strip()
+#         fixtures use every python isspace() character (29, enumerated; Zs is a sub-needle), not only Zs (WSID, WSAUTH),
+#         plus the config's no-trim site (CONFWS); the reviewer mutants RV9-02, RV9-10, RV9-11 are adopted verbatim, and
+#         three off-by-one mutants (lev-gt-1, days-min-2, prefix-min-3) pair the new boundaries.
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -59,6 +64,19 @@ mapfile -d '' zsl < <(python3 -I -c 'import sys,unicodedata
 sys.stdout.buffer.write(b"".join(chr(c).encode()+b"\0" for c in range(0x110000) if unicodedata.category(chr(c))=="Zs"))')
 [ "${#zsl[@]}" -ge 17 ] || { echo "META: the Unicode Zs enumeration found ${#zsl[@]} characters (expected 17 or more)" >&2; exit 2; }
 zscat="$(printf '%s' "${zsl[@]}")"; echo "Unicode Zs: ${#zsl[@]} characters enumerated"
+# round 10 (CON-194, review N2): the gate's whitespace semantics is python str.isspace() (strip() with no argument),
+# which is WIDER than Zs: it adds the Cc whitespace (\t \n \v \f \r, U+001C..U+001F, U+0085) and Zl/Zp (U+2028,
+# U+2029). The fixtures WSID / WSAUTH (members10) are built from this set, enumerated here, never typed by hand; Zs stays
+# as a sub-needle: every Zs character must be in it, and so must the three characters the round-9 review found missing
+# from the Zs fixtures (U+0085, U+2028, U+2029).
+mapfile -d '' wsl < <(python3 -I -c 'import sys
+sys.stdout.buffer.write(b"".join(chr(c).encode()+b"\0" for c in range(0x110000) if chr(c).isspace()))')
+wsck="$(python3 -I -c 'import sys,unicodedata
+w={chr(c) for c in range(0x110000) if chr(c).isspace()}; z={chr(c) for c in range(0x110000) if unicodedata.category(chr(c))=="Zs"}
+print("ok" if z<=w and {"\x85","\u2028","\u2029"}<=w and len(w)>=29 else "bad %d"%len(w))')"
+[ "$wsck" = ok ] && [ "${#wsl[@]}" -ge 29 ] || { echo "META: the isspace() enumeration is wrong (${#wsl[@]} characters, check $wsck)" >&2; exit 2; }
+wscat="$(printf '%s' "${wsl[@]}")"; wsrow=(); for z in "${wsl[@]}"; do case "$z" in $'\t'|$'\n') ;; *) wsrow+=("$z") ;; esac; done
+echo "Unicode isspace(): ${#wsl[@]} characters enumerated (Zs ${#zsl[@]} of them; ${#wsrow[@]} can sit inside a TSV field)"
 setdates() { # R7-7 (round 8): every date fixture is computed at the start of the classify that uses it (inside its own
   # job), and the job's vector carries the date it started and ended on; a job whose dates differ is INCONCLUSIVE
   d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
@@ -239,6 +257,7 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   out+="$(members "$g")"
   out+="$(members7 "$g")"
   out+="$(members8 "$g")"
+  out+="$(members10 "$g")"
   echo "${out}DATE=$ds~$(date +%F)"
 }
 # ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
@@ -648,7 +667,67 @@ members8() { # gate path -> vector part (round 8): the four round-7 reviewer pro
   o+="YEAR5=$(run "$r" "$g")/$(cnt 'not a real YYYY-MM-DD') "
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 "
+members10() { # gate path -> vector part (round 10, review N1/N2, §11.4.276(E) structural pass)
+  # ── N1: every date / number compare of the gate, each as a BOUNDARY PAIR (the last value on the accepting side and
+  # the first on the refusing side), generated from one table, never point-fixed. The compares (gate line: compare):
+  #   137 need(): argc -ge 2      -> equivalence proof eq-need-argc-redundant (argc < 2 implies an empty value)
+  #   151 ${#lev[@]} -gt 0        -> LEVBND: 1 variable proceeds (a downgrade is FAIL 1), 0 is BLIND 2
+  #   181 max_waiver_days regex ^[1-9][0-9]{0,2}$ and -le 365 -> DAYSBND: 0|1, 99|100, 365|366, 999|1000
+  #   182 item_prefix ^[A-Z][A-Z0-9]+$ (two characters at least) -> PFXBND: C refused | CN honoured
+  #   187 lim = today + maxd, 248 e > lim -> HORBND: for maxd 30 (default), 1, 365: today+maxd honoured | +1 refused
+  #   247 e < today              -> EXPBND: today-1 refused ("waiver expired") | today honoured
+  #   246 year {4}               -> YEAR5 (members8: a five-digit year refused); a three-digit year is before today and
+  #                                 never reaches the compare as a valid row: not constructible, so no pair
+  #   249 item -[0-9]{3,}        -> ITEMBND: CON-46 refused | CON-046 and CON-0046 honoured
+  #   196 len(p)!=5              -> equivalence proof eq-idpy-len-dropped (printf always yields 5 fields)
+  # The other compares of the gate are equalities on exit codes, flags or SHAs (fwd/back, irc, fail/blind, dstat, the
+  # 160000 modes); they have no ordered boundary, and their members are in the inventory and the generated ledger.
+  local g="$1" o="" r f v e m x
+  mk;r=$R; stage "$r" "$A"; f=""
+  for e in "$(date -d "$today -1 day" +%F)" "$today"; do waive "$r" "$(wf sub "$B" "$A" ops "$e" CON-046)\n"; f+="$(run "$r" "$g")/$(cnt 'waiver expired'),"; done
+  o+="EXPBND=$f "
+  f=""
+  for m in 30 1 365; do mk;r=$R; [ "$m" = 30 ] || { conf "$r" "max_waiver_days=$m\n"; git -C "$r" commit -q -m conf; }; stage "$r" "$A"
+    for x in 0 1; do waive "$r" "$(wf sub "$B" "$A" ops "$(date -d "$today +$((m+x)) days" +%F)" CON-046)\n"; f+="$(run "$r" "$g"),"; done; done
+  o+="HORBND=$f "
+  f=""
+  for v in 0 1 99 100 365 366 999 1000; do mk;r=$R; conf "$r" "max_waiver_days=$v\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
+    waive "$r" "$(wf sub "$B" "$A" ops "$today" CON-046)\n"; f+="$(run "$r" "$g")/$(cnt 'not an integer 1..365'),"; done
+  o+="DAYSBND=$f "
+  mk;r=$R; conf "$r" 'item_prefix=C\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" C-046)\n"; f="$(run "$r" "$g")/$(cnt 'does not match'),"
+  mk;r=$R; conf "$r" 'item_prefix=CN\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CN-046)\n"; f+="$(run "$r" "$g")"
+  o+="PFXBND=$f "
+  mk;r=$R; stage "$r" "$A"; f=""
+  for e in CON-46 CON-046 CON-0046; do waive "$r" "$(wf sub "$B" "$A" ops "$d10" "$e")\n"; f+="$(run "$r" "$g"),"; done
+  o+="ITEMBND=$f "
+  # LEVBND: a git whose --local-env-vars prints exactly ONE variable; the gate must proceed (the staged downgrade is
+  # FAIL 1), and with none it is BLIND (LEV, inventory); a test `-gt 1` would make the one-variable git BLIND too
+  mkdir -p "$tmp/fklev1"; printf '#!/bin/bash\n[ "$1" = rev-parse ] && [ "$2" = --local-env-vars ] && { echo GIT_DIR; exit 0; }\nexec %s "$@"\n' "$realgit" >"$tmp/fklev1/git"; chmod +x "$tmp/fklev1/git"
+  mk;r=$R; stage "$r" "$A"; o+="LEVBND=$(run "$r" "$g" PATH="$tmp/fklev1:$PATH")/$(cnt 'ANCESTOR') "
+  # ── N2: the whitespace class of the gate's strip() sites is python isspace() (wsl, enumerated at the top), not Zs. The
+  # whitespace sites of the gate: (a) IDPY `a!=a.strip()`: the authoriser's padding; (b) IDPY `i.strip() and`: the
+  # truthiness of an identity field (equivalence proof eq-ident-strip-truthiness); (c) IDPY `f(i.strip())`: the
+  # identity compared; (d) the config reader takes `key=value` lines verbatim (no trim: a padded key is unknown, a padded
+  # value fails the regex, MAXD and CONFWS); (e) waiver rows are split on TAB (awk -F'\t') and newline, so TAB and LF
+  # cannot sit inside a field (wsrow drops them); (f) idname/idmail split git's ident on " <" and ">". Sites (a) and (c)
+  # get every isspace() character: WSID pads the committer and author name "t" with all of them on the right, then on
+  # the left (one string each: a strip that misses ANY member stops there, so the name no longer equals "t" and the row
+  # is honoured, 0); WSAUTH has one row per character and side ("me"+c, c+"me", for the wsrow characters): every row is
+  # refused. Needles: the counts, and the pad "x" honoured (tx, mex). ZSID / ZSAUTH (members8) stay as the Zs sub-needle.
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" t "$d10" CON-046)\n"
+  f="$(run "$r" "$g" GIT_COMMITTER_NAME="t$wscat" GIT_AUTHOR_NAME="t$wscat")/$(cnt 'self-waive'),"
+  f+="$(run "$r" "$g" GIT_COMMITTER_NAME="${wscat}t" GIT_AUTHOR_NAME="${wscat}t")/$(cnt 'self-waive')"
+  o+="WSID=$f/${#wsl[@]}/$(run "$r" "$g" GIT_COMMITTER_NAME=tx GIT_AUTHOR_NAME=tx) "
+  mk;r=$R; stage "$r" "$A"; x=""; for v in "${wsrow[@]}"; do x+="$(wf sub "$B" "$A" "me$v" "$d10" CON-046)\n$(wf sub "$B" "$A" "${v}me" "$d10" CON-046)\n"; done
+  waive "$r" "$x"; f="$(run "$r" "$g")/$(cnt ': WAIVED')/$(grep -c '' "$r/.submodule_pin_waivers")"
+  waive "$r" "$(wf sub "$B" "$A" mex "$d10" CON-046)\n"; o+="WSAUTH=$f/$(run "$r" "$g") "
+  # CONFWS (site d): a key padded with a space is unknown (waivers disabled); the same line unpadded is honoured
+  f=""; for x in ' max_waiver_days=60' 'max_waiver_days =60' 'max_waiver_days=60'; do mk;r=$R; conf "$r" "$x\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
+    waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; f+="$(run "$r" "$g"),"; done
+  o+="CONFWS=$f "
+  echo "$o"
+}
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -1515,6 +1594,32 @@ MEOF
   mutf RV8-02-authoriser-ascii-strip <<'MEOF'
 s/a!=a\.strip() or "<"/a!=a.strip(" \\t\\n") or "<"/
 MEOF
+  # round-9 reviewer mutants RV9-02, RV9-10, RV9-11 (review_con046_r9.md section 4; rev_con046_r9/mut/RV9-02*.sh,
+  # mut2/RV9-1[01]*.sh): the seds give the reviewer's mutated gate byte for byte (checked with cmp when adopted).
+  # RV9-02 survived round 9 (no fixture at today-1): killed by EXPBND (members10). RV9-10 / RV9-11 strip only Zs and
+  # ASCII; a U+2028 / U+2029 (RV9-10, RV9-11) or U+0085 (RV9-11) pad lets the producer self-waive: killed by WSAUTH / WSID
+  mutf RV9-02-expired-yesterday-ok <<'MEOF'
+s/^    \[\[ "\$e" < "\$today" \]\] \&\&/    [[ "$e" < "$(date -d "$today -1 day" +%Y-%m-%d)" ]] \&\&/
+MEOF
+  mutf RV9-10-auth-zs-only-pad <<'MEOF'
+s/if not a or a!=a\.strip() or "<"/if not a or any(unicodedata.category(c)=="Zs" or c in " \\t\\n\\r" for c in a[:1]+a[-1:]) or "<"/
+MEOF
+  mutf RV9-11-ident-zs-only-strip <<'MEOF'
+s/^\(    if not a or a!=a\.strip() or .*\)$/\1\n    W="".join(chr(c) for c in range(0x110000) if unicodedata.category(chr(c))=="Zs")+" \\t\\n\\r\\x0b\\x0c"/
+s/return 10 if any(i\.strip() and f(i\.strip())==f(a) for i in p\[1:\]) else 0/return 10 if any(i.strip(W) and f(i.strip(W))==f(a) for i in p[1:]) else 0/
+MEOF
+  # round 10 (review N1, structural pass): off-by-one mutants for the boundary pairs of members10 that no earlier mutant
+  # had: the lev count needs one variable, not two (LEVBND); max_waiver_days=1 is legal (DAYSBND); a two-character
+  # item_prefix is legal (PFXBND)
+  mutf lev-gt-1 <<'MEOF'
+s/\[ "\${#lev\[@\]}" -gt 0 \]/[ "${#lev[@]}" -gt 1 ]/
+MEOF
+  mutf days-min-2 <<'MEOF'
+s/=~ \^\[1-9\]\[0-9\]{0,2}\$ \]\]/=~ ^[2-9][0-9]{0,2}$ ]]/
+MEOF
+  mutf prefix-min-3 <<'MEOF'
+s/=~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\]/=~ ^[A-Z][A-Z0-9]{2,}$ ]]/
+MEOF
   # ── round 8: generated member mutants (§11.4.274, §11.4.276(C)): cm_submodule_pin_not_downgraded_members.py
   # enumerates every case alternative, regex quantifier / anchor / class part, strip half, test comparison operator,
   # && / || operand, python or / and operand and `if !` of the gate. The committed ledger must equal a fresh listing
@@ -1617,6 +1722,11 @@ MEOF
 --
 s/^  \[ "\$om" = 160000 \] \&\& \[ "\$nm" = 160000 \] || continue$/  [ "$nm" = 160000 ] || continue/
 MEOF
+  # the five eq-site-*-aborts claims (round 10, review N5): `continue` (real) versus `return 1` (mutant) at a refusal site
+  # whose condition is global to every candidate row gives the same EXIT code, so these are exit-equivalence claims. They
+  # are NOT message-equivalent in general: with `continue` the FAIL line shows the WHY of the LAST candidate row, with
+  # `return 1` the WHY of the row at this site, so the text differs when a later row fails a different check. Each probe
+  # uses two rows that both reach the site, so it compares the exit code and the site's message count, not other text.
   eqp eq-site-merge-aborts pr_merge <<'MEOF'
 s/commit the rollback on its own"; continue; }/commit the rollback on its own"; return 1; }/
 --
