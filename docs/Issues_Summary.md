@@ -11,9 +11,9 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | Bug | Ready for testing | 3 |
 | Task | In progress | 2 |
 | Task | Operator-blocked | 2 |
-| Task | Queued | 138 |
+| Task | Queued | 142 |
 | Task | Ready for testing | 26 |
-| **TOTAL** | | **239** |
+| **TOTAL** | | **243** |
 
 ## Items
 
@@ -258,3 +258,7 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-266 | Task | Queued | Low | Round 7 review finding R7-M1 (test-instrumentation, minor, follow-up): the mechanical enumerator covers tier function bodies and tier function call sites only; module constants (_FOREIGN_WRITE, _SUBID_FILES, HIGH_BLAST_SEAMS) and the gate-side consumption of the tier result are covered by hand-written mutants (all killed). Extend the enumerator and add a token-count cross-check of the census. Review: docs/qa/con033_review/review_con033_r7.md | UNSET | UNSET |
 | CON-267 | Task | Queued | Low | Round 7 review finding R7-M2 (test-instrumentation, minor, follow-up, carried from round 6): mutate_tier_legs.py has no self-test RED. Add a small RED suite that plants a survivor and a dropped-kind generator. Review: docs/qa/con033_review/review_con033_r7.md | UNSET | UNSET |
 | CON-268 | Task | Queued | Low | Round 7 review nit R7-N1 (test-instrumentation, nit): with --keys every equivalence key outside the selected subset is printed STALE and the run exits 1; only a full run gives a meaningful stale check (the same happens with --only). Compute staleness against the full enumeration. Review: docs/qa/con033_review/review_con033_r7.md | UNSET | UNSET |
+| CON-269 | Task | Queued | Low | Review readme_link_v2 (GO-with-follow-ups; docs/qa copy not made, report at scratchpad review_readme_link.md). F1, minor, process-doc. 164 tracked docs/*.md are not reachable by any Markdown link path from README (research 49, scripts 46, qa 26, label-sync 7, jev 6, actions 5, amendment-log 5, guides 3, prompts 3, codegraph 2, release 2, plus Issues.md, Issues_Summary.md, Fixed.md, Fixed_Summary.md, CONTINUATION.md, BADGES.md, AGENT_GUARDRAILS.md, owed_gate_implementations.md, translations.md, optimization 1); many are named only as backtick paths. Pre-existing (165 at base b20736f8). Decide the reachability definition for 11.4.212 (link versus path mention), then link them or correct the R18 sentence in the README Status summary. Acceptance: census (census.py) reports 0 unreached under the chosen definition, or the R18 claim is corrected. | UNSET | UNSET |
+| CON-270 | Task | Queued | Low | F2, minor, test-instrumentation. No shipped gate enforces 11.4.212 README reachability; CM-README-DOC-ENTRYPOINT-COMPLETE is named in the corpus but neither implemented nor a registered deferral. Register a deferral in scripts/gates/gate_ledger_deferrals.tsv and docs/owed_gate_implementations.md, or implement it, seeded from the reviewer's census script (scratchpad review_tools/census.py) and its four mutants. Acceptance: the name is implemented or registered; if implemented, a paired mutation test fails when a doc becomes unreachable. | UNSET | UNSET |
+| CON-271 | Task | Queued | Low | F3, nit, process-doc. Both README-link commits (c0223046, 4436af82) carry Roadmap-Item: none-doc-only. Register such work per 11.4.202 before it starts or agree a documented doc-only token. The landing merge commit carries the id of the F1 follow-up instead. Commits are not rewritten (11.4.113). | UNSET | UNSET |
+| CON-272 | Task | Queued | Low | F4, nit, process-doc. The README metadata table Fixed cell records rounds only up to R14; R15 to R23 are not recorded there. Pre-existing staleness. Bring the cell up to date or rotate it per 11.4.61(A). | UNSET | UNSET |

@@ -3520,3 +3520,39 @@ Round 7 review finding R7-M2 (test-instrumentation, minor, follow-up, carried fr
 
 Round 7 review nit R7-N1 (test-instrumentation, nit): with --keys every equivalence key outside the selected subset is printed STALE and the run exits 1; only a full run gives a meaningful stale check (the same happens with --only). Compute staleness against the full enumeration. Review: docs/qa/con033_review/review_con033_r7.md
 
+## CON-269 — README-link review F1: 164 docs/*.md are not linked from README, contradicting the R18 'no orphan under docs/' claim (section 11.4.212)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+Review readme_link_v2 (GO-with-follow-ups; docs/qa copy not made, report at scratchpad review_readme_link.md). F1, minor, process-doc. 164 tracked docs/*.md are not reachable by any Markdown link path from README (research 49, scripts 46, qa 26, label-sync 7, jev 6, actions 5, amendment-log 5, guides 3, prompts 3, codegraph 2, release 2, plus Issues.md, Issues_Summary.md, Fixed.md, Fixed_Summary.md, CONTINUATION.md, BADGES.md, AGENT_GUARDRAILS.md, owed_gate_implementations.md, translations.md, optimization 1); many are named only as backtick paths. Pre-existing (165 at base b20736f8). Decide the reachability definition for 11.4.212 (link versus path mention), then link them or correct the R18 sentence in the README Status summary. Acceptance: census (census.py) reports 0 unreached under the chosen definition, or the R18 claim is corrected.
+
+## CON-270 — README-link review F2: no gate CM-README-DOC-ENTRYPOINT-COMPLETE (silent gate debt, section 11.4.227(A))
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+F2, minor, test-instrumentation. No shipped gate enforces 11.4.212 README reachability; CM-README-DOC-ENTRYPOINT-COMPLETE is named in the corpus but neither implemented nor a registered deferral. Register a deferral in scripts/gates/gate_ledger_deferrals.tsv and docs/owed_gate_implementations.md, or implement it, seeded from the reviewer's census script (scratchpad review_tools/census.py) and its four mutants. Acceptance: the name is implemented or registered; if implemented, a paired mutation test fails when a doc becomes unreachable.
+
+## CON-271 — README-link review F3: commits carry 'Roadmap-Item: none-doc-only', which is not an item id (section 11.4.293(A))
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+F3, nit, process-doc. Both README-link commits (c0223046, 4436af82) carry Roadmap-Item: none-doc-only. Register such work per 11.4.202 before it starts or agree a documented doc-only token. The landing merge commit carries the id of the F1 follow-up instead. Commits are not rewritten (11.4.113).
+
+## CON-272 — README-link review F4: README Fixed header cell lists revisions only up to R14 (R15 to R23 missing)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude
+
+F4, nit, process-doc. The README metadata table Fixed cell records rounds only up to R14; R15 to R23 are not recorded there. Pre-existing staleness. Bring the cell up to date or rotate it per 11.4.61(A).
+
