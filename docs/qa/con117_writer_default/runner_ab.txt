@@ -1,0 +1,44 @@
+# CON-117 runner-layer scratch A/B (2026-11-06), stock codegraph 1.6.2
+old_rc=0 <scratch>/ab_runner_cache/1.6.2-fkidx1-resolve1/bin/codegraph
+new_rc=0 <scratch>/ab_runner_cache/1.6.2-fkidx1-resolve1-resolve2/bin/codegraph
+
+1.6.2-fkidx1-resolve1 ['fkidx1', 'resolve1']
+1.6.2-fkidx1-resolve1-resolve2 ['fkidx1', 'resolve1', 'resolve2']
+
+patch markers (key helix-resolve2-count helix-resolve1-count):
+1.6.2-fkidx1-resolve1 0 3
+1.6.2-fkidx1-resolve1-resolve2 1 3
+== stock rc=0
+nodes|575
+edges|579
+files|18
+unresolved|failed|10
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.30
+	Maximum resident set size (kbytes): 660656
+nodes=575 edges=579 edges_sha=d5f0cdebc7302eaa refs=10 refs_sha=1a7f27fba2cb2e61 status=[('failed', 10)]
+== old rc=0
+nodes|575
+edges|579
+files|18
+unresolved|failed|10
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.67
+	Maximum resident set size (kbytes): 671464
+nodes=575 edges=579 edges_sha=d5f0cdebc7302eaa refs=10 refs_sha=1a7f27fba2cb2e61 status=[('failed', 10)]
+== new rc=0
+nodes|575
+edges|579
+files|18
+unresolved|failed|10
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.39
+	Maximum resident set size (kbytes): 674960
+nodes=575 edges=579 edges_sha=d5f0cdebc7302eaa refs=10 refs_sha=1a7f27fba2cb2e61 status=[('failed', 10)]
+
+sha256 of the sorted edge/ref dumps:
+d5f0cdebc7302eaa221b8bfc43732b930e27c7577f944bfc6a383fecf50d4d45  <scratch>/ev/runner_ab/new.edges.tsv
+d5f0cdebc7302eaa221b8bfc43732b930e27c7577f944bfc6a383fecf50d4d45  <scratch>/ev/runner_ab/old.edges.tsv
+d5f0cdebc7302eaa221b8bfc43732b930e27c7577f944bfc6a383fecf50d4d45  <scratch>/ev/runner_ab/stock.edges.tsv
+1a7f27fba2cb2e613407a4f211a6cab3033c1a687001b35d4fcf784f9a0ba11e  <scratch>/ev/runner_ab/new.refs.tsv
+1a7f27fba2cb2e613407a4f211a6cab3033c1a687001b35d4fcf784f9a0ba11e  <scratch>/ev/runner_ab/old.refs.tsv
+1a7f27fba2cb2e613407a4f211a6cab3033c1a687001b35d4fcf784f9a0ba11e  <scratch>/ev/runner_ab/stock.refs.tsv
+
+positive needle (swift-objc bridge edges in new.edges.tsv): 4 lines; old: 4; stock: 4; negative needle 'nonexistent_needle_xyz': 0

@@ -4,11 +4,17 @@
 Purpose : CON-158 / CON-147 round 6 (review of fsfix5, section 11.4.274): the
           class "a reviewer mutant of the guarded script survives" recurred in
           rounds 3, 4 and 5 because each round's paired-mutant table was
-          written by hand. This tool enumerates EVERY decision point of a fixed
-          set of target scripts with a closed list of single-edit operators,
-          runs each mutant against the target's regression test in a scratch
-          copy of scripts/, and reports each mutant KILLED, SURVIVED, or
-          EQUIVALENT (only with a recorded proof in the equivalence ledger).
+          written by hand. This tool enumerates the decision points of a fixed
+          set of target scripts that are matched by its closed list of
+          single-edit operators (the operators below), runs each mutant against the target's
+          regression test in a scratch copy of scripts/, and reports each
+          mutant KILLED, SURVIVED, or EQUIVALENT (only with a recorded proof in
+          the equivalence ledger). Scope, stated honestly (CON-159, review
+          fsfix6 m1): "survived=0" means no OPERATOR-generated survivor, not
+          that every decision point is covered. Real decision-point mutants no
+          operator generates exist (negating a bare `if cmd; then`, an awk field
+          shift, a str.replace count of 0, `head -N`, dropping a `|| assign`);
+          they were killed by hand-written tests, and are not proved by this tool.
 Targets : (closed list, stated scope)
           meta         scripts/validation/meta_test_verification.sh, whole file;
                        test: test_meta_test_verification_r1_regression.sh with
@@ -283,6 +289,41 @@ def read_ledger(root):
     return led
 
 
+def kill_session(sid):
+    """SIGKILL every process of the session `sid` (the run's own session: run_bounded
+    starts it with start_new_session=True, so `sid` is the child's pid). CON-162 n1:
+    killing only the process group missed what GNU `timeout` starts in its own new
+    group; a session id is kept across setpgid, so the whole tree is found by it.
+    Refuses sid <= 1 (section 11.4.263)."""
+    if not isinstance(sid, int) or sid <= 1:
+        raise ValueError("refusing to kill session %r" % (sid,))
+    for _ in range(5):
+        found = False
+        for d in os.listdir("/proc"):
+            if not d.isdigit() or int(d) <= 1:
+                continue
+            try:
+                st = open("/proc/%s/stat" % d).read()
+                rest = st[st.rindex(")") + 2:].split()
+            except (OSError, ValueError):
+                continue
+            if rest[3] == str(sid) and rest[0] != "Z":
+                found = True
+                try:
+                    os.kill(int(d), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        if not found:
+            break
+
+
+def is_stale_killed(verdict, key, ledger):
+    """CON-162 n2: a ledger entry claims its mutant is equivalent (survives because no
+    input separates it). A mutant that is KILLED makes that proof false, so the entry
+    is STALE too, not only when its key is no longer generated."""
+    return verdict == "KILLED" and key in ledger
+
+
 def run_bounded(cmd, cwd, env, timeout):
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          start_new_session=True)
@@ -290,10 +331,7 @@ def run_bounded(cmd, cwd, env, timeout):
         out, _ = p.communicate(timeout=timeout)
         return p.returncode, out.decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(p.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_session(p.pid)
         out, _ = p.communicate()
         return None, out.decode("utf-8", "replace")
 
@@ -405,6 +443,10 @@ def main(argv):
                 res[v] += 1
                 emit("%s\t%s\t%s:%d\t%s\t%s\t->\t%s" % (v, m["key"], name, m["lineno"], m["rule"],
                                                        m["old"].strip(), m["new"].strip()))
+                if is_stale_killed(v, m["key"], ledger):
+                    res["STALE"] += 1
+                    emit("STALE\t%s\t%s\tledger entry's mutant is KILLED, so its equivalence proof is false: %s"
+                         % (m["key"], name, ledger[m["key"]]["old"]))
         gen = {m["key"] for m in enumerate_all(a.root, targets)}
         for k, ent in ledger.items():
             if ent["target"] in targets and k not in gen:

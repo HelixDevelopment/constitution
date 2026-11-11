@@ -1,0 +1,9 @@
+CON-102 mutant M1G / reviewer M6 record (section 11.4.292), 2026-11-11, host-only
+Base: 0ca66af7; Linux 7.0.0, bash 5.3.9, dash.
+RED : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON102-M6
+      (for _fcr_p in "$@"; do -> for _fcr_p in $*; do in fc_require_consumer; helper test without the spaced-path leg)
+      SURVIVED CON102-M6 (rc 0, 0 NOT ok lines)
+GREEN (same command, helper test with the spaced-path leg in Part 3b):
+      killed CON102-M6 (4 failing check(s): [bash]/[dash] a path argument with a space is passed whole ...)
+      SUMMARY mutants=2 killed=2 survivors=0 (with CON183-M4)
+Scope: only M1G is closed here; M1A, M2A, M2C, M2D of CON-102 are not touched and the item stays Queued.

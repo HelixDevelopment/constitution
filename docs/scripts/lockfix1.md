@@ -1,7 +1,7 @@
 # lockfix1 (runner patch) — guide
 
-**Revision:** 2
-**Last modified:** 2026-11-05T22:20:00Z
+**Revision:** 3
+**Last modified:** 2026-11-06T12:30:00Z
 
 Revision 2 note: since 2026-11-05 (CON-164, operator decision Option A) this patch is also out of
 `fk_index_patch.py`'s own default set (`UNTESTED` in `runner_patches/__init__.py`); it is applied only when named
@@ -17,7 +17,7 @@ No file under `scripts/codegraph/tests/` exercises lockfix1's runtime behaviour 
 `__helixLockOwnerIsCodegraph`, and none builds a runner with lockfix1 and inspects a lock). The tree mentions the id
 only in selection arguments (`tests/test_bulk_classify_mutate.py`, `tests/test_mcp_readonly_mutate.py`,
 `tests/test_unit_safe.sh`) and `codegraph_safe.sh` (lines 63-68) states it has zero tests, which is why the wrapper does
-not use it by default (`--patches fkidx1,resolve1`). `owed_report.py` reports "tested" only because the id is named.
+not use it by default (its default is the registry default `fkidx1,resolve1,resolve2`, CON-211). `owed_report.py` reports "tested" only because the id is named.
 Everything below is traced from source and from the ad hoc scratch checks recorded under Usage; nothing was run
 against the real runner.
 

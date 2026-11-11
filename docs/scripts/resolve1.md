@@ -1,7 +1,7 @@
 # resolve1 (runner patch) — guide
 
-**Revision:** 3
-**Last modified:** 2026-11-06T09:30:00Z
+**Revision:** 4
+**Last modified:** 2026-11-06T12:30:00Z
 
 Source: `constitution/scripts/codegraph/runner_patches/resolve1.py` (116 lines). A **module driven by
 `fk_index_patch.py`**, not a command. Citations are `resolve1.py:<line>` unless another file is named. Machinery guide:
@@ -34,8 +34,8 @@ the `files` table.
 ## Prerequisites
 
 Reads `lib/dist/resolution/index.js` and `lib/dist/resolution/frameworks/vue.js`. Python stdlib plus
-`runner_patches/common.py`. Default-set patch (`runner_patches/__init__.py:17`), applied fourth. It is one of the two
-patches `codegraph_safe.sh` uses by default (`--patches fkidx1,resolve1`, per the parent guide).
+`runner_patches/common.py`. Default-set patch (`runner_patches/__init__.py:17`), applied fourth. It is one of the three
+patches `codegraph_safe.sh` uses by default (the registry default `fkidx1,resolve1,resolve2` since 2026-11-06, CON-211).
 
 ## Usage
 

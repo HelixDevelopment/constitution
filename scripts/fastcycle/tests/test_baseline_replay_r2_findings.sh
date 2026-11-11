@@ -447,6 +447,8 @@ def send(t, signo, case, tok):
         # the group must contain a process of THIS case (never a foreign group)
         if not any(stat(p) and stat(p)[2] == ident for p, _ in case_procs(case, tok)):
             return False
+        if not isinstance(ident, int) or ident <= 1:      # section 11.4.263, re-checked at the call
+            return False
         os.killpg(ident, signo)
         return True
     if ident not in [p for p, _ in case_procs(case, tok)]:

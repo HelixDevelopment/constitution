@@ -27,7 +27,7 @@ line names where the value and colour come from. The gate
 `CM-BADGE-MACHINE-DERIVED-SOURCE` cross-checks this file against the row.
 
 ## Version
-Source: scripts/badges/compute_badges.sh (first `## ` heading of CHANGELOG.md; amber while it is `Unreleased`, green once it is a `helixconstitution-vNN` or dotted patch `helixconstitution-vNN.N[.N...]` release heading)
+Source: scripts/badges/compute_badges.sh (first `## ` heading of CHANGELOG.md; amber while it is `Unreleased`, green once it is a `helixconstitution-vNN` or dotted patch `helixconstitution-vNN.N[.N...]` release heading; amber again when that release heading contains `PROVISIONAL` in any letter case, so a §11.4.290 pre-release never turns the Readiness gauge green; precondition: a FINAL release heading never contains the word, otherwise it reads amber, a conservative false amber)
 
 ## Anchors
 Source: scripts/badges/compute_badges.sh (count of `- id:` rows in constitution_index.yaml; red unless the index's recorded source SHA-256 equals the SHA-256 of Constitution.md)
