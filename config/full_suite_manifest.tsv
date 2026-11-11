@@ -79,6 +79,7 @@ scripts/codegraph/tests/test_memfloor_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_owed_report.py	py	entry	default	python3	-	auto
 scripts/codegraph/tests/test_owed_report_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_patch_machinery.py	py	entry	default	python3	-	auto
+scripts/codegraph/tests/test_patch_machinery_mutations.sh	sh	entry	heavy	bash	-	auto
 scripts/codegraph/tests/test_resolve1.sh	sh	entry	default	bash	-	auto
 scripts/codegraph/tests/test_resolve1_count_hook.js	js	excluded	-	-	-	override: reason: tool: node --require hook loaded by test_resolve1.sh (shell model cannot see the node invocation); exits 0 alone, so a standalone run is a vacuous PASS; not a test
 scripts/codegraph/tests/test_resolve1_drive.js	js	excluded	-	-	-	override: reason: tool: node driver that needs <distDir> <db> args, run by test_resolve1.sh and test_resolve2.sh (shell model cannot see the node invocation); not a test
@@ -258,6 +259,7 @@ scripts/fastcycle/tests/test_consumer_audit_red.sh	sh	member	default	-	scripts/f
 scripts/fastcycle/tests/test_consumer_enumerate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_required_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r13_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -883,6 +885,8 @@ tests/test_no_head_red_builder.sh	sh	entry	default	bash	-	auto
 tests/test_no_head_red_builder_mutations.sh	sh	entry	default	bash	-	override: fast (measured 5.6 s, one shared clone, no sweep); paired mutations of the redpin census guard
 tests/test_post_update_hub_gates.sh	sh	entry	default	bash	-	auto
 tests/test_run_full_suite.sh	sh	entry	default	bash	-	auto
+tests/test_run_full_suite_go.sh	sh	entry	default	bash	-	auto
+tests/test_run_full_suite_go_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_run_full_suite_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/test_verify_helix_deps_manifests.sh	sh	entry	default	bash	-	auto
 tests/token_efficiency/meta_test_token_efficiency.sh	sh	entry	heavy	bash	-	auto

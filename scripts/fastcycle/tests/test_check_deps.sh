@@ -9,19 +9,30 @@ failx() { fail=1; [ -z "$FC_TEST_FAILFAST" ] || exit 1; }  # FC_TEST_FAILFAST: s
 [ -x "$SUT" ] || { echo "FAIL: $SUT missing/not executable"; exit 1; }
 TOOLS="git sqlite3 strace pandoc weasyprint shellcheck python3 mmdc"
 # Case 1: scrubbed PATH = every present tool + helpers EXCEPT git (timeout included so ONLY git is absent)
-S=$(mktemp -d); trap 'rm -rf "$S"' EXIT
-mkpath() { # dir skip_tool : shim EVERY executable from the real PATH (so tool wrappers keep their
-  # interpreters) except skip_tool, so ONLY that tool is genuinely absent.
+S=$(mktemp -d); trap 'rm -rf "$S" "$MKTPL"' EXIT
+mkpath_build() { # dir : shim EVERY executable from the real PATH (so tool wrappers keep their interpreters);
+  # the first PATH entry wins, as in a real lookup.
   OLDIFS=$IFS; IFS=:
   for d in $PATH; do
     [ -d "$d" ] || continue
     for f in "$d"/*; do
-      b=${f##*/}; [ "$b" = "$2" ] && continue
+      b=${f##*/}
       # exec-shim (not a symlink): wrappers that resolve their own dirname via $0 keep working
       [ -x "$f" ] && [ ! -e "$1/$b" ] && { printf '#!/bin/sh\nexec "%s" "$@"\n' "$f" >"$1/$b"; chmod +x "$1/$b"; }
     done
   done
   IFS=$OLDIFS
+}
+# The shim set is built ONCE and copied per case (one cp per call): building it per call (thousands of
+# chmod forks) cost ~20 s per call at load 13 and made this file a runner TIMEOUT (root-cause report part 2).
+MKTPL=$(mktemp -d); mkpath_build "$MKTPL"
+[ -e "$MKTPL/sh" ] && [ -e "$MKTPL/git" ] || { echo "FAIL mkpath template: sh/git shims missing (instrument blind)"; failx; }
+mkpath() { # dir skip_tool : the template's shims, not overwriting files already in dir, except skip_tool,
+  # so ONLY that tool is genuinely absent (a skip_tool file the caller already wrote stays).
+  local had=0
+  [ -e "$1/$2" ] && had=1
+  cp -an "$MKTPL/." "$1/" 2>/dev/null
+  [ "$had" -eq 1 ] || rm -f "$1/$2"
 }
 mkpath "$S" git
 out=$(PATH="$S" "$SUT" 2>&1); rc=$?
@@ -33,7 +44,7 @@ exp=$(echo "$want" | tr ' ' '\n' | sort | tr '\n' ' ')
 [ "$got" = "$exp" ] || { echo "FAIL case1: MISSING set '$got' != '$exp'"; failx; }
 echo "$out" | grep -q "^BLIND: missing/unusable: git" || [ "$want" != git ] || { echo "FAIL case1: exit-4 message must name exactly git"; failx; }
 # F14: broken tool (loader error, exit 127) must be MISSING/unusable, not FOUND
-B=$(mktemp -d); trap 'rm -rf "$S" "$B"' EXIT
+B=$(mktemp -d); trap 'rm -rf "$S" "$B" "$MKTPL"' EXIT
 mkpath "$B" git
 printf '#!/bin/sh\necho "error while loading shared libraries: libfoo.so"\nexit 127\n' >"$B/git"; chmod +x "$B/git"
 out=$(PATH="$B" "$SUT" 2>&1); rc=$?
@@ -169,7 +180,7 @@ rm -rf "$N"
 # ROUND 6 (R5-F1): a probe whose descendant keeps stdout open must not delay the verdict past the bound, and nothing may outlive the call.
 lo_pids() { grep -la "FC_ORPH=$1" /proc/[0-9]*/environ 2>/dev/null | sed -n 's#^/proc/\([0-9]*\)/environ$#\1#p'; }
 lo_kill() { for p in $(lo_pids "$1"); do [ "$p" -gt 1 ] && kill -s KILL "$p" 2>/dev/null; done; return 0; }
-r6clean() { for m in r6a r6b r6c r6d r6e; do lo_kill "$m$$"; done; rm -rf "$S" "$B" "$H" "$K" "$W" "$G" "$G2" 2>/dev/null; }
+r6clean() { for m in r6a r6b r6c r6d r6e r6f; do lo_kill "$m$$"; done; rm -rf "$S" "$B" "$H" "$K" "$W" "$G" "$G2" "$G7" "$MKTPL" 2>/dev/null; }
 trap r6clean EXIT
 env FC_ORPH=r6c$$ sleep 30 & r6c=$!
 i=0; while [ -z "$(lo_pids r6c$$)" ] && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
@@ -242,18 +253,46 @@ echo "$out" | grep -q "^FOUND git: gitmock-1$" && echo "$out" | grep -q "^MISSIN
 TD6=$(mktemp -d); TMPDIR="$TD6" "$SUT" >/dev/null 2>&1
 [ -z "$(ls -A "$TD6")" ] || { echo "FAIL r6b: scratch dir leaked: $(ls "$TD6")"; failx; }
 # A signal while a probe hangs: exit 2, probe group killed, scratch dir removed.
+# Readiness = the hanging git shim itself wrote its ready file (it runs only after the SUT's traps are set and the
+# git probe started). Waiting for the FC_ORPH marker instead was satisfied by the SUT's own environment at launch,
+# so the signal landed before the traps (rc 143/129/4): a proxy signal (root-cause report part 2, check_deps).
+G7=$(mktemp -d); mkpath "$G7" git
+printf '#!/bin/sh\ntrap "" TERM\n: >"%s/ready"\nsleep 300 &\nsleep 300\n' "$G7" >"$G7/git"; chmod +x "$G7/git"
 for sg in TERM HUP INT; do
+  rm -f "$G7/ready"
   set -m   # a plain `&` child ignores SIGINT from birth (an ignored-on-entry signal cannot be trapped): job control, R7-F5
-  env FC_ORPH=r6e$$ TMPDIR="$TD6" FC_PROBE_TIMEOUT_S=60 PATH="$G2" "$SUT" >/dev/null 2>&1 &
+  env FC_ORPH=r6e$$ TMPDIR="$TD6" FC_PROBE_TIMEOUT_S=60 PATH="$G7" "$SUT" >/dev/null 2>&1 &
   hp=$!; set +m
-  i=0; while [ -z "$(lo_pids r6e$$)" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
-  [ -n "$(lo_pids r6e$$)" ] || { echo "FAIL r6b signal $sg: probe never started"; failx; }
+  i=0; while [ ! -e "$G7/ready" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -e "$G7/ready" ] || { echo "FAIL r6b signal $sg: probe never started"; failx; }
   kill -s "$sg" "$hp"; wait "$hp"; rc=$?
   [ "$rc" -eq 2 ] || { echo "FAIL r6b signal $sg: expected exit 2 got $rc"; failx; }
   sleep 0.5
   [ -z "$(lo_pids r6e$$)" ] || { echo "FAIL r6b signal $sg: probe group survived"; failx; }
   lo_kill "r6e$$"
   [ -z "$(ls -A "$TD6")" ] || { echo "FAIL r6b signal $sg: scratch dir leaked: $(ls "$TD6")"; failx; }
+done
+# A signal during the `timeout` SELF-probe (before any tool probe) also exits 2: the traps are set before it.
+# A shimmed `timeout` writes its ready file and lingers 2 s, only on the self-probe call, then runs the real one.
+RT=$(command -v timeout)
+for sg in TERM INT; do
+  rm -f "$G7/ready"; mv -f "$G7/timeout" "$G7/timeout.real" 2>/dev/null
+  printf '#!/bin/sh\ncase "$*" in "-k 2 5 sh -c :") : >"%s/ready"; sleep 2 ;; esac\nexec "%s" "$@"\n' "$G7" "$RT" >"$G7/timeout"; chmod +x "$G7/timeout"
+  set -m
+  env FC_ORPH=r6f$$ TMPDIR="$TD6" FC_PROBE_TIMEOUT_S=60 PATH="$G7" "$SUT" >/dev/null 2>&1 &
+  hp=$!; set +m
+  i=0; while [ ! -e "$G7/ready" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+  [ -e "$G7/ready" ] || { echo "FAIL self-probe signal $sg: self-probe never started"; failx; }
+  kill -s "$sg" "$hp"; wait "$hp"; rc=$?
+  [ "$rc" -eq 2 ] || { echo "FAIL self-probe signal $sg: expected exit 2 got $rc"; failx; }
+  # review C2-1 (reviewer mutant N7b, self-probe backgrounded + `wait $!`): the exit code alone is the same when
+  # the signal orphans the self-probe child, so check, as r6b does, that no process carrying the marker survives.
+  # The shim lingers 2 s, so an orphaned self-probe is still alive 0.5 s after the SUT exited.
+  sleep 0.5
+  [ -z "$(lo_pids r6f$$)" ] || { echo "FAIL self-probe signal $sg: the self-probe child survived the signal: $(lo_pids r6f$$ | tr '\n' ' ')"; failx; }
+  lo_kill "r6f$$"
+  [ -z "$(ls -A "$TD6")" ] || { echo "FAIL self-probe signal $sg: scratch dir leaked: $(ls "$TD6")"; failx; }
+  mv -f "$G7/timeout.real" "$G7/timeout" 2>/dev/null
 done
 # A broken mktemp (rc 0 but empty output / a path that does not exist / an existing FILE / rc 1 with noise) is named MISSING, never used:
 # no probe runs (no shell redirect error), nothing relative is removed (cwd holds a dir named x), mktemp stderr is not leaked.
@@ -312,9 +351,17 @@ if unshare -Urpf --mount-proc sh -c : >/dev/null 2>&1 && command -v strace >/dev
 else echo "SKIP r6b pid reuse: userns_unavailable (unshare -Urpf --mount-proc or strace cannot run)"; fi
 # R6-F1 / R6-F2 / R7 signal windows (plain, inherit, postwait, shim, shimord: see fixtures/triple_harness/sigwin_rig.sh):
 # a TERM must exit 2, kill the probe's whole group in every window and spare an inherited stale tpid's group.
+# Review C2-3 (UNCONFIRMED flake, once under load ~15-33: the postwait window returned ''; not reproduced in 4
+# standalone runs): a FAIL here prints the window's wall time and the load average, so a recurrence carries the
+# timing needed to tell a budget problem from a real defect. No retry: a retry would hide either.
+sw_t0=$(date +%s)
 res=$(bash "$HERE/fixtures/triple_harness/sigwin_check.sh" deps "$HERE")
+sw_el=$(( $(date +%s) - sw_t0 ))
 [ -z "$res" ] || printf '%s\n' "$res"
-printf '%s\n' "$res" | grep -q '^FAIL' && failx
+if printf '%s\n' "$res" | grep -q '^FAIL'; then
+  echo "note: signal windows took ${sw_el}s; load average $(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null)"
+  failx
+fi
 # R7b: reap_jobs pid source shimmed (see fixtures/triple_harness/jobs_shim_check.sh): no pgid <= 1 ever reaches kill,
 # dash-like `jobs -r` rejection falls back to `jobs -p`, the pid-namespace canary (stale done job) survives, silent stderr.
 res=$(bash "$HERE/fixtures/triple_harness/jobs_shim_check.sh" deps "$HERE")

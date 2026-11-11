@@ -1,7 +1,7 @@
 # resolve1 (runner patch) — guide
 
-**Revision:** 1
-**Last modified:** 2026-09-26T14:05:00Z
+**Revision:** 3
+**Last modified:** 2026-11-06T09:30:00Z
 
 Source: `constitution/scripts/codegraph/runner_patches/resolve1.py` (116 lines). A **module driven by
 `fk_index_patch.py`**, not a command. Citations are `resolve1.py:<line>` unless another file is named. Machinery guide:
@@ -70,7 +70,12 @@ There is no NOT_NEEDED path in this patch (no such branch in the source).
 R1 `getAllFiles()` returns one frozen array per generation equal to the query result; R2 `clearCaches()` invalidates it;
 R3 `initialize()` invalidates it before `detectFrameworks()`; R4 real `getAllFilePaths()` queries during a full index do
 not grow with the number of references (bounded by `R4_MAX`, default 12); R5 the `.vue` subset is derived once per
-file-list identity; R6 and R7 resolution output (sorted edge dump sha256) is byte-identical to the stock package on a
+file-list identity (the probe's reference is `language: 'javascript'`: from CodeGraph 1.6.2 the vue resolver returns null
+for any language outside `VUE_SCRIPT_LANGUAGES` before it scans, so the earlier `cpp` probe never reached the code under
+test; R5 also requires `vue_scan_1st > 0`; measured 2026-11-05: patched runner 1st=335 2nd=0 PASS, stock 1.6.2 1st=335
+2nd=335 FAIL); R5b a `.vue` file added after the first resolve, then `clearCaches()`, is found (the subset is
+never served stale from an older list; added 2026-11-06 after review finding I2-1: the reviewer mutant that keys the
+subset on one global key passed R2, R5 and R6, and fails R5b); R6 and R7 resolution output (sorted edge dump sha256) is byte-identical to the stock package on a
 mixed-language fixture with vue and on a vue-free fixture. Companion files: `test_resolve1_probe.js`, `_drive.js`,
 `_count_hook.js`, `_dump.py`, `_fixture.py`, `_equiv_real.js`; `test_resolve1_mutations.sh` applies single-edit mutants of
 the patch (table in `test_resolve1_mutate.py`) and requires the named tests to turn red.

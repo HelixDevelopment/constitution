@@ -792,6 +792,10 @@ else
   echo "SKIP go module unit (go not installed)"
 fi
 
+# --- 22b/22c moved: Go units offline (when a failed Go unit is an environment SKIP) are pinned in
+# tests/test_run_full_suite_go.sh (one case per axis, real module graphs from a private file:// proxy) and its
+# paired mutants in tests/test_run_full_suite_go_mutations.sh (review round 2 G5 / G7b, structural round 3).
+
 # =========================================================================== round 4 (review r3 P4-P10)
 # --- 23 X4: a resumed KNOWN is applied only when the recorded log still has its sha256
 X4="$T/x4"; mkroot "$X4"; X4C="$T/cnt_x4"

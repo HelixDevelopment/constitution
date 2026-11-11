@@ -41,8 +41,10 @@
 #     --pending-threshold N  sync is BULK when pending unresolved refs >= N, N >= 1
 #                            (default $CG_SAFE_PENDING_BULK_MIN, else 150000)
 #     --patches IDS          comma list of runner patches to apply (default
-#                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the VALIDATED subset,
-#                            see below); `all` = every registered patch. fkidx1 must be
+#                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the subset validated on a live index,
+#                            see below); `all` = the patch tool's registry default
+#                            (fkidx1,resolve1,resolve2; lockfix1/datafrag1 only by name,
+#                            CON-164 Option A). fkidx1 must be
 #                            in the set (the receipt gate requires it, else exit 5)
 #     --wait                 block until a detached bulk run finishes (poll)
 #     --poll-s N             --wait poll period, seconds (default 10)
@@ -60,12 +62,15 @@
 #                            secrets_dir heuristic classes ONLY (default
 #                            scope_exceptions.txt beside this script; absent file ->
 #                            no exceptions, the strictest posture — never an error)
-# Patch set: only fkidx1 (oracle fk_cascade_probe.py + test_unit_safe.sh) and resolve1
-#   (tests/test_resolve1*.sh + mutations) have tests. lockfix1 and datafrag1 have ZERO
-#   tests, so a multi-hour bulk job must not silently run them: they are opt-in via
-#   --patches / CG_SAFE_PATCHES. (lockfix1 is also redundant here: this wrapper already
-#   refuses to start while a live codegraph holds the lock.) The default runner key is
-#   <version>-fkidx1-resolve1.
+# Patch set: fkidx1 (oracle fk_cascade_probe.py + test_unit_safe.sh), resolve1
+#   (tests/test_resolve1*.sh + mutations) and resolve2 (tests/test_resolve2*.sh + mutations)
+#   have tests. lockfix1 and datafrag1 have ZERO tests, so a multi-hour bulk job must not
+#   silently run them: they are opt-in by name via --patches / CG_SAFE_PATCHES, and since
+#   2026-11-05 (CON-164 Option A) they are out of the patch tool's own registry default
+#   too, so `--patches all` no longer reaches them either. (lockfix1 is also redundant
+#   here: this wrapper already refuses to start while a live codegraph holds the lock.)
+#   This wrapper's default stays fkidx1,resolve1 (runner key <version>-fkidx1-resolve1);
+#   resolve2 is applied with `--patches all` or by name.
 # Inputs (environment)
 #   CODEGRAPH_BIN            stock CLI (default: `codegraph` on PATH)
 #   CG_SAFE_PENDING_BULK_MIN default sync BULK threshold, pending refs (default 150000)
