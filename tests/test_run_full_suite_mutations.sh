@@ -142,6 +142,8 @@ RMb	    for pre in ("", "constitution"):	    for pre in ("",):
 F47a	                if ids != {tid}:	                if tid not in ids:
 F47b	        elif r[1] != "Issues":	        elif False:
 F47c	    if not total:	    if False:
+F47d	        if r is None:\n            stale += 1	        if r is None:\n            pass
+F47e	        elif r[1] != "Issues":	        elif r[1] == "Fixed":
 EOF
 )
 
