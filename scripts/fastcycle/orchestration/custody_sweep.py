@@ -869,6 +869,26 @@ def stash_has_untracked(root, ref, env=None):
     return False if not err.strip() else None
 
 
+def stash_index_unpatched(root, ref, patch_bytes, env=None):
+    """CON-146 round 6 (review fsfix5 M1): a stash whose tracked patch is
+    EMPTY (`git stash show -p` prints nothing: the worktree equals the base)
+    can still hold INDEX content in its `<ref>^2` parent -- a change that was
+    staged and then reverted in the worktree. No patch backup can carry it.
+    Returns True when the patch is empty and `<ref>^2`'s tree differs from
+    the base `<ref>^1`, False when the patch is not empty or the index equals
+    the base, None when the question could not be answered (the caller
+    refuses)."""
+    if patch_bytes is None or patch_bytes:
+        return False
+    rc, _out, _err = _run(["git", "-C", root, "diff", "--quiet", "%s^1" % ref, "%s^2" % ref],
+                          check=False, env=env)
+    if rc == 0:
+        return False
+    if rc == 1:
+        return True
+    return None
+
+
 def stash_base_commit(root, ref):
     rc, out, _ = _run(["git", "-C", root, "rev-parse", "%s^1" % ref], check=False)
     if rc != 0:
@@ -1441,6 +1461,7 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
                    live_hash=sha256_of_bytes(patch_bytes) if patch_bytes else None,
                    has_untracked=stash_has_untracked(root, entry_id, env=env),
                    dirty_submodules=[], has_unmerged=False, measured=patch_bytes is not None)
+        res["index_unpatched"] = stash_index_unpatched(root, entry_id, patch_bytes, env=env)
         # T140 Round 15 IMPORTANT-1: the stash's base history must survive
         # the drop (see stash_history_unanchored).
         res["history_problems"], res["history_why"] = stash_history_unanchored(root, entry_id, env=env)
@@ -2075,6 +2096,14 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
         return "REFUSED", ("%s %r has untracked content (has_untracked=%r) that the tracked-diff-only "
                             "backup at %r cannot cover -- %s refused to avoid losing it"
                             % (entry_kind, entry_id, has_untracked, backup_artifact_path, action))
+    if entry_kind == "stash" and live.get("index_unpatched") is not False:
+        # CON-146 round 6 (review fsfix5 M1): the patch is empty but the stash
+        # holds index (staged) content; the backup is not stale -- no patch can
+        # carry index content. None (undeterminable) is refused the same way.
+        return "REFUSED", ("stash %r has index (staged) content in its ^2 parent that its empty "
+                            "tracked patch cannot carry (index_unpatched=%r); the backup at %r is not "
+                            "stale, no patch backup can cover index content -- %s refused"
+                            % (entry_id, live.get("index_unpatched"), backup_artifact_path, action))
     dirty_submodules = live.get("dirty_submodules")
     if dirty_submodules is None or dirty_submodules:
         # T140 Round 11 review finding B1 scenario 4 (fixed here): a patch

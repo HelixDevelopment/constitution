@@ -58,7 +58,9 @@
 #           `empty_patch`, never UNMEASURED, and `land` of an untracked-only
 #           stash is refused for its untracked content, not as unreadable
 #           (EP1V); reviewer mutant RD and its live-path twin RD2 run as
-#           self-tests.
+#           self-tests. Round 6 (review fsfix5 M1): `land` of the index-only
+#           stash with a faithful empty backup is refused for its INDEX
+#           content, never as a stale backup (EP2V; paired mutant EP2M).
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -581,6 +583,11 @@ battery() {
   V=$(run_vp "$impl" "$REU" "$TMP/empty.patch" "PATH=$PATH")
   [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"has untracked content"* ]] && [[ "$(detail "$V")" != *"could not be read"* ]]
   chk EP1V $? "untracked-only stash, land -> REFUSED for its untracked content, not as unreadable (got $(verdict "$V"): $(detail "$V" | cut -c1-120))"
+  # round-6 axis (review fsfix5 M1): the index-only stash is refused BECAUSE of
+  # its index content, never as a stale backup (the faithful empty backup is not stale).
+  V=$(run_vp "$impl" "$REP" "$TMP/empty.patch" "PATH=$PATH")
+  [ "$(verdict "$V")" = REFUSED ] && [[ "$(detail "$V")" == *"index (staged) content"* ]] && [[ "$(detail "$V")" != *"the backup is stale"* ]]
+  chk EP2V $? "index-only stash, faithful empty backup, land -> REFUSED for its index content, not as stale (got $(verdict "$V"): $(detail "$V" | cut -c1-140))"
   [ "$mode" = collect ] && printf '%s' "$BF"
   return 0
 }
@@ -771,6 +778,10 @@ mutation RD_empty_patch_is_unmeasured "EP1 EP2" '    if patch_bytes is None:
 mutation RD2_empty_live_patch_unmeasured "EP1V" \
   'dirty_submodules=[], has_unmerged=False, measured=patch_bytes is not None)' \
   'dirty_submodules=[], has_unmerged=False, measured=bool(patch_bytes))'
+# EP2M (round 6, review fsfix5 M1): the index-content check removed.
+mutation EP2M_index_content_not_checked "EP2V" \
+  '    if entry_kind == "stash" and live.get("index_unpatched") is not False:' \
+  '    if False:'
 # FL2 (reviewer: unquote of the `---`/`+++` lines dropped) is EQUIVALENT: the
 # header fallback names the same path, so no input separates it; not adopted.
 
