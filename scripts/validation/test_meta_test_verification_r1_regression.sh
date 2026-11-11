@@ -219,11 +219,21 @@ done
 #        finishes, the run keeps its exit 0)                                        (R1b, R5b)
 #   DP12 build_root: skip the test submodule, use the given gate file -> G
 #   DP13 mutation 2's two edits, mutation 1 and 2 run on their own roots -> G
+#   DP14 each gate run captures BOTH its streams into its file, and the meta-test
+#        prints them indented: control -> B2, mutation 1 -> G and B16 (stderr),
+#        the weakened gate's parse -> B11, mutation 2 -> B3 (the diag= field)
+#        (found by the round-6 census, enumerate_decision_mutants.py)
+#   DP15 a scratch root that cannot be built STOPS the run at once: the m1
+#        `finish` and build_root's first `|| return 1` -> B9, the m2 `finish`
+#        -> B10 (the stop= field; round-6 census)
 # Not separable (stated, §11.4.6): `[ -e "$s" ] || continue` in build_root -- the
 # DP2 guard means the glob always matches at least the test submodule, and a
 # dangling entry linked or skipped gives the gate the same (absent) target, so
 # the mutant that drops the line is equivalent; not adopted (the enumerator's
 # equivalence ledger carries the same proof).
+# Also equivalent (ledger): in cleanup, dropping either of `[ -n "${W:-}" ]` and
+# `[ -d "${W}" ]` (W is a mktemp -d path whenever the EXIT trap is set, and
+# `rm -rf` of a missing path is a no-op whose status is not read).
 
 # Fixture gates (each passes on its own fake tree except where the fixture is
 # about the checked tree itself).
@@ -240,8 +250,12 @@ for a in (REQ, CHK, SUB, BANNER):
 def w(name, text): open("%s/gate_%s.sh" % (d, name), "w").write(text)
 w("real", c)
 w("blind", c.replace(REQ, "").replace(CHK, ""))                                     # B1
-w("false", '#!/usr/bin/env bash\necho "always FAIL"\nexit 1\n')                       # B2
-w("needs_git", c.replace(SUB, SUB + '[ -e "${CONSTITUTION_ROOT}/.git" ] || { echo "not a checkout"; exit 1; }\n'))  # B3
+# The diagnostics below go to STDERR on purpose: the meta-test must capture both
+# streams of every gate run (round 6, census: its `2>&1` / `> file` redirects
+# were decision points no fixture pinned).
+w("false", '#!/usr/bin/env bash\necho "always FAIL" >&2\nexit 1\n')                   # B2
+w("needs_git", c.replace(SUB, SUB + '[ -e "${CONSTITUTION_ROOT}/.git" ] || { echo "not a checkout" >&2; exit 1; }\n'))  # B3
+w("stderr_missing", c.replace(SUB, SUB + '[ -d "${SUBMODULES_DIR}/verification" ] || echo "verification not cloned (stderr)" >&2\n'))  # B16
 w("reformatted", c.replace(REQ, '    "verification"   # agent-skills\n'))             # B4
 w("always_pass", c.replace(BANNER, BANNER + 'exit 0\n'))                             # B5
 SAB = 'for _d in "${TMPDIR:-/tmp}"/meta_test_verification.*; do [ -d "$_d" ] && %s; done\n'
@@ -261,23 +275,36 @@ w("sigwait", c.replace(SUB, SUB + 'if [ -n "${MTV_SIGMARK:-}" ] && [ ! -e "${MTV
 PYEOF
 
 # fx NAME MTVFILE: run the meta-test MTVFILE on fixture NAME; prints the verdict
-# "rc=<exit> fail=<n> msg=<0|1> tmp=<0|1>" (msg: the fixture's pinned line is in
-# the output; tmp: something was left under TMPDIR). Every fixture runs in its own
+# "rc=<exit> fail=<n> msg=<0|1> tmp=<0|1> diag=<0|1|-> stop=<0|1|->" (msg: the fixture's pinned
+# line is in the output; tmp: something was left under TMPDIR; diag: the
+# fixture's indented gate diagnostic is in the output, "-" when none is pinned;
+# stop: for a fixture whose decision point must STOP the run (fx_stops), its line
+# is the last unindented line before the summary and no later step ran (B9: no
+# `cp:` error either, build_root stopped at the mkdir), "-" for the others; round 6
+# census survivors ed1705be1215 and 54dcb68d8153). Every fixture runs in its own
 # mktemp directory (review fsfix5 n1: a counter bumped inside $(...) never moved),
 # and every run is bounded (timeout: rc 124 or 137 shows in the verdict).
 fx_gate() { case $1 in B1) echo blind ;; B2) echo false ;; B3) echo needs_git ;; B4) echo reformatted ;;
   B5) echo always_pass ;; B9) echo sab_m1 ;; B10) echo sab_m2 ;; B11) echo if_wrapped ;; B13) echo dup_req ;;
-  B14) echo sab_cp ;; B15) echo sab_ln ;; *) echo real ;; esac; }
+  B14) echo sab_cp ;; B15) echo sab_ln ;; B16) echo stderr_missing ;; *) echo real ;; esac; }
 fx_msg() { case $1 in
   G) echo "✓ the weakened gate parses" ;; B1|B5) echo "✗ real gate passed despite the missing" ;;
   B2|B6) echo "✗ real gate does not pass on the real tree" ;; B3) echo "✗ weakened gate still exits non-zero" ;;
   B4|B13) echo "✗ could not build the weakened gate" ;; B7) echo "✗ verification script not found" ;;
   B8) echo "✗ test submodule not present" ;; B9|B14|B15) echo "✗ could not build the mutation-1 scratch root" ;;
   B10) echo "✗ could not build the mutation-2 scratch root" ;; B11) echo "✗ the weakened gate does not parse" ;;
-  B12) echo "✗ mktemp failed" ;;
+  B12) echo "✗ mktemp failed" ;; B16) echo "✓ real gate exits non-zero when" ;;
   *) echo "=== meta-test verification:" ;; esac; }
+# fx_diag NAME: the indented diagnostic line the meta-test must print for the
+# fixture (the gate's own output, captured from BOTH streams and indented by
+# four spaces), or nothing when the fixture pins no diagnostic.
+fx_diag() { case $1 in
+  G) echo '^    .*REQUIRED submodule MISSING: verification' ;; B2) echo '^    always FAIL' ;;
+  B3) echo '^    not a checkout' ;; B11) echo '^    .*syntax error' ;;
+  B16) echo '^    verification not cloned \(stderr\)' ;; esac; }
+fx_stops() { case $1 in B4|B7|B8|B9|B10|B13|B14|B15) return 0 ;; esac; return 1; }
 fx() {
-  local name=$1 mtv=$2 T rc fl msg tmp tt
+  local name=$1 mtv=$2 T rc fl msg tmp tt dg pat st last
   T=$(mktemp -d "$TMP/fx.XXXXXX") || { echo "fixture-mktemp-failed"; return; }
   mktree "$T/tree" "$TMP/gate_$(fx_gate "$name").sh" "$mtv" >/dev/null 2>&1
   case $name in
@@ -291,8 +318,17 @@ fx() {
   fl=$(sed -n 's/^=== meta-test verification: pass=[0-9]* fail=\([0-9]*\) ===$/\1/p' "$T/out")
   grep -qF -- "$(fx_msg "$name")" "$T/out" && msg=1 || msg=0
   [ -z "$(ls -A "$T/tt")" ] && tmp=0 || tmp=1
+  pat=$(fx_diag "$name"); dg=-
+  [ -n "$pat" ] && { grep -qE -- "$pat" "$T/out" && dg=1 || dg=0; }
+  st=-
+  if fx_stops "$name"; then
+    last=$(sed '/^=== meta-test verification:/,$d' "$T/out" | grep -v -e '^$' -e '^    ' | tail -n 1)
+    st=0
+    case $last in *"$(fx_msg "$name")"*) st=1 ;; esac
+    [ "$name" = B9 ] && grep -q '^cp: ' "$T/out" && st=0
+  fi
   rm -rf "${T:?}"
-  echo "rc=$rc fail=${fl:-none} msg=$msg tmp=$tmp"
+  echo "rc=$rc fail=${fl:-none} msg=$msg tmp=$tmp diag=$dg stop=$st"
 }
 
 # sigfx SIG MTVFILE [clean]: stop the meta-test with SIG on an observed event and
@@ -411,22 +447,29 @@ sigfx() {
 
 # The original meta-test on every fixture: the verdict each one is pinned to.
 declare -A WANT
-for x in G B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B13 B14 B15; do WANT[$x]=$(fx "$x" "$MTV"); done
+for x in G B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B13 B14 B15 B16; do WANT[$x]=$(fx "$x" "$MTV"); done
 for s in TERM INT HUP; do WANT[S$s]=$(sigfx "$s" "$MTV"); WANT[SCLEAN_$s]=$(sigfx "$s" "$MTV" clean); done
 
-[ "${WANT[G]}" = "rc=0 fail=0 msg=1 tmp=0" ] && ok "G (fixture) good tree -> ${WANT[G]}" || notok "G (fixture) good tree -> ${WANT[G]}"
+[ "${WANT[G]}" = "rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-" ] && ok "G (fixture) good tree -> ${WANT[G]}" || notok "G (fixture) good tree -> ${WANT[G]}"
+want_diag() { [ -n "$(fx_diag "$1")" ] && echo 1 || echo -; }
+want_stop() { fx_stops "$1" && echo 1 || echo -; }
 for x in B1 B2; do
-  case ${WANT[$x]} in "rc=1 fail="[12]" msg=1 tmp=0") ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" ;;
+  case ${WANT[$x]} in "rc=1 fail="[12]" msg=1 tmp=0 diag=$(want_diag "$x") stop=-") ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" ;;
     *) notok "$x -> ${WANT[$x]}, want rc=1, its line '$(fx_msg "$x")', nothing left" ;; esac
 done
 for x in B3 B4 B5 B6 B7 B8 B9 B10 B11 B13 B14 B15; do
   # one decision point fires, and only that one (fail=1)
-  [ "${WANT[$x]}" = "rc=1 fail=1 msg=1 tmp=0" ] && ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" \
-    || notok "$x -> ${WANT[$x]}, want 'rc=1 fail=1 msg=1 tmp=0' with '$(fx_msg "$x")'"
+  w="rc=1 fail=1 msg=1 tmp=0 diag=$(want_diag "$x") stop=$(want_stop "$x")"
+  [ "${WANT[$x]}" = "$w" ] && ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" \
+    || notok "$x -> ${WANT[$x]}, want '$w' with '$(fx_msg "$x")'"
 done
+# B16: a gate that reports the missing submodule on STDERR; the meta-test passes
+# and shows that line indented (both streams of the mutation-1 run captured).
+[ "${WANT[B16]}" = "rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-" ] && ok "B16 -> ${WANT[B16]} (stderr diagnostic captured)" \
+  || notok "B16 -> ${WANT[B16]}, want 'rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-'"
 # B12: the meta-test stops before it counts anything, so no summary line.
-[ "${WANT[B12]}" = "rc=1 fail=none msg=1 tmp=0" ] && ok "B12 -> ${WANT[B12]} ($(fx_msg B12), no summary)" \
-  || notok "B12 -> ${WANT[B12]}, want 'rc=1 fail=none msg=1 tmp=0' with '$(fx_msg B12)'"
+[ "${WANT[B12]}" = "rc=1 fail=none msg=1 tmp=0 diag=- stop=-" ] && ok "B12 -> ${WANT[B12]} ($(fx_msg B12), no summary)" \
+  || notok "B12 -> ${WANT[B12]}, want 'rc=1 fail=none msg=1 tmp=0 diag=- stop=-' with '$(fx_msg B12)'"
 # Each signal pinned to its own exit code (review fsfix5 N3(e)).
 want_sig() { case $1 in
   STERM) echo "mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0" ;;
@@ -506,6 +549,18 @@ mtv_mutation R3_duplicate_anchor_accepted B13 '    if c.count(old) != 1:' '    i
 mtv_mutation R4_cp_failure_ignored B14 'run_verification.sh" || return 1' 'run_verification.sh"'
 mtv_mutation R5b_int_exits_143 SINT "trap 'exit 143' TERM" "trap 'exit 143' TERM
 trap 'exit 143' INT"
+# DP14 (round-6 census survivors, killed by the diag= pins).
+mtv_mutation DP14a_control_stderr_dropped B2 '> "${W}/verify_real.txt" 2>&1' '> "${W}/verify_real.txt"'
+mtv_mutation DP14b_control_output_not_captured B2 '> "${W}/verify_real.txt" 2>&1' '2>&1'
+mtv_mutation DP14c_m1_stderr_dropped B16 '> "${W}/verify_missing.txt" 2>&1' '> "${W}/verify_missing.txt"'
+mtv_mutation DP14d_m1_output_not_captured G '> "${W}/verify_missing.txt" 2>&1' '2>&1'
+mtv_mutation DP14e_parse_errors_not_captured B11 ' 2> "${W}/weak_syntax.txt"; then' '; then'
+mtv_mutation DP14f_m2_stderr_dropped B3 '> "${W}/verify_weak.txt" 2>&1' '> "${W}/verify_weak.txt"'
+mtv_mutation DP14g_m2_output_not_captured B3 '> "${W}/verify_weak.txt" 2>&1' '2>&1'
+# DP15 (round-6 census survivors, killed by the stop= pin).
+mtv_mutation DP15a_m1_root_failure_no_finish B9 'notok "could not build the mutation-1 scratch root"; finish; }' 'notok "could not build the mutation-1 scratch root"; :; }'
+mtv_mutation DP15b_mkdir_failure_ignored B9 'mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1' 'mkdir -p "${r}/scripts/validation" "${r}/submodules"'
+mtv_mutation DP15c_m2_root_failure_no_finish B10 'notok "could not build the mutation-2 scratch root"; finish; }' 'notok "could not build the mutation-2 scratch root"; :; }'
 mtv_mutation R7_ln_failure_ignored B15 '"${r}/submodules/$(basename -- "${s}")" || return 1' '"${r}/submodules/$(basename -- "${s}")"'
 fi
 

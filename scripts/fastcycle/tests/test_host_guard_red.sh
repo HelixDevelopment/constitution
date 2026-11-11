@@ -559,6 +559,14 @@ if [ "$RAW_RC|$RAW_OUT" = "$NOLINE" ]; then ok "CON-147 r5 three-field 'Max proc
 else bad "CON-147 r5 three-field line read: '$(printf '%s' "$RAW_OUT" | tr '\n' ' ')' vs no line '$(printf '%s' "$NOLINE" | tr '\n' ' ')'"; fi
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l3f888" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
 chk "CON-147 r5 three-field line then a full soft-888 line => N=888 thread_headroom" 0 888 thread_headroom
+# CON-147 round 6 (decision-point census, enumerate_decision_mutants.py: the
+# awk's 2>/dev/null was unpinned): a limits path that passes -r but is a
+# DIRECTORY makes awk warn on stderr; the guard swallows it and falls back as
+# for a file with no line.
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+if [ "$RAW_RC|$RAW_OUT" = "$NOLINE" ]; then ok "CON-147 r6 limits path is a directory: same result as no line"
+else bad "CON-147 r6 limits path is a directory: '$(printf '%s' "$RAW_OUT" | tr '\n' ' ')' vs no line '$(printf '%s' "$NOLINE" | tr '\n' ' ')'"; fi
+cke0 "CON-147 r6 limits path is a directory: awk's warning swallowed (stderr empty)"
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l4w" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
 chk "CON-147 r6 four-word 'Max processes 5 6' line (no units) is read => N=5 thread_headroom" 0 5 thread_headroom
 rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l777" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG

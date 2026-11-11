@@ -687,7 +687,9 @@ scripts/scheduled-work-engine/test/live_smoke.sh	sh	entry	heavy	bash	-	auto
 scripts/scheduled-work-engine/test/meta_mutation.sh	sh	entry	heavy	bash	-	auto
 scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
+scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
+scripts/validation/test_enumerate_decision_mutants.sh	sh	entry	default	bash	-	override: tier default: the name says mutants but it runs no mutant, only the census self-test, --list and the ledger staleness check (seconds)
 scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
