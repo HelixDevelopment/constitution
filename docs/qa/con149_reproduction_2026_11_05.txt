@@ -1,0 +1,71 @@
+# CON-119 (vehicle id before re-mint: CON-111) reproduction and fix evidence (2026-11-05)
+# Ids: this file was written under the vehicle ids before the re-mint of 2026-11-10 (merge 3d050dc3 of main 90efceb8, section 11.4.214): CON-111 is now CON-119. The body below keeps the old ids verbatim; on main CON-108..CON-115 are other items.
+# Host: Linux 7.0.0-42-generic; git version 2.53.0; Python 3.14.4; /bin/sh -> /usr/bin/dash
+# Tree: scratch clone of origin main bdc3ac43 (vehicle, section 11.4.288(B)); RED = pre-fix code, GREEN = fixed code, same command.
+
+===== RED: sh scripts/fastcycle/tests/test_fc_common_run_gate_reaped_r6_regression.sh (before)
+----- file: ev/fix4_red_sh.out
+== T085 Round 6 R5-I1 regression: fc_common.run_gate_reaped() immediately-detaching setsid closure ==
+SECTION_A: fails=0/20 mechanism=cgroup last_elapsed=0.072
+SECTION_B: rc=0 timed_out=False elapsed=1.041 leaked=True
+SECTION_C: rc=0 stdout='stdout-line
+' stderr='stderr-line
+' mechanism=cgroup
+SECTION_D: timed_out=True stdout='' stderr=''
+PASS: 1: THE FIX -- the Round 5 reviewer's exact immediately-detaching repro leaked 0/20 times under the real, current run_gate_reaped() (R5-I1 closed)
+PASS: 2: Section A genuinely exercised the cgroup mechanism (not a weaker fallback -- an apples-to-apples comparison with Section B)
+PASS: 3: GUARD-VIABILITY MUTATION -- the OLD pre-fix PIPE+communicate() shape, using the SAME cgroup mechanism, DOES still leak the identical exploit -- proving this round's specific fix (file-capture + wait()-then-reap ordering), not the cgroup mechanism itself, is what closes Section A
+FAIL: 4: normal stdout/stderr capture regressed: SECTION_C: rc=0 stdout='stdout-line
+PASS: 5: the documented timeout contract (stdout/stderr empty) is preserved unchanged
+
+== Summary: ok 4 / NOT ok 1 ==
+rc=1
+
+===== GREEN: same command (sh), printf
+----- file: ev/fix4_green_sh.out
+== T085 Round 6 R5-I1 regression: fc_common.run_gate_reaped() immediately-detaching setsid closure ==
+SECTION_A: fails=0/20 mechanism=cgroup last_elapsed=0.086
+SECTION_B: rc=0 timed_out=False elapsed=1.044 leaked=True
+SECTION_C: rc=0 stdout='stdout-line\n' stderr='stderr-line\n' mechanism=cgroup
+SECTION_D: timed_out=True stdout='' stderr=''
+PASS: 1: THE FIX -- the Round 5 reviewer's exact immediately-detaching repro leaked 0/20 times under the real, current run_gate_reaped() (R5-I1 closed)
+PASS: 2: Section A genuinely exercised the cgroup mechanism (not a weaker fallback -- an apples-to-apples comparison with Section B)
+PASS: 3: GUARD-VIABILITY MUTATION -- the OLD pre-fix PIPE+communicate() shape, using the SAME cgroup mechanism, DOES still leak the identical exploit -- proving this round's specific fix (file-capture + wait()-then-reap ordering), not the cgroup mechanism itself, is what closes Section A
+PASS: 4: normal stdout/stderr capture is correct and unaffected by the file-based rewrite
+PASS: 5: the documented timeout contract (stdout/stderr empty) is preserved unchanged
+
+== Summary: ok 5 / NOT ok 0 ==
+rc=0
+
+===== GREEN: bash
+----- file: ev/fix4_green_bash.out
+== T085 Round 6 R5-I1 regression: fc_common.run_gate_reaped() immediately-detaching setsid closure ==
+SECTION_A: fails=0/20 mechanism=cgroup last_elapsed=0.090
+SECTION_B: rc=0 timed_out=False elapsed=1.060 leaked=True
+SECTION_C: rc=0 stdout='stdout-line\n' stderr='stderr-line\n' mechanism=cgroup
+SECTION_D: timed_out=True stdout='' stderr=''
+PASS: 1: THE FIX -- the Round 5 reviewer's exact immediately-detaching repro leaked 0/20 times under the real, current run_gate_reaped() (R5-I1 closed)
+PASS: 2: Section A genuinely exercised the cgroup mechanism (not a weaker fallback -- an apples-to-apples comparison with Section B)
+PASS: 3: GUARD-VIABILITY MUTATION -- the OLD pre-fix PIPE+communicate() shape, using the SAME cgroup mechanism, DOES still leak the identical exploit -- proving this round's specific fix (file-capture + wait()-then-reap ordering), not the cgroup mechanism itself, is what closes Section A
+PASS: 4: normal stdout/stderr capture is correct and unaffected by the file-based rewrite
+PASS: 5: the documented timeout contract (stdout/stderr empty) is preserved unchanged
+
+== Summary: ok 5 / NOT ok 0 ==
+rc=0
+
+===== MUTATION: Section C child prints stdout without a newline -> check 4 must FAIL under sh
+----- file: ev/fix4_mut_sh.out
+== T085 Round 6 R5-I1 regression: fc_common.run_gate_reaped() immediately-detaching setsid closure ==
+SECTION_A: fails=0/20 mechanism=cgroup last_elapsed=0.016
+SECTION_B: rc=0 timed_out=False elapsed=1.046 leaked=True
+SECTION_C: rc=0 stdout='stdout-line' stderr='stderr-line\n' mechanism=cgroup
+SECTION_D: timed_out=True stdout='' stderr=''
+PASS: 1: THE FIX -- the Round 5 reviewer's exact immediately-detaching repro leaked 0/20 times under the real, current run_gate_reaped() (R5-I1 closed)
+PASS: 2: Section A genuinely exercised the cgroup mechanism (not a weaker fallback -- an apples-to-apples comparison with Section B)
+PASS: 3: GUARD-VIABILITY MUTATION -- the OLD pre-fix PIPE+communicate() shape, using the SAME cgroup mechanism, DOES still leak the identical exploit -- proving this round's specific fix (file-capture + wait()-then-reap ordering), not the cgroup mechanism itself, is what closes Section A
+FAIL: 4: normal stdout/stderr capture regressed: SECTION_C: rc=0 stdout='stdout-line' stderr='stderr-line
+' mechanism=cgroup
+PASS: 5: the documented timeout contract (stdout/stderr empty) is preserved unchanged
+
+== Summary: ok 4 / NOT ok 1 ==
+rc=1

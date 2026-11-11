@@ -169,9 +169,9 @@ mk_repo "$S"
 echo STAGED_ONLY >> "$S/t.txt"; g -C "$S" add t.txt
 g -C "$S" restore --worktree --source=HEAD t.txt; echo w >> "$S/e.txt"
 g -C "$S" stash push --quiet -m idx
-g -C "$S" stash show -p "${CANON[@]}" 'stash@{0}' > "$TMP/st.patch"
+g -C "$S" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}' > "$TMP/st.patch"
 if ! grep -q STAGED_ONLY "$TMP/st.patch" && g -C "$S" show 'stash@{0}^2:t.txt' | grep -q STAGED_ONLY; then
-  ok "B-1.3 evidence: the stash's ^2 holds STAGED_ONLY; 'git stash show -p' omits it"
+  ok "B-1.3 evidence: the stash's ^2 holds STAGED_ONLY; the stash patch (git diff <ref>^1 <ref>) omits it"
 else
   notok "B-1.3 evidence: unexpected stash shape"
 fi
@@ -252,7 +252,7 @@ S2="$TMP/repoS2"
 mk_repo "$S2"
 echo fully >> "$S2/t.txt"; g -C "$S2" add t.txt; echo w >> "$S2/e.txt"
 g -C "$S2" stash push --quiet -m staged-and-unstaged
-g -C "$S2" stash show -p "${CANON[@]}" 'stash@{0}' > "$TMP/s2.patch"
+g -C "$S2" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}' > "$TMP/s2.patch"
 expect "G7 stash with a fully-staged + an unstaged change" \
   "$(run_case "$IMPL" "$S2" stash 'stash@{0}' land "$TMP/s2.patch")" ALLOWED "reproduces the stash tree"
 
