@@ -2445,39 +2445,55 @@ Vehicle ids before re-mint: CON-120 (rounds 1 to 3), then CON-128 (rounds 4 and 
 
 ## CON-159 — CON-158 census wording overstates coverage: every decision point matched by the closed operator list, not every decision point
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con159_census_wording_2026_11_11.txt` — red-command `bash scripts/validation/test_decision_mutant_census_wording_r1_regression.sh` — green-command `bash scripts/validation/test_decision_mutant_census_wording_r1_regression.sh (same command on the fixed tree)` — env `clone of main fc57ad0c; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9(1)-release` — signature `NOT ok tool docstring still says it enumerates EVERY decision point` — updated 2026-11-11T12:36:29Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the census tool docstring, the meta-test header and the CON-158 text were written as if the closed operator list covered every decision point; the operator list is closed (see the tool's Operators section)` — evidence `docs/qa/con159_census_wording_2026_11_11.txt` — updated 2026-11-11T12:36:29Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
 
 Review finding m1 (minor, process-doc, parent CON-158). The CON-158 body and commit 02e681a6 say enumerate_decision_mutants.py enumerates every decision point of meta_test_verification.sh and closes the class. It covers only decision points its closed list of single-edit operators matches. Reviewer mutants Y1, Y2, Y8, Y9 and Y10 are real decision-point mutants the operators do not generate (all five killed by existing tests, so nothing is unguarded today). Fix: reword the tracker text and commit-derived docs to every decision point matched by the closed operator list; optionally add operators for if-condition negation and awk field shifts. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
 
+**Verification:** provisional (section 11.4.290) -- job: re-run the new guard in a clean checkout of the landing commit (expect pass=4 fail=0) and the manifest check (MANIFEST-OK) -- checks: the three wording checks and three paired mutants; optional extra operators NOT added -- layer: host-only (class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit e51a8686 -- due: next full-suite run. Review: none yet (no GO claimed). Not VERIFIED-DONE.
+
 ## CON-160 — EP2V does not pin stash_index_unpatched True vs None and no fixture makes git fail (reviewer mutants Y12, Y14 survive)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con160_stash_index_unpatched_2026_11_11.txt` — red-command `bash scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh with reviewer mutant Y12 applied to custody_sweep.py (54 ok, 0 NOT ok: survives)` — green-command `bash scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh (Y12 and Y14 killed)` — env `clone of main fc57ad0c; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9(1)-release` — signature `Y12 survives r22 functional checks incl. EP2V` — updated 2026-11-11T12:37:41Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
+**Investigation:** root-cause-found-with-evidence — root-cause `EP2V only matches the message text; nothing pinned the True/False/None value of stash_index_unpatched or a git failure; source is correct (test-instrumentation)` — evidence `docs/qa/con160_stash_index_unpatched_2026_11_11.txt` — updated 2026-11-11T12:37:41Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
 
 Review finding m2 (minor, test-instrumentation, parent CON-146). EP2V checks only that the refusal message names index (staged) content. Mutant Y12 (rc==1 returns None instead of True) and mutant Y14 (final return None becomes False, a git failure reads as no index content) both survive r22 (90/0). The verdict stays REFUSED either way, so this is message precision, not safety. Fix: assert index_unpatched=True in EP2V, and add a git-failure fixture (a PATH shim making git diff --quiet ^1 ^2 return 128) asserting index_unpatched=None; both must kill Y12 and Y14. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
 
+**Verification:** provisional (section 11.4.290) -- job: re-run the new guard in a clean checkout of the landing commit (expect pass=5 fail=0) and the manifest check (MANIFEST-OK) -- checks: five axes (IDX WT EQ NONE GITF) and four paired mutants (Y12 Y14 Y15 Y16) killed; source unchanged -- layer: host-only (class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit c6a32f61 -- due: next full-suite run. Review: none yet (no GO claimed). Not VERIFIED-DONE.
+
 ## CON-161 — host_report probe_thread_headroom arithmetic and thr-is-None guard have no canon-runnable test (reviewer mutants Y4, Y5, Y6 survive)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con161_probe_thread_headroom_2026_11_11.txt` — red-command `bash scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh with reviewer mutants Y4/Y5 applied to host_report.py (pass=45 fail=0, survives)` — green-command `bash scripts/fastcycle/tests/test_host_report_probe_thread_headroom_r2_regression.sh (same mutants: killed)` — env `clone of main fc57ad0c; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9(1)-release` — signature `Y4 and Y5 SURVIVED r1 pass=45 fail=0` — updated 2026-11-11T12:36:39Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
+**Investigation:** root-cause-found-with-evidence — root-cause `no canon-runnable test pinned probe_thread_headroom's arithmetic or its thr-is-None guard; r1 pins only the soft limit read. Y6 not measured by me (r1 hung under that mutant, killed)` — evidence `docs/qa/con161_probe_thread_headroom_2026_11_11.txt` — updated 2026-11-11T12:36:39Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
 
 Review finding m3 (minor, test-instrumentation, pre-existing, outside round 6, CON-147 neighbourhood). Y4 (per_job = headroom), Y5 (headroom = ulim - 1) and Y6 (drop the thr is None guard, giving an uncaught TypeError in host_report.py limits) survive the only test that runs in a canon checkout (host_report r1, 45/0); test_host_limits_red.sh SKIPs outside a consumer layout. The source is correct today. Fix: a canon fixture pinning thread_headroom, threads_per_job_probed and reason=unmeasured when FC_GUARD_THREADS is unset and ps fails; optionally widen the census host_report scope to the probe. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
 
+**Verification:** provisional (section 11.4.290) -- job: re-run the new guard in a clean checkout of the landing commit (expect pass=6 fail=0) and the manifest check (MANIFEST-OK) -- checks: six cases and five paired mutants (Y4 Y5 Y6 Y9 Y10) killed -- layer: host-only (class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit 4bbc4310 -- due: next full-suite run. Review: none yet (no GO claimed). Not VERIFIED-DONE.
+
 ## CON-162 — fsfix6 review nits: census timeout kill misses timeout's process groups, ledger KILLED-key staleness, porcelain git diff in stash_index_unpatched, vehicle items left Queued
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Sonnet 5.5 (fsfix6 lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con162_census_nits_2026_11_11.txt` — red-command `bash scripts/validation/test_enumerate_decision_mutants_r2_regression.sh on the pre-fix tool (n1 leftover processes)` — green-command `bash scripts/validation/test_enumerate_decision_mutants_r2_regression.sh (same command on the fixed tool)` — env `clone of main fc57ad0c; Linux 7.0.0, git 2.53.0, Python 3.14.4, bash 5.3.9(1)-release` — signature `n1: run_bounded timeout left [timeout, sleep] alive in the run session` — updated 2026-11-11T12:36:39Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
+**Investigation:** root-cause-found-with-evidence — root-cause `n1: GNU timeout calls setpgid so its group differs from the run's; killpg(p.pid) misses it, the session id is kept so kill_session finds it. n2: the stale check only looked at generated keys. n3 not reproduced; n4 not acted (see evidence)` — evidence `docs/qa/con162_census_nits_2026_11_11.txt` — updated 2026-11-11T12:36:39Z — by `AI (Claude Sonnet 5.5, CON-159..162 follow-up subagent fu_a)`
 
 Review nits n1 to n4. n1: the census run_bounded kills its own process group on timeout, but GNU timeout starts a new process group, so children can run up to 125 s into the next mutant (host load only). n2: a ledger entry is STALE only when its key is no longer generated; an entry whose mutant is later KILLED (equivalence proof now false) is accepted silently; flag it stale. n3: stash_index_unpatched uses porcelain git diff --quiet, subject to diff.ignoreSubmodules and external drivers; use git diff-tree --quiet ^1 ^2. n4: the 13 vehicle items stay Queued while fix rounds run; consider In progress for CON-146, CON-147, CON-158. Follow-up of the independent Opus review of the fsfix round-6 vehicle (verdict GO-with-follow-ups, 0 critical, 0 important, 3 minor, 4 nit; review record docs/qa/review_fsfix6_round6_2026_11_11.md). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
+
+**Verification:** provisional (section 11.4.290) -- job: re-run the new guard in a clean checkout of the landing commit (expect pass=4 fail=0) and the manifest check (MANIFEST-OK) -- checks: n1 and n2 fixed with guard + three mutants + an end-to-end census run; n3 NOT reproduced and NOT fixed; n4 NOT acted -- layer: host-only (class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit 2249f21a -- due: next full-suite run. Review: none yet (no GO claimed). Not VERIFIED-DONE.
 
 ## CON-163 — fk_index_patch.py: REUSED could reuse a damaged runner (whole-tree + launcher check), duplicate list anchors were not refused, stale .partial kept, corrupt-receipt error did not name --force
 

@@ -9,3 +9,8 @@ ok mutant Y15_rc0_returns_True killed
 ok mutant Y16_nonempty_patch_checked killed
 === custody stash_index_unpatched r23: pass=5 fail=0 ===
 rc=0
+
+# Addendum (reproduction by me): reviewer mutant Y12 (rc == 1 returns None) applied in place to custody_sweep.py, then test_custody_sweep_stash_patch_r22_regression.sh run. Its functional checks (including EP2V) gave 54 ok / 0 NOT ok, so Y12 SURVIVES r22. The run was stopped by me in the paired-mutation section (slow; no verdict on that section claimed); the tree was restored (git status clean of source changes). Y14 not run against r22 by me (reviewer measured it surviving).
+# r22 log tail:
+55
+53:ok EP2V index-only stash, faithful empty backup, land -> REFUSED for its index content, not as stale (got REFUSED: st
