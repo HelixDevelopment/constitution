@@ -273,6 +273,7 @@ scripts/fastcycle/tests/test_custody_sweep_r8_regression.sh	sh	member	default	-	
 scripts/fastcycle/tests/test_custody_sweep_r9_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_stash_patch_r22_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_cycle_report_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_cycle_report_s12_fix_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_disk_floor_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -335,6 +336,7 @@ scripts/fastcycle/tests/test_host_guard_red.sh	sh	member	default	-	scripts/fastc
 scripts/fastcycle/tests/test_host_limits_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_host_needle_scratch_dir_safety_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_host_report_thread_limit_r1_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_host_report_probe_thread_headroom_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_io_trace_build_map_device_safety_r2_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_io_trace_build_map_r3_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_io_trace_build_map_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -692,6 +694,8 @@ scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
 scripts/validation/test_enumerate_decision_mutants.sh	sh	entry	default	bash	-	override: tier default: the name says mutants but it runs no mutant, only the census self-test, --list and the ledger staleness check (seconds)
+scripts/validation/test_enumerate_decision_mutants_r2_regression.sh	sh	entry	default	bash	-	override: tier default: real run_bounded on a `timeout` child (3 s bound) plus the stale-ledger classifier (CON-162 n1, n2); no census run, seconds
+scripts/validation/test_decision_mutant_census_wording_r1_regression.sh	sh	entry	default	bash	-	override: tier default: greps the census tool, the meta-test header and docs/Issues.md for the overstating wording (CON-159); runs no mutant, seconds
 scripts/validation/test_meta_test_verification_r1_regression.sh	sh	entry	heavy	bash	-	auto
 scripts/workable-items	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/workable-items/mutation/states_mutation_runner.py	py	entry	heavy	python3	-	auto
