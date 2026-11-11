@@ -1,0 +1,20 @@
+# CON-235 self-test tests/test_run_full_suite.sh, section 37 extended test-first (section 11.4.224)
+# RED on the unfixed engine (base 24bdca78 + new checks only):
+FAIL CON-235: acceptance onto a symlinked lock -> exit 3 (want '3' got '0')
+FAIL CON-235: refusal names the symlinked lock (no /accept-excluded-change .*refused: .*full_suite_excluded.lock is a symlink/ in <scratch>/work/rfs_selftest.KNh3Yp/rs4.log)
+FAIL CON-235: no MANIFEST-OK after the refusal (unexpected /RESULT: MANIFEST-OK/ in <scratch>/work/rfs_selftest.KNh3Yp/rs4.log)
+FAIL CON-235: the lock is still the symlink (want '<scratch>/work/rfs_selftest.KNh3Yp/outside_lock' got '')
+FAIL CON-235: acceptance onto a dangling symlinked lock -> exit 3 (want '3' got '0')
+FAIL CON-235: the dangling lock symlink is left in place (want 'link' got 'replaced')
+passed=282 failed=6
+
+# GREEN after the fix (excl_accept refuses a symlinked lock):
+ok   CON-235: acceptance onto a symlinked lock -> exit 3
+ok   CON-235: refusal names the symlinked lock
+ok   CON-235: no MANIFEST-OK after the refusal
+ok   CON-235: the lock is still the symlink
+ok   CON-235: the symlink target is unchanged
+ok   CON-235: acceptance onto a dangling symlinked lock -> exit 3
+ok   CON-235: the dangling lock symlink is left in place
+ok   CON-235: nothing written through the dangling symlink
+passed=288 failed=0
