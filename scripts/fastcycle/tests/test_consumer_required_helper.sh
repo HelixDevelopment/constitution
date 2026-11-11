@@ -19,7 +19,9 @@
 #           an empty table, no database at all, a data query that errors after the pragma answered (view
 #           failing at step time), no sqlite3 on PATH (CR3-1), and a register with BOTH id columns whose named
 #           items sit only in ticket_id (CR3-2); both columns are examined. Round 6 adds the legs L11..L17
-#           (rows, prefix shape, column names, no write, id case, NULL ids, whitespace and other tables).
+#           (rows, prefix shape, column names, no write, id case, NULL ids, whitespace and other tables);
+#           round 7 adds L11b (row count), L17b, L18..L23 (quoted path, view, empty ids, BLOB ids, stdout
+#           and stderr contract) and measures L14 (read-only calls, side files).
 #           Part 4 (CR-2) runs the two REAL cycle_report suites from a scratch consumer layout whose
 #           constitution/scripts/fastcycle links to this checkout, so the guard under test is the one the
 #           suites really execute (never a text extract): the renamed-column, lost-item and query-error DBs
@@ -59,6 +61,10 @@ mk_layout() { # mk_layout CONSUMER_DIR -> fake test path on stdout
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$@"
 echo "BODY RAN"
 EOF
+  cat >"$t/rc_consumer.sh" <<'EOF'
+#!/bin/sh
+. "$(dirname "$0")/lib/consumer_required.sh" && { fc_require_consumer "$@"; echo "RC=$?"; }
+EOF
   printf '%s\n' "$t/fake_test.sh"
 }
 
@@ -88,6 +94,20 @@ for layout in "plain" "with space"; do
     "$sh" "$T" docs/present.db docs/gone1 docs/gone2 >"$o" 2>&1; rc=$?
     expect "$tag several paths -> SKIP naming only the missing ones" 77 "docs/gone1 docs/gone2 \(" "$o" "$rc"
     grep -q 'present\.db' "$o" && bad "$tag the present path was named as missing" || ok "$tag the present path is not named"
+    # round 7 sweep legs (S1..S4): a present directory counts as present; the SKIP is the last STDOUT line and
+    # stderr stays empty; the function returns 0 when nothing is missing; an unresolvable root SKIPs 77 silently
+    mkdir -p "$C/docs/present_dir"
+    "$sh" "$T" docs/present_dir >"$o" 2>&1; rc=$?
+    expect "$tag S1 present directory -> body runs" 0 "^BODY RAN$" "$o" "$rc"
+    "$sh" "$T" docs/absent.db >"$o" 2>"$o.err"; rc=$?
+    expect "$tag S2 SKIP on stdout alone" 77 "docs/absent\.db.*reason=topology_unsupported$" "$o" "$rc"
+    [ ! -s "$o.err" ] && ok "$tag S2 SKIP writes nothing on stderr" || bad "$tag S2 SKIP wrote on stderr: $(head -c 200 "$o.err")"
+    "$sh" "$(dirname "$T")/rc_consumer.sh" docs/present.db >"$o" 2>"$o.err"; rc=$?
+    if [ "$rc" = 0 ] && [ "$(cat "$o")" = "RC=0" ] && [ ! -s "$o.err" ]; then ok "$tag S3 nothing missing -> fc_require_consumer returns 0, prints nothing"
+    else bad "$tag S3 nothing missing: rc $rc, stdout [$(cat "$o")], stderr [$(head -c 200 "$o.err")]"; fi
+    "$sh" -c '. "$1" && fc_require_consumer docs/present.db; echo BODY RAN' "$W/no/such/dir/x/y/t.sh" "$HELPER" >"$o" 2>"$o.err"; rc=$?
+    expect "$tag S4 consumer root not resolvable (\$0 under an absent dir) -> SKIP 77" 77 "consumer root not resolvable.*reason=topology_unsupported$" "$o" "$rc"
+    [ ! -s "$o.err" ] && ok "$tag S4 unresolvable root writes nothing on stderr" || bad "$tag S4 wrote on stderr: $(head -c 200 "$o.err")"
     ( cd "$C/canon" && "$sh" scripts/fastcycle/tests/fake_test.sh docs/present.db ) >"$o" 2>&1; rc=$?
     expect "$tag relative \$0 from another cwd -> root still resolved, body runs" 0 "^BODY RAN$" "$o" "$rc"
   done
@@ -180,7 +200,36 @@ else
   #   L17 whitespace and other tables: an id with a leading space is not the prefix (SKIP), a trailing space is (RUN);
   #       only the items table is read (another table holding ATM-953, or no id column, changes nothing).
   #       MG24 (trim(k) in C3), MG25 (the pragma reads the first table of the schema).
-  #   Empty table: L5 (MG6). C2 under whitespace (trim(k) IN): equivalent for the reason of R4-D.
+  #   Empty table: L5 (MG6).
+  # Round 7 (review round 6 CR6-1..CR6-6, N6-1; the last round section 11.4.276(G) allows): every reviewer mutant
+  # RV6-1..RV6-12 is a paired mutant in test_consumer_required_mutations.sh, and the remaining axes are legs:
+  #   L11b row COUNT: 10 000 foreign rows with ATM-5 LAST (and 10 000 foreign rows only). RV6-1 (C3 over LIMIT 3),
+  #       RV6-2 (C3 over LIMIT 1000). Bound: a C3 that reads a sample of more than 10 001 rows is out of scope; every
+  #       fixture here is smaller, and the real registers hold far fewer rows (the consumer tracker is below 2 000
+  #       items), so such a sample reads the whole register in every real case. Recorded, not tested.
+  #   L17b whitespace in C2: ' ATM-953' (leading space, the named id) SKIPs: C3 = 0 and C2 = 0. RV6-7 (trim(k) IN in
+  #       C2) RUNs it. The round-6 claim that trim(k) in C2 is equivalent was false (C2 and C3 read different values);
+  #       the direction (SKIP, the non-conservative one) is pinned and registered with CON-161, like L16 and L17.
+  #   L18 path quoting: a tracker path holding a space, a single and a double quote. RV6-4 (path unquoted).
+  #   L19 items is a VIEW over foreign rows: SKIP (a view answers the pragma and the counts like a table); a view
+  #       over a lost item: run. RV6-5 (pragma only for a table).
+  #   L20 empty-string ids only: SKIP (they count as items, like NULL ids in L16; direction registered with CON-161).
+  #       RV6-6 (items counted as non-empty keys).
+  #   L21 BLOB-stored ids: CAST('ATM-5' AS BLOB) and CAST('ATM-953' AS BLOB) run the checks (LIKE reads a BLOB as
+  #       text, so C3 >= 1). The real schema stores TEXT; the helper needs no change. RV6-10 (C3 over text keys only).
+  #   L22 stdout contract: the SKIP line is the last line on STDOUT (captured alone) and nothing goes to stderr.
+  #       RV6-3 (SKIP line to stderr); RV6-11 (exit 77 -> return 77) is killed by the m2 matrix.
+  #   L23 stderr silence: a run (no SKIP) prints nothing on stderr, also when a query errors (viewfail, garbage,
+  #       nocol, absent). RV6-8 (2>/dev/null dropped from the data query; round 6 called it harmless, it breaks the
+  #       documented Output contract "otherwise nothing").
+  #   L14 read-only, measured: a sqlite3 shim on PATH logs every call the helper makes; each starts with -readonly
+  #       (RV6-12, MG20). The tracker file's bytes never change (sha256 before = after); a rollback-journal database
+  #       gets no new file beside it; a WAL-mode database may get <db>-wal (empty) and <db>-shm beside it and nothing
+  #       else (sqlite leaves them when the last connection is read-only; docs/workable_items.db-wal and -shm are
+  #       gitignored). Round 6 said "the helper never writes": that holds only for the database's own bytes.
+  #   Error / lock: RV6-9 (data-query error -> SKIP) is killed by viewfail (L4).
+  # The systematic sweep (sweep_consumer_required_mutants.py) generates every single-edit mutant of the helper's
+  # SQL, tests, greps, redirections and exit codes and checks each is killed or registered equivalent with a proof.
   # m2_<order>_<datacol>_<data>_<other>: both columns, declared in <order> (at = atm_id,ticket_id; ta = reversed);
   # <datacol> holds <data> (named ATM-953 | lost ATM-5, the prefix with the named id lost | foreign CON-7) and the
   # other column holds <other> (foreign CON-1 | NULL). Want: named, lost -> run; foreign -> skip (no ATM row at all).
@@ -233,6 +282,38 @@ else
     _f=${_sq%%|*}; rm -f "$FX/$_f"
     sqlite3 "$FX/$_f" "${_sq#*|}" || bad "$_f fixture setup failed"
   done
+  # Round 7 fixtures (legs L11b, L17b, L19..L21)
+  for _sq in \
+    "l11b_count.db|CREATE TABLE items(atm_id TEXT, title TEXT); BEGIN; WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM c WHERE n<10000) INSERT INTO items SELECT 'CON-'||n,'t' FROM c; INSERT INTO items VALUES('ATM-5','t'); COMMIT;" \
+    "l11b_foreign.db|CREATE TABLE items(atm_id TEXT, title TEXT); BEGIN; WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM c WHERE n<10000) INSERT INTO items SELECT 'CON-'||n,'t' FROM c; COMMIT;" \
+    "l17b_lead953.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES(' ATM-953','t');" \
+    "l19_view.db|CREATE TABLE t(atm_id TEXT, title TEXT); INSERT INTO t VALUES('CON-1','t'),('CON-2','t'); CREATE VIEW items AS SELECT atm_id, title FROM t;" \
+    "l19_viewlost.db|CREATE TABLE t(atm_id TEXT, title TEXT); INSERT INTO t VALUES('CON-1','t'),('ATM-5','t'); CREATE VIEW items AS SELECT atm_id, title FROM t;" \
+    "l20_emptystr.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('','t'),('','u');" \
+    "l21_blob.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES(CAST('ATM-5' AS BLOB),'t');" \
+    "l21_blob953.db|CREATE TABLE items(atm_id BLOB, title TEXT); INSERT INTO items VALUES(CAST('ATM-953' AS BLOB),'t');"; do
+    _f=${_sq%%|*}; rm -f "$FX/$_f"
+    sqlite3 "$FX/$_f" "${_sq#*|}" || bad "$_f fixture setup failed"
+  done
+  # needles: the count fixture holds 10 001 rows with ATM-5 last; the BLOB fixtures really store a BLOB; the view is a view
+  [ "$(sqlite3 -readonly "$FX/l11b_count.db" "SELECT COUNT(*) || ' ' || (SELECT atm_id FROM items ORDER BY rowid DESC LIMIT 1) FROM items;")" = "10001 ATM-5" ] \
+    && [ "$(sqlite3 -readonly "$FX/l11b_foreign.db" "SELECT COUNT(*) FROM items WHERE atm_id LIKE 'ATM-%';")" = 0 ] \
+    && ok "L11b count fixtures built (needle: 10001 rows, ATM-5 last; foreign-only holds no ATM row)" || bad "L11b count fixtures broken"
+  [ "$(sqlite3 -readonly "$FX/l21_blob.db" "SELECT typeof(atm_id) FROM items;")" = blob ] \
+    && [ "$(sqlite3 -readonly "$FX/l21_blob953.db" "SELECT typeof(atm_id) FROM items;")" = blob ] \
+    && [ "$(sqlite3 -readonly "$FX/l19_view.db" "SELECT type FROM sqlite_master WHERE name='items';")" = view ] \
+    && ok "L19/L21 fixtures built (needle: items is a view; the ids are stored as blob)" || bad "L19/L21 fixtures broken"
+  # L18: a path with a space, a single and a double quote
+  QD="$FX/sp a'b \"q\""; mkdir -p "$QD" && cp "$FX/other_atm.db" "$QD/other.db" && cp "$FX/lost_atm.db" "$QD/lost.db" \
+    && [ -s "$QD/other.db" ] && ok "L18 quoted-path fixtures built (needle: $QD/other.db exists)" || bad "L18 quoted-path fixtures broken"
+  # L14: the sqlite3 shim (logs the arguments of every call, then runs the real sqlite3) and the side-file fixtures
+  SQ_REAL=$(command -v sqlite3); SHIM="$W/shim"; mkdir -p "$SHIM"
+  printf '#!/bin/sh\nprintf "%%s\\n" "$*" >>"$FC_SHIM_LOG"\nexec "%s" "$@"\n' "$SQ_REAL" >"$SHIM/sqlite3"; chmod +x "$SHIM/sqlite3"
+  rm -f "$FX/wal_t.db" "$FX/rbk_t.db"
+  sqlite3 "$FX/wal_t.db" "PRAGMA journal_mode=wal; CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('CON-1','t');" >/dev/null || bad "wal fixture setup failed"
+  cp "$FX/other_atm.db" "$FX/rbk_t.db"
+  [ "$(sqlite3 -readonly "$FX/rbk_t.db" 'PRAGMA journal_mode;')" = delete ] && [ ! -e "$FX/wal_t.db-wal" ] \
+    && ok "L14 side-file fixtures built (needle: rbk_t is a rollback-journal db; wal_t has no -wal left after its writer closed)" || bad "L14 side-file fixtures broken"
   # needle: each L11 fixture holds its foreign row FIRST (rowid order), so the later rows are what the leg tests
   [ "$(sqlite3 -readonly "$FX/l11_lostlater_atm.db" "SELECT group_concat(atm_id) FROM (SELECT atm_id FROM items ORDER BY rowid);")" = "CON-9,ATM-5" ] \
     && [ "$(sqlite3 -readonly "$FX/l11_lost3_atm.db" "SELECT atm_id FROM items ORDER BY rowid LIMIT 1;")" = "CON-1" ] \
@@ -253,6 +334,22 @@ else
 . "$(dirname "$0")/lib/consumer_required.sh" && fc_require_items "$@"
 echo "BODY RAN"
 EOF
+  cat >"$C/canon/scripts/fastcycle/tests/items_rc.sh" <<'EOF'
+#!/bin/sh
+. "$(dirname "$0")/lib/consumer_required.sh" && { fc_require_items "$@"; echo "RC=$?"; }
+EOF
+  TR="$C/canon/scripts/fastcycle/tests/items_rc.sh"
+  # S5 (round 7 sweep): a fake sqlite3 that answers the pragma with atm_id and prints $FC_FAKE_Q for the data query.
+  # It is a unit-level double for the helper's own parsing of malformed counts (section 11.4.289(C)(1)): real sqlite3
+  # never prints them, so only a double reaches those branches. It decides nothing about any real register.
+  FAKE="$W/fakesq"; mkdir -p "$FAKE"
+  printf '#!/bin/sh\ncase "$*" in *pragma_table_info*) echo atm_id ;; *) printf "%%s\\n" "$FC_FAKE_Q" ;; esac\n' >"$FAKE/sqlite3"; chmod +x "$FAKE/sqlite3"
+  for _sq in \
+    "l24_at.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('AT-5','t');" \
+    "l25_dashonly.db|CREATE TABLE items(atm_id TEXT, title TEXT); INSERT INTO items VALUES('ATM-','t');"; do
+    _f=${_sq%%|*}; rm -f "$FX/$_f"
+    sqlite3 "$FX/$_f" "${_sq#*|}" || bad "$_f fixture setup failed"
+  done
   for sh in $SHELLS; do
     o="$W/out3"
     # case: db ids... -> want
@@ -307,8 +404,88 @@ l17_lead.db              skip ATM-953
 l17_trail.db             run  ATM-953
 l17_tables.db            skip ATM-953
 l17_tables2.db           run  ATM-953
+l11b_count.db            run  ATM-953
+l11b_foreign.db          skip ATM-953
+l17b_lead953.db          skip ATM-953
+l19_view.db              skip ATM-953
+l19_viewlost.db          run  ATM-953
+l20_emptystr.db          skip ATM-953
+l21_blob.db              run  ATM-953
+l21_blob953.db           run  ATM-953
+l24_at.db                run  ATM-953 AT-1
+l25_dashonly.db          run  ATM-953
 CASES
-    # L14 (review round 5 CR5-2): the helper never writes; an absent tracker path is still absent afterwards
+    # S6 (round 7 sweep): the function's own return code is 0 on every run path (sqlite3 missing, pragma error, no id
+    # column, data-query error, found, absent path)
+    for _q in garbage.db nocol.db viewfail.db real_atm.db absent.db; do
+      rm -f "$FX/absent.db"
+      "$sh" "$TR" "$FX/$_q" ATM-953 >"$o" 2>"$o.err"; rc=$?
+      if [ "$rc" = 0 ] && [ "$(cat "$o")" = "RC=0" ] && [ ! -s "$o.err" ]; then ok "[$sh] S6 $_q: fc_require_items returns 0, prints nothing"
+      else bad "[$sh] S6 $_q: rc $rc, stdout [$(cat "$o")], stderr [$(head -c 200 "$o.err")]"; fi
+    done
+    if [ -x "$NB/$sh" ]; then
+      PATH="$NB" "$(command -v "$sh")" "$TR" "$FX/other_atm.db" ATM-953 >"$o" 2>"$o.err"; rc=$?
+      [ "$rc" = 0 ] && [ "$(cat "$o")" = "RC=0" ] && [ ! -s "$o.err" ] && ok "[$sh] S6 no sqlite3: returns 0, prints nothing" \
+        || bad "[$sh] S6 no sqlite3: rc $rc, stdout [$(cat "$o")], stderr [$(head -c 200 "$o.err")]"
+    fi
+    # S5: malformed counts from the (fake) data query never SKIP, return 0 and print nothing; the needle row "0 0 0"
+    # with C1 = 0 proves the fake is consulted (an empty register runs), and "1 0 0" proves it can SKIP
+    for _fq in "1 2" "1 0 0 9" "a 0 0" "1 0 x" "" "1 0"; do
+      FC_FAKE_Q="$_fq" PATH="$FAKE:$PATH" "$sh" "$TR" "$FX/real_atm.db" ATM-953 >"$o" 2>"$o.err"; rc=$?
+      if [ "$rc" = 0 ] && [ "$(cat "$o")" = "RC=0" ] && [ ! -s "$o.err" ]; then ok "[$sh] S5 malformed counts [$_fq] -> run, returns 0, silent"
+      else bad "[$sh] S5 malformed counts [$_fq]: rc $rc, stdout [$(cat "$o")], stderr [$(head -c 200 "$o.err")]"; fi
+    done
+    FC_FAKE_Q="1 0 0" PATH="$FAKE:$PATH" "$sh" "$T" "$FX/real_atm.db" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] S5 needle: the fake answering [1 0 0] SKIPs (the fake is the sqlite3 the helper runs)" 77 "reason=topology_unsupported$" "$o" "$rc"
+    # S7: usage errors go to stderr only, exit 2, the body does not run; no id at all is a usage error too
+    for _ids in "" "9X-1" "ATM953" "ATM-1'; DROP TABLE items; --"; do
+      # shellcheck disable=SC2086
+      if [ -z "$_ids" ]; then "$sh" "$T" "$FX/real_atm.db" >"$o" 2>"$o.err"; rc=$?; else "$sh" "$T" "$FX/real_atm.db" "$_ids" >"$o" 2>"$o.err"; rc=$?; fi
+      if [ "$rc" = 2 ] && [ ! -s "$o" ] && grep -q '^fc_require_items: ' "$o.err"; then ok "[$sh] S7 usage error [$_ids]: exit 2, message on stderr only"
+      else bad "[$sh] S7 usage error [$_ids]: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 120 "$o.err")]"; fi
+    done
+    "$sh" "$T" "$FX/other_atm.db" A1B-7 >"$o" 2>&1; rc=$?
+    expect "[$sh] S7 a digit inside the prefix (A1B-7) is a valid id (SKIP on a foreign register, not exit 2)" 77 "reason=topology_unsupported$" "$o" "$rc"
+    "$sh" "$T" "$FX/both_other.db" ATM-953 >"$o" 2>&1
+    grep -q 'column atm_id,ticket_id)' "$o" && ok "[$sh] S8 the SKIP line names the id columns in candidate order (atm_id,ticket_id)" \
+      || bad "[$sh] S8 the SKIP line does not name atm_id,ticket_id: $(cat "$o")"
+    # L18 (round 7 CR6-5): a tracker path with a space and quotes is passed whole
+    "$sh" "$T" "$QD/other.db" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] quoted path, foreign register -> SKIP 77" 77 "reason=topology_unsupported$" "$o" "$rc"
+    "$sh" "$T" "$QD/lost.db" ATM-953 >"$o" 2>&1; rc=$?
+    expect "[$sh] quoted path, lost item -> no SKIP" 0 "^BODY RAN$" "$o" "$rc"
+    # L22 (round 7 CR6-4): the SKIP line is the last STDOUT line, captured alone; stderr is empty
+    "$sh" "$T" "$FX/other_atm.db" ATM-953 >"$o" 2>"$o.err"; rc=$?
+    expect "[$sh] SKIP on stdout alone: last stdout line ends reason=topology_unsupported" 77 "reason=topology_unsupported$" "$o" "$rc"
+    [ ! -s "$o.err" ] && ok "[$sh] SKIP writes nothing on stderr" || bad "[$sh] SKIP wrote on stderr: $(head -c 200 "$o.err")"
+    # L23 (round 7 N6-1): a run prints only the body on stdout and nothing on stderr, query errors included
+    for _q in viewfail.db garbage.db nocol.db absent.db real_atm.db; do
+      rm -f "$FX/absent.db"
+      "$sh" "$T" "$FX/$_q" ATM-953 >"$o" 2>"$o.err"; rc=$?
+      if [ "$rc" = 0 ] && [ "$(cat "$o")" = "BODY RAN" ] && [ ! -s "$o.err" ]; then ok "[$sh] $_q: run, stdout is only the body, stderr empty"
+      else bad "[$sh] $_q: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 200 "$o.err")]"; fi
+    done
+    # L14 (round 7 CR6-3, RV6-12): every sqlite3 call carries -readonly (shim log); bytes and side files
+    for _q in other_atm.db real_atm.db viewfail.db; do
+      : >"$W/shim.log"
+      FC_SHIM_LOG="$W/shim.log" PATH="$SHIM:$PATH" "$sh" "$T" "$FX/$_q" ATM-953 >"$o" 2>&1; rc=$?
+      _n=$(grep -c . "$W/shim.log"); _ro=$(grep -c '^-readonly ' "$W/shim.log")
+      if [ "$_n" -ge 2 ] && [ "$_n" = "$_ro" ]; then ok "[$sh] $_q: all $_n sqlite3 calls are -readonly (shim log; needle: >= 2 calls logged)"
+      else bad "[$sh] $_q: $_ro of $_n sqlite3 calls are -readonly: $(grep -v '^-readonly ' "$W/shim.log" | head -2 | cut -c1-80)"; fi
+    done
+    for _k in wal rbk; do
+      _d="$W/side_${sh}_$_k"; mkdir -p "$_d"; cp "$FX/${_k}_t.db" "$_d/t.db"
+      _h0=$(sha256sum <"$_d/t.db"); "$sh" "$T" "$_d/t.db" ATM-953 >"$o" 2>&1; rc=$?
+      _h1=$(sha256sum <"$_d/t.db"); _extra=$(cd "$_d" && ls -A | grep -vx 't.db' | tr '\n' ' ')
+      case $_k in
+        wal) _okx=1; for _e in $_extra; do case $_e in t.db-wal|t.db-shm) ;; *) _okx=0 ;; esac; done
+             [ -e "$_d/t.db-wal" ] && [ -s "$_d/t.db-wal" ] && _okx=0 ;;
+        rbk) [ -z "$_extra" ] && _okx=1 || _okx=0 ;;
+      esac
+      if [ "$rc" = 77 ] && [ "$_h0" = "$_h1" ] && [ "$_okx" = 1 ]; then ok "[$sh] $_k db: SKIP, bytes unchanged, side files [${_extra:-none}] allowed"
+      else bad "[$sh] $_k db: rc $rc, bytes changed: $([ "$_h0" = "$_h1" ] && echo no || echo yes), side files [$_extra]"; fi
+    done
+    # L14 (review round 5 CR5-2): the helper creates no database; an absent tracker path is still absent afterwards
     rm -f "$FX/absent.db"
     "$sh" "$T" "$FX/absent.db" ATM-953 >"$o" 2>&1; rc=$?
     if [ "$rc" = 0 ] && [ ! -e "$FX/absent.db" ]; then ok "[$sh] absent tracker path -> checks run and the path is still absent (no file created)"

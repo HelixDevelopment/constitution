@@ -1,0 +1,30 @@
+# Registered EQUIVALENT mutants of scripts/fastcycle/tests/lib/consumer_required.sh (round 7 of the full-suite fix
+# vehicle, CON-152/CON-157). One row per single-edit mutant that the systematic sweep of
+# test_consumer_required_mutations.sh --sweep generates and that no test can kill, with the proof that it decides
+# exactly like the helper on every input. Key = operator.variant|sha256(line)[:8][~k for the k-th identical line]|occurrence.
+# The sweep requires the survivors to be EXACTLY these keys; `check` fails on a key that no longer matches a mutant.
+# Notation: C1 = rows of items, C2 = distinct id-column values equal to a named id, C3 = id-column values LIKE
+# '<named prefix>-%'. The helper SKIPs iff C1 > 0 and C2 < need and C3 = 0 (need = number of named ids, >= 1).
+# Lemma L (used below): every named id is '<P>-<digits>' with P a named prefix, and LIKE is ASCII case-insensitive,
+# so a value equal (or equal up to ASCII case) to a named id is LIKE '<P>-%'. Hence C3 = 0 implies C2 = 0, and with
+# C3 = 0 any count of values equal to a named id is 0; with C3 >= 1 there is no SKIP whatever C2 is. So a mutant
+# that changes only how C2 is counted, and keeps C2 = 0 whenever C3 = 0, decides like the helper.
+gt.2|4201fe96|0	`[ $need -gt 0 ]` -> `-ne 0`: need is $#, never negative, so the two tests agree.
+pragma-table.1|98fc3369|0	pragma_table_info('items') -> ('ITEMS'): SQLite table names are case-insensitive, so the same table (or none) is read.
+grep-x.3|b58d326c|0	grep -qx -> grep -qxF: the patterns are the literals atm_id and ticket_id, which hold no regex metacharacter.
+union-all.0|2dec50db|0	UNION ALL -> UNION: C2 is COUNT(DISTINCT k), unchanged by dropping duplicates; C3 is only compared with 0, and a set is empty iff the bag is.
+src-select.0|2dec50db|0	SELECT col -> SELECT DISTINCT col in each column subquery: as for UNION, C2 counts distinct values and C3 is only compared with 0.
+src-select.1|2dec50db|0	SELECT col -> SELECT upper(col): SQLite upper() changes only ASCII case and LIKE ignores ASCII case, so C3 is unchanged; by Lemma L upper(k) IN (ids) needs k LIKE '<P>-%', so C2 = 0 whenever C3 = 0. NULL stays NULL; a BLOB is read as the same text by both.
+from-items-sample.2|2dec50db|0	FROM items -> FROM items WHERE k IS NOT '': an empty string is never a named id and never LIKE '<P>-%', so neither C2 nor C3 counts it.
+count-star-to-k.0|23c2aa12|1	C3 COUNT(*) -> COUNT(k): a row passing WHERE k LIKE ... has k NOT NULL (NULL LIKE x is NULL, filtered), so COUNT(k) = COUNT(*).
+distinct-dropped.0|23c2aa12|0	C2 COUNT(DISTINCT k) -> COUNT(k): by Lemma L both are 0 when C3 = 0, and C2 decides nothing when C3 >= 1.
+in-trim.1|23c2aa12|0	C2 k IN -> lower(k) IN: a named id has an upper-case prefix and lower(k) has none, so the count is 0 on every input; by Lemma L the helper's C2 is 0 too whenever C3 = 0.
+in-trim.2|23c2aa12|0	C2 k IN -> upper(k) IN: upper(k) equal to a named id means k equals it up to ASCII case, so k LIKE '<P>-%' and C3 >= 1; with C3 = 0 the count is 0 (Lemma L).
+c2-sample.0|23c2aa12|0	C2 over a LIMIT 1 sample: a subset count is at most the full count, which is 0 when C3 = 0 (Lemma L).
+c2-const.0|23c2aa12|0	C2 -> 0*C2 = 0: with C3 = 0 the helper's C2 is 0 as well (Lemma L), with C3 >= 1 C2 decides nothing.
+eq.1|bd6dc174|0	`[ $# -eq 3 ] || return 0` -> `-le 3`: with fewer than 3 fields the next loop reads an empty "$3" (or "$2"), matches the '' alternative and returns 0, as the helper does.
+case-alt.0|da3578b1|0	the '' alternative dropped from the per-field digit check: it is reached only with $# = 3, and a field produced by word splitting the digit-and-space output of sqlite3 is never empty (an empty field needs a non-whitespace IFS character inside the output, i.e. an IFS holding a digit, which the helper's callers never set).
+gt.2|f2fe43bc|0	`[ $1 -gt 0 ]` -> `-ne 0`: C1 is COUNT(*), checked to be digits only, so it is never negative.
+lt.0|f2fe43bc|0	`[ $2 -lt need ]` -> `-le need`: they differ only at C2 = need >= 1, where some k equals a named id, so C3 >= 1 (Lemma L) and neither SKIPs.
+lt.2|f2fe43bc|0	`[ $2 -lt need ]` -> `-ne need`: C2 counts distinct values equal to one of the need literals, so C2 <= need and the tests agree.
+eq.1|f2fe43bc|0	`[ $3 -eq 0 ]` -> `-le 0`: C3 is COUNT(*), checked to be digits only, so it is never negative.

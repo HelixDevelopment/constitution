@@ -58,7 +58,13 @@ fc_require_consumer() {
 #   Ids must match [A-Z][A-Z0-9]*-[0-9]+ (they are interpolated into SQL); another shape is a usage error
 #   (exit 2). A foreign register that happens to hold any <PREFIX>-* row runs the checks and FAILs; that is
 #   the intended CR-3 trade-off, so such a FAIL is not read as a lost item (CR3-5).
-#   The last stdout line of a SKIP ends in reason=topology_unsupported.
+#   The last stdout line of a SKIP ends in reason=topology_unsupported; nothing is written on stderr, on a SKIP or a run.
+#   Every sqlite3 call is opened -readonly, so the database file's bytes never change and no database is created for
+#   an absent path; on a WAL-mode database sqlite may leave <db>-wal (empty) and <db>-shm beside it when the last
+#   connection is read-only (here docs/workable_items.db-wal and -shm are gitignored). A BLOB-stored id (the real schema
+#   stores TEXT): LIKE reads it as text, so a BLOB id with the prefix makes C3 >= 1 and the checks run; IN never
+#   matches a BLOB to a TEXT id, which cannot cause a SKIP while C3 >= 1. Legs, bounds and paired mutants are in
+#   test_consumer_required_helper.sh Part 3 (round 7 of the full-suite fix vehicle, CON-152/CON-157).
 fc_require_items() {
   _fci_db=$1; shift
   _fci_need=$#; _fci_in=""; _fci_pfx=""
