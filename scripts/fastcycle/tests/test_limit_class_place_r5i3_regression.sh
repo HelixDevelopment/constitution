@@ -256,12 +256,14 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== R5-I3 REGRESSION GUARD: ALL CHECKS PASS -- the fixed limit_class.py"
-  echo "    correctly fails with EXIT_USAGE (2), genuinely distinct from EXIT_OK (0)"
-  echo "    and EXIT_PLACE_REFUSED (1), on every malformed fixture; the reused"
-  echo "    negative-control fixture is unaffected; and every malformed fixture's own"
-  echo "    pinned pre-fix copy is independently confirmed to crash uncaught -- every"
-  echo "    guard here is load-bearing. ==="
+  # CON-150 review finding F5-1: the explanatory prose comes first and the
+  # summary line last, so the full-suite runner reads no fail word after it.
+  echo "    What this guard proves: the fixed limit_class.py correctly fails with"
+  echo "    EXIT_USAGE (2), genuinely distinct from EXIT_OK (0) and EXIT_PLACE_REFUSED"
+  echo "    (1), on every malformed fixture; the reused negative-control fixture is"
+  echo "    unaffected; and every malformed fixture's own pinned pre-fix copy is"
+  echo "    independently confirmed to crash uncaught -- every guard here is load-bearing."
+  echo "=== R5-I3 REGRESSION GUARD: ALL CHECKS PASS ==="
 else
   echo "=== R5-I3 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
 fi

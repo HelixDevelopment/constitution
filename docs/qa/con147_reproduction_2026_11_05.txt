@@ -1,0 +1,1242 @@
+# CON-117 (vehicle id before re-mint: CON-109) reproduction and fix evidence (2026-11-05)
+# Ids: this file was written under the vehicle ids before the re-mint of 2026-11-10 (merge 3d050dc3 of main 90efceb8, section 11.4.214): CON-109 is now CON-117. The body below keeps the old ids verbatim; on main CON-108..CON-115 are other items.
+# Host: Linux 7.0.0-42-generic; git version 2.53.0; Python 3.14.4; /bin/sh -> /usr/bin/dash
+# Tree: scratch clone of origin main bdc3ac43 (vehicle, section 11.4.288(B)); RED = pre-fix code, GREEN = fixed code, same command.
+$ FC_GUARD_NPROC=64 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 sh scripts/fastcycle/lib/host_guard.sh 1000000   (pre-fix)
+N=1
+REASON=unreadable_ulimit
+(same command on the fixed guard: N=123694 REASON=thread_headroom under sh and bash)
+
+===== RED: sh scripts/fastcycle/tests/test_host_guard_red.sh (test before this change)
+----- file: ev/fix2_red_sh.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+scripts/fastcycle/tests/test_host_guard_red.sh: 231: ulimit: Illegal option -u
+FAIL: R4 live ulimit -u read (=) => N= thread_headroom expected rc=0 N= reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+scripts/fastcycle/tests/test_host_guard_red.sh: 242: [: Illegal number: 
+FAIL: R4 lowered live ulimit (=-1) => N=-1 thread_headroom expected rc=0 N=-1 reason=thread_headroom got rc=2 N= reason=
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=10018451 within [10020999,10031191]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+SUMMARY pass=129 fail=2
+rc=1
+
+===== RED: sh scripts/fastcycle/tests/test_host_guard_red.sh (updated test, guard unfixed)
+----- file: ev/fix2_red2_sh.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+FAIL: R4 live ulimit -u read (=123694) => N=123694 thread_headroom expected rc=0 N=123694 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+FAIL: R4 lowered live ulimit (=123693) => N=123693 thread_headroom expected rc=0 N=123693 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=10738575 within [10747231,10778159]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+FAIL: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom expected rc=0 N=777 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+FAIL: CON-109 soft unlimited in the limits file => no thread clamp expected rc=0 N=8 reason=none got rc=0 N=1 reason=unreadable_ulimit
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+FAIL: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit expected rc=0 N=123694 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+SUMMARY pass=130 fail=5
+rc=1
+
+===== GREEN: same command (sh), fixed guard
+----- file: ev/fix2_green_sh.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=11059943 within [11055935,11069859]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-109 soft unlimited in the limits file => no thread clamp
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=135 fail=0
+rc=0
+
+===== GREEN: bash scripts/fastcycle/tests/test_host_guard_red.sh, fixed guard
+----- file: ev/fix2_green_bash.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=10593199 within [10604483,10824607]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-109 soft unlimited in the limits file => no thread clamp
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=135 fail=0
+rc=0
+
+===== MUTATION MA (guard ignores the limits file) -> must FAIL
+----- file: ev/fix2_mut_MA_ignore_file.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+FAIL: R4 live ulimit -u read (=123694) => N=123694 thread_headroom expected rc=0 N=123694 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+FAIL: R4 lowered live ulimit (=123693) => N=123693 thread_headroom expected rc=0 N=123693 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=12253007 within [12219847,12268091]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+FAIL: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom expected rc=0 N=777 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+FAIL: CON-109 soft unlimited in the limits file => no thread clamp expected rc=0 N=8 reason=none got rc=0 N=1 reason=unreadable_ulimit
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+FAIL: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit expected rc=0 N=123694 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+SUMMARY pass=130 fail=5
+
+===== MUTATION MB (guard reads the hard field) -> must FAIL
+----- file: ev/fix2_mut_MB_hard_field.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+FAIL: R4 lowered live ulimit (=123693) => N=123693 thread_headroom expected rc=0 N=123693 reason=thread_headroom got rc=0 N=123694 reason=thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=11873359 within [11859687,11875543]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+FAIL: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom expected rc=0 N=777 reason=thread_headroom got rc=0 N=999 reason=thread_headroom
+PASS: CON-109 soft unlimited in the limits file => no thread clamp
+FAIL: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1 expected rc=0 N=1 reason=unreadable_ulimit got rc=0 N=8 reason=none
+PASS: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=132 fail=3
+
+===== RE-RUN 2026-11-05 21:4x after moving the SC3045 disable comment in test_host_guard_red.sh
+----- GREEN under sh: file ev/fix2_green_sh.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=11867931 within [11871115,11892043]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-109 soft unlimited in the limits file => no thread clamp
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=135 fail=0
+rc=0
+----- GREEN under bash: file ev/fix2_green_bash.out
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=11644839 within [11645079,11645203]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-109 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-109 soft unlimited in the limits file => no thread clamp
+PASS: CON-109 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-109 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=135 fail=0
+rc=0

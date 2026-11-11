@@ -1,0 +1,1311 @@
+# CON-146 / CON-147 / CON-158 fix round 6 -- captured RED/GREEN evidence (2026-11-11)
+# Vehicle ids before re-mint: CON-116 / CON-117 / CON-128 (merge 4003395b of main 2e8cfb90, map CON-116..CON-128 -> CON-146..CON-158).
+# Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, bash 5.3.9(1)-release, nproc 16, load: 7.99 8.91 9.80
+# Base: bundle fsfix5 head a7d4369e, main 2e8cfb90. Review: independent review of fsfix5 (NO-GO: N1, N2, N3 important; M1, M2 minor; n1..n3 nits). Operator decision relayed 2026-11-10, verbatim: "Keep running rounds until GO is reached!" (section 11.4.276(E)(3)/(G)); the GO bar is unchanged.
+# Scratch paths are replaced by <worktree> / <scratch>. TMPDIR was an empty scratch dir for every run; nothing was left under it. Session scratchpad paths are <scratchpad>; truncated ones are <session-tmp>.
+
+===== red_r6_reviewer_mutants
+# RED for N3: the round-5 regression test with the reviewer mutants as self-tests; 5 survive (pass=52 fail=5).
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run 0.946 s; signal delays 0.019 0.066 0.114 0.170 0.236 0.303 0.378 0.454 0.530 0.605 0.681 0.757 0.851 0.927 
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 (✗ the weakened gate does not parse)
+ok STERM stopped by the signalTERM -> nothing left under TMPDIR (stopped=1 tmp=0 exit=143)
+ok SINT stopped by the signalINT -> nothing left under TMPDIR (stopped=1 tmp=0 exit=130)
+ok SHUP stopped by the signalHUP -> nothing left under TMPDIR (stopped=1 tmp=0 exit=129)
+ok SCLEAN stopped by the signalCLEAN -> nothing left under TMPDIR (stopped=1 tmp=0)
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11c_no_term_trap caught by STERM (stopped=1 tmp=0 sig=15, original stopped=1 tmp=0 exit=143)
+ok mutation DP11d_no_int_trap caught by SINT (stopped=1 tmp=0 sig=2, original stopped=1 tmp=0 exit=130)
+ok mutation DP11e_no_hup_trap caught by SHUP (stopped=1 tmp=1 sig=1, original stopped=1 tmp=0 exit=129)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN (stopped=1 tmp=1, original stopped=1 tmp=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+NOT ok mutation R1b_int_hup_not_ignored_in_cleanup SURVIVED SCLEAN (stopped=1 tmp=0)
+NOT ok mutation R2_mktemp_failure_exit_0 SURVIVED G (rc=0 fail=0 msg=1 tmp=0)
+NOT ok mutation R3_duplicate_anchor_accepted SURVIVED B4 (rc=1 fail=1 msg=1 tmp=0)
+NOT ok mutation R4_cp_failure_ignored SURVIVED B9 (rc=1 fail=1 msg=1 tmp=0)
+ok mutation R5b_int_exits_143 caught by SINT (stopped=1 tmp=0 exit=143, original stopped=1 tmp=0 exit=130)
+NOT ok mutation R7_ln_failure_ignored SURVIVED B9 (rc=1 fail=1 msg=1 tmp=0)
+=== meta_test_verification regression guard (CON-158): pass=52 fail=5 ===
+
+===== red_r6_H1
+# RED for M2/H1: test_host_guard_red.sh before the 'Max processes 5 6' fixture, with reviewer mutant H1 applied: it survives (pass=137 fail=0).
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=14239123 within [14239851,14248563]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-147 r5 three-field 'Max processes 5' line is skipped: same result as no line (N=1 REASON=unreadable_ulimit)
+PASS: CON-147 r5 three-field line then a full soft-888 line => N=888 thread_headroom
+PASS: CON-147 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-147 soft unlimited in the limits file => no thread clamp
+PASS: CON-147 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-147 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=137 fail=0
+
+===== r6_H1_killed
+# GREEN for M2/H1: the new fixture, with H1 applied: H1 killed (pass=137 fail=1).
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=14296291 within [14296291,14303923]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-147 r5 three-field 'Max processes 5' line is skipped: same result as no line (N=1 REASON=unreadable_ulimit)
+PASS: CON-147 r5 three-field line then a full soft-888 line => N=888 thread_headroom
+FAIL: CON-147 r6 four-word 'Max processes 5 6' line (no units) is read => N=5 thread_headroom expected rc=0 N=5 reason=thread_headroom got rc=0 N=1 reason=unreadable_ulimit
+PASS: CON-147 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-147 soft unlimited in the limits file => no thread clamp
+PASS: CON-147 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-147 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=137 fail=1
+
+===== r6_stash_patch_r22
+# M1: r22 stash-patch regression test with EP2V and paired mutant EP2M (pass=90 fail=0).
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok control needle: repo 3 patch = plain, mixed-quoting, plain header
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffpos rewrites only the chosen header (1, 2, 3, all; bare and quoted), fails only git diff
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git pf f'
+ok control needle: repo 4 expected file list built from git -z name-status (bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt)
+ok control needle: repo 5 has 5 headers
+ok control needle: repo B has a binary section
+ok control needle: repo M has deleted, new and mode-only sections
+ok control needle: repo Q patch holds unquoted non-ASCII names
+ok control needle: repos EU and EP have empty tracked patches; EU has an untracked parent, EP none
+ok G1 plain stash, faithful backup, host git -> ALLOWED (got ALLOWED)
+ok G2 inventory: dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f (got 'dirty	310a571416ccd07ec715bca513173f245bd1d0b76cf87a2cbbb7b38695101044	f')
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (got ALLOWED)
+ok B1 every header non-canonical -> REFUSED as unmeasured, naming the bad diff --git header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok B2 inventory with non-canonical headers -> UNMEASURED, never hashed (got 'UNMEASURED	None	')
+ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'dirty	b1d51ba7d31d4592cd7b9aa83a559142f3b9b53a68c2ed61750245ea2f43c519	a1.txt,b2.txt,b2 sp	tab.txt,c3.txt')
+ok G5 three-header mixed-quoting stash, faithful backup -> ALLOWED (got ALLOWED)
+ok P1 only header 1 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q1 only header 1 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P2 only header 2 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q2 only header 2 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P3 only header 3 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q3 only header 3 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok V2 verify-proposal, middle header garbled -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok V3 verify-proposal, last header quoted without prefixes -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git "f" "xf"' -- the patch bytes a)
+ok F1 git diff of the stash fails (rc 3) -> REFUSED naming 'git diff ... failed (rc=3)' (got REFUSED: the live state of stash 'stash@{0}' could not be read (git diff stash@{0}^1 stash@{0} failed (rc=3)) -- cannot confirm the backup covers it)
+ok F2 git diff of the stash fails -> inventory UNMEASURED (got 'UNMEASURED')
+ok L1 CON-157 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt')
+ok XS1 one half of one header garbled ('diff --git xa/a1.txt b/a1.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS2 one half of one header garbled ('diff --git a/b2.txt xb/b2.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS3 one half of one header garbled ('diff --git a/c3.txt "xb/c3.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XS4 one half of one header garbled ('diff --git "xa/b2.txt" "b/b2.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XC1 header 1 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC2 header 2 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC3 header 3 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC4 header 4 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC5 header 5 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB a header after a binary section garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB1 the binary section's own header garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM1 deleted/new/mode-only section: header 1 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM2 deleted/new/mode-only section: header 2 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM3 deleted/new/mode-only section: header 3 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XMG deleted/new/mode-only stash -> dirty, files d,e,m,n (got 'dirty	8faf118efb9b55cb5bb364c5b01ef81354a7308f64a9850e53f8c1cfab9a0531	d.txt,e.txt,m.sh,n.txt')
+ok XG body lines that look like headers (mid-line, after a CR, at column 2) -> dirty, sha = backup (got 'dirty	509f46c14bff9da6fe8f37b48bf9e61f39cbe0927386b8a615e5600241c07145	p.txt')
+ok XGV the same stash, faithful backup -> ALLOWED (got ALLOWED: backup_hash independently re-verified against BOTH the real backup file at '<session-tmp>)
+ok XQ core.quotePath=false with a Latin-1 and a UTF-8 name -> dirty, sha = backup (got 'dirty	3e46032a9aa81995b2c3778571d7967b94251bfb8a02572482dcb09a53b23eda	caf�.txt,ünï.txt')
+ok MX matrix over header count x position x side x section type x git config, oracle = git name-status; nothing left under its TMPDIR (got: MATRIX cells=527 green=17 bad=0)
+ok EP1 untracked-only stash (git stash -u) -> empty_patch, no sha256, no files (got 'empty_patch	None	')
+ok EP2 index-only stash, worktree = HEAD -> empty_patch, no sha256, no files (got 'empty_patch	None	')
+ok EP1V untracked-only stash, land -> REFUSED for its untracked content, not as unreadable (got REFUSED: stash 'stash@{0}' has untracked content (has_untracked=True) that the tracked-diff-only backup at '<session-tmp>)
+ok EP2V index-only stash, faithful empty backup, land -> REFUSED for its index content, not as stale (got REFUSED: stash 'stash@{0}' has index (staged) content in its ^2 parent that its empty tracked patch cannot carry (index_unpatched=True); the backup a)
+ok mutation M1_stash_show: caught by G1 G2 G3 G4 G5 V2 V3 F1 L1 XMG XG XGV XQ (named: G3)
+ok mutation M2_no_header_check: caught by B1 B2 P1 Q1 P2 Q2 P3 Q3 V2 V3 XS1 XS2 XS3 XS4 XC1 XC2 XC3 XC4 XC5 XB XB1 XM1 XM2 XM3 MX (named: B2 P1 P2 P3)
+ok mutation M3_measured_true: caught by B1 V2 V3 F1 (named: B1)
+ok mutation M4_first_header_only: caught by P2 Q2 P3 Q3 V2 V3 XS2 XS3 XS4 XC2 XC3 XC4 XC5 XB XM2 XM3 MX (named: P2 P3)
+ok mutation M5_no_mixed_quoting: caught by G4 G5 V3 MX (named: G4 G5)
+ok mutation RV1_last_only: caught by P1 Q1 P2 Q2 V2 XS1 XS2 XS4 XC1 XC2 XC3 XC4 XB1 XM1 XM2 XM3 MX (named: P1 P2)
+ok mutation RV2_first_and_last: caught by P2 Q2 V2 XS2 XS4 XC2 XC3 XC4 XM2 XM3 MX (named: P2)
+ok mutation RV6_first_two_only: caught by P3 Q3 V3 XS3 XC3 XC4 XC5 XM3 MX (named: P3)
+ok mutation RV3_quoted_trusted: caught by Q1 Q2 Q3 V3 XS3 XS4 MX (named: Q1 Q2 Q3)
+ok mutation RV4_loose_regex: caught by Q1 Q2 Q3 V3 XS3 XS4 MX (named: Q1 Q2 Q3)
+ok mutation RV5_rc_why_dropped: caught by F1 (named: F1)
+ok mutation L1_old_file_list: caught by G4 L1 (named: G4 L1)
+ok mutation NM1_a_side_only: caught by XS2 XS3 MX (named: XS2 XS3 MX)
+ok mutation NM2_b_side_only: caught by XS1 XS4 MX (named: XS1 MX)
+ok mutation NM3_first_three: caught by XC4 XC5 MX (named: XC4 XC5 MX)
+ok mutation NM4_last_three: caught by XC1 XC2 XM1 MX (named: XC1 XC2 MX)
+ok mutation NM5_first1_last2: caught by XC2 XC3 XM2 MX (named: XC2 XC3 MX)
+ok mutation NM6_stop_at_binary: caught by XB MX (named: XB MX)
+ok mutation NM7_splitlines: caught by XG XGV MX (named: XG MX)
+ok mutation NM8_substring_match: caught by XG XGV MX (named: XG MX)
+ok mutation NM9_strict_utf8_decode: caught by XQ MX (named: XQ)
+ok mutation NM10_skip_single_header: caught by B1 B2 MX (named: B1 MX)
+ok mutation NM11_skip_mode_new_deleted_sections: caught by XM1 XM2 XM3 MX (named: XM1 XM2 XM3 MX)
+ok mutation NM12_skip_rename_sections: caught by P2 Q2 V2 XS2 XS4 MX (named: P2 MX)
+ok mutation NM13_skip_binary_sections: caught by XB1 MX (named: XB1 MX)
+ok mutation FL1_rename_new_only: caught by G4 L1 MX (named: G4 L1 MX)
+ok mutation FL3_no_tab_strip: caught by L1 MX (named: L1 MX)
+ok mutation FL4_no_dedupe: caught by G2 G4 L1 XMG XG MX (named: G4 L1 MX)
+ok mutation FL5_no_header_fallback: caught by L1 XMG MX (named: L1 MX)
+ok mutation FL6_copy_ignored: caught by MX (named: MX)
+ok mutation FL7_minus_overwritten_by_body: caught by MX (named: MX)
+ok mutation FL10_plus_overwritten_by_body: caught by MX (named: MX)
+ok mutation FL8_octal_ignored: caught by L1 MX (named: L1 MX)
+ok mutation FL9_sorted: caught by G4 L1 MX (named: G4 L1 MX)
+ok mutation RD_empty_patch_is_unmeasured: caught by EP1 EP2 (named: EP1 EP2)
+ok mutation RD2_empty_live_patch_unmeasured: caught by EP1V EP2V (named: EP1V)
+ok mutation EP2M_index_content_not_checked: caught by EP2V (named: EP2V)
+ok TD nothing left under the run's TMPDIR
+=== stash patch regression guard (CON-146): pass=90 fail=0 ===
+
+real	9m45.405s
+user	4m34.228s
+sys	3m17.910s
+
+===== r6_dm_run1
+# Class census run 1 (enumerate_decision_mutants.py, section 11.4.274) on the round-6 committed tests: RED for the decision points no fixture pinned (survived=15; host_report BLIND: scratch root not named constitution, fixed in the enumerator).
+BLIND	host_report	control needle: the unmutated copy's test exit 1: ['=== host_report thread limit regression guard (CON-147 F2-1): pass=2 fail=41 ===']
+CONTROL	host_guard	unmutated copy passes (17 s)
+KILLED	129e62c6d6ab	host_guard:100	exit_flip	die() { echo "host_guard: $*" >&2; exit 2; }	->	die() { echo "host_guard: $*" >&2; exit 0; }
+KILLED	d9ce46d9c1eb	host_guard:100	exit_flip	die() { echo "host_guard: $*" >&2; exit 2; }	->	die() { echo "host_guard: $*" >&2; exit 1; }
+KILLED	641a5d44fc0d	host_guard:102	return_flip	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 12 ]; }	->	isnum() { case $1 in ''|*[!0-9]*) return 0 ;; esac; [ "${#1}" -le 12 ]; }
+KILLED	02aa6b3512f0	host_guard:102	shell_test_cmp	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 12 ]; }	->	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -lt 12 ]; }
+KILLED	2134a82332c2	host_guard:105	num_bound_shift	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -ge 2 ] || die "missing requested N"
+KILLED	c9afd35aa995	host_guard:105	num_bound_shift	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -ge 0 ] || die "missing requested N"
+KILLED	84e9e4eb69d0	host_guard:105	shell_test_cmp	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -gt 1 ] || die "missing requested N"
+KILLED	78a0bdf24164	host_guard:108	shell_test_cmp	req=$(norm "$req"); [ "$req" -ge 1 ] || die "requested N must be >= 1"	->	req=$(norm "$req"); [ "$req" -gt 1 ] || die "requested N must be >= 1"
+KILLED	95d4f4d9eff8	host_guard:111	num_bound_shift	while [ $# -gt 0 ]; do	->	while [ $# -gt 1 ]; do
+KILLED	cce7c4afb90e	host_guard:111	shell_test_cmp	while [ $# -gt 0 ]; do	->	while [ $# -ge 0 ]; do
+KILLED	6a4ba72204e8	host_guard:114	num_bound_shift	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -ge 3 ] || die "flag $1 requires a value"
+KILLED	af6e05452000	host_guard:114	num_bound_shift	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -ge 1 ] || die "flag $1 requires a value"
+KILLED	eef982372ecf	host_guard:114	shell_test_cmp	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -gt 2 ] || die "flag $1 requires a value"
+KILLED	1fe6a8568260	host_guard:119	shell_test_cmp	mem_per=$(norm "$val"); [ "$mem_per" -ge 1 ] || die "--per-job-mem-kb must be >= 1" ;;	->	mem_per=$(norm "$val"); [ "$mem_per" -gt 1 ] || die "--per-job-mem-kb must be >= 1" ;;
+KILLED	577b7a29ff91	host_guard:121	shell_test_cmp	thr_per=$(norm "$val"); [ "$thr_per" -ge 1 ] || die "--threads-per-job must be >= 1" ;;	->	thr_per=$(norm "$val"); [ "$thr_per" -gt 1 ] || die "--threads-per-job must be >= 1" ;;
+KILLED	dc8010fa2ee9	host_guard:129	shell_test_cmp	if [ "$1" -lt "$n" ]; then n=$1; reason=$2; fi	->	if [ "$1" -le "$n" ]; then n=$1; reason=$2; fi
+KILLED	5068b114f6dd	host_guard:154	drop_redirect	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi	->	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc); fi
+KILLED	bb81bfeae5aa	host_guard:154	nz_flip	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi	->	if [ -z "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi
+KILLED	6cfdcee444fd	host_guard:155	shell_test_cmp	if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -ge 1 ]; then	->	if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -gt 1 ]; then
+SURVIVED	9c1e43b25701	host_guard:179	drop_redirect	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file")
+KILLED	e193a5210975	host_guard:179	num_bound_shift	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 5 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	67ff91bbb7e4	host_guard:179	num_bound_shift	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 3 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	526e4eae8287	host_guard:179	strict_bound	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF > 4 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	014042c452f1	host_guard:181	nz_flip	if [ -z "$_v" ]; then	->	if [ -n "$_v" ]; then
+KILLED	e2ef3877414b	host_guard:183	drop_redirect	_v=$(ulimit -u 2>/dev/null)	->	_v=$(ulimit -u)
+KILLED	36ddd22b3cfe	host_guard:187	nz_flip	if [ -n "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(read_nproc_soft); fi	->	if [ -z "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(read_nproc_soft); fi
+KILLED	9aee2ebd8ecf	host_guard:188	str_cmp_flip	if [ "$ulim" = unlimited ]; then :	->	if [ "$ulim" != unlimited ]; then :
+KILLED	d1f8ab7081ce	host_guard:191	nz_flip	if [ -n "${FC_GUARD_THREADS+x}" ]; then thr=$FC_GUARD_THREADS	->	if [ -z "${FC_GUARD_THREADS+x}" ]; then thr=$FC_GUARD_THREADS
+KILLED	ba3a9f3143fd	host_guard:192	drop_redirect	elif psout=$(ps -L --no-headers -U "$(id -ru)" 2>/dev/null); then	->	elif psout=$(ps -L --no-headers -U "$(id -ru)"); then
+KILLED	65ab9b797abd	host_guard:194	nz_flip	[ -n "$psout" ] || thr=""     # empty ps output is not "zero threads"	->	[ -z "$psout" ] || thr=""     # empty ps output is not "zero threads"
+KILLED	b5afd2f7039d	host_guard:199	shell_test_cmp	if [ "$thr_raw" -le 0 ]; then	->	if [ "$thr_raw" -lt 0 ]; then
+SURVIVED	847a5641fe46	host_guard:202	shell_test_cmp	t=$(( thr_raw / thr_per )); [ "$t" -lt 1 ] && t=1	->	t=$(( thr_raw / thr_per )); [ "$t" -le 1 ] && t=1
+KILLED	dca5da3473a8	host_guard:209	str_cmp_flip	if [ "$kind" = agents ]; then	->	if [ "$kind" != agents ]; then
+KILLED	2943ad03ebf0	host_guard:210	nz_flip	if [ -z "${FC_GUARD_ACTIVE_AGENTS+x}" ]; then unreadable unreadable_active_agents	->	if [ -n "${FC_GUARD_ACTIVE_AGENTS+x}" ]; then unreadable unreadable_active_agents
+KILLED	f1e87a75deb8	host_guard:216	shell_test_cmp	if [ "$cap_raw" -le 0 ]; then	->	if [ "$cap_raw" -lt 0 ]; then
+KILLED	95c1c816bcd2	host_guard:229	nz_flip	if [ -n "${FC_GUARD_MEM_TOTAL_KB+x}" ]; then mtot=$FC_GUARD_MEM_TOTAL_KB	->	if [ -z "${FC_GUARD_MEM_TOTAL_KB+x}" ]; then mtot=$FC_GUARD_MEM_TOTAL_KB
+KILLED	ec9b051ed1eb	host_guard:230	drop_redirect	else mtot=$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null); fi	->	else mtot=$(awk '/^MemTotal:/{print $2}' /proc/meminfo); fi
+KILLED	86c9c0809764	host_guard:231	nz_flip	if [ -n "${FC_GUARD_MEM_AVAIL_KB+x}" ]; then mav=$FC_GUARD_MEM_AVAIL_KB	->	if [ -z "${FC_GUARD_MEM_AVAIL_KB+x}" ]; then mav=$FC_GUARD_MEM_AVAIL_KB
+KILLED	01da320f88b0	host_guard:232	drop_redirect	else mav=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null); fi	->	else mav=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo); fi
+KILLED	59a28b99abd2	host_guard:235	shell_test_cmp	if [ "$mtot" -ge 1 ] && [ "$mav" -le "$mtot" ]; then	->	if [ "$mtot" -gt 1 ] && [ "$mav" -le "$mtot" ]; then
+KILLED	81181cc55f78	host_guard:235	shell_test_cmp	if [ "$mtot" -ge 1 ] && [ "$mav" -le "$mtot" ]; then	->	if [ "$mtot" -ge 1 ] && [ "$mav" -lt "$mtot" ]; then
+KILLED	0eb4b81af56a	host_guard:237	shell_test_cmp	if [ "$budget" -le 0 ]; then	->	if [ "$budget" -lt 0 ]; then
+KILLED	7609c9c1060c	host_guard:239	shell_test_cmp	elif [ "$mem_per" -gt 0 ]; then	->	elif [ "$mem_per" -ge 0 ]; then
+SURVIVED	cb285f234139	host_guard:240	shell_test_cmp	m=$(( budget / mem_per )); [ "$m" -lt 1 ] && m=1	->	m=$(( budget / mem_per )); [ "$m" -le 1 ] && m=1
+SURVIVED	f879040bebc6	host_guard:250	shell_test_cmp	*) [ "$n" -lt 1 ] && n=1 ;;	->	*) [ "$n" -le 1 ] && n=1 ;;
+KILLED	2480cb41d4d5	host_guard:253	exit_flip	exit 0	->	exit 1
+CONTROL	meta	unmutated copy passes (56 s)
+KILLED	f4d47d43f2b9	meta:42	exit_flip	[ "${fail}" = 0 ] && exit 0	->	[ "${fail}" = 0 ] && exit 1
+KILLED	87724cba5f37	meta:42	str_cmp_flip	[ "${fail}" = 0 ] && exit 0	->	[ "${fail}" != 0 ] && exit 0
+KILLED	cfa586798e47	meta:43	exit_flip	exit 1	->	exit 0
+KILLED	f621605de42b	meta:46	exit_flip	W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 1; }	->	W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 0; }
+KILLED	aa6cea289a1a	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	109d0f274e9f	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	977bc421cd22	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	1bc3ae8184b8	meta:53	drop_trap_inline	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	3a45291357d0	meta:53	nz_flip	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -z "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+SURVIVED	4eb93adc66ab	meta:53	drop_guard_conjunct	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+SURVIVED	7730ca956e9c	meta:53	drop_guard_conjunct	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && rm -rf -- "${W:?}"; }
+KILLED	6546ea1fce3a	meta:54	drop_trap	trap cleanup EXIT	->	:
+KILLED	af02947761ae	meta:55	drop_trap	trap 'exit 129' HUP	->	:
+KILLED	ed9be5871db2	meta:55	exit_flip	trap 'exit 129' HUP	->	trap 'exit 0' HUP
+KILLED	af163e612161	meta:55	exit_flip	trap 'exit 129' HUP	->	trap 'exit 1' HUP
+KILLED	eb0e809f7de0	meta:56	drop_trap	trap 'exit 130' INT	->	:
+KILLED	fda43442c276	meta:56	exit_flip	trap 'exit 130' INT	->	trap 'exit 0' INT
+KILLED	1662d2142a59	meta:56	exit_flip	trap 'exit 130' INT	->	trap 'exit 1' INT
+KILLED	4cf5c5240522	meta:57	drop_trap	trap 'exit 143' TERM	->	:
+KILLED	b8e5925b89b7	meta:57	exit_flip	trap 'exit 143' TERM	->	trap 'exit 0' TERM
+KILLED	d2b208b9e873	meta:57	exit_flip	trap 'exit 143' TERM	->	trap 'exit 1' TERM
+SURVIVED	54dcb68d8153	meta:69	drop_or_return	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1	->	mkdir -p "${r}/scripts/validation" "${r}/submodules"
+KILLED	96fb2972d24b	meta:69	return_flip	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1	->	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 0
+KILLED	f3eacf66c0bd	meta:70	drop_or_return	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 1	->	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh"
+KILLED	1618e9deaae3	meta:70	return_flip	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 1	->	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 0
+EQUIVALENT	a9660ab8f6d8	meta:72	drop_continue	[ -e "${s}" ] || continue	->	[ -e "${s}" ]
+KILLED	82881acbad20	meta:73	drop_continue	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue	->	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ]
+KILLED	75024a085503	meta:73	str_cmp_flip	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue	->	[ "$(basename -- "${s}")" != "${TEST_SUBMODULE}" ] && continue
+KILLED	78c8ffb7dc7a	meta:74	drop_or_return	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 1	->	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")"
+KILLED	e230b24d2f83	meta:74	return_flip	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 1	->	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 0
+KILLED	f7de76594680	meta:79	drop_bang	if [[ ! -f "${VERIFICATION_SCRIPT}" ]]; then	->	if [[ -f "${VERIFICATION_SCRIPT}" ]]; then
+KILLED	eaa272c3514f	meta:80	ok_notok_swap	notok "verification script not found: ${VERIFICATION_SCRIPT}"	->	ok "verification script not found: ${VERIFICATION_SCRIPT}"
+KILLED	516a083b8473	meta:81	drop_finish	finish	->	:
+KILLED	f110bf262014	meta:83	drop_bang	if [[ ! -d "${SUBMODULES_DIR}/${TEST_SUBMODULE}" ]]; then	->	if [[ -d "${SUBMODULES_DIR}/${TEST_SUBMODULE}" ]]; then
+KILLED	e8e07df82ff0	meta:84	ok_notok_swap	notok "test submodule not present: ${SUBMODULES_DIR}/${TEST_SUBMODULE} (initialise the submodules first)"	->	ok "test submodule not present: ${SUBMODULES_DIR}/${TEST_SUBMODULE} (initialise the submodules first)"
+KILLED	b006c66a06b0	meta:85	drop_finish	finish	->	:
+SURVIVED	f42faedad9b8	meta:90	drop_redirect	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt" 2>&1; then	->	if bash "${VERIFICATION_SCRIPT}" 2>&1; then
+SURVIVED	c7fec5d838b8	meta:90	drop_redirect	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt" 2>&1; then	->	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt"; then
+KILLED	84371d494cc8	meta:91	ok_notok_swap	ok "real gate passes with every submodule present"	->	notok "real gate passes with every submodule present"
+KILLED	4e601a686ed8	meta:93	ok_notok_swap	notok "real gate does not pass on the real tree; output:"	->	ok "real gate does not pass on the real tree; output:"
+KILLED	444ac04a8faf	meta:100	ok_notok_swap	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; finish; }	->	R1="$(build_root m1)" || { ok "could not build the mutation-1 scratch root"; finish; }
+SURVIVED	ed1705be1215	meta:100	drop_finish	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; finish; }	->	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; :; }
+SURVIVED	fe7b76be4cc3	meta:101	drop_redirect	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt" 2>&1; then	->	if bash "${R1}/scripts/validation/run_verification.sh" 2>&1; then
+SURVIVED	55a12554e573	meta:101	drop_redirect	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt" 2>&1; then	->	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt"; then
+KILLED	7260dd7d9ac7	meta:102	ok_notok_swap	notok "real gate passed despite the missing '${TEST_SUBMODULE}' submodule (gate is a bluff)"	->	ok "real gate passed despite the missing '${TEST_SUBMODULE}' submodule (gate is a bluff)"
+KILLED	ae000c90e3fd	meta:104	ok_notok_swap	ok "real gate exits non-zero when '${TEST_SUBMODULE}' is missing"	->	notok "real gate exits non-zero when '${TEST_SUBMODULE}' is missing"
+KILLED	b82f2ef68301	meta:114	index_shift	src, dst, name = sys.argv[1:4]	->	src, dst, name = sys.argv[2:4]
+KILLED	328d4d1d1166	meta:114	index_shift	src, dst, name = sys.argv[1:4]	->	src, dst, name = sys.argv[0:4]
+KILLED	7b5b89f35c4c	meta:119	py_eq_flip	if c.count(old) != 1:	->	if c.count(old) == 1:
+SURVIVED	5a08d3ad78cb	meta:125	drop_redirect	if bash -n "${W}/run_verification_weak.sh" 2> "${W}/weak_syntax.txt"; then	->	if bash -n "${W}/run_verification_weak.sh"; then
+KILLED	8ed553f7be48	meta:126	ok_notok_swap	ok "the weakened gate parses (bash -n): a real mutation, not a syntax error"	->	notok "the weakened gate parses (bash -n): a real mutation, not a syntax error"
+KILLED	64a43f92c964	meta:127	ok_notok_swap	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; finish; }	->	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { ok "could not build the mutation-2 scratch root"; finish; }
+KILLED	a5d77019c17e	meta:127	drop_finish	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; finish; }	->	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; :; }
+SURVIVED	e9b56b142f5a	meta:128	drop_redirect	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt" 2>&1; then	->	if bash "${R2}/scripts/validation/run_verification.sh" 2>&1; then
+SURVIVED	b95e95760659	meta:128	drop_redirect	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt" 2>&1; then	->	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt"; then
+KILLED	549aacd08ff9	meta:129	ok_notok_swap	ok "weakened gate passes on the same missing root: the '${TEST_SUBMODULE}' check is what makes the real gate exit non-zero"	->	notok "weakened gate passes on the same missing root: the '${TEST_SUBMODULE}' check is what makes the real gate exit non-zero"
+KILLED	fc111a2c91c9	meta:131	ok_notok_swap	notok "weakened gate still exits non-zero; the real gate's mutation-1 result is not tied to the '${TEST_SUBMODULE}' check; output:"	->	ok "weakened gate still exits non-zero; the real gate's mutation-1 result is not tied to the '${TEST_SUBMODULE}' check; output:"
+KILLED	e46d656f648e	meta:135	ok_notok_swap	notok "the weakened gate does not parse:"	->	ok "the weakened gate does not parse:"
+KILLED	0ffc582930d6	meta:139	ok_notok_swap	notok "could not build the weakened gate (gate text changed; update the mutation anchors)"	->	ok "could not build the weakened gate (gate text changed; update the mutation anchors)"
+KILLED	fc1a2c0cd936	meta:142	drop_finish	finish	->	:
+=== decision mutants: killed=90 killed-timeout=0 survived=15 equivalent=1 invalid=0 blind=1 stale=0 ===
+
+===== r6_dm_run2
+# Class census run 2 on the final tree: killed=109 survived=0 equivalent=6 blind=0 stale=0 (equivalents proven in scripts/validation/decision_mutants_equivalent.tsv).
+CONTROL	meta	unmutated copy passes (51 s)
+KILLED	f4d47d43f2b9	meta:42	exit_flip	[ "${fail}" = 0 ] && exit 0	->	[ "${fail}" = 0 ] && exit 1
+KILLED	87724cba5f37	meta:42	str_cmp_flip	[ "${fail}" = 0 ] && exit 0	->	[ "${fail}" != 0 ] && exit 0
+KILLED	cfa586798e47	meta:43	exit_flip	exit 1	->	exit 0
+KILLED	f621605de42b	meta:46	exit_flip	W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 1; }	->	W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 0; }
+KILLED	aa6cea289a1a	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	109d0f274e9f	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	977bc421cd22	meta:53	drop_trap_signal	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	1bc3ae8184b8	meta:53	drop_trap_inline	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+KILLED	3a45291357d0	meta:53	nz_flip	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -z "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+EQUIVALENT	4eb93adc66ab	meta:53	drop_guard_conjunct	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -d "${W}" ] && rm -rf -- "${W:?}"; }
+EQUIVALENT	7730ca956e9c	meta:53	drop_guard_conjunct	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && [ -d "${W}" ] && rm -rf -- "${W:?}"; }	->	cleanup() { trap '' HUP INT TERM; [ -n "${W:-}" ] && rm -rf -- "${W:?}"; }
+KILLED	6546ea1fce3a	meta:54	drop_trap	trap cleanup EXIT	->	:
+KILLED	af02947761ae	meta:55	drop_trap	trap 'exit 129' HUP	->	:
+KILLED	ed9be5871db2	meta:55	exit_flip	trap 'exit 129' HUP	->	trap 'exit 0' HUP
+KILLED	af163e612161	meta:55	exit_flip	trap 'exit 129' HUP	->	trap 'exit 1' HUP
+KILLED	eb0e809f7de0	meta:56	drop_trap	trap 'exit 130' INT	->	:
+KILLED	fda43442c276	meta:56	exit_flip	trap 'exit 130' INT	->	trap 'exit 0' INT
+KILLED	1662d2142a59	meta:56	exit_flip	trap 'exit 130' INT	->	trap 'exit 1' INT
+KILLED	4cf5c5240522	meta:57	drop_trap	trap 'exit 143' TERM	->	:
+KILLED	b8e5925b89b7	meta:57	exit_flip	trap 'exit 143' TERM	->	trap 'exit 0' TERM
+KILLED	d2b208b9e873	meta:57	exit_flip	trap 'exit 143' TERM	->	trap 'exit 1' TERM
+KILLED	54dcb68d8153	meta:69	drop_or_return	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1	->	mkdir -p "${r}/scripts/validation" "${r}/submodules"
+KILLED	96fb2972d24b	meta:69	return_flip	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 1	->	mkdir -p "${r}/scripts/validation" "${r}/submodules" || return 0
+KILLED	f3eacf66c0bd	meta:70	drop_or_return	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 1	->	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh"
+KILLED	1618e9deaae3	meta:70	return_flip	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 1	->	cp -- "${2:-${VERIFICATION_SCRIPT}}" "${r}/scripts/validation/run_verification.sh" || return 0
+EQUIVALENT	a9660ab8f6d8	meta:72	drop_continue	[ -e "${s}" ] || continue	->	[ -e "${s}" ]
+KILLED	82881acbad20	meta:73	drop_continue	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue	->	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ]
+KILLED	75024a085503	meta:73	str_cmp_flip	[ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue	->	[ "$(basename -- "${s}")" != "${TEST_SUBMODULE}" ] && continue
+KILLED	78c8ffb7dc7a	meta:74	drop_or_return	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 1	->	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")"
+KILLED	e230b24d2f83	meta:74	return_flip	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 1	->	ln -s -- "${s}" "${r}/submodules/$(basename -- "${s}")" || return 0
+KILLED	f7de76594680	meta:79	drop_bang	if [[ ! -f "${VERIFICATION_SCRIPT}" ]]; then	->	if [[ -f "${VERIFICATION_SCRIPT}" ]]; then
+KILLED	eaa272c3514f	meta:80	ok_notok_swap	notok "verification script not found: ${VERIFICATION_SCRIPT}"	->	ok "verification script not found: ${VERIFICATION_SCRIPT}"
+KILLED	516a083b8473	meta:81	drop_finish	finish	->	:
+KILLED	f110bf262014	meta:83	drop_bang	if [[ ! -d "${SUBMODULES_DIR}/${TEST_SUBMODULE}" ]]; then	->	if [[ -d "${SUBMODULES_DIR}/${TEST_SUBMODULE}" ]]; then
+KILLED	e8e07df82ff0	meta:84	ok_notok_swap	notok "test submodule not present: ${SUBMODULES_DIR}/${TEST_SUBMODULE} (initialise the submodules first)"	->	ok "test submodule not present: ${SUBMODULES_DIR}/${TEST_SUBMODULE} (initialise the submodules first)"
+KILLED	b006c66a06b0	meta:85	drop_finish	finish	->	:
+KILLED	f42faedad9b8	meta:90	drop_redirect	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt" 2>&1; then	->	if bash "${VERIFICATION_SCRIPT}" 2>&1; then
+KILLED	c7fec5d838b8	meta:90	drop_redirect	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt" 2>&1; then	->	if bash "${VERIFICATION_SCRIPT}" > "${W}/verify_real.txt"; then
+KILLED	84371d494cc8	meta:91	ok_notok_swap	ok "real gate passes with every submodule present"	->	notok "real gate passes with every submodule present"
+KILLED	4e601a686ed8	meta:93	ok_notok_swap	notok "real gate does not pass on the real tree; output:"	->	ok "real gate does not pass on the real tree; output:"
+KILLED	444ac04a8faf	meta:100	ok_notok_swap	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; finish; }	->	R1="$(build_root m1)" || { ok "could not build the mutation-1 scratch root"; finish; }
+KILLED	ed1705be1215	meta:100	drop_finish	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; finish; }	->	R1="$(build_root m1)" || { notok "could not build the mutation-1 scratch root"; :; }
+KILLED	fe7b76be4cc3	meta:101	drop_redirect	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt" 2>&1; then	->	if bash "${R1}/scripts/validation/run_verification.sh" 2>&1; then
+KILLED	55a12554e573	meta:101	drop_redirect	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt" 2>&1; then	->	if bash "${R1}/scripts/validation/run_verification.sh" > "${W}/verify_missing.txt"; then
+KILLED	7260dd7d9ac7	meta:102	ok_notok_swap	notok "real gate passed despite the missing '${TEST_SUBMODULE}' submodule (gate is a bluff)"	->	ok "real gate passed despite the missing '${TEST_SUBMODULE}' submodule (gate is a bluff)"
+KILLED	ae000c90e3fd	meta:104	ok_notok_swap	ok "real gate exits non-zero when '${TEST_SUBMODULE}' is missing"	->	notok "real gate exits non-zero when '${TEST_SUBMODULE}' is missing"
+KILLED	b82f2ef68301	meta:114	index_shift	src, dst, name = sys.argv[1:4]	->	src, dst, name = sys.argv[2:4]
+KILLED	328d4d1d1166	meta:114	index_shift	src, dst, name = sys.argv[1:4]	->	src, dst, name = sys.argv[0:4]
+KILLED	7b5b89f35c4c	meta:119	py_eq_flip	if c.count(old) != 1:	->	if c.count(old) == 1:
+KILLED	5a08d3ad78cb	meta:125	drop_redirect	if bash -n "${W}/run_verification_weak.sh" 2> "${W}/weak_syntax.txt"; then	->	if bash -n "${W}/run_verification_weak.sh"; then
+KILLED	8ed553f7be48	meta:126	ok_notok_swap	ok "the weakened gate parses (bash -n): a real mutation, not a syntax error"	->	notok "the weakened gate parses (bash -n): a real mutation, not a syntax error"
+KILLED	64a43f92c964	meta:127	ok_notok_swap	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; finish; }	->	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { ok "could not build the mutation-2 scratch root"; finish; }
+KILLED	a5d77019c17e	meta:127	drop_finish	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; finish; }	->	R2="$(build_root m2 "${W}/run_verification_weak.sh")" || { notok "could not build the mutation-2 scratch root"; :; }
+KILLED	e9b56b142f5a	meta:128	drop_redirect	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt" 2>&1; then	->	if bash "${R2}/scripts/validation/run_verification.sh" 2>&1; then
+KILLED	b95e95760659	meta:128	drop_redirect	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt" 2>&1; then	->	if bash "${R2}/scripts/validation/run_verification.sh" > "${W}/verify_weak.txt"; then
+KILLED	549aacd08ff9	meta:129	ok_notok_swap	ok "weakened gate passes on the same missing root: the '${TEST_SUBMODULE}' check is what makes the real gate exit non-zero"	->	notok "weakened gate passes on the same missing root: the '${TEST_SUBMODULE}' check is what makes the real gate exit non-zero"
+KILLED	fc111a2c91c9	meta:131	ok_notok_swap	notok "weakened gate still exits non-zero; the real gate's mutation-1 result is not tied to the '${TEST_SUBMODULE}' check; output:"	->	ok "weakened gate still exits non-zero; the real gate's mutation-1 result is not tied to the '${TEST_SUBMODULE}' check; output:"
+KILLED	e46d656f648e	meta:135	ok_notok_swap	notok "the weakened gate does not parse:"	->	ok "the weakened gate does not parse:"
+KILLED	0ffc582930d6	meta:139	ok_notok_swap	notok "could not build the weakened gate (gate text changed; update the mutation anchors)"	->	ok "could not build the weakened gate (gate text changed; update the mutation anchors)"
+KILLED	fc1a2c0cd936	meta:142	drop_finish	finish	->	:
+CONTROL	host_guard	unmutated copy passes (15 s)
+KILLED	129e62c6d6ab	host_guard:100	exit_flip	die() { echo "host_guard: $*" >&2; exit 2; }	->	die() { echo "host_guard: $*" >&2; exit 0; }
+KILLED	d9ce46d9c1eb	host_guard:100	exit_flip	die() { echo "host_guard: $*" >&2; exit 2; }	->	die() { echo "host_guard: $*" >&2; exit 1; }
+KILLED	641a5d44fc0d	host_guard:102	return_flip	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 12 ]; }	->	isnum() { case $1 in ''|*[!0-9]*) return 0 ;; esac; [ "${#1}" -le 12 ]; }
+KILLED	02aa6b3512f0	host_guard:102	shell_test_cmp	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 12 ]; }	->	isnum() { case $1 in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -lt 12 ]; }
+KILLED	2134a82332c2	host_guard:105	num_bound_shift	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -ge 2 ] || die "missing requested N"
+KILLED	c9afd35aa995	host_guard:105	num_bound_shift	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -ge 0 ] || die "missing requested N"
+KILLED	84e9e4eb69d0	host_guard:105	shell_test_cmp	[ $# -ge 1 ] || die "missing requested N"	->	[ $# -gt 1 ] || die "missing requested N"
+KILLED	78a0bdf24164	host_guard:108	shell_test_cmp	req=$(norm "$req"); [ "$req" -ge 1 ] || die "requested N must be >= 1"	->	req=$(norm "$req"); [ "$req" -gt 1 ] || die "requested N must be >= 1"
+KILLED	95d4f4d9eff8	host_guard:111	num_bound_shift	while [ $# -gt 0 ]; do	->	while [ $# -gt 1 ]; do
+KILLED	cce7c4afb90e	host_guard:111	shell_test_cmp	while [ $# -gt 0 ]; do	->	while [ $# -ge 0 ]; do
+KILLED	6a4ba72204e8	host_guard:114	num_bound_shift	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -ge 3 ] || die "flag $1 requires a value"
+KILLED	af6e05452000	host_guard:114	num_bound_shift	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -ge 1 ] || die "flag $1 requires a value"
+KILLED	eef982372ecf	host_guard:114	shell_test_cmp	[ $# -ge 2 ] || die "flag $1 requires a value"	->	[ $# -gt 2 ] || die "flag $1 requires a value"
+KILLED	1fe6a8568260	host_guard:119	shell_test_cmp	mem_per=$(norm "$val"); [ "$mem_per" -ge 1 ] || die "--per-job-mem-kb must be >= 1" ;;	->	mem_per=$(norm "$val"); [ "$mem_per" -gt 1 ] || die "--per-job-mem-kb must be >= 1" ;;
+KILLED	577b7a29ff91	host_guard:121	shell_test_cmp	thr_per=$(norm "$val"); [ "$thr_per" -ge 1 ] || die "--threads-per-job must be >= 1" ;;	->	thr_per=$(norm "$val"); [ "$thr_per" -gt 1 ] || die "--threads-per-job must be >= 1" ;;
+KILLED	dc8010fa2ee9	host_guard:129	shell_test_cmp	if [ "$1" -lt "$n" ]; then n=$1; reason=$2; fi	->	if [ "$1" -le "$n" ]; then n=$1; reason=$2; fi
+KILLED	5068b114f6dd	host_guard:154	drop_redirect	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi	->	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc); fi
+KILLED	bb81bfeae5aa	host_guard:154	nz_flip	if [ -n "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi	->	if [ -z "${FC_GUARD_NPROC+x}" ]; then nproc_v=$FC_GUARD_NPROC; else nproc_v=$(nproc 2>/dev/null); fi
+KILLED	6cfdcee444fd	host_guard:155	shell_test_cmp	if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -ge 1 ]; then	->	if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -gt 1 ]; then
+KILLED	9c1e43b25701	host_guard:179	drop_redirect	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file")
+KILLED	e193a5210975	host_guard:179	num_bound_shift	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 5 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	67ff91bbb7e4	host_guard:179	num_bound_shift	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF >= 3 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	526e4eae8287	host_guard:179	strict_bound	_v=$(awk '/^Max processes[ \t]/ && NF >= 4 { print $3; exit }' "$_lim_file" 2>/dev/null)	->	_v=$(awk '/^Max processes[ \t]/ && NF > 4 { print $3; exit }' "$_lim_file" 2>/dev/null)
+KILLED	014042c452f1	host_guard:181	nz_flip	if [ -z "$_v" ]; then	->	if [ -n "$_v" ]; then
+KILLED	e2ef3877414b	host_guard:183	drop_redirect	_v=$(ulimit -u 2>/dev/null)	->	_v=$(ulimit -u)
+KILLED	36ddd22b3cfe	host_guard:187	nz_flip	if [ -n "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(read_nproc_soft); fi	->	if [ -z "${FC_GUARD_ULIMIT_U+x}" ]; then ulim=$FC_GUARD_ULIMIT_U; else ulim=$(read_nproc_soft); fi
+KILLED	9aee2ebd8ecf	host_guard:188	str_cmp_flip	if [ "$ulim" = unlimited ]; then :	->	if [ "$ulim" != unlimited ]; then :
+KILLED	d1f8ab7081ce	host_guard:191	nz_flip	if [ -n "${FC_GUARD_THREADS+x}" ]; then thr=$FC_GUARD_THREADS	->	if [ -z "${FC_GUARD_THREADS+x}" ]; then thr=$FC_GUARD_THREADS
+KILLED	ba3a9f3143fd	host_guard:192	drop_redirect	elif psout=$(ps -L --no-headers -U "$(id -ru)" 2>/dev/null); then	->	elif psout=$(ps -L --no-headers -U "$(id -ru)"); then
+KILLED	65ab9b797abd	host_guard:194	nz_flip	[ -n "$psout" ] || thr=""     # empty ps output is not "zero threads"	->	[ -z "$psout" ] || thr=""     # empty ps output is not "zero threads"
+KILLED	b5afd2f7039d	host_guard:199	shell_test_cmp	if [ "$thr_raw" -le 0 ]; then	->	if [ "$thr_raw" -lt 0 ]; then
+EQUIVALENT	847a5641fe46	host_guard:202	shell_test_cmp	t=$(( thr_raw / thr_per )); [ "$t" -lt 1 ] && t=1	->	t=$(( thr_raw / thr_per )); [ "$t" -le 1 ] && t=1
+KILLED	dca5da3473a8	host_guard:209	str_cmp_flip	if [ "$kind" = agents ]; then	->	if [ "$kind" != agents ]; then
+KILLED	2943ad03ebf0	host_guard:210	nz_flip	if [ -z "${FC_GUARD_ACTIVE_AGENTS+x}" ]; then unreadable unreadable_active_agents	->	if [ -n "${FC_GUARD_ACTIVE_AGENTS+x}" ]; then unreadable unreadable_active_agents
+KILLED	f1e87a75deb8	host_guard:216	shell_test_cmp	if [ "$cap_raw" -le 0 ]; then	->	if [ "$cap_raw" -lt 0 ]; then
+KILLED	95c1c816bcd2	host_guard:229	nz_flip	if [ -n "${FC_GUARD_MEM_TOTAL_KB+x}" ]; then mtot=$FC_GUARD_MEM_TOTAL_KB	->	if [ -z "${FC_GUARD_MEM_TOTAL_KB+x}" ]; then mtot=$FC_GUARD_MEM_TOTAL_KB
+KILLED	ec9b051ed1eb	host_guard:230	drop_redirect	else mtot=$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null); fi	->	else mtot=$(awk '/^MemTotal:/{print $2}' /proc/meminfo); fi
+KILLED	86c9c0809764	host_guard:231	nz_flip	if [ -n "${FC_GUARD_MEM_AVAIL_KB+x}" ]; then mav=$FC_GUARD_MEM_AVAIL_KB	->	if [ -z "${FC_GUARD_MEM_AVAIL_KB+x}" ]; then mav=$FC_GUARD_MEM_AVAIL_KB
+KILLED	01da320f88b0	host_guard:232	drop_redirect	else mav=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null); fi	->	else mav=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo); fi
+KILLED	59a28b99abd2	host_guard:235	shell_test_cmp	if [ "$mtot" -ge 1 ] && [ "$mav" -le "$mtot" ]; then	->	if [ "$mtot" -gt 1 ] && [ "$mav" -le "$mtot" ]; then
+KILLED	81181cc55f78	host_guard:235	shell_test_cmp	if [ "$mtot" -ge 1 ] && [ "$mav" -le "$mtot" ]; then	->	if [ "$mtot" -ge 1 ] && [ "$mav" -lt "$mtot" ]; then
+KILLED	0eb4b81af56a	host_guard:237	shell_test_cmp	if [ "$budget" -le 0 ]; then	->	if [ "$budget" -lt 0 ]; then
+KILLED	7609c9c1060c	host_guard:239	shell_test_cmp	elif [ "$mem_per" -gt 0 ]; then	->	elif [ "$mem_per" -ge 0 ]; then
+EQUIVALENT	cb285f234139	host_guard:240	shell_test_cmp	m=$(( budget / mem_per )); [ "$m" -lt 1 ] && m=1	->	m=$(( budget / mem_per )); [ "$m" -le 1 ] && m=1
+EQUIVALENT	f879040bebc6	host_guard:250	shell_test_cmp	*) [ "$n" -lt 1 ] && n=1 ;;	->	*) [ "$n" -le 1 ] && n=1 ;;
+KILLED	2480cb41d4d5	host_guard:253	exit_flip	exit 0	->	exit 1
+CONTROL	host_report	unmutated copy passes (41 s)
+KILLED	2cc7b582877c	host_report:1079	in_flip	if line.startswith("Max processes") and line[13:14] in (" ", "\t"):	->	if line.startswith("Max processes") and line[13:14] not in (" ", "\t"):
+KILLED	4c2fa28228a9	host_report:1079	index_shift	if line.startswith("Max processes") and line[13:14] in (" ", "\t"):	->	if line.startswith("Max processes") and line[14:14] in (" ", "\t"):
+KILLED	6ed3ae6db86e	host_report:1079	index_shift	if line.startswith("Max processes") and line[13:14] in (" ", "\t"):	->	if line.startswith("Max processes") and line[12:14] in (" ", "\t"):
+KILLED	575f3d409317	host_report:1081	num_bound_shift	if len(parts) >= 4:	->	if len(parts) >= 5:
+KILLED	4859e3f01e94	host_report:1081	num_bound_shift	if len(parts) >= 4:	->	if len(parts) >= 3:
+KILLED	3046f53bba2a	host_report:1081	strict_bound	if len(parts) >= 4:	->	if len(parts) > 4:
+KILLED	14b649f45823	host_report:1082	index_shift	return parts[2]	->	return parts[3]
+KILLED	3e6ec5bdde9e	host_report:1082	index_shift	return parts[2]	->	return parts[1]
+KILLED	daf773ab1b41	host_report:1086	py_eq_flip	return out.strip() if rc == 0 and out else None	->	return out.strip() if rc != 0 and out else None
+=== decision mutants: killed=109 killed-timeout=0 survived=0 equivalent=6 invalid=0 blind=0 stale=0 ===
+
+===== r6_meta_reg_run1
+# meta-test regression guard, run 1 of 3 (DP14 and DP15 mutants included).
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run (minimum of 3 measured runs) 0.915 s
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run, 13 of 14 before the summary): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run, 13 of 14 before the summary): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 diag=1 stop=- (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ the weakened gate does not parse)
+ok B13 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B14 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B15 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B16 -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=- (stderr diagnostic captured)
+ok B12 -> rc=1 fail=none msg=1 tmp=0 diag=- stop=- (✗ mktemp failed, no summary)
+ok STERM stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0
+ok SINT stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0
+ok SHUP stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0
+ok SCLEAN_TERM stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_INT stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_HUP stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11c_no_term_trap caught by STERM (mark=1 seen=1 sum=0 tmp=0 end=sig=15 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0)
+ok mutation DP11d_no_int_trap caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=sig=2 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP11e_no_hup_trap caught by SHUP (mark=1 seen=1 sum=0 tmp=0 end=sig=1 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN_TERM (mark=1 seen=1 sum=1 tmp=1 end=exit=143 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation R1b_int_hup_not_ignored_in_cleanup caught by SCLEAN_INT (mark=1 seen=1 sum=1 tmp=1 end=sig=2 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R1b_int_hup_not_ignored_in_cleanup_hup caught by SCLEAN_HUP (mark=1 seen=1 sum=1 tmp=1 end=sig=1 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R2_mktemp_failure_exit_0 caught by B12 (rc=0 fail=none msg=1 tmp=0 diag=- stop=-, original rc=1 fail=none msg=1 tmp=0 diag=- stop=-)
+ok mutation R3_duplicate_anchor_accepted caught by B13 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R4_cp_failure_ignored caught by B14 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R5b_int_exits_143 caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP14a_control_stderr_dropped caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14b_control_output_not_captured caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14c_m1_stderr_dropped caught by B16 (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14d_m1_output_not_captured caught by G (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14e_parse_errors_not_captured caught by B11 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14f_m2_stderr_dropped caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14g_m2_output_not_captured caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP15a_m1_root_failure_no_finish caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15b_mkdir_failure_ignored caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15c_m2_root_failure_no_finish caught by B10 (rc=1 fail=2 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R7_ln_failure_ignored caught by B15 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+=== meta_test_verification regression guard (CON-158): pass=75 fail=0 ===
+
+real	1m36.944s
+user	0m23.966s
+sys	1m3.564s
+
+===== r6_meta_reg_run2
+# meta-test regression guard, run 2 of 3 (DP14 and DP15 mutants included).
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run (minimum of 3 measured runs) 0.915 s
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run, 11 of 14 before the summary): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run, 11 of 14 before the summary): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 diag=1 stop=- (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ the weakened gate does not parse)
+ok B13 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B14 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B15 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B16 -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=- (stderr diagnostic captured)
+ok B12 -> rc=1 fail=none msg=1 tmp=0 diag=- stop=- (✗ mktemp failed, no summary)
+ok STERM stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0
+ok SINT stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0
+ok SHUP stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0
+ok SCLEAN_TERM stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_INT stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_HUP stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11c_no_term_trap caught by STERM (mark=1 seen=1 sum=0 tmp=0 end=sig=15 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0)
+ok mutation DP11d_no_int_trap caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=sig=2 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP11e_no_hup_trap caught by SHUP (mark=1 seen=1 sum=0 tmp=0 end=sig=1 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN_TERM (mark=1 seen=1 sum=1 tmp=1 end=exit=143 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation R1b_int_hup_not_ignored_in_cleanup caught by SCLEAN_INT (mark=1 seen=1 sum=1 tmp=1 end=sig=2 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R1b_int_hup_not_ignored_in_cleanup_hup caught by SCLEAN_HUP (mark=1 seen=1 sum=1 tmp=1 end=sig=1 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R2_mktemp_failure_exit_0 caught by B12 (rc=0 fail=none msg=1 tmp=0 diag=- stop=-, original rc=1 fail=none msg=1 tmp=0 diag=- stop=-)
+ok mutation R3_duplicate_anchor_accepted caught by B13 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R4_cp_failure_ignored caught by B14 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R5b_int_exits_143 caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP14a_control_stderr_dropped caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14b_control_output_not_captured caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14c_m1_stderr_dropped caught by B16 (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14d_m1_output_not_captured caught by G (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14e_parse_errors_not_captured caught by B11 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14f_m2_stderr_dropped caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14g_m2_output_not_captured caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP15a_m1_root_failure_no_finish caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15b_mkdir_failure_ignored caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15c_m2_root_failure_no_finish caught by B10 (rc=1 fail=2 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R7_ln_failure_ignored caught by B15 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+=== meta_test_verification regression guard (CON-158): pass=75 fail=0 ===
+
+===== r6_meta_reg_run3
+# meta-test regression guard, run 3 of 3 (DP14 and DP15 mutants included).
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run (minimum of 3 measured runs) 0.814 s
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run, 14 of 14 before the summary): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run, 12 of 14 before the summary): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 diag=1 stop=- (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=- (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 diag=1 stop=- (✗ the weakened gate does not parse)
+ok B13 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the weakened gate)
+ok B14 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B15 -> rc=1 fail=1 msg=1 tmp=0 diag=- stop=1 (✗ could not build the mutation-1 scratch root)
+ok B16 -> rc=0 fail=0 msg=1 tmp=0 diag=1 stop=- (stderr diagnostic captured)
+ok B12 -> rc=1 fail=none msg=1 tmp=0 diag=- stop=- (✗ mktemp failed, no summary)
+ok STERM stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0
+ok SINT stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0
+ok SHUP stopped on its event -> mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0
+ok SCLEAN_TERM stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_INT stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok SCLEAN_HUP stopped on its event -> mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=-)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0 diag=1 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP11c_no_term_trap caught by STERM (mark=1 seen=1 sum=0 tmp=0 end=sig=15 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0)
+ok mutation DP11d_no_int_trap caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=sig=2 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP11e_no_hup_trap caught by SHUP (mark=1 seen=1 sum=0 tmp=0 end=sig=1 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN_TERM (mark=1 seen=1 sum=1 tmp=1 end=exit=143 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation R1b_int_hup_not_ignored_in_cleanup caught by SCLEAN_INT (mark=1 seen=1 sum=1 tmp=1 end=sig=2 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R1b_int_hup_not_ignored_in_cleanup_hup caught by SCLEAN_HUP (mark=1 seen=1 sum=1 tmp=1 end=sig=1 left=0, original mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0)
+ok mutation R2_mktemp_failure_exit_0 caught by B12 (rc=0 fail=none msg=1 tmp=0 diag=- stop=-, original rc=1 fail=none msg=1 tmp=0 diag=- stop=-)
+ok mutation R3_duplicate_anchor_accepted caught by B13 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R4_cp_failure_ignored caught by B14 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R5b_int_exits_143 caught by SINT (mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0, original mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0)
+ok mutation DP14a_control_stderr_dropped caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14b_control_output_not_captured caught by B2 (rc=1 fail=2 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=2 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14c_m1_stderr_dropped caught by B16 (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14d_m1_output_not_captured caught by G (rc=0 fail=0 msg=1 tmp=0 diag=0 stop=-, original rc=0 fail=0 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14e_parse_errors_not_captured caught by B11 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14f_m2_stderr_dropped caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP14g_m2_output_not_captured caught by B3 (rc=1 fail=1 msg=1 tmp=0 diag=0 stop=-, original rc=1 fail=1 msg=1 tmp=0 diag=1 stop=-)
+ok mutation DP15a_m1_root_failure_no_finish caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15b_mkdir_failure_ignored caught by B9 (rc=1 fail=1 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation DP15c_m2_root_failure_no_finish caught by B10 (rc=1 fail=2 msg=1 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+ok mutation R7_ln_failure_ignored caught by B15 (rc=0 fail=0 msg=0 tmp=0 diag=- stop=0, original rc=1 fail=1 msg=1 tmp=0 diag=- stop=1)
+=== meta_test_verification regression guard (CON-158): pass=75 fail=0 ===
+
+===== r6_host_guard_red
+# test_host_guard_red.sh final run (sh).
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=14353383 within [14349167,14354223]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-147 r5 three-field 'Max processes 5' line is skipped: same result as no line (N=1 REASON=unreadable_ulimit)
+PASS: CON-147 r5 three-field line then a full soft-888 line => N=888 thread_headroom
+PASS: CON-147 r6 limits path is a directory: same result as no line
+PASS: CON-147 r6 limits path is a directory: awk's warning swallowed (stderr empty)
+PASS: CON-147 r6 four-word 'Max processes 5 6' line (no units) is read => N=5 thread_headroom
+PASS: CON-147 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-147 soft unlimited in the limits file => no thread clamp
+PASS: CON-147 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-147 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=140 fail=0
+
+===== r6_host_report
+# host_report thread-limit regression test final run.
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok control needle: setrlimit leg lowers this process to 3877:4877 (pid 1 soft '123694', user threads 877)
+ok L1 dash-like sh: live soft limit read = '123694	False' (want 123694, not unmeasured)
+ok L2 real dash as sh: live soft limit read = '123694	False' (want 123694)
+ok L3 host sh (/usr/bin/sh): live soft limit read = '123694	False' (want 123694)
+ok L4 fixture soft 4242 / hard 99999 -> '4242	False' (want the soft value 4242)
+ok L4B fixture 4242 with a working 'ulimit -u' (123694) -> '4242	False' (the file wins, want 4242)
+ok L5 fixture 'unlimited' -> 'None	True' (want unlimited, never 0)
+ok L6 no 'Max processes' line + dash-like sh -> 'None	False' (want unmeasured, never guessed)
+ok L7 no 'Max processes' line + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X1 limits file MISSING + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X3 limits file UNREADABLE (mode 000) + bash as sh -> '123694	False' (want the fallback 123694)
+ok X2 limits file MISSING + dash-like sh -> 'None	False' (want unmeasured)
+ok O1 FC_GUARD_ULIMIT_U=777 over a 4242 file -> '777	False' (want the override 777)
+ok P1 this process lowered to 3877:4877, pid 1 soft 123694 -> '3877	False' (want THIS process's soft 3877)
+ok RX1 reviewer: lowered to 3877:4877 + limits file MISSING + bash as sh -> '3877	False' (want fallback SOFT 3877)
+ok RX2 reviewer: lowered to 3877:4877 + limits file UNREADABLE + bash as sh -> '3877	False' (want fallback SOFT 3877)
+ok RX3 reviewer: malformed 'Max processes' line (2 fields) + dash-like sh -> 'None	False' (want unmeasured, no crash)
+ok RX9 round 5 (F8): a three-field 'Max processes' line, then a full one (soft 8888) -> '8888	False' (want 8888; host_guard.sh's awk reads the same line)
+ok RX4 reviewer: TAB-separated line soft 5151 hard 88888 -> '5151	False' (want 5151)
+ok RX5 reviewer: first of two 'Max processes' lines (6161 then 7171) -> '6161	False' (want the first, 6161)
+ok RX6 reviewer: only 'Max processesX' line -> 'None	False' (want unmeasured, the prefix guard)
+ok RX7 reviewer: soft unlimited / hard 99999 -> 'None	True' (want unlimited)
+ok RX8 reviewer: soft 3131 / hard unlimited -> '3131	False' (want 3131)
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (want a measured reason)
+ok mutation M1_ulimit_only: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+ok mutation M2_hard_column: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation M3_no_fallback: caught by L7 X1 X3 RX1 RX2 (named: L7 X1)
+ok mutation HR1_missing_file_no_fallback: caught by X1 X3 RX1 RX2 (named: X1 X3)
+ok mutation HR2_pid1_limits: caught by P1 (named: P1)
+ok mutation HR3_ulimit_first: caught by L4B (named: L4B)
+ok mutation M4_override_ignored: caught by O1 (named: O1)
+ok mutation RVH1_fallback_hard_column: caught by RX1 RX2 (named: RX1)
+ok mutation RVH2_parent_limits: caught by P1 (named: P1)
+ok mutation RVH3_last_but_one: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation RVH4_name_column: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "<scratchpad>/tmp/tmp.V1HEJr3a4o/mut_RVH5_fnf_only/host/host_report.py", line 1092, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "<scratchpad>/tmp/tmp.V1HEJr3a4o/mut_RVH5_fnf_only/host/host_report.py", line 1077, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '<scratchpad>/tmp/tmp.V1HEJr3a4o/lim_unreadable'
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "<scratchpad>/tmp/tmp.V1HEJr3a4o/mut_RVH5_fnf_only/host/host_report.py", line 1092, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "<scratchpad>/tmp/tmp.V1HEJr3a4o/mut_RVH5_fnf_only/host/host_report.py", line 1077, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '<scratchpad>/tmp/tmp.V1HEJr3a4o/lim_unreadable'
+ok mutation RVH5_fnf_only: caught by X3 RX2 (named: X3)
+ok mutation RVH6_no_len_guard: caught by RX3 RX9 (named: RX3)
+ok mutation RVH7_no_prefix_guard: caught by RX6 (named: RX6)
+ok mutation RVH8_last_match: caught by RX5 (named: RX5)
+ok mutation RVH9_unlimited_as_zero: caught by L5 RX7 (named: L5)
+ok mutation RVH10_bash_explicit: caught by L6 X2 RX3 RX6 (named: L6)
+ok mutation RVH11_space_only_sep: caught by RX4 (named: RX4)
+=== host_report thread limit regression guard (CON-147 F2-1): pass=45 fail=0 ===
+
+===== r6_custody_r13
+# custody_sweep r13 regression guard (check of M1 against the r13 battery).
+=== R13 regression guard: control needle -- tool + libs exist, git usable ===
+ok control needle: implementation + libs resolve, git present
+
+=== B-1.1 assume-unchanged edit (invisible to git diff) ===
+ok B-1.1 evidence: the canonical backup omits the assume-unchanged edit; a plain restore LOSES it
+ok B-1.1 assume-unchanged -> REFUSED (detail names: RESTORABILITY ORACLE local.properties: content differs)
+
+=== B-1.1b skip-worktree edit ===
+ok B-1.1b skip-worktree -> REFUSED (detail names: RESTORABILITY ORACLE local.properties: content differs)
+
+=== B-1.2 worktree: staged content differs from the worktree file ===
+ok B-1.2 evidence: STAGED_ONLY lives only in the index; 'git diff HEAD' never carries it
+ok B-1.2 worktree staged divergence -> REFUSED (detail names: RESTORABILITY ORACLE t.txt: STAGED content differs)
+
+=== B-1.3 stash: the ^2 index parent holds staged-only content ===
+ok B-1.3 evidence: the stash's ^2 holds STAGED_ONLY; the stash patch (git diff <ref>^1 <ref>) omits it
+ok B-1.3 stash staged divergence -> REFUSED (detail names: RESTORABILITY ORACLE t.txt: staged-only content)
+
+=== B-1.4 lossy clean filter ===
+ok B-1.4 evidence: the backup holds the FILTERED content; a plain restore loses SECRET=keepme
+ok B-1.4 lossy clean filter -> REFUSED (detail names: RESTORABILITY ORACLE e.txt: content differs)
+
+=== I-1 gitignored file in a linked worktree ===
+ok I-1 ignored .env + tracked edit -> REFUSED (detail names: RESTORABILITY ORACLE .env: present LIVE but absent after restore)
+
+=== golden-good controls: the oracle must NOT over-refuse restorable work ===
+ok G1 plain text change -> ALLOWED (detail names: RESTORABILITY ORACLE passed)
+ok G2 exec bit + intent-to-add symlink -> ALLOWED
+ok G3 staged rename + further edit -> ALLOWED
+ok G4 fully-staged change (index == worktree) -> ALLOWED
+warning: in the working copy of 'k.txt', LF will be replaced by CRLF the next time Git touches it
+ok G5 eol=crlf attribute -> ALLOWED
+ok G6 evidence: core.autocrlf=true checked the linked worktree out with CRLF
+ok G6 core.autocrlf=true repo (conversion config transferred) -> ALLOWED
+ok G7 stash with a fully-staged + an unstaged change -> ALLOWED (detail names: reproduces the stash tree)
+
+=== I-2.1 unmerged (UU) merge-conflict worktree ===
+ok I-2.1 evidence: the worktree holds a real 'u UU' unmerged entry
+ok I-2.1 unmerged worktree -> REFUSED (detail names: unresolved merge conflicts)
+
+=== I-2.2 dirty submodule hidden by submodule.<name>.ignore=all in repo config ===
+ok I-2.2 evidence: a plain 'git status' hides the dirty submodule; --ignore-submodules=none shows it
+ok I-2.2 dirty submodule under ignore=all -> REFUSED (detail names: changed submodule)
+
+=== M-1 --repo-root given as a SYMLINK to a linked worktree ===
+ok M-1 symlinked --repo-root, entry addressed by name -> REFUSED (detail names: no longer resolves)
+ok M-1 symlinked --repo-root, entry addressed as MAIN -> REFUSED (detail names: MAIN worktree)
+
+=== M-2/M-3 exit-code contract (live code == docstring == --help) ===
+ok M-3 missing --inventory is rc=2 both outside a checkout (repo root resolved first) and inside one
+ok M-2/M-3 docstring: stale 'missing --inventory is BLIND exit 4' removed; exit-code gating documented
+ok M-2 --help itself states consumers must gate on the exit code
+
+=== oracle internals (unit level, real tool) ===
+ok oracle unit U1_worktree_wrong_content=False
+ok oracle unit U2_worktree_empty_backup=False
+ok oracle unit U3_worktree_garbage=False
+ok oracle unit U4_worktree_correct=True
+ok oracle unit U5_stash_wrong_tree=False
+ok oracle unit U6_stash_correct=True
+ok oracle unit U7_clean_worktree_garbage=False
+ok oracle unit U8_no_scratch_space=False
+ok oracle unit U9_scratch_inside_worktree=False
+ok oracle unit U9_reason_named=True
+
+=== guard viability (paired mutations) ===
+ok mutation MO1a_oracle_gate_assume: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO1b_oracle_gate_skipwt: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO1c_oracle_gate_filter: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO1d_oracle_gate_ignored: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO1e_oracle_gate_wt_staged: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO1f_oracle_gate_stash_staged: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO2_tree_compare_blind: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO3_snapshot_skips_hidden: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO4_wt_index_check: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO5_wt_index_hash_compare: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO6_stash_index_only: caught -- mutant says ALLOWED, real tool says REFUSED
+ok mutation MO7_no_config_transfer: caught -- mutant says REFUSED, real tool says ALLOWED
+ok mutation MO8_rename_blob_exempt: caught -- mutant says REFUSED, real tool says ALLOWED
+ok mutation MO9_ita_visible: caught -- mutant says REFUSED, real tool says ALLOWED
+ok mutation MI1_has_unmerged_check: caught -- mutant's refusal no longer comes from this check (REFUSED: worktree 'x1' holds git state that 'retire' would destroy and no patch backup ca...)
+ok mutation MI2_ignore_submodules_none: caught -- mutant's refusal no longer comes from this check (REFUSED: worktree 'x2' holds git state that 'retire' would destroy and no patch backup ca...)
+ok mutation MI3_rename_counter: caught -- mutant says REFUSED, real tool says ALLOWED
+ok mutation MM1_symlink_realpath: caught -- mutant says ALLOWED, real tool says REFUSED
+
+=== guard viability: oracle internals (unit level) ===
+ok mutation MU1_stash_tree_compare: caught -- mutant gives U5_stash_wrong_tree=True
+ok mutation MU2_apply_rc_ignored: caught -- mutant gives U7_clean_worktree_garbage=True
+ok mutation MU4_space_check: caught -- mutant gives U8_no_scratch_space=True
+ok mutation MU5_scratch_inside_check: caught -- mutant gives U9_reason_named=False
+ok mutation MU3_problems_ignored: caught -- mutant gives U1_worktree_wrong_content=True
+
+summary: 61 check(s) passed
+=== R13 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS -- a land/retire verdict now
+    requires a POSITIVE restorability proof; assume-unchanged/skip-worktree/staged-divergence
+    (worktree + stash)/lossy-filter/ignored-file cases are refused, restorable work is not,
+    and every check is proven load-bearing by a paired mutation. ===
+
+===== r6_enum_guard
+# fast guard of the census (self-test, --list control needles, ledger staleness).
+ok operator self-test: === decision mutants selftest: pass=24 fail=0 ===
+ok --list exits 0: === decision mutants: listed=115 ===
+ok control needle listed: meta:[0-9]* drop_or_return cp -- 
+ok control needle listed: host_guard:[0-9]* num_bound_shift _v=$(awk
+ok control needle listed: host_report:[0-9]* num_bound_shift if len(parts) >= 4:
+ok negative control: a fabricated key is not listed
+ok ledger a9660ab8f6d8 (meta drop_continue) is still generated, with a proof
+ok ledger 847a5641fe46 (host_guard shell_test_cmp) is still generated, with a proof
+ok ledger cb285f234139 (host_guard shell_test_cmp) is still generated, with a proof
+ok ledger f879040bebc6 (host_guard shell_test_cmp) is still generated, with a proof
+ok ledger 4eb93adc66ab (meta drop_guard_conjunct) is still generated, with a proof
+ok ledger 7730ca956e9c (meta drop_guard_conjunct) is still generated, with a proof
+ok ledger has 6 entries (read)
+=== enumerate_decision_mutants guard: pass=13 fail=0 ===
+
+===== r6_verify_manifest
+# run_full_suite.sh --verify-manifest after the new rows and --sync-guide.
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=25 py/fixture=14 py/member=24 runall/entry=9 sh/entry=346 sh/excluded=25 sh/fixture=111 sh/member=300 total=874
+RESULT: MANIFEST-OK
+
+===== r6_validate
+# workable-items validate.
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 156 items, all invariants satisfied
+
+===== r6_diff
+# workable-items diff.
+diff: DB and Markdown are in sync (compared 156 Markdown item(s) against 156 DB item(s); read docs/Issues.md, docs/Fixed.md)

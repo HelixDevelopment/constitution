@@ -1,4 +1,4 @@
-# Generated members (cm_submodule_pin_not_downgraded_members.tsv) claimed EQUIVALENT, round 8, revised round 9 (CON-146). Columns (TAB):
+# Generated members (cm_submodule_pin_not_downgraded_members.tsv) claimed EQUIVALENT, round 8, revised round 9 (CON-146, re-minted CON-194). Columns (TAB):
 # generated name, the differential proof (an eqp registered in cm_submodule_pin_not_downgraded_mutation_test.sh that must
 # pass), the argument why no input reaches the member. A generated member not listed here must be killed. The test checks
 # that each listed member survives the whole suite, that its proof passed, and that every row names a real member and proof.

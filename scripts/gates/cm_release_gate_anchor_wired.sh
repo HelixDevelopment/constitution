@@ -114,8 +114,10 @@ carrier_block() {
     ' "$1"
 }
 has()    { grep -F -q -- "$2" "$1"; }
-# names_cm_gate_in_block TOKEN -> true when TOKEN is a CM-* gate name that the canon block ($BLK) names
-names_cm_gate_in_block() { case "$1" in CM-?*) grep -F -q -- "$1" "$BLK" ;; *) false ;; esac; }
+# names_cm_gate_in_block TOKEN FILE -> true when TOKEN is a CM-* gate name that FILE (the canon block, $BLK) names.
+# The block file is an argument, not a read of $BLK in the body: the body is defined before BLK is assigned, and the static
+# env census (CM-GATE-ENV-READS-ALLOWLISTED) judges text order, so a body read was reported read-before-assign (CON-144).
+names_cm_gate_in_block() { case "$1" in CM-?*) grep -F -q -- "$1" "$2" ;; *) false ;; esac; }
 has_re() { grep -E -q -- "$2" "$1"; }
 
 NPASS=0; NFAIL=0
@@ -396,7 +398,7 @@ if [ -f "$DEF" ]; then
         chk "seam: gate_ledger_deferrals.tsv has exactly one $owed row" \
             [ "$(awk -F '\t' -v o="$owed" '$2 == o' "$DEF" | wc -l | tr -d ' ')" = 1 ]
         DG="$(awk -F '\t' -v o="$owed" '$2 == o { print $1; exit }' "$DEF")"
-        chk "seam: the $owed deferral names a CM-* gate that the §11.4.$N block names" names_cm_gate_in_block "$DG"
+        chk "seam: the $owed deferral names a CM-* gate that the §11.4.$N block names" names_cm_gate_in_block "$DG" "$BLK"
     done
 else
     fail "seam: scripts/gates/gate_ledger_deferrals.tsv missing"

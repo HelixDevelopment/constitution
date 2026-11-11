@@ -21,13 +21,6 @@ case $PROBE_TIMEOUT_S in ''|*[!0-9]*|???????*) echo "check_deps: FC_PROBE_TIMEOU
 [ "$PROBE_TIMEOUT_S" -ge 1 ] || { echo "check_deps: FC_PROBE_TIMEOUT_S must be a positive integer of at most 6 digits (>= 1)" >&2; exit 2; }
 TOOLS="git sqlite3 strace pandoc weasyprint shellcheck python3 mmdc"
 missing=""
-# `timeout` bounds every probe, so it is itself a probed dependency (its absence must be named, not swallowed).
-have_timeout=0
-if command -v timeout >/dev/null 2>&1 && timeout -k "$KILL_AFTER_S" "$SELF_PROBE_TIMEOUT_S" sh -c : >/dev/null 2>&1; then have_timeout=1
-else
-  echo "MISSING timeout: cannot run 'timeout ${SELF_PROBE_TIMEOUT_S} sh -c :' (absent or unusable)"
-  missing="$missing timeout"
-fi
 scratch=""; tpid=""
 kill_group() {
   case $tpid in
@@ -66,6 +59,15 @@ cleanup() {
 trap cleanup EXIT
 # A signal exits 2; the EXIT trap (cleanup) then kills the probe group and removes the scratch dir.
 trap 'exit 2' HUP INT TERM
+# The self-probe runs AFTER the traps (CON-031 round 2): a signal that arrives while it runs
+# exits 2 like any other signal, instead of the shell's default signal exit.
+# `timeout` bounds every probe, so it is itself a probed dependency (its absence must be named, not swallowed).
+have_timeout=0
+if command -v timeout >/dev/null 2>&1 && timeout -k "$KILL_AFTER_S" "$SELF_PROBE_TIMEOUT_S" sh -c : >/dev/null 2>&1; then have_timeout=1
+else
+  echo "MISSING timeout: cannot run 'timeout ${SELF_PROBE_TIMEOUT_S} sh -c :' (absent or unusable)"
+  missing="$missing timeout"
+fi
 if [ "$have_timeout" -eq 1 ]; then
   if scratch=$(mktemp -d 2>/dev/null) && [ -d "$scratch" ]; then :; else
     scratch=""; have_timeout=0

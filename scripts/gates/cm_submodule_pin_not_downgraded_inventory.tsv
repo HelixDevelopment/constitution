@@ -1,4 +1,4 @@
-# CM-SUBMODULE-PIN-NOT-DOWNGRADED guard inventory (CON-046, structural round CON-146). One row per guard MEMBER or
+# CM-SUBMODULE-PIN-NOT-DOWNGRADED guard inventory (CON-046, structural round CON-146, re-minted CON-194). One row per guard MEMBER or
 # SITE of cm_submodule_pin_not_downgraded.sh. Columns (TAB): id, anchor (a fixed string occurring once in the gate's
 # code), mutants (comma list of Part-2 mutant names), eq (comma list of equivalence-proof names, or -), need, reason.
 # need: both = mutants must show a fail-open (fo: a refusal became exit 0) AND a false refusal (fr: an exit 0 became a

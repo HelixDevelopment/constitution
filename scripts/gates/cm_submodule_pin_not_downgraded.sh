@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cm_submodule_pin_not_downgraded.sh — CM-SUBMODULE-PIN-NOT-DOWNGRADED gate (CON-046, structural round CON-146; §11.4.288(D), §11.4.233(G), §11.4.201).
+# cm_submodule_pin_not_downgraded.sh — CM-SUBMODULE-PIN-NOT-DOWNGRADED gate (CON-046, structural round CON-146, re-minted CON-194; §11.4.288(D), §11.4.233(G), §11.4.201).
 #
 # ── Purpose ───────────────────────────────────────────────────────────────
 # A snapshot-style commit (`git add -A` / `commit -a`) records the HEAD of each submodule WORKTREE, not the pin the
@@ -24,7 +24,7 @@
 # on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no hook in scratch clones); run this script with
 # `--base <parent>` on such a commit to judge it. Per-commit index diffs also miss a downgrade split across commits or
 # combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built; tracked as
-# CON-147, which also lists the residuals below). The hook
+# CON-147 (re-minted CON-195), which also lists the residuals below). The hook
 # (scripts/hooks/pre-commit-submodule-pin-not-downgraded) is shipped, NOT installed anywhere (operator consent).
 # --amend: git tells a pre-commit hook nothing about --amend, so the hook always uses base HEAD, that is the commit being
 # amended, not its parent. Consequences: amending a waived rollback shows no gitlink change (PASS); an amend can strip or

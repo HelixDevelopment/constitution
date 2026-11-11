@@ -1,0 +1,266 @@
+# CON-116 (vehicle id before re-mint: CON-108) / CON-117 (vehicle id before re-mint: CON-109) / CON-120 (vehicle id before re-mint: CON-112) / CON-126 (vehicle id before re-mint: CON-118) / CON-127 (vehicle id before re-mint: CON-119) / CON-128 (vehicle id before re-mint: CON-120) fix round 3 (structural) -- captured RED/GREEN evidence (2026-11-06)
+# Ids: this file was written under the vehicle ids before the re-mint of 2026-11-10 (merge 3d050dc3 of main 90efceb8, section 11.4.214): CON-108 is now CON-116, CON-109 is now CON-117, CON-112 is now CON-120, CON-118 is now CON-126, CON-119 is now CON-127, CON-120 is now CON-128. The body below keeps the old ids verbatim; on main CON-108..CON-115 are other items.
+# Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, /bin/sh -> /usr/bin/dash, bash 5.3.9(1)-release, nproc 16
+# Base: bundle fsfix2 head c9f2dd95 (round 2), main bdc3ac43 (github and gitflic main unchanged at fetch time).
+# Review: independent Opus review round 2 (NO-GO: R2-F1-A/B/C, R2-F2, R2-F5-A). Root-cause class: a fixture did not separate the mutants' axes.
+# Mutation harness: one minimal tree per tool (real libs + the tool under test + the test), two runs at a time;
+# a mutant counts as killed only by a failing FUNCTIONAL check it names (an anchor failure is not a catch).
+
+===== R2-F1-C: committed round-2 r22 on the round-1 tool (94fb517a): bash test_custody_sweep_stash_patch_r22_regression.sh (rc=1)
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffparent mangles 'diff <ref>^1 <ref>' headers
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git vf f'
+ok control needle: repo 2 patch = plain header then mixed-quoting header
+ok shim self-check: diffsecond mangles only the second 'diff --git' header
+ok G1 plain stash, faithful backup, host git -> ALLOWED
+ok G2 inventory: status dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (tool never uses it)
+NOT ok B1 expected REFUSED naming the bad 'diff --git header' (not 'git status/diff failed'), got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok B2 inventory with non-canonical headers -> status UNMEASURED (never hashed)
+NOT ok G4 mixed-quoting inventory expected 'dirty 0e4aa0f072fa04074627976fd457bb1dd3232ab6a240094083089b64bb10e3f4', got 'UNMEASURED	None	'
+NOT ok G5 expected ALLOWED, got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok B3 only the SECOND header non-canonical -> inventory UNMEASURED
+NOT ok B4 expected REFUSED naming the bad header, got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup covers it
+ok mutation M1_stash_show: caught -- mutant REFUSED under the stashshow shim
+ok mutation M2_no_header_check: caught -- mutant inventory status 'dirty'
+ok mutation M3_measured_true: caught -- mutant detail no longer names 'could not be read' (REFUSED)
+NOT ok mutation M4_first_header_only: anchor not unique in the tool
+NOT ok mutation M5_no_mixed_quoting: anchor not unique in the tool
+=== stash patch regression guard (CON-108): pass=14 fail=6 ===
+# The round-2 log recorded pass=15 fail=5 for this run; measured again it is pass=14 fail=6 (M4 now fails on its anchor).
+
+===== r22 round 2 (old test) against the round-3 mutant set: name rc summary
+M4_first_header_only	1	=== stash patch regression guard (CON-108): pass=16 fail=4 ===
+M5_no_mixed_quoting	1	=== stash patch regression guard (CON-108): pass=17 fail=3 ===
+REAL	0	=== stash patch regression guard (CON-108): pass=20 fail=0 ===
+RV1_last_only	1	=== stash patch regression guard (CON-108): pass=19 fail=1 ===
+RV2_first_and_last	0	=== stash patch regression guard (CON-108): pass=20 fail=0 ===
+RV3_quoted_trusted	1	=== stash patch regression guard (CON-108): pass=19 fail=1 ===
+RV4_loose_regex	1	=== stash patch regression guard (CON-108): pass=19 fail=1 ===
+RV5_rc_why_dropped	0	=== stash patch regression guard (CON-108): pass=20 fail=0 ===
+RV6_first_two_only	0	=== stash patch regression guard (CON-108): pass=20 fail=0 ===
+# RV2, RV5, RV6 survive (rc 0). RV1, RV3, RV4 fail only through mutation-anchor coincidences (no functional check).
+
+===== r22 round 3 (new test) against the round-3 mutant set: name rc summary
+M4_first_header_only	1	=== stash patch regression guard (CON-108): pass=29 fail=7 ===
+M5_no_mixed_quoting	1	=== stash patch regression guard (CON-108): pass=30 fail=6 ===
+REAL	0	=== stash patch regression guard (CON-108): pass=36 fail=0 ===
+RV1_last_only	1	=== stash patch regression guard (CON-108): pass=26 fail=10 ===
+RV2_first_and_last	1	=== stash patch regression guard (CON-108): pass=28 fail=8 ===
+RV3_quoted_trusted	1	=== stash patch regression guard (CON-108): pass=27 fail=9 ===
+RV4_loose_regex	1	=== stash patch regression guard (CON-108): pass=30 fail=6 ===
+RV5_rc_why_dropped	1	=== stash patch regression guard (CON-108): pass=34 fail=2 ===
+RV6_first_two_only	1	=== stash patch regression guard (CON-108): pass=29 fail=7 ===
+-- M4_first_header_only failing functional checks: P2 Q2 P3 Q3 V2 V3 
+-- M5_no_mixed_quoting failing functional checks: G4 G5 V3 
+-- RV1_last_only failing functional checks: P1 Q1 P2 Q2 V2 
+-- RV2_first_and_last failing functional checks: P2 Q2 V2 
+-- RV3_quoted_trusted failing functional checks: Q1 Q2 Q3 V3 
+-- RV4_loose_regex failing functional checks: Q1 Q2 Q3 V3 
+-- RV5_rc_why_dropped failing functional checks: F1 
+-- RV6_first_two_only failing functional checks: P3 Q3 V3 
+
+===== r22 round 3 (new test) on the round-1, round-2 and round-3 tools: name rc summary
+REAL	0	=== stash patch regression guard (CON-108): pass=36 fail=0 ===
+round1_tool	1	=== stash patch regression guard (CON-108): pass=24 fail=12 ===
+round2_tool	1	=== stash patch regression guard (CON-108): pass=33 fail=3 ===
+-- round1_tool failing checks:
+NOT ok B1 every header non-canonical -> REFUSED as unmeasured, naming the bad diff --git header (got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot c
+NOT ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'UNMEASURED	None	')
+NOT ok G5 three-header mixed-quoting stash, faithful backup -> ALLOWED (got REFUSED)
+NOT ok V2 verify-proposal, middle header garbled -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confirm the backup
+NOT ok V3 verify-proposal, last header quoted without prefixes -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot conf
+NOT ok F1 git diff of the stash fails (rc 3) -> REFUSED naming 'git diff ... failed (rc=3)' (got REFUSED: the live state of stash 'stash@{0}' could not be read (git status/diff failed) -- cannot confi
+NOT ok L1 CON-119 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,x')
+NOT ok mutation M5_no_mixed_quoting: anchor not unique in the tool (not a catch)
+NOT ok mutation RV6_first_two_only: caught by B1 G4 G5 V2 V3 F1 L1 but NOT by its named check(s) P3
+NOT ok mutation RV4_loose_regex: anchor not unique in the tool (not a catch)
+NOT ok mutation RV5_rc_why_dropped: anchor not unique in the tool (not a catch)
+NOT ok mutation L1_old_file_list: anchor not unique in the tool (not a catch)
+-- round2_tool failing checks:
+NOT ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'dirty	b1d51ba7d31d4592cd7b9aa83a559142f3b9b53a68c2ed61750245ea2f43c519	a1.txt
+NOT ok L1 CON-119 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,x')
+NOT ok mutation L1_old_file_list: anchor not unique in the tool (not a catch)
+
+===== r22 round 3 GREEN on the round-3 tool
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok control needle: repo 3 patch = plain, mixed-quoting, plain header
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffpos rewrites only the chosen header (1, 2, 3, all; bare and quoted), fails only git diff
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git yf f'
+ok control needle: repo 4 expected file list built from git -z name-status (bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt)
+ok G1 plain stash, faithful backup, host git -> ALLOWED (got ALLOWED)
+ok G2 inventory: dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f (got 'dirty	310a571416ccd07ec715bca513173f245bd1d0b76cf87a2cbbb7b38695101044	f')
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (got ALLOWED)
+ok B1 every header non-canonical -> REFUSED as unmeasured, naming the bad diff --git header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok B2 inventory with non-canonical headers -> UNMEASURED, never hashed (got 'UNMEASURED	None	')
+ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'dirty	b1d51ba7d31d4592cd7b9aa83a559142f3b9b53a68c2ed61750245ea2f43c519	a1.txt,b2.txt,b2 sp	tab.txt,c3.txt')
+ok G5 three-header mixed-quoting stash, faithful backup -> ALLOWED (got ALLOWED)
+ok P1 only header 1 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q1 only header 1 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P2 only header 2 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q2 only header 2 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P3 only header 3 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q3 only header 3 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok V2 verify-proposal, middle header garbled -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok V3 verify-proposal, last header quoted without prefixes -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git "f" "xf"' -- the patch bytes a)
+ok F1 git diff of the stash fails (rc 3) -> REFUSED naming 'git diff ... failed (rc=3)' (got REFUSED: the live state of stash 'stash@{0}' could not be read (git diff stash@{0}^1 stash@{0} failed (rc=3)) -- cannot confirm the backup covers it)
+ok F2 git diff of the stash fails -> inventory UNMEASURED (got 'UNMEASURED')
+ok L1 CON-119 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt')
+ok mutation M1_stash_show: caught by G1 G2 G3 G4 G5 V2 V3 F1 L1 (named: G3)
+ok mutation M2_no_header_check: caught by B1 B2 P1 Q1 P2 Q2 P3 Q3 V2 V3 (named: B2 P1 P2 P3)
+ok mutation M3_measured_true: caught by B1 V2 V3 F1 (named: B1)
+ok mutation M4_first_header_only: caught by P2 Q2 P3 Q3 V2 V3 (named: P2 P3)
+ok mutation M5_no_mixed_quoting: caught by G4 G5 V3 (named: G4 G5)
+ok mutation RV1_last_only: caught by P1 Q1 P2 Q2 V2 (named: P1 P2)
+ok mutation RV2_first_and_last: caught by P2 Q2 V2 (named: P2)
+ok mutation RV6_first_two_only: caught by P3 Q3 V3 (named: P3)
+ok mutation RV3_quoted_trusted: caught by Q1 Q2 Q3 V3 (named: Q1 Q2 Q3)
+ok mutation RV4_loose_regex: caught by Q1 Q2 Q3 V3 (named: Q1 Q2 Q3)
+ok mutation RV5_rc_why_dropped: caught by F1 (named: F1)
+ok mutation L1_old_file_list: caught by G4 L1 (named: G4 L1)
+=== stash patch regression guard (CON-108): pass=36 fail=0 ===
+
+===== host_report guard round 2 (old test) against HR1-HR3: sh, then bash
+HR1_missing_file_no_fallback	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+HR2_pid1_limits	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+HR3_ulimit_first	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=13 fail=1 ===
+REAL	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+HR1_missing_file_no_fallback	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+HR2_pid1_limits	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+HR3_ulimit_first	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=13 fail=1 ===
+REAL	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=14 fail=0 ===
+
+===== host_report guard round 3 (new test) against HR1-HR3: sh, then bash
+HR1_missing_file_no_fallback	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=22 fail=3 ===
+HR2_pid1_limits	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=23 fail=2 ===
+HR3_ulimit_first	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=22 fail=3 ===
+REAL	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=25 fail=0 ===
+HR1_missing_file_no_fallback	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=22 fail=3 ===
+HR2_pid1_limits	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=23 fail=2 ===
+HR3_ulimit_first	1	=== host_report thread limit regression guard (CON-109 F2-1): pass=22 fail=3 ===
+REAL	0	=== host_report thread limit regression guard (CON-109 F2-1): pass=25 fail=0 ===
+-- HR1_missing_file_no_fallback failing functional checks (sh): X1 X3 
+-- HR2_pid1_limits failing functional checks (sh): P1 
+-- HR3_ulimit_first failing functional checks (sh): L4B 
+
+===== HR3 production differential: _read_ulimit_threads() (limit, current, unmeasured) with no fixture
+tree_REAL lim=none -> (123694, 2140, False)
+tree_REAL lim=5229:6229 -> (5229, 2100, False)
+tree_HR3_ulimit_first lim=none -> (123694, 2061, False)
+tree_HR3_ulimit_first lim=5229:6229 -> (5229, 2071, False)
+# Same value in production; the mutant differs only when FC_GUARD_PROC_LIMITS is set, which L4B checks.
+
+===== host_report guard round 3 GREEN under sh
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok control needle: setrlimit leg lowers this process to 5176:6176 (pid 1 soft '123694', user threads 2176)
+ok L1 dash-like sh: live soft limit read = '123694	False' (want 123694, not unmeasured)
+ok L2 real dash as sh: live soft limit read = '123694	False' (want 123694)
+ok L3 host sh (/usr/bin/sh): live soft limit read = '123694	False' (want 123694)
+ok L4 fixture soft 4242 / hard 99999 -> '4242	False' (want the soft value 4242)
+ok L4B fixture 4242 with a working 'ulimit -u' (123694) -> '4242	False' (the file wins, want 4242)
+ok L5 fixture 'unlimited' -> 'None	True' (want unlimited, never 0)
+ok L6 no 'Max processes' line + dash-like sh -> 'None	False' (want unmeasured, never guessed)
+ok L7 no 'Max processes' line + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X1 limits file MISSING + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X3 limits file UNREADABLE (mode 000) + bash as sh -> '123694	False' (want the fallback 123694)
+ok X2 limits file MISSING + dash-like sh -> 'None	False' (want unmeasured)
+ok O1 FC_GUARD_ULIMIT_U=777 over a 4242 file -> '777	False' (want the override 777)
+ok P1 this process lowered to 5176:6176, pid 1 soft 123694 -> '5176	False' (want THIS process's soft 5176)
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (want a measured reason)
+ok mutation M1_ulimit_only: caught by L1 L2 L3 L4 L4B L5 P1 L8 (named: L1)
+ok mutation M2_hard_column: caught by L4 L4B P1 (named: L4)
+ok mutation M3_no_fallback: caught by L7 X1 X3 (named: L7 X1)
+ok mutation HR1_missing_file_no_fallback: caught by X1 X3 (named: X1 X3)
+ok mutation HR2_pid1_limits: caught by P1 (named: P1)
+ok mutation HR3_ulimit_first: caught by L4B (named: L4B)
+ok mutation M4_override_ignored: caught by O1 (named: O1)
+=== host_report thread limit regression guard (CON-109 F2-1): pass=25 fail=0 ===
+
+===== CON-112 round 3: test_metatest_per_mutant_red.sh runner judge before / after
+rc=0
+tail:   file unable to ever flip GREEN.
+judge: ('ERROR', 'unparsed_fail_signal', 'summary', None)
+rc=0
+tail: === metatest per-mutant RED baseline (T017): fail=0 ===
+judge: ('PASS', '', 'summary', {'f': 0})
+
+===== CON-120 reproduction: old meta_test_verification.sh stopped by TERM at delay (s): delay rc tree-state
+0.02	124	SUBMODULE_MOVED
+0.04	124	clean
+0.06	124	clean
+0.08	124	clean
+0.10	124	clean
+0.12	124	clean+TRACKED_FILE_MUTATED+bak_left
+0.15	124	clean
+0.18	124	clean
+0.21	124	clean
+0.25	124	clean+TRACKED_FILE_MUTATED+bak_left
+0.3	124	clean+TRACKED_FILE_MUTATED+bak_left
+0.35	124	clean
+0.4	124	clean
+0.5	124	clean
+0.6	0	clean
+
+===== CON-120 RED: test_meta_test_verification_r1_regression.sh on the old meta-test (output path set to TMPDIR only)
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+NOT ok G1 left under TMPDIR: verify_missing.txt verify_mutated.txt verify_restored.txt verify_restored2.txt 
+NOT ok G1 the full-suite runner judges 'ERROR unparsed_fail_signal'
+NOT ok G1 output does not show that the mutation-2 gate parses
+NOT ok G-TERM stopped by TERM: the checked tree changed (or scratch left) at delay(s) 0.02(tmpdir-left) 0.05(tmpdir-left) 0.08(tmpdir-left) 0.11(tmpdir-left) 0.14(tmpdir-left) 0.17(tmpdir-left) 0.20(tmpdir-left) 0.25(tmpdir-left) 0.30(tmpdir-left) 0.35(tmpdir-left) 0.45(tmpdir-left) 0.60(tmpdir-left)
+NOT ok G-KILL stopped by KILL: the checked tree changed (or scratch left) at delay(s) 0.11 0.20
+ok B1 gate blind to a missing required submodule -> meta-test exits 1
+ok B2 gate that always fails -> meta-test exits 1
+=== meta_test_verification regression guard (CON-120): pass=6 fail=5 ===
+
+===== CON-120 GREEN: test_meta_test_verification_r1_regression.sh on the new meta-test
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok G-TERM stopped by TERM at 12 delays: the checked tree never changed
+ok G-KILL stopped by KILL at 12 delays: the checked tree never changed
+ok B1 gate blind to a missing required submodule -> meta-test exits 1
+ok B2 gate that always fails -> meta-test exits 1
+=== meta_test_verification regression guard (CON-120): pass=11 fail=0 ===
+
+===== custody_sweep regressions on the round-3 tool (2 at a time): name rc
+test_custody_sweep_r11_regression rc=0
+test_custody_sweep_r13_regression rc=0
+test_custody_sweep_r17_regression rc=0
+test_custody_sweep_r15_regression rc=0
+test_custody_sweep_r21_regression rc=0
+test_custody_sweep_r6_regression rc=0
+test_custody_sweep_r7_regression rc=0
+test_custody_sweep_r8_regression rc=0
+test_custody_sweep_r9_regression rc=1
+test_custody_sweep_red rc=1
+test_custody_sweep_r19_regression rc=0
+# r9 and custody_sweep_red fail the same way on the round-2 tool (below); known, unrelated to this round.
+-- round-2 tool, r9_regression:
+NOT ok R9b-I1 real (fixed) tool FAILED: rc=2 stderr=custody_sweep.py: --repo-root '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-cons
+NOT ok R9-M2 real (fixed) tool FAILED: RESULT_FAIL rc=2
+-- round-2 tool, red:
+NOT ok proposal_golden_good_verified_hash.json: derived verdict = REFUSED, expected ALLOWED
+NOT ok discrimination: an ALLOWED-expected fixture unexpectedly
+-- round-3 tool, r9_regression:
+NOT ok R9b-I1 real (fixed) tool FAILED: rc=2 stderr=custody_sweep.py: --repo-root '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-cons
+NOT ok R9-M2 real (fixed) tool FAILED: RESULT_FAIL rc=2
+-- round-3 tool, red:
+NOT ok proposal_golden_good_verified_hash.json: derived verdict = REFUSED, expected ALLOWED
+NOT ok discrimination: an ALLOWED-expected fixture unexpectedly
+
+===== full-suite manifest: bash scripts/run_full_suite.sh --verify-manifest
+census: go/entry=5 js/excluded=5 py/entry=9 py/excluded=22 py/fixture=14 py/member=26 runall/entry=9 sh/entry=334 sh/excluded=25 sh/fixture=111 sh/member=296 total=856
+RESULT: MANIFEST-OK

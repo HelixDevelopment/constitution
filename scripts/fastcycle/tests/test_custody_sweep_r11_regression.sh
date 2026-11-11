@@ -257,16 +257,16 @@ g -C "$S" stash push --quiet -u -m "with untracked" >/dev/null
 printf 'line one\nline two PLAIN STASH\n' > "$S/text.txt"
 g -C "$S" stash push --quiet -m "plain" >/dev/null
 # now stash@{0} = plain, stash@{1} = -u
-g -C "$S" stash show -p "${CANON[@]}" 'stash@{1}' > "$TMP/b_stash_u.patch"
+g -C "$S" diff "${CANON[@]}" 'stash@{1}^1' 'stash@{1}' > "$TMP/b_stash_u.patch"
 if ! grep -q only_in_stash "$TMP/b_stash_u.patch"; then
-  ok "B1.3 evidence: 'git stash show -p' omits the -u stash's untracked file"
+  ok "B1.3 evidence: the stash patch (git diff <ref>^1 <ref>) omits the -u stash's untracked file"
 else
-  notok "B1.3 evidence: expected the untracked file to be missing from stash show -p"
+  notok "B1.3 evidence: expected the untracked file to be missing from the stash patch"
 fi
 R=$(run_case "$IMPL" "$S" stash 'stash@{1}' land "$(sha "$TMP/b_stash_u.patch")" "$TMP/b_stash_u.patch")
 expect "B1.3 land a -u stash" "$R" REFUSED "untracked content"
 
-g -C "$S" stash show -p "${CANON[@]}" 'stash@{0}' > "$TMP/b_stash_plain.patch"
+g -C "$S" diff "${CANON[@]}" 'stash@{0}^1' 'stash@{0}' > "$TMP/b_stash_plain.patch"
 R=$(run_case "$IMPL" "$S" stash 'stash@{0}' land "$(sha "$TMP/b_stash_plain.patch")" "$TMP/b_stash_plain.patch")
 expect "B2 stash golden-good (plain stash, faithful backup)" "$R" ALLOWED
 FRESH_S="$TMP/restore_stash"

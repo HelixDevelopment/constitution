@@ -8,7 +8,7 @@
 #         NM1-NM9 with their killers KNM1-KNM6, KNM9, and (round 6) one mutant per remaining guard of the gate's class
 #         inventory (fixtures in inventory()). Mutants run in parallel, MUT_JOBS at a time (default 3), each in its own
 #         temp dir. MUT_ONLY=<regex> restricts Part 2 to mutant names matching it (diagnosis only; a full proof runs all).
-# Round 8 (CON-146): the four round-7 reviewer probes are adopted verbatim (cm_submodule_pin_not_downgraded_probes/,
+# Round 8 (CON-146, re-minted 2026-11-11 as CON-194; later mentions keep CON-146): the four round-7 reviewer probes are adopted verbatim (cm_submodule_pin_not_downgraded_probes/,
 #         members8), the "UNCONFIRMED-equivalent" category is retired (its three claims were false), the member mutants
 #         below the inventory's granularity are GENERATED (cm_submodule_pin_not_downgraded_members.py, ledger
 #         cm_submodule_pin_not_downgraded_members.tsv), every date fixture is computed inside the job that uses it and a

@@ -1,0 +1,927 @@
+# CON-116 / CON-117 / CON-128 fix round 5 -- captured RED/GREEN evidence (2026-11-11)
+# Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, /bin/sh -> /usr/bin/dash, bash 5.3.9(1)-release, nproc 16, load: 19.10 19.90 20.90
+# Base: bundle fsfix4 head 3d050dc3 (round 4), main 90efceb8. Review: independent Opus review of fsfix4 (NO-GO: F1..F8). Operator decision relayed 2026-11-10, verbatim: "Keep running rounds until GO is reached!" (rounds continue past R_max, section 11.4.276(E)(3)).
+# Scratch paths in the outputs below are the subagent's scratchpad; TMPDIR was set to an empty scratch dir for every run.
+
+===== red_old_test_Ma
+# RED for F1/Ma: the round-4 regression test run against the meta-test with reviewer mutant Ma (control verdict ignored). Ma survives: pass=17 fail=0.
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run 0.925 s; signal delays 0.019 0.065 0.111 0.167 0.231 0.296 0.370 0.444 0.518 0.592 0.666 0.740 0.833 0.906 
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run): the checked tree never changed
+ok B1 gate blind to a missing required submodule -> meta-test exits 1
+ok B2 gate that always fails -> meta-test exits 1
+ok control needle: both B3/B4 fixture gates pass on their fake trees (rc 0)
+ok B3 a gate that fails at any root without .git -> meta-test exits 1
+ok B4 a gate whose text no longer matches the mutation-2 anchors -> meta-test exits 1 (fail closed)
+ok mutation (meta-test) caught by B3: the mutant exits 0 on its fixture
+ok mutation (meta-test) caught by B4: the mutant exits 0 on its fixture
+=== meta_test_verification regression guard (CON-128): pass=17 fail=0 ===
+
+===== red_old_test_Mb
+# RED for F1/Mb: the round-4 test against reviewer mutant Mb (mutation-1 verdict ignored). No check fails on Mb itself; the one NOT ok (G-TERM, scratch left at 98% of the run) is the separate cleanup defect found in this round (next two sections), so Mb survives.
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run 0.952 s; signal delays 0.019 0.067 0.114 0.171 0.238 0.305 0.381 0.457 0.533 0.609 0.685 0.762 0.857 0.933 
+NOT ok G-TERM stopped by TERM: the checked tree changed (or scratch left) at delay(s) 0.933(tmpdir-left)
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run): the checked tree never changed
+ok B1 gate blind to a missing required submodule -> meta-test exits 1
+ok B2 gate that always fails -> meta-test exits 1
+ok control needle: both B3/B4 fixture gates pass on their fake trees (rc 0)
+ok B3 a gate that fails at any root without .git -> meta-test exits 1
+ok B4 a gate whose text no longer matches the mutation-2 anchors -> meta-test exits 1 (fail closed)
+ok mutation (meta-test) caught by B3: the mutant exits 0 on its fixture
+ok mutation (meta-test) caught by B4: the mutant exits 0 on its fixture
+=== meta_test_verification regression guard (CON-128): pass=16 fail=1 ===
+
+===== red_term_late_old_mtv
+# RED for the cleanup defect: the round-4 meta_test_verification.sh stopped by TERM (process group) at 280 delays around the end of the run (90%..105%); the scratch root was left 8 times (a TERM killed the EXIT trap's rm).
+run 1.088327862
+left at .97949507580
+left at 1.02302819028
+left at 1.08832786200
+left at 1.11009441924
+left at 1.07744458338
+left at 1.08832786200
+left at 1.05567802614
+left at 1.08832786200
+leftovers 8 / 280
+
+[exited with code 0]
+
+===== green_term_late_new_mtv
+# GREEN: same loop on the fixed script (cleanup ignores HUP/INT/TERM before its rm): 0 of 280.
+run 1.130658923
+leftovers 0 / 280
+
+[exited with code 0]
+
+===== mtv_test_run3
+# GREEN: the round-5 regression test (fixtures B5..B11, signal fixtures, decision points DP1..DP13 with paired mutants incl. Ma and Mb adopted verbatim), run 3 and run 4.
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run 1.552 s; signal delays 0.031 0.109 0.186 0.279 0.388 0.497 0.621 0.745 0.869 0.993 1.117 1.242 1.397 1.521 
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 (✗ the weakened gate does not parse)
+ok STERM stopped by the signalTERM -> nothing left under TMPDIR (stopped=1 tmp=0 exit=143)
+ok SINT stopped by the signalINT -> nothing left under TMPDIR (stopped=1 tmp=0 exit=130)
+ok SHUP stopped by the signalHUP -> nothing left under TMPDIR (stopped=1 tmp=0 exit=129)
+ok SCLEAN stopped by the signalCLEAN -> nothing left under TMPDIR (stopped=1 tmp=0)
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11c_no_term_trap caught by STERM (stopped=1 tmp=0 sig=15, original stopped=1 tmp=0 exit=143)
+ok mutation DP11d_no_int_trap caught by SINT (stopped=1 tmp=0 sig=2, original stopped=1 tmp=0 exit=130)
+ok mutation DP11e_no_hup_trap caught by SHUP (stopped=1 tmp=0 sig=1, original stopped=1 tmp=0 exit=129)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN (stopped=1 tmp=1, original stopped=1 tmp=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+=== meta_test_verification regression guard (CON-128): pass=51 fail=0 ===
+
+===== mtv_test_run4
+ok control needle: meta-test, gate and full-suite runner resolve
+ok control needle: the fake tree's real gate passes (every required submodule present)
+ok G1 full run exits 0
+ok G1 the checked tree is unchanged after a full run
+ok G1 nothing left under TMPDIR
+ok G1 the full-suite runner judges the PASS output PASS (summary line last)
+ok G1 mutation 2 is a real mutation (the weakened gate parses)
+ok control needle: full run 0.973 s; signal delays 0.019 0.068 0.117 0.175 0.243 0.311 0.389 0.467 0.545 0.623 0.701 0.778 0.876 0.954 
+ok G-TERM stopped by TERM at 14 delays (2%..98% of the run): the checked tree never changed
+ok G-KILL stopped by KILL at 14 delays (2%..98% of the run): the checked tree never changed
+ok G (fixture) good tree -> rc=0 fail=0 msg=1 tmp=0
+ok B1 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B2 -> rc=1 fail=2 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B3 -> rc=1 fail=1 msg=1 tmp=0 (✗ weakened gate still exits non-zero)
+ok B4 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the weakened gate)
+ok B5 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate passed despite the missing)
+ok B6 -> rc=1 fail=1 msg=1 tmp=0 (✗ real gate does not pass on the real tree)
+ok B7 -> rc=1 fail=1 msg=1 tmp=0 (✗ verification script not found)
+ok B8 -> rc=1 fail=1 msg=1 tmp=0 (✗ test submodule not present)
+ok B9 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-1 scratch root)
+ok B10 -> rc=1 fail=1 msg=1 tmp=0 (✗ could not build the mutation-2 scratch root)
+ok B11 -> rc=1 fail=1 msg=1 tmp=0 (✗ the weakened gate does not parse)
+ok STERM stopped by the signalTERM -> nothing left under TMPDIR (stopped=1 tmp=0 exit=143)
+ok SINT stopped by the signalINT -> nothing left under TMPDIR (stopped=1 tmp=0 exit=130)
+ok SHUP stopped by the signalHUP -> nothing left under TMPDIR (stopped=1 tmp=0 exit=129)
+ok SCLEAN stopped by the signalCLEAN -> nothing left under TMPDIR (stopped=1 tmp=0)
+ok mutation DP1_script_missing_ok caught by B7 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP2_submodule_missing_ok caught by B8 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Ma_control_verdict_ignored caught by B6 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP4_m1_root_failure_ok caught by B9 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation Mb_mutation1_verdict_ignored caught by B5 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT9_anchor_failure_ok caught by B4 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7_unparsable_ok caught by B11 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP7b_no_syntax_check caught by B11 (rc=1 fail=1 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP8_m2_root_failure_ok caught by B10 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation MT1_mut2_verdict_ignored caught by B3 (rc=0 fail=0 msg=0 tmp=0, original rc=1 fail=1 msg=1 tmp=0)
+ok mutation DP10a_always_exit_0 caught by B2 (rc=0 fail=2 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP10b_always_exit_1 caught by G (rc=1 fail=0 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP10c_notok_not_counted caught by B2 (rc=0 fail=0 msg=1 tmp=0, original rc=1 fail=2 msg=1 tmp=0)
+ok mutation DP11a_no_exit_trap caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11b_cleanup_noop caught by G (rc=0 fail=0 msg=1 tmp=1, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP11c_no_term_trap caught by STERM (stopped=1 tmp=0 sig=15, original stopped=1 tmp=0 exit=143)
+ok mutation DP11d_no_int_trap caught by SINT (stopped=1 tmp=0 sig=2, original stopped=1 tmp=0 exit=130)
+ok mutation DP11e_no_hup_trap caught by SHUP (stopped=1 tmp=0 sig=1, original stopped=1 tmp=0 exit=129)
+ok mutation DP11f_cleanup_signals_not_ignored caught by SCLEAN (stopped=1 tmp=1, original stopped=1 tmp=0)
+ok mutation DP12a_test_submodule_not_skipped caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP12b_gate_file_ignored caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13a_requirement_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13b_check_kept caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13c_mutation1_on_real_tree caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+ok mutation DP13d_mutation2_on_m1_root caught by G (rc=1 fail=1 msg=1 tmp=0, original rc=0 fail=0 msg=1 tmp=0)
+=== meta_test_verification regression guard (CON-128): pass=51 fail=0 ===
+
+===== red_old_r22_RD
+# RED for F3: the round-4 r22 test (battery plus reviewer mutant RD added as a self-test) -- RD survives every functional check.
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok control needle: repo 3 patch = plain, mixed-quoting, plain header
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffpos rewrites only the chosen header (1, 2, 3, all; bare and quoted), fails only git diff
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git qf f'
+ok control needle: repo 4 expected file list built from git -z name-status (bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt)
+ok control needle: repo 5 has 5 headers
+ok control needle: repo B has a binary section
+ok control needle: repo M has deleted, new and mode-only sections
+ok control needle: repo Q patch holds unquoted non-ASCII names
+ok G1 plain stash, faithful backup, host git -> ALLOWED (got ALLOWED)
+ok G2 inventory: dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f (got 'dirty	310a571416ccd07ec715bca513173f245bd1d0b76cf87a2cbbb7b38695101044	f')
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (got ALLOWED)
+ok B1 every header non-canonical -> REFUSED as unmeasured, naming the bad diff --git header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok B2 inventory with non-canonical headers -> UNMEASURED, never hashed (got 'UNMEASURED	None	')
+ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'dirty	b1d51ba7d31d4592cd7b9aa83a559142f3b9b53a68c2ed61750245ea2f43c519	a1.txt,b2.txt,b2 sp	tab.txt,c3.txt')
+ok G5 three-header mixed-quoting stash, faithful backup -> ALLOWED (got ALLOWED)
+ok P1 only header 1 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q1 only header 1 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P2 only header 2 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q2 only header 2 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P3 only header 3 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q3 only header 3 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok V2 verify-proposal, middle header garbled -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok V3 verify-proposal, last header quoted without prefixes -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git "f" "xf"' -- the patch bytes a)
+ok F1 git diff of the stash fails (rc 3) -> REFUSED naming 'git diff ... failed (rc=3)' (got REFUSED: the live state of stash 'stash@{0}' could not be read (git diff stash@{0}^1 stash@{0} failed (rc=3)) -- cannot confirm the backup covers it)
+ok F2 git diff of the stash fails -> inventory UNMEASURED (got 'UNMEASURED')
+ok L1 CON-127 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt')
+ok XS1 one half of one header garbled ('diff --git xa/a1.txt b/a1.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS2 one half of one header garbled ('diff --git a/b2.txt xb/b2.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS3 one half of one header garbled ('diff --git a/c3.txt "xb/c3.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XS4 one half of one header garbled ('diff --git "xa/b2.txt" "b/b2.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XC1 header 1 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC2 header 2 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC3 header 3 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC4 header 4 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC5 header 5 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB a header after a binary section garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB1 the binary section's own header garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM1 deleted/new/mode-only section: header 1 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM2 deleted/new/mode-only section: header 2 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM3 deleted/new/mode-only section: header 3 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XMG deleted/new/mode-only stash -> dirty, files d,e,m,n (got 'dirty	8faf118efb9b55cb5bb364c5b01ef81354a7308f64a9850e53f8c1cfab9a0531	d.txt,e.txt,m.sh,n.txt')
+ok XG body lines that look like headers (mid-line, after a CR, at column 2) -> dirty, sha = backup (got 'dirty	509f46c14bff9da6fe8f37b48bf9e61f39cbe0927386b8a615e5600241c07145	p.txt')
+ok XGV the same stash, faithful backup -> ALLOWED (got ALLOWED: backup_hash independently re-verified against BOTH the real backup file at '/home/milosvasic/.cache/claude-tmp/claude-10)
+ok XQ core.quotePath=false with a Latin-1 and a UTF-8 name -> dirty, sha = backup (got 'dirty	3e46032a9aa81995b2c3778571d7967b94251bfb8a02572482dcb09a53b23eda	caf�.txt,ünï.txt')
+ok MX matrix over header count x position x side x section type x git config, oracle = git name-status (got: MATRIX cells=527 green=17 bad=0)
+NOT ok mutation RD_empty_patch_is_unmeasured SURVIVED every functional check
+=== stash patch regression guard (CON-116): pass=47 fail=1 ===
+
+===== red_old_r22_matrix_leak
+# RED for F2: the matrix.* directories that same run left under its TMPDIR (one per matrix run).
+matrix leftovers=2
+matrix.dyhnusyl
+matrix.fl2zyrai
+
+===== r22_run1
+# GREEN: the round-5 r22 test: EP1, EP2, EP1V, MX (no leftovers), TD; RD and RD2 caught.
+ok control needle: implementation + libs resolve, git at /usr/bin/git
+ok control needle: the test's own backup has canonical a/ b/ headers
+ok control needle: repo 3 patch = plain, mixed-quoting, plain header
+ok shim self-check: stashshow mangles 'stash show' headers only
+ok shim self-check: diffpos rewrites only the chosen header (1, 2, 3, all; bare and quoted), fails only git diff
+info: host git version 2.53.0: 'git stash show -p' first header = 'diff --git "\177f" f'
+ok control needle: repo 4 expected file list built from git -z name-status (bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt)
+ok control needle: repo 5 has 5 headers
+ok control needle: repo B has a binary section
+ok control needle: repo M has deleted, new and mode-only sections
+ok control needle: repo Q patch holds unquoted non-ASCII names
+ok control needle: repos EU and EP have empty tracked patches; EU has an untracked parent, EP none
+ok G1 plain stash, faithful backup, host git -> ALLOWED (got ALLOWED)
+ok G2 inventory: dirty, sha256 = sha256 of 'git diff CANON ref^1 ref', files=f (got 'dirty	310a571416ccd07ec715bca513173f245bd1d0b76cf87a2cbbb7b38695101044	f')
+ok G3 a git whose 'stash show -p' ignores the prefixes -> still ALLOWED (got ALLOWED)
+ok B1 every header non-canonical -> REFUSED as unmeasured, naming the bad diff --git header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok B2 inventory with non-canonical headers -> UNMEASURED, never hashed (got 'UNMEASURED	None	')
+ok G4 three-header stash with a mixed-quoting middle header -> dirty, sha256 = backup, files = both rename paths (got 'dirty	b1d51ba7d31d4592cd7b9aa83a559142f3b9b53a68c2ed61750245ea2f43c519	a1.txt,b2.txt,b2 sp	tab.txt,c3.txt')
+ok G5 three-header mixed-quoting stash, faithful backup -> ALLOWED (got ALLOWED)
+ok P1 only header 1 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q1 only header 1 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P2 only header 2 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q2 only header 2 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok P3 only header 3 of 3 garbled bare ('diff --git f xf') -> UNMEASURED (got 'UNMEASURED')
+ok Q3 only header 3 of 3 quoted with no prefixes ('diff --git "f" "xf"') -> UNMEASURED (got 'UNMEASURED')
+ok V2 verify-proposal, middle header garbled -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git f xf' -- the patch bytes are n)
+ok V3 verify-proposal, last header quoted without prefixes -> REFUSED naming that header (got REFUSED: the live state of stash 'stash@{0}' could not be read (its patch has a diff --git header without the a/ b/ prefixes: b'diff --git "f" "xf"' -- the patch bytes a)
+ok F1 git diff of the stash fails (rc 3) -> REFUSED naming 'git diff ... failed (rc=3)' (got REFUSED: the live state of stash 'stash@{0}' could not be read (git diff stash@{0}^1 stash@{0} failed (rc=3)) -- cannot confirm the backup covers it)
+ok F2 git diff of the stash fails -> inventory UNMEASURED (got 'UNMEASURED')
+ok L1 CON-127 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got 'bin.dat,del.txt,mode.sh,new file.txt,old.txt,new name.txt,q"\.txt,x b/y.txt,ünï.txt')
+ok XS1 one half of one header garbled ('diff --git xa/a1.txt b/a1.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS2 one half of one header garbled ('diff --git a/b2.txt xb/b2.txt') -> UNMEASURED (got 'UNMEASURED')
+ok XS3 one half of one header garbled ('diff --git a/c3.txt "xb/c3.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XS4 one half of one header garbled ('diff --git "xa/b2.txt" "b/b2.txt"') -> UNMEASURED (got 'UNMEASURED')
+ok XC1 header 1 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC2 header 2 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC3 header 3 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC4 header 4 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XC5 header 5 of 5 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB a header after a binary section garbled -> UNMEASURED (got 'UNMEASURED')
+ok XB1 the binary section's own header garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM1 deleted/new/mode-only section: header 1 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM2 deleted/new/mode-only section: header 2 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XM3 deleted/new/mode-only section: header 3 garbled -> UNMEASURED (got 'UNMEASURED')
+ok XMG deleted/new/mode-only stash -> dirty, files d,e,m,n (got 'dirty	8faf118efb9b55cb5bb364c5b01ef81354a7308f64a9850e53f8c1cfab9a0531	d.txt,e.txt,m.sh,n.txt')
+ok XG body lines that look like headers (mid-line, after a CR, at column 2) -> dirty, sha = backup (got 'dirty	509f46c14bff9da6fe8f37b48bf9e61f39cbe0927386b8a615e5600241c07145	p.txt')
+ok XGV the same stash, faithful backup -> ALLOWED (got ALLOWED: backup_hash independently re-verified against BOTH the real backup file at '/home/milosvasic/.cache/claude-tmp/claude-10)
+ok XQ core.quotePath=false with a Latin-1 and a UTF-8 name -> dirty, sha = backup (got 'dirty	3e46032a9aa81995b2c3778571d7967b94251bfb8a02572482dcb09a53b23eda	caf�.txt,ünï.txt')
+ok MX matrix over header count x position x side x section type x git config, oracle = git name-status; nothing left under its TMPDIR (got: MATRIX cells=527 green=17 bad=0)
+ok EP1 untracked-only stash (git stash -u) -> empty_patch, no sha256, no files (got 'empty_patch	None	')
+ok EP2 index-only stash, worktree = HEAD -> empty_patch, no sha256, no files (got 'empty_patch	None	')
+ok EP1V untracked-only stash, land -> REFUSED for its untracked content, not as unreadable (got REFUSED: stash 'stash@{0}' has untracked content (has_untracked=True) that the tracked-diff-only backup at '/home/milosvasic/.cac)
+ok mutation M1_stash_show: caught by G1 G2 G3 G4 G5 V2 V3 F1 L1 XMG XG XGV XQ (named: G3)
+ok mutation M2_no_header_check: caught by B1 B2 P1 Q1 P2 Q2 P3 Q3 V2 V3 XS1 XS2 XS3 XS4 XC1 XC2 XC3 XC4 XC5 XB XB1 XM1 XM2 XM3 MX (named: B2 P1 P2 P3)
+ok mutation M3_measured_true: caught by B1 V2 V3 F1 (named: B1)
+ok mutation M4_first_header_only: caught by P2 Q2 P3 Q3 V2 V3 XS2 XS3 XS4 XC2 XC3 XC4 XC5 XB XM2 XM3 MX (named: P2 P3)
+ok mutation M5_no_mixed_quoting: caught by G4 G5 V3 MX (named: G4 G5)
+ok mutation RV1_last_only: caught by P1 Q1 P2 Q2 V2 XS1 XS2 XS4 XC1 XC2 XC3 XC4 XB1 XM1 XM2 XM3 MX (named: P1 P2)
+ok mutation RV2_first_and_last: caught by P2 Q2 V2 XS2 XS4 XC2 XC3 XC4 XM2 XM3 MX (named: P2)
+ok mutation RV6_first_two_only: caught by P3 Q3 V3 XS3 XC3 XC4 XC5 XM3 MX (named: P3)
+ok mutation RV3_quoted_trusted: caught by Q1 Q2 Q3 V3 XS3 XS4 MX (named: Q1 Q2 Q3)
+ok mutation RV4_loose_regex: caught by Q1 Q2 Q3 V3 XS3 XS4 MX (named: Q1 Q2 Q3)
+ok mutation RV5_rc_why_dropped: caught by F1 (named: F1)
+ok mutation L1_old_file_list: caught by G4 L1 (named: G4 L1)
+ok mutation NM1_a_side_only: caught by XS2 XS3 MX (named: XS2 XS3 MX)
+ok mutation NM2_b_side_only: caught by XS1 XS4 MX (named: XS1 MX)
+ok mutation NM3_first_three: caught by XC4 XC5 MX (named: XC4 XC5 MX)
+ok mutation NM4_last_three: caught by XC1 XC2 XM1 MX (named: XC1 XC2 MX)
+ok mutation NM5_first1_last2: caught by XC2 XC3 XM2 MX (named: XC2 XC3 MX)
+ok mutation NM6_stop_at_binary: caught by XB MX (named: XB MX)
+ok mutation NM7_splitlines: caught by XG XGV MX (named: XG MX)
+ok mutation NM8_substring_match: caught by XG XGV MX (named: XG MX)
+ok mutation NM9_strict_utf8_decode: caught by XQ MX (named: XQ)
+ok mutation NM10_skip_single_header: caught by B1 B2 MX (named: B1 MX)
+ok mutation NM11_skip_mode_new_deleted_sections: caught by XM1 XM2 XM3 MX (named: XM1 XM2 XM3 MX)
+ok mutation NM12_skip_rename_sections: caught by P2 Q2 V2 XS2 XS4 MX (named: P2 MX)
+ok mutation NM13_skip_binary_sections: caught by XB1 MX (named: XB1 MX)
+ok mutation FL1_rename_new_only: caught by G4 L1 MX (named: G4 L1 MX)
+ok mutation FL3_no_tab_strip: caught by L1 MX (named: L1 MX)
+ok mutation FL4_no_dedupe: caught by G2 G4 L1 XMG XG MX (named: G4 L1 MX)
+ok mutation FL5_no_header_fallback: caught by L1 XMG MX (named: L1 MX)
+ok mutation FL6_copy_ignored: caught by MX (named: MX)
+ok mutation FL7_minus_overwritten_by_body: caught by MX (named: MX)
+ok mutation FL10_plus_overwritten_by_body: caught by MX (named: MX)
+ok mutation FL8_octal_ignored: caught by L1 MX (named: L1 MX)
+ok mutation FL9_sorted: caught by G4 L1 MX (named: G4 L1 MX)
+ok mutation RD_empty_patch_is_unmeasured: caught by EP1 EP2 (named: EP1 EP2)
+ok mutation RD2_empty_live_patch_unmeasured: caught by EP1V (named: EP1V)
+ok TD nothing left under the run's TMPDIR
+=== stash patch regression guard (CON-116): pass=88 fail=0 ===
+
+===== host_report_sh
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok control needle: setrlimit leg lowers this process to 4817:5817 (pid 1 soft '123694', user threads 1817)
+ok L1 dash-like sh: live soft limit read = '123694	False' (want 123694, not unmeasured)
+ok L2 real dash as sh: live soft limit read = '123694	False' (want 123694)
+ok L3 host sh (/usr/bin/sh): live soft limit read = '123694	False' (want 123694)
+ok L4 fixture soft 4242 / hard 99999 -> '4242	False' (want the soft value 4242)
+ok L4B fixture 4242 with a working 'ulimit -u' (123694) -> '4242	False' (the file wins, want 4242)
+ok L5 fixture 'unlimited' -> 'None	True' (want unlimited, never 0)
+ok L6 no 'Max processes' line + dash-like sh -> 'None	False' (want unmeasured, never guessed)
+ok L7 no 'Max processes' line + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X1 limits file MISSING + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X3 limits file UNREADABLE (mode 000) + bash as sh -> '123694	False' (want the fallback 123694)
+ok X2 limits file MISSING + dash-like sh -> 'None	False' (want unmeasured)
+ok O1 FC_GUARD_ULIMIT_U=777 over a 4242 file -> '777	False' (want the override 777)
+ok P1 this process lowered to 4817:5817, pid 1 soft 123694 -> '4817	False' (want THIS process's soft 4817)
+ok RX1 reviewer: lowered to 4817:5817 + limits file MISSING + bash as sh -> '4817	False' (want fallback SOFT 4817)
+ok RX2 reviewer: lowered to 4817:5817 + limits file UNREADABLE + bash as sh -> '4817	False' (want fallback SOFT 4817)
+ok RX3 reviewer: malformed 'Max processes' line (2 fields) + dash-like sh -> 'None	False' (want unmeasured, no crash)
+ok RX9 round 5 (F8): a three-field 'Max processes' line, then a full one (soft 8888) -> '8888	False' (want 8888; host_guard.sh's awk reads the same line)
+ok RX4 reviewer: TAB-separated line soft 5151 hard 88888 -> '5151	False' (want 5151)
+ok RX5 reviewer: first of two 'Max processes' lines (6161 then 7171) -> '6161	False' (want the first, 6161)
+ok RX6 reviewer: only 'Max processesX' line -> 'None	False' (want unmeasured, the prefix guard)
+ok RX7 reviewer: soft unlimited / hard 99999 -> 'None	True' (want unlimited)
+ok RX8 reviewer: soft 3131 / hard unlimited -> '3131	False' (want 3131)
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (want a measured reason)
+ok mutation M1_ulimit_only: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+ok mutation M2_hard_column: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation M3_no_fallback: caught by L7 X1 X3 RX1 RX2 (named: L7 X1)
+ok mutation HR1_missing_file_no_fallback: caught by X1 X3 RX1 RX2 (named: X1 X3)
+ok mutation HR2_pid1_limits: caught by P1 (named: P1)
+ok mutation HR3_ulimit_first: caught by L4B (named: L4B)
+ok mutation M4_override_ignored: caught by O1 (named: O1)
+ok mutation RVH1_fallback_hard_column: caught by RX1 RX2 (named: RX1)
+ok mutation RVH2_parent_limits: caught by P1 (named: P1)
+ok mutation RVH3_last_but_one: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation RVH4_name_column: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/mut_RVH5_fnf_only/host/host_report.py", line 1091, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/mut_RVH5_fnf_only/host/host_report.py", line 1076, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/lim_unreadable'
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/mut_RVH5_fnf_only/host/host_report.py", line 1091, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/mut_RVH5_fnf_only/host/host_report.py", line 1076, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/home/milosvasic/.cache/claude-tmp/tmp.xwCDVF5XVQ/lim_unreadable'
+ok mutation RVH5_fnf_only: caught by X3 RX2 (named: X3)
+ok mutation RVH6_no_len_guard: caught by RX3 RX9 (named: RX3)
+ok mutation RVH7_no_prefix_guard: caught by RX6 (named: RX6)
+ok mutation RVH8_last_match: caught by RX5 (named: RX5)
+ok mutation RVH9_unlimited_as_zero: caught by L5 RX7 (named: L5)
+ok mutation RVH10_bash_explicit: caught by L6 X2 RX3 RX6 (named: L6)
+ok mutation RVH11_space_only_sep: caught by RX4 (named: RX4)
+=== host_report thread limit regression guard (CON-117 F2-1): pass=45 fail=0 ===
+
+===== host_report_bash
+ok control needle: host_report.py, fc_common.py, host_guard.sh resolve
+ok control needle: live soft 'Max processes' = 123694 (read by the test)
+ok shim self-check: dash-like sh rejects 'ulimit -u'
+ok control needle: setrlimit leg lowers this process to 4863:5863 (pid 1 soft '123694', user threads 1863)
+ok L1 dash-like sh: live soft limit read = '123694	False' (want 123694, not unmeasured)
+ok L2 real dash as sh: live soft limit read = '123694	False' (want 123694)
+ok L3 host sh (/usr/bin/sh): live soft limit read = '123694	False' (want 123694)
+ok L4 fixture soft 4242 / hard 99999 -> '4242	False' (want the soft value 4242)
+ok L4B fixture 4242 with a working 'ulimit -u' (123694) -> '4242	False' (the file wins, want 4242)
+ok L5 fixture 'unlimited' -> 'None	True' (want unlimited, never 0)
+ok L6 no 'Max processes' line + dash-like sh -> 'None	False' (want unmeasured, never guessed)
+ok L7 no 'Max processes' line + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X1 limits file MISSING + bash as sh -> '123694	False' (want the 'ulimit -u' fallback 123694)
+ok X3 limits file UNREADABLE (mode 000) + bash as sh -> '123694	False' (want the fallback 123694)
+ok X2 limits file MISSING + dash-like sh -> 'None	False' (want unmeasured)
+ok O1 FC_GUARD_ULIMIT_U=777 over a 4242 file -> '777	False' (want the override 777)
+ok P1 this process lowered to 4863:5863, pid 1 soft 123694 -> '4863	False' (want THIS process's soft 4863)
+ok RX1 reviewer: lowered to 4863:5863 + limits file MISSING + bash as sh -> '4863	False' (want fallback SOFT 4863)
+ok RX2 reviewer: lowered to 4863:5863 + limits file UNREADABLE + bash as sh -> '4863	False' (want fallback SOFT 4863)
+ok RX3 reviewer: malformed 'Max processes' line (2 fields) + dash-like sh -> 'None	False' (want unmeasured, no crash)
+ok RX9 round 5 (F8): a three-field 'Max processes' line, then a full one (soft 8888) -> '8888	False' (want 8888; host_guard.sh's awk reads the same line)
+ok RX4 reviewer: TAB-separated line soft 5151 hard 88888 -> '5151	False' (want 5151)
+ok RX5 reviewer: first of two 'Max processes' lines (6161 then 7171) -> '6161	False' (want the first, 6161)
+ok RX6 reviewer: only 'Max processesX' line -> 'None	False' (want unmeasured, the prefix guard)
+ok RX7 reviewer: soft unlimited / hard 99999 -> 'None	True' (want unlimited)
+ok RX8 reviewer: soft 3131 / hard unlimited -> '3131	False' (want 3131)
+ok L8 probe_thread_headroom under dash-like sh: reason 'thread_headroom' (want a measured reason)
+ok mutation M1_ulimit_only: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+ok mutation M2_hard_column: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation M3_no_fallback: caught by L7 X1 X3 RX1 RX2 (named: L7 X1)
+ok mutation HR1_missing_file_no_fallback: caught by X1 X3 RX1 RX2 (named: X1 X3)
+ok mutation HR2_pid1_limits: caught by P1 (named: P1)
+ok mutation HR3_ulimit_first: caught by L4B (named: L4B)
+ok mutation M4_override_ignored: caught by O1 (named: O1)
+ok mutation RVH1_fallback_hard_column: caught by RX1 RX2 (named: RX1)
+ok mutation RVH2_parent_limits: caught by P1 (named: P1)
+ok mutation RVH3_last_but_one: caught by L4 L4B P1 RX9 RX4 RX5 RX7 RX8 (named: L4)
+ok mutation RVH4_name_column: caught by L1 L2 L3 L4 L4B L5 P1 RX9 RX4 RX5 RX7 RX8 L8 (named: L1)
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/mut_RVH5_fnf_only/host/host_report.py", line 1091, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/mut_RVH5_fnf_only/host/host_report.py", line 1076, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/lim_unreadable'
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "<string>", line 1, in <module>
+  File "/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/mut_RVH5_fnf_only/host/host_report.py", line 1091, in _read_ulimit_threads
+    ulim = _read_nproc_soft()
+  File "/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/mut_RVH5_fnf_only/host/host_report.py", line 1076, in _read_nproc_soft
+    with open(path, encoding="utf-8", errors="replace") as fh:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/home/milosvasic/.cache/claude-tmp/tmp.f4GB4GlVUO/lim_unreadable'
+ok mutation RVH5_fnf_only: caught by X3 RX2 (named: X3)
+ok mutation RVH6_no_len_guard: caught by RX3 RX9 (named: RX3)
+ok mutation RVH7_no_prefix_guard: caught by RX6 (named: RX6)
+ok mutation RVH8_last_match: caught by RX5 (named: RX5)
+ok mutation RVH9_unlimited_as_zero: caught by L5 RX7 (named: L5)
+ok mutation RVH10_bash_explicit: caught by L6 X2 RX3 RX6 (named: L6)
+ok mutation RVH11_space_only_sep: caught by RX4 (named: RX4)
+=== host_report thread limit regression guard (CON-117 F2-1): pass=45 fail=0 ===
+
+===== host_guard_sh
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=13446443 within [13456731,13456975]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-117 r5 three-field 'Max processes 5' line is skipped: same result as no line (N=1 REASON=unreadable_ulimit)
+PASS: CON-117 r5 three-field line then a full soft-888 line => N=888 thread_headroom
+PASS: CON-117 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-117 soft unlimited in the limits file => no thread clamp
+PASS: CON-117 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-117 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=137 fail=0
+
+===== host_guard_bash
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=13693607 within [13675507,13688923]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+PASS: CON-117 r5 three-field 'Max processes 5' line is skipped: same result as no line (N=1 REASON=unreadable_ulimit)
+PASS: CON-117 r5 three-field line then a full soft-888 line => N=888 thread_headroom
+PASS: CON-117 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-117 soft unlimited in the limits file => no thread clamp
+PASS: CON-117 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-117 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=137 fail=0
+
+===== red_host_guard_F8_oldawk
+# RED for F8: test_host_guard_red.sh (sh) with host_guard.sh's awk reverted to the round-4 form (no NF >= 4 rule); the two new round-5 checks fail. Restored afterwards (git diff showed the round-5 change only).
+PASS: within all limits keeps request (N=4 reason=none)
+PASS: thread headroom 96 / 64 per job serialises (N=1 reason=thread_headroom)
+PASS: 60% ceiling: budget 23488102kB / 8388608 per job (N=2 reason=memory_ceiling)
+PASS: agent cap 6 with none active (N=6 reason=agent_cap)
+PASS: agent cap 6 minus 2 active (N=4 reason=agent_cap)
+PASS: nproc=4 caps request 100 (N=4 reason=nproc)
+PASS: nproc=16 caps request 100 (N=16 reason=nproc)
+PASS: N differs across injected nproc (4 vs 16): not a literal
+PASS: F1 dangling --kind exits 2
+PASS: F1 dangling --per-job-mem-kb exits 2
+PASS: F1 dangling --threads-per-job exits 2
+PASS: F5 unknown flag exits 2
+PASS: F5 bad --kind value exits 2
+PASS: F2 huge request exits 2
+PASS: F2 zero request exits 2
+PASS: F2 non-numeric request exits 2
+PASS: F2 negative request exits 2
+PASS: F2 leading-zero request handled (8)
+PASS: F5 non-numeric threads-per-job exits 2
+PASS: F5 zero threads-per-job exits 2
+PASS: F5 zero per-job-mem exits 2
+PASS: F3 failed ps is unreadable_threads N=1
+PASS: F4 negative active exits 2
+PASS: F4 non-numeric active exits 2
+PASS: F4/B3 active(9)>cap(6): already exhausted, refuses entirely
+PASS: F4 live agent count not derivable => unreadable_active_agents N=1
+PASS: F5 garbled MemTotal => unreadable_memory N=1
+PASS: F6 avail>total => unreadable_memory N=1
+PASS: F5 garbled ulimit => unreadable_ulimit N=1
+PASS: F5 ulimit unlimited is legitimately no thread clamp
+PASS: F5 garbled nproc => unreadable_nproc N=1
+PASS: F17 live nproc read (shim nproc=3) => N=3 nproc
+PASS: F17 live thread read (shim ps=90) => N=10 thread_headroom
+PASS: F2/F17 live run N=16 <= real nproc 16
+PASS: R3 empty ps output is unreadable_threads N=1
+PASS: R3 live ps invoked with -L (threads, not processes)
+PASS: R3 shim_psargs 5 threads / ulimit 100 => N=50 none
+PASS: R7 live ps scoped with -U <numeric REAL uid> (no -u)
+PASS: R6 live ps invoked with --no-headers
+PASS: R3 -L-verifying shim_ps90 still => N=10 thread_headroom
+PASS: R6 poisoned USER=root: same result N=10 thread_headroom
+PASS: R6 poisoned USER=nosuchuser_zz: same result
+PASS: R6 empty USER: same result
+PASS: R3 empty NPROC override => unreadable_nproc N=1
+PASS: R3 empty ULIMIT_U override => unreadable_ulimit N=1
+PASS: R3 empty THREADS override => unreadable_threads N=1
+PASS: R3 empty MEM_TOTAL override => unreadable_memory N=1
+PASS: R3 empty ACTIVE_AGENTS exits 2 (garbled, per header)
+PASS: R3 unreadable ulimit value => unreadable_ulimit N=1
+PASS: R4 live ulimit -u read (=123694) => N=123694 thread_headroom
+PASS: R4 lowered live ulimit (=123693) => N=123693 thread_headroom
+PASS: R4 live MemTotal read (=31717512) => N=19030507 memory_ceiling
+PASS: R4 live MemAvailable read: N=13364247 within [13368707,13417331]+-634350
+PASS: R5 all inputs unreadable => first (nproc) reported
+PASS: R5 ulimit+agents+memory unreadable => ulimit reported
+PASS: R5 threads+agents+memory unreadable => threads reported
+PASS: R5 agents+memory unreadable => active_agents reported
+PASS: R5 only memory unreadable => memory reported
+PASS: R5 nproc clamp then unreadable ulimit => unreadable_ulimit
+PASS: R5 unreadable nproc then thread clamp => still unreadable_nproc
+PASS: R5 collect_envs without -- returns 2 (no spin)
+PASS: R5 collect_envs with -- parses env words
+PASS: R5 rawrun without -- fails fast, reports (rc=99)
+PASS: R5 dangling flag message on stderr
+PASS: R5 die writes nothing to stdout
+PASS: R5 missing N message
+PASS: R5 13-digit request rejected
+PASS: R5 13-digit message names the cap
+PASS: R5 12-digit request accepted
+PASS: R5 20-digit request message
+PASS: R5 zero request message
+PASS: R5 zero per-job-mem message
+PASS: R5 zero threads-per-job message
+PASS: R5 request 1 accepted (boundary)
+PASS: R5 threads-per-job 1 accepted (boundary)
+PASS: R5 per-job-mem 1 accepted (boundary)
+PASS: R5 unknown-flag message
+PASS: R5/I1 garbled memory is unreadable_memory even without --per-job-mem-kb
+PASS: R5 nproc=1 is valid (clamp nproc)
+PASS: R5 nproc=0 unreadable_nproc
+PASS: R5 signed nproc +5 unreadable_nproc
+PASS: R5 garbled nproc: no stderr noise
+PASS: R5/B3 ulimit(50)<threads(100): raw headroom -50 already exhausted
+PASS: R5/B3 ulimit==threads: raw headroom 0 already exhausted
+PASS: R5 ulimit 0100 is decimal 100 (=>90)
+PASS: R5 threads 0100 is decimal (=>900)
+PASS: R5/B3 active 08 is decimal 8 (=> cap already exhausted)
+PASS: R5 'Unlimited' (case) is garbled
+PASS: R5/B3 mtot=mav=1 valid but budget 0: already exhausted
+PASS: R5 mtot=0 => unreadable_memory
+PASS: R5 budget<per-job floors to exactly 1
+PASS: R5 garbled MemAvail => unreadable_memory
+PASS: R5 garbled MemAvail: no stderr noise
+PASS: R5 garbled MemTotal: no stderr noise
+PASS: R5 avail>total: no stderr noise
+PASS: R5 failing live nproc => unreadable_nproc
+PASS: R5 failing live nproc: stderr swallowed
+PASS: R5 failing live ps: stderr swallowed
+PASS: R5 failing live awk (MemTotal+MemAvailable) => unreadable_memory
+PASS: R5 failing live awk: stderr swallowed
+PASS: R5 failing live awk (MemAvailable only): stderr swallowed
+PASS: R5 failing live awk (MemTotal only): stderr swallowed
+PASS: R5b/B3 N=0 thread exhaustion: headroom<=0 refuses even a request of 1
+PASS: R5b/B3 N=0 agent exhaustion: cap<=0 refuses even a request of 1
+PASS: R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted
+PASS: R5b failing stderr-emitting ulimit => unreadable_ulimit
+PASS: R5b ulimit stderr swallowed (no leak)
+PASS: R7 id -ru=1000 id -u='' => id -ru used: N=50 none
+PASS: R7 id -ru=1000 id -u=abc => id -ru used: N=50 none
+PASS: R7 id -ru='' id -u=1000 => not repaired: unreadable_threads N=1
+PASS: R7 id -ru='1000 0' passed as ONE word (quoted): N=50 none
+PASS: R7 id -ru='1000 0' never split to '1000': unreadable_threads N=1
+PASS: R7 id -u=1111 id -ru=2222: ps -U got REAL 2222 => N=50 none
+PASS: R7 id -u=1111 id -ru=2222: effective 1111 NOT passed => unreadable_threads N=1
+PASS: R7 id -ru failing => no fallback to id -u: unreadable_threads N=1
+PASS: R7 ps argv carries -U 2222, never 1111
+# T-REMED B3: reviewer's exact scenario 1 (agent cap already exhausted)
+PASS: T-REMED/B3 6 active >= cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 1b (40 agents active against cap 6)
+PASS: T-REMED/B3 40 active agents >> cap 6, request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 2 (zero thread headroom left)
+PASS: T-REMED/B3 ulimit=100 threads=500 (zero headroom), request 1 => refuses entirely
+# T-REMED B3: reviewer's exact scenario 3 (request MORE than 1 at an exhausted cap)
+PASS: T-REMED/B3 active(9)>cap(6), request 10 => refuses entirely, not N=1
+# T-REMED I1: reviewer's exact scenario (99% memory used, no --per-job-mem-kb)
+PASS: T-REMED/I1 99% memory used, no per-job flag => ceiling checked, refuses entirely
+# T-REMED I1: same caller shape as test_foundational_mutations.sh:57 (--kind jobs --threads-per-job N, no --per-job-mem-kb)
+PASS: T-REMED/I1 the real (no-per-job-mem-kb) caller shape still refuses when host memory is exhausted
+# T-REMED false-positive guard: 1 unit of real thread headroom remains (not exhausted)
+PASS: T-REMED genuine 1-thread headroom is NOT exhausted: floors to N=1
+# T-REMED false-positive guard: 1 unit of real agent-cap headroom remains (not exhausted)
+PASS: T-REMED genuine 1-agent cap headroom is NOT exhausted: clamps to N=1
+# T-REMED false-positive guard: ample memory (no --per-job-mem-kb) is unaffected by the always-check
+PASS: T-REMED ample memory, no per-job flag: unaffected, still N=4 none
+# T014/B1 order (a): thread headroom exhausted, THEN memory garbled (different limits)
+PASS: T014/B1(a) exhausted-then-unreadable: N=0 thread_headroom_exhausted preserved
+# T014/B1 order (a): reviewer's own round-9 scenario -- agent cap exhausted, THEN memory garbled
+PASS: T014/B1(a) B3's round-9 scenario replayed: a 7th agent no longer gets past cap 6
+# T014/B1 order (b): nproc unreadable FIRST, THEN thread headroom exhausted (different limits)
+PASS: T014/B1(b) unreadable-then-exhausted: N=0 thread_headroom_exhausted, not unreadable_nproc
+# T014/B1 order (b): ulimit unreadable FIRST, THEN agent cap exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-agent-cap: N=0 agent_cap_exhausted, not unreadable_ulimit
+# T014/B1 order (b): ulimit unreadable FIRST, THEN memory ceiling exhausted (different limits)
+PASS: T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exhausted, not unreadable_ulimit
+# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix
+PASS: T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)
+FAIL: CON-117 r5 three-field line read: 'N=5 REASON=thread_headroom' vs no line '0|N=1 REASON=unreadable_ulimit'
+FAIL: CON-117 r5 three-field line then a full soft-888 line => N=888 thread_headroom expected rc=0 N=888 reason=thread_headroom got rc=0 N=5 reason=thread_headroom
+PASS: CON-117 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom
+PASS: CON-117 soft unlimited in the limits file => no thread clamp
+PASS: CON-117 garbled soft value in the limits file => unreadable_ulimit N=1
+PASS: CON-117 live read under sh (soft=123694) => N=123694 thread_headroom, never unreadable_ulimit
+SUMMARY pass=135 fail=2

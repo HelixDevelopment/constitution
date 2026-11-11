@@ -1,0 +1,35 @@
+# Registered EQUIVALENT mutants of scripts/fastcycle/tests/lib/consumer_required.sh (round 7 of the full-suite fix
+# vehicle, CON-169/CON-174). One row per single-edit mutant that the systematic sweep of
+# test_consumer_required_mutations.sh --sweep generates and that no test can kill, with the proof that it decides
+# exactly like the helper on every input. Key = operator.variant|sha256(line)[:8][~k for the k-th identical line]|occurrence.
+# The sweep requires the survivors to be EXACTLY these keys; `check` fails on a key that no longer matches a mutant.
+# Round 8 (review round 7 CR7-2): from-items-sample.2 (FROM items WHERE k IS NOT '') was removed: it is NOT equivalent
+# when items has a real column named k (SQLite resolves k inside the column subquery to that column, not to the alias);
+# leg L27 (l27_kcol.db) kills it.
+# Notation: C1 = rows of items, C2 = distinct id-column values equal to a named id, C3 = id-column values LIKE
+# '<named prefix>-%'. The helper SKIPs iff C1 > 0 and C2 < need and C3 = 0 (need = number of named ids, >= 1).
+# Lemma L (used below): every named id is '<P>-<digits>' with P a named prefix, and LIKE is ASCII case-insensitive,
+# so a value equal (or equal up to ASCII case) to a named id is LIKE '<P>-%'. Hence C3 = 0 implies C2 = 0, and with
+# C3 = 0 any count of values equal to a named id is 0; with C3 >= 1 there is no SKIP whatever C2 is. So a mutant
+# that changes only how C2 is counted, and keeps C2 = 0 whenever C3 = 0, decides like the helper.
+gt.2|4201fe96|0	`[ $need -gt 0 ]` -> `-ne 0`: need is $#, never negative, so the two tests agree.
+pragma-table.1|98fc3369|0	pragma_table_info('items') -> ('ITEMS'): SQLite table names are case-insensitive, so the same table (or none) is read.
+grep-x.3|b58d326c|0	grep -qx -> grep -qxF: the patterns are the literals atm_id and ticket_id, which hold no regex metacharacter.
+union-all.0|2dec50db|0	UNION ALL -> UNION: C2 is COUNT(DISTINCT k), unchanged by dropping duplicates; C3 is only compared with 0, and a set is empty iff the bag is.
+src-select.0|2dec50db|0	SELECT col -> SELECT DISTINCT col in each column subquery: as for UNION, C2 counts distinct values and C3 is only compared with 0.
+src-select.1|2dec50db|0	SELECT col -> SELECT upper(col): SQLite upper() changes only ASCII case and LIKE ignores ASCII case, so C3 is unchanged; by Lemma L upper(k) IN (ids) needs k LIKE '<P>-%', so C2 = 0 whenever C3 = 0. NULL stays NULL; a BLOB is read as the same text by both.
+count-star-to-k.0|23c2aa12|1	C3 COUNT(*) -> COUNT(k): a row passing WHERE k LIKE ... has k NOT NULL (NULL LIKE x is NULL, filtered), so COUNT(k) = COUNT(*).
+distinct-dropped.0|23c2aa12|0	C2 COUNT(DISTINCT k) -> COUNT(k): by Lemma L both are 0 when C3 = 0, and C2 decides nothing when C3 >= 1.
+in-trim.1|23c2aa12|0	C2 k IN -> lower(k) IN: a named id has an upper-case prefix and lower(k) has none, so the count is 0 on every input; by Lemma L the helper's C2 is 0 too whenever C3 = 0.
+in-trim.2|23c2aa12|0	C2 k IN -> upper(k) IN: upper(k) equal to a named id means k equals it up to ASCII case, so k LIKE '<P>-%' and C3 >= 1; with C3 = 0 the count is 0 (Lemma L).
+c2-sample.0|23c2aa12|0	C2 over a LIMIT 1 sample: a subset count is at most the full count, which is 0 when C3 = 0 (Lemma L).
+c2-const.0|23c2aa12|0	C2 -> 0*C2 = 0: with C3 = 0 the helper's C2 is 0 as well (Lemma L), with C3 >= 1 C2 decides nothing.
+eq.1|bd6dc174|0	`[ $# -eq 3 ] || return 0` -> `-le 3`: with fewer than 3 fields the next loop reads an empty "$3" (or "$2"), matches the '' alternative and returns 0, as the helper does.
+case-alt.0|da3578b1|0	the '' alternative dropped from the per-field digit check: it is reached only with $# = 3. With the default IFS a field produced by word splitting the digit-and-space output of sqlite3 is never empty. An empty field arises only when the caller's IFS holds a digit (e.g. IFS='1 ' splits '1 0 0' into '', '0', '0'); then the mutant lets '' through and `[ '' -gt 0 ]` fails, so the helper does not SKIP either and returns 0: the decision is the same, but the mutant prints a diagnostic of [ on stderr. Bound: equivalent in the decision on every input and in the output for every IFS that holds no digit (the helper documents that callers keep the default IFS; review round 7 N7-3, N7-4).
+gt.2|f2fe43bc|0	`[ $1 -gt 0 ]` -> `-ne 0`: C1 is COUNT(*), checked to be digits only, so it is never negative.
+lt.0|f2fe43bc|0	`[ $2 -lt need ]` -> `-le need`: they differ only at C2 = need >= 1, where some k equals a named id, so C3 >= 1 (Lemma L) and neither SKIPs.
+lt.2|f2fe43bc|0	`[ $2 -lt need ]` -> `-ne need`: C2 counts distinct values equal to one of the need literals, so C2 <= need and the tests agree.
+eq.1|f2fe43bc|0	`[ $3 -eq 0 ]` -> `-le 0`: C3 is COUNT(*), checked to be digits only, so it is never negative.
+pfx-strip.0|3bf6085b|0	(round 8 param class) `${_fci_id%%-*}` -> `${_fci_id%-*}`: they differ only for an id with two or more dashes. Then the helper's _fci_n holds a dash and fails the digit check, while the mutant's _fci_p holds a dash and fails the class check [A-Z0-9]; both exit 2 with the same message (it names the whole id). For an id with one dash or none they compute the same _fci_p.
+unset.0|3de31c61|0	(round 8 param class) `unset _fcr_root _fcr_missing _fcr_p _fcr_abs` -> `:`: the four names are assigned before they are read on every call (_fcr_root and _fcr_missing set at entry, _fcr_p and _fcr_abs by the loop), and no script in the repository reads a _fcr_* name outside the helper (git grep: the only other files naming one are the sweep's own operator regexes and comments in test_consumer_required_mutations.sh, carriers; control needle: the helper itself names them). Bound: a future caller that reads a _fcr_* variable after the call.
+unset.0|3a2fbfa0|0	(round 8 param class) the final `unset _fci_*` -> `:`: every _fci_* name is assigned before it is read on every call (_fci_db, _fci_need, _fci_in, _fci_pfx at entry; _fci_id, _fci_p, _fci_n by the id loop; _fci_cols, _fci_src, _fci_key, _fci_c, _fci_like, _fci_q, _fci_v before use), the early `return 0` paths already leave them set, and no script in the repository reads a _fci_* name outside the helper (git grep: only the sweep's operator regexes and comments in test_consumer_required_mutations.sh, carriers; control needle: 18 lines of the helper). Bound: a future caller that reads a _fci_* variable after the call.

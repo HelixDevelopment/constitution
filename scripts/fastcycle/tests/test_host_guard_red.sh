@@ -226,9 +226,18 @@ chk "R3 unreadable ulimit value => unreadable_ulimit N=1" 0 1 unreadable_ulimit
 # Host-independent: expectations are derived from the SAME live value read by
 # the test itself, so a literal in the guard differs from the real value.
 BIG=999999999999   # request and injected nproc: never the binding limit
-# MXV: live `ulimit -u` (no FC_GUARD_ULIMIT_U). THREADS=0 => N = ulimit/1.
+# MXV: live soft RLIMIT_NPROC (no FC_GUARD_ULIMIT_U). THREADS=0 => N = soft/1.
+# CON-147: the expectation is read the way the kernel records it,
+# /proc/self/limits, not with `ulimit -u` (dash, a common /bin/sh, rejects
+# -u, which left S empty and the check meaningless under sh). Falls back to
+# `ulimit -u` only where the file is absent.
+S=$(awk '/^Max processes[ \t]/ { print $3; exit }' /proc/self/limits 2>/dev/null)
 # shellcheck disable=SC3045
-S=$(ulimit -u)
+[ -n "$S" ] || S=$(ulimit -u 2>/dev/null)
+if [ -z "$S" ]; then
+  bad "R4 live soft RLIMIT_NPROC readable by the test itself (neither /proc/self/limits nor ulimit -u)"
+  S=unlimited
+fi
 if [ "$S" = unlimited ]; then
   LOWA=1000000
   rawrun x $MEMOK FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
@@ -241,7 +250,13 @@ fi
 # second, different live value: lower the soft limit inside a subshell (never raises)
 if [ "$S" != unlimited ] && [ "$S" -le 1 ]; then echo "SKIP: ulimit -u too small to vary"
 else
-  RAW_OUT=$(sh -c 'ulimit -u "$1" && FC_GUARD_NPROC=$2 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB="$4" FC_GUARD_MEM_AVAIL_KB="$5" exec timeout '"$RAW_TIMEOUT_S"' sh "$3" "$2"' _ "$LOWA" "$BIG" "$GUARD" 67108864 67000000 2>/dev/null); RAW_RC=$?
+  # CON-147: lower the soft limit with prlimit(1) where present (works under
+  # any /bin/sh); else with the shell's `ulimit -u` (bash, ksh, busybox).
+  if command -v prlimit >/dev/null 2>&1; then
+    RAW_OUT=$(env FC_GUARD_NPROC="$BIG" FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 prlimit --nproc="$LOWA": timeout "$RAW_TIMEOUT_S" sh "$GUARD" "$BIG" 2>/dev/null); RAW_RC=$?
+  else
+    RAW_OUT=$(sh -c 'ulimit -u "$1" && FC_GUARD_NPROC=$2 FC_GUARD_THREADS=0 FC_GUARD_MEM_TOTAL_KB="$4" FC_GUARD_MEM_AVAIL_KB="$5" exec timeout '"$RAW_TIMEOUT_S"' sh "$3" "$2"' _ "$LOWA" "$BIG" "$GUARD" 67108864 67000000 2>/dev/null); RAW_RC=$?
+  fi
   RAW_N=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^N=//p'); RAW_R=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^REASON=//p')
   chk "R4 lowered live ulimit (=$LOWA) => N=$LOWA thread_headroom" 0 "$LOWA" thread_headroom
 fi
@@ -393,7 +408,8 @@ rawrun x FC_GUARD_NPROC=64 FC_GUARD_ULIMIT_U=unlimited FC_GUARD_MEM_TOTAL_KB=100
 chk "R5b N=1 memory floor: budget(600)>0 but < per-job(601) is genuine partial headroom, not exhausted" 0 1 none
 # ulimit diagnostics must be swallowed: a ulimit that writes stderr must not leak (bash-only, BASH_ENV shim)
 if command -v bash >/dev/null 2>&1; then
-  RAW_OUT=$(env BASH_ENV="$HD/be_ulimit_leak.sh" $MEMOK FC_GUARD_NPROC=4 FC_GUARD_THREADS=10 timeout "$RAW_TIMEOUT_S" bash "$GUARD" 2 2>"$ERRF"); RAW_RC=$?
+  # FC_GUARD_PROC_LIMITS points at no file, so the guard takes its ulimit fallback (CON-147).
+  RAW_OUT=$(env BASH_ENV="$HD/be_ulimit_leak.sh" FC_GUARD_PROC_LIMITS=/nonexistent/limits $MEMOK FC_GUARD_NPROC=4 FC_GUARD_THREADS=10 timeout "$RAW_TIMEOUT_S" bash "$GUARD" 2 2>"$ERRF"); RAW_RC=$?
   RAW_ERR=$(cat "$ERRF")
   RAW_N=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^N=//p'); RAW_R=$(printf '%s\n' "$RAW_OUT" | sed -n 's/^REASON=//p')
   chk "R5b failing stderr-emitting ulimit => unreadable_ulimit" 0 1 unreadable_ulimit
@@ -516,6 +532,53 @@ chk "T014/B1(b) unreadable-ulimit-then-exhausted-memory: N=0 memory_ceiling_exha
 echo "# T014/B1 insurance: TWO separate exhaustions (thread first in eval order, agent cap second) -- first exhaustion still wins, unaffected by the exhaust()/unreadable() fix"
 rawrun x FC_GUARD_NPROC=64 FC_GUARD_ULIMIT_U=10 FC_GUARD_THREADS=20 FC_GUARD_ACTIVE_AGENTS=9 -- 10 --kind agents
 chk "T014/B1 two exhaustions: first (thread_headroom_exhausted) stands over the later (agent_cap_exhausted)" 0 0 thread_headroom_exhausted
+
+# ---- CON-147: soft RLIMIT_NPROC read from a limits file, not from `ulimit -u` ----
+# Fixture limits files (the /proc/self/limits layout); the guard runs under
+# `sh`, which is dash on Debian/Ubuntu, so these pin the dash-safe path.
+LIMD=$(mktemp -d); trap 'rm -f "$ERRF"; rm -rf "${LIMD:?}"' EXIT
+mklim() { printf '%s\n' 'Limit                     Soft Limit           Hard Limit           Units' \
+  'Max cpu time              unlimited            unlimited            seconds' \
+  "Max processes             $1               $2               processes" \
+  'Max open files            1024                 4096                 files' > "$LIMD/$3"; }
+mklim 777 999 l777; mklim unlimited unlimited lunl; mklim abc 999 lbad
+# CON-147 round 5 (review round 4, F8): a 'Max processes' line with fewer than
+# four fields is skipped, as host_report.py skips it: alone it gives the same
+# result as a file with no such line (the ulimit fallback), and before a full
+# line the full line's soft value is used.
+printf '%s\n' 'Max cpu time              unlimited            unlimited            seconds' > "$LIMD/lnone"
+printf '%s\n' 'Max processes 5' > "$LIMD/l3f"
+printf '%s\n' 'Max processes 5' 'Max processes             888               999               processes' > "$LIMD/l3f888"
+# CON-147 round 6 (review fsfix5 M2, reviewer mutant H1 'NF >= 5' survived): the
+# boundary is FOUR words (two-word name, soft, hard); a line without the units
+# word is read, as host_report.py reads it.
+printf '%s\n' 'Max processes 5 6' > "$LIMD/l4w"
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lnone" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG; NOLINE="$RAW_RC|$RAW_OUT"
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l3f" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+if [ "$RAW_RC|$RAW_OUT" = "$NOLINE" ]; then ok "CON-147 r5 three-field 'Max processes 5' line is skipped: same result as no line ($(printf '%s' "$RAW_OUT" | tr '\n' ' '))"
+else bad "CON-147 r5 three-field line read: '$(printf '%s' "$RAW_OUT" | tr '\n' ' ')' vs no line '$(printf '%s' "$NOLINE" | tr '\n' ' ')'"; fi
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l3f888" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+chk "CON-147 r5 three-field line then a full soft-888 line => N=888 thread_headroom" 0 888 thread_headroom
+# CON-147 round 6 (decision-point census, enumerate_decision_mutants.py: the
+# awk's 2>/dev/null was unpinned): a limits path that passes -r but is a
+# DIRECTORY makes awk warn on stderr; the guard swallows it and falls back as
+# for a file with no line.
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+if [ "$RAW_RC|$RAW_OUT" = "$NOLINE" ]; then ok "CON-147 r6 limits path is a directory: same result as no line"
+else bad "CON-147 r6 limits path is a directory: '$(printf '%s' "$RAW_OUT" | tr '\n' ' ')' vs no line '$(printf '%s' "$NOLINE" | tr '\n' ' ')'"; fi
+cke0 "CON-147 r6 limits path is a directory: awk's warning swallowed (stderr empty)"
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l4w" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+chk "CON-147 r6 four-word 'Max processes 5 6' line (no units) is read => N=5 thread_headroom" 0 5 thread_headroom
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/l777" FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+chk "CON-147 soft 777 in the limits file (hard 999 ignored) => N=777 thread_headroom" 0 777 thread_headroom
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lunl" FC_GUARD_NPROC=64 FC_GUARD_THREADS=100 -- 8
+chk "CON-147 soft unlimited in the limits file => no thread clamp" 0 8 none
+rawrun x $MEMOK FC_GUARD_PROC_LIMITS="$LIMD/lbad" FC_GUARD_NPROC=64 FC_GUARD_THREADS=0 -- 8
+chk "CON-147 garbled soft value in the limits file => unreadable_ulimit N=1" 0 1 unreadable_ulimit
+# Control needle: the live file read under `sh` must give the soft value the test read itself.
+rawrun x $MEMOK FC_GUARD_NPROC=$BIG FC_GUARD_THREADS=0 -- $BIG
+if [ "$S" = unlimited ]; then chk "CON-147 live read under sh (soft unlimited) => none" 0 "$BIG" none
+else chk "CON-147 live read under sh (soft=$S) => N=$S thread_headroom, never unreadable_ulimit" 0 "$S" thread_headroom; fi
 
 echo "SUMMARY pass=$PASS fail=$FAIL"
 [ $FAIL -eq 0 ]

@@ -187,36 +187,39 @@ result_d = fc_common.run_gate_reaped(["sh", "-c", "echo partial-output; sleep 5"
 print("SECTION_D: timed_out=%s stdout=%r stderr=%r" % (result_d.timed_out, result_d.stdout, result_d.stderr))
 PYEOF
 )
-echo "$RESULT"
+# CON-149: printf, never echo, to pipe $RESULT: dash's echo turns the
+# literal \n that repr() prints in SECTION_C into a newline, so check 4
+# failed under /bin/sh = dash while passing under bash.
+printf '%s\n' "$RESULT"
 
-if echo "$RESULT" | grep -q "^SECTION_A: fails=0/20"; then
+if printf '%s\n' "$RESULT" | grep -q "^SECTION_A: fails=0/20"; then
     ok "1: THE FIX -- the Round 5 reviewer's exact immediately-detaching repro leaked 0/20 times under the real, current run_gate_reaped() (R5-I1 closed)"
 else
-    bad "1: the immediately-detaching repro still leaked under the real, current run_gate_reaped(): $(echo "$RESULT" | grep '^SECTION_A')"
+    bad "1: the immediately-detaching repro still leaked under the real, current run_gate_reaped(): $(printf '%s\n' "$RESULT" | grep '^SECTION_A')"
 fi
 
-if echo "$RESULT" | grep -q "^SECTION_A:.*mechanism=cgroup"; then
+if printf '%s\n' "$RESULT" | grep -q "^SECTION_A:.*mechanism=cgroup"; then
     ok "2: Section A genuinely exercised the cgroup mechanism (not a weaker fallback -- an apples-to-apples comparison with Section B)"
 else
-    bad "2: Section A did not report mechanism=cgroup -- re-investigate host cgroup v2 availability: $(echo "$RESULT" | grep '^SECTION_A')"
+    bad "2: Section A did not report mechanism=cgroup -- re-investigate host cgroup v2 availability: $(printf '%s\n' "$RESULT" | grep '^SECTION_A')"
 fi
 
-if echo "$RESULT" | grep -q "^SECTION_B:.*leaked=True"; then
+if printf '%s\n' "$RESULT" | grep -q "^SECTION_B:.*leaked=True"; then
     ok "3: GUARD-VIABILITY MUTATION -- the OLD pre-fix PIPE+communicate() shape, using the SAME cgroup mechanism, DOES still leak the identical exploit -- proving this round's specific fix (file-capture + wait()-then-reap ordering), not the cgroup mechanism itself, is what closes Section A"
 else
-    bad "3: the reconstructed pre-fix shape did NOT leak -- the guard-viability mutation is not meaningful, re-investigate: $(echo "$RESULT" | grep '^SECTION_B')"
+    bad "3: the reconstructed pre-fix shape did NOT leak -- the guard-viability mutation is not meaningful, re-investigate: $(printf '%s\n' "$RESULT" | grep '^SECTION_B')"
 fi
 
-if echo "$RESULT" | grep -q "^SECTION_C: rc=0 stdout='stdout-line\\\\n' stderr='stderr-line\\\\n'"; then
+if printf '%s\n' "$RESULT" | grep -q "^SECTION_C: rc=0 stdout='stdout-line\\\\n' stderr='stderr-line\\\\n'"; then
     ok "4: normal stdout/stderr capture is correct and unaffected by the file-based rewrite"
 else
-    bad "4: normal stdout/stderr capture regressed: $(echo "$RESULT" | grep '^SECTION_C')"
+    bad "4: normal stdout/stderr capture regressed: $(printf '%s\n' "$RESULT" | grep '^SECTION_C')"
 fi
 
-if echo "$RESULT" | grep -q "^SECTION_D: timed_out=True stdout='' stderr=''"; then
+if printf '%s\n' "$RESULT" | grep -q "^SECTION_D: timed_out=True stdout='' stderr=''"; then
     ok "5: the documented timeout contract (stdout/stderr empty) is preserved unchanged"
 else
-    bad "5: the timeout contract regressed: $(echo "$RESULT" | grep '^SECTION_D')"
+    bad "5: the timeout contract regressed: $(printf '%s\n' "$RESULT" | grep '^SECTION_D')"
 fi
 
 echo ""

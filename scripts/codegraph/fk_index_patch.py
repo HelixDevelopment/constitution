@@ -21,6 +21,11 @@
 #               char a digit) and NUL-containing source files are stored as
 #               skip rows (0 nodes, error code data_fragment_skipped /
 #               binary_content_skipped) instead of timing out the parse pool.
+#     resolve1 / resolve2  resolver fixes (see runner_patches/resolve1.py, resolve2.py)
+#     mcpro1    read-only MCP server runner (opt-in, exclusive)
+#   Default set (no --patches): fkidx1, resolve1, resolve2. lockfix1 and
+#   datafrag1 have no behavioural test and are opt-in by name (CON-164, operator
+#   decision 2026-11-05).
 #   Adding a future patch = one module in runner_patches/ + one REGISTRY entry.
 #
 # FAIL-CLOSED / upgrade behaviour
@@ -36,11 +41,13 @@
 #                     [--patches id,id,...] [--force] [--print-bin]
 #                     [--list-patches]
 #   --src      defaults to the globally installed platform package (npm root -g)
-#   --patches  subset of the registry (default: all). `--patches fkidx1`
+#   --patches  subset of the registry (default: the TESTED set fkidx1,resolve1,
+#              resolve2; lockfix1, datafrag1 and mcpro1 only by name, see
+#              runner_patches/__init__.py UNTESTED / OPT_IN). `--patches fkidx1`
 #              reproduces the original single-patch runner (key <ver>-fkidx1).
 #   --dst      defaults to ${HELIX_CODEGRAPH_RUNNER_DIR:-$HOME/.cache/helix/codegraph_runner}/<runner key>
 #              where <runner key> = <version>-<applied ids joined by '-'>,
-#              e.g. 1.6.0-fkidx1-lockfix1-datafrag1
+#              e.g. 1.6.2-fkidx1-resolve1-resolve2 for the default set
 #   --force    rebuild even when a valid receipt exists
 #   --print-bin  print only the runner's `bin/codegraph` path on success
 #
@@ -163,18 +170,70 @@ def runner_in_use(dst):
     return users
 
 
+RECEIPT_NAME = "RUNNER_RECEIPT.json"
+
+
+def tree_manifest(root, edits=None):
+    """{relpath: entry} for every file and symlink under root (directories are implied).
+
+    entry = ("f", sha256, executable) for a regular file, ("l", target) for a symlink.
+    With `edits` ({rel: text}), the edited files are described by their planned text
+    instead of their bytes on disk, so tree_manifest(src, view.edits) is the tree this
+    invocation would build. The receipt file itself is not part of the runner tree.
+    """
+    edits = edits or {}
+    out = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for name in sorted(filenames) + sorted(d for d in dirnames if os.path.islink(os.path.join(dirpath, d))):
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            if rel == RECEIPT_NAME:
+                continue
+            if os.path.islink(full):
+                out[rel] = ("l", os.readlink(full))
+            elif rel in edits:
+                out[rel] = ("f", sha256_text(edits[rel]), os.access(full, os.X_OK))
+            else:
+                out[rel] = ("f", sha256(full), os.access(full, os.X_OK))
+    for rel, text in edits.items():  # an edit of a file the source lacks still belongs to the tree
+        out.setdefault(rel, ("f", sha256_text(text), False))
+    return out
+
+
 def receipt_valid(rc, src, dst, view, applied, key):
-    """True when <dst> already holds exactly the runner this invocation would build."""
-    if "patches" not in rc:  # legacy single-patch receipt (pre-registry tool)
-        return (applied == ["fkidx1"] and rc.get("patch_id") == "fkidx1"
-                and rc.get("source_dbjs_sha256") == sha256(os.path.join(src, DBJS_REL))
-                and sha256(os.path.join(dst, DBJS_REL)) == rc.get("patched_dbjs_sha256"))
-    if rc.get("runner_key") != key or rc.get("patch_set") != applied:
+    """True when <dst> already holds exactly the runner this invocation would build.
+
+    The receipt fields must match, the launcher must exist and be executable, and the
+    WHOLE runner tree (every file and symlink, not only the edited files) must equal the
+    source tree with this invocation's edits applied: a truncated, missing or planted
+    file means the runner is rebuilt, never reused (test_patch_machinery.py P2).
+    """
+    if not isinstance(rc, dict):
         return False
-    for rel, text in view.edits.items():
-        if sha256(os.path.join(dst, rel)) != sha256_text(text):
+    if "patches" not in rc:  # legacy single-patch receipt (pre-registry tool)
+        if not (applied == ["fkidx1"] and rc.get("patch_id") == "fkidx1"
+                and rc.get("source_dbjs_sha256") == sha256(os.path.join(src, DBJS_REL))
+                and sha256(os.path.join(dst, DBJS_REL)) == rc.get("patched_dbjs_sha256")):
             return False
-    return True
+    elif rc.get("runner_key") != key or rc.get("patch_set") != applied:
+        return False
+    if not os.access(os.path.join(dst, "bin", "codegraph"), os.X_OK):
+        return False
+    return tree_manifest(dst) == tree_manifest(src, view.edits)
+
+
+def load_receipt(path):
+    """Parse the receipt; a corrupt one refuses and names the recovery (--force)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            rc = json.load(fh)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refuse(f"receipt {path} is unreadable or corrupt ({type(exc).__name__}: {exc}); "
+                     f"re-run with --force to rebuild the runner")
+    if not isinstance(rc, dict):
+        raise Refuse(f"receipt {path} is not a JSON object; re-run with --force to rebuild the runner")
+    return rc
 
 
 def main():
@@ -208,19 +267,21 @@ def main():
             os.path.expanduser("~"), ".cache", "helix", "codegraph_runner")
         dst = os.path.abspath(args.dst or os.path.join(base, key))
         binp = os.path.join(dst, "bin", "codegraph")
-        receipt_path = os.path.join(dst, "RUNNER_RECEIPT.json")
+        receipt_path = os.path.join(dst, RECEIPT_NAME)
+        tmp = dst + ".partial"
         if os.path.isfile(receipt_path) and not args.force:
-            rc = json.load(open(receipt_path))
+            rc = load_receipt(receipt_path)
             if receipt_valid(rc, src, dst, view, applied, key):
+                if os.path.lexists(tmp):  # a stale half-built copy from an interrupted run
+                    shutil.rmtree(tmp) if os.path.isdir(tmp) and not os.path.islink(tmp) else os.remove(tmp)
                 print(binp if args.print_bin else json.dumps({"status": "REUSED", "runner": binp, **rc}, indent=2))
                 return 0
         if os.path.exists(dst):
             users = runner_in_use(dst)
             if users:
                 raise Refuse(f"runner dir {dst} is in use by live PID(s) {users} — refusing to replace it")
-        tmp = dst + ".partial"
-        if os.path.exists(tmp):
-            shutil.rmtree(tmp)
+        if os.path.lexists(tmp):
+            shutil.rmtree(tmp) if os.path.isdir(tmp) and not os.path.islink(tmp) else os.remove(tmp)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         subprocess.check_call(["cp", "-a", "--reflink=auto", src, tmp])
         for rel, text in view.edits.items():
@@ -234,7 +295,7 @@ def main():
                    "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         if "fkidx1" in applied:  # legacy top-level fields describe the fkidx1 patch
             receipt.update({"patch_id": PATCH_ID, **report["fkidx1"]["detail"]})
-        with open(os.path.join(tmp, "RUNNER_RECEIPT.json"), "w", encoding="utf-8") as fh:
+        with open(os.path.join(tmp, RECEIPT_NAME), "w", encoding="utf-8") as fh:
             json.dump(receipt, fh, indent=2)
             fh.write("\n")
         if os.path.exists(dst):

@@ -38,10 +38,18 @@ def derive_keep_set(schema):
 
 
 def parse_lists(dbjs):
-    lists = {}
+    lists, seen = {}, {}
     for m in LIST_RE.finditer(dbjs):
         nm = re.search(r"BULK_[A-Z_]+_NAMES", m.group(1)).group(0)
+        seen[nm] = seen.get(nm, 0) + 1
         lists[nm] = re.findall(r"'(idx_[A-Za-z0-9_]+)'", m.group(2))
+    # Every list anchor must occur EXACTLY once (fail-closed): a commented-out copy or a
+    # duplicated declaration would make the edit land on whichever copy is found first.
+    dup = sorted(k for k, n in seen.items() if n != 1)
+    if dup:
+        raise Refuse("db/index.js: list anchor(s) occur more than once: "
+                     + ", ".join(f"static {k} = [...] x{seen[k]}" for k in dup)
+                     + " — upstream shape changed or a commented copy exists")
     for need in ("BULK_PARSE_INDEX_NAMES", "BULK_REF_INDEX_NAMES", "BULK_EDGE_INDEX_NAMES"):
         if not lists.get(need):
             raise Refuse(f"db/index.js: {need} not found/empty — upstream shape changed")

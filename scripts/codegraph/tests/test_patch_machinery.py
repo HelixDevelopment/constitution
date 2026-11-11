@@ -11,9 +11,20 @@
 #             P2  the reuse (REUSED) path must verify the WHOLE runner tree and
 #                 an executable launcher, not only the edited files
 #             P3  the default patch set is EXACTLY the tested subset
-#             P4  minor: stale <dst>.partial removed on REUSED; a corrupt
-#                 receipt refusal names --force
-# Usage     python3 test_patch_machinery.py            (exit 0 = all PASS)
+#                 (fkidx1,resolve1,resolve2); lockfix1/datafrag1 stay
+#                 selectable by name (P3c); P3b: a BARE run on the REAL
+#                 installed package builds that runner (SKIP with a reason
+#                 when the real package cannot be resolved)
+#             P4  minor: stale <dst>.partial (dir or file) removed on REUSED;
+#                 a corrupt or non-object receipt refusal names --force
+#             (P2g/P2h/P4d/P4e are the review round-1 cases X1-X4: symlink,
+#             exec bit on a non-launcher, .partial file, `[]` receipt;
+#             P2i/P2j are the round-2 cases X6/X7: a directory symlink and a
+#             retargeted shipped symlink)
+#             P5  the skip contract: a forced P3b skip exits 77 with a counted
+#                 summary line ending reason=topology_unsupported
+# Usage     python3 test_patch_machinery.py            (exit 0 = all PASS, 1 = a FAIL,
+#                                                     77 = no FAIL but a case SKIPped, reason=topology_unsupported)
 #           PATCH_TOOL_ROOT=<dir> python3 ...          (test a copied/mutated tool)
 # Inputs    PATCH_TOOL_ROOT (default: this file's parent's parent)
 # Outputs   one PASS/FAIL line per case on stdout; exit 1 on any FAIL
@@ -58,12 +69,13 @@ DBJS_TMPL = """db.pragma('foreign_keys = ON');
 """
 
 FAILS = []
+SKIPS = []
+PASSES = []
 
 
 def check(cid, ok, msg):
     print(f"{'PASS' if ok else 'FAIL'} {cid}: {msg}")
-    if not ok:
-        FAILS.append(cid)
+    (PASSES if ok else FAILS).append(cid)
 
 
 def make_pkg(base, pre="", parse=PARSE_LIST):
@@ -156,6 +168,46 @@ def case_p2(base):
     path = out.strip()
     check("P2f", rc == 0 and os.path.isfile(path) and os.access(path, os.X_OK),
           f"legacy receipt + missing launcher is not reused (rc={rc}, exists={os.path.isfile(path)})")
+    # review round 1 X1: a planted SYMLINK in the runner tree is not reused (the manifest must see links)
+    src = make_pkg(os.path.join(base, "p2g"))
+    dst = os.path.join(base, "p2g", "run")
+    run(src, dst)
+    os.symlink("/etc/hostname", os.path.join(dst, "lib", "dist", "planted_link.js"))
+    rc, out, _ = run(src, dst)
+    check("P2g", rc == 0 and status(out) == "CREATED" and not os.path.lexists(os.path.join(dst, "lib/dist/planted_link.js")),
+          f"a planted symlink is NOT reused (status={status(out)})")
+    # review round 1 X2: an exec bit added to a file that is not the launcher is not reused
+    src = make_pkg(os.path.join(base, "p2h"))
+    dst = os.path.join(base, "p2h", "run")
+    run(src, dst)
+    other = os.path.join(dst, "lib", "dist", "other.js")
+    os.chmod(other, 0o755)
+    rc, out, _ = run(src, dst)
+    check("P2h", rc == 0 and status(out) == "CREATED" and not os.access(other, os.X_OK),
+          f"an exec-bit change on a non-launcher file is NOT reused (status={status(out)})")
+    # review round 2 X6 (mutant N1a): a planted DIRECTORY symlink is not reused (the manifest must list
+    # symlinked directories, which os.walk reports in dirnames, not in filenames)
+    src = make_pkg(os.path.join(base, "p2i"))
+    dst = os.path.join(base, "p2i", "run")
+    run(src, dst)
+    os.symlink("/etc", os.path.join(dst, "lib", "dist", "planted_dir"))
+    rc, out, _ = run(src, dst)
+    check("P2i", rc == 0 and status(out) == "CREATED" and not os.path.lexists(os.path.join(dst, "lib/dist/planted_dir")),
+          f"a planted directory symlink is NOT reused (status={status(out)})")
+    # review round 2 X7 (mutant N1b): a symlink the SOURCE package ships, retargeted in the runner, is not
+    # reused (the manifest must record each link's target, not only that a link exists)
+    src = make_pkg(os.path.join(base, "p2j"))
+    os.symlink("other.js", os.path.join(src, "lib", "dist", "alias.js"))
+    dst = os.path.join(base, "p2j", "run")
+    run(src, dst)
+    link = os.path.join(dst, "lib", "dist", "alias.js")
+    shipped = os.path.islink(link) and os.readlink(link) == "other.js"
+    os.unlink(link)
+    os.symlink("/etc/hostname", link)
+    rc, out, _ = run(src, dst)
+    target = os.readlink(link) if os.path.islink(link) else None
+    check("P2j", shipped and rc == 0 and status(out) == "CREATED" and target == "other.js",
+          f"a retargeted shipped symlink is NOT reused (shipped={shipped}, status={status(out)}, target={target!r})")
 
 
 def case_p3():
@@ -164,6 +216,43 @@ def case_p3():
     p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
     got = p.stdout.strip()
     check("P3", got == "fkidx1,resolve1,resolve2", f"default patch set is exactly fkidx1,resolve1,resolve2 (got '{got}')")
+    # the untested patches stay selectable BY NAME (opt-in), they are only out of the default
+    code = ("import sys; sys.dont_write_bytecode=True; sys.path.insert(0, sys.argv[1]); import runner_patches as r;"
+            "print(','.join(m.PATCH_ID for m in r.load(['fkidx1', 'lockfix1', 'datafrag1'])))")
+    p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
+    got = p.stdout.strip()
+    check("P3c", got == "fkidx1,lockfix1,datafrag1",
+          f"lockfix1 and datafrag1 remain selectable by name (got '{got}', rc={p.returncode})")
+
+
+def case_p3b(base):
+    # A BARE run (no --patches) on the REAL installed platform package must not refuse
+    # (operator decision 2026-11-05, Option A). Needs the real package: when it cannot be
+    # resolved the case is SKIP with a reason, never a PASS.
+    code = ("import sys; sys.dont_write_bytecode=True; sys.path.insert(0, sys.argv[1]); import fk_index_patch as m;"
+            "print(m.default_src())")
+    p = subprocess.run([sys.executable, "-c", code, ROOT], capture_output=True, text=True)
+    src = p.stdout.strip()
+    if os.environ.get("PATCH_MACH_FORCE_P3B_SKIP") == "1":  # test hook for P5 only: exercise the skip path
+        src = ""
+    if p.returncode != 0 or not src or not os.path.isfile(os.path.join(src, "package.json")):
+        # reason topology_unsupported (review I1-7): the real package is a third-party install on the host,
+        # not a build output of this project, so artifact_not_yet_built was the wrong code (section 11.4.69)
+        print(f"SKIP P3b: topology_unsupported: real codegraph platform package not installed or not resolvable (rc={p.returncode})")
+        SKIPS.append("P3b")
+        return
+    ver = json.load(open(os.path.join(src, "package.json"))).get("version")
+    dst = os.path.join(base, "p3b", "run")
+    q = subprocess.run([sys.executable, TOOL, "--src", src, "--dst", dst],
+                       capture_output=True, text=True, timeout=600)
+    key = ""
+    try:
+        key = json.loads(q.stdout).get("runner_key", "")
+    except Exception:  # noqa: BLE001
+        pass
+    check("P3b", q.returncode == 0 and key == f"{ver}-fkidx1-resolve1-resolve2",
+          f"bare run on the real package {ver} builds the default runner (rc={q.returncode}, key='{key}', "
+          f"out={q.stdout.strip()[:160]!r})")
 
 
 def case_p4(base):
@@ -179,21 +268,60 @@ def case_p4(base):
     check("P4b", rc == 2 and "--force" in err, f"corrupt receipt refuses and names --force (rc={rc})")
     rc, out, err = run(src, dst, "--force")
     check("P4c", rc == 0 and status(out) == "CREATED", f"--force rebuilds over a corrupt receipt (rc={rc})")
+    # review round 1 X3: a stale <dst>.partial that is a regular FILE is removed on REUSED too
+    open(dst + ".partial", "w").write("stale\n")
+    rc, out, _ = run(src, dst)
+    check("P4d", rc == 0 and status(out) == "REUSED" and not os.path.lexists(dst + ".partial"),
+          f"stale .partial FILE removed on REUSED (status={status(out)}, left={os.path.lexists(dst + '.partial')})")
+    # review round 1 X4: a receipt that is valid JSON but not an object refuses and names --force
+    open(os.path.join(dst, "RUNNER_RECEIPT.json"), "w").write("[]\n")
+    rc, out, err = run(src, dst)
+    check("P4e", rc == 2 and "--force" in err and status(out) is None,
+          f"a non-object receipt ([]) refuses and names --force (rc={rc})")
+
+
+def case_p5():
+    # review I1-6 (mutant N1c): pin the skip contract the full-suite runner relies on. A child run of this
+    # file with P3b forced to skip must exit 77 and end in a counted summary line with reason=topology_unsupported;
+    # exit 0, or a line without the reason, would be judged PASS by the runner's parser.
+    if os.environ.get("PATCH_MACH_CHILD") == "1":
+        return
+    env = dict(os.environ, PATCH_MACH_FORCE_P3B_SKIP="1", PATCH_MACH_CHILD="1")
+    p = subprocess.run([sys.executable, os.path.abspath(__file__)], capture_output=True, text=True, env=env, timeout=600)
+    lines = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    last = lines[-1] if lines else ""
+    check("P5", p.returncode == 77 and last.startswith("SUMMARY ") and " skip=1 " in last
+          and "(skipped: P3b)" in last and last.endswith(" reason=topology_unsupported"),
+          f"a forced P3b skip exits 77 with a counted reason line (rc={p.returncode}, last={last!r})")
 
 
 def main():
     base = tempfile.mkdtemp(prefix="cg_patch_mach.")
     try:
         for name, fn in (("P1", lambda: case_p1(base)), ("P2", lambda: case_p2(base)),
-                         ("P3", case_p3), ("P4", lambda: case_p4(base))):
+                         ("P3", case_p3), ("P3b", lambda: case_p3b(base)), ("P4", lambda: case_p4(base)),
+                         ("P5", case_p5)):
             try:
                 fn()
             except Exception as exc:  # noqa: BLE001  a crashing case is a FAIL, never a silent skip
                 check(name + "-crash", False, f"{type(exc).__name__}: {exc}")
     finally:
         shutil.rmtree(base, ignore_errors=True)
-    print(f"SUMMARY fails={len(FAILS)} {' '.join(FAILS)}")
-    return 1 if FAILS else 0
+    # One summary shape the full-suite runner's structural parser reads (review I6-3): counters only, ids in
+    # parentheses. A FAIL exits 1; a SKIP with no FAIL exits 77 with its reason (the unit is a SKIP, never a
+    # green PASS, because a skipped case was not run); all PASS exits 0.
+    npass = len(PASSES)
+    ids = "; ".join(x for x in (("failed: " + " ".join(FAILS)) if FAILS else "",
+                                 ("skipped: " + " ".join(SKIPS)) if SKIPS else "") if x)
+    line = f"SUMMARY pass={npass} fail={len(FAILS)} skip={len(SKIPS)}" + (f" ({ids})" if ids else "")
+    if FAILS:
+        print(line)
+        return 1
+    if SKIPS:
+        print(line + " reason=topology_unsupported")
+        return 77
+    print(line)
+    return 0
 
 
 if __name__ == "__main__":
