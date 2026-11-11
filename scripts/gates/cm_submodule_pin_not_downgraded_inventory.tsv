@@ -1,4 +1,4 @@
-# CM-SUBMODULE-PIN-NOT-DOWNGRADED guard inventory (CON-046, structural round CON-108). One row per guard MEMBER or
+# CM-SUBMODULE-PIN-NOT-DOWNGRADED guard inventory (CON-046, structural round CON-146). One row per guard MEMBER or
 # SITE of cm_submodule_pin_not_downgraded.sh. Columns (TAB): id, anchor (a fixed string occurring once in the gate's
 # code), mutants (comma list of Part-2 mutant names), eq (comma list of equivalence-proof names, or -), need, reason.
 # need: both = mutants must show a fail-open (fo: a refusal became exit 0) AND a false refusal (fr: an exit 0 became a
@@ -6,19 +6,25 @@
 # (plumbing, no refusal of its own); none = equivalent member, eq column carries the differential proof.
 # Rows Hnnn anchor in the hook (scripts/hooks/pre-commit-submodule-pin-not-downgraded); anchors spanning lines write <NL>.
 # Checked by cm_submodule_pin_not_downgraded_mutation_test.sh (lint static in Part 1, lint dynamic after Part 2).
+# Round 8: the members below this inventory's line-segment granularity (case alternatives, regex quantifiers, anchors and
+# class parts, strip halves, comparison operators, && / || / or / and operands, `if !`) are GENERATED mechanically by
+# cm_submodule_pin_not_downgraded_members.py into the ledger cm_submodule_pin_not_downgraded_members.tsv; the test
+# regenerates the ledger, refuses a stale one, and runs every viable generated mutant (each must be killed).
 I001	set -uo pipefail	lastpipe-dropped	-	ch	shell options; the pipefail/lastpipe pair is falsified through lastpipe (the main loop sets fail in the pipeline's last stage)
 I002	shopt -s lastpipe	lastpipe-dropped	-	fo	dropping it loses fail=1 set inside the loop: a refusal passes; no false-refusal form exists
 I003	GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"	diverged-silent,undecided-is-ok	-	ch	message prefix; the fixtures count prefixed lines (cnt '^CM-SUBMODULE-PIN-NOT-DOWNGRADED: WARN')
 I004	self="${BASH_SOURCE[0]:-$0}"	help-truncated,root-default-wrong	-	ch	source of the help text and the default root
 I005	root="$(cd "$(dirname "$self")/../.." && pwd -P)"	root-default-wrong	-	ch	default root (no --root): ROOTDEFAULT
-I006	need() { [ "$1" -ge 2 ]	usage-value-unchecked,usage-argc-off-by-one	-	both	argc member: dropped (fo: a flag without value accepted) / off by one (fr: a valid flag refused)
-I007	&& [ -n "$2" ] ||	usage-empty-value-accepted,usage-argc-off-by-one	-	both	empty-value member
+I006	need() { [ "$1" -ge 2 ]	usage-value-unchecked,usage-argc-off-by-one	-	both	argc member: dropped (fo: a flag without value accepted) / off by one (fr: a valid flag refused); round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
+I007	&& [ -n "$2" ] ||	usage-empty-value-accepted,usage-argc-off-by-one	-	both	empty-value member; round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
+I007b	"$1" -ge 2 ] && [ -n	-	eq-need-argc-redundant	none	round 8 generated member (argc test dropped): equivalent, every caller passes "${2:-}", so argc < 2 implies an empty value which the -n member refuses (differential probe pr_needargc)
 I008	echo "$GATE: $3 needs a value" >&2; exit 2	usage-value-unchecked	-	ch	usage exit 2 (ARGS fixture)
 I009	--root) need $# "${2:-}" --root	root-cd-fail-ignored,usage-value-unchecked	-	ch	--root parse
 I010	root="$(cd "$2" && pwd -P)" || exit 2	root-cd-fail-ignored	-	ch	unenterable --root -> exit 2
 I011	--base) need $# "${2:-}" --base	base-arg-dropped	-	ch	--base value used (AMEND)
 I012	--waivers) need $# "${2:-}" --waivers	waivers-arg-dropped,waivers-file-not-read	-	ch	--waivers value used (WFILE)
-I013	-h|--help) awk	help-truncated,V02-help-exits-1	-	ch	help text and its exit 0 (HELP, KV02HELP)
+I013	-h|--help) awk	help-truncated,V02-help-exits-1	-	ch	help text and its exit 0 (HELP, KV02HELP); the `--help` alternative is row I013b
+I013b	|--help) awk	RV7-05-help-long-dropped	-	fr	`--help` alternative (round-7 reviewer mutant RV7-05; F_HELPLONG): dropped, `--help` is a usage error 2; no fail-open form (help prints, it never decides)
 I014	NR>1 {exit}' "$self"; exit 0 ;;	V02-help-exits-1	-	fr	help exit 0 -> 1 (KV02HELP); no fail-open form
 I015	*) echo "$GATE: unknown argument $1" >&2; exit 2 ;;	unknown-arg-accepted,V01-unknown-arg-exits-1	-	ch	usage error exit 2 vs 0/1
 I016	blind0() { echo "$GATE: BLIND — $1"; exit 2; }	blind0-exits-0	-	fo	BLIND exit 2 -> 0
@@ -29,10 +35,13 @@ I018b	|| blind0 "cannot enter $top"	root-not-normalised,logical-paths	-	ch	react
 I019	mapfile -t lev < <(git rev-parse --local-env-vars 2>/dev/null)	hook-env-inherited,local-env-vars-unchecked	-	ch	env vars to drop for submodule calls
 I020	[ "${#lev[@]}" -gt 0 ]	lev-check-always-blind	-	fr	test member: always empty -> every run BLIND (fr)
 I020b	|| blind0 "git rev-parse --local-env-vars returned nothing"	local-env-vars-unchecked	-	ch	reaction member (LEV)
-I021	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;;	V03-env-keeps-GIT_DIR	eq-UNCONFIRMED-config-params-unset	ch	keep-list: adding GIT_DIR breaks submodule calls (V03); dropping the keep-list is UNCONFIRMED-equivalent (no config reachable through it changes a verdict)
+I021	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;;	V03-env-keeps-GIT_DIR,config-params-all-unset	-	fr	keep-list: adding GIT_DIR breaks submodule calls (V03); dropping it (round 7 claimed equivalent; review R7-2 refuted) turns a `git -c safe.directory=*` commit in a foreign-owned checkout into a false BLIND (S_PARAMS*, S_COUNT*); no fail-open form (an unset variable only makes git stricter)
+I021a	in GIT_CONFIG_PARAMETERS|	RV7-02-keep-drops-PARAMETERS	-	fr	GIT_CONFIG_PARAMETERS alternative (RV7-02; S_PARAMSFWD / S_PARAMSDOWN): dropped, `git -c safe.directory=* commit` gives a false BLIND
+I021b	|GIT_CONFIG_COUNT) ;;	RV7-01-keep-drops-COUNT	-	fr	GIT_CONFIG_COUNT alternative (RV7-01; S_COUNTFWD / S_COUNTDOWN): dropped, the KEY_0/VALUE_0 channel gives a false BLIND
 I022	*) unsets+=(-u "$v") ;; esac; done	hook-env-inherited	-	ch	unset list feeds sg()
 I023	sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1	hook-env-inherited,replace-refs-honoured,R3m1-grafts-honoured,RV7-lazy-fetch	-	ch	submodule git environment (four members)
 I024	sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1	replace-refs-honoured	-	ch	replace refs member
+I023b	git -c core.commitGraph=false "$@"	commit-graph-honoured	-	fo	commit-graph off for every submodule call (round 8, R7-1): honoured, a downgrade whose middle commit is missing from the store reads as DIVERGED (WARN, exit 0) under a commit-graph (G_DOWNGRADE); no false-refusal form
 I025	pg() { GIT_NO_LAZY_FETCH=1	RM9-super-replace-honoured,RM10-super-lazy-fetch,spent-grafts-honoured	-	ch	superproject git environment (three members)
 I026	headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"	headc-empty	-	ch	HEAD as default base and N4 reference
 I027	if [ -z "$base" ]; then	base-arg-dropped,base-resolve-unchecked	-	ch	base mode switch
@@ -61,6 +70,7 @@ I045b	is not key=value"; break; }	conf-non-kv-unnamed	-	ch	reaction member: the 
 I046	case "$seen" in *" $k "*) conferr=	RV3-duplicate-key-allowed,conf-dup-always-error,V09-conf-seen-no-space	-	both	duplicate key: allowed (fo) / always (fr)
 I047	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	conf-days-regex-loosened,V07-conf-days-max-99,conf-days-always-error	-	both	days form: loosened (fo) / 1..99 (fr, DAYS100) / always (fr)
 I048	&& [ "$v" -le 365 ] ||	RV5-365-cap-removed,conf-days-366,V08-conf-days-365-exclusive	-	both	days cap: 366 (fo) / 365 exclusive (fr, KV365)
+I048b	{0,2}$ ]] && [ "$v" -le 365 ]	-	eq-maxdays-upper-bound-by-le	none	round 8 generated member (upper digit bound of the days regex): equivalent, a 4-digit value is >= 1000 > 365 and is refused by -le 365 (differential probe pr_maxdays: 999, 1000, 365)
 I049	maxd="$v" ;;	days-assign-dropped	-	ch	days assignment (DAYS100, CONF)
 I050	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	RV4-prefix-unvalidated,prefix-plus-to-star,prefix-anchor-start-dropped,prefix-anchor-end-dropped,conf-prefix-always-error	-	both	prefix form members (+, ^, $): loosened (fo, PREFIXFORM) / always (fr)
 I051	prefix="$v" ;;	prefix-assign-dropped	-	ch	prefix assignment (PREFIX)
@@ -80,12 +90,14 @@ I064	if len(p)!=5: return 4	-	eq-idpy-len-dropped	none	equivalent: the shell alw
 I065	a=p[0]	auth-arg-is-committer	-	ch	authoriser field
 I066	if not a or a!=a.strip()	empty-authoriser-allowed,auth-form-always	-	both	empty authoriser: allowed (fo) / every form refused (fr)
 I067	a!=a.strip() or "<" in a	authoriser-form-unchecked	-	fo	surrounding whitespace allowed (fo); fr form is auth-form-always (I066)
+I067b	!=a.strip() or "<"	RV7-04-authoriser-lstrip-only	-	fo	trailing half of strip() (RV7-04; F_SELFTRAIL): lstrip only lets the committer self-waive with a trailing space; no false-refusal form for this half (the leading half is the generated STRIP member)
 I068	or "<" in a	auth-lt-dropped	-	fo	'<' member (AUTHLTGT); fr form is auth-form-always (I066)
 I068b	or ">" in a	auth-gt-dropped	-	fo	'>' member (AUTHLTGT); fr form is auth-form-always (I066)
 I069	any(unicodedata.category(c).startswith("C") for c in a)	authoriser-control-chars-allowed,V12-authoriser-only-Cc	-	fo	control characters (KV12ZWSP); fr form is auth-form-always
 I070	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr)
 I071	return 10 if any(	self-authoriser-allowed,self-always	-	both	self-waive: allowed (fo) / always (fr)
 I071b	i.strip() and f(i.strip())==f(a)	-	eq-idpy-strip-and-dropped	none	equivalent: an empty identity field never equals a non-empty authoriser (an empty authoriser is refused first; differential proof)
+I071c	==f(a) for i in p[1:]	-	eq-ident-strip-half	none	round 8 generated members (lstrip / rstrip halves of the ident strip): equivalent, git var strips both ident fields itself (measured 2026-11-11), so i == i.strip() for every field read (differential probe pr_identpad)
 I072	rc=main()	crash-is-ok	-	ch	run
 I073	except BaseException:	authoriser-crash-uncaught	-	ch	crash caught
 I074	rc=4	crash-is-ok	-	fo	crash rc 4 -> 0 (fo)
@@ -147,6 +159,7 @@ I112	WHY="waiver expired $e"; continue; }	site-expired-aborts	-	fr	site (SITEEXP
 I113	[[ "$e" > "$lim" ]] &&	horizon-unchecked,horizon-boundary,horizon-always	-	both	horizon: unchecked (fo) / boundary (fr) / always (fr)
 I114	max_waiver_days=$maxd ($lim)"; continue; }	site-horizon-aborts	-	fr	site (SITEHOR)
 I115	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] ||	item-format-unchecked,item-prefix-hardcoded,item-digits-loosened,item-anchor-dropped,item-always-bad	-	both	item form: loosened (fo) / always (fr)
+I115b	[0-9]{3,}$ ]] ||	RV7-03-item-exactly-3-digits	-	fr	unbounded upper digit count (RV7-03; F_ITEM4): {3} refuses a valid 4-digit item id; the loosened lower bound is item-digits-loosened (I115)
 I116	does not match ${prefix}-NNN"; continue; }	site-item-aborts	-	fr	site (SITEITEM)
 I117	[ -z "$mergeh" ] ||	merge-allowed,mergeh-always	-	both	merge in progress: allowed (fo) / always (fr)
 I118	commit the rollback on its own"; continue; }	-	eq-site-merge-aborts	none	site: equivalent (MERGE_HEAD is global, every row fails it the same way; differential proof)
@@ -183,17 +196,17 @@ I142b	[ "$osha" != "$nsha" ] || continue	-	eq-unchanged-entry-dropped	none	react
 I143	checked=$((checked+1)); sub="$root/$path"	count-not-incremented	-	ch	count (COUNT)
 I144	if [ -z "$subp" ] ||	-	eq-V28-missing-checkout-no-empty-check	none	empty-subp member: equivalent, every shape that empties subp also fails the git check (differential proof: absent, file, mode 000, empty dir)
 I144b	! sg -C "$sub" rev-parse --git-dir	checkout-check-dropped,checkout-always-missing	-	both	git-dir member: dropped (fo) / always (fr)
-I145	"submodule checkout missing or not a repository"	missing-checkout-unnamed	-	fo	BLIND dropped (fo)
+I145	"submodule checkout missing or not a repository"	missing-checkout-unnamed	-	ch	BLIND dropped (fo); round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
 I146	if [ "$subp" != "$root/$path" ]; then	symlink-always	-	fr	test member: always (fr)
-I146b	"checkout path is a symlink (resolves to $subp)"	symlink-unchecked	-	fo	reaction member (SYMSUB)
+I146b	"checkout path is a symlink (resolves to $subp)"	symlink-unchecked	-	fo	reaction member: SYMSUB (downgrade, 2 -> 1) and round-8 SYMSUBFWD (a forward bump through the link: 2 -> 0, fo)
 I147	rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]; then	ownrepo-always	-	fr	test member: always (fr)
 I147b	"path is not its own repository (resolves into the parent worktree)"	RV6-own-repo-unchecked	-	fo	reaction member (NOTOWN)
 I148	shallow="$(sg -C "$sub" rev-parse --is-shallow-repository 2>/dev/null)"	shallow-unchecked,V22-sub-shallow-unknown-is-complete	-	ch	submodule shallow state (KV22SUBUNKNOWN)
 I149	if [ "$shallow" = false ]; then fetchfix=	fetchfix-swapped	-	ch	fix text
 I150	if ! sg -C "$sub" cat-file -e "${osha}^{commit}"	old-peel-dropped,old-presence-always,presence-checks-removed	-	both	test member: dropped (fo, OLDOBJ) / always (fr)
-I150b	"old pin ${osha:0:7} not in the submodule object store"	old-presence-unnamed	-	fo	reaction member
+I150b	"old pin ${osha:0:7} not in the submodule object store"	old-presence-unnamed	-	ch	reaction member; round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
 I151	if ! sg -C "$sub" cat-file -e "${nsha}^{commit}"	new-peel-dropped,new-presence-always,presence-checks-removed	-	both	test member: dropped (fo, NEWOBJ) / always (fr)
-I151b	"new pin ${nsha:0:7} not in the submodule object store"	new-presence-unnamed	-	fo	reaction member
+I151b	"new pin ${nsha:0:7} not in the submodule object store"	new-presence-unnamed	-	ch	reaction member; round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
 I152	merge-base --is-ancestor "$osha" "$nsha" 2>/dev/null; fwd=$?	forward-not-checked-first,V24-forward-args-swapped	-	both	forward test
 I153	if [ "$fwd" = 0 ]; then echo "$GATE: ok $path	forward-is-refused	-	fr	forward ok -> refused (fr)
 I154	merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?	downgrade-never-detected,always-ancestor	-	both	backward test
@@ -201,8 +214,8 @@ I155	if [ "$back" = 0 ]; then	downgrade-never-detected	-	fo	downgrade branch
 I156	if waived "$path" "$osha" "$nsha"; then	waived-always-refused,rows-exhausted-is-waived	-	both	waiver: always refused (fr) / exhausted rows waive (fo)
 I157	or stage a valid waiver"; fail=1; fi	fail-not-set	-	fo	fail recorded
 I158	elif [ "$fwd" = 1 ] && [ "$back" = 1 ] && [ "$shallow" = false ]; then	diverged-needs-no-rc1,diverged-is-blind	-	both	diverged decision: any rc (fo) / never (fr)
-I158a	elif [ "$fwd" = 1 ] &&	-	eq-UNCONFIRMED-diverged-fwd-member-dropped	none	fwd member: UNCONFIRMED-equivalent, no shape found gives fwd=128 with back=1 after the presence checks
-I158b	[ "$back" = 1 ] && [ "$shallow" = false ]; then	-	eq-UNCONFIRMED-diverged-back-member-dropped	none	back member: UNCONFIRMED-equivalent, no shape found gives back=128 with fwd=1 after the presence checks
+I158a	elif [ "$fwd" = 1 ] &&	diverged-fwd-member-dropped	-	fo	fwd member (round 7 claimed equivalent; R7-2 refuted): with the forward test killed (rc 137, D_FWDKILLFWD) a true forward bump reads as DIVERGED (WARN, exit 0) instead of BLIND; no false-refusal form
+I158b	[ "$back" = 1 ] && [ "$shallow" = false ]; then	diverged-back-member-dropped	-	fo	back member (round 7 claimed equivalent; R7-2 refuted): with the back test killed (rc 137, D_DOWNKILLBACK) a true DOWNGRADE reads as DIVERGED (WARN, exit 0): fail-open; no false-refusal form
 I158c	&& [ "$shallow" = false ]; then	shallow-unchecked,V22-sub-shallow-unknown-is-complete	-	fo	shallow member: unchecked (fo, SHALLOW, KV22SUBUNKNOWN)
 I159	echo "$GATE: WARN $path	diverged-silent	-	ch	WARN line
 I160	cannot be decided (merge-base rc forward=$fwd	undecided-is-ok	-	fo	undecided -> ok (fo)

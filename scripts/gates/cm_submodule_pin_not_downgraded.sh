@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cm_submodule_pin_not_downgraded.sh — CM-SUBMODULE-PIN-NOT-DOWNGRADED gate (CON-046, structural round CON-108; §11.4.288(D), §11.4.233(G), §11.4.201).
+# cm_submodule_pin_not_downgraded.sh — CM-SUBMODULE-PIN-NOT-DOWNGRADED gate (CON-046, structural round CON-146; §11.4.288(D), §11.4.233(G), §11.4.201).
 #
 # ── Purpose ───────────────────────────────────────────────────────────────
 # A snapshot-style commit (`git add -A` / `commit -a`) records the HEAD of each submodule WORKTREE, not the pin the
@@ -24,7 +24,7 @@
 # on `main` by ff-only merge (the §11.4.288(B)(3) landing path has no hook in scratch clones); run this script with
 # `--base <parent>` on such a commit to judge it. Per-commit index diffs also miss a downgrade split across commits or
 # combined with a path move. A `--range A..B` mode for a pre-push / landing seam is a FOLLOW-UP (not built; tracked as
-# CON-109, which also lists the residuals below). The hook
+# CON-147, which also lists the residuals below). The hook
 # (scripts/hooks/pre-commit-submodule-pin-not-downgraded) is shipped, NOT installed anywhere (operator consent).
 # --amend: git tells a pre-commit hook nothing about --amend, so the hook always uses base HEAD, that is the commit being
 # amended, not its parent. Consequences: amending a waived rollback shows no gitlink change (PASS); an amend can strip or
@@ -41,6 +41,10 @@
 #   BLIND the base, the index or a submodule cannot be read, one of the two commits is missing, or ancestry cannot be
 #         decided (a shallow or incomplete submodule where neither direction is proven): never a pass (§11.4.201). The
 #         message names the cause and the fix. Forward is checked first, so a bump proven forward in a shallow clone passes.
+#         Submodule git calls run with `-c core.commitGraph=false`: with a commit-graph, git 2.53's reachability walk
+#         reports a commit it cannot read as "not an ancestor" (rc 1, error on stderr) instead of dying (rc 128), so an
+#         incomplete object store would look like a DIVERGED move (WARN, exit 0) on a true downgrade (CON-046 review
+#         round 7, R7-1, measured); without the graph the same store gives rc 128 both ways, hence BLIND.
 #   WARN  (exit 0, visible) diverged move: new pin neither ancestor nor descendant of the old pin in a complete history;
 #         old pin's commits may be dropped from the superproject history — review by hand (reachability from upstream
 #         main is the owed CM-SUBMODULE-POINTER-ON-MAIN, OWED-GATE-151).
@@ -146,7 +150,7 @@ root="$(cd "$top" && pwd -P)" || blind0 "cannot enter $top"
 mapfile -t lev < <(git rev-parse --local-env-vars 2>/dev/null)
 [ "${#lev[@]}" -gt 0 ] || blind0 "git rev-parse --local-env-vars returned nothing"
 unsets=(); for v in "${lev[@]}"; do case "$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;; *) unsets+=(-u "$v") ;; esac; done
-sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git "$@"; } # submodule
+sg() { env "${unsets[@]}" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git -c core.commitGraph=false "$@"; } # submodule
 pg() { GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 GIT_GRAFT_FILE=/dev/null git -C "$root" "$@"; }        # superproject
 headc="$(pg rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null)"
 if [ -z "$base" ]; then

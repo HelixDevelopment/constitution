@@ -8,6 +8,13 @@
 #         NM1-NM9 with their killers KNM1-KNM6, KNM9, and (round 6) one mutant per remaining guard of the gate's class
 #         inventory (fixtures in inventory()). Mutants run in parallel, MUT_JOBS at a time (default 3), each in its own
 #         temp dir. MUT_ONLY=<regex> restricts Part 2 to mutant names matching it (diagnosis only; a full proof runs all).
+# Round 8 (CON-146): the four round-7 reviewer probes are adopted verbatim (cm_submodule_pin_not_downgraded_probes/,
+#         members8), the "UNCONFIRMED-equivalent" category is retired (its three claims were false), the member mutants
+#         below the inventory's granularity are GENERATED (cm_submodule_pin_not_downgraded_members.py, ledger
+#         cm_submodule_pin_not_downgraded_members.tsv), every date fixture is computed inside the job that uses it and a
+#         job on another date than the real vector is INCONCLUSIVE and re-run, never killed (a `date` skew self-test
+#         proves it), a count or message change counts as `ch`, the dynamic lint has a control needle, and each job's
+#         fixture tree is deleted once its result is written.
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -26,8 +33,17 @@ trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
 unset EMAIL
 git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
-d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
-d45="$(date -d '+45 days' +%F)"; today="$(date +%F)"
+setdates() { # R7-7 (round 8): every date fixture is computed at the start of the classify that uses it (inside its own
+  # job), and the job's vector carries the date it started and ended on; a job whose dates differ is INCONCLUSIVE
+  d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
+  d45="$(date -d '+45 days' +%F)"; today="$(date +%F)"; }
+setdates
+vec() { local v=" $1"; v="${v% DATE=*}"; echo "${v# }"; }   # a classify result without its date stamp
+stamp() { case "$1" in *" DATE="*) echo "${1##* DATE=}" ;; *) echo none ;; esac; } # START~END of a classify result
+jv() { # real-result job-result -> killed | survived | inconclusive (dates differ, or a job crossed midnight: never killed)
+  local a b; a="$(stamp "$1")"; b="$(stamp "$2")"
+  if [ "$a" = none ] || [ "$a" != "$b" ] || [ "${a%~*}" != "${a#*~}" ]; then echo inconclusive
+  elif [ "$(vec "$1")" = "$(vec "$2")" ]; then echo survived; else echo killed; fi; }
 bad=0; SUBN=sub; realgit="$(command -v git)"
 
 mk() { # sets globals R A B S (no subshell); submodule dir name $SUBN; super pins B
@@ -48,8 +64,9 @@ run() { # repo gate [env assignments / -u X ...] [-- gate args...]; output in $t
   while [ $# -gt 0 ] && [ "$1" != -- ]; do e+=("$1"); shift; done; [ "${1:-}" = -- ] && shift
   env "${e[@]}" bash "$g" --root "$r" "$@" >"$tmp/out" 2>&1; echo $?; }
 cnt() { grep -c -- "$1" "$tmp/out"; }
-classify() { # gate-path -> one-line verdict vector
-  local g="$1" out="" r i e w gd o c c2 c3 c4 c5 lnk
+classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` (R7-7)
+  local g="$1" out="" r i e w gd o c c2 c3 c4 c5 lnk ds
+  setdates; ds="$today"
   mk;r=$R; stage "$r" "$A"; out+="DOWN=$(run "$r" "$g") "
   mk;r=$R; out+="NOCHANGE=$(run "$r" "$g") "
   mk;r=$R; stage "$r" "$S"; out+="DIVERGED=$(run "$r" "$g")/$(cnt '^CM-SUBMODULE-PIN-NOT-DOWNGRADED: WARN') "
@@ -194,7 +211,8 @@ classify() { # gate-path -> one-line verdict vector
   out+="$(lifecycle "$g")"
   out+="$(members "$g")"
   out+="$(members7 "$g")"
-  echo "$out"
+  out+="$(members8 "$g")"
+  echo "${out}DATE=$ds~$(date +%F)"
 }
 # ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
 # each guard's paired mutant is in Part 2. The inventory table is in the round-6 author report (con046_fix_r6_report.md)
@@ -431,7 +449,7 @@ lifecycle() { # gate path -> vector part
   rm -f "$r/.git/info/attributes"; x=$(lg "$r" --base "$P"); o+="A3TEXTCONV=$a/$b,$c,$x "
   echo "$o"
 }
-# ── structural round (CON-108): member- and site-level fixtures. (1) The round-6 reviewer's killing probes
+# ── structural round (CON-146): member- and site-level fixtures. (1) The round-6 reviewer's killing probes
 # (rv046r6 probes/probes_r6.sh and probe_kv29b.sh), adopted with their helpers renamed v6* (sup=v6sup, row=v6row, gc=lgc,
 # pin=lpin, gate=lg, rb=v6rb); each fixture's comment is the reviewer's. (2) One fixture per remaining guard SITE that a
 # mutant can reach: every per-row `continue` site and every per-row python3 verdict gets an "invalid row first, valid row
@@ -544,8 +562,38 @@ members7() { # gate path -> vector part (round 7: killers for member/site mutant
   ( cd "$d/nowt" && GIT_CEILING_DIRECTORIES="$d" bash "$d/l/scripts/hooks/pre-commit-submodule-pin-not-downgraded" >"$tmp/out" 2>&1 ); o+="HOOKNOREPO=$? "
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 "
-# ── the inventory lint (round 7, CON-108): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
+members8() { # gate path -> vector part (round 8): the four round-7 reviewer probes, adopted VERBATIM (§11.4.194(6)(d);
+  # sha256 in cm_submodule_pin_not_downgraded_probes/SHA256SUMS), each token prefixed S_/D_/F_/G_ so their keys cannot
+  # collide; then killers for the fail-open (fo) needs the round-7 dynamic lint found unmet
+  local g="$1" o="" r f d p t k
+  for p in safedir:S decide_oneway:D rv7_fresh:F graph_missing:G; do
+    t="$(TMPDIR="$tmp" bash "$here/cm_submodule_pin_not_downgraded_probes/p_${p%%:*}.sh" "$g" 2>/dev/null)"; t="${t#*: }"
+    for k in $t; do o+="${p##*:}_$k "; done
+  done
+  # ARGSFWD: a FORWARD bump with `--base ''` / `--waivers ''` -> usage error 2 (an unchecked empty value passes it: 0)
+  mk;r=$R; git -C "$r/sub" checkout -q "$B"; git -C "$r/sub" commit -q --allow-empty -m F; f=$(git -C "$r/sub" rev-parse HEAD); stage "$r" "$f"
+  o+="ARGSFWD=$(run "$r" "$g" -- --base ''),$(run "$r" "$g" -- --waivers '') "
+  # SYMSUBFWD: a FORWARD bump through a symlinked checkout -> BLIND, named (an unchecked symlink would pass it: 0)
+  mk;r=$R; d="$tmp/elsewhere.$RANDOM"; git clone -q "$r/sub" "$d" 2>/dev/null; git -C "$d" checkout -q "$B"; git -C "$d" commit -q --allow-empty -m F
+  f=$(git -C "$d" rev-parse HEAD); rm -rf "${r:?}/sub"; ln -s "$d" "$r/sub"; stage "$r" "$f"; o+="SYMSUBFWD=$(run "$r" "$g")/$(cnt 'checkout path is a symlink') "
+  # killers for the generated members the round-8 screening showed alive (gen-rxq-*, gen-andor-*):
+  # MAXD: max_waiver_days=9 with a +5-day row is honoured ({1,2} would refuse a 1-digit value); =010 and ='10 ' are
+  # refused (a regex without ^ or $ lets `[ -le ]` read them as 10, so the row would be honoured)
+  e="$(date -d '+5 days' +%F)"; mk;r=$R; conf "$r" 'max_waiver_days=9\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$e" CON-046)\n"; f="$(run "$r" "$g"),"
+  mk;r=$R; conf "$r" 'max_waiver_days=010\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; f+="$(run "$r" "$g")/$(cnt 'not an integer 1..365'),"
+  mk;r=$R; conf "$r" 'max_waiver_days=10 \n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; f+="$(run "$r" "$g")/$(cnt 'not an integer 1..365')"
+  o+="MAXD=$f "
+  # PFXDIGIT: item_prefix=C1T is legal (^[A-Z][A-Z0-9]+$) and its row is honoured; ITEMJUNK: item XCON-046 is refused
+  mk;r=$R; conf "$r" 'item_prefix=C1T\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" C1T-046)\n"; o+="PFXDIGIT=$(run "$r" "$g") "
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" XCON-046)\n"; o+="ITEMJUNK=$(run "$r" "$g")/$(cnt 'does not match CON-NNN') "
+  # IDENTONE: only the committer (then only the author) identity is unresolvable -> the row is refused, named
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; git -C "$r" config user.useConfigOnly true
+  f="$(run "$r" "$g" -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL)/$(cnt 'identity unresolvable'),"
+  f+="$(run "$r" "$g" -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL)/$(cnt 'identity unresolvable')"; o+="IDENTONE=$f "
+  echo "$o"
+}
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 "
+# ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
 # python line; double-quoted text and trailing comments do not count); L4 every named mutant / proof is registered in
@@ -639,7 +687,10 @@ for b in bad: print('BAD  lint '+b)
 sys.exit(1 if bad else 0)
 PY
 }
-got="$(classify "$gate")"; echo "gate vector: $got"
+want="${want% }"
+for _ in 1 2; do gotf="$(classify "$gate")"; [ "$(jv "$gotf" "$gotf")" != inconclusive ] && break; done # crossed midnight: once more
+got="$(vec "$gotf")"; echo "gate vector: $got"; echo "gate vector date: $(stamp "$gotf")"
+[ "$(jv "$gotf" "$gotf")" = inconclusive ] && { echo "BAD  the real gate's vector crossed midnight twice"; bad=1; }
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
 if [ -z "${GATE_UNDER_TEST:-}" ]; then
   lint static || bad=1
@@ -652,22 +703,25 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   else echo "BAD  lint control needle: broken inventory not refused (rc $lrc)"; echo "$lo" | head -5; bad=1; fi
 fi
 vdir() { # real-vector mutant-vector -> fail directions observed: fo (a refusal became exit 0), fr (an exit 0 became a
-  # refusal), ch (another change); per token KEY=v1,v2/... the first '/'-field of each ','-item is the exit code
+  # refusal), ch (another change, including a changed count or message field with the same exit code); per token
+  # KEY=v1,v2/... the first '/'-field of each ','-item is the exit code
   python3 -I -c '
 import sys
 def items(v):
     d={}
     for tok in v.split():
         k,_,val=tok.partition("=")
-        d[k]=[x.split("/")[0] for x in val.split(",")]
+        d[k]=val.split(",")
     return d
 a,b=items(sys.argv[1]),items(sys.argv[2]); s=set()
 for k in set(a)|set(b):
     x,y=a.get(k),b.get(k)
     if x==y: continue
     if x is None or y is None or len(x)!=len(y) or k=="HELP": s.add("ch"); continue
-    for p,q in zip(x,y):
-        if p==q: continue
+    for P,Q in zip(x,y):
+        if P==Q: continue
+        p,q=P.split("/")[0],Q.split("/")[0]
+        if p==q: s.add("ch"); continue   # same exit code, another count / message field (round 8, R7-8)
         if p.isdigit() and q.isdigit():
             s.add("fo" if q=="0" and p!="0" else "fr" if p=="0" and q!="0" else "ch")
         else: s.add("ch")
@@ -679,17 +733,35 @@ mutant() { # name sed-expr
   if [ -n "${MUT_ONLY:-}" ] && ! [[ "$1" =~ $MUT_ONLY ]]; then return; fi
   local m="$tmp/m$((++n)).sh"; sed "$2" "$gate" >"$m"; mnames[n]="$1"
   if cmp -s "$m" "$gate"; then echo "BAD  mutant $1 did not change the gate"; bad=1; mnames[n]=""; return; fi
-  ( tmp="$tmp/j$n"; mkdir -p "$tmp"; classify "$m" >"$tmp.res" 2>/dev/null ) &
+  launch "$n"
+}
+launch() { # k: classify job k in the background; its kind picks the subject. Only j<k>.res is kept: the job's fixture
+  # tree is deleted as soon as the result is written (R7-9: one full run kept about 22 GiB before)
+  local k="$1" o="$tmp"
+  ( tmp="$o/j$k"; mkdir -p "$tmp"
+    case "${mkind[k]:-}" in
+      hook) hook="$o/h$k"; classify "$gate" ;;
+      dateskew) PATH="$o/skew:$PATH"; classify "$gate" ;;
+      *) classify "$o/m$k.sh" ;;
+    esac >"$tmp.res" 2>/dev/null
+    chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}" ) &
   while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
 }
-mkind=(); eqk=()
+mutpath() { # name file: a generated member mutant (the whole mutated gate is written by the generator)
+  if [ -n "${MUT_ONLY:-}" ] && ! [[ "$1" =~ $MUT_ONLY ]]; then return; fi
+  local m="$tmp/m$((++n)).sh" pf; cp "$2" "$m"; mnames[n]="$1"; mkind[n]=gen
+  pf="$(awk -F'\t' -v k="$1" '$1==k {print $2}' "$here/cm_submodule_pin_not_downgraded_members_eq.tsv")"
+  [ -n "$pf" ] && { mkind[n]=geneq; geneqp[n]="$pf"; }
+  if cmp -s "$m" "$gate"; then echo "BAD  generated mutant $1 did not change the gate"; bad=1; mnames[n]=""; return; fi
+  launch "$n"
+}
+mkind=(); eqk=(); geneqp=()
 mutf() { mutant "$1" "$(cat)"; } # name; sed script on stdin (here-doc keeps reviewer text byte for byte)
 hkmutf() { # name; sed script on stdin, applied to the HOOK; classify runs with the mutated hook
   local s; s="$(cat)"; if [ -n "${MUT_ONLY:-}" ] && ! [[ "$1" =~ $MUT_ONLY ]]; then return; fi
   local mh="$tmp/h$((++n))"; sed "$s" "$hook" >"$mh"; chmod +x "$mh"; mnames[n]="$1"; mkind[n]=hook
   if cmp -s "$mh" "$hook"; then echo "BAD  mutant $1 did not change the hook"; bad=1; mnames[n]=""; return; fi
-  ( tmp="$tmp/j$n"; mkdir -p "$tmp"; hook="$mh"; classify "$gate" >"$tmp.res" 2>/dev/null ) &
-  while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
+  launch "$n"
 }
 eqn=0; eqnames=(); eqprobe=(); eqfile=(); eqctl=()
 eqp() { # name probe-fn ; stdin: eq-sed, a line `--`, control-sed
@@ -698,8 +770,7 @@ eqp() { # name probe-fn ; stdin: eq-sed, a line `--`, control-sed
   m="$tmp/m$((++n)).sh"; c="$tmp/c$n.sh"; sed "$es" "$gate" >"$m"; sed "$cs" "$gate" >"$c"
   mnames[n]="$1"; mkind[n]=eq; eqnames[++eqn]="$1"; eqprobe[eqn]="$2"; eqfile[eqn]="$m"; eqctl[eqn]="$c"; eqk[eqn]=$n
   if cmp -s "$m" "$gate" || cmp -s "$c" "$gate" || cmp -s "$m" "$c"; then echo "BAD  eqproof $1: a sed did not change the gate"; bad=1; mnames[n]=""; return; fi
-  ( tmp="$tmp/j$n"; mkdir -p "$tmp"; classify "$m" >"$tmp.res" 2>/dev/null ) &
-  while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
+  launch "$n"
 }
 # probes: <gate> -> one line; each builds its own fixtures with mk/run (cheap, run after the mutant jobs)
 pr_checkout_shapes() { local g="$1" x="" s; for s in absent file mode000 emptydir; do mk;r=$R; stage "$r" "$A"; rm -rf "${r:?}/sub"
@@ -723,12 +794,21 @@ pr_paths() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; x+="down:$(run "$r" "$
   mk;r=$R; mkdir -p "$r/x y"; echo z >"$r/x y/z"; git -C "$r" add -A; x+="plain:$(run "$r" "$g")/$(grep -o '([0-9]* staged' "$tmp/out")"; echo "$x"; }
 pr_unchanged() { local g="$1" x=""; mk;r=$R; stage "$r" "$B"; x+="same:$(run "$r" "$g")/$(grep -o '([0-9]* staged' "$tmp/out"),"
   mk;r=$R; git -C "$r/sub" checkout -q "$A"; x+="wtonly:$(run "$r" "$g")/$(grep -o '([0-9]* staged' "$tmp/out"),"
-  mk;r=$R; stage "$r" "$A"; x+="down:$(run "$r" "$g")"; echo "$x"; }
-pr_cfgparams() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"
-  x+="down:$(run "$r" "$g" GIT_CONFIG_PARAMETERS="'core.abbrev'='12' 'diff.ignoresubmodules'='all'"),"
-  mk;r=$R; stage "$r" "$S"; x+="div:$(run "$r" "$g" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.abbrev GIT_CONFIG_VALUE_0=12)/$(cnt WARN),"
-  mk;r=$R; git -C "$r/sub" checkout -q "$A"; git -C "$r/sub" commit -q --allow-empty -m F; stage "$r" "$(git -C "$r/sub" rev-parse HEAD)"
-  x+="fwd:$(run "$r" "$g" GIT_CONFIG_PARAMETERS="'core.abbrev'='12'")"; echo "$x"; }
+  mk;r=$R; stage "$r" "$A"; x+="down:$(run "$r" "$g"),"
+  # round 8 needle: only the OLD mode is a gitlink (gitlink -> file) or only the NEW one (file -> gitlink); the real gate
+  # skips both, a gate that checks one mode only reads a blob as a pin (BLIND)
+  mk;r=$R; git -C "$r" rm -q --cached sub; echo x >"$r/sub.f"; git -C "$r" add sub.f; git -C "$r" update-index --add --cacheinfo 100644,"$(git -C "$r" hash-object -w "$r/sub.f")",sub
+  x+="gl2f:$(run "$r" "$g")/$(grep -o '([0-9]* staged' "$tmp/out"),"
+  mk;r=$R; echo x >"$r/f2"; git -C "$r" add f2; git -C "$r" commit -q -m f2; git -C "$r" update-index --cacheinfo 160000,"$B",f2
+  x+="f2gl:$(run "$r" "$g")/$(grep -o '([0-9]* staged' "$tmp/out")"; echo "$x"; }
+pr_needargc() { local g="$1" x="" f; mk;r=$R; git -C "$r/sub" checkout -q "$B"; git -C "$r/sub" commit -q --allow-empty -m F
+  f=$(git -C "$r/sub" rev-parse HEAD); stage "$r" "$f"
+  x+="last:$(run "$r" "$g" -- --base),empty:$(run "$r" "$g" -- --base ''),lastw:$(run "$r" "$g" -- --waivers),emptyw:$(run "$r" "$g" -- --waivers '')"; echo "$x"; }
+pr_maxdays() { local g="$1" x="" v; for v in 999 1000 365; do mk;r=$R; conf "$r" "max_waiver_days=$v\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
+    waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; x+="$v:$(run "$r" "$g"),"; done; echo "$x"; }
+pr_identpad() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  x+="padname:$(run "$r" "$g" GIT_COMMITTER_NAME='  ops ' GIT_AUTHOR_NAME=$' ops\t')/$(cnt 'self-waive\|authoriser'),"
+  waive "$r" "$(wf sub "$B" "$A" t@t "$d10" CON-046)\n"; x+="padmail:$(run "$r" "$g" GIT_COMMITTER_EMAIL=' t@t ')"; echo "$x"; }
 pr_merge() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; git -C "$r" rev-parse HEAD >"$r/.git/MERGE_HEAD"
   waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n$(wf sub "$B" "$A" ops2 "$d10" CON-047)\n"; x+="merge:$(run "$r" "$g")/$(cnt 'merge is in progress')"; echo "$x"; }
 pr_ident() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n$(wf sub "$B" "$A" ops2 "$d10" CON-047)\n"
@@ -741,9 +821,6 @@ pr_spent() { local g="$1" x="" p; mk;r=$R; p=$(git -C "$r" rev-parse HEAD); git 
   stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$p")\n$(wf sub "$B" "$A" ops2 "$d10" CON-047 "$p")\n"; x+="spent:$(run "$r" "$g")/$(cnt 'already spent')"; echo "$x"; }
 pr_cannottell() { local g="$1" x=""; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n$(wf sub "$B" "$A" ops2 "$d10" CON-047)\n"
   printf '%s\n' 1111111111111111111111111111111111111111 >"$r/.git/refs/heads/broken"; x+="badref:$(run "$r" "$g")/$(cnt 'cannot prove the row is unspent')"; echo "$x"; }
-pr_decide() { local g="$1" x=""; mk;r=$R; stage "$r" "$S"; x+="div:$(run "$r" "$g")/$(cnt WARN),"; mk;r=$R; stage "$r" "$A"; x+="down:$(run "$r" "$g"),"
-  mk;r=$R; git -C "$r/sub" checkout -q "$B"; git -C "$r/sub" commit -q --allow-empty -m F; stage "$r" "$(git -C "$r/sub" rev-parse HEAD)"; x+="fwd:$(run "$r" "$g"),"
-  mk;r=$R; stage "$r" "$S"; rm -f "$r/sub/.git/objects/"*/"${S:2}" 2>/dev/null; x+="divmiss:$(run "$r" "$g")/$(cnt WARN)"; echo "$x"; }
 if [ -z "${GATE_UNDER_TEST:-}" ]; then
   # decision table
   mutant downgrade-never-detected 's/ 2>\/dev\/null; back=\$?/ 2>\/dev\/null; back=1/'
@@ -756,7 +833,8 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   mutant fail-is-pass 's/^\[ "\$fail" = 1 \] \&\& exit 1/[ "$fail" = 1 ] \&\& exit 0/'
   mutant blind-outranks-fail 's/^\[ "\$fail" = 1 \] \&\& exit 1$/[ "$blind" = 1 ] \&\& exit 2/'
   mutant presence-checks-removed '/cat-file -e/{N;d}'
-  mutant hook-env-inherited 's/^sg() { env .*git "\$@"; }/sg() { git "$@"; }/'
+  mutant hook-env-inherited 's/^sg() { env .*git -c core.commitGraph=false "\$@"; }/sg() { git -c core.commitGraph=false "$@"; }/'
+  mutant commit-graph-honoured '/^sg() /s/ -c core.commitGraph=false//'
   mutant replace-refs-honoured '/^sg() /s/ GIT_NO_REPLACE_OBJECTS=1//'
   mutant R3m1-grafts-honoured '/^sg() /s/ GIT_GRAFT_FILE=\/dev\/null//'
   mutant RV7-lazy-fetch '/^sg() /s/ GIT_NO_LAZY_FETCH=1//'
@@ -1002,7 +1080,7 @@ MEOF
   hkmutf HK32-hook-drops-GIT_INDEX_FILE <<'MEOF'
 s/^exec bash "\$gate"/exec env -u GIT_INDEX_FILE bash "$gate"/
 MEOF
-  # ── round 7 (structural, CON-108): member- and site-level mutants, one per guard member and fail direction the
+  # ── round 7 (structural, CON-146): member- and site-level mutants, one per guard member and fail direction the
   # inventory (cm_submodule_pin_not_downgraded_inventory.tsv) names. fo = makes a refusal pass, fr = makes a pass refuse.
   mutf lastpipe-dropped <<'MEOF'
 /^shopt -s lastpipe$/d
@@ -1334,12 +1412,82 @@ MEOF
   mutf cand-empty-unchecked <<'MEOF'
 /^  \[ -n "\$cand" \] || return 1$/d
 MEOF
+  # ── round 8: the three round-7 "UNCONFIRMED-equivalent" claims were false (review R7-2); they are mutants now,
+  # killed by the adopted probes (S_ p_safedir, D_ p_decide_oneway). The category is retired: an equivalence claim
+  # needs a stated argument for why no input reaches the member, and a probe that sees the member (control needle)
+  mutf config-params-all-unset <<'MEOF'
+s/case "\$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;; \*) unsets+=(-u "\$v") ;; esac/unsets+=(-u "$v")/
+MEOF
+  mutf diverged-fwd-member-dropped <<'MEOF'
+s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif [ "$back" = 1 ] \&\& /
+MEOF
+  mutf diverged-back-member-dropped <<'MEOF'
+s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif [ "$fwd" = 1 ] \&\& /
+MEOF
+  # round-7 reviewer mutants RV7-01..RV7-05 (review_con046_r7.md section 7), byte for byte against the round-8 gate
+  mutf RV7-01-keep-drops-COUNT <<'MEOF'
+s/case "\$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;;/case "$v" in GIT_CONFIG_PARAMETERS) ;;/
+MEOF
+  mutf RV7-02-keep-drops-PARAMETERS <<'MEOF'
+s/case "\$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;;/case "$v" in GIT_CONFIG_COUNT) ;;/
+MEOF
+  mutf RV7-03-item-exactly-3-digits <<'MEOF'
+s/-\[0-9\]{3,}\$ \]\]/-[0-9]{3}$ ]]/
+MEOF
+  mutf RV7-04-authoriser-lstrip-only <<'MEOF'
+s/a!=a\.strip() or "<"/a!=a.lstrip() or "<"/
+MEOF
+  mutf RV7-05-help-long-dropped <<'MEOF'
+s/^    -h|--help) awk/    -h) awk/
+MEOF
+  # ── round 8: generated member mutants (§11.4.274, §11.4.276(C)): cm_submodule_pin_not_downgraded_members.py
+  # enumerates every case alternative, regex quantifier / anchor / class part, strip half, test comparison operator,
+  # && / || operand, python or / and operand and `if !` of the gate. The committed ledger must equal a fresh listing
+  # (a stale ledger is BAD), and every viable generated mutant must be killed (no generated mutant is claimed
+  # equivalent in round 8; one that survives is a SURVIVOR, never silently dropped)
+  gdir="$tmp/gen"; mkdir -p "$gdir"; gled="$here/cm_submodule_pin_not_downgraded_members.tsv"
+  if ! python3 -I "$here/cm_submodule_pin_not_downgraded_members.py" emit "$gate" "$gdir" >"$tmp/members.now"; then
+    echo "BAD  member generator failed"; bad=1
+  elif ! cmp -s "$tmp/members.now" "$gled"; then
+    echo "BAD  member ledger stale (regenerate: cm_submodule_pin_not_downgraded_members.py list <gate> > $gled)"
+    diff "$gled" "$tmp/members.now" | head -6; bad=1
+  else echo "ok   member ledger current: $(grep -c '' "$gled") generated members, $(grep -c $'\tviable$' "$gled") viable"
+    [ "$(grep -c $'\tviable$' "$gled")" -gt 0 ] || { echo "BAD  member ledger lists no viable member (blind generator)"; bad=1; }
+  fi
+  while IFS=$'\t' read -r gname _ _ _ _ gv; do [ "$gv" = viable ] && mutpath "$gname" "$gdir/$gname.sh"; done <"$tmp/members.now"
+  # ── round 8 (R7-7): the date self-test. A job whose `date` runs one day behind (a PATH wrapper; the gate and the
+  # fixtures both see the skewed day, so the vector itself may even agree) MUST be judged INCONCLUSIVE, never killed
+  mkdir -p "$tmp/skew"; printf '#!/usr/bin/env bash\nfor a in "$@"; do case "$a" in -d|-d*|--date*) exec %q "$@" ;; esac; done\nexec %q -d yesterday "$@"\n' \
+    "$(command -v date)" "$(command -v date)" >"$tmp/skew/date"; chmod +x "$tmp/skew/date"
+  if [ -z "${MUT_ONLY:-}" ] || [[ selftest-date-skew =~ $MUT_ONLY ]]; then n=$((n+1)); mnames[n]=selftest-date-skew; mkind[n]=dateskew; launch "$n"; fi
   # ── round 7: EQUIVALENCE claims, each with a DIFFERENTIAL proof (never by reading). eqp <name> <probe> registers the
   # equivalent mutant (sed on stdin, first here-doc) and its CONTROL mutant (a mutant of the SAME member that is NOT
   # equivalent; second here-doc, separated by a line `--`). Proof holds when: the equivalent mutant's classify vector
   # equals the real gate's (it survives the whole suite), the targeted probe gives the same answer on the real gate and
   # the equivalent mutant, and the control gives a DIFFERENT probe answer (the probe can see this member: control needle,
   # §11.4.201(7)(b)). UNCONFIRMED in the name means no shape that reaches the member was found to be constructible.
+  # round 8 equivalence claims for generated members (each with its stated argument; the generated mutant itself is
+  # mapped to the proof in cm_submodule_pin_not_downgraded_members_eq.tsv):
+  # argc member of need(): every caller passes "${2:-}", so argc < 2 implies an empty value, which the -n member refuses
+  eqp eq-need-argc-redundant pr_needargc <<'MEOF'
+s/^need() { \[ "\$1" -ge 2 \] \&\& \[ -n "\$2" \] ||/need() { [ -n "$2" ] ||/
+--
+s/^need() { \[ "\$1" -ge 2 \] \&\& \[ -n "\$2" \] ||/need() { [ "$1" -ge 2 ] ||/
+MEOF
+  # upper digit bound of max_waiver_days: any 4-digit value is >= 1000 > 365, so `-le 365` refuses it anyway
+  eqp eq-maxdays-upper-bound-by-le pr_maxdays <<'MEOF'
+s/\^\[1-9\]\[0-9\]{0,2}\$ \]\] \&\& \[ "\$v" -le 365 \]/^[1-9][0-9]{0,3}$ ]] \&\& [ "$v" -le 365 ]/
+--
+s/\^\[1-9\]\[0-9\]{0,2}\$ \]\] \&\& \[ "\$v" -le 365 \]/^[1-9][0-9]{0,2}$ ]]/
+MEOF
+  # strip halves of the self-waive check: git itself strips whitespace from both ident fields (`git var`, measured
+  # 2026-11-11: name '  ops <TAB>' -> 'ops'), so i == i.strip() == i.lstrip() == i.rstrip() for every i the gate reads;
+  # the truthiness of lstrip / rstrip equals that of strip (all three are empty exactly when i is whitespace only)
+  eqp eq-ident-strip-half pr_identpad <<'MEOF'
+s/i.strip() and f(i.strip())==f(a)/i.strip() and f(i.lstrip())==f(a)/
+--
+s/    return 10 if any(.*) else 0/    return 0/
+MEOF
   eqp eq-V28-missing-checkout-no-empty-check pr_checkout_shapes <<'MEOF'
 s/if \[ -z "\$subp" \] || ! sg/if ! sg/
 --
@@ -1385,11 +1533,6 @@ MEOF
 --
 s/^  \[ "\$om" = 160000 \] \&\& \[ "\$nm" = 160000 \] || continue$/  [ "$nm" = 160000 ] || continue/
 MEOF
-  eqp eq-UNCONFIRMED-config-params-unset pr_cfgparams <<'MEOF'
-s/case "\$v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) ;; \*) unsets+=(-u "\$v") ;; esac/unsets+=(-u "$v")/
---
-s/^sg() { env .*git "\$@"; }/sg() { git "$@"; }/
-MEOF
   eqp eq-site-merge-aborts pr_merge <<'MEOF'
 s/commit the rollback on its own"; continue; }/commit the rollback on its own"; return 1; }/
 --
@@ -1415,40 +1558,76 @@ s/cannot prove the row is unspent" ;;/cannot prove the row is unspent"; return 1
 --
 s/^           \*) WHY="\$SPENT; cannot prove the row is unspent" ;;/           *) return 0 ;;/
 MEOF
-  eqp eq-UNCONFIRMED-diverged-fwd-member-dropped pr_decide <<'MEOF'
-s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif [ "$back" = 1 ] \&\& /
---
-s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif /
-MEOF
-  eqp eq-UNCONFIRMED-diverged-back-member-dropped pr_decide <<'MEOF'
-s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif [ "$fwd" = 1 ] \&\& /
---
-s/elif \[ "\$fwd" = 1 \] \&\& \[ "\$back" = 1 \] \&\& /elif /
-MEOF
   wait
-  : >"$tmp/dirs.tsv"; nk=0; ns=0; ne=0
+  judge() { # k -> J = killed | survived | inconclusive | none (no result)
+    if [ ! -s "$tmp/j$1.res" ]; then J=none; else J="$(jv "$gotf" "$(cat "$tmp/j$1.res")")"; fi; }
+  # unit check of the judge (R7-7): equal dates and vectors -> survived; another vector -> killed; another day, or a
+  # job that crossed midnight -> inconclusive (never killed); a result without a stamp -> inconclusive
+  jvu="$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1 DATE=2026-01-01~2026-01-01'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=2 DATE=2026-01-01~2026-01-01'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=2 DATE=2026-01-02~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1 DATE=2026-01-01~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-02' 'A=1 DATE=2026-01-01~2026-01-02'),$(jv 'A=1 DATE=2026-01-01~2026-01-01' 'A=1')"
+  if [ "$jvu" = survived,killed,inconclusive,inconclusive,inconclusive,inconclusive ]; then echo "ok   judge unit check: $jvu"
+  else echo "BAD  judge unit check: $jvu"; bad=1; fi
+  inc=()
+  for ((k=1; k<=n; k++)); do
+    [ -n "${mnames[k]:-}" ] && [ "${mkind[k]:-}" != dateskew ] || continue
+    judge "$k"; [ "$J" = inconclusive ] && inc+=("$k")
+  done
+  if [ "${#inc[@]}" -gt 0 ]; then # the date changed: recompute the real vector, re-run only those jobs (once)
+    echo "note ${#inc[@]} job(s) INCONCLUSIVE (another date than the real gate's vector); recomputing it and re-running them"
+    gotf="$(classify "$gate")"; got="$(vec "$gotf")"; for k in "${inc[@]}"; do launch "$k"; done; wait
+  fi
+  : >"$tmp/dirs.tsv"; nk=0; ns=0; ne=0; ni=0; gsurv=()
   for ((k=1; k<=n; k++)); do
     [ -n "${mnames[k]:-}" ] || continue
-    if [ ! -s "$tmp/j$k.res" ]; then echo "BAD  mutant ${mnames[k]} produced no vector"; bad=1
-    elif [ "${mkind[k]:-}" = eq ]; then
-      if [ "$(cat "$tmp/j$k.res")" = "$got" ]; then echo "ok   eqproof ${mnames[k]}: whole-suite vector equals the real gate's"
-      else echo "BAD  eqproof ${mnames[k]}: the suite kills it, so it is NOT equivalent"; bad=1; fi
-    elif [ "$(cat "$tmp/j$k.res")" = "$got" ]; then echo "BAD  mutant ${mnames[k]} SURVIVED"; bad=1; ns=$((ns+1))
-    else echo "ok   mutant ${mnames[k]} killed"; fi
-    [ "${mkind[k]:-}" = eq ] || [ ! -s "$tmp/j$k.res" ] || [ "$(cat "$tmp/j$k.res")" = "$got" ] || nk=$((nk+1))
-    [ -s "$tmp/j$k.res" ] && printf '%s\t%s\n' "${mnames[k]}" "$(vdir "$got" "$(cat "$tmp/j$k.res")")" >>"$tmp/dirs.tsv"
+    judge "$k"
+    if [ "${mkind[k]:-}" = dateskew ]; then
+      if [ "$J" = inconclusive ]; then echo "ok   date self-test: a job one day behind is INCONCLUSIVE (never killed)"
+      else echo "BAD  date self-test: a job one day behind was judged $J"; bad=1; fi
+      continue
+    fi
+    case "$J" in
+      none) echo "BAD  mutant ${mnames[k]} produced no vector"; bad=1 ;;
+      inconclusive) echo "BAD  mutant ${mnames[k]} still INCONCLUSIVE after a re-run ($(stamp "$(cat "$tmp/j$k.res")") vs $(stamp "$gotf"))"; bad=1; ni=$((ni+1)) ;;
+      survived) if [ "${mkind[k]:-}" = geneq ]; then echo "ok   generated member ${mnames[k]} survives: claimed equivalent by proof ${geneqp[k]} (checked below)"; gsurv+=("$k")
+                elif [ "${mkind[k]:-}" = eq ]; then echo "ok   eqproof ${mnames[k]}: whole-suite vector equals the real gate's"
+                else echo "BAD  mutant ${mnames[k]} SURVIVED"; bad=1; ns=$((ns+1)); fi ;;
+      killed) if [ "${mkind[k]:-}" = geneq ]; then echo "BAD  generated member ${mnames[k]} is claimed equivalent (${geneqp[k]}) but the suite kills it"; bad=1
+              elif [ "${mkind[k]:-}" = eq ]; then echo "BAD  eqproof ${mnames[k]}: the suite kills it, so it is NOT equivalent"; bad=1
+              else echo "ok   mutant ${mnames[k]} killed"; nk=$((nk+1)); fi ;;
+    esac
+    case "$J" in killed|survived) printf '%s\t%s\n' "${mnames[k]}" "$(vdir "$got" "$(vec "$(cat "$tmp/j$k.res")")")" >>"$tmp/dirs.tsv" ;; esac
   done
-  # differential proof of every equivalence claim (targeted probe on real / equivalent / control gates)
+  # differential proof of every equivalence claim (targeted probe on real / equivalent / control gates); the three
+  # probe runs are repeated once if the date changed between them (R7-7)
   : >"$tmp/eqok"
   for ((q=1; q<=eqn; q++)); do
     [ -n "${mnames[${eqk[q]}]:-}" ] || continue
-    pa="$("${eqprobe[q]}" "$gate")"; pb="$("${eqprobe[q]}" "${eqfile[q]}")"; pc="$("${eqprobe[q]}" "${eqctl[q]}")"
-    if [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ "$(cat "$tmp/j${eqk[q]}.res" 2>/dev/null)" = "$got" ]; then
+    for _ in 1 2; do t0="$(date +%F)"; setdates
+      pa="$("${eqprobe[q]}" "$gate")"; pb="$("${eqprobe[q]}" "${eqfile[q]}")"; pc="$("${eqprobe[q]}" "${eqctl[q]}")"
+      [ "$(date +%F)" = "$t0" ] && break; done
+    judge "${eqk[q]}"
+    if [ "$(date +%F)" = "$t0" ] && [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ "$J" = survived ]; then
       echo "ok   eqproof ${eqnames[q]}: probe real=eq [$pa]; control differs [$pc]"; echo "${eqnames[q]}" >>"$tmp/eqok"; ne=$((ne+1))
-    else echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc]"; bad=1; fi
+    else echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc] (job $J)"; bad=1; fi
   done
-  echo "mutants: $n (killed $nk, survived $ns, equivalent-with-proof $ne)"
-  [ -n "${MUT_ONLY:-}" ] || lint dynamic "$tmp/dirs.tsv" "$tmp/eqok" || bad=1
+  for k in "${gsurv[@]}"; do # a generated member claimed equivalent counts only when its proof passed
+    if grep -qx -- "${geneqp[k]}" "$tmp/eqok"; then ne=$((ne+1)); else echo "BAD  generated member ${mnames[k]}: its proof ${geneqp[k]} did not pass"; bad=1; fi
+  done
+  [ -n "${MUT_ONLY:-}" ] || # every row of the generated equivalence map must name a generated member and a registered proof (no dead claims)
+  while IFS=$'\t' read -r gname gproof _; do case "$gname" in ''|'#'*) continue ;; esac
+    grep -q "^$gname"$'\t' "$gled" || { echo "BAD  members_eq row $gname names no generated member"; bad=1; }
+    printf '%s\n' "${eqnames[@]}" | grep -qx -- "$gproof" || { echo "BAD  members_eq row $gname names an unregistered proof $gproof"; bad=1; }
+  done <"$here/cm_submodule_pin_not_downgraded_members_eq.tsv"
+  echo "mutants: $n (killed $nk, survived $ns, equivalent-with-proof $ne, inconclusive $ni)"
+  if [ -z "${MUT_ONLY:-}" ]; then
+    lint dynamic "$tmp/dirs.tsv" "$tmp/eqok" || bad=1
+    # control needle for the dynamic lint's own zero (R7-4): every mutant observed only as `ch` must leave fo / fr needs
+    # unmet (DYN ... need findings), and an empty directions file must be BLIND
+    cut -f1 "$tmp/dirs.tsv" | sed 's/$/\tch/' >"$tmp/dirs.ch"; : >"$tmp/dirs.empty"
+    lo="$(lint dynamic "$tmp/dirs.ch" "$tmp/eqok" 2>&1)"; lrc=$?; lo2="$(lint dynamic "$tmp/dirs.empty" "$tmp/eqok" 2>&1)"; lrc2=$?
+    if [ "$lrc" = 1 ] && grep -q 'DYN I[0-9a-z]*: need \(fo\|fr\|both\), observed ch' <<<"$lo" && [ "$lrc2" = 1 ] && grep -q 'DYN BLIND' <<<"$lo2"; then
+      echo "ok   dynamic lint control needle: all-ch directions refused ($(grep -c 'BAD  lint DYN' <<<"$lo") findings), empty is BLIND"
+    else echo "BAD  dynamic lint control needle: all-ch rc $lrc, empty rc $lrc2"; bad=1; fi
+  fi
 fi
 # ── Part 3: the hook end to end, hook copied next to the gate under test ─────
 lay="$tmp/lay"; mkdir -p "$lay/scripts/gates" "$lay/scripts/hooks"
