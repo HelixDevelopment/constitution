@@ -26,6 +26,14 @@
 #         three off-by-one mutants (lev-gt-1, days-min-2, prefix-min-3) pair the new boundaries. RV9-05 (base compared on
 #         12 characters) survived the first round-10 run (review N4): every exact SHA equality of the gate now gets the
 #         same generated near-miss set (SHANEAR, SPENTNEAR), with RV9-05 adopted verbatim and seven sibling mutants.
+# Round 11 (CON-194, review of round 10 F1-F7, §11.4.276(E)(3) structural round): the fixtures are no longer chosen per
+#         reported site. A SITE TABLE (cm_submodule_pin_not_downgraded_sites.tsv) has one row per exact-compare and
+#         character-set site of the gate and the hook, found by a control-needled CENSUS
+#         (cm_submodule_pin_not_downgraded_sites.py); the static site lint refuses a site without a row, a row without a
+#         site, and a data row (sha, path, ident, date, num, text, charset) without a near-miss fixture key in want and a
+#         mutant (or a stated "not constructible" / "equivalent" reason); the dynamic site lint refuses a data row whose
+#         mutant was not killed. members11 runs the fixtures the table names. The gate's "today" is the UTC date now (F2),
+#         so the whole suite runs with TZ=UTC and TZPAIR proves the pin; a NUL byte in waiver data is refused (F3).
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -42,6 +50,9 @@ hook="$here/../hooks/pre-commit-submodule-pin-not-downgraded"
 tmp="$(mktemp -d)"; [ -n "$tmp" ] && [ -d "$tmp" ] || { echo "META: mktemp failed" >&2; exit 2; }
 trap 'rm -rf "${tmp:?}"' EXIT; mkdir -p "$tmp/home"; export HOME="$tmp/home"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t GIT_CONFIG_NOSYSTEM=1
+# round 11 (F2): the gate decides on the UTC date; every fixture date is computed in UTC too, so a run between local
+# midnight and UTC midnight cannot disagree with the gate (TZPAIR runs the gate itself under other zones)
+export TZ=UTC
 unset EMAIL
 git config --global protocol.file.allow always; git config --global init.defaultBranch main; git config --global advice.graftFileDeprecated false
 # ── round 9 (CON-146, review F3): the date implementation is PINNED. The gate needs `date -d` (GNU coreutils). The suite
@@ -79,6 +90,18 @@ print("ok" if z<=w and {"\x85","\u2028","\u2029"}<=w and len(w)>=29 else "bad %d
 [ "$wsck" = ok ] && [ "${#wsl[@]}" -ge 29 ] || { echo "META: the isspace() enumeration is wrong (${#wsl[@]} characters, check $wsck)" >&2; exit 2; }
 wscat="$(printf '%s' "${wsl[@]}")"; wsrow=(); for z in "${wsl[@]}"; do case "$z" in $'\t'|$'\n') ;; *) wsrow+=("$z") ;; esac; done
 echo "Unicode isspace(): ${#wsl[@]} characters enumerated (Zs ${#zsl[@]} of them; ${#wsrow[@]} can sit inside a TSV field)"
+# round 11 (review r10 F1): the identity fields reach the gate through `git var`, and git strips some whitespace from
+# the ends of a name or email itself (bytes <= 0x20) and removes `<`, `>` and newline anywhere. A pad git strips can
+# never reach the gate's strip(), so the identity fixture (WSID4) uses exactly the isspace() characters git KEEPS at
+# the end of a name AND of an email, MEASURED here through `git var` (never typed). Needles: U+2028 must be kept (the
+# character of the round-10 finding), the ASCII space must be stripped (git's own crud rule); else the measurement is blind.
+mapfile -d '' gkl < <(for c in "${wsl[@]}"; do
+  id="$(GIT_COMMITTER_NAME="t$c" GIT_COMMITTER_EMAIL="t@t$c" git var GIT_COMMITTER_IDENT 2>/dev/null)" || continue
+  [ "${id%% <*}" = "t$c" ] && m="${id#*<}" && [ "${m%%>*}" = "t@t$c" ] && printf '%s\0' "$c"; done)
+gkcat="$(printf '%s' "${gkl[@]}")"
+case "$gkcat" in *$'\xe2\x80\xa8'*) ;; *) echo "META: git-kept whitespace measurement blind (U+2028 not kept)" >&2; exit 2 ;; esac
+case "$gkcat" in *' '*) echo "META: git-kept whitespace measurement blind (ASCII space kept)" >&2; exit 2 ;; esac
+echo "isspace() characters git keeps at the end of a name and an email: ${#gkl[@]} (measured through git var)"
 setdates() { # R7-7 (round 8): every date fixture is computed at the start of the classify that uses it (inside its own
   # job), and the job's vector carries the date it started and ended on; a job whose dates differ is INCONCLUSIVE
   d10="$(date -d '+10 days' +%F)"; d30="$(date -d '+30 days' +%F)"; d31="$(date -d '+31 days' +%F)"
@@ -100,7 +123,7 @@ mk() { # sets globals R A B S (no subshell); submodule dir name $SUBN; super pin
   git -C "$d/super" init -q; git -C "$d/super" update-index --add --cacheinfo 160000,"$B","$SUBN"
   git -C "$d/super" commit -q -m base; R="$d/super"
 }
-mknopy() { mkdir -p "$tmp/nopy"; for n in git awk date env cat dirname bash; do ln -sf "$(command -v "$n")" "$tmp/nopy/$n"; done; } # a PATH without python3 (its date is the current PATH's)
+mknopy() { mkdir -p "$tmp/nopy"; for n in git awk date env cat dirname bash tr wc; do ln -sf "$(command -v "$n")" "$tmp/nopy/$n"; done; } # a PATH without python3 (its date is the current PATH's)
 mk2() { mk; cp -a "${R:?}/sub" "$R/sub2"; git -C "$R" update-index --add --cacheinfo 160000,"$B",sub2; git -C "$R" commit -q -m base2; }
 stage() { git -C "$1" update-index --cacheinfo 160000,"$2","${3:-$SUBN}"; }
 waive() { printf '%b' "$2" >"${1:?}/.submodule_pin_waivers"; git -C "$1" add .submodule_pin_waivers; }
@@ -260,6 +283,7 @@ classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` 
   out+="$(members7 "$g")"
   out+="$(members8 "$g")"
   out+="$(members10 "$g")"
+  out+="$(members11 "$g")"
   echo "${out}DATE=$ds~$(date +%F)"
 }
 # ── round 6: the class inventory (§11.4.276(C)). One fixture per guard of the gate that no earlier fixture falsifies;
@@ -695,6 +719,13 @@ members10() { # gate path -> vector part (round 10, review N1/N2, §11.4.276(E) 
   #                                 never reaches the compare as a valid row: not constructible, so no pair
   #   249 item -[0-9]{3,}        -> ITEMBND: CON-46 refused | CON-046 and CON-0046 honoured
   #   196 len(p)!=5              -> equivalence proof eq-idpy-len-dropped (printf always yields 5 fields)
+  #   138 while [ $# -gt 0 ]     -> (round 11, review r10 F5: missing from this list in round 10) ARGNEAR (members11): a
+  #                                 trailing near-miss flag is a usage error; RV10-04 (-gt 1) is killed
+  # (Round 11: the line numbers above are those of the round-10 gate; the site table cm_submodule_pin_not_downgraded_
+  # sites.tsv is now the complete, linted list of every compare, with its anchor instead of a line number. The SHA
+  # equalities of the spent scan, round-10 lines 219 `$1""!=h""` / `$i""==b""` and 274 `!= "$nsha"`, have no near miss
+  # that the scan can see: both sides are full SHAs that git printed, so a prefix or case near miss is not constructible
+  # without a 12-character prefix collision; they stay out of SHANEAR by that argument, rows S0xx of the site table.)
   # The other compares of the gate are equalities on exit codes, flags or SHAs (fwd/back, irc, fail/blind, dstat, the
   # 160000 modes); they have no ordered boundary, and their members are in the inventory and the generated ledger.
   local g="$1" o="" r f v e m x
@@ -761,7 +792,150 @@ members10() { # gate path -> vector part (round 10, review N1/N2, §11.4.276(E) 
   git -C "$r" update-ref -d refs/heads/y
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 "
+# ── round 11 (CON-194, review r10 F1-F6, §11.4.276(E)(3) structural round): fixtures named by the SITE TABLE. Every
+# exact-compare and character-set site of the gate and the hook has a row in cm_submodule_pin_not_downgraded_sites.tsv
+# (found by the census in cm_submodule_pin_not_downgraded_sites.py, checked by the site lint below); a data row names
+# the vector keys of its near-miss pair (the exact value on the accepting side, its near misses on the refusing side)
+# and the mutant that each pair kills. members11 runs one generator per key the table names (s11keys); a key in the
+# table without a generator, or a generator no row names, is a META error, so the table decides what runs.
+s11tab="$here/cm_submodule_pin_not_downgraded_sites.tsv"; s11py="$here/cm_submodule_pin_not_downgraded_sites.py"
+pnear() { # <path> -> the path near misses of PATHNEAR / SPENTPATHNEAR, one per line: case (upper, title), prefix,
+  # suffix, a character before, a trailing slash, a ./ prefix, a space on either side
+  local p="$1"; printf '%s\n' "${p^^}" "${p^}" "${p:0:${#p}-1}" "${p}x" "x${p}" "${p}/" "./${p}" " ${p}" "${p} "; }
+g11_WSID4() { # F1: all FOUR identity fields (committer name, committer email, author name, author email), each padded
+  # on the right, then on the left, with every isspace() character git keeps (gkl, measured); the three other fields
+  # hold other values. The authoriser is the unpadded value, so the gate must strip the pad and refuse (self-waive, 1).
+  # Needle: the same field padded with "x" is a different identity (0).
+  local g="$1" r f k side v o="" n=0 x
+  local -a F=(GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL) B=(t t@t t t@t)
+  mk;r=$R; stage "$r" "$A"
+  for k in 0 1 2 3; do
+    waive "$r" "$(wf sub "$B" "$A" "${B[k]}" "$d10" CON-046)\n"
+    for side in R L; do [ "$side" = R ] && v="${B[k]}$gkcat" || v="$gkcat${B[k]}"
+      o+="$(run "$r" "$g" GIT_COMMITTER_NAME=cn GIT_COMMITTER_EMAIL=ce@x GIT_AUTHOR_NAME=an GIT_AUTHOR_EMAIL=ae@x "${F[k]}=$v")"
+      n=$((n+$(cnt 'self-waive'))); done; done
+  x="$(run "$r" "$g" GIT_COMMITTER_NAME=cn GIT_COMMITTER_EMAIL="t@tx" GIT_AUTHOR_NAME=an GIT_AUTHOR_EMAIL=ae@x)"
+  echo "WSID4=$o/$n/${#gkl[@]}/$x "; }
+g11_TZPAIR() { # F2: the gate's today is the UTC date. Kiritimati (UTC+14) is a day AHEAD of UTC when the UTC hour is
+  # >= 10, Etc/GMT+12 (UTC-12) a day BEHIND when it is < 12, so at every hour at least one of the two differs from UTC:
+  # expiry = UTC today under Kiritimati honoured (0), = UTC today-1 under GMT+12 refused (1), = UTC today+31 under
+  # Kiritimati refused (1), = UTC today+30 under GMT+12 honoured (0). A gate using the local date flips one of them.
+  local g="$1" r o=""
+  mk;r=$R; stage "$r" "$A"
+  waive "$r" "$(wf sub "$B" "$A" ops "$today" CON-046)\n"; o+="$(run "$r" "$g" TZ=Pacific/Kiritimati),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$(date -d "$today -1 day" +%F)" CON-046)\n"; o+="$(run "$r" "$g" TZ=Etc/GMT+12),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$(date -d "$today +31 days" +%F)" CON-046)\n"; o+="$(run "$r" "$g" TZ=Pacific/Kiritimati),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$(date -d "$today +30 days" +%F)" CON-046)\n"; o+="$(run "$r" "$g" TZ=Etc/GMT+12)"
+  echo "TZPAIR=$o/$(TZ=Pacific/Kiritimati date +%z)/$(TZ=Etc/GMT+12 date +%z) "; }
+g11_PATHNEAR() { # F4: the waiver row's path compare (`$1""==p""`, case-sensitive, whole string): the exact path is
+  # honoured, every near miss of pnear() is refused
+  local g="$1" r o v; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o="$(run "$r" "$g")/"
+  while IFS= read -r v; do waive "$r" "$(wf "$v" "$B" "$A" ops "$d10" CON-046)\n"; o+="$(run "$r" "$g")"; done < <(pnear sub)
+  echo "PATHNEAR=$o "; }
+g11_SPENTPATHNEAR() { # F4: the spent check's path compare: a same-parent sibling whose row differs only by a near-miss
+  # path spends nothing (0 each); the exact row spends it (1)
+  local g="$1" r x o="" v; mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD); waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  while IFS= read -r v; do ysib "$r" "$x" "$(wf "$v" "$B" "$A" ops "$d10" CON-046 "$x")\n"; o+="$(run "$r" "$g")"; done < <(pnear sub)
+  ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\n"; o+="/$(run "$r" "$g")"; git -C "$r" update-ref -d refs/heads/y
+  echo "SPENTPATHNEAR=$o "; }
+g11_SPENTFIELDS() { # the spent check's field count (`NF==7`): a sibling row with 8 fields (one extra) or 6 spends nothing
+  local g="$1" r x o=""; mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD); waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"
+  ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x" | tr -d '\n')\tz\n"; o+="$(run "$r" "$g"),"
+  ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x" | cut -f1-6)\n"; o+="$(run "$r" "$g"),"
+  ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\n"; o+="$(run "$r" "$g")"; git -C "$r" update-ref -d refs/heads/y
+  echo "SPENTFIELDS=$o "; }
+g11_ARGNEAR() { # the argument parser's case arms: each flag exactly, with a valid value, is accepted (0); each near
+  # miss (case, a character missing, one added), given the SAME valid value, is a usage error (2)
+  local g="$1" r o="" v; mk;r=$R; : >"$tmp/emptyw"
+  for v in "--root $r" "--base HEAD" "--waivers $tmp/emptyw" -h --help; do o+="$(bash "$g" --root "$r" $v >/dev/null 2>&1; echo $?)"; done; o+="/"
+  for v in "--ROOT $r" "--Root $r" "--roo $r" "--rootx $r" "--BASE HEAD" "--bas HEAD" "--basex HEAD" "--WAIVERS $tmp/emptyw" \
+      "--waiver $tmp/emptyw" "--waiversx $tmp/emptyw" -H --HELP --hel --helpx; do o+="$(bash "$g" --root "$r" $v >/dev/null 2>&1; echo $?)"; done
+  echo "ARGNEAR=$o "; }
+g11_CONFKEYNEAR() { # the config key arms: the exact key is honoured (max 60, a 45-day expiry, 0), every near miss is an
+  # unknown key, which disables waivers (1)
+  local g="$1" r o="" v
+  for v in max_waiver_days=60 Max_waiver_days=60 MAX_WAIVER_DAYS=60 max_waiver_day=60 max_waiver_daysx=60 xmax_waiver_days=60 \
+      ITEM_PREFIX=CON item_prefi=CON item_prefixx=CON; do
+    mk;r=$R; conf "$r" "$v\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"
+    o+="$(run "$r" "$g")"; [ "$v" = max_waiver_days=60 ] && o+="/"; done
+  echo "CONFKEYNEAR=$o "; }
+g11_CONFHASH() { # the config comment arm `'#'*`: a line starting with # is a comment (0); " #c" (a space before the #)
+  # and "x#c" are not comments: not key=value, waivers disabled (1)
+  local g="$1" r o="" v
+  for v in '#c' ' #c' 'x#c'; do mk;r=$R; conf "$r" "$v\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
+    waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="$(run "$r" "$g"),"; done
+  echo "CONFHASH=$o "; }
+g11_DUPNEAR() { # the duplicate-key compare `*" $k "*`: a later key that is a SUBSTRING of an earlier one is unknown,
+  # never "duplicated" (rc / unknown count / duplicated count)
+  local g="$1" r; mk;r=$R; conf "$r" 'max_waiver_days=60\nwaiver_days=1\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; echo "DUPNEAR=$(run "$r" "$g")/$(cnt 'unknown')/$(cnt 'duplicated') "; }
+g11_CONFSPLIT() { # the key=value split `${line%%=*}` / `${line#*=}` (first =): item_prefix=A=B is a bad VALUE of a known
+  # key, never an unknown key "item_prefix=A" (rc / value message / unknown-key message)
+  local g="$1" r; mk;r=$R; conf "$r" 'item_prefix=A=B\n'; git -C "$r" commit -q -m conf; stage "$r" "$A"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; echo "CONFSPLIT=$(run "$r" "$g")/$(cnt "item_prefix='A=B'")/$(cnt 'unknown') "; }
+g11_ITEMCASE() { # the tracked-item regex is case-sensitive: con-046 refused (1), CON-046 honoured (0)
+  local g="$1" r o=""; mk;r=$R; stage "$r" "$A"
+  for v in con-046 Con-046 CON-046; do waive "$r" "$(wf sub "$B" "$A" ops "$d10" "$v")\n"; o+="$(run "$r" "$g"),"; done
+  echo "ITEMCASE=$o "; }
+g11_SEPINJECT() { # the internal separators \036 / \037 and the 4-variable read: a row whose authoriser field carries
+  # \037-separated copies of valid expiry, item and base values must NOT supply them (the last variable keeps the rest,
+  # so the base never matches: 1); the sibling form for the spent site: a sibling whose row path field carries the
+  # injected text spends nothing (0)
+  local g="$1" r x o; mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD)
+  waive "$r" "$(printf 'sub\t%s\t%s\tops\037%s\037CON-046\037%s\tz\tz\tz' "$B" "$A" "$d10" "$x")\n"; o="$(run "$r" "$g")/$(cnt 'bound to base')"
+  echo "SEPINJECT=$o "; }
+g11_CRMID() { # the CR site `*$'\r'*` catches a CR anywhere in the row, not only at the end (rc / CR message count)
+  local g="$1" r; mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" $'CON-0\r46')\n"; echo "CRMID=$(run "$r" "$g")/$(cnt 'CR (CRLF') "; }
+g11_TSVSPACE() { # the field separator is TAB only: a row whose fields are separated by spaces is one field (not
+  # waived, 1); a same-parent sibling with that row spends nothing (0)
+  local g="$1" r x; mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD)
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 | tr '\t' ' ')\n"; local o="$(run "$r" "$g"),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x" | tr '\t' ' ')\n"
+  o+="$(run "$r" "$g")"; git -C "$r" update-ref -d refs/heads/y; echo "TSVSPACE=$o "; }
+g11_HASHMID() { # the comment test `$1!~/^#/` is anchored: a gitlink path with a # inside (a#b) is waivable (0)
+  local g="$1" r; SUBN='a#b'; mk;r=$R; stage "$r" "$A" 'a#b'; waive "$r" "$(wf 'a#b' "$B" "$A" ops "$d10" CON-046)\n"
+  echo "HASHMID=$(run "$r" "$g") "; SUBN=sub; }
+g11_PATHWS() { # the -z diff reader keeps a path verbatim (IFS= read -d ''): a gitlink at " s" or "s " is judged at
+  # that path (downgrade: FAIL 1, never BLIND for a stripped path)
+  local g="$1" r o="" v; for v in ' s' 's '; do SUBN="$v"; mk;r=$R; stage "$r" "$A" "$v"; o+="$(run "$r" "$g"),"; done; SUBN=sub
+  echo "PATHWS=$o "; }
+g11_SYMNEAR() { # the symlink check `subp != root/path` is an exact string compare: a checkout path that is a symlink
+  # to a sibling whose name EXTENDS the path (subx) or differs in case (SUB) is still a symlink (BLIND 2 / message 1)
+  local g="$1" r o="" t
+  for t in subx SUB; do mk;r=$R; git clone -q "$r/sub" "$r/$t" 2>/dev/null; rm -rf "${r:?}/sub"; ln -s "$r/$t" "$r/sub"; stage "$r" "$A"
+    o+="$(run "$r" "$g")/$(cnt 'checkout path is a symlink'),"; done
+  echo "SYMNEAR=$o "; }
+g11_NULROW() { # F3: a NUL byte in waiver data is never dropped silently. (a) the index waiver file, a NUL inside the
+  # path field (bash would read "sub"); (b) the same through --waivers; (c) a same-parent sibling whose waiver file holds
+  # the exact row plus a NUL (the row cannot be proven unspent); (d) a base config with a NUL inside a valid line
+  # (waivers disabled). Each: rc / NUL message count; needle (e): the same row without the NUL is honoured (0)
+  local g="$1" r x o=""; mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD)
+  printf 'su\0b\t%s\t%s\tops\t%s\tCON-046\t%s\n' "$B" "$A" "$d10" "$x" >"$r/.submodule_pin_waivers"; git -C "$r" add .submodule_pin_waivers
+  o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"
+  cp "$r/.submodule_pin_waivers" "$tmp/nulw"; o+="$(run "$r" "$g" -- --waivers "$tmp/nulw")/$(cnt 'NUL byte'),"
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\\0\n"
+  o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"; git -C "$r" update-ref -d refs/heads/y
+  mk;r=$R; { printf 'max_waiver_days=6'; printf '\0'; printf '0\n'; } >"$r/.submodule_pin_gate.conf"; git -C "$r" add .submodule_pin_gate.conf; git -C "$r" commit -q -m conf
+  stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"
+  mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="$(run "$r" "$g")"
+  echo "NULROW=$o "; }
+g11_DOWN2() { # F6: the incident shape, a downgrade by MORE than one commit (C -> A over B): FAIL with the ANCESTOR text
+  local g="$1" r c; mk;r=$R; git -C "$r/sub" checkout -q "$B"; git -C "$r/sub" commit -q --allow-empty -m C; c=$(git -C "$r/sub" rev-parse HEAD)
+  git -C "$r" update-index --cacheinfo 160000,"$c",sub; git -C "$r" commit -q -m pc; stage "$r" "$A"
+  echo "DOWN2=$(run "$r" "$g")/$(cnt 'ANCESTOR') "; }
+g11_IDDELIM() { # the idname / idmail splits (` <`, `<`, `>`) have no constructible near miss: git removes < and > from
+  # a name and an email itself (needle: an identity given with both still has exactly one < and one >)
+  local id; id="$(GIT_COMMITTER_NAME='a <b>' GIT_COMMITTER_EMAIL='x<y>z@w' git var GIT_COMMITTER_IDENT 2>/dev/null)"
+  echo "IDDELIM=$(tr -cd '<' <<<"$id" | wc -c)/$(tr -cd '>' <<<"$id" | wc -c) "; }
+s11keys=(); while IFS=$'\t' read -r sid _ _ _ scls sgen _; do case "$sid" in ''|'#'*) continue ;; esac
+  case "$scls" in sha|path|ident|date|num|text|charset) ;; *) continue ;; esac
+  IFS=',' read -ra sk <<<"$sgen"; for k in "${sk[@]}"; do [ "$(type -t "g11_$k")" = function ] && s11keys+=("$k"); done
+done <"$s11tab"
+mapfile -t s11keys < <(printf '%s\n' "${s11keys[@]}" | LC_ALL=C sort -u)
+for f in $(compgen -A function g11_); do printf '%s\n' "${s11keys[@]}" | grep -qx "${f#g11_}" || { echo "META: generator $f is named by no site-table row" >&2; exit 2; }; done
+[ "${#s11keys[@]}" -ge 20 ] || { echo "META: the site table names ${#s11keys[@]} generators (expected 20 or more; table unread?)" >&2; exit 2; }
+members11() { local g="$1" k o=""; for k in "${s11keys[@]}"; do o+="$("g11_$k" "$g")"; done; echo "$o"; }
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/135 F_HELPSHORT=0/135 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 ARGNEAR=00000/22222222222222 CONFHASH=0,1,1, CONFKEYNEAR=0/11111111 CONFSPLIT=1/1/0 CRMID=1/1 DOWN2=1/1 DUPNEAR=1/1/0 HASHMID=0 IDDELIM=1/1 ITEMCASE=1,1,0, NULROW=1/1,1/1,1/1,1/1,0 PATHNEAR=0/111111111 PATHWS=1,1, SEPINJECT=1/1 SPENTFIELDS=0,0,1 SPENTPATHNEAR=000000000/1 SYMNEAR=2/1,2/1, TSVSPACE=1,0 TZPAIR=0,1,1,0/+1400/-1200 WSID4=11111111/8/19/0 "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -876,6 +1050,21 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   if [ "$lrc" = 1 ] && grep -q 'L3 gate line' <<<"$lo" && grep -q 'L5 registered but in no row: deleted-gitlink-judged' <<<"$lo" && grep -q 'L1 I016' <<<"$lo"; then
     echo "ok   lint control needle: a broken inventory is refused (L1, L3, L5)"
   else echo "BAD  lint control needle: broken inventory not refused (rc $lrc)"; echo "$lo" | head -5; bad=1; fi
+  # ── round 11: the SITE lint (cm_submodule_pin_not_downgraded_sites.py; the census and the table rules are in its
+  # header). Static: every exact-compare / character-set site of the gate and the hook has a row, every data row names a
+  # fixture key of want and a registered mutant. Control needles for its zero (§11.4.201(7)(b)): (1) a gate copy with
+  # one added compare line, (2) the table with its first path-compare row removed, (3) the table with one data
+  # row's fixture keys emptied: each must be refused with its own finding (S1, S1, S3)
+  s11lint() { python3 -I "$s11py" lint "$1" "${s11g:-$gate}" "$hook" "${s11t:-$s11tab}" "${BASH_SOURCE[0]:-$0}" "$inv" "${@:2}"; }
+  s11lint static || bad=1
+  awk '{print} /^ *\[ "\$bs" = "\$basec" \] \|\|/{print "    [ \"$bs\" = \"$basec\" ] || :"}' "$gate" >"$tmp/s11g.sh"
+  awk -F'\t' -v OFS='\t' '$5=="path" && $3=="$1\"\"==p\"\"" && !d {d=1; next} {print}' "$s11tab" >"$tmp/s11t1.tsv"
+  awk -F'\t' -v OFS='\t' '$5=="sha" && !d {$6="-"; d=1} {print}' "$s11tab" >"$tmp/s11t2.tsv"
+  so1="$(s11g="$tmp/s11g.sh" s11lint static 2>&1)"; sr1=$?; so2="$(s11t="$tmp/s11t1.tsv" s11lint static 2>&1)"; sr2=$?; so3="$(s11t="$tmp/s11t2.tsv" s11lint static 2>&1)"; sr3=$?
+  if [ "$sr1" = 1 ] && grep -q 'BAD  site lint S1 gate line' <<<"$so1" && [ "$sr2" = 1 ] && grep -q "BAD  site lint S1 gate line .* token '\$1\"\"==p\"\"'" <<<"$so2" \
+      && [ "$sr3" = 1 ] && grep -q 'BAD  site lint S3 S[0-9]*: data row without a fixture key' <<<"$so3"; then
+    echo "ok   site lint control needles: an added compare, a removed row and an emptied data row are refused (S1, S1, S3)"
+  else echo "BAD  site lint control needles: rc $sr1/$sr2/$sr3"; printf '%s\n' "$so1" "$so2" "$so3" | grep BAD | head -5; bad=1; fi
 fi
 vdir() { # real-vector mutant-vector -> fail directions observed: fo (a refusal became exit 0), fr (an exit 0 became a
   # refusal), ch (another change, including a changed count or message field with the same exit code); per token
@@ -1071,7 +1260,7 @@ if [ -z "${GATE_UNDER_TEST:-}" ]; then
   # consumer DATA (config from the base commit) and the reviewer killers K1, K3-K5
   mutant config-from-index 's/ctext="\$(blob "\$basec" .submodule_pin_gate.conf)"/ctext="$(git -C "$root" show :.submodule_pin_gate.conf 2>\/dev\/null)"/'
   mutant config-error-ignored 's/^  \[ -z "\$conferr" \] || .*$/  :/'
-  mutant RV1-config-unreadable-as-absent 's/^if \[ "\$crc" = 2 \]; then conferr=.*$/if false; then :/'
+  mutant RV1-config-unreadable-as-absent 's/^elif \[ "\$crc" = 2 \]; then conferr=.*$/elif false; then :/'
   mutant RV3-duplicate-key-allowed 's/^    case "\$seen" in .*$/    :/'
   mutant RV4-prefix-unvalidated 's/item_prefix) \[\[ "\$v" =~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\] || /item_prefix) true || /'
   mutant RV5-365-cap-removed 's/ \&\& \[ "\$v" -le 365 \]//'
@@ -1293,10 +1482,10 @@ MEOF
 s/^mergeh="\$(pg rev-parse -q --verify 'MERGE_HEAD^{commit}' 2>\/dev\/null)"$/mergeh=""/
 MEOF
   mutf today-past <<'MEOF'
-s/^today="\$(date +%Y-%m-%d)"$/today=2000-01-01/
+s/^today="\$(TZ=UTC date +%Y-%m-%d)"$/today=2000-01-01/
 MEOF
   mutf today-future <<'MEOF'
-s/^today="\$(date +%Y-%m-%d)"$/today=2999-01-01/
+s/^today="\$(TZ=UTC date +%Y-%m-%d)"$/today=2999-01-01/
 MEOF
   mutf default-days-31 <<'MEOF'
 s/^maxd=30; prefix=CON;/maxd=31; prefix=CON;/
@@ -1494,7 +1683,7 @@ MEOF
 s/^    \[ -n "\$cident" \] \&\& \[ -n "\$aident" \] ||/    false ||/
 MEOF
   mutf crc-unreadable-always <<'MEOF'
-s/^if \[ "\$crc" = 2 \]; then conferr=/if true; then conferr=/
+s/^elif \[ "\$crc" = 2 \]; then conferr=/elif true; then conferr=/
 MEOF
   mutf blob-tree-always-missing <<'MEOF'
 s/^  pg cat-file -e "\$1^{tree}" 2>\/dev\/null || return 2$/  return 2/
@@ -1680,6 +1869,143 @@ MEOF
 MEOF
   mutf spent-base-prefix12 <<'MEOF'
 s/\$7""==b""/substr($7,1,12)==substr(b,1,12)/
+MEOF
+  # ── round 11 (CON-194, review r10, §11.4.276(E)(3) structural round). Reviewer mutants RV10-01, -03, -04, -05, -07,
+  # -08 and -11 adopted VERBATIM (review_con046_r10.md section 4; rev_con046_r10/mut*/RV10-*.sh; each sed gives the
+  # reviewer's file byte for byte on the round-10 gate, checked with cmp when adopted). RV10-02 (today in UTC) is now
+  # the gate itself, so its inverse today-local is the mutant (TZPAIR). RV10-06 (the expiry round trip replaced by a
+  # parse check) is equivalent (the reviewer's measurement: 2310 strings x 3 zones; eq-expiry-tail-by-roundtrip already
+  # proves the regex tail is redundant to the round trip, not the converse) and RV10-10 is HK31-hook-no-readlink. The
+  # other mutants of this block are named by rows of the site table (cm_submodule_pin_not_downgraded_sites.tsv): one
+  # per data site whose near-miss pair no earlier mutant attacked.
+  mutf RV10-01-downgrade-one-step <<'MEOF'
+s/^  sg -C "\$sub" merge-base --is-ancestor "\$nsha" "\$osha" 2>\/dev\/null; back=\$?$/  [ "$(sg -C "$sub" rev-parse "${osha}^" 2>\/dev\/null)" = "$nsha" ]; back=$?/
+MEOF
+  mutf RV10-03-spent-first-parent-only <<'MEOF'
+s/for(i=2;i<=NF;i++)/for(i=2;i<=2;i++)/
+MEOF
+  mutf RV10-04-argloop-gt1 <<'MEOF'
+s/^while \[ \$# -gt 0 \]; do$/while [ $# -gt 1 ]; do/
+MEOF
+  mutf RV10-05-email-space-strip <<'MEOF'
+s/return 10 if any(i\.strip() and f(i\.strip())==f(a) for i in p\[1:\]) else 0/return 10 if any(i.strip() and f(i.strip())==f(a) for i in (p[1],p[3])) or any(i.strip(" ") and f(i.strip(" "))==f(a) for i in (p[2],p[4])) else 0/
+MEOF
+  mutf RV10-07-spent-path-ignored <<'MEOF'
+s/NF==7 \&\& \$1""==p"" \&\& \$2""==o"" \&\& \$3""==n"" \&\& \$7""==b""/NF==7 \&\& $2""==o"" \&\& $3""==n"" \&\& $7""==b""/
+MEOF
+  mutf RV10-08-spent-exclude-head-always <<'MEOF'
+s/^    hx=""$/    hx="$headc"/
+MEOF
+  mutf RV10-11-waiver-path-nocase <<'MEOF'
+s/NF==7 \&\& \$1!~\/\^#\/ \&\& \$1""==p""/NF==7 \&\& $1!~\/^#\/ \&\& tolower($1)==tolower(p)/
+MEOF
+  mutf today-local <<'MEOF'
+s/^today="\$(TZ=UTC date +%Y-%m-%d)"$/today="$(date +%Y-%m-%d)"/
+MEOF
+  mutf ident-names-ascii-strip <<'MEOF'
+s/return 10 if any(i\.strip() and f(i\.strip())==f(a) for i in p\[1:\]) else 0/return 10 if any(i.strip() and f(i.strip())==f(a) for i in (p[2],p[4])) or any(i.strip(" ") and f(i.strip(" "))==f(a) for i in (p[1],p[3])) else 0/
+MEOF
+  mutf arg-nocasematch <<'MEOF'
+s/^shopt -s lastpipe$/shopt -s lastpipe; shopt -s nocasematch/
+MEOF
+  mutf argflag-prefix <<'MEOF'
+s/^    --root) need/    --root*) need/
+MEOF
+  mutf confkey-prefix <<'MEOF'
+s/^      max_waiver_days) \[\[/      max_waiver_days*) [[/
+MEOF
+  mutf itemkey-prefix <<'MEOF'
+s/^      item_prefix) \[\[/      item_prefix*) [[/
+MEOF
+  mutf conf-read-ifs-dropped <<'MEOF'
+s/^  while IFS= read -r line; do$/  while read -r line; do/
+MEOF
+  mutf conf-hash-anywhere <<'MEOF'
+s/case "\$line" in ''|'#'\*) continue/case "$line" in ''|*'#'*) continue/
+MEOF
+  mutf dupkey-nospace <<'MEOF'
+s/case "\$seen" in \*" \$k "\*)/case "$seen" in *"$k "*)/
+MEOF
+  mutf confsplit-last <<'MEOF'
+s/k="\${line%%=\*}"/k="${line%=*}"/
+MEOF
+  mutf blob-nul-unchecked <<'MEOF'
+s/^  \[ "\${nul\/\/ \/}" = 0 \] || return 3$/  :/
+MEOF
+  mutf waiver-nul-unchecked <<'MEOF'
+s/^  \[ "\${wnul\/\/ \/}" = 0 \] || {/  : || {/
+MEOF
+  mutf wnul-file-zero <<'MEOF'
+s/wnul="\$(tr -cd '\\000' <"\$waivers" 2>\/dev\/null | wc -c)"/wnul=0/
+MEOF
+  mutf wnul-index-zero <<'MEOF'
+s/wnul="\$(pg show :\.submodule_pin_waivers 2>\/dev\/null | tr -cd '\\000' | wc -c)"/wnul=0/
+MEOF
+  mutf spent-nul-unchecked <<'MEOF'
+/same parent) contains a NUL byte"; return 2; }$/d
+MEOF
+  mutf conf-nul-unchecked <<'MEOF'
+s/^if \[ "\$crc" = 3 \]; then conferr=.*$/if false; then :/
+MEOF
+  mutf spent-nf-ge7 <<'MEOF'
+/\$7""==b""/s/NF==7 \&\&/NF>=7 \&\&/
+MEOF
+  mutf spent-path-nocase <<'MEOF'
+/\$7""==b""/s/\$1""==p""/tolower($1)==tolower(p)/
+MEOF
+  mutf spent-path-prefix <<'MEOF'
+/\$7""==b""/s/\$1""==p""/index(p,$1)==1/
+MEOF
+  mutf spent-fs-whitespace <<'MEOF'
+/^    printf '%s\\n' "\$t" | awk/s/-F'\\t'/-F'[\\t ]'/
+MEOF
+  mutf waiver-fs-whitespace <<'MEOF'
+/^  cand="\$(printf/s/-F'\\t'/-F'[\\t ]'/
+MEOF
+  mutf waiver-hash-anywhere <<'MEOF'
+s/\$1!~\/\^#\//$1!~\/#\//
+MEOF
+  mutf waiver-path-prefix <<'MEOF'
+/{print \$0/s/\$1""==p""/index(p,$1)==1/
+MEOF
+  mutf waiver-path-trim <<'MEOF'
+/{print \$0/s/\$1""==p""/gensub(\/^ +| +$\/,"","g",$1)==p/
+MEOF
+  mutf waiver-path-slash <<'MEOF'
+/{print \$0/s/\$1""==p""/($1""==p"" || $1""==p"\/" || $1""=="\.\/"p)/
+MEOF
+  mutf read-drop-remainder <<'MEOF'
+s/IFS=\$'\\037' read -r a e i bs <<</IFS=$'\\037' read -r a e i bs _ <<</
+MEOF
+  mutf ifs036-tab <<'MEOF'
+s/while IFS=\$'\\036' read -r row rest; do/while IFS=$'\\t' read -r row rest; do/
+MEOF
+  mutf crlf-endonly <<'MEOF'
+s/\[\[ "\$row" != \*\$'\\r'\* \]\]/[[ "$row" != *$'\\r' ]]/
+MEOF
+  mutf item-nocase <<'MEOF'
+s/\[\[ "\$i" =~ \^\${prefix}-\[0-9\]{3,}\$ \]\]/[[ "${i^^}" =~ ^${prefix}-[0-9]{3,}$ ]]/
+MEOF
+  mutf pathread-ifs-dropped <<'MEOF'
+s/IFS= read -r -d '' meta \&\& IFS= read -r -d '' path/IFS= read -r -d '' meta \&\& read -r -d '' path/
+MEOF
+  mutf subp-prefix <<'MEOF'
+s/if \[ "\$subp" != "\$root\/\$path" \]; then/if [[ "$subp" != "$root\/$path"* ]]; then/
+MEOF
+  mutf subp-nocase <<'MEOF'
+s/if \[ "\$subp" != "\$root\/\$path" \]; then/if [ "${subp,,}" != "${root,,}\/${path,,}" ]; then/
+MEOF
+  mutf toplevel-prefix <<'MEOF'
+s/if \[ "\$(sg -C "\$sub" rev-parse --show-toplevel 2>\/dev\/null)" != "\$subp" \]; then/if [[ "$subp" != "$(sg -C "$sub" rev-parse --show-toplevel 2>\/dev\/null)"* ]]; then/
+MEOF
+  mutf blob-nul-as-unreadable <<'MEOF'
+s/^  \[ "\${nul\/\/ \/}" = 0 \] || return 3$/  [ "${nul\/\/ \/}" = 0 ] || return 2/
+MEOF
+  mutf spent-nul-as-unspent <<'MEOF'
+s/(same parent) contains a NUL byte"; return 2; }$/(same parent) contains a NUL byte"; continue; }/
+MEOF
+  mutf waiver-nul-continues <<'MEOF'
+s/(git shows such a file as binary); remove it"; return 1; }/(git shows such a file as binary); remove it"; }/
 MEOF
   # ── round 8: generated member mutants (§11.4.274, §11.4.276(C)): cm_submodule_pin_not_downgraded_members.py
   # enumerates every case alternative, regex quantifier / anchor / class part, strip half, test comparison operator,
@@ -1892,6 +2218,12 @@ MEOF
     if [ "$lrc" = 1 ] && grep -q 'DYN I[0-9a-z]*: need \(fo\|fr\|both\), observed ch' <<<"$lo" && [ "$lrc2" = 1 ] && grep -q 'DYN BLIND' <<<"$lo2"; then
       echo "ok   dynamic lint control needle: all-ch directions refused ($(grep -c 'BAD  lint DYN' <<<"$lo") findings), empty is BLIND"
     else echo "BAD  dynamic lint control needle: all-ch rc $lrc, empty rc $lrc2"; bad=1; fi
+    # round 11: every mutant a data row of the site table names was killed (or its proof passed); needle: an empty
+    # directions file is BLIND
+    s11lint dynamic "$tmp/dirs.tsv" "$tmp/eqok" || bad=1
+    lo="$(s11lint dynamic "$tmp/dirs.empty" "$tmp/eqok" 2>&1)"; lrc=$?
+    if [ "$lrc" = 1 ] && grep -q 'DYN BLIND' <<<"$lo"; then echo "ok   dynamic site lint control needle: empty directions are BLIND"
+    else echo "BAD  dynamic site lint control needle: rc $lrc"; bad=1; fi
   fi
 fi
 # ── Part 3: the hook end to end, hook copied next to the gate under test ─────

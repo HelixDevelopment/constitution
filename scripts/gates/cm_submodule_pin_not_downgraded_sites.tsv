@@ -1,0 +1,162 @@
+# CM-SUBMODULE-PIN-NOT-DOWNGRADED site table (CON-046 round 11, CON-194; review r10 section 7, §11.4.276(C)/(E)(3)).
+# One row per exact-compare or character-set SITE of cm_submodule_pin_not_downgraded.sh (from `set -uo pipefail` on) and
+# of the hook, as found by `cm_submodule_pin_not_downgraded_sites.py census`. The site lint (Part 1 of the paired mutation
+# test) refuses a census site without a row, a row without a census site, an ambiguous anchor, a data row without a
+# fixture key in want or without a registered mutant, and an internal row without an existing inventory id.
+# Columns (TAB): id (S... gate, H... hook), anchor (a fixed string on exactly one code line), token (the census token),
+# nth (the n-th equal token on that line), class (data: sha path ident date num text charset; internal: rc flag mode
+# env empty; struct), gen (data: vector keys of the near-miss fixtures, `nc` = no near miss is constructible or the
+# site is equivalent, with the reason; internal: inventory ids), mutants (registered mutants / proofs, or -), reason.
+S001	." && pwd -P	pwd -P	1	path	ROOTNEST,SYMROOT	root-not-normalised,root-default-wrong	default root normalised to its physical path; a nested or symlinked root resolves to its toplevel
+S002	[ "$1" -ge 2 ]	[ "$1" -ge 2 ]	1	num	nc,ARGS	eq-need-argc-redundant	equivalent: argc < 2 implies an empty value, so the -n test decides (eq-need-argc-redundant)
+S003	 [ -n "$2" ]	[ -n "$2" ]	1	rc	I006,I007,I007b,I008	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I006,I007,I007b,I008
+S004	[ $# -gt 0 ]	[ $# -gt 0 ]	1	num	ARGNEAR,ARGS	RV10-04-argloop-gt1	the loop runs to the LAST argument: a trailing unknown or valueless flag is a usage error
+S005	case "$1" in	case "$1" in	1	struct	-	-	the argument case statement; its arms are rows of their own
+S006	--root) need	--root	1	text	ARGNEAR	argflag-prefix,arg-nocasematch,unknown-arg-accepted	exact, case-sensitive flag: case, prefix and suffix near misses are usage errors
+S007	2" && pwd -P	pwd -P	1	path	ROOTNEST,SYMROOT	root-not-normalised	--root normalised to its physical path
+S008	--base) need	--base	1	text	ARGNEAR	arg-nocasematch,unknown-arg-accepted	exact, case-sensitive flag
+S009	--waivers) n	--waivers	1	text	ARGNEAR	arg-nocasematch,unknown-arg-accepted	exact, case-sensitive flag
+S010	-h|--help) a	-h|--help	1	text	ARGNEAR	arg-nocasematch,unknown-arg-accepted	exact, case-sensitive flags
+S011	p) awk 'NR>1	NR>1	1	mode	I013,I013b,I014	-	internal (awkcmp): an exit code, flag or mode value the gate sets itself; guarded by inventory I013,I013b,I014
+S012	p) awk 'NR>1	NR>1	2	mode	I013,I013b,I014	-	internal (awkcmp): an exit code, flag or mode value the gate sets itself; guarded by inventory I013,I013b,I014
+S013	NR>1 && /^#/	/^#/	1	mode	I013,I013b,I014	-	internal (awkre): an exit code, flag or mode value the gate sets itself; guarded by inventory I013,I013b,I014
+S014	-help) awk '	awk '	1	mode	I013,I013b,I014	-	internal (awkdfs): an exit code, flag or mode value the gate sets itself; guarded by inventory I013,I013b,I014
+S015	*) echo "$GA	*	1	rc	I015	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I015
+S016	p" && pwd -P	pwd -P	1	path	ROOTNEST,SYMROOT	root-not-normalised	the toplevel normalised to its physical path
+S017	mapfile -t l	mapfile -t	1	charset	nc,LEV,LEVBND	local-env-vars-unchecked	not constructible: git prints one variable NAME per line ([A-Z_]); no name holds whitespace or a newline
+S018	[ "${#lev[@]}" -gt 0 ]	[ "${#lev[@]}" -gt 0 ]	1	num	LEVBND,LEV	lev-gt-1,lev-check-always-blind	one variable proceeds, none is BLIND (boundary pair)
+S019	case "$v" in	case "$v" in	1	struct	-	-	the env-variable case statement; its arms are rows
+S020	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT	GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT	1	text	S_PARAMSFWD,S_PARAMSDOWN,S_COUNTFWD,S_COUNTDOWN	RV7-01-keep-drops-COUNT,RV7-02-keep-drops-PARAMETERS,config-params-all-unset	the two config variables kept by exact name
+S021	_COUNT) ;; *	*	1	rc	I021,I021a,I021b,I022	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I021,I021a,I021b,I022
+S022	[ -z "$base" ]	[ -z "$base" ]	1	rc	I027	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I027
+S023	[ -n "$basec" ]	[ -n "$basec" ]	1	rc	I028,I029	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I028,I029
+S024	" 2>/dev/null | tr -cd '\000'	tr -cd '\000'	1	charset	NULROW	blob-nul-unchecked	F3: a NUL in a base or sibling blob is counted, never dropped by $(...)
+S025	[ "${nul// /}" = 0 ]	[ "${nul// /}" = 0 ]	1	charset	NULROW	blob-nul-unchecked,blob-nul-as-unreadable	F3: any NUL count other than 0 refuses (rc 3)
+S026	 "${nul// /}	${nul// /}	1	charset	NULROW	blob-nul-unchecked	F3: the space padding some wc builds print is removed before the compare
+S027	Z=UTC date +	date +	1	date	TZPAIR,EXPBND,TODAY	today-local,today-past,today-future	F2: today is the UTC date (TZPAIR: Kiritimati and Etc/GMT+12 against UTC)
+S028	ctext="$(blo	ctext="$(	1	charset	NULROW	conf-nul-unchecked,blob-nul-unchecked	F3: the config text; a NUL makes blob rc 3 (config disabled), never a silently shortened line
+S029	[ "$crc" = 3 ]	[ "$crc" = 3 ]	1	rc	I036b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I036b
+S030	[ "$crc" = 2 ]	[ "$crc" = 2 ]	1	rc	I039	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I039
+S031	[ "$crc" = 0 ]	[ "$crc" = 0 ]	1	rc	I040	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I040
+S032	IFS= read -r l	IFS=	1	charset	CONFWS	conf-read-ifs-dropped	config lines read verbatim: a padded key is unknown (no trim)
+S033	case "$line" in	case "$line" in	1	struct	-	-	the config-line case statement; its arm is a row
+S034	" in ''|'#'*	''|'#'*	1	text	CONFHASH,CONFCOMMENT	conf-hash-anywhere,conf-blank-not-skipped,conf-hash-not-skipped	only an empty line or a line STARTING with # is skipped
+S035	"${line%%=*}	${line%%=*}	1	text	CONFSPLIT,CONFNOKV	confsplit-last,conf-kv-inverted	the key ends at the FIRST =
+S036	="${line#*=}	${line#*=}	1	text	CONFSPLIT	confsplit-last,conf-kv-inverted	the value starts after the FIRST =
+S037	[ "$k" != "$line" ]	[ "$k" != "$line" ]	1	text	CONFNOKV,CONFHASH	conf-non-kv-unnamed,conf-kv-always-error	a line without = is not key=value
+S038	case "$seen" in	case "$seen" in	1	struct	-	-	the duplicate-key case statement; its arm is a row
+S039	 in *" $k "*	*" $k "*	1	text	DUPNEAR,KCONF	dupkey-nospace,V09-conf-seen-no-space,RV3-duplicate-key-allowed	a duplicate is the WHOLE key between spaces: a key that is a substring of an earlier one is unknown, not duplicated
+S040	case "$k" in	case "$k" in	1	struct	-	-	the config-key case statement; its arms are rows
+S041	[[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	[[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	1	num	DAYSBND,MAXD	days-min-2,conf-days-regex-loosened,V07-conf-days-max-99	boundary pairs 0|1, 99|100, 999|1000 (DAYSBND)
+S042	[ "$v" -le 365 ]	[ "$v" -le 365 ]	1	num	DAYSBND,DAYS100	conf-days-366,V08-conf-days-365-exclusive,RV5-365-cap-removed	boundary pair 365|366 (DAYSBND)
+S043	max_waiver_days)	max_waiver_days	1	text	CONFKEYNEAR	confkey-prefix,arg-nocasematch,conf-unknown-key-accepted	exact, case-sensitive key (case, prefix and suffix near misses are unknown keys)
+S044	[[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	[[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	1	text	PFXBND,PREFIXFORM,PFXDIGIT	prefix-min-3,prefix-plus-to-star,prefix-anchor-start-dropped,prefix-anchor-end-dropped	boundary pair C|CN, the anchors and the class
+S045	item_prefix)	item_prefix	1	text	CONFKEYNEAR	itemkey-prefix,arg-nocasematch	exact, case-sensitive key
+S046	*) conferr="config key '	*	1	rc	I052	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I052
+S047	Z=UTC date -	date -	1	date	HORBND,TZPAIR,HORIZON	horizon-plus-1,V21-horizon-minus-1	today + maxd days by calendar arithmetic (TZ-invariant; the TZ=UTC prefix keeps it explicit)
+S048	[ -n "$waivers" ]	[ -n "$waivers" ]	1	rc	I055,I056,I057b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I055,I056,I057b
+S049	(tr -cd '\000'	tr -cd '\000'	1	charset	NULROW	wnul-file-zero	F3: NUL count of the --waivers file
+S050	; wtext="$(c	wtext="$(	1	charset	NULROW,WFILE	waiver-nul-unchecked,waivers-file-not-read	F3: the waiver text; its NUL count is checked before the text is trusted
+S051	tr -cd '\000' | wc -c)";	tr -cd '\000'	1	charset	NULROW	wnul-index-zero	F3: NUL count of the index waiver file
+S052	; wtext="$(p	wtext="$(	1	charset	NULROW,UNTRACKED	waiver-nul-unchecked,waiver-from-worktree	F3: the index waiver text
+S053	' "${1%% <*}	${1%% <*}	1	ident	nc,IDDELIM	idname-empty	not constructible: git removes < and > from a name and an email (IDDELIM), so " <" splits at the email
+S054	l m="${1#*<}	${1#*<}	1	ident	nc,IDDELIM	idmail-empty	not constructible: one < in a git ident (IDDELIM)
+S055	s' "${m%%>*}	${m%%>*}	1	ident	nc,IDDELIM	idmail-empty	not constructible: one > in a git ident (IDDELIM)
+S056	split(b"\0")	split(b"\0")	1	charset	nc,PYFAIL	idpy-split-wrong	not constructible: a bash argument cannot hold a NUL, so the five NUL-joined fields cannot carry one
+S057	decode("utf-8")	decode("utf-8")	1	charset	AUTHUTF8,PYFAIL	authoriser-crash-uncaught	invalid UTF-8 is a python failure (rc 4), never a match
+S058	if len(p)!=5	len(p)!=5	1	num	nc	eq-idpy-len-dropped	equivalent: printf always yields five fields (eq-idpy-len-dropped)
+S059	a!=a.strip()	a!=a.strip()	1	ident	WSAUTH,ZSAUTH,AUTHNORM	RV7-04-authoriser-lstrip-only,RV8-02-authoriser-ascii-strip,RV9-10-auth-zs-only-pad	an authoriser padded with ANY isspace() character is refused
+S060	 or "<" in a	"<" in a	1	ident	AUTHLTGT	auth-lt-dropped	an authoriser holding < is refused
+S061	 or ">" in a	">" in a	1	ident	AUTHLTGT	auth-gt-dropped	an authoriser holding > is refused
+S062	a!=a.strip()	a.strip()	1	ident	WSAUTH,ZSAUTH	RV8-02-authoriser-ascii-strip,RV9-10-auth-zs-only-pad	python isspace() strip, both sides
+S063	.startswith("C")	.startswith("C")	1	ident	AUTHCTRL	authoriser-control-chars-allowed	any control / format / unassigned character (category C*) is refused
+S064	if not a or 	not a	1	ident	EMPTYAUTH,NOAUTH	empty-authoriser-allowed	an empty authoriser is refused
+S065	).casefold()	casefold()	1	ident	AUTHNORM	no-casefold-no-nfc,V13-casefold-to-lower	full case folding (Cyrillic, sharp s)
+S066	normalize("NFC", s)	normalize("NFC", s)	1	ident	AUTHNORM	casefold-without-nfc,no-casefold-no-nfc	NFC before and after the fold
+S067	f(i.strip())==f(a)	f(i.strip())==f(a)	1	ident	WSID4,WSID,IDENTONE,SELFAUTH	RV10-05-email-space-strip,ident-names-ascii-strip,RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip,self-authoriser-allowed	F1: ONE normalisation for all FOUR identity fields (names and emails): every isspace() character git keeps is stripped (WSID4)
+S068	ny(i.strip()	i.strip()	1	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
+S069	ny(i.strip()	i.strip()	2	ident	WSID4,WSID	RV10-05-email-space-strip,ident-names-ascii-strip,RV9-11-ident-zs-only-strip,eq-ident-strip-truthiness	F1: the same strip on every field (the truthiness strip is equivalent, eq-ident-strip-truthiness)
+S070	[ -z "$kidsrc" ]	[ -z "$kidsrc" ]	1	rc	I077	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I077
+S071	[ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]	[ "$(pg rev-parse --is-shallow-repository 2>/dev/null)" != false ]	1	text	SHALLOWSUP,KNM2	NM2-shallow-unknown-is-deep,M1-shallow-superproject-unchecked	only the exact word false is a complete history
+S072	all" | awk '	awk '	1	charset	nc,KIDPARENT	-	not constructible: rev-list --parents prints hex SHAs separated by single spaces (default FS is exact)
+S073	$1""!=h"" {f	$1""!=h""	1	sha	N4INDEX,KNM6,KNM1	N4-head-always-excluded,V14-n4-hx-is-base,RV10-08-spent-exclude-head-always	the excluded commit by exact string (empty h excludes nothing)
+S074	or(i=2;i<=NF	i<=NF	1	num	KIDPARENT,KNM3	RV10-03-spent-first-parent-only,NM3-first-parent-only	EVERY parent field is scanned, not only the first
+S075	if($i""==b""	$i""==b""	1	sha	SPENTNEAR,KIDPARENT	spent-any-parent-is-base,spent-no-parents	the parent equals the base by exact string
+S076	[ "$kidsrc" = shallow ]	[ "$kidsrc" = shallow ]	1	rc	I085,I085b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I085,I085b
+S077	[ "$kidsrc" = ok ]	[ "$kidsrc" = ok ]	1	rc	I086,I086b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I086,I086b
+S078	for k in $kids;	for k in $kids;	1	charset	nc,STASH	spender-ignored	not constructible: kids holds hex SHAs, one per line (default IFS splits exactly)
+S079	t="$(blob "$k	t="$(	1	charset	NULROW	spent-nul-unchecked,spent-nul-as-unspent	F3: a sibling waiver file with a NUL cannot prove the row unspent (rc 3)
+S080	[ "$rc" = 3 ]	[ "$rc" = 3 ]	1	rc	I089c,I089d	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I089c,I089d
+S081	[ "$rc" = 2 ]	[ "$rc" = 2 ]	1	rc	I089,I089b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I089,I089b
+S082	[ "$rc" = 0 ]	[ "$rc" = 0 ]	1	rc	I090a,I090	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I090a,I090
+S083	$t" | awk -F'\t'	-F'\t'	1	charset	TSVSPACE	spent-fs-whitespace,NM5-spent-whitespace-split	fields split on TAB only (a space-separated sibling row spends nothing)
+S084	NF==7 && $1"	NF==7	1	num	SPENTFIELDS,KNM9	spent-nf-ge7,NM9-spent-extra-fields	exactly seven fields (8 or 6 spend nothing)
+S085	7 && $1""==p""	$1""==p""	1	path	SPENTPATHNEAR,SPENTNUM,K11PATH	RV10-07-spent-path-ignored,spent-path-nocase,spent-path-prefix,RM11-spent-ignores-path,spent-numeric-path	F4: path by exact, case-sensitive string (pnear near misses spend nothing)
+S086	$2""==o"" && $3""==n"" &	$2""==o""	1	sha	SPENTNEAR,K12OLD	RM12-spent-ignores-old,spent-old-prefix12	old pin by exact string (near())
+S087	 $3""==n"" &	$3""==n""	1	sha	SPENTNEAR,KNM4	NM4-spent-ignores-new,spent-new-prefix12	new pin by exact string (near())
+S088	&& $7""==b""	$7""==b""	1	sha	SPENTNEAR,SIBOTHER	spent-base-ignored,spent-base-prefix12	base by exact string (near())
+S089	[ -z "$conferr" ]	[ -z "$conferr" ]	1	rc	I097,I097b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I097,I097b
+S090	[ -n "$wtext" ]	[ -n "$wtext" ]	1	rc	I098,I098b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I098,I098b
+S091	[ "${wnul// /}" = 0 ]	[ "${wnul// /}" = 0 ]	1	charset	NULROW	waiver-nul-unchecked,waiver-nul-continues	F3: a NUL in the waiver data refuses every row
+S092	"${wnul// /}	${wnul// /}	1	charset	NULROW	waiver-nul-unchecked	F3: wc padding removed before the compare
+S093	xt" | awk -F'\t'	-F'\t'	1	charset	TSVSPACE	waiver-fs-whitespace	fields split on TAB only (a space-separated row is one field)
+S094	NF==7 && $1!	NF==7	1	num	FIELDS8,FIELDS6	RM4-extra-fields,six-field-rows	exactly seven fields
+S095	/ && $1""==p""	$1""==p""	1	path	PATHNEAR,NUMPATH,TWOSUB	RV10-11-waiver-path-nocase,waiver-path-prefix,waiver-path-trim,waiver-path-slash,waiver-ignores-path,R3n1-numeric-compare	F4: path by exact, case-sensitive string (pnear near misses are refused)
+S096	$2""==o"" && $3""==n"" {	$2""==o""	1	sha	SHANEAR,OLDBIND	waiver-ignores-old-sha,waiver-old-prefix12	old pin by exact string (near())
+S097	 $3""==n"" {	$3""==n""	1	sha	SHANEAR,WRONGSHA	waiver-ignores-new-sha,waiver-new-prefix12	new pin by exact string (near())
+S098	 && $1!~/^#/	$1!~/^#/	1	text	HASHMID,WCOMMENT,KV18HASHMID	waiver-hash-anywhere,waiver-comment-rows-honoured,V18-comment-hash-anywhere	a comment row STARTS with #; a # inside a path is data
+S099	nt $0 "\036"	"\036"	1	charset	SEPINJECT	read-drop-remainder,ifs036-tab	the row / fields separator: no TAB-split field can hold it (awk -F TAB), and the last read variable keeps the rest
+S100	6" $4 "\037"	"\037"	1	charset	SEPINJECT	read-drop-remainder	the field separator: an authoriser carrying \037 copies cannot supply expiry, item or base
+S101	6" $4 "\037"	"\037"	2	charset	SEPINJECT	read-drop-remainder	the field separator: an authoriser carrying \037 copies cannot supply expiry, item or base
+S102	6" $4 "\037"	"\037"	3	charset	SEPINJECT	read-drop-remainder	the field separator: an authoriser carrying \037 copies cannot supply expiry, item or base
+S103	[ -n "$cand" ]	[ -n "$cand" ]	1	rc	I101,I101b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I101,I101b
+S104	 IFS=$'\036'	IFS=$'\036'	1	charset	SEPINJECT,DUPROW	ifs036-tab,RM5-first-bad-row-aborts	row and fields split on \036 only
+S105	IFS=$'\037' 	IFS=$'\037'	1	charset	SEPINJECT	read-drop-remainder,author-not-compared	fields split on \037; bs keeps the remainder
+S106	[[ "$row" != *$'\r'* ]]	[[ "$row" != *$'\r'* ]]	1	charset	CRMID,CRLF	crlf-endonly,cr-not-named,cr-always	a CR ANYWHERE in the row is named
+S107	[ "$bs" = "$basec" ]	[ "$bs" = "$basec" ]	1	sha	SHANEAR,BASEFORM	RV9-05-base-prefix-bind,base-suffix12,base-nocase,base-unbound	base by exact string (near())
+S108	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	1	date	BADEXP,YEAR5	expiry-format-unchecked,expiry-always-bad,eq-expiry-tail-by-roundtrip	the YYYY-MM-DD form
+S109	[ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ]	[ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ]	1	date	BADEXP	expiry-roundtrip-dropped	a real date: the round trip prints the same string (TZ-invariant; RV10-06 parse-only is equivalent)
+S110	 [ "$(date -	date -	1	date	BADEXP	expiry-roundtrip-dropped	the round trip date call
+S111	[[ "$e" < "$today" ]]	[[ "$e" < "$today" ]]	1	date	EXPBND,EXPIRED,TZPAIR	waiver-ignores-expiry,expiry-boundary,RV9-02-expired-yesterday-ok	boundary pair today-1|today (EXPBND), UTC (TZPAIR)
+S112	[[ "$e" > "$lim" ]]	[[ "$e" > "$lim" ]]	1	date	HORBND,HORIZON,TZPAIR	horizon-unchecked,horizon-boundary	boundary pair lim|lim+1 (HORBND)
+S113	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]]	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]]	1	text	ITEMBND,ITEMCASE,ITEMFORM,ITEMJUNK	item-nocase,item-format-unchecked,item-anchor-dropped,RV7-03-item-exactly-3-digits	case-sensitive prefix, three or more digits, anchored
+S114	[ -z "$mergeh" ]	[ -z "$mergeh" ]	1	rc	I117,I118	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I117,I118
+S115	[ -n "$cident" ]	[ -n "$cident" ]	1	rc	I119,I120,I121	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I119,I120,I121
+S116	[ -n "$aident" ]	[ -n "$aident" ]	1	rc	I119,I120,I121	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I119,I120,I121
+S117	printf '%s\0%s\0%s\0%s\0%s'	printf '%s\0%s\0%s\0%s\0%s'	1	charset	nc,PYFAIL	idpy-split-wrong	not constructible: bash arguments cannot hold NUL, so the NUL join is exact
+S118	case "$irc" in	case "$irc" in	1	struct	-	-	the authoriser-result case statement; its arms are rows
+S119	; case $? in	case $? in	1	struct	-	-	the spent-result case statement; its arms are rows
+S120	0) spent "$1	0	1	rc	I126	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I126
+S121	1) return 0 	1	1	rc	I127	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I127
+S122	0) WHY="waiv	0	1	rc	I128	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I128
+S123	*) WHY="$SPE	*	1	rc	I129	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I129
+S124	10) WHY="aut	10	1	rc	I130,I131	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I130,I131
+S125	3) WHY="auth	3	1	rc	I132	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I132
+S126	*) WHY="auth	*	1	rc	I133	-	internal (arm): an exit code, flag or mode value the gate sets itself; guarded by inventory I133
+S127	IFS= read -r -	IFS=	1	charset	PATHWS	pathread-ifs-dropped	the -z path record is read verbatim (a path with surrounding spaces is judged at that path)
+S128	IFS= read -r -	IFS=	2	charset	PATHWS	pathread-ifs-dropped	the -z path record is read verbatim (a path with surrounding spaces is judged at that path)
+S129	ead -r -d ''	-d ''	1	charset	PATHWS,RENAME	path-read-not-nul,no-z-parsing	records are NUL-terminated (-z)
+S130	ead -r -d ''	-d ''	2	charset	PATHWS,RENAME	path-read-not-nul,no-z-parsing	records are NUL-terminated (-z)
+S131	[ -n "$path" ]	[ -n "$path" ]	1	rc	I139,I139b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I139,I139b
+S132	; om="${1#:}	${1#:}	1	text	nc,DOWN	V25-meta-colon-kept	not constructible: git raw meta always starts with one colon
+S133	set -- $meta	set -- $meta	1	charset	nc,DOWN	diff-status-ignored	not constructible: git raw meta has single spaces and no whitespace inside a field
+S134	[ "$om" = 160000 ]	[ "$om" = 160000 ]	1	text	DELGL,NEWGL	deleted-gitlink-judged,gitlink-filter-inverted	old mode is exactly a gitlink
+S135	[ "$nm" = 160000 ]	[ "$nm" = 160000 ]	1	text	NEWGL,DELGL	new-gitlink-judged,gitlink-filter-inverted	new mode is exactly a gitlink
+S136	[ "$osha" != "$nsha" ]	[ "$osha" != "$nsha" ]	1	sha	NOCHANGE	unchanged-test-inverted,eq-unchanged-entry-dropped	exact SHA inequality (an unchanged gitlink is not judged)
+S137	ll && pwd -P	pwd -P	1	path	SYMNEAR,SYMSUB	logical-paths,symlink-unchecked	the checkout path resolved physically
+S138	[ -z "$subp" ]	[ -z "$subp" ]	1	rc	I144,I144b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I144,I144b
+S139	[ "$subp" != "$root/$path" ]	[ "$subp" != "$root/$path" ]	1	path	SYMNEAR,SYMSUB,NONASCII	subp-prefix,subp-nocase,symlink-unchecked,symlink-always	exact, case-sensitive path equality (a symlink to subx or SUB is still a symlink)
+S140	[ "$(sg -C "$sub" rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]	[ "$(sg -C "$sub" rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]	1	path	NOTOWN	toplevel-prefix,RV6-own-repo-unchecked,ownrepo-always	exact path equality: a checkout inside the parent worktree is not its own repository
+S141	f [ "$shallow" = false ]	[ "$shallow" = false ]	1	text	nc,SHFWD	fetchfix-swapped	equivalent for the verdict: only the fix text changes; the word is exact (rev-parse prints true / false)
+S142	merge-base --is-ancestor "$o	merge-base --is-ancestor	1	sha	FORWARD,DOWN2,SHFWD	forward-not-checked-first,V24-forward-args-swapped	ancestry decided by git on the full SHAs
+S143	[ "$fwd" = 0 ]	[ "$fwd" = 0 ]	1	rc	I153	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I153
+S144	merge-base --is-ancestor "$n	merge-base --is-ancestor	1	sha	DOWN,DOWN2	RV10-01-downgrade-one-step,downgrade-never-detected,always-ancestor	F6: ancestry at ANY depth (DOWN2: two commits back)
+S145	[ "$back" = 0 ]	[ "$back" = 0 ]	1	rc	I155	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I155
+S146	[ "$fwd" = 1 ]	[ "$fwd" = 1 ]	1	rc	I158,I158a,I158b,I158c	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I158,I158a,I158b,I158c
+S147	[ "$back" = 1 ]	[ "$back" = 1 ]	1	rc	I158,I158a,I158b,I158c	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I158,I158a,I158b,I158c
+S148	& [ "$shallow" = false ]	[ "$shallow" = false ]	1	text	KV22SUBUNKNOWN,SHALLOW	V22-sub-shallow-unknown-is-complete	only the exact word false allows a DIVERGED verdict
+S149	[ "${dstat[0]}" = 0 ]	[ "${dstat[0]}" = 0 ]	1	rc	I162,I162b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I162,I162b
+S150	[ "$fail" = 1 ]	[ "$fail" = 1 ]	1	rc	I163,I163b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I163,I163b
+S151	[ "$blind" = 1 ]	[ "$blind" = 1 ]	1	rc	I164,I164b	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory I164,I164b
+H01	(readlink -f	readlink -f	1	path	HOOKSKIP	HK31-hook-no-readlink	the hook resolves its own real path (a symlinked hook finds the gate)
+H02	[ ! -r "$gate" ]	[ ! -r "$gate" ]	1	rc	H001	-	internal (test1): an exit code, flag or mode value the gate sets itself; guarded by inventory H001

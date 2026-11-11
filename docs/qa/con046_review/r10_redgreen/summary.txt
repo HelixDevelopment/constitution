@@ -12,6 +12,9 @@ GREEN: the round-10 suite, MUT_ONLY runs on snapshots of the working tree that b
   both: static lint findings 0, the real gate's vector equals want under both dates
 Reviewer mutants RV9-01..RV9-11 (review N4) through GATE_UNDER_TEST on the 71b1952b working-tree suite, rv9/ (run.sh, summary.txt):
   REAL rc 0; RV9-01..04, 06..11 rc 1 (killed); RV9-05 rc 0 (SURVIVED that suite) -> fixed in 14353b05 (SHANEAR, SPENTNEAR),
-  killed in new.mutonly2 and in the three full screens (r10_runs/). RV9-09 runs from a copy whose hook carries the
+  killed in new.mutonly2. (Corrected in round 11, review r10 F7: an earlier version of this line also said "and in
+  the three full screens (r10_runs/)"; no r10_runs/ directory was committed and only two of the three round-10 screens
+  had run when the round-10 review read it, so that part was evidence ahead of its run (§11.4.6) and is withdrawn. The
+  round-11 screens and their logs are in ../r11_runs/.) RV9-09 runs from a copy whose hook carries the
   reviewer's `|| exit 0` (rv9/run.sh, wt), killed by HOOKNOREPO.
 Paths of the scratch area are written <scratch>.

@@ -97,14 +97,19 @@
 #     refs/rewritten/* during `rebase -r`, UNCONFIRMED): `rev-list --all` run here sees every worktree's HEAD but not
 #     another worktree's per-worktree refs, so the redo is WAIVED.
 # The other checks on a row:
-#   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive);
+#   - expiry is a real YYYY-MM-DD date, today <= expiry <= today + max_waiver_days (inclusive); "today" is the UTC date
+#     (TZ=UTC), so the caller's TZ cannot move the decision by a day (round 11, CON-046 review r10 F2);
 #   - tracked_item matches <item_prefix>-NNN (3+ digits; NOT checked to exist in the tracker);
 #   - authoriser: no leading/trailing whitespace, no `<`/`>`, no character of Unicode general category C (Cc control,
 #     Cf format such as U+200B, Cs surrogate, Co private use, Cn unassigned), and after Unicode NFC + casefold
 #     (locale independent, python3) it equals none of committer name, committer email, author name, author email
 #     (git var GIT_COMMITTER_IDENT / GIT_AUTHOR_IDENT); an unresolvable identity, python3 missing or failing, means
 #     not waived;
-#   - a row with a CR (CRLF line ending) is refused and says so.
+#   - a row with a CR (CRLF line ending) is refused and says so;
+#   - a waiver file (index copy or --waivers file) that holds a NUL byte waives nothing (bash would drop the byte
+#     silently and git shows such a file as binary, so the reviewed text is not the read text); a same-parent commit's
+#     waiver file with a NUL byte makes the row unprovable as unspent; a base config with a NUL byte disables waivers
+#     (round 11, review r10 F3).
 # Consumer DATA: `.submodule_pin_gate.conf`, read from the BASE commit (so it cannot be loosened in the commit that uses
 # it), lines `key=value`, `#` comments. Keys: max_waiver_days (integer 1..365, default 30), item_prefix (^[A-Z][A-Z0-9]+$,
 # default CON). An unknown key, a duplicate key, a bad value or an unreadable file disables ALL waivers (fail safe) and
@@ -121,7 +126,7 @@
 # Exit: 0 PASS · 1 FAIL · 2 BLIND (a usage error also exits 2). Read-only (git plumbing; every git call that reads
 # objects runs with GIT_NO_LAZY_FETCH=1, GIT_NO_REPLACE_OBJECTS=1 and GIT_GRAFT_FILE=/dev/null, so no network, no
 # replace refs and no legacy grafts; `rev-parse --show-toplevel` and `rev-parse --local-env-vars` read no objects and
-# run without them). Deps: bash 4.3+, git, awk, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
+# run without them). Deps: bash 4.3+, git, awk, tr, wc, GNU date (`date -d`), python3 (waiver authoriser check only); the hook also
 # needs GNU readlink (`readlink -f`). Its paired test pins GNU date (9.7) and gets the same verdicts under uutils date
 # 0.8.0 (round 9, CON-146); without GNU readlink the hook prints SKIP (not guarded).
 # Submodule git calls run with every variable from `git rev-parse --local-env-vars` removed except GIT_CONFIG_PARAMETERS
@@ -159,17 +164,21 @@ else
   basec="$(pg rev-parse -q --verify "$base^{commit}" 2>/dev/null)" || blind0 "--base $base does not resolve to a commit"
 fi
 mergeh="$(pg rev-parse -q --verify 'MERGE_HEAD^{commit}' 2>/dev/null)"
-blob() { # <treeish> <path> -> content on stdout; rc 0 present, 1 absent, 2 unreadable (a missing TREE is unreadable)
-  local id
+blob() { # <treeish> <path> -> content on stdout; rc 0 present, 1 absent, 2 unreadable (a missing TREE is unreadable),
+  # 3 the blob holds a NUL byte (bash command substitution would drop it silently; nothing is printed)
+  local id nul
   pg cat-file -e "$1^{tree}" 2>/dev/null || return 2
   id="$(pg rev-parse -q --verify "$1:$2" 2>/dev/null)" || return 1
+  nul="$(pg cat-file blob "$id" 2>/dev/null | tr -cd '\000' | wc -c)"
+  [ "${nul// /}" = 0 ] || return 3
   pg cat-file blob "$id" 2>/dev/null || return 2
 }
-today="$(date +%Y-%m-%d)"
+today="$(TZ=UTC date +%Y-%m-%d)"
 # consumer DATA from the base commit; a config error disables waivers only
 maxd=30; prefix=CON; conferr=""
 ctext="$(blob "$basec" .submodule_pin_gate.conf)"; crc=$?
-if [ "$crc" = 2 ]; then conferr="config .submodule_pin_gate.conf unreadable in base"
+if [ "$crc" = 3 ]; then conferr="config .submodule_pin_gate.conf in base contains a NUL byte"
+elif [ "$crc" = 2 ]; then conferr="config .submodule_pin_gate.conf unreadable in base"
 elif [ "$crc" = 0 ]; then
   seen=" "
   while IFS= read -r line; do
@@ -184,9 +193,9 @@ elif [ "$crc" = 0 ]; then
     esac
   done <<<"$ctext"
 fi
-lim="$(date -d "$today +$maxd days" +%Y-%m-%d)"
-if [ -n "$waivers" ]; then wsrc="file $waivers"; wtext="$(cat "$waivers" 2>/dev/null)"
-else wsrc="index :.submodule_pin_waivers"; wtext="$(pg show :.submodule_pin_waivers 2>/dev/null)"; fi
+lim="$(TZ=UTC date -d "$today +$maxd days" +%Y-%m-%d)"
+if [ -n "$waivers" ]; then wsrc="file $waivers"; wtext="$(cat "$waivers" 2>/dev/null)"; wnul="$(tr -cd '\000' <"$waivers" 2>/dev/null | wc -c)"
+else wsrc="index :.submodule_pin_waivers"; wtext="$(pg show :.submodule_pin_waivers 2>/dev/null)"; wnul="$(pg show :.submodule_pin_waivers 2>/dev/null | tr -cd '\000' | wc -c)"; fi
 cident="$(pg var GIT_COMMITTER_IDENT 2>/dev/null)"; aident="$(pg var GIT_AUTHOR_IDENT 2>/dev/null)"
 idname() { printf '%s' "${1%% <*}"; }
 idmail() { local m="${1#*<}"; printf '%s' "${m%%>*}"; }
@@ -223,6 +232,7 @@ spent() { # <path> <old> <new> -> 0 spent (SPENT=commit), 1 unspent, 2 cannot te
   [ "$kidsrc" = ok ] || { SPENT="git rev-list --all failed (a broken ref?)"; return 2; }
   for k in $kids; do
     t="$(blob "$k" .submodule_pin_waivers)"; rc=$?
+    [ "$rc" = 3 ] && { SPENT="the waiver file of commit ${k:0:12} (same parent) contains a NUL byte"; return 2; }
     [ "$rc" = 2 ] && { SPENT="the waiver file of commit ${k:0:12} (same parent) is unreadable"; return 2; }
     [ "$rc" = 0 ] || continue
     printf '%s\n' "$t" | awk -F'\t' 'BEGIN{p=ARGV[1]; o=ARGV[2]; n=ARGV[3]; b=ARGV[4]; ARGV[1]=ARGV[2]=ARGV[3]=ARGV[4]=""; f=1}
@@ -235,6 +245,7 @@ waived() { # <path> <old_sha> <new_sha> -> 0 when a valid row waives this transi
   WHY="no waiver row for ($1, ${2:0:7} -> ${3:0:7}) in $wsrc"
   [ -z "$conferr" ] || { WHY="$conferr (waivers disabled)"; return 1; }
   [ -n "$wtext" ] || { WHY="no waiver data ($wsrc)"; return 1; }
+  [ "${wnul// /}" = 0 ] || { WHY="waiver data ($wsrc) contains a NUL byte or could not be checked for one (git shows such a file as binary); remove it"; return 1; }
   local cand row rest a e i bs irc
   cand="$(printf '%s\n' "$wtext" | awk -F'\t' 'BEGIN{p=ARGV[1]; o=ARGV[2]; n=ARGV[3]; ARGV[1]=ARGV[2]=ARGV[3]=""}
     NF==7 && $1!~/^#/ && $1""==p"" && $2""==o"" && $3""==n"" {print $0 "\036" $4 "\037" $5 "\037" $6 "\037" $7}' "$1" "$2" "$3")"

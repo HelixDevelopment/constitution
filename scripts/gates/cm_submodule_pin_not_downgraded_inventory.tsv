@@ -11,7 +11,8 @@
 # cm_submodule_pin_not_downgraded_members.py into the ledger cm_submodule_pin_not_downgraded_members.tsv; the test
 # regenerates the ledger, refuses a stale one, and runs every viable generated mutant (each must be killed).
 I001	set -uo pipefail	lastpipe-dropped	-	ch	shell options; the pipefail/lastpipe pair is falsified through lastpipe (the main loop sets fail in the pipeline's last stage)
-I002	shopt -s lastpipe	lastpipe-dropped	-	fo	dropping it loses fail=1 set inside the loop: a refusal passes; no false-refusal form exists
+I002	shopt -s lastpipe	lastpipe-dropped,arg-nocasematch	-	fo	dropping it loses fail=1 set inside the loop: a refusal passes; no false-refusal form exists
+I002b	while [ $# -gt 0 ]; do	RV10-04-argloop-gt1	-	ch	Round 11 (RV10-04): the argument loop runs to the LAST argument (ARGNEAR: a trailing unknown flag is a usage error)
 I003	GATE="CM-SUBMODULE-PIN-NOT-DOWNGRADED"	diverged-silent,undecided-is-ok	-	ch	message prefix; the fixtures count prefixed lines (cnt '^CM-SUBMODULE-PIN-NOT-DOWNGRADED: WARN')
 I004	self="${BASH_SOURCE[0]:-$0}"	help-truncated,root-default-wrong	-	ch	source of the help text and the default root
 I005	root="$(cd "$(dirname "$self")/../.." && pwd -P)"	root-default-wrong	-	ch	default root (no --root): ROOTDEFAULT; round 8: ROOTNEST kills root-default-wrong (scripts/ is its own repository; ROOTDEFAULT alone could not, the root is normalised to --show-toplevel)
@@ -19,7 +20,7 @@ I006	need() { [ "$1" -ge 2 ]	usage-value-unchecked,usage-argc-off-by-one	-	both	
 I007	&& [ -n "$2" ] ||	usage-empty-value-accepted,usage-argc-off-by-one	-	both	empty-value member; round 8: the fo direction is shown by ARGSFWD (a forward bump with --base '' / --waivers '': 2 -> 0)
 I007b	"$1" -ge 2 ] && [ -n	-	eq-need-argc-redundant	none	round 8 generated member (argc test dropped): equivalent, every caller passes "${2:-}", so argc < 2 implies an empty value which the -n member refuses (differential probe pr_needargc)
 I008	echo "$GATE: $3 needs a value" >&2; exit 2	usage-value-unchecked	-	ch	usage exit 2 (ARGS fixture)
-I009	--root) need $# "${2:-}" --root	root-cd-fail-ignored,usage-value-unchecked	-	ch	--root parse
+I009	--root) need $# "${2:-}" --root	root-cd-fail-ignored,usage-value-unchecked,argflag-prefix	-	ch	--root parse
 I010	root="$(cd "$2" && pwd -P)" || exit 2	root-cd-fail-ignored	-	ch	unenterable --root -> exit 2
 I011	--base) need $# "${2:-}" --base	base-arg-dropped	-	ch	--base value used (AMEND)
 I012	--waivers) need $# "${2:-}" --waivers	waivers-arg-dropped,waivers-file-not-read	-	ch	--waivers value used (WFILE)
@@ -54,32 +55,38 @@ I033	pg cat-file -e "$1^{tree}"	NM7-tree-check-not-peeled,blob-tree-always-missi
 I033b	"$1^{tree}" 2>/dev/null || return 2	M1-tree-missing-is-absent	-	fo	reaction member: missing tree read as absent (fo, TREEMISS)
 I034	id="$(pg rev-parse -q --verify "$1:$2"	blob-always-absent	-	ch	test member: every blob absent (config and sibling files never read)
 I034b	"$1:$2" 2>/dev/null)" || return 1	blob-absent-is-unreadable	eq-blob-absent-as-empty	ch	reaction member: rc 1; rc 0 with empty text is equivalent (an empty config and an empty waiver file mean the same as absent; differential proof)
-I035	pg cat-file blob "$id"	V06-blob-cat-p	-	ch	test member: cat-file blob vs -p
+I034c	nul="$(pg cat-file blob "$id" 2>/dev/null | tr -cd	blob-nul-unchecked	-	fo	Round 11 (F3): NUL count of the blob; a NUL is never dropped by the $(...) read (NULROW)
+I034d	[ "${nul// /}" = 0 ]	blob-nul-unchecked	-	fo	Round 11 (F3): test member: NUL ignored (fo, NULROW (c)(d))
+I034e	= 0 ] || return 3	blob-nul-as-unreadable	-	ch	Round 11 (F3): reaction member: rc 3 vs 2 changes only the reason (NULROW counts the NUL message)
+I035	pg cat-file blob "$id" 2>/dev/null || return 2	V06-blob-cat-p	-	ch	test member: cat-file blob vs -p
 I035b	"$id" 2>/dev/null || return 2	blob-unreadable-is-absent	-	fo	reaction member: unreadable read as absent (fo, CHILDTREE)
-I036	today="$(date +%Y-%m-%d)"	today-past,today-future	-	both	today: past (fo: expired rows honoured) / future (fr)
+I036	today="$(TZ=UTC date +%Y-%m-%d)"	today-past,today-future,today-local	-	both	today: past (fo: expired rows honoured) / future (fr)
+I036b	if [ "$crc" = 3 ]; then conferr=	conf-nul-unchecked	-	fo	Round 11 (F3): a base config holding a NUL disables waivers (NULROW (d))
 I037	maxd=30; prefix=CON; conferr=""	default-days-31,default-days-29,default-prefix-wrong	-	both	defaults: 31 (fo) / 29 (fr, HORIZON d30) / prefix (fr)
 I038	ctext="$(blob "$basec" .submodule_pin_gate.conf)"; crc=$?	config-from-index	-	ch	config read from the base commit (CONF)
 I039	if [ "$crc" = 2 ]; then conferr=	RV1-config-unreadable-as-absent,crc-unreadable-always	-	both	unreadable config disables waivers: dropped (fo) / always (fr)
 I040	elif [ "$crc" = 0 ]; then	conf-comments-not-skipped	eq-conf-crc0-is-else	ch	crc 0 vs else: equivalent (absent config reads as empty text, no key set; differential proof)
 I041	seen=" "	RV3-duplicate-key-allowed,V09-conf-seen-no-space	-	ch	duplicate-key bookkeeping
-I042	while IFS= read -r line; do	conf-non-kv-unnamed,conf-kv-inverted	-	ch	config line loop
-I043	case "$line" in ''|'#'*) continue ;; esac	conf-comments-not-skipped,conf-blank-not-skipped,conf-hash-not-skipped	-	fr	skip blank and comment lines: not skipped -> a valid config errors (fr); no fail-open form
-I044	k="${line%%=*}"; v="${line#*=}"	conf-kv-inverted	-	ch	key/value split
+I042	while IFS= read -r line; do	conf-non-kv-unnamed,conf-kv-inverted,conf-read-ifs-dropped	-	ch	config line loop
+I043	case "$line" in ''|'#'*) continue ;; esac	conf-comments-not-skipped,conf-blank-not-skipped,conf-hash-not-skipped,conf-hash-anywhere	-	fr	skip blank and comment lines: not skipped -> a valid config errors (fr); no fail-open form
+I044	k="${line%%=*}"; v="${line#*=}"	conf-kv-inverted,confsplit-last	-	ch	key/value split
 I045	[ "$k" != "$line" ]	conf-kv-always-error	-	fr	test member: every line not key=value (fr)
 I045b	is not key=value"; break; }	conf-non-kv-unnamed	-	ch	reaction member: the line then fails as an unknown key; only the reason differs (CONFNOKV)
-I046	case "$seen" in *" $k "*) conferr=	RV3-duplicate-key-allowed,conf-dup-always-error,V09-conf-seen-no-space	-	both	duplicate key: allowed (fo) / always (fr)
-I047	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	conf-days-regex-loosened,V07-conf-days-max-99,conf-days-always-error,days-min-2	-	both	days form: loosened (fo) / 1..99 (fr, DAYS100) / always (fr) Round 10: [2-9] refuses max_waiver_days=1 (DAYSBND, fr).
+I046	case "$seen" in *" $k "*) conferr=	RV3-duplicate-key-allowed,conf-dup-always-error,V09-conf-seen-no-space,dupkey-nospace	-	both	duplicate key: allowed (fo) / always (fr)
+I047	max_waiver_days) [[ "$v" =~ ^[1-9][0-9]{0,2}$ ]]	conf-days-regex-loosened,V07-conf-days-max-99,conf-days-always-error,days-min-2,confkey-prefix	-	both	days form: loosened (fo) / 1..99 (fr, DAYS100) / always (fr) Round 10: [2-9] refuses max_waiver_days=1 (DAYSBND, fr).
 I048	&& [ "$v" -le 365 ] ||	RV5-365-cap-removed,conf-days-366,V08-conf-days-365-exclusive	-	both	days cap: 366 (fo) / 365 exclusive (fr, KV365)
 I048b	{0,2}$ ]] && [ "$v" -le 365 ]	-	eq-maxdays-upper-bound-by-le	none	round 8 generated member (upper digit bound of the days regex): equivalent, a 4-digit value is >= 1000 > 365 and is refused by -le 365 (differential probe pr_maxdays: 999, 1000, 365)
 I049	maxd="$v" ;;	days-assign-dropped	-	ch	days assignment (DAYS100, CONF)
-I050	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	RV4-prefix-unvalidated,prefix-plus-to-star,prefix-anchor-start-dropped,prefix-anchor-end-dropped,conf-prefix-always-error,prefix-min-3	-	both	prefix form members (+, ^, $): loosened (fo, PREFIXFORM) / always (fr) Round 10: {2,} refuses the two-character prefix CN (PFXBND, fr).
+I050	item_prefix) [[ "$v" =~ ^[A-Z][A-Z0-9]+$ ]]	RV4-prefix-unvalidated,prefix-plus-to-star,prefix-anchor-start-dropped,prefix-anchor-end-dropped,conf-prefix-always-error,prefix-min-3,itemkey-prefix	-	both	prefix form members (+, ^, $): loosened (fo, PREFIXFORM) / always (fr) Round 10: {2,} refuses the two-character prefix CN (PFXBND, fr).
 I051	prefix="$v" ;;	prefix-assign-dropped	-	ch	prefix assignment (PREFIX)
 I052	*) conferr="config key '$k' unknown"; break ;;	conf-unknown-key-accepted,conf-unknown-key-always	-	both	unknown key: accepted (fo) / every key unknown (fr)
 I053	done <<<"$ctext"	config-error-ignored	-	ch	config text source
-I054	lim="$(date -d "$today +$maxd days" +%Y-%m-%d)"	horizon-plus-1,V21-horizon-minus-1	-	both	horizon: +1 (fo) / -1 (fr)
+I054	lim="$(TZ=UTC date -d "$today +$maxd days" +%Y-%m-%d)"	horizon-plus-1,V21-horizon-minus-1	-	both	horizon: +1 (fo) / -1 (fr)
 I055	if [ -n "$waivers" ]; then wsrc="file $waivers"	waivers-file-not-read,waivers-arg-dropped	-	ch	waiver source switch (WFILE)
 I056	wtext="$(cat "$waivers" 2>/dev/null)"	waivers-file-not-read	-	ch	waiver file read
 I057	wtext="$(pg show :.submodule_pin_waivers 2>/dev/null)"	waiver-from-worktree,V10-waivers-from-head	-	ch	waivers from the index (UNTRACKED, PERSIST)
+I057b	wnul="$(tr -cd	wnul-file-zero	-	fo	Round 11 (F3): NUL count of the --waivers file (NULROW (b))
+I057c	wnul="$(pg show	wnul-index-zero	-	fo	Round 11 (F3): NUL count of the index waiver file (NULROW (a))
 I058	cident="$(pg var GIT_COMMITTER_IDENT 2>/dev/null)"	cident-empty,RM1-ident-guard	-	ch	committer identity
 I059	aident="$(pg var GIT_AUTHOR_IDENT 2>/dev/null)"	V11-author-is-committer,author-not-compared	-	ch	author identity
 I060	idname() { printf '%s' "${1%% <*}"; }	idname-empty	-	ch	identity name
@@ -95,7 +102,7 @@ I068	or "<" in a	auth-lt-dropped	-	fo	'<' member (AUTHLTGT); fr form is auth-for
 I068b	or ">" in a	auth-gt-dropped	-	fo	'>' member (AUTHLTGT); fr form is auth-form-always (I066)
 I069	any(unicodedata.category(c).startswith("C") for c in a)	authoriser-control-chars-allowed,V12-authoriser-only-Cc	-	fo	control characters (KV12ZWSP); fr form is auth-form-always
 I070	f=lambda s: unicodedata.normalize("NFC", unicodedata.normalize("NFC", s).casefold())	no-casefold-no-nfc,casefold-without-nfc,V13-casefold-to-lower,normalise-to-empty	-	both	normalisation: weaker (fo, AUTHNORM, KV13SHARPS) / everything equal (fr)
-I071	return 10 if any(	self-authoriser-allowed,self-always	-	both	self-waive: allowed (fo) / always (fr)
+I071	return 10 if any(	self-authoriser-allowed,self-always,RV10-05-email-space-strip,ident-names-ascii-strip	-	both	self-waive: allowed (fo) / always (fr)
 I071b	i.strip() and f(i.strip())==f(a)	-	eq-idpy-strip-and-dropped	none	equivalent: an empty identity field never equals a non-empty authoriser (an empty authoriser is refused first; differential proof)
 I071c	==f(a) for i in p[1:]	RV8-01-ident-compare-unstripped,RV9-11-ident-zs-only-strip	eq-ident-strip-truthiness	fo	round 9: the comparison strips the identity, and git keeps a non-ASCII space in a name, so an unstripped compare (RV8-01) or a one-sided strip (generated gen-strip-38f694f31b / gen-strip-a8ce0752e7) lets the committer self-waive (ZSID, fo; no false-refusal form); the truthiness halves (i.lstrip() / i.rstrip() and) are equivalent for every string (eq-ident-strip-truthiness). Round 8 claimed all halves equivalent (FALSE, review F1) Round 10: RV9-11 (strip Zs + ASCII only) lets a U+0085 / U+2028 / U+2029 padded identity self-waive (WSID, fo).
 I072	rc=main()	crash-is-ok	-	ch	run
@@ -104,13 +111,13 @@ I074	rc=4	crash-is-ok	-	fo	crash rc 4 -> 0 (fo)
 I075	sys.exit(rc)'	crash-is-ok	-	ch	exit with rc
 I076	kids=""; kidsrc=""; SPENT=""	spent-unchecked	-	ch	spent cache
 I077	if [ -z "$kidsrc" ]; then	spent-unchecked	-	ch	compute once
-I078	hx=""	N4-head-always-excluded	-	ch	HEAD exclusion default
+I078	hx=""	N4-head-always-excluded,RV10-08-spent-exclude-head-always	-	ch	HEAD exclusion default
 I079	pg diff-index --cached --quiet --ignore-submodules=none "${headc:-$basec}"	NM1-n4-ignore-submodules-dropped,NM6-n4-worktree-not-index-ADAPTED,N4-porcelain-diff,N4-quiet-dropped,N4-compares-base	-	both	test member: is the judged index HEAD's tree (N4INDEX, KNM1, KNM1GM)
 I079b	2>/dev/null && hx="$headc"	N4-head-always-excluded,V14-n4-hx-is-base	-	ch	reaction member: which commit is excluded
 I080	!= false ]; then kidsrc=shallow	M1-shallow-superproject-unchecked,NM2-shallow-unknown-is-deep,shallow-always	-	both	shallow superproject: unchecked (fo) / always (fr)
 I081	elif all="$(pg rev-list --exclude=refs/stash --all --parents 2>/dev/null)"; then kidsrc=ok	RM8-scope-branches-only,RM14-single-worktree,M2-stash-counted,NM8-stash-exclude-after-all,V15-spent-hides-remotes,V16-spent-hides-notes,spent-hides-tags,spent-no-parents	-	both	candidate set: narrower (fo, KVREFS) / stash counted (fr, STASH)
 I082	kids="$(printf '%s\n' "$all" | awk 'BEGIN{b=ARGV[1]; h=ARGV[2]	spent-head-counted	-	ch	children filter
-I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches	-	both	child-of-base: any parent (fr) / none (fo)
+I083	$1""!=h"" {for(i=2;i<=NF;i++) if($i""==b""){print $1; break}}	spent-head-counted,NM3-first-parent-only,spent-any-parent-is-base,kids-awk-never-matches,RV10-03-spent-first-parent-only	-	both	child-of-base: any parent (fr) / none (fo)
 I084	else kidsrc=err; fi	kidsrc-err-is-ok	-	fo	rev-list failure -> cannot tell; as ok (fo)
 I085	[ "$kidsrc" = shallow ] &&	shallow-test-never	-	ch	test member: exit-equivalent, any kidsrc other than ok refuses on the next line ([ "$kidsrc" = ok ] || return 2), so the member only selects the reason (SHALLOWSUP / KNM2 count it); the fo form of shallow detection is I084 (M1-shallow-superproject-unchecked); round 8 need corrected from fo
 I085b	git fetch --unshallow)"; return 2; }	shallow-reason-dropped,shallow-says-spent	-	ch	reaction member: dropped falls through to the ok check (return 2, other reason), says-spent returns spent (refused, other reason): every form refuses, only the reason differs (SHALLOWSUP / KNM2); round 8 need corrected from both
@@ -120,11 +127,13 @@ I087	for k in $kids; do	spender-ignored	-	ch	scan
 I088	t="$(blob "$k" .submodule_pin_waivers)"; rc=$?	spent-unreadable-ignored	-	ch	sibling waiver text
 I089	[ "$rc" = 2 ] &&	spent-absent-is-unreadable	-	fr	test member: an absent sibling file read as unreadable (fr)
 I089b	(same parent) is unreadable"; return 2; }	spent-unreadable-ignored,spent-unreadable-is-unspent	-	fo	reaction member (K13TELL)
+I089c	[ "$rc" = 3 ] &&	spent-nul-unchecked	-	fo	Round 11 (F3): test member: a sibling waiver file with a NUL cannot prove the row unspent (NULROW (c))
+I089d	contains a NUL byte"; return 2; }	spent-nul-as-unspent	-	fo	Round 11 (F3): reaction member: a NUL sibling skipped as if fileless (fo, NULROW (c))
 I090a	[ "$rc" = 0 ] ||	spent-kids-all-skipped	-	fo	test member: every sibling skipped (fo)
 I090	[ "$rc" = 0 ] || continue	V17-spent-fileless-kid-ends-scan,spent-absent-is-spent	eq-spent-absent-continue-dropped	both	reaction member: absent sibling file ends the scan (fo, KV17ORDER) / spent (fr); deleting the line is equivalent (differential proof)
-I091	printf '%s\n' "$t" | awk -F'\t'	NM5-spent-whitespace-split	-	ch	tab split
-I092	NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	NM9-spent-extra-fields	-	fr	field-count member: an 8-field sibling row spends (fr, KNM9); the fo form is spender-ignored (I093)
-I092b	$1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	RM11-spent-ignores-path,spent-numeric-path	-	fr	path member (K11PATH, SPENTNUM)
+I091	printf '%s\n' "$t" | awk -F'\t'	NM5-spent-whitespace-split,spent-fs-whitespace	-	ch	tab split
+I092	NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	NM9-spent-extra-fields,spent-nf-ge7	-	fr	field-count member: an 8-field sibling row spends (fr, KNM9); the fo form is spender-ignored (I093)
+I092b	$1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	RM11-spent-ignores-path,spent-numeric-path,RV10-07-spent-path-ignored,spent-path-nocase,spent-path-prefix	-	fr	path member (K11PATH, SPENTNUM)
 I092c	$2""==o"" && $3""==n"" && $7""==b""	RM12-spent-ignores-old,spent-old-prefix12	-	fr	old-pin member (K12OLD); Round 10: a sibling row with a near-miss old pin must not spend (SPENTNEAR field 1)
 I092d	$3""==n"" && $7""==b""	NM4-spent-ignores-new,spent-new-prefix12	-	fr	new-pin member (KNM4); Round 10: a sibling row with a near-miss new pin must not spend (SPENTNEAR field 2)
 I092e	$7""==b"" {f=0}	spent-base-ignored,spent-base-prefix12	-	fr	base member (SIBOTHER); Round 10: a sibling row with a near-miss base must not spend (SPENTNEAR field 3)
@@ -137,17 +146,19 @@ I097	[ -z "$conferr" ] ||	conferr-always,config-error-ignored	-	both	test member
 I097b	(waivers disabled)"; return 1; }	conferr-waives	-	fo	reaction member: a config error waives (fo)
 I098	[ -n "$wtext" ] ||	no-data-always	-	fr	test member: always no data (fr)
 I098b	no waiver data ($wsrc)"; return 1; }	no-data-unnamed,no-data-waives	-	fo	reaction member: no data waives (fo, NODATA)
-I099	cand="$(printf '%s\n' "$wtext" | awk -F'\t'	waiver-ignores-path	-	ch	row selection
+I098c	[ "${wnul// /}" = 0 ] ||	waiver-nul-unchecked	-	fo	Round 11 (F3): test member: NUL in the waiver data ignored (fo, NULROW (a)(b))
+I098d	(git shows such a file as binary); remove it"; return 1; }	waiver-nul-continues	-	fo	Round 11 (F3): reaction member: the NUL refusal falls through (fo, NULROW)
+I099	cand="$(printf '%s\n' "$wtext" | awk -F'\t'	waiver-ignores-path,waiver-fs-whitespace	-	ch	row selection
 I100	NF==7 && $1!~/^#/	RM4-extra-fields,six-field-rows	-	fo	field-count member (FIELDS8, FIELDS6)
-I100b	$1!~/^#/ && $1""==p""	waiver-comment-rows-honoured,V18-comment-hash-anywhere	-	both	comment member: honoured (fo, WCOMMENT) / # anywhere (fr, KV18HASHMID)
-I100c	$1""==p"" && $2""==o"" && $3""==n"" {print	waiver-ignores-path,R3n1-numeric-compare	-	fo	path member (TWOSUB, NUMPATH)
+I100b	$1!~/^#/ && $1""==p""	waiver-comment-rows-honoured,V18-comment-hash-anywhere,waiver-hash-anywhere	-	both	comment member: honoured (fo, WCOMMENT) / # anywhere (fr, KV18HASHMID)
+I100c	$1""==p"" && $2""==o"" && $3""==n"" {print	waiver-ignores-path,R3n1-numeric-compare,RV10-11-waiver-path-nocase,waiver-path-prefix,waiver-path-trim,waiver-path-slash	-	fo	path member (TWOSUB, NUMPATH)
 I100d	$2""==o"" && $3""==n"" {print	waiver-ignores-old-sha,waiver-old-prefix12	-	fo	old-pin member (OLDBIND); Round 10: a prefix compare of the row's old pin is refused by SHANEAR field 1
 I100e	$3""==n"" {print	waiver-ignores-new-sha,waiver-new-prefix12	-	fo	new-pin member (WRONGSHA); Round 10: a prefix compare of the row's new pin is refused by SHANEAR field 2
 I101	[ -n "$cand" ]	cand-always-empty,cand-empty-unchecked	-	fr	test member: always empty (fr); unchecked changes only the reason (MSGNOROW)
 I101b	[ -n "$cand" ] || return 1	no-row-waives	-	fo	reaction member: no row waives (fo)
-I102	while IFS=$'\036' read -r row rest; do	RM5-first-bad-row-aborts	-	ch	row loop
-I103	IFS=$'\037' read -r a e i bs <<<"$rest"	author-not-compared	-	ch	row fields
-I104	[[ "$row" != *$'\r'* ]] ||	cr-not-named,cr-always	-	both	CR row: honoured (fo) / always (fr)
+I102	while IFS=$'\036' read -r row rest; do	RM5-first-bad-row-aborts,ifs036-tab	-	ch	row loop
+I103	IFS=$'\037' read -r a e i bs <<<"$rest"	author-not-compared,read-drop-remainder	-	ch	row fields
+I104	[[ "$row" != *$'\r'* ]] ||	cr-not-named,cr-always,crlf-endonly	-	both	CR row: honoured (fo) / always (fr)
 I105	save it with LF"; continue; }	site-cr-aborts	-	fr	site: abort instead of next row (SITECR)
 I106	[ "$bs" = "$basec" ] ||	base-unbound,base-always-mismatch,RV9-05-base-prefix-bind,base-suffix12,base-nocase	-	both	base binding: dropped (fo) / always (fr); Round 10: the base compared on a prefix (RV9-05, verbatim), a suffix or case-folded is refused by SHANEAR field 3 (near misses)
 I107	current HEAD)"; continue; }	V19-base-mismatch-aborts-rows	-	fr	site (KV19STALEFIRST)
@@ -158,7 +169,7 @@ I111	[[ "$e" < "$today" ]] &&	waiver-ignores-expiry,expiry-boundary,expired-alwa
 I112	WHY="waiver expired $e"; continue; }	site-expired-aborts	-	fr	site (SITEEXP)
 I113	[[ "$e" > "$lim" ]] &&	horizon-unchecked,horizon-boundary,horizon-always	-	both	horizon: unchecked (fo) / boundary (fr) / always (fr)
 I114	max_waiver_days=$maxd ($lim)"; continue; }	site-horizon-aborts	-	fr	site (SITEHOR)
-I115	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] ||	item-format-unchecked,item-prefix-hardcoded,item-digits-loosened,item-anchor-dropped,item-always-bad	-	both	item form: loosened (fo) / always (fr)
+I115	[[ "$i" =~ ^${prefix}-[0-9]{3,}$ ]] ||	item-format-unchecked,item-prefix-hardcoded,item-digits-loosened,item-anchor-dropped,item-always-bad,item-nocase	-	both	item form: loosened (fo) / always (fr)
 I115b	[0-9]{3,}$ ]] ||	RV7-03-item-exactly-3-digits	-	fr	unbounded upper digit count (RV7-03; F_ITEM4): {3} refuses a valid 4-digit item id; the loosened lower bound is item-digits-loosened (I115)
 I116	does not match ${prefix}-NNN"; continue; }	site-item-aborts	-	fr	site (SITEITEM)
 I117	[ -z "$mergeh" ] ||	merge-allowed,mergeh-always	-	both	merge in progress: allowed (fo) / always (fr)
@@ -184,7 +195,7 @@ I135	fail=0; blind=0; checked=0	fail-init-1,blind-init-1,count-not-incremented	-
 I136	blindmsg() { echo "$GATE: BLIND $1 — $2. Fix: $3"; blind=1; }	blind-is-pass	-	fo	BLIND recorded
 I137	pg diff --cached --raw -z --no-abbrev --no-renames --ignore-submodules=none "$basec" |	RM2-ignore-submodules,RM3-renames,no-z-parsing,base-ignored	-	ch	index diff (IGNSUB, RENAME)
 I138	while IFS= read -r -d '' meta && IFS= read -r -d '' path; do	no-z-parsing	-	ch	NUL records
-I138b	IFS= read -r -d '' path; do	path-read-not-nul	-	fo	path record member
+I138b	IFS= read -r -d '' path; do	path-read-not-nul,pathread-ifs-dropped	-	fo	path record member
 I139	[ -n "$path" ]	path-test-inverted	-	fo	test member: inverted (fo)
 I139b	[ -n "$path" ] || continue	-	eq-empty-path-dropped	none	reaction member: equivalent, a -z record never has an empty path (differential proof)
 I140	set -- $meta; om="${1#:}"	V25-meta-colon-kept	-	ch	meta fields
@@ -197,9 +208,9 @@ I143	checked=$((checked+1)); sub="$root/$path"	count-not-incremented	-	ch	count 
 I144	if [ -z "$subp" ] ||	-	eq-V28-missing-checkout-no-empty-check	none	empty-subp member: equivalent, every shape that empties subp also fails the git check (differential proof: absent, file, mode 000, empty dir)
 I144b	! sg -C "$sub" rev-parse --git-dir	checkout-check-dropped,checkout-always-missing	-	fr	git-dir member: always (fr, checkout-always-missing); dropped (checkout-check-dropped) is exit-equivalent, a directory that is not its own repository is refused by the toplevel member I145 with another reason (SUBBROKEN, a checkout with a dangling .git file, counts both reasons); round 8 need corrected from both
 I145	"submodule checkout missing or not a repository"	missing-checkout-unnamed	-	ch	BLIND dropped (fo); round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
-I146	if [ "$subp" != "$root/$path" ]; then	symlink-always	-	fr	test member: always (fr)
+I146	if [ "$subp" != "$root/$path" ]; then	symlink-always,subp-prefix,subp-nocase	-	fr	test member: always (fr)
 I146b	"checkout path is a symlink (resolves to $subp)"	symlink-unchecked	-	fo	reaction member: SYMSUB (downgrade, 2 -> 1) and round-8 SYMSUBFWD (a forward bump through the link: 2 -> 0, fo)
-I147	rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]; then	ownrepo-always	-	fr	test member: always (fr)
+I147	rev-parse --show-toplevel 2>/dev/null)" != "$subp" ]; then	ownrepo-always,toplevel-prefix	-	fr	test member: always (fr)
 I147b	"path is not its own repository (resolves into the parent worktree)"	RV6-own-repo-unchecked	-	fo	reaction member (NOTOWN)
 I148	shallow="$(sg -C "$sub" rev-parse --is-shallow-repository 2>/dev/null)"	shallow-unchecked,V22-sub-shallow-unknown-is-complete	-	ch	submodule shallow state (KV22SUBUNKNOWN)
 I149	if [ "$shallow" = false ]; then fetchfix=	fetchfix-swapped	-	ch	fix text
@@ -209,7 +220,7 @@ I151	if ! sg -C "$sub" cat-file -e "${nsha}^{commit}"	new-peel-dropped,new-prese
 I151b	"new pin ${nsha:0:7} not in the submodule object store"	new-presence-unnamed	-	ch	reaction member; round 8: need ch, measured: the mutant drops the BLIND message and its `continue`, and a later check of the same entry still answers BLIND (defence in depth), so no fixture can show a fail-open: the change is the missing message (cnt)
 I152	merge-base --is-ancestor "$osha" "$nsha" 2>/dev/null; fwd=$?	forward-not-checked-first,V24-forward-args-swapped	-	both	forward test
 I153	if [ "$fwd" = 0 ]; then echo "$GATE: ok $path	forward-is-refused	-	fr	forward ok -> refused (fr)
-I154	merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?	downgrade-never-detected,always-ancestor	-	both	backward test
+I154	merge-base --is-ancestor "$nsha" "$osha" 2>/dev/null; back=$?	downgrade-never-detected,always-ancestor,RV10-01-downgrade-one-step	-	both	backward test
 I155	if [ "$back" = 0 ]; then	downgrade-never-detected	-	fo	downgrade branch
 I156	if waived "$path" "$osha" "$nsha"; then	waived-always-refused,rows-exhausted-is-waived	-	both	waiver: always refused (fr) / exhausted rows waive (fo)
 I157	or stage a valid waiver"; fail=1; fi	fail-not-set	-	fo	fail recorded
