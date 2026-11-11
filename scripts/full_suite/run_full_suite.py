@@ -1912,13 +1912,31 @@ def guide_block(rows):
             % census_line(rows)[len("census: "):])
 
 
-def marker_lead(l):
-    """l without its leading white space and Unicode format characters (category Cf), the text a near-marker test
-    looks at (CON-030 round 6, review r5 F3)."""
-    i = 0
-    while i < len(l) and (l[i].isspace() or unicodedata.category(l[i]) == "Cf"):
-        i += 1
-    return l[i:]
+# Default_Ignorable_Code_Point (Unicode DerivedCoreProperties.txt): the code points a renderer may show as nothing.
+# The ranges are those of Perl's Unicode 15.0.0 tables (`\p{Default_Ignorable_Code_Point}`); the self-test compares
+# this table with perl's when perl is installed. CON-030 round 7 (review r6 G3).
+DEFAULT_IGNORABLE = ((0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+                     (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+                     (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3),
+                     (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF))
+
+
+def marker_ignorable(c):
+    """True for a character the near-marker test removes: white space (str.isspace), a space separator (Zs), a format
+    character (Cf), a Default_Ignorable_Code_Point, or U+FFFD (what gov_lines() reads a byte that is not UTF-8 as).
+    One class, CON-030 round 7 (review r6 G3)."""
+    o = ord(c)
+    return (c.isspace() or c == "\ufffd" or unicodedata.category(c) in ("Cf", "Zs")
+            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))
+
+
+def marker_norm(l):
+    """l with every marker_ignorable character removed, anywhere in the line: the text the near-marker test compares
+    (CON-030 round 7, review r6 G3; round 6 removed only leading white space and Cf)."""
+    return "".join(c for c in l if not marker_ignorable(c))
+
+
+GUIDE_MARK_NORM = (marker_norm(GUIDE_BEGIN), marker_norm(GUIDE_END))
 
 
 def guide_parse(root):
@@ -1926,22 +1944,25 @@ def guide_parse(root):
     when there is no guide), begin and end the line numbers of the marker lines (None, None when the guide has no
     block), problem a string or None. GovLineError (a refused character) propagates to the caller. CON-030 round 5 (review r4 K1): a marker is a WHOLE line equal to GUIDE_BEGIN or
     GUIDE_END (after the CR of a CRLF line end), never a substring, so prose or code that quotes a marker is text, not
-    a marker; the guide must hold exactly one begin line and, after it, exactly one end line. CON-030 round 6 (review
-    r5 F3): a line whose text STARTS with a marker once leading white space and Unicode format characters (category
-    Cf: U+200B, U+FEFF and the like) are removed, but which is not exactly that marker, is a NEAR-MARKER and is
-    refused, so trailing text (`<!-- census:begin --> (generated)`), surrounding white space or an invisible leading
-    character can never hide a block from the reader. A marker quoted inside other text (prose, a backticked
-    `<!-- census:begin -->`, a line that starts with any other character) stays text, as K1 requires."""
+    a marker; the guide must hold exactly one begin line and, after it, exactly one end line. CON-030 round 7 (review
+    r6 G3, the class of round 6's F3 rule): every marker_ignorable character (white space, Zs, Cf,
+    Default_Ignorable_Code_Point, U+FFFD for a byte that is not UTF-8) is removed from the whole line, the markers
+    are compared the same way, and a line whose remaining text STARTS with a marker but which is not exactly that
+    marker is a NEAR-MARKER and is refused. So trailing text (`<!-- census:begin --> (generated)`), white space in or
+    around the marker, and an invisible or ignorable character before, inside or after the marker cannot hide a
+    block or make a marker look like text. A marker quoted inside other visible text (prose, a backticked
+    `<!-- census:begin -->`, a line whose first visible character is another one, a marker in upper case or written
+    with full-width characters) stays text, as K1 requires."""
     p = os.path.join(root, GUIDE_REL)
     if not os.path.isfile(p):
         return None, None, None, None
     lines = gov_lines(p)
     begins = [n for n, l in lines if l == GUIDE_BEGIN]
     ends = [n for n, l in lines if l == GUIDE_END]
-    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and marker_lead(l).startswith((GUIDE_BEGIN, GUIDE_END))]
+    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and marker_norm(l).startswith(GUIDE_MARK_NORM)]
     if near:
         return lines, None, None, ("%s: line(s) %s start with a census marker but are not exactly one (white space, an "
-                                   "invisible character or text around it); a marker line must be exactly %s or %s, "
+                                   "invisible or ignorable character, or text in or around it); a marker line must be exactly %s or %s, "
                                    "and a marker quoted in prose must sit inside other text (for example in backticks)"
                                    % (GUIDE_REL, near, GUIDE_BEGIN, GUIDE_END))
     if not begins and not ends:

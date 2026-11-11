@@ -1870,9 +1870,11 @@ B, E = "<!-- census:begin -->", "<!-- census:end -->"
 NEAR = {"lead_space": lambda m: " " + m, "trail_space": lambda m: m + " ", "lead_tab": lambda m: "\t" + m,
         "trail_text": lambda m: m + " (generated)", "lead_zwsp": lambda m: "​" + m,
         "lead_bom": lambda m: "﻿" + m, "lead_nbsp": lambda m: " " + m,
-        "trail_zwsp": lambda m: m + "​", "lead_zwsp_space": lambda m: " ​ " + m}
-TEXT = {"backtick": lambda m: "`" + m + "`", "prose_lead": lambda m: "see " + m, "upper": lambda m: m.upper(),
+        "trail_zwsp": lambda m: m + "\u200b", "lead_zwsp_space": lambda m: " \u200b " + m,
+        "lead_wj": lambda m: "\u2060" + m, "lead_shy": lambda m: "\u00ad" + m,
         "inner_zwsp": lambda m: m.replace("census:", "census:​")}
+TEXT = {"backtick": lambda m: "`" + m + "`", "prose_lead": lambda m: "see " + m, "upper": lambda m: m.upper(),
+        "fullwidth": lambda m: m.replace("<", "\uff1c").replace(">", "\uff1e")}
 
 
 def run(*a):
@@ -1924,6 +1926,12 @@ for kind, shapes in (("near", NEAR), ("text", TEXT)):
         cases.append(("%s:%s:end" % (kind, sn), [B, S, f(E)], False, MARK))
         cases.append(("%s:%s:both" % (kind, sn), [f(B), S, f(E)], False, MARK if kind == "near" else NONE))
         cases.append(("%s:%s:outside" % (kind, sn), [f(B), "", B, CUR, E], False, MARK if kind == "near" else OK))
+        # review r6 G1 (reviewer mutant RV6f): the END shape where "begin alone" does not already refuse: inside a
+        # block before the real end (a near end must not end the block early or be read as text that sync deletes,
+        # with prose after it), and on a separate line after a current block
+        cases.append(("%s:%s:end_in" % (kind, sn), [B, S, f(E), "IMPORTANT PROSE", E], False,
+                      MARK if kind == "near" else STALE))
+        cases.append(("%s:%s:end_after" % (kind, sn), [B, CUR, E, "", f(E)], False, MARK if kind == "near" else OK))
 
 for name, ls, crlf, (ecls, esrc, echg) in cases:
     write(ls, crlf)
@@ -1946,8 +1954,109 @@ while IFS=$'\t' read -r st name detail; do
     F) ko "CON-030 r6 guide matrix $name ($detail)";;
   esac
 done < "$T/gmatrix.out"
-chk "CON-030 r6 guide matrix: all 65 cases ran (control: a driver crash or a lost case is a FAIL)" "$(grep -c '^[PF]	' "$T/gmatrix.out")" "65"
-has "CON-030 r6 guide matrix: the driver finished" '^N	65$' "$T/gmatrix.out"
+chk "CON-030 r6 guide matrix: all 109 cases ran (control: a driver crash or a lost case is a FAIL)" "$(grep -c '^[PF]	' "$T/gmatrix.out")" "109"
+has "CON-030 r6 guide matrix: the driver finished" '^N	109$' "$T/gmatrix.out"
+
+# --- (2d) CON-030 round 7 (review r6 G3, structural): the near-marker CLASS, generated. Every character class the
+# engine removes before the near test (white space, Zs, Cf, Default_Ignorable_Code_Point, U+FFFD for a byte that is
+# not UTF-8) contributes representative code points; each one goes before, inside and after each marker, on the
+# begin line, the end line, both, a line before a current block, inside a block before the real end (with prose
+# after it) and a line after a current block. Every such cell must be refused and leave the guide byte-identical
+# (guide_check with fix=True, in-process, on the engine under test). Visible prose stays prose. A table narrowed by
+# one range, or a class dropped from marker_ignorable, fails cells here; the table is also compared with perl's
+# \p{Default_Ignorable_Code_Point} when perl is installed.
+GCL="$T/gclass"; gd "$GCL" '# guide\n'
+python3 -I - "$ENGINE" "$GCL" > "$T/gclass.out" 2>&1 <<'PYGC'
+import hashlib, importlib.util, os, sys, unicodedata
+
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]
+G = os.path.join(root, m.GUIDE_REL)
+B, E = m.GUIDE_BEGIN, m.GUIDE_END
+rows = m.read_manifest(os.path.join(root, "config", "full_suite_manifest.tsv"))
+CUR = m.guide_block(rows)
+S, PROSE = "census: stale total=99", "IMPORTANT PROSE"
+# (tag, code points, how each must be classified by unicodedata or by the table): the generator checks its own tags
+CLASS = [
+    ("space", ["\t", " ", "\u00a0", "\u2003", "\u3000"], lambda c: c.isspace()),
+    ("Zs", ["\u2007", "\u202f", "\u205f"], lambda c: unicodedata.category(c) == "Zs"),  # every Zs is also str.isspace(): the Zs clause adds no character
+    ("Cf", ["\u200b", "\ufeff", "\u2060", "\u00ad", "\u200e", "\u061c", "\U000e0001", "\u202a", "\u2066",
+            "\u0600", "\ufff9"],  # two format characters that are NOT Default_Ignorable: only the Cf clause removes them
+     lambda c: unicodedata.category(c) == "Cf"),
+    ("DI-Mn", ["\u034f", "\ufe0f", "\u180b", "\ufe00"], lambda c: unicodedata.category(c) == "Mn"),
+    ("DI-Lo", ["\u3164", "\u115f", "\u1160", "\uffa0"], lambda c: unicodedata.category(c) == "Lo"),
+    ("DI-Cn", ["\ufff0"], lambda c: unicodedata.category(c) == "Cn"),
+    ("byte", ["\udcff", "\udc80"], lambda c: 0xdc80 <= ord(c) <= 0xdcff),
+]
+DI = lambda c: any(lo <= ord(c) <= hi for lo, hi in getattr(m, "DEFAULT_IGNORABLE", ()))
+for tag, cps, test in CLASS:
+    for c in cps:
+        good = test(c) and (DI(c) if tag.startswith("DI-") else True)
+        print("%s\tclass-tag:%s:U+%04X\t" % ("P" if good else "F", tag, ord(c)))
+POS = {"lead": lambda c, mk: c + mk, "inner": lambda c, mk: mk.replace("census:", "census:" + c),
+       "trail": lambda c, mk: mk + c}
+PLACES = {"begin": lambda f: [f(B), S, E], "end": lambda f: [B, S, f(E)], "both": lambda f: [f(B), S, f(E)],
+          "out_before": lambda f: [f(B), "", B, CUR, E], "end_in": lambda f: [B, S, f(E), PROSE, E],
+          "end_after": lambda f: [B, CUR, E, "", f(E)]}
+
+
+def write(lines):
+    body = ["# guide", "", "Prose quotes `" + B + "` inside text.", ""] + lines + ["", "tail"]
+    with open(G, "wb") as fh:
+        fh.write(("\n".join(body) + "\n").encode("utf-8", "surrogateescape"))
+
+
+def sha():
+    with open(G, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+n = 0
+for tag, cps, _ in CLASS:
+    for c in cps:
+        for pn, pf in POS.items():
+            for ln, lf in PLACES.items():
+                write(lf(lambda mk: pf(c, mk)))
+                s0 = sha()
+                prob = m.guide_check(root, rows, fix=True)
+                good = prob is not None and "start with a census marker" in prob and sha() == s0
+                n += 1
+                print("%s\tnear:%s:U+%04X:%s:%s\t%s" % ("P" if good else "F", tag, ord(c), pn, ln, (prob or "")[:80]))
+# visible text stays text: no block (both) and a current block with the shape on a line before it (out_before)
+TEXT = {"backtick": lambda mk: "`" + mk + "`", "prose_lead": lambda mk: "see " + mk, "upper": lambda mk: mk.upper(),
+        "fullwidth": lambda mk: mk.replace("<", "\uff1c").replace(">", "\uff1e"), "visible_x": lambda mk: "x" + mk}
+for tn, tf in TEXT.items():
+    for ln in ("both", "out_before"):
+        write(PLACES[ln](tf))
+        s0 = sha()
+        prob = m.guide_check(root, rows, fix=True)
+        good = prob is None and sha() == s0
+        n += 1
+        print("%s\ttext:%s:%s\t%s" % ("P" if good else "F", tn, ln, prob or ""))
+print("N\t%d" % n)
+PYGC
+while IFS=$'\t' read -r st name detail; do
+  case $st in
+    P) ok "CON-030 r7 near class $name";;
+    F) ko "CON-030 r7 near class $name ($detail)";;
+  esac
+done < "$T/gclass.out"
+gcn=$(awk -F'\t' '$1=="N"{print $2}' "$T/gclass.out")
+chk "CON-030 r7 near class: all 550 cells ran (30 code points x 3 positions x 6 places + 10 text cells; control)" "$gcn" "550"
+chk "CON-030 r7 near class: 30 class tags checked" "$(grep -c '^[PF]	class-tag:' "$T/gclass.out")" "30"
+# the table against perl's own Unicode data (an independent oracle), when perl is installed
+if command -v perl >/dev/null 2>&1; then
+  perl_di=$(perl -e 'my @r; my ($s,$p); for my $c (0..0x10FFFF) { next if $c>=0xD800 && $c<=0xDFFF; if (chr($c) =~ /\p{Default_Ignorable_Code_Point}/) { if (defined $p && $c==$p+1) {$p=$c} else { push @r, [$s,$p] if defined $s; $s=$p=$c } } } push @r,[$s,$p]; print join(" ", map { sprintf "%X-%X", @$_ } @r)')
+  eng_di=$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(" ".join("%X-%X" % r for r in m.DEFAULT_IGNORABLE))
+PY
+)
+  chk "CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $(perl -MUnicode::UCD -e 'print Unicode::UCD::UnicodeVersion()'))" "$eng_di" "$perl_di"
+else
+  echo "SKIP CON-030 r7 G3: perl not installed, the table is not cross-checked"
+fi
 
 # the proof that the reviewer's MX2 is equivalent: a full-mode key collision needs a repeated manifest path, and
 # read_manifest refuses that before plan() runs
@@ -1961,6 +2070,14 @@ GL="$T/glink"; gd "$GL" '# guide\n\n<!-- census:begin -->\nstale\n<!-- census:en
 chmod 600 "$GL/docs/guides/full_suite_runner_guide.md"
 sync_g "$GL" "$T/gl_s1.log"; chk "CON-030 r6 F9: --sync-guide on a mode-600 guide rc 0" "$RC" "0"
 chk "CON-030 r6 F9: the mode is kept" "$(stat -c %a "$GL/docs/guides/full_suite_runner_guide.md")" "600"
+# review r6 G4 (reviewer mutant RV6b, the kept mode hard-coded to 0o600): two other modes, each on a stale block
+for gm in 644 755; do
+  GLM="$T/glmode_$gm"; gd "$GLM" '# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+  chmod "$gm" "$GLM/docs/guides/full_suite_runner_guide.md"
+  sync_g "$GLM" "$T/glm_${gm}.log"; chk "CON-030 r7 G4: --sync-guide on a mode-$gm guide rc 0" "$RC" "0"
+  has "CON-030 r7 G4: mode $gm: the block was rewritten" '^census \(generated' "$GLM/docs/guides/full_suite_runner_guide.md"
+  chk "CON-030 r7 G4: the mode $gm is kept" "$(stat -c %a "$GLM/docs/guides/full_suite_runner_guide.md")" "$gm"
+done
 mv "$GL/docs/guides/full_suite_runner_guide.md" "$GL/docs/guides/real.md"
 python3 -I -c 'import sys; open(sys.argv[1], "w").write("# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n")' "$GL/docs/guides/real.md"
 ln -s real.md "$GL/docs/guides/full_suite_runner_guide.md"; s0=$(sha256sum < "$GL/docs/guides/real.md")

@@ -259,10 +259,18 @@ MX4	    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:	    if len
 MX7	    if not begins and not ends:\n        return lines, None, None, None	    if not begins:\n        return lines, None, None, None
 MX10	    if [l for n, l in lines if a < n < b] == want:	    if [l for n, l in lines if a < n < b][:1] == want:
 MX5	        s = s.encode("utf-8", "backslashreplace").decode("utf-8")\n    return LINE	        pass\n    return LINE
-N6a	    while i < len(l) and (l[i].isspace() or unicodedata.category(l[i]) == "Cf"):	    while i < len(l) and l[i].isspace():
-N6b	and marker_lead(l).startswith((GUIDE_BEGIN, GUIDE_END))]	and marker_lead(l) in (GUIDE_BEGIN, GUIDE_END)]
+N6a	unicodedata.category(c) in ("Cf", "Zs")	unicodedata.category(c) in ("Zs",)
+N6b	marker_norm(l).startswith(GUIDE_MARK_NORM)]	marker_norm(l) in GUIDE_MARK_NORM]
 N6c	        if os.path.islink(gp):	        if False:
 N6d	    os.chmod(tmp, mode)\n	    pass\n
+RV6a	unicodedata.category(c) in ("Cf", "Zs")	unicodedata.category(c) == "Zs" or c in "\\u200b\\ufeff"
+RV6b	    mode = stat.S_IMODE(os.lstat(p).st_mode)	    mode = 0o600
+RV6f	and marker_norm(l).startswith(GUIDE_MARK_NORM)]	and (marker_norm(l).startswith(GUIDE_MARK_NORM[0]) or l.strip() == GUIDE_END)]
+R7a	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))	            or False)
+R7c	c.isspace() or c == "\\ufffd" or	c.isspace() or
+R7d	(0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C	(0x00AD, 0x00AD), (0x061C
+R7e	    return "".join(c for c in l if not marker_ignorable(c))	    return l.lstrip("".join(c for c in l if marker_ignorable(c)))
+R7f	    return (c.isspace() or c ==	    return (False or c ==
 EOF
 )
 
