@@ -190,6 +190,24 @@ finally:
     builtins.open = real_open
 rec("G-SUB-DEFAULT-FILES the default call reads /etc/subuid AND /etc/subgid", got, ([(100000, 65536), (300000, 65536)], None))
 rec("G-SUB-DEFAULT-FILES the default list is exactly the two files", tuple(rr._SUBID_FILES), ("/etc/subuid", "/etc/subgid"))
+
+# --- R6-F1 (round 7): _store_tier forwards runner_uid, ranges and getpw to _path_tier unchanged ---
+# Mutants _store_tier>_path_tier#3 arg-sibling (runner_uid -> ranges / getpw) survived the call-site
+# enumeration: a spy on _path_tier with three DISTINCT sentinels pins the order.
+sp = []
+orig_pt = rr._path_tier
+def spy_pt(paths, producer_uid, owner_uid, *more, **kw):
+    sp.append((producer_uid, owner_uid, more, kw)); return ("capability", None)
+rr._path_tier = spy_pt
+S_RUN, S_RNG, S_GPW = 4242, [(7, 9)], (lambda u: object())
+try:
+    rr._store_tier(grec, gled, 1234, 5678, S_RUN, S_RNG, S_GPW)
+finally:
+    rr._path_tier = orig_pt
+rec("G-T-STORE-FORWARD _store_tier calls _path_tier once", len(sp), 1)
+rec("G-T-STORE-FORWARD producer_uid, owner_uid, runner_uid, ranges, getpw arrive in that order",
+    (sp[0][0], sp[0][1], sp[0][2][0], sp[0][2][1], sp[0][2][2] is S_GPW) if sp else None,
+    (1234, 5678, 4242, S_RNG, True))
 for line in res: print(line)
 PY
 )
