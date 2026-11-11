@@ -3,9 +3,13 @@
 #           CR-1/CR-2/CR-3 of the full-suite fix vehicle). Copies the helper into a mktemp tree, applies ONE
 #           mutant (an exact string replacement whose anchor must occur exactly once), and runs
 #           test_consumer_required_helper.sh against the copy (FC_HELPER_UNDER_TEST; Part 4, which runs the
-#           real suites, is skipped for a copy). The unmutated copy must pass first (baseline). A mutant is
+#           real suites, is skipped for a copy; CON-183: its symlinked-canon layout is replayed against the copy by
+#           Part 3b, so a mutant that only the real suites kill and Part 3b does not is reported survived and must be
+#           probed on the real helper). The unmutated copy must pass first (baseline). A mutant is
 #           KILLED only when the helper test exits 1 AND prints at least one "NOT ok" line.
 # Mutants :
+#   CON102-M6 (reviewer M6 = CON-102 mutant M1G) for _fcr_p in "$@" -> $*: a path argument with a space is split (false SKIP)
+#   CON183-M4 (reviewer M4) cd -P in the root resolution of fc_require_consumer: a false SKIP in a symlinked canon layout
 #   MG1  a register with no known id column SKIPs (the CR-1 shape: an unanswerable query read as "absent")
 #   MG1b a database the pragma cannot read SKIPs (not a database, unreadable file)
 #   MG2  the "no item with the named prefix" condition dropped (CR-3: a register that LOST an item SKIPs)
@@ -395,6 +399,9 @@ RV7-7	sqlite3 -readonly "$_fci_db"	sqlite3 -readonly "$(printf '%s' "$_fci_db")"
 RV7-10	''|[!A-Z]*|*[!A-Z0-9]*)	''|[![:upper:]]*|*[![:upper:][:digit:]]*)
 RV7-11	sqlite3 -readonly -separator ' ' "$_fci_db"	sqlite3 -readonly -separator ' ' "file:$_fci_db?nolock=1"
 CR7-2	AS k FROM items"	AS k FROM items WHERE k IS NOT ''"
+CON184-M3	|*[!A-Z0-9]*)	|*[![:alnum:]]*)
+CON183-M4	$(cd "$(dirname	$(cd -P "$(dirname
+CON102-M6	for _fcr_p in "$@"; do	for _fcr_p in $*; do
 EOF
 )
 

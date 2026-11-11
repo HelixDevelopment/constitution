@@ -1,7 +1,14 @@
 # fk_index_patch — guide
 
-**Revision:** 5
-**Last modified:** 2026-11-06T13:00:00Z
+**Revision:** 6
+**Last modified:** 2026-11-11T12:00:00Z
+
+Revision 6 note (2026-11-11, CON-211): `codegraph_safe.sh` no longer carries its own patch list; its
+default `default` passes no `--patches`, so the writer and this tool share ONE default, the registry default
+in `runner_patches/__init__.py` (`fkidx1,resolve1,resolve2`). Scratch A/B on the installed 1.6.2 (resolve2 fixture,
+each runner run as the writer runs it, `init -y -v <P>`): stock, `1.6.2-fkidx1-resolve1` and
+`1.6.2-fkidx1-resolve1-resolve2` give byte-identical edge and ref dumps (575 nodes, 579 edges, 10 refs; edges sha256
+`d5f0cdeb...`, refs `1a7f27fb...`), with the swift-objc bridge edges present in all three.
 
 Revision 5 note (2026-11-06, review round 2 I1-5..I1-7): the test has 22 cases.
 P2i (a planted directory symlink) and P2j (a shipped symlink retargeted in the
@@ -219,11 +226,12 @@ Argparse errors use argparse's own exit 2 (usage) as well.
   runner key `<ver>-mcpro1` identifies the read-only runner exactly.
 - Unknown ids: `unknown patch id(s): ... (known: ...)` (lines 26-29).
 
-Note the difference between this tool's default and **`codegraph_safe.sh`'s**
-default: the wrapper passes `--patches fkidx1,resolve1` unless overridden
-(`codegraph_safe.sh:244`; it omits `--patches` only for `all`, lines 455-456),
-so the runner key it uses is `<version>-fkidx1-resolve1`; with `--patches all`
-it now gets this tool's default, `<version>-fkidx1-resolve1-resolve2`.
+**`codegraph_safe.sh`'s** default is this tool's default (since 2026-11-06,
+CON-211): the wrapper's default `default` (and its synonym `all`) omits
+`--patches`, so the runner key it uses is `<version>-fkidx1-resolve1-resolve2`.
+Before that change the wrapper passed `--patches fkidx1,resolve1` and used
+`<version>-fkidx1-resolve1`; an explicit `--patches fkidx1,resolve1` still does.
+Guard: U38 in `tests/test_unit_safe.sh`, mutants MB4, MB5, MB5b.
 
 ### Application (`plan_all`, lines 126-146; `common.py`)
 
@@ -427,7 +435,7 @@ their mutation harnesses.
 | Script / guide | Relation |
 |---|---|
 | [fkidx1](fkidx1.md), [lockfix1](lockfix1.md), [datafrag1](datafrag1.md), [resolve1](resolve1.md), [resolve2](resolve2.md), [mcpro1](mcpro1.md) | The six registered patches |
-| [codegraph_safe](codegraph_safe.md) | Sanctioned bulk-index entry; derives its runner from this tool (`--patches fkidx1,resolve1` by default) |
+| [codegraph_safe](codegraph_safe.md) | Sanctioned bulk-index entry; derives its runner from this tool (no `--patches` by default, so this tool's default set; CON-211) |
 | `codegraph_mcp.sh` | Builds/verifies the `mcpro1` runner through this tool (`codegraph_mcp.sh:58`) |
 | `fk_cascade_probe.py` | Oracle for fkidx1; proves stock safe when this tool exits 3 |
 | [owed_report](owed_report.md) | Reports whether this tool has tests and a guide |

@@ -2,7 +2,7 @@
 
 ## Unreleased — 2026-11-11 — v73.4 release preparation: the CM-KILLPG-PGID-GUARD regression fixed (7 unguarded sites on `fc57ad0c`), the PROVISIONAL Version-badge rule made case-insensitive, and a mechanical, resumable release cut (`scripts/release/`)
 
-**Status of this entry: UNRELEASED; implemented and tested on host fixtures only; not VERIFIED-DONE; no independent review GO yet.** Built on vehicle `vehicle/rel734` from `main` at `fc57ad0c`, after the independent review of the first v73.4 release commit (`e3a55a44`, NO-GO: I-1 to I-4).
+**Status of this entry: UNRELEASED; implemented and tested on host fixtures only; not VERIFIED-DONE (CON-226, Ready for testing, PROVISIONAL-DONE per §11.4.290).** Independent review of `ec58c0ae` (2026-11-11): GO-with-follow-ups, 0 critical, 0 important, 9 minor, 5 nit (`docs/qa/review_rel734c_2026_11_11.md`); follow-ups CON-227 to CON-234. Landed on `main` by merging `main` `72a4bebb` into the vehicle; at landing one new process-group signal text site from `main` (`scripts/validation/test_enumerate_decision_mutants_r2_regression.sh:94`, a mutant replacement string) got the audited `# killpg-gate:allow` marker. Built on vehicle `vehicle/rel734` from `main` at `fc57ad0c`, after the independent review of the first v73.4 release commit (`e3a55a44`, NO-GO: I-1 to I-4).
 
 #### What changed
 
@@ -13,7 +13,7 @@
 #### Honest boundaries
 
 - `gh` and `glab` are stubs in the release tests (unit class, §11.4.289(C)); no real platform release has been made with the script.
-- No tracker item was minted for this work (the database is binary and is edited on the final `main` at the cut); it is part of the v73.4 release preparation.
+- The two vehicle commits carry no `Roadmap-Item:` trailer and no item was registered before the work (review m-8, §11.4.293(A)); they were not rewritten (§11.4.113). The item CON-226 was registered at landing and the landing merge commit carries `Roadmap-Item: CON-226`.
 
 ## Unreleased — 2026-11-07 — ATM-1809 follow-ups of audit 2 of §11.4.297 / §11.4.298 (head `4076904d`, verdict GO-with-follow-ups): text pins in both anchor-wired gates, the account-name gate's look-alike, filler, NUL and empty-list gaps closed, and four wording fixes (the `generated-regeneration` reading stated as an interpretation, the two admitted waits, one open pull request per task id at a time, the reviewer refusal and the kept submodule branch)
 

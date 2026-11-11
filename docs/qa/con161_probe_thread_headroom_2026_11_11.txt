@@ -1,0 +1,11 @@
+# CON-161 evidence (2026-11-11), clone of main fc57ad0c
+# Reproduction (host-fixture, host-only): reviewer mutants Y4 (per_job = headroom) and Y5 (headroom = ulim - 1) applied by me in place to host_report.py, then test_host_report_thread_limit_r1_regression.sh run: pass=45 fail=0 for BOTH (SURVIVED). Y6 run did not finish within 4 min (hung), killed by me: no verdict claimed. Tree restored with git checkout.
+$ bash scripts/fastcycle/tests/test_host_report_probe_thread_headroom_r2_regression.sh
+ok unmutated tool: all 6 cases pass
+ok mutant Y4_per_job_not_plus_1 killed
+ok mutant Y5_headroom_minus_1 killed
+ok mutant Y6_drop_thr_none_guard killed
+ok mutant Y9_drop_unlimited killed
+ok mutant Y10_floor_not_one killed
+=== host_report probe_thread_headroom r2: pass=6 fail=0 ===
+rc=0
