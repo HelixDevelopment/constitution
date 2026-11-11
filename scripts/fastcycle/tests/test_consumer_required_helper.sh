@@ -506,7 +506,7 @@ CASES
       else bad "[$sh] S7 usage error [$_ids]: rc $rc, stdout [$(head -c 120 "$o")], stderr [$(head -c 120 "$o.err")]"; fi
     done
     # S7b (round 8 CR7-4): the usage message names the id in single quotes, for each of the three id checks
-    for _bi in "ATM953" "9X-1" "ATM-9x"; do
+    for _bi in "ATM953" "9X-1" "ATM-9x" "AtM-5" "A_B-1"; do   # CON-184: a lowercase letter or an underscore inside the prefix
       "$sh" "$T" "$FX/real_atm.db" "$_bi" >"$o" 2>"$o.err"; rc=$?
       [ "$rc" = 2 ] && [ "$(cat "$o.err")" = "fc_require_items: bad item id '$_bi'" ] && ok "[$sh] S7b usage message for [$_bi] is exact" \
         || bad "[$sh] S7b usage message for [$_bi]: rc $rc, stderr [$(head -c 120 "$o.err")]"

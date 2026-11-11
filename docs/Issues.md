@@ -2766,12 +2766,18 @@ Parent: CON-178 (fc_require_items). Review round 8 R8-1. test_consumer_required_
 
 ## CON-184 — fc_require_items id contract: a lowercase letter inside the prefix (AtM-5) is a usage error but no fixture asserts it; mutant M3 [[:alnum:]] survives (review round 8 R8-3)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con184_reproduction_2026_11_11.txt` — red-command `bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON184-M3 (against the helper test without the AtM-5 leg)` — green-command `same command on the fixed helper test` — env `main fc57ad0c; Linux 7.0.0, bash 5.3.9, dash` — signature `SURVIVED CON184-M3 (rc 0, 0 NOT ok lines)` — updated 2026-11-11T12:31:16Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
+**Investigation:** root-cause-found-with-evidence — root-cause `the id contract check has no fixture for a lowercase letter inside the prefix, so the [:alnum:] mutant is not observable` — evidence `docs/qa/con184_reproduction_2026_11_11.txt` — updated 2026-11-11T12:31:16Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
 
 Parent: CON-178 (fc_require_items). Review round 8 R8-3. The id contract [A-Z][A-Z0-9]*-[0-9]+ is not fully pinned: the reviewer's mutant M3 changes the rest-of-prefix class *[!A-Z0-9]* to *[![:alnum:]]* and survives 338/0; on a foreign register the id AtM-5 exits 2 (usage error) on head and SKIPs 77 under M3, in bash and dash. Acceptance: add AtM-5 (and, for example, A_B-1) to the S7 or S7b usage-error list, and adopt M3 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+Fix note (follow-up fu_b, 2026-11-11): the S7b usage-error list of scripts/fastcycle/tests/test_consumer_required_helper.sh now also asserts AtM-5 and A_B-1 (exit 2 and the exact message, bash and dash), and the hand table of test_consumer_required_mutations.sh adopts the reviewer mutant M3 as CON184-M3 (the helper test: 355 pass / 0 fail). Class sweep: the id-contract classes first character, rest of prefix, number part were already pinned except the lowercase-inside-prefix class; the sweep generated-mutant check is unchanged.
+
+**Verification:** provisional (section 11.4.290) -- job: re-run bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON184-M3 (expect killed) and bash scripts/fastcycle/tests/test_consumer_required_helper.sh (expect 0 fail) on main after landing -- checks: M3 killed by the AtM-5 leg -- layer: gate-logic (test-instrumentation; class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit that lands the fu_b CON-184 change -- due: next full-suite run.
 
 ## CON-185 — L29 calls bad, not SKIP-with-reason, on a host with no UTF-8 locale that classes A-umlaut as [:upper:] (review round 8 N8-1)
 

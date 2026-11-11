@@ -395,6 +395,7 @@ RV7-7	sqlite3 -readonly "$_fci_db"	sqlite3 -readonly "$(printf '%s' "$_fci_db")"
 RV7-10	''|[!A-Z]*|*[!A-Z0-9]*)	''|[![:upper:]]*|*[![:upper:][:digit:]]*)
 RV7-11	sqlite3 -readonly -separator ' ' "$_fci_db"	sqlite3 -readonly -separator ' ' "file:$_fci_db?nolock=1"
 CR7-2	AS k FROM items"	AS k FROM items WHERE k IS NOT ''"
+CON184-M3	|*[!A-Z0-9]*)	|*[![:alnum:]]*)
 EOF
 )
 
