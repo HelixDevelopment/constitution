@@ -1,0 +1,21 @@
+ok e2e: exit 0 (rc=0)
+ok e2e: overall lists NB-001 as unparseable
+ok e2e: Bug block lists NB-001
+ok e2e: item still counted (Bug closed 3, not silently 2)
+ok e2e: stderr warns and names the item
+ok control: well-formed export has no unparseable key
+ok control: retroactive NB-001 still excluded
+ok control: no warning on stderr
+ok chaos [None]: exit 0 and listed (rc=0)
+ok chaos [12345]: exit 0 and listed (rc=0)
+ok chaos [1.5]: exit 0 and listed (rc=0)
+ok chaos [True]: exit 0 and listed (rc=0)
+ok chaos ['']: exit 0 and listed (rc=0)
+ok chaos ['2026-13-45T99:99:99Z']: exit 0 and listed (rc=0)
+ok chaos [KeyError]: exit 0 and listed (rc=0)
+ok determinism x3: identical body_hash
+ok idempotency: re-run over its own output path, same hash
+retro:ok normal:ok bad:ok none:ok int:ok excl:ok bool-compat:ok
+ok unit+integration: tri-state parity, exclusion reason, bool wrappers
+ok mutation: bare-except revert is DETECTED (listing disappears -> check fails)
+ALL OK

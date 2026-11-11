@@ -1,0 +1,74 @@
+== V3 round-3 regression: record-as-pointer + three-principal capability ==
+PASS: R3-CTL: honest P3 -- B1's genuine round-2 NO-GO blocks cY despite B9's GO (rc 1)
+PASS: R3-E1: NO-GO record change_ids edited to [cOTHER] -> exit 4 naming the record (was COVERED by B9)
+PASS: R3-E2: NO-GO record round edited to 0 -> exit 4 naming the record
+PASS: R3-E3: NO-GO record relabelled backfill/GO/[] -> exit 4 naming the record
+PASS: R3-E4: single batch, NO-GO record round edited to -1 -> exit 4 (was COVERED by its own round 1)
+PASS: R3-E5: change_ids edit + re-hash -> exit 4 (record copy differs from the reviewer's binding)
+PASS: R3-E6: round edit + re-hash -> exit 4 (round re-derived from evidence)
+PASS: R3-E7: relabel to backfill + re-hash keeping the evidence pointer -> exit 4 (a backfill row never carries live evidence)
+PASS: R3-E8: relabel to backfill + re-hash + pointer dropped -> exit 4 (the NO-GO archive is now orphaned)
+PASS: R3-E9: deleting the NO-GO record but not its archived verdict -> exit 4 (orphaned reviewer evidence)
+PASS: R3-E10 (documented boundary): deleting record + archive is undetectable without a 11.4.268 chain -- COVERED, as the docstring states
+PASS: R3-E11: every inadmissible record is named on refusal (both edited records listed)
+PASS: R3-E12: admission runs before selection -- a tampered record blinds the gate even for an unrelated change
+PASS: R3-M10: a record with round=true is refused at collection (exit 4, 'non-integer round')
+PASS: R3-M9: record refuses a verdict whose review_base differs from the batch's declared base
+PASS: R3-M7: a ledger row with no event never counts as 'complete'
+PASS: R3-M11: dispatched -> complete -> in-flight does not authenticate (the LATEST row must be complete; ATM-858 D1)
+PASS: R3-M3: backfill batch 1 (int) and live batch "1" (str) are different batches -- the historical NO-GO still blocks
+PASS: R3-DK1: a verdict file with a duplicate 'verdict' key is refused by record (2)
+PASS: R3-DK2: archived reviewer evidence with a duplicate key is inadmissible (exit 4)
+PASS: R3-M12a: an identical copy without its evidence is refused (exit 4) whether it sorts first (0/) or last (z/)
+PASS: R3-M12b: identical copies each carrying their own evidence are one verdict, COVERED
+PASS: R3-SYM: a record whose real path lies outside --records is refused (exit 4)
+PASS: R3-T1: on a single-uid host a declared producer uid (nobody / unknown 4000000 / own) never yields capability -- every high-blast seam refuses; ordinary seam reports instance
+PASS: R3-T2: positive control -- producer nobody, runner daemon, root-owned evidence -> capability (three real principals)
+PASS: R3-T3: an unknown producer uid (4000000) never raises the tier -> instance
+PASS: R3-T4: evidence owned by the uid running gate -> instance (the runner could be the producer)
+PASS: R3-T5: evidence owned by the declared producer -> instance
+PASS: R3-T6: producer uid == runner uid -> instance
+PASS: R3-T7: a root runner can write everything -> instance
+PASS: R3-T8: evidence owned by a THIRD uid (1000), unwritable by producer and runner -> capability
+PASS: R3-T9: runner of unknown group membership + group-writable evidence -> instance (conservative)
+PASS: R3-T10: a symlink held in a world-writable non-sticky directory can be replaced -> instance
+PASS: R3-T11: (control) the same symlink in a 755 third-party directory -> capability
+PASS: R3-T12: write access through a SUPPLEMENTARY group (gid 4) is detected
+PASS: R3-M8: the COVERED line reports the WEAKEST tier achieved across covering batches
+PASS: R3-C1: a record file that does not parse is named (exit 4, parse failure)
+PASS: R3-C2: a record that is not a JSON object is named (exit 4)
+PASS: R3-C3: a record missing required fields is named (exit 4)
+PASS: R3-A1: archived evidence whose verdict is outside {GO, NO-GO} is inadmissible (named reason)
+PASS: R3-A2: archived evidence with a malformed reviewer block is inadmissible (named reason)
+PASS: R3-A3: archived evidence that is a JSON array is inadmissible (named reason)
+PASS: R3-A4: an evidence citation reading 'UNKNOWN' is a placeholder, never a file -- even when a matching file of that name exists
+PASS: R3-A5: a FIFO planted as evidence is refused promptly (exit 4), never a hang
+PASS: R3-B1: an edited backfill row (no re-hash) is inadmissible (exit 4, body_hash)
+PASS: R3-B2: a backfill row whose change_ids is not a list (nor UNKNOWN) is inadmissible, never silently dropped from the listing
+PASS: R3-L1: a reviewer dispatch absent from a non-empty ledger is refused (named: no dispatch-ledger row)
+PASS: R3-Q1: a record whose archived precheck is gone is not coverage (named reason)
+PASS: R3-G1: --change naming no change id is a usage error (2)
+PASS: R3-G2: gate --round-budget outside 5..7 is a usage error (2)
+PASS: R3-G3: a missing --records directory is BLIND (4), never 'uncovered'
+PASS: R3-G4: a change no record lists is UNCOVERED (rc 1), never COVERED by an empty set
+PASS: R3-BD1: a binding missing a field is named as missing (2)
+PASS: R3-BD2: a padded binding batch_id is a usage error (2)
+PASS: R3-BD3: an empty binding change_ids is a usage error (2)
+PASS: R3-BD4: a binding listing a change twice is a usage error (2)
+PASS: R3-RV1: a non-object reviewer block is a usage error (2)
+PASS: R3-RV2: a blank reviewer dispatch_id is a usage error (2)
+PASS: R3-BD5: a reviewer-less verdict carrying a binding for other changes is refused (1)
+PASS: R3-U-ROOT: a root principal can write any inode
+PASS: R3-U-OWNER-BIT: the owner write bit grants write
+PASS: R3-U-OTHER-BIT: the other write bit grants write
+PASS: R3-U-GROUP-BIT: the group write bit grants write to a group member
+PASS: R3-U-GROUP-CTL: control: the group write bit does not grant write to a non-member
+PASS: R3-U-LEAF-OWNER: owning the evidence file (even read-only, in a foreign dir) can replace it
+PASS: R3-U-LEAF-WRITABLE: a writable evidence file can be replaced
+PASS: R3-U-DIR-OWNER: owning a directory on the chain can replace the evidence
+PASS: R3-U-DIR-WRITABLE: a writable non-sticky directory on the chain can replace the evidence
+PASS: R3-U-STICKY-CTL: control: a sticky directory protects an entry the principal does not own
+PASS: R3-U-CLEAN-CTL: control: no ownership/write path -> cannot replace
+PASS: R3-U-NONE-PATH: a missing evidence path yields instance, never a crash or capability
+
+== Summary: ok 71 / NOT ok 0 ==

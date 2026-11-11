@@ -1,0 +1,126 @@
+== T085-adjacent RED: precheck_pack_run.py batch-scoping fix + precheck_pack_build.sh wrapper ==
+PASS: control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/review/precheck_pack_build.sh exists -- the wrapper has landed;
+   Section C's real invocation checks below are the functional
+   tests to run
+PASS: control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/review/precheck_pack.sh exists (precheck_pack.sh, already landed
+   pre-T085)
+PASS: B1: a batch declaring ONE clean file reports all_pass=true even
+   though an UNRELATED, undeclared file elsewhere in the checkout
+   carries a real shellcheck finding -- the whole-checkout-scan
+   bug is fixed (rc=0, all_pass=True)
+PASS: B2: a batch declaring ONE genuinely broken file still reports
+   all_pass=false citing broken.sh (rc=1) -- the scoping
+   fix never suppresses a real in-scope defect
+PASS: B3: an UNRELATED, undeclared secret elsewhere in the checkout does
+   not fail a batch declaring only a clean file -- secret-scan is
+   scoped exactly like parse/shellcheck (rc=0)
+PASS: B4: a batch whose blast_radius is free-form prose (not
+   slicer.py's canonical form) falls back to a full-checkout
+   scan -- still catches the unrelated noise.sh finding
+   (all_pass=false, shellcheck evidence.scope=whole-checkout)
+   -- never risks a silently under-scanned false PASS
+PASS: C1 setup: real disposable commit 00b59a9c6314db01331eaff723a3c36e7ad5cdd9 created via a scratch worktree,
+   never touching the shared main checkout's own HEAD/working tree
+PASS: C1: the wrapper built a real, schema-valid, all_pass=true pack
+   for a genuinely clean disposable commit in ONE invocation
+   (rc=0), printing both PRECHECK-PACK: and BATCH-ID:
+   marker lines with a real, non-fabricated batch_id
+   (BATCH-ID: RB-precheck-00b59a9c6314-f561a28f95f7)
+FAIL: C6: wrapper did not bind the pack to the batch base: 'skipped False True False' (want 'whole-file True True True')
+FAIL: C2: second (cache-hit) invocation failed with slicer.py/
+   precheck_pack.sh deliberately unusable (rc=4,
+   markers=0, stderr='precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/c1_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/c1_out/precheck.json is stale/unbound: provenance.head_sha missing; cannot read this host's shellcheck version to compare with provenance.shellcheck_version; pack head None != expected 00b59a9c6314db01331eaff723a3c36e7ad5cdd9; shellcheck did not run in whole-file mode (mode='skipped'); provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exception_timeout_s': None, 'memory_cap_mib': None, 'max_lines': None}; cached pack was built with --shellcheck-timeout None, 60 requested; cached pack was built with --shellcheck-exception-timeout None, 900 requested; cached pack was built with memory cap (MiB) None, 8192 requested; cached pack was built with size cap (lines) None, 10000 requested)
+python3: can't open file '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/review/slicer.py': [Errno 13] Permission denied
+precheck_pack_build: slicer.py failed to produce a batch') --
+   either caching is broken, or it silently fell through
+   to a real rebuild that needed the now-unusable tools
+PASS: C3: a disposable commit with a real planted parse defect makes
+   the wrapper exit 1 (not 0, not a crash) with a written,
+   schema-valid precheck.json citing the real defect file by
+   name -- the failure genuinely returns to the producer
+   (RB-002), never silently swallowed
+PASS: C5: the SAME defect, addressed via two-dot range syntax
+   (--commit <parent>..<head>), also exits 1 with a real,
+   written precheck.json -- range parsing genuinely works
+PASS: C4: an unresolvable --commit refuses with exit 2 and writes no
+   precheck.json at all -- never a fabricated pack for a commit
+   that does not exist
+FAIL: D1 (F-R2-2): non-ASCII path escaped linting: rc=0 shape='PASS False' ()
+FAIL: D2 (F-R2-1): binding not produced/verified: shape='True unbound True' verify_rc=1 (NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY:)
+PASS: D3 (F-R2-9): a schema-valid cached pack produced by a STALE gate_version is rebuilt, never reused
+FAIL: D4 (whole-file strict): mode-only handling wrong: clean rc=0 files=Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;d=json.load(open('/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d4_out/precheck.json'));sc=[c for c in d['checks'] if c['check']=='shellcheck'][0];print(sc['evidence']['counts']['files_linted'])
+                                                                                                                                                                                                                                                                                               ~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'counts'; finding rc=0 rules=[] ()
+FAIL: D5 (directive policy): same-line=0 above=0 placeholder=0 (want 0 1 1) ()
+PASS: D6: snapshot freezes the working-tree bytes into an UNREFERENCED, deterministic commit (same sha twice) with no ref, index or working-tree change
+FAIL: D7 (F2): repo-root pack wrong: secret rc=1 'FAIL ['README.md'] True'; clean rc=0 'True True 1 10' verify=1 ( NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY:)
+PASS: D7b (F2): the partial checkout wrote NO sparse-checkout config into the reviewed repo
+FAIL: D8: rc=0 kind='snapshot True' manifest='True 2' verify=1 ( NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY:)
+FAIL: D8b: verify=1 (NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY:)
+FAIL: D9: ok rc=0 'Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;d=json.load(open('/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d9a_out/precheck.json'));e=[c for c in d['checks'] if c['check']=='shellcheck'][0]['evidence'];print(e['exceptions_file']['path'].endswith('config/shellcheck_legacy_exceptions.tsv'), e['legacy_exceptions'][0]['verdict'])
+                                                                                                                                                                                                                                                                                                           ~^^^^^^^^^^^^^^^^^^^
+KeyError: 'exceptions_file''; worse rc=0 ()
+FAIL: D10 (M5): rc=0/0/0 timeout=Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;d=json.load(open('/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d10_out/precheck.json'));print(float([c for c in d['checks'] if c['check']=='shellcheck'][0]['evidence']['tool']['timeout_s']) == 30.0)
+                                                                                                                                                                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+KeyError: 'tool' (precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d10_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.ca || precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d10_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.ca)
+PASS: D11 (I1): --shellcheck-exceptions naming any file but the canonical TSV exits 2 before anything is built
+FAIL: D12 (F2/RM1): build rc=0/0/0 mode=160000 verify=1/1/1 (NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY: shellcheck binding is None, not 'bound'
+NOT-READY: provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exception_timeout_s': None, 'memory_cap_mib': None, 'max_lines': None}
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: provenance.head_sha missing
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: shellcheck binding is None, not 'bound'
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pp/precheck.json: provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exc
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: provenance.head_sha missing
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: shellcheck binding is None, not 'bound'
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.VmPj/tmp.g6cJAmJ2L1/d12/pw/precheck.json: provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exc)
+FAIL: D13 (F2/RM2): build rc=0/0 recorded=Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json,sys;d=json.load(open(sys.argv[1]));print([c for c in d['checks'] if c['check']=='shellcheck'][0]['evidence']['tool'].get('test_mode'))
+                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+KeyError: 'tool' verify=1/1 (NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY: shellcheck binding is None, not 'bound'
+NOT-READY: provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exception_timeout_s': None, 'memory_cap_mib': None, 'max_lines': None})
+PASS: D14 RM1 mutation-flip: with _copack_reasons returning [] the lone gitlink-bump pack loses its co-pack refusal (verify rc=1) -- D12 is load-bearing
+FAIL: D14 RM2 mutation-flip: verify=1 (NOT-READY: provenance.head_sha missing
+NOT-READY: provenance.head_sha_source is 'unbound', not 'batch-binding-verified'
+NOT-READY: cannot read this host's shellcheck version to compare with provenance.shellcheck_version
+NOT-READY: shellcheck did not run in whole-file mode (mode='skipped')
+NOT-READY: shellcheck binding is None, not 'bound'
+NOT-READY: provenance.shellcheck_params None != the shellcheck evidence's tool parameters {'timeout_s': None, 'exception_timeout_s': None, 'memory_cap_mib': None, 'max_lines': None}) -- D13 does not test the mechanism
+
+== Summary: ok 16 / NOT ok 14 ==
+rc=1

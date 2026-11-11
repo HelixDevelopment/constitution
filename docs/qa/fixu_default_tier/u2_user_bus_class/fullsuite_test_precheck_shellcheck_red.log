@@ -1,0 +1,182 @@
+== precheck_pack shellcheck WHOLE-FILE STRICT + SEVERITY FLOOR (RED-first) ==
+PASS: N1 control needles: raw shellcheck reports SC2086 on 'echo $1' and nothing on the quoted twin
+NOT ok: N2 control needle: the hard memory cap mechanism is not usable here: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)
+NOT ok: G1 golden-good: rc=1 ('FAIL', 'whole-file', 0, 'bound', 'batch-binding-verified') 
+NOT ok: G2 golden-bad: rc=1 rules=[]
+NOT ok: G3 scope: rc=1 None
+NOT ok: K1 blocking class ('pkg/error.sh', 'error') missing: []
+NOT ok: K1 blocking class ('pkg/warning.sh', 'warning') missing: []
+NOT ok: K1 blocking class ('pkg/info.sh', 'info') missing: []
+NOT ok: K2 advisory: rc=1 ([], 0)
+NOT ok: K3 blocking info set: rc=1 rules=[]
+NOT ok: K4 excluded rules: rc=1 ([], True)
+NOT ok: P1 special paths: rc=1 n=0 files=[] 
+NOT ok: E1 env scrub: rc=1 rules=[]
+PASS: E1b evidence: systemd-run scope cap argv (MemoryMax=8192M, MemorySwapMax=0), --norc, stdin, version + the exact shellcheck parameters in provenance (GR12), 60 s budget, caps, the 3600 s batch budget and TEST MODE are recorded
+NOT ok: E2 planted rc: rc=1 rules=[] rc=['.shellcheckrc', 'pkg/.shellcheckrc']
+NOT ok: X1 rc=1 []
+NOT ok: X2 shebang removal: rc=1 rules=[]
+NOT ok: X3 rc=1 {'advisory': 0, 'directive_violations': 0, 'directives': 0, 'files_linted': 0, 'findings': 0}
+NOT ok: X4 rename: rc=1 rules=[] {'pkg/renamed': 'pkg/old.sh'}
+NOT ok: X5 rc=1 []
+NOT ok: X6 rc=1 ({'advisory': 0, 'directive_violations': 0, 'directives': 0, 'files_linted': 0, 'findings': 0}, None)
+NOT ok: X7 dialect: android rc=1 posix rc=1 rules=[]
+NOT ok: X7c ksh dialect: rc=1 rules=[]
+NOT ok: X8 env options: rc=1 ({'advisory': 0, 'directive_violations': 0, 'directives': 0, 'files_linted': 0, 'findings': 0}, None)
+NOT ok: X9 extension dialect: rc=1 ('FAIL', []) None
+NOT ok: X10 directive dialect: rc=1 []
+NOT ok: X11 shell=sh control: rc=1 gate=[] raw=['SC3010']
+NOT ok: X12 shell-integration.bash: gate=[] raw=['SC2016', 'SC2064', 'SC2317'] sc3=no parse=PASS
+NOT ok: X13 precedence: rc=1 []
+NOT ok: X14 unknown shell value: rc=1 ([{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}], None)
+NOT ok: X15 candidates: rc=1 ([], 0) None
+NOT ok: X16 parse dialect: {'check': 'parse', 'evidence': {'scope': 'batch', 'scope_note': 'batch-scoped (binding): 2 file(s), 0 directory entr(y/ies), 0 absent', 'tool': 'bash -n / sh -n'}, 'verdict': 'PASS'}
+PASS: Y1 a symlinked SCRIPT candidate (pkg/link.sh -> clean.sh) FAILs
+NOT ok: Y2 rc=1 (['doc.md'], [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+PASS: Y3 a former shell script replaced by a symlink is still a script candidate => FAIL
+NOT ok: Z1 CRLF: rc=1 rules=[]
+PASS: Z2 a script containing a NUL byte FAILs (refused, never a partial lint)
+NOT ok: D1: rc=1 viol=
+NOT ok: D1b: rc=1 viol=
+NOT ok: D1i: rc=1 viol=
+NOT ok: D1tab: rc=1 viol=
+NOT ok: D1t: rc=1 viol=
+NOT ok: D2: rc=1 viol=
+NOT ok: D2b: rc=1 viol=
+NOT ok: D3: rc=1 viol=
+NOT ok: D3b: rc=1 viol=
+NOT ok: D4: rc=1 viol=
+NOT ok: D5: rc=1 viol= rules=[]
+NOT ok: D5a: rc=1 viol=
+NOT ok: D5p 'x': rc=1 viol=
+NOT ok: D5p 'TODO': rc=1 viol=
+NOT ok: D5p 'noise': rc=1 viol=
+NOT ok: D5p 'ok': rc=1 viol=
+NOT ok: D5p '   ': rc=1 viol=
+NOT ok: D5p 'ok ok ok ok ok ok': rc=1 viol=
+NOT ok: D5p 'see above': rc=1 viol=
+NOT ok: D5p 'raw user arg': rc=1 viol=
+NOT ok: D5p 'intentionally intentionally intentionally': rc=1 viol=
+NOT ok: D5p 'qwerty asdfgh': rc=1 viol=
+NOT ok: D5p 'zxcvbnm qwrtpsd fghjklz xcvbnmq': rc=1 viol=
+NOT ok: D5res: rc=1 viol=
+NOT ok: D6: rc=1 [(2, 'word splitting of the flag list is intended here', [])]
+NOT ok: D6b: None
+NOT ok: D7: rc=1 viol=
+NOT ok: D8 operator-preceded directive: rc=1 viol= [{'canonical': True, 'column': 6, 'disable_codes': [], 'file': 'pkg/d.sh', 'file_scope': False, 'justification': 'suppress every finding of this legacy block', 'keys': ['disable'], 'line': 2, 'text': 'true;# shellcheck disable=all # suppress every finding of this legacy block', 'violations': ['D1 disable=all']}]
+NOT ok: D8b: rc=1 viol=
+PASS: D8u (F1) the canonical recogniser polices a directive after ';' '(' '$(' a backtick ')' '&' '|' blanks and line start, and leaves quoted / upper-case look-alikes (not honoured by shellcheck) to the parity oracle
+NOT ok: D9 quoted look-alike: rc=1 (None, [{'canonical': False, 'column': 7, 'disable_codes': [], 'file': 'pkg/d.sh', 'file_scope': False, 'justification': '', 'keys': ['disable'], 'line': 2, 'text': 'echo "# shellcheck disable=all"', 'violations': []}], [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+NOT ok: D10 blocking_rule_disabled: rc=1 None
+PASS: H1 a candidate over the SIZE cap is BLIND (fails closed) and shellcheck is never started
+PASS: H1b a cap can be LOWERED per run, never raised (a higher --shellcheck-max-lines / --shellcheck-memory-cap-mib exits 2)
+PASS: H1c (F10) a timeout above its ceiling (601 s > 600, 1801 s > 1800) exits 2 -- one run cannot hold the host lock indefinitely
+NOT ok: H2 memory cap: rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+PASS: H3 a cap wrapper that does NOT enforce MemoryMax (pass-through systemd-run) is detected by the probe => BLIND, nothing linted
+NOT ok: H5 tool failure: rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+NOT ok: H5b silent tool: rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+NOT ok: H6 lock: held rc=1 ([{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]) released rc=1 ([{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}], '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fsr_tmp/fsr_home.xhwlbton/tmp/tmp.5ZHS6XBz2N/lockdir/helix-precheck-shellcheck-large-1000.lock')
+NOT ok: H7 large-file lock: rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+NOT ok: H8 rc/json disagreement: rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+PASS: H9 without PRECHECK_TEST_MODE=1 the PRECHECK_TEST_LOCK_DIR override is ignored (the host-wide lock is used)
+PASS: B1 a checkout whose bytes differ from the bound head => binding-failed, FAIL
+NOT ok: B2 rc=1 []
+PASS: B3 the GATE itself refuses a binding whose base is not an ancestor of head (independent of the dispatch verifier)
+PASS: B4 the GATE itself refuses a batch whose changes differ from the binding's change_ids
+NOT ok: B5 gitlink: rc=1 ([{'commit': '638f55c1af86492a222feb29cf4d0b41959f7eb3', 'path': 'sub'}], [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+PASS: B6 a declared DIRECTORY that is not a bound gitlink is refused (never silently skipped)
+PASS: B7 (GR5) a checkout at another commit with identical bytes (a same-tree twin of head) fails the binding
+PASS: B8 (GR10) a slice declaring a path the binding does not cover (README.md, unchanged) is refused
+PASS: B9 (M2/RM7) a run whose --baseline-ref (head) is not the bound base fails the binding (binding-failed, FAIL)
+PASS: B10 (M2/RM6) a hand-written binding with base == head fails the binding in the gate itself
+NOT ok: L1 rc=1 (None, [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+NOT ok: L2 rc=1 (None, [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+NOT ok: L3 rc=1 (None, [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+NOT ok: L4 rc=1 None
+NOT ok: L4b rc=1 (None, None)
+NOT ok: L5 rc=1 None
+NOT ok: L6 rc=1 [] [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}, {'file': 'vendor/other.sh', 'message': 'a legacy-exception row covers a path that is not a regular file at the bound head (absent)'}, {'file': 'vendor/other.sh', 'message': 'a legacy-exception row must cover a file tracked at the batch base (got untracked-at-base)'}]
+NOT ok: L6b rc=1 [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}]
+PASS: L7 a malformed row (4 fields) is rejected => FAIL
+PASS: L8 a row WITHOUT a tracked item is rejected => FAIL
+PASS: L9 a reason_class outside the closed set is rejected => FAIL
+NOT ok: L10 rc=1 None
+NOT ok: L11 rc=1 Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<string>", line 1, in <module>
+KeyError: 'legacy_exceptions'
+PASS: L12 a malformed pinned_counts entry is rejected => FAIL
+PASS: L13 (A2) raising a pin in the HEAD TSV while also changing the script FAILs (the BASE TSV is the reference)
+NOT ok: L13b rc=1 ([{'kind': 'raised-pin', 'path': 'vendor/big.sh', 'raised': {'SC2086': {'base': 2, 'head': 3}}}], [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}])
+PASS: L14 a NEW row in the head TSV in a batch that also changes the script FAILs
+PASS: L15 a bound run refuses any exceptions path but the canonical one ('../lax.tsv' => exit 2)
+PASS: L16 a checkout TSV that differs from the bound head's blob (a lax planted copy) is refused
+PASS: L17 reason_class needs evidence: too-large on a 3-line file, generated without a marker, vendored outside a vendored directory all FAIL
+PASS: L18 an SC10xx (parse-class) code cannot be pinned => FAIL
+NOT ok: L19 parse: rc=1 ([{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}], None)
+PASS: L20 (A5) a row (already in the base TSV) for a script that is NEW in the batch FAILs -- a new script cannot exempt itself
+PASS: L21 a traversing row path ('../vendor/big.sh') is rejected
+NOT ok: L22 rc=1 None
+PASS: L23 (GR3) a NEW pin key added to an existing row (SC2034=1) is an increase -- refused in a batch that also changes the script
+PASS: L24 (GR4) a generated-file marker BELOW line 20 does not back reason_class generated
+PASS: L25 (GR9) two rows for the same path are rejected => FAIL
+PASS: L26 (GR11) a FILE named 'vendor' is not a vendored DIRECTORY -- reason_class vendored is not backed
+NOT ok: L27 rename: rc=1 ({'vendor/new.sh': 'vendor/old.sh'}, None, [{'file': '<memory-cap>', 'message': 'BLIND (fails closed): no hard memory cap is available for shellcheck -- systemd-run --user --scope exited 1: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)'}], None)
+PASS: L28 (R3 tightened) a DIR-FORBIDDEN pin is refused -- a pinned disable=all could be moved to file scope invisibly
+NOT ok: M1 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M2 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M3 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M4 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M5 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M6 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M7 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M8 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M9 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M10 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M11 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M12 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M13 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M14 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: M15 mutation-flip: with the mechanism removed the golden-bad case flips (c["verdict"] == "PASS") -- the mechanism is load-bearing
+NOT ok: M16 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M17 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M18 mutation-flip: 'not e.get("directive_violations") and bool(e.get("directive_parity_breaches")) and c["verdict"] == "FAIL"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M19 mutation-flip: 'not e.get("directive_violations") and bool(e.get("directive_parity_breaches")) and c["verdict"] == "FAIL"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M20 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M21 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M22 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M23 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: M24 mutation-flip: with the mechanism removed the golden-bad case flips (not any("PARSE error" in x["message"] for x in e.get("errors", []))) -- the mechanism is load-bearing
+NOT ok: M25 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: M26 mutation-flip: with the mechanism removed the golden-bad case flips (not any("normalised repo-relative" in x["message"] for x in e.get("errors", []))) -- the mechanism is load-bearing
+NOT ok: M27 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M28 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M29 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M30 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR1 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR2 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR3 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR4 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR5 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR7 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR8 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR9 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR10 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: GR11 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: GR12 mutation-flip: with the mechanism removed the golden-bad case flips (d["provenance"]["shellcheck_params"] != {"timeout_s": 60, "exception_timeout_s": 900, "memory_cap_mib": 8192, "max_lines": 10000}) -- the mechanism is load-bearing
+NOT ok: M31 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M32 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: M33 mutation-flip: with the mechanism removed the golden-bad case flips (not e.get("blocking_rule_disabled")) -- the mechanism is load-bearing
+NOT ok: M34 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+NOT ok: M36 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: M35 mutation-flip: with the mechanism removed the golden-bad case flips (bool(e.get("exceptions_increase"))) -- the mechanism is load-bearing
+PASS: RM6 mutation-flip: with the mechanism removed the golden-bad case flips (not any("bound base equals bound head" in x["message"] for x in e.get("errors", []))) -- the mechanism is load-bearing
+NOT ok: RM7 mutation-flip: 'c["verdict"] == "PASS"' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: MD1 mutation-flip: with the mechanism removed the golden-bad case flips (c["verdict"] == "FAIL") -- the mechanism is load-bearing
+NOT ok: MD2 mutation-flip: '("pkg/lib.bash", "SC3010") in {(f["file"], f["rule"]) for f in e.get("findings", [])}' is 'False' with the mechanism removed (rc=1) -- tautological or mutation missed
+PASS: MD3 mutation-flip: with the mechanism removed the golden-bad case flips ([x for x in d["checks"] if x["check"] == "parse"][0]["verdict"] == "FAIL") -- the mechanism is load-bearing
+PASS: MD4 mutation-flip: with the mechanism removed the golden-bad case flips ("pkg/UP.SH" not in {f["file"] for f in e.get("findings", [])}) -- the mechanism is load-bearing
+PASS: MD5 mutation-flip: with the mechanism removed the golden-bad case flips ("bin_bom" not in {f["file"] for f in e.get("findings", [])}) -- the mechanism is load-bearing
+PASS: MD6 mutation-flip: with the mechanism removed the golden-bad case flips ("bin/runner" not in {f["file"] for f in e.get("findings", [])}) -- the mechanism is load-bearing
+
+== Summary: ok 48 / NOT ok 128 ==

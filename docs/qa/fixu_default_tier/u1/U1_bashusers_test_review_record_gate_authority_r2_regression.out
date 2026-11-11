@@ -1,0 +1,42 @@
+== V3 round-2 regression: no producer self-coverage at ordinary seams ==
+PASS: CTL: genuine, bound reviewer GO for (B2,[c2]) is COVERED
+PASS: P1: record refuses (rc 1, nothing written) to attach a verdict bound to (B2,[c2]) to batch BX/[cX]
+PASS: P1b: gate cX after the replay attempt is UNCOVERED
+PASS: P1c: a re-hashed record re-pointed at BX/[cX] is inadmissible from the reviewer's own binding (exit 4)
+PASS: P1d: adding cX to a genuine record's change_ids is inadmissible (bound set is {c2})
+PASS: P1h: a record re-pointed at another batch id (same changes) is inadmissible from the reviewer's binding
+PASS: P1i: record refuses a (B2,[c2]) verdict attached to batch B-OTHER with the same change set
+PASS: P1e: record refuses (rc 2) a reviewer verdict carrying no review binding
+PASS: P1f: record refuses a batch whose change set differs from the reviewed set
+PASS: P1f (negative control): a two-change batch reviewed as exactly that set is COVERED for c-b
+PASS: P1g: record refuses a verdict whose review_head differs from the batch's declared head
+PASS: P1g2: a non-commit-shaped review_head is a usage error (2)
+PASS: P1g3: evidence head differing from the record's review_head is inadmissible
+PASS: P1g4: evidence base differing from the record's review_base is inadmissible
+PASS: m1: record refuses (rc 2) a verdict file with no 'round'
+PASS: m1b: archived evidence with no 'round' is inadmissible at gate time
+PASS: N8: archived evidence with round=true (bool) is inadmissible at gate time
+PASS: P3: B1's latest NO-GO on cY still blocks after a genuine GO in another batch B9 (named in the reason)
+PASS: P3n (negative control): every batch listing cY has a qualifying latest GO -> COVERED
+PASS: P3d: cZ dropped from batch BA after BA's NO-GO on it is still blocked by BA
+PASS: P3e (negative control): cZ dropped from BA after a qualifying GO on it does not block BB's coverage
+PASS: P3f: a change dropped from its only batch's latest round is UNCOVERED (the latest round no longer covers it)
+PASS: P3g: a backfilled historical NO-GO on cQ blocks a live GO in another batch
+PASS: P3h (negative control): a backfilled historical zero-finding GO does not block a live GO elsewhere
+PASS: m4: dispatch ledger events [dispatched in-flight crashed] never authenticate a reviewer
+PASS: m4: dispatch ledger events [dispatched in-flight] never authenticate a reviewer
+PASS: m4: dispatch ledger events [dispatched failed complete] never authenticate a reviewer
+PASS: m4: dispatch ledger events [complete] never authenticate a reviewer
+PASS: m4 (negative control): dispatched -> in-flight -> complete authenticates
+PASS: m4: a ledger row carrying more than one 11.4.182 label is refused (ambiguous)
+PASS: m4: a dispatch whose dispatched row names opus-high is not rescued by an opus-xhigh complete row
+PASS: N4: a precheck archived for another batch never qualifies
+PASS: N11: a record whose producer identity equals the reviewer dispatch is refused by gate
+PASS: N6: a record whose findings/layers differ from the reviewer evidence is inadmissible
+PASS: N12: a record whose effort differs from the reviewer evidence is inadmissible
+PASS: T: tier -- capability only when neither the producer nor the runner can own/write/replace the evidence (capability instance instance instance instance instance instance instance)
+PASS: T-needle: /proc/<pid>/cmdline and its dir are producer-owned with no write bit (1000 0o0 1000 0o0)
+PASS: T-ACL: an ACL granting the producer write access defeats capability (control without ACL: capability)
+PASS: T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid (the runner owns the evidence), and with its own uid
+
+== Summary: ok 39 / NOT ok 0 ==

@@ -47,7 +47,7 @@ kill_mutant M14_refs_no_unlink_at_zero 'if os.path.lexists(p):
                 os.unlink(p)
             return' 'return'
 kill_mutant M15_rollback_unlink_unsigned 'if self.classify_row(r, local) != "ours":' 'if False:'
-kill_mutant M16_rollback_no_symlink_leaf_preflight 'if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode):' 'if False:'
+kill_mutant M16_rollback_no_symlink_leaf_preflight 'if e["type"] == "file" and os.path.lexists(full) and stat.S_ISLNK(os.lstat(full).st_mode) \' 'if False and e["type"] == "file" \'
 kill_mutant M17_rollback_row_error_aborts 'report["left_alone"].append({"path": r["path"], "reason": "cannot be checked: %s" % clean(ex)})' 'raise'
 kill_mutant M18_no_backup_gitignore 'atomic_write(bgi, b"*\n")' 'pass'
 kill_mutant M19_record_without_path_crashes 'if cmd in ("record", "classify") and not o["path"]:' 'if False:'
@@ -57,4 +57,48 @@ kill_mutant M22_no_nofollow_read 'os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK' '
 kill_mutant M23_same_mac_domain 'b"wiring-backup\0"' 'b"wiring-local\0"'
 kill_mutant M24_refs_strict_utf8 '.decode("utf-8", "surrogateescape").split' '.decode("utf-8").split'
 kill_mutant M25_refs_write_strict_utf8 'sorted(refs.items())).encode("utf-8", "surrogateescape"))' 'sorted(refs.items())).encode())'
+kill_mutant M26_ledger_dir_not_checked '                self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
+                ledger_plan.append((name, dst, data))' '                ledger_plan.append((name, dst, data))'
+kill_mutant M27_ledger_unlink_dir_not_checked '                    self._need_writable_dir(os.path.dirname(dst), name)  # RULE:W-ledger-dir-writable
+                ledger_plan.append((name, dst, None))' '                    pass
+                ledger_plan.append((name, dst, None))'
+kill_mutant M28_ledger_leaf_dir_ok 'if os.path.lexists(dst) and stat.S_ISDIR(os.lstat(dst).st_mode):  # RULE:W-ledger-leaf-dir' 'if False:'
+kill_mutant M29_json_entry_unlinked 'if r["kind"] not in ("symlink", "file"):' 'if False:'
+kill_mutant M30_restore_probe_not_dir 'if not stat.S_ISDIR(os.stat(probe).st_mode) or not os.access(probe, os.W_OK | os.X_OK):
+                raise Refused("cannot restore %s' 'if False:
+                raise Refused("cannot restore %s'
+kill_mutant M31_unlink_dir_not_checked 'if not os.access(os.path.dirname(full), os.W_OK | os.X_OK):
+                    report["left_alone"]' 'if False:
+                    report["left_alone"]'
+kill_mutant M32_in_backup_not_skipped 'if r["path"] in in_backup:
+                continue' 'if False:
+                continue'
+kill_mutant M33_ledger_symlink_ok 'if os.path.lexists(dst) and stat.S_ISLNK(os.lstat(dst).st_mode) and m["ledger"][name] is not None:' 'if False:'
+# M34: main() maps ValueError to a refusal. The wave-2 note called this mutant EQUIVALENT ("no ValueError can reach
+# main()"); the review (F4) showed that claim was wrong: a bad SOURCE_DATE_EPOCH reaches main() as a ValueError. It
+# is killable and listed here; the F4 tests in section 9d kill it (a traceback, rc 1, instead of rc 3).
+kill_mutant M34_valueerror_not_mapped 'except (OSError, ValueError) as ex:                  # includes UnicodeError; never a traceback' 'except OSError as ex:'
+kill_mutant M36_check_ignores_orphans 'if i not in ids]  # RULE:W-check-orphans' 'if False]'
+kill_mutant M37_epoch_digits_unchecked 'if not re.fullmatch(r"[0-9]{1,20}", t):  # RULE:W-epoch-digits' 'if False:'
+kill_mutant M38_epoch_range_unchecked '        time.gmtime(ts)
+    except (OverflowError, OSError, ValueError):' '        pass
+    except (OverflowError, OSError, ValueError):'
+# CON-045 re-review mutants O1/O2 (survived the old suite) and the I-2 guard:
+kill_mutant M39_rollback_skips_absent_backup_paths 'in_backup = {e["path"] for e in m["entries"] if e["type"] != "absent"}' 'in_backup = {e["path"] for e in m["entries"]}'
+kill_mutant M40_restore_without_chmod 'os.fchmod(f.fileno(), mode)  # RULE:R6-fchmod-before-rename' 'pass'
+# review round 2 R1 (reviewer mutant RMa): any post-backup symlink row trusted as ours
+kill_mutant RMa_any_new_link_is_ours 'if self.classify_row(r, local) == "ours":' 'if True:'
+# review round 2 R5: unlink-then-write is back (the old link is removed before the write that can fail)
+kill_mutant M43_unlink_before_write '                atomic_write(full, blobs[e["path"]], e.get("mode"),
+                             over_link=os.path.islink(full))  # RULE:R5-rename-over-link' '                if os.path.islink(full):
+                    os.unlink(full)
+                atomic_write(full, blobs[e["path"]], e.get("mode"))'
+# review round 3 N4: a default-mode write sets 0644 exactly again, ignoring a restrictive umask
+kill_mutant M44_default_mode_ignores_umask 'if mode is not None:  # RULE:N4-default-mode-honours-umask
+                os.fchmod(f.fileno(), mode)' 'os.fchmod(f.fileno(), 0o644 if mode is None else mode)'
+kill_mutant M41_replace_any_symlink_at_restore 'and e["path"] not in ours_new:  # RULE:I2-replace-our-link' 'and False:'
+kill_mutant M42_never_replace_our_link 'if r["id"] not in backed and r["kind"] == "symlink":' 'if False:'
+# M35 (preflight creates the ledger dir) is EQUIVALENT and deliberately not listed: the backup manifest is MAC-verified
+# with the key that lives in .constitution/extensions.state, so any rollback that reaches the ledger preflight already
+# has both ledger directories on disk (the review agreed by code reading). The guard remains as defense in depth.
 finish

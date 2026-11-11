@@ -1,0 +1,17 @@
+== T085 Round 5 R4-I1 regression: review_record.py content-hash evidence binding ==
+-- 6 (negative control): a genuine live record qualifies --
+PASS: 6 (negative control): a genuine live record (reviewer-authored, archived, hash-verified) counts as coverage -- the attacks below are refused for their own reason, not wholesale
+-- 1: symlink inside --records pointing outside it --
+PASS: 1: a symlink inside --records resolving outside it is REFUSED (inadmissible, exit 4) even with a correct content hash
+-- 2: symlinked directory inside --records pointing outside it --
+PASS: 2: a symlinked DIRECTORY inside --records resolving outside it is REFUSED (exit 4)
+-- 5: '..' path escape --
+PASS: 5: a '..' path escape is refused (exit 4), even with a genuinely-matching content hash
+-- 3: self-citation --
+PASS: 3: a record citing its own file as evidence is refused (exit 4; self-citation guard -- a file can never carry its own content hash, so the hash guard refuses it too)
+-- 4: hand-written live record, precheck_used:true, zero verifiable evidence --
+PASS: 4: a hand-written live record (no evidence) is REFUSED (inadmissible, exit 4)
+-- 7: content swap of the archived verdict evidence --
+PASS: 7: content-hash binding detects a post-authoring swap of the reviewer's archived verdict -- COVERED before, inadmissible (exit 4) after
+
+== Summary: ok 7 / NOT ok 0 ==

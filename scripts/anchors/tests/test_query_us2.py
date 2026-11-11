@@ -92,8 +92,12 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # "Classification: universal (§11.4.17)"): universal 192 -> 193 = +1. 193 + 110 + 2 mixed = 305.
         # Re-measured 2026-11-05 (§11.4.296 GitHub Issues as a source of workable items added,
         # "Classification: universal (§11.4.17)"): universal 193 -> 194 = +1. 194 + 110 + 2 mixed = 306.
-        assert len(universal) == 194, (
-            f"expected exactly 194 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-11-07 (§11.4.297 pull-request delivery added,
+        # "Classification: universal (§11.4.17)"): universal 194 -> 195 = +1. 195 + 110 + 2 mixed = 307.
+        # Re-measured 2026-11-07 (§11.4.298 release gate per product added,
+        # "Classification: universal (§11.4.17)"): universal 195 -> 196 = +1. 196 + 110 + 2 mixed = 308.
+        assert len(universal) == 196, (
+            f"expected exactly 196 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

@@ -1,0 +1,15 @@
+# files that call systemd-run --user / systemctl --user (git grep -l -E 'systemd-run[^|;]*--user|systemctl --user', HEAD of this clone)
+scripts/credscan/install_timer.sh	no-derive
+scripts/extensions/probe_bridge_layers.sh	no-derive
+scripts/fastcycle/cycle/fc_supervisor.py	no-derive
+scripts/fastcycle/lib/fc_common.py	no-derive
+scripts/fastcycle/review/lib/precheck_pack_run.py	no-derive
+scripts/fastcycle/review/precheck_pack.sh	no-derive
+scripts/fastcycle/tests/test_io_trace_build_map_r3_regression.sh	no-derive
+scripts/fastcycle/tests/test_io_trace_build_map_r6_regression.sh	no-derive
+scripts/fastcycle/tests/test_precheck_shellcheck_red.sh	no-derive
+scripts/gates/fixtures/killpg_reviewer_corpus.py	no-derive
+scripts/hooks/test_guard_bypasses.py	no-derive
+scripts/multitrack/multitrack_persistent_launch.sh	no-derive
+scripts/multitrack/test_multitrack_persistent_launch_survives_session_teardown.sh	derives
+# control needle: the CON-110 fixed test must read 'derives'

@@ -1,0 +1,6 @@
+ok   baseline: unmutated copy passes the self-test
+killed F47a (1 failing check(s))
+killed F47b (1 failing check(s))
+killed F47c (1 failing check(s))
+SUMMARY mutants=3 killed=3 survivors=0 not_applicable=0
+rc=0

@@ -1,0 +1,6 @@
+== 11.4.235(D) RED: review_record.py optional per-finding finding_layer ==
+PASS: fixture self-check: pre_existing_real_record.json exists
+PASS: fixture self-check: pre-existing record genuinely has NO finding_layer key (predates the field)
+-- 1: a REAL pre-existing record (no finding_layer) still loads via gate's own record-collection path --
+PASS: 1: pre-existing finding_layer-less record parses cleanly through gate (no parse/field error); its honest outcome is 'inadmissible: no reviewer evidence' (exit 4, V3 round 3)
+scripts/fastcycle/tests/test_review_record_finding_layer_red.sh: 119: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/tests/lib/review_record_genuine.sh: Syntax error: "(" unexpected (expecting "}")

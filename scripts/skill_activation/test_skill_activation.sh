@@ -18,7 +18,23 @@ ok(){ printf '  PASS  %s\n' "$1"; PASS=$((PASS+1)); }
 no(){ printf '  FAIL  %s\n' "$1" >&2; FAIL=$((FAIL+1)); }
 chk(){ if [ "$1" = "$2" ]; then ok "$3 (got $1)"; else no "$3 (expected $2, got $1)"; fi; }
 
-T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+T="$(mktemp -d)"
+# Session identities are fixtures, never the host's real sessions. The test used
+# to assume a live claude5 alias and inherited the caller's CLAUDE_CONFIG_DIR, so
+# its own activate claim was LIVE (the caller's processes carry that dir) and
+# blocked both dead-claim mutations on every host but claude5.
+#   self / other-session / prune-session: each CLI call runs with its own config
+#           dir $T/cfg-<session>, so a claim written by one is provably dead to
+#           another (no process of the reader carries that dir).
+#   peer  : a REAL live session -- a sleep process whose environment names the
+#           peer config dir, which is exactly what sa_session_alive reads.
+unset CLAUDE_CONFIG_DIR HELIX_SKILL_SESSION
+printf '#!/bin/sh\nCLAUDE_CONFIG_DIR="%s/cfg-${HELIX_SKILL_SESSION:-self}" exec "%s" "$@"\n' "$T" "$CLI" > "$T/cli"
+chmod +x "$T/cli"; CLI="$T/cli"
+LIVE_CFG="$T/cfg-live-peer"
+(CLAUDE_CONFIG_DIR="$LIVE_CFG" exec sleep 900) &
+LIVE_PID=$!
+trap 'kill "$LIVE_PID" 2>/dev/null; rm -rf "${T:?}"' EXIT
 mkdir -p "$T/proj/.helix/skills" "$T/proj/.claude"
 mk(){ mkdir -p "$T/proj/.helix/skills/$1"; printf -- '---\nname: %s\ndescription: %s\n---\nbody\n' "$1" "$2" > "$T/proj/.helix/skills/$1/SKILL.md"; }
 mk core-one "A core skill that is always active."
@@ -72,15 +88,15 @@ chk "$rc" "1" "deactivating a CORE skill is refused"
 # 8 CONCURRENCY: a live claim from ANOTHER session must block unlinking
 claimdir="$P/.claude/.skill-activation/claims/demand-one"
 # a REAL-shaped claim: filename = sanitized session id, line 1 = the config
-# dir that proves liveness. This host genuinely has a live claude5 session.
-mkdir -p "$claimdir"; printf '%s\n%s\n' "$HOME/.claude-claude5" "now" > "$claimdir/claude-claude5"
+# dir that proves liveness. The peer session is the live sleep started above.
+mkdir -p "$claimdir"; printf '%s\n%s\n' "$LIVE_CFG" "now" > "$claimdir/claude-live-peer"
 HELIX_SKILL_SESSION="other-session" "$CLI" deactivate demand-one "$P" >/dev/null 2>&1
 [ -r "$P/.claude/skills/demand-one/SKILL.md" ] && ok "CONCURRENCY: live claim blocks another session's deactivate" || no "CONCURRENCY: skill stripped while another session held it"
 
 # 9 MUTATION (§1.1): replace the live claim with a provably-dead one.
 #    The reaper must now allow the unlink -- if it still blocks, the liveness
 #    oracle is not actually proving anything.
-rm -f "$claimdir/claude-claude5"
+rm -f "$claimdir/claude-live-peer"
 printf '%s\n%s\n' "$HOME/.claude-NO-SUCH-SESSION" "now" > "$claimdir/claude-DEAD"
 HELIX_SKILL_SESSION="other-session" "$CLI" deactivate demand-one "$P" >/dev/null 2>&1
 [ -e "$P/.claude/skills/demand-one" ] && no "MUTATION dead-claim: stale claim wrongly blocked deactivate" || ok "MUTATION dead-claim: dead claim reaped, deactivate proceeded"
@@ -182,7 +198,7 @@ fi
 #    here specifically under the PRUNE path, not only the deactivate path.
 "$CLI" activate demand-p "$P2" >/dev/null 2>&1
 cd2="$P2/.claude/.skill-activation/claims/demand-p"
-mkdir -p "$cd2"; printf '%s\n%s\n' "$HOME/.claude-claude5" "now" > "$cd2/claude-claude5"
+mkdir -p "$cd2"; printf '%s\n%s\n' "$LIVE_CFG" "now" > "$cd2/claude-live-peer"
 HELIX_SKILL_SESSION="prune-session" "$CLI" prune "$P2" >/dev/null 2>&1
 [ -e "$P2/.claude/skills/demand-p" ] && ok "CONCURRENCY: prune KEPT a skill another live session holds" || no "CONCURRENCY: prune STRIPPED a skill another live session holds"
 
@@ -190,7 +206,7 @@ HELIX_SKILL_SESSION="prune-session" "$CLI" prune "$P2" >/dev/null 2>&1
 #     must now proceed — else the concurrency check is not proving anything
 #     and the test above is decoration (the false-null this engine's own
 #     dot-prefixed-session-id bug already produced once).
-rm -f "$cd2/claude-claude5"
+rm -f "$cd2/claude-live-peer"
 printf '%s\n%s\n' "$HOME/.claude-NO-SUCH-SESSION" "now" > "$cd2/claude-DEAD"
 HELIX_SKILL_SESSION="prune-session" "$CLI" prune "$P2" >/dev/null 2>&1
 [ -e "$P2/.claude/skills/demand-p" ] && no "MUTATION dead-claim-prune: stale claim wrongly blocked prune" || ok "MUTATION dead-claim-prune: dead claim reaped, prune proceeded"
@@ -306,6 +322,43 @@ HELIX_SKILL_BUDGET_NAME_BYTES=4096 HELIX_SKILL_BUDGET_DESC_BYTES=24576 "$GATE" "
 chk "$?" "0" "budget gate PASSes on pruned project"
 HELIX_SKILL_BUDGET_NAME_BYTES=1 "$GATE" "$P2" >/dev/null 2>&1
 chk "$?" "1" "MUTATION tight-budget on pruned project: gate FAILs"
+
+# LIVENESS UNDER pipefail: a live session whose environment is larger than one
+# write of the reader must still read as alive. The engine runs under
+# `set -o pipefail`; a `tr ... | grep -q` reader lets grep exit on the first
+# match, tr then dies of SIGPIPE (141) and pipefail turns the match into
+# "dead" -- the claim is reaped and a skill another session holds is stripped.
+# Measured 2026-11-06: a 14 KB environment read as dead in 134 of 200 probes,
+# a 114 KB one in 50 of 50. The peer below carries a 114 KB environment so the
+# old reader fails every time (deterministic RED), three probes for N>=3.
+big_cfg="$T/cfg-big-env-peer"
+big_pad="$(head -c 100000 /dev/zero | tr '\0' x)"
+(CLAUDE_CONFIG_DIR="$big_cfg" exec env HELIX_TEST_PAD="$big_pad" sleep 300) &
+BIG_PID=$!
+sleep 0.3
+alive_n=0
+for _i in 1 2 3; do
+  ( . "$SA_DIR/skill_activation_lib.sh"; sa_session_alive "$big_cfg" ) && alive_n=$((alive_n+1))
+done
+kill "$BIG_PID" 2>/dev/null
+chk "$alive_n" "3" "LIVENESS: a live session with a large environment reads as alive under pipefail (3 probes)"
+
+# LIVENESS IS AN EXACT LITERAL MATCH (CON-122 follow-up F114-1): the config dir
+# is a literal, not a regex (-F), and the whole environ entry must match (-x).
+# Live peers are named so that a regex "." or a prefix would wrongly match:
+#   dot   : live "$T/cfg-dotXtest"   probed as "$T/cfg-dot.test"  -> dead
+#   prefix: live "$T/cfg-prefix-live" probed as "$T/cfg-prefix"   -> dead
+# The exact names are the positive control (both alive), so a 0 is trusted.
+(CLAUDE_CONFIG_DIR="$T/cfg-dotXtest" exec sleep 300) &
+DOT_PID=$!
+(CLAUDE_CONFIG_DIR="$T/cfg-prefix-live" exec sleep 300) &
+PRE_PID=$!
+sleep 0.3
+_lv() { ( . "$SA_DIR/skill_activation_lib.sh"; sa_session_alive "$1" ) && echo alive || echo dead; }
+chk "$(_lv "$T/cfg-dotXtest")/$(_lv "$T/cfg-prefix-live")" "alive/alive" "LIVENESS control: the exact live config dirs read as alive"
+chk "$(_lv "$T/cfg-dot.test")" "dead" "LIVENESS: a '.' in the probed dir is a literal, not a regex wildcard (-F)"
+chk "$(_lv "$T/cfg-prefix")" "dead" "LIVENESS: a strict prefix of a live dir is not that session (-x)"
+kill "$DOT_PID" "$PRE_PID" 2>/dev/null
 
 echo "== $PASS passed, $FAIL failed =="
 [ "$FAIL" = "0" ]

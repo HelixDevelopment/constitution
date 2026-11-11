@@ -3,6 +3,8 @@
 # --verify-manifest --accept-excluded-change <reviewer>, which appends one `# accepted` line.
 # accepted 2026-11-04T10:49:41Z accepted_by=fsr-r4-author (pending independent review) set=d5134c8195764ed3 rows=44
 # accepted 2026-11-05T19:49:16Z accepted_by=i@mvasic.ru set=632ccadac7650639 rows=52 chain=b9f93ee63dcbc804
+# accepted 2026-11-06T10:47:16Z accepted_by=i@mvasic.ru set=840c5cf39886fa14 rows=53 chain=d7b4fa683adde4c0
+# accepted 2026-11-10T23:30:46Z accepted_by=i@mvasic.ru set=877c00c222394fd9 rows=55 chain=c7b6cb5288e723f0
 scripts/amendment_log/tests/independent_lossless_rebuild.py	1ff98c08ece1bf81
 scripts/anchors/tests/_paths.py	c1eceac5bf69b0ff
 scripts/catalog-engine/lib/parse_mutation.py	e82605554384010c
@@ -11,7 +13,9 @@ scripts/codegraph/tests/t_scope_cases.py	47d68f9231739abf
 scripts/codegraph/tests/t_scope_fixture.py	dac07dce47f07b84
 scripts/codegraph/tests/test_resolve1_count_hook.js	10d45558666d878f
 scripts/codegraph/tests/test_resolve1_drive.js	551beea20356d3fc
+scripts/codegraph/tests/test_resolve1_dump.py	b936cad3425d32bc
 scripts/codegraph/tests/test_resolve1_equiv_real.js	c188fc58681518b9
+scripts/codegraph/tests/test_resolve1_fixture.py	949a083d5d9e16cd
 scripts/codegraph/tests/test_resolve1_probe.js	eef6eb9315264f8a
 scripts/codegraph/tests/test_resolve2_probe.js	c188fc58681518b9
 scripts/fastcycle/gates/mutation_reuse.py	12da42958d20f29c
@@ -50,6 +54,7 @@ tests/extensions/lib.sh	b0f3a123d377cd0b
 tests/install/lib.sh	52721668ffed0bb0
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	a17e73c1f7b0ce47
 tests/jev/lib_assert.sh	4939c80b5808b65a
+tests/layout/hermetic_lint.py	5ebe7a63ccf6ad7c
 tests/layout/lib_layout_harness.sh	931d9dc2cfdf083f
 tests/lib/make_fixture_tracker.sh	645112328ff51ff4
 tests/prompts/allowlist_bypass_forms.py	a01d4b794621f1d4

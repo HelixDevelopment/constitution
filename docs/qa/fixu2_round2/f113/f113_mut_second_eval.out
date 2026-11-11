@@ -1,0 +1,2 @@
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_github_issues_source_anchor_wired.sh:357 <eval>#b1e750228c4a (indirect): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=189 reads=172 guarded=54 allowlisted=117 uncovered=1 stale=0 needle=ok

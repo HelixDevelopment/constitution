@@ -7,9 +7,14 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 GEN="$HERE/../gen_lumenignore.py"
 LUMEN_BIN=${LUMEN_BIN:-$(ls -d "$HOME"/.claude-shared/plugins/cache/claude-plugins-official/lumen/*/bin/lumen-linux-amd64 2>/dev/null | tail -1)}
-[ -x "$LUMEN_BIN" ] || { echo "SKIP: lumen binary not found"; exit 2; }
+# Exit 2 (not 77): a missing tool is a prerequisite gap, not a closed section 11.4.69 SKIP reason;
+# whether such a host should SKIP or FAIL is the pending operator decision O3.
+[ -x "$LUMEN_BIN" ] || { echo "FAIL: prerequisite absent: lumen binary not found (set LUMEN_BIN=/path/to/lumen); SKIP-vs-FAIL for an absent tool is operator decision O3" >&2; exit 2; }
 W=$(mktemp -d "${TMPDIR:-/tmp}/lumenignore_test.XXXXXX"); FP=""
-cleanup() { [ -n "$FP" ] && kill "$FP" 2>/dev/null; rm -rf "$W"; }
+# An unchecked mktemp left W empty and the fixture was written under / (review
+# finding F089-1, section 11.4.287(C)(3)): stop before anything is written.
+[ -n "$W" ] && [ -d "$W" ] || { echo "FAIL: mktemp -d failed under ${TMPDIR:-/tmp}; nothing written" >&2; exit 2; }
+cleanup() { [ -n "$FP" ] && kill "$FP" 2>/dev/null; [ -n "${W:-}" ] && rm -rf "${W:?}"; }
 trap cleanup EXIT
 fail=0; ok() { echo "PASS: $*"; }; bad() { echo "FAIL: $*"; fail=1; }
 

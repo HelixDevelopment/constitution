@@ -1,0 +1,44 @@
+  ok   golden real tree PASS
+  ok   golden-FALSE good root (rc=0)
+  ok   golden-bad raw read (rc=1)
+  ok   stale allowlist row (rc=1)
+  ok   row for another file (rc=1)
+  ok   invented kind (rc=2)
+  ok   three-field row (rc=2)
+  ok   zero reads (rc=2)
+  ok   unresolvable source statement (rc=2)
+  ok   blind needle (rc=2)
+  ok   needle negative hit (rc=2)
+  ok   pinned eval row covers its own eval (rc=0)
+  ok   second eval in the same file is uncovered (rc=1)
+  ok   M1 killed: uncovered reads ignored (2 discriminator(s) flipped)
+  ok   M2 killed: stale rows ignored (1 discriminator(s) flipped)
+  ok   M3 killed: control-needle check removed (2 discriminator(s) flipped)
+  ok   M4 killed: zero-read BLIND removed (1 discriminator(s) flipped)
+  ok   M5 killed: closed kind set not enforced (1 discriminator(s) flipped)
+  ok   M6 killed: glob ignored (1 discriminator(s) flipped)
+  ok   M7 killed: census drops plain ambient reads (6 discriminator(s) flipped)
+  ok   M8 killed: unresolved source ignored (1 discriminator(s) flipped)
+  ok   M9 killed: bare export treated as assignment (6 discriminator(s) flipped)
+  ok   M10 killed: source closure not followed (6 discriminator(s) flipped)
+  ok   M11 killed: python os.environ indirect dropped (6 discriminator(s) flipped)
+  ok   M12 killed: jq env indirect dropped (6 discriminator(s) flipped)
+  ok   M13 killed: eval rows pinned per file, not per statement (1 discriminator(s) flipped)
+  ok   F1 killed: ambient XR_SELF_PATH trusted again
+  ok   N1 killed: ambient BASH_SOURCE trusted again (no sentinel check)
+  ok   F4 killed: llmctl-absent GREEN is caught
+  ok   baseline closure test unmutated rc=3 (only the tracked KNOWN-FAIL outstanding)
+  ok   N3a killed: builtin/command prefix not recognised
+  ok   N3b killed: process-substitution source not reported
+  ok   N3c killed: eval-of-source not reported
+  ok   N6a killed: [ -v X ] not detected
+  ok   N6b killed: printenv "$n" not flagged
+  ok   R0 jq-region test unmutated rc=3 (only tracked KNOWN-FAIL cases outstanding)
+  ok   R1 killed: whitespace-prefixed NAME= not an assignment owner (RN1)
+  ok   R2 killed: += not an assignment owner (RN7)
+  ok   R3 killed: quoted regions of one line glued (no separator, F7)
+  ok   N2a killed: non-zero llmctl exit with JSON accepted
+  ok   N2b killed: wrong-shape status accepted (gate AND lib shape guards removed)
+  ok   N2c killed: missing lib not BLIND (declare -F check AND rc check removed)
+META PASS: CM-GATE-ENV-READS-ALLOWLISTED kills every mutant
+rc=0

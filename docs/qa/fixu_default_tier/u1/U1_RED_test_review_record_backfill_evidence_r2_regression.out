@@ -1,0 +1,6 @@
+== T085 Round 2 I-R2-8 regression: review_record.py gate rejects unbacked backfill rows ==
+PASS: R1 setup: fabricated backfill record written (backfill itself is legal -- the GATE consultation is what must refuse it)
+PASS: R1 (I-R2-8 core repro): a fabricated backfill row with an untraceable source_evidence placeholder is REFUSED as coverage (UNCOVERED, exit 1)
+PASS: R2 (R7 B1): even a well-cited backfill row (real, in-tree, hash-pinned evidence) is history only -- never gate coverage
+PASS: R4 (R3-I4 part a): a forged backfill row citing a REAL-but-unrelated existing file (/etc/hostname, the reviewer's own example) is correctly REFUSED as coverage -- a file that merely EXISTS is not traceable evidence
+scripts/fastcycle/tests/test_review_record_backfill_evidence_r2_regression.sh: 119: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/tests/lib/review_record_genuine.sh: Syntax error: "(" unexpected (expecting "}")

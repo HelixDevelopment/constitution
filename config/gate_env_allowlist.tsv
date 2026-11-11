@@ -2,6 +2,8 @@
 # scripts/lib/gate_env_override.sh (cm_gate_env_set), each with a kind and a justification (11.4.201(6)-(8), 11.4.35).
 # Checked by scripts/gates/cm_gate_env_reads_allowlisted.sh against the static census scripts/gates/lib/gate_env_census.py.
 # Columns (TAB separated): gate-glob (fnmatch on the repo-relative path)  VAR  kind  justification
+# An eval row is content-pinned: VAR is <eval>#<sha12>, the first 12 hex digits of sha256 of the stripped eval source line
+#   as the census reports it, so the row covers that eval statement only and a new or edited eval needs its own row.
 # kind (closed set): data-root | data-config | strictness-only | output-only | internal-channel | guard-barrier |
 #   indirect-mechanism | not-ambient | inert-text | product-runtime | inline-guarded
 # A row that matches no census read is STALE and fails the gate; a census read that matches no row fails the gate.
@@ -91,12 +93,13 @@ scripts/action_prefix_lib.sh	HELIX_ACTION_REGISTRY	product-runtime	registry-path
 scripts/action_prefix_lib.sh	HELIX_PROJECT_ROOT	product-runtime	project-root override read only by apx__project_root (the sub-system lookup); cm_subsystem_shortcuts passes it in its command prefix, the FEATURE / reporting probes do not call the sub-system lookup
 scripts/deps_manifest/override_guard.sh	HELIX_TEST_MODE	guard-barrier	test switch of the inline override guard cm_hdeps_override (same contract as gate_env_override.sh boundary (a))
 scripts/deps_manifest/override_guard.sh	name	indirect-mechanism	the ${!name} read IS the guarded lookup of the named override (cm_hdeps_override); the value is honoured only under HELIX_TEST_MODE=1 with a path under the temp root
-scripts/gates/lib/shell_mutation_engine.sh	<eval>	indirect-mechanism	evals the kill-command template handed to the engine by the calling gate (an argument, not an environment variable) inside a subshell; the engine reads no environment variable through it
-scripts/lib/constitution_layout.sh	<eval>	indirect-mechanism	tests whether each name in the library's own CL_GIT_SCRUB_VARS list (GIT_* variables) is set, to scrub inherited git variables; the list is fixed in the library, the effect is to DROP ambient values
-scripts/lib/safe_rm.sh	<eval>	indirect-mechanism	copies a validated array into the caller-named output array (eval "$__out=(...)"); the name is chosen by the library's own caller, not by the environment
+scripts/gates/lib/shell_mutation_engine.sh	<eval>#44edb45288f3	indirect-mechanism	evals the kill-command template handed to the engine by the calling gate (an argument, not an environment variable) inside a subshell; the engine reads no environment variable through it
+scripts/lib/constitution_layout.sh	<eval>#33c450208749	indirect-mechanism	tests whether each name in the library's own CL_GIT_SCRUB_VARS list (GIT_* variables) is set, to scrub inherited git variables; the list is fixed in the library, the effect is to DROP ambient values
+scripts/lib/safe_rm.sh	<eval>#fa157096b76d	indirect-mechanism	copies a validated array into the caller-named output array (eval "$__out=(...)"); the name is chosen by the library's own caller, not by the environment
 scripts/gates/cm_gate_env_reads_allowlisted.sh	os.environ	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read
 scripts/gates/cm_gate_env_reads_allowlisted.sh	process.env	inert-text	the expected-needle table of this gate names the pseudo-variable as a string; no environment is read
-scripts/gates/cm_repro_first_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
-scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
-scripts/gates/cm_state_fields_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
-scripts/gates/cm_geo_substitute_anchor_wired.sh	<eval>	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_repro_first_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_scope_and_image_noworse_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_state_fields_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_geo_substitute_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it
+scripts/gates/cm_github_issues_source_anchor_wired.sh	<eval>#bea59a1ee0f8	indirect-mechanism	evals a fixed case statement over the gate's own local variable DG (a deferred-gate id read from the registry); no environment variable is read through it

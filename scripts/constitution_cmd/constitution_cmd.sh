@@ -19,7 +19,9 @@
 #     report|issue|bug|task|feature <text>
 #                                  delegates to scripts/reporting/report_item.sh (section 11.4.202)
 #     skills [list|status]         delegates to scripts/skill_activation/skill_activate.sh
-#     extensions <list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
+#     extensions <list|info|add|remove|adopt-install|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate> [args]
+#     wiring <inventory|check>     read-only: what constitution wiring exists / does every ledger row
+#                                  still classify as ours (also --inventory / --check); exit 1 = not ok
 #     install-extension <src>      alias of: extensions add <src>
 #                                  both delegate to scripts/constitution_ext/constitution_ext.sh
 #     jev                          decision-layer status (jev-status.sh --no-validate)
@@ -27,7 +29,11 @@
 #     help
 # Exit codes: 0 ok, 1 failure / not found, 2 usage or rejected argument, 3 delegated tool
 #   unavailable, 124 delegated tool timed out.
+# Interactive routes: extensions add / install-extension / enable / adopt-install always reach an engine
+#   /dev/tty prompt (the dispatcher never forwards --yes); they run with `timeout --foreground` so the answer is
+#   read; without a controlling terminal they refuse at once (exit 3).
 # Inputs (env, names only): CONSTITUTION_CMD_GATE_TIMEOUT (1..600, default 120),
+#   CONSTITUTION_CMD_EXT_TIMEOUT (1..600, default 300; budget of every extensions subcommand),
 #   CONSTITUTION_CMD_USER_HOME (default $HOME; read only, used to look for user /constitution
 #   commands).
 # Side-effects: none of its own (doctor writes a throw-away tree under mktemp, removed with
@@ -96,7 +102,16 @@ redact() {
       -e 's/([Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]) [A-Za-z0-9._~+\/=-]{12,}/\1 [REDACTED]/g' \
       -e 's/(sk_live|sk_test|pk_live|rk_live)_[A-Za-z0-9]{8,}/[REDACTED]/g'
 }
-tmo() { local t="$1"; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
+# tmo TIMEOUT CMD... : bounded run. With TMO_FOREGROUND=1 the run uses `timeout --foreground`, so timeout and its
+# child stay in the terminal's foreground process group and an engine prompt that reads /dev/tty is not stopped
+# by SIGTTIN (review round 3 N1: without it the prompt was shown and the answer never read; uutils timeout then
+# never returned, GNU timeout ended at its budget with nothing done). --foreground signals only the direct child
+# on timeout; constitution_ext.sh execs python3, so that child IS the engine and the budget still bounds it.
+tmo() {
+    local t="$1"; shift
+    if ! command -v timeout >/dev/null 2>&1; then "$@"; return; fi
+    if [ "${TMO_FOREGROUND:-0}" = 1 ]; then timeout --foreground "$t" "$@"; else timeout "$t" "$@"; fi
+}
 # deleg TIMEOUT CMD ARGS... : run, redact, bound; propagate the tool's exit code.
 deleg() {
     local t="$1" rc raw red; shift
@@ -255,14 +270,15 @@ cmd_skills() {
 cmd_extensions() {
     local sub="${REST[0]:-}"
     case "$sub" in
-        list|info|add|remove|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
+        list|info|add|remove|adopt-install|enable|disable|verify|lock|catalog|wire|unwire|doctor|validate) ;;
         update) die "extensions update is not implemented (the extension engine has no update command; remove and add to change a version)"; return 2 ;;
-        *) die "extensions subcommands: list info add remove enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
+        *) die "extensions subcommands: list info add remove adopt-install enable disable verify lock catalog wire unwire doctor validate"; return 2 ;;
     esac
     local a
     local allow
     case "$sub" in
         add) allow=" --json --dry-run --dev --sha --sha256 " ;;
+        adopt-install) allow=" --json --dry-run --waiver-id " ;;   # confirmation stays interactive (no --yes here)
         *)   allow=" --json --dry-run " ;;
     esac
     for a in "${REST[@]:1}"; do
@@ -275,7 +291,24 @@ cmd_extensions() {
     if [ ! -f "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" ]; then
         die "extensions engine not installed"; return 3
     fi
-    deleg 300 bash "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" --project-root "$(project_root)" "${REST[@]}"
+    # add, enable and adopt-install always prompt here (no --yes is forwarded): run them in the foreground group
+    local interactive=0 t="${CONSTITUTION_CMD_EXT_TIMEOUT:-300}"
+    [[ "$t" =~ ^[0-9]{1,3}$ ]] && [ "$t" -ge 1 ] && [ "$t" -le 600 ] || { die "CONSTITUTION_CMD_EXT_TIMEOUT must be 1..600"; return 2; }
+    case "$sub" in add|enable|adopt-install) interactive=1 ;; esac   # RULE:N1-interactive-routes
+    TMO_FOREGROUND="$interactive" deleg "$t" bash "$CONST_DIR/scripts/constitution_ext/constitution_ext.sh" --project-root "$(project_root)" "${REST[@]}"
+}
+cmd_wiring() {     # read-only ownership-ledger views (design 5.2, L03); never mutates, never accepts record/rollback
+    local sub="" a
+    for a in "${REST[@]}"; do
+        case "$a" in
+            inventory|--inventory) [ -z "$sub" ] || { die "wiring takes exactly one of: inventory | check"; return 2; }; sub=inventory ;;
+            check|--check)         [ -z "$sub" ] || { die "wiring takes exactly one of: inventory | check"; return 2; }; sub=check ;;
+            *) die "wiring accepts only: inventory | check (--inventory / --check)"; return 2 ;;
+        esac
+    done
+    [ -n "$sub" ] || { die "wiring needs one of: inventory | check"; return 2; }
+    need_tool "$CONST_DIR/scripts/constitution_ext/wiring_ledger.py" wiring_ledger.py || return 3
+    deleg 60 python3 -I "$CONST_DIR/scripts/constitution_ext/wiring_ledger.py" --project "$(project_root)" --root "$CONST_DIR" "$sub"
 }
 cmd_jev() {
     [ ${#REST[@]} -eq 0 ] || { die "jev takes no arguments"; return 2; }
@@ -367,6 +400,7 @@ case "$SUB" in
     skills)        cmd_skills; exit $? ;;
     extensions)    cmd_extensions; exit $? ;;
     install-extension) REST=(add "${REST[@]}"); cmd_extensions; exit $? ;;
+    wiring)        cmd_wiring; exit $? ;;
     jev)           cmd_jev; exit $? ;;
     release-notes) cmd_release_notes; exit $? ;;
     *) die "unknown subcommand: $(printf '%.40s' "$SUB" | tr -c 'A-Za-z0-9._-' '?')"; usage >&2; exit 2 ;;

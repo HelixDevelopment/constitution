@@ -1,0 +1,79 @@
+== T085-adjacent RED: precheck_pack_run.py batch-scoping fix + precheck_pack_build.sh wrapper ==
+PASS: control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/review/precheck_pack_build.sh exists -- the wrapper has landed;
+   Section C's real invocation checks below are the functional
+   tests to run
+PASS: control needle: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/fastcycle/review/precheck_pack.sh exists (precheck_pack.sh, already landed
+   pre-T085)
+FAIL: B1: expected rc=0/all_pass=true, got rc=1 all_pass=False
+   ({"all_pass":false,"batch_id":"RB-SCOPE-B1","body_hash":"e3640c0363ff18e619fd3fe4287bf05149487d807e9f1c9c3611fa12f98be4f4","checks":[{"check":"parse","evidence":{"scope":"batch","scope_note":"batch-scoped (slices): 1 file(s), 0 directory entr(y/ies), 0 absent","tool":"bash -n / sh -n"},"verdict":"PASS"},{"check":"shellcheck","evidence":{"binding":{"base_ref":null,"checkout_head":null,"head_sha_source":"unbound","repos":[],"state":"unbound"},"counts":{"advisory":0,"directive_violations":0,"directi)
+PASS: B2: a batch declaring ONE genuinely broken file still reports
+   all_pass=false citing broken.sh (rc=1) -- the scoping
+   fix never suppresses a real in-scope defect
+FAIL: B3: expected rc=0/all_pass=true, got rc=1 all_pass=False
+PASS: B4: a batch whose blast_radius is free-form prose (not
+   slicer.py's canonical form) falls back to a full-checkout
+   scan -- still catches the unrelated noise.sh finding
+   (all_pass=false, shellcheck evidence.scope=whole-checkout)
+   -- never risks a silently under-scanned false PASS
+PASS: C1 setup: real disposable commit 07a70f2362ae55487980e15cf94cf01ba8dc57b2 created via a scratch worktree,
+   never touching the shared main checkout's own HEAD/working tree
+FAIL: C1: expected rc=0 + 2 marker lines + a written precheck.json,
+   got rc=1 markers=2 ()
+FAIL: C2 skipped: C1 did not succeed, cannot test idempotency on it
+PASS: C3: a disposable commit with a real planted parse defect makes
+   the wrapper exit 1 (not 0, not a crash) with a written,
+   schema-valid precheck.json citing the real defect file by
+   name -- the failure genuinely returns to the producer
+   (RB-002), never silently swallowed
+PASS: C5: the SAME defect, addressed via two-dot range syntax
+   (--commit <parent>..<head>), also exits 1 with a real,
+   written precheck.json -- range parsing genuinely works
+PASS: C4: an unresolvable --commit refuses with exit 2 and writes no
+   precheck.json at all -- never a fabricated pack for a commit
+   that does not exist
+FAIL: D1 (F-R2-2): non-ASCII path escaped linting: rc=1 shape='FAIL False' ()
+FAIL: D2 (F-R2-1): binding not produced/verified: shape='True batch-binding-verified True' verify_rc=1 (NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS
+NOT-READY: working tree of /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosva)
+FAIL: D3 (F-R2-9): stale-gate cache reused: rc=1 gate_version=7eb582ca56dbeb4fbc625b926aa5fbc67b87bf1aef56029f81a55828ddec340b (precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/c1_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.cac)
+FAIL: D4 (whole-file strict): mode-only handling wrong: clean rc=1 files=0; finding rc=1 rules=[] ()
+FAIL: D5 (directive policy): same-line=1 above=1 placeholder=1 (want 0 1 1) ()
+PASS: D6: snapshot freezes the working-tree bytes into an UNREFERENCED, deterministic commit (same sha twice) with no ref, index or working-tree change
+FAIL: D7 (F2): repo-root pack wrong: secret rc=1 'FAIL ['README.md'] True'; clean rc=1 'False True 1 10' verify=1 ( NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS)
+PASS: D7b (F2): the partial checkout wrote NO sparse-checkout config into the reviewed repo
+FAIL: D8: rc=1 kind='snapshot True' manifest='True 2' verify=1 ( NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS)
+PASS: D8b (F1): editing a snapshotted file after the pack makes the snapshot pack STALE
+FAIL: D9: ok rc=1 'Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json;d=json.load(open('/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d9a_out/precheck.json'));e=[c for c in d['checks'] if c['check']=='shellcheck'][0]['evidence'];print(e['exceptions_file']['path'].endswith('config/shellcheck_legacy_exceptions.tsv'), e['legacy_exceptions'][0]['verdict'])
+                                                                                                                                                                                                                                                                                                                                                                                             ~^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'legacy_exceptions''; worse rc=1 ()
+FAIL: D10 (M5): rc=1/1/1 timeout=True (precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d10_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.ca || precheck_pack_build: cached pack at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d10_out is not reusable (rc=3), rebuilding (precheck_pack_build: cached pack at /home/milosvasic/.ca)
+PASS: D11 (I1): --shellcheck-exceptions naming any file but the canonical TSV exits 2 before anything is built
+FAIL: D12 (F2/RM1): build rc=1/1/1 mode=160000 verify=1/1/1 (NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pp/precheck.json: the range bumps submodule 'sub' c5d7db000eb4b328a1180541f61f77c93f0822f1..8d83ecbb1172ba0481627e6ee32a4
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pp/precheck.json: all_pass is not true
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pp/precheck.json: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pp/precheck.json: shellcheck verdict is not PASS
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pw/precheck.json: all_pass is not true
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pw/precheck.json: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pw/precheck.json: shellcheck verdict is not PASS
+NOT-READY: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.K0Kh/tmp.ItX6EtCb5Q/d12/pp/precheck.json: the range bumps submodule 'sub' c5d7db000eb4b328a1180541f61f77c93f0822f1..8d83ecbb1172ba0481627e6ee32a4)
+FAIL: D13 (F2/RM2): build rc=1/1 recorded=True verify=1/1 (NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS
+NOT-READY: the pack was built in the gate's TEST MODE (PRECHECK_TEST_MODE: private lock directory) -- never dispatch-ready)
+PASS: D14 RM1 mutation-flip: with _copack_reasons returning [] the lone gitlink-bump pack loses its co-pack refusal (verify rc=1) -- D12 is load-bearing
+FAIL: D14 RM2 mutation-flip: verify=1 (NOT-READY: all_pass is not true
+NOT-READY: provenance.shellcheck_version 'unknown (no memory cap)' != this host's shellcheck '0.11.0' (M6: rebuild with the pinned linter)
+NOT-READY: shellcheck verdict is not PASS) -- D13 does not test the mechanism
+
+== Summary: ok 13 / NOT ok 16 ==
+rc=1

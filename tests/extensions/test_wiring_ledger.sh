@@ -390,6 +390,104 @@ wlp "$F5P" rollback --backup "$SB/forged-bk"
 eq "F5 forged manifest built from the local MAC refused" 3 "$RC"
 has "F5 refused by the signature check (domain strings differ)" "signature is invalid" "$ERR"
 
+# ── 9c. re-review M1-M4: rollback preflight covers the ledger target, json-entry guard, restore-target probes ──
+la() { printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)[sys.argv[1]]))' "$1"; }
+if [ "$(id -u)" -ne 0 ]; then
+  # M1a: backup WITHOUT a ledger, a row created later, then the .constitution dir becomes unwritable
+  G1="$SB/g1"; make_project "$G1"; printf 'base\n' >"$G1/base.txt"
+  wlp "$G1" backup --path base.txt; G1B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G1/made.txt"; wlp "$G1" record --id g1-made --producer installer --agent claude --path made.txt --kind file
+  printf 'changed\n' >"$G1/base.txt"; chmod 555 "$G1/.constitution"
+  wlp "$G1" rollback --backup "$G1B"
+  eq "M1a unwritable ledger dir: rollback refused rc 3" 3 "$RC"
+  check "M1a nothing changed: the created-later file is still there (no partial apply)" test -f "$G1/made.txt"
+  eq "M1a nothing changed: base.txt not restored" changed "$(cat "$G1/base.txt")"
+  has "M1a refusal names the unwritable directory" "not a writable directory" "$ERR"
+  chmod 755 "$G1/.constitution"
+  wlp "$G1" rollback --backup "$G1B"
+  eq "M1a control: after the permission is fixed the rerun converges" 0 "$RC"
+  check "M1a control: created-later file unlinked" test ! -e "$G1/made.txt"
+  check "M1a control: ledger removed (backup had none)" test ! -e "$G1/.constitution/wiring.json"
+  # M1b: backup HAS a ledger (atomic_write into an unwritable dir would fail mid-apply)
+  G2="$SB/g2"; make_project "$G2"; printf 'base\n' >"$G2/base.txt"; printf 'o\n' >"$G2/o.txt"
+  wlp "$G2" record --id g2-o --producer installer --agent claude --path o.txt --kind file
+  wlp "$G2" backup --path base.txt; G2B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G2/made.txt"; wlp "$G2" record --id g2-made --producer installer --agent claude --path made.txt --kind file
+  chmod 555 "$G2/.constitution"
+  wlp "$G2" rollback --backup "$G2B"
+  eq "M1b unwritable ledger dir with a backed-up ledger: refused rc 3" 3 "$RC"
+  check "M1b nothing changed: made.txt still there" test -f "$G2/made.txt"
+  chmod 755 "$G2/.constitution"
+  # N3b: restore target in an unwritable directory refuses the whole rollback
+  G3="$SB/g3"; make_project "$G3"; mkdir -p "$G3/d"; printf 'base\n' >"$G3/d/f.txt"
+  wlp "$G3" backup --path d/f.txt; G3B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G3/made.txt"; wlp "$G3" record --id g3-made --producer installer --agent claude --path made.txt --kind file
+  chmod 555 "$G3/d"
+  wlp "$G3" rollback --backup "$G3B"
+  eq "N3b restore target in an unwritable dir: refused rc 3" 3 "$RC"
+  check "N3b nothing changed: made.txt still there" test -f "$G3/made.txt"
+  chmod 755 "$G3/d"
+  # N4: an ours created-later row inside an unwritable directory is left alone (reported), rollback still rc 0
+  G4="$SB/g4"; make_project "$G4"; mkdir -p "$G4/d"; printf 'base\n' >"$G4/base.txt"
+  wlp "$G4" backup --path base.txt; G4B="$(jget "$OUT" backup_dir)"
+  printf 'made\n' >"$G4/d/made.txt"; wlp "$G4" record --id g4-made --producer installer --agent claude --path d/made.txt --kind file
+  chmod 555 "$G4/d"
+  wlp "$G4" rollback --backup "$G4B"
+  eq "N4 rollback rc 0" 0 "$RC"
+  check "N4 file in an unwritable dir is still there" test -f "$G4/d/made.txt"
+  has "N4 reported as left alone with the reason" "directory is not writable" "$(la left_alone)"
+  chmod 755 "$G4/d"
+else
+  ok "M1/N3b/N4 skipped: running as root (permission bits not enforced)"
+fi
+# M4: preflight creates nothing — a refusal leaves no new directory behind
+G5="$SB/g5"; make_project "$G5"; mkdir -p "$G5/d"; printf 'base\n' >"$G5/d/f.txt"
+wlp "$G5" backup --path d/f.txt; G5B="$(jget "$OUT" backup_dir)"
+rm "$G5/d/f.txt"; rmdir "$G5/d"; printf 'blocker\n' >"$G5/d"        # a FILE where the restore target's parent must be
+wlp "$G5" rollback --backup "$G5B"
+eq "N3a restore target whose ancestor is a file: refused rc 3" 3 "$RC"
+eq "N3a the blocking file is untouched" blocker "$(cat "$G5/d")"
+# N9: a created-later json-entry row is never removed by rollback (the consumer's whole settings file survives)
+G6="$SB/g6"; make_project "$G6"; mkdir -p "$G6/.claude"; printf '{"hooks":{"UserPromptSubmit":[{"command":"x"}]}}\n' >"$G6/.claude/settings.json"
+wlp "$G6" backup --path base.txt; G6B="$(jget "$OUT" backup_dir)"
+wlp "$G6" record --id g6-hook --producer installer --agent claude --path .claude/settings.json --kind json-entry --json-path hooks.UserPromptSubmit.0
+eq "N9 record rc 0" 0 "$RC"
+wlp "$G6" rollback --backup "$G6B"
+eq "N9 rollback rc 0" 0 "$RC"
+check "N9 the consumer's settings.json survives" test -f "$G6/.claude/settings.json"
+has "N9 reported left alone: json entry never removed" "json entry" "$(la left_alone)"
+# N8: a path that is in the backup is restored, never first unlinked (report shows restored, not unlinked)
+G7="$SB/g7"; make_project "$G7"; printf 'base\n' >"$G7/x.txt"
+wlp "$G7" backup --path x.txt; G7B="$(jget "$OUT" backup_dir)"
+wlp "$G7" record --id g7-x --producer installer --agent claude --path x.txt --kind file
+wlp "$G7" rollback --backup "$G7B"
+eq "N8 rollback rc 0" 0 "$RC"
+eq "N8 x.txt is not reported unlinked" "[]" "$(la unlinked)"
+has "N8 x.txt is reported restored" "x.txt" "$(la restored)"
+eq "N8 x.txt content is the backed-up one" base "$(cat "$G7/x.txt")"
+# N11: the ledger file replaced by a directory refuses the rollback before any change
+G8="$SB/g8"; make_project "$G8"; printf 'base\n' >"$G8/base.txt"; printf 'o\n' >"$G8/o.txt"
+wlp "$G8" record --id g8-o --producer installer --agent claude --path o.txt --kind file
+wlp "$G8" backup --path base.txt; G8B="$(jget "$OUT" backup_dir)"
+printf 'made\n' >"$G8/made.txt"; rm "$G8/base.txt"
+rm "$G8/.constitution/extensions.state/wiring.local.json"; mkdir "$G8/.constitution/extensions.state/wiring.local.json"
+wlp "$G8" rollback --backup "$G8B"
+eq "N11 wiring.local.json is now a directory: refused rc 3" 3 "$RC"
+check "N11 nothing changed: made.txt still there" test -f "$G8/made.txt"
+check "N11 nothing changed: base.txt was not restored" test ! -e "$G8/base.txt"
+has "N11 refusal says directory" "directory" "$ERR"
+# N2: a symlinked wiring.local.json is never written through
+G9="$SB/g9"; make_project "$G9"; printf 'base\n' >"$G9/base.txt"; printf 'o\n' >"$G9/o.txt"
+wlp "$G9" record --id g9-o --producer installer --agent claude --path o.txt --kind file
+wlp "$G9" backup --path base.txt; G9B="$(jget "$OUT" backup_dir)"
+printf 'made\n' >"$G9/made.txt"; printf 'victim\n' >"$SB/g9.victim"; rm "$G9/base.txt"
+rm "$G9/.constitution/extensions.state/wiring.local.json"; ln -s "$SB/g9.victim" "$G9/.constitution/extensions.state/wiring.local.json"
+wlp "$G9" rollback --backup "$G9B"
+eq "N2 symlinked wiring.local.json: refused rc 3" 3 "$RC"
+eq "N2 the symlink target was not written through" victim "$(cat "$SB/g9.victim")"
+check "N2 nothing changed: made.txt still there" test -f "$G9/made.txt"
+check "N2 nothing changed: base.txt was not restored" test ! -e "$G9/base.txt"
+
 # ── 10. reference file (D5) with flock ────────────────────────────────────
 RF="$R/extensions/_installed/hello.refs"
 wl refs add --id hello --record-digest d1
@@ -426,6 +524,112 @@ wl refs count --id conc; eq "24 concurrent removes leave 0" 0 "$(jget "$OUT" cou
 printf 'garbage line\n' >"$R/extensions/_installed/bad.refs"
 wl refs count --id bad; eq "corrupt refs file refused" 3 "$RC"
 
+# ── 9d. wave 2 review round 2: F3 (check: never-wired vs ledger-lost), F4 (SOURCE_DATE_EPOCH refused, never a traceback) ──
+# F3: a never-wired project is ok (golden-FALSE); a checkout holding local signatures whose tracked rows are gone is NOT
+H1P="$SB/h1"; make_project "$H1P"
+wlp "$H1P" check
+eq "F3 never wired: check rc 0 (golden-FALSE, nothing to own)" 0 "$RC"
+eq "F3 never wired: no orphan signatures" "[]" "$(jget "$OUT" orphans)"
+mkdir -p "$H1P/.claude/skills"; ln -s "$R/skills/alpha" "$H1P/.claude/skills/alpha"
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" check; eq "F3 control: wired and intact, rc 0" 0 "$RC"
+rm "$H1P/.constitution/wiring.json"
+wlp "$H1P" check
+eq "F3 tracked ledger deleted while this checkout still signs a row: check rc 1" 1 "$RC"
+has "F3 the lost row is named" "h1-a" "$OUT"
+has "F3 the state says the tracked row is missing" "tracked-row-missing" "$OUT"
+eq "F3 ok is false" false "$(jget "$OUT" ok)"
+wlp "$H1P" forget --id h1-a; eq "F3 forget of a row the ledger no longer has is refused" 3 "$RC"
+# after a legitimate forget the signature goes too, so check is ok again (no false positive)
+wlp "$H1P" record --id h1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$H1P" forget --id h1-a; wlp "$H1P" check
+eq "F3 after a real forget: check rc 0 (golden-FALSE)" 0 "$RC"
+# F4: SOURCE_DATE_EPOCH that is not a non-negative integer of seconds, or is out of range, is refused rc 3
+H2P="$SB/h2"; make_project "$H2P"; printf 'b\n' >"$H2P/b.txt"
+sde() { local v="$1"; shift; OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH="$v" python3 -I "$IMPL" --project "$H2P" --root "$R" "$@" </dev/null 2>"$SB/err")"; RC=$?; ERR="$(cat "$SB/err")"; }
+sde abc backup --path b.txt
+eq "F4 backup with SOURCE_DATE_EPOCH=abc: refused rc 3" 3 "$RC"
+hasnt "F4 abc: no Python traceback" "Traceback" "$ERR"
+has "F4 abc: the refusal names the variable" "SOURCE_DATE_EPOCH" "$ERR"
+check "F4 abc: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+sde 99999999999999999999 backup --path b.txt
+eq "F4 backup with an out-of-range SOURCE_DATE_EPOCH: refused rc 3" 3 "$RC"
+hasnt "F4 out of range: no Python traceback" "Traceback" "$ERR"
+check "F4 out of range: no backup directory was made" test ! -e "$H2P/.constitution-install-backup"
+mkdir -p "$H2P/.claude/skills"; ln -s "$R/skills/alpha" "$H2P/.claude/skills/alpha"
+sde abc record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 record refuses the same bad value the same way (rc 3, not silently ignored)" 3 "$RC"
+check "F4 record wrote no ledger" test ! -e "$H2P/.constitution/wiring.json"
+sde "" backup --path b.txt; eq "F4 control: an empty SOURCE_DATE_EPOCH means the clock (rc 0)" 0 "$RC"
+sde 1700000000 record --id h2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+eq "F4 control: a valid value is accepted" 0 "$RC"
+
+# ── 10b. CON-045 re-review I-1, I-2, O2 (rollback of items our run created or replaced) ──────────────
+# I-1: an item backed up while ABSENT, then created and recorded by the run, is removed again by rollback
+I1="$SB/i1"; make_project "$I1"; mkdir -p "$I1/.claude/skills"
+wlp "$I1" backup --path .claude/skills/alpha; I1B="$(jget "$OUT" backup_dir)"
+ln -s "$R/skills/alpha" "$I1/.claude/skills/alpha"
+wlp "$I1" record --id i1-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+wlp "$I1" rollback --backup "$I1B"
+eq "I-1 rollback rc 0" 0 "$RC"
+check "I-1 the link the run created (path absent at backup) is removed" test ! -L "$I1/.claude/skills/alpha"
+has "I-1 reported as unlinked" ".claude/skills/alpha" "$(printf '%s' "$OUT" | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["unlinked"]))')"
+# I-1 control: a consumer symlink at that path that is NOT ours (no row) is left alone
+I1C="$SB/i1c"; make_project "$I1C"; mkdir -p "$I1C/.claude/skills"
+wlp "$I1C" backup --path .claude/skills/alpha; I1CB="$(jget "$OUT" backup_dir)"
+ln -s "$R/skills/alpha" "$I1C/.claude/skills/alpha"
+wlp "$I1C" rollback --backup "$I1CB"
+check "I-1 control: an item with no ours-row is left alone" test -L "$I1C/.claude/skills/alpha"
+# I-2: a consumer file backed up, then replaced by our recorded symlink: rollback restores the file
+I2="$SB/i2"; make_project "$I2"; mkdir -p "$I2/.claude/skills"; printf 'legacy copy\n' >"$I2/.claude/skills/alpha"; chmod 664 "$I2/.claude/skills/alpha"
+wlp "$I2" backup --path .claude/skills/alpha; I2B="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2/.claude/skills/alpha"
+wlp "$I2" record --id i2-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+OLDUM="$(umask)"; umask 077   # a restrictive umask: only an explicit chmod can give back 0664 (O2)
+wlp "$I2" rollback --backup "$I2B"
+umask "$OLDUM"
+eq "I-2 rollback of copy-to-link migration: rc 0" 0 "$RC"
+check "I-2 the path is a regular file again" test -f "$I2/.claude/skills/alpha" -a ! -L "$I2/.claude/skills/alpha"
+eq "I-2 the legacy content is back" "legacy copy" "$(cat "$I2/.claude/skills/alpha")"
+# O2: the restored mode is the backed-up mode (0664 above), not the umask default
+eq "O2 restored file mode is the backed-up mode (664 survives a 077 umask only through an explicit mode set)" 664 "$(stat -c %a "$I2/.claude/skills/alpha")"
+# I-2 control: a symlink at the restore target that is NOT ours still refuses the whole rollback
+I2C="$SB/i2c"; make_project "$I2C"; mkdir -p "$I2C/.claude/skills"; printf 'legacy\n' >"$I2C/.claude/skills/alpha"
+wlp "$I2C" backup --path .claude/skills/alpha; I2CB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2C:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2C/.claude/skills/alpha"
+wlp "$I2C" rollback --backup "$I2CB"
+eq "I-2 control: a foreign (unrecorded) symlink at a restore target is refused rc 3" 3 "$RC"
+check "I-2 control: the foreign symlink is untouched" test -L "$I2C/.claude/skills/alpha"
+# I-2 swapped link (review round 2 R1, reviewer probe P1; pins mutant RMa): our recorded link is replaced by a
+# link to ANOTHER target before rollback. The row no longer classifies as ours, so the whole rollback refuses
+# and the project stays byte-identical.
+I2S="$SB/i2s"; make_project "$I2S"; mkdir -p "$I2S/.claude/skills" "$R/skills/beta"; printf 'legacy\n' >"$I2S/.claude/skills/alpha"
+wlp "$I2S" backup --path .claude/skills/alpha; I2SB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2S:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2S/.claude/skills/alpha"
+wlp "$I2S" record --id i2s-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+rm -f -- "${I2S:?}/.claude/skills/alpha"; ln -s "$R/skills/beta" "$I2S/.claude/skills/alpha"
+I2S_FP="$(tree_fp "$I2S")"
+wlp "$I2S" rollback --backup "$I2SB"
+eq "I-2 swapped link: rollback refused rc 3" 3 "$RC"
+eq "I-2 swapped link: project byte-identical" "$I2S_FP" "$(tree_fp "$I2S")"
+eq "I-2 swapped link: still points to the other target" "$R/skills/beta" "$(readlink "$I2S/.claude/skills/alpha")"
+rmdir "$R/skills/beta"
+# I-2 failed write (review round 2 R5, reviewer probe P6): the restore writes a temp file and renames it over the
+# link, so a write that fails (EFBIG under ulimit -f; Python ignores SIGXFSZ) leaves our link in place, never an
+# absent path, and leaves no temp file behind. A rerun without the limit restores the file.
+I2F="$SB/i2f"; make_project "$I2F"; mkdir -p "$I2F/.claude/skills"
+head -c 200000 /dev/zero | tr '\0' 'x' >"$I2F/.claude/skills/alpha"; I2F_SHA="$(sha256sum <"$I2F/.claude/skills/alpha")"
+wlp "$I2F" backup --path .claude/skills/alpha; I2FB="$(jget "$OUT" backup_dir)"
+rm -f -- "${I2F:?}/.claude/skills/alpha"; ln -s "$R/skills/alpha" "$I2F/.claude/skills/alpha"
+wlp "$I2F" record --id i2f-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink
+I2F_RC="$( (ulimit -f 64; env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$I2F" --root "$R" rollback --backup "$I2FB" </dev/null >/dev/null 2>"$SB/err"; echo $?) )"
+check "I-2 failed write: rollback does not report success" test "$I2F_RC" != 0
+check "I-2 failed write: our link is still in place (not an absent path)" test -L "$I2F/.claude/skills/alpha"
+eq "I-2 failed write: no temp file left in the directory" "alpha" "$(ls -A "$I2F/.claude/skills")"
+wlp "$I2F" rollback --backup "$I2FB"
+eq "I-2 failed write: a rerun without the limit succeeds" 0 "$RC"
+eq "I-2 failed write: the rerun restored the backed-up bytes" "$I2F_SHA" "$(sha256sum <"$I2F/.claude/skills/alpha")"
+
 # ── 11. determinism and meta ──────────────────────────────────────────────
 DS=()
 for n in 1 2 3; do
@@ -435,6 +639,27 @@ for n in 1 2 3; do
 done
 eq "three runs give identical tracked-ledger hashes (1=2)" "${DS[0]}" "${DS[1]}"
 eq "three runs give identical tracked-ledger hashes (2=3)" "${DS[1]}" "${DS[2]}"
+# review round 3 N4: a default-mode write honours the umask (as a plain open(2) does); an explicit mode stays exact
+UM="$SB/um"; make_project "$UM"; UMR="$SB/umroot"; mkdir -p "$UMR/extensions" "$UMR/skills/alpha" "$UM/.claude/skills"
+ln -s "$UMR/skills/alpha" "$UM/.claude/skills/alpha"
+um_run() { OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$UM" --root "$UMR" "$@" </dev/null 2>"$SB/err")"; RC=$?; }
+OLDUM="$(umask)"; umask 077
+um_run record --id um-a --producer installer --agent claude --path .claude/skills/alpha --kind symlink; UMRC1=$RC
+um_run refs add --id ext-um --record-digest d1; UMRC2=$RC
+umask "$OLDUM"
+eq "N4 setup under umask 077: record rc 0" 0 "$UMRC1"
+eq "N4 setup under umask 077: refs add rc 0" 0 "$UMRC2"
+eq "N4 umask 077: the tracked ledger wiring.json is 600 (umask honoured)" 600 "$(stat -c %a "$UM/.constitution/wiring.json" 2>/dev/null)"
+eq "N4 umask 077: .constitution/.gitignore is 600" 600 "$(stat -c %a "$UM/.constitution/.gitignore" 2>/dev/null)"
+eq "N4 umask 077: the refs file is 600" 600 "$(stat -c %a "$UMR/extensions/_installed/ext-um.refs" 2>/dev/null)"
+eq "N4 umask 077: the signed local record keeps its explicit 600" 600 "$(stat -c %a "$UM/.constitution/extensions.state/wiring.local.json" 2>/dev/null)"
+UM2="$SB/um2"; make_project "$UM2"; mkdir -p "$UM2/.claude/skills"; ln -s "$UMR/skills/alpha" "$UM2/.claude/skills/alpha"
+OLDUM="$(umask)"; umask 022
+OUT="$(env HOME="$SB/home" SOURCE_DATE_EPOCH=1700000000 python3 -I "$IMPL" --project "$UM2" --root "$UMR" record --id um-b --producer installer --agent claude --path .claude/skills/alpha --kind symlink </dev/null 2>"$SB/err")"; RC=$?
+umask "$OLDUM"
+eq "N4 umask 022: record rc 0" 0 "$RC"
+eq "N4 umask 022: wiring.json is 644" 644 "$(stat -c %a "$UM2/.constitution/wiring.json" 2>/dev/null)"
+eq "N4 umask 022: the signed local record is still 600 (explicit mode)" 600 "$(stat -c %a "$UM2/.constitution/extensions.state/wiring.local.json" 2>/dev/null)"
 eq "the constitution tree is unchanged by the whole suite" "$ROOT_FP_BEFORE" "$(rootfp)"
 check "gitignore covers the local state" grep -q 'extensions.state/' "$P/.constitution/.gitignore"
 finish

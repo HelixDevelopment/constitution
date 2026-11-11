@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-05T18:12:24.273570+00:00'
+generated_at: '2026-11-07T18:00:51.475446+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: cb31e32a1a0660da3a9bd71c44b3316cf9acc362
-  source_sha256: cf9fc4c71604f7962ca5f50f633f656ac1b03312608fb166a19984cb3e1995c5
+  commit: 40ad97b5a4b5436a00a2951ad166465ee9415b7c
+  source_sha256: 51cb255c6638308514c184a5cf534475b5bc00cb613071f05a4cfa528e309695
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -19,7 +19,7 @@ groups:
   anchor_count: 27
 - name: git-and-data-safety
   path: constitution/groups/git-and-data-safety.md
-  anchor_count: 25
+  anchor_count: 26
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
   anchor_count: 40
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 52
+  anchor_count: 53
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 43
@@ -7644,6 +7644,7 @@ anchors:
   - 11.4.28
   - 11.4.287
   - 11.4.288
+  - 11.4.297
   - 11.4.31
   - 11.4.33
   - 11.4.35
@@ -7854,6 +7855,7 @@ anchors:
   - 11.4.290
   - 11.4.292
   - 11.4.294
+  - 11.4.297
   - 11.4.3
   - 11.4.33
   - 11.4.34
@@ -7903,6 +7905,8 @@ anchors:
   - 11.4.292
   - 11.4.293
   - 11.4.295
+  - 11.4.297
+  - 11.4.298
   - 11.4.35
   - 11.4.40
   - 11.4.50
@@ -8018,6 +8022,90 @@ anchors:
   - 11.4.90
   - 11.4.93
   - '9.2'
+- id: 11.4.297
+  title: '— Pull-request delivery: a project that declares it by a recorded operator
+    decision delivers each task on one task branch with one pull request per task
+    id at a time; the pull request is assigned to the project''s configured reviewers
+    (requested and read back from the hosting platform; no account is named in this
+    constitution), self-reviewed on the platform by its author agent and merged by
+    that agent (or, where the project configures a human merge gate, by the human
+    merger) only after its source-correctness GO and only in a form that keeps every
+    reviewed commit on `main`, read back and then retired; evidence it cites resolves
+    from its head tree; a submodule change lands as its own pull request before the
+    parent pin bump, with mirror parity read back; every enforcement claim carries
+    ENFORCED, PROVISIONAL or UNCONFIRMED (User mandate, 2026-11-07)'
+  group: git-and-data-safety
+  location: constitution/groups/git-and-data-safety.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-297-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.113
+  - 11.4.142
+  - 11.4.17
+  - 11.4.181
+  - 11.4.188
+  - 11.4.201
+  - 11.4.202
+  - 11.4.209
+  - 11.4.227
+  - 11.4.233
+  - 11.4.235
+  - 11.4.240
+  - 11.4.273
+  - 11.4.288
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.293
+  - 11.4.296
+  - 11.4.297
+  - 11.4.35
+  - 11.4.6
+  - 11.4.66
+  - 11.4.77
+  - 11.4.92
+  - '2.1'
+  - '9.2'
+- id: 11.4.298
+  title: '— Release gate per product: a deployable build is deployed or tagged only
+    after a full, deterministic LIVE run of every existing test on connected target
+    hardware of its product and a §11.4.293 comparison against the build that hardware
+    carried before; a product without connected hardware or without a baseline is
+    BLOCKED, never green (User mandate, 2026-11-07)'
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-298-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.108
+  - 11.4.114
+  - 11.4.115
+  - 11.4.118
+  - 11.4.135
+  - 11.4.151
+  - 11.4.17
+  - 11.4.185
+  - 11.4.200
+  - 11.4.227
+  - 11.4.236
+  - 11.4.248
+  - 11.4.251
+  - 11.4.262
+  - 11.4.264
+  - 11.4.289
+  - 11.4.290
+  - 11.4.292
+  - 11.4.293
+  - 11.4.298
+  - 11.4.35
+  - 11.4.40
+  - 11.4.50
+  - 11.4.6
+  - 11.4.66
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

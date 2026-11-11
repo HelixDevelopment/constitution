@@ -1,0 +1,10 @@
+ok U1_inherited: 0 inherited /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/own_a
+ok U2_derived_unset: 0 derived /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/own_std
+ok U3_derived_over_busless_xdg: 0 derived /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/own_std
+ok U4_absent: 1 absent /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/empty
+ok U4b_absent_unset: 1 absent <unset>
+ok U6_regular_file_is_not_a_bus: 1 absent <unset>
+ok U5_foreign_xdg: 2 foreign /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/foreign
+NOT ok U5b_foreign_std: want '2 foreign <unset>' got '0 derived /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/foreign'
+ok U5c_owned_std_beats_foreign_xdg: 0 derived /home/milosvasic/.cache/claude-tmp/ub_env.zsEha6/own_std
+RESULT: pass=8 fail=1 skip=0

@@ -1,0 +1,6 @@
+PASS: B0 baseline: C2a passes on a real finding
+PASS: M1 blind shellcheck leg (files_linted 0): C2a FAILs
+PASS: M2 planted defect removed: C2a FAILs
+PASS: M4 SC2086 only in the config echo: C2a FAILs
+PASS: M3 shellcheck not on PATH: C2a SKIPs the shellcheck leg and the test passes
+== Summary: ok 5 / NOT ok 0 ==

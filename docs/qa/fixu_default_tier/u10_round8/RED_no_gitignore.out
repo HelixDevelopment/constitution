@@ -1,0 +1,187 @@
+PASS: LB-1: cl_project_root_of(<constitution>) under an ambient GIT_DIR/GIT_WORK_TREE of another repo = the superproject
+PASS: LB-2: cl_owner_project_of under the same ambient env = the superproject
+PASS: LB-3: cl_find_in_project_no_override(<project>) under the same env = the project's own gitlink
+PASS: LB-4: cl_git_hooks_dir(<project>) under the same env = the PROJECT's hooks dir, not the decoy's
+PASS: LB-1c (control, no ambient): cl_project_root_of = the superproject
+PASS: LB-5: cl_scrub_git_env unsets the repository-locating class and keeps identity/config (D=[unset] W=[unset] I=[unset] C=[unset] A=[keepme] G=[/dev/null])
+PASS: LB-6: ... and logs ONE notice naming the dropped variables, never their values
+PASS: LB-7 (control): nothing ambient -> no notice
+PASS: LB-8: the decoy repository was never touched by any lib call
+PASS: LB-10: cl_scrub_git_env works under a caller IFS of newline and restores that IFS (D=[unset] I=[unset] IFS=\n)
+PASS: LB-9: a .gitmodules path 'v*' is a NAME, not a glob (cwd = the project, where vendor-const matches v*) -> '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projGlob/v*'
+PASS: LB-9b: ... same from another cwd -> '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projGlob/v*'
+PASS: LB-9c: ... and under POSIX sh -> '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projGlob/v*'
+PASS: LB-9e: the gitlink at the glob-like path 'v*' still beats a plain layout copy when a sibling dir matches the glob -> '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projGlob/v*'
+PASS: LB-9f: a gitlink path 'v[x]' is found as itself, never as the glob-matched plain dir 'vx' or the plain layout copy -> '/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projGlobQ/v[x]'
+PASS: LB-9d: the shell's noglob option is left as found (set +f afterwards)
+On branch main
+nothing to commit, working tree clean
+PASS: SU-1: setup.sh under an ambient GIT_DIR=<decoy>/.git exits 0 (rc=0)
+PASS: SU-1: ... the PROJECT got the post-merge hook and constitution.autoPropagate
+PASS: SU-1: ... the DECOY has no hook, no autoPropagate and is byte-for-byte unchanged
+PASS: SU-1: ... the NOTICE names GIT_DIR and the Project root is the project
+PASS: SU-1: ... the post-update hook was called for the project exactly once
+PASS: SU-2: GIT_DIR+GIT_WORK_TREE of another repo -> Project root stays the project (rc=0)
+PASS: SU-3: an ambient GIT_INDEX_FILE does not hide the gitlink: the submodule consumer hook is installed (rc=0)
+PASS: SU-3: ... and no stray index file was created at that path
+PASS: SU-4 (control, nothing ambient): same effects, no notice (rc=0)
+On branch main
+nothing to commit, working tree clean
+PASS: PU-1: real hook under an ambient GIT_DIR of another repo: the range diff is the PROJECT's (not 'nothing to propagate'; rc=1)
+PASS: PU-1: ... the project got the git hook and .claude; the decoy is byte-for-byte unchanged
+PASS: PU-1: ... the NOTICE names GIT_DIR
+PASS: PU-2: GIT_DIR+GIT_WORK_TREE+GIT_INDEX_FILE: same correct effect on the project, decoy untouched (rc=1)
+PASS: PU-3 (control, nothing ambient): same effect, no notice (rc=1)
+PASS: HC-1: the marker '# HELIX_HOOK_CAPABILITIES: project-root' is a whole line within the first 80 lines
+PASS: HC-2: --project-root DIR is honoured from a foreign cwd (project wired, rc=1)
+PASS: HC-3: --project-root without an argument is refused (rc=2)
+On branch main
+nothing to commit, working tree clean
+PASS: PM-0 (control, nothing ambient): the hook run by hand propagates once for the project
+PASS: PM-1: post-merge under an ambient GIT_DIR of another repo propagates for the PROJECT (not a silent no-op on the decoy)
+PASS: PM-1: ... the decoy is byte-for-byte unchanged
+PASS: PM-2: GIT_DIR+GIT_WORK_TREE of another repo: same correct effect
+PASS: CH-1: the submodule consumer under an ambient GIT_DIR/GIT_WORK_TREE of another repo propagates for the project
+warning: adding embedded git repository: :(top)x
+hint: You've added another git repository inside your current repository.
+hint: Clones of the outer repository will not contain the contents of
+hint: the embedded repository and will not know how to obtain it.
+hint: If you meant to add a submodule, use:
+hint:
+hint: 	git submodule add <url> :(top)x
+hint:
+hint: If you added this path by mistake, you can remove it from the
+hint: index with:
+hint:
+hint: 	git rm --cached :(top)x
+hint:
+hint: See "git help submodule" for more information.
+hint: Disable this message with "git config set advice.addEmbeddedRepo false"
+PASS: CH-2: a gitlink at the magic-prefix path ':(top)x' is found literally: the hook propagated once
+PASS: MG-1: the unset loop (GIT_NO_REPLACE_OBJECTS/GIT_GRAFT_FILE) precedes their FC_CALLER_* captures
+PASS: MG-2: the helper comment says NOT original for GIT_NO_REPLACE_OBJECTS / GIT_GRAFT_FILE (always unset)
+PASS: MG-3 (behaviour): ambient GIT_NO_REPLACE_OBJECTS / GIT_GRAFT_FILE never reach a hook run through the helper
+PASS: MT-1: sync under an ambient GIT_DIR/GIT_WORK_TREE of another repo fast-forwards the CHECKOUT (SYNCED, HEAD moved)
+PASS: MT-1: ... the decoy is byte-for-byte unchanged and the NOTICE was printed
+PASS: GU-0 (control, nothing ambient): custom-path guard finds the project registry and BLOCKS the producer (rc=2)
+PASS: GU-1: ... same under an ambient GIT_DIR of another repo (registry found, producer blocked as PRODUCER; rc=2)
+PASS: GU-2: a child process of the guard sees NO repository-locating GIT_* from the foreign repo (observed: GD=unset GW=unset GI=unset )
+PASS: IP-1: ambient PROJECT_ROOT/cwd naming ANOTHER repository is ignored: the OWNER gets the skill link, the other repo nothing
+PASS: IP-2: cwd = another repository, nothing exported: still the owner (no write into the cwd repo)
+PASS: IP-3: an explicit --project-root wins over the owner
+PASS: IP-4: an explicit positional PROJECT_ROOT still wins (back-compat)
+PASS: IP-5: a STANDALONE checkout (no owner) takes the ambient PROJECT_ROOT
+PASS: IP-6: ... and otherwise the cwd
+PASS: IP-7: --help shows the submodules/constitution path, --project-root and the owner rule
+PASS: IP-8: under an ambient GIT_DIR/GIT_WORK_TREE of another repo the OWNER still gets the link; decoy untouched
+PASS: IP-9: the `claude` child of the installer sees NO repository-locating GIT_* from the foreign repo (observed: GD=unset GW=unset GI=unset )
+PASS: HI-1: a lone copy of hook_install.sh (no constitution_layout.sh beside it) still sources and scrubs: git -C answers for the path under a foreign GIT_DIR (/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/projS1)
+PASS: FC-1: _layout.local_gitlink under an ambient GIT_DIR of another repo reads the CHECKOUT's tree
+PASS: FC-2: _enumerate_impl._local_project_id under the same env reads the CHECKOUT's origin
+PASS: FC-3: audit.py's lone-copy fallback reads the checkout under an ambient GIT_DIR and scrub_git_env empties the class
+PASS: FC-4: a first-layout probe that could not be decided is NOT degraded when the second layout finds the gitlink
+PASS: FC-5 (control): undecided first layout + confirmed-absent second -> still recorded degraded, no hit
+PASS: FC-6 (control): both layouts undecided -> two degraded records
+PASS: FC-7 (control): found on the first layout -> no degraded record for the unprobed second
+PASS: DM-1: the manifest engine answers identically under an ambient GIT_DIR (rc 0 vs 0)
+PASS: DM-2: ... and the decoy is untouched
+    CANON 15
+    CANONEQ ok
+    LIST post_update_hook.sh ok
+    LIST post-merge ok
+    LIST constitution-submodule-post-checkout ok
+    LIST multitrack_constitution_sync.sh ok
+    LIST hook_install.sh (inline fallback) ok
+    LIST jev/bootstrap.sh ok
+    LIST label-sync/install_label_sync.sh ok
+    LIST migrate.sh ok
+    LIST audit.py ok
+    LIST helix_deps_manifest.py ok
+    EXTRA post_update_hook.sh none
+    EXTRA post-merge none
+    EXTRA multitrack none
+    EXTRA audit.py none
+    EXTRA helix_deps_manifest.py none
+    EXTRA hook_install.sh none
+    EXTRA jev/bootstrap.sh none
+    EXTRA label-sync/install_label_sync.sh none
+    GITCALL scripts/setup.sh SCRUBBED
+    GITCALL scripts/post_update_hook.sh SCRUBBED
+    GITCALL scripts/lib/constitution_layout.sh SCRUBBED
+    GITCALL scripts/hooks/post-merge SCRUBBED
+    GITCALL scripts/hooks/constitution-submodule-post-checkout SCRUBBED
+    GITCALL scripts/multitrack/multitrack_constitution_sync.sh SCRUBBED
+    GITCALL scripts/deps_manifest/helix_deps_manifest.py SCRUBBED
+    GITCALL scripts/jev/bootstrap.sh SCRUBBED
+    GITCALL scripts/label-sync/install_label_sync.sh SCRUBBED
+    GITCALL scripts/fastcycle/consumers/_enumerate_impl.py SCRUBBED
+    GITCALL scripts/fastcycle/consumers/_layout.py SCRUBBED
+    GITCALL scripts/fastcycle/consumers/audit.py SCRUBBED
+    GITCALL scripts/fastcycle/consumers/migrate.sh SCRUBBED
+    NCALLING 13
+PASS: ST-1: the canonical list was read (15 variables) and equals the literal list kept in this test
+PASS: ST-2: every lone copy of the scrub list holds ALL canonical variables
+PASS: ST-3: the pure copies add no variable that is not in the canonical list
+PASS: ST-4: every git-calling script in the owned set carries a scrub (none UNSCRUBBED, >= 10 found)
+PASS: SV-0 (needle): both inline helpers were extracted
+PASS: SV-lib: no one of the 15 repository-locating variables reaches the child git through the 'lib' scrub
+PASS: SV-lone: no one of the 15 repository-locating variables reaches the child git through the 'lone' scrub
+PASS: SV-main: no one of the 15 repository-locating variables reaches the child git through the 'main' scrub
+PASS: SV-jb: no one of the 15 repository-locating variables reaches the child git through the 'jb' scrub
+PASS: SV-ls: no one of the 15 repository-locating variables reaches the child git through the 'ls' scrub
+PASS: SV-jbs: no one of the 15 repository-locating variables reaches the child git through the 'jbs' scrub
+PASS: SV-ctl: control needle: an identity variable still reaches the child (the stub can see a variable) -> 'LEAK:GIT_AUTHOR_NAME'
+On branch main
+nothing to commit, working tree clean
+PASS: SV-jb-decoy: jb__git under GIT_DIR/GIT_WORK_TREE of a decoy reads and WRITES the project (toplevel+config+commit), decoy byte-for-byte unchanged
+PASS: SV-ls-decoy: ls__git under GIT_DIR/GIT_WORK_TREE of a decoy reads and WRITES the project (toplevel+config+commit), decoy byte-for-byte unchanged
+PASS: SV-jb-static: jev/bootstrap.sh has no bare git call outside jb__git
+PASS: SV-jbs-static: every child installer call in jev/bootstrap.sh (make install, install.sh, jev-setup x2) goes through jb__scrubbed
+PASS: SV-ls-static: label-sync/install_label_sync.sh has no bare git call outside ls__git
+PASS: SV-ls-run-ctl: control (nothing ambient): a ledger in a non-git dir is not warned about
+PASS: SV-ls-run-1: under an ambient GIT_DIR of a decoy a non-git ledger dir is still NOT reported as inside a work tree
+PASS: SV-ls-run-2: ... and a ledger inside the project's own work tree IS warned about (positive control); decoy untouched
+PASS: LK-1: setup.sh RECLAIMS a lock whose recorded owner pid is gone and then propagates (rc=0)
+PASS: LK-2 (control): a lock held by a LIVE process is never reclaimed: setup.sh is INCOMPLETE (rc=1), lock untouched, hook not run
+PASS: LK-2b: the busy message prints the holder record (PID=1310714, START) and says the owner is ALIVE
+PASS: LK-3: a lock whose pid is alive but with a DIFFERENT start time (pid reused) is reclaimed (rc=0)
+PASS: LK-4 (control): a lock without a readable owner record is left alone (rc=1)
+PASS: LK-4b: ... and the busy message says why: no readable owner record
+PASS: LK-5 (control): a symlink lock is never followed or reclaimed (rc=1)
+PASS: LK-5b: ... and the busy message says why: the lock is a symlink
+PASS: LK-5c: no stale comment claims setup.sh / post-merge never take over or reclaim a lock
+PASS: LK-6: setup.sh's lock create is exclusive: a lock appearing between the check and the create is NOT overwritten (REFUSED NONCE=foreign )
+PASS: LK-16: setup.sh puts a live holder's freshly created lock BACK instead of reclaiming it (KEPT NONCE=live STALELEFT=0 )
+PASS: LK-16b: setup.sh's put-back never clobbers a lock a THIRD run created meanwhile (KEPT NONCE=third )
+PASS: LK-16c: post-merge's put-back never clobbers a lock a THIRD run created meanwhile (KEPT NONCE=third )
+PASS: LK-17: setup.sh's reclaim waits for the shared reclaim mutex and never renames a lock re-created meanwhile (WAITED KEPT NONCE=live STALELEFT=0 NOT-RENAMED )
+PASS: LK-17b: post-merge's reclaim waits for the shared reclaim mutex and never renames a lock re-created meanwhile (WAITED KEPT NONCE=live STALELEFT=0 NOT-RENAMED )
+PASS: LK-18 control needle: the no-flock PATH has git and bash but no flock
+PASS: LK-18: setup.sh with a FIFO at the reclaim mutex path returns (rc=1, not 124), never reclaims, names the mutex
+PASS: LK-19: post-merge with a FIFO at the reclaim mutex path returns (rc=0, not 124), never reclaims, names the mutex
+PASS: LK-20: setup.sh without flock(1): the stale lock is NOT reclaimed and the message names flock (rc=1)
+PASS: LK-21: post-merge without flock(1): the stale lock is NOT reclaimed and the message names flock (rc=0)
+PASS: LK-7: post-merge RECLAIMS a lock whose owner is gone and propagates
+PASS: LK-8 (control): post-merge never reclaims a live holder's lock; propagation stays pending, stamp recorded
+PASS: LK-9: the lock-held message does not claim that 'git submodule update' consumes the stamp
+PASS: LK-10: the lock-held message names setup.sh as the way to consume the stamp
+PASS: LK-11: ... and 'git submodule update' really does NOT consume it (checkout already at the gitlink: stamp kept, no run)
+PASS: LK-12: the printed command ('cd -- /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/home.xTHJ/layout_test.Mms6L5/b\ lk8 && bash submodules/constitution/scripts/setup.sh') really consumes the stamp: hook run with the recorded range, stamp gone (rc=0)
+PASS: LK-13: an already-applied gitlink exits quietly BEFORE any lock handling (live lock untouched, no lock warning, no stamp)
+PASS: LK-14: a stamp whose ROOT is another project's is NOT consumed (hook runs without its range; stamp kept)
+PASS: LK-15 (control): the same stamp with the right ROOT IS consumed (range handed over, stamp removed)
+PASS: AR-1: post-merge, post-update FAILED (exit 3): the applied ref is NOT advanced to the new gitlink and a pending stamp is kept
+PASS: AR-2: ... the retry runs the hook again (range kept), succeeds, then records the ref and removes the stamp
+PASS: AR-3: consumer hook, post-update FAILED: applied ref not advanced, the stamp is KEPT
+PASS: AR-4: ... the retry runs, records the ref and removes the stamp
+PASS: AR-5: setup.sh, post-update FAILED: exit non-zero, no applied ref recorded, stamp kept (rc=1)
+PASS: AR-6: ... the retry succeeds, records the ref and consumes the stamp (rc=0)
+PASS: CM-1: the REAL hook ran STEP 5 over a changed tracked 100644 script (positive control, rc=1)
+PASS: CM-1b: ... and STEP 5 enumerated the probe path (the tracked-not-executable warning names scripts/zz_chmod_probe_lib.sh)
+FAIL: CM-2: ... the tracked script mode is unchanged and the submodule is clean (porcelain empty)
+FAIL: CM-3: ... so the REAL update_constitution.sh --check is not refused for local changes (rc=3)
+PASS: CM-4a (precondition): the probe is now untracked and not executable
+PASS: CM-4: the REAL hook made the UNTRACKED changed script executable (rc=1)
+----
+round8_git_env: PASS=125 FAIL=2
+rc=1

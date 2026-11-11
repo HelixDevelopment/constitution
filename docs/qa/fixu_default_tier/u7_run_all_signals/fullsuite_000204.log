@@ -1,0 +1,122 @@
+ok empty-dir-fails (rc=1)
+ok needle-message
+ok one-pass (rc=0)
+ok one-fail-propagates (rc=1)
+ok hang-times-out-and-fails (rc=1)
+ok timeout-reported
+ok shebang-honoured (rc=0)
+ok bad-timeout-refused [0]
+ok bad-timeout-refused [abc]
+ok bad-timeout-refused [-1]
+ok bad-timeout-refused []
+ok bad-timeout-refused [1x]
+ok term-ignorer-killed (3s)
+ok term-ignorer-reported
+ok long-timeout-refused [1234567]
+ok long-timeout-refused [12345678]
+ok long-timeout-refused [0000001]
+ok long-timeout-refused [12345678901234567890]
+ok long-timeout-refused [000000]
+ok timeout-accepted [999999]
+ok timeout-accepted [123456]
+ok timeout-accepted [1]
+ok timeout-accepted [000001]
+ok sh-shebang-runs-under-sh (rc=0)
+ok pass-label-exact
+ok empty-dir-rc-exactly-1
+ok zero-message-exact
+ok missing-dir-2
+ok fail-rc-exactly-1
+ok summary-exact
+ok summary-pass-exact
+ok default-bound-above-20s
+ok timeout-rc-exactly-1
+ok depth2-refused
+ok depth5-refused
+ok depth1-accepted
+ok depth-exported-1
+ok default-dir-is-script-dir
+ok default-bound-allows-3s
+ok exit137-labelled
+ok exit124-labelled
+ok exit2-not-timeout
+ok only-test-glob
+ok empty-depth-is-unset
+ok bash-shebang-runs-under-bash (rc=0)
+ok shebang-only-first-line-counts (rc=0)
+ok env-sh-shebang-runs-under-sh (rc=0)
+ok exit1-fail-label
+ok exit2-fail-label
+ok exit125-fail-label
+ok exit130-fail-label
+ok header-raises-bound
+ok header-lowers-bound (1s)
+ok header-is-per-test
+ok header-accepted [1]
+ok header-accepted [000005]
+ok header-accepted [999999]
+ok header-accepted [123456]
+ok header-on-line-10-honoured
+ok header-line-11-ignored
+ok header-malformed-refused [# fastcycle-timeout-s: abc]
+ok header-malformed-refused [# fastcycle-timeout-s: 0]
+ok header-malformed-refused [# fastcycle-timeout-s: 000000]
+ok header-malformed-refused [# fastcycle-timeout-s: 1234567]
+ok header-malformed-refused [# fastcycle-timeout-s: -5]
+ok header-malformed-refused [# fastcycle-timeout-s: 5 6]
+ok header-malformed-refused [# fastcycle-timeout-s: 12x]
+ok header-malformed-refused [# fastcycle-timeout-s:]
+ok header-malformed-refused [# fastcycle-timeout-s: ]
+ok header-malformed-refused [#fastcycle-timeout-s: 5]
+ok header-malformed-refused [#  fastcycle-timeout-s: 5]
+ok header-malformed-refused [# fastcycle-timeout-s:5]
+ok header-malformed-refused [# fastcycle-timeout-s: 5 ]
+ok header-duplicate-refused
+ok mutation-test-header (900 s)
+scripts/fastcycle/tests/test_run_all.sh: 215: set: can't access tty; job control turned off
+ok r8b A8: the runner exit 2 came after the KILLed slow job was reaped
+scripts/fastcycle/tests/test_run_all.sh: 303: set: can't access tty; job control turned off
+ok r8b D6 exit 2
+ok r8b D6: the fake-descendant ps ran and the driver genuinely FORWARDED a signal to the real tree
+ok r8b D6: no signal to a pid <= 1 or non-numeric
+ok r8b D6: no test(1) integer error on the fake values
+ok r8b D6: no marked process survived the driver
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+ok r7f2 pid-TERM exit 2
+ok r7f2 pid-TERM: test tree gone
+ok r7f2 pid-TERM: temp dir removed
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+NOT ok r7f2 pid-HUP: the runner ignored HUP (still alive after 15 s)
+NOT ok r7f2 pid-HUP: the test tree survived HUP to the runner
+NOT ok r7f2 pid-HUP: temp dir leaked: tmp.NPLAGZaHgu
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+NOT ok r7f2 pid-INT: the runner ignored INT (still alive after 15 s)
+NOT ok r7f2 pid-INT: the test tree survived INT to the runner
+NOT ok r7f2 pid-INT: temp dir leaked: tmp.93sK4Xj5CF
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+ok r7f2 graceful-TERM exit 2
+ok r7f2 graceful-TERM: test tree gone
+ok r7f2 graceful-TERM: temp dir removed
+ok r7f2 graceful-TERM: the test ran its own TERM handler
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+SKIP r7f2 group-INT: job control gave no own process group (pgid=2652904)
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+SKIP r7f2 group-TERM: job control gave no own process group (pgid=2652904)
+scripts/fastcycle/tests/test_run_all.sh: 333: set: can't access tty; job control turned off
+ok r7f2 term-ignoring-timeout exit 2
+ok r7f2 term-ignoring-timeout: test tree gone
+ok r7f2 term-ignoring-timeout: temp dir removed
+ok r7f2 term-ignoring-timeout bounded (1s)
+SKIP r7f2 zsh runner: zsh_unavailable
+scripts/fastcycle/tests/test_run_all.sh: 398: set: can't access tty; job control turned off
+ok r7f3 TERM exit 2
+ok r7f3 TERM: no test survived
+ok r7f3 TERM: the driver let TERM reach a test before any KILL
+ok r7f3 TERM: no temp dir leaked
+scripts/fastcycle/tests/test_run_all.sh: 398: set: can't access tty; job control turned off
+NOT ok r7f3 INT: driver still alive after 25 s
+NOT ok r7f3 INT: 3 test process(es) survived the driver
+NOT ok r7f3 INT: the test never got its TERM (driver KILLed at once)
+NOT ok r7f3 INT: leaked: tmp.8lLnQu8T6K
+ok r7f2 stdin of a test is /dev/null under job control
+ok r7b runner jobs shim

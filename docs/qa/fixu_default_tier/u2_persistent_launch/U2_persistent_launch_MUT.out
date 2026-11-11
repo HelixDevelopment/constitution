@@ -1,0 +1,2 @@
+=== persistent-launch survives-session-teardown (ATM-1041) — UUT: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/multitrack/multitrack_persistent_launch.sh
+FAIL: systemd --user bus socket present at /run/user/1000/bus but systemctl --user does not answer

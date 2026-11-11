@@ -1,0 +1,5 @@
+=== persistent-launch survives-session-teardown (ATM-1041) — UUT: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/multitrack/multitrack_persistent_launch.sh
+  PASS  T1 RED characterization: bare nohup+disown dies under session-scope teardown (reproduces the real defect)
+  PASS  T2 GREEN: mt_persistent_launch survives session-scope teardown (fix holds)
+  PASS  T3 MUT §1.1: forcing the nohup-fallback path reproduces the death under T2's exact scenario (the systemd-scope mechanism is load-bearing)
+--- RESULT: PASS=3 FAIL=0
