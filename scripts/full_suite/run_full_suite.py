@@ -2084,6 +2084,10 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     if prob or who not in ids:
         raise Fatal(3, "--accept-excluded-change %r refused: %s" % (
             who, prob or "%r is not an operator id in %s" % (who, roster_path)))
+    if os.path.islink(lock_path):
+        # CON-235: fail closed; never replace a symlinked lock (dangling or not) or write through it.
+        raise Fatal(3, "--accept-excluded-change %r refused: %s is a symlink (its edits would leave no trace in git "
+                       "history); commit it as a regular file, then accept" % (who, lock_path))
     ex = excluded_rows(rows)
     body = sorted((p_, hashlib.sha256(n.encode()).hexdigest()[:16]) for p_, n in ex)
     old = read_excl_lock(lock_path)

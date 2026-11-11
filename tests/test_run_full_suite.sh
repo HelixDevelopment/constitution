@@ -1109,6 +1109,19 @@ mv "$RS/config/full_suite_excluded.lock" "$T/outside_lock"; ln -s "$T/outside_lo
 gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
 vfy "$RS" "$T/rs3.log"; chk "R5-2: symlinked excluded lock -> exit 3" "$RC" "3"
 has "R5-2: symlinked lock named" 'full_suite_excluded.lock is a symlink' "$T/rs3.log"
+# CON-235: --accept-excluded-change on a symlinked lock fails closed (refused, exit 3, lock untouched)
+olsha=$(sha256sum "$T/outside_lock" | cut -c1-64)
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs4.log" 2>&1; RC=$?
+chk "CON-235: acceptance onto a symlinked lock -> exit 3" "$RC" "3"
+has "CON-235: refusal names the symlinked lock" 'accept-excluded-change .*refused: .*full_suite_excluded.lock is a symlink' "$T/rs4.log"
+hasnt "CON-235: no MANIFEST-OK after the refusal" 'RESULT: MANIFEST-OK' "$T/rs4.log"
+chk "CON-235: the lock is still the symlink" "$(readlink "$RS/config/full_suite_excluded.lock")" "$T/outside_lock"
+chk "CON-235: the symlink target is unchanged" "$(sha256sum "$T/outside_lock" | cut -c1-64)" "$olsha"
+rm -f "$T/outside_lock"
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice > "$T/rs5.log" 2>&1; RC=$?
+chk "CON-235: acceptance onto a dangling symlinked lock -> exit 3" "$RC" "3"
+chk "CON-235: the dangling lock symlink is left in place" "$([ -L "$RS/config/full_suite_excluded.lock" ] && echo link || echo replaced)" "link"
+chk "CON-235: nothing written through the dangling symlink" "$([ -e "$T/outside_lock" ] && echo written || echo absent)" "absent"
 
 # --- 38 WIT-C02 (wave 2 review r2, F5): a unit that rewrites the tracked generated command sets is caught
 # even when the content is identical (new inode or new mtime); the run ends FAIL and names the unit.
