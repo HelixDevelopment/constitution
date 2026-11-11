@@ -23,7 +23,9 @@
 #         gets a boundary pair from one table (members10: EXPBND, HORBND, DAYSBND, PFXBND, ITEMBND, LEVBND); the strip()
 #         fixtures use every python isspace() character (29, enumerated; Zs is a sub-needle), not only Zs (WSID, WSAUTH),
 #         plus the config's no-trim site (CONFWS); the reviewer mutants RV9-02, RV9-10, RV9-11 are adopted verbatim, and
-#         three off-by-one mutants (lev-gt-1, days-min-2, prefix-min-3) pair the new boundaries.
+#         three off-by-one mutants (lev-gt-1, days-min-2, prefix-min-3) pair the new boundaries. RV9-05 (base compared on
+#         12 characters) survived the first round-10 run (review N4): every exact SHA equality of the gate now gets the
+#         same generated near-miss set (SHANEAR, SPENTNEAR), with RV9-05 adopted verbatim and seven sibling mutants.
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -667,6 +669,19 @@ members8() { # gate path -> vector part (round 8): the four round-7 reviewer pro
   o+="YEAR5=$(run "$r" "$g")/$(cnt 'not a real YYYY-MM-DD') "
   echo "$o"
 }
+near() { # <40-hex sha> -> the 7 near misses of members10 (SHANEAR, SPENTNEAR), one per line
+  local s="$1" k c; for k in 0 11 12 39; do c="${s:k:1}"; [ "$c" = 0 ] && c=1 || c=0; printf '%s\n' "${s:0:k}$c${s:k+1}"; done
+  printf '%s\n' "${s^^}" "${s}0" "${s:0:39}"; }
+ysib() { # <repo> <parent> <waiver text>: refs/heads/y = one commit on <parent> whose tree is <parent>'s plus that waiver
+  # file, built through a private index (the judged index is not touched); replaces the previous y
+  local r="$1" p="$2" ix="$tmp/ysib.idx" h t; rm -f "$ix"
+  GIT_INDEX_FILE="$ix" git -C "$r" read-tree "$p"; h=$(printf '%b' "$3" | git -C "$r" hash-object -w --stdin)
+  GIT_INDEX_FILE="$ix" git -C "$r" update-index --add --cacheinfo 100644,"$h",.submodule_pin_waivers
+  t=$(GIT_INDEX_FILE="$ix" git -C "$r" write-tree); git -C "$r" update-ref refs/heads/y "$(git -C "$r" commit-tree "$t" -p "$p" -m y)"; }
+# META: near() must give 7 distinct values, none equal to its input (a sha with no letter would make the upper-case
+# member equal; the check refuses rather than silently testing 6)
+nck="$(near 0123456789abcdef0123456789abcdef01234567 | sort -u | grep -vxc 0123456789abcdef0123456789abcdef01234567)"
+[ "$nck" = 7 ] || { echo "META near() gives $nck distinct near misses, want 7"; exit 2; }
 members10() { # gate path -> vector part (round 10, review N1/N2, §11.4.276(E) structural pass)
   # ── N1: every date / number compare of the gate, each as a BOUNDARY PAIR (the last value on the accepting side and
   # the first on the refusing side), generated from one table, never point-fixed. The compares (gate line: compare):
@@ -725,9 +740,28 @@ members10() { # gate path -> vector part (round 10, review N1/N2, §11.4.276(E) 
   f=""; for x in ' max_waiver_days=60' 'max_waiver_days =60' 'max_waiver_days=60'; do mk;r=$R; conf "$r" "$x\n"; git -C "$r" commit -q -m conf; stage "$r" "$A"
     waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; f+="$(run "$r" "$g"),"; done
   o+="CONFWS=$f "
+  # ── SHA equalities (round 10, RV9-05 survived the first round-10 run: a base compared on its first 12 characters).
+  # Class, not point: every exact SHA compare of the gate gets the same NEAR-MISS set (near(): first, 12th, 13th and last
+  # character flipped, upper case, one character added, the last one dropped), so a prefix compare of any length, a
+  # suffix compare, a case-folding compare and a length-blind compare all fail. The compares: line 240 (row old $2==o,
+  # row new $3==n: SHANEAR fields 1, 2), line 245 (row base bs = basec: SHANEAR field 3; every near miss is refused, the
+  # exact row is honoured), line 229 (spent: a sibling commit on the same parent whose row differs from the judged
+  # transition by a near miss in old, new or base does NOT spend it, SPENTNEAR fields 1-3 all 0; the exact sibling row
+  # spends it, 1, with the 'already spent' needle). The path compares are string compares too (SPENTNUM, NUMPATH).
+  mk;r=$R; stage "$r" "$A"; x=$(git -C "$r" rev-parse HEAD); f=""
+  for v in $(near "$B"); do waive "$r" "$(wf sub "$v" "$A" ops "$d10" CON-046)\n"; f+="$(run "$r" "$g")"; done; f+="/"
+  for v in $(near "$A"); do waive "$r" "$(wf sub "$B" "$v" ops "$d10" CON-046)\n"; f+="$(run "$r" "$g")"; done; f+="/"
+  for v in $(near "$x"); do waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$v")\n"; f+="$(run "$r" "$g")"; done
+  waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\n"; o+="SHANEAR=$f/$(run "$r" "$g") "
+  f=""
+  for v in $(near "$B"); do ysib "$r" "$x" "$(wf sub "$v" "$A" ops "$d10" CON-046 "$x")\n"; f+="$(run "$r" "$g")"; done; f+="/"
+  for v in $(near "$A"); do ysib "$r" "$x" "$(wf sub "$B" "$v" ops "$d10" CON-046 "$x")\n"; f+="$(run "$r" "$g")"; done; f+="/"
+  for v in $(near "$x"); do ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$v")\n"; f+="$(run "$r" "$g")"; done
+  ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\n"; o+="SPENTNEAR=$f/$(run "$r" "$g")/$(cnt 'already spent') "
+  git -C "$r" update-ref -d refs/heads/y
   echo "$o"
 }
-want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, "
+want="DOWN=1 NOCHANGE=0 DIVERGED=0/1 FORWARD=0 WAIVED=0 EXPIRED=1 NOTRACK=1 BLIND=2 UNRELATED=0 WRONGSHA=1 OLDBIND=1 NEWOBJ=2/1 NOAUTH=1 TWOSUB=1 TODAY=0 MIXED=1 BADEXP=1,1,1,1,1,1,1, HORIZON=0,1 CONF=0,1 BADCONF=1,0 PREFIX=0,1,1 BADITEM=1 SELFAUTH=1,1 AUTHNORM=1,1,1,1,1,1,0 IDENT=1 UNTRACKED=1 PERSIST=0,1 AMEND=0,0,1,2 IGNSUB=1,1 RENAME=1 FIELDS8=1 FIELDS6=1 DUPROW=0 CRLF=1/1 UNREAD=2 RELATIVE=1 WT=0,1 SHALLOW=2 MISSINGMID=2 SHFWD=0,1 REPLACE=1 SYMSUB=2/1 HELP=2 NONASCII=0 SYMROOT=0 KCONF=1,1,1,1 NOTOWN=2/1 LAZY=2/true/absent GRAFT=1 NUMPATH=1 PYFAIL=1/1/0 CHILDTREE=1/1 BADREF=1/1 SIBOTHER=0 ARGS=2,2,2,2,2,2/1,2/0,2/1 LEV=2/1 UNBORN=0/1 BASEBAD=2/1,2/1 CONFCOMMENT=0 CONFNOKV=1/1 CONFZERO=1 CONFUNK=1/1 WFILE=0 NODATA=1/1 AUTHCTRL=1 AUTHUTF8=1/1 NOPY=1/1 EMPTYAUTH=1/1 ITEMFORM=1,1 WCOMMENT=1 SPENTNUM=0 NEWGL=0 DELGL=0 COUNT=0/1 SUBGONE=2/1 NEWTREE=2/1/0 OLDOBJ=2/1,2/1 LEGIT=0/A SNAP=0,1/B AMENDSNAP=1/B AMENDMSG=0,0,0 REDO=0/A MERGECONF=0,1/B SQUASHMOVED=1/B SQUASHSAME=1/B/1 NOCOMMITMOVED=1/B NOCOMMITSAME=1/B NOCOMMITDEL=1/B/1 SQGRAFT=1/B/1 CHERRY=0,1 CHERRYSAME=0,1/distinct REBASE=0,1 LEFTSAME=0/A LEFTOLD=1/B/1 BASEFORM=1,1/B K8TAG=1/B K14WT=1/B K9REPL=1/B K11PATH=0/A K12OLD=0/A K13TELL=1/B K10LAZY=1/absent/absent/1 TREEMISS=1/B/missing/1 SHALLOWSUP=1/B/true/1 STASH=0/A/kept N4INDEX=0,1 RESETSQ=0,0,0/A KNM1=1,1 KNM1GM=1,0 KNM2=1/1,0 KNM3=1/B,1/B, KNM4=0/A,1/B KNM5=1/B,1/B, KNM6=0,1 KNM9=0/A KIDPARENT=0/A A1WTREF=0/A/vis0,0/A/vis0,1/B/vis1, A2STASHANC=0,0/A/vis0 A3TEXTCONV=0/1,1,1 KV365=0/A KV12ZWSP=1/B KV13SHARPS=1/B KVREFS=1/B,1/B,1/B, KV17ORDER=1/B/yfirst KV18HASHMID=0 KV19STALEFIRST=0/A KV20BADEXPFIRST=0/A KV22SUBUNKNOWN=2/1,0/1 KV29PLANT=1/1 KV29B=1/1,1/1 KV02HELP=0 KV35=1/1 SITECR=0/A SITEEXP=0/A SITEHOR=0/A SITEITEM=0/A SITESELF=0/A SITEUTF8=0/A AUTHLTGT=1/B,1/B PREFIXFORM=1/B,1/B,1/B, DAYS100=0/A,1/B ROOTDEFAULT=1/1 MSGNOROW=1/1 HOOKSKIP=0/1 HOOKNOREPO=1 S_PARAMSFWD=0/0 S_PARAMSDOWN=1/0 S_COUNTFWD=0/0 S_COUNTDOWN=1/0 S_NONEFWD=2/0 S_NONEDOWN=2/0 D_DOWNKILLBACK=2/0/0/1 D_FWDKILLFWD=2/0/0/1 D_CTL=1/1/0/0 F_ITEM4=0/1 F_ITEM3=0/1 F_SELFTRAIL=1/0 F_SELFLEAD=1/0 F_HELPLONG=0/130 F_HELPSHORT=0/130 G_DOWNGRADE=2/0/0/1[mb:1/err1] G_CTL=1/1/0/0[mb:0/err0] G_NOGRAPH=2/0/0/1[mb:128/err1] ARGSFWD=2,2 SYMSUBFWD=2/1 MAXD=0,1/1,1/1 PFXDIGIT=0 ITEMJUNK=1/1 IDENTONE=1/1,1/1 ROOTNEST=1/1 SUBBROKEN=2/1/0 ZSID=1/1,1/1/17/0 ZSAUTH=1/0/34/0 YEAR5=1/1 EXPBND=1/1,0/0, HORBND=0,1,0,1,0,1, DAYSBND=1/1,0/0,0/0,0/0,0/0,1/1,1/1,1/1, PFXBND=1/1,0 ITEMBND=1,0,0, LEVBND=1/1 WSID=1/1,1/1/29/0 WSAUTH=1/0/54/0 CONFWS=1,1,0, SHANEAR=1111111/1111111/1111111/0 SPENTNEAR=0000000/0000000/0000000/1/1 "
 # ── the inventory lint (round 7, CON-146): the guard inventory is checked, not trusted. static (Part 1): L1 every anchor
 # occurs exactly once in the gate's code; L2 every code line that is not pure syntax is covered by an anchor; L3 every
 # line has at least as many rows as members (1 + the && / || joins of a shell line, 1 + the `or` / `and` joins of a
@@ -1619,6 +1653,33 @@ s/=~ \^\[1-9\]\[0-9\]{0,2}\$ \]\]/=~ ^[2-9][0-9]{0,2}$ ]]/
 MEOF
   mutf prefix-min-3 <<'MEOF'
 s/=~ \^\[A-Z\]\[A-Z0-9\]+\$ \]\]/=~ ^[A-Z][A-Z0-9]{2,}$ ]]/
+MEOF
+  # round 10, RV9-05 (reviewer file mut/RV9-05-base-prefix-bind.sh; the sed gives it byte for byte, checked with cmp):
+  # the base compared on its first 12 characters survived the first round-10 run. The class: every exact SHA equality
+  # (lines 229, 240, 245) compared on a prefix, a suffix or case-folded; killed by SHANEAR / SPENTNEAR (members10)
+  mutf RV9-05-base-prefix-bind <<'MEOF'
+s/^    \[ "\$bs" = "\$basec" \] ||/    [ "${bs:0:12}" = "${basec:0:12}" ] ||/
+MEOF
+  mutf base-suffix12 <<'MEOF'
+s/^    \[ "\$bs" = "\$basec" \] ||/    [ "${bs: -12}" = "${basec: -12}" ] ||/
+MEOF
+  mutf base-nocase <<'MEOF'
+s/^    \[ "\$bs" = "\$basec" \] ||/    [ "${bs,,}" = "${basec,,}" ] ||/
+MEOF
+  mutf waiver-old-prefix12 <<'MEOF'
+/{print \$0/s/\$2""==o""/substr($2,1,12)==substr(o,1,12)/
+MEOF
+  mutf waiver-new-prefix12 <<'MEOF'
+/{print \$0/s/\$3""==n""/substr($3,1,12)==substr(n,1,12)/
+MEOF
+  mutf spent-old-prefix12 <<'MEOF'
+/\$7""==b""/s/\$2""==o""/substr($2,1,12)==substr(o,1,12)/
+MEOF
+  mutf spent-new-prefix12 <<'MEOF'
+/\$7""==b""/s/\$3""==n""/substr($3,1,12)==substr(n,1,12)/
+MEOF
+  mutf spent-base-prefix12 <<'MEOF'
+s/\$7""==b""/substr($7,1,12)==substr(b,1,12)/
 MEOF
   # ── round 8: generated member mutants (§11.4.274, §11.4.276(C)): cm_submodule_pin_not_downgraded_members.py
   # enumerates every case alternative, regex quantifier / anchor / class part, strip half, test comparison operator,

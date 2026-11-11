@@ -125,9 +125,9 @@ I090	[ "$rc" = 0 ] || continue	V17-spent-fileless-kid-ends-scan,spent-absent-is-
 I091	printf '%s\n' "$t" | awk -F'\t'	NM5-spent-whitespace-split	-	ch	tab split
 I092	NF==7 && $1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	NM9-spent-extra-fields	-	fr	field-count member: an 8-field sibling row spends (fr, KNM9); the fo form is spender-ignored (I093)
 I092b	$1""==p"" && $2""==o"" && $3""==n"" && $7""==b""	RM11-spent-ignores-path,spent-numeric-path	-	fr	path member (K11PATH, SPENTNUM)
-I092c	$2""==o"" && $3""==n"" && $7""==b""	RM12-spent-ignores-old	-	fr	old-pin member (K12OLD)
-I092d	$3""==n"" && $7""==b""	NM4-spent-ignores-new	-	fr	new-pin member (KNM4)
-I092e	$7""==b"" {f=0}	spent-base-ignored	-	fr	base member (SIBOTHER)
+I092c	$2""==o"" && $3""==n"" && $7""==b""	RM12-spent-ignores-old,spent-old-prefix12	-	fr	old-pin member (K12OLD); Round 10: a sibling row with a near-miss old pin must not spend (SPENTNEAR field 1)
+I092d	$3""==n"" && $7""==b""	NM4-spent-ignores-new,spent-new-prefix12	-	fr	new-pin member (KNM4); Round 10: a sibling row with a near-miss new pin must not spend (SPENTNEAR field 2)
+I092e	$7""==b"" {f=0}	spent-base-ignored,spent-base-prefix12	-	fr	base member (SIBOTHER); Round 10: a sibling row with a near-miss base must not spend (SPENTNEAR field 3)
 I092f	 {f=0} END{exit f}' "$1"	spent-awk-always-match	-	fr	match result: always (fr)
 I093	&& { SPENT="$k"; return 0; }	spender-ignored	-	fo	a spender found is ignored (fo)
 I094	  return 1<NL>}<NL>WHY=""	spent-default-spent	-	fr	NOTE anchor shared by three lines: see L1 exemption; spent default unspent -> spent (fr)
@@ -141,15 +141,15 @@ I099	cand="$(printf '%s\n' "$wtext" | awk -F'\t'	waiver-ignores-path	-	ch	row se
 I100	NF==7 && $1!~/^#/	RM4-extra-fields,six-field-rows	-	fo	field-count member (FIELDS8, FIELDS6)
 I100b	$1!~/^#/ && $1""==p""	waiver-comment-rows-honoured,V18-comment-hash-anywhere	-	both	comment member: honoured (fo, WCOMMENT) / # anywhere (fr, KV18HASHMID)
 I100c	$1""==p"" && $2""==o"" && $3""==n"" {print	waiver-ignores-path,R3n1-numeric-compare	-	fo	path member (TWOSUB, NUMPATH)
-I100d	$2""==o"" && $3""==n"" {print	waiver-ignores-old-sha	-	fo	old-pin member (OLDBIND)
-I100e	$3""==n"" {print	waiver-ignores-new-sha	-	fo	new-pin member (WRONGSHA)
+I100d	$2""==o"" && $3""==n"" {print	waiver-ignores-old-sha,waiver-old-prefix12	-	fo	old-pin member (OLDBIND); Round 10: a prefix compare of the row's old pin is refused by SHANEAR field 1
+I100e	$3""==n"" {print	waiver-ignores-new-sha,waiver-new-prefix12	-	fo	new-pin member (WRONGSHA); Round 10: a prefix compare of the row's new pin is refused by SHANEAR field 2
 I101	[ -n "$cand" ]	cand-always-empty,cand-empty-unchecked	-	fr	test member: always empty (fr); unchecked changes only the reason (MSGNOROW)
 I101b	[ -n "$cand" ] || return 1	no-row-waives	-	fo	reaction member: no row waives (fo)
 I102	while IFS=$'\036' read -r row rest; do	RM5-first-bad-row-aborts	-	ch	row loop
 I103	IFS=$'\037' read -r a e i bs <<<"$rest"	author-not-compared	-	ch	row fields
 I104	[[ "$row" != *$'\r'* ]] ||	cr-not-named,cr-always	-	both	CR row: honoured (fo) / always (fr)
 I105	save it with LF"; continue; }	site-cr-aborts	-	fr	site: abort instead of next row (SITECR)
-I106	[ "$bs" = "$basec" ] ||	base-unbound,base-always-mismatch	-	both	base binding: dropped (fo) / always (fr)
+I106	[ "$bs" = "$basec" ] ||	base-unbound,base-always-mismatch,RV9-05-base-prefix-bind,base-suffix12,base-nocase	-	both	base binding: dropped (fo) / always (fr); Round 10: the base compared on a prefix (RV9-05, verbatim), a suffix or case-folded is refused by SHANEAR field 3 (near misses)
 I107	current HEAD)"; continue; }	V19-base-mismatch-aborts-rows	-	fr	site (KV19STALEFIRST)
 I108	[[ "$e" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]	expiry-format-unchecked,expiry-always-bad	eq-expiry-tail-by-roundtrip	both	expiry form: unchecked (fo) / always (fr). Round 9: the year part ({4}, ^) is NOT given by the round trip (GNU date round-trips a five-digit year; the dropped regex is generated member gen-andor-3d5462c23c, killed by YEAR5; round 8 claimed it equivalent, FALSE, review F2); the tail (month and day widths, $) is (differential proof under both dates)
 I109	[ "$(date -d "$e" +%Y-%m-%d 2>/dev/null)" = "$e" ]	expiry-roundtrip-dropped	-	fo	round trip dropped (fo)
