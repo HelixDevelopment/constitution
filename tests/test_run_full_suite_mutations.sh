@@ -43,6 +43,14 @@
 # (`+tracked` accepts a foreign tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# CON-030 round 7 (review r6): RV6a RV6b RV6f are the reviewer-authored mutants of review r6. RV6b is verbatim;
+# RV6a and RV6f are ADAPTED, not verbatim (correction of the round-7 commit message eef7a3a3, review r7 H5): their
+# r6 anchors (marker_lead, startswith((GUIDE_BEGIN, GUIDE_END))) no longer exist, so each row re-expresses the same
+# change on the round-7 code (Cf narrowed to U+200B/U+FEFF; the end near-marker read only when exactly equal).
+# R7a-R7f are the author's own for the round-7 class rule. CON-030 round 8 (review r7 H1): RV7c is the reviewer-
+# authored mutant of review r7, adopted verbatim (marker_ignorable ignores the last DEFAULT_IGNORABLE range,
+# E0000-E0FFF, while the table constant is unchanged); it survived round 7 and is killed by section 2e of the
+# self-test (marker_ignorable compared with an oracle on every code point).
 # CON-030 round 6 (review r5, structural round for the guide-marker class): MX3 MX4 MX7 MX10 MX5 are the reviewer-
 # authored mutants of review r5, adopted verbatim (MX7 and MX10 survived round 5 and are killed by the guide matrix
 # cases block:end_only and block:extra_after / extra_before; MX5 by the F8 unit probe); N6a-N6d are the author's own
@@ -271,6 +279,7 @@ R7c	c.isspace() or c == "\\ufffd" or	c.isspace() or
 R7d	(0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C	(0x00AD, 0x00AD), (0x061C
 R7e	    return "".join(c for c in l if not marker_ignorable(c))	    return l.lstrip("".join(c for c in l if marker_ignorable(c)))
 R7f	    return (c.isspace() or c ==	    return (False or c ==
+RV7c	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE[:-1]))
 EOF
 )
 

@@ -1962,8 +1962,9 @@ has "CON-030 r6 guide matrix: the driver finished" '^N	109$' "$T/gmatrix.out"
 # not UTF-8) contributes representative code points; each one goes before, inside and after each marker, on the
 # begin line, the end line, both, a line before a current block, inside a block before the real end (with prose
 # after it) and a line after a current block. Every such cell must be refused and leave the guide byte-identical
-# (guide_check with fix=True, in-process, on the engine under test). Visible prose stays prose. A table narrowed by
-# one range, or a class dropped from marker_ignorable, fails cells here; the table is also compared with perl's
+# (guide_check with fix=True, in-process, on the engine under test). Visible prose stays prose. The cells sample
+# the class; they do not cover every range (review r7 H1: a function that drops E0000-E0FFF passed every cell), so
+# section 2e compares marker_ignorable with an oracle on every code point, and the table with perl's
 # \p{Default_Ignorable_Code_Point} when perl is installed.
 GCL="$T/gclass"; gd "$GCL" '# guide\n'
 python3 -I - "$ENGINE" "$GCL" > "$T/gclass.out" 2>&1 <<'PYGC'
@@ -2044,19 +2045,83 @@ done < "$T/gclass.out"
 gcn=$(awk -F'\t' '$1=="N"{print $2}' "$T/gclass.out")
 chk "CON-030 r7 near class: all 550 cells ran (30 code points x 3 positions x 6 places + 10 text cells; control)" "$gcn" "550"
 chk "CON-030 r7 near class: 30 class tags checked" "$(grep -c '^[PF]	class-tag:' "$T/gclass.out")" "30"
-# the table against perl's own Unicode data (an independent oracle), when perl is installed
-if command -v perl >/dev/null 2>&1; then
-  perl_di=$(perl -e 'my @r; my ($s,$p); for my $c (0..0x10FFFF) { next if $c>=0xD800 && $c<=0xDFFF; if (chr($c) =~ /\p{Default_Ignorable_Code_Point}/) { if (defined $p && $c==$p+1) {$p=$c} else { push @r, [$s,$p] if defined $s; $s=$p=$c } } } push @r,[$s,$p]; print join(" ", map { sprintf "%X-%X", @$_ } @r)')
+# --- (2e) CON-030 round 8 (review r7 H1, reviewer mutant RV7c): the FUNCTION is pinned, not only the table.
+# marker_ignorable() is compared with an oracle over EVERY code point 0..0x10FFFF (surrogates included). The oracle
+# is written here, independently of the engine: white space (str.isspace), U+FFFD, category Cf or Zs, or a member of
+# ORACLE_DI, a literal copy of Perl's Unicode 15.0.0 \p{Default_Ignorable_Code_Point} ranges kept in this file (it is
+# compared with perl below when perl is installed). A function that narrows, widens or drops any range or clause
+# (RV7c dropped E0000-E0FFF inside the function while the table constant stayed equal to perl's) differs from the
+# oracle on at least one code point and fails here. Controls: the number of code points compared, and a negative
+# control (the oracle compared with a copy that drops the last range must differ, so the comparison can see).
+python3 -I - "$ENGINE" > "$T/gall.out" 2>&1 <<'PYGA'
+import importlib.util, sys, unicodedata
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+ORACLE_DI = ((0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+             (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+             (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3),
+             (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF))
+di = set()
+for lo, hi in ORACLE_DI:
+    di.update(range(lo, hi + 1))
+def oracle(c, di=di):
+    return c.isspace() or c == "�" or unicodedata.category(c) in ("Cf", "Zs") or ord(c) in di
+n = 0; bad = []
+for o in range(0x110000):
+    c = chr(o); n += 1
+    got = bool(m.marker_ignorable(c))
+    if got != oracle(c):
+        bad.append("U+%04X(fn=%s)" % (o, got))
+print("N\t%d" % n)
+print("BAD\t%d\t%s" % (len(bad), " ".join(bad[:12])))
+# negative control: the same comparison against an oracle missing the last range must see differences
+di2 = set(di) - set(range(ORACLE_DI[-1][0], ORACLE_DI[-1][1] + 1))
+neg = sum(1 for o in range(ORACLE_DI[-1][0], ORACLE_DI[-1][1] + 1) if oracle(chr(o), di2) != oracle(chr(o)))
+print("NEG\t%d" % neg)
+print("ODI\t%s" % " ".join("%X-%X" % r for r in ORACLE_DI))
+PYGA
+chk "CON-030 r8 H1: marker_ignorable compared with the oracle on every code point (count control)" "$(awk -F'\t' '$1=="N"{print $2}' "$T/gall.out")" "1114112"
+chk "CON-030 r8 H1: marker_ignorable equals the oracle on every code point (mismatches, first ones listed)" "$(awk -F'\t' '$1=="BAD"{print $2" "$3}' "$T/gall.out")" "0 "
+neg=$(awk -F'\t' '$1=="NEG"{print $2}' "$T/gall.out")
+if [ -n "$neg" ] && [ "$neg" -gt 0 ] 2>/dev/null; then ok "CON-030 r8 H1 negative control: an oracle without E0000-E0FFF differs on $neg code points"
+else ko "CON-030 r8 H1 negative control: the comparison cannot see a dropped range (got '$neg')"; fi
+oracle_di=$(awk -F'\t' '$1=="ODI"{print $2}' "$T/gall.out")
+
+# the table constant and the oracle table against perl's own Unicode data (an independent oracle). perl absent:
+# an explicit SKIP with a reason code (the all-code-point check above still pins the function to the literal oracle
+# table); FSR_REQUIRE_PERL=1 turns that SKIP into a FAIL. FSR_PERL names the perl command (default perl), so the
+# SKIP and FAIL paths are tested below with a command that does not exist. Review r7 H4.
+perl_xcheck() { # $1 perl command, $2 require (0|1); prints PASS|FAIL|SKIP lines, one per check
+  if ! command -v "$1" >/dev/null 2>&1; then
+    if [ "$2" = 1 ]; then echo "FAIL CON-030 r7 G3 perl cross-check: reason perl_not_installed and FSR_REQUIRE_PERL=1"
+    else echo "SKIP CON-030 r7 G3 perl cross-check: reason perl_not_installed (the table is pinned by the r8 H1 all-code-point oracle only)"; fi
+    return 0
+  fi
+  local perl_di eng_di uv
+  perl_di=$("$1" -e 'my @r; my ($s,$p); for my $c (0..0x10FFFF) { next if $c>=0xD800 && $c<=0xDFFF; if (chr($c) =~ /\p{Default_Ignorable_Code_Point}/) { if (defined $p && $c==$p+1) {$p=$c} else { push @r, [$s,$p] if defined $s; $s=$p=$c } } } push @r,[$s,$p]; print join(" ", map { sprintf "%X-%X", @$_ } @r)')
+  uv=$("$1" -MUnicode::UCD -e 'print Unicode::UCD::UnicodeVersion()')
   eng_di=$(python3 -I - "$ENGINE" <<'PY'
 import sys, importlib.util
 s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 print(" ".join("%X-%X" % r for r in m.DEFAULT_IGNORABLE))
 PY
 )
-  chk "CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $(perl -MUnicode::UCD -e 'print Unicode::UCD::UnicodeVersion()'))" "$eng_di" "$perl_di"
-else
-  echo "SKIP CON-030 r7 G3: perl not installed, the table is not cross-checked"
-fi
+  if [ -n "$perl_di" ] && [ "$eng_di" = "$perl_di" ]; then echo "PASS CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $uv)"
+  else echo "FAIL CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $uv) (want '$perl_di' got '$eng_di')"; fi
+  if [ -n "$perl_di" ] && [ "$oracle_di" = "$perl_di" ]; then echo "PASS CON-030 r8 H1: the self-test's oracle table equals perl's (Unicode $uv)"
+  else echo "FAIL CON-030 r8 H1: the self-test's oracle table equals perl's (Unicode $uv) (want '$perl_di' got '$oracle_di')"; fi
+}
+while IFS= read -r line; do
+  case $line in
+    "PASS "*) ok "${line#PASS }";;
+    "FAIL "*) ko "${line#FAIL }";;
+    "SKIP "*) echo "$line";;
+    *) ko "CON-030 r8 H4: perl_xcheck printed an unexpected line: $line";;
+  esac
+done < <(perl_xcheck "${FSR_PERL:-perl}" "${FSR_REQUIRE_PERL:-0}")
+# the absent-perl paths, with a command that does not exist (review r7 H4: never a silent skip)
+nop="$T/no_such_perl_$$"
+chk "CON-030 r8 H4: perl absent -> one explicit SKIP line with a reason code" "$(perl_xcheck "$nop" 0)" "SKIP CON-030 r7 G3 perl cross-check: reason perl_not_installed (the table is pinned by the r8 H1 all-code-point oracle only)"
+chk "CON-030 r8 H4: perl absent and FSR_REQUIRE_PERL=1 -> a FAIL line" "$(perl_xcheck "$nop" 1)" "FAIL CON-030 r7 G3 perl cross-check: reason perl_not_installed and FSR_REQUIRE_PERL=1"
 
 # the proof that the reviewer's MX2 is equivalent: a full-mode key collision needs a repeated manifest path, and
 # read_manifest refuses that before plan() runs
