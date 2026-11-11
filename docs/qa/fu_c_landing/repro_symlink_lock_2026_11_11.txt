@@ -1,0 +1,19 @@
+$ ls -l config/full_suite_excluded.lock
+config/full_suite_excluded.lock -> <scratch>/repro_outside/lock
+$ bash scripts/run_full_suite.sh --verify-manifest
+MANIFEST: <scratch>/repro_wt/config/full_suite_excluded.lock is a symlink (its edits would leave no trace in git history); commit it as a regular file
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=25 py/fixture=14 py/member=24 runall/entry=9 sh/entry=355 sh/excluded=25 sh/fixture=111 sh/member=303 total=886
+RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)
+rc=3
+$ bash scripts/run_full_suite.sh --verify-manifest --accept-excluded-change i@mvasic.ru
+accepted the excluded set (55 row(s)) as i@mvasic.ru in <scratch>/repro_wt/config/full_suite_excluded.lock
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=25 py/fixture=14 py/member=24 runall/entry=9 sh/entry=355 sh/excluded=25 sh/fixture=111 sh/member=303 total=886
+RESULT: MANIFEST-OK
+rc=0
+$ stat -c %F config/full_suite_excluded.lock
+regular file
+$ git status --short config
+ M config/full_suite_excluded.lock
+$ outside target unchanged?
+outside-unchanged
+commit: 9b2c3e8d07ebfe54a5a3028d650ee5755e1ea70d

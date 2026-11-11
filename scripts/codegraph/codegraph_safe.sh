@@ -40,12 +40,14 @@
 #                            init/index are always bulk; exit 2 with a read op)
 #     --pending-threshold N  sync is BULK when pending unresolved refs >= N, N >= 1
 #                            (default $CG_SAFE_PENDING_BULK_MIN, else 150000)
-#     --patches IDS          comma list of runner patches to apply (default
-#                            $CG_SAFE_PATCHES, else fkidx1,resolve1 — the subset validated on a live index,
-#                            see below); `all` = the patch tool's registry default
-#                            (fkidx1,resolve1,resolve2; lockfix1/datafrag1 only by name,
-#                            CON-164 Option A). fkidx1 must be
-#                            in the set (the receipt gate requires it, else exit 5)
+#     --patches IDS          `default`, or a comma list of runner patches to apply
+#                            (default $CG_SAFE_PATCHES, else `default`). `default` (and
+#                            its older synonym `all`) passes NO --patches to the patch
+#                            tool, so the set is the patch tool's registry default
+#                            (runner_patches/__init__.py, today fkidx1,resolve1,resolve2;
+#                            lockfix1/datafrag1 only by name) — one source of truth,
+#                            see below. fkidx1 must be in the set (the receipt gate
+#                            requires it, else exit 5)
 #     --wait                 block until a detached bulk run finishes (poll)
 #     --poll-s N             --wait poll period, seconds (default 10)
 #     --watch-interval N     index_watch.py sample period, seconds (default 60)
@@ -69,12 +71,15 @@
 #   2026-11-05 (CON-164 Option A) they are out of the patch tool's own registry default
 #   too, so `--patches all` no longer reaches them either. (lockfix1 is also redundant
 #   here: this wrapper already refuses to start while a live codegraph holds the lock.)
-#   This wrapper's default stays fkidx1,resolve1 (runner key <version>-fkidx1-resolve1);
-#   resolve2 is applied with `--patches all` or by name.
+#   Since 2026-11-06 (CON-211) this wrapper has NO patch list of its own: its default is
+#   the registry default above (runner key 1.6.2-fkidx1-resolve1-resolve2 on 1.6.2, measured 2026-11-06).
+#   The old wrapper list fkidx1,resolve1 existed only because the registry default then
+#   still carried lockfix1/datafrag1; resolve2 (the swift-objc bridge heap-OOM fix) was
+#   never deliberately excluded. `--patches fkidx1,resolve1` still selects the old runner.
 # Inputs (environment)
 #   CODEGRAPH_BIN            stock CLI (default: `codegraph` on PATH)
 #   CG_SAFE_PENDING_BULK_MIN default sync BULK threshold, pending refs (default 150000)
-#   CG_SAFE_PATCHES          default --patches value (default fkidx1,resolve1)
+#   CG_SAFE_PATCHES          default --patches value (default `default` = registry default)
 #   CG_SAFE_PENDING_PROBE_BUDGET_S  wall-clock budget of the pending probe (default 30)
 #   CG_SAFE_PATCH_TOOL       default fk_index_patch.py beside this script
 #   CG_SAFE_PROBE_TOOL       default fk_cascade_probe.py beside this script
@@ -254,7 +259,7 @@ fi
 
 # ================================================================ arg parsing ==
 PROJECT="" WAIT=0 POLL=10 WATCH_INT=60 STALL_MIN=10 TW_GIB=20 TW_INT=30 REAP=0
-FORCE_BULK=0 PEND_MIN="${CG_SAFE_PENDING_BULK_MIN:-150000}" PATCHES="${CG_SAFE_PATCHES:-fkidx1,resolve1}"
+FORCE_BULK=0 PEND_MIN="${CG_SAFE_PENDING_BULK_MIN:-150000}" PATCHES="${CG_SAFE_PATCHES:-default}"
 EXPECTED="" TOL="" STATUS_DOC="" BASELINE="$HERE/scope_baseline.txt" SCOPE_EXCEPTIONS="$HERE/scope_exceptions.txt" OP=""
 need() { [ $# -ge 2 ] && [ -n "$2" ] || die 2 "option $1 needs a value"; }
 while [ $# -gt 0 ]; do
@@ -289,8 +294,8 @@ case "$STALL_MIN" in ''|*[!0-9.]*) die 2 "--stall-min must be a number" ;; esac
 case "$PEND_MIN" in ''|*[!0-9]*) die 2 "pending threshold must be an integer >= 1, got '$PEND_MIN'" ;; esac
 [ "$PEND_MIN" -ge 1 ] 2>/dev/null || die 2 "pending threshold must be an integer >= 1, got '$PEND_MIN'"
 case "$PATCHES" in
-    all) ;;
-    ''|*[!a-z0-9,]*|,*|*,|*,,*) die 2 "--patches / CG_SAFE_PATCHES must be 'all' or a comma list of patch ids [a-z0-9], got '$PATCHES'" ;;
+    default|all) ;;
+    ''|*[!a-z0-9,]*|,*|*,|*,,*) die 2 "--patches / CG_SAFE_PATCHES must be 'default' (or 'all') or a comma list of patch ids [a-z0-9], got '$PATCHES'" ;;
 esac
 if [ "$FORCE_BULK" -eq 1 ]; then
     case "$OP" in status|verify|preflight|unlock) die 2 "--bulk only applies to writer ops (init|index|sync), not '$OP'" ;; esac
@@ -551,7 +556,7 @@ resolve_runner() {
     [ -n "$sv" ] || die 5 "cannot read stock codegraph version via '$STOCK --version'"
     VERSION="$sv"
     local pargs="--print-bin"
-    [ "$PATCHES" = all ] || pargs="--patches $PATCHES --print-bin"
+    case "$PATCHES" in default|all) ;; *) pargs="--patches $PATCHES --print-bin" ;; esac
     # shellcheck disable=SC2086
     out="$(run_tool "$PATCH_TOOL" $pargs 2>&1 9>&-)"; rc=$?
     case "$rc" in

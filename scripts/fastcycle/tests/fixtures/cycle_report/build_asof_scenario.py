@@ -228,6 +228,23 @@ def build_repo(repo, mode):
 # ===========================================================================
 # BOUNDARY MATRIX (matrix-full / matrix-cut). Declarative tables; every cell
 # becomes one or more items with their own rows, commits and review rounds.
+# Round 4 (V4-1..V4-3, V4-5): the dimension list is no longer hand-picked --
+# every field a window / cutoff / exclusion rule READS has a DISAGREEMENT axis
+# (the tests inventory the fields the tools read from their source (AST) and
+# fail if a field has no axis that actually changes an outcome):
+#   on_date      day offset {-1, 0, +1} at each bound x shape {date, datetime,
+#                "T" separator, "T" + negative offset whose UTC day differs}
+#   created_at   day = on_date day {-1, 0, +1} (created_shift) on every window
+#                cell; recency / needle / retroactive-gap rule cells
+#   insert order (item_history.id, manifest `seq`) disagrees with created_at
+#                order (order_created_vs_seq, needle_seq_vs_created: rows
+#                appended LATE)
+#   event_type   closure event rotated over Fixed/Implemented/Completed; in-
+#                window Updated/Obsolete rows that are NOT closures
+#   evidence_path / on_date bulk key: shared dir + raw on_date vs same-day
+#                different-shape on_date; an item both bulk AND retroactive
+#   commit and review instants: offsets Z, +05:00, -04:00, +05:30 (review: Z,
+#                +05:00, -04:00) at cutoff-1s / cutoff / cutoff+1s
 # ===========================================================================
 M_AS_OF = "2026-05-20"           # predates the default CT-009 needle row (07-28)
 M_WINDOW_DAYS = 30               # => window [2026-04-20, 2026-05-20]
@@ -237,20 +254,33 @@ M_BULK_THRESHOLD = 3
 WINDOW_EVENTS = ("closure", "reopened")
 WINDOW_BOUNDS = ("from", "to")
 DAY_OFFSETS = (-1, 0, 1)
-ON_DATE_FORMATS = ("date", "datetime")
+ON_DATE_FORMATS = ("date", "datetime", "iso_t", "iso_offset")
+CREATED_SHIFTS = (-1, 0, 1)
+CLOSURE_ROTATION = ("Fixed", "Implemented", "Completed")
 COMMIT_WHO = ("author", "committer")
 SECOND_OFFSETS = (-1, 0, 1)
-COMMIT_TZ = ("Z", "+05:00")
-REVIEW_CELLS = [("end", -1), ("end", 0), ("end", 1), ("start", -1), ("start", 0), ("start", 1),
+COMMIT_TZ = ("Z", "+05:00", "-04:00", "+05:30")
+REVIEW_KINDS = [("end", -1), ("end", 0), ("end", 1), ("start", -1), ("start", 0), ("start", 1),
                 ("straddle", None)]
+REVIEW_TZ = ("Z", "+05:00", "-04:00")
 RULE_CELLS = ("retro_terminal_not_first", "retro_terminal_is_retro",
               "bulk_latest_shared", "bulk_first_shared",
-              "pop_retro_reopen_only", "pop_bulk_reopen_only", "needle_derived")
+              "pop_retro_reopen_only", "pop_bulk_reopen_only", "needle_derived",
+              "precedence_bulk_and_retro", "bulk_key_raw_on_date", "order_created_vs_seq",
+              "needle_seq_vs_created", "event_noise", "retro_gap_boundaries",
+              "reopen_block_created_axis", "dedup_key_by_reason")
 TYPE_ROTATION = ("Bug", "Task", "Feature")
 
 
 def _iso_day(base, days):
     return (datetime.date.fromisoformat(base) + datetime.timedelta(days=days)).isoformat()
+
+
+def _on_date(day, fmt):
+    """The on_date shapes of the matrix. iso_offset: the LOCAL day is `day`,
+    the UTC day is day + 1 (the tools' day rule is the first 10 chars)."""
+    return {"date": day, "datetime": day + " 12:00:00", "iso_t": day + "T12:00:00",
+            "iso_offset": day + "T23:30:00-05:00"}[fmt]
 
 
 def _instant(seconds_from_cutoff, tz):
@@ -267,8 +297,9 @@ def _instant(seconds_from_cutoff, tz):
 def matrix_cells():
     """Generate every cell. Returns a list of dicts:
     {cell_id, kind, dims, items: [{atm_id, type, rows: [(event, by, on_date,
-    reason, evidence_path, created_at)], commits: [(subject, author, committer)],
-    rounds: [(started_at, ended_at, tokens)]}]}"""
+    reason, evidence_path, created_at)], late_rows: [...same shape, inserted
+    AFTER every other row of the matrix], commits: [(subject, author,
+    committer)], rounds: [(started_at, ended_at, tokens)]}]}"""
     from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS)
     bound_day = {"from": from_day, "to": M_AS_OF}
     cells, n = [], [80000]
@@ -280,27 +311,37 @@ def matrix_cells():
     def opened(day="2026-03-01", t="08:00:00"):
         return ("Opened", "User", day, None, None, "%s %s" % (day, t))
 
+    def item(t, rows=None, late=None, commits=None, rounds=None, aid=None):
+        return {"atm_id": aid or new_id(), "type": t, "rows": rows or [], "late_rows": late or [],
+                "commits": commits or [], "rounds": rounds or []}
+
     # WINDOW_CELLS ---------------------------------------------------------
     i = 0
     for ev in WINDOW_EVENTS:
         for bound in WINDOW_BOUNDS:
             for off in DAY_OFFSETS:
                 for fmt in ON_DATE_FORMATS:
-                    aid = new_id()
-                    day = _iso_day(bound_day[bound], off)
-                    on_date = day if fmt == "date" else day + " 12:00:00"
-                    if ev == "closure":
-                        rows = [opened(),
-                                ("Fixed", "AI", on_date, None, "qa/m/%s/x.log" % aid, day + " 10:00:00")]
-                    else:
-                        rows = [opened(),
-                                ("Fixed", "AI", "2026-03-15", None, "qa/m/%s/x.log" % aid, "2026-03-15 10:00:00"),
-                                ("Reopened", "User", on_date, "manual-testing-detected", None, day + " 10:00:00")]
-                    cells.append({"cell_id": "window/%s/%s/%+d/%s" % (ev, bound, off, fmt), "kind": "window",
-                                  "dims": {"event": ev, "bound": bound, "offset_days": off, "on_date_format": fmt},
-                                  "items": [{"atm_id": aid, "type": TYPE_ROTATION[i % 3], "rows": rows,
-                                             "commits": [], "rounds": []}]})
-                    i += 1
+                    for shift in CREATED_SHIFTS:
+                        aid = new_id()
+                        day = _iso_day(bound_day[bound], off)
+                        on_date = _on_date(day, fmt)
+                        created = _iso_day(day, shift) + " 10:00:00"
+                        closure_ev = CLOSURE_ROTATION[(i // 3) % 3]
+                        if ev == "closure":
+                            rows = [opened(),
+                                    (closure_ev, "AI", on_date, None, "qa/m/%s/x.log" % aid, created)]
+                        else:
+                            rows = [opened(),
+                                    (closure_ev, "AI", "2026-03-15", None, "qa/m/%s/x.log" % aid,
+                                     "2026-03-15 10:00:00"),
+                                    ("Reopened", "User", on_date, "manual-testing-detected", None, created)]
+                        cells.append({"cell_id": "window/%s/%s/%+d/%s/created%+d" % (ev, bound, off, fmt, shift),
+                                      "kind": "window",
+                                      "dims": {"event": ev, "bound": bound, "offset_days": off,
+                                               "on_date_format": fmt, "created_shift_days": shift,
+                                               "closure_event": closure_ev},
+                                      "items": [item(TYPE_ROTATION[i % 3], rows, aid=aid)]})
+                        i += 1
 
     # COMMIT_CELLS: a closure in the window, one baseline commit long before
     # the cutoff, and the cell commit whose author OR committer instant is at
@@ -315,34 +356,31 @@ def matrix_cells():
                 cell_commit = ("fix %s cell" % aid,) + ((varied, other) if who == "author" else (other, varied))
                 cells.append({"cell_id": "commit/%s/%+ds/%s" % (who, off, tz), "kind": "commit",
                               "dims": {"who": who, "offset_seconds": off, "tz": tz},
-                              "items": [{"atm_id": aid, "type": "Bug", "rows": rows,
-                                         "commits": [base, cell_commit], "rounds": []}]})
+                              "items": [item("Bug", rows, commits=[base, cell_commit], aid=aid)]})
 
     # REVIEW_CELLS: a baseline round long before the cutoff (1 token) and the
-    # cell round (10 tokens).
-    for who, off in REVIEW_CELLS:
-        aid = new_id()
-        rows = [opened(), ("Fixed", "AI", "2026-04-30", None, "qa/m/%s/x.log" % aid, "2026-04-30 10:00:00")]
-        base = (_instant(-36000, "Z"), _instant(-32400, "Z"), 1)
-        if who == "end":
-            cell_round = (_instant(-3600, "Z"), _instant(off, "Z"), 10)
-        elif who == "start":   # inverted round: its start is the varied instant
-            cell_round = (_instant(off, "Z"), _instant(-1800, "Z"), 10)
-        else:                  # straddles the cutoff
-            cell_round = (_instant(-3600, "Z"), _instant(3600, "Z"), 10)
-        cid = "review/%s/%+ds" % (who, off) if off is not None else "review/straddle"
-        cells.append({"cell_id": cid, "kind": "review", "dims": {"who": who, "offset_seconds": off},
-                      "items": [{"atm_id": aid, "type": "Task", "rows": rows, "commits": [],
-                                 "rounds": [base, cell_round]}]})
+    # cell round (10 tokens); the varied instant is rendered in offset `tz`.
+    for who, off in REVIEW_KINDS:
+        for tz in REVIEW_TZ:
+            aid = new_id()
+            rows = [opened(), ("Fixed", "AI", "2026-04-30", None, "qa/m/%s/x.log" % aid, "2026-04-30 10:00:00")]
+            base = (_instant(-36000, "Z"), _instant(-32400, "Z"), 1)
+            if who == "end":
+                cell_round = (_instant(-3600, "Z"), _instant(off, tz), 10)
+            elif who == "start":   # inverted round: its start is the varied instant
+                cell_round = (_instant(off, tz), _instant(-1800, "Z"), 10)
+            else:                  # straddles the cutoff
+                cell_round = (_instant(-3600, tz), _instant(3600, tz), 10)
+            cid = "review/%s/%+ds/%s" % (who, off, tz) if off is not None else "review/straddle/%s" % tz
+            cells.append({"cell_id": cid, "kind": "review", "dims": {"who": who, "offset_seconds": off, "tz": tz},
+                          "items": [item("Task", rows, rounds=[base, cell_round], aid=aid)]})
 
     # RULE_CELLS -----------------------------------------------------------
-    def item(t, rows):
-        return {"atm_id": new_id(), "type": t, "rows": rows, "commits": [], "rounds": []}
     for cid in RULE_CELLS:
         items = []
         if cid == "retro_terminal_not_first":
             # first closure 20 s after Opened, the TERMINAL one days later
-            it = item("Feature", [])
+            it = item("Feature")
             it["rows"] = [opened("2026-04-25", "10:00:00"),
                           ("Implemented", "AI", "2026-04-25", None, "qa/m/%s/a.log" % it["atm_id"], "2026-04-25 10:00:20"),
                           ("Reopened", "User", "2026-04-28", "manual-testing-detected", None, "2026-04-28 10:00:00"),
@@ -351,42 +389,134 @@ def matrix_cells():
         elif cid == "retro_terminal_is_retro":
             # first closure row written BEFORE Opened (negative gap), the
             # terminal one 30 s after Opened
-            it = item("Bug", [])
+            it = item("Bug")
             it["rows"] = [opened("2026-04-26", "10:00:00"),
                           ("Fixed", "AI", "2026-04-22", None, "qa/m/%s/a.log" % it["atm_id"], "2026-04-22 10:00:00"),
                           ("Fixed", "AI", "2026-04-26", None, "qa/m/%s/b.log" % it["atm_id"], "2026-04-26 10:00:30")]
             items.append(it)
         elif cid == "bulk_latest_shared":
             for k in range(3):
-                it = item("Task", [])
+                it = item("Task")
                 it["rows"] = [opened(),
                               ("Completed", "AI", "2026-04-22", None, "qa/m/%s/x.log" % it["atm_id"], "2026-04-22 1%d:00:00" % k),
                               ("Completed", "AI", "2026-05-05", None, "qa/m/bulklatest/%d.log" % k, "2026-05-05 1%d:00:00" % k)]
                 items.append(it)
         elif cid == "bulk_first_shared":
             for k in range(3):
-                it = item("Task", [])
+                it = item("Task")
                 it["rows"] = [opened(),
                               ("Completed", "AI", "2026-04-23", None, "qa/m/bulkfirst/%d.log" % k, "2026-04-23 1%d:00:00" % k),
                               ("Completed", "AI", "2026-05-06", None, "qa/m/%s/x.log" % it["atm_id"], "2026-05-06 1%d:00:00" % k)]
                 items.append(it)
         elif cid == "pop_retro_reopen_only":
-            it = item("Bug", [])
+            it = item("Bug")
             it["rows"] = [opened("2026-03-10", "10:00:00"),
                           ("Fixed", "AI", "2026-03-10", None, "qa/m/%s/x.log" % it["atm_id"], "2026-03-10 10:00:20"),
                           ("Reopened", "User", "2026-05-01", "manual-testing-detected", None, "2026-05-01 10:00:00")]
             items.append(it)
         elif cid == "pop_bulk_reopen_only":
             for k in range(3):
-                it = item("Bug", [])
+                it = item("Bug")
                 it["rows"] = [opened(),
                               ("Fixed", "AI", "2026-03-12", None, "qa/m/popbulk/%d.log" % k, "2026-03-12 1%d:00:00" % k),
                               ("Reopened", "User", "2026-05-03", "manual-testing-detected", None, "2026-05-03 1%d:00:00" % k)]
                 items.append(it)
+        elif cid == "precedence_bulk_and_retro":
+            # V4-3: three items that are BOTH a bulk cluster (shared dir +
+            # on_date, >= threshold) AND retroactive (closure 20 s after
+            # Opened): the bulk rule takes precedence.
+            for k in range(3):
+                it = item("Task")
+                it["rows"] = [opened("2026-05-08", "1%d:00:00" % k),
+                              ("Completed", "AI", "2026-05-08", None, "qa/m/bothbulk/%d.log" % k,
+                               "2026-05-08 1%d:00:20" % k)]
+                items.append(it)
+        elif cid == "bulk_key_raw_on_date":
+            # One dir, one calendar day, three on_date SHAPES: the bulk key is
+            # the raw on_date (contract: "one on_date"), so these are three
+            # groups of one -- a day-keyed rule would make one bulk cluster.
+            for k, od in enumerate(("2026-05-09", "2026-05-09 10:00:00", "2026-05-09T10:00:00")):
+                it = item("Task")
+                it["rows"] = [opened(), ("Completed", "AI", od, None, "qa/m/bulkraw/%d.log" % k,
+                                         "2026-05-09 1%d:00:00" % k)]
+                items.append(it)
+        elif cid == "order_created_vs_seq":
+            # Recency = (closure created_at, row id, atm_id). Written AFTER the
+            # as-of day (created 05-23, backdated on_date 05-10) so these are
+            # the most recent Bug closures. Y and Z tie on created_at; Y's
+            # closure row is appended LATE (higher row id) although Y's atm_id
+            # sorts lower -- row id, not atm_id, breaks the tie.
+            x, y, z = item("Bug"), item("Bug"), item("Bug")
+            x["rows"] = [opened(), ("Fixed", "AI", "2026-05-10", None, "qa/m/%s/x.log" % x["atm_id"], "2026-05-23 12:00:00")]
+            y["rows"] = [opened()]
+            y["late_rows"] = [("Fixed", "AI", "2026-05-10", None, "qa/m/%s/x.log" % y["atm_id"], "2026-05-23 11:00:00")]
+            z["rows"] = [opened(), ("Fixed", "AI", "2026-05-10", None, "qa/m/%s/x.log" % z["atm_id"], "2026-05-23 11:00:00")]
+            items += [x, y, z]
+        elif cid == "needle_seq_vs_created":
+            # The derived needle is the as-of-day closure with the highest row
+            # id; this row is appended LAST although its created_at is older
+            # than other as-of-day closures.
+            it = item("Feature")
+            it["rows"] = [opened()]
+            it["late_rows"] = [("Implemented", "AI", M_AS_OF, None, "qa/m/%s/x.log" % it["atm_id"], "2026-05-17 10:00:00")]
+            items.append(it)
+        elif cid == "event_noise":
+            # In-window rows that are NOT closures (Updated, Obsolete): not a
+            # candidate (its only closure predates the window).
+            it = item("Task")
+            it["rows"] = [opened(), ("Fixed", "AI", "2026-03-20", None, "qa/m/%s/x.log" % it["atm_id"], "2026-03-20 10:00:00"),
+                          ("Updated", "AI", "2026-04-25", None, None, "2026-04-25 10:00:00"),
+                          ("Obsolete", "User", "2026-05-01", "duplicate", None, "2026-05-01 10:00:00")]
+            items.append(it)
+        elif cid == "retro_gap_boundaries":
+            # Opened -> closure db_write gap 0 s, 59 s (retroactive), 60 s,
+            # -1 s (not).
+            for k, closed_at in enumerate(("10:00:00", "10:00:59", "10:01:00", "09:59:59")):
+                it = item("Feature")
+                it["rows"] = [opened("2026-05-11", "10:00:00"),
+                              ("Implemented", "AI", "2026-05-11", None, "qa/m/%s/x.log" % it["atm_id"],
+                               "2026-05-11 " + closed_at)]
+                items.append(it)
+        elif cid == "reopen_block_created_axis":
+            # Closed in the window AND reopened in it by on_date, with the
+            # Reopened row's created_at day OUTSIDE the window (written a day
+            # late / a day early) -- the reopen numerator's key field.
+            a, b = item("Bug"), item("Bug")
+            a["rows"] = [opened(), ("Fixed", "AI", "2026-04-25", None, "qa/m/%s/x.log" % a["atm_id"], "2026-04-25 10:00:00"),
+                         ("Reopened", "User", M_AS_OF, "manual-testing-detected", None, "2026-05-21 10:00:00")]
+            b["rows"] = [opened(), ("Fixed", "AI", "2026-04-20", None, "qa/m/%s/x.log" % b["atm_id"], "2026-04-20 09:00:00"),
+                         ("Reopened", "User", "2026-04-20", "manual-testing-detected", None, "2026-04-19 10:00:00")]
+            items += [a, b]
+        elif cid == "dedup_key_by_reason":
+            # The exact-duplicate key is EVERY content column but id: two
+            # Reopened rows that differ only in `by`, only in `reason`, or only
+            # in `created_at`, are distinct events; the last row is an exact
+            # duplicate of the first Reopened row (removed).
+            it = item("Bug")
+            it["rows"] = [opened(), ("Fixed", "AI", "2026-04-24", None, "qa/m/%s/x.log" % it["atm_id"], "2026-04-24 10:00:00"),
+                          ("Reopened", "User", "2026-04-26", "manual-testing-detected", None, "2026-04-26 10:00:00"),
+                          ("Reopened", "AI", "2026-04-26", "manual-testing-detected", None, "2026-04-26 10:00:00"),
+                          ("Reopened", "User", "2026-04-26", "gate-detected", None, "2026-04-26 10:00:00"),
+                          ("Reopened", "User", "2026-04-26", "manual-testing-detected", None, "2026-04-26 10:05:00"),
+                          ("Reopened", "User", "2026-04-26", "manual-testing-detected", None, "2026-04-26 10:00:00")]
+            items.append(it)
         # needle_derived: no items of its own -- the oracle derives the needle
         # from every row of the matrix (closures exist ON the as-of day).
         cells.append({"cell_id": "rule/" + cid, "kind": "rule", "dims": {"rule": cid}, "items": items})
     return cells
+
+
+def insertion_order(cells):
+    """THE insert order (item_history.id order) of every row in full mode: each
+    item's rows in cell/item order, then every item's late_rows."""
+    out = []
+    for c in cells:
+        for it in c["items"]:
+            out += [(it["atm_id"], k, r) for k, r in enumerate(it["rows"])]
+    for c in cells:
+        for it in c["items"]:
+            out += [(it["atm_id"], len(it["rows"]) + k, r) for k, r in enumerate(it["late_rows"])]
+    return out
 
 
 def _row_visible(row, mode):
@@ -404,10 +534,9 @@ def build_matrix(out, mode):
     all_items = [it for c in cells for it in c["items"]]
     conn.executemany("INSERT INTO items (atm_id, type, status) VALUES (?,?,?)",
                      [(it["atm_id"], it["type"], "Fixed (→ Fixed.md)") for it in all_items])
-    for it in all_items:
-        conn.executemany(
-            "INSERT INTO item_history (atm_id, event_type, by, on_date, reason, evidence_path, created_at)"
-            " VALUES (?,?,?,?,?,?,?)", [(it["atm_id"],) + r for r in it["rows"] if _row_visible(r, mode)])
+    conn.executemany(
+        "INSERT INTO item_history (atm_id, event_type, by, on_date, reason, evidence_path, created_at)"
+        " VALUES (?,?,?,?,?,?,?)", [(aid,) + r for aid, _k, r in insertion_order(cells) if _row_visible(r, mode)])
     conn.commit()
     conn.close()
 
@@ -448,19 +577,24 @@ def build_matrix(out, mode):
                 json.dump({"schema": "review-record/v1", "item_id": it["atm_id"], "started_at": s,
                            "ended_at": e, "tokens": tok}, fh)
 
-    # The manifest is the SAME in both modes: the full raw facts. Row order is
-    # the DB insert order (item_history.id), which the needle rule uses.
+    # The manifest is the SAME in both modes: the full raw facts. Every row
+    # carries `seq`, its position in the full-mode insert order (item_history.
+    # id order: in matrix-cut the invisible rows are skipped, so ids shift but
+    # the relative order is the same).
+    cols = ("event_type", "by", "on_date", "reason", "evidence_path", "created_at")
+    seq_of = {(aid, k): seq for seq, (aid, k, _r) in enumerate(insertion_order(cells))}
     manifest = {"as_of": M_AS_OF, "window_days": M_WINDOW_DAYS, "cutoff": M_CUTOFF,
                 "bulk_threshold": M_BULK_THRESHOLD,
                 "dimensions": {"window_events": WINDOW_EVENTS, "window_bounds": WINDOW_BOUNDS,
                                "day_offsets": DAY_OFFSETS, "on_date_formats": ON_DATE_FORMATS,
+                               "created_shifts": CREATED_SHIFTS, "closure_rotation": CLOSURE_ROTATION,
                                "commit_who": COMMIT_WHO, "second_offsets": SECOND_OFFSETS,
-                               "commit_tz": COMMIT_TZ, "review_cells": REVIEW_CELLS,
+                               "commit_tz": COMMIT_TZ, "review_kinds": REVIEW_KINDS, "review_tz": REVIEW_TZ,
                                "rule_cells": RULE_CELLS},
                 "cells": [{"cell_id": c["cell_id"], "kind": c["kind"], "dims": c["dims"],
                            "items": [{"atm_id": it["atm_id"], "type": it["type"],
-                                      "rows": [dict(zip(("event_type", "by", "on_date", "reason",
-                                                         "evidence_path", "created_at"), r)) for r in it["rows"]],
+                                      "rows": [dict(zip(cols, r), seq=seq_of[(it["atm_id"], k)])
+                                               for k, r in enumerate(it["rows"] + it["late_rows"])],
                                       "commits": [dict(zip(("subject", "author_date", "committer_date"), cm))
                                                   for cm in it["commits"]],
                                       "rounds": [dict(zip(("started_at", "ended_at", "tokens"), rd))

@@ -1,0 +1,44 @@
+# Evidence: CON-222, CON-223, CON-224 (follow-ups of the fu_b review, docs/qa/review_fu_b_2026_11_11.md)
+# Host: Linux 7.0.0-42-generic, bash 5.3.9(1)-release, dash present; base main 24bdca78; vehicle/fix216; captured 2026-11-11T15:12:35Z by AI (Claude Opus 5.5, fixer fix216)
+
+## RED on the pre-change tree (a git worktree of 24bdca78; runner scratch script red_run.sh, one run at a time)
+## RV-E: dispatch 'SKIP*) echo "$_l29_line"' -> 'SKIP*) ok "$_l29_line"'; RV-F: -> 'SKIP*) :'; both under FC_L29_CANDIDATES=zz_ZZ.UTF-8 FC_HELPER_UNDER_TEST=<helper>
+## RV-C: helper copy with '&& pwd)' -> '&& pwd -P)'
+RV-E old suite rc=0 SUMMARY: 344 pass / 0 fail skiplines=1 (printed through ok)
+RV-F old suite rc=0 SUMMARY: 343 pass / 0 fail skiplines=0
+UNMUTATED old suite simulated no-locale rc=0 SUMMARY: 343 pass / 0 fail note_lines=0
+RV-C old suite (helper copy mutated) rc=0 SUMMARY: 352 pass / 0 fail
+
+## GREEN CON-222 / CON-223: bash scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh
+ok control: unmutated copy under a simulated no-locale host: rc 77, SUMMARY: 348 pass / 0 fail / 1 skip (skipped: L29)
+ok mutant RV-E_skip_counted_as_pass killed (rc 1; NOT ok lines: NOT ok L29 dispatch: a SKIP line gave [ok   SKIP: L29 probe line reason=topology_unsupported|P=1 F=0 S=0 SKIPPED=];)
+ok mutant RV-F_skip_line_dropped killed (rc 1; NOT ok lines: NOT ok L29 dispatch: a SKIP line gave [P=0 F=0 S=0 SKIPPED=];)
+ok mutant M3_exit_ignores_skip killed (rc 0 (want 77); last line [SUMMARY: 348 pass / 0 fail / 1 skip (skipped: L29)])
+ok mutant M4_no_override_note killed (no override note)
+=== consumer_required helper L29 skip r1 (CON-222, CON-223): pass=5 fail=0 ===
+rc=0
+real	3m40.603s
+
+## GREEN CON-224: bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON224-RVC CON183-M4
+ok   sweep check: mutants=169, check generated=169 registered=21 stale=0 uncovered=0
+ok   baseline: the unmutated helper copy passes (SUMMARY: 357 pass / 0 fail / 0 skip)
+killed CON183-M4 (8 failing check(s): [bash] symlinked parent: SKIP line [SKIP: consumer-project files absent under /home/milosvasi;[dash] symlinked parent: SKIP line [SKIP: consumer-project files absent under /home/milosvasi;)
+killed CON224-RVC (2 failing check(s): [bash] symlinked parent: SKIP line [SKIP: consumer-project files absent under /home/milosvasi;[dash] symlinked parent: SKIP line [SKIP: consumer-project files absent under /home/milosvasi;)
+SUMMARY mutants=2 killed=2 survivors=0 not_applicable=0
+rc=0
+
+## GREEN real helper test on this host (locales present, Part 4 included): bash scripts/fastcycle/tests/test_consumer_required_helper.sh
+ok   L29 dispatch: a SKIP line is printed and counted as a skip, not a pass (CON-222)
+ok   L29 dispatch: an ok line is a pass and no skip (control)
+ok   symlinked-parent consumer root built (needle: logical and physical root differ)
+ok   [bash] symlinked parent: the SKIP names the logical consumer root (CON-224)
+ok   [dash] symlinked parent: the SKIP names the logical consumer root (CON-224)
+SUMMARY: 370 pass / 0 fail / 0 skip
+rc=0
+
+## Direct simulated run in the checkout: FC_L29_CANDIDATES=zz_ZZ.UTF-8 FC_HELPER_UNDER_TEST=<checkout helper> bash scripts/fastcycle/tests/test_consumer_required_helper.sh
+note: FC_L29_CANDIDATES override in effect: [zz_ZZ.UTF-8] (CON-223; a SKIP it causes ends the run with 77)
+SKIP: L29 no listed UTF-8 locale classes A-umlaut as [:upper:], so the [:upper:] mutant is not observable on this host; the leg did not run reason=topology_unsupported
+SUMMARY: 348 pass / 0 fail / 1 skip (skipped: L29)
+SKIP: 1 leg(s) did not run: L29 reason=topology_unsupported
+rc=77

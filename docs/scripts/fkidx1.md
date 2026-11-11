@@ -1,7 +1,7 @@
 # fkidx1 (runner patch) — guide
 
-**Revision:** 1
-**Last modified:** 2026-09-26T13:40:00Z
+**Revision:** 2
+**Last modified:** 2026-11-06T12:30:00Z
 
 Source: `constitution/scripts/codegraph/runner_patches/fkidx1.py` (107 lines). It is a **module driven by
 `fk_index_patch.py`**, not a command: nothing in it is run directly. Citations are `fkidx1.py:<line>` unless
@@ -108,7 +108,7 @@ the Edge cases table above were run ad hoc for this guide.
 ## Related scripts
 
 [fk_index_patch](fk_index_patch.md) (the machinery), [fk_cascade_probe](fk_cascade_probe.md) (oracle),
-[codegraph_safe](codegraph_safe.md) (consumer; default patch set `fkidx1,resolve1`), siblings
+[codegraph_safe](codegraph_safe.md) (consumer; default patch set = the registry default `fkidx1,resolve1,resolve2` since 2026-11-06, CON-211), siblings
 [lockfix1](lockfix1.md), [datafrag1](datafrag1.md), [resolve1](resolve1.md), [resolve2](resolve2.md),
 [mcpro1](mcpro1.md).
 

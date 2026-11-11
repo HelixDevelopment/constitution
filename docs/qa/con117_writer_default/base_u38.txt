@@ -1,0 +1,3 @@
+RESULT U38 PASS patch set: default = the live-index-validated subset fkidx1,resolve1 (untested lockfix1/datafrag1 NOT default); --patches / CG_SAFE_PATCHES pass through; 'all' = registry default; malformed -> exit 2
+SUMMARY cases=1 failed=0
+rc=0

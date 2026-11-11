@@ -1,0 +1,15 @@
+RESULT GOLD PASS unmutated tooling: U31-U43 all GREEN (golden-false)
+RESULT MB1 PASS mutant KILLED (big backlog still INCREMENTAL (the original 2026-09-24 defect)): named case(s) U31,U33 turn RED
+RESULT MB2 PASS mutant KILLED (UNKNOWN backlog read as small (fail-open)): named case(s) U36 turn RED
+RESULT MB3 PASS mutant KILLED (--bulk flag ignored): named case(s) U34 turn RED
+RESULT MB4 PASS mutant KILLED (--patches not forwarded to the patch tool): named case(s) U38 turn RED
+RESULT MB5 PASS mutant KILLED (writer carries its own default list again (diverges from the registry default; CON-117)): named case(s) U38 turn RED
+RESULT MB5b PASS mutant KILLED ('default' forwarded as a patch id instead of delegating to the registry default): named case(s) U38 turn RED
+RESULT MB6 PASS mutant KILLED (probe counts failed retry-tail rows as pending): named case(s) U35 turn RED
+RESULT MB7 PASS mutant KILLED (probe unbounded (full COUNT over the pending rows)): named case(s) U37 turn RED
+RESULT MB8 PASS mutant KILLED (threshold exclusive (off-by-one)): named case(s) U31,U41 turn RED
+RESULT MB9 PASS mutant KILLED (verify no longer asserts pending==0): named case(s) U39 turn RED
+RESULT MB10 PASS mutant KILLED (dbinfo COUNT(*)s the nodes table again): named case(s) U42 turn RED
+RESULT MB11 PASS mutant KILLED (verify fail-open when pending cannot be evaluated): named case(s) U36 turn RED
+SUMMARY cases=13 failed=0
+rc=0

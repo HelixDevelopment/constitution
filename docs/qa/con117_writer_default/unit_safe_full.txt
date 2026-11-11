@@ -1,0 +1,66 @@
+RESULT U01 PASS runner REFUSED (patch exit 2) -> exit 5, stock NEVER used
+RESULT U02 PASS NOT_NEEDED + probe SAFE -> stock init allowed
+RESULT U03 PASS NOT_NEEDED + probe HAZARD -> exit 5, nothing run
+RESULT U04 PASS NOT_NEEDED + probe CANNOT_EVALUATE -> exit 5 (fail closed)
+RESULT U05 PASS runner READY -> patched runner used for init, not stock
+RESULT U06 PASS runner version != stock version -> exit 5
+RESULT U07 PASS runner without valid RUNNER_RECEIPT.json -> exit 5 (stock-as-runner impossible)
+RESULT U08 PASS status on populated DB -> stock, runner tool not consulted
+RESULT U09 PASS sync: missing DB -> bulk via runner; populated DB -> stock
+RESULT U10 PASS live codegraph lock holder -> index AND sync refused (exit 3), lock untouched
+RESULT U11 PASS dead-pid lock: refused w/o flag (4); reaped+logged with --reap-dead-lock
+RESULT U12 PASS carrier (alive, argv mentions codegraph.js, not node) is NOT a live indexer; reap never signals it
+RESULT U13 PASS lock pid<=1 / non-numeric -> stale, refused w/o flag (4)
+RESULT U14 PASS preflight: low disk / mem / thread headroom -> exit 6 for bulk; non-bulk unaffected
+RESULT U15 PASS test override can only LOWER a measurement (cannot fake free disk)
+RESULT U16 PASS no progress -> watcher STALL surfaces as exit 7 (stall never looks healthy)
+RESULT U17 PASS free disk below tripwire -> indexer SIGSTOPped (not killed), exit 8
+RESULT U18 PASS index_state != complete -> exit 1
+RESULT U19 PASS files count != reported (log / metadata / status) -> exit 1
+RESULT U20 PASS secret-class path indexed -> exit 1; carrier names (dotenv_loader, environment) -> PASS
+RESULT U21 PASS instrument blind (absolute paths defeat anchored globs) -> control needle FAILs it
+RESULT U22 PASS ledger appended when Status.md exists; SKIP-with-reason when absent (run not failed)
+RESULT U23 PASS detached launch returns at once with a pids record; later 'verify' PASSes
+RESULT U24 PASS indexer exits non-zero -> exit 1 (never masked)
+RESULT U25 PASS unknown op -> exit 2
+RESULT U26 PASS 'unlock' never removes a LIVE indexer lock, even with --reap-dead-lock
+RESULT U27 PASS /proc scan: live 'sync <root>' or 'serve' (cwd below root) w/o lock -> writers refused (3); read op still allowed next to serve
+RESULT U28 PASS --expected-count N --tolerance-pct P enforced on the files table
+RESULT U29 PASS read op refused while a live bulk writer (index) targets the root (DB mid-rewrite)
+RESULT U30 PASS wrapper flock .codegraph/.helix_index.flock held by another launcher -> exit 3
+RESULT U31 PASS sync with pending refs >= 150000 -> BULK: patched runner, detached supervisor, watcher+tripwire armed; not stock/foreground
+RESULT U32 PASS golden-false: 149999 pending (< threshold) stays INCREMENTAL (stock, foreground, patch tool untouched)
+RESULT U33 PASS threshold: default keeps 10 pending incremental; --pending-threshold 10 and CG_SAFE_PENDING_BULK_MIN=10 -> BULK; flag beats env; 0/abc -> exit 2
+RESULT U34 PASS --bulk forces the supervised patched path for sync on a healthy DB (0 pending); rejected (2) on read ops
+RESULT U35 PASS golden-false: 200000 status='failed' rows (retry tail) + 0 pending stays INCREMENTAL — only status='pending' counts
+RESULT U36 PASS pending probe cannot evaluate (index missing / table missing) -> UNKNOWN -> BULK (conservative), stated in output; a table-less DB then fails verify (1)
+RESULT U37 PASS probe is BOUNDED: 400000 pending rows are counted only up to threshold+1 (150001), never a full COUNT(*); exact below threshold
+RESULT U38 PASS patch set: default = the patch tool's registry default, forwarded as no --patches (one source of truth, runner_patches DEFAULT_EXCLUDED; CON-117); 'default' and 'all' = the same; --patches / CG_SAFE_PATCHES pass through; malformed -> exit 2
+RESULT U39 PASS verify asserts pending==0 (failed-tail rows OK, pending rows FAIL) — also on the post-BULK verdict
+RESULT U40 PASS known gap made explicit: missing indexed_with_version stamp -> VERIFY_NOTE ABSENT (status will say stale), NOT a FAIL; present -> PRESENT
+RESULT U41 PASS helper 'pending' exit contract: >=threshold 1 (inclusive), below 0, UNKNOWN 3 (missing index / no DB), usage 2
+RESULT U42 PASS dbinfo never COUNTs the nodes table (14.9M rows): nodes_present via a LIMIT-1 probe, instant even over a 300M-row view
+RESULT U43 PASS BULK sync result file carries op=sync, pending_zero PASS and EXIT=0 (auditable evidence)
+RESULT U44 PASS heap_mb = half of MemAvailable (32 GiB avail -> 16384 MiB, above floor/below cap, exact formula)
+RESULT U45 PASS heap_mb floors at 8192 MiB when half-of-available would go lower (never below stock-plus-headroom)
+RESULT U46 PASS heap_mb clamps to §12.6's real 60%-of-MemTotal ceiling (6144 MiB on a 10 GiB host), overriding even the 8192 floor, never a hardcoded number
+RESULT U47 PASS no knob: output is the pre-knob output (floor 32 GiB, exact FAIL line, NO source line, NO floor suffix, exit 6)
+RESULT U48 PASS golden-TRUE: MemAvailable == default floor (32 GiB) PASSes with heap <= half of available; redirected copy still reads the real meminfo (control)
+RESULT U49 PASS limits file min_mem_avail_gib: 20 lowers the floor: 19 GiB refused with exact line, 20 GiB PASS (equality) with heap 10240 <= half
+RESULT U50 PASS env RAISES the floor (24 GiB over a 20 GiB file; 40 GiB over the default); env == base accepted and the source line is NOT relabelled env
+RESULT U51 PASS env may NEVER lower the floor (below a file value or below the default): refused loudly, nothing runs
+RESULT U52 PASS non-decimal / empty / signed / float / hex / over-long values (env kB and file GiB, incl. 2^44+5 overflow) are REFUSED, no shell noise, no writer side effects
+RESULT U53 PASS leading zeros are DECIMAL (010=10, 020=20, 0020=20, 09 refused cleanly, env 033554432==32 GiB, env 08388608 refused) - no octal, no arithmetic error, no writer fall-through
+RESULT U54 PASS lower bound = 16 GiB (2 x heap floor): floors 16/20/32 PASS with heap_mb <= MemAvailable/2; 15/8/4/1/0 refused; floor 4 + 5 GiB never PASSes; 9999 GiB handled
+RESULT U55 PASS duplicate min_mem_avail_gib keys (different or identical values) are REFUSED (no first-wins / last-wins ambiguity)
+RESULT U56 PASS limits-file classes REFUSED loudly: directory, /dev/null, missing, FIFO (no hang), empty, >64 KiB (exact boundary 65536 ok / 65537 refused), indented (space + TAB), nested, empty value, set-but-empty env, unreadable; symlink to an empty / oversize file refused via env AND convention path (S-1)
+RESULT U57 PASS accepted forms: CRLF + trailing comment, symlink to a regular file; a commented-out key is NOT honoured; a file without the key leaves the default (no source line)
+RESULT U58 PASS untrusted env / path (missing AND existing file) / file values are sanitised before echo: no forged 'PREFLIGHT PASS' / 'heap_mb=' line, no ESC byte
+RESULT U59 FAIL convention file <project>/config/index/writer_limits.yaml is discovered without any env; an explicit CG_SAFE_LIMITS_FILE overrides it; a non-regular convention path (directory, DANGLING SYMLINK) is refused
+RESULT U60 PASS REAL live writer (lock holder with codegraph identity): init refused with exit 3 both with the default floor and with the lowered floor; control without a writer is neither 3 nor 6
+RESULT U61 PASS preflight op on bad file values creates no flock/index_runs, prints no bulk-path die line (S2)
+RESULT U62 PASS prefix keys (min_mem_avail_gib_x) are not duplicates of the real key; zero-padded values longer than 4 chars are decimal (00020 = 20)
+RESULT U63 PASS symlinked .codegraph/codegraph.db: db_bytes is the TARGET size (3145728), not the link size
+RESULT U64 PASS preflight's real df read: free_bytes is numeric and matches an independent df of the same target (no stub df)
+SUMMARY cases=64 failed=1
+rc=1

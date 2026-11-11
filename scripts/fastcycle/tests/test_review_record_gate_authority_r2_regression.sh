@@ -27,7 +27,7 @@
 #       record-vs-evidence consistency for layers/model/effort (m3: N6, N12).
 #
 # Every case drives the REAL `review_record.py record` / `gate` CLI. The tier
-# cases call the real module's own _independence_tier() in-process on REAL
+# cases call the real module's own tier function (round 4: _path_tier) in-process on REAL
 # files with real modes and real owners -- no os.geteuid substitution, no
 # re-implemented logic (constitution 11.4.276(D)). The forged-record cases
 # edit the real artifacts `record` wrote (re-hashing them exactly as an
@@ -35,6 +35,8 @@
 #
 # Usage : bash test_review_record_gate_authority_r2_regression.sh
 # Exit  : 0 all checks pass; 1 any check failed; 2 scratch dir unusable.
+#         77 every check that ran passed, but >= 1 proof leg was SKIPPED (named on
+#            its SKIP: line): SKIP, never PASS (CON-033 round 3, review R2-F3).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
@@ -47,6 +49,15 @@ RR_TOOL="$FC/review/review_record.py"
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL: $1"; }
+# Skipped proof legs (CON-033 round 3, review R2-F3; constitution 11.4.3,
+# 11.4.289(E)): a leg that cannot run on this host is counted, named on a
+# "SKIP: <leg> -- <why>" line, and makes the suite exit 77 (SKIP), never 0:
+# a suite whose proof legs did not run is not a PASS.
+SKIPPED=0; SKIPPED_LEGS=""
+skip() { # skip "LEG [LEG...]" WHY
+  local leg
+  for leg in $1; do SKIPPED=$((SKIPPED+1)); SKIPPED_LEGS="$SKIPPED_LEGS $leg"; echo "SKIP: $leg -- $2"; done
+}
 
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
@@ -352,10 +363,10 @@ else bad "N12: rc=$G_RC out=$G_OUT"; fi
 # an explicit runner uid (daemon) so the producer-side guards are isolated on
 # real files with real owners (this uid, $ME, is the THIRD principal here).
 if [ "$(id -u)" -eq 0 ]; then
-  echo "NOTE: running as root -- tier cases SKIPPED (os modes cannot bound root)"
+  skip r2-tier-cases "running as root (os modes cannot bound root)"
 elif ! NOBODY=$(python3 -c 'import pwd; print(pwd.getpwnam("nobody").pw_uid)' 2>/dev/null) \
      || ! DAEMON=$(python3 -c 'import pwd; print(pwd.getpwnam("daemon").pw_uid)' 2>/dev/null); then
-  echo "NOTE: no 'nobody'/'daemon' account on this host -- tier cases SKIPPED (need two non-runner uids)"
+  skip r2-tier-cases "no 'nobody'/'daemon' account on this host (need two non-runner uids)"
 else
   ME=$(id -u)
   T="$S/tier"; mkdir -p "$T/ro" "$T/open"; chmod 755 "$S" "$T" "$T/ro"
@@ -367,7 +378,9 @@ import importlib.util, sys
 tool, t, nobody, me, daemon = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 spec = importlib.util.spec_from_file_location("rr", tool)
 rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-tier = rr._independence_tier
+# V3 round 4: the positive-allowlist tier -- this uid ($ME) is the declared
+# evidence owner, a real third principal relative to producer nobody / runner daemon.
+tier = lambda paths, producer, runner_uid=None: rr._path_tier(paths, producer, me, runner_uid=runner_uid)[0]
 print(" ".join([
     tier([t + "/ro/f"], nobody, runner_uid=daemon),    # third-party owned, unwritable, parents safe
     tier([t + "/ro/w"], nobody, runner_uid=daemon),    # mode 666: writable by the producer (N2)
@@ -382,7 +395,7 @@ PY
 )
   chmod 700 "$T/open"
   if [ "$TIER" = "capability instance instance instance instance instance instance instance" ]; then
-    ok "T: tier -- capability only when neither the producer nor the runner can own/write/replace the evidence ($TIER)"
+    ok "T: tier -- capability only for evidence owned by the declared owner ($ME) and replaceable by nothing else; producer-owned/undeclared/root producer, runner == owner, writable file or non-sticky 777 parent -> instance ($TIER)"
   else bad "T: got '$TIER' want 'capability instance instance instance instance instance instance instance'"; fi
   # control needle for the /proc case: the node really is producer-owned and
   # carries no write bit, as does its directory (so only ownership decides).
@@ -392,11 +405,11 @@ PY
   # ACL: a POSIX ACL granting the producer write access must defeat capability.
   echo x > "$T/ro/acl"; chmod 644 "$T/ro/acl"
   if command -v setfacl >/dev/null 2>&1 && setfacl -m "u:$NOBODY:rw" "$T/ro/acl" 2>/dev/null; then
-    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/acl" "$NOBODY" "$DAEMON")
-    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/f" "$NOBODY" "$DAEMON")
+    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._path_tier([sys.argv[2]], int(sys.argv[3]), int(sys.argv[5]), runner_uid=int(sys.argv[4]))[0])' "$RR_TOOL" "$T/ro/acl" "$NOBODY" "$DAEMON" "$ME")
+    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._path_tier([sys.argv[2]], int(sys.argv[3]), int(sys.argv[5]), runner_uid=int(sys.argv[4]))[0])' "$RR_TOOL" "$T/ro/f" "$NOBODY" "$DAEMON" "$ME")
     if [ "$ACLT" = "instance" ] && [ "$ACLC" = "capability" ]; then ok "T-ACL: an ACL granting the producer write access defeats capability (control without ACL: capability)"
     else bad "T-ACL: acl=$ACLT control=$ACLC"; fi
-  else echo "NOTE: setfacl absent or refused by this filesystem -- T-ACL SKIPPED"; fi
+  else skip T-ACL "setfacl absent or refused by this filesystem"; fi
   # CLI (REVERSED in V3 round 3, R3-F1): on this single-uid host the uid running
   # gate owns every evidence file, so NO declared --producer-uid -- a real
   # foreign one, an unknown one, none, or its own -- may reach capability.
@@ -411,10 +424,13 @@ PY
   if [ "$RC_A" -eq 1 ] && printf '%s\n' "$OUT_A" | grep -q "achieved instance" \
      && [ "$RC_B" -eq 1 ] && printf '%s\n' "$OUT_B" | grep -q "achieved instance" \
      && uncovered c-t && has "achieved instance"; then
-    ok "T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid (the runner owns the evidence), and with its own uid"
+    ok "T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid, and with its own uid (no evidence owner is declared, round-4 allowlist)"
   else bad "T-CLI: A rc=$RC_A $OUT_A | B rc=$RC_B $OUT_B | C rc=$G_RC $G_OUT"; fi
 fi
 
 echo ""
+[ "$SKIPPED" -gt 0 ] && echo "== Skipped proof legs: $SKIPPED ($SKIPPED_LEGS ) =="
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
-[ "$FAIL" -eq 0 ] && exit 0 || exit 1
+[ "$FAIL" -eq 0 ] || exit 1
+if [ "$SKIPPED" -gt 0 ]; then echo "SKIP reason=proof_legs_skipped"; exit 77; fi
+exit 0

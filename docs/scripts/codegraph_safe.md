@@ -1,7 +1,9 @@
 # codegraph_safe.sh — Companion Guide
 
-**Revision:** 5
-**Last modified:** 2026-11-05T22:20:00Z
+**Revision:** 6
+**Last modified:** 2026-11-06T12:30:00Z
+
+Revision 6 note (2026-11-06, CON-211): the wrapper no longer carries a patch list of its own. Its default is `default`, which passes no `--patches` to `fk_index_patch.py`, so the writer always uses the patch tool's registry default (`runner_patches/__init__.py`, today `fkidx1,resolve1,resolve2`, runner key `<version>-fkidx1-resolve1-resolve2`). `all` is kept as a synonym of `default`. The old list `fkidx1,resolve1` existed only because the registry default then still contained the untested lockfix1 and datafrag1; resolve2 (the swift-objc bridge heap-OOM fix) was never deliberately excluded. Guard: U38 in `tests/test_unit_safe.sh` (the default call is `patch_tool --print-bin`) and mutants MB4, MB5, MB5b in `tests/test_bulk_classify_mutate.py`. Line numbers cited below are those of revision 5; the CON-211 edit added 5 header lines (measured with `git diff -U0`), so every citation after line 77 is now 5 higher.
 
 Source: `constitution/scripts/codegraph/codegraph_safe.sh` (700 lines at the time of this revision, 2026-10-12; it was 567 lines when this guide was first committed (b3a73cf) and 607 at 1c89813).
 Every statement below cites `codegraph_safe.sh:<line>`.
@@ -145,7 +147,7 @@ Writers first take the wrapper flock, then `lock_check writer`, then the
 | `--project DIR` | git toplevel of `$PWD`, else `$PWD` (lines 297-299) | must exist (line 300); path containing whitespace → exit 2 for bulk ops (line 653) |
 | `--bulk` | off | writer ops only, else exit 2 (lines 290-292); only changes behaviour for `sync` |
 | `--pending-threshold N` | `$CG_SAFE_PENDING_BULK_MIN`, else `150000` (line 252) | integer ≥ 1 (lines 284-285) |
-| `--patches IDS` | `$CG_SAFE_PATCHES`, else `fkidx1,resolve1` (line 252) | `all` or comma list `[a-z0-9]`, no leading/trailing/double commas (lines 286-289) |
+| `--patches IDS` | `$CG_SAFE_PATCHES`, else `default` (line 252) = the patch tool's registry default, no `--patches` forwarded | `default`, `all` (synonym) or comma list `[a-z0-9]`, no leading/trailing/double commas (lines 286-289) |
 | `--wait` | off | block until the detached bulk run writes its result (lines 681-700) |
 | `--poll-s N` | 10 | integer (lines 280-282) |
 | `--watch-interval N` | 60 | integer; passed to `index_watch.py` |
@@ -164,10 +166,13 @@ exit 2 (`need`, line 254).
 
 ### Patch set (lines 63-68)
 
-Only `fkidx1` and `resolve1` have tests; `lockfix1` and `datafrag1` have none
-and are opt-in via `--patches` / `CG_SAFE_PATCHES`. `fkidx1` must be in the
-set — the receipt gate requires it, else exit 5 (lines 45-46). The default
-runner key is `<version>-fkidx1-resolve1`.
+`fkidx1`, `resolve1` and `resolve2` have tests; `lockfix1` and `datafrag1` have
+none and are opt-in by name via `--patches` / `CG_SAFE_PATCHES`. `fkidx1` must
+be in the set — the receipt gate requires it, else exit 5 (lines 45-46). Since
+revision 6 (CON-211) the default is the patch tool's registry default, so the
+default runner key is `<version>-fkidx1-resolve1-resolve2`
+(`1.6.2-fkidx1-resolve1-resolve2` on the installed 1.6.2, measured 2026-11-06);
+`--patches fkidx1,resolve1` still builds the old `<version>-fkidx1-resolve1`.
 
 UNCONFIRMED: the receipt check itself (`python3 codegraph_safe_helper.py
 receipt`, line 556) was not read; the fkidx1 requirement is stated in the
@@ -179,7 +184,7 @@ header only.
 |---|---|---|
 | `CODEGRAPH_BIN` | `codegraph` | stock CLI (line 129) |
 | `CG_SAFE_PENDING_BULK_MIN` | 150000 | default sync BULK threshold |
-| `CG_SAFE_PATCHES` | `fkidx1,resolve1` | default `--patches` |
+| `CG_SAFE_PATCHES` | `default` (registry default) | default `--patches` |
 | `CG_SAFE_PENDING_PROBE_BUDGET_S` | 30 | wall-clock budget of the pending probe (UNCONFIRMED: consumed inside the helper; not referenced in this script's code) |
 | `CG_SAFE_PATCH_TOOL` / `CG_SAFE_PROBE_TOOL` | sibling `fk_index_patch.py` / `fk_cascade_probe.py` | lines 127-128 |
 | `CG_SAFE_MIN_THREAD_HEADROOM` | 1024 | preflight thread headroom (line 420) |
@@ -218,8 +223,9 @@ echoed. Non-zero → exit 1. Then helper `verify` + `scope`; ledger entry;
 1. `preflight` — FAIL → exit 6 (lines 636-638).
 2. `resolve_runner` (lines 542-568): read stock `--version` (none → 5); run
    the patch tool with `--patches <IDS> --print-bin` (or `--print-bin` for
-   `all`, which since 2026-11-05 means the patch tool's tested default
-   `fkidx1,resolve1,resolve2`, not every registered patch; CON-164 Option A):
+   `default` / `all`, which means the patch tool's tested default
+   `fkidx1,resolve1,resolve2`, not every registered patch; CON-164 Option A,
+   CON-211):
    - exit 0 → runner path must be executable, its parent dir must hold a valid
      `RUNNER_RECEIPT.json` for the stock version, and the runner's
      `--version` must equal stock's; any mismatch → 5;

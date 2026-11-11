@@ -124,10 +124,15 @@ index, a checksum that differs or is absent, an unreadable Constitution.md, or a
 no index id at all (control needle) makes the run BLIND (exit 4), recorded in `index_check` and
 `source_errors`.
 
-Error sites (R3-02): every error that makes a run BLIND is phrased by `_site(code, message)` with a
-stable unique code and appears as "[E_CODE] message" in `source_errors` (or on stderr when nothing is
-written). The RED test enumerates every `_site(...)` call in this file and requires a behaviour
-fixture that OBSERVES each code, so a new error site without a fixture fails the test.
+Error sites (R3-02, R4-03): every error that makes a run BLIND is phrased by `_site(code, message)`
+with a stable unique code and appears as "[E_CODE] message" in `source_errors` (or on stderr when
+nothing is written). What the RED test actually guarantees: (1) every `_site(...)` call is observed by
+a behaviour fixture (or allowlisted with a reason); (2) every error-carrying construct it classifies
+-- any `raise`, `sys.exit`, `assert`, any change to a `bad`/`errors` list, an except handler that
+records nothing and returns empty, a branch on an error value, a `return <int>` in main -- is routed
+through `_site` or carries an explicit not-an-error-site tag with its reason; (3) every BLIND error line
+any fixture produces starts with exactly one code. It does NOT see an error swallowed in a form it
+does not classify on a path no fixture reaches; only behaviour fixtures can catch that.
 
 Open question (R3-05, an operator decision, not implemented): a commit co-owned by an item and its
 parent/sibling, scoped `fix(ATM-544/ATM-514/...)` with a body that is entirely about the one joint
@@ -218,8 +223,8 @@ def _site(code, message):
     """The ONE way this tool phrases an error that makes a run BLIND (R3-02). Every such error is
     produced here with a stable, unique code (`E_<WORD>`), rendered as "[E_CODE] message". The RED
     test enumerates every `_site("E_...", ...)` call in this file with an AST walk and requires each
-    code to be OBSERVED in a behaviour fixture, so an error site added without a fixture fails the
-    test by construction. Never call this with a computed code."""
+    code to be OBSERVED in a behaviour fixture; see the module docstring for what that does and does
+    not cover. Never call this with a computed code."""
     return "[%s] %s" % (code, message)
 
 
@@ -396,7 +401,7 @@ def index_generated_from(anchor_index_path):
     """The index's `generated_from` block as {"source": path|None, "source_sha256": hex|None}."""
     found = {"source": None, "source_sha256": None}
     text, err = _read_text_strict(anchor_index_path)
-    if err:
+    if err:  # not-an-error-site: load_live_anchor_ids already read this file strictly (E_INDEX_READ); an empty result here fails closed downstream (E_INDEX_NO_CONSTITUTION / E_INDEX_NO_SHA)
         return found
     inside = False
     for line in text.split("\n"):
@@ -533,7 +538,7 @@ def scan_commits(repo, item_id, live_ids, stats, as_of=None, tally=None):
         if result.returncode != 0:
             failed = _site("E_GIT_EXIT", "git log exited %d: %s" % (result.returncode, result.stderr.strip()[:500]))
     records = stdout.split(_COMMIT_REC_SEP)
-    if failed:
+    if failed:  # not-an-error-site: `failed` is already a _site() error, raised at the end of this function
         records = records[:-1]  # the text after the last separator is an incomplete record
     citations = []
     for rec in records:

@@ -1,7 +1,12 @@
 # resolve2 (runner patch) — guide
 
-**Revision:** 1
-**Last modified:** 2026-09-26T14:10:00Z
+**Revision:** 2
+**Last modified:** 2026-11-06T12:30:00Z
+
+Revision 2 note (2026-11-06, CON-211): resolve2 is now in the default set of the writer
+`codegraph_safe.sh` too (the writer uses the registry default, runner key `<version>-fkidx1-resolve1-resolve2`).
+Before, the writer passed `--patches fkidx1,resolve1`, so its bulk runs did not get this heap-OOM fix; no record of a
+deliberate exclusion was found. On the installed 1.6.2 `tests/test_resolve2.sh` gives 3/3 PASS (2026-11-06).
 
 Source: `constitution/scripts/codegraph/runner_patches/resolve2.py` (63 lines). A **module driven by
 `fk_index_patch.py`**, not a command. Citations are `resolve2.py:<line>` unless another file is named. Machinery guide:
@@ -25,7 +30,7 @@ statement order) and keep only `language === 'objc'` rows. Memory becomes O(#obj
 ## Prerequisites
 
 Reads `lib/dist/resolution/frameworks/swift-objc.js` and reads (never edits) `lib/dist/resolution/index.js`. Python stdlib plus
-`runner_patches/common.py`. Default-set patch (`runner_patches/__init__.py:17`), applied fifth.
+`runner_patches/common.py`. Default-set patch (`runner_patches/__init__.py`), applied fifth, in the default of both this tool and `codegraph_safe.sh`.
 
 ## Usage
 

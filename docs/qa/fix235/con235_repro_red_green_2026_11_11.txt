@@ -1,0 +1,45 @@
+# CON-235 reproduction (section 11.4.292, surface host-only), fixer vehicle/fix235, base 24bdca78
+# command: bash repro235.sh <clone>/scripts/run_full_suite.sh <mktemp dir>  (script copied below)
+# RED (unfixed engine, 2026-11-11T14:53:13Z recorded):
+initial accept rc=0
+verify rc=3
+MANIFEST: <scratch>/work/r.bjmV/rsym/config/full_suite_excluded.lock is a symlink (its edits would leave no trace in git history); commit it as a regular file
+accept rc=0
+accepted the excluded set (1 row(s)) as alice in <scratch>/work/r.bjmV/rsym/config/full_suite_excluded.lock
+census: sh/entry=1 sh/excluded=1 total=2
+RESULT: MANIFEST-OK
+lock: REGULAR FILE (symlink replaced)
+outside target unchanged: yes
+
+# GREEN (fixed engine, same command, same synthetic root shape):
+initial accept rc=0
+verify rc=3
+MANIFEST: <scratch>/work/g.pvhD/rsym/config/full_suite_excluded.lock is a symlink (its edits would leave no trace in git history); commit it as a regular file
+accept rc=3
+run_full_suite: --accept-excluded-change 'alice' refused: <scratch>/work/g.pvhD/rsym/config/full_suite_excluded.lock is a symlink (its edits would leave no trace in git history); commit it as a regular file, then accept
+RESULT: MANIFEST-MISMATCH (--accept-excluded-change 'alice' refused: <scratch>/work/g.pvhD/rsym/config/full_suite_excluded.lock is a symlink (its edits would leave no trace in git history); commit it as a regular file, then accept)
+lock: still a symlink -> <scratch>/work/g.pvhD/outside_lock
+outside target unchanged: yes
+
+# --- repro235.sh ---
+#!/usr/bin/env bash
+# repro CON-235: --accept-excluded-change against a symlinked excluded lock (synthetic root)
+set -u
+R=${1:?runner}; W=${2:?workdir}
+RS="$W/rsym"; mkdir -p "$RS/tests/a" "$RS/config"
+gitc(){ git -C "$1" -c user.email=a@b -c user.name=t "${@:2}"; }
+git init -q "$RS"; gitc "$RS" commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\nf() { :; }\n' > "$RS/tests/a/lib.sh"
+printf '#!/usr/bin/env bash\n. "$(dirname "$0")/lib.sh"\necho "passed=1 failed=0"\n' > "$RS/tests/a/test_uses_lib.sh"
+bash "$R" --root "$RS" --generate-manifest --write >/dev/null 2>&1
+printf '# id\twho\nalice\toperator alice\n' > "$RS/config/full_suite_operators.roster"
+gitc "$RS" add -A; gitc "$RS" commit -q -m base
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice >"$W/acc0.log" 2>&1; echo "initial accept rc=$?"
+gitc "$RS" add -A; gitc "$RS" commit -q -m acc
+mv "$RS/config/full_suite_excluded.lock" "$W/outside_lock"; ln -s "$W/outside_lock" "$RS/config/full_suite_excluded.lock"
+gitc "$RS" add -A; gitc "$RS" commit -q -m locklink
+sha_out0=$(sha256sum "$W/outside_lock" | cut -c1-64)
+bash "$R" --root "$RS" --verify-manifest >"$W/v.log" 2>&1; echo "verify rc=$?"; grep -m1 'symlink' "$W/v.log"
+bash "$R" --root "$RS" --verify-manifest --accept-excluded-change alice >"$W/a.log" 2>&1; echo "accept rc=$?"; cat "$W/a.log"
+if [ -L "$RS/config/full_suite_excluded.lock" ]; then echo "lock: still a symlink -> $(readlink "$RS/config/full_suite_excluded.lock")"; else echo "lock: REGULAR FILE (symlink replaced)"; fi
+echo "outside target unchanged: $([ "$(sha256sum "$W/outside_lock" | cut -c1-64)" = "$sha_out0" ] && echo yes || echo NO)"

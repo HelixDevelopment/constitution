@@ -8,7 +8,7 @@
 #         NM1-NM9 with their killers KNM1-KNM6, KNM9, and (round 6) one mutant per remaining guard of the gate's class
 #         inventory (fixtures in inventory()). Mutants run in parallel, MUT_JOBS at a time (default 3), each in its own
 #         temp dir. MUT_ONLY=<regex> restricts Part 2 to mutant names matching it (diagnosis only; a full proof runs all).
-# Round 8 (CON-146, re-minted 2026-11-11 as CON-194; later mentions keep CON-146): the four round-7 reviewer probes are adopted verbatim (cm_submodule_pin_not_downgraded_probes/,
+# Round 8 (CON-146, re-minted 2026-11-11 as CON-194 and again at the merge of main f25acdee as CON-280; later mentions keep CON-146): the four round-7 reviewer probes are adopted verbatim (cm_submodule_pin_not_downgraded_probes/,
 #         members8), the "UNCONFIRMED-equivalent" category is retired (its three claims were false), the member mutants
 #         below the inventory's granularity are GENERATED (cm_submodule_pin_not_downgraded_members.py, ledger
 #         cm_submodule_pin_not_downgraded_members.tsv), every date fixture is computed inside the job that uses it and a
@@ -19,14 +19,14 @@
 #         alternative: the real vector and every equivalence claim must hold under both; four false claims are withdrawn
 #         (their members are killed by the new fixtures ZSID, ZSAUTH, YEAR5); the reviewer mutants RV8-01/02 are adopted;
 #         the generator covers tests whose body holds `]` and the `[[ ]]` compares (CMPS).
-# Round 10 (CON-194, review of round 9 N1-N5, §11.4.276(E) structural pass): every date / number compare of the gate
+# Round 10 (CON-194, now CON-280, review of round 9 N1-N5, §11.4.276(E) structural pass): every date / number compare of the gate
 #         gets a boundary pair from one table (members10: EXPBND, HORBND, DAYSBND, PFXBND, ITEMBND, LEVBND); the strip()
 #         fixtures use every python isspace() character (29, enumerated; Zs is a sub-needle), not only Zs (WSID, WSAUTH),
 #         plus the config's no-trim site (CONFWS); the reviewer mutants RV9-02, RV9-10, RV9-11 are adopted verbatim, and
 #         three off-by-one mutants (lev-gt-1, days-min-2, prefix-min-3) pair the new boundaries. RV9-05 (base compared on
 #         12 characters) survived the first round-10 run (review N4): every exact SHA equality of the gate now gets the
 #         same generated near-miss set (SHANEAR, SPENTNEAR), with RV9-05 adopted verbatim and seven sibling mutants.
-# Round 11 (CON-194, review of round 10 F1-F7, §11.4.276(E)(3) structural round): the fixtures are no longer chosen per
+# Round 11 (CON-194, now CON-280, review of round 10 F1-F7, §11.4.276(E)(3) structural round): the fixtures are no longer chosen per
 #         reported site. A SITE TABLE (cm_submodule_pin_not_downgraded_sites.tsv) has one row per exact-compare and
 #         character-set site of the gate and the hook, found by a control-needled CENSUS
 #         (cm_submodule_pin_not_downgraded_sites.py); the static site lint refuses a site without a row, a row without a

@@ -214,10 +214,35 @@ def _blind_load_failure(what, exc):
     raise SystemExit(4)
 
 
+# V4-4 (T048 restart round 4): a sibling that LOADS but lacks a function this
+# tool uses (renamed or removed -- the refactor-drift case) is BLIND too, never
+# an AttributeError exit 1 at first use. Every `<sibling>.<attr>` this file uses
+# is listed here and resolved at load time (tests/test_cycle_report_red.sh
+# R5-C17 inventories the uses by AST and fails on one missing from this table).
+_REQUIRED_API = {
+    "lib/fc_common.py": ("canon", "body_hash_of"),
+    "closure/reopen_rate.py": ("_exact_dup_key", "dedup_history", "derive_report"),
+    "cycle/select_sample.py": ("CURRENT_STATE_INPUTS", "closure_recency_key", "db_closures_in_window",
+                               "db_reopened_in_window", "detect_retroactive_registration", "history_upto",
+                               "latest_closure_event", "open_db_readonly", "parse_iso", "reopened_in_window",
+                               "resolve_needle", "run_needle", "select_population", "selection_rule",
+                               "window_for"),
+}
+
+
+def _require_api(module, what):
+    """V4-4: BLIND (exit 4) when a loaded sibling lacks part of the API."""
+    missing = [a for a in _REQUIRED_API[what] if not hasattr(module, a)]
+    if missing:
+        _blind_load_failure(what, AttributeError("the module loads but lacks %s" % ", ".join(missing)))
+    return module
+
+
 try:
     import fc_common  # noqa: E402  (path-inserted import, see above)
 except Exception as _exc:  # noqa: BLE001 -- any load failure is BLIND
     _blind_load_failure("lib/fc_common.py", _exc)
+_require_api(fc_common, "lib/fc_common.py")
 
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
@@ -236,15 +261,16 @@ _REOPEN_RATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..
 
 
 def _load_sibling(name, path):
-    """Load a sibling tool by file path; any failure is BLIND (V3-4)."""
+    """Load a sibling tool by file path; any failure -- including a module
+    that loads but lacks part of _REQUIRED_API (V4-4) -- is BLIND (V3-4)."""
+    what = os.path.relpath(path, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     try:
         spec = importlib.util.spec_from_file_location(name, path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        return module
     except Exception as exc:  # noqa: BLE001 -- FileNotFoundError, SyntaxError, a failing import inside it
-        _blind_load_failure(os.path.relpath(path, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")),
-                            exc)
+        _blind_load_failure(what, exc)
+    return _require_api(module, what)
 
 
 reopen_rate = _load_sibling("fc_reopen_rate", _REOPEN_RATE_PATH)
@@ -428,7 +454,16 @@ def date_of(iso_or_dt):
 #     stratum key, so it cannot be excluded from the hash -- it is named in
 #     `current_state_inputs` instead: a retype after D changes the report;
 #   * git commits are cut on BOTH author and committer instant; a rebased
-#     commit (authored before D, committed after) is invisible.
+#     commit (authored before D, committed after) is invisible;
+#   * THE DAY RULE (V4-6, round 4): item_history rows are placed on the
+#     calendar day of their on_date's FIRST 10 CHARACTERS (select_sample.py
+#     module docstring point 4) -- never created_at (the db-write time: 11
+#     live Reopened rows were written days after their on_date) and never a
+#     UTC conversion: an on_date with a time and an offset counts on its
+#     LOCAL date, while git commits and review rounds are instants cut in UTC.
+#     The live tracker stores only 10-char dates; the round-4 matrix (R5-C15)
+#     pins every on_date shape, a created_at day on either side of the
+#     on_date day, and commit/review instants in Z, +05:00, -04:00 and +05:30.
 # ---------------------------------------------------------------------------
 def cutoff_end_of(as_of):
     """First instant after the as-of day (exclusive upper bound), UTC."""
@@ -1593,6 +1628,20 @@ def main(argv):
     args = build_arg_parser().parse_args(argv)
 
     if not require_as_of(args.as_of):
+        return 2
+    # Round 4: the SAME usage rules select_sample.py enforces, so the two
+    # cycle tools accept the same windows (V2-2: one sample): --window-days
+    # and --min-per-type must be positive. Before this, a negative window was
+    # an empty [from > to] window reported as "no data", and 0 was accepted
+    # here ([D, D]) while select_sample refused it. (closure/escape_classify.py
+    # -- another tool, another contract -- reads --window-days 0 as [D, D].)
+    # --window-json mode takes its bounds from the file; the flags are still
+    # validated.
+    if args.window_days <= 0:
+        print("cycle_report: --window-days must be a positive integer, got %r" % args.window_days, file=sys.stderr)
+        return 2
+    if args.min_per_type <= 0:
+        print("cycle_report: --min-per-type must be a positive integer, got %r" % args.min_per_type, file=sys.stderr)
         return 2
 
     # F6 fix (S12-remediation follow-up round, 2026-10-03): a mistyped or

@@ -527,13 +527,14 @@ if t_want U38; then setup u38; export STUB_PATCH_RC=0
     : > "$STUB_CALL_LOG"; run_safe --wait --patches fkidx1,lockfix1,resolve1 index >/dev/null; d2="$(grep '^patch_tool' "$STUB_CALL_LOG" | tail -n 1)"
     : > "$STUB_CALL_LOG"; CG_SAFE_PATCHES=fkidx1 run_safe --wait index >/dev/null;              d3="$(grep '^patch_tool' "$STUB_CALL_LOG" | tail -n 1)"
     : > "$STUB_CALL_LOG"; run_safe --wait --patches all index >/dev/null;                       d4="$(grep '^patch_tool' "$STUB_CALL_LOG" | tail -n 1)"
+    : > "$STUB_CALL_LOG"; run_safe --wait --patches default index >/dev/null;                   d5="$(grep '^patch_tool' "$STUB_CALL_LOG" | tail -n 1)"
     : > "$STUB_CALL_LOG"; run_safe --patches 'x;y' index; e1=$RC; n1="$(grep -c '^patch_tool' "$STUB_CALL_LOG")"
     run_safe --patches '' index; e2=$RC
     run_safe --patches 'Fkidx1' index; e3=$RC
-    [ "$d1" = "patch_tool --patches fkidx1,resolve1 --print-bin" ] && [ "$d2" = "patch_tool --patches fkidx1,lockfix1,resolve1 --print-bin" ] \
-        && [ "$d3" = "patch_tool --patches fkidx1 --print-bin" ] && [ "$d4" = "patch_tool --print-bin" ] \
+    [ "$d1" = "patch_tool --print-bin" ] && [ "$d2" = "patch_tool --patches fkidx1,lockfix1,resolve1 --print-bin" ] \
+        && [ "$d3" = "patch_tool --patches fkidx1 --print-bin" ] && [ "$d4" = "patch_tool --print-bin" ] && [ "$d5" = "patch_tool --print-bin" ] \
         && [ "$e1" -eq 2 ] && [ "$e2" -eq 2 ] && [ "$e3" -eq 2 ] && [ "$n1" -eq 0 ]
-    t_check U38 "patch set: default = the live-index-validated subset fkidx1,resolve1 (untested lockfix1/datafrag1 NOT default); --patches / CG_SAFE_PATCHES pass through; 'all' = registry default; malformed -> exit 2" $? "d1=[$d1] d2=[$d2] d3=[$d3] d4=[$d4] e=$e1,$e2,$e3 n1=$n1"
+    t_check U38 "patch set: default = the patch tool's registry default, forwarded as no --patches (one source of truth, runner_patches DEFAULT_EXCLUDED; CON-211); 'default' and 'all' = the same; --patches / CG_SAFE_PATCHES pass through; malformed -> exit 2" $? "d1=[$d1] d2=[$d2] d3=[$d3] d4=[$d4] d5=[$d5] e=$e1,$e2,$e3 n1=$n1"
 fi
 
 if t_want U39; then setup u39; export STUB_PATCH_RC=0

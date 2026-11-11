@@ -66,7 +66,9 @@ compute_facts() {
     head1="$(grep -m1 '^## ' "$root/CHANGELOG.md" | sed 's/^## //')"
     ver="$(printf '%s' "$head1" | sed -n 's/^\(helixconstitution-v[0-9][0-9]*\(\.[0-9][0-9]*\)*\)\( .*\)\{0,1\}$/\1/p')"
     local ver_state=released
-    if [ -z "$ver" ]; then ver="$(printf '%s' "$head1" | cut -d' ' -f1)"; ver_state=unreleased; fi
+    if [ -z "$ver" ]; then ver="$(printf '%s' "$head1" | cut -d' ' -f1)"; ver_state=unreleased
+    # a tagged heading that declares a PROVISIONAL pre-release (§11.4.290) is not a finished release: amber, never green
+    elif printf '%s' "$head1" | grep -qi 'PROVISIONAL'; then ver_state=provisional; fi
 
     # gates: cm_*.sh minus mutation tests; paired = has <name>_mutation_test.sh
     local g n_gates=0 n_paired=0 n_unpaired=0 unpaired=""
@@ -248,6 +250,21 @@ _selftest() {
     case "$out" in *"[Anchors]"*"-red)"*) : ;; *) echo "selftest FAIL golden-bad: drifted index not red: $out"; rc=1 ;; esac
     case "$out" in *"[Readiness]"*"-red)"*) : ;; *) echo "selftest FAIL golden-bad: readiness gauge not red"; rc=1 ;; esac
 
+    # provisional: a top CHANGELOG heading that declares a PROVISIONAL pre-release (§11.4.290) MUST render the Version
+    # badge amber and the Readiness gauge not green (§11.4.230(E.3), §11.4.259); a pre-release is never "ready".
+    _mk "$tmp/prov"
+    printf '## helixconstitution-v1 — 2026-01-01 — PROVISIONAL pre-release fixture\n' >"$tmp/prov/CHANGELOG.md"
+    DOCS_EXPORT=1 compute_facts "$tmp/prov" >"$tmp/prov.facts" 2>/dev/null || { echo "selftest FAIL provisional: facts rc!=0"; rc=1; }
+    grep -qx 'VERSION_STATE=provisional' "$tmp/prov.facts" || { echo "selftest FAIL provisional: VERSION_STATE is not provisional"; rc=1; }
+    out="$(row_from_facts "$tmp/prov.facts")"
+    case "$out" in *"[Version]("*"-v1-amber?color=ffbf00)"*) : ;; *) echo "selftest FAIL provisional: Version badge not amber: $out"; rc=1 ;; esac
+    case "$out" in *"[Readiness]("*"-green)"*) echo "selftest FAIL provisional: Readiness gauge green on a PROVISIONAL release: $out"; rc=1 ;; esac
+    # the match is case-insensitive (fail-safe direction, review m-2): a lowercase "provisional" heading is amber too
+    _mk "$tmp/provlc"
+    printf '## helixconstitution-v1 — 2026-01-01 — provisional pre-release fixture\n' >"$tmp/provlc/CHANGELOG.md"
+    DOCS_EXPORT=1 compute_facts "$tmp/provlc" >"$tmp/provlc.facts" 2>/dev/null || { echo "selftest FAIL provisional-lc: facts rc!=0"; rc=1; }
+    grep -qx 'VERSION_STATE=provisional' "$tmp/provlc.facts" || { echo "selftest FAIL provisional-lc: VERSION_STATE is not provisional"; rc=1; }
+
     # negative-control: a tree with the index removed MUST be BLIND (rc 2), never a green row
     _mk "$tmp/neg"; rm -f "$tmp/neg/constitution_index.yaml"
     DOCS_EXPORT=1 compute_facts "$tmp/neg" >"$tmp/neg.facts" 2>/dev/null
@@ -272,7 +289,7 @@ _selftest() {
     case "$out" in *"-amber?color=ffbf00)") : ;; *) echo "selftest FAIL: amber badge form wrong: $out"; rc=1 ;; esac
 
     rm -rf "$tmp"
-    [ "$rc" -eq 0 ] && echo "SELFTEST PASS: golden-good all green, golden-bad red, negative-control BLIND, amber form ok, switch-off Twins gray + gauge unmoved + lib-absent BLIND"
+    [ "$rc" -eq 0 ] && echo "SELFTEST PASS: golden-good all green, golden-bad red, negative-control BLIND, amber form ok, PROVISIONAL heading (any case) amber + gauge not green, switch-off Twins gray + gauge unmoved + lib-absent BLIND"
     return "$rc"
 }
 

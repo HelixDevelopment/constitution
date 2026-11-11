@@ -1,0 +1,12 @@
+CON-183 reproduction record (section 11.4.292), 2026-11-11, host-only
+Base: 8d98d4fb (main fc57ad0c plus CON-184, CON-185); Linux 7.0.0, bash 5.3.9, dash.
+RED command : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON183-M4
+  (hand-table row CON183-M4: $(cd "$(dirname -> $(cd -P "$(dirname in fc_require_consumer, the reviewer's mutant M4)
+RED output  : SURVIVED CON183-M4 (rc 0, 0 NOT ok lines)
+              SUMMARY mutants=2 killed=0 survivors=2   (the other survivor is CON102-M6, recorded in con102_m6_2026_11_11.txt)
+              Part 4 is skipped under FC_HELPER_UNDER_TEST, so the symlinked canon layout Part 4 builds never ran the copy.
+GREEN (same command, helper test with Part 3b: a symlinked-canon layout built around the helper UNDER TEST):
+              killed CON183-M4 (2 failing check(s): [bash] symlinked canon: the consumer data under the logical root is found (no false SKIP) ...;[dash] ...)
+              SUMMARY mutants=1 killed=1 survivors=0 not_applicable=0
+Bound kept honest: only the symlinked-canon property of Part 4 is replayed; the real cycle_report suites still run only on the checkout's real helper.
+Signature   : mutant survives (rc 0, 0 NOT ok lines) while the same edit made in the real helper fails Part 4 (reviewer: 342/9).

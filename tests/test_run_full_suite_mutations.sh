@@ -18,10 +18,12 @@
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
 # dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit fingerprint of the generated command sets
 # (ownership wave 2 review r2: gen field, inode, mtime, after-unit check; RMb = the reviewer's mutant of
-# review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in round 3); M7+ are the author's own. F47a-F47c guard CON-047 F047-1/F047-2 (`+tracked` accepts a foreign
+# review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in round 3); L3 guards CON-235 (--accept-excluded-change refuses a symlinked lock); M7+ are the author's own. F47a-F47c guard CON-047 F047-1/F047-2 (`+tracked` accepts a foreign
 # tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# A MUTANTS table whose ids are not unique is refused with exit 2 before anything runs (CON-236;
+# guarded by tests/test_run_full_suite_mutations_table.sh).
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
 #   M5 M8 M9b M23 M36 (their anchors no longer exist; V1-V11 take their place).
 # Removed as EQUIVALENT (measured surviving in round 3, reasoned equivalent, not claimed killed):
@@ -131,7 +133,8 @@ I1	            if qid != qid0 or "?" in qid:\n                id_changed = "befo
 I2	    if not id_changed:\n        qid = quick_ident(root, subs0)	    if False:\n        qid = quick_ident(root, subs0)
 I3	    if id_changed:\n        out("RESULT: FAIL (%sidentity	    if False:\n        out("RESULT: FAIL (%sidentity
 L1	    if os.path.islink(path):\n        return set(), "operator roster	    if False:\n        return set(), "operator roster
-L2	    if os.path.islink(lock_path):	    if False:
+L2	    if os.path.islink(lock_path):\n        return ["%s is a symlink	    if False:\n        return ["%s is a symlink
+L3	    if os.path.islink(lock_path):\n        # CON-235	    if False:\n        # CON-235
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
 G1	    parts.append("gen=%s" % gen_fingerprint(root))	    pass
@@ -142,8 +145,14 @@ RMb	    for pre in ("", "constitution"):	    for pre in ("",):
 F47a	                if ids != {tid}:	                if tid not in ids:
 F47b	        elif r[1] != "Issues":	        elif False:
 F47c	    if not total:	    if False:
+F47d	        if r is None:\n            stale += 1	        if r is None:\n            pass
+F47e	        elif r[1] != "Issues":	        elif r[1] == "Fixed":
 EOF
 )
+
+# CON-236: every mutant id occurs once; a repeated id is refused before the baseline or any mutant runs.
+dup_ids=$(printf '%s\n' "$MUTANTS" | cut -f1 | grep -v '^$' | sort | uniq -d | tr '\n' ' ' | sed 's/ $//')
+if [ -n "$dup_ids" ]; then echo "FAIL mutant table: duplicate mutant id(s): $dup_ids (each id must occur once; nothing was run)"; exit 2; fi
 
 prep() { # $1 dir: fresh copy of the runner
   mkdir -p "$1/scripts/full_suite" "$1/scripts/lib"

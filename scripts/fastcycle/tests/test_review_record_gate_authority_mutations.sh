@@ -13,48 +13,71 @@
 # control (unmutated) mirror that is not fully GREEN (a red control makes every
 # "kill" meaningless). The live tree is never modified.
 #
-# Mutation sets (every id below is bound to a guard by the guard table in
-# test_review_record_guard_table.sh, which FAILS when a guard lacks a case or
-# a mutation, or when a mutation does not land on its guard's source lines):
-#   R7-M1..M5   the round-1 reviewer's own five (R7 B2);
-#   O1..O24     the round-1 fixer's, one per guarded condition;
-#   V3-N*       the round-2 reviewer's surviving non-equivalent mutations;
-#   R2-*        the round-2 fixer's, one per new guarded condition;
-#   R3-M1..M11  the round-3 reviewer's (zz_r3_reviewer_mutations.sh) VERBATIM;
-#   G-*-off     the round-3 structural fixer's: one per guard tag that no
-#               earlier mutation isolated (each disables exactly the `if`
-#               under its "# guard: <id>" tag).
-# Re-expressed in round 3 (same semantics, the code moved to the record-as-
-# pointer admission / three-principal tier): O2 (live body_hash, now in
-# _admit_live), O14 (reviewer required, now on the admitted unit), O16 ->
-# leaf owner, V3-N1 -> writable chain directory, V3-N2 -> writable leaf,
-# R2-B4 -> admission binding required, R2-T1 -> sticky exemption, R2-T3 ->
-# the runner principal (was "rate vs producer, not runner"; the round-3 model
-# rates BOTH).
+# Scope (V3 round 4, R4-F3 -- REPLACED, not extended): every guard SUB-CLAUSE
+# is now mutated mechanically by sweep_review_record_subclauses.sh (one
+# AST-derived mutant per and/or operand of every decision construct in the
+# call graph of cmd_gate/cmd_record), so the round-1..3 FIXER-authored
+# mutations (O1..O24, R2-*, G-*-off) that the sweep subsumes were removed
+# from this list. What remains here is what the sweep cannot generate:
+#   R7-M1..M5      the round-1 reviewer's (R7 B2) VERBATIM;
+#   V3-N4/6/8/11/12 the round-2 reviewer's surviving non-equivalent ones;
+#   R3-M1..M11     the round-3 reviewer's (zz_r3_reviewer_mutations.sh);
+#   R4-A..R4-I     the round-4 reviewer's (zz_r4_reviewer_mutations.sh)
+#                  VERBATIM, except R4-C (re-expressed: its target line --
+#                  the per-unit tier path list -- was REPLACED by the whole-
+#                  store walk; the re-expression drops every non-record file
+#                  from that walk, the same defect on the new structure);
+#   G-T-LINK-EDGE-off, G-E-NONBLOCK-off   data-flow guards (not decision
+#                  constructs) bound to these by the guard table;
+#   RVR1/RVR3b     the round-3 reviewer's store-tier ledger mutants;
+#   RF-chain-*     CON-033 round 4 (structural): refactor-style rewrites of
+#                  _resolution_chain (realpath/abspath first, an unresolved
+#                  relative start, "." as a lookup, a dropped trailing slash,
+#                  a reordered walk, edges kept for the leaf only, the last
+#                  or first link edge dropped, only the deepest directory
+#                  checked, an absolute link target resolved from `cur`).
+#                  The sweep flips one operand at a time and cannot write
+#                  these; test_review_record_resolution_ground_truth.sh (a
+#                  kernel oracle: os.stat for the leaf, an openat walk for
+#                  every directory and entry) kills them.
+# Obsoleted by structural replacement this round (their target code no
+# longer exists; the replacing code's sub-clauses are swept): V3-N1/N2
+# (_principal_can_replace), R3-M4/M5 (_uid_gids / group membership -- any
+# group write is now foreign), R3-M8 (_aggregate_tier -- one store tier per
+# run), R4-B (the ev_reals merge line -- ev_reals is consumed only before the
+# merge, by _orphaned_evidence).
+# EQUIVALENT (recorded in the guard table with the reason): R3-M12 (merge
+# representative). R4-G (".." in _resolution_chain) was listed equivalent
+# until CON-033 round 4; the walk now follows the kernel (".." looks up the
+# parent of the directory reached so far, after symlinks), and the sweep's
+# G-T-DOTDOT#1 mutant is killed by the ground-truth suite, so the claim is
+# withdrawn.
 #
-# EQUIVALENT (not run; each recorded in the guard table with its reason):
-#   R3-M12 (dedupe keeps the last path) -- byte-identical copies now MERGE
-#     into one unit carrying every copy's paths, and every copy is admitted
-#     on its own first, so the representative chosen cannot change any
-#     decision (R3-M12a/b prove the order independence directly);
-#   G-E-HASH-SHAPE -- a value that is not 64 lowercase hex can never equal a
-#     sha256 hexdigest, so G-E-HASH-MATCH refuses the same inputs;
-#   G-E-SELF-CITATION -- a file cannot carry its own content hash (V3 N9);
-#   G-E-REGULAR -- with O_NONBLOCK, a directory read raises (caught) and a
-#     FIFO reads empty (refused by G-E-HASH-MATCH); device nodes need root
-#     to create inside --records.
-# Also not listed (unchanged from round 2): N14 (label regex is findall +
-# exactly-one), N15 (precheck_used: missing evidence is refused anyway).
+# R4-C and the environment (CON-033 round 2, review I4): the R4-CAP cases of
+# the r4 suite, which kill R4-C, need `podman unshare` AND a writable
+# directory whose whole chain is root-owned; with TMPDIR under a home
+# directory there is none, they SKIP, and R4-C survived every suite. The
+# first suite below, test_review_record_store_tier_all_entries_regression.sh,
+# kills R4-C with no podman and no root-owned chain (in-process, injected
+# runner uid, chmod only); since CON-033 round 3 (review R2-F2) it also
+# kills RVM-B / RVM-B2 (the dispatch ledger or the records directory dropped
+# from the store roots, guard G-T-STORE-ROOTS), which only R4-CAP5 killed
+# before. test_review_record_guard_table.sh is deliberately
+# NOT a suite here: its kill-ledger freshness check (M4) fails on ANY edit of
+# review_record.py, so it would "kill" every mutant by construction and prove
+# nothing (section 11.4.245, 11.4.201).
 #
 # Usage : bash test_review_record_gate_authority_mutations.sh [MUTATION_ID...]
-# Exit  : 0 control GREEN and every mutation KILLED; 1 otherwise; 2 setup error.
+# Exit  : 0 control GREEN and every mutation KILLED; 77 every mutation KILLED
+#         but a control suite skipped proof legs (SKIP, not PASS); 1 otherwise;
+#         2 setup error.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_tier_legs_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
@@ -64,17 +87,44 @@ build_mirror() { # build_mirror DIR
   for t in $SUITES; do cp "$HERE/$t" "$1/tests/"; done
 }
 
-run_suites() { # run_suites DIR -> prints the first failing suite (empty if all pass)
-  local t
+# Suite status (CON-033 round 3, review R2-F3): a suite exits 0 (PASS), 77
+# (SKIP: every check that ran passed, but a proof leg could not run on this
+# host) or anything else (FAIL). The control must be 0 or 77 for every suite;
+# a 77 is reported, and makes the runner's own result SKIP (exit 77), never
+# PASS. A mutant is KILLED by a suite whose status DIFFERS from the control's
+# status for that suite: a 77 on both is not a kill (nothing more ran), and a
+# 0 on a suite the control skipped is not a pass either way.
+run_control() { # run_control DIR -> writes $S/control.rc ("suite rc" lines)
+  local t rc
+  : > "$S/control.rc"
   for t in $SUITES; do
-    if ! timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; then
-      echo "$t"
+    timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; rc=$?
+    echo "$t $rc" >> "$S/control.rc"
+  done
+}
+run_suites() { # run_suites DIR -> prints "suite (rc N, control M)" of the first suite whose status differs from the control's (empty if none)
+  local t rc want
+  for t in $SUITES; do
+    timeout 300 bash "$1/tests/$t" >"$1/$t.log" 2>&1; rc=$?
+    want=$(awk -v t="$t" '$1==t {print $2}' "$S/control.rc")
+    if [ "$rc" != "$want" ]; then
+      echo "$t (rc $rc, control $want)"
       return 0
     fi
   done
   return 0
 }
 
+# CON-033 round 2 adopted the reviewer's mutants RM1..RM3 (section 11.4.276(D)):
+# RM1 (gate and record side: refuse the last legal round) is killed by
+# test_review_record_round_budget_boundary_regression.sh; RM2 and RM3 by the r1/r4
+# suites (reviewer's run). RM4 (G-V-BACKFILL-SUPERSEDED `>` to `>=`) is NOT listed:
+# it is EQUIVALENT by reading. The two operators differ only when a live and a
+# backfill unit of one batch have the same round; _gate_same_round_conflicts()
+# runs before the decision phase and leaves at most one unit per
+# (batch key, round) -- different bodies exit 4 (G-G-CONFLICTS), identical bodies
+# merge into one unit, which cannot be both live and backfill. Not confirmed by
+# execution.
 # MUTATIONS: id <TAB> python-literal old <TAB> python-literal new
 MUTATIONS="$S/mutations.tsv"
 cat > "$MUTATIONS" <<'EOF'
@@ -83,115 +133,53 @@ R7-M2	'if not (verdict == "GO" and len(findings) == 0):'	'if not (True and len(f
 R7-M3	'    reviewer, err = _validated_reviewer(verdict_doc)\n'	'    if not raw_findings:\n        verdict = "GO"\n    reviewer, err = _validated_reviewer(verdict_doc)\n'
 R7-M4	'members.sort(key=lambda rp: rp[0]["round"])'	'members.sort(key=lambda rp: -rp[0]["round"])'
 R7-M5	'    if isinstance(value, str) and value in FINDING_LAYERS:\n        return value, None'	'    if isinstance(value, str) and value in FINDING_LAYERS:\n        return ("process-doc" if value == "source-defect" else value), None'
-O1-ledger-label	'        if labels[0] != (model, effort):'	'        if False:'
-O2-body-hash	'    # guard: G-A-BODY-HASH\n    if rec.get("body_hash") != _body_hash_of(rec):'	'    # guard: G-A-BODY-HASH\n    if False:'
-O3-dispatch-reuse	'if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 1:'	'if False:'
-O4-precheck-all-pass	'if pre.get("all_pass") is not True:'	'if False:'
-O5-precheck-schema	'if pre.get("schema") != PRECHECK_SCHEMA:'	'if False:'
-O6-same-round-conflict	'if len(idents) > 1:'	'if False:'
-O7-evidence-base-dir	'base_real = os.path.realpath(base_dir) if base_dir else root_real'	'base_real = root_real'
-O8-record-round-budget	'    if a.round > budget:'	'    if False:'
-O9-bool-round	'if not isinstance(verdict_round, int) or isinstance(verdict_round, bool):'	'if not isinstance(verdict_round, int):'
-O10-seam-tier	'if ctx["seam"] in HIGH_BLAST_SEAMS and tier != "capability":'	'if False:'
-O11-producer-is-reviewer	'        if producer_id == reviewer["dispatch_id"]:'	'        if False:'
-O12-backfill-history	'        if rec.get("source") == "backfill":'	'        if False:'
-O13-slice-coverage	'if set(got) != wanted or any(v != "GO" for v in got.values()):'	'if False:'
-O14-reviewer-required	'    if reviewer is None:\n        return False, "verdict evidence names no reviewer'	'    if False:\n        return False, "verdict evidence names no reviewer'
-O15-record-vs-evidence	'if (rec.get("verdict") != verdict or rec_layers != ev_layers'	'if (False'
-O16-leaf-owner	'    if leaf_st.st_uid == uid:'	'    if False:'
-O17-hash-compare	'    if not data or hashlib.sha256(data).hexdigest() != evidence_sha256:'	'    if not data:'
-O18-containment	'    if common != root_real:\n        return None, None'	'    if False:\n        return None, None'
-O19-evidence-round	'    if binding["round"] != rec["round"]:'	'    if False:'
-O20-gate-round-budget	'if rec["round"] > ctx["round_budget"]:'	'if False:'
-O21-producer-required	'if not isinstance(producer, str) or producer.strip() in ("", "UNKNOWN"):'	'if False:'
-O22-slice-go-source-defect	'            if layer is None or layer == "source-defect":'	'            if layer == "source-defect":'
-O23-reviewer-matches-cli	'        if reviewer["model"] != a.tier or reviewer["effort"] != a.effort:'	'        if False:'
-O24-designated-tier	'if not (reviewer["model"] == DESIGNATED_TIER and reviewer["effort"] == DESIGNATED_EFFORT):'	'if False:'
-V3-N1-tier-dir-writable	'        if _writable_by(dst, dpath, uid, gids) and not'	'        if False and not'
-V3-N2-tier-leaf-writable	'    if _writable_by(leaf_st, leaf, uid, gids):'	'    if False:'
 V3-N4-precheck-batch	'if _batch_key(pre.get("batch_id")) != _batch_key(rec.get("batch_id")):'	'if False:'
 V3-N6-record-layers	'if (rec.get("verdict") != verdict or rec_layers != ev_layers'	'if (rec.get("verdict") != verdict'
 V3-N8-binding-bool-round	'    if not isinstance(rnd, int) or isinstance(rnd, bool) or rnd < 1:'	'    if not isinstance(rnd, int) or rnd < 1:'
 V3-N11-gate-producer-is-reviewer	'    if producer == reviewer["dispatch_id"]:\n        return False'	'    if False:\n        return False'
 V3-N12-record-model-effort	'            or rec.get("model_tier") != reviewer["model"] or rec.get("effort") != reviewer["effort"]):'	'            or False):'
-R2-B1a-record-binding-batch	'        if (batch.get("batch_id") != binding["batch_id"] or not b_ok_changes'	'        if (not b_ok_changes'
-R2-B1b-record-binding-changes	'                or sorted(b_changes) != binding["change_ids"]):'	'                or False):'
-R2-B2-record-binding-commits	'            if key in batch and batch.get(key) != binding[key]:'	'            if False:'
-R2-B3-record-binding-required	'        binding, err = _validated_binding(verdict_doc)\n        if err:'	'        binding, err = _validated_binding(verdict_doc)\n        if False:'
-R2-B4-gate-binding-required	'    # guard: G-A-BINDING-PRESENT\n    if err:'	'    # guard: G-A-BINDING-PRESENT\n    if False:'
-R2-B5-gate-binding-batch	'    if (_batch_key(binding["batch_id"]) != _batch_key(rec["batch_id"])'	'    if (False'
-R2-B6-gate-binding-changes	'            or sorted(rec_changes) != binding["change_ids"]'	'            or False'
-R2-B7-gate-binding-head	'            or rec.get("review_head") != binding["review_head"]):'	'            or False):'
-R2-B8-gate-binding-base	'            or rec.get("review_base") != binding["review_base"]'	'            or False'
-R2-B9-commit-shape	'        if not isinstance(val, str) or not _COMMIT_RE.fullmatch(val):'	'        if not isinstance(val, str):'
-R2-C1-open-nogo-in-any-batch-blocks	'        elif not ok:\n            blockers.append'	'        elif False:\n            blockers.append'
-R2-C3-dropped-is-not-coverage	'        if ok and is_latest:\n            covering.append'	'        if ok:\n            covering.append'
-R2-C4-backfill-nogo-blocks	'            if not (rec.get("verdict") == "GO" and not rec.get("findings")):'	'            if False:'
-R2-L1-ledger-bad-events	'    if bad:\n        return "dispatch-ledger events'	'    if False:\n        return "dispatch-ledger events'
-R2-L2-ledger-dispatched-row	'    if "dispatched" not in events:'	'    if False:'
-R2-L3-ledger-latest-complete	'    if events[-1] != "complete":'	'    if False:'
-R2-L4-ledger-one-label	'        if len(labels) != 1:'	'        if False:'
-R2-T1-tier-sticky-exemption	'_writable_by(dst, dpath, uid, gids) and not (dst.st_mode & stat.S_ISVTX and child_st.st_uid != uid)'	'_writable_by(dst, dpath, uid, gids)'
-R2-T2-tier-acl	'    return _has_acl(path)'	'    return False'
-R2-T3-tier-runner-principal	'principals = ((producer_uid, producer_gids), (runner_uid, _uid_gids(runner_uid)))'	'principals = ((producer_uid, producer_gids),)'
 R3-M1-earliest-listing	'rec, path = listing[-1]'	'rec, path = listing[0]'
-R3-M2-latest-always	'is_latest = rec is members[-1][0]'	'is_latest = True'
+R3-M2-latest-always	'is_latest = rec is live[-1][0]'	'is_latest = True'
 R3-M3-batchkey-str	'    return _canon(batch_id)'	'    return str(batch_id)'
-R3-M4-primary-group-only	'    gids = {pw.pw_gid}\n'	'    gids = {pw.pw_gid}\n    return gids\n'
-R3-M5-unknown-groups-not-conservative	'if mode & stat.S_IWGRP and (gids is None or st.st_gid in gids):'	'if mode & stat.S_IWGRP and (gids is not None and st.st_gid in gids):'
 R3-M6-label-last-row-only	'    for _ev, desc in rows:'	'    for _ev, desc in rows[-1:]:'
 R3-M7-missing-event-is-complete	'event = row.get("event") if isinstance(row.get("event"), str) else None'	'event = row.get("event") if isinstance(row.get("event"), str) else "complete"'
-R3-M8-tier-report-any	'tier = "capability" if all('	'tier = "capability" if any('
 R3-M9-record-base-unchecked	'        for key in ("review_base", "review_head"):'	'        for key in ("review_head",):'
 R3-M10-collect-bool-round	'            if not isinstance(rnd, int) or isinstance(rnd, bool):'	'            if not isinstance(rnd, int):'
 R3-M11-complete-anywhere	'    if events[-1] != "complete":'	'    if "complete" not in events:'
-G-T-ROOT-off	'    # guard: G-T-ROOT\n    if uid == 0:'	'    # guard: G-T-ROOT\n    if False:'
-G-T-OWNER-BIT-off	'    # guard: G-T-OWNER-BIT\n    if st.st_uid == uid and mode & stat.S_IWUSR:'	'    # guard: G-T-OWNER-BIT\n    if False:'
-G-T-GROUP-BIT-off	'    # guard: G-T-GROUP-BIT\n    if mode & stat.S_IWGRP and (gids is None or st.st_gid in gids):'	'    # guard: G-T-GROUP-BIT\n    if False:'
-G-T-OTHER-BIT-off	'    # guard: G-T-OTHER-BIT\n    if mode & stat.S_IWOTH:'	'    # guard: G-T-OTHER-BIT\n    if False:'
-G-T-DIR-OWNER-off	'        # guard: G-T-DIR-OWNER\n        if dst.st_uid == uid:'	'        # guard: G-T-DIR-OWNER\n        if False:'
-G-T-PRODUCER-IS-RUNNER-off	'    # guard: G-T-PRODUCER-IS-RUNNER\n    if producer_uid == runner_uid:'	'    # guard: G-T-PRODUCER-IS-RUNNER\n    if False:'
-G-T-PRODUCER-KNOWN-off	'    # guard: G-T-PRODUCER-KNOWN\n    if producer_gids is None:'	'    # guard: G-T-PRODUCER-KNOWN\n    if False:'
-G-T-PATH-PRESENT-off	'            # guard: G-T-PATH-PRESENT\n            if path is None:'	'            # guard: G-T-PATH-PRESENT\n            if False:'
-G-T-PRINCIPAL-CAN-REPLACE-off	'                # guard: G-T-PRINCIPAL-CAN-REPLACE\n                if _principal_can_replace(chain, uid, gids):'	'                # guard: G-T-PRINCIPAL-CAN-REPLACE\n                if False:'
-G-C-CONTAINED-off	'            # guard: G-C-CONTAINED\n            if os.path.commonpath([root_real, real]) != root_real:'	'            # guard: G-C-CONTAINED\n            if False:'
-G-C-PARSE-off	'            # guard: G-C-PARSE\n            if err:'	'            # guard: G-C-PARSE\n            if False:'
-G-C-OBJECT-off	'            # guard: G-C-OBJECT\n            if not isinstance(doc, dict):'	'            # guard: G-C-OBJECT\n            if False:'
-G-C-REQUIRED-off	'            # guard: G-C-REQUIRED\n            if missing:'	'            # guard: G-C-REQUIRED\n            if False:'
-G-A-EVIDENCE-VERIFIED-off	'    # guard: G-A-EVIDENCE-VERIFIED\n    if ev is None:'	'    # guard: G-A-EVIDENCE-VERIFIED\n    if False:'
-G-A-EVIDENCE-WELLFORMED-off	'    # guard: G-A-EVIDENCE-WELLFORMED\n    if verdict not in ("GO", "NO-GO") or not isinstance(findings, list):'	'    # guard: G-A-EVIDENCE-WELLFORMED\n    if False:'
-G-A-REVIEWER-WELLFORMED-off	'    # guard: G-A-REVIEWER-WELLFORMED\n    if err:'	'    # guard: G-A-REVIEWER-WELLFORMED\n    if False:'
-G-A-EVIDENCE-OBJECT-off	'    # guard: G-A-EVIDENCE-OBJECT\n    if not isinstance(doc, dict):'	'    # guard: G-A-EVIDENCE-OBJECT\n    if False:'
-G-A-SOURCE-off	'    # guard: G-A-SOURCE\n    if source != "backfill":'	'    # guard: G-A-SOURCE\n    if False:'
-G-B-BODY-HASH-off	'    # guard: G-B-BODY-HASH\n    if rec.get("body_hash") != _body_hash_of(rec):'	'    # guard: G-B-BODY-HASH\n    if False:'
-G-B-NO-LIVE-FIELDS-off	'    # guard: G-B-NO-LIVE-FIELDS\n    if carried:'	'    # guard: G-B-NO-LIVE-FIELDS\n    if False:'
-G-B-CHANGES-SHAPE-off	'    # guard: G-B-CHANGES-SHAPE\n    if cids != "UNKNOWN" and (not isinstance(cids, list) or any(not isinstance(c, str) for c in cids)):'	'    # guard: G-B-CHANGES-SHAPE\n    if False:'
-G-O-ORPHAN-off	'            # guard: G-O-ORPHAN\n            if fn.endswith(_VERDICT_EVIDENCE_SUFFIX) and os.path.realpath(path) not in referenced:'	'            # guard: G-O-ORPHAN\n            if False:'
-G-L-PRESENT-off	'    # guard: G-L-PRESENT\n    if not path:'	'    # guard: G-L-PRESENT\n    if False:'
-G-L-HAS-ROWS-off	'    # guard: G-L-HAS-ROWS\n    if not rows:'	'    # guard: G-L-HAS-ROWS\n    if False:'
-G-Q-LEDGER-READABLE-off	'    # guard: G-Q-LEDGER-READABLE\n    if ctx["ledger"] is None:'	'    # guard: G-Q-LEDGER-READABLE\n    if False:'
-G-Q-LEDGER-AUTH-off	'    # guard: G-Q-LEDGER-AUTH\n    if reason:'	'    # guard: G-Q-LEDGER-AUTH\n    if False:'
-G-Q-PRECHECK-USED-off	'    # guard: G-Q-PRECHECK-USED\n    if record.get("precheck_used") is not True:'	'    # guard: G-Q-PRECHECK-USED\n    if False:'
-G-Q-PRECHECK-VERIFIED-off	'        # guard: G-Q-PRECHECK-VERIFIED\n        if pre is None:'	'        # guard: G-Q-PRECHECK-VERIFIED\n        if False:'
-G-G-CHANGE-NAMED-off	'    # guard: G-G-CHANGE-NAMED\n    if not targets:'	'    # guard: G-G-CHANGE-NAMED\n    if False:'
-G-G-BUDGET-RANGE-off	'    # guard: G-G-BUDGET-RANGE\n    if err:'	'    # guard: G-G-BUDGET-RANGE\n    if False:'
-G-G-RECORDS-DIR-off	'    # guard: G-G-RECORDS-DIR\n    if not os.path.isdir(a.records):'	'    # guard: G-G-RECORDS-DIR\n    if False:'
-G-G-ADMISSION-off	'    # guard: G-G-ADMISSION\n    if failures:'	'    # guard: G-G-ADMISSION\n    if False:'
-G-G-ORPHANS-off	'    # guard: G-G-ORPHANS\n    if orphans:'	'    # guard: G-G-ORPHANS\n    if False:'
-G-G-CONFLICTS-off	'    # guard: G-G-CONFLICTS\n    if conflicts:'	'    # guard: G-G-CONFLICTS\n    if False:'
-G-E-NAMED-off	'    # guard: G-E-NAMED\n    if not isinstance(evidence, str) or not evidence.strip():'	'    # guard: G-E-NAMED\n    if False:'
-G-E-PLACEHOLDER-off	'    # guard: G-E-PLACEHOLDER\n    if evidence.strip().upper() in ("UNKNOWN", "N/A", "TBD"):'	'    # guard: G-E-PLACEHOLDER\n    if False:'
-G-RV-OBJECT-off	'    # guard: G-RV-OBJECT\n    if not isinstance(rv, dict):'	'    # guard: G-RV-OBJECT\n    if False:'
-G-RV-FIELDS-off	'        # guard: G-RV-FIELDS\n        if not isinstance(val, str) or not val.strip():'	'        # guard: G-RV-FIELDS\n        if False:'
-G-BD-PRESENT-off	'    # guard: G-BD-PRESENT\n    if missing:'	'    # guard: G-BD-PRESENT\n    if False:'
-G-BD-BATCH-SHAPE-off	'    # guard: G-BD-BATCH-SHAPE\n    if not isinstance(bid, str) or not bid.strip() or bid != bid.strip():'	'    # guard: G-BD-BATCH-SHAPE\n    if False:'
-G-BD-CHANGES-DISTINCT-off	'    # guard: G-BD-CHANGES-DISTINCT\n    if len(set(cids)) != len(cids):'	'    # guard: G-BD-CHANGES-DISTINCT\n    if False:'
-G-R-DESIGNATED-TIER-off	'    # guard: G-R-DESIGNATED-TIER\n    if a.tier != DESIGNATED_TIER or (not effort_capability_gap and a.effort != DESIGNATED_EFFORT):'	'    # guard: G-R-DESIGNATED-TIER\n    if False:'
-G-T-PRODUCER-DECLARED-off	'    # guard: G-T-PRODUCER-DECLARED\n    if (producer_uid is None or isinstance(producer_uid, bool)\n            or not isinstance(producer_uid, int) or producer_uid <= 0):'	'    # guard: G-T-PRODUCER-DECLARED\n    if False:'
-G-BD-CHANGES-SHAPE-off	'    # guard: G-BD-CHANGES-SHAPE\n    if (not isinstance(cids, list) or not cids'	'    # guard: G-BD-CHANGES-SHAPE\n    if (False'
-G-G-UNCOVERED-off	'        if blockers or not covering:'	'        if blockers:'
+R4-A-merge-paths-dropped	'        merged["paths"] = sorted({p for r, _p in members for p in r["paths"]})\n'	'        merged["paths"] = list(merged["paths"])\n'
+R4-C-store-tier-records-only	'        paths.extend(os.path.join(dirpath, n) for n in sorted(dirnames) + sorted(filenames))'	'        paths.extend(os.path.join(dirpath, n) for n in sorted(filenames) if n.endswith(".json"))'
+RVM-B-store-tier-ledger-dropped	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir]'
+RVM-B2-store-tier-records-dir-dropped	'    paths = [records_dir, ledger_path]'	'    paths = [ledger_path]'
+R4-D-ledger-dupkey-ignored	'            except _DuplicateKeyError:\n                raise\n'	'            except _DuplicateKeyError:\n                continue\n'
+R4-E-evidence-dupkey-allowed	'        doc = json.loads(data.decode("utf-8"), object_pairs_hook=_strict_object)'	'        doc = json.loads(data.decode("utf-8"))'
+R4-F-record-dispatch-unchecked	'            or rec.get("reviewer_dispatch_id") != reviewer["dispatch_id"]\n'	'            or False\n'
+R4-H-dispatch-reuse-ignores-batch	'used.setdefault(reviewer["dispatch_id"], set()).add((_batch_key(rec["batch_id"]), rec["round"]))'	'used.setdefault(reviewer["dispatch_id"], set()).add((rec["round"],))'
+R4-I-binding-padding-allowed	'    if not isinstance(bid, str) or not bid.strip() or bid != bid.strip():'	'    if not isinstance(bid, str) or not bid.strip():'
 G-T-LINK-EDGE-off	'        # guard: G-T-LINK-EDGE\n        edges.append((cur, st))\n'	'        # guard: G-T-LINK-EDGE\n        if not stat.S_ISLNK(st.st_mode):\n            edges.append((cur, st))\n'
 G-E-NONBLOCK-off	'os.O_RDONLY | os.O_NONBLOCK | getattr'	'os.O_RDONLY | getattr'
+RM1-gate-round-budget-last-round	'    if rec["round"] > ctx["round_budget"]:'	'    if rec["round"] >= ctx["round_budget"]:'
+RM1-record-round-budget-last-round	'    if a.round > budget:'	'    if a.round >= budget:'
+RM2-dispatch-reuse-limit	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 1:'	'    if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 2:'
+RM3-subid-range-start	'        if start <= owner_uid < start + count:'	'        if start < owner_uid < start + count:'
+RVR3b-store-tier-ledger-realpath	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir, os.path.realpath(ledger_path) if ledger_path else ledger_path]'
+RVR1-store-tier-ledger-dirname	'    paths = [records_dir, ledger_path]'	'    paths = [records_dir, os.path.dirname(ledger_path)]'
+RF-chain-realpath-first	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = os.path.realpath(path)\n'
+RF-chain-abspath-lexical	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = os.path.abspath(path)\n'
+RF-chain-relative-unresolved	'    start = path if path.startswith("/") else os.getcwd() + "/" + path\n'	'    start = "/" + path\n'
+RF-chain-dot-is-lookup	'        if comp == ".":\n            continue\n'	'        if False:\n            continue\n'
+RF-chain-trailing-slash-dropped	'    if text.endswith("/"):\n'	'    if False:\n'
+RF-chain-link-target-trailing-dropped	'            pending = _path_components(target) + pending\n'	'            pending = [c for c in target.split("/") if c] + pending\n'
+RF-chain-walk-reordered	'        comp = pending.pop(0)\n'	'        comp = pending.pop()\n'
+RF-chain-edges-leaf-only	'        edges.append((cur, st))\n'	'        if not pending:\n            edges.append((cur, st))\n'
+RF-chain-edges-drop-last	'    for dpath, child_st in edges:\n'	'    for dpath, child_st in edges[:-1]:\n'
+RF-chain-edges-drop-first-link	'        # guard: G-T-LINK-EDGE\n        edges.append((cur, st))\n'	'        # guard: G-T-LINK-EDGE\n        if not (stat.S_ISLNK(st.st_mode) and hops == 0):\n            edges.append((cur, st))\n'
+RF-chain-dirs-last-only	'    for dpath, dst in sorted(dirs.items()):\n'	'    for dpath, dst in sorted(dirs.items())[-1:]:\n'
+RF-chain-abs-target-from-cur	'            if target.startswith("/"):\n                cur = "/"\n'	'            if target.startswith("/"):\n                cur = cur\n'
+RV5-A-sticky-root-entry	'child_st.st_uid in (owner_uid, 0)'	'child_st.st_uid == owner_uid'
+RV5-C-acl-error-fail-open	'return exc.errno not in (errno.ENOTSUP, errno.EOPNOTSUPP)'	'return False'
+RV5-D-nsswitch-any-to-all	'any(src != "files" for src in fields[1:])'	'all(src != "files" for src in fields[1:])'
+RV6-B-subid-default-drops-subgid	'_SUBID_FILES = ("/etc/subuid", "/etc/subgid")'	'_SUBID_FILES = ("/etc/subuid",)'
+RV6-E-gate-store-tier-ledger-is-records	'_store_tier(a.records, a.dispatch_ledger, a.producer_uid, a.evidence_owner_uid)'	'_store_tier(a.records, a.records, a.producer_uid, a.evidence_owner_uid)'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss
@@ -208,13 +196,20 @@ PY
 FAIL=0
 echo "== control: unmutated mirror must be fully GREEN =="
 build_mirror "$S/control"
-FIRST_RED=$(run_suites "$S/control")
-if [ -n "$FIRST_RED" ]; then
-  echo "NOT ok control mirror is RED at $FIRST_RED -- kills would be meaningless"
-  tail -20 "$S/control/$FIRST_RED.log"
-  exit 1
-fi
-echo "ok control mirror GREEN across: $SUITES"
+run_control "$S/control"
+CONTROL_SKIP=""
+while read -r t rc; do
+  case "$rc" in
+    0) ;;
+    77) CONTROL_SKIP="$CONTROL_SKIP $t"
+        echo "SKIP control: $t skipped proof legs on this host: $(grep '^SKIP: ' "$S/control/$t.log" | cut -d' ' -f2 | tr '\n' ' ')" ;;
+    *) echo "NOT ok control mirror is RED at $t (rc $rc) -- kills would be meaningless"
+       tail -20 "$S/control/$t.log"
+       exit 1 ;;
+  esac
+done < "$S/control.rc"
+if [ -z "$CONTROL_SKIP" ]; then echo "ok control mirror GREEN across: $SUITES"
+else echo "ok control mirror GREEN (no suite failed) across: $SUITES -- with skipped proof legs in:$CONTROL_SKIP"; fi
 
 WANT=" $* "
 while IFS="$(printf '\t')" read -r id old new; do
@@ -237,5 +232,9 @@ while IFS="$(printf '\t')" read -r id old new; do
 done < "$MUTATIONS"
 
 echo ""
+if [ "$FAIL" -eq 0 ] && [ -n "$CONTROL_SKIP" ]; then
+  echo "== all mutations KILLED, but the control skipped proof legs in:$CONTROL_SKIP (SKIP, not PASS) =="
+  echo "SKIP reason=control_proof_legs_skipped"; exit 77
+fi
 [ "$FAIL" -eq 0 ] && { echo "== all mutations KILLED =="; exit 0; }
 echo "== mutation runner FAILED (see NOT ok lines) =="; exit 1

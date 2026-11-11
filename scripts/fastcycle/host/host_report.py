@@ -1093,9 +1093,12 @@ def _read_ulimit_threads():
     unlimited = (ulim == "unlimited")
     thr = os.environ.get("FC_GUARD_THREADS")
     if thr is None:
-        rc, out, _err = run_cmd(["sh", "-c", "ps -L --no-headers -U \"$(id -ru)\" 2>/dev/null | wc -l"],
-                                 timeout=15)
-        thr = out.strip() if rc == 0 and out is not None else None
+        # CON-216: ps runs directly, not as `ps ... | wc -l` in sh. In the pipeline the
+        # exit status was wc's, so a failed ps read as "0" threads and the headroom
+        # became the whole soft limit (a false null, section 11.4.201(6)). A failed or
+        # unrunnable ps now leaves thr None, which the caller reports as unmeasured.
+        rc, out, _err = run_cmd(["ps", "-L", "--no-headers", "-U", str(os.getuid())], timeout=15)
+        thr = str(len(out.splitlines())) if rc == 0 and out is not None else None
     try:
         ulim_i = None if unlimited or ulim is None else int(ulim)
     except ValueError:

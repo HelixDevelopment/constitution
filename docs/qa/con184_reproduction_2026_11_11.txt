@@ -1,0 +1,12 @@
+CON-184 reproduction record (section 11.4.292), 2026-11-11, host-only
+Base: main fc57ad0c69197d47febf020744701ffd04016cad; host Linux 7.0.0, bash 5.3.9, dash.
+RED command : bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON184-M3
+  (hand-table row CON184-M3: the rest-of-prefix check *[!A-Z0-9]* replaced by *[![:alnum:]]*, the reviewer's mutant M3,
+   run against the helper test as it was on fc57ad0c, i.e. without AtM-5 / A_B-1 in the S7b list)
+RED output  : ok   baseline: the unmutated helper copy passes (SUMMARY: 338 pass / 0 fail)
+              SURVIVED CON184-M3 (rc 0, 0 NOT ok lines)
+              SUMMARY mutants=1 killed=0 survivors=1 not_applicable=0
+GREEN (same command, helper test with AtM-5 and A_B-1 added to S7b):
+              killed CON184-M3 (2 failing check(s): [bash] S7b usage message for [AtM-5]: rc 0, stderr [];[dash] ... [AtM-5] ...)
+              SUMMARY mutants=1 killed=1 survivors=0 not_applicable=0
+Signature   : mutant survives with 0 NOT ok lines while the unmutated helper treats AtM-5 as a usage error (exit 2).

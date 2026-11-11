@@ -1701,9 +1701,10 @@ case "$*" in
       after) int_main ;;
       termgrp)
         g=$(statf "$w" 3)      # the process group (fields after ") ": state ppid pgrp ...)
-        if [ "$g" = "$w" ] && [ "$w" -gt 1 ] && [ "$(cat "/proc/$w/comm" 2>/dev/null)" = bash ]; then
-          echo "$w" >"%(case)s/signalled"; kill -TERM -- "-$g"
-        fi ;;
+        if [ "$g" = "$w" ] && [ "$w" -gt 1 ] && [ "$g" -gt 1 ] 2>/dev/null && [ "$(cat "/proc/$w/comm" 2>/dev/null)" = bash ]; then
+'''
+'          echo "$w" >"%(case)s/signalled"; kill -TERM -- "-$g"\n'  # killpg-gate:allow g is compared -gt 1 on the shell line above (inside the template string, where the gate's guard window cannot read it)
+r'''        fi ;;
       killw)
         if [ "$w" -gt 1 ] && [ "$(cat "/proc/$w/comm" 2>/dev/null)" = bash ]; then
           echo "$w" >"%(case)s/signalled"; kill -KILL "$w"

@@ -1,0 +1,4 @@
+RESULT U38 FAIL patch set: default = the patch tool's registry default, forwarded as no --patches (one source of truth, runner_patches DEFAULT_EXCLUDED; CON-117); 'default' and 'all' = the same; --patches / CG_SAFE_PATCHES pass through; malformed -> exit 2
+  detail[U38]: d1=[patch_tool --patches fkidx1,resolve1 --print-bin] d2=[patch_tool --patches fkidx1,lockfix1,resolve1 --print-bin] d3=[patch_tool --patches fkidx1 --print-bin] d4=[patch_tool --print-bin] d5=[patch_tool --patches default --print-bin] e=2,2,2 n1=0
+SUMMARY cases=1 failed=1
+rc=1

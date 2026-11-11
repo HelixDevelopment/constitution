@@ -1,6 +1,6 @@
 # resolve1 excluded-set change: corrected proposal (fixu round 2, review P-1 and P-2)
 
-Status: PROPOSAL. Not applied in any tracked tree. `config/full_suite_excluded.lock` is not edited by hand,
+Status: APPLIED in e6b16598 (lock 53 -> 55 rows); kept unchanged below as the record (section 11.4.215). Original status line: PROPOSAL. Not applied in any tracked tree. `config/full_suite_excluded.lock` is not edited by hand,
 and the acceptance is the operator's act (a rostered reviewer). This replaces
 `scratchpad/fixu/resolve1_lock_diff_PROPOSED.txt`.
 

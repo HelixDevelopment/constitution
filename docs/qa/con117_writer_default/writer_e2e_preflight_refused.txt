@@ -1,0 +1,14 @@
+free_bytes=41102073856
+db_bytes=0
+min_free_bytes=64424509440
+PREFLIGHT FAIL disk: free 41102073856 < required 64424509440
+mem_avail_kb=24758832
+min_mem_avail_kb=16777216
+min_mem_avail_source=<scratch>/e2e_limits.yaml min_mem_avail_gib
+thread_limit=123694
+threads_used=2414
+min_thread_headroom=1024
+heap_mb=12089
+heap_cap_mb=18584
+codegraph_safe: host preflight FAILED — bulk init refused (§12.6 / §12.12)
+rc=6

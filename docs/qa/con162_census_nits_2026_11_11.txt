@@ -1,0 +1,32 @@
+# CON-162 evidence (2026-11-11), main fc57ad0c
+# n1 REPRODUCED (host-only): real run_bounded on 'timeout 100 sleep 97' with a 3 s bound left [timeout, sleep] alive in the run's session before the fix. RED output:
+  | ok n1 run_bounded reports the timeout (rc None) rc=None
+  | NOT ok n1 no process of the run's session survives the timeout kill left=[788637, 788660]
+  | ok n1 control needle: a fabricated session id has no members
+  | Traceback (most recent call last):
+  |   File "/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/tmp/tmp.uFCxaW8TQT/drv.py", line 31, in <module>
+  |     check("n2 KILLED mutant with a ledger entry is stale", em.is_stale_killed("KILLED", "k1", led) is True)
+  |                                                            ^^^^^^^^^^^^^^^^^^
+  | AttributeError: module 'em' has no attribute 'is_stale_killed'
+
+# GREEN + mutants:
+  | ok n1 run_bounded reports the timeout (rc None) rc=None
+  | ok n1 no process of the run's session survives the timeout kill left=[]
+  | ok n1 control needle: a fabricated session id has no members
+  | ok n2 KILLED mutant with a ledger entry is stale
+  | ok n2 EQUIVALENT mutant with a ledger entry is not stale
+  | ok n2 KILLED mutant without a ledger entry is not stale
+  | ok n2 SURVIVED mutant with a ledger entry is not stale (reported as survived/equivalent)
+ok unmutated tool: all 7 checks pass
+ok mutant M1_kill_group_only killed
+ok mutant M2_stale_ignores_verdict killed
+ok mutant M3_stale_any_verdict killed
+=== enumerate_decision_mutants r2 (CON-162 n1 n2): pass=4 fail=0 ===
+rc=0
+# n2 end-to-end (real census, planted FALSE ledger proof for a killed host_report mutant, scratch copy of scripts/):
+CONTROL	host_report	unmutated copy passes (66 s)
+KILLED	575f3d409317	host_report:1081	num_bound_shift	if len(parts) >= 4:	->	if len(parts) >= 5:
+STALE	575f3d409317	host_report	ledger entry's mutant is KILLED, so its equivalence proof is false: if len(parts) >= 4:
+=== decision mutants: killed=1 killed-timeout=0 survived=0 equivalent=0 invalid=0 blind=0 stale=1 ===
+# n3 NOT REPRODUCED: tried diff.ignoreSubmodules=all with a gitlink-only index stash; could not build a stash with a gitlink to a missing submodule (git: 'No local changes' / invalid ref), and for an ordinary index change porcelain and plumbing agree (rc 1 both). No change made to stash_index_unpatched (no fix for an unobserved symptom). A real-submodule fixture is needed to settle it: UNCONFIRMED.
+# n4 not acted: status choices of CON-146/147/158 belong to the vehicles that own them (CON-164 is In progress; the others Queued on this main).

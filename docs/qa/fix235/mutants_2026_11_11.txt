@@ -1,0 +1,9 @@
+# paired mutants, vehicle/fix235 (engine and harness as committed in 480f335c / 3eae13fc)
+# command: bash tests/test_run_full_suite_mutations.sh L2 L3
+ok   baseline: unmutated copy passes the self-test
+killed L2 (5 failing check(s))
+killed L3 (6 failing check(s))
+SUMMARY mutants=2 killed=2 survivors=0 not_applicable=0
+
+# CON-236 harness paired mutant (duplicate-id check line removed), from tests/test_run_full_suite_mutations_table.sh:
+ok   paired mutant (duplicate-id check removed) is killed: 8 case check(s) fail

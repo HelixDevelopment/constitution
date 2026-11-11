@@ -1,0 +1,6 @@
+workdir <scratch>/tmp/cg_safe_tests/bulk_classify_mut.zn5dmZ
+RESULT MB4 PASS mutant KILLED (--patches not forwarded to the patch tool): named case(s) U38 turn RED
+RESULT MB5 PASS mutant KILLED (writer carries its own default list again (diverges from the registry default; CON-117)): named case(s) U38 turn RED
+RESULT MB5b PASS mutant KILLED ('default' forwarded as a patch id instead of delegating to the registry default): named case(s) U38 turn RED
+SUMMARY cases=3 failed=0
+rc=0

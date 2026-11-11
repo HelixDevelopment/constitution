@@ -1,0 +1,25 @@
+# CON-159 evidence (2026-11-11), main fc57ad0c
+# Reproduction (host-only, grep of real files): the overstating wording is present on main (RED below, 4 failing checks).
+# RED (before the wording fix):
+  | NOT ok tool docstring still says it enumerates EVERY decision point
+  | NOT ok tool docstring lacks the scope statement (matched by the closed operator list)
+  | NOT ok meta-test header still says single-edit mutant of every decision point
+  | NOT ok CON-158 text still says the census closes the class and enumerates every decision point
+NOT ok real files: 4 failing
+ok mutant M1_tool_claims_every killed
+ok mutant M2_meta_header_claims_every killed
+ok mutant M3_tracker_claims_closes_class killed
+=== census wording r1 (CON-159): pass=3 fail=1 ===
+
+# GREEN (after):
+  | ok tool docstring does not claim EVERY decision point
+  | ok tool docstring states the scope: decision points matched by the closed operator list
+  | ok meta-test header does not claim every decision point
+  | ok CON-158 text does not claim the census closes the class
+ok real files: all 4 wording checks pass
+ok mutant M1_tool_claims_every killed
+ok mutant M2_meta_header_claims_every killed
+ok mutant M3_tracker_claims_closes_class killed
+=== census wording r1 (CON-159): pass=4 fail=0 ===
+rc=0
+# Not done (optional in the item): operators for if-condition negation and awk field shifts: not added (would need a census re-run, hours; decision/scope: left to a later round).
