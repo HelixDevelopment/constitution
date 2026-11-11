@@ -99,6 +99,8 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/reopen_rate"
 DB="$ROOT/docs/workable_items.db"
+# A standalone canon (no consumer above it) is its own live tracker.
+[ -f "$DB" ] || [ ! -f "$ROOT/constitution/docs/workable_items.db" ] || DB="$ROOT/constitution/docs/workable_items.db"
 
 fail=0
 failx() { fail=1; }
@@ -122,23 +124,42 @@ fi
 # proves the fixture family's atm_id-collision precaution -- B-/T-/F-/MB-/
 # NB-/NT-/NF- prefixes distinct from the real ATM-/SPK- schemes -- is not
 # merely asserted but genuinely checked against the live tracker.)
-if command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
-  for fake_id in B-001 MB-004 NB-001; do
-    hit=$(sqlite3 -readonly "$DB" "SELECT atm_id FROM items WHERE atm_id='$fake_id';" 2>&1)
-    if [ -n "$hit" ]; then
-      echo "NOT ok control needle #2 FAILED: synthetic fixture id '$fake_id' collides"
-      echo "     with a REAL live-tracker item -- every fixture in this suite must use"
-      echo "     ids that do not exist in docs/workable_items.db"
-      failx
-    fi
-  done
-  echo "ok control needle #2: the synthetic fixture id prefixes (B-/MB-/NB-...) do"
-  echo "   not collide with any real item in the live tracker DB"
-else
-  echo "NOT ok control needle #2 SKIPPED: sqlite3 or the tracker DB is unavailable"
-  echo "     in this environment -- this is an environment gap, not a finding"
-  failx
-fi
+# The lookup uses python3's own sqlite3 module (read-only URI), not the
+# sqlite3 command-line tool: the CLI is often not installed, and its absence
+# made this needle report "SKIPPED" while the test exited 1 (review finding
+# F-PRE-2, CON-129). python3 is already required by every other check here.
+# The query is checked first against a KNOWN-PRESENT id read from the same
+# table (control needle), so an empty answer can be trusted as absence.
+NEEDLE2=$(python3 -I - "$DB" B-001 MB-004 NB-001 <<'PYN' 2>&1
+import sqlite3, sys
+db, fakes = sys.argv[1], sys.argv[2:]
+try:
+    con = sqlite3.connect("file:%s?mode=ro&immutable=1" % db, uri=True)  # immutable: no -shm/-wal side files in the tree
+    row = con.execute("SELECT atm_id FROM items ORDER BY atm_id LIMIT 1").fetchone()
+except Exception as e:  # unreadable DB: an instrument failure, never "absent"
+    print("BLIND %s" % e); sys.exit(0)
+if not row:
+    print("BLIND no item rows to use as the positive control"); sys.exit(0)
+q = "SELECT atm_id FROM items WHERE atm_id=?"
+if con.execute(q, (row[0],)).fetchone() is None:
+    print("BLIND the query does not find the known-present id %s" % row[0]); sys.exit(0)
+hits = [f for f in fakes if con.execute(q, (f,)).fetchone()]
+print("HIT %s" % " ".join(hits) if hits else "CLEAN control=%s" % row[0])
+PYN
+)
+case "$NEEDLE2" in
+  CLEAN*)
+    echo "ok control needle #2: the synthetic fixture id prefixes (B-/MB-/NB-...) do"
+    echo "   not collide with any real item in the live tracker DB ($NEEDLE2)" ;;
+  HIT*)
+    echo "NOT ok control needle #2 FAILED: synthetic fixture id(s) collide with a"
+    echo "     REAL live-tracker item (${NEEDLE2#HIT }) -- every fixture in this suite"
+    echo "     must use ids that do not exist in docs/workable_items.db"
+    failx ;;
+  *)
+    echo "NOT ok control needle #2 could not read the tracker DB ($DB): $NEEDLE2"
+    failx ;;
+esac
 
 # --- (1) Absence check: closure/reopen_rate.py ---
 # Note: `$FC/closure/` itself exists RIGHT NOW as an empty scaffold

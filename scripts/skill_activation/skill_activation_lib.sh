@@ -124,8 +124,13 @@ sa_session_alive() {
     # readable here, so this is a bounded, stated limitation (§11.4.6), and the
     # 2>/dev/null keeps a permission-denied from polluting the caller's stderr.
     [ -r "/proc/$pid/environ" ] || continue
-    if tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null \
-         | grep -qx "CLAUDE_CONFIG_DIR=${cfg}" 2>/dev/null; then
+    # Read the NUL-separated environ directly (grep -z), never through a pipe:
+    # this library runs under `set -o pipefail`, and with `tr | grep -q` grep
+    # exits on the first match, tr dies of SIGPIPE (141) and pipefail turns a
+    # LIVE session into "dead" (measured 2026-11-06: 134 of 200 probes on a
+    # 14 KB environment), so its claim was reaped. -F: the dir is a literal,
+    # not a regex (a "." in it must not match any character).
+    if grep -qzxF -- "CLAUDE_CONFIG_DIR=${cfg}" "/proc/$pid/environ" 2>/dev/null; then
       return 0
     fi
   done

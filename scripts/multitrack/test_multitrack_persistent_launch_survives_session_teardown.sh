@@ -39,7 +39,7 @@
 # Side-effects: starts + stops its own short-lived `systemd-run --user
 #   --scope` units and their child processes only (never touches
 #   /mnt/trackN, crontab, or any real ccr/supervisor process). SKIPs the
-#   whole suite honestly (exit 2) on a host with no reachable systemd --user
+#   whole suite honestly (exit 77, reason=topology_unsupported) on a host with no reachable systemd --user
 #   bus, since the defect + fix are both systemd-specific by construction.
 # Dependencies: bash, systemd-run, systemctl (both --user), date, tr,
 #   mktemp, sleep, kill.
@@ -76,14 +76,33 @@ echo "=== persistent-launch survives-session-teardown (ATM-1041) — UUT: $UUT"
 
 # --- host-topology gate (§11.4.3 honest SKIP, never a fake PASS) -----------
 if ! command -v systemd-run >/dev/null 2>&1 || ! command -v systemctl >/dev/null 2>&1; then
-    echo "SKIP: systemd-run/systemctl absent (reason: topology_unsupported)"
-    exit 2
+    echo "SKIP: systemd-run/systemctl absent reason=topology_unsupported"
+    exit 77
 fi
+# A clean environment (env -i, the full-suite runner) drops XDG_RUNTIME_DIR,
+# or carries one without a bus, which makes `systemctl --user` blind even
+# though the user manager runs. The shared helper (scripts/lib/user_bus_env.sh,
+# CON-125) exports XDG_RUNTIME_DIR to the caller's OWN bus (a socket owned by
+# this user, the same rule for every branch), so the probe asks the real
+# question (CON-118 follow-ups F110-1, F110-2, F110-3).
+_ub_lib="$SELF_DIR/../lib/user_bus_env.sh"
+[ -r "$_ub_lib" ] || { echo "FAIL: helper absent: $_ub_lib"; exit 1; }
+# shellcheck source=../lib/user_bus_env.sh
+. "$_ub_lib"
+ub_user_bus_env
+case $? in
+    0) ;;
+    2)  echo "SKIP: the only systemd --user bus socket ($UB_BUS_PATH) is not owned by uid $(id -u) reason=topology_unsupported"
+        exit 77 ;;
+    *)  echo "SKIP: no systemd --user bus on this host reason=topology_unsupported"
+        exit 77 ;;
+esac
 if ! systemctl --user list-units >/dev/null 2>&1; then
-    echo "SKIP: systemd --user bus unreachable (reason: topology_unsupported)"
-    exit 2
+    # an owned bus socket is there but the manager does not answer: a real fault
+    echo "FAIL: systemd --user bus socket present at $UB_BUS_PATH (owned by uid $(id -u), $UB_SOURCE) but systemctl --user does not answer"
+    exit 1
 fi
-[ -r "$UUT" ] || { echo "SKIP: UUT absent (reason: tool_absent)"; exit 2; }
+[ -r "$UUT" ] || { echo "FAIL: unit under test absent: $UUT"; exit 1; }
 
 _uniq() {
     _n="$(date +%s%N 2>/dev/null)"

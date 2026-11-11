@@ -64,7 +64,10 @@
 #   counted; process-group signals assert pgid > 1 (section 11.4.263); per-unit dirs are
 #   removed with safe_rm_rf (section 11.4.287).
 # KNOWN  config/full_suite_known_failures.tsv: exact path + signature; recomputed at every
-#   report from the current table and the log (sha256 checked).
+#   report from the current table and the log (sha256 checked). Signature `reason:<code>+tracked`
+#   also needs every "[tracked <id>]" token in the log to name the row's id (at least one).
+#   --check-known-open [--db FILE]: exit 1 names a row whose tracked item is closed or unknown in
+#   the workable-items DB (default docs/workable_items.db), 2 when the DB is absent or empty.
 # RESULTS + RESUME  <out>/results.jsonl (schema fsr/4, hash-chained, seq numbered; a break
 #   is exit 2, a torn last line is dropped with a WARN), one log per record, an exclusive
 #   lock on <out>/.lock. Reuse key: unit, HEAD sha, tree hash (status, diff, untracked,
@@ -94,7 +97,7 @@
 #          [--known FILE] [--manifest FILE] [--rerun-nonpass] [--only REGEX]
 #          [--log-cap-mb N] [--env-extra NAME]... [--list] [--allow-topology-gaps]
 #          [--verify-manifest [--accept-excluded-change WHO]] [--sync-guide]
-#          [--generate-manifest [--write]]
+#          [--generate-manifest [--write]] [--check-known-open [--known FILE] [--db FILE]]
 #   --timeout: positive integer seconds per unit (default 900; run_all and Go units 2x).
 #   Scratch for per-unit homes: $FULL_SUITE_TMPDIR, else $TMPDIR, else /tmp.
 # SELFTEST  bash tests/test_run_full_suite.sh ; paired mutations:

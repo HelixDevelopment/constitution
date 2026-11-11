@@ -1,0 +1,47 @@
+== R7 B1/B2/I1-I3 regression: review_record.py gate verdict authority ==
+PASS: G0 negative control: genuine record COVERED at ordinary seam, achieved independence honestly reported 'instance' on this single-uid host
+PASS: G0b: record stores the ACHIEVED tier 'instance' (never 'capability' on a same-uid write)
+PASS: B1-A: a verdict carrying no reviewer identity never qualifies (producer self-certification)
+PASS: B1-A2: archived precheck with all_pass=false never qualifies (named in reason)
+PASS: B1-A3: archived precheck without schema precheck/v1 never qualifies
+PASS: B1-A4: a reviewer dispatch id with no dispatch-ledger row never qualifies
+PASS: B1-A4b: gate run with NO --dispatch-ledger cannot authenticate any reviewer -> UNCOVERED, never a silent pass
+PASS: B1-A5: ledger label 'opus - high' contradicts the verdict's claimed xhigh -> UNCOVERED
+PASS: B1-A5b: ledger label model 'sonnet' -> UNCOVERED
+PASS: B1-A6: record refuses (rc 1, nothing written) when --producer-id equals the reviewer dispatch id
+PASS: B1-A6b: a record with no producer identity never qualifies
+PASS: B1-B: a round-2 GO reusing the round-1 reviewer's dispatch id is refused (one dispatch backs one verdict)
+PASS: B1-C: an edited record is inadmissible (exit 4, body_hash), and with a re-computed body_hash still inadmissible (verdict re-derived from the reviewer's archived evidence)
+PASS: B1-D: seam release-tag refuses an instance-tier verdict (11.4.240(F)(4))
+PASS: B1-D: seam qa-deploy refuses an instance-tier verdict (11.4.240(F)(4))
+PASS: B1-D: seam manual-qa-handoff refuses an instance-tier verdict (11.4.240(F)(4))
+PASS: B1-D2: unknown --seam value is a usage error (2), never a silent ordinary seam
+PASS: B1-D5: read-only evidence OWNED by this uid is only 'instance' -> release-tag refused
+PASS: B1-E: a record whose round was edited away from the reviewer's archived round is inadmissible (exit 4)
+PASS: B1-G: record refuses (rc 1) when the reviewer's own model/effort disagrees with --tier/--effort
+PASS: B1-H: a genuine, consistent '?'-effort review (honest capability gap) is recorded but never coverage (RB-004)
+PASS: B2-M1: a reviewer GO carrying a finding is not coverage (zero-finding rule)
+PASS: B2-M3: a zero-finding NO-GO is recorded verbatim as NO-GO (never rewritten to GO)
+PASS: B2-M2: a zero-finding NO-GO is not coverage (verdict==GO rule)
+PASS: B2-M4: round-1 GO superseded by round-2 NO-GO -> UNCOVERED (latest round decides)
+PASS: B2-M4n (negative control): round-1 NO-GO superseded by a genuine round-2 GO -> COVERED round=2
+PASS: B2-M5: finding_layer source-defect recorded verbatim (never lowered)
+PASS: I1: two different records for the same batch+round are refused (rc 4) regardless of filename order
+PASS: I1n (negative control): a byte-identical duplicate record is not a conflict
+PASS: I2: a nested genuine record is COVERED both from an ancestor --records and from its own directory
+PASS: I3a: record refuses round 6 under the default 11.4.276 budget of 5 (rc 1, nothing written)
+PASS: I3a2: round 42 refused even under the maximum budget 7
+PASS: I3a3: --round-budget outside 5..7 is a usage error (2)
+PASS: I3a4: a round-6 record (budget 7) is UNCOVERED under the gate's default budget 5 and COVERED under --round-budget 7
+PASS: I3b: a multi-slice batch with no per-slice verdicts is not coverage
+PASS: I3b2 (negative control): every slice GO -> COVERED
+PASS: I3b3: a slice verdict naming an unknown slice is a usage error (2)
+PASS: I3b4: overall GO contradicting a NO-GO slice is refused (2)
+PASS: I3b5: a GO slice holding an open source-defect finding is refused (11.4.235(D))
+PASS: I3b6: an unclassified finding on a GO slice defaults to source-defect and is refused (11.4.235(D) conservative default)
+PASS: I3b7 (negative control): a GO slice whose only finding is test-instrumentation is accepted (11.4.235(D) build-eligible)
+PASS: M-a: verdict-file round=true is refused (2), never read as round 1
+PASS: BF: a well-cited backfill row is history only -- never gate coverage
+PASS: BF2: a genuine live record relabelled source=backfill is inadmissible (exit 4: a backfill row never carries live evidence)
+
+== Summary: ok 44 / NOT ok 0 ==

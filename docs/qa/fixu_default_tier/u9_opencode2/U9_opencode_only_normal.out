@@ -1,0 +1,7 @@
+FAIL opencode: REAL opencode resolves the installed plugin entry (debug config)
+FAIL opencode: REAL session.created event registered the entity (want 'running' got '')
+FAIL opencode: entity alias (want 'opencode' got '')
+FAIL opencode: REAL session.deleted event marked it done (want 'done' got '')
+---
+test_real_agents: 0 passed, 4 failed, 0 skipped; opencode=opencode v2.2.0
+rc=1
