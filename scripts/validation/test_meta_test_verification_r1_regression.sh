@@ -1,5 +1,5 @@
 #!/bin/bash
-# Purpose : CON-128 regression guard for scripts/validation/meta_test_verification.sh
+# Purpose : CON-158 regression guard for scripts/validation/meta_test_verification.sh
 #           (the paired-mutation meta-test of scripts/validation/run_verification.sh):
 #           the meta-test never changes the tree it checks -- no renamed
 #           submodule, no edited tracked gate script -- even when it is stopped
@@ -7,8 +7,8 @@
 #           mutations are real (a weakened gate that parses, not a syntax
 #           error); it fails when the gate is blind to a missing required
 #           submodule or always fails; and on its PASS path the summary line
-#           is printed last (CON-126 class, review round 2 finding R2-F5-A).
-#           Round 5 (CON-128 review round 4, F1: reviewer mutants Ma and Mb
+#           is printed last (CON-156 class, review round 2 finding R2-F5-A).
+#           Round 5 (CON-158 review round 4, F1: reviewer mutants Ma and Mb
 #           survived): every decision point of the meta-test has its own
 #           fixture, pinned to one verdict (exit code, fail count, the one
 #           failure line it must print, nothing left under TMPDIR), and one
@@ -21,7 +21,7 @@
 #           tracked gate mutated (4 of 15 delays). Its "mutation 2" seds also
 #           rewrote every `fi`/`else` on every line, so the mutated gate was a
 #           syntax error that fails whatever the gate checks.
-# Known gap (stated, not fixed; CON-128 review round 3, FU-7): SIGKILL cannot
+# Known gap (stated, not fixed; CON-158 review round 3, FU-7): SIGKILL cannot
 #           run a trap, so after a KILL the scratch root stays under $TMPDIR.
 #           It holds only SYMLINKS to the real submodules and a copy of the
 #           gate (measured: 503 symlinks over 30 runs). `rm -rf` (GNU and
@@ -100,7 +100,7 @@ case "$OUT" in *"weakened gate parses"*) ok "G1 mutation 2 is a real mutation (t
   *) notok "G1 output does not show that the mutation-2 gate parses" ;; esac
 
 # wait_gone STRING: wait (at most 20 s) until no process has STRING in its command
-# line (CON-128 round 5, review F7: a KILL ends the meta-test, and its scratch root
+# line (CON-158 round 5, review F7: a KILL ends the meta-test, and its scratch root
 # is removed only after every process that still names it has gone). STRING is
 # passed in the environment, so the scanner never matches itself.
 wait_gone() {
@@ -149,7 +149,7 @@ for sig in TERM KILL; do
   else notok "G-$sig stopped by $sig: the checked tree changed (or scratch left) at delay(s)$bad"; fi
 done
 
-# --- Decision points of the meta-test, each with its own fixture (CON-128 review
+# --- Decision points of the meta-test, each with its own fixture (CON-158 review
 # round 4, F1: the class "a reviewer mutant of the meta-test survives" recurred in
 # rounds 3 and 4 because the fixtures did not separate the verdict axes). Every
 # branch that sets the meta-test's verdict is listed here; each fixture makes
@@ -370,5 +370,5 @@ mtv_mutation DP13b_check_kept G '         '"'"'run_check "%s (agent-skills)" \\\
 mtv_mutation DP13c_mutation1_on_real_tree G 'if bash "${R1}/scripts/validation/run_verification.sh"' 'if bash "${VERIFICATION_SCRIPT}"'
 mtv_mutation DP13d_mutation2_on_m1_root G 'if bash "${R2}/scripts/validation/run_verification.sh"' 'if bash "${R1}/scripts/validation/run_verification.sh"'
 
-echo "=== meta_test_verification regression guard (CON-128): pass=$pass fail=$fail ==="
+echo "=== meta_test_verification regression guard (CON-158): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]

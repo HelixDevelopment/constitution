@@ -1,0 +1,83 @@
+ok control needle #1: a known-present sibling (lib/fc_common.py) resolves
+   through this test's own path construction -- the absence check
+   below can be trusted
+NOT ok control needle #2 could not read the tracker DB (/home/milosvasic/.cache/claude-tmp/rr_mut.tEgz2z/m/constitution/docs/workable_items.db): BLIND no such table: items
+-- /home/milosvasic/.cache/claude-tmp/rr_mut.tEgz2z/m/constitution/scripts/fastcycle/closure exists, holding 3 *.py file(s) right now (sibling
+   US3 tasks T094/T096/T099 may land escape_classify.py/
+   sibling_search_check.sh/churn_rank.py here independently of this task)
+ok closure/reopen_rate.py now exists -- T100 has landed. The forward-
+   compatible invocation checks below will exercise it for real against
+   every fixture's expected_report block.
+ok fixture golden_window present (2 files)
+ok fixture golden_bad_mismatched_populations present (2 files)
+ok fixture empty_window present (2 files)
+ok fixture negative_control_retroactive present (2 files)
+
+=== T100 contract check 1/4: golden_window (matched population, DERIVED oracle) ===
+ok golden_window: the independent DERIVED oracle (§11.4.245), re-computed
+   from scratch by THIS test's own from-scratch Python function -- never
+   the fixture author simply re-typing a number -- EXACTLY matches the
+   fixture's own hand-computed expected_report: Bug reopened=1/closed=5
+   (rate=0.2), Task 0/2 (0.0), Feature 0/1 (0.0), overall 1/8 (0.125).
+   This is the golden-good member of the §11.4.107(10) self-validation
+   triple; it is compared below against golden_bad's opposite verdict.
+
+=== T100 contract check 2/4: golden_bad_mismatched_populations (R1 '18 of 31' class, DERIVED oracle) ===
+ok golden_bad_mismatched_populations: the independent derivation EXACTLY
+   matches the fixture's hand-computed expected_report -- Bug's rate is
+   REFUSED (RATE_NOT_COMPUTABLE) naming MB-004 as the mismatched item
+   (MB-004 has a Reopened event in the window but ZERO closure events
+   anywhere in its history -- research/R1_baseline_cycle_time.md:64's
+   real 'so "18 of 31 bugs" ... is an UPPER-BOUND-style ratio with
+   mismatched populations ... do not quote as a rate' finding, cited
+   verbatim by contract CT-006). Task and Feature both compute clean,
+   real 0.0 rates -- the refusal is correctly scoped to Bug alone, not
+   a blanket whole-report failure.
+
+=== Self-validation control needle (§11.4.107(10)/§11.4.201(1)): golden vs golden-bad discriminate ===
+ok control needle (derivation discrimination): golden_window's Bug rate is
+   a REAL NUMBER (0.2) while golden_bad_mismatched_populations' Bug rate
+   is REFUSED (RATE_NOT_COMPUTABLE) from the SAME derivation function --
+   proving it genuinely discriminates a matched population from a
+   mismatched one rather than rubber-stamping every input the same way.
+
+=== T100 contract check 3/4: empty_window (honest empty state, DERIVED oracle) ===
+ok empty_window: the independent derivation reports state=NO_DATA_IN_WINDOW
+   for the empty 2020-01-01..2020-01-02 window (zero items, zero history)
+   -- matching sibling test_cycle_report_red.sh's own CT-008 convention
+   ('no data in window [from, to]'), reused for cross-tool consistency
+   (§11.4.227) with the identical, already-verified-empty date range.
+ok control needle (empty-window discrimination): golden_window's own
+   non-empty data is correctly NOT reported NO_DATA_IN_WINDOW -- check
+   3/4 above can therefore be trusted to genuinely distinguish empty from
+   non-empty, not merely rubber-stamp the empty state for any input.
+
+=== T100 contract check 4/4: negative_control_retroactive (CT-5, DERIVED oracle) ===
+ok negative_control_retroactive: the independent derivation EXACTLY
+   matches the fixture's hand-computed expected_report -- Bug excludes
+   NB-001 (Opened->Fixed created_at gap = 30s, the identical rule
+   cycle_report.py's flag_retroactive_registration / select_sample.py's
+   detect_retroactive_registration already implement), LISTS it under
+   excluded_retroactive by id and reason, and PASSES with the correctly-
+   adjusted rate 0.0 (0 reopened / 2 closed) -- never RATE_NOT_COMPUTABLE.
+   This is the T091/CT-5 negative-control member of the self-validation
+   triple: it must NOT be refused, unlike check 2/4's mismatched-
+   population fixture, even though both fixtures share the surface
+   shape 'one item out of a small set needs special handling'.
+
+=== Self-validation control needle: golden-bad refuses, negative-control passes (same shape, opposite verdicts) ===
+ok control needle (shape discrimination): golden_bad_mismatched_populations'
+   Bug rate is refused while negative_control_retroactive's Bug rate is a
+   real number -- the derivation genuinely distinguishes an unresolvable
+   population mismatch from a routine, safely-excludable retroactive
+   registration, rather than treating every 'one odd item out of four'
+   fixture identically.
+ok golden_window: REAL reopen_rate.py invocation matches expected_report exactly
+ok golden_bad_mismatched_populations: REAL reopen_rate.py invocation matches expected_report exactly
+ok empty_window: REAL reopen_rate.py invocation matches expected_report exactly
+ok negative_control_retroactive: REAL reopen_rate.py invocation matches expected_report exactly
+
+=== T091 RED BASELINE CONFIRMED: closure/reopen_rate.py does not exist yet
+    (T100 is a separate, later task). The four fixtures above + their
+    independently re-derived, self-validated expected_report blocks are
+    the interim contract T100 must satisfy to turn this GREEN. ===

@@ -603,7 +603,7 @@ fi
 
 echo
 if [ "$fail" = 0 ]; then
-  # CON-120: the explanatory prose comes first and the summary line last, so the
+  # CON-150: the explanatory prose comes first and the summary line last, so the
   # full-suite runner reads no fail word ("fails CLOSED") after the summary.
   echo "    What this guard proves: python -OO no longer crashes (and the pre-invalidation"
   echo "    step independently prevents a stale --out even under a DIFFERENT pre-parse crash),"

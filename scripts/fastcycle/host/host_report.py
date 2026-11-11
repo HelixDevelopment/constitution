@@ -1060,7 +1060,7 @@ def _read_meminfo():
 def _read_nproc_soft():
     """Live soft RLIMIT_NPROC as text ("123694", "unlimited"), or None.
 
-    CON-117 review finding F2-1: read the same way lib/host_guard.sh reads
+    CON-147 review finding F2-1: read the same way lib/host_guard.sh reads
     it, from the kernel's own record /proc/self/limits ("Max processes
     <soft> <hard> processes"; this process's limits, which every child it
     starts inherits). The former `sh -c "ulimit -u"` read returned nothing
@@ -1068,7 +1068,7 @@ def _read_nproc_soft():
     headroom was always "unmeasured" there. `sh -c "ulimit -u"` stays only
     as the fallback when the file has no readable "Max processes" line.
     A readable line has all four fields (name, soft, hard, units); a shorter
-    one is skipped, and host_guard.sh's awk skips it the same way (CON-117
+    one is skipped, and host_guard.sh's awk skips it the same way (CON-147
     round 5, review round 4 F8: the awk used to take field 3 of any length).
     FC_GUARD_PROC_LIMITS names a different limits file, for tests only."""
     path = os.environ.get("FC_GUARD_PROC_LIMITS", "/proc/self/limits")

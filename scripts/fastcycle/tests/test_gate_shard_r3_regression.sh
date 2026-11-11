@@ -168,7 +168,7 @@ fi
 # =============================================================================
 echo "-- Section B: mutation-flip proof (M3c -- protected clusters treated as ordinary) --"
 
-# CON-121: the mutant runs inside a scratch copy of the tool's own layout
+# CON-151: the mutant runs inside a scratch copy of the tool's own layout
 # (<fc>/gates/lib/gate_runner_shard.py beside <fc>/lib/fc_common.py), because
 # the tool imports fc_common from <its dir>/../../lib. A bare copy in $WORK
 # could not import it, never wrote plan.json, and was misread as "not flipped".

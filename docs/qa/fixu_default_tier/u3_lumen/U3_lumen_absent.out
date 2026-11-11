@@ -1,0 +1,2 @@
+FAIL: prerequisite absent: lumen binary not found (set LUMEN_BIN=/path/to/lumen); SKIP-vs-FAIL for an absent tool is operator decision O3
+rc=2

@@ -5,7 +5,7 @@
 # Usage   : bash scripts/validation/meta_test_verification.sh
 #           Exit 0 when both mutations behave as required, 1 otherwise. The
 #           last line is the summary line.
-# Method  : (CON-128) the checked tree is NEVER changed. Each mutation runs on
+# Method  : (CON-158) the checked tree is NEVER changed. Each mutation runs on
 #           a scratch root under $TMPDIR (mktemp -d): a COPY of
 #           run_verification.sh plus one symlink per real submodule, so a stop
 #           at any moment (TERM, KILL) cannot leave a renamed submodule or an
@@ -44,7 +44,7 @@ finish() {
 }
 
 W="$(mktemp -d "${TMPDIR:-/tmp}/meta_test_verification.XXXXXX")" || { echo "✗ mktemp failed"; exit 1; }
-# CON-128 round 5 (measured: a TERM sent to the process group while the EXIT
+# CON-158 round 5 (measured: a TERM sent to the process group while the EXIT
 # trap's `rm -rf` ran killed the rm and left the scratch root; 3 of the first 21
 # stops at 90%..105% of the run). cleanup IGNORES the stop signals before it
 # starts the rm, and a child inherits an ignored signal, so the rm cannot be

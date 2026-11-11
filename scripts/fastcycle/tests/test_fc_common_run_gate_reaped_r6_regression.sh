@@ -187,7 +187,7 @@ result_d = fc_common.run_gate_reaped(["sh", "-c", "echo partial-output; sleep 5"
 print("SECTION_D: timed_out=%s stdout=%r stderr=%r" % (result_d.timed_out, result_d.stdout, result_d.stderr))
 PYEOF
 )
-# CON-119: printf, never echo, to pipe $RESULT: dash's echo turns the
+# CON-149: printf, never echo, to pipe $RESULT: dash's echo turns the
 # literal \n that repr() prints in SECTION_C into a newline, so check 4
 # failed under /bin/sh = dash while passing under bash.
 printf '%s\n' "$RESULT"

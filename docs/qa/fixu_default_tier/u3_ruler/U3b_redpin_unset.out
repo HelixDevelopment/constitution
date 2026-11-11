@@ -1,0 +1,19 @@
+PASS: orchestrator_reconcile control: unmutated scratch tree exits 0
+PASS: orchestrator_reconcile fix removed from the current artifact: the guard goes RED (rc=1, 6 behavioural GREEN failure(s))
+PASS: orchestrator_reconcile RED pinned back to HEAD: the guard refuses (rc=94), it can no longer pass on a HEAD-built RED
+PASS: orchestrator_reconcile RED pin missing from the clone (shallow-clone case): the guard FAILs closed (rc=93)
+PASS: orchestrator_reconcile_rc control: unmutated scratch tree exits 0
+PASS: orchestrator_reconcile_rc fix removed from the current artifact: the guard goes RED (rc=1, 9 behavioural GREEN failure(s))
+PASS: orchestrator_reconcile_rc RED pinned back to HEAD: the guard refuses (rc=94), it can no longer pass on a HEAD-built RED
+PASS: orchestrator_reconcile_rc RED pin missing from the clone (shallow-clone case): the guard FAILs closed (rc=93)
+PASS: sessions_argparse control: unmutated scratch tree exits 0
+PASS: sessions_argparse fix removed from the current artifact: the guard goes RED (rc=1, 30 behavioural GREEN failure(s))
+PASS: sessions_argparse RED pinned back to HEAD: the guard refuses (rc=94), it can no longer pass on a HEAD-built RED
+PASS: sessions_argparse RED pin missing from the clone (shallow-clone case): the guard FAILs closed (rc=93)
+SKIP: sessions_pid_status: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+SKIP: supervisor_wiring: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+SKIP: carrier regression: all legs (the RB-05 mock claude is not reachable) reason=rb05_mock_absent
+
+PASS=12 FAIL=0 SKIP=3
+SKIP: 3 leg group(s) skipped reason=rb05_mock_absent
+rc=77

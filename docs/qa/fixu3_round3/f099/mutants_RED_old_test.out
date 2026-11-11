@@ -1,0 +1,14 @@
+PASS: B0 baseline: C2a passes on a real finding
+FAIL: M1 blind: rc=0 c2a_fail=0 -- the test accepted a BLIND shellcheck leg
+FAIL: M2 nodefect: rc=1 c2a_fail=0 -- the test accepted a pack with no SC2086 finding
+FAIL: M4 carrier: rc=0 c2a_fail=0 -- the test matched the config echo
+FAIL: M3 nosc: rc=1 -- expected PASS with a SKIP line (F099-3)
+FAIL: C2a: precheck_pack.sh's real output did not contain the
+   expected FAIL/evidence (all_pass=False,
+   has_lint=NO parse=True shellcheck=False)
+PASS: C2b: review_record.py record accepted the clean (zero-finding)
+   -- the mechanical lint/parse defect the pack caught (C2a) is NOT
+   independently re-reported inside the review record; the error
+   is in the pack, not in the review, proven with two real
+   artifacts
+== Summary: ok 1 / NOT ok 4 ==

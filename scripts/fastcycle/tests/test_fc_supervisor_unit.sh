@@ -1032,7 +1032,11 @@ try:
     # helper-level spies: a non-regular name is refused WITHOUT os.open being called on it
     sp = os.path.join(G11, "spy"); os.mkdir(sp, 0o700)
     os.mkfifo(os.path.join(sp, "fifo")); os.mkdir(os.path.join(sp, "dir"))
-    sk = _socket.socket(_socket.AF_UNIX); sk.bind(os.path.join(sp, "sock")); sk.close()
+    here = os.getcwd(); os.chdir(sp)        # bind a short relative name (AF_UNIX path limit)
+    try:
+        sk = _socket.socket(_socket.AF_UNIX); sk.bind("sock"); sk.close()
+    finally:
+        os.chdir(here)
     open(os.path.join(sp, "reg"), "w").write("x"); os.symlink(os.path.join(sp, "reg"), os.path.join(sp, "link"))
 
     def spied(fn):

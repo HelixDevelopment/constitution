@@ -1,0 +1,16 @@
+opencode version: opencode v2.2.0; binary dir mtime: 2026-10-27 16:13:50.970675737 +0100
+--- installed opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "file:///home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/label-sync/adapters/opencode/label-sync.mjs"
+  ]
+}
+--- debug config shape (array of sources, key 'plugins')
+[{"type":"document","keys":["$schema","plugins"]},{"type":"directory","keys":[]},{"type":"directory","keys":[]}]
+--- opencode.log plugin line
+timestamp=2026-11-06T08:47:42.652Z level=WARN  message="configured plugin path must be a directory" target=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/013b6b97-2330-9750-4ee5-95de77324e46/scratchpad/fixu/constitution/scripts/label-sync/adapters/opencode/label-sync.mjs http.span=227 role=server
+--- serve: listens, prints a per-run server password (value redacted), POST /session body empty without auth
+server listening on http://127.0.0.1:60377
+server password <redacted>
+--- plugin debug log present: no

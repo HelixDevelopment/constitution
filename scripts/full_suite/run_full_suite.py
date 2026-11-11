@@ -2908,16 +2908,72 @@ def load_known(path):
     return rows, "%d open row(s)" % len(rows)
 
 
+TRACKED_RE = re.compile(r"\[tracked ([^\]\s]+)\]")
+
+
 def match_known(known, path, reason, logtext):
+    """A row matches on exact path plus its signature: a literal log substring, `reason:<code>` (the verdict
+    reason), or `reason:<code>+tracked` (the reason AND the log names at least one `[tracked <id>]` token AND every
+    such token names the row's tracked_id, so an outcome owned by another item is never attributed to this row;
+    CON-047 review F047-1)."""
     for p, sig, tid, _note in known:
         if p != path:
             continue
         if sig.startswith("reason:"):
-            if reason == sig[len("reason:"):]:
-                return tid
+            code = sig[len("reason:"):]
+            need_tracked = code.endswith("+tracked")
+            if need_tracked:
+                code = code[:-len("+tracked")]
+            if reason != code:
+                continue
+            if need_tracked:
+                ids = set(TRACKED_RE.findall(logtext))
+                if ids != {tid}:
+                    continue
+            return tid
         elif sig in logtext:
             return tid
     return ""
+
+
+def check_known_open(known, db):
+    """--check-known-open: every row of the known-failures table must name a tracked item that is still open
+    (current_location Issues) in the workable-items DB; a row for a closed or unknown item is STALE and must be
+    removed (CON-047 review F047-2). Exit 0 all open (or no rows), 1 stale row(s), 2 blind / unreadable."""
+    import sqlite3
+    rows, state = load_known(known)
+    out("known-failures table: %s (%s)" % (known, state))
+    if not rows:
+        out("RESULT: KNOWN-OPEN (no rows to check)")
+        return 0
+    if not os.path.isfile(db):
+        err("BLIND: workable-items DB not found: %s" % db)
+        return 2
+    try:
+        con = sqlite3.connect("file:%s?mode=ro&immutable=1" % db, uri=True)
+        total = con.execute("SELECT count(*) FROM items").fetchone()[0]
+    except sqlite3.Error as e:
+        err("BLIND: cannot read %s: %s" % (db, e))
+        return 2
+    if not total:
+        err("BLIND: %s holds no items (control needle: an empty DB cannot show a row is open)" % db)
+        return 2
+    stale = 0
+    for p, _sig, tid, _note in rows:
+        r = con.execute("SELECT status, current_location FROM items WHERE atm_id = ?", (tid,)).fetchone()
+        if r is None:
+            stale += 1
+            out("STALE %s  %s  (no such item in the DB)" % (tid, p))
+        elif r[1] != "Issues":
+            stale += 1
+            out("STALE %s  %s  (item is closed: %s, %s; remove the row)" % (tid, p, r[0], r[1]))
+        else:
+            out("open  %s  %s  (%s)" % (tid, p, r[0]))
+    if stale:
+        out("RESULT: KNOWN-STALE (%d stale row(s) of %d)" % (stale, len(rows)))
+        return 1
+    out("RESULT: KNOWN-OPEN (%d row(s), every tracked item open)" % len(rows))
+    return 0
 
 
 def file_bytes(p):
@@ -2955,7 +3011,8 @@ def main(argv):
     here = os.path.dirname(os.path.abspath(__file__))
     SAFE_RM = os.path.realpath(os.path.join(here, "..", "lib", "safe_rm.sh"))
     root = os.path.realpath(os.path.join(here, "..", ".."))
-    outdir = known = only = manifest = accept = ""
+    outdir = known = only = manifest = accept = kdb = ""
+    kopen = False
     allow_topo = False
     tmo, heavy, rerun, lst, gen, write, verify_only, sync = 900, False, False, False, False, False, False, False
     cap_mb = 64
@@ -2986,6 +3043,10 @@ def main(argv):
             heavy = True
         elif x == "--known":
             known = val()
+        elif x == "--check-known-open":
+            kopen = True
+        elif x == "--db":
+            kdb = val()
         elif x == "--manifest":
             manifest = val()
         elif x == "--rerun-nonpass":
@@ -3026,6 +3087,10 @@ def main(argv):
         raise Fatal(2, "scratch dir %r is not an existing absolute directory" % scratch)
     manifest = manifest or os.path.join(root, "config", "full_suite_manifest.tsv")
     known = known or os.path.join(root, "config", "full_suite_known_failures.tsv")
+    if kdb and not kopen:
+        raise Fatal(2, "--db is used with --check-known-open")
+    if kopen:
+        return check_known_open(known, kdb or os.path.join(root, "docs", "workable_items.db"))
     if only:
         try:
             rx = re.compile(only)

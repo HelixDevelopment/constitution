@@ -1,0 +1,6 @@
+PASS: deterministic output
+PASS: no catch-all pattern
+PASS: control needle visible
+PASS: lumen indexed exactly the scoped set
+RESULT: PASS
+rc=0

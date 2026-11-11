@@ -1,13 +1,13 @@
 #!/bin/bash
 # fastcycle-timeout-s: 1200
-# Purpose : CON-116 regression guard for
+# Purpose : CON-146 regression guard for
 #           `constitution/scripts/fastcycle/orchestration/custody_sweep.py`:
 #           the stash patch (inventory hash + verify-proposal live hash) is
 #           derived with `git diff <CANONICAL_PATCH_OPTS> <ref>^1 <ref>`, never
 #           `git stash show -p`; EVERY `diff --git` header (each side bare or
 #           C-quoted, carrying the a/ b/ prefixes) is checked and a patch with
 #           one bad header is reported as UNMEASURED (never hashed), naming the
-#           real cause. CON-127: the display-only file list names both paths
+#           real cause. CON-157: the display-only file list names both paths
 #           of a rename and C-quoted, spaced and non-ASCII paths correctly.
 # Forensic: measured on git 2.53.0, `git stash show -p --src-prefix=a/
 #           --dst-prefix=b/` printed `diff --git f sf`, `diff --git f |f`
@@ -23,7 +23,7 @@
 #           of `git stash show` output (models the 2.53.0 bug); `diffpos`
 #           rewrites ONE chosen `diff --git` header (or all, or makes the diff
 #           fail) of `git diff ... <ref>^1 <ref>` output.
-#           Fixture axes (CON-116 review round 2, finding R2-F1-A: a fixture
+#           Fixture axes (CON-146 review round 2, finding R2-F1-A: a fixture
 #           on which a partial implementation gives the same answer as the
 #           correct one proves nothing): header POSITION (first, middle, last
 #           of a three-header stash), garble QUOTING (bare `f xf`, quoted with
@@ -35,7 +35,7 @@
 #           partial implementation it models disagrees with the correct one on
 #           that fixture); a mutation that only breaks an anchor is reported
 #           as an anchor failure, never as caught.
-#           Round 4 (CON-116 review round 3, class recurrence #3: hand-picked
+#           Round 4 (CON-146 review round 3, class recurrence #3: hand-picked
 #           fixtures let partial implementations through): the same class is now
 #           covered as a MATRIX (check MX: header count 1..7 x both section orders
 #           x three git configs x every header position x garbled a half, b half,
@@ -48,7 +48,7 @@
 #           (core.quotePath=false, Latin-1 name). The reviewer mutants NM1..NM13
 #           (header tripwire) and FL1/3..10 (file list) run as self-tests, each
 #           against the named checks. Run time is about 7 minutes.
-#           Round 5 (CON-116 review round 4): F2 -- the matrix repositories were
+#           Round 5 (CON-146 review round 4): F2 -- the matrix repositories were
 #           made by mkdtemp under $TMPDIR and never removed (measured: 35 dirs,
 #           168 MB per run); the matrix now removes its base at exit, runs with
 #           its own TMPDIR, and check MX fails when anything is left there; the
@@ -86,7 +86,7 @@ notok() { fail=$((fail + 1)); echo "NOT ok $*"; }
 
 TMP=$(mktemp -d)
 trap 'rm -rf "${TMP:?}"' EXIT
-# CON-116 round 5 (review round 4, F2: the matrix left 35 dirs / 168 MB in the
+# CON-146 round 5 (review round 4, F2: the matrix left 35 dirs / 168 MB in the
 # caller's TMPDIR per run): every child of this test writes its temporaries
 # under $TMP, which the EXIT trap removes; the leak checks are MX (per matrix
 # run) and TD (the whole run) below.
@@ -190,7 +190,7 @@ else notok "shim self-check: diffpos does not behave as designed ($sc)"; fi
 # Host evidence only (never decides PASS): is this host's `stash show -p` canonical?
 echo "info: host $(git --version): 'git stash show -p' first header = '$(git -C "$R" stash show -p "${CANON[@]}" 'stash@{0}' | head -1)'"
 
-# --- repo R4 (CON-127): file-list shapes ---
+# --- repo R4 (CON-157): file-list shapes ---
 R4="$TMP/r4"
 g init --quiet "$R4"
 mkdir -p "$R4/x b"
@@ -220,7 +220,7 @@ case "$WANT_FILES4" in
 esac
 WANT_FILES3="a1.txt,b2.txt,b2 sp${TAB}tab.txt,c3.txt"
 
-# --- round-4 repos (CON-116 review round 3: the axes a hand-picked fixture set
+# --- round-4 repos (CON-146 review round 3: the axes a hand-picked fixture set
 # left open). Each is a plain stash made in a throwaway repo; a control needle
 # per repo proves the shape it is named for really is in its patch.
 mkrepo() { g init --quiet "$1"; }
@@ -287,7 +287,7 @@ ENV = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null",
 CANON = ["--binary", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
          "--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none"]
 base = tempfile.mkdtemp(prefix="matrix.")
-# CON-116 round 5 (review round 4, F2): the fixture repositories are removed on
+# CON-146 round 5 (review round 4, F2): the fixture repositories are removed on
 # every exit path the interpreter controls (normal end, sys.exit, an exception).
 atexit.register(shutil.rmtree, base, True)
 
@@ -534,7 +534,7 @@ battery() {
   [ "$(status "$I")" = UNMEASURED ]; chk F2 $? "git diff of the stash fails -> inventory UNMEASURED (got '$(status "$I")')"
   I=$(run_inv "$impl" "$R4" "PATH=$PATH")
   [ "$(status "$I")" = dirty ] && [ "${I##*$'\t'}" = "$WANT_FILES4" ]
-  chk L1 $? "CON-127 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got '${I##*$'\t'}')"
+  chk L1 $? "CON-157 file list: rename both paths, spaces, 'x b/y.txt', quotes, non-ASCII, binary, mode, delete, add (got '${I##*$'\t'}')"
   # --- round-4 axes (review round 3: mutants NM1..NM13 survived) ---
   local spec t
   k=0
@@ -654,7 +654,7 @@ mutation RV4_loose_regex "Q1 Q2 Q3" "$PAT" \
 mutation RV5_rc_why_dropped "F1" \
   '        return None, "git diff %s^1 %s failed (rc=%s)" % (ref, ref, rc)' \
   '        return None, None'
-# L1 (CON-127): the pre-fix file list (first path of each header, DIFF_FILE_RE).
+# L1 (CON-157): the pre-fix file list (first path of each header, DIFF_FILE_RE).
 mutation L1_old_file_list "G4 L1" \
   '    files = _patch_file_paths(out)' \
   '    files = []
@@ -665,7 +665,7 @@ mutation L1_old_file_list "G4 L1" \
                 files.append(m.group(1))'
 
 # --- round-4 reviewer mutants NM1..NM13 (class: a partial header tripwire) and
-# FL1..FL9 (CON-127 file list), adopted verbatim from the round-3 review. Each
+# FL1..FL9 (CON-157 file list), adopted verbatim from the round-3 review. Each
 # is one exact, unique replacement in a copy of the tool; each must fail the
 # functional check(s) named for it. The generator aborts on a non-unique anchor.
 cat > "$TMP/genmut.py" <<'PYEOF'
@@ -776,5 +776,5 @@ mutation RD2_empty_live_patch_unmeasured "EP1V" \
 
 # TD: nothing this run started is left in its TMPDIR (F2, whole-run check).
 [ -z "$(ls -A "$TMPDIR")" ] && ok "TD nothing left under the run's TMPDIR" || notok "TD left under the run's TMPDIR: $(ls -A "$TMPDIR" | head -5 | tr '\n' ' ')"
-echo "=== stash patch regression guard (CON-116): pass=$pass fail=$fail ==="
+echo "=== stash patch regression guard (CON-146): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]

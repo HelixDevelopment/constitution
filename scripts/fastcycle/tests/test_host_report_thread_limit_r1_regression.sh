@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose : CON-117 review finding F2-1 regression guard for
+# Purpose : CON-147 review finding F2-1 regression guard for
 #           `constitution/scripts/fastcycle/host/host_report.py`: the live soft
 #           RLIMIT_NPROC used by `_read_ulimit_threads()` (and so by
 #           `probe_thread_headroom()` / `host_report.py limits`) is read from
@@ -16,7 +16,7 @@
 #           rejects `ulimit -u` the way dash does makes the dash case the same
 #           on every host; real dash is also used when it is installed.
 #           FC_GUARD_PROC_LIMITS fixtures pin soft != hard values.
-#           Fixture axes (CON-117 review round 2, finding R2-F2-A: a fixture on
+#           Fixture axes (CON-147 review round 2, finding R2-F2-A: a fixture on
 #           which a partial implementation gives the same answer as the correct
 #           one proves nothing): WHOSE limits (this process, lowered with
 #           setrlimit to a value pid 1 does not have, versus pid 1), WHICH
@@ -283,7 +283,7 @@ else echo "SKIP: HR3 needs bash as sh"; fi
 mutation M4_override_ignored "O1" 'ulim = os.environ.get("FC_GUARD_ULIMIT_U")' 'ulim = None'
 
 
-# ---- reviewer round-3 mutants (adopted verbatim, CON-117 round 4) ----
+# ---- reviewer round-3 mutants (adopted verbatim, CON-147 round 4) ----
 mutation RVH1_fallback_hard_column "RX1" 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -u"], timeout=10)
     return out.strip()' 'rc, out, _err = run_cmd(["sh", "-c", "ulimit -Hu"], timeout=10)
     return out.strip()'
@@ -316,5 +316,5 @@ mutation RVH11_space_only_sep "RX4" 'if line.startswith("Max processes") and lin
 # is EQUIVALENT, not a survivor to kill: when `ulimit -u` fails (dash) its error
 # goes to stderr and stdout is empty, so the result is None either way.
 
-echo "=== host_report thread limit regression guard (CON-117 F2-1): pass=$pass fail=$fail ==="
+echo "=== host_report thread limit regression guard (CON-147 F2-1): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]

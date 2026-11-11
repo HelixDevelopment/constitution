@@ -157,7 +157,7 @@ if isnum "$nproc_v" && [ "$(norm "$nproc_v")" -ge 1 ]; then
 else unreadable unreadable_nproc; fi
 
 # threads / ulimit
-# Live soft RLIMIT_NPROC (CON-117): read from the kernel's own record,
+# Live soft RLIMIT_NPROC (CON-147): read from the kernel's own record,
 # /proc/self/limits ("Max processes  <soft> <hard> processes"), because
 # `ulimit -u` is not POSIX and dash (Debian/Ubuntu /bin/sh) rejects it, which
 # turned every live read under `sh` into unreadable_ulimit N=1. The awk below
@@ -169,7 +169,7 @@ read_nproc_soft() {
   _lim_file=${FC_GUARD_PROC_LIMITS-/proc/self/limits}
   _v=""
   if [ -r "$_lim_file" ]; then
-    # CON-117 round 5 (review round 4, F8): only a line with all four fields
+    # CON-147 round 5 (review round 4, F8): only a line with all four fields
     # (name, soft, hard, units) counts, exactly as host_report.py's
     # _read_nproc_soft reads it; a shorter line is skipped and a later full line
     # is used, else the fallback below.
