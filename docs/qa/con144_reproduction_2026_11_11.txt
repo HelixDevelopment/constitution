@@ -1,0 +1,84 @@
+CON-144 reproduction, root cause and fix evidence (2026-11-11)
+Host: Linux 7.0.0-42-generic, git version 2.53.0, Python 3.14.4, GNU bash 5.3.9. Fresh clone of origin main; all eight mirrors agreed at each base.
+Recorded by: AI (Claude Opus 5.5, CON-144 fix subagent; dispatch effort not reported). Absolute scratch paths replaced by <clone>/<scratch>.
+
+== 1. RED: the gate on clean main ==
+Command (repo root): bash scripts/gates/cm_gate_env_reads_allowlisted.sh
+-- base 27dcf518 (clean checkout), rc=1, output sha256 2f1f26fd05f658e9c89ef822672284bdc39a539dc85e445c8b5b39ff6bc1a7aa:
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=173 guarded=54 allowlisted=117 uncovered=2 stale=0 needle=ok
+-- base 9cd7cacd (clean checkout), rc=1, output sha256 2f1f26fd05f658e9c89ef822672284bdc39a539dc85e445c8b5b39ff6bc1a7aa:
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=173 guarded=54 allowlisted=117 uncovered=2 stale=0 needle=ok
+-- base 64ac151d (clean checkout), rc=1, output sha256 2f1f26fd05f658e9c89ef822672284bdc39a539dc85e445c8b5b39ff6bc1a7aa:
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_pr_delivery_anchor_wired.sh:130 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+CM-GATE-ENV-READS-ALLOWLISTED: UNCOVERED scripts/gates/cm_release_gate_anchor_wired.sh:118 BLK (read-before-assign): route it through cm_gate_env_set or add an allowlist row
+VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=173 guarded=54 allowlisted=117 uncovered=2 stale=0 needle=ok
+The three outputs are byte-identical.
+
+== 2. Root cause experiments ==
+Text order: definition names_cm_gate_in_block() at cm_pr_delivery_anchor_wired.sh:130 / cm_release_gate_anchor_wired.sh:118; top-level BLK= at :252 / :227; only call at :506 / :399 (after the assignment; no earlier call).
+E1 (runtime): each gate run with 'env -u BLK' and with 'BLK=/nonexistent/evil' on 27dcf518:
+  cm_pr_delivery_anchor_wired: rc 0 and rc 0; outputs identical, sha256 90a6e7d0e0c6475da798746f3ba5cd51e195fe33c4b9984d36e979ab30aa0f0e both; last line: CM-PR-DELIVERY-ANCHOR-WIRED: PASS — 305/305 checks 
+  cm_release_gate_anchor_wired: rc 0 and rc 0; outputs identical, sha256 c60dab0c11964919c97b288136370b2f12d5b92c2e7c6834c8e0e6460c859f22 both; last line: CM-RELEASE-GATE-ANCHOR-WIRED: PASS — 164/164 checks 
+  => an ambient BLK cannot change either gate's run; the read is not ambient at run time.
+E2 (cause toggle): census 'python3 -I scripts/gates/lib/gate_env_census.py --root R --closure R/<gate>' on the unchanged files reports
+  scripts/gates/cm_pr_delivery_anchor_wired.sh BLK read-before-assign 130 / scripts/gates/cm_release_gate_anchor_wired.sh BLK read-before-assign 118;
+  in a scratch copy with ONLY the definition line moved below BLK=, the census reports no BLK row (grep rc 1).
+Root cause (fact): the static census judges text order; a function body that reads $BLK and is defined above the top-level assignment
+is reported read-before-assign although every call runs after it. Not a census defect to fix here (text order is its documented boundary,
+cf. the not-ambient allowlist rows of cm_killpg_pgid_guard.sh); fixed at the two gates.
+
+== 3. Fix ==
+names_cm_gate_in_block TOKEN FILE reads "$2"; the call site passes "$BLK". Commit 77553d02 (on 27dcf518), merged with main 64ac151d in c41cf08f.
+
+== 4. Guard tests/gates/test_con144_blk_read_order.sh ==
+-- RED (fix stashed, test present), rc=1, sha256 e3ccc5e5bbc69bc5a36587fa9a62b2a1b6fc2041673718068efe44c9375e29e5:
+PASS N0 positive needle: a planted $BLK body read before BLK= is reported
+PASS N1 negative needle: the argument form is not reported
+FAIL C1 no BLK read-before-assign row for scripts/gates/cm_pr_delivery_anchor_wired.sh: scripts/gates/cm_pr_delivery_anchor_wired.sh	BLK	read-before-assign	130
+FAIL C2 no BLK read-before-assign row for scripts/gates/cm_release_gate_anchor_wired.sh: scripts/gates/cm_release_gate_anchor_wired.sh	BLK	read-before-assign	118
+FAIL C3 env gate PASSes on the real tree (rc=1: VERDICT: FAIL CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=173 guarded=54 allowlisted=117 uncovered=2 stale=0 needle=ok)
+PASS C4/C5 scripts/gates/cm_pr_delivery_anchor_wired.sh PASSes on the real tree (rc=0: CM-PR-DELIVERY-ANCHOR-WIRED: PASS — 305/305 checks (root: <clone>))
+PASS C4/C5 scripts/gates/cm_release_gate_anchor_wired.sh PASSes on the real tree (rc=0: CM-RELEASE-GATE-ANCHOR-WIRED: PASS — 164/164 checks (root: <clone>))
+PASS M1 setup: old body (reads $BLK) restored in a copy of scripts/gates/cm_pr_delivery_anchor_wired.sh
+PASS M1 mutant (old $BLK read) in scripts/gates/cm_pr_delivery_anchor_wired.sh is seen by the census
+PASS M1 setup: old body (reads $BLK) restored in a copy of scripts/gates/cm_release_gate_anchor_wired.sh
+PASS M1 mutant (old $BLK read) in scripts/gates/cm_release_gate_anchor_wired.sh is seen by the census
+FAIL M2 setup: call site of scripts/gates/cm_pr_delivery_anchor_wired.sh passes /dev/null
+FAIL M2 mutant: scripts/gates/cm_pr_delivery_anchor_wired.sh FAILs on its seam check (rc=0)
+FAIL M3 setup: call site of scripts/gates/cm_release_gate_anchor_wired.sh passes /dev/null
+FAIL M3 mutant: scripts/gates/cm_release_gate_anchor_wired.sh FAILs on its seam check (rc=0)
+== 8 passed, 7 failed ==
+-- GREEN (fixed tree 77553d02), rc=0, sha256 9ff38f752c6b486dd9e5386cedb32d9e64f92bf5d1928c013c26ad57ba2c37cc:
+PASS N0 positive needle: a planted $BLK body read before BLK= is reported
+PASS N1 negative needle: the argument form is not reported
+PASS C1 no BLK read-before-assign row for scripts/gates/cm_pr_delivery_anchor_wired.sh
+PASS C2 no BLK read-before-assign row for scripts/gates/cm_release_gate_anchor_wired.sh
+PASS C3 env gate PASSes on the real tree (rc=0: VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=171 guarded=54 allowlisted=117 uncovered=0 stale=0 needle=ok)
+PASS C4/C5 scripts/gates/cm_pr_delivery_anchor_wired.sh PASSes on the real tree (rc=0: CM-PR-DELIVERY-ANCHOR-WIRED: PASS — 305/305 checks (root: <clone>))
+PASS C4/C5 scripts/gates/cm_release_gate_anchor_wired.sh PASSes on the real tree (rc=0: CM-RELEASE-GATE-ANCHOR-WIRED: PASS — 164/164 checks (root: <clone>))
+PASS M1 setup: old body (reads $BLK) restored in a copy of scripts/gates/cm_pr_delivery_anchor_wired.sh
+PASS M1 mutant (old $BLK read) in scripts/gates/cm_pr_delivery_anchor_wired.sh is seen by the census
+PASS M1 setup: old body (reads $BLK) restored in a copy of scripts/gates/cm_release_gate_anchor_wired.sh
+PASS M1 mutant (old $BLK read) in scripts/gates/cm_release_gate_anchor_wired.sh is seen by the census
+PASS M2 setup: call site of scripts/gates/cm_pr_delivery_anchor_wired.sh passes /dev/null
+PASS M2 mutant: scripts/gates/cm_pr_delivery_anchor_wired.sh FAILs on its seam check (rc=1)
+PASS M3 setup: call site of scripts/gates/cm_release_gate_anchor_wired.sh passes /dev/null
+PASS M3 mutant: scripts/gates/cm_release_gate_anchor_wired.sh FAILs on its seam check (rc=1)
+== 15 passed, 0 failed ==
+-- GREEN on the merged tree c41cf08f: == 15 passed, 0 failed ==
+
+== 5. GREEN: the gate after the fix ==
+-- merged tree c41cf08f, rc=0: VERDICT: PASS CM-GATE-ENV-READS-ALLOWLISTED: gates=194 reads=171 guarded=54 allowlisted=117 uncovered=0 stale=0 needle=ok
+
+== 6. Neighbouring suites on 77553d02 ==
+scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh rc=0: [mutation:pr-delivery] PASS: 365 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_pr_delivery_anchor_wired.sh genuinely discriminates
+scripts/gates/cm_release_gate_anchor_wired_mutation_test.sh rc=0: [mutation:release-gate] PASS: 202 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_release_gate_anchor_wired.sh genuinely discriminates
+scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh rc=0 (a first run under 'timeout 900' was killed, rc=124, host shared with other runs): META PASS: CM-GATE-ENV-READS-ALLOWLISTED kills every mutant
+tests/gates/test_gate_env_census_closure.sh rc=3 (by design: one KNOWN-FAIL pinned to CON-047): == 31 passed, 0 failed, 1 known-failure ==; its control 'the copied real tree PASSes (rc=0)' is PASS.
+run_full_suite.sh --verify-manifest on c41cf08f: RESULT: MANIFEST-OK (total=879).
+
+Not done here: the full suite was not run; no live target applies (host-only defect).
