@@ -31,7 +31,11 @@
 #           skipped check 8 (review C2-2).
 # Usage   : bash scripts/fastcycle/tests/test_consumer_required_helper.sh
 # Exit    : 0 all pass; 1 any fail; 77 (reason=topology_unsupported) when no dash is installed, so the
-#           dash leg could not run (the bash leg still ran and passed).
+#           dash leg could not run (the bash leg still ran and passed), or when a leg recorded a
+#           SKIP-with-reason (today only L29, a host without a usable locale; CON-222): a skipped leg
+#           is never folded into a green exit 0, and the SUMMARY line counts it ("N skip (skipped: L29)").
+# Env     : FC_L29_CANDIDATES (test hook, CON-185) replaces the L29 locale list; when it is set at all,
+#           a note line names its value (CON-223), and a SKIP it causes ends the run with 77 (CON-222).
 # Safety  : one mktemp -d root, removed with safe_rm_rf restricted to it; $HOME is never reassigned.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -39,9 +43,10 @@ CANON="$(cd "$HERE/../../.." && pwd)"
 HELPER="${FC_HELPER_UNDER_TEST:-$HERE/lib/consumer_required.sh}"   # the mutation harness points this at a mutated copy
 # shellcheck source=../../../scripts/lib/safe_rm.sh
 . "$CANON/scripts/lib/safe_rm.sh"
-P=0; F=0
+P=0; F=0; S=0; SKIPPED=""
 ok()  { P=$((P+1)); echo "ok   $*"; }
 bad() { F=$((F+1)); echo "NOT ok $*"; }
+skipped() { S=$((S+1)); SKIPPED="$SKIPPED $1"; }   # CON-222: a leg that did not run is counted, never a pass
 expect() { # expect DESC WANT_RC WANT_LASTLINE_REGEX(or -) OUTFILE RC
   local d="$1" wrc="$2" wre="$3" out="$4" rc="$5" last
   last="$(grep -v '^[[:space:]]*$' "$out" | tail -1)"
@@ -419,9 +424,26 @@ EOF
   # both branches proven on every run: a name no host has -> SKIP line; the host's own list is probed below
   _l29_none=$(l29_locales zz_ZZ.nosuchlocale); _l29_line=$(l29_verdict "$_l29_none")
   case $_l29_line in "SKIP: L29 "*"reason=topology_unsupported") ok "L29 branch: no usable locale -> SKIP-with-reason, not a FAIL (needle: zz_ZZ.nosuchlocale yields an empty list)" ;; *) bad "L29 branch: no usable locale gave [$_l29_line]" ;; esac
+  # CON-222: the dispatch of the verdict line is a function, so its SKIP branch is proven on every run (below):
+  # the SKIP line is printed AND counted by skipped(); it never goes through ok() (reviewer mutant RV-E) and is
+  # never dropped (RV-F). The final exit turns a counted skip into 77.
+  l29_dispatch() { # $1 = the verdict line
+    case $1 in ok*) ok "${1#ok   }" ;; SKIP*) echo "$1"; skipped L29 ;; *) bad "L29 verdict line unreadable: $1" ;; esac
+  }
+  _l29_probe=$(P=0; F=0; S=0; SKIPPED=""; l29_dispatch "SKIP: L29 probe line reason=topology_unsupported"; echo "P=$P F=$F S=$S SKIPPED=$SKIPPED")
+  _l29_want="SKIP: L29 probe line reason=topology_unsupported
+P=0 F=0 S=1 SKIPPED= L29"
+  if [ "$_l29_probe" = "$_l29_want" ]; then ok "L29 dispatch: a SKIP line is printed and counted as a skip, not a pass (CON-222)"
+  else bad "L29 dispatch: a SKIP line gave [$(printf '%s' "$_l29_probe" | tr '\n' '|')]"; fi
+  _l29_probe=$(P=0; F=0; S=0; SKIPPED=""; l29_dispatch "ok   L29 probe"; echo "P=$P F=$F S=$S")
+  if [ "$_l29_probe" = "ok   L29 probe
+P=1 F=0 S=0" ]; then ok "L29 dispatch: an ok line is a pass and no skip (control)"
+  else bad "L29 dispatch: an ok line gave [$(printf '%s' "$_l29_probe" | tr '\n' '|')]"; fi
+  # CON-223: the override is a test hook; when it is set (even to an empty or blank value) the run says so.
+  if [ "${FC_L29_CANDIDATES+set}" = set ]; then echo "note: FC_L29_CANDIDATES override in effect: [$FC_L29_CANDIDATES] (CON-223; a SKIP it causes ends the run with 77)"; fi
   L29LOC=$(l29_locales ${FC_L29_CANDIDATES:-C.UTF-8 C.utf8 en_US.UTF-8 en_US.utf8 de_DE.UTF-8 de_DE.utf8})   # FC_L29_CANDIDATES: a test hook for a host without locales
   _l29_line=$(l29_verdict "$L29LOC")
-  case $_l29_line in ok*) ok "${_l29_line#ok   }" ;; SKIP*) echo "$_l29_line" ;; *) bad "L29 verdict line unreadable: $_l29_line" ;; esac
+  l29_dispatch "$_l29_line"
   for sh in $SHELLS; do
     o="$W/out3"
     # case: db ids... -> want
@@ -621,6 +643,22 @@ mkdir -p "$SYMREAL/lib" "$SYMC/constitution/scripts" "$SYMC/docs" && : >"$SYMC/d
   && [ -e "$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh" ] \
   && ok "symlinked canon layout built (needle: the consumer data docs/present.txt sits only under the logical root)" \
   || bad "symlinked canon layout setup failed"
+# CON-224 (reviewer mutant RV-C, `&& pwd)` -> `&& pwd -P)`): the consumer root reached through a symlinked PARENT
+# directory. The root is resolved logically, so the SKIP message names the path as given ($SYM/lp/consumer), not the
+# physical one ($SYM/consumer). Needle: both names reach the same fake test.
+ln -s "$SYM" "$SYM/lp" && [ -e "$SYM/lp/consumer/constitution/scripts/fastcycle/tests/fake_test.sh" ] \
+  && [ "$(cd "$SYM/lp/consumer" && pwd)" != "$(cd "$SYM/lp/consumer" && pwd -P)" ] \
+  && ok "symlinked-parent consumer root built (needle: logical and physical root differ)" \
+  || bad "symlinked-parent consumer root setup failed"
+for sh in $SHELLS; do
+  o="$W/out3b"
+  "$sh" "$SYM/lp/consumer/constitution/scripts/fastcycle/tests/fake_test.sh" docs/absent.txt >"$o" 2>&1; rc=$?
+  _l="$(grep -v '^[[:space:]]*$' "$o" | tail -1)"
+  case $_l in "SKIP: consumer-project files absent under $SYM/lp/consumer: docs/absent.txt "*"reason=topology_unsupported")
+      [ "$rc" = 77 ] && ok "[$sh] symlinked parent: the SKIP names the logical consumer root (CON-224)" || bad "[$sh] symlinked parent: rc $rc, want 77" ;;
+    *) bad "[$sh] symlinked parent: SKIP line [$_l] does not name the logical root $SYM/lp/consumer (rc $rc)" ;;
+  esac
+done
 for sh in $SHELLS; do
   ST="$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh"; o="$W/out3b"
   "$sh" "$ST" docs/present.txt >"$o" 2>&1; rc=$?
@@ -667,11 +705,15 @@ else
   done
 fi
 
-echo "SUMMARY: $P pass / $F fail"
+echo "SUMMARY: $P pass / $F fail / $S skip${SKIPPED:+ (skipped:$SKIPPED)}"
 [ "$F" -eq 0 ] || exit 1
 [ "$P" -gt 0 ] || exit 1
 if [ -z "$DASH" ]; then
   echo "SKIP: dash is not installed, so the dash leg did not run reason=topology_unsupported"
+  exit 77
+fi
+if [ "$S" -gt 0 ]; then   # CON-222: a skipped leg is never a green exit 0
+  echo "SKIP: $S leg(s) did not run:$SKIPPED reason=topology_unsupported"
   exit 77
 fi
 exit 0
