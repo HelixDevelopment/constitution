@@ -1,7 +1,34 @@
 # fk_index_patch — guide
 
-**Revision:** 1
-**Last modified:** 2026-09-26T12:58:00Z
+**Revision:** 5
+**Last modified:** 2026-11-06T13:00:00Z
+
+Revision 5 note (2026-11-06, review round 2 I1-5..I1-7): the test has 22 cases.
+P2i (a planted directory symlink) and P2j (a shipped symlink retargeted in the
+runner) must not be REUSED; P5 runs the file again with P3b forced to skip and
+requires exit 77 and a counted line ending `reason=topology_unsupported`. The
+reason code changed from `artifact_not_yet_built` to `topology_unsupported`: the
+real package is a third-party install on the host, not a build output of this
+project (§11.4.69). Paired mutants: `tests/test_patch_machinery_mutations.sh`.
+
+Revision 4 note (2026-11-06): `tests/test_patch_machinery.py` has 19 cases
+(P2g, P2h, P4d, P4e added from the review round-1 cases X1-X4: a planted symlink,
+an exec bit on a non-launcher file, a `.partial` that is a regular file, a `[]`
+receipt). Its summary line is now `SUMMARY pass=N fail=F skip=S (ids)`; exit 0
+all PASS, 1 a FAIL, 77 no FAIL but P3b SKIPped (reason code since revision 5: `topology_unsupported`),
+so the full-suite runner reads a skipped run as SKIP, never as PASS or ERROR.
+
+Revision 3 note: on 2026-11-05 the operator decided CON-164 (Option A). The
+registry default is now the tested set `fkidx1,resolve1,resolve2`; lockfix1 and
+datafrag1 stay registered and are opt-in by name (`UNTESTED` in
+`runner_patches/__init__.py`). A bare run on the installed 1.6.2 builds
+`1.6.2-fkidx1-resolve1-resolve2` (measured 2026-11-05); before the change it
+refused on datafrag1. Statements below about the five-patch default describe
+revision 2 and are corrected where marked.
+
+Revision 2 note: the reuse rules (P1, P2, P4 below) changed on 2026-11-05; the
+`fk_index_patch.py:<line>` citations in this guide were taken at revision 1 and
+are not re-measured, so read them as approximate (UNCONFIRMED per line).
 
 Source: `constitution/scripts/codegraph/fk_index_patch.py` (259 lines), plus the
 patch registry `runner_patches/__init__.py` (35 lines) and the shared contract
@@ -66,21 +93,22 @@ fk_index_patch.py [--src <platform package dir>] [--dst <runner dir>]
 |---|---|---|---|
 | `--src DIR` | the installed platform package | Platform package to patch (read-only). Default: first child of `<npm root -g>/@colbymchenry/codegraph/node_modules/@colbymchenry/` (sorted) that contains `lib/dist/db/index.js` | lines 182, 104-116, 199 |
 | `--dst DIR` | `${HELIX_CODEGRAPH_RUNNER_DIR:-$HOME/.cache/helix/codegraph_runner}/<runner key>` | Where to build the runner. An empty `HELIX_CODEGRAPH_RUNNER_DIR` counts as unset (`or`, line 207) | lines 183, 207-209 |
-| `--patches a,b,c` | every registered patch except opt-in ones (see below) | Comma list; whitespace trimmed, empty items dropped; if nothing is left: `--patches given but empty`, exit 2 | lines 184, 194-198 |
+| `--patches a,b,c` | the tested set `fkidx1,resolve1,resolve2` (every registered patch except `OPT_IN` and `UNTESTED`, see below) | Comma list; whitespace trimmed, empty items dropped; if nothing is left: `--patches given but empty`, exit 2 | lines 184, 194-198 |
 | `--force` | off | Rebuild even when a valid receipt exists (skips the reuse check) | lines 185, 212 |
 | `--print-bin` | off | On success print only the path of `bin/codegraph` instead of the JSON report | lines 186, 215, 245 |
 | `--list-patches` | off | Print `<id>\t<summary>` for the **default** patch set and exit 0; needs no `--src` | lines 187, 190-193 |
 | `-h`, `--help` | | argparse help | line 181 |
 
 Runner key = `<codegraph version>-<applied patch ids joined by '-'>` (line 206);
-ids of patches that reported NOT_NEEDED are left out. Example on stock 1.6.0
-with the default set: `1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2`.
+ids of patches that reported NOT_NEEDED are left out. Example on stock 1.6.2
+with the default set: `1.6.2-fkidx1-resolve1-resolve2` (measured 2026-11-05;
+on 1.6.0 the key was the five-patch key until revision 3).
 
 ### Examples
 
-1. **List the default patch set** — `VERIFIED (ran: fk_index_patch.py
-   --list-patches; saw: five tab-separated rows fkidx1, lockfix1, datafrag1,
-   resolve1, resolve2, exit 0)`. `mcpro1` is **not** listed even though `--help`
+1. **List the default patch set** — since revision 3 it prints three rows,
+   fkidx1, resolve1, resolve2 (the same `load()` call P3 of
+   `tests/test_patch_machinery.py` checks; revision 2 measured five rows). `mcpro1` is **not** listed even though `--help`
    names it, because `--list-patches` uses the default set and `mcpro1` is
    opt-in (`runner_patches/__init__.py:18,24-25`).
 
@@ -172,10 +200,15 @@ Argparse errors use argparse's own exit 2 (usage) as well.
   "mcpro1"]` (line 17). Order matters: patches are planned and applied in
   registry order on a shared view, whatever order `--patches` lists them in
   (line 30). Verified: `--patches resolve2,fkidx1` loads `fkidx1, resolve2`.
-- **Default** (no `--patches`, `load(None)`): every registry id that is **not**
-  opt-in (lines 24-25) — today the five writer patches. The default runner key
-  on stock 1.6.0 is therefore `1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2`
-  (`VERIFIED`, from `plan_all`, see Example 5).
+- **Default** (no `--patches`, `load(None)`): every registry id that is in
+  neither `OPT_IN` nor `UNTESTED` (`DEFAULT_EXCLUDED`) — since revision 3 the
+  three tested writer patches fkidx1, resolve1, resolve2. The default runner key
+  on stock 1.6.2 is `1.6.2-fkidx1-resolve1-resolve2` (`VERIFIED`: P3b of
+  `tests/test_patch_machinery.py`, a bare run on the real package).
+- **`UNTESTED = {"lockfix1", "datafrag1"}`**: registered and selectable by name
+  (`--patches fkidx1,lockfix1`, P3c), never in the default, because neither has
+  a behavioural test (Known discrepancies item 3). Moving one into the default
+  needs its own RED/GREEN test and paired mutation first.
 - **`OPT_IN = {"mcpro1"}`** (line 18): selectable with `--patches mcpro1` but
   never part of the default set, so the read-only MCP runner cannot end up in a
   writer runner by omission (lines 9-13).
@@ -189,7 +222,8 @@ Argparse errors use argparse's own exit 2 (usage) as well.
 Note the difference between this tool's default and **`codegraph_safe.sh`'s**
 default: the wrapper passes `--patches fkidx1,resolve1` unless overridden
 (`codegraph_safe.sh:244`; it omits `--patches` only for `all`, lines 455-456),
-so the runner key it uses is `<version>-fkidx1-resolve1`, not the five-patch key.
+so the runner key it uses is `<version>-fkidx1-resolve1`; with `--patches all`
+it now gets this tool's default, `<version>-fkidx1-resolve1-resolve2`.
 
 ### Application (`plan_all`, lines 126-146; `common.py`)
 
@@ -244,13 +278,21 @@ Relations, all verified from `plan_all` on stock 1.6.0:
 
 1. Key and destination are computed (206-210).
 2. If `<dst>/RUNNER_RECEIPT.json` exists and `--force` is not given, the receipt
-   is read and `receipt_valid` decides reuse (212-216):
-   - schema-2 receipt: reuse iff `runner_key` and `patch_set` equal this
-     invocation's, and **every edited file** in `<dst>` hashes to the freshly
-     planned patched text (166-177);
-   - legacy receipt (no `patches` key): reuse iff the applied set is exactly
-     `["fkidx1"]`, `patch_id` is fkidx1, and both `db/index.js` hashes match
-     (168-171).
+   is read (`load_receipt`: an unreadable, corrupt or non-object receipt refuses
+   with exit 2 and a message that names `--force`) and `receipt_valid` decides
+   reuse:
+   - schema-2 receipt: `runner_key` and `patch_set` equal this invocation's;
+   - legacy receipt (no `patches` key): the applied set is exactly
+     `["fkidx1"]`, `patch_id` is fkidx1, and both `db/index.js` hashes match;
+   - and in both cases the launcher `<dst>/bin/codegraph` exists and is
+     executable, and the WHOLE runner tree equals the source tree with this
+     invocation's edits applied (`tree_manifest`: every file by sha256 and
+     executable bit, every symlink by target; `RUNNER_RECEIPT.json` excluded).
+     A truncated, missing or planted file means rebuild, never `REUSED`.
+     Cost, measured 2026-11-05 on the 286 MB, 1321-file 1.6.2 package
+     (`--patches fkidx1,resolve1,resolve2`, host load about 28): `REUSED` took
+     1.13 s against 0.30 s before the change, because both trees are hashed.
+   - On `REUSED`, a stale `<dst>.partial` left by an interrupted run is removed.
 3. Otherwise, if `<dst>` exists and any live process command line contains
    `<dst>/`, the tool refuses (149-163, 217-220). PIDs 1 and the tool's own PID
    are skipped.
@@ -304,35 +346,25 @@ Relations, all verified from `plan_all` on stock 1.6.0:
 These are facts about the tree on the verification date, recorded so nobody
 relies on the tool doing more than it does.
 
-1. **`tests/test_patch_machinery.py` is RED against this tool.** Its own
-   header says it reproduces four review findings (P1-P4) against a tiny fake
-   package. `VERIFIED (ran: PYTHONDONTWRITEBYTECODE=1 python3
-   tests/test_patch_machinery.py; saw: SUMMARY fails=9 P1b P1c P2c P2d P2e P2f P3
-   P4a P4b; PASS only P1a P2a P2b P4c)`. What each failing case expects that the
-   tool does not do today:
-   - **P1b/P1c** — a commented-out duplicate of, or a duplicated declaration of,
-     `static BULK_PARSE_INDEX_NAMES = [...]` should refuse with exit 2 and build
-     nothing; today the tool exits 0 and builds a runner (fkidx1's list parser
-     does not assert list-anchor uniqueness).
-   - **P2c/P2e** — the reuse check should verify the whole runner tree; today it
-     verifies only the edited files, so a truncated non-edited file or a planted
-     extra file still yields `REUSED` (lines 172-176).
-   - **P2d/P2f** — after the launcher is deleted, reuse should not print a path
-     to a missing file; today `--print-bin` prints the path of a non-existent
-     launcher (lines 212-216 never test existence).
-   - **P3** — expects the default patch set to be exactly
-     `fkidx1,resolve1,resolve2`; the registry default is five patches
-     (`fkidx1,lockfix1,datafrag1,resolve1,resolve2`).
-   - **P4a** — a stale `<dst>.partial` should be removed on the REUSED path;
-     it is only removed on the rebuild path (lines 221-223).
-   - **P4b** — a corrupt receipt exits 2 as expected, but the error message
-     (a `JSONDecodeError`) does not mention `--force`. The recovery itself works
-     (P4c PASS: `--force` skips the receipt read, line 212).
-
-   UNKNOWN: whether the test is ahead of the tool (RED written first, fix
-   pending) or the tool regressed; the constitution history in this checkout is
-   a single squashed commit for these files, so it cannot be determined here.
-   Reported to the conductor.
+1. **`tests/test_patch_machinery.py`: all cases pass since revision 3 (P3 was
+   RED until the CON-164 Option A decision of 2026-11-05).** On 2026-11-05 the tool gained the behaviours P1, P2
+   and P4 pin: list-anchor uniqueness in fkidx1 (a commented or duplicated
+   `static BULK_*_NAMES = [...]` refuses, exit 2, no runner), whole-tree and
+   launcher checks before `REUSED` / `--print-bin`, removal of a stale
+   `.partial` on `REUSED`, and a corrupt-receipt refusal that names `--force`.
+   `VERIFIED (ran: PYTHONDONTWRITEBYTECODE=1 python3
+   tests/test_patch_machinery.py; saw before: SUMMARY fails=9 P1b P1c P2c P2d
+   P2e P2f P3 P4a P4b; after: SUMMARY fails=1 P3)`.
+   - **P3 (resolved in revision 3, CON-164 Option A):** P3, P3b and P3c pass
+     (`SUMMARY fails=0`). The text below is the revision-2 record. P3 expects the registry default (`runner_patches.load()` with no ids)
+     to be exactly `fkidx1,resolve1,resolve2`; the registry default is five
+     patches (`fkidx1,lockfix1,datafrag1,resolve1,resolve2`). Which one is
+     right is an operator decision, not changed here. Facts for it: the
+     launcher `codegraph_safe.sh` already defaults to `fkidx1,resolve1`
+     (`CG_SAFE_PATCHES`), lockfix1 and datafrag1 have no behavioural test
+     (item 3), and on the installed 1.6.2 the five-patch default refuses
+     outright (`datafrag1: anchor 'const MAX_FILE_SIZE' occurs 0x in
+     lib/dist/extraction/index.js`, measured 2026-11-05).
 
 2. **In-source header is stale in four places.** (a) It lists three patches
    (fkidx1, lockfix1, datafrag1, lines 12-23) but the registry has six;
@@ -380,7 +412,7 @@ derive_keep_set, parse_lists, patch_text` are re-exported from `fkidx1`
 
 | Test | Covers |
 |---|---|
-| `tests/test_patch_machinery.py` | The tool's own machinery (anchor uniqueness, reuse validation, default set, `.partial`/receipt handling); 9 of 13 checks FAIL today (above) |
+| `tests/test_patch_machinery.py` | The tool's own machinery (anchor uniqueness, reuse validation, default set incl. P3b bare run on the real package and P3c opt-in by name, `.partial`/receipt handling); all pass since revision 3 |
 | `tests/test_resolve1.sh`, `test_resolve2.sh` | Build a single-patch runner through this tool (`--patches resolve1` / `resolve2`) and check behaviour |
 | `tests/test_mcp_readonly.sh` | Builds `--patches mcpro1`; R1 receipt >= 3 anchors, R8 shape mismatch => exit 2 and no runner directory, R13 registry/opt-in/exclusive |
 | `tests/*_mutations.sh` | Paired mutation harnesses for the above |
@@ -418,4 +450,7 @@ directory listing was identical before and after):
 - `tests/test_resolve2.sh` 3/3 PASS, `test_resolve1.sh` 7/7 PASS,
   `test_mcp_readonly.sh` 13/13 PASS; mutation harnesses: resolve2 golden + 5/5
   mutants killed, resolve1 golden + 5/5 killed, mcp_readonly 10/10 killed.
-- `tests/test_patch_machinery.py`: 9 FAIL / 4 PASS (see Known discrepancies).
+- `tests/test_patch_machinery.py`: 1 FAIL (P3) / 12 PASS on 2026-11-05 before the CON-164 decision;
+  `SUMMARY fails=0` after it (revision 3); 19/19 PASS on 2026-11-06 (revision 4,
+  `SUMMARY pass=19 fail=0 skip=0`), and the four review mutants R1a2, R1b, R1d, R1e
+  are each killed by one of P2h, P2g, P4d, P4e.

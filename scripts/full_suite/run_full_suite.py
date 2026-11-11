@@ -2716,9 +2716,71 @@ def unit_env(home, token, runner, extras, gomodcache):
     return env
 
 
+# A Go unit always runs. Only a FAILED run is examined, and only the unit's OWN `go test` output decides
+# whether the failure is "Go had to reach the network" (section 11.4.201: the condition itself, reported by Go,
+# not a prediction made by a different command). Ground truth, measured on Go 1.26.8 with a private file proxy
+# (tests/test_run_full_suite_go.sh pins each shape): under GOFLAGS=-mod=readonly and GOPROXY=off
+#   - a module that is not in the module cache prints `module lookup disabled by GOPROXY=off`;
+#   - a go.sum gap prints `missing go.sum entry ...`, also with an empty cache (a repository defect: FAIL);
+#   - in workspace mode a missing checksum prints `<mod>@<ver>: module lookup disabled`, because only the
+#     checksum database (network) can supply it; with network the same unit passes, so it is an environment case.
+# The output grammar below is closed: one line that is not in it (a test failure, a compile error, a panic, a
+# message this classifier does not know) keeps the FAIL (fail closed, section 11.4.201(4)).
+GO_NET_LINE = re.compile(r"^(?:go: (?P<a>[^\s:]+@[^\s:]+): |[^\s:]+\.go:\d+:\d+: (?:(?P<b>[^\s:]+@[^\s:]+): )?)"
+                         r"module lookup disabled by GOPROXY=off$")
+GO_ABORT_NET = re.compile(r"^go: [^\s:]+@[^\s:]+: module lookup disabled by GOPROXY=off$")
+GO_SETUP_FAIL = re.compile(r"^FAIL\t\S+ \[setup failed\]$")
+GO_DOWNLOADING = re.compile(r"^go: downloading (\S+) (v\S+)$")
+GO_PKG_HDR = re.compile(r"^# \S+$")
+GO_OK_PKG = re.compile(r"^ok  \t\S+\t(?:[0-9.]+s|\(cached\))$")
+GO_NOTEST_PKG = re.compile(r"^\?   \t\S+\t\[no test files\]$")
+GO_POLICY = {"GOPROXY": "off", "GOFLAGS": "-mod=readonly"}
+
+
+def go_test_needs_network(rc, text, complete, env, vendored):
+    """Pure classifier. Returns None when the failed Go unit stays as judged (FAIL), else the sorted list of
+    `<module>@<version>` Go said it tried to fetch (possibly empty when Go named none). It is SKIP-worthy only when
+    ALL of these hold: the unit exited 1 (go test's failure status); its whole output is at hand (`complete`);
+    it ran under the runner's offline policy (`env` has GOPROXY=off and GOFLAGS=-mod=readonly: the ground truth
+    above holds only there); the module has no vendor/ directory (with vendor/modules.txt the module IS in the
+    repository and the runner's -mod=readonly merely ignores it; a vendor/ WITHOUT modules.txt is a repository defect
+    that plain `go test` reports offline as "inconsistent vendoring" (measured, Go 1.26.8, review round 4 G4-1); either
+    way not reclassified, fail-closed); every non-empty output line is in the closed
+    grammar; at least one network line exists; and a package failed setup or Go aborted on a network line."""
+    if rc != 1 or not complete or vendored:
+        return None
+    if any(env.get(k) != v for k, v in GO_POLICY.items()):
+        return None
+    names, net, failed = set(), False, False
+    for ln in text.splitlines():
+        ln = ln.rstrip("\r")
+        if not ln.strip() or ln == "FAIL" or GO_PKG_HDR.match(ln) or GO_OK_PKG.match(ln) or GO_NOTEST_PKG.match(ln):
+            continue
+        m = GO_DOWNLOADING.match(ln)
+        if m:
+            names.add("%s@%s" % (m.group(1), m.group(2)))
+            continue
+        m = GO_NET_LINE.match(ln)
+        if m:
+            net = True
+            failed = failed or GO_ABORT_NET.match(ln) is not None
+            mv = m.group("a") or m.group("b")
+            if mv:
+                names.add(mv)
+            continue
+        if GO_SETUP_FAIL.match(ln):
+            failed = True
+            continue
+        return None
+    if not (net and failed):
+        return None
+    return sorted(names)
+
+
 def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
     """Run one unit; stream its output into `log` up to `cap` bytes. Returns
-    (rc, timed_out, secs, leaked, env_names, tail_text, overflow, log_sha256)."""
+    (rc, timed_out, secs, leaked, env_names, tail_text, overflow, log_sha256, go_env), where go_env holds the
+    values of the GO_POLICY variables the unit really ran with (read by go_test_needs_network)."""
     home = tempfile.mkdtemp(prefix="fsr_home.", dir=scratch)
     token = secrets.token_hex(16)
     env = unit_env(home, token, u["runner"], extras, gomodcache)
@@ -2784,7 +2846,9 @@ def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
     secs = round(time.time() - t0, 1)
     leaked = reap_token(token)
     rm_tree(home, scratch)
-    return rc, timed_out, secs, leaked, sorted(env), tail.decode("utf-8", errors="replace"), overflow, h.hexdigest()
+    go_env = {k: env.get(k) for k in GO_POLICY}
+    return (rc, timed_out, secs, leaked, sorted(env), tail.decode("utf-8", errors="replace"), overflow, h.hexdigest(),
+            go_env)
 
 
 # ----------------------------------------------------------------------------- results (hash chain)
@@ -3245,12 +3309,30 @@ def main(argv):
             t = tmo * 2 if u["runner"] in ("go-test",) or u["path"].endswith("run_all.sh") else tmo
             u["tmo"] = t
             logrel = "logs/%06d.log" % len(res.recs)
-            rc, timed_out, secs, leaked, env_names, tail, overflow, logsha = run_unit(
+            rc, timed_out, secs, leaked, env_names, tail, overflow, logsha, go_env = run_unit(
                 u, t, os.path.join(outdir, logrel), scratch, extras, gomodcache, cap_mb << 20)
             if overflow and not timed_out:
                 verdict, reason, source, counts = "ERROR", "log_overflow", "runner-log-cap", None
             else:
                 verdict, reason, source, counts = judge(rc, timed_out, tail, u["runner"])
+            if u["runner"] == "go-test" and verdict == "FAIL" and not timed_out:
+                lp = os.path.join(outdir, logrel)
+                complete = not overflow and os.path.getsize(lp) < TAIL_BYTES
+                # G4-1 (review round 4): any vendor/ directory keeps the FAIL (fail-closed, section 11.4.201(4)).
+                vendored = os.path.isdir(os.path.join(ROOT, u["path"], "vendor"))
+                fetch = go_test_needs_network(rc, tail, complete, go_env, vendored)
+                if fetch is not None:
+                    # No section 11.4.69 code names "dependency not in the offline module cache"; the true one is
+                    # network_unreachable_external: Go itself said it had to reach the network (module proxy or
+                    # checksum database), which the runner's GOPROXY=off makes unreachable. A SKIP is never a PASS.
+                    verdict, reason, source, counts = "SKIP", "network_unreachable_external", "go-test-output", None
+                    out("[%d/%d] note: go_test_needs_network: %s (GOPROXY=off by runner policy; prepare the module "
+                        "cache: `go -C %s mod download`, see the guide) %s"
+                        % (n, total, " ".join(fetch) or "(module not named by go)", u["path"], u["id"]))
+                elif vendored and go_test_needs_network(rc, tail, complete, go_env, False) is not None:
+                    out("[%d/%d] note: vendor/ present: the runner's GOFLAGS=-mod=readonly does not use vendor/; with "
+                        "vendor/modules.txt the module is in the repository, without it plain `go test` fails with "
+                        "inconsistent vendoring; not reclassified %s" % (n, total, u["id"]))
             emit(u, verdict, reason, source, rc, secs, leaked, env_names, counts, logrel, logsha)
             out("[%d/%d] %s%s %s %ss%s" % (n, total, verdict, " (%s)" % reason if reason else "", u["id"], secs,
                                             " leaked=%d" % leaked if leaked else ""))
