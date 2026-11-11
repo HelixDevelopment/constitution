@@ -4,11 +4,17 @@
 Purpose : CON-158 / CON-147 round 6 (review of fsfix5, section 11.4.274): the
           class "a reviewer mutant of the guarded script survives" recurred in
           rounds 3, 4 and 5 because each round's paired-mutant table was
-          written by hand. This tool enumerates EVERY decision point of a fixed
-          set of target scripts with a closed list of single-edit operators,
-          runs each mutant against the target's regression test in a scratch
-          copy of scripts/, and reports each mutant KILLED, SURVIVED, or
-          EQUIVALENT (only with a recorded proof in the equivalence ledger).
+          written by hand. This tool enumerates the decision points of a fixed
+          set of target scripts that are matched by its closed list of
+          single-edit operators (the operators below), runs each mutant against the target's
+          regression test in a scratch copy of scripts/, and reports each
+          mutant KILLED, SURVIVED, or EQUIVALENT (only with a recorded proof in
+          the equivalence ledger). Scope, stated honestly (CON-159, review
+          fsfix6 m1): "survived=0" means no OPERATOR-generated survivor, not
+          that every decision point is covered. Real decision-point mutants no
+          operator generates exist (negating a bare `if cmd; then`, an awk field
+          shift, a str.replace count of 0, `head -N`, dropping a `|| assign`);
+          they were killed by hand-written tests, and are not proved by this tool.
 Targets : (closed list, stated scope)
           meta         scripts/validation/meta_test_verification.sh, whole file;
                        test: test_meta_test_verification_r1_regression.sh with

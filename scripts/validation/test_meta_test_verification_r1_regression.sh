@@ -9,7 +9,7 @@
 #           submodule or always fails; and on its PASS path the summary line
 #           is printed last (CON-156 class, review round 2 finding R2-F5-A).
 #           Round 5 (CON-158 review round 4, F1: reviewer mutants Ma and Mb
-#           survived): every decision point of the meta-test has its own
+#           survived): every decision point of the meta-test listed below has its own
 #           fixture, pinned to one verdict (exit code, fail count, the one
 #           failure line it must print, nothing left under TMPDIR), and one
 #           paired mutant (list below the fixtures); a TERM that hits the
@@ -196,9 +196,11 @@ done
 # rounds 3, 4 and 5 because the fixtures did not separate the verdict axes). Each
 # fixture makes exactly ONE decision point fire on the original meta-test, and the
 # paired mutant of that branch (below) must change the fixture's verdict. This
-# list was written by hand; its completeness is CHECKED mechanically by
-# scripts/validation/enumerate_decision_mutants.py, which generates every
-# single-edit mutant of every decision point and runs this test against it.
+# list was written by hand; it is CROSS-CHECKED mechanically by
+# scripts/validation/enumerate_decision_mutants.py, which generates the
+# single-edit mutants of the decision points its closed operator list matches
+# and runs this test against them (not a completeness proof for decision
+# points no operator generates, CON-159).
 #   DP0  mktemp of the scratch root fails -> B12 "mktemp failed" (exit 1, no summary)   (R2)
 #   DP1  gate script missing            -> B7  "verification script not found"
 #   DP2  test submodule missing         -> B8  "test submodule not present"
