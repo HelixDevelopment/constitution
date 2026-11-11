@@ -2757,12 +2757,18 @@ Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-1
 
 ## CON-183 — Mutation harness cannot see Part 4: test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set, so a mutant only Part 4 kills is reported survived (review round 8 R8-1)
 
-**Status:** Queued
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Created-By:** Claude Opus 5.5 (lander subagent)
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/con183_reproduction_2026_11_11.txt` — red-command `bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON183-M4 (against the helper test without Part 3b)` — green-command `same command on the fixed helper test` — env `main fc57ad0c plus CON-184 and CON-185; Linux 7.0.0, bash 5.3.9, dash` — signature `SURVIVED CON183-M4 (rc 0, 0 NOT ok lines)` — updated 2026-11-11T12:45:18Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
+**Investigation:** root-cause-found-with-evidence — root-cause `Part 4 is skipped when FC_HELPER_UNDER_TEST is set, so the symlinked-canon layout it builds never ran the mutated copy` — evidence `docs/qa/con183_reproduction_2026_11_11.txt` — updated 2026-11-11T12:45:18Z — by `AI (Claude Sonnet 5.5, follow-up fu_b)`
 
 Parent: CON-178 (fc_require_items). Review round 8 R8-1. test_consumer_required_helper.sh skips Part 4 when FC_HELPER_UNDER_TEST is set (test_consumer_required_helper.sh:600 at vehicle head 4118f145), and both the sweep and the hand table set it, so a mutant that only the Part 4 legs kill is reported as survived. The reviewer's mutant M4 ($(cd "$(dirname -> $(cd -P "$(dirname) survives 338/0 through the harness path, while the same edit in the real helper fails Part 4 nine times (342/9). Acceptance: run Part 4 against the mutant (link the mutant into the scratch consumer layout instead of the checkout's helper), or state this bound beside the sweep's claim; then adopt M4 as a paired mutant. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
+
+Fix note (follow-up fu_b, 2026-11-11): the stated bound is kept and narrowed instead of running the heavy real suites per mutant: a new Part 3b in scripts/fastcycle/tests/test_consumer_required_helper.sh builds the symlinked-canon layout of Part 4 around the helper UNDER TEST and runs even when FC_HELPER_UNDER_TEST is set, so the reviewer mutant M4 (cd -P) is adopted as CON183-M4 in the hand table and is killed (bash and dash); the Part 4 skip note and the header of test_consumer_required_mutations.sh state that other mutants only the real cycle_report suites kill are still reported survived and must be probed on the real helper. Helper test: 361 pass / 0 fail. The 169-mutant sweep and the full hand table were not re-run (UNCONFIRMED: the 21 registered equivalents are fc_require_items edits that Part 3b cannot reach).
+
+**Verification:** provisional (section 11.4.290) -- job: re-run bash scripts/fastcycle/tests/test_consumer_required_mutations.sh CON183-M4 (expect killed) and bash scripts/fastcycle/tests/test_consumer_required_helper.sh (expect 0 fail), then the on-demand sweep (--sweep) to confirm the 21 registered equivalents still survive -- checks: M4 killed by Part 3b -- layer: gate-logic (test-instrumentation; class floor: runtime for a test item) -- target: host, repo checkout -- artifact: commit that lands the fu_b CON-183 change -- due: next full-suite run.
 
 ## CON-184 — fc_require_items id contract: a lowercase letter inside the prefix (AtM-5) is a usage error but no fixture asserts it; mutant M3 [[:alnum:]] survives (review round 8 R8-3)
 

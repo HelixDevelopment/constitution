@@ -608,9 +608,32 @@ CASES
   done
 fi
 
+echo "=== Part 3b: the helper under test in a SYMLINKED canon layout (CON-183; runs for a mutated copy too)"
+# Part 4 (below) is skipped for a mutated copy, because it runs the checkout's real helper. Its only layout-specific
+# property the mutation harness can lose is the symlinked canon (<consumer>/constitution/scripts/fastcycle -> a checkout):
+# there $0 is the logical path, so the root must be resolved LOGICALLY (cd without -P), not through the link target.
+# This leg builds that layout around the helper UNDER TEST ($HELPER), so a mutant such as cd -P is judged here.
+SYM="$W/symcanon"; SYMREAL="$SYM/realcanon/scripts/fastcycle/tests"; SYMC="$SYM/consumer"
+mkdir -p "$SYMREAL/lib" "$SYMC/constitution/scripts" "$SYMC/docs" && : >"$SYMC/docs/present.txt" \
+  && ln -s "$HELPER" "$SYMREAL/lib/consumer_required.sh" \
+  && ln -s "$SYM/realcanon/scripts/fastcycle" "$SYMC/constitution/scripts/fastcycle" \
+  && printf '%s\n' '#!/bin/sh' '. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$@"' 'echo "BODY RAN"' >"$SYMREAL/fake_test.sh" \
+  && [ -e "$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh" ] \
+  && ok "symlinked canon layout built (needle: the consumer data docs/present.txt sits only under the logical root)" \
+  || bad "symlinked canon layout setup failed"
+for sh in $SHELLS; do
+  ST="$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh"; o="$W/out3b"
+  "$sh" "$ST" docs/present.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] symlinked canon: the consumer data under the logical root is found (no false SKIP)" 0 "^BODY RAN$" "$o" "$rc"
+  "$sh" "$ST" docs/absent.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] symlinked canon: an absent consumer path still SKIPs" 77 "reason=topology_unsupported$" "$o" "$rc"
+done
+
 echo "=== Part 4: the REAL cycle_report suites decide SKIP through fc_require_items (CR-2)"
 if [ "${FC_HELPER_UNDER_TEST:-}" != "" ]; then
-  echo "note: FC_HELPER_UNDER_TEST is set; Part 4 runs the checkout's real helper, so it is skipped for a mutated copy"
+  echo "note: FC_HELPER_UNDER_TEST is set; Part 4 runs the checkout's real helper, so it is skipped for a mutated copy."
+  echo "note: BOUND (CON-183): of Part 4 only the symlinked-canon layout is replayed against the copy (Part 3b); a mutant that only"
+  echo "note: the real cycle_report suites kill is reported survived here and must be probed on the real helper (Part 4 on the checkout)."
 elif [ "$NOSQL" = 1 ]; then
   echo "note: no sqlite3; Part 4 not run"
 else
