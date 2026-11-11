@@ -13,7 +13,17 @@
 #           fixture, pinned to one verdict (exit code, fail count, the one
 #           failure line it must print, nothing left under TMPDIR), and one
 #           paired mutant (list below the fixtures); a TERM that hits the
-#           cleanup's rm no longer leaves the scratch root (SCLEAN).
+#           cleanup's rm no longer leaves the scratch root (SCLEAN_TERM).
+#           Round 6 (review of fsfix5, N1..N3): every signal is sent on an
+#           OBSERVED event (a marker the meta-test's run writes), never at a
+#           time derived from one measurement; every wait is bounded and the
+#           fixture's whole session is reaped and counted; each signal fixture
+#           is pinned to its own exit code; the fixtures cover the mktemp
+#           failure, a duplicated mutation-2 anchor, a failing cp and a failing
+#           ln in build_root, and INT and HUP during the cleanup's rm. The
+#           decision points are also enumerated mechanically, and every
+#           single-edit mutant is run against this test, by
+#           scripts/validation/enumerate_decision_mutants.py (section 11.4.274).
 # Forensic: before the fix the meta-test renamed submodules/verification in
 #           place and ran `sed -i` on the tracked run_verification.sh, with no
 #           trap; measured 2026-11-06 on a scratch tree, a TERM at 0.02 s left
@@ -31,7 +41,9 @@
 #           tree. The checked tree itself never changes (G-KILL below).
 # Usage   : bash scripts/validation/test_meta_test_verification_r1_regression.sh
 #           Exit 0 when every check passes, 1 otherwise. The last line is the
-#           summary line.
+#           summary line. MTV_REG_PINS_ONLY=1 skips the paired-mutant section
+#           (used by the decision-point enumerator, which supplies the mutants
+#           itself and judges by this test's exit status).
 # Inputs  : none. Builds a throwaway fake constitution tree under a temp dir
 #           (git repo, the REAL meta-test and gate copied in, one directory per
 #           required submodule); never this project's tree.
@@ -57,7 +69,7 @@ for p in "$MTV" "$GATE" "$RUNNER"; do [ -f "$p" ] || notok "control needle: $p n
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 g() { git -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false -c init.defaultBranch=main "$@"; }
 
-# mktree DIR [GATEFILE]: a fake constitution tree whose gate passes.
+# mktree DIR [GATEFILE] [MTVFILE]: a fake constitution tree whose gate passes.
 mktree() {
   local d=$1 gate=${2:-$GATE} mtv=${3:-$MTV} s p
   mkdir -p "$d/scripts/validation" "$d/submodules"
@@ -80,10 +92,19 @@ else notok "control needle: the fake tree's gate fails before any mutation"; fi
 BASE=$(snap "$T1")
 mkdir -p "$TMP/tt"
 
+# runtime: one bounded full run of the meta-test on $T1; prints its wall time in
+# seconds, or "x" when it did not exit 0. Every run of the meta-test in this
+# test is bounded (review fsfix5 N2): `timeout -k 5 120`.
+runtime() {
+  local t0 rc
+  t0=$(date +%s.%N)
+  TMPDIR="$TMP/tt" timeout -k 5 120 bash "$T1/scripts/validation/meta_test_verification.sh" > "$TMP/rt.out" 2>&1; rc=$?
+  [ "$rc" = 0 ] || { echo x; return; }
+  awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN { printf "%.3f", b - a }'
+}
+
 # G1: a full run passes, changes nothing, leaves nothing in TMPDIR, and its summary is last.
-T0=$(date +%s.%N)
-OUT=$(TMPDIR="$TMP/tt" bash "$T1/scripts/validation/meta_test_verification.sh" 2>&1); RC=$?
-RUNS=$(awk -v a="$T0" -v b="$(date +%s.%N)" 'BEGIN { printf "%.3f", b - a }')
+OUT=$(TMPDIR="$TMP/tt" timeout -k 5 120 bash "$T1/scripts/validation/meta_test_verification.sh" 2>&1); RC=$?
 printf '%s\n' "$OUT" > "$TMP/g1.out"
 [ "$RC" = 0 ] && ok "G1 full run exits 0" || notok "G1 full run exit $RC: $(printf '%s' "$OUT" | tail -3 | tr '\n' '|')"
 [ "$(snap "$T1")" = "$BASE" ] && ok "G1 the checked tree is unchanged after a full run" || notok "G1 the checked tree changed: $(snap "$T1" | tr '\n' '|')"
@@ -125,56 +146,84 @@ sys.exit(1)'
 }
 
 # G2 / G3: stopped with TERM or KILL at any moment, the checked tree never changes.
-# The delays are scaled to the MEASURED run time of G1 ($RUNS s): 14 points from
-# 2% to 98% of it, so the last mutation and the summary are interrupted too
-# (review round 3, FU-6: fixed delays that stopped at 0.60 s left the last third
-# of a 1.01 s run untested). A control needle checks the run was measurable.
-DELAYS=$(awk -v r="$RUNS" 'BEGIN { split("0.02 0.07 0.12 0.18 0.25 0.32 0.40 0.48 0.56 0.64 0.72 0.80 0.90 0.98", f, " "); for (i = 1; i <= 14; i++) printf "%.3f ", r * f[i] }')
-case "$RUNS" in 0.000|"") notok "control needle: the full run took '$RUNS' s; the delays cannot be scaled" ;;
-  *) ok "control needle: full run $RUNS s; signal delays $DELAYS" ;; esac
-for sig in TERM KILL; do
-  bad=""
-  for d in $DELAYS; do
+# The delays are 14 points from 2% to 98% of the run time, so the last mutation and
+# the summary are interrupted too (review round 3, FU-6). Round 6 (review fsfix5
+# N1): the run time is the MINIMUM of three measured runs, never one measurement,
+# and the sweep counts how many stops really ended the run before its summary; a
+# sweep in which fewer than 7 of 14 did is BLIND (the delays missed the run), is
+# re-measured and re-run once, and is a failure only if it is BLIND again. The
+# sweep's verdict (tree unchanged, nothing left) never depends on the timing.
+RUNS=""
+for _i in 1 2 3; do
+  r=$(runtime)
+  case "$r" in x) ;; *) RUNS=$(awk -v a="${RUNS:-$r}" -v b="$r" 'BEGIN { printf "%.3f", (b < a ? b : a) }') ;; esac
+done
+case "$RUNS" in ""|0.000) notok "control needle: no measurable full run (run time '$RUNS' s); the delays cannot be scaled" ; RUNS=1.000 ;;
+  *) ok "control needle: full run (minimum of 3 measured runs) $RUNS s" ;; esac
+delays() { awk -v r="$1" 'BEGIN { split("0.02 0.07 0.12 0.18 0.25 0.32 0.40 0.48 0.56 0.64 0.72 0.80 0.90 0.98", f, " "); for (i = 1; i <= 14; i++) printf "%.3f ", r * f[i] }'; }
+# sweep SIG RUNTIME: sets SW_BAD (delays at which something was left or changed)
+# and SW_STOPPED (how many of the 14 stops ended the run before its summary).
+sweep() {
+  local sig=${1:?} d
+  SW_BAD=""; SW_STOPPED=0
+  for d in $(delays "$2"); do
     mkdir -p "$TMP/tt_$sig"
-    TMPDIR="$TMP/tt_$sig" timeout -s "$sig" "$d" bash "$T1/scripts/validation/meta_test_verification.sh" >/dev/null 2>&1
+    TMPDIR="$TMP/tt_$sig" timeout -s "$sig" "$d" bash "$T1/scripts/validation/meta_test_verification.sh" > "$TMP/sw.out" 2>&1
+    grep -q '^=== meta-test verification:' "$TMP/sw.out" || SW_STOPPED=$((SW_STOPPED + 1))
     # A KILL can leave the meta-test's `$(build_root ...)` subshell running
     # (measured, round 5: its cmdline is the meta-test's own, not the scratch
     # path), so wait for both names before the scratch root is removed.
-    { wait_gone "$TMP/tt_$sig" && wait_gone "$T1/scripts/validation/meta_test_verification.sh"; } >/dev/null || bad="$bad $d(processes-left)"
-    [ "$(snap "$T1")" = "$BASE" ] || { bad="$bad $d"; g -C "$T1" checkout -q -- .; [ -d "$T1/submodules/verification.mut.bak" ] && mv "$T1/submodules/verification.mut.bak" "$T1/submodules/verification"; g -C "$T1" clean -qfd; }
-    if [ "$sig" = TERM ] && [ -n "$(ls -A "$TMP/tt_$sig")" ]; then bad="$bad $d(tmpdir-left)"; fi
-    rm -rf "${TMP:?}/tt_$sig"
+    { wait_gone "$TMP/tt_$sig" && wait_gone "$T1/scripts/validation/meta_test_verification.sh"; } >/dev/null || SW_BAD="$SW_BAD $d(processes-left)"
+    [ "$(snap "$T1")" = "$BASE" ] || { SW_BAD="$SW_BAD $d"; g -C "$T1" checkout -q -- .; [ -d "$T1/submodules/verification.mut.bak" ] && mv "$T1/submodules/verification.mut.bak" "$T1/submodules/verification"; g -C "$T1" clean -qfd; }
+    if [ "$sig" = TERM ] && [ -n "$(ls -A "$TMP/tt_$sig")" ]; then SW_BAD="$SW_BAD $d(tmpdir-left)"; fi
+    rm -rf "${TMP:?}/tt_${sig:?}"
   done
-  if [ -z "$bad" ]; then ok "G-$sig stopped by $sig at 14 delays (2%..98% of the run): the checked tree never changed${sig:+}"
-  else notok "G-$sig stopped by $sig: the checked tree changed (or scratch left) at delay(s)$bad"; fi
+}
+for sig in TERM KILL; do
+  sweep "$sig" "$RUNS"
+  if [ "$SW_STOPPED" -lt 7 ]; then
+    echo "note G-$sig BLIND: only $SW_STOPPED of 14 stops ended the run before its summary (run time $RUNS s); re-measuring and re-running once"
+    r=$(runtime); case "$r" in x) ;; *) RUNS=$(awk -v a="$RUNS" -v b="$r" 'BEGIN { printf "%.3f", (b < a ? b : a) }') ;; esac
+    sweep "$sig" "$RUNS"
+  fi
+  if [ "$SW_STOPPED" -lt 7 ]; then notok "G-$sig BLIND twice: only $SW_STOPPED of 14 stops ended the run before its summary"
+  elif [ -z "$SW_BAD" ]; then ok "G-$sig stopped by $sig at 14 delays (2%..98% of the run, $SW_STOPPED of 14 before the summary): the checked tree never changed"
+  else notok "G-$sig stopped by $sig: the checked tree changed (or scratch left) at delay(s)$SW_BAD"; fi
 done
 
 # --- Decision points of the meta-test, each with its own fixture (CON-158 review
 # round 4, F1: the class "a reviewer mutant of the meta-test survives" recurred in
-# rounds 3 and 4 because the fixtures did not separate the verdict axes). Every
-# branch that sets the meta-test's verdict is listed here; each fixture makes
-# exactly ONE of them fire on the original meta-test, and the paired mutant of
-# that branch (below) must change the fixture's verdict.
+# rounds 3, 4 and 5 because the fixtures did not separate the verdict axes). Each
+# fixture makes exactly ONE decision point fire on the original meta-test, and the
+# paired mutant of that branch (below) must change the fixture's verdict. This
+# list was written by hand; its completeness is CHECKED mechanically by
+# scripts/validation/enumerate_decision_mutants.py, which generates every
+# single-edit mutant of every decision point and runs this test against it.
+#   DP0  mktemp of the scratch root fails -> B12 "mktemp failed" (exit 1, no summary)   (R2)
 #   DP1  gate script missing            -> B7  "verification script not found"
 #   DP2  test submodule missing         -> B8  "test submodule not present"
 #   DP3  control: real gate, real tree  -> B6  "real gate does not pass on the real tree"   (reviewer Ma)
-#   DP4  mutation-1 root not buildable  -> B9  "could not build the mutation-1 scratch root"
+#   DP4  mutation-1 root not buildable: mkdir -> B9, cp -> B14 (R4), ln -> B15 (R7)
+#        "could not build the mutation-1 scratch root"
 #   DP5  mutation 1: gate passes        -> B5  "real gate passed despite the missing"      (reviewer Mb)
-#   DP6  mutation-2 anchors not unique  -> B4  "could not build the weakened gate"         (MT9)
+#   DP6  mutation-2 anchor not unique: absent -> B4 (MT9), duplicated -> B13 (R3)
+#        "could not build the weakened gate"
 #   DP7  weakened gate does not parse   -> B11 "the weakened gate does not parse"
 #   DP8  mutation-2 root not buildable  -> B10 "could not build the mutation-2 scratch root"
 #   DP9  weakened gate still fails      -> B3  "weakened gate still exits non-zero"        (MT1)
 #   DP10 finish: exit code from fail    -> B2 (bad) and G (good)
-#   DP11 traps: EXIT, TERM, INT, HUP    -> G (tmp left), STERM / SINT / SHUP (stopped at
-#        half the run: the scratch root must be gone and the run must END THROUGH
-#        its trap, exit 143 / 130 / 129), SCLEAN (a TERM while the cleanup's rm
-#        runs: the rm must finish)
+#   DP11 traps: EXIT -> G (tmp left); TERM / INT / HUP while the control gate runs
+#        -> STERM / SINT / SHUP, each pinned to its own exit code 143 / 130 / 129
+#        (the run ENDS THROUGH its trap, nothing left); TERM / INT / HUP while the
+#        cleanup's rm runs -> SCLEAN_TERM / SCLEAN_INT / SCLEAN_HUP (the rm
+#        finishes, the run keeps its exit 0)                                        (R1b, R5b)
 #   DP12 build_root: skip the test submodule, use the given gate file -> G
 #   DP13 mutation 2's two edits, mutation 1 and 2 run on their own roots -> G
 # Not separable (stated, §11.4.6): `[ -e "$s" ] || continue` in build_root -- the
 # DP2 guard means the glob always matches at least the test submodule, and a
 # dangling entry linked or skipped gives the gate the same (absent) target, so
-# the mutant that drops the line is equivalent; not adopted.
+# the mutant that drops the line is equivalent; not adopted (the enumerator's
+# equivalence ledger carries the same proof).
 
 # Fixture gates (each passes on its own fake tree except where the fixture is
 # about the checked tree itself).
@@ -195,87 +244,137 @@ w("false", '#!/usr/bin/env bash\necho "always FAIL"\nexit 1\n')                 
 w("needs_git", c.replace(SUB, SUB + '[ -e "${CONSTITUTION_ROOT}/.git" ] || { echo "not a checkout"; exit 1; }\n'))  # B3
 w("reformatted", c.replace(REQ, '    "verification"   # agent-skills\n'))             # B4
 w("always_pass", c.replace(BANNER, BANNER + 'exit 0\n'))                             # B5
-SAB = 'for _d in "${TMPDIR:-/tmp}"/meta_test_verification.*; do [ -d "$_d" ] && : > "$_d/%s"; done\n'
-w("sab_m1", c.replace(SUB, SUB + SAB % "m1"))                                        # B9
-w("sab_m2", c.replace(SUB, SUB + SAB % "m2"))                                        # B10
+SAB = 'for _d in "${TMPDIR:-/tmp}"/meta_test_verification.*; do [ -d "$_d" ] && %s; done\n'
+w("sab_m1", c.replace(SUB, SUB + SAB % ': > "$_d/m1"'))                              # B9
+w("sab_m2", c.replace(SUB, SUB + SAB % ': > "$_d/m2"'))                              # B10
 w("if_wrapped", c.replace(CHK, "if true; then\n" + CHK + "fi\n"))                    # B11
+w("dup_req", c.replace(REQ, REQ + REQ))                                              # B13
+# B14: the m1 gate path is a directory holding a directory of the same name, so
+# build_root's `cp` fails (it cannot overwrite a directory with a file).
+w("sab_cp", c.replace(SUB, SUB + SAB % 'mkdir -p "$_d/m1/scripts/validation/run_verification.sh/run_verification.sh"'))
+# B15: a regular FILE where build_root links a (non-test) submodule, so its `ln -s` fails.
+w("sab_ln", c.replace(SUB, SUB + SAB % '{ for _s in "${SUBMODULES_DIR}"/*; do [ "${_s##*/}" = verification ] && continue; mkdir -p "$_d/m1/submodules" && : > "$_d/m1/submodules/${_s##*/}"; break; done; }'))
+# Signal fixtures: on its FIRST call (the control phase, while the scratch root
+# exists) the gate writes the marker named by MTV_SIGMARK and sleeps, so the
+# launcher can send the signal on that observed event (review fsfix5 N1).
+w("sigwait", c.replace(SUB, SUB + 'if [ -n "${MTV_SIGMARK:-}" ] && [ ! -e "${MTV_SIGMARK}" ]; then : > "${MTV_SIGMARK}"; sleep 20; fi\n'))
 PYEOF
 
 # fx NAME MTVFILE: run the meta-test MTVFILE on fixture NAME; prints the verdict
 # "rc=<exit> fail=<n> msg=<0|1> tmp=<0|1>" (msg: the fixture's pinned line is in
-# the output; tmp: something was left under TMPDIR). The fixture trees are
-# rebuilt per run, so no run sees another run's state.
+# the output; tmp: something was left under TMPDIR). Every fixture runs in its own
+# mktemp directory (review fsfix5 n1: a counter bumped inside $(...) never moved),
+# and every run is bounded (timeout: rc 124 or 137 shows in the verdict).
 fx_gate() { case $1 in B1) echo blind ;; B2) echo false ;; B3) echo needs_git ;; B4) echo reformatted ;;
-  B5) echo always_pass ;; B9) echo sab_m1 ;; B10) echo sab_m2 ;; B11) echo if_wrapped ;; *) echo real ;; esac; }
+  B5) echo always_pass ;; B9) echo sab_m1 ;; B10) echo sab_m2 ;; B11) echo if_wrapped ;; B13) echo dup_req ;;
+  B14) echo sab_cp ;; B15) echo sab_ln ;; *) echo real ;; esac; }
 fx_msg() { case $1 in
   G) echo "✓ the weakened gate parses" ;; B1|B5) echo "✗ real gate passed despite the missing" ;;
   B2|B6) echo "✗ real gate does not pass on the real tree" ;; B3) echo "✗ weakened gate still exits non-zero" ;;
-  B4) echo "✗ could not build the weakened gate" ;; B7) echo "✗ verification script not found" ;;
-  B8) echo "✗ test submodule not present" ;; B9) echo "✗ could not build the mutation-1 scratch root" ;;
+  B4|B13) echo "✗ could not build the weakened gate" ;; B7) echo "✗ verification script not found" ;;
+  B8) echo "✗ test submodule not present" ;; B9|B14|B15) echo "✗ could not build the mutation-1 scratch root" ;;
   B10) echo "✗ could not build the mutation-2 scratch root" ;; B11) echo "✗ the weakened gate does not parse" ;;
+  B12) echo "✗ mktemp failed" ;;
   *) echo "=== meta-test verification:" ;; esac; }
-FXN=0
 fx() {
-  local name=$1 mtv=$2 T rc fl msg tmp
-  FXN=$((FXN + 1)); T="$TMP/fx$FXN"; rm -rf "${T:?}"
-  mktree "$T" "$TMP/gate_$(fx_gate "$name").sh" "$mtv" >/dev/null 2>&1
+  local name=$1 mtv=$2 T rc fl msg tmp tt
+  T=$(mktemp -d "$TMP/fx.XXXXXX") || { echo "fixture-mktemp-failed"; return; }
+  mktree "$T/tree" "$TMP/gate_$(fx_gate "$name").sh" "$mtv" >/dev/null 2>&1
   case $name in
-    B6) rm -f "$T/submodules/verification/README.md" ;;
-    B7) rm -f "$T/scripts/validation/run_verification.sh" ;;
-    B8) rm -rf "${T:?}/submodules/verification" ;;
+    B6) rm -f "$T/tree/submodules/verification/README.md" ;;
+    B7) rm -f "$T/tree/scripts/validation/run_verification.sh" ;;
+    B8) rm -rf "${T:?}/tree/submodules/verification" ;;
   esac
-  mkdir -p "$T.tt"
-  TMPDIR="$T.tt" bash "$T/scripts/validation/meta_test_verification.sh" > "$T.out" 2>&1; rc=$?
-  fl=$(sed -n 's/^=== meta-test verification: pass=[0-9]* fail=\([0-9]*\) ===$/\1/p' "$T.out")
-  grep -qF -- "$(fx_msg "$name")" "$T.out" && msg=1 || msg=0
-  [ -z "$(ls -A "$T.tt")" ] && tmp=0 || tmp=1
-  rm -rf "${T:?}" "${T:?}.tt"
+  mkdir -p "$T/tt"; tt="$T/tt"
+  [ "$name" = B12 ] && tt="$T/tt/missing"   # TMPDIR names no directory: the scratch root's mktemp fails
+  TMPDIR="$tt" timeout -k 5 120 bash "$T/tree/scripts/validation/meta_test_verification.sh" > "$T/out" 2>&1; rc=$?
+  fl=$(sed -n 's/^=== meta-test verification: pass=[0-9]* fail=\([0-9]*\) ===$/\1/p' "$T/out")
+  grep -qF -- "$(fx_msg "$name")" "$T/out" && msg=1 || msg=0
+  [ -z "$(ls -A "$T/tt")" ] && tmp=0 || tmp=1
+  rm -rf "${T:?}"
   echo "rc=$rc fail=${fl:-none} msg=$msg tmp=$tmp"
 }
-# sigfx SIG MTVFILE [rm-shim]: stop the meta-test with SIG at half the measured run
-# (or, with rm-shim, while its cleanup's rm runs); prints "stopped=<0|1> tmp=<0|1>"
-# (stopped: no summary line, so the signal really ended the run).
-sigfx() {
-  local sig=$1 mtv=$2 shim=${3:-} T pid i ec=""
-  FXN=$((FXN + 1)); T="$TMP/fx$FXN"; rm -rf "${T:?}"
-  mktree "$T" "$TMP/gate_real.sh" "$mtv" >/dev/null 2>&1; mkdir -p "$T.tt"
-  if [ -z "$shim" ]; then
-    # The meta-test runs in its own session; the signal goes to its whole
-    # process group (as timeout sends it) at half the measured run. ec is how
-    # it ended: exit=<code> (its trap ran `exit 1xx`) or sig=<n> (killed).
-    # Measured (round 5): bash runs the EXIT trap on a fatal TERM, INT or HUP
-    # even without a trap for it, so the cleanup alone cannot tell whether the
-    # TERM/INT/HUP traps are there; the exit status can.
-    ec=$(TMPDIR="$T.tt" python3 -I -c '
+
+# sigfx SIG MTVFILE [clean]: stop the meta-test with SIG on an observed event and
+# print its verdict "mark=<0|1> seen=<0|1> sum=<0|1> tmp=<0|1> end=<how> left=<n>".
+#   without "clean": the event is the sigwait gate's marker (written on the
+#     control run, while the scratch root exists); with "clean": the event is the
+#     rm shim's marker (written when the cleanup's rm starts; it then sleeps 2 s
+#     before it runs the real rm).
+#   mark: the event was observed; seen: the scratch root existed at that moment
+#   (positive control); sum: the summary line was printed; tmp: something was left
+#   under TMPDIR; end: exit=<code>, sig=<n>, timeout (killed after 30 s) or
+#   nomark (no event within 30 s); left: processes of the fixture's session that
+#   were still there after the meta-test ended (they are killed and counted).
+# The meta-test runs in its own session with HUP, INT and TERM reset to their
+# defaults (so a signal ignored by whoever started this test cannot hide a trap,
+# and INT works, which `setsid ... &` cannot give), and the signal goes to its
+# whole process group, as timeout sends it. Every wait is bounded (review fsfix5
+# N2). A verdict whose end is timeout or nomark is BLIND: the run is repeated
+# once (noted), and only the repeat counts.
+cat > "$TMP/sigrun.py" <<'PYEOF'
 import os, signal, subprocess, sys, time
-sig, half, mtv, out = getattr(signal, "SIG" + sys.argv[1]), float(sys.argv[2]), sys.argv[3], sys.argv[4]
-p = subprocess.Popen(["bash", mtv], stdout=open(out, "w"), stderr=subprocess.STDOUT, start_new_session=True)
-time.sleep(half)
+sig, mtv, out, tt, mark = getattr(signal, "SIG" + sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+def pre():
+    for s in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM):
+        signal.signal(s, signal.SIG_DFL)
+    signal.pthread_sigmask(signal.SIG_SETMASK, [])
+p = subprocess.Popen(["bash", mtv], stdout=open(out, "w"), stderr=subprocess.STDOUT,
+                     start_new_session=True, preexec_fn=pre)
+seen = got = 0
+end = None
+t_end = time.monotonic() + 30
+while time.monotonic() < t_end:
+    if os.path.exists(mark):
+        got = 1
+        seen = 1 if os.listdir(tt) else 0
+        try:
+            os.killpg(p.pid, sig)
+        except ProcessLookupError:
+            pass
+        break
+    if p.poll() is not None:
+        break
+    time.sleep(0.01)
+if not got and p.poll() is None:
+    end = "nomark"
 try:
-    os.killpg(p.pid, sig)
-except ProcessLookupError:
-    pass
-rc = p.wait()
-print("sig=%d" % -rc if rc < 0 else "exit=%d" % rc)' "$sig" "$HALF" "$T/scripts/validation/meta_test_verification.sh" "$T.out")
-    wait_gone "$T.tt" >/dev/null
-  else
-    # A PATH shim for rm: on the cleanup's call it writes a marker and sleeps 2 s
-    # before it runs the real rm; the signal is sent to the whole process group
-    # (as timeout does) while it sleeps.
-    TMPDIR="$T.tt" RMSHIM_MARK="$T.mark" PATH="$TMP/rmshim:$PATH" setsid bash "$T/scripts/validation/meta_test_verification.sh" > "$T.out" 2>&1 &
-    pid=$!
-    for i in $(seq 1 300); do [ -e "$T.mark" ] && break; sleep 0.05; done
-    [ -e "$T.mark" ] && kill -s "$sig" -- "-$pid" 2>/dev/null
-    wait "$pid" 2>/dev/null
-    wait_gone "$T.tt"
-  fi
-  local st tmp
-  grep -q '^=== meta-test verification:' "$T.out" && st=0 || st=1
-  [ -n "$shim" ] && { [ -e "$T.mark" ] && st=1 || st=0; }
-  [ -z "$(ls -A "$T.tt")" ] && tmp=0 || tmp=1
-  rm -rf "${T:?}" "${T:?}.tt" "${T:?}.mark"
-  echo "stopped=$st tmp=$tmp${ec:+ $ec}"
-}
+    rc = p.wait(timeout=30)
+except subprocess.TimeoutExpired:
+    end = end or "timeout"
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    rc = p.wait()
+if end is None:
+    end = "sig=%d" % -rc if rc < 0 else "exit=%d" % rc
+def session():
+    found = []
+    for q in os.listdir("/proc"):
+        if not q.isdigit():
+            continue
+        try:
+            st = open("/proc/%s/stat" % q).read()
+        except OSError:
+            continue
+        f = st[st.rindex(")") + 2:].split()
+        if int(f[3]) == p.pid and f[0] != "Z":
+            found.append(int(q))
+    return found
+left = []
+for _ in range(100):
+    left = session()
+    if not left:
+        break
+    time.sleep(0.05)
+for q in left:
+    try:
+        os.kill(q, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+print("mark=%d seen=%d tmp=@TMP@ end=%s left=%d" % (got, seen, end, len(left)))
+PYEOF
 mkdir -p "$TMP/rmshim"
 cat > "$TMP/rmshim/rm" <<EOF
 #!/bin/bash
@@ -283,38 +382,67 @@ case "\$*" in *meta_test_verification.*) : > "\$RMSHIM_MARK"; sleep 2 ;; esac
 exec $(command -v rm) "\$@"
 EOF
 chmod +x "$TMP/rmshim/rm"
-HALF=$(awk -v r="$RUNS" 'BEGIN { printf "%.3f", r * 0.5 }')
+sigfx_once() {
+  local sig=$1 mtv=$2 clean=${3:-} T v sum tmp
+  T=$(mktemp -d "$TMP/sx.XXXXXX") || { echo "fixture-mktemp-failed"; return; }
+  mkdir -p "$T/tt"
+  if [ -z "$clean" ]; then
+    mktree "$T/tree" "$TMP/gate_sigwait.sh" "$mtv" >/dev/null 2>&1
+    v=$(TMPDIR="$T/tt" MTV_SIGMARK="$T/mark" python3 -I "$TMP/sigrun.py" "$sig" "$T/tree/scripts/validation/meta_test_verification.sh" "$T/out" "$T/tt" "$T/mark")
+  else
+    mktree "$T/tree" "$TMP/gate_real.sh" "$mtv" >/dev/null 2>&1
+    v=$(TMPDIR="$T/tt" RMSHIM_MARK="$T/mark" PATH="$TMP/rmshim:$PATH" python3 -I "$TMP/sigrun.py" "$sig" "$T/tree/scripts/validation/meta_test_verification.sh" "$T/out" "$T/tt" "$T/mark")
+  fi
+  wait_gone "$T/tt" >/dev/null
+  grep -q '^=== meta-test verification:' "$T/out" && sum=1 || sum=0
+  [ -z "$(ls -A "$T/tt")" ] && tmp=0 || tmp=1
+  rm -rf "${T:?}"
+  v=${v/tmp=@TMP@/sum=$sum tmp=$tmp}
+  echo "$v"
+}
+sigfx() {
+  local v
+  v=$(sigfx_once "$@")
+  case "$v" in *end=timeout*|*end=nomark*)
+    echo "note sigfx $1 ${3:-} BLIND ($v): repeated once" >> "$TMP/notes"
+    v=$(sigfx_once "$@") ;; esac
+  echo "$v"
+}
 
 # The original meta-test on every fixture: the verdict each one is pinned to.
 declare -A WANT
-for x in G B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11; do WANT[$x]=$(fx "$x" "$MTV"); done
-ign() { local v; v=$(awk '/^SigIgn:/ { print $2 }' /proc/self/status); echo $(( (16#$v >> ($1 - 1)) & 1 )); }
-for s in TERM:15 INT:2 HUP:1; do
-  if [ "$(ign "${s#*:}")" = 1 ]; then WANT[S${s%%:*}]="ignored"; else WANT[S${s%%:*}]=$(sigfx "${s%%:*}" "$MTV"); fi
-done
-WANT[SCLEAN]=$(sigfx TERM "$MTV" shim)
+for x in G B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 B11 B12 B13 B14 B15; do WANT[$x]=$(fx "$x" "$MTV"); done
+for s in TERM INT HUP; do WANT[S$s]=$(sigfx "$s" "$MTV"); WANT[SCLEAN_$s]=$(sigfx "$s" "$MTV" clean); done
 
 [ "${WANT[G]}" = "rc=0 fail=0 msg=1 tmp=0" ] && ok "G (fixture) good tree -> ${WANT[G]}" || notok "G (fixture) good tree -> ${WANT[G]}"
 for x in B1 B2; do
   case ${WANT[$x]} in "rc=1 fail="[12]" msg=1 tmp=0") ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" ;;
     *) notok "$x -> ${WANT[$x]}, want rc=1, its line '$(fx_msg "$x")', nothing left" ;; esac
 done
-for x in B3 B4 B5 B6 B7 B8 B9 B10 B11; do
+for x in B3 B4 B5 B6 B7 B8 B9 B10 B11 B13 B14 B15; do
   # one decision point fires, and only that one (fail=1)
   [ "${WANT[$x]}" = "rc=1 fail=1 msg=1 tmp=0" ] && ok "$x -> ${WANT[$x]} ($(fx_msg "$x"))" \
     || notok "$x -> ${WANT[$x]}, want 'rc=1 fail=1 msg=1 tmp=0' with '$(fx_msg "$x")'"
 done
-for x in STERM SINT SHUP SCLEAN; do
-  case ${WANT[$x]} in
-    "stopped=1 tmp=0"|"stopped=1 tmp=0 exit=143"|"stopped=1 tmp=0 exit=130"|"stopped=1 tmp=0 exit=129") ok "$x stopped by the signal${x#S} -> nothing left under TMPDIR (${WANT[$x]})" ;;
-    ignored) ok "$x SKIP: SIG${x#S} is ignored in this shell (inherited), so the meta-test cannot be stopped with it here" ;;
-    *) notok "$x -> ${WANT[$x]}, want stopped=1 tmp=0 (and, for STERM/SINT/SHUP, exit=143/130/129 from the trap)" ;; esac
+# B12: the meta-test stops before it counts anything, so no summary line.
+[ "${WANT[B12]}" = "rc=1 fail=none msg=1 tmp=0" ] && ok "B12 -> ${WANT[B12]} ($(fx_msg B12), no summary)" \
+  || notok "B12 -> ${WANT[B12]}, want 'rc=1 fail=none msg=1 tmp=0' with '$(fx_msg B12)'"
+# Each signal pinned to its own exit code (review fsfix5 N3(e)).
+want_sig() { case $1 in
+  STERM) echo "mark=1 seen=1 sum=0 tmp=0 end=exit=143 left=0" ;;
+  SINT) echo "mark=1 seen=1 sum=0 tmp=0 end=exit=130 left=0" ;;
+  SHUP) echo "mark=1 seen=1 sum=0 tmp=0 end=exit=129 left=0" ;;
+  SCLEAN_*) echo "mark=1 seen=1 sum=1 tmp=0 end=exit=0 left=0" ;; esac; }
+for x in STERM SINT SHUP SCLEAN_TERM SCLEAN_INT SCLEAN_HUP; do
+  [ "${WANT[$x]}" = "$(want_sig "$x")" ] && ok "$x stopped on its event -> ${WANT[$x]}" \
+    || notok "$x -> ${WANT[$x]}, want '$(want_sig "$x")'"
 done
 
+if [ "${MTV_REG_PINS_ONLY:-0}" != 1 ]; then
 # Paired mutants of the meta-test, one per decision point (DPn above). Each is an
 # exact, unique replacement in a copy; it is caught when its fixture's verdict
 # differs from the original's. Ma and Mb are the round-4 reviewer mutants, MT1
-# and MT9 the round-3 ones, verbatim.
+# and MT9 the round-3 ones, R1b, R2, R3, R4, R5b and R7 the round-5 ones, verbatim.
 mtv_mutant() {  # NAME OLD NEW -> path of the mutant meta-test, or "" when the anchor is not unique
   local f="$TMP/mtvmut_$1.sh"
   if python3 -I - "$MTV" "$f" "$2" "$3" <<'PYEOF'
@@ -332,11 +460,11 @@ mtv_mutation() {  # NAME FIXTURE OLD NEW
   m=$(mtv_mutant "$1" "$3" "$4")
   if [ -z "$m" ]; then notok "mutation $1: anchor not unique in the meta-test (not a catch)"; return; fi
   case $2 in
-    STERM|SINT|SHUP) [ "${WANT[$2]}" = ignored ] && { ok "mutation $1 SKIP: SIG${2#S} is ignored in this shell"; return; }
-       got=$(sigfx "${2#S}" "$m") ;;
-    SCLEAN) got=$(sigfx TERM "$m" shim) ;;
+    STERM|SINT|SHUP) got=$(sigfx "${2#S}" "$m") ;;
+    SCLEAN_*) got=$(sigfx "${2#SCLEAN_}" "$m" clean) ;;
     *) got=$(fx "$2" "$m") ;;
   esac
+  case "$got" in *end=timeout*|*end=nomark*) notok "mutation $1 BLIND on $2 twice ($got): no verdict"; return ;; esac
   [ "$got" != "${WANT[$2]}" ] && ok "mutation $1 caught by $2 ($got, original ${WANT[$2]})" \
     || notok "mutation $1 SURVIVED $2 ($got)"
 }
@@ -361,7 +489,7 @@ mtv_mutation DP11b_cleanup_noop G '&& rm -rf -- "${W:?}"; }' '&& :; }'
 mtv_mutation DP11c_no_term_trap STERM "trap 'exit 143' TERM" ':'
 mtv_mutation DP11d_no_int_trap SINT "trap 'exit 130' INT" ':'
 mtv_mutation DP11e_no_hup_trap SHUP "trap 'exit 129' HUP" ':'
-mtv_mutation DP11f_cleanup_signals_not_ignored SCLEAN "cleanup() { trap '' HUP INT TERM; " 'cleanup() { '
+mtv_mutation DP11f_cleanup_signals_not_ignored SCLEAN_TERM "cleanup() { trap '' HUP INT TERM; " 'cleanup() { '
 mtv_mutation DP12a_test_submodule_not_skipped G '        [ "$(basename -- "${s}")" = "${TEST_SUBMODULE}" ] && continue
 ' ''
 mtv_mutation DP12b_gate_file_ignored G 'cp -- "${2:-${VERIFICATION_SCRIPT}}"' 'cp -- "${VERIFICATION_SCRIPT}"'
@@ -369,6 +497,18 @@ mtv_mutation DP13a_requirement_kept G "edits = ['    \"%s\"\\n' % name," 'edits 
 mtv_mutation DP13b_check_kept G '         '"'"'run_check "%s (agent-skills)" \\\n    "ls -la %s/ && [ -f %s/README.md ]" \\\n    "${SUBMODULES_DIR}"\n'"'"' % (name, name, name)]' '         ]'
 mtv_mutation DP13c_mutation1_on_real_tree G 'if bash "${R1}/scripts/validation/run_verification.sh"' 'if bash "${VERIFICATION_SCRIPT}"'
 mtv_mutation DP13d_mutation2_on_m1_root G 'if bash "${R2}/scripts/validation/run_verification.sh"' 'if bash "${R1}/scripts/validation/run_verification.sh"'
+# Round-5 reviewer mutants (review of fsfix5, N3), verbatim; RED first on the
+# round-5 test (5 of 6 survived, R5b caught only through the self-comparison).
+mtv_mutation R1b_int_hup_not_ignored_in_cleanup SCLEAN_INT "cleanup() { trap '' HUP INT TERM; " "cleanup() { trap '' HUP INT TERM; trap - HUP INT; "
+mtv_mutation R1b_int_hup_not_ignored_in_cleanup_hup SCLEAN_HUP "cleanup() { trap '' HUP INT TERM; " "cleanup() { trap '' HUP INT TERM; trap - HUP INT; "
+mtv_mutation R2_mktemp_failure_exit_0 B12 '|| { echo "✗ mktemp failed"; exit 1; }' '|| { echo "✗ mktemp failed"; exit 0; }'
+mtv_mutation R3_duplicate_anchor_accepted B13 '    if c.count(old) != 1:' '    if c.count(old) == 0:'
+mtv_mutation R4_cp_failure_ignored B14 'run_verification.sh" || return 1' 'run_verification.sh"'
+mtv_mutation R5b_int_exits_143 SINT "trap 'exit 143' TERM" "trap 'exit 143' TERM
+trap 'exit 143' INT"
+mtv_mutation R7_ln_failure_ignored B15 '"${r}/submodules/$(basename -- "${s}")" || return 1' '"${r}/submodules/$(basename -- "${s}")"'
+fi
 
+[ -f "$TMP/notes" ] && cat "$TMP/notes"
 echo "=== meta_test_verification regression guard (CON-158): pass=$pass fail=$fail ==="
 [ "$fail" = 0 ]
