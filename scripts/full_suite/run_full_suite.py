@@ -1429,6 +1429,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 
 SCHEMA = "fsr/4"
 VERDICTS = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR", "SKIPPED-heavy", "NOT-RUN")
@@ -1911,23 +1912,38 @@ def guide_block(rows):
             % census_line(rows)[len("census: "):])
 
 
+def marker_lead(l):
+    """l without its leading white space and Unicode format characters (category Cf), the text a near-marker test
+    looks at (CON-030 round 6, review r5 F3)."""
+    i = 0
+    while i < len(l) and (l[i].isspace() or unicodedata.category(l[i]) == "Cf"):
+        i += 1
+    return l[i:]
+
+
 def guide_parse(root):
     """Read the guide and find its census block. Returns (lines, begin, end, problem): lines from gov_lines() (None
     when there is no guide), begin and end the line numbers of the marker lines (None, None when the guide has no
     block), problem a string or None. GovLineError (a refused character) propagates to the caller. CON-030 round 5 (review r4 K1): a marker is a WHOLE line equal to GUIDE_BEGIN or
     GUIDE_END (after the CR of a CRLF line end), never a substring, so prose or code that quotes a marker is text, not
-    a marker; the guide must hold exactly one begin line and, after it, exactly one end line, and a line that equals a
-    marker only after stripping spaces is refused (a marker that the reader would silently not see)."""
+    a marker; the guide must hold exactly one begin line and, after it, exactly one end line. CON-030 round 6 (review
+    r5 F3): a line whose text STARTS with a marker once leading white space and Unicode format characters (category
+    Cf: U+200B, U+FEFF and the like) are removed, but which is not exactly that marker, is a NEAR-MARKER and is
+    refused, so trailing text (`<!-- census:begin --> (generated)`), surrounding white space or an invisible leading
+    character can never hide a block from the reader. A marker quoted inside other text (prose, a backticked
+    `<!-- census:begin -->`, a line that starts with any other character) stays text, as K1 requires."""
     p = os.path.join(root, GUIDE_REL)
     if not os.path.isfile(p):
         return None, None, None, None
     lines = gov_lines(p)
     begins = [n for n, l in lines if l == GUIDE_BEGIN]
     ends = [n for n, l in lines if l == GUIDE_END]
-    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and l.strip() in (GUIDE_BEGIN, GUIDE_END)]
+    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and marker_lead(l).startswith((GUIDE_BEGIN, GUIDE_END))]
     if near:
-        return lines, None, None, ("%s: line(s) %s hold a census marker with surrounding white space; a marker line "
-                                   "must be exactly %s or %s" % (GUIDE_REL, near, GUIDE_BEGIN, GUIDE_END))
+        return lines, None, None, ("%s: line(s) %s start with a census marker but are not exactly one (white space, an "
+                                   "invisible character or text around it); a marker line must be exactly %s or %s, "
+                                   "and a marker quoted in prose must sit inside other text (for example in backticks)"
+                                   % (GUIDE_REL, near, GUIDE_BEGIN, GUIDE_END))
     if not begins and not ends:
         return lines, None, None, None
     if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:
@@ -1940,7 +1956,10 @@ def replace_lines(p, a, b, want):
     """Write file p with the lines strictly between line numbers a and b (1-based, as gov_lines() numbers them)
     replaced by want, atomically. Every other byte is copied unchanged: the file is split on b"\\n" exactly as
     gov_lines() splits it, so a CRLF line end or a byte that is not UTF-8 outside the block is kept (CON-030 round 5);
-    a new line gets the CR of the begin-marker line when that line has one. The bytes are copied, never parsed."""
+    a new line gets the CR of the begin-marker line when that line has one. The bytes are copied, never parsed. The
+    file mode is kept (CON-030 round 6, review r5 F9); the caller refuses a symbolic link, so a link is never
+    replaced by a regular file."""
+    mode = stat.S_IMODE(os.lstat(p).st_mode)
     with open(p, "rb") as fh:  # io: not-gov (bytes copied unchanged around the block; the parse is gov_lines in guide_parse)
         raw = fh.read().split(b"\n")
     eol = b"\r" if raw[a - 1].endswith(b"\r") else b""
@@ -1948,6 +1967,7 @@ def replace_lines(p, a, b, want):
     tmp = p + ".tmp.%d" % os.getpid()
     with open(tmp, "wb") as fh:  # io: write
         fh.write(data)
+    os.chmod(tmp, mode)
     os.replace(tmp, p)
 
 
@@ -1967,7 +1987,11 @@ def guide_check(root, rows, fix=False):
     if [l for n, l in lines if a < n < b] == want:
         return None
     if fix:
-        replace_lines(os.path.join(root, GUIDE_REL), a, b, want)
+        gp = os.path.join(root, GUIDE_REL)
+        if os.path.islink(gp):
+            return ("%s is a symbolic link; --sync-guide does not rewrite through a link (it would replace the link "
+                    "with a regular file); the block is stale" % GUIDE_REL)
+        replace_lines(gp, a, b, want)
         return None
     return "%s: census block is stale (run --sync-guide)" % GUIDE_REL
 

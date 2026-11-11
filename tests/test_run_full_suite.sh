@@ -1836,7 +1836,7 @@ for c in two:'<!-- census:begin -->\nA\n<!-- census:begin -->\nstale\n<!-- censu
   k=${c%%:*}; g="$T/gm_$k"; gd "$g" "# guide\n\n${c#*:}"
   s0=$(gsum "$g")
   vfy "$g" "$T/gm_${k}_v.log"; chk "CON-030 r5 K1 ($k): a malformed census block -> verify rc 3" "$RC" "3"
-  has "CON-030 r5 K1 ($k): verify names the marker problem" 'census block needs exactly one line|surrounding white space' "$T/gm_${k}_v.log"
+  has "CON-030 r5 K1 ($k): verify names the marker problem" 'census block needs exactly one line|start with a census marker but are not exactly one' "$T/gm_${k}_v.log"
   sync_g "$g" "$T/gm_${k}_s.log"; chk "CON-030 r5 K1 ($k): --sync-guide refuses (rc 3)" "$RC" "3"
   has "CON-030 r5 K1 ($k): --sync-guide says nothing was written" '^RESULT: GUIDE-NOT-SYNCED' "$T/gm_${k}_s.log"
   chk "CON-030 r5 K1 ($k): the guide is unchanged" "$(gsum "$g")" "$s0"
@@ -1844,8 +1844,125 @@ done
 # the near-marker rule names its own reason: on `space` the begin line is missing anyway, on `nearplus` a valid block
 # exists and only the near-marker rule refuses (review r5 mutant K1b, `if near:` -> `if False:`)
 for k in space nearplus; do
-  has "CON-030 r5 K1 ($k): the refusal names the white-space marker line" 'surrounding white space' "$T/gm_${k}_v.log"
+  has "CON-030 r5 K1 ($k): the refusal names the near-marker line" 'start with a census marker but are not exactly one' "$T/gm_${k}_v.log"
 done
+
+# --- (2b) CON-030 round 6 (review r5 F1-F3, structural): every guide-marker variant, enumerated, each outcome pinned.
+# Block shapes with exact markers (none, current, stale, current plus a stale line before or after it (MX10), empty,
+# begin only, end only (MX7), two begins, two ends, reversed, CRLF) and marker-line shapes on the begin line, the end
+# line, both, or a separate line outside a current block. NEAR shapes (leading/trailing white space, NBSP, a leading
+# or trailing U+200B, a leading U+FEFF, trailing text) are refused; TEXT shapes (backticked, after other text, upper
+# case, a U+200B inside the marker) are prose and never a marker. Each case runs --verify-manifest and --sync-guide;
+# a stale block must be rewritten and then verify rc 0; every refusal leaves the guide byte-identical.
+GMX="$T/gmatrix"; gd "$GMX" '# guide\n'
+python3 -I - "$R" "$GMX" > "$T/gmatrix.out" 2>&1 <<'PYGM'
+import hashlib, os, subprocess, sys
+
+R, root = sys.argv[1], sys.argv[2]
+G = os.path.join(root, "docs", "guides", "full_suite_runner_guide.md")
+B, E = "<!-- census:begin -->", "<!-- census:end -->"
+NEAR = {"lead_space": lambda m: " " + m, "trail_space": lambda m: m + " ", "lead_tab": lambda m: "\t" + m,
+        "trail_text": lambda m: m + " (generated)", "lead_zwsp": lambda m: "​" + m,
+        "lead_bom": lambda m: "﻿" + m, "lead_nbsp": lambda m: " " + m,
+        "trail_zwsp": lambda m: m + "​", "lead_zwsp_space": lambda m: " ​ " + m}
+TEXT = {"backtick": lambda m: "`" + m + "`", "prose_lead": lambda m: "see " + m, "upper": lambda m: m.upper(),
+        "inner_zwsp": lambda m: m.replace("census:", "census:​")}
+
+
+def run(*a):
+    p = subprocess.run(["bash", R, "--root", root] + list(a), capture_output=True)
+    return p.returncode, p.stdout.decode("utf-8", "replace") + p.stderr.decode("utf-8", "replace")
+
+
+def write(lines, crlf=False):
+    eol = "\r\n" if crlf else "\n"
+    body = ["# guide", "", "Prose quotes the marker `" + B + "` and `" + E + "` inside text.", ""] + lines + ["", "tail"]
+    with open(G, "wb") as fh:
+        fh.write((eol.join(body) + eol).encode("utf-8"))
+
+
+def sha():
+    with open(G, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def classify(rc, txt):
+    if "census block is stale" in txt:
+        return "stale"
+    if "census block needs exactly one line" in txt or "start with a census marker" in txt:
+        return "marker"
+    return "ok" if rc == 0 and "MANIFEST-OK" in txt else "other"
+
+
+# the current census line, from --sync-guide on an empty block
+write([B, E])
+rc, txt = run("--sync-guide")
+lines = open(G, encoding="utf-8").read().split("\n")
+CUR = lines[lines.index(B) + 1]
+assert CUR.startswith("census (generated"), (rc, txt, CUR)
+S = "census: stale total=99"
+
+cases = []  # (name, lines, crlf, expected class, expected sync rc, sync changes the file)
+STALE, MARK, OK, NONE = ("stale", 0, True), ("marker", 3, False), ("ok", 0, False), ("none", 0, False)
+for name, ls, exp in [("none", ["no block here"], NONE), ("current", [B, CUR, E], OK), ("stale", [B, S, E], STALE),
+                      ("extra_after", [B, CUR, S, E], STALE), ("extra_before", [B, S, CUR, E], STALE),
+                      ("empty", [B, E], STALE), ("begin_only", [B, S], MARK), ("end_only", [S, E], MARK),
+                      ("two_begin", [B, S, B, S, E], MARK), ("two_end", [B, S, E, E], MARK),
+                      ("reversed", [E, S, B], MARK)]:
+    cases.append(("block:" + name, ls, False, exp))
+cases.append(("block:stale_crlf", [B, S, E], True, STALE))
+cases.append(("block:current_crlf", [B, CUR, E], True, OK))
+for kind, shapes in (("near", NEAR), ("text", TEXT)):
+    for sn, f in shapes.items():
+        cases.append(("%s:%s:begin" % (kind, sn), [f(B), S, E], False, MARK))
+        cases.append(("%s:%s:end" % (kind, sn), [B, S, f(E)], False, MARK))
+        cases.append(("%s:%s:both" % (kind, sn), [f(B), S, f(E)], False, MARK if kind == "near" else NONE))
+        cases.append(("%s:%s:outside" % (kind, sn), [f(B), "", B, CUR, E], False, MARK if kind == "near" else OK))
+
+for name, ls, crlf, (ecls, esrc, echg) in cases:
+    write(ls, crlf)
+    s0 = sha()
+    vrc, vtxt = run("--verify-manifest")
+    cls = classify(vrc, vtxt)
+    src, stxt = run("--sync-guide")
+    if "has no census block" in stxt and cls == "ok":
+        cls = "none"
+    chg = sha() != s0
+    post = run("--verify-manifest")[0] if chg else vrc
+    want_vrc = 0 if ecls in ("ok", "none") else 3
+    good = (cls, vrc, src, chg) == (ecls, want_vrc, esrc, echg) and (not echg or post == 0)
+    print("%s\t%s\tverify=%s/%d sync=%d changed=%s post=%d" % ("P" if good else "F", name, cls, vrc, src, chg, post))
+print("N\t%d" % len(cases))
+PYGM
+while IFS=$'\t' read -r st name detail; do
+  case $st in
+    P) ok "CON-030 r6 guide matrix $name";;
+    F) ko "CON-030 r6 guide matrix $name ($detail)";;
+  esac
+done < "$T/gmatrix.out"
+chk "CON-030 r6 guide matrix: all 65 cases ran (control: a driver crash or a lost case is a FAIL)" "$(grep -c '^[PF]	' "$T/gmatrix.out")" "65"
+has "CON-030 r6 guide matrix: the driver finished" '^N	65$' "$T/gmatrix.out"
+
+# the proof that the reviewer's MX2 is equivalent: a full-mode key collision needs a repeated manifest path, and
+# read_manifest refuses that before plan() runs
+GDP="$T/gdup"; gd "$GDP" '# guide\n'
+grep -v '^#' "$GDP/config/full_suite_manifest.tsv" | head -1 >> "$GDP/config/full_suite_manifest.tsv"
+vfy "$GDP" "$T/gdp_v.log"; chk "CON-030 r6 F7: a repeated manifest path -> verify rc 3" "$RC" "3"
+has "CON-030 r6 F7: read_manifest names the repeated path" 'duplicate path x/run_all.sh' "$T/gdp_v.log"
+
+# --- (2c) review r5 F9: --sync-guide keeps the guide's mode and refuses a symlinked guide (a link is never replaced)
+GL="$T/glink"; gd "$GL" '# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+chmod 600 "$GL/docs/guides/full_suite_runner_guide.md"
+sync_g "$GL" "$T/gl_s1.log"; chk "CON-030 r6 F9: --sync-guide on a mode-600 guide rc 0" "$RC" "0"
+chk "CON-030 r6 F9: the mode is kept" "$(stat -c %a "$GL/docs/guides/full_suite_runner_guide.md")" "600"
+mv "$GL/docs/guides/full_suite_runner_guide.md" "$GL/docs/guides/real.md"
+python3 -I -c 'import sys; open(sys.argv[1], "w").write("# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n")' "$GL/docs/guides/real.md"
+ln -s real.md "$GL/docs/guides/full_suite_runner_guide.md"; s0=$(sha256sum < "$GL/docs/guides/real.md")
+sync_g "$GL" "$T/gl_s2.log"; chk "CON-030 r6 F9: --sync-guide on a symlinked guide refuses (rc 3)" "$RC" "3"
+has "CON-030 r6 F9: the refusal names the link" 'is a symbolic link' "$T/gl_s2.log"
+chk "CON-030 r6 F9: the link is still a link" "$([ -L "$GL/docs/guides/full_suite_runner_guide.md" ] && echo link)" "link"
+chk "CON-030 r6 F9: the link target is unchanged" "$(sha256sum < "$GL/docs/guides/real.md")" "$s0"
+
 # the rewrite is byte-exact outside the block: CRLF line ends and a byte that is not UTF-8 are written back unchanged
 GB="$T/gbytes"; gd "$GB" '# guide\n'
 python3 -I -c 'import sys; open(sys.argv[1], "wb").write(b"# guide\r\nbad byte \xff here\r\n<!-- census:begin -->\r\nstale\r\n<!-- census:end -->\r\ntail\r\n")' "$GB/docs/guides/full_suite_runner_guide.md"
@@ -1881,6 +1998,16 @@ r = [m.esc_out("\udcc2\udc85"), m.esc_out("x\udce2\udc80\udca8y"), m.esc_out("a\
 print("|".join(r), any(m.LINE_BREAKERS.search(x) for x in r))
 PY
 )" '\x85|x\u2028y|a\xff|t	u False'
+# review r5 F8 (reviewer mutant MX5): a lone surrogate outside U+DC80..U+DCFF cannot take the surrogateescape round
+# trip; the fallback escapes it as text, so the line can still be written to a UTF-8 stream
+chk "CON-030 r6 F8: esc_out escapes a lone high surrogate as text" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = m.esc_out("a\ud800b")
+r.encode("utf-8")
+print(r)
+PY
+)" 'a\ud800b'
 
 # --- (5) K12 and M6 (reviewer mutant RX6): a test file whose name holds a NEL or a LINE SEPARATOR. Round 4 wrote the
 # manifest WITHOUT that file ("1 row", rc 0); RX6 (the census check narrowed to C0 + DEL) let the name through.

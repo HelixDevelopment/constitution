@@ -43,6 +43,15 @@
 # (`+tracked` accepts a foreign tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# CON-030 round 6 (review r5, structural round for the guide-marker class): MX3 MX4 MX7 MX10 MX5 are the reviewer-
+# authored mutants of review r5, adopted verbatim (MX7 and MX10 survived round 5 and are killed by the guide matrix
+# cases block:end_only and block:extra_after / extra_before; MX5 by the F8 unit probe); N6a-N6d are the author's own
+# for the round-6 code (the U+200B/U+FEFF part of the near-marker lead, a near-marker read as `in` instead of a
+# prefix, the symlink refusal, the kept file mode). Reasoned EQUIVALENT, not a row: the reviewer's MX2 (verify asks
+# plan() in the default mode only). In full mode every unit has args (), so two units share a key only when the
+# manifest repeats a path, and read_manifest refuses a repeated path before plan() runs ("duplicate path", rc 3,
+# measured by the reviewer and by the r6 duplicate-path check of the self-test); the full-mode plan() call can
+# therefore refuse nothing the default-mode call and read_manifest have not already refused.
 # CON-030 round 5 (review r4, R_max passed by operator decision): RX1-RX8 are the reviewer-authored mutants of
 # review r4, adopted verbatim (RX1 RX2 RX5 RX6 survived round 4; RX8 re-anchored to the decode-first esc_out, H3d
 # likewise); GU GN GC guard the merged generated-set fingerprint (unreadable entry kept unknown, file-system bytes
@@ -245,6 +254,15 @@ K1e	    data = b"\\n".join(raw[:a] + 	    data = b"\\n".join([l.encode("utf-8") 
 K2n	            return 3\n        lines, a, _b, _prob = guide_parse(root)	            return 0\n        lines, a, _b, _prob = guide_parse(root)
 K12m	        if cprobs:\n	        if False:\n
 K9m	    if verify_only and not probs:\n	    if False:\n
+MX3	        if cprobs:\n	        if cprobs and write:\n
+MX4	    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:	    if len(begins) != 1 or len(ends) != 1:
+MX7	    if not begins and not ends:\n        return lines, None, None, None	    if not begins:\n        return lines, None, None, None
+MX10	    if [l for n, l in lines if a < n < b] == want:	    if [l for n, l in lines if a < n < b][:1] == want:
+MX5	        s = s.encode("utf-8", "backslashreplace").decode("utf-8")\n    return LINE	        pass\n    return LINE
+N6a	    while i < len(l) and (l[i].isspace() or unicodedata.category(l[i]) == "Cf"):	    while i < len(l) and l[i].isspace():
+N6b	and marker_lead(l).startswith((GUIDE_BEGIN, GUIDE_END))]	and marker_lead(l) in (GUIDE_BEGIN, GUIDE_END)]
+N6c	        if os.path.islink(gp):	        if False:
+N6d	    os.chmod(tmp, mode)\n	    pass\n
 EOF
 )
 
