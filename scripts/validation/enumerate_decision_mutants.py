@@ -41,7 +41,8 @@ Verdicts: KILLED (test exit != 0), KILLED-TIMEOUT (the test did not finish in
           parse; not counted). A target whose UNMUTATED copy does not pass is
           BLIND (control needle failed) and no mutant of it is judged.
           A ledger entry whose key is no longer generated is STALE (the ledger
-          must not rot).
+          must not rot), and so is one whose mutant is KILLED or KILLED-TIMEOUT
+          (CON-162 n2, CON-220: its equivalence proof is refuted or unconfirmed).
 Ledger  : scripts/validation/decision_mutants_equivalent.tsv, columns
           key, target, rule, original line (stripped), proof.
 Usage   : python3 -I enumerate_decision_mutants.py [--target NAME]... [--list]
@@ -320,8 +321,12 @@ def kill_session(sid):
 def is_stale_killed(verdict, key, ledger):
     """CON-162 n2: a ledger entry claims its mutant is equivalent (survives because no
     input separates it). A mutant that is KILLED makes that proof false, so the entry
-    is STALE too, not only when its key is no longer generated."""
-    return verdict == "KILLED" and key in ledger
+    is STALE too, not only when its key is no longer generated. CON-220: KILLED-TIMEOUT
+    counts as well. An equivalent mutant behaves like the original, and the original's
+    test finished inside the same budget (the control needle), so a timeout either
+    refutes the proof or leaves it unconfirmed (for example a load-induced timeout);
+    either way the entry is re-examined, never passed silently (fail closed)."""
+    return verdict in ("KILLED", "KILLED-TIMEOUT") and key in ledger
 
 
 def run_bounded(cmd, cwd, env, timeout):

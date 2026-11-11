@@ -259,6 +259,7 @@ scripts/fastcycle/tests/test_consumer_audit_red.sh	sh	member	default	-	scripts/f
 scripts/fastcycle/tests/test_consumer_enumerate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_migrate_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_consumer_required_helper.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_consumer_required_helper_l29_skip_r1_regression.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	override: tier heavy: runs the whole helper test 5 times on a copy of scripts/ (about 3.5 min measured; CON-222, CON-223)
 scripts/fastcycle/tests/test_consumer_required_mutations.sh	sh	member	heavy	-	scripts/fastcycle/tests/run_all.sh	auto: invoked by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_core_ondemand_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_custody_sweep_r11_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
