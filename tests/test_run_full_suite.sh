@@ -1831,7 +1831,8 @@ vfy "$GQ" "$T/gq_v2.log"; chk "CON-030 r5 K1: verify after sync rc 0" "$RC" "0"
 for c in two:'<!-- census:begin -->\nA\n<!-- census:begin -->\nstale\n<!-- census:end -->\n' \
          space:'<!-- census:begin --> \nstale\n<!-- census:end -->\n' \
          order:'<!-- census:end -->\nstale\n<!-- census:begin -->\n' \
-         noend:'x\n<!-- census:begin -->\nstale\n'; do
+         noend:'x\n<!-- census:begin -->\nstale\n' \
+         nearplus:'  <!-- census:end -->\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'; do
   k=${c%%:*}; g="$T/gm_$k"; gd "$g" "# guide\n\n${c#*:}"
   s0=$(gsum "$g")
   vfy "$g" "$T/gm_${k}_v.log"; chk "CON-030 r5 K1 ($k): a malformed census block -> verify rc 3" "$RC" "3"
@@ -1839,6 +1840,11 @@ for c in two:'<!-- census:begin -->\nA\n<!-- census:begin -->\nstale\n<!-- censu
   sync_g "$g" "$T/gm_${k}_s.log"; chk "CON-030 r5 K1 ($k): --sync-guide refuses (rc 3)" "$RC" "3"
   has "CON-030 r5 K1 ($k): --sync-guide says nothing was written" '^RESULT: GUIDE-NOT-SYNCED' "$T/gm_${k}_s.log"
   chk "CON-030 r5 K1 ($k): the guide is unchanged" "$(gsum "$g")" "$s0"
+done
+# the near-marker rule names its own reason: on `space` the begin line is missing anyway, on `nearplus` a valid block
+# exists and only the near-marker rule refuses (review r5 mutant K1b, `if near:` -> `if False:`)
+for k in space nearplus; do
+  has "CON-030 r5 K1 ($k): the refusal names the white-space marker line" 'surrounding white space' "$T/gm_${k}_v.log"
 done
 # the rewrite is byte-exact outside the block: CRLF line ends and a byte that is not UTF-8 are written back unchanged
 GB="$T/gbytes"; gd "$GB" '# guide\n'
