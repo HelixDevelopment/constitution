@@ -36,3 +36,33 @@ RED measured 2026-11-05 on main 7f723954 in a fresh standalone clone: test_captu
 **Affected scope / file-scope manifest:**
 scripts/fastcycle/tests/capture_fc_timer_triplet.sh
 
+## CON-172 — Operator question: should the codegraph_safe.sh writer default (fkidx1,resolve1) follow the CON-147 Option A runner default (fkidx1,resolve1,resolve2)? (review I6-2)
+
+**Status:** Obsolete (→ Fixed.md)
+**Type:** Task
+**Evidence:** docs/operator_decisions/2026-11-11_relayed_decisions.md
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (fix-vehicle subagent)
+**Obsolete-Details:** Since: 2026-11-11T14:49:17Z; Reason: duplicate-of; Superseding-item: CON-211; Triple-check evidence: docs/operator_decisions/2026-11-11_relayed_decisions.md
+
+Parent: CON-031. The round-1 review asked whether Option A covers the writer default; UNCONFIRMED. The default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66). Round 2 only fixed the comment wording at codegraph_safe.sh line 44. Id history (§11.4.214): minted in the full-suite fix vehicle as CON-117 (the vehicle commits 5a8476e9, 2257bfc2, 49c1c1e7, 6435c2c3 and the round-3 commit name it by that id), re-minted as CON-125 at the round-3 landing preparation because main already owns CON-108..CON-115 (ownership wave 2).
+
+Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-125, re-minted as CON-155 at the merge of main 2e8cfb90 into the vehicle (2026-11-11), because main already owns CON-116..CON-145 (fixu landing). The vehicle commits and evidence name the earlier ids and are not rewritten (§11.4.113); this note is the map.
+
+Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-155 (rounds 7-8), re-minted as CON-172 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
+
+Link (section 11.4.214, 2026-11-11, cg117 landing): this question is answered by CON-211 (writer default now follows the registry default fkidx1,resolve1,resolve2). Not closed: the operator decision record this item asks for is UNCONFIRMED; tracked by CON-213.
+
+Relayed operator decision, 2026-11-11 (record docs/operator_decisions/2026-11-11_relayed_decisions.md): decision 3: the 2026-11-06 relayed instruction is confirmed as the section 11.4.66 decision approving the registry-driven writer default (fkidx1,resolve1,resolve2). Closed Obsolete, section 11.4.90 reason duplicate-of, superseding CON-211.
+
+## CON-213 — Link CON-172 to CON-211 (same review question I6-2) and close CON-172 once the operator decision record is confirmed (cg117 review M1)
+
+**Status:** Completed (→ Fixed.md)
+**Type:** Task
+**Evidence:** docs/operator_decisions/2026-11-11_relayed_decisions.md
+**Severity:** Low
+
+Parent: CON-211. Review M1 (process-doc, minor): CON-172 (Queued) asks the same question I6-2 that CON-211 answers, and its text says the default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66); the tracker holds two contradictory statements. Done at landing: a link line was added to CON-172 and CON-211 (section 11.4.214 link, no close). UNCONFIRMED: whether the relayed 'operator instruction 2026-11-06: investigate and fix on evidence' is the section 11.4.66 decision CON-172 asked for. The lander found no recorded decision in this repository (git grep of docs/ for 2026-11-06 writer/codegraph/I6-2, and the session memory notes: none). Owed: the operator confirms (or records) the decision; then CON-172 is closed Obsolete duplicate-of CON-211 with a pointer. If the operator does not confirm, CON-211's default change needs that decision recorded.
+
+Relayed operator decision, 2026-11-11 (record docs/operator_decisions/2026-11-11_relayed_decisions.md): decision 3: the operator confirmed that the 2026-11-06 relayed instruction is the section 11.4.66 decision. Done: CON-172 closed Obsolete duplicate-of CON-211; CON-211 carries the note. Closed Completed.
+
