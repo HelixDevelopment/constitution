@@ -289,6 +289,41 @@ def read_ledger(root):
     return led
 
 
+def kill_session(sid):
+    """SIGKILL every process of the session `sid` (the run's own session: run_bounded
+    starts it with start_new_session=True, so `sid` is the child's pid). CON-162 n1:
+    killing only the process group missed what GNU `timeout` starts in its own new
+    group; a session id is kept across setpgid, so the whole tree is found by it.
+    Refuses sid <= 1 (section 11.4.263)."""
+    if not isinstance(sid, int) or sid <= 1:
+        raise ValueError("refusing to kill session %r" % (sid,))
+    for _ in range(5):
+        found = False
+        for d in os.listdir("/proc"):
+            if not d.isdigit() or int(d) <= 1:
+                continue
+            try:
+                st = open("/proc/%s/stat" % d).read()
+                rest = st[st.rindex(")") + 2:].split()
+            except (OSError, ValueError):
+                continue
+            if rest[3] == str(sid) and rest[0] != "Z":
+                found = True
+                try:
+                    os.kill(int(d), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        if not found:
+            break
+
+
+def is_stale_killed(verdict, key, ledger):
+    """CON-162 n2: a ledger entry claims its mutant is equivalent (survives because no
+    input separates it). A mutant that is KILLED makes that proof false, so the entry
+    is STALE too, not only when its key is no longer generated."""
+    return verdict == "KILLED" and key in ledger
+
+
 def run_bounded(cmd, cwd, env, timeout):
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          start_new_session=True)
@@ -296,10 +331,7 @@ def run_bounded(cmd, cwd, env, timeout):
         out, _ = p.communicate(timeout=timeout)
         return p.returncode, out.decode("utf-8", "replace")
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(p.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_session(p.pid)
         out, _ = p.communicate()
         return None, out.decode("utf-8", "replace")
 
@@ -411,6 +443,10 @@ def main(argv):
                 res[v] += 1
                 emit("%s\t%s\t%s:%d\t%s\t%s\t->\t%s" % (v, m["key"], name, m["lineno"], m["rule"],
                                                        m["old"].strip(), m["new"].strip()))
+                if is_stale_killed(v, m["key"], ledger):
+                    res["STALE"] += 1
+                    emit("STALE\t%s\t%s\tledger entry's mutant is KILLED, so its equivalence proof is false: %s"
+                         % (m["key"], name, ledger[m["key"]]["old"]))
         gen = {m["key"] for m in enumerate_all(a.root, targets)}
         for k, ent in ledger.items():
             if ent["target"] in targets and k not in gen:
