@@ -1,0 +1,4 @@
+Re-run 2026-11-11 on main fc57ad0c plus the re-vehicled change (ids CON-211/CON-212), TMPDIR 41 chars, nice 10.
+red_u38.txt = main's codegraph_safe.sh with the new U38 (FAIL); green_u38.txt = fixed writer (PASS).
+mut_all.txt: GOLD + all mutants (incl. MB4, MB5, MB5b) killed. patch_machinery 22/0/0. test_resolve2 Q1-Q3 PASS.
+unit_safe_full.txt: 65 cases, 0 failed (U59 passes with the short TMPDIR; the long-TMPDIR failure is tracked as CON-212).
