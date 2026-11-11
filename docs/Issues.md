@@ -2615,6 +2615,8 @@ Id history, round 7 (§11.4.214): carried on the full-suite fix vehicle as CON-1
 
 Id history, round 8 (§11.4.214): carried on the full-suite fix vehicle as CON-155 (rounds 7-8), re-minted as CON-172 at the merge of main 27dcf518 into the vehicle head 4118f145 (2026-11-11), because main already owns CON-146..CON-162 (fsfix round 6 landing). Map of this re-mint: CON-146..CON-165 -> CON-163..CON-182 (+17, in order). Ids CON-146..CON-165 in the text above this note were written on the vehicle and name the vehicle's items; read them through this map. The text above is kept unchanged, and vehicle commits and evidence are not rewritten (§11.4.113).
 
+Link (section 11.4.214, 2026-11-11, cg117 landing): this question is answered by CON-211 (writer default now follows the registry default fkidx1,resolve1,resolve2). Not closed: the operator decision record this item asks for is UNCONFIRMED; tracked by CON-213.
+
 ## CON-173 — full-suite runner Go units are not fully offline: with GOPROXY=off and no GOSUMDB, a partial go.sum made Go contact sum.golang.org (review observation)
 
 **Status:** Queued
@@ -2856,12 +2858,14 @@ Parent: CON-144. Source: independent review of the CON-144 fix, GO-with-follow-u
 
 ## CON-211 — Writer default patch set of codegraph_safe.sh follows the fk_index_patch.py registry default (one source of truth: fkidx1,resolve1,resolve2); resolve2 was never deliberately excluded (review I6-2)
 
-**Status:** In progress
+**Status:** Ready for testing
 **Type:** Task
 **Severity:** Low
 **Assigned-To:** Claude Sonnet 5.5 (cg117 re-vehicle subagent)
 
 Parent: CON-031. Operator instruction 2026-11-06 (relayed): investigate and fix on evidence. Investigation (section 11.4.124): the writer list fkidx1,resolve1 and resolve2 with its tests arrived in the same cascade commit b3a73cf5 (2026-09-25); the writer comment then said only fkidx1 and resolve1 had tests, which was already false, and mutant MB5 shows the list existed to keep the untested lockfix1/datafrag1 (then in the registry default) out. No record of a deliberate resolve2 exclusion was found; the round-2 wording 'validated on a live index' has no supporting record (the only writer runs on record, an ATMOSphere ledger, are three FAILs with 1.6.0-fkidx1-resolve1). resolve2 fixes the swift-objc bridge heap OOM of bulk resolve on large indexes. Since CON-164 Option A the registry default holds only tested patches, so the reason for a separate writer list is gone. Change: codegraph_safe.sh default is 'default' (synonym 'all'), which forwards no --patches, so the writer uses runner_patches/__init__.py DEFAULT_EXCLUDED complement; an explicit --patches fkidx1,resolve1 still selects the old runner. Test first: U38 RED (d1=--patches fkidx1,resolve1, d5) then GREEN; mutants MB4, MB5 (own list back), MB5b killed; test_patch_machinery 19/0/0; test_resolve2 Q1-Q3 PASS on 1.6.2; scratch A/B old vs new vs stock runner on the resolve2 fixture: byte-identical edge/ref dumps (evidence docs/qa/con117_writer_default/). Writer-level e2e REFUSED by the host disk floor (41 GB free < 60 GiB), not bypassed. Docs: codegraph_safe.md rev 6, fk_index_patch.md rev 5, resolve2.md rev 2, resolve1.md rev 4, lockfix1.md rev 3, fkidx1.md rev 2. Review (section 11.4.142/11.4.209) owed before landing. Effect after landing: the next writer bulk run builds a new runner key <version>-fkidx1-resolve1-resolve2 (one package copy, about 286 MB on 1.6.2) and existing indexes are not rewritten by the switch itself. Id map (re-minted 2026-11-11 at landing, CON-117 and CON-120 collided with other items on main): bundle CON-117 = this item; bundle CON-120 = CON-212.
+
+Landing (2026-11-11): independent review GO-with-follow-ups (reviewer Claude Opus 5.5, all findings minor-class, section 11.4.276(G)); PROVISIONAL-DONE (section 11.4.290), writer-level e2e still owed (disk floor). Same question as CON-172 (link, section 11.4.214). Follow-ups: CON-213 (M1, CON-172 link and operator-decision confirmation, UNCONFIRMED), CON-214 (M2, stale line citations), CON-215 (M3 empty CG_SAFE_PATCHES test + R4 mutant, nits N1-N3).
 
 ## CON-212 — test_unit_safe.sh U59 fails when TMPDIR is long: r1 matches the untruncated limits-file path text while codegraph_safe.sh echoes it through san (cut -c1-200)
 
@@ -2871,4 +2875,28 @@ Parent: CON-031. Operator instruction 2026-11-06 (relayed): investigate and fix 
 **Created-By:** Claude Opus 5.5 (cg117 subagent)
 
 Parent: CON-031. Found while running the full test_unit_safe.sh for CON-117 on 2026-11-06: U59 FAIL detail r=1000 on the bundle head 6435c2c3 without any CON-117 change, with TMPDIR under the session scratch directory (about 150 characters). With a short TMPDIR U59 passes. r1 checks has_txt 'config/index/writer_limits.yaml min_mem_avail_gib' but the tool prints min_mem_avail_source= through san, which cuts at 200 characters, so the file name is truncated. Fix in the test (use the s200 helper as other cases do), test first; evidence docs/qa/con117_writer_default/unit_safe_full.txt and u59_short_tmpdir.txt. Id map (re-minted 2026-11-11): bundle CON-120 = this item; its sibling bundle CON-117 = CON-211.
+
+## CON-213 — Link CON-172 to CON-211 (same review question I6-2) and close CON-172 once the operator decision record is confirmed (cg117 review M1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Parent: CON-211. Review M1 (process-doc, minor): CON-172 (Queued) asks the same question I6-2 that CON-211 answers, and its text says the default stays fkidx1,resolve1 until a recorded operator decision (section 11.4.66); the tracker holds two contradictory statements. Done at landing: a link line was added to CON-172 and CON-211 (section 11.4.214 link, no close). UNCONFIRMED: whether the relayed 'operator instruction 2026-11-06: investigate and fix on evidence' is the section 11.4.66 decision CON-172 asked for. The lander found no recorded decision in this repository (git grep of docs/ for 2026-11-06 writer/codegraph/I6-2, and the session memory notes: none). Owed: the operator confirms (or records) the decision; then CON-172 is closed Obsolete duplicate-of CON-211 with a pointer. If the operator does not confirm, CON-211's default change needs that decision recorded.
+
+## CON-214 — codegraph_safe.md: refresh or drop the stale line citations in the rows edited by CON-211 (cg117 review M2)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Parent: CON-211. Review M2 (process-doc, minor): the revision-6 note says citations after line 77 are 'now 5 higher', but the rev-5 base citation for the PATCHES line was already wrong (doc 252, main had 257, vehicle 262). The edited table row still says '(line 252)'. Fix: cite 262, 296-298 and 559 as measured on the landed tree, or drop line numbers in favour of function/variable names.
+
+## CON-215 — test_unit_safe.sh U38: add d6 for an empty CG_SAFE_PATCHES="" falling back to the registry default, plus the matching mutant (cg117 review M3, reviewer mutant R4 survived)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+
+Parent: CON-211. Review M3 (test-instrumentation, minor): reviewer mutant R4 (${CG_SAFE_PATCHES:-default} -> ${CG_SAFE_PATCHES-default}) SURVIVED: no test asserts that CG_SAFE_PATCHES="" falls back to the default. Behaviour is pre-existing and unchanged; this is a coverage gap, not a defect. Fix: add a d6 assertion to U38 (empty env forwards no --patches) and a mutant matching R4 in test_bulk_classify_mutate.py; observe the mutant KILLED. Also in scope, nits N1-N3 of the same review: N1 the cg117 bundle ref was HEAD, not vehicle/cg117 (process note only); N2 the validation case arm 'default|all) ;;' in codegraph_safe.sh is redundant (R5 equivalent mutant) and may stay for readability or be removed; N3 the evidence directory docs/qa/con117_writer_default/ carries an id that names a different item on main (mapped in its README; rename optional, never rewrite history).
 
