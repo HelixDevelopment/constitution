@@ -8,6 +8,7 @@
 #           probed on the real helper). The unmutated copy must pass first (baseline). A mutant is
 #           KILLED only when the helper test exits 1 AND prints at least one "NOT ok" line.
 # Mutants :
+#   CON102-M6 (reviewer M6 = CON-102 mutant M1G) for _fcr_p in "$@" -> $*: a path argument with a space is split (false SKIP)
 #   CON183-M4 (reviewer M4) cd -P in the root resolution of fc_require_consumer: a false SKIP in a symlinked canon layout
 #   MG1  a register with no known id column SKIPs (the CR-1 shape: an unanswerable query read as "absent")
 #   MG1b a database the pragma cannot read SKIPs (not a database, unreadable file)
@@ -400,6 +401,7 @@ RV7-11	sqlite3 -readonly -separator ' ' "$_fci_db"	sqlite3 -readonly -separator 
 CR7-2	AS k FROM items"	AS k FROM items WHERE k IS NOT ''"
 CON184-M3	|*[!A-Z0-9]*)	|*[![:alnum:]]*)
 CON183-M4	$(cd "$(dirname	$(cd -P "$(dirname
+CON102-M6	for _fcr_p in "$@"; do	for _fcr_p in $*; do
 EOF
 )
 

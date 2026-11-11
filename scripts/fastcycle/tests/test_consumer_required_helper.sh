@@ -614,7 +614,7 @@ echo "=== Part 3b: the helper under test in a SYMLINKED canon layout (CON-183; r
 # there $0 is the logical path, so the root must be resolved LOGICALLY (cd without -P), not through the link target.
 # This leg builds that layout around the helper UNDER TEST ($HELPER), so a mutant such as cd -P is judged here.
 SYM="$W/symcanon"; SYMREAL="$SYM/realcanon/scripts/fastcycle/tests"; SYMC="$SYM/consumer"
-mkdir -p "$SYMREAL/lib" "$SYMC/constitution/scripts" "$SYMC/docs" && : >"$SYMC/docs/present.txt" \
+mkdir -p "$SYMREAL/lib" "$SYMC/constitution/scripts" "$SYMC/docs" && : >"$SYMC/docs/present.txt" && : >"$SYMC/docs/my data.txt" \
   && ln -s "$HELPER" "$SYMREAL/lib/consumer_required.sh" \
   && ln -s "$SYM/realcanon/scripts/fastcycle" "$SYMC/constitution/scripts/fastcycle" \
   && printf '%s\n' '#!/bin/sh' '. "$(dirname "$0")/lib/consumer_required.sh" && fc_require_consumer "$@"' 'echo "BODY RAN"' >"$SYMREAL/fake_test.sh" \
@@ -625,6 +625,11 @@ for sh in $SHELLS; do
   ST="$SYMC/constitution/scripts/fastcycle/tests/fake_test.sh"; o="$W/out3b"
   "$sh" "$ST" docs/present.txt >"$o" 2>&1; rc=$?
   expect "[$sh] symlinked canon: the consumer data under the logical root is found (no false SKIP)" 0 "^BODY RAN$" "$o" "$rc"
+  # CON-102 (mutant M1G / reviewer M6, for _fcr_p in "$@" -> $*): a path argument that contains a space is one path
+  "$sh" "$ST" "docs/my data.txt" >"$o" 2>&1; rc=$?
+  expect "[$sh] a path argument with a space is passed whole (docs/my data.txt present -> no false SKIP)" 0 "^BODY RAN$" "$o" "$rc"
+  "$sh" "$ST" "docs/my data.txt" docs/absent.txt >"$o" 2>&1; rc=$?
+  expect "[$sh] a spaced path beside an absent one: only the absent one is named" 77 "absent under .*: docs/absent.txt \\(test targets" "$o" "$rc"
   "$sh" "$ST" docs/absent.txt >"$o" 2>&1; rc=$?
   expect "[$sh] symlinked canon: an absent consumer path still SKIPs" 77 "reason=topology_unsupported$" "$o" "$rc"
 done

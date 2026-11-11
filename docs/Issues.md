@@ -1730,6 +1730,8 @@ Parent: CON-031 (manifest-triage vehicle). Source: review round 2 (docs/qa/manif
 
 Recurrence link (§11.4.214, review round 8 R8-2, 2026-11-11): the review of round 8 of the full-suite fix vehicle (docs/qa/review_cgs8_round8_2026_11_11.md) found that mutant M1G of this item (for _fcr_p in "$@" -> $*, in fc_require_consumer of scripts/fastcycle/tests/lib/consumer_required.sh) still survives; the reviewer's M6 is the same edit, and a path argument that contains a space gets a false SKIP (head RAN, M6 SKIP, bash and dash). This item is open, so the recurrence is linked here and no new item is minted. Acceptance addition: adopt M6 as a paired mutant when this item is fixed. No fix is claimed (§11.4.290).
 
+Follow-up fu_b (2026-11-11): mutant M1G (= reviewer M6) is now adopted as hand-table row CON102-M6 and killed by a spaced-path leg in Part 3b of scripts/fastcycle/tests/test_consumer_required_helper.sh (helper test 365/0 or see evidence docs/qa/con102_m6_2026_11_11.txt; RED survived, GREEN killed in bash and dash). Not claimed: M1A, M2A, M2C, M2D remain open, so this item stays Queued and nothing here is a fix claim for the whole item (section 11.4.290).
+
 ## CON-103 — Superspec exclusion topology guard: add a blinded-gate layout and a missing-carrier failure layout (review R2-3)
 
 **Status:** Queued
