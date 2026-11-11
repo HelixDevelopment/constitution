@@ -46,7 +46,7 @@ TOOL="$FC/review/review_record.py"
 ANALYZER="$HERE/lib/review_record_guard_analyzer.py"
 # cheapest first: a mutant stops at the FIRST suite that fails (its lost PASS
 # lines are the isolating cases recorded); only survivors pay for every suite.
-SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_tier_legs_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_subclause_cases.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_gate_authority_r3_regression.sh"
 
 JOBS=2; OUT=""; IDS=()
 while [ "$#" -gt 0 ]; do

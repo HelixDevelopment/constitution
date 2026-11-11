@@ -230,6 +230,7 @@ scripts/fastcycle/tests/lib/review_record_guard_analyzer.py	py	excluded	-	-	-	re
 scripts/fastcycle/tests/lib/shard_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_gate_shard_red.sh (test_gate_shard_r1_regression.sh names it only in a comment)
 scripts/fastcycle/tests/lib/tce_normalize_ref.py	py	excluded	-	-	-	reason: oracle: reference implementation used as an oracle by test_mutation_reuse_red.sh (heavy tier only)
 scripts/fastcycle/tests/lib/triple_harness.sh	sh	excluded	-	-	-	reason: library: self-validation runner library used by fastcycle tests
+scripts/fastcycle/tests/mutate_tier_legs.py	py	excluded	-	-	-	reason: tool: ~30-minute enumerator of single-edit mutants of the review_record.py tier legs (run by hand); its output is the tracked equivalence list fixtures/review_record_tier_leg_equivalents.tsv
 scripts/fastcycle/tests/run_all.sh	runall	entry	default	runall-members	-	auto: covers 12 heavy member(s)
 scripts/fastcycle/tests/sweep_review_record_subclauses.sh	sh	excluded	-	-	-	reason: tool: ~70-minute generator of fixtures/review_record_subclause_kills.tsv (run by hand with --out); its control logic is tested by test_sweep_review_record_subclauses_red.sh
 scripts/fastcycle/tests/test_2nd_display_triage_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
@@ -385,7 +386,9 @@ scripts/fastcycle/tests/test_review_record_resolution_ground_truth.sh	sh	member	
 scripts/fastcycle/tests/test_review_record_round_budget_boundary_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_skip_status_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_store_tier_all_entries_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_store_tier_noncanonical_tmpdir_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_review_record_subclause_cases.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
+scripts/fastcycle/tests/test_review_record_tier_legs_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_run_all.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_select_sample_r5_regression.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh
 scripts/fastcycle/tests/test_shipped_workable_items_us3_red.sh	sh	member	default	-	scripts/fastcycle/tests/run_all.sh	auto: run by scripts/fastcycle/tests/run_all.sh

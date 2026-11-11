@@ -77,7 +77,7 @@ FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_store_tier_all_entries_regression.sh test_review_record_tier_legs_regression.sh test_review_record_resolution_ground_truth.sh test_review_record_round_budget_boundary_regression.sh test_review_record_gate_authority_r4_regression.sh test_review_record_gate_authority_r3_regression.sh test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
@@ -175,6 +175,9 @@ RF-chain-edges-drop-last	'    for dpath, child_st in edges:\n'	'    for dpath, c
 RF-chain-edges-drop-first-link	'        # guard: G-T-LINK-EDGE\n        edges.append((cur, st))\n'	'        # guard: G-T-LINK-EDGE\n        if not (stat.S_ISLNK(st.st_mode) and hops == 0):\n            edges.append((cur, st))\n'
 RF-chain-dirs-last-only	'    for dpath, dst in sorted(dirs.items()):\n'	'    for dpath, dst in sorted(dirs.items())[-1:]:\n'
 RF-chain-abs-target-from-cur	'            if target.startswith("/"):\n                cur = "/"\n'	'            if target.startswith("/"):\n                cur = cur\n'
+RV5-A-sticky-root-entry	'child_st.st_uid in (owner_uid, 0)'	'child_st.st_uid == owner_uid'
+RV5-C-acl-error-fail-open	'return exc.errno not in (errno.ENOTSUP, errno.EOPNOTSUPP)'	'return False'
+RV5-D-nsswitch-any-to-all	'any(src != "files" for src in fields[1:])'	'all(src != "files" for src in fields[1:])'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss
