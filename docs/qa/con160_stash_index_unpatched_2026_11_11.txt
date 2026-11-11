@@ -1,0 +1,11 @@
+# CON-160 evidence (2026-11-11), clone of main fc57ad0c, git git version 2.53.0
+# Reproduction: host-fixture, surface host-only. The reviewer measured Y12 and Y14 SURVIVING the r22 suite (90/0, review_fsfix6_round6_2026_11_11.md). Not re-run here (r22 takes up to 20 min on this loaded host): UNCONFIRMED by me.
+# RED-by-construction: the new guard did not exist; it kills Y12/Y14 (below).
+$ bash scripts/fastcycle/tests/test_custody_sweep_stash_index_unpatched_r23_regression.sh
+ok unmutated tool: all 5 axes (IDX WT EQ NONE GITF) pass
+ok mutant Y12_rc1_returns_None killed
+ok mutant Y14_git_failure_False killed
+ok mutant Y15_rc0_returns_True killed
+ok mutant Y16_nonempty_patch_checked killed
+=== custody stash_index_unpatched r23: pass=5 fail=0 ===
+rc=0
