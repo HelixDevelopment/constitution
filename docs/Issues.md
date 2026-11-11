@@ -2781,3 +2781,30 @@ Parent: CON-178 (fc_require_items). Review round 8 R8-3. The id contract [A-Z][A
 
 Parent: CON-178 (fc_require_items). Review round 8 N8-1 (nit). Leg L29 of test_consumer_required_helper.sh calls bad when the host classes no listed UTF-8 locale's A-umlaut as [:upper:], so a host without such a locale FAILs the whole helper suite when only that leg lacks topology. Acceptance: that leg records a §11.4.3 SKIP-with-reason naming the missing locale class instead of a FAIL, with a test that proves both branches. On the review host the locales are present, so the leg ran. Source: independent review of round 8 of the full-suite fix vehicle (GO-with-follow-ups, 0 critical, 0 important, 3 minor, 1 nit), kept as docs/qa/review_cgs8_round8_2026_11_11.md. Finding layer: test-instrumentation, minor-class under §11.4.276(G.2). No fix is claimed: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (§11.4.290).
 
+## CON-186 — fixu landing review follow-ups M1, M2, M3: case 11c closure-by-location, runner guide acceptance wording, tracked resolve1 proposal
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-116..CON-145 fixu landing (3bd34494, e6b16598, 2e8cfb90). Source: independent review docs/qa/fixu_review/landing/review_fixu_landing.md (GO-with-follow-ups, 0 critical, 0 important, 4 minor, 2 nit). M1: tests/test_run_full_suite.sh case 11c now also puts an Obsolete and a Completed item located in Fixed in the fixture and asserts both are named STALE; mutant X1 (check_known_open deciding closure from a status text starting with Fixed) survived the old fixture and fails exactly those 2 new assertions (274 passed, 2 failed). M2: docs/guides/full_suite_runner_guide.md no longer says an agent never runs the acceptance; it states that the runner enforces only that the id is on the committed roster and that the acceptances so far (2739c26b, bdc3ac43, e6b16598) were run by the landing agent on a conductor-relayed order, tier instance. M3: the cited proposal resolve1_lock_PROPOSAL_r2.md was recovered from a scratchpad and is now tracked as docs/qa/fixu_review/resolve1_lock_PROPOSAL_r2.md (section 11.4.215). Finding layer: test-instrumentation and process-doc, minor-class under section 11.4.276(G.2). Fixes are in the change that registers this item and are not verified by an independent review: the item is Queued, its reproduction and investigation states are UNSET, and it is neither PROVISIONAL-DONE nor VERIFIED-DONE (section 11.4.290).
+
+## CON-187 — CON-099 reached GO-with-follow-ups at round 3 with no section 11.4.276(E) convergence assessment recorded (fixu landing review M4)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-099. Source: docs/qa/fixu_review/landing/review_fixu_landing.md M4 (minor, process). Round 3 of CON-099 ended GO-with-follow-ups without the round-3 convergence assessment of section 11.4.276(E). The assessment is NOT written here: UNKNOWN: the author's round-3 assessment inputs (class-sharing findings, reappearing findings, wrong-layer evidence) are not recoverable from the tracker text alone, and inventing one would be a section 11.4.6 fabrication. Acceptance: before CON-099 round 4 the fixer records the assessment (or records why none was needed) in CON-099. Finding layer: process-doc, minor-class under section 11.4.276(G.2). Status Queued; no fix claimed (section 11.4.290).
+
+## CON-188 — fixu landing review notes N1 and N2: no CHANGELOG entry for the landing; main red on the env-reads allowlist gate until CON-144
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Sonnet 5.5 (fixu follow-up subagent)
+
+Parent: CON-116..CON-145 fixu landing. Source: docs/qa/fixu_review/landing/review_fixu_landing.md N1, N2 (nits, recorded as notes). N1: the landing (162 files) has no CHANGELOG entry; UNCONFIRMED whether the project expects one for a fix landing; the lander decides. N2: main stays red on CM-GATE-ENV-READS-ALLOWLISTED and the census closure test after the landing, as before it; it is tracked as CON-144 (medium) and should be fixed soon because a red gate hides a new failure of the same gate. Nothing is changed by this item. Finding layer: process-doc, minor-class under section 11.4.276(G.2). Status Queued; no fix claimed (section 11.4.290).
+

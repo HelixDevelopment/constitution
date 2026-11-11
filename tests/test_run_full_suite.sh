@@ -564,14 +564,16 @@ has "11b control: plain reason row matches the mixed unit" 'KNOWN ATM-5\]  tests
 KO="$T/known_open"; mkdir -p "$KO"
 python3 -I -c 'import sqlite3,sys
 c=sqlite3.connect(sys.argv[1]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)")
-c.executemany("INSERT INTO items VALUES(?,?,?)",[("ATM-5","Queued","Issues"),("ATM-6","Fixed (→ Fixed.md)","Fixed")]); c.commit()
+c.executemany("INSERT INTO items VALUES(?,?,?)",[("ATM-5","Queued","Issues"),("ATM-6","Fixed (→ Fixed.md)","Fixed"),("ATM-8","Obsolete","Fixed"),("ATM-9","Completed","Fixed")]); c.commit()
 c=sqlite3.connect(sys.argv[2]); c.execute("CREATE TABLE items(atm_id TEXT, status TEXT, current_location TEXT)"); c.commit()' "$KO/db.sqlite" "$KO/empty.sqlite"
 printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\n' > "$KO/open.tsv"
-printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/y.sh\treason:rc_3\tATM-6\to\ntests/a/z.sh\tsig\tATM-77\to\n' > "$KO/stale.tsv"
+printf 'tests/a/x.sh\treason:rc_3+tracked\tATM-5\to\ntests/a/y.sh\treason:rc_3\tATM-6\to\ntests/a/z.sh\tsig\tATM-77\to\ntests/a/w.sh\treason:rc_3\tATM-8\to\ntests/a/v.sh\treason:rc_3\tATM-9\to\n' > "$KO/stale.tsv"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/db.sqlite" >"$KO/o1" 2>&1; chk "11c: every tracked item open -> rc 0" "$?" "0"
 bash "$R" --root "$K3" --check-known-open --known "$KO/stale.tsv" --db "$KO/db.sqlite" >"$KO/o2" 2>&1; chk "11c: a closed and an unknown item -> rc 1" "$?" "1"
 has "11c: closed item named STALE" '^STALE ATM-6  tests/a/y.sh' "$KO/o2"
 has "11c: unknown item named STALE" '^STALE ATM-77  tests/a/z.sh' "$KO/o2"
+has "11c: Obsolete item located in Fixed named STALE (closure is the location, not the status text; review fixu M1)" '^STALE ATM-8  tests/a/w.sh' "$KO/o2"
+has "11c: Completed item located in Fixed named STALE (review fixu M1)" '^STALE ATM-9  tests/a/v.sh' "$KO/o2"
 has "11c: open item still listed as open" '^open  ATM-5  tests/a/x.sh' "$KO/o2"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/empty.sqlite" >"$KO/o3" 2>&1; chk "11c: empty DB is BLIND -> rc 2" "$?" "2"
 bash "$R" --root "$K3" --check-known-open --known "$KO/open.tsv" --db "$KO/absent.sqlite" >"$KO/o4" 2>&1; chk "11c: absent DB is BLIND -> rc 2" "$?" "2"
