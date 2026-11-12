@@ -604,25 +604,35 @@ fi
 LLM_STATUS_KEY="$(printf '%s' "$LLM_STATUS" | jq -c '{g:(.gateway.running // false), gu:((.gateway.detail // "") | [scan("https?://[^ \")]+")] | first // ""), gb:(.gateway.base_url // ""),
     p:[.profiles[]? | {profile, running}], r:[.registry.services[]? | {name, healthy, url, k:(.labels.kind // ""), pf:(.labels.profile // ""), ca:(.labels.ca_file // "")}]}' 2>/dev/null || printf '%s' "$LLM_STATUS")"
 LLM_CAP_KEY="$(printf '%s' "$LLM_CAP" | jq -c '(.decision_instances // {}) | if type == "object" then map_values({protocol, s:.effective_slots_per_instance}) else . end' 2>/dev/null || printf '%s' "$LLM_CAP")"
-# PROBE_SIG (review 2026-11-12 F1): the CURRENT answer of every endpoint the previous record probed. Without it the key held
-# the key STATE only, so a credit change was never seen after the first run. Hosted / toolkit-cache endpoints are re-probed
-# with the same authenticated call (key on stdin, class only); local endpoints with the same unauthenticated healthz GET.
-PROBE_SIG=""
-if [ "${JEV_HOSTED_PROBE:-1}" != "0" ] && [ -f "$DETECTION_FILE" ] && jq -e '.endpoints | type == "array"' "$DETECTION_FILE" >/dev/null 2>&1; then
-  while IFS=$'\t' read -r _pid _pkind _pkv _purl _ppath _pmodel _pca; do
+# PROBE_SIG (review 2026-11-12 F1; round 3 R2-1/X1): the CURRENT answer CLASS of every endpoint a detection record
+# probed (auth: 2xx / no_credit / 401 / ... ; health: true / false / null). Without it the key held the key STATE only,
+# so a credit change was never seen after the first run. Hosted / toolkit-cache endpoints are re-probed with the same
+# authenticated call (key on stdin, class only); local endpoints with the same unauthenticated healthz GET.
+# Two rules keep §11.4.281(C) idempotency: (1) the signature is a function of the probe OUTCOMES only (never of
+# timestamps), and (2) after stage 3 writes a new record the stored stage key is re-computed from THAT record (the
+# probes are memoised, so no extra call), so the next run computes the same key whether or not this run started with a
+# record. Fields are joined with \x1f, never TAB: TAB is IFS whitespace and `read` collapses empty TAB fields, which
+# silently dropped every local health row (round 3, X1).
+compute_probe_sig() { # compute_probe_sig <detection-record> -> signature on stdout ("" when nothing was probed)
+  local f="$1" sig="" _pid _pkind _pkv _purl _ppath _pmodel _pca
+  [ "${JEV_HOSTED_PROBE:-1}" != "0" ] || return 0
+  [ -f "$f" ] && jq -e '.endpoints | type == "array"' "$f" >/dev/null 2>&1 || return 0
+  while IFS=$'\x1f' read -r _pid _pkind _pkv _purl _ppath _pmodel _pca; do
     [ -n "$_pid" ] && [ -n "$_purl" ] || continue
     case "$_pkind" in
       auth) [ -n "$_pkv" ] || continue
             case "$_purl" in https://*) ;; *) continue ;; esac
-            [ "$(key_state "$_pkv" | cut -f1)" = "real" ] || { PROBE_SIG="${PROBE_SIG}${_pid}=key-not-real;"; continue; }
-            PROBE_SIG="${PROBE_SIG}${_pid}=$(auth_probe_memo "$_pkv" "${_purl%/}${_ppath:-/v1/systemone}" "$_pmodel");" ;;
-      health) PROBE_SIG="${PROBE_SIG}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;
+            [ "$(key_state "$_pkv" | cut -f1)" = "real" ] || { sig="${sig}${_pid}=key-not-real;"; continue; }
+            sig="${sig}${_pid}=$(auth_probe_memo "$_pkv" "${_purl%/}${_ppath:-/v1/systemone}" "$_pmodel");" ;;
+      health) sig="${sig}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;
     esac
   done < <(jq -r '.endpoints[] | select((.reachable_basis // "") == "probe")
       | if ((.auth_status_class // "") != "") then [.id, "auth", (.key_var // ""), (.url // ""), (.probe_path // "/v1/systemone"), (.model // ""), ""]
         elif .source == "local-llmctl" then [.id, "health", "", (.url // ""), "", "", (.ca_file // "")]
-        else empty end | @tsv' "$DETECTION_FILE" 2>/dev/null)
-fi
+        else empty end | map(tostring) | join("\u001f")' "$f" 2>/dev/null)
+  printf '%s' "$sig"
+}
+PROBE_SIG="$(compute_probe_sig "$DETECTION_FILE")"
 s3_key() { printf '%s' "det|bin=${LLMCTL_BIN:+1}${TOOLKIT_BIN:+t}|st=$LLM_STATUS_KEY|cap=$LLM_CAP_KEY|cache=$CACHE_BODY|dl=$DOWNLOAD_PROFILE|keys=$KEY_SIG|kperm=$KEYS_PERMS_WARN|hp=${JEV_HOSTED_PROBE:-1}|gwenv=${LLMCTL_ENDPOINT:-}:${LLMCTL_DECIDE_PORT:-}:${LLMCTL_CACERT:-}|$TOOL_PROVENANCE|probe=$PROBE_SIG"; }
 S3_KEY="$(s3_key)"
 if stage_begin 3 "detect-models" "$S3_KEY"; then
@@ -806,6 +816,9 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   printf '{"version":1,"generated_at":%s,"endpoints":%s,"reason":%s,"capacity":{"instances":%s,"decision_instances":%s,"parallel_total":%s},"key_discovery":%s,"tools":{%s}}\n' \
     "$NOW" "$endpoints_json" "$reason_json" "${endpoints_count:-0}" "${endpoints_count:-0}" "$par_total" "$key_discovery_json" "$TOOL_PROVENANCE" \
     | jq -c '.' | atomic_write "$DETECTION_FILE"
+  # Round 3 (R2-1): store the key the NEXT run will compute from the record just written (memoised probes, no new call).
+  PROBE_SIG="$(compute_probe_sig "$DETECTION_FILE")"
+  awk -F'\t' -v n="detect-models" -v k="$(digest "$(s3_key)")" 'BEGIN{OFS="\t"} $1==n && $2!="tainted-retry"{$2=k} {print}' "$WORK/new.tsv" > "$WORK/new.tsv.t" && mv "$WORK/new.tsv.t" "$WORK/new.tsv"
   if [ "${endpoints_count:-0}" -gt 0 ] && [ "${unusable_count:-0}" -eq "${endpoints_count:-0}" ]; then
     # no stage_taint: §11.4.281 requires a byte-stable second run. The NEXT run re-probes every endpoint of this record before
     # its stage key is computed (PROBE_SIG), so credit added later re-runs this stage and rewrites the record; the RESULT verdict

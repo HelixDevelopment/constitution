@@ -198,6 +198,46 @@ assert_eq "1" "$(grep -rlF -- "$KEY_A" "$T" 2>/dev/null | grep -cF "$KEYS")" "H9
 assert_eq "0" "$(leaks_count "$KEY_A" "$T")" "H9 the key value is in no bootstrap output, log, consent.json or state file of the default-on run"
 assert_eq "0" "$(grep -cF -- "$KEY_A" "$T/h9.err" "$T/h9.out" "$JEV_STATE_DIR/consent.json" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}')" "H9 stderr/stdout/consent.json carry no key value"
 
+# ---- H10 fresh-state idempotency with a PROBED hosted endpoint (round 3, review R2-1, §11.4.281(C)) ----------------------
+# Run 1 starts with no detection record, so a stage key built only from the PREVIOUS record differed between run 1 and
+# run 2 and run 2 re-ran stage 3. The stored key must be the one the NEXT run will compute from the record this run wrote.
+s3_line() { grep -o 'detect-models: [a-z-]*' "$1" | head -1; }
+setup h10; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"; export STUB_CODE=200
+run_bs h10a
+assert_eq "detect-models: running" "$(s3_line "$T/h10a.err")" "H10 run 1 (fresh state, hosted 200): stage 3 runs"
+cp "$DET" "$T/det_h10a.json"; cp "$JEV_STATE_DIR/bootstrap.stamp" "$T/stamp_h10a"
+run_bs h10b
+assert_eq "detect-models: no-change" "$(s3_line "$T/h10b.err")" "H10 run 2 (unchanged probe answer): stage 3 is a no-change"
+if cmp -s "$T/det_h10a.json" "$DET"; then ok "H10 run 2 leaves the detection record byte-identical"; else fail "H10 run 2 rewrote the detection record"; fi
+if cmp -s "$T/stamp_h10a" "$JEV_STATE_DIR/bootstrap.stamp"; then ok "H10 run 2 leaves the stamp byte-identical"; else fail "H10 run 2 changed the stamp"; fi
+run_bs h10c
+assert_eq "detect-models: no-change" "$(s3_line "$T/h10c.err")" "H10 run 3 (unchanged): stage 3 is still a no-change"
+if cmp -s "$T/det_h10a.json" "$DET"; then ok "H10 run 3 leaves the detection record byte-identical"; else fail "H10 run 3 rewrote the detection record"; fi
+export STUB_CODE=402; run_bs h10d
+assert_eq "detect-models: running" "$(s3_line "$T/h10d.err")" "H10 run 4 (200 -> 402): stage 3 re-runs"
+assert_eq "no_credit" "$(jq -r '.endpoints[0].auth_status_class' "$DET")" "H10 run 4 rewrote the record to no_credit"
+run_bs h10e
+assert_eq "detect-models: no-change" "$(s3_line "$T/h10e.err")" "H10 run 5 (402 unchanged): no-change"
+export STUB_CODE=200; run_bs h10f
+assert_eq "detect-models: running" "$(s3_line "$T/h10f.err")" "H10 run 6 (402 -> 200): stage 3 re-runs"
+assert_eq "2xx true" "$(jq -r '.endpoints[0] | "\(.auth_status_class) \(.reachable)"' "$DET")" "H10 run 6 rewrote the record to 2xx / reachable=true"
+unset STUB_CODE
+
+# ---- H11 a LOCAL llmctl gateway's healthz answer is part of the stage-3 input (round 3, review X1) -----------------------
+# The gateway URL is on a stub-answered host, so the healthz GET answers STUB_CODE (000 = connection failure).
+setup h11
+jq -n '{gateway:{running:true,detail:"gateway up at https://gw.typesafe.test:8095 (stub)"},profiles:[{profile:"decide-tiny",running:true}]}' > "$T/status.json"
+export STUB_CODE=200; run_bs h11a
+assert_eq "true" "$(jq -r '[.endpoints[]|select(.source=="local-llmctl")][0].reachable' "$DET")" "H11 run 1: the local gateway answered healthz (reachable=true)"
+run_bs h11b
+assert_eq "detect-models: no-change" "$(s3_line "$T/h11b.err")" "H11 run 2 (healthz unchanged): no-change"
+export STUB_CODE=000; run_bs h11c
+assert_eq "detect-models: running" "$(s3_line "$T/h11c.err")" "H11 run 3 (healthz now fails): stage 3 re-runs (the local health answer is in the key)"
+assert_eq "false" "$(jq -r '[.endpoints[]|select(.source=="local-llmctl")][0].reachable' "$DET")" "H11 run 3 rewrote the record: reachable=false"
+run_bs h11d
+assert_eq "detect-models: no-change" "$(s3_line "$T/h11d.err")" "H11 run 4 (healthz still failing): no-change"
+unset STUB_CODE
+
 # ---- H6 post_update_hook STEP 4e ------------------------------------------------------------------------------
 HOSTS=()
 export PATH="$ORIG_PATH"   # the fixture bin dirs carry a stub git; the hook host needs the real one
