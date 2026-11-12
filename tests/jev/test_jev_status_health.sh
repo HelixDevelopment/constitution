@@ -13,6 +13,10 @@
 #      ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude) -> wired=true and the file is named; a jev-gate mention OUTSIDE a
 #      PreToolUse hook is NOT wired (negative, RM15); a non-default $SHARED_DIR is consulted; the same resolver drives
 #      cm_jev_wiring
+#   S8 (round 3, review R2-5/X16) a hook COMMAND counts only when its command word (after VAR=value prefixes and an
+#      optional sh/bash interpreter) has the basename exactly jev-gate.sh: `/x/jev-gate.sh.disabled`, `/x/jev-gate`,
+#      `echo ... /x/jev-gate.sh` and `/x/not-jev-gate.sh` are NOT wired; `/x/jev-gate.sh`, `bash /x/jev-gate.sh`,
+#      `A=1 /x/jev-gate.sh --x` and a quoted path are; a stale ~/.claude-* dir counts only with a real PreToolUse entry
 #   S5 placement + leases inlined;  S6 human view prints every section;  S7 key VALUES never appear in the output
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; export FIXTURES="$HERE/fixtures"; REPO="$(cd "$HERE/../.." && pwd)"
@@ -89,6 +93,25 @@ else fail "captured T4 hooks missing: $T4H"; fi
 printf '{"hooks":{}}\n' > "$JH/.claude-shared/settings.json"
 JEV_HOME="$JH" bash "$GATE" > "$T/w2.out" 2>&1
 assert_contains "$T/w2.out" "FAIL: claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh" "S4-NEG cm_jev_wiring: an unwired shared dir is a claude FAIL"
+# S8 jev_settings_wired matches the command word, not a substring (review R2-5, X16)
+LIBD="${S8_LIB_UNDER_TEST:-$REPO/scripts/jev/lib_decide.sh}"
+w8() { printf '{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":%s}]}]}}\n' "$(jq -Rn --arg c "$1" '$c')" > "$T/w8.json"
+       if ( . "$LIBD"; jev_settings_wired "$T/w8.json" ); then echo wired; else echo unwired; fi; }
+for c in "/x/jev-gate.sh.disabled" "/x/jev-gate" "echo not running /x/jev-gate.sh" "/x/not-jev-gate.sh" "/x/jev-gate.shx" "true # /x/jev-gate.sh"; do
+  assert_eq unwired "$(w8 "$c")" "S8 command [$c] is NOT wiring"
+done
+for c in "/x/jev-gate.sh" "jev-gate.sh" "bash /x/jev-gate.sh" "A=1 B=2 /x/jev-gate.sh --flag" "'/x/jev-gate.sh'" "\"/x/jev-gate.sh\" arg" "  /x/.local/share/claude-multi-account/jev/jev-gate.sh"; do
+  assert_eq wired "$(w8 "$c")" "S8 command [$c] is wiring"
+done
+# a stale ~/.claude-* dir (no PreToolUse entry, only a mention / a disabled hook) never makes the claude clause pass
+JH8="$T/jh8"; mkdir -p "$JH8/.claude-old" "$JH8/.claude-shared"
+printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"/x/jev-gate.sh.disabled"}]}]},"note":"jev-gate.sh"}\n' > "$JH8/.claude-old/settings.json"
+printf '{"mcpServers":{"jev":{"command":"python3"}}}\n' > "$JH8/.claude-shared/.mcp.json"
+JEV_HOME="$JH8" bash "$GATE" > "$T/w8.out" 2>&1
+assert_contains "$T/w8.out" "FAIL: claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh" "S8 a stale ~/.claude-old with a disabled hook does NOT wire claude"
+printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"/x/jev-gate.sh"}]}]}}\n' > "$JH8/.claude-old/settings.json"
+JEV_HOME="$JH8" bash "$GATE" > "$T/w8b.out" 2>&1
+assert_not_contains "$T/w8b.out" "FAIL: claude: settings.json lacks" "S8 CONTROL: the same dir with a real PreToolUse jev-gate.sh entry counts"
 # S2/S3/S4 absent cases
 rm -f "$JEV_CONFIG_DIR/jev-thresholds.json" "$JEV_STATE_DIR/consent.json" "$HOME/.claude/settings.json"
 bash "$ST" --json --no-validate > "$T/s2.json" 2>/dev/null

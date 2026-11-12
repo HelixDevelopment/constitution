@@ -131,10 +131,14 @@ jev_claude_settings_dirs() {
     seen="$seen $r"; printf '%s\n' "$d"
   done
 }
-# jev_settings_wired <settings.json> -> 0 when a PreToolUse hook command references jev-gate.sh (a mention elsewhere,
-# e.g. in permissions, a PostToolUse hook or a note, is NOT wiring)
+# jev_settings_wired <settings.json> -> 0 when a PreToolUse hook COMMAND runs jev-gate.sh: its command word (after any
+# VAR=value prefixes and an optional sh/bash/zsh/dash interpreter word, optionally quoted) has the basename exactly
+# jev-gate.sh (round 3, review R2-5). A mention elsewhere (permissions, a PostToolUse hook, a note), a renamed file
+# (jev-gate.sh.disabled), a different script (not-jev-gate.sh) or an argument of another command (echo ... jev-gate.sh)
+# is NOT wiring. Honest limit: a quoted path that contains a space is not recognised (the toolkit writes none).
 jev_settings_wired() {
-  [ -f "$1" ] && jq -e '[.hooks.PreToolUse[]? | .. | objects | .command? // empty | strings | select(test("jev-gate\\.sh"))] | length > 0' "$1" >/dev/null 2>&1
+  [ -f "$1" ] && jq -e '[.hooks.PreToolUse[]? | .. | objects | .command? // empty | strings
+      | select(test("^\\s*(?:[A-Za-z_][A-Za-z0-9_]*=\\S*\\s+)*(?:(?:\\S*/)?(?:ba|z|da)?sh\\s+)?[\"\u0027]?(?:[^\\s\"\u0027]*/)?jev-gate\\.sh[\"\u0027]?(?:\\s|$)"))] | length > 0' "$1" >/dev/null 2>&1
 }
 
 # ---- value whitelists for anything written into an env file / MCP entry (review r6 m6-5) --------------------------------------
