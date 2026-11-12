@@ -29,14 +29,21 @@ agents=()
 clause_start
 
 # ── claude ──
-if [ -d "$JHOME/.claude" ]; then
+# The settings files the toolkit installer writes (~/.claude-shared, ~/.claude, ~/.claude-*), through the SAME resolver as
+# jev-status.sh (review 2026-11-12 F4: T4 wired ~/.claude-shared while this clause read only ~/.claude). Wired when ANY of
+# them carries the PreToolUse hook; the MCP entry may sit in $JHOME/.mcp.json, next to a settings file, or in it.
+mapfile -t _cdirs < <(jev_claude_settings_dirs)
+if [ "${#_cdirs[@]}" -gt 0 ]; then
   agents+=(claude)
-  s="$JHOME/.claude/settings.json"
-  { [ -f "$s" ] && jq -e '.hooks.PreToolUse[]? | .. | .command? // empty | select(test("jev-gate\\.sh"))' "$s" >/dev/null 2>&1; } \
-    || err "claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh"
-  { [ -f "$JHOME/.mcp.json" ] && jq -e '.mcpServers.jev' "$JHOME/.mcp.json" >/dev/null 2>&1; } \
-    || { [ -f "$s" ] && jq -e '.mcpServers.jev' "$s" >/dev/null 2>&1; } \
-    || err "claude: MCP server 'jev' not registered (.mcp.json or settings.json)"
+  _hook=0; _mcp=0
+  { [ -f "$JHOME/.mcp.json" ] && jq -e '.mcpServers.jev' "$JHOME/.mcp.json" >/dev/null 2>&1; } && _mcp=1
+  for _cd in "${_cdirs[@]}"; do
+    jev_settings_wired "$_cd/settings.json" && _hook=1
+    { [ -f "$_cd/.mcp.json" ] && jq -e '.mcpServers.jev' "$_cd/.mcp.json" >/dev/null 2>&1; } && _mcp=1
+    { [ -f "$_cd/settings.json" ] && jq -e '.mcpServers.jev' "$_cd/settings.json" >/dev/null 2>&1; } && _mcp=1
+  done
+  [ "$_hook" = 1 ] || err "claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh (inspected: ${_cdirs[*]})"
+  [ "$_mcp" = 1 ] || err "claude: MCP server 'jev' not registered (.mcp.json or settings.json)"
 fi
 
 # ── kimi ──

@@ -8,6 +8,7 @@
 #   C4 the per_type aggregate is unchanged by the grouping (backward compatible)
 #   C5 main-LLM alias: --alias wins; else MAIN_LLM_ALIAS (env); else MAIN_LLM_ALIAS in $JEV_CONFIG_DIR/env; else $JEV_CONFIG_DIR/main_llm_alias; else "claude" (default);
 #      the record names the alias AND where it came from; an unsafe alias in the file is refused (rc 2)
+#   C6 (round 2, review RM11) the precedence is pinned PAIRWISE with both sources present: env beats envfile, envfile beats file
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; export FIXTURES="$HERE/fixtures"; REPO="$(cd "$HERE/../.." && pwd)"
 source "$HERE/lib_assert.sh"
@@ -49,6 +50,14 @@ bash "$REPO/scripts/jev/jev-calibrate.sh" --now --sample 100 >/dev/null 2>&1
 assert_eq "claude3 file:main_llm_alias" "$(jq -r '.main_llm_alias | "\(.name) \(.source)"' "$THR" | sed 's#file:.*/main_llm_alias#file:main_llm_alias#')" "C5 alias file discovered"
 MAIN_LLM_ALIAS=claude7 bash "$REPO/scripts/jev/jev-calibrate.sh" --now --sample 100 --alias claude9 >/dev/null 2>&1
 assert_eq "claude9 arg" "$(jq -r '.main_llm_alias | "\(.name) \(.source)"' "$THR")" "C5 --alias wins over env and file"
+# ---- C6 pairwise precedence with BOTH sources present (review RM11) -------------------------------------------------
+printf 'claude3\n' > "$JEV_CONFIG_DIR/main_llm_alias"
+printf 'JEV_MODE=shadow\nMAIN_LLM_ALIAS=claude5\n' > "$JEV_CONFIG_DIR/env"
+MAIN_LLM_ALIAS=claude7 bash "$REPO/scripts/jev/jev-calibrate.sh" --now --sample 100 >/dev/null 2>&1
+assert_eq "claude7 env:MAIN_LLM_ALIAS" "$(jq -r '.main_llm_alias | "\(.name) \(.source)"' "$THR")" "C6 env MAIN_LLM_ALIAS beats the env FILE when both are set"
+bash "$REPO/scripts/jev/jev-calibrate.sh" --now --sample 100 >/dev/null 2>&1
+assert_eq "claude5 envfile:MAIN_LLM_ALIAS" "$(jq -r '.main_llm_alias | "\(.name) \(.source)"' "$THR")" "C6 the env FILE beats the alias file when both exist"
+rm -f "$JEV_CONFIG_DIR/env" "$JEV_CONFIG_DIR/main_llm_alias"
 printf 'bad alias;rm\n' > "$JEV_CONFIG_DIR/main_llm_alias"
 bash "$REPO/scripts/jev/jev-calibrate.sh" --now --sample 100 >/dev/null 2>"$T/bad.err"; rc=$?
 assert_rc 2 "$rc" "C5 unsafe alias in the alias file refused (rc 2)"

@@ -128,7 +128,7 @@ stateDiagram-v2
 
 ## Failover and placement sequence (2026-11-12)
 
-How one decision reaches an endpoint after the S3/S4 changes. The ordered list is the endpoint cache (lower priority first): the local gateway at 10 when a lease is held, then the hosted entries (OpenRouter 30, TypeSafe 40 on the reference host). The FAILOVER itself is executed by the claude_toolkit gate and MCP server, which this repository does not ship; the constitution writes the cache entry, the placement record and the probe classes.
+How one decision reaches an endpoint after the S3/S4 changes. The ordered list is the endpoint cache (lower priority first): the local gateway at 10 when a lease is held, then the hosted entries (OpenRouter 30, TypeSafe 40 on the reference host). Whether a failed call moves on to the next entry is decided by the claude_toolkit gate and MCP server, which this repository does not ship; the constitution writes the cache entry, the placement record and the probe classes. Measured 2026-11-12 (T4): a session pinned to OpenRouter (`CMA_JEV_ENDPOINT_ID`) got 402, logged `fallback: endpoint_error` and allowed the call fail-open WITHOUT trying TypeSafe, so the failover branch below is the intended order, not a shown behaviour.
 
 ```mermaid
 sequenceDiagram
@@ -154,7 +154,7 @@ sequenceDiagram
   G->>E1: decision request
   alt 2xx
     E1-->>G: typed answer
-  else non-2xx or unreachable
+  else non-2xx or unreachable (failover NOT shown live; T4 pinned session failed open)
     G->>E2: decision request
     alt 402 no_credit / 429 / error
       G->>E3: decision request
@@ -163,8 +163,12 @@ sequenceDiagram
   end
   G-->>S: allow / ask / deny (decisions.jsonl row)
   S->>P: release <holder> (last lease)
-  P->>L: stop <profile> (only if the constitution started it)
-  P->>K: remove llmctl-local
+  P->>L: stop <profile> (only if the constitution started it; bounded by the start/stop timeout)
+  alt stop rc 0
+    P->>K: remove llmctl-local
+  else stop failed or timed out
+    P-->>S: rc 6, set kept (stop_failed); the next release retries
+  end
 ```
 
 ## Routing and consensus sequence

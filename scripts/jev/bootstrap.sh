@@ -16,6 +16,11 @@
 # $JEV_STATE_DIR/bootstrap.stamp. A second run with unchanged inputs prints
 # "no-change" per stage and rewrites nothing (the stamp is byte-stable: it
 # keeps its first created_at and is replaced only when a digest changes).
+# Stage 3 (detect-models) is the one stage whose input is OUTSIDE this host: its
+# digest includes the CURRENT answer of every endpoint the previous record
+# probed (one memoized probe per endpoint per run, review 2026-11-12 F1), so a
+# change such as credit added (402 -> 200) or lost (200 -> 402) re-runs the stage
+# and rewrites the record; an unchanged answer is still a byte-stable no-change.
 #
 # Consent boundaries (nothing below happens silently). The DEFAULT run, including
 # the post-update hook's --non-interactive run, installs, clones and downloads
@@ -432,6 +437,21 @@ probe_http() {
   if [ -n "$c" ] && [ "$c" != "000" ]; then echo true; else echo false; fi
 }
 
+# Memoized probes (review 2026-11-12 F1): the stage-3 key re-probes the endpoints of the previous record BEFORE the
+# stage decides "no-change"; the stage then reuses the same answer, so every endpoint is probed at most ONCE per run.
+probe_http_memo() { # same contract as probe_http
+  local k r; k="h|$1|${2:-}"
+  r="$(awk -F'\t' -v k="$k" '$1==k{print $2; exit}' "$WORK/probe_memo.tsv" 2>/dev/null)"
+  if [ -z "$r" ]; then r="$(probe_http "$1" "${2:-}")"; printf '%s\t%s\n' "$k" "$r" >> "$WORK/probe_memo.tsv"; fi
+  printf '%s\n' "$r"
+}
+auth_probe_memo() { # same contract as auth_probe <VAR> <url> [model] [ca]
+  local k r; k="a|$1|$2|${3:-}|${4:-}"
+  r="$(awk -F'\t' -v k="$k" '$1==k{print $2; exit}' "$WORK/probe_memo.tsv" 2>/dev/null)"
+  if [ -z "$r" ]; then r="$(auth_probe "$1" "$2" "${3:-}" "${4:-}")"; printf '%s\t%s\n' "$k" "$r" >> "$WORK/probe_memo.tsv"; fi
+  printf '%s\n' "$r"
+}
+
 # shellcheck source=lib_keys.sh
 . "$SCRIPT_DIR/lib_keys.sh"
 # shellcheck source=lib_decide.sh
@@ -584,7 +604,26 @@ fi
 LLM_STATUS_KEY="$(printf '%s' "$LLM_STATUS" | jq -c '{g:(.gateway.running // false), gu:((.gateway.detail // "") | [scan("https?://[^ \")]+")] | first // ""), gb:(.gateway.base_url // ""),
     p:[.profiles[]? | {profile, running}], r:[.registry.services[]? | {name, healthy, url, k:(.labels.kind // ""), pf:(.labels.profile // ""), ca:(.labels.ca_file // "")}]}' 2>/dev/null || printf '%s' "$LLM_STATUS")"
 LLM_CAP_KEY="$(printf '%s' "$LLM_CAP" | jq -c '(.decision_instances // {}) | if type == "object" then map_values({protocol, s:.effective_slots_per_instance}) else . end' 2>/dev/null || printf '%s' "$LLM_CAP")"
-s3_key() { printf '%s' "det|bin=${LLMCTL_BIN:+1}${TOOLKIT_BIN:+t}|st=$LLM_STATUS_KEY|cap=$LLM_CAP_KEY|cache=$CACHE_BODY|dl=$DOWNLOAD_PROFILE|keys=$KEY_SIG|kperm=$KEYS_PERMS_WARN|hp=${JEV_HOSTED_PROBE:-1}|gwenv=${LLMCTL_ENDPOINT:-}:${LLMCTL_DECIDE_PORT:-}:${LLMCTL_CACERT:-}|$TOOL_PROVENANCE"; }
+# PROBE_SIG (review 2026-11-12 F1): the CURRENT answer of every endpoint the previous record probed. Without it the key held
+# the key STATE only, so a credit change was never seen after the first run. Hosted / toolkit-cache endpoints are re-probed
+# with the same authenticated call (key on stdin, class only); local endpoints with the same unauthenticated healthz GET.
+PROBE_SIG=""
+if [ "${JEV_HOSTED_PROBE:-1}" != "0" ] && [ -f "$DETECTION_FILE" ] && jq -e '.endpoints | type == "array"' "$DETECTION_FILE" >/dev/null 2>&1; then
+  while IFS=$'\t' read -r _pid _pkind _pkv _purl _ppath _pmodel _pca; do
+    [ -n "$_pid" ] && [ -n "$_purl" ] || continue
+    case "$_pkind" in
+      auth) [ -n "$_pkv" ] || continue
+            case "$_purl" in https://*) ;; *) continue ;; esac
+            [ "$(key_state "$_pkv" | cut -f1)" = "real" ] || { PROBE_SIG="${PROBE_SIG}${_pid}=key-not-real;"; continue; }
+            PROBE_SIG="${PROBE_SIG}${_pid}=$(auth_probe_memo "$_pkv" "${_purl%/}${_ppath:-/v1/systemone}" "$_pmodel");" ;;
+      health) PROBE_SIG="${PROBE_SIG}${_pid}=$(probe_http_memo "${_purl%/}/healthz" "$_pca");" ;;
+    esac
+  done < <(jq -r '.endpoints[] | select((.reachable_basis // "") == "probe")
+      | if ((.auth_status_class // "") != "") then [.id, "auth", (.key_var // ""), (.url // ""), (.probe_path // "/v1/systemone"), (.model // ""), ""]
+        elif .source == "local-llmctl" then [.id, "health", "", (.url // ""), "", "", (.ca_file // "")]
+        else empty end | @tsv' "$DETECTION_FILE" 2>/dev/null)
+fi
+s3_key() { printf '%s' "det|bin=${LLMCTL_BIN:+1}${TOOLKIT_BIN:+t}|st=$LLM_STATUS_KEY|cap=$LLM_CAP_KEY|cache=$CACHE_BODY|dl=$DOWNLOAD_PROFILE|keys=$KEY_SIG|kperm=$KEYS_PERMS_WARN|hp=${JEV_HOSTED_PROBE:-1}|gwenv=${LLMCTL_ENDPOINT:-}:${LLMCTL_DECIDE_PORT:-}:${LLMCTL_CACERT:-}|$TOOL_PROVENANCE|probe=$PROBE_SIG"; }
 S3_KEY="$(s3_key)"
 if stage_begin 3 "detect-models" "$S3_KEY"; then
   # Refresh the toolkit endpoint cache (hosted/LAN pins: key var NAMES only).
@@ -617,7 +656,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   if [ -z "$gw_url" ]; then gw_url="https://127.0.0.1:8095"; gw_basis="llmctl-default-port"; fi
   [ -n "$gw_ca" ] || gw_ca="${LLMCTL_CACERT:-}"
   # `running` in llmctl means SCHEDULER-MANAGED; it does not mean reachable. Probe the gateway.
-  if [ "$gw_running" = "true" ]; then gw_reach="$(probe_http "${gw_url%/}/healthz" "$gw_ca")"; else gw_reach="false"; fi
+  if [ "$gw_running" = "true" ]; then gw_reach="$(probe_http_memo "${gw_url%/}/healthz" "$gw_ca")"; else gw_reach="false"; fi
   excluded_notes=""
   proto_of() { printf '%s' "$LLM_CAP" | jq -r --arg p "$1" '.decision_instances[$p].protocol // ""' 2>/dev/null || true; }
   # Local decision instances: (a) decide profiles the scheduler reports running; (b) decide services llmctl's
@@ -641,7 +680,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
         continue
       fi
       par="$(printf '%s' "$LLM_CAP" | jq -r --arg p "$rprof" '.decision_instances[$p].effective_slots_per_instance // 1' 2>/dev/null || echo 1)"
-      printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t\n' "$rprof" "$rprof" "$(probe_http "${rurl%/}/healthz" "")" "$par" "$rurl" "llmctl-registry-health" >> "$WORK/endpoints.tsv"
+      printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t\n' "$rprof" "$rprof" "$(probe_http_memo "${rurl%/}/healthz" "")" "$par" "$rurl" "llmctl-registry-health" >> "$WORK/endpoints.tsv"
   done < <(jev_decide_services "$LLM_STATUS" "$LLM_CAP")
   if [ -n "$CACHE_BODY" ]; then
     # reachable is UNKNOWN from the cache (it records resolution, not a probe): null.
@@ -666,7 +705,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       case "$_curl" in https://*) ;; *) continue ;; esac
       [ "$(key_state "$_ckv" | cut -f1)" = "real" ] || continue
       _cpath="$(jq -r --arg kv "$_ckv" '[(.hosted // {})[] | select(.key_var == $kv) | .systemone_path][0] // "/v1/systemone"' "$PINS_FILE" 2>/dev/null || echo /v1/systemone)"
-      _ccls="$(auth_probe "$_ckv" "${_curl%/}${_cpath}" "$_cmodel")"
+      _ccls="$(auth_probe_memo "$_ckv" "${_curl%/}${_cpath}" "$_cmodel")"
       case "$_ccls" in 2xx) _creach=true ;; unavailable|refused) _creach=null ;; *) _creach=false ;; esac   # reachable = answered 2xx ONLY (S3)
       endpoints_json="$(jq -c --arg id "$_cid" --arg cls "$_ccls" --arg r "$_creach" --arg pp "$_cpath" \
         'map(if .id == $id then . + {reachable:(if $r=="true" then true elif $r=="false" then false else null end), auth_status_class:$cls, probe_path:$pp,
@@ -694,15 +733,15 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       fi
       if [ "${JEV_HOSTED_PROBE:-1}" = "0" ]; then _cls="not-probed"; _reach="null"
       else
-        _cls="$(auth_probe "$_v" "${_u%/}${_p}" "$_m")"
+        _cls="$(auth_probe_memo "$_v" "${_u%/}${_p}" "$_m")"
         case "$_cls" in 2xx) _reach="true" ;; unavailable|refused) _reach="null" ;; *) _reach="false" ;; esac   # 2xx only (S3)
       fi
       # where the key REALLY came from (review round 2, N1): the process environment wins over the keys file
       # (lib_keys.sh _jev_key_value), so a variable set in the environment is labelled `environment`, never `api-keys-file`
       if [ -n "${!_v:-}" ]; then _src="environment"; else _src="api-keys-file"; fi
-      hosted_json="$(jq -c --arg id "hosted-$_n" --arg m "$_m" --arg u "$_u" --arg kv "$_v" --arg cls "$_cls" --arg r "$_reach" --arg src "$_src" --argjson now "$NOW" \
+      hosted_json="$(jq -c --arg id "hosted-$_n" --arg m "$_m" --arg u "$_u" --arg kv "$_v" --arg cls "$_cls" --arg r "$_reach" --arg src "$_src" --arg pp "$_p" --argjson now "$NOW" \
         '. + [{id:$id, source:$src, model:$m, reachable:(if $r=="true" then true elif $r=="false" then false else null end),
-               parallel:1, probed_at:$now, reason:null, url:$u, key_var:$kv, auth_status_class:$cls,
+               parallel:1, probed_at:$now, reason:null, url:$u, key_var:$kv, auth_status_class:$cls, probe_path:$pp,
                reachable_basis:(if $r=="null" then "probe-unavailable" else "probe" end)}]' <<<"$hosted_json")"
     done <<< "$PIN_VARS"
     endpoints_json="$(jq -c --argjson h "$hosted_json" '. + $h' <<<"$endpoints_json")"
@@ -768,8 +807,9 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
     "$NOW" "$endpoints_json" "$reason_json" "${endpoints_count:-0}" "${endpoints_count:-0}" "$par_total" "$key_discovery_json" "$TOOL_PROVENANCE" \
     | jq -c '.' | atomic_write "$DETECTION_FILE"
   if [ "${endpoints_count:-0}" -gt 0 ] && [ "${unusable_count:-0}" -eq "${endpoints_count:-0}" ]; then
-    # no stage_taint: §11.4.281 requires a byte-stable second run; the RESULT verdict below is recomputed on EVERY run from the
-    # record, and `jev-probe.sh` / `jev-status.sh` re-probe on demand (e.g. after credit is added)
+    # no stage_taint: §11.4.281 requires a byte-stable second run. The NEXT run re-probes every endpoint of this record before
+    # its stage key is computed (PROBE_SIG), so credit added later re-runs this stage and rewrites the record; the RESULT verdict
+    # below is recomputed on every run from the record. jev-status.sh makes no probe; jev-probe.sh only sets its exit code.
     stage_commit 3 "detect-models" "degraded endpoints=${endpoints_count:-0} usable=0"
   else
     stage_commit 3 "detect-models" "ok endpoints=${endpoints_count:-0} usable=${usable_count:-0}"

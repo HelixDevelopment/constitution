@@ -69,8 +69,19 @@ finish() {
   [ "$FAIL" -eq 0 ]
 }
 
-_JEV_FIXTURE_DIRS=()
-_jev_cleanup_fixtures() { local d; for d in "${_JEV_FIXTURE_DIRS[@]}"; do [ -n "$d" ] && [ -d "$d" ] && rm -rf -- "$d"; done; }
+_JEV_FIXTURE_DIRS=(); _JEV_FIXTURE_PIDS=()
+# jev_track_pid <pid> — a background fixture process (the jev_server.py stub) this test started; killed by the ONE EXIT trap.
+# Root cause of the orphan leak found in review 2026-11-12: a test installed `trap 'kill "$SRV"' EXIT` and a LATER
+# make_fixture_env re-installed `trap _jev_cleanup_fixtures EXIT`, replacing it, so the server outlived the test. Every
+# background fixture is now registered here and the single cleanup kills exactly the recorded pids (never a pattern match).
+jev_track_pid() { [ -n "${1:-}" ] && _JEV_FIXTURE_PIDS+=("$1"); }
+_jev_cleanup_fixtures() {
+  local p d
+  for p in "${_JEV_FIXTURE_PIDS[@]}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
+  for p in "${_JEV_FIXTURE_PIDS[@]}"; do [ -n "$p" ] && wait "$p" 2>/dev/null; done
+  for d in "${_JEV_FIXTURE_DIRS[@]}"; do [ -n "$d" ] && [ -d "$d" ] && rm -rf -- "$d"; done
+  return 0
+}
 
 # make_fixture_env <name> — sandboxed HOME, stubs on PATH, deterministic clock.
 # Sets: T (tmp root), HOME, PATH, STUB_LOG, JEV_* dirs, JEV_NOW_EPOCH.

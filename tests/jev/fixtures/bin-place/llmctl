@@ -5,7 +5,7 @@
 #   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x)
 #   decide status --json     -> a gateway registry entry (https://127.0.0.1:18095)
 #   start <p>                -> exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<p>
-#   stop <p>                 -> removes $STUB_LOG/running.<p>
+#   stop <p>                 -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<p> only on rc 0
 #   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
 set -euo pipefail
 logdir="${STUB_LOG:?STUB_LOG must be set}"
@@ -15,7 +15,9 @@ case "${1:-} ${2:-}" in
   "decide capacity") echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
   "decide status") echo '{"registry":{"services":[{"name":"decide-gateway","url":"https://127.0.0.1:18095","labels":{"kind":"gateway","ca_file":"/nonexistent/ca.crt"}}]}}' ;;
   "start "*) touch "$logdir/running.${2:?}"; exit "${PLACE_START_RC:-0}" ;;
-  "stop "*) rm -f -- "$logdir/running.${2:?}" ;;
+  "stop "*) [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
+            [ "${PLACE_STOP_RC:-0}" = 0 ] || exit "$PLACE_STOP_RC"
+            rm -f -- "$logdir/running.${2:?}" ;;
   enable*|disable*|switch*|auto*) exit 97 ;;
   *) echo "llmctl stub: unknown command '$*'" >&2; exit 1 ;;
 esac

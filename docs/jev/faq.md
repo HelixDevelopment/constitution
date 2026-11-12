@@ -92,7 +92,7 @@ Showing it would anchor the label toward agreement and inflate the promotion sta
 It found unwired agents and did not have permission to edit agent homes. Re-run with `--yes` after reading the audit lines.
 
 **19. Why does a second run print `no-change` everywhere?**
-By design: stage digests equal the stamp, nothing is rewritten.
+By design: stage digests equal the stamp, nothing is rewritten. Stage 3 still probes each endpoint of the previous record once, because the answer is part of its digest; when an answer changed (for example credit was added) that stage runs again and the record is rewritten.
 
 **20. Why does it want `jq`?**
 JSON parsing; a second parser would fork the wire format. Without it the wizard stops with rc 2 and a pending stamp.

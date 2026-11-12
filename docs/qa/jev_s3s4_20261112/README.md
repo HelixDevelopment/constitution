@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-12 |
 | Status | evidence (CON-299, In progress) |
@@ -30,6 +30,11 @@ every file are in `SHA256SUMS`.
 The RESULT line in every run: `rc 5: detected, not wired (1 usable endpoint(s), no agent wired ...)`.
 The three runs of each variant gave the same record (same ids, classes, reachability and rc).
 
+Correction (round 2, review 2026-11-12 F1): these records were written by the stage-3 code whose cache key held only the
+key states. A second bootstrap run then reused the record without probing again, so `no_credit` would have stayed
+recorded after credit was added. Fixed in round 2 (the stage key now holds each recorded endpoint's current probe
+answer; `tests/jev/test_s3_bootstrap_honesty.sh` H7). The T3 runs were NOT re-captured after the fix.
+
 ## T4 default-on in a fresh project, one real gate call
 
 `t4_run1..3`: sandbox `HOME`, `bootstrap.sh --non-interactive --default-on` (rc 0, `install-per-agent: ok wired
@@ -43,6 +48,13 @@ bootstrap wired (`settings.hooks.json`), twice per run:
 
 Each run wrote exactly two rows (one per call; `decisions.jsonl`). The verdict was the same in all three runs; the
 `risky_p` value differed in the second decimal (the endpoint is a model, its score is not bit-identical).
+
+OMITTED IN REVISION 1 (review 2026-11-12 F4): in all three T4 runs the bootstrap's own `cm_jev_wiring` gate reported
+`FAIL rc=1 ... claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh` (advisory, in `boot.err`)
+right next to `ok wired`. The cause was the gate, not the wiring: it read only `~/.claude/settings.json`, while the
+toolkit wired `~/.claude-shared/settings.json` (captured in `settings.hooks.json`). Fixed in round 2 (one resolver for
+`cm_jev_wiring` and `jev-status.sh`); the fix is checked by replaying the captured `settings.hooks.json` through the gate
+in `tests/jev/test_jev_status_health.sh`. T4 was NOT re-run live after the fix.
 
 FINDING (not fixed here; claude_toolkit is owned elsewhere, the environment is the operator's): sessions that carry
 the operator's current environment send every gate call to `jev-openrouter`, which answers 402, and the gate does
@@ -60,6 +72,14 @@ script, then `release`.
 | Run | acquire rc | What happened | After release |
 |---|---|---|---|
 | 1-3 | 5 | `llmctl start decide-kev-08b` failed rc 1: the unit stayed `Starting` (llmctl: "still starting after 20s"; systemd also reported that the unit file had changed on disk and asked for `daemon-reload`). The producer sent one bounded `llmctl stop` (the cleanup added after the first live attempt) and routed to `cloud` | no lease, no running unit, no cache entry |
+
+Instrument defect (review 2026-11-12 F6): the `placement:` line of every `t5_run*/t5.txt` shows only nulls, because
+`t5.sh` read the fields at the top level of `placement.json` while they are under `.placement`. The real records are the
+`t5_run*/placement.json` files kept next to them. Those records say `verdict: does_not_fit`, reason "no candidate profile
+fits or started", although capacity said `fits`: the real cause was the failed start (rc 1). That label was a producer
+defect, fixed in round 2 (the verdict now stays the measured `fits`, and `event: start_failed` names what happened;
+`tests/jev/test_s4_placement.sh` P26). `t5.sh` now reads `.placement` behind a control needle. T5 was NOT re-captured
+after these fixes (no real llmctl call was allowed in round 2).
 
 `t5_unit_journal.txt`: each start stayed in `Starting` for about 83 s with a memory peak near 9 MB (the model never
 loaded) and ended with the cleanup TERM.

@@ -99,7 +99,7 @@ bash scripts/jev/jev-status.sh --json   # {version, detection, thresholds, boots
 bash scripts/jev/jev-status.sh --no-validate   # or JEV_STATUS_NO_VALIDATE=1: do NOT run llmctl require-validated; a stored enforce then reports mode unknown (reason validation-skipped)
 ```
 
-Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thresholds, Evidence log (decision count, kill-switch uses), Endpoint health (per endpoint from `decisions.jsonl`: total, ok = answered 2xx, last success, counts by class), Calibration age, Consent (default-on record), Wiring (Jev gate hook found in the agent settings), Placement (local profile, verdict, route, lease sets), Bootstrap (stamp, pending and why). Endpoint health reads only rows that name their endpoint; rows without one are counted under `unknown`.
+Sections: Mode, Endpoints (as last recorded, not live), Tools (provenance), Thresholds, Evidence log (decision count, kill-switch uses), Endpoint health (per endpoint from the gate's `decisions.jsonl` rows: total, ok = answered with no fallback, last success and last seen in epoch seconds, counts by result; a row with `attempts[]` counts each attempt), Calibration age, Consent (default-on record), Wiring (a PreToolUse hook referencing `jev-gate.sh` in a settings file the toolkit writes: `$CLAUDE_CONFIG_DIR`, `~/.claude-shared`, `~/.claude`, `~/.claude-*`; each file is named), Placement (local profile, verdict, route, lease sets), Bootstrap (stamp, pending and why). Endpoint health reads only rows that name their endpoint; rows without one are counted under `unknown`.
 
 ### Default-on wiring (2026-11-12)
 
@@ -111,7 +111,7 @@ With a non-placeholder key in the keys file, every constitution pull runs `boots
 bash scripts/jev/jev-place.sh verdict            # read-only verdict per systemone-native decide profile
 bash scripts/jev/jev-place.sh acquire <session-id> --pid <session-pid>   # start the best fitting profile, or join the running one
 bash scripts/jev/jev-place.sh heartbeat <session-id>
-bash scripts/jev/jev-place.sh release <session-id>   # the LAST release stops a model the constitution started
+bash scripts/jev/jev-place.sh release <session-id>   # the LAST release stops every model the constitution started; exit 6 = stop failed, set kept, retried by the next release
 bash scripts/jev/jev-place.sh status
 ```
 

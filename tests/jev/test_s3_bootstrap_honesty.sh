@@ -11,6 +11,12 @@
 #       toolkit wires, rc 0; placeholder key / no key / opt-out marker => NOT engaged (logged), wiring stays pending
 #   H6  post_update_hook STEP 4e: a real key present and NO Jev file changed => bootstrap still runs with --default-on;
 #       bootstrap rc 5 is a WARNING (never deferred, never an ERROR)
+#   (round 2, review 2026-11-12 F1/F7)
+#   H7  a change of the endpoint's answer between two runs is NOTICED: 402 -> 200 (credit added) and 200 -> 402 (credit lost)
+#       re-run stage 3 and rewrite the record; an unchanged answer is a byte-stable no-change (§11.4.281(C)); one probe per
+#       endpoint per run (the stage reuses the pre-key probe); the same holds for the toolkit-cache probe path
+#   H8  JEV_WIRING=off (env opt-out) with --default-on and a real key => not engaged, nothing wired, rc 0, NOT wired
+#   H9  the key VALUE never appears in the bootstrap output or consent.json of a DEFAULT-ON run (needle scan with a control)
 # Keys are DUMMY values assembled from fragments. These are GATE-LOGIC tests (stub curl, fixture toolkit; §11.4.289(C)(2)):
 # they prove the decisions, never that a real endpoint works (the live run is docs/qa/jev_s3s4_20261112/).
 set -uo pipefail
@@ -134,6 +140,63 @@ run_bs h5d
 assert_file_absent "$HOME/.claude/jev-wiring.marker" "H5-NEG no --default-on and no --yes => nothing wired"
 assert_eq "0" "$(grep -rlF -- "$KEY_A" "$T" 2>/dev/null | grep -vF "$KEYS" | wc -l | tr -d ' ')" "H5 the key value appears in no output/state file"
 assert_eq "1" "$(grep -rlF -- "$KEY_A" "$T" 2>/dev/null | grep -cF "$KEYS")" "H5 CONTROL NEEDLE: the scan sees the key in the keys file"
+
+# ---- H7 probe outcome is part of the stage-3 input (review F1) ---------------------------------------------------------
+probes() { grep -c '^verdict .*typesafe\.test' "$STUB_LOG/curl.log" 2>/dev/null || true; }
+setup h7; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"
+export STUB_CODE=402; run_bs h7a
+assert_eq "5 no_credit" "$RC $(jq -r '.endpoints[0].auth_status_class' "$DET")" "H7 run 1 (402): rc 5, class no_credit"
+p1="$(probes)"
+export STUB_CODE=200; run_bs h7b
+assert_eq "2xx true" "$(jq -r '.endpoints[0] | "\(.auth_status_class) \(.reachable)"' "$DET")" "H7 402 -> 200 (credit added): the record is rewritten to 2xx / reachable=true"
+assert_not_contains "$T/h7b.err" "detect-models: no-change" "H7 402 -> 200: stage 3 is NOT a stale no-change"
+# 2 = ONE stage-3 probe (the pre-key probe, reused by the stage through the memo) + ONE replay by cm_jev_detection, which
+# re-probes every endpoint the record calls reachable=true (bootstrap runs the gate at the end). Without the memo it is 3.
+assert_eq "2" "$(( $(probes) - p1 ))" "H7 run 2: one stage-3 probe (memo reused by the stage) + one cm_jev_detection replay of the reachable endpoint"
+cat "$T/h7b.out" "$T/h7b.err" > "$T/h7b.all"
+assert_contains "$T/h7b.all" "gate cm_jev_detection: PASS" "H7 CONTROL: run 2 did run the detection gate whose replay is the second probe"
+p2="$(probes)"
+export STUB_CODE=402; run_bs h7c
+assert_eq "no_credit false false" "$(jq -r '.endpoints[0] | "\(.auth_status_class) \(.reachable) \(.usable)"' "$DET")" "H7 200 -> 402 (credit lost): the record no longer calls the endpoint usable"
+assert_rc 5 "$RC" "H7 200 -> 402: rc 5 (no usable endpoint)"
+assert_contains "$T/h7c.err" "no_credit" "H7 200 -> 402: no_credit reported"
+cp "$DET" "$T/det_h7c.json"
+run_bs h7d
+assert_contains "$T/h7d.err" "detect-models: no-change" "H7 an unchanged answer (402, 402) is a no-change"
+if cmp -s "$T/det_h7c.json" "$DET"; then ok "H7 the unchanged run leaves the record byte-identical"; else fail "H7 the unchanged run rewrote the record"; fi
+assert_eq "1" "$(( $(probes) - p2 - 1 ))" "H7 the unchanged run still probed once (so a later change is seen)"
+unset STUB_CODE
+# toolkit-cache probe path: 402 -> 200
+setup h7t with-submodules; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"
+jq -n '{endpoints:[{provider_id:"tscache",base_url:"https://api.typesafe.test",model:"jev-latest",key_var:"TYPESAFE_API_KEY"}]}' > "$T/eps.json"
+mkdir -p "$CMA_PROVIDERS_DIR"; cp "$T/eps.json" "$CMA_PROVIDERS_DIR/jev-endpoints.json"; export FIXTURE_ENDPOINTS="$T/eps.json"
+export STUB_CODE=402; run_bs h7t1
+export STUB_CODE=200; run_bs h7t2
+assert_eq "2xx true" "$(jq -r '[.endpoints[]|select(.source=="toolkit-cache")][0] | "\(.auth_status_class) \(.reachable)"' "$DET")" "H7 toolkit-cache 402 -> 200: the record is rewritten"
+unset STUB_CODE FIXTURE_ENDPOINTS
+
+# ---- H8 JEV_WIRING=off (review RM5) --------------------------------------------------------------------------------------
+setup h8 with-submodules; mkdir -p "$HOME/.claude"; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"
+JEV_WIRING=off run_bs h8 --default-on
+assert_contains "$T/h8.err" "default-on not engaged: JEV_WIRING=off" "H8 JEV_WIRING=off => default-on not engaged, and the reason is named"
+assert_file_absent "$HOME/.claude/jev-wiring.marker" "H8 JEV_WIRING=off => nothing wired"
+assert_rc 0 "$RC" "H8 JEV_WIRING=off => rc 0 (a declared opt-out)"
+assert_contains "$T/h8.err" "NOT wired - the operator opted out" "H8 JEV_WIRING=off => RESULT says NOT wired"
+assert_eq "false" "$(jq -r '.consent.default_on' "$JEV_STATE_DIR/consent.json")" "H8 consent record default_on=false"
+# negative control: the same run without the opt-out wires (so H8 is not passing for another reason)
+setup h8c with-submodules; mkdir -p "$HOME/.claude"; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"
+run_bs h8c --default-on
+assert_file_exists "$HOME/.claude/jev-wiring.marker" "H8 CONTROL: without JEV_WIRING=off the same run wires"
+
+# ---- H9 key value never in a DEFAULT-ON run's output or consent.json (review RM12) --------------------------------------
+setup h9 with-submodules; mkdir -p "$HOME/.claude"; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"
+run_bs h9 --default-on
+assert_eq "true" "$(jq -r '.consent.default_on' "$JEV_STATE_DIR/consent.json")" "H9 setup: default-on engaged (the leak path is exercised)"
+assert_eq "TYPESAFE_API_KEY" "$(jq -r '.consent.key_vars | join(",")' "$JEV_STATE_DIR/consent.json")" "H9 consent.json names the key variable only"
+if leak_scan_selftest "$T"; then ok "H9 CONTROL NEEDLE: the scan of the run dir can see a planted needle"; else fail "H9 the scan is blind"; fi
+assert_eq "1" "$(grep -rlF -- "$KEY_A" "$T" 2>/dev/null | grep -cF "$KEYS")" "H9 CONTROL: the scan sees the key in the keys file"
+assert_eq "0" "$(leaks_count "$KEY_A" "$T")" "H9 the key value is in no bootstrap output, log, consent.json or state file of the default-on run"
+assert_eq "0" "$(grep -cF -- "$KEY_A" "$T/h9.err" "$T/h9.out" "$JEV_STATE_DIR/consent.json" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}')" "H9 stderr/stdout/consent.json carry no key value"
 
 # ---- H6 post_update_hook STEP 4e ------------------------------------------------------------------------------
 HOSTS=()

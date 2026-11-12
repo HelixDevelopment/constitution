@@ -109,6 +109,34 @@ jev_providers_dir() { jev_abs "${CMA_PROVIDERS_DIR:-$(jev_cma_share_dir)/provide
 jev_default_cache_file() { printf '%s/.local/share/claude-multi-account/providers/jev-endpoints.json' "${HOME:-}"; }
 jev_aliases_file() { jev_abs "${JEV_CALIBRATE_ALIAS_FILE:-$(jev_cma_share_dir)/aliases.sh}"; }
 
+# ---- Claude Code settings the toolkit installer wires (review 2026-11-12 F4) -----------------------------------------------
+# claude_toolkit jev-setup.sh writes the PreToolUse hook into ${SHARED_DIR:-$HOME/.claude-shared}/settings.json and into
+# every $HOME/.claude-* home (plus $HOME/.claude when it is in scope); live T4 (2026-11-12) wired ~/.claude-shared. ONE
+# resolver for jev-status.sh and cm_jev_wiring.sh. CLAUDE_CONFIG_DIR and SHARED_DIR are honoured only when JEV_HOME is
+# unset (the real user's home); a gate run against a declared JEV_HOME stays inside it.
+# jev_claude_settings_dirs -> candidate agent config dirs (existing ones only, de-duplicated by real path), one per line
+jev_claude_settings_dirs() {
+  local h d r seen=""; h="$(jev_home)"
+  {
+    if [ -z "${JEV_HOME:-}" ]; then
+      [ -z "${CLAUDE_CONFIG_DIR:-}" ] || printf '%s\n' "$CLAUDE_CONFIG_DIR"
+      printf '%s\n' "${SHARED_DIR:-$h/.claude-shared}"
+    else printf '%s\n' "$h/.claude-shared"; fi
+    printf '%s\n' "$h/.claude"
+    for d in "$h"/.claude-*; do [ -d "$d" ] && printf '%s\n' "$d"; done
+  } | while IFS= read -r d; do
+    [ -n "$d" ] && [ -d "$d" ] || continue
+    r="$(readlink -f -- "$d" 2>/dev/null || printf '%s' "$d")"
+    case " $seen " in *" $r "*) continue ;; esac
+    seen="$seen $r"; printf '%s\n' "$d"
+  done
+}
+# jev_settings_wired <settings.json> -> 0 when a PreToolUse hook command references jev-gate.sh (a mention elsewhere,
+# e.g. in permissions, a PostToolUse hook or a note, is NOT wiring)
+jev_settings_wired() {
+  [ -f "$1" ] && jq -e '[.hooks.PreToolUse[]? | .. | objects | .command? // empty | strings | select(test("jev-gate\\.sh"))] | length > 0' "$1" >/dev/null 2>&1
+}
+
 # ---- value whitelists for anything written into an env file / MCP entry (review r6 m6-5) --------------------------------------
 # The env file is SOURCED by a shell, so a value must be inert there: `a;cmd` or `http://h/$(id)` must never be written.
 # Each field has its own closed character set; a rejected value is refused (rc 1), never quoted-and-hoped.

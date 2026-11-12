@@ -14,6 +14,16 @@
 #   P12 a set marked stopping refuses a new acquire (rc 5);  P13 lease lock held -> rc 4, no lease
 #   P14 enable/disable/switch/auto refused (rc 2) and never sent to llmctl;  P15 verdict --json lists only systemone-native
 #   P16 heartbeat refreshes; a pid-less lease past its TTL is reaped;  P17 pressure.ok=false -> does_not_fit
+#   (round 2, review 2026-11-12 F2/F5)
+#   P21 a FAILED last-release stop keeps the lease set (constitution_started, stopping mark), records event stop_failed,
+#       returns rc 6; the next release (stopper gone) re-attempts the stop and only a successful stop removes the set
+#   P22 the release stop is bounded by the START/STOP timeout (JEV_LLMCTL_START_TIMEOUT), not by the read timeout;
+#       a stop slower than that bound is a stop_failed (the set is kept)
+#   P23 JEV_PLACE_MAX=2: both started profiles are stopped on the last release (not only the first set)
+#   P24 a pid holder is identified by pid AND process start time: a reused pid (start time differs) is reaped
+#   P25 joining an existing set re-checks the unit (degraded -> refused, rc 5, no lease) and re-registers the cache entry
+#   P26 every placement verdict is in the closed set {fits, fits_with_reduced_threads, does_not_fit, undetermined} or null;
+#       start/stop outcomes are in the separate `event` field
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
@@ -39,7 +49,7 @@ cap() {
 fresh() {
   make_fixture_env s4
   export PATH="$FIXTURES/bin-place:$PATH" JEV_TEST=1 PLACE_CAP_JSON="$T/cap.json" JEV_LOCK_TIMEOUT=2
-  unset PLACE_CAP_RC PLACE_CAP_SLEEP PLACE_START_RC JEV_LLMCTL_TIMEOUT LLMCTL_GATEWAY_URL
+  unset PLACE_CAP_RC PLACE_CAP_SLEEP PLACE_START_RC PLACE_STOP_RC PLACE_STOP_SLEEP JEV_LLMCTL_TIMEOUT JEV_LLMCTL_START_TIMEOUT JEV_PLACE_MAX LLMCTL_GATEWAY_URL
   : > "$STUB_LOG/llmctl.log"
   CACHE="$CMA_PROVIDERS_DIR/jev-endpoints.json"
 }
@@ -178,5 +188,103 @@ assert_eqx "0 0" "$rc $(grep -c '^llmctl start decide-a' "$STUB_LOG/llmctl.log")
 assert_eqx false "$(jq -r '.sets["decide-a"].constitution_started' "$JEV_STATE_DIR/leases.json")" "P20 an operator-started unit is recorded constitution_started=false"
 "$PLACE" release s1 >/dev/null 2>&1
 assert_eqx 0 "$(stops)" "P20 releasing the last lease of an operator-started unit never stops it"
+
+# ---- P21 failed stop keeps the set; the next release retries ------------------------------------------------------
+pl() { jq -r "$1" "$JEV_STATE_DIR/placement.json"; }
+closed_verdict() { case "$(pl '.placement.verdict')" in fits|fits_with_reduced_threads|does_not_fit|undetermined|null) ok "P26 $1: verdict $(pl '.placement.verdict') in the closed set" ;; *) fail "P26 $1: verdict $(pl '.placement.verdict') outside the closed set" ;; esac; }
+fresh; cap "$T/cap.json"
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+export PLACE_STOP_RC=1
+"$PLACE" release s1 >/dev/null 2>"$T/e21"; rc=$?
+assert_eqx 6 "$rc" "P21 a failed stop on the last release returns rc 6 (never 0)"
+assert_eqx 1 "$(stops)" "P21 one stop attempted"
+assert_eqx true "$(jq -r '.sets["decide-a"].constitution_started' "$JEV_STATE_DIR/leases.json")" "P21 the set is KEPT with constitution_started=true"
+assert_eqx true "$(jq -r '.sets["decide-a"].stopping != null' "$JEV_STATE_DIR/leases.json")" "P21 the stopping mark is kept"
+assert_eqx 1 "$(jq -r '.sets["decide-a"].stop_failed.rc' "$JEV_STATE_DIR/leases.json")" "P21 the set records the failed stop rc"
+assert_eqx stop_failed "$(pl '.placement.event')" "P21 placement event stop_failed"
+closed_verdict "stop_failed"
+assert_eqx 1 "$(jq '[.endpoints[] | select(.provider_id=="llmctl-local")] | length' "$CACHE")" "P21 the cache entry stays while the model runs"
+has "$T/e21" "stop_failed" "P21 stop_failed is logged"
+unset PLACE_STOP_RC
+"$PLACE" release s1 >/dev/null 2>"$T/e21b"; rc=$?
+assert_eqx 0 "$rc" "P21 the next release re-attempts the stop and succeeds (rc 0)"
+assert_eqx 2 "$(stops)" "P21 a second stop was sent (retry)"
+assert_eqx null "$(jq -c '.sets["decide-a"]' "$JEV_STATE_DIR/leases.json")" "P21 only a successful stop removes the set"
+assert_eqx stopped "$(pl '.placement.event')" "P21 placement event stopped after the retry"
+closed_verdict "stopped"
+[ ! -e "$STUB_LOG/running.decide-a" ] && ok "P21 model stopped after the retry" || fail "P21 model still running after the retry"
+# a failed stop followed by an acquire joins the kept set (no second start, still constitution-started)
+fresh; cap "$T/cap.json"
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+PLACE_STOP_RC=1 "$PLACE" release s1 >/dev/null 2>&1
+out="$("$PLACE" acquire s2 --pid $$ 2>/dev/null)"; rc=$?
+assert_eqx "0 decide-a 1" "$rc $out $(starts)" "P21 after a failed stop a new acquire joins the kept model (no second start)"
+assert_eqx true "$(jq -r '.sets["decide-a"].constitution_started' "$JEV_STATE_DIR/leases.json")" "P21 the joined set stays constitution-started (a later release still stops it)"
+
+# ---- P22 the stop uses the stop timeout ---------------------------------------------------------------------------
+fresh; cap "$T/cap.json"
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+PLACE_STOP_SLEEP=3 JEV_LLMCTL_TIMEOUT=1 JEV_LLMCTL_START_TIMEOUT=10 "$PLACE" release s1 >/dev/null 2>"$T/e22"; rc=$?
+assert_eqx 0 "$rc" "P22 a 3 s stop with read timeout 1 s and stop timeout 10 s succeeds (bounded by the stop timeout)"
+assert_eqx null "$(jq -c '.sets["decide-a"]' "$JEV_STATE_DIR/leases.json")" "P22 set removed after the slow stop"
+fresh; cap "$T/cap.json"
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+t0=$(date +%s); PLACE_STOP_SLEEP=8 JEV_LLMCTL_START_TIMEOUT=1 "$PLACE" release s1 >/dev/null 2>"$T/e22b"; rc=$?; t1=$(date +%s)
+assert_eqx 6 "$rc" "P22 a stop slower than the stop timeout is stop_failed (rc 6)"
+[ $((t1 - t0)) -le 6 ] && ok "P22 the stop is bounded ($((t1 - t0))s)" || fail "P22 the stop was not bounded ($((t1 - t0))s)"
+assert_eqx true "$(jq -r '.sets["decide-a"].constitution_started' "$JEV_STATE_DIR/leases.json")" "P22 timed-out stop keeps the set"
+
+# ---- P23 MAXN>1 -----------------------------------------------------------------------------------------------------
+fresh; cap "$T/cap.json"; export JEV_PLACE_MAX=2
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+assert_eqx 2 "$(starts)" "P23 two profiles started with JEV_PLACE_MAX=2"
+"$PLACE" release s1 >/dev/null 2>"$T/e23"; rc=$?
+assert_eqx "0 2" "$rc $(stops)" "P23 the last release stops BOTH started profiles"
+assert_eqx 0 "$(jq '.sets | length' "$JEV_STATE_DIR/leases.json")" "P23 both sets removed"
+assert_eqx 0 "$(find "$STUB_LOG" -maxdepth 1 -name 'running.*' | wc -l | tr -d ' ')" "P23 no model left running"
+unset JEV_PLACE_MAX
+
+# ---- P24 pid identity ------------------------------------------------------------------------------------------------
+if [ -r "/proc/$$/stat" ]; then
+  fresh; cap "$T/cap.json"
+  "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+  assert_eqx number "$(jq -r '.sets["decide-a"].leases[0].pid_start | type' "$JEV_STATE_DIR/leases.json")" "P24 the lease records the holder's process start time"
+  JEV_NOW_EPOCH=1700099999 "$PLACE" reap 2>/dev/null
+  assert_eqx 1 "$(jq -r '.sets["decide-a"].leases|length' "$JEV_STATE_DIR/leases.json")" "P24 a live pid holder with a matching start time is kept"
+  jq '.sets["decide-a"].leases[0].pid_start = 1' "$JEV_STATE_DIR/leases.json" > "$T/l24" && cp "$T/l24" "$JEV_STATE_DIR/leases.json"
+  "$PLACE" reap 2>"$T/e24"
+  assert_eqx 0 "$(jq -r '.sets["decide-a"].leases|length' "$JEV_STATE_DIR/leases.json")" "P24 a reused pid (start time differs) is reaped"
+  assert_eqx 0 "$(stops)" "P24 the reap never stops the model"
+else
+  assert_skip "P24 /proc/<pid>/stat unreadable: pid identity falls back to the TTL"
+fi
+
+# ---- P25 join of an existing set re-checks the unit and re-registers the cache -----------------------------------------
+fresh; cap "$T/cap.json"
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+jq '.endpoints = []' "$CACHE" > "$T/c25" && cp "$T/c25" "$CACHE"
+out="$("$PLACE" acquire s2 --pid $$ 2>/dev/null)"
+assert_eqx decide-a "$out" "P25 second holder joins"
+assert_eqx 1 "$(jq '[.endpoints[] | select(.provider_id=="llmctl-local")] | length' "$CACHE")" "P25 the join re-registers the local gateway in the cache"
+assert_eqx joined "$(pl '.placement.event')" "P25 placement event joined"
+closed_verdict "joined"
+cap "$T/cap.json" fits fits 5000 degraded
+"$PLACE" acquire s3 --pid $$ >/dev/null 2>"$T/e25"; rc=$?
+assert_eqx 5 "$rc" "P25 a degraded unit is not joined (rc 5)"
+assert_eqx 2 "$(jq -r '.sets["decide-a"].leases|length' "$JEV_STATE_DIR/leases.json")" "P25 no lease added for the degraded unit"
+assert_eqx "does_not_fit" "$(pl '.placement.verdict')" "P25 degraded => does_not_fit"
+has "$T/e25" "degraded" "P25 reason names the degraded unit"
+assert_eqx 1 "$(starts)" "P25 no second start"
+
+# ---- P26 closed verdict set for a failed start ------------------------------------------------------------------------
+fresh; cap "$T/cap.json" fits does_not_fit; export PLACE_START_RC=1
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+assert_eqx start_failed "$(pl '.placement.event')" "P26 a failed start is recorded as event start_failed"
+assert_eqx fits "$(pl '.placement.verdict')" "P26 the verdict stays the measured capacity verdict (fits), not a false does_not_fit"
+closed_verdict "start_failed"
+unset PLACE_START_RC
+fresh; cap "$T/cap.json" does_not_fit does_not_fit
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+assert_eqx "does_not_fit no_fit" "$(pl '"\(.placement.verdict) \(.placement.event)"')" "P26 no candidate fits => does_not_fit, event no_fit"
 
 finish

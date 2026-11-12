@@ -10,12 +10,16 @@
 #   jev-place.sh verdict  [--json]               capacity verdict per candidate profile (read-only, no start)
 #   jev-place.sh acquire  <holder> [--pid P] [--ttl S]   take a lease; start a fitting profile if none is running
 #   jev-place.sh heartbeat <holder>              refresh a lease
-#   jev-place.sh release  <holder>               drop a lease; the last release stops a constitution-started model
+#   jev-place.sh release  <holder>               drop a lease; the last release stops EVERY constitution-started model
+#                                                with no lease left (bounded by the start/stop timeout)
 #   jev-place.sh reap                            drop leases whose holder pid is dead or whose heartbeat expired
 #   jev-place.sh status   [--json]               lease sets + last placement entry
 # Exit codes: 0 done; 2 usage / cannot determine (jq absent); 4 lease lock timeout (no lease taken: caller falls back);
 #             5 no local placement (verdict not fits / undetermined / start refused): the placement entry names the
-#               fallback route (cloud when a non-placeholder hosted key exists, else none).
+#               fallback route (cloud when a non-placeholder hosted key exists, else none);
+#             6 release: an `llmctl stop` failed or timed out. The lease set is KEPT (constitution_started, stopping
+#               mark, stop_failed {at, rc}); the next release (or an acquire, which joins it) retries once the stop mark
+#               is cleared (stopper process gone, or older than the stop timeout + 30 s). The model is never orphaned.
 # Env (names only):
 #   JEV_LLMCTL_BIN (default llmctl), JEV_LLMCTL_TIMEOUT (default 20 s, read calls), JEV_LLMCTL_START_TIMEOUT (default 300 s),
 #   JEV_PLACE_PROFILES (comma list: candidate order; default = every systemone-native decide profile in llmctl order),
@@ -23,7 +27,13 @@
 #   re-evaluation cadence + the llmctl timeout, §11.4.291(J)), JEV_LOCK_TIMEOUT (default 10 s),
 #   JEV_STATE_DIR / JEV_HOME (state), CMA_PROVIDERS_DIR (endpoint cache dir), LLMCTL_GATEWAY_URL (default from
 #   `llmctl decide status --json` registry), JEV_NOW_EPOCH (clock seam, ONLY with JEV_TEST=1).
-# Verdicts (§11.4.291(A)): fits | fits_with_reduced_threads | does_not_fit | undetermined. undetermined is NEVER fits.
+# Verdicts (§11.4.291(A)): fits | fits_with_reduced_threads | does_not_fit | undetermined (or null when no capacity
+# verdict applies, e.g. a stop). undetermined is NEVER fits. What HAPPENED is in the separate `event` field, closed set:
+# placed | joined | joined_running | no_fit | undetermined | start_failed | start_refused | refused_stopping |
+# refused_degraded | lease_lock_timeout | stopped | stop_failed.
+# Holder identity: a --pid holder records its process start time (/proc/<pid>/stat field 22); it is alive while
+# /proc/<pid> exists, its start time matches and its cmdline is non-empty (a reused pid is dead). Without /proc the
+# holder is alive while `kill -0` succeeds AND its heartbeat is within its TTL. A pid-less holder lives by its TTL.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib_decide.sh
@@ -107,11 +117,12 @@ unit_status_of() {
 
 hosted_key_var() { local v; for v in TYPESAFE_API_KEY OPENROUTER_API_KEY; do [ "$(key_state "$v" | cut -f1)" = real ] && { echo "$v"; return 0; }; done; return 0; }
 
-write_placement() { # write_placement <profile> <verdict> <reason> <route> <started> <threads>
+write_placement() { # write_placement <profile> <verdict|""> <reason> <route> <started> <threads> <event>
   local kv; kv="$(hosted_key_var)"
-  jq -nc --arg p "$1" --arg v "$2" --arg r "$3" --arg route "$4" --argjson st "$5" --arg th "${6:-0}" --arg kv "$kv" --argjson now "$NOW" \
+  case "$2" in ""|fits|fits_with_reduced_threads|does_not_fit|undetermined) ;; *) log "internal: verdict '$2' outside the closed set"; return 2 ;; esac
+  jq -nc --arg p "$1" --arg v "$2" --arg r "$3" --arg route "$4" --argjson st "$5" --arg th "${6:-0}" --arg ev "${7:-}" --arg kv "$kv" --argjson now "$NOW" \
      --slurpfile cap <(jq -c '{host:{mem_total_mb:.host.mem_total_mb, mem_available_mb:.host.mem_available_mb, usable_mem_mb:.host.usable_mem_mb, load:.host.load, nproc_headroom:(.host.nproc.headroom // null)}, reserve:{mem_reserved_mb:.reserve.mem_reserved_mb, cpus_reserved:.reserve.cpus_reserved}, pressure:.pressure, time:.time}' "$WORK/cap.json" 2>/dev/null || echo '{}') \
-     '{placement:{profile:$p, verdict:$v, reason:$r, route:$route, key_variable:(if $route=="cloud" then $kv else null end), constitution_started:$st, threads:($th|tonumber? // 0),
+     '{placement:{profile:(if $p=="" then null else $p end), verdict:(if $v=="" then null else $v end), event:(if $ev=="" then null else $ev end), reason:$r, route:$route, key_variable:(if $route=="cloud" then $kv else null end), constitution_started:$st, threads:($th|tonumber? // 0),
                  inputs:($cap[0] // {}), source:"llmctl capacity --json (schema llmctl.capacity/1)", evaluated_at:$now}}' > "$WORK/pl.json"
   jev_write_atomic "$PLACEMENT" < "$WORK/pl.json"
   if [ -f "$DETECTION" ]; then
@@ -147,29 +158,52 @@ cache_unregister() {
 leases_load() { [ -s "$LEASES" ] && jq -e . "$LEASES" >/dev/null 2>&1 && cat "$LEASES" || echo '{"sets":{}}'; }
 leases_save() { jev_write_atomic "$LEASES"; }
 
-holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl>
-  local pid="$1" hb="$2" ttl="$3"
+proc_start() { # proc_start <pid> -> the process start time (clock ticks since boot, /proc/<pid>/stat field 22) or ""
+  local st; st="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0
+  st="${st##*) }"   # the comm field may hold spaces and ')': fields after the LAST ") " start at field 3
+  # shellcheck disable=SC2086
+  set -- $st; printf '%s\n' "${20:-}"
+}
+pid_alive() { # pid_alive <pid> <recorded-start|""|null> -> 0 alive, 1 dead, 2 unknown (/proc unavailable)
+  local pid="$1" rec="${2:-}" cur
+  [ -d /proc/self ] || return 2
+  [ -d "/proc/$pid" ] || return 1
+  if [ -n "$rec" ] && [ "$rec" != "null" ]; then cur="$(proc_start "$pid")"; [ "$cur" = "$rec" ] || return 1; fi
+  # a /proc file reports size 0, so read it: an empty cmdline is a zombie or a kernel thread, not a session holder
+  [ -n "$(head -c 64 "/proc/$pid/cmdline" 2>/dev/null | tr -d '\0')" ] || return 1
+  return 0
+}
+holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl> [pid_start]
+  local pid="$1" hb="$2" ttl="$3" rc=0
   if [ -n "$pid" ] && [ "$pid" != "null" ]; then
+    pid_alive "$pid" "${4:-}" || rc=$?
+    case "$rc" in 0) return 0 ;; 1) return 1 ;; esac
+    # no /proc: kill -0 cannot tell a reused pid, so the heartbeat TTL bounds the lease as well
     kill -0 "$pid" 2>/dev/null || return 1
-    # a /proc file reports size 0, so read it: an empty cmdline is a zombie or a kernel thread, not a session holder
-    if [ -d /proc ]; then [ -n "$(head -c 64 "/proc/$pid/cmdline" 2>/dev/null | tr -d '\0')" ] || return 1; fi
-    return 0
   fi
   [ $(( NOW - hb )) -le "$ttl" ]
 }
 
 reap_locked() { # drops dead holders from every set (caller holds the lock); never stops a model
   # every loop variable is local: bash scoping is dynamic, so a bare `read pid ttl` here would clear the CALLER's pid/ttl
-  local cur out prof h pid hb ttl; cur="$(leases_load)"; out="$cur"
-  while IFS=$'\t' read -r prof h pid hb ttl; do
+  local cur out prof h pid hb ttl pst sat spid sst arc; cur="$(leases_load)"; out="$cur"
+  while IFS=$'\t' read -r prof h pid hb ttl pst; do
     [ -n "$prof" ] || continue
-    if ! holder_alive "$pid" "$hb" "$ttl"; then
+    if ! holder_alive "$pid" "$hb" "$ttl" "$pst"; then
       log "reaped dead lease holder=$h profile=$prof"
       out="$(jq -c --arg p "$prof" --arg h "$h" '.sets[$p].leases |= map(select(.holder != $h))' <<<"$out")"
     fi
-  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, .holder, (.pid // "null" | tostring), .heartbeat_at, .ttl] | @tsv' <<<"$cur")
-  # a stale `stopping` mark (stopper dead or older than the stop timeout) is cleared (§11.4.291(J))
-  out="$(jq -c --argjson now "$NOW" --argjson st "$STMO" '.sets |= with_entries(if (.value.stopping // null) != null and ($now - .value.stopping.at) > ($st + 30) then .value.stopping = null else . end)' <<<"$out")"
+  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, .holder, (.pid // "null" | tostring), .heartbeat_at, .ttl, (.pid_start // "null" | tostring)] | @tsv' <<<"$cur")
+  # a `stopping` mark is cleared when its stopper process is gone (pid + start time) or the mark is older than the stop
+  # timeout + 30 s (§11.4.291(J)); a set kept after a failed stop then becomes stoppable again by the next release
+  while IFS=$'\t' read -r prof sat spid sst; do
+    [ -n "$prof" ] || continue
+    arc=0; pid_alive "$spid" "$sst" || arc=$?
+    if [ "$arc" = 1 ] || [ $(( NOW - sat )) -gt $(( STMO + 30 )) ]; then
+      log "cleared the stop mark of $prof (stopper gone or mark older than the stop timeout)"
+      out="$(jq -c --arg p "$prof" '.sets[$p].stopping = null' <<<"$out")"
+    fi
+  done < <(jq -r '.sets | to_entries[] | select((.value.stopping // null) != null) | [.key, .value.stopping.at, (.value.stopping.pid // "null" | tostring), (.value.stopping.pid_start // "null" | tostring)] | @tsv' <<<"$out")
   [ "$out" = "$cur" ] || printf '%s\n' "$out" | leases_save
 }
 
@@ -179,6 +213,10 @@ with_lock() { # with_lock <fn> args... -> rc 4 on lock timeout
   local rc=0; "$@" || rc=$?
   flock -u 9; exec 9>&-
   return "$rc"
+}
+
+lease_obj_args() { # lease_obj_args <pid> -> the start time of a --pid holder ("" when none / unreadable)
+  if [ -n "$1" ]; then proc_start "$1"; fi
 }
 
 cmd_verdict() {
@@ -204,25 +242,40 @@ cmd_verdict() {
 }
 
 acquire_locked() {
-  local holder="$1" pid="$2" ttl="$3" cur prof st reason line v th r us started=0 n=0
+  local holder="$1" pid="$2" ttl="$3" cur prof st reason line v th r us started=0 n=0 pst
+  local out_v="does_not_fit" out_ev="no_fit" out_r="no candidate profile fits" out_p="" out_th=0 any_undet=0
+  pst="$(lease_obj_args "$pid")"
   reap_locked
   cur="$(leases_load)"
   # an existing, non-stopping set (or a constitution-started model whose holders were reaped): join it, no second start
   prof="$(jq -r '[.sets | to_entries[] | select((.value.stopping // null) == null and ((.value.leases | length) > 0 or .value.constitution_started == true)) | .key][0] // empty' <<<"$cur")"
   if [ -n "$prof" ]; then
-    cur="$(jq -c --arg p "$prof" --arg h "$holder" --arg pid "$pid" --argjson now "$NOW" --argjson ttl "$ttl" \
-      '.sets[$p].leases = ([.sets[$p].leases[] | select(.holder != $h)] + [{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), heartbeat_at:$now, ttl:$ttl}])' <<<"$cur")"
+    # re-check the unit before joining (review 2026-11-12 F5): a degraded unit is never joined; an unreadable capacity
+    # answer does not block a JOIN (the model already runs) but is recorded as undetermined
+    IFS=$'\t' read -r st reason < <(capacity_read)
+    v="undetermined"; th=0; r="${reason:-}"
+    if [ "$st" = ok ]; then
+      if [ "$(unit_status_of "$prof")" = degraded ]; then
+        write_placement "$prof" "does_not_fit" "unit degraded: not joined" "$(fallback_route)" false 0 refused_degraded
+        log "refused: the unit of $prof is degraded; no lease; fallback route $(fallback_route)"; return 5
+      fi
+      IFS=$'\t' read -r v th r <<<"$(verdict_for "$prof")"
+    fi
+    cur="$(jq -c --arg p "$prof" --arg h "$holder" --arg pid "$pid" --arg pst "$pst" --argjson now "$NOW" --argjson ttl "$ttl" \
+      '.sets[$p].leases = ([.sets[$p].leases[] | select(.holder != $h)] + [{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl}])' <<<"$cur")"
     printf '%s\n' "$cur" | leases_save
-    log "lease joined: holder=$holder profile=$prof"
+    write_placement "$prof" "$v" "joined an existing lease set${r:+ ($r)}" local "$(jq -r --arg p "$prof" '.sets[$p].constitution_started == true' <<<"$cur")" "$th" joined
+    cache_register "$prof"
+    log "lease joined: holder=$holder profile=$prof (capacity $v)"
     echo "$prof"; return 0
   fi
   if jq -e '[.sets[] | select((.stopping // null) != null)] | length > 0' <<<"$cur" >/dev/null; then
-    write_placement "" "undetermined" "a lease set is stopping (refused per §11.4.291(J))" "$(fallback_route)" false 0
+    write_placement "" "undetermined" "a lease set is stopping (refused per §11.4.291(J))" "$(fallback_route)" false 0 refused_stopping
     log "refused: a lease set is stopping; fallback route $(fallback_route)"; return 5
   fi
   IFS=$'\t' read -r st reason < <(capacity_read)
   if [ "$st" != ok ]; then
-    write_placement "" "undetermined" "$reason" "$(fallback_route)" false 0
+    write_placement "" "undetermined" "$reason" "$(fallback_route)" false 0 undetermined
     log "undetermined ($reason): no local start; fallback route $(fallback_route)"; return 5
   fi
   while IFS= read -r p; do
@@ -235,30 +288,33 @@ acquire_locked() {
     us="$(unit_status_of "$p")"
     case "$us" in
       running|active)
-        cur="$(jq -c --arg p "$p" --arg h "$holder" --arg pid "$pid" --argjson now "$NOW" --argjson ttl "$ttl" \
-          '.sets[$p] = {constitution_started:false, stopping:null, leases:[{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), heartbeat_at:$now, ttl:$ttl}]}' <<<"$cur")"
+        cur="$(jq -c --arg p "$p" --arg h "$holder" --arg pid "$pid" --arg pst "$pst" --argjson now "$NOW" --argjson ttl "$ttl" \
+          '.sets[$p] = {constitution_started:false, stopping:null, leases:[{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl}]}' <<<"$cur")"
         printf '%s\n' "$cur" | leases_save
-        write_placement "$p" "$v" "already running (not started by the constitution)" local false "$th"
+        write_placement "$p" "$v" "already running (not started by the constitution)" local false "$th" joined_running
         cache_register "$p"
         log "joined the already-running unit $p (not constitution-started; it is never stopped by this producer)"
         echo "$p"; return 0 ;;
       starting|activating) log "candidate $p: unit is $us; not started a second time"; continue ;;
     esac
-    case "$v" in fits|fits_with_reduced_threads) ;; *) log "candidate $p: $v ($r)"; continue ;; esac
+    case "$v" in fits|fits_with_reduced_threads) ;; *) [ "$v" != undetermined ] || any_undet=1; log "candidate $p: $v ($r)"; continue ;; esac
     local src=0
     bounded "$STMO" "$WORK/start.out" "$LLMCTL" start "$p" || src=$?
     if [ "$src" = 0 ]; then
       started=1; n=$((n+1)); prof="${prof:-$p}"
-      cur="$(jq -c --arg p "$p" --arg h "$holder" --arg pid "$pid" --argjson now "$NOW" --argjson ttl "$ttl" \
-        '.sets[$p] = {constitution_started:true, started_at:$now, stopping:null, leases:[{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), heartbeat_at:$now, ttl:$ttl}]}' <<<"$cur")"
+      cur="$(jq -c --arg p "$p" --arg h "$holder" --arg pid "$pid" --arg pst "$pst" --argjson now "$NOW" --argjson ttl "$ttl" \
+        '.sets[$p] = {constitution_started:true, started_at:$now, stopping:null, leases:[{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl}]}' <<<"$cur")"
       printf '%s\n' "$cur" | leases_save
-      write_placement "$p" "$v" "$r" local true "$th"
+      write_placement "$p" "$v" "$r" local true "$th" placed
       cache_register "$p"
       log "started $p ($v, threads=$th); lease holder=$holder; local gateway registered at priority 10"
     elif [ "$src" = 75 ]; then
       log "llmctl start $p refused (75): does_not_fit"
+      [ "$out_ev" = start_failed ] || { out_v="does_not_fit"; out_ev="start_refused"; out_r="llmctl start $p refused (75, pressure gate)"; out_p="$p"; out_th="$th"; }
     else
       log "llmctl start $p failed rc=$src: $(head -c 300 "$WORK/start.out.err" 2>/dev/null | tr '\n' ' ')"
+      # the capacity verdict stays what was MEASURED; the failure is the event (review 2026-11-12 F5)
+      out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src"; out_p="$p"; out_th="$th"
       # Live T5 (2026-11-12): llmctl can fail AFTER the unit began starting (health not answered in time, or our own
       # bound expired). The unit was not running before (checked above), so this producer started it: stopping it
       # again is the only way it is not left behind with no lease. 75 (pressure gate, no partial start) needs nothing.
@@ -267,8 +323,9 @@ acquire_locked() {
     fi
   done < <(candidates)
   if [ "$started" = 1 ]; then echo "$prof"; return 0; fi
-  write_placement "" "does_not_fit" "no candidate profile fits or started" "$(fallback_route)" false 0
-  log "no local placement; fallback route $(fallback_route)"; return 5
+  if [ "$out_ev" = no_fit ] && [ "$any_undet" = 1 ]; then out_v="undetermined"; out_r="no candidate fits; at least one is undetermined"; fi
+  write_placement "$out_p" "$out_v" "$out_r" "$(fallback_route)" false "$out_th" "$out_ev"
+  log "no local placement ($out_ev); fallback route $(fallback_route)"; return 5
 }
 
 release_locked() {
@@ -277,23 +334,34 @@ release_locked() {
   cur="$(leases_load)"
   cur="$(jq -c --arg h "$holder" '.sets |= map_values(.leases |= map(select(.holder != $h)))' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
-  # last lease of a constitution-started set: mark stopping (others refuse), then stop OUTSIDE the lock
-  prof="$(jq -r '[.sets | to_entries[] | select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null) | .key][0] // empty' <<<"$cur")"
-  if [ -n "$prof" ]; then
-    cur="$(jq -c --arg p "$prof" --argjson now "$NOW" --arg pid "$$" '.sets[$p].stopping = {at:$now, pid:($pid|tonumber)}' <<<"$cur")"
+  # EVERY constitution-started set with no lease left (JEV_PLACE_MAX>1 starts several): mark stopping (others refuse),
+  # then stop OUTSIDE the lock. The mark names this process (pid + start time) so a dead stopper's mark is cleared.
+  local me_start; me_start="$(proc_start "$$")"
+  while IFS= read -r prof; do
+    [ -n "$prof" ] || continue
+    cur="$(jq -c --arg p "$prof" --argjson now "$NOW" --arg pid "$$" --arg pst "$me_start" '.sets[$p].stopping = {at:$now, pid:($pid|tonumber), pid_start:($pst|tonumber? // null)}' <<<"$cur")"
     printf '%s\n' "$cur" | leases_save
     echo "$prof"
-  fi
+  done < <(jq -r '.sets | to_entries[] | select((.value.leases | length) == 0 and (.value.constitution_started == true) and (.value.stopping // null) == null) | .key' <<<"$cur")
   # an empty set this producer did not start is just forgotten (an operator-started model is never stopped)
   cur="$(jq -c '.sets |= with_entries(select((.value.leases | length) > 0 or .value.constitution_started == true))' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
 }
 finish_stop_locked() { # finish_stop_locked <profile> <stop-rc>
   local cur; cur="$(leases_load)"
+  if [ "$2" != 0 ]; then
+    # review 2026-11-12 F2: a failed or timed-out stop leaves the model RUNNING. Keep the set (constitution_started,
+    # stopping mark) so it is never orphaned; record the failure; the cache entry stays because the model still answers.
+    cur="$(jq -c --arg p "$1" --argjson now "$NOW" --argjson rc "$2" '.sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")"
+    printf '%s\n' "$cur" | leases_save
+    write_placement "$1" "" "llmctl stop rc=$2 (failed or timed out); the set is kept and the stop is retried by the next release" local true 0 stop_failed
+    return 0
+  fi
   cur="$(jq -c --arg p "$1" 'del(.sets[$p])' <<<"$cur")"
   printf '%s\n' "$cur" | leases_save
-  cache_unregister
-  write_placement "$1" "stopped" "last lease released; llmctl stop rc=$2" "$(fallback_route)" false 0
+  # the cache holds ONE llmctl-local entry; drop it only when no lease set (no local model) is left
+  [ "$(jq '.sets | length' <<<"$cur")" != 0 ] || cache_unregister
+  write_placement "$1" "" "last lease released; llmctl stop rc=0" "$(fallback_route)" false 0 stopped
 }
 
 sub="${1:-}"; shift || true
@@ -305,7 +373,7 @@ case "$sub" in
     while [ $# -gt 0 ]; do case "$1" in --pid) pid="${2:-}"; shift 2 ;; --ttl) ttl="${2:-}"; shift 2 ;; *) echo "jev-place: unknown arg $1" >&2; exit 2 ;; esac; done
     case "$pid$ttl" in *[!0-9]*) echo "jev-place: --pid/--ttl must be integers" >&2; exit 2 ;; esac
     rc=0; with_lock acquire_locked "$holder" "$pid" "$ttl" || rc=$?
-    if [ "$rc" = 4 ]; then write_placement "" "undetermined" "lease_lock_timeout" "$(fallback_route)" false 0 2>/dev/null || true; log "lease_lock_timeout: no lease taken"; fi
+    if [ "$rc" = 4 ]; then write_placement "" "undetermined" "lease_lock_timeout" "$(fallback_route)" false 0 lease_lock_timeout 2>/dev/null || true; log "lease_lock_timeout: no lease taken"; fi
     exit "$rc" ;;
   heartbeat)
     holder="${1:-}"; jev_check_word "$holder" || { echo "jev-place: heartbeat needs a holder id" >&2; exit 2; }
@@ -313,18 +381,23 @@ case "$sub" in
     with_lock hb "$holder" ;;
   release)
     holder="${1:-}"; jev_check_word "$holder" || { echo "jev-place: release needs a holder id" >&2; exit 2; }
-    rc=0; stopprof="$(with_lock release_locked "$holder")" || rc=$?
+    rc=0; stopprofs="$(with_lock release_locked "$holder")" || rc=$?
     [ "$rc" = 0 ] || { log "release: lock timeout (rc $rc)"; exit "$rc"; }
-    if [ -n "$stopprof" ]; then
-      src=0; bounded "$RTMO" "$WORK/stop.out" "$LLMCTL" stop "$stopprof" || src=$?
-      log "last lease released: llmctl stop $stopprof rc=$src"
-      with_lock finish_stop_locked "$stopprof" "$src" || true
-    fi ;;
+    rrc=0
+    while IFS= read -r stopprof; do
+      [ -n "$stopprof" ] || continue
+      # a stop can take as long as a start (model unload, unit shutdown): bounded by the START/STOP timeout, not RTMO
+      src=0; bounded "$STMO" "$WORK/stop.out" "$LLMCTL" stop "$stopprof" || src=$?
+      if [ "$src" = 0 ]; then log "last lease released: llmctl stop $stopprof rc=0"
+      else log "stop_failed: llmctl stop $stopprof rc=$src (124/137 = timed out after ${STMO}s); the set is kept, retried by the next release"; rrc=6; fi
+      with_lock finish_stop_locked "$stopprof" "$src" || rrc=6
+    done <<< "$stopprofs"
+    exit "$rrc" ;;
   reap) with_lock reap_locked ;;
   status)
     if [ "${1:-}" = "--json" ]; then jq -nc --slurpfile l <(leases_load) --slurpfile p <( [ -f "$PLACEMENT" ] && cat "$PLACEMENT" || echo '{}') '{leases:$l[0], placement:($p[0].placement // null)}'
     else leases_load | jq -r '.sets | to_entries[] | "\(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null)"'
-      [ -f "$PLACEMENT" ] && jq -r '.placement | "placement: profile=\(.profile) verdict=\(.verdict) route=\(.route) reason=\(.reason)"' "$PLACEMENT"; fi ;;
+      [ -f "$PLACEMENT" ] && jq -r '.placement | "placement: profile=\(.profile) verdict=\(.verdict) event=\(.event) route=\(.route) reason=\(.reason)"' "$PLACEMENT"; fi ;;
   ""|-h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; [ -n "$sub" ] && exit 0 || exit 2 ;;
   enable|disable|switch|auto) echo "jev-place: '$sub' is never run by the constitution (§11.4.291(G))" >&2; exit 2 ;;
   *) echo "jev-place: unknown subcommand '$sub'" >&2; exit 2 ;;

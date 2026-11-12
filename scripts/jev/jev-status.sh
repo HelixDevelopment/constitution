@@ -10,10 +10,13 @@
 #    "mode_stored": "<value of JEV_MODE in the env file | unknown>",
 #    "mode_reason": "<why the effective mode is what it is>",
 #    "mcp_mode_mismatch": <bool>,   # true when any MCP jev entry's JEV_MODE differs from the env file's stored JEV_MODE
-#    "health": {<endpoint>: {total, ok, last_success, last_seen, by_class}},   # from decisions.jsonl rows (2026-11-12);
-#        ok = class 2xx or http_status 2xx; a row with no endpoint field is counted under "unknown"
+#    "health": {<endpoint>: {total, ok, last_success, last_seen, by_result}},  # from the gate's decisions.jsonl rows;
+#        one event per attempt when a row has attempts[] (ok = result "ok"), else one per row (ok = no fallback and no
+#        non-2xx http_status); times in epoch SECONDS (the gate writes ms); a row with no endpoint counts as "unknown"
 #    "calibration_age_s": <int|null>,  # now - thresholds.calibrated_at; null when no thresholds exist (never 0)
-#    "consent": <consent.json .consent | null>, "wiring": {"claude": <bool>},  # wired = the Jev gate hook is in the agent settings
+#    "consent": <consent.json .consent | null>,
+#    "wiring": {"claude": <bool>, "claude_settings": [{file, wired}]},  # wired = a PreToolUse hook referencing jev-gate.sh in a
+#        settings file the toolkit installer writes ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude, ~/.claude-*)
 #    "placement": <placement.json .placement | null>, "leases": <leases.json | null>}   # local placement (jev-place.sh, §11.4.291)
 # A state file that exists but is not valid JSON is reported as null on stdout
 # and named on stderr; it is never silently treated as healthy.
@@ -118,22 +121,38 @@ inline_or_null() { # inline_or_null <file> -> compact JSON body, or null
 HEALTH='{}'; CAL_AGE=null; CONSENT=null; WIRING='{"claude":false}'; PLACEMENT=null; LEASES=null
 if [ "$HAVE_JQ" = "1" ]; then
   if [ -s "$JEV_STATE_DIR/decisions.jsonl" ]; then
-    HEALTH="$(jq -cs '[.[] | objects] | group_by(.endpoint // .provider_id // "unknown") | map({key:(.[0].endpoint // .[0].provider_id // "unknown"),
+    # The rows are what the toolkit gate (claude_toolkit scripts/jev-gate.sh `_log`) really writes (review 2026-11-12 F3):
+    # class "gate", ts in MILLISECONDS, `fallback` = the failure reason (null on success), optional attempts[] with
+    # {endpoint, http_status, result ("ok" or a fallback reason)}. Same event model as the toolkit's jev-stats.sh: a row with
+    # attempts counts one event per attempt (ok = result "ok"); otherwise one event for .endpoint (ok = no fallback and no
+    # non-2xx http_status). ts is normalised to epoch SECONDS (ms when > 1e11).
+    HEALTH="$(jq -cs '[.[] | objects
+         | ((.ts // 0) | if . > 100000000000 then (. / 1000 | floor) else . end) as $t
+         | if ((.attempts | type) == "array" and (.attempts | length) > 0)
+           then .attempts[] | {e:(.endpoint // "unknown"), ok:((.result // "") == "ok"), r:(.result // "unrecorded"), t:$t}
+           else (((.fallback // null) == null) and (((.http_status // 200) >= 200) and ((.http_status // 200) < 300))) as $ok
+             | {e:(.endpoint // .provider_id // "unknown"), ok:$ok, r:(if $ok then "ok" else (.fallback // "http_\(.http_status)") end), t:$t} end]
+       | group_by(.e) | map({key:.[0].e,
        value:{total:length,
-              ok:([.[] | select((.class // "") == "2xx" or ((.http_status // 0) >= 200 and (.http_status // 0) < 300))] | length),
-              last_success:([.[] | select((.class // "") == "2xx" or ((.http_status // 0) >= 200 and (.http_status // 0) < 300)) | .ts] | max),
-              last_seen:([.[].ts] | max),
-              by_class:(group_by(.class // "unclassified") | map({key:(.[0].class // "unclassified"), value:length}) | from_entries)}}) | from_entries' \
+              ok:([.[] | select(.ok)] | length),
+              last_success:([.[] | select(.ok) | .t] | max),
+              last_seen:([.[].t] | max),
+              by_result:(group_by(.r) | map({key:.[0].r, value:length}) | from_entries)}}) | from_entries' \
        "$JEV_STATE_DIR/decisions.jsonl" 2>/dev/null || echo '{}')"
   fi
   if [ -f "$THRESHOLDS_FILE" ] && valid_json "$THRESHOLDS_FILE"; then
     CAL_AGE="$(jq -r --argjson now "$NOW" 'if (.calibrated_at|type)=="number" then ($now - .calibrated_at) else null end' "$THRESHOLDS_FILE")"
   fi
   [ -f "$JEV_STATE_DIR/consent.json" ] && valid_json "$JEV_STATE_DIR/consent.json" && CONSENT="$(jq -c '.consent // null' "$JEV_STATE_DIR/consent.json")"
-  _wired=false
-  _sf="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-  if [ -f "$_sf" ] && grep -q 'jev-gate' "$_sf" 2>/dev/null; then _wired=true; fi
-  WIRING="{\"claude\":$_wired}"
+  # wired = a PreToolUse hook referencing jev-gate.sh in a settings file the toolkit installer writes (shared resolver,
+  # review 2026-11-12 F4); every inspected file is named so a reader sees WHERE it is (or is not) wired
+  _ws='[]'
+  while IFS= read -r _d; do
+    [ -f "$_d/settings.json" ] || continue
+    if jev_settings_wired "$_d/settings.json"; then _w=true; else _w=false; fi
+    _ws="$(jq -c --arg f "$_d/settings.json" --argjson w "$_w" '. + [{file:$f, wired:$w}]' <<<"$_ws")"
+  done < <(jev_claude_settings_dirs)
+  WIRING="$(jq -c '{claude:(any(.[]; .wired)), claude_settings:.}' <<<"$_ws")"
   [ -f "$JEV_STATE_DIR/placement.json" ] && valid_json "$JEV_STATE_DIR/placement.json" && PLACEMENT="$(jq -c '.placement // null' "$JEV_STATE_DIR/placement.json")"
   [ -f "$JEV_STATE_DIR/leases.json" ] && valid_json "$JEV_STATE_DIR/leases.json" && LEASES="$(jq -c . "$JEV_STATE_DIR/leases.json")"
 fi
@@ -249,17 +268,18 @@ if [ -f "$JEV_STATE_DIR/enforce-deferred" ]; then
 fi
 echo ""
 
-echo "Endpoint health (from decisions.jsonl; ok = answered 2xx):"
+echo "Endpoint health (from decisions.jsonl; ok = the gate got an answer with no fallback):"
 if [ "$HEALTH" != "{}" ]; then
-  jq -r 'to_entries[] | "  - \(.key): total=\(.value.total) ok=\(.value.ok) last_success=\(.value.last_success) classes=\(.value.by_class | to_entries | map("\(.key):\(.value)") | join(","))"' <<<"$HEALTH"
+  jq -r 'to_entries[] | "  - \(.key): total=\(.value.total) ok=\(.value.ok) last_success=\(.value.last_success) results=\(.value.by_result | to_entries | map("\(.key):\(.value)") | join(","))"' <<<"$HEALTH"
 else
   echo "  (no decision rows yet)"
 fi
 echo ""
 echo "Calibration: age=$( [ "$CAL_AGE" = null ] && echo "none (no thresholds: shadow only)" || echo "${CAL_AGE}s" )"
 echo "Consent: $( [ "$CONSENT" = null ] && echo "no record (bootstrap has not run with --default-on/--yes)" || jq -r '"default_on=\(.default_on) basis=\(.basis // "-") reason=\(.reason // "-")"' <<<"$CONSENT")"
-echo "Wiring: claude=$(jq -r .claude <<<"$WIRING") (Jev gate hook found in the agent settings)"
-echo "Placement: $( [ "$PLACEMENT" = null ] && echo "none" || jq -r '"profile=\(.profile) verdict=\(.verdict) route=\(.route) reason=\(.reason // "-")"' <<<"$PLACEMENT")"
+echo "Wiring: claude=$(jq -r .claude <<<"$WIRING") (a PreToolUse hook referencing jev-gate.sh)"
+jq -r '.claude_settings[]? | "  - \(.file): \(if .wired then "wired" else "not wired" end)"' <<<"$WIRING"
+echo "Placement: $( [ "$PLACEMENT" = null ] && echo "none" || jq -r '"profile=\(.profile) verdict=\(.verdict) event=\(.event // "-") route=\(.route) reason=\(.reason // "-")"' <<<"$PLACEMENT")"
 [ "$LEASES" = null ] || jq -r '.sets | to_entries[] | "  lease set \(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null)"' <<<"$LEASES"
 echo ""
 

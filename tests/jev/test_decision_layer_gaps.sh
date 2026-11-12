@@ -47,7 +47,7 @@ svc() { # svc <name> <kind> <profile> <healthy> <url>
 make_fixture_env g1
 make_fixture_constitution_root with-submodules
 nice -n 10 python3 "$FIXTURES/jev_server.py" 0 >"$T/srv.port" 2>/dev/null & SRV=$!
-trap 'kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; rm -rf "$T"' EXIT
+jev_track_pid "$SRV"; trap _jev_cleanup_fixtures EXIT   # a later make_fixture_env re-installs the same trap: the server is still killed
 for _ in $(seq 1 50); do grep -q '^PORT ' "$T/srv.port" 2>/dev/null && break; sleep 0.1; done
 PORT="$(sed -n 's/^PORT //p' "$T/srv.port" | head -1)"
 [ -n "$PORT" ] || { fail "stub gateway did not start"; finish; exit $?; }

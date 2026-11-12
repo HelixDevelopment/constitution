@@ -10,7 +10,10 @@ u() { systemctl --user show -p ActiveState,SubState,MainPID "llmctl-llama@$P.ser
 { echo "unit_before: $(u)"
   timeout 600 bash "$PL" acquire t5holder --pid "$HP" > "$S/acq.out" 2> "$S/acq.err"; echo "acquire_rc: $?"
   echo "unit_after_acquire: $(u)"
-  echo "placement: $(jq -c '{profile,verdict,route,constitution_started}' "$JEV_STATE_DIR/placement.json" 2>/dev/null)"
+  # placement.json nests its fields under .placement (review 2026-11-12 F6: the first capture read the top level and got
+  # nulls); the control needle proves the file was readable before its fields are believed
+  echo "placement_control: $(jq -r 'if (.placement|type) == "object" then "placement-object-present" else "PLACEMENT-OBJECT-ABSENT" end' "$JEV_STATE_DIR/placement.json" 2>/dev/null || echo PLACEMENT-UNREADABLE)"
+  echo "placement: $(jq -c '.placement | {profile,verdict,event,route,constitution_started,reason}' "$JEV_STATE_DIR/placement.json" 2>/dev/null)"
   echo "leases: $(jq -c '.sets' "$JEV_STATE_DIR/leases.json" 2>/dev/null)"
   echo "cache: $(jq -c '[.endpoints[]?|select(.provider_id=="llmctl-local")|{provider_id,priority,base_url,model}]' "$CMA_PROVIDERS_DIR/jev-endpoints.json" 2>/dev/null)"
   timeout 600 bash "$PL" release t5holder > "$S/rel.out" 2> "$S/rel.err"; echo "release_rc: $?"

@@ -177,7 +177,7 @@ setup m5; make_fixture_constitution_root with-submodules
 unset CMA_JEV_PINS_FILE
 jq -n '{hosted:{evil:{key_var:"EVIL_API_KEY",base_url:"https://evil.test",enabled:true}}}' > "$T/ambient.json"
 nice -n 10 python3 "$FIXTURES/jev_server.py" 0 >"$T/srv.port" 2>/dev/null & SRV=$!
-trap 'kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null' EXIT
+jev_track_pid "$SRV"; trap _jev_cleanup_fixtures EXIT   # a later make_fixture_env re-installs the same trap: the server is still killed
 for _ in $(seq 1 50); do grep -q '^PORT ' "$T/srv.port" 2>/dev/null && break; sleep 0.1; done
 PORT="$(sed -n 's/^PORT //p' "$T/srv.port" | head -1)"
 jq -n --arg u "http://127.0.0.1:$PORT" '{gateway:{running:true},profiles:[{profile:"decide-real",running:true}],registry:{services:[{name:"decide-gateway",protocol:"http",healthy:true,url:$u,labels:{kind:"gateway",profile:"decide"}}]}}' > "$T/status.json"

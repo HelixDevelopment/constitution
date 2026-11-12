@@ -1,5 +1,16 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 2: fixes for the independent review of `dc654757` (NO-GO, F1 to F8 and the surviving mutants RM5, RM11, RM12, RM15)
+
+- F1 `bootstrap.sh`: the stage-3 idempotency key now carries a probe signature (probe outcome per endpoint), so a 402 to 200 or 200 to 402 change re-runs the stage instead of replaying the old record; in-stage probes are memoized per run; the comment that claimed `jev-status.sh` re-probes was false and is replaced.
+- F2 `jev-place.sh`: a failed or timed-out `llmctl stop` (bounded by the start/stop timeout, not the read timeout) keeps the lease set and its stop mark, records `stop_failed {at, rc}`, writes the event `stop_failed` and exits 6; the next release retries.
+- F3 `jev-status.sh`: endpoint health is computed from the real gate-row fields (class `gate`, `ts` in milliseconds, success = no `fallback` and a 2xx status, one event per `attempts[]` entry); the invented class values are gone.
+- F4 `lib_decide.sh` `jev_claude_settings_dirs` / `jev_settings_wired`: one resolver ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude, ~/.claude-*) used by `jev-status.sh` and `cm_jev_wiring.sh`; wired only for a PreToolUse hook command that names `jev-gate.sh`. The T4 pack README now states the `cm_jev_wiring` claude FAIL that the live T4 run reported.
+- F5 `jev-place.sh`: lease and stop-mark holders carry the process start time (a reused pid is dead); release marks and stops EVERY constitution-started set left without a lease; a join re-checks the unit (a degraded unit is refused) and registers the local gateway; `placement.json` carries a closed-set `verdict` and an `event` field.
+- F6 T5 pack: the capture script reads `.placement` and the cause label is corrected; the T5 result stays UNPROVEN (not re-captured live).
+- F7 tests that kill RM5, RM11, RM12 and RM15; F8 docs: no failover is shown live, and re-probing happens on the next bootstrap run.
+- `tests/jev/run_all.sh` fails a test that leaves a fixture server of THIS checkout running (exact argv match, killed by pid); the four tests that leaked are fixed. The process enumeration uses `find`, not a `/proc/[0-9]*` glob, which the full-suite manifest modeller expanded on disk until its step budget ran out.
+
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4: honest bootstrap exit codes (2xx-only reachability, exit 5 for "detected, not wired" and "no usable endpoint"), default-on wiring under the operator decision of 2026-11-12, the capacity-gated placement producer `scripts/jev/jev-place.sh`, per-(endpoint, model) calibration and the `jev-status.sh` control view
 
 **Status of this entry: UNRELEASED; implemented and tested on host fixtures; live runs partly shown; not VERIFIED-DONE; independent review pending (CON-299, In progress).**
