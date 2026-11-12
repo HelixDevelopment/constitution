@@ -96,6 +96,7 @@ assert_contains "$T/w2.out" "FAIL: claude: settings.json lacks a PreToolUse hook
 # S8 jev_settings_wired matches the command word, not a substring (review R2-5, X16)
 LIBD="${S8_LIB_UNDER_TEST:-$REPO/scripts/jev/lib_decide.sh}"
 w8() { printf '{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":%s}]}]}}\n' "$(jq -Rn --arg c "$1" '$c')" > "$T/w8.json"
+       # shellcheck source=/dev/null
        if ( . "$LIBD"; jev_settings_wired "$T/w8.json" ); then echo wired; else echo unwired; fi; }
 for c in "/x/jev-gate.sh.disabled" "/x/jev-gate" "echo not running /x/jev-gate.sh" "/x/not-jev-gate.sh" "/x/jev-gate.shx" "true # /x/jev-gate.sh"; do
   assert_eq unwired "$(w8 "$c")" "S8 command [$c] is NOT wiring"

@@ -283,6 +283,7 @@ cap "$T/cap.json" fits fits 5000 degraded
 assert_eqx 5 "$rc" "P25 a degraded unit is not joined (rc 5)"
 assert_eqx 2 "$(jq -r '.sets["decide-a"].leases|length' "$JEV_STATE_DIR/leases.json")" "P25 no lease added for the degraded unit"
 assert_eqx "does_not_fit" "$(pl '.placement.verdict')" "P25 degraded => does_not_fit"
+assert_eqx refused_degraded "$(pl '.placement.event')" "P25 degraded => event refused_degraded (not the generic refused_join)"
 has "$T/e25" "degraded" "P25 reason names the degraded unit"
 assert_eqx 1 "$(starts)" "P25 no second start"
 
@@ -344,7 +345,8 @@ cap "$T/cap.json" does_not_fit does_not_fit
 "$PLACE" acquire s2 --pid $$ >/dev/null 2>/dev/null; rc=$?
 assert_eqx "5 refused_join does_not_fit" "$rc $(pl '.placement.event') $(pl '.placement.verdict')" "P28 verdict does_not_fit -> join refused"
 echo '{"schema":"other"}' > "$T/cap.json"
-"$PLACE" acquire s3 --pid $$ >/dev/null 2>/dev/null; rc=$?
+"$PLACE" acquire s3 --pid $$ >/dev/null 2>"$T/e28u"; rc=$?
+has "$T/e28u" "capacity undetermined" "P28 an unreadable capacity answer is refused at the capacity check itself (not later by the unit check)"
 assert_eqx "5 refused_join undetermined" "$rc $(pl '.placement.event') $(pl '.placement.verdict')" "P28 undetermined capacity -> join refused (never a join on an unread answer)"
 assert_eqx 1 "$(L '.sets["decide-a"].leases|length')" "P28 no lease added on a refused join"
 cap "$T/cap.json" fits_with_reduced_threads does_not_fit
@@ -354,6 +356,18 @@ assert_eqx "0 decide-a joined" "$rc $out $(pl '.placement.event')" "P28 CONTROL:
 # ---- P32 closed event set ----------------------------------------------------------------------------------------------------
 case "$(pl '.placement.event')" in placed|joined|joined_running|no_fit|undetermined|start_failed|start_refused|refused_stopping|refused_degraded|refused_join|lease_lock_timeout|stopped|stop_failed)
   ok "P32 the last placement event is in the closed set" ;; *) fail "P32 event outside the closed set: $(pl '.placement.event')" ;; esac
+# P32b the guard itself: write_placement (its real text, cut from the producer) refuses an event outside the set (rc 2,
+# nothing written) and accepts one inside it (control)
+wp="$(sed -n '/^write_placement() {/,/^}/p' "$PLACE")"
+if [ -z "$wp" ]; then fail "P32b write_placement not found in the producer"; else
+  # shellcheck disable=SC2034  # DETECTION and NOW are read by the eval'd write_placement
+  ( set +eu; WORK="$T/wpw"; mkdir -p "$WORK"; PLACEMENT="$T/wpw/pl.out"; DETECTION="$T/wpw/none"; NOW=1700000000
+    hosted_key_var() { :; }; log() { :; }; jev_write_atomic() { cat > "$1"; }; eval "$wp"
+    write_placement p fits r none false 0 bogus_event; echo "rc=$? file=$([ -e "$PLACEMENT" ] && echo yes || echo no)"
+    write_placement p fits r none false 0 placed; echo "rc=$? file=$([ -e "$PLACEMENT" ] && echo yes || echo no)" ) > "$T/wpw.out" 2>&1
+  assert_eqx "rc=2 file=no" "$(sed -n 1p "$T/wpw.out")" "P32b an event outside the closed set is refused (rc 2, nothing written)"
+  assert_eqx "rc=0 file=yes" "$(sed -n 2p "$T/wpw.out")" "P32b CONTROL: an event in the set is written"
+fi
 
 # ---- P29 pid start time is field 22 (review X6) ---------------------------------------------------------------------------
 if [ -r "/proc/$$/stat" ] && command -v python3 >/dev/null 2>&1; then

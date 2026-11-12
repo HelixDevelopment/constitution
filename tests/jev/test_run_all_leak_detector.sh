@@ -9,7 +9,9 @@
 #      the leaking test PASS and the process survives, so L1 can only pass because the detector really sees the leak
 # Every process started here is killed by its recorded pid (it is ours); nothing is matched by pattern.
 set -uo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; FIXTURES="$HERE/fixtures"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC2034  # FIXTURES is read by lib_assert.sh
+FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
 source "$HERE/lib_assert.sh"
 command -v python3 >/dev/null 2>&1 || { assert_skip "python3 absent"; finish; exit $?; }
