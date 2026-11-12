@@ -2,7 +2,7 @@
 # test_registry_login_mutation_test.sh - paired §1.1 mutation test for registry_login.sh and
 # its wiring. Each mutant is applied to a scratch COPY and must make the matching test FAIL;
 # the unmutated copies must PASS and the source files must be byte-identical afterwards
-# (cmp-verified). Mutants M1..M23 target registry_login.sh (test_registry_login.sh),
+# (cmp-verified). Mutants M1..M26, R1..R8, F3a..F4 target registry_login.sh (test_registry_login.sh),
 # W1..W8 target sonarqube_lib.sh / sonarqube_container.sh (test_registry_login_wiring.sh).
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,20 +54,35 @@ rlmut M11-no-owner-check '[ -O "${f}" ] || { rl_err "env file ${f} is not owned'
 rlmut M12-option-value-unchecked 'if [ -z "${2:-}" ]; then rl_err "option $1 needs a value"; return 1; fi' ':'
 rlmut M13-env-engine-beats-flag '${RL_ENGINE_ARG:-${SONAR_REGISTRY_ENGINE:-}}' '${SONAR_REGISTRY_ENGINE:-${RL_ENGINE_ARG:-}}'
 rlmut M14-explicit-missing-envfile-skip 'does not exist"; return 2; fi' 'does not exist"; return 0; fi'
-rlmut M15-auth-config-ignored 'elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then' 'elif false; then'
+rlmut M15-auth-config-ignored 'elif [ -n "${ac}" ]; then' 'elif false; then'
 rlmut M16-fake-auth-config-success 'rl_err "DOCKER_AUTH_CONFIG is not a usable' 'exit 0; rl_err "DOCKER_AUTH_CONFIG is not a usable'
 rlmut M17-helper-only-config-aborts 'exit "${RL_EXIT_SKIP}" ;;
                 *)' 'exit "${RL_EXIT_BLIND}" ;;
                 *)'
 rlmut M21-config-error-widened-to-skip 'unknown keys or empty)"; exit "${RL_EXIT_BLIND}" ;;' 'unknown keys or empty)"; exit "${RL_EXIT_SKIP}" ;;'
-rlmut M22-typo-entry-key-accepted '    else:
-        sys.exit(2)
-if pairs:' '    else:
-        helper_only = True
-if pairs:'
+rlmut M22-typo-entry-key-accepted '        else:
+            return 2
+    if pairs:' '        else:
+            helper_only = True
+    if pairs:'
 rlmut M23-non-dict-auths-skipped 'if not isinstance(a, dict):
-    sys.exit(2)' 'if not isinstance(a, dict):
-    sys.exit(3)'
+        return 2' 'if not isinstance(a, dict):
+        return 3'
+rlmut M24-partial-creds-read-as-absent 'elif [ -n "${user}${pass}" ]; then' 'elif false; then'
+rlmut M25-registry-only-read-as-absent 'elif [ -n "${DOCKER_REGISTRY:-}" ]; then' 'elif false; then'
+rlmut M26-unusable-env-file-read-as-absent 'elif [ -n "${RL_EF}" ]; then' 'elif false; then'
+rlmut R1-empty-entry-skips-without-helper 'elif e == {} and helper:' 'elif e == {}:'
+rlmut R2-empty-credsstore-accepted 'and o["credsStore"] != ""' ''
+rlmut R4-python-not-isolated 'python3 -I -c' 'python3 -c'
+rlmut R5-python-crash-becomes-skip '                3) rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG holds' '                1|3) rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG holds'
+rlmut R6-empty-identitytoken-accepted 'and e["identitytoken"] != ""' ''
+rlmut R7-credhelper-value-unchecked 'all(isinstance(v, str) and v for v in ch.values())' 'True'
+rlmut R8-python-missing-is-skip 'command -v python3 >/dev/null 2>&1 || return 2' 'command -v python3 >/dev/null 2>&1 || return 3'
+rlmut F3a-control-char-in-auth-value-allowed 'or any(c in v for c in "\t\n\r"):' ':'
+rlmut F3b-control-char-in-host-allowed 'or any(c in h for c in "\t\n\r"):' ':'
+rlmut F4-surrogate-passes-through '.encode("utf-8")
+        except' '.encode("utf-8", "surrogatepass")
+        except'
 rlmut M18-registry-charset-unchecked 'case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"")' 'case "${h}" in "__none__")'
 rlmut M19-verify-unmasked 'rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail' 'cat | tail'
 rlmut M20-existing-auth-dir-trusted '[ "$(stat -c %a "${ad}" 2>/dev/null)" = 700 ]' 'true'

@@ -125,7 +125,7 @@ _sq_registry_login_auto_body() {
         [ -n "${!v+x}" ] && export "${v?}"
     done
     ef="${SONAR_REGISTRY_ENV_FILE:-${XDG_CONFIG_HOME:-${HOME:-/nonexistent}/.config}/helix/sonar_registry.env}"
-    if [ -z "${DOCKER_USERNAME+x}" ] && [ -z "${DOCKER_AUTH_CONFIG+x}" ] && [ ! -e "${ef}" ] && [ -z "${SONAR_REGISTRY_ENV_FILE:-}" ]; then
+    if [ -z "${DOCKER_USERNAME+x}${DOCKER_PASSWORD+x}${DOCKER_TOKEN+x}${DOCKER_REGISTRY+x}${DOCKER_AUTH_CONFIG+x}" ] && [ ! -e "${ef}" ] && [ -z "${SONAR_REGISTRY_ENV_FILE:-}" ]; then
         sq_log "registry auth: SKIP credentials_absent (set DOCKER_* or ${ef}); continuing without registry login"
         return 0
     fi

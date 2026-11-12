@@ -175,6 +175,87 @@ for okskip in '{"credsStore":"x"}' '{"credHelpers":{"h":"y"}}' '{"auths":{"h":{"
   chk "helper-only shape SKIP: $okskip" 3 "$rc"
 done
 
+# 9e FULL MATRIX (round 5, class-level): registry x user x password x token x auth-config,
+# no env file. Expected exit comes from an independent oracle below; 0 = login done, 2 = config
+# error (incomplete / unusable credentials), 3 = nothing configured or valid helper-only.
+UAUTH="{\"auths\":{\"h.t\":{\"auth\":\"$(printf 'a:b' | base64)\"}}}"
+mrun() { # args: VAR=VAL ...  -> exit code (no env file)
+    reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" FAKE_LOG="${W}/log" "$@" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?; }
+oracle() { # $1 reg $2 user $3 pass $4 token $5 ac(absent|empty|usable|helper) -> expected
+    local r="$1" u="$2" p="$3" k="$4" a="$5" pw=""
+    [ "$p" = set ] && pw=1; [ -z "$pw" ] && [ "$k" = set ] && pw=1
+    if [ "$u" = set ] && [ -n "$pw" ] && [ "$r" = set ]; then echo 0
+    elif [ "$u" = set ] || [ -n "$pw" ]; then echo 2
+    elif [ "$a" = usable ]; then echo 0
+    elif [ "$a" = helper ]; then echo 3
+    elif [ "$r" = set ]; then echo 2
+    else echo 3; fi; }
+mrows=0; mbad=0
+for r in absent empty set; do for u in absent empty set; do for p in absent empty set; do for k in absent empty set; do for a in absent empty usable helper; do
+  e=(); [ "$r" != absent ] && e+=("DOCKER_REGISTRY=$([ "$r" = set ] && echo reg.t)")
+  [ "$u" != absent ] && e+=("DOCKER_USERNAME=$([ "$u" = set ] && echo usr)")
+  [ "$p" != absent ] && e+=("DOCKER_PASSWORD=$([ "$p" = set ] && echo pw)")
+  [ "$k" != absent ] && e+=("DOCKER_TOKEN=$([ "$k" = set ] && echo tok)")
+  case "$a" in empty) e+=("DOCKER_AUTH_CONFIG=") ;; usable) e+=("DOCKER_AUTH_CONFIG=${UAUTH}") ;; helper) e+=('DOCKER_AUTH_CONFIG={"credsStore":"x"}') ;; esac
+  want="$(oracle "$r" "$u" "$p" "$k" "$a")"; got="$(mrun "${e[@]}")"; mrows=$((mrows+1))
+  [ "$want" = "$got" ] || { mbad=$((mbad+1)); no "matrix reg=$r user=$u pass=$p token=$k ac=$a (want $want got $got)"; }
+done; done; done; done; done
+[ "$mbad" -eq 0 ] && ok "matrix: ${mrows} rows all as expected"
+# a 2-exit never reaches the engine; secret values never in output
+reset; rc=$(mrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u); grep -q . "${W}/log" 2>/dev/null && no "partial creds: engine not called" || ok "partial creds: engine not called"
+reset; rc=$(mrun DOCKER_USERNAME=u DOCKER_AUTH_CONFIG='{"credsStore":"x"}'); chk "user + helper-only config -> 2" 2 "$rc"
+# env-file dimension: file with content X, nothing else in env
+efrun() { reset; printf '%s\n' "$@" >"${W}/home/.config/helix/sonar_registry.env"; chmod 600 "${W}/home/.config/helix/sonar_registry.env"
+    env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" FAKE_LOG="${W}/log" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?; }
+chk "env file complete -> 0" 0 "$(efrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=p)"
+chk "env file misspelled password key -> 2" 2 "$(efrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASWORD=p)"
+chk "env file empty -> 2" 2 "$(efrun '')"
+chk "env file comments only -> 2" 2 "$(efrun '# nothing')"
+chk "env file unrelated vars only -> 2" 2 "$(efrun FOO=bar)"
+chk "env file registry only -> 2" 2 "$(efrun DOCKER_REGISTRY=r.t)"
+chk "env file user+pass no registry -> 2" 2 "$(efrun DOCKER_USERNAME=u DOCKER_PASSWORD=p)"
+chk "env file helper-only config -> 3" 3 "$(efrun "DOCKER_AUTH_CONFIG='{\"credsStore\":\"x\"}'")"
+chk "env file DOCKER_PASSWORD='' with user -> 2" 2 "$(efrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=)"
+reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" bash "${SUT}" login >/dev/null 2>&1; echo $?); chk "no env file, nothing configured -> 3" 3 "$rc"
+
+# 9f python classifier hardening (round 5)
+rm -f "${W}/pwned"; mkdir -p "${W}/pp" "${W}/cwd"
+printf 'open("%s","w").write("x")\nraise SystemExit(0)\n' "${W}/pwned" >"${W}/pp/json.py"
+cp "${W}/pp/json.py" "${W}/cwd/json.py"; cp "${W}/pp/json.py" "${W}/cwd/sitecustomize.py"
+reset; rc=$(cd "${W}/cwd" && env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" PYTHONPATH="${W}/pp" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="${UAUTH}" bash "${SUT}" login >/dev/null 2>&1; echo $?)
+[ -e "${W}/pwned" ] && no "python isolation: planted json.py/sitecustomize.py did not run" || ok "python isolation: planted json.py/sitecustomize.py did not run"
+chk "python isolation: login still works" 0 "$rc"
+# a python crash (rc 1) must be a config error, never a SKIP
+mkdir -p "${W}/badpy"; printf '#!/bin/sh\nexit 1\n' >"${W}/badpy/python3"; chmod +x "${W}/badpy/python3"
+chk "python crash -> 2 not SKIP" 2 "$(reset; env -i PATH="${W}/badpy:${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="${UAUTH}" bash "${SUT}" login >/dev/null 2>&1; echo $?)"
+# python3 absent -> 2 (not 3)
+NOPY="${W}/nopy"; mkdir -p "${NOPY}"; for f in "${TOOLS}"/*; do [ "$(basename "$f")" = python3 ] || ln -s "$(readlink "$f")" "${NOPY}/$(basename "$f")"; done
+chk "python3 absent -> 2 not SKIP" 2 "$(reset; env -i PATH="${W}/fakeP:${NOPY}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"credsStore":"x"}' bash "${SUT}" login >/dev/null 2>&1; echo $?)"
+# shape rules
+for pair in '{"auths":{"h":{}}}|2' '{"auths":{"h":{}},"credsStore":"x"}|3' '{"auths":{"h":{}},"credsStore":""}|2' \
+  '{"auths":{"h":{"identitytoken":""}}}|2' '{"auths":{"h":{"identitytoken":"t"}}}|3' \
+  '{"credHelpers":{"h":1}}|2' '{"credHelpers":{}}|2' '{"credHelpers":{"h":"x"}}|3' \
+  '{"auths":{"h":{"username":"u","password":"p"}}}|2' \
+  '{"auths":{"h\r":{"auth":"YTpi"}}}|2' '{"auths":{"h":{"auth":"YT\tpi"}}}|2' '{"auths":{"h":{"auth":"YTpi\nZZ"}}}|2' '{"auths":{"h":{"auth":"YTpi\r"}}}|2' \
+  '{"auths":{"h\ud800":{"auth":"YTpi"}}}|2' '{"auths":{"h":{"auth":"\udc00"}}}|2'; do
+  cfg="${pair%|*}"; want="${pair##*|}"
+  rc=$(reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="$cfg" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
+  chk "shape ${cfg} -> ${want}" "${want}" "$rc"
+  grep -q Traceback "${W}/err" "${W}/out" && no "no traceback for ${cfg}" || true
+done
+# classifier called directly (downstream host checks would mask these): function text extracted from the SUT
+CLS="$(sed -n '/^rl_auths_pairs() {/,/^}/p' "${SUT}")"
+clsrun() { printf '%s' "$1" | PATH="${TOOLS}" bash -c "${CLS}"$'\n''rl_auths_pairs' 2>/dev/null; echo "rc=$?"; }
+chk "classifier: usable entry -> rc 0 with the pair" "h.t	YTpi
+rc=0" "$(clsrun '{"auths":{"h.t":{"auth":"YTpi"}}}')"
+chk "classifier: CR in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\r":{"auth":"YTpi"}}}')"
+chk "classifier: TAB in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\tx":{"auth":"YTpi"}}}')"
+chk "classifier: lone surrogate in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\ud800":{"auth":"YTpi"}}}')"
+chk "classifier: lone surrogate in auth -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h":{"auth":"\udc00"}}}')"
+# injection: a TAB/newline in an auth value must never become two login records
+reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"auths":{"h.t":{"auth":"YTpi\tx.t\tZZ"}}}' bash "${SUT}" login >/dev/null 2>&1
+[ "$(grep -c '^ARG:login$' "${W}/log" 2>/dev/null || true)" != 1 ] && [ ! -s "${W}/log.stdin" ] && ok "tab in auth value: no login record" || no "tab in auth value: no login record"
+
 # 9d3 two-host auths JSON: every entry logged in (N2); long credential >57 bytes survives base64 line wrapping (N3)
 reset; LONG="$(printf 'L%.0s' $(seq 1 90))-tail"
 AJ="{\"auths\":{\"one.test\":{\"auth\":\"$(printf 'a:%s' "${SECRET}" | base64 | tr -d '\n')\"},\"two.test\":{\"auth\":\"$(printf 'b:%s' "${LONG}" | base64 | tr -d '\n')\"}}}"

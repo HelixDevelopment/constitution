@@ -82,6 +82,14 @@ grep -q 'podman compose' "${W}/log" 2>/dev/null && ok "helper-only config: up pr
 ENVS='DOCKER_AUTH_CONFIG={"x":1}'; rc=$(up); chk "malformed config -> up exits 2" 2 "$rc"
 grep -q 'podman compose' "${W}/log" 2>/dev/null && no "malformed config: no compose" || ok "malformed config: no compose"
 
+# round 5: set-up-but-unusable credentials must stop `up` (never read as absent)
+rm -f "${W}/ef"; ENVS="DOCKER_USERNAME=u"; rc=$(up); chk "user without password -> up exits 2" 2 "$rc"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && no "user only: no compose" || ok "user only: no compose"
+printf 'DOCKER_REGISTRY=r.t\nDOCKER_USERNAME=u\nDOCKER_PASWORD=pw\n' >"${EF}"; chmod 600 "${EF}"; ENVS=""; rc=$(up)
+chk "env file with misspelled password key -> up exits 2" 2 "$rc"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && no "misspelled key: no compose" || ok "misspelled key: no compose"
+rm -f "${EF}"
+
 # R2: a caller with tracing OFF stays OFF after the call, on every return path; a later secret is not traced
 for path in rc0 rc2 off missing; do
   rm -f "${W}/log"; mkenv 600; envs=""; sqd="${SQ}"

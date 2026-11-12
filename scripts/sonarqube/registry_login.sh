@@ -129,42 +129,51 @@ rl_auths_pairs() {
     command -v python3 >/dev/null 2>&1 || return 2
     python3 -I -c '
 import sys, json
+def main():
+    try:
+        o = json.loads(sys.stdin.buffer.read().decode("utf-8"))
+    except Exception:
+        return 2
+    if not isinstance(o, dict):
+        return 2
+    helper = isinstance(o.get("credsStore"), str) and o["credsStore"] != ""
+    ch = o.get("credHelpers")
+    if isinstance(ch, dict) and ch and all(isinstance(v, str) and v for v in ch.values()):
+        helper = True
+    a = o.get("auths")
+    pairs = []
+    helper_only = False
+    if a is None:
+        return 3 if helper else 2
+    if not isinstance(a, dict):
+        return 2
+    for h, e in a.items():
+        if not isinstance(e, dict) or any(c in h for c in "\t\n\r"):
+            return 2
+        if "auth" in e:
+            v = e["auth"]
+            if not isinstance(v, str) or v == "" or any(c in v for c in "\t\n\r"):
+                return 2
+            pairs.append((h, v))
+        elif isinstance(e.get("identitytoken"), str) and e["identitytoken"] != "":
+            helper_only = True
+        elif e == {} and helper:
+            helper_only = True
+        else:
+            return 2
+    if pairs:
+        try:
+            data = "".join(h + "\t" + v + "\n" for h, v in pairs).encode("utf-8")
+        except Exception:
+            return 2
+        sys.stdout.buffer.write(data)
+        return 0
+    return 3 if (helper or helper_only) else 2
 try:
-    o = json.loads(sys.stdin.read())
+    rc = main()
 except Exception:
-    sys.exit(2)
-if not isinstance(o, dict):
-    sys.exit(2)
-helper = isinstance(o.get("credsStore"), str) and o["credsStore"] != ""
-ch = o.get("credHelpers")
-if isinstance(ch, dict) and ch and all(isinstance(v, str) and v for v in ch.values()):
-    helper = True
-a = o.get("auths")
-pairs = []
-helper_only = False
-if a is None:
-    sys.exit(3 if helper else 2)
-if not isinstance(a, dict):
-    sys.exit(2)
-for h, e in a.items():
-    if not isinstance(e, dict):
-        sys.exit(2)
-    if "auth" in e:
-        v = e["auth"]
-        if not isinstance(v, str) or v == "" or "\t" in h or "\n" in h:
-            sys.exit(2)
-        pairs.append((h, v))
-    elif isinstance(e.get("identitytoken"), str) and e["identitytoken"] != "":
-        helper_only = True
-    elif e == {} and helper:
-        helper_only = True
-    else:
-        sys.exit(2)
-if pairs:
-    for h, v in pairs:
-        sys.stdout.write(h + "\t" + v + "\n")
-    sys.exit(0)
-sys.exit(3 if (helper or helper_only) else 2)
+    rc = 2
+sys.exit(rc)
 '
 }
 
@@ -187,10 +196,14 @@ rl_mode_login() {
         if [ -n "${RL_EF}" ]; then rl_load_env_file "${RL_EF}" || exit "$?"; fi
         reg="${RL_REG_ARG:-${DOCKER_REGISTRY:-}}"; user="${DOCKER_USERNAME:-}"; pass="${DOCKER_PASSWORD:-${DOCKER_TOKEN:-}}"
         triples=()
+        ac="${DOCKER_AUTH_CONFIG:-}"
         if [ -n "${user}" ] && [ -n "${pass}" ] && [ -n "${reg}" ]; then
             triples+=("${reg}"$'\t'"${user}"$'\t'"${pass}")
-        elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
-            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"; prc=$?
+        elif [ -n "${user}${pass}" ]; then
+            rl_err "incomplete credentials: DOCKER_USERNAME=$([ -n "${user}" ] && echo set || echo empty) DOCKER_PASSWORD/DOCKER_TOKEN=$([ -n "${pass}" ] && echo set || echo empty) registry=$([ -n "${reg}" ] && echo set || echo empty); a login needs all three (or a DOCKER_AUTH_CONFIG alone)"
+            exit "${RL_EXIT_BLIND}"
+        elif [ -n "${ac}" ]; then
+            pairs="$(printf '%s' "${ac}" | rl_auths_pairs)"; prc=$?
             case "${prc}" in
                 0) : ;;
                 3) rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG holds only credential-helper / identity-token entries (not decoded here); no login attempted"
@@ -201,8 +214,14 @@ rl_mode_login() {
                 d="$(printf '%s' "${b}" | base64 -d 2>/dev/null)"
                 case "${d}" in *:*) triples+=("${h}"$'\t'"${d%%:*}"$'\t'"${d#*:}") ;; *) rl_err "undecodable auth entry for ${h}"; exit "${RL_EXIT_BLIND}" ;; esac
             done <<<"${pairs}"
+        elif [ -n "${DOCKER_REGISTRY:-}" ]; then
+            rl_err "DOCKER_REGISTRY is set but no usable credential accompanies it (DOCKER_USERNAME + DOCKER_PASSWORD/DOCKER_TOKEN, or DOCKER_AUTH_CONFIG); check the variable names"
+            exit "${RL_EXIT_BLIND}"
+        elif [ -n "${RL_EF}" ]; then
+            rl_err "env file ${RL_EF} was loaded but yields no usable credential (expected DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD/DOCKER_TOKEN, or DOCKER_AUTH_CONFIG); check the variable names"
+            exit "${RL_EXIT_BLIND}"
         else
-            rl_log "SKIP credentials_absent: need DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD (or DOCKER_TOKEN), or a DOCKER_AUTH_CONFIG auths JSON (env or ${RL_EF:-$(rl_default_env_file)}); no login attempted"
+            rl_log "SKIP credentials_absent: nothing configured (set DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD or DOCKER_TOKEN, or a DOCKER_AUTH_CONFIG auths JSON, or ${RL_EF:-$(rl_default_env_file)}); no login attempted"
             exit "${RL_EXIT_SKIP}"
         fi
         if [ "${RL_AUTH_ONLY:-}" = 1 ]; then

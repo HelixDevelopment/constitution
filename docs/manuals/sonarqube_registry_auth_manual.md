@@ -32,7 +32,7 @@
 - Env file: must be a regular file (not a symlink) owned by you with no group/other permission bits (`mode & 077 == 0`, so 0600 or 0400 only); sourced in a subshell with auto-export and tracing disabled (`set +x`, `BASH_XTRACEFD` to `/dev/null`, re-asserted after sourcing); sourcing failure is exit 2. An explicitly given `--env-file` or `SONAR_REGISTRY_ENV_FILE` that does not exist is exit 2, not SKIP.
 - Login: `printf '%s' "$PASS" | <engine> login --username U --password-stdin REG`. Output is passed through a literal masker for the password and `user:password`.
 - Auth file (`--auth-file-only`, Podman only): `${XDG_RUNTIME_DIR:-$HOME/.cache}/helix_sonar_registry/auth.json`, private directory 0700 created by the tool, file created under `umask 077`. The registry host is restricted to `[A-Za-z0-9._:/-]` so the JSON cannot be broken.
-- Wiring: `sq_registry_login_auto` in `sonarqube_lib.sh` is called by `sonarqube_container.sh up` before `compose up -d`, the only image pull in this directory (`sonarqube_run_scan.sh` runs the host scanner and pulls nothing). It exports any non-exported `DOCKER_*` set by a sourced `.env` for the child. It runs the login only when `DOCKER_USERNAME`, `DOCKER_AUTH_CONFIG`, an explicit `SONAR_REGISTRY_ENV_FILE` or the default env file is present; otherwise it logs `SKIP credentials_absent` and returns 0. Exit 3 from the script (credentials absent, or a valid `DOCKER_AUTH_CONFIG` with helper or identity-token entries only) is a logged SKIP; a malformed `DOCKER_AUTH_CONFIG` is exit 2; exits 1 or 2 stop `up` with exit 2.
+- Wiring: `sq_registry_login_auto` in `sonarqube_lib.sh` is called by `sonarqube_container.sh up` before `compose up -d`, the only image pull in this directory (`sonarqube_run_scan.sh` runs the host scanner and pulls nothing). It exports any non-exported `DOCKER_*` set by a sourced `.env` for the child. It runs the login only when any of `DOCKER_USERNAME`, `DOCKER_PASSWORD`, `DOCKER_TOKEN`, `DOCKER_REGISTRY`, `DOCKER_AUTH_CONFIG`, an explicit `SONAR_REGISTRY_ENV_FILE` or the default env file is present; otherwise it logs `SKIP credentials_absent` and returns 0. Exit 3 from the script (credentials absent, or a valid `DOCKER_AUTH_CONFIG` with helper or identity-token entries only) is a logged SKIP; a malformed `DOCKER_AUTH_CONFIG`, incomplete plain credentials (any of username / password-or-token / registry missing while another is set), a registry with no credential, and an env file that loads but yields no usable login are exit 2; exits 1 or 2 stop `up` with exit 2.
 
 ## Exit codes
 
@@ -40,7 +40,7 @@
 
 ## Tests
 
-`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (login before the compose pull in `up`, fail-closed), `test_registry_login_mutation_test.sh` (31 mutants of the script, library and container script must each fail the matching test; sources are cmp-verified unchanged). All are unit-class: the engine is a fake that records argv and stdin.
+`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (login before the compose pull in `up`, fail-closed), `test_registry_login_mutation_test.sh` (44 mutants of the script, library and container script must each fail the matching test; sources are cmp-verified unchanged). All are unit-class: the engine is a fake that records argv and stdin.
 
 ## Limits
 
