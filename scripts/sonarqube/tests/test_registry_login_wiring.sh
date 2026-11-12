@@ -13,7 +13,7 @@ ok() { PASS=$((PASS+1)); printf 'ok   %s\n' "$1"; }
 no() { FAIL=$((FAIL+1)); printf 'FAIL %s\n' "$1"; }
 chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi; }
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}" "${W}/fake" "${W}/home/.config/helix"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp base64 python3; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp base64 python3 wc; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 cat >"${W}/fake/podman" <<'F'
@@ -89,6 +89,13 @@ printf 'DOCKER_REGISTRY=r.t\nDOCKER_USERNAME=u\nDOCKER_PASWORD=pw\n' >"${EF}"; c
 chk "env file with misspelled password key -> up exits 2" 2 "$rc"
 grep -q 'podman compose' "${W}/log" 2>/dev/null && no "misspelled key: no compose" || ok "misspelled key: no compose"
 rm -f "${EF}"
+
+# each credential variable alone reaches the login step (library trigger covers all five) and stops `up`
+rm -f "${EF}"
+for v in DOCKER_TOKEN=tok DOCKER_PASSWORD=pw DOCKER_REGISTRY=r.t; do
+  ENVS="$v"; rc=$(up); chk "${v%%=*} alone -> up exits 2" 2 "$rc"
+  grep -q 'podman compose' "${W}/log" 2>/dev/null && no "${v%%=*} alone: no compose" || ok "${v%%=*} alone: no compose"
+done
 
 # R2: a caller with tracing OFF stays OFF after the call, on every return path; a later secret is not traced
 for path in rc0 rc2 off missing; do

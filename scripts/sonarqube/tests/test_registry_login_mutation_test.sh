@@ -35,7 +35,7 @@ wmut() { # name file old new   (the xtrace wrapper and ${!v+x} are redundant def
     mutate "${W}/wm/$2" "$1" "$3" "$4" || { echo "FAIL $1 (anchor missing)"; BAD=1; return; }
     if wire_test "${W}/wm"; then echo "FAIL mutant survived: $1"; BAD=1; else echo "ok   mutant killed: $1"; KILLED=$((KILLED+1)); fi
 }
-rlmut M1-password-in-argv 'login --username "${user}" --password-stdin "${reg}"' 'login --username "${user}" --password "${pass}" --password-stdin "${reg}"'
+rlmut M1-password-in-argv 'login "--username=${user}" --password-stdin "${reg}"' 'login "--username=${user}" --password "${pass}" --password-stdin "${reg}"'
 rlmut M2-no-mode-check 'if [ $(( 8#${m} & 8#077 )) -ne 0 ]; then' 'if false; then'
 rlmut M3-loose-mode-mask '8#${m} & 8#077' '8#${m} & 8#007'
 rlmut M4-docker-first 'command -v podman 2>/dev/null || command -v docker 2>/dev/null' 'command -v docker 2>/dev/null || command -v podman 2>/dev/null'
@@ -69,7 +69,9 @@ rlmut M23-non-dict-auths-skipped 'if not isinstance(a, dict):
         return 2' 'if not isinstance(a, dict):
         return 3'
 rlmut M24-partial-creds-read-as-absent 'elif [ -n "${user}${pass}" ]; then' 'elif false; then'
-rlmut M25-registry-only-read-as-absent 'elif [ -n "${DOCKER_REGISTRY:-}" ]; then' 'elif false; then'
+rlmut M25-registry-only-read-as-absent 'elif [ -n "${reg}" ]; then
+            rl_err "a registry' 'elif false; then
+            rl_err "a registry'
 rlmut M26-unusable-env-file-read-as-absent 'elif [ -n "${RL_EF}" ]; then' 'elif false; then'
 rlmut R1-empty-entry-skips-without-helper 'elif e == {} and helper:' 'elif e == {}:'
 rlmut R2-empty-credsstore-accepted 'and o["credsStore"] != ""' ''
@@ -83,6 +85,21 @@ rlmut F3b-control-char-in-host-allowed 'or any(c in h for c in "\t\n\r"):' ':'
 rlmut F4-surrogate-passes-through '.encode("utf-8")
         except' '.encode("utf-8", "surrogatepass")
         except'
+rlmut N-plain-user-whitespace-split-allowed 'rl_field_ok "username" "${user}" && rl_field_ok "password" "${pass}" || exit "${RL_EXIT_BLIND}"' ':'
+rlmut N-decoded-fields-unvalidated 'rl_field_ok "username (entry ${h})" "${du}" && rl_field_ok "password (entry ${h})" "${dp}" || exit "${RL_EXIT_BLIND}"' ':'
+rlmut N-control-char-check-dropped 'if [[ "${v}" =~ [[:cntrl:]] ]]; then' 'if false; then'
+rlmut N-whitespace-only-check-dropped 'if [[ "${v}" =~ ^[[:space:]]+$ ]]; then' 'if false; then'
+rlmut N-empty-check-dropped 'if [ -z "${v}" ]; then rl_err "${n} is empty"; return 1; fi' ':'
+rlmut N-username-bare-option 'login "--username=${user}"' 'login --username "${user}"'
+# trailing newline stripped AND the (redundant) length check dropped: the newline must still be caught by the control-char rule alone being bypassed
+cp "${W}/orig/registry_login.sh" "${W}/m.sh"
+mutate "${W}/m.sh" x 'printf x)"; d="${d%x}"' 'printf x)"; d="${d%x}"; d="${d%$'"'"'\n'"'"'}"' && mutate "${W}/m.sh" x '[ "$(LC_ALL=C; echo "${#d}")" = "${nb//[[:space:]]/}" ] ||' 'true ||' || { echo "FAIL N-trailing anchors"; BAD=1; }
+if rl_test "${W}/m.sh"; then echo "FAIL mutant survived: N-trailing-newline-stripped"; BAD=1; else echo "ok   mutant killed: N-trailing-newline-stripped"; KILLED=$((KILLED+1)); fi
+rlmut N-nul-length-check-dropped '[ "$(LC_ALL=C; echo "${#d}")" = "${nb//[[:space:]]/}" ] ||' 'true ||'
+rlmut N-empty-host-allowed 'or h == "" or any(c in h' 'or any(c in h'
+rlmut N-registry-arg-alone-skipped 'elif [ -n "${reg}" ]; then
+            rl_err "a registry' 'elif [ -n "${DOCKER_REGISTRY:-}" ]; then
+            rl_err "a registry'
 rlmut M18-registry-charset-unchecked 'case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"")' 'case "${h}" in "__none__")'
 rlmut M19-verify-unmasked 'rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail' 'cat | tail'
 rlmut M20-existing-auth-dir-trusted '[ "$(stat -c %a "${ad}" 2>/dev/null)" = 700 ]' 'true'
@@ -100,6 +117,9 @@ mutate "${W}/wm/sonarqube_lib.sh" x 'case $- in *x*) _xt=1; set +x ;; esac' ':' 
 if wire_test "${W}/wm"; then echo "FAIL mutant survived: W5-xtrace-defences-removed"; BAD=1; else echo "ok   mutant killed: W5-xtrace-defences-removed"; KILLED=$((KILLED+1)); fi
 # W6: trace not restored after the call
 wmut W6-xtrace-not-restored sonarqube_lib.sh '[ "${_xt}" = 1 ] && set -x' ':'
+wmut N1-token-trigger-dropped sonarqube_lib.sh '${DOCKER_TOKEN+x}' ''
+wmut N7-registry-trigger-dropped sonarqube_lib.sh '${DOCKER_REGISTRY+x}' ''
+wmut N-password-trigger-dropped sonarqube_lib.sh '${DOCKER_PASSWORD+x}' ''
 # W7: trace turned on unconditionally after the call (caller with tracing OFF must stay OFF)
 wmut W7-xtrace-forced-on sonarqube_lib.sh '[ "${_xt}" = 1 ] && set -x' 'set -x'
 # W8: library maps registry_login exit 3 (SKIP) to a failure instead of success

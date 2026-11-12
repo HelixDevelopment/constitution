@@ -148,7 +148,7 @@ def main():
     if not isinstance(a, dict):
         return 2
     for h, e in a.items():
-        if not isinstance(e, dict) or any(c in h for c in "\t\n\r"):
+        if not isinstance(e, dict) or h == "" or any(c in h for c in "\t\n\r"):
             return 2
         if "auth" in e:
             v = e["auth"]
@@ -177,10 +177,21 @@ sys.exit(rc)
 '
 }
 
+# rl_field_ok NAME VALUE: a user name or password must be non-empty, not whitespace-only and
+# free of control characters (TAB, NL, CR, DEL ...): such a value is never split, trimmed
+# or truncated into another field. Names the field, never prints the value. 0 ok, 1 bad.
+rl_field_ok() {
+    local n="$1" v="$2"
+    if [ -z "${v}" ]; then rl_err "${n} is empty"; return 1; fi
+    if [[ "${v}" =~ ^[[:space:]]+$ ]]; then rl_err "${n} is whitespace-only"; return 1; fi
+    if [[ "${v}" =~ [[:cntrl:]] ]]; then rl_err "${n} contains a control character (tab, newline, carriage return ...)"; return 1; fi
+    return 0
+}
+
 # rl_engine_login ENGINE REG USER PASS  (password through printf builtin -> stdin)
 rl_engine_login() {
     local eng="$1" reg="$2" user="$3" pass="$4" out erc
-    out="$(printf '%s' "${pass}" | "${eng}" login --username "${user}" --password-stdin "${reg}" 2>&1)"
+    out="$(printf '%s' "${pass}" | "${eng}" login "--username=${user}" --password-stdin "${reg}" 2>&1)"
     erc=$?
     printf '%s\n' "${out}" | rl_mask "${pass}" "${user}:${pass}" >&2
     if [ "${erc}" -ne 0 ]; then rl_err "$(basename "${eng}") login to ${reg} failed (exit ${erc})"; return "${RL_EXIT_FAIL}"; fi
@@ -195,10 +206,11 @@ rl_mode_login() {
         rl_quiet_trace
         if [ -n "${RL_EF}" ]; then rl_load_env_file "${RL_EF}" || exit "$?"; fi
         reg="${RL_REG_ARG:-${DOCKER_REGISTRY:-}}"; user="${DOCKER_USERNAME:-}"; pass="${DOCKER_PASSWORD:-${DOCKER_TOKEN:-}}"
-        triples=()
+        T_REG=(); T_USER=(); T_PASS=()
         ac="${DOCKER_AUTH_CONFIG:-}"
         if [ -n "${user}" ] && [ -n "${pass}" ] && [ -n "${reg}" ]; then
-            triples+=("${reg}"$'\t'"${user}"$'\t'"${pass}")
+            rl_field_ok "username" "${user}" && rl_field_ok "password" "${pass}" || exit "${RL_EXIT_BLIND}"
+            T_REG+=("${reg}"); T_USER+=("${user}"); T_PASS+=("${pass}")
         elif [ -n "${user}${pass}" ]; then
             rl_err "incomplete credentials: DOCKER_USERNAME=$([ -n "${user}" ] && echo set || echo empty) DOCKER_PASSWORD/DOCKER_TOKEN=$([ -n "${pass}" ] && echo set || echo empty) registry=$([ -n "${reg}" ] && echo set || echo empty); a login needs all three (or a DOCKER_AUTH_CONFIG alone)"
             exit "${RL_EXIT_BLIND}"
@@ -210,12 +222,20 @@ rl_mode_login() {
                    exit "${RL_EXIT_SKIP}" ;;
                 *) rl_err "DOCKER_AUTH_CONFIG is not a usable auths JSON object (not JSON, no auths, wrong types, unknown keys or empty)"; exit "${RL_EXIT_BLIND}" ;;
             esac
-            while IFS=$'\t' read -r h b; do
-                d="$(printf '%s' "${b}" | base64 -d 2>/dev/null)"
-                case "${d}" in *:*) triples+=("${h}"$'\t'"${d%%:*}"$'\t'"${d#*:}") ;; *) rl_err "undecodable auth entry for ${h}"; exit "${RL_EXIT_BLIND}" ;; esac
+            while IFS= read -r line; do
+                # no IFS field splitting of secrets: cut by parameter expansion only
+                h="${line%%$'\t'*}"; b="${line#*$'\t'}"
+                printf '%s' "${b}" | base64 -d >/dev/null 2>&1 || { rl_err "undecodable auth entry for ${h}"; exit "${RL_EXIT_BLIND}"; }
+                d="$(printf '%s' "${b}" | base64 -d 2>/dev/null; printf x)"; d="${d%x}"   # sentinel: keep trailing newlines
+                nb="$(printf '%s' "${b}" | base64 -d 2>/dev/null | wc -c)"
+                [ "$(LC_ALL=C; echo "${#d}")" = "${nb//[[:space:]]/}" ] || { rl_err "auth entry for ${h} decodes to bytes that cannot be passed safely (NUL?)"; exit "${RL_EXIT_BLIND}"; }
+                case "${d}" in *:*) : ;; *) rl_err "undecodable auth entry for ${h} (no user:password)"; exit "${RL_EXIT_BLIND}" ;; esac
+                du="${d%%:*}"; dp="${d#*:}"
+                rl_field_ok "username (entry ${h})" "${du}" && rl_field_ok "password (entry ${h})" "${dp}" || exit "${RL_EXIT_BLIND}"
+                T_REG+=("${h}"); T_USER+=("${du}"); T_PASS+=("${dp}")
             done <<<"${pairs}"
-        elif [ -n "${DOCKER_REGISTRY:-}" ]; then
-            rl_err "DOCKER_REGISTRY is set but no usable credential accompanies it (DOCKER_USERNAME + DOCKER_PASSWORD/DOCKER_TOKEN, or DOCKER_AUTH_CONFIG); check the variable names"
+        elif [ -n "${reg}" ]; then
+            rl_err "a registry (DOCKER_REGISTRY or --registry) is given but no usable credential accompanies it (DOCKER_USERNAME + DOCKER_PASSWORD/DOCKER_TOKEN, or DOCKER_AUTH_CONFIG); check the variable names"
             exit "${RL_EXIT_BLIND}"
         elif [ -n "${RL_EF}" ]; then
             rl_err "env file ${RL_EF} was loaded but yields no usable credential (expected DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD/DOCKER_TOKEN, or DOCKER_AUTH_CONFIG); check the variable names"
@@ -225,8 +245,8 @@ rl_mode_login() {
             exit "${RL_EXIT_SKIP}"
         fi
         if [ "${RL_AUTH_ONLY:-}" = 1 ]; then
-            [ "${#triples[@]}" -eq 1 ] || { rl_err "--auth-file-only needs DOCKER_REGISTRY + username + password"; exit "${RL_EXIT_BLIND}"; }
-            IFS=$'\t' read -r reg user pass <<<"${triples[0]}"
+            [ "${#T_REG[@]}" -eq 1 ] || { rl_err "--auth-file-only needs DOCKER_REGISTRY + username + password"; exit "${RL_EXIT_BLIND}"; }
+            reg="${T_REG[0]}"; user="${T_USER[0]}"; pass="${T_PASS[0]}"
             case "${reg}" in *[!A-Za-z0-9._:/-]*|"") rl_err "registry contains characters not allowed in the auth JSON"; exit "${RL_EXIT_BLIND}" ;; esac
             case "$(basename "$(rl_engine 2>/dev/null)" 2>/dev/null)" in
                 docker) rl_err "--auth-file-only writes the podman REGISTRY_AUTH_FILE format; docker ignores it. Use plain login."; exit "${RL_EXIT_BLIND}" ;;
@@ -245,8 +265,8 @@ rl_mode_login() {
         fi
         eng="$(rl_engine)" || { rl_err "no usable container engine (podman/docker) on PATH, or invalid/missing explicitly requested engine"; exit "${RL_EXIT_BLIND}"; }
         worst=0
-        for t in "${triples[@]}"; do
-            IFS=$'\t' read -r h u pw <<<"${t}"
+        for i in "${!T_REG[@]}"; do
+            h="${T_REG[$i]}"; u="${T_USER[$i]}"; pw="${T_PASS[$i]}"
             case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"") rl_err "registry host '${h}' has characters not allowed (or starts with '-'); refusing"; exit "${RL_EXIT_BLIND}" ;; esac
             rl_engine_login "${eng}" "${h}" "${u}" "${pw}" || worst=$?
         done

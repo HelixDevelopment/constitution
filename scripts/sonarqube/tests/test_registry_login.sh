@@ -16,7 +16,7 @@ chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi;
 
 SECRET='S3cr3t-Pa$$w0rd/x&y'
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln tail python3; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln tail python3 wc; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 mkfake() { # $1=name dir
@@ -139,7 +139,7 @@ for eng in fakeP fakeD; do
   rc=$(env -i PATH="${W}/${eng}:${TOOLS}" HOME="${W}/home" XDG_RUNTIME_DIR="${W}/run" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="${AUTHJ}" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
   chk "AUTH_CONFIG JSON login ($eng) exit" 0 "$rc"
   grep -q '^ARG:reg.one.test$' "${W}/log" && ok "AUTH_CONFIG host used ($eng)" || no "AUTH_CONFIG host used ($eng)"
-  grep -q '^ARG:bob$' "${W}/log" && ok "AUTH_CONFIG user decoded ($eng)" || no "AUTH_CONFIG user decoded ($eng)"
+  grep -q '^ARG:--username=bob$' "${W}/log" && ok "AUTH_CONFIG user decoded ($eng)" || no "AUTH_CONFIG user decoded ($eng)"
   chk "AUTH_CONFIG password on stdin ($eng)" "${SECRET}" "$(cat "${W}/log.stdin" 2>/dev/null)"; noleak "auth-config $eng"
 done
 reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" DOCKER_AUTH_CONFIG='not json' bash "${SUT}" login >/dev/null 2>&1; echo $?)
@@ -248,6 +248,7 @@ CLS="$(sed -n '/^rl_auths_pairs() {/,/^}/p' "${SUT}")"
 clsrun() { printf '%s' "$1" | PATH="${TOOLS}" bash -c "${CLS}"$'\n''rl_auths_pairs' 2>/dev/null; echo "rc=$?"; }
 chk "classifier: usable entry -> rc 0 with the pair" "h.t	YTpi
 rc=0" "$(clsrun '{"auths":{"h.t":{"auth":"YTpi"}}}')"
+chk "classifier: empty host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"":{"auth":"YTpi"}}}')"
 chk "classifier: CR in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\r":{"auth":"YTpi"}}}')"
 chk "classifier: TAB in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\tx":{"auth":"YTpi"}}}')"
 chk "classifier: lone surrogate in host -> rc 2, no output" "rc=2" "$(clsrun '{"auths":{"h\ud800":{"auth":"YTpi"}}}')"
@@ -255,6 +256,57 @@ chk "classifier: lone surrogate in auth -> rc 2, no output" "rc=2" "$(clsrun '{"
 # injection: a TAB/newline in an auth value must never become two login records
 reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"auths":{"h.t":{"auth":"YTpi\tx.t\tZZ"}}}' bash "${SUT}" login >/dev/null 2>&1
 [ "$(grep -c '^ARG:login$' "${W}/log" 2>/dev/null || true)" != 1 ] && [ ! -s "${W}/log.stdin" ] && ok "tab in auth value: no login record" || no "tab in auth value: no login record"
+
+# 9g field-splitting class (round 5 extension): decoded/plain user and password are validated
+# separately; no secret ever reaches the engine argv; a user starting with '-' is never an option.
+b64() { printf -- "$1" | base64 | tr -d '\n'; }
+fsrun() { # $1.. = env assignments; echoes exit code; log in ${W}/log
+    reset; env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" FAKE_LOG="${W}/log" "$@" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?; }
+nopw() { # $1 label $2 needle : needle in no argv/stdin/out/err
+    if grep -qF -- "$2" "${W}/log" "${W}/log.stdin" "${W}/out" "${W}/err" 2>/dev/null; then no "$1: secret not in argv/stdin/output"; else ok "$1: secret not in argv/stdin/output"; fi; }
+while IFS='|' read -r label fmt; do
+  rc=$(fsrun "DOCKER_AUTH_CONFIG={\"auths\":{\"reg.t\":{\"auth\":\"$(b64 "$fmt")\"}}}")
+  chk "decoded ${label} -> exit 2" 2 "$rc"
+  [ -f "${W}/log" ] && no "decoded ${label}: engine not called" || ok "decoded ${label}: engine not called"
+  nopw "decoded ${label}" TopSecret
+done <<'ROWS'
+empty user (:pw)|:TopSecret
+empty password (u:)|u:
+no colon|uTopSecret
+tab in user|u\tx:TopSecret
+tab in password|u:Top\tSecret
+newline in password|u:TopSecret\nq
+trailing newline|u:TopSecret\n
+CR in password|u:TopSecret\rq
+whitespace-only user|  :TopSecret
+whitespace-only password|u:   
+leading tab user (IFS collapse)|\t:TopSecret
+NUL in password|u:Top\0Secret
+ROWS
+# plain path
+rc=$(fsrun DOCKER_REGISTRY=r.t "DOCKER_USERNAME= " DOCKER_PASSWORD=TopSecret); chk "plain whitespace-only user -> 2" 2 "$rc"; nopw "plain ws user" TopSecret
+rc=$(fsrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u "DOCKER_PASSWORD= "); chk "plain whitespace-only password -> 2" 2 "$rc"
+rc=$(fsrun DOCKER_REGISTRY=r.t "DOCKER_USERNAME=$(printf 'u\tx')" DOCKER_PASSWORD=TopSecret); chk "plain tab in user -> 2" 2 "$rc"; nopw "plain tab user" TopSecret
+rc=$(fsrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u "DOCKER_PASSWORD=$(printf 'Top\nSecret')"); chk "plain newline in password -> 2" 2 "$rc"
+rc=$(fsrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u "DOCKER_PASSWORD=$(printf 'Top\rSecret')"); chk "plain CR in password -> 2" 2 "$rc"
+# leading '-' user: login proceeds, user bound to --username=VALUE, never a bare option, password only on stdin
+rc=$(fsrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=-n DOCKER_PASSWORD=TopSecret); chk "plain user starting with '-' -> 0" 0 "$rc"
+grep -qx 'ARG:--username=-n' "${W}/log" && ok "'-n' user passed as --username=-n" || no "'-n' user passed as --username=-n"
+grep -qx 'ARG:-n' "${W}/log" && no "'-n' never a bare argv word" || ok "'-n' never a bare argv word"
+grep -qF TopSecret "${W}/log" && no "password not in argv (leading-dash user)" || ok "password not in argv (leading-dash user)"
+chk "password on stdin (leading-dash user)" TopSecret "$(cat "${W}/log.stdin" 2>/dev/null)"
+rc=$(fsrun "DOCKER_AUTH_CONFIG={\"auths\":{\"reg.t\":{\"auth\":\"$(b64 '-x:TopSecret')\"}}}"); chk "decoded user starting with '-' -> 0" 0 "$rc"
+grep -qx 'ARG:--username=-x' "${W}/log" && ok "decoded '-x' passed as --username=-x" || no "decoded '-x' passed as --username=-x"
+grep -qF TopSecret "${W}/log" && no "password not in argv (decoded)" || ok "password not in argv (decoded)"
+# a space inside a password is legal and delivered intact; a colon inside a password too
+rc=$(fsrun DOCKER_REGISTRY=r.t DOCKER_USERNAME=u "DOCKER_PASSWORD=a b:c"); chk "password with space and colon -> 0" 0 "$rc"
+chk "space/colon password intact on stdin" "a b:c" "$(cat "${W}/log.stdin" 2>/dev/null)"
+rc=$(fsrun "DOCKER_AUTH_CONFIG={\"auths\":{\"reg.t\":{\"auth\":\"$(b64 'u:a:b c')\"}}}"); chk "decoded password with colon/space -> 0" 0 "$rc"
+chk "decoded colon/space password intact" "a:b c" "$(cat "${W}/log.stdin" 2>/dev/null)"
+# empty host in an auths entry
+rc=$(fsrun "DOCKER_AUTH_CONFIG={\"auths\":{\"\":{\"auth\":\"$(b64 'u:TopSecret')\"}}}"); chk "empty host entry -> 2" 2 "$rc"; nopw "empty host" TopSecret
+# M-2: --registry with no credentials is a config error, like DOCKER_REGISTRY alone
+reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" bash "${SUT}" login --registry r.t >/dev/null 2>&1; echo $?); chk "--registry with no credentials -> 2" 2 "$rc"
 
 # 9d3 two-host auths JSON: every entry logged in (N2); long credential >57 bytes survives base64 line wrapping (N3)
 reset; LONG="$(printf 'L%.0s' $(seq 1 90))-tail"

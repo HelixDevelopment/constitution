@@ -24,6 +24,10 @@ Rootless policy (§11.4.161). Docker is used only when Podman is not on PATH, or
 
 The login step reported a configuration error: no usable container engine is installed (also when the env file exists but no engine does), the env file is accessible to group or others, is a symlink or is not yours, an explicitly set `SONAR_REGISTRY_ENV_FILE` does not exist, an option was given without a value, the credentials are set up but incomplete or unusable (e.g. a username without a password, or a misspelled variable name in the env file), or `DOCKER_AUTH_CONFIG` is malformed (not JSON, no `auths`, wrong types, a mistyped entry key, empty, or bad base64). Run `chmod 600` on the env file. The script never uses a loosely protected secret file. An engine that rejects the credentials also stops `up` (the script itself exits 1).
 
+## Why is my username or password rejected with exit 2?
+
+A username or password that is empty, whitespace-only, or contains a TAB, newline, carriage return or other control character is refused (for both plain variables and decoded `DOCKER_AUTH_CONFIG` entries), so a value can never be split into another field or sent to the engine as an option. A space or colon inside a password is fine. A username starting with `-` is passed as `--username=NAME`.
+
 ## Can I keep the password in `~/api_keys.sh`?
 
 No. Use a secret store or the 0600 env file. Never hardcode it in the repository, a log or a command line.
