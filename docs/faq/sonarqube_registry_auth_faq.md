@@ -47,3 +47,10 @@ No. The tests use a fake engine. Treat live behaviour as unconfirmed until you r
 ## Should I log out afterwards?
 
 On shared hosts, yes: `registry_login.sh logout`. Prefer pull-only, short-lived tokens.
+
+## Known limits
+
+- A password containing a newline is cut at the first line when read from an env file or decoded from `DOCKER_AUTH_CONFIG`; such passwords are not supported.
+- `verify` pulls the probe image and leaves whatever login state the engine already has (including an `auth.json` written earlier by `--auth-file-only`); it does not clean up.
+- The env file is checked and then sourced; between the two a local attacker who owns the directory could swap the file (time-of-check/time-of-use). Keep the directory private (0700).
+- `DOCKER_AUTH_CONFIG` with only credential helpers or identity tokens is skipped (`SKIP credentials_absent`), not decoded.

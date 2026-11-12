@@ -30,7 +30,7 @@ rlmut() { # name old new
     mutate "${W}/m.sh" "$1" "$2" "$3" || { echo "FAIL $1 (anchor missing)"; BAD=1; return; }
     if rl_test "${W}/m.sh"; then echo "FAIL mutant survived: $1"; BAD=1; else echo "ok   mutant killed: $1"; KILLED=$((KILLED+1)); fi
 }
-wmut() { # name file old new
+wmut() { # name file old new   (the xtrace wrapper and ${!v+x} are redundant defences; W5 removes both)
     rm -rf "${W}/wm"; cp -r "${W}/sqcopy" "${W}/wm"
     mutate "${W}/wm/$2" "$1" "$3" "$4" || { echo "FAIL $1 (anchor missing)"; BAD=1; return; }
     if wire_test "${W}/wm"; then echo "FAIL mutant survived: $1"; BAD=1; else echo "ok   mutant killed: $1"; KILLED=$((KILLED+1)); fi
@@ -55,14 +55,29 @@ rlmut M12-option-value-unchecked 'if [ -z "${2:-}" ]; then rl_err "option $1 nee
 rlmut M13-env-engine-beats-flag '${RL_ENGINE_ARG:-${SONAR_REGISTRY_ENGINE:-}}' '${SONAR_REGISTRY_ENGINE:-${RL_ENGINE_ARG:-}}'
 rlmut M14-explicit-missing-envfile-skip 'does not exist"; return 2; fi' 'does not exist"; return 0; fi'
 rlmut M15-auth-config-ignored 'elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then' 'elif false; then'
-rlmut M16-fake-auth-config-success 'rl_err "DOCKER_AUTH_CONFIG is not an' 'exit 0; rl_err "DOCKER_AUTH_CONFIG is not an'
+rlmut M16-fake-auth-config-success 'rl_err "DOCKER_AUTH_CONFIG is not a JSON object"' 'exit 0; rl_err "DOCKER_AUTH_CONFIG is not a JSON object"'
+rlmut M17-helper-only-config-aborts 'exit "${RL_EXIT_SKIP}"
+            fi
+            while' 'exit "${RL_EXIT_BLIND}"
+            fi
+            while'
+rlmut M18-registry-charset-unchecked 'case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"")' 'case "${h}" in "__none__")'
+rlmut M19-verify-unmasked 'rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail' 'cat | tail'
+rlmut M20-existing-auth-dir-trusted '[ "$(stat -c %a "${ad}" 2>/dev/null)" = 700 ]' 'true'
 # M6: xtrace enforcement off everywhere (all set +x, the xtrace redirection and the re-assert)
 cp "${W}/orig/registry_login.sh" "${W}/m.sh"; sed -i 's/set +x/set -x/g; s/BASH_XTRACEFD=9/BASH_XTRACEFD=2/g' "${W}/m.sh"
 if rl_test "${W}/m.sh"; then echo "FAIL mutant survived: M6-xtrace-enforcement-off"; BAD=1; else echo "ok   mutant killed: M6-xtrace-enforcement-off"; KILLED=$((KILLED+1)); fi
 wmut W1-rc1-treated-as-skip sonarqube_lib.sh '        3)  sq_log' '        1|3)  sq_log'
 wmut W2-login-call-removed sonarqube_container.sh '    sq_registry_login_auto || {' '    true || {'
-wmut W3-no-export-of-docker-vars sonarqube_lib.sh '[ -n "${!v:-}" ] && export "${v?}"' ':'
+wmut W3-no-export-of-docker-vars sonarqube_lib.sh '[ -n "${!v+x}" ] && export "${v?}"' ':'
 wmut W4-explicit-missing-file-skipped sonarqube_lib.sh ' && [ -z "${SONAR_REGISTRY_ENV_FILE:-}" ]; then' '; then'
+# W5: BOTH xtrace defences removed (scoped set +x and the value-free set-ness test) must leak
+rm -rf "${W}/wm"; cp -r "${W}/sqcopy" "${W}/wm"
+mutate "${W}/wm/sonarqube_lib.sh" x 'case $- in *x*) _xt=1; set +x ;; esac' ':' && mutate "${W}/wm/sonarqube_lib.sh" x '[ -n "${!v+x}" ] && export' '[ -n "${!v:-}" ] && export' \
+    || { echo "FAIL W5 anchors"; BAD=1; }
+if wire_test "${W}/wm"; then echo "FAIL mutant survived: W5-xtrace-defences-removed"; BAD=1; else echo "ok   mutant killed: W5-xtrace-defences-removed"; KILLED=$((KILLED+1)); fi
+# W6: trace not restored after the call
+wmut W6-xtrace-not-restored sonarqube_lib.sh '[ "${_xt}" = 1 ] && set -x' ':'
 # restore proof: sources untouched
 for f in registry_login.sh sonarqube_lib.sh sonarqube_container.sh sonarqube_run_scan.sh; do
     cmp -s "${SQ}/${f}" "${W}/orig/${f}" && echo "ok   source unchanged: ${f}" || { echo "FAIL source changed: ${f}"; BAD=1; }

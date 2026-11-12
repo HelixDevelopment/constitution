@@ -33,7 +33,7 @@
 #                variables only, never fakes success).
 # Side-effects : --auth-file-only writes ${XDG_RUNTIME_DIR:-$HOME/.cache}/helix_sonar_registry/auth.json
 #                (0600, private 0700 directory); engine login/logout/pull.
-# Dependencies : bash, stat, grep, sed, tr, base64, podman|docker.
+# Dependencies : bash, stat, grep, sed, tr, tail, base64, podman|docker.
 # Security     : set +x enforced; password only via --password-stdin; env file sourced
 #                in a subshell and refused unless mode has no group/other bits; engine
 #                output passes through a literal-substring masker; credential helpers
@@ -151,9 +151,11 @@ rl_mode_login() {
         if [ -n "${user}" ] && [ -n "${pass}" ] && [ -n "${reg}" ]; then
             triples+=("${reg}"$'\t'"${user}"$'\t'"${pass}")
         elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
-            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"; prc=$?
-            if [ "${prc}" -eq 2 ] || [ -z "${pairs}" ]; then
-                rl_err "DOCKER_AUTH_CONFIG is not an {\"auths\":{host:{\"auth\":...}}} JSON with auth entries (credential helpers / identity tokens are not decoded here)"; exit "${RL_EXIT_BLIND}"
+            case "${DOCKER_AUTH_CONFIG}" in *'{'*) : ;; *) rl_err "DOCKER_AUTH_CONFIG is not a JSON object"; exit "${RL_EXIT_BLIND}" ;; esac
+            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"
+            if [ -z "${pairs}" ]; then
+                rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG has no decodable auth entries (credential helpers / identity tokens are not decoded here); no login attempted"
+                exit "${RL_EXIT_SKIP}"
             fi
             while IFS=$'\t' read -r h b; do
                 d="$(printf '%s' "${b}" | base64 -d 2>/dev/null)"
@@ -186,6 +188,7 @@ rl_mode_login() {
         worst=0
         for t in "${triples[@]}"; do
             IFS=$'\t' read -r h u pw <<<"${t}"
+            case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"") rl_err "registry host '${h}' has characters not allowed (or starts with '-'); refusing"; exit "${RL_EXIT_BLIND}" ;; esac
             rl_engine_login "${eng}" "${h}" "${u}" "${pw}" || worst=$?
         done
         exit "${worst}"
@@ -215,14 +218,21 @@ rl_mode_discover() {
 }
 
 rl_mode_verify() {
-    local img="${RL_PROBE_ARG:-${SONAR_REGISTRY_PROBE_IMAGE:-}}" eng out erc
-    if [ -z "${img}" ]; then rl_log "SKIP probe_image_absent: pass --probe-image or set SONAR_REGISTRY_PROBE_IMAGE (a private image to pull); nothing verified"; return "${RL_EXIT_SKIP}"; fi
-    eng="$(rl_engine)" || { rl_err "no usable container engine on PATH"; return "${RL_EXIT_BLIND}"; }
-    out="$("${eng}" pull "${img}" 2>&1)"; erc=$?
-    printf '%s\n' "${out}" | rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail -5 >&2
-    if [ "${erc}" -ne 0 ]; then rl_err "pull of probe image failed (exit ${erc}); auth NOT verified"; return "${RL_EXIT_FAIL}"; fi
-    rl_log "verify OK: pulled ${img} via $(basename "${eng}")"
-    return "${RL_EXIT_OK}"
+    local rc
+    rl_pick_env_file || return $?
+    (
+        rl_quiet_trace
+        if [ -n "${RL_EF}" ]; then rl_load_env_file "${RL_EF}" || exit "$?"; fi
+        img="${RL_PROBE_ARG:-${SONAR_REGISTRY_PROBE_IMAGE:-}}"
+        if [ -z "${img}" ]; then rl_log "SKIP probe_image_absent: pass --probe-image or set SONAR_REGISTRY_PROBE_IMAGE (a private image to pull); nothing verified"; exit "${RL_EXIT_SKIP}"; fi
+        eng="$(rl_engine)" || { rl_err "no usable container engine on PATH"; exit "${RL_EXIT_BLIND}"; }
+        out="$("${eng}" pull "${img}" 2>&1)"; erc=$?
+        printf '%s\n' "${out}" | rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail -5 >&2
+        if [ "${erc}" -ne 0 ]; then rl_err "pull of probe image failed (exit ${erc}); auth NOT verified"; exit "${RL_EXIT_FAIL}"; fi
+        rl_log "verify OK: pulled ${img} via $(basename "${eng}")"
+        exit "${RL_EXIT_OK}"
+    )
+    rc=$?; return "${rc}"
 }
 
 rl_mode_logout() {

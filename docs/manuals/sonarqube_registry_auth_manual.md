@@ -40,8 +40,10 @@
 
 ## Tests
 
-`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (login before the compose pull in `up`, fail-closed), `test_registry_login_mutation_test.sh` (20 mutants of the script, library and container script must each fail the matching test; sources are cmp-verified unchanged). All are unit-class: the engine is a fake that records argv and stdin.
+`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (login before the compose pull in `up`, fail-closed), `test_registry_login_mutation_test.sh` (26 mutants of the script, library and container script must each fail the matching test; sources are cmp-verified unchanged). All are unit-class: the engine is a fake that records argv and stdin.
 
 ## Limits
 
-Not proven live. Credential-helper files are reported, not exercised. The masker is literal-substring: a secret transformed by the engine (encoded) is not masked. No Windows support.
+Secrets are never expanded under `bash -x` on the library path: `sq_registry_login_auto` switches tracing off for its body and restores it, and tests set-ness with `${!v+x}`, not the value.
+
+Secrets are never expanded under `bash -x` on the library path (`sq_registry_login_auto` switches tracing off for its body and restores it, and tests set-ness with `${!v+x}`). Not proven live. Credential-helper files are reported, not exercised. The masker is literal-substring: a secret transformed by the engine (encoded) is not masked. No Windows support.

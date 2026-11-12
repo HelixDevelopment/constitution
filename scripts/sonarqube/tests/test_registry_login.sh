@@ -16,7 +16,7 @@ chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi;
 
 SECRET='S3cr3t-Pa$$w0rd/x&y'
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln tail; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 mkfake() { # $1=name dir
@@ -24,8 +24,9 @@ mkfake() { # $1=name dir
     cat >"$1/$2" <<'FAKE'
 #!/bin/bash
 { printf '%s\n' "$0" ; for a in "$@"; do printf 'ARG:%s\n' "$a"; done; } >>"${FAKE_LOG:?}"
+if [ "${1:-}" = pull ] && [ -n "${FAKE_ECHO_SECRET:-}" ]; then printf 'pull line %s\n' "${FAKE_ECHO_SECRET}"; fi
 if [ "${1:-}" = login ] || [ "${1:-}" = logout ]; then
-  case " $* " in *" --password-stdin "*) cat >"${FAKE_LOG}.stdin";; esac
+  case " $* " in *" --password-stdin "*) cat >>"${FAKE_LOG}.stdin"; echo >>"${FAKE_LOG}.stdin";; esac
   [ -n "${FAKE_ECHO_SECRET:-}" ] && printf 'login line %s\n' "${FAKE_ECHO_SECRET}"
 fi
 printf 'REGISTRY_AUTH_FILE=%s\n' "${REGISTRY_AUTH_FILE:-}" >>"${FAKE_LOG}"
@@ -144,7 +145,7 @@ done
 reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" DOCKER_AUTH_CONFIG='not json' bash "${SUT}" login >/dev/null 2>&1; echo $?)
 chk "malformed DOCKER_AUTH_CONFIG -> exit 2" 2 "$rc"
 reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" DOCKER_AUTH_CONFIG='{"auths":{"h":{}},"credsStore":"x"}' bash "${SUT}" login >/dev/null 2>&1; echo $?)
-chk "AUTH_CONFIG without auth entries -> exit 2 (no fake success)" 2 "$rc"
+chk "AUTH_CONFIG without auth entries -> SKIP 3 (no fake success)" 3 "$rc"
 
 # 9c docker branch must not leak the password to argv (reviewer R2)
 reset; envfile 600
@@ -156,6 +157,38 @@ for o in "login --env-file" "verify --probe-image" "login --engine" "discover --
   reset; rc=$(cd "${W}" && env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" timeout 5 bash "${SUT}" $o >/dev/null 2>&1; echo $?)
   chk "no hang, exit 2: $o" 2 "$rc"
 done
+
+# 9d2 credHelpers/identitytoken-only config: honest SKIP, no engine call (m-1)
+reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"credsStore":"desktop","auths":{"h":{"identitytoken":"abc"}}}' bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
+chk "helper/identitytoken-only AUTH_CONFIG -> SKIP 3" 3 "$rc"; [ -f "${W}/log" ] && no "helper-only: engine not called" || ok "helper-only: engine not called"
+
+# 9d3 two-host auths JSON: every entry logged in (N2); long credential >57 bytes survives base64 line wrapping (N3)
+reset; LONG="$(printf 'L%.0s' $(seq 1 90))-tail"
+AJ="{\"auths\":{\"one.test\":{\"auth\":\"$(printf 'a:%s' "${SECRET}" | base64 | tr -d '\n')\"},\"two.test\":{\"auth\":\"$(printf 'b:%s' "${LONG}" | base64 | tr -d '\n')\"}}}"
+rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="${AJ}" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
+chk "two-host AUTH_CONFIG exit" 0 "$rc"
+grep -q '^ARG:one.test$' "${W}/log" && grep -q '^ARG:two.test$' "${W}/log" && ok "both hosts logged in" || no "both hosts logged in"
+chk "both passwords delivered intact on stdin" "${SECRET}
+${LONG}" "$(cat "${W}/log.stdin" 2>/dev/null | sed '/^$/d')"
+grep -qF -- "${LONG}" "${W}/out" "${W}/err" && no "long credential not in output" || ok "long credential not in output"
+
+# 9d4 registry host starting with '-' or with odd characters never reaches the engine (m-2)
+for bad in '--authfile=/x' '-x' 'a b' 'h;id'; do
+  reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_REGISTRY="$bad" DOCKER_USERNAME=u DOCKER_PASSWORD=p bash "${SUT}" login >/dev/null 2>&1; echo $?)
+  chk "bad registry '$bad' -> exit 2" 2 "$rc"; [ -f "${W}/log" ] && no "bad registry: engine not called" || ok "bad registry: engine not called"
+done
+
+# 9d5 verify masks secrets coming from the env file (N4)
+reset; envfile 600; ENVS="FAKE_ECHO_SECRET=${SECRET}"
+rc=$(run "${W}/fakeP:${TOOLS}" verify --env-file "${W}/home/.config/helix/sonar_registry.env" --probe-image x/y:1)
+chk "verify with env file ok" 0 "$rc"; noleak "verify output"
+grep -q '\*\*\*' "${W}/err" && ok "verify masking marker" || no "verify masking marker"
+
+# 9d6 pre-made 0755 auth dir is refused, not trusted (N8)
+reset; mkdir -p "${W}/run/helix_sonar_registry"; chmod 755 "${W}/run/helix_sonar_registry"
+ENVS="DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=pw1"
+rc=$(run "${W}/fakeP:${TOOLS}" login --auth-file-only); chk "0755 auth dir refused" 2 "$rc"
+[ -f "${W}/run/helix_sonar_registry/auth.json" ] && no "nothing written into the 0755 dir" || ok "nothing written into the 0755 dir"
 
 # 9e symlinked env file refused (R3); not-owned file refused with the owner message (R5)
 reset; envfile 600; ln -s "${W}/home/.config/helix/sonar_registry.env" "${W}/link.env"

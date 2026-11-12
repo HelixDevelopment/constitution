@@ -59,6 +59,20 @@ env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/none" FA
   . "$1/sonarqube_lib.sh"; DOCKER_REGISTRY=r.t; DOCKER_USERNAME=u; DOCKER_PASSWORD=pw; sq_registry_login_auto' _ "${SQ}" >/dev/null 2>&1
 grep -q 'podman login' "${W}/log" 2>/dev/null && ok "non-exported DOCKER_* are exported to the login child" || no "non-exported DOCKER_* are exported to the login child"
 
+# xtrace must never expose a secret on the library path (I-1): trace under bash -x,
+# secrets as plain (non-exported) variables and as DOCKER_AUTH_CONFIG
+LEAK='ZZSECRETZZ-lib/leak'
+rm -f "${W}/log"
+env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/none" FAKE_LOG="${W}/log" bash -xc '
+  . "$1/sonarqube_lib.sh"; set +x; DOCKER_REGISTRY=r.t; DOCKER_USERNAME=u; DOCKER_PASSWORD="$2"; DOCKER_TOKEN="$2"
+  DOCKER_AUTH_CONFIG="{\"auths\":{\"h\":{\"auth\":\"$2\"}}}"; set -x; sq_registry_login_auto' _ "${SQ}" "${LEAK}" >"${W}/xout" 2>"${W}/xerr"
+if grep -qF -- "${LEAK}" "${W}/xout" "${W}/xerr"; then no "xtrace leak: secret visible under bash -x"; else ok "xtrace leak: no secret under bash -x"; fi
+grep -q 'podman login' "${W}/log" 2>/dev/null && ok "xtrace run really logged in (needle can see)" || no "xtrace run really logged in (needle can see)"
+grep -qF -- 'sq_registry_login_auto' "${W}/xerr" && ok "xtrace needle: trace is active (function name visible)" || no "xtrace needle: trace is active"
+# tracing is restored after the call
+env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/none" FAKE_LOG="${W}/log" bash -xc '
+  . "$1/sonarqube_lib.sh"; sq_registry_login_auto; echo AFTERCALL' _ "${SQ}" 2>&1 >/dev/null | grep -q "echo AFTERCALL" && ok "xtrace restored after the call" || no "xtrace restored after the call"
+
 # the scan script itself pulls nothing and must not claim to log in
 grep -q 'sq_registry_login_auto' "${SQ}/sonarqube_run_scan.sh" && no "run_scan does not claim login" || ok "run_scan does not claim login"
 printf '\n%s passed, %s failed\n' "${PASS}" "${FAIL}"; [ "${FAIL}" -eq 0 ]
