@@ -8,6 +8,7 @@
 - F4 `lib_decide.sh` `jev_claude_settings_dirs` / `jev_settings_wired`: one resolver ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude, ~/.claude-*) used by `jev-status.sh` and `cm_jev_wiring.sh`; wired only for a PreToolUse hook command that names `jev-gate.sh`. The T4 pack README now states the `cm_jev_wiring` claude FAIL that the live T4 run reported.
 - F5 `jev-place.sh`: lease and stop-mark holders carry the process start time (a reused pid is dead); release marks and stops EVERY constitution-started set left without a lease; a join re-checks the unit (a degraded unit is refused) and registers the local gateway; `placement.json` carries a closed-set `verdict` and an `event` field.
 - F6 T5 pack: the capture script reads `.placement` and the cause label is corrected; the T5 result stays UNPROVEN (not re-captured live).
+- A test that a non-default `SHARED_DIR` is consulted by the settings resolver (the mutant that ignores `SHARED_DIR` is killed; blanking only the `~/.claude-shared` default is an equivalent mutant, because the `~/.claude-*` glob finds the same directory).
 - F7 tests that kill RM5, RM11, RM12 and RM15; F8 docs: no failover is shown live, and re-probing happens on the next bootstrap run.
 - `tests/jev/run_all.sh` fails a test that leaves a fixture server of THIS checkout running (exact argv match, killed by pid); the four tests that leaked are fixed. The process enumeration uses `find`, not a `/proc/[0-9]*` glob, which the full-suite manifest modeller expanded on disk until its step budget ran out.
 

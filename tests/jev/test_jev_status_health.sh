@@ -11,7 +11,8 @@
 #   S3 consent: consent.json inlined; absent -> null
 #   S4 wiring: a PreToolUse hook referencing jev-gate.sh in a settings file the toolkit installer writes
 #      ($CLAUDE_CONFIG_DIR, ~/.claude-shared, ~/.claude) -> wired=true and the file is named; a jev-gate mention OUTSIDE a
-#      PreToolUse hook is NOT wired (negative, RM15); the same resolver drives cm_jev_wiring
+#      PreToolUse hook is NOT wired (negative, RM15); a non-default $SHARED_DIR is consulted; the same resolver drives
+#      cm_jev_wiring
 #   S5 placement + leases inlined;  S6 human view prints every section;  S7 key VALUES never appear in the output
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; export FIXTURES="$HERE/fixtures"; REPO="$(cd "$HERE/../.." && pwd)"
@@ -55,6 +56,14 @@ rm -f "$HOME/.claude-shared/settings.json"
 mkdir -p "$T/alias1"; printf '%s\n' "$HOOK" > "$T/alias1/settings.json"
 CLAUDE_CONFIG_DIR="$T/alias1" bash "$ST" --json --no-validate > "$T/s3.json" 2>/dev/null
 assert_eq true "$(jq -r '.wiring.claude' "$T/s3.json")" "S4 the hook in \$CLAUDE_CONFIG_DIR/settings.json => wired"
+# S4 resolver: a non-default SHARED_DIR (the toolkit's own override) is consulted; the ~/.claude-* glob cannot reach it
+rm -f "$T/alias1/settings.json"
+mkdir -p "$T/shared-elsewhere"; printf '%s\n' "$HOOK" > "$T/shared-elsewhere/settings.json"
+SHARED_DIR="$T/shared-elsewhere" bash "$ST" --json --no-validate > "$T/s5.json" 2>/dev/null
+assert_eq true "$(jq -r '.wiring.claude' "$T/s5.json")" "S4 the hook in \$SHARED_DIR/settings.json (outside \$HOME) => wired"
+bash "$ST" --json --no-validate > "$T/s6.json" 2>/dev/null
+assert_eq false "$(jq -r '.wiring.claude' "$T/s6.json")" "S4 CONTROL: the same files without SHARED_DIR => not wired"
+rm -f "$T/shared-elsewhere/settings.json"
 # S4 negative (RM15): jev-gate mentioned outside a PreToolUse hook is NOT wired
 printf '{"permissions":{"allow":["Bash(/x/jev-gate.sh)"]},"hooks":{"PostToolUse":[{"hooks":[{"command":"/x/jev-gate.sh"}]}]}}\n' > "$T/alias1/settings.json"
 mkdir -p "$HOME/.claude"; printf '{"note":"jev-gate.sh"}\n' > "$HOME/.claude/settings.json"
