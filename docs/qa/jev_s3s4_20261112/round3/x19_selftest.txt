@@ -1,0 +1,10 @@
+FAIL - L1 a leaking test makes run_all fail (rc 1) (expected [1] got [0])
+FAIL - L1 the leaking test is reported FAIL (no [FAIL test_a_leak.sh] in <home>/.cache/claude-tmp/tmp.Zfcohs1EA2/r1.out)
+FAIL - L1 the LEAK line is printed (no [LEAK: fixture server pid] in <home>/.cache/claude-tmp/tmp.Zfcohs1EA2/r1.out)
+FAIL - L1 the LEAK line names the leaked pid (no [pid(s) 1889532 ] in <home>/.cache/claude-tmp/tmp.Zfcohs1EA2/r1.out)
+FAIL - L1 the leaked process is still running (not killed)
+ok 1 - L2 golden-good: a test that leaves nothing passes
+ok 2 - L3 setup: the blinded copy was made
+ok 3 - L3 CONTROL: the blinded detector passes the leaking test (so L1 is not passing for another reason)
+ok 4 - L3 CONTROL: with the blinded detector the leaked process survives
+# test_run_all_leak_detector.sh: pass=4 fail=5 skip=0

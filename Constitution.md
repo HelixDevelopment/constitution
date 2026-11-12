@@ -4,7 +4,7 @@
 |---|---|
 | Revision | 96 |
 | Created | 2026-05-14 |
-| Last modified | 2026-11-12T23:30:00Z |
+| Last modified | 2026-11-12T22:26:19Z |
 | Status | active |
 | Status summary | Merge 2026-10-27: upstream v72 merged on top of v71; the optimistic-done anchor landed under the next free number (v72 owns 287-289). Older entries of this cell (verbatim, none dropped) are kept on demand in docs/amendment-log/status-summary-constitution.md; per §11.4.61(A) this cell is a one-line current-state hook, so record each new amendment in CHANGELOG.md and, when this cell grows, rotate it with scripts/amendment_log/status_summary_archive.py. |
 | Issues | none |

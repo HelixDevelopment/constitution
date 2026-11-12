@@ -1,5 +1,17 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 3: fixes for the independent review of `c2489197` (NO-GO, R2-1 to R2-7, nits, surviving mutants X1, X6, X7, X16, X19)
+
+- R2-1 `bootstrap.sh`: the stage-3 probe signature is recomputed from the record the stage writes and the stage key is re-stamped, so the second run on a fresh state is a byte-stable no-change (§11.4.281); signature rows use `\x1f`, because `read` collapsed empty TAB fields and silently dropped every local health row (the cause of X1). Tests H10, H11.
+- R2-2 `jev-place.sh`: a failed start whose cleanup stop also fails keeps an owned set (`start_failed`, `stop_failed`); it is never joined or adopted, the stop is retried on the next acquire and on release. Test P27.
+- R2-3 `jev-place.sh`: a join needs a readable capacity answer, a `running`/`active` unit and a `fits`/`fits_with_reduced_threads` verdict; everything else is `refused_join` (degraded stays `refused_degraded`), rc 5, no lease, no cache entry. Test P28.
+- R2-4 `Constitution.md` Last modified set to the real UTC time of the edit (Revision stays 96).
+- R2-5 `lib_decide.sh` `jev_settings_wired`: wired only when the PreToolUse command word has basename exactly `jev-gate.sh`. Test S8.
+- R2-6: P29 (start time is `/proc` stat field 22, independent oracle), P30 (zombie holder reaped), S8 (X16), `tests/jev/test_run_all_leak_detector.sh` (X19, with a blinded control).
+- Nits: `write_placement` refuses an `event` outside its closed set (P32, P32b); a stop mark without a pid is cleared only by age (P31); `t4_gate.sh` SC2164 (edited after capture, noted in the pack).
+- R2-7 is left to the lander: `dc654757` carries a placeholder trailer and must be re-committed tree-equal with `Roadmap-Item: CON-299` before the first push; this vehicle does not rewrite history.
+- Mutants: 42 (the reviewer's 19 plus 22 new), 41 killed, 1 equivalent (N4, justified). Evidence: `docs/qa/jev_s3s4_20261112/round3/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was re-captured.
+
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 2: fixes for the independent review of `dc654757` (NO-GO, F1 to F8 and the surviving mutants RM5, RM11, RM12, RM15)
 
 - F1 `bootstrap.sh`: the stage-3 idempotency key now carries a probe signature (probe outcome per endpoint), so a 402 to 200 or 200 to 402 change re-runs the stage instead of replaying the old record; in-stage probes are memoized per run; the comment that claimed `jev-status.sh` re-probes was false and is replaced.

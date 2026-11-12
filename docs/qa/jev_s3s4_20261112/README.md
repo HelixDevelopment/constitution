@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-12 |
 | Status | evidence (CON-299, In progress) |
@@ -16,6 +16,11 @@ the operator's `~/.claude-shared/settings.json` and `.mcp.json` predate the runs
 
 The scripts that produced the runs are in this directory (`t3.sh`, `t4.sh`, `t4_gate.sh`, `t5.sh`). Checksums of
 every file are in `SHA256SUMS`.
+
+Round 3 (2026-11-12): the fixes for the review of `c2489197` and their RED/GREEN logs and mutant results are in
+[`round3/README.md`](round3/README.md). `t4_gate.sh` was edited after the T4 runs were captured (it now exits when `cd`
+fails, shellcheck SC2164); the runs were made with the earlier text. `SHA256SUMS` was regenerated for the whole pack.
+None of the live runs here was re-captured in round 2 or round 3.
 
 ## T3 detection (bootstrap, no consent, no default-on)
 
