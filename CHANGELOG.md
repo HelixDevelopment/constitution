@@ -1,5 +1,13 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-12 — SonarQube registry authentication (§11.4.184(J), extension): `scripts/sonarqube/registry_login.sh`, wired into the scan
+
+**Status of this entry: UNRELEASED; implemented and tested on host fixtures only (fake engine, unit-class §11.4.289(C)(2)); PROVISIONAL, not VERIFIED-DONE; no independent review yet (§11.4.142).**
+
+- New `scripts/sonarqube/registry_login.sh` (modes `login`, `discover`, `verify`, `logout`, `auth-file-path`; Podman first, Docker fallback; password via `--password-stdin` only; env file refused unless 0600/0400; masked output; exit 0/1/2/3). Wired through `sq_registry_login_auto` in `sonarqube_lib.sh` and called by `sonarqube_run_scan.sh` before the server check; nothing configured is a logged SKIP.
+- Tests in `scripts/sonarqube/tests/` (logic, wiring, paired mutation). Guide, manual and FAQ under `docs/`, linked from `README.md`. `Constitution.md` gains the extension paragraph §11.4.184(J); no new anchor number, no new CM-* token.
+- Not done: the carrier mirrors (`CLAUDE.md`, `AGENTS.md`, etc.), `progressive/` and `constitution_index.yaml` were not regenerated for the new paragraph, and no real-registry run exists.
+
 ## Unreleased — 2026-11-11 — v73.4 release preparation: the CM-KILLPG-PGID-GUARD regression fixed (7 unguarded sites on `fc57ad0c`), the PROVISIONAL Version-badge rule made case-insensitive, and a mechanical, resumable release cut (`scripts/release/`)
 
 **Status of this entry: UNRELEASED; implemented and tested on host fixtures only; not VERIFIED-DONE (CON-226, Ready for testing, PROVISIONAL-DONE per §11.4.290).** Independent review of `ec58c0ae` (2026-11-11): GO-with-follow-ups, 0 critical, 0 important, 9 minor, 5 nit (`docs/qa/review_rel734c_2026_11_11.md`); follow-ups CON-227 to CON-234. Landed on `main` by merging `main` `72a4bebb` into the vehicle; at landing one new process-group signal text site from `main` (`scripts/validation/test_enumerate_decision_mutants_r2_regression.sh:94`, a mutant replacement string) got the audited `# killpg-gate:allow` marker. Built on vehicle `vehicle/rel734` from `main` at `fc57ad0c`, after the independent review of the first v73.4 release commit (`e3a55a44`, NO-GO: I-1 to I-4).
