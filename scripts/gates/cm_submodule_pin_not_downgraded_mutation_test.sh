@@ -919,7 +919,7 @@ g11_NULROW() { # F3: a NUL byte in waiver data is never dropped silently. (a) th
   waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; ysib "$r" "$x" "$(wf sub "$B" "$A" ops "$d10" CON-046 "$x")\\0\n"
   o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"; git -C "$r" update-ref -d refs/heads/y
   mk;r=$R; { printf 'max_waiver_days=6'; printf '\0'; printf '0\n'; } >"$r/.submodule_pin_gate.conf"; git -C "$r" add .submodule_pin_gate.conf; git -C "$r" commit -q -m conf
-  stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d45" CON-046)\n"; o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"
+  stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="$(run "$r" "$g")/$(cnt 'NUL byte'),"
   mk;r=$R; stage "$r" "$A"; waive "$r" "$(wf sub "$B" "$A" ops "$d10" CON-046)\n"; o+="$(run "$r" "$g")"
   echo "NULROW=$o "; }
 g11_DOWN2() { # F6: the incident shape, a downgrade by MORE than one commit (C -> A over B): FAIL with the ANCESTOR text
