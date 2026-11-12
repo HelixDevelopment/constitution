@@ -1366,7 +1366,7 @@ class Model:
         raise ShParseError("unknown node %r" % k)
 
     def interpret_file(self, rel, definite):
-        with open(os.path.join(self.root, rel), errors="replace") as fh:
+        with open(os.path.join(self.root, rel), errors="replace") as fh:  # io: not-gov (a python test's source, parsed)
             ast = parse(fh.read())
         self.depth += 1
         try:
@@ -1403,7 +1403,7 @@ def _strip(b, op, pat):
 def model(root, rel, args):
     """Interpret `rel` (relative to `root`) with positional `args`; return the Model."""
     m = Model(root, rel, args)
-    with open(m.script, errors="replace") as fh:
+    with open(m.script, errors="replace") as fh:  # io: not-gov (a runall script's source, parsed as shell)
         text = fh.read()
     if re.match(r"^#![^\n]*\s-[A-Za-z]*e", text):
         m.errexit = True
@@ -1416,6 +1416,7 @@ def model(root, rel, args):
     return m
 
 # =============================================================================== runner engine
+import collections
 import fcntl
 import hashlib
 import json
@@ -1428,6 +1429,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 
 SCHEMA = "fsr/4"
 VERDICTS = ("PASS", "FAIL", "SKIP", "TIMEOUT", "ERROR", "SKIPPED-heavy", "NOT-RUN")
@@ -1493,14 +1495,77 @@ class Fatal(Exception):
         self.code = code
 
 
+# Every C0 control except TAB (LF and CR included), DEL, every C1 control (NEL included) and the two Unicode line
+# and paragraph separators: the characters that end, overwrite or split a line in some reader (a terminal, Python
+# text mode, str.splitlines()). CON-030 round 4 (review r3 H2, H3): ONE class, used by the one governance-file
+# reader, by the census name check and by the one output escaping function.
+LINE_BREAKERS = re.compile("[\x00-\x08\x0a-\x1f\x7f-\x9f\u2028\u2029]")
+CHAR_NAMES = {"\n": "LF", "\r": "CR", "\x0b": "VT", "\x0c": "FF", "\x00": "NUL", "\x1b": "ESC", "\x7f": "DEL",
+              "\x85": "NEL", "\u2028": "LINE SEPARATOR", "\u2029": "PARAGRAPH SEPARATOR"}
+
+
+def char_name(c):
+    """`U+0085 (NEL)`: how a refused character is named in a message."""
+    return "U+%04X%s" % (ord(c), " (%s)" % CHAR_NAMES[c] if c in CHAR_NAMES else "")
+
+
+def esc_out(s):
+    """THE output escaping function (review r3 H3): every LINE_BREAKERS character as \\r, \\n or \\xNN / \\uNNNN, and
+    a lone surrogate (a non-UTF-8 byte kept by os.fsdecode) as \\xNN. One message is one line on every reader, so no
+    path, unit id, label, gap or git text can forge or overwrite a line (a `RESULT:` line above all). TAB is kept
+    (the manifest printed to stdout is TAB separated, and a TAB ends no line)."""
+    def one(mm):
+        c = mm.group(0)
+        return {"\n": "\\n", "\r": "\\r"}.get(c) or ("\\x%02x" % ord(c) if ord(c) < 0x100 else "\\u%04x" % ord(c))
+    # review r4 K3: the round trip first. Surrogates that together hold the bytes of a valid UTF-8 sequence decode
+    # back to that character (\udcc2\udc85 is NEL), so the line-breaker substitution must see the decoded text.
+    try:
+        s = s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
+    except UnicodeEncodeError:
+        s = s.encode("utf-8", "backslashreplace").decode("utf-8")
+    return LINE_BREAKERS.sub(one, s)
+
+
 def out(msg):
-    sys.stdout.write(msg + "\n")
+    sys.stdout.write(esc_out(msg) + "\n")
     sys.stdout.flush()
 
 
 def err(msg):
-    sys.stderr.write(msg + "\n")
+    sys.stderr.write(esc_out(msg) + "\n")
     sys.stderr.flush()
+
+
+class GovLineError(Exception):
+    """A governance-file line that holds a LINE_BREAKERS character (other than the CR of a CRLF line end)."""
+    def __init__(self, path, n, c):
+        Exception.__init__(self, "%s line %d holds the character %s, which a governance file may not hold (a "
+                           "reader that splits on it would see another line than git shows)" % (path, n, char_name(c)))
+
+
+def gov_lines(path):
+    """THE reader of every governance file (manifest, known-failures table, excluded lock, operator roster, guide):
+    [(line number, line)]. Bytes are read and split on "\\n" only; the CR of a CRLF line end is dropped (a CRLF file
+    stays readable); any other LINE_BREAKERS character in a line raises GovLineError, so no NEL, LS, PS, VT, FF or
+    bare CR can make one committed line read as two (review r3 H2: str.splitlines() split a `#` comment line on a
+    NEL and read an operator id hidden behind it). OSError propagates to the caller."""
+    with open(path, "rb") as fh:  # io: gov (the one governance reader)
+        text = fh.read().decode("utf-8", "replace")
+    res = []
+    for n, line in enumerate(text.split("\n"), 1):
+        if line.endswith("\r"):
+            line = line[:-1]
+        mm = LINE_BREAKERS.search(line)
+        if mm:
+            raise GovLineError(path, n, mm.group(0))
+        res.append((n, line))
+    return res
+
+
+def shown(path):
+    """A path for a message: never raises on output. A path decoded with os.fsdecode() (surrogateescape) may hold
+    the bytes of a name that is not UTF-8; they are shown as \\xNN (review r2 G1)."""
+    return os.fsencode(path).decode("utf-8", "backslashreplace")
 
 
 def git(root, *args, binary=False, check=True):
@@ -1521,16 +1586,22 @@ def sourced(root, rel):
 
 # ----------------------------------------------------------------------------- census
 def submodule_paths(root):
-    p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--get-regexp", r"^submodule\..*\.path$"],
-                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    """Top-level submodule paths: the `path` values of .gitmodules and the gitlinks of the index. Both are read from
+    NUL-separated machine formats (`git config --null`: `<key>\\n<value>\\0`; `git ls-files -s -z`:
+    `<mode> <sha> <stage>\\t<path>\\0`), so a path with a space, a TAB, a leading or trailing space or a non-ASCII
+    character is read whole (CON-030 round 2, review r1 F4; the key holds the submodule name, which may contain a
+    space, so splitting `<key> <value>` on whitespace was wrong)."""
+    p = subprocess.run(["git", "-C", root, "config", "-f", ".gitmodules", "--null", "--get-regexp",
+                        r"^submodule\..*\.path$"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     paths = []
-    for line in p.stdout.decode(errors="replace").splitlines():
-        parts = line.split(None, 1)
-        if len(parts) == 2:
-            paths.append(parts[1].strip().rstrip("/"))
-    for line in git(root, "ls-files", "-s").splitlines():
-        if line.startswith("160000 "):
-            paths.append(line.split("\t", 1)[1])
+    for rec in os.fsdecode(p.stdout).split("\0"):
+        _key, nl, val = rec.partition("\n")
+        if nl and val.rstrip("/"):
+            paths.append(val.rstrip("/"))
+    for rec in os.fsdecode(git(root, "ls-files", "-s", "-z", binary=True)).split("\0"):
+        meta, tab, path = rec.partition("\t")
+        if tab and meta.startswith("160000 "):
+            paths.append(path)
     return sorted(set(paths))
 
 
@@ -1556,7 +1627,7 @@ def broad_candidate(f):
 
 def has_shebang(path):
     try:
-        with open(path, "rb") as fh:
+        with open(path, "rb") as fh:  # io: not-gov (a script's first bytes, shebang)
             return re.match(rb"^#!\s*\S*(sh|bash|python3?|env\s+(ba)?sh|env\s+python3?)\b", fh.read(128)) is not None
     except OSError:
         return False
@@ -1568,7 +1639,7 @@ def census(root):
                       stderr=subprocess.DEVNULL).returncode != 0:
         raise Fatal(2, "census impossible: %s is not a git work tree" % root)
     subs = submodule_paths(root)
-    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
+    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))
     listed = sorted(set(x for x in raw.split("\0") if x))
     if not listed:
         raise Fatal(3, "census instrument blind: git ls-files listed nothing under %s (positive control failed)" % root)
@@ -1579,8 +1650,23 @@ def census(root):
         if not broad_candidate(f):
             continue
         p = os.path.join(root, f)
-        if "\n" in f or "\t" in f:
-            probs.append("census: file name with a newline or TAB cannot be listed in the manifest: %r" % f)
+        bad = LINE_BREAKERS.search(f) or ("\t" if "\t" in f else None)
+        if bad:
+            # a TAB splits a manifest column; a LINE_BREAKERS character (LF, CR, NEL, LS, ...) is refused by the one
+            # governance reader (gov_lines) and could forge an output line (review r3 H3), so no table can hold it
+            c = bad if isinstance(bad, str) else bad.group(0)
+            probs.append("census: file name with a newline, TAB or other control or line-separator character (%s) "
+                         "cannot be listed in the manifest: %r" % (char_name(c), f))
+            continue
+        if f != os.fsencode(f).decode("utf-8", "replace"):
+            # not UTF-8 (os.fsdecode kept the bytes as surrogates): the manifest is UTF-8 text, so the name cannot be
+            # written there; before CON-030 round 3 it was decoded to U+FFFD, not found on disk, and dropped silently
+            probs.append("census: file name that is not UTF-8 cannot be listed in the manifest: %s" % shown(f))
+            continue
+        if f.startswith("#"):
+            # a manifest line that starts with `#` is a comment, so such a row would be read as one and lost
+            probs.append("census: file name that starts with '#' (the manifest comment marker) cannot be listed in "
+                         "the manifest: %r" % f)
             continue
         if os.path.islink(p) and not os.path.exists(p):
             if "/fixtures/" in "/" + f:
@@ -1602,7 +1688,7 @@ def census(root):
             continue
         if not SCRIPT_EXT.search(b) and not has_shebang(p):
             continue
-        if b.lower().endswith(".py") or (not SCRIPT_EXT.search(b) and has_shebang(p) and b"python" in open(p, "rb").read(64)):
+        if b.lower().endswith(".py") or (not SCRIPT_EXT.search(b) and has_shebang(p) and b"python" in open(p, "rb").read(64)):  # io: not-gov (a script's first bytes)
             scripts[f] = "py"
         elif b == "run_all.sh":
             scripts[f] = "runall"
@@ -1627,11 +1713,11 @@ def census_needle(scratch):
     try:
         for f in NEEDLE:
             os.makedirs(os.path.join(d, os.path.dirname(f)), exist_ok=True)
-            with open(os.path.join(d, f), "w") as fh:
+            with open(os.path.join(d, f), "w") as fh:  # io: write
                 fh.write("#!/usr/bin/env bash\necho x\n" if f != "tests/noshebang" else "data\n")
         env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": d, "GIT_CONFIG_NOSYSTEM": "1"}
         subprocess.run(["git", "init", "-q", d], env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        with open(os.path.join(d, ".gitmodules"), "w") as fh:
+        with open(os.path.join(d, ".gitmodules"), "w") as fh:  # io: write
             fh.write('[submodule "sub"]\n\tpath = sub\n\turl = x\n')
         scripts, gofiles, probs = census(d)
         want_s = sorted(f for f, v in NEEDLE.items() if v == 1)
@@ -1668,7 +1754,7 @@ def rm_tree(path, scratch):
 # ----------------------------------------------------------------------------- manifest
 def read_text(root, rel):
     try:
-        with open(os.path.join(root, rel), errors="replace") as fh:
+        with open(os.path.join(root, rel), errors="replace") as fh:  # io: not-gov (a script's source)
             return fh.read()
     except OSError:
         return ""
@@ -1713,8 +1799,9 @@ class Models:
 
 
 def generate(root, existing):
-    """Draft manifest; rows already in `existing` (path -> row) are kept as they are."""
-    scripts, gofiles, _probs = census(root)
+    """Draft manifest and the census problems: (rows, problems). Rows already in `existing` (path -> row) are
+    kept as they are. A file the census refuses (review r4 K12) is in problems, never silently left out of rows."""
+    scripts, gofiles, probs = census(root)
     ms = Models(root)
     rows = {}
     shells = [f for f, k in scripts.items() if k in ("sh", "runall") and "/fixtures/" not in "/" + f]
@@ -1781,30 +1868,34 @@ def generate(root, existing):
         if heavy:
             rows[r][4] = "runall-members"
             rows[r][6] = "auto: invokes %d heavy member(s)" % len(heavy)
-    for m in sorted(set(go_module(root, g) or ("?" + g) for g in gofiles)):
+    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):
+        # a *_test.go outside every module gives None and no row; the old `"?" + path` marker also dropped a real
+        # module whose directory name starts with `?` (CON-030 round 3 class)
         if m in existing:
             rows[m] = existing[m]
-        elif not m.startswith("?"):
+        else:
             rows[m] = [m, "go", "entry", "default", "go-test", "-", "auto: Go module with *_test.go"]
-    return [rows[k] for k in sorted(rows)]
+    return [rows[k] for k in sorted(rows)], probs
 
 
 def read_manifest(path):
     if not os.path.isfile(path):
         raise Fatal(3, "manifest missing: %s (generate with --generate-manifest --write)" % path)
     rows, seen = [], set()
-    with open(path, errors="replace") as fh:
-        for n, line in enumerate(fh, 1):
-            line = line.rstrip("\n")
-            if not line or line.startswith("#"):
-                continue
-            cols = line.split("\t")
-            if len(cols) != 7:
-                raise Fatal(3, "manifest line %d: want 7 TAB columns, got %d" % (n, len(cols)))
-            if cols[0] in seen:
-                raise Fatal(3, "manifest line %d: duplicate path %s" % (n, cols[0]))
-            seen.add(cols[0])
-            rows.append(cols)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(3, "manifest: %s" % e)
+    for n, line in lines:
+        if not line or line.startswith("#"):
+            continue
+        cols = line.split("\t")
+        if len(cols) != 7:
+            raise Fatal(3, "manifest line %d: want 7 TAB columns, got %d" % (n, len(cols)))
+        if cols[0] in seen:
+            raise Fatal(3, "manifest line %d: duplicate path %s" % (n, cols[0]))
+        seen.add(cols[0])
+        rows.append(cols)
     return rows
 
 
@@ -1821,27 +1912,107 @@ def guide_block(rows):
             % census_line(rows)[len("census: "):])
 
 
-def guide_check(root, rows, fix=False):
-    """None when the guide has no census block or it is current; else a problem string (or rewrites it)."""
+# Default_Ignorable_Code_Point (Unicode DerivedCoreProperties.txt): the code points a renderer may show as nothing.
+# The ranges are those of Perl's Unicode 15.0.0 tables (`\p{Default_Ignorable_Code_Point}`); the self-test compares
+# this table with perl's when perl is installed. CON-030 round 7 (review r6 G3).
+DEFAULT_IGNORABLE = ((0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+                     (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+                     (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3),
+                     (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF))
+
+
+def marker_ignorable(c):
+    """True for a character the near-marker test removes: white space (str.isspace), a space separator (Zs), a format
+    character (Cf), a Default_Ignorable_Code_Point, or U+FFFD (what gov_lines() reads a byte that is not UTF-8 as).
+    One class, CON-030 round 7 (review r6 G3)."""
+    o = ord(c)
+    return (c.isspace() or c == "\ufffd" or unicodedata.category(c) in ("Cf", "Zs")
+            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))
+
+
+def marker_norm(l):
+    """l with every marker_ignorable character removed, anywhere in the line: the text the near-marker test compares
+    (CON-030 round 7, review r6 G3; round 6 removed only leading white space and Cf)."""
+    return "".join(c for c in l if not marker_ignorable(c))
+
+
+GUIDE_MARK_NORM = (marker_norm(GUIDE_BEGIN), marker_norm(GUIDE_END))
+
+
+def guide_parse(root):
+    """Read the guide and find its census block. Returns (lines, begin, end, problem): lines from gov_lines() (None
+    when there is no guide), begin and end the line numbers of the marker lines (None, None when the guide has no
+    block), problem a string or None. GovLineError (a refused character) propagates to the caller. CON-030 round 5 (review r4 K1): a marker is a WHOLE line equal to GUIDE_BEGIN or
+    GUIDE_END (after the CR of a CRLF line end), never a substring, so prose or code that quotes a marker is text, not
+    a marker; the guide must hold exactly one begin line and, after it, exactly one end line. CON-030 round 7 (review
+    r6 G3, the class of round 6's F3 rule): every marker_ignorable character (white space, Zs, Cf,
+    Default_Ignorable_Code_Point, U+FFFD for a byte that is not UTF-8) is removed from the whole line, the markers
+    are compared the same way, and a line whose remaining text STARTS with a marker but which is not exactly that
+    marker is a NEAR-MARKER and is refused. So trailing text (`<!-- census:begin --> (generated)`), white space in or
+    around the marker, and an invisible or ignorable character before, inside or after the marker cannot hide a
+    block or make a marker look like text. A marker quoted inside other visible text (prose, a backticked
+    `<!-- census:begin -->`, a line whose first visible character is another one, a marker in upper case or written
+    with full-width characters) stays text, as K1 requires."""
     p = os.path.join(root, GUIDE_REL)
     if not os.path.isfile(p):
+        return None, None, None, None
+    lines = gov_lines(p)
+    begins = [n for n, l in lines if l == GUIDE_BEGIN]
+    ends = [n for n, l in lines if l == GUIDE_END]
+    near = [n for n, l in lines if l not in (GUIDE_BEGIN, GUIDE_END) and marker_norm(l).startswith(GUIDE_MARK_NORM)]
+    if near:
+        return lines, None, None, ("%s: line(s) %s start with a census marker but are not exactly one (white space, an "
+                                   "invisible or ignorable character, or text in or around it); a marker line must be exactly %s or %s, "
+                                   "and a marker quoted in prose must sit inside other text (for example in backticks)"
+                                   % (GUIDE_REL, near, GUIDE_BEGIN, GUIDE_END))
+    if not begins and not ends:
+        return lines, None, None, None
+    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:
+        return lines, None, None, ("%s: the census block needs exactly one line %s and, after it, exactly one line %s "
+                                   "(begin line(s) %s, end line(s) %s)" % (GUIDE_REL, GUIDE_BEGIN, GUIDE_END, begins, ends))
+    return lines, begins[0], ends[0], None
+
+
+def replace_lines(p, a, b, want):
+    """Write file p with the lines strictly between line numbers a and b (1-based, as gov_lines() numbers them)
+    replaced by want, atomically. Every other byte is copied unchanged: the file is split on b"\\n" exactly as
+    gov_lines() splits it, so a CRLF line end or a byte that is not UTF-8 outside the block is kept (CON-030 round 5);
+    a new line gets the CR of the begin-marker line when that line has one. The bytes are copied, never parsed. The
+    file mode is kept (CON-030 round 6, review r5 F9); the caller refuses a symbolic link, so a link is never
+    replaced by a regular file."""
+    mode = stat.S_IMODE(os.lstat(p).st_mode)
+    with open(p, "rb") as fh:  # io: not-gov (bytes copied unchanged around the block; the parse is gov_lines in guide_parse)
+        raw = fh.read().split(b"\n")
+    eol = b"\r" if raw[a - 1].endswith(b"\r") else b""
+    data = b"\n".join(raw[:a] + [w.encode("utf-8") + eol for w in want] + raw[b - 1:])
+    tmp = p + ".tmp.%d" % os.getpid()
+    with open(tmp, "wb") as fh:  # io: write
+        fh.write(data)
+    os.chmod(tmp, mode)
+    os.replace(tmp, p)
+
+
+def guide_check(root, rows, fix=False):
+    """None when the guide has no census block or it is current; else a problem string. With fix=True a stale block is
+    rewritten (and None returned); every other problem is returned with fix=True too and nothing is written (review r4
+    K2: the caller must never report a rewrite that did not happen)."""
+    try:
+        lines, a, b, prob = guide_parse(root)
+    except GovLineError as e:
+        return str(e)
+    if prob:
+        return prob
+    if a is None:
         return None
-    with open(p, errors="replace") as fh:
-        text = fh.read()
-    if GUIDE_BEGIN not in text:
-        return None
-    a = text.index(GUIDE_BEGIN) + len(GUIDE_BEGIN)
-    b = text.find(GUIDE_END, a)
-    if b < 0:
-        return "%s: %s without %s" % (GUIDE_REL, GUIDE_BEGIN, GUIDE_END)
-    want = "\n" + guide_block(rows) + "\n"
-    if text[a:b] == want:
+    want = [guide_block(rows)]
+    if [l for n, l in lines if a < n < b] == want:
         return None
     if fix:
-        tmp = p + ".tmp.%d" % os.getpid()
-        with open(tmp, "w") as fh:
-            fh.write(text[:a] + want + text[b:])
-        os.replace(tmp, p)
+        gp = os.path.join(root, GUIDE_REL)
+        if os.path.islink(gp):
+            return ("%s is a symbolic link; --sync-guide does not rewrite through a link (it would replace the link "
+                    "with a regular file); the block is stale" % GUIDE_REL)
+        replace_lines(gp, a, b, want)
         return None
     return "%s: census block is stale (run --sync-guide)" % GUIDE_REL
 
@@ -2006,13 +2177,18 @@ def read_roster(root, path):
     d = subprocess.run(["git", "-C", root, "diff", "--quiet", "HEAD", "--", rel], stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL)
     ids = set()
-    with open(path, errors="replace") as fh:
-        for line in fh.read().splitlines():
-            if not line.strip() or line.startswith("#"):
-                continue
-            i = line.split("\t", 1)[0].strip()
-            if WHO_RE.match(i):
-                ids.add(i)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        # review r3 H2: a NEL / LS / CR inside a committed `#` comment line hid an operator id that git shows as
+        # part of the comment; such a roster names nobody (an acceptance by any id is refused, a run ends exit 11)
+        return set(), "operator roster %s" % e
+    for _n, line in lines:
+        if not line.strip() or line.startswith("#"):
+            continue
+        i = line.split("\t", 1)[0].strip()
+        if WHO_RE.match(i):
+            ids.add(i)
     if t.returncode != 0 or d.returncode != 0:
         return ids, "operator roster %s is not committed (untracked or differs from HEAD)" % path
     return ids, None
@@ -2038,18 +2214,21 @@ def read_excl_lock(path):
     if not os.path.isfile(path):
         return None
     body, last, acc = {}, None, []
-    with open(path, errors="replace") as fh:
-        for line in fh.read().splitlines():
-            if line.startswith("# accepted "):
-                acc.append(line)
-                mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
-                last = mm.group(1) if mm else None
-            elif line and not line.startswith("#"):
-                c = line.split("\t")
-                if len(c) == 2:
-                    body[c[0]] = c[1]
-                else:
-                    body["\0malformed"] = line
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(3, "excluded lock: %s" % e)
+    for _n, line in lines:
+        if line.startswith("# accepted "):
+            acc.append(line)
+            mm = re.search(r"\bset=([0-9a-f]{16})\b", line)
+            last = mm.group(1) if mm else None
+        elif line and not line.startswith("#"):
+            c = line.split("\t")
+            if len(c) == 2:
+                body[c[0]] = c[1]
+            else:
+                body["\0malformed"] = line
     return body, last, acc
 
 
@@ -2102,7 +2281,7 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     acc.append("# accepted %s accepted_by=%s set=%s rows=%d chain=%s" % (ts, who, seth, len(body),
                                                                        acc_chain(prev, ts, who, seth, len(body))))
     tmp = lock_path + ".tmp.%d" % os.getpid()
-    with open(tmp, "w") as fh:
+    with open(tmp, "w") as fh:  # io: write
         fh.write("# %s -- reviewed set of excluded rows of the full-suite manifest (path TAB sha256-16 of the note).\n"
                  "# --verify-manifest refuses any difference; a reviewer accepts a change with\n"
                  "# --verify-manifest --accept-excluded-change <reviewer>, which appends one `# accepted` line.\n"
@@ -2114,6 +2293,67 @@ def excl_accept(root, lock_path, rows, who, roster_path):
     os.replace(tmp, lock_path)
 
 
+_HEX = frozenset("0123456789abcdef")
+
+
+def known_sub_paths(root):
+    """Every submodule path `git submodule status --recursive` can print, from the machine format `git ls-files -s -z`
+    (NUL-separated, never quoted): the gitlinks of the root and, recursively, of every submodule whose working tree
+    holds a `.git` (only those can be recursed into; without that check `git -C <empty dir>` would read the parent).
+    Nested paths are `<parent>/<path>`, as git prints them. A failing `ls-files` contributes nothing, so its lines do
+    not match and become gaps (fail closed). CON-030 round 2: the paths come from here, never from the status text."""
+    out_, todo = set(), [""]
+    while todo:
+        rel = todo.pop()
+        p = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "ls-files", "-s", "-z"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if p.returncode != 0:
+            continue
+        for rec in os.fsdecode(p.stdout).split("\0"):
+            meta, tab, path = rec.partition("\t")
+            if not tab or not meta.startswith("160000 "):
+                continue
+            full = rel + "/" + path if rel else path
+            if full not in out_:
+                out_.add(full)
+                if os.path.lexists(os.path.join(root, full, ".git")):
+                    todo.append(full)
+    return out_
+
+
+def status_lines(stdout):
+    """The lines of `git submodule status` output, split on "\\n" only (review r1 F2: str.splitlines() also splits on
+    CR, FF, VT, FS, GS, RS, NEL, LS and PS, which git allows in a path). Empty lines are dropped."""
+    return [l for l in os.fsdecode(stdout).split("\n") if l]
+
+
+def parse_sub_status(line, known):
+    """(flag, sha, path) of one `git submodule status` line, or None. The line is `<flag><sha> <path>[ (<describe>)]`
+    with the path printed raw (not quoted), so the path is never cut out of the text (CON-030): it must be one of
+    `known` (known_sub_paths(), a machine format). The sha is exactly 40 or 64 lowercase hex digits followed by a
+    space. The rest of the line must equal a known path, or, on a ` ` or `+` line only, a known path followed by
+    ` (<describe>)` where the describe is non-empty and has no space (git prints a describe only on those two flags,
+    and a ref name or an abbreviated sha cannot contain a space; it may contain `(` and `)`, review r1 F1). Only the
+    last ` (` can start such a describe. Zero candidates (unknown path, malformed line, a fragment of a path that
+    contains a newline) or more than one (the rest reads both as a path and as a path plus a describe, for
+    example `x (y)` with both `x` and `x (y)` known) give None, which topology() turns into a gap (fail closed);
+    nothing is guessed."""
+    flag, cands = line[:1], set()
+    for w in (40, 64):
+        sha = line[1:1 + w]
+        if len(sha) != w or line[1 + w:2 + w] != " " or not _HEX.issuperset(sha):
+            continue
+        rest = line[2 + w:]
+        if rest in known:
+            cands.add((flag, sha, rest))
+        i = rest.rfind(" (")
+        if flag in (" ", "+") and i >= 0 and rest.endswith(")"):
+            d = rest[i + 2:-1]
+            if d and " " not in d and rest[:i] in known:
+                cands.add((flag, sha, rest[:i]))
+    return cands.pop() if len(cands) == 1 else None
+
+
 def topology(root):
     """(layout, n_submodules, gaps) of the checkout (P7). gaps: uninitialised (`-`), conflicted (`U`) and
     drifted (`+`: checked out at another commit than the superproject records) submodules, submodules whose
@@ -2123,33 +2363,42 @@ def topology(root):
     layout = "consumer (inside %s)" % sup if sup else "standalone"
     p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
-    gaps, n = [], 0
-    for line in p.stdout.decode(errors="replace").splitlines():
-        if not line.strip():
-            continue
+    gaps, n, known, seen = [], 0, known_sub_paths(root), set()
+    for path in sorted(x for x in known if "\n" in x):
+        # git prints such a path across lines, so its own status cannot be read, and its fragments may each equal a
+        # known path (review r2 G2, fixture nlD): a gap always, whatever the fragments parse as (fail closed)
+        gaps.append("submodule path contains a newline (git prints it across lines; its status cannot be read): %r"
+                    % (path,))
+    for line in status_lines(p.stdout):
         n += 1
-        flag, rest = line[0], line[1:].split()
-        if len(rest) < 2:
+        parsed = parse_sub_status(line, known)
+        if parsed is None:
+            gaps.append("unparseable git submodule status line (not <flag><sha> <one known submodule path>"
+                        "[ (<describe>)]): %r" % line)
             continue
-        sha, path = rest[0], rest[1]
+        flag, sha, path = parsed
+        if path in seen:
+            gaps.append("submodule %s is named by more than one status line" % shown(path))
+            continue
+        seen.add(path)
         if flag == "-":
-            gaps.append("uninitialised submodule: %s" % path)
+            gaps.append("uninitialised submodule: %s" % shown(path))
             continue
         if flag == "U":
-            gaps.append("submodule with merge conflicts: %s" % path)
+            gaps.append("submodule with merge conflicts: %s" % shown(path))
             continue
         if flag == "+":
-            gaps.append("drifted submodule: %s is checked out at %s, not the recorded commit" % (path, sha[:12]))
+            gaps.append("drifted submodule: %s is checked out at %s, not the recorded commit" % (shown(path), sha[:12]))
             continue
         if flag != " ":
-            gaps.append("submodule %s: unknown status flag %r" % (path, flag))
+            gaps.append("submodule %s: unknown status flag %r" % (shown(path), flag))
             continue
         q = subprocess.run(["git", "-C", os.path.join(root, path), "cat-file", "-e", sha + "^{commit}"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if q.returncode != 0:
-            gaps.append("submodule %s: recorded commit %s is not in its object store" % (path, sha[:12]))
+            gaps.append("submodule %s: recorded commit %s is not in its object store" % (shown(path), sha[:12]))
     if p.returncode != 0:
-        msg = p.stderr.decode(errors="replace").strip().splitlines()
+        msg = p.stderr.decode(errors="replace").strip().splitlines()  # io: not-gov (git stderr)
         gaps.append("git submodule status failed (rc %d): %s" % (p.returncode, msg[-1] if msg else ""))
     return layout, n, gaps
 
@@ -2165,7 +2414,7 @@ def tree_ident(root):
     head_s = head.stdout.decode(errors="replace").strip() if head.returncode == 0 else "nogit"
     sub = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                          stderr=subprocess.DEVNULL)
-    subs = hashlib.sha256(b"\n".join(sorted(l.strip().encode() for l in sub.stdout.decode(errors="replace")
+    subs = hashlib.sha256(b"\n".join(sorted(l.strip().encode() for l in sub.stdout.decode(errors="replace")  # io: not-gov (git submodule output)
                                               .splitlines() if l.strip()))).hexdigest()[:16] \
         if sub.returncode == 0 else "unknown"
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "--untracked-files=all",
@@ -2174,8 +2423,8 @@ def tree_ident(root):
                          'o=$(git status --porcelain=v1 --untracked-files=all --ignore-submodules=none) || exit 1; '
                          '[ -z "$o" ] || printf "%s\\n" "$o" | sed "s|^|$displaypath: |"'],
                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    dirty = [l for l in st.stdout.decode(errors="replace").splitlines() if l.strip()]
-    dirty += ["(in submodule) " + l for l in fe.stdout.decode(errors="replace").splitlines() if l.strip()]
+    dirty = [l for l in st.stdout.decode(errors="replace").splitlines() if l.strip()]  # io: not-gov (git status output)
+    dirty += ["(in submodule) " + l for l in fe.stdout.decode(errors="replace").splitlines() if l.strip()]  # io: not-gov (git status output)
     if st.returncode != 0 or fe.returncode != 0 or head.returncode != 0:
         dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))
         dh = "unknown"
@@ -2192,28 +2441,58 @@ def sub_paths(root):
     """Paths of the initialised submodules (recursive), from `git submodule status --recursive`."""
     p = subprocess.run(["git", "-C", root, "submodule", "status", "--recursive"], stdout=subprocess.PIPE,
                        stderr=subprocess.DEVNULL)
-    out_ = []
-    for line in p.stdout.decode(errors="replace").splitlines():
-        f = line[1:].split()
-        if line[:1] != "-" and len(f) >= 2:
-            out_.append(f[1])
+    out_, known = [], known_sub_paths(root)
+    for line in status_lines(p.stdout):
+        parsed = parse_sub_status(line, known)
+        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:
+            out_.append(parsed[2])
     return out_
+
+
+QuickIdent = collections.namedtuple("QuickIdent", "heads status gen")
+QuickIdent.__doc__ = """In-memory quick identity (never written, never parsed back). heads: a tuple of (path, value)
+pairs in the order quick_ident() was given, the root first with path None (a path is always a str, so the root can
+never be confused with a submodule); status: the root status hash. A value is the hex string git printed, or None
+when git failed (None is not a str, so no value git prints can read as unknown). CON-030 round 3 (review r2 G3,
+section 11.4.276(E)(3)): this replaces the flat `<path>=<value>` text, whose `status` key and `.`/`?` markers a
+submodule path could collide with. gen (WIT-C02, merged in CON-030 round 5): the fingerprint of the generated
+command sets (gen_fingerprint), or None when an entry could not be read."""
 
 
 def quick_ident(root, subs):
     """R5-1 (review r5): cheap identity checked before every unit and at the end -- HEAD of the root and
     of every initialised submodule, and the sha256 of the root `git status --porcelain -z` (tracked,
-    untracked and submodule changes). A git failure gives `?`, which never equals a start value."""
-    parts = []
-    for rel in [""] + list(subs):
-        q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel else root, "rev-parse", "HEAD"],
+    untracked and submodule changes). A git failure gives None, which never equals a start value and makes
+    ident_unknown() true. Returns a QuickIdent (structured, no in-band keys or sentinels)."""
+    heads = []
+    for rel in [None] + list(subs):
+        q = subprocess.run(["git", "-C", os.path.join(root, rel) if rel is not None else root, "rev-parse", "HEAD"],
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        parts.append("%s=%s" % (rel or ".", q.stdout.decode(errors="replace").strip() if q.returncode == 0 else "?"))
+        heads.append((rel, os.fsdecode(q.stdout).strip() if q.returncode == 0 else None))
     st = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all",
                          "--ignore-submodules=none"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    parts.append("status=%s" % (hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else "?"))
-    parts.append("gen=%s" % gen_fingerprint(root))
-    return " ".join(parts)
+    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None
+    return QuickIdent(tuple(heads), status, gen_fingerprint(root))
+
+
+def ident_unknown(q):
+    """True when any value of the quick identity is None (a git failure, or an unreadable entry of the generated
+    sets), whatever the submodule is called."""
+    if q.gen is None:
+        return True
+    return q.status is None or any(v is None for _p, v in q.heads)
+
+
+def ident_label(field):
+    """Report label of one identity field: ("head", None) root HEAD, ("head", path) a submodule (the path in repr(),
+    so a CR, a TAB, a quote, `=`, `?` or non-UTF-8 bytes are shown exactly and never read as a separator),
+    ("status",) the root status, ("gen",) the fingerprint of the generated sets. The four shapes cannot produce the
+    same label."""
+    if field[0] == "status":
+        return "root status"
+    if field[0] == "gen":
+        return "generated sets"
+    return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)
 
 
 # WIT-C02 (ownership wave 2 review r2, F5): the tracked generated command sets that installer and generator
@@ -2223,42 +2502,54 @@ GENERATED_SETS = ("plugins/helix/commands", "plugins/helix/README.md", "actions/
 
 
 def gen_fingerprint(root):
-    """sha256 (16 hex) over (path, type, inode, mtime_ns, size, content sha256) of every entry of the
-    generated sets under the root and under a vendored constitution/. An absent set is recorded as absent;
-    an unreadable entry gives `?` (fail closed: it never equals a start value)."""
+    """sha256 (16 hex) over (path, type, inode, mtime_ns, size, content sha256 or link target) of every entry of the
+    generated sets under the root and under a vendored constitution/. An absent set is recorded as absent; an
+    unreadable entry gives None (fail closed: None never equals a start value and makes ident_unknown() true).
+    CON-030 round 5 (review r4 K5): every field is a length-framed record (hrec), names and link targets are fed as
+    the bytes the file system holds (os.fsencode, so a non-UTF-8 name neither raises nor collides), and unknown is
+    None instead of the in-band "?"."""
     h = hashlib.sha256()
     for pre in ("", "constitution"):
         for rel in GENERATED_SETS:
             top = os.path.join(root, pre, rel)
             if not os.path.lexists(top):
-                h.update(("absent %s/%s\0" % (pre, rel)).encode())
+                hrec(h, b"absent", os.fsencode(os.path.join(pre, rel)))
                 continue
             todo = [top]
             while todo:  # RULE:C02-gen-walk
                 p = todo.pop()
                 try:
                     st = os.lstat(p)
-                    kind = "d" if stat.S_ISDIR(st.st_mode) else ("l" if stat.S_ISLNK(st.st_mode) else "f")
-                    dig = ""
-                    if kind == "f":
-                        with open(p, "rb") as fh:
-                            dig = hashlib.sha256(fh.read()).hexdigest()
-                    elif kind == "l":
-                        dig = os.readlink(p)
+                    kind = b"d" if stat.S_ISDIR(st.st_mode) else (b"l" if stat.S_ISLNK(st.st_mode) else b"f")
+                    dig = b""
+                    if kind == b"f":
+                        with open(p, "rb") as fh:  # io: not-gov
+                            dig = hashlib.sha256(fh.read()).hexdigest().encode()
+                    elif kind == b"l":
+                        dig = os.fsencode(os.readlink(p))
                     else:
                         todo.extend(os.path.join(p, n) for n in sorted(os.listdir(p), reverse=True))
                 except OSError:
-                    return "?"
-                h.update(("%s %s %d %d %d %s\0" % (os.path.relpath(p, root), kind, st.st_ino,  # RULE:C02-gen-stat
-                                                     st.st_mtime_ns, st.st_size, dig)).encode())
+                    return None
+                hrec(h, b"p", os.fsencode(os.path.relpath(p, root)))  # RULE:C02-gen-stat
+                hrec(h, b"k", kind)
+                hrec(h, b"i", b"%d" % st.st_ino)
+                hrec(h, b"m", b"%d" % st.st_mtime_ns)
+                hrec(h, b"s", b"%d" % st.st_size)
+                hrec(h, b"c", dig)
     return h.hexdigest()[:16]
 
 
 def ident_diff(a, b):
-    """The fields of two quick identities that differ, for the report."""
-    da, db = dict(x.split("=", 1) for x in a.split()), dict(x.split("=", 1) for x in b.split())
-    return ", ".join("%s %s -> %s" % (k, da.get(k, "absent")[:12], db.get(k, "absent")[:12])
-                     for k in sorted(set(da) | set(db)) if da.get(k) != db.get(k) or "?" in db.get(k, "?"))
+    """The fields of two quick identities that differ, or that are unknown (None) in b, compared by position (both
+    identities are built from the same submodule list); unknown is shown as `?`."""
+    fa = [(("head", p), v) for p, v in a.heads] + [(("status",), a.status), (("gen",), a.gen)]
+    fb = [(("head", p), v) for p, v in b.heads] + [(("status",), b.status), (("gen",), b.gen)]
+    if [k for k, _v in fa] != [k for k, _v in fb]:
+        return "the two identities list different fields (%d / %d)" % (len(fa), len(fb))
+    show = lambda v: "?" if v is None else v[:12]
+    return ", ".join("%s %s -> %s" % (ident_label(k), show(va), show(vb))
+                     for (k, va), (_k, vb) in zip(fa, fb) if va != vb or vb is None)
 
 
 def discarded_members(root, rows, heavy_mode):
@@ -2283,7 +2574,7 @@ def discarded_members(root, rows, heavy_mode):
 
 def write_manifest(path, rows):
     tmp = path + ".tmp.%d" % os.getpid()
-    with open(tmp, "w") as fh:
+    with open(tmp, "w") as fh:  # io: write
         fh.write(MANIFEST_HEADER)
         for r in rows:
             fh.write("\t".join(c.replace("\t", " ") for c in r) + "\n")
@@ -2298,8 +2589,12 @@ def plan(rows, heavy_mode, alone=()):
     units = []
 
     def add(path, runner, args, tier, run, why=""):
+        # `key` is the unit's identity (resume, nondeterminism grouping): a structure, never a joined string (review
+        # r3 H1: path + " " + args gave a Go module in a directory named `x/run_all.sh --quick` the id of the
+        # runall-quick unit of x/run_all.sh, which resumed it from that unit's PASS record). `id` is display only.
         uid = path + ("" if not args else " " + " ".join(args))
-        units.append({"id": uid, "path": path, "runner": runner, "args": list(args), "tier": tier, "run": run, "why": why})
+        units.append({"id": uid, "key": (path, tuple(args)), "path": path, "runner": runner, "args": list(args),
+                      "tier": tier, "run": run, "why": why})
 
     def eff_heavy(r):
         while r[2] == "member":
@@ -2341,7 +2636,35 @@ def plan(rows, heavy_mode, alone=()):
             continue
         run = heavy_mode or not eff_heavy(r)
         add(path, runner, [], tier, run, "" if run else "heavy_excluded")
+    keys, ids = {}, {}
+    for u in units:
+        if u["key"] in keys:
+            raise Fatal(3, "plan: two units have one key (path %r, args %r)" % u["key"])
+        keys[u["key"]] = u
+        if u["id"] in ids:
+            # distinct keys, one display text: every message, --only filter and summary line would name both units
+            # at once, so the run refuses (exit 3) rather than print evidence a reader cannot attribute
+            o = ids[u["id"]]
+            raise Fatal(3, "plan: two different units are both shown as %r (path %r args %r, and path %r args %r); "
+                        "rename one of the paths" % (u["id"], o["path"], o["args"], u["path"], u["args"]))
+        ids[u["id"]] = u
     return units
+
+
+def rec_key(o):
+    """The structured unit key of a result record: (path, tuple of its args), or None when the record carries no
+    list of string args (an older record, never resumed). Compared with a unit's `key`, never its display id."""
+    a = o.get("args")
+    if not isinstance(a, list) or not all(isinstance(x, str) for x in a):
+        return None
+    return (o["path"], tuple(a))
+
+
+def rec_matches(o, u, sha, tree, rhash, ctx):
+    """True when result record `o` was written for unit `u` in this run's resume key: the structured unit key
+    (path, args), HEAD sha, working-tree hash, runner hash and context hash. The display id is never compared."""
+    return (rec_key(o) == u["key"] and o["sha"] == sha and o["tree"] == tree and o["runner_hash"] == rhash
+            and o["ctx"] == ctx)
 
 
 # ----------------------------------------------------------------------------- verdict parsing
@@ -2630,7 +2953,7 @@ def judge(rc, timed_out, text, runner):
     if rc == 0:
         return judge_exit0(text, runner)
     if rc == 77:
-        lines = [l for l in text.splitlines() if l.strip()]
+        lines = [l for l in text.splitlines() if l.strip()]  # io: not-gov (suite output)
         r = re.search(r"reason[= ]([A-Za-z0-9_]+)", lines[-1]) if lines else None
         return "SKIP", (r.group(1) if r else "suite_reported_skip"), "exit-code", None
     if rc in (124, 137):
@@ -2664,7 +2987,7 @@ def reap_token(token):
             if pid <= 1 or pid == os.getpid():
                 continue
             try:
-                with open("/proc/%d/environ" % pid, "rb") as fh:
+                with open("/proc/%d/environ" % pid, "rb") as fh:  # io: not-gov (/proc environ)
                     env = fh.read()
             except OSError:
                 continue
@@ -2756,7 +3079,7 @@ def go_test_needs_network(rc, text, complete, env, vendored):
     if any(env.get(k) != v for k, v in GO_POLICY.items()):
         return None
     names, net, failed = set(), False, False
-    for ln in text.splitlines():
+    for ln in text.splitlines():  # io: not-gov (the unit's own go test output, parsed by the closed grammar)
         ln = ln.rstrip("\r")
         if not ln.strip() or ln == "FAIL" or GO_PKG_HDR.match(ln) or GO_OK_PKG.match(ln) or GO_NOTEST_PKG.match(ln):
             continue
@@ -2801,7 +3124,7 @@ def run_unit(u, tmo, log, scratch, extras, gomodcache, cap):
     pgid = proc.pid
     fd = proc.stdout.fileno()
     try:
-        with open(log, "wb") as fh:
+        with open(log, "wb") as fh:  # io: write
             term_at = exit_at = None
             killed = False
             while True:
@@ -2884,17 +3207,17 @@ class Results:
         self.path, self.recs, self.last = path, [], None
         if not os.path.exists(path):
             return
-        with open(path, "rb") as fh:
+        with open(path, "rb") as fh:  # io: not-gov (results.jsonl: JSON lines, CR/LF escaped by json.dumps)
             data = fh.read()
         if data and not data.endswith(b"\n"):
             cut = data.rfind(b"\n") + 1
             err("WARN: torn last line in %s dropped (%d bytes; an interrupted write left no complete record)"
                 % (path, len(data) - cut))
             data = data[:cut]
-            with open(path, "r+b") as fh:
+            with open(path, "r+b") as fh:  # io: write
                 fh.truncate(cut)
         logs = set()
-        for n, raw in enumerate(data.splitlines()):
+        for n, raw in enumerate(data.splitlines()):  # io: not-gov (results.jsonl bytes)
             try:
                 o = json.loads(raw.decode("utf-8"))
             except (ValueError, UnicodeDecodeError):
@@ -2916,7 +3239,7 @@ class Results:
         o["seq"] = len(self.recs)
         o["prev"] = GENESIS if self.last is None else line_hash(self.last)
         raw = json.dumps(o, sort_keys=True).encode()
-        with open(self.path, "ab") as fh:
+        with open(self.path, "ab") as fh:  # io: write
             fh.write(raw + b"\n")
             fh.flush()
             os.fsync(fh.fileno())
@@ -2928,51 +3251,56 @@ def tree_state(root):
     """Hash of the working tree: status, diff vs HEAD, untracked contents, every submodule's own status
     and diff (recursive), and ignored files (name, size, content hash) except IGNORED_NOT_HASHED."""
     h = hashlib.sha256()
-    h.update(git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none", binary=True))
-    h.update(git(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--no-color", binary=True, check=False))
-    for f in sorted(x for x in git(root, "ls-files", "-o", "--exclude-standard", "-z", binary=True).decode(errors="replace").split("\0") if x):
-        h.update(b"U" + f.encode())
-        h.update(file_digest(os.path.join(root, f)))
+    hrec(h, b"status", git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none", binary=True))
+    hrec(h, b"diff", git(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--no-color", binary=True, check=False))
+    for f in sorted(x for x in git(root, "ls-files", "-o", "--exclude-standard", "-z", binary=True).split(b"\0") if x):
+        hrec(h, b"U", f)
+        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))
     if os.path.isfile(os.path.join(root, ".gitmodules")) or "160000 " in git(root, "ls-files", "-s", check=False):
-        h.update(git(root, "submodule", "foreach", "--recursive", "--quiet",
-                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD --binary --no-ext-diff --no-color",
-                     binary=True, check=False))
-    ign = git(root, "ls-files", "-o", "-i", "--exclude-standard", "-z", binary=True, check=False).decode(errors="replace")
-    for f in sorted(x for x in ign.split("\0") if x):
-        if any(p.search(f) for p in IGNORED_NOT_HASHED):
+        hrec(h, b"subs", git(root, "submodule", "foreach", "--recursive", "--quiet",
+                             "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD --binary --no-ext-diff --no-color",
+                             binary=True, check=False))
+    ign = git(root, "ls-files", "-o", "-i", "--exclude-standard", "-z", binary=True, check=False)
+    for f in sorted(x for x in ign.split(b"\0") if x):
+        if any(p.search(os.fsdecode(f)) for p in IGNORED_NOT_HASHED):
             continue
-        h.update(b"I" + f.encode())
-        h.update(file_digest(os.path.join(root, f)))
+        hrec(h, b"I", f)
+        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))
     return h.hexdigest()
 
 
 def file_digest(p):
+    """Content identity of one path (bytes): b"L" + the symlink target, b"F" + the sha256 of a file, None when it
+    cannot be read. The path and the target are bytes, so a name or a target that is not UTF-8 is hashed as git
+    gave it (review r2 G1 class; the old str path crashed on such a target). Callers frame it with hrec()."""
     try:
         if os.path.islink(p):
-            return b"L" + os.readlink(p).encode()
+            return b"L" + os.readlink(p)
         hh = hashlib.sha256()
-        with open(p, "rb") as fh:
+        with open(p, "rb") as fh:  # io: not-gov (file content hash)
             for blk in iter(lambda: fh.read(1 << 20), b""):
                 hh.update(blk)
-        return hh.digest()
+        return b"F" + hh.digest()
     except OSError:
-        return b"?"
+        return None
 
 
 def load_known(path):
     rows = []
     if not os.path.isfile(path):
         return rows, "absent"
-    with open(path, errors="replace") as fh:
-        for n, line in enumerate(fh, 1):
-            line = line.rstrip("\n")
-            if not line or line.startswith("#"):
-                continue
-            c = line.split("\t")
-            if len(c) != 4 or not c[0] or not c[1] or not c[2]:
-                raise Fatal(2, "known-failures %s line %d: want 4 TAB columns path, signature, tracked_id, note (first three non-empty)"
-                            % (path, n))
-            rows.append(c)
+    try:
+        lines = gov_lines(path)
+    except GovLineError as e:
+        raise Fatal(2, "known-failures: %s" % e)
+    for n, line in lines:
+        if not line or line.startswith("#"):
+            continue
+        c = line.split("\t")
+        if len(c) != 4 or not c[0] or not c[1] or not c[2]:
+            raise Fatal(2, "known-failures %s line %d: want 4 TAB columns path, signature, tracked_id, note (first three non-empty)"
+                        % (path, n))
+        rows.append(c)
     return rows, "%d open row(s)" % len(rows)
 
 
@@ -3045,11 +3373,24 @@ def check_known_open(known, db):
 
 
 def file_bytes(p):
+    """The bytes of a file, or None when it cannot be read (an absent file is not a content any file can have;
+    CON-030 round 3 class: the old b"<absent>" marker equalled a file with exactly that content)."""
     try:
-        with open(p, "rb") as fh:
+        with open(p, "rb") as fh:  # io: not-gov (file bytes, hashed whole)
             return fh.read()
     except OSError:
-        return b"<absent>"
+        return None
+
+
+def hrec(h, tag, data):
+    """Feed one length-framed record into a hash: tag, the byte count, then the data (None: an absent record).
+    Two different sequences of records can never feed the same bytes, so no name, symlink target or file content
+    can absorb or imitate a neighbouring record (CON-030 round 3 class, section 11.4.276(C))."""
+    if data is None:
+        h.update(tag + b"-;")
+    else:
+        h.update(tag + b"%d:" % len(data))
+        h.update(data)
 
 
 # ----------------------------------------------------------------------------- main
@@ -3057,8 +3398,8 @@ ROOT = ""
 
 
 def usage():
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "run_full_suite.sh")) as fh:
-        for line in fh.read().splitlines()[1:]:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "run_full_suite.sh")) as fh:  # io: not-gov (the runner's own usage header)
+        for line in fh.read().splitlines()[1:]:  # io: not-gov (the runner's own usage header)
             if not line.startswith("#"):
                 break
             out(line[2:] if line.startswith("# ") else line[1:])
@@ -3066,7 +3407,7 @@ def usage():
 
 def lock_out(outdir):
     os.makedirs(os.path.join(outdir, "logs"), exist_ok=True)
-    fd = os.open(os.path.join(outdir, ".lock"), os.O_RDWR | os.O_CREAT, 0o600)
+    fd = os.open(os.path.join(outdir, ".lock"), os.O_RDWR | os.O_CREAT, 0o600)  # io: not-gov (the --out lock file descriptor)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -3177,7 +3518,14 @@ def main(argv):
         existing = {}
         if os.path.isfile(manifest):
             existing = {r[0]: r for r in read_manifest(manifest)}
-        rows = generate(root, existing)
+        rows, cprobs = generate(root, existing)
+        if cprobs:
+            # review r4 K12: a manifest without a census file would be reported as written while it is not complete
+            for c in cprobs:
+                err("MANIFEST: " + c)
+            out("RESULT: MANIFEST-NOT-GENERATED (%d census problem(s); nothing was %s)"
+                % (len(cprobs), "written" if write else "printed"))
+            return 3
         if write:
             os.makedirs(os.path.dirname(manifest), exist_ok=True)
             write_manifest(manifest, rows)
@@ -3193,7 +3541,17 @@ def main(argv):
     if accept and not verify_only:
         raise Fatal(2, "--accept-excluded-change is used with --verify-manifest")
     if sync:
-        guide_check(root, rows, fix=True)
+        prob = guide_check(root, rows, fix=True) or guide_check(root, rows)
+        if prob:
+            # review r4 K2: a problem the rewrite cannot fix (a refused character, a missing or doubled marker) is
+            # reported and the command fails; it never prints the census line as if the block had been written
+            err("GUIDE: " + prob)
+            out("RESULT: GUIDE-NOT-SYNCED (nothing was written)")
+            return 3
+        lines, a, _b, _prob = guide_parse(root)
+        if lines is None or a is None:
+            out("guide census block: %s has no census block; nothing was written" % GUIDE_REL)
+            return 0
         out("guide census block: %s" % guide_block(rows))
         return 0
     probs = verify(root, rows)
@@ -3203,6 +3561,14 @@ def main(argv):
         out("accepted the excluded set (%d row(s)) as %s in %s" % (len(excluded_rows(rows)), accept, lock_path))
         eprobs = excl_check(lock_path, rows)
     probs = probs + eprobs
+    if verify_only and not probs:
+        # review r4 K9: the pre-flight answer is the run's answer; plan() refuses two units with one key or one display
+        # id, so verify asks it too, in both modes
+        for hv in (False, True):
+            try:
+                plan(rows, hv, discarded_members(root, rows, hv))
+            except Fatal as e:
+                probs.append("plan (%s mode): %s" % ("full" if hv else "default", e))
     cline = census_line(rows)
     if probs:
         for p in probs:
@@ -3243,10 +3609,12 @@ def main(argv):
     subs0 = sub_paths(root)
     qid0 = quick_ident(root, subs0)
     id_changed = ""
-    with open(os.path.abspath(__file__), "rb") as fh:
+    with open(os.path.abspath(__file__), "rb") as fh:  # io: not-gov (the engine's own bytes, hashed)
         rhash = hashlib.sha256(fh.read()).hexdigest()[:16]
-    ctx = hashlib.sha256(b"manifest\0" + file_bytes(manifest) + b"\0known\0" + file_bytes(known)
-                         + b"\0excluded\0" + file_bytes(lock_path)).hexdigest()[:16]
+    ch = hashlib.sha256()
+    for tag, fp in ((b"manifest", manifest), (b"known", known), (b"excluded", lock_path)):
+        hrec(ch, tag, file_bytes(fp))
+    ctx = ch.hexdigest()[:16]
     if not outdir:
         base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ.get("HOME", "/nonexistent"), ".cache")
         outdir = os.path.realpath(os.path.join(base, "full_suite_runner", "%s-%s-%s" % (os.path.basename(root), sha[:12], tree[:12])))
@@ -3261,8 +3629,7 @@ def main(argv):
         gomodcache = p.stdout.decode().strip()
 
     def key_ok(o, u):
-        return (o["unit"] == u["id"] and o["sha"] == sha and o["tree"] == tree and o["runner_hash"] == rhash
-                and o["ctx"] == ctx)
+        return rec_matches(o, u, sha, tree, rhash, ctx)
 
     mode = "full" if heavy else "default"
     out("full-suite runner  sha=%s tree=%s ctx=%s mode=%s out=%s" % (sha[:12], tree[:12], ctx, mode, outdir))
@@ -3306,7 +3673,7 @@ def main(argv):
                 out("[%d/%d] SKIP (runner_not_installed: %s) %s" % (n, total, u["runner"], u["id"]))
                 continue
             qid = quick_ident(root, subs0)
-            if qid != qid0 or "?" in qid:
+            if qid != qid0 or ident_unknown(qid):
                 id_changed = "before unit %s: %s" % (u["id"], ident_diff(qid0, qid))
                 out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
                 break
@@ -3341,7 +3708,7 @@ def main(argv):
             out("[%d/%d] %s%s %s %ss%s" % (n, total, verdict, " (%s)" % reason if reason else "", u["id"], secs,
                                             " leaked=%d" % leaked if leaked else ""))
             qid = quick_ident(root, subs0)  # RULE:C02-after-unit
-            if qid != qid0 or "?" in qid:
+            if qid != qid0 or ident_unknown(qid):  # review r4 K5: on a QuickIdent, unknown is None, never "?"
                 id_changed = "after unit %s: %s" % (u["id"], ident_diff(qid0, qid))
                 out("IDENTITY CHANGED %s; no further unit is run" % id_changed)
                 break
@@ -3370,7 +3737,7 @@ def main(argv):
         if v in BAD:
             lp = os.path.join(outdir, o["log"])
             body = file_bytes(lp)
-            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:
+            if body is not None and hashlib.sha256(body).hexdigest() == o["log_sha256"]:
                 kid = match_known(known_rows, u["path"], o["reason"], body.decode("utf-8", errors="replace"))
             elif known_rows:
                 err("WARN: log %s does not match its recorded sha256; KNOWN not applied" % lp)
@@ -3394,7 +3761,7 @@ def main(argv):
     if not id_changed:
         qid = quick_ident(root, subs0)
         ident_end = tree_ident(root)[0]
-        if qid != qid0 or "?" in qid:
+        if qid != qid0 or ident_unknown(qid):
             id_changed = "at the end of the run: %s" % ident_diff(qid0, qid)
         elif ident_end != ident:
             id_changed = "at the end of the run: %s -> %s" % (ident, ident_end)
@@ -3431,9 +3798,11 @@ def main(argv):
         summ.append("TREE CHANGED during the run (start %s, end %s): a suite wrote into the repository" % (tree[:12], tree_end[:12]))
     summ.append("--- non-PASS, nondeterministic and exit-code-only units")
     summ.extend(lines)
-    with open(os.path.join(outdir, "summary.txt"), "w") as fh:
-        fh.write("\n".join(summ) + "\n")
-    out("\n".join(summ))
+    with open(os.path.join(outdir, "summary.txt"), "w") as fh:  # io: write
+        # one escaping function for every line of the evidence file and of stdout (review r3 H3)
+        fh.write("".join(esc_out(l) + "\n" for l in summ))
+    for l in summ:
+        out(l)
     tail = ("SKIP=%d exit-code-only-PASS=%d KNOWN=%d NONDETERMINISTIC=%d; %d excluded (listed in summary.txt); %s"
             % (cats["SKIP"], exit_only, known_n, nondet, len(ex), ident))
     nf = " -- not a section 11.4.40 full retest"

@@ -1,0 +1,31 @@
+# CON-030 round 8 (review r7 H1): reviewer mutant RV7c, RED on the round-7 self-test, GREEN (killed) on the round-8 self-test
+# RED (review r7, measured by the reviewer, not re-run here): the round-7 self-test against RV7c: passed=1172 failed=0 (mutant survives); CLI probe lead_VS17_UE0100 verify rc=0 ok=True (probe7_RV7c.txt sha256 fb621e9c...)
+
+  # CON-030 round 8, review r7 H1: section 2e (marker_ignorable vs oracle on every code point), RED/GREEN on the engine
+  # command: python3 -I <section 2e program extracted from tests/test_run_full_suite.sh> <engine>
+  ## engine: head (scripts/full_suite/run_full_suite.py of 3b919187, unchanged in round 8)
+  N	1114112
+  BAD	0	first:   
+  NEG	3999
+  ODI	AD-AD 34F-34F 61C-61C 115F-1160 17B4-17B5 180B-180F 200B-200F 202A-202E 2060-206F 3164-3164 FE00-FE0F FEFF-FEFF FFA0-FFA0 FFF0-FFF8 1BCA0-1BCA3 1D173-1D17A E0000-E0FFF
+  ## engine: rv7c (the same with RV7c applied: DEFAULT_IGNORABLE -> DEFAULT_IGNORABLE[:-1] inside marker_ignorable)
+  N	1114112
+  BAD	3999	first: U+E0000(fn=False) U+E0002(fn=False) U+E0003(fn=False)
+  NEG	3999
+  ODI	AD-AD 34F-34F 61C-61C 115F-1160 17B4-17B5 180B-180F 200B-200F 202A-202E 2060-206F 3164-3164 FE00-FE0F FEFF-FEFF FFA0-FFA0 FFF0-FFF8 1BCA0-1BCA3 1D173-1D17A E0000-E0FFF
+
+# GREEN: bash tests/test_run_full_suite_mutations.sh RV7c (round-8 tree, TMPDIR in the fixer sandbox)
+  ok   baseline: unmutated copy passes the self-test
+  killed RV7c (1 failing check(s))
+  SUMMARY mutants=1 killed=1 survivors=0 not_applicable=0
+  rc=0
+
+# round-8 self-test on the unmutated head engine: bash tests/test_run_full_suite.sh
+  passed=1178 failed=0  (log sha256 ea3470b02fc81422c83acc4caf53903b3acbd5687252065d52c8e01d8561a873, 0 FAIL lines)
+  ok   CON-030 r8 H1: marker_ignorable compared with the oracle on every code point (count control)
+  ok   CON-030 r8 H1: marker_ignorable equals the oracle on every code point (mismatches, first ones listed)
+  ok   CON-030 r8 H1 negative control: an oracle without E0000-E0FFF differs on 3999 code points
+  ok   CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \p{Default_Ignorable_Code_Point} (Unicode 15.0.0)
+  ok   CON-030 r8 H1: the self-test's oracle table equals perl's (Unicode 15.0.0)
+  ok   CON-030 r8 H4: perl absent -> one explicit SKIP line with a reason code
+  ok   CON-030 r8 H4: perl absent and FSR_REQUIRE_PERL=1 -> a FAIL line

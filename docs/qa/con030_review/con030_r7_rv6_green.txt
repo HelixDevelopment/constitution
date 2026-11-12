@@ -1,0 +1,8 @@
+# CON-030 round 7: reviewer mutants RV6a, RV6b, RV6f, GREEN (the round-6 engine with the round-7 phase-1 self-test: new end_in/end_after, U+2060/U+00AD lead cells and the 644/755 mode checks)
+# command: bash tests/test_run_full_suite_mutations.sh RV6a RV6b RV6f (snapshot: round-6 engine, round-7 phase-1 tests and rows)
+ok   baseline: unmutated copy passes the self-test
+killed RV6a (8 failing check(s))
+killed RV6b (2 failing check(s))
+killed RV6f (14 failing check(s))
+SUMMARY mutants=3 killed=3 survivors=0 not_applicable=0
+rc=0

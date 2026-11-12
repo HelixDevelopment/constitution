@@ -1,0 +1,105 @@
+CON-030 round 3 class reproduction record, 2026-11-05 (section 11.4.292; host-only surface; real git, real engine).
+Driver: docs/qa/con030_review/con030_class_repro.sh <checkout> <new fixture dir>; host Linux 7.0.0-42-generic, git 2.53.0, python 3.14.4.
+Engines: mainwt = origin/main efe2cc6 (before CON-030); pre = vehicle/con030 round 2 (94c734c, the pre-fix artifact of round 3); c = round 3 working tree.
+
+##### mainwt
+== 0: CON-030 itself: a clean checkout with a submodule path that holds a space (end to end)
+  rc=9 TOPOLOGY: submodule sub: recorded commit 977a6c9df727 is not in its object store|RESULT: REFUSED-TOPOLOGY (1 gap(s); nothing was run). Prepare a full checkout (
+== A: G3 submodule named 'status' with an unborn HEAD (end to end)
+  precondition ok (status: rev-parse HEAD fails)
+  status: rc=1 RESULT: FAIL (identity changed during the run before unit te
+  precondition ok (other: rev-parse HEAD fails)
+  other: rc=1 RESULT: FAIL (identity changed during the run before unit te
+== B: a Go module in a directory whose name starts with '?' (the census used '?'+path as its 'no module' sentinel)
+  go-test rows: [plainmod] 
+== C: tree_state records not framed (ignored symlink target can absorb a following record)
+  two different ignored-file states hash equal (collision): True
+  non-UTF-8 symlink target: crash UnicodeEncodeError
+== D: a test file under a directory whose name starts with '#' (the manifest's comment marker)
+  verify rc=3 MANIFEST: census file without manifest row: #t/test_h.sh|census: sh/entry=1 total=1|RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)|
+== E: a test file whose path contains a CR (the manifest is read with universal newlines)
+  verify rc=3 run_full_suite: manifest line 17: want 7 TAB columns, got 1|RESULT: MANIFEST-MISMATCH (manifest line 17: want 7 TAB columns, got 1)|
+== F: G1 a submodule path that is not UTF-8
+  rc=9 TOPOLOGY: submodule bad�name: recorded commit 977a6c9df727 is not in its object store|RESULT: REFUSED-TOPOLOGY (1 gap(s); nothing was run). Prepare a full checkout (git clone --reference <existing> 
+== G: G2 newline submodule path whose fragments equal known paths (nlD)
+  status:  977a6c9df72747bf95b9235b82c148a99557979f a (heads/master)$
+  status: -977a6c9df72747bf95b9235b82c148a99557979f a$
+  status:  977a6c9df72747bf95b9235b82c148a99557979f b$
+  status:  977a6c9df72747bf95b9235b82c148a99557979f b (heads/master)$
+  topology n=4 gaps=['uninitialised submodule: a'] sub_paths=['a', 'b', 'b']
+== H: submodule_paths with a .gitmodules path value that holds a newline
+  submodule_paths: ['"a\\n 977a6c9df72747bf95b9235b82c148a99557979f b"', 'a', 'b']
+== I: file_bytes of an absent file vs a file holding exactly the old '<absent>' marker
+  equal (collision): True
+== J: census of a test file whose name is not UTF-8
+  generate rc=0
+  manifest rows under tests/a: 1
+  verify rc=0 census: sh/entry=1 total=1|RESULT: MANIFEST-OK|
+
+##### pre
+== 0: CON-030 itself: a clean checkout with a submodule path that holds a space (end to end)
+  rc=0 RESULT: PASS-FULL (every unit run, none skipped, no unexplained FAIL/TIMEOUT/ERROR; SKIP=0 exit-code-only-PASS=0 KNOWN=0 NONDETERMINISTIC=0; 0 excluded (listed 
+== A: G3 submodule named 'status' with an unborn HEAD (end to end)
+  precondition ok (status: rev-parse HEAD fails)
+  status: rc=0 RESULT: PASS-FULL (every unit run, none skipped, no unexplai
+  precondition ok (other: rev-parse HEAD fails)
+  other: rc=1 RESULT: FAIL (identity changed during the run before unit te
+== B: a Go module in a directory whose name starts with '?' (the census used '?'+path as its 'no module' sentinel)
+  go-test rows: [plainmod] 
+== C: tree_state records not framed (ignored symlink target can absorb a following record)
+  two different ignored-file states hash equal (collision): True
+  non-UTF-8 symlink target: crash UnicodeEncodeError
+== D: a test file under a directory whose name starts with '#' (the manifest's comment marker)
+  verify rc=3 MANIFEST: census file without manifest row: #t/test_h.sh|census: sh/entry=1 total=1|RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)|
+== E: a test file whose path contains a CR (the manifest is read with universal newlines)
+  verify rc=3 run_full_suite: manifest line 17: want 7 TAB columns, got 1|RESULT: MANIFEST-MISMATCH (manifest line 17: want 7 TAB columns, got 1)|
+== F: G1 a submodule path that is not UTF-8
+  rc=9 TOPOLOGY: submodule bad�name: recorded commit 4effaa6bc96f is not in its object store|RESULT: REFUSED-TOPOLOGY (1 gap(s); nothing was run). Prepare a full checkout (git clone --reference <existing> 
+== G: G2 newline submodule path whose fragments equal known paths (nlD)
+  status:  4effaa6bc96f4b3ba3e8b5d55d270aa9fb61013f a (heads/master)$
+  status: -4effaa6bc96f4b3ba3e8b5d55d270aa9fb61013f a$
+  status:  4effaa6bc96f4b3ba3e8b5d55d270aa9fb61013f b$
+  status:  4effaa6bc96f4b3ba3e8b5d55d270aa9fb61013f b (heads/master)$
+  topology n=4 gaps=['uninitialised submodule: a'] sub_paths=['a', 'b', 'b']
+== H: submodule_paths with a .gitmodules path value that holds a newline
+  submodule_paths: ['a', 'a\n 4effaa6bc96f4b3ba3e8b5d55d270aa9fb61013f b', 'b']
+== I: file_bytes of an absent file vs a file holding exactly the old '<absent>' marker
+  equal (collision): True
+== J: census of a test file whose name is not UTF-8
+  generate rc=0
+  manifest rows under tests/a: 1
+  verify rc=0 census: sh/entry=1 total=1|RESULT: MANIFEST-OK|
+
+##### c
+== 0: CON-030 itself: a clean checkout with a submodule path that holds a space (end to end)
+  rc=0 RESULT: PASS-FULL (every unit run, none skipped, no unexplained FAIL/TIMEOUT/ERROR; SKIP=0 exit-code-only-PASS=0 KNOWN=0 NONDETERMINISTIC=0; 0 excluded (listed 
+== A: G3 submodule named 'status' with an unborn HEAD (end to end)
+  precondition ok (status: rev-parse HEAD fails)
+  status: rc=1 RESULT: FAIL (identity changed during the run before unit te
+  precondition ok (other: rev-parse HEAD fails)
+  other: rc=1 RESULT: FAIL (identity changed during the run before unit te
+== B: a Go module in a directory whose name starts with '?' (the census used '?'+path as its 'no module' sentinel)
+  go-test rows: [?mod] [plainmod] 
+== C: tree_state records not framed (ignored symlink target can absorb a following record)
+  two different ignored-file states hash equal (collision): False
+  non-UTF-8 symlink target: hashed
+== D: a test file under a directory whose name starts with '#' (the manifest's comment marker)
+  verify rc=3 MANIFEST: census: file name that starts with '#' (the manifest comment marker) cannot be listed in the manifest: '#t/test_h.sh'|census: sh/entry=1 total=1|RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)|
+== E: a test file whose path contains a CR (the manifest is read with universal newlines)
+  verify rc=0 census: sh/entry=2 total=2|RESULT: MANIFEST-OK|
+== F: G1 a submodule path that is not UTF-8
+  rc=0 RESULT: PASS-FULL (every unit run, none skipped, no unexplained FAIL/TIMEOUT/ERROR; SKIP=0 exit-code-only-PASS=0 KNOWN=0 NONDETERMINISTIC=0; 0 excluded (listed in summary.txt); head=a00ebafac83d subs=
+== G: G2 newline submodule path whose fragments equal known paths (nlD)
+  status:  ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 a (heads/master)$
+  status: -ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 a$
+  status:  ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 b$
+  status:  ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 b (heads/master)$
+  topology n=4 gaps=["submodule path contains a newline (git prints it across lines; its status cannot be read): 'a\\n ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 b'", 'submodule a is named by more than one status line', 'submodule b is named by more than one status line'] sub_paths=['a', 'b']
+== H: submodule_paths with a .gitmodules path value that holds a newline
+  submodule_paths: ['a', 'a\n ef020b5039ecfc4b964d1b79bfaa1f96f5b39274 b', 'b']
+== I: file_bytes of an absent file vs a file holding exactly the old '<absent>' marker
+  equal (collision): False
+== J: census of a test file whose name is not UTF-8
+  generate rc=0
+  manifest rows under tests/a: 1
+  verify rc=3 MANIFEST: census: file name that is not UTF-8 cannot be listed in the manifest: tests/a/test_\xff.sh|census: sh/entry=1 total=1|RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)|

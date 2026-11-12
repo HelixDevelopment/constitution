@@ -1,0 +1,8 @@
+# CON-030 round 7: reviewer mutants RV6a, RV6b, RV6f, RED (the tree of 10ad4e05 with the new mutation rows: the round-6 self-test does not kill them)
+# command: bash tests/test_run_full_suite_mutations.sh RV6a RV6b RV6f (snapshot of 10ad4e05 + tests/test_run_full_suite_mutations.sh of round 7)
+ok   baseline: unmutated copy passes the self-test
+SURVIVED RV6a
+SURVIVED RV6b
+SURVIVED RV6f
+SUMMARY mutants=3 killed=0 survivors=3 not_applicable=0
+rc=1

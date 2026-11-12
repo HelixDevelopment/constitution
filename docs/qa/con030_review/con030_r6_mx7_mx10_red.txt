@@ -1,0 +1,6 @@
+# MX7 and MX10 (review r5 reviewer mutants, rows as written by the reviewer) run against the round-5 tests (dc127607 tests plus the two rows) = RED
+ok   baseline: unmutated copy passes the self-test
+SURVIVED MX7
+SURVIVED MX10
+SUMMARY mutants=2 killed=0 survivors=2 not_applicable=0
+rc=1

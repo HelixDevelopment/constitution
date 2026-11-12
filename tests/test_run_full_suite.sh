@@ -1123,6 +1123,594 @@ chk "CON-235: acceptance onto a dangling symlinked lock -> exit 3" "$RC" "3"
 chk "CON-235: the dangling lock symlink is left in place" "$([ -L "$RS/config/full_suite_excluded.lock" ] && echo link || echo replaced)" "link"
 chk "CON-235: nothing written through the dangling symlink" "$([ -e "$T/outside_lock" ] && echo written || echo absent)" "absent"
 
+# --- CON-030: a submodule path with a space (or a TAB) survives sub_paths / topology / quick_ident / ident_diff
+# (`git submodule status` is `<flag><sha> <path>[ (<describe>)]`; whitespace splitting truncated "sub dir" to "sub",
+# so topology reported a bogus "recorded commit not in object store" gap and a clean checkout was REFUSED-TOPOLOGY)
+sp="$T/spacesub"; mkdir -p "$sp"; git init -q "$sp/lib"; gitc "$sp/lib" commit -q --allow-empty -m i
+for k in plain spaced tabbed; do mkroot "$sp/$k"; done
+sut "$sp/spaced" tests/a/test_sp.sh 'echo "passed=1 failed=0"'
+git -C "$sp/plain" -c protocol.file.allow=always submodule add -q "$sp/lib" plain >/dev/null 2>&1
+git -C "$sp/spaced" -c protocol.file.allow=always submodule add -q "$sp/lib" "sub dir" >/dev/null 2>&1
+git -C "$sp/tabbed" -c protocol.file.allow=always submodule add -q "$sp/lib" "$(printf 'a\tb')" >/dev/null 2>&1
+gen "$sp/spaced"
+for k in plain spaced tabbed; do gitc "$sp/$k" add -A; gitc "$sp/$k" commit -q -m s; done
+con030() { python3 -I - "$ENGINE" "$1" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+subs = m.sub_paths(sys.argv[2]); a = m.quick_ident(sys.argv[2], subs); b = m.quick_ident(sys.argv[2], subs)
+print(subs, m.topology(sys.argv[2])[2], repr(m.ident_diff(a, b)))
+PY
+}
+chk "CON-030 control: a path without a space is read whole (sub_paths, topology gaps, ident_diff)" "$(con030 "$sp/plain")" "['plain'] [] ''"
+chk "CON-030 sub_paths/topology/ident_diff keep a path with a space" "$(con030 "$sp/spaced")" "['sub dir'] [] ''"
+chk "CON-030 sub_paths/topology/ident_diff keep a path with a TAB" "$(con030 "$sp/tabbed")" "['a\\tb'] [] ''"
+run "$sp/spaced" "$T/o_con030" --include-heavy
+chk "CON-030 end to end: a clean checkout with a spaced submodule path runs (rc 0, not REFUSED-TOPOLOGY rc 9)" "$RC" "0"
+has "CON-030 end to end: topology reports 1 submodule and no gap" 'topology: .*submodules=1 gaps=0' "$T/o_con030/summary.txt"
+# ident_diff must name the spaced submodule when only its HEAD moved (the identity string must round-trip a spaced path)
+git -C "$sp/spaced/sub dir" -c user.email=a@b -c user.name=t commit -q --allow-empty -m moved
+chk "CON-030 ident_diff names a spaced submodule whose HEAD moved (identity round-trips the path)" "$(python3 -I - "$ENGINE" "$sp/spaced" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root)
+now = m.quick_ident(root, subs)
+subprocess.run(["git", "-C", root + "/sub dir", "reset", "-q", "--hard", "HEAD~1"], check=True)
+before = m.quick_ident(root, subs)
+d = m.ident_diff(before, now)
+print(d.startswith("submodule 'sub dir' "), d.count("->"))
+PY
+)" "True 2"
+# topology: an unparseable `git submodule status` line is a gap (fail closed), never skipped silently (git shim prints one)
+GB="$T/con030_gitshim"; mkdir -p "$GB"; REALGIT=$(command -v git)
+printf '#!/bin/sh\ncase " $* " in *" submodule status "*) echo "not a status line"; exit 0;; esac\nexec %s "$@"\n' "$REALGIT" > "$GB/git"; chmod +x "$GB/git"
+chk "CON-030 topology: an unparseable submodule status line is a gap" "$(PATH="$GB:$PATH" python3 -I - "$ENGINE" "$sp/plain" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2])
+PY
+)" "[\"unparseable git submodule status line (not <flag><sha> <one known submodule path>[ (<describe>)]): 'not a status line'\"]"
+# a status line that does not parse (e.g. a path fragment after a newline) is None, never a guess: topology turns it into a gap
+chk "CON-030 parse_sub_status: unparseable line -> None, spaced + described + uninitialised lines parsed whole" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+h = "0123456789abcdef0123456789abcdef01234567"; k = {"sub dir", "e (f)"}
+print([m.parse_sub_status(x, k) for x in ("tail of a split path", " " + h + " sub dir (heads/main)", "-" + h + " sub dir", "+" + h + " e (f) (v1-2-gabc)")])
+PY
+)" "[None, (' ', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('-', '0123456789abcdef0123456789abcdef01234567', 'sub dir'), ('+', '0123456789abcdef0123456789abcdef01234567', 'e (f)')]"
+
+# --- CON-030 round 2 (review r1 F1 F2 F4 F6 F8 F9): submodule paths come from the machine format `git ls-files -s -z`
+# (recursive); the `git submodule status` line supplies only the flag and the sha and must name exactly one of those
+# paths. Round 1 stripped a trailing ` (describe)` only when it held no parenthesis, so a branch `feat(x)` or a tag
+# `v1(beta)` was swallowed into the path (a valid checkout refused, rc 9). Each case below is real git output.
+mp="$T/manysub"; mkroot "$mp"; git init -q "$mp.ln"; gitc "$mp.ln" commit -q --allow-empty -m i
+git -C "$mp.ln" -c protocol.file.allow=always submodule add -q "$sp/lib" "in ner" >/dev/null 2>&1; gitc "$mp.ln" commit -q -m n
+for p in plainb plaint plainc 'x (xyz)' ' lead' 'trail ' "$(printf 'cr\rx')" 'par(1)' 'q?' 'k=v'; do
+  git -C "$mp" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1
+done
+git -C "$mp" -c protocol.file.allow=always submodule add -q "$mp.ln" "nest ed" >/dev/null 2>&1
+git -C "$mp" -c protocol.file.allow=always submodule update -q --init --recursive >/dev/null 2>&1
+gitc "$mp/plainb" checkout -q -b 'feat(x)'; gitc "$mp/plainb" branch -q -D master >/dev/null 2>&1; gitc "$mp/plainb" branch -q -D main >/dev/null 2>&1
+gitc "$mp/plaint" tag 'v1(beta)'; gitc "$mp/plainc" tag 'v2)'
+sut "$mp" tests/a/test_mp.sh 'echo "passed=1 failed=0"'; gen "$mp"; gitc "$mp" add -A; gitc "$mp" commit -q -m s
+git -C "$mp" submodule status --recursive > "$T/mp_status.txt" 2>&1
+# precondition (section 11.4.199): git really printed each describe shape this case is about
+for d in ' plainb (heads/feat(x))' ' plaint (v1(beta))' ' plainc (v2))' ' x (xyz) (heads/' ' nest ed/in ner (heads/'; do
+  if grep -qF -- "$d" "$T/mp_status.txt"; then ok "CON-030 r2 precondition: status prints '$d'"
+  else ko "CON-030 r2 precondition: status prints '$d' ($(tr '\n' '|' < "$T/mp_status.txt"))"; fi
+done
+con030b() { python3 -I - "$ENGINE" "$1" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); a = m.quick_ident(root, subs); b = m.quick_ident(root, subs)
+print(sorted(subs), sorted(m.topology(root)[2]), repr(m.ident_diff(a, b)), m.ident_unknown(a))
+PY
+}
+want_mp="[' lead', 'cr\\rx', 'k=v', 'nest ed', 'nest ed/in ner', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)'] [] '' False"
+chk "CON-030 r2: describe with ( ) / a ')'-only tag / 'x (xyz)' / leading+trailing space / CR / '?' / '=' / nested paths read whole, 0 gaps" "$(con030b "$mp")" "$want_mp"
+run "$mp" "$T/o_con030b" --include-heavy
+chk "CON-030 r2 end to end: branch feat(x), tag v1(beta), tag v2) and the rest run (rc 0, not REFUSED-TOPOLOGY)" "$RC" "0"
+has "CON-030 r2 end to end: 12 submodules, no gap" 'topology: .*submodules=12 gaps=0' "$T/o_con030b/summary.txt"
+chk "CON-030 r2 submodule_paths (census exclusion): .gitmodules + gitlinks read whole (-z / --null)" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.submodule_paths(sys.argv[2]))
+PY
+)" "[' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+# F8: a '=' in a path keeps its own key in ident_diff (the value is after the LAST '=')
+chk "CON-030 r2 ident_diff names a submodule 'k=v' whose HEAD moved" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); before = m.quick_ident(root, subs)
+subprocess.run(["git", "-C", root + "/k=v", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "mv"], check=True)
+d = m.ident_diff(before, m.quick_ident(root, subs))
+subprocess.run(["git", "-C", root + "/k=v", "reset", "-q", "--hard", "HEAD~1"], check=True)
+print(d.startswith("submodule 'k=v' "), d.count("->"))
+PY
+)" "True 2"
+# uninitialised (fresh clone): every path whole, `x (xyz)` included (git prints no describe on a `-` line), and
+# sub_paths() returns none of them (the `-` filter)
+git clone -q "$mp" "$mp.fresh" >/dev/null 2>&1
+chk "CON-030 r2 uninitialised: gaps name each path whole, sub_paths() is empty" "$(python3 -I - "$ENGINE" "$mp.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.sub_paths(sys.argv[2]), sorted(g.split(": ", 1)[1] for g in m.topology(sys.argv[2])[2]))
+PY
+)" "[] [' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+# F3 / F9: a path with a newline (a hand-written .gitmodules; `git submodule add` refuses it) is printed by git across
+# two lines; neither fragment names a known path, so both are gaps (fail closed) -- real git output, no shim
+nlr="$T/nlsub"; mkroot "$nlr"; lsha=$(git -C "$sp/lib" rev-parse HEAD)
+printf '[submodule "nl"]\n\tpath = "nl\\nx"\n\turl = %s\n' "$sp/lib" > "$nlr/.gitmodules"
+gitc "$nlr" update-index --add --cacheinfo "160000,$lsha,$(printf 'nl\nx')"; gitc "$nlr" add .gitmodules; gitc "$nlr" commit -q -m nl
+chk "CON-030 r2 newline path: both status fragments are unparseable gaps, sub_paths() empty" "$(python3 -I - "$ENGINE" "$nlr" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+g = m.topology(sys.argv[2])[2]
+print(m.sub_paths(sys.argv[2]), len(g), g[0].startswith("submodule path contains a newline"), all(x.startswith("unparseable git submodule status line") for x in g[1:]), sorted(m.known_sub_paths(sys.argv[2])))
+PY
+)" "[] 3 True True ['nl\\nx']"
+# parse_sub_status table: SHA-256 width, ambiguity, unknown path, describe with a space, '-'/'U' never carry a describe
+chk "CON-030 r2 parse_sub_status table (sha256, ambiguous, unknown, spaced describe, '-' and 'U')" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+h = "0123456789abcdef0123456789abcdef01234567"; h2 = h + "89abcdef0123456789abcdef"
+rows = [(" " + h2 + " sub dir (heads/main)", {"sub dir"}), ("+" + h2 + " sub dir", {"sub dir"}),
+        (" " + h + " x (y)", {"x", "x (y)"}), (" " + h + " x (y) (heads/main)", {"x", "x (y)"}),
+        (" " + h + " zz (heads/main)", {"sub dir"}), (" " + h + " a (b c)", {"a"}),
+        ("-" + h + " x (xyz)", {"x", "x (xyz)"}), ("U" + "0" * 40 + " con flict", {"con flict"}),
+        (" " + h.upper() + " a", {"a"}), (" " + h + "  lead (heads/main)", {" lead", "lead"}), ("", {""}),
+        (" " + h + " x (yz", {"x", "x (yz"}), (" " + h + " x ()", {"x", "x ()"})]
+print([None if r is None else (r[0], len(r[1]), r[2]) for r in (m.parse_sub_status(l, k) for l, k in rows)])
+PY
+)" "[(' ', 64, 'sub dir'), ('+', 64, 'sub dir'), None, (' ', 40, 'x (y)'), None, None, ('-', 40, 'x (xyz)'), ('U', 40, 'con flict'), None, (' ', 40, ' lead'), None, (' ', 40, 'x (yz'), (' ', 40, 'x ()')]"
+
+# --- CON-030 round 3 (review r2 G1-G4, G12; section 11.4.276(E)(3) structural round): the quick identity is a
+# structure (QuickIdent: (path, value) pairs, root path None, unknown value None), not `<path>=<value>` text whose
+# `status` key and `.`/`?` markers a submodule path could collide with. Every check below drives the real engine
+# against repositories made with real git.
+# G3: a submodule named `status` whose HEAD does not resolve. Round 2 read the identity into a dict, the root status
+# field overwrote the submodule's `?`, and the run ended PASS-FULL (rc 0). The control is the same break on `other`.
+for nm in status other; do
+  g3="$T/g3_$nm"; mkroot "$g3"; sut "$g3" tests/a/test_g3.sh 'echo "passed=1 failed=0"'
+  for p in plain "$nm"; do git -C "$g3" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1; done
+  gen "$g3"; gitc "$g3" add -A; gitc "$g3" commit -q -m s
+  gd=$(git -C "$g3/$nm" rev-parse --absolute-git-dir); printf 'ref: refs/heads/unborn-r3\n' > "$gd/HEAD"
+  if git -C "$g3/$nm" rev-parse HEAD >/dev/null 2>&1; then ko "CON-030 r3 G3 precondition: HEAD of '$nm' does not resolve"
+  else ok "CON-030 r3 G3 precondition: HEAD of '$nm' does not resolve"; fi
+  run "$g3" "$T/o_g3_$nm" --include-heavy
+  chk "CON-030 r3 G3: unresolvable HEAD in submodule '$nm' -> rc 1 (never PASS-FULL)" "$RC" "1"
+  has "CON-030 r3 G3: RESULT FAIL names the identity ('$nm')" '^RESULT: FAIL \(identity changed during the run' "$T/o_g3_$nm.log"
+  has "CON-030 r3 G3: IDENTITY CHANGED names submodule '$nm' as unknown at both ends" "^IDENTITY CHANGED before unit tests/a/test_g3.sh: submodule '$nm' \? -> \?" "$T/o_g3_$nm.log"
+  hasnt "CON-030 r3 G3: the root status is not reported for '$nm' (its value did not change)" 'root status' "$T/o_g3_$nm.log"
+done
+# QuickIdent: unknown is per value, whatever the path; labels of the root fields cannot be produced by any path
+chk "CON-030 r3 QuickIdent: unknown per value, never per path; labels distinct" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+Q, h = m.QuickIdent, "0" * 40
+good = Q(((None, h), ("status", h), ("?", h), ("status=?", h), (".", h), ("gen", h)), "abc", "def")
+print(m.ident_unknown(good), m.ident_unknown(Q(((None, h), ("status", None)), "abc", "def")),
+      m.ident_unknown(Q(((None, h),), None, "def")), m.ident_unknown(Q(((None, None),), "abc", "def")),
+      m.ident_unknown(Q(((None, h),), "abc", None)),
+      len(set(map(m.ident_label, [("head", None), ("status",), ("gen",), ("head", "status"), ("head", "root HEAD"),
+                                    ("head", "root status"), ("head", "."), ("head", "gen"),
+                                    ("head", "generated sets")]))),
+      m.ident_diff(good, Q(((None, h), ("status", None), ("?", h), ("status=?", h), (".", h), ("gen", h)), "abc", "def")),
+      "|", m.ident_diff(good, good._replace(gen=None)))
+PY
+)" "False True True True True 9 submodule 'status' 000000000000 -> ? | generated sets def -> ?"
+# RV7 successor: a CR-class path is named exactly in IDENTITY CHANGED (repr), never cut at the CR
+chk "CON-030 r3 ident_diff names a submodule 'cr\\rx' whose HEAD moved, exactly" "$(python3 -I - "$ENGINE" "$mp" <<'PY'
+import sys, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; subs = m.sub_paths(root); before = m.quick_ident(root, subs); p = root + "/cr\rx"
+subprocess.run(["git", "-C", p, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "mv"], check=True)
+d = m.ident_diff(before, m.quick_ident(root, subs))
+subprocess.run(["git", "-C", p, "reset", "-q", "--hard", "HEAD~1"], check=True)
+print(d.split(" -> ")[0].rsplit(" ", 1)[0], d.count("->"))
+PY
+)" "submodule 'cr\\rx' 2"
+
+# G1: a submodule path that is not UTF-8 is read as the bytes git gave (os.fsdecode, surrogateescape), so `git -C`
+# finds it: round 2 decoded it to U+FFFD and refused a clean checkout (REFUSED-TOPOLOGY rc 9)
+u8="$T/u8sub"; mkroot "$u8"; sut "$u8" tests/a/test_u8.sh 'echo "passed=1 failed=0"'
+git -C "$u8" -c protocol.file.allow=always submodule add -q "$sp/lib" "$(printf 'bad\377name')" >/dev/null 2>&1
+gen "$u8"; gitc "$u8" add -A; gitc "$u8" commit -q -m s
+if [ -n "$(git -C "$u8" ls-files -s -z | tr '\0' '\n' | grep -a "$(printf 'bad\377name')")" ]; then ok "CON-030 r3 G1 precondition: git recorded the non-UTF-8 path"
+else ko "CON-030 r3 G1 precondition: git recorded the non-UTF-8 path"; fi
+run "$u8" "$T/o_u8" --include-heavy
+chk "CON-030 r3 G1: a clean checkout with a non-UTF-8 submodule path runs (rc 0, not REFUSED-TOPOLOGY)" "$RC" "0"
+has "CON-030 r3 G1: topology reports 1 submodule and no gap" 'topology: .*submodules=1 gaps=0' "$T/o_u8/summary.txt"
+git clone -q "$u8" "$u8.fresh" >/dev/null 2>&1
+chk "CON-030 r3 G1: an uninitialised non-UTF-8 path is named with \\xNN in its gap" "$(python3 -I - "$ENGINE" "$u8.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2], m.known_sub_paths(sys.argv[2]) == {"bad\udcffname"})
+PY
+)" "['uninitialised submodule: bad\\\\xffname'] True"
+
+# G2: a newline path whose status fragments each equal a known path (nlD: submodules `a`, `b` and `a\n <sha> b`).
+# Round 2 parsed the fragments as `a` and `b` (0 gaps, `b` twice); now the newline path is a gap of its own and a
+# path named by two lines is a gap, so such a checkout is REFUSED-TOPOLOGY, never silently half-read.
+nld="$T/nldsub"; mkroot "$nld"; sut "$nld" tests/a/test_nl.sh 'echo "passed=1 failed=0"'
+for p in a b; do git -C "$nld" -c protocol.file.allow=always submodule add -q "$sp/lib" "$p" >/dev/null 2>&1; done
+gen "$nld"; lsha=$(git -C "$sp/lib" rev-parse HEAD)
+printf '[submodule "nl"]\n\tpath = "a\\n %s b"\n\turl = %s\n' "$lsha" "$sp/lib" >> "$nld/.gitmodules"
+gitc "$nld" add -A; gitc "$nld" update-index --add --cacheinfo "160000,$lsha,$(printf 'a\n %s b' "$lsha")"; gitc "$nld" commit -q -m nl
+git -C "$nld" submodule status --recursive > "$T/nld_status.txt" 2>&1
+if [ "$(grep -c "^-$lsha a\$" "$T/nld_status.txt")" = 1 ] && [ "$(grep -c "^ $lsha b\$" "$T/nld_status.txt")" = 1 ]; then
+  ok "CON-030 r3 G2 precondition: git prints the newline path as fragments equal to 'a' and 'b'"
+else ko "CON-030 r3 G2 precondition: git prints the newline path as fragments equal to 'a' and 'b' ($(tr '\n' '|' < "$T/nld_status.txt"))"; fi
+chk "CON-030 r3 G2: newline path gap + one gap per doubly named path, sub_paths without duplicates" "$(python3 -I - "$ENGINE" "$nld" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+g = m.topology(sys.argv[2])[2]
+print(m.sub_paths(sys.argv[2]), [x.split(" (", 1)[0] if x.startswith("submodule path") else x for x in g])
+PY
+)" "['a', 'b'] ['submodule path contains a newline', 'submodule a is named by more than one status line', 'submodule b is named by more than one status line']"
+run "$nld" "$T/o_nld" --include-heavy
+chk "CON-030 r3 G2 end to end: the nlD checkout is REFUSED-TOPOLOGY (rc 9), never PASS-FULL" "$RC" "9"
+
+# class members outside the identity (section 11.4.276(C)): other in-band markers a user-controlled name can hit
+# (1) Go module directory whose name starts with `?`: the census used `"?" + path` as its "no module" marker
+gm="$T/gomodq"; mkroot "$gm"; mkdir -p "$gm/?mod" "$gm/plainmod"
+for d in "?mod" plainmod; do printf 'module example.com/m\n\ngo 1.21\n' > "$gm/$d/go.mod"
+  printf 'package m\nimport "testing"\nfunc TestX(t *testing.T) {}\n' > "$gm/$d/x_test.go"; done
+gitc "$gm" add -A; gitc "$gm" commit -q -m go; gen "$gm"
+chk "CON-030 r3 class: a Go module in directory '?mod' gets its go-test row (was dropped)" \
+  "$(awk -F'\t' '$5=="go-test"{printf "[%s]", $1}' "$gm/config/full_suite_manifest.tsv")" "[?mod][plainmod]"
+# (2) a file name that starts with `#` (the manifest comment marker): named, not "census file without manifest row"
+# (CON-030 r5 K12: --generate-manifest refuses a census problem, so the manifest is written before the bad file)
+hm="$T/hashname"; mkroot "$hm"; sut "$hm" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m ok; gen "$hm"; gitc "$hm" add -A; gitc "$hm" commit -q -m m
+sut "$hm" '#t/test_h.sh' 'echo "passed=1 failed=0"'; gitc "$hm" add -A; gitc "$hm" commit -q -m h; vfy "$hm" "$T/hm.log"
+chk "CON-030 r3 class: a '#'-leading test path -> --verify-manifest rc 3" "$RC" "3"
+has "CON-030 r3 class: the '#' path is named as such" "census: file name that starts with '#' \(the manifest comment marker\) cannot be listed in the manifest: '#t/test_h.sh'" "$T/hm.log"
+hasnt "CON-030 r3 class: not misreported as a missing manifest row" 'census file without manifest row' "$T/hm.log"
+# (3) a test path with a CR. Round 3 listed it; round 4 refuses it as a named census problem, like LF and TAB
+# (review r3 H3: its unit id forged RESULT lines on a terminal and in summary.txt), so no table holds a CR
+cr="$T/crname"; mkroot "$cr"; sut "$cr" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m ok; gen "$cr"; gitc "$cr" add -A; gitc "$cr" commit -q -m m
+sut "$cr" "$(printf 'c\rd')/test_c.sh" 'echo "passed=1 failed=0"'; gitc "$cr" add -A; gitc "$cr" commit -q -m c; vfy "$cr" "$T/cr.log"
+chk "CON-030 r4 H3: a test path with a CR -> --verify-manifest rc 3" "$RC" "3"
+has "CON-030 r4 H3: the CR path is named, the CR escaped" "census: file name with a newline, TAB or other control or line-separator character \(U\+000D \(CR\)\) cannot be listed in the manifest: 'c\\\\rd/test_c.sh'" "$T/cr.log"
+hasnt "CON-030 r4 H3: no raw CR byte on the output" $'\r' "$T/cr.log"
+# (4) a test file whose name is not UTF-8: named; round 2 decoded it to U+FFFD, did not find it and dropped it silently
+nu="$T/nonutf8"; mkroot "$nu"; sut "$nu" tests/a/test_ok.sh 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m ok; gen "$nu"; gitc "$nu" add -A; gitc "$nu" commit -q -m m
+sut "$nu" "tests/a/$(printf 'test_\377.sh')" 'echo "passed=1 failed=0"'; gitc "$nu" add -A; gitc "$nu" commit -q -m u; vfy "$nu" "$T/nu.log"
+chk "CON-030 r3 class: a non-UTF-8 test file name -> --verify-manifest rc 3 (was MANIFEST-OK without it)" "$RC" "3"
+has "CON-030 r3 class: the non-UTF-8 name is named with \\xNN" 'census: file name that is not UTF-8 cannot be listed in the manifest: tests/a/test_\\xff\.sh' "$T/nu.log"
+# (5) tree_state records are length-framed: a symlink target can no longer absorb the records after it, a non-UTF-8
+# target is hashed (round 2 crashed on it), and an unreadable file is not a content
+chk "CON-030 r3 class: tree_state framing (no absorbed record, non-UTF-8 target hashed)" "$(python3 -I - "$ENGINE" "$T/tsframe" <<'PY'
+import sys, os, importlib.util, subprocess
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]; os.makedirs(root)
+subprocess.run(["git", "init", "-q", root], check=True); open(os.path.join(root, ".gitignore"), "w").write("a\nb\n")
+a, b, res = os.path.join(root, "a"), os.path.join(root, "b"), []
+for t1 in ("xIbLy", "xIbDLy"):  # the two record shapes an unframed hash merges (old tags, and the D tag added here)
+    os.symlink("x", a); os.symlink("y", b); s2 = m.tree_state(root); os.remove(a); os.remove(b)
+    os.symlink(t1, a); s1 = m.tree_state(root); os.remove(a); res.append(s1 != s2)
+os.symlink(b"t\xff", a.encode()); s3 = m.tree_state(root); os.remove(a)
+os.symlink(b"t\xfe", a.encode()); res.append(s3 != m.tree_state(root)); os.remove(a)
+print(res, m.file_bytes(os.path.join(root, "nope")), m.file_digest(os.path.join(root, "nope").encode()))
+PY
+)" "[True, True, True] None None"
+chk "CON-030 r3 class: file_bytes of an absent file differs from a file holding '<absent>'" "$(python3 -I - "$ENGINE" "$T/fbabs" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+os.makedirs(sys.argv[2]); p = os.path.join(sys.argv[2], "k"); open(p, "wb").write(b"<absent>")
+print(m.file_bytes(os.path.join(sys.argv[2], "nope")) is None, m.file_bytes(p))
+PY
+)" "True b'<absent>'"
+# (6) the known table and the excluded lock go through the one governance reader (round 4, review r3 H2): a CRLF
+# file is still read; a CR inside a line is refused by name (exit 2 / exit 3), never split into two lines
+chk "CON-030 r4: known table and excluded lock: CRLF tolerated, a CR inside a line refused by name" "$(python3 -I - "$ENGINE" "$T/crtab" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+d = sys.argv[2]; os.makedirs(d); k, l = os.path.join(d, "known.tsv"), os.path.join(d, "lock")
+open(k, "w", newline="").write("# c\r\ncd/t.sh\treason:x\tCON-1\tnote\r\nplain\treason:y\tCON-2\tn\n")
+open(l, "w", newline="").write("# h\r\ncd/t.sh\t0123456789abcdef\nq\tfedcba9876543210\r\n")
+res = [m.load_known(k)[0], sorted(m.read_excl_lock(l)[0].items())]
+open(k, "w", newline="").write("c\rd/t.sh\treason:x\tCON-1\tnote\n")
+open(l, "w", newline="").write("c\rd/t.sh\t0123456789abcdef\n")
+for f, p in ((m.load_known, k), (m.read_excl_lock, l)):
+    try:
+        f(p); res.append("read")
+    except m.Fatal as e:
+        res.append((e.code, "line 1 holds the character U+000D (CR)" in str(e)))
+print(res)
+PY
+)" "[[['cd/t.sh', 'reason:x', 'CON-1', 'note'], ['plain', 'reason:y', 'CON-2', 'n']], [('cd/t.sh', '0123456789abcdef'), ('q', 'fedcba9876543210')], (2, True), (3, True)]"
+
+# G4 / G12 (review r2): exact known_sub_paths() sets (a runaway recursion into an empty gitlink directory adds
+# bogus `./` entries), a nested uninitialised path with parentheses, a real `U` line on a spaced path, and a real
+# SHA-256 superproject
+chk "CON-030 r3 G4: known_sub_paths() of a fresh clone is exactly the top-level paths" "$(python3 -I - "$ENGINE" "$mp.fresh" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(sorted(m.known_sub_paths(sys.argv[2])))
+PY
+)" "[' lead', 'cr\\rx', 'k=v', 'nest ed', 'par(1)', 'plainb', 'plainc', 'plaint', 'q?', 'trail ', 'x (xyz)']"
+g12="$T/g12"; git init -q "$g12.inner"; gitc "$g12.inner" commit -q --allow-empty -m i
+git -C "$g12.inner" -c protocol.file.allow=always submodule add -q "$sp/lib" "in (ner)" >/dev/null 2>&1; gitc "$g12.inner" commit -q -m n
+mkroot "$g12"; git -C "$g12" -c protocol.file.allow=always submodule add -q "$g12.inner" "nest (ed)" >/dev/null 2>&1
+gitc "$g12" commit -q -m s; git clone -q "$g12" "$g12.c" >/dev/null 2>&1
+git -C "$g12.c" -c protocol.file.allow=always submodule update -q --init >/dev/null 2>&1
+chk "CON-030 r3 G12: nested uninitialised 'nest (ed)/in (ner)' is one whole gap, known set exact" "$(python3 -I - "$ENGINE" "$g12.c" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2], sorted(m.known_sub_paths(sys.argv[2])), m.sub_paths(sys.argv[2]))
+PY
+)" "['uninitialised submodule: nest (ed)/in (ner)'] ['nest (ed)', 'nest (ed)/in (ner)'] ['nest (ed)']"
+uc="$T/ucon"; git init -q "$uc.lib"; gitc "$uc.lib" commit -q --allow-empty -m one; gitc "$uc.lib" commit -q --allow-empty -m two
+mkroot "$uc"; git -C "$uc" -c protocol.file.allow=always submodule add -q "$uc.lib" "con (flict) )" >/dev/null 2>&1
+gitc "$uc" commit -q -m s; base=$(git -C "$uc" rev-parse --abbrev-ref HEAD); s1=$(git -C "$uc.lib" rev-parse HEAD~1)
+gitc "$uc.lib" commit -q --allow-empty -m three; s3=$(git -C "$uc.lib" rev-parse HEAD)
+gitc "$uc" checkout -q -b side; gitc "$uc" update-index --cacheinfo "160000,$s1,con (flict) )"; gitc "$uc" commit -q -m side
+gitc "$uc" checkout -q "$base"; gitc "$uc" update-index --cacheinfo "160000,$s3,con (flict) )"; gitc "$uc" commit -q -m main3
+gitc "$uc" merge -q side >/dev/null 2>&1
+if git -C "$uc" submodule status 2>/dev/null | grep -q '^U'; then ok "CON-030 r3 G12 precondition: git prints a real U line"
+else ko "CON-030 r3 G12 precondition: git prints a real U line ($(git -C "$uc" submodule status 2>&1 | tr '\n' '|'))"; fi
+chk "CON-030 r3 G12: a real U line on 'con (flict) )' names the path whole" "$(python3 -I - "$ENGINE" "$uc" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.topology(sys.argv[2])[2])
+PY
+)" "['submodule with merge conflicts: con (flict) )']"
+s256="$T/s256"
+if git init -q --object-format=sha256 "$s256.lib" 2>/dev/null; then
+  gitc "$s256.lib" commit -q --allow-empty -m i; git init -q --object-format=sha256 "$s256"; gitc "$s256" commit -q --allow-empty -m i
+  for p in plaint 'sub dir' 'x (xyz)'; do git -C "$s256" -c protocol.file.allow=always submodule add -q "$s256.lib" "$p" >/dev/null 2>&1; done
+  gitc "$s256/plaint" tag 'v1(beta)'; gitc "$s256" commit -q -m s
+  if git -C "$s256" submodule status | grep -qE '^ [0-9a-f]{64} plaint \(v1\(beta\)\)$'; then ok "CON-030 r3 G12 precondition: SHA-256 status lines (64 hex, describe v1(beta))"
+  else ko "CON-030 r3 G12 precondition: SHA-256 status lines ($(git -C "$s256" submodule status 2>&1 | tr '\n' '|'))"; fi
+  chk "CON-030 r3 G12: a real SHA-256 superproject reads every path whole, 0 gaps" "$(python3 -I - "$ENGINE" "$s256" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(sorted(m.sub_paths(sys.argv[2])), m.topology(sys.argv[2])[2])
+PY
+)" "['plaint', 'sub dir', 'x (xyz)'] []"
+else echo "SKIP CON-030 r3 G12 SHA-256 case: reason sha256_unsupported (git cannot init --object-format=sha256)"; fi
+
+# =========================================================================== CON-030 round 4 (review r3 H1 H2 H3 H6)
+# Structural round (section 11.4.276(E)(3)). (1) ONE reader for every governance file (gov_lines): split on "\n"
+# only, the CR of a CRLF line end dropped, any other line-breaking character refused by name. (2) A unit's key is
+# the structure (path, args); plan() refuses two units with one key and two units shown with one text. (3) ONE
+# output escaping function (esc_out) on stdout, stderr and summary.txt, and the census refuses control characters.
+
+# --- (1) the one reader: each line-breaking class refused by name, CRLF and a plain space are not (controls)
+chk "CON-030 r4 gov_lines: NEL LS PS CR VT FF ESC NUL DEL C1 refused by name; CRLF, TAB and space read" "$(python3 -I - "$ENGINE" "$T/govl" <<'PY'
+import sys, os, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+d = sys.argv[2]; os.makedirs(d); p = os.path.join(d, "t"); res = []
+for c in ("\x85", "\u2028", "\u2029", "\r", "\x0b", "\x0c", "\x1b", "\x00", "\x7f", "\x9b"):
+    open(p, "wb").write(("# a\n# comment%seve\tx\n" % c).encode())
+    try:
+        m.gov_lines(p); res.append("read")
+    except m.GovLineError as e:
+        res.append(str(e).split(" holds the character ")[1].split(",")[0])
+open(p, "wb").write(b"# a\r\nalice\tx y\r\n# comment eve\tx\n")
+res.append(m.gov_lines(p))
+print(res)
+PY
+)" "['U+0085 (NEL)', 'U+2028 (LINE SEPARATOR)', 'U+2029 (PARAGRAPH SEPARATOR)', 'U+000D (CR)', 'U+000B (VT)', 'U+000C (FF)', 'U+001B (ESC)', 'U+0000 (NUL)', 'U+007F (DEL)', 'U+009B', [(1, '# a'), (2, 'alice\tx y'), (3, '# comment eve\tx'), (4, '')]]"
+
+# --- (1) lint: every file read in the engine is classed `# io: ...`; the governance readers use gov_lines only.
+# Control needles: the lint run on a copy of the engine with an unclassed open() and with read_roster reading its
+# file by itself must FAIL; on the engine it must find a known number of classed sites (positive control).
+fsr_io_lint() { python3 -I - "$1" <<'PY'
+import ast, sys
+src = open(sys.argv[1]).read(); L = src.split("\n"); t = ast.parse(src); probs = []; sites = 0
+IO = {"open", "splitlines", "readlines", "readline"}
+GOV = ("read_manifest", "load_known", "read_excl_lock", "read_roster", "guide_parse")  # CON-030 r5: guide_parse is the guide reader
+funcs = {n.name: n for n in ast.walk(t) if isinstance(n, ast.FunctionDef)}
+def io_calls(node):
+    for n in ast.walk(node):
+        if isinstance(n, ast.Call):
+            f = n.func
+            nm = f.id if isinstance(f, ast.Name) and f.id == "open" else (f.attr if isinstance(f, ast.Attribute) and (f.attr in IO or f.attr in ("read_text", "read_bytes")) else None)
+            if nm:
+                yield n
+for n in io_calls(t):
+    sites += 1
+    tag = [x.split("# io:", 1)[1].strip().split(" ")[0] for x in L[n.lineno - 1:n.end_lineno] if "# io:" in x]
+    if not tag or tag[0] not in ("gov", "write", "not-gov"):
+        probs.append("line %d: I/O call without an `# io: gov|write|not-gov` class" % n.lineno)
+    elif tag[0] == "gov" and not (funcs["gov_lines"].lineno <= n.lineno <= funcs["gov_lines"].end_lineno):
+        probs.append("line %d: `io: gov` outside gov_lines" % n.lineno)
+for g in GOV:
+    f = funcs.get(g)
+    if f is None:
+        probs.append("%s missing" % g); continue
+    if not any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == "gov_lines" for c in ast.walk(f)):
+        probs.append("%s does not read through gov_lines" % g)
+    for c in io_calls(f):
+        if "# io: write" not in L[c.lineno - 1]:
+            probs.append("%s reads a file itself (line %d)" % (g, c.lineno))
+print("sites=%d problems=%d %s" % (sites, len(probs), probs[:3]))
+PY
+}
+lint_real=$(fsr_io_lint "$ENGINE")
+case "$lint_real" in
+  "sites="*" problems=0 []") ok "CON-030 r4 io lint: every engine I/O site classed, governance readers use gov_lines ($lint_real)";;
+  *) ko "CON-030 r4 io lint: $lint_real";;
+esac
+n_sites=${lint_real#sites=}; n_sites=${n_sites%% *}
+if [ "$n_sites" -ge 25 ]; then ok "CON-030 r4 io lint positive control: $n_sites I/O sites found (>= 25)"
+else ko "CON-030 r4 io lint positive control: only $n_sites I/O sites found (instrument blind?)"; fi
+mkdir -p "$T/lint"
+python3 -I -c 'import sys
+s = open(sys.argv[1]).read()
+open(sys.argv[2], "w").write(s.replace("def char_name(c):", "def char_name(c):\n    open(\"/dev/null\").read()", 1))
+a = "    try:\n        lines = gov_lines(path)\n    except GovLineError as e:\n        # review r3 H2"
+b = "    try:\n        lines = list(enumerate(open(path).read().splitlines(), 1))  # io: not-gov\n    except GovLineError as e:\n        # review r3 H2"
+assert s.count(a) == 1
+open(sys.argv[3], "w").write(s.replace(a, b))' "$ENGINE" "$T/lint/needle_open.py" "$T/lint/needle_roster.py"
+case "$(fsr_io_lint "$T/lint/needle_open.py")" in *"I/O call without"*) ok "CON-030 r4 io lint control needle: an unclassed open() is caught";;
+  *) ko "CON-030 r4 io lint control needle: an unclassed open() is NOT caught";; esac
+case "$(fsr_io_lint "$T/lint/needle_roster.py")" in *"read_roster does not read through gov_lines"*) ok "CON-030 r4 io lint control needle: read_roster reading by itself is caught";;
+  *) ko "CON-030 r4 io lint control needle: read_roster reading by itself is NOT caught";; esac
+
+# --- (1) H2 end to end: an operator id hidden behind a NEL / LS / CR in a committed `#` comment line. git shows one
+# comment line; round 3 read `eve` as an operator (accepted, then PASS-FULL accepted_by: eve). Control: a plain space.
+for sep in nel ls cr none; do
+  case "$sep" in nel) sc=$'\xc2\x85';; ls) sc=$'\xe2\x80\xa8';; cr) sc=$'\r';; none) sc=' ';; esac
+  h2="$T/h2_$sep"; mkroot "$h2"
+  printf 'f() { :; }\n' > "$h2/tests/a/lib.sh"
+  sut "$h2" tests/a/test_uses_lib.sh '. "$(dirname "$0")/lib.sh"' 'echo "passed=1 failed=0"'
+  gen "$h2"
+  { printf '# id<TAB>who\nalice\toperator alice\n'; printf '# former operator, removed%seve\tnot an operator\n' "$sc"; } > "$h2/config/full_suite_operators.roster"
+  gitc "$h2" add -A; gitc "$h2" commit -q -m roster
+  bash "$R" --root "$h2" --verify-manifest --accept-excluded-change eve > "$T/h2_$sep.eve.log" 2>&1; rc_eve=$?
+  bash "$R" --root "$h2" --verify-manifest --accept-excluded-change alice > "$T/h2_$sep.alice.log" 2>&1; rc_alice=$?
+  if [ "$sep" = none ]; then
+    chk "CON-030 r4 H2 control (plain space): eve is not an operator, refused (rc 3)" "$rc_eve" "3"
+    has "CON-030 r4 H2 control: refused because eve is not on the roster" 'not on the operator roster|is not an operator|not listed' "$T/h2_$sep.eve.log"
+    chk "CON-030 r4 H2 control (plain space): alice is accepted (rc 0)" "$rc_alice" "0"
+  else
+    chk "CON-030 r4 H2 ($sep in a comment line): --accept-excluded-change eve refused (rc 3)" "$rc_eve" "3"
+    has "CON-030 r4 H2 ($sep): the refused character is named" 'operator roster .* line 3 holds the character U\+' "$T/h2_$sep.eve.log"
+    chk "CON-030 r4 H2 ($sep): the whole roster is refused, alice too (rc 3)" "$rc_alice" "3"
+    hasnt "CON-030 r4 H2 ($sep): no acceptance line written for eve" 'accepted_by=eve' "$h2/config/full_suite_excluded.lock"
+  fi
+done
+chk "CON-030 r4 H2: read_roster ids per separator (NEL, LS, CR: none; space: alice)" "$(python3 -I - "$ENGINE" "$T" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = []
+for sep in ("nel", "ls", "cr", "none"):
+    root = sys.argv[2] + "/h2_" + sep; ids, prob = m.read_roster(root, root + "/config/full_suite_operators.roster")
+    r.append((sep, sorted(ids), prob is None))
+print(r)
+PY
+)" "[('nel', [], False), ('ls', [], False), ('cr', [], False), ('none', ['alice'], True)]"
+
+# --- (2) H1: unit keys are structures. A Go module in a directory named `x/run_all.sh --quick` next to the
+# runall-quick unit of x/run_all.sh: round 3 gave both the id `x/run_all.sh --quick`, resumed the failing module from
+# the runall's PASS record and ended PASS-FULL rc 0. Round 4 refuses the plan (rc 3). Control: the module in x/gomod.
+h1fx() { # $1 root $2 module dir under x/
+  local r=$1; mkdir -p "$r/x/$2" "$r/config"; git init -q "$r"; gitc "$r" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\n# accepts --quick\n[ "${1:-}" = --quick ] && echo quick\necho "passed=1 failed=0"\n' > "$r/x/run_all.sh"
+  printf 'module example.com/m\n\ngo 1.21\n' > "$r/x/$2/go.mod"
+  printf 'package m\nimport "testing"\nfunc TestFails(t *testing.T) { t.Fatal("this module FAILS") }\n' > "$r/x/$2/m_test.go"
+  gitc "$r" add -A; gitc "$r" commit -q -m fx; gen "$r"
+  python3 -I -c 'import sys
+p = sys.argv[1]; L = open(p).read().split("\n")
+L = ["\t".join(l.split("\t")[:4] + ["runall-quick"] + l.split("\t")[5:]) if l.startswith("x/run_all.sh\t") else l for l in L]
+open(p, "w").write("\n".join(L))' "$r/config/full_suite_manifest.tsv"
+  gitc "$r" add -A; gitc "$r" commit -q -m manifest
+}
+if command -v go >/dev/null 2>&1; then
+  h1fx "$T/h1" "run_all.sh --quick"; h1fx "$T/h1c" "gomod"
+  run "$T/h1" "$T/o_h1"
+  chk "CON-030 r4 H1: module dir 'x/run_all.sh --quick' next to runall-quick x/run_all.sh -> refused (rc 3)" "$RC" "3"
+  has "CON-030 r4 H1: both units named" "plan: two different units are both shown as 'x/run_all.sh --quick' \(path 'x/run_all.sh' args \['--quick'\], and path 'x/run_all.sh --quick' args \[\]\)" "$T/o_h1.log"
+  hasnt "CON-030 r4 H1: never PASS-FULL, never resumed" 'PASS-FULL|resumed' "$T/o_h1.log"
+  run "$T/h1" "$T/o_h1h" --include-heavy
+  chk "CON-030 r4 H1 (--include-heavy, fresh out): the module runs and fails (rc 1)" "$RC" "1"
+  chk "CON-030 r4 H1 (--include-heavy): the module's own record is FAIL" "$(verdict "$T/o_h1h" "x/run_all.sh --quick" | cut -d'|' -f1)" "FAIL"
+  run "$T/h1c" "$T/o_h1c"
+  chk "CON-030 r4 H1 control (module in x/gomod): FAIL rc 1" "$RC" "1"
+else echo "SKIP CON-030 r4 H1 end-to-end cases: reason go_not_installed"; fi
+chk "CON-030 r4 H1: plan() keys, display refusal (default), heavy plan, duplicate-key refusal; record matching" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+ra = ["x/run_all.sh", "runall", "entry", "default", "runall-quick", "-", "n"]
+go = ["x/run_all.sh --quick", "go", "entry", "default", "go-test", "-", "auto"]
+res = []
+for rows, heavy in (([ra, go], False), ([ra, go], True), ([go, go], True)):
+    try:
+        res.append(sorted(u["key"] for u in m.plan(rows, heavy)))
+    except m.Fatal as e:
+        res.append((e.code, str(e).split(" (")[0].split(" shown as")[0]))
+q = {"path": "x/run_all.sh", "args": ["--quick"], "unit": "x/run_all.sh --quick", "sha": "s", "tree": "t", "runner_hash": "h", "ctx": "c"}
+gom = {"key": ("x/run_all.sh --quick", ()), "id": "x/run_all.sh --quick"}
+rq = {"key": ("x/run_all.sh", ("--quick",)), "id": "x/run_all.sh --quick"}
+rh = {"key": ("x/run_all.sh", ()), "id": "x/run_all.sh"}
+old = dict(q); del old["args"]
+res.append([m.rec_matches(q, u, "s", "t", "h", "c") for u in (gom, rq, rh)])
+res.append([m.rec_matches(q, rq, *k) for k in (("S", "t", "h", "c"), ("s", "T", "h", "c"), ("s", "t", "H", "c"), ("s", "t", "h", "C"))])
+res.append((m.rec_key(old), m.rec_matches(old, rq, "s", "t", "h", "c")))
+print(res)
+PY
+)" "[(3, 'plan: two different units are both'), [('x/run_all.sh', ()), ('x/run_all.sh --quick', ())], (3, 'plan: two units have one key'), [False, True, False], [False, False, False, False], (None, False)]"
+
+# --- (2) RW6 (review r3, adopted): a runall whose --quick mode passes and whose full mode fails; a default run writes
+# --out D, then an --include-heavy run reuses D. The heavy unit (path, no args) must not resume the --quick record.
+rw6="$T/rw6"; mkdir -p "$rw6/x"; git init -q "$rw6"; gitc "$rw6" commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\n# accepts --quick\nif [ "${1:-}" = --quick ]; then echo "passed=1 failed=0"; exit 0; fi\necho "passed=0 failed=1"; exit 1\n' > "$rw6/x/run_all.sh"
+gen "$rw6"
+python3 -I -c 'import sys
+p = sys.argv[1]; L = open(p).read().split("\n")
+L = ["\t".join(l.split("\t")[:4] + ["runall-quick"] + l.split("\t")[5:]) if l.startswith("x/run_all.sh\t") else l for l in L]
+open(p, "w").write("\n".join(L))' "$rw6/config/full_suite_manifest.tsv"
+gitc "$rw6" add -A; gitc "$rw6" commit -q -m s
+run "$rw6" "$T/o_rw6"
+chk "CON-030 r4 RW6 precondition: the default run passes (--quick)" "$RC" "0"
+run "$rw6" "$T/o_rw6" --include-heavy
+chk "CON-030 r4 RW6: the heavy run over the default run's --out runs the full runall and fails (rc 1)" "$RC" "1"
+hasnt "CON-030 r4 RW6: the full runall is not resumed from the --quick record" 'resumed x/run_all.sh' "$T/o_rw6.log"
+
+# --- RW3 (review r3, adopted): `git status` fails between two units on a clean tree (unit 1 makes .git/index
+# unreadable, unit 2 restores it). The failing status is unknown, never the hash of its empty output: the run stops.
+rw3="$T/rw3"; mkroot "$rw3"
+sut "$rw3" tests/a/test_1.sh 'cd "$(dirname "$0")/../.."' 'chmod 000 .git/index' 'echo "passed=1 failed=0"'
+sut "$rw3" tests/a/test_2.sh 'cd "$(dirname "$0")/../.."' 'chmod 644 .git/index' 'echo "passed=1 failed=0"'
+gen "$rw3"; gitc "$rw3" add -A; gitc "$rw3" commit -q -m s
+chmod 000 "$rw3/.git/index"; git -C "$rw3" status --porcelain -z >/dev/null 2>&1; pre=$?; chmod 644 "$rw3/.git/index"
+if [ "$pre" -ne 0 ]; then ok "CON-030 r4 RW3 precondition: git status with an unreadable index fails (rc $pre)"
+else ko "CON-030 r4 RW3 precondition: git status with an unreadable index fails (rc 0: running as root?)"; fi
+run "$rw3" "$T/o_rw3" --include-heavy
+chmod 644 "$rw3/.git/index" 2>/dev/null
+chk "CON-030 r4 RW3: a failing git status mid-run stops the run (rc 2)" "$RC" "2"
+# CON-030 round 5 (merge of WIT-C02): the identity is now also checked after every unit, so the unit that broke the
+# index is named; the failing status is still unknown (None shown as `?`), never the hash of an empty output
+has "CON-030 r4 RW3: named as an unknown root status after unit 1" 'IDENTITY CHANGED after unit tests/a/test_1.sh: root status [0-9a-f]+ -> \?' "$T/o_rw3.log"
+hasnt "CON-030 r4 RW3: never PASS-FULL" 'PASS-FULL' "$T/o_rw3.log"
+
+# --- RW4 (review r3): an absent record (None) and a present empty record feed different bytes into the hash
+chk "CON-030 r4 RW4: hrec(None) != hrec(b''), and both differ from no record" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util, hashlib
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+hs = []
+for d in (None, b"", "skip"):
+    h = hashlib.sha256()
+    if d != "skip":
+        m.hrec(h, b"k", d)
+    hs.append(h.hexdigest())
+print(len(set(hs)))
+PY
+)" "3"
+
+# --- (3) H3: one output escaping function. Unit: every line-breaking class escaped, TAB kept, a lone surrogate shown.
+chk "CON-030 r4 H3 esc_out: CR LF NEL LS ESC escaped, TAB kept, surrogate as \\xNN" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(repr(m.esc_out("a\rRESULT: PASS-FULL\nb\x85c\u2028d\x1be\tf\udcff")))
+PY
+)" "'a\\\\rRESULT: PASS-FULL\\\\nb\\\\x85c\\\\u2028d\\\\x1be\\tf\\\\xff'"
+# end to end, a text the census does not control: git's submodule paths in TOPOLOGY GAP lines on stdout and in
+# summary.txt. The uninitialised fresh clone of the many-path fixture has a submodule `cr<CR>x`.
+run "$mp.fresh" "$T/o_mpf" --allow-topology-gaps --include-heavy
+chk "CON-030 r4 H3 precondition: the fresh clone runs with gaps (PARTIAL-TOPOLOGY, rc 8)" "$RC" "8"
+has "CON-030 r4 H3: the CR submodule path is printed escaped on stdout" 'TOPOLOGY GAP \(allowed\): uninitialised submodule: cr\\rx' "$T/o_mpf.log"
+has "CON-030 r4 H3: ... and in summary.txt" 'TOPOLOGY GAP \(allowed\): uninitialised submodule: cr\\rx' "$T/o_mpf/summary.txt"
+hasnt "CON-030 r4 H3: no raw CR on stdout/stderr" $'\r' "$T/o_mpf.log"
+hasnt "CON-030 r4 H3: no raw CR in summary.txt" $'\r' "$T/o_mpf/summary.txt"
+chk "CON-030 r4 H3: summary.txt read in text mode has no RESULT line and one gap line per gap" "$(python3 -I -c 'import sys
+L = list(open(sys.argv[1]))
+print(sum(l.startswith("RESULT") for l in L), sum(l.startswith("TOPOLOGY GAP") for l in L))' "$T/o_mpf/summary.txt")" "0 11"
+
+# --- F11 (review r1): a suite that writes an IGNORED file into the tree changes tree_state() but not the quick
+# identity (which hashes `git status`, and an ignored file is not in it), so the tree branch itself must decide.
+# Old reviewer mutant R2 (`if tree_end != tree:` -> `if False:`) survived because the untracked-file case above is
+# also caught by the identity check; with R2 this case ends PASS-FULL.
+WI="$T/wti"; mkroot "$WI"; printf 'out.dat\n' > "$WI/.gitignore"
+sut "$WI" tests/a/test_writer.sh 'echo junk > "$(git rev-parse --show-toplevel)/out.dat"' 'echo "passed=1 failed=0"'
+gen "$WI"; gitc "$WI" add -A; gitc "$WI" commit -q -m wti
+run "$WI" "$T/o_wti" --include-heavy
+chk "R2b: suite writing an ignored file into the tree -> rc 1" "$RC" "1"
+has "R2b: tree change named by the tree branch" '^RESULT: FAIL \(repository tree changed during the run; SKIP=' "$T/o_wti.log"
+hasnt "R2b: not reported as an identity change" 'identity changed|IDENTITY CHANGED' "$T/o_wti.log"
+
 # --- 38 WIT-C02 (wave 2 review r2, F5): a unit that rewrites the tracked generated command sets is caught
 # even when the content is identical (new inode or new mtime); the run ends FAIL and names the unit.
 genroot(){ # $1 dir: root with tracked generated sets and two units ($2 = body of unit 1)
@@ -1199,6 +1787,488 @@ chk "R3b I2: the unit ran" "$(verdict "$T/o_er" tests/a/test_1.sh | cut -d'|' -f
 hasnt "R3b I2: the quick identity did not see it (no after-unit change)" '^IDENTITY CHANGED after unit' "$T/o_er/summary.txt"
 has "R3b I2: the end-of-run tree_ident comparison names it" '^IDENTITY CHANGED at the end of the run: head=.*dirty=.* -> head=' "$T/o_er/summary.txt"
 has "R3b I2: RESULT names the identity change" '^RESULT: FAIL \(.*identity changed during the run at the end of the run' "$T/o_er.log"
+
+# =========================================================================== CON-030 round 5 (review r4 K1-K12, M1-M6)
+# --- (1) K5: the WIT-C02 fingerprint of the generated sets, merged from main, is a field of the structured QuickIdent.
+# Unknown is None (never the in-band "?" main's text identity used), names are fed as file-system bytes, and every
+# field is a length-framed record. Unreadable entry at the start: refused before the first unit (never PASS-FULL).
+GU="$T/genunread"; genroot "$GU" 'echo ran'
+chmod 000 "$GU/actions/generated/README.md"
+if cat "$GU/actions/generated/README.md" >/dev/null 2>&1; then
+  ko "CON-030 r5 K5 precondition: a mode-000 file cannot be read (running as root?)"
+else ok "CON-030 r5 K5 precondition: a mode-000 file cannot be read"; fi
+chk "CON-030 r5 K5: gen_fingerprint of an unreadable entry is None" "$(python3 -I - "$ENGINE" "$GU" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(m.gen_fingerprint(sys.argv[2]))
+PY
+)" "None"
+run "$GU" "$T/o_gu" --include-heavy
+chmod 644 "$GU/actions/generated/README.md"
+chk "CON-030 r5 K5: an unreadable generated-set entry -> rc 1 (never PASS-FULL)" "$RC" "1"
+has "CON-030 r5 K5: named as the unknown generated sets before the first unit" '^IDENTITY CHANGED before unit tests/a/test_1.sh: generated sets \? -> \?' "$T/o_gu.log"
+hasnt "CON-030 r5 K5: the unit after the unknown identity is not run" '^\[1/[0-9]+\] PASS tests/a/test_1.sh' "$T/o_gu.log"
+# a name that is not UTF-8 inside a generated set: main's text fingerprint raised UnicodeEncodeError on it
+GN="$T/gennonutf"; genroot "$GN" 'echo ran'
+python3 -I -c 'import os,sys; open(os.path.join(os.fsencode(sys.argv[1]), b"actions/generated/x\xff.md"), "wb").write(b"x\n")' "$GN"
+gitc "$GN" add -A; gitc "$GN" commit -q -m nonutf
+chk "CON-030 r5 K5: gen_fingerprint reads a non-UTF-8 entry name (16 hex, two calls equal)" "$(python3 -I - "$ENGINE" "$GN" <<'PY'
+import sys, importlib.util, re
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+a, b = m.gen_fingerprint(sys.argv[2]), m.gen_fingerprint(sys.argv[2])
+print(bool(re.fullmatch("[0-9a-f]{16}", a or "")), a == b)
+PY
+)" "True True"
+run "$GN" "$T/o_gn" --include-heavy
+chk "CON-030 r5 K5: a non-UTF-8 name in a generated set does not break the run (rc 0)" "$RC" "0"
+hasnt "CON-030 r5 K5: no traceback on a non-UTF-8 generated-set name" 'Traceback|UnicodeEncodeError' "$T/o_gn.log"
+# the content record: an ignored file in a generated set changes content only (same inode, size and mtime); git status
+# cannot see an ignored file, so only the fingerprint's content record names it as a gen change after the unit
+GC="$T/gencontent"; genroot "$GC" "f='$GC/actions/generated/cache.txt'; touch -r \"\$f\" '$GC/../gc_ref'; printf 'B\n' > \"\$f\"; touch -r '$GC/../gc_ref' \"\$f\"; rm -f '$GC/../gc_ref'"
+printf 'actions/generated/cache.txt\n' > "$GC/.gitignore"; printf 'A\n' > "$GC/actions/generated/cache.txt"
+gitc "$GC" add -A; gitc "$GC" commit -q -m ign
+I0=$(stat -c '%i %s %Y' "$GC/actions/generated/cache.txt")
+run "$GC" "$T/o_gc" --include-heavy
+chk "CON-030 r5 K5 precondition: inode, size and mtime unchanged by the unit" "$(stat -c '%i %s %Y' "$GC/actions/generated/cache.txt")" "$I0"
+chk "CON-030 r5 K5: a content-only change in a generated set -> rc 1" "$RC" "1"
+has "CON-030 r5 K5: named by the after-unit check as a generated-sets change" '^IDENTITY CHANGED after unit tests/a/test_1.sh: generated sets [0-9a-f]+ -> [0-9a-f]+' "$T/o_gc/summary.txt"
+
+# --- (2) K1: the census markers of the guide are whole lines. Round 4 found them with text.index(), so a prose line
+# that quoted the begin marker above the real block made --sync-guide delete everything in between (rc 0).
+gd(){ # $1 root, $2 guide text with \uNNNN escapes -> root with a committed manifest and that guide
+  local r=$1; mkdir -p "$r/x" "$r/config" "$r/docs/guides"; git init -q "$r"; gitc "$r" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$r/x/run_all.sh"
+  gitc "$r" add -A; gitc "$r" commit -q -m fx; gen "$r"
+  python3 -I -c 'import sys; open(sys.argv[1], "wb").write(sys.argv[2].encode("ascii").decode("unicode_escape").encode())' \
+    "$r/docs/guides/full_suite_runner_guide.md" "$2"
+  gitc "$r" add -A; gitc "$r" commit -q -m guide
+}
+gsum(){ sha256sum < "$1/docs/guides/full_suite_runner_guide.md"; }
+sync_g(){ bash "$R" --root "$1" --sync-guide >"$2" 2>&1; RC=$?; }
+GQ="$T/gq"; gd "$GQ" '# guide\n\nThe block starts at a line `<!-- census:begin -->` and ends at the end marker.\n\nIMPORTANT PROSE THAT MUST SURVIVE\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n\ntail\n'
+vfy "$GQ" "$T/gq_v1.log"; chk "CON-030 r5 K1: quoted marker + stale real block: verify rc 3" "$RC" "3"
+has "CON-030 r5 K1: verify names the stale block" 'census block is stale' "$T/gq_v1.log"
+sync_g "$GQ" "$T/gq_s.log"; chk "CON-030 r5 K1: --sync-guide rc 0" "$RC" "0"
+chk "CON-030 r5 K1: the prose between the quoted and the real marker survives" "$(grep -c 'IMPORTANT PROSE THAT MUST SURVIVE' "$GQ/docs/guides/full_suite_runner_guide.md")" "1"
+chk "CON-030 r5 K1: the prose line quoting the marker survives" "$(grep -c 'The block starts at a line' "$GQ/docs/guides/full_suite_runner_guide.md")" "1"
+chk "CON-030 r5 K1: only the block line changed (1 added, 1 removed)" "$(git -C "$GQ" diff --numstat | cut -f1,2)" "1	1"
+vfy "$GQ" "$T/gq_v2.log"; chk "CON-030 r5 K1: verify after sync rc 0" "$RC" "0"
+for c in two:'<!-- census:begin -->\nA\n<!-- census:begin -->\nstale\n<!-- census:end -->\n' \
+         space:'<!-- census:begin --> \nstale\n<!-- census:end -->\n' \
+         order:'<!-- census:end -->\nstale\n<!-- census:begin -->\n' \
+         noend:'x\n<!-- census:begin -->\nstale\n' \
+         nearplus:'  <!-- census:end -->\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'; do
+  k=${c%%:*}; g="$T/gm_$k"; gd "$g" "# guide\n\n${c#*:}"
+  s0=$(gsum "$g")
+  vfy "$g" "$T/gm_${k}_v.log"; chk "CON-030 r5 K1 ($k): a malformed census block -> verify rc 3" "$RC" "3"
+  has "CON-030 r5 K1 ($k): verify names the marker problem" 'census block needs exactly one line|start with a census marker but are not exactly one' "$T/gm_${k}_v.log"
+  sync_g "$g" "$T/gm_${k}_s.log"; chk "CON-030 r5 K1 ($k): --sync-guide refuses (rc 3)" "$RC" "3"
+  has "CON-030 r5 K1 ($k): --sync-guide says nothing was written" '^RESULT: GUIDE-NOT-SYNCED' "$T/gm_${k}_s.log"
+  chk "CON-030 r5 K1 ($k): the guide is unchanged" "$(gsum "$g")" "$s0"
+done
+# the near-marker rule names its own reason: on `space` the begin line is missing anyway, on `nearplus` a valid block
+# exists and only the near-marker rule refuses (review r5 mutant K1b, `if near:` -> `if False:`)
+for k in space nearplus; do
+  has "CON-030 r5 K1 ($k): the refusal names the near-marker line" 'start with a census marker but are not exactly one' "$T/gm_${k}_v.log"
+done
+
+# --- (2b) CON-030 round 6 (review r5 F1-F3, structural): every guide-marker variant, enumerated, each outcome pinned.
+# Block shapes with exact markers (none, current, stale, current plus a stale line before or after it (MX10), empty,
+# begin only, end only (MX7), two begins, two ends, reversed, CRLF) and marker-line shapes on the begin line, the end
+# line, both, or a separate line outside a current block. NEAR shapes (leading/trailing white space, NBSP, a leading
+# or trailing U+200B, a leading U+FEFF, trailing text) are refused; TEXT shapes (backticked, after other text, upper
+# case, a U+200B inside the marker) are prose and never a marker. Each case runs --verify-manifest and --sync-guide;
+# a stale block must be rewritten and then verify rc 0; every refusal leaves the guide byte-identical.
+GMX="$T/gmatrix"; gd "$GMX" '# guide\n'
+python3 -I - "$R" "$GMX" > "$T/gmatrix.out" 2>&1 <<'PYGM'
+import hashlib, os, subprocess, sys
+
+R, root = sys.argv[1], sys.argv[2]
+G = os.path.join(root, "docs", "guides", "full_suite_runner_guide.md")
+B, E = "<!-- census:begin -->", "<!-- census:end -->"
+NEAR = {"lead_space": lambda m: " " + m, "trail_space": lambda m: m + " ", "lead_tab": lambda m: "\t" + m,
+        "trail_text": lambda m: m + " (generated)", "lead_zwsp": lambda m: "​" + m,
+        "lead_bom": lambda m: "﻿" + m, "lead_nbsp": lambda m: " " + m,
+        "trail_zwsp": lambda m: m + "\u200b", "lead_zwsp_space": lambda m: " \u200b " + m,
+        "lead_wj": lambda m: "\u2060" + m, "lead_shy": lambda m: "\u00ad" + m,
+        "inner_zwsp": lambda m: m.replace("census:", "census:​")}
+TEXT = {"backtick": lambda m: "`" + m + "`", "prose_lead": lambda m: "see " + m, "upper": lambda m: m.upper(),
+        "fullwidth": lambda m: m.replace("<", "\uff1c").replace(">", "\uff1e")}
+
+
+def run(*a):
+    p = subprocess.run(["bash", R, "--root", root] + list(a), capture_output=True)
+    return p.returncode, p.stdout.decode("utf-8", "replace") + p.stderr.decode("utf-8", "replace")
+
+
+def write(lines, crlf=False):
+    eol = "\r\n" if crlf else "\n"
+    body = ["# guide", "", "Prose quotes the marker `" + B + "` and `" + E + "` inside text.", ""] + lines + ["", "tail"]
+    with open(G, "wb") as fh:
+        fh.write((eol.join(body) + eol).encode("utf-8"))
+
+
+def sha():
+    with open(G, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def classify(rc, txt):
+    if "census block is stale" in txt:
+        return "stale"
+    if "census block needs exactly one line" in txt or "start with a census marker" in txt:
+        return "marker"
+    return "ok" if rc == 0 and "MANIFEST-OK" in txt else "other"
+
+
+# the current census line, from --sync-guide on an empty block
+write([B, E])
+rc, txt = run("--sync-guide")
+lines = open(G, encoding="utf-8").read().split("\n")
+CUR = lines[lines.index(B) + 1]
+assert CUR.startswith("census (generated"), (rc, txt, CUR)
+S = "census: stale total=99"
+
+cases = []  # (name, lines, crlf, expected class, expected sync rc, sync changes the file)
+STALE, MARK, OK, NONE = ("stale", 0, True), ("marker", 3, False), ("ok", 0, False), ("none", 0, False)
+for name, ls, exp in [("none", ["no block here"], NONE), ("current", [B, CUR, E], OK), ("stale", [B, S, E], STALE),
+                      ("extra_after", [B, CUR, S, E], STALE), ("extra_before", [B, S, CUR, E], STALE),
+                      ("empty", [B, E], STALE), ("begin_only", [B, S], MARK), ("end_only", [S, E], MARK),
+                      ("two_begin", [B, S, B, S, E], MARK), ("two_end", [B, S, E, E], MARK),
+                      ("reversed", [E, S, B], MARK)]:
+    cases.append(("block:" + name, ls, False, exp))
+cases.append(("block:stale_crlf", [B, S, E], True, STALE))
+cases.append(("block:current_crlf", [B, CUR, E], True, OK))
+for kind, shapes in (("near", NEAR), ("text", TEXT)):
+    for sn, f in shapes.items():
+        cases.append(("%s:%s:begin" % (kind, sn), [f(B), S, E], False, MARK))
+        cases.append(("%s:%s:end" % (kind, sn), [B, S, f(E)], False, MARK))
+        cases.append(("%s:%s:both" % (kind, sn), [f(B), S, f(E)], False, MARK if kind == "near" else NONE))
+        cases.append(("%s:%s:outside" % (kind, sn), [f(B), "", B, CUR, E], False, MARK if kind == "near" else OK))
+        # review r6 G1 (reviewer mutant RV6f): the END shape where "begin alone" does not already refuse: inside a
+        # block before the real end (a near end must not end the block early or be read as text that sync deletes,
+        # with prose after it), and on a separate line after a current block
+        cases.append(("%s:%s:end_in" % (kind, sn), [B, S, f(E), "IMPORTANT PROSE", E], False,
+                      MARK if kind == "near" else STALE))
+        cases.append(("%s:%s:end_after" % (kind, sn), [B, CUR, E, "", f(E)], False, MARK if kind == "near" else OK))
+
+for name, ls, crlf, (ecls, esrc, echg) in cases:
+    write(ls, crlf)
+    s0 = sha()
+    vrc, vtxt = run("--verify-manifest")
+    cls = classify(vrc, vtxt)
+    src, stxt = run("--sync-guide")
+    if "has no census block" in stxt and cls == "ok":
+        cls = "none"
+    chg = sha() != s0
+    post = run("--verify-manifest")[0] if chg else vrc
+    want_vrc = 0 if ecls in ("ok", "none") else 3
+    good = (cls, vrc, src, chg) == (ecls, want_vrc, esrc, echg) and (not echg or post == 0)
+    print("%s\t%s\tverify=%s/%d sync=%d changed=%s post=%d" % ("P" if good else "F", name, cls, vrc, src, chg, post))
+print("N\t%d" % len(cases))
+PYGM
+while IFS=$'\t' read -r st name detail; do
+  case $st in
+    P) ok "CON-030 r6 guide matrix $name";;
+    F) ko "CON-030 r6 guide matrix $name ($detail)";;
+  esac
+done < "$T/gmatrix.out"
+chk "CON-030 r6 guide matrix: all 109 cases ran (control: a driver crash or a lost case is a FAIL)" "$(grep -c '^[PF]	' "$T/gmatrix.out")" "109"
+has "CON-030 r6 guide matrix: the driver finished" '^N	109$' "$T/gmatrix.out"
+
+# --- (2d) CON-030 round 7 (review r6 G3, structural): the near-marker CLASS, generated. Every character class the
+# engine removes before the near test (white space, Zs, Cf, Default_Ignorable_Code_Point, U+FFFD for a byte that is
+# not UTF-8) contributes representative code points; each one goes before, inside and after each marker, on the
+# begin line, the end line, both, a line before a current block, inside a block before the real end (with prose
+# after it) and a line after a current block. Every such cell must be refused and leave the guide byte-identical
+# (guide_check with fix=True, in-process, on the engine under test). Visible prose stays prose. The cells sample
+# the class; they do not cover every range (review r7 H1: a function that drops E0000-E0FFF passed every cell), so
+# section 2e compares marker_ignorable with an oracle on every code point, and the table with perl's
+# \p{Default_Ignorable_Code_Point} when perl is installed.
+GCL="$T/gclass"; gd "$GCL" '# guide\n'
+python3 -I - "$ENGINE" "$GCL" > "$T/gclass.out" 2>&1 <<'PYGC'
+import hashlib, importlib.util, os, sys, unicodedata
+
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+root = sys.argv[2]
+G = os.path.join(root, m.GUIDE_REL)
+B, E = m.GUIDE_BEGIN, m.GUIDE_END
+rows = m.read_manifest(os.path.join(root, "config", "full_suite_manifest.tsv"))
+CUR = m.guide_block(rows)
+S, PROSE = "census: stale total=99", "IMPORTANT PROSE"
+# (tag, code points, how each must be classified by unicodedata or by the table): the generator checks its own tags
+CLASS = [
+    ("space", ["\t", " ", "\u00a0", "\u2003", "\u3000"], lambda c: c.isspace()),
+    ("Zs", ["\u2007", "\u202f", "\u205f"], lambda c: unicodedata.category(c) == "Zs"),  # every Zs is also str.isspace(): the Zs clause adds no character
+    ("Cf", ["\u200b", "\ufeff", "\u2060", "\u00ad", "\u200e", "\u061c", "\U000e0001", "\u202a", "\u2066",
+            "\u0600", "\ufff9"],  # two format characters that are NOT Default_Ignorable: only the Cf clause removes them
+     lambda c: unicodedata.category(c) == "Cf"),
+    ("DI-Mn", ["\u034f", "\ufe0f", "\u180b", "\ufe00"], lambda c: unicodedata.category(c) == "Mn"),
+    ("DI-Lo", ["\u3164", "\u115f", "\u1160", "\uffa0"], lambda c: unicodedata.category(c) == "Lo"),
+    ("DI-Cn", ["\ufff0"], lambda c: unicodedata.category(c) == "Cn"),
+    ("byte", ["\udcff", "\udc80"], lambda c: 0xdc80 <= ord(c) <= 0xdcff),
+]
+DI = lambda c: any(lo <= ord(c) <= hi for lo, hi in getattr(m, "DEFAULT_IGNORABLE", ()))
+for tag, cps, test in CLASS:
+    for c in cps:
+        good = test(c) and (DI(c) if tag.startswith("DI-") else True)
+        print("%s\tclass-tag:%s:U+%04X\t" % ("P" if good else "F", tag, ord(c)))
+POS = {"lead": lambda c, mk: c + mk, "inner": lambda c, mk: mk.replace("census:", "census:" + c),
+       "trail": lambda c, mk: mk + c}
+PLACES = {"begin": lambda f: [f(B), S, E], "end": lambda f: [B, S, f(E)], "both": lambda f: [f(B), S, f(E)],
+          "out_before": lambda f: [f(B), "", B, CUR, E], "end_in": lambda f: [B, S, f(E), PROSE, E],
+          "end_after": lambda f: [B, CUR, E, "", f(E)]}
+
+
+def write(lines):
+    body = ["# guide", "", "Prose quotes `" + B + "` inside text.", ""] + lines + ["", "tail"]
+    with open(G, "wb") as fh:
+        fh.write(("\n".join(body) + "\n").encode("utf-8", "surrogateescape"))
+
+
+def sha():
+    with open(G, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+n = 0
+for tag, cps, _ in CLASS:
+    for c in cps:
+        for pn, pf in POS.items():
+            for ln, lf in PLACES.items():
+                write(lf(lambda mk: pf(c, mk)))
+                s0 = sha()
+                prob = m.guide_check(root, rows, fix=True)
+                good = prob is not None and "start with a census marker" in prob and sha() == s0
+                n += 1
+                print("%s\tnear:%s:U+%04X:%s:%s\t%s" % ("P" if good else "F", tag, ord(c), pn, ln, (prob or "")[:80]))
+# visible text stays text: no block (both) and a current block with the shape on a line before it (out_before)
+TEXT = {"backtick": lambda mk: "`" + mk + "`", "prose_lead": lambda mk: "see " + mk, "upper": lambda mk: mk.upper(),
+        "fullwidth": lambda mk: mk.replace("<", "\uff1c").replace(">", "\uff1e"), "visible_x": lambda mk: "x" + mk}
+for tn, tf in TEXT.items():
+    for ln in ("both", "out_before"):
+        write(PLACES[ln](tf))
+        s0 = sha()
+        prob = m.guide_check(root, rows, fix=True)
+        good = prob is None and sha() == s0
+        n += 1
+        print("%s\ttext:%s:%s\t%s" % ("P" if good else "F", tn, ln, prob or ""))
+print("N\t%d" % n)
+PYGC
+while IFS=$'\t' read -r st name detail; do
+  case $st in
+    P) ok "CON-030 r7 near class $name";;
+    F) ko "CON-030 r7 near class $name ($detail)";;
+  esac
+done < "$T/gclass.out"
+gcn=$(awk -F'\t' '$1=="N"{print $2}' "$T/gclass.out")
+chk "CON-030 r7 near class: all 550 cells ran (30 code points x 3 positions x 6 places + 10 text cells; control)" "$gcn" "550"
+chk "CON-030 r7 near class: 30 class tags checked" "$(grep -c '^[PF]	class-tag:' "$T/gclass.out")" "30"
+# --- (2e) CON-030 round 8 (review r7 H1, reviewer mutant RV7c): the FUNCTION is pinned, not only the table.
+# marker_ignorable() is compared with an oracle over EVERY code point 0..0x10FFFF (surrogates included). The oracle
+# is written here, independently of the engine: white space (str.isspace), U+FFFD, category Cf or Zs, or a member of
+# ORACLE_DI, a literal copy of Perl's Unicode 15.0.0 \p{Default_Ignorable_Code_Point} ranges kept in this file (it is
+# compared with perl below when perl is installed). A function that narrows, widens or drops any range or clause
+# (RV7c dropped E0000-E0FFF inside the function while the table constant stayed equal to perl's) differs from the
+# oracle on at least one code point and fails here. Controls: the number of code points compared, and a negative
+# control (the oracle compared with a copy that drops the last range must differ, so the comparison can see).
+python3 -I - "$ENGINE" > "$T/gall.out" 2>&1 <<'PYGA'
+import importlib.util, sys, unicodedata
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+ORACLE_DI = ((0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+             (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+             (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3),
+             (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF))
+di = set()
+for lo, hi in ORACLE_DI:
+    di.update(range(lo, hi + 1))
+def oracle(c, di=di):
+    return c.isspace() or c == "�" or unicodedata.category(c) in ("Cf", "Zs") or ord(c) in di
+n = 0; bad = []
+for o in range(0x110000):
+    c = chr(o); n += 1
+    got = bool(m.marker_ignorable(c))
+    if got != oracle(c):
+        bad.append("U+%04X(fn=%s)" % (o, got))
+print("N\t%d" % n)
+print("BAD\t%d\t%s" % (len(bad), " ".join(bad[:12])))
+# negative control: the same comparison against an oracle missing the last range must see differences
+di2 = set(di) - set(range(ORACLE_DI[-1][0], ORACLE_DI[-1][1] + 1))
+neg = sum(1 for o in range(ORACLE_DI[-1][0], ORACLE_DI[-1][1] + 1) if oracle(chr(o), di2) != oracle(chr(o)))
+print("NEG\t%d" % neg)
+print("ODI\t%s" % " ".join("%X-%X" % r for r in ORACLE_DI))
+PYGA
+chk "CON-030 r8 H1: marker_ignorable compared with the oracle on every code point (count control)" "$(awk -F'\t' '$1=="N"{print $2}' "$T/gall.out")" "1114112"
+chk "CON-030 r8 H1: marker_ignorable equals the oracle on every code point (mismatches, first ones listed)" "$(awk -F'\t' '$1=="BAD"{print $2" "$3}' "$T/gall.out")" "0 "
+neg=$(awk -F'\t' '$1=="NEG"{print $2}' "$T/gall.out")
+if [ -n "$neg" ] && [ "$neg" -gt 0 ] 2>/dev/null; then ok "CON-030 r8 H1 negative control: an oracle without E0000-E0FFF differs on $neg code points"
+else ko "CON-030 r8 H1 negative control: the comparison cannot see a dropped range (got '$neg')"; fi
+oracle_di=$(awk -F'\t' '$1=="ODI"{print $2}' "$T/gall.out")
+
+# the table constant and the oracle table against perl's own Unicode data (an independent oracle). perl absent:
+# an explicit SKIP with a reason code (the all-code-point check above still pins the function to the literal oracle
+# table); FSR_REQUIRE_PERL=1 turns that SKIP into a FAIL. FSR_PERL names the perl command (default perl), so the
+# SKIP and FAIL paths are tested below with a command that does not exist. Review r7 H4.
+perl_xcheck() { # $1 perl command, $2 require (0|1); prints PASS|FAIL|SKIP lines, one per check
+  if ! command -v "$1" >/dev/null 2>&1; then
+    if [ "$2" = 1 ]; then echo "FAIL CON-030 r7 G3 perl cross-check: reason perl_not_installed and FSR_REQUIRE_PERL=1"
+    else echo "SKIP CON-030 r7 G3 perl cross-check: reason perl_not_installed (the table is pinned by the r8 H1 all-code-point oracle only)"; fi
+    return 0
+  fi
+  local perl_di eng_di uv
+  perl_di=$("$1" -e 'my @r; my ($s,$p); for my $c (0..0x10FFFF) { next if $c>=0xD800 && $c<=0xDFFF; if (chr($c) =~ /\p{Default_Ignorable_Code_Point}/) { if (defined $p && $c==$p+1) {$p=$c} else { push @r, [$s,$p] if defined $s; $s=$p=$c } } } push @r,[$s,$p]; print join(" ", map { sprintf "%X-%X", @$_ } @r)')
+  uv=$("$1" -MUnicode::UCD -e 'print Unicode::UCD::UnicodeVersion()')
+  eng_di=$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(" ".join("%X-%X" % r for r in m.DEFAULT_IGNORABLE))
+PY
+)
+  if [ -n "$perl_di" ] && [ "$eng_di" = "$perl_di" ]; then echo "PASS CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $uv)"
+  else echo "FAIL CON-030 r7 G3: DEFAULT_IGNORABLE equals perl's \\p{Default_Ignorable_Code_Point} (Unicode $uv) (want '$perl_di' got '$eng_di')"; fi
+  if [ -n "$perl_di" ] && [ "$oracle_di" = "$perl_di" ]; then echo "PASS CON-030 r8 H1: the self-test's oracle table equals perl's (Unicode $uv)"
+  else echo "FAIL CON-030 r8 H1: the self-test's oracle table equals perl's (Unicode $uv) (want '$perl_di' got '$oracle_di')"; fi
+}
+while IFS= read -r line; do
+  case $line in
+    "PASS "*) ok "${line#PASS }";;
+    "FAIL "*) ko "${line#FAIL }";;
+    "SKIP "*) echo "$line";;
+    *) ko "CON-030 r8 H4: perl_xcheck printed an unexpected line: $line";;
+  esac
+done < <(perl_xcheck "${FSR_PERL:-perl}" "${FSR_REQUIRE_PERL:-0}")
+# the absent-perl paths, with a command that does not exist (review r7 H4: never a silent skip)
+nop="$T/no_such_perl_$$"
+chk "CON-030 r8 H4: perl absent -> one explicit SKIP line with a reason code" "$(perl_xcheck "$nop" 0)" "SKIP CON-030 r7 G3 perl cross-check: reason perl_not_installed (the table is pinned by the r8 H1 all-code-point oracle only)"
+chk "CON-030 r8 H4: perl absent and FSR_REQUIRE_PERL=1 -> a FAIL line" "$(perl_xcheck "$nop" 1)" "FAIL CON-030 r7 G3 perl cross-check: reason perl_not_installed and FSR_REQUIRE_PERL=1"
+
+# the proof that the reviewer's MX2 is equivalent: a full-mode key collision needs a repeated manifest path, and
+# read_manifest refuses that before plan() runs
+GDP="$T/gdup"; gd "$GDP" '# guide\n'
+grep -v '^#' "$GDP/config/full_suite_manifest.tsv" | head -1 >> "$GDP/config/full_suite_manifest.tsv"
+vfy "$GDP" "$T/gdp_v.log"; chk "CON-030 r6 F7: a repeated manifest path -> verify rc 3" "$RC" "3"
+has "CON-030 r6 F7: read_manifest names the repeated path" 'duplicate path x/run_all.sh' "$T/gdp_v.log"
+
+# --- (2c) review r5 F9: --sync-guide keeps the guide's mode and refuses a symlinked guide (a link is never replaced)
+GL="$T/glink"; gd "$GL" '# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+chmod 600 "$GL/docs/guides/full_suite_runner_guide.md"
+sync_g "$GL" "$T/gl_s1.log"; chk "CON-030 r6 F9: --sync-guide on a mode-600 guide rc 0" "$RC" "0"
+chk "CON-030 r6 F9: the mode is kept" "$(stat -c %a "$GL/docs/guides/full_suite_runner_guide.md")" "600"
+# review r6 G4 (reviewer mutant RV6b, the kept mode hard-coded to 0o600): two other modes, each on a stale block
+for gm in 644 755; do
+  GLM="$T/glmode_$gm"; gd "$GLM" '# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+  chmod "$gm" "$GLM/docs/guides/full_suite_runner_guide.md"
+  sync_g "$GLM" "$T/glm_${gm}.log"; chk "CON-030 r7 G4: --sync-guide on a mode-$gm guide rc 0" "$RC" "0"
+  has "CON-030 r7 G4: mode $gm: the block was rewritten" '^census \(generated' "$GLM/docs/guides/full_suite_runner_guide.md"
+  chk "CON-030 r7 G4: the mode $gm is kept" "$(stat -c %a "$GLM/docs/guides/full_suite_runner_guide.md")" "$gm"
+done
+mv "$GL/docs/guides/full_suite_runner_guide.md" "$GL/docs/guides/real.md"
+python3 -I -c 'import sys; open(sys.argv[1], "w").write("# guide\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n")' "$GL/docs/guides/real.md"
+ln -s real.md "$GL/docs/guides/full_suite_runner_guide.md"; s0=$(sha256sum < "$GL/docs/guides/real.md")
+sync_g "$GL" "$T/gl_s2.log"; chk "CON-030 r6 F9: --sync-guide on a symlinked guide refuses (rc 3)" "$RC" "3"
+has "CON-030 r6 F9: the refusal names the link" 'is a symbolic link' "$T/gl_s2.log"
+chk "CON-030 r6 F9: the link is still a link" "$([ -L "$GL/docs/guides/full_suite_runner_guide.md" ] && echo link)" "link"
+chk "CON-030 r6 F9: the link target is unchanged" "$(sha256sum < "$GL/docs/guides/real.md")" "$s0"
+
+# the rewrite is byte-exact outside the block: CRLF line ends and a byte that is not UTF-8 are written back unchanged
+GB="$T/gbytes"; gd "$GB" '# guide\n'
+python3 -I -c 'import sys; open(sys.argv[1], "wb").write(b"# guide\r\nbad byte \xff here\r\n<!-- census:begin -->\r\nstale\r\n<!-- census:end -->\r\ntail\r\n")' "$GB/docs/guides/full_suite_runner_guide.md"
+gitc "$GB" add -A; gitc "$GB" commit -q -m crlf
+sync_g "$GB" "$T/gb_s.log"; chk "CON-030 r5 K1: --sync-guide on a CRLF guide with a non-UTF-8 byte: rc 0" "$RC" "0"
+chk "CON-030 r5 K1: every byte outside the block is unchanged (CRLF kept, the 0xff byte kept)" "$(python3 -I -c '
+import sys; d = open(sys.argv[1], "rb").read().split(b"\n")
+print(d[:3] == [b"# guide\r", b"bad byte \xff here\r", b"<!-- census:begin -->\r"], d[3].endswith(b"\r"), d[3] != b"stale\r", d[4:] == [b"<!-- census:end -->\r", b"tail\r", b""])' "$GB/docs/guides/full_suite_runner_guide.md")" "True True True True"
+vfy "$GB" "$T/gb_v.log"; chk "CON-030 r5 K1: verify after the CRLF sync rc 0" "$RC" "0"
+GO0="$T/gnone"; gd "$GO0" '# guide\n\nno census block, but a quoted `<!-- census:end -->` marker in prose\n'
+sync_g "$GO0" "$T/gnone_s.log"; chk "CON-030 r5 K1 control: a guide without a block: --sync-guide rc 0" "$RC" "0"
+has "CON-030 r5 K1 control: says the guide has no block and nothing was written" 'has no census block; nothing was written' "$T/gnone_s.log"
+vfy "$GO0" "$T/gnone_v.log"; chk "CON-030 r5 K1 control: a guide without a block: verify rc 0" "$RC" "0"
+
+# --- (3) K2 and M2 (reviewer mutant RX2): a guide holding a NEL in prose with a stale block. Round 4's --sync-guide
+# printed the census line, wrote nothing and returned 0; RX2 (the GovLineError path returning None) made verify say
+# MANIFEST-OK on that stale guide.
+GNL="$T/gnel"; gd "$GNL" '# guide\n\nprose with a NEL\u0085here\n\n<!-- census:begin -->\nstale\n<!-- census:end -->\n'
+s0=$(gsum "$GNL")
+vfy "$GNL" "$T/gnel_v.log"; chk "CON-030 r5 M2: NEL in the guide -> verify rc 3 (never MANIFEST-OK)" "$RC" "3"
+has "CON-030 r5 M2: verify names the guide and the character" 'full_suite_runner_guide.md line 3 holds the character U\+0085 \(NEL\)' "$T/gnel_v.log"
+sync_g "$GNL" "$T/gnel_s.log"; chk "CON-030 r5 K2: --sync-guide on a guide it cannot read -> rc 3" "$RC" "3"
+has "CON-030 r5 K2: --sync-guide names the character" 'GUIDE: .*U\+0085 \(NEL\)' "$T/gnel_s.log"
+hasnt "CON-030 r5 K2: --sync-guide does not print the census line as if it had written it" '^guide census block: census' "$T/gnel_s.log"
+chk "CON-030 r5 K2: the guide is unchanged" "$(gsum "$GNL")" "$s0"
+
+# --- (4) K3: esc_out decodes the surrogate escapes first, then escapes; surrogates holding a valid UTF-8 sequence
+# of NEL or LINE SEPARATOR became a raw line breaker in round 4
+chk "CON-030 r5 K3: esc_out escapes a line breaker hidden in surrogate escapes" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = [m.esc_out("\udcc2\udc85"), m.esc_out("x\udce2\udc80\udca8y"), m.esc_out("a\udcff"), m.esc_out("t\tu")]
+print("|".join(r), any(m.LINE_BREAKERS.search(x) for x in r))
+PY
+)" '\x85|x\u2028y|a\xff|t	u False'
+# review r5 F8 (reviewer mutant MX5): a lone surrogate outside U+DC80..U+DCFF cannot take the surrogateescape round
+# trip; the fallback escapes it as text, so the line can still be written to a UTF-8 stream
+chk "CON-030 r6 F8: esc_out escapes a lone high surrogate as text" "$(python3 -I - "$ENGINE" <<'PY'
+import sys, importlib.util
+s = importlib.util.spec_from_file_location("e", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+r = m.esc_out("a\ud800b")
+r.encode("utf-8")
+print(r)
+PY
+)" 'a\ud800b'
+
+# --- (5) K12 and M6 (reviewer mutant RX6): a test file whose name holds a NEL or a LINE SEPARATOR. Round 4 wrote the
+# manifest WITHOUT that file ("1 row", rc 0); RX6 (the census check narrowed to C0 + DEL) let the name through.
+for k in nel ls; do
+  cn="$T/cn_$k"; mkdir -p "$cn/x" "$cn/config"; git init -q "$cn"; gitc "$cn" commit -q --allow-empty -m init
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$cn/x/run_all.sh"; gitc "$cn" add -A; gitc "$cn" commit -q -m fx
+  gen "$cn"; gitc "$cn" add -A; gitc "$cn" commit -q -m manifest
+  case $k in nel) c=$'\xc2\x85'; want='U\+0085 \(NEL\)';; ls) c=$'\xe2\x80\xa8'; want='U\+2028 \(LINE SEPARATOR\)';; esac
+  printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$cn/x/test_a${c}b.sh"; gitc "$cn" add -A; gitc "$cn" commit -q -m name
+  m0=$(sha256sum < "$cn/config/full_suite_manifest.tsv")
+  vfy "$cn" "$T/cn_${k}_v.log"; chk "CON-030 r5 M6 ($k): verify rc 3" "$RC" "3"
+  has "CON-030 r5 M6 ($k): verify names the character" "census: file name with .*$want" "$T/cn_${k}_v.log"
+  hasnt "CON-030 r5 M6 ($k): the name is refused, not reported as a missing row" 'census file without manifest row' "$T/cn_${k}_v.log"
+  bash "$R" --root "$cn" --generate-manifest --write >"$T/cn_${k}_g.log" 2>&1; RC=$?
+  chk "CON-030 r5 K12 ($k): --generate-manifest --write refuses (rc 3)" "$RC" "3"
+  has "CON-030 r5 K12 ($k): it names the character" "MANIFEST: census: file name with .*$want" "$T/cn_${k}_g.log"
+  has "CON-030 r5 K12 ($k): it says nothing was written" '^RESULT: MANIFEST-NOT-GENERATED \(1 census problem\(s\); nothing was written\)' "$T/cn_${k}_g.log"
+  chk "CON-030 r5 K12 ($k): the manifest is unchanged" "$(sha256sum < "$cn/config/full_suite_manifest.tsv")" "$m0"
+  bash "$R" --root "$cn" --generate-manifest >"$T/cn_${k}_p.log" 2>&1; RC=$?
+  chk "CON-030 r5 K12 ($k): --generate-manifest (print) refuses too (rc 3)" "$RC" "3"
+done
+
+# --- (6) M1 (reviewer mutant RX1): err() escapes. An uninitialised submodule whose path holds a CR followed by a
+# forged RESULT line: the TOPOLOGY line on stderr must carry the CR as \r, never raw.
+ec="$T/errcr"; mkdir -p "$ec/x" "$ec/config"; git init -q "$ec"; gitc "$ec" commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\necho "passed=1 failed=0"\n' > "$ec/x/run_all.sh"
+git init -q "$T/errcr_src"; gitc "$T/errcr_src" commit -q --allow-empty -m s; ecs=$(git -C "$T/errcr_src" rev-parse HEAD)
+ecp=$(printf 's\rRESULT: PASS-FULL (forged)')
+printf '[submodule "s"]\n\tpath = %s\n\turl = %s\n' "$ecp" "$T/errcr_src" > "$ec/.gitmodules"
+gitc "$ec" add -A; git -C "$ec" update-index --add --cacheinfo "160000,$ecs,$ecp"; gitc "$ec" commit -q -m fx
+gen "$ec"; gitc "$ec" add config; gitc "$ec" commit -q -m manifest   # add -A would stage the gitlink as deleted
+chk "CON-030 r5 M1 precondition: the gitlink is committed" "$(git -C "$ec" ls-files -s | grep -c '^160000')" "1"
+bash "$R" --root "$ec" --out "$T/o_ec" >"$T/o_ec.out" 2>"$T/o_ec.err"; RC=$?
+chk "CON-030 r5 M1: an uninitialised submodule is a topology gap (rc 9)" "$RC" "9"
+chk "CON-030 r5 M1: no raw CR on stderr" "$(tr -cd '\r' < "$T/o_ec.err" | wc -c)" "0"
+chk "CON-030 r5 M1: no raw CR on stdout" "$(tr -cd '\r' < "$T/o_ec.out" | wc -c)" "0"
+has "CON-030 r5 M1: the TOPOLOGY line shows the CR as \\r" '^TOPOLOGY: .*s\\rRESULT: PASS-FULL \(forged\)' "$T/o_ec.err"
+
+# --- (7) M5 (reviewer mutant RX5): the terminal summary is written line by line; every line of summary.txt is a whole
+# line of the terminal output (one joined out() call made the summary one line with escaped \n)
+chk "CON-030 r5 M5: every summary.txt line is a whole terminal line" "$(python3 -I - "$T/o_g4/summary.txt" "$T/o_g4.log" <<'PY'
+import sys
+s = open(sys.argv[1]).read().split("\n")[:-1]; t = set(open(sys.argv[2]).read().split("\n"))
+print(len(s) > 5, [l for l in s if l not in t])
+PY
+)" "True []"
+
+# --- (8) K9: --verify-manifest asks plan() too, so a manifest that a run refuses is not MANIFEST-OK
+if command -v go >/dev/null 2>&1; then
+  vfy "$T/h1" "$T/h1_v.log"
+  chk "CON-030 r5 K9: verify on the H1 fixture -> rc 3 (the run is refused too)" "$RC" "3"
+  has "CON-030 r5 K9: verify names the plan refusal" '^MANIFEST: plan \(default mode\): plan: two different units are both shown as' "$T/h1_v.log"
+  vfy "$T/h1c" "$T/h1c_v.log"; chk "CON-030 r5 K9 control: verify on the x/gomod control -> rc 0" "$RC" "0"
+else echo "SKIP CON-030 r5 K9 cases: reason go_not_installed"; fi
 
 echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

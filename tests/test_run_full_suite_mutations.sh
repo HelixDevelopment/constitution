@@ -16,12 +16,58 @@
 # identity, status read but not decided, crash words / CR residue / TAP TODO, operator roster + chained
 # acceptance lines); I1-I3 L1 L2 Z4 Z7 guard the round-6 fixes of review r5 (identity verified before
 # every unit and at the end, symlinked roster / lock refused, and the reviewer's surviving M4 / M7 pinned:
-# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit fingerprint of the generated command sets
-# (ownership wave 2 review r2: gen field, inode, mtime, after-unit check; RMb = the reviewer's mutant of
-# review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in round 3); L3 guards CON-235 (--accept-excluded-change refuses a symlinked lock); M7+ are the author's own. F47a-F47c guard CON-047 F047-1/F047-2 (`+tracked` accepts a foreign
-# tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
+# dirty tree + KNOWN is exit 10, a failing git status reads dirty=unknown); G1-G4 guard the WIT-C02 per-unit
+# fingerprint of the generated command sets (ownership wave 2 review r2: gen field, inode, mtime, after-unit check;
+# RMb = the reviewer's mutant of review r2, the vendored constitution/ prefix; I1/I2 re-pinned by section 39 in
+# round 3; re-anchored in CON-030 round 5 to the structured QuickIdent.gen field); M7+ are the author's own; M30a-M30n guard CON-030 (submodule paths read whole: the
+# sub_paths / topology parser, the known-path set from `git ls-files -s -z`, the newline-joined quick identity; they
+# are unrelated to the lock mutant M30, the ids are selected by exact token) and RA RB RF are the reviewer-authored
+# mutants of CON-030 review r1 (section 11.4.276(D)). CON-030 round 3 (review r2, structural round): the quick
+# identity became a structure (QuickIdent), so M30b (identity fields joined by a space), M30m (partition instead of
+# rpartition of `<path>=<value>`) and M30n (`?` searched in the whole text) are removed with the text they mutated;
+# G3D (the round-2 dict check, whose root `status` key a submodule `status` overwrote) and G3R (unknown checked on
+# the root only) take their place; M32 X4 X5 M30a M30i M30l RB are re-anchored to the round-3 code with the same
+# change; RV1-RV8 are the reviewer-authored mutants of review r2 (RV3 RV7 RV8 re-anchored to the structural code:
+# unknown never detected, a path label without repr(), unknown-at-both-ends not reported); Q1-Q13 guard the class
+# members fixed in round 3 (the `?` Go-module marker, unframed tree hash, `#` and non-UTF-8 census names, CR-safe
+# table readers, the newline-path and doubly-named gaps, bytes symlink targets, the old `<absent>` marker, path
+# display and surrogateescape decoding). CON-030 round 4 (review r3, structural round again): Q5 Q5k Q5x Q5c are
+# re-anchored to the ONE governance reader gov_lines (universal-newline split, refusal dropped, read_roster reading
+# its file by itself with splitlines() = the H2 mutant, CRLF tolerance dropped); M2 is re-anchored to the structured
+# key; H1a-H1d guard the structured unit key (joined id compared again = the H1 mutant, the display and key
+# refusals of plan(), args dropped from the key); H2a H2b the reader (manifest read with splitlines(), C1 and the
+# Unicode separators dropped from the class); H3a-H3d the output escaping (raw stdout = the H3 mutant, raw
+# summary.txt, CR names listed again, the escape itself dropped); RW1-RW6 are the reviewer-authored mutants of
+# review r3, adopted verbatim (RW6 re-anchored: the joined uid it mutated is display-only now, so it drops the
+# args from the structured key instead). F47a-F47c guard CON-047 F047-1/F047-2
+# (`+tracked` accepts a foreign tracked token; a closed item read as open; an empty DB read as clean). A mutant counts as KILLED only when the self-test
 # exits non-zero AND prints at least one `FAIL ` check line (a crash with no failing check is not a
 # kill). Usage: bash tests/test_run_full_suite_mutations.sh [MUTANT_ID...]
+# CON-030 round 7 (review r6): RV6a RV6b RV6f are the reviewer-authored mutants of review r6. RV6b is verbatim;
+# RV6a and RV6f are ADAPTED, not verbatim (correction of the round-7 commit message eef7a3a3, review r7 H5): their
+# r6 anchors (marker_lead, startswith((GUIDE_BEGIN, GUIDE_END))) no longer exist, so each row re-expresses the same
+# change on the round-7 code (Cf narrowed to U+200B/U+FEFF; the end near-marker read only when exactly equal).
+# R7a-R7f are the author's own for the round-7 class rule. CON-030 round 8 (review r7 H1): RV7c is the reviewer-
+# authored mutant of review r7, adopted verbatim (marker_ignorable ignores the last DEFAULT_IGNORABLE range,
+# E0000-E0FFF, while the table constant is unchanged); it survived round 7 and is killed by section 2e of the
+# self-test (marker_ignorable compared with an oracle on every code point).
+# CON-030 round 6 (review r5, structural round for the guide-marker class): MX3 MX4 MX7 MX10 MX5 are the reviewer-
+# authored mutants of review r5, adopted verbatim (MX7 and MX10 survived round 5 and are killed by the guide matrix
+# cases block:end_only and block:extra_after / extra_before; MX5 by the F8 unit probe); N6a-N6d are the author's own
+# for the round-6 code (the U+200B/U+FEFF part of the near-marker lead, a near-marker read as `in` instead of a
+# prefix, the symlink refusal, the kept file mode). Reasoned EQUIVALENT, not a row: the reviewer's MX2 (verify asks
+# plan() in the default mode only). In full mode every unit has args (), so two units share a key only when the
+# manifest repeats a path, and read_manifest refuses a repeated path before plan() runs ("duplicate path", rc 3,
+# measured by the reviewer and by the r6 duplicate-path check of the self-test); the full-mode plan() call can
+# therefore refuse nothing the default-mode call and read_manifest have not already refused.
+# CON-030 round 5 (review r4, R_max passed by operator decision): RX1-RX8 are the reviewer-authored mutants of
+# review r4, adopted verbatim (RX1 RX2 RX5 RX6 survived round 4; RX8 re-anchored to the decode-first esc_out, H3d
+# likewise); GU GN GC guard the merged generated-set fingerprint (unreadable entry kept unknown, file-system bytes
+# for names, the content record); K1a-K1e the whole-line census markers and the byte-exact guide rewrite; K2n the
+# failing --sync-guide; K12m the refused --generate-manifest; K9m plan() asked by --verify-manifest. Reasoned
+# EQUIVALENT, not in the table: K2m (drop the re-check after the rewrite: guide_check(fix=True) already returns
+# every problem it cannot fix, and a rewrite always produces the current block).
+# L3 guards CON-235 (--accept-excluded-change refuses a symlinked lock).
 # A MUTANTS table whose ids are not unique is refused with exit 2 before anything runs (CON-236;
 # guarded by tests/test_run_full_suite_mutations_table.sh).
 # Removed with the round-3 parser they targeted (round 4 replaced the parser, section 11.4.276(E)):
@@ -43,7 +89,7 @@ trap 'TMPDIR="$(dirname "$W")" safe_rm_rf "${W:?}" >/dev/null 2>&1' EXIT
 # id <TAB> old <TAB> new   (python string escapes \n \t are decoded)
 MUTANTS=$(cat <<'EOF'
 M1	    if rc in (124, 137):\n        return "ERROR", "rc_%d_without_runner_timeout" % rc, "exit-code", None	    if rc in (124, 137):\n        return "PASS", "", "exit-code", None
-M2	return (o["unit"] == u["id"] and o["sha"] == sha and	return (o["unit"] == u["id"] and
+M2	return (rec_key(o) == u["key"] and o["sha"] == sha and	return (rec_key(o) == u["key"] and
 M3	BAD = ("FAIL", "TIMEOUT", "ERROR")	BAD = ("FAIL", "ERROR")
 M6	                if not (rerun and lv != "PASS"):	                if True:
 M7	and o["tree"] == tree and	and
@@ -62,12 +108,12 @@ M22	if not re.match(r"^[1-9][0-9]{0,5}$", v):	if not re.match(r"^[0-9]{1,6}$", v
 M24	            if needle in env.split(b"\\0"):	            if False:
 M25	        if HEAVY_NAME.search(b) and tier != "heavy" and not o:	        if False:
 M26	                if r[3] == "default" and r[0] not in q:	                if False:
-M27	        if sig.startswith("reason:"):\n            if reason == sig[len("reason:"):]:\n                return tid\n        elif sig in logtext:	        if True:
+M27	        if sig.startswith("reason:"):\n            code = sig[len("reason:"):]\n            need_tracked = code.endswith("+tracked")\n            if need_tracked:\n                code = code[:-len("+tracked")]\n            if reason != code:\n                continue\n            if need_tracked:\n                ids = set(TRACKED_RE.findall(logtext))\n                if ids != {tid}:\n                    continue\n            return tid\n        elif sig in logtext:	        if True:
 M28	        return 6\n	        return 0\n
 M29	            if overflow and not timed_out:	            if False:
 M30	        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)	        pass
 M31	            if o["seq"] != n or o["prev"] != want_prev:	            if False:
-M32	        h.update(b"I" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        pass
+M32	        hrec(h, b"I", f)\n        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))	        pass
 M33	                     "git status --porcelain=v1 -z --untracked-files=all; git diff HEAD	                     "true; git status --porcelain=v1 -z --untracked-files=all >/dev/null; git diff HEAD >/dev/null
 M34	        flip = len(set(r["verdict"] for r in mine)) > 1	        flip = False
 M35	        if o["log"] in logs:	        if False:
@@ -79,8 +125,8 @@ R5	                    timed_out, term_at = True, now	                    term_a
 R6	    if not real.startswith(sreal + os.sep) or not os.path.basename(real).startswith("fsr_"):	    if False:
 X1	    return o["verdict"] in VERDICTS	    return True
 X3	WIN = 12	WIN = 2
-X4	            if hashlib.sha256(body).hexdigest() == o["log_sha256"]:	            if True:
-X5	        h.update(b"U" + f.encode())\n        h.update(file_digest(os.path.join(root, f)))	        h.update(b"U" + f.encode())
+X4	            if body is not None and hashlib.sha256(body).hexdigest() == o["log_sha256"]:	            if True:
+X5	        hrec(h, b"U", f)\n        hrec(h, b"D", file_digest(os.path.join(os.fsencode(root), f)))	        hrec(h, b"U", f)
 X9	    if not isinstance(pgid, int) or pgid <= 1 or pgid == os.getpgrp():	    if not isinstance(pgid, int):
 V1	        l = CTRL.sub("", ESC.sub("", l)).rstrip()	        l = l.rstrip()
 V2	        if "\\r" in l:\n            over, l = l.rsplit("\\r", 1)	        if False:\n            pass
@@ -129,7 +175,7 @@ W2	    if who not in ids:\n        return "excluded set last accepted by %r, who
 W3	    if t.returncode != 0 or d.returncode != 0:	    if False:
 W4	        if ch != acc_chain(prev, ts, who, seth, rows):	        if False:
 W5	    if excl_who:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED	    if False:\n        out("RESULT: PARTIAL-EXCLUSIONS-UNACCEPTED
-I1	            if qid != qid0 or "?" in qid:\n                id_changed = "before unit	            if False:\n                id_changed = "before unit
+I1	            if qid != qid0 or ident_unknown(qid):\n                id_changed = "before unit	            if False:\n                id_changed = "before unit
 I2	    if not id_changed:\n        qid = quick_ident(root, subs0)	    if False:\n        qid = quick_ident(root, subs0)
 I3	    if id_changed:\n        out("RESULT: FAIL (%sidentity	    if False:\n        out("RESULT: FAIL (%sidentity
 L1	    if os.path.islink(path):\n        return set(), "operator roster	    if False:\n        return set(), "operator roster
@@ -137,16 +183,109 @@ L2	    if os.path.islink(lock_path):\n        return ["%s is a symlink	    if Fa
 L3	    if os.path.islink(lock_path):\n        # CON-235	    if False:\n        # CON-235
 Z4	    if dirty:\n        out("RESULT: PARTIAL-DIRTY-TREE	    if dirty and not known_n:\n        out("RESULT: PARTIAL-DIRTY-TREE
 Z7	        dirty.append("git status failed (rc %d / %d): the tree state is unknown" % (st.returncode, fe.returncode))\n	
-G1	    parts.append("gen=%s" % gen_fingerprint(root))	    pass
-G2	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, st.st_ino,	"%s %s %d %d %d %s\\0" % (os.path.relpath(p, root), kind, 0,
-G3	                                                     st.st_mtime_ns, st.st_size, dig)).encode())	                                                     0, st.st_size, dig)).encode())
-G4	            if qid != qid0 or "?" in qid:\n                id_changed = "after unit	            if False:\n                id_changed = "after unit
+M30a	        parsed = parse_sub_status(line, known)\n        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:\n            out_.append(parsed[2])	        f = line[1:].split()\n        if line[:1] != "-" and len(f) >= 2:\n            out_.append(f[1])
+M30c	        flag, sha, path = parsed\n	        flag, rest = line[0], line[1:].split()\n        sha, path = rest[0], rest[1]\n
+M30d	                        "[ (<describe>)]): %r" % line)\n            continue	                        "[ (<describe>)]): %r" % line)\n            gaps.pop()\n            continue
+M30e	            if d and " " not in d and rest[:i] in known:	            if d and " " not in d and "(" not in d and ")" not in d and rest[:i] in known:
+M30f	        if rest in known:\n            cands.add	        if True:\n            cands.add
+M30g	    return cands.pop() if len(cands) == 1 else None	    return cands.pop() if cands else None
+M30h	        if flag in (" ", "+") and i >= 0	        if i >= 0
+M30i	    return [l for l in os.fsdecode(stdout).split("\\n") if l]	    return [l for l in os.fsdecode(stdout).splitlines() if l]
+M30j	                    todo.append(full)	                    pass
+M30k	"config", "-f", ".gitmodules", "--null", "--get-regexp",	"config", "-f", ".gitmodules", "--get-regexp",
+M30l	    for rec in os.fsdecode(git(root, "ls-files", "-s", "-z", binary=True)).split("\\0"):	    for rec in git(root, "ls-files", "-s").split("\\n"):
+RA	    for w in (40, 64):	    for w in (40,):
+RB	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:\n            out_.append(parsed[2])	        if parsed is not None and parsed[2] not in out_:\n            out_.append(parsed[2])
+RF	            out_.append(parsed[2])	            out_.append(parsed[2].strip())
+G3D	    return q.status is None or any(v is None for _p, v in q.heads)	    return None in dict([(p or ".", v) for p, v in q.heads] + [("status", q.status)]).values()
+G3R	    return q.status is None or any(v is None for _p, v in q.heads)	    return q.status is None or q.heads[0][1] is None
+RV1	        if flag in (" ", "+") and i >= 0 and rest.endswith(")"):	        if flag in (" ", "+") and i >= 0:
+RV2	            if d and " " not in d and rest[:i] in known:	            if " " not in d and rest[:i] in known:
+RV3	    return q.status is None or any(v is None for _p, v in q.heads)	    return False
+RV4	                if os.path.lexists(os.path.join(root, full, ".git")):	                if True:
+RV5	        i = rest.rfind(" (")	        i = rest.find(" (")
+RV6	        if nl and val.rstrip("/"):\n            paths.append(val.rstrip("/"))	        if nl and val.rstrip("/"):\n            paths.append(val.strip().rstrip("/"))
+RV7	    return "root HEAD" if field[1] is None else "submodule %r" % (field[1],)	    return "root HEAD" if field[1] is None else "submodule %s" % (field[1],)
+RV8	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb or vb is None)	 for (k, va), (_k, vb) in zip(fa, fb) if va != vb)
+Q1	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None)):	    for m in sorted(set(mm for mm in (go_module(root, g) for g in gofiles) if mm is not None and not mm.startswith("?"))):
+Q2	        h.update(tag + b"%d:" % len(data))	        h.update(tag)
+Q3	        if f.startswith("#"):	        if False:
+Q4	        if f != os.fsencode(f).decode("utf-8", "replace"):	        if False:
+Q5	    for n, line in enumerate(text.split("\\n"), 1):	    for n, line in enumerate(text.splitlines(), 1):
+Q5k	        if mm:\n            raise GovLineError(path, n, mm.group(0))	        if False:\n            raise GovLineError(path, n, mm.group(0))
+Q5x	    try:\n        lines = gov_lines(path)\n    except GovLineError as e:\n        # review r3 H2	    try:\n        lines = list(enumerate(open(path, errors="replace").read().splitlines(), 1))\n    except GovLineError as e:\n        # review r3 H2
+Q5c	        if line.endswith("\\r"):\n            line = line[:-1]\n        mm = LINE_BREAKERS	        if False:\n            line = line[:-1]\n        mm = LINE_BREAKERS
+Q6	    for path in sorted(x for x in known if "\\n" in x):	    for path in []:
+Q7	        if path in seen:	        if False:
+Q8	            return b"L" + os.readlink(p)	            return b"L" + os.readlink(os.fsdecode(p)).encode()
+Q9	        return None\n\n\ndef hrec	        return b"<absent>"\n\n\ndef hrec
+Q10	    return os.fsencode(path).decode("utf-8", "backslashreplace")	    return path
+Q11	        for rec in os.fsdecode(p.stdout).split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):	        for rec in p.stdout.decode(errors="replace").split("\\0"):\n            meta, tab, path = rec.partition("\\t")\n            if not tab or not meta.startswith("160000 "):
+Q12	    raw = os.fsdecode(git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True))	    raw = git(root, "ls-files", "-co", "--exclude-standard", "-z", binary=True).decode(errors="replace")
+Q13	        if parsed is not None and parsed[0] != "-" and parsed[2] not in out_:	        if parsed is not None and parsed[0] != "-":
+H1a	    return (rec_key(o) == u["key"] and o["sha"] == sha	    return (o["unit"] == u["id"] and o["sha"] == sha
+H1b	        if u["id"] in ids:	        if False:
+H1c	        if u["key"] in keys:	        if False:
+H1d	        units.append({"id": uid, "key": (path, tuple(args)),	        units.append({"id": uid, "key": (path, ()),
+H2a	        lines = gov_lines(path)\n    except GovLineError as e:\n        raise Fatal(3, "manifest	        lines = list(enumerate(open(path).read().splitlines(), 1))\n    except GovLineError as e:\n        raise Fatal(3, "manifest
+H2b	LINE_BREAKERS = re.compile("[\\x00-\\x08\\x0a-\\x1f\\x7f-\\x9f\\u2028\\u2029]")	LINE_BREAKERS = re.compile("[\\x00-\\x08\\x0a-\\x1f\\x7f]")
+H3a	    sys.stdout.write(esc_out(msg) + "\\n")	    sys.stdout.write(msg + "\\n")
+H3b	        fh.write("".join(esc_out(l) + "\\n" for l in summ))	        fh.write("".join(l + "\\n" for l in summ))
+H3c	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\n\\t]", f)
+H3d	    return LINE_BREAKERS.sub(one, s)	    return s
+RW1	    return q.status is None or any(v is None for _p, v in q.heads)	    return any(v is None for _p, v in q.heads)
+RW2	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = "s"
+RW3	    status = hashlib.sha256(st.stdout).hexdigest()[:16] if st.returncode == 0 else None	    status = hashlib.sha256(st.stdout).hexdigest()[:16]
+RW4	        h.update(tag + b"-;")	        h.update(tag + b"0:")
+RW5	        if path in seen:	        if path in seen and flag == " ":
+RW6	    return (rec_key(o) == u["key"] and	    return (rec_key(o)[0] == u["key"][0] and
+G1	    return QuickIdent(tuple(heads), status, gen_fingerprint(root))	    return QuickIdent(tuple(heads), status, "g")
+G2	                hrec(h, b"i", b"%d" % st.st_ino)	                hrec(h, b"i", b"%d" % 0)
+G3	                hrec(h, b"m", b"%d" % st.st_mtime_ns)	                hrec(h, b"m", b"%d" % 0)
+G4	            if qid != qid0 or ident_unknown(qid):  # review r4 K5	            if False:  # review r4 K5
 RMb	    for pre in ("", "constitution"):	    for pre in ("",):
 F47a	                if ids != {tid}:	                if tid not in ids:
 F47b	        elif r[1] != "Issues":	        elif False:
 F47c	    if not total:	    if False:
 F47d	        if r is None:\n            stale += 1	        if r is None:\n            pass
 F47e	        elif r[1] != "Issues":	        elif r[1] == "Fixed":
+RX1	    sys.stderr.write(esc_out(msg) + "\\n")	    sys.stderr.write(msg + "\\n")
+RX2	    except GovLineError as e:\n        return str(e)	    except GovLineError as e:\n        return None
+RX3	        return set(), "operator roster %s" % e	        return set(), None
+RX4	        uid = path + ("" if not args else " " + " ".join(args))	        uid = path
+RX5	    for l in summ:\n        out(l)	    out("\\n".join(summ))
+RX6	        bad = LINE_BREAKERS.search(f) or ("\\t" if "\\t" in f else None)	        bad = re.search("[\\x00-\\x1f\\x7f]", f) or ("\\t" if "\\t" in f else None)
+RX7	    return (rec_key(o) == u["key"] and o["sha"] == sha	    return ((rec_key(o) == u["key"] or o["unit"] == u["id"]) and o["sha"] == sha
+RX8	        s = s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")	        pass
+GU	                except OSError:\n                    return None\n                hrec(h, b"p"	                except OSError:\n                    continue\n                hrec(h, b"p"
+GN	                hrec(h, b"p", os.fsencode(os.path.relpath(p, root)))	                hrec(h, b"p", os.path.relpath(p, root).encode())
+GC	                hrec(h, b"c", dig)	                hrec(h, b"c", b"")
+K1a	    begins = [n for n, l in lines if l == GUIDE_BEGIN]	    begins = [n for n, l in lines if GUIDE_BEGIN in l]
+K1b	    if near:	    if False:
+K1c	    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:	    if not begins or not ends:
+K1d	    eol = b"\\r" if raw[a - 1].endswith(b"\\r") else b""	    eol = b""
+K1e	    data = b"\\n".join(raw[:a] + 	    data = b"\\n".join([l.encode("utf-8") for n, l in lines if n <= a] + 
+K2n	            return 3\n        lines, a, _b, _prob = guide_parse(root)	            return 0\n        lines, a, _b, _prob = guide_parse(root)
+K12m	        if cprobs:\n	        if False:\n
+K9m	    if verify_only and not probs:\n	    if False:\n
+MX3	        if cprobs:\n	        if cprobs and write:\n
+MX4	    if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:	    if len(begins) != 1 or len(ends) != 1:
+MX7	    if not begins and not ends:\n        return lines, None, None, None	    if not begins:\n        return lines, None, None, None
+MX10	    if [l for n, l in lines if a < n < b] == want:	    if [l for n, l in lines if a < n < b][:1] == want:
+MX5	        s = s.encode("utf-8", "backslashreplace").decode("utf-8")\n    return LINE	        pass\n    return LINE
+N6a	unicodedata.category(c) in ("Cf", "Zs")	unicodedata.category(c) in ("Zs",)
+N6b	marker_norm(l).startswith(GUIDE_MARK_NORM)]	marker_norm(l) in GUIDE_MARK_NORM]
+N6c	        if os.path.islink(gp):	        if False:
+N6d	    os.chmod(tmp, mode)\n	    pass\n
+RV6a	unicodedata.category(c) in ("Cf", "Zs")	unicodedata.category(c) == "Zs" or c in "\\u200b\\ufeff"
+RV6b	    mode = stat.S_IMODE(os.lstat(p).st_mode)	    mode = 0o600
+RV6f	and marker_norm(l).startswith(GUIDE_MARK_NORM)]	and (marker_norm(l).startswith(GUIDE_MARK_NORM[0]) or l.strip() == GUIDE_END)]
+R7a	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))	            or False)
+R7c	c.isspace() or c == "\\ufffd" or	c.isspace() or
+R7d	(0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C	(0x00AD, 0x00AD), (0x061C
+R7e	    return "".join(c for c in l if not marker_ignorable(c))	    return l.lstrip("".join(c for c in l if marker_ignorable(c)))
+R7f	    return (c.isspace() or c ==	    return (False or c ==
+RV7c	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE))	            or any(lo <= o <= hi for lo, hi in DEFAULT_IGNORABLE[:-1]))
 EOF
 )
 

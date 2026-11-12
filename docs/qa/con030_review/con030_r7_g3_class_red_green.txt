@@ -1,0 +1,14 @@
+# CON-030 round 7 (review r6 G3): the generated near-marker class matrix (section 2d of tests/test_run_full_suite.sh), run in-process
+# command: python3 -I <section 2d driver> <engine> <fixture root>; counts of P (pass) and F (fail) cells, then the class mutants
+round-6 engine (10ad4e05, RED): P=325 F=255 N=550
+round-7 engine (GREEN): P=580 F=0 N=550
+mutant N6a: F=24
+mutant N6b: F=0
+mutant RV6a: F=24
+mutant RV6f: F=222
+mutant R7a: F=108
+mutant R7c: F=24
+mutant R7d: F=13
+mutant R7e: F=180
+mutant R7f: F=12
+# N6b (exact compare after normalisation) leaves this class matrix green; the CLI matrix's trail_text cells kill it (full mutation table)

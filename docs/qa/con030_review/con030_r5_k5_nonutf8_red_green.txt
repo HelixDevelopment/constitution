@@ -1,0 +1,5 @@
+== eng_main
+                                      ~~~~~~^^
+UnicodeEncodeError: 'utf-8' codec can't encode character '\udcff' in position 19: surrogates not allowed
+== eng_fixed
+'864862d6fdaa7b61'

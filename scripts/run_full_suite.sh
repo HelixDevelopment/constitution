@@ -13,7 +13,8 @@
 #   .js under a test directory with one of those words. A Go file counts toward its nearest
 #   go.mod module (`go test -count=1 ./...`). Every census file needs exactly one manifest
 #   row of class entry | member | fixture | excluded. A file without a row, a stale row, a
-#   broken rule, a file name with a newline/TAB, a dangling symlink outside fixtures/, an
+#   broken rule, a file name with a TAB or a control/line-separator character (CR, NEL, LS, ...), not UTF-8 or
+#   starting with `#`, a dangling symlink outside fixtures/, an
 #   empty ls-files (blind census) or a failed census needle => exit 3, nothing runs.
 #   NOT covered: submodule contents.
 # EXCLUDED  note `reason: <category>: <why>`, category in helper|library|oracle|fake|gate|
@@ -35,8 +36,13 @@
 #   that --quick drops are listed SKIPPED-heavy "dropped by --quick of X") | runall-members
 #   (default: its default members run alone; full: the run_all once).
 # TOPOLOGY  `git submodule status --recursive` is read first; an uninitialised, conflicted,
-#   drifted (+) or missing-commit submodule, or a failing status command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
-#   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). See the guide for preparing a
+#   drifted (+) or missing-commit submodule, an unknown flag, an unparseable status line, or a failing status
+#   command, is a gap: exit 9 REFUSED-TOPOLOGY, nothing runs, unless
+#   --allow-topology-gaps (then PARTIAL-TOPOLOGY, exit 8). Paths are never cut out of the status
+#   text (git prints them unquoted): they come from `git ls-files -s -z` (recursive, read as the bytes git
+#   gave), and a status line that does not name exactly one of them is the gap "unparseable git submodule
+#   status line"; a path containing a newline (git prints it across lines) and a path named by two status
+#   lines are gaps of their own. See the guide for preparing a
 #   checkout cheaply with `git clone --shared` and local submodule urls.
 # IDENTITY  head=<sha12> subs=<hash> dirty=<clean|hash|unknown> is printed, stored in every
 #   record and in every RESULT line; a non-empty git status (root or any submodule, untracked
@@ -76,12 +82,13 @@
 #   the workable-items DB (default docs/workable_items.db), 2 when the DB is absent or empty.
 # RESULTS + RESUME  <out>/results.jsonl (schema fsr/4, hash-chained, seq numbered; a break
 #   is exit 2, a torn last line is dropped with a WARN), one log per record, an exclusive
-#   lock on <out>/.lock. Reuse key: unit, HEAD sha, tree hash (status, diff, untracked,
-#   submodule status+diff recursive, ignored files except __pycache__ *.pyc .pytest_cache
+#   lock on <out>/.lock. Reuse key: unit (the structure path + args), HEAD sha, tree hash (status, diff, untracked,
+#   submodule status+diff recursive, ignored files of the root except __pycache__ *.pyc .pytest_cache
 #   qa-results/), runner hash, context hash (manifest + known table + excluded lock bytes).
 #   Disagreeing records of one key => NONDETERMINISTIC (worst verdict counts); a resume never
 #   upgrades. The chain has no external anchor: a forged record with a recomputed chain is
-#   not detected (section 11.4.268(C)).
+#   not detected (section 11.4.268(C)). Governance files are read by one reader (split on LF only, CRLF kept
+#   readable, any other line-breaking character refused); every output line is escaped (no forged lines).
 # OUTPUT  default ${XDG_CACHE_HOME:-$HOME/.cache}/full_suite_runner/<repo>-<sha12>-<tree12>;
 #   an --out inside the repository is refused.
 # EXIT / RESULT line

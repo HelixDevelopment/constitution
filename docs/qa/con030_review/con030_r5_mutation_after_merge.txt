@@ -1,0 +1,37 @@
+# CON-030 round 5: mutation runs after the merge of main 2e8cfb90 (harness tests/test_run_full_suite_mutations.sh, run from a copy of the engine and tests)
+
+## Run 1: snapshot of baacd4fc (log sha256 0969064906423...)
+ok   baseline: unmutated copy passes the self-test
+killed M27 (6 failing check(s))
+killed G4 (8 failing check(s))
+killed RMb (2 failing check(s))
+killed F47a (1 failing check(s))
+killed F47b (1 failing check(s))
+killed F47c (1 failing check(s))
+killed RX1 (2 failing check(s))
+killed RX2 (4 failing check(s))
+killed RX3 (4 failing check(s))
+killed RX4 (5 failing check(s))
+killed RX5 (1 failing check(s))
+killed RX6 (12 failing check(s))
+killed RX7 (1 failing check(s))
+killed RX8 (2 failing check(s))
+killed GU (4 failing check(s))
+killed GN (3 failing check(s))
+killed GC (1 failing check(s))
+killed K1a (4 failing check(s))
+SURVIVED K1b
+killed K1c (6 failing check(s))
+killed K1d (1 failing check(s))
+killed K1e (7 failing check(s))
+killed K2n (5 failing check(s))
+killed K12m (8 failing check(s))
+killed K9m (2 failing check(s))
+SUMMARY mutants=25 killed=24 survivors=1 not_applicable=0
+rc=1
+
+## Run 2: K1b after the nearplus fixture (log sha256 1c1516a4e1ee...)
+ok   baseline: unmutated copy passes the self-test
+killed K1b (6 failing check(s))
+SUMMARY mutants=1 killed=1 survivors=0 not_applicable=0
+rc=0
