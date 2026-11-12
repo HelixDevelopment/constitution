@@ -10,6 +10,6 @@ if [ "$V" = B ]; then
   unset CMA_JEV_ENDPOINT_ID JEV_BASE_URL JEV_KEY_VAR JEV_MODEL
   export CMA_JEV_ENDPOINT_ID=jev-typesafe JEV_BASE_URL=https://api.typesafe.ai JEV_KEY_VAR=TYPESAFE_API_KEY JEV_MODEL=jev-latest
 fi
-export HOME="$S/home"; unset JEV_STATE_DIR JEV_CONFIG_DIR; cd "$S/proj"
+export HOME="$S/home"; unset JEV_STATE_DIR JEV_CONFIG_DIR; cd "$S/proj" || exit 1
 printf '%s' '{"session_id":"t4","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls -la"},"cwd":"'"$S/proj"'"}' \
   | timeout 30 "$G" > "$S/gate$V.out" 2> "$S/gate$V.err"; echo "$?" > "$S/gate$V.rc"
