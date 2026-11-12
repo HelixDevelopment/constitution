@@ -16,7 +16,7 @@ chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi;
 
 SECRET='S3cr3t-Pa$$w0rd/x&y'
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 mkfake() { # $1=name dir
@@ -76,7 +76,7 @@ rc=$(run "${W}/fakeB:${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_r
 chk "engine override docker" "${W}/fakeB/docker" "$(head -1 "${W}/log")"
 
 # 4 golden-bad: env file group/world readable -> exit 2, no engine call, no secret
-for m in 640 604 644 660 777; do
+for m in 040 060 070 640 604 644 660 777 004 020; do
   reset; envfile "$m"
   rc=$(run "${W}/fakeB:${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_registry.env")
   chk "env file mode $m refused (exit 2)" 2 "$rc"
@@ -112,17 +112,79 @@ reset; envfile 600
 rc=$(run "${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_registry.env")
 chk "no engine -> exit 2" 2 "$rc"
 
-# 9 DOCKER_AUTH_CONFIG shape: written 0600, valid auths JSON, base64(user:pass), not echoed
-reset; ENVS="DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=pw1 DOCKER_AUTH_CONFIG=1"
+# 9a --auth-file-only: podman-format file, 0600, JSON shape, private dir, no echo
+reset; ENVS="DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=pw1"
 rc=$(run "${W}/fakeP:${TOOLS}" login --auth-file-only)
 chk "auth-file-only exit" 0 "$rc"
 AF="$(env -i PATH="${TOOLS}" HOME="${W}/home" XDG_RUNTIME_DIR="${W}/run" bash "${SUT}" auth-file-path 2>/dev/null)"
 [ -f "$AF" ] && ok "auth file created" || no "auth file created"
 chk "auth file mode 600" 600 "$(stat -c %a "$AF" 2>/dev/null)"
-want="{\"auths\":{\"r.t\":{\"auth\":\"$(printf 'u:pw1' | base64 -w0)\"}}}"
+chk "auth dir mode 700" 700 "$(stat -c %a "$(dirname "$AF")" 2>/dev/null)"
+want="{\"auths\":{\"r.t\":{\"auth\":\"$(printf 'u:pw1' | base64 | tr -d '\n')\"}}}"
 chk "auth JSON shape" "$want" "$(cat "$AF" 2>/dev/null)"
 grep -q 'pw1' "${W}/out" "${W}/err" && no "auth: password not echoed" || ok "auth: password not echoed"
-grep -q "$(printf 'u:pw1' | base64 -w0)" "${W}/out" "${W}/err" && no "auth: b64 not echoed" || ok "auth: b64 not echoed"
+grep -q "$(printf 'u:pw1' | base64 | tr -d '\n')" "${W}/out" "${W}/err" && no "auth: b64 not echoed" || ok "auth: b64 not echoed"
+[ -f "${W}/log" ] && no "auth-file-only makes no engine call" || ok "auth-file-only makes no engine call"
+# docker + auth-file-only is an honest refusal, not a faked success
+reset; ENVS="DOCKER_REGISTRY=r.t DOCKER_USERNAME=u DOCKER_PASSWORD=pw1"
+rc=$(run "${W}/fakeD:${TOOLS}" login --auth-file-only); chk "docker + auth-file-only -> exit 2" 2 "$rc"
+# registry needing JSON escaping is rejected
+reset; ENVS="DOCKER_REGISTRY=r\"x DOCKER_USERNAME=u DOCKER_PASSWORD=pw1"
+rc=$(run "${W}/fakeP:${TOOLS}" login --auth-file-only); chk "unsafe registry chars rejected" 2 "$rc"
+
+# 9b DOCKER_AUTH_CONFIG usual content (auths JSON): decoded in-process, engine login via stdin
+for eng in fakeP fakeD; do
+  reset; AUTHJ="{\"auths\":{\"reg.one.test\":{\"auth\":\"$(printf 'bob:%s' "${SECRET}" | base64 | tr -d '\n')\"}}}"
+  rc=$(env -i PATH="${W}/${eng}:${TOOLS}" HOME="${W}/home" XDG_RUNTIME_DIR="${W}/run" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="${AUTHJ}" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
+  chk "AUTH_CONFIG JSON login ($eng) exit" 0 "$rc"
+  grep -q '^ARG:reg.one.test$' "${W}/log" && ok "AUTH_CONFIG host used ($eng)" || no "AUTH_CONFIG host used ($eng)"
+  grep -q '^ARG:bob$' "${W}/log" && ok "AUTH_CONFIG user decoded ($eng)" || no "AUTH_CONFIG user decoded ($eng)"
+  chk "AUTH_CONFIG password on stdin ($eng)" "${SECRET}" "$(cat "${W}/log.stdin" 2>/dev/null)"; noleak "auth-config $eng"
+done
+reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" DOCKER_AUTH_CONFIG='not json' bash "${SUT}" login >/dev/null 2>&1; echo $?)
+chk "malformed DOCKER_AUTH_CONFIG -> exit 2" 2 "$rc"
+reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" DOCKER_AUTH_CONFIG='{"auths":{"h":{}},"credsStore":"x"}' bash "${SUT}" login >/dev/null 2>&1; echo $?)
+chk "AUTH_CONFIG without auth entries -> exit 2 (no fake success)" 2 "$rc"
+
+# 9c docker branch must not leak the password to argv (reviewer R2)
+reset; envfile 600
+rc=$(run "${W}/fakeD:${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_registry.env"); noleak "docker branch"
+chk "docker branch stdin" "${SECRET}" "$(cat "${W}/log.stdin" 2>/dev/null)"
+
+# 9d options without a value must exit 2 and never hang (reviewer finding 2)
+for o in "login --env-file" "verify --probe-image" "login --engine" "discover --registry"; do
+  reset; rc=$(cd "${W}" && env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" timeout 5 bash "${SUT}" $o >/dev/null 2>&1; echo $?)
+  chk "no hang, exit 2: $o" 2 "$rc"
+done
+
+# 9e symlinked env file refused (R3); not-owned file refused with the owner message (R5)
+reset; envfile 600; ln -s "${W}/home/.config/helix/sonar_registry.env" "${W}/link.env"
+rc=$(run "${W}/fakeP:${TOOLS}" login --env-file "${W}/link.env"); chk "symlinked env file refused" 2 "$rc"
+[ -f "${W}/log" ] && no "symlink: engine not called" || ok "symlink: engine not called"
+grep -q 'symlink' "${W}/err" && ok "symlink refusal names the symlink" || no "symlink refusal names the symlink"
+reset
+if [ -f /etc/hostname ] && [ ! -O /etc/hostname ]; then
+  rc=$(run "${W}/fakeP:${TOOLS}" login --env-file /etc/hostname); chk "not-owned env file refused" 2 "$rc"
+  grep -q 'not owned' "${W}/err" && ok "owner check message" || no "owner check message"
+else echo "SKIP owner check: no foreign-owned fixture file (reason: topology_unsupported)"; fi
+
+# 9f env file with set -x must not leak (finding 6), also under bash -x
+reset; { echo "set -x"; echo "DOCKER_REGISTRY=reg.example.test"; echo "DOCKER_USERNAME=ci-user"; echo "DOCKER_PASSWORD='${SECRET}'"; echo "set -x"; } >"${W}/home/.config/helix/sonar_registry.env"
+chmod 600 "${W}/home/.config/helix/sonar_registry.env"
+rc=$(run "${W}/fakeP:${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_registry.env"); chk "planted set -x: login ok" 0 "$rc"; noleak "planted set -x"
+env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" BASH_XTRACEFD= bash -x "${SUT}" login --env-file "${W}/home/.config/helix/sonar_registry.env" >"${W}/out" 2>"${W}/err"
+noleak "planted set -x + bash -x"
+
+# 9g engine flag beats env; explicit-missing env file is exit 2 not SKIP (finding 8)
+reset; envfile 600; ENVS="SONAR_REGISTRY_ENGINE=docker"
+rc=$(run "${W}/fakeB:${TOOLS}" login --engine podman --env-file "${W}/home/.config/helix/sonar_registry.env")
+chk "--engine beats SONAR_REGISTRY_ENGINE" "${W}/fakeB/podman" "$(head -1 "${W}/log")"
+reset; ENVS="SONAR_REGISTRY_ENV_FILE=${W}/absent.env"; rc=$(run "${W}/fakeP:${TOOLS}" login); chk "explicit missing SONAR_REGISTRY_ENV_FILE -> 2" 2 "$rc"
+reset; rc=$(run "${W}/fakeP:${TOOLS}" login --env-file "${W}/absent2.env"); chk "explicit missing --env-file -> 2" 2 "$rc"
+reset; ENVS="SONAR_REGISTRY_ENGINE=nonsense"; envfile 600; rc=$(run "${W}/fakeP:${TOOLS}" login --env-file "${W}/home/.config/helix/sonar_registry.env"); chk "invalid engine name -> 2" 2 "$rc"
+
+# 9h logout engine failure must not be reported as success (R1)
+reset; envfile 600; ENVS="FAKE_RC=1"; rc=$(run "${W}/fakeP:${TOOLS}" logout --env-file "${W}/home/.config/helix/sonar_registry.env"); chk "logout engine failure -> 1" 1 "$rc"
 
 # 10 discover reports presence only, helper detection
 reset; mkdir -p "${W}/home/.docker"

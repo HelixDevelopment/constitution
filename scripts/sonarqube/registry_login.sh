@@ -6,8 +6,9 @@
 #                makes, without a human, without a secret in argv/stdout/stderr/logs.
 #                Project-agnostic (§11.4.28/§11.4.177): every value is consumer DATA.
 # Usage        : registry_login.sh <mode> [options]
-#                  login    log in (creds from env or --env-file); --auth-file-only
-#                           writes a DOCKER_AUTH_CONFIG-style auth file instead
+#                  login    log in (creds from env, DOCKER_AUTH_CONFIG auths JSON or
+#                           --env-file); --auth-file-only writes a podman-format auth
+#                           file (REGISTRY_AUTH_FILE) instead of calling the engine
 #                  discover report which auth files / credential helpers exist
 #                           (presence only; cannot invent credentials)
 #                  verify   pull a probe image to prove stored auth works
@@ -16,22 +17,23 @@
 #                Options: --env-file F  --engine podman|docker  --registry HOST
 #                         --probe-image IMG  --auth-file-only
 # Inputs (env) : DOCKER_REGISTRY, DOCKER_USERNAME, DOCKER_PASSWORD | DOCKER_TOKEN,
-#                DOCKER_AUTH_CONFIG (any non-empty value, like --auth-file-only: build+write
-#                the auths JSON from username/password, base64(user:pass), to a 0600
-#                file instead of calling the engine; never echoed),
+#                DOCKER_AUTH_CONFIG (the usual {"auths":{host:{"auth":base64(user:pass)}}}
+#                JSON; used when no username/password is given: each entry is decoded
+#                in-process and logged in through the engine with --password-stdin),
 #                SONAR_REGISTRY_ENV_FILE (default
-#                ${XDG_CONFIG_HOME:-$HOME/.config}/helix/sonar_registry.env, mode
-#                0600/0400 REQUIRED), SONAR_REGISTRY_ENGINE (podman|docker; default
-#                auto: podman first per §11.4.161, docker fallback),
-#                SONAR_REGISTRY_PROBE_IMAGE, REGISTRY_AUTH_FILE (honoured by engines).
+#                ${XDG_CONFIG_HOME:-$HOME/.config}/helix/sonar_registry.env, no
+#                group/other permission bits REQUIRED; if set explicitly and missing
+#                the result is exit 2, not SKIP), SONAR_REGISTRY_ENGINE (podman|docker; --engine wins;
+#                default auto: podman first per §11.4.161, docker fallback),
+#                SONAR_REGISTRY_PROBE_IMAGE, REGISTRY_AUTH_FILE (honoured by podman only).
 # Outputs      : Status lines on stderr. NEVER a secret. auth-file-path prints a path.
 # Exit codes   : 0 ok - 1 failed (engine rejected) - 2 BLIND/config error (bad args,
 #                no engine, env file unreadable or group/world accessible) - 3 SKIP
 #                (credentials_absent / probe_image_absent / registry_absent; names
 #                variables only, never fakes success).
-# Side-effects : May write ${XDG_RUNTIME_DIR:-/tmp-private}/helix/sonar_registry_auth.json
-#                (0600) in --auth-file-only mode; engine login/logout/pull.
-# Dependencies : bash, stat, grep, sed, mktemp, base64 (auth-config only), podman|docker.
+# Side-effects : --auth-file-only writes ${XDG_RUNTIME_DIR:-$HOME/.cache}/helix_sonar_registry/auth.json
+#                (0600, private 0700 directory); engine login/logout/pull.
+# Dependencies : bash, stat, grep, sed, tr, base64, podman|docker.
 # Security     : set +x enforced; password only via --password-stdin; env file sourced
 #                in a subshell and refused unless mode has no group/other bits; engine
 #                output passes through a literal-substring masker; credential helpers
@@ -46,34 +48,37 @@ RL_EXIT_OK=0; RL_EXIT_FAIL=1; RL_EXIT_BLIND=2; RL_EXIT_SKIP=3
 rl_log() { printf '[registry-login] %s\n' "$*" >&2; }
 rl_err() { printf '[registry-login][ERROR] %s\n' "$*" >&2; }
 
-rl_default_env_file() { printf '%s' "${SONAR_REGISTRY_ENV_FILE:-${XDG_CONFIG_HOME:-${HOME:-/nonexistent}/.config}/helix/sonar_registry.env}"; }
+rl_default_env_file() { printf '%s' "${XDG_CONFIG_HOME:-${HOME:-/nonexistent}/.config}/helix/sonar_registry.env"; }
 
-rl_auth_file_path() {
+rl_auth_dir() {
     local base="${XDG_RUNTIME_DIR:-}"
     [ -n "${base}" ] || base="${HOME:-/nonexistent}/.cache"
-    printf '%s/helix/sonar_registry_auth.json' "${base}"
+    printf '%s/helix_sonar_registry' "${base}"
 }
+rl_auth_file_path() { printf '%s/auth.json' "$(rl_auth_dir)"; }
 
-# Engine: explicit override, else podman first (§11.4.161 rootless), docker fallback.
+# Engine: --engine wins over SONAR_REGISTRY_ENGINE; unset = podman first (§11.4.161),
+# docker fallback. An explicit but invalid/missing engine is a failure (no fallback).
 rl_engine() {
-    case "${SONAR_REGISTRY_ENGINE:-${RL_ENGINE_ARG:-}}" in
-        podman|docker) command -v "${SONAR_REGISTRY_ENGINE:-${RL_ENGINE_ARG}}" 2>/dev/null; return ;;
+    local want="${RL_ENGINE_ARG:-${SONAR_REGISTRY_ENGINE:-}}"
+    case "${want}" in
+        podman|docker) command -v "${want}" 2>/dev/null; return ;;
         "") : ;;
         *) return 1 ;;
     esac
     command -v podman 2>/dev/null || command -v docker 2>/dev/null
 }
 
-# Mode check: no group/other permission bits at all (fail closed).
+# Require exactly no group/other bits (mode & 077 == 0), regular file, not a symlink, ours.
 rl_env_file_ok() {
     local f="$1" m
-    [ -f "${f}" ] && [ ! -L "${f}" ] || { rl_err "env file missing or a symlink: ${f}"; return 1; }
-    m="$(stat -c %a "${f}" 2>/dev/null)" || { rl_err "cannot stat env file"; return 1; }
-    case "${m}" in
-        [0-7]00|[0-7]0) : ;;
-        *) rl_err "env file ${f} has mode ${m}; require 0600 or 0400 (no group/other access). Refusing."; return 1 ;;
-    esac
+    if [ -L "${f}" ] || [ ! -f "${f}" ]; then rl_err "env file missing or a symlink: ${f}"; return 1; fi
     [ -O "${f}" ] || { rl_err "env file ${f} is not owned by the current user"; return 1; }
+    m="$(stat -c %a "${f}" 2>/dev/null)" || { rl_err "cannot stat env file"; return 1; }
+    case "${m}" in *[!0-7]*|"") rl_err "unreadable mode of env file"; return 1 ;; esac
+    if [ $(( 8#${m} & 8#077 )) -ne 0 ]; then
+        rl_err "env file ${f} has mode ${m}; require no group/other access (0600 or 0400). Refusing."; return 1
+    fi
 }
 
 # Mask every literal occurrence of the given secrets in stdin. Args = secrets.
@@ -87,52 +92,103 @@ rl_mask() {
     done
 }
 
-# Resolve creds in the CURRENT (sub)shell; sets RL_REG RL_USER RL_PASS.
-rl_resolve() {
-    RL_REG="${RL_REG_ARG:-${DOCKER_REGISTRY:-}}"
-    RL_USER="${DOCKER_USERNAME:-}"
-    RL_PASS="${DOCKER_PASSWORD:-${DOCKER_TOKEN:-}}"
+# Choose the env file into RL_EF. 0 ok (RL_EF may be empty), 2 explicit-but-missing.
+rl_pick_env_file() {
+    RL_EF="${RL_ENV_FILE_ARG:-}"
+    if [ -n "${RL_EF}" ]; then return 0; fi
+    if [ -n "${SONAR_REGISTRY_ENV_FILE:-}" ]; then
+        if [ ! -e "${SONAR_REGISTRY_ENV_FILE}" ]; then rl_err "SONAR_REGISTRY_ENV_FILE is set but ${SONAR_REGISTRY_ENV_FILE} does not exist"; return 2; fi
+        RL_EF="${SONAR_REGISTRY_ENV_FILE}"; return 0
+    fi
+    [ -f "$(rl_default_env_file)" ] && RL_EF="$(rl_default_env_file)"
+    return 0
 }
+# --env-file given explicitly must exist too (rl_env_file_ok reports it).
 
-rl_load_env_file() { # sources in the calling subshell; caller guarantees subshell
+# Source the env file in the CALLING subshell with tracing impossible to re-enable.
+rl_load_env_file() {
     local f="$1"
     rl_env_file_ok "${f}" || return 2
-    set +x; set -a
+    set +x
+    set -a
     # shellcheck disable=SC1090
-    . "${f}" >/dev/null 2>&1 || { set +a; rl_err "env file failed to source"; return 2; }
+    . "${f}" >/dev/null 2>&1 || { set +a; set +x; rl_err "env file failed to source"; return 2; }
     set +a
+    set +x
+    BASH_XTRACEFD=9
+}
+
+rl_quiet_trace() { set +x; exec 9>/dev/null; BASH_XTRACEFD=9; }
+
+# Extract "host<TAB>base64" pairs from a {"auths":...} JSON on stdin. Returns 2 if no
+# "auths" key at all.
+rl_auths_pairs() {
+    local j; j="$(tr -d '\n\r')"
+    case "${j}" in *'"auths"'*) : ;; *) return 2 ;; esac
+    printf '%s' "${j}" | grep -o '"[^"]*" *: *{[^{}]*"auth" *: *"[^"]*"' \
+        | sed -n 's/^"\([^"]*\)" *: *{.*"auth" *: *"\([^"]*\)"$/\1\t\2/p'
+}
+
+# rl_engine_login ENGINE REG USER PASS  (password through printf builtin -> stdin)
+rl_engine_login() {
+    local eng="$1" reg="$2" user="$3" pass="$4" out erc
+    out="$(printf '%s' "${pass}" | "${eng}" login --username "${user}" --password-stdin "${reg}" 2>&1)"
+    erc=$?
+    printf '%s\n' "${out}" | rl_mask "${pass}" "${user}:${pass}" >&2
+    if [ "${erc}" -ne 0 ]; then rl_err "$(basename "${eng}") login to ${reg} failed (exit ${erc})"; return "${RL_EXIT_FAIL}"; fi
+    rl_log "login to ${reg} OK via $(basename "${eng}") (password via stdin)"
+    return 0
 }
 
 rl_mode_login() {
-    local ef="${RL_ENV_FILE_ARG:-}" rc
-    if [ -z "${ef}" ] && [ -f "$(rl_default_env_file)" ]; then ef="$(rl_default_env_file)"; fi
+    local rc
+    rl_pick_env_file || return $?
     (
-        set +x
-        if [ -n "${ef}" ]; then rl_load_env_file "${ef}" || exit "$?"; fi
-        rl_resolve
-        if [ -z "${RL_REG}" ] || [ -z "${RL_USER}" ] || [ -z "${RL_PASS}" ]; then
-            rl_log "SKIP credentials_absent: need DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD (or DOCKER_TOKEN) (env or ${ef:-$(rl_default_env_file)}); no login attempted"
+        rl_quiet_trace
+        if [ -n "${RL_EF}" ]; then rl_load_env_file "${RL_EF}" || exit "$?"; fi
+        reg="${RL_REG_ARG:-${DOCKER_REGISTRY:-}}"; user="${DOCKER_USERNAME:-}"; pass="${DOCKER_PASSWORD:-${DOCKER_TOKEN:-}}"
+        triples=()
+        if [ -n "${user}" ] && [ -n "${pass}" ] && [ -n "${reg}" ]; then
+            triples+=("${reg}"$'\t'"${user}"$'\t'"${pass}")
+        elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
+            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"; prc=$?
+            if [ "${prc}" -eq 2 ] || [ -z "${pairs}" ]; then
+                rl_err "DOCKER_AUTH_CONFIG is not an {\"auths\":{host:{\"auth\":...}}} JSON with auth entries (credential helpers / identity tokens are not decoded here)"; exit "${RL_EXIT_BLIND}"
+            fi
+            while IFS=$'\t' read -r h b; do
+                d="$(printf '%s' "${b}" | base64 -d 2>/dev/null)"
+                case "${d}" in *:*) triples+=("${h}"$'\t'"${d%%:*}"$'\t'"${d#*:}") ;; *) rl_err "undecodable auth entry for ${h}"; exit "${RL_EXIT_BLIND}" ;; esac
+            done <<<"${pairs}"
+        else
+            rl_log "SKIP credentials_absent: need DOCKER_REGISTRY, DOCKER_USERNAME and DOCKER_PASSWORD (or DOCKER_TOKEN), or a DOCKER_AUTH_CONFIG auths JSON (env or ${RL_EF:-$(rl_default_env_file)}); no login attempted"
             exit "${RL_EXIT_SKIP}"
         fi
-        if [ "${RL_AUTH_ONLY:-}" = 1 ] || [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
-            command -v base64 >/dev/null 2>&1 || { rl_err "base64 not available"; exit "${RL_EXIT_BLIND}"; }
+        if [ "${RL_AUTH_ONLY:-}" = 1 ]; then
+            [ "${#triples[@]}" -eq 1 ] || { rl_err "--auth-file-only needs DOCKER_REGISTRY + username + password"; exit "${RL_EXIT_BLIND}"; }
+            IFS=$'\t' read -r reg user pass <<<"${triples[0]}"
+            case "${reg}" in *[!A-Za-z0-9._:/-]*|"") rl_err "registry contains characters not allowed in the auth JSON"; exit "${RL_EXIT_BLIND}" ;; esac
+            case "$(basename "$(rl_engine 2>/dev/null)" 2>/dev/null)" in
+                docker) rl_err "--auth-file-only writes the podman REGISTRY_AUTH_FILE format; docker ignores it. Use plain login."; exit "${RL_EXIT_BLIND}" ;;
+            esac
+            ad="$(rl_auth_dir)"; mkdir -p "$(dirname "${ad}")" 2>/dev/null
+            [ -d "${ad}" ] || ( umask 077; mkdir -m 700 "${ad}" ) 2>/dev/null
+            [ -d "${ad}" ] && [ ! -L "${ad}" ] && [ -O "${ad}" ] && [ "$(stat -c %a "${ad}" 2>/dev/null)" = 700 ] \
+                || { rl_err "private auth dir ${ad} missing, a symlink, not ours or not mode 700"; exit "${RL_EXIT_BLIND}"; }
             af="$(rl_auth_file_path)"
-            ( umask 077; mkdir -p "$(dirname "${af}")" && chmod 700 "$(dirname "${af}")" ) 2>/dev/null \
-                || { rl_err "cannot create private auth dir"; exit "${RL_EXIT_BLIND}"; }
-            ( umask 077; printf '{"auths":{"%s":{"auth":"%s"}}}' "${RL_REG}" \
-                "$(printf '%s:%s' "${RL_USER}" "${RL_PASS}" | base64 -w0)" >"${af}" ) \
+            ( umask 077; printf '{"auths":{"%s":{"auth":"%s"}}}' "${reg}" \
+                "$(printf '%s:%s' "${user}" "${pass}" | base64 | tr -d '\n')" >"${af}" ) \
                 || { rl_err "cannot write auth file"; exit "${RL_EXIT_BLIND}"; }
             chmod 600 "${af}"
-            rl_log "auth file written (0600): ${af} - export REGISTRY_AUTH_FILE to use it"
+            rl_log "auth file written (0600): ${af}; NOT verified - export REGISTRY_AUTH_FILE (podman) and run verify"
             exit "${RL_EXIT_OK}"
         fi
-        eng="$(rl_engine)" || { rl_err "no container engine (podman/docker) on PATH or invalid SONAR_REGISTRY_ENGINE"; exit "${RL_EXIT_BLIND}"; }
-        out="$(printf '%s' "${RL_PASS}" | "${eng}" login --username "${RL_USER}" --password-stdin "${RL_REG}" 2>&1)"
-        erc=$?
-        printf '%s\n' "${out}" | rl_mask "${RL_PASS}" "${RL_USER}:${RL_PASS}" >&2
-        if [ "${erc}" -ne 0 ]; then rl_err "$(basename "${eng}") login to ${RL_REG} failed (exit ${erc})"; exit "${RL_EXIT_FAIL}"; fi
-        rl_log "login to ${RL_REG} OK via $(basename "${eng}") (password via stdin)"
-        exit "${RL_EXIT_OK}"
+        eng="$(rl_engine)" || { rl_err "no usable container engine (podman/docker) on PATH, or invalid/missing explicitly requested engine"; exit "${RL_EXIT_BLIND}"; }
+        worst=0
+        for t in "${triples[@]}"; do
+            IFS=$'\t' read -r h u pw <<<"${t}"
+            rl_engine_login "${eng}" "${h}" "${u}" "${pw}" || worst=$?
+        done
+        exit "${worst}"
     )
     rc=$?; return "${rc}"
 }
@@ -161,7 +217,7 @@ rl_mode_discover() {
 rl_mode_verify() {
     local img="${RL_PROBE_ARG:-${SONAR_REGISTRY_PROBE_IMAGE:-}}" eng out erc
     if [ -z "${img}" ]; then rl_log "SKIP probe_image_absent: pass --probe-image or set SONAR_REGISTRY_PROBE_IMAGE (a private image to pull); nothing verified"; return "${RL_EXIT_SKIP}"; fi
-    eng="$(rl_engine)" || { rl_err "no container engine on PATH"; return "${RL_EXIT_BLIND}"; }
+    eng="$(rl_engine)" || { rl_err "no usable container engine on PATH"; return "${RL_EXIT_BLIND}"; }
     out="$("${eng}" pull "${img}" 2>&1)"; erc=$?
     printf '%s\n' "${out}" | rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail -5 >&2
     if [ "${erc}" -ne 0 ]; then rl_err "pull of probe image failed (exit ${erc}); auth NOT verified"; return "${RL_EXIT_FAIL}"; fi
@@ -170,19 +226,23 @@ rl_mode_verify() {
 }
 
 rl_mode_logout() {
-    local ef="${RL_ENV_FILE_ARG:-}" rc
-    if [ -z "${ef}" ] && [ -f "$(rl_default_env_file)" ]; then ef="$(rl_default_env_file)"; fi
+    local rc
+    rl_pick_env_file || return $?
     (
-        set +x
-        if [ -n "${ef}" ]; then rl_load_env_file "${ef}" || exit "$?"; fi
-        rl_resolve
-        if [ -z "${RL_REG}" ]; then rl_log "SKIP registry_absent: set DOCKER_REGISTRY or --registry; nothing to log out of"; exit "${RL_EXIT_SKIP}"; fi
-        eng="$(rl_engine)" || { rl_err "no container engine on PATH"; exit "${RL_EXIT_BLIND}"; }
-        "${eng}" logout "${RL_REG}" >/dev/null 2>&1 || { rl_err "logout from ${RL_REG} failed"; exit "${RL_EXIT_FAIL}"; }
-        rl_log "logged out of ${RL_REG}"
+        rl_quiet_trace
+        if [ -n "${RL_EF}" ]; then rl_load_env_file "${RL_EF}" || exit "$?"; fi
+        reg="${RL_REG_ARG:-${DOCKER_REGISTRY:-}}"
+        if [ -z "${reg}" ]; then rl_log "SKIP registry_absent: set DOCKER_REGISTRY or --registry; nothing to log out of"; exit "${RL_EXIT_SKIP}"; fi
+        eng="$(rl_engine)" || { rl_err "no usable container engine on PATH"; exit "${RL_EXIT_BLIND}"; }
+        "${eng}" logout "${reg}" >/dev/null 2>&1 || { rl_err "logout from ${reg} failed"; exit "${RL_EXIT_FAIL}"; }
+        rl_log "logged out of ${reg}"
         exit "${RL_EXIT_OK}"
     )
     rc=$?; return "${rc}"
+}
+
+rl_need_value() { # $1 option, $2 value
+    if [ -z "${2:-}" ]; then rl_err "option $1 needs a value"; return 1; fi
 }
 
 rl_main() {
@@ -190,10 +250,10 @@ rl_main() {
     RL_ENV_FILE_ARG=""; RL_ENGINE_ARG=""; RL_REG_ARG=""; RL_PROBE_ARG=""; RL_AUTH_ONLY=""
     while [ "$#" -gt 0 ]; do
         case "$1" in
-            --env-file) RL_ENV_FILE_ARG="${2:-}"; shift 2 || true ;;
-            --engine) RL_ENGINE_ARG="${2:-}"; shift 2 || true ;;
-            --registry) RL_REG_ARG="${2:-}"; shift 2 || true ;;
-            --probe-image) RL_PROBE_ARG="${2:-}"; shift 2 || true ;;
+            --env-file)    rl_need_value "$1" "${2:-}" || return "${RL_EXIT_BLIND}"; RL_ENV_FILE_ARG="$2"; shift 2 ;;
+            --engine)      rl_need_value "$1" "${2:-}" || return "${RL_EXIT_BLIND}"; RL_ENGINE_ARG="$2"; shift 2 ;;
+            --registry)    rl_need_value "$1" "${2:-}" || return "${RL_EXIT_BLIND}"; RL_REG_ARG="$2"; shift 2 ;;
+            --probe-image) rl_need_value "$1" "${2:-}" || return "${RL_EXIT_BLIND}"; RL_PROBE_ARG="$2"; shift 2 ;;
             --auth-file-only) RL_AUTH_ONLY=1; shift ;;
             *) rl_err "unknown option: $1"; return "${RL_EXIT_BLIND}" ;;
         esac

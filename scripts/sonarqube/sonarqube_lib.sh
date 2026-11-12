@@ -99,29 +99,30 @@ sq_evidence_dir() {
     printf '%s/qa-results/sonarqube/%s' "${root}" "${ts}"
 }
 
-# --- Registry authentication for image-pulling scans (§11.4.184 EXTENSION) ---
-# Logs in to the consumer-configured container registry BEFORE any pull. Consumer
-# DATA only: env DOCKER_* or the 0600 env file (SONAR_REGISTRY_ENV_FILE, default
-# ${XDG_CONFIG_HOME:-~/.config}/helix/sonar_registry.env). Nothing configured is a
-# documented SKIP (returns 0 - a scan that needs no private image must proceed);
-# a refused/failed login returns non-zero so the caller can fail closed.
-# SONAR_REGISTRY_LOGIN=off disables. Never prints a secret.
+# --- Registry authentication before image pulls (§11.4.184(J)) ---------------
+# The only image pull in this directory is `compose up` in sonarqube_container.sh
+# (host sonar-scanner pulls nothing), so that is where this is called. Consumer
+# DATA only: env DOCKER_* or the env file (SONAR_REGISTRY_ENV_FILE, default
+# ${XDG_CONFIG_HOME:-~/.config}/helix/sonar_registry.env, no group/other bits).
+# Nothing configured: logged SKIP, return 0. Config error / failed login: non-zero
+# (caller fails closed). SONAR_REGISTRY_LOGIN=off disables. Never prints a secret.
 sq_registry_login_auto() {
-    local rl rc ef
+    local rl rc ef v
     [ "${SONAR_REGISTRY_LOGIN:-auto}" = "off" ] && { sq_log "registry auth: disabled (SONAR_REGISTRY_LOGIN=off)"; return 0; }
     rl="${SQ_LIB_DIR}/registry_login.sh"
     [ -f "${rl}" ] || { sq_err "registry_login.sh missing next to the library"; return 2; }
+    # DOCKER_* set by a sourced (non-exporting) .env must reach the child process.
+    for v in DOCKER_REGISTRY DOCKER_USERNAME DOCKER_PASSWORD DOCKER_TOKEN DOCKER_AUTH_CONFIG; do
+        [ -n "${!v:-}" ] && export "${v?}"
+    done
     ef="${SONAR_REGISTRY_ENV_FILE:-${XDG_CONFIG_HOME:-${HOME:-/nonexistent}/.config}/helix/sonar_registry.env}"
-    if [ -z "${DOCKER_USERNAME:-}" ] && [ -z "${DOCKER_AUTH_CONFIG:-}" ] && [ ! -f "${ef}" ]; then
+    if [ -z "${DOCKER_USERNAME:-}" ] && [ -z "${DOCKER_AUTH_CONFIG:-}" ] && [ ! -e "${ef}" ] && [ -z "${SONAR_REGISTRY_ENV_FILE:-}" ]; then
         sq_log "registry auth: SKIP credentials_absent (set DOCKER_* or ${ef}); continuing without registry login"
         return 0
     fi
     bash "${rl}" login; rc=$?
     case "${rc}" in
-        0)  if [ -f "$(bash "${rl}" auth-file-path 2>/dev/null)" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
-                REGISTRY_AUTH_FILE="$(bash "${rl}" auth-file-path)"; export REGISTRY_AUTH_FILE
-            fi
-            return 0 ;;
+        0)  return 0 ;;
         3)  sq_log "registry auth: SKIP (see reason above); continuing"; return 0 ;;
         *)  return "${rc}" ;;
     esac

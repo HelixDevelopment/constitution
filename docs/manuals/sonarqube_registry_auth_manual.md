@@ -19,20 +19,20 @@
 | `DOCKER_REGISTRY` | Registry host (consumer data; also `--registry`). |
 | `DOCKER_USERNAME` | User. |
 | `DOCKER_PASSWORD`, `DOCKER_TOKEN` | Secret; `DOCKER_PASSWORD` wins. |
-| `DOCKER_AUTH_CONFIG` | Any non-empty value: write the auths JSON file instead of calling the engine. |
+| `DOCKER_AUTH_CONFIG` | The usual auths JSON; used when no username/password is given. Decoded in-process, engine login through stdin. |
 | `SONAR_REGISTRY_ENV_FILE` | Env file path. Default `${XDG_CONFIG_HOME:-$HOME/.config}/helix/sonar_registry.env`. |
 | `SONAR_REGISTRY_ENGINE` | `podman` or `docker`. Default: podman, then docker. |
 | `SONAR_REGISTRY_PROBE_IMAGE` | Probe image for `verify`. |
 | `SONAR_REGISTRY_LOGIN` | `off` skips the scan-time login. |
-| `REGISTRY_AUTH_FILE` | Honoured by the engines; `discover` reports it. |
+| `REGISTRY_AUTH_FILE` | Honoured by Podman only (Docker uses `DOCKER_CONFIG`); `discover` reports it. |
 
 ## Behaviour
 
-- Engine choice: forced engine if set and on PATH, else Podman, else Docker; none on PATH is exit 2.
-- Env file: must be a regular file (not a symlink) owned by you with mode 0600 or 0400; sourced in a subshell with auto-export; sourcing failure is exit 2.
+- Engine choice: `--engine` wins over `SONAR_REGISTRY_ENGINE`; a forced engine that is invalid or not on PATH is exit 2 (no fallback); unset: Podman, else Docker; none on PATH is exit 2.
+- Env file: must be a regular file (not a symlink) owned by you with no group/other permission bits (`mode & 077 == 0`, so 0600 or 0400 only); sourced in a subshell with auto-export and tracing disabled (`set +x`, `BASH_XTRACEFD` to `/dev/null`, re-asserted after sourcing); sourcing failure is exit 2. An explicitly given `--env-file` or `SONAR_REGISTRY_ENV_FILE` that does not exist is exit 2, not SKIP.
 - Login: `printf '%s' "$PASS" | <engine> login --username U --password-stdin REG`. Output is passed through a literal masker for the password and `user:password`.
-- Auth file: `${XDG_RUNTIME_DIR:-$HOME/.cache}/helix/sonar_registry_auth.json`, directory 0700, file 0600.
-- Scan wiring: `sq_registry_login_auto` in `sonarqube_lib.sh` runs only when `DOCKER_USERNAME`, `DOCKER_AUTH_CONFIG` or the env file is present; otherwise it logs `SKIP credentials_absent` and returns 0. Exit 3 from the script is a logged SKIP; exits 1 or 2 stop the scan with exit 2.
+- Auth file (`--auth-file-only`, Podman only): `${XDG_RUNTIME_DIR:-$HOME/.cache}/helix_sonar_registry/auth.json`, private directory 0700 created by the tool, file created under `umask 077`. The registry host is restricted to `[A-Za-z0-9._:/-]` so the JSON cannot be broken.
+- Wiring: `sq_registry_login_auto` in `sonarqube_lib.sh` is called by `sonarqube_container.sh up` before `compose up -d`, the only image pull in this directory (`sonarqube_run_scan.sh` runs the host scanner and pulls nothing). It exports any non-exported `DOCKER_*` set by a sourced `.env` for the child. It runs the login only when `DOCKER_USERNAME`, `DOCKER_AUTH_CONFIG`, an explicit `SONAR_REGISTRY_ENV_FILE` or the default env file is present; otherwise it logs `SKIP credentials_absent` and returns 0. Exit 3 from the script is a logged SKIP; exits 1 or 2 stop `up` with exit 2.
 
 ## Exit codes
 
@@ -40,7 +40,7 @@
 
 ## Tests
 
-`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (scan order and fail-closed), `test_registry_login_mutation_test.sh` (mutants must fail the logic test). All are unit-class: the engine is a fake that records argv and stdin.
+`scripts/sonarqube/tests/test_registry_login.sh` (logic, fake engine), `test_registry_login_wiring.sh` (login before the compose pull in `up`, fail-closed), `test_registry_login_mutation_test.sh` (20 mutants of the script, library and container script must each fail the matching test; sources are cmp-verified unchanged). All are unit-class: the engine is a fake that records argv and stdin.
 
 ## Limits
 

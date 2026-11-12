@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# test_registry_login_wiring.sh - UNIT-CLASS gate-logic test (§11.4.289(C)(2)) that
-# sonarqube_run_scan.sh / sq_registry_login_auto log in BEFORE the scan and fail
-# closed / SKIP honestly. Fake podman + fake sonar-scanner; no network, no registry.
+# test_registry_login_wiring.sh - UNIT-CLASS gate-logic test (§11.4.289(C)(2)): the registry
+# login runs BEFORE the compose pull in `sonarqube_container.sh up` (the only image pull
+# in scripts/sonarqube) and fails closed / SKIPs honestly. Fake podman; no network, no
+# registry, no real credentials. Override REGISTRY_WIRING_SQ_DIR to test a mutated copy.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQ="${REGISTRY_WIRING_SQ_DIR:-${HERE}/..}"
@@ -10,38 +11,54 @@ trap 'rm -rf "${W:?}"' EXIT
 PASS=0; FAIL=0
 ok() { PASS=$((PASS+1)); printf 'ok   %s\n' "$1"; }
 no() { FAIL=$((FAIL+1)); printf 'FAIL %s\n' "$1"; }
-chk() { [ "$2" = "$3" ] && ok "$1" || no "$1 (want '$2' got '$3')"; }
-TOOLS="${W}/tools"; mkdir -p "${TOOLS}" "${W}/fake" "${W}/proj" "${W}/home/.config/helix"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp; do
+chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi; }
+TOOLS="${W}/tools"; mkdir -p "${TOOLS}" "${W}/fake" "${W}/home/.config/helix"
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp base64; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 cat >"${W}/fake/podman" <<'F'
 #!/bin/bash
-echo "podman $1" >>"${FAKE_LOG:?}"; [ "$1" = login ] && cat >/dev/null; exit 0
+echo "podman $1" >>"${FAKE_LOG:?}"
+if [ "$1" = login ]; then cat >/dev/null; exit "${FAKE_RC:-0}"; fi
+exit 0
 F
-cat >"${W}/fake/sonar-scanner" <<'F'
-#!/bin/bash
-echo scanner-ran >>"${FAKE_LOG:?}"; exit 0
-F
-chmod +x "${W}/fake/"*
+chmod +x "${W}/fake/podman"
 EF="${W}/home/.config/helix/sonar_registry.env"
 mkenv() { printf 'DOCKER_REGISTRY=r.t\nDOCKER_USERNAME=u\nDOCKER_PASSWORD=pw\n' >"${EF}"; chmod "$1" "${EF}"; }
-scan() { rm -f "${W}/log"; env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" \
-    FAKE_LOG="${W}/log" SONAR_TOKEN=tok SONAR_HOST_URL=http://127.0.0.1:1 ${ENVS:-} \
-    bash "${SQ}/sonarqube_run_scan.sh" "${W}/proj" >"${W}/out" 2>"${W}/err"; echo $?; }
+up() { rm -f "${W}/log"; env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" \
+    FAKE_LOG="${W}/log" SONAR_WAIT_TIMEOUT=0 SONAR_HOST_URL=http://127.0.0.1:1 ${ENVS:-} \
+    bash "${SQ}/sonarqube_container.sh" up >"${W}/out" 2>"${W}/err"; echo $?; }
+if [ "$(cat /proc/sys/vm/max_map_count 2>/dev/null || echo 0)" -lt 262144 ]; then
+    echo "SKIP host vm.max_map_count too low for the real 'up' preflight (reason: topology_unsupported)"; exit 0; fi
 
 ENVS=""; mkenv 600
-rc=$(scan); grep -q 'podman login' "${W}/log" && ok "login happens during scan startup" || no "login happens during scan startup"
-grep -q scanner-ran "${W}/log" && no "scanner must not run (server down)" || ok "scan stopped after login at server check"
-chk "proceeds past login (exit 2 server-down, not auth)" 2 "$rc"; grep -q 'not UP' "${W}/err" && ok "reached server check after login" || no "reached server check after login"
+up >/dev/null
+grep -q 'podman login' "${W}/log" && ok "login happens in 'up'" || no "login happens in 'up'"
+l="$(grep -n 'podman login' "${W}/log" | head -1 | cut -d: -f1)"; c="$(grep -n 'podman compose' "${W}/log" | head -1 | cut -d: -f1)"
+if [ -n "$l" ] && [ -n "$c" ] && [ "$l" -lt "$c" ]; then ok "login precedes compose pull"; else no "login precedes compose pull (login=$l compose=$c)"; fi
 
-mkenv 644; rc=$(scan); chk "bad env perms -> scan aborts exit 2" 2 "$rc"
-grep -q 'podman' "${W}/log" 2>/dev/null && no "no engine call on bad perms" || ok "no engine call on bad perms"
+mkenv 644; rc=$(up); chk "bad env perms -> up exits 2" 2 "$rc"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && no "no compose after refused login" || ok "no compose after refused login"
 grep -q 'authentication failed' "${W}/err" && ok "fail-closed message" || no "fail-closed message"
 
-rm -f "${EF}"; rc=$(scan); grep -q 'SKIP credentials_absent' "${W}/err" && ok "no creds -> documented SKIP" || no "no creds -> documented SKIP"
-grep -q 'not UP' "${W}/err" && ok "scan continues after SKIP" || no "scan continues after SKIP"
+mkenv 600; ENVS="FAKE_RC=1"; rc=$(up); chk "engine rejects login (rc 1) -> up exits 2 (not SKIP)" 2 "$rc"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && no "no compose after failed login" || ok "no compose after failed login"
 
-mkenv 600; ENVS="SONAR_REGISTRY_LOGIN=off"; rc=$(scan)
-grep -q podman "${W}/log" 2>/dev/null && no "off switch honoured" || ok "off switch honoured"
+ENVS="SONAR_REGISTRY_ENV_FILE=${W}/absent.env"; rc=$(up); chk "explicit missing env file -> exit 2" 2 "$rc"
+
+rm -f "${EF}"; ENVS=""; rc=$(up)
+grep -q 'SKIP credentials_absent' "${W}/err" && ok "no creds -> documented SKIP" || no "no creds -> documented SKIP"
+grep -q 'podman compose' "${W}/log" && ok "compose proceeds after SKIP" || no "compose proceeds after SKIP"
+
+mkenv 600; ENVS="SONAR_REGISTRY_LOGIN=off"; rc=$(up)
+grep -q 'podman login' "${W}/log" && no "off switch honoured" || ok "off switch honoured"
+
+# .env-style non-exported DOCKER_* reach the child (sourced, not exported)
+rm -f "${W}/log"
+env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/none" FAKE_LOG="${W}/log" bash -c '
+  . "$1/sonarqube_lib.sh"; DOCKER_REGISTRY=r.t; DOCKER_USERNAME=u; DOCKER_PASSWORD=pw; sq_registry_login_auto' _ "${SQ}" >/dev/null 2>&1
+grep -q 'podman login' "${W}/log" 2>/dev/null && ok "non-exported DOCKER_* are exported to the login child" || no "non-exported DOCKER_* are exported to the login child"
+
+# the scan script itself pulls nothing and must not claim to log in
+grep -q 'sq_registry_login_auto' "${SQ}/sonarqube_run_scan.sh" && no "run_scan does not claim login" || ok "run_scan does not claim login"
 printf '\n%s passed, %s failed\n' "${PASS}" "${FAIL}"; [ "${FAIL}" -eq 0 ]

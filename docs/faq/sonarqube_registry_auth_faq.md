@@ -14,15 +14,15 @@
 
 ## Do I have to do anything for it to work?
 
-Only supply your registry data once (env file or `DOCKER_*` variables). The scan logs in by itself. With nothing supplied it skips with a logged reason.
+Only supply your registry data once (env file or `DOCKER_*` variables). `sonarqube_container.sh up` logs in by itself before it pulls images. With nothing supplied it skips with a logged reason.
 
 ## Why Podman first?
 
 Rootless policy (§11.4.161). Docker is used only when Podman is not on PATH, or when you set `SONAR_REGISTRY_ENGINE=docker`.
 
-## Why did the scan stop with exit 2 before scanning?
+## Why did `up` stop with exit 2 before pulling?
 
-Either no container engine is installed, or the env file is readable by group or others. Run `chmod 600` on it. The script never uses a loosely protected secret file.
+The login step reported a configuration error: no usable container engine is installed (also when the env file exists but no engine does), the env file is accessible to group or others, is a symlink or is not yours, an explicitly set `SONAR_REGISTRY_ENV_FILE` does not exist, an option was given without a value, or `DOCKER_AUTH_CONFIG` is not an auths JSON with `auth` entries. Run `chmod 600` on the env file. The script never uses a loosely protected secret file. An engine that rejects the credentials also stops `up` (the script itself exits 1).
 
 ## Can I keep the password in `~/api_keys.sh`?
 

@@ -17,9 +17,6 @@
 #                SONAR_HOST_URL    default http://localhost:9000
 #                SONAR_PROJECT_KEY default = sanitized basename of project root
 #                SONAR_PROJECT_NAME default = project key
-#                DOCKER_REGISTRY/DOCKER_USERNAME/DOCKER_PASSWORD|DOCKER_TOKEN or the
-#                                  0600 env file SONAR_REGISTRY_ENV_FILE: optional registry
-#                                  login before pulls (see registry_login.sh)
 #                SONAR_SCAN_EVIDENCE_DIR override evidence dir (default under
 #                                  <root>/qa-results/sonarqube/<ts>)
 # Outputs      : Evidence dir containing scanner.log, report-task.txt, issues.json,
@@ -61,9 +58,6 @@ if [ -z "${SONAR_TOKEN:-}" ]; then
     sq_err "as SONAR_TOKEN=... (gitignored, §11.4.10). NEVER commit the token."
     exit 2
 fi
-
-# Registry auth BEFORE any image pull (SKIPs honestly when nothing is configured).
-sq_registry_login_auto || { sq_err "registry authentication failed or refused (see above)"; exit 2; }
 
 HOST_URL="$(sq_host_url)"
 sq_is_up || { sq_err "SonarQube not UP at ${HOST_URL} — run sonarqube_container.sh up"; exit 2; }

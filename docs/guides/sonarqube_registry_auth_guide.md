@@ -14,7 +14,7 @@
 
 ## What it is for
 
-A SonarQube scan that pulls container images from a private registry fails with `unauthorized` unless the engine is logged in first. `registry_login.sh` does that login non-interactively, for Podman (preferred, rootless per §11.4.161) or Docker, and `sonarqube_run_scan.sh` calls it automatically before the scan. Nothing about your project is built into the constitution: registry host, user and secret are your data.
+A SonarQube scan that pulls container images from a private registry fails with `unauthorized` unless the engine is logged in first. `registry_login.sh` does that login non-interactively, for Podman (preferred, rootless per §11.4.161) or Docker. The only place the shared tooling pulls images is `sonarqube_container.sh up` (the compose stack); it calls the login automatically right before the pull. `sonarqube_run_scan.sh` runs the host `sonar-scanner` and pulls nothing, so it does not log in. Any other pull site of yours (a scanner image, a CI step) must call `registry_login.sh login` itself first. Nothing about your project is built into the constitution: registry host, user and secret are your data.
 
 ## Quick start (out of the box)
 
@@ -22,16 +22,17 @@ A SonarQube scan that pulls container images from a private registry fails with 
    `mkdir -p ~/.config/helix && install -m 600 /dev/null ~/.config/helix/sonar_registry.env`
 2. Put these lines in it (values from your secret store; a pull-only, short-lived token is best):
    `DOCKER_REGISTRY=registry.example.com`, `DOCKER_USERNAME=ci-reader`, `DOCKER_PASSWORD=...` (or `DOCKER_TOKEN=...`)
-3. Run the scan as usual: `bash scripts/sonarqube/sonarqube_run_scan.sh <project-root>` (with `SONAR_TOKEN`, `SONAR_HOST_URL` as before). Login happens first.
+3. Start the server as usual: `bash scripts/sonarqube/sonarqube_container.sh up`. Login happens first, then the compose pull. Then scan with `sonarqube_run_scan.sh` as before.
 
-No env file and no `DOCKER_*` variables: the scan prints `SKIP credentials_absent` and continues (a scan that needs no private image is unaffected). `SONAR_REGISTRY_LOGIN=off` disables the step. A different env-file location: `SONAR_REGISTRY_ENV_FILE=/path`.
+No env file and no `DOCKER_*` variables: `up` prints `SKIP credentials_absent` and continues (a stack that needs no private image is unaffected). `SONAR_REGISTRY_LOGIN=off` disables the step. A different env-file location: `SONAR_REGISTRY_ENV_FILE=/path`; if you set it and the file does not exist that is a configuration error (exit 2), not a SKIP. A login that the engine rejects, or a config error, stops `up` with exit 2 before any pull.
 
 ## Modes
 
 | Mode | Use |
 |---|---|
 | `login` | Log in from the environment or `--env-file F`. |
-| `login --auth-file-only` (or `DOCKER_AUTH_CONFIG` set) | Write `{"auths":{host:{"auth":base64(user:pass)}}}` to a private 0600 file instead of calling the engine; export `REGISTRY_AUTH_FILE` from `auth-file-path`. |
+| `login` with `DOCKER_AUTH_CONFIG` | The usual `{"auths":{host:{"auth":base64(user:pass)}}}` JSON, used when no username/password is given: each entry is decoded inside the script and logged in through the engine with `--password-stdin`. Credential-helper or identity-token JSON is refused (exit 2), not faked. |
+| `login --auth-file-only` | Podman only: write the auths JSON built from the username/password to a private 0600 file; says plainly it is not verified; export `REGISTRY_AUTH_FILE` from `auth-file-path` and run `verify`. Refused for Docker (exit 2). |
 | `discover` | Report which auth files exist (`REGISTRY_AUTH_FILE`, `$XDG_RUNTIME_DIR/containers/auth.json`, `~/.config/containers/auth.json`, `~/.docker/config.json`) and whether a credential helper is configured. Presence only. |
 | `verify --probe-image IMG` | Pull a private image to prove the stored auth works. |
 | `logout` | `engine logout` for `DOCKER_REGISTRY` / `--registry`. |
@@ -41,11 +42,11 @@ Exit codes: 0 ok, 1 engine rejected, 2 config error (no engine, bad option, env 
 ## Security rules (operator checklist)
 
 - Never put the registry password or token in `~/api_keys.sh`, in the repository, in logs, or in a command line. Use a secret store or the 0600 env file.
-- The password goes to the engine through `--password-stdin` only. The env file is refused if group or others can read it.
+- The password goes to the engine through `--password-stdin` only. The env file is refused if group or others have any access (mode must be 0600 or 0400, owned by you, not a symlink). Tracing is forced off while the file is sourced, so a `set -x` inside it cannot leak.
 - No secret is printed; engine output is masked. `set +x` is enforced inside the script.
 - When a credential helper (`credsStore`/`credHelpers`) is configured the file holds no secret; `discover` says so and the engine calls the helper. The script does not parse it.
 - `discover` can only reuse credentials that already exist; it cannot create them.
-- Login must precede the first pull; the scan wiring guarantees the order. Use pull-only, short-lived tokens, and run `logout` after a one-off scan on a shared host.
+- Login must precede the first pull; `sonarqube_container.sh up` runs it before the compose pull. Use pull-only, short-lived tokens, and run `logout` after a one-off scan on a shared host.
 - Verify with `verify --probe-image <private image>` before relying on it.
 
 ## Honest limits

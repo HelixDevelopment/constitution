@@ -16,6 +16,8 @@
 #                  logs    tail SonarQube container logs
 #                  restart down + up
 # Inputs (env) : SONAR_HOST_PORT (default 9000) · SONAR_DB_USER · SONAR_DB_PASSWORD
+#                DOCKER_* / SONAR_REGISTRY_ENV_FILE: optional registry login before the
+#                compose pull in `up` (see registry_login.sh)
 #                SONAR_WAIT_TIMEOUT (default 180, for up/wait)
 # Outputs      : Status lines on stdout/stderr; exit 0 on success.
 # Exit codes   : 0 ok · 1 operation failed · 2 environment/tool problem
@@ -36,6 +38,8 @@ _compose() {
 cmd_up() {
     sq_have_podman || { sq_err "podman not found (rootless required, §11.4.161)"; exit 2; }
     sq_check_max_map_count || exit 1        # §11.4.133 host-safety preflight
+    # Registry auth BEFORE the compose pull (SKIPs honestly when nothing is configured).
+    sq_registry_login_auto || { sq_err "registry authentication failed or refused (see above)"; exit 2; }
     sq_log "compose up -d (project ${SQ_COMPOSE_PROJECT})"
     _compose up -d || { sq_err "compose up failed"; exit 1; }
     podman ps --format '{{.Names}} {{.Status}} {{.Ports}}' | grep -i sonar || true

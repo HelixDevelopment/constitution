@@ -1,12 +1,13 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
-## Unreleased — 2026-11-12 — SonarQube registry authentication (§11.4.184(J), extension): `scripts/sonarqube/registry_login.sh`, wired into the scan
+## Unreleased — 2026-11-12 — SonarQube registry authentication (§11.4.184(J), extension): `scripts/sonarqube/registry_login.sh`, called before the compose pull
 
-**Status of this entry: UNRELEASED; implemented and tested on host fixtures only (fake engine, unit-class §11.4.289(C)(2)); PROVISIONAL, not VERIFIED-DONE; no independent review yet (§11.4.142).**
+**Status of this entry: UNRELEASED; implemented and tested on host fixtures only (fake engine, unit-class §11.4.289(C)(2)); PROVISIONAL, not VERIFIED-DONE; Opus round-1 review was NO-GO, this is the round-2 fix set, not yet re-reviewed (§11.4.142).**
 
-- New `scripts/sonarqube/registry_login.sh` (modes `login`, `discover`, `verify`, `logout`, `auth-file-path`; Podman first, Docker fallback; password via `--password-stdin` only; env file refused unless 0600/0400; masked output; exit 0/1/2/3). Wired through `sq_registry_login_auto` in `sonarqube_lib.sh` and called by `sonarqube_run_scan.sh` before the server check; nothing configured is a logged SKIP.
-- Tests in `scripts/sonarqube/tests/` (logic, wiring, paired mutation). Guide, manual and FAQ under `docs/`, linked from `README.md`. `Constitution.md` gains the extension paragraph §11.4.184(J); no new anchor number, no new CM-* token.
-- Not done: the carrier mirrors (`CLAUDE.md`, `AGENTS.md`, etc.), `progressive/` and `constitution_index.yaml` were not regenerated for the new paragraph, and no real-registry run exists.
+- New `scripts/sonarqube/registry_login.sh` (modes `login`, `discover`, `verify`, `logout`, `auth-file-path`; `--engine` beats `SONAR_REGISTRY_ENGINE`, Podman first and Docker fallback; password via `--password-stdin` only; env file refused unless regular, non-symlink, owned, `mode & 077 == 0`; tracing disabled while sourcing; the usual `DOCKER_AUTH_CONFIG` auths JSON decoded in-process and logged in through the engine; options without a value exit 2; an explicit but missing env file exits 2; exit 0/1/2/3).
+- Wired through `sq_registry_login_auto` in `sonarqube_lib.sh` into `sonarqube_container.sh up`, the only image pull in the directory; `sonarqube_run_scan.sh` runs the host scanner, pulls nothing and does not log in (the round-1 draft had it there, wrongly).
+- Tests in `scripts/sonarqube/tests/`: logic (128 checks), wiring (13), mutation (20 mutants, sources cmp-verified). Guide, manual and FAQ under `docs/`, linked from `README.md`. `Constitution.md` gains the extension paragraph §11.4.184(J) (revision 95 to 96) with a compact copy in `CLAUDE_ANCHORS_FULL.md`; `scripts/anchors/anchor_lib.py` maps it to its group; `constitution_index.yaml`, `groups/`, `progressive/` regenerated; the `unstated` count in `test_query_us2.py` 110 to 111. No new anchor number, no new CM-* token.
+- Not done: the `CLAUDE.md`/`AGENTS.md`/`QWEN.md`/`GEMINI.md` compact carriers carry no (J) copy; no real-registry run exists.
 
 ## Unreleased — 2026-11-11 — v73.4 release preparation: the CM-KILLPG-PGID-GUARD regression fixed (7 unguarded sites on `fc57ad0c`), the PROVISIONAL Version-badge rule made case-insensitive, and a mechanical, resumable release cut (`scripts/release/`)
 
