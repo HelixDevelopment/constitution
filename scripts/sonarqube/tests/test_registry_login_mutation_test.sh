@@ -2,8 +2,8 @@
 # test_registry_login_mutation_test.sh - paired §1.1 mutation test for registry_login.sh and
 # its wiring. Each mutant is applied to a scratch COPY and must make the matching test FAIL;
 # the unmutated copies must PASS and the source files must be byte-identical afterwards
-# (cmp-verified). Mutants M1..M15 target registry_login.sh (test_registry_login.sh),
-# W1..W4 target sonarqube_lib.sh / sonarqube_container.sh (test_registry_login_wiring.sh).
+# (cmp-verified). Mutants M1..M23 target registry_login.sh (test_registry_login.sh),
+# W1..W8 target sonarqube_lib.sh / sonarqube_container.sh (test_registry_login_wiring.sh).
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQ="${HERE}/.."
@@ -55,12 +55,19 @@ rlmut M12-option-value-unchecked 'if [ -z "${2:-}" ]; then rl_err "option $1 nee
 rlmut M13-env-engine-beats-flag '${RL_ENGINE_ARG:-${SONAR_REGISTRY_ENGINE:-}}' '${SONAR_REGISTRY_ENGINE:-${RL_ENGINE_ARG:-}}'
 rlmut M14-explicit-missing-envfile-skip 'does not exist"; return 2; fi' 'does not exist"; return 0; fi'
 rlmut M15-auth-config-ignored 'elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then' 'elif false; then'
-rlmut M16-fake-auth-config-success 'rl_err "DOCKER_AUTH_CONFIG is not a JSON object"' 'exit 0; rl_err "DOCKER_AUTH_CONFIG is not a JSON object"'
-rlmut M17-helper-only-config-aborts 'exit "${RL_EXIT_SKIP}"
-            fi
-            while' 'exit "${RL_EXIT_BLIND}"
-            fi
-            while'
+rlmut M16-fake-auth-config-success 'rl_err "DOCKER_AUTH_CONFIG is not a usable' 'exit 0; rl_err "DOCKER_AUTH_CONFIG is not a usable'
+rlmut M17-helper-only-config-aborts 'exit "${RL_EXIT_SKIP}" ;;
+                *)' 'exit "${RL_EXIT_BLIND}" ;;
+                *)'
+rlmut M21-config-error-widened-to-skip 'unknown keys or empty)"; exit "${RL_EXIT_BLIND}" ;;' 'unknown keys or empty)"; exit "${RL_EXIT_SKIP}" ;;'
+rlmut M22-typo-entry-key-accepted '    else:
+        sys.exit(2)
+if pairs:' '    else:
+        helper_only = True
+if pairs:'
+rlmut M23-non-dict-auths-skipped 'if not isinstance(a, dict):
+    sys.exit(2)' 'if not isinstance(a, dict):
+    sys.exit(3)'
 rlmut M18-registry-charset-unchecked 'case "${h}" in -*|*[!A-Za-z0-9._:/-]*|"")' 'case "${h}" in "__none__")'
 rlmut M19-verify-unmasked 'rl_mask "${DOCKER_PASSWORD:-}" "${DOCKER_TOKEN:-}" | tail' 'cat | tail'
 rlmut M20-existing-auth-dir-trusted '[ "$(stat -c %a "${ad}" 2>/dev/null)" = 700 ]' 'true'
@@ -78,6 +85,10 @@ mutate "${W}/wm/sonarqube_lib.sh" x 'case $- in *x*) _xt=1; set +x ;; esac' ':' 
 if wire_test "${W}/wm"; then echo "FAIL mutant survived: W5-xtrace-defences-removed"; BAD=1; else echo "ok   mutant killed: W5-xtrace-defences-removed"; KILLED=$((KILLED+1)); fi
 # W6: trace not restored after the call
 wmut W6-xtrace-not-restored sonarqube_lib.sh '[ "${_xt}" = 1 ] && set -x' ':'
+# W7: trace turned on unconditionally after the call (caller with tracing OFF must stay OFF)
+wmut W7-xtrace-forced-on sonarqube_lib.sh '[ "${_xt}" = 1 ] && set -x' 'set -x'
+# W8: library maps registry_login exit 3 (SKIP) to a failure instead of success
+wmut W8-skip-rc3-not-success sonarqube_lib.sh 'continuing"; return 0 ;;' 'continuing"; return 3 ;;'
 # restore proof: sources untouched
 for f in registry_login.sh sonarqube_lib.sh sonarqube_container.sh sonarqube_run_scan.sh; do
     cmp -s "${SQ}/${f}" "${W}/orig/${f}" && echo "ok   source unchanged: ${f}" || { echo "FAIL source changed: ${f}"; BAD=1; }

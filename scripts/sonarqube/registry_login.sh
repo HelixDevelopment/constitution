@@ -120,13 +120,52 @@ rl_load_env_file() {
 
 rl_quiet_trace() { set +x; exec 9>/dev/null; BASH_XTRACEFD=9; }
 
-# Extract "host<TAB>base64" pairs from a {"auths":...} JSON on stdin. Returns 2 if no
-# "auths" key at all.
+# Classify a DOCKER_AUTH_CONFIG JSON on stdin. Prints "host<TAB>base64" lines for
+# decodable entries. Exit 0 = at least one entry; 3 = valid config that holds only
+# credential-helper / identity-token material (honest SKIP); 2 = anything else
+# (non-JSON, no auths, wrong types, typo'd keys, empty): a config error, never a SKIP.
+# Values are never printed on error paths. Needs python3 (absent -> exit 2).
 rl_auths_pairs() {
-    local j; j="$(tr -d '\n\r')"
-    case "${j}" in *'"auths"'*) : ;; *) return 2 ;; esac
-    printf '%s' "${j}" | grep -o '"[^"]*" *: *{[^{}]*"auth" *: *"[^"]*"' \
-        | sed -n 's/^"\([^"]*\)" *: *{.*"auth" *: *"\([^"]*\)"$/\1\t\2/p'
+    command -v python3 >/dev/null 2>&1 || return 2
+    python3 -I -c '
+import sys, json
+try:
+    o = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(2)
+if not isinstance(o, dict):
+    sys.exit(2)
+helper = isinstance(o.get("credsStore"), str) and o["credsStore"] != ""
+ch = o.get("credHelpers")
+if isinstance(ch, dict) and ch and all(isinstance(v, str) and v for v in ch.values()):
+    helper = True
+a = o.get("auths")
+pairs = []
+helper_only = False
+if a is None:
+    sys.exit(3 if helper else 2)
+if not isinstance(a, dict):
+    sys.exit(2)
+for h, e in a.items():
+    if not isinstance(e, dict):
+        sys.exit(2)
+    if "auth" in e:
+        v = e["auth"]
+        if not isinstance(v, str) or v == "" or "\t" in h or "\n" in h:
+            sys.exit(2)
+        pairs.append((h, v))
+    elif isinstance(e.get("identitytoken"), str) and e["identitytoken"] != "":
+        helper_only = True
+    elif e == {} and helper:
+        helper_only = True
+    else:
+        sys.exit(2)
+if pairs:
+    for h, v in pairs:
+        sys.stdout.write(h + "\t" + v + "\n")
+    sys.exit(0)
+sys.exit(3 if (helper or helper_only) else 2)
+'
 }
 
 # rl_engine_login ENGINE REG USER PASS  (password through printf builtin -> stdin)
@@ -151,12 +190,13 @@ rl_mode_login() {
         if [ -n "${user}" ] && [ -n "${pass}" ] && [ -n "${reg}" ]; then
             triples+=("${reg}"$'\t'"${user}"$'\t'"${pass}")
         elif [ -z "${user}${pass}" ] && [ -n "${DOCKER_AUTH_CONFIG:-}" ]; then
-            case "${DOCKER_AUTH_CONFIG}" in *'{'*) : ;; *) rl_err "DOCKER_AUTH_CONFIG is not a JSON object"; exit "${RL_EXIT_BLIND}" ;; esac
-            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"
-            if [ -z "${pairs}" ]; then
-                rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG has no decodable auth entries (credential helpers / identity tokens are not decoded here); no login attempted"
-                exit "${RL_EXIT_SKIP}"
-            fi
+            pairs="$(printf '%s' "${DOCKER_AUTH_CONFIG}" | rl_auths_pairs)"; prc=$?
+            case "${prc}" in
+                0) : ;;
+                3) rl_log "SKIP credentials_absent: DOCKER_AUTH_CONFIG holds only credential-helper / identity-token entries (not decoded here); no login attempted"
+                   exit "${RL_EXIT_SKIP}" ;;
+                *) rl_err "DOCKER_AUTH_CONFIG is not a usable auths JSON object (not JSON, no auths, wrong types, unknown keys or empty)"; exit "${RL_EXIT_BLIND}" ;;
+            esac
             while IFS=$'\t' read -r h b; do
                 d="$(printf '%s' "${b}" | base64 -d 2>/dev/null)"
                 case "${d}" in *:*) triples+=("${h}"$'\t'"${d%%:*}"$'\t'"${d#*:}") ;; *) rl_err "undecodable auth entry for ${h}"; exit "${RL_EXIT_BLIND}" ;; esac

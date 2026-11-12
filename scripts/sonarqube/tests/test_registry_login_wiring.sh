@@ -13,7 +13,7 @@ ok() { PASS=$((PASS+1)); printf 'ok   %s\n' "$1"; }
 no() { FAIL=$((FAIL+1)); printf 'FAIL %s\n' "$1"; }
 chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi; }
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}" "${W}/fake" "${W}/home/.config/helix"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp base64; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id seq sleep curl cp base64 python3; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 cat >"${W}/fake/podman" <<'F'
@@ -72,6 +72,30 @@ grep -qF -- 'sq_registry_login_auto' "${W}/xerr" && ok "xtrace needle: trace is 
 # tracing is restored after the call
 env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/none" FAKE_LOG="${W}/log" bash -xc '
   . "$1/sonarqube_lib.sh"; sq_registry_login_auto; echo AFTERCALL' _ "${SQ}" 2>&1 >/dev/null | grep -q "echo AFTERCALL" && ok "xtrace restored after the call" || no "xtrace restored after the call"
+
+# R7: library maps registry_login exit 3 (SKIP) to success: helper-only DOCKER_AUTH_CONFIG via real `up` proceeds
+rm -f "${EF}"; ENVS="DOCKER_AUTH_CONFIG={\"credsStore\":\"desktop\"}"; rc=$(up)
+grep -q 'SKIP credentials_absent' "${W}/err" && ok "helper-only config: SKIP logged through the library" || no "helper-only config: SKIP logged through the library"
+grep -q 'podman login' "${W}/log" 2>/dev/null && no "helper-only config: no login attempted" || ok "helper-only config: no login attempted"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && ok "helper-only config: up proceeds (lib maps rc 3 to 0)" || no "helper-only config: up proceeds (lib maps rc 3 to 0)"
+# malformed config must NOT proceed
+ENVS='DOCKER_AUTH_CONFIG={"x":1}'; rc=$(up); chk "malformed config -> up exits 2" 2 "$rc"
+grep -q 'podman compose' "${W}/log" 2>/dev/null && no "malformed config: no compose" || ok "malformed config: no compose"
+
+# R2: a caller with tracing OFF stays OFF after the call, on every return path; a later secret is not traced
+for path in rc0 rc2 off missing; do
+  rm -f "${W}/log"; mkenv 600; envs=""; sqd="${SQ}"
+  case "${path}" in
+    rc0) envs="" ;;
+    rc2) chmod 644 "${EF}" ;;
+    off) envs="SONAR_REGISTRY_LOGIN=off" ;;
+    missing) sqd="${W}/emptysq"; mkdir -p "${sqd}"; cp "${SQ}/sonarqube_lib.sh" "${sqd}/" ;;
+  esac
+  env -i PATH="${W}/fake:${TOOLS}" HOME="${W}/home" XDG_CONFIG_HOME="${W}/home/.config" FAKE_LOG="${W}/log" ${envs:+$envs} bash -c '
+    . "$1/sonarqube_lib.sh"; set +x; sq_registry_login_auto; S=LATERSECRET-$2; echo "$S" >/dev/null; case $- in *x*) echo TRACEON ;; *) echo TRACEOFF ;; esac' _ "${sqd}" "${path}" >"${W}/ro" 2>"${W}/re"
+  grep -q TRACEOFF "${W}/ro" && ok "trace stays OFF after call (${path})" || no "trace stays OFF after call (${path})"
+  grep -q LATERSECRET "${W}/re" && no "later secret not traced (${path})" || ok "later secret not traced (${path})"
+done
 
 # the scan script itself pulls nothing and must not claim to log in
 grep -q 'sq_registry_login_auto' "${SQ}/sonarqube_run_scan.sh" && no "run_scan does not claim login" || ok "run_scan does not claim login"

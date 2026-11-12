@@ -22,7 +22,7 @@ Rootless policy (§11.4.161). Docker is used only when Podman is not on PATH, or
 
 ## Why did `up` stop with exit 2 before pulling?
 
-The login step reported a configuration error: no usable container engine is installed (also when the env file exists but no engine does), the env file is accessible to group or others, is a symlink or is not yours, an explicitly set `SONAR_REGISTRY_ENV_FILE` does not exist, an option was given without a value, or `DOCKER_AUTH_CONFIG` is not an auths JSON with `auth` entries. Run `chmod 600` on the env file. The script never uses a loosely protected secret file. An engine that rejects the credentials also stops `up` (the script itself exits 1).
+The login step reported a configuration error: no usable container engine is installed (also when the env file exists but no engine does), the env file is accessible to group or others, is a symlink or is not yours, an explicitly set `SONAR_REGISTRY_ENV_FILE` does not exist, an option was given without a value, or `DOCKER_AUTH_CONFIG` is malformed (not JSON, no `auths`, wrong types, a mistyped entry key, empty, or bad base64). Run `chmod 600` on the env file. The script never uses a loosely protected secret file. An engine that rejects the credentials also stops `up` (the script itself exits 1).
 
 ## Can I keep the password in `~/api_keys.sh`?
 
@@ -53,4 +53,4 @@ On shared hosts, yes: `registry_login.sh logout`. Prefer pull-only, short-lived 
 - A password containing a newline is cut at the first line when read from an env file or decoded from `DOCKER_AUTH_CONFIG`; such passwords are not supported.
 - `verify` pulls the probe image and leaves whatever login state the engine already has (including an `auth.json` written earlier by `--auth-file-only`); it does not clean up.
 - The env file is checked and then sourced; between the two a local attacker who owns the directory could swap the file (time-of-check/time-of-use). Keep the directory private (0700).
-- `DOCKER_AUTH_CONFIG` with only credential helpers or identity tokens is skipped (`SKIP credentials_absent`), not decoded.
+- `DOCKER_AUTH_CONFIG` that parses and holds only credential helpers or identity tokens is skipped (`SKIP credentials_absent`), not decoded. A malformed one (not JSON, no `auths`, wrong types, mistyped keys, empty, bad base64) is exit 2, not a skip.

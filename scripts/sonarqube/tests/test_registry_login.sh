@@ -16,7 +16,7 @@ chk() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1 (want '$2' got '$3')"; fi;
 
 SECRET='S3cr3t-Pa$$w0rd/x&y'
 TOOLS="${W}/tools"; mkdir -p "${TOOLS}"
-for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln tail; do
+for t in bash env stat grep sed mktemp cat rm date dirname basename mkdir chmod tr head id uname readlink base64 timeout ln tail python3; do
     p="$(command -v "$t" 2>/dev/null)"; [ -n "$p" ] && ln -s "$p" "${TOOLS}/$t"
 done
 mkfake() { # $1=name dir
@@ -161,6 +161,19 @@ done
 # 9d2 credHelpers/identitytoken-only config: honest SKIP, no engine call (m-1)
 reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG='{"credsStore":"desktop","auths":{"h":{"identitytoken":"abc"}}}' bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
 chk "helper/identitytoken-only AUTH_CONFIG -> SKIP 3" 3 "$rc"; [ -f "${W}/log" ] && no "helper-only: engine not called" || ok "helper-only: engine not called"
+
+# 9d2b config errors are NEVER a SKIP: each must exit 2 with no engine call (m-1 regression)
+i=0
+for bad in '{"x":1}' '{"auths": garbage' '{"auths":{"r.io":{"auth":"dTpw' '{"auths":{"r.io":{"Auth":"dTpw"}}}' '{x}' '{"auths":{}}' '{"auths":[]}' '{"auths":{"r.io":{"auth":"%%%notbase64"}}}' '{"auths":{"r.io":"str"}}'; do
+  i=$((i+1)); reset
+  rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="$bad" bash "${SUT}" login >"${W}/out" 2>"${W}/err"; echo $?)
+  chk "config error #$i -> exit 2 not SKIP" 2 "$rc"; [ -f "${W}/log" ] && no "config error #$i: engine not called" || ok "config error #$i: engine not called"
+done
+# genuine helper-only shapes remain an honest SKIP
+for okskip in '{"credsStore":"x"}' '{"credHelpers":{"h":"y"}}' '{"auths":{"h":{"identitytoken":"abc"}}}'; do
+  reset; rc=$(env -i PATH="${W}/fakeP:${TOOLS}" HOME="${W}/home" FAKE_LOG="${W}/log" DOCKER_AUTH_CONFIG="$okskip" bash "${SUT}" login >/dev/null 2>&1; echo $?)
+  chk "helper-only shape SKIP: $okskip" 3 "$rc"
+done
 
 # 9d3 two-host auths JSON: every entry logged in (N2); long credential >57 bytes survives base64 line wrapping (N3)
 reset; LONG="$(printf 'L%.0s' $(seq 1 90))-tail"
