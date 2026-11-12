@@ -3703,3 +3703,15 @@ Review r8 N4 (test-instrumentation): reviewer mutants M8c (category in (Cf,Zs) w
 
 Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied into the tree at landing), verdict GO-pending-table, minor-class nit registered as a follow-up per section 11.4.276(G.2). Parent: CON-030.
 
+## CON-299 — Jev S3/S4: honest bootstrap exit codes, default-on wiring, capacity-gated local placement, per-endpoint calibration, status control view
+
+**Status:** In progress
+**Type:** Task
+**Severity:** High
+
+What: Jev streams S3 and S4 under the operator decision of 2026-11-12 (default-on wiring when a non-placeholder key is present, opt-out marker, reversible). S3: reachable means a 2xx answer only (402 is no_credit, unusable); bootstrap exits 5 for "detected, not wired" and for "no usable endpoint", rc 0 only with nothing detected or with an explicit operator opt-out; post_update_hook STEP 4e runs bootstrap with --default-on. S4: scripts/jev/jev-place.sh capacity-gated placement producer (§11.4.291: contract-checked verdicts, leases with lock, stop only what it started on the last release, never enable/disable/switch/auto, cleanup stop after a failed start, already-running units joined and never stopped); jev-calibrate.sh per (endpoint, model) thresholds and MAIN_LLM_ALIAS discovery; jev-status.sh health, calibration age, consent, wiring, placement and leases.
+Scope: scripts/jev/{bootstrap,jev-place,jev-calibrate,jev-status,jev-probe,lib_keys}.sh, scripts/post_update_hook.sh, scripts/gates/cm_jev_detection.sh, tests/jev, docs/jev, dated notes on §11.4.279/.280/.281/.282/.291.
+Reproduction: before the change a 402 hosted endpoint was recorded reachable=true and bootstrap printed "detect-models: ok" with rc 0 (RED baselines in the test suite: test_s3_bootstrap_honesty.sh, test_hosted_key_discovery.sh K2).
+Acceptance: jev test suite green; 20 reviewer-style mutants killed; live T3 (detection) and T4 (default-on fresh project, one real gate call, one TypeSafe row) 3/3; live T5 local placement success still owed (0/3 on 2026-11-12, host load); independent review.
+UNKNOWN: whether the toolkit (claude_toolkit, owned elsewhere) will fail over from a no-credit endpoint; it does not today (T4 variant A).
+

@@ -24,13 +24,13 @@ good_tail='  - name: claude_toolkit
 '
 # control: ordinary shape
 run_with ctl "$(printf 'schema_version: 1\ndeps:\n  - name: llmctl\n    ssh_url: git@github.com:HelixDevelopment/llmctl.git\n    ref: llm-v9\n    layout: grouped\n%s' "$good_tail")"
-assert_rc 0 "$RC" "ctl: ordinary manifest rc 0"
+assert_rc 5 "$RC" "ctl: ordinary manifest rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_contains "$ERR" "provision llmctl: source=clone" "ctl: llmctl provisioned"
 assert_contains "$ERR" "ref=llm-v9 " "ctl: pinned ref read"
 
 # bare dash, then the fields on following lines
 run_with bare "$(printf 'schema_version: 1\ndeps:\n  -\n    name: llmctl\n    ssh_url: git@github.com:HelixDevelopment/llmctl.git\n    ref: llm-v9\n    layout: grouped\n%s' "$good_tail")"
-assert_rc 0 "$RC" "bare-dash: rc 0"
+assert_rc 5 "$RC" "bare-dash: rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_contains "$ERR" "ref=llm-v9 " "bare-dash: the real pin is read (old awk saw an empty ref -> unpinned)"
 # quoted keys
 run_with quoted "$(printf 'schema_version: 1\ndeps:\n  - "name": llmctl\n    "ssh_url": git@github.com:HelixDevelopment/llmctl.git\n    "ref": llm-v9\n    layout: grouped\n%s' "$good_tail")"
@@ -59,6 +59,6 @@ assert_rc 2 "$RC" "no PyYAML: STOP (rc 2), never an empty ref"
 assert_not_contains "$ERR" "provision llmctl:" "no PyYAML: nothing provisioned"
 # tool simply not listed: still the documented default (unpinned), NOT an error
 run_with absent "$(printf 'schema_version: 1\ndeps:\n%s' "$good_tail")"
-assert_rc 0 "$RC" "tool not listed: default behaviour preserved (rc 0)"
+assert_rc 5 "$RC" "tool not listed: default behaviour preserved (rc 5) (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_contains "$ERR" "ref=unpinned" "tool not listed: unpinned"
 finish

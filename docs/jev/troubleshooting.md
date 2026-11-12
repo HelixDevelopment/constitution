@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-11-12T17:44:39Z |
 | Status | active |
 | Status summary | Symptom, cause, action, and the command that shows which it is. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -23,6 +23,8 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Detection](#detection)
 - [Gate and MCP](#gate-and-mcp)
 - [Calibration](#calibration)
+- [Hosted credit and failover](#hosted-credit-and-failover)
+- [Placement](#placement)
 - [Status](#status)
 
 ## Bootstrap
@@ -32,6 +34,10 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | Exits 2 at once, "refusing to hang" | No TTY and no `--non-interactive` | Re-run with `--non-interactive` or from a terminal. |
 | Exits 2, "jq is a hard prerequisite" | `jq` not on PATH | Install `jq`, re-run. A pending stamp `missing-prerequisite:jq` was written. |
 | Exits 3, "operator-required stop" | A managed clone under `$JEV_BOOTSTRAP_HOME` has local changes | Resolve it by hand (commit, stash or move it), re-run. Nothing was overwritten. |
+| Exits 5, `RESULT rc 5: no usable decision endpoint` | Every detected endpoint was probed and answered non-2xx or was unreachable | Read the `WARNING:` lines and `jev-status.sh` "Endpoint health": `no_credit` (HTTP 402) means add credit on that provider; `401`/`403` means the key is refused; `rate_limited` (429) means wait. A local `llmctl-*` endpoint that is unreachable means no gateway runs (see Placement below). |
+| Exits 5, `RESULT rc 5: detected, not wired` | Endpoints exist but no agent is wired: no consent, or a placeholder key so default-on did not engage | Run `bootstrap.sh --default-on` with a real key in the keys file, or `--yes`. The log line `default-on not engaged: <why>` names the reason. |
+| `RESULT rc 0: detected, NOT wired - the operator opted out` | `$JEV_CONFIG_DIR/wiring.disabled` exists or `JEV_WIRING=off` | Intended. Remove the marker to wire again. Nothing is served while opted out. |
+| Post-update hook prints `jev-bootstrap: rc 5 ...` | Same as the two rc 5 rows above | It is a warning, not a deferral; the pull completed. |
 | Stage 2 shows `source=unavailable`, pending `provision requires consent` | Cloning is consent-gated; the default (and the post-update hook) never touches the network | Re-run with `--allow-clone` (or `--yes`), or provide `LLMCTL_DIR` / `CLAUDE_TOOLKIT_DIR`, or recurse submodules (`git submodule update --init submodules/llmctl submodules/claude_toolkit`), re-run. |
 | Stage 2 `source=unavailable` with reason `git clone failed` | Offline, no SSH key, or host unreachable | Fix access and re-run; the stage is retried automatically (it is never cached as done). |
 | Stage 2 shows `ref_status=pin-not-reachable` | The manifest ref is not in that clone | `git -C <clone> fetch`, or fix the ref in `helix-deps.yaml`. |
@@ -73,6 +79,26 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | Many `label_errors` | The labeling reply was not JSON `{"label": …}` | Counted, never guessed; use a command that emits bare JSON. UNCONFIRMED how a given alias formats replies. |
 | Type stays shadow with `insufficient-sample` | Fewer labeled rows than `JEV_CALIBRATE_MIN_SAMPLE` | Collect more shadow decisions. |
 | A type was DEMOTED | It was promoted before and now misses the floor | Intended; it reverts to shadow. The previous file is `jev-thresholds.<epoch>.json`. |
+
+## Hosted credit and failover
+
+| Symptom | Cause | Action |
+|---|---|---|
+| OpenRouter shows `reachable=false usable=false class=no_credit` | The key is valid but the account has no credit (HTTP 402) | Add credit, then `bash scripts/jev/jev-probe.sh` (a 2xx replay exits 0) or re-run the bootstrap. Until then decisions fail over to the next endpoint. |
+| Decisions keep going to a hosted endpoint although a local model fits | The local gateway entry is absent from the endpoint cache | `bash scripts/jev/jev-place.sh status`; an `acquire` adds `llmctl-local` at priority 10. The toolkit's `claude-providers sync-jev` rewrites the cache and may drop that entry (integration point, owned by claude_toolkit). |
+| Failover order looks wrong | The order is the cache order (priority, lower first), executed by the claude_toolkit gate and MCP server | Inspect `~/.local/share/claude-multi-account/providers/jev-endpoints.json`. This repository writes the local entry only. |
+
+## Placement
+
+| Symptom | Cause | Action |
+|---|---|---|
+| `jev-place.sh acquire` exits 5, verdict `undetermined` | `llmctl capacity --json` answered outside the contract (wrong schema, missing field, timeout, unmeasured RLIMIT_NPROC headroom) | The reason is in `placement.json` and on stderr. Undetermined never starts a model. |
+| Exits 5, `does_not_fit` | Not enough RAM/CPU with the host reserve kept, pressure high, or the unit is degraded | Wait or free resources; the route is `cloud` with a hosted key, else `none`. |
+| Exits 4, `lease_lock_timeout` | Another session holds the placement lock | Retry; no lease was taken. |
+| Exits 5 with `llmctl start <p> failed rc=1 ... still starting after 20s ... never answered .../health` | The unit was started but its start gate or model load did not finish in llmctl's own wait (measured 2026-11-12 on the reference host at load average about 30 on 16 CPUs: the unit sat in `Starting` for about 83 s with a 9 MB memory peak, so the model never loaded) | `jev-place.sh` sends one bounded `llmctl stop <p>` for a profile it asked to start, so no unit is left running without a lease, and routes to `cloud`/`none`. The unit then shows `failed`; that record is left for the operator. Retry when the host is quieter. |
+| `llmctl` warns that the unit file `changed on disk` and asks for `daemon-reload` | The unit file was rewritten outside this run (seen 2026-11-12) | The constitution never runs `daemon-reload`; the operator decides. |
+| A decide unit was already running before `acquire` | Someone else started it | It is joined with `constitution_started=false`: it is never started again and the last release never stops it. A unit still `starting` is neither started nor claimed. |
+| `llmctl-onnx@decide-nli` is `failed` | Its start gate (`svc_hook.sh gate`) refused with exit 75 under memory pressure four times and hit the start limit (measured 2026-11-12 on the reference host) | This is an operator-enabled unit; the constitution does not restart it. `systemctl --user reset-failed llmctl-onnx@decide-nli` and start it by hand when pressure is low, if you want it. |
 
 ## Status
 

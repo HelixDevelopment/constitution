@@ -87,7 +87,8 @@ assert_eq "shadow" "$(grep -s '^JEV_MODE=' "$JEV_CONFIG_DIR/env" | cut -d= -f2)"
 assert_contains "$JEV_STATE_DIR/enforce-deferred" "hosted" "K7b the deferral names the hosted-endpoint reason"
 rm -f "$JEV_CONFIG_DIR/jev-thresholds.json"; unset JEV_TEST JEV_DECISION_PROFILES JEV_REQUIRE_VALIDATED_CMD
 # K2 status classes
-for pair in "401:401:true" "403:403:true" "000:timeout:false" "500:other:true"; do
+# S3 2026-11-12: reachable means ANSWERED 2xx (usable); any other answer is reachable=false with its class
+for pair in "401:401:false" "403:403:false" "402:no_credit:false" "429:rate_limited:false" "000:timeout:false" "500:other:false" "200:2xx:true"; do
   code="${pair%%:*}"; rest="${pair#*:}"; cls="${rest%%:*}"; reach="${rest#*:}"
   setup k2; write_keys "$KEYS" 600 "TYPESAFE_API_KEY=$KEY_A"; unset STUB_EXPECT_KEY; export STUB_CODE="$code"
   run_bs k2
@@ -223,7 +224,7 @@ bare() { # bare <name> : fake HOME holding only api_keys.sh, no pins, no toolkit
 bare k12
 write_keys "$KEYS" 600 "OTHER_SERVICE_TOKEN=abcdefghijklmnop12345" "TYPESAFE_API_KEY=$KEY_A" "UNRELATED=1"
 run_bs k12
-assert_rc 0 "$RC" "K12 bootstrap rc 0 without toolkit/pins"
+assert_rc 5 "$RC" "K12 bootstrap rc 5 without toolkit/pins (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "hosted-typesafe" "$(jq -r '[.endpoints[]|select(.source=="api-keys-file")|.id]|join(" ")' "$DET")" "K12 hosted endpoint discovered from the key file ALONE (empty cache, no pins file)"
 assert_eq "true" "$(jq -r '.key_discovery.keys_file_present' "$DET")" "K12 key_discovery.keys_file_present is true for an existing file"
 assert_eq "600" "$(jq -r '.key_discovery.keys_file_mode' "$DET")" "K12 the real file mode is recorded"
@@ -254,7 +255,7 @@ assert_eq "absent" "$(jq -r '.key_discovery.vars[]|select(.key_var=="TYPESAFE_AP
 bare k16
 export TYPESAFE_API_KEY="$KEY_A"
 run_bs k16
-assert_rc 0 "$RC" "K16 bootstrap rc 0 with an env-only key"
+assert_rc 5 "$RC" "K16 bootstrap rc 5 with an env-only key (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "false" "$(jq -r '.key_discovery.keys_file_present' "$DET")" "K16 precondition: no keys file exists"
 assert_eq "hosted-typesafe" "$(jq -r '[.endpoints[]|select(.key_var=="TYPESAFE_API_KEY")|.id]|join(" ")' "$DET")" "K16 the env-sourced key still yields the hosted endpoint"
 assert_eq "environment" "$(jq -r '.endpoints[]|select(.id=="hosted-typesafe")|.source' "$DET")" "K16 source says the key came from the process environment"

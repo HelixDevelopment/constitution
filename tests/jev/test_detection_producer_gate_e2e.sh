@@ -40,7 +40,7 @@ run_gate() { # run_gate <detection.json> -> GATE_RC, output in $T/gate.out
 # ---- E1: default run, no consent for provisioning ----
 make_fixture_env e1; make_fixture_constitution_root; make_probe
 timeout 120 bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >"$T/b.out" 2>"$T/b.err"
-assert_rc 0 "$?" "E1 bootstrap rc 0 (fail-open without consent)"
+assert_rc 5 "$?" "E1 bootstrap rc 5 (fail-open without consent) (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 DET="$JEV_EVIDENCE_DIR/jev-detection.json"
 assert_file_exists "$DET" "E1 detection written"
 assert_eq "unavailable" "$(jq -r '.tools.llmctl.source' "$DET")" "E1 llmctl source=unavailable"

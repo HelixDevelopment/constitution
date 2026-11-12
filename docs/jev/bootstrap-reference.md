@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-07 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-11-12T16:54:07Z |
 | Status | active |
 | Status summary | Operator reference for the 7-stage wizard, aligned with the script's actual stages, flags, env and exit codes. |
 | Authority | Constitution §11.4.281 (bootstrap wizard + post-update auto-trigger), §11.4.286 (install mechanism), §11.4.285 (calibration entry). The anchor texts govern; this document is the operator reference. |
@@ -35,8 +35,10 @@ Related: [governance guide](governance-guide.md) · [user manual](user-manual.md
 bootstrap.sh [--non-interactive] [--defer] [--enforce] [--yes] [--allow-clone]
              [--install-tools]
              [--agent <csv>|all] [--llmctl-ref <ref>] [--toolkit-ref <ref>]
-             [--report-json PATH]
+             [--report-json PATH] [--default-on]
 ```
+
+`--default-on` (or `JEV_BOOTSTRAP_DEFAULT_ON=1`) applies the operator standing order of 2026-11-12: when a non-placeholder decision key is present (checked by variable NAME, value never read into output), consent for user-level wiring of the Jev hook and MCP server is given, logged loudly with the undo command, and recorded in `$JEV_STATE_DIR/consent.json`. It is ignored when `$JEV_CONFIG_DIR/wiring.disabled` exists or `JEV_WIRING=off`. The post-update hook passes it.
 
 Interactive when attached to a terminal (prompts on stderr, answers read from `/dev/tty`); automatable with `--non-interactive` plus env overrides. The wizard runs once per invocation. Every stage prints `[jev-bootstrap N/7] <stage>: <result>` to stderr; `--report-json PATH` additionally appends one JSON object per stage.
 
@@ -47,6 +49,9 @@ Interactive when attached to a terminal (prompts on stderr, answers read from `/
 | 0 | Completed. Degraded states (no endpoints, wiring awaiting consent, toolkit unavailable) are reported on stderr and recorded in the pending stamp; they are not errors. |
 | 2 | Cannot determine / cannot proceed: no TTY without `--non-interactive` (never hangs), usage error, or a hard prerequisite (`jq`) is absent. A 2 is never a pass. |
 | 3 | Operator-required stop: a managed clone has local changes. Nothing is overwritten. |
+| 5 | Detected, NOT serving (added 2026-11-12). Either every detected endpoint was probed and is unusable (non-2xx such as 402 `no_credit`, 401/403, 429 `rate_limited`, or unreachable), or endpoints exist and no agent is wired. The `RESULT rc 5:` line on stderr says which. An endpoint that was not probed is unknown, not unusable. An explicit opt-out (`wiring.disabled`, `JEV_WIRING=off`) exits 0 with a `RESULT rc 0: detected, NOT wired - the operator opted out` line, never a serving claim. |
+
+Before 2026-11-12 a run that detected endpoints but wired nothing exited 0 and printed `detect-models: ok`. Rows of this table marked "degraded" above that are now rc 5 are exactly those.
 
 ## Consent boundaries
 
@@ -58,6 +63,7 @@ Nothing in this table happens without an explicit yes.
 | Run the tools' own installers (llmctl `make install` links `bin/llmctl` into `$PREFIX/bin`; claude_toolkit `scripts/install.sh` links scripts into `~/.local/bin`, edits shell rc files, runs `npm install`, and may `git pull` a sibling checkout) | `--install-tools`, `JEV_BOOTSTRAP_INSTALL_TOOLS=1`, or interactive `y` |
 | Edit agent configuration under the home (`claude_toolkit scripts/jev-setup.sh --agents … --yes`; the claude_toolkit makes its own backups; this repository's own edits keep at most one `*.prejev.<timestamp>` copy per file, mode 0600, and none for a file holding key material) | `--yes`, `JEV_BOOTSTRAP_CONSENT=1`, or interactive `y` |
 | Download a decision profile (`llmctl models download <profile>`; network, verified by sha256) | `JEV_BOOTSTRAP_DOWNLOAD_PROFILE=<profile>` or interactive `y` |
+| Edit agent configuration under the home, standing order (2026-11-12) | `--default-on` with a non-placeholder key; opt out with `touch $JEV_CONFIG_DIR/wiring.disabled` or `JEV_WIRING=off`; undo with claude_toolkit `jev-setup --uninstall`. Also allows provisioning claude_toolkit for the wiring step. |
 
 ## Stage-by-stage
 
@@ -118,6 +124,8 @@ JEV_PROBE_CMD=<constitution>/scripts/jev/jev-probe.sh JEV_DETECTION_FILE=<eviden
 | `JEV_BOOTSTRAP_CONSENT` | unset | Same as `--yes`. |
 | `JEV_BOOTSTRAP_ALLOW_CLONE` | unset | Same as `--allow-clone`. |
 | `JEV_BOOTSTRAP_INSTALL_TOOLS` | unset | Same as `--install-tools`. |
+| `JEV_BOOTSTRAP_DEFAULT_ON` | unset | Same as `--default-on`. |
+| `JEV_WIRING` | `on` | `off` opts out of default-on wiring (rc 0 with an "opted out" RESULT line). |
 | `JEV_BOOTSTRAP_DOWNLOAD_PROFILE` | unset | Profile to download when no endpoint exists and it fits `llmctl decide capacity`. |
 | `JEV_BOOTSTRAP_MODE` | `shadow` | `shadow` or `enforce`; same as `--enforce` when `enforce`. |
 | `JEV_BOOTSTRAP_AGENTS` | `all` | Same as `--agent`; a comma list of `claude,kimi,pi,opencode` or `all`. |

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-23T00:00:00Z |
+| Last modified | 2026-11-12T16:54:07Z |
 | Status | active |
 | Status summary | Four Mermaid diagrams: architecture, data flow, bootstrap state machine, routing and consensus sequence. |
 | Authority | Constitution §11.4.279–§11.4.286. The scripts and the claude_toolkit / llmctl sources govern wherever a diagram simplifies. |
@@ -22,6 +22,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Architecture](#architecture)
 - [Data flow of one gated tool call](#data-flow-of-one-gated-tool-call)
 - [Bootstrap state machine](#bootstrap-state-machine)
+- [Failover and placement sequence (2026-11-12)](#failover-and-placement-sequence-2026-11-12)
 - [Routing and consensus sequence](#routing-and-consensus-sequence)
 
 ## Architecture
@@ -123,6 +124,47 @@ stateDiagram-v2
   OperatorStop --> [*]
   Complete --> [*]
   CompleteWithPending --> [*]
+```
+
+## Failover and placement sequence (2026-11-12)
+
+How one decision reaches an endpoint after the S3/S4 changes. The ordered list is the endpoint cache (lower priority first): the local gateway at 10 when a lease is held, then the hosted entries (OpenRouter 30, TypeSafe 40 on the reference host). The FAILOVER itself is executed by the claude_toolkit gate and MCP server, which this repository does not ship; the constitution writes the cache entry, the placement record and the probe classes.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Session
+  participant P as jev-place.sh
+  participant L as llmctl
+  participant K as Endpoint cache
+  participant G as Toolkit gate / MCP
+  participant E1 as llmctl-local (priority 10)
+  participant E2 as OpenRouter (30)
+  participant E3 as TypeSafe (40)
+  S->>P: acquire <holder> --pid <pid>
+  P->>L: capacity --json (bounded)
+  alt verdict fits / fits_with_reduced_threads
+    P->>L: start <profile> (bounded)
+    P->>K: add llmctl-local at priority 10
+  else does_not_fit or undetermined
+    P-->>S: rc 5, placement route cloud (key present) or none
+  end
+  S->>G: gated tool call
+  G->>K: read ordered endpoints
+  G->>E1: decision request
+  alt 2xx
+    E1-->>G: typed answer
+  else non-2xx or unreachable
+    G->>E2: decision request
+    alt 402 no_credit / 429 / error
+      G->>E3: decision request
+      E3-->>G: typed answer (2xx)
+    end
+  end
+  G-->>S: allow / ask / deny (decisions.jsonl row)
+  S->>P: release <holder> (last lease)
+  P->>L: stop <profile> (only if the constitution started it)
+  P->>K: remove llmctl-local
 ```
 
 ## Routing and consensus sequence

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-23 |
-| Last modified | 2026-10-28T19:34:34Z |
+| Last modified | 2026-11-12T16:54:07Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -25,6 +25,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Calibration and proof](#calibration-and-proof)
 - [Bootstrap](#bootstrap)
 - [Capacity and placement](#capacity-and-placement)
+- [Default-on wiring and exit 5 (2026-11-12)](#default-on-wiring-and-exit-5-2026-11-12)
 
 ## General
 
@@ -105,4 +106,19 @@ Only with `--install-tools` (or a "y" at the prompt). They link into PATH and ed
 ## Capacity and placement
 
 **23. My host is busy. Will a local decision model still start?**
-Not unless it fits. §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement").
+Not unless it fits. (Update 2026-11-12: `scripts/jev/jev-place.sh` now reads `llmctl capacity --json` when the installed llmctl provides it; the paragraph below describes the rules it follows.) §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement").
+
+## Default-on wiring and exit 5 (2026-11-12)
+
+**24. Why did my constitution pull wire the Jev hook without asking?**
+The operator decision of 2026-11-12 made consent a standing order: when a non-placeholder decision key is present, the post-update hook runs the bootstrap with `--default-on`, which wires the hook and MCP server at user level and logs it. Undo: claude_toolkit `jev-setup --uninstall`. Opt out for good: `touch ~/.config/jev/wiring.disabled` (or `JEV_WIRING=off`).
+
+**25. Why does the bootstrap now exit 5?**
+It found decision endpoints but is not serving: either none answered 2xx (no credit, refused key, rate limit, unreachable) or no agent is wired. Before this change it exited 0 and printed `ok` in that state.
+
+**26. My key is real but OpenRouter is "not usable". Why?**
+A real key and a usable endpoint are different facts. HTTP 402 means the account has no credit; it is recorded `no_credit`, never reachable.
+
+**27. Are thresholds shared between endpoints?**
+No longer only per question type: `jev-thresholds.json` also has `per_endpoint["<endpoint>|<model>"]`, and each group earns enforce on its own sample. Rows that do not say which endpoint answered are grouped as `unknown|unknown`.
+

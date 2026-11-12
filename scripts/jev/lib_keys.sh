@@ -151,7 +151,10 @@ jev_pin_ok() {
   return 1
 }
 
-# auth_probe <VAR> <url> [model] [ca_file] -> 2xx | 401 | 403 | other | timeout | unavailable | refused
+# auth_probe <VAR> <url> [model] [ca_file] -> 2xx | 401 | 402 -> no_credit | 403 | 429 -> rate_limited | other | timeout | unavailable | refused
+# Only 2xx means USABLE (2026-11-12, S3): a 402 (no credit) or 429 (rate limited) answer proves the server exists but
+# not that it serves decisions; callers record reachable=true for 2xx only (live 2026-11-12: OpenRouter answered 402
+# for every decision for ten days while the detection record said reachable=true).
 # A minimal authenticated POST with one harmless noul question (the documented wire format). The key goes to curl on
 # STDIN (-K -), never argv; only the HTTP status CLASS is returned. REFUSES (class `refused`, reason on stderr, curl
 # never started) unless jev_pin_ok VAR url holds; curl is pinned to https for the request AND any redirect.
@@ -172,7 +175,7 @@ auth_probe() {
   [ -n "$ca" ] && [ -f "$ca" ] && args+=(--cacert "$ca")
   local c
   c="$(printf 'header = "Authorization: Bearer %s"\n' "$ek" | curl "${args[@]}" "$u" 2>/dev/null)" || c=000
-  case "$c" in 000|"") echo timeout ;; 2??) echo 2xx ;; 401) echo 401 ;; 403) echo 403 ;; *) echo other ;; esac
+  case "$c" in 000|"") echo timeout ;; 2??) echo 2xx ;; 401) echo 401 ;; 402) echo no_credit ;; 403) echo 403 ;; 429) echo rate_limited ;; *) echo other ;; esac
 }
 
 keys_file_mode() { stat -c '%a' "${KEYS_FILE:-$(jev_keys_file)}" 2>/dev/null || stat -f '%Lp' "${KEYS_FILE:-$(jev_keys_file)}" 2>/dev/null || echo ""; }

@@ -191,7 +191,19 @@ if [ -f "$_lib" ]; then
     if [ "$_kst" = "real" ]; then
       err "key: endpoint '$_id' (key variable $_kv) holds a real key but reachable=$_rc - the endpoint was not proven reachable (re-run detection with hosted probing enabled)"
     fi
-  done < <(jq -r '.endpoints[]? | select((.key_var // "") != "" and .reachable != true) | [.id, .key_var, (.reachable | tostring)] | @tsv' "$DETECTION" 2>/dev/null)
+  done < <(jq -r '.endpoints[]? | select((.key_var // "") != "" and .reachable != true)
+                  | select((.reachable == false and (.reachable_basis // "") == "probe"
+                           and ((.auth_status_class // "") | IN("401","403","no_credit","rate_limited","other","timeout"))) | not)
+                  | [.id, .key_var, (.reachable | tostring)] | @tsv' "$DETECTION" 2>/dev/null)
+  # A PROBED endpoint that answered non-2xx (2026-11-12, S3) is an honest record, not an unproven one: it is NOTED as
+  # unusable with its class, never counted as reachable (reachable=true means "answered 2xx").
+  while IFS="$(printf '\t')" read -r _id _cls; do
+    [ -n "$_id" ] && note "clause 8: endpoint '$_id' was probed and is NOT usable (auth_status_class=$_cls); reachable=false is recorded honestly"
+  done < <(jq -r '.endpoints[]? | select(.reachable == false and (.reachable_basis // "") == "probe" and ((.auth_status_class // "") | IN("401","403","no_credit","rate_limited","other","timeout"))) | [.id, .auth_status_class] | @tsv' "$DETECTION" 2>/dev/null)
+  # Consistency (S3): reachable must agree with the recorded probe class (2xx <=> reachable=true).
+  _contra="$(jq -r '[.endpoints[]? | select((.auth_status_class // "") != "" and (.auth_status_class != "not-probed")
+                     and ((.reachable == true and .auth_status_class != "2xx") or (.reachable == false and .auth_status_class == "2xx"))) | .id] | join(",")' "$DETECTION" 2>/dev/null)"
+  [ -z "$_contra" ] || err "key: endpoint(s) $_contra record reachable inconsistent with auth_status_class (reachable=true iff the probe answered 2xx)"
 else
   note "lib_keys.sh not found next to the gates: the key-present/unproven-endpoint check was not run"
 fi

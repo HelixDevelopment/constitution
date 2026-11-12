@@ -58,7 +58,7 @@ REG="$( { svc decide-nli decide decide-nli true "http://127.0.0.1:9"; svc decide
 mk_status "$T/status.json" true "$BASE" "$REG" "$(prof_list decide-nli:false decide-julia:false)"
 export LLMCTL_STATUS_JSON="$T/status.json"
 run_bs g1
-assert_rc 0 "$RC" "G1 bootstrap rc 0"
+assert_rc 5 "$RC" "G1 bootstrap rc 5 (S3 2026-11-12: a detected endpoint that is not serving exits 5, never a silent 0)"
 assert_eq "llmctl-decide-nli" "$(jq -r '[.endpoints[].id]|join(" ")' "$DET")" "G1 healthy registry decide service detected; unhealthy and non-decide services are NOT"
 assert_eq "http://127.0.0.1:9" "$(jq -r '.endpoints[0].url' "$DET")" "G1 the service's own URL is recorded"
 # NEG: registry says nothing healthy -> still honestly empty (no invention)

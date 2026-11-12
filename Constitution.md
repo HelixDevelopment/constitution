@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 95 |
+| Revision | 96 |
 | Created | 2026-05-14 |
-| Last modified | 2026-11-07T14:34:15Z |
+| Last modified | 2026-11-12T17:44:56Z |
 | Status | active |
 | Status summary | Merge 2026-10-27: upstream v72 merged on top of v71; the optimistic-done anchor landed under the next free number (v72 owns 287-289). Older entries of this cell (verbatim, none dropped) are kept on demand in docs/amendment-log/status-summary-constitution.md; per §11.4.61(A) this cell is a one-line current-state hook, so record each new amendment in CHANGELOG.md and, when this cell grows, rotate it with scripts/amendment_log/status_summary_archive.py. |
 | Issues | none |
@@ -12393,6 +12393,10 @@ Classification: universal (§11.4.17) — the consuming project supplies its key
 
 **Refinement note (2026-10-28).** §11.4.291 adds `placement` entries to `jev-detection.json` (verdict, measured inputs, route, the hosted key's variable NAME only) and lets a reasoned-empty record cite a `does_not_fit` or `undetermined` placement verdict as its reason; detection itself is unchanged.
 
+**Refinement note (2026-11-12, decision record).** Operator decision 2026-11-12 (recorded per §11.4.66, relayed by the conductor, not verbatim): consent to user-level Jev wiring becomes a standing order (default-on on every constitution pull when a non-placeholder key is present; reversible with `jev-setup --uninstall`; logged; an opt-out marker is honoured; hand-made config is never overwritten; backups kept); the Jev decision model is used whenever a key and credit exist; local llmctl decision instances run alongside when the host allows, under §11.4.291; all instances are used; thresholds are tuned per (endpoint, model). The detection record keeps the reasoned-empty rule; a detected endpoint that cannot answer (no credit, refused key, rate limit, unreachable) is recorded with its class and is not counted usable.
+
+**Refinement note (2026-11-12).** What changed for this anchor (decision recorded in the §11.4.279 note above): (1) a probe counts an endpoint `reachable` only when it answered 2xx; HTTP 402 is recorded `reachable:false`, `auth_status_class:no_credit` (429 `rate_limited`), so a hosted endpoint without credit is never a green (measured before the change: an OpenRouter endpoint answering 402 was recorded `reachable:true`); (2) a present non-placeholder key is a key; whether it can be USED is the probe class, reported separately. The record schema gains `usable` and `unusable_reason`; nothing is removed. Detection-first, the reasoned-empty record and the key-by-name rule are unchanged.
+
 ### §11.4.280 — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
 
 **Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Install all the plugins, skills and MCPs per agent so every agent on the host can reach the decision layer."
@@ -12412,6 +12416,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-280-PRO
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.280.
 
 **Non-compliance is a release blocker. No escape hatch — no flag skips wiring a detected agent; uninstall is a deliberate, logged operator act (`jev-setup --uninstall`), never a side effect.**
+
+**Refinement note (2026-11-12).** Under the operator decision recorded in the §11.4.279 note, `bootstrap.sh --default-on` (and the post-update hook, which now passes it) applies consent for user-level wiring of the Jev hook and MCP server when a non-placeholder key is present, logs it loudly with the undo command (`jev-setup --uninstall`), writes `consent.json` (basis `operator-standing-order-2026-11-12`), and does nothing when `$JEV_CONFIG_DIR/wiring.disabled` exists or `JEV_WIRING=off`. Coverage gaps of each platform stay stated per this anchor; nothing here claims a platform is covered that its mechanics do not allow.
 
 ### §11.4.281 — Bootstrap wizard and post-update auto-trigger (User mandate, 2026-10-07)
 
@@ -12435,6 +12441,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-281-PRO
 
 **Non-compliance is a release blocker. No escape hatch — deferral is bounded and logged; silent skipping is non-compliance.**
 
+**Refinement note (2026-11-12).** (1) STEP 4e of `scripts/post_update_hook.sh` also runs the idempotent bootstrap on a pull that changed no Jev file when a non-placeholder decision key is present (before the change it ran only on a Jev-file change and passed no consent, so a pull never wired anything while printing `detect-models: ok`). (2) The bootstrap's exit code now tells the truth about serving: 5 = endpoints detected but none usable (every one probed non-2xx or unreachable), or detected but no agent wired; 0 = serving, nothing detected, or an explicit operator opt-out (named in the RESULT line, never as serving). The post-update hook reports rc 5 as a warning, not a deferral. The idempotency rule of this anchor holds: a run whose only finding is "no usable endpoint" no longer re-runs the detect stage on the next pull; the verdict is recomputed from the record on every run.
+
 ### §11.4.282 — Maximal decision-instance utilization (User mandate, 2026-10-07)
 
 **Forensic anchor — verbatim user mandate (2026-10-07; the shared mandate is quoted in full in §11.4.279):** "Use all available model instances to the maximum."
@@ -12456,6 +12464,8 @@ Classification: universal (§11.4.17). Propagation gate `CM-COVENANT-114-282-PRO
 **Non-compliance is a release blocker. No escape hatch — host-safety headroom (§12) is the ONLY legitimate capacity limiter.**
 
 **Refinement note (2026-10-28).** §11.4.291 bounds "to the maximum": only instances whose LIVE placement verdict is `fits` or `fits_with_reduced_threads` count, the planned `decision_instances` figure is an upper bound and never a licence to start them, and host-safety headroom (the only limiter, per the close above) is measured live per §11.4.291(C).
+
+**Refinement note (2026-11-12).** "All instances are used actively": decision traffic goes first to the live-fitting local instances (placed by `scripts/jev/jev-place.sh`, which registers the local gateway in the decision-endpoint cache at priority 10, ahead of the hosted entries), then spills over to the hosted endpoints in cache order; an endpoint that answers non-2xx is skipped for the next one. The spill-over order is executed by the claude_toolkit gate and MCP server, which this repository does not ship; the constitution side writes the cache entry and the placement record and does not claim the toolkit's failover behaviour. Thresholds are calibrated per (endpoint, model) as well as per question type (`per_endpoint` in `jev-thresholds.json`); a group enforces only when it meets the §11.4.285 floors on its own.
 
 ### §11.4.283 — Decision-layer token-reduction proof (User mandate, 2026-10-07)
 
@@ -12734,6 +12744,8 @@ Classification: universal (§11.4.17) — no project literal; the consuming proj
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.291.
 
 **Non-compliance is a release blocker. No escape hatch — no `--start-local-without-placement`, `--undetermined-is-fits`, `--silent-fallback`, `--hosted-enforces`, `--constitution-enables-llmctl`, `--evict-models-we-did-not-start`, `--unbounded-llmctl-wait`, `--no-host-reserve`, `--unrecorded-override`, `--stop-with-live-lease`, `--undrained-stop`, `--assume-lease`, `--trust-local-recommendation` flag exists.**
+
+**Refinement note (2026-11-12).** The placement producer this anchor names is `scripts/jev/jev-place.sh` (subcommands `verdict`, `acquire`, `heartbeat`, `release`, `reap`, `status`). It reads `llmctl capacity --json` under the (C) contract table, treats `undetermined` as never-fits (including an unmeasured `RLIMIT_NPROC` headroom, a degraded unit, a `pressure.ok:false` answer and a call that exceeds its time bound), starts only systemone-native decide profiles with `llmctl start` after a fitting verdict, keeps the (J) lease set (`leases.json`, bounded `flock`, `stopping` mark, TTL and `kill -0` + cmdline reaping), stops only a model it started and only on the last release, and refuses `enable`, `disable`, `switch` and `auto`. Gate-logic tests use a stub llmctl (§11.4.289(C)(2)); a live run is recorded separately. Measured on the reference host 2026-11-12 and recorded, not changed: `host.mem_total_mb` (21681) was below `host.mem_available_mb` (24216) because llmctl caps the total at the tightest cgroup `memory.high` in the user manager chain while the available figure is the host-wide `MemAvailable`; the operator-enabled unit `llmctl-onnx@decide-nli` was in `failed` state after four starts refused with exit 75 by the §11.4.277(E) pressure gate (start limit hit); it was not restarted. Two producer rules follow from the live run of the same day: a profile whose unit llmctl already reports running or active is joined with `constitution_started: false` (never started again, never stopped by the last release), and a unit still starting is neither started nor claimed; and when `llmctl start` fails after the start was requested (any status other than the exit 75 refusal), the producer sends one bounded `llmctl stop` for that profile, so no unit is left running without a lease. In that live run (three attempts with `decide-kev-08b`, load average about 30 on 16 CPUs) the capacity verdict was `fits` with `pressure.ok: true`, yet the unit stayed in `Starting` for about 83 seconds with a memory peak near 9 MB and `llmctl start` gave up; the producer stopped it and routed to `cloud` each time. A successful local placement was therefore NOT shown live on that day.
 
 ### §11.4.292 — Reproduce first: every issue being fixed is REPRODUCED LIVE before any cause hypothesis is acted on or any fix is written; the reproduction is a recorded, closed-vocabulary RED with exact command, identifiers and symptom signature; the fix is proven by a GREEN on the same command and signature, rests on a root cause proven by evidence, and is covered by a deterministic live test; while reproduction is blocked a fix lands only as PROVISIONAL-DONE labelled UNREPRODUCED and never reaches VERIFIED-DONE (User mandate, 2026-11-03)
 

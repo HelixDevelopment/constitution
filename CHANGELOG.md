@@ -1,5 +1,31 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-12 — CON-299 Jev S3/S4: honest bootstrap exit codes (2xx-only reachability, exit 5 for "detected, not wired" and "no usable endpoint"), default-on wiring under the operator decision of 2026-11-12, the capacity-gated placement producer `scripts/jev/jev-place.sh`, per-(endpoint, model) calibration and the `jev-status.sh` control view
+
+**Status of this entry: UNRELEASED; implemented and tested on host fixtures; live runs partly shown; not VERIFIED-DONE; independent review pending (CON-299, In progress).**
+
+#### What changed
+
+- **S3 bootstrap honesty.** `reachable` in the detection record means a 2xx answer only; HTTP 402 is `no_credit` (unusable), 429 `rate_limited`. `bootstrap.sh` exits 5 when an endpoint was detected but the layer is not serving (no agent wired, or every detected endpoint unusable), and 0 only when nothing was detected or the operator opted out (stated on the RESULT line). `post_update_hook.sh` STEP 4e passes `--default-on`; rc 5 is a warning there.
+- **Default-on wiring (operator decision 2026-11-12, §11.4.66).** With a non-placeholder decision key present and no opt-out (`$JEV_CONFIG_DIR/wiring.disabled` or `JEV_WIRING=off`), bootstrap applies wiring consent, logs it loudly, records `consent.json`, and names the undo (`jev-setup --uninstall`).
+- **S4 placement producer.** `scripts/jev/jev-place.sh` (`verdict`, `acquire`, `heartbeat`, `release`, `reap`, `status`): contract-checked `llmctl capacity --json` verdicts (undetermined never starts), bounded llmctl calls, the §11.4.291(J) lease set, stop only of a model it started and only on the last release, `enable`/`disable`/`switch`/`auto` refused. From the live run: a start that fails after it was requested is stopped again, and a unit llmctl already runs is joined as not constitution-started and never stopped.
+- **Calibration.** `jev-calibrate.sh` writes `per_endpoint["<endpoint>|<model>"][<type>]` thresholds (shadow below the minimum sample) and records the main-LLM alias with its source (`--alias`, `MAIN_LLM_ALIAS`, the jev env file, `main_llm_alias`, default `claude`).
+- **Status.** `jev-status.sh` adds endpoint health, calibration age, consent, wiring, placement and leases.
+- **Constitution.** Dated refinement notes on §11.4.279, §11.4.280, §11.4.281, §11.4.282 and §11.4.291 (additive; no anchor text removed). Docs under `docs/jev/`.
+
+#### Evidence
+
+- Jev suite (`tests/jev/run_all.sh`) and the full-suite manifest (`--verify-manifest`: MANIFEST-OK); 20 reviewer-style mutants, all killed (two needed stronger tests first: the toolkit-cache 402 case and the reason text of the refused verbs).
+- Live runs: `docs/qa/jev_s3s4_20261112/README.md`. T3 detection 3/3 identical (rc 5; TypeSafe usable, OpenRouter 402). T4 default-on in a fresh sandbox project 3/3: one real gate call per variant, one `jev-typesafe` row with the TypeSafe pin.
+
+#### Honest boundaries
+
+- T5: a successful local placement was NOT shown live; three attempts with `decide-kev-08b` at load average about 30 on 16 CPUs stayed `Starting` and were stopped by the producer (route `cloud`). The success path is covered only by the stub-llmctl gate-logic test.
+- With the operator's current session environment every gate call goes to `jev-openrouter` (HTTP 402) and the gate does not fail over (`endpoint_error`, fail-open allow). The failover is claude_toolkit's (owned elsewhere); not changed here.
+- Gate rows written by the toolkit carry no question text or HTTP status, so calibration and health group them as `unknown`.
+- `llmctl-llama@decide-kev-08b` is left `failed` and `llmctl-onnx@decide-nli` was found `failed`; no `daemon-reload` or `reset-failed` was run.
+- `jev-place.sh` was written before its test (TDD order not kept for the first version; the two later fixes were RED first).
+
 ## Unreleased — 2026-11-11 — v73.4 release preparation: the CM-KILLPG-PGID-GUARD regression fixed (7 unguarded sites on `fc57ad0c`), the PROVISIONAL Version-badge rule made case-insensitive, and a mechanical, resumable release cut (`scripts/release/`)
 
 **Status of this entry: UNRELEASED; implemented and tested on host fixtures only; not VERIFIED-DONE (CON-226, Ready for testing, PROVISIONAL-DONE per §11.4.290).** Independent review of `ec58c0ae` (2026-11-11): GO-with-follow-ups, 0 critical, 0 important, 9 minor, 5 nit (`docs/qa/review_rel734c_2026_11_11.md`); follow-ups CON-227 to CON-234. Landed on `main` by merging `main` `72a4bebb` into the vehicle; at landing one new process-group signal text site from `main` (`scripts/validation/test_enumerate_decision_mutants_r2_regression.sh:94`, a mutant replacement string) got the audited `# killpg-gate:allow` marker. Built on vehicle `vehicle/rel734` from `main` at `fc57ad0c`, after the independent review of the first v73.4 release commit (`e3a55a44`, NO-GO: I-1 to I-4).

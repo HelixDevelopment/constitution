@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Stub: llmctl for the S4 placement producer gate-logic tests (scripts/jev/jev-place.sh). GATE-LOGIC ONLY (§11.4.289(C)(2)):
+# it proves the producer decides correctly on a declared capacity answer; it is never evidence that a local model runs.
+#   capacity --json          -> cat $PLACE_CAP_JSON, exit ${PLACE_CAP_RC:-0}; PLACE_CAP_SLEEP seconds first (timeout cases)
+#   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x)
+#   decide status --json     -> a gateway registry entry (https://127.0.0.1:18095)
+#   start <p>                -> exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<p>
+#   stop <p>                 -> removes $STUB_LOG/running.<p>
+#   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
+set -euo pipefail
+logdir="${STUB_LOG:?STUB_LOG must be set}"
+printf '%s\n' "llmctl $*" >> "$logdir/llmctl.log"
+case "${1:-} ${2:-}" in
+  "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"; cat "${PLACE_CAP_JSON:?}"; exit "${PLACE_CAP_RC:-0}" ;;
+  "decide capacity") echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
+  "decide status") echo '{"registry":{"services":[{"name":"decide-gateway","url":"https://127.0.0.1:18095","labels":{"kind":"gateway","ca_file":"/nonexistent/ca.crt"}}]}}' ;;
+  "start "*) touch "$logdir/running.${2:?}"; exit "${PLACE_START_RC:-0}" ;;
+  "stop "*) rm -f -- "$logdir/running.${2:?}" ;;
+  enable*|disable*|switch*|auto*) exit 97 ;;
+  *) echo "llmctl stub: unknown command '$*'" >&2; exit 1 ;;
+esac
