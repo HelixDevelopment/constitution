@@ -24,11 +24,21 @@
 #   P25 joining an existing set re-checks the unit (degraded -> refused, rc 5, no lease) and re-registers the cache entry
 #   P26 every placement verdict is in the closed set {fits, fits_with_reduced_threads, does_not_fit, undetermined} or null;
 #       start/stop outcomes are in the separate `event` field
+#   (round 3, review R2-2/R2-3/R2-6)
+#   P27 a failed start whose cleanup stop ALSO fails keeps a set {constitution_started:true, leases:[], start_failed,
+#       stop_failed}; a later acquire never joins or adopts it (never constitution_started:false), retries the stop, and
+#       a successful retry (acquire or release) removes it; the unit is never left running untracked
+#   P28 joining an existing set is an ALLOW-list: unit failed / starting / absent, verdict does_not_fit and an
+#       undetermined capacity answer are all refused (rc 5, event refused_join, no lease, the gateway NOT registered)
+#   P29 the recorded pid start time is /proc/<pid>/stat field 22 (independent python oracle, not the function itself)
+#   P30 a zombie holder (pid exists, start time matches, empty cmdline) is dead and reaped
+#   P31 a stop mark that names no pid is kept until it is older than the stop timeout + 30 s (never "dead stopper")
+#   P32 every placement event written by these scenarios is in the closed event set
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
 . "$HERE/lib_assert.sh"
-PLACE="$ROOT/scripts/jev/jev-place.sh"
+PLACE="${S4_PLACE_UNDER_TEST:-$ROOT/scripts/jev/jev-place.sh}"
 
 assert_eqx() { if [ "$1" = "$2" ]; then ok "$3"; else fail "$3 (expected [$1] got [$2])"; fi; }
 has()  { if grep -q -- "$2" "$1" 2>/dev/null; then ok "$3"; else fail "$3 (no [$2] in $1)"; fi; }
@@ -286,5 +296,104 @@ unset PLACE_START_RC
 fresh; cap "$T/cap.json" does_not_fit does_not_fit
 "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
 assert_eqx "does_not_fit no_fit" "$(pl '"\(.placement.verdict) \(.placement.event)"')" "P26 no candidate fits => does_not_fit, event no_fit"
+
+# ---- P27 failed start + failed cleanup stop (review R2-2) ----------------------------------------------------------------
+L() { jq -r "$1" "$JEV_STATE_DIR/leases.json"; }
+fresh; cap "$T/cap.json" fits does_not_fit; export PLACE_START_RC=1 PLACE_STOP_RC=1
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>"$T/e27"; rc=$?
+assert_eqx 5 "$rc" "P27 failed start -> rc 5"
+assert_eqx start_failed "$(pl '.placement.event')" "P27 event start_failed"
+assert_eqx "true 0 1 1" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.leases|length) \(.start_failed.rc) \(.stop_failed.rc)"')" "P27 the set is KEPT: constitution_started, no lease, start_failed rc 1, stop_failed rc 1"
+assert_eqx 1 "$(ls "$STUB_LOG"/running.decide-a 2>/dev/null | wc -l | tr -d ' ')" "P27 setup: the stub unit still runs after the failed cleanup"
+has "$T/e27" "the set is kept" "P27 the kept set is logged"
+"$PLACE" acquire s2 --pid $$ >/dev/null 2>"$T/e27b"; rc=$?
+assert_eqx 5 "$rc" "P27 a later acquire (stop still failing) -> rc 5, nothing joined"
+assert_eqx "true 0" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.leases|length)"')" "P27 the set is never adopted as operator-started and gets no lease"
+case "$(pl '.placement.event')" in joined|joined_running) fail "P27 a later acquire joined the failed-start unit" ;; *) ok "P27 a later acquire does not join the failed-start unit" ;; esac
+assert_eqx "1 2" "$(starts) $(stops)" "P27 the later acquire retried the stop (2 stops) and never started again (1 start)"
+has "$T/e27b" "retried the cleanup stop" "P27 the retry is logged"
+unset PLACE_STOP_RC
+"$PLACE" release nobody 2>"$T/e27c"; rc=$?
+assert_eqx 0 "$rc" "P27 a release with the stop working -> rc 0"
+assert_eqx null "$(L '.sets["decide-a"]')" "P27 the successful stop removes the set"
+assert_eqx 0 "$(ls "$STUB_LOG"/running.decide-a 2>/dev/null | wc -l | tr -d ' ')" "P27 the unit is no longer running"
+# the acquire path of the retry: stop works again on the next acquire, the set goes, and a fresh start is allowed
+fresh; cap "$T/cap.json" fits does_not_fit; export PLACE_START_RC=1 PLACE_STOP_RC=1
+"$PLACE" acquire s1 >/dev/null 2>&1
+unset PLACE_START_RC PLACE_STOP_RC
+out="$("$PLACE" acquire s2 --pid $$ 2>"$T/e27d")"; rc=$?
+assert_eqx "0 decide-a" "$rc $out" "P27 acquire retries the stop (rc 0), removes the kept set, then places normally"
+assert_eqx "true 1 null" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.leases|length) \(.start_failed)"')" "P27 the new set is a normal constitution-started set"
+unset PLACE_START_RC PLACE_STOP_RC
+
+# ---- P28 join allow-list (review R2-3) ------------------------------------------------------------------------------------
+for us in failed starting absent; do
+  fresh; cap "$T/cap.json" fits does_not_fit
+  "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+  jq '.endpoints = []' "$CACHE" > "$T/c28" && cp "$T/c28" "$CACHE"
+  if [ "$us" = absent ]; then export PLACE_CAP_RAW=1; else cap "$T/cap.json" fits does_not_fit 5000 "$us"; fi
+  "$PLACE" acquire s2 --pid $$ >/dev/null 2>"$T/e28"; rc=$?
+  assert_eqx "5 refused_join" "$rc $(pl '.placement.event')" "P28 unit $us -> join refused (rc 5, event refused_join)"
+  assert_eqx 1 "$(L '.sets["decide-a"].leases|length')" "P28 unit $us -> no lease added"
+  assert_eqx 0 "$(jq '[.endpoints[] | select(.provider_id=="llmctl-local")] | length' "$CACHE")" "P28 unit $us -> the gateway is NOT registered in the cache"
+  unset PLACE_CAP_RAW
+done
+fresh; cap "$T/cap.json" fits does_not_fit
+"$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
+cap "$T/cap.json" does_not_fit does_not_fit
+"$PLACE" acquire s2 --pid $$ >/dev/null 2>/dev/null; rc=$?
+assert_eqx "5 refused_join does_not_fit" "$rc $(pl '.placement.event') $(pl '.placement.verdict')" "P28 verdict does_not_fit -> join refused"
+echo '{"schema":"other"}' > "$T/cap.json"
+"$PLACE" acquire s3 --pid $$ >/dev/null 2>/dev/null; rc=$?
+assert_eqx "5 refused_join undetermined" "$rc $(pl '.placement.event') $(pl '.placement.verdict')" "P28 undetermined capacity -> join refused (never a join on an unread answer)"
+assert_eqx 1 "$(L '.sets["decide-a"].leases|length')" "P28 no lease added on a refused join"
+cap "$T/cap.json" fits_with_reduced_threads does_not_fit
+out="$("$PLACE" acquire s4 --pid $$ 2>/dev/null)"; rc=$?
+assert_eqx "0 decide-a joined" "$rc $out $(pl '.placement.event')" "P28 CONTROL: unit running + fits_with_reduced_threads -> joined"
+
+# ---- P32 closed event set ----------------------------------------------------------------------------------------------------
+case "$(pl '.placement.event')" in placed|joined|joined_running|no_fit|undetermined|start_failed|start_refused|refused_stopping|refused_degraded|refused_join|lease_lock_timeout|stopped|stop_failed)
+  ok "P32 the last placement event is in the closed set" ;; *) fail "P32 event outside the closed set: $(pl '.placement.event')" ;; esac
+
+# ---- P29 pid start time is field 22 (review X6) ---------------------------------------------------------------------------
+if [ -r "/proc/$$/stat" ] && command -v python3 >/dev/null 2>&1; then
+  fresh; cap "$T/cap.json"
+  sleep 60 & SPID=$!; jev_track_pid "$SPID"
+  "$PLACE" acquire s1 --pid "$SPID" >/dev/null 2>&1
+  oracle="$(python3 -I -c 'import sys; print(open("/proc/%s/stat" % sys.argv[1]).read().rsplit(")", 1)[1].split()[19])' "$SPID")"
+  assert_eqx "$oracle" "$(L '.sets["decide-a"].leases[0].pid_start')" "P29 pid_start equals /proc/<pid>/stat field 22 (python oracle)"
+  vsz="$(python3 -I -c 'import sys; print(open("/proc/%s/stat" % sys.argv[1]).read().rsplit(")", 1)[1].split()[20])' "$SPID")"
+  [ "$vsz" != "$oracle" ] && ok "P29 CONTROL: field 23 (vsize) differs from field 22, so the oracle discriminates" || fail "P29 the oracle cannot tell field 22 from 23"
+  kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
+else
+  assert_skip "P29 /proc or python3 unavailable"
+fi
+
+# ---- P30 zombie holder (review X7) ---------------------------------------------------------------------------------------
+if [ -r "/proc/$$/stat" ]; then
+  fresh; cap "$T/cap.json"
+  bash -c 'sleep 0.3 & echo $! > "$1"; exec sleep 60' _ "$T/zpid" & ZP=$!; jev_track_pid "$ZP"
+  for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -s "$T/zpid" ] && break; sleep 0.1; done
+  Z="$(cat "$T/zpid" 2>/dev/null)"
+  "$PLACE" acquire s1 --pid "$Z" >/dev/null 2>&1
+  for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do grep -q '^State:[[:space:]]*Z' "/proc/$Z/status" 2>/dev/null && break; sleep 0.1; done
+  if grep -q '^State:[[:space:]]*Z' "/proc/$Z/status" 2>/dev/null && [ -d "/proc/$Z" ]; then
+    ok "P30 setup: the holder is a zombie (pid exists, empty cmdline)"
+    "$PLACE" reap 2>"$T/e30"
+    assert_eqx 0 "$(L '.sets["decide-a"].leases|length')" "P30 a zombie holder is dead: its lease is reaped"
+  else
+    fail "P30 setup: could not make a zombie holder"
+  fi
+  kill "$ZP" 2>/dev/null; wait "$ZP" 2>/dev/null
+fi
+
+# ---- P31 stop mark without pid (review RS3) --------------------------------------------------------------------------------
+fresh; cap "$T/cap.json"
+printf '{"sets":{"decide-a":{"constitution_started":true,"stopping":{"at":1700000000},"leases":[]}}}\n' > "$JEV_STATE_DIR/leases.json"
+"$PLACE" reap 2>/dev/null
+assert_eqx true "$(L '.sets["decide-a"].stopping != null')" "P31 a fresh stop mark with no pid is kept (no pid is never a dead stopper)"
+JEV_NOW_EPOCH=1700000400 "$PLACE" reap 2>/dev/null
+assert_eqx false "$(L '.sets["decide-a"].stopping != null')" "P31 the same mark older than the stop timeout + 30 s is cleared"
+
 
 finish

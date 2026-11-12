@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Stub: llmctl for the S4 placement producer gate-logic tests (scripts/jev/jev-place.sh). GATE-LOGIC ONLY (§11.4.289(C)(2)):
 # it proves the producer decides correctly on a declared capacity answer; it is never evidence that a local model runs.
-#   capacity --json          -> cat $PLACE_CAP_JSON, exit ${PLACE_CAP_RC:-0}; PLACE_CAP_SLEEP seconds first (timeout cases)
+#   capacity --json          -> $PLACE_CAP_JSON, exit ${PLACE_CAP_RC:-0}; PLACE_CAP_SLEEP seconds first (timeout cases).
+#                               Round 3: a profile this stub "runs" ($STUB_LOG/running.<p>) and that the file does not list in
+#                               .llmctl.units is reported as a unit with status ${PLACE_UNIT_STATUS:-running}, like llmctl
+#                               reports a started unit (PLACE_CAP_RAW=1 returns the file unchanged)
 #   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x)
 #   decide status --json     -> a gateway registry entry (https://127.0.0.1:18095)
 #   start <p>                -> exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<p>
@@ -11,7 +14,13 @@ set -euo pipefail
 logdir="${STUB_LOG:?STUB_LOG must be set}"
 printf '%s\n' "llmctl $*" >> "$logdir/llmctl.log"
 case "${1:-} ${2:-}" in
-  "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"; cat "${PLACE_CAP_JSON:?}"; exit "${PLACE_CAP_RC:-0}" ;;
+  "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"
+    run=""; for f in "$logdir"/running.*; do [ -e "$f" ] && run="$run${f##*/running.},"; done
+    if [ "${PLACE_CAP_RAW:-}" = 1 ] || [ -z "$run" ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then cat "${PLACE_CAP_JSON:?}"
+    else jq -c --arg run "${run%,}" --arg us "${PLACE_UNIT_STATUS:-running}" '
+        ([.llmctl.units[]? | (.profile // .name // "")]) as $listed
+        | .llmctl.units = ((.llmctl.units // []) + [($run | split(","))[] | select(. as $p | $listed | index($p) | not) | {profile:., status:$us}])' "$PLACE_CAP_JSON"; fi
+    exit "${PLACE_CAP_RC:-0}" ;;
   "decide capacity") echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
   "decide status") echo '{"registry":{"services":[{"name":"decide-gateway","url":"https://127.0.0.1:18095","labels":{"kind":"gateway","ca_file":"/nonexistent/ca.crt"}}]}}' ;;
   "start "*) touch "$logdir/running.${2:?}"; exit "${PLACE_START_RC:-0}" ;;
