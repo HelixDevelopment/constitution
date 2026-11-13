@@ -1,50 +1,68 @@
 #!/usr/bin/env python3
-"""remint_ids.py -- move the items a vehicle minted to the next free id range of a target tracker.
+"""remint_ids.py -- land a vehicle's tracker changes onto a target tracker, three-way.
 
-Documentation (section 11.4.18): docs/guides/remint_ids_guide.md.
+Documentation (section 11.4.18): docs/guides/remint_ids_guide.md. Class inventory behind this
+revision: docs/qa/tracker_intake_2026_11_12_v4/class_inventory.md.
 
 WHY   Two vehicles that branch from one base both mint ids from the base's maximum, so their ids
-      collide when the second lands (round-2 review R2-7: this vehicle's CON-299..CON-342 against
-      fix227's CON-300..CON-311). The engine has no rename command and the binary database cannot
-      be merged, so this tool (a) computes the mapping, (b) rewrites every text that names an own
-      id, and (c) replays the own items onto the target database through the workable-items engine.
-      It never opens a tracker database for writing itself (section 11.4.93: the engine is the only
-      writer); the replay runs the engine.
+      collide when the second lands, and the binary tracker database cannot be merged by git. A
+      vehicle also changes items it did not mint (base items). This tool plans a landing from a
+      three-way row diff (base B, vehicle V, target T) of every tracker table: it moves the ids the
+      vehicle minted to the next free numbers of the target, replays every vehicle change (own items
+      and changed base items) through the workable-items engine, and reports a change that both the
+      vehicle and the target made as a conflict instead of choosing a side. It never writes a
+      tracker database itself (section 11.4.93: the engine is the only writer).
 
 USAGE
-  remint_ids.py plan    --vehicle-db V --base-db B --target-db T [--prefix CON] [--out map.tsv]
-      own ids = the ids with the prefix in V and not in B; they keep their order and get
-      max(T)+1, max(T)+2, ...  Read-only. Refuses (exit 1) when a new id already exists in T, or in
-      V as an item that is not itself being moved.
-  remint_ids.py rewrite --map map.tsv [--write] [--foreign ID[,ID]] FILE...
-      Rewrites ids and ranges `P-a..P-b` in text files. Dry run by default: prints, per file, the
-      number of replaced tokens; --write writes the files in place. A line that starts with
-      "Foreign ids" is left alone, and the ids it declares are not rewritten anywhere in that file
-      (they belong to another tracker). A range is rewritten only when every id in it is mapped and
-      the new ids are again a range; a range that is partly mapped, or whose new ids are not
-      contiguous, is an error (exit 1), never a guess. Refuses binary files and .db files.
-  remint_ids.py replay  --map map.tsv --vehicle-db V [--apply --engine BIN --db TARGET]
-      Prints the engine command plan (one JSON argv per line, the database path as "{DB}") that
-      re-creates every own item under its new id: add (type, severity, title, description, the
-      handles, every reproduction and investigation field), then the closure, Obsolete-Details and
-      reopen steps its status needs. With --apply it runs the plan against TARGET (a copy: the
-      caller lands the copy). The working directory must be the target repository root, with the
-      rewritten text files in place, because the engine resolves evidence paths from there.
-  remint_ids.py verify  --map map.tsv --vehicle-db V --db R [--require-segments]
-      Checks that every own item exists in R under its new id with the rewritten text and the same
-      type, severity, status, location, handles and state fields; that its obsolete_details row (if
-      any) matches with the superseding id rewritten; that it has an Opened history row; and with
-      --require-segments that doc_segments names it (after an export). Read-only.
+  remint_ids.py plan --vehicle-db V --base-db B --target-db T --out PLAN.json [--map-out MAP.tsv]
+                     [--prefix CON] [--resolve ID=target|vehicle ...] [--foreign IDS ...]
+                     [--repo-root DIR] [--no-fast-forward]
+      Read-only. Writes the plan (JSON): the sha256 of the three databases, the id map, every base
+      item change, every conflict, every refusal and the engine steps. When the target equals the
+      base table for table, the plan is FAST-FORWARD (the vehicle database is the landed database)
+      unless --no-fast-forward asks for the replay anyway. With --repo-root, a red or green command
+      that runs a file which names a moved id is refused (the file would test the wrong item),
+      unless the id is foreign: declared by the item's own Foreign line, by --foreign, or by a
+      comment line in the file (`# Foreign ids (...): ...`, also `//` and `--`).
+      Exit 0 a plan without conflicts or refusals; 1 conflicts or refusals (the plan is written so
+      they can be read; replay refuses it).
+  remint_ids.py replay --plan PLAN.json [--apply --engine BIN --db TARGET_COPY]
+      Prints the steps (one JSON argv per line, the database as "{DB}"); with --apply runs them on
+      TARGET_COPY, from the current directory (the target repository root with the vehicle's files
+      in place, because the engine resolves evidence paths from there). Refuses a plan with a
+      conflict or a refusal, and a target copy whose sha256 is not the plan's target sha256.
+  remint_ids.py verify --plan PLAN.json --vehicle-db V --base-db B --target-db T --db R
+                       [--require-segments]
+      Read-only oracle, separate from the planner (section 11.4.249): it reads only the plan's map
+      and resolutions, recomputes the own set and the base-item changes itself, and compares every
+      id token of the landed text with its own expectation (item-wide foreign ids, map, referent
+      title). It checks the untouched target rows, every replayed column, the history and the other
+      tables. Its control needles run before it reads a database; a needle that fails is BLIND.
+  remint_ids.py rewrite --map MAP.tsv [--write --target-db T] [--foreign IDS] [--own IDS] FILE...
+      Rewrites moved ids in text files (dry run by default). A file's "Foreign ids" lines declare ids
+      of another tracker, which are not rewritten anywhere in that file. With --target-db, an id the
+      map moves that the target also holds is refused as ambiguous unless --own or --foreign
+      declares it (IDS: comma list, ranges P-a..P-b allowed).
+  remint_ids.py refs --map MAP.tsv --repo-root DIR
+      Lists every tracked text file that names a moved id, with its class: EVIDENCE (under docs/qa/:
+      captured evidence, never rewritten), DATABASE (never rewritten; the plan replays it) or LIVE
+      (rewrite it). The mechanical file list of the guide.
 
-NOT CARRIED  item_history rows of the vehicle (the engine writes a new history on replay; the old
-      rows stay in the vehicle bundle), created_at (the engine stamps the replay time), and
-      reproduction/investigation updated_at (replayed with --states-updated-at from the source row).
-
-EXIT  0 done (or no difference); 1 a refusal or a verify mismatch; 2 usage error; 3 BLIND (a
-      database or a file that cannot be read, an empty own set, a mapping that does not parse).
+RANGES  `P-a..P-b` and `P-a–P-b` (en dash). A range that holds a moved id is rewritten only when
+      every id in it is moved, none is foreign, and the new ids are again ascending and contiguous;
+      a reverse range, a short form `P-a..b`, a partly moved or mixed range is refused. Ranges are
+      checked by counting, never expanded, so `P-1..P-90000000` costs nothing.
+NOT CARRIED  The vehicle's history rows (the engine writes new ones on replay, M-14), created_at
+      (the replay time for own items; the engine's close rewrites it for a base item it closes,
+      engine defect CON-339) and last_modified. verify reports these as KNOWN, never as a pass.
+EXIT  0 done; 1 a refusal, a conflict or a verify mismatch; 2 usage; 3 BLIND (a database, file or
+      plan that cannot be read or does not have the expected shape, a non-UTF-8 file, a failed
+      control needle).
 EVIDENCE CLASS  gate-logic (section 11.4.289): the tests drive the real engine on fixture copies.
 """
 import argparse
+import bisect
+import hashlib
 import json
 import os
 import re
@@ -52,21 +70,38 @@ import sqlite3
 import subprocess
 import sys
 
-TEXT_COLUMNS = [
-    "title", "description", "reproduction_evidence", "reproduction_red_cmd", "reproduction_green_cmd",
-    "reproduction_env", "reproduction_signature", "reproduction_blocker", "investigation_root_cause",
-    "investigation_evidence",
+PLAN_SCHEMA = "remint_ids.plan/4"
+KNOWN_TABLES = {
+    "items", "item_history", "sqlite_sequence", "obsolete_details", "operator_block_details",
+    "firebase_metadata", "logic_groups", "doc_segments", "test_diary", "repro_gate_exemptions", "meta",
+}
+ITEM_COLUMNS = [
+    "atm_id", "type", "status", "severity", "title", "description", "forensic_anchor", "closure_criteria",
+    "composes_with", "destination", "logic_group", "created_by", "assigned_to", "current_location", "body_md",
+    "representation", "closure_date", "round", "commit_ref", "parent_atm_id", "session_ref",
+    "reproduction_state", "reproduction_surface", "reproduction_evidence", "reproduction_red_cmd",
+    "reproduction_green_cmd", "reproduction_env", "reproduction_signature", "reproduction_blocker",
+    "reproduction_updated_at", "reproduction_updated_by", "investigation_state", "investigation_root_cause",
+    "investigation_evidence", "investigation_updated_at", "investigation_updated_by", "created_at",
+    "last_modified",
 ]
-STATE_FLAGS = [
-    ("reproduction_state", "--reproduction-state"), ("reproduction_surface", "--reproduction-surface"),
-    ("reproduction_evidence", "--reproduction-evidence"), ("reproduction_red_cmd", "--reproduction-red-cmd"),
-    ("reproduction_green_cmd", "--reproduction-green-cmd"), ("reproduction_env", "--reproduction-env"),
-    ("reproduction_signature", "--reproduction-signature"), ("reproduction_blocker", "--reproduction-blocker"),
-    ("investigation_state", "--investigation-state"), ("investigation_root_cause", "--investigation-root-cause"),
-    ("investigation_evidence", "--investigation-evidence"),
-]
+UPDATE_COLS = ["type", "severity", "title", "description", "created_by", "assigned_to"]
+REPRO = ["reproduction_state", "reproduction_surface", "reproduction_evidence", "reproduction_red_cmd",
+         "reproduction_green_cmd", "reproduction_env", "reproduction_signature", "reproduction_blocker"]
+INV = ["investigation_state", "investigation_root_cause", "investigation_evidence"]
+BLOCKS = [("reproduction", REPRO), ("investigation", INV)]
+LIFECYCLE = ["status", "current_location"]
+REFUSED_COLS = ["forensic_anchor", "closure_criteria", "composes_with", "destination", "logic_group",
+                "parent_atm_id", "session_ref", "closure_date", "round", "commit_ref", "representation"]
+TEXT_REWRITE = ["title", "description", "reproduction_red_cmd", "reproduction_green_cmd", "reproduction_env",
+                "reproduction_signature", "reproduction_blocker", "investigation_root_cause"]
+OTHER_TABLES = ["operator_block_details", "firebase_metadata", "logic_groups", "test_diary", "repro_gate_exemptions"]
 CLOSE_STATUS = {"Fixed": "fixed", "Implemented": "implemented", "Completed": "completed", "Obsolete": "obsolete"}
-FOREIGN_LINE = re.compile(r"^Foreign ids\b[^:]*:(.*)$", re.M)
+CLOSURE_EVENTS = set(CLOSE_STATUS)
+FOREIGN_LINE = re.compile(r"^Foreign ids\b[^:\n]*:(.*)$", re.M)
+# inside a script a declaration can only live in a comment: `# Foreign ids (...): ...` (also `//` and `--`)
+SCRIPT_FOREIGN_LINE = re.compile(r"^[ \t]*(?:#|//|--)[ \t]*(Foreign ids\b[^:\n]*:.*)$", re.M)
+SCRIPT_ARG = re.compile(r"[\w./-]+\.(?:sh|py|bash)\b")
 
 
 class Refusal(Exception):
@@ -81,6 +116,14 @@ def num(iid):
     return int(iid.rsplit("-", 1)[1])
 
 
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def ro(path):
     if not os.path.isfile(path):
         raise Blind("database not found: %s" % path)
@@ -93,34 +136,185 @@ def ro(path):
         raise Blind("database unreadable: %s: %s" % (path, e))
 
 
-def ids_of(c, prefix):
-    rx = re.compile(re.escape(prefix) + r"-\d+")
-    return {r[0] for r in c.execute("select atm_id from items") if rx.fullmatch(r[0])}
+def check_schema(c, path):
+    tables = {r[0] for r in c.execute("select name from sqlite_master where type='table'")}
+    if tables != KNOWN_TABLES:
+        raise Blind("%s: tables differ from the known set (no landing rule for them): extra %s, missing %s"
+                    % (path, sorted(tables - KNOWN_TABLES), sorted(KNOWN_TABLES - tables)))
+    cols = [r[1] for r in c.execute("pragma table_info(items)")]
+    if cols != ITEM_COLUMNS:
+        raise Blind("%s: items columns differ from the known set: %s" % (path, sorted(set(cols) ^ set(ITEM_COLUMNS))))
 
 
-def make_plan(vehicle, base, target, prefix):
-    v, b, t = (ids_of(ro(p), prefix) for p in (vehicle, base, target))
-    own = sorted(v - b, key=num)
-    if not own:
-        raise Blind("no own id: every %s id of the vehicle is in the base" % prefix)
-    if not t:
-        raise Blind("the target holds no %s id: the next free number cannot be known" % prefix)
-    width = len(own[0].rsplit("-", 1)[1])
-    start = max(num(i) for i in t) + 1
-    mapping = [(o, "%s-%0*d" % (prefix, width, start + k)) for k, o in enumerate(own)]
-    stay = v - set(own)
-    for old, new in mapping:
-        if new in t:
-            raise Refusal("new id %s already exists in the target" % new)
-        if new in stay:
-            raise Refusal("new id %s is an item of the vehicle that is not moved" % new)
-    return mapping
+def schema_version(c):
+    r = c.execute("select value from meta where key='schema_version'").fetchone()
+    return r[0] if r else None
 
+
+def rows_by_id(c):
+    out = {}
+    for r in c.execute("select * from items"):
+        out.setdefault(r["atm_id"], []).append(dict(r))
+    return out
+
+
+def table_rows(c, t):
+    return sorted(tuple(r) for r in c.execute("select * from %s" % t))
+
+
+def history(c):
+    return {r["id"]: dict(r) for r in c.execute("select * from item_history")}
+
+
+def obsolete(c):
+    return {r["atm_id"]: dict(r) for r in c.execute("select * from obsolete_details")}
+
+
+# ---------------------------------------------------------------- producer: text rewriting
+
+class Foreign:
+    """Ids of another tracker: single numbers and closed intervals, never expanded."""
+
+    def __init__(self):
+        self.nums, self.spans = set(), []
+
+    def add_text(self, text, prefix):
+        p = re.escape(prefix)
+        for fl in FOREIGN_LINE.finditer(text or ""):
+            body = fl.group(1)
+            for r in re.finditer(r"(?<![\w-])" + p + r"-(\d+)(?:\.\.|–)(?:" + p + r"-)?(\d+)\b", body):
+                lo, hi = int(r.group(1)), int(r.group(2))
+                self.spans.append((min(lo, hi), max(lo, hi)))
+            for t in re.finditer(r"(?<![\w-])" + p + r"-(\d+)\b", body):
+                self.nums.add(int(t.group(1)))
+
+    def add_ids(self, spec, prefix):
+        for part in (x.strip() for x in spec.split(",")):
+            if not part:
+                continue
+            m = re.fullmatch(re.escape(prefix) + r"-(\d+)(?:\.\.(?:" + re.escape(prefix) + r"-)?(\d+))?", part)
+            if not m:
+                raise Blind("cannot read id list item %r (want %s-N or %s-a..%s-b)" % (part, prefix, prefix, prefix))
+            lo = int(m.group(1))
+            hi = int(m.group(2)) if m.group(2) else lo
+            self.spans.append((min(lo, hi), max(lo, hi)))
+
+    def has(self, n):
+        return n in self.nums or any(lo <= n <= hi for lo, hi in self.spans)
+
+    def any_in(self, lo, hi):
+        return any(lo <= n <= hi for n in self.nums) or any(not (h < lo or l > hi) for l, h in self.spans)
+
+
+def id_patterns(prefix):
+    p = re.escape(prefix)
+    rng = re.compile(r"(?<![\w-])(" + p + r"-(\d+))(\.\.|–)(" + p + r"-)?(\d+)\b(?![-\w])")
+    tok = re.compile(r"(?<![\w-])" + p + r"-(\d+)\b(?!-)")
+    return rng, tok
+
+
+class Rewriter:
+    def __init__(self, m, prefix, ambiguous=frozenset()):
+        self.m, self.prefix = m, prefix
+        self.by_num = {num(k): k for k in m}
+        self.own_sorted = sorted(self.by_num)
+        self.rng, self.tok = id_patterns(prefix)
+        self.ambiguous = ambiguous  # moved ids that need a declaration (rewrite --target-db)
+
+    def moved_in(self, lo, hi, foreign):
+        a, b = bisect.bisect_left(self.own_sorted, lo), bisect.bisect_right(self.own_sorted, hi)
+        return [n for n in self.own_sorted[a:b] if not foreign.has(n)]
+
+    def text(self, text, foreign, where):
+        if not text:
+            return text, 0
+        count = 0
+        out = []
+        for line in text.split("\n"):
+            if FOREIGN_LINE.match(line):
+                out.append(line)
+                continue
+            parts, last = [], 0
+            for r in self.rng.finditer(line):
+                chunk, n = self._tokens(line[last:r.start()], foreign, where, line, last)
+                parts.append(chunk)
+                count += n
+                rs, n = self._range(r, foreign, where)
+                parts.append(rs)
+                count += n
+                last = r.end()
+            chunk, n = self._tokens(line[last:], foreign, where, line, last)
+            parts.append(chunk)
+            count += n
+            out.append("".join(parts))
+        return "\n".join(out), count
+
+    def _range(self, r, foreign, where):
+        lo, hi = int(r.group(2)), int(r.group(5))
+        a, b = min(lo, hi), max(lo, hi)
+        moved = self.moved_in(a, b, foreign)
+        if not moved:
+            return r.group(0), 0
+        if r.group(4) is None:
+            raise Refusal("%s: short-form range %s holds a moved id; write both ends in full" % (where, r.group(0)))
+        if lo > hi:
+            raise Refusal("%s: reverse range %s holds a moved id" % (where, r.group(0)))
+        if foreign.any_in(a, b):
+            raise Refusal("%s: range %s mixes foreign and moved ids" % (where, r.group(0)))
+        if len(moved) != b - a + 1:
+            raise Refusal("%s: range %s is partly moved (%d of %d ids)" % (where, r.group(0), len(moved), b - a + 1))
+        for n in moved:
+            k = self.by_num[n]
+            if k in self.ambiguous:
+                raise Refusal("%s: %s in range %s is also a target id; declare it with --own or --foreign" % (where, k, r.group(0)))
+        if self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5)):
+            raise Refusal("%s: range %s is written with a different zero padding than the moved ids" % (where, r.group(0)))
+        new = [num(self.m[self.by_num[n]]) for n in moved]
+        if new != list(range(new[0], new[0] + len(new))):
+            raise Refusal("%s: range %s maps to ids that are not contiguous" % (where, r.group(0)))
+        return "%s%s%s" % (self.m[self.by_num[a]], r.group(3), self.m[self.by_num[b]]), 1
+
+    def _tokens(self, s, foreign, where, line, offset):
+        count = 0
+
+        def sub(t):
+            nonlocal count
+            n = int(t.group(1))
+            if n not in self.by_num or foreign.has(n):
+                return t.group(0)
+            k = self.by_num[n]
+            if t.group(0) != k:
+                raise Refusal("%s: %s names moved %s with a different zero padding" % (where, t.group(0), k))
+            pos = offset + t.start()
+            end = offset + t.end()
+            before = line[pos - 1] if pos > 0 else ""
+            after = line[end:end + 2]
+            if before == "/" or after[:1] == "/" or re.match(r"\.\w", after):
+                raise Refusal("%s: moved id %s is part of a path; a path is never rewritten" % (where, k))
+            if k in self.ambiguous:
+                raise Refusal("%s: %s is moved but the target also holds %s; declare it with --own or --foreign" % (where, k, k))
+            count += 1
+            return self.m[k]
+
+        return self.tok.sub(sub, s), count
+
+
+def item_foreign(versions, prefix, extra):
+    f = Foreign()
+    for spec in extra:
+        f.add_ids(spec, prefix)
+    for row in versions:
+        for col in TEXT_REWRITE + ["body_md"]:
+            f.add_text(row.get(col) or "", prefix)
+    return f
+
+
+# ---------------------------------------------------------------- planner
 
 def read_map(path):
     try:
         lines = open(path, encoding="utf-8").read().splitlines()
-    except OSError as e:
+    except (OSError, UnicodeDecodeError) as e:
         raise Blind("map unreadable: %s" % e)
     if not lines or lines[0] != "old\tnew":
         raise Blind("map has no `old<TAB>new` header: %s" % path)
@@ -132,8 +326,12 @@ def read_map(path):
         if f[0] in m:
             raise Blind("map names %s twice" % f[0])
         m[f[0]] = f[1]
+    return check_map(m)
+
+
+def check_map(m):
     if not m:
-        raise Blind("map is empty: %s" % path)
+        raise Blind("map is empty")
     if len(set(m.values())) != len(m):
         raise Blind("map gives two old ids one new id")
     prefixes = {k.rsplit("-", 1)[0] for k in m} | {v.rsplit("-", 1)[0] for v in m.values()}
@@ -142,77 +340,769 @@ def read_map(path):
     return m, prefixes.pop()
 
 
-def rewrite_text(text, m, prefix, extra_foreign=()):
-    """Returns (new text, replaced count). Raises Refusal on a range it must not guess."""
-    if not text:
-        return text, 0
-    p = re.escape(prefix)
-    tok = re.compile(r"(?<![\w-])" + p + r"-(\d+)\b(?!-)")
-    rng = re.compile(r"(?<![\w-])" + p + r"-(\d+)\.\." + p + r"-(\d+)\b(?!-)")
-    foreign = set(extra_foreign)
-    for fl in FOREIGN_LINE.finditer(text):
-        foreign |= {mm.group(0) for mm in tok.finditer(fl.group(1))}
-        for r in rng.finditer(fl.group(1)):
-            w = len(r.group(1))
-            foreign |= {"%s-%0*d" % (prefix, w, n) for n in range(int(r.group(1)), int(r.group(2)) + 1)}
-    count = 0
-    out = []
-    for line in text.split("\n"):
-        if FOREIGN_LINE.match(line):
-            out.append(line)
+def norm(v):
+    return "" if v is None else v
+
+
+def changed(a, b, cols):
+    return [c for c in cols if norm(a.get(c)) != norm(b.get(c))]
+
+
+def status_word(s):
+    return norm(s).split(" ")[0]
+
+
+def closure_evidence(rows):
+    """The evidence of the latest `close` row (empty reason) among rows; else of the latest closure row."""
+    cl = [h for h in rows if h["event_type"] in CLOSURE_EVENTS and norm(h["evidence_path"])]
+    plain = [h for h in cl if not norm(h["reason"])]
+    pick = (plain or cl)
+    return pick[-1]["evidence_path"] if pick else None
+
+
+def lifecycle_steps(iid, frm, to, v_od, new_hist, rewr, foreign, label, refuse):
+    """Steps that move item iid from state frm=(status, location) to the vehicle state."""
+    steps = []
+    fs, fl = frm
+    ts, tl = norm(to["status"]), norm(to["current_location"])
+    f_term, t_term = status_word(fs) in CLOSE_STATUS, status_word(ts) in CLOSE_STATUS
+
+    def close():
+        """Append the close step; return the status word it closes with, or None after a refusal."""
+        ev = closure_evidence(new_hist)
+        if not ev:
+            refuse("%s: the vehicle closed it but has no new closure history row with evidence to replay" % label)
+            return None
+        word = status_word(ts) if t_term else None
+        if word is None:
+            cl = [h for h in new_hist if h["event_type"] in CLOSURE_EVENTS]
+            word = cl[-1]["event_type"] if cl else None
+        if word not in CLOSE_STATUS:
+            refuse("%s: no closure kind to replay" % label)
+            return None
+        steps.append(("close", ["close", iid, "--db", "{DB}", "--status=" + CLOSE_STATUS[word], "--evidence=" + ev]))
+        return word
+
+    def obs(status):
+        """The vehicle's obsolete_details row, written while the item's status is `status`. The engine
+        writes the row only on an Obsolete item, so every lifecycle path places it where the item is
+        Obsolete (round 4: a reopened own item lost its row because the reopen path never wrote it)."""
+        if v_od is None or status is None:
+            return
+        if status_word(status) != "Obsolete":
+            refuse("%s: the vehicle's obsolete_details row cannot be replayed on a %r item (the engine writes it "
+                   "only on an Obsolete item)" % (label, status))
+            return
+        sup = norm(v_od["superseding_item"]) or "none"
+        sup, _ = rewr.text(sup, foreign, "%s obsolete_details.superseding_item" % label)
+        steps.append(("obsolete-details", ["obsolete-details", iid, "--db", "{DB}", "--since=" + norm(v_od["since"]),
+                                           "--reason=" + norm(v_od["reason"]), "--superseding=" + sup,
+                                           "--evidence=" + norm(v_od["triple_check_evidence"])]))
+
+    def reopen():
+        ro_rows = [h for h in new_hist if h["event_type"] == "Reopened"]
+        if not ro_rows:
+            refuse("%s: the vehicle reopened it but has no new Reopened history row" % label)
+            return
+        h = ro_rows[-1]
+        argv = ["reopen", "--id=" + iid, "--db", "{DB}", "--why=" + norm(h["reason"]), "--who=" + (norm(h["by"]) or "AI"),
+                "--when=" + norm(h["on_date"]), "--incident=" + norm(h["evidence_path"])]
+        if tl == "Fixed":
+            argv.append("--location=Fixed")
+        steps.append(("reopen", argv))
+
+    if (fs, fl) == (ts, tl) or (t_term and f_term and status_word(fs) == status_word(ts) and fl == tl):
+        obs(fs)  # the lifecycle is unchanged; a changed obsolete_details row is still replayed
+    elif t_term and not f_term:
+        obs(ts if close() else None)
+    elif ts == "Reopened" and f_term:
+        obs(fs)
+        reopen()
+    elif ts == "Reopened" and not f_term:
+        obs(close())
+        reopen()
+    elif not t_term and not f_term and fl == tl:
+        steps.append(("update-status", ["update", "--id=" + iid, "--db", "{DB}", "--location=" + fl, "--status=" + ts]))
+        obs(ts)  # refuses: the engine has no path to an obsolete_details row on an open item
+    else:
+        refuse("%s: no engine path from %r in %s to %r in %s" % (label, fs, fl, ts, tl))
+    return steps
+
+
+def block_steps(iid, loc, row, cols, rewr, foreign, label, prefix_name):
+    state = norm(row[cols[0]])
+    by, at = norm(row[prefix_name + "_updated_by"]), norm(row[prefix_name + "_updated_at"])
+    argv = ["update", "--id=" + iid, "--db", "{DB}", "--location=" + loc]
+    if state in ("", "UNSET"):
+        argv.append("--%s=UNSET" % cols[0].replace("_", "-"))
+    else:
+        for c in cols:
+            val = norm(row[c])
+            if c in TEXT_REWRITE:
+                val, _ = rewr.text(val, foreign, "%s %s" % (label, c))
+            argv.append("--%s=%s" % (c.replace("_", "-"), val))
+    argv.append("--states-updated-by=" + (by or "remint_ids.py"))
+    if at:
+        argv.append("--states-updated-at=" + at)
+    return ("update-" + prefix_name, argv)
+
+
+def scripts_naming_moved(cmd, repo_root, m, prefix, foreign):
+    """Files a red/green command runs that name an id the map moves to another number (M-9 class).
+
+    `foreign` is the item's own foreign set (its Foreign lines and --foreign): the same declarations the
+    rewrite honours on the item's text also cover the scripts it runs (round 4)."""
+    moving = {k for k, v in m.items() if k != v}
+    _, tok = id_patterns(prefix)
+    hits = []
+    for path in SCRIPT_ARG.findall(cmd or ""):
+        full = os.path.join(repo_root, path)
+        if not os.path.isfile(full):
             continue
+        try:
+            text = open(full, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as e:
+            raise Blind("cannot read %s: %s" % (full, e))
+        fo = Foreign()
+        fo.add_text(text, prefix)
+        fo.add_text("\n".join(x.group(1) for x in SCRIPT_FOREIGN_LINE.finditer(text)), prefix)
+        moved = [t.group(0) for t in tok.finditer(text)
+                 if t.group(0) in moving and not fo.has(int(t.group(1))) and not foreign.has(int(t.group(1)))]
+        if moved:
+            hits.append("%s names %s" % (path, ",".join(sorted(set(moved)))))
+    return hits
 
-        def range_sub(r):
-            nonlocal count
-            w = len(r.group(1))
-            ids = ["%s-%0*d" % (prefix, w, n) for n in range(int(r.group(1)), int(r.group(2)) + 1)]
-            ids = [i for i in ids if i not in foreign]
-            hit = [i for i in ids if i in m]
-            if not hit:
-                return r.group(0)
-            if len(hit) != len(ids):
-                raise Refusal("range %s is partly mapped (%d of %d ids)" % (r.group(0), len(hit), len(ids)))
-            new = [num(m[i]) for i in ids]
-            if new != list(range(new[0], new[0] + len(new))):
-                raise Refusal("range %s maps to ids that are not contiguous" % r.group(0))
-            count += 1
-            return "%s..%s" % (m[ids[0]], m[ids[-1]])
 
-        def tok_sub(t):
-            nonlocal count
-            iid = t.group(0)
-            if iid in m and iid not in foreign:
-                count += 1
-                return m[iid]
-            return iid
+def make_plan(a):
+    paths = {"vehicle": a.vehicle_db, "base": a.base_db, "target": a.target_db}
+    con = {k: ro(p) for k, p in paths.items()}
+    for k, c in con.items():
+        check_schema(c, paths[k])
+    sv = {k: schema_version(c) for k, c in con.items()}
+    if len(set(sv.values())) != 1 or None in sv.values():
+        raise Blind("schema_version differs or is missing: %s" % sv)
+    V, B, T = (rows_by_id(con[k]) for k in ("vehicle", "base", "target"))
+    prefix = a.prefix
+    rx = re.compile(re.escape(prefix) + r"-\d+")
+    refusals, conflicts, notes, base_changes, merges = [], [], [], [], []
+    refuse = refusals.append
 
-        # ranges first, then the tokens outside the rewritten ranges (one pass each, no chaining)
-        parts, last = [], 0
-        for r in rng.finditer(line):
-            parts.append(tok.sub(tok_sub, line[last:r.start()]))
-            parts.append(range_sub(r))
-            last = r.end()
-        parts.append(tok.sub(tok_sub, line[last:]))
-        out.append("".join(parts))
-    return "\n".join(out), count
+    new_ids = sorted(set(V) - set(B))
+    for i in new_ids:
+        if not rx.fullmatch(i):
+            refuse("%s: a new vehicle id outside the %s prefix" % (i, prefix))
+    own = sorted((i for i in new_ids if rx.fullmatch(i)), key=num)
+    for i in sorted(set(B) - set(V)):
+        refuse("%s: the vehicle deleted a base item" % i)
+
+    tables = {k: {t: table_rows(c, t) for t in OTHER_TABLES} for k, c in con.items()}
+    hist = {k: history(c) for k, c in con.items()}
+    obs = {k: obsolete(c) for k, c in con.items()}
+    fast_forward = all(table_rows(con["target"], t) == table_rows(con["base"], t) for t in KNOWN_TABLES)
+
+    for t in OTHER_TABLES:
+        if tables["vehicle"][t] != tables["base"][t]:
+            refuse("table %s: the vehicle changed it; the landing has no replay rule for it" % t)
+    seg_non_item = "select * from doc_segments where kind <> 'item' order by id"
+    if [tuple(r) for r in con["vehicle"].execute(seg_non_item)] != [tuple(r) for r in con["base"].execute(seg_non_item)]:
+        refuse("doc_segments: the vehicle changed a segment that is not an item segment")
+    for hid, h in hist["base"].items():
+        if hist["vehicle"].get(hid) != h:
+            refuse("item_history row %d (%s): the vehicle rewrote or deleted a base history row" % (hid, h["atm_id"]))
+
+    if fast_forward and not a.no_fast_forward:
+        m = {i: i for i in own}
+        mode = "FAST-FORWARD"
+    else:
+        mode = "REPLAY"
+        if not own:
+            m = {}
+        else:
+            if not any(rx.fullmatch(i) for i in T):
+                raise Blind("the target holds no %s id: the next free number cannot be known" % prefix)
+            width = len(own[0].rsplit("-", 1)[1])
+            start = max(num(i) for i in T if rx.fullmatch(i)) + 1
+            m = {o: "%s-%0*d" % (prefix, width, start + k) for k, o in enumerate(own)}
+            stay = set(V) - set(own)
+            for old, new in m.items():
+                if new in T:
+                    refuse("new id %s already exists in the target" % new)
+                if new in stay:
+                    refuse("new id %s is an item of the vehicle that is not moved" % new)
+
+    resolutions = {}
+    for spec in a.resolve:
+        mm = re.fullmatch(r"([A-Z]+-\d+)=(target|vehicle)", spec)
+        if not mm:
+            raise Blind("--resolve %r: want ID=target or ID=vehicle" % spec)
+        resolutions[mm.group(1)] = mm.group(2)
+
+    rewr = Rewriter(m, prefix)
+    steps = []
+
+    def one_row(db, i):
+        r = db.get(i, [])
+        if len(r) != 1:
+            refuse("%s: %d rows (one expected)" % (i, len(r)))
+            return None
+        return r[0]
+
+    for i in sorted(set(B) & set(V), key=lambda x: (x.rsplit("-", 1)[0], num(x) if rx.fullmatch(x) else 0, x)):
+        if V[i] == B[i] and obs["vehicle"].get(i) == obs["base"].get(i):
+            continue
+        b, v = one_row(B, i), one_row(V, i)
+        if b is None or v is None:
+            continue
+        vb_od, bb_od = obs["vehicle"].get(i), obs["base"].get(i)
+        dv = changed(v, b, UPDATE_COLS + REPRO + INV + LIFECYCLE + REFUSED_COLS)
+        if vb_od != bb_od:
+            dv.append("obsolete_details")
+        stamp_only = [n for n, cols in BLOCKS if not changed(v, b, cols)
+                      and changed(v, b, [n + "_updated_at", n + "_updated_by"])]
+        for n in stamp_only:
+            refuse("%s: only the %s stamp changed; the engine stamps a block only when its content changes" % (i, n))
+        if not dv:
+            if norm(v["body_md"]) != norm(b["body_md"]):
+                refuse("%s: body_md changed with no column change (not replayable through the engine)" % i)
+            if norm(v["created_at"]) != norm(b["created_at"]):
+                notes.append("%s: created_at differs from the base with no other change; not carried" % i)
+            if not stamp_only and norm(v["body_md"]) == norm(b["body_md"]) and norm(v["created_at"]) == norm(b["created_at"]):
+                notes.append("%s: only last_modified differs from the base; nothing to replay" % i)
+            continue
+        for c in dv:
+            if c in REFUSED_COLS:
+                refuse("%s: the vehicle changed %s, which has no replay rule" % (i, c))
+        new_hist = [h for hid, h in sorted(hist["vehicle"].items()) if h["atm_id"] == i and hid not in hist["base"]]
+        foreign = item_foreign([v, b], prefix, a.foreign)
+        for col in TEXT_REWRITE:
+            for t in rewr.tok.finditer(norm(b[col])):
+                if int(t.group(1)) in rewr.by_num and not foreign.has(int(t.group(1))):
+                    refuse("%s: the base text of %s already names %s, an id the vehicle minted later (ambiguous)" % (i, col, t.group(0)))
+        if i not in T:
+            conflicts.append("%s: the target deleted the item; the vehicle changed %s" % (i, ",".join(dv)))
+            continue
+        t = one_row(T, i)
+        if t is None:
+            continue
+        tb_od = obs["target"].get(i)
+        dt = changed(t, b, UPDATE_COLS + REPRO + INV + LIFECYCLE + REFUSED_COLS)
+        if tb_od != bb_od:
+            dt.append("obsolete_details")
+        clash = [c for c in dv if c in dt and (c == "obsolete_details" and vb_od != tb_od or c != "obsolete_details" and norm(v[c]) != norm(t[c]))]
+        life_v = any(c in dv for c in LIFECYCLE + ["obsolete_details"])
+        life_t = any(c in dt for c in LIFECYCLE + ["obsolete_details"])
+        res = resolutions.get(i)
+        entry = {"id": i, "vehicle_changed": dv, "target_changed": dt, "resolution": res or ""}
+        base_changes.append(entry)
+        if clash or (dt and life_v) or (dv and life_t):
+            why = "both changed %s" % ",".join(clash) if clash else "a lifecycle change on one side and a change on the other"
+            if res is None:
+                conflicts.append("%s: %s (vehicle %s; target %s); --resolve %s=target or =vehicle decides" % (i, why, ",".join(dv), ",".join(dt), i))
+                continue
+        elif dt:
+            merges.append("%s: vehicle %s, target %s (disjoint columns)" % (i, ",".join(dv), ",".join(dt)))
+        if res == "target":
+            continue
+        label = "base %s" % i
+        loc = norm(t["current_location"])
+        ucols = [c for c in UPDATE_COLS if c in dv and norm(v[c]) != norm(t[c])]
+        if ucols:
+            desc_src = v if "description" in dv else t
+            desc, _ = rewr.text(norm(desc_src["description"]), foreign, label + " description")
+            argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc, "--description=" + desc]
+            for c in ucols:
+                if c == "description":
+                    continue
+                val = norm(v[c])
+                if c == "title":
+                    val, _ = rewr.text(val, foreign, label + " title")
+                argv.append("--%s=%s" % (c.replace("_", "-"), val))
+            steps.append({"item": i, "from": i, "kind": "update", "argv": argv})
+        for n, cols in BLOCKS:
+            if any(c in dv for c in cols):
+                k, argv = block_steps(i, loc, v, cols, rewr, foreign, label, n)
+                steps.append({"item": i, "from": i, "kind": k, "argv": argv})
+        if life_v:
+            for k, argv in lifecycle_steps(i, (norm(t["status"]), loc), v, vb_od if "obsolete_details" in dv else None,
+                                           new_hist, rewr, foreign, label, refuse):
+                steps.append({"item": i, "from": i, "kind": k, "argv": argv})
+        if norm(v["created_at"]) != norm(b["created_at"]):
+            notes.append("%s: created_at changed in the vehicle (%s -> %s); not carried (no engine command sets it; "
+                         "a close rewrites it, engine defect CON-339)" % (i, b["created_at"], v["created_at"]))
+
+    if mode == "REPLAY":
+        for old in own:
+            v = one_row(V, old)
+            if v is None:
+                continue
+            new = m[old]
+            label = "own %s" % old
+            foreign = item_foreign([v], prefix, a.foreign)
+            rw = {}
+            for col in TEXT_REWRITE:
+                rw[col], _ = rewr.text(norm(v[col]), foreign, "%s %s" % (label, col))
+            argv = ["add", norm(v["type"]), norm(v["severity"]), "--db", "{DB}", "--id=" + new,
+                    "--title=" + rw["title"], "--description=" + rw["description"]]
+            if norm(v["created_by"]):
+                argv.append("--created-by=" + v["created_by"])
+            if norm(v["assigned_to"]):
+                argv.append("--assigned-to=" + v["assigned_to"])
+            steps.append({"item": new, "from": old, "kind": "add", "argv": argv})
+            for n, cols in BLOCKS:
+                if norm(v[cols[0]]) not in ("", "UNSET"):
+                    k, argv = block_steps(new, "Issues", v, cols, rewr, foreign, label, n)
+                    steps.append({"item": new, "from": old, "kind": k, "argv": argv})
+            for c in REFUSED_COLS:
+                if norm(v[c]) and c != "representation":
+                    refuse("%s: %s is set (%r), which add cannot carry" % (old, c, v[c]))
+            if norm(v["representation"]) not in ("", "section"):
+                refuse("%s: representation %r cannot be replayed" % (old, v["representation"]))
+            new_hist = [h for hid, h in sorted(hist["vehicle"].items()) if h["atm_id"] == old]
+            for k, argv in lifecycle_steps(new, ("Queued", "Issues"), v, obs["vehicle"].get(old), new_hist, rewr,
+                                           foreign, label, refuse):
+                steps.append({"item": new, "from": old, "kind": k, "argv": argv})
+    if a.repo_root and mode == "REPLAY":
+        for i in sorted(V):
+            for row in V[i]:
+                foreign = item_foreign([row], prefix, a.foreign)
+                for col in ("reproduction_red_cmd", "reproduction_green_cmd"):
+                    for hit in scripts_naming_moved(row[col], a.repo_root, m, prefix, foreign):
+                        refuse("%s %s runs %s: after the re-mint the script would test another item" % (i, col, hit))
+    plan = {
+        "schema": PLAN_SCHEMA, "prefix": prefix, "mode": mode,
+        "sha256": {k: sha256_file(p) for k, p in paths.items()},
+        "map": [[o, m[o]] for o in sorted(m, key=num)],
+        "resolutions": resolutions, "foreign_extra": list(a.foreign), "base_changes": base_changes, "merges": merges,
+        "conflicts": conflicts, "refusals": refusals, "notes": notes,
+        "steps": steps if mode == "REPLAY" else [],
+    }
+    return plan
+
+
+def cmd_plan(a):
+    plan = make_plan(a)
+    with open(a.out, "w", encoding="utf-8") as h:
+        json.dump(plan, h, ensure_ascii=False, indent=1, sort_keys=True)
+        h.write("\n")
+    if a.map_out:
+        with open(a.map_out, "w", encoding="utf-8") as h:
+            h.write("old\tnew\n" + "".join("%s\t%s\n" % (o, n) for o, n in plan["map"]))
+    for c in plan["base_changes"]:
+        print("BASE-CHANGE %s vehicle=%s target=%s%s" % (c["id"], ",".join(c["vehicle_changed"]),
+                                                       ",".join(c["target_changed"]) or "-",
+                                                       " resolved=" + c["resolution"] if c["resolution"] else ""))
+    for x in plan["merges"]:
+        print("MERGE " + x)
+    for x in plan["notes"]:
+        print("NOTE " + x)
+    for x in plan["conflicts"]:
+        print("CONFLICT " + x)
+    for x in plan["refusals"]:
+        print("REFUSED " + x)
+    mm = plan["map"]
+    print("RESULT: %s mode=%s own=%d base_changes=%d steps=%d conflicts=%d refusals=%d first=%s last=%s" % (
+        "PLAN" if not plan["conflicts"] and not plan["refusals"] else "NOT-LANDABLE", plan["mode"], len(mm),
+        len(plan["base_changes"]), len(plan["steps"]), len(plan["conflicts"]), len(plan["refusals"]),
+        mm[0][1] if mm else "-", mm[-1][1] if mm else "-"))
+    return 0 if not plan["conflicts"] and not plan["refusals"] else 1
+
+
+def load_plan(path):
+    try:
+        plan = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise Blind("plan unreadable: %s" % e)
+    if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
+        raise Blind("plan has no %s schema: %s" % (PLAN_SCHEMA, path))
+    for k in ("sha256", "map", "steps", "conflicts", "refusals", "resolutions", "mode", "prefix"):
+        if k not in plan:
+            raise Blind("plan lacks %r" % k)
+    return plan
+
+
+def cmd_replay(a):
+    plan = load_plan(a.plan)
+    if plan["conflicts"] or plan["refusals"]:
+        raise Refusal("the plan has %d conflict(s) and %d refusal(s); it cannot be replayed" % (len(plan["conflicts"]), len(plan["refusals"])))
+    if plan["mode"] != "REPLAY":
+        raise Refusal("the plan is %s: copy the vehicle database, there is nothing to replay" % plan["mode"])
+    steps = plan["steps"]
+    if not a.apply:
+        for p in steps:
+            print(json.dumps(p["argv"], ensure_ascii=False))
+        print("RESULT: DRY-RUN steps=%d" % len(steps))
+        return 0
+    if not a.engine or not a.db:
+        print("remint_ids: --apply needs --engine and --db", file=sys.stderr)
+        return 2
+    if not os.path.isfile(a.db):
+        raise Blind("target copy not found: %s" % a.db)
+    wal = a.db + "-wal"
+    if os.path.isfile(wal) and os.path.getsize(wal) > 0:
+        raise Refusal("%s has a non-empty -wal sidecar; checkpoint it before the replay (the sha256 check reads the main file)" % a.db)
+    got = sha256_file(a.db)
+    if got != plan["sha256"]["target"]:
+        raise Refusal("the target copy's sha256 %s is not the plan's target %s: re-plan against this target" % (got[:12], plan["sha256"]["target"][:12]))
+    for k, p in enumerate(steps, 1):
+        argv = [a.engine] + [x.replace("{DB}", a.db) for x in p["argv"]]
+        r = subprocess.run(argv, capture_output=True, text=True)
+        print("step %d %s %s rc=%d" % (k, p["kind"], p["item"], r.returncode))
+        if r.returncode != 0:
+            sys.stderr.write(r.stdout[-600:] + r.stderr[-600:])
+            print("RESULT: STOPPED at step %d of %d (the target copy is partly replayed: discard it)" % (k, len(steps)))
+            return 1
+    print("RESULT: APPLIED steps=%d items=%d" % (len(steps), len(plan["map"])))
+    return 0
+
+
+# ---------------------------------------------------------------- verify: an independent oracle
+
+def v_foreign_numbers(texts, prefix, extra_specs):
+    """Separate reading of the Foreign ids declarations: (set of numbers, list of (lo, hi))."""
+    nums, spans = set(), []
+    idp = re.compile(re.escape(prefix) + r"-(\d+)")
+    for text in texts:
+        for line in (text or "").split("\n"):
+            if not line.startswith("Foreign ids"):
+                continue
+            body = line.split(":", 1)[1] if ":" in line else ""
+            pos = 0
+            while True:
+                mm = idp.search(body, pos)
+                if not mm:
+                    break
+                lo = int(mm.group(1))
+                rest = body[mm.end():]
+                sep = re.match(r"(\.\.|–)(" + re.escape(prefix) + r"-)?(\d+)", rest)
+                if sep:
+                    hi = int(sep.group(3))
+                    spans.append((min(lo, hi), max(lo, hi)))
+                    pos = mm.end() + sep.end()
+                else:
+                    nums.add(lo)
+                    pos = mm.end()
+    for spec in extra_specs:
+        for part in spec.split(","):
+            part = part.strip()
+            if part:
+                ends = [int(x) for x in re.findall(r"\d+", part)]
+                spans.append((min(ends), max(ends)))
+    return nums, spans
+
+
+def v_is_foreign(n, fset):
+    nums, spans = fset
+    return n in nums or any(lo <= n <= hi for lo, hi in spans)
+
+
+def v_split(text, prefix):
+    """Split text into (skeleton pieces, id tokens). A token is a single id or a range."""
+    p = re.escape(prefix)
+    pat = re.compile(r"(?<![\w-])(" + p + r"-\d+(?:(?:\.\.|–)(?:" + p + r"-)?\d+)?)(?![-\w])")
+    pieces = pat.split(text or "")
+    return pieces[0::2], pieces[1::2]
+
+
+def v_expect(token, m, fset, prefix):
+    ends = re.findall(r"\d+", token)
+    if len(ends) == 1:
+        n = int(ends[0])
+        if v_is_foreign(n, fset) or token not in m:
+            return token
+        return m[token]
+    lo, hi = int(ends[0]), int(ends[1])
+    sep = ".." if ".." in token else "–"
+    own_in = [k for k in m if lo <= num(k) <= hi and not v_is_foreign(num(k), fset)]
+    if not own_in:
+        return token
+    first, last = token.split(sep)[0], "%s-%s" % (prefix, token.split(sep)[1].rsplit("-", 1)[-1])
+    return "%s%s%s" % (m.get(first, first), sep, m.get(last, last))
+
+
+def v_compare(want_text, got_text, m, fset, prefix):
+    """None when got_text is want_text with exactly the expected id rewrites; else a reason."""
+    sk_w, tk_w = v_split(want_text, prefix)
+    sk_g, tk_g = v_split(got_text, prefix)
+    if sk_w != sk_g:
+        for k, (x, y) in enumerate(zip(sk_w, sk_g)):
+            if x != y:
+                return "text differs outside the ids near %r" % (x[:40],)
+        return "text differs outside the ids (piece count %d vs %d)" % (len(sk_w), len(sk_g))
+    if len(tk_w) != len(tk_g):
+        return "id count differs"
+    for x, y in zip(tk_w, tk_g):
+        e = v_expect(x, m, fset, prefix)
+        if y != e:
+            return "id %s landed as %s, expected %s" % (x, y, e)
+    return None
+
+
+def verify_needles():
+    m = {"P-5": "P-21", "P-6": "P-22", "P-7": "P-23"}
+    f = v_foreign_numbers(["Foreign ids (other tracker): P-6"], "P", [])
+    cases = [
+        ("P-5 and P-6", "P-21 and P-6", f, True),        # P-6 foreign stays
+        ("P-5 and P-6", "P-21 and P-22", f, False),      # foreign re-pointed: must be caught (R3-2 needle)
+        ("see P-5..P-7", "see P-21..P-23", ({0}, []), True),
+        ("see P-5..P-7", "see P-21..P-7", ({0}, []), False),
+        ("P-5 x", "P-21 y", ({0}, []), False),           # skeleton change
+        ("no ids", "no ids", ({0}, []), True),
+    ]
+    for want, got, fset, ok in cases:
+        if (v_compare(want, got, m, fset, "P") is None) != ok:
+            return "needle %r -> %r expected %s" % (want, got, "match" if ok else "mismatch")
+    return None
+
+
+def cmd_verify(a):
+    needle = verify_needles()
+    if needle:
+        raise Blind("verify control needle failed: %s" % needle)
+    plan = load_plan(a.plan)
+    for k, p in (("vehicle", a.vehicle_db), ("base", a.base_db), ("target", a.target_db)):
+        if not os.path.isfile(p) or sha256_file(p) != plan["sha256"][k]:
+            raise Refusal("the %s database is not the one the plan was made from" % k)
+    m = {}
+    for pair in plan["map"]:
+        if not (isinstance(pair, list) and len(pair) == 2):
+            raise Blind("plan map entry does not parse: %r" % (pair,))
+        m[pair[0]] = pair[1]
+    prefix = plan["prefix"]
+    if m:
+        m, mp = check_map(m)
+        if mp != prefix:
+            raise Blind("plan map prefix %s is not the plan prefix %s" % (mp, prefix))
+    res = plan["resolutions"]
+    cv, cb, ct, cr = ro(a.vehicle_db), ro(a.base_db), ro(a.target_db), ro(a.db)
+    V, B, T, R = rows_by_id(cv), rows_by_id(cb), rows_by_id(ct), rows_by_id(cr)
+    HV, HT, HR, HB = history(cv), history(ct), history(cr), history(cb)
+    OV, OB, OT, OR = obsolete(cv), obsolete(cb), obsolete(ct), obsolete(cr)
+    bad, known = [], []
+    idrx = re.compile(re.escape(prefix) + r"-\d+")
+    own = sorted((i for i in set(V) - set(B) if idrx.fullmatch(i)), key=num)
+    if sorted(m) != own:
+        bad.append("the plan's map keys are not the own set the vehicle and base give (%d vs %d)" % (len(m), len(own)))
+    if plan["mode"] == "FAST-FORWARD":
+        if set(R) != set(V):
+            bad.append("FAST-FORWARD: the landed ids are not the vehicle ids")
+        for i in sorted(set(R) & set(V)):
+            if R[i] != V[i]:
+                bad.append("FAST-FORWARD: %s differs from the vehicle" % i)
+        for t in OTHER_TABLES + ["obsolete_details", "item_history"]:
+            if table_rows(cr, t) != table_rows(cv, t):
+                bad.append("FAST-FORWARD: table %s differs from the vehicle" % t)
+        return report(bad, known, len(V), "FAST-FORWARD")
+    want_ids = set(T) | set(m.values())
+    if set(R) != want_ids:
+        bad.append("landed ids: missing %s, extra %s" % (sorted(want_ids - set(R))[:5], sorted(set(R) - want_ids)[:5]))
+    inv = {new: old for old, new in m.items()}
+
+    def fset_for(rows):
+        return v_foreign_numbers([norm(r.get(c)) for r in rows for c in TEXT_REWRITE + ["body_md"]], prefix,
+                                 plan.get("foreign_extra") or [])
+
+    def same_text(i, col, want, got, fset):
+        why = v_compare(norm(want), norm(got), m, fset, prefix)
+        if why:
+            bad.append("%s %s: %s" % (i, col, why))
+            return
+        # referent identity: every rewritten id must name the same item it named in the vehicle
+        _, tw = v_split(norm(want), prefix)
+        _, tg = v_split(norm(got), prefix)
+        for x, y in zip(tw, tg):
+            if x != y and "." not in x and "–" not in x:
+                vr, rr = V.get(x), R.get(y)
+                if not vr or not rr or v_split(norm(vr[0]["title"]), prefix)[0] != v_split(norm(rr[0]["title"]), prefix)[0] \
+                        or vr[0]["type"] != rr[0]["type"] or norm(vr[0]["created_by"]) != norm(rr[0]["created_by"]):
+                    bad.append("%s %s: %s now names %s, which is not the item %s named in the vehicle" % (i, col, x, y, x))
+
+    def compare_row(i, want, got, fset, cols_text, cols_exact):
+        for c in cols_text:
+            same_text(i, c, want[c], got[c], fset)
+        for c in cols_exact:
+            if norm(want[c]) != norm(got[c]):
+                bad.append("%s %s: landed %r, expected %r" % (i, c, got[c], want[c]))
+
+    exact_all = [c for c in ITEM_COLUMNS if c not in TEXT_REWRITE + ["body_md", "atm_id", "created_at", "last_modified"]]
+    replayed = set()
+    for i in sorted(set(B) & set(V)):
+        vb_same = V[i] == B[i] and OV.get(i) == OB.get(i)
+        if vb_same:
+            continue
+        if len(V[i]) != 1 or len(B[i]) != 1:
+            bad.append("%s: not one row in vehicle or base" % i)
+            continue
+        v, b = V[i][0], B[i][0]
+        dv = [c for c in UPDATE_COLS + REPRO + INV + LIFECYCLE + REFUSED_COLS if norm(v[c]) != norm(b[c])]
+        od_changed = OV.get(i) != OB.get(i)
+        if not dv and not od_changed:
+            continue
+        if res.get(i) == "target" or i not in T:
+            continue
+        replayed.add(i)
+        if i not in R or len(R[i]) != 1:
+            bad.append("%s: not one landed row" % i)
+            continue
+        t, r = T[i][0], R[i][0]
+        fset = fset_for([v, b])
+        cols_text = [c for c in TEXT_REWRITE if c in dv]
+        exact_dv = [c for c in dv if c not in TEXT_REWRITE]
+        compare_row(i, v, r, fset, cols_text, exact_dv)
+        rest = [c for c in exact_all + TEXT_REWRITE if c not in dv]
+        stamps = []
+        for n, cols in (("reproduction", REPRO), ("investigation", INV)):
+            sc = [n + "_updated_at", n + "_updated_by"]
+            if any(c in dv for c in cols):
+                stamps += sc
+                for c in sc:
+                    if norm(v[c]) != norm(r[c]):
+                        bad.append("%s %s: landed %r, vehicle %r" % (i, c, r[c], v[c]))
+        for c in rest:
+            if c in stamps:
+                continue
+            if norm(t[c]) != norm(r[c]):
+                bad.append("%s %s: landed %r, target %r (a column the vehicle did not change)" % (i, c, r[c], t[c]))
+        tdiff = [c for c in UPDATE_COLS + REPRO + INV + LIFECYCLE if norm(t[c]) != norm(b[c])]
+        if not tdiff and not (OT.get(i) != OB.get(i)):
+            same_text(i, "body_md", v["body_md"], r["body_md"], fset)
+        else:
+            known.append("%s: body_md not compared (the target also changed the item: %s)" % (i, ",".join(tdiff) or "obsolete_details"))
+        if od_changed:
+            check_od(i, OV.get(i), OR.get(i), m, fset, prefix, bad)
+        if norm(r["created_at"]) != norm(t["created_at"]):
+            closed = [h for h in HR.values() if h["atm_id"] == i and h["id"] not in HT and h["event_type"] in CLOSURE_EVENTS]
+            (known if closed else bad).append("%s created_at: landed %s, target %s%s" % (
+                i, r["created_at"], t["created_at"], " (KNOWN engine defect CON-339: close rewrites it)" if closed else ""))
+        check_history(i, i, HV, HB, HT, HR, bad, known, own_item=False)
+
+    for i in sorted(set(T)):
+        if i in replayed:
+            continue
+        if R.get(i) != T[i]:
+            bad.append("%s: an item the landing must not touch differs from the target" % i)
+        if OR.get(i) != OT.get(i):
+            bad.append("%s: obsolete_details differs from the target on an untouched item" % i)
+
+    for old in own:
+        new = m.get(old)
+        if new is None or new not in R or len(R[new]) != 1 or len(V[old]) != 1:
+            bad.append("%s -> %s: not one landed row" % (old, new))
+            continue
+        v, r = V[old][0], R[new][0]
+        fset = fset_for([v])
+        cols_exact = exact_all[:]
+        compare_row(new, v, r, fset, TEXT_REWRITE, cols_exact)
+        same_text(new, "body_md", v["body_md"], r["body_md"], fset)
+        if norm(r["created_at"]) != norm(v["created_at"]):
+            known.append("%s created_at: replay time %s (vehicle %s), not carried" % (new, r["created_at"], v["created_at"]))
+        if OV.get(old) is not None or OR.get(new) is not None:
+            check_od(new, OV.get(old), OR.get(new), m, fset, prefix, bad)
+        check_history(old, new, HV, HB, HT, HR, bad, known, own_item=True)
+
+    for hid, h in HT.items():
+        if HR.get(hid) != h:
+            bad.append("item_history row %d of the target changed or vanished" % hid)
+    for t in OTHER_TABLES:
+        if table_rows(cr, t) != table_rows(ct, t):
+            bad.append("table %s differs from the target" % t)
+    if a.require_segments:
+        segs = {x[0] for x in cr.execute("select atm_id from doc_segments")}
+        for i in sorted(replayed | set(m.values())):
+            if i not in segs:
+                bad.append("%s: not in doc_segments (export not run?)" % i)
+    if not [i for i in T if i not in replayed]:
+        raise Blind("no untouched target item to compare (the control comparison saw nothing)")
+    return report(bad, known, len(m) + len(replayed), "REPLAY")
+
+
+def check_od(i, want, got, m, fset, prefix, bad):
+    if (want is None) != (got is None):
+        bad.append("%s obsolete_details: present in %s only" % (i, "the vehicle" if want else "the landed database"))
+        return
+    if want is None:
+        return
+    for c in ("since", "reason", "triple_check_evidence"):
+        if norm(want[c]) != norm(got[c]):
+            bad.append("%s obsolete_details.%s: landed %r, vehicle %r" % (i, c, got[c], want[c]))
+    why = v_compare(norm(want["superseding_item"]), norm(got["superseding_item"]), m, fset, prefix)
+    if why:
+        bad.append("%s obsolete_details.superseding_item: %s" % (i, why))
+
+
+def check_history(old, new, HV, HB, HT, HR, bad, known, own_item):
+    v_new = [h for hid, h in sorted(HV.items()) if h["atm_id"] == old and hid not in HB]
+    r_new = [h for hid, h in sorted(HR.items()) if h["atm_id"] == new and hid not in HT]
+    if own_item and not any(h["event_type"] == "Opened" for h in r_new):
+        bad.append("%s: no Opened history row" % new)
+    v_ev = {norm(h["evidence_path"]) for h in v_new if h["event_type"] in CLOSURE_EVENTS and norm(h["evidence_path"])}
+    r_cl = [h for h in r_new if h["event_type"] in CLOSURE_EVENTS]
+    for h in r_cl:
+        if norm(h["evidence_path"]) not in v_ev:
+            bad.append("%s: landed closure row cites %r, which no vehicle closure row of %s cites" % (new, h["evidence_path"], old))
+    v_last = {}
+    for h in v_new:
+        if h["event_type"] in CLOSURE_EVENTS | {"Reopened"}:
+            v_last = h
+    if v_last and v_last["event_type"] == "Reopened":
+        r_ro = [h for h in r_new if h["event_type"] == "Reopened"]
+        key = ("by", "on_date", "reason", "evidence_path")
+        if not r_ro or tuple(norm(r_ro[-1][k]) for k in key) != tuple(norm(v_last[k]) for k in key):
+            bad.append("%s: the last Reopened row does not match the vehicle's" % new)
+    elif v_last and not r_cl:
+        bad.append("%s: the vehicle closed %s but the landed history has no closure row" % (new, old))
+    life_v = sum(1 for h in v_new if h["event_type"] in CLOSURE_EVENTS | {"Reopened"})
+    life_r = sum(1 for h in r_new if h["event_type"] in CLOSURE_EVENTS | {"Reopened"})
+    if life_v != life_r:
+        known.append("%s: lifecycle history rows vehicle %d, landed %d (history is not carried; M-14)" % (new, life_v, life_r))
+
+
+def report(bad, known, n, mode):
+    for k in known:
+        print("KNOWN " + k)
+    for b in bad:
+        print("MISMATCH " + b)
+    print("RESULT: %s mode=%s items=%d mismatches=%d known=%d" % ("PASS" if not bad else "FAIL", mode, n, len(bad), len(known)))
+    return 1 if bad else 0
+
+
+# ---------------------------------------------------------------- text files
+
+def read_text_file(f):
+    if f.endswith(".db") or f.endswith(".bundle"):
+        raise Refusal("refusing a database or bundle file: %s" % f)
+    try:
+        raw = open(f, "rb").read()
+    except OSError as e:
+        raise Blind("file unreadable: %s" % e)
+    if b"\0" in raw:
+        raise Refusal("refusing a binary file: %s" % f)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise Blind("not UTF-8: %s: %s" % (f, e))
 
 
 def cmd_rewrite(a):
     m, prefix = read_map(a.map)
-    extra = {x.strip() for f in a.foreign for x in f.split(",") if x.strip()}
-    total = 0
-    results = []
+    if a.write and not a.target_db:
+        print("remint_ids: --write needs --target-db (to find the ids the target also holds)", file=sys.stderr)
+        return 2
+    declared = Foreign()
+    for spec in a.own + a.foreign:
+        declared.add_ids(spec, prefix)
+    ambiguous = set()
+    if a.target_db:
+        t_ids = set(rows_by_id(ro(a.target_db)))
+        ambiguous = {k for k in m if k in t_ids and not declared.has(num(k))}
+    results, total = [], 0
     for f in a.files:
-        if f.endswith(".db") or f.endswith(".bundle"):
-            raise Refusal("refusing a database or bundle file: %s" % f)
-        try:
-            raw = open(f, "rb").read()
-        except OSError as e:
-            raise Blind("file unreadable: %s" % e)
-        if b"\0" in raw:
-            raise Refusal("refusing a binary file: %s" % f)
-        text = raw.decode("utf-8")
-        new, n = rewrite_text(text, m, prefix, extra)
+        text = read_text_file(f)
+        foreign = Foreign()
+        for spec in a.foreign:
+            foreign.add_ids(spec, prefix)
+        foreign.add_text(text, prefix)
+        amb = frozenset(k for k in ambiguous if not foreign.has(num(k)))
+        new, n = Rewriter(m, prefix, amb).text(text, foreign, f)
         results.append((f, n, new, text))
         total += n
     for f, n, new, text in results:  # every file is checked before the first one is written
@@ -224,138 +1114,42 @@ def cmd_rewrite(a):
     return 0
 
 
-def own_rows(c, m):
-    rows = []
-    for old in sorted(m, key=num):
-        r = c.execute("select * from items where atm_id=? order by current_location='Fixed'", (old,)).fetchall()
-        if len(r) != 1:
-            raise Refusal("%s has %d rows in the vehicle database (one expected)" % (old, len(r)))
-        rows.append(r[0])
-    return rows
-
-
-def replay_plan(vehicle, m, prefix):
-    c = ro(vehicle)
-    plan = []
-    for r in own_rows(c, m):
-        old, new = r["atm_id"], m[r["atm_id"]]
-        rw = {k: rewrite_text(r[k] or "", m, prefix)[0] for k in TEXT_COLUMNS}
-        add = ["add", r["type"], r["severity"], "--db", "{DB}", "--id", new, "--title", rw["title"],
-               "--description", rw["description"]]
-        if r["created_by"]:
-            add += ["--created-by", r["created_by"]]
-        if r["assigned_to"]:
-            add += ["--assigned-to", r["assigned_to"]]
-        states = []
-        for col, flag in STATE_FLAGS:
-            val = rw[col] if col in rw else r[col]
-            if val and val != "UNSET":
-                states += [flag, val]
-        if states:
-            who = r["reproduction_updated_by"] or r["investigation_updated_by"] or "remint_ids.py"
-            at = r["reproduction_updated_at"] or r["investigation_updated_at"]
-            states += ["--states-updated-by", who] + (["--states-updated-at", at] if at else [])
-        plan.append({"id": new, "from": old, "argv": add + states})
-        od = c.execute("select * from obsolete_details where atm_id=?", (old,)).fetchone()
-        hist = c.execute("select * from item_history where atm_id=? order by id", (old,)).fetchall()
-        status = r["status"]
-        base = status.split(" ")[0]
-        closed = [h for h in hist if h["event_type"] in ("Fixed", "Implemented", "Completed", "Obsolete") and h["evidence_path"]]
-        if base in CLOSE_STATUS or od is not None:
-            if not closed:
-                raise Refusal("%s: no closure history row with evidence to replay" % old)
-            ev = rewrite_text(closed[-1]["evidence_path"], m, prefix)[0]
-            st = CLOSE_STATUS.get(base, "obsolete")
-            plan.append({"id": new, "from": old, "argv": ["close", new, "--db", "{DB}", "--status", st, "--evidence", ev]})
-        if od is not None:
-            sup = rewrite_text(od["superseding_item"] or "none", m, prefix)[0]
-            plan.append({"id": new, "from": old, "argv": [
-                "obsolete-details", new, "--db", "{DB}", "--since", od["since"], "--reason", od["reason"],
-                "--superseding", sup, "--evidence", rewrite_text(od["triple_check_evidence"], m, prefix)[0]]})
-        if status == "Reopened":
-            ro_rows = [h for h in hist if h["event_type"] == "Reopened"]
-            if not ro_rows:
-                raise Refusal("%s is Reopened with no Reopened history row" % old)
-            h = ro_rows[-1]
-            plan.append({"id": new, "from": old, "argv": [
-                "reopen", "--id", new, "--db", "{DB}", "--why", h["reason"], "--who", h["by"] or "AI",
-                "--when", h["on_date"], "--incident", rewrite_text(h["evidence_path"] or "", m, prefix)[0]]})
-        elif base not in CLOSE_STATUS and status != "Queued":
-            raise Refusal("%s: status %r has no replay rule" % (old, status))
-    return plan
-
-
-def cmd_replay(a):
+def cmd_refs(a):
     m, prefix = read_map(a.map)
-    plan = replay_plan(a.vehicle_db, m, prefix)
-    if not a.apply:
-        for p in plan:
-            print(json.dumps(p["argv"], ensure_ascii=False))
-        print("RESULT: DRY-RUN steps=%d items=%d" % (len(plan), len(m)))
-        return 0
-    if not a.engine or not a.db:
-        print("remint_ids: --apply needs --engine and --db", file=sys.stderr)
-        return 2
-    held = ids_of(ro(a.db), prefix) & set(m.values())
-    if held:
-        raise Refusal("the target already holds new id(s) %s: replay only once, onto the database the map was planned against" % ",".join(sorted(held, key=num)[:5]))
-    for k, p in enumerate(plan, 1):
-        argv = [a.engine] + [x.replace("{DB}", a.db) for x in p["argv"]]
-        r = subprocess.run(argv, capture_output=True, text=True)
-        print("step %d %s %s rc=%d" % (k, p["argv"][0], p["id"], r.returncode))
-        if r.returncode != 0:
-            sys.stderr.write(r.stdout[-400:] + r.stderr[-400:])
-            print("RESULT: STOPPED at step %d of %d (the target copy is partly replayed: discard it)" % (k, len(plan)))
-            return 1
-    print("RESULT: APPLIED steps=%d items=%d" % (len(plan), len(m)))
-    return 0
-
-
-def cmd_verify(a):
-    m, prefix = read_map(a.map)
-    v, t = ro(a.vehicle_db), ro(a.db)
-    bad = []
-    for r in own_rows(v, m):
-        old, new = r["atm_id"], m[r["atm_id"]]
-        g = t.execute("select * from items where atm_id=?", (new,)).fetchall()
-        if len(g) != 1:
-            bad.append("%s: %d rows in the result" % (new, len(g)))
+    try:
+        out = subprocess.run(["git", "-C", a.repo_root, "ls-files", "-z"], capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise Blind("git ls-files failed in %s: %s" % (a.repo_root, e))
+    files = [x.decode("utf-8", "surrogateescape") for x in out.split(b"\0") if x]
+    if not files:
+        raise Blind("no tracked file under %s" % a.repo_root)
+    _, tok = id_patterns(prefix)
+    counts = {"EVIDENCE": 0, "DATABASE": 0, "LIVE": 0}
+    for f in sorted(files):
+        full = os.path.join(a.repo_root, f)
+        if f.endswith(".db"):
+            cls = "DATABASE"
+            if not f.endswith("workable_items.db"):
+                continue
+            print("%s\t%s\t-" % (cls, f))
+            counts[cls] += 1
             continue
-        g = g[0]
-        for k in TEXT_COLUMNS:
-            want = rewrite_text(r[k] or "", m, prefix)[0]
-            if (g[k] or "") != want:
-                bad.append("%s: %s differs from the rewritten %s" % (new, k, old))
-        for k in ("type", "severity", "status", "current_location", "created_by", "assigned_to",
-                  "reproduction_state", "reproduction_surface", "investigation_state"):
-            if (g[k] or "") != (r[k] or "") and not (k.endswith("_state") and (g[k] or "UNSET") == (r[k] or "UNSET")):
-                bad.append("%s: %s %r, vehicle %r" % (new, k, g[k], r[k]))
-        vo = v.execute("select reason, superseding_item, since from obsolete_details where atm_id=?", (old,)).fetchone()
-        go = t.execute("select reason, superseding_item, since from obsolete_details where atm_id=?", (new,)).fetchone()
-        if (vo is None) != (go is None):
-            bad.append("%s: obsolete_details row present in one database only" % new)
-        elif vo is not None:
-            want = (vo[0], rewrite_text(vo[1] or "", m, prefix)[0], vo[2])
-            if tuple(go) != want:
-                bad.append("%s: obsolete_details %r, want %r" % (new, tuple(go), want))
-        if not t.execute("select 1 from item_history where atm_id=? and event_type='Opened'", (new,)).fetchone():
-            bad.append("%s: no Opened history row" % new)
-        if a.require_segments and not t.execute("select 1 from doc_segments where atm_id=?", (new,)).fetchone():
-            bad.append("%s: not in doc_segments (export not run?)" % new)
-    for b in bad:
-        print("MISMATCH " + b)
-    print("RESULT: %s items=%d mismatches=%d" % ("PASS" if not bad else "FAIL", len(m), len(bad)))
-    return 1 if bad else 0
-
-
-def cmd_plan(a):
-    mapping = make_plan(a.vehicle_db, a.base_db, a.target_db, a.prefix)
-    text = "old\tnew\n" + "".join("%s\t%s\n" % x for x in mapping)
-    if a.out:
-        with open(a.out, "w", encoding="utf-8") as h:
-            h.write(text)
-    sys.stdout.write(text)
-    print("RESULT: PLAN own=%d first=%s last=%s" % (len(mapping), mapping[0][1], mapping[-1][1]))
+        try:
+            raw = open(full, "rb").read()
+        except OSError:
+            continue
+        if b"\0" in raw:
+            continue
+        text = raw.decode("utf-8", "replace")
+        fo = Foreign()
+        fo.add_text(text, prefix)
+        hits = sorted({t.group(0) for t in tok.finditer(text) if t.group(0) in m and not fo.has(num(t.group(0)))}, key=num)
+        if not hits:
+            continue
+        cls = "EVIDENCE" if f.startswith("docs/qa/") else "LIVE"
+        counts[cls] += 1
+        print("%s\t%s\t%s" % (cls, f, ",".join(hits)))
+    print("RESULT: REFS live=%d evidence=%d database=%d" % (counts["LIVE"], counts["EVIDENCE"], counts["DATABASE"]))
     return 0
 
 
@@ -367,23 +1161,34 @@ def main(argv):
     p.add_argument("--base-db", required=True)
     p.add_argument("--target-db", required=True)
     p.add_argument("--prefix", default="CON")
-    p.add_argument("--out")
-    p = sub.add_parser("rewrite")
-    p.add_argument("--map", required=True)
-    p.add_argument("--write", action="store_true")
+    p.add_argument("--out", required=True)
+    p.add_argument("--map-out")
+    p.add_argument("--resolve", action="append", default=[])
     p.add_argument("--foreign", action="append", default=[])
-    p.add_argument("files", nargs="+")
+    p.add_argument("--repo-root")
+    p.add_argument("--no-fast-forward", action="store_true")
     p = sub.add_parser("replay")
-    p.add_argument("--map", required=True)
-    p.add_argument("--vehicle-db", required=True)
+    p.add_argument("--plan", required=True)
     p.add_argument("--apply", action="store_true")
     p.add_argument("--engine")
     p.add_argument("--db")
     p = sub.add_parser("verify")
-    p.add_argument("--map", required=True)
+    p.add_argument("--plan", required=True)
     p.add_argument("--vehicle-db", required=True)
+    p.add_argument("--base-db", required=True)
+    p.add_argument("--target-db", required=True)
     p.add_argument("--db", required=True)
     p.add_argument("--require-segments", action="store_true")
+    p = sub.add_parser("rewrite")
+    p.add_argument("--map", required=True)
+    p.add_argument("--write", action="store_true")
+    p.add_argument("--target-db")
+    p.add_argument("--foreign", action="append", default=[])
+    p.add_argument("--own", action="append", default=[])
+    p.add_argument("files", nargs="+")
+    p = sub.add_parser("refs")
+    p.add_argument("--map", required=True)
+    p.add_argument("--repo-root", required=True)
     try:
         a = ap.parse_args(argv)
     except SystemExit as e:
@@ -392,12 +1197,16 @@ def main(argv):
         ap.print_usage(sys.stderr)
         return 2
     try:
-        return {"plan": cmd_plan, "rewrite": cmd_rewrite, "replay": cmd_replay, "verify": cmd_verify}[a.cmd](a)
+        return {"plan": cmd_plan, "replay": cmd_replay, "verify": cmd_verify, "rewrite": cmd_rewrite,
+                "refs": cmd_refs}[a.cmd](a)
     except Refusal as e:
         print("REFUSED: %s" % e, file=sys.stderr)
         return 1
     except Blind as e:
         print("BLIND: %s" % e, file=sys.stderr)
+        return 3
+    except (sqlite3.Error, OSError) as e:
+        print("BLIND: %s: %s" % (type(e).__name__, e), file=sys.stderr)
         return 3
 
 

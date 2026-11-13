@@ -1,0 +1,24 @@
+DM0 rc=1 new=0 gone=0 RESULT: FAIL selected=44 findings=4 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+DM1 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-310 body_md header key Status is written twice
+DM2 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-310 body_md Severity line differs from its source
+DM3 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-310 body_md Type line differs from its source
+DM4b rc=1 new=1 gone=0 FINDING SECRET CON-336 url-userinfo-password on body_md,items.reproduction_red_cmd
+DM4 rc=1 new=2 gone=0 FINDING BODY-SYNC CON-336 body_md Reproduction line differs from its source
+DM5 rc=1 new=2 gone=0 FINDING BODY-SYNC CON-310 body_md Created-By line differs from its source
+DM6 rc=1 new=3 gone=0 FINDING BODY-SYNC CON-336 body_md Reproduction line differs from its source
+DM7 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-308 body_md lacks the Obsolete-Details line its source gives
+DM8 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-308 body_md Obsolete-Details line differs from its source
+DM9 rc=1 new=1 gone=0 FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+DM10b rc=1 new=1 gone=0 FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+DM10c rc=1 new=1 gone=0 FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+DM10 rc=1 new=1 gone=0 FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+DM11b rc=1 new=1 gone=0 FINDING CONTROL-CHAR CON-310 U+2028 on description,body_md
+DM11 rc=1 new=1 gone=0 FINDING CONTROL-CHAR CON-310 U+2028 on title,body_md
+DM12 rc=1 new=1 gone=0 FINDING CONTROL-CHAR CON-310 U+0000 on description,body_md
+DM13b rc=3 new=0 gone=4 BLIND: a BLOB value in items.description (row CON-310)
+DM13 rc=3 new=0 gone=4 BLIND: a BLOB value in items.body_md (row CON-310)
+DM14 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-336 body_md Investigation line differs from its source
+DM15 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-321 body_md has an Obsolete-Details line while its source gives none
+DM16 rc=1 new=1 gone=0 FINDING BODY-SYNC CON-321 body_md heading disagrees with the id or title column
+DMC rc=1 new=1 gone=0 FINDING DUP-HEAD CON-308 more than one head (section 11.4.214(0)): CON-243 names CON-262 as a duplicate
+DMN rc=1 new=1 gone=0 FINDING SECRET CON-333 aws-access-key-id on description,body_md

@@ -4516,7 +4516,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree; evidence sha256 fb1eaea4ec1634a399a55d2ad11e1bbe51e4889cbe2c6e4033752efd21684866` — signature `history Opened row of an item added with --created-by Conductor reads by=User` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections F2, F3)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `history Opened row of an item added with --created-by Conductor reads by=User` — updated 2026-11-13T15:49:49Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** in-progress — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
 
 **What:** addCmd in scripts/workable-items/cmd/workable-items/crud.go calls recordHistory(tx, id, "Opened", "User", "", ""), so every add records by=User in item_history even when --created-by names an agent (section 11.4.34 source attribution; item_history.by is the closed set AI, User). The 35 intake items of 2026-11-12 have created_by Conductor and history by User (review finding I9).
@@ -4525,7 +4525,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/crud.go and its tests
 
 **Reproduction / context:**
-Reproduced on the host against a scratch copy of the vehicle database: docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt (section I9; script engine_repro.sh in the same directory). The hard-coded literal is the likely cause (read from source); the experiment that changes the literal and sees the row change is not run here.
+Reproduced on the host against a scratch copy of the vehicle database, every write through the engine: docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt sections F2 and F3 (script engine_repro.sh in the same directory; the item ids print as placeholders, so the capture stays true after a re-mint). The first capture, docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt (section I9), is kept as history; its script hard-codes an item id and is no longer the reproduction command. The hard-coded literal is the likely cause (read from source); the experiment that changes the literal and sees the row change is not run here.
 
 **Acceptance criteria:**
 add maps --created-by onto by (AI for an agent handle, User for the operator, the rule recorded) or takes an explicit flag; a RED test on the old behaviour turns GREEN; existing history rows are not rewritten.
@@ -4540,7 +4540,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree; evidence sha256 fb1eaea4ec1634a399a55d2ad11e1bbe51e4889cbe2c6e4033752efd21684866` — signature `update --status Bogus exits 0 and the status is unchanged; add Story exits 0 and the type is Task` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections F1, F2, F4)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `update --status Bogus exits 0 and the status is unchanged; add Story exits 0 and the type is Task` — updated 2026-11-13T15:49:49Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
 
 **What:** Measured: update --status Done and update --status Bogus print 'updated' and exit 0 while the status stays Queued; add Story exits 0 and creates the item as Type Task. The caller cannot tell that its request was not applied (section 11.4.201(4) fail closed; section 11.4.15 and 11.4.16 closed sets). Reviewer mutants M4 and M5 of the tracker-intake review.
@@ -4549,7 +4549,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/crud.go (status handling of update, normalizeType in add) and their tests
 
 **Reproduction / context:**
-docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt, sections M4 and M5 (control: 'In progress' is accepted and changes the row; script engine_repro.sh in the same directory).
+docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt, sections F1 and F2 (control F4: 'In progress' is accepted and changes the row; script engine_repro.sh in the same directory; the item ids print as placeholders, so the capture stays true after a re-mint). The first capture, docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt (sections M4 and M5), is kept as history; its script hard-codes an item id and is no longer the reproduction command.
 
 **Acceptance criteria:**
 Both exit non-zero (usage, 2) with a message naming the closed set and change nothing; RED tests on the old behaviour turn GREEN with paired mutants; accepted aliases, if any, are a documented table.
@@ -4586,7 +4586,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G1)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `created_at after close equals the close time, not the creation time` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections G1)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `created_at after close equals the close time, not the creation time` — updated 2026-11-13T15:49:50Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 
 **What:** The engine `close` command sets the item's created_at to the time of the close. Measured on a copy: created_at read 2026-11-12 22:48:51 before the close and the close time after it. Every closed item loses its creation time, which distorts age, lead-time and burn-down figures. CON-308 (run_all.sh rc 77 counted as FAIL) is one such item: its round-2 close moved created_at from 2026-11-12 22:48:51 to 2026-11-13 11:27:03, and no engine command restores it.
@@ -4595,7 +4595,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/crud.go (the close command; the exact line is UNCONFIRMED); its tests
 
 **Reproduction / context:**
-Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G1 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only.
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G1 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). Reproduced again at 53b6d9ed: docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt section G1 (the item ids print as placeholders, so the capture stays true after a re-mint). The cause is not investigated; the source file named in the scope is read from the command table only.
 
 **Acceptance criteria:**
 close keeps created_at; a test with a paired mutant pins it; a recorded decision says whether the created_at of items closed earlier is restored from their history rows.
@@ -4610,7 +4610,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G2)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `after reopen of an Obsolete item the obsolete_details row is still present and validate exits 0` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections G2, G3)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `after reopen of an Obsolete item the obsolete_details row is still present and validate exits 0` — updated 2026-11-13T15:49:50Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 
 **What:** After `reopen` of an Obsolete item the item is Reopened in Issues, but its obsolete_details row (reason and superseding id of the earlier closure) stays, its body still shows an Obsolete-Details line, and validate reports OK. A reader or a tool that trusts the row sees a closure that no longer holds. No engine command removes the row.
@@ -4619,7 +4619,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/mutate.go (reopen), scripts/workable-items/cmd/workable-items/obsolete.go; validate; their tests
 
 **Reproduction / context:**
-Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G2 and G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only. Found on CON-308 (run_all.sh rc 77 counted as FAIL), which round 3 reopened (R2-1).
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G2 and G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). Reproduced again at 53b6d9ed: docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt section G2 and G3 (the item ids print as placeholders, so the capture stays true after a re-mint). The cause is not investigated; the source file named in the scope is read from the command table only. Found on CON-308 (run_all.sh rc 77 counted as FAIL), which round 3 reopened (R2-1).
 
 **Acceptance criteria:**
 reopen removes or archives the obsolete_details row in the same transaction and records it in the history; validate fails on an obsolete_details row of an item that is not Obsolete; tests with paired mutants pin both.
@@ -4634,7 +4634,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G3)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `the body header keys after update lack Reopened-Details while the history keeps the reopen row` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections G3)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `the body header keys after update lack Reopened-Details while the history keeps the reopen row` — updated 2026-11-13T15:49:50Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 
 **What:** `reopen` writes Reopened-Details and Evidence lines into the body header. A later `update --description` re-renders the header from the columns and drops both lines; only the history row keeps the reopen. The published Issues.md then shows no reopen record for the item.
@@ -4643,7 +4643,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/crud.go (update and the body rendering), scripts/workable-items/cmd/workable-items/mutate.go (reopen); their tests
 
 **Reproduction / context:**
-Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only.
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). Reproduced again at 53b6d9ed: docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt section G3 (the item ids print as placeholders, so the capture stays true after a re-mint). The cause is not investigated; the source file named in the scope is read from the command table only.
 
 **Acceptance criteria:**
 the reopen record survives any later update, either as a column the renderer reads or by the renderer reading the history; a test with a paired mutant pins it.
@@ -4658,7 +4658,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G4)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `obsolete-details with a superseding id that is not an item exits 0 and validate exits 0` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v4/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> <probe item id> (sections G4)` — env `scratch copy of docs/workable_items.db at 53b6d9ed; engine built from that tree; evidence sha256 42f2f3236114fbdbe93366db81a1fcaf1c7802b07c956a59b298af816cffaa72` — signature `obsolete-details with a superseding id that is not an item exits 0 and validate exits 0` — updated 2026-11-13T15:49:50Z — by `Claude (tracker-intake round-4 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 
 **What:** `obsolete-details --reason duplicate-of --superseding <id>` writes the row when no item has that id, and validate then reports OK. A duplicate-of link can point at nothing, which section 11.4.214 chain resolution cannot follow.
@@ -4667,7 +4667,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 scripts/workable-items/cmd/workable-items/obsolete.go; validate; their tests
 
 **Reproduction / context:**
-Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G4 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only. The round-2 reviewer saw the validate half with a hand-edited copy (mutant D7a); G4 reproduces both halves through the engine.
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G4 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). Reproduced again at 53b6d9ed: docs/qa/tracker_intake_2026_11_12_v4/engine_repro.txt section G4 (the item ids print as placeholders, so the capture stays true after a re-mint). The cause is not investigated; the source file named in the scope is read from the command table only. The round-2 reviewer saw the validate half with a hand-edited copy (mutant D7a); G4 reproduces both halves through the engine.
 
 **Acceptance criteria:**
 obsolete-details refuses a superseding id that is not an item (an anchor letter or 'none' stays legal); validate fails on such a row; tests with paired mutants pin both.

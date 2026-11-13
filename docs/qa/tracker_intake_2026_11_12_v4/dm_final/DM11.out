@@ -1,0 +1,6 @@
+FINDING CONTROL-CHAR CON-310 U+2028 on title,body_md
+FINDING STATE-EVIDENCE CON-339 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-340 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-341 reproduction_state reproduced-host-fixture carries no evidence sha256
+FINDING STATE-EVIDENCE CON-342 reproduction_state reproduced-host-fixture carries no evidence sha256
+RESULT: FAIL selected=44 findings=5 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md

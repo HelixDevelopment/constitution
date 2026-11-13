@@ -2,15 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-13T16:00:00Z |
+| Last modified | 2026-11-13T17:00:00Z |
 | Status | active |
 | Source | relayed operator decisions, 2026-11-12 about 23:30 CET, and one reminder of 2026-11-13 00:34: the operator answered interactive questions; the conductor relayed the answers (operator memory file `project_operator_decisions_2026_11_12_night.md`). Not verbatim. |
 | Recorded by | tracker-intake vehicle, round 2 fixer (Opus 5.5), scratch clone on base 02c10935 |
-| Items changed | CON-046 (decision appended), CON-299, CON-300, CON-331, CON-332, CON-333 (record cited) |
+| Items changed | CON-046 (decision appended), CON-299, CON-300, CON-331, CON-332, CON-333 (record cited); revision 2: CON-243 and CON-308 (closed duplicate-of CON-262 under decision 8), CON-262 (canonical head; context and acceptance carried) |
 | Items created | CON-334 (decision 4) |
 | Revision 2 | round 3 fixer (Opus 5.5): decision 8 (2026-11-13) recorded; question O-1 of section "Owed decisions" answered by it; CON-243 and CON-308 closed duplicate-of CON-262 through the engine; decisions 1 to 7 unchanged |
+| Revision 3 | round 4 fixer (Opus 5.5), answering round-3 review M-10: the "Items changed" row now lists the items revision 2 changed; the O-1 "why it is open" text states the relationship the round-2 review found (CON-308 closed onto CON-262, CON-262 recording CON-243 as its UNDECIDED candidate), re-checked against the database at 63f80e52 (`docs/qa/tracker_intake_2026_11_12_v4/decision_record_facts.txt`); no decision changed |
 
 This record is the section 11.4.66 decision record for the answers below. The operator gave them in
 an interactive session and the conductor relayed them; they are not quoted verbatim. Where this
@@ -45,4 +46,4 @@ in a section 11.4.66 record; an answered question keeps its row, marked ANSWERED
 
 | # | Question | Why it is open | Where it is tracked |
 |---|---|---|---|
-| O-1 | ANSWERED by decision 8 (2026-11-13). CON-308 (run_all.sh counts rc 77 as FAIL): is it the same defect as CON-243, as CON-262, or neither? Are CON-243 and CON-262 themselves one item? | The round-2 review (R2-1) found that CON-243, the head CON-308 had been closed onto, records CON-262 as an open UNDECIDED candidate; with two open heads, section 11.4.214(0) makes the verdict UNDECIDED. Round 3 reopened CON-308 with the verdict UNDECIDED and both candidates named (mint-with-link). | CON-308, CON-243, CON-262 (closed and linked under decision 8). |
+| O-1 | ANSWERED by decision 8 (2026-11-13). CON-308 (run_all.sh counts rc 77 as FAIL): is it the same defect as CON-243, as CON-262, or neither? Are CON-243 and CON-262 themselves one item? | The round-2 review (R2-1) found that CON-262, the head CON-308 had been closed onto, records CON-243 as an open UNDECIDED candidate; with two open heads, section 11.4.214(0) makes the verdict UNDECIDED. Round 3 reopened CON-308 with the verdict UNDECIDED and both candidates named (mint-with-link). | CON-308, CON-243, CON-262 (closed and linked under decision 8). |

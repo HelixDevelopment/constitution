@@ -1,0 +1,8 @@
+R2-1 relationship, read from docs/workable_items.db at 63f80e52 (round 2 of the vehicle):
+  status CON-243: Queued
+  status CON-262: Queued
+  status CON-308: Obsolete (→ Fixed.md)
+  obsolete_details CON-308: duplicate-of CON-262
+  CON-262 says: Candidate duplicate: CON-243 (the same run_all.sh behaviour plus tier awareness); merge UNDECIDED (section 11.4.214(3)).
+  CON-308 says: Duplicate check (section 11.4.214): SAME-DEFECT of CON-262 (its acceptance criterion already says run_all.sh reports a 77 as SKIP); this item is closed Obsolete, reason duplicate-of, superseding CON-262, and its context is appended to CON-262.
+  CON-308 says: CON-243 names the same run_all.sh behaviour (plus tier awareness) and is a second open head; that CON-243 / CON-262 overlap is pre-existing and its merge stays UNDECIDED for the lander or the operator (section 11.4.214(3)).

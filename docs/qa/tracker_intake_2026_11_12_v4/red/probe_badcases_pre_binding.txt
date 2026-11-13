@@ -1,0 +1,292 @@
+CASE XREF-DANGLING n=1
+   ZZ-19
+CASE XREF-DANGLING/range n=1
+   ZZ-9
+CASE XREF-DANGLING/range-interior-150 n=153
+   ZZ-100
+   ZZ-101
+   ZZ-102
+   ZZ-103
+   ZZ-104
+   ZZ-105
+   ZZ-106
+   ZZ-107
+   ZZ-108
+   ZZ-109
+   ZZ-11
+   ZZ-110
+   ZZ-111
+   ZZ-112
+   ZZ-113
+   ZZ-114
+   ZZ-115
+   ZZ-116
+   ZZ-117
+   ZZ-118
+   ZZ-119
+   ZZ-12
+   ZZ-120
+   ZZ-121
+   ZZ-122
+   ZZ-123
+   ZZ-124
+   ZZ-125
+   ZZ-126
+   ZZ-127
+   ZZ-128
+   ZZ-129
+   ZZ-13
+   ZZ-130
+   ZZ-131
+   ZZ-132
+   ZZ-133
+   ZZ-134
+   ZZ-135
+   ZZ-136
+   ZZ-137
+   ZZ-138
+   ZZ-139
+   ZZ-14
+   ZZ-140
+   ZZ-141
+   ZZ-142
+   ZZ-143
+   ZZ-144
+   ZZ-145
+   ZZ-146
+   ZZ-147
+   ZZ-148
+   ZZ-149
+   ZZ-15
+   ZZ-150
+   ZZ-151
+   ZZ-152
+   ZZ-153
+   ZZ-154
+   ZZ-155
+   ZZ-156
+   ZZ-157
+   ZZ-158
+   ZZ-159
+   ZZ-16
+   ZZ-160
+   ZZ-17
+   ZZ-18
+   ZZ-19
+   ZZ-20
+   ZZ-21
+   ZZ-22
+   ZZ-23
+   ZZ-24
+   ZZ-25
+   ZZ-26
+   ZZ-27
+   ZZ-28
+   ZZ-29
+   ZZ-30
+   ZZ-31
+   ZZ-32
+   ZZ-33
+   ZZ-34
+   ZZ-35
+   ZZ-36
+   ZZ-37
+   ZZ-38
+   ZZ-39
+   ZZ-40
+   ZZ-41
+   ZZ-42
+   ZZ-43
+   ZZ-44
+   ZZ-45
+   ZZ-46
+   ZZ-47
+   ZZ-48
+   ZZ-49
+   ZZ-5
+   ZZ-50
+   ZZ-51
+   ZZ-52
+   ZZ-53
+   ZZ-54
+   ZZ-55
+   ZZ-56
+   ZZ-57
+   ZZ-58
+   ZZ-59
+   ZZ-6
+   ZZ-60
+   ZZ-61
+   ZZ-62
+   ZZ-63
+   ZZ-64
+   ZZ-65
+   ZZ-66
+   ZZ-67
+   ZZ-68
+   ZZ-69
+   ZZ-7
+   ZZ-70
+   ZZ-71
+   ZZ-72
+   ZZ-73
+   ZZ-74
+   ZZ-75
+   ZZ-76
+   ZZ-77
+   ZZ-78
+   ZZ-79
+   ZZ-80
+   ZZ-81
+   ZZ-82
+   ZZ-83
+   ZZ-84
+   ZZ-85
+   ZZ-86
+   ZZ-87
+   ZZ-88
+   ZZ-89
+   ZZ-90
+   ZZ-91
+   ZZ-92
+   ZZ-93
+   ZZ-94
+   ZZ-95
+   ZZ-96
+   ZZ-97
+   ZZ-98
+   ZZ-99
+CASE XREF-DANGLING/state-column n=1
+   ZZ-77
+CASE XREF-LABEL n=1
+   ZZ-1 (GitHub issues sync) vs title: Needle umbrella
+CASE XREF-LABEL/one-shared-word n=1
+   ZZ-1 (umbrella of github runners) vs title: Needle umbrella
+CASE XREF-UNLABELLED n=1
+   ZZ-4 without a label in a clause that shares no title word: Needle range holder
+CASE FOREIGN-STALE n=1
+   ZZ-7
+CASE STATE-PROSE n=1
+   prose says UNREPRODUCED, reproduction_state is reproduced-live
+CASE STATE-PROSE/structured n=1
+   structured line says reproduced-live, reproduction_state is UNSET
+CASE STATE-PROSE/structured-investigation n=1
+   structured line says in-progress, investigation_state is UNSET
+CASE STATE-EVIDENCE n=1
+   reproduction_state reproduced-live carries no evidence sha256
+CASE STATE-EVIDENCE/sha-mismatch n=1
+   reproduction evidence sha256 differs from the file docs/qa/needle_present/x.txt
+CASE STATE-EVIDENCE/missing-file n=1
+   reproduction evidence docs/qa/needle_absent/x.txt does not exist
+CASE STATE-EVIDENCE/investigation n=1
+   investigation_state root-cause-found-with-evidence carries no evidence sha256
+CASE STATE-EVIDENCE/blocker n=1
+   reproduction_state blocked-no-device-with-recorded-blocker without a reproduction_blocker
+CASE SECTIONS n=1
+   missing: Acceptance criteria
+CASE BODY-SYNC n=1
+   description is not contained in body_md
+CASE BODY-SYNC/empty n=1
+   body_md is empty
+CASE BODY-SYNC/header-line-separator n=2
+   body_md header line carries a line separator other than a newline: '**Status:** Queued\u2028x'
+   body_md Status line differs from its source
+CASE BODY-SYNC/extra-paragraph n=1
+   body_md carries text after the description: 'Update: already fixed; no work owed.'
+CASE BODY-SYNC/heading-id n=1
+   body_md heading disagrees with the id or title column
+CASE BODY-SYNC/status-second n=1
+   body_md header key Status is written twice
+CASE BODY-SYNC/status-value n=1
+   body_md Status line differs from its source
+CASE BODY-SYNC/type n=1
+   body_md Type line differs from its source
+CASE BODY-SYNC/severity n=1
+   body_md Severity line differs from its source
+CASE BODY-SYNC/created-by n=1
+   body_md Created-By line differs from its source
+CASE BODY-SYNC/assigned-to-extra n=1
+   body_md has an Assigned-To line while its source gives none
+CASE BODY-SYNC/severity-missing n=1
+   body_md lacks the Severity line its source gives
+CASE BODY-SYNC/reproduction-detail n=1
+   body_md Reproduction line differs from its source
+CASE BODY-SYNC/investigation-extra n=1
+   body_md has an Investigation line while its source gives none
+CASE BODY-SYNC/obsolete-missing n=1
+   body_md lacks the Obsolete-Details line its source gives
+CASE BODY-SYNC/obsolete-content n=1
+   body_md Obsolete-Details line differs from its source
+CASE BODY-SYNC/obsolete-on-open n=1
+   body_md has an Obsolete-Details line while its source gives none
+CASE BODY-SYNC/evidence n=1
+   body_md Evidence line names no closure evidence of the item
+CASE BODY-SYNC/reopened-without-row n=1
+   body_md has a Reopened-Details line but the item has no Reopened history row
+CASE BODY-SYNC/block-without-row n=1
+   body_md has an Operator-Block-Details line but the item has no operator_block_details row
+CASE BODY-SYNC/unknown-key n=1
+   body_md header key Priority is not an engine key
+CASE SECRET n=1
+   aws-access-key-id on description,body_md
+CASE SECRET/state-column n=1
+   aws-access-key-id on body_md,items.reproduction_env
+CASE EPHEMERAL n=1
+   bare-review-file: review_x_r1.md on description,body_md
+CASE EPHEMERAL/note-needs-parenthesis n=1
+   tmp-path: /tmp/needle/x on description,body_md
+CASE EPHEMERAL/mktemp-default n=2
+   mktemp-default: tmp.k3Jx9QvT2a on description,body_md
+   tmp-path: /tmp/tmp.k3Jx9QvT2a/out.txt on description,body_md
+CASE EPHEMERAL/mktemp-default-lowercase n=1
+   mktemp-default: tmp.qwertyuiop on description,body_md
+CASE EPHEMERAL/lowercase-dir n=1
+   mktemp-dir: scratch.zobh on description,body_md
+CASE EPHEMERAL/4-char n=1
+   mktemp-dir: scratch.Ab3d on description,body_md
+CASE EPHEMERAL/home-path n=1
+   home-path: /home/needleuser/ on description,body_md
+CASE EPHEMERAL/home-dotdir n=1
+   home-path: ~/.needletool/ on description,body_md
+CASE EPHEMERAL/session-store n=1
+   session-store: .claude-needle/projects/ on description,body_md
+CASE EPHEMERAL/state-column n=1
+   tmp-path: /tmp/needle/x.sh on body_md,items.reproduction_red_cmd
+CASE CONTROL-CHAR/title n=1
+   U+2028 on title,body_md
+CASE CONTROL-CHAR/nul n=1
+   U+0000 on description,body_md
+CASE CONTROL-CHAR/title-tab n=1
+   newline or tab in the title on title
+CASE DUP-CHECK n=1
+   verdict 'PROBABLY' not in the closed set
+CASE DUP-SAME-OPEN n=1
+   SAME-DEFECT of ZZ-1 but not Obsolete duplicate-of ZZ-1
+CASE DUP-SAME-OPEN/wrong-head n=1
+   SAME-DEFECT of ZZ-1 but not Obsolete duplicate-of ZZ-1
+CASE DUP-SAME-OPEN/head-is-first-id n=1
+   SAME-DEFECT of ZZ-1 but not Obsolete duplicate-of ZZ-1
+CASE DUP-HEAD n=1
+   more than one head (section 11.4.214(0)): ZZ-1 names ZZ-4 as a duplicate
+CASE DUP-HEAD/head-closed n=1
+   ZZ-1 is not an open head (status Fixed): resolve the chain (section 11.4.214(0))
+CASE DUP-HEAD/lowercase n=1
+   more than one head (section 11.4.214(0)): ZZ-1 names ZZ-4 as a duplicate
+CASE DUP-HEAD/wording n=1
+   more than one head (section 11.4.214(0)): ZZ-1 names ZZ-4 as a duplicate
+CASE DUP-HEAD/reverse n=1
+   more than one head (section 11.4.214(0)): ZZ-4 names ZZ-1 as a duplicate
+CASE DUP-HEAD/stale-row n=1
+   more than one head (section 11.4.214(0)): ZZ-4 is open with an obsolete_details row duplicate-of ZZ-1
+CASE DUP-UNDECIDED n=1
+   UNDECIDED names no candidate id
+CASE DUP-STATUS n=1
+   Obsolete duplicate-of ZZ-1 but the verdict is UNDECIDED
+CASE OBSOLETE-STALE n=1
+   obsolete_details row (duplicate-of) on a Reopened item
+CASE SHARED-PATH n=1
+   needle_only.sh also named by open ZZ-3
+CASE PATH-MISSING n=1
+   docs/qa/needle_absent_zz9/x.txt
+CASE PATH-MISSING/decisions n=1
+   docs/operator_decisions/needle_absent.md
