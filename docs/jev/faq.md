@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T17:36:01Z |
+| Last modified | 2026-11-13T19:01:19Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7) |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7); revision 5 corrects question 23 (the capacity source is vendored) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -107,7 +107,7 @@ Only with `--install-tools` (or a "y" at the prompt). They link into PATH and ed
 ## Capacity and placement
 
 **23. My host is busy. Will a local decision model still start?**
-Not unless it fits. (Update 2026-11-12: `scripts/jev/jev-place.sh` now reads `llmctl capacity --json` when the installed llmctl provides it; the paragraph below describes the rules it follows.) §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement").
+Not unless it fits. (Update 2026-11-12: `scripts/jev/jev-place.sh` now reads `llmctl capacity --json` when the installed llmctl provides it; the paragraph below describes the rules it follows.) §11.4.291 gives each decision profile a placement verdict from the live host load with a reserve kept free; only `fits` (or `fits_with_reduced_threads`, started with the fewer threads llmctl reports) allows a start, or an explicit, recorded operator override of `undetermined`. Otherwise the route is `cloud` (the hosted endpoint, in shadow mode) when a non-placeholder key is present, or `none`, and you get a notice plus a `placement` entry in `jev-detection.json`. The constitution never runs `llmctl enable`. The live capacity source (`llmctl capacity --json`, schema `llmctl.capacity/1`, llmctl 3.4.0) is not vendored yet, so today the verdict is `undetermined` and no local model is started by automation (see the governance guide, "Capacity-aware placement"). (Correction 2026-11-13: the sentence about the capacity source is stale. The vendored llmctl (gitlink `391d8177`, 3.4.1) provides `llmctl capacity --json` and `scripts/jev/jev-place.sh` reads it. What still keeps automation from starting a local model is that no session calls `acquire` today; and a host whose `RLIMIT_NPROC` is unlimited gets `undetermined` (`nproc_unlimited`) until the operator decides whether that admits a start.)
 
 ## Default-on wiring and exit 5 (2026-11-12)
 
