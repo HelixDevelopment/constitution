@@ -59,15 +59,18 @@ cleanup_sandbox() {
 }
 
 # make_upstream DIR — DIR/upstream.git (bare, real clone of this repo) + DIR/upwork (work clone).
-# A SHALLOW (or partial) source is refused: a bare upstream cloned from it is shallow too, and every blobless
-# installer clone of it then lazily fetches missing objects back through the same chain, recursively, which
-# set off a runaway process storm on the review host (fixer round 2, F6). Every clone is time-bounded.
+# A SHALLOW source, or a PARTIAL one (any promisor remote, extensions.partialClone, or a partial-clone filter
+# on any remote), is refused: a bare upstream cloned from it is incomplete too, and every blobless installer
+# clone of it then lazily fetches missing objects back through the same chain, recursively, which set off a
+# runaway process storm on the review host (fixer round 2, F6). Every clone is time-bounded.
 _bounded_git() { timeout -k 5 "${HELIX_TEST_GIT_TIMEOUT:-300}" git "$@"; }
 _refuse_shallow() {  # _refuse_shallow GIT_DIR_OR_WORKTREE LABEL
-  local sh pr
+  local sh pc rc
   sh="$(git -C "$1" rev-parse --is-shallow-repository 2>/dev/null)" || { echo "make_upstream: cannot inspect $2 ($1)" >&2; return 1; }
-  pr="$(git -C "$1" config --get remote.origin.promisor 2>/dev/null || true)"
-  if [ "$sh" != false ] || [ "$pr" = true ]; then
+  # every remote, not only origin (review round 2, m-5); config --get-regexp exits 1 when nothing matches
+  pc="$(git -C "$1" config --get-regexp '^(remote\..*\.(promisor|partialclonefilter)|extensions\.partialclone)$' 2>/dev/null)"; rc=$?
+  if [ "$rc" -gt 1 ]; then echo "make_upstream: cannot read the config of $2 ($1)" >&2; return 1; fi
+  if [ "$sh" != false ] || printf '%s\n' "$pc" | grep -Eqi '(\.partialclonefilter |^extensions\.partialclone |\.promisor true$)'; then
     echo "make_upstream: refusing a shallow or partial $2 ($1): clone the repository in full first" >&2
     return 1
   fi

@@ -36,8 +36,15 @@ eq "slow remote: fetch state timeout" "timeout" "$(sx_q '[x for x in P["."]["rem
 eq "slow remote: reported unreachable" "unreachable" "$(sx_q '[x for x in P["."]["remotes"] if x["name"]=="slow"][0]["state"]')"
 [ "$dur" -lt 20 ] && ok "slow remote: run bounded (${dur}s)" || nok "slow remote: run took ${dur}s"
 sleep 1
-left="$(ps -eo args= | grep -c "[s]low-upload-pack" || true)"
-eq "slow remote: no surviving upload-pack process" "0" "$left"
+# count only THIS sandbox's upload-pack ($SB is unique to this run): a host-wide count also saw other runs' processes
+# (a concurrent mutation run left 4 behind, review round 3). ps is read first, then filtered, so the filter's own
+# argv is never in the list. Control needle: a process carrying the same path is seen, then stopped.
+sb_upload_packs() { local procs; procs="$(ps -eo args=)"; printf '%s\n' "$procs" | grep -cF -- "$SB/slow-upload-pack" || true; }
+bash -c 'exec -a "$1 needle" sleep 30' _ "$SB/slow-upload-pack" & needle_pid=$!
+sleep 0.5
+eq "slow remote: the process count sees this sandbox's needle" "1" "$(sb_upload_packs)"
+kill "$needle_pid" 2>/dev/null; wait "$needle_pid" 2>/dev/null
+eq "slow remote: no surviving upload-pack process" "0" "$(sb_upload_packs)"
 # deadline: the whole run is bounded even with many slow calls
 start=$(date +%s); sx_run --check --timeout 60 --deadline 4 --root "$W"; dur=$(( $(date +%s) - start ))
 [ "$dur" -lt 25 ] && ok "deadline: run bounded (${dur}s)" || nok "deadline: run took ${dur}s"
@@ -90,12 +97,12 @@ safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"; sx_commit "$U_ROOT" "r6
 STALLMARK="helixstall$$"
 mkdir -p "$SB/stall"
 # (a local call gets max(--timeout, 60)s; --deadline bounds it so the test is short)
-# stalls `rev-parse HEAD` of the repository in $STALL_REPO; with STALL_AFTER_MOVE=1 only once its HEAD
+# stalls `rev-parse --verify -q HEAD^{commit}` (the engine's HEAD read) of the repository in $STALL_REPO; with STALL_AFTER_MOVE=1 only once its HEAD
 # differs from $STALL_BEFORE (the read AFTER a fast-forward). Every other call is the real git.
 cat >"$SB/stall/git" <<EOF
 #!/usr/bin/env bash
 # $STALLMARK
-if [ "\${2:-}" = "\${STALL_REPO:-}" ] && [ "\${*: -3}" = "--no-optional-locks rev-parse HEAD" ]; then
+if [ "\${2:-}" = "\${STALL_REPO:-}" ] && [ "\${*: -5}" = "--no-optional-locks rev-parse --verify -q HEAD^{commit}" ]; then
   if [ -z "\${STALL_AFTER_MOVE:-}" ] || [ "\$("$SX_GIT" -C "\$2" rev-parse HEAD)" != "\${STALL_BEFORE:-}" ]; then
     exec -a $STALLMARK sleep 200
   fi
@@ -150,14 +157,16 @@ case "$ep" in ""|*[!0-9]*|0|1) nok "escaped grandchild: control needle: it reall
 esac
 git -C "$W" remote remove esc; rm -f "$SB/shim/ssh"
 
-# 8. a HEAD read that FAILS (rc 128, an answer, not a timeout) once is never read as "current" / "moved"
+# 8. a HEAD read that exits 128 once (not an answer `rev-parse --verify -q` declares: 0 = found, 1 = no such
+#    object) is NO ANSWER (review round 2, I-1): the run is BLIND (exit 6), the repository is never read as
+#    "current" or "moved" and never changed. 8b: an injected exit 1 IS an answer ("unborn") -> head-unreadable.
 sx_commit "$U_ROOT" "r8"
 mkdir -p "$SB/flaky"
-# fails the FIRST `rev-parse HEAD` of the repository in $FLAKY_REPO (marker $FLAKY_MARK); every other call is real git
+# fails the FIRST HEAD read (`rev-parse --verify -q HEAD^{commit}`) of the repository in $FLAKY_REPO (marker $FLAKY_MARK); every other call is real git
 cat >"$SB/flaky/git" <<EOF
 #!/usr/bin/env bash
-if [ "\${2:-}" = "\${FLAKY_REPO:-}" ] && [ "\${*: -3}" = "--no-optional-locks rev-parse HEAD" ] && [ ! -e "\$FLAKY_MARK" ]; then
-  : >"\$FLAKY_MARK"; echo "fatal: injected HEAD read failure" >&2; exit 128
+if [ "\${2:-}" = "\${FLAKY_REPO:-}" ] && [ "\${*: -5}" = "--no-optional-locks rev-parse --verify -q HEAD^{commit}" ] && [ ! -e "\$FLAKY_MARK" ]; then
+  : >"\$FLAKY_MARK"; echo "fatal: injected HEAD read failure" >&2; exit "\${FLAKY_RC:-128}"
 fi
 exec "$SX_GIT" "\$@"
 EOF
@@ -168,14 +177,22 @@ flaky_run() { SX_N=$((SX_N+1)); local o="$SB/out/r$SX_N"
 before="$(sx_head "$W")"
 FLAKY_REPO="$RW" FLAKY_MARK="$SB/flaky.m1" flaky_run --check --root "$W"
 [ -e "$SB/flaky.m1" ] && ok "failed HEAD read: control needle: the failure was injected" || nok "failed HEAD read: control needle: never injected"
-eq "failed HEAD read, --check: exit 4 (ATTENTION), never 0 or 3" 4 "$SX_RC"
-eq "failed HEAD read, --check: root result attention" "attention" "$(sx_q 'P["."]["result"]')"
-has "failed HEAD read, --check: reason head-unreadable" "head-unreadable" "$(sx_q 'P["."]["reasons"]')"
+eq "HEAD read rc 128, --check: exit 6 (BLIND), never 0, 3 or 4" 6 "$SX_RC"
+eq "HEAD read rc 128, --check: root result blind" "blind" "$(sx_q 'P["."]["result"]')"
+has "HEAD read rc 128, --check: reason names the call" "unresolved:rev-parse:rc:128" "$(sx_q 'P["."]["reasons"]')"
 FLAKY_REPO="$RW" FLAKY_MARK="$SB/flaky.m2" flaky_run --apply --root "$W"
-eq "failed HEAD read, --apply: exit 4" 4 "$SX_RC"
-eq "failed HEAD read, --apply: root not moved" "$before" "$(sx_head "$W")"
-has "failed HEAD read, --apply: integration blocked by head-unreadable" "head-unreadable" "$(sx_q '[a.get("why","") for a in P["."]["actions"]]')"
-eq "failed HEAD read, --apply: never reported updated" "False" "$(sx_q 'P["."]["result"]=="updated"')"
+[ -e "$SB/flaky.m2" ] && ok "failed HEAD read, --apply: the failure was injected" || nok "failed HEAD read, --apply: never injected"
+eq "HEAD read rc 128, --apply: exit 6" 6 "$SX_RC"
+eq "HEAD read rc 128, --apply: root not moved" "$before" "$(sx_head "$W")"
+has "HEAD read rc 128, --apply: integration blocked as unresolved" "unresolved" "$(sx_q '[a.get("why","") for a in P["."]["actions"]]')"
+eq "HEAD read rc 128, --apply: never reported updated" "False" "$(sx_q 'P["."]["result"]=="updated"')"
+FLAKY_RC=1 FLAKY_REPO="$RW" FLAKY_MARK="$SB/flaky.m3" flaky_run --check --root "$W"
+[ -e "$SB/flaky.m3" ] && ok "8b: the rc-1 answer was injected" || nok "8b: never injected"
+eq "8b: HEAD read rc 1 (unborn): exit 4 (ATTENTION)" 4 "$SX_RC"
+has "8b: reason head-unreadable" "head-unreadable" "$(sx_q 'P["."]["reasons"]')"
+FLAKY_RC=1 FLAKY_REPO="$RW" FLAKY_MARK="$SB/flaky.m4" flaky_run --apply --root "$W"
+eq "8b, --apply: root not moved" "$before" "$(sx_head "$W")"
+has "8b, --apply: integration blocked by head-unreadable" "head-unreadable" "$(sx_q '[a.get("why","") for a in P["."]["actions"]]')"
 sx_run --check --root "$W"
 eq "control needle: without the failure the root is behind (exit 3)" 3 "$SX_RC"
 

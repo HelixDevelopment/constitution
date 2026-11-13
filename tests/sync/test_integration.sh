@@ -113,6 +113,10 @@ before_root="$(sx_head "$W")"
 sx_run --apply --root "$W"
 eq "dirty: exit 4" 4 "$SX_RC"
 eq "dirty: reason dirty-tree" "True" "$(sx_q '"dirty-tree" in P["."]["reasons"]')"
+# the precondition blocks it, before the guarded writer is reached (the writer's own re-check is a second layer;
+# review round 3, own mutant M17 survived without these two lines)
+eq "dirty: blocked by the precondition" "True" "$(sx_q 'any("dirty-tree" in a.get("why","").split(",") for a in P["."].get("actions",[]))')"
+eq "dirty: no write was attempted" "False" "$(sx_q 'any("for" in a for a in P["."].get("actions",[]))')"
 eq "dirty: root not moved" "$before_root" "$(sx_head "$W")"
 eq "dirty: local edit kept" "dirty" "$(tail -n1 "$W/README")"
 git -C "$W" checkout -q -- README

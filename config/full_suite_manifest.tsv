@@ -903,11 +903,13 @@ tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
-tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 4 heavy member(s)
+tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)
 tests/sync/test_chaos.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/sync/test_determinism.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/sync/test_e2e.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_faults.sh	sh	member	heavy	-	tests/sync/run_all.sh	override: tier heavy: about 213 full --apply runs, one fault each (skipped by run_all.sh --quick)
 tests/sync/test_full_automation.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
+tests/sync/test_hardening.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/sync/test_integration.sh	sh	member	default	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/sync/test_mutations.py	py	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh
 tests/sync/test_perf.sh	sh	member	heavy	-	tests/sync/run_all.sh	auto: run by tests/sync/run_all.sh

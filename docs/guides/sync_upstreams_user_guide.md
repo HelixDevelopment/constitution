@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-13T00:00:00Z |
 | Status | draft (pending independent review) |
@@ -11,7 +11,7 @@
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 2: review round 2 fixes (fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7) |
+| Fixed | revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -99,10 +99,10 @@ line). They run `--check` only and are **not installed** by anything: copying th
 | 0 | `CURRENT` / `APPLIED` | Everything is on its upstream main (after `--apply`: everything that could move, moved). |
 | 3 | `UPDATES-AVAILABLE` | Something is behind and nothing else needs you. Run `--apply`. |
 | 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main, an ignored file the move would overwrite, a submodule moved on its own branch (modified gitlink), a branch deleted upstream. |
-| 5 | `INCONCLUSIVE` | A git call gave no answer in time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. |
+| 5 | `INCONCLUSIVE` | A git call ran out of time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. A timed-out call is stopped within at most 7 more seconds (2 s to collect, then at most 5 s to reap). |
 | 1 | `FAILED` | An integration step failed; the report names it. |
 | 2 | usage | Bad arguments, `--out` inside the work tree, `--interactive` without a terminal. |
-| 6 | `BLIND` | The self-check (control needle) failed: the tree could not be inspected. |
+| 6 | `BLIND` | The self-check (control needle) failed, or a git call gave no answer for another reason (killed by a signal, an exit status the call does not expect, output of the wrong shape); the repositories concerned are `blind` and were not moved. |
 | 7 | `LOCKED` | Another run holds the lock; nothing was done. |
 
 Per-repository lines show the path, the result and the reasons, for example

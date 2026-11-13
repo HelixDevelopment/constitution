@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-13T00:00:00Z |
 | Status | draft (pending independent review) |
@@ -11,7 +11,7 @@
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 2: review round 2 fixes (fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7) |
+| Fixed | revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -73,8 +73,11 @@ every supported type, live and deterministic, with machine-produced evidence.
   anything else (gate `CM-SYNC-UPSTREAMS-FF-ONLY`).
 * **Preconditions** per repository (§11.4.84): a dirty tree, an in-progress merge / rebase /
   cherry-pick / revert / bisect, an `index.lock`, or an ignored file the target tree would overwrite
-  blocks integration of that repository only. A git call that gives no answer (timeout, deadline,
-  refused) makes the repository `unresolved`: it is never moved and the run is `INCONCLUSIVE`.
+  blocks integration of that repository only. A git call that gives no answer makes the repository `unresolved`: it is never moved. Every call
+  site declares the exit statuses that are answers (`ok`) and, where it reads output, the shape it expects
+  (`want`); a signal, an undeclared status (126, 127, 128, ...) or output of the wrong shape is no answer
+  and makes the run `BLIND`; a call that only ran out of time (`--timeout`, `--deadline`) makes it
+  `INCONCLUSIVE`. A repository whose judgement rests on a call without an answer is `blind`, never `failed`.
 * **Lock**: one `fcntl` lock per project (`<git-common-dir>/helix-sync-upstreams.lock`); a second run
   exits 7 (`LOCKED`). The kernel releases the lock when a run dies, so no stale lock exists.
 * **Evidence**: `sync_report.json` (schema `helix.sync_upstreams/1`) and `sync_report.tsv` in `--out`
@@ -88,7 +91,8 @@ every supported type, live and deterministic, with machine-produced evidence.
 * **Exit codes**: 0 current / applied, 1 an integration step failed, 2 usage, 3 updates available
   (check, dry-run, or still behind after apply), 4 attention needed (diverged, unreachable, dirty, pin not
   on main, not on main, ignored file in the way, modified gitlink, branch gone upstream), 5 INCONCLUSIVE
-  (a git call gave no answer), 6 BLIND (control needle failed), 7 LOCKED. Precedence: BLIND > FAILED >
+  (a git call ran out of time), 6 BLIND (control needle failed, or a git call gave no answer for another
+  reason), 7 LOCKED. Precedence: BLIND > FAILED >
   INCONCLUSIVE > ATTENTION > UPDATES-AVAILABLE > CURRENT.
 
 ## Integration
@@ -107,6 +111,9 @@ every supported type, live and deterministic, with machine-produced evidence.
 Live evidence is real git against real bare repositories in scratch directories; no network remote and
 no forge is contacted by the tests. Behaviour against real forges (ssh keys, rate limits) is
 UNCONFIRMED until run by the operator; the tests are gate-logic / unit-class evidence (§11.4.289). A
-user-configured clean or smudge filter or diff driver can still run during a checkout or merge. The
+user-configured clean filter runs during `git status` (so also in `--check`) and a smudge filter during a
+checkout or merge; the tool does not disable them. Diff, textconv and merge drivers never run: the engine
+calls no git command that uses them (the gate refuses `diff`, `show`, `log`, `cat-file` and the other verbs
+that could). Evidence retention (how long reports are kept) is an open item. The
 engine reports; it does not decide whether a third-party
 pin should advance.

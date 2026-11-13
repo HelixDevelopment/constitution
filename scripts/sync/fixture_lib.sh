@@ -35,8 +35,8 @@ sx_sandbox() {
   SB="$(mktemp -d "${TMPDIR:-/tmp}/helix-sync-test.XXXXXX")" || { echo "mktemp failed" >&2; exit 2; }
   export SAFE_RM_ALLOWED_ROOTS="$SB"
   export GIT_CONFIG_GLOBAL="$SB/gitconfig"
-  printf '[init]\n\tdefaultBranch = main\n[protocol "file"]\n\tallow = always\n[advice]\n\tdetachedHead = false\n[core]\n\thooksPath = %s/nohooks\n' "$SB" >"$GIT_CONFIG_GLOBAL"
-  mkdir -p "$SB/nohooks" "$SB/remotes" "$SB/work" "$SB/seed" "$SB/out" "$SB/shim"
+  printf '[init]\n\tdefaultBranch = main\n[protocol "file"]\n\tallow = always\n[advice]\n\tdetachedHead = false\n' >"$GIT_CONFIG_GLOBAL"  # no global core.hooksPath (review round 2, n-4): it hid hook regressions
+  mkdir -p "$SB/remotes" "$SB/work" "$SB/seed" "$SB/out" "$SB/shim"
   export GIT_CEILING_DIRECTORIES="$(dirname "$SB")"
   export XDG_CACHE_HOME="$SB/cache"
   # one write per call (O_APPEND, < PIPE_BUF), so concurrent calls never interleave inside a line

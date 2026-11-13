@@ -18,6 +18,12 @@ spec.loader.exec_module(E)
 SHA = "a" * 40
 
 
+def fake_runner(result):
+    """A real Runner whose ONE spawn point (proc_run_git) is replaced by a canned (kind, code, out, err)."""
+    E.proc_run_git = lambda git_bin, repo, args, env, limit, _r=result: (E.check_git_args(args) and _r)
+    return E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+
+
 class AllowList(unittest.TestCase):
     def ok(self, *a):
         self.assertTrue(E.check_git_args(list(a)))
@@ -67,6 +73,10 @@ class AllowList(unittest.TestCase):
         self.bad("rev-parse", "x::y")
         self.bad("config", "--get", "remote.ext::sh.url")
         self.bad("cat-file", "-e", "ext::sh")
+        self.bad("cat-file", "-e", SHA)  # cat-file left the allow-list in round 3: presence is rev-parse --verify
+
+    def test_check_returns_the_checked_tuple(self):  # proc_run_git builds the command from the CHECKED value
+        self.assertEqual(E.check_git_args(["rev-parse", "HEAD"]), ("rev-parse", "HEAD"))
 
     def test_writes_exact(self):
         self.ok("merge", "--ff-only", SHA)
@@ -109,6 +119,89 @@ class AllowList(unittest.TestCase):
         self.bad()
 
 
+class TypedAnswer(unittest.TestCase):  # review round 2, I-1: no answer is never "nothing there"
+    def test_declared_statuses_only(self):
+        for res, ok, answered in ((("exit", 0, "x", ""), (0,), True), (("exit", 1, "", ""), (0, 1), True),
+                                  (("exit", 1, "", ""), (0,), False), (("exit", 128, "", ""), (0, 1), False),
+                                  (("exit", 129, "", ""), (0, 1), False), (("exit", 77, "", ""), (0,), False),
+                                  (("signal", 9, "", ""), (0, 1), False), (("signal", 15, "", ""), (0,), False),
+                                  (("exit", 137, "", ""), (0, 1), False), (("timeout", None, "", ""), (0,), False),
+                                  (("not-runnable", None, "", "x"), (0,), False)):
+            r = fake_runner(res)
+            g = r.run("/r", ["status"], ok=ok)
+            self.assertEqual(g.answered, answered, (res, ok))
+            if not answered:
+                self.assertTrue(r.unresolved_for("/r"), (res, ok))
+                self.assertIsNone(g.text())
+            else:
+                self.assertEqual(r.unresolved_for("/r"), [])
+
+    def test_why_classes(self):
+        cases = ((("signal", 9, "", ""), "signal:9"), (("exit", 128, "", ""), "rc:128"), (("timeout", None, "", ""), "timeout"),
+                 (("not-runnable", None, "", ""), "not-runnable"))
+        for res, why in cases:
+            r = fake_runner(res)
+            self.assertEqual(r.run("/r", ["status"], ok=(0,)).why, why)
+            self.assertEqual(r.unresolved_for("/r"), ["status:" + why])
+
+    def test_shape(self):  # n-5: an rc-0 answer of the wrong shape is no answer
+        r = fake_runner(("exit", 0, "", ""))
+        g = r.run("/r", ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=E.SHA_RE)
+        self.assertFalse(g.answered)
+        self.assertEqual(r.unresolved_for("/r"), ["rev-parse:malformed-output"])
+
+    def test_network_timeout_is_the_remotes_state(self):
+        r = fake_runner(("timeout", None, "", ""))
+        g = r.run("/r", E.fetch_args("origin", False), ok=(0, 1, 128), network=True)
+        self.assertEqual((g.answered, g.why), (False, "timeout"))
+        self.assertEqual(r.unresolved_for("/r"), [])
+        r = fake_runner(("signal", 9, "", ""))
+        r.run("/r", E.fetch_args("origin", False), ok=(0, 1, 128), network=True)
+        self.assertEqual(r.unresolved_for("/r"), ["fetch:signal:9"])
+
+    def test_deadline_and_refused(self):
+        r = fake_runner(("exit", 0, "", ""))
+        r.deadline = E.time.monotonic() - 1
+        self.assertEqual(r.run("/r", ["status"], ok=(0,)).why, "deadline")
+        r = fake_runner(("exit", 0, "", ""))
+        self.assertEqual(r.run("/r", ["push"], ok=(0,)).why, "refused")
+        self.assertEqual(r.unresolved_for("/r"), ["push:refused"])
+
+    def test_choke_point_refuses_before_spawning(self):
+        import importlib.util as iu
+        sp = iu.spec_from_file_location("sync_engine_fresh", ENGINE)
+        F = iu.module_from_spec(sp)
+        sp.loader.exec_module(F)
+        with self.assertRaises(F.GitRefused):  # refused before any Popen, so no OSError for a missing git
+            F.proc_run_git("/nonexistent/git", "/", ["push"], {}, 1)
+        self.assertEqual(F.proc_run_git("/nonexistent/git", "/", ["status"], {}, 1)[0], "not-runnable")
+
+    def test_signal_is_reported_as_a_signal(self):  # review round 3: own mutant M62 survived without this
+        # a stand-in "git" that kills itself with SIGKILL (it is our own child, in its own session): the spawn
+        # point must say "signal 9", never an exit status, and the Runner must name it signal:9 (no answer)
+        import importlib.util as iu
+        import shutil
+        import tempfile
+        sp = iu.spec_from_file_location("sync_engine_sig", ENGINE)
+        F = iu.module_from_spec(sp)
+        sp.loader.exec_module(F)
+        d = tempfile.mkdtemp(prefix="sync_unit_sig.")
+        try:
+            fake = os.path.join(d, "git")
+            with open(fake, "w", encoding="utf-8") as fh:
+                fh.write("#!/bin/sh\nkill -9 $$\n")
+            os.chmod(fake, 0o700)
+            kind, code, _, _ = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 10)
+            self.assertEqual((kind, code), ("signal", 9))
+            r = F.Runner(fake, 10, F.time.monotonic() + 600)
+            r.env = {"PATH": "/usr/bin:/bin"}
+            res = r.run(d, ["status"], ok=(0,))
+            self.assertFalse(res.answered)
+            self.assertEqual(res.why, "signal:9")
+        finally:
+            shutil.rmtree(d)  # made by mkdtemp above
+
+
 class Redaction(unittest.TestCase):
     def test_userinfo(self):
         self.assertEqual(E.redact("https://user:s3cret@github.com/o/r.git"), "https://github.com/o/r.git")
@@ -125,6 +218,35 @@ class Redaction(unittest.TestCase):
 
     def test_negative_control(self):
         self.assertEqual(E.redact("git@github.com:o/r.git"), "git@github.com:o/r.git")
+        self.assertEqual(E.redact("https://github.com/o/r.git"), "https://github.com/o/r.git")
+        self.assertEqual(E.redact("plain text, no url"), "plain text, no url")
+
+    def test_structural_userinfo(self):  # review round 2, S-1: '@' and spaces inside the userinfo
+        for url, secret in (("https://u:p@ss@host/r.git", "ss@"), ("https://u:pa ss@host/r.git", "pa ss"),
+                            ("https://u:a@b@c@host/r", "a@b"), ("ssh://u:x y@z@host:22/r", "x y"),
+                            ("fatal: https://tok@host/r and http://u2:p2@h2/x", "p2"),
+                            ("https://user:ghp_ABCDEFGHIJKLMNOP@host/o/r", "ghp_"),
+                            ("HTTPS://U:P@HOST/r", "U:P"), ("git+ssh://u:p@h/r", "u:p"),
+                            ("https://u:p%40q@host/r", "p%40q")):
+            out = E.redact(url)
+            self.assertNotIn(secret, out, url)
+            self.assertNotIn("@host", out.replace("@h2", ""), url)
+        self.assertEqual(E.redact("https://u:p@ss@host/r.git"), "https://host/r.git")
+        self.assertEqual(E.redact("a https://h/x\nb https://u:p@h/y"), "a https://h/x\nb https://h/y")
+        self.assertEqual(E.redact(E.redact("https://u:p@ss@host/r.git")), "https://host/r.git")  # idempotent
+
+    def test_token_in_path(self):  # review round 2, K12 shape: a token in the URL PATH, not in the userinfo
+        self.assertNotIn("ghp_", E.redact("fatal: unable to access 'https://host/ghp_ABCDEFGHIJKL/r.git/'"))
+
+    def test_report_backstop(self):
+        hits = []
+        rep = E.redact_report({"a": "https://u:p@h/r", "_raw": "secret", "b": ["ok", "glpat-ABCDEFGH"], "c": 3},
+                              "report", hits)
+        self.assertEqual(rep, {"a": "https://h/r", "b": ["ok", "[REDACTED]"], "c": 3})
+        self.assertEqual(hits, ["report.a", "report.b[1]"])
+        hits = []
+        E.redact_report({"a": "x\x1by", "b": "https://h/r"}, "report", hits)
+        self.assertEqual(hits, [])  # control characters are not a credential: no backstop hit
 
 
 class Classification(unittest.TestCase):
@@ -190,20 +312,16 @@ class Classification(unittest.TestCase):
                                                        "head_unreadable": True}, False, "main"))
 
     def test_read_head_only_a_full_object_id(self):  # F3: empty, odd or failed output is never a head
-        class R:
-            def __init__(self, rc, out):
-                self.rc, self.out = rc, out
-
-            def run(self, repo, args):
-                return self.rc, self.out, ""
         sha = "0123456789abcdef0123456789abcdef01234567"
-        self.assertEqual(E.read_head(R(0, sha + "\n"), "/r"), sha)
-        for rc, out in ((0, ""), (0, "\n"), (0, "HEAD"), (0, sha[:12]), (128, sha), (0, sha + "\nx")):
-            self.assertIsNone(E.read_head(R(rc, out), "/r"), (rc, out))
+        self.assertEqual(E.read_head(fake_runner(("exit", 0, sha + "\n", "")), "/r"), sha)
+        for res in (("exit", 0, "", ""), ("exit", 0, "\n", ""), ("exit", 0, "HEAD", ""), ("exit", 0, sha[:12], ""),
+                    ("exit", 1, "", ""), ("exit", 128, sha, ""), ("exit", 0, sha + "\nx", ""), ("signal", 9, sha, ""),
+                    ("timeout", None, "", ""), ("not-runnable", None, "", "")):
+            self.assertIsNone(E.read_head(fake_runner(res), "/r"), res)
 
     def test_fetch_failure_labels(self):  # F12
-        self.assertEqual(E.classify_fetch_failure(124, ""), "timeout")
-        self.assertEqual(E.classify_fetch_failure(126, ""), "deadline")
+        self.assertEqual(E.classify_fetch_failure(1, " ! [rejected] v1 -> v1 (would clobber existing tag)"), "tag-rejected")
+        self.assertEqual(E.classify_fetch_failure(128, "would clobber existing tag"), "other")  # only rc 1 (m-4)
         self.assertEqual(E.classify_fetch_failure(128, "git@x: Permission denied (publickey).\nfatal: Could not read from remote repository."), "auth")
         self.assertEqual(E.classify_fetch_failure(128, "fatal: '/x' does not appear to be a git repository"), "not-found")
         self.assertEqual(E.classify_fetch_failure(128, "fatal: unable to access 'https://h/': Could not resolve host: h"), "network")
@@ -243,6 +361,50 @@ class Classification(unittest.TestCase):
         self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
         self.assertIn("BatchMode=yes", env["GIT_SSH_COMMAND"])
         self.assertEqual(env["GIT_CONFIG_GLOBAL"], "/g")
+
+    def test_git_env_scrubs_every_config_injector(self):  # review round 2, K16
+        bad = {"GIT_CONFIG_PARAMETERS": "'core.sshCommand'='x'", "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_7": "k",
+               "GIT_CONFIG_VALUE_7": "v", "GIT_SSH": "/x", "GIT_PROXY_COMMAND": "/x", "GIT_EXEC_PATH": "/x"}
+        env = E.git_env(dict(bad, PATH="/bin"))
+        for k in bad:
+            self.assertNotIn(k, env)
+
+
+class Evidence(unittest.TestCase):  # review round 2, n-3
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp()
+
+    def tearDown(self):
+        for n in os.listdir(self.d):
+            os.unlink(os.path.join(self.d, n))
+        os.rmdir(self.d)
+
+    def test_only_our_files(self):
+        j, t = os.path.join(self.d, "sync_report.json"), os.path.join(self.d, "sync_report.tsv")
+        self.assertTrue(E.evidence_file_ours(j, "json"))
+        with open(j, "w") as f:
+            f.write('{"mine": 1}')
+        self.assertFalse(E.evidence_file_ours(j, "json"))
+        with open(j, "w") as f:
+            f.write('{\n  "schema": "%s"\n}' % E.SCHEMA)
+        self.assertTrue(E.evidence_file_ours(j, "json"))
+        with open(t, "w") as f:
+            f.write("\t".join(E.TSV_COLS) + "\n")
+        self.assertTrue(E.evidence_file_ours(t, "tsv"))
+        os.unlink(t)
+        os.symlink(j, t)
+        self.assertFalse(E.evidence_file_ours(t, "tsv"))
+
+    def test_write_atomic_unpredictable(self):
+        p = os.path.join(self.d, "sync_report.json")
+        trap = os.path.join(self.d, "sync_report.json.tmp")
+        os.symlink("/nonexistent/target", trap)  # the round-2 predictable name: never opened
+        E.write_atomic(p, "x")
+        with open(p) as f:
+            self.assertEqual(f.read(), "x")
+        self.assertEqual(sorted(os.listdir(self.d)), ["sync_report.json", "sync_report.json.tmp"])
+        self.assertTrue(os.path.islink(trap))
 
     def test_usage_exit_codes(self):
         self.assertEqual(E.main([]), E.EXIT_USAGE)

@@ -5,30 +5,34 @@ Fetches every remote of a project and of every initialised submodule at every de
 ahead / behind / diverged / unreachable state and the pin state of every submodule, and (only with
 --apply) integrates by FAST-FORWARD. Full documentation: docs/manuals/sync_upstreams_manual.md.
 
-Safety (Constitution §11.4.113, §9.2, §11.4.84, §11.4.10, §12):
-  * Every git call goes through Runner.run(), which refuses any subcommand or argument that is not on
-    the allow-list (check_git_args). push, commit, reset, rebase, a forced checkout, -s/--strategy,
-    '::' transport helpers and every '+' refspec except the one engine-owned remote-tracking refspec
-    (+refs/heads/*:refs/remotes/<remote>/*) can never be built.
-  * Fetch is engine-owned: an explicit refspec into refs/remotes/<remote>/* only, --refmap= (the
-    repository's configured fetch refspec, e.g. a mirror '+refs/heads/*:refs/heads/*', is ignored),
-    --no-prune --no-prune-tags --no-tags --no-auto-gc. A fetch therefore never creates, moves or
-    deletes a local branch or tag (tags only with --tags, and then only new ones, never forced).
-  * Every git call runs with SAFE_CONFIG (core.hooksPath=/dev/null, core.fsmonitor=false,
-    submodule.recurse=false, gc.auto=0, maintenance.auto=false, ...), so no hook, fsmonitor or
-    auto-maintenance runs, whatever the repository's own config says.
-  * A repository with a dirty tree, an in-progress operation or an index.lock is never changed; a
-    fast-forward or checkout that would overwrite an ignored local file (e.g. a credentials file) is
-    refused for that repository (reason ignored-file-would-be-overwritten).
-  * Nothing is ever deleted; the only writes are git fetch (refs/remotes/<remote>/*), git merge
-    --ff-only, git checkout --detach (clean submodule), git add -- <gitlink> (staged, never
-    committed) and the evidence files.
-  * A read that timed out or was cut by the run deadline is UNRESOLVED, never "absent": that
-    repository's result is "unresolved" and the run verdict INCONCLUSIVE (exit 5).
-  * URLs are logged without userinfo, git stderr is redacted, git never prompts.
-  * Fetched code is never executed by the engine or by git on its behalf (hooks, fsmonitor and
-    auto-maintenance are off). Honest boundary: a clean/smudge filter or diff driver the USER
-    configured still runs on checkout/merge when a tracked .gitattributes selects it.
+Safety (Constitution §11.4.113, §9.2, §11.4.84, §11.4.10, §11.4.201, §11.4.263, §12):
+  * ONE spawn point. proc_run_git() is the only code that starts a process and proc_kill_group() the only
+    code that sends a signal (to the call's own process group, pgid > 1). proc_run_git() passes every
+    argument list through check_git_args() and builds the command line only with git_argv(); the gate
+    CM-SYNC-UPSTREAMS-FF-ONLY proves from the AST that no other spawn or signal exists in any spelling.
+  * Every git call is a TYPED answer (GitResult). Each call site declares up front the exit statuses
+    that are an answer for that command (``ok=``, e.g. (0, 1) for `rev-parse --verify -q`, where 1 means
+    "no such object"), and, where the output has a fixed shape, the shape (``want=``). Anything else --
+    a signal, a timeout, the run deadline, an exit status outside the declared set (128 included where it
+    is not declared), a refused or unrunnable call, output of the wrong shape -- is NO ANSWER: it is
+    recorded for that repository, nothing about the repository is concluded, it is never changed, and
+    the run verdict is BLIND (exit 6; INCONCLUSIVE, exit 5, when the only missing answers ran out of
+    time). It is never read as "nothing there", "clean" or "current".
+  * ONE guarded writer. write_git() is the only code that runs a write (merge --ff-only, checkout
+    --detach, add --). Before every write it re-reads the tree status (it must answer and be clean),
+    re-checks for an operation in progress, and checks that no ignored file would be overwritten; before
+    staging a gitlink it checks that the parent's index still records the gitlink the run discovered.
+  * Fetch is engine-owned: an explicit refspec into refs/remotes/<remote>/* only, --refmap=,
+    --no-prune --no-prune-tags --no-tags --no-auto-gc. A fetch never creates, moves or deletes a local
+    branch or tag (tags only with --tags, and then only new ones, never forced).
+  * Every git call runs with SAFE_CONFIG (core.hooksPath=/dev/null, core.fsmonitor=false, ...), so no
+    hook, fsmonitor or auto-maintenance runs, whatever the repository's own config says.
+  * URLs are logged without userinfo (everything between scheme:// and the LAST '@' of the URL token),
+    token shapes are replaced, git stderr is redacted, and the whole report passes the same redaction
+    again before it is written; git never prompts.
+  * Honest boundary: a clean/smudge filter or diff driver the USER configured still runs when git writes
+    or compares files (status runs the clean filter of a modified file; a checkout or fast-forward runs
+    the smudge filter). The engine does not disable filters: that would break LFS-style repositories.
 """
 import argparse
 import concurrent.futures
@@ -42,6 +46,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -50,17 +55,22 @@ EXIT_OK, EXIT_FAIL, EXIT_USAGE, EXIT_BEHIND, EXIT_ATTENTION = 0, 1, 2, 3, 4
 EXIT_INCONCLUSIVE, EXIT_BLIND, EXIT_LOCKED = 5, 6, 7
 DEFAULT_OWN_ORGS = ("vasic-digital", "HelixDevelopment")
 SHA_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?$")
+DIGITS_RE = re.compile(r"^[0-9]+$")
+TWO_COUNTS_RE = re.compile(r"^[0-9]+\s+[0-9]+$")
+TWO_ABS_PATHS_RE = re.compile(r"^/[^\n]*\n/[^\n]*$")
+ABS_PATH_RE = re.compile(r"^/[^\n]*$")
 REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
-# rc of Runner.run that mean "the call did not answer" (never "the thing is absent", §11.4.201(6)):
-# 124 timeout, 126 run deadline passed, 127 git not runnable. 125 (refused) is a programming error.
-UNANSWERED = (124, 125, 126, 127)
+# Why a call gave no answer. Only these two mean "time ran out" (verdict INCONCLUSIVE); every other reason
+# (signal:N, rc:N, refused, not-runnable, malformed-output) is a call that answered nothing (verdict BLIND).
+TIME_WHYS = ("timeout", "deadline")
 
 # -c pairs on EVERY git call: whatever the repository's own (or the user's) config says, no hook,
 # fsmonitor, auto-gc/maintenance, submodule recursion, autostash, ext:: transport or prune runs.
 SAFE_CONFIG = ("core.hooksPath=/dev/null", "core.fsmonitor=false", "submodule.recurse=false",
                "gc.auto=0", "maintenance.auto=false", "merge.autoStash=false", "protocol.ext.allow=never",
                "fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")
+STATUS_ARGS = ["status", "--porcelain=v1", "--ignore-submodules=all", "--untracked-files=normal"]
 
 
 def fetch_args(remote, tags):
@@ -80,8 +90,8 @@ def git_argv(git_bin, repo, args):
     return cmd + ["--no-optional-locks"] + list(args)
 
 # ───────────────────────────── git allow-list ─────────────────────────────
-READ_SUBCOMMANDS = {"rev-parse", "rev-list", "status", "ls-files", "ls-tree", "cat-file",
-                    "for-each-ref", "merge-base", "remote", "config", "symbolic-ref"}
+READ_SUBCOMMANDS = {"rev-parse", "rev-list", "status", "ls-files", "ls-tree", "for-each-ref", "merge-base",
+                    "remote", "config", "symbolic-ref"}
 WRITE_SUBCOMMANDS = {"fetch", "merge", "checkout", "add"}
 FORBIDDEN_TOKENS = {"--force", "--force-with-lease", "--hard", "--soft", "--mixed", "--amend", "--delete",
                     "--strategy", "--strategy-option", "--mirror", "--recurse-submodules", "--git-dir",
@@ -90,7 +100,7 @@ FORBIDDEN_TOKENS = {"--force", "--force-with-lease", "--hard", "--soft", "--mixe
                     "--interactive", "--patch", "--all", "--rebase", "--no-ff", "--squash", "--edit",
                     "push", "reset", "rebase", "commit", "clean", "gc", "prune", "update-ref", "filter-branch"}
 # Short options are not listed: every WRITE subcommand below has one exact shape, so a short option can
-# never reach a write; the read subcommands' short options (ls-files -s, cat-file -e, ...) are harmless.
+# never reach a write; the read subcommands' short options (ls-files -s, rev-parse -q, ...) are harmless.
 FORBIDDEN_PREFIXES = ("--force", "--upload-pack=", "--exec=", "--receive-pack=", "--git-dir=",
                       "--work-tree=", "--strategy=", "--strategy-option=", "--refmap=", "--output",
                       "--config-env", "--super-prefix", "--namespace")
@@ -101,7 +111,7 @@ class GitRefused(Exception):
 
 
 def check_git_args(args):
-    """Raise GitRefused unless ``args`` (the words after ``git``) is an allowed shape."""
+    """Return ``args`` as a tuple when it is an allowed shape (the words after ``git``); else raise GitRefused."""
     if not args or not isinstance(args, (list, tuple)):
         raise GitRefused("empty git command")
     for a in args:
@@ -114,7 +124,7 @@ def check_git_args(args):
             raise GitRefused("fetch must name exactly one valid remote after --")
         if list(args) not in (fetch_args(remote, False), fetch_args(remote, True)):
             raise GitRefused("fetch must be exactly: " + " ".join(fetch_args("REMOTE", False)) + " [refs/tags/*:refs/tags/*]")
-        return True
+        return tuple(args)
     for a in args:
         if a.startswith("+"):
             raise GitRefused("forced refspec '%s'" % a)
@@ -146,7 +156,7 @@ def check_git_args(args):
     elif sub == "remote":
         if rest:
             raise GitRefused("remote is read-only here: bare 'git remote'")
-    return True
+    return tuple(args)
 
 
 def safe_remote(name):
@@ -164,18 +174,55 @@ def safe_relpath(p):
 
 
 # ───────────────────────────── redaction ─────────────────────────────
-_USERINFO = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/@\s]*@")
+_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
 _TOKENS = re.compile(r"(gh[pousr]_|github_pat_|glpat-|xox[abprs]-|AKIA)[A-Za-z0-9_\-]{4,}")
 _CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\x80-\x9f]")
+
+
+def strip_userinfo(text):
+    """Remove URL userinfo structurally: for every ``scheme://``, the URL token runs to the next ``scheme://``
+    or the end of the line (a password may hold spaces or '@'), and everything up to the LAST '@' in it is
+    removed. A '@' later on the same line (in a path or in prose) removes more than the userinfo: fail-safe
+    over-redaction, never a leak."""
+    out, pos = [], 0
+    marks = list(_SCHEME.finditer(text))
+    for i, m in enumerate(marks):
+        start = m.end()
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        nl = text.find("\n", start, end)
+        if nl != -1:
+            end = nl
+        at = text.rfind("@", start, end)
+        out.append(text[pos:start])
+        pos = at + 1 if at != -1 else start
+    out.append(text[pos:])
+    return "".join(out)
+
+
+def strip_secrets(text):
+    return _TOKENS.sub("[REDACTED]", strip_userinfo(text))
 
 
 def redact(text):
     """Remove URL userinfo, known token shapes and control characters."""
     if text is None:
         return ""
-    t = _USERINFO.sub(r"\1", str(text))
-    t = _TOKENS.sub("[REDACTED]", t)
-    return _CTRL.sub("?", t)
+    return _CTRL.sub("?", strip_secrets(str(text)))
+
+
+def redact_report(obj, path, hits):
+    """The report as written: every string passes redact() again (a backstop behind the per-field redaction),
+    keys starting with '_' (raw, private values) are dropped. ``hits`` collects the field paths where the
+    backstop had to remove a credential-class string: it must stay empty (the tests assert it)."""
+    if isinstance(obj, dict):
+        return {k: redact_report(v, path + "." + k, hits) for k, v in obj.items() if not k.startswith("_")}
+    if isinstance(obj, list):
+        return [redact_report(v, "%s[%d]" % (path, i), hits) for i, v in enumerate(obj)]
+    if isinstance(obj, str):
+        if strip_secrets(obj) != obj:
+            hits.append(path)
+        return redact(obj)
+    return obj
 
 
 def url_org_segments(url):
@@ -205,6 +252,56 @@ def clamp_jobs(requested, cpus):
     return max(1, min(int(requested), ceiling))
 
 
+# ───────────────────────────── the ONE spawn point ─────────────────────────────
+# proc_run_git and proc_kill_group are the only functions that may use subprocess / signal / os.killpg; the
+# gate proves it from the AST (every subprocess.* / signal.* / os.killpg / os.getpgid name is scoped to them,
+# each is called from exactly one place, and nothing else can start a process or send a signal).
+def proc_run_git(git_bin, repo, args, env, limit):
+    """Run ONE git call. Returns (kind, code, out, err): kind 'exit' (code = exit status), 'signal' (code = the
+    signal number), 'timeout' or 'not-runnable'. Raises GitRefused before any process exists."""
+    checked = check_git_args(args)
+    try:
+        p = subprocess.Popen(git_argv(git_bin, repo, checked), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env=env, start_new_session=True)
+    except OSError as e:
+        return "not-runnable", None, "", "cannot run git: %s" % e
+    try:
+        out, err = p.communicate(timeout=limit)
+    except subprocess.TimeoutExpired:
+        proc_kill_group(p)
+        try:  # a grandchild that escaped the group may still hold a pipe: never wait for it (F8)
+            p.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            for s in (p.stdout, p.stderr):
+                try:
+                    s.close()
+                except OSError:
+                    pass
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+        return "timeout", None, "", "timeout after %ds" % int(limit)
+    rc = p.returncode
+    o, e = out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
+    if rc < 0:
+        return "signal", -rc, o, e
+    return "exit", rc, o, e
+
+
+def proc_kill_group(p):
+    """Kill the process group of a child started with start_new_session (§11.4.263: pgid > 1)."""
+    try:
+        pgid = os.getpgid(p.pid)
+    except OSError:
+        return
+    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
 # ───────────────────────────── git runner ─────────────────────────────
 _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
           "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_EXEC_PATH", "GIT_SSH", "GIT_ASKPASS",
@@ -226,6 +323,21 @@ def git_env(base=None):
     return env
 
 
+class GitResult:
+    """One git call. ``answered`` is True only when git exited with a status the call site declared as an answer
+    (and, when the call site declared a shape, the output has it). Otherwise ``why`` says why there is no answer."""
+    def __init__(self, answered, rc, out, err, why):
+        self.answered = answered
+        self.rc = rc
+        self.out = out
+        self.err = err
+        self.why = why
+
+    def text(self):
+        """The output of an answered call that exited 0, stripped; else None."""
+        return self.out.strip() if self.answered and self.rc == 0 else None
+
+
 class Runner:
     def __init__(self, git_bin, timeout, deadline):
         self.git = git_bin
@@ -241,71 +353,42 @@ class Runner:
     def remaining(self):
         return self.deadline - time.monotonic()
 
-    def _unanswered(self, repo, args, why):
+    def no_answer(self, repo, sub, why):
         with self.lock:
-            self.unresolved.setdefault(os.path.realpath(repo), set()).add("%s:%s" % (args[0] if args else "?", why))
+            self.unresolved.setdefault(os.path.realpath(repo), set()).add("%s:%s" % (sub, why))
 
-    def run(self, repo, args, network=False, repo_ssh=False):
-        """Return (rc, stdout, stderr). rc 124 = timeout, 125 = refused, 126 = deadline passed,
-        127 = git not runnable. Every non-network 124 and every 125/126/127 is recorded as UNRESOLVED for
-        ``repo`` (a network fetch timeout is the remote's state: unreachable, recorded by the caller)."""
-        try:
-            check_git_args(args)
-        except GitRefused as e:
-            self._unanswered(repo, args, "refused")
-            return 125, "", "refused: %s" % e
+    def run(self, repo, args, ok, network=False, repo_ssh=False, want=None):
+        """Run one git call and return a GitResult. ``ok`` = the exit statuses that are an ANSWER for this call
+        (declared at every call site); ``want`` = a compiled pattern the stripped output of an exit-0 answer must
+        match. Every call that gives no answer is recorded for ``repo`` (it makes the repository unresolved or
+        blind), except a NETWORK call that ran out of time: that is the remote's state (unreachable), recorded by
+        the caller."""
+        sub = args[0] if args else "?"
         left = self.remaining()
         if left <= 0:
-            self._unanswered(repo, args, "deadline")
-            return 126, "", "run deadline passed"
+            self.no_answer(repo, sub, "deadline")
+            return GitResult(False, None, "", "run deadline passed", "deadline")
         limit = min(self.timeout if network else max(self.timeout, 60), left)
         with self.lock:
             self.calls += 1
-        cmd = git_argv(self.git, repo, args)
         try:
-            p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 env=self.env_repo_ssh if repo_ssh else self.env, start_new_session=True)
-        except OSError as e:
-            self._unanswered(repo, args, "not-runnable")
-            return 127, "", "cannot run git: %s" % e
-        try:
-            out, err = p.communicate(timeout=limit)
-        except subprocess.TimeoutExpired:
-            kill_own_group(p)
-            try:  # a grandchild that escaped the group may still hold a pipe: never wait for it (F8)
-                out, err = p.communicate(timeout=2)
-            except subprocess.TimeoutExpired:
-                for s in (p.stdout, p.stderr):
-                    try:
-                        s.close()
-                    except OSError:
-                        pass
-                try:
-                    p.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    pass
-                out = b""
-            if not network:
-                self._unanswered(repo, args, "timeout")
-            return 124, out.decode("utf-8", "replace"), "timeout after %ds" % int(limit)
-        return p.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
+            kind, code, out, err = proc_run_git(self.git, repo, args, self.env_repo_ssh if repo_ssh else self.env, limit)
+        except GitRefused as e:
+            self.no_answer(repo, sub, "refused")
+            return GitResult(False, None, "", "refused: %s" % e, "refused")
+        if kind == "exit" and code in ok:
+            if code == 0 and want is not None and not want.match(out.strip()):
+                self.no_answer(repo, sub, "malformed-output")
+                return GitResult(False, code, out, err, "malformed-output")
+            return GitResult(True, code, out, err, None)
+        why = {"exit": "rc:%s" % code, "signal": "signal:%s" % code}.get(kind, kind)
+        if not (network and why == "timeout"):
+            self.no_answer(repo, sub, why)
+        return GitResult(False, code, out, err, why)
 
     def unresolved_for(self, repo):
         with self.lock:
             return sorted(self.unresolved.get(os.path.realpath(repo), ()))
-
-
-def kill_own_group(p):
-    """Kill the process group of a child started with start_new_session (§11.4.263: pgid > 1)."""
-    try:
-        pgid = os.getpgid(p.pid)
-    except OSError:
-        return
-    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
-        try:
-            os.killpg(pgid, signal.SIGKILL)
-        except OSError:
-            pass
 
 
 # ───────────────────────────── helpers ─────────────────────────────
@@ -313,32 +396,36 @@ def now_utc():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def g_out(r, repo, args):
-    rc, out, _ = r.run(repo, args)
-    return out.strip() if rc == 0 else None
+def g_out(r, repo, args, ok, want=None):
+    """Stripped output of an answered exit-0 call, else None (a call with no answer is recorded by r.run)."""
+    return r.run(repo, args, ok=ok, want=want).text()
 
 
 def read_head(r, repo):
-    """HEAD as a full object id, or None when it cannot be read as one (unborn, error, empty or odd output):
-    an unread head is never compared, so it can never read as "unchanged" or "moved" (F3)."""
-    h = g_out(r, repo, ["rev-parse", "HEAD"])
-    return h if h and SHA_RE.match(h) else None
+    """HEAD as a full object id, or None (unborn: rev-parse --verify exits 1; or no answer, recorded): an unread
+    head is never compared, so it can never read as "unchanged" or "moved" (F3)."""
+    return g_out(r, repo, ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE)
 
 
 def is_ancestor(r, repo, a, b):
-    rc, _, _ = r.run(repo, ["merge-base", "--is-ancestor", a, b])
-    return rc == 0
+    """True / False (merge-base --is-ancestor exits 0 / 1), or None when it gave no answer (recorded)."""
+    res = r.run(repo, ["merge-base", "--is-ancestor", a, b], ok=(0, 1))
+    return (res.rc == 0) if res.answered else None
 
 
 def count_range(r, repo, a, b):
-    """(ahead_of_b, behind_b) for a vs b, or None."""
-    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (a, b)])
+    """(ahead_of_b, behind_b) for a vs b, or None (no answer, recorded)."""
+    out = g_out(r, repo, ["rev-list", "--left-right", "--count", "%s...%s" % (a, b)], ok=(0,), want=TWO_COUNTS_RE)
     if out is None:
         return None
     parts = out.split()
-    if len(parts) != 2:
-        return None
     return int(parts[0]), int(parts[1])
+
+
+def commit_present(r, repo, sha):
+    """True / False (rev-parse --verify -q exits 0 / 1), or None when it gave no answer (recorded)."""
+    res = r.run(repo, ["rev-parse", "--verify", "-q", "%s^{commit}" % sha], ok=(0, 1), want=SHA_RE)
+    return (res.rc == 0) if res.answered else None
 
 
 def classify(ahead, behind):
@@ -369,36 +456,48 @@ def in_progress(gitdir):
 
 
 def is_repo_root(r, path):
+    """True / False, or None when git gave no answer (recorded for ``path``)."""
     if not os.path.isdir(path) or not os.path.exists(os.path.join(path, ".git")):
         return False
-    top = g_out(r, path, ["rev-parse", "--show-toplevel"])
+    res = r.run(path, ["rev-parse", "--show-toplevel"], ok=(0, 128), want=ABS_PATH_RE)
+    if not res.answered:
+        return None
+    top = res.text()
     return top is not None and os.path.realpath(top) == os.path.realpath(path)
 
 
-def gitlinks(r, repo, treeish=None):
-    """{path: sha} of the gitlinks recorded in the index (or a tree-ish)."""
-    if treeish:
-        rc, out, _ = r.run(repo, ["ls-tree", "-r", "-z", treeish])
-        recs = [x for x in out.split("\0") if x] if rc == 0 else []
-        res = {}
-        for x in recs:
-            meta, _, path = x.partition("\t")
-            f = meta.split()
-            if len(f) == 3 and f[0] == "160000":
-                res[path] = f[2]
-        return res
-    rc, out, _ = r.run(repo, ["ls-files", "-s", "-z"])
+def parse_ls_tree(out):
     res = {}
-    if rc != 0:
-        return res
     for x in out.split("\0"):
         if not x:
             continue
         meta, _, path = x.partition("\t")
         f = meta.split()
-        if len(f) == 3 and f[0] == "160000" and f[2] == "0":
-            res[path] = f[1]
+        if len(f) == 3 and f[0] == "160000":
+            res[path] = f[2]
     return res
+
+
+def index_gitlinks(r, repo):
+    """{path: sha} of the gitlinks recorded in the index, or None when git gave no answer (recorded)."""
+    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))
+    if not res.answered:
+        return None
+    links = {}
+    for x in res.out.split("\0"):
+        if not x:
+            continue
+        meta, _, path = x.partition("\t")
+        f = meta.split()
+        if len(f) == 3 and f[0] == "160000" and f[2] == "0":
+            links[path] = f[1]
+    return links
+
+
+def head_gitlinks(r, repo):
+    """{path: sha} of the gitlinks of HEAD's tree, or None when git gave no answer (recorded)."""
+    res = r.run(repo, ["ls-tree", "-r", "-z", "HEAD"], ok=(0,))
+    return parse_ls_tree(res.out) if res.answered else None
 
 
 # ───────────────────────────── per-repository work ─────────────────────────────
@@ -419,29 +518,31 @@ def inspect_local(r, repo, branch):
     rec["head_before"] = read_head(r, p)
     if rec["head_before"] is None:
         rec["head_unreadable"] = True
-    rec["branch"] = g_out(r, p, ["symbolic-ref", "--short", "-q", "HEAD"])
+    rec["branch"] = g_out(r, p, ["symbolic-ref", "--short", "-q", "HEAD"], ok=(0, 1))
     # one call for both paths (the per-repository call count is a guarded budget, tests/sync/test_perf.sh)
-    paths = (g_out(r, p, ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD"])
-             or "").split("\n")
+    paths = (g_out(r, p, ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD"],
+                   ok=(0,), want=TWO_ABS_PATHS_RE) or "").split("\n")
     gitdir, fetch_head = (paths[0], paths[1]) if len(paths) == 2 and all(paths) else ("", "")
+    rec["_gitdir"] = gitdir
     rec["in_progress"] = in_progress(gitdir) if gitdir else ["unknown-git-dir"]
-    st = r.run(p, ["status", "--porcelain=v1", "--ignore-submodules=all", "--untracked-files=normal"])
-    rec["dirty"] = (st[0] != 0) or bool(st[1].strip())
-    names = g_out(r, p, ["remote"])
+    st = r.run(p, STATUS_ARGS, ok=(0,))
+    rec["dirty"] = (not st.answered) or bool(st.out.strip())
+    names = g_out(r, p, ["remote"], ok=(0,))
     remotes = []
     for n in sorted((names or "").split()):
         if not safe_remote(n):
             remotes.append({"name": redact(n), "url": "", "fetch": "skipped", "state": "invalid-name"})
             continue
-        url = g_out(r, p, ["config", "--get", "remote.%s.url" % n]) or ""
-        remotes.append({"name": n, "url": redact(url), "fetch": "not-run"})
+        url = g_out(r, p, ["config", "--get", "remote.%s.url" % n], ok=(0, 1)) or ""
+        # "name" is what the report shows (redacted, n-2); "_name" is the real name every git call uses
+        remotes.append({"name": redact(n), "_name": n, "url": redact(url), "_url": url, "fetch": "not-run"})
     rec["remotes"] = remotes
     rec["_branch_wanted"] = branch
     rec["_fetch_head"] = fetch_head
     # F9: a repository (or user) core.sshCommand is honoured; otherwise the engine's BatchMode ssh is used.
     # git never prompts either way: no controlling terminal (new session), stdin /dev/null, no askpass.
-    rc, out, _ = r.run(p, ["config", "--get", "core.sshCommand"])
-    rec["ssh"] = "core.sshCommand" if rc == 0 and out.strip() else "engine-default"
+    res = r.run(p, ["config", "--get", "core.sshCommand"], ok=(0, 1))
+    rec["ssh"] = "core.sshCommand" if res.text() else "engine-default"
 
 
 FETCH_FAILURE_CLASSES = (
@@ -453,19 +554,15 @@ FETCH_FAILURE_CLASSES = (
                  "no route to host", "could not read from remote", "unable to access", "failed to connect",
                  "connection reset", "connection closed")),
 )
+TAG_REJECTED = ("would clobber existing tag",)
 
 
 def classify_fetch_failure(rc, err):
-    """A closed label for a failed fetch (F12); the redacted error line is kept beside it."""
-    if rc == 124:
-        return "timeout"
-    if rc == 126:
-        return "deadline"
-    if rc == 125:
-        return "refused-by-engine"
-    if rc == 127:
-        return "git-not-runnable"
+    """A closed label for a fetch that answered with a failure exit status (F12); the redacted error line is
+    kept beside it. A fetch that gave no answer is labelled by its ``why`` instead (timeout, deadline, ...)."""
     e = (err or "").lower()
+    if rc == 1 and any(n in e for n in TAG_REJECTED):
+        return "tag-rejected"
     for label, needles in FETCH_FAILURE_CLASSES:
         if any(n in e for n in needles):
             return label
@@ -493,20 +590,33 @@ def fetch_repo(r, repo, tags):
     for rem in repo.rec["remotes"]:
         if rem.get("state") == "invalid-name":
             continue
-        rc, _, err = r.run(repo.abspath, fetch_args(rem["name"], tags), network=True,
-                           repo_ssh=repo.rec.get("ssh") == "core.sshCommand")
-        rem["fetch_rc"] = rc
-        rem["fetch"] = "ok" if rc == 0 else {124: "timeout", 126: "deadline"}.get(rc, "failed")
-        if rc != 0:
-            rem["fetch_failure"] = classify_fetch_failure(rc, err)
-            lines = [l for l in redact(err).splitlines() if l.strip()]
-            rem["fetch_error"] = lines[-1][:300] if lines else "git exit %d" % rc
+        res = r.run(repo.abspath, fetch_args(rem["_name"], tags), ok=(0, 1, 128), network=True,
+                    repo_ssh=repo.rec.get("ssh") == "core.sshCommand")
+        if not res.answered:
+            # timeout / deadline: the remote did not answer in time (its state, unreachable / not fetched);
+            # any other no-answer (a signal, an unexpected status, ...) is recorded by r.run and makes the run BLIND
+            rem["fetch"] = res.why if res.why in TIME_WHYS else "no-answer"
+            rem["fetch_failure"] = res.why
+            rem["fetch_error"] = redact(res.err).strip()[-300:] or res.why
             continue
+        rem["fetch_rc"] = res.rc
+        if res.rc != 0:
+            rem["fetch_failure"] = classify_fetch_failure(res.rc, res.err)
+            lines = [l for l in redact(res.err).splitlines() if l.strip()]
+            rem["fetch_error"] = lines[-1][:300] if lines else "git exit %d" % res.rc
+            if rem["fetch_failure"] != "tag-rejected":
+                rem["fetch"] = "failed"
+                continue
+            # a moved upstream tag was refused (never forced): the remote answered and its branches were
+            # fetched; the rejection is reported (tag-rejected, attention) and blocks integration (m-4)
+            rem["fetch"] = "tag-rejected"
+        else:
+            rem["fetch"] = "ok"
         # --no-prune keeps a stale refs/remotes/<r>/<branch> after upstream deleted it: FETCH_HEAD says
         # which branches the remote really has now (never a delete of our own).
         got = fetched_branches(repo.rec.get("_fetch_head") or "")
         if got is None:
-            r._unanswered(repo.abspath, ["fetch"], "fetch-head-unreadable")
+            r.no_answer(repo.abspath, "fetch", "fetch-head-unreadable")
         elif repo.rec.get("_branch_wanted", "main") not in got:
             rem["branch_gone_upstream"] = True
 
@@ -518,14 +628,15 @@ def evaluate_upstream(r, repo, branch):
     for rem in rec["remotes"]:
         if rem.get("state") == "invalid-name":
             continue
-        sha = g_out(r, p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["name"], branch)])
+        sha = g_out(r, p, ["rev-parse", "--verify", "-q", "refs/remotes/%s/%s^{commit}" % (rem["_name"], branch)],
+                    ok=(0, 1), want=SHA_RE)
         if rem.get("branch_gone_upstream"):
             # the remote no longer has the branch; a remote-tracking ref we still hold (kept by --no-prune,
             # never deleted by us) is stale and is reported, a never-existing one is not a finding
             rem["stale_tracking_ref"] = bool(sha)
             sha = None
         rem["main_sha"] = sha
-        if rem.get("fetch") in ("failed", "timeout"):
+        if rem.get("fetch") in ("failed", "timeout", "no-answer"):
             rem["state"] = "unreachable"
         elif rem.get("fetch") == "deadline":
             rem["state"] = "not-fetched-deadline"
@@ -533,7 +644,7 @@ def evaluate_upstream(r, repo, branch):
             rem["state"] = "no-main"
         if sha:
             mains[rem["name"]] = sha
-    newest = pick_newest(list(mains.values()), lambda a, b: is_ancestor(r, p, a, b))
+    newest = pick_newest(list(mains.values()), lambda a, b: bool(is_ancestor(r, p, a, b)))
     rec["upstream_state"] = "none" if not mains else ("linear" if newest else "upstreams-diverged")
     rec["target"] = newest
     head = rec.get("head_before")
@@ -563,27 +674,30 @@ def evaluate_pin(r, repo, gitlink, own_orgs):
     pin = {"gitlink": gitlink}
     url = ""
     for rem in rec.get("remotes", []):
-        if rem.get("name") == "origin":
-            url = rem.get("url", "")
+        if rem.get("_name") == "origin":
+            url = rem.get("_url", "")
     if not url and rec.get("remotes"):
-        url = rec["remotes"][0].get("url", "")
+        url = rec["remotes"][0].get("_url", "")
     rec["own_org"] = is_own_org(url, own_orgs) if url else False
     p = repo.abspath
-    rc, _, _ = r.run(p, ["cat-file", "-e", "%s^{commit}" % gitlink])
-    if rc != 0:
+    present = commit_present(r, p, gitlink)
+    if present is None:
+        pin["state"] = "unknown"
+    elif not present:
         pin["state"] = "unfetchable"
     else:
-        rc, out, _ = r.run(p, ["for-each-ref", "--contains", gitlink, "--format=%(refname)", "refs/remotes"])
-        refs = [x for x in out.split() if x] if rc == 0 else []
+        res = r.run(p, ["for-each-ref", "--contains", gitlink, "--format=%(refname)", "refs/remotes"], ok=(0,))
+        refs = [x for x in res.out.split() if x] if res.answered else None
         branch = rec.get("_branch_wanted", "main")
         # exact match (F13): refs/remotes/<remote>/feature/main is NOT <remote>'s main
-        mains = {"refs/remotes/%s/%s" % (m.get("name"), branch) for m in rec.get("remotes", [])
+        mains = {"refs/remotes/%s/%s" % (m.get("_name"), branch) for m in rec.get("remotes", [])
                  if m.get("state") != "invalid-name" and not m.get("branch_gone_upstream")}
-        on_main = [x for x in refs if x in mains]
         target = rec.get("target")
-        if not refs:
+        if refs is None:
+            pin["state"] = "unknown"
+        elif not refs:
             pin["state"] = "not-on-any-remote"
-        elif not on_main:
+        elif not [x for x in refs if x in mains]:
             pin["state"] = "not-on-main"
         elif target and gitlink == target:
             pin["state"] = "at-main"
@@ -615,12 +729,16 @@ def reasons_for(rec, strict_pins, branch):
             reasons.append("unreachable:" + rem["name"])
         elif rem.get("state") == "invalid-name":
             reasons.append("invalid-remote-name")
+        if rem.get("fetch") == "tag-rejected":
+            reasons.append("tag-rejected:" + rem["name"])
         if rem.get("stale_tracking_ref"):
             reasons.append("upstream-branch-gone:" + rem["name"])
     if rec.get("upstream_state") == "upstreams-diverged":
         reasons.append("upstreams-diverged")
     if rec["kind"] == "root" and rec.get("branch") != branch:
         reasons.append("root-not-on-" + branch)
+    if rec.get("branch") == branch and rec.get("upstream_state") == "none":
+        reasons.append("no-upstream-" + branch)  # no remote, or no remote has <branch> (m-2): never "current"
     if rec.get("branch") == branch and rec.get("local_vs_target") in ("diverged", "ahead"):
         reasons.append("local-" + rec["local_vs_target"])
     pin = rec.get("pin")
@@ -663,7 +781,7 @@ def discover(r, root, max_depth):
         if repo.depth >= max_depth:
             repo.rec["depth_limited"] = True
             return
-        links = gitlinks(r, repo.abspath)
+        links = index_gitlinks(r, repo.abspath) or {}  # no answer: recorded, this repository is blind
         for path in sorted(links):
             if not safe_relpath(path):
                 continue
@@ -676,7 +794,13 @@ def discover(r, root, max_depth):
                 child.rec["initialised"] = False
                 child.rec["pin"] = {"gitlink": links[path], "state": "absent"}
                 out.append(child)
-            elif not is_repo_root(r, child_abs):
+                continue
+            top = is_repo_root(r, child_abs)
+            if top is None:  # no answer: recorded for the child; it is never inspected or changed
+                child.rec["initialised"] = False
+                child.rec["pin"] = {"gitlink": links[path], "state": "unknown"}
+                out.append(child)
+            elif not top:
                 child.rec["initialised"] = False
                 child.rec["pin"] = {"gitlink": links[path], "state": "uninitialised"}
                 out.append(child)
@@ -691,6 +815,10 @@ def discover(r, root, max_depth):
 
 
 # ───────────────────────────── integration ─────────────────────────────
+BLOCKING_PREFIXES = ("dirty-tree", "in-progress", "upstreams-diverged", "local-", "unreachable", "invalid-remote",
+                     "root-not-on-", "head-unreadable", "tag-rejected", "no-upstream-")
+
+
 def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, consent):
     """Pre-order: parents move first, their clean children follow the new recorded gitlink."""
     blocked_paths = set()
@@ -705,9 +833,7 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
             continue
         reasons = reasons_for(rec, strict_pins, branch)
         # root-not-on-<branch> blocks the whole tree (F7): no pin is staged into a topic branch's index
-        local_block = [x for x in reasons if x.startswith(("dirty-tree", "in-progress", "upstreams-diverged",
-                                                             "local-", "unreachable", "invalid-remote",
-                                                             "root-not-on-", "head-unreadable"))]
+        local_block = [x for x in reasons if x.startswith(BLOCKING_PREFIXES)]
         if r.unresolved_for(repo.abspath):
             local_block.append("unresolved")
         if local_block:
@@ -715,64 +841,115 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
             blocked_paths.add(repo.rel)
             continue
         p = repo.abspath
+        moved = bool(rec.get("followed"))  # it followed its own parent's new gitlink earlier in this run
         if rec.get("branch") == branch:
             if rec.get("local_vs_target") == "behind" and consent.get("integrate"):
-                if not clobber_guard(r, repo, rec["target"]):
+                res = write_git(r, repo, "fast-forward", rec["target"])
+                if res != "done":
                     blocked_paths.add(repo.rel)
                     continue
-                rc, _, err = r.run(p, ["merge", "--ff-only", rec["target"]])
-                rec["actions"].append({"op": "fast-forward", "to": rec["target"], "rc": rc,
-                                       "error": redact(err).strip()[-300:] if rc else ""})
-                if rc != 0:
-                    if rc not in UNANSWERED:  # a deadline-skipped write is unresolved, not a failure
-                        rec["failed"] = True
-                    blocked_paths.add(repo.rel)
-                    continue
+                moved = True
                 if repo.parent is not None:  # F11: the parent's work tree now shows a modified gitlink
                     repo.parent.rec.setdefault("gitlink_modified", []).append(rec["path_in_parent"])
-            follow_children(r, repo, repos, consent)
         elif repo.parent is not None:
             pin = rec.get("pin") or {}
             want = (advance_pins and consent.get("pins") and not rec.get("followed") and pin.get("state") == "behind-main"
                     and pin.get("checkout") == "at-pin" and rec.get("head_after", rec.get("head_before")) == pin.get("gitlink")
                     and (rec.get("own_org") or advance_third_party))
-            if want and not clobber_guard(r, repo, rec["target"]):
-                blocked_paths.add(repo.rel)
-                continue
-            if want:  # clean nested children follow their new recorded gitlink (follow_children below)
-                rc, _, err = r.run(p, ["checkout", "--quiet", "--detach", rec["target"]])
-                act = {"op": "advance-pin", "to": rec["target"], "rc": rc}
-                if rc == 0:
-                    rc2, _, err2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]])
-                    act["staged_rc"] = rc2
-                    if rc2 != 0:
-                        act["error"] = redact(err2).strip()[-300:]
-                        rec["failed"] = rc2 not in UNANSWERED or rec.get("failed", False)
-                else:
-                    act["error"] = redact(err).strip()[-300:]
-                    rec["failed"] = rc not in UNANSWERED or rec.get("failed", False)
-                rec["actions"].append(act)
+            if want:
+                res = write_git(r, repo, "advance-pin", rec["target"])
+                if res != "done":
+                    blocked_paths.add(repo.rel)
+                    continue
+                moved = True
+        if moved:  # only a parent that moved in THIS run (by a consented write) can make its children follow
             follow_children(r, repo, repos, consent)
         rec["head_after"] = read_head(r, p)
         if rec["head_after"] is None:
             rec["head_unreadable"] = True
 
 
+def write_git(r, repo, op, target):
+    """The ONE guarded writer: every merge / checkout / add of the engine runs here, after the guards.
+    op: 'fast-forward' (merge --ff-only), 'advance-pin' (checkout --detach, then stage the gitlink in the parent),
+    'follow-pin' (checkout --detach). Returns 'done', 'blocked', 'failed' or 'no-answer'; records the action."""
+    rec = repo.rec
+    p = repo.abspath
+    act = {"op": op, "to": target}
+    rec.setdefault("actions", [])
+    # 0. a repository with ANY call that did not answer in this run is never written: its record may hold a field
+    #    that was never read (dirty, branch, in-progress, ...) and an unread field is not "clean" (review round 3:
+    #    a follow-pin wrote a child whose own status had been killed). Checked here, so every write path has it.
+    if r.unresolved_for(p):
+        rec["actions"].append({"op": "none", "why": "unresolved:earlier-no-answer", "for": op})
+        return "no-answer"
+    # 1. the tree is still clean and no operation is in progress, read NOW (§11.4.84); a status that does not
+    #    answer is never "clean" (review round 2, K11)
+    st = r.run(p, STATUS_ARGS, ok=(0,))
+    if not st.answered:
+        rec["actions"].append({"op": "none", "why": "unresolved:status-recheck", "for": op})
+        return "no-answer"
+    busy = in_progress(rec.get("_gitdir") or "") if rec.get("_gitdir") else ["unknown-git-dir"]
+    if st.out.strip() or busy:
+        rec["actions"].append({"op": "none", "why": "blocked:tree-changed-before-write", "for": op})
+        return "blocked"
+    # 2. no ignored (expendable to git) file would be overwritten or removed (F4, review round 2 I-3)
+    guard = clobber_guard(r, repo, target)
+    if guard != "clear":
+        return guard
+    # 3. staging a gitlink: the parent's index must still record the gitlink this run discovered
+    if op == "advance-pin":
+        links = index_gitlinks(r, repo.parent.abspath)
+        if links is None:
+            rec["actions"].append({"op": "none", "why": "unresolved:parent-index", "for": op})
+            return "no-answer"
+        if links.get(rec["path_in_parent"]) != rec.get("recorded_gitlink"):
+            rec["actions"].append({"op": "none", "why": "blocked:parent-index-changed", "for": op})
+            return "blocked"
+    # 4. the write
+    if op == "fast-forward":
+        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128))
+    else:
+        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128))
+    act["rc"] = res.rc
+    act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
+    if not res.answered:
+        act["why"] = "unresolved:" + str(res.why)
+        rec["actions"].append(act)
+        return "no-answer"
+    if res.rc != 0:
+        rec["actions"].append(act)
+        rec["failed"] = True
+        return "failed"
+    if op == "advance-pin":
+        res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128))
+        act["staged_rc"] = res2.rc
+        if not res2.answered or res2.rc != 0:
+            act["error"] = redact(res2.err).strip()[-300:]
+            rec["actions"].append(act)
+            if res2.answered:
+                rec["failed"] = True
+                return "failed"
+            return "no-answer"
+    rec["actions"].append(act)
+    return "done"
+
+
 def ignored_clobbers(r, path, target):
     """Ignored, untracked paths in ``path`` that a move to ``target`` would overwrite or remove (git treats
-    ignored files as expendable). [] = none, None = could not tell (the caller blocks). Files are listed one by
-    one (no --directory): a collapsed ``build/`` entry would falsely block a target that only adds
+    ignored files as expendable). [] = none, None = no answer (recorded; the caller blocks). Files are listed one
+    by one (no --directory): a collapsed ``build/`` entry would falsely block a target that only adds
     ``build/x``, while each ignored file is checked against the target's files and directories."""
-    rc, out, _ = r.run(path, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"])
-    if rc != 0:
+    res = r.run(path, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"], ok=(0,))
+    if not res.answered:
         return None
-    ignored = sorted({x.rstrip("/") for x in out.split("\0") if x.strip("/")})
+    ignored = sorted({x.rstrip("/") for x in res.out.split("\0") if x.strip("/")})
     if not ignored:
         return []
-    rc, out, _ = r.run(path, ["ls-tree", "-r", "-z", "--name-only", "--full-tree", target])
-    if rc != 0:
+    res = r.run(path, ["ls-tree", "-r", "-z", "--name-only", "--full-tree", target], ok=(0,))
+    if not res.answered:
         return None
-    files = {x for x in out.split("\0") if x}
+    files = {x for x in res.out.split("\0") if x}
     dirs = set()
     for f in files:
         parts = f.split("/")
@@ -787,66 +964,67 @@ def ignored_clobbers(r, path, target):
 
 
 def clobber_guard(r, repo, target):
-    """True when the move to ``target`` may go ahead; otherwise records why (F4) and returns False."""
+    """'clear' when the move to ``target`` may go ahead; else records why and returns 'blocked' / 'no-answer'."""
     hits = ignored_clobbers(r, repo.abspath, target)
     if hits == []:
-        return True
+        return "clear"
     rec = repo.rec
-    rec["ignored_clobber"] = [redact(x) for x in (hits or [])[:20]]
-    rec.setdefault("actions", []).append({"op": "none", "why": "ignored-file-would-be-overwritten"
-                                          if hits else "unresolved:ignored-file-check",
-                                          "paths": rec["ignored_clobber"]})
     if hits is None:
-        rec.pop("ignored_clobber", None)
-        r._unanswered(repo.abspath, ["ls-files"], "ignored-file-check-failed")
-    return False
+        rec.setdefault("actions", []).append({"op": "none", "why": "unresolved:ignored-file-check"})
+        return "no-answer"
+    rec["ignored_clobber"] = [redact(x) for x in hits[:20]]
+    rec.setdefault("actions", []).append({"op": "none", "why": "ignored-file-would-be-overwritten",
+                                          "paths": rec["ignored_clobber"]})
+    return "blocked"
 
 
 def follow_children(r, repo, repos, consent):
-    """After ``repo`` moved, check its clean, at-old-pin children out at the new recorded gitlink."""
-    new_links = gitlinks(r, repo.abspath)
+    """After ``repo`` moved in this run, check its clean, at-old-pin children out at the gitlink HEAD now records.
+    The new gitlinks are read from HEAD's tree (what the consented move committed), never from the index alone: a
+    gitlink someone staged meanwhile is not followed (the index must agree with HEAD, §11.4.84)."""
+    tree = head_gitlinks(r, repo.abspath)
+    index = index_gitlinks(r, repo.abspath)
     for c in repos:
         if c.parent is not repo or not c.rec.get("initialised"):
             continue
         path = c.rec["path_in_parent"]
         old = c.rec.get("recorded_gitlink")
-        new = new_links.get(path)
+        if tree is None or index is None:
+            c.rec.setdefault("actions", []).append({"op": "none", "why": "unresolved:parent-gitlinks"})
+            continue
+        new = tree.get(path)
         if not new or new == old:
             continue
         c.rec["recorded_gitlink_after"] = new
+        if index.get(path) != new:
+            c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:index-differs"})
+            continue
         if c.rec.get("branch"):
             c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:submodule-on-branch"})
             continue
         if c.rec.get("head_before") != old or c.rec.get("dirty") or c.rec.get("in_progress"):
             c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:drifted-or-dirty"})
             continue
-        # A parent's gitlinks move only by a fast-forward (consent "integrate") or a pin advance (consent
-        # "pins"); following is part of that same consented move, so either consent covers it.
+        # A parent moves only by a fast-forward (consent "integrate") or a pin advance (consent "pins"), and this
+        # function is reached only after such a move; following is part of that same consented move.
         if not (consent.get("integrate") or consent.get("pins")):
             continue
-        rc, _, err = r.run(c.abspath, ["cat-file", "-e", "%s^{commit}" % new])
-        if rc in UNANSWERED:
+        present = commit_present(r, c.abspath, new)
+        if present is None:
             c.rec.setdefault("actions", []).append({"op": "none", "why": "unresolved:new-pin-check"})
             continue
-        if rc != 0:
+        if not present:
             c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-blocked:new-pin-unfetchable"})
             c.rec["failed"] = True
             continue
-        if not clobber_guard(r, c, new):
-            continue
-        rc, _, err = r.run(c.abspath, ["checkout", "--quiet", "--detach", new])
-        c.rec.setdefault("actions", []).append({"op": "follow-pin", "to": new, "rc": rc,
-                                                "error": redact(err).strip()[-300:] if rc else ""})
-        if rc != 0:
-            c.rec["failed"] = rc not in UNANSWERED or c.rec.get("failed", False)
-        else:
+        if write_git(r, c, "follow-pin", new) == "done":
             c.rec["head_before_follow"] = c.rec.get("head_before")
             c.rec["followed"] = True
 
 
 # ───────────────────────────── evidence ─────────────────────────────
 VOLATILE = {"started", "ended", "duration_s", "run_id", "fetch_error", "out_dir", "root_abs", "git_calls",
-            "jobs", "_branch_wanted", "_follow", "_fetch_head", "consent_source"}
+            "jobs", "consent_source"}
 
 
 def canonical(obj):
@@ -862,11 +1040,13 @@ def canonical_sha256(report):
     return hashlib.sha256(data.encode("ascii")).hexdigest()
 
 
-def tsv_rows(report):
-    cols = ["path", "kind", "depth", "initialised", "branch", "head_before", "head_after", "target",
+TSV_COLS = ["path", "kind", "depth", "initialised", "branch", "head_before", "head_after", "target",
             "upstream_state", "local_vs_target", "pin_state", "pin_behind_main", "own_org", "result", "reasons",
             "remotes"]
-    rows = ["\t".join(cols)]
+
+
+def tsv_rows(report):
+    rows = ["\t".join(TSV_COLS)]
     for rec in report["repos"]:
         pin = rec.get("pin") or {}
         rem = ",".join("%s=%s:%s/%s" % (x.get("name"), x.get("state", x.get("fetch")), x.get("ahead", "-"),
@@ -880,19 +1060,51 @@ def tsv_rows(report):
     return "\n".join(rows) + "\n"
 
 
+def evidence_file_ours(path, kind):
+    """True when ``path`` does not exist, or is a regular file (not a symlink) that an earlier run of this engine
+    wrote (n-3): a user's own file of that name is never overwritten."""
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    if (st.st_mode & 0o170000) != 0o100000:  # not a regular file (a symlink, a directory, ...)
+        return False
+    if st.st_size > 256 * 1024 * 1024:
+        return False
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            if kind == "tsv":
+                return f.readline().rstrip("\n") == "\t".join(TSV_COLS)
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("schema") == SCHEMA
+
+
 def write_atomic(path, data):
-    tmp = path + ".tmp.%d" % os.getpid()
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(data)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
+    """Write ``data`` to a fresh, unpredictable temporary file (O_EXCL, mode 0600) in the same directory and
+    rename it over ``path``."""
+    fd, tmp = tempfile.mkstemp(prefix=".sync_report.", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def control_needle(r, root):
     """§11.4.273: the instrument must see a known count before any zero is believed."""
-    n = g_out(r, root, ["rev-list", "--count", "HEAD"])
-    lr = g_out(r, root, ["rev-list", "--left-right", "--count", "HEAD...HEAD"])
+    n = g_out(r, root, ["rev-list", "--count", "HEAD"], ok=(0,), want=DIGITS_RE)
+    lr = g_out(r, root, ["rev-list", "--left-right", "--count", "HEAD...HEAD"], ok=(0,), want=TWO_COUNTS_RE)
     ok = bool(n and n.isdigit() and int(n) >= 1 and lr is not None and lr.split() == ["0", "0"])
     return {"probe": "rev-list --count HEAD >= 1 and HEAD...HEAD == 0 0", "count": n, "self_range": lr, "ok": ok}
 
@@ -978,7 +1190,13 @@ def main(argv):
     started_mono = time.monotonic()
     r = Runner(git_bin, a.timeout, started_mono + a.deadline)
     start_dir = a.root or os.getcwd()
-    top = g_out(r, start_dir, ["rev-parse", "--show-toplevel"])
+    res = r.run(start_dir, ["rev-parse", "--show-toplevel"], ok=(0, 128), want=ABS_PATH_RE)
+    if not res.answered:
+        print("sync-upstreams: BLIND: git gave no answer for the work-tree top level of %s (%s); nothing was done"
+              % (redact(start_dir), res.why), file=sys.stderr)
+        print("RESULT: BLIND exit=%d" % EXIT_BLIND)
+        return EXIT_BLIND
+    top = res.text()
     if not top:
         print("sync-upstreams: ERROR: %s is not inside a git work tree" % redact(start_dir), file=sys.stderr)
         return EXIT_USAGE
@@ -996,6 +1214,11 @@ def main(argv):
     if out_dir == root or out_dir.startswith(root + os.sep):
         print("sync-upstreams: ERROR: --out must be outside the project work tree", file=sys.stderr)
         return EXIT_USAGE
+    for name, kind in (("sync_report.json", "json"), ("sync_report.tsv", "tsv")):
+        if not evidence_file_ours(os.path.join(out_dir, name), kind):
+            print("sync-upstreams: ERROR: %s exists and was not written by this engine (or is a symlink); choose "
+                  "another --out" % redact(os.path.join(out_dir, name)), file=sys.stderr)
+            return EXIT_USAGE
     tty = None
     if a.interactive:
         try:
@@ -1003,10 +1226,12 @@ def main(argv):
         except OSError:
             print("sync-upstreams: ERROR: --interactive needs a terminal (/dev/tty); use --non-interactive", file=sys.stderr)
             return EXIT_USAGE
-    common = g_out(r, root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+    common = g_out(r, root, ["rev-parse", "--path-format=absolute", "--git-common-dir"], ok=(0,), want=ABS_PATH_RE)
     if not common:
-        print("sync-upstreams: ERROR: cannot resolve the git common dir", file=sys.stderr)
-        return EXIT_USAGE
+        print("sync-upstreams: BLIND: git gave no answer for the git common dir of %s; nothing was done" % redact(root),
+              file=sys.stderr)
+        print("RESULT: BLIND exit=%d" % EXIT_BLIND)
+        return EXIT_BLIND
     lock_path = os.path.join(common, "helix-sync-upstreams.lock")
     try:
         lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
@@ -1074,21 +1299,26 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         if rec.get("initialised") and "head_after" not in rec:
             rec["head_after"] = rec.get("head_before")
     # final classification
-    any_fail = any_attention = any_behind = any_unresolved = False
+    any_fail = any_attention = any_behind = any_unresolved = any_blind = False
     hints = []
     for x in repos:
         rec = x.rec
         rec["reasons"] = reasons_for(rec, a.strict_pins, a.branch)
         unresolved = r.unresolved_for(x.abspath)
-        if unresolved:  # F3: a call that did not answer is never read as "absent" / "unchanged" / "moved"
+        if unresolved:  # a call that did not answer is never read as "absent" / "clean" / "unchanged" / "moved"
             rec["unresolved"] = unresolved
             rec["reasons"] += ["unresolved:" + u for u in unresolved]
+        blind = [u for u in unresolved if u.split(":", 1)[1] not in TIME_WHYS]
         rec.setdefault("actions", [])
         moved = bool(rec.get("initialised") and rec.get("head_after") is not None
                      and rec.get("head_before") is not None and rec.get("head_after") != rec.get("head_before"))
         if rec.get("failed"):
-            rec["result"] = "failed"
             any_fail = True
+        if blind:  # before "failed": a failure judged on a call that gave no answer is not an answer either
+            rec["result"] = "blind"
+            any_blind = True
+        elif rec.get("failed"):
+            rec["result"] = "failed"
         elif unresolved:
             rec["result"] = "unresolved"
             any_unresolved = True
@@ -1110,9 +1340,7 @@ def run(a, r, mode, root, run_id, out_dir, tty):
             rec["result"] = "not-initialised"
         else:
             rec["result"] = "current"
-        for k in ("_branch_wanted", "_follow", "_fetch_head"):
-            rec.pop(k, None)
-    if not needle["ok"]:
+    if not needle["ok"] or any_blind:
         code, verdict = EXIT_BLIND, "BLIND"
     elif any_fail:
         code, verdict = EXIT_FAIL, "FAILED"
@@ -1137,6 +1365,9 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         "repos": sorted((x.rec for x in repos), key=lambda d: d["path"]),
         "next_steps": sorted(set(hints)),
     }
+    hits = []
+    report = redact_report(report, "report", hits)
+    report["redaction_backstop"] = hits  # field paths the backstop had to clean: always [] (tests/sync/*)
     report["canonical_sha256"] = canonical_sha256(report)
     try:
         os.makedirs(out_dir, mode=0o700, exist_ok=True)

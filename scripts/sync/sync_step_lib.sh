@@ -36,9 +36,18 @@ sync_step() {
   if [ "$mode" = ask ] && ! { : </dev/tty; } 2>/dev/null; then
     echo "[sync-upstreams] SKIP: 'ask' needs a terminal; use check or apply for a non-interactive run"; SYNC_STEP_VERDICT=SKIP; return 0
   fi
-  # SYNC_STEP_EXTRA_ARGS: extra engine flags for tests (e.g. --out DIR); word-split on purpose, no spaces in values
-  # shellcheck disable=SC2086
-  bash "$engine" "${args[@]}" --root "$top" --quiet ${SYNC_STEP_EXTRA_ARGS:-} || rc=$?
+  # SYNC_STEP_EXTRA_ARGS (tests): only the pair "--out /absolute/dir" is honoured; anything else from the ambient
+  # environment is ignored with a note, so an inherited variable can never add engine flags (review round 2)
+  local xa=() extra=()
+  if [ -n "${SYNC_STEP_EXTRA_ARGS:-}" ]; then
+    read -r -a xa <<<"$SYNC_STEP_EXTRA_ARGS"
+    if [ "${#xa[@]}" -eq 2 ] && [ "${xa[0]}" = --out ] && [ "${xa[1]#/}" != "${xa[1]}" ]; then
+      extra=(--out "${xa[1]}")
+    else
+      echo "[sync-upstreams] note: SYNC_STEP_EXTRA_ARGS ignored (only '--out /absolute/dir' is accepted)"
+    fi
+  fi
+  bash "$engine" "${args[@]}" --root "$top" --quiet "${extra[@]}" || rc=$?
   SYNC_STEP_RC=$rc
   case "$rc" in
     0) SYNC_STEP_VERDICT=CURRENT;           echo "[sync-upstreams] $mode: CURRENT (exit 0)" ;;

@@ -399,7 +399,8 @@ Documentation:
 every depth, reports ahead / behind / diverged / unreachable state and the pin state of every submodule,
 and with `--apply` integrates by fast-forward only (never push, commit, rebase, reset or force). A fetch
 never deletes a ref or a tag, no repository hook or fsmonitor runs, and a git call that gives no answer
-makes the run `INCONCLUSIVE` (exit 5), never "absent". Every run writes JSON and TSV evidence.
+is never read as "absent" or "clean": the run is `BLIND` (exit 6), or `INCONCLUSIVE` (exit 5) when a call
+only ran out of time, and the repository concerned is not written. Every run writes JSON and TSV evidence.
 
 ```bash
 bash submodules/constitution/scripts/sync/sync_all_upstreams.sh --check            # fetch + report, change nothing

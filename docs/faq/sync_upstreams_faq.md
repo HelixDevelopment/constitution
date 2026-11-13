@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-12 |
 | Last modified | 2026-11-13T00:00:00Z |
 | Status | draft (pending independent review) |
@@ -11,7 +11,7 @@
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 2: review round 2 fixes (fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7) |
+| Fixed | revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -55,9 +55,12 @@ kernel when a run ends or dies, so there is no stale lock to clean up.
 
 **9. A remote hangs. Will the run hang?**
 No. Each network call has `--timeout` (its whole process group is killed on expiry) and the run has
-`--deadline`. A fetch that times out is reported `unreachable`; a local git call that gets no answer
-makes the run `INCONCLUSIVE` (exit 5) and that repository `unresolved`: it is not moved and nothing is
-concluded about it. A grandchild that escapes the process group cannot hold the run either.
+`--deadline`. A fetch that times out is reported `unreachable`; a local git call that runs out of time
+makes the run `INCONCLUSIVE` (exit 5) and that repository `unresolved`. A git call that gives no answer
+for any other reason (killed by a signal, an exit status its call site does not expect, malformed
+output) makes the run `BLIND` (exit 6) and that repository `blind`. In both cases the repository is not
+moved and nothing is concluded about it. A grandchild that escapes the process group delays a call by at
+most 7 seconds; it cannot hold the run.
 
 **10. Why is the evidence not in my project?**
 So the run never changes your work tree. `--out` inside the work tree is refused (exit 2).
@@ -77,8 +80,9 @@ No. The fetch always passes `--no-prune --no-prune-tags --no-tags --refmap=` and
 (`upstream-branch-gone:<remote>`) and its stale tracking ref is kept.
 
 **14. Do my repository's hooks run?**
-No. Every call passes `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. A clean or smudge filter
-or a diff driver you configured can still run while files are written; the tool does not disable them.
+No. Every call passes `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. A clean filter you configured
+runs during `git status` (also in `--check`) and a smudge filter while files are written; the tool does not
+disable them. Diff, textconv and merge drivers never run: the engine uses no git command that calls them.
 
 **15. Is it tested against GitHub or GitLab?**
 Not yet. The tests use real git against real bare repositories in scratch directories, without network.
