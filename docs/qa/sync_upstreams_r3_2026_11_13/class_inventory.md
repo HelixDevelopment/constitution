@@ -2,13 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-13T00:00:00Z |
+| Last modified | 2026-11-13T20:26:13Z |
 | Status | active |
 | Status summary | Every member of the five finding classes of review round 2 (I-1 F3, I-2 F5, I-3 writes, I-4 / S-1 redaction and environment, m-5 config hardening) with the check that covers it. Gate-logic / unit-class evidence only (§11.4.289). |
-| Issues | none |
-| Issues summary | — |
+| Issues | two statements corrected |
+| Issues summary | the gate's single-writer check was claimed but missing in round 3 (review round 3, F6), and M67 was claimed killed by `test_hardening.sh` but survived (found in round 4); dated corrections under class I-3, the check and the test added in round 4 |
 | Fixed | — |
 | Fixed summary | — |
 | Continuation | — |
@@ -106,9 +106,20 @@ of which the gate must classify correctly.
 | `checkout` then `add -- <path>` | advance-pin (line 860) | the same guard, plus: the parent index must still record the gitlink read earlier |
 
 `write_git` is the only function that runs a write verb; the gate refuses `merge`, `checkout` and `add`
-anywhere else. `follow_children` runs only after its parent moved (`moved`), so a child never follows a
+anywhere else.
+**Correction (2026-11-13, review round 4):** the sentence above was not true of the round-3 gate. The gate did
+not refuse a `merge`, `checkout` or `add` argument list outside `write_git` (review round 3, finding F6;
+reviewer mutants X02 and X02b passed the gate). Round 4 added the check; see
+[the round-4 inventory](../sync_upstreams_2026_11_13_r4/class_inventory.md), class A. The sentence is kept
+as it was written. `follow_children` runs only after its parent moved (`moved`), so a child never follows a
 gitlink its parent did not take. Reviewer mutants K06, K07 and K11 and own mutants M65, M66, M67 and M37b
 are killed by `test_hardening.sh`, K07b by `test_security.sh`, and M61 by `test_faults.sh`.
+**Correction (2026-11-13, round 4):** M67 was not killed in round 3. Run against the round-3 engine with M67
+applied, its declared suites of the round-3 tree (unit, hardening, integration) all pass, while the same
+invocation fails the round-3 hardening suite for M66
+([evidence](../sync_upstreams_2026_11_13_r4/m67_r3_suites.txt)). No test changed the parent's index between
+discovery and the re-read. Round 4 adds that case (`test_hardening.sh` section 14). The sentence is kept as it
+was written.
 
 ## Class I-4 and S-1: redaction and environment
 

@@ -9,6 +9,7 @@ import importlib.util
 import os
 import sys
 import unittest
+from typing import Any
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.environ.get("SYNC_ENGINE_PY") or os.path.join(HERE, "..", "..", "scripts", "sync", "sync_all_upstreams.py")
@@ -414,8 +415,403 @@ class Evidence(unittest.TestCase):  # review round 2, n-3
         self.assertEqual(E.main(["--check", "--branch", "-x"]), E.EXIT_USAGE)
 
 
+# ───────────────────────────── review round 3 findings (round 4 tests) ─────────────────────────────
+def scripted_runner(script):
+    """A real Runner whose ONE spawn point answers from SCRIPT(repo, args) -> (kind, code, out, err). Every call
+    passes the real allow-list first and is recorded in ``runner.seen`` as (repo, tuple(args))."""
+    seen = []
+
+    def spawn(git_bin, repo, args, env, limit):
+        E.check_git_args(args)
+        seen.append((repo, tuple(args)))
+        return script(repo, list(args))
+    setattr(E, "proc_run_git", spawn)  # the one spawn point, replaced for this Runner
+    r = E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
+    r.seen = seen
+    return r
+
+
+def fresh_engine(name) -> Any:
+    sp = importlib.util.spec_from_file_location(name, ENGINE)
+    assert sp is not None and sp.loader is not None, ENGINE
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    return m
+
+
+class TempDir(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="sync_unit.")
+        self.locked = []
+
+    def tearDown(self):
+        import shutil
+        for p in self.locked:  # a directory a test made unreadable is made readable again before removal
+            os.chmod(p, 0o700)
+        shutil.rmtree(self.d)  # made by mkdtemp in setUp
+
+    def lock(self, p):
+        """Make P unreadable (mode 000); refused when this test runs as root (permissions would not apply)."""
+        if os.geteuid() == 0:
+            self.fail("the permission tests cannot run as root (mode 000 does not stop root)")
+        os.chmod(p, 0)
+        self.locked.append(p)
+
+
+class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no test called proc_kill_group
+    def patched(self, getpgid, child_pid=None):
+        """A fresh engine copy whose ``os`` is a stand-in: ``getpgid`` as given and a killpg that RECORDS every
+        call. It forwards a real SIGKILL only to the group of CHILD_PID, our own child in its own session, so a
+        mutated guard (pgid 1, 0, -1, a foreign group) is recorded and fails the test, and is never sent."""
+        import types
+        F = fresh_engine("sync_engine_killgroup")
+        calls = []
+
+        def killpg(pg, sig):
+            calls.append((pg, sig))
+            if (child_pid is not None and type(pg) is int and pg == child_pid and pg > 1
+                    and sig == E.signal.SIGKILL and os.getpgid(child_pid) == child_pid):
+                os.killpg(pg, sig)
+        ns = types.SimpleNamespace(getpgid=getpgid, killpg=killpg)
+        F.os = ns
+        self.assertIs(F.proc_kill_group.__globals__["os"], ns)  # the patch took before it is used
+        return F, calls
+
+    def test_never_signals_a_pgid_that_is_not_the_childs_own(self):
+        import types
+        child = types.SimpleNamespace(pid=4242)
+        for value in (1, 0, -1, "4242", True, False, None, 4243, 4242.0, 2 ** 70):
+            F, calls = self.patched(lambda pid, v=value: v)
+            F.proc_kill_group(child)
+            self.assertEqual(calls, [], "getpgid -> %r" % (value,))
+
+    def test_pid_one_is_never_signalled(self):
+        import types
+        F, calls = self.patched(lambda pid: 1)
+        F.proc_kill_group(types.SimpleNamespace(pid=1))
+        self.assertEqual(calls, [])
+
+    def test_getpgid_error_sends_nothing(self):
+        import types
+
+        def boom(pid):
+            raise ProcessLookupError("gone")
+        F, calls = self.patched(boom)
+        F.proc_kill_group(types.SimpleNamespace(pid=4242))
+        self.assertEqual(calls, [])
+
+    def test_own_group_is_signalled_exactly_once_with_sigkill(self):  # the positive case of the patched copy
+        import types
+        F, calls = self.patched(lambda pid: pid)
+        F.proc_kill_group(types.SimpleNamespace(pid=4242))
+        self.assertEqual(calls, [(4242, E.signal.SIGKILL)])
+
+    def test_killpg_error_is_swallowed(self):
+        import types
+        F = fresh_engine("sync_engine_killgroup_err")
+
+        def killpg(pg, sig):
+            raise ProcessLookupError("already gone")
+        F.os = types.SimpleNamespace(getpgid=lambda pid: pid, killpg=killpg)
+        F.proc_kill_group(types.SimpleNamespace(pid=4242))  # must not raise
+
+    def test_real_child_in_its_own_session_ends_with_sigkill(self):  # real positive control
+        import subprocess
+        p = subprocess.Popen(["sleep", "30"], start_new_session=True, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            self.assertGreater(p.pid, 1)
+            self.assertEqual(os.getpgid(p.pid), p.pid)  # its own group, which this test owns
+            F, calls = self.patched(os.getpgid, child_pid=p.pid)
+            F.proc_kill_group(p)
+            self.assertEqual(calls, [(p.pid, E.signal.SIGKILL)])
+            self.assertEqual(p.wait(timeout=10), -E.signal.SIGKILL)
+        finally:
+            if p.poll() is None:
+                p.kill()  # our own child, by pid
+                p.wait(timeout=10)
+
+    def test_real_child_in_our_group_is_never_signalled(self):  # real negative control
+        import subprocess
+        p = subprocess.Popen(["sleep", "30"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)  # NOT a new session: its group is this test's group
+        try:
+            self.assertNotEqual(os.getpgid(p.pid), p.pid)
+            F, calls = self.patched(os.getpgid, child_pid=p.pid)
+            F.proc_kill_group(p)
+            self.assertEqual(calls, [])
+            self.assertIsNone(p.poll())  # still running: nothing was sent
+        finally:
+            p.kill()  # our own child, by pid
+            p.wait(timeout=10)
+
+
+class ProbeChild(TempDir):  # review round 3, F1 and class B: an unread path is never "absent" / "not initialised"
+    def test_path_kind(self):
+        f = os.path.join(self.d, "f")
+        open(f, "w").close()
+        os.symlink(self.d, os.path.join(self.d, "ln"))
+        os.symlink("/nonexistent/x", os.path.join(self.d, "dangling"))
+        self.assertEqual(E.path_kind(os.path.join(self.d, "nope")), "absent")
+        self.assertEqual(E.path_kind(os.path.join(f, "below-a-file")), "absent")  # ENOTDIR
+        self.assertEqual(E.path_kind(self.d), "dir")
+        self.assertEqual(E.path_kind(f), "other")
+        self.assertEqual(E.path_kind(os.path.join(self.d, "ln")), "other")  # the last component is not followed
+        self.assertEqual(E.path_kind(os.path.join(self.d, "dangling")), "other")
+        self.assertEqual(E.path_kind(os.path.join(self.d, "x" * 5000)), "unreadable")  # ENAMETOOLONG
+
+    def test_path_kind_permission_denied_is_unreadable(self):
+        box = os.path.join(self.d, "box")
+        os.mkdir(box)
+        self.assertEqual(E.path_kind(os.path.join(box, "child")), "absent")  # control: readable box, no child
+        self.lock(box)
+        self.assertEqual(E.path_kind(os.path.join(box, "child")), "unreadable")
+        self.assertFalse(os.path.exists(os.path.join(box, "child")))  # what os.path.exists says instead
+
+    def test_in_progress(self):
+        g = os.path.join(self.d, "gitdir")
+        os.mkdir(g)
+        self.assertEqual(E.in_progress(g), [])
+        open(os.path.join(g, "MERGE_HEAD"), "w").close()
+        os.mkdir(os.path.join(g, "rebase-merge"))
+        self.assertEqual(E.in_progress(g), ["MERGE_HEAD", "rebase-merge"])
+        self.lock(g)
+        self.assertEqual(E.in_progress(g), [n + "?unreadable" for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD",
+                         "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "index.lock")])
+
+    def probe(self, path, answer):
+        r = scripted_runner(lambda repo, a: answer)
+        return E.probe_child(r, path), r
+
+    def test_probe_child_kinds(self):
+        sub = os.path.join(self.d, "sub")
+        self.assertEqual(self.probe(sub, ("exit", 0, sub + "\n", ""))[0], "absent")
+        open(sub, "w").close()
+        self.assertEqual(self.probe(sub, ("exit", 0, sub + "\n", ""))[0], "not-a-directory")
+        os.unlink(sub)
+        os.symlink(self.d, sub)
+        self.assertEqual(self.probe(sub, ("exit", 0, sub + "\n", ""))[0], "not-a-directory")
+        os.unlink(sub)
+        os.mkdir(sub)
+        kind, r = self.probe(sub, ("exit", 0, sub + "\n", ""))
+        self.assertEqual(kind, "uninitialised")
+        self.assertEqual(r.seen, [])  # no .git: git is not asked
+        with open(os.path.join(sub, ".git"), "w") as fh:
+            fh.write("gitdir: /nonexistent/broken\n")
+        kind, r = self.probe(sub, ("exit", 0, sub + "\n", ""))
+        self.assertEqual((kind, r.unresolved_for(sub)), ("repo", []))  # control: git answers with this path
+
+    def test_probe_child_exit_128_is_unreadable_not_uninitialised(self):  # F1 (X01's class at this site)
+        sub = os.path.join(self.d, "sub")
+        os.mkdir(sub)
+        with open(os.path.join(sub, ".git"), "w") as fh:
+            fh.write("gitdir: /nonexistent/broken\n")
+        kind, r = self.probe(sub, ("exit", 128, "", "fatal: not a git repository: /nonexistent/broken"))
+        self.assertEqual(kind, "unreadable")
+        self.assertEqual(r.unresolved_for(sub), ["rev-parse:rc:128"])
+
+    def test_probe_child_foreign_toplevel_is_unreadable(self):  # a .git git ignores: rev-parse walks up
+        sub = os.path.join(self.d, "sub")
+        os.makedirs(os.path.join(sub, ".git"))
+        kind, r = self.probe(sub, ("exit", 0, self.d + "\n", ""))
+        self.assertEqual(kind, "unreadable")
+        self.assertEqual(r.unresolved_for(sub), ["rev-parse:not-own-toplevel"])
+
+    def test_probe_child_unreadable_parent(self):
+        box = os.path.join(self.d, "box")
+        os.mkdir(box)
+        sub = os.path.join(box, "sub")
+        self.lock(box)
+        kind, r = self.probe(sub, ("exit", 0, sub + "\n", ""))
+        self.assertEqual(kind, "unreadable")
+        self.assertEqual(r.unresolved_for(sub), ["lstat:unreadable"])
+        self.assertEqual(r.seen, [])
+
+    def main_quiet(self, argv):
+        import contextlib
+        import io
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = E.main(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_start_directory_exit_128(self):  # class A "start-dir": 128 is "not a work tree" only without .git
+        scripted_runner(lambda repo, a: ("exit", 128, "", "fatal: not a git repository"))
+        code, out, err = self.main_quiet(["--check", "--root", self.d])
+        self.assertEqual(code, E.EXIT_USAGE)
+        self.assertIn("not inside a git work tree", err)
+        with open(os.path.join(self.d, ".git"), "w") as fh:
+            fh.write("gitdir: /nonexistent/broken\n")
+        code, out, err = self.main_quiet(["--check", "--root", self.d])
+        self.assertEqual(code, E.EXIT_BLIND)
+        self.assertIn("RESULT: BLIND exit=6", out)
+
+
+class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never detaches a branch
+    def tree(self, branch):
+        import tempfile
+        root = E.Repo("/nonexistent/root", ".", 0, None)
+        root.rec.update(initialised=True, branch="main", local_vs_target="equal", upstream_state="same",
+                        head_before=SHA)
+        c = E.Repo("/nonexistent/root/libs/a", "libs/a", 1, root)
+        self.gitdir = tempfile.mkdtemp(prefix="sync_unit_gitdir.")
+        c.rec.update(initialised=True, branch=branch, own_org=True, head_before=SHA, target="b" * 40,
+                     path_in_parent="libs/a", recorded_gitlink=SHA, _gitdir=self.gitdir,
+                     pin={"state": "behind-main", "checkout": "at-pin", "gitlink": SHA})
+        return root, c
+
+    def tearDown(self):
+        os.rmdir(self.gitdir)  # made by mkdtemp in tree(), always empty
+
+    @staticmethod
+    def answer(repo, a):
+        if a[:2] == ["ls-files", "-s"]:
+            return "exit", 0, "160000 %s 0\tlibs/a\0" % SHA, ""
+        if a[0] == "rev-parse":
+            return "exit", 0, SHA + "\n", ""
+        return "exit", 0, "", ""
+
+    def run_integrate(self, branch):
+        r = scripted_runner(self.answer)
+        root, c = self.tree(branch)
+        E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
+        return r, c
+
+    def test_submodule_on_a_branch_is_kept(self):
+        r, c = self.run_integrate("topic")
+        self.assertIn({"op": "none", "why": "advance-skipped:submodule-on-branch"}, c.rec["actions"])
+        self.assertEqual(c.rec.get("kept_on_branch"), "advance-pin")
+        self.assertIn("kept-on-branch:advance-pin", E.reasons_for(c.rec, False, "main"))
+        self.assertEqual([a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS], [])
+
+    def test_detached_submodule_is_advanced(self):  # control: the same tree, detached, reaches the writer
+        r, c = self.run_integrate(None)
+        writes = [a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS]
+        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40), ("add", "--", "libs/a")])
+        self.assertNotIn("kept_on_branch", c.rec)
+
+    def test_head_after_is_read_for_every_repository(self):  # F2: never a copy of head_before
+        r, c = self.run_integrate("topic")
+        heads = [repo for repo, a in r.seen if a[:2] == ("rev-parse", "--verify")]
+        self.assertEqual(sorted(heads), ["/nonexistent/root", "/nonexistent/root/libs/a"])
+        self.assertEqual(c.rec["head_after"], SHA)
+
+
+class TraceScrub(unittest.TestCase):  # review round 3, F7
+    def test_every_trace_and_curl_verbose_variable_is_dropped(self):
+        bad = {k: "1" for k in ("GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",
+                                 "GIT_TRACE2_EVENT_NESTING", "GIT_TRACE2_CONFIG_PARAMS", "GIT_TRACE2_ENV_VARS",
+                                 "GIT_TRACE_CURL", "GIT_TRACE_CURL_NO_DATA", "GIT_TRACE_PACKET", "GIT_TRACE_PACKFILE",
+                                 "GIT_TRACE_PACK_ACCESS", "GIT_TRACE_PERFORMANCE", "GIT_TRACE_SETUP",
+                                 "GIT_TRACE_SHALLOW", "GIT_TRACE_REFS", "GIT_TRACE_FSMONITOR", "GIT_TRACE_REDACT",
+                                 "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES")}
+        keep = {"PATH": "/bin", "MY_GIT_TRACE": "x", "XGIT_CURL_VERBOSE": "y", "GIT_CONFIG_GLOBAL": "/g"}
+        env = E.git_env(dict(bad, **keep))
+        self.assertEqual(sorted(k for k in bad if k in env), [])
+        for k, v in keep.items():  # negative control: the scrub drops what it names, not everything
+            self.assertEqual(env.get(k), v, k)
+
+
+class LongSecrets(unittest.TestCase):  # review round 3, F9 / X05: no fixed-width cut, any length, any character
+    def setUp(self):  # each test starts with an empty known-secret registry (an engine without one has nothing)
+        if hasattr(E, "_KNOWN"):
+            with E._KNOWN_LOCK:
+                E._KNOWN.clear()
+
+    tearDown = setUp
+    LINE = "fatal: unable to access 'https://user:%s@host/o/r.git/': The requested URL returned error: 403"
+    CLEAN = "fatal: unable to access 'https://host/o/r.git/': The requested URL returned error: 403"
+
+    def test_long_secrets(self):
+        for n in (1, 7, 8, 47, 48, 49, 64, 255, 256, 1000, 4096, 65536):
+            secret = ("p4ss-w0rd." * (n // 10 + 1))[:n]
+            self.assertIn(secret, self.LINE % secret)  # the needle is in the input
+            self.assertEqual(E.redact(self.LINE % secret), self.CLEAN, n)
+            # control needle: a string as long in the PATH (no userinfo) survives intact, so the check above is
+            # not met by an engine that blanks long input
+            path = "https://host/%s/r.git" % secret
+            self.assertEqual(E.redact(path), path, n)
+
+    def test_secret_holding_scheme_marks_and_at_signs(self):
+        for secret in ("a://b", "x@y@z", "https://evil@host", "pa ss://w@rd", "%40:%2F%2F", "é日本@x://y"):
+            self.assertEqual(E.redact(self.LINE % secret), self.CLEAN, secret)
+
+    def test_fuzz(self):
+        import random
+        rnd = random.Random(20261113)  # fixed seed: the same cases on every run
+        alphabet = ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + "@:/ %#?!$&'()*+,;=~-._[]" +
+                    "éß日本")
+        for i in range(3000):
+            n = rnd.choice((1, 2, 5, 8, 16, 47, 48, 49, 50, 100, 300, 2000))
+            secret = "".join(rnd.choice(alphabet) for _ in range(n))
+            for line, clean in ((self.LINE % secret, self.CLEAN),
+                                ("ssh://git:%s@host:22/o/r" % secret, "ssh://host:22/o/r"),
+                                ("a https://h/x\nfetch https://u:%s@h2/y\nb" % secret,
+                                 "a https://h/x\nfetch https://h2/y\nb")):
+                self.assertEqual(E.redact(line), clean, (i, secret))
+        for clean in (self.CLEAN, "ssh://host:22/o/r", "git@host:o/r.git"):  # control: clean input is untouched
+            self.assertEqual(E.redact(clean), clean)
+
+    def test_known_secret_quoted_without_its_url(self):
+        E.register_secret("https://user:hunter2hunter2@host/r")
+        self.assertEqual(E.redact("remote said: bad password hunter2hunter2."),
+                         "remote said: bad password [REDACTED].")
+        self.assertEqual(E.redact("remote said: bad password."), "remote said: bad password.")  # control
+
+    def test_register_secret_pieces(self):
+        E.register_secret("https://u:aaaaaaaaaa\nbbbbbbbbbbbb@host/r")  # a value holding a newline
+        self.assertEqual(E.redact("x bbbbbbbbbbbb y aaaaaaaaaa"), "x [REDACTED] y [REDACTED]")
+        E.register_secret("https://git:short@host/r")
+        with E._KNOWN_LOCK:
+            known = set(E._KNOWN)
+        self.assertIn("git:short", known)
+        self.assertNotIn("short", known)  # under 8 characters: never registered, ordinary words survive
+        self.assertEqual(E.redact("a short word"), "a short word")
+        E.register_secret("git@host:o/r.git")  # no scheme: nothing to register
+        with E._KNOWN_LOCK:
+            self.assertEqual(set(E._KNOWN), known)
+
+    def test_redact_url_whole_value(self):
+        self.assertEqual(E.redact_url("https://u:p\nq@host/r"), "https://host/r")
+        self.assertEqual(E.redact_url("https://u:%s@host/r" % ("z" * 5000)), "https://host/r")
+        self.assertEqual(E.redact_url("git@host:o/r.git"), "git@host:o/r.git")
+
+    def test_report_keys(self):
+        hits = []
+        rep = E.redact_report({"https://u:topsecretpw@h/r": "v"}, "report", hits)
+        self.assertEqual(rep, {"https://h/r": "v"})
+        self.assertEqual(hits, ["report.https://h/r"])
+
+    def test_argparse_error_is_redacted(self):
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = E.main(["--check", "--frob=https://u:hunter2hunter2@host/r"])
+        self.assertEqual(code, E.EXIT_USAGE)
+        self.assertIn("unrecognized arguments", err.getvalue())  # the message was printed, not swallowed
+        self.assertNotIn("hunter2", err.getvalue())
+
+    def test_internal_error_is_redacted(self):
+        import contextlib
+        import io
+        F = fresh_engine("sync_engine_entry")
+
+        def boom(argv):
+            raise RuntimeError("boom https://u:topsecret99@host/r")
+        F.main = boom
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = F.entry([])
+        self.assertEqual(code, F.EXIT_FAIL)
+        self.assertIn("RESULT: FAILED exit=1", out.getvalue())
+        self.assertIn("internal error", err.getvalue())
+        self.assertNotIn("topsecret99", err.getvalue())
+
+
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=1).result
-    n, f = r.testsRun, len(r.failures) + len(r.errors)
-    print("sync-unit: PASS %d FAIL %d" % (n - f, f))
-    sys.exit(0 if f == 0 and n > 0 else 1)
+    n, f, s = r.testsRun, len(r.failures) + len(r.errors), len(r.skipped)
+    print("sync-unit: PASS %d FAIL %d SKIP %d" % (n - f - s, f, s))
+    sys.exit(0 if f == 0 and s == 0 and n > 0 else 1)  # a skipped test is never a pass

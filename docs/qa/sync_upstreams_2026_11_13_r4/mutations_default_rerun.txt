@@ -1,0 +1,3 @@
+M67  KILLED     by hardening     145.6s  I-3: the parent index is not re-checked before staging a pin
+M70  KILLED     by hardening     266.7s  n-3: any existing --out file is overwritten
+sync-mutations (all): mutants 2 killed 2 equivalent 0 survived 0 harness-errors 0

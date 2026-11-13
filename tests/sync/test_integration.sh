@@ -227,6 +227,7 @@ eq "submodule on branch: root moved" "$(sx_remote_head "$SB/remotes/HelixDevelop
 eq "submodule on branch: not moved" "$child_before" "$(sx_head "$W/libs/a")"
 eq "submodule on branch: still on topic" "topic" "$(git -C "$W/libs/a" symbolic-ref --short -q HEAD)"
 has "submodule on branch: reason recorded" "follow-skipped:submodule-on-branch" "$(sx_q 'str(P["libs/a"]["actions"])')"
+eq "submodule on branch: reason kept-on-branch:follow-pin" "True" "$(sx_q '"kept-on-branch:follow-pin" in P["libs/a"]["reasons"]')"
 
 # ── 18. a submodule ON MAIN is fast-forwarded and the parent's gitlink change is reported (F11)
 recorded="$(git -C "$W" ls-tree HEAD libs/a | awk '{print $3}')"
@@ -268,5 +269,98 @@ eq "main gone upstream: remote state no-main" "no-main" "$(sx_q '[x for x in P["
 eq "main gone upstream: exit 4" 4 "$SX_RC"
 eq "main gone upstream: reason upstream-branch-gone:origin" "True" "$(sx_q '"upstream-branch-gone:origin" in P["."]["reasons"]')"
 eq "main gone upstream: refs/remotes/origin/main kept" "yes" "$(git -C "$G" rev-parse -q --verify refs/remotes/origin/main >/dev/null && echo yes || echo no)"
+
+# ── 22. a submodule whose .git git cannot read (a broken gitdir pointer, git exits 128) is BLIND, never "not
+#        initialised"; its row is printed under --quiet (review round 3, F1)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+printf 'gitdir: %s\n' "$SB/no-such-gitdir" >"$W/libs/a/.git"
+sx_run --check --quiet --root "$W"
+eq "broken gitfile: exit 6" 6 "$SX_RC"
+has "broken gitfile: verdict BLIND" "RESULT: BLIND exit=6" "$SX_OUT"
+eq "broken gitfile: libs/a blind" "blind" "$(sx_q 'P["libs/a"]["result"]')"
+eq "broken gitfile: pin state unreadable" "unreadable" "$(sx_q 'P["libs/a"]["pin"]["state"]')"
+eq "broken gitfile: the no-answer is git's exit 128" "True" "$(sx_q '"rev-parse:rc:128" in P["libs/a"]["unresolved"]')"
+eq "broken gitfile: reason pin-unreadable" "True" "$(sx_q '"pin-unreadable" in P["libs/a"]["reasons"]')"
+has "broken gitfile: the blind row is printed under --quiet" "[sync-upstreams] $(printf '%-40s %-15s' libs/a blind)" "$SX_ERR"
+eq "broken gitfile: the root is current (the control below is about a real current row)" current "$(sx_q 'P["."]["result"]')"
+hasnt "broken gitfile: a current row is not printed under --quiet (control)" "[sync-upstreams] $(printf '%-40s %-15s' . current)" "$SX_ERR"
+
+# ── 23. an unknown repository extension in a submodule: BLIND as well (F1 class)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+git config --file "$W/.git/modules/libs/a/config" core.repositoryformatversion 1
+git config --file "$W/.git/modules/libs/a/config" extensions.helixNoSuchExtension true
+sx_run --check --quiet --root "$W"
+eq "unknown extension: exit 6" 6 "$SX_RC"
+eq "unknown extension: libs/a blind" "blind" "$(sx_q 'P["libs/a"]["result"]')"
+eq "unknown extension: pin state unreadable" "unreadable" "$(sx_q 'P["libs/a"]["pin"]["state"]')"
+eq "unknown extension: a no-answer is recorded" "True" "$(sx_q 'len(P["libs/a"]["unresolved"]) >= 1')"
+has "unknown extension: the blind row is printed under --quiet" "[sync-upstreams] $(printf '%-40s %-15s' libs/a blind)" "$SX_ERR"
+
+# ── 24. a symbolic link where a submodule should be: pin-not-a-directory (attention), never followed
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+mv "$W/vendor/t" "$SB/moved_vendor_t"; ln -s "$SB/moved_vendor_t" "$W/vendor/t"
+sx_run --check --root "$W"
+eq "symlinked submodule: pin state not-a-directory" "not-a-directory" "$(sx_q 'P["vendor/t"]["pin"]["state"]')"
+eq "symlinked submodule: reason pin-not-a-directory" "True" "$(sx_q '"pin-not-a-directory" in P["vendor/t"]["reasons"]')"
+eq "symlinked submodule: attention" "attention" "$(sx_q 'P["vendor/t"]["result"]')"
+eq "symlinked submodule: exit 4" 4 "$SX_RC"
+
+# ── 25. a child that followed its parent's new pin and is then blocked (its own remote unreachable): head_after
+#        is its REAL head, it moved, and it is attention, never "updated" and never "unchanged" (review round 3, F2)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+sx_commit "$U_A" "liba change 25"; sx_bump_pin "$U_ROOT" libs/a
+new_pin="$(git --git-dir="$SB/remotes/HelixDevelopment/root.git" ls-tree main libs/a | awk '{print $3}')"
+git -C "$W/libs/a" fetch -q origin   # the new pin is present locally ...
+git -C "$W/libs/a" config remote.origin.url "$SB/remotes/no-such-remote.git"   # ... its remote is unreachable now
+child_before="$(sx_head "$W/libs/a")"
+sx_run --apply --root "$W"
+eq "follow then blocked: libs/a at the new pin" "$new_pin" "$(sx_head "$W/libs/a")"
+eq "follow then blocked: it was not there before" "True" "$([ "$child_before" != "$new_pin" ] && echo True)"
+eq "follow then blocked: followed" "True" "$(sx_q 'P["libs/a"].get("followed")')"
+eq "follow then blocked: head_after is the real head" "$new_pin" "$(sx_q 'P["libs/a"]["head_after"]')"
+eq "follow then blocked: moved" "True" "$(sx_q 'P["libs/a"]["moved"]')"
+eq "follow then blocked: attention, never updated" "attention" "$(sx_q 'P["libs/a"]["result"]')"
+eq "follow then blocked: reason unreachable:origin" "True" "$(sx_q '"unreachable:origin" in P["libs/a"]["reasons"]')"
+eq "follow then blocked: exit 4" 4 "$SX_RC"
+
+# ── 26. --advance-pins never detaches a submodule checked out on a branch (review round 3, F3)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+git -C "$W/libs/a" checkout -q -b topic   # on a local branch, at the recorded pin
+child_before="$(sx_head "$W/libs/a")"
+sx_commit "$U_A" "liba change 26"         # the pin is now behind upstream main
+sx_run --apply --advance-pins --root "$W"
+eq "advance-pins, submodule on branch: not moved" "$child_before" "$(sx_head "$W/libs/a")"
+eq "advance-pins, submodule on branch: still on topic" "topic" "$(git -C "$W/libs/a" symbolic-ref --short -q HEAD)"
+has "advance-pins, submodule on branch: action recorded" "advance-skipped:submodule-on-branch" "$(sx_q 'str(P["libs/a"]["actions"])')"
+eq "advance-pins, submodule on branch: reason kept-on-branch:advance-pin" "True" "$(sx_q '"kept-on-branch:advance-pin" in P["libs/a"]["reasons"]')"
+eq "advance-pins, submodule on branch: nothing staged" "" "$(git -C "$W" diff --cached --name-only)"
+eq "advance-pins, submodule on branch: exit 4" 4 "$SX_RC"
+# control in a FRESH clone (independent of what the first run did): a detached submodule at the same recorded pin,
+# with the same upstream state, is advanced and staged
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+eq "advance-pins control (detached): starts at the recorded pin" "$child_before" "$(sx_head "$W/libs/a")"
+eq "advance-pins control (detached): starts detached" "" "$(git -C "$W/libs/a" symbolic-ref --short -q HEAD)"
+sx_run --apply --advance-pins --root "$W"
+eq "advance-pins control (detached): advanced" "$(sx_remote_head "$SB/remotes/HelixDevelopment/liba.git")" "$(sx_head "$W/libs/a")"
+eq "advance-pins control (detached): staged" "libs/a" "$(git -C "$W" diff --cached --name-only)"
+
+# ── 27. a parent fast-forwards to a pin its child cannot fetch (the new pin is not present locally and the child's
+#        remote is unreachable): the child is FAILED with follow-blocked:new-pin-unfetchable, stays where it was,
+#        and the run exits 1 (the follow-blocked path was covered only by the fault-injection suite; review round 4)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+sx_commit "$U_A" "liba change 27"; sx_bump_pin "$U_ROOT" libs/a
+new_pin="$(git --git-dir="$SB/remotes/HelixDevelopment/root.git" ls-tree main libs/a | awk '{print $3}')"
+git -C "$W/libs/a" config remote.origin.url "$SB/remotes/no-such-remote.git"   # NOT fetched first: the pin is absent
+child_before="$(sx_head "$W/libs/a")"
+eq "follow blocked: the new pin is not present in the child (precondition)" "no" \
+   "$(git -C "$W/libs/a" cat-file -e "$new_pin^{commit}" 2>/dev/null && echo yes || echo no)"
+sx_run --apply --root "$W"
+eq "follow blocked: the parent moved to the new pin" "$new_pin" "$(git -C "$W" ls-tree HEAD libs/a | awk '{print $3}')"
+eq "follow blocked: libs/a stays where it was" "$child_before" "$(sx_head "$W/libs/a")"
+eq "follow blocked: libs/a failed" "failed" "$(sx_q 'P["libs/a"]["result"]')"
+eq "follow blocked: one follow-blocked action" "1" \
+   "$(sx_q 'len([x for x in P["libs/a"]["actions"] if x.get("why") == "follow-blocked:new-pin-unfetchable"])')"
+eq "follow blocked: exit 1" 1 "$SX_RC"
+has "follow blocked: verdict FAILED" "RESULT: FAILED exit=1" "$SX_OUT"
 
 finish

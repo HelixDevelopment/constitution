@@ -153,7 +153,9 @@ case "$ep" in ""|*[!0-9]*|0|1) nok "escaped grandchild: control needle: it reall
      case "$(readlink "/proc/$ep/fd/2" 2>/dev/null)" in pipe:*) ok "escaped grandchild: control needle: its stderr is a pipe" ;;
        *) nok "escaped grandchild: control needle: its stderr is $(readlink "/proc/$ep/fd/2" 2>/dev/null || echo gone), not a pipe" ;; esac
      # signal it only after proving it is OUR escaper (its cmdline names our script, §11.4.174)
-     if tr '\0' ' ' <"/proc/$ep/cmdline" 2>/dev/null | grep -q "sleep 45"; then kill "$ep" 2>/dev/null; fi ;;
+     # read first, then match: no `| grep -q` (under pipefail an early-exiting reader returns 141; review round 3, nit)
+     cl="$(tr '\0' ' ' <"/proc/$ep/cmdline" 2>/dev/null)"
+     case "$cl" in *"sleep 45"*) kill "$ep" 2>/dev/null ;; esac ;;
 esac
 git -C "$W" remote remove esc; rm -f "$SB/shim/ssh"
 

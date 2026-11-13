@@ -13,6 +13,10 @@
 #  10. a gitlink staged by someone else during an interactive run with every consent declined is never followed,
 #      and a parent that did not move makes no child follow (M37, M37b)
 #  11. SYNC_STEP_EXTRA_ARGS accepts only "--out /dir"
+#  12. the install fixture's partial-clone guard never fails open (F4)
+#  13. no early-exit pipe under pipefail in any shell file of this vehicle (class F)
+#  14. the parent's index is read again right before a pin is staged (I-3 / M67)
+#  15. an --out file is reused only when it is a regular file: a link to a report of ours, a FIFO (n-3 / M70)
 # Real git against real bare repositories in a sandbox; the only network-shaped calls go to 127.0.0.1:9 (the
 # discard port: refused at once, nothing is sent anywhere); $HOME untouched.
 T_NAME=sync-hardening
@@ -84,7 +88,8 @@ cat >"$SB/st/git" <<EOF
 #!/usr/bin/env bash
 case " \$* " in *" --no-optional-locks status "*)
   n=\$(( \$(cat "$SB/st.n" 2>/dev/null || echo 0) + 1 )); echo "\$n" >"$SB/st.n"
-  [ "\$2" = "$W" ] && [ "\$n" -gt "\${ST_AFTER:-99}" ] && { [ "\${ST_MODE:-}" = dirty ] && echo x >>"$W/README"; [ "\${ST_MODE:-}" = kill ] && kill -9 \$\$; } ;;
+  [ "\$2" = "$W" ] && [ "\$n" -gt "\${ST_AFTER:-99}" ] && { [ "\${ST_MODE:-}" = dirty ] && echo x >>"$W/README"; [ "\${ST_MODE:-}" = kill ] && kill -9 \$\$
+    [ "\${ST_MODE:-}" = rc128 ] && { echo "fatal: injected exit 128" >&2; exit 128; }; } ;;
 esac
 exec "$SX_GIT" "\$@"
 EOF
@@ -97,6 +102,13 @@ ST_AFTER=4 ST_MODE=kill st_run
 eq "status re-read killed: root not moved" "$r_before" "$(sx_head "$W")"
 eq "status re-read killed: BLIND exit 6" 6 "$SX_RC"
 has "status re-read killed: action names it" "unresolved:status-recheck" "$(sx_q 'str(P["."]["actions"])')"
+# the REAL status 128 at the re-read (review round 3, F8 / X01: a test that injected only an undeclared 77 could not
+# tell a re-read that accepts 128 from one that does not; git really exits 128, for example on a corrupt index)
+ST_AFTER=4 ST_MODE=rc128 st_run
+eq "status re-read exit 128: root not moved" "$r_before" "$(sx_head "$W")"
+eq "status re-read exit 128: BLIND exit 6" 6 "$SX_RC"
+has "status re-read exit 128: action names it" "unresolved:status-recheck" "$(sx_q 'str(P["."]["actions"])')"
+eq "status re-read exit 128: the repository is blind" blind "$(sx_q 'P["."]["result"]')"
 ST_AFTER=4 ST_MODE=dirty st_run
 eq "tree changed before the write: root not moved" "$r_before" "$(sx_head "$W")"
 has "tree changed before the write: blocked" "blocked:tree-changed-before-write" "$(sx_q 'str(P["."]["actions"])')"
@@ -245,4 +257,319 @@ has "extra args: anything but --out is ignored, with a note" "SYNC_STEP_EXTRA_AR
 eq "extra args: --apply smuggled into a check never moved the root" "$r_before" "$(sx_head "$W")"
 o="$(SYNC_STEP_EXTRA_ARGS="--out $SB/out/xa" sync_step check "$W" "$SX_ENGINE" 2>&1)"
 eq "extra args: --out /dir is honoured" "yes" "$([ -f "$SB/out/xa/sync_report.json" ] && echo yes || echo no)"
+
+# ── 12. F4 (review round 3, host safety): the install fixture's partial-clone guard never fails open.
+#    tests/install/lib.sh is sourced in a SUBSHELL (its helpers and exports stay there). The round-3 guard piped the
+#    config into `grep -q` under pipefail: on a large config whose match is near the top, grep exits early, the
+#    pipe returns 141 and the `||` read it as "not partial" (fail-open). The input below triggers exactly that.
+LIBSH="$SX_REPO/tests/install/lib.sh"
+PC_RE='(\.partialclonefilter |^extensions\.partialclone |\.promisor true$)'
+pr_case() { # pr_case WANT LABEL LINES -> _partial_refused LINES gives WANT (refuse/accept)
+  local got
+  # shellcheck disable=SC1090  # LIBSH is tests/install/lib.sh (set above), sourced in a subshell
+  got="$( . "$LIBSH" >/dev/null 2>&1; if _partial_refused "$3"; then echo refuse; else echo accept; fi )"
+  eq "partial guard: $2" "$1" "$got"; }
+pr_case accept "no config line" ""
+pr_case accept "promisor false" "remote.origin.promisor false"
+pr_case accept "promisor with an empty value (git reads it as false), a remote name with a space" "remote.P Q.promisor "
+pr_case accept "no / OFF / 0" $'remote.a.promisor no\nremote.b.promisor OFF\nremote.c.promisor 0'
+pr_case refuse "value-less promisor (a boolean true)" "remote.o.promisor"
+pr_case refuse "promisor true" "remote.o.promisor true"
+pr_case refuse "promisor Yes (the round-3 pattern missed it)" "remote.o.promisor Yes"
+pr_case refuse "promisor 1" "remote.o.promisor 1"
+pr_case refuse "promisor on" "remote.o.promisor on"
+pr_case refuse "partialclonefilter" "remote.o.partialclonefilter blob:none"
+pr_case refuse "value-less partialclonefilter" "remote.o.partialclonefilter"
+pr_case refuse "extensions.partialclone" "extensions.partialclone origin"
+pr_case refuse "mixed-case extensions.partialClone" "Extensions.PartialClone origin"
+pr_case refuse "a later promisor true after a false" $'remote.a.promisor false\nremote.b.promisor true'
+pr_case refuse "a line it cannot read" "garbage line"
+big="extensions.partialclone origin"; i=0; while [ "$i" -lt 8000 ]; do big+=$'\n'"remote.r$i.promisor false"; i=$((i+1)); done
+big2=""; i=0; while [ "$i" -lt 8000 ]; do big2+="remote.r$i.promisor false"$'\n'; i=$((i+1)); done
+pr_case refuse "large input, the match on line 1 (the fail-open shape)" "$big"
+pr_case refuse "large input, the match on the last line" "${big2}remote.z.promisor true"
+pr_case accept "large input, nothing partial (golden false)" "${big2%$'\n'}"
+# control needle: on this very input the round-3 pipeline really returns 141 here (else the case proves nothing)
+old_rc="$( set -o pipefail; printf '%s\n' "$big" | grep -Eqi "$PC_RE"; echo "$?" )"  # pipelint:allow control needle
+eq "partial guard: control needle: the round-3 pipeline returns 141 on the large input" 141 "$old_rc"
+# the whole guard, with a stub git (function) that prints a config and exits with a chosen status
+printf '%s\n' "$big" >"$SB/pc_cfg"
+rs_case() { # rs_case WANT LABEL [SHALLOW] [REVPARSE_RC] [CONFIG_RC]
+  local got sh_v="${3:-false}" rp_rc="${4:-0}" cf_rc="${5:-0}"
+  # shellcheck disable=SC1090  # LIBSH is tests/install/lib.sh (set above), sourced in a subshell
+  got="$( . "$LIBSH" >/dev/null 2>&1
+    git() { case "$*" in
+      *is-shallow-repository*) echo "$sh_v"; return "$rp_rc" ;;
+      *get-regexp*) cat "$SB/pc_cfg"; return "$cf_rc" ;;
+      *) return 1 ;; esac; }
+    if _refuse_shallow /nonexistent fixture 2>/dev/null; then echo accept; else echo refuse; fi )"
+  eq "partial guard, _refuse_shallow: $2" "$1" "$got"; }
+rs_case refuse "large partial config"
+printf '%s' "${big2%$'\n'}" >"$SB/pc_cfg"
+rs_case accept "large config, nothing partial (golden false)"
+rs_case refuse "config read exits 3 (cannot read it)" false 0 3
+rs_case refuse "shallow source" true
+rs_case refuse "rev-parse fails" false 128
+# stress: six guards at once on large partial inputs, all refuse
+printf '%s\n' "$big" >"$SB/pc_cfg"
+for k in 1 2 3 4 5 6; do rs_case_out="$SB/pc_par_$k"; ( rs_case refuse "parallel $k" >"$rs_case_out" ) & done; wait
+par="$(cat "$SB"/pc_par_*)"
+hasnt "partial guard: six parallel guards on a large partial config: none accepted" "FAIL" "$par"
+eq "partial guard: six parallel guards ran" 6 "$(grep -c '^  ok ' <<<"$par")"
+# real repositories, real git: a plain clone is accepted, a partial-clone configuration is refused
+fresh; sx_std_tree
+# shellcheck disable=SC1090  # LIBSH is tests/install/lib.sh (set above), sourced in a subshell
+pr_real="$( . "$LIBSH" >/dev/null 2>&1; _refuse_shallow "$W" plain >/dev/null 2>&1 && echo accept || echo refuse )"
+eq "partial guard, real repository: a full clone is accepted" accept "$pr_real"
+git -C "$W/vendor/t" config remote.origin.promisor true
+git -C "$W/vendor/t" config remote.origin.partialclonefilter blob:none
+# shellcheck disable=SC1090  # LIBSH is tests/install/lib.sh (set above), sourced in a subshell
+pr_real="$( . "$LIBSH" >/dev/null 2>&1; _refuse_shallow "$W/vendor/t" partial >/dev/null 2>&1 && echo accept || echo refuse )"
+eq "partial guard, real repository: a partial-clone configuration is refused" refuse "$pr_real"
+
+# ── 13. class F: no early-exit pipe under pipefail in any shell file of this vehicle. A reader that can stop
+#    before its producer is done (grep -q / -m / -l / -L / --quiet / --max-count, head, sed ...q, awk ...exit,
+#    read) makes the pipeline return 141 under pipefail, which an `if` or `||` reads as "no match".
+cat >"$SB/pipelint.py" <<'PY'
+import re
+import shlex
+import sys
+GREP_LONG = ("quiet", "silent", "max-count", "files-with-matches", "files-without-match")
+GREP_LONG_ARG = ("regexp", "file", "after-context", "before-context", "context", "directories", "devices",
+                 "label", "binary-files", "include", "exclude", "exclude-from", "exclude-dir", "color", "colour")
+
+
+def scan(line):
+    """Yield (start of stage) for every pipe character that is shell syntax: not inside single or double quotes
+    (a pipe inside a double-quoted $( ) IS syntax), not part of || or |&, not in a comment."""
+    st, i = [], 0
+    while i < len(line):
+        c, top = line[i], (st[-1] if st else "")
+        if top == "'":
+            if c == "'":
+                st.pop()
+        elif top == '"':
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                st.pop()
+            elif c == "$" and line[i + 1:i + 2] == "(":
+                st.append("(")
+                i += 1
+            elif c == "`":
+                st.append("`")
+        else:
+            if c == "\\":
+                i += 1
+            elif c in "'\"":
+                st.append(c)
+            elif c == "`":
+                st.pop() if top == "`" else st.append("`")
+            elif c == "(":
+                st.append("(")
+            elif c == ")":
+                if top == "(":
+                    st.pop()
+            elif c == "#" and (i == 0 or line[i - 1] in " \t;"):
+                return
+            elif c == "|":
+                if line[i + 1:i + 2] in ("|", "&"):
+                    i += 2
+                    continue
+                yield i + 1
+        i += 1
+
+
+def segment(line, start):
+    """The text of ONE pipeline stage, from START to the first | ; & ) at its own level, outside quotes."""
+    st, i = [], start
+    while i < len(line):
+        c, top = line[i], (st[-1] if st else "")
+        if top == "'":
+            if c == "'":
+                st.pop()
+        elif top == '"':
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                st.pop()
+            elif c == "$" and line[i + 1:i + 2] == "(":
+                st.append("(")
+                i += 1
+        else:
+            if c == "\\":
+                i += 1
+            elif c in "'\"":
+                st.append(c)
+            elif c == "(":
+                st.append("(")
+            elif c == ")" and top == "(":
+                st.pop()
+            elif not st and c in "|;&)":
+                return line[start:i]
+        i += 1
+    return line[start:]
+
+
+def grep_stops_early(words):
+    skip = False
+    for t in words:
+        if skip:
+            skip = False
+            continue
+        if t == "--":
+            return False
+        if t.startswith("--"):
+            name = t[2:].split("=", 1)[0]
+            if name in GREP_LONG:
+                return True
+            skip = name in GREP_LONG_ARG and "=" not in t
+            continue
+        if t.startswith("-") and len(t) > 1:
+            for k, c in enumerate(t[1:]):
+                if c in "qlLm":
+                    return True
+                if c in "efABCdD":
+                    skip = k == len(t) - 2
+                    break
+    return False
+
+
+def reader_stops_early(seg):
+    try:
+        words = shlex.split(seg)
+    except ValueError:
+        return True  # a stage it cannot read is never clean
+    if not words:
+        return False
+    cmd, rest = words[0].rsplit("/", 1)[-1], words[1:]
+    if cmd in ("grep", "egrep", "fgrep"):
+        return grep_stops_early(rest)
+    if cmd in ("head", "read"):
+        return True
+    if cmd == "sed":
+        return any(re.search(r"(^|[;{}\s])[qQ]\b", w) for w in rest if not w.startswith("-"))
+    if cmd == "awk":  # an exit inside END {} runs after all input was read: not early
+        return any(re.search(r"\bexit\b", re.sub(r"\bEND\s*\{[^}]*\}", "", w)) for w in rest)
+    return False
+
+
+hits = 0
+for path in sys.argv[1:]:
+    text = open(path, encoding="utf-8").read().replace("\\\n", " ")
+    for n, line in enumerate(text.split("\n"), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        if not any(reader_stops_early(segment(line, k)) for k in scan(line)):
+            continue
+        if "pipelint:allow" in line:  # a deliberate pipeline (a control needle): listed, never silent
+            print("ALLOWED %s:%d: %s" % (path.rsplit("/", 1)[-1], n, line.strip()[:100]))
+            continue
+        hits += 1
+        print("%s:%d: %s" % (path, n, line.strip()[:120]))
+print("HITS %d" % hits)
+PY
+# the positive fixture is written with a PIPE placeholder (so this file holds no such pipeline itself)
+cat >"$SB/pipelint_pos.in" <<'EOF'
+if printf x PIPE grep -q x; then :; fi
+v="$(printf x PIPE head -1)"
+printf x PIPE grep -m1 x >/dev/null
+printf x PIPE sed -n '1p;q'
+printf x PIPE awk '{exit}'
+printf x PIPE read -r y
+printf x \
+  PIPE grep --quiet x
+EOF
+sed 's/PIPE/|/g' "$SB/pipelint_pos.in" >"$SB/pipelint_pos.sh"
+cat >"$SB/pipelint_neg.sh" <<'EOF'
+n="$(printf x | grep -c x)"
+[ -n "$x" ] || echo y
+# printf x | grep -q x
+case "$x" in *y*) ;; esac
+while IFS= read -r l; do :; done <<<"$x"
+printf x | cut -c1
+echo "a | head"
+x="$(printf x | grep -c "$(echo -q)")"
+printf x | awk '{f=1} END { exit !f }'
+EOF
+eq "pipe lint: positive control: every early-exit reader is found" "HITS 7" "$(python3 -I "$SB/pipelint.py" "$SB/pipelint_pos.sh" | tail -1)"
+eq "pipe lint: negative control: nothing else is flagged" "HITS 0" "$(python3 -I "$SB/pipelint.py" "$SB/pipelint_neg.sh" | tail -1)"
+vfiles=()
+for f in scripts/sync/sync_all_upstreams.sh scripts/sync/sync_step_lib.sh scripts/sync/fixture_lib.sh \
+         scripts/gates/cm_sync_upstreams_ff_only.sh scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh \
+         scripts/setup.sh scripts/post_update_hook.sh tests/install/lib.sh tests/install/test_unit.sh; do
+  [ -f "$SX_REPO/$f" ] && vfiles+=("$SX_REPO/$f") || nok "pipe lint: vehicle file $f missing"
+done
+for f in "$SX_REPO"/tests/sync/*.sh; do [ -f "$f" ] && vfiles+=("$f"); done
+[ "${#vfiles[@]}" -ge 20 ] && ok "pipe lint: ${#vfiles[@]} shell files listed" || nok "pipe lint: only ${#vfiles[@]} shell files listed"
+lint="$(python3 -I "$SB/pipelint.py" "${vfiles[@]}")"
+eq "pipe lint: no early-exit pipe in the ${#vfiles[@]} shell files of this vehicle" "HITS 0" "$(tail -1 <<<"$lint")"
+[ "$(tail -1 <<<"$lint")" = "HITS 0" ] || printf '%s\n' "$lint"
+# exactly one deliberate pipeline is allowed: the control needle of section 12
+eq "pipe lint: the only allowed pipeline is the section-12 control needle" "1 test_hardening.sh" \
+  "$(grep -c '^ALLOWED' <<<"$lint") $(grep '^ALLOWED' <<<"$lint" | cut -d: -f1 | cut -d' ' -f2)"
+
+# ── 14. I-3 / M67: the parent's index is read again right before a pin is staged. A gitlink someone else staged
+#    after discovery read the index is never overwritten and the child is not checked out (found in round 4: no
+#    suite killed M67 in round 3 or round 4 before this case, although the round-3 inventory said hardening did)
+fresh; sx_std_tree
+p_old="$(sx_head "$W/libs/a")"
+sx_commit "$U_A" "liba 14a"; p_mid="$(sx_remote_head "${U_A#file://}")"     # what the concurrent writer stages
+sx_commit "$U_A" "liba 14b"; p_new="$(sx_remote_head "${U_A#file://}")"     # upstream main: what --advance-pins wants
+mkdir -p "$SB/pi"
+cat >"$SB/pi/git" <<EOF
+#!/usr/bin/env bash
+# libs/a's 2nd status is the writer's re-read (its 1st is inspect): the parent's index changes there, after
+# discovery and before the writer reads the index again
+case " \$* " in *" --no-optional-locks status "*)
+  if [ "\$2" = "$W/libs/a" ]; then
+    n=\$(( \$(cat "$SB/pi.n" 2>/dev/null || echo 0) + 1 )); echo "\$n" >"$SB/pi.n"
+    if [ "\$n" -eq 2 ]; then "$SX_GIT" -C "$W" update-index --cacheinfo "160000,$p_mid,libs/a" && echo fired >"$SB/pi.fired"; fi
+  fi ;;
+esac
+exec "$SX_GIT" "\$@"
+EOF
+chmod +x "$SB/pi/git"
+SX_N=$((SX_N+1)); o="$SB/out/r$SX_N"
+SX_OUT="$(PATH="$SB/pi:$PATH" bash "$SX_ENGINE" --apply --advance-pins --jobs 1 --root "$W" --out "$o" --run-id "r$SX_N" 2>"$o.err")"
+SX_RC=$?; SX_JSON="$o/sync_report.json"
+read -r _ p_idx _ <<<"$("$SX_GIT" -C "$W" ls-files -s -- libs/a)"
+eq "M67: the concurrent staging happened after discovery (control needle)" "fired" "$(cat "$SB/pi.fired" 2>/dev/null)"
+eq "M67: libs/a not checked out at the new pin" "$p_old" "$(sx_head "$W/libs/a")"
+eq "M67: the gitlink the other writer staged is kept" "$p_mid" "$p_idx"
+has "M67: the writer names the changed index" "blocked:parent-index-changed" "$(sx_q 'str(P["libs/a"]["actions"])')"
+# the current classification of a write a guard blocked: the repository stays "behind" (exit 3), as for the
+# tree-changed block; whether a blocked write should be ATTENTION is an open item (round-4 evidence)
+eq "M67: libs/a stays behind, exit 3" "3 behind" "$SX_RC $(sx_q 'P["libs/a"]["result"]')"
+# control: the same world without the concurrent writer advances the pin and stages it (the case reaches the writer)
+fresh; sx_std_tree
+sx_commit "$U_A" "liba 14a"; sx_commit "$U_A" "liba 14b"; p_new="$(sx_remote_head "${U_A#file://}")"
+sx_run --apply --advance-pins --jobs 1 --root "$W"
+read -r _ p_idx _ <<<"$("$SX_GIT" -C "$W" ls-files -s -- libs/a)"
+eq "M67 control: without the other writer libs/a is advanced" "$p_new" "$(sx_head "$W/libs/a")"
+eq "M67 control: and its new gitlink is staged" "$p_new" "$p_idx"
+eq "M67 control: exit 0" 0 "$SX_RC"
+
+# ── 15. n-3 / M70: an --out file is reused only when it is a regular file. Section 7 links the tsv to a file whose
+#    content the content check refuses anyway, so no suite tested the file-type check on its own (M70 survived in
+#    round 3 and round 4 before this case). Here the link points at a report THIS engine wrote, of the same kind,
+#    and a FIFO stands at the report path (opening a FIFO that has no writer never returns)
+fresh; sx_std_tree
+out="$(PATH="$SB/shim:$PATH" bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15real" 2>&1)"; rc=$?
+eq "M70: a real report to link to (exit 0)" 0 "$rc"
+mkdir -p "$SB/o15a" "$SB/o15b"; cp "$SB/o15real/sync_report.json" "$SB/o15real.json.before"
+ln -s "$SB/o15real/sync_report.json" "$SB/o15a/sync_report.json"
+out="$(PATH="$SB/shim:$PATH" bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15a" 2>&1)"; rc=$?
+eq "M70: a symlink to a report of ours: usage exit 2" 2 "$rc"
+has "M70: a symlink to a report of ours: named as not ours" "was not written by this engine" "$out"
+eq "M70: the symlink is still a symlink" "yes" "$([ -L "$SB/o15a/sync_report.json" ] && echo yes || echo no)"
+eq "M70: the report it points at is unchanged" "same" "$(cmp -s "$SB/o15real.json.before" "$SB/o15real/sync_report.json" && echo same || echo changed)"
+mkfifo "$SB/o15b/sync_report.json"
+out="$(PATH="$SB/shim:$PATH" timeout 120 bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15b" 2>&1)"; rc=$?
+eq "M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)" 2 "$rc"
+eq "M70: the FIFO is still a FIFO" "yes" "$([ -p "$SB/o15b/sync_report.json" ] && echo yes || echo no)"
+# control: the same engine reuses the directory that holds the real report (a regular file it wrote)
+out="$(PATH="$SB/shim:$PATH" bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15real" 2>&1)"; rc=$?
+eq "M70 control: a regular report of ours is reused (exit 0)" 0 "$rc"
+
 finish

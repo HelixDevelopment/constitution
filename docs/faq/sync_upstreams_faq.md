@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-13T00:00:00Z |
+| Last modified | 2026-11-13T20:26:13Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
+| Fixed | revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -45,8 +45,12 @@ given. Exit 0 means nothing is left behind.
 No. It stages them with `git add -- <path>`. Review `git diff --cached` and commit yourself.
 
 **7. Can it leak a token?**
-URLs in the report and on screen lose their userinfo, token-shaped strings are replaced with
-`[REDACTED]`, and git is told never to prompt. The security suite checks this with a planted token. The
+URLs in the report and on screen lose their userinfo (everything up to the last `@` of the line, whatever
+its length), the userinfo of every configured remote is remembered and removed wherever it appears again,
+token-shaped strings and `Authorization:` values are replaced with `[REDACTED]`, git's trace variables
+(`GIT_TRACE*`, `GIT_CURL_VERBOSE`) are dropped, and git is told never to prompt. The security and unit suites
+check this with planted tokens of many lengths (control needles prove the planted value would have been
+seen). A secret shorter than 8 characters that git prints on its own, without its URL, is not removed. The
 engine never prints credentials it did not receive in a URL; it does not read credential stores.
 
 **8. Two runs at once?**
@@ -63,7 +67,10 @@ moved and nothing is concluded about it. A grandchild that escapes the process g
 most 7 seconds; it cannot hold the run.
 
 **10. Why is the evidence not in my project?**
-So the run never changes your work tree. `--out` inside the work tree is refused (exit 2).
+So the run never changes your work tree. `--out` inside the work tree is refused (exit 2). An `--out` directory
+that already holds a `sync_report.json` or `sync_report.tsv` is used only when that file is a regular file
+this engine wrote; your own file of that name, a symbolic link, a FIFO or a directory is refused (exit 2) and
+left as it is.
 
 **11. Is it safe to schedule?**
 The examples in `scripts/sync/examples/` run `--check` only, which never changes a checkout. Installing
@@ -84,6 +91,12 @@ No. Every call passes `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. A c
 runs during `git status` (also in `--check`) and a smudge filter while files are written; the tool does not
 disable them. Diff, textconv and merge drivers never run: the engine uses no git command that calls them.
 
-**15. Is it tested against GitHub or GitLab?**
+**15. A submodule says `blind` and `pin-unreadable`. Why not "not initialised"?**
+Its `.git` exists but git cannot read it: a `gitdir:` pointer to a directory that is gone, a repository
+extension this git does not know, or a directory git refuses because of its owner. Reading that as "not
+initialised" would hide the submodule and everything below it, so the run is `BLIND` (exit 6) and the row is
+printed even with `--quiet`. Fix or re-initialise the submodule yourself, then run again.
+
+**16. Is it tested against GitHub or GitLab?**
 Not yet. The tests use real git against real bare repositories in scratch directories, without network.
 Real forges (ssh keys, rate limits, large repositories) are UNCONFIRMED until run by the operator.

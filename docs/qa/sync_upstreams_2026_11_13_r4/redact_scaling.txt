@@ -1,0 +1,19 @@
+# redact() time against the length n of one token, measured 2026-11-13T18:42:18Z on this host (load 43.79);
+# command: python3 -I tmp/redact_scaling.py <engine>; r4 = scripts/sync/sync_all_upstreams.py sha256 a4b7093464b7292c..., r3 = git show bc1a03a5:scripts/sync/sync_all_upstreams.py
+# 'plain' is a line of n letters with no URL at all; doubling n about quadruples the time on both engines
+## round 4 engine
+n=  1024 userinfo    0.001 s  path    0.001 s  plain    0.004 s  redacted_ok=True
+n=  2048 userinfo    0.004 s  path    0.004 s  plain    0.007 s  redacted_ok=True
+n=  4096 userinfo    0.020 s  path    0.017 s  plain    0.029 s  redacted_ok=True
+n=  8192 userinfo    0.077 s  path    0.065 s  plain    0.117 s  redacted_ok=True
+n= 16384 userinfo    0.296 s  path    0.312 s  plain    0.462 s  redacted_ok=True
+n= 32768 userinfo    1.199 s  path    1.114 s  plain    1.891 s  redacted_ok=True
+n= 65536 userinfo    4.787 s  path    4.607 s  plain    8.000 s  redacted_ok=True
+## round 3 engine
+n=  1024 userinfo    0.001 s  path    0.001 s  plain    0.004 s  redacted_ok=True
+n=  2048 userinfo    0.005 s  path    0.006 s  plain    0.010 s  redacted_ok=True
+n=  4096 userinfo    0.027 s  path    0.023 s  plain    0.042 s  redacted_ok=True
+n=  8192 userinfo    0.078 s  path    0.065 s  plain    0.128 s  redacted_ok=True
+n= 16384 userinfo    0.450 s  path    0.347 s  plain    0.579 s  redacted_ok=True
+n= 32768 userinfo    1.549 s  path    1.343 s  plain    2.061 s  redacted_ok=True
+n= 65536 userinfo    4.532 s  path    4.520 s  plain    8.208 s  redacted_ok=True

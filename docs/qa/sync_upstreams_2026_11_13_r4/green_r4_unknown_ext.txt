@@ -1,0 +1,22 @@
+--- control (sane):
+rc=3
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_unknown_ext/helix-sync-test.CsGBQK/out/r1/sync_report.json
+CANONICAL_SHA256=09523403ec28291d157a6147f35228ed69d192d6126535bcded96744e8ae51f1
+RESULT: UPDATES-AVAILABLE exit=3
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_unknown_ext/helix-sync-test.CsGBQK/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   behind          -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+libs/a pin=behind-main result=behind
+--- broken:
+rc=6
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/r4_unknown_ext/helix-sync-test.CsGBQK/out/r2/sync_report.json
+CANONICAL_SHA256=f3d62ef0c9ec842439b42a7ec0da7f3933941083d7f5ad2b6531763f394e1b60
+RESULT: BLIND exit=6
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/r4_unknown_ext/helix-sync-test.CsGBQK/work/root: 3 repositories, 2 initialised, 2 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   blind           pin-unreadable,unresolved:rev-parse:rc:128
+[sync-upstreams] vendor/t                                 current         -
+libs/a initialised=False pin={'gitlink': 'd080e69d9d782fbb864aaf2a9b5b9077ed1f8434', 'state': 'unreadable'} result=blind unresolved=['rev-parse:rc:128']
+libs/a/inner present in report: False

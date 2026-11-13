@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# foreign_top.sh REPO -- F1 variant with real git through the engine: a submodule whose .git is an empty directory
+# (git does not recognise it, so `rev-parse --show-toplevel` walks up and answers with the PARENT's top level).
+# Same fixture library and standard tree as the reviewer's repro_candidates.sh. Prints a control run first.
+set -uo pipefail
+REPO="${1:?repo root}"
+SX_ENGINE="$REPO/scripts/sync/sync_all_upstreams.sh"
+# shellcheck source=/dev/null
+. "$REPO/scripts/sync/fixture_lib.sh"
+sx_sandbox
+sx_std_tree
+show() { printf "rc=%s\n%s\nERR:%s\n" "$SX_RC" "$SX_OUT" "$SX_ERR" | sed -n 1,40p; }
+echo "--- control (sane):"; sx_run --check --root "$W"; show
+echo "vendor/t initialised=$(sx_q 'P["vendor/t"]["initialised"]') result=$(sx_q 'P["vendor/t"]["result"]')"
+gitfile="${W:?}/vendor/t/.git"
+[ -f "$gitfile" ] || { echo "SETUP: $gitfile is not a file"; exit 2; }
+rm -f -- "$gitfile"
+mkdir -- "$gitfile"
+echo "--- git itself, from inside vendor/t: $("$SX_GIT" -C "$W/vendor/t" rev-parse --show-toplevel 2>&1) (rc=$?)"
+echo "--- broken (empty .git directory):"; sx_run --check --root "$W"; show
+echo "vendor/t initialised=$(sx_q 'P["vendor/t"]["initialised"]') pin=$(sx_q 'P["vendor/t"].get("pin")') result=$(sx_q 'P["vendor/t"]["result"]') reasons=$(sx_q 'P["vendor/t"]["reasons"]') unresolved=$(sx_q 'P["vendor/t"].get("unresolved")')"

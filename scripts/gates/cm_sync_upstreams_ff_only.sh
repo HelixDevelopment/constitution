@@ -28,7 +28,11 @@
 #          except __name__, no definition that shadows a module or one of those names;
 #       e. the ONE Popen's argv is git_argv(git_bin, repo, checked), `checked` bound exactly once before it from
 #          check_git_args(args), the parameter `args` never rebound; no shell / executable / preexec_fn / args /
-#          ** keyword; the ONE killpg is os.killpg(pgid, ...) inside an `if` whose test has `pgid > 1` (§11.4.263);
+#          ** keyword; start_new_session=True; the ONE killpg is EXACTLY os.killpg(pgid, signal.SIGKILL), `pgid`
+#          bound exactly once as `pgid = os.getpgid(p.pid)`, and its nearest `if` (only a try may stand between)
+#          is a direct statement of proc_kill_group whose test is EXACTLY the conjunction
+#          `isinstance(pgid, int) and pgid > 1 and pgid == p.pid` in any order (no `or`, no `not`, no constant, no
+#          fourth term; review round 3, X04: `pgid > 1 or True` passed the old "has pgid > 1" test) (§11.4.263);
 #       f. every git call site (`<x>.run(repo, ARGS, ok=...)` and `g_out(r, repo, ARGS, ok=...)`) passes a literal
 #          list whose first element is an allow-listed subcommand, fetch_args(...), or a module-level literal
 #          list constant (STATUS_ARGS); declares the statuses that are an answer as a literal tuple of ints
@@ -36,12 +40,32 @@
 #          `.run` appears only as a called function;
 #       g. WRITE_SUBCOMMANDS is exactly {fetch, merge, checkout, add}; no allow-list holds push, reset, rebase,
 #          commit, clean, gc, update-ref, branch, tag, submodule, pull, stash, cat-file, ...
+#       h. BOUNDED ANSWER SETS (review round 3, X06): every declared ok= is a subset of {0, 1, 128} with at most
+#          three values (a site that "declares" every status 0..255 declares nothing);
+#       i. WRITE VERBS IN ONE PLACE (review round 3, X02 / X02b): a call site whose argument list starts with
+#          merge, checkout or add is inside write_git (the one guarded writer), and fetch_args(...) is passed only
+#          inside fetch_repo;
+#       j. THE CALL-SITE ORACLE (review round 3, X01, and the false class-inventory claim of round 3): SITES below is
+#          an independent table, written by hand, of every git call site: (function, argument list as source text,
+#          declared answer statuses, declared output shape, what an exit 128 becomes there). The multiset of call
+#          sites read from the engine's AST must EQUAL it: a new site, a moved site, a changed argument list, a
+#          widened or narrowed ok= set (rc 128 accepted as a clean answer at a write guard) or a dropped want= is a
+#          FAIL until the table (and docs/qa/<round>/class_inventory.md) is changed with it. The table is checked
+#          for self-consistency first: "blind" (128 is no answer) exactly when 128 is not declared; "failed" only
+#          for merge / checkout / add in write_git; "unreachable" only for fetch_args in fetch_repo; "start-dir" only
+#          in main (the work-tree probe of the start directory, BLIND when a .git exists there).
 #   (2) RUNTIME (the engine module is loaded from the file): for EVERY accepted argument shape (each verb the
-#       engine uses), git_argv(...) is exactly [git, -C, repo] + "-c" pairs holding every required safe pair +
-#       --no-optional-locks + the shape (review round 2, K04: no verb may lose a pair); git_env drops every
-#       config- and transport-injecting variable (GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT / KEY_* / VALUE_*,
-#       GIT_DIR, GIT_SSH, ...; K16); redact() removes the userinfo of adversarial URL shapes ('@' or a space
-#       inside a password, S-1), known token shapes and control characters; proc_run_git refuses a forbidden
+#       engine uses), git_argv(...) is exactly [git, -C, repo] + "-c" pairs + --no-optional-locks + the shape,
+#       where the pairs set every required safe key EXACTLY ONCE (key compared without case) to its required value
+#       and set no other key (review round 2, K04: no verb may lose a pair; round 3, X07: a later
+#       core.hooksPath=<dir> pair overrides the first one, so presence alone proves nothing); git_env drops every
+#       config-, transport- and trace-injecting variable (GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT / KEY_* /
+#       VALUE_*, GIT_DIR, GIT_SSH, every GIT_TRACE*, GIT_CURL_VERBOSE, ...; K16, F7); redact() removes the
+#       userinfo of adversarial URL shapes ('@' or a space inside a password, S-1; a password of 64, 128 or 512
+#       characters, one holding '://' or '%40', X05), Authorization header values, known token shapes and
+#       control characters; redact_url() redacts a configured URL holding a newline as ONE value; redact_report()
+#       redacts report keys; a registered remote secret is removed from text that quotes it without its URL; an
+#       argparse error that echoes a URL is redacted; proc_run_git refuses a forbidden
 #       shape BEFORE any process exists; fetch_args(...) is --no-prune --no-prune-tags --no-tags --refmap= with
 #       only the engine-owned refspec(s); check_git_args REFUSES every forbidden shape and ACCEPTS every shape the
 #       engine really uses (the control needle, §11.4.273).
@@ -52,11 +76,19 @@
 # see (a C extension, a modified interpreter) is out of its scope.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
-#   cm_sync_upstreams_ff_only.sh [--root <constitution-root>]
+#   cm_sync_upstreams_ff_only.sh [--root <constitution-root>] [--print-sites]
+#   --print-sites  print the call-site oracle (SITES) as TSV and exit 0, checking nothing: one line per site,
+#                  FUNCTION<TAB>PREFIX<TAB>OK<TAB>WANT<TAB>ON128<TAB>ARGV, where PREFIX is the constant leading
+#                  words of the argument list (a module-level list constant of the engine at --root is resolved,
+#                  fetch_args(...) is "fetch"), OK the declared statuses joined by ',', WANT the shape name or '-',
+#                  ON128 one of blind / failed / unreachable / start-dir. tests/sync/test_faults.sh uses it to know
+#                  what an injected exit 128 must become at each call.
 #
 # ── Side-effects ─────────────────────────────────────────────────────────────
 #   None (reads two files; runs no git, no network; the runtime part calls proc_run_git only with a forbidden
-#   shape and a non-existent git, which must be refused before any process exists).
+#   shape and a non-existent git, which must be refused before any process exists; it calls the engine's main()
+#   once with an unknown argument, which ends in the argument parser before anything else runs, and clears the
+#   engine's in-memory secret registry after its own probe).
 #
 # ── Dependencies ─────────────────────────────────────────────────────────────
 #   bash, python3 (absent -> BLIND).
@@ -72,10 +104,12 @@
 set -uo pipefail
 GATE="CM-SYNC-UPSTREAMS-FF-ONLY"
 root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
+print_sites=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) root="$(cd "${2:-/nonexistent}" 2>/dev/null && pwd)" || { echo "$GATE: BLIND — bad --root" >&2; exit 2; }; shift 2 ;;
-    -h|--help) sed -n 2,74p "${BASH_SOURCE[0]:-$0}"; exit 0 ;;
+    --print-sites) print_sites=1; shift ;;
+    -h|--help) sed -n 2,103p "${BASH_SOURCE[0]:-$0}"; exit 0 ;;
     *) echo "$GATE: unknown argument $1" >&2; exit 2 ;;
   esac
 done
@@ -83,15 +117,103 @@ engine="$root/scripts/sync/sync_all_upstreams.py"
 wrapper="$root/scripts/sync/sync_all_upstreams.sh"
 command -v python3 >/dev/null 2>&1 || { echo "$GATE: BLIND — python3 missing" >&2; exit 2; }
 [ -r "$engine" ] || { echo "$GATE: BLIND — $engine unreadable" >&2; exit 2; }
-python3 -I - "$engine" "$wrapper" "$GATE" <<'PY'
-import ast, importlib.util, re, sys
-engine, wrapper, gate = sys.argv[1], sys.argv[2], sys.argv[3]
+python3 -I - "$engine" "$wrapper" "$GATE" "$print_sites" <<'PY'
+import ast, contextlib, importlib.util, io, re, sys
+engine, wrapper, gate, print_sites = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4] == "1"
 fails = []
 try:
     src = open(engine, encoding="utf-8").read()
     tree = ast.parse(src)
 except Exception as e:  # unparseable engine: cannot decide
     print("%s: BLIND — cannot parse %s: %s" % (gate, engine, e)); sys.exit(2)
+
+# ── the call-site oracle (check j). Written by hand from the engine's design, NOT generated from its AST: a change
+#    of the engine that adds, moves or reshapes a git call FAILS until a person changes this table with it (and
+#    records why in the class inventory). Columns: function, argument list as ast.unparse() text, declared answer
+#    statuses, declared output shape ("-" for none), what an exit 128 becomes there.
+SITES = [
+    ("read_head", "['rev-parse', '--verify', '-q', 'HEAD^{commit}']", (0, 1), "SHA_RE", "blind"),
+    ("is_ancestor", "['merge-base', '--is-ancestor', a, b]", (0, 1), "-", "blind"),
+    ("count_range", "['rev-list', '--left-right', '--count', '%s...%s' % (a, b)]", (0,), "TWO_COUNTS_RE", "blind"),
+    ("commit_present", "['rev-parse', '--verify', '-q', '%s^{commit}' % sha]", (0, 1), "SHA_RE", "blind"),
+    ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
+    ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
+    ("head_gitlinks", "['ls-tree', '-r', '-z', 'HEAD']", (0,), "-", "blind"),
+    ("inspect_local", "['symbolic-ref', '--short', '-q', 'HEAD']", (0, 1), "-", "blind"),
+    ("inspect_local", "['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD']",
+     (0,), "TWO_ABS_PATHS_RE", "blind"),
+    ("inspect_local", "STATUS_ARGS", (0,), "-", "blind"),
+    ("inspect_local", "['remote']", (0,), "-", "blind"),
+    ("inspect_local", "['config', '--get', 'remote.%s.url' % n]", (0, 1), "-", "blind"),
+    ("inspect_local", "['config', '--get', 'core.sshCommand']", (0, 1), "-", "blind"),
+    ("fetch_repo", "fetch_args(rem['_name'], tags)", (0, 1, 128), "-", "unreachable"),
+    ("evaluate_upstream", "['rev-parse', '--verify', '-q', 'refs/remotes/%s/%s^{commit}' % (rem['_name'], branch)]",
+     (0, 1), "SHA_RE", "blind"),
+    ("evaluate_pin", "['for-each-ref', '--contains', gitlink, '--format=%(refname)', 'refs/remotes']", (0,), "-",
+     "blind"),
+    ("write_git", "STATUS_ARGS", (0,), "-", "blind"),
+    ("write_git", "['merge', '--ff-only', target]", (0, 1, 128), "-", "failed"),
+    ("write_git", "['checkout', '--quiet', '--detach', target]", (0, 1, 128), "-", "failed"),
+    ("write_git", "['add', '--', rec['path_in_parent']]", (0, 128), "-", "failed"),
+    ("ignored_clobbers", "['ls-files', '-z', '--others', '--ignored', '--exclude-standard']", (0,), "-", "blind"),
+    ("ignored_clobbers", "['ls-tree', '-r', '-z', '--name-only', '--full-tree', target]", (0,), "-", "blind"),
+    ("control_needle", "['rev-list', '--count', 'HEAD']", (0,), "DIGITS_RE", "blind"),
+    ("control_needle", "['rev-list', '--left-right', '--count', 'HEAD...HEAD']", (0,), "TWO_COUNTS_RE", "blind"),
+    ("main", "['rev-parse', '--show-toplevel']", (0, 128), "ABS_PATH_RE", "start-dir"),
+    ("main", "['rev-parse', '--path-format=absolute', '--git-common-dir']", (0,), "ABS_PATH_RE", "blind"),
+]
+ON128 = ("blind", "failed", "unreachable", "start-dir")
+WRITE_VERBS = ("merge", "checkout", "add")
+
+
+def argv_words(text, consts):
+    """The constant leading words of an argument list given as source text; None when there is none."""
+    try:
+        node = ast.parse(text, mode="eval").body
+    except SyntaxError:
+        return None
+    if isinstance(node, ast.Name):
+        return consts.get(node.id)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "fetch_args":
+        return ["fetch"]
+    if isinstance(node, ast.List):
+        words = []
+        for e in node.elts:
+            if not (isinstance(e, ast.Constant) and isinstance(e.value, str)):
+                break
+            words.append(e.value)
+        return words or None
+    return None
+
+
+ENGINE_CONSTS = {}
+for node in tree.body:
+    if (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.List) and node.value.elts
+            and all(isinstance(e, ast.Constant) and isinstance(e.value, str) for e in node.value.elts)):
+        ENGINE_CONSTS[node.targets[0].id] = [e.value for e in node.value.elts]
+if print_sites:
+    for fn_, argv_, ok_, want_, on128_ in SITES:
+        words = argv_words(argv_, ENGINE_CONSTS)
+        print("\t".join((fn_, " ".join(words) if words else "?", ",".join(str(x) for x in ok_), want_, on128_, argv_)))
+    sys.exit(0)
+# the table's own consistency, before it is used as an oracle
+for fn_, argv_, ok_, want_, on128_ in SITES:
+    words = argv_words(argv_, {"STATUS_ARGS": ["status"]}) or []
+    row = "%s %s" % (fn_, argv_)
+    if on128_ not in ON128:
+        fails.append("oracle row %s: unknown exit-128 class %s" % (row, on128_))
+    if (on128_ == "blind") != (128 not in ok_):
+        fails.append("oracle row %s: class %s does not match ok=%s (blind exactly when 128 is not declared)"
+                     % (row, on128_, ok_))
+    if on128_ == "failed" and not (fn_ == "write_git" and words[:1] and words[0] in WRITE_VERBS):
+        fails.append("oracle row %s: 'failed' outside the merge / checkout / add of write_git" % row)
+    if on128_ == "unreachable" and not (fn_ == "fetch_repo" and argv_.startswith("fetch_args(")):
+        fails.append("oracle row %s: 'unreachable' outside fetch_args in fetch_repo" % row)
+    if on128_ == "start-dir" and fn_ != "main":
+        fails.append("oracle row %s: 'start-dir' outside main" % row)
+    if 0 not in ok_ or not set(ok_) <= {0, 1, 128} or len(ok_) > 3 or list(ok_) != sorted(set(ok_)):
+        fails.append("oracle row %s: ok=%s is not a sorted subset of {0, 1, 128} holding 0" % (row, ok_))
 
 
 def dotted(n):
@@ -269,28 +391,43 @@ elif prg is not None:
         fails.append("proc_run_git rebinds its parameter `args`")
 
 kills = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and dotted(n.func) == "os.killpg"]
-
-
-def has_pgid_gt1(test):  # a real comparison node, never a docstring/comment carrier (§11.4.201(7)(a))
-    for n in ast.walk(test):
-        if (isinstance(n, ast.Compare) and isinstance(n.left, ast.Name) and n.left.id == "pgid" and len(n.ops) == 1
-                and isinstance(n.ops[0], ast.Gt) and isinstance(n.comparators[0], ast.Constant)
-                and n.comparators[0].value == 1):
-            return True
-    return False
-
-
 if len(kills) != 1:
     fails.append("expected exactly one os.killpg call, found %d" % len(kills))
-else:
+elif pkg is not None:
+    # §11.4.263, exact shape (review round 3, X04: `pgid > 1 or True` passed a "test contains pgid > 1" check)
     K = kills[0]
-    guarded, cur = False, K
+    pv = [x.arg for x in pkg.args.args]
+    pv = pv[0] if len(pv) == 1 else None
+    if pv is None:
+        fails.append("proc_kill_group does not take exactly one parameter (the child process)")
+    pb = [n for n in ast.walk(pkg) if "pgid" in bound_names(n)]
+    want_bind = "pgid = os.getpgid(%s.pid)" % pv
+    if len(pb) != 1 or not isinstance(pb[0], ast.Assign) or ast.unparse(pb[0]) != want_bind:
+        fails.append("pgid is not bound exactly once, as `%s`, in proc_kill_group (§11.4.263)" % want_bind)
+    if ast.unparse(K) != "os.killpg(pgid, signal.SIGKILL)":
+        fails.append("the signal call is %s, not exactly os.killpg(pgid, signal.SIGKILL) (§11.4.263)" % ast.unparse(K))
+    guard, cur = None, K
     while cur in parent:
         cur, child = parent[cur], cur
-        if isinstance(cur, ast.If) and child in cur.body and has_pgid_gt1(cur.test):
-            guarded = True
-    if not (K.args and isinstance(K.args[0], ast.Name) and K.args[0].id == "pgid") or not guarded:
-        fails.append("os.killpg is not os.killpg(pgid, ...) inside `if ... pgid > 1 ...` (§11.4.263)")
+        if isinstance(cur, ast.If):
+            guard = cur if child in cur.body else "else"
+            break
+        if not (isinstance(cur, ast.Expr) or (isinstance(cur, ast.Try) and child in cur.body)):
+            guard = "a %s" % type(cur).__name__
+            break
+    terms = sorted(["isinstance(pgid, int)", "pgid > 1", "pgid == %s.pid" % pv])
+    if not isinstance(guard, ast.If):
+        fails.append("os.killpg is not in the body of an `if` (found %s before any `if`) (§11.4.263)" % guard)
+    elif parent.get(guard) is not pkg:
+        fails.append("the `if` guarding os.killpg is not a direct statement of proc_kill_group (§11.4.263)")
+    elif not (isinstance(guard.test, ast.BoolOp) and isinstance(guard.test.op, ast.And)
+              and sorted(ast.unparse(v) for v in guard.test.values) == terms):
+        fails.append("the guard of os.killpg is `%s`, not exactly `%s` (§11.4.263)"
+                     % (ast.unparse(guard.test), " and ".join(terms)))
+if popens:
+    snk = [k for k in popens[0].keywords if k.arg == "start_new_session"]
+    if len(snk) != 1 or not (isinstance(snk[0].value, ast.Constant) and snk[0].value.value is True):
+        fails.append("the one Popen does not pass start_new_session=True (the group it kills must be its own)")
 
 
 def set_literal(name):
@@ -326,6 +463,7 @@ for node in tree.body:
         LIST_CONSTS[node.targets[0].id] = [e.value for e in node.value.elts]
 gparams = [x.arg for x in g_out_fn.args.args] if g_out_fn else []
 sites = 0
+found = []  # (function, argv text, ok, want) of every call site, for the oracle (check j)
 for node in ast.walk(tree):
     if not isinstance(node, ast.Call):
         continue
@@ -345,6 +483,16 @@ for node in ast.walk(tree):
         if not (isinstance(okn, ast.Name) and okn.id == "ok" and isinstance(wn, ast.Name) and wn.id == "want"):
             fails.append("g_out does not forward ok= / want= unchanged (line %d)" % node.lineno)
         continue
+    d_ = enclosing_def(node)
+    site_fn = d_.name if isinstance(d_, (ast.FunctionDef, ast.AsyncFunctionDef)) else "<%s>" % type(d_).__name__
+    a_text = ast.unparse(a) if a is not None else "<none>"
+    lead = argv_words(a_text, {}) or []
+    if isinstance(a, ast.Name) and a.id in LIST_CONSTS:
+        lead = LIST_CONSTS[a.id]
+    if lead[:1] and lead[0] in WRITE_VERBS and site_fn != "write_git":
+        fails.append("git %s call at line %d is outside write_git, the one guarded writer" % (lead[0], node.lineno))
+    if isinstance(a, ast.Call) and dotted(a.func) == "fetch_args" and site_fn != "fetch_repo":
+        fails.append("fetch_args(...) is passed at line %d outside fetch_repo" % node.lineno)
     good = ((isinstance(a, ast.Call) and dotted(a.func) == "fetch_args")
             or (isinstance(a, ast.Name) and a.id in LIST_CONSTS and LIST_CONSTS[a.id][0] in SUBS)
             or (isinstance(a, ast.List) and a.elts and isinstance(a.elts[0], ast.Constant) and a.elts[0].value in SUBS
@@ -358,8 +506,23 @@ for node in ast.walk(tree):
     if okv is None or 0 not in okv or any(not 0 <= v <= 255 for v in okv):
         fails.append("git call at line %d does not declare its answer statuses as a literal ok=(0, ...) tuple"
                      % node.lineno)
+    elif not set(okv) <= {0, 1, 128} or len(okv) > 3:
+        fails.append("git call at line %d declares ok=%s: an answer set is a subset of {0, 1, 128} with at most three "
+                     "values" % (node.lineno, tuple(okv)))
     if "want" in kw and not isinstance(kw["want"], ast.Name):
         fails.append("git call at line %d: want= is not a name" % node.lineno)
+    found.append((site_fn, a_text, tuple(okv) if okv is not None else ast.unparse(okn) if okn is not None else "-",
+                   ast.unparse(kw["want"]) if "want" in kw else "-"))
+want_sites = sorted((f, a, tuple(o), w) for f, a, o, w, _ in SITES)
+got_sites = sorted(found, key=repr)
+for x in sorted(set(got_sites), key=repr):
+    extra = got_sites.count(x) - want_sites.count(x)
+    if extra > 0:
+        fails.append("call site not in the oracle table (%dx): %s %s ok=%s want=%s" % ((extra,) + x))
+for x in sorted(set(want_sites), key=repr):
+    miss = want_sites.count(x) - got_sites.count(x)
+    if miss > 0:
+        fails.append("oracle row with no call site in the engine (%dx): %s %s ok=%s want=%s" % ((miss,) + x))
 
 # ── runtime part
 try:
@@ -371,6 +534,7 @@ S = "0123456789abcdef0123456789abcdef01234567"
 REQUIRED_CFG = ["core.hooksPath=/dev/null", "core.fsmonitor=false", "fetch.prune=false", "fetch.pruneTags=false",
                 "fetch.recurseSubmodules=false", "submodule.recurse=false", "protocol.ext.allow=never",
                 "merge.autoStash=false", "gc.auto=0", "maintenance.auto=false"]
+REQUIRED_KEYS = {c.split("=", 1)[0].lower() for c in REQUIRED_CFG}
 try:
     for tags in (False, True):
         fa = E.fetch_args("origin", tags)
@@ -458,15 +622,24 @@ for a in ACCEPT:
     i, cfg = 3, []
     while i + 1 < len(argv) and argv[i] == "-c":
         cfg.append(argv[i + 1]); i += 2
-    missing = [c for c in REQUIRED_CFG if c not in cfg]
-    if argv[:3] != ["git", "-C", "/r"] or missing or argv[i:] != ["--no-optional-locks"] + list(a):
-        fails.append("git_argv for git %s is not [git -C repo] + safe -c pairs + --no-optional-locks + shape "
-                     "(missing pairs %s): %s" % (" ".join(a[:3]), missing, argv))
+    # every required key EXACTLY once (git compares config keys without case; a later pair overrides an earlier
+    # one), with its required value, and no other key (review round 3, X07)
+    keys = [c.split("=", 1)[0].lower() for c in cfg]
+    missing = [c for c in REQUIRED_CFG if keys.count(c.split("=", 1)[0].lower()) != 1 or c not in cfg]
+    other = sorted(set(c for c in cfg if c.split("=", 1)[0].lower() not in REQUIRED_KEYS))
+    if argv[:3] != ["git", "-C", "/r"] or missing or other or argv[i:] != ["--no-optional-locks"] + list(a):
+        fails.append("git_argv for git %s is not [git -C repo] + each safe -c pair exactly once + "
+                     "--no-optional-locks + shape (missing, repeated or changed %s; unexpected %s): %s"
+                     % (" ".join(a[:3]), missing, other, argv))
 # the environment every git call runs with: no injected config or transport (K16)
 INJECT = {"GIT_CONFIG_PARAMETERS": "'core.hooksPath'='/x'", "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.x",
           "GIT_CONFIG_VALUE_0": "y", "GIT_CONFIG_KEY_7": "a", "GIT_CONFIG_VALUE_7": "b", "GIT_DIR": "/x",
           "GIT_WORK_TREE": "/x", "GIT_SSH": "/x", "GIT_ASKPASS": "/x", "GIT_PROXY_COMMAND": "/x",
-          "GIT_EXEC_PATH": "/x", "GIT_ALTERNATE_OBJECT_DIRECTORIES": "/x", "PATH": "/usr/bin"}
+          "GIT_EXEC_PATH": "/x", "GIT_ALTERNATE_OBJECT_DIRECTORIES": "/x",
+          # traces write protocol traffic, headers or URLs to a file or to stderr (review round 3, F7)
+          "GIT_TRACE": "1", "GIT_TRACE2": "1", "GIT_TRACE2_EVENT": "/x", "GIT_TRACE2_PERF": "/x",
+          "GIT_TRACE_PERFORMANCE": "1", "GIT_TRACE_PACKET": "1", "GIT_TRACE_CURL": "1", "GIT_TRACE_SETUP": "1",
+          "GIT_CURL_VERBOSE": "1", "PATH": "/usr/bin"}
 try:
     env = E.git_env(dict(INJECT))
     left = sorted(k for k in env if k in INJECT and k != "PATH")
@@ -485,7 +658,16 @@ RED = [("https://user:pa ss@word@example.org/r.git", ("pa ss", "word@", "user"),
        ("token " + GL + "abcdefghijklmnop in text", ("abcdefghijklmnop",), "token"),
        ("https://example.org/r/" + GH + "ABCDEFGHIJKLMNOPQRST/x", ("ABCDEFGHIJ",), "example.org"),
        ("https://a:b@one.org/x https://c:d@two.org/y", (":b@", ":d@"), "two.org"),
-       ("esc \x1b[31mred\x1b[0m", ("\x1b",), "red")]
+       ("esc \x1b[31mred\x1b[0m", ("\x1b",), "red"),
+       # review round 3, X05 and its class: no fixed-width window; a secret holding '://' or '%40'
+       ("fatal: unable to access 'https://user:" + "Q" * 64 + "@example.org/r.git/': 403", ("Q" * 8, "user"),
+        "example.org"),
+       ("https://user:" + "W" * 128 + "@example.org/r.git", ("W" * 8, "user"), "example.org"),
+       ("https://user:" + "E" * 255 + "@x" + "E" * 255 + "@example.org/r.git", ("E" * 8,), "example.org"),
+       ("https://user:pa://S3cr3tPw@example.org/r.git", ("S3cr3tPw", "user", "pa:"), "example.org"),
+       ("https://user:ab%40Cd" + "Z" * 40 + "@example.org/r.git", ("Cd" + "Z" * 8, "%40"), "example.org"),
+       ("< Authorization: Basic dXNlcjpzM2NyM3Q=", ("dXNlcjpzM2NyM3Q",), "Authorization:"),
+       ("> proxy-authorization: Bearer tok3n-v4lue-xyz", ("tok3n-v4lue",), "authorization:")]
 for text, gone, kept in RED:
     try:
         out = E.redact(text)
@@ -493,6 +675,43 @@ for text, gone, kept in RED:
         fails.append("redact raised: %s" % e); continue
     if any(g in out for g in gone) or kept not in out:
         fails.append("redact(%r) = %r (a secret remains or the host was lost)" % (text, out))
+# the other paths a secret can take (review round 3, class D)
+NL = "https://u:pa\nS3cr3tPwXY@example.org/r.git"
+try:
+    out = E.redact_url(NL)
+    if "S3cr3tPwXY" in out or ":pa" in out or "example.org" not in out:
+        fails.append("redact_url(%r) = %r (a configured URL with a newline is not one value)" % (NL, out))
+except Exception as e:
+    fails.append("redact_url not usable: %s" % e)
+try:
+    hits = []
+    outr = E.redact_report({"https://u:S3cr3tKey9@h.example/x": {"ok": 1}}, "r", hits)
+    if any("S3cr3tKey9" in k for k in outr) or not hits:
+        fails.append("redact_report leaves a secret in a KEY or does not report it: %s %s" % (outr, hits))
+except Exception as e:
+    fails.append("redact_report not usable: %s" % e)
+try:  # a secret git repeats WITHOUT its URL: removed once the remote URL was registered
+    E.register_secret("https://u:RegS3cr3t77@h.example/x")
+    out = E.redact("error: RegS3cr3t77 rejected by the server")
+    if "RegS3cr3t77" in out:
+        fails.append("a registered remote secret survives in text without its URL: %r" % out)
+except Exception as e:
+    fails.append("register_secret not usable: %s" % e)
+finally:
+    known = getattr(E, "_KNOWN", None)
+    if hasattr(known, "clear"):
+        known.clear()
+buf = io.StringIO()
+try:  # argparse prints an unknown argument back; a URL in it must come out redacted
+    with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+        try:
+            E.main(["--check", "https://u:ArgS3cr3t55@example.org/x"])
+        except SystemExit:
+            pass
+    if "ArgS3cr3t55" in buf.getvalue():
+        fails.append("an argument-parser error prints a secret: %r" % buf.getvalue()[-200:])
+except Exception as e:
+    fails.append("main() with an unknown argument raised %s" % type(e).__name__)
 # the choke point refuses a forbidden shape before any process exists (a non-existent git: a spawn would say
 # 'not-runnable', a refusal raises)
 try:
@@ -514,8 +733,9 @@ if fails:
     sys.exit(1)
 print("%s: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point "
       "(proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); "
-      "%d git call sites with literal allow-listed argv and declared answer statuses; %d accepted shapes carry "
-      "the exact safe argv; git_env scrubs %d injectors; %d redaction shapes; %d/%d forbidden shapes refused; "
-      "control needle %d/%d accepted" % (gate, sites, accepted, len(INJECT) - 1, len(RED), refused, len(REFUSE),
-                                          accepted, len(ACCEPT)))
+      "%d git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, "
+      "equal to the %d-row call-site oracle; %d accepted shapes carry the exact safe argv (each safe key once); "
+      "git_env scrubs %d injectors; %d redaction shapes + 4 secret paths; %d/%d forbidden shapes refused; "
+      "control needle %d/%d accepted" % (gate, len(found), len(SITES), accepted, len(INJECT) - 1, len(RED),
+                                          refused, len(REFUSE), accepted, len(ACCEPT)))
 PY

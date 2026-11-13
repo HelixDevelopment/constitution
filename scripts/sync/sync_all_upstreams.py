@@ -176,31 +176,67 @@ def safe_relpath(p):
 # ───────────────────────────── redaction ─────────────────────────────
 _SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
 _TOKENS = re.compile(r"(gh[pousr]_|github_pat_|glpat-|xox[abprs]-|AKIA)[A-Za-z0-9_\-]{4,}")
+_AUTH = re.compile(r"(?i)\b((?:proxy-)?authorization:[ \t]*)[^\n]+")
 _CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\x80-\x9f]")
+# Userinfo pieces of every configured remote URL (8 characters or more), registered before any fetch thread starts
+# (inspect_local runs first, one thread): a secret git repeats WITHOUT its URL is still removed. Shorter pieces are
+# not registered (a 3-letter user name such as "git" would remove ordinary words); they are cut structurally.
+_KNOWN = set()
+_KNOWN_LOCK = threading.Lock()
 
 
 def strip_userinfo(text):
-    """Remove URL userinfo structurally: for every ``scheme://``, the URL token runs to the next ``scheme://``
-    or the end of the line (a password may hold spaces or '@'), and everything up to the LAST '@' in it is
-    removed. A '@' later on the same line (in a path or in prose) removes more than the userinfo: fail-safe
+    """Remove URL userinfo structurally: for every ``scheme://`` the URL token runs to the END OF THE LINE (a
+    password may hold spaces, '@', '://' or be of any length; nothing is cut at a fixed width) and everything up to
+    the LAST '@' in it is removed. A ``scheme://`` inside a part already removed (a password holding '://') is
+    skipped. A '@' later on the same line (a second URL, a path, prose) removes more than the userinfo: fail-safe
     over-redaction, never a leak."""
     out, pos = [], 0
-    marks = list(_SCHEME.finditer(text))
-    for i, m in enumerate(marks):
+    for m in _SCHEME.finditer(text):
+        if m.start() < pos:
+            continue
         start = m.end()
-        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
-        nl = text.find("\n", start, end)
-        if nl != -1:
-            end = nl
+        nl = text.find("\n", start)
+        end = nl if nl != -1 else len(text)
         at = text.rfind("@", start, end)
+        if at == -1:
+            continue
         out.append(text[pos:start])
-        pos = at + 1 if at != -1 else start
+        pos = at + 1
     out.append(text[pos:])
     return "".join(out)
 
 
+def register_secret(url):
+    """Remember the userinfo of one configured remote URL (the whole value, which may hold a newline)."""
+    m = _SCHEME.match(url or "")
+    at = url.rfind("@") if m else -1
+    if not m or at < m.end():
+        return
+    info = url[m.end():at]
+    pieces = {info, info.partition(":")[2]}
+    for p in list(pieces):
+        pieces.update(p.split("\n"))
+    with _KNOWN_LOCK:
+        _KNOWN.update(p for p in pieces if len(p) >= 8)
+
+
 def strip_secrets(text):
-    return _TOKENS.sub("[REDACTED]", strip_userinfo(text))
+    with _KNOWN_LOCK:
+        known = sorted(_KNOWN, key=len, reverse=True)
+    for s in known:
+        text = text.replace(s, "[REDACTED]")
+    return _TOKENS.sub("[REDACTED]", _AUTH.sub(r"\1[REDACTED]", strip_userinfo(text)))
+
+
+def redact_url(url):
+    """One configured URL value, as a whole (newline-safe): everything between ``scheme://`` and its LAST '@' goes."""
+    u = url or ""
+    m = _SCHEME.match(u)
+    at = u.rfind("@") if m else -1
+    if m and at >= m.end():
+        u = u[:m.end()] + u[at + 1:]
+    return redact(u)
 
 
 def redact(text):
@@ -215,7 +251,15 @@ def redact_report(obj, path, hits):
     keys starting with '_' (raw, private values) are dropped. ``hits`` collects the field paths where the
     backstop had to remove a credential-class string: it must stay empty (the tests assert it)."""
     if isinstance(obj, dict):
-        return {k: redact_report(v, path + "." + k, hits) for k, v in obj.items() if not k.startswith("_")}
+        out = {}
+        for k, v in obj.items():
+            if k.startswith("_"):
+                continue
+            rk = redact(k)  # a key is output too (review round 3, class D)
+            if strip_secrets(k) != k:
+                hits.append(path + "." + rk)
+            out[rk] = redact_report(v, path + "." + rk, hits)
+        return out
     if isinstance(obj, list):
         return [redact_report(v, "%s[%d]" % (path, i), hits) for i, v in enumerate(obj)]
     if isinstance(obj, str):
@@ -306,14 +350,17 @@ def proc_kill_group(p):
 _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
           "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_EXEC_PATH", "GIT_SSH", "GIT_ASKPASS",
           "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",
-          "GIT_TRACE", "GIT_TRACE_PACKET", "GIT_TRACE_CURL", "GIT_REDACT_COOKIES", "GIT_PREFIX",
+          "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES", "GIT_PREFIX",
           "GIT_QUARANTINE_PATH", "GIT_REPLACE_REF_BASE", "GIT_SHALLOW_FILE", "GIT_INTERNAL_SUPER_PREFIX")
 
 
 def git_env(base=None):
     env = dict(base if base is not None else os.environ)
     for k in list(env):
-        if k in _SCRUB or k.startswith("GIT_CONFIG_KEY_") or k.startswith("GIT_CONFIG_VALUE_"):
+        # every GIT_TRACE* variable (GIT_TRACE, _PACKET, _CURL, _PERFORMANCE, _SETUP, GIT_TRACE2, _EVENT, _PERF, ...)
+        # is dropped by prefix: a trace writes protocol traffic, headers or URLs to a file or to stderr
+        if (k in _SCRUB or k.startswith("GIT_TRACE") or k.startswith("GIT_CONFIG_KEY_")
+                or k.startswith("GIT_CONFIG_VALUE_")):
             del env[k]
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GCM_INTERACTIVE"] = "never"
@@ -449,21 +496,59 @@ def pick_newest(shas, ancestor):
     return None
 
 
+def path_kind(path):
+    """'absent', 'dir', 'other' (a file, a symbolic link, ...) or 'unreadable', from ONE os.lstat (the last component
+    is never followed). os.path.exists / isdir / lexists read "permission denied" as "not there"; here only "no such
+    file" (or a path component that is not a directory) is absent, every other error is unreadable (review round 3,
+    F1 class B: an unread path is never read as absent)."""
+    try:
+        st = os.lstat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return "absent"
+    except OSError:
+        return "unreadable"
+    return "dir" if (st.st_mode & 0o170000) == 0o040000 else "other"
+
+
 def in_progress(gitdir):
-    names = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-merge",
-             "rebase-apply", "index.lock")
-    return [n for n in names if os.path.exists(os.path.join(gitdir, n))]
+    """Operations in progress in ``gitdir``; a marker that cannot be read counts as in progress ('<name>?unreadable')."""
+    found = []
+    for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply",
+              "index.lock"):
+        k = path_kind(os.path.join(gitdir, n))
+        if k == "unreadable":
+            found.append(n + "?unreadable")
+        elif k != "absent":
+            found.append(n)
+    return found
 
 
-def is_repo_root(r, path):
-    """True / False, or None when git gave no answer (recorded for ``path``)."""
-    if not os.path.isdir(path) or not os.path.exists(os.path.join(path, ".git")):
-        return False
-    res = r.run(path, ["rev-parse", "--show-toplevel"], ok=(0, 128), want=ABS_PATH_RE)
-    if not res.answered:
-        return None
-    top = res.text()
-    return top is not None and os.path.realpath(top) == os.path.realpath(path)
+def probe_child(r, path):
+    """What is at a submodule path: 'absent', 'not-a-directory' (a file or a symbolic link), 'uninitialised' (a
+    directory without .git), 'unreadable' or 'repo'. 'unreadable' is a NO ANSWER, recorded for ``path`` (review
+    round 3, F1): a .git that git cannot read (exit 128: a broken gitdir pointer, an unknown repository extension,
+    dubious ownership) or whose top level is not ``path`` (a .git git does not recognise makes rev-parse walk up to
+    the parent) is never read as "not initialised"."""
+    kind = path_kind(path)
+    if kind in ("absent", "unreadable"):
+        if kind == "unreadable":
+            r.no_answer(path, "lstat", "unreadable")
+        return kind
+    if kind != "dir":
+        return "not-a-directory"
+    dotgit = path_kind(os.path.join(path, ".git"))
+    if dotgit == "absent":
+        return "uninitialised"
+    if dotgit == "unreadable":
+        r.no_answer(path, "lstat", "unreadable")
+        return "unreadable"
+    top = g_out(r, path, ["rev-parse", "--show-toplevel"], ok=(0,), want=ABS_PATH_RE)
+    if top is None:  # no answer (128 included), recorded by r.run
+        return "unreadable"
+    if os.path.realpath(top) != os.path.realpath(path):
+        r.no_answer(path, "rev-parse", "not-own-toplevel")
+        return "unreadable"
+    return "repo"
 
 
 def parse_ls_tree(out):
@@ -534,8 +619,9 @@ def inspect_local(r, repo, branch):
             remotes.append({"name": redact(n), "url": "", "fetch": "skipped", "state": "invalid-name"})
             continue
         url = g_out(r, p, ["config", "--get", "remote.%s.url" % n], ok=(0, 1)) or ""
+        register_secret(url)  # before any fetch thread starts: a secret git repeats without its URL is removed too
         # "name" is what the report shows (redacted, n-2); "_name" is the real name every git call uses
-        remotes.append({"name": redact(n), "_name": n, "url": redact(url), "_url": url, "fetch": "not-run"})
+        remotes.append({"name": redact(n), "_name": n, "url": redact_url(url), "_url": url, "fetch": "not-run"})
     rec["remotes"] = remotes
     rec["_branch_wanted"] = branch
     rec["_fetch_head"] = fetch_head
@@ -716,9 +802,15 @@ def reasons_for(rec, strict_pins, branch):
     reasons = []
     if not rec.get("initialised"):
         st = rec.get("pin", {}).get("state")
-        if strict_pins and st in ("absent", "uninitialised"):
+        # absent / uninitialised are ordinary states (attention only with --strict-pins); a path that is not a
+        # directory, a cycle and an unreadable submodule always need attention (review round 3, F1)
+        if st in ("not-a-directory", "cycle", "unreadable") or (strict_pins and st in ("absent", "uninitialised")):
             reasons.append("pin-" + st)
         return reasons
+    if rec.get("depth_limited_gitlinks"):
+        reasons.append("depth-limited")
+    if rec.get("kept_on_branch"):
+        reasons.append("kept-on-branch:" + rec["kept_on_branch"])
     if rec.get("dirty"):
         reasons.append("dirty-tree")
     reasons += ["in-progress:" + x for x in rec.get("in_progress", [])]
@@ -773,15 +865,17 @@ def discover(r, root, max_depth):
     def walk(repo):
         out.append(repo)
         real = os.path.realpath(repo.abspath)
-        if real in seen:
+        if real in seen:  # the same repository reached twice: never inspected twice, always reported
             repo.rec["initialised"] = False
-            repo.rec["pin"] = {"state": "cycle"}
+            repo.rec["pin"] = {"gitlink": repo.rec.get("recorded_gitlink"), "state": "cycle"}
             return
         seen.add(real)
+        links = index_gitlinks(r, repo.abspath)  # no answer (None): recorded, this repository is blind
         if repo.depth >= max_depth:
-            repo.rec["depth_limited"] = True
+            if links:  # submodules below the depth limit are never silently out of the report
+                repo.rec["depth_limited_gitlinks"] = len(links)
             return
-        links = index_gitlinks(r, repo.abspath) or {}  # no answer: recorded, this repository is blind
+        links = links or {}  # no answer: no children (the no-answer is recorded, the repository is blind)
         for path in sorted(links):
             if not safe_relpath(path):
                 continue
@@ -790,23 +884,14 @@ def discover(r, root, max_depth):
             child = Repo(child_abs, rel, repo.depth + 1, repo)
             child.rec["recorded_gitlink"] = links[path]
             child.rec["path_in_parent"] = path
-            if not os.path.lexists(child_abs):
-                child.rec["initialised"] = False
-                child.rec["pin"] = {"gitlink": links[path], "state": "absent"}
-                out.append(child)
-                continue
-            top = is_repo_root(r, child_abs)
-            if top is None:  # no answer: recorded for the child; it is never inspected or changed
-                child.rec["initialised"] = False
-                child.rec["pin"] = {"gitlink": links[path], "state": "unknown"}
-                out.append(child)
-            elif not top:
-                child.rec["initialised"] = False
-                child.rec["pin"] = {"gitlink": links[path], "state": "uninitialised"}
-                out.append(child)
-            else:
+            state = probe_child(r, child_abs)
+            if state == "repo":
                 child.rec["initialised"] = True
                 walk(child)
+            else:  # absent / uninitialised / not-a-directory / unreadable (a no-answer, recorded for the child)
+                child.rec["initialised"] = False
+                child.rec["pin"] = {"gitlink": links[path], "state": state}
+                out.append(child)
 
     root_repo = Repo(root, ".", 0, None)
     root_repo.rec["initialised"] = True
@@ -824,6 +909,7 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
     blocked_paths = set()
     for repo in repos:
         rec = repo.rec
+        p = repo.abspath
         rec.setdefault("actions", [])
         if not rec.get("initialised"):
             continue
@@ -834,13 +920,12 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
         reasons = reasons_for(rec, strict_pins, branch)
         # root-not-on-<branch> blocks the whole tree (F7): no pin is staged into a topic branch's index
         local_block = [x for x in reasons if x.startswith(BLOCKING_PREFIXES)]
-        if r.unresolved_for(repo.abspath):
+        if r.unresolved_for(p):
             local_block.append("unresolved")
         if local_block:
             rec["actions"].append({"op": "none", "why": ",".join(local_block)})
             blocked_paths.add(repo.rel)
             continue
-        p = repo.abspath
         moved = bool(rec.get("followed"))  # it followed its own parent's new gitlink earlier in this run
         if rec.get("branch") == branch:
             if rec.get("local_vs_target") == "behind" and consent.get("integrate"):
@@ -854,9 +939,13 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
         elif repo.parent is not None:
             pin = rec.get("pin") or {}
             want = (advance_pins and consent.get("pins") and not rec.get("followed") and pin.get("state") == "behind-main"
-                    and pin.get("checkout") == "at-pin" and rec.get("head_after", rec.get("head_before")) == pin.get("gitlink")
+                    and pin.get("checkout") == "at-pin" and rec.get("head_before") == pin.get("gitlink")
                     and (rec.get("own_org") or advance_third_party))
-            if want:
+            if want and rec.get("branch") is not None:
+                # a submodule checked out on a local branch is never detached (as for follow-pin; review round 3, F3)
+                rec["actions"].append({"op": "none", "why": "advance-skipped:submodule-on-branch"})
+                rec["kept_on_branch"] = "advance-pin"
+            elif want:
                 res = write_git(r, repo, "advance-pin", rec["target"])
                 if res != "done":
                     blocked_paths.add(repo.rel)
@@ -864,9 +953,14 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
                 moved = True
         if moved:  # only a parent that moved in THIS run (by a consented write) can make its children follow
             follow_children(r, repo, repos, consent)
-        rec["head_after"] = read_head(r, p)
-        if rec["head_after"] is None:
-            rec["head_unreadable"] = True
+    # head_after is read for EVERY initialised repository, after the whole pass (review round 3, F2): a repository
+    # that followed its parent, or whose write answered nothing or failed half-way, and was then skipped above, is
+    # still read; an unread head is a no-answer (recorded by read_head), never a copy of head_before
+    for repo in repos:
+        if repo.rec.get("initialised"):
+            repo.rec["head_after"] = read_head(r, repo.abspath)
+            if repo.rec["head_after"] is None:
+                repo.rec["head_unreadable"] = True
 
 
 def write_git(r, repo, op, target):
@@ -1001,6 +1095,7 @@ def follow_children(r, repo, repos, consent):
             continue
         if c.rec.get("branch"):
             c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:submodule-on-branch"})
+            c.rec["kept_on_branch"] = "follow-pin"
             continue
         if c.rec.get("head_before") != old or c.rec.get("dirty") or c.rec.get("in_progress"):
             c.rec.setdefault("actions", []).append({"op": "none", "why": "follow-skipped:drifted-or-dirty"})
@@ -1133,9 +1228,17 @@ class Tty:
 
 
 # ───────────────────────────── main ─────────────────────────────
+class ArgParser(argparse.ArgumentParser):
+    """argparse with a redacted error line: an unknown or invalid argument can be a URL with userinfo."""
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        print("%s: error: %s" % (self.prog, redact(message)), file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+
+
 def parse_args(argv):
-    ap = argparse.ArgumentParser(prog="sync_all_upstreams.sh", add_help=True,
-                                 description="Fetch every remote of a project tree and integrate by fast-forward only.")
+    ap = ArgParser(prog="sync_all_upstreams.sh", add_help=True,
+                   description="Fetch every remote of a project tree and integrate by fast-forward only.")
     m = ap.add_mutually_exclusive_group()
     m.add_argument("--check", action="store_true", help="fetch, report, change nothing else (exit 3 when behind)")
     m.add_argument("--dry-run", action="store_true", help="no fetch, no change: plan from refs already present")
@@ -1198,6 +1301,13 @@ def main(argv):
         return EXIT_BLIND
     top = res.text()
     if not top:
+        # exit 128 means "not a work tree" only where there is no .git; a .git git cannot read (a broken gitdir
+        # pointer, an unknown extension, dubious ownership) is no answer (review round 3, F1 class)
+        if path_kind(os.path.join(start_dir, ".git")) != "absent":
+            print("sync-upstreams: BLIND: git cannot read the repository at %s (%s); nothing was done"
+                  % (redact(start_dir), redact(res.err).strip()[-200:] or "rc:%s" % res.rc), file=sys.stderr)
+            print("RESULT: BLIND exit=%d" % EXIT_BLIND)
+            return EXIT_BLIND
         print("sync-upstreams: ERROR: %s is not inside a git work tree" % redact(start_dir), file=sys.stderr)
         return EXIT_USAGE
     root = os.path.realpath(top)
@@ -1245,8 +1355,8 @@ def main(argv):
         os.close(lock_fd)
 
 
-def say(a, msg):
-    if not a.quiet:
+def say(a, msg, always=False):
+    if always or not a.quiet:
         print("[sync-upstreams] " + redact(msg), file=sys.stderr)
 
 
@@ -1297,7 +1407,11 @@ def run(a, r, mode, root, run_id, out_dir, tty):
     for x in repos:
         rec = x.rec
         if rec.get("initialised") and "head_after" not in rec:
-            rec["head_after"] = rec.get("head_before")
+            if mode == "apply":  # integrate() reads every head after the pass: a missing one was never read (F2)
+                r.no_answer(x.abspath, "rev-parse", "head-after-not-read")
+                rec["head_after"] = None
+            else:  # check / dry-run write nothing: the head is the one read before
+                rec["head_after"] = rec.get("head_before")
     # final classification
     any_fail = any_attention = any_behind = any_unresolved = any_blind = False
     hints = []
@@ -1312,6 +1426,8 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         rec.setdefault("actions", [])
         moved = bool(rec.get("initialised") and rec.get("head_after") is not None
                      and rec.get("head_before") is not None and rec.get("head_after") != rec.get("head_before"))
+        rec["moved"] = moved
+        blocking = [y for y in rec["reasons"] if y.startswith(BLOCKING_PREFIXES)]
         if rec.get("failed"):
             any_fail = True
         if blind:  # before "failed": a failure judged on a call that gave no answer is not an answer either
@@ -1322,7 +1438,7 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         elif unresolved:
             rec["result"] = "unresolved"
             any_unresolved = True
-        elif moved and mode == "apply":
+        elif moved and mode == "apply" and not blocking:  # moved, but blocked afterwards: attention (F2)
             rec["result"] = "updated"
             if os.path.isfile(os.path.join(x.abspath, "scripts", "post_update_hook.sh")) and \
                     os.path.isfile(os.path.join(x.abspath, "Constitution.md")) and x.parent is not None:
@@ -1374,13 +1490,14 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         write_atomic(os.path.join(out_dir, "sync_report.json"), json.dumps(report, indent=2, sort_keys=True) + "\n")
         write_atomic(os.path.join(out_dir, "sync_report.tsv"), tsv_rows(report))
     except OSError as e:
-        print("sync-upstreams: ERROR: cannot write evidence to %s: %s" % (redact(out_dir), e), file=sys.stderr)
+        print("sync-upstreams: ERROR: cannot write evidence to %s: %s" % (redact(out_dir), redact(str(e))), file=sys.stderr)
         return EXIT_USAGE
+    # --quiet prints every repository that is not current (a not-initialised or blind one included; review round 3, F1)
     for rec in report["repos"]:
-        if rec.get("result") not in ("current", "not-initialised") or not a.quiet:
-            say(a, "%-40s %-15s %s" % (rec["path"], rec.get("result"), ",".join(rec.get("reasons", [])) or "-"))
+        say(a, "%-40s %-15s %s" % (rec["path"], rec.get("result"), ",".join(rec.get("reasons", [])) or "-"),
+            always=rec.get("result") != "current")
     for h in report["next_steps"]:
-        say(a, "next step (never run automatically): " + h)
+        say(a, "next step (never run automatically): " + h, always=True)
     if tty:
         tty.say("sync-upstreams: %s (exit %d); report %s" % (verdict, code, out_dir))
     print("REPORT_JSON=%s" % os.path.join(out_dir, "sync_report.json"))
@@ -1389,5 +1506,16 @@ def run(a, r, mode, root, run_id, out_dir, tty):
     return code
 
 
+def entry(argv):
+    """main() with no traceback: an unexpected exception is reported redacted (its text can hold a path or a URL)
+    and the run is FAILED (exit 1), never a crash that prints raw values (review round 3, class D)."""
+    try:
+        return main(argv)
+    except Exception as e:
+        print("sync-upstreams: internal error: %s: %s" % (redact(repr(type(e))), redact(str(e))), file=sys.stderr)
+        print("RESULT: FAILED exit=%d" % EXIT_FAIL)
+        return EXIT_FAIL
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(entry(sys.argv[1:]))

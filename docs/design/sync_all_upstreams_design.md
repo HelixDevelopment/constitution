@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-13T00:00:00Z |
+| Last modified | 2026-11-13T20:26:13Z |
 | Status | draft (pending independent review) |
 | Status summary | Design of `scripts/sync/sync_all_upstreams.sh`: one read-mostly engine that fetches every remote of a project and of every submodule recursively, integrates only by fast-forward, reports pin state, and writes machine evidence; wired into setup.sh (interactive and non-interactive) and post_update_hook.sh (check only). |
 | Authority | Constitution §2.1, §11.4.26, §11.4.32, §11.4.36, §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D), §12 — the canonical text wins where this document and the constitution disagree. |
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
+| Fixed | revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 3: review round 3 fixes (a git call that gives no answer is BLIND, a time-out is INCONCLUSIVE; one spawn and one signal point; one guarded writer; userinfo redaction); revision 2: fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7 |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -114,6 +114,7 @@ UNCONFIRMED until run by the operator; the tests are gate-logic / unit-class evi
 user-configured clean filter runs during `git status` (so also in `--check`) and a smudge filter during a
 checkout or merge; the tool does not disable them. Diff, textconv and merge drivers never run: the engine
 calls no git command that uses them (the gate refuses `diff`, `show`, `log`, `cat-file` and the other verbs
-that could). Evidence retention (how long reports are kept) is an open item. The
+that could). Evidence retention (how long reports are kept) is an open item, and so is the cost of
+redaction, which grows with the square of a line's length (about 8 s for a 65 536-character line). The
 engine reports; it does not decide whether a third-party
 pin should advance.

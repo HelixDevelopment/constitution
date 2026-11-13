@@ -1,0 +1,22 @@
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_broken_gitfile/helix-sync-test.zuLyLo/out/r1/sync_report.json
+CANONICAL_SHA256=652b4fcbd413a5bd40254a29ccc24d410e0a44b8375bad8943609a4b2d7947bd
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_broken_gitfile/helix-sync-test.zuLyLo/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 not-initialised -
+vendor/t initialised=False pin={'gitlink': '710911f5da8f4d6ceba570074bca81de41674730', 'state': 'uninitialised'} result=not-initialised reasons=[]
+root reasons=[] unresolved=None
+--- strict-pins:
+rc=4
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_broken_gitfile/helix-sync-test.zuLyLo/out/r2/sync_report.json
+CANONICAL_SHA256=6aa81dbd874e516ccaa5c0123e95539a7a48cb5a00227f6c23265501a5abedd0
+RESULT: ATTENTION exit=4
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_broken_gitfile/helix-sync-test.zuLyLo/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 attention       pin-uninitialised
+--- control: same tree with a sane submodule (rm the bad .git -> absent dir? no: restore)

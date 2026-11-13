@@ -21,6 +21,16 @@
 #                   · OK-NOT-LITERAL · POPEN-SHELL-KW · NO-HOOKSPATH / NO-FSMONITOR (a safe -c pair dropped)
 #                   · NO-OPTIONAL-LOCKS (K14) · K16-ENV (GIT_CONFIG_PARAMETERS kept) · S1-REDACT (userinfo cut at the
 #                   first '@') · NO-REFMAP · PRUNE-IN-FETCH · MIRROR-REFSPEC · FORCED-TAGS (fetch_args made unsafe)
+#                   review round 3 (the reviewer's mutants, verbatim): X01-STATUS-OK128 · X02-DIRECT-MERGE ·
+#                   X02B-DIRECT-MERGE-RECORDED · X04-OR-TRUE · X05-WINDOW-48 · X06-OK-ALL · X07-HOOKS-OVERRIDE
+#                   round 4 (own static shapes of the same classes): KILLPG-OR · KILLPG-NOT · KILLPG-GE1 ·
+#                   KILLPG-EXTRA-TERM · KILLPG-ELSE · KILLPG-REBIND · KILLPG-OWN-GROUP (getpgid(0)) · KILLPG-SIG9 ·
+#                   NO-NEW-SESSION · OK-128-AT-READ (bounded but not the oracle's) · OK-TWO · WANT-DROPPED ·
+#                   FETCH-ELSEWHERE · WRITE-VIA-CONST · CFG-CASE-OVERRIDE · CFG-EXTRA-KEY · TRACE-KEPT ·
+#                   CURL-VERBOSE-KEPT · AUTH-NOT-REDACTED · REDACT-URL-LINEWISE · REPORT-KEY-RAW · REGISTRY-OFF ·
+#                   ARGPARSE-RAW · SITE-MOVED (a read moved into a lambda: another scope)
+#   FAIL-expected, the GATE mutated (its oracle is load-bearing in both directions): ORACLE-ROW-DROPPED (a call
+#                   site with no row) · ORACLE-CLASS-WRONG (a row whose exit-128 class contradicts its ok=)
 #   BLIND-expected (rc 2): SYNTAX (engine unparseable) · MISSING (engine absent)
 # Usage: cm_sync_upstreams_ff_only_mutation_test.sh   Exit: 0 proof holds · 1 misclassified · 2 env error.
 # Side-effects: temp dir under $TMPDIR (trap-cleaned with safe_rm_rf). Dependencies: bash, python3.
@@ -52,8 +62,11 @@ open(p,"w").write(s.replace(o,n))' "$f" "$old" "$new"; then
   fi
   [ "$label" = MISSING ] && rm -f -- "$d/scripts/sync/sync_all_upstreams.py"
   local out rc; out="$(bash "$gate" --root "$d" 2>&1)"; rc=$?; n=$((n+1))
-  if [ "$rc" = "$want" ]; then echo "ok   $label (rc=$rc)$( [ "$rc" = 1 ] && printf " :: %s" "$(printf "%s\n" "$out" | grep -m1 FAIL | sed "s/^[^—]*— //" | cut -c1-90)")"; else echo "BAD  $label: rc=$rc expected $want"; echo "$out" | sed 's/^/     /'; bad=1; fi
+  if [ "$rc" = "$want" ]; then echo "ok   $label (rc=$rc)$( [ "$rc" = 1 ] && printf " :: %s" "$(first_fail "$out")")"; else echo "BAD  $label: rc=$rc expected $want"; echo "$out" | sed 's/^/     /'; bad=1; fi
 }
+# first_fail TEXT — the first FAIL line, after its "— ", 90 characters; pure bash over a here-string (no
+# `| grep -m1` under pipefail: an early-exiting reader returns 141; review round 3, class F)
+first_fail() { local l; while IFS= read -r l; do case "$l" in *FAIL*) l="${l#*— }"; printf '%s' "${l:0:90}"; return 0 ;; esac; done <<<"$1"; }
 case_ GOLDEN 0 none "" ""
 case_ PUSH-IN-WRITE 1 py 'WRITE_SUBCOMMANDS = {"fetch", "merge", "checkout", "add"}' 'WRITE_SUBCOMMANDS = {"fetch", "merge", "checkout", "add", "push"}'
 case_ RESET-IN-READ 1 py '"remote", "config", "symbolic-ref"}' '"remote", "config", "symbolic-ref", "reset"}'
@@ -188,6 +201,74 @@ case_ NO-REFMAP 1 py '"--refmap=", "--", remote' '"--", remote'
 case_ PRUNE-IN-FETCH 1 py '"fetch", "--no-prune", "--no-prune-tags"' '"fetch", "--prune", "--no-prune-tags"'
 case_ MIRROR-REFSPEC 1 py '"+refs/heads/*:refs/remotes/%s/*" % remote' '"+refs/heads/*:refs/heads/*"'
 case_ FORCED-TAGS 1 py 'a.append("refs/tags/*:refs/tags/*")' 'a.append("+refs/tags/*:refs/tags/*")'
+case_ X01-STATUS-OK128 1 py '    st = r.run(p, STATUS_ARGS, ok=(0,))
+    if not st.answered:' '    st = r.run(p, STATUS_ARGS, ok=(0, 128))
+    if not st.answered:'
+case_ X02-DIRECT-MERGE 1 py '                res = write_git(r, repo, "fast-forward", rec["target"])' '                res = "done" if r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0,)).rc == 0 else "failed"'
+case_ X02B-DIRECT-MERGE-RECORDED 1 py '                res = write_git(r, repo, "fast-forward", rec["target"])' '                _x = r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0, 1, 128)); rec["actions"].append({"op": "fast-forward", "to": rec["target"], "rc": _x.rc, "error": ""}); res = "done" if (_x.answered and _x.rc == 0) else "failed"'
+case_ X04-OR-TRUE 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    if isinstance(pgid, int) and (pgid > 1 or True):'
+case_ X05-WINDOW-48 1 py '        at = text.rfind("@", start, end)' '        at = text.rfind("@", start, min(end, start + 48))'
+case_ X06-OK-ALL 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' "    res = r.run(repo, [\"ls-files\", \"-s\", \"-z\"], ok=($(seq -s ', ' 0 255)))"
+case_ X07-HOOKS-OVERRIDE 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.hooksPath=.githooks")'
+case_ KILLPG-OR 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid > 1 or pgid == p.pid:'
+case_ KILLPG-NOT 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if not (isinstance(pgid, int) and pgid > 1 and pgid == p.pid):'
+case_ KILLPG-GE1 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid >= 1 and pgid == p.pid:'
+case_ KILLPG-EXTRA-TERM 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid and pgid != 2:'
+case_ KILLPG-ELSE 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
+        try:' '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
+        pass
+    else:
+        try:'
+case_ KILLPG-REBIND 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    pgid = 1
+    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:'
+case_ KILLPG-OWN-GROUP 1 py '        pgid = os.getpgid(p.pid)' '        pgid = os.getpgid(0)'
+case_ KILLPG-SIG9 1 py '            os.killpg(pgid, signal.SIGKILL)' '            os.killpg(pgid, 9)'
+case_ NO-NEW-SESSION 1 py 'stderr=subprocess.PIPE, env=env, start_new_session=True)' 'stderr=subprocess.PIPE, env=env, start_new_session=False)'
+case_ OK-128-AT-READ 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 128))'
+case_ OK-TWO 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 2))'
+case_ WANT-DROPPED 1 py '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE)' '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1))'
+case_ FETCH-ELSEWHERE 1 py 'def now_utc():' 'def _f(r, p):
+    return r.run(p, fetch_args("origin", False), ok=(0, 1, 128))
+
+
+def now_utc():'
+case_ WRITE-VIA-CONST 1 py 'def now_utc():' '_FF = ["merge", "--ff-only"]
+
+
+def _w(r, p):
+    return r.run(p, _FF, ok=(0,))
+
+
+def now_utc():'
+case_ CFG-CASE-OVERRIDE 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "CORE.HOOKSPATH=.githooks")'
+case_ CFG-EXTRA-KEY 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.sshCommand=sh")'
+case_ TRACE-KEPT 1 py 'k in _SCRUB or k.startswith("GIT_TRACE") or ' 'k in _SCRUB or '
+case_ CURL-VERBOSE-KEPT 1 py '"GIT_CURL_VERBOSE", ' ''
+case_ AUTH-NOT-REDACTED 1 py '_AUTH.sub(r"\1[REDACTED]", strip_userinfo(text))' 'strip_userinfo(text)'
+case_ REDACT-URL-LINEWISE 1 py '        u = u[:m.end()] + u[at + 1:]
+' '        pass
+'
+case_ REPORT-KEY-RAW 1 py '            rk = redact(k)  # a key' '            rk = k  # a key'
+case_ REGISTRY-OFF 1 py '        _KNOWN.update(p for p in pieces if len(p) >= 8)' '        pass'
+case_ ARGPARSE-RAW 1 py '(self.prog, redact(message))' '(self.prog, message)'
+case_ SITE-MOVED 1 py '    names = g_out(r, p, ["remote"], ok=(0,))' '    names = (lambda: g_out(r, p, ["remote"], ok=(0,)))()'
+# the GATE mutated: its oracle must be load-bearing in both directions
+gcase_() {
+  local label="$1" old="$2" new="$3" d="$tmp/$1" g="$tmp/$1.gate.sh"
+  mkdir -p "$d/scripts/sync"
+  cp "$repo/scripts/sync/sync_all_upstreams.py" "$repo/scripts/sync/sync_all_upstreams.sh" "$d/scripts/sync/"
+  if ! python3 -I -c 'import sys
+p,o,n,q=sys.argv[1:5]; s=open(p).read()
+if s.count(o)!=1: sys.exit(3)
+open(q,"w").write(s.replace(o,n))' "$gate" "$old" "$new" "$g"; then
+    echo "META: $label: gate anchor not found exactly once"; bad=1; return
+  fi
+  local out rc; out="$(bash "$g" --root "$d" 2>&1)"; rc=$?; n=$((n+1))
+  if [ "$rc" = 1 ]; then echo "ok   $label (rc=$rc) :: $(first_fail "$out")"; else echo "BAD  $label: rc=$rc expected 1"; bad=1; fi
+}
+gcase_ ORACLE-ROW-DROPPED '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "blind"),
+' ''
+gcase_ ORACLE-CLASS-WRONG '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "blind"),' '    ("index_gitlinks", "['"'"'ls-files'"'"', '"'"'-s'"'"', '"'"'-z'"'"']", (0,), "-", "failed"),'
 case_ SYNTAX 2 py 'def classify(ahead, behind):' 'def classify(ahead, behind'
 case_ MISSING 2 none "" ""
 echo "cases: $n"
