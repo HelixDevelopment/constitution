@@ -19,6 +19,15 @@
 #   bash <constitution>/scripts/setup.sh --check-only       # verify, report drift
 #   bash <constitution>/scripts/setup.sh --auto-propagate=off   # record the opt-out
 #   bash <constitution>/scripts/setup.sh --allow-global-hooks-path
+#   bash <constitution>/scripts/setup.sh --sync-upstreams=ask   # also sync every upstream (asks first)
+#
+# Upstream sync (scripts/sync/sync_all_upstreams.sh, docs/guides/sync_upstreams_user_guide.md):
+# --sync-upstreams=off|check|apply|ask (or env CONSTITUTION_SYNC_UPSTREAMS; default off, which only prints
+# the command). check fetches every remote of the project and of every submodule recursively and reports;
+# apply also fast-forwards (never push, commit, force, reset or rebase); ask runs the interactive wizard
+# (questions on /dev/tty before fetching and before every change; skipped without a terminal). The step runs
+# after the hooks are installed and is not run with --check-only. Only a FAILED apply makes setup exit 1;
+# UPDATES-AVAILABLE, ATTENTION and BLIND are reported and do not.
 #
 # Target selection (round 7): the ENVIRONMENT never chooses the repository
 # this script writes to. The constitution dir is ALWAYS this script's own
@@ -162,6 +171,7 @@ fi
 CONST_DIR="$_SELF_CONST"
 
 CHECK_ONLY=0
+SYNC_UPSTREAMS="${CONSTITUTION_SYNC_UPSTREAMS:-off}"
 ARG_PROJECT_ROOT=""
 ALLOW_GLOBAL_HOOKS=0
 AUTO_PROP=""
@@ -177,6 +187,9 @@ while [ $# -gt 0 ]; do
       ARG_PROJECT_ROOT="${1#--project-root=}"
       [ -n "$ARG_PROJECT_ROOT" ] || { error "--project-root= needs a directory"; exit 2; } ;;
     --allow-global-hooks-path) ALLOW_GLOBAL_HOOKS=1 ;;
+    --sync-upstreams=off|--sync-upstreams=check|--sync-upstreams=apply|--sync-upstreams=ask)
+      SYNC_UPSTREAMS="${1#--sync-upstreams=}" ;;
+    --sync-upstreams*) error "--sync-upstreams takes =off, =check, =apply or =ask"; exit 2 ;;
     --auto-propagate=on|--auto-propagate=true) AUTO_PROP=true ;;
     --auto-propagate=off|--auto-propagate=false) AUTO_PROP=false ;;
     --auto-propagate*) error "--auto-propagate takes =on or =off"; exit 2 ;;
@@ -185,6 +198,11 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+case "$SYNC_UPSTREAMS" in
+  off|check|apply|ask) ;;
+  *) error "CONSTITUTION_SYNC_UPSTREAMS must be off, check, apply or ask: '$SYNC_UPSTREAMS'"; exit 2 ;;
+esac
 
 BACKUP_STAMP="${CONSTITUTION_SETUP_BACKUP_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 case "$BACKUP_STAMP" in
@@ -610,6 +628,20 @@ if [ -d "$PROJECT_HOOKS" ]; then
   install_hooks_from "$PROJECT_HOOKS" "project"
 fi
 
+# ─── 5. Upstream sync (opt-in; scripts/sync/sync_all_upstreams.sh) ───
+
+SYNC_RC=0
+if [ -f "$SCRIPT_DIR/sync/sync_step_lib.sh" ]; then
+  info ""
+  info "Upstream sync: $SYNC_UPSTREAMS"
+  # shellcheck source=sync/sync_step_lib.sh
+  . "$SCRIPT_DIR/sync/sync_step_lib.sh"
+  sync_step "$SYNC_UPSTREAMS" "$PROJECT_ROOT" "$SCRIPT_DIR/sync/sync_all_upstreams.sh" || SYNC_RC=1
+  if [ "$SYNC_RC" -ne 0 ]; then
+    error "upstream sync (apply) FAILED: see the report above; nothing was pushed or committed."
+  fi
+fi
+
 if [ "$HOOK_ERRORS" -ne 0 ]; then
   error "$HOOK_ERRORS git hook(s) could not be installed — see above."
 fi
@@ -618,7 +650,7 @@ if [ "$PU_LOCK_BUSY" -eq 1 ]; then
 elif [ "$PU_RC" -ne 0 ]; then
   error "post_update_hook.sh failed (exit $PU_RC): setup is INCOMPLETE — fix the cause reported above and re-run setup.sh."
 fi
-if [ "$HOOK_ERRORS" -ne 0 ] || [ "$PU_RC" -ne 0 ]; then
+if [ "$HOOK_ERRORS" -ne 0 ] || [ "$PU_RC" -ne 0 ] || [ "$SYNC_RC" -ne 0 ]; then
   exit 1
 fi
 

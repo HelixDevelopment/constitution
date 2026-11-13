@@ -1,0 +1,107 @@
+# Sync-all-upstreams user guide — keep a project and every submodule current, fast-forward only
+
+| Field | Value |
+|---|---|
+| Revision | 1 |
+| Created | 2026-11-12 |
+| Last modified | 2026-11-12T23:30:00Z |
+| Status | draft (pending independent review) |
+| Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
+| Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
+| Scope | Universal (§11.4.17). |
+| Issues | none |
+| Issues summary | — |
+| Fixed | initial creation |
+| Fixed summary | — |
+| Continuation | — |
+
+Related: [manual](../manuals/sync_upstreams_manual.md) · [FAQ](../faq/sync_upstreams_faq.md) ·
+[design](../design/sync_all_upstreams_design.md)
+
+> Path note: `<constitution>` below is where the constitution lives in your project
+> (`submodules/constitution` in the standard layout, `constitution` in the legacy one).
+
+## What it does in one paragraph
+
+The tool fetches every remote of your project and of every submodule at every depth. It then tells you,
+per repository, whether you are current, behind, ahead or diverged, and whether every recorded
+submodule pin is on its upstream `main`. With `--apply` it moves what can move safely: a repository on
+`main` with a clean tree is fast-forwarded, and clean submodules follow their parent's new pin. It never
+pushes, commits, rebases, resets or forces anything, and it writes JSON and TSV evidence of every run.
+
+## 1. See where you stand (changes nothing)
+
+```bash
+bash <constitution>/scripts/sync/sync_all_upstreams.sh --check
+```
+
+It fetches and reports. The last three lines are machine-readable:
+
+```text
+REPORT_JSON=/home/you/.cache/helix_sync_upstreams/myproj-20261112T230000Z-4242/sync_report.json
+CANONICAL_SHA256=…
+RESULT: UPDATES-AVAILABLE exit=3
+```
+
+Offline (no network, uses the refs you already have): add `--no-fetch`. To plan without fetching and
+without changing anything: `--dry-run`.
+
+## 2. Bring everything up to date
+
+```bash
+bash <constitution>/scripts/sync/sync_all_upstreams.sh --apply
+```
+
+* A repository moves only when it is checked out on `main`, its tree is clean and no merge, rebase,
+  cherry-pick, revert or bisect is in progress. Anything else is reported, never touched.
+* Submodule pins you recorded in a parent move only with `--advance-pins` (own-organisation submodules;
+  add `--advance-third-party` for the rest). The new pin is **staged** (`git add`), never committed:
+  review and commit it yourself.
+* If the constitution itself moved, the tool prints the `post_update_hook.sh` command for you to run. It
+  never runs fetched code.
+
+## 3. Let it ask you first
+
+```bash
+bash <constitution>/scripts/sync/sync_all_upstreams.sh --apply --interactive [--advance-pins]
+```
+
+It asks on your terminal before fetching, before fast-forwarding and before staging pins. Every
+question defaults to **no**; only `y` or `yes` counts. Without a terminal, `--interactive` refuses
+(exit 2) rather than guessing.
+
+## 4. During first-time setup
+
+```bash
+bash <constitution>/scripts/setup.sh --sync-upstreams=ask      # asks, then syncs
+bash <constitution>/scripts/setup.sh --sync-upstreams=check    # non-interactive report only
+bash <constitution>/scripts/setup.sh --sync-upstreams=apply    # non-interactive fast-forward
+```
+
+The default is `off`, which only prints a hint. The same value can come from the environment:
+`CONSTITUTION_SYNC_UPSTREAMS=check`. A sync result never makes setup fail, except when `apply` fails.
+
+## 5. After every constitution pull
+
+`post_update_hook.sh` runs a read-only check (step 5c). By default it is offline
+(`CONSTITUTION_SYNC_CHECK=offline`). Set `CONSTITUTION_SYNC_CHECK=fetch` to fetch first, or `off` to
+skip it. It prints the verdict and never fails the hook.
+
+## 6. Run it regularly
+
+Examples ship in `<constitution>/scripts/sync/examples/` (a systemd user service and timer, and a cron
+line). They run `--check` only and are **not installed** by anything: copying them is your decision.
+
+## Reading the result
+
+| Exit | Verdict | Meaning |
+|---|---|---|
+| 0 | `CURRENT` / `APPLIED` | Everything is on its upstream main (after `--apply`: everything that could move, moved). |
+| 3 | `UPDATES-AVAILABLE` | Something is behind and nothing else needs you. Run `--apply`. |
+| 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main. |
+| 1 | `FAILED` | An integration step failed; the report names it. |
+| 2 | `BLIND` / usage | Bad arguments, another run holds the lock, or the self-check (control needle) failed. |
+
+Per-repository lines show the path, the result and the reasons, for example
+`libs/a   attention   dirty-tree`. The [manual](../manuals/sync_upstreams_manual.md) lists every
+reason and every field of the report.

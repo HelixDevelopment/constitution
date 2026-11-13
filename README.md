@@ -393,6 +393,26 @@ Documentation:
 [manual](docs/manuals/dependency_manifest_manual.md) ·
 [FAQ](docs/faq/dependency_manifest_faq.md).
 
+### Keeping every upstream current
+
+`scripts/sync/sync_all_upstreams.sh` fetches every remote of the project and of every submodule at
+every depth, reports ahead / behind / diverged / unreachable state and the pin state of every submodule,
+and with `--apply` integrates by fast-forward only (never push, commit, rebase, reset or force). Every
+run writes JSON and TSV evidence.
+
+```bash
+bash submodules/constitution/scripts/sync/sync_all_upstreams.sh --check            # fetch + report, change nothing
+bash submodules/constitution/scripts/sync/sync_all_upstreams.sh --apply --interactive  # ask, then fast-forward
+bash submodules/constitution/scripts/setup.sh --sync-upstreams=ask                   # during first-time setup
+```
+
+The gate `CM-SYNC-UPSTREAMS-FF-ONLY` (`scripts/gates/cm_sync_upstreams_ff_only.sh`) holds the engine to
+its allow-list; `post_update_hook.sh` runs a read-only check after every pull. Documentation:
+[user guide](docs/guides/sync_upstreams_user_guide.md) ·
+[manual](docs/manuals/sync_upstreams_manual.md) ·
+[FAQ](docs/faq/sync_upstreams_faq.md) ·
+[design](docs/design/sync_all_upstreams_design.md).
+
 ## Tooling map
 
 | Path | Contents |
@@ -413,7 +433,7 @@ Documentation:
 | `plugins/` | `helix` (prefix commands), `scheduled-work` |
 | `mcp/` | MCP server definitions (`media-validator-mcp.json`, `scheduled-work-mcp.json`; `templates/jev-decisions.json.tmpl` is a render template, not a live config) |
 | `templates/` | templates for project Constitution / CLAUDE / AGENTS / QWEN files and the starting `helix-deps.yaml` (§11.4.31) |
-| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md), [destructive-path safeguard](docs/guides/destructive_path_safeguard.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [safeguard manual](docs/manuals/destructive_path_safeguard_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), [safeguard FAQ](docs/faq/destructive_path_safeguard_faq.md), [credscan guide](docs/guides/credscan_user_guide.md) / [manual](docs/manuals/credscan_manual.md) / [FAQ](docs/faq/credscan_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
+| `docs/` | guides (shell-instrument footguns, [dependency manifests](docs/guides/dependency_manifest_user_guide.md), [destructive-path safeguard](docs/guides/destructive_path_safeguard.md)), [manifest manual](docs/manuals/dependency_manifest_manual.md), [safeguard manual](docs/manuals/destructive_path_safeguard_manual.md), [manifest FAQ](docs/faq/dependency_manifest_faq.md), [safeguard FAQ](docs/faq/destructive_path_safeguard_faq.md), [credscan guide](docs/guides/credscan_user_guide.md) / [manual](docs/manuals/credscan_manual.md) / [FAQ](docs/faq/credscan_faq.md), [upstream-sync guide](docs/guides/sync_upstreams_user_guide.md) / [manual](docs/manuals/sync_upstreams_manual.md) / [FAQ](docs/faq/sync_upstreams_faq.md), agent guardrails, actions manual set, CodeGraph status, owed-gate register, research corpora |
 | `scripts/deps_manifest/` | the §11.4.31 manifest verifier + skeleton generator (`verify_helix_deps_manifests.sh`) |
 
 ## How to consume
@@ -612,7 +632,7 @@ within a primary version.
 | `helix-deps.yaml` | Own-org dependency manifest (§11.4.31); every own-org repository carries one, checked by `scripts/deps_manifest/verify_helix_deps_manifests.sh`. |
 | `submodules/`, `submodules-catalogue.md` | Dependency submodules and the owned-repository inventory. |
 | `scripts/`, `tests/`, `skills/`, `plugins/`, `mcp/`, `actions/`, `config/` | Tooling, tests, skills, plugins, MCP definitions, prefix-action registry, gate configuration. |
-| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md) and the [destructive-path safeguard](docs/guides/destructive_path_safeguard.md) guide), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md), [destructive-path safeguard](docs/manuals/destructive_path_safeguard_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md), [destructive-path safeguard](docs/faq/destructive_path_safeguard_faq.md), [credscan](docs/faq/credscan_faq.md)); credscan [guide](docs/guides/credscan_user_guide.md) and [manual](docs/manuals/credscan_manual.md), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
+| `docs/` | Guides (incl. the [dependency-manifest guide](docs/guides/dependency_manifest_user_guide.md) and the [destructive-path safeguard](docs/guides/destructive_path_safeguard.md) guide), manuals ([dependency manifest](docs/manuals/dependency_manifest_manual.md), [destructive-path safeguard](docs/manuals/destructive_path_safeguard_manual.md)), FAQs ([dependency manifest](docs/faq/dependency_manifest_faq.md), [destructive-path safeguard](docs/faq/destructive_path_safeguard_faq.md), [credscan](docs/faq/credscan_faq.md)); credscan [guide](docs/guides/credscan_user_guide.md) and [manual](docs/manuals/credscan_manual.md); upstream sync [guide](docs/guides/sync_upstreams_user_guide.md), [manual](docs/manuals/sync_upstreams_manual.md) and [FAQ](docs/faq/sync_upstreams_faq.md), research, actions manual set, CodeGraph status, owed-gate register, `BADGES.md`. |
 | `templates/` | Templates for project-specific Constitution / CLAUDE / AGENTS / QWEN files and `helix-deps.yaml.template` (§11.4.31). |
 | `upstreams/`, `install_upstreams.sh` | One `.sh` declaration per upstream remote and the installer. |
 | `find_constitution.sh`, `meta_test_inheritance.sh` | Locate this submodule from any nesting depth; sentinel test for the inheritance gate. |
