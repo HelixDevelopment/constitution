@@ -27,7 +27,7 @@
 # apply also fast-forwards (never push, commit, force, reset or rebase); ask runs the interactive wizard
 # (questions on /dev/tty before fetching and before every change; skipped without a terminal). The step runs
 # after the hooks are installed and is not run with --check-only. Only a FAILED apply makes setup exit 1;
-# UPDATES-AVAILABLE, ATTENTION and BLIND are reported and do not.
+# UPDATES-AVAILABLE, ATTENTION, INCONCLUSIVE, LOCKED and BLIND are reported and do not.
 #
 # Target selection (round 7): the ENVIRONMENT never chooses the repository
 # this script writes to. The constitution dir is ALWAYS this script's own

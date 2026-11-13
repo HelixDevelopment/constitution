@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-12T23:30:00Z |
+| Last modified | 2026-11-13T00:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
 | Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation |
+| Fixed | revision 2: review round 2 fixes (fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7) |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -85,7 +85,7 @@ The default is `off`, which only prints a hint. The same value can come from the
 
 `post_update_hook.sh` runs a read-only check (step 5c). By default it is offline
 (`CONSTITUTION_SYNC_CHECK=offline`). Set `CONSTITUTION_SYNC_CHECK=fetch` to fetch first, or `off` to
-skip it. It prints the verdict and never fails the hook.
+skip it. It prints the verdict and never fails the hook; `BLIND` and `INCONCLUSIVE` are shown as warnings.
 
 ## 6. Run it regularly
 
@@ -98,10 +98,17 @@ line). They run `--check` only and are **not installed** by anything: copying th
 |---|---|---|
 | 0 | `CURRENT` / `APPLIED` | Everything is on its upstream main (after `--apply`: everything that could move, moved). |
 | 3 | `UPDATES-AVAILABLE` | Something is behind and nothing else needs you. Run `--apply`. |
-| 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main. |
+| 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main, an ignored file the move would overwrite, a submodule moved on its own branch (modified gitlink), a branch deleted upstream. |
+| 5 | `INCONCLUSIVE` | A git call gave no answer in time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. |
 | 1 | `FAILED` | An integration step failed; the report names it. |
-| 2 | `BLIND` / usage | Bad arguments, another run holds the lock, or the self-check (control needle) failed. |
+| 2 | usage | Bad arguments, `--out` inside the work tree, `--interactive` without a terminal. |
+| 6 | `BLIND` | The self-check (control needle) failed: the tree could not be inspected. |
+| 7 | `LOCKED` | Another run holds the lock; nothing was done. |
 
 Per-repository lines show the path, the result and the reasons, for example
-`libs/a   attention   dirty-tree`. The [manual](../manuals/sync_upstreams_manual.md) lists every
+`libs/a   attention   dirty-tree`.
+
+What the tool never does: it never deletes a ref or a tag (a branch deleted upstream keeps its
+`refs/remotes/<remote>/<branch>`; run `git remote prune <remote>` yourself when you mean it), never runs
+a hook or fsmonitor of the repository, and never overwrites an ignored file. The [manual](../manuals/sync_upstreams_manual.md) lists every
 reason and every field of the report.

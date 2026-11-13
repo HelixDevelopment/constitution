@@ -2,7 +2,8 @@
 # operator's decision). Copy to ~/.config/systemd/user/, replace PROJECT_ROOT and CONSTITUTION, then:
 #   systemctl --user daemon-reload && systemctl --user enable --now helix-sync-upstreams.timer
 # The unit runs a CHECK only (fetch + report, never changes a checkout). Exit 3 = updates available and
-# exit 4 = attention needed are reported states, not failures, so they count as success here.
+# exit 4 = attention needed are reported states, not failures, so they count as success here; so is
+# exit 7 (another run holds the lock and is doing the check). Exit 5 (INCONCLUSIVE) and 6 (BLIND) fail.
 [Unit]
 Description=Helix sync-all-upstreams check (fetch every remote, report, change nothing)
 
@@ -11,5 +12,5 @@ Type=oneshot
 Nice=10
 IOSchedulingClass=idle
 ExecStart=/usr/bin/env bash CONSTITUTION/scripts/sync/sync_all_upstreams.sh --check --non-interactive --quiet --root PROJECT_ROOT
-SuccessExitStatus=3 4
+SuccessExitStatus=3 4 7
 TimeoutStartSec=30min

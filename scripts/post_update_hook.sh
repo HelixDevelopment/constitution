@@ -28,7 +28,7 @@
 #   5b. Hub-structure + §11.4.31 manifest gates (every pull, changed files or not)
 #   5c. (Every pull) read-only upstream sync check of the whole project tree:
 #      scripts/sync/sync_all_upstreams.sh --check [--no-fetch]; CONSTITUTION_SYNC_CHECK=offline (default,
-#      no network) | fetch | off; never changes the tree, never fails the hook (BLIND is a WARNING)
+#      no network) | fetch | off; never changes the tree, never fails the hook (BLIND / INCONCLUSIVE warn)
 #   4f. (Every pull; runs right after 5b, before the no-changes early exit) checks
 #      the §11.4.182/§11.4.231(F) agent-type label definitions
 #      T<N>-<branch>-<model>-<effort> in <project>/.claude/agents via
@@ -1177,7 +1177,8 @@ validate_hub_structure() {
 # fast-forwards, stages or commits from here): CONSTITUTION_SYNC_CHECK=offline (default: --check --no-fetch,
 # no network, reports from the refs already present), fetch (--check: fetches every remote of the project and of
 # every submodule), off (skipped). The verdict is printed; CURRENT / UPDATES-AVAILABLE / ATTENTION never change
-# this hook's exit status (they describe the tree, not the propagation); only BLIND is recorded as a WARNING.
+# this hook's exit status (they describe the tree, not the propagation); BLIND and INCONCLUSIVE (the engine
+# could not decide) are recorded as WARNINGS; LOCKED (another run holds the lock) is reported.
 check_upstream_sync() {
     header "STEP 5c: Upstream sync check (scripts/sync/sync_all_upstreams.sh --check)"
     local m="${CONSTITUTION_SYNC_CHECK:-offline}" lib="$CONST_DIR/scripts/sync/sync_step_lib.sh"
@@ -1190,8 +1191,8 @@ check_upstream_sync() {
     # shellcheck source=sync/sync_step_lib.sh
     . "$lib"
     sync_step "$([ "$m" = fetch ] && echo check || echo offline)" "$PROJECT_ROOT" "$CONST_DIR/scripts/sync/sync_all_upstreams.sh" || :
-    if [ "$SYNC_STEP_VERDICT" = BLIND ]; then
-        warn "upstream sync check: BLIND (exit $SYNC_STEP_RC)"; WARNINGS+=("upstream sync check: BLIND (exit $SYNC_STEP_RC)")
+    if [ "$SYNC_STEP_VERDICT" = BLIND ] || [ "$SYNC_STEP_VERDICT" = INCONCLUSIVE ]; then
+        warn "upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)"; WARNINGS+=("upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)")
     else
         info "upstream sync check: $SYNC_STEP_VERDICT"
     fi

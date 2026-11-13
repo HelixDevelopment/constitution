@@ -203,4 +203,66 @@ eq "--root not a top level: exit 2" 2 "$SX_RC"
 SX_OUT="$(bash "$SX_ENGINE" --check --root "$SB/seed" --out "$SB/out/y" 2>&1)"; SX_RC=$?
 eq "--root outside any work tree: exit 2" 2 "$SX_RC"
 
+# ── 16. an UNTRACKED (not ignored) file makes the tree dirty: blocked, kept (R5)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+sx_commit "$U_ROOT" "root change 16"
+echo mine >"$W/NEWFILE"; before_root="$(sx_head "$W")"
+sx_run --apply --root "$W"
+eq "untracked: exit 4" 4 "$SX_RC"
+eq "untracked: reason dirty-tree" "True" "$(sx_q '"dirty-tree" in P["."]["reasons"]')"
+eq "untracked: root not moved" "$before_root" "$(sx_head "$W")"
+eq "untracked: file kept" "mine" "$(cat "$W/NEWFILE")"
+rm -f -- "$W/NEWFILE"
+
+# ── 17. a submodule checked out on a BRANCH is never detached by the follow step (R3)
+git -C "$W/libs/a" checkout -q -b topic
+child_before="$(sx_head "$W/libs/a")"
+sx_commit "$U_A" "liba change 17"; sx_bump_pin "$U_ROOT" libs/a
+sx_run --apply --root "$W"
+eq "submodule on branch: root moved" "$(sx_remote_head "$SB/remotes/HelixDevelopment/root.git")" "$(sx_head "$W")"
+eq "submodule on branch: not moved" "$child_before" "$(sx_head "$W/libs/a")"
+eq "submodule on branch: still on topic" "topic" "$(git -C "$W/libs/a" symbolic-ref --short -q HEAD)"
+has "submodule on branch: reason recorded" "follow-skipped:submodule-on-branch" "$(sx_q 'str(P["libs/a"]["actions"])')"
+
+# ── 18. a submodule ON MAIN is fast-forwarded and the parent's gitlink change is reported (F11)
+recorded="$(git -C "$W" ls-tree HEAD libs/a | awk '{print $3}')"
+git -C "$W/libs/a" fetch -q origin; git -C "$W/libs/a" checkout -q -B main "$recorded"; git -C "$W/libs/a" branch -q -D topic
+sx_commit "$U_A" "liba change 18"
+sx_run --apply --root "$W"
+eq "submodule on main: ff to upstream main" "$(sx_remote_head "$SB/remotes/HelixDevelopment/liba.git")" "$(sx_head "$W/libs/a")"
+eq "submodule on main: exit 4 (parent gitlink modified)" 4 "$SX_RC"
+eq "submodule on main: reason gitlink-modified:libs/a" "True" "$(sx_q '"gitlink-modified:libs/a" in P["."]["reasons"]')"
+eq "submodule on main: nothing staged in the parent" "" "$(git -C "$W" diff --cached --name-only)"
+
+# ── 19. root on a TOPIC branch: pins are never staged into its index (F7)
+safe_rm_rf "${W:?}"; sx_clone "$U_ROOT" "$SB/work/root"
+git -C "$W" checkout -q -b topic
+sx_commit "$U_A" "liba change 19"
+sx_run --apply --advance-pins --root "$W"
+eq "topic root + advance-pins: exit 4" 4 "$SX_RC"
+eq "topic root: index untouched" "" "$(git -C "$W" diff --cached --name-only)"
+eq "topic root: still on topic" "topic" "$(git -C "$W" symbolic-ref --short -q HEAD)"
+eq "topic root: libs/a reported parent-not-integrated" "True" "$(sx_q 'any("parent-not-integrated" in str(a) for a in P["libs/a"]["actions"]) or "parent-not-integrated" in str(P["libs/a"]["reasons"])')"
+git -C "$W" checkout -q main
+
+# ── 20. a pin reachable only from refs/remotes/origin/feature/main is NOT on main (F13)
+w2="$(sx_seed "$U_A")"
+git -C "$w2" checkout -q -b feature/main; echo f >"$w2/F"; git -C "$w2" add F; git -C "$w2" commit -q -m feat
+git -C "$w2" push -q origin feature/main; feat_sha="$(sx_head "$w2")"; git -C "$w2" checkout -q main
+git -C "$W/libs/a" fetch -q origin; git -C "$W/libs/a" checkout -q --detach "$feat_sha"
+git -C "$W" add libs/a; git -C "$W" commit -q -m "pin libs/a to feature/main"
+sx_run --check --root "$W"
+eq "feature/main pin: not-on-main" "not-on-main" "$(sx_q 'P["libs/a"]["pin"]["state"]')"
+
+# ── 21. main deleted upstream: reported no-main; the stale remote-tracking ref is NOT deleted by us (F1)
+U_G="$(sx_bare HelixDevelopment gone)"; G="$SB/work/gone"; sx_clone "$U_G" "$G"
+wg="$(sx_seed "$U_G")"; git -C "$wg" checkout -q -b trunk; git -C "$wg" push -q origin trunk
+git --git-dir="$SB/remotes/HelixDevelopment/gone.git" symbolic-ref HEAD refs/heads/trunk
+git --git-dir="$SB/remotes/HelixDevelopment/gone.git" update-ref -d refs/heads/main
+sx_run --check --root "$G"
+eq "main gone upstream: remote state no-main" "no-main" "$(sx_q '[x for x in P["."]["remotes"] if x["name"]=="origin"][0]["state"]')"
+eq "main gone upstream: exit 4" 4 "$SX_RC"
+eq "main gone upstream: reason upstream-branch-gone:origin" "True" "$(sx_q '"upstream-branch-gone:origin" in P["."]["reasons"]')"
+eq "main gone upstream: refs/remotes/origin/main kept" "yes" "$(git -C "$G" rev-parse -q --verify refs/remotes/origin/main >/dev/null && echo yes || echo no)"
+
 finish

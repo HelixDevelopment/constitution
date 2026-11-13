@@ -27,15 +27,39 @@ class AllowList(unittest.TestCase):
             E.check_git_args(list(a))
 
     def test_fetch_shapes(self):
-        self.ok("fetch", "--prune", "--no-recurse-submodules", "--", "origin")
-        self.ok("fetch", "--prune", "--no-recurse-submodules", "--tags", "--", "github_helix")
+        # the ONE engine-owned shape (F1): explicit remote-tracking refspec, --refmap=, never prune
+        self.ok(*E.fetch_args("origin", False))
+        self.ok(*E.fetch_args("github_helix", True))
+        self.ok(*E.fetch_args("team/mirror", False))
+        base = E.fetch_args("origin", False)
+        self.assertIn("--no-prune", base)
+        self.assertIn("--no-prune-tags", base)
+        self.assertIn("--refmap=", base)
+        self.assertEqual(base[-1], "+refs/heads/*:refs/remotes/origin/*")
         self.bad("fetch", "origin")
-        self.bad("fetch", "--depth=1", "--no-recurse-submodules", "--", "origin")
-        self.bad("fetch", "--prune", "--no-recurse-submodules", "--", "origin", "upstream")
-        self.bad("fetch", "--prune", "--no-recurse-submodules", "--", "origin", "+refs/heads/*:refs/heads/*")
-        self.bad("fetch", "--prune", "--no-recurse-submodules", "--", "-oops")
-        self.bad("fetch", "--prune", "--no-recurse-submodules", "--force", "--", "origin")
-        self.bad("fetch", "--prune", "--no-recurse-submodules", "--", "ext::sh -c id")
+        self.bad("fetch", "--prune", "--no-recurse-submodules", "--", "origin")  # the old, config-inheriting shape
+        self.bad("fetch", "--prune", "--no-recurse-submodules", "--tags", "--", "origin")
+        self.bad(*(base[:-1] + ["+refs/heads/*:refs/heads/*"]))  # a mirror refspec into the local namespace
+        self.bad(*(base[:-1] + ["+refs/heads/*:refs/remotes/other/*"]))  # another remote's namespace
+        self.bad(*(base[:1] + ["--prune"] + base[1:]))
+        self.bad(*([x for x in base if x != "--no-prune"]))
+        self.bad(*([x for x in base if x != "--refmap="]))
+        self.bad(*([x for x in base if x != "--no-tags"]))
+        self.bad(*(base + ["+refs/tags/*:refs/tags/*"]))  # a forced tag refspec
+        self.bad(*(base[:1] + ["--force"] + base[1:]))
+        self.bad(*(base[:1] + ["--depth=1"] + base[1:]))
+        self.bad(*(base[:1] + ["--upload-pack=sh"] + base[1:]))
+        for r in ("-oops", "ext::sh -c id", "a/..", "a/./b", "x.lock", "a//b", "", "a*"):
+            self.bad(*E.fetch_args(r, False))
+
+    def test_safe_config_on_every_call(self):
+        cmd = E.git_argv("/usr/bin/git", "/r", ["status"])
+        self.assertEqual(cmd[:3], ["/usr/bin/git", "-C", "/r"])
+        pairs = {cmd[i + 1] for i, x in enumerate(cmd) if x == "-c"}
+        for kv in ("core.hooksPath=/dev/null", "core.fsmonitor=false", "submodule.recurse=false", "gc.auto=0",
+                   "maintenance.auto=false", "fetch.prune=false", "fetch.pruneTags=false"):
+            self.assertIn(kv, pairs)
+        self.assertEqual(cmd[-2:], ["--no-optional-locks", "status"])
 
     def test_transport_helper_refused_everywhere(self):
         # the "::" rule on its own: these shapes pass every other check, so only that rule refuses them
@@ -47,6 +71,8 @@ class AllowList(unittest.TestCase):
     def test_writes_exact(self):
         self.ok("merge", "--ff-only", SHA)
         self.bad("merge", SHA)
+        for flag in ("--ff", "--no-ff", "--squash", "--commit", "--no-commit"):  # R1 shape: --ff is not --ff-only
+            self.bad("merge", flag, SHA)
         self.bad("merge", "--ff-only", "-s", "ours", SHA)
         self.bad("merge", "--ff-only", "origin/main")
         self.ok("checkout", "--quiet", "--detach", SHA)
@@ -153,6 +179,55 @@ class Classification(unittest.TestCase):
         sub = {"kind": "submodule", "initialised": False, "pin": {"state": "uninitialised"}}
         self.assertEqual(E.reasons_for(sub, False, "main"), [])
         self.assertEqual(E.reasons_for(sub, True, "main"), ["pin-uninitialised"])
+
+    def test_reasons_new_blockers(self):
+        rec = {"kind": "submodule", "initialised": True, "ignored_clobber": ["secret.env"],
+               "gitlink_modified": ["libs/a"], "remotes": []}
+        rs = E.reasons_for(rec, False, "main")
+        self.assertIn("ignored-file-would-be-overwritten", rs)
+        self.assertIn("gitlink-modified:libs/a", rs)
+        self.assertIn("head-unreadable", E.reasons_for({"kind": "submodule", "initialised": True, "remotes": [],
+                                                       "head_unreadable": True}, False, "main"))
+
+    def test_read_head_only_a_full_object_id(self):  # F3: empty, odd or failed output is never a head
+        class R:
+            def __init__(self, rc, out):
+                self.rc, self.out = rc, out
+
+            def run(self, repo, args):
+                return self.rc, self.out, ""
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        self.assertEqual(E.read_head(R(0, sha + "\n"), "/r"), sha)
+        for rc, out in ((0, ""), (0, "\n"), (0, "HEAD"), (0, sha[:12]), (128, sha), (0, sha + "\nx")):
+            self.assertIsNone(E.read_head(R(rc, out), "/r"), (rc, out))
+
+    def test_fetch_failure_labels(self):  # F12
+        self.assertEqual(E.classify_fetch_failure(124, ""), "timeout")
+        self.assertEqual(E.classify_fetch_failure(126, ""), "deadline")
+        self.assertEqual(E.classify_fetch_failure(128, "git@x: Permission denied (publickey).\nfatal: Could not read from remote repository."), "auth")
+        self.assertEqual(E.classify_fetch_failure(128, "fatal: '/x' does not appear to be a git repository"), "not-found")
+        self.assertEqual(E.classify_fetch_failure(128, "fatal: unable to access 'https://h/': Could not resolve host: h"), "network")
+        self.assertEqual(E.classify_fetch_failure(1, "error: something unexpected"), "other")
+
+    def test_fetched_branches(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        try:
+            f = os.path.join(d, "FETCH_HEAD")
+            with open(f, "w") as h:
+                h.write("%s\t\tbranch 'main' of /x\n%s\tnot-for-merge\tbranch 'feature/main' of /x\n" % (SHA, SHA))
+            self.assertEqual(E.fetched_branches(f), {"main", "feature/main"})
+            self.assertIsNone(E.fetched_branches(os.path.join(d, "absent")))
+            self.assertIsNone(E.fetched_branches("relative/FETCH_HEAD"))
+        finally:
+            for n in os.listdir(d):
+                os.unlink(os.path.join(d, n))
+            os.rmdir(d)
+
+    def test_exit_codes_distinct(self):  # N3
+        codes = [E.EXIT_OK, E.EXIT_FAIL, E.EXIT_USAGE, E.EXIT_BEHIND, E.EXIT_ATTENTION, E.EXIT_INCONCLUSIVE,
+                 E.EXIT_BLIND, E.EXIT_LOCKED]
+        self.assertEqual(len(set(codes)), len(codes))
 
     def test_has_update(self):
         self.assertTrue(E.has_update({"initialised": True, "branch": "main", "local_vs_target": "behind"}))

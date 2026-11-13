@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-12T23:30:00Z |
+| Last modified | 2026-11-13T00:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation |
+| Fixed | revision 2: review round 2 fixes (fetch never deletes, no hooks, INCONCLUSIVE, ignored-file guard, exit codes 5/6/7) |
 | Fixed summary | — |
 | Continuation | — |
 
@@ -50,12 +50,14 @@ URLs in the report and on screen lose their userinfo, token-shaped strings are r
 engine never prints credentials it did not receive in a URL; it does not read credential stores.
 
 **8. Two runs at once?**
-The second exits 2 (lock held). The lock lives in the repository's git directory and is released by the
+The second exits 7 (`LOCKED`) and does nothing. The lock lives in the repository's git directory and is released by the
 kernel when a run ends or dies, so there is no stale lock to clean up.
 
 **9. A remote hangs. Will the run hang?**
 No. Each network call has `--timeout` (its whole process group is killed on expiry) and the run has
-`--deadline`. The remote is reported `unreachable`.
+`--deadline`. A fetch that times out is reported `unreachable`; a local git call that gets no answer
+makes the run `INCONCLUSIVE` (exit 5) and that repository `unresolved`: it is not moved and nothing is
+concluded about it. A grandchild that escapes the process group cannot hold the run either.
 
 **10. Why is the evidence not in my project?**
 So the run never changes your work tree. `--out` inside the work tree is refused (exit 2).
@@ -68,6 +70,16 @@ them is your decision; nothing installs them for you.
 No. It prints the command (`next step (never run automatically): …`). Running code that has just been
 fetched is your decision.
 
-**13. Is it tested against GitHub or GitLab?**
+**13. Can the fetch delete my refs or tags?**
+No. The fetch always passes `--no-prune --no-prune-tags --no-tags --refmap=` and the explicit refspec
+`+refs/heads/*:refs/remotes/<remote>/*`, so a mirror refspec, `fetch.prune`, `remote.*.prune` or
+`remote.*.tagOpt` in your configuration has no effect. A branch deleted upstream is reported
+(`upstream-branch-gone:<remote>`) and its stale tracking ref is kept.
+
+**14. Do my repository's hooks run?**
+No. Every call passes `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. A clean or smudge filter
+or a diff driver you configured can still run while files are written; the tool does not disable them.
+
+**15. Is it tested against GitHub or GitLab?**
 Not yet. The tests use real git against real bare repositories in scratch directories, without network.
 Real forges (ssh keys, rate limits, large repositories) are UNCONFIRMED until run by the operator.

@@ -20,10 +20,13 @@
 #   URLs without userinfo in every log; git never prompts; fetched code is never run.
 # EVIDENCE  <out>/sync_report.json (schema helix.sync_upstreams/1) and <out>/sync_report.tsv; stdout
 #   ends with REPORT_JSON=, CANONICAL_SHA256= (identical for identical repository states) and RESULT:.
-# EXIT  0 current / applied · 1 an integration step failed · 2 usage, lock busy, blind control needle
-#   · 3 updates available (--check, --dry-run; after --apply: something is still behind, e.g. a pin
-#   without --advance-pins or a declined prompt) · 4 attention needed (diverged, unreachable, dirty,
-#   in progress, pin not on main / unfetchable, root not on main)
+# EXIT  0 current / applied · 1 an integration step failed · 2 usage error · 3 updates available
+#   (--check, --dry-run; after --apply: something is still behind, e.g. a pin without --advance-pins or
+#   a declined prompt) · 4 attention needed (diverged, unreachable, dirty, in progress, pin not on main /
+#   unfetchable, root not on main, an ignored file in the way, a parent gitlink modified, upstream branch
+#   gone) · 5 INCONCLUSIVE (a git call gave no answer in time: nothing about that repository is concluded)
+#   · 6 BLIND (the control needle failed: the tree could not be inspected) · 7 LOCKED (another run holds
+#   the lock; nothing was done)
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 exec python3 -I -B "$HERE/sync_all_upstreams.py" "$@"
