@@ -119,6 +119,28 @@ JEV_BOOTSTRAP_STUB="$SBX/net-stub.sh" timeout --kill-after=5 300 bash "$GATE" > 
   && say "RED flip H asserted: a bootstrap run that calls curl is rejected by the hermetic clause" \
   || { say "MUTATION H SURVIVED: a network-calling bootstrap was accepted"; rc=1; }
 
+# Mutation I (round 4, mutant Z1) - a gate whose hermetic PATH puts the ambient PATH first lets real tools through; the
+# control needle runs on that same PATH, so the gate must report the guard as blind (rc 2), never pass. The mutated gate
+# runs from a symlinked copy of scripts/ in the sandbox (it resolves its stubs, hook and libraries from its own dir).
+mkdir -p "$SBX/tree/scripts/gates"
+for _e in "$HERE"/../*; do [ "$(basename "$_e")" = gates ] || ln -s "$(cd "$_e" 2>/dev/null && pwd || printf '%s' "$_e")" "$SBX/tree/scripts/$(basename "$_e")"; done
+for _e in "$HERE"/*; do [ "$_e" = "$GATE" ] || ln -s "$_e" "$SBX/tree/scripts/gates/$(basename "$_e")"; done
+python3 - "$GATE" "$SBX/tree/scripts/gates/$(basename "$GATE")" <<'PYEOF'
+import sys
+s = open(sys.argv[1]).read()
+a = 'HERMETIC_PATH="$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"'
+if s.count(a) != 1:
+    sys.exit("mutation I: anchor not found exactly once")
+open(sys.argv[2], 'w').write(s.replace(a, 'HERMETIC_PATH="$PATH:$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"'))
+PYEOF
+if [ $? -ne 0 ]; then say "mutation I: could not build the mutated gate (cannot determine)"; rc=1
+else
+  timeout --kill-after=5 300 bash "$SBX/tree/scripts/gates/$(basename "$GATE")" > "$SBX/outI.log" 2>&1
+  { [ $? -eq 2 ] && grep -q 'the hermetic guard is blind' "$SBX/outI.log"; } \
+    && say "RED flip I asserted: an ambient-PATH-first hermetic PATH makes the guard blind (rc 2), never a pass" \
+    || { say "MUTATION I SURVIVED: a hermetic PATH that lets real tools through was accepted"; rc=1; }
+fi
+
 # Mutation E/F/G - the pin reader is STRUCTURAL (helix_deps_field.py), not line patterns.
 cat > "$SBX/decoy.yaml" <<'YEOF'
 schema_version: 1

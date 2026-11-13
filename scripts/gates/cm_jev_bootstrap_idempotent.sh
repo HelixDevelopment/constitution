@@ -192,7 +192,9 @@ ok "clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs"
 clause_start
 # Clause 5 (round 4, review R3-2) - the runs were hermetic: no guarded tool was called. CONTROL NEEDLE: the guard records
 # a call it receives (a blind guard would make this clause a quiet zero, §11.4.273).
-if PATH="$GUARDBIN" curl --version >/dev/null 2>&1; then err "hermetic: the guard curl did not refuse"; fi
+# the needle uses the SAME PATH as the bootstrap runs: it proves the guards both work and come before the system dirs
+# (a PATH that lets the real curl through is a blind guard, never a pass; round-4 mutant Z1)
+if PATH="$HERMETIC_PATH" curl --version >/dev/null 2>&1; then err "hermetic: the guard curl did not refuse"; fi
 if [ "$(grep -c '^curl --version$' "$GUARDLOG")" != 1 ]; then echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: the hermetic guard is blind (control call not recorded; rc 2)" >&2; exit 2; fi
 sed -i '/^curl --version$/d' "$GUARDLOG"
 hermetic_check
