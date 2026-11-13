@@ -196,16 +196,30 @@ Apply DSM-B and run test_dispatch_stamp_class.sh.
 **Acceptance criteria:**
 A case sets FC_DISPATCH_TIER_POLICY and the project policy file with conflicting caps and asserts env wins; DSM-B fails it.
 
+## CON-243 — CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awareness for the heavy L29 test
+
+**Status:** Obsolete (→ Fixed.md)
+**Type:** Task
+**Evidence:** docs/operator_decisions/2026-11-12_relayed_decisions.md
+**Severity:** Low
+**Created-By:** AI
+**Obsolete-Details:** Since: 2026-11-13; Reason: duplicate-of; Superseding-item: CON-262; Triple-check evidence: docs/operator_decisions/2026-11-12_relayed_decisions.md
+
+CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awareness for the heavy L29 test
+
+Duplicate check (section 11.4.214): SAME-DEFECT of CON-262 (wider SKIP class, run_all.sh labels exit 77 FAIL), by operator decision 2026-11-13 (relayed, not verbatim; docs/operator_decisions/2026-11-12_relayed_decisions.md, decision 8). CON-262 is the canonical head: it is older, open, and it carries the measured census. The tier awareness asked here is carried into the acceptance of CON-262, so nothing of this item is lost.
+Context (2026-11-13, tracker-intake vehicle, umbrella CON-299 (tracker intake umbrella)): CON-308 (run_all.sh counts rc 77 as FAIL, lander item C-2) is closed duplicate-of the same head.
+
 ## CON-308 — run_all.sh counts rc 77 (SKIP) as FAIL while run_full_suite.sh reports SKIP (lander item C-2)
 
 **Status:** Obsolete (→ Fixed.md)
 **Type:** Bug
-**Evidence:** docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt
+**Evidence:** docs/operator_decisions/2026-11-12_relayed_decisions.md
 **Severity:** Medium
 **Created-By:** Conductor
 **Reproduction:** none — UNREPRODUCED — updated 2026-11-13T11:27:03Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T11:27:03Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
-**Obsolete-Details:** Since: 2026-11-13; Reason: duplicate-of; Superseding-item: CON-262; Triple-check evidence: docs/qa/tracker_intake_2026_11_12_v2/inventory/repro_I1_I2.txt
+**Obsolete-Details:** Since: 2026-11-13; Reason: duplicate-of; Superseding-item: CON-262; Triple-check evidence: docs/operator_decisions/2026-11-12_relayed_decisions.md
 
 **What:** scripts/fastcycle/tests/run_all.sh treats every non-zero exit as FAIL. Units now exit 77 with reason=topology_unsupported in canon-alone layout, so run_all.sh reports FAIL while run_full_suite.sh reports SKIP. run_all.sh should report SKIP with the reason (section 11.4.3 / .69).
 
@@ -218,7 +232,8 @@ Pre-existing behaviour read from the script; not run as a batch (host load). The
 **Acceptance criteria:**
 run_all.sh reports SKIP with the reason for rc 77 and never FAIL; a test pins it with a paired mutant.
 
-Parent / links: retest vehicle lander list docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md C-2; related CON-092, CON-098; umbrella CON-299
-Duplicate check (section 11.4.214): SAME-DEFECT of CON-262 (its acceptance criterion already says run_all.sh reports a 77 as SKIP); this item is closed Obsolete, reason duplicate-of, superseding CON-262, and its context is appended to CON-262. CON-243 names the same run_all.sh behaviour (plus tier awareness) and is a second open head; that CON-243 / CON-262 overlap is pre-existing and its merge stays UNDECIDED for the lander or the operator (section 11.4.214(3)). CON-145 and CON-261 name run_all.sh for other defects. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
+Parent / links: retest vehicle lander list docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md C-2; related CON-092 (fastcycle consumer-data guard), CON-098 (fastcycle tests that fail in the batch); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): SAME-DEFECT of CON-262 (wider SKIP class, run_all.sh labels exit 77 FAIL), by operator decision 2026-11-13 (relayed, not verbatim; docs/operator_decisions/2026-11-12_relayed_decisions.md, decision 8) that CON-243 (run_all.sh counts exit 77 as FAIL, tier awareness) and CON-262 are one defect: CON-243 is closed duplicate-of CON-262, so the match has a single open head. Round 3 kept this item open as UNDECIDED (two open heads, section 11.4.214(0)) until that decision. CON-145 and CON-261 name run_all.sh for other defects. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/).
+Reopen record (section 11.4.34): reopened 2026-11-13 by AI, reason design-reconsidered, evidence docs/qa/tracker_intake_2026_11_12_v3/inventory/r2_1_reopen.txt; round 2 had closed it duplicate-of CON-262 (wider SKIP class) on one of the two open heads (round-2 review finding R2-1, docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md). The engine drops the Reopened-Details body line when the description is updated (CON-341, update drops the Reopened-Details line), so the record is kept here and in the item history.
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 

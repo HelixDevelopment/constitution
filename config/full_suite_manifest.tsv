@@ -917,3 +917,5 @@ tests/token_efficiency/test_token_efficiency_integration.sh	sh	entry	default	bas
 tests/token_efficiency/test_token_efficiency_unit.sh	sh	entry	default	bash	-	auto
 tests/workable_items/test_intake_lint.sh	sh	entry	default	bash	-	auto
 tests/workable_items/test_intake_lint_mutations.sh	sh	entry	heavy	bash	-	auto
+tests/workable_items/test_remint_ids.sh	sh	entry	default	bash	-	auto
+tests/workable_items/test_remint_ids_mutations.sh	sh	entry	heavy	bash	-	auto

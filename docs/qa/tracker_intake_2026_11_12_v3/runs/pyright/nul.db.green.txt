@@ -1,0 +1,1 @@
+BLIND: item(s) with a NULL title, description, status or location: FX-002

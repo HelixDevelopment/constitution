@@ -3275,15 +3275,6 @@ Parent: CON-216 (Roadmap: CON-161 thread headroom chain). Review finding F1 (min
 
 Parent: CON-220 (Roadmap: CON-162 decision-mutant census). Review finding F3 (minor, source-defect in a validation tool, not a host-safety surface). scripts/validation/enumerate_decision_mutants.py main() (about line 453) prints that the ledger entry's mutant is KILLED so its equivalence proof is false for a timeout, which only leaves the proof unconfirmed (section 11.4.6). No test drives main() on that branch. Fix: a distinct message for KILLED-TIMEOUT (unconfirmed: the mutant timed out) and a hanging mutant added to the CON-218 synthetic target. Follow-up of the independent Opus review of the fix216 vehicle (CON-216..CON-220, CON-222..CON-224; verdict GO-with-follow-ups, 0 critical, 0 important; record scratchpad review_fix216.md, 2026-11-11). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
 
-## CON-243 — CON-222 follow-up: run_all.sh counts the new exit 77 of the helper test as FAIL and has no tier awareness for the heavy L29 test
-
-**Status:** Queued
-**Type:** Task
-**Severity:** Low
-**Created-By:** AI
-
-Parent: CON-222 (Roadmap: CON-185 chain). Review finding F4 (minor, process-doc). scripts/fastcycle/tests/run_all.sh treats any non-zero status, 77 included, as FAIL (lines 90-92), so on a host without a usable locale the helper test turns run_all red, and the new about 3.5 minute test_consumer_required_helper_l29_skip_r1_regression.sh is run with no tier awareness. run_full_suite.sh and the mutation harnesses handle 77 correctly. Fix: document that 77 is FAIL in run_all and that heavy members run, or map 77 to SKIP. Follow-up of the independent Opus review of the fix216 vehicle (CON-216..CON-220, CON-222..CON-224; verdict GO-with-follow-ups, 0 critical, 0 important; record scratchpad review_fix216.md, 2026-11-11). Registered under section 11.4.276(G.2) for the next iteration. Status Queued: no fix is claimed; when a fix lands it is PROVISIONAL-DONE (section 11.4.290) until its own verification job passes.
-
 ## CON-244 — CON-219 follow-up: the census wording guard uses a closed verb list (reviewer RV6b 'exercises all decision points' passes); record the limit
 
 **Status:** Queued
@@ -3502,7 +3493,8 @@ Every suite that skips a proof leg exits 77 with the leg named; run_all.sh repor
 
 **Census (CON-033 review round 3, finding R3-F7, reviewer probe skipexit0.py over 1193 tracked .sh files on main b939266a; an `echo SKIP` line not carrying `exit 77`, followed within 3 lines by `exit 0`):** 11 sites in 8 files. CON-033 round 4 fixed one of them in the vehicle (scripts/fastcycle/tokens/test_dispatch_stamp_r6_mutations.sh:137, now `SKIP reason=topology_unsupported` and exit 77, measured rc 77). The other 10, pre-existing on main and NOT fixed here: test_io_trace_fork_cwd_and_faccessat_r2_regression.sh, test_precheck_shellcheck_red.sh, test_guard_branch_consistency.sh, test_guard_work_track_binding.sh (2 sites), test_multitrack_redpin_mutations.sh, test_multitrack_work_binding_submodule_db.sh (2 sites), tests/action_prefix/test_subsystem_shortcuts.sh (2 sites). Acceptance per site: the skip exits 77 with a section 11.4.69 reason, and a red test proves a skipped run is never counted as PASS.
 
-Context added 2026-11-13 by the tracker-intake vehicle (umbrella CON-299; section 11.4.214, link only for an open match): the retest vehicle (lander list docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md, item C-2) makes six fastcycle units exit 77 with reason=topology_unsupported in the canon-alone layout, so run_all.sh reports FAIL for them while run_full_suite.sh reports SKIP. The duplicate CON-308 that recorded this is closed Obsolete, duplicate-of this item. A paired mutant for the run_all.sh mapping of 77 belongs to this item's acceptance. Candidate duplicate: CON-243 (the same run_all.sh behaviour plus tier awareness); merge UNDECIDED (section 11.4.214(3)).
+Context added 2026-11-13 by the tracker-intake vehicle (umbrella CON-299 (tracker intake umbrella); section 11.4.214): the retest vehicle (lander list docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md, item C-2) makes six fastcycle units exit 77 with reason=topology_unsupported in the canon-alone layout, so run_all.sh reports FAIL for them while run_full_suite.sh reports SKIP. By operator decision 2026-11-13 (relayed, not verbatim; docs/operator_decisions/2026-11-12_relayed_decisions.md, decision 8), this item and CON-243 (run_all.sh counts exit 77 as FAIL, tier awareness) are one defect, and this item is the canonical head: it is older (created 2026-11-06 against 2026-11-11), open, and it carries the measured census and the acceptance. CON-243 and CON-308 (run_all.sh counts rc 77 as FAIL, lander item C-2) are closed duplicate-of this item.
+Acceptance carried from CON-243 (run_all.sh tier awareness for the heavy L29 test), so that nothing of it is lost: run_all.sh does not run the heavy L29 test in the default tier, or reports it as a heavy-tier SKIP with its reason. A paired mutant for the run_all.sh mapping of 77 belongs to this item's acceptance.
 
 ## CON-263 — CON-033 round 4: accept two excluded-lock rows (review_record_guard_analyzer.py, sweep_review_record_subclauses.sh)
 
@@ -3734,7 +3726,7 @@ Source: CON-030 review r8 (docs/qa/con030_review/review_con030_r8.md, copied int
 docs/Issues.md, docs/Issues_Summary.md, docs/workable_items.db (tracker only). No code change.
 
 **Reproduction / context:**
-The sources (copies in docs/qa/tracker_intake_2026_11_12/sources/, checksums in its SHA256SUMS): the operator request of 2026-11-12 22:26; the retest-vehicle review (docs/qa/tracker_intake_2026_11_12/sources/review_retest_items.md, logs docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/) and its lander list (docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md); the multiforge round-4 review (docs/qa/tracker_intake_2026_11_12/sources/review_multiforge_r4.md); the GitLab pre-release review (docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease.md, mutants docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease_mutants.txt); the fix227 round-8 review (docs/qa/tracker_intake_2026_11_12/sources/review_fix227_r8.md); and the seven operator decisions of 2026-11-12 about 23:30 CET, recorded in docs/operator_decisions/2026-11-12_relayed_decisions.md with one disposition each: 1 identity guard -> CON-331; 2 CON-046 screen rerun and description restore -> CON-046, whose text is restored and now carries the rerun decision; 3 security apply -> CON-332; 4 Jev CMA_JEV_PREFER until the toolkit failover fix lands -> CON-334; 5 orphan reaping and 6 disk prunes -> one-off authorisations, no item (nothing is owed); 7 secrets report only -> CON-333. Review follow-ups of this vehicle's own review (docs/qa/tracker_intake_2026_11_12/sources/review_tracker_intake.md): CON-335 (summary width), CON-336 (history attribution), CON-337 (engine fail-open), CON-338 (content lint wiring). UNKNOWN: the final ids after the lander re-mints against fix227 (it already uses CON-300..CON-311).
+The sources (copies in docs/qa/tracker_intake_2026_11_12/sources/, checksums in its SHA256SUMS): the operator request of 2026-11-12 22:26; the retest-vehicle review (docs/qa/tracker_intake_2026_11_12/sources/review_retest_items.md, logs docs/qa/tracker_intake_2026_11_12/sources/review_retest_items_logs/) and its lander list (docs/qa/tracker_intake_2026_11_12/sources/rtfix_lander_items.md); the multiforge round-4 review (docs/qa/tracker_intake_2026_11_12/sources/review_multiforge_r4.md); the GitLab pre-release review (docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease.md, mutants docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease_mutants.txt); the fix227 round-8 review (docs/qa/tracker_intake_2026_11_12/sources/review_fix227_r8.md); and the seven operator decisions of 2026-11-12 about 23:30 CET, recorded in docs/operator_decisions/2026-11-12_relayed_decisions.md with one disposition each: 1 identity guard -> CON-331; 2 CON-046 screen rerun and description restore -> CON-046, whose text is restored and now carries the rerun decision; 3 security apply -> CON-332; 4 Jev CMA_JEV_PREFER until the toolkit failover fix lands -> CON-334; 5 orphan reaping and 6 disk prunes -> one-off authorisations, no item (nothing is owed); 7 secrets report only -> CON-333. Review follow-ups of this vehicle's own review (docs/qa/tracker_intake_2026_11_12/sources/review_tracker_intake.md): CON-335 (summary width), CON-336 (history attribution), CON-337 (engine fail-open), CON-338 (content lint wiring). Round-2 review follow-ups (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md): CON-308 (run_all.sh rc 77 counted as FAIL) reopened with an UNDECIDED verdict (R2-1); CON-339 (close rewrites created_at) and CON-340 (reopen leaves the obsolete_details row) for R2-9; CON-341 (update drops the Reopened-Details line); CON-342 (superseding item that does not exist) for R2-6. UNKNOWN: the final ids after the lander re-mints against fix227 (it already uses CON-300..CON-311).
 
 **Acceptance criteria:**
 Every child item is Queued with a section 11.4.148 description, validate OK and diff in sync after the lander merges this vehicle; each child is closed or evidence-closed under section 11.4.197.
@@ -3850,7 +3842,7 @@ Census by reading the six files; no runtime defect.
 **Acceptance criteria:**
 One shared function sourced by the six units, covered in test_consumer_required_helper.sh, with a doc line stating the policy per class; behaviour unchanged (same rc and reasons).
 
-Parent / links: retest vehicle (bundle retest_new1-4.bundle (ephemeral: a session-scratchpad file, not kept), head a3b8564e on 02c10935, review docs/qa/tracker_intake_2026_11_12/sources/review_retest_items.md, verdict GO-with-follow-ups); placeholder trailer CON-PENDING-RETEST; umbrella CON-299; related CON-092, CON-093, CON-102
+Parent / links: retest vehicle (bundle retest_new1-4.bundle (ephemeral: a session-scratchpad file, not kept), head a3b8564e on 02c10935, review docs/qa/tracker_intake_2026_11_12/sources/review_retest_items.md, verdict GO-with-follow-ups); placeholder trailer CON-PENDING-RETEST; umbrella CON-299; related CON-092 (fastcycle consumer-data guard), CON-093 (fastcycle tests missing consumer data), CON-102 (fastcycle consumer-data helper test)
 Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-183 and CON-237 (both name test_consumer_required_helper.sh for other defects: CON-183 the Part 4 skip under the mutation harness, CON-237 the dash failure); related CON-092, CON-093, CON-102. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
@@ -3938,7 +3930,7 @@ Read from the change; static.
 **Acceptance criteria:**
 Synthetic sections run on canon alone; consumer sections still SKIP or FAIL as before.
 
-Parent / links: retest vehicle lander item C-3; related CON-092; umbrella CON-299
+Parent / links: retest vehicle lander item C-3; related CON-092 (fastcycle consumer-data guard, section-level skip); umbrella CON-299
 Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-092 (an instance of the CON-092 class, section-level skip, as the item says); class parent link: CON-092; related CON-093. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
@@ -4051,7 +4043,7 @@ Process item; not a code defect.
 Landing commits carry real Roadmap-Item ids and the attribution line required by the session; recorded in the landing note.
 
 Parent / links: multiforge vehicle round 4 (bundle mf_r4_bundle.6mLoJd/multiforge_r4.bundle (ephemeral: a session-scratchpad file, not kept) head 380ad64a, spot-check review docs/qa/tracker_intake_2026_11_12/sources/review_multiforge_r4.md, verdict GO-with-follow-ups); umbrella CON-299
-Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-271 (commits whose Roadmap-Item trailer is not an engine id; another vehicle) and CON-329 (the same lander duty for the fix227 vehicle). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
+Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-271 (commits whose Roadmap-Item is not an item id; another vehicle) and CON-329 (the same lander duty for the fix227 vehicle). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
 ## CON-315 — GitLab pre-release F1: the read-back glab api call has no --hostname and the tag in the API path is not URL-encoded
@@ -4205,7 +4197,7 @@ Results file docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease_
 Tests kill M03, M06, M11, M13, M15, M18, M20; independent review.
 
 Parent / links: GitLab pre-release leg of scripts/release/tag_and_release.sh (bundle head ed50c71e on 02c10935, review docs/qa/tracker_intake_2026_11_12/sources/review_gitlab_prerelease.md, verdict GO-with-follow-ups; re-application on the fix227 vehicle head 4c80482c needs its own review); umbrella CON-299
-Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-328 (adopting these reviewer mutants into fix227's catalogue) and CON-227 (other reviewer survivors, of the rel734 change, in the same script). CON-233 names the same script for another defect. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
+Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-328 (adopting these reviewer mutants into fix227's catalogue) and CON-227 (the other surviving reviewer mutants of tag_and_release.sh, from vehicle rel734). CON-233 names the same script for another defect. Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
 ## CON-322 — GitLab pre-release F8 and F9: GL_MARK wording ignores the upcoming badge; GL_NOTES created even without a gitlab spec
@@ -4359,7 +4351,7 @@ Reviewer analysis.
 Catalogue extended; every adopted mutant is killed; independent review.
 
 Parent / links: re-application of the GitLab pre-release change on the fix227 vehicle (head 4c80482c, round 9 in progress); the reviewer recommends a hand re-application as a new commit after round 9, then a new review; never a rebase of anything pushed (section 11.4.113); umbrella CON-299
-Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-321 (the reviewer mutants that survive and that this catalogue must kill) and CON-227 (the rel734 reviewer survivors that the same family of tests must kill). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
+Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-321 (the reviewer mutants that survive and that this catalogue must kill) and CON-227 (surviving reviewer mutants of tag_and_release.sh that the same family of tests must kill). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
 ## CON-329 — fix227 landing note: 9 of 21 vehicle commits (9cd1539a, 66b411ef, 1089054b, 7b42614d, 34bbeb4e, b4526da6, 858a47e2, 23c301e6 and merges, rounds 1 to 5) have no Roadmap-Item trailer
@@ -4382,7 +4374,7 @@ The landing note lists the commits without a trailer and cites this item; the la
 
 Parent / links: fix227 vehicle (release tooling follow-ups, CON-226 family; round-8 review docs/qa/tracker_intake_2026_11_12/sources/review_fix227_r8.md); fix227 uses ids CON-300..CON-311 on its own vehicle, so ids written there as CON-310 and CON-311 are NOT the ids minted here; umbrella CON-299
 Foreign ids (fix227 vehicle namespace; on this tracker these numbers are other items): CON-300..CON-311, CON-310, CON-311
-Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-271 (commits whose Roadmap-Item trailer is not an engine id; another vehicle) and CON-314 (the same lander duty for the multiforge vehicle). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
+Duplicate check (section 11.4.214): DISTINCT-but-similar of CON-271 (commits whose Roadmap-Item is not an item id; another vehicle) and CON-314 (the same lander duty for the multiforge vehicle). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 
 ## CON-330 — fix227 CON-310 amendment (vehicle id): add the leading-blanks URL shape to the rc_url_has_userinfo scope and an acceptance criterion
@@ -4524,7 +4516,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Low
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree` — signature `history Opened row of an item added with --created-by Conductor reads by=User` — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree; evidence sha256 fb1eaea4ec1634a399a55d2ad11e1bbe51e4889cbe2c6e4033752efd21684866` — signature `history Opened row of an item added with --created-by Conductor reads by=User` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 **Investigation:** in-progress — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
 
 **What:** addCmd in scripts/workable-items/cmd/workable-items/crud.go calls recordHistory(tx, id, "Opened", "User", "", ""), so every add records by=User in item_history even when --created-by names an agent (section 11.4.34 source attribution; item_history.by is the closed set AI, User). The 35 intake items of 2026-11-12 have created_by Conductor and history by User (review finding I9).
@@ -4548,7 +4540,7 @@ Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148
 **Type:** Bug
 **Severity:** Medium
 **Created-By:** Claude
-**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree` — signature `update --status Bogus exits 0 and the status is unchanged; add Story exits 0 and the type is Task` — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v2/engine_failopen_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v2/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db>` — env `scratch copy of docs/workable_items.db at 1a307322; engine built from that tree; evidence sha256 fb1eaea4ec1634a399a55d2ad11e1bbe51e4889cbe2c6e4033752efd21684866` — signature `update --status Bogus exits 0 and the status is unchanged; add Story exits 0 and the type is Task` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
 **Investigation:** not-started — updated 2026-11-13T11:27:00Z — by `Claude (tracker-intake round-2 fixer, Opus 5.5)`
 
 **What:** Measured: update --status Done and update --status Bogus print 'updated' and exit 0 while the status stays Queued; add Story exits 0 and creates the item as Type Task. The caller cannot tell that its request was not applied (section 11.4.201(4) fail closed; section 11.4.15 and 11.4.16 closed sets). Reviewer mutants M4 and M5 of the tracker-intake review.
@@ -4587,4 +4579,100 @@ Every intake (reporting directive or lander batch) runs the lint on its new item
 Parent / links: umbrella CON-299
 Duplicate check (section 11.4.214): DISTINCT (no open item asks for a description-content lint). Method: every open item compared by title and description word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v2/inventory/).
 Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Added in round 2 of the vehicle after its review (docs/qa/tracker_intake_2026_11_12/sources/review_tracker_intake.md). Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-339 — workable-items close rewrites created_at to the time of the close (round-2 review R2-9)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G1)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `created_at after close equals the close time, not the creation time` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+
+**What:** The engine `close` command sets the item's created_at to the time of the close. Measured on a copy: created_at read 2026-11-12 22:48:51 before the close and the close time after it. Every closed item loses its creation time, which distorts age, lead-time and burn-down figures. CON-308 (run_all.sh rc 77 counted as FAIL) is one such item: its round-2 close moved created_at from 2026-11-12 22:48:51 to 2026-11-13 11:27:03, and no engine command restores it.
+
+**Affected scope / file-scope manifest:**
+scripts/workable-items/cmd/workable-items/crud.go (the close command; the exact line is UNCONFIRMED); its tests
+
+**Reproduction / context:**
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G1 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only.
+
+**Acceptance criteria:**
+close keeps created_at; a test with a paired mutant pins it; a recorded decision says whether the created_at of items closed earlier is restored from their history rows.
+
+Parent / links: round-2 review of this vehicle (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md, finding R2-9); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT (no open item names close and created_at); CON-336 (workable-items add history attribution) and CON-337 (workable-items fail-open on update and add) are other engine defects. Method: every open item compared by title and What-line word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/dup_candidates_v3.tsv).
+Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-340 — workable-items reopen leaves the obsolete_details row and the Obsolete-Details body line on a Reopened item, and validate accepts it (R2-9)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G2)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `after reopen of an Obsolete item the obsolete_details row is still present and validate exits 0` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+
+**What:** After `reopen` of an Obsolete item the item is Reopened in Issues, but its obsolete_details row (reason and superseding id of the earlier closure) stays, its body still shows an Obsolete-Details line, and validate reports OK. A reader or a tool that trusts the row sees a closure that no longer holds. No engine command removes the row.
+
+**Affected scope / file-scope manifest:**
+scripts/workable-items/cmd/workable-items/mutate.go (reopen), scripts/workable-items/cmd/workable-items/obsolete.go; validate; their tests
+
+**Reproduction / context:**
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G2 and G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only. Found on CON-308 (run_all.sh rc 77 counted as FAIL), which round 3 reopened (R2-1).
+
+**Acceptance criteria:**
+reopen removes or archives the obsolete_details row in the same transaction and records it in the history; validate fails on an obsolete_details row of an item that is not Obsolete; tests with paired mutants pin both.
+
+Parent / links: round-2 review of this vehicle (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md, finding R2-9); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT (no open item names reopen and obsolete_details); CON-341 (update drops the Reopened-Details line) and CON-342 (superseding id that does not exist) are other defects of the same commands. Method: every open item compared by title and What-line word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/dup_candidates_v3.tsv).
+Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-341 — workable-items update re-renders the body header and drops the Reopened-Details and Evidence lines that reopen wrote
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G3)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `the body header keys after update lack Reopened-Details while the history keeps the reopen row` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+
+**What:** `reopen` writes Reopened-Details and Evidence lines into the body header. A later `update --description` re-renders the header from the columns and drops both lines; only the history row keeps the reopen. The published Issues.md then shows no reopen record for the item.
+
+**Affected scope / file-scope manifest:**
+scripts/workable-items/cmd/workable-items/crud.go (update and the body rendering), scripts/workable-items/cmd/workable-items/mutate.go (reopen); their tests
+
+**Reproduction / context:**
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G3 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only.
+
+**Acceptance criteria:**
+the reopen record survives any later update, either as a column the renderer reads or by the renderer reading the history; a test with a paired mutant pins it.
+
+Parent / links: found while fixing round-2 review finding R2-1 (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT; CON-340 (reopen leaves the obsolete_details row) is another defect of the same commands. Method: every open item compared by title and What-line word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/dup_candidates_v3.tsv).
+Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-342 — workable-items obsolete-details and validate accept a superseding item that does not exist (round-2 review R2-6, D7a)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** Claude
+**Reproduction:** reproduced-host-fixture — REPRODUCED — surface host-only — evidence `docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt` — red-command `bash docs/qa/tracker_intake_2026_11_12_v3/engine_repro.sh <workable-items binary> <scratch copy of docs/workable_items.db> <open item id> <obsolete item id> (section G4)` — env `scratch copy of docs/workable_items.db at 63f80e52; engine built from that tree` — signature `obsolete-details with a superseding id that is not an item exits 0 and validate exits 0` — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+**Investigation:** not-started — updated 2026-11-13T13:09:02Z — by `Claude (tracker-intake round-3 fixer, Opus 5.5)`
+
+**What:** `obsolete-details --reason duplicate-of --superseding <id>` writes the row when no item has that id, and validate then reports OK. A duplicate-of link can point at nothing, which section 11.4.214 chain resolution cannot follow.
+
+**Affected scope / file-scope manifest:**
+scripts/workable-items/cmd/workable-items/obsolete.go; validate; their tests
+
+**Reproduction / context:**
+Reproduced on the host on a scratch copy of docs/workable_items.db at 63f80e52, every write through the engine: docs/qa/tracker_intake_2026_11_12_v3/engine_repro.txt section G4 (script engine_repro.sh in the same directory, checksums in its SHA256SUMS). The cause is not investigated; the source file named in the scope is read from the command table only. The round-2 reviewer saw the validate half with a hand-edited copy (mutant D7a); G4 reproduces both halves through the engine.
+
+**Acceptance criteria:**
+obsolete-details refuses a superseding id that is not an item (an anchor letter or 'none' stays legal); validate fails on such a row; tests with paired mutants pin both.
+
+Parent / links: round-2 review of this vehicle (docs/qa/tracker_intake_2026_11_12_v3/sources/review_tracker_intake_v2.md, finding R2-6); umbrella CON-299 (tracker intake umbrella)
+Duplicate check (section 11.4.214): DISTINCT; CON-340 (reopen leaves the obsolete_details row) is another defect of the same commands. Method: every open item compared by title and What-line word overlap and by shared file names (docs/qa/tracker_intake_2026_11_12_v3/inventory/dup_candidates_v3.tsv).
+Origin: tracker-intake vehicle 2026-11-12 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
 

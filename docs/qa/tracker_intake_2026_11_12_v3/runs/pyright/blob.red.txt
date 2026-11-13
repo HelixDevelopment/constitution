@@ -1,0 +1,7 @@
+FINDING SECTIONS FX-002 missing: What
+FINDING SECTIONS FX-002 missing: Affected scope
+FINDING SECTIONS FX-002 missing: Reproduction / context
+FINDING SECTIONS FX-002 missing: Acceptance criteria
+FINDING SECTIONS FX-002 missing: Parent / links
+FINDING BODY-SYNC FX-002 body_md Reproduction line disagrees with reproduction_state b'x'
+RESULT: FAIL selected=1 findings=6 prefix=FX
