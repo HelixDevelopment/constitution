@@ -47,14 +47,15 @@ hasnt(){ if grep -q -- "$2" "$1" 2>/dev/null; then fail "$3 (found [$2] in $1)";
 
 cap() { # cap <file> [a-verdict] [b-verdict] [headroom|none] [pressure-ok]
   jq -n --arg va "${2:-fits}" --arg vb "${3:-fits}" --arg hr "${4:-5000}" --arg pok "${5:-true}" '
-    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true},
-     host:({mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, load:{}}
+    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true, critical_inputs_unreadable:[]},
+     host:({cpus_online:16, mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, swap_total_mb:0, swap_free_mb:0,
+            load:{"1":1.0,"5":1.0,"15":1.0}, psi:{memory:{some:0.0,full:0.0},cpu:{some:0.0},io:{some:0.0,full:0.0}}, cgroup:{memory_max_mb:null}}
            + (if $hr=="none" then {} else {nproc:{rlimit_soft:123694, rlimit_hard:123694, user_threads:400, headroom:($hr|tonumber)}} end)),
      reserve:{mem_reserved_mb:4000, cpus_reserved:4}, pressure:{ok:($pok=="true"), reasons:(if $pok=="true" then [] else ["psi full avg10 3.1 > 2"] end)},
-     llmctl:{units:[]}, fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[],
-     profiles:{"decide-a":{verdict:$va, verdict_class:$va, running:false, threads:(if $va=="does_not_fit" then 0 else 3 end), reasons:[]},
-               "decide-b":{verdict:$vb, verdict_class:$vb, running:false, threads:(if $vb=="does_not_fit" then 0 else 3 end), reasons:[]},
-               "decide-x":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[]}}}' > "$1"
+     llmctl:{units:[]}, fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[], degraded:false, largest_decision_fit:null,
+     profiles:{"decide-a":{verdict:$va, verdict_class:$va, running:false, threads:(if $va=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}},
+               "decide-b":{verdict:$vb, verdict_class:$vb, running:false, threads:(if $vb=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}},
+               "decide-x":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}}}}' > "$1"
 }
 LOCKHELD_TOTAL=0
 count_lockheld() { local n=0; [ -n "${STUB_LOG:-}" ] && [ -f "$STUB_LOG/llmctl.log" ] && n="$(grep -c '^LOCKHELD' "$STUB_LOG/llmctl.log" || true)"; LOCKHELD_TOTAL=$((LOCKHELD_TOTAL + ${n:-0})); }
@@ -395,6 +396,11 @@ has "$T/e69c" "endpoint_gone" "P69 CONTROL: the post-start answer names endpoint
 # process releases s1's lease, so decide-a is marked stopping (slow stop). The plan step (C) cannot see that mark (it was
 # taken before); only the check in mark_start_locked can (own mutant OM03 removes it and starts decide-b during the stop).
 # The trigger is an event in the stub log (the first capacity call after the start of decide-a), not a fixed delay.
+# Round 7: the release also removes the lease of s1 this acquire took on decide-a, so the mark now refuses on that first
+# (rc 3, the lease is the authority for every further start) and decide-b is never started, during or after the stop;
+# before round 7 the stopping check carried this row, and with the round-7 freshness rule alone decide-b was started
+# once the stop had finished (a stale mark, re-reads, then a mark after the stop: a timing-dependent row). OM03 (the
+# stopping check) is killed by test_s4_round7.sh P87.
 fresh; export JEV_PLACE_MAX=2
 ( PLACE_CAP_SLEEP=5 "$PLACE" acquire s1 --pid $$ > "$T/a70.out" 2>"$T/a70.err"; echo "$?" > "$T/a70.rc" ) & a70=$!; jev_track_pid "$a70"
 seen70=1; for i in $(seq 1 300); do
@@ -405,7 +411,7 @@ seen70=1; for i in $(seq 1 300); do
 wait "$a70" 2>/dev/null; wait "$r70" 2>/dev/null; unset JEV_PLACE_MAX
 has "$T/r70.err" "llmctl stop decide-a\|last lease released" "P70 setup: the concurrent release stopped decide-a"
 assert_eqx 0 "$(grep -c '^llmctl start decide-b' "$STUB_LOG/llmctl.log" || true)" "P70 decide-b is never started while decide-a is stopping (mark refused)"
-has "$T/a70.err" "candidate decide-b: no longer startable" "P70 the refusal is announced"
+has "$T/a70.err" "candidate decide-b: not started: the lease of s1 on decide-a, taken by this acquire, is gone" "P70 the refusal is announced (round 7: the lease this acquire took was released)"
 # CONTROL: the same schedule without the concurrent release starts both (P64 control shape)
 fresh; export JEV_PLACE_MAX=2
 PLACE_CAP_SLEEP=5 "$PLACE" acquire s1 --pid $$ >/dev/null 2>"$T/c70.err"; unset JEV_PLACE_MAX

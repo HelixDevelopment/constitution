@@ -29,11 +29,22 @@
 #                     PLACE_CAP_RAW=1 (or a file that is not JSON) returns the file unchanged, exit ${PLACE_CAP_RC:-0}.
 #                     PLACE_CAP_SLEEP seconds first (timeout cases).
 #                     PLACE_CAP_RC_FILE=<file>: while <file> exists the call exits with its content (round 6).
+#                     Round 7: after the PLACE_CAP_SLEEP the call appends one line to $STUB_LOG/cap.done (a call killed by
+#                     the producer's timeout never writes it: T6-2 proves the bound without a wall clock).
+#                     PLACE_CAP_GATE=<dir> (round 7): the caller's capacity calls are counted in <dir>/count; the call
+#                     numbered PLACE_CAP_GATE_AT (default 1) computes its answer, then creates <dir>/reached and waits
+#                     (at most PLACE_CAP_GATE_WAIT s, default 120) for <dir>/go before returning it: the answer is fixed
+#                     BEFORE another session acts, so the caller holds an answer that is stale by construction.
+#                     PLACE_CAP_GATE_WHEN=before: the gated call waits BEFORE it computes its answer instead (the answer
+#                     then describes the stub state after another session acted; used for the ABA row of round 7).
 #   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x);
 #                               exit ${PLACE_DCAP_RC:-0} first when it is set (round 6, R5-7)
 #   decide status --json     -> a gateway registry entry (PLACE_STATUS_URL, default https://127.0.0.1:18095); exit
 #                               ${PLACE_STATUS_RC:-0} first when set; PLACE_STATUS_NOGW=1 -> a registry without a gateway (R5-14)
-#   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>
+#   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>,
+#                         except on 75: llmctl's pressure-gate refusal starts nothing (§11.4.277(E), "no partial start";
+#                         round 7: the round-6 stub created the unit on 75 too, which a re-plan after a refusal would
+#                         then read as an operator-started unit)
 #   stop <p>           -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<key> only on rc 0
 #   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
 # Every call is logged to $STUB_LOG/llmctl.log. A call made while the CALLER holds the placement lease lock (an open file
@@ -51,9 +62,19 @@ fi
 key() { if [ -n "${LLMCTL_TENANT_ID:-}" ]; then printf '%s--%s' "$LLMCTL_TENANT_ID" "$1"; else printf '%s' "$1"; fi; }
 case "${1:-} ${2:-}" in
   "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"
+    printf '%s\n' "$$" >> "$logdir/cap.done"
+    gate=0
+    if [ -n "${PLACE_CAP_GATE:-}" ]; then
+      gc=0; [ -f "$PLACE_CAP_GATE/count" ] && gc="$(cat "$PLACE_CAP_GATE/count")"; gc=$((gc+1)); echo "$gc" > "$PLACE_CAP_GATE/count"
+      [ "$gc" != "${PLACE_CAP_GATE_AT:-1}" ] || gate=1
+    fi
+    gate_wait() { [ "$gate" = 1 ] || return 0; gate=0; : > "$PLACE_CAP_GATE/reached"; local i=0 lim=$(( ${PLACE_CAP_GATE_WAIT:-120} * 10 ))
+      while [ ! -e "$PLACE_CAP_GATE/go" ] && [ "$i" -lt "$lim" ]; do sleep 0.1; i=$((i+1)); done; }
+    [ "${PLACE_CAP_GATE_WHEN:-after}" != before ] || gate_wait
     # round 6 (own mutant OM16): PLACE_CAP_RC_FILE=<file>: while <file> exists, exit with its content (fails one later read)
     if [ -n "${PLACE_CAP_RC_FILE:-}" ] && [ -f "$PLACE_CAP_RC_FILE" ]; then exit "$(cat "$PLACE_CAP_RC_FILE")"; fi
-    if [ "${PLACE_CAP_RAW:-}" = 1 ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then cat "${PLACE_CAP_JSON:?}"; exit "${PLACE_CAP_RC:-0}"; fi
+    if [ "${PLACE_CAP_RAW:-}" = 1 ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then
+      cp -- "${PLACE_CAP_JSON:?}" "$logdir/cap.out.$$"; gate_wait; cat "$logdir/cap.out.$$"; exit "${PLACE_CAP_RC:-0}"; fi
     run=""; for f in "$logdir"/running.*; do [ -e "$f" ] || continue; r="${f##*/running.}"
       case ",${PLACE_GONE:-}," in *",$r,"*) continue ;; esac; run="$run$r,"; done
     jq -c --arg run "${run%,}" --arg deg "${PLACE_DEGRADED:-}" --arg tenant "${LLMCTL_TENANT_ID:-}" --arg full "${PLACE_FULL_AFTER:-}" '
@@ -82,11 +103,14 @@ case "${1:-} ${2:-}" in
       | .degraded = ([.llmctl.units[] | select(.status == "degraded")] | length > 0)
       | if ([.profiles | to_entries[] | select(.value.verdict == "fits" or .value.verdict == "fits_with_reduced_threads")] | length > 0)
            or ([.llmctl.units[] | select(.owner == "self" and .status == "ok")] | length > 0)
-        then .fallback = ((.fallback // {}) + {recommended:"local", route:"local"}) else . end' "$PLACE_CAP_JSON" > "$logdir/cap.out"
-    cat "$logdir/cap.out"
+        then .fallback = ((.fallback // {}) + {recommended:"local", route:"local"}) else . end' "$PLACE_CAP_JSON" > "$logdir/cap.out.$$"
+    # round 7: a per-call answer file (concurrent callers never read each other's answer); the gate pauses AFTER the answer
+    # is fixed
+    gate_wait
+    cat "$logdir/cap.out.$$"
     if [ -n "${PLACE_CAP_RC:-}" ]; then exit "$PLACE_CAP_RC"; fi
-    if [ "$(jq -r '.measurement.ok == false' "$logdir/cap.out")" = true ]; then exit 75; fi
-    if [ "$(jq -r '.degraded' "$logdir/cap.out")" = true ]; then exit 3; fi
+    if [ "$(jq -r '.measurement.ok == false' "$logdir/cap.out.$$")" = true ]; then exit 75; fi
+    if [ "$(jq -r '.degraded' "$logdir/cap.out.$$")" = true ]; then exit 3; fi
     exit 0 ;;
   "decide capacity") [ "${PLACE_DCAP_RC:-0}" = 0 ] || exit "$PLACE_DCAP_RC"
     echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
@@ -94,7 +118,7 @@ case "${1:-} ${2:-}" in
     if [ "${PLACE_STATUS_NOGW:-}" = 1 ]; then echo '{"registry":{"services":[]}}'; exit 0; fi
     jq -nc --arg u "${PLACE_STATUS_URL:-https://127.0.0.1:18095}" '{registry:{services:[{name:"decide-gateway", url:$u, labels:{kind:"gateway", ca_file:"/nonexistent/ca.crt"}}]}}' ;;
   "start "*) [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
-             touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
+             [ "${PLACE_START_RC:-0}" = 75 ] || touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
   "stop "*) [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
             [ "${PLACE_STOP_RC:-0}" = 0 ] || exit "$PLACE_STOP_RC"
             rm -f -- "$logdir/running.$(key "${2:?}")" ;;

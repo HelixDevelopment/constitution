@@ -76,15 +76,16 @@ cap() {
     *) echo "cap: unknown units token $5" >&2; return 2 ;;
   esac
   jq -n --arg va "${2:-fits}" --arg vb "${3:-fits}" --arg hr "${4:-5000}" --argjson units "$units" --arg pok "${6:-true}" '
-    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true},
-     host:({mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, load:{}}
+    {schema:"llmctl.capacity/1", time:1700000000, measurement:{ok:true, critical_inputs_unreadable:[]},
+     host:({cpus_online:16, mem_total_mb:20000, mem_available_mb:18000, usable_mem_mb:15000, swap_total_mb:0, swap_free_mb:0,
+            load:{"1":1.0,"5":1.0,"15":1.0}, psi:{memory:{some:0.0,full:0.0},cpu:{some:0.0},io:{some:0.0,full:0.0}}, cgroup:{memory_max_mb:null}}
            + (if $hr=="none" then {} else {nproc:{headroom:($hr|tonumber)}} end)),
      reserve:{mem_reserved_mb:4000, cpus_reserved:4}, pressure:{ok:($pok=="true"), reasons:(if $pok=="true" then [] else ["psi full avg10 3.1 > 2"] end)},
      llmctl:{units:$units},
-     fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[],
-     profiles:{"decide-a":{verdict:$va, verdict_class:$va, running:false, threads:(if $va=="does_not_fit" then 0 else 3 end), reasons:[]},
-               "decide-b":{verdict:$vb, verdict_class:$vb, running:false, threads:(if $vb=="does_not_fit" then 0 else 3 end), reasons:[]},
-               "decide-x":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[]}}}' > "$1"
+     fallback:{recommended:"cloud", key_variable:null}, unknown_profiles:[], degraded:false, largest_decision_fit:null,
+     profiles:{"decide-a":{verdict:$va, verdict_class:$va, running:false, threads:(if $va=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}},
+               "decide-b":{verdict:$vb, verdict_class:$vb, running:false, threads:(if $vb=="does_not_fit" then 0 else 3 end), reasons:[], headroom:{footprint_mb:1000}},
+               "decide-x":{verdict:"fits", verdict_class:"fits", running:false, threads:3, reasons:[], headroom:{footprint_mb:1000}}}}' > "$1"
 }
 # rawcap <file> <jq-filter>: a document the stub returns UNCHANGED (PLACE_CAP_RAW=1), built from the default cap and edited
 rawcap() { cap "$1"; jq "$2" "$1" > "$1.r" && mv "$1.r" "$1"; export PLACE_CAP_RAW=1; }
@@ -162,10 +163,18 @@ fresh; cap "$T/cap.json"; export PLACE_CAP_RC=1
 "$PLACE" acquire s1 >/dev/null 2>"$T/e5"; rc=$?
 assert_eqx "5 0" "$rc $(starts)" "P5 capacity exit 1 -> rc 5, no start"
 has "$T/e5" "exit 1" "P5 reason names the exit code"
-unset PLACE_CAP_RC; export PLACE_CAP_SLEEP=5 JEV_LLMCTL_TIMEOUT=1
-t0=$(date +%s); "$PLACE" acquire s1 >/dev/null 2>"$T/e5b"; rc=$?; t1=$(date +%s)
+# Round 7 (T6-2): the bound is proven by the stub's own completion marker, never by a wall clock (a loaded host made the
+# round-6 `<= 4 s` row flaky). A capacity call that runs to its end appends a line to $STUB_LOG/cap.done AFTER its
+# PLACE_CAP_SLEEP; a call killed by the producer's timeout never writes it. Control needle: the call above (no sleep)
+# wrote it.
+if [ -s "$STUB_LOG/cap.done" ]; then ok "P5 CONTROL: a capacity call that completes writes the completion marker"
+else fail "P5 CONTROL: no completion marker after a completed capacity call (the instrument is blind)"; fi
+: > "$STUB_LOG/cap.done"
+unset PLACE_CAP_RC; export PLACE_CAP_SLEEP=30 JEV_LLMCTL_TIMEOUT=1
+"$PLACE" acquire s1 >/dev/null 2>"$T/e5b"; rc=$?
 assert_eqx "5 0" "$rc $(starts)" "P5 slow capacity -> rc 5, no start"
-[ $((t1 - t0)) -le 4 ] && ok "P5 llmctl call bounded ($((t1 - t0))s)" || fail "P5 call not bounded ($((t1 - t0))s)"
+if [ ! -s "$STUB_LOG/cap.done" ]; then ok "P5 llmctl call bounded: the 30 s capacity call never ran to its end"
+else fail "P5 call not bounded: the slow capacity call completed ($(wc -l < "$STUB_LOG/cap.done") completion lines)"; fi
 has "$T/e5b" "timed out" "P5 reason says timed out"
 unset PLACE_CAP_SLEEP JEV_LLMCTL_TIMEOUT
 

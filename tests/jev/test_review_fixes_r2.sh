@@ -123,6 +123,19 @@ mkstatus() { # mkstatus <name> <label-profile>
   jq -n --arg n "$1" --arg p "$2" '{gateway:{running:true},profiles:[],registry:{services:[{name:$n,protocol:"http",healthy:true,url:"http://127.0.0.1:9",labels:{kind:"decide",profile:$p}}]}}'
 }
 run_bs() { bash "$REPO/scripts/jev/bootstrap.sh" --non-interactive >"$T/bs.out" 2>"$T/bs.err"; RC=$?; DET="$JEV_EVIDENCE_DIR/jev-detection.json"; }
+# O6-1 (review of round 6): one intermittent "expected [1] got [X]" in a run_all pass, root cause UNKNOWN, and the failing
+# run's files were deleted with $T. On a failure of P1/P2 this keeps the run's files in a directory the EXIT cleanup does
+# not own (its path is printed) and prints the bootstrap's exit code and the tail of its stderr, so the next occurrence is
+# diagnosable. Nothing is kept on success.
+keep_bs_evidence() { # keep_bs_evidence <tag>
+  local k; k="$(mktemp -d "${TMPDIR:-/tmp}/jev-r2-o61.XXXXXX")" || return 0
+  cp -p -- "$T/bs.out" "$T/bs.err" "$T/gate.out" "$T/status.json" "$T/cap.json" "$k/" 2>/dev/null
+  [ -f "$DET" ] && cp -p -- "$DET" "$k/jev-detection.json"
+  ls -la "$JEV_EVIDENCE_DIR" > "$k/evidence_dir.ls" 2>&1
+  printf 'case=%s bootstrap_rc=%s det=%s det_exists=%s\n' "$1" "$RC" "$DET" "$([ -e "$DET" ] && echo yes || echo no)" > "$k/summary.txt"
+  echo "# O6-1 evidence kept in $k (case $1): bootstrap rc=$RC; tail of bs.err:" >&2
+  tail -n 15 "$T/bs.err" 2>/dev/null | sed 's/^/#   /' >&2
+}
 for case_ in "verdict:decide-tiny:jev-verdict" "json:decide-real:jev-json"; do
   IFS=: read -r tag lbl proto <<< "$case_"
   setup p; make_fixture_constitution_root with-submodules; empty_rec "$T/empty.json"
@@ -133,10 +146,12 @@ for case_ in "verdict:decide-tiny:jev-verdict" "json:decide-real:jev-json"; do
   run_bs; n="$(jq '.endpoints|length' "$DET" 2>/dev/null || echo X)"
   if [ "$proto" = "jev-verdict" ]; then
     assert_rc 0 "$grc" "P1 label!=name, profile protocol jev-verdict: the gate calls the empty record lawful"
-    assert_eq "0" "$n" "P1 and bootstrap detects no endpoint (the two agree)"
+    assert_eq "0" "$n" "P1 and bootstrap detects no endpoint (the two agree) [bootstrap rc=$RC]"
+    [ "$n" = 0 ] || keep_bs_evidence P1
   else
     assert_ne "0" "$grc" "P2 label!=name, usable profile: the gate calls the empty record a contradiction"
-    assert_eq "1" "$n" "P2 and bootstrap detects ONE endpoint (the two agree)"
+    assert_eq "1" "$n" "P2 and bootstrap detects ONE endpoint (the two agree) [bootstrap rc=$RC]"
+    [ "$n" = 1 ] || keep_bs_evidence P2
   fi
 done
 assert_contains "$REPO/scripts/jev/lib_decide.sh" "jev_decide_services" "P3 the shared predicate lives in lib_decide.sh"

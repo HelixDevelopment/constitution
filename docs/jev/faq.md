@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-12T16:54:07Z |
+| Last modified | 2026-11-13T17:36:01Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
 | Scope | Universal (§11.4.17). |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement) |
+| Fixed | initial creation; revision 2 adds question 23 (§11.4.291 placement); revision 4 adds questions 28 and 29 (placement freshness, round 7) |
 | Fixed summary | — |
 | Continuation | none |
 
@@ -26,6 +26,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 - [Bootstrap](#bootstrap)
 - [Capacity and placement](#capacity-and-placement)
 - [Default-on wiring and exit 5 (2026-11-12)](#default-on-wiring-and-exit-5-2026-11-12)
+- [Placement freshness (2026-11-13)](#placement-freshness-2026-11-13)
 
 ## General
 
@@ -122,3 +123,10 @@ A real key and a usable endpoint are different facts. HTTP 402 means the account
 **27. Are thresholds shared between endpoints?**
 No longer only per question type: `jev-thresholds.json` also has `per_endpoint["<endpoint>|<model>"]`, and each group earns enforce on its own sample. Rows that do not say which endpoint answered are grouped as `unknown|unknown`.
 
+## Placement freshness (2026-11-13)
+
+**28. Why did `acquire` start nothing and say `stale_answer`?**
+Another session changed the lease registry (started, stopped, joined or released a model) between this acquire's capacity read and its start, three times in a row. Since round 7 a start is decided only on a capacity answer read after the last registry change (the token is the registry's generation counter plus the sha256 of `leases.json`, checked at the plan and again at the start mark). A stale answer is read again; after three stale reads nothing is started and the route falls back. It means heavy contention, not a fault; the next acquire tries again.
+
+**29. Why does a held model stay unrouted for a while after its starter died?**
+Clearing a dead starter's mark sets the set's health to `pending` at the current observation counter (a floor): only an observation that begins after the clear may judge the set, so a capacity answer read before the start finished can never mark a running model gone. A live starter's mark is kept for `MARK_TTL` (the start/stop timeout + 2 s + retries × lock timeout + 30 s). Run `status` or the next `acquire` to observe the set.

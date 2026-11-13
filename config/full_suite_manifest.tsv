@@ -808,6 +808,7 @@ tests/install/test_unit.sh	sh	member	default	-	tests/install/run_all.sh	auto: ru
 tests/install/test_updater.sh	sh	member	default	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 tests/install/test_upstream_main.sh	sh	member	default	-	tests/install/run_all.sh	auto: invoked by tests/install/run_all.sh
 tests/jev/fixtures-shared/jev_scripts/bootstrap.sh	sh	excluded	-	-	-	reason: fake: recording stub used by post_update_hook trigger tests
+tests/jev/fixtures/bin-flockgate/flock	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin-hosted/curl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin-place/llmctl	sh	fixture	-	-	-	fixture path (not a test entry point)
 tests/jev/fixtures/bin/claude	sh	fixture	-	-	-	fixture path (not a test entry point)
@@ -856,6 +857,7 @@ tests/jev/test_run_all_leak_detector.sh	sh	member	default	-	tests/jev/run_all.sh
 tests/jev/test_s3_bootstrap_honesty.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round7.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point

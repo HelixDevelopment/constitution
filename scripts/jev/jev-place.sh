@@ -27,8 +27,8 @@
 #             5 no local placement (no fit / undetermined / start refused / join refused / gateway refused): the
 #               placement entry names the fallback route (cloud when a non-placeholder hosted key exists, else none);
 #             6 release: an `llmctl stop` failed or timed out. The lease set is KEPT (constitution_started, stopping
-#               mark, stop_failed {at, rc}); once the stop mark is cleared (stopper process gone, or older than the stop
-#               timeout + 30 s) the next release retries the stop, and the next acquire judges the set like any other
+#               mark, stop_failed {at, rc}); once the stop mark is cleared (stopper process gone, or older than MARK_TTL,
+#               see "Round 7") the next release retries the stop, and the next acquire judges the set like any other
 #               lease-less set (joined when its unit is `ok`, stopped when it is degraded or gone). Never orphaned.
 # Env (names only):
 #   JEV_LLMCTL_BIN (default llmctl), JEV_LLMCTL_TIMEOUT (default 20 s, read calls), JEV_LLMCTL_START_TIMEOUT (default 300 s,
@@ -42,6 +42,35 @@
 #   JEV_STATE_DIR / JEV_HOME (state), CMA_PROVIDERS_DIR (endpoint cache dir), LLMCTL_GATEWAY_URL / LLMCTL_CACERT (default
 #   from the `llmctl decide status --json` registry, else https://127.0.0.1:8095; https:// only), JEV_NOW_EPOCH (clock
 #   seam, ONLY with JEV_TEST=1).
+#
+# Round 7 (structural, review of eb29803b: NF-1, NF-2, NF-3; inventory docs/qa/jev_s3s4_20261112/round7/inventory.md):
+# * THE WHOLE CONTRACT TABLE (NF-1). capacity_read checks every row of the §11.4.291(C) table (CONTRACT_TABLE: schema,
+#   time, every host field, reserve, pressure, llmctl.units[] with profile/status/reasons, fallback, unknown_profiles,
+#   degraded, largest_decision_fit) and llmctl's measurement.critical_inputs_unreadable; inst_state checks the
+#   per-profile fields (verdict, threads, reasons, headroom). A field that is absent or of the wrong type makes the answer
+#   undetermined and names the field: nothing is started on it.
+# * ONE FRESHNESS RULE (NF-2). The registry carries a generation counter (`gen`), raised by EVERY write (leases_save);
+#   its token is "<gen>:<sha256 of the file>" (the hash also catches a writer that does not know `gen`: a project with an
+#   older constitution pin shares the per-user registry). A capacity answer is read after an observation ticket that
+#   records the token; it may decide a start only while the token is unchanged. Two seams apply the rule: plan_locked
+#   (rc 99: the answer is read again, at most STALE_MAX times, then a plan with joins and stops only; also when the plan's
+#   own reap changed the registry) and mark_start_locked, the last step before `llmctl start` (rc 2: the acquire plans
+#   again on a fresh answer, at most STALE_MAX times, then no start, reason_code stale_answer). A stop by
+#   this acquire, a refused start and a failed start are registry writes too, so the next start is always decided on an
+#   answer read after them; a further start (JEV_PLACE_MAX > 1) reads a fresh answer after a ticket. No `llmctl start`
+#   follows a registry change without a capacity read in between. A profile is stopped or start-tried at most once per
+#   acquire (STOP_TRIED, START_TRIED), so every loop is bounded.
+# * MARK TTL AND FLOOR (NF-3). A starting / stopping mark whose process is alive is cleared only after MARK_TTL = the
+#   start/stop timeout + 2 s (timeout's kill-after) + RETRIES x JEV_LOCK_TIMEOUT (the record waits) + 30 s: the longest
+#   a live marker holds it, with slack. Clearing a mark also sets the set's health to `pending` at the current observation
+#   counter (a floor): an answer read before the clear never judges the set (a start that completed with its record lost
+#   is not read as endpoint_gone by an observation that began before it).
+# * A FURTHER START NEEDS THE LEASE THIS ACQUIRE TOOK (found while re-deriving NF-2, test P70/P88). With JEV_PLACE_MAX
+#   > 1, every further start passes the set this acquire already started to mark_start_locked; when the holder no longer
+#   has a lease there (released by a concurrent `release`, or the set dropped), nothing more is started (rc 3). Before
+#   round 7 a release between two starts let the second start go ahead for a session that held nothing.
+# * THE GATEWAY SCHEME (nit N6-a, a separate item by operator decision N1, NOT changed here): `https://` is matched
+#   case-sensitively, so `HTTPS://` is refused (fail-closed; RFC 3986 makes the scheme case-insensitive).
 #
 # Round 6 (structural, review of 5a9e72be: R5-1, R5-2, R5-14; inventory docs/qa/jev_s3s4_20261112/round6/inventory.md):
 # * THE ENDPOINT CACHE IS A DERIVED VIEW (R5-2). The single llmctl-local entry of the per-user endpoint cache is computed
@@ -97,10 +126,10 @@
 # * NO llmctl CALL UNDER THE LEASE LOCK (R4-3): the capacity answer, the candidate list and the gateway URL are read
 #   before the lock; a set that needs an llmctl stop or start is MARKED under the lock (`stopping` / `starting`, naming
 #   this process), the call runs with the lock released, and the result is recorded under the lock again. A `starting`
-#   mark is cleared like a `stopping` mark (starter gone, or older than the stop timeout + 30 s). A set that is starting
+#   mark is cleared like a `stopping` mark (starter gone, or older than MARK_TTL, see "Round 7"). A set that is starting
 #   or stopping refuses a new acquire (event refused_starting / refused_stopping, reason_code endpoint_starting /
-#   endpoint_stopping, §11.4.291(J)(3)). When the lease file changed between the capacity read and the lock, the answer
-#   is read again (at most 3 times).
+#   endpoint_stopping, §11.4.291(J)(3)). (The round-5 "read again when the lease file changed" rule is replaced by the
+#   round-7 freshness rule.)
 # * ONE STOP HELPER (R4-1): every `llmctl stop` (last release, disposal, retry of an owed stop, cleanup after a failed
 #   start) goes through do_stop -> finish_stop_locked, which drops the set on success (the derived cache follows) and
 #   writes the placement record. After a successful stop the acquire reads the capacity answer again before a start.
@@ -114,7 +143,7 @@
 # operator-started and never started again; every later acquire and release retries the stop. A failed disposal stop
 # keeps {stop_owed, stop_failed} the same way. A reap alone never stops a model (§11.4.291(J)).
 # Stop mark: a mark that names no pid (older state format) is never treated as a dead stopper; it is cleared only when it
-# is older than the stop timeout + 30 s.
+# is older than MARK_TTL.
 # Holder identity: a --pid holder records its process start time (/proc/<pid>/stat field 22); it is alive while
 # /proc/<pid> exists, its start time matches and its cmdline is non-empty (a reused pid is dead). Without /proc the
 # holder is alive while `kill -0` succeeds AND its heartbeat is within its TTL. A pid-less holder lives by its TTL.
@@ -133,11 +162,15 @@ CACHE="$(jev_providers_dir)/jev-endpoints.json"
 LLMCTL="${JEV_LLMCTL_BIN:-llmctl}"
 RTMO="${JEV_LLMCTL_TIMEOUT:-20}"; STMO="${JEV_LLMCTL_START_TIMEOUT:-300}"
 TTL_DEFAULT="${JEV_LEASE_TTL:-900}"; LOCK_TMO="${JEV_LOCK_TIMEOUT:-10}"; MAXN="${JEV_PLACE_MAX:-1}"
-CADENCE="${JEV_REEVAL_CADENCE:-300}"; RETRIES="${JEV_RECORD_RETRIES:-3}"
+CADENCE="${JEV_REEVAL_CADENCE:-300}"; RETRIES="${JEV_RECORD_RETRIES:-3}"; STALE_MAX=3
 TENANT="${LLMCTL_TENANT_ID:-}"
 NOW="$(date +%s)"; [ "${JEV_TEST:-}" != "1" ] || NOW="${JEV_NOW_EPOCH:-$NOW}"
 for n in "$RTMO" "$STMO" "$TTL_DEFAULT" "$LOCK_TMO" "$MAXN" "$CADENCE" "$RETRIES"; do case "$n" in ''|*[!0-9]*) echo "jev-place: numeric setting expected, got '$n' (config error)" >&2; exit 2 ;; esac; done
 [ "$RETRIES" -ge 1 ] || { echo "jev-place: JEV_RECORD_RETRIES must be at least 1 (config error)" >&2; exit 2; }
+# round 7 (NF-3): the longest a LIVE process holds a starting / stopping mark: the bounded llmctl call (STMO + the 2 s
+# kill-after of `timeout`) plus every record wait (RETRIES x LOCK_TMO); 30 s of slack on top. A mark older than this
+# whose process is still alive is a hung marker and is cleared.
+MARK_TTL=$(( STMO + 2 + RETRIES * LOCK_TMO + 30 ))
 log() { printf '[jev-place] %s\n' "$*" >&2; }
 WORK="$(mktemp -d)"; trap 'rm -rf "${WORK:?}"' EXIT
 US=$'\x1f'
@@ -164,19 +197,50 @@ capacity_read() {
   if [ "$(jq -r '.measurement.ok == false' "$WORK/cap.json")" = true ]; then
     printf 'undetermined%sllmctl measurement failed: %s\n' "$US" "$(jq -r '.measurement.reason // "no reason given"' "$WORK/cap.json" | tr -d '\037\n')"; return 0
   fi
-  local miss
-  miss="$(jq -r '[ (if .schema != "llmctl.capacity/1" then "schema" else empty end),
-                   (if (.time|type) != "number" then "time" else empty end),
-                   (if (.profiles|type) != "object" then "profiles" else empty end),
-                   (if (.host.mem_total_mb|type) != "number" or (.host.mem_available_mb|type) != "number" or (.host.usable_mem_mb|type) != "number" then "host.mem" else empty end),
-                   (if (.reserve|type) != "object" then "reserve" else empty end),
-                   (if (.pressure|type) != "object" then "pressure" else empty end),
-                   (if (.llmctl.units|type) != "array" then "llmctl.units" else empty end),
-                   (if ((.fallback.recommended // "") | IN("local","cloud","none")) | not then "fallback.recommended" else empty end),
-                   (if (.unknown_profiles|type) != "array" then "unknown_profiles" else empty end) ] | join(",")' "$WORK/cap.json")"
+  # Round 7 (NF-1): EVERY row of the §11.4.291(C) contract table, one check per field (CONTRACT_TABLE below). A required
+  # field that is absent, null where a value is required, or outside its set makes the WHOLE answer undetermined (no start).
+  # Each check is wrapped in try: a field of the wrong shape (a string where an object is expected) is a failed check,
+  # never a jq error read as "no field missing". Per-profile fields (verdict, threads, reasons, headroom) are checked per
+  # candidate in inst_state; the unit status VALUE (ok | degraded) is judged per candidate there too (P45).
+  local miss crit
+  if ! miss="$(jq -r "$CONTRACT_TABLE"' | map(select(.[1] != true) | .[0]) | join(",")' "$WORK/cap.json" 2>/dev/null)"; then
+    printf 'undetermined%scontract check failed on the document (not one JSON object)\n' "$US"; return 0
+  fi
   if [ -n "$miss" ]; then printf 'undetermined%scontract fields missing or wrong: %s\n' "$US" "$miss"; return 0; fi
+  # llmctl's own list of verdict-critical inputs it could not read (non-strict mode leaves measurement.ok true): a value
+  # that could not be read is never defaulted (§11.4.291(C), §11.4.6), so any entry makes the answer undetermined
+  crit="$(jq -r 'if (.measurement.critical_inputs_unreadable|type) == "array" then (.measurement.critical_inputs_unreadable | map(tostring) | join("; ")) else "" end' "$WORK/cap.json" 2>/dev/null || true)"
+  if [ -n "$crit" ]; then printf 'undetermined%sllmctl could not read verdict-critical inputs: %s\n' "$US" "$(printf '%s' "$crit" | tr -d '\037\n')"; return 0; fi
   echo ok
 }
+# The §11.4.291(C) contract table (schema llmctl.capacity/1) as data: [field, check]. One row per required field of the
+# canon table; the host row of the canon table is split into its nine named fields. A check is true when the field is
+# present and in its set. load: the three averages are numbers; psi: memory some/full and cpu some are numbers (the inputs
+# clause (C) names; null means unread); cgroup: an object (its limits may be null: unlimited); key_variable and
+# largest_decision_fit: present, a string or null.
+CONTRACT_TABLE='def num(f): (f | type) == "number"; def ok(f): (try (f) catch false) == true;
+  [ ["schema",                ok((.schema == "llmctl.capacity/1"))],
+    ["time",                  ok(num(.time))],
+    ["profiles",              ok(((.profiles | type) == "object"))],
+    ["host",                  ok(((.host | type) == "object"))],
+    ["host.cpus_online",      ok(num(.host.cpus_online))],
+    ["host.mem_total_mb",     ok(num(.host.mem_total_mb))],
+    ["host.mem_available_mb", ok(num(.host.mem_available_mb))],
+    ["host.usable_mem_mb",    ok(num(.host.usable_mem_mb))],
+    ["host.swap_total_mb",    ok(num(.host.swap_total_mb))],
+    ["host.swap_free_mb",     ok(num(.host.swap_free_mb))],
+    ["host.load",             ok(((.host.load | type) == "object" and num(.host.load["1"]) and num(.host.load["5"]) and num(.host.load["15"])))],
+    ["host.psi",              ok(((.host.psi | type) == "object" and num(.host.psi.memory.some) and num(.host.psi.memory.full) and num(.host.psi.cpu.some)))],
+    ["host.cgroup",           ok(((.host.cgroup | type) == "object"))],
+    ["reserve",               ok(((.reserve | type) == "object"))],
+    ["pressure.ok",           ok(((.pressure | type) == "object" and (.pressure.ok | type) == "boolean"))],
+    ["pressure.reasons",      ok(((.pressure.reasons | type) == "array"))],
+    ["llmctl.units",          ok(((.llmctl.units | type) == "array" and all(.llmctl.units[]; (type == "object") and ((.profile | type) == "string") and ((.status | type) == "string") and ((.reasons | type) == "array"))))],
+    ["fallback.recommended",  ok(((.fallback.recommended | type) == "string" and (.fallback.recommended | IN("local", "cloud", "none"))))],
+    ["fallback.key_variable", ok(((.fallback | type) == "object" and (.fallback | has("key_variable")) and ((.fallback.key_variable | type) | IN("string", "null"))))],
+    ["unknown_profiles",      ok(((.unknown_profiles | type) == "array"))],
+    ["degraded",              ok(((.degraded | type) == "boolean"))],
+    ["largest_decision_fit",  ok((has("largest_decision_fit") and ((.largest_decision_fit | type) | IN("string", "null"))))] ]'
 
 # candidates: systemone-native decide profiles (decide capacity protocol), in order (JEV_PLACE_PROFILES wins). Sets
 # CAND_RC (0 = the list is an answer). A failed `llmctl decide capacity` is an UNDETERMINED list, never "no candidate"
@@ -207,7 +271,8 @@ inst_state() {
     | [$own[] | (.status // "")] as $sts
     | if any(.unknown_profiles[]?; . == $p) then out("unknown"; "undetermined"; 0; "unknown profile")
       elif $e == null then out("unknown"; "undetermined"; 0; "profile absent from capacity output")
-      elif ($e.threads|type) != "number" or ($e.reasons|type) != "array" then out("unknown"; "undetermined"; 0; "threads/reasons missing")
+      elif ($e|type) != "object" or ($e.threads|type) != "number" or ($e.reasons|type) != "array" or ($e.headroom|type) != "object" or ($e.verdict|type) != "string"
+        then out("unknown"; "undetermined"; 0; "contract fields of profiles.\($p) missing or wrong: \([(if ($e|type) != "object" then "the entry" else empty end), (if ($e|type) == "object" and ($e.verdict|type) != "string" then "verdict" else empty end), (if ($e|type) == "object" and ($e.threads|type) != "number" then "threads" else empty end), (if ($e|type) == "object" and ($e.reasons|type) != "array" then "reasons" else empty end), (if ($e|type) == "object" and ($e.headroom|type) != "object" then "headroom" else empty end)] | join(","))")
       elif $e.verdict == "running" then
         if ($own | length) == 0 then out("unknown"; "undetermined"; 0; "verdict running but llmctl reports no own unit \($key)")
         elif ($sts | all(. == "ok" or . == "degraded")) | not then out("unknown"; "undetermined"; 0; "unit status \($sts | join(",")) is not ok/degraded")
@@ -309,9 +374,25 @@ gateway_url() {
 }
 
 leases_load() { [ -s "$LEASES" ] && jq -e . "$LEASES" >/dev/null 2>&1 && cat "$LEASES" || echo '{"sets":{}}'; }
-# leases_save (content on stdin; caller holds the lock): the registry write, then THE one cache derivation point
-leases_save() { jev_write_atomic "$LEASES"; derive_cache || log "endpoint cache could not be derived (rc $?)"; }
-leases_hash() { if [ -f "$LEASES" ]; then cksum < "$LEASES"; else echo none; fi; }
+# leases_gen -> the registry generation: a counter every registry write by this producer increments (0: no registry yet).
+leases_gen() { local g; g="$(jq -r '(.gen // 0) | if type == "number" then floor else 0 end' "$LEASES" 2>/dev/null || true)"; case "$g" in ''|*[!0-9]*) echo 0 ;; *) echo "$g" ;; esac; }
+# leases_token -> "<gen>:<sha256 of the registry file>" (Round 7, NF-2): THE value the freshness rule compares. The
+# generation catches a write that leaves the same bytes (a refused start deleting the set it created: no ABA); the hash
+# catches a write by a producer that does not know the generation (the registry is per user and host-level, §11.4.291(J),
+# so a project with an older constitution pin writes it too, and keeps `gen` unchanged).
+leases_token() {
+  local h="none"
+  if [ -f "$LEASES" ]; then h="$(sha256sum < "$LEASES" 2>/dev/null | cut -d' ' -f1)"; [ -n "$h" ] || h="unreadable"; fi
+  printf '%s:%s\n' "$(leases_gen)" "$h"
+}
+# leases_save (content on stdin; caller holds the lock): the registry write with the next generation, then THE one cache
+# derivation point
+leases_save() {
+  local g; g="$(leases_gen)"
+  jq -c --argjson g "$(( g + 1 ))" '.gen = $g' > "$WORK/leases.next" || { log "internal: the lease registry write was not JSON; nothing written"; return 2; }
+  jev_write_atomic "$LEASES" < "$WORK/leases.next"
+  derive_cache || log "endpoint cache could not be derived (rc $?)"
+}
 
 # derive_cache (caller holds the lock): the llmctl-local entry of the endpoint cache as a pure function of leases.json
 # (R5-2). Other entries of the cache (hosted providers written by other tools) are kept. The file is rewritten only when
@@ -382,15 +463,19 @@ reap_locked() { # drops dead holders from every set (caller holds the lock); nev
       out="$(jq -c --arg p "$prof" --arg h "$h" '.sets[$p].leases |= map(select(.holder != $h))' <<<"$out")"
     fi
   done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, (.holder // ""), (.pid // "null"), (.heartbeat_at // 0), (.ttl // 0), (.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
-  # a `stopping` or `starting` mark is cleared when its process is gone (pid + start time) or the mark is older than the
-  # stop timeout + 30 s (§11.4.291(J)); the set is then judged like any other set by the next observation / acquire
+  # a `stopping` or `starting` mark is cleared when its process is gone (pid + start time) or the mark is older than
+  # MARK_TTL, the longest a LIVE marker can hold it (§11.4.291(J)); the set is then judged like any other set by an
+  # observation NEWER than the clearing: round 7 (NF-3) records the current observation counter as the set's floor
+  # (state pending), as finish_start_locked does, so an answer read before the clearing (it may predate the start the
+  # dead marker made) never judges the set (no false endpoint_gone)
   while IFS="$US" read -r prof mk sat spid sst; do
     [ -n "$prof" ] || continue
     # a mark without a pid cannot name a dead process: only its age clears it (review R2 nit RS3)
     arc=0; if [ "$spid" != "null" ] && [ -n "$spid" ]; then pid_alive "$spid" "$sst" || arc=$?; fi
-    if [ "$arc" = 1 ] || [ $(( NOW - sat )) -gt $(( STMO + 30 )) ]; then
-      log "cleared the $mk mark of $prof (its process is gone or the mark is older than the stop timeout); recovery recorded at the next observation"
-      out="$(jq -c --arg p "$prof" --arg m "$mk" --argjson now "$NOW" '.sets[$p][$m] = null | .sets[$p].mark_cleared = {mark:$m, at:$now}' <<<"$out")"
+    if [ "$arc" = 1 ] || [ $(( NOW - sat )) -gt "$MARK_TTL" ]; then
+      log "cleared the $mk mark of $prof (its process is gone or the mark is older than ${MARK_TTL}s); the set is judged by the next observation newer than this"
+      out="$(jq -c --arg p "$prof" --arg m "$mk" --argjson now "$NOW" --argjson f "$(obs_counter)" \
+        '.sets[$p][$m] = null | .sets[$p].mark_cleared = {mark:$m, at:$now} | .sets[$p].health = {state:"pending", reason:"\($m) mark cleared; not observed since", seq:$f, at:$now}' <<<"$out")"
     fi
   done < <(jq -r '.sets | to_entries[] | .key as $p | .value as $v | ("stopping", "starting") as $m | select(($v[$m] // null) != null)
                   | [$p, $m, ($v[$m].at // 0), ($v[$m].pid // "null"), ($v[$m].pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$out")
@@ -416,19 +501,21 @@ lease_json() {
 }
 
 # ---- observation (R5-2) ----------------------------------------------------------------------------------------------
-take_ticket_locked() { # caller holds the lock: next observation ticket + the lease-file hash at that moment
+take_ticket_locked() { # caller holds the lock: next observation ticket + the registry token (leases_token) at that moment
   local c=0
   [ -s "$OBSSEQ" ] && c="$(head -c 32 "$OBSSEQ" | tr -dc '0-9')"
   c=$(( ${c:-0} + 1 ))
   printf '%s\n' "$c" | jev_write_atomic "$OBSSEQ"
-  TICKET="$c"; OBS_H0="$(leases_hash)"
+  TICKET="$c"; TICKET_GEN="$(leases_token)"
 }
 obs_counter() { local c=0; [ -s "$OBSSEQ" ] && c="$(head -c 32 "$OBSSEQ" | tr -dc '0-9')"; echo "${c:-0}"; }
-# observe_read -> 0 (OBS_TICKET, OBS_H0, CAP_ST, CAP_REASON, $WORK/cap.json set) or 4 (lock timeout: nothing read)
-OBS_TICKET=""; OBS_H0=""; CAP_ST=""; CAP_REASON=""
+# observe_read -> 0 (OBS_TICKET, OBS_GEN, CAP_ST, CAP_REASON, $WORK/cap.json set) or 4 (lock timeout: nothing read).
+# OBS_GEN is the registry token (leases_token) when the ticket was taken: the capacity answer read after it describes that
+# registry.
+OBS_TICKET=""; OBS_GEN=""; CAP_ST=""; CAP_REASON=""; TICKET_GEN=""
 observe_read() {
-  TICKET=""; with_lock take_ticket_locked || return 4
-  OBS_TICKET="$TICKET"
+  TICKET=""; TICKET_GEN=""; with_lock take_ticket_locked || return 4
+  OBS_TICKET="$TICKET"; OBS_GEN="$TICKET_GEN"
   IFS="$US" read -r CAP_ST CAP_REASON < <(capacity_read)
 }
 # obs_locked (caller holds the lock; OBS_TICKET + CAP_ST from observe_read): records the instance state of every unmarked
@@ -555,28 +642,43 @@ do_stop() {
 }
 
 # ---- acquire: plan under the lock, llmctl calls outside it ------------------------------------------------------------
-# plan_locked <holder> <pid> <ttl> <leases-hash|""> (caller holds the lock; NO llmctl call). Reads $WORK/cap.json
+# plan_locked <holder> <pid> <ttl> <gen|""> <nostart 0|1> (caller holds the lock; NO llmctl call). Reads $WORK/cap.json
 # (CAP_ST, OBS_TICKET) and $WORK/cands (CAND_RC). Sets: PLAN_STOPS (lines "<profile><US><kind>", each set already marked
-# stopping), START_CANDS (lines "<profile><US><verdict><US><threads><US><reason>"), and the result F_RC / F_OUT plus the
-# placement record F_P F_V F_R F_ST F_TH F_EV F_CODE. rc 99: the lease file changed after the ticket (the caller reads
-# again).
+# stopping), START_CANDS (lines "<profile><US><verdict><US><threads><US><reason>"), BASE_GEN (the registry token the
+# start candidates were judged against; empty when there is no start candidate), and the result F_RC / F_OUT plus the
+# placement record F_P F_V F_R F_ST F_TH F_EV F_CODE. rc 99: the registry token is not <gen>, the one the capacity
+# answer was read against (the caller reads again). <nostart> 1: joins by recorded health and stops only; no adoption and
+# no start candidate (the answer could not be read against an unchanged registry, STALE_MAX times).
 declare -A DISPOSE_WHY=()
+STOP_TRIED=""; START_TRIED=""   # profiles this acquire already stopped / tried to start: never stopped / started again by it
 plan_locked() {
-  local holder="$1" pid="$2" ttl="$3" h0="$4" cur pst mark p jp v th r st hs leased cs lline ref_p="" ref_v="" ref_r="" ref_ev="" any_undet=0 foreign held=""
-  if [ -n "$h0" ] && [ "$(leases_hash)" != "$h0" ]; then return 99; fi
+  local holder="$1" pid="$2" ttl="$3" g0="$4" nostart="${5:-0}" cur pst mark p jp v th r st hs leased cs lline ref_p="" ref_v="" ref_r="" ref_ev="" any_undet=0 undet_why="" nofit_why="" foreign held=""
+  BASE_GEN=""
+  # THE freshness rule (round 7, NF-2), first seam: the answer was read against token <gen>; any registry write since
+  # (another session's start, stop, join, heartbeat or reap, or this process's own) makes it stale
+  if [ -n "$g0" ] && [ "$(leases_token)" != "$g0" ]; then return 99; fi
   PLAN_STOPS=""; START_CANDS=""; F_RC=5; F_OUT=""; F_P=""; F_V="does_not_fit"; F_R="no candidate profile fits"; F_ST=false; F_TH=0; F_EV=no_fit; F_CODE=""
   pst="$(lease_obj_args "$pid")"; mark="$(me_mark)"
-  # the https gateway read before the lock is part of the registry: the derived cache uses it
-  cur="$(leases_load)"
+  # the https gateway read before the lock is part of the registry: the derived cache uses it. Written only when it
+  # changed: every write is a new generation, and a write that changes nothing would make a concurrent acquire's answer
+  # stale for no reason (round 7)
+  cur="$(leases_load)"; jp="$cur"
   cur="$(jq -c --arg u "$GW_URL" --arg ca "$GW_CA" --arg src "$GW_SRC" '.gateway = {url:$u, ca:$ca, source:$src}' <<<"$cur")"
-  printf '%s\n' "$cur" | leases_save
-  finalize_locked 1 0
+  [ "$cur" = "$jp" ] || printf '%s\n' "$cur" | leases_save
+  # the reap is a registry write too: a dead holder dropped or a mark cleared after the capacity read makes the answer
+  # stale (a cleared mark sets a floor this answer cannot pass, NF-3), so the answer is read again (rc 99) rather than
+  # used; with <nostart> 1 (no start can follow) the plan goes on and judges by recorded health only
+  jp="$(leases_token)"
+  reap_locked
+  if [ -n "$g0" ] && [ "$(leases_token)" != "$jp" ]; then log "the reap changed the registry after the capacity read; reading it again"; return 99; fi
+  finalize_locked 0 0
   cur="$(leases_load)"
   # marks set by OTHER processes before this plan (our own marks below are added after this read)
   foreign="$(jq -r '[.sets | to_entries[] | (if (.value.starting // null) != null then "starting" elif (.value.stopping // null) != null then "stopping" else empty end)] | first // ""' <<<"$cur")"
   # (A) owed stops: a failed start whose cleanup stop failed, or a failed disposal stop (never joined; retried)
   while IFS= read -r p; do
     [ -n "$p" ] || continue
+    case " $STOP_TRIED " in *" $p "*) log "owed stop of $p: already tried by this acquire; retried by the next acquire or release"; continue ;; esac
     cur="$(jq -c --arg p "$p" --argjson m "$mark" '.sets[$p].stopping = $m' <<<"$cur")"
     PLAN_STOPS+="$p${US}owed"$'\n'
   done < <(jq -r '.sets | to_entries[] | select(((.value.start_failed // null) != null or (.value.stop_owed // null) != null) and (.value.stopping // null) == null and (.value.starting // null) == null and (.value.leases | length) == 0) | .key' <<<"$cur")
@@ -600,7 +702,7 @@ plan_locked() {
         log "lease joined: holder=$holder profile=$jp ($r)"
         return 0
       fi
-      if [ "$leased" = 0 ] && [ "$cs" = true ] && { [ "$hs" = degraded ] || [ "$hs" = absent ]; }; then
+      if [ "$leased" = 0 ] && [ "$cs" = true ] && { [ "$hs" = degraded ] || [ "$hs" = absent ]; } && ! case " $STOP_TRIED " in *" $jp "*) true ;; *) false ;; esac; then
         log "disposing $jp: no lease left, constitution-started, instance $hs ($r); bounded llmctl stop outside the lock"
         cur="$(jq -c --arg p "$jp" --argjson m "$mark" '.sets[$p].stopping = $m' <<<"$cur")"
         printf '%s\n' "$cur" | leases_save
@@ -634,6 +736,11 @@ plan_locked() {
     F_V=undetermined; F_R="candidate list undetermined: llmctl decide capacity exit $CAND_RC (R5-7: never read as no candidate)"; F_EV=undetermined
     log "undetermined: the candidate list could not be read (llmctl decide capacity exit $CAND_RC); no local start; fallback route $(fallback_route)"; return 0
   fi
+  if [ "$nostart" = 1 ]; then
+    F_V=undetermined; F_EV=undetermined; F_CODE=stale_answer
+    F_R="stale_answer: the lease registry changed between the capacity read and the plan $STALE_MAX times in a row; no adoption and no start on an answer that does not describe the registry (§11.4.291(A)(H)); the next evaluation retries"
+    log "undetermined (stale_answer): the registry changed during $STALE_MAX consecutive capacity reads; no adoption, no start; fallback route $(fallback_route)"; return 0
+  fi
   # (D) adoption first: a candidate llmctl already runs for this user (ok) and that has no set was started by someone
   # else (the operator, or a session outside this registry): join it as NOT constitution-started (never stopped by this
   # producer, §11.4.291(G)(J)); routing adds no resident footprint, so it is preferred over starting another model.
@@ -655,25 +762,41 @@ plan_locked() {
     [ -n "$p" ] || continue
     if jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null; then log "candidate $p: a lease set already exists (not joinable); skipped"; continue; fi
     case " ${DISPOSED:-} " in *" $p "*) log "candidate $p: stopped by this acquire (hold until the next evaluation, §11.4.291(D))"; held+="$p "; continue ;; esac
+    case " $START_TRIED " in *" $p "*) log "candidate $p: its start by this acquire was refused or failed; not started again by it"; continue ;; esac
     lline="$(inst_state "$p")"; IFS="$US" read -r st v th r <<<"$lline"
     case "$st:$v" in
       absent:fits|absent:fits_with_reduced_threads) START_CANDS+="$p$US$v$US$th$US$r"$'\n' ;;
       degraded:*) log "candidate $p: unit degraded ($r); not started a second time, not adopted" ;;
-      *) [ "$v" != undetermined ] || any_undet=1; log "candidate $p: $st/$v ($r)" ;;
+      *) nofit_why="${nofit_why:+$nofit_why; }$p: $r"
+         if [ "$v" = undetermined ]; then any_undet=1; undet_why="${undet_why:+$undet_why; }$p: $r"; fi; log "candidate $p: $st/$v ($r)" ;;
     esac
   done < "$WORK/cands"
-  if [ "$any_undet" = 1 ]; then F_V=undetermined; F_R="no candidate fits; at least one is undetermined"; fi
+  # N6-e (round 7): the record carries WHY each candidate is undetermined or does not fit, not only that one is
+  if [ "$any_undet" = 1 ]; then F_V=undetermined; F_R="no candidate fits; undetermined: $undet_why"
+  elif [ -n "$nofit_why" ]; then F_R="no candidate profile fits: $nofit_why"; fi
+  [ -z "$START_CANDS" ] || BASE_GEN="$(leases_token)"
   # a profile this acquire stopped is not restarted by it (no restart loop, §11.4.291(J)(6)): say so in the record
   if [ -n "$held" ]; then F_R="$F_R; held until the next evaluation (stopped by this acquire, never restarted by it): ${held% }"; fi
   return 0
 }
 
 # mark_start_locked <profile> <holder> <pid> <pid_start> <ttl> -> 0 marked (set created with a `starting` mark naming this
-# process and the holder's lease), 1 not startable any more (a set exists, or ANY set is starting or stopping - this
-# process's own marks included, R5-1)
+# process and the holder's lease); 2 STALE: the registry token is not BASE_GEN, the token the capacity answer
+# describes (round 7, NF-2: the second and last seam of the freshness rule; the caller reads a fresh answer, it never
+# starts on this one); 1 not startable (a set of this profile exists, or ANY set is starting or stopping - this
+# process's own marks included, R5-1); 3 RELEASED (round 7, optional 6th argument <held>: the set this acquire already
+# started; the holder no longer has a lease there, because it was released or the set was dropped, so this acquire
+# starts nothing more - the start-time rule of finish_start_locked (`released`) applied to every further start). The
+# release check comes first: it does not depend on the capacity answer, so a release never costs a re-read.
 mark_start_locked() {
-  local p="$1" cur
+  local p="$1" held="${6:-}" cur
   reap_locked
+  if [ -n "$held" ] && ! jq -e --arg s "$held" --arg h "$2" 'any(.sets[$s].leases[]?; .holder == $h)' <<<"$(leases_load)" >/dev/null; then
+    return 3
+  fi
+  # THE freshness rule at the mark seam: checked AFTER the reap, so a registry write by the reap itself (a dead holder
+  # dropped, a dead marker's mark cleared) is a change too
+  if [ -z "$BASE_GEN" ] || [ "$(leases_token)" != "$BASE_GEN" ]; then return 2; fi
   cur="$(leases_load)"
   if jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null; then return 1; fi
   if jq -e 'any(.sets[]?; (.starting // null) != null or (.stopping // null) != null)' <<<"$cur" >/dev/null; then return 1; fi
@@ -716,9 +839,18 @@ gw_refuse_locked() { # the refused gateway is cleared from the registry: the der
   printf '%s\n' "$cur" | leases_save
 }
 
+# cmd_acquire: plan -> stops -> starts. Round 7 (NF-2): ONE freshness rule decides every start. A capacity answer is
+# read after an observation ticket that records the registry token (leases_token: generation + hash); plan_locked
+# (seam 1) and mark_start_locked (seam 2) refuse an answer whose token is not the current one. A stale answer is never
+# started on: the first start re-plans on a fresh answer (a join then wins over a start), a further start
+# (JEV_PLACE_MAX > 1) reads a fresh answer again. Every registry write is a new token, this process's own included, so a
+# stop this acquire made, a refused start and a failed start all lead to a fresh answer before the next start.
+# Bounded: STALE_MAX re-reads per plan (then a plan with joins and stops only), STALE_MAX re-plans after a stale mark
+# (then no start, reason stale_answer), and a profile is stopped or start-tried at most once per acquire (STOP_TRIED,
+# START_TRIED), which bounds the other re-plans.
 cmd_acquire() {
-  local holder="$1" pid="$2" ttl="$3" rc tries round p kind v th r st src started=0 n=0 prof="" pst mrc frc i
-  local out_v="" out_ev="" out_r="" out_p="" out_th=0 stops_done
+  local holder="$1" pid="$2" ttl="$3" rc tries p kind v th r st src started=0 n=0 prof="" pst mrc frc i nostart stale_n=0 replan k
+  local out_v="" out_ev="" out_r="" out_p="" out_th=0
   pst="$(lease_obj_args "$pid")"
   if ! gateway_url; then
     log "gateway refused: $GW_WHY; no local placement"
@@ -728,91 +860,138 @@ cmd_acquire() {
     return 5
   fi
   candidates > "$WORK/cands"
-  DISPOSED=""
-  for round in 1 2; do
-    stops_done=0; tries=0
+  DISPOSED=""; STOP_TRIED=""; START_TRIED=""
+  while :; do
+    tries=0; nostart=0
     while :; do
       observe_read || return 4
-      rc=0; if [ "$tries" -lt 3 ]; then with_lock plan_locked "$holder" "$pid" "$ttl" "$OBS_H0" || rc=$?; else with_lock plan_locked "$holder" "$pid" "$ttl" "" || rc=$?; fi
-      if [ "$rc" = 99 ]; then tries=$((tries+1)); log "the lease file changed during the capacity read; reading it again ($tries)"; continue; fi
+      rc=0
+      if [ "$nostart" = 0 ]; then with_lock plan_locked "$holder" "$pid" "$ttl" "$OBS_GEN" 0 || rc=$?
+      else with_lock plan_locked "$holder" "$pid" "$ttl" "" 1 || rc=$?; fi
+      if [ "$rc" = 99 ]; then
+        tries=$((tries+1))
+        if [ "$tries" -ge "$STALE_MAX" ]; then nostart=1; log "the lease registry changed during $tries consecutive capacity reads; planning joins only (no adoption, no start)"
+        else log "the lease registry changed during the capacity read; reading it again ($tries)"; fi
+        continue
+      fi
       break
     done
     if [ "$rc" = 4 ]; then return 4; fi
     while IFS="$US" read -r p kind; do
       [ -n "$p" ] || continue
+      STOP_TRIED+=" $p"
       [ "$kind" != dispose ] || DISPOSED+=" $p"
-      if do_stop "$p" "$kind"; then stops_done=1; fi
+      do_stop "$p" "$kind" || true
     done <<<"$PLAN_STOPS"
-    # a model was stopped: the budget changed, so a start is decided on a fresh answer (once); a join is final
-    if [ "$stops_done" = 1 ] && [ "$F_RC" != 0 ] && [ "$round" = 1 ]; then log "a model was stopped; reading the capacity answer again before a start"; continue; fi
-    break
-  done
-  if [ "$F_RC" = 0 ]; then
-    record_placement "$F_P" "$F_V" "$F_R" "$(current_route)" "$F_ST" "$F_TH" "$F_EV"
-    echo "$F_OUT"; return 0
-  fi
-  while IFS="$US" read -r p v th r; do
-    [ -n "$p" ] || continue
-    [ "$n" -lt "$MAXN" ] || break
-    if [ "$n" -gt 0 ]; then
-      # R5-1: a model started by THIS acquire is resident now; the next start is judged on a fresh answer
-      log "candidate $p: reading a fresh capacity answer (a model started by this acquire is resident now)"
-      IFS="$US" read -r CAP_ST CAP_REASON < <(capacity_read)
-      if [ "$CAP_ST" != ok ]; then log "candidate $p: the fresh answer is undetermined ($CAP_REASON); no further start"; break; fi
-      IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
-      case "$st:$v" in absent:fits|absent:fits_with_reduced_threads) ;; *) log "candidate $p: $st/$v on the fresh answer ($r); not started"; continue ;; esac
+    if [ "$F_RC" = 0 ]; then
+      record_placement "$F_P" "$F_V" "$F_R" "$(current_route)" "$F_ST" "$F_TH" "$F_EV"
+      echo "$F_OUT"; return 0
     fi
-    mrc=0; with_lock mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" || mrc=$?
-    if [ "$mrc" = 4 ]; then
-      if [ "$n" = 0 ]; then return 4; fi
-      log "candidate $p: lease lock timeout before its start mark; no further start"; break
-    fi
-    if [ "$mrc" != 0 ]; then log "candidate $p: no longer startable (a set exists or a set is starting/stopping)"; continue; fi
-    src=0; bounded "$STMO" "$WORK/start.out" "$LLMCTL" start "$p" || src=$?
-    START_RES=""; frc=4; i=0
-    while [ "$i" -lt "$RETRIES" ]; do
-      frc=0; with_lock finish_start_locked "$p" "$src" || frc=$?
-      [ "$frc" = 4 ] || break
-      i=$((i+1)); log "record step for llmctl start $p (rc $src): lock wait $i/$RETRIES timed out"
-    done
-    if [ "$frc" != 0 ]; then
-      if [ "$src" = 0 ]; then
-        started=1; n=$((n+1)); prof="${prof:-$p}"
-        out_p="$prof"; out_v="$v"; out_ev=placed; out_th="$th"
-        out_r="lease held, start recorded late: llmctl start $p rc 0; the record step could not take the lock ($RETRIES waits of ${LOCK_TMO}s)"
-        log "lease held, start recorded late: llmctl start $p rc 0, but the record step could not take the lease lock ($RETRIES waits of ${LOCK_TMO}s). The lease of $holder is in the registry since the start mark; the starting mark is cleared once this process is gone and the next observation routes the set. No further candidate is started."
-        break
-      fi
-      log "llmctl start $p rc $src: its result could not be recorded ($RETRIES lock waits); the registry may still hold the lease of $holder under the starting mark: release it. No further candidate is started."
-      if [ "$n" = 0 ]; then return 4; fi
-      break
-    fi
-    case "$START_RES" in
-      placed)
-        started=1; n=$((n+1)); prof="${prof:-$p}"
-        out_p="$prof"; out_v="$v"; out_ev=placed; out_r="$r"; out_th="$th"
-        log "started $p ($v, threads=$th); lease holder=$holder; it is routed once an observation newer than the start reads its unit ok" ;;
-      released)
-        log "started $p but its lease was released during the start; stopping it again; no further candidate is started"
-        do_stop "$p" release || true
-        break ;;
-      refused)
-        log "llmctl start $p refused (75): does_not_fit"
-        [ "$out_ev" = start_failed ] || { out_v="does_not_fit"; out_ev="start_refused"; out_r="llmctl start $p refused (75, pressure gate)"; out_p="$p"; out_th="$th"; } ;;
-      failed)
-        log "llmctl start $p failed rc=$src: $(head -c 300 "$WORK/start.out.err" 2>/dev/null | tr '\n' ' ')"
-        # the capacity verdict stays what was MEASURED; the failure is the event (review 2026-11-12 F5)
-        out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src"; out_p="$p"; out_th="$th"
-        # Live T5 (2026-11-12): llmctl can fail AFTER the unit began starting; the unit was not running before (its
-        # state was absent), so this producer started it and stops it again. 75 (no partial start) needs nothing.
-        log "start of $p failed after it was requested; stopping it again so no unit is left without a lease"
-        if ! do_stop "$p" cleanup; then
-          out_r="llmctl start $p failed rc=$src; cleanup stop failed (set kept, stop retried)"
-          log "the cleanup stop of $p failed: the model may be resident, so no further candidate is started"
+    replan=0
+    if [ -n "$PLAN_STOPS" ]; then
+      # a stop by this acquire changed the budget and wrote the registry (its answer is stale, seam 2 would refuse it):
+      # plan again on a fresh answer, which can join, or start what the freed budget allows; a profile is stopped at most
+      # once per acquire (STOP_TRIED), so this repeats a bounded number of times
+      replan=1; log "this acquire stopped a model; reading the capacity answer again (a fresh plan) before any start"
+    elif [ -n "$START_CANDS" ]; then
+      while IFS="$US" read -r p v th r; do
+        [ -n "$p" ] || continue
+        [ "$n" -lt "$MAXN" ] || break
+        if [ "$n" -gt 0 ]; then
+          # a model started by THIS acquire is resident now: the next start is judged on a fresh answer, read after a
+          # ticket, so seam 2 can tell when the registry moved after it
+          mrc=6; k=0
+          while [ "$k" -lt "$STALE_MAX" ]; do
+            log "candidate $p: reading a fresh capacity answer (a model started by this acquire is resident now)"
+            observe_read || { mrc=4; break; }
+            if [ "$CAP_ST" != ok ]; then log "candidate $p: the fresh answer is undetermined ($CAP_REASON); no further start"; mrc=5; break; fi
+            IFS="$US" read -r st v th r <<<"$(inst_state "$p")"
+            case "$st:$v" in absent:fits|absent:fits_with_reduced_threads) ;; *) log "candidate $p: $st/$v on the fresh answer ($r); not started"; mrc=1; break ;; esac
+            BASE_GEN="$OBS_GEN"
+            # the 6th argument: the lease this acquire holds is the authority for every further start (rc 3 when gone)
+            mrc=0; with_lock mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" "$prof" || mrc=$?
+            [ "$mrc" = 2 ] || break
+            k=$((k+1)); log "candidate $p: the registry changed after the fresh capacity read; reading it again ($k)"
+          done
+          case "$mrc" in
+            0) ;;
+            1) log "candidate $p: not started (not fitting on the fresh answer, a set exists, or a set is starting/stopping)"; continue ;;
+            2) log "candidate $p: the registry kept changing ($STALE_MAX fresh reads, stale_answer); no further start"; break ;;
+            3) log "candidate $p: not started: the lease of $holder on $prof, taken by this acquire, is gone (released, or the set was dropped); no further start"; break ;;
+            4) log "candidate $p: lease lock timeout; no further start"; break ;;
+            *) break ;;
+          esac
+        else
+          mrc=0; with_lock mark_start_locked "$p" "$holder" "$pid" "$pst" "$ttl" || mrc=$?
+          if [ "$mrc" = 4 ]; then return 4; fi
+          if [ "$mrc" = 2 ]; then
+            if [ "$stale_n" -ge "$STALE_MAX" ]; then
+              log "undetermined (stale_answer): the lease registry changed between the capacity read and the start mark $((stale_n+1)) times; no start by this acquire"
+              out_p=""; out_v=undetermined; out_ev=undetermined; out_th=0; F_CODE=stale_answer
+              out_r="stale_answer: the lease registry changed between the capacity read and the start mark $((stale_n+1)) times; no start on an answer that does not describe the registry (§11.4.291(A)(H)); the next evaluation retries"
+              break
+            fi
+            stale_n=$((stale_n+1)); replan=1
+            log "candidate $p: the lease registry changed after the capacity read (stale answer); planning again on a fresh answer ($stale_n)"
+            break
+          fi
+          # 1: the registry is the one the answer describes (the token is unchanged), so the next candidate is judged
+          # on the same answer
+          if [ "$mrc" != 0 ]; then log "candidate $p: no longer startable (a set exists or a set is starting/stopping)"; continue; fi
+        fi
+        src=0; bounded "$STMO" "$WORK/start.out" "$LLMCTL" start "$p" || src=$?
+        START_RES=""; frc=4; i=0
+        while [ "$i" -lt "$RETRIES" ]; do
+          frc=0; with_lock finish_start_locked "$p" "$src" || frc=$?
+          [ "$frc" = 4 ] || break
+          i=$((i+1)); log "record step for llmctl start $p (rc $src): lock wait $i/$RETRIES timed out"
+        done
+        if [ "$frc" != 0 ]; then
+          if [ "$src" = 0 ]; then
+            started=1; n=$((n+1)); prof="${prof:-$p}"
+            out_p="$prof"; out_v="$v"; out_ev=placed; out_th="$th"
+            out_r="lease held, start recorded late: llmctl start $p rc 0; the record step could not take the lock ($RETRIES waits of ${LOCK_TMO}s)"
+            log "lease held, start recorded late: llmctl start $p rc 0, but the record step could not take the lease lock ($RETRIES waits of ${LOCK_TMO}s). The lease of $holder is in the registry since the start mark; the starting mark is cleared once this process is gone and the next observation routes the set. No further candidate is started."
+            break
+          fi
+          log "llmctl start $p rc $src: its result could not be recorded ($RETRIES lock waits); the registry may still hold the lease of $holder under the starting mark: release it. No further candidate is started."
+          if [ "$n" = 0 ]; then return 4; fi
           break
-        fi ;;
-    esac
-  done <<<"$START_CANDS"
+        fi
+        case "$START_RES" in
+          placed)
+            started=1; n=$((n+1)); prof="${prof:-$p}"
+            out_p="$prof"; out_v="$v"; out_ev=placed; out_r="$r"; out_th="$th"
+            log "started $p ($v, threads=$th); lease holder=$holder; it is routed once an observation newer than the start reads its unit ok" ;;
+          released)
+            log "started $p but its lease was released during the start; stopping it again; no further candidate is started"
+            do_stop "$p" release || true
+            break ;;
+          refused)
+            log "llmctl start $p refused (75): does_not_fit"
+            START_TRIED+=" $p"
+            [ "$out_ev" = start_failed ] || { out_v="does_not_fit"; out_ev="start_refused"; out_r="llmctl start $p refused (75, pressure gate)"; out_p="$p"; out_th="$th"; }
+            # the refused start removed its set (a registry write): the next start needs a fresh answer
+            if [ "$n" = 0 ]; then replan=1; break; fi ;;
+          failed)
+            log "llmctl start $p failed rc=$src: $(head -c 300 "$WORK/start.out.err" 2>/dev/null | tr '\n' ' ')"
+            START_TRIED+=" $p"
+            # the capacity verdict stays what was MEASURED; the failure is the event (review 2026-11-12 F5)
+            out_v="$v"; out_ev="start_failed"; out_r="llmctl start $p failed rc=$src"; out_p="$p"; out_th="$th"
+            # Live T5 (2026-11-12): llmctl can fail AFTER the unit began starting; the unit was not running before (its
+            # state was absent), so this producer started it and stops it again. 75 (no partial start) needs nothing.
+            log "start of $p failed after it was requested; stopping it again so no unit is left without a lease"
+            if ! do_stop "$p" cleanup; then
+              out_r="llmctl start $p failed rc=$src; cleanup stop failed (set kept, stop retried)"
+              log "the cleanup stop of $p failed: the model may be resident, so no further candidate is started"
+              break
+            fi
+            if [ "$n" = 0 ]; then replan=1; break; fi ;;
+        esac
+      done <<<"$START_CANDS"
+    fi
+    [ "$replan" = 1 ] || break
+  done
   if [ "$started" = 1 ]; then
     # observe the started model(s): the set is routed only after an observation newer than its start (derive_cache)
     if observe_read; then frc=0; with_lock finalize_locked 0 0 || frc=$?; [ "$frc" = 0 ] || log "the observation after the start could not be recorded (lock rc $frc); the next observation routes the set"
@@ -820,7 +999,7 @@ cmd_acquire() {
     record_placement "$out_p" "$out_v" "$out_r" "$(current_route)" true "$out_th" placed
     echo "$prof"; return 0
   fi
-  if [ -n "$out_ev" ]; then F_P="$out_p"; F_V="$out_v"; F_R="$out_r"; F_TH="$out_th"; F_EV="$out_ev"; F_CODE=""; fi
+  if [ -n "$out_ev" ]; then F_P="$out_p"; F_V="$out_v"; F_R="$out_r"; F_TH="$out_th"; F_EV="$out_ev"; [ "$out_ev" = undetermined ] || F_CODE=""; fi
   record_placement "$F_P" "$F_V" "$F_R" "$(fallback_route)" false "$F_TH" "$F_EV" "$F_CODE"
   log "no local placement ($F_EV); fallback route $(fallback_route)"; return 5
 }
@@ -912,7 +1091,9 @@ case "$sub" in
     if [ "${1:-}" = "--json" ]; then jq -nc --slurpfile l <(leases_load) --slurpfile p <( [ -f "$PLACEMENT" ] && cat "$PLACEMENT" || echo '{}') --arg route "$(current_route)" '{leases:$l[0], placement:($p[0].placement // null), route:$route}'
     else leases_load | jq -r '.sets | to_entries[] | "\(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null) starting=\((.value.starting // null) != null) health=\(.value.health.state // "unobserved")"'
       echo "route: $(current_route)"
-      [ -f "$PLACEMENT" ] && jq -r '.placement | "placement: profile=\(.profile) verdict=\(.verdict) event=\(.event) route=\(.route) reason=\(.reason)"' "$PLACEMENT"; fi ;;
+      # N6-b (round 7): no placement record yet is a state to report, not a failure (status exits 0)
+      if [ -f "$PLACEMENT" ]; then jq -r '.placement | "placement: profile=\(.profile) verdict=\(.verdict) event=\(.event) route=\(.route) reason=\(.reason)"' "$PLACEMENT"
+      else echo "placement: none recorded yet"; fi; fi ;;
   ""|-h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; [ -n "$sub" ] && exit 0 || exit 2 ;;
   enable|disable|switch|auto) echo "jev-place: '$sub' is never run by the constitution (§11.4.291(G))" >&2; exit 2 ;;
   *) echo "jev-place: unknown subcommand '$sub'" >&2; exit 2 ;;
