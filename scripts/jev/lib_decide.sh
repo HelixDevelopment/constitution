@@ -178,37 +178,83 @@ _jev_shell_words() { # _jev_shell_words <string> -> globals _JW (tokens), _JK (w
 }
 _jev_is_assignment() { [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; }
 _jev_is_prefix_word() { [[ "$1" == '!' || "$1" == '{' || "$1" == '}' || "$1" == 'if' || "$1" == 'then' || "$1" == 'else' \
-  || "$1" == 'elif' || "$1" == 'do' || "$1" == 'while' || "$1" == 'until' || "$1" == 'time' || "$1" == 'exec' ]]; }
+  || "$1" == 'elif' || "$1" == 'do' || "$1" == 'while' || "$1" == 'until' ]]; }
 _jev_is_interpreter() { [[ "$1" == sh || "$1" == bash || "$1" == zsh || "$1" == dash ]]; }
-_jev_simple_runs_gate() { # _jev_simple_runs_gate <depth> <word>... -> 0 when this simple command runs jev-gate.sh
-  local d="$1" b; shift
+# _jev_simple_runs_gate <depth> <word>... -> 0 when this simple command runs jev-gate.sh. The wrappers it follows are a CLOSED
+# list (review R4-4): env, exec (-a NAME, -c, -l), command (-p; -v and -V only print, so they never run it), nice (-n N, -N,
+# --adjustment=N), nohup, time (-p), timeout (its options, then the DURATION), and sh/bash/zsh/dash, whose option cluster
+# containing c runs the next word as a script and whose noexec (-n in a cluster, -o noexec) only checks the syntax. Any other
+# command word is the command itself. A conditional (`false && ...`) cannot be decided statically; it counts as wiring.
+_jev_simple_runs_gate() {
+  local d="$1" b noexec=0; shift
   while [ $# -gt 0 ] && { _jev_is_prefix_word "$1" || _jev_is_assignment "$1"; }; do shift; done
   [ $# -gt 0 ] || return 1
   b="${1##*/}"
-  if [ "$b" = env ]; then
-    shift
-    while [ $# -gt 0 ]; do
-      if [[ "$1" == -u || "$1" == -C || "$1" == --unset || "$1" == --chdir ]]; then shift; [ $# -gt 0 ] && shift
-      elif [ "$1" = -- ]; then shift; break
-      elif [[ "$1" == -* ]] || _jev_is_assignment "$1"; then shift
-      else break; fi
-    done
-    _jev_simple_runs_gate "$d" "$@"; return
-  fi
+  case "$b" in
+    env) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -u || "$1" == -C || "$1" == --unset || "$1" == --chdir ]]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" == -* ]] || _jev_is_assignment "$1"; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    exec) shift
+      while [ $# -gt 0 ]; do
+        if [ "$1" = -a ]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-[cl]+$ ]]; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    command) shift
+      while [ $# -gt 0 ]; do
+        if [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-[pvV]+$ ]]; then [[ "$1" == *[vV]* ]] && return 1; shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    nice) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -n || "$1" == --adjustment ]]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" =~ ^-n?-?[0-9]+$ || "$1" == --adjustment=* ]]; then shift
+        else break; fi
+      done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    nohup) shift; [ "${1:-}" = -- ] && shift
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    time) shift
+      while [[ "${1:-}" == -p || "${1:-}" == -- ]]; do shift; done
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+    timeout) shift
+      while [ $# -gt 0 ]; do
+        if [[ "$1" == -s || "$1" == -k || "$1" == --signal || "$1" == --kill-after ]]; then shift; [ $# -gt 0 ] && shift
+        elif [ "$1" = -- ]; then shift; break
+        elif [[ "$1" == -* ]]; then shift
+        else break; fi
+      done
+      [ $# -gt 0 ] || return 1; shift   # the DURATION; the command follows it
+      _jev_simple_runs_gate "$d" "$@"; return ;;
+  esac
   if _jev_is_interpreter "$b"; then
     shift
     while [ $# -gt 0 ]; do
       if [[ "$1" == -o || "$1" == +o || "$1" == -O || "$1" == +O || "$1" == --rcfile || "$1" == --init-file ]]; then
+        [[ "$1" == -o && "${2:-}" == noexec ]] && noexec=1
         shift; [ $# -gt 0 ] && shift
       elif [ "$1" = -- ]; then shift; break
       elif [[ "$1" =~ ^[-+][A-Za-z]*c[A-Za-z]*$ ]]; then
+        [[ "$1" =~ ^-[A-Za-z]*n ]] && noexec=1
+        [ "$noexec" = 0 ] || return 1
         shift
         { [ $# -gt 0 ] && [ "$d" -lt 3 ]; } || return 1
         _jev_cmd_runs_gate "$1" $((d+1)); return
+      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then [[ "$1" == *n* ]] && noexec=1; shift
       elif [[ "$1" == -* || "$1" == +* ]]; then shift
       else break; fi
     done
-    [ $# -gt 0 ] && [ "${1##*/}" = jev-gate.sh ]; return
+    [ "$noexec" = 0 ] && [ $# -gt 0 ] && [ "${1##*/}" = jev-gate.sh ]; return
   fi
   [ "$b" = jev-gate.sh ]
 }

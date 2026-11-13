@@ -9,6 +9,7 @@
 #   F3 CM-JEV-DETECTION clause 6: an endpoint with an EMPTY id that claims reachable=true is still probe-replayed.
 #   F4 CM-JEV-DETECTION clause 8: an endpoint with an EMPTY id, a key variable and reachable=null is still checked.
 #   F5 jev-calibrate: a decision whose answer is "" keeps its endpoint|model attribution.
+#   F6 (round 5, N1) STATIC: no Jev read site (scripts/jev, the skill, the cm_jev gates) reads with IFS=TAB.
 # Keys are DUMMY values. Evidence class: gate-logic / unit (§11.4.289(C)(2)): stub tools, fixture records, no network.
 set -uo pipefail
 export HELIX_TEST_MODE=1
@@ -63,4 +64,18 @@ bash "$RUT/scripts/jev/jev-calibrate.sh" --now --sample 100 >"$T/f5.out" 2>"$T/f
 THR="$JEV_CONFIG_DIR/jev-thresholds.json"
 assert_eq "12" "$(jq -r '.per_endpoint["typesafe|jev-latest"].gate.n // "absent"' "$THR" 2>/dev/null || echo missing)" "F5 empty answers keep their endpoint|model (typesafe|jev-latest n=12)"
 assert_eq "absent" "$(jq -r '.per_endpoint["unknown|unknown"].gate.n // "absent"' "$THR" 2>/dev/null || echo missing)" "F5 nothing is mis-attributed to unknown|unknown"
+
+# ---- F6 (round 5, review N1): no Jev read site splits on TAB any more ----
+# The two register.sh sites (the effective mode, the MCP mode rows) read two fields whose first one is never empty, so no
+# shift is reachable with today's producers; the check keeps the convention for every read site so a third field cannot
+# reintroduce the collapse. Comment lines do not count. CONTROLS: a planted TAB read is found, a \x1f read is not.
+tabreads() { grep -HnF "IFS=\$'\\t' read" "$@" 2>/dev/null | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' || true; }
+mapfile -t _srcs < <(find "$RUT/scripts/jev" "$RUT/skills/jev-decision-layer" -type f -name '*.sh' 2>/dev/null; ls "$RUT"/scripts/gates/cm_jev*.sh 2>/dev/null)
+assert_ne "0" "${#_srcs[@]}" "F6 the scan sees the Jev sources (${#_srcs[@]})"
+_tr="$(tabreads "${_srcs[@]}")"
+if [ -z "$_tr" ]; then ok "F6 no Jev read site uses IFS=TAB"; else fail "F6 TAB read sites remain: $(printf '%s' "$_tr" | sed "s|$RUT/||" | tr '\n' ' ' | cut -c1-300)"; fi
+_pd="$(mktemp -d)"; _JEV_FIXTURE_DIRS+=("$_pd")
+printf '%s\n' '#!/bin/sh' "IFS=\$'\\t' read -r a b <x" > "$_pd/planted.sh"; printf '%s\n' '#!/bin/sh' "IFS=\$'\\x1f' read -r a b <x" > "$_pd/clean.sh"
+assert_eq "1" "$(tabreads "$_pd/planted.sh" | grep -c .)" "F6 CONTROL: a planted TAB read is found"
+assert_eq "0" "$(tabreads "$_pd/clean.sh" | grep -c .)" "F6 CONTROL: a unit-separator read is not"
 finish

@@ -120,6 +120,27 @@ for c in "/usr/bin/env bash /x/jev-gate.sh" "bash -c '/x/jev-gate.sh'" "bash -c 
          "sh -c 'exec bash /x/jev-gate.sh'" "\"/x/a b/jev-gate.sh\""; do
   assert_eq wired "$(w8 "$c")" "S9 command [$c] is wiring"
 done
+# S10 (round 5, review R4-4 and the surviving mutant R4M12) the CLOSED list of wrappers the matcher follows: env, exec
+# (-a NAME, -c, -l), command (-p; -v/-V only print), nice (-n N, -N, --adjustment=N), nohup, time (-p), timeout (its options,
+# then the DURATION), and sh/bash/zsh/dash with any option cluster containing c (-c, -lc, -ec). An interpreter run with
+# noexec (-n in a cluster, or -o noexec) only checks the syntax: it never runs the gate. A conditional such as
+# `false && /x/jev-gate.sh` cannot be decided by a static matcher and stays counted as wiring (named in the gate message).
+# The -lc / -ec rows whose script has more than one word decide the recursion: a script that is only the gate path would
+# also pass the plain file-operand check, so it cannot tell a recursing matcher from one that only knows -c (mutant M02).
+for c in "exec -a jevgate /x/jev-gate.sh" "exec -- /x/jev-gate.sh" "exec -cl /x/jev-gate.sh" "nice -n 5 /x/jev-gate.sh" "nice /x/jev-gate.sh" \
+         "nice -5 /x/jev-gate.sh" "nice --adjustment=3 /x/jev-gate.sh" "timeout 5 /x/jev-gate.sh" "timeout -s KILL -k 2 5 /x/jev-gate.sh" \
+         "timeout --signal=TERM --preserve-status 5s /x/jev-gate.sh" "command /x/jev-gate.sh" "command -p /x/jev-gate.sh" \
+         "bash -lc '/x/jev-gate.sh'" "bash -ec '/x/jev-gate.sh'" "sh -xc '/x/jev-gate.sh'" "nohup /x/jev-gate.sh" "time -p /x/jev-gate.sh" \
+         "nice -n 5 timeout 5 env A=1 /x/jev-gate.sh" "exec -a g bash -lc 'nice /x/jev-gate.sh'" \
+         "bash -lc '/x/jev-gate.sh --pre'" "bash -ec 'cd /x && ./jev-gate.sh pre'"; do
+  assert_eq wired "$(w8 "$c")" "S10 command [$c] is wiring"
+done
+for c in "bash -n /x/jev-gate.sh" "sh -n /x/jev-gate.sh" "bash -en /x/jev-gate.sh" "bash -o noexec /x/jev-gate.sh" "bash -nc '/x/jev-gate.sh'" \
+         "command -v /x/jev-gate.sh" "command -V jev-gate.sh" "timeout 5" "timeout /x/jev-gate.sh" "nice -n /x/jev-gate.sh" \
+         "exec -a /x/jev-gate.sh other-tool" "nohup echo /x/jev-gate.sh" "time -p cat /x/jev-gate.sh" "exec" \
+         "bash -lc 'echo /x/jev-gate.sh'" "sh -ec 'cat /x/jev-gate.sh'"; do
+  assert_eq unwired "$(w8 "$c")" "S10 command [$c] is NOT wiring"
+done
 # a stale ~/.claude-* dir (no PreToolUse entry, only a mention / a disabled hook) never makes the claude clause pass
 JH8="$T/jh8"; mkdir -p "$JH8/.claude-old" "$JH8/.claude-shared"
 printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"/x/jev-gate.sh.disabled"}]}]},"note":"jev-gate.sh"}\n' > "$JH8/.claude-old/settings.json"

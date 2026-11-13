@@ -280,7 +280,7 @@ echo "Consent: $( [ "$CONSENT" = null ] && echo "no record (bootstrap has not ru
 echo "Wiring: claude=$(jq -r .claude <<<"$WIRING") (a PreToolUse hook referencing jev-gate.sh)"
 jq -r '.claude_settings[]? | "  - \(.file): \(if .wired then "wired" else "not wired" end)"' <<<"$WIRING"
 echo "Placement: $( [ "$PLACEMENT" = null ] && echo "none" || jq -r '"profile=\(.profile) verdict=\(.verdict) event=\(.event // "-") route=\(.route) reason=\(.reason // "-")"' <<<"$PLACEMENT")"
-[ "$LEASES" = null ] || jq -r '.sets | to_entries[] | "  lease set \(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null)"' <<<"$LEASES"
+[ "$LEASES" = null ] || jq -r '.sets | to_entries[] | "  lease set \(.key): leases=\(.value.leases|length) constitution_started=\(.value.constitution_started) stopping=\(.value.stopping != null) starting=\(.value.starting != null)"' <<<"$LEASES"
 echo ""
 
 echo "Bootstrap:"

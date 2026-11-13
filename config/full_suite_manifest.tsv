@@ -843,6 +843,7 @@ tests/jev/test_hosted_key_discovery.sh	sh	member	default	-	tests/jev/run_all.sh	
 tests/jev/test_jev_status.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_jev_status_health.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_mcp_register_hardening.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
+tests/jev/test_no_real_tools.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_post_update_hook_trigger.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_review_fixes_r2.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh

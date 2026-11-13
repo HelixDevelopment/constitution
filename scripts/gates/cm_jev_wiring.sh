@@ -42,7 +42,7 @@ if [ "${#_cdirs[@]}" -gt 0 ]; then
     { [ -f "$_cd/.mcp.json" ] && jq -e '.mcpServers.jev' "$_cd/.mcp.json" >/dev/null 2>&1; } && _mcp=1
     { [ -f "$_cd/settings.json" ] && jq -e '.mcpServers.jev' "$_cd/settings.json" >/dev/null 2>&1; } && _mcp=1
   done
-  [ "$_hook" = 1 ] || err "claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh (inspected: ${_cdirs[*]})"
+  [ "$_hook" = 1 ] || err "claude: settings.json lacks a PreToolUse hook entry referencing jev-gate.sh (inspected: ${_cdirs[*]}; recognised forms: the command itself or behind env, exec, command, nice, nohup, time, timeout, or sh/bash/zsh/dash [-c]; bash -n and command -v do not run it)"
   [ "$_mcp" = 1 ] || err "claude: MCP server 'jev' not registered (.mcp.json or settings.json)"
 fi
 

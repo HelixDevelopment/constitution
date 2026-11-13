@@ -1,32 +1,87 @@
 #!/usr/bin/env bash
 # Stub: llmctl for the S4 placement producer gate-logic tests (scripts/jev/jev-place.sh). GATE-LOGIC ONLY (§11.4.289(C)(2)):
 # it proves the producer decides correctly on a declared capacity answer; it is never evidence that a local model runs.
-#   capacity --json          -> $PLACE_CAP_JSON, exit ${PLACE_CAP_RC:-0}; PLACE_CAP_SLEEP seconds first (timeout cases).
-#                               Round 3: a profile this stub "runs" ($STUB_LOG/running.<p>) and that the file does not list in
-#                               .llmctl.units is reported as a unit with status ${PLACE_UNIT_STATUS:-running}, like llmctl
-#                               reports a started unit (PLACE_CAP_RAW=1 returns the file unchanged)
+#
+# Round 5 (review R4-2, §11.4.276(B)): the answer has the SHAPE of the pinned llmctl (submodules/llmctl @ 391d8177,
+# lib/capacity.sh; the derivation is docs/qa/jev_s3s4_20261112/round5/ground_truth.md). The round-4 stub reported a started
+# unit with status `running` and kept a `fits` verdict for a running profile; llmctl never emits either.
+#
+#   capacity --json   PLACE_CAP_JSON is a capacity document for the profiles as NEW starts (verdicts fits /
+#                     fits_with_reduced_threads / does_not_fit / undetermined) plus any units declared in .llmctl.units
+#                     (operator-started or foreign units, in llmctl's shape: unit, profile, owner, status, reasons).
+#                     The stub then applies llmctl's own rules:
+#                       * a profile this stub runs ($STUB_LOG/running.<key>, key = <LLMCTL_TENANT_ID>--<p> or <p>) is a
+#                         unit {unit:"llmctl-llama@<key>.service", profile:<key>, owner:"self"} with status `ok`, or
+#                         `degraded` when <key> is listed in PLACE_DEGRADED (comma list) or host pressure is present
+#                         (lib/capacity.sh:461: every unit starts with the pressure reasons);
+#                       * a profile whose <key> is listed in PLACE_GONE (comma list) has no unit at all: the unit crashed
+#                         or was stopped outside the producer (the running.<key> file is kept; nothing is deleted);
+#                       * a declared unit gets the pressure reasons too (and status degraded) when pressure is present;
+#                       * a profile whose own unit (owner self, profile == key) is up gets verdict `running`,
+#                         verdict_class null, running true, threads 0, reasons ["already running", ...pressure]
+#                         (lib/capacity.sh:503-534);
+#                       * .degraded = any unit degraded; exit 75 when measurement.ok is false, 3 when degraded, else 0
+#                         (capacity_exit_code, lib/capacity.sh:634-642). PLACE_CAP_RC overrides the exit status.
+#                     PLACE_CAP_RAW=1 (or a file that is not JSON) returns the file unchanged, exit ${PLACE_CAP_RC:-0}.
+#                     PLACE_CAP_SLEEP seconds first (timeout cases).
 #   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x)
 #   decide status --json     -> a gateway registry entry (https://127.0.0.1:18095)
-#   start <p>                -> exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<p>
-#   stop <p>                 -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<p> only on rc 0
+#   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>
+#   stop <p>           -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<key> only on rc 0
 #   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
+# Every call is logged to $STUB_LOG/llmctl.log. A call made while the CALLER holds the placement lease lock (an open file
+# descriptor on $JEV_STATE_DIR/placement.lock is inherited by this process) is ALSO logged as "LOCKHELD llmctl ..."
+# (review R4-3: no llmctl call may run under the lease lock).
 set -euo pipefail
 logdir="${STUB_LOG:?STUB_LOG must be set}"
 printf '%s\n' "llmctl $*" >> "$logdir/llmctl.log"
+if [ -n "${JEV_STATE_DIR:-}" ] && [ -d /proc/$$/fd ]; then
+  lockp="$JEV_STATE_DIR/placement.lock"
+  for fd in /proc/$$/fd/*; do
+    [ "$(readlink "$fd" 2>/dev/null || true)" = "$lockp" ] && { printf '%s\n' "LOCKHELD llmctl $*" >> "$logdir/llmctl.log"; break; }
+  done
+fi
+key() { if [ -n "${LLMCTL_TENANT_ID:-}" ]; then printf '%s--%s' "$LLMCTL_TENANT_ID" "$1"; else printf '%s' "$1"; fi; }
 case "${1:-} ${2:-}" in
   "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"
-    run=""; for f in "$logdir"/running.*; do [ -e "$f" ] && run="$run${f##*/running.},"; done
-    if [ "${PLACE_CAP_RAW:-}" = 1 ] || [ -z "$run" ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then cat "${PLACE_CAP_JSON:?}"
-    else jq -c --arg run "${run%,}" --arg us "${PLACE_UNIT_STATUS:-running}" '
-        ([.llmctl.units[]? | (.profile // .name // "")]) as $listed
-        | .llmctl.units = ((.llmctl.units // []) + [($run | split(","))[] | select(. as $p | $listed | index($p) | not) | {profile:., status:$us}])' "$PLACE_CAP_JSON"; fi
-    exit "${PLACE_CAP_RC:-0}" ;;
+    if [ "${PLACE_CAP_RAW:-}" = 1 ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then cat "${PLACE_CAP_JSON:?}"; exit "${PLACE_CAP_RC:-0}"; fi
+    run=""; for f in "$logdir"/running.*; do [ -e "$f" ] || continue; r="${f##*/running.}"
+      case ",${PLACE_GONE:-}," in *",$r,"*) continue ;; esac; run="$run$r,"; done
+    jq -c --arg run "${run%,}" --arg deg "${PLACE_DEGRADED:-}" --arg tenant "${LLMCTL_TENANT_ID:-}" '
+      def base: (if test("--") then split("--") | last else . end) | sub("\\.([2-9]|[1-9][0-9]+)$"; "");
+      def k($p): if $tenant == "" then $p else "\($tenant)--\($p)" end;
+      (if .pressure.ok == false then (.pressure.reasons // ["pressure"]) else [] end) as $pr
+      | ($deg | split(",") | map(select(. != ""))) as $dl
+      | ([.llmctl.units[]? | .profile] ) as $declared
+      | .llmctl.units = (
+          [ .llmctl.units[]? | .reasons = ($pr + (.reasons // [])) | .status = (if (.reasons | length) > 0 then "degraded" else (.status // "ok") end)
+                             | .owner = (.owner // "self") | .base_profile = (.base_profile // (.profile | base)) ]
+          + [ ($run | split(",") | map(select(. != "")))[] | select(. as $r | $declared | index($r) | not)
+              | . as $r | (($pr + (if ($dl | index($r)) then ["memory 950 MiB is at >= 90% of its 1000 MiB limit"] else [] end))) as $rs
+              | {unit:"llmctl-llama@\($r).service", profile:$r, base_profile:($r | base), owner:"self", cgroup:"/stub/\($r)",
+                 status:(if ($rs | length) > 0 then "degraded" else "ok" end), reasons:$rs,
+                 suggest:(if ($rs | length) > 0 then "llmctl stop \($r | base)" else null end)} ])
+      | ([.llmctl.units[] | select(.owner == "self") | .profile]) as $own
+      | .profiles = ((.profiles // {}) | with_entries(
+          .key as $kk | if ($own | index(k($kk))) then .value = (.value + {verdict:"running", verdict_class:null, running:true, threads:0,
+                                                              reasons:(["already running"] + $pr)})
+          else . end))
+      | .degraded = ([.llmctl.units[] | select(.status == "degraded")] | length > 0)
+      | if ([.profiles | to_entries[] | select(.value.verdict == "fits" or .value.verdict == "fits_with_reduced_threads")] | length > 0)
+           or ([.llmctl.units[] | select(.owner == "self" and .status == "ok")] | length > 0)
+        then .fallback = ((.fallback // {}) + {recommended:"local", route:"local"}) else . end' "$PLACE_CAP_JSON" > "$logdir/cap.out"
+    cat "$logdir/cap.out"
+    if [ -n "${PLACE_CAP_RC:-}" ]; then exit "$PLACE_CAP_RC"; fi
+    if [ "$(jq -r '.measurement.ok == false' "$logdir/cap.out")" = true ]; then exit 75; fi
+    if [ "$(jq -r '.degraded' "$logdir/cap.out")" = true ]; then exit 3; fi
+    exit 0 ;;
   "decide capacity") echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
   "decide status") echo '{"registry":{"services":[{"name":"decide-gateway","url":"https://127.0.0.1:18095","labels":{"kind":"gateway","ca_file":"/nonexistent/ca.crt"}}]}}' ;;
-  "start "*) touch "$logdir/running.${2:?}"; exit "${PLACE_START_RC:-0}" ;;
+  "start "*) [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
+             touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
   "stop "*) [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"
             [ "${PLACE_STOP_RC:-0}" = 0 ] || exit "$PLACE_STOP_RC"
-            rm -f -- "$logdir/running.${2:?}" ;;
+            rm -f -- "$logdir/running.$(key "${2:?}")" ;;
   enable*|disable*|switch*|auto*) exit 97 ;;
   *) echo "llmctl stub: unknown command '$*'" >&2; exit 1 ;;
 esac
