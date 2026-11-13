@@ -1,0 +1,6 @@
+[mutation:bootstrap] SETUP FAILURE: gate not GREEN on genuine state
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 1: post-update hook carries the guarded bootstrap invocation block
+CM-JEV-BOOTSTRAP-IDEMPOTENT FAIL: idempotency: bootstrap --non-interactive exited 5/5 (must be 0/0; see /home/milosvasic/.cache/claude-tmp/tmp.RVYAKqc3PD/host1.out)
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 3: --defer writes pending stamp, exits 0
+CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs
+CM-JEV-BOOTSTRAP-IDEMPOTENT: RED

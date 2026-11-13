@@ -1,5 +1,16 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-13 — CON-299 Jev S3/S4 round 4: fixes for the independent review of `1c9277b9` (NO-GO, R3-1 to R3-4, surviving mutants Y2, Y7, Y11)
+
+- R3-1 `jev-place.sh`: `acquire` evaluates every existing set. A lease-less set this producer started whose unit is not `running`/`active` or whose verdict is not a fit is stopped (bounded), dropped with its cache entry and not restarted by the same acquire; a failed disposal stop keeps `{stop_owed, stop_failed}` and is retried. A set with a live lease, and a set this producer did not start, is never stopped; a reap alone never stops a model (§11.4.291(J)). Tests P33 to P37 (P36 kills Y7).
+- R3-2 `CM-JEV-BOOTSTRAP-IDEMPOTENT` is hermetic: every bootstrap run is `env -i` with a whitelist, a stub-only PATH plus recording refusal guards for network and real tools, `JEV_HOSTED_PROBE=0` and absent `JEV_LLMCTL_BIN` / `JEV_TOOLKIT_BIN`; clause 5 fails on any guard call, and its control needle runs on the same PATH, so a PATH that lets a real tool through is reported blind (rc 2). `bootstrap.sh` honours `JEV_LLMCTL_BIN` / `JEV_TOOLKIT_BIN` (only candidate; non-executable means absent), `cm_jev_detection.sh` honours `JEV_LLMCTL_BIN` in test mode under the temp root. Tests: `tests/jev/test_gate_bootstrap_hermetic.sh` (fake keys and no keys), S3 H12 (kills Y2) and H13, mutations H and I of the gate's mutation test.
+- R3-3 `lib_decide.sh` `jev_settings_wired` is structural: a shell-word tokenizer; a hook is wired only when a simple command runs a file named exactly `jev-gate.sh` (directly, via `env`/`exec`, an interpreter, or an interpreter's `-c` script, 3 levels). Test S9, 31 cases (kills Y11).
+- R3-4: every TAB-separated `read` in the Jev scripts and gates reads with `\x1f` (empty fields no longer shift). Test `tests/jev/test_tab_fields.sh`: RED 2/9 on the round-3 tree, GREEN 11/0.
+- Nit: the round-3 entry's mutant count reads "the reviewer's 20, X1 to X19 and X11b, plus 22 new" (19 plus 22 was 41, not 42).
+- Mutants of this round: 20 (Y2, Y7, Y11 and Z1 to Z16c), 18 KILLED, 2 EQUIVALENT (Z3, Z16, justified), 0 SURVIVED. Evidence: `docs/qa/jev_s3s4_20261112/round4/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was captured.
+- Final checks: `tests/jev/run_all.sh` ran 34, failed 0 (rc 0, on 7c7ec0c); `test_gate_pairs.sh` PASS with no keys and with fake keys; the four Jev gate mutation tests PASS; `--verify-manifest` MANIFEST-OK (909 rows); gate ledger ratchet PASS (394/394).
+- R2-7 is still left to the lander: `dc654757` carries the placeholder trailer `CON-PENDING-JEV-CONSTITUTION`. All vehicle commits are unpushed, so re-committing it tree-equal with `Roadmap-Item: CON-299` before the first push rewrites no published ref; this vehicle does not do it. Every round-4 commit carries `Roadmap-Item: CON-299`.
+
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 3: fixes for the independent review of `c2489197` (NO-GO, R2-1 to R2-7, nits, surviving mutants X1, X6, X7, X16, X19)
 
 - R2-1 `bootstrap.sh`: the stage-3 probe signature is recomputed from the record the stage writes and the stage key is re-stamped, so the second run on a fresh state is a byte-stable no-change (§11.4.281); signature rows use `\x1f`, because `read` collapsed empty TAB fields and silently dropped every local health row (the cause of X1). Tests H10, H11.
@@ -10,7 +21,7 @@
 - R2-6: P29 (start time is `/proc` stat field 22, independent oracle), P30 (zombie holder reaped), S8 (X16), `tests/jev/test_run_all_leak_detector.sh` (X19, with a blinded control).
 - Nits: `write_placement` refuses an `event` outside its closed set (P32, P32b); a stop mark without a pid is cleared only by age (P31); `t4_gate.sh` SC2164 (edited after capture, noted in the pack).
 - R2-7 is left to the lander: `dc654757` carries a placeholder trailer and must be re-committed tree-equal with `Roadmap-Item: CON-299` before the first push; this vehicle does not rewrite history.
-- Mutants: 42 (the reviewer's 19 plus 22 new), 41 killed, 1 equivalent (N4, justified). Evidence: `docs/qa/jev_s3s4_20261112/round3/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was re-captured.
+- Mutants: 42 (the reviewer's 20, X1 to X19 and X11b, plus 22 new), 41 killed, 1 equivalent (N4, justified). Evidence: `docs/qa/jev_s3s4_20261112/round3/`. All gate-logic class (stub llmctl and curl, §11.4.289(C)(2)); nothing live was re-captured.
 
 ## Unreleased — 2026-11-12 — CON-299 Jev S3/S4 round 2: fixes for the independent review of `dc654757` (NO-GO, F1 to F8 and the surviving mutants RM5, RM11, RM12, RM15)
 
