@@ -42,7 +42,7 @@
 #   decide status --json     -> a gateway registry entry (PLACE_STATUS_URL, default https://127.0.0.1:18095); exit
 #                               ${PLACE_STATUS_RC:-0} first when set; PLACE_STATUS_NOGW=1 -> a registry without a gateway (R5-14)
 #   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>,
-#                         except on 75: llmctl's pressure-gate refusal starts nothing (§11.4.277(E), "no partial start";
+#                         except on 75: nothing is started (llmctl validation anchor §11.4.277(E), "no partial start";
 #                         round 7: the round-6 stub created the unit on 75 too, which a re-plan after a refusal would
 #                         then read as an operator-started unit)
 #   stop <p>           -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<key> only on rc 0
