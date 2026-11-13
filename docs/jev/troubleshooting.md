@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-12T17:44:39Z |
+| Last modified | 2026-11-13T04:06:54Z |
 | Status | active |
 | Status summary | Symptom, cause, action, and the command that shows which it is. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -97,7 +97,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | Exits 5, `does_not_fit` | Not enough RAM/CPU with the host reserve kept, pressure high, or the unit is degraded | Wait or free resources; the route is `cloud` with a hosted key, else `none`. |
 | Exits 4, `lease_lock_timeout` | Another session holds the placement lock | Retry; no lease was taken. |
 | `release` exits 6, `stop_failed` | The last release's `llmctl stop` failed or ran past `JEV_LLMCTL_START_TIMEOUT` | The model may still run, so the lease set is kept (`constitution_started`, `stop_failed {at, rc}`) and the cache entry stays. The next `release` retries the stop once the stop mark is cleared (the stopper process has exited, or the mark is older than the stop timeout + 30 s); an `acquire` meanwhile joins the running model. |
-| `acquire` logs `disposing <p>: no lease left, constitution-started, ...` | Every holder of a model this producer started was reaped, and the next acquire found its unit not `running`/`active` or its verdict not a fit | The acquire stops that model (bounded `llmctl stop`), drops the set and its cache entry, and does not restart the profile in the same call; the next acquire evaluates it afresh. If the stop fails the set is kept as `stop_owed` + `stop_failed`, is never joined, and every later acquire and release retries the stop. A set that still has a live lease is never stopped this way, and a reap alone never stops a model. |
+| `acquire` logs `disposing <p>: no lease left, constitution-started, ...` | Every holder of a model this producer started was reaped, and the next acquire found its own unit `degraded` (llmctl reports a unit status of only `ok` or `degraded`) or gone (no own unit in the capacity answer). A lease-less set whose unit is `ok` is joined again, never stopped | The acquire stops that model (bounded `llmctl stop`), drops the set and its cache entry, and does not restart the profile in the same call; the next acquire evaluates it afresh. If the stop fails the set is kept as `stop_owed` + `stop_failed`, is never joined, and every later acquire and release retries the stop. A set that still has a live lease is never stopped this way, and a reap alone never stops a model. |
 | `placement.json` shows `event: start_failed` with `verdict: fits` | Capacity said the profile fits, but `llmctl start` failed | The verdict is what was measured; the event is what happened. See the next row for the measured cause. |
 | Exits 5 with `llmctl start <p> failed rc=1 ... still starting after 20s ... never answered .../health` | The unit was started but its start gate or model load did not finish in llmctl's own wait (measured 2026-11-12 on the reference host at load average about 30 on 16 CPUs: the unit sat in `Starting` for about 83 s with a 9 MB memory peak, so the model never loaded) | `jev-place.sh` sends one bounded `llmctl stop <p>` for a profile it asked to start, so no unit is left running without a lease, and routes to `cloud`/`none`. The unit then shows `failed`; that record is left for the operator. Retry when the host is quieter. |
 | `llmctl` warns that the unit file `changed on disk` and asks for `daemon-reload` | The unit file was rewritten outside this run (seen 2026-11-12) | The constitution never runs `daemon-reload`; the operator decides. |

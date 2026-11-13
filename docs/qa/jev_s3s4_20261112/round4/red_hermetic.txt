@@ -1,5 +1,5 @@
 [hermetic] ok: control: a spy records its call
-[hermetic] FAIL: fake keys + hosted probe exported: gate rc 1; last lines: CM-JEV-BOOTSTRAP-IDEMPOTENT FAIL: idempotency: bootstrap --non-interactive exited 5/5 (must be 0/0; see /home/milosvasic/.cache/claude-tmp/tmp.RQ9GgOFqn1/host1.out)|CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 3: --defer writes pending stamp, exits 0|CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs|CM-JEV-BOOTSTRAP-IDEMPOTENT: RED|
+[hermetic] FAIL: fake keys + hosted probe exported: gate rc 1; last lines: CM-JEV-BOOTSTRAP-IDEMPOTENT FAIL: idempotency: bootstrap --non-interactive exited 5/5 (must be 0/0; see <HOME>/.cache/claude-tmp/tmp.RQ9GgOFqn1/host1.out)|CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 3: --defer writes pending stamp, exits 0|CM-JEV-BOOTSTRAP-IDEMPOTENT ok: clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs|CM-JEV-BOOTSTRAP-IDEMPOTENT: RED|
 [hermetic] FAIL: fake keys + hosted probe exported: the gate's runs called the caller's tools: claude-providers sync-jev --quiet,curl -q -K,llmctl decide capacity,llmctl decide status
 [hermetic] ok: fake keys + hosted probe exported: the caller's CLAUDE_CONFIG_DIR was not written
 [hermetic] ok: fake keys + hosted probe exported: no key value printed

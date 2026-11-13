@@ -18,14 +18,14 @@
 [jev-bootstrap 5/7] configure: running
 [jev-bootstrap 5/7] configure: ok mode=shadow
 [jev-bootstrap 6/7] calibrate-shadow: running
-[jev-bootstrap ]   shadow mode: decisions are logged to /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/state/decisions.jsonl; enforcement requires calibrated thresholds
+[jev-bootstrap ]   shadow mode: decisions are logged to <HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/state/decisions.jsonl; enforcement requires calibrated thresholds
 [jev-bootstrap 6/7] calibrate-shadow: ok shadow
 [jev-bootstrap 7/7] report: running
 [jev-bootstrap ]   gate cm_jev_bootstrap_idempotent: not run from bootstrap (it executes bootstrap; run it directly)
 [jev-bootstrap ]   gate cm_jev_detection: PASS (advisory)
 [jev-bootstrap ]   gate cm_jev_wiring: FAIL rc=1 (advisory, non-blocking): CM-JEV-WIRING FAIL: opencode: opencode.json lacks the jev plugin entry and/or mcp.jev registration
-[jev-bootstrap ]   gate cm_jev_token_reduction: BLIND (advisory; no verdict possible: CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milo)
-[jev-bootstrap ]   summary: state=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/state evidence=/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/evidence mode=shadow
+[jev-bootstrap ]   gate cm_jev_token_reduction: BLIND (advisory; no verdict possible: CM-JEV-TOKEN-REDUCTION BLIND: no real BEFORE/AFTER harness pair configured (set JEV_BEFORE and JEV_AFTER, or place before.jsonl/after.jsonl in <HOME>/.cache/claude-tmp/claude-1000/-home-milo)
+[jev-bootstrap ]   summary: state=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/state evidence=<HOME>/.cache/claude-tmp/claude-1000/-HOME-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jevfix.qj5d/live/t3_run1/evidence mode=shadow
 [jev-bootstrap ]   next: scripts/jev/jev-status.sh for status; claude_toolkit scripts/jev-stats.sh for savings (ESTIMATES only)
 [jev-bootstrap 7/7] report: ok
 [jev-bootstrap ]   PENDING: provision requires consent (llmctl); provision requires consent (claude_toolkit); agent wiring skipped: claude_toolkit unavailable

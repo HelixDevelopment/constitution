@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-12T16:54:07Z |
+| Last modified | 2026-11-13T04:06:54Z |
 | Status | active |
 | Status summary | Four Mermaid diagrams: architecture, data flow, bootstrap state machine, routing and consensus sequence. |
 | Authority | Constitution §11.4.279–§11.4.286. The scripts and the claude_toolkit / llmctl sources govern wherever a diagram simplifies. |
@@ -143,7 +143,7 @@ sequenceDiagram
   participant E3 as TypeSafe (40)
   S->>P: acquire <holder> --pid <pid>
   P->>L: capacity --json (bounded)
-  opt an existing set whose holders were all reaped, constitution-started, unit not running/active or verdict not a fit
+  opt an existing set whose holders were all reaped, constitution-started, and whose own unit is degraded or gone
     P->>L: stop <that profile> (bounded; rc 0 drops the set and its cache entry, a failure keeps stop_owed and is retried)
   end
   alt verdict fits / fits_with_reduced_threads
