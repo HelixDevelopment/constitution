@@ -1,0 +1,48 @@
+PASS golden-good fixture
+PASS golden-bad XREF-DANGLING
+PASS golden-bad XREF-DANGLING/title
+PASS golden-bad XREF-DANGLING/foreign-declared-only
+PASS golden-bad XREF-LABEL
+PASS golden-bad FOREIGN-STALE
+PASS golden-bad STATE-PROSE
+PASS golden-bad STATE-PROSE/unreproduced-family
+PASS golden-bad STATE-PROSE/investigation
+PASS golden-bad STATE-PROSE/structured
+PASS golden-bad SECTIONS
+PASS golden-bad BODY-SYNC
+PASS golden-bad SECRET
+PASS golden-bad SECRET/title
+PASS golden-bad EPHEMERAL
+PASS golden-bad EPHEMERAL/note-covers-own-line-only
+PASS golden-bad SHARED-PATH
+PASS golden-bad DUP-CHECK
+PASS golden-bad DUP-CHECK/missing
+PASS golden-bad DUP-SAME-OPEN
+PASS golden-bad DUP-SAME-OPEN/wrong-head
+PASS golden-bad PATH-MISSING
+PASS golden-good shared path named by the Duplicate check line
+PASS golden-good SAME-DEFECT closed Obsolete duplicate-of the named id
+PASS golden-good structured line agrees with the column
+PASS golden-good shared path named by a closed item only
+PASS secret value never printed
+PASS --skip-check drops only the named code
+PASS usage: no selection
+PASS usage: unknown --skip-check code
+PASS usage: --repo-root not a directory
+PASS BLIND: database missing
+PASS BLIND: database unreadable
+PASS BLIND: database holds no items
+PASS BLIND: unknown id
+PASS BLIND: empty origin selection
+PASS --embeddings namespaces main and foreign
+PASS --embeddings namespaces own and unknown (title included)
+PASS real DB: intake batch clean
+PASS reviewer M2: description diverges from body_md
+PASS reviewer M3: umbrella CON-299 changed to CON-999
+PASS reviewer M7: delete a referenced row
+PASS reviewer M9: AWS-key-shaped string in CON-333
+PASS reviewer M10: Acceptance criteria header removed
+PASS reviewer M11: structured reproduction line vs column
+PASS replay I1: CON-308 reopened while SAME-DEFECT of open CON-262
+PASS replay I2: anchor 296 cited as an item
+RESULT: pass=47 fail=0

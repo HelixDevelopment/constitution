@@ -1,0 +1,69 @@
+ok control needle #1: a known-present sibling (lib/fc_common.py) resolves
+   through this test's own path construction -- the absence check
+   below can be trusted
+-- /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/constitution/scripts/fastcycle/orchestration exists, holding 7 script(s) right now (e.g.
+   completion_probe.sh from T122 -- a separate, already-landed task)
+ok orchestration/custody_sweep.py now exists -- T137 has landed. If
+   you are seeing this, T137's real implementation should be re-
+   pointed at instead of this file's derived oracle.
+
+=== REAL-STATE: live git stash list (re-verified, never assumed) ===
+-- (empty stash list -- if you expected stash@{3} / stash@{5} to be
+   present, the real state has changed since this test was authored;
+   that is itself honest information, not a test failure)
+-- live stash count: 0
+
+=== REAL-STATE: live git worktree list (re-verified, never assumed) ===
+   worktree /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S
+   HEAD ae19a5f2091ee094e18db96e17cb4cc9c118f0df
+   branch refs/heads/master
+-- live worktree count: 1 (main checkout counts as one of these)
+
+=== REAL-STATE: correction (1) -- is stash@{3} genuinely 'already landed'? ===
+-- stash@{3} is no longer present in the live list -- the task
+   text's claim about it is moot today (state has moved on); this
+   is honestly reported, not silently assumed either way
+
+=== REAL-STATE: correction (2) -- THREE worktrees, not two ===
+-- live count of agent worktrees (path contains .claude/worktrees/agent-): 0
+-- no agent worktrees are live today
+
+=== REAL-STATE: correction (3) -- is there really a backup for stash@{5}? ===
+-- text-file hits mentioning literal 'stash@{5}' under qa-results/+docs/: 0
+-- real worktree backup subdirectories under /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/rvrt.adAQ/S/qa-results/agent_custody_20260926/backup_worktrees: 0
+-- backup-directory layout differs from what this test expected at
+   authoring time; printing what actually exists rather than
+   asserting a stale conclusion:
+
+=== control needle #2: isolated scratch-repo stash content-scan ===
+ok scratch stash created + listed (message contains the real planted
+   needle token)
+ok CONTROL NEEDLE PROVEN: the independent inventory-scanning function
+   genuinely finds the real, uniquely-identifiable planted file
+   (planted_marker.txt, needle T129_CONTROL_NEEDLE_1794506315_2124740_ac529006e63c00ba) inside a real git
+   stash -- this proves the scanning mechanism can see real stash
+   content, not merely a mocked/assumed result (section 11.4.273).
+ok control needle #2 negative check: the scanner correctly reports
+   NOT-found for a file that was never planted in the same real
+   stash (proves it discriminates, section 11.4.201(1))
+
+=== T129 land/keep/retire proposal-refusal fixtures, independent DERIVED oracle ===
+ok proposal_golden_bad_no_hash.json: derived verdict = REFUSED (matches expected REFUSED)
+ok proposal_golden_bad_wrong_hash.json: derived verdict = REFUSED (matches expected REFUSED)
+ok proposal_golden_bad_stash5_no_backup.json: derived verdict = REFUSED (matches expected REFUSED)
+NOT ok proposal_golden_good_verified_hash.json: derived verdict = REFUSED, expected ALLOWED
+ok proposal_negctrl_keep_no_hash.json: derived verdict = ALLOWED (matches expected ALLOWED)
+ok synthetic golden-good: a real artifact with its real sha256 derives ALLOWED, and the same
+   proposal after the artifact changed derives REFUSED
+
+=== Self-validation discrimination needle ===
+NOT ok discrimination: an ALLOWED-expected fixture unexpectedly
+     did not resolve to ALLOWED (got: REFUSED)
+
+=== T129 RED BASELINE CONFIRMED: orchestration/custody_sweep.py does
+    not exist yet (T137 is a separate, later task). The REAL-STATE
+    re-verification (including the three corrections to the stale
+    task-text claim), the isolated-scratch control needle, and the
+    five-row proposal-refusal fixture table via the independently
+    derived oracle, all above, are the interim contract T137 must
+    satisfy to turn this GREEN. ===
