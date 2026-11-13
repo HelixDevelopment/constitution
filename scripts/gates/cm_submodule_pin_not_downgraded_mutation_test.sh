@@ -34,6 +34,14 @@
 #         mutant (or a stated "not constructible" / "equivalent" reason); the dynamic site lint refuses a data row whose
 #         mutant was not killed. members11 runs the fixtures the table names. The gate's "today" is the UTC date now (F2),
 #         so the whole suite runs with TZ=UTC and TZPAIR proves the pin; a NUL byte in waiver data is refused (F3).
+# Round 11, screen-3 follow-up (2026-11-13): screen 3 failed 4 equivalence claims as "killed" at the end of a run that
+#         crossed midnight. Measured cause: the session scope hit its pids.max (a foreign fork storm started 00:35:57),
+#         a refused fork changed a job's vector (reproduced: BASEFORM=1,1/B became 0,0/X on one date, with "fork failed:
+#         Resource temporarily unavailable"), and the job's stderr went to /dev/null. Two fixes: (1) a classify with a
+#         resource-failure signature on stderr, or a growth of the cgroup pids `max` / `oom_kill` counters, is
+#         INCONCLUSIVE and re-run, never killed (resclean, rsafe; self-test selftest-resource-failure, which reads
+#         "killed" with resclean disabled); (2) every `date` the suite and the gate run is pinned to ONE injected instant
+#         SUITE_NOW (default: noon UTC of the start day), with a needle that stops the run when the pin is blind.
 # The verdict vector includes the waiver LIFECYCLE class (round 4): every way a reviewed row could be reused by a
 #         commit it was not reviewed for (snapshot, amend, merge, conflicted merge, squash, --no-commit merge,
 #         cherry-pick, rebase, leftover worktree rows, base-field forms), each through `git commit` with the hook.
@@ -63,12 +71,40 @@ git config --global protocol.file.allow always; git config --global init.default
 gnud=""; for c in date gnudate gdate; do p="$(command -v "$c" 2>/dev/null)" || continue
   "$p" --version 2>/dev/null | head -1 | grep -q 'GNU coreutils' && { gnud="$p"; break; }; done
 [ -n "$gnud" ] || { echo "META: GNU date not found (date, gnudate, gdate); the gate needs GNU date" >&2; exit 2; }
-hostd="$(command -v date)"; altd=""; mkdir -p "$tmp/dpin/gnu"; ln -s "$gnud" "$tmp/dpin/gnu/date"
-if ! "$hostd" --version 2>/dev/null | head -1 | grep -q 'GNU coreutils'; then altd="$hostd"; mkdir -p "$tmp/dpin/alt"; ln -s "$altd" "$tmp/dpin/alt/date"; fi
+suite_now="${SUITE_NOW:-$("$gnud" -u +%Y-%m-%dT12:00:00Z)}" # noon UTC of the day the screen starts, unless injected
+[[ "$suite_now" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] && "$gnud" -d "$suite_now" +%F >/dev/null 2>&1 ||
+  { echo "META: SUITE_NOW '$suite_now' is not an instant of the form YYYY-MM-DDTHH:MM:SSZ" >&2; exit 2; }
+echo "clock (injected, one instant for the whole run): $suite_now"
+# mkpin dir real: `date` in dir runs real with the clock pinned to $suite_now. The gate reads the clock once (a bare
+# `date +%Y-%m-%d`) and only passes absolute dates to -d; the suite passes `+N days`, `yesterday` and absolute dates.
+# So: no -d -> `-d $suite_now`; a relative -d value (+N..., -N..., yesterday, tomorrow, today, now) -> "$suite_now <value>";
+# any other value (absolute, or text the gate must refuse) is passed through unchanged; --version/--help untouched.
+mkpin() { mkdir -p "$1"; { printf '#!/bin/bash\nnow=%q; real=%q\n' "$suite_now" "$2"; cat <<'PIN'
+rel() { case "$1" in [+-][0-9]*|yesterday|tomorrow|today|now) printf '%s %s' "$now" "$1" ;; *) printf '%s' "$1" ;; esac; }
+a=(); d=0; nx=0
+for x in "$@"; do
+  if [ "$nx" = 1 ]; then nx=0; a+=("$(rel "$x")"); continue; fi
+  case "$x" in -d|--date) d=1; nx=1; a+=("$x") ;; --date=*) d=1; a+=("--date=$(rel "${x#--date=}")") ;;
+    -d?*) d=1; a+=("-d$(rel "${x#-d}")") ;; --version|--help) d=1; a+=("$x") ;; *) a+=("$x") ;; esac
+done
+[ "$d" = 1 ] || a=(-d "$now" "${a[@]}")
+exec "$real" "${a[@]}"
+PIN
+  } >"$1/date"; chmod +x "$1/date"; }
+hostd="$(command -v date)"; altd=""; mkpin "$tmp/dpin/gnu" "$gnud"
+if ! "$hostd" --version 2>/dev/null | head -1 | grep -q 'GNU coreutils'; then altd="$hostd"; mkpin "$tmp/dpin/alt" "$altd"; fi
 export PATH="$tmp/dpin/gnu:$PATH"; altp="$tmp/dpin/alt:$PATH"
 echo "date (pinned, first on PATH): $gnud: $(date --version | head -1)"
 if [ -n "$altd" ]; then echo "date (alternative, the host default): $altd: $(PATH="$altp" date --version 2>/dev/null | head -1)"
 else echo "date (alternative): none, the host default date is GNU; the alternative-date runs are skipped"; fi
+# needle for the clock pin (CON-046 round 11, screen-3 follow-up): every `date` the suite and the gate run reads ONE
+# injected instant (SUITE_NOW), so no part of a screen can see another day. Under both dates: a bare read prints the
+# injected day, a relative -d counts from it, an absolute -d is untouched; else the pin is blind and the run stops.
+for dp in "$tmp/dpin/gnu" ${altd:+"$tmp/dpin/alt"}; do
+  ck="$(PATH="$dp:$PATH" date +%F)/$(PATH="$dp:$PATH" date -d '+1 days' +%F)/$(PATH="$dp:$PATH" date -d yesterday +%F)/$(PATH="$dp:$PATH" date -d 2000-01-01 +%F)"
+  wk="${suite_now%%T*}/$("$gnud" -d "$suite_now +1 days" +%F)/$("$gnud" -d "$suite_now yesterday" +%F)/2000-01-01"
+  [ "$ck" = "$wk" ] || { echo "META: the clock pin in $dp is blind: got $ck, want $wk (SUITE_NOW $suite_now)" >&2; exit 2; }
+done
 # needle for the YEAR5 fixture (review F1/F2): the pinned date round-trips a five-digit year (GNU 9.7 does), else the
 # fixture could not see the year member of the expiry regex and its zero would prove nothing
 [ "$(date -d 20269-01-01 +%Y-%m-%d 2>/dev/null)" = 20269-01-01 ] || { echo "META: the pinned date does not round-trip a five-digit year (YEAR5 would be blind)" >&2; exit 2; }
@@ -113,6 +149,36 @@ jv() { # real-result job-result -> killed | survived | inconclusive (dates diffe
   local a b; a="$(stamp "$1")"; b="$(stamp "$2")"
   if [ "$a" = none ] || [ "$a" != "$b" ] || [ "${a%~*}" != "${a#*~}" ]; then echo inconclusive
   elif [ "$(vec "$1")" = "$(vec "$2")" ]; then echo survived; else echo killed; fi; }
+# CON-046 round 11, screen-3 follow-up: a fork or memory failure inside a classify (the process cap of the session
+# scope was hit: `fork failed: Resource temporarily unavailable`) changes the vector without any change of the gate, and
+# was read as `killed`. A classify whose stderr shows a resource failure is therefore never a verdict: resclean takes a
+# result file and its stderr file and drops the date stamp of the result when the stderr matches, so jv reads it as
+# INCONCLUSIVE and the job is re-run (and stays BAD if it fails the same way again).
+resre='fork: retry|fork failed|cannot fork|Resource temporarily unavailable|Cannot allocate memory|Too many processes'
+resfail() { [ -s "$1" ] && grep -qE "$resre" "$1"; }
+# Most gate runs send their stderr to a file or /dev/null, so the kernel's own counters are read too: cgev prints the
+# sum of the `max` events (fork refused by pids.max) and `oom_kill` events of this process's cgroup and every ancestor.
+# A classify during which the sum grew is INCONCLUSIVE as well, even when the refused fork was another process's (the
+# conservative reading, §11.4.201(4)): the job cannot show that none of ITS forks was refused. Unreadable -> "none".
+cgev() { local c s=0 f n k any=0; c="$(sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)"; [ -n "$c" ] || { echo none; return; }
+  # (memory.events also has a `max` line: it counts reclaim at memory.max, which fails nothing, so only its oom_kill
+  # line is read; measured 2026-11-13: app.slice memory.events max 44367 against oom_kill 6)
+  while :; do for f in "/sys/fs/cgroup$c/pids.events" "/sys/fs/cgroup$c/memory.events"; do [ -r "$f" ] || continue
+      case "$f" in *pids.events) k=max ;; *) k=oom_kill ;; esac
+      n="$(awk -v k="$k" '$1==k{t+=$2} END{print t+0}' "$f")"; s=$((s+n)); any=1; done
+    [ "$c" = / ] || [ -z "$c" ] && break; c="$(dirname "$c")"; done
+  [ "$any" = 1 ] && echo "$s" || echo none; }
+resclean() { # result-file stderr-file events-before
+  local e1; e1="$(cgev)"
+  if resfail "$2" || { [ "$3" != none ] && [ "$e1" != none ] && [ "$e1" -gt "$3" ]; }; then
+    sed -i 's/ DATE=[^ ]*$//' "$1"; echo "events $3->$e1 $(grep -m1 -E "$resre" "$2" 2>/dev/null)" >"$1.resfail"; else rm -f "$1.resfail"; fi; }
+rsafe() { # cmd...: run in this shell with stdout captured; up to 3 tries while a resource failure is seen; sets RS
+  # (the output; a classify result loses its date stamp when every try failed) and RSF (1 when the last try failed)
+  local i e0 f="$tmp/rsafe.err"; for i in 1 2 3; do e0="$(cgev)"; RS="$("$@" 2>"$f")"; cat "$f" >&2; printf '%s\n' "$RS" >"$tmp/rsafe.out"
+    resclean "$tmp/rsafe.out" "$f" "$e0"; [ -e "$tmp/rsafe.out.resfail" ] || { RSF=0; rm -f "$f"; return 0; }
+    echo "note resource failure during '$1' (try $i of 3): $(cat "$tmp/rsafe.out.resfail")"; done
+  RS="$(cat "$tmp/rsafe.out")"; RSF=1; rm -f "$f" "$tmp/rsafe.out.resfail"; }
+cg0="$(cgev)"; echo "cgroup pids/oom event counter: $cg0 (none = unreadable: only stderr signatures are checked)"
 bad=0; SUBN=sub; realgit="$(command -v git)"
 
 mk() { # sets globals R A B S (no subshell); submodule dir name $SUBN; super pins B
@@ -132,7 +198,9 @@ wf() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" "${7:
 run() { # repo gate [env assignments / -u X ...] [-- gate args...]; output in $tmp/out
   local r="$1" g="$2"; shift 2; local e=()
   while [ $# -gt 0 ] && [ "$1" != -- ]; do e+=("$1"); shift; done; [ "${1:-}" = -- ] && shift
-  env "${e[@]}" bash "$g" --root "$r" "$@" >"$tmp/out" 2>&1; echo $?; }
+  env "${e[@]}" bash "$g" --root "$r" "$@" >"$tmp/out" 2>&1; local rc=$?
+  resfail "$tmp/out" && echo "RESOURCE FAILURE in a gate run: $(grep -m1 -E "$resre" "$tmp/out")" >&2 # seen by resclean
+  echo "$rc"; }
 cnt() { grep -c -- "$1" "$tmp/out"; }
 classify() { # gate-path -> one-line verdict vector, then ` DATE=<start>~<end>` (R7-7)
   local g="$1" out="" r i e w gd o c c2 c3 c4 c5 lnk ds
@@ -1034,12 +1102,14 @@ sys.exit(1 if bad else 0)
 PY
 }
 want="${want% }"
-for _ in 1 2; do gotf="$(classify "$gate")"; [ "$(jv "$gotf" "$gotf")" != inconclusive ] && break; done # crossed midnight: once more
+altclassify() { PATH="$altp" classify "$@"; }
+for _ in 1 2; do rsafe classify "$gate"; gotf="$RS"; [ "$(jv "$gotf" "$gotf")" != inconclusive ] && break; done # crossed midnight, or a resource failure: once more
 got="$(vec "$gotf")"; echo "gate vector: $got"; echo "gate vector date: $(stamp "$gotf")"
-[ "$(jv "$gotf" "$gotf")" = inconclusive ] && { echo "BAD  the real gate's vector crossed midnight twice"; bad=1; }
+[ "$(jv "$gotf" "$gotf")" = inconclusive ] && { echo "BAD  the real gate's vector crossed midnight or met a resource failure on every try"; bad=1; }
 [ "$got" = "$want" ] || { echo "BAD  classification:"; echo "  want [$want]"; echo "  got  [$got]"; bad=1; }
 if [ -n "$altd" ]; then # round 9 (F2/F3): the real gate's whole vector under the alternative date must equal want too
-  for _ in 1 2; do gotaf="$(PATH="$altp" classify "$gate")"; [ "$(jv "$gotaf" "$gotaf")" != inconclusive ] && break; done
+  for _ in 1 2; do rsafe altclassify "$gate"; gotaf="$RS"; [ "$(jv "$gotaf" "$gotaf")" != inconclusive ] && break; done
+  [ "$(jv "$gotaf" "$gotaf")" = inconclusive ] && { echo "BAD  the real gate's vector under the alternative date crossed midnight or met a resource failure on every try"; bad=1; }
   gota="$(vec "$gotaf")"; echo "gate vector date under the alternative date: $(stamp "$gotaf")"
   if [ "$gota" = "$want" ]; then echo "ok   gate vector under the alternative date ($altd) equals want"
   else echo "BAD  classification under the alternative date ($altd):"; echo "  want [$want]"; echo "  got  [$gota]"; bad=1; fi
@@ -1105,16 +1175,18 @@ mutant() { # name sed-expr
 launch() { # k: classify job k in the background; its kind picks the subject. Only j<k>.res is kept: the job's fixture
   # tree is deleted as soon as the result is written (R7-9: one full run kept about 22 GiB before)
   local k="$1" o="$tmp"
-  ( tmp="$o/j$k"; mkdir -p "$tmp"
+  ( tmp="$o/j$k"; mkdir -p "$tmp"; local e0; e0="$(cgev)"
     case "${mkind[k]:-}" in
       hook) hook="$o/h$k"; classify "$gate" ;;
       dateskew) PATH="$o/skew:$PATH"; classify "$gate" ;;
+      resfault) PATH="$o/resfk:$PATH" RESFK_DIR="$tmp" classify "$gate" ;;
       *) classify "$o/m$k.sh" ;;
-    esac >"$tmp.res" 2>/dev/null
+    esac >"$tmp.res" 2>"$tmp.err"; resclean "$tmp.res" "$tmp.err" "$e0"; rm -f "$tmp.err"
     chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}"
     # round 9 (F2): an equivalence claim must hold under the alternative date as well: a second classify, own temp dir
-    case "${mkind[k]:-}" in eq|geneq) if [ -n "$altd" ]; then tmp="$o/j$k.a"; mkdir -p "$tmp"
-        PATH="$o/dpin/alt:$PATH" classify "$o/m$k.sh" >"$o/j$k.alt.res" 2>/dev/null; chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}"; fi ;; esac ) &
+    case "${mkind[k]:-}" in eq|geneq) if [ -n "$altd" ]; then tmp="$o/j$k.a"; mkdir -p "$tmp"; e0="$(cgev)"
+        PATH="$o/dpin/alt:$PATH" classify "$o/m$k.sh" >"$o/j$k.alt.res" 2>"$tmp.err"; resclean "$o/j$k.alt.res" "$tmp.err" "$e0"; rm -f "$tmp.err"
+        chmod -R u+rwx "$tmp" 2>/dev/null; rm -rf "${tmp:?}"; fi ;; esac ) &
   while [ "$(jobs -rp | wc -l)" -ge "$mj" ]; do wait -n; done
 }
 mutpath() { # name file: a generated member mutant (the whole mutated gate is written by the generator)
@@ -2030,6 +2102,12 @@ MEOF
   mkdir -p "$tmp/skew"; printf '#!/usr/bin/env bash\nfor a in "$@"; do case "$a" in -d|-d*|--date*) exec %q "$@" ;; esac; done\nexec %q -d yesterday "$@"\n' \
     "$(command -v date)" "$(command -v date)" >"$tmp/skew/date"; chmod +x "$tmp/skew/date"
   if [ -z "${MUT_ONLY:-}" ] || [[ selftest-date-skew =~ $MUT_ONLY ]]; then n=$((n+1)); mnames[n]=selftest-date-skew; mkind[n]=dateskew; launch "$n"; fi
+  # ── CON-046 round 11, screen-3 follow-up: the resource self-test. A job of the REAL gate in which one git call fails
+  # the way a refused fork fails (the message git prints, exit 128) gets a different vector; it MUST be judged
+  # INCONCLUSIVE, never killed (before the fix such a job read as killed: screen 3, 2026-11-13).
+  mkdir -p "$tmp/resfk"; printf '#!/usr/bin/env bash\nc="${RESFK_DIR:?}/n"; i=$(( $(cat "$c" 2>/dev/null || echo 0) + 1 )); echo "$i" >"$c"\n[ "$i" = 40 ] && { echo "fatal: fork failed: Resource temporarily unavailable" >&2; exit 128; }\nexec %q "$@"\n' \
+    "$realgit" >"$tmp/resfk/git"; chmod +x "$tmp/resfk/git"
+  if [ -z "${MUT_ONLY:-}" ] || [[ selftest-resource-failure =~ $MUT_ONLY ]]; then n=$((n+1)); mnames[n]=selftest-resource-failure; mkind[n]=resfault; launch "$n"; fi
   # ── round 7: EQUIVALENCE claims, each with a DIFFERENTIAL proof (never by reading). eqp <name> <probe> registers the
   # equivalent mutant (sed on stdin, first here-doc) and its CONTROL mutant (a mutant of the SAME member that is NOT
   # equivalent; second here-doc, separated by a line `--`). Proof holds when: the equivalent mutant's classify vector
@@ -2158,12 +2236,13 @@ MEOF
   else echo "BAD  judge unit check: $jvu"; bad=1; fi
   inc=()
   for ((k=1; k<=n; k++)); do
-    [ -n "${mnames[k]:-}" ] && [ "${mkind[k]:-}" != dateskew ] || continue
+    [ -n "${mnames[k]:-}" ] && [ "${mkind[k]:-}" != dateskew ] && [ "${mkind[k]:-}" != resfault ] || continue
     judge "$k"; [ "$J" = inconclusive ] && inc+=("$k")
   done
   if [ "${#inc[@]}" -gt 0 ]; then # the date changed: recompute the real vector, re-run only those jobs (once)
-    echo "note ${#inc[@]} job(s) INCONCLUSIVE (another date than the real gate's vector); recomputing it and re-running them"
-    gotf="$(classify "$gate")"; got="$(vec "$gotf")"; [ -n "$altd" ] && gotaf="$(PATH="$altp" classify "$gate")"
+    echo "note ${#inc[@]} job(s) INCONCLUSIVE (another date than the real gate's vector, or a resource failure: $(ls "$tmp"/j*.resfail 2>/dev/null | wc -l) result file(s)); recomputing it and re-running them"
+    for f in "$tmp"/j*.resfail; do [ -e "$f" ] && echo "note   ${f##*/}: $(cat "$f")"; done
+    rsafe classify "$gate"; gotf="$RS"; got="$(vec "$gotf")"; if [ -n "$altd" ]; then rsafe altclassify "$gate"; gotaf="$RS"; fi
     for k in "${inc[@]}"; do launch "$k"; done; wait
   fi
   : >"$tmp/dirs.tsv"; nk=0; ns=0; ne=0; ni=0; gsurv=()
@@ -2175,9 +2254,14 @@ MEOF
       else echo "BAD  date self-test: a job one day behind was judged $J"; bad=1; fi
       continue
     fi
+    if [ "${mkind[k]:-}" = resfault ]; then
+      if [ "$J" = inconclusive ] && [ -e "$tmp/j$k.res.resfail" ]; then echo "ok   resource self-test: a job with a refused fork is INCONCLUSIVE (never killed): $(cat "$tmp/j$k.res.resfail")"
+      else echo "BAD  resource self-test: a job with a refused fork was judged $J"; bad=1; fi
+      continue
+    fi
     case "$J" in
       none) echo "BAD  mutant ${mnames[k]} produced no vector ($JD)"; bad=1 ;;
-      inconclusive) echo "BAD  mutant ${mnames[k]} still INCONCLUSIVE after a re-run ($(stamp "$(cat "$tmp/j$k.res")") vs $(stamp "$gotf"))"; bad=1; ni=$((ni+1)) ;;
+      inconclusive) echo "BAD  mutant ${mnames[k]} still INCONCLUSIVE after a re-run ($(stamp "$(cat "$tmp/j$k.res")") vs $(stamp "$gotf")$(cat "$tmp/j$k.res.resfail" "$tmp/j$k.alt.res.resfail" 2>/dev/null | sed 's/^/; resource failure: /' | tr -d '\n'))"; bad=1; ni=$((ni+1)) ;;
       survived) if [ "${mkind[k]:-}" = geneq ]; then echo "ok   generated member ${mnames[k]} survives: claimed equivalent by proof ${geneqp[k]} (checked below)"; gsurv+=("$k")
                 elif [ "${mkind[k]:-}" = eq ]; then echo "ok   eqproof ${mnames[k]}: whole-suite vector equals the real gate's"
                 else echo "BAD  mutant ${mnames[k]} SURVIVED"; bad=1; ns=$((ns+1)); fi ;;
@@ -2194,14 +2278,18 @@ MEOF
   for ((q=1; q<=eqn; q++)); do
     [ -n "${mnames[${eqk[q]}]:-}" ] || continue
     for _ in 1 2; do t0="$(date +%F)"; setdates
-      pa="$("${eqprobe[q]}" "$gate")"; pb="$("${eqprobe[q]}" "${eqfile[q]}")"; pc="$("${eqprobe[q]}" "${eqctl[q]}")"
-      if [ -n "$altd" ]; then qa="$(PATH="$altp" "${eqprobe[q]}" "$gate")"; qb="$(PATH="$altp" "${eqprobe[q]}" "${eqfile[q]}")"; qc="$(PATH="$altp" "${eqprobe[q]}" "${eqctl[q]}")"
+      prf=0; rsafe "${eqprobe[q]}" "$gate"; pa="$RS"; prf=$((prf|RSF)); rsafe "${eqprobe[q]}" "${eqfile[q]}"; pb="$RS"; prf=$((prf|RSF))
+      rsafe "${eqprobe[q]}" "${eqctl[q]}"; pc="$RS"; prf=$((prf|RSF))
+      if [ -n "$altd" ]; then altprobe() { PATH="$altp" "$@"; }
+        rsafe altprobe "${eqprobe[q]}" "$gate"; qa="$RS"; prf=$((prf|RSF)); rsafe altprobe "${eqprobe[q]}" "${eqfile[q]}"; qb="$RS"; prf=$((prf|RSF))
+        rsafe altprobe "${eqprobe[q]}" "${eqctl[q]}"; qc="$RS"; prf=$((prf|RSF))
       else qa=x; qb=x; qc=y; fi
       [ "$(date +%F)" = "$t0" ] && break; done
     judge "${eqk[q]}"
-    if [ "$(date +%F)" = "$t0" ] && [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ -n "$qa" ] && [ "$qa" = "$qb" ] && [ "$qa" != "$qc" ] && [ "$J" = survived ]; then
+    if [ "$prf" = 0 ] && [ "$(date +%F)" = "$t0" ] && [ -n "$pa" ] && [ "$pa" = "$pb" ] && [ "$pa" != "$pc" ] && [ -n "$qa" ] && [ "$qa" = "$qb" ] && [ "$qa" != "$qc" ] && [ "$J" = survived ]; then
       echo "ok   eqproof ${eqnames[q]}: probe real=eq [$pa]; control differs [$pc]; alternative date: real=eq [$qa], control differs [$qc] ($JD)"; echo "${eqnames[q]}" >>"$tmp/eqok"; ne=$((ne+1))
-    else echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc]; alternative date real [$qa] eq [$qb] control [$qc] ($JD)"; bad=1; fi
+    else [ "$prf" = 0 ] || echo "BAD  eqproof ${eqnames[q]}: a probe met a resource failure on all 3 tries (not a verdict)"
+      echo "BAD  eqproof ${eqnames[q]}: probe real [$pa] eq [$pb] control [$pc]; alternative date real [$qa] eq [$qb] control [$qc] ($JD)"; bad=1; fi
   done
   for k in "${gsurv[@]}"; do # a generated member claimed equivalent counts only when its proof passed
     if grep -qx -- "${geneqp[k]}" "$tmp/eqok"; then ne=$((ne+1)); else echo "BAD  generated member ${mnames[k]}: its proof ${geneqp[k]} did not pass"; bad=1; fi
