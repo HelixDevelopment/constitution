@@ -109,7 +109,9 @@ done
 # script of `sh -c`) whose basename is jev-gate.sh is wiring. An assignment value, a comment or an argument is not.
 for c in "JEV_GATE=/x/jev-gate.sh other-tool" "X=/x/jev-gate.sh" "#/x/jev-gate.sh" "echo /x/jev-gate.sh" "cat /x/jev-gate.sh" \
          "env X=/x/jev-gate.sh other-tool" "bash -c 'echo /x/jev-gate.sh'" "sh -c 'X=/x/jev-gate.sh true'" "bash -x" \
-         "/x/other.sh # /x/jev-gate.sh" "'/x/jev-gate.sh.bak'" "bash /x/jev-gate.sh.disabled" "printf %s\\\\n /x/jev-gate.sh" ""; do
+         "/x/other.sh # /x/jev-gate.sh" "'/x/jev-gate.sh.bak'" "bash /x/jev-gate.sh.disabled" "printf %s\\\\n /x/jev-gate.sh" "" \
+         "/x/jev-gate.sh '" "\"/x/jev-gate.sh" "bash -c '/x/jev-gate.sh"; do
+  # (the last three: an unterminated quote is a shell syntax error, so the hook never runs the gate - mutant Z11)
   assert_eq unwired "$(w8 "$c")" "S9 command [$c] is NOT wiring"
 done
 for c in "/usr/bin/env bash /x/jev-gate.sh" "bash -c '/x/jev-gate.sh'" "bash -c \"/x/jev-gate.sh --pre\"" "env /x/jev-gate.sh" \
