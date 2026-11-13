@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T04:06:54Z |
+| Last modified | 2026-11-13T11:41:27Z |
 | Status | active |
 | Status summary | Four Mermaid diagrams: architecture, data flow, bootstrap state machine, routing and consensus sequence. |
 | Authority | Constitution §11.4.279–§11.4.286. The scripts and the claude_toolkit / llmctl sources govern wherever a diagram simplifies. |
@@ -148,7 +148,8 @@ sequenceDiagram
   end
   alt verdict fits / fits_with_reduced_threads
     P->>L: start <profile> (bounded)
-    P->>K: add llmctl-local at priority 10
+    P->>L: capacity --json again (observation newer than the start)
+    P->>K: llmctl-local at priority 10, derived from the lease registry once the unit is read ok
   else does_not_fit or undetermined
     P-->>S: rc 5, placement route cloud (key present) or none
   end

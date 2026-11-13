@@ -102,7 +102,7 @@ All on the final tree, hermetic as above, with a guard directory first on PATH w
 | the four `cm_jev_*_mutation_test.sh` (bootstrap_idempotent, detection, token_reduction, wiring) | PASS each, rc 0 | `gate_*_mutation.txt` |
 | `scripts/run_full_suite.sh --verify-manifest` | first run MANIFEST-MISMATCH (rc 3: the guide census was stale after the new `test_no_real_tools.sh` row); `--sync-guide` (rc 0) rewrote the census line; re-run MANIFEST-OK (910 rows) | `verify_manifest.txt`, `sync_guide.txt` |
 | `scripts/gates/cm_gate_ledger_ratchet.sh` | PASS (unimplemented 394, baseline 394) | `gate_ledger_ratchet.txt` |
-| shellcheck, changed shell files | no new code against `da7d97da` (same codes and counts per file); the new test only SC1091, like every sibling run from the repository root | `shellcheck_r5.txt` |
+| shellcheck, changed shell files | no new code against `da7d97da` (same codes and counts per file); the new test only SC1091, like every sibling run from the repository root | `shellcheck_r5.txt`  **Corrected in round 6 (review R5-9, §11.4.6):** this row is FALSE for `tests/jev/test_s4_placement.sh` (at `da7d97da`: SC1091×1 SC2012×2 SC2015×7 SC2329×3; at the round-5 head: SC1091×1 SC2015×10 SC2016×4 SC2329×3); the comparison was taken against the wrong tree. The per-file delta against the true base `02c10935` is `../round6/shellcheck_delta_vs_02c10935.tsv`. |
 | evidence pack scrub | 27 changed files of the pack equal their `da7d97da` text with the two path replacements applied; `SHA256SUMS` checks | `final_checks_summary.txt` |
 
 Guard calls during the final checks: 6, all refused. Attributed by re-running each gate mutation test with its own guard

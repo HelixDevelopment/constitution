@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-12T16:54:07Z |
+| Last modified | 2026-11-13T11:41:27Z |
 | Status | active |
 | Status summary | Task-oriented operating manual: set up, run, read status, calibrate, switch endpoints, turn it off. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -110,12 +110,12 @@ With a non-placeholder key in the keys file, every constitution pull runs `boots
 ```bash
 bash scripts/jev/jev-place.sh verdict            # read-only verdict per systemone-native decide profile
 bash scripts/jev/jev-place.sh acquire <session-id> --pid <session-pid>   # start the best fitting profile, or join the running one
-bash scripts/jev/jev-place.sh heartbeat <session-id>
+bash scripts/jev/jev-place.sh heartbeat <session-id>   # exit 3 = this holder has no lease (acquire again); never assumed
 bash scripts/jev/jev-place.sh release <session-id>   # the LAST release stops every model the constitution started; exit 6 = stop failed, set kept, retried by the next release
 bash scripts/jev/jev-place.sh status
 ```
 
-It never runs `llmctl enable`, `disable`, `switch` or `auto`. A model you started yourself is never stopped by it. For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
+It never runs `llmctl enable`, `disable`, `switch` or `auto`. A model you started yourself is never stopped by it. A lease TTL (`--ttl`, default `JEV_LEASE_TTL`) must exceed `JEV_REEVAL_CADENCE` (default 300 s) plus `JEV_LLMCTL_TIMEOUT` (default 20 s), else `acquire` exits 2. The `llmctl-local` cache entry is derived from the lease registry and only an `https://` gateway is registered. No session calls these commands automatically today, and the re-evaluation cadence, drain and hold window are not built (see the governance guide). For savings estimates use the toolkit's `jev-stats.sh [--days N] [--json]`; those numbers are ESTIMATES.
 
 ## 6. Shadow mode and enforce mode
 

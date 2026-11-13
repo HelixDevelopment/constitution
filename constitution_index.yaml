@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-07T18:00:51.475446+00:00'
+generated_at: '2026-11-13T11:40:18.640474+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 40ad97b5a4b5436a00a2951ad166465ee9415b7c
-  source_sha256: 51cb255c6638308514c184a5cf534475b5bc00cb613071f05a4cfa528e309695
+  commit: 5a9e72be203e576c1412c85fb3dc2f5a13a68021
+  source_sha256: 4d6f14ddbdfb3ffc337a423703eee71ea6dbce5e929c99d67be3292f7a129c19
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -7439,6 +7439,7 @@ anchors:
   - 11.4.35
   - 11.4.5
   - 11.4.6
+  - 11.4.66
   - '7.1'
 - id: 11.4.280
   title: — Per-agent decision-layer installation mandate (User mandate, 2026-10-07)
@@ -7491,6 +7492,8 @@ anchors:
   - 11.4.279
   - 11.4.282
   - 11.4.283
+  - 11.4.285
+  - 11.4.289
   - 11.4.291
 - id: 11.4.283
   title: — Decision-layer token-reduction proof (User mandate, 2026-10-07)
@@ -7808,6 +7811,7 @@ anchors:
   - 11.4.282
   - 11.4.284
   - 11.4.285
+  - 11.4.289
   - 11.4.291
   - 11.4.35
   - 11.4.6
