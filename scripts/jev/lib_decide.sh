@@ -142,8 +142,9 @@ jev_claude_settings_dirs() {
 # NOT wiring: an assignment value (X=/x/jev-gate.sh), a comment (#/x/jev-gate.sh), an argument of another command
 # (echo /x/jev-gate.sh), a renamed file (jev-gate.sh.disabled), an unterminated quote (conservative: not wired).
 # Honest limits: no expansion is performed ($VAR, $(...), aliases, functions, eval and a script fed to an interpreter
-# on stdin are not followed); a QUOTED assignment-looking first word ('X=1') is treated as an assignment; env -S is
-# not split.
+# on stdin are not followed); a QUOTED assignment-looking first word ('X=1') is treated as an assignment. Round 6
+# (review R5-12): `bash -s WORD` runs stdin with WORD as a positional parameter, so it is NOT wiring; `bash -c -- WORD`
+# runs WORD; `env -S STRING` splits STRING into words (a separator inside STRING is not followed: conservative).
 _jev_shell_words() { # _jev_shell_words <string> -> globals _JW (tokens), _JK (w = word, s = separator); rc 1 on an unterminated quote
   local s="$1" n=${#1} i=0 c q="" w="" have=0
   _JW=(); _JK=()
@@ -194,6 +195,14 @@ _jev_simple_runs_gate() {
     env) shift
       while [ $# -gt 0 ]; do
         if [[ "$1" == -u || "$1" == -C || "$1" == --unset || "$1" == --chdir ]]; then shift; [ $# -gt 0 ] && shift
+        elif [[ "$1" == -S || "$1" == --split-string || "$1" == -S?* || "$1" == --split-string=* ]]; then
+          # env -S STRING: STRING is split into words that come first (round 6, review R5-12); at most 3 levels deep
+          local es; case "$1" in -S|--split-string) shift; es="${1:-}"; [ $# -gt 0 ] && shift ;; --split-string=*) es="${1#*=}"; shift ;; *) es="${1#-S}"; shift ;; esac
+          [ "$d" -lt 3 ] || return 1
+          _jev_shell_words "$es" || return 1
+          local -a ew=(${_JW[@]+"${_JW[@]}"}) ek=(${_JK[@]+"${_JK[@]}"}); local ei
+          for ei in ${ek[@]+"${ek[@]}"}; do [ "$ei" = w ] || return 1; done   # a separator inside -S: not a simple command
+          _jev_simple_runs_gate $((d+1)) env ${ew[@]+"${ew[@]}"} "$@"; return
         elif [ "$1" = -- ]; then shift; break
         elif [[ "$1" == -* ]] || _jev_is_assignment "$1"; then shift
         else break; fi
@@ -238,23 +247,25 @@ _jev_simple_runs_gate() {
       _jev_simple_runs_gate "$d" "$@"; return ;;
   esac
   if _jev_is_interpreter "$b"; then
+    # Round 6 (review R5-12): every option is parsed first (bash reads its options before the first operand), tracking
+    # c (the first operand is a command string), s (the operands are positional parameters; commands come from stdin)
+    # and noexec (-n in a cluster, -o noexec). `--` and a lone `-` end the options.
+    local fc=0 fs=0
     shift
     while [ $# -gt 0 ]; do
       if [[ "$1" == -o || "$1" == +o || "$1" == -O || "$1" == +O || "$1" == --rcfile || "$1" == --init-file ]]; then
         [[ "$1" == -o && "${2:-}" == noexec ]] && noexec=1
         shift; [ $# -gt 0 ] && shift
-      elif [ "$1" = -- ]; then shift; break
-      elif [[ "$1" =~ ^[-+][A-Za-z]*c[A-Za-z]*$ ]]; then
-        [[ "$1" =~ ^-[A-Za-z]*n ]] && noexec=1
-        [ "$noexec" = 0 ] || return 1
-        shift
-        { [ $# -gt 0 ] && [ "$d" -lt 3 ]; } || return 1
-        _jev_cmd_runs_gate "$1" $((d+1)); return
-      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then [[ "$1" == *n* ]] && noexec=1; shift
+      elif [ "$1" = -- ] || [ "$1" = - ]; then shift; break
+      elif [[ "$1" =~ ^-[A-Za-z]+$ ]]; then
+        [[ "$1" == *c* ]] && fc=1; [[ "$1" == *s* ]] && fs=1; [[ "$1" == *n* ]] && noexec=1; shift
       elif [[ "$1" == -* || "$1" == +* ]]; then shift
       else break; fi
     done
-    [ "$noexec" = 0 ] && [ $# -gt 0 ] && [ "${1##*/}" = jev-gate.sh ]; return
+    [ "$noexec" = 0 ] || return 1
+    if [ "$fc" = 1 ]; then { [ $# -gt 0 ] && [ "$d" -lt 3 ]; } || return 1; _jev_cmd_runs_gate "$1" $((d+1)); return; fi
+    [ "$fs" = 0 ] || return 1
+    [ $# -gt 0 ] && [ "${1##*/}" = jev-gate.sh ]; return
   fi
   [ "$b" = jev-gate.sh ]
 }

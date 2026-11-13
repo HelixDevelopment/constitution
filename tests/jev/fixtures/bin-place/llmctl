@@ -20,12 +20,19 @@
 #                       * a profile whose own unit (owner self, profile == key) is up gets verdict `running`,
 #                         verdict_class null, running true, threads 0, reasons ["already running", ...pressure]
 #                         (lib/capacity.sh:503-534);
+#                       * round 6 (review N5-2): a profile that does NOT run gets the pressure reasons too and becomes
+#                         does_not_fit (threads 0), as lib/capacity.sh does for every non-running profile under pressure;
+#                       * PLACE_FULL_AFTER=<p>: while <p> runs, every other non-running profile is does_not_fit (the
+#                         reserve has no room for a second model; used to prove a second start is judged on a fresh answer);
 #                       * .degraded = any unit degraded; exit 75 when measurement.ok is false, 3 when degraded, else 0
 #                         (capacity_exit_code, lib/capacity.sh:634-642). PLACE_CAP_RC overrides the exit status.
 #                     PLACE_CAP_RAW=1 (or a file that is not JSON) returns the file unchanged, exit ${PLACE_CAP_RC:-0}.
 #                     PLACE_CAP_SLEEP seconds first (timeout cases).
-#   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x)
-#   decide status --json     -> a gateway registry entry (https://127.0.0.1:18095)
+#                     PLACE_CAP_RC_FILE=<file>: while <file> exists the call exits with its content (round 6).
+#   decide capacity --json   -> two systemone-native profiles (decide-a, decide-b) + one letter-logit (decide-x);
+#                               exit ${PLACE_DCAP_RC:-0} first when it is set (round 6, R5-7)
+#   decide status --json     -> a gateway registry entry (PLACE_STATUS_URL, default https://127.0.0.1:18095); exit
+#                               ${PLACE_STATUS_RC:-0} first when set; PLACE_STATUS_NOGW=1 -> a registry without a gateway (R5-14)
 #   start <p>          -> PLACE_START_SLEEP seconds first; exit ${PLACE_START_RC:-0}; creates $STUB_LOG/running.<key>
 #   stop <p>           -> PLACE_STOP_SLEEP seconds first; exit ${PLACE_STOP_RC:-0}; removes $STUB_LOG/running.<key> only on rc 0
 #   enable|disable|switch|auto -> recorded and exit 97 (the producer must never call them)
@@ -44,10 +51,12 @@ fi
 key() { if [ -n "${LLMCTL_TENANT_ID:-}" ]; then printf '%s--%s' "$LLMCTL_TENANT_ID" "$1"; else printf '%s' "$1"; fi; }
 case "${1:-} ${2:-}" in
   "capacity --json") [ -z "${PLACE_CAP_SLEEP:-}" ] || sleep "$PLACE_CAP_SLEEP"
+    # round 6 (own mutant OM16): PLACE_CAP_RC_FILE=<file>: while <file> exists, exit with its content (fails one later read)
+    if [ -n "${PLACE_CAP_RC_FILE:-}" ] && [ -f "$PLACE_CAP_RC_FILE" ]; then exit "$(cat "$PLACE_CAP_RC_FILE")"; fi
     if [ "${PLACE_CAP_RAW:-}" = 1 ] || ! jq -e . "${PLACE_CAP_JSON:?}" >/dev/null 2>&1; then cat "${PLACE_CAP_JSON:?}"; exit "${PLACE_CAP_RC:-0}"; fi
     run=""; for f in "$logdir"/running.*; do [ -e "$f" ] || continue; r="${f##*/running.}"
       case ",${PLACE_GONE:-}," in *",$r,"*) continue ;; esac; run="$run$r,"; done
-    jq -c --arg run "${run%,}" --arg deg "${PLACE_DEGRADED:-}" --arg tenant "${LLMCTL_TENANT_ID:-}" '
+    jq -c --arg run "${run%,}" --arg deg "${PLACE_DEGRADED:-}" --arg tenant "${LLMCTL_TENANT_ID:-}" --arg full "${PLACE_FULL_AFTER:-}" '
       def base: (if test("--") then split("--") | last else . end) | sub("\\.([2-9]|[1-9][0-9]+)$"; "");
       def k($p): if $tenant == "" then $p else "\($tenant)--\($p)" end;
       (if .pressure.ok == false then (.pressure.reasons // ["pressure"]) else [] end) as $pr
@@ -65,6 +74,10 @@ case "${1:-} ${2:-}" in
       | .profiles = ((.profiles // {}) | with_entries(
           .key as $kk | if ($own | index(k($kk))) then .value = (.value + {verdict:"running", verdict_class:null, running:true, threads:0,
                                                               reasons:(["already running"] + $pr)})
+          elif ($pr | length) > 0 then .value = (.value + {verdict:"does_not_fit", verdict_class:"does_not_fit", threads:0,
+                                                              reasons:((.value.reasons // []) + $pr)})
+          elif $full != "" and ($own | index(k($full))) then .value = (.value + {verdict:"does_not_fit", verdict_class:"does_not_fit", threads:0,
+                                                              reasons:((.value.reasons // []) + ["memory: \($full) is resident; the reserve leaves no room for another model"])})
           else . end))
       | .degraded = ([.llmctl.units[] | select(.status == "degraded")] | length > 0)
       | if ([.profiles | to_entries[] | select(.value.verdict == "fits" or .value.verdict == "fits_with_reduced_threads")] | length > 0)
@@ -75,8 +88,11 @@ case "${1:-} ${2:-}" in
     if [ "$(jq -r '.measurement.ok == false' "$logdir/cap.out")" = true ]; then exit 75; fi
     if [ "$(jq -r '.degraded' "$logdir/cap.out")" = true ]; then exit 3; fi
     exit 0 ;;
-  "decide capacity") echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
-  "decide status") echo '{"registry":{"services":[{"name":"decide-gateway","url":"https://127.0.0.1:18095","labels":{"kind":"gateway","ca_file":"/nonexistent/ca.crt"}}]}}' ;;
+  "decide capacity") [ "${PLACE_DCAP_RC:-0}" = 0 ] || exit "$PLACE_DCAP_RC"
+    echo '{"decision_instances":{"decide-x":{"protocol":"letter-logit"},"decide-a":{"protocol":"systemone-native"},"decide-b":{"protocol":"systemone-native"}}}' ;;
+  "decide status") [ "${PLACE_STATUS_RC:-0}" = 0 ] || exit "$PLACE_STATUS_RC"
+    if [ "${PLACE_STATUS_NOGW:-}" = 1 ]; then echo '{"registry":{"services":[]}}'; exit 0; fi
+    jq -nc --arg u "${PLACE_STATUS_URL:-https://127.0.0.1:18095}" '{registry:{services:[{name:"decide-gateway", url:$u, labels:{kind:"gateway", ca_file:"/nonexistent/ca.crt"}}]}}' ;;
   "start "*) [ -z "${PLACE_START_SLEEP:-}" ] || sleep "$PLACE_START_SLEEP"
              touch "$logdir/running.$(key "${2:?}")"; exit "${PLACE_START_RC:-0}" ;;
   "stop "*) [ -z "${PLACE_STOP_SLEEP:-}" ] || sleep "$PLACE_STOP_SLEEP"

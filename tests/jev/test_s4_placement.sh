@@ -17,20 +17,22 @@
 #   P11 dead-pid holder reaped on the next acquire; the reap itself never stops the model; acquire rejoins (no second start)
 #   P12 a set marked stopping refuses a new acquire (rc 5);  P13 lease lock held -> rc 4, no lease
 #   P14 enable/disable/switch/auto refused (rc 2) and never sent to llmctl;  P15 verdict --json lists only systemone-native
-#   P16 heartbeat refreshes; a pid-less lease past its TTL is reaped;  P17 pressure.ok=false -> does_not_fit
+#   P16 heartbeat refreshes; a pid-less lease past its TTL is reaped (cadence 10 s so --ttl 100 is admitted, R5-4);  P17 pressure.ok=false -> does_not_fit
 #   P18-P20 a failed start is stopped again; 75 sends no stop; an operator-started unit is adopted, never stopped
 #   P21 a FAILED last-release stop keeps the set (constitution_started, stopping mark, stop_failed), rc 6; the next release
 #       retries; an acquire after a failed stop joins the kept model when its unit is ok
 #   P22 the release stop is bounded by the START/STOP timeout;  P23 JEV_PLACE_MAX=2: the last release stops both
 #   P24 pid identity (pid + start time);  P25 a join re-checks the unit (degraded -> refused_degraded) and re-registers
 #   P26 closed verdict set;  P27 failed start + failed cleanup stop: kept set, never joined, stop retried
-#   P28 join refusals on the REAL shapes: unit gone, verdict running without an own unit, a foreign-owner unit, verdict
-#       undetermined, host pressure (every unit degraded), a unit status outside ok/degraded, an unread answer; CONTROL joins
+#   P28 join refusals on the REAL shapes: verdict running without an own unit, verdict undetermined, host pressure (every
+#       unit degraded), a unit status outside ok/degraded, an unread answer; CONTROL joins. A GONE unit (crashed, or only a
+#       foreign-owner unit left) is endpoint_gone since round 6 (R5-6): lease released, set disposed, not restarted
 #   P29 pid start = /proc stat field 22;  P30 zombie holder reaped;  P31 a pid-less stop mark is cleared only by age
 #   P32 closed event set (refused_starting included)
 #   P33 a lease-less constitution-started set whose unit is gone or degraded is stopped (held for this evaluation) and the next
 #       acquire places it; an UNKNOWN instance state never stops; a failed disposal stop is owed and retried
-#   P34 every set is checked: a degraded / crashed first set does not block joining a healthy second set
+#   P34 every set is checked: a degraded / crashed first set does not block joining a healthy second set (a crashed one is
+#       released and disposed, R5-6)
 #   P35 (R4-2) degraded -> stopped and the other candidate placed; a lease-less constitution-started model whose unit is ok
 #       is JOINED, never stopped, whatever a second start would get; single candidate degraded -> stopped, rc 5;
 #       an operator-started unit is never stopped
@@ -40,8 +42,8 @@
 #   P39 (R4-2) LLMCTL_TENANT_ID: the tenant-keyed unit is joined; another tenant's or another owner's unit is never adopted
 #   P40 (R4-1) after any stop the endpoint cache never names the stopped model: an owed retry drops it; a release that stops
 #       one set re-points the entry to the set that is still held
-#   P41 (R4-3) no llmctl call under the lease lock: a heartbeat during a slow stop and during a slow start returns rc 0 at
-#       once; a concurrent acquire is refused (refused_stopping / refused_starting), never a lock timeout
+#   P41 (R4-3) no llmctl call under the lease lock: a heartbeat during a slow stop and during a slow start answers at once
+#       (rc 3: that holder has no lease, R5-5; never rc 4, a lock timeout); a concurrent acquire is refused (refused_stopping / refused_starting), never a lock timeout
 #   P42 a dead starter's `starting` mark is cleared; a live one is kept and refuses an acquire
 #   P43 (R4-1) structure: exactly one `llmctl stop` and one `llmctl start` call site in the producer (control needles)
 #   P44 verdict --json reports the instance state;  P45 a unit status outside ok/degraded is unknown: nothing started or adopted
@@ -225,11 +227,14 @@ fresh; cap "$T/cap.json"
 assert_eqx "decide-a,decide-b" "$("$PLACE" verdict --json 2>/dev/null | jq -r '[.candidates[].profile]|join(",")')" "P15 candidates = systemone-native only"
 assert_eqx 0 "$(starts)" "P15 verdict never starts"
 fresh; cap "$T/cap.json"
+# round 6 (R5-4): a TTL must exceed the re-evaluation cadence plus the llmctl call timeout; a 10 s cadence admits --ttl 100
+export JEV_REEVAL_CADENCE=10
 "$PLACE" acquire s1 --ttl 100 >/dev/null 2>&1
 JEV_NOW_EPOCH=1700000050 "$PLACE" heartbeat s1
 assert_eqx 1700000050 "$(L '.sets["decide-a"].leases[0].heartbeat_at')" "P16 heartbeat refreshed"
 JEV_NOW_EPOCH=1700000200 "$PLACE" reap 2>/dev/null
 assert_eqx 0 "$(L '.sets["decide-a"].leases|length')" "P16 pid-less lease past TTL reaped"
+unset JEV_REEVAL_CADENCE
 
 # ---- P18 / P19 / P20 -------------------------------------------------------------------------------------------
 fresh; cap "$T/cap.json"; export PLACE_START_RC=1
@@ -384,9 +389,23 @@ p28() { # p28 <label> <expected-event>: s1 holds decide-a; the case was set up b
 }
 p28_setup() { fresh; cap "$T/cap.json" fits does_not_fit; "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1; jq '.endpoints = []' "$CACHE" > "$T/c28" && cp "$T/c28" "$CACHE"; }
 RUN_NO_UNIT='.profiles["decide-a"] += {verdict:"running", verdict_class:null, running:true, threads:0, reasons:["already running"]}'
-p28_setup; unit_gone decide-a;                                                           p28 "unit gone (crashed)" refused_join
+# round 6 (R5-6): a GONE endpoint is not a join refusal any more. Its leases are released (endpoint_gone, §11.4.291(J)(6)),
+# the lease-less constitution-started set is disposed (one idempotent bounded stop) and the profile is NOT restarted by the
+# same acquire (no restart loop): rc 5, no_fit with the held profile named, no lease, no cache entry.
+p28gone() { # p28gone <label>
+  "$PLACE" acquire s2 --pid $$ >/dev/null 2>"$T/e28"; rc=$?
+  assert_eqx "5 no_fit" "$rc $(pl '.placement.event')" "P28 $1 -> no join and no restart (rc 5, event no_fit)"
+  has "$T/e28" "endpoint_gone: the unit of decide-a is gone" "P28 $1 -> endpoint_gone is logged"
+  has "$T/e28" "every lease released (holders s1)" "P28 $1 -> the lease of the gone endpoint is released and named"
+  assert_eqx "null 0 0" "$(L '.sets["decide-a"]') $(cachen) $(starts_after_setup)" "P28 $1 -> the set is disposed, nothing is in the cache, nothing is restarted"
+  assert_eqx 1 "$(stops)" "P28 $1 -> exactly one (idempotent) stop of the gone constitution-started unit"
+  case "$(pl '.placement.reason')" in *"held until the next evaluation"*decide-a*) ok "P28 $1 -> the record names the held profile" ;; *) fail "P28 $1 -> the record does not name the held profile: $(pl '.placement.reason')" ;; esac
+  unset PLACE_CAP_RAW PLACE_DEGRADED PLACE_GONE
+}
+starts_after_setup() { echo $(( $(starts) - 1 )); }
+p28_setup; unit_gone decide-a;                                                           p28gone "unit gone (crashed)"
 p28_setup; rawcap "$T/cap.json" "$RUN_NO_UNIT";                                          p28 "verdict running without an own unit" refused_join
-p28_setup; unit_gone decide-a; cap "$T/cap.json" fits does_not_fit 5000 foreign;         p28 "only another user's unit" refused_join
+p28_setup; unit_gone decide-a; cap "$T/cap.json" fits does_not_fit 5000 foreign;         p28gone "only another user's unit"
 p28_setup; rawcap "$T/cap.json" '.profiles["decide-a"].verdict = "undetermined" | .profiles["decide-a"].threads = 0'
                                                                                          p28 "verdict undetermined" refused_join
 p28_setup; cap "$T/cap.json" fits does_not_fit 5000 "" false;                            p28 "host pressure (every unit degraded)" refused_degraded
@@ -402,7 +421,7 @@ out="$("$PLACE" acquire s4 --pid $$ 2>/dev/null)"; rc=$?
 assert_eqx "0 decide-a joined" "$rc $out $(pl '.placement.event')" "P28 CONTROL: unit ok -> joined, whatever a SECOND start of the profile would get"
 
 # ---- P32 closed event set ----------------------------------------------------------------------------------------------------
-case "$(pl '.placement.event')" in placed|joined|joined_running|no_fit|undetermined|start_failed|start_refused|refused_stopping|refused_starting|refused_degraded|refused_join|lease_lock_timeout|stopped|stop_failed)
+case "$(pl '.placement.event')" in placed|joined|joined_running|no_fit|undetermined|start_failed|start_refused|refused_stopping|refused_starting|refused_degraded|refused_join|lease_lock_timeout|stopped|stop_failed|endpoint_gone|gateway_refused|route_changed)
   ok "P32 the last placement event is in the closed set" ;; *) fail "P32 event outside the closed set: $(pl '.placement.event')" ;; esac
 wp="$(sed -n '/^write_placement() {/,/^}/p' "$PLACE")"
 if [ -z "$wp" ]; then fail "P32b write_placement not found in the producer"; else
@@ -501,7 +520,13 @@ for us in degraded gone; do
   out="$("$PLACE" acquire h2 --pid $$ 2>"$T/e34")"; rc=$?
   assert_eqx "0 decide-b joined" "$rc $out $(pl '.placement.event')" "P34 a $us first set does not block joining the healthy second set"
   assert_eqx "h1,h2" "$(L '[.sets["decide-b"].leases[].holder]|join(",")')" "P34 ($us) the new lease is on decide-b"
-  assert_eqx "h1 0" "$(L '[.sets["decide-a"].leases[].holder]|join(",")') $(stops)" "P34 ($us) the first set that still has a live holder is left alone (no lease added, never stopped)"
+  if [ "$us" = gone ]; then
+    # round 6 (R5-6): the gone first set loses its lease (endpoint_gone) and is disposed; decide-b is joined all the same
+    assert_eqx "null 1" "$(L '.sets["decide-a"]') $(stops)" "P34 (gone) the gone first set is released and disposed (one stop), never restarted"
+    has "$T/e34" "endpoint_gone: the unit of decide-a is gone" "P34 (gone) endpoint_gone is logged"
+  else
+    assert_eqx "h1 0" "$(L '[.sets["decide-a"].leases[].holder]|join(",")') $(stops)" "P34 ($us) the first set that still has a live holder is left alone (no lease added, never stopped)"
+  fi
   unset JEV_PLACE_MAX PLACE_DEGRADED PLACE_GONE
 done
 
@@ -588,21 +613,24 @@ assert_eqx decide-a "$(cachem)" "P40 the cache entry is re-pointed to decide-a (
 # ---- P41 no llmctl call under the lease lock (review R4-3) --------------------------------------------------------------------
 fresh; cap "$T/cap.json"
 "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1
-( PLACE_STOP_SLEEP=5 "$PLACE" release s1 >/dev/null 2>&1 ) & bg=$!; jev_track_pid "$bg"
+( PLACE_STOP_SLEEP=8 "$PLACE" release s1 >/dev/null 2>&1 ) & bg=$!; jev_track_pid "$bg"
 sleep 1
-t0=$(date +%s); JEV_LOCK_TIMEOUT=2 "$PLACE" heartbeat s1; rc=$?; t1=$(date +%s)
-assert_eqx 0 "$rc" "P41 a heartbeat during a slow stop returns rc 0 (the lock is not held across the stop)"
-[ $((t1 - t0)) -le 1 ] && ok "P41 the heartbeat did not wait for the stop ($((t1 - t0))s)" || fail "P41 the heartbeat waited ($((t1 - t0))s)"
+t0=$(date +%s); JEV_LOCK_TIMEOUT=4 "$PLACE" heartbeat s1 2>"$T/e41a"; rc=$?; t1=$(date +%s)
+# round 6 (R5-5): s1 released its lease, so the heartbeat answers 3 (no lease); a held lock would have been rc 4
+assert_eqx 3 "$rc" "P41 a heartbeat during a slow stop returns rc 3 (no lease), not 4 (the lock is not held across the stop)"
+has "$T/e41a" "holds no lease" "P41 the heartbeat says it holds no lease"
+# the bound is the lock timeout (4 s), not the heartbeat's own run time: a held lock means >= 4 s and rc 4
+[ $((t1 - t0)) -lt 4 ] && ok "P41 the heartbeat did not wait for the stop ($((t1 - t0))s < lock timeout 4s)" || fail "P41 the heartbeat waited ($((t1 - t0))s, lock timeout 4s)"
 JEV_LOCK_TIMEOUT=2 "$PLACE" acquire s2 --pid $$ >/dev/null 2>/dev/null; rc=$?
 assert_eqx "5 refused_stopping" "$rc $(pl .placement.event)" "P41 an acquire during the stop is refused_stopping, not a lock timeout"
 wait "$bg" 2>/dev/null
 assert_eqx null "$(L '.sets["decide-a"]')" "P41 the slow stop completed and removed the set"
 fresh; cap "$T/cap.json" fits does_not_fit
-( PLACE_START_SLEEP=5 "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1 ) & bg=$!; jev_track_pid "$bg"
+( PLACE_START_SLEEP=8 "$PLACE" acquire s1 --pid $$ >/dev/null 2>&1 ) & bg=$!; jev_track_pid "$bg"
 sleep 1
-t0=$(date +%s); JEV_LOCK_TIMEOUT=2 "$PLACE" heartbeat sx; rc=$?; t1=$(date +%s)
-assert_eqx 0 "$rc" "P41 a heartbeat during a slow start returns rc 0"
-[ $((t1 - t0)) -le 1 ] && ok "P41 the heartbeat did not wait for the start ($((t1 - t0))s)" || fail "P41 the heartbeat waited ($((t1 - t0))s)"
+t0=$(date +%s); JEV_LOCK_TIMEOUT=4 "$PLACE" heartbeat sx 2>/dev/null; rc=$?; t1=$(date +%s)
+assert_eqx 3 "$rc" "P41 a heartbeat during a slow start returns rc 3 (sx holds no lease), not 4 (no lock wait)"
+[ $((t1 - t0)) -lt 4 ] && ok "P41 the heartbeat did not wait for the start ($((t1 - t0))s < lock timeout 4s)" || fail "P41 the heartbeat waited ($((t1 - t0))s, lock timeout 4s)"
 JEV_LOCK_TIMEOUT=2 "$PLACE" acquire s2 --pid $$ >/dev/null 2>/dev/null; rc=$?
 assert_eqx "5 refused_starting" "$rc $(pl .placement.event)" "P41 an acquire during the start is refused_starting, not a lock timeout"
 wait "$bg" 2>/dev/null

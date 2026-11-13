@@ -57,4 +57,22 @@ if [ -s "$TRIP" ]; then fail "N2 a real-tool location was executed by test_revie
 else ok "N2 test_review_fixes_r5.sh executed no real-tool location (decoy user database, tripwires on PATH and in the home)"; fi
 assert_contains "$out" "skip - I5-1 real pinned llmctl not named" "N2 without REAL_LLMCTL_BIN the real-binary check is an honest SKIP"
 assert_rc 0 "$rc" "N2 test_review_fixes_r5.sh passes under the decoy environment"
+
+# ---- N3 dynamic (round 6, review R5-11) ----------------------------------------------------------------------------------
+# test_gate_pairs.sh (and through it the four gate mutation tests) runs with the same decoy user database and tripwires
+# first on PATH, with no JEV_LLMCTL_BIN from the caller: no tripwire may fire (the round-5 detection mutation test fell
+# back to the PATH llmctl, `decide status --json`, once per run). CONTROL: the detection gate on an empty record with no
+# named llmctl DOES reach the PATH tripwire, so the tripwire sees the fallback the fix removes.
+GATES_UT="$(cd "$SUITE/../.." && pwd)/scripts/gates"
+: > "$TRIP"
+env -u REAL_LLMCTL_BIN -u JEV_LLMCTL_BIN PATH="$DB:$PATH" HOME="$DH" TMPDIR="$T" bash "$SUITE/test_gate_pairs.sh" > "$T/gp.out" 2>&1; rc=$?
+if [ -s "$TRIP" ]; then fail "N3 test_gate_pairs.sh executed a real-tool location: $(head -3 "$TRIP" | tr '\n' ' ')"
+else ok "N3 test_gate_pairs.sh (four gate pairs and their mutation tests) executed no real-tool location"; fi
+assert_rc 0 "$rc" "N3 test_gate_pairs.sh passes under the decoy environment"
+: > "$TRIP"
+jq '.endpoints=[] | .reason="nothing running" | .capacity={"instances":0,"decision_instances":0,"parallel_total":0}' \
+  "$GATES_UT/fixtures/jev/evidence/jev-detection.json" > "$T/empty.json"
+env -u JEV_LLMCTL_BIN PATH="$DB:$PATH" HOME="$DH" TMPDIR="$T" HELIX_TEST_MODE=1 JEV_DETECTION_FILE="$T/empty.json" \
+  JEV_EVIDENCE_WINDOW_START=1759999000 JEV_FIXTURE_ROOT="$GATES_UT/fixtures/jev" bash "$GATES_UT/cm_jev_detection.sh" >/dev/null 2>&1
+assert_contains "$TRIP" "TRIP $DB/llmctl decide status" "N3 CONTROL: the detection gate's PATH fallback reaches the tripwire when no llmctl is named"
 finish

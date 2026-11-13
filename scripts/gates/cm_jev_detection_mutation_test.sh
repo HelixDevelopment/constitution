@@ -11,6 +11,10 @@ unset TYPESAFE_API_KEY OPENROUTER_API_KEY LLMCTL_API_KEY
 # Tool preflight: an absent tool is CANNOT-DETERMINE (rc 2), never a pass or a false RED.
 for _t in jq python3 mktemp; do command -v "$_t" >/dev/null 2>&1 || { echo "[mutation] cannot determine: required tool '$_t' missing" >&2; exit 2; }; done
 GREEN_LOG=$(mktemp); trap 'rm -f "$GREEN_LOG"' EXIT
+# R5-11 (round 6, 2026-11-13): no leg may fall back to the caller's PATH llmctl (on an operator host that is the REAL
+# llmctl, `decide status`). Every leg names an llmctl that does not exist, so the gate's empty-record cross-check is a
+# deterministic NOTE in test mode; leg N names its own stub explicitly. tests/jev/test_no_real_tools.sh N3 proves it.
+export JEV_LLMCTL_BIN="$GREEN_LOG.no-llmctl"
 HERE=$(cd "$(dirname "$0")" && pwd)
 FIX="$HERE/fixtures/jev"
 GATE="$HERE/cm_jev_detection.sh"
@@ -143,7 +147,7 @@ JEV_PROBE_CMD="$FIX/bin/jev-probe-ok.sh" JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > 
 mkdir -p "$SBX/nbin"
 printf '%s\n' '#!/usr/bin/env bash' 'case "$1 $2" in "decide status") echo "{\"gateway\":{\"running\":true},\"profiles\":[{\"profile\":\"decide-real\",\"running\":true}]}" ;; "decide capacity") echo "{\"decision_instances\":{\"decide-real\":{\"protocol\":\"jev-json\",\"effective_slots_per_instance\":2}}}" ;; *) exit 1 ;; esac' > "$SBX/nbin/llmctl"; chmod +x "$SBX/nbin/llmctl"
 jq '.endpoints=[] | .reason="nothing running" | .capacity={"instances":0,"decision_instances":0,"parallel_total":0}' "$FIX/evidence/jev-detection.json" > "$SBX/empty.json"
-PATH="$SBX/nbin:$PATH" JEV_DETECTION_FILE="$SBX/empty.json" JEV_EVIDENCE_WINDOW_START=1759999000 JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > "$SBX/mN.log" 2>&1
+JEV_LLMCTL_BIN="$SBX/nbin/llmctl" PATH="$SBX/nbin:$PATH" JEV_DETECTION_FILE="$SBX/empty.json" JEV_EVIDENCE_WINDOW_START=1759999000 JEV_FIXTURE_ROOT="$FIX" bash "$GATE" > "$SBX/mN.log" 2>&1
 { [ $? -eq 1 ] && grep -q 'contradiction' "$SBX/mN.log"; } \
   && say "RED flip N asserted: empty record contradicting llmctl rejected" \
   || { say "MUTATION N SURVIVED"; rc=1; }

@@ -855,6 +855,7 @@ tests/jev/test_review_fixes_r7.sh	sh	member	default	-	tests/jev/run_all.sh	auto:
 tests/jev/test_run_all_leak_detector.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s3_bootstrap_honesty.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_s4_placement.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
+tests/jev/test_s4_round6.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/jev/test_skill_and_action_registration.sh	sh	member	default	-	tests/jev/run_all.sh	auto: run by tests/jev/run_all.sh
 tests/jev/test_tab_fields.sh	sh	member	default	-	tests/jev/run_all.sh	auto: invoked by tests/jev/run_all.sh
 tests/layout/hermetic_lint.py	py	excluded	-	-	-	reason: library: lint library run and mutation-checked by tests/layout/test_hermetic_generator.sh; not a test entry point
