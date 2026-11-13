@@ -131,6 +131,7 @@ JEV_PROBE_CMD=<constitution>/scripts/jev/jev-probe.sh JEV_DETECTION_FILE=<eviden
 | `JEV_BOOTSTRAP_AGENTS` | `all` | Same as `--agent`; a comma list of `claude,kimi,pi,opencode` or `all`. |
 | `JEV_BOOTSTRAP_HOME` | `~/.local/share/helix` | Root for the managed-clone fallback. |
 | `LLMCTL_DIR` / `CLAUDE_TOOLKIT_DIR` | unset | Explicit existing checkouts; highest provisioning priority. |
+| `JEV_LLMCTL_BIN` / `JEV_TOOLKIT_BIN` | unset | The `llmctl` / `claude-providers` binary to use instead of a `PATH` lookup. When set it is the ONLY candidate: an executable file is used, anything else means the tool is ABSENT (logged), never a fallback to `PATH`. `CM-JEV-DETECTION` honours `JEV_LLMCTL_BIN` only under `HELIX_TEST_MODE=1` with a path under the temp root (`scripts/lib/gate_env_override.sh`); outside that it uses `PATH`. |
 | `JEV_EVIDENCE_DIR` | `<state>/evidence` (`~/.local/state/jev/evidence`) | Evidence store for `jev-detection.json`, thresholds, harness artifacts. Selects the detection record (`JEV_DETECTION_FILE` overrides that one file). Absolute; never the working directory. |
 | `JEV_STATE_DIR` | `~/.local/state/jev` | Runtime state: `decisions.jsonl`, stamp, pending file. |
 | `JEV_CONFIG_DIR` | `~/.config/jev` | `env` file and `jev-thresholds.json`. |

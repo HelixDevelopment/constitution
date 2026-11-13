@@ -104,6 +104,20 @@ done
 for c in "/x/jev-gate.sh" "jev-gate.sh" "bash /x/jev-gate.sh" "A=1 B=2 /x/jev-gate.sh --flag" "'/x/jev-gate.sh'" "\"/x/jev-gate.sh\" arg" "  /x/.local/share/claude-multi-account/jev/jev-gate.sh"; do
   assert_eq wired "$(w8 "$c")" "S8 command [$c] is wiring"
 done
+# S9 the matcher is STRUCTURAL (round 4, review R3-3 and the surviving mutant Y11): it splits the command into shell words
+# and simple commands, and only a COMMAND word (after assignments, env and an sh/bash/zsh/dash interpreter, or inside the
+# script of `sh -c`) whose basename is jev-gate.sh is wiring. An assignment value, a comment or an argument is not.
+for c in "JEV_GATE=/x/jev-gate.sh other-tool" "X=/x/jev-gate.sh" "#/x/jev-gate.sh" "echo /x/jev-gate.sh" "cat /x/jev-gate.sh" \
+         "env X=/x/jev-gate.sh other-tool" "bash -c 'echo /x/jev-gate.sh'" "sh -c 'X=/x/jev-gate.sh true'" "bash -x" \
+         "/x/other.sh # /x/jev-gate.sh" "'/x/jev-gate.sh.bak'" "bash /x/jev-gate.sh.disabled" "printf %s\\\\n /x/jev-gate.sh" ""; do
+  assert_eq unwired "$(w8 "$c")" "S9 command [$c] is NOT wiring"
+done
+for c in "/usr/bin/env bash /x/jev-gate.sh" "bash -c '/x/jev-gate.sh'" "bash -c \"/x/jev-gate.sh --pre\"" "env /x/jev-gate.sh" \
+         "env -i HOME=/h /x/jev-gate.sh" "/usr/bin/env -u FOO X=1 /x/jev-gate.sh" "sh -e /x/jev-gate.sh" "exec /x/jev-gate.sh" \
+         "X='a b' /x/jev-gate.sh" "set -e; /x/jev-gate.sh" "bash -o pipefail /x/jev-gate.sh" "/x/my\\ dir/jev-gate.sh" \
+         "sh -c 'exec bash /x/jev-gate.sh'" "\"/x/a b/jev-gate.sh\""; do
+  assert_eq wired "$(w8 "$c")" "S9 command [$c] is wiring"
+done
 # a stale ~/.claude-* dir (no PreToolUse entry, only a mention / a disabled hook) never makes the claude clause pass
 JH8="$T/jh8"; mkdir -p "$JH8/.claude-old" "$JH8/.claude-shared"
 printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"/x/jev-gate.sh.disabled"}]}]},"note":"jev-gate.sh"}\n' > "$JH8/.claude-old/settings.json"

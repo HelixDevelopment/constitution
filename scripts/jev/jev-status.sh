@@ -84,15 +84,15 @@ MODE_STORED="$MODE"; MODE_REASON="as-stored"
 if [ "$MODE_STORED" = "enforce" ]; then
   MODE="shadow"; MODE_REASON="unknown"
   # no base URL is passed: the shared function resolves it (env, MCP entry, cache) like bootstrap and register do
-  IFS=$'\t' read -r MODE MODE_REASON < <(JEV_SKIP_VALIDATION="$([ "$NO_VALIDATE" = 1 ] && echo 1 || echo 0)" jev_effective_mode enforce "" "$DETECTION_FILE") || true
+  IFS=$'\x1f' read -r MODE MODE_REASON < <(JEV_SKIP_VALIDATION="$([ "$NO_VALIDATE" = 1 ] && echo 1 || echo 0)" jev_effective_mode enforce "" "$DETECTION_FILE" | tr '\t' '\037') || true
   case "$MODE_REASON" in validation-skipped*) MODE="unknown" ;; *) [ "$MODE" = "enforce" ] || MODE="shadow" ;; esac
 fi
 MCP_MISMATCH=false
 # r6 m6-1: compare every MCP entry with the EFFECTIVE mode (what is really in force), also when the env file is absent
 # (stored `unknown`): an MCP entry saying enforce while the effective mode is not enforce is a mismatch.
-while IFS=$'\t' read -r _f _m; do
+while IFS=$'\x1f' read -r _f _m; do
   [ -z "${_m:-}" ] || [ "$_m" = "$MODE" ] || MCP_MISMATCH=true
-done < <(jev_mcp_modes)
+done < <(jev_mcp_modes | tr '\t' '\037')
 TEST_OVERRIDE=false
 { [ "${JEV_TEST:-}" = "1" ] && { [ -n "${JEV_DECISION_PROFILES:-}" ] || [ -n "${JEV_REQUIRE_VALIDATED_CMD:-}" ]; }; } && TEST_OVERRIDE=true
 

@@ -68,16 +68,16 @@ fi
 # C2: a bootstrap that (like the old stage 7) re-runs the gate must terminate with a BOUNDED
 # invocation count. Stub self-caps at 8 so even a broken guard cannot storm. Guarded gate
 # runs the stub exactly 4 times (2 digest runs + defer + clone run); nested gate calls exit 2.
-cat > "$SBX/storm-stub.sh" <<'STORM'
-#!/usr/bin/env bash
-n=$(wc -l < "$STORM_COUNT" 2>/dev/null || echo 0)
-[ "$n" -lt 8 ] || exit 0
-echo x >> "$STORM_COUNT"
-timeout --kill-after=2 30 bash "$GATE_UNDER_TEST" >/dev/null 2>&1
-exit 0
-STORM
-: > "$SBX/c2.count"
-STORM_COUNT="$SBX/c2.count" GATE_UNDER_TEST="$GATE" JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
+# The gate runs its bootstrap from an EMPTY environment (env -i, round 4 R3-2), so the stub cannot take the count
+# file or the gate path from the environment: each storm stub carries its own paths, written in here.
+# The stub also names ITSELF as the bootstrap of the gate it re-runs (HELIX_TEST_MODE + a temp root that holds it, so
+# the guarded override is honoured): without that the empty environment alone already stops the recursion and the
+# neutered copy could not show that the NESTED guard is what bounds the storm.
+mkstorm() { # mkstorm <stub> <count file> <gate under test>
+  printf '#!/usr/bin/env bash\nn=$(wc -l < %q 2>/dev/null || echo 0)\n[ "$n" -lt 8 ] || exit 0\necho x >> %q\nHELIX_TEST_MODE=1 TMPDIR=%q JEV_BOOTSTRAP_STUB=%q timeout --kill-after=2 30 bash %q >/dev/null 2>&1\nexit 0\n' "$2" "$2" "$(dirname -- "$SBX")" "$1" "$3" > "$1"
+}
+: > "$SBX/c2.count"; mkstorm "$SBX/storm-stub.sh" "$SBX/c2.count" "$GATE"
+JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
   timeout --kill-after=5 120 bash "$GATE" > "$SBX/outC2.log" 2>&1
 n_guard=$(wc -l < "$SBX/c2.count")
 # Neutered copy: guard block removed and the child export renamed away.
@@ -95,8 +95,8 @@ s2 = s2.replace('JEV_BOOTSTRAP_NESTED=1', 'JEV_NEUTERED_NOT_NESTED=1')
 assert s2 != s
 open(p, 'w').write(s2)
 PYEOF
-: > "$SBX/c3.count"
-STORM_COUNT="$SBX/c3.count" GATE_UNDER_TEST="$SBX/n2/gates/gate.sh" JEV_BOOTSTRAP_STUB="$SBX/storm-stub.sh" \
+: > "$SBX/c3.count"; mkstorm "$SBX/storm-stub3.sh" "$SBX/c3.count" "$SBX/n2/gates/gate.sh"
+JEV_BOOTSTRAP_STUB="$SBX/storm-stub3.sh" \
   timeout --kill-after=5 180 bash "$SBX/n2/gates/gate.sh" > "$SBX/outC3.log" 2>&1
 n_neut=$(wc -l < "$SBX/c3.count")
 if [ "$n_guard" -eq 4 ] && [ "$n_neut" -gt 4 ] && [ "$n_neut" -le 8 ]; then
@@ -111,6 +111,13 @@ JEV_BOOTSTRAP_STUB="$SBX/noop-stub.sh" timeout --kill-after=5 120 bash "$GATE" >
 { [ $? -eq 1 ] && grep -q 'clone-fallback' "$SBX/outD.log"; } \
   && say "RED flip D asserted: no-op bootstrap rejected (defer + clone-fallback clauses)" \
   || { say "MUTATION D SURVIVED: no-op bootstrap accepted"; rc=1; }
+
+# Mutation H (round 4, R3-2) - a bootstrap that reaches for the network (curl) or a real tool must turn clause 5 RED.
+printf '#!/usr/bin/env bash\ncurl -s https://hermetic.example.invalid/ >/dev/null 2>&1\nexec bash %q "$@"\n' "$HERE/../jev/bootstrap.sh" > "$SBX/net-stub.sh"
+JEV_BOOTSTRAP_STUB="$SBX/net-stub.sh" timeout --kill-after=5 300 bash "$GATE" > "$SBX/outH.log" 2>&1
+{ [ $? -eq 1 ] && grep -q 'hermetic: a bootstrap run called a guarded tool (network or real tool): curl' "$SBX/outH.log"; } \
+  && say "RED flip H asserted: a bootstrap run that calls curl is rejected by the hermetic clause" \
+  || { say "MUTATION H SURVIVED: a network-calling bootstrap was accepted"; rc=1; }
 
 # Mutation E/F/G - the pin reader is STRUCTURAL (helix_deps_field.py), not line patterns.
 cat > "$SBX/decoy.yaml" <<'YEOF'

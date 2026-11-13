@@ -84,6 +84,8 @@
 #   JEV_BOOTSTRAP_MODE (shadow|enforce), JEV_BOOTSTRAP_AGENTS (csv|all),
 #   JEV_BOOTSTRAP_HOME (managed-clone root, default ~/.local/share/helix),
 #   LLMCTL_DIR / CLAUDE_TOOLKIT_DIR (explicit existing checkouts),
+#   JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN (explicit llmctl / claude-providers binary: when set it is the ONLY candidate, no PATH
+#     lookup and no checkout fallback; a value that is not an executable makes the tool ABSENT - the hermetic gate uses this),
 #   JEV_HOME (target home; default $HOME), JEV_STATE_DIR (default <home>/.local/state/jev),
 #   JEV_EVIDENCE_DIR (default <state>/evidence - absolute, NEVER cwd-relative), JEV_CONFIG_DIR (default <home>/.config/jev),
 #   JEV_DETECTION_FILE (SELECTS the detection record; default <evidence>/jev-detection.json),
@@ -541,9 +543,17 @@ TOOL_PROVENANCE=""
 
 # ---- Stage 3: detect-models ----
 LLMCTL_BIN=""; TOOLKIT_BIN=""
-if command -v llmctl >/dev/null 2>&1; then LLMCTL_BIN="llmctl"
+# An explicit JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN is the ONLY candidate (round 4, review R3-2 nit): a real binary elsewhere on
+# PATH can never win over it, and a value that is not an executable means "absent" (logged, never a silent fallback).
+if [ -n "${JEV_LLMCTL_BIN:-}" ]; then
+  if [ -f "$JEV_LLMCTL_BIN" ] && [ -x "$JEV_LLMCTL_BIN" ]; then LLMCTL_BIN="$JEV_LLMCTL_BIN"
+  else log "" "  JEV_LLMCTL_BIN is set but is not an executable file: llmctl treated as absent"; fi
+elif command -v llmctl >/dev/null 2>&1; then LLMCTL_BIN="llmctl"
 elif [ -n "$(tool_path llmctl)" ] && [ -x "$(tool_path llmctl)/bin/llmctl" ]; then LLMCTL_BIN="$(tool_path llmctl)/bin/llmctl"; fi
-if command -v claude-providers >/dev/null 2>&1; then TOOLKIT_BIN="claude-providers"
+if [ -n "${JEV_TOOLKIT_BIN:-}" ]; then
+  if [ -f "$JEV_TOOLKIT_BIN" ] && [ -x "$JEV_TOOLKIT_BIN" ]; then TOOLKIT_BIN="$JEV_TOOLKIT_BIN"
+  else log "" "  JEV_TOOLKIT_BIN is set but is not an executable file: claude-providers treated as absent"; fi
+elif command -v claude-providers >/dev/null 2>&1; then TOOLKIT_BIN="claude-providers"
 elif [ -n "$(tool_path claude_toolkit)" ] && [ -x "$(tool_path claude_toolkit)/scripts/claude-providers.sh" ]; then TOOLKIT_BIN="$(tool_path claude_toolkit)/scripts/claude-providers.sh"; fi
 
 # Read-only inputs, gathered BEFORE the stage key so a model started later
@@ -588,13 +598,13 @@ fi
 if [ "$PINS_SOURCE" = "file" ]; then export JEV_PINS_FILE="$PINS_FILE"; else unset JEV_PINS_FILE CMA_JEV_PINS_FILE; fi
 KEY_SIG=""; KEY_ROWS=""   # KEY_ROWS: "<key_var>\t<state>\t<reason>" (names and classes only)
 KEYS_MODE=""; KEYS_PERMS_WARN=false
-while IFS=$'\t' read -r _k _n _v _u _m _p; do
+while IFS=$'\x1f' read -r _k _n _v _u _m _p; do
   [ -n "$_n" ] || continue
   [ -n "$_v" ] || continue
   _st="$(key_state "$_v")"; _state="${_st%%$'\t'*}"; _reason=""; case "$_st" in *$'\t'*) _reason="${_st#*$'\t'}";; esac
   KEY_ROWS="${KEY_ROWS}${_v}"$'\t'"${_state}"$'\t'"${_reason}"$'\n'
   KEY_SIG="${KEY_SIG}${_v}=${_state};"
-done <<< "$PIN_VARS"
+done <<<"${PIN_VARS//$'\t'/$'\x1f'}"
 if [ -e "$KEYS_FILE" ]; then
   KEYS_MODE="$(keys_file_mode)"
   case "$KEYS_MODE" in ""|*[!0-7]*) ;; *) [ $(( 8#$KEYS_MODE & 8#077 )) -ne 0 ] && KEYS_PERMS_WARN=true ;; esac
@@ -682,7 +692,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       par="$(printf '%s' "$LLM_CAP" | jq -r --arg p "$prof" '.decision_instances[$p].effective_slots_per_instance // 1' 2>/dev/null || echo 1)"
       printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t%s\n' "$prof" "$prof" "$gw_reach" "$par" "$gw_url" "$gw_basis" "$gw_ca" >> "$WORK/endpoints.tsv"
   done < <(printf '%s' "$LLM_STATUS" | jq -r '.profiles[]? | select(.running == true) | .profile' 2>/dev/null)
-  while IFS=$'\t' read -r rname rprof rurl rproto; do
+  while IFS=$'\x1f' read -r rname rprof rurl rproto; do
       [ -n "$rname" ] || continue
       if grep -q "^llmctl-${rprof}	" "$WORK/endpoints.tsv" 2>/dev/null; then continue; fi
       if [ "$rproto" = "jev-verdict" ]; then
@@ -691,7 +701,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       fi
       par="$(printf '%s' "$LLM_CAP" | jq -r --arg p "$rprof" '.decision_instances[$p].effective_slots_per_instance // 1' 2>/dev/null || echo 1)"
       printf 'llmctl-%s\tlocal-llmctl\t%s\t%s\t%s\t%s\t%s\t\n' "$rprof" "$rprof" "$(probe_http_memo "${rurl%/}/healthz" "")" "$par" "$rurl" "llmctl-registry-health" >> "$WORK/endpoints.tsv"
-  done < <(jev_decide_services "$LLM_STATUS" "$LLM_CAP")
+  done < <(jev_decide_services "$LLM_STATUS" "$LLM_CAP" | tr '\t' '\037')
   if [ -n "$CACHE_BODY" ]; then
     # reachable is UNKNOWN from the cache (it records resolution, not a probe): null.
     jq -r '.endpoints[]? | [.provider_id, "toolkit-cache", (.model // "jev-latest"), "null", "1", (.base_url // ""), "resolution-only", "", (.key_var // "")] | @tsv' "$CACHE" \
@@ -710,7 +720,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   # Toolkit-cache endpoints record resolution only (reachable=null). When their key variable holds a REAL key,
   # prove reachability with a minimal authenticated probe (HTTP class only) so a GREEN detection means "answers".
   if [ "${JEV_HOSTED_PROBE:-1}" != "0" ]; then
-    while IFS=$'\t' read -r _cid _ckv _curl _cmodel; do
+    while IFS=$'\x1f' read -r _cid _ckv _curl _cmodel; do
       [ -n "$_cid" ] && [ -n "$_ckv" ] && [ -n "$_curl" ] || continue
       case "$_curl" in https://*) ;; *) continue ;; esac
       [ "$(key_state "$_ckv" | cut -f1)" = "real" ] || continue
@@ -720,17 +730,17 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
       endpoints_json="$(jq -c --arg id "$_cid" --arg cls "$_ccls" --arg r "$_creach" --arg pp "$_cpath" \
         'map(if .id == $id then . + {reachable:(if $r=="true" then true elif $r=="false" then false else null end), auth_status_class:$cls, probe_path:$pp,
                                      reachable_basis:(if $r=="null" then "probe-unavailable" else "probe" end)} else . end)' <<<"$endpoints_json")"
-    done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.source == "toolkit-cache" and (.key_var // "") != "") | [.id, .key_var, (.url // ""), .model] | @tsv')
+    done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.source == "toolkit-cache" and (.key_var // "") != "") | [.id, .key_var, (.url // ""), .model] | @tsv' | tr '\t' '\037')
   fi
   # Hosted endpoints discovered through the operator's keys file (key variable NAMES from the provider pins).
   hosted_json="[]"; key_vars_json="[]"; key_notes=""
   if [ -n "$KEY_ROWS" ]; then
-    while IFS=$'\t' read -r _kv _state _reason; do
+    while IFS=$'\x1f' read -r _kv _state _reason; do
       [ -n "$_kv" ] || continue
       key_vars_json="$(jq -c --arg v "$_kv" --arg s "$_state" --arg r "$_reason" '. + [{key_var:$v, state:$s} + (if $r != "" then {reason:$r} else {} end)]' <<<"$key_vars_json")"
       if [ "$_state" != "real" ]; then key_notes="${key_notes:+$key_notes; }$_kv $_state${_reason:+ ($_reason)}"; fi
-    done <<< "$KEY_ROWS"
-    while IFS=$'\t' read -r _k _n _v _u _m _p; do
+    done <<<"${KEY_ROWS//$'\t'/$'\x1f'}"
+    while IFS=$'\x1f' read -r _k _n _v _u _m _p; do
       [ "$_k" = "hosted" ] || continue
       [ -n "$_v" ] && [ -n "$_u" ] || continue
       _st="$(printf '%s' "$KEY_ROWS" | awk -F'\t' -v v="$_v" '$1==v{print $2; exit}')"
@@ -753,7 +763,7 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
         '. + [{id:$id, source:$src, model:$m, reachable:(if $r=="true" then true elif $r=="false" then false else null end),
                parallel:1, probed_at:$now, reason:null, url:$u, key_var:$kv, auth_status_class:$cls, probe_path:$pp,
                reachable_basis:(if $r=="null" then "probe-unavailable" else "probe" end)}]' <<<"$hosted_json")"
-    done <<< "$PIN_VARS"
+    done <<<"${PIN_VARS//$'\t'/$'\x1f'}"
     endpoints_json="$(jq -c --argjson h "$hosted_json" '. + $h' <<<"$endpoints_json")"
   fi
   # usable = answered 2xx (hosted) / healthz answered (local). Probed non-2xx endpoints carry the class as unusable_reason.
@@ -762,14 +772,14 @@ if stage_begin 3 "detect-models" "$S3_KEY"; then
   usable_count="$(printf '%s' "$endpoints_json" | jq '[.[] | select(.usable == true)] | length')"
   # proven unusable = probed and answered non-2xx (reachable == false); an unprobed endpoint (reachable == null) is UNKNOWN, not unusable
   unusable_count="$(printf '%s' "$endpoints_json" | jq '[.[] | select(.reachable == false)] | length')"
-  while IFS=$'\t' read -r _uid _ucls; do
+  while IFS=$'\x1f' read -r _uid _ucls; do
     [ -n "$_uid" ] || continue
     case "$_ucls" in
       no_credit) log "" "  WARNING: $_uid answered HTTP 402 no_credit: the account has no credit; this endpoint cannot serve decisions" ;;
       rate_limited) log "" "  WARNING: $_uid answered HTTP 429 rate_limited: not usable right now" ;;
       *) log "" "  WARNING: $_uid is not usable (probe class $_ucls)" ;;
     esac
-  done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.usable == false and (.auth_status_class // "") != "") | [.id, .auth_status_class] | @tsv')
+  done < <(printf '%s' "$endpoints_json" | jq -r '.[] | select(.usable == false and (.auth_status_class // "") != "") | [.id, .auth_status_class] | @tsv' | tr '\t' '\037')
   key_discovery_json="$(jq -nc --arg f "$KEYS_FILE" --argjson vars "$key_vars_json" --arg mode "$KEYS_MODE" --argjson warn "$KEYS_PERMS_WARN" --arg pins "$PINS_FILE" --arg psrc "$PINS_SOURCE" --argjson present "$([ -e "$KEYS_FILE" ] && echo true || echo false)" \
       '{keys_file:$f, keys_file_present:$present, keys_file_mode:(if $mode == "" then null else $mode end), perms_warning:$warn, pins_file:(if $psrc == "file" then $pins else null end), pins_source:$psrc, vars:$vars}')"
   if [ "$KEYS_PERMS_WARN" = "true" ]; then
@@ -878,7 +888,7 @@ S5_STORED="$(jev_env_get "$ENV_FILE" JEV_MODE || true)"   # last assignment wins
 S5_MCP="$(jev_mcp_modes | cut -f2 | sort -u | paste -sd, - || true)"
 S5_REQ="$MODE"; [ "$S5_STORED" = "enforce" ] && S5_REQ="enforce"
 S5_EFF="shadow"; S5_WHY="unknown"
-IFS=$'\t' read -r S5_EFF S5_WHY < <(jev_effective_mode "$S5_REQ" "" "$DETECTION_FILE") || true
+IFS=$'\x1f' read -r S5_EFF S5_WHY < <(jev_effective_mode "$S5_REQ" "" "$DETECTION_FILE" | tr '\t' '\037') || true
 [ "$S5_EFF" = "enforce" ] || S5_EFF="shadow"
 S5_KEY="cfg|$MODE|req=$S5_REQ|eff=$S5_EFF|why=$S5_WHY|drift=$([ -n "$S5_STORED" ] && [ "$S5_STORED" != "$S5_EFF" ] && echo 1 || echo 0)|det=$(jq -r '[.endpoints[]?.source] | join(",")' "$DETECTION_FILE" 2>/dev/null || true)|thr=$([ -f "$JEV_CONFIG_DIR/jev-thresholds.json" ] && echo 1 || echo 0)|mcp=$S5_MCP"
 if stage_begin 5 "configure" "$S5_KEY"; then
@@ -900,7 +910,7 @@ if stage_begin 5 "configure" "$S5_KEY"; then
   fi
   # the MCP entry's env.JEV_MODE is part of the same decision (the docs say both are rewritten): re-derived here, never left
   # at a stale enforce (review r5 m5-5). EVERY covered file (jev_mcp_files, r6 m6-3) with an EXISTING jev entry that carries a JEV_MODE is edited.
-  while IFS=$'\t' read -r _mf _mm; do
+  while IFS=$'\x1f' read -r _mf _mm; do
     [ -n "${_mf:-}" ] && [ "$_mm" != "$effective_mode" ] || continue
     # backup (first only, never of a key-bearing file) + optimistic write that survives a running agent rewriting the file (m7-6)
     if jev_mcp_mode_rewrite "$_mf" "$effective_mode"; then
@@ -908,7 +918,7 @@ if stage_begin 5 "configure" "$S5_KEY"; then
     else
       log "" "  MCP 'jev' env.JEV_MODE NOT rewritten in $_mf (concurrent writer or unreadable); jev-status will report the mismatch"
     fi
-  done < <(jev_mcp_modes)
+  done < <(jev_mcp_modes | tr '\t' '\037')
   if [ -n "$enforce_note" ]; then printf '%s\n' "$enforce_note" | atomic_write "$JEV_STATE_DIR/enforce-deferred"
   else rm -f "$JEV_STATE_DIR/enforce-deferred"; fi
   stored_now="$(jev_env_get "$ENV_FILE" JEV_MODE || true)"

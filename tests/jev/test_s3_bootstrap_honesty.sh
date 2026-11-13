@@ -238,6 +238,44 @@ run_bs h11d
 assert_eq "detect-models: no-change" "$(s3_line "$T/h11d.err")" "H11 run 4 (healthz still failing): no-change"
 unset STUB_CODE
 
+# ---- H12 a local gateway WITH a CA file: the stage-3 signature probes it the same way the stage does (round 4, Y2) ------
+# The signature and the stage share one memo keyed on url AND ca file. A signature that dropped the CA would probe a
+# second time (without --cacert) in run 1 and probe without the CA in every later run: one probe per run, all with the CA.
+healthz_calls() { grep -c '^curl .*healthz' "$STUB_LOG/curl.log" 2>/dev/null || true; }
+healthz_nocacert() { grep '^curl .*healthz' "$STUB_LOG/curl.log" 2>/dev/null | grep -vc -- '--cacert' || true; }
+setup h12; : > "$T/ca.crt"
+jq -n --arg ca "$T/ca.crt" '{gateway:{running:true,detail:"gateway up at https://gw.typesafe.test:8095 (stub)"},
+  profiles:[{profile:"decide-tiny",running:true}],
+  registry:{services:[{name:"gateway",healthy:true,url:"https://gw.typesafe.test:8095",labels:{kind:"gateway",ca_file:$ca}}]}}' > "$T/status.json"
+export STUB_CODE=200; : > "$STUB_LOG/curl.log"; run_bs h12a
+assert_eq "$T/ca.crt" "$(jq -r '[.endpoints[]|select(.source=="local-llmctl")][0].ca_file' "$DET")" "H12 run 1: the record carries the gateway's CA file"
+assert_eq "1" "$(healthz_calls)" "H12 run 1: the gateway healthz is probed exactly once (the signature reuses the stage's probe)"
+assert_eq "0" "$(healthz_nocacert)" "H12 run 1: every healthz probe carries --cacert"
+: > "$STUB_LOG/curl.log"; run_bs h12b
+assert_eq "detect-models: no-change" "$(s3_line "$T/h12b.err")" "H12 run 2 (unchanged): no-change"
+assert_eq "1" "$(healthz_calls)" "H12 run 2: exactly one healthz probe"
+assert_eq "0" "$(healthz_nocacert)" "H12 run 2: the signature probe carries --cacert"
+unset STUB_CODE
+
+# ---- H13 an explicit JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN is the only candidate (round 4, review R3-2 nit) -------------------
+# A spy llmctl / claude-providers first on PATH must never be called when the variable is set; a value that is not an
+# executable makes the tool absent (logged), never a fall-back to PATH.
+setup h13; mkdir -p "$T/spy"
+for s in llmctl claude-providers; do printf '#!/bin/sh\necho "%s $*" >> "%s"\necho "{}"\n' "$s" "$T/spy.log" > "$T/spy/$s"; chmod +x "$T/spy/$s"; done
+jq -n '{gateway:{running:true,detail:"gateway up at https://gw.typesafe.test:8095 (stub)"},profiles:[{profile:"decide-tiny",running:true}]}' > "$T/status.json"
+export STUB_CODE=200
+: > "$T/spy.log"; PATH="$T/spy:$PATH" JEV_LLMCTL_BIN="$T/no-such-llmctl" JEV_TOOLKIT_BIN="$T/no-such-cp" run_bs h13a
+assert_eq "" "$(cat "$T/spy.log")" "H13 non-executable overrides: no llmctl / claude-providers on PATH was called"
+assert_contains "$T/h13a.err" "JEV_LLMCTL_BIN is set but is not an executable file: llmctl treated as absent" "H13 the absent llmctl is logged"
+assert_contains "$T/h13a.err" "JEV_TOOLKIT_BIN is set but is not an executable file: claude-providers treated as absent" "H13 the absent claude-providers is logged"
+assert_eq "0" "$(jq '[.endpoints[]|select(.source=="local-llmctl")]|length' "$DET")" "H13 llmctl absent: no local endpoint is read"
+: > "$T/spy.log"; PATH="$T/spy:$PATH" JEV_LLMCTL_BIN="$FIXTURES/bin/llmctl" JEV_TOOLKIT_BIN="$FIXTURES/bin/claude-providers" run_bs h13b
+assert_eq "" "$(cat "$T/spy.log")" "H13 executable overrides: the PATH spies are still not called"
+assert_eq "1" "$(jq '[.endpoints[]|select(.source=="local-llmctl")]|length' "$DET")" "H13 the explicit llmctl is used (its status names the running decide-tiny)"
+: > "$T/spy.log"; PATH="$T/spy:$PATH" run_bs h13c
+assert_contains "$T/spy.log" "llmctl decide status --json" "H13 CONTROL: with no override the llmctl on PATH is used (the spies can see a call)"
+unset STUB_CODE
+
 # ---- H6 post_update_hook STEP 4e ------------------------------------------------------------------------------
 HOSTS=()
 export PATH="$ORIG_PATH"   # the fixture bin dirs carry a stub git; the hook host needs the real one

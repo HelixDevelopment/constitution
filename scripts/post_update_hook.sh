@@ -543,7 +543,7 @@ install_mcp_configs() {
             rm -f "$frag" "$tmpfile"; continue
         fi
         local key idx str rewrote=() k
-        while IFS=$'\t' read -r key idx str; do
+        while IFS=$'\x1f' read -r key idx str; do
             [ -n "$str" ] || continue
             case "$str" in /*|*://*) continue ;; */*) ;; *) continue ;; esac
             [ -e "$croot/$str" ] && [ ! -e "$proot/$str" ] || continue
@@ -555,7 +555,7 @@ install_mcp_configs() {
             info "  -> path resolved for the consumer: $str -> $cprefix/$str"
             for k in ${rewrote[@]+"${rewrote[@]}"}; do [ "$k" = "$key" ] && continue 2; done
             rewrote+=("$key")   # an ARRAY: a server key may contain spaces (re-review 3 finding 5)
-        done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null)
+        done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null | tr '\t' '\037')
         if [ "${cprefix#/}" = "$cprefix" ] && [ "${#rewrote[@]}" -gt 0 ]; then
             local qp walk
             qp="'${cprefix//\'/\'\\\'\'}'"     # single-quoted for sh

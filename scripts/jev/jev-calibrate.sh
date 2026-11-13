@@ -162,7 +162,7 @@ while IFS= read -r type; do
 
   : > "$TMPD/labeled.tsv"   # conf \t agree(0|1) \t endpoint|model
   n_labeled=0; n_errors=0
-  while IFS=$'\t' read -r _ts _qt conf prompt answer epm; do
+  while IFS=$'\x1f' read -r _ts _qt conf prompt answer epm; do
     # LABEL_CMD is a command template: intentional word splitting via eval of a
     # string the OPERATOR supplied (env/arg), never of decision data.
     out="$(printf '%s' "$prompt" | bash -c "$LABEL_CMD" 2>/dev/null || true)"
@@ -174,7 +174,7 @@ while IFS= read -r type; do
     n_labeled=$((n_labeled + 1))
     agree=0; [ "$label" = "$answer" ] && agree=1
     printf '%s\t%s\t%s\n' "$conf" "$agree" "${epm:-unknown|unknown}" >> "$TMPD/labeled.tsv"
-  done < "$TMPD/sample.tsv"
+  done < <(tr '\t' '\037' < "$TMPD/sample.tsv")
 
   read -r agreement rec_threshold <<<"$(awk -F'\t' -v floor="$FLOOR" '
     { bin = int($1 * 10); if (bin > 9) bin = 9; if (bin < 0) bin = 0;
@@ -257,11 +257,11 @@ fi
 
 echo "jev-calibrate report (calibrated_at=$NOW floor=$FLOOR min_sample=$MIN_SAMPLE sample=$SAMPLE)"
 echo "  sampling: deterministic sorted-ts every-k-th; rows skipped as uncalibratable: $SKIPPED of $TOTAL_ROWS"
-while IFS=$'\t' read -r t n agr thr prom reason; do
+while IFS=$'\x1f' read -r t n agr thr prom reason; do
   line="  - $t: n=$n agreement=$agr recommended_threshold=$thr promoted=$prom"
   [ -n "$reason" ] && line="$line ($reason)"
   echo "$line"
-done < "$TMPD/report.tsv"
+done < <(tr '\t' '\037' < "$TMPD/report.tsv")
 [ -n "$DEMOTED" ] && echo "  DEMOTED (reverted to shadow): $DEMOTED"
 [ "$DRY_RUN" = "1" ] && echo "  (dry-run: no files written)"
 exit 0

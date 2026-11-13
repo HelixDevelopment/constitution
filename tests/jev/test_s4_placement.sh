@@ -410,4 +410,105 @@ JEV_NOW_EPOCH=1700000400 "$PLACE" reap 2>/dev/null
 assert_eqx false "$(L '.sets["decide-a"].stopping != null')" "P31 the same mark older than the stop timeout + 30 s is cleared"
 
 
+
+# ---- P33 a lease-less constitution-started set whose unit is NOT live is disposed (review R3-1, RS4) ------------------------
+# Before round 4 such a set was refused on every acquire (refused_join) and never reaped: the profile was never placed again.
+# Now the acquire stops it (bounded), drops the set and the cache entry, holds the profile for this evaluation
+# (§11.4.291(D) hold window: it is not restarted by the acquire that stopped it) and the NEXT acquire places it normally.
+orphan_a() { # a constitution-started decide-a set whose only holder is a pid that has already exited
+  local dead; dead="$(bash -c 'echo $$')"
+  "$PLACE" acquire ghost --pid "$dead" >/dev/null 2>&1
+}
+cachen() { jq '[.endpoints[]? | select(.provider_id=="llmctl-local")] | length' "$CACHE" 2>/dev/null || echo 0; }
+for us in failed absent starting; do
+  fresh; cap "$T/cap.json" fits does_not_fit; orphan_a
+  assert_eqx "1 1" "$(starts) $(L '.sets["decide-a"].constitution_started == true | if . then 1 else 0 end')" "P33 setup ($us): one constitution-started set"
+  export PLACE_CAP_RAW=1
+  if [ "$us" = absent ]; then cap "$T/cap.json" fits does_not_fit; else cap "$T/cap.json" fits does_not_fit 5000 "$us"; fi
+  "$PLACE" acquire s2 --pid $$ >/dev/null 2>"$T/e33"; rc=$?
+  assert_eqx 1 "$(stops)" "P33 unit $us, no lease: the acquire stops the constitution-started model (one bounded stop)"
+  assert_eqx null "$(L '.sets["decide-a"]')" "P33 unit $us: the stopped set is removed (no stuck refused_join)"
+  assert_eqx 0 "$(cachen)" "P33 unit $us: the dead gateway is not left in the endpoint cache"
+  case "$(pl '.placement.event')" in refused_join|refused_degraded) fail "P33 unit $us: still refused ($(pl '.placement.event'))" ;; *) ok "P33 unit $us: not a refused join" ;; esac
+  assert_eqx "5 0" "$rc $(starts | awk '{print $1-1}')" "P33 unit $us: the stopping acquire does not restart the profile (hold), rc 5 (b does not fit)"
+  unset PLACE_CAP_RAW; cap "$T/cap.json" fits does_not_fit   # the next evaluation reads llmctl's answer after the stop
+  out="$("$PLACE" acquire s3 --pid $$ 2>/dev/null)"; rc=$?
+  assert_eqx "0 decide-a 2 placed" "$rc $out $(starts) $(pl '.placement.event')" "P33 unit $us: the NEXT acquire places the profile again"
+  assert_eqx "true s3" "$(L '.sets["decide-a"] | "\(.constitution_started) \([.leases[].holder]|join(","))"')" "P33 unit $us: the new set is constitution-started with the new holder only"
+  unset PLACE_CAP_RAW
+done
+# the disposal stop fails: the set is KEPT (owned, never joined, no lease) and the stop is retried by every acquire
+fresh; cap "$T/cap.json" fits does_not_fit; orphan_a
+export PLACE_CAP_RAW=1 PLACE_STOP_RC=1; cap "$T/cap.json" fits does_not_fit 5000 failed
+"$PLACE" acquire s2 --pid $$ >/dev/null 2>"$T/e33f"; rc=$?
+assert_eqx "5 1" "$rc $(stops)" "P33 disposal stop fails: rc 5, one stop attempted"
+assert_eqx "true 0 1" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.leases|length) \(.stop_failed.rc)"')" "P33 disposal stop fails: the set is kept (constitution_started, no lease, stop_failed rc 1)"
+assert_eqx true "$(L '.sets["decide-a"].stop_owed != null')" "P33 disposal stop fails: the set records the owed stop"
+"$PLACE" acquire s3 --pid $$ >/dev/null 2>&1; rc=$?
+assert_eqx "5 2 0" "$rc $(stops) $(L '.sets["decide-a"].leases|length')" "P33 the next acquire retries the owed stop (2 stops), never joins it (no lease)"
+unset PLACE_STOP_RC
+out="$("$PLACE" acquire s4 --pid $$ 2>/dev/null)"; rc=$?
+assert_eqx "0 decide-a 3" "$rc $out $(stops)" "P33 the owed stop succeeds on a later acquire, the set goes and the profile is placed again"
+assert_eqx "true null" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.stop_owed)"')" "P33 the new set is a normal constitution-started set"
+unset PLACE_CAP_RAW
+
+# ---- P34 every set is checked, not only the first (review R3-1, RS5) ---------------------------------------------------------
+fresh; cap "$T/cap.json"; export JEV_PLACE_MAX=2
+"$PLACE" acquire h1 --pid $$ >/dev/null 2>&1
+assert_eqx 2 "$(starts)" "P34 setup: two sets (decide-a, decide-b) under holder h1"
+export PLACE_CAP_RAW=1
+jq '.llmctl.units=[{profile:"decide-a",status:"failed"},{profile:"decide-b",status:"running"}]' "$T/cap.json" > "$T/c34" && cp "$T/c34" "$T/cap.json"
+out="$("$PLACE" acquire h2 --pid $$ 2>"$T/e34")"; rc=$?
+assert_eqx "0 decide-b joined" "$rc $out $(pl '.placement.event')" "P34 a failed first set does not block joining the healthy second set"
+assert_eqx "h1,h2" "$(L '[.sets["decide-b"].leases[].holder]|join(",")')" "P34 the new lease is on decide-b"
+assert_eqx "h1 0" "$(L '[.sets["decide-a"].leases[].holder]|join(",")') $(stops)" "P34 the failed set that still has a live holder is left alone (no lease added, never stopped)"
+unset PLACE_CAP_RAW JEV_PLACE_MAX
+
+# ---- P35 a lease-less constitution-started model that runs but does not fit is stopped (review R3-1, RS6) ---------------------
+for us in running degraded; do
+  fresh; cap "$T/cap.json"; orphan_a
+  export PLACE_CAP_RAW=1; cap "$T/cap.json" does_not_fit fits 5000 "$us"
+  out="$("$PLACE" acquire t1 --pid $$ 2>"$T/e35")"; rc=$?
+  assert_eqx 1 "$(stops)" "P35 unit $us + verdict not a fit, no lease: the model is stopped"
+  [ ! -e "$STUB_LOG/running.decide-a" ] && ok "P35 unit $us: decide-a no longer runs" || fail "P35 unit $us: decide-a still runs with no lease"
+  assert_eqx null "$(L '.sets["decide-a"]')" "P35 unit $us: its set is removed"
+  assert_eqx "0 decide-b" "$rc $out" "P35 unit $us: the fitting candidate decide-b is placed instead"
+  unset PLACE_CAP_RAW
+done
+fresh; cap "$T/cap.json"; orphan_a
+export PLACE_CAP_RAW=1 JEV_PLACE_PROFILES=decide-a; cap "$T/cap.json" does_not_fit fits 5000 running
+"$PLACE" acquire t2 --pid $$ >/dev/null 2>&1; rc=$?
+assert_eqx "5 1 null" "$rc $(stops) $(L '.sets["decide-a"]')" "P35 single candidate that no longer fits: stopped, set removed, rc 5 (fallback route)"
+unset PLACE_CAP_RAW JEV_PLACE_PROFILES
+# CONTROL: a lease-less constitution-started model that runs AND fits is joined, never stopped (P11 shape, RAW answer)
+fresh; cap "$T/cap.json"; orphan_a
+export PLACE_CAP_RAW=1; cap "$T/cap.json" fits fits 5000 running
+out="$("$PLACE" acquire t3 --pid $$ 2>/dev/null)"; rc=$?
+assert_eqx "0 decide-a 0 joined" "$rc $out $(stops) $(pl '.placement.event')" "P35 CONTROL: running + fits, no lease -> joined, never stopped"
+unset PLACE_CAP_RAW
+# CONTROL: an operator-started (constitution_started:false) set is never stopped by this path
+fresh; cap "$T/cap.json" fits fits 5000 running
+"$PLACE" acquire op1 --pid "$(bash -c 'echo $$')" >/dev/null 2>&1
+export PLACE_CAP_RAW=1; cap "$T/cap.json" does_not_fit does_not_fit 5000 failed
+"$PLACE" acquire op2 --pid $$ >/dev/null 2>&1
+assert_eqx 0 "$(stops)" "P35 CONTROL: an operator-started unit is never stopped by the disposal path"
+unset PLACE_CAP_RAW
+
+# ---- P36 the cleanup stop after a failed start is recognised as failed for EVERY non-zero rc, a timeout included (Y7) ---------
+fresh; cap "$T/cap.json" fits does_not_fit; export PLACE_START_RC=1 PLACE_STOP_SLEEP=8 JEV_LLMCTL_START_TIMEOUT=1
+t0=$(date +%s); "$PLACE" acquire s1 --pid $$ >/dev/null 2>"$T/e36"; rc=$?; t1=$(date +%s)
+assert_eqx 5 "$rc" "P36 failed start + cleanup stop timing out -> rc 5"
+[ $((t1 - t0)) -le 8 ] && ok "P36 the cleanup stop is bounded ($((t1 - t0))s)" || fail "P36 the cleanup stop was not bounded ($((t1 - t0))s)"
+case "$(L '.sets["decide-a"].stop_failed.rc')" in 124|137) ok "P36 a timed-out cleanup stop keeps the set with stop_failed rc $(L '.sets["decide-a"].stop_failed.rc')" ;;
+  *) fail "P36 a timed-out cleanup stop did not keep the owned set (stop_failed rc $(L '.sets["decide-a"].stop_failed.rc'))" ;; esac
+assert_eqx "true 0" "$(L '.sets["decide-a"] | "\(.constitution_started) \(.leases|length)"')" "P36 the kept set is owned and has no lease (never adopted as operator-started)"
+unset PLACE_START_RC PLACE_STOP_SLEEP JEV_LLMCTL_START_TIMEOUT
+
+# ---- P37 reap never stops a model, also for a lease-less owned set whose unit failed (§11.4.291(J)) ----------------------------
+fresh; cap "$T/cap.json"; orphan_a
+export PLACE_CAP_RAW=1; cap "$T/cap.json" fits fits 5000 failed
+"$PLACE" reap 2>/dev/null
+assert_eqx "0 true" "$(stops) $(L '.sets["decide-a"] != null')" "P37 reap alone never stops (disposal happens only in an acquire)"
+unset PLACE_CAP_RAW
+
 finish

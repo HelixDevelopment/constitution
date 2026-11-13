@@ -143,6 +143,9 @@ sequenceDiagram
   participant E3 as TypeSafe (40)
   S->>P: acquire <holder> --pid <pid>
   P->>L: capacity --json (bounded)
+  opt an existing set whose holders were all reaped, constitution-started, unit not running/active or verdict not a fit
+    P->>L: stop <that profile> (bounded; rc 0 drops the set and its cache entry, a failure keeps stop_owed and is retried)
+  end
   alt verdict fits / fits_with_reduced_threads
     P->>L: start <profile> (bounded)
     P->>K: add llmctl-local at priority 10

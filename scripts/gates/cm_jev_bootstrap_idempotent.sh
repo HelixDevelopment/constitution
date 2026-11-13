@@ -77,10 +77,24 @@ ok "clause 1: post-update hook carries the guarded bootstrap invocation block"
 #     real script has no submodules and must take the managed-clone fallback at the pin),
 #   - runs under timeout (own process group; --kill-after) with JEV_BOOTSTRAP_NESTED=1.
 # No pkill-by-pattern anywhere: timeout signals only its own child's group.
+# HERMETIC (round 4, review R3-2): the child starts from an EMPTY environment (env -i), so no key variable, no JEV_* / LLMCTL_*
+# / CMA_* / CLAUDE_* setting and no tool location of the caller can reach it; PATH is the fixture stubs, a guard dir and the
+# system directories only (never the caller's PATH, so a real llmctl / claude-providers in ~/.local/bin is never found);
+# JEV_LLMCTL_BIN / JEV_TOOLKIT_BIN name absent files (the tools are absent whatever /usr/bin holds) and JEV_HOSTED_PROBE=0.
+# The guard dir answers curl, llmctl, claude-providers and the agent CLIs with a recording refusal: any call is a FAIL
+# (a gate that reaches a network or a real tool is not evidence of anything, §11.4.289(C)).
 TMO="${JEV_GATE_TIMEOUT:-120}"
 SBX=$(mktemp -d); trap 'rm -rf "$SBX"' EXIT
 mkdir -p "$SBX/root"; cp "$DEPS" "$SBX/root/helix-deps.yaml" 2>/dev/null || err "deps: fixture helix-deps.yaml not readable: $DEPS"
 STUBBIN="$HERE/fixtures/jev/bin"
+GUARDBIN="$SBX/guardbin"; GUARDLOG="$SBX/guard.log"; mkdir -p "$GUARDBIN"; : > "$GUARDLOG"
+for _g in curl wget llmctl claude-providers claude kimi opencode pi gemini qwen codex; do
+  printf '#!/bin/sh
+printf "%%s %%s\n" "%s" "$*" >> "%s"
+exit 127
+' "$_g" "$GUARDLOG" > "$GUARDBIN/$_g"; chmod +x "$GUARDBIN/$_g"
+done
+HERMETIC_PATH="$STUBBIN:$GUARDBIN:/usr/local/bin:/usr/bin:/bin"
 # Pins are read STRUCTURALLY (helix_deps_field.py: parsed YAML; duplicate keys / ambiguous names / no PyYAML are
 # refusals). Line patterns were fooled by bare `-`, quoted keys, `name :` and duplicate keys. A reader failure or an
 # unlisted tool is CANNOT DETERMINE (rc 2), never a pass and never an empty pin.
@@ -102,14 +116,15 @@ run_boot() { # run_boot <home> <gitlog> [bootstrap args...]
   case "$home" in "$SBX"/*) ;; *) echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: refusing to run bootstrap outside the sandbox ($home)" >&2; exit 2;; esac
   mkdir -p "$home"
   # jev-path-ok: the fixture sandbox lays its dirs out explicitly (the point of the fixture)
-  env HOME="$home" JEV_FAKE_HOME="$home" \
+  env -i HOME="$home" JEV_FAKE_HOME="$home" USER="${USER:-gate}" LOGNAME="${LOGNAME:-gate}" LC_ALL=C TERM=dumb TMPDIR="$SBX" \
+      JEV_HOSTED_PROBE=0 JEV_LLMCTL_BIN="$SBX/absent/llmctl" JEV_TOOLKIT_BIN="$SBX/absent/claude-providers" \
       JEV_STATE_DIR="$home/.local/state/jev" JEV_CONFIG_DIR="$home/.config/jev" \
       JEV_EVIDENCE_DIR="$home/.jev" JEV_BOOTSTRAP_HOME="$home/.local/share/helix" \
       CMA_PROVIDERS_DIR="$home/.local/share/cma/providers" \
       JEV_CONSTITUTION_ROOT="$SBX/root" JEV_TEST=1 JEV_NOW_EPOCH=1760000000 \
       JEV_BOOTSTRAP_NESTED=1 JEV_BOOTSTRAP_ALLOW_CLONE=1 JEV_SUBMODULES_ABSENT=1 JEV_FIXTURE_DEPS="$DEPS" \
       GIT_SSH_COMMAND=/bin/false GIT_STUB_LOG="$glog" GIT_STUB_KNOWN_REFS="$KNOWN_REFS" \
-      PATH="$STUBBIN:$PATH" \
+      PATH="$HERMETIC_PATH" \
       timeout --kill-after=5 "$TMO" bash "$STUB" "$@" >"$home.out" 2>&1
   local rc=$?
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then timed_out=1; fi
@@ -120,6 +135,9 @@ digest_dir() { # state digest of the sandbox host, excluding the volatile pendin
     | sed "s|$1||" | sort | sha256sum | cut -d' ' -f1
 }
 
+hermetic_check() { # every bootstrap run above: no guarded tool / network command was attempted
+  if [ -s "$GUARDLOG" ]; then err "hermetic: a bootstrap run called a guarded tool (network or real tool): $(cut -d' ' -f1 "$GUARDLOG" | sort -u | paste -sd, -)"; fi
+}
 clause_start
 # Clause 2 - two-run digest identity in a fresh sandbox host (each run must also exit 0).
 H1="$SBX/host1"
@@ -170,6 +188,15 @@ if [ -f "$PROV" ]; then
     || err "clone-fallback: provenance record does not show both tools pinned-checked-out ($PROV)"
 fi
 ok "clause 4: submodule-absent clone fallback pinned to helix-deps.yaml refs"
+
+clause_start
+# Clause 5 (round 4, review R3-2) - the runs were hermetic: no guarded tool was called. CONTROL NEEDLE: the guard records
+# a call it receives (a blind guard would make this clause a quiet zero, §11.4.273).
+if PATH="$GUARDBIN" curl --version >/dev/null 2>&1; then err "hermetic: the guard curl did not refuse"; fi
+if [ "$(grep -c '^curl --version$' "$GUARDLOG")" != 1 ]; then echo "CM-JEV-BOOTSTRAP-IDEMPOTENT CANNOT DETERMINE: the hermetic guard is blind (control call not recorded; rc 2)" >&2; exit 2; fi
+sed -i '/^curl --version$/d' "$GUARDLOG"
+hermetic_check
+ok "clause 5: every bootstrap run was hermetic (no network / real-tool call; guard control needle seen)"
 
 if [ "$fail" -ne 0 ]; then
   echo "CM-JEV-BOOTSTRAP-IDEMPOTENT: RED" >&2

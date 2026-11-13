@@ -35,6 +35,12 @@
 # reports for the profile is `running` or `active`, and the verdict is `fits` or `fits_with_reduced_threads` (an
 # allow-list: failed, absent, unknown, starting, degraded, does_not_fit and undetermined are all refused, event
 # refused_join / refused_degraded, rc 5, no lease, no cache registration).
+# Disposal (round 4, review R3-1): every existing set is evaluated, not only the first. A set whose holders were all reaped
+# (no lease left) and that THIS producer started is stopped by the next acquire when its unit is not running/active or its
+# verdict is not a fit (bounded stop; the set and its cache entry are dropped; that acquire does not restart the profile,
+# the next one evaluates it afresh). A failed disposal stop keeps the set {stop_owed, stop_failed}: never joined, the stop
+# is retried by every later acquire and release. A set that still has a live lease is never stopped by this path, and a
+# reap alone never stops a model (§11.4.291(J)).
 # Failed start (round 3, review R2-2): when `llmctl start` fails and the cleanup `llmctl stop` fails too, the producer
 # keeps a set {constitution_started:true, leases:[], start_failed, stop_failed}: it is never joined, never adopted as
 # operator-started and never started again; every later acquire and every release retries the stop.
@@ -152,7 +158,7 @@ gateway_url() {
 }
 
 cache_register() { # cache_register <profile> : add/replace the llmctl-local entry at priority 10
-  local u ca; IFS=$'\t' read -r u ca < <(gateway_url)
+  local u ca; IFS=$'\x1f' read -r u ca < <(gateway_url | tr '\t' '\037')
   mkdir -p "$(dirname "$CACHE")"
   [ -f "$CACHE" ] || jq -n '{version:1, generated_at:0, ttl:300, endpoints:[]}' > "$CACHE"
   jq -c --arg u "$u" --arg ca "$ca" --arg p "$1" --argjson now "$NOW" '
@@ -198,16 +204,16 @@ holder_alive() { # holder_alive <pid> <heartbeat_at> <ttl> [pid_start]
 reap_locked() { # drops dead holders from every set (caller holds the lock); never stops a model
   # every loop variable is local: bash scoping is dynamic, so a bare `read pid ttl` here would clear the CALLER's pid/ttl
   local cur out prof h pid hb ttl pst sat spid sst arc; cur="$(leases_load)"; out="$cur"
-  while IFS=$'\t' read -r prof h pid hb ttl pst; do
+  while IFS=$'\x1f' read -r prof h pid hb ttl pst; do
     [ -n "$prof" ] || continue
     if ! holder_alive "$pid" "$hb" "$ttl" "$pst"; then
       log "reaped dead lease holder=$h profile=$prof"
       out="$(jq -c --arg p "$prof" --arg h "$h" '.sets[$p].leases |= map(select(.holder != $h))' <<<"$out")"
     fi
-  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, .holder, (.pid // "null" | tostring), .heartbeat_at, .ttl, (.pid_start // "null" | tostring)] | @tsv' <<<"$cur")
+  done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, (.holder // ""), (.pid // "null"), (.heartbeat_at // 0), (.ttl // 0), (.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
   # a `stopping` mark is cleared when its stopper process is gone (pid + start time) or the mark is older than the stop
   # timeout + 30 s (§11.4.291(J)); a set kept after a failed stop then becomes stoppable again by the next release
-  while IFS=$'\t' read -r prof sat spid sst; do
+  while IFS=$'\x1f' read -r prof sat spid sst; do
     [ -n "$prof" ] || continue
     # a mark without a pid cannot name a dead stopper: only its age clears it (review R2 nit RS3)
     arc=0; if [ "$spid" != "null" ] && [ -n "$spid" ]; then pid_alive "$spid" "$sst" || arc=$?; fi
@@ -215,7 +221,7 @@ reap_locked() { # drops dead holders from every set (caller holds the lock); nev
       log "cleared the stop mark of $prof (stopper gone or mark older than the stop timeout)"
       out="$(jq -c --arg p "$prof" '.sets[$p].stopping = null' <<<"$out")"
     fi
-  done < <(jq -r '.sets | to_entries[] | select((.value.stopping // null) != null) | [.key, .value.stopping.at, (.value.stopping.pid // "null" | tostring), (.value.stopping.pid_start // "null" | tostring)] | @tsv' <<<"$out")
+  done < <(jq -r '.sets | to_entries[] | select((.value.stopping // null) != null) | [.key, (.value.stopping.at // 0), (.value.stopping.pid // "null"), (.value.stopping.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$out")
   [ "$out" = "$cur" ] || printf '%s\n' "$out" | leases_save
 }
 
@@ -233,7 +239,7 @@ lease_obj_args() { # lease_obj_args <pid> -> the start time of a --pid holder ("
 
 cmd_verdict() {
   local json="${1:-}" st reason p line first=1
-  IFS=$'\t' read -r st reason < <(capacity_read)
+  IFS=$'\x1f' read -r st reason < <(capacity_read | tr '\t' '\037')
   {
     printf '['
     if [ "$st" = ok ]; then
@@ -259,58 +265,95 @@ acquire_locked() {
   pst="$(lease_obj_args "$pid")"
   reap_locked
   cur="$(leases_load)"
-  # an existing, non-stopping set (or a constitution-started model whose holders were reaped): join it, no second start
-  # Round 3 (R2-2): a set kept after a failed start + failed cleanup stop is retried here (bounded stop), never joined.
+  # Round 3 (R2-2): a set kept after a failed start + failed cleanup stop, and round 4 (R3-1): a set whose disposal stop
+  # failed (stop_owed), is retried here (bounded stop), never joined.
   local fprof frc
   while IFS= read -r fprof; do
     [ -n "$fprof" ] || continue
     frc=0; bounded "$STMO" "$WORK/stop.out" "$LLMCTL" stop "$fprof" || frc=$?
     if [ "$frc" = 0 ]; then
-      log "retried the cleanup stop of $fprof (its start had failed): rc 0, set removed"
+      log "retried the cleanup stop of $fprof (its start or its disposal stop had failed): rc 0, set removed"
       cur="$(jq -c --arg p "$fprof" 'del(.sets[$p])' <<<"$cur")"
     else
-      log "retried the cleanup stop of $fprof (its start had failed): rc $frc; the set is kept and retried again"
+      log "retried the cleanup stop of $fprof (its start or its disposal stop had failed): rc $frc; the set is kept and retried again"
       cur="$(jq -c --arg p "$fprof" --argjson now "$NOW" --argjson rc "$frc" '.sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")"
     fi
     printf '%s\n' "$cur" | leases_save
-  done < <(jq -r '.sets | to_entries[] | select((.value.start_failed // null) != null and (.value.stopping // null) == null and (.value.leases | length) == 0) | .key' <<<"$cur")
-  prof="$(jq -r '[.sets | to_entries[] | select((.value.stopping // null) == null and (.value.start_failed // null) == null and ((.value.leases | length) > 0 or .value.constitution_started == true)) | .key][0] // empty' <<<"$cur")"
-  if [ -n "$prof" ]; then
-    # re-check before joining (review 2026-11-12 F5, round 3 R2-3): an ALLOW-list, never a deny-list. The contract must
-    # be readable, the unit llmctl reports must be running/active and the verdict must be a fit; anything else (failed,
-    # absent, unknown, starting, degraded, does_not_fit, undetermined) is refused, so a dead gateway is never registered.
-    IFS=$'\t' read -r st reason < <(capacity_read)
+  done < <(jq -r '.sets | to_entries[] | select(((.value.start_failed // null) != null or (.value.stop_owed // null) != null) and (.value.stopping // null) == null and (.value.leases | length) == 0) | .key' <<<"$cur")
+  # an empty set this producer did not start (its holders were reaped) is forgotten, like release does; never stopped
+  cur="$(jq -c '.sets |= with_entries(select((.value.leases | length) > 0 or .value.constitution_started == true))' <<<"$cur")"
+  printf '%s\n' "$cur" | leases_save
+  # Join (round 4, review R3-1): EVERY existing, non-stopping set is evaluated (with JEV_PLACE_MAX>1 the first set can be
+  # dead while the second serves). A set is joined ONLY when the capacity contract is readable, the unit llmctl reports is
+  # running/active and the verdict is a fit (an ALLOW-list; review 2026-11-12 F5, round 3 R2-3). A set that fails the check:
+  #   * still held by a live lease: left alone (refused for this holder; never stopped, its holders still use it);
+  #   * lease-less and constitution-started (its holders were reaped): DISPOSED here - a bounded `llmctl stop` (only a model
+  #     THIS producer started, §11.4.291(G)), then the set and its cache entry are dropped; a failed stop keeps the set
+  #     {stop_owed, stop_failed} so it is never joined and the stop is retried by every later acquire and release. A
+  #     disposed profile is not restarted by the SAME acquire (§11.4.291(D) hold): the next acquire evaluates it afresh.
+  # A reap alone never stops a model (§11.4.291(J)); only an acquire, which has read the capacity answer, disposes.
+  local jprofs disposed="" ref_p="" ref_v="" ref_r="" ref_ev="" jp leased
+  jprofs="$(jq -r '.sets | to_entries[] | select((.value.stopping // null) == null and (.value.start_failed // null) == null and (.value.stop_owed // null) == null and ((.value.leases | length) > 0 or .value.constitution_started == true)) | .key' <<<"$cur")"
+  if [ -n "$jprofs" ]; then
+    IFS=$'\x1f' read -r st reason < <(capacity_read | tr '\t' '\037')
     if [ "$st" != ok ]; then
+      # nothing can be judged (and nothing is stopped) on an unread answer
+      prof="$(head -n1 <<<"$jprofs")"
       write_placement "$prof" "undetermined" "join refused: ${reason:-capacity unreadable}" "$(fallback_route)" false 0 refused_join
       log "refused: capacity undetermined ($reason); $prof not joined; fallback route $(fallback_route)"; return 5
     fi
-    us="$(unit_status_of "$prof")"
-    if [ "$us" = degraded ]; then
-      write_placement "$prof" "does_not_fit" "unit degraded: not joined" "$(fallback_route)" false 0 refused_degraded
-      log "refused: the unit of $prof is degraded; no lease; fallback route $(fallback_route)"; return 5
+    while IFS= read -r jp; do
+      [ -n "$jp" ] || continue
+      us="$(unit_status_of "$jp")"
+      IFS=$'\x1f' read -r v th r <<<"$(verdict_for "$jp" | tr '\t' '\037')"
+      local why="" wev=refused_join
+      if [ "$us" = degraded ]; then why="unit degraded"; wev=refused_degraded; v=does_not_fit
+      else
+        case "$us" in running|active) ;; *) why="unit status '${us:-absent}' is not running/active" ;; esac
+        if [ -z "$why" ]; then case "$v" in fits|fits_with_reduced_threads) ;; *) why="capacity verdict $v${r:+ ($r)}" ;; esac; fi
+      fi
+      if [ -z "$why" ]; then
+        cur="$(jq -c --arg p "$jp" --arg h "$holder" --arg pid "$pid" --arg pst "$pst" --argjson now "$NOW" --argjson ttl "$ttl" \
+          '.sets[$p].leases = ([.sets[$p].leases[] | select(.holder != $h)] + [{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl}])' <<<"$cur")"
+        printf '%s\n' "$cur" | leases_save
+        write_placement "$jp" "$v" "joined an existing lease set${r:+ ($r)}" local "$(jq -r --arg p "$jp" '.sets[$p].constitution_started == true' <<<"$cur")" "$th" joined
+        cache_register "$jp"
+        log "lease joined: holder=$holder profile=$jp (capacity $v)"
+        echo "$jp"; return 0
+      fi
+      leased="$(jq -r --arg p "$jp" '.sets[$p].leases | length' <<<"$cur")"
+      if [ "$leased" = 0 ] && [ "$(jq -r --arg p "$jp" '.sets[$p].constitution_started == true' <<<"$cur")" = true ]; then
+        local drc=0
+        log "disposing $jp: no lease left, constitution-started, $why; bounded llmctl stop"
+        bounded "$STMO" "$WORK/stop.out" "$LLMCTL" stop "$jp" || drc=$?
+        if [ "$drc" = 0 ]; then
+          cur="$(jq -c --arg p "$jp" 'del(.sets[$p])' <<<"$cur")"
+          printf '%s\n' "$cur" | leases_save
+          # the cache holds ONE llmctl-local entry: drop it when it names this model or when no lease set is left
+          if [ "$(jq '.sets | length' <<<"$cur")" = 0 ] || jq -e --arg p "$jp" 'any(.endpoints[]?; .provider_id == "llmctl-local" and .model == $p)' "$CACHE" >/dev/null 2>&1; then cache_unregister; fi
+          log "disposed $jp: llmctl stop rc 0, set removed (not restarted by this acquire)"
+        else
+          cur="$(jq -c --arg p "$jp" --argjson now "$NOW" --argjson rc "$drc" --arg why "$why" '.sets[$p].stop_owed = {at:$now, reason:$why} | .sets[$p].stop_failed = {at:$now, rc:$rc}' <<<"$cur")"
+          printf '%s\n' "$cur" | leases_save
+          log "disposal stop of $jp failed rc=$drc (124/137 = timed out after ${STMO}s); the set is kept (stop_owed) and the stop is retried"
+        fi
+        disposed="$disposed $jp"
+        continue
+      fi
+      log "refused for $holder: $jp ($why); it keeps its $leased live lease(s) and is not stopped"
+      [ -n "$ref_p" ] || { ref_p="$jp"; ref_v="$v"; ref_r="$why"; ref_ev="$wev"; }
+    done <<<"$jprofs"
+    if [ -n "$ref_p" ]; then
+      if [ "$ref_ev" = refused_degraded ]; then write_placement "$ref_p" "does_not_fit" "unit degraded: not joined" "$(fallback_route)" false 0 refused_degraded
+      else write_placement "$ref_p" "$ref_v" "join refused: $ref_r" "$(fallback_route)" false 0 refused_join; fi
+      log "refused: $ref_p ($ref_r); not joined; fallback route $(fallback_route)"; return 5
     fi
-    IFS=$'\t' read -r v th r <<<"$(verdict_for "$prof")"
-    case "$us" in running|active) ;; *)
-      write_placement "$prof" "$v" "join refused: unit status '${us:-absent}' is not running/active" "$(fallback_route)" false 0 refused_join
-      log "refused: the unit of $prof is '${us:-absent}' (not running/active); not joined; fallback route $(fallback_route)"; return 5 ;;
-    esac
-    case "$v" in fits|fits_with_reduced_threads) ;; *)
-      write_placement "$prof" "$v" "join refused: capacity verdict $v${r:+ ($r)}" "$(fallback_route)" false 0 refused_join
-      log "refused: capacity verdict for $prof is $v; not joined; fallback route $(fallback_route)"; return 5 ;;
-    esac
-    cur="$(jq -c --arg p "$prof" --arg h "$holder" --arg pid "$pid" --arg pst "$pst" --argjson now "$NOW" --argjson ttl "$ttl" \
-      '.sets[$p].leases = ([.sets[$p].leases[] | select(.holder != $h)] + [{holder:$h, pid:(if $pid=="" then null else ($pid|tonumber) end), pid_start:($pst|tonumber? // null), heartbeat_at:$now, ttl:$ttl}])' <<<"$cur")"
-    printf '%s\n' "$cur" | leases_save
-    write_placement "$prof" "$v" "joined an existing lease set${r:+ ($r)}" local "$(jq -r --arg p "$prof" '.sets[$p].constitution_started == true' <<<"$cur")" "$th" joined
-    cache_register "$prof"
-    log "lease joined: holder=$holder profile=$prof (capacity $v)"
-    echo "$prof"; return 0
   fi
   if jq -e '[.sets[] | select((.stopping // null) != null)] | length > 0' <<<"$cur" >/dev/null; then
     write_placement "" "undetermined" "a lease set is stopping (refused per §11.4.291(J))" "$(fallback_route)" false 0 refused_stopping
     log "refused: a lease set is stopping; fallback route $(fallback_route)"; return 5
   fi
-  IFS=$'\t' read -r st reason < <(capacity_read)
+  IFS=$'\x1f' read -r st reason < <(capacity_read | tr '\t' '\037')
   if [ "$st" != ok ]; then
     write_placement "" "undetermined" "$reason" "$(fallback_route)" false 0 undetermined
     log "undetermined ($reason): no local start; fallback route $(fallback_route)"; return 5
@@ -320,7 +363,8 @@ acquire_locked() {
     [ "$n" -lt "$MAXN" ] || break
     # a profile that already has a set (e.g. a failed start whose cleanup stop failed) is never adopted or started again
     if jq -e --arg p "$p" '.sets[$p] != null' <<<"$cur" >/dev/null; then log "candidate $p: a lease set already exists (not joinable); skipped"; continue; fi
-    line="$(verdict_for "$p")"; IFS=$'\t' read -r v th r <<<"$line"
+    case " $disposed " in *" $p "*) log "candidate $p: stopped by this acquire (hold until the next evaluation, §11.4.291(D))"; continue ;; esac
+    line="$(verdict_for "$p")"; IFS=$'\x1f' read -r v th r <<<"$(tr '\t' '\037' <<<"$line")"
     # A unit llmctl already runs was started by someone else (the operator, or a session outside this lease
     # registry): join it as NOT constitution-started, so the last release never stops it (§11.4.291(J)).
     # A unit still starting is neither started again nor claimed.
