@@ -44,7 +44,8 @@
 #   P88 (NF-2)  the lease this acquire took is the authority for every further start: once it is released, no further
 #               start (round 6 P70 relied on the stopping mark alone and became timing-dependent under the round-7 rule)
 #   P89 (NF-3)  mutant row (NM02): an acquire whose own reap clears a dead starter's mark after its capacity read reads
-#               again (its old ticket is not newer than the floor) and joins the running unit
+#               again (its old ticket is not newer than the floor) and joins the running unit. On eb29803b only its
+#               log-line assertion fails (round 6 set no floor at the reap, so the old answer still judged the set)
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
