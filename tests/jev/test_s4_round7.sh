@@ -46,6 +46,9 @@
 #   P89 (NF-3)  mutant row (NM02): an acquire whose own reap clears a dead starter's mark after its capacity read reads
 #               again (its old ticket is not newer than the floor) and joins the running unit. On eb29803b only its
 #               log-line assertion fails (round 6 set no floor at the reap, so the old answer still judged the set)
+#   P90 (NF-2)  mutant row (NM07): a start this acquire saw fail (rc 1) or refused (rc 75) is not tried again by it, so
+#               a start that keeps failing cannot loop; every wait on a gated process is bounded (waitb), so a loop or a
+#               hang is a named FAIL, never a hang of the whole suite
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
@@ -90,6 +93,20 @@ pl() { jq -r "$1" "$JEV_STATE_DIR/placement.json" 2>/dev/null; }
 L() { jq -r "$1" "$JEV_STATE_DIR/leases.json" 2>/dev/null; }
 running() { (cd "$STUB_LOG" && for f in running.*; do [ -e "$f" ] && printf '%s ' "${f#running.}"; done); }
 wait_file() { local n=0; while [ "$n" -lt "${2:-900}" ]; do [ -e "$1" ] && return 0; sleep 0.1; n=$((n+1)); done; return 1; }
+# waitb <pid> [secs]: `wait` bounded by a deadline (default 300 s). A gated process that loops or hangs is a FAIL here,
+# never a hang of the whole suite: past the deadline it is sent TERM (pid > 1 only, §11.4.263) and 124 is returned.
+waitb() {
+  local p="$1" lim n=0; lim=$(( ${2:-300} * 10 ))
+  while kill -0 "$p" 2>/dev/null; do
+    if [ "$n" -ge "$lim" ]; then
+      fail "waitb: pid $p still running after ${2:-300} s (a loop or a hang); sent TERM"
+      if [ "$p" -gt 1 ] 2>/dev/null; then kill -TERM "$p" 2>/dev/null; fi
+      wait "$p" 2>/dev/null; return 124
+    fi
+    sleep 0.1; n=$((n+1))
+  done
+  wait "$p"
+}
 # field 22 of /proc/<pid>/stat (the start time), read after the LAST ") " so a command name with spaces cannot shift it
 proc_start_of() { local st; local -a f; st="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0; st="${st##*') '}"; read -ra f <<<"$st"; printf '%s\n' "${f[19]:-}"; }
 
@@ -200,14 +217,17 @@ p72_case "degraded a string"                '.degraded = "false"'               
 p72_case "largest_decision_fit absent"      'del(.largest_decision_fit)'          "$U" largest_decision_fit
 p72_case "largest_decision_fit a number"    '.largest_decision_fit = 42'          "$U" largest_decision_fit
 p72_case "profiles absent"                  'del(.profiles)'                      "$U" profiles
-# per-profile fields (canon table rows 3-4) of the candidate
+# per-profile fields (canon table rows 3-4) of the candidate. The needle is the contract phrase with the field, so a
+# field of a wrong type is refused BY the contract check and named there, not only by a later value check (mutant NM14:
+# without the verdict type check a number verdict was still undetermined, as "verdict outside the closed set")
+CF="contract fields of profiles.decide-a missing or wrong:"
 for f in verdict threads reasons headroom; do
-  p72_case "profiles.decide-a.$f absent"    "del(.profiles[\"decide-a\"].$f)"   "$U" "$f"
+  p72_case "profiles.decide-a.$f absent"    "del(.profiles[\"decide-a\"].$f)"   "$U" "$CF $f"
 done
-p72_case "profiles.decide-a.verdict a number"   '.profiles["decide-a"].verdict = 1'        "$U" verdict
-p72_case "profiles.decide-a.threads a string"   '.profiles["decide-a"].threads = "3"'      "$U" threads
-p72_case "profiles.decide-a.reasons a string"   '.profiles["decide-a"].reasons = "none"'   "$U" reasons
-p72_case "profiles.decide-a.headroom a number"  '.profiles["decide-a"].headroom = 1000'    "$U" headroom
+p72_case "profiles.decide-a.verdict a number"   '.profiles["decide-a"].verdict = 1'        "$U" "$CF verdict"
+p72_case "profiles.decide-a.threads a string"   '.profiles["decide-a"].threads = "3"'      "$U" "$CF threads"
+p72_case "profiles.decide-a.reasons a string"   '.profiles["decide-a"].reasons = "none"'   "$U" "$CF reasons"
+p72_case "profiles.decide-a.headroom a number"  '.profiles["decide-a"].headroom = 1000'    "$U" "$CF headroom"
 # llmctl's own list of inputs it could not read (non-strict mode keeps measurement.ok true)
 p72_case "measurement.critical_inputs_unreadable non-empty" \
   '.measurement.critical_inputs_unreadable = ["host.psi.memory: /proc/pressure/memory unreadable"]' "$U" host.psi.memory
@@ -221,7 +241,7 @@ fresh; export PLACE_FULL_AFTER=decide-a
 gated "$T/gB" 5 0 "$T/b73" JEV_PLACE_PROFILES=decide-a,decide-b -- acquire sB --pid $$; b73=$GPID
 reach "$T/gB" 5 "P73 B planned decide-a on an answer read before any start"
 JEV_PLACE_PROFILES=decide-a "$PLACE" acquire sA --pid $$ > "$T/a73.out" 2>"$T/a73.err"; arc=$?
-go "$T/gB" 5; wait "$b73"; brc=$?
+go "$T/gB" 5; waitb "$b73"; brc=$?
 assert_eqx "0 decide-a" "$arc $(cat "$T/a73.out")" "P73 A starts decide-a while B waits at its start mark"
 assert_eqx "0 decide-a" "$brc $(cat "$T/b73.out")" "P73 B joins decide-a (a fresh plan after the stale mark)"
 assert_eqx "1 0" "$(starts) $(startsof decide-b)" "P73 one start in all; decide-b is never started on B's pre-start answer"
@@ -234,7 +254,7 @@ fresh; export PLACE_FULL_AFTER=decide-b
 gated "$T/gB" 5 0 "$T/b74" JEV_PLACE_PROFILES=decide-a -- acquire sB --pid $$; b74=$GPID
 reach "$T/gB" 5 "P74 B planned decide-a"
 JEV_PLACE_PROFILES=decide-b "$PLACE" acquire sC --pid $$ > "$T/c74.out" 2>/dev/null; crc=$?
-go "$T/gB" 5; wait "$b74"; brc=$?
+go "$T/gB" 5; waitb "$b74"; brc=$?
 assert_eqx "0 decide-b" "$crc $(cat "$T/c74.out")" "P74 C starts decide-b while B waits"
 assert_eqx "0 decide-b" "$brc $(cat "$T/b74.out")" "P74 B re-plans and joins decide-b (its fresh answer says decide-a does not fit)"
 assert_eqx "1 0" "$(starts) $(startsof decide-a)" "P74 decide-a is never started next to decide-b on B's stale answer"
@@ -245,7 +265,7 @@ gated "$T/gA" 5 0 "$T/a75" JEV_PLACE_PROFILES=decide-a,decide-b -- acquire sA --
 reach "$T/gA" 5 "P75 A planned decide-a"
 gen0="$(L '.gen')"; older_pin_place decide-a sOld
 assert_eqx "$gen0" "$(L '.gen')" "P75 the older-pin writer left the generation unchanged (the instrument)"
-go "$T/gA" 5; wait "$a75"; arc=$?
+go "$T/gA" 5; waitb "$a75"; arc=$?
 assert_eqx "0 decide-a" "$arc $(cat "$T/a75.out")" "P75 A re-plans and joins the set the older-pin writer created"
 assert_eqx "1 0" "$(starts) $(startsof decide-b)" "P75 only the writer's start; decide-b is never started on A's stale answer"
 assert_eqx "sOld,sA" "$(L '[.sets["decide-a"].leases[].holder] | join(",")')" "P75 the writer's lease is kept, A's is added"
@@ -265,12 +285,12 @@ gated "$T/gC" 7 0 "$T/c75b" JEV_PLACE_PROFILES=decide-a PLACE_START_RC=1 -- acqu
 reach "$T/gC" 7 "P75b C's start of decide-a failed with the unit up; its record waits"
 : > "$T/capB/go"
 reach "$T/gB" 3 "P75b B read its answer while C's unit was up"
-go "$T/gC" 7; wait "$c75"; crc=$?
+go "$T/gC" 7; waitb "$c75"; crc=$?
 assert_eqx "5 " "$crc $(running)" "P75b C cleaned up: rc 5, no unit left"
 # the instrument: the registry is byte-for-byte what B's ticket saw except the generation (an ABA for a hash-only token)
 if [ "$(L 'del(.gen)')" = "$r0_75" ] && [ "$(L '.gen')" != "$g0_75" ]; then ok "P75b CONTROL: the registry bytes are as B's ticket saw them, except the generation ($g0_75 -> $(L '.gen'))"
 else fail "P75b CONTROL: the registry is not an ABA of B's ticket (the row would not test the generation): $(L 'del(.gen)') vs $r0_75"; fi
-go "$T/gB" 3; wait "$b75"; brc=$?
+go "$T/gB" 3; waitb "$b75"; brc=$?
 assert_eqx "0 decide-a placed" "$brc $(cat "$T/b75b.out") $(pl .placement.event)" "P75b B re-reads and STARTS decide-a; it never adopts the gone unit"
 assert_eqx "decide-a " "$(running)" "P75b decide-a runs"
 
@@ -281,7 +301,7 @@ fresh
 gated "$T/gA" 9 0 "$T/a76" JEV_PLACE_PROFILES=decide-a,decide-b JEV_PLACE_MAX=2 PLACE_GONE=decide-b -- acquire sA --pid $$; a76=$GPID
 reach "$T/gA" 9 "P76 A started decide-a; its next ticket waits"
 older_pin_place decide-b sOld
-go "$T/gA" 9; wait "$a76"; arc=$?
+go "$T/gA" 9; waitb "$a76"; arc=$?
 assert_eqx "0 decide-a" "$arc $(cat "$T/a76.out")" "P76 A placed decide-a"
 assert_eqx "1 1" "$(startsof decide-a) $(startsof decide-b)" "P76 decide-b is started once (by the writer), never again by A's mark"
 has "$T/a76.err" "candidate decide-b: not started" "P76 A announces it did not start decide-b"
@@ -295,9 +315,9 @@ reach "$T/gB" 3 "P77 B read its answer"
 gated "$T/gA" 9 0 "$T/a77" JEV_PLACE_PROFILES=decide-a -- acquire sA --pid $$; a77=$GPID
 reach "$T/gA" 9 "P77 A started decide-a; its post-start observation waits"
 assert_eqx pending "$(L '.sets["decide-a"].health.state')" "P77 A's set is pending (floored at the start)"
-go "$T/gB" 3; wait "$b77"; brc=$?
+go "$T/gB" 3; waitb "$b77"; brc=$?
 assert_eqx "0 decide-a joined" "$brc $(cat "$T/b77.out") $(pl .placement.event)" "P77 B re-reads (its answer predates the start) and joins"
-go "$T/gA" 9; wait "$a77"; arc=$?
+go "$T/gA" 9; waitb "$a77"; arc=$?
 assert_eqx "0 1" "$arc $(starts)" "P77 A finishes; one start"
 
 # ---- P78 (NF-3): a reap that clears a dead starter's mark sets a floor ------------------------------------------------
@@ -305,11 +325,11 @@ fresh
 gated "$T/gC" 3 0 "$T/c78" -- status; c78=$GPID
 reach "$T/gC" 3 "P78 the observer read its answer before any start"
 gated "$T/gA" 0 7 "$T/a78" JEV_PLACE_PROFILES=decide-a -- acquire sA --pid $$; a78=$GPID
-wait "$a78" 2>/dev/null
+waitb "$a78" 2>/dev/null
 if [ -e "$T/gA/killed" ]; then ok "P78 the starter was killed after llmctl start rc 0, before its record (the instrument)"
 else fail "P78 the starter was not killed at its record step"; fi
 assert_eqx "1 decide-a  true" "$(starts) $(running) $(L '.sets["decide-a"].starting != null')" "P78 the unit runs; the set still carries the dead starter's mark"
-go "$T/gC" 3; wait "$c78"; crc=$?
+go "$T/gC" 3; waitb "$c78"; crc=$?
 assert_eqx "0 null 1" "$crc $(L '.sets["decide-a"].gone') $(L '.sets["decide-a"].leases | length')" "P78 the observer clears the mark and does NOT mark the set gone (its answer predates the start)"
 assert_eqx "pending null" "$(L '.sets["decide-a"].health.state') $(L '.sets["decide-a"].starting')" "P78 the set is pending (floor), its mark cleared"
 hasnt "$T/c78.err" "endpoint_gone" "P78 no endpoint_gone"
@@ -374,7 +394,7 @@ for n in 5 11 17 23; do
   reach "$T/gB" "$n" "P82 B is at start mark $n"
   registry_write "before mark $n"; go "$T/gB" "$n"
 done
-wait "$b82"; brc=$?
+waitb "$b82"; brc=$?
 assert_eqx "5 0 undetermined stale_answer" "$brc $(starts) $(pl .placement.event) $(pl .placement.reason_code)" "P82 four stale marks: no start, undetermined (stale_answer)"
 assert_eqx 3 "$(grep -c 'planning again on a fresh answer' "$T/b82.err")" "P82 STALE_MAX (3) re-plans, then it stops"
 
@@ -386,7 +406,7 @@ for n in 3 7 11; do
   reach "$T/gB" "$n" "P82b B is at plan $n"
   registry_write "during read $n"; go "$T/gB" "$n"
 done
-wait "$b82b"; brc=$?
+waitb "$b82b"; brc=$?
 assert_eqx "5 0 stale_answer" "$brc $(starts) $(pl .placement.reason_code)" "P82b three stale reads: a plan with joins only, no start (stale_answer)"
 has "$T/b82b.err" "planning joins only" "P82b the joins-only plan is announced"
 
@@ -397,7 +417,7 @@ reach "$T/gB" 5 "P83 B is at its start mark"
 gen0="$(L '.gen')"
 JEV_PLACE_PROFILES=decide-a PLACE_CAP_RC=99 "$PLACE" acquire sC >/dev/null 2>&1; crc=$?
 assert_eqx "5 $gen0" "$crc $(L '.gen')" "P83 C's acquire on an undetermined answer wrote nothing to the registry"
-go "$T/gB" 5; wait "$b83"; brc=$?
+go "$T/gB" 5; waitb "$b83"; brc=$?
 assert_eqx "0 decide-a 2" "$brc $(cat "$T/b83.out") $(cat "$T/capB/count")" "P83 B starts on its answer (one read before the plan, one after the start: no re-read)"
 
 # ---- P84 (N6-b): status with no placement record yet ----------------------------------------------------------------
@@ -431,7 +451,7 @@ pst87="$(proc_start_of $$)"
     '.gen = ((.gen // 0) + 1) | .sets["decide-c"] = {constitution_started:true, started_at:1, starting:null, leases:[], stopping:{at:$now, pid:$pid, pid_start:$pst}}' \
     "$JEV_STATE_DIR/leases.json" > "$JEV_STATE_DIR/leases.json.w" && mv -f -- "$JEV_STATE_DIR/leases.json.w" "$JEV_STATE_DIR/leases.json" )
 assert_eqx true "$(L '.sets["decide-c"].stopping != null')" "P87 another set is stopping (a live stopper) before A's ticket"
-go "$T/gA" 9; wait "$a87"; arc=$?
+go "$T/gA" 9; waitb "$a87"; arc=$?
 assert_eqx "0 decide-a 0" "$arc $(cat "$T/a87.out") $(startsof decide-b)" "P87 decide-b is not started while decide-c is stopping"
 has "$T/a87.err" "candidate decide-b: not started (not fitting on the fresh answer, a set exists, or a set is starting/stopping)" "P87 the refusal is announced"
 
@@ -441,14 +461,14 @@ gated "$T/gA" 9 0 "$T/a88" JEV_PLACE_PROFILES=decide-a,decide-b JEV_PLACE_MAX=2 
 reach "$T/gA" 9 "P88 A started decide-a; the ticket of its fresh read for decide-b waits"
 "$PLACE" release sA >/dev/null 2>"$T/r88.err"; rrc=$?
 assert_eqx "0 1 " "$rrc $(stops) $(running)" "P88 the release of sA (its only lease) stopped decide-a"
-go "$T/gA" 9; wait "$a88"; arc=$?
+go "$T/gA" 9; waitb "$a88"; arc=$?
 assert_eqx "0 0" "$(startsof decide-b) $(L '[.sets[]?.leases[]? | select(.holder == "sA")] | length')" "P88 decide-b is never started for the released sA; sA holds no lease"
 has "$T/a88.err" "the lease of sA on decide-a, taken by this acquire, is gone" "P88 the reason is announced"
 # CONTROL: the same schedule without the release starts decide-b on the fresh answer
 fresh
 gated "$T/gA" 9 0 "$T/c88" JEV_PLACE_PROFILES=decide-a,decide-b JEV_PLACE_MAX=2 -- acquire sA --pid $$; c88=$GPID
 reach "$T/gA" 9 "P88 CONTROL: A waits at the same ticket"
-go "$T/gA" 9; wait "$c88"
+go "$T/gA" 9; waitb "$c88"
 assert_eqx 1 "$(startsof decide-b)" "P88 CONTROL: without the release decide-b is started"
 
 # ---- P89 (NM02, mutant row): the plan's own reap changes the registry after the capacity read ------------------------
@@ -458,7 +478,7 @@ assert_eqx 1 "$(startsof decide-b)" "P88 CONTROL: without the release decide-b i
 # than the floor, so the set stays pending and C cannot join; with it C reads again and joins the running unit.
 fresh
 gated "$T/gA" 0 7 "$T/a89" JEV_PLACE_PROFILES=decide-a -- acquire sA --pid $$; a89=$GPID
-wait "$a89" 2>/dev/null
+waitb "$a89" 2>/dev/null
 if [ -e "$T/gA/killed" ]; then ok "P89 the starter was killed after llmctl start rc 0, before its record (the instrument)"
 else fail "P89 the starter was not killed at its record step"; fi
 assert_eqx "1 decide-a  true" "$(starts) $(running) $(L '.sets["decide-a"].starting != null')" "P89 the unit runs; the set carries the dead starter's mark"
@@ -466,6 +486,17 @@ JEV_PLACE_PROFILES=decide-a "$PLACE" acquire sC --pid $$ > "$T/c89.out" 2> "$T/c
 assert_eqx "0 decide-a joined 1" "$crc $(cat "$T/c89.out") $(pl .placement.event) $(starts)" "P89 C reads again after its own reap cleared the mark, joins the running unit and starts nothing"
 has "$T/c89.err" "the reap changed the registry after the capacity read; reading it again" "P89 the re-read is announced"
 assert_eqx "ok null" "$(L '.sets["decide-a"].health.state') $(L '.sets["decide-a"].starting')" "P89 the set is observed ok after the floor; the mark is cleared"
+
+# ---- P90 (NM07, mutant row): a start this acquire saw fail or refused is not tried again by it ---------------------
+# After a failed start (rc 1, the stub leaves the unit up and the acquire stops it) or a refused one (rc 75, nothing
+# started) the acquire re-plans on a new answer (NF-2), which says "fits" again. START_TRIED keeps this acquire from
+# starting the same candidate again, so the acquire ends after one start. Bounded: a loop is a FAIL, not a hang.
+for src in 1 75; do
+  fresh; export JEV_PLACE_PROFILES=decide-a PLACE_START_RC="$src"
+  timeout 300 "$PLACE" acquire s1 --pid $$ > "$T/o90" 2> "$T/e90"; rc=$?
+  assert_eqx "5 1 " "$rc $(starts) $(running)" "P90 a start that ends rc $src is tried once by this acquire, which ends rc 5 with no unit"
+  has "$T/e90" "its start by this acquire was refused or failed; not started again by it" "P90 (rc $src) the re-plan skips the candidate and says so"
+done
 
 count_lockheld
 assert_eqx 0 "$LOCKHELD_TOTAL" "P67 no llmctl call ran while the lease lock was held (across this file)"
