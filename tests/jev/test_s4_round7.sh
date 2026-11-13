@@ -48,7 +48,8 @@
 #               log-line assertion fails (round 6 set no floor at the reap, so the old answer still judged the set)
 #   P90 (NF-2)  mutant row (NM07): a start this acquire saw fail (rc 1) or refused (rc 75) is not tried again by it, so
 #               a start that keeps failing cannot loop; every wait on a gated process is bounded (waitb), so a loop or a
-#               hang is a named FAIL, never a hang of the whole suite
+#               hang is a named FAIL, never a hang of the whole suite. On eb29803b only its log-line assertions fail
+#               (round 6 also tried such a start once per acquire; the loop it guards is the round-7 re-plan)
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
@@ -192,7 +193,10 @@ p72_case "host.psi a string"                '.host.psi = "none"'                
 p72_case "host.psi.cpu absent"              'del(.host.psi.cpu)'                  "$U" host.psi
 p72_case "host.cgroup absent"               'del(.host.cgroup)'                   "$U" host.cgroup
 p72_case "host.cgroup an array"             '.host.cgroup = []'                   "$U" host.cgroup
-p72_case "host absent"                      'del(.host)'                          "$U" host
+# the host row is implied by its nine field rows for the decision (a field of a non-object host is never a number), so
+# its own effect is the reason: the row itself must be named, before its first field (mutant CT04)
+p72_case "host absent"                      'del(.host)'                          "$U" host,host.cpus_online
+p72_case "host a string"                    '.host = "none"'                      "$U" host,host.cpus_online
 p72_case "reserve absent"                   'del(.reserve)'                       "$U" reserve
 p72_case "reserve a string"                 '.reserve = "4000"'                   "$U" reserve
 p72_case "pressure absent"                  'del(.pressure)'                      "$U" pressure
