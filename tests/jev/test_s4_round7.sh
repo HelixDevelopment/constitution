@@ -43,6 +43,8 @@
 #               fresh answer's ticket was taken refuses the mark (the token cannot see it: it predates the ticket)
 #   P88 (NF-2)  the lease this acquire took is the authority for every further start: once it is released, no further
 #               start (round 6 P70 relied on the stopping mark alone and became timing-dependent under the round-7 rule)
+#   P89 (NF-3)  mutant row (NM02): an acquire whose own reap clears a dead starter's mark after its capacity read reads
+#               again (its old ticket is not newer than the floor) and joins the running unit
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; FIXTURES="$HERE/fixtures"
 # shellcheck source=lib_assert.sh
@@ -447,6 +449,22 @@ gated "$T/gA" 9 0 "$T/c88" JEV_PLACE_PROFILES=decide-a,decide-b JEV_PLACE_MAX=2 
 reach "$T/gA" 9 "P88 CONTROL: A waits at the same ticket"
 go "$T/gA" 9; wait "$c88"
 assert_eqx 1 "$(startsof decide-b)" "P88 CONTROL: without the release decide-b is started"
+
+# ---- P89 (NM02, mutant row): the plan's own reap changes the registry after the capacity read ------------------------
+# A is killed after `llmctl start` rc 0, before its record: the set carries A's dead `starting` mark and sA's lease. C's
+# answer is read while that mark exists and the registry does not change before C's plan (seam 1 passes); C's own reap
+# clears the mark and sets the floor (NF-3). Without the re-read C judges the set on its old ticket, which is not newer
+# than the floor, so the set stays pending and C cannot join; with it C reads again and joins the running unit.
+fresh
+gated "$T/gA" 0 7 "$T/a89" JEV_PLACE_PROFILES=decide-a -- acquire sA --pid $$; a89=$GPID
+wait "$a89" 2>/dev/null
+if [ -e "$T/gA/killed" ]; then ok "P89 the starter was killed after llmctl start rc 0, before its record (the instrument)"
+else fail "P89 the starter was not killed at its record step"; fi
+assert_eqx "1 decide-a  true" "$(starts) $(running) $(L '.sets["decide-a"].starting != null')" "P89 the unit runs; the set carries the dead starter's mark"
+JEV_PLACE_PROFILES=decide-a "$PLACE" acquire sC --pid $$ > "$T/c89.out" 2> "$T/c89.err"; crc=$?
+assert_eqx "0 decide-a joined 1" "$crc $(cat "$T/c89.out") $(pl .placement.event) $(starts)" "P89 C reads again after its own reap cleared the mark, joins the running unit and starts nothing"
+has "$T/c89.err" "the reap changed the registry after the capacity read; reading it again" "P89 the re-read is announced"
+assert_eqx "ok null" "$(L '.sets["decide-a"].health.state') $(L '.sets["decide-a"].starting')" "P89 the set is observed ok after the floor; the mark is cleared"
 
 count_lockheld
 assert_eqx 0 "$LOCKHELD_TOTAL" "P67 no llmctl call ran while the lease lock was held (across this file)"
