@@ -410,6 +410,7 @@ EXPLICIT_ID_GROUPS = {
     "12.2": "host-and-resource-safety",
     "12.3": "host-and-resource-safety",
     "11.4.184(I)": "governance-and-constitution-meta",
+    "11.4.184(J)": "governance-and-constitution-meta",
     # --- added 2026-10-08 — bare `### N.M` heading form (see _BARE_FORM_NOTE) ---
     # §1.1 False-positive immunity (paired-mutation rule, under "## 1. Test
     # coverage is mandatory"); §2.1 Multi-upstream push (under "## 2. Commit
