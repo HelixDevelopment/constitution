@@ -1,0 +1,5 @@
+ok 1 - P90 a start that ends rc 1 is tried once by this acquire, which ends rc 5 with no unit
+ok 2 - P90 (rc 1) the re-plan skips the candidate and says so
+ok 3 - P90 a start that ends rc 75 is tried once by this acquire, which ends rc 5 with no unit
+ok 4 - P90 (rc 75) the re-plan skips the candidate and says so
+# zz_r7_p90_only.sh: pass=4 fail=0 skip=0

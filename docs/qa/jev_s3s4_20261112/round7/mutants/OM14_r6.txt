@@ -1,0 +1,160 @@
+ok 1 - P51 no further candidate is considered after the late-recorded start
+ok 2 - P51 no fresh answer is read for a next candidate
+ok 3 - P51 exactly one llmctl start when the record step cannot take the lock (never a second candidate)
+ok 4 - P51 only decide-a runs
+ok 5 - P51 rc 0 and the profile: the lease IS held (it is in the registry since the mark)
+ok 6 - P51 the outcome is announced: lease held, start recorded late
+ok 7 - P51 the registry holds s1's lease on decide-a
+ok 8 - P51 release stops the late-recorded model (nothing orphaned)
+ok 9 - P51b a retried record step that gets the lock records the start
+ok 10 - P51b the starting mark is cleared and the placement recorded
+ok 11 - P51b not reported late when a retry succeeded
+ok 12 - P51c control needle: the stderr is captured and the late record is announced
+ok 13 - P51c the loop ended at the late record: decide-b is never considered
+ok 14 - P51c the next candidate is never started after a start succeeded (review repro shape)
+ok 15 - P51c rc 0, lease held on decide-a
+ok 16 - P51c release leaves nothing running
+ok 17 - P51d control needle: the late record is announced
+ok 18 - P51d JEV_PLACE_MAX=2: after the late-recorded start decide-b is never considered
+ok 19 - P51d rc 0, lease on decide-a, exactly one start
+ok 20 - P52 setup: one (dead) lease and one cache entry
+ok 21 - P52 reap: lease dropped, cache entry removed, no stop
+ok 22 - P52 status reports the fallback route (none: no hosted key)
+ok 23 - P53 setup: placed and routed
+ok 24 - P53 heartbeat: entry removed, the lease kept (the session drains, then releases)
+ok 25 - P53 the observation is recorded on the set
+ok 26 - P53 the route change is announced
+ok 27 - P53 heartbeat starts nothing (the one start is the setup)
+ok 28 - P53 after status: still no entry for the degraded unit
+ok 29 - P53 after verdict: still no entry for the degraded unit
+ok 30 - P53 after reap: still no entry for the degraded unit
+ok 31 - P53 the unit reads ok again: routed again at the next observation
+ok 32 - P54 decide status fails: placement still proceeds
+ok 33 - P54 the failure default is https://127.0.0.1:8095 (RM13)
+ok 34 - P54 applying the default is logged
+ok 35 - P54 no gateway in the registry: the https default
+ok 36 - P54 the no-gateway default is logged
+ok 37 - P54 an http:// registry URL is refused: no start, no entry
+ok 38 - P54 the refusal names the https rule
+ok 39 - P54 an http:// LLMCTL_GATEWAY_URL is refused
+ok 40 - P54 a later http:// registry URL removes the existing local entry (the key never goes over http)
+ok 41 - P54 CONTROL: an https override is used
+ok 42 - P55 needle+ (the checker sees a correct entry): cache names decide-a, routable {decide-a}
+ok 43 - P55 needle- the checker flags an entry naming an unheld set
+ok 44 - P55 needle- the checker flags a missing entry
+ok 45 - P55 [none x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 46 - P55 [none x heartbeat] rc=0: cache names decide-a, routable {decide-a}
+ok 47 - P55 [none x heartbeat] no llmctl start or stop
+ok 48 - P55 [none x release] rc=0: cache names decide-a, routable {decide-a}
+ok 49 - P55 [none x reap] rc=0: cache names decide-a, routable {decide-a}
+ok 50 - P55 [none x reap] no llmctl start or stop
+ok 51 - P55 [none x status] rc=0: cache names decide-a, routable {decide-a}
+ok 52 - P55 [none x status] no llmctl start or stop
+ok 53 - P55 [none x verdict] rc=0: cache names decide-a, routable {decide-a}
+ok 54 - P55 [none x verdict] no llmctl start or stop
+ok 55 - P55 [degraded x acquire] rc=5: no routable set and no llmctl-local entry
+ok 56 - P55 [degraded x heartbeat] rc=0: no routable set and no llmctl-local entry
+ok 57 - P55 [degraded x heartbeat] no llmctl start or stop
+ok 58 - P55 [degraded x release] rc=0: no routable set and no llmctl-local entry
+ok 59 - P55 [degraded x reap] rc=0: no routable set and no llmctl-local entry
+ok 60 - P55 [degraded x reap] no llmctl start or stop
+ok 61 - P55 [degraded x status] rc=0: no routable set and no llmctl-local entry
+ok 62 - P55 [degraded x status] no llmctl start or stop
+ok 63 - P55 [degraded x verdict] rc=0: no routable set and no llmctl-local entry
+ok 64 - P55 [degraded x verdict] no llmctl start or stop
+ok 65 - P55 [gone x acquire] rc=0: cache names decide-b, routable {decide-b}
+ok 66 - P55 [gone x heartbeat] rc=3: no routable set and no llmctl-local entry
+ok 67 - P55 [gone x heartbeat] no llmctl start or stop
+ok 68 - P55 [gone x release] rc=0: no routable set and no llmctl-local entry
+ok 69 - P55 [gone x reap] rc=0: no routable set and no llmctl-local entry
+ok 70 - P55 [gone x reap] no llmctl start or stop
+ok 71 - P55 [gone x status] rc=0: no routable set and no llmctl-local entry
+ok 72 - P55 [gone x status] no llmctl start or stop
+ok 73 - P55 [gone x verdict] rc=0: no routable set and no llmctl-local entry
+ok 74 - P55 [gone x verdict] no llmctl start or stop
+ok 75 - P55 [pressure x acquire] rc=5: no routable set and no llmctl-local entry
+ok 76 - P55 [pressure x heartbeat] rc=0: no routable set and no llmctl-local entry
+ok 77 - P55 [pressure x heartbeat] no llmctl start or stop
+ok 78 - P55 [pressure x release] rc=0: no routable set and no llmctl-local entry
+ok 79 - P55 [pressure x reap] rc=0: no routable set and no llmctl-local entry
+ok 80 - P55 [pressure x reap] no llmctl start or stop
+ok 81 - P55 [pressure x status] rc=0: no routable set and no llmctl-local entry
+ok 82 - P55 [pressure x status] no llmctl start or stop
+ok 83 - P55 [pressure x verdict] rc=0: no routable set and no llmctl-local entry
+ok 84 - P55 [pressure x verdict] no llmctl start or stop
+ok 85 - P55 [capfail x acquire] rc=5: no routable set and no llmctl-local entry
+ok 86 - P55 [capfail x heartbeat] rc=0: no routable set and no llmctl-local entry
+ok 87 - P55 [capfail x heartbeat] no llmctl start or stop
+ok 88 - P55 [capfail x release] rc=0: no routable set and no llmctl-local entry
+ok 89 - P55 [capfail x reap] rc=0: no routable set and no llmctl-local entry
+ok 90 - P55 [capfail x reap] no llmctl start or stop
+ok 91 - P55 [capfail x status] rc=0: no routable set and no llmctl-local entry
+ok 92 - P55 [capfail x status] no llmctl start or stop
+ok 93 - P55 [capfail x verdict] rc=0: no routable set and no llmctl-local entry
+ok 94 - P55 [capfail x verdict] no llmctl start or stop
+ok 95 - P55 [dead x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 96 - P55 [dead x heartbeat] rc=3: no routable set and no llmctl-local entry
+ok 97 - P55 [dead x heartbeat] no llmctl start or stop
+ok 98 - P55 [dead x release] rc=0: no routable set and no llmctl-local entry
+ok 99 - P55 [dead x reap] rc=0: no routable set and no llmctl-local entry
+ok 100 - P55 [dead x reap] no llmctl start or stop
+ok 101 - P55 [dead x status] rc=0: no routable set and no llmctl-local entry
+ok 102 - P55 [dead x status] no llmctl start or stop
+ok 103 - P55 [dead x verdict] rc=0: no routable set and no llmctl-local entry
+ok 104 - P55 [dead x verdict] no llmctl start or stop
+ok 105 - P55 [recover x acquire] rc=0: cache names decide-a, routable {decide-a}
+ok 106 - P55 [recover x heartbeat] rc=0: cache names decide-a, routable {decide-a}
+ok 107 - P55 [recover x heartbeat] no llmctl start or stop
+ok 108 - P55 [recover x release] rc=0: cache names decide-a, routable {decide-a}
+ok 109 - P55 [recover x reap] rc=0: cache names decide-a, routable {decide-a}
+ok 110 - P55 [recover x reap] no llmctl start or stop
+ok 111 - P55 [recover x status] rc=0: cache names decide-a, routable {decide-a}
+ok 112 - P55 [recover x status] no llmctl start or stop
+ok 113 - P55 [recover x verdict] rc=0: cache names decide-a, routable {decide-a}
+ok 114 - P55 [recover x verdict] no llmctl start or stop
+ok 115 - P56 --ttl 1 is a config error: refused, no start
+ok 116 - P56 the refusal names the cadence rule
+ok 117 - P56 JEV_LEASE_TTL=0 refused
+ok 118 - P56 ttl = cadence 300 + llmctl timeout 20 is not greater: refused
+ok 119 - P56 CONTROL: ttl 321 > 300 + 20 accepted
+ok 120 - P56 CONTROL: a declared cadence 10 s admits ttl 100
+ok 121 - P56 a non-numeric cadence is a config error
+ok 122 - P57 heartbeat of a holder that never held a lease exits 3
+ok 123 - P57 the session is told it holds no lease
+ok 124 - P57 heartbeat of a reaped holder exits 3
+ok 125 - P57 CONTROL: heartbeat of a live lease exits 0
+ok 126 - P58 a stopping set: reason_code endpoint_stopping
+ok 127 - P58 the reason starts with endpoint_stopping
+ok 128 - P58 unit gone: endpoint_gone recorded; the heartbeat tells s1 it holds no lease (rc 3)
+ok 129 - P58 every lease of the gone endpoint released, no cache entry
+ok 130 - P58 nothing restarted
+ok 131 - P58 the detail is filled [endpoint_gone: no own unit reported, verdict fits]
+ok 132 - P58 the notice names endpoint_gone
+ok 133 - P59 decide capacity fails: undetermined, not does_not_fit
+ok 134 - P59 the reason names the candidate list
+ok 135 - P59 verdict --json reports the candidate list as undetermined
+ok 136 - P60 a starting lease: project, started_by_this_session true
+ok 137 - P60 the record names this holder's lease
+ok 138 - P60 override_id present (null: no override path)
+ok 139 - P60 a joining lease: started_by_this_session false
+ok 140 - P60 the record keeps the previous event (placed)
+ok 141 - P60 the record keeps the previous verdict
+ok 142 - P60 no detection record: not merged
+ok 143 - P60 no detection record is fabricated
+ok 144 - P60 an existing detection record gets the placement entry, its fields kept
+ok 145 - P61 unlimited: still undetermined (operator decision owed)
+ok 146 - P61 the reason code is nproc_unlimited (measured: rlimit_soft null)
+ok 147 - P61 CONTROL: an absent headroom has the reason code nproc_not_measured
+ok 148 - P61 an unreadable thread census (user_threads null) has the reason code nproc_not_measured, never nproc_unlimited
+ok 149 - P62 bash -s WORD: WORD is a positional parameter, not wiring
+ok 150 - P62 bash -ns: not wiring
+ok 151 - P62 bash -c -- WORD runs WORD
+ok 152 - P62 bash -c -e WORD: options before the command string
+ok 153 - P62 env -S STRING is split
+ok 154 - P62 env --split-string= is split
+ok 155 - P62 env -S of another command is not wiring
+ok 156 - P62 CONTROL: bash WORD is wiring
+ok 157 - P62 CONTROL: bash -n is not wiring
+ok 158 - P63 lock held: rc 4, no start
+FAIL - P63 the lost placement record is logged (no [NOT written] in <W>/tmp/tmp.kjhxnAclN0/e63)
+ok 159 - P63 nothing written without the lock
