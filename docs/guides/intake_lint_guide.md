@@ -2,17 +2,17 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-13 |
-| Last modified | 2026-11-13T19:30:00Z |
+| Last modified | 2026-11-13T21:30:00Z |
 | Status | active |
 | Status summary | User guide and manual for the read-only content lint of an intake batch of workable items (cross-references, states, sections, secrets, ephemeral locations, duplicates, cited paths). |
 | Authority | Constitution §11.4.148, §11.4.214, §11.4.215, §11.4.294, §11.4.10 — the canonical text wins where this guide and the constitution disagree. |
 | Scope | Universal (§11.4.17); the id prefix, the database path and the origin text are consumer DATA (§11.4.35). |
 | Issues | not yet wired into a seam: the reporting and landing paths and the pre-build sweep do not run it (tracked as an item, see the tracker-intake v2 report) |
 | Issues summary | Run it by hand before landing an intake batch. |
-| Fixed | round 4 (review R3-3 and minors): SECRET, EPHEMERAL and CONTROL-CHAR on every surface (every items column, the obsolete_details, operator_block_details and item_history rows, the rendered documents); STATE-EVIDENCE; every engine header key compared; the range-end clause fix; golden-bad needles bound to their own check; round 3 (review R2-2 to R2-8): XREF-UNLABELLED, DUP-HEAD, DUP-UNDECIDED, DUP-STATUS, OBSOLETE-STALE; BODY-SYNC both directions; a crash or a NULL column is BLIND |
-| Fixed summary | Revision 2 was round 3; revision 1 the initial creation (round 2). |
+| Fixed | round 5 (review R4-3, R4-5, R4-6, R4-9): unquoted password assignments and `Authorization: Basic` are SECRET; Unicode format characters (bidi, BOM, soft hyphen, zero-width) are CONTROL-CHAR; ids are ASCII digits only and an id written with other digits is XREF-DANGLING; every location row of an item is linted, not only the first; the database path is quoted in the read-only URI and a non-empty `-wal` sidecar is BLIND; round 4 (review R3-3 and minors): SECRET, EPHEMERAL and CONTROL-CHAR on every surface (every items column, the obsolete_details, operator_block_details and item_history rows, the rendered documents); STATE-EVIDENCE; every engine header key compared; the range-end clause fix; golden-bad needles bound to their own check; round 3 (review R2-2 to R2-8): XREF-UNLABELLED, DUP-HEAD, DUP-UNDECIDED, DUP-STATUS, OBSOLETE-STALE; BODY-SYNC both directions; a crash or a NULL column is BLIND |
+| Fixed summary | Revision 3 was round 4; revision 2 round 3; revision 1 the initial creation (round 2). |
 | Continuation | — |
 
 ## Table of contents
@@ -73,6 +73,15 @@ finding per (code, item, pattern) names every surface the pattern was found on, 
 `aws-access-key-id on description,body_md`. The XREF checks read the title, the description and the
 state text columns (`reproduction_*`, `investigation_root_cause`).
 
+An item that has more than one row in `items` (one per location) is linted on every row: the first
+row is the item, each further row is linted too and its findings are printed with `[<location> row]`
+after the detail (round 4 read only the first row, R4-6). A finding a further row shares with the
+first is printed once.
+
+An id is `<prefix>-<ASCII digits>`. Python's `\d` also reads fullwidth and other Unicode digits, so
+`CON-３` would have read as `CON-3` (R4-5). Such a token is no id of this tracker and no reader can
+follow it: it is reported as XREF-DANGLING with `(non-ASCII digits)`.
+
 ## Finding codes and how to fix each
 
 | Code | Meaning | Fix |
@@ -85,9 +94,9 @@ state text columns (`reproduction_*`, `investigation_root_cause`).
 | STATE-EVIDENCE | a reproduction state that needs evidence (reproduced-*, not-reproducible-with-evidence) has no evidence path or no 64-hex sha256 in `reproduction_env`; an investigation state that needs evidence (root-cause-found-with-evidence, closed-no-defect) has none; a blocked state has no blocker; with `--repo-root`, the evidence file is missing or its sha256 differs | record the evidence path and its sha256 through the engine flags, or lower the state |
 | SECTIONS | a §11.4.148 marker is missing (What, Affected scope, Reproduction / context, Acceptance criteria, Parent / links) | add the section; write `UNKNOWN:` for what is not known |
 | BODY-SYNC | body_md is not the engine rendering of its sources: empty, the description not in it, text before or after the rendered parts, the heading, a header line that differs from its source (table below), a key written twice, a key the engine does not write, or a header line that carries a line separator other than a newline | regenerate through the engine; never edit one column by hand |
-| SECRET | a credential-shaped string (18 patterns, each with a positive and a negative needle in the suite); only the pattern name is printed | remove it; if it is a real credential, rotate it (§11.4.10) |
+| SECRET | a credential-shaped string (20 patterns, each with a positive and a negative needle in the suite and in the built-in needles), among them a quoted or unquoted `password=`, `secret=`, `api_key=` or `token=` assignment (an unquoted value that starts with `$`, `<`, `{`, `%`, a quote, `(` or `[` reads as a reference, not a value) and `Authorization: Basic`; only the pattern name is printed | remove it; if it is a real credential, rotate it (§11.4.10) |
 | EPHEMERAL | a session-scratchpad path, a `/tmp` path, a mktemp-shaped name (default `tmp.XXXXXXXXXX` in any case, or a mixed-case suffix of four or more characters), a `.bundle` file, a home directory path, a session store directory, or a bare `review_*.md` / `*_lander_items.md` name outside `docs/`, on a line with no `(ephemeral` note | cite the tracked copy under `docs/qa/...`, or note the line `(ephemeral: ...)`; a note covers its own line only |
-| CONTROL-CHAR | NUL, a C0 control other than tab and newline, DEL, a C1 control, U+2028 or U+2029 on any surface; a tab or newline in the title | remove the character through the engine (`update`) |
+| CONTROL-CHAR | NUL, a C0 control other than tab and newline, DEL, a C1 control, U+2028, U+2029, or a Unicode format character (category Cf: the bidi overrides and isolates of Trojan Source, the BOM, the soft hyphen, the zero-width characters, the tag characters) on any surface, the earliest one named; a tab or newline in the title | remove the character through the engine (`update`) |
 | SHARED-PATH | a file in the Affected scope is also named by an open item outside the batch, and the Duplicate check line does not name that item | compare the two items and name the other item in the Duplicate check line with its verdict |
 | DUP-CHECK | (with `--require-dup-check`) the line is missing or the verdict is not in the closed set; (always) a SAME-DEFECT verdict that names no id | add the line; write `SAME-DEFECT of <id>` |
 | DUP-SAME-OPEN | the verdict is SAME-DEFECT of X but the item is not closed Obsolete duplicate-of X (the first id after `of` is the head) | close it with `close <id> --status obsolete` and `obsolete-details <id> --reason duplicate-of --superseding <head>` |
@@ -118,7 +127,7 @@ state text columns (`reproduction_*`, `investigation_root_cause`).
 | 0 | no finding (or `--embeddings` printed) |
 | 1 | findings |
 | 2 | usage error: no selection, an unknown `--skip-check` code, `--repo-root` not a directory |
-| 3 | BLIND: database missing or unreadable, a required table missing, no items, an item with a NULL title, description, status or location, a BLOB or other non-text value, a prefix no item carries, an unknown id, an empty selection, a selected item absent from every rendered document, a rendered document missing or unreadable, a built-in control needle failed, or the lint crashed on an input (the exception type is printed, never a traceback) — no verdict is given |
+| 3 | BLIND: database missing or unreadable, a non-empty `-wal` sidecar beside it (checkpoint it first: the read-only open would not see the uncheckpointed rows), a required table missing, no items, an item with a NULL title, description, status or location, a BLOB or other non-text value, a prefix no item carries, an unknown id, an empty selection, a selected item absent from every rendered document, a rendered document missing or unreadable, a built-in control needle failed, or the lint crashed on an input (the exception type is printed, never a traceback) — no verdict is given |
 
 The built-in control needles run on every call: each check must fire on a golden-bad text and stay
 silent on golden-good texts; each surface carries a planted secret, ephemeral path and control
@@ -145,17 +154,20 @@ pass a new batch.
 
 ## Tests
 
-- `tests/workable_items/test_intake_lint.sh` (256 cases): golden-good and golden-bad fixture
+- `tests/workable_items/test_intake_lint.sh` (283 cases): golden-good and golden-bad fixture
   databases for every code (with variants for each member of a class), every BODY-SYNC header key in
   both directions, every STATE-EVIDENCE branch, SECRET on every surface kind, a positive and a
   negative needle for each secret pattern, the rendered documents, usage and BLIND exits (a NULL
   column, a BLOB, a missing table, a crash), the embeddings namespaces, three cases that switch a
   check off in a copy and require the built-in needle to name it, and the reviewers' data mutants
-  (rounds 1 to 3) plus the I1, I2 and R2-1 replays on a scratch copy of the real database. It exits 2
-  when the cleanup of its temp dir is refused.
-- `tests/workable_items/test_intake_lint_mutations.sh`: 92 mutants of the lint and of the suite (the
+  (rounds 1 to 3) plus the I1, I2 and R2-1 replays on a scratch copy of the real database; round 5
+  adds the unquoted assignment and Basic credentials, the format characters, the non-ASCII digits, a
+  finding on a second location row, the `-wal` sidecar (non-empty: BLIND; empty: read) and a database
+  path holding `?` and `#`. It exits 2 when the cleanup of its temp dir is refused.
+- `tests/workable_items/test_intake_lint_mutations.sh`: 110 mutants of the lint and of the suite (the
   round-1 and round-2 sets, the round-2 reviewer's code mutants, the round-3 checks, the round-3
-  reviewer's LC1..LC11, the round-4 checks, and the suite's own cleanup); each must be killed by the
+  reviewer's LC1..LC11, the round-4 checks, the round-4 reviewer's LV1..LV6, the round-5 checks
+  LN1..LN12, and the suite's own cleanup); each must be killed by the
   suite's own cases, and the check mutants declared so also by the built-in control needles.
   `INTAKE_LINT_MUT_JOBS` sets the parallelism (default 3).
 

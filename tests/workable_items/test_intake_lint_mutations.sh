@@ -18,8 +18,12 @@
 #   round-4 code unified the check (LC2, LC3: the per-key compare loop, the mutant skips that one key);
 #   the M-mutants cover the checks added in round 4 (every surface, rendered documents, BLIND classes,
 #   evidence files, competing heads); M27 reverts the clause-scan fix and M28 drops the binding of a
-#   golden-bad needle to its own check (both found by the round-4 run itself); S1 mutates the suite's
-#   own cleanup (round-2 review R2-10).
+#   golden-bad needle to its own check (both found by the round-4 run itself); LV1..LV6 are the
+#   round-4 reviewer's lint mutants (LV6 mapped onto the round-5 load, which keeps a second location row
+#   instead of dropping it); the LN-mutants cover the checks added in round 5 (format characters, the
+#   ASCII fast path, the earliest character, unquoted assignments and their reference-value guard,
+#   Basic auth, non-ASCII ids, second location rows, the -wal sidecar, URI quoting); S1 mutates the
+#   suite's own cleanup (round-2 review R2-10).
 # ENV   INTAKE_LINT_MUT_JOBS  parallel mutants (default 3)
 #       INTAKE_LINT_MUT_ONLY  run only the mutants whose id is listed (comma separated)
 # EXIT  0 every mutant killed as declared and the control passes; 1 otherwise; 2 setup error, or
@@ -110,7 +114,7 @@ mutants=(
   'LC9 PATH-MISSING keeps trailing punctuation (reviewer round 3, verbatim)|L|yes|rel = m.group(1).rstrip(".,;:)")|||rel = m.group(1)'
   'LC10 body_md heading id not compared (reviewer round 3, verbatim)|L|yes|if m.group(1) != r["id"] or m.group(2) != r["title"]:|||if m.group(2) != r["title"]:'
   'LC11 exemption on any line saying ephemeral (reviewer round 3, verbatim)|L|yes|if "(ephemeral" in line:|||if "ephemeral" in line:'
-  'M1 CONTROL-CHAR check off|L|yes|        cm = CONTROL_CHAR.search(text)\n        if cm:|||        cm = CONTROL_CHAR.search(text)\n        if False:'
+  'M1 CONTROL-CHAR check off|L|yes|        ch = control_char(text)\n        if ch:|||        ch = control_char(text)\n        if False:'
   'M2 home-path misses /home/<user>/|L|yes|/(?:home|Users)/|||/(?:Users)/'
   'M3 home-path misses ~/.<dir>/|L|yes||~/\.[\w-]+/)|||)'
   'M4 session-store misses projects/|L|yes|(?:projects|todos|shell-snapshots)|||(?:todos|shell-snapshots)'
@@ -138,6 +142,24 @@ mutants=(
   'M26 every exact header key may differ|L|yes|        elif want is not None and have != want:|||        elif False:'
   'M27 clause scan bounded at the id (the dot before a range end reads as a sentence end)|L|yes|    for m in CLAUSE_SPLIT.finditer(text):\n        if m.end() > start:\n            break\n        s = m.end()|||    for m in CLAUSE_SPLIT.finditer(text, 0, start):\n        s = m.end()'
   'M28 a golden-bad needle accepts any finding of its code (the check-text binding dropped)|L|no|        if not any(f[0] == code.split("/")[0] and want in f[2] for f in run(row, items)):|||        if not any(f[0] == code.split("/")[0] for f in run(row, items)):'
+  'LV1 CONTROL-CHAR: U+2028/U+2029 dropped from the class (round-4 reviewer)|L|yes|\u2028\u2029]")|||]")'
+  'LV2 rendered docs not scanned by default with --repo-root (round-4 reviewer)|L|no|        rendered_dir = a.rendered or (os.path.join(a.repo_root, "docs") if a.repo_root else None)|||        rendered_dir = a.rendered'
+  'LV3 item_history.reason not a scanned surface (round-4 reviewer)|L|yes|            if name not in ("atm_id", "id") and v is not None:|||            if name not in ("atm_id", "id", "reason") and v is not None:'
+  'LV4 rendered: a non-item ## heading does not end the item section (round-4 reviewer)|L|no|                    cur = hm.group(1) if hm else None|||                    cur = hm.group(1) if hm else cur'
+  'LV5 SECRET: pattern anchored at the surface start (round-4 reviewer)|L|yes|            if pat.search(text):\n                hit("SECRET"|||            if pat.match(text):\n                hit("SECRET"'
+  'LV6 load: a second location row dropped (round-4 reviewer, mapped)|L|no|        if i in items:  # a second location row is linted too|||        if False:  # a second location row is linted too'
+  'LN1 CONTROL-CHAR: format characters (Cf) not reported|L|yes|        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":|||        if CONTROL_CHAR.match(ch):'
+  'LN2 CONTROL-CHAR: every text read through the ASCII class|L|yes|    if text.isascii():\n        cm = CONTROL_CHAR.search(text)|||    if True:\n        cm = CONTROL_CHAR.search(text)'
+  'LN3 CONTROL-CHAR: the last character reported, not the earliest|L|no|    for ch in text:\n        if CONTROL_CHAR.match(ch) or|||    for ch in reversed(text):\n        if CONTROL_CHAR.match(ch) or'
+  'LN4 SECRET: an unquoted PASSWORD= not reported|L|yes|(?:\b|_)(?:password|passwd|secret|api_?key|token)\s*=\s*(?!|||(?:\b|_)(?:passwd|secret|api_?key|token)\s*=\s*(?!'
+  "LN5 SECRET: a reference value (\$VAR, <placeholder>) reported as a secret|L|no|(?![\$<{%'\\\"\`(\\[])|||"
+  'LN6 SECRET: Authorization: Basic not reported|L|yes|(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}|||(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{80,}'
+  'LN7 XREF-DANGLING: an id in non-ASCII digits not reported|L|yes|state_text(r)) if not u.group(1).isascii()}):|||state_text(r)) if False}):'
+  'LN8 a second location row not linted|L|no|                for e in extras.get(r["id"], ()):|||                for e in ():'
+  'LN9 a second-row finding not named by its row|L|no|"%s [%s row]" % (f[2], e["location"])|||f[2]'
+  'LN10 a finding both rows carry reported twice|L|no|                        if f not in raw:|||                        if True:'
+  'LN11 a non-empty -wal sidecar read|L|no|    if os.path.isfile(wal) and os.path.getsize(wal) > 0:\n        raise Blind(|||    if False:\n        raise Blind('
+  'LN12 the database path read as URI syntax|L|no|urllib.parse.quote(os.path.abspath(db))|||os.path.abspath(db)'
   'S1 suite cleanup refusal not an error|S|no|    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2\n    exit 2|||    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2'
 )
 

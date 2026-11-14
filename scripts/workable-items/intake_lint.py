@@ -71,7 +71,9 @@
 #   EPHEMERAL        a session-scratchpad location, a /tmp path, a mktemp-shaped name, a .bundle file,
 #                    a home directory path, a session store directory, or a bare review_*.md /
 #                    *_lander_items.md name (not under docs/) on a line with no `(ephemeral` note
-#   CONTROL-CHAR     NUL, a C0 control other than tab and newline, DEL, a C1 control, U+2028 or U+2029
+#   CONTROL-CHAR     NUL, a C0 control other than tab and newline, DEL, a C1 control, U+2028 or U+2029,
+#                    or a Unicode format character (category Cf: bidi overrides and isolates, the BOM,
+#                    the soft hyphen, zero-width characters, tag characters); the earliest one is named
 #                    on any surface; a tab or newline in the title
 #   SHARED-PATH      a file named in the item's Affected-scope section is named by an OPEN item outside
 #                    the selection, and the Duplicate check line does not name that item
@@ -101,6 +103,8 @@ import os
 import re
 import sqlite3
 import sys
+import unicodedata
+import urllib.parse
 
 STOP = set(
     "the a an on in of to is and or for with by from not no as at be it its this that are was when "
@@ -148,6 +152,11 @@ SECRET_PATTERNS = [
     ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]{6,}@")),
     ("bearer-token", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._~+/=-]{20,}")),
     ("password-assign", re.compile(r"(?i)\b(?:password|passwd|secret|api_?key|token)\s*[=:]\s*['\"][^'\"\s]{8,}['\"]")),
+    # an unquoted assignment (shell, env file, URL query); a value that starts like a reference
+    # ($VAR, <placeholder>, {template}, %VAR%, a quote, `(`, `[`) is not a value (round 4, R4-3)
+    ("password-assign-unquoted", re.compile(
+        r"(?i)(?:\b|_)(?:password|passwd|secret|api_?key|token)\s*=\s*(?![$<{%'\"`(\[])[^\s'\"`]{8,}")),
+    ("basic-auth", re.compile(r"(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}")),
     ("stripe-key", re.compile(r"\b[rs]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
     ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
     ("telegram-bot-token", re.compile(r"\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b")),
@@ -169,7 +178,20 @@ EPHEMERAL_PATTERNS = [
     ("session-store", re.compile(r"\.claude[\w-]*/(?:projects|todos|shell-snapshots)/")),
 ]
 # NUL, C0 other than tab and newline, DEL, C1, and the two Unicode line separators
-CONTROL_CHAR = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f  ]")
+CONTROL_CHAR = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
+
+
+def control_char(text):
+    """The earliest control character, line separator or format character (Cf) in text, or None. Cf
+    holds the bidi overrides and isolates (Trojan Source), the BOM, the soft hyphen, the zero-width
+    characters and the tag characters, which change what a reader sees without being visible."""
+    if text.isascii():
+        cm = CONTROL_CHAR.search(text)
+        return cm.group(0) if cm else None
+    for ch in text:
+        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":
+            return ch
+    return None
 CODES = {
     "XREF-DANGLING", "XREF-LABEL", "XREF-UNLABELLED", "FOREIGN-STALE", "STATE-PROSE", "STATE-EVIDENCE",
     "SECTIONS", "BODY-SYNC", "SECRET", "EPHEMERAL", "CONTROL-CHAR", "SHARED-PATH", "DUP-CHECK",
@@ -211,8 +233,8 @@ ITEM_COLUMNS = [
 STATE_TEXT_COLS = ["reproduction_red_cmd", "reproduction_green_cmd", "reproduction_env",
                    "reproduction_signature", "reproduction_blocker", "investigation_root_cause"]
 RENDERED_FILES = ["Issues.md", "Fixed.md", "Issues_Summary.md", "Fixed_Summary.md"]
-RENDERED_ID_CELL = re.compile(r"^([A-Za-z][A-Za-z0-9]*-\d+)(?: — |$)")
-RENDERED_HEADING = re.compile(r"^## ([A-Za-z][A-Za-z0-9]*-\d+)(?: — |\. )")
+RENDERED_ID_CELL = re.compile(r"^([A-Za-z][A-Za-z0-9]*-[0-9]+)(?: — |$)")
+RENDERED_HEADING = re.compile(r"^## ([A-Za-z][A-Za-z0-9]*-[0-9]+)(?: — |\. )")
 STATE_SEP = " — "
 
 
@@ -225,12 +247,13 @@ def words(s):
 
 
 def id_re(prefix):
-    return re.compile(r"(?<![\w-])" + re.escape(prefix) + r"-(\d+)\b(?!-)")
+    # ASCII digits: \d also reads fullwidth and other Unicode digits (round 4, R4-5)
+    return re.compile(r"(?<![\w-])" + re.escape(prefix) + r"-([0-9]+)\b(?!-)")
 
 
 def range_re(prefix):
     p = re.escape(prefix)
-    return re.compile(r"(?<![\w-])" + p + r"-(\d+)\.\." + p + r"-(\d+)\b(?!-)")
+    return re.compile(r"(?<![\w-])" + p + r"-([0-9]+)\.\." + p + r"-([0-9]+)\b(?!-)")
 
 
 def ids_in(text, prefix):
@@ -534,9 +557,9 @@ def scan_surfaces(r, rendered):
                 em = pat.search(line)
                 if em:
                     hit("EPHEMERAL", name, surface, em.group(0)[:60])
-        cm = CONTROL_CHAR.search(text)
-        if cm:
-            hit("CONTROL-CHAR", "U+%04X" % ord(cm.group(0)), surface)
+        ch = control_char(text)
+        if ch:
+            hit("CONTROL-CHAR", "U+%04X" % ord(ch), surface)
         if surface == "title" and ("\n" in text or "\t" in text):
             hit("CONTROL-CHAR", "newline or tab in the title", surface)
     out = []
@@ -659,6 +682,10 @@ def lint_items(sel, all_items, prefix, require_dup, repo_root=None, exists=None,
         for ref in sorted(named):
             if ref not in fids and ref not in all_items:
                 findings.append(("XREF-DANGLING", iid, ref))
+        # an id written with non-ASCII digits is no id of this tracker and no reader can follow it
+        for u in sorted({u.group(0) for u in re.finditer(r"(?<![\w-])" + re.escape(prefix) + r"-(\d+)",
+                                                          body_text + "\n" + state_text(r)) if not u.group(1).isascii()}):
+            findings.append(("XREF-DANGLING", iid, "%s (non-ASCII digits)" % u))
         # XREF-LABEL / XREF-UNLABELLED (explicit tokens)
         for m in rx.finditer(body_text):
             ref = m.group(0)
@@ -750,7 +777,7 @@ def lint_items(sel, all_items, prefix, require_dup, repo_root=None, exists=None,
                 findings.append(("DUP-CHECK", iid, "verdict %r not in the closed set" % dl.group(1)))
         closed_dup = r["status"].startswith("Obsolete") and r["obsolete_reason"] == "duplicate-of"
         if dl is not None and verdict == "SAME-DEFECT":
-            hm = re.match(r"\s*of\s+(" + re.escape(prefix) + r"-\d+)\b", dl.group(2))
+            hm = re.match(r"\s*of\s+(" + re.escape(prefix) + r"-[0-9]+)\b", dl.group(2))
             head = hm.group(1) if hm else None
             if head is None:
                 findings.append(("DUP-CHECK", iid, "SAME-DEFECT names no id (`SAME-DEFECT of <id>`)"))
@@ -828,9 +855,14 @@ def check_values(table, rows):
 
 
 def load(db):
-    """Every item (first location) with its obsolete_details, operator_block_details and item_history
-    rows. A missing required table, an unreadable table or a non-text value is BLIND."""
-    con = sqlite3.connect("file:%s?mode=ro" % db, uri=True)
+    """(items, extras): every item (its first location row) with its obsolete_details,
+    operator_block_details and item_history rows, and the rows of its other locations. A missing
+    required table, an unreadable table, a non-text value or a non-empty -wal sidecar is BLIND."""
+    wal = db + "-wal"
+    if os.path.isfile(wal) and os.path.getsize(wal) > 0:
+        raise Blind("%s has a non-empty -wal sidecar; checkpoint it first" % db)
+    # the path is quoted: `?` and `#` in a file name are not URI syntax (round 4, R4-9)
+    con = sqlite3.connect("file:%s?mode=ro" % urllib.parse.quote(os.path.abspath(db)), uri=True)
     try:
         tables = {r[0] for r in con.execute("select name from sqlite_master where type='table'")}
         missing = [t for t in REQUIRED_TABLES if t not in tables]
@@ -853,13 +885,15 @@ def load(db):
     hist = {}
     for h in hist_rows:
         hist.setdefault(h["atm_id"], []).append(h)
-    items = {}
+    items, extras = {}, {}
     for row in item_rows:
-        if row["atm_id"] in items:
-            continue
         i = row["atm_id"]
-        items[i] = make_row(row, od.get(i), obd.get(i), hist.get(i, ()), names)
-    return items
+        r = make_row(row, od.get(i), obd.get(i), hist.get(i, ()), names)
+        if i in items:  # a second location row is linted too (round 4, R4-6), never dropped
+            extras.setdefault(i, []).append(r)
+            continue
+        items[i] = r
+    return items, extras
 
 
 def load_rendered(d):
@@ -920,6 +954,8 @@ def secret_needles():
         ("url-userinfo-password", "https://u:" + "p" * 6 + "@h", "https://u:" + "p" * 5 + "@h"),
         ("bearer-token", "Authorization: " + "Bearer " + a * 20, "Authorization: " + "Bearer " + a * 19),
         ("password-assign", "pass" + "word = '" + "x" * 8 + "'", "pass" + "word = '" + "x" * 7 + "'"),
+        ("password-assign-unquoted", "DB_PASS" + "WORD=" + "x" * 8, "DB_PASS" + "WORD=" + "x" * 7),
+        ("basic-auth", "Authorization: " + "Basic " + a * 8, "Authorization: " + "Basic " + a * 7),
         ("stripe-key", "s" + "k_" + "live_" + a * 20, "s" + "k_" + "live_" + a * 19),
         ("npm-token", "np" + "m_" + a * 36, "np" + "m_" + a * 35),
         ("telegram-bot-token", "123456789" + ":AA" + a * 33, "123456789" + ":AA" + a * 32),
@@ -1088,6 +1124,8 @@ def selfcheck():
         "CONTROL-CHAR/title": (var(title="Needle good item"), {}),
         "CONTROL-CHAR/nul": (var(description=d + "\nnul\x00here"), {}),
         "CONTROL-CHAR/title-tab": (var(title="Needle\tgood item"), {}),
+        "CONTROL-CHAR/bidi": (var(description=d + "\nbidi\u202ehere"), {}),
+        "XREF-DANGLING/non-ascii-digits": (var(description=d + "\nsee ZZ-\uff13"), {}),
         "DUP-CHECK": (var(description=d.replace(": DISTINCT", ": PROBABLY")), {}),
         "DUP-SAME-OPEN": (var(description=d.replace(": DISTINCT", ": SAME-DEFECT of ZZ-1")), {}),
         "DUP-SAME-OPEN/wrong-head": (var(status="Obsolete", current_location="Fixed", od=dict(od_dup, superseding_item="ZZ-4"),
@@ -1155,6 +1193,7 @@ def selfcheck():
         "EPHEMERAL/session-store": "session-store:", "EPHEMERAL/state-column": "items.reproduction_red_cmd",
         "CONTROL-CHAR/title": "U+2028 on title", "CONTROL-CHAR/nul": "U+0000",
         "CONTROL-CHAR/title-tab": "newline or tab in the title", "DUP-CHECK": "not in the closed set",
+        "CONTROL-CHAR/bidi": "U+202E", "XREF-DANGLING/non-ascii-digits": "(non-ASCII digits)",
         "DUP-SAME-OPEN": "but not Obsolete duplicate-of ZZ-1", "DUP-SAME-OPEN/wrong-head": "but not Obsolete duplicate-of ZZ-1",
         "DUP-SAME-OPEN/head-is-first-id": "but not Obsolete duplicate-of ZZ-1",
         "DUP-HEAD": "ZZ-1 names ZZ-4 as a duplicate", "DUP-HEAD/head-closed": "is not an open head",
@@ -1260,7 +1299,7 @@ def main(argv):
     # finding (exit 1) or a silent pass; the selection runs inside this block too (M-3)
     rows, raw, files = [], [], []
     try:
-        items = load(a.db)
+        items, extras = load(a.db)
         if not items:
             raise Blind("database holds no items")
         counts = {}
@@ -1286,6 +1325,12 @@ def main(argv):
             rows = embeddings(sel, items, prefix)
         else:
             raw = lint_items(sel, items, prefix, a.require_dup_check, a.repo_root, rendered=rendered)
+            for r in sel:
+                for e in extras.get(r["id"], ()):
+                    for f in lint_items([e], dict(items, **{r["id"]: e}), prefix, a.require_dup_check, a.repo_root,
+                                        rendered=rendered):
+                        if f not in raw:
+                            raw.append((f[0], f[1], "%s [%s row]" % (f[2], e["location"])))
     except Blind as e:
         print("BLIND: %s" % e, file=sys.stderr)
         return 3

@@ -2,7 +2,7 @@
 """remint_ids.py -- land a vehicle's tracker changes onto a target tracker, three-way.
 
 Documentation (section 11.4.18): docs/guides/remint_ids_guide.md. Class inventory behind this
-revision: docs/qa/tracker_intake_2026_11_12_v4/class_inventory.md.
+revision: docs/qa/tracker_intake_2026_11_12_v5/class_inventory.md.
 
 WHY   Two vehicles that branch from one base both mint ids from the base's maximum, so their ids
       collide when the second lands, and the binary tracker database cannot be merged by git. A
@@ -48,10 +48,29 @@ USAGE
       captured evidence, never rewritten), DATABASE (never rewritten; the plan replays it) or LIVE
       (rewrite it). The mechanical file list of the guide.
 
-RANGES  `P-a..P-b` and `P-a–P-b` (en dash). A range that holds a moved id is rewritten only when
-      every id in it is moved, none is foreign, and the new ids are again ascending and contiguous;
-      a reverse range, a short form `P-a..b`, a partly moved or mixed range is refused. Ranges are
-      checked by counting, never expanded, so `P-1..P-90000000` costs nothing.
+RANGES  `P-a..P-b` and `P-a–P-b` (en dash) are rewritten as one token. Every other way of writing
+      two ids as a range (spaced dashes, `...`, `…`, em dash, a spaced hyphen, `P-a-P-b`, `to`,
+      `through`, `thru`, `till`, `until`, `between P-a and P-b`) is checked by the same rules and its
+      ids are then rewritten one by one. A range that holds a moved id is rewritten only when every
+      id in it is moved, none is foreign, and the new ids are again ascending and contiguous; a
+      reverse range, a short form `P-a..b`, a partly moved or mixed range is refused. Ranges are
+      checked by counting, never expanded, so `P-1..P-90000000` costs nothing. Ids are ASCII digits;
+      a moved id written with other digits (fullwidth, Arabic-Indic) is refused, never left as is.
+MERGE  A base item both sides changed is merged per unit: each update column, each state block
+      (its columns and its updated_at/updated_by stamps together) and the lifecycle (status,
+      location, obsolete_details). A unit only the vehicle changed lands from the vehicle; a unit
+      only the target changed keeps the target's value and text, never rewritten through the map;
+      a unit both changed the same way is left as the target has it; a unit both changed in
+      different ways, or a lifecycle change on one side with any change on the other, is a
+      conflict that --resolve decides (=target keeps the whole target item, =vehicle takes the
+      vehicle's value for the conflicting units and keeps the target's other changes). A state
+      block whose content both sides changed to the same values, with different stamps, cannot be
+      resolved =vehicle: replaying the same content changes nothing and the engine stamps a block
+      only when its content changes, so the plan refuses it and names =target. A vehicle that
+      removed a base item's obsolete_details row is refused: no engine command removes one.
+DATABASES  Every database is opened read-only by its path (URI-quoted, so `?` and `#` are file name
+      characters), and a database with a non-empty -wal sidecar is refused (the sha256 of the main
+      file would not describe what sqlite reads).
 NOT CARRIED  The vehicle's history rows (the engine writes new ones on replay, M-14), created_at
       (the replay time for own items; the engine's close rewrites it for a base item it closes,
       engine defect CON-339) and last_modified. verify reports these as KNOWN, never as a pass.
@@ -69,8 +88,9 @@ import re
 import sqlite3
 import subprocess
 import sys
+import urllib.parse
 
-PLAN_SCHEMA = "remint_ids.plan/4"
+PLAN_SCHEMA = "remint_ids.plan/5"
 KNOWN_TABLES = {
     "items", "item_history", "sqlite_sequence", "obsolete_details", "operator_block_details",
     "firebase_metadata", "logic_groups", "doc_segments", "test_diary", "repro_gate_exemptions", "meta",
@@ -90,6 +110,7 @@ REPRO = ["reproduction_state", "reproduction_surface", "reproduction_evidence", 
          "reproduction_green_cmd", "reproduction_env", "reproduction_signature", "reproduction_blocker"]
 INV = ["investigation_state", "investigation_root_cause", "investigation_evidence"]
 BLOCKS = [("reproduction", REPRO), ("investigation", INV)]
+STAMPS = {n: [n + "_updated_at", n + "_updated_by"] for n, _ in BLOCKS}
 LIFECYCLE = ["status", "current_location"]
 REFUSED_COLS = ["forensic_anchor", "closure_criteria", "composes_with", "destination", "logic_group",
                 "parent_atm_id", "session_ref", "closure_date", "round", "commit_ref", "representation"]
@@ -127,8 +148,13 @@ def sha256_file(path):
 def ro(path):
     if not os.path.isfile(path):
         raise Blind("database not found: %s" % path)
+    wal = path + "-wal"
+    if os.path.isfile(wal) and os.path.getsize(wal) > 0:
+        raise Refusal("%s has a non-empty -wal sidecar; checkpoint it first (its sha256 would not describe the "
+                      "pages sqlite reads)" % path)
     try:
-        c = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        # the path is quoted: `?` and `#` in a file name are not URI syntax (round 4, R4-9)
+        c = sqlite3.connect("file:%s?mode=ro" % urllib.parse.quote(os.path.abspath(path)), uri=True)
         c.row_factory = sqlite3.Row
         c.execute("select count(*) from items").fetchone()
         return c
@@ -182,17 +208,17 @@ class Foreign:
         p = re.escape(prefix)
         for fl in FOREIGN_LINE.finditer(text or ""):
             body = fl.group(1)
-            for r in re.finditer(r"(?<![\w-])" + p + r"-(\d+)(?:\.\.|–)(?:" + p + r"-)?(\d+)\b", body):
+            for r in re.finditer(r"(?<![\w-])" + p + r"-([0-9]+)(?:\.\.|–)(?:" + p + r"-)?([0-9]+)\b", body):
                 lo, hi = int(r.group(1)), int(r.group(2))
                 self.spans.append((min(lo, hi), max(lo, hi)))
-            for t in re.finditer(r"(?<![\w-])" + p + r"-(\d+)\b", body):
+            for t in re.finditer(r"(?<![\w-])" + p + r"-([0-9]+)\b", body):
                 self.nums.add(int(t.group(1)))
 
     def add_ids(self, spec, prefix):
         for part in (x.strip() for x in spec.split(",")):
             if not part:
                 continue
-            m = re.fullmatch(re.escape(prefix) + r"-(\d+)(?:\.\.(?:" + re.escape(prefix) + r"-)?(\d+))?", part)
+            m = re.fullmatch(re.escape(prefix) + r"-([0-9]+)(?:\.\.(?:" + re.escape(prefix) + r"-)?([0-9]+))?", part)
             if not m:
                 raise Blind("cannot read id list item %r (want %s-N or %s-a..%s-b)" % (part, prefix, prefix, prefix))
             lo = int(m.group(1))
@@ -206,11 +232,38 @@ class Foreign:
         return any(lo <= n <= hi for n in self.nums) or any(not (h < lo or l > hi) for l, h in self.spans)
 
 
+# Ids are ASCII digits ([0-9]): Python's \d also matches fullwidth and other Unicode digits, and int()
+# reads them, so a \d reading would treat `P-５` as `P-5` (round 4, R4-5).
+DASHES = "\u2010\u2011\u2012\u2013\u2014\u2015\u2212\u2e3a\u2e3b\ufe58\ufe63\uff0d"
+
+
 def id_patterns(prefix):
     p = re.escape(prefix)
-    rng = re.compile(r"(?<![\w-])(" + p + r"-(\d+))(\.\.|–)(" + p + r"-)?(\d+)\b(?![-\w])")
-    tok = re.compile(r"(?<![\w-])" + p + r"-(\d+)\b(?!-)")
+    rng = re.compile(r"(?<![\w-])(" + p + r"-([0-9]+))(\.\.|–)(" + p + r"-)?([0-9]+)\b(?![-\w])")
+    tok = re.compile(r"(?<![\w-])" + p + r"-([0-9]+)\b(?!-)")
     return rng, tok
+
+
+def loose_patterns(prefix):
+    """Every other way to write two ids as a range (round 4, R4-4). Groups as in rng: 1 the first id,
+    2 its digits, 3 the connector, 4 the second id's prefix, 5 its digits. `and` is a connector only
+    after `between` (a plain `P-a and P-b` is a list)."""
+    p = re.escape(prefix)
+    tail = r"(" + p + r"-)?([0-9]+)\b(?![-\w])"
+    loose = re.compile(r"(?<![\w-])(" + p + r"-([0-9]+))(\s*(?:\.{2,3}|…|[~\u301c" + DASHES + r"])\s*|\s+-{1,2}\s+|-(?="
+                       + p + r"-)|\s+(?i:to|through|thru|till|until)\s+)" + tail)
+    between = re.compile(r"(?<![\w-])(?i:between)\s+(" + p + r"-([0-9]+))(\s+(?i:and)\s+)" + tail)
+    uni = re.compile(r"(?<![\w-])" + p + r"-(\d+)")  # Unicode digits on purpose: finds the non-ASCII ones
+    return loose, between, uni
+
+
+def in_path(line, pos, end):
+    """True when line[pos:end] is part of a path: a slash just before or after it, or an extension after it."""
+    before = line[pos - 1] if pos > 0 else ""
+    after = line[end:end + 2]
+    if before == "/" or after[:1] == "/" or re.match(r"\.\w", after):
+        return True
+    return False
 
 
 class Rewriter:
@@ -219,6 +272,7 @@ class Rewriter:
         self.by_num = {num(k): k for k in m}
         self.own_sorted = sorted(self.by_num)
         self.rng, self.tok = id_patterns(prefix)
+        self.loose, self.between, self.uni = loose_patterns(prefix)
         self.ambiguous = ambiguous  # moved ids that need a declaration (rewrite --target-db)
 
     def moved_in(self, lo, hi, foreign):
@@ -234,12 +288,15 @@ class Rewriter:
             if FOREIGN_LINE.match(line):
                 out.append(line)
                 continue
+            self._checks(line, foreign, where)
             parts, last = [], 0
             for r in self.rng.finditer(line):
                 chunk, n = self._tokens(line[last:r.start()], foreign, where, line, last)
                 parts.append(chunk)
                 count += n
                 rs, n = self._range(r, foreign, where)
+                if n and in_path(line, r.start(), r.end()):
+                    raise Refusal("%s: moved range %s is part of a path; a path is never rewritten" % (where, r.group(0)))
                 parts.append(rs)
                 count += n
                 last = r.end()
@@ -249,12 +306,62 @@ class Rewriter:
             out.append("".join(parts))
         return "\n".join(out), count
 
+    def keep(self, text, foreign, where):
+        """A vehicle value the landing passes as written (a path, a name, a vocabulary word, a date): it must
+        not name an id the map moves, since nothing rewrites it. text() raises the refusal for a moved id in
+        a path; any other moved id it would rewrite is refused here (round 5, found by the branch sweep: an
+        evidence path naming a moved own id passed the plan and only verify failed)."""
+        _, n = self.text(text, foreign, where)
+        if n:
+            raise Refusal("%s: %r names an id the map moves, in a value that is never rewritten; rename it or "
+                          "declare the id foreign" % (where, text))
+        return text
+
+    def _checks(self, line, foreign, where):
+        """Refusals that do not depend on how the line is rewritten: a moved id in non-ASCII digits, and
+        every pair of ids written as a range, read pair by pair with overlap, so the second id of a range
+        can start the next one. The tight `..` and en dash forms are checked here too, although text()
+        rewrites them as rng tokens: rng.finditer does not overlap, so in `P-1..P-2..P-3` it never sees
+        the pair `P-2..P-3` (round 5, found by the branch sweep: the chain was rewritten while its second
+        pair was partly moved). _check is idempotent, so a pair checked here and again in _range raises
+        the same refusal or none."""
+        for u in self.uni.finditer(line):
+            d = u.group(1)
+            if d.isascii():
+                continue
+            n = int(d)
+            if n in self.by_num and not foreign.has(n):
+                raise Refusal("%s: %s writes moved %s with non-ASCII digits" % (where, u.group(0), self.by_num[n]))
+        for rx in (self.loose, self.between):
+            pos = 0
+            while True:
+                r = rx.search(line, pos)
+                if not r:
+                    break
+                pos = r.end(3)  # the second id can start the next range
+                if r.group(3) == "-":
+                    lo, hi = int(r.group(2)), int(r.group(5))
+                    if self.moved_in(min(lo, hi), max(lo, hi), foreign):
+                        raise Refusal("%s: range %s joins its ids with a hyphen, which is never rewritten; write "
+                                      "the range with `..`" % (where, r.group(0)))
+                    continue
+                self._check(r, foreign, where)
+
     def _range(self, r, foreign, where):
+        moved = self._check(r, foreign, where)
+        if not moved:
+            return r.group(0), 0
+        a = min(int(r.group(2)), int(r.group(5)))
+        b = max(int(r.group(2)), int(r.group(5)))
+        return "%s%s%s" % (self.m[self.by_num[a]], r.group(3), self.m[self.by_num[b]]), 1
+
+    def _check(self, r, foreign, where):
+        """The rules every range obeys; returns the moved ids it holds (empty: none, nothing to do)."""
         lo, hi = int(r.group(2)), int(r.group(5))
         a, b = min(lo, hi), max(lo, hi)
         moved = self.moved_in(a, b, foreign)
         if not moved:
-            return r.group(0), 0
+            return moved
         if r.group(4) is None:
             raise Refusal("%s: short-form range %s holds a moved id; write both ends in full" % (where, r.group(0)))
         if lo > hi:
@@ -272,7 +379,7 @@ class Rewriter:
         new = [num(self.m[self.by_num[n]]) for n in moved]
         if new != list(range(new[0], new[0] + len(new))):
             raise Refusal("%s: range %s maps to ids that are not contiguous" % (where, r.group(0)))
-        return "%s%s%s" % (self.m[self.by_num[a]], r.group(3), self.m[self.by_num[b]]), 1
+        return moved
 
     def _tokens(self, s, foreign, where, line, offset):
         count = 0
@@ -285,11 +392,7 @@ class Rewriter:
             k = self.by_num[n]
             if t.group(0) != k:
                 raise Refusal("%s: %s names moved %s with a different zero padding" % (where, t.group(0), k))
-            pos = offset + t.start()
-            end = offset + t.end()
-            before = line[pos - 1] if pos > 0 else ""
-            after = line[end:end + 2]
-            if before == "/" or after[:1] == "/" or re.match(r"\.\w", after):
+            if in_path(line, offset + t.start(), offset + t.end()):
                 raise Refusal("%s: moved id %s is part of a path; a path is never rewritten" % (where, k))
             if k in self.ambiguous:
                 raise Refusal("%s: %s is moved but the target also holds %s; declare it with --own or --foreign" % (where, k, k))
@@ -321,7 +424,7 @@ def read_map(path):
     m = {}
     for n, line in enumerate(lines[1:], 2):
         f = line.split("\t")
-        if len(f) != 2 or not re.fullmatch(r"[A-Z]+-\d+", f[0]) or not re.fullmatch(r"[A-Z]+-\d+", f[1]):
+        if len(f) != 2 or not re.fullmatch(r"[A-Z]+-[0-9]+", f[0]) or not re.fullmatch(r"[A-Z]+-[0-9]+", f[1]):
             raise Blind("map line %d does not parse: %r" % (n, line))
         if f[0] in m:
             raise Blind("map names %s twice" % f[0])
@@ -380,6 +483,7 @@ def lifecycle_steps(iid, frm, to, v_od, new_hist, rewr, foreign, label, refuse):
         if word not in CLOSE_STATUS:
             refuse("%s: no closure kind to replay" % label)
             return None
+        ev = rewr.keep(ev, foreign, "%s closure evidence" % label)
         steps.append(("close", ["close", iid, "--db", "{DB}", "--status=" + CLOSE_STATUS[word], "--evidence=" + ev]))
         return word
 
@@ -395,18 +499,21 @@ def lifecycle_steps(iid, frm, to, v_od, new_hist, rewr, foreign, label, refuse):
             return
         sup = norm(v_od["superseding_item"]) or "none"
         sup, _ = rewr.text(sup, foreign, "%s obsolete_details.superseding_item" % label)
-        steps.append(("obsolete-details", ["obsolete-details", iid, "--db", "{DB}", "--since=" + norm(v_od["since"]),
-                                           "--reason=" + norm(v_od["reason"]), "--superseding=" + sup,
-                                           "--evidence=" + norm(v_od["triple_check_evidence"])]))
+        kept = {c: rewr.keep(norm(v_od[c]), foreign, "%s obsolete_details.%s" % (label, c))
+                for c in ("since", "reason", "triple_check_evidence")}
+        steps.append(("obsolete-details", ["obsolete-details", iid, "--db", "{DB}", "--since=" + kept["since"],
+                                           "--reason=" + kept["reason"], "--superseding=" + sup,
+                                           "--evidence=" + kept["triple_check_evidence"]]))
 
     def reopen():
         ro_rows = [h for h in new_hist if h["event_type"] == "Reopened"]
         if not ro_rows:
             refuse("%s: the vehicle reopened it but has no new Reopened history row" % label)
             return
-        h = ro_rows[-1]
-        argv = ["reopen", "--id=" + iid, "--db", "{DB}", "--why=" + norm(h["reason"]), "--who=" + (norm(h["by"]) or "AI"),
-                "--when=" + norm(h["on_date"]), "--incident=" + norm(h["evidence_path"])]
+        h = {c: rewr.keep(norm(ro_rows[-1][c]), foreign, "%s Reopened row %s" % (label, c))
+             for c in ("reason", "by", "on_date", "evidence_path")}
+        argv = ["reopen", "--id=" + iid, "--db", "{DB}", "--why=" + h["reason"], "--who=" + (h["by"] or "AI"),
+                "--when=" + h["on_date"], "--incident=" + h["evidence_path"]]
         if tl == "Fixed":
             argv.append("--location=Fixed")
         steps.append(("reopen", argv))
@@ -422,6 +529,7 @@ def lifecycle_steps(iid, frm, to, v_od, new_hist, rewr, foreign, label, refuse):
         obs(close())
         reopen()
     elif not t_term and not f_term and fl == tl:
+        ts = rewr.keep(ts, foreign, "%s status" % label)
         steps.append(("update-status", ["update", "--id=" + iid, "--db", "{DB}", "--location=" + fl, "--status=" + ts]))
         obs(ts)  # refuses: the engine has no path to an obsolete_details row on an open item
     else:
@@ -440,10 +548,15 @@ def block_steps(iid, loc, row, cols, rewr, foreign, label, prefix_name):
             val = norm(row[c])
             if c in TEXT_REWRITE:
                 val, _ = rewr.text(val, foreign, "%s %s" % (label, c))
+            else:
+                val = rewr.keep(val, foreign, "%s %s" % (label, c))
             argv.append("--%s=%s" % (c.replace("_", "-"), val))
-    argv.append("--states-updated-by=" + (by or "remint_ids.py"))
-    if at:
-        argv.append("--states-updated-at=" + at)
+    # the stamp is always passed: the engine stores an empty --states-updated-at as NULL, as the vehicle has it,
+    # and an omitted one as the time of the replay (round 5, found by the branch sweep: `if at:` dropped an
+    # empty stamp, so the landed block carried the replay's time); the author is the vehicle's, which the
+    # engine requires with every state flag (an UNSET block clears it, so the fallback name never lands)
+    argv.append("--states-updated-by=" + (rewr.keep(by, foreign, "%s %s_updated_by" % (label, prefix_name)) or "remint_ids.py"))
+    argv.append("--states-updated-at=" + rewr.keep(at, foreign, "%s %s_updated_at" % (label, prefix_name)))
     return ("update-" + prefix_name, argv)
 
 
@@ -483,14 +596,16 @@ def make_plan(a):
         raise Blind("schema_version differs or is missing: %s" % sv)
     V, B, T = (rows_by_id(con[k]) for k in ("vehicle", "base", "target"))
     prefix = a.prefix
-    rx = re.compile(re.escape(prefix) + r"-\d+")
+    rx = re.compile(re.escape(prefix) + r"-[0-9]+")
+    rx_uni = re.compile(re.escape(prefix) + r"-\d+")
     refusals, conflicts, notes, base_changes, merges = [], [], [], [], []
     refuse = refusals.append
 
     new_ids = sorted(set(V) - set(B))
     for i in new_ids:
         if not rx.fullmatch(i):
-            refuse("%s: a new vehicle id outside the %s prefix" % (i, prefix))
+            refuse("%s: a new vehicle id with non-ASCII digits" % i if rx_uni.fullmatch(i)
+                   else "%s: a new vehicle id outside the %s prefix" % (i, prefix))
     own = sorted((i for i in new_ids if rx.fullmatch(i)), key=num)
     for i in sorted(set(B) - set(V)):
         refuse("%s: the vehicle deleted a base item" % i)
@@ -532,7 +647,7 @@ def make_plan(a):
 
     resolutions = {}
     for spec in a.resolve:
-        mm = re.fullmatch(r"([A-Z]+-\d+)=(target|vehicle)", spec)
+        mm = re.fullmatch(r"([A-Z]+-[0-9]+)=(target|vehicle)", spec)
         if not mm:
             raise Blind("--resolve %r: want ID=target or ID=vehicle" % spec)
         resolutions[mm.group(1)] = mm.group(2)
@@ -557,6 +672,10 @@ def make_plan(a):
         dv = changed(v, b, UPDATE_COLS + REPRO + INV + LIFECYCLE + REFUSED_COLS)
         if vb_od != bb_od:
             dv.append("obsolete_details")
+        if bb_od is not None and vb_od is None:
+            # round 5: no engine command removes an obsolete_details row, so the removal had no step and the
+            # landing kept the row (found while killing the final sweep's check_od survivors)
+            refuse("%s: the vehicle removed the obsolete_details row; no engine command removes one" % i)
         stamp_only = [n for n, cols in BLOCKS if not changed(v, b, cols)
                       and changed(v, b, [n + "_updated_at", n + "_updated_by"])]
         for n in stamp_only:
@@ -586,9 +705,34 @@ def make_plan(a):
             continue
         tb_od = obs["target"].get(i)
         dt = changed(t, b, UPDATE_COLS + REPRO + INV + LIFECYCLE + REFUSED_COLS)
+        for n, cols in BLOCKS:  # a stamp the target changed alone is still a change of its block (R4-1b)
+            if not changed(t, b, cols):
+                dt += changed(t, b, STAMPS[n])
         if tb_od != bb_od:
             dt.append("obsolete_details")
-        clash = [c for c in dv if c in dt and (c == "obsolete_details" and vb_od != tb_od or c != "obsolete_details" and norm(v[c]) != norm(t[c]))]
+        label = "base %s" % i
+
+        def vland(c, v=v):  # v bound at definition: the row of this item, never None here
+            """The value the vehicle's change lands as: its text through the map, other columns as they are."""
+            if c in TEXT_REWRITE:
+                return rewr.text(norm(v[c]), foreign, "%s %s" % (label, c))[0]
+            return rewr.keep(norm(v[c]), foreign, "%s %s" % (label, c))
+
+        # per-unit three-way merge (round 4, R4-1): a unit is a column, a state block (its columns and its
+        # stamps) or the lifecycle; only a unit the vehicle changed is written, and target text is never
+        # run through the map
+        clash, same = [], []
+        for c in UPDATE_COLS + LIFECYCLE + REFUSED_COLS:
+            if c in dv and c in dt:  # vland keeps a non-text column as written (round 5: one rule, no branch)
+                (same if vland(c) == norm(t[c]) else clash).append(c)
+        if "obsolete_details" in dv and "obsolete_details" in dt:
+            (same if vb_od == tb_od else clash).append("obsolete_details")
+        v_blocks = [n for n, cols in BLOCKS if changed(v, b, cols)]
+        t_blocks = [n for n, cols in BLOCKS if changed(t, b, cols + STAMPS[n])]
+        for n, cols in BLOCKS:
+            if n in v_blocks and n in t_blocks:
+                converged = all(vland(c) == norm(t[c]) for c in cols) and not changed(v, t, STAMPS[n])
+                (same if converged else clash).append("the %s block" % n)
         life_v = any(c in dv for c in LIFECYCLE + ["obsolete_details"])
         life_t = any(c in dt for c in LIFECYCLE + ["obsolete_details"])
         res = resolutions.get(i)
@@ -600,26 +744,34 @@ def make_plan(a):
                 conflicts.append("%s: %s (vehicle %s; target %s); --resolve %s=target or =vehicle decides" % (i, why, ",".join(dv), ",".join(dt), i))
                 continue
         elif dt:
-            merges.append("%s: vehicle %s, target %s (disjoint columns)" % (i, ",".join(dv), ",".join(dt)))
+            merges.append("%s: vehicle %s, target %s (%s)" % (
+                i, ",".join(dv), ",".join(dt), "the same change on both sides: " + ",".join(same) if same else "disjoint columns"))
+        if res == "vehicle":
+            # a block whose content both sides changed to the same values, with other stamps, cannot land the
+            # vehicle's stamps: replaying the same content changes nothing, and the engine stamps a block only
+            # when its content changes (found by verify in round 5)
+            stuck = [n for n, cols in BLOCKS if "the %s block" % n in clash and all(vland(c) == norm(t[c]) for c in cols)]
+            for n in stuck:
+                refuse("%s: --resolve vehicle cannot land the %s block: its content is already the target's and only "
+                       "the stamps differ, and the engine stamps a block only when its content changes; use "
+                       "--resolve %s=target" % (i, n, i))
+            if stuck:
+                continue
         if res == "target":
             continue
-        label = "base %s" % i
         loc = norm(t["current_location"])
-        ucols = [c for c in UPDATE_COLS if c in dv and norm(v[c]) != norm(t[c])]
+        ucols = [c for c in UPDATE_COLS if c in dv and vland(c) != norm(t[c])]
         if ucols:
-            desc_src = v if "description" in dv else t
-            desc, _ = rewr.text(norm(desc_src["description"]), foreign, label + " description")
+            # --description re-renders body_md, so it is always passed: the vehicle's text when the vehicle
+            # changed the description, else the target's text verbatim (never through the map)
+            desc = vland("description") if "description" in ucols else norm(t["description"])
             argv = ["update", "--id=" + i, "--db", "{DB}", "--location=" + loc, "--description=" + desc]
             for c in ucols:
-                if c == "description":
-                    continue
-                val = norm(v[c])
-                if c == "title":
-                    val, _ = rewr.text(val, foreign, label + " title")
-                argv.append("--%s=%s" % (c.replace("_", "-"), val))
+                if c != "description":
+                    argv.append("--%s=%s" % (c.replace("_", "-"), vland(c)))
             steps.append({"item": i, "from": i, "kind": "update", "argv": argv})
         for n, cols in BLOCKS:
-            if any(c in dv for c in cols):
+            if n in v_blocks and "the %s block" % n not in same:
                 k, argv = block_steps(i, loc, v, cols, rewr, foreign, label, n)
                 steps.append({"item": i, "from": i, "kind": k, "argv": argv})
         if life_v:
@@ -641,12 +793,14 @@ def make_plan(a):
             rw = {}
             for col in TEXT_REWRITE:
                 rw[col], _ = rewr.text(norm(v[col]), foreign, "%s %s" % (label, col))
-            argv = ["add", norm(v["type"]), norm(v["severity"]), "--db", "{DB}", "--id=" + new,
+            kv = {c: rewr.keep(norm(v[c]), foreign, "%s %s" % (label, c))
+                  for c in ("type", "severity", "created_by", "assigned_to")}
+            argv = ["add", kv["type"], kv["severity"], "--db", "{DB}", "--id=" + new,
                     "--title=" + rw["title"], "--description=" + rw["description"]]
-            if norm(v["created_by"]):
-                argv.append("--created-by=" + v["created_by"])
-            if norm(v["assigned_to"]):
-                argv.append("--assigned-to=" + v["assigned_to"])
+            if kv["created_by"]:
+                argv.append("--created-by=" + kv["created_by"])
+            if kv["assigned_to"]:
+                argv.append("--assigned-to=" + kv["assigned_to"])
             steps.append({"item": new, "from": old, "kind": "add", "argv": argv})
             for n, cols in BLOCKS:
                 if norm(v[cols[0]]) not in ("", "UNSET"):
@@ -760,7 +914,7 @@ def cmd_replay(a):
 def v_foreign_numbers(texts, prefix, extra_specs):
     """Separate reading of the Foreign ids declarations: (set of numbers, list of (lo, hi))."""
     nums, spans = set(), []
-    idp = re.compile(re.escape(prefix) + r"-(\d+)")
+    idp = re.compile(re.escape(prefix) + r"-([0-9]+)")
     for text in texts:
         for line in (text or "").split("\n"):
             if not line.startswith("Foreign ids"):
@@ -773,7 +927,7 @@ def v_foreign_numbers(texts, prefix, extra_specs):
                     break
                 lo = int(mm.group(1))
                 rest = body[mm.end():]
-                sep = re.match(r"(\.\.|–)(" + re.escape(prefix) + r"-)?(\d+)", rest)
+                sep = re.match(r"(\.\.|–)(" + re.escape(prefix) + r"-)?([0-9]+)", rest)
                 if sep:
                     hi = int(sep.group(3))
                     spans.append((min(lo, hi), max(lo, hi)))
@@ -785,7 +939,7 @@ def v_foreign_numbers(texts, prefix, extra_specs):
         for part in spec.split(","):
             part = part.strip()
             if part:
-                ends = [int(x) for x in re.findall(r"\d+", part)]
+                ends = [int(x) for x in re.findall(r"[0-9]+", part)]
                 spans.append((min(ends), max(ends)))
     return nums, spans
 
@@ -798,13 +952,13 @@ def v_is_foreign(n, fset):
 def v_split(text, prefix):
     """Split text into (skeleton pieces, id tokens). A token is a single id or a range."""
     p = re.escape(prefix)
-    pat = re.compile(r"(?<![\w-])(" + p + r"-\d+(?:(?:\.\.|–)(?:" + p + r"-)?\d+)?)(?![-\w])")
+    pat = re.compile(r"(?<![\w-])(" + p + r"-[0-9]+(?:(?:\.\.|–)(?:" + p + r"-)?[0-9]+)?)(?![-\w])")
     pieces = pat.split(text or "")
     return pieces[0::2], pieces[1::2]
 
 
 def v_expect(token, m, fset, prefix):
-    ends = re.findall(r"\d+", token)
+    ends = re.findall(r"[0-9]+", token)
     if len(ends) == 1:
         n = int(ends[0])
         if v_is_foreign(n, fset) or token not in m:
@@ -819,8 +973,55 @@ def v_expect(token, m, fset, prefix):
     return "%s%s%s" % (m.get(first, first), sep, m.get(last, last))
 
 
+V_DASH = "\u2010-\u2015\u2212\u2e3a\u2e3b\ufe58\ufe63\uff0d~\u301c"
+
+
+def v_text_rules(text, m, fset, prefix):
+    """verify's own reading of the rules a landed text obeys, written apart from the Rewriter (R4-4, R4-5):
+    a moved id in non-ASCII digits, and any pair of ids written as a range (any connector) that holds a
+    moved id, cannot land. A planner that let one through is caught here."""
+    p = re.escape(prefix)
+    moved = {num(k): k for k in m}
+    for u in re.finditer(r"(?<![\w-])" + p + r"-(\d+)", text):
+        if not u.group(1).isascii() and int(u.group(1)) in moved and not v_is_foreign(int(u.group(1)), fset):
+            return "id %s is written with non-ASCII digits" % u.group(0)
+    pat = re.compile(r"(?<![\w-])((?i:between)\s+)?" + p + r"-([0-9]+)(\s*(?:\.\.\.?|…|[" + V_DASH + r"])\s*"
+                     r"|\s+--?\s+|-(?=" + p + r"-)|\s+(?i:to|through|thru|till|until|and)\s+)(" + p + r"-)?([0-9]+)(?![\w-])")
+    pos = 0
+    while True:
+        r = pat.search(text, pos)
+        if not r:
+            return None
+        pos = r.end(3)
+        conn = r.group(3).strip().lower()
+        if conn == "and" and not r.group(1):
+            continue  # a list, not a range
+        lo, hi = int(r.group(2)), int(r.group(5))
+        a, b = min(lo, hi), max(lo, hi)
+        inside = [n for n in sorted(moved) if a <= n <= b and not v_is_foreign(n, fset)]
+        if not inside:
+            continue
+        nums, spans = fset
+        new = sorted(num(m[moved[n]]) for n in inside)
+        if r.group(3) == "-":
+            return "range %r joins ids with a hyphen" % r.group(0)
+        if r.group(4) is None:
+            return "range %r is a short form" % r.group(0)
+        if lo > hi:
+            return "range %r is reverse" % r.group(0)
+        if any(a <= n <= b for n in nums) or any(not (h < a or l > b) for l, h in spans):
+            return "range %r mixes foreign and moved ids" % r.group(0)
+        if len(inside) != b - a + 1:
+            return "range %r is partly moved" % r.group(0)
+        if new != list(range(new[0], new[0] + len(new))):
+            return "range %r maps to ids that are not contiguous" % r.group(0)
+
+
 def v_compare(want_text, got_text, m, fset, prefix):
     """None when got_text is want_text with exactly the expected id rewrites; else a reason."""
+    rule = v_text_rules(want_text or "", m, fset, prefix)
+    if rule:
+        return rule
     sk_w, tk_w = v_split(want_text, prefix)
     sk_g, tk_g = v_split(got_text, prefix)
     if sk_w != sk_g:
@@ -847,18 +1048,40 @@ def verify_needles():
         ("see P-5..P-7", "see P-21..P-7", ({0}, []), False),
         ("P-5 x", "P-21 y", ({0}, []), False),           # skeleton change
         ("no ids", "no ids", ({0}, []), True),
+        ("see P-4 to P-6", "see P-4 to P-22", ({0}, []), False),   # loose partly moved range (R4-4)
+        ("see P-4..P-6", "see P-4..P-22", ({0}, []), False),       # tight partly moved range
+        ("see P-5 to P-7", "see P-21 to P-23", ({0}, []), True),   # a loose range, every id moved
+        ("see P-4 and P-6", "see P-4 and P-22", ({0}, []), True),  # a list, not a range
+        ("see P-\uff15", "see P-\uff15", ({0}, []), False),        # a moved id in fullwidth digits (R4-5)
+        ("see P-5-P-6", "see P-5-P-6", ({0}, []), False),          # moved ids joined by a hyphen (round 5)
+        ("see between P-4 and P-6", "see between P-4 and P-22", ({0}, []), False),  # `between ... and` is a range
+        ("see P-5 to 7", "see P-21 to 7", ({0}, []), False),       # a short-form range of moved ids
+        ("see P-7 to P-5", "see P-23 to P-21", ({0}, []), False),  # a reverse range of moved ids
     ]
-    for want, got, fset, ok in cases:
-        if (v_compare(want, got, m, fset, "P") is None) != ok:
-            return "needle %r -> %r expected %s" % (want, got, "match" if ok else "mismatch")
+    m2 = {"P-5": "P-21", "P-6": "P-30"}
+    cases2 = [("see P-5 to P-6", "see P-21 to P-30", ({0}, []), False)]  # moved ids that land apart
+    for mm, cs in ((m, cases), (m2, cases2)):
+        for want, got, fset, ok in cs:
+            if (v_compare(want, got, mm, fset, "P") is None) != ok:
+                return "needle %r -> %r expected %s" % (want, got, "match" if ok else "mismatch")
     return None
+
+
+# verify's partition of the item columns into landing units; a column outside it would go uncompared
+V_UNITS = (["atm_id"] + UPDATE_COLS + REFUSED_COLS + LIFECYCLE + [c for _, cols in BLOCKS for c in cols]
+           + [c for n, _ in BLOCKS for c in STAMPS[n]] + ["body_md", "created_at", "last_modified"])
 
 
 def cmd_verify(a):
     needle = verify_needles()
     if needle:
         raise Blind("verify control needle failed: %s" % needle)
+    if sorted(V_UNITS) != sorted(ITEM_COLUMNS) or len(set(V_UNITS)) != len(V_UNITS):
+        raise Blind("verify's landing units do not partition the item columns: %s" % sorted(set(V_UNITS) ^ set(ITEM_COLUMNS)))
     plan = load_plan(a.plan)
+    if plan["conflicts"] or plan["refusals"]:
+        raise Refusal("the plan has %d conflict(s) and %d refusal(s): it was never landable, so there is no landing to verify"
+                      % (len(plan["conflicts"]), len(plan["refusals"])))
     for k, p in (("vehicle", a.vehicle_db), ("base", a.base_db), ("target", a.target_db)):
         if not os.path.isfile(p) or sha256_file(p) != plan["sha256"][k]:
             raise Refusal("the %s database is not the one the plan was made from" % k)
@@ -878,8 +1101,11 @@ def cmd_verify(a):
     HV, HT, HR, HB = history(cv), history(ct), history(cr), history(cb)
     OV, OB, OT, OR = obsolete(cv), obsolete(cb), obsolete(ct), obsolete(cr)
     bad, known = [], []
-    idrx = re.compile(re.escape(prefix) + r"-\d+")
+    idrx = re.compile(re.escape(prefix) + r"-[0-9]+")
     own = sorted((i for i in set(V) - set(B) if idrx.fullmatch(i)), key=num)
+    for i in sorted(set(V) - set(B)):
+        if not idrx.fullmatch(i):
+            bad.append("%s: a new vehicle id that is not %s-<ASCII digits>; the planner refuses it" % (i, prefix))
     if sorted(m) != own:
         bad.append("the plan's map keys are not the own set the vehicle and base give (%d vs %d)" % (len(m), len(own)))
     if plan["mode"] == "FAST-FORWARD":
@@ -945,28 +1171,62 @@ def cmd_verify(a):
             continue
         t, r = T[i][0], R[i][0]
         fset = fset_for([v, b])
-        cols_text = [c for c in TEXT_REWRITE if c in dv]
-        exact_dv = [c for c in dv if c not in TEXT_REWRITE]
-        compare_row(i, v, r, fset, cols_text, exact_dv)
-        rest = [c for c in exact_all + TEXT_REWRITE if c not in dv]
-        stamps = []
-        for n, cols in (("reproduction", REPRO), ("investigation", INV)):
-            sc = [n + "_updated_at", n + "_updated_by"]
-            if any(c in dv for c in cols):
-                stamps += sc
-                for c in sc:
-                    if norm(v[c]) != norm(r[c]):
-                        bad.append("%s %s: landed %r, vehicle %r" % (i, c, r[c], v[c]))
-        for c in rest:
-            if c in stamps:
-                continue
-            if norm(t[c]) != norm(r[c]):
-                bad.append("%s %s: landed %r, target %r (a column the vehicle did not change)" % (i, c, r[c], t[c]))
-        tdiff = [c for c in UPDATE_COLS + REPRO + INV + LIFECYCLE if norm(t[c]) != norm(b[c])]
-        if not tdiff and not (OT.get(i) != OB.get(i)):
+        rv = res.get(i) == "vehicle"
+        t_od = OT.get(i) != OB.get(i)
+        tch = {c for c in V_UNITS if c not in ("atm_id", "body_md", "created_at", "last_modified") and norm(t[c]) != norm(b[c])}
+
+        def same_change(c):
+            if c in TEXT_REWRITE:
+                return v_compare(norm(v[c]), norm(t[c]), m, fset, prefix) is None
+            return norm(v[c]) == norm(t[c])
+
+        def land(c, side, why_target):
+            if side == "vehicle":
+                if c in TEXT_REWRITE:
+                    same_text(i, c, v[c], r[c], fset)
+                elif norm(v[c]) != norm(r[c]):
+                    bad.append("%s %s: landed %r, vehicle %r" % (i, c, r[c], v[c]))
+            elif norm(t[c]) != norm(r[c]):
+                bad.append("%s %s: landed %r, target %r (%s)" % (i, c, r[c], t[c], why_target))
+
+        # each unit lands from one side: the vehicle when only it changed the unit (or --resolve vehicle
+        # decided a conflict), the target otherwise; an unresolved conflict is a mismatch (R4-1, R4-2)
+        for c in UPDATE_COLS + REFUSED_COLS:
+            if c not in dv:
+                land(c, "target", "a column the vehicle did not change")
+            elif c in tch and same_change(c):
+                land(c, "target", "both sides made the same change")
+            elif c in tch and not rv:
+                bad.append("%s: both changed %s, and the plan has no --resolve for it" % (i, c))
+            else:
+                land(c, "vehicle", "")
+        for n, cols in BLOCKS:
+            unit = cols + STAMPS[n]
+            v_ch, t_ch = any(c in dv for c in cols), any(c in tch for c in unit)
+            if not v_ch:
+                for c in unit:
+                    land(c, "target", "a block the vehicle did not change")
+            elif t_ch and all(same_change(c) for c in cols) and all(norm(v[c]) == norm(t[c]) for c in STAMPS[n]):
+                for c in unit:
+                    land(c, "target", "both sides made the same change")
+            elif t_ch and not rv:
+                bad.append("%s: both changed the %s block, and the plan has no --resolve for it" % (i, n))
+            else:
+                for c in unit:
+                    land(c, "vehicle", "")
+        life_v = any(c in dv for c in LIFECYCLE) or od_changed
+        life_t = any(c in tch for c in LIFECYCLE) or t_od
+        if not rv and ((life_v and (tch or t_od)) or (life_t and (dv or od_changed))):
+            bad.append("%s: a lifecycle change on one side and a change on the other, and the plan has no --resolve for it" % i)
+        for c in LIFECYCLE:
+            land(c, "vehicle" if life_v else "target", "a lifecycle the vehicle did not change")
+        if not od_changed and OR.get(i) != OT.get(i):
+            bad.append("%s obsolete_details: differs from the target, and the vehicle did not change it" % i)
+        tdiff = sorted(tch) + (["obsolete_details"] if t_od else [])
+        if not tdiff:
             same_text(i, "body_md", v["body_md"], r["body_md"], fset)
         else:
-            known.append("%s: body_md not compared (the target also changed the item: %s)" % (i, ",".join(tdiff) or "obsolete_details"))
+            known.append("%s: body_md not compared (the target also changed the item: %s)" % (i, ",".join(tdiff)))
         if od_changed:
             check_od(i, OV.get(i), OR.get(i), m, fset, prefix, bad)
         if norm(r["created_at"]) != norm(t["created_at"]):

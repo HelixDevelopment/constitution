@@ -90,7 +90,8 @@ expect_silent() {
 # Snippet names: rows (id -> column dict), od / obd (id -> row dict), hist (list of row dicts),
 # body (id -> body_md override, str or bytes), G (the good description), SHA_E (sha256 of the empty
 # evidence file), render(i[, row]), close_obsolete(i, reason, sup), reopen(i), drop (table names to
-# drop), nohistid (True: item_history without its id column).
+# drop), nohistid (True: item_history without its id column), extra (more item rows: a second location
+# row of an id; its body_md is rendered from the row itself).
 mkfixture() { # mkfixture <db> <python-mutation-snippet>
   python3 -I - "$1" "$2" <<'PY'
 import hashlib, sqlite3, sys
@@ -128,7 +129,7 @@ rows = {
                    investigation_updated_at="2026-11-13T00:00:00Z", investigation_updated_by="Conductor"),
     "FX-003": item("FX-003", "Unrelated open item", "nothing shared here"),
 }
-od, obd, hist, body, drop = {}, {}, [], {}, []
+od, obd, hist, body, drop, extra = {}, {}, [], {}, [], []
 nohistid = [False]
 SEP = " — "
 CLOSING = ("Fixed", "Implemented", "Completed", "Obsolete")
@@ -198,7 +199,7 @@ def reopen(i):
     hist.append(dict(atm_id=i, event_type="Reopened", by="AI", on_date="2026-11-13", reason="design-reconsidered", evidence_path=EV))
 exec(snippet, {"rows": rows, "od": od, "obd": obd, "hist": hist, "body": body, "G": G, "EV": EV, "SHA_E": SHA_E,
                "render": render, "item": item, "mkod": mkod, "close_obsolete": close_obsolete, "reopen": reopen,
-               "drop": drop, "nohistid": nohistid})
+               "drop": drop, "nohistid": nohistid, "extra": extra})
 c = sqlite3.connect(db)
 c.execute("create table items (%s, primary key (atm_id, current_location))" % ", ".join(x + " text" for x in COLS))
 c.execute("create table obsolete_details (atm_id text primary key, since text, reason text, superseding_item text, triple_check_evidence text)")
@@ -210,6 +211,10 @@ else:
 for i, r in rows.items():
     r = dict(r)
     r["body_md"] = body[i] if i in body else render(i)
+    c.execute("insert into items (%s) values (%s)" % (",".join(COLS), ",".join("?" * len(COLS))), [r[x] for x in COLS])
+for r in extra:
+    r = dict(r)
+    r["body_md"] = render(r["atm_id"], r)
     c.execute("insert into items (%s) values (%s)" % (",".join(COLS), ",".join("?" * len(COLS))), [r[x] for x in COLS])
 for i, o in od.items():
     c.execute("insert into obsolete_details values (?,?,?,?,?)", (i, o["since"], o["reason"], o["superseding_item"], o["triple_check_evidence"]))
@@ -339,6 +344,17 @@ cases=(
   'CONTROL-CHAR/del|rows["FX-002"]["description"] = G + "\nrub\x7fout"@@U\+007F on description,body_md$'
   'CONTROL-CHAR/title-tab|rows["FX-002"]["title"] = "Fixture\tgood item"@@newline or tab in the title on title$'
   'CONTROL-CHAR/obsolete-details|rows["FX-002"]["status"] = "Reopened"; od["FX-002"] = mkod("duplicate-of", "FX-003", "ev\x07bell")@@U\+0007 on obsolete_details.triple_check_evidence$'
+  'CONTROL-CHAR/bidi-override|rows["FX-002"]["description"] = G + "\nshown \u202e reversed"@@U\+202E on description,body_md$'
+  'CONTROL-CHAR/bidi-isolate|rows["FX-002"]["description"] = G + "\nisolate \u2066x\u2069 here"@@U\+2066 on description,body_md$'
+  'CONTROL-CHAR/bidi-title|rows["FX-002"]["title"] = "Fixture \u202agood item"@@U\+202A on title,body_md$'
+  'CONTROL-CHAR/bidi-state-column|rows["FX-002"]["reproduction_signature"] = "exit 1 \u202e"@@U\+202E on body_md,items.reproduction_signature$'
+  'CONTROL-CHAR/bom|rows["FX-002"]["description"] = G + "\nmark\ufeffhere"@@U\+FEFF on description,body_md$'
+  'CONTROL-CHAR/soft-hyphen|rows["FX-002"]["description"] = G + "\nsoft\u00adhyphen"@@U\+00AD on description,body_md$'
+  'CONTROL-CHAR/zero-width-space|rows["FX-002"]["description"] = G + "\nzero\u200bwidth"@@U\+200B on description,body_md$'
+  'CONTROL-CHAR/tag-character|rows["FX-002"]["description"] = G + "\ntag\U000e0041here"@@U\+E0041 on description,body_md$'
+  'CONTROL-CHAR/earliest-reported|rows["FX-002"]["description"] = G + "\nfirst\u200b then\x07"@@U\+200B on description,body_md$'
+  'XREF-DANGLING/non-ascii-digits|rows["FX-002"]["description"] = G + "\nsee FX-\u0663"@@FX-\S+ \(non-ASCII digits\)$'
+  'EPHEMERAL/second-location-row|extra.append(dict(rows["FX-002"], current_location="Fixed")); rows["FX-002"]["description"] = G + "\nsee /tmp/" + "fx/lv6"@@tmp-path: /tmp/fx/lv6 on description,body_md \[Issues row\]$'
   'SHARED-PATH|rows["FX-003"]["description"] = "this open item also edits scripts/fixture_only_tool.sh"@@fixture_only_tool.sh also named by open FX-003$'
   'DUP-CHECK|rows["FX-002"]["description"] = G.replace(": DISTINCT", ": PROBABLY")'
   'DUP-CHECK/missing|rows["FX-002"]["description"] = G.replace("Duplicate check (section 11.4.214): DISTINCT\n", "")'
@@ -390,6 +406,8 @@ secrets=(
   'stripe-key|"r" + "k_" + "test_" + "a" * 20|"r" + "k_" + "test_" + "a" * 19'
   'npm-token|"np" + "m_" + "a" * 36|"np" + "m_" + "a" * 35'
   'telegram-bot-token|"12345678" + ":AA" + "a" * 33|"12345678" + ":AA" + "a" * 32'
+  'password-assign-unquoted|"DB_PASS" + "WORD=" + "x" * 8|"DB_PASS" + "WORD=" + "x" * 7'
+  'basic-auth|"Authorization: " + "Basic " + "a" * 8|"Authorization: " + "Basic " + "a" * 7'
 )
 for s in "${secrets[@]}"; do
   pname=${s%%|*}; rest=${s#*|}; pos=${rest%%|*}; neg=${rest#*|}
@@ -427,6 +445,10 @@ goods=(
   'mktemp template string|rows["FX-002"]["description"] = G + "\nthe mktemp template tmp." + "X" * 10 + " is named here"'
   'ephemeral note in parentheses exempts its line|rows["FX-002"]["description"] = G + "\na copy at /tmp/fx/x (ephemeral: removed after the run)"'
   'the words home and tmp in prose|rows["FX-002"]["description"] = G + "\nthe home page and the tmp folder are named in prose only"'
+  'a password assignment from a variable|rows["FX-002"]["description"] = G + "\nset DB_PASS" + "WORD=$DB_PASS" + "WORD in the env file"'
+  'a password assignment from a placeholder|rows["FX-002"]["description"] = G + "\nset DB_PASS" + "WORD=<from the vault> and API_" + "KEY={value}"'
+  'a no-break space, an en dash and an em dash are not control characters|rows["FX-002"]["description"] = G + "\na\u00a0b \u2013 c \u2014 d"'
+  'a second location row that is clean|extra.append(dict(rows["FX-002"], current_location="Fixed"))'
 )
 for c in "${goods[@]}"; do
   n=$((n + 1)); name=${c%%|*}; snip=${c#*|}
@@ -440,6 +462,8 @@ mkrendered "$tmp/rnd1" "" "key $k" && expect "rendered: SECRET in the summary ro
 mkrendered "$tmp/rnd2" "see /tmp/fx/r.txt" && expect "rendered: EPHEMERAL in the item section" 1 '^FINDING EPHEMERAL FX-002 tmp-path: /tmp/fx/r.txt on rendered:Issues.md$' --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd2"
 mkrendered "$tmp/rnd3" "bell"$'\x07'"here" && expect "rendered: CONTROL-CHAR in the item section" 1 '^FINDING CONTROL-CHAR FX-002 U\+0007 on rendered:Issues.md$' --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd3"
 mkrendered "$tmp/rnd4" "" "" "key $k" && expect "rendered: another item's section is not this item's surface" 0 "$RES_OK" --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd4"
+mkrendered "$tmp/rnd8" $'\n## Reviewer notes\n\nsee /tmp/fx/lv4' && expect "rendered: lines after a non-item heading are not the item's (LV4)" 0 "$RES_OK" --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd8"
+mkrendered "$tmp/rnd9" $'see /tmp/fx/lv4\n## Reviewer notes' && expect "rendered: lines before a non-item heading are the item's (LV4 control)" 1 '^FINDING EPHEMERAL FX-002 tmp-path: /tmp/fx/lv4 on rendered:Issues.md$' --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd9"
 mkdir -p "$tmp/rnd5" && printf '# Issues\n\n## FX-001 — Fixture umbrella\n' >"$tmp/rnd5/Issues.md"
 expect "BLIND: selected item absent from every rendered document" 3 'absent from every rendered document: FX-002' --db "$tmp/good.db" "${F[@]}" --rendered "$tmp/rnd5"
 mkdir -p "$tmp/rnd6"
@@ -471,6 +495,21 @@ expect "usage: --repo-root not a directory" 2 'not a directory' --db "$tmp/good.
 expect "BLIND: database missing" 3 'database not found' --db "$tmp/none.db" --ids FX-002
 printf 'not a database\n' >"$tmp/junk.db"
 expect "BLIND: database unreadable" 3 '^BLIND: ' --db "$tmp/junk.db" --ids FX-002
+# round 5 (R4-9): a non-empty -wal sidecar is BLIND (its pages are not in the file the sha256 names), and
+# a database path holding `?` and `#` is quoted (unquoted, sqlite reads them as URI syntax and opens,
+# read-write, a file named by the text before the `?`)
+cp "$tmp/good.db" "$tmp/wal.db" && printf 'x' >"$tmp/wal.db-wal" || exit 2
+expect "BLIND: a non-empty -wal sidecar (R4-9)" 3 'wal\.db has a non-empty -wal sidecar' --db "$tmp/wal.db" "${F[@]}"
+: >"$tmp/wal.db-wal" || exit 2
+expect "an empty -wal sidecar is not BLIND (R4-9 control)" 0 "$RES_OK" --db "$tmp/wal.db" "${F[@]}"
+mkdir -p "$tmp/qd" && cp "$tmp/good.db" "$tmp/qd/a?b#c.db" || exit 2
+expect "a database path with ? and # is read as a path (R4-9)" 0 "$RES_OK" --db "$tmp/qd/a?b#c.db" "${F[@]}"
+if [ ! -e "$tmp/qd/a" ]; then ok "a database path with ? and # creates no stray file (R4-9)"; else bad "a database path with ? and # creates no stray file (R4-9)" "$tmp/qd/a exists"; fi
+# a finding both location rows carry is reported once, from the first row (round 5)
+mkfixture "$tmp/dup2.db" 'rows["FX-002"]["description"] = G + "\nsee /tmp/" + "fx/twice"; extra.append(dict(rows["FX-002"], current_location="Fixed"))' || exit 2
+expect "a finding of both location rows: rc 1" 1 '^FINDING EPHEMERAL FX-002 tmp-path: /tmp/fx/twice on description,body_md$' --db "$tmp/dup2.db" "${F[@]}"
+n2=$(grep -c 'tmp-path: /tmp/fx/twice' "$tmp/out")
+if [ "$n2" = 1 ]; then ok "a finding of both location rows is reported once"; else bad "a finding of both location rows is reported once" "$n2 lines: $(grep 'fx/twice' "$tmp/out" | tr '\n' '|')"; fi
 blind=(
   'database holds no items|rows.clear()|holds no items'
   'required table operator_block_details missing|drop.append("operator_block_details")|required table\(s\) missing: operator_block_details'

@@ -1,0 +1,16 @@
+CTRL-R	remint control (unmutated copy)	CONTROL-PASS		RESULT: pass=138 fail=0
+CTRL-L	lint control (unmutated copy)	CONTROL-PASS		RESULT: pass=256 fail=0
+RV1	verify: base-item columns the vehicle did not change not compared with the target	SURVIVED		RESULT: pass=138 fail=0
+RV2	plan: merged base item always takes the vehicle description	SURVIVED		RESULT: pass=138 fail=0
+RV3	plan/rewrite: en dash ranges no longer recognised (per-token rewrite)	SURVIVED		RESULT: pass=138 fail=0
+RV4	verify: own-item created_at drift not reported as KNOWN	SURVIVED		RESULT: pass=138 fail=0
+RV5	verify: base-item created_at drift without a closure is KNOWN, not a mismatch	SURVIVED		RESULT: pass=138 fail=0
+RV6	verify: base-item body_md not compared when the target did not change the item	SURVIVED		RESULT: pass=138 fail=0
+RV7a	plan: vehicle lifecycle + target change no longer a conflict	SURVIVED		RESULT: pass=138 fail=0
+RV7b	plan: target lifecycle + vehicle change no longer a conflict	KILLED	FAIL conflict: a lifecycle change on one side and a change on the other: rc=0 want=1: BASE-CHANGE CON-343 vehicle=description target=severity,status,current_loc	RESULT: pass=104 fail=1 (stopped at the first failure)
+LV1	CONTROL-CHAR: U+2028/U+2029 dropped from the class	KILLED	FAIL golden-good fixture: rc=3 want=0: BLIND: control needle failed: CONTROL-CHAR/title|	RESULT: pass=0 fail=1 (stopped at the first failure)
+LV2	rendered docs not scanned by default with --repo-root	KILLED	FAIL golden-good fixture: pattern /^RESULT: PASS selected=1 findings=0 prefix=FX rendered=Issues.md,Issues_Summary.md$/ not in: RESULT: PASS selected=1 findings	RESULT: pass=0 fail=1 (stopped at the first failure)
+LV3	item_history.reason not a scanned surface	KILLED	FAIL golden-good fixture: rc=3 want=0: BLIND: control needle failed: surface/SECRET/item_history[9].reason,surface/EPHEMERAL/item_history[9].reason,surface/CONT	RESULT: pass=0 fail=1 (stopped at the first failure)
+LV4	rendered: a non-item ## heading does not end the item section	SURVIVED		RESULT: pass=256 fail=0
+LV5	SECRET: pattern anchored at the surface start (match instead of search)	KILLED	FAIL golden-good fixture: rc=3 want=0: BLIND: control needle failed: SECRET,SECRET/state-column,surface/SECRET/title,surface/SECRET/description,surface/SECRET/b	RESULT: pass=0 fail=1 (stopped at the first failure)
+LV6	load: a second row of one id overrides the first (dedup removed)	SURVIVED		RESULT: pass=256 fail=0

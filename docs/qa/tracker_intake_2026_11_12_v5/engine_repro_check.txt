@@ -1,0 +1,13 @@
+$ bash docs/qa/tracker_intake_2026_11_12_v5/engine_repro_check.sh \<wi\> CON-001 CON-308 CON-002 CON-020
+PASS the prefix unset is refused
+PASS a wrong prefix is refused
+PASS an <open> of Type Bug is refused
+PASS a <probe> of Type Bug is refused
+PASS an <obsolete> without obsolete_details is refused
+PASS the full run exits 0
+PASS the run equals the committed engine_repro.txt (created_at after masked)
+PASS one masked line; the G1 verdict reads 'changed by close: yes'
+PASS control needle: the v4 evidence differs
+PASS the tracked database is unchanged
+RESULT: pass=10 fail=0
+rc=0
