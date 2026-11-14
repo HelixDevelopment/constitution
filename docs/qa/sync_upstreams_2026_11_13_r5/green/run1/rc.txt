@@ -1,0 +1,14 @@
+unit rc=0
+integration rc=0 128s
+e2e rc=0 11s
+full_automation rc=0 26s
+security rc=0 30s
+determinism rc=0 51s
+ui rc=0 31s
+hardening rc=0 117s
+chaos rc=0 116s
+perf rc=0 66s
+faults rc=0 1917s
+robustness rc=0 121s
+gate rc=0
+gate_meta rc=0

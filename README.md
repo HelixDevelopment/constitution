@@ -400,7 +400,9 @@ every depth, reports ahead / behind / diverged / unreachable state and the pin s
 and with `--apply` integrates by fast-forward only (never push, commit, rebase, reset or force). A fetch
 never deletes a ref or a tag, no repository hook or fsmonitor runs, and a git call that gives no answer
 is never read as "absent" or "clean": the run is `BLIND` (exit 6), or `INCONCLUSIVE` (exit 5) when a call
-only ran out of time, and the repository concerned is not written. Every run writes JSON and TSV evidence.
+only ran out of time, and the repository concerned is not written. Every write first re-reads the state it
+depends on, a pin you staged is never replaced (`gitlink-staged:<path>`, attention), and a stop signal ends
+in a report (`INTERRUPTED`, exit 8). Every run writes JSON and TSV evidence.
 
 ```bash
 bash submodules/constitution/scripts/sync/sync_all_upstreams.sh --check            # fetch + report, change nothing

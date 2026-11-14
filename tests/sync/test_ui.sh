@@ -84,7 +84,14 @@ hasnt "transcripts never show userinfo" "bob:" "$(cat "$SB"/ui_*.txt)"
 # 4. a check with --interactive asks only about fetching (nothing to integrate)
 drive check y --check --interactive --root "$W" --out "$SB/out/ui4"
 eq "check: exactly one prompt" "1" "$(grep -o '\[y/N\]' <<<"$UI_T" | wc -l | tr -d ' ')"
-eq "check: exit 0 (current)" 0 "$UI_RC"
+# the pin step 3 staged is not committed yet: a check reports it as attention (RV4-2: a staged gitlink is never
+# silent, and a later --advance-pins never replaces it), until the user commits it
+eq "check: exit 4 (the staged pin is attention)" 4 "$UI_RC"
+eq "check: the only reason is the staged pin" "gitlink-staged:libs/a" "$(python3 -I -c 'import json,sys;print(",".join(r for x in json.load(open(sys.argv[1]))["repos"] for r in x.get("reasons", [])))' "$SB/out/ui4/sync_report.json")"
+# the user commits the staged pin and pushes it (the documented next step after --advance-pins)
+git -C "$W" commit -q -m "pin libs/a" && git -C "$W" push -q origin main
+drive check2 y --check --interactive --root "$W" --out "$SB/out/ui4a"
+eq "check after commit: exit 0 (current)" 0 "$UI_RC"
 
 # 4b. pins consented, nothing to fast-forward (so no fast-forward prompt): the advanced submodule's clean
 #     nested children follow its new recorded gitlink, as they do non-interactively (consent = the pin answer)

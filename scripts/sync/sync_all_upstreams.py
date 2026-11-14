@@ -29,7 +29,7 @@ Safety (Constitution §11.4.113, §9.2, §11.4.84, §11.4.10, §11.4.201, §11.4
     hook, fsmonitor or auto-maintenance runs, whatever the repository's own config says.
   * URLs are logged without userinfo (everything between scheme:// and the LAST '@' of the URL token),
     token shapes are replaced, git stderr is redacted, and the whole report passes the same redaction
-    again before it is written; git never prompts.
+    again before it is written; no terminal prompt and no askpass program (a configured credential.helper runs).
   * Honest boundary: a clean/smudge filter or diff driver the USER configured still runs when git writes
     or compares files (status runs the clean filter of a modified file; a checkout or fast-forward runs
     the smudge filter). The engine does not disable filters: that would break LFS-style repositories.
@@ -42,6 +42,7 @@ import hashlib
 import json
 import os
 import re
+import select
 import shutil
 import signal
 import subprocess
@@ -52,24 +53,41 @@ import time
 
 SCHEMA = "helix.sync_upstreams/1"
 EXIT_OK, EXIT_FAIL, EXIT_USAGE, EXIT_BEHIND, EXIT_ATTENTION = 0, 1, 2, 3, 4
-EXIT_INCONCLUSIVE, EXIT_BLIND, EXIT_LOCKED = 5, 6, 7
+EXIT_INCONCLUSIVE, EXIT_BLIND, EXIT_LOCKED, EXIT_INTERRUPTED = 5, 6, 7, 8
 DEFAULT_OWN_ORGS = ("vasic-digital", "HelixDevelopment")
 SHA_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?$")
 DIGITS_RE = re.compile(r"^[0-9]+$")
 TWO_COUNTS_RE = re.compile(r"^[0-9]+\s+[0-9]+$")
 TWO_ABS_PATHS_RE = re.compile(r"^/[^\n]*\n/[^\n]*$")
+THREE_ABS_PATHS_RE = re.compile(r"^/[^\n]*\n/[^\n]*\n/[^\n]*$")
 ABS_PATH_RE = re.compile(r"^/[^\n]*$")
 REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 # Why a call gave no answer. Only these two mean "time ran out" (verdict INCONCLUSIVE); every other reason
 # (signal:N, rc:N, refused, not-runnable, malformed-output) is a call that answered nothing (verdict BLIND).
 TIME_WHYS = ("timeout", "deadline")
+# A call refused or stopped because the run was asked to stop (SIGINT / SIGTERM / SIGHUP): neither BLIND nor
+# INCONCLUSIVE; the run verdict is INTERRUPTED (exit 8).
+STOP_WHYS = ("interrupted",)
+# What one git call may hold in memory: stdout up to OUT_CAP (more is no answer, "output-too-large"); stderr only
+# its last ERR_TAIL bytes (an earlier part is dropped, and with it the partial first line of the tail, so a URL is
+# never kept without its scheme). Everything the engine redacts is therefore bounded.
+OUT_CAP = 128 * 1024 * 1024
+ERR_TAIL = 64 * 1024
+FETCH_HEAD_CAP = 64 * 1024 * 1024
+# Set by the stop-signal handler (on_stop_signal): the first signal stops every interruptible git call and refuses
+# every new one except the final reads; a second signal stops the final reads too. A write is never killed.
+STOP_REQUESTED = threading.Event()
+HARD_STOP = threading.Event()
 
 # -c pairs on EVERY git call: whatever the repository's own (or the user's) config says, no hook,
-# fsmonitor, auto-gc/maintenance, submodule recursion, autostash, ext:: transport or prune runs.
+# fsmonitor, auto-gc/maintenance, submodule recursion, autostash, ext:: transport, prune or askpass program runs
+# (a -c pair beats every config file; it does NOT beat GIT_ALLOW_PROTOCOL or GIT_ASKPASS in the environment, which
+# is why git_env() drops the first and sets the second empty: ground truth, docs/qa/sync_upstreams_2026_11_13_r5/).
 SAFE_CONFIG = ("core.hooksPath=/dev/null", "core.fsmonitor=false", "submodule.recurse=false",
                "gc.auto=0", "maintenance.auto=false", "merge.autoStash=false", "protocol.ext.allow=never",
-               "fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")
+               "fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.askPass=",
+               "credential.interactive=false")
 STATUS_ARGS = ["status", "--porcelain=v1", "--ignore-submodules=all", "--untracked-files=normal"]
 
 
@@ -185,26 +203,37 @@ _KNOWN = set()
 _KNOWN_LOCK = threading.Lock()
 
 
+_SCHEME_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+.-")
+_LETTERS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+
+
+def _strip_line(line):
+    """One line: cut from the first ``scheme://`` (a run of [A-Za-z0-9+.-] holding a letter, then '://') that has a
+    '@' after it, to the LAST '@' of the line. Linear in the line length (review round 4, RV4-3): every '://' is found
+    with str.find, and the backward run before each '://' cannot reach past the previous '://' (the run holds no ':'
+    or '/'), so every character is looked at a bounded number of times."""
+    at = line.rfind("@")
+    if at == -1:
+        return line
+    i = line.find("://")
+    while i != -1 and i < at:
+        j, letter = i, False
+        while j > 0 and line[j - 1] in _SCHEME_CHARS:
+            j -= 1
+            letter = letter or line[j] in _LETTERS
+        if letter:
+            return line[:i + 3] + line[at + 1:]
+        i = line.find("://", i + 3)
+    return line
+
+
 def strip_userinfo(text):
     """Remove URL userinfo structurally: for every ``scheme://`` the URL token runs to the END OF THE LINE (a
     password may hold spaces, '@', '://' or be of any length; nothing is cut at a fixed width) and everything up to
-    the LAST '@' in it is removed. A ``scheme://`` inside a part already removed (a password holding '://') is
-    skipped. A '@' later on the same line (a second URL, a path, prose) removes more than the userinfo: fail-safe
-    over-redaction, never a leak."""
-    out, pos = [], 0
-    for m in _SCHEME.finditer(text):
-        if m.start() < pos:
-            continue
-        start = m.end()
-        nl = text.find("\n", start)
-        end = nl if nl != -1 else len(text)
-        at = text.rfind("@", start, end)
-        if at == -1:
-            continue
-        out.append(text[pos:start])
-        pos = at + 1
-    out.append(text[pos:])
-    return "".join(out)
+    the LAST '@' in that line is removed. At most one cut per line; a '://' after the cut is inside the removed part
+    or after the last '@' and cuts nothing. A '@' later on the same line (a second URL, a path, prose) removes more
+    than the userinfo: fail-safe over-redaction, never a leak. Linear time (RV4-3)."""
+    return "\n".join(_strip_line(x) for x in text.split("\n"))
 
 
 def register_secret(url):
@@ -275,7 +304,7 @@ def url_org_segments(url):
     m = re.match(r"^[A-Za-z][A-Za-z0-9+.-]*://[^/]*(/.*)$", u)
     if m:
         path = m.group(1)
-    elif re.match(r"^[^/:]+@?[^/:]*:", u) and not u.startswith("/"):
+    elif re.match(r"^[^/:]+:", u) and not u.startswith("/"):  # scp-like host:path (linear; review round 5)
         path = u.split(":", 1)[1]
     else:
         path = u
@@ -300,37 +329,91 @@ def clamp_jobs(requested, cpus):
 # proc_run_git and proc_kill_group are the only functions that may use subprocess / signal / os.killpg; the
 # gate proves it from the AST (every subprocess.* / signal.* / os.killpg / os.getpgid name is scoped to them,
 # each is called from exactly one place, and nothing else can start a process or send a signal).
-def proc_run_git(git_bin, repo, args, env, limit):
+def proc_run_git(git_bin, repo, args, env, limit, level=1):
     """Run ONE git call. Returns (kind, code, out, err): kind 'exit' (code = exit status), 'signal' (code = the
-    signal number), 'timeout' or 'not-runnable'. Raises GitRefused before any process exists."""
+    signal number), 'timeout', 'output-too-large', 'interrupted' or 'not-runnable'. Raises GitRefused before any
+    process exists. The pipes are read in 64 KiB pieces (select): stdout is kept up to OUT_CAP, stderr only its last
+    ERR_TAIL bytes (RV4-4), so a remote that writes without end costs bounded memory. ``level`` says which stop
+    request ends the call: 0 none (a WRITE is never killed half-way), 1 the first (STOP_REQUESTED), 2 only the second
+    (HARD_STOP: the final reads). Every ending except a normal exit kills the call's own process group (one place)."""
     checked = check_git_args(args)
     try:
         p = subprocess.Popen(git_argv(git_bin, repo, checked), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, env=env, start_new_session=True)
     except OSError as e:
         return "not-runnable", None, "", "cannot run git: %s" % e
-    try:
-        out, err = p.communicate(timeout=limit)
-    except subprocess.TimeoutExpired:
-        proc_kill_group(p)
-        try:  # a grandchild that escaped the group may still hold a pipe: never wait for it (F8)
-            p.communicate(timeout=2)
-        except subprocess.TimeoutExpired:
-            for s in (p.stdout, p.stderr):
-                try:
-                    s.close()
-                except OSError:
-                    pass
+    t_end = time.monotonic() + limit
+    out, err, dropped, why = bytearray(), bytearray(), False, None
+    streams = {p.stdout.fileno(): out, p.stderr.fileno(): err}
+    while why is None:
+        if (level == 1 and STOP_REQUESTED.is_set()) or (level == 2 and HARD_STOP.is_set()):
+            why = "interrupted"
+            break
+        left = t_end - time.monotonic()
+        if left <= 0:
+            why = "timeout"
+            break
+        if not streams:  # both pipes at end of file: wait for the exit status in short steps (stop stays checked)
             try:
-                p.wait(timeout=5)
+                p.wait(timeout=min(left, 0.2))
+                break
             except subprocess.TimeoutExpired:
-                pass
-        return "timeout", None, "", "timeout after %ds" % int(limit)
+                continue
+        exited = p.poll() is not None  # git has exited: read what is buffered now, never wait for an escaped
+        ready = select.select(list(streams), [], [], 0 if exited else min(left, 0.2))[0]  # grandchild's pipe (F8)
+        if exited and not ready:
+            break
+        for fd in ready:
+            chunk = os.read(fd, 65536)
+            buf = streams[fd]
+            if not chunk:
+                del streams[fd]
+            elif buf is out:
+                if len(out) + len(chunk) > OUT_CAP:
+                    why = "output-too-large"
+                    break
+                out += chunk
+            else:
+                err += chunk
+                if len(err) > 2 * ERR_TAIL:
+                    del err[:len(err) - ERR_TAIL]
+                    dropped = True
+    if why is not None:
+        proc_kill_group(p)
+    for s_ in (p.stdout, p.stderr):  # a grandchild that escaped the group may hold a pipe: never wait for it (F8)
+        try:
+            s_.close()
+        except OSError:
+            pass
+    if why is not None:
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        return why, None, "", {"timeout": "timeout after %ds" % int(limit), "interrupted": "stopped by a signal",
+                               "output-too-large": "more than %d bytes of output" % OUT_CAP}[why]
+    if dropped:  # drop the partial first line of the tail: a URL is never kept without its scheme (RV4-3)
+        nl = err.find(b"\n")
+        err = bytearray(b"[earlier stderr dropped]\n") + (err[nl + 1:] if nl != -1 else bytearray())
     rc = p.returncode
     o, e = out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
     if rc < 0:
         return "signal", -rc, o, e
     return "exit", rc, o, e
+
+
+def on_stop_signal(signum, frame):
+    """The stop-signal handler (installed by proc_on_stop_signals): only sets a flag; the git calls poll it."""
+    if STOP_REQUESTED.is_set():
+        HARD_STOP.set()
+    STOP_REQUESTED.set()
+
+
+def proc_on_stop_signals(handler):
+    """Install ``handler`` for SIGINT, SIGTERM and SIGHUP (RV4-5): no traceback, no orphaned git; the run stops
+    its interruptible calls, finishes the write in flight, reads the final heads and writes its report."""
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, handler)
 
 
 def proc_kill_group(p):
@@ -351,7 +434,11 @@ _SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", 
           "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_EXEC_PATH", "GIT_SSH", "GIT_ASKPASS",
           "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",
           "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES", "GIT_PREFIX",
-          "GIT_QUARANTINE_PATH", "GIT_REPLACE_REF_BASE", "GIT_SHALLOW_FILE", "GIT_INTERNAL_SUPER_PREFIX")
+          "GIT_QUARANTINE_PATH", "GIT_REPLACE_REF_BASE", "GIT_SHALLOW_FILE", "GIT_INTERNAL_SUPER_PREFIX",
+          # review round 4: GIT_ALLOW_PROTOCOL beats -c protocol.ext.allow=never (ground truth row D2);
+          # GIT_PROTOCOL_FROM_USER changes what protocol.*.allow=user means (D5); SSH_ASKPASS_REQUIRE can force
+          # the ssh askpass (set below); GIT_SSL_NO_VERIFY turns TLS verification off
+          "GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "SSH_ASKPASS_REQUIRE", "GIT_SSL_NO_VERIFY")
 
 
 def git_env(base=None):
@@ -363,6 +450,8 @@ def git_env(base=None):
                 or k.startswith("GIT_CONFIG_VALUE_")):
             del env[k]
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_ASKPASS"] = ""  # empty: git runs no askpass program (D9), and it beats core.askPass (D10)
+    env["SSH_ASKPASS_REQUIRE"] = "never"  # ssh never runs SSH_ASKPASS (D12, D13)
     env["GCM_INTERACTIVE"] = "never"
     env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o ConnectTimeout=10"
     env["LC_ALL"] = "C"
@@ -404,22 +493,31 @@ class Runner:
         with self.lock:
             self.unresolved.setdefault(os.path.realpath(repo), set()).add("%s:%s" % (sub, why))
 
-    def run(self, repo, args, ok, network=False, repo_ssh=False, want=None):
+    def run(self, repo, args, ok, network=False, repo_ssh=False, want=None, write=False, final=False):
         """Run one git call and return a GitResult. ``ok`` = the exit statuses that are an ANSWER for this call
         (declared at every call site); ``want`` = a compiled pattern the stripped output of an exit-0 answer must
         match. Every call that gives no answer is recorded for ``repo`` (it makes the repository unresolved or
         blind), except a NETWORK call that ran out of time: that is the remote's state (unreachable), recorded by
-        the caller."""
+        the caller. After a stop signal (RV4-5) a new call is refused ("interrupted") unless it is a ``final`` read
+        (the head reads that record what moved; refused too after a second signal); a ``write`` already running is
+        never killed, and a final read runs with at most 10 seconds."""
         sub = args[0] if args else "?"
+        if STOP_REQUESTED.is_set() and (not final or HARD_STOP.is_set()):
+            self.no_answer(repo, sub, "interrupted")
+            return GitResult(False, None, "", "stopped by a signal", "interrupted")
         left = self.remaining()
         if left <= 0:
             self.no_answer(repo, sub, "deadline")
             return GitResult(False, None, "", "run deadline passed", "deadline")
         limit = min(self.timeout if network else max(self.timeout, 60), left)
+        if final and STOP_REQUESTED.is_set():
+            limit = min(limit, 10)
+        level = 0 if write else 2 if final else 1
         with self.lock:
             self.calls += 1
         try:
-            kind, code, out, err = proc_run_git(self.git, repo, args, self.env_repo_ssh if repo_ssh else self.env, limit)
+            kind, code, out, err = proc_run_git(self.git, repo, args, self.env_repo_ssh if repo_ssh else self.env,
+                                                limit, level)
         except GitRefused as e:
             self.no_answer(repo, sub, "refused")
             return GitResult(False, None, "", "refused: %s" % e, "refused")
@@ -443,15 +541,31 @@ def now_utc():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def g_out(r, repo, args, ok, want=None):
+def g_out(r, repo, args, ok, want=None, final=False):
     """Stripped output of an answered exit-0 call, else None (a call with no answer is recorded by r.run)."""
-    return r.run(repo, args, ok=ok, want=want).text()
+    return r.run(repo, args, ok=ok, want=want, final=final).text()
 
 
-def read_head(r, repo):
+def read_head(r, repo, final=False):
     """HEAD as a full object id, or None (unborn: rev-parse --verify exits 1; or no answer, recorded): an unread
     head is never compared, so it can never read as "unchanged" or "moved" (F3)."""
-    return g_out(r, repo, ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE)
+    return g_out(r, repo, ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE, final=final)
+
+
+def read_branch(r, repo, final=False):
+    """('branch', name) when HEAD is a symbolic ref, ('detached', None) when it is not (symbolic-ref -q exits 1),
+    ('unknown', None) when git gave no answer (recorded): a detached HEAD and an unread one are told apart, which
+    the write-time re-check needs (RV4-1)."""
+    res = r.run(repo, ["symbolic-ref", "--short", "-q", "HEAD"], ok=(0, 1), final=final)
+    if not res.answered:
+        return "unknown", None
+    name = res.out.strip()
+    if res.rc == 1:
+        return "detached", None
+    if not name:  # exit 0 with no name: not an answer this code can use
+        r.no_answer(repo, "symbolic-ref", "malformed-output")
+        return "unknown", None
+    return "branch", name
 
 
 def is_ancestor(r, repo, a, b):
@@ -603,12 +717,14 @@ def inspect_local(r, repo, branch):
     rec["head_before"] = read_head(r, p)
     if rec["head_before"] is None:
         rec["head_unreadable"] = True
-    rec["branch"] = g_out(r, p, ["symbolic-ref", "--short", "-q", "HEAD"], ok=(0, 1))
-    # one call for both paths (the per-repository call count is a guarded budget, tests/sync/test_perf.sh)
-    paths = (g_out(r, p, ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD"],
-                   ok=(0,), want=TWO_ABS_PATHS_RE) or "").split("\n")
-    gitdir, fetch_head = (paths[0], paths[1]) if len(paths) == 2 and all(paths) else ("", "")
+    rec["branch"] = read_branch(r, p)[1]
+    # one call for the three paths (the per-repository call count is a guarded budget, tests/sync/test_perf.sh);
+    # the common dir is where this repository's run lock lives (RV4-11)
+    paths = (g_out(r, p, ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD",
+                          "--git-common-dir"], ok=(0,), want=THREE_ABS_PATHS_RE) or "").split("\n")
+    gitdir, fetch_head, common = (paths[0], paths[1], paths[2]) if len(paths) == 3 and all(paths) else ("", "", "")
     rec["_gitdir"] = gitdir
+    rec["_common_dir"] = common
     rec["in_progress"] = in_progress(gitdir) if gitdir else ["unknown-git-dir"]
     st = r.run(p, STATUS_ARGS, ok=(0,))
     rec["dirty"] = (not st.answered) or bool(st.out.strip())
@@ -625,8 +741,11 @@ def inspect_local(r, repo, branch):
     rec["remotes"] = remotes
     rec["_branch_wanted"] = branch
     rec["_fetch_head"] = fetch_head
-    # F9: a repository (or user) core.sshCommand is honoured; otherwise the engine's BatchMode ssh is used.
-    # git never prompts either way: no controlling terminal (new session), stdin /dev/null, no askpass.
+    # F9: a repository (or user) core.sshCommand is honoured; otherwise the engine's BatchMode ssh is used. An ssh
+    # program the user configured is the user's (it may prompt on its own terminal); the engine's own calls have no
+    # controlling terminal (new session), stdin /dev/null, no askpass program (GIT_ASKPASS empty, core.askPass
+    # empty, SSH_ASKPASS dropped, SSH_ASKPASS_REQUIRE=never). A credential helper still runs (by design: it is how
+    # a user authenticates without a prompt).
     res = r.run(p, ["config", "--get", "core.sshCommand"], ok=(0, 1))
     rec["ssh"] = "core.sshCommand" if res.text() else "engine-default"
 
@@ -661,8 +780,10 @@ def fetched_branches(path):
         return None
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
-            data = f.read()
+            data = f.read(FETCH_HEAD_CAP + 1)
     except OSError:
+        return None
+    if len(data) > FETCH_HEAD_CAP:  # bounded memory (RV4-4): an oversized FETCH_HEAD is unread, never half-read
         return None
     names = set()
     for line in data.splitlines():
@@ -804,7 +925,8 @@ def reasons_for(rec, strict_pins, branch):
         st = rec.get("pin", {}).get("state")
         # absent / uninitialised are ordinary states (attention only with --strict-pins); a path that is not a
         # directory, a cycle and an unreadable submodule always need attention (review round 3, F1)
-        if st in ("not-a-directory", "cycle", "unreadable") or (strict_pins and st in ("absent", "uninitialised")):
+        if (st in ("not-a-directory", "cycle", "unreadable", "unsafe-path", "outside-parent")
+                or (strict_pins and st in ("absent", "uninitialised"))):
             reasons.append("pin-" + st)
         return reasons
     if rec.get("depth_limited_gitlinks"):
@@ -842,6 +964,10 @@ def reasons_for(rec, strict_pins, branch):
     if rec.get("ignored_clobber"):
         reasons.append("ignored-file-would-be-overwritten")
     reasons += ["gitlink-modified:" + x for x in rec.get("gitlink_modified", [])]
+    # a gitlink the user STAGED (index differs from HEAD's tree) before this run: never replaced (RV4-2)
+    reasons += ["gitlink-staged:" + x for x in rec.get("gitlink_staged", [])]
+    # a write the guarded writer refused because something changed after inspection (RV4-1): never silent
+    reasons += ["write-" + x["why"] for x in rec.get("actions", []) if str(x.get("why", "")).startswith("blocked:")]
     return reasons
 
 
@@ -876,15 +1002,25 @@ def discover(r, root, max_depth):
                 repo.rec["depth_limited_gitlinks"] = len(links)
             return
         links = links or {}  # no answer: no children (the no-answer is recorded, the repository is blind)
+        if links:  # a gitlink staged in the index that HEAD's tree does not record: the user's (RV4-2)
+            heads = head_gitlinks(r, repo.abspath)
+            if heads is not None:
+                repo.rec["gitlink_staged"] = sorted(redact(x) for x in links if heads.get(x) != links[x])
+        real_parent = os.path.realpath(repo.abspath)
         for path in sorted(links):
-            if not safe_relpath(path):
-                continue
             child_abs = os.path.join(repo.abspath, path)
             rel = path if repo.rel == "." else repo.rel + "/" + path
             child = Repo(child_abs, rel, repo.depth + 1, repo)
             child.rec["recorded_gitlink"] = links[path]
             child.rec["path_in_parent"] = path
-            state = probe_child(r, child_abs)
+            if not safe_relpath(path):  # never used, never omitted (RV4-13)
+                state = "unsafe-path"
+            elif not (os.path.realpath(os.path.dirname(child_abs)) + os.sep).startswith(real_parent + os.sep):
+                # a DIRECTORY on the way is a symbolic link that leaves the parent (RV4-15); the last component
+                # itself is probed with lstat below (a link there is not-a-directory, never followed)
+                state = "outside-parent"
+            else:
+                state = probe_child(r, child_abs)
             if state == "repo":
                 child.rec["initialised"] = True
                 walk(child)
@@ -901,7 +1037,11 @@ def discover(r, root, max_depth):
 
 # ───────────────────────────── integration ─────────────────────────────
 BLOCKING_PREFIXES = ("dirty-tree", "in-progress", "upstreams-diverged", "local-", "unreachable", "invalid-remote",
-                     "root-not-on-", "head-unreadable", "tag-rejected", "no-upstream-")
+                     "root-not-on-", "head-unreadable", "tag-rejected", "no-upstream-",
+                     "write-blocked", "head-changed-during-run")
+# gitlink-staged:<path> is attention, never blocking for the whole repository: the staged path itself is protected
+# where it matters, at write time (write_git step 3: an advance or follow over a staged value is refused), and a
+# pin this engine staged in an earlier --advance-pins run must not stop the rest of the tree (RV4-2)
 
 
 def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, consent):
@@ -912,6 +1052,9 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
         p = repo.abspath
         rec.setdefault("actions", [])
         if not rec.get("initialised"):
+            continue
+        if STOP_REQUESTED.is_set():  # a stop signal: no further write starts (RV4-5)
+            rec["actions"].append({"op": "none", "why": "interrupted"})
             continue
         if repo.parent is not None and repo.parent.rel in blocked_paths:
             rec["actions"].append({"op": "none", "why": "parent-not-integrated"})
@@ -951,14 +1094,14 @@ def integrate(r, repos, branch, advance_pins, advance_third_party, strict_pins, 
                     blocked_paths.add(repo.rel)
                     continue
                 moved = True
-        if moved:  # only a parent that moved in THIS run (by a consented write) can make its children follow
+        if moved and not STOP_REQUESTED.is_set():  # only a parent that moved in THIS run follows; never after a stop
             follow_children(r, repo, repos, consent)
     # head_after is read for EVERY initialised repository, after the whole pass (review round 3, F2): a repository
     # that followed its parent, or whose write answered nothing or failed half-way, and was then skipped above, is
     # still read; an unread head is a no-answer (recorded by read_head), never a copy of head_before
     for repo in repos:
         if repo.rec.get("initialised"):
-            repo.rec["head_after"] = read_head(r, repo.abspath)
+            repo.rec["head_after"] = read_head(r, repo.abspath, final=True)
             if repo.rec["head_after"] is None:
                 repo.rec["head_unreadable"] = True
 
@@ -991,20 +1134,43 @@ def write_git(r, repo, op, target):
     guard = clobber_guard(r, repo, target)
     if guard != "clear":
         return guard
-    # 3. staging a gitlink: the parent's index must still record the gitlink this run discovered
+    # 3. staging a gitlink: the parent's index AND its HEAD's tree must still record the gitlink this run discovered
+    #    (a gitlink the user staged, or a commit the user made in the parent, is never overwritten; RV4-2)
     if op == "advance-pin":
         links = index_gitlinks(r, repo.parent.abspath)
-        if links is None:
+        tree = head_gitlinks(r, repo.parent.abspath)
+        if links is None or tree is None:
             rec["actions"].append({"op": "none", "why": "unresolved:parent-index", "for": op})
             return "no-answer"
-        if links.get(rec["path_in_parent"]) != rec.get("recorded_gitlink"):
+        path = rec["path_in_parent"]
+        if links.get(path) != rec.get("recorded_gitlink") or tree.get(path) != rec.get("recorded_gitlink"):
             rec["actions"].append({"op": "none", "why": "blocked:parent-index-changed", "for": op})
             return "blocked"
-    # 4. the write
+    # 4. the LAST checks, immediately before the write (RV4-1): HEAD and the symbolic ref, read NOW, must be what
+    #    inspection saw. A user who committed, switched branch or checked out a branch after inspection is never
+    #    overwritten: fast-forward needs the same branch, a pin write needs a detached HEAD. The remote target is a
+    #    fixed object id and merge --ff-only itself proves it descends from HEAD; what remains is the window of
+    #    milliseconds between these reads and git's own ref lock (stated in the manual, never claimed closed).
+    head_now = read_head(r, p)
+    if head_now is None or head_now != rec.get("head_before"):
+        if r.unresolved_for(p):
+            rec["actions"].append({"op": "none", "why": "unresolved:head-recheck", "for": op})
+            return "no-answer"
+        rec["actions"].append({"op": "none", "why": "blocked:head-changed-before-write", "for": op})
+        return "blocked"
+    kind, name = read_branch(r, p)
+    if kind == "unknown":
+        rec["actions"].append({"op": "none", "why": "unresolved:branch-recheck", "for": op})
+        return "no-answer"
+    if (op == "fast-forward" and (kind, name) != ("branch", rec.get("branch"))) or \
+            (op != "fast-forward" and kind != "detached"):
+        rec["actions"].append({"op": "none", "why": "blocked:branch-changed-before-write", "for": op})
+        return "blocked"
+    # 5. the write (never killed by a stop signal: write=True)
     if op == "fast-forward":
-        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128))
+        res = r.run(p, ["merge", "--ff-only", target], ok=(0, 1, 128), write=True)
     else:
-        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128))
+        res = r.run(p, ["checkout", "--quiet", "--detach", target], ok=(0, 1, 128), write=True)
     act["rc"] = res.rc
     act["error"] = redact(res.err).strip()[-300:] if (res.rc or not res.answered) else ""
     if not res.answered:
@@ -1015,8 +1181,24 @@ def write_git(r, repo, op, target):
         rec["actions"].append(act)
         rec["failed"] = True
         return "failed"
+    rec["_wrote_to"] = target
+    # 6. verify the write: HEAD is the target, and the branch (or the detached state) is still the one checked
+    #    (final reads: they run even after a stop signal, so the record says what moved)
+    after = read_head(r, p, final=True)
+    kind2, name2 = read_branch(r, p, final=True)
+    if after is None or kind2 == "unknown":
+        act["why"] = "unresolved:post-write-verify"
+        rec["actions"].append(act)
+        return "no-answer"
+    if after != target or (op == "fast-forward" and (kind2, name2) != ("branch", rec.get("branch"))) or \
+            (op != "fast-forward" and kind2 != "detached"):
+        act["why"] = "head-not-at-target-after-write" if after != target else "branch-changed-during-write"
+        rec["actions"].append(act)
+        rec["failed"] = True
+        return "failed"
     if op == "advance-pin":
-        res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128))
+        # the second half of the same consented write: runs even after a stop signal (final), never killed (write)
+        res2 = r.run(repo.parent.abspath, ["add", "--", rec["path_in_parent"]], ok=(0, 128), write=True, final=True)
         act["staged_rc"] = res2.rc
         if not res2.answered or res2.rc != 0:
             act["error"] = redact(res2.err).strip()[-300:]
@@ -1166,7 +1348,7 @@ def evidence_file_ours(path, kind):
         return False
     if (st.st_mode & 0o170000) != 0o100000:  # not a regular file (a symlink, a directory, ...)
         return False
-    if st.st_size > 256 * 1024 * 1024:
+    if st.st_size > 64 * 1024 * 1024:
         return False
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
@@ -1265,6 +1447,7 @@ def parse_args(argv):
 
 
 def main(argv):
+    proc_on_stop_signals(on_stop_signal)  # first: a signal at any later point ends in a report, never a traceback
     try:
         a = parse_args(argv)
     except SystemExit as e:
@@ -1319,16 +1502,33 @@ def main(argv):
         print("sync-upstreams: ERROR: --run-id must match [A-Za-z0-9._-]{1,80}", file=sys.stderr)
         return EXIT_USAGE
     base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
-    out_dir = os.path.realpath(a.out) if a.out else os.path.join(base, "helix_sync_upstreams",
-                                                                  "%s-%s" % (os.path.basename(root), run_id))
+    if not a.out and not os.path.isabs(base):  # a relative cache dir would land wherever the run starts (RV4-12)
+        print("sync-upstreams: ERROR: XDG_CACHE_HOME (or HOME) is not an absolute path; pass --out", file=sys.stderr)
+        return EXIT_USAGE
+    # the evidence directory, explicit or default, is resolved (symbolic links followed) and must lie outside the
+    # project work tree: a default under a cache dir that is a link into the tree is refused too (RV4-12)
+    out_dir = os.path.realpath(a.out if a.out else os.path.join(base, "helix_sync_upstreams",
+                                                                "%s-%s" % (os.path.basename(root), run_id)))
     if out_dir == root or out_dir.startswith(root + os.sep):
-        print("sync-upstreams: ERROR: --out must be outside the project work tree", file=sys.stderr)
+        print("sync-upstreams: ERROR: the evidence directory %s is inside the project work tree; pass --out "
+              "outside it" % redact(out_dir), file=sys.stderr)
         return EXIT_USAGE
     for name, kind in (("sync_report.json", "json"), ("sync_report.tsv", "tsv")):
         if not evidence_file_ours(os.path.join(out_dir, name), kind):
             print("sync-upstreams: ERROR: %s exists and was not written by this engine (or is a symlink); choose "
                   "another --out" % redact(os.path.join(out_dir, name)), file=sys.stderr)
             return EXIT_USAGE
+    # the evidence directory must be writable BEFORE anything is changed (RV4-8): created, then probed with a real
+    # file (mkstemp + unlink); a run that would end unable to write its report never starts writing the project
+    try:
+        os.makedirs(out_dir, mode=0o700, exist_ok=True)
+        fd_, probe_ = tempfile.mkstemp(prefix=".sync_probe.", dir=out_dir)
+        os.close(fd_)
+        os.unlink(probe_)
+    except OSError as e:
+        print("sync-upstreams: ERROR: cannot write the evidence directory %s (%s); nothing was done"
+              % (redact(out_dir), redact(e.strerror or str(e))), file=sys.stderr)
+        return EXIT_USAGE
     tty = None
     if a.interactive:
         try:
@@ -1349,10 +1549,12 @@ def main(argv):
     except OSError:
         print("sync-upstreams: ERROR: another sync run holds %s (exit 7, nothing done)" % redact(lock_path), file=sys.stderr)
         return EXIT_LOCKED
+    held = [lock_fd]  # every lock this run holds (the root's, then one per repository; RV4-11), closed below
     try:
-        return run(a, r, mode, root, run_id, out_dir, tty)
+        return run(a, r, mode, root, run_id, out_dir, tty, held, common)
     finally:
-        os.close(lock_fd)
+        for fd_ in held:
+            os.close(fd_)
 
 
 def say(a, msg, always=False):
@@ -1360,7 +1562,33 @@ def say(a, msg, always=False):
         print("[sync-upstreams] " + redact(msg), file=sys.stderr)
 
 
-def run(a, r, mode, root, run_id, out_dir, tty):
+def lock_repositories(live, root_common, held):
+    """Take the run lock of EVERY repository of the tree (in its git common dir, deduplicated; the root's is held
+    already): a second run rooted inside this tree, or overlapping it, finds a lock taken and exits 7 (RV4-11).
+    Returns None, or the lock path that could not be taken (the caller ends the run before any fetch or write)."""
+    seen = {os.path.realpath(root_common)}
+    for x in live:
+        common = x.rec.get("_common_dir")
+        if not common:  # no answer for the paths: recorded; the repository is blind and never written
+            continue
+        real = os.path.realpath(common)
+        if real in seen:
+            continue
+        seen.add(real)
+        path = os.path.join(real, "helix-sync-upstreams.lock")
+        try:
+            fd_ = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        except OSError:
+            return path
+        held.append(fd_)
+        try:
+            fcntl.flock(fd_, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return path
+    return None
+
+
+def run(a, r, mode, root, run_id, out_dir, tty, held, root_common):
     started = now_utc()
     t0 = time.monotonic()
     own_orgs = tuple(a.own_org) if a.own_org else DEFAULT_OWN_ORGS
@@ -1370,6 +1598,11 @@ def run(a, r, mode, root, run_id, out_dir, tty):
     live = [x for x in repos if x.rec.get("initialised")]
     for x in live:
         inspect_local(r, x, a.branch)
+    busy = lock_repositories(live, root_common, held)
+    if busy:
+        print("sync-upstreams: ERROR: another sync run holds %s (exit 7, nothing fetched or changed)" % redact(busy),
+              file=sys.stderr)
+        return EXIT_LOCKED
     n_remotes = sum(len(x.rec.get("remotes", [])) for x in live)
     consent = {"fetch": mode in ("check", "apply") and not a.no_fetch,
                "integrate": mode == "apply", "pins": mode == "apply" and a.advance_pins}
@@ -1422,11 +1655,14 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         if unresolved:  # a call that did not answer is never read as "absent" / "clean" / "unchanged" / "moved"
             rec["unresolved"] = unresolved
             rec["reasons"] += ["unresolved:" + u for u in unresolved]
-        blind = [u for u in unresolved if u.split(":", 1)[1] not in TIME_WHYS]
+        blind = [u for u in unresolved if u.split(":", 1)[1] not in TIME_WHYS + STOP_WHYS]
         rec.setdefault("actions", [])
         moved = bool(rec.get("initialised") and rec.get("head_after") is not None
                      and rec.get("head_before") is not None and rec.get("head_after") != rec.get("head_before"))
         rec["moved"] = moved
+        if moved and rec.get("_wrote_to") != rec.get("head_after"):  # moved, but not to what this run wrote (RV4-1)
+            rec["changed_by_other"] = True
+            rec["reasons"].append("head-changed-during-run")
         blocking = [y for y in rec["reasons"] if y.startswith(BLOCKING_PREFIXES)]
         if rec.get("failed"):
             any_fail = True
@@ -1435,6 +1671,8 @@ def run(a, r, mode, root, run_id, out_dir, tty):
             any_blind = True
         elif rec.get("failed"):
             rec["result"] = "failed"
+        elif unresolved and all(u.split(":", 1)[1] in STOP_WHYS for u in unresolved):
+            rec["result"] = "interrupted"  # only calls refused or stopped by the stop signal (RV4-5)
         elif unresolved:
             rec["result"] = "unresolved"
             any_unresolved = True
@@ -1456,7 +1694,9 @@ def run(a, r, mode, root, run_id, out_dir, tty):
             rec["result"] = "not-initialised"
         else:
             rec["result"] = "current"
-    if not needle["ok"] or any_blind:
+    if STOP_REQUESTED.is_set():  # a stop signal (RV4-5): whatever else was found, the run did not finish
+        code, verdict = EXIT_INTERRUPTED, "INTERRUPTED"
+    elif not needle["ok"] or any_blind:
         code, verdict = EXIT_BLIND, "BLIND"
     elif any_fail:
         code, verdict = EXIT_FAIL, "FAILED"
@@ -1490,8 +1730,15 @@ def run(a, r, mode, root, run_id, out_dir, tty):
         write_atomic(os.path.join(out_dir, "sync_report.json"), json.dumps(report, indent=2, sort_keys=True) + "\n")
         write_atomic(os.path.join(out_dir, "sync_report.tsv"), tsv_rows(report))
     except OSError as e:
+        # the evidence directory was writable at the start (main); losing it now is a FAILED run, never a usage
+        # error: the project may already have moved, so every move is printed here (RV4-8)
         print("sync-upstreams: ERROR: cannot write evidence to %s: %s" % (redact(out_dir), redact(str(e))), file=sys.stderr)
-        return EXIT_USAGE
+        for rec in report["repos"]:
+            if rec.get("moved"):
+                print("sync-upstreams: moved %s %s -> %s" % (rec["path"], rec.get("head_before"), rec.get("head_after")),
+                      file=sys.stderr)
+        print("RESULT: FAILED exit=%d" % EXIT_FAIL)
+        return EXIT_FAIL
     # --quiet prints every repository that is not current (a not-initialised or blind one included; review round 3, F1)
     for rec in report["repos"]:
         say(a, "%-40s %-15s %s" % (rec["path"], rec.get("result"), ",".join(rec.get("reasons", [])) or "-"),

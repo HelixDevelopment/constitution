@@ -639,6 +639,9 @@ if [ -f "$SCRIPT_DIR/sync/sync_step_lib.sh" ]; then
   sync_step "$SYNC_UPSTREAMS" "$PROJECT_ROOT" "$SCRIPT_DIR/sync/sync_all_upstreams.sh" || SYNC_RC=1
   if [ "$SYNC_RC" -ne 0 ]; then
     error "upstream sync (apply) FAILED: see the report above; nothing was pushed or committed."
+  elif [ "${SYNC_STEP_VERDICT:-}" = INTERRUPTED ]; then
+    SYNC_RC=1  # stopped by a signal: setup did not finish its sync step (the report records what moved)
+    error "upstream sync was INTERRUPTED (exit 8): see the report above; re-run setup.sh to finish."
   fi
 fi
 

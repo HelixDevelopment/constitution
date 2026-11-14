@@ -20,7 +20,7 @@
 #                   · COMPUTED-ARGS (a call site passes a computed list) · NO-OK-DECLARED (a site loses ok=)
 #                   · OK-NOT-LITERAL · POPEN-SHELL-KW · NO-HOOKSPATH / NO-FSMONITOR (a safe -c pair dropped)
 #                   · NO-OPTIONAL-LOCKS (K14) · K16-ENV (GIT_CONFIG_PARAMETERS kept) · S1-REDACT (userinfo cut at the
-#                   first '@') · NO-REFMAP · PRUNE-IN-FETCH · MIRROR-REFSPEC · FORCED-TAGS (fetch_args made unsafe)
+#                   first '@'; round 5: anchors follow the linear _strip_line / the SAFE_CONFIG with core.askPass=) · NO-REFMAP · PRUNE-IN-FETCH · MIRROR-REFSPEC · FORCED-TAGS (fetch_args made unsafe)
 #                   review round 3 (the reviewer's mutants, verbatim): X01-STATUS-OK128 · X02-DIRECT-MERGE ·
 #                   X02B-DIRECT-MERGE-RECORDED · X04-OR-TRUE · X05-WINDOW-48 · X06-OK-ALL · X07-HOOKS-OVERRIDE
 #                   round 4 (own static shapes of the same classes): KILLPG-OR · KILLPG-NOT · KILLPG-GE1 ·
@@ -196,7 +196,7 @@ case_ NO-HOOKSPATH 1 py '"core.hooksPath=/dev/null", ' ""
 case_ NO-FSMONITOR 1 py '"core.fsmonitor=false", ' ""
 case_ NO-OPTIONAL-LOCKS 1 py '    return cmd + ["--no-optional-locks"] + list(args)' '    return cmd + list(args)'
 case_ K16-ENV 1 py '"SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",' '"SSH_ASKPASS", "GIT_CONFIG_COUNT",'
-case_ S1-REDACT 1 py '        at = text.rfind("@", start, end)' '        at = text.find("@", start, end)'
+case_ S1-REDACT 1 py '    at = line.rfind("@")' '    at = line.find("@")'
 case_ NO-REFMAP 1 py '"--refmap=", "--", remote' '"--", remote'
 case_ PRUNE-IN-FETCH 1 py '"fetch", "--no-prune", "--no-prune-tags"' '"fetch", "--prune", "--no-prune-tags"'
 case_ MIRROR-REFSPEC 1 py '"+refs/heads/*:refs/remotes/%s/*" % remote' '"+refs/heads/*:refs/heads/*"'
@@ -207,9 +207,9 @@ case_ X01-STATUS-OK128 1 py '    st = r.run(p, STATUS_ARGS, ok=(0,))
 case_ X02-DIRECT-MERGE 1 py '                res = write_git(r, repo, "fast-forward", rec["target"])' '                res = "done" if r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0,)).rc == 0 else "failed"'
 case_ X02B-DIRECT-MERGE-RECORDED 1 py '                res = write_git(r, repo, "fast-forward", rec["target"])' '                _x = r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0, 1, 128)); rec["actions"].append({"op": "fast-forward", "to": rec["target"], "rc": _x.rc, "error": ""}); res = "done" if (_x.answered and _x.rc == 0) else "failed"'
 case_ X04-OR-TRUE 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    if isinstance(pgid, int) and (pgid > 1 or True):'
-case_ X05-WINDOW-48 1 py '        at = text.rfind("@", start, end)' '        at = text.rfind("@", start, min(end, start + 48))'
+case_ X05-WINDOW-48 1 py '    at = line.rfind("@")' '    at = line.rfind("@", 0, line.find("://") + 48)'
 case_ X06-OK-ALL 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' "    res = r.run(repo, [\"ls-files\", \"-s\", \"-z\"], ok=($(seq -s ', ' 0 255)))"
-case_ X07-HOOKS-OVERRIDE 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.hooksPath=.githooks")'
+case_ X07-HOOKS-OVERRIDE 1 py '"fetch.recurseSubmodules=false", "core.askPass=",' '"fetch.recurseSubmodules=false", "core.askPass=", "core.hooksPath=.githooks",'
 case_ KILLPG-OR 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid > 1 or pgid == p.pid:'
 case_ KILLPG-NOT 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if not (isinstance(pgid, int) and pgid > 1 and pgid == p.pid):'
 case_ KILLPG-GE1 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid >= 1 and pgid == p.pid:'
@@ -226,7 +226,7 @@ case_ KILLPG-SIG9 1 py '            os.killpg(pgid, signal.SIGKILL)' '          
 case_ NO-NEW-SESSION 1 py 'stderr=subprocess.PIPE, env=env, start_new_session=True)' 'stderr=subprocess.PIPE, env=env, start_new_session=False)'
 case_ OK-128-AT-READ 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 128))'
 case_ OK-TWO 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 2))'
-case_ WANT-DROPPED 1 py '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE)' '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1))'
+case_ WANT-DROPPED 1 py '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), want=SHA_RE, final=final)' '["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=final)'
 case_ FETCH-ELSEWHERE 1 py 'def now_utc():' 'def _f(r, p):
     return r.run(p, fetch_args("origin", False), ok=(0, 1, 128))
 
@@ -240,8 +240,8 @@ def _w(r, p):
 
 
 def now_utc():'
-case_ CFG-CASE-OVERRIDE 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "CORE.HOOKSPATH=.githooks")'
-case_ CFG-EXTRA-KEY 1 py '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")' '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.sshCommand=sh")'
+case_ CFG-CASE-OVERRIDE 1 py '"fetch.recurseSubmodules=false", "core.askPass=",' '"fetch.recurseSubmodules=false", "core.askPass=", "CORE.HOOKSPATH=.githooks",'
+case_ CFG-EXTRA-KEY 1 py '"fetch.recurseSubmodules=false", "core.askPass=",' '"fetch.recurseSubmodules=false", "core.askPass=", "core.sshCommand=sh",'
 case_ TRACE-KEPT 1 py 'k in _SCRUB or k.startswith("GIT_TRACE") or ' 'k in _SCRUB or '
 case_ CURL-VERBOSE-KEPT 1 py '"GIT_CURL_VERBOSE", ' ''
 case_ AUTH-NOT-REDACTED 1 py '_AUTH.sub(r"\1[REDACTED]", strip_userinfo(text))' 'strip_userinfo(text)'

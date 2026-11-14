@@ -1,0 +1,17 @@
+# per-suite last result line, run1 vs run2 (diff empty = identical)
+chaos	sync-chaos: PASS 58 FAIL 0	sync-chaos: PASS 58 FAIL 0
+determinism	sync-determinism: PASS 15 FAIL 0	sync-determinism: PASS 15 FAIL 0
+e2e	sync-e2e: PASS 24 FAIL 0	sync-e2e: PASS 24 FAIL 0
+faults	sync-faults: PASS 21 FAIL 0	sync-faults: PASS 21 FAIL 0
+full_automation	sync-full-automation: PASS 34 FAIL 0	sync-full-automation: PASS 34 FAIL 0
+gate_meta	CM-SYNC-UPSTREAMS-FF-ONLY mutation test: PASS (83 cases)	CM-SYNC-UPSTREAMS-FF-ONLY mutation test: PASS (83 cases)
+gate	CM-SYNC-UPSTREAMS-FF-ONLY: PASS	CM-SYNC-UPSTREAMS-FF-ONLY: PASS
+hardening	sync-hardening: PASS 119 FAIL 0	sync-hardening: PASS 119 FAIL 0
+integration	sync-integration: PASS 149 FAIL 0	sync-integration: PASS 149 FAIL 0
+perf	sync-perf: PASS 13 FAIL 0	sync-perf: PASS 13 FAIL 0
+robustness	sync-robustness: PASS 114 FAIL 0	sync-robustness: PASS 114 FAIL 0
+security	sync-security: PASS 83 FAIL 0	sync-security: PASS 83 FAIL 0
+ui	sync-ui: PASS 26 FAIL 0	sync-ui: PASS 26 FAIL 0
+unit	sync-unit: PASS 83 FAIL 0 SKIP 0	sync-unit: PASS 83 FAIL 0 SKIP 0
+
+diff: identical

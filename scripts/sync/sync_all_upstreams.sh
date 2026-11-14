@@ -16,8 +16,9 @@
 #              are STAGED in the parent (git add), never committed
 # SAFETY  never pushes, commits, forces, resets, rebases or deletes; every git call is allow-listed
 #   (gate scripts/gates/cm_sync_upstreams_ff_only.sh); a dirty tree, an in-progress operation or an
-#   index.lock blocks that repository only; one run per project (kernel lock, no stale lock);
-#   URLs without userinfo in every log; git never prompts; fetched code is never run.
+#   index.lock blocks that repository only; one run per repository (kernel locks, no stale lock);
+#   URLs without userinfo in every log; no terminal prompt and no askpass program (GIT_ASKPASS and core.askPass
+#   empty, no terminal); a credential helper or an ssh program the user configured still runs; fetched code is never run.
 # EVIDENCE  <out>/sync_report.json (schema helix.sync_upstreams/1) and <out>/sync_report.tsv; stdout
 #   ends with REPORT_JSON=, CANONICAL_SHA256= (identical for identical repository states) and RESULT:.
 # EXIT  0 current / applied · 1 an integration step failed · 2 usage error · 3 updates available
@@ -26,7 +27,9 @@
 #   unfetchable, root not on main, an ignored file in the way, a parent gitlink modified, upstream branch
 #   gone) · 5 INCONCLUSIVE (a git call gave no answer in time: nothing about that repository is concluded)
 #   · 6 BLIND (the control needle failed: the tree could not be inspected) · 7 LOCKED (another run holds
-#   the lock; nothing was done)
+#   the lock of this tree or of any repository in it; nothing was fetched or changed) · 8 INTERRUPTED
+#   (SIGINT / SIGTERM / SIGHUP: the write in flight finishes, nothing new starts, the report records what
+#   moved)
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 exec python3 -I -B "$HERE/sync_all_upstreams.py" "$@"

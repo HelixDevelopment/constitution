@@ -6,6 +6,7 @@ engine file (used by the mutation harness). No git repository is created here; t
 covered by tests/sync/test_integration.sh and the other suites.
 """
 import importlib.util
+import json
 import os
 import sys
 import unittest
@@ -21,7 +22,7 @@ SHA = "a" * 40
 
 def fake_runner(result):
     """A real Runner whose ONE spawn point (proc_run_git) is replaced by a canned (kind, code, out, err)."""
-    E.proc_run_git = lambda git_bin, repo, args, env, limit, _r=result: (E.check_git_args(args) and _r)
+    E.proc_run_git = lambda git_bin, repo, args, env, limit, level=1, _r=result: (E.check_git_args(args) and _r)
     return E.Runner("/nonexistent/git", 10, E.time.monotonic() + 600)
 
 
@@ -345,7 +346,7 @@ class Classification(unittest.TestCase):
 
     def test_exit_codes_distinct(self):  # N3
         codes = [E.EXIT_OK, E.EXIT_FAIL, E.EXIT_USAGE, E.EXIT_BEHIND, E.EXIT_ATTENTION, E.EXIT_INCONCLUSIVE,
-                 E.EXIT_BLIND, E.EXIT_LOCKED]
+                 E.EXIT_BLIND, E.EXIT_LOCKED, E.EXIT_INTERRUPTED]
         self.assertEqual(len(set(codes)), len(codes))
 
     def test_has_update(self):
@@ -357,8 +358,10 @@ class Classification(unittest.TestCase):
     def test_git_env_scrub(self):
         env = E.git_env({"GIT_DIR": "/x", "GIT_CONFIG_KEY_0": "a", "GIT_CONFIG_VALUE_0": "b", "PATH": "/bin",
                          "GIT_CONFIG_GLOBAL": "/g", "GIT_ASKPASS": "/p"})
-        for k in ("GIT_DIR", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_ASKPASS"):
+        for k in ("GIT_DIR", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
             self.assertNotIn(k, env)
+        self.assertEqual(env["GIT_ASKPASS"], "")  # empty: no askpass program, and it beats core.askPass (D9, D10)
+        self.assertEqual(env["SSH_ASKPASS_REQUIRE"], "never")
         self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
         self.assertIn("BatchMode=yes", env["GIT_SSH_COMMAND"])
         self.assertEqual(env["GIT_CONFIG_GLOBAL"], "/g")
@@ -421,7 +424,7 @@ def scripted_runner(script):
     passes the real allow-list first and is recorded in ``runner.seen`` as (repo, tuple(args))."""
     seen = []
 
-    def spawn(git_bin, repo, args, env, limit):
+    def spawn(git_bin, repo, args, env, limit, level=1):
         E.check_git_args(args)
         seen.append((repo, tuple(args)))
         return script(repo, list(args))
@@ -665,15 +668,28 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
         os.rmdir(self.gitdir)  # made by mkdtemp in tree(), always empty
 
     @staticmethod
-    def answer(repo, a):
-        if a[:2] == ["ls-files", "-s"]:
-            return "exit", 0, "160000 %s 0\tlibs/a\0" % SHA, ""
-        if a[0] == "rev-parse":
-            return "exit", 0, SHA + "\n", ""
-        return "exit", 0, "", ""
+    def make_answer(branch):
+        """A stateful model of the two repositories, close to real git (round 5): symbolic-ref -q exits 1 on a
+        detached HEAD, the parent's HEAD tree records the gitlink, and a checkout moves the submodule's HEAD."""
+        head = {"/nonexistent/root": SHA, "/nonexistent/root/libs/a": SHA}
+
+        def answer(repo, a):
+            if a[:2] == ["ls-files", "-s"]:
+                return "exit", 0, "160000 %s 0\tlibs/a\0" % SHA, ""
+            if a[:4] == ["ls-tree", "-r", "-z", "HEAD"]:
+                return "exit", 0, "160000 commit %s\tlibs/a\0" % SHA, ""
+            if a[:1] == ["symbolic-ref"]:
+                b = "main" if repo == "/nonexistent/root" else branch
+                return ("exit", 0, b + "\n", "") if b else ("exit", 1, "", "")
+            if a[:3] == ["checkout", "--quiet", "--detach"]:
+                head[repo] = a[3]
+            if a[0] == "rev-parse":
+                return "exit", 0, head.get(repo, SHA) + "\n", ""
+            return "exit", 0, "", ""
+        return answer
 
     def run_integrate(self, branch):
-        r = scripted_runner(self.answer)
+        r = scripted_runner(self.make_answer(branch))
         root, c = self.tree(branch)
         E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
         return r, c
@@ -808,6 +824,182 @@ class LongSecrets(unittest.TestCase):  # review round 3, F9 / X05: no fixed-widt
         self.assertIn("RESULT: FAILED exit=1", out.getvalue())
         self.assertIn("internal error", err.getvalue())
         self.assertNotIn("topsecret99", err.getvalue())
+
+
+# ───────────────────────────── review round 4 findings (round 5 tests) ─────────────────────────────
+def old_strip_userinfo(text):
+    """The round-4 algorithm (regex finditer + rfind per match), kept here as the equivalence oracle."""
+    import re
+    out, pos = [], 0
+    for m in re.finditer(r"[A-Za-z][A-Za-z0-9+.-]*://", text):
+        if m.start() < pos:
+            continue
+        start = m.end()
+        nl = text.find("\n", start)
+        end = nl if nl != -1 else len(text)
+        at = text.rfind("@", start, end)
+        if at == -1:
+            continue
+        out.append(text[pos:start])
+        pos = at + 1
+    out.append(text[pos:])
+    return "".join(out)
+
+
+class RoundFive(unittest.TestCase):
+    def test_strip_userinfo_equals_round4_on_random_text(self):  # RV4-3: same output, linear time
+        import random
+        rnd = random.Random(20261113)
+        alphabet = ["a", "Z", "9", "+", ".", "-", ":", "/", "@", " ", "\n", "://", "h://", "1://", "x@y"]
+        for _ in range(4000):
+            t = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(0, 40)))
+            self.assertEqual(E.strip_userinfo(t), old_strip_userinfo(t), repr(t))
+
+    def test_strip_userinfo_is_linear(self):
+        import time as t_
+        for text in ("remote: " + "abc" * 300000, ("https://" + "a" * 50 + " ") * 20000 + "@x", "a://" * 200000):
+            t0 = t_.monotonic()
+            E.strip_userinfo(text)
+            self.assertLess(t_.monotonic() - t0, 2.0, len(text))
+
+    def _fake_git(self, body):
+        import tempfile
+        d = tempfile.mkdtemp(prefix="sync_unit_r5.")
+        fake = os.path.join(d, "git")
+        with open(fake, "w", encoding="utf-8") as fh:
+            fh.write("#!%s -I\nimport os, sys\n%s\n" % (sys.executable, body))
+        os.chmod(fake, 0o700)
+        return d, fake
+
+    def test_stdout_cap_is_no_answer(self):  # RV4-4: stdout beyond OUT_CAP is "output-too-large", never kept
+        import shutil
+        F = fresh_engine("sync_engine_cap")
+        F.OUT_CAP = 1 << 20
+        d, fake = self._fake_git("c = b'x' * 65536\nfor _ in range(64):\n    os.write(1, c)")
+        try:
+            kind, code, out, _ = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30)
+            self.assertEqual((kind, code, out), ("output-too-large", None, ""))
+        finally:
+            shutil.rmtree(d)  # made by mkdtemp in _fake_git
+
+    def test_stderr_tail_drops_partial_first_line(self):  # RV4-3/4: only the tail is kept, no half URL
+        import shutil
+        F = fresh_engine("sync_engine_tail")
+        body = ("os.write(2, b'https://user:SECRETpw@h.example/x ' + b'y' * (300 * 1024) + b'\\n')\n"
+                "os.write(2, b'last line\\n')\nsys.exit(1)")
+        d, fake = self._fake_git(body)
+        try:
+            kind, code, _, err = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30)
+            self.assertEqual((kind, code), ("exit", 1))
+            self.assertLessEqual(len(err), F.ERR_TAIL + 64)
+            self.assertTrue(err.startswith("[earlier stderr dropped]"), err[:60])
+            self.assertIn("last line", err)
+            self.assertNotIn("yyyy", err)  # the partial first line of the tail is dropped
+        finally:
+            shutil.rmtree(d)  # made by mkdtemp in _fake_git
+
+    def test_stop_interrupts_a_read_never_a_write(self):  # RV4-5
+        import shutil
+        import threading
+        F = fresh_engine("sync_engine_stop")
+        d, fake = self._fake_git("import time\ntime.sleep(3)\nsys.exit(0)")
+        try:
+            threading.Timer(0.3, F.STOP_REQUESTED.set).start()
+            t0 = F.time.monotonic()
+            kind = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30, 1)[0]
+            self.assertEqual(kind, "interrupted")
+            self.assertLess(F.time.monotonic() - t0, 2.5)
+            kind, code = F.proc_run_git(fake, d, ["merge", "--ff-only", SHA], {"PATH": "/usr/bin:/bin"}, 30, 0)[:2]
+            self.assertEqual((kind, code), ("exit", 0))  # a write runs to its end
+            r = F.Runner(fake, 10, F.time.monotonic() + 600)
+            res = r.run(d, ["status"], ok=(0,))
+            self.assertEqual(res.why, "interrupted")  # refused before spawning after a stop
+        finally:
+            shutil.rmtree(d)  # made by mkdtemp in _fake_git
+
+    def test_read_branch_three_states(self):  # RV4-1: detached and unread are told apart
+        r = fake_runner(("exit", 0, "main\n", ""))
+        self.assertEqual(E.read_branch(r, "/r"), ("branch", "main"))
+        r = fake_runner(("exit", 1, "", ""))
+        self.assertEqual(E.read_branch(r, "/r"), ("detached", None))
+        r = fake_runner(("exit", 128, "", "fatal"))
+        self.assertEqual(E.read_branch(r, "/r"), ("unknown", None))
+        r = fake_runner(("exit", 0, "\n", ""))
+        self.assertEqual(E.read_branch(r, "/r"), ("unknown", None))
+        self.assertTrue(r.unresolved_for("/r"))
+
+    def integrate_with(self, tweak):
+        """The Integrate fixture (detached submodule, advance-pins) with one answer of the git model replaced."""
+        fx = Integrate("test_detached_submodule_is_advanced")
+        base = Integrate.make_answer(None)
+
+        def answer(repo, a):
+            got = tweak(repo, a)
+            return got if got is not None else base(repo, a)
+        r = scripted_runner(answer)
+        root, c = fx.tree(None)
+        try:
+            E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
+        finally:
+            fx.tearDown()
+        writes = [a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS]
+        return r, c, writes
+
+    def test_unread_branch_at_write_time_blocks(self):  # RV4-1: an unread symbolic ref is never "detached"
+        r, c, writes = self.integrate_with(
+            lambda repo, a: ("exit", 128, "", "fatal") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
+            else None)
+        self.assertEqual(writes, [])
+        self.assertIn("unresolved:branch-recheck", json.dumps(c.rec["actions"]))
+
+    def test_branch_at_write_time_blocks_a_pin_write(self):  # RV4-1: a user checked out a branch: never detached
+        r, c, writes = self.integrate_with(
+            lambda repo, a: ("exit", 0, "user-branch\n", "") if a[:1] == ["symbolic-ref"] and repo.endswith("libs/a")
+            else None)
+        self.assertEqual(writes, [])
+        self.assertIn("blocked:branch-changed-before-write", json.dumps(c.rec["actions"]))
+
+    def test_moved_head_at_write_time_blocks(self):  # RV4-1: a user commit after inspection is never overwritten
+        r, c, writes = self.integrate_with(
+            lambda repo, a: ("exit", 0, "c" * 40 + "\n", "") if a[:2] == ["rev-parse", "--verify"]
+            and repo.endswith("libs/a") else None)
+        self.assertEqual(writes, [])
+        self.assertIn("blocked:head-changed-before-write", json.dumps(c.rec["actions"]))
+
+    def test_parent_head_tree_changed_blocks(self):  # RV4-2: a commit in the parent moved the gitlink
+        r, c, writes = self.integrate_with(
+            lambda repo, a: ("exit", 0, "160000 commit %s\tlibs/a\0" % ("d" * 40), "")
+            if a[:4] == ["ls-tree", "-r", "-z", "HEAD"] else None)
+        self.assertEqual(writes, [])
+        self.assertIn("blocked:parent-index-changed", json.dumps(c.rec["actions"]))
+
+    def test_head_not_at_target_after_write_is_a_failure(self):  # RV4-1 step 6: the write is verified
+        r, c, writes = self.integrate_with(
+            lambda repo, a: ("exit", 0, SHA + "\n", "") if a[:1] == ["rev-parse"] else None)
+        self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40)])  # never staged after a bad write
+        self.assertTrue(c.rec.get("failed"))
+        self.assertIn("head-not-at-target-after-write", json.dumps(c.rec["actions"]))
+
+    def test_second_signal_is_a_hard_stop(self):  # RV4-5: the second signal also ends the final reads
+        F = fresh_engine("sync_engine_sig")
+        F.on_stop_signal(15, None)
+        self.assertTrue(F.STOP_REQUESTED.is_set())
+        self.assertFalse(F.HARD_STOP.is_set())
+        F.on_stop_signal(15, None)
+        self.assertTrue(F.HARD_STOP.is_set())
+
+    def test_round5_environment_scrub(self):  # RV4-6/7: variables that weaken the call are dropped
+        bad = {"GIT_ALLOW_PROTOCOL": "ext", "GIT_PROTOCOL_FROM_USER": "1", "SSH_ASKPASS_REQUIRE": "force",
+               "GIT_SSL_NO_VERIFY": "1", "GIT_ASKPASS": "/x/ask", "PATH": "/bin"}
+        env = E.git_env(bad)
+        for k in ("GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "GIT_SSL_NO_VERIFY"):
+            self.assertNotIn(k, env)
+        self.assertEqual((env["GIT_ASKPASS"], env["SSH_ASKPASS_REQUIRE"], env["PATH"]), ("", "never", "/bin"))
+
+    def test_scp_like_org_segments(self):  # the linear rewrite of the scp-like test keeps its meaning
+        self.assertEqual(E.url_org_segments("git@github.com:HelixDevelopment/x.git"), ["HelixDevelopment"])
+        self.assertEqual(E.url_org_segments("host:org/x"), ["org"])
+        self.assertEqual(E.url_org_segments("/abs/org/x"), ["abs", "org"])
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # run_all.sh — runs every sync-all-upstreams suite, the CM-SYNC-UPSTREAMS-FF-ONLY gate and its meta-test, and
-# (unless --quick) the stress/chaos, performance, fault-injection and engine paired-mutation suites. Each suite sandboxes
+# (unless --quick) the stress/chaos, performance, fault-injection, robustness (round 5: races, signals, caps,
+# environment) and engine paired-mutation suites. Each suite sandboxes
 # itself under mktemp -d (scripts/sync/fixture_lib.sh: real git against real bare repositories, no network);
 # nothing touches $HOME, the user's git config or this repository. Suites run one after another.
-# Usage: bash tests/sync/run_all.sh [--quick]   (--quick skips chaos, perf, faults, the mutation suites)
+# Usage: bash tests/sync/run_all.sh [--quick]   (--quick skips chaos, perf, faults, robustness, the mutation suites)
 # Exit: 0 every suite and gate passed · 1 at least one failed.
 # Classification: universal (§11.4.17).
 set -uo pipefail
@@ -14,7 +15,7 @@ failed=()
 echo "=== test_unit"
 if python3 -I "$here/test_unit.py"; then echo "=== test_unit OK"; else failed+=(test_unit); fi
 suites=(test_integration test_e2e test_full_automation test_security test_determinism test_ui test_hardening)
-[ "$quick" = 1 ] || suites+=(test_chaos test_perf test_faults)
+[ "$quick" = 1 ] || suites+=(test_chaos test_perf test_faults test_robustness)
 for s in "${suites[@]}"; do
   echo "=== $s"; t0=$SECONDS
   if bash "$here/$s.sh"; then echo "=== $s OK ($((SECONDS-t0))s)"; else failed+=("$s"); echo "=== $s FAILED"; fi

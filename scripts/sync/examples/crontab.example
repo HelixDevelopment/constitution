@@ -1,5 +1,5 @@
 # EXAMPLE ONLY — not installed by anything in this repository. Add with `crontab -e` after replacing the
 # two paths. Runs a CHECK every 6 hours at low priority; the verdict and evidence land under
 # $XDG_CACHE_HOME (default ~/.cache)/helix_sync_upstreams/<project>-<run-id>/. Exit 3 / 4 / 7 are reported states, not failures;
-# exit 5 (INCONCLUSIVE) and 6 (BLIND) mean the check could not conclude.
+# exit 5 (INCONCLUSIVE), 6 (BLIND) and 8 (INTERRUPTED, stopped by a signal) mean the check could not conclude.
 17 */6 * * * nice -n 10 bash CONSTITUTION/scripts/sync/sync_all_upstreams.sh --check --non-interactive --quiet --root PROJECT_ROOT >/dev/null 2>&1

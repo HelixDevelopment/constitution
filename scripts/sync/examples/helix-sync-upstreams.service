@@ -3,7 +3,8 @@
 #   systemctl --user daemon-reload && systemctl --user enable --now helix-sync-upstreams.timer
 # The unit runs a CHECK only (fetch + report, never changes a checkout). Exit 3 = updates available and
 # exit 4 = attention needed are reported states, not failures, so they count as success here; so is
-# exit 7 (another run holds the lock and is doing the check). Exit 5 (INCONCLUSIVE) and 6 (BLIND) fail.
+# exit 7 (another run holds the lock and is doing the check). Exit 5 (INCONCLUSIVE), 6 (BLIND) and 8
+# (INTERRUPTED: stopped by a signal, e.g. TimeoutStartSec) fail.
 [Unit]
 Description=Helix sync-all-upstreams check (fetch every remote, report, change nothing)
 

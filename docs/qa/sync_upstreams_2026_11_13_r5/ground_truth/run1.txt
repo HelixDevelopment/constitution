@@ -1,0 +1,23 @@
+git git version 2.53.0
+D1	ext:: with -c protocol.ext.allow=never, no env	False	OK
+D2	ext:: with -c protocol.ext.allow=never + env GIT_ALLOW_PROTOCOL=ext:file	True	OK
+D3	ext:: with env GIT_ALLOW_PROTOCOL unset and repo config protocol.ext.allow=always + -c never	False	OK
+D4	url.<ext::>.insteadOf rewrite + -c protocol.ext.allow=never	False	OK
+D5	file:// with protocol.file.allow=user + env GIT_PROTOCOL_FROM_USER=0: refused	True	OK
+D6	file:// with protocol.file.allow=user, env GIT_PROTOCOL_FROM_USER unset: allowed	True	OK
+D7	core.askPass in repo config, no env: askpass runs (the r4 finding)	True	OK
+D8	core.askPass in repo config + -c core.askPass= : askpass runs?	False	OK
+D9	core.askPass in repo config + env GIT_ASKPASS='' (set, empty): askpass runs?	False	OK
+D10	env GIT_ASKPASS=prog beats -c core.askPass= (env wins)	True	OK
+D11	env SSH_ASKPASS=prog, GIT_ASKPASS unset, no core.askPass: runs (git falls back to SSH_ASKPASS)	True	OK
+D12	env SSH_ASKPASS=prog + env GIT_ASKPASS='' : runs?	False	OK
+D13	env SSH_ASKPASS=prog + -c core.askPass= (GIT_ASKPASS unset): runs?	False	OK
+D14	credential.helper in repo config runs on 401 (kept by design)	True	OK
+D15	credential.helper + -c credential.interactive=false still runs the helper (git 2.53)	True	OK
+D16	env GIT_SSH_COMMAND vs core.sshCommand: env wins	['envcmd']	OK
+D17	core.sshCommand vs env GIT_SSH: core.sshCommand wins	['cfgcmd']	OK
+D18	env GIT_SSH alone is used when nothing else is set	['gitssh']	OK
+D19	-c core.hooksPath=/dev/null beats repo core.hooksPath (no hook ran)	False	OK
+D20	control needle: without -c the configured hook runs	True	OK
+D21	GIT_CONFIG_PARAMETERS env and -c both given: -c (command line) value read last wins	/dev/null	OK
+D22	GIT_CONFIG_COUNT/KEY/VALUE env and -c both given: value read	/dev/null	OK

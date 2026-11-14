@@ -48,14 +48,18 @@ No. It stages them with `git add -- <path>`. Review `git diff --cached` and comm
 URLs in the report and on screen lose their userinfo (everything up to the last `@` of the line, whatever
 its length), the userinfo of every configured remote is remembered and removed wherever it appears again,
 token-shaped strings and `Authorization:` values are replaced with `[REDACTED]`, git's trace variables
-(`GIT_TRACE*`, `GIT_CURL_VERBOSE`) are dropped, and git is told never to prompt. The security and unit suites
+(`GIT_TRACE*`, `GIT_CURL_VERBOSE`) are dropped, and no askpass program or terminal prompt is used (`GIT_ASKPASS` empty, `core.askPass` empty, no
+terminal, `SSH_ASKPASS_REQUIRE=never`). A `credential.helper` you configured still runs: that is how you
+authenticate. The security and unit suites
 check this with planted tokens of many lengths (control needles prove the planted value would have been
 seen). A secret shorter than 8 characters that git prints on its own, without its URL, is not removed. The
 engine never prints credentials it did not receive in a URL; it does not read credential stores.
 
 **8. Two runs at once?**
-The second exits 7 (`LOCKED`) and does nothing. The lock lives in the repository's git directory and is released by the
-kernel when a run ends or dies, so there is no stale lock to clean up.
+A second run over the same root exits 7 (`LOCKED`) at once. A run over a tree that shares a repository with a
+running one (for example one rooted at a submodule of the other) reads first, then exits 7 when it tries to
+lock that repository, before it fetches or changes anything. Each lock lives in the repository's git directory
+and is released by the kernel when a run ends or dies, so there is no stale lock to clean up.
 
 **9. A remote hangs. Will the run hang?**
 No. Each network call has `--timeout` (its whole process group is killed on expiry) and the run has
@@ -63,8 +67,8 @@ No. Each network call has `--timeout` (its whole process group is killed on expi
 makes the run `INCONCLUSIVE` (exit 5) and that repository `unresolved`. A git call that gives no answer
 for any other reason (killed by a signal, an exit status its call site does not expect, malformed
 output) makes the run `BLIND` (exit 6) and that repository `blind`. In both cases the repository is not
-moved and nothing is concluded about it. A grandchild that escapes the process group delays a call by at
-most 7 seconds; it cannot hold the run.
+moved and nothing is concluded about it. A grandchild that escapes the process group is not waited for
+once git itself has exited; a call that times out is reaped with a 5 s limit.
 
 **10. Why is the evidence not in my project?**
 So the run never changes your work tree. `--out` inside the work tree is refused (exit 2). An `--out` directory

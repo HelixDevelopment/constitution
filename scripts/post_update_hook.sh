@@ -1191,7 +1191,7 @@ check_upstream_sync() {
     # shellcheck source=sync/sync_step_lib.sh
     . "$lib"
     sync_step "$([ "$m" = fetch ] && echo check || echo offline)" "$PROJECT_ROOT" "$CONST_DIR/scripts/sync/sync_all_upstreams.sh" || :
-    if [ "$SYNC_STEP_VERDICT" = BLIND ] || [ "$SYNC_STEP_VERDICT" = INCONCLUSIVE ]; then
+    if [ "$SYNC_STEP_VERDICT" = BLIND ] || [ "$SYNC_STEP_VERDICT" = INCONCLUSIVE ] || [ "$SYNC_STEP_VERDICT" = INTERRUPTED ]; then
         warn "upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)"; WARNINGS+=("upstream sync check: $SYNC_STEP_VERDICT (exit $SYNC_STEP_RC)")
     else
         info "upstream sync check: $SYNC_STEP_VERDICT"

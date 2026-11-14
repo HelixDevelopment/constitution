@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-13T20:26:13Z |
+| Last modified | 2026-11-14T00:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Task-oriented guide for `scripts/sync/sync_all_upstreams.sh`: check, apply, interactive use, setup and post-update integration, scheduling. |
 | Authority | Constitution §11.4.37, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.288(D). The canonical text wins where this guide and the constitution disagree. |
@@ -57,9 +57,13 @@ bash <constitution>/scripts/sync/sync_all_upstreams.sh --apply
 * Submodule pins you recorded in a parent move only with `--advance-pins` (own-organisation submodules;
   add `--advance-third-party` for the rest). The new pin is **staged** (`git add`), never committed:
   review and commit it yourself.
-* A submodule you checked out on a local branch is never detached, neither to follow its parent nor by
-  `--advance-pins`. It is reported `kept-on-branch:follow-pin` or `kept-on-branch:advance-pin` (attention):
+* A submodule that is on a local branch when the run inspects it, and still on it when the write re-checks
+  it, is not detached, neither to follow its parent nor by `--advance-pins`. (A branch checked out in the
+  few milliseconds between that re-check and git's own write is not detected; the report then shows it.) It is reported `kept-on-branch:follow-pin` or `kept-on-branch:advance-pin` (attention):
   switch it back yourself when you mean it.
+* A pin you STAGED yourself in a parent (or one an earlier `--advance-pins` run staged and you have not
+  committed yet) is never replaced: it is reported `gitlink-staged:<path>` (attention, exit 4) until you
+  commit it, and a further advance of that path is refused (`blocked:parent-index-changed`).
 * If the constitution itself moved, the tool prints the `post_update_hook.sh` command for you to run. It
   never runs fetched code.
 
@@ -101,12 +105,13 @@ line). They run `--check` only and are **not installed** by anything: copying th
 |---|---|---|
 | 0 | `CURRENT` / `APPLIED` | Everything is on its upstream main (after `--apply`: everything that could move, moved). |
 | 3 | `UPDATES-AVAILABLE` | Something is behind and nothing else needs you. Run `--apply`. |
-| 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main, a symbolic link or a file where a submodule should be (`pin-not-a-directory`), a submodule left on its branch (`kept-on-branch:…`), an ignored file the move would overwrite, a submodule moved on its own branch (modified gitlink), a branch deleted upstream. |
-| 5 | `INCONCLUSIVE` | A git call ran out of time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. A timed-out call is stopped within at most 7 more seconds (2 s to collect, then at most 5 s to reap). |
+| 4 | `ATTENTION` | Something needs a human: diverged, ahead, dirty, unreachable remote, a pin not on main, root not on main, a symbolic link or a file where a submodule should be (`pin-not-a-directory`), a submodule left on its branch (`kept-on-branch:…`), an ignored file the move would overwrite, a submodule moved on its own branch (modified gitlink), a branch deleted upstream, a staged pin (`gitlink-staged:…`), a write a re-check refused (`write-blocked:…`), a gitlink path that is unsafe or leads outside its parent. |
+| 5 | `INCONCLUSIVE` | A git call ran out of time (`--timeout`, `--deadline`); those repositories are `unresolved` and were not moved. Re-run with more time. On expiry the call's process group is killed and git is reaped with a 5 s limit; no fixed total is promised for the stop. |
 | 1 | `FAILED` | An integration step failed, or a submodule cannot fetch the pin its parent moved to (`follow-blocked:new-pin-unfetchable`; the submodule stays where it was); the report names it. |
-| 2 | usage | Bad arguments, `--out` inside the work tree or holding a report file this engine did not write (or a link, a FIFO), `--interactive` without a terminal. |
+| 2 | usage | Bad arguments; `--out` (or the default evidence directory) inside the work tree after symbolic links are resolved, not writable when the run starts, or holding a report file this engine did not write (or a link, a FIFO); a relative cache directory; `--interactive` without a terminal. Nothing was done. |
 | 6 | `BLIND` | The self-check (control needle) failed, or a git call gave no answer for another reason (killed by a signal, an exit status the call does not expect, output of the wrong shape), or a submodule's `.git` cannot be read (a broken `gitdir:` pointer, an unknown repository extension, dubious ownership); the repositories concerned are `blind` and were not moved. |
-| 7 | `LOCKED` | Another run holds the lock; nothing was done. |
+| 7 | `LOCKED` | Another run holds the lock of this root or of a repository of this tree; nothing was fetched or changed. |
+| 8 | `INTERRUPTED` | A stop signal arrived. Read-only calls in flight were stopped, a write in flight was finished, and the report says what moved. Re-run. |
 
 Per-repository lines show the path, the result and the reasons, for example
 `libs/a   attention   dirty-tree`. With `--quiet` only the `current` lines are left out: a `blind`,

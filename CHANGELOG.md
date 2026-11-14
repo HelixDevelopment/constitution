@@ -2,7 +2,7 @@
 
 ## Unreleased — 2026-11-12 — sync every upstream of a project tree, fast-forward only (`scripts/sync/`), wired into `setup.sh` (interactive and non-interactive) and `post_update_hook.sh` (read-only check)
 
-**Status of this entry: UNRELEASED; implemented and tested on host fixtures only (real git against real bare repositories in scratch directories, no network, no forge); not VERIFIED-DONE; pending independent review (CON-PENDING-SYNC-UPSTREAMS). Independent review round 1 of `1752be71`: NO-GO (1 critical, 5 important, 7 minor, 3 nit). Independent review round 2: NO-GO (findings I-1 to I-4, S-1, m-1 to m-5, n-1 to n-6), fixed in round 3 (a structural round, §11.4.276(E)). Independent review round 3: NO-GO (F1, F2, F4, F5, F8, F9 important; F3, F6 minor; F7 nit); the round-4 fixes below (a structural round past `R_max`; rounds continue until GO, operator decision 2026-11-11) have not been reviewed yet.** Operator order 2026-11-12 22:26 (relayed): regularly fetch and pull from all upstreams and all submodules recursively, and build that into every first-time init / setup mechanism, with tests of every supported type.
+**Status of this entry: UNRELEASED; implemented and tested on host fixtures only (real git against real bare repositories in scratch directories, no network, no forge); not VERIFIED-DONE; pending independent review (CON-PENDING-SYNC-UPSTREAMS). Independent review round 1 of `1752be71`: NO-GO (1 critical, 5 important, 7 minor, 3 nit). Independent review round 2: NO-GO (findings I-1 to I-4, S-1, m-1 to m-5, n-1 to n-6), fixed in round 3 (a structural round, §11.4.276(E)). Independent review round 3: NO-GO (F1, F2, F4, F5, F8, F9 important; F3, F6 minor; F7 nit); the round-4 fixes below (a structural round past `R_max`; rounds continue until GO, operator decision 2026-11-11) were reviewed in round 4: NO-GO (RV4-1 to RV4-9 important, RV4-10 to RV4-15 minor). The round-5 fixes (a structural round by a fresh fixer, §11.4.276(E)) are PROVISIONAL and have not been reviewed yet.** Operator order 2026-11-12 22:26 (relayed): regularly fetch and pull from all upstreams and all submodules recursively, and build that into every first-time init / setup mechanism, with tests of every supported type.
 
 #### What changed
 
@@ -112,6 +112,81 @@ Every fix covers the whole class the finding belongs to, not only the reported l
 - A clean or smudge filter configured by the user still runs (`git status`, checkout, merge); the engine does not disable filters.
 - Not pursued: two remotes whose names overlap as a path prefix (`a` and `a/b`); a mutant of the `SYNC_STEP_EXTRA_ARGS` check in `sync_step_lib.sh`.
 - UNCONFIRMED: behaviour against a real forge (HTTPS credentials, ssh keys, rate limits), including whether a real forge's error text carries an `Authorization:` header in the shape the redaction covers; F1 with dubious ownership through the engine (needs a change of file owner); an unregistered multi-line userinfo keeps the part after its newline (F9b boundary).
+
+#### Review round 4 (independent): NO-GO, fixed in round 5 (a structural round by a fresh fixer; PROVISIONAL)
+
+Evidence: `docs/qa/sync_upstreams_2026_11_13_r5/` (`README.md` there has the per-finding table, `class_inventory.md`
+the four classes the review named plus the evidence directory, `SHA256SUMS`). Evidence class: gate-logic / unit class
+per §11.4.289 (local `file://` bare repositories, loopback ports, a git shim that plays the user); nothing here was run
+against a forge.
+
+- RV4-1 (write-time TOCTOU): `write_git` re-reads, as its last checks before git starts, the status, the in-progress
+  markers, the ignored files, for a pin the parent's index and its HEAD tree, then HEAD and the symbolic ref; after the
+  write HEAD and the ref are read again. A blocked write is the reason `write-blocked:<why>` (attention, exit 4). A head
+  that moved during the run, but not to what this run wrote, is `head-changed-during-run`. The milliseconds between the
+  last read and git's own ref lock remain; that window is stated, not claimed closed.
+- RV4-2 (staged gitlinks): a gitlink staged by the user is reported `gitlink-staged:<path>` (attention) and never
+  written over. Decision 2026-11-14: a stage equal to the checkout is not re-advanced either, so after `--advance-pins`
+  a check reports attention until the user commits the pin.
+- RV4-3: `redact()` is linear. Measured on this host, best of 5: at most 0.037 s for a 256 KiB line, 0.118 s for 1 MiB
+  (`green/redaction_timing.txt`; other hosts UNCONFIRMED). The round-4 follow-up on quadratic time is closed.
+- RV4-4: git output is read through a capped reader (stdout capped, stderr kept as its tail); too much output is a
+  no-answer (`output-too-large`); reading stops once git has exited, so an escaped grandchild holding a pipe is not
+  waited for.
+- RV4-5: SIGTERM, SIGINT and SIGHUP stop read-only calls (their own process group, pgid > 1, §11.4.263), let a write in
+  flight finish, re-read the heads (each final read at most 10 s), write the report and exit 8 `INTERRUPTED`; a second
+  signal stops the final reads too.
+- RV4-6: `GIT_ASKPASS` is set empty, `core.askPass=` is pinned, `SSH_ASKPASS` is dropped, `SSH_ASKPASS_REQUIRE=never`,
+  `credential.interactive=false`. A configured `credential.helper` still runs (stated).
+- RV4-7: `GIT_ALLOW_PROTOCOL` and `GIT_PROTOCOL_FROM_USER` are dropped; the precedence table was re-derived from git
+  2.53 itself (ground truth D1 to D24, run twice, identical). A repository `remote.<name>.uploadpack` cannot be
+  overridden by `-c` (D24) and is a stated boundary, like `core.sshCommand`.
+- RV4-8: `--out` (and the default) is resolved, must lie outside the tree, and is created and probed with a real file
+  before anything else (exit 2, nothing done); evidence that cannot be written after a write is exit 1, never 2.
+- RV4-9: of the ten mutants named, nine are killed by behaviour alone (`--no-gate`). V16 is behaviourally equivalent
+  (ground truth D12/D13) and killed only by the static gate. The full table of 189 mutants (34 of them new this round)
+  first ended with 10 survivors; new or extended live checks (`escaped_after_exit`, `auth_header`, `race_other`,
+  `no_new_call`, `final_cap`, and new cases in `out_unwritable`, `lock_symlink`, `default_out_relative`) kill eight of
+  them, and the gate kills V16 and P34 (both behaviourally equivalent). Re-run of the 10: 10 killed. The full table was
+  not re-run on the final tree (UNCONFIRMED).
+- RV4-10 (`submodule.<name>.update=none` not read by a follow-pin): scoped out, tracked as `SYNC-R5-OPEN-1`.
+- RV4-11: every repository of the tree is locked (its git common dir, `O_NOFOLLOW`, non-blocking) before any fetch or
+  write; a run that cannot take a lock exits 7. RV4-12: the default evidence directory is checked like `--out`, and a
+  relative cache directory is refused. RV4-13: unsafe gitlink paths are reported `pin-unsafe-path`. RV4-14: a caller's
+  `GIT_SSH_COMMAND` is not honoured (documented). RV4-15: a submodule reached through a link leaving its parent is
+  `pin-outside-parent`.
+- Test oracles corrected this round: the `auth_header` check of round 4 could not fail (a fetch's stderr is never
+  printed), and four checks could not reach the closure they named (M53, P24, P29, P33 above). The race shim
+  (`scripts/sync/race_git_shim.py`, test-only) gained two opt-in variables: `SXR_LOG` (every call logged) and
+  `SXR_HANG_AFTER` (a subcommand that hangs after the user's action).
+- Documentation claims corrected: "git never prompts" (a configured credential helper runs), "Bounded" (the design;
+  hostile clean/smudge filters and diff drivers are a stated boundary), "within 7 more seconds" and "never detached"
+  (user guide), "the second run exits 7" (FAQ 8), "one fcntl lock per project", the `--out` rule, the `ext::`
+  guarantee, and "a 256 KiB line takes milliseconds" (replaced by the measured figure).
+
+#### Round-5 evidence (this host, gate-logic / unit class per §11.4.289: local `file://` bare repositories, loopback, no forge)
+
+- RED on the round-4 engine: the new live suite `tests/sync/test_robustness.sh` `PASS 43 FAIL 43`; each check added
+  for a surviving mutant was RED on that mutant before it counted (`red/red_<mutant>_<check>.txt`).
+- Every suite, twice, on the final tree, identical (`green/run1`, `green/run2`, `green/compare.txt`): unit 83/0,
+  integration 149/0, e2e 24/0, full_automation 34/0, security 83/0, determinism 15/0, ui 26/0, hardening 119/0,
+  chaos 58/0, perf 13/0, faults 21/0, robustness 114/0, gate PASS, gate meta-test PASS (83 cases).
+- `scripts/run_full_suite.sh --verify-manifest`: MANIFEST-OK (census total 919, after `--generate-manifest --write`
+  and `--sync-guide`), twice. `CM-GATE-LEDGER-RATCHET`: PASS (unimplemented 394, baseline 394), twice.
+
+#### Open follow-ups (not fixed in round 5)
+
+- `SYNC-R5-OPEN-1`: a follow-pin does not read `submodule.<name>.update=none` (RV4-10).
+- `SYNC-R5-OPEN-3`: a standard output closed before the run ends gives Python's exit 120 (no traceback, reports
+  written); a caller reads 120 as BLIND (`green/sigpipe_probe.txt`).
+- `SYNC-R5-OPEN-4`: the INTERRUPTED branches added to `setup.sh` (exit 8 fails the sync step) and `post_update_hook.sh` (warned like BLIND) have no test, and neither has the exit-8 mapping in `sync_step_lib.sh` (`INTERRUPTED`); the engine's exit 8 itself is tested (`sigterm_*`, `sigint_fetch`).
+- `CM-KILLPG-PGID-GUARD` (§11.4.263) still PASSes on the round-3 reviewer mutant X04; only this vehicle's gate
+  refuses it. Outside this vehicle.
+- Operator question (§11.4.66), defaults not changed: `setup.sh --sync-upstreams` defaults to `off`, and
+  `post_update_hook.sh` STEP 5c to `offline` (`--check --no-fetch`).
+- Carried from round 4: a child that cannot follow its parent's new pin is `failed` after the parent moved; evidence
+  directories have no retention; `tests/install/test_lock.sh` reclaim race; behaviour against real forges is
+  UNCONFIRMED.
 
 ## Unreleased — 2026-11-12 — SonarQube registry authentication (§11.4.184(J), extension): `scripts/sonarqube/registry_login.sh`, called before the compose pull
 

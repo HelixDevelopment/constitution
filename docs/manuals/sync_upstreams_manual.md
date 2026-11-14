@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-13T20:26:13Z |
+| Last modified | 2026-11-14T00:00:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
 | Scope | Universal (§11.4.17); consumed by reference. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
+| Fixed | revision 5: review round 4 (NO-GO) RV4-1–RV4-15 (write-time re-read of HEAD, branch and the parent's HEAD-tree gitlink; staged gitlinks reported; linear redaction; capped output; stop signals end in a report, exit 8; askpass and protocol variables pinned or dropped; evidence directory probed before any write; one lock per repository of the tree; unsafe and outside-parent gitlink paths reported) and the false claims of revision 4 corrected; revision 4: review round 3 (NO-GO) F1–F9 (a submodule git cannot read is BLIND and printed under `--quiet`; `head_after` re-read after the whole pass; `--advance-pins` never detaches a branch; userinfo cut to the end of the line, remembered secrets removed anywhere; trace variables dropped; the one signal point checks the child's own group); revision 2: review round 2 (NO-GO) fixes F1–F13, N3; revision 3: review round 2 of the fixes (NO-GO) I-1–I-4, S-1, m-1–m-5, n-1–n-6 |
 | Fixed summary | Fetch never deletes or rewrites a ref; no repository hook or fsmonitor runs; every git call declares which exit statuses are an answer, and a call with no answer makes the run BLIND (exit 6; INCONCLUSIVE, exit 5, when it only ran out of time), never "absent" or "clean"; one guarded writer re-checks the tree and ignored files before every move; distinct exit codes 5/6/7. |
 | Continuation | — |
 
@@ -39,6 +39,7 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 | `scripts/sync/sync_all_upstreams.py` | The engine (standard library only). |
 | `scripts/sync/sync_step_lib.sh` | `sync_step MODE ROOT ENGINE` — the shared step used by `setup.sh` and `post_update_hook.sh`; sets `SYNC_STEP_RC` and `SYNC_STEP_VERDICT`. |
 | `scripts/sync/fixture_lib.sh` | Test fixture library (scratch sandboxes of real bare repositories). |
+| `scripts/sync/robustness_checks.py`, `scripts/sync/race_git_shim.py` | Live robustness checks (`tests/sync/test_robustness.sh`) and the test-only shim that plays a USER acting while a run is in flight (never a stand-in for git). |
 | `scripts/sync/examples/` | systemd user service + timer and a cron line. Not installed. |
 | `scripts/gates/cm_sync_upstreams_ff_only.sh` (+ `_mutation_test.sh`) | Gate `CM-SYNC-UPSTREAMS-FF-ONLY`. |
 | `tests/sync/` | The test suites; `run_all.sh` runs them all. |
@@ -59,10 +60,10 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 | `--strict-pins` | Absent / uninitialised submodules count as attention. |
 | `--own-org ORG` | Own organisation (repeatable). Default: `vasic-digital`, `HelixDevelopment`. |
 | `--jobs N` | Parallel fetches. Clamped to `1 .. min(8, cpus/2)`. |
-| `--timeout S` | Seconds per network git call (a local call gets `max(S, 60)`); on expiry the call's own process group is killed (never pgid ≤ 1, §11.4.263) and the call returns after at most 7 more seconds (2 s to collect its output, then at most 5 s to reap it) even when an escaped grandchild still holds its pipe. |
+| `--timeout S` | Seconds per network git call (a local call gets `max(S, 60)`); on expiry the call's own process group is killed (never pgid ≤ 1, §11.4.263), the pipes are closed and git is reaped with a 5 s limit; a grandchild that escaped the group and still holds a pipe is not waited for (reading stops as soon as git itself has exited). |
 | `--deadline S` | Seconds for the whole run; a call that would start after it is not run: a fetch is reported `not-fetched-deadline`, a local call makes its repository `unresolved`. |
 | `--max-depth N` | Submodule recursion depth (default 32); cycles are cut. |
-| `--out DIR` | Evidence directory; must be outside the project work tree. Default `$XDG_CACHE_HOME/helix_sync_upstreams/<project>-<run-id>/` (`~/.cache` when unset). A `sync_report.json` or `sync_report.tsv` already there is replaced only when it is a regular file that this engine wrote; anything else (your own file, a symbolic link, a FIFO, a directory) is refused with exit 2 and left as it is. |
+| `--out DIR` | Evidence directory. It is resolved (symbolic links followed) and must lie outside the project work tree, and it must be writable: it is created and probed with a real temporary file BEFORE anything else happens; either failure is exit 2 with nothing done. Default `$XDG_CACHE_HOME/helix_sync_upstreams/<project>-<run-id>/` (`~/.cache` when unset), checked the same way (a cache directory that is a link into the project is refused; a relative `XDG_CACHE_HOME` or `HOME` without `--out` is refused). A `sync_report.json` or `sync_report.tsv` already there is replaced only when it is a regular file that this engine wrote; anything else (your own file, a symbolic link, a FIFO, a directory) is refused with exit 2 and left as it is. |
 | `--run-id ID` | `[A-Za-z0-9._-]{1,80}`; default `<UTC time>-<pid>`. |
 | `--quiet` | Print only repositories that are not current (a `blind`, `not-initialised`, `unresolved` or `failed` one included; only `current` rows are left out). |
 | `--interactive` | Ask on `/dev/tty` before fetching, fast-forwarding and staging pins; default answer no. |
@@ -70,8 +71,11 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 
 ## Run order
 
-1. **Lock** `<git-common-dir>/helix-sync-upstreams.lock` (`fcntl`; a second run exits 7 `LOCKED` and
-   does nothing; the kernel drops the lock when a run dies).
+1. **Lock** `<git-common-dir>/helix-sync-upstreams.lock` of the root (`fcntl`, `O_NOFOLLOW`, non-blocking: a
+   second run over the same root exits 7 `LOCKED` and does nothing; the kernel drops the lock when a run dies).
+   After discovery (step 3) and BEFORE any fetch or write, the same lock is taken in the git common directory of
+   EVERY repository of the tree; a run rooted at a submodule while a whole-tree run holds that submodule (or the
+   other way round) exits 7 before it fetches or changes anything.
 2. **Control needle** (§11.4.273): `rev-list --count HEAD ≥ 1` and `HEAD...HEAD == 0 0` on the root. If
    the instrument cannot see that, the run is `BLIND` (exit 6) and no zero is believed.
 3. **Discovery**: gitlinks (`git ls-files -s`, mode 160000) of every initialised repository, recursively.
@@ -106,7 +110,17 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
    reason `kept-on-branch:advance-pin`). A child whose new pin is not present and cannot be fetched is `failed`
    (`follow-blocked:new-pin-unfetchable`, exit 1) and stays where it was. After the whole pass, HEAD is read
    again in EVERY initialised repository (`head_after`), whatever path the repository took; a head that cannot
-   be read then is a no-answer, never a copy of `head_before`. A submodule that is itself on
+   be read then is a no-answer, never a copy of `head_before`.
+   Every write (fast-forward, follow, advance) first re-reads, as its LAST checks before git starts: the
+   status and in-progress markers, the ignored files, for a pin the parent's index AND its HEAD tree at that
+   path (both must still record the gitlink this run discovered), then HEAD (it must be the commit inspection
+   read) and the symbolic ref (a fast-forward needs the same branch, a pin write a detached HEAD). Any change
+   refuses the write (`blocked:head-changed-before-write`, `blocked:branch-changed-before-write`,
+   `blocked:parent-index-changed`; `unresolved:<check>` when a re-read gave no answer). After the write, HEAD
+   and the symbolic ref are read again: HEAD not at the target, or a changed branch, is `failed`. A head that
+   moved during the run but not to what this run wrote is reported `head-changed-during-run` (attention).
+   What remains is the window of a few milliseconds between these reads and git's own ref lock: a change made
+   inside it is reported afterwards, not prevented. A submodule that is itself on
    `<branch>` is fast-forwarded like a root; its parent then shows a modified gitlink, which is reported
    (`gitlink-modified:<path>`, attention) and never staged without `--advance-pins`.
 7. **Evidence** written atomically; verdict printed.
@@ -129,17 +143,20 @@ failed fetch: `timeout`, `deadline`, `refused-by-engine`, `git-not-runnable`, `t
 **Pin state** (`pin.state`, §11.4.233(G), §11.4.288(D)): `at-main`, `behind-main`, `on-main-not-newest`,
 `not-on-main`, `not-on-any-remote`, `unfetchable`, `absent`, `uninitialised`, `not-a-directory` (a file or a
 symbolic link where the submodule should be), `cycle` (the same repository, by its real path, reached a second
-time: never inspected twice),
+time: never inspected twice), `unsafe-path` (a gitlink path the engine will not use: leading `-`, a backslash,
+`..`, an absolute path; reported, never omitted), `outside-parent` (a directory on the way to the submodule is a
+symbolic link that leaves the parent's work tree; not inspected),
 `unreadable` (see Discovery: always a no-answer); `pin.checkout` is
 `at-pin` or `drifted`. "On main" means contained in exactly `refs/remotes/<remote>/<branch>` of a
 remote that still has `<branch>`; `refs/remotes/<remote>/feature/main` does not count.
 
 **Result** (`result`): `current`, `behind`, `updated`, `attention`, `blind`, `unresolved`, `failed`,
-`not-initialised`. Every git call declares which exit statuses are an answer for it (for example 0 and 1
+`not-initialised`, `interrupted` (only calls that a stop signal ended or refused). Every git call declares which exit statuses are an answer for it (for example 0 and 1
 for `merge-base --is-ancestor`) and, where it reads a value, the shape that value must have. A call that
 ends otherwise gives NO ANSWER and is listed in `unresolved: ["<subcommand>:<why>"]`, `why` being
 `signal:<n>`, `rc:<n>` (an undeclared exit status), `malformed-output` (exit 0, wrong shape), `refused`,
-`not-runnable`, `fetch-head-unreadable`, `timeout` or `deadline`; also `lstat:unreadable` (a path or `.git` the
+`not-runnable`, `fetch-head-unreadable`, `output-too-large` (more than 128 MiB on stdout), `interrupted` (a stop
+signal), `timeout` or `deadline`; also `lstat:unreadable` (a path or `.git` the
 engine could not `lstat`), `rev-parse:not-own-toplevel` and, in `--apply` only, `rev-parse:head-after-not-read`
 (defence in depth: the integration pass reads every head, so this entry means the pass did not finish). Such a repository is `blind`, or
 `unresolved` when every such call only ran out of time; either way nothing about it is concluded and the
@@ -157,13 +174,17 @@ the engine cannot read counts as in progress: `<name>?unreadable`),
 `pin-checkout-drifted`, `head-unreadable` (HEAD could not be read as a full object id: unborn, an error,
 empty or odd output; the repository is never integrated), `ignored-file-would-be-overwritten`, `gitlink-modified:<path>`,
 `upstream-branch-gone:<remote>`, `kept-on-branch:<follow-pin|advance-pin>` (a submodule on a local branch was
-left on it), always `pin-not-a-directory`, `pin-cycle`, `pin-unreadable`, and with `--strict-pins`
+left on it), `gitlink-staged:<path>` (the index records a gitlink for `<path>` that HEAD's tree does not: a pin
+someone staged and did not commit, an earlier `--advance-pins` run included; it is never written over and does not
+hold back the rest of the repository), `head-changed-during-run`, `write-blocked:<why>`, always
+`pin-not-a-directory`, `pin-cycle`, `pin-unreadable`, `pin-unsafe-path`, `pin-outside-parent`, and with `--strict-pins`
 `pin-absent`, `pin-uninitialised`.
 
 **Actions** (`actions[]`): `fast-forward`, `follow-pin`, `advance-pin`, or `none` with a `why`, for example
 `follow-skipped:drifted-or-dirty`, `follow-skipped:submodule-on-branch`, `advance-skipped:submodule-on-branch`,
 `follow-skipped:index-differs`,
 `follow-blocked:new-pin-unfetchable`, `blocked:tree-changed-before-write`, `blocked:parent-index-changed`,
+`blocked:head-changed-before-write`, `blocked:branch-changed-before-write`, `interrupted`,
 `ignored-file-would-be-overwritten`, `unresolved:<check>` (a re-check before the write gave no answer).
 
 ## Exit codes and verdicts
@@ -172,16 +193,17 @@ left on it), always `pin-not-a-directory`, `pin-cycle`, `pin-unreadable`, and wi
 |---|---|---|
 | 0 | `CURRENT` / `APPLIED` | Nothing behind, nothing needs attention. |
 | 1 | `FAILED` | An integration step failed. |
-| 2 | usage | Bad arguments, `--out` inside the work tree or holding a report file this engine did not write, no terminal for `--interactive`, evidence not writable. |
+| 2 | usage | Bad arguments; `--out` (or the default evidence directory) inside the work tree, not writable when the run starts, or holding a report file this engine did not write; a relative cache directory; no terminal for `--interactive`. Nothing was done. Evidence that cannot be written at the END of a run (after a write) is exit 1, never 2; every move is then printed. |
 | 3 | `UPDATES-AVAILABLE` | Something is behind (check, dry-run, or still behind after apply: a declined prompt, or a pin without `--advance-pins`). |
 | 4 | `ATTENTION` | At least one reason above. |
 | 5 | `INCONCLUSIVE` | A local git call ran out of time (`--timeout`) or a call would have started after the `--deadline`, and nothing else gave no answer; those repositories are `unresolved`. Re-run with a larger `--timeout` / `--deadline`. |
 | 6 | `BLIND` | The control needle failed, the root or its git directory could not be read (also: the start directory holds a `.git` git cannot read, exit 128), a submodule could not be read, or a git call gave no answer for any other reason (killed by a signal, an exit status its call site does not declare, malformed output, refused, not runnable); those repositories are `blind`. Investigate before re-running. |
-| 7 | `LOCKED` | Another sync run holds the lock; nothing was done. |
+| 7 | `LOCKED` | Another sync run holds the lock of this root or of a repository of this tree; nothing was fetched or changed. |
+| 8 | `INTERRUPTED` | A stop signal (SIGTERM, SIGINT, SIGHUP) arrived. Calls in flight that only read were stopped; a write in flight was finished, never cut; the heads were read again (at most 10 s each; a second signal stops that too) and the report says what moved. Re-run. |
 
-Precedence: `BLIND` > `FAILED` > `INCONCLUSIVE` > `ATTENTION` > `UPDATES-AVAILABLE` > `CURRENT`.
-`sync_step_lib.sh` maps 0/3/4/1/5/7/6 to `CURRENT`/`UPDATES-AVAILABLE`/`ATTENTION`/`FAILED`/
-`INCONCLUSIVE`/`LOCKED`/`BLIND`; any other code (2 included) reads as `BLIND`.
+Precedence: `INTERRUPTED` > `BLIND` > `FAILED` > `INCONCLUSIVE` > `ATTENTION` > `UPDATES-AVAILABLE` > `CURRENT`.
+`sync_step_lib.sh` maps 0/3/4/1/5/7/6/8 to `CURRENT`/`UPDATES-AVAILABLE`/`ATTENTION`/`FAILED`/
+`INCONCLUSIVE`/`LOCKED`/`BLIND`/`INTERRUPTED`; any other code (2 included) reads as `BLIND`.
 
 ## Evidence
 
@@ -203,8 +225,8 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
 
 | Where | How |
 |---|---|
-| `scripts/setup.sh` | `--sync-upstreams=off|check|apply|ask` or `CONSTITUTION_SYNC_UPSTREAMS`; default `off` (hint only). `ask` → `--interactive`; `check` / `apply` → `--non-interactive`. Only an `apply` failure fails setup. `--check-only` exits before this step. |
-| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND` and `INCONCLUSIVE` are warnings. |
+| `scripts/setup.sh` | `--sync-upstreams=off|check|apply|ask` or `CONSTITUTION_SYNC_UPSTREAMS`; default `off` (hint only). `ask` → `--interactive`; `check` / `apply` → `--non-interactive`. Only an `apply` failure (or an `apply` run that was interrupted) fails setup. `--check-only` exits before this step. |
+| `scripts/post_update_hook.sh` STEP 5c | `CONSTITUTION_SYNC_CHECK=offline` (default, `--check --no-fetch`), `fetch` (`--check`), `off`. Read-only; never fails the hook; `BLIND`, `INCONCLUSIVE` and `INTERRUPTED` are warnings. |
 | Scheduling | `scripts/sync/examples/` (not installed). |
 
 ## Safety properties
@@ -219,32 +241,62 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
 * Every git call runs as `git -C <repo> -c core.hooksPath=/dev/null -c core.fsmonitor=false -c
   submodule.recurse=false -c gc.auto=0 -c maintenance.auto=false -c merge.autoStash=false -c
   protocol.ext.allow=never -c fetch.prune=false -c fetch.pruneTags=false -c fetch.recurseSubmodules=false
-  --no-optional-locks <args>`: no hook (a tracked `.githooks` with `core.hooksPath` included) and no
-  fsmonitor of the repository runs.
+  -c core.askPass= -c credential.interactive=false --no-optional-locks <args>`: no hook (a tracked `.githooks`
+  with `core.hooksPath` included) and no fsmonitor of the repository runs. A `-c` pair beats every config file,
+  but NOT `GIT_ALLOW_PROTOCOL` or `GIT_ASKPASS` in the environment (measured, git 2.53:
+  `docs/qa/sync_upstreams_2026_11_13_r5/ground_truth/`), so the engine drops the first and sets the second
+  empty: an `ext::` URL (also one produced by `url.<x>.insteadOf`) is refused whatever the caller's
+  environment or the repository's config says.
 * Credentials (§11.4.10): URL userinfo is stripped (for every `scheme://` the token runs to the END OF THE
   LINE, with no length limit, and everything up to its LAST `@` goes; a later `@` on the same line removes
   more, never less), the userinfo of every configured remote URL is remembered before the first fetch and
   each remembered piece of 8 characters or more is removed wherever it appears (git stderr that quotes it
   without its URL included), `Authorization:` header values and token-shaped strings are replaced with
   `[REDACTED]`, report KEYS are redacted as well as values, a usage error and an unexpected exception print
-  redacted text; git never prompts (`GIT_TERMINAL_PROMPT=0`, ssh `BatchMode=yes`, every call in a new
-  session without a controlling terminal); ambient `GIT_DIR`-class variables, every `GIT_TRACE*` variable
-  (`GIT_TRACE2*` included), `GIT_CURL_VERBOSE`, `GIT_REDACT_COOKIES` and `GIT_CONFIG_KEY_*` /
-  `GIT_CONFIG_VALUE_*` are dropped. A repository that sets
-  `core.sshCommand` keeps it (`repos[].ssh = "core.sshCommand"`; it still cannot prompt).
+  redacted text. No askpass program runs and nothing reads the terminal: `GIT_TERMINAL_PROMPT=0`,
+  `GIT_ASKPASS` set EMPTY (it beats `core.askPass`), `core.askPass` pinned empty, `SSH_ASKPASS` dropped and
+  `SSH_ASKPASS_REQUIRE=never`, `GCM_INTERACTIVE=never`, `credential.interactive=false`, ssh `BatchMode=yes`,
+  every call in a new session without a controlling terminal and with stdin `/dev/null`. A configured
+  `credential.helper` still runs (that is how a user authenticates; git runs it even with
+  `credential.interactive=false`). Ambient `GIT_DIR`-class variables, `GIT_EXEC_PATH`, `GIT_SSH`,
+  `GIT_PROXY_COMMAND`, `GIT_ALLOW_PROTOCOL`, `GIT_PROTOCOL_FROM_USER`, `GIT_SSL_NO_VERIFY`, every `GIT_TRACE*`
+  variable (`GIT_TRACE2*` included), `GIT_CURL_VERBOSE`, `GIT_REDACT_COOKIES`, `GIT_CONFIG_PARAMETERS`,
+  `GIT_CONFIG_COUNT` and `GIT_CONFIG_KEY_*` / `GIT_CONFIG_VALUE_*` are dropped. `GIT_SSH_COMMAND` from the
+  caller's environment is NOT honoured: the engine sets its own (`ssh -o BatchMode=yes -o ConnectTimeout=10`).
+  A repository that sets `core.sshCommand` keeps it (`repos[].ssh = "core.sshCommand"`; the call still has no
+  terminal and `SSH_ASKPASS_REQUIRE=never`). The full table, with the ground truth of each row, is
+  `docs/qa/sync_upstreams_2026_11_13_r5/class_inventory.md`, class (d).
 * Fetched code is never executed: no hook or fsmonitor runs, and the post-update hook command is printed,
   not run (a clean/smudge filter or diff driver configured by the user is the stated exception, see below).
 * Every merge, checkout and add runs in ONE guarded writer (`write_git`), which first refuses a repository
   that had any call with no answer in this run, then re-reads the status (it must answer and be empty) and
-  the in-progress markers, then checks that no ignored file would be overwritten or removed, and for a pin
-  advance that the parent's index still records the gitlink this run discovered (§11.4.84).
-* Bounded: per-call timeout, run deadline (a call that would start after it is not run), depth limit,
-  `jobs` ceiling ≤ 8 (§12.6, §12.12); a grandchild that escapes the call's process group delays the
-  call's return by at most 7 seconds.
+  the in-progress markers, then checks that no ignored file would be overwritten or removed, for a pin
+  advance that the parent's index and HEAD tree still record the gitlink this run discovered, then that HEAD
+  and the symbolic ref are what inspection read (§11.4.84), and verifies the write afterwards (see Run order).
+* What a remote or a repository sends is bounded: a call's stdout is read in 64 KiB pieces up to 128 MiB
+  (more is no answer, the call is killed); of stderr only the last 64 KiB is kept, without its partial first
+  line; `FETCH_HEAD` is read up to 64 MiB; redaction is linear in the length of the text (measured 2026-11-14 on
+  the development host, best of 5: at most 0.037 s for a 256 KiB line and 0.118 s for a 1 MiB line;
+  `docs/qa/sync_upstreams_2026_11_13_r5/green/redaction_timing.txt`; other hosts UNCONFIRMED). A line with
+  `scheme://` loses everything up to its last `@`, which can remove more than the userinfo (fail-safe). Per-call timeout, run deadline, depth limit, `jobs` ceiling ≤ 8 (§12.6, §12.12).
+* Stop signals: SIGTERM, SIGINT and SIGHUP are handled. The handler only sets a flag; a call that only reads is
+  stopped (its own process group killed, §11.4.263), no new call starts, a write in flight is finished, the
+  heads are read again and the report is written (exit 8). A second signal also stops those final reads.
+  SIGKILL (or the kernel's OOM killer) cannot be handled: a git call in flight then runs on in its own
+  session until git's own timeouts end it (the example systemd unit's default `KillMode=control-group` kills
+  it with the unit).
+* Locks: one per repository of the tree (see Run order), never per project only.
 
 ## Tests and gate
 
-`bash tests/sync/run_all.sh` (add `--quick` to skip chaos, performance and mutations). Suites: unit,
+`bash tests/sync/run_all.sh` (add `--quick` to skip chaos, performance, robustness and mutations).
+`tests/sync/test_robustness.sh` (round 5) drives the real engine against real repositories for the
+round-4 findings: user commits, branch switches and staged pins made WHILE a run is in flight (a test-only
+shim plays the user at a chosen git call), stop signals during a fetch and during a write, a 256 KiB stderr
+line and 160 MiB of stderr, every askpass route, `ext::` through the environment and through repository
+config, `GIT_PROTOCOL_FROM_USER`, trace variables, header and short-secret redaction, control characters,
+blocking reasons, locks (symbolic link, overlapping roots), the evidence directory (unwritable, lost, inside
+the tree, relative) and unsafe or outside-parent gitlink paths; `--only a,b` runs named checks. Suites: unit,
 integration, end-to-end, full automation (setup and post-update hook), security, stress/chaos,
 performance, determinism (N=3), UI (pseudo-terminal), and the engine's paired-mutation suite. The gate
 `CM-SYNC-UPSTREAMS-FF-ONLY` checks the engine statically (AST: an import and module-attribute allow-list,
@@ -265,7 +317,8 @@ against the disk (in the control run the moved set must equal the set of reposit
 fault run a repository reported as moved must have a changed HEAD); the AST lister inside `tests/sync/test_faults.sh` lists the call sites
 from the engine's AST so a new call cannot hide from it. `tests/sync/test_mutations.py` holds the
 standing mutant table (the fixers' M-series, the round-2 reviewer's K01–K17 and R1–R6, the round-3 reviewer's
-X01–X07 and X02b, verbatim, and the round-4 fixer's N01–N25); `--gate-only` and `--no-gate` run the table
+X01–X07 and X02b, verbatim, the round-4 fixer's N01–N25, the round-4 reviewer's V01–V24 and the round-5
+fixer's P01–P34; a suite `robustness:<a,b>` runs the named live checks); `--gate-only` and `--no-gate` run the table
 against the static gate alone and against the behavioural suites alone. The gate's `--print-sites` prints its
 call-site oracle (function, argument list, `ok` set, output shape, meaning of exit 128), which the fault suite
 reads to inject the real status 128 at every site.
@@ -278,14 +331,20 @@ evidence, not proof against a real forge (§11.4.289). A clean or smudge filter 
 user configured is not disabled: git runs a clean filter while `status` compares the work tree (so
 also during `--check`) and a smudge filter while `checkout` or `merge --ff-only` writes files. A
 `textconv`, diff driver or merge driver never runs: the engine runs no diff and a fast-forward merges no
-content. Evidence directories under `~/.cache/helix_sync_upstreams/` are never pruned by the engine
+content. A clean or smudge filter is the user's own configuration (fetched content cannot set config), so
+a hostile filter is out of scope; the same holds for `remote.<name>.uploadpack` (git honours the repository
+value even when a `-c` pair names another program: measured, D24, so it cannot be pinned), `core.gitProxy`
+and `credential.helper`, which run as configured, and for `http.sslVerify=false` in the user's config. A
+fetch is not limited in the disk it takes (git's own). Evidence directories under `~/.cache/helix_sync_upstreams/` are never pruned by the engine
 (open item: retention policy). Ignored files are listed one by one (`git ls-files --others
 --ignored`), which costs time in a tree with very many ignored files. A remembered secret shorter than 8
 characters is removed only where it appears inside a URL (userinfo) or in a token or header shape, not
 when git quotes it alone (a short value would also match ordinary words). A child whose parent moves to a
 pin the child cannot fetch is reported `failed` after the parent has already moved; holding the parent
-back until every child can follow is an open design question, not implemented. Redaction takes time
-quadratic in the length of a line: a 65 536-character line takes about 8 s, and no timeout wraps it
-(open item, found in round 4, not yet fixed). Behaviour against real forges (ssh keys, rate limits, large repositories) is
+back until every child can follow is an open design question, not implemented. A follow-pin does not read
+`submodule.<name>.update=none` (open item). A stdout closed before the run ends (a pipe into `true`)
+was measured: no traceback, both report files written, but the exit status is Python's 120 (not one of the
+engine's codes; a caller reads it as `BLIND`) with `BrokenPipeError` on stderr (open item `SYNC-R5-OPEN-3`,
+`docs/qa/sync_upstreams_2026_11_13_r5/green/sigpipe_probe.txt`). Behaviour against real forges (ssh keys, rate limits, large repositories) is
 UNCONFIRMED until the operator runs it. The engine reports; it does not decide whether a third-party
 pin should advance.

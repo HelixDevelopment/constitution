@@ -1,0 +1,11 @@
+# SYNC-R5-OPEN-3 probe, 2026-11-14: engine --check --no-fetch on a one-commit repo (no remote), stdout piped into 'true' (reader closed at once), 5 runs
+# command: bash scripts/sync/sync_all_upstreams.sh --check --no-fetch --root <r> --out <p_i> 2><perr_i> | true
+run 1: engine exit 120, Traceback lines 0, report files: sync_report.json sync_report.tsv 
+run 2: engine exit 120, Traceback lines 0, report files: sync_report.json sync_report.tsv 
+run 3: engine exit 120, Traceback lines 0, report files: sync_report.json sync_report.tsv 
+run 4: engine exit 120, Traceback lines 0, report files: sync_report.json sync_report.tsv 
+run 5: engine exit 120, Traceback lines 0, report files: sync_report.json sync_report.tsv 
+# stderr tail of run 1:
+Exception ignored while flushing sys.stdout:
+BrokenPipeError: [Errno 32] Broken pipe
+# control (same command, reader 'head -c 1' on a 64 KiB pipe, all output fits): engine exit 4 (attention: root-not-on-main), no BrokenPipeError

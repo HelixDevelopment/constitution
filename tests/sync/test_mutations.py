@@ -7,9 +7,11 @@ copied to <scratch>/<id>/scripts/sync/; the mutant's suites then run IN ORDER, s
 non-zero: "gate" (scripts/gates/cm_sync_upstreams_ff_only.sh --root <scratch>/<id>), "unit" (test_unit.py with
 SYNC_ENGINE_PY) or a shell suite tests/sync/test_<name>.sh (SX_ENGINE = the mutated wrapper). KILLED = a suite
 exited non-zero. A SURVIVOR makes this file exit 1, unless the mutant is listed in EQUIVALENT with its proof.
+Suite "robustness:<a,b>" runs tests/sync/test_robustness.sh --only a,b (named live checks; round 5).
 The table holds M01-M73 (the fixers' own mutants), K01-K17 and R1-R6 (the round-2 reviewer's mutants), M37b,
-X01-X07 and X02b (the round-3 reviewer's mutants, verbatim) and N01-N25 (the round-4 fixer's own mutants); anchors
-are kept on the round-4 text. X04, N22 and N23 change the process-group guard and therefore only ever run the static
+X01-X07 and X02b (the round-3 reviewer's mutants, verbatim), N01-N25 (the round-4 fixer's own mutants), V01-V24 (the
+round-4 reviewer's mutants) and P01-P34 (the round-5 fixer's own mutants); anchors follow the round-5 text (M08,
+M27, M53, M58, M67, M37b, M72, X05, X07, N07, N11-N14, V13, V21, V22 were re-anchored, same meaning). X04, N22 and N23 change the process-group guard and therefore only ever run the static
 gate and the unit suite (whose KillGroup tests replace the engine's ``os`` with a recorder; section 11.4.263).
 
 Usage: python3 -I tests/sync/test_mutations.py [--only M07,K12] [--gate-only | --no-gate] [--list]
@@ -55,8 +57,8 @@ MUTANTS = [
      'if list(args) not in (fetch_args(remote, False), fetch_args(remote, True)):',
      'if False:', ['unit', 'integration']),
     ('M08', 'URL userinfo not redacted',
-     '        pos = at + 1\n',
-     '        pos = start\n', ['unit', 'security']),
+     '            return line[:i + 3] + line[at + 1:]',
+     '            return line[:i + 3] + line[i + 3:]', ['unit', 'security']),
     ('M09', 'tokens not redacted',
      'return _TOKENS.sub("[REDACTED]", _AUTH.sub(r"\\1[REDACTED]", strip_userinfo(text)))',
      'return _AUTH.sub(r"\\1[REDACTED]", strip_userinfo(text))', ['unit', 'security']),
@@ -112,8 +114,8 @@ MUTANTS = [
      'if out_dir == root or out_dir.startswith(root + os.sep):',
      'if False:', ['unit', 'integration']),
     ('M27', 'lock per process (no mutual exclusion)',
-     '"helix-sync-upstreams.lock")',
-     '"helix-sync-upstreams.lock.%d" % os.getpid())', ['unit', 'chaos']),
+     'lock_path = os.path.join(common, "helix-sync-upstreams.lock")',
+     'lock_path = os.path.join(common, "helix-sync-upstreams.lock.%d" % os.getpid())', ['unit', 'chaos']),
     ('M28', 'behind reported as exit 0',
      'elif any_behind:',
      'elif False:', ['unit', 'integration']),
@@ -192,8 +194,8 @@ MUTANTS = [
      '"root-not-on-", "head-unreadable", "tag-rejected"',
      '"head-unreadable", "tag-rejected"', ['unit', 'integration']),
     ('M53', 'F8: the stderr pipe of an escaped grandchild is waited for',
-     '            p.communicate(timeout=2)',
-     '            p.communicate()', ['unit', 'chaos']),
+     '        if exited and not ready:\n            break\n',
+     '', ['unit', 'robustness:escaped_after_exit', 'chaos']),
     ('M54', 'F9: core.sshCommand ignored',
      'repo_ssh=repo.rec.get("ssh") == "core.sshCommand")',
      'repo_ssh=False)', ['unit', 'security']),
@@ -207,8 +209,8 @@ MUTANTS = [
      'rem["stale_tracking_ref"] = bool(sha)',
      'rem["stale_tracking_ref"] = False', ['unit', 'integration']),
     ('M58', 'N3: a held lock exits 2 (= usage)',
-     '        return EXIT_LOCKED',
-     '        return 2', ['unit', 'chaos']),
+     '(exit 7, nothing done)" % redact(lock_path), file=sys.stderr)\n        return EXIT_LOCKED',
+     '(exit 7, nothing done)" % redact(lock_path), file=sys.stderr)\n        return 2', ['unit', 'chaos']),
     ('M59', 'F3: moved computed with an unknown head',
      'and rec.get("head_before") is not None and rec.get("head_after") != rec.get("head_before"))',
      'and rec.get("head_after") != rec.get("head_before"))', ['unit', 'chaos', 'faults']),
@@ -234,13 +236,13 @@ MUTANTS = [
      '    if st.out.strip() or busy:',
      '    if busy:', ['unit', 'hardening']),
     ('M67', 'I-3: the parent index is not re-checked before staging a pin',
-     '        if links.get(rec["path_in_parent"]) != rec.get("recorded_gitlink"):',
+     '        if links.get(path) != rec.get("recorded_gitlink") or tree.get(path) != rec.get("recorded_gitlink"):',
      '        if False:', ['unit', 'hardening', 'integration']),
     ('M73', 'I-1: a failure judged on a no-answer reads as FAILED, not BLIND',
      '        if blind:  # before "failed"',
      '        if blind and not rec.get("failed"):  # before "failed"', ['unit', 'faults']),
     ('M37b', 'follow after a parent that did not move in this run',
-     '        if moved:  # only a parent',
+     '        if moved and not STOP_REQUESTED.is_set():  # only a parent',
      '        if True:  # only a parent', ['unit', 'hardening', 'integration']),
     ('M68', 'm-4: a moved upstream tag is not labelled tag-rejected',
      '        return "tag-rejected"',
@@ -255,7 +257,7 @@ MUTANTS = [
      '            if k.startswith("_"):\n                continue\n',
      '', ['unit', 'security', 'hardening']),
     ('M72', 'BLIND: a non-time no-answer is reported as INCONCLUSIVE',
-     '        blind = [u for u in unresolved if u.split(":", 1)[1] not in TIME_WHYS]',
+     '        blind = [u for u in unresolved if u.split(":", 1)[1] not in TIME_WHYS + STOP_WHYS]',
      '        blind = []', ['unit', 'chaos']),
     ('K01', 'gate-evading spawn: Popen bound to an alias, then called',
      'def now_utc():',
@@ -344,14 +346,14 @@ MUTANTS = [
      '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:',
      '    if isinstance(pgid, int) and (pgid > 1 or True):', ['gate', 'unit']),
     ('X05', 'userinfo cut looks only 48 chars past scheme:// (long password leaks)',
-     '        at = text.rfind("@", start, end)',
-     '        at = text.rfind("@", start, min(end, start + 48))', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
+     '    at = line.rfind("@")\n',
+     '    at = line.rfind("@", 0, line.find("://") + 51)\n', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
     ('X06', "a call site whose 'declared' ok set is every status 0..255 (ls-files -s, index gitlinks)",
      '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))',
      '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255))', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
     ('X07', 'SAFE_CONFIG: a trailing core.hooksPath pair overrides /dev/null (presence-only argv check)',
-     '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false")',
-     '"fetch.prune=false", "fetch.pruneTags=false", "fetch.recurseSubmodules=false", "core.hooksPath=.githooks")', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
+     '"credential.interactive=false")',
+     '"credential.interactive=false", "core.hooksPath=.githooks")', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
     ('X02b', 'fast-forward bypasses write_git but still records the action (guards skipped, record intact)',
      '                res = write_git(r, repo, "fast-forward", rec["target"])',
      '                _x = r.run(p, ["merge", "--ff-only", rec["target"]], ok=(0, 1, 128)); rec["actions"].append({"op": "fast-forward", "to": rec["target"], "rc": _x.rc, "error": ""}); res = "done" if (_x.answered and _x.rc == 0) else "failed"', ['gate', 'unit', 'integration', 'e2e', 'security', 'hardening', 'faults', 'chaos', 'determinism', 'ui', 'perf', 'full_automation']),
@@ -375,7 +377,7 @@ MUTANTS = [
      '        if path_kind(os.path.join(start_dir, ".git")) != "absent":\n',
      '        if False:\n', ['gate', 'unit', 'integration']),
     ('N07', 'F2: head_after is a copy of head_before, never re-read after the pass',
-     '            repo.rec["head_after"] = read_head(r, repo.abspath)\n',
+     '            repo.rec["head_after"] = read_head(r, repo.abspath, final=True)\n',
      '            repo.rec.setdefault("head_after", repo.rec.get("head_before"))\n', ['gate', 'unit', 'integration']),
     ('N08', 'F2: a repository that moved and is blocked afterwards is "updated"',
      '        elif moved and mode == "apply" and not blocking:',
@@ -387,17 +389,17 @@ MUTANTS = [
      '        reasons.append("kept-on-branch:" + rec["kept_on_branch"])\n',
      '        pass\n', ['gate', 'unit', 'integration']),
     ('N11', 'F1: a path that is not a directory (a symbolic link) needs no attention',
-     'if st in ("not-a-directory", "cycle", "unreadable") or',
-     'if st in ("cycle", "unreadable") or', ['gate', 'unit', 'integration']),
+     'if (st in ("not-a-directory", "cycle", "unreadable", "unsafe-path", "outside-parent")',
+     'if (st in ("cycle", "unreadable", "unsafe-path", "outside-parent")', ['gate', 'unit', 'integration']),
     ('N12', 'F1: an unreadable submodule carries no pin-unreadable reason',
-     'if st in ("not-a-directory", "cycle", "unreadable") or',
-     'if st in ("not-a-directory", "cycle") or', ['gate', 'unit', 'integration']),
+     'if (st in ("not-a-directory", "cycle", "unreadable", "unsafe-path", "outside-parent")',
+     'if (st in ("not-a-directory", "cycle", "unsafe-path", "outside-parent")', ['gate', 'unit', 'integration']),
     ('N13', 'F9: userinfo cut at the FIRST "@" (a password holding "@" leaks its tail)',
-     '        at = text.rfind("@", start, end)',
-     '        at = text.find("@", start, end)', ['gate', 'unit', 'security']),
+     '    at = line.rfind("@")\n',
+     '    at = line.find("@")\n', ['gate', 'unit', 'security']),
     ('N14', 'F9: the URL token ends at a space (a password holding a space leaks its tail)',
-     '        nl = text.find("\\n", start)\n',
-     '        nl = text.find(" ", start)\n', ['gate', 'unit', 'security']),
+     '    return "\\n".join(_strip_line(x) for x in text.split("\\n"))',
+     '    return "\\n".join(" ".join(_strip_line(y) for y in x.split(" ")) for x in text.split("\\n"))', ['gate', 'unit', 'security']),
     ('N15', 'F9: only secrets of 64 characters or more are remembered',
      'if len(p) >= 8)',
      'if len(p) >= 64)', ['gate', 'unit', 'security']),
@@ -431,6 +433,140 @@ MUTANTS = [
     ('N25', 'F8 class: a child that cannot fetch its new pin is not failed',
      '            c.rec["failed"] = True\n',
      '            pass\n', ['gate', 'unit', 'integration']),
+    # ── round 5: the round-4 reviewer's V01-V24 (verbatim; V13, V21, V22 re-anchored on the round-5 text) ──
+    ('V01', 'SAFE_CONFIG: protocol.ext.allow=never dropped',
+     '"merge.autoStash=false", "protocol.ext.allow=never",', '"merge.autoStash=false",', ['unit', 'robustness:ext_repo', 'security']),
+    ('V02', 'SAFE_CONFIG: merge.autoStash=false dropped',
+     '"maintenance.auto=false", "merge.autoStash=false",', '"maintenance.auto=false",', ['unit', 'robustness:autostash', 'security', 'hardening']),
+    ('V03', 'SAFE_CONFIG: submodule.recurse=false dropped',
+     '"core.fsmonitor=false", "submodule.recurse=false",', '"core.fsmonitor=false",', ['unit', 'security', 'integration']),
+    ('V04', '_AUTH: Authorization header values no longer redacted',
+     '(?:proxy-)?authorization:', '(?:proxy-)?xauthorization:', ['unit', 'robustness:auth_header', 'security']),
+    ('V05', 'in_progress: rebase-merge not detected',
+     '"BISECT_LOG", "rebase-merge", "rebase-apply",', '"BISECT_LOG", "rebase-apply",', ['unit', 'integration', 'hardening']),
+    ('V06', 'in_progress: CHERRY_PICK_HEAD not detected',
+     'for n in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",', 'for n in ("MERGE_HEAD", "REVERT_HEAD",', ['unit', 'integration', 'hardening']),
+    ('V07', 'in_progress: index.lock not detected',
+     '"rebase-apply",\n              "index.lock"):', '"rebase-apply",\n              ):', ['unit', 'integration', 'hardening', 'chaos']),
+    ('V08', 'BLOCKING_PREFIXES: invalid-remote does not block',
+     '"unreachable", "invalid-remote",', '"unreachable",', ['unit', 'robustness:invalid_remote', 'integration', 'security']),
+    ('V09', 'BLOCKING_PREFIXES: upstreams-diverged does not block',
+     '("dirty-tree", "in-progress", "upstreams-diverged", "local-",', '("dirty-tree", "in-progress", "local-",', ['unit', 'robustness:diverged', 'integration']),
+    ('V10', 'safe_remote: names ending in .lock or . accepted',
+     'name.endswith((".lock", "/", "."))', 'name.endswith(("/",))', ['unit', 'security']),
+    ('V11', 'safe_relpath: backslash accepted',
+     'p.startswith("/") or "\\\\" in p:', 'p.startswith("/"):', ['unit', 'robustness:unsafe_path', 'security', 'integration']),
+    ('V12', 'lock: blocking flock (no LOCK_NB)',
+     'fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)', 'fcntl.flock(lock_fd, fcntl.LOCK_EX)', ['unit', 'chaos']),
+    ('V13', 'lock: O_NOFOLLOW dropped on the root lock (lock path may be a symlink)',
+     'lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)',
+     'lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)', ['unit', 'robustness:lock_symlink', 'chaos', 'security', 'hardening']),
+    ('V14', 'evaluate_pin: any on-main pin reads at-main',
+     'elif target and gitlink == target:', 'elif target:', ['unit', 'integration']),
+    ('V15', 'git_env: GIT_PROXY_COMMAND kept',
+     '"GIT_CONFIG_COUNT", "GIT_PROXY_COMMAND",', '"GIT_CONFIG_COUNT",', ['unit', 'security', 'hardening']),
+    ('V16', 'git_env: SSH_ASKPASS kept',
+     '"GIT_ASKPASS",\n          "SSH_ASKPASS",', '"GIT_ASKPASS",\n          ', ['unit', 'robustness:askpass_ssh_only', 'security', 'gate']),
+    # V16 (round 5): behaviourally EQUIVALENT while the two other closures hold. Ground truth rows D12 and D13
+    # (docs/qa/sync_upstreams_2026_11_13_r5/ground_truth/run1.txt = run2.txt): with GIT_ASKPASS set EMPTY, or with
+    # -c core.askPass= pinned, git does not fall back to SSH_ASKPASS; ssh itself gets SSH_ASKPASS_REQUIRE=never. The
+    # engine sets all three, so a kept SSH_ASKPASS reaches no prompt (the live askpass_ssh_only check stays green on
+    # the mutant). The static gate refuses it (git_env must drop SSH_ASKPASS): killed in full mode, survives --no-gate.
+    ('V17', 'register_secret: 8-character secrets no longer remembered (threshold 9)',
+     '_KNOWN.update(p for p in pieces if len(p) >= 8)', '_KNOWN.update(p for p in pieces if len(p) >= 9)', ['unit', 'robustness:secret8', 'security']),
+    ('V18', '_CTRL: DEL and C1 controls kept',
+     r'[\x00-\x08\x0b-\x1f\x7f\x80-\x9f]', r'[\x00-\x08\x0b-\x1f]', ['unit', 'robustness:ctrl_url', 'security', 'ui']),
+    ('V19', '_CTRL: ESC kept (terminal escape injection)',
+     r'[\x00-\x08\x0b-\x1f\x7f\x80-\x9f]', r'[\x00-\x08\x0b-\x1a\x1c-\x1f\x7f\x80-\x9f]', ['unit', 'robustness:ctrl_url', 'security', 'ui']),
+    ('V20', 'git_env: ssh without BatchMode',
+     'env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o ConnectTimeout=10"', 'env["GIT_SSH_COMMAND"] = "ssh -o ConnectTimeout=10"', ['unit', 'security', 'hardening']),
+    ('V21', 'BLOCKING_PREFIXES: tag-rejected does not block',
+     '"head-unreadable", "tag-rejected", "no-upstream-",', '"head-unreadable", "no-upstream-",', ['unit', 'hardening', 'integration']),
+    ('V22', 'BLOCKING_PREFIXES: no-upstream- does not block',
+     '"head-unreadable", "tag-rejected", "no-upstream-",', '"head-unreadable", "tag-rejected",', ['unit', 'robustness:no_upstream_main', 'hardening', 'integration']),
+    ('V23', 'redact_report: a key that carried a secret is not recorded as a backstop hit',
+     '            if strip_secrets(k) != k:\n                hits.append(path + "." + rk)\n', '', ['unit', 'security', 'hardening']),
+    ('V24', 'classify_fetch_failure: tag clobber read only on rc 128 (never on 1)',
+     'if rc == 1 and any(n in e for n in TAG_REJECTED):', 'if rc == 128 and any(n in e for n in TAG_REJECTED):', ['unit', 'hardening']),
+    # ── round 5: the round-5 fixer's own mutants P01-P34 (classes (a)-(d) of class_inventory.md) ──
+    ('P01', 'RV4-1: HEAD not re-read before a write (a user commit is overwritten)',
+     '    if head_now is None or head_now != rec.get("head_before"):', '    if head_now is None:', ['unit', 'robustness:race_commit']),
+    ('P02', 'RV4-1: the symbolic ref is not re-checked before a write',
+     '    if (op == "fast-forward" and (kind, name) != ("branch", rec.get("branch"))) or \\\n            (op != "fast-forward" and kind != "detached"):\n        rec["actions"].append({"op": "none", "why": "blocked:branch-changed-before-write"',
+     '    if False:\n        rec["actions"].append({"op": "none", "why": "blocked:branch-changed-before-write"', ['unit', 'robustness:race_switch,race_sub_branch']),
+    ('P03', 'RV4-1: an unread symbolic ref at write time is treated as detached',
+     '    if kind == "unknown":\n        rec["actions"].append({"op": "none", "why": "unresolved:branch-recheck"',
+     '    if False:\n        rec["actions"].append({"op": "none", "why": "unresolved:branch-recheck"', ['unit']),
+    ('P04', 'RV4-1: the write is not verified (HEAD not compared with the target afterwards)',
+     '    if after != target or (op == "fast-forward"', '    if after != after or (op == "fast-forward"', ['unit']),
+    ('P05', 'RV4-1: a ref moved by someone else during the run is reported as this run\'s update',
+     '        if moved and rec.get("_wrote_to") != rec.get("head_after"):', '        if False:', ['unit', 'robustness:race_other', 'robustness:race_control', 'integration', 'hardening', 'e2e']),
+    ('P06', 'RV4-2: a gitlink the user staged is not reported',
+     '    reasons += ["gitlink-staged:" + x for x in rec.get("gitlink_staged", [])]', '    pass', ['unit', 'robustness:staged_gitlink']),
+    ('P07', 'RV4-2: the parent HEAD tree is not compared at write time',
+     ' or tree.get(path) != rec.get("recorded_gitlink"):', ':', ['unit']),
+    ('P08', 'RV4-2: a staged gitlink is reported only when HEAD has no entry for the path',
+     'links if heads.get(x) != links[x])', 'links if x not in heads)', ['unit', 'robustness:staged_gitlink']),
+    ('P09', 'RV4-5: a read ignores the first stop signal',
+     '(level == 1 and STOP_REQUESTED.is_set())', '(level == 1 and False)', ['unit', 'robustness:sigterm_fetch,sigint_fetch']),
+    ('P10', 'RV4-5: a write is killed by the stop signal (level 1)',
+     '        level = 0 if write else 2 if final else 1', '        level = 1 if write else 2 if final else 1', ['unit', 'robustness:sigterm_write']),
+    ('P11', 'RV4-5: no signal handlers installed',
+     '    proc_on_stop_signals(on_stop_signal)  # first', '    pass  # first', ['unit', 'robustness:sigterm_fetch,sigint_fetch']),
+    ('P12', 'RV4-5: the second signal never hard-stops',
+     '    if STOP_REQUESTED.is_set():\n        HARD_STOP.set()', '    if STOP_REQUESTED.is_set():\n        pass', ['unit']),
+    ('P13', 'RV4-5: an interrupted run is not reported INTERRUPTED (exit 8)',
+     '        code, verdict = EXIT_INTERRUPTED, "INTERRUPTED"', '        code, verdict = EXIT_INCONCLUSIVE, "INCONCLUSIVE"', ['unit', 'robustness:sigterm_fetch,sigint_fetch']),
+    ('P14', 'RV4-5: new calls after a stop are not refused',
+     '        if STOP_REQUESTED.is_set() and (not final or HARD_STOP.is_set()):', '        if False:', ['unit', 'robustness:no_new_call', 'robustness:sigterm_fetch,sigint_fetch']),
+    ('P15', 'RV4-4: stdout is not capped',
+     '                if len(out) + len(chunk) > OUT_CAP:', '                if False:', ['unit']),
+    ('P16', 'RV4-4: stderr tail not trimmed (whole stream kept)',
+     '                if len(err) > 2 * ERR_TAIL:', '                if False:', ['unit', 'robustness:huge_stderr']),
+    ('P17', 'RV4-3: the partial first line of a trimmed stderr tail is kept (half a URL)',
+     '(err[nl + 1:] if nl != -1 else bytearray())', '(err if nl != -1 else bytearray())', ['unit']),
+    ('P18', 'RV4-3: redaction ignores the scheme letter rule (cuts at any ://)',
+     '        if letter:\n            return line[:i + 3]', '        if True:\n            return line[:i + 3]', ['unit']),
+    ('P19', 'RV4-6: GIT_ASKPASS left to the environment',
+     '    env["GIT_ASKPASS"] = ""', '    env.pop("GIT_ASKPASS", None)', ['unit', 'robustness:askpass']),
+    ('P20', 'RV4-6: SSH_ASKPASS_REQUIRE not forced to never',
+     '    env["SSH_ASKPASS_REQUIRE"] = "never"', '    pass', ['unit', 'robustness:askpass_ssh_only']),
+    ('P21', 'RV4-7: GIT_ALLOW_PROTOCOL kept from the environment',
+     '"GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER",', '"GIT_PROTOCOL_FROM_USER",', ['unit', 'robustness:ext_env']),
+    ('P22', 'RV4-7: GIT_PROTOCOL_FROM_USER kept from the environment',
+     '"GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER",', '"GIT_ALLOW_PROTOCOL",', ['unit', 'robustness:protocol_from_user']),
+    ('P23', 'RV4-7: GIT_SSL_NO_VERIFY kept from the environment',
+     '"SSH_ASKPASS_REQUIRE", "GIT_SSL_NO_VERIFY")', '"SSH_ASKPASS_REQUIRE")', ['unit']),
+    ('P24', 'RV4-8: the evidence directory is not probed before the run',
+     '        fd_, probe_ = tempfile.mkstemp(prefix=".sync_probe.", dir=out_dir)\n        os.close(fd_)\n        os.unlink(probe_)\n',
+     '        pass\n', ['unit', 'robustness:out_unwritable']),
+    ('P25', 'RV4-8: evidence lost after the write exits 2 (usage)',
+     '                      file=sys.stderr)\n        print("RESULT: FAILED exit=%d" % EXIT_FAIL)\n        return EXIT_FAIL',
+     '                      file=sys.stderr)\n        return EXIT_USAGE', ['unit', 'robustness:out_lost']),
+    ('P26', 'RV4-11: repository locks of the tree not taken (overlapping roots)',
+     '    busy = lock_repositories(live, root_common, held)', '    busy = None', ['unit', 'robustness:lock_overlap']),
+    ('P27', 'RV4-11: repository lock taken without O_NOFOLLOW',
+     'fd_ = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)', 'fd_ = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)', ['unit', 'robustness:lock_symlink', 'chaos', 'security', 'hardening']),
+    ('P28', 'RV4-12: an evidence directory inside the work tree is accepted',
+     '    if out_dir == root or out_dir.startswith(root + os.sep):', '    if False:', ['unit', 'robustness:default_out_symlink']),
+    ('P29', 'RV4-12: a relative cache directory is accepted',
+     '    if not a.out and not os.path.isabs(base):', '    if False:', ['unit', 'robustness:default_out_relative']),
+    ('P30', 'RV4-13: an unsafe gitlink path is not reported',
+     '"not-a-directory", "cycle", "unreadable", "unsafe-path", "outside-parent")', '"not-a-directory", "cycle", "unreadable", "outside-parent")', ['unit', 'robustness:unsafe_path']),
+    ('P31', 'RV4-15: a submodule reached through a link leaving the parent is inspected',
+     '            elif not (os.path.realpath(os.path.dirname(child_abs)) + os.sep).startswith(real_parent + os.sep):',
+     '            elif False:', ['unit', 'robustness:outside_parent']),
+    ('P32', 'RV4-1: a malformed symbolic-ref answer (exit 0, empty) reads as a branch',
+     '    if not name:  # exit 0 with no name', '    if False:  # exit 0 with no name', ['unit']),
+    ('P33', 'RV4-5: final reads after a stop get no time cap',
+     '            limit = min(limit, 10)', '            limit = limit', ['unit', 'robustness:final_cap', 'robustness:sigterm_write']),
+    ('P34', 'RV4-6: core.askPass not pinned empty by -c',
+     ' "core.askPass=",', '', ['unit', 'robustness:askpass', 'gate']),
+    # P34 (round 5): behaviourally EQUIVALENT while GIT_ASKPASS is set empty. Ground truth row D9
+    # (docs/qa/sync_upstreams_2026_11_13_r5/ground_truth/run1.txt = run2.txt): a repository core.askPass does not
+    # run when GIT_ASKPASS is set and empty, which git_env always does, so the live askpass check stays green on
+    # the mutant. The static gate refuses it (every safe -c pair, core.askPass= included, exactly once): killed in
+    # full mode, survives --no-gate.
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped
@@ -450,9 +586,9 @@ EQUIVALENT = {
 
 SUITES = {s: os.path.join(HERE, "test_%s.sh" % s) for s in
           ("integration", "security", "chaos", "ui", "e2e", "determinism", "perf", "full_automation", "faults",
-           "hardening")}
+           "hardening", "robustness")}
 GATE = os.path.join(REPO, "scripts", "gates", "cm_sync_upstreams_ff_only.sh")
-LIMIT = {"faults": 2400}
+LIMIT = {"faults": 2400, "robustness": 1500}
 
 
 def run(cmd, env, timeout):
@@ -498,7 +634,7 @@ def main(argv):
             print(USAGE, file=sys.stderr)
             return 2
     for m in MUTANTS:
-        bad = [x for x in m[4] if x not in SUITES and x not in ("gate", "unit")]
+        bad = [x for x in m[4] if x.split(":", 1)[0] not in SUITES and x not in ("gate", "unit")]
         if bad:
             print("ERROR %s names unknown suites %s" % (m[0], bad))
             return 1
@@ -526,10 +662,11 @@ def main(argv):
                        SX_ENGINE=os.path.join(sd, "sync_all_upstreams.sh"))
             by, dur, rc = "-", 0.0, 0
             for suite in suites:
+                name, _, only_ = suite.partition(":")
                 cmd = (["bash", GATE, "--root", d] if suite == "gate" else
                        [sys.executable, "-I", os.path.join(HERE, "test_unit.py")] if suite == "unit" else
-                       ["bash", SUITES[suite]])
-                rc, out, t = run(cmd, env, LIMIT.get(suite, 600))
+                       ["bash", SUITES[name]] + (["--only", only_] if only_ else []))
+                rc, out, t = run(cmd, env, LIMIT.get(name, 600))
                 dur += t
                 if rc != 0:
                     by = suite + ("(timeout)" if rc == "timeout" else "")

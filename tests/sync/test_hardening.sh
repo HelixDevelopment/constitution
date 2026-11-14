@@ -538,9 +538,10 @@ eq "M67: the concurrent staging happened after discovery (control needle)" "fire
 eq "M67: libs/a not checked out at the new pin" "$p_old" "$(sx_head "$W/libs/a")"
 eq "M67: the gitlink the other writer staged is kept" "$p_mid" "$p_idx"
 has "M67: the writer names the changed index" "blocked:parent-index-changed" "$(sx_q 'str(P["libs/a"]["actions"])')"
-# the current classification of a write a guard blocked: the repository stays "behind" (exit 3), as for the
-# tree-changed block; whether a blocked write should be ATTENTION is an open item (round-4 evidence)
-eq "M67: libs/a stays behind, exit 3" "3 behind" "$SX_RC $(sx_q 'P["libs/a"]["result"]')"
+# round 5 (RV4-1, closing the round-4 open item): a write a guard blocked is never silent; the reason
+# write-blocked:parent-index-changed makes the repository ATTENTION (exit 4), never a quiet "behind"
+eq "M67: a blocked write is attention, exit 4" "4 attention" "$SX_RC $(sx_q 'P["libs/a"]["result"]')"
+has "M67: the blocked write is a reason" "write-blocked:parent-index-changed" "$(sx_q 'str(P["libs/a"]["reasons"])')"
 # control: the same world without the concurrent writer advances the pin and stages it (the case reaches the writer)
 fresh; sx_std_tree
 sx_commit "$U_A" "liba 14a"; sx_commit "$U_A" "liba 14b"; p_new="$(sx_remote_head "${U_A#file://}")"

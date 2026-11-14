@@ -139,9 +139,9 @@ SITES = [
     ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
     ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
     ("head_gitlinks", "['ls-tree', '-r', '-z', 'HEAD']", (0,), "-", "blind"),
-    ("inspect_local", "['symbolic-ref', '--short', '-q', 'HEAD']", (0, 1), "-", "blind"),
-    ("inspect_local", "['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD']",
-     (0,), "TWO_ABS_PATHS_RE", "blind"),
+    ("read_branch", "['symbolic-ref', '--short', '-q', 'HEAD']", (0, 1), "-", "blind"),
+    ("inspect_local", "['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD', "
+     "'--git-common-dir']", (0,), "THREE_ABS_PATHS_RE", "blind"),
     ("inspect_local", "STATUS_ARGS", (0,), "-", "blind"),
     ("inspect_local", "['remote']", (0,), "-", "blind"),
     ("inspect_local", "['config', '--get', 'remote.%s.url' % n]", (0, 1), "-", "blind"),
@@ -225,7 +225,7 @@ def dotted(n):
     return ""
 
 
-MODULES = {"argparse", "concurrent.futures", "datetime", "fcntl", "hashlib", "json", "os", "re", "shutil",
+MODULES = {"argparse", "concurrent.futures", "datetime", "fcntl", "hashlib", "json", "os", "re", "select", "shutil",
            "signal", "subprocess", "sys", "tempfile", "threading", "time"}
 ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "datetime.datetime.now",
          "datetime.timezone.utc", "fcntl.LOCK_EX", "fcntl.LOCK_NB", "fcntl.flock", "hashlib.sha256", "json.dumps",
@@ -234,18 +234,23 @@ ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "da
          "os.lstat", "os.makedirs", "os.open", "os.path.basename", "os.path.dirname", "os.path.exists",
          "os.path.expanduser", "os.path.isabs", "os.path.isdir", "os.path.isfile", "os.path.join", "os.path.lexists",
          "os.path.realpath", "os.read", "os.replace", "os.sep", "os.unlink", "os.write", "re.compile", "re.match",
-         "shutil.which", "signal.SIGKILL", "subprocess.DEVNULL", "subprocess.PIPE", "subprocess.Popen",
+         "select.select", "shutil.which", "signal.SIGKILL", "signal.SIGHUP", "signal.SIGINT", "signal.SIGTERM",
+         "signal.signal", "threading.Event", "subprocess.DEVNULL", "subprocess.PIPE", "subprocess.Popen",
          "subprocess.TimeoutExpired", "sys.argv", "sys.exit", "sys.stderr", "tempfile.mkstemp", "threading.Lock",
          "time.monotonic"}
 # the ONE spawn point and the ONE signal point: these names may appear only inside the named function
 SCOPED = {"subprocess.Popen": "proc_run_git", "subprocess.DEVNULL": "proc_run_git", "subprocess.PIPE": "proc_run_git",
           "subprocess.TimeoutExpired": "proc_run_git", "os.killpg": "proc_kill_group",
-          "os.getpgid": "proc_kill_group", "signal.SIGKILL": "proc_kill_group"}
-CALL_ONLY = {"subprocess.Popen", "os.killpg"}
+          "os.getpgid": "proc_kill_group", "signal.SIGKILL": "proc_kill_group", "select.select": "proc_run_git",
+          # the ONE place that installs signal handlers (review round 4, RV4-5): the handler only sets a flag
+          "signal.signal": "proc_on_stop_signals", "signal.SIGINT": "proc_on_stop_signals",
+          "signal.SIGTERM": "proc_on_stop_signals", "signal.SIGHUP": "proc_on_stop_signals"}
+CALL_ONLY = {"subprocess.Popen", "os.killpg", "signal.signal"}
 BANNED_NAMES = {"getattr", "setattr", "delattr", "eval", "exec", "compile", "__import__", "globals", "vars",
                 "locals", "breakpoint", "__builtins__", "importlib", "builtins"}
 BANNED_ATTRS = {"kill", "terminate", "send_signal"}
 BIND_ONCE = {"check_git_args", "git_argv", "fetch_args", "proc_run_git", "proc_kill_group", "git_env", "SAFE_CONFIG",
+             "proc_on_stop_signals", "on_stop_signal", "STOP_REQUESTED", "HARD_STOP",
              "STATUS_ARGS", "READ_SUBCOMMANDS", "WRITE_SUBCOMMANDS", "FORBIDDEN_TOKENS", "FORBIDDEN_PREFIXES"}
 parent = {}
 for p_ in ast.walk(tree):
@@ -349,7 +354,9 @@ def fn(name, cls=None):
 
 
 runner_run, g_out_fn, prg, pkg = fn("run", "Runner"), fn("g_out"), fn("proc_run_git"), fn("proc_kill_group")
-for nm, f_ in (("Runner.run", runner_run), ("proc_run_git", prg), ("proc_kill_group", pkg), ("g_out", g_out_fn)):
+main_fn, pos = fn("main"), fn("proc_on_stop_signals")
+for nm, f_ in (("Runner.run", runner_run), ("proc_run_git", prg), ("proc_kill_group", pkg), ("g_out", g_out_fn),
+               ("main", main_fn), ("proc_on_stop_signals", pos)):
     if f_ is None:
         fails.append("%s not found" % nm)
 
@@ -358,7 +365,8 @@ def loads(name):
     return [n for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, ast.Load)]
 
 
-for name, caller, cname in (("proc_run_git", runner_run, "Runner.run"), ("proc_kill_group", prg, "proc_run_git")):
+for name, caller, cname in (("proc_run_git", runner_run, "Runner.run"), ("proc_kill_group", prg, "proc_run_git"),
+                             ("proc_on_stop_signals", main_fn, "main")):
     r_ = loads(name)
     if len(r_) != 1 or not is_called(r_[0]) or caller is None or enclosing_def(r_[0]) is not caller:
         fails.append("%s must be referenced exactly once, called from %s (found %d reference(s))" % (name, cname, len(r_)))
@@ -491,6 +499,12 @@ for node in ast.walk(tree):
         lead = LIST_CONSTS[a.id]
     if lead[:1] and lead[0] in WRITE_VERBS and site_fn != "write_git":
         fails.append("git %s call at line %d is outside write_git, the one guarded writer" % (lead[0], node.lineno))
+    wv = kw.get("write")
+    is_write = isinstance(wv, ast.Constant) and wv.value is True
+    if lead[:1] and lead[0] in WRITE_VERBS and not is_write:  # a write is never killed half-way (RV4-5)
+        fails.append("git %s call at line %d does not pass write=True" % (lead[0], node.lineno))
+    elif wv is not None and not (lead[:1] and lead[0] in WRITE_VERBS):
+        fails.append("git call at line %d passes write= but is not a merge / checkout / add" % node.lineno)
     if isinstance(a, ast.Call) and dotted(a.func) == "fetch_args" and site_fn != "fetch_repo":
         fails.append("fetch_args(...) is passed at line %d outside fetch_repo" % node.lineno)
     good = ((isinstance(a, ast.Call) and dotted(a.func) == "fetch_args")
@@ -533,7 +547,8 @@ except Exception as e:
 S = "0123456789abcdef0123456789abcdef01234567"
 REQUIRED_CFG = ["core.hooksPath=/dev/null", "core.fsmonitor=false", "fetch.prune=false", "fetch.pruneTags=false",
                 "fetch.recurseSubmodules=false", "submodule.recurse=false", "protocol.ext.allow=never",
-                "merge.autoStash=false", "gc.auto=0", "maintenance.auto=false"]
+                "merge.autoStash=false", "gc.auto=0", "maintenance.auto=false", "core.askPass=",
+                "credential.interactive=false"]
 REQUIRED_KEYS = {c.split("=", 1)[0].lower() for c in REQUIRED_CFG}
 try:
     for tags in (False, True):
@@ -592,7 +607,7 @@ ACCEPT = [FA, FT, STATUS,
           ["merge", "--ff-only", S], ["checkout", "--quiet", "--detach", S], ["add", "--", "libs/a"],
           ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ["rev-parse", "--verify", "-q", S + "^{commit}"],
           ["rev-parse", "--verify", "-q", "refs/remotes/origin/main^{commit}"], ["rev-parse", "--show-toplevel"],
-          ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD"],
+          ["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "FETCH_HEAD", "--git-common-dir"],
           ["rev-parse", "--path-format=absolute", "--git-common-dir"], ["ls-files", "-s", "-z"],
           ["ls-tree", "-r", "-z", "HEAD"], ["ls-tree", "-r", "-z", "--name-only", "--full-tree", S],
           ["symbolic-ref", "--short", "-q", "HEAD"], ["config", "--get", "remote.origin.url"],
@@ -639,12 +654,19 @@ INJECT = {"GIT_CONFIG_PARAMETERS": "'core.hooksPath'='/x'", "GIT_CONFIG_COUNT": 
           # traces write protocol traffic, headers or URLs to a file or to stderr (review round 3, F7)
           "GIT_TRACE": "1", "GIT_TRACE2": "1", "GIT_TRACE2_EVENT": "/x", "GIT_TRACE2_PERF": "/x",
           "GIT_TRACE_PERFORMANCE": "1", "GIT_TRACE_PACKET": "1", "GIT_TRACE_CURL": "1", "GIT_TRACE_SETUP": "1",
-          "GIT_CURL_VERBOSE": "1", "PATH": "/usr/bin"}
+          "GIT_CURL_VERBOSE": "1",
+          # review round 4 (ground truth rows D2, D5, D10-D13): these beat or change the -c pairs
+          "GIT_ALLOW_PROTOCOL": "ext:file", "GIT_PROTOCOL_FROM_USER": "0", "SSH_ASKPASS": "/x",
+          "SSH_ASKPASS_REQUIRE": "force", "GIT_SSL_NO_VERIFY": "1", "PATH": "/usr/bin"}
+SET_EMPTY = {"GIT_ASKPASS": "", "SSH_ASKPASS_REQUIRE": "never"}  # set to a fixed value, never inherited
 try:
     env = E.git_env(dict(INJECT))
-    left = sorted(k for k in env if k in INJECT and k != "PATH")
+    left = sorted(k for k in env if k in INJECT and k != "PATH" and k not in SET_EMPTY)
     if left:
         fails.append("git_env keeps injecting variables %s" % left)
+    for k, v in SET_EMPTY.items():
+        if env.get(k) != v:
+            fails.append("git_env does not set %s=%r (got %r)" % (k, v, env.get(k)))
     if env.get("GIT_TERMINAL_PROMPT") != "0" or env.get("PATH") != "/usr/bin":
         fails.append("git_env does not set GIT_TERMINAL_PROMPT=0 or does not keep PATH")
 except Exception as e:
@@ -668,6 +690,13 @@ RED = [("https://user:pa ss@word@example.org/r.git", ("pa ss", "word@", "user"),
        ("https://user:ab%40Cd" + "Z" * 40 + "@example.org/r.git", ("Cd" + "Z" * 8, "%40"), "example.org"),
        ("< Authorization: Basic dXNlcjpzM2NyM3Q=", ("dXNlcjpzM2NyM3Q",), "Authorization:"),
        ("> proxy-authorization: Bearer tok3n-v4lue-xyz", ("tok3n-v4lue",), "authorization:")]
+# linear time (review round 4, RV4-3): a long line without '://' and one with many must redact in well under a second
+import time as _t
+for long_text in ("remote: " + "abc" * 100000, ("https://" + "a" * 64 + " ") * 4000 + "@x"):
+    t0_ = _t.monotonic()
+    E.redact(long_text)
+    if _t.monotonic() - t0_ > 2.0:
+        fails.append("redact of a %d-character line took %.1fs (not linear)" % (len(long_text), _t.monotonic() - t0_))
 for text, gone, kept in RED:
     try:
         out = E.redact(text)

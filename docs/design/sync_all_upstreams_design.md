@@ -58,7 +58,7 @@ every supported type, live and deterministic, with machine-produced evidence.
   configured refspec and prune setting, so a fetch never deletes or rewrites a ref outside
   `refs/remotes/<remote>/*`; a branch deleted upstream is read from `FETCH_HEAD` and reported, its stale
   tracking ref kept. Every git call carries `-c core.hooksPath=/dev/null -c core.fsmonitor=false` and the
-  other safe pairs (`git_argv`), so no repository hook or fsmonitor runs. Bounded by `--timeout` per call, `--deadline` per run and a worker pool
+  other safe pairs (`git_argv`), so no repository hook or fsmonitor runs (a clean/smudge filter or diff driver the user configured still runs: a stated boundary). Each call has `--timeout`, the run has `--deadline`, and a worker pool
   of `--jobs` (default and ceiling derived from the CPU count, never above 8; §12.6 / §12.12).
 * **Integration** (`--apply` only, pre-order: a parent moves first; each clean, initialised child
   whose checkout equalled the parent's old gitlink then follows the parent's new gitlink with
@@ -78,8 +78,9 @@ every supported type, live and deterministic, with machine-produced evidence.
   (`want`); a signal, an undeclared status (126, 127, 128, ...) or output of the wrong shape is no answer
   and makes the run `BLIND`; a call that only ran out of time (`--timeout`, `--deadline`) makes it
   `INCONCLUSIVE`. A repository whose judgement rests on a call without an answer is `blind`, never `failed`.
-* **Lock**: one `fcntl` lock per project (`<git-common-dir>/helix-sync-upstreams.lock`); a second run
-  exits 7 (`LOCKED`). The kernel releases the lock when a run dies, so no stale lock exists.
+* **Lock**: one `fcntl` lock per repository of the tree (`<git-common-dir>/helix-sync-upstreams.lock`): the
+  root's first, every other repository's after discovery and before any fetch or write; a second run that
+  meets a held lock exits 7 (`LOCKED`). The kernel releases the lock when a run dies, so no stale lock exists.
 * **Evidence**: `sync_report.json` (schema `helix.sync_upstreams/1`) and `sync_report.tsv` in `--out`
   (default under `$XDG_CACHE_HOME`), with run id, per-repository before/after SHAs, timestamps,
   exit codes, a §11.4.273 control needle, and `canonical_sha256` over the time-free part, which is

@@ -55,7 +55,11 @@ git -C "$W" remote remove leaky
 # 3. ambient GIT_DIR / GIT_WORK_TREE are ignored
 decoy="$SB/decoy"; git init -q "$decoy"
 SX_OUT="$(GIT_DIR="$decoy/.git" GIT_WORK_TREE="$decoy" bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/out/amb" 2>&1)"; rc=$?
-eq "ambient GIT_DIR: exit 0" 0 "$rc"
+# section 1 staged pins (--advance-pins never commits): they are the only reasons, attention exit 4 (RV4-2)
+eq "ambient GIT_DIR: exit 4 (the pins section 1 staged)" 4 "$rc"
+eq "ambient GIT_DIR: every reason is a staged gitlink" "" "$(python3 -I -c 'import json,sys;print(",".join(r for x in json.load(open(sys.argv[1]))["repos"] for r in x.get("reasons", []) if not r.startswith("gitlink-staged:")))' "$SB/out/amb/sync_report.json")"
+has "ambient GIT_DIR: control needle, a staged pin is reported" "gitlink-staged:" "$(cat "$SB/out/amb/sync_report.json")"
+eq "ambient GIT_DIR: the decoy repository was not touched" "" "$(git -C "$decoy" status --porcelain)"
 eq "ambient GIT_DIR: the real tree was inspected (4 repos)" "4" "$(python3 -I -c 'import json,sys;print(json.load(open(sys.argv[1]))["counts"]["repos"])' "$SB/out/amb/sync_report.json")"
 
 # 4. metacharacters in a remote name are refused, never executed

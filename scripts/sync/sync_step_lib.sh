@@ -10,7 +10,8 @@
 #             ask      --apply --interactive (the engine asks on /dev/tty before fetching and before
 #                      every change; without a terminal the step is SKIPPED, never run unasked)
 #   Sets SYNC_STEP_RC to the engine's exit code (or 0 for off / skip) and SYNC_STEP_VERDICT to one of
-#   OFF SKIP CURRENT UPDATES-AVAILABLE ATTENTION FAILED INCONCLUSIVE LOCKED BLIND (engine exits 0 3 4 1 5 7 6;
+#   OFF SKIP CURRENT UPDATES-AVAILABLE ATTENTION FAILED INCONCLUSIVE LOCKED BLIND INTERRUPTED (engine exits
+#   0 3 4 1 5 7 6 8;
 #   2 usage and any other code read as BLIND). Returns 0, except 1 when an --apply
 #   integration step failed (exit 1 of the engine). Never prints a URL or a credential itself; the
 #   engine redacts its own output.
@@ -57,6 +58,7 @@ sync_step() {
     5) SYNC_STEP_VERDICT=INCONCLUSIVE;      echo "[sync-upstreams] $mode: INCONCLUSIVE (exit 5; a git call gave no answer, nothing about that repository was concluded)" ;;
     7) SYNC_STEP_VERDICT=LOCKED;            echo "[sync-upstreams] $mode: LOCKED (exit 7; another sync run holds the lock, nothing was done)" ;;
     6) SYNC_STEP_VERDICT=BLIND;             echo "[sync-upstreams] $mode: BLIND (exit 6; the tree could not be inspected)" ;;
+    8) SYNC_STEP_VERDICT=INTERRUPTED;       echo "[sync-upstreams] $mode: INTERRUPTED (exit 8; stopped by a signal; the report records what moved)" ;;
     *) SYNC_STEP_VERDICT=BLIND;             echo "[sync-upstreams] $mode: BLIND (exit $rc; nothing was decided)" ;;
   esac
   return 0

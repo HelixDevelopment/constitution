@@ -75,10 +75,14 @@ eq "advance-pins: third-party behind is informational (current)" "current" "$(sx
 sx_run --apply --advance-pins --advance-third-party --root "$W"
 eq "advance-third-party: vendor/t advanced" "$(sx_remote_head "$SB/remotes/thirdparty/tlib.git")" "$(sx_head "$W/vendor/t")"
 
-# ── 7. idempotent: a second apply changes nothing
+# ── 7. idempotent: a second apply changes nothing. The pins staged above are not committed yet, so the root's
+#    index records gitlinks its HEAD does not: reported gitlink-staged:<path> (attention, exit 4; round 5, RV4-2)
+#    until the user commits them; nothing is written over them and nothing else is held back.
 h1="$(sx_head "$W")"; s1="$(git -C "$W" status --porcelain=v1)"
 sx_run --apply --advance-pins --advance-third-party --root "$W"
-eq "idempotent: exit 0" 0 "$SX_RC"
+eq "idempotent: exit 4 (staged pins await the user's commit)" 4 "$SX_RC"
+eq "idempotent: staged pins reported" "True True" "$(sx_q '" ".join(str(x in P["."]["reasons"]) for x in ("gitlink-staged:libs/a", "gitlink-staged:vendor/t"))')"
+eq "idempotent: no write attempted" "0" "$(sx_q 'sum(1 for x in r["repos"] for a in x["actions"] if a.get("op") not in (None, "none"))')"
 eq "idempotent: root unchanged" "$h1" "$(sx_head "$W")"
 eq "idempotent: index unchanged" "$s1" "$(git -C "$W" status --porcelain=v1)"
 eq "idempotent: no repo updated" "0" "$(sx_q 'sum(1 for x in r["repos"] if x["result"]=="updated")')"
