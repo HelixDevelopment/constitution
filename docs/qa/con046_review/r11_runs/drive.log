@@ -1,0 +1,17 @@
+2026-11-14T01:20:49+01:00 all three rerun on 2026-11-14: screen 3 of the 11-13 drive passed (rc 0, 486/458/0/26/0) but ended 2026-11-14T01:17:51 (13.4 h under host load ~84, CPU PSI some ~66%), so the three screens are not on one day
+2026-11-14T01:20:49+01:00 drive start (first screen 1, longest so far 0s) day 2026-11-14 SUITE_NOW 2026-11-14T12:00:00Z
+2026-11-14T01:20:49+01:00 screen 1 start (pids.current 3)
+2026-11-14T09:23:33+01:00 screen 1 rc=0 duration 28964s
+2026-11-14T09:23:33+01:00 screen 2 start (pids.current 3)
+2026-11-14T12:43:35+01:00 host rebooted ~12:32 during screen 2 (partial log kept as screen2_cut_by_reboot.log, INCONCLUSIVE); resuming with screen 2. Longest passed as 15926s (11-13 screen 1 under load ~13) instead of 28964s (11-14 screen 1 under load ~84): host load is now low after the reboot; the guard still uses the measured screen-2 duration before screen 3
+2026-11-14T12:43:35+01:00 drive start (first screen 2, longest so far 15926s) day 2026-11-14 SUITE_NOW 2026-11-14T12:00:00Z
+2026-11-14T12:43:35+01:00 screen 2 start (pids.current 3)
+2026-11-14T12:43:44+01:00 host rebooted ~12:32 during screen 2 (partial log kept as screen2_cut_by_reboot.log, INCONCLUSIVE); resuming with screen 2. Longest passed as 15926s (11-13 screen 1 under load ~13) instead of 28964s (11-14 screen 1 under load ~84): host load is low after the reboot; the guard uses the measured screen-2 duration before screen 3
+2026-11-14T12:44:31+01:00 screen 2 attempt of 12:43:35 STOPPED by me (systemctl --user stop of my own scope con046-r11-rerun-1114b): my cleanup deleted its fresh TMPDIR tmp2 seconds after it started (a race between two of my commands), so the run is invalid; log kept as screen2_aborted_tmpdir_deleted.log
+2026-11-14T12:44:46+01:00 clean restart of screen 2 (single launch, nothing else touching the run dir)
+2026-11-14T12:44:46+01:00 drive start (first screen 2, longest so far 15926s) day 2026-11-14 SUITE_NOW 2026-11-14T12:00:00Z
+2026-11-14T12:44:46+01:00 screen 2 start (pids.current 3)
+2026-11-14T16:30:12+01:00 screen 2 rc=0 duration 13526s
+2026-11-14T16:30:12+01:00 screen 3 start (pids.current 3)
+2026-11-14T23:52:29+01:00 screen 3 rc=0 duration 26537s
+2026-11-14T23:52:29+01:00 all done
