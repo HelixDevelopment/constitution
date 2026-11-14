@@ -15,7 +15,9 @@ unmerged_refs_block (one line per remote counted). An empty FACTS value renders 
 "(none recorded in the tracker)".
 
 Refuses (exit 3, nothing on stdout) when a placeholder has no value, a MANUAL value is empty or still
-says TODO/TBD, or a MANUAL block is unused (a typo would otherwise drop text silently). Exit 2 = usage.
+says TODO/TBD, a MANUAL block is unused (a typo would otherwise drop text silently), or a FACTS count
+key open_status[...] / open_severity[...] is not rendered by the template (a status or severity value
+new at cut time would otherwise drop silently; extend the template). Exit 2 = usage.
 """
 import re
 import sys
@@ -57,7 +59,7 @@ def main(argv):
     facts["unmerged_refs_block"] = "\n".join(
         "- %s: %s ref(s): %s" % (r, n, facts.get("unmerged_refs[%s]" % r) or "-") for r, n in sorted(refs)) or EMPTY
 
-    used, missing = set(), []
+    used, used_facts, missing = set(), set(), []
 
     def sub(m):
         key = m.group(1)
@@ -72,6 +74,7 @@ def main(argv):
         if key not in facts:
             missing.append(key)
             return m.group(0)
+        used_facts.add(key)
         return facts[key] if facts[key] != "" else EMPTY
 
     out = re.sub(r"\{\{([^{}]+)\}\}", sub, tpl)
@@ -80,6 +83,11 @@ def main(argv):
     unused = sorted(set(manual) - used)
     if unused:
         die("manual blocks not used by the template: %s" % ", ".join(unused), 3)
+    unrendered = sorted(k for k in facts
+                        if k.startswith(("open_status[", "open_severity[")) and k not in used_facts)
+    if unrendered:
+        die("facts the template does not render (a value new at cut time; extend the template): %s"
+            % ", ".join(unrendered), 3)
     sys.stdout.write(out)
     return 0
 

@@ -1,0 +1,3 @@
+FAIL RT12 EQUIVALENT-KILLED: recorded equivalent but killed; review the record or the killing property (exit 4) (FAIL missing token rc=0)
+RESULT: killed=0 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0 equivalent_killed=1
+rc=4

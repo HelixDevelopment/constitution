@@ -1,0 +1,132 @@
+PASS C1 exit 0
+PASS C1 RESULT OK
+PASS C1 r1 main
+PASS C1 r2 tag peels to release
+PASS C1 annotated tag
+PASS C2 exit 1
+PASS C2 RESULT FAIL
+PASS C2 r2 has no tag
+PASS C2 r2 main unchanged
+PASS C2 r1 still OK
+PASS C2 MISMATCH reported for r2
+PASS C3 resume exit 0
+PASS C3 tag object reused
+PASS C3 r2 tag object equals local
+PASS C3 OK remote skipped
+PASS C4 exit 1
+PASS C4 fetch abort
+PASS C4 no local tag
+PASS C4 r1 untouched
+PASS C5 exit 1
+PASS C5 ancestor abort
+PASS C5 no local tag
+PASS C6 exit 1
+PASS C6 heading abort
+PASS C7 exit 1
+PASS C7 r2 has no tag
+PASS C7 fallback path taken
+PASS C7 fallback completes on resume
+PASS C7 r2 tag
+PASS C8 exit 1
+PASS C8 impostor kept
+PASS C8 r1 untouched
+PASS C9 exit 1 (r2 not OK)
+PASS C9 no release on the non-OK remote
+PASS C9 glab gets --ref SHA
+PASS C9 one github create for one repository id
+PASS C9 gh --verify-tag
+PASS C9 resume with an inaccessible repo exits 5 (GAPS)
+PASS C9 existing releases not re-created
+PASS C9 resumed release on the now-OK remote
+PASS C10 exit 0
+PASS C10 no tag
+PASS C10 r1 untouched
+PASS C11 missing --remotes is usage error
+PASS C13 dirty tree exit 1
+PASS C13 dirty-tree abort
+PASS C13 no local tag
+PASS C13 r1 untouched
+PASS C14 HEAD!=SHA exit 1
+PASS C14 HEAD!=SHA abort
+PASS C14 no local tag
+PASS C14 r1 untouched
+PASS C15 exit 1
+PASS C15 different-object abort
+PASS C15 impostor kept
+PASS C15 r1 untouched
+PASS C16 exit 0
+PASS C16 r2 tag pushed
+PASS C16 r2 not skipped
+PASS C17 gitea ok exit 0
+PASS C17 gitea created
+PASS C17 base URL and repo passed
+PASS C18 gitea missing token is a GAP (exit 5)
+PASS C18 SKIPPED-NO-TOKEN gap
+PASS C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1)
+PASS C19 refusal named
+PASS C20 gitea rc 4 exit 1
+PASS C20b gitea rc 3 with the token mid-line is a FAIL (exit 1)
+PASS C20b mid-line token is not a GAP
+PASS C20c private TMPDIR exists (control)
+PASS C20c gitea stderr temp file removed (all rcs)
+PASS C22 real publisher, no token: GAP exit 5
+PASS C22 SKIPPED-NO-TOKEN gap
+PASS C23 real publisher, bad token charset: FAIL exit 1
+PASS C23 refusal names the publisher's reason
+PASS C23 token value not printed
+PASS C21 exit 1
+PASS C21 userinfo not printed
+PASS C21 fetch abort (control)
+PASS C21 redaction marker is printed (positive needle)
+PASS C21b exit 1
+PASS C21b long message: secret prefix not printed
+PASS C21b fetch abort (control)
+PASS C21c exit 1
+PASS C21c push failure printed (control)
+PASS C21c push stderr: no secret printed (raw @ and second URL included)
+PASS C21c redaction runs to the last '@' of the line (positive needle)
+PASS C21c (G8) no 'tag pushed only' after a failed push
+PASS C21c (G8) the INFO line says the push is NOT OK
+PASS C21d dry-run still exit 0
+PASS C21d exit-time stderr flush: no secret
+PASS C21d exit-time flush prints the redacted line (positive needle)
+PASS C21e the longest printed line is exactly the 400-byte cap
+PASS C24 no head -c in the three scripts (only rc_redact_cut cuts)
+PASS C24 the helper defines the one cutter (control needle)
+FAIL C24b no temp FILE outside a private run directory in the three scripts (mktemp -d only) (got '5', want '0')
+PASS C25 real git, raw '/' in the password: exit 1
+PASS C25 fetch abort (control)
+FAIL C25 raw '/' password not printed
+FAIL C25 git's own message is printed, redacted (positive needle)
+PASS C25b real git, query token: exit 1
+FAIL C25b query token not printed
+FAIL C25b git's message names the parameter, value redacted (positive needle)
+PASS C26 success: exit 0
+PASS C26 success: nothing left in TMPDIR
+FAIL C26 the run directory is created under TMPDIR (control needle)
+PASS C26 fetch failure: exit 1
+PASS C26 fetch failure: nothing left in TMPDIR
+PASS C26 push failure: exit 1
+PASS C26 push failure: nothing left in TMPDIR
+PASS C26 fallback push failure: exit 1
+PASS C26 fallback push failure: nothing left in TMPDIR
+PASS C26 gitea legs (all rcs): nothing left in TMPDIR
+PASS C27 TERM: the run ends non-zero (rc 143)
+FAIL C27 TERM: nothing left in TMPDIR (got '1', want '0')
+PASS C27 TERM: no secret printed
+PASS C27 TERM: the script had started (control)
+tests/release/test_tag_and_release.sh: line 319: 3078696 Hangup                     ( cd "$D/w" && TMPDIR="$D/tmp" PATH="$W/gitbin:$PATH" exec bash "$S" --tag "$TAG" --sha "$REL" --remotes "r1 r2" --no-badge-check ) > "$D/sig.out" 2>&1
+PASS C27 HUP: the run ends non-zero (rc 129)
+FAIL C27 HUP: nothing left in TMPDIR (got '1', want '0')
+PASS C27 HUP: no secret printed
+PASS C27 HUP: the script had started (control)
+PASS C28 exit 1
+FAIL C28 the fallback push failure carries git's reason
+PASS C28 the reason is redacted
+PASS C29 dry-run exit 0
+FAIL C29 the cut flush ends with a truncation marker
+PASS C30 bash -x run: exit 1
+FAIL C30 bash -x run: no secret printed
+FAIL C30 bash -x run: git's message seen, redacted (positive needle)
+PASS C12 no force/delete in script
+RESULT: pass=118 fail=12

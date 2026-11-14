@@ -1,0 +1,14 @@
+# RED: the round-7 redact_cut suite against the round-6 helper (git 2765038f, 2026-11-12T11:45:01Z)
+FAIL K6 re-execution: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 a name outside the allow-list reaches a child: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 allexport: a caller value reaches a child: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 marker with a dirty environment was taken as clean: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 injected records: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 s records: <scratch>/constitution/../tmp/k6.QbSyQi/p.sh: line 4: rc_env_clean: command not found
+FAIL K6 READS BASH_ENV: <scratch>/constitution/../tmp/k6.QbSyQi/p2.sh: line 4: rc_env_clean: command not found
+FAIL K6 READS not an identifier: <scratch>/constitution/../tmp/k6.QbSyQi/p3.sh: line 4: rc_env_clean: command not found
+FAIL K6 blind: <scratch>/constitution/../tmp/k6.QbSyQi/p4.sh: line 4: rc_env_clean: command not found
+FAIL K6 no script file: <scratch>/constitution/../tmp/k6.QbSyQi/no-such-script: line 1: rc_env_clean: command not found
+# The suite then stopped (exit 1, set -u) at the _rc_env_state cases, because the round-6 helper has no such function:
+tests/release/test_redact_cut.sh: line 275: _rc_env_state: command not found
+tests/release/test_redact_cut.sh: line 275: _RC_ENV_STATE: unbound variable

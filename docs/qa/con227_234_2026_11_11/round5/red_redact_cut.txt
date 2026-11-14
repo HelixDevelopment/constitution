@@ -1,0 +1,33 @@
+FAIL J1a password with 'token:' inside the userinfo (R1 must not run before R3) (leaked: SECab cdtoken; output: fatal: unable to access 'https://user:SECab/cdtoken: <redacted>)
+FAIL J1b password with 'secret: ' inside the userinfo (leaked: SECx; output: fatal: unable to access 'https://user:SECx/y secret: <redacted>)
+FAIL J1c the host after the userinfo is kept (positive needle) (got 'x https://user:SECab/cdtoken: <redacted>', want 'x https://<redacted>@127.0.0.1:1/r y')
+FAIL J1d scheme-less user:password@host with 'token:' in the password (R4 before R1) (leaked: SECab; output: fatal: 'user:SECab/cdtoken: <redacted>)
+FAIL J2a a 4500-byte credential value does not let the next parameter through (leaked)
+FAIL J2b no marker (x https://h/r?token=<redacted>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+FAIL J2c a line longer than 16384 bytes is not printed, only its length (got 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+FAIL E1 real git: raw '/' in the password (got '', want 'url-invalid')
+FAIL E2 real git: unknown host (got '', want 'network-unreachable')
+FAIL E3 real git: missing local repository (got '', want 'repository-not-found')
+FAIL E4 real git: connection refused (got '', want 'network-unreachable')
+FAIL E5 HTTP 403 (got '', want 'auth-failed')
+FAIL E6 authentication failed (got '', want 'auth-failed')
+FAIL E7 hook declined, the deciding phrase on the LAST line (multi-line input, V11 class) (got '', want 'remote-rejected')
+FAIL E8 non-fast-forward (got '', want 'rejected-non-fast-forward')
+FAIL E9 empty input (got '', want 'no-message')
+FAIL E10 text with no known phrase (got '', want 'unknown')
+FAIL E11 TLS (got '', want 'tls-error')
+FAIL E12 remote ref (got '', want 'ref-error')
+FAIL E13 the deciding phrase after 5000 bytes is still seen (got '', want 'network-unreachable')
+FAIL E14 upper case phrase (got '', want 'network-unreachable')
+FAIL E15 seven hostile inputs: one closed-set word each, no input byte
+FAIL E16 NUL bytes and a UTF-8 caller locale (got '', want 'network-unreachable')
+FAIL W1 https with path and query (got '', want 'https://git.example.org:3000')
+FAIL W2 userinfo is never printed (got '', want '<url not shown>')
+FAIL W3 user only (got '', want '<url not shown>')
+FAIL W4 plain host (got '', want 'http://127.0.0.1:8080')
+FAIL W5 IPv6 literal (got '', want 'http://[::1]:3000')
+FAIL W6 not a URL (got '', want '<url not shown>')
+FAIL W7 a raw '/' password (git verbatim shape) (got '', want '<url not shown>')
+FAIL W8 empty (got '', want '<url not shown>')
+FAIL G1 trace switches removed, redaction forced, prompts off, trace2 disabled (got 'GIT_CURL_VERBOSE=1 GIT_TERMINAL_PROMPT=1 GIT_TRACE=1 GIT_TRACE2_EVENT=/y GIT_TRACE_CURL=/x GIT_TRACE_PACKET=1 GIT_T
+RESULT: pass=90 fail=32

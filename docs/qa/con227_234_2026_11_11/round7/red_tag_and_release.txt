@@ -1,0 +1,8 @@
+# RED: the round-7 tag suite against the round-6 tag script (git 2765038f, run 2026-11-12)
+FAIL C43 the re-executed tag script was sampled (control needle)
+FAIL C48 shellopts: FINDING mktemp: 'A.TOKEN' is not on the allow-list (and holds a marker) FINDING mktemp: 'BAD-NAME' is not on the allow-list (and holds a marker) FINDING mktemp: 'npm_config_//h.invalid/:_authToken' is not on the allow-list (and holds a marker) FINDING mktemp: 'MESSAGE' is not on the allow-list 
+FAIL C48 dasha: FINDING git: 'u' is not on the allow-list FINDING git: 'NOTES' is not on the allow-list FINDING git: 'FAILS' is not on the allow-list FINDING git: 'spec' is not on the allow-list 
+FAIL L1 external command before rc_env_clean: FINDING tag_and_release.sh loads redact_cut.sh but never calls rc_env_clean
+FAIL L1 needle: a date inserted at line 2 is not found
+RESULT: pass=284 fail=5
+EXIT 1

@@ -1,0 +1,200 @@
+== scripts/release/tag_and_release.sh: 87 print/write sites
+scripts/release/tag_and_release.sh:67: [$( ${BASH_SOURCE] . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/redact_cut.sh" || { printf 'tag_and_release: cannot load redact_cut.sh\n' >&2; exit 2; }
+scripts/release/tag_and_release.sh:70: [$1] die_usage() { printf 'tag_and_release: %s\n' "$1" >&2; printf 'RESULT: USAGE\n'; exit 2; }
+scripts/release/tag_and_release.sh:71: [$1 $2] need() { [ "$1" -ge 2 ] || die_usage "option $2 needs a value"; }
+scripts/release/tag_and_release.sh:84: [$1] *) if [[ $1 =~ ^--?[A-Za-z][A-Za-z0-9-]{0,40}$ ]]; then die_usage "unknown argument: $1"
+scripts/release/tag_and_release.sh:85: [-] else die_usage "unknown argument (not shown: it is not shaped like an option)"; fi ;;
+scripts/release/tag_and_release.sh:88: [$TAG] [ -n "$TAG" ] || die_usage "--tag is required"
+scripts/release/tag_and_release.sh:89: [$SHA] [ -n "$SHA" ] || die_usage "--sha is required"
+scripts/release/tag_and_release.sh:90: [$REMOTES] [ -n "$REMOTES" ] || die_usage "--remotes is required (the upstream list is DATA, never guessed)"
+scripts/release/tag_and_release.sh:92: [$SEG $TAG] [[ $TAG =~ ^$SEG$ ]] || die_usage "tag has unsafe characters (not shown)"
+scripts/release/tag_and_release.sh:93: [$SHA] [[ $SHA =~ ^[0-9A-Fa-f]{7,64}$ ]] || die_usage "--sha must be a hexadecimal commit id of 7 to 64 digits (the value is not shown)"
+scripts/release/tag_and_release.sh:96: [$( $SEG $n $r] n=$((n + 1)); [[ $r =~ ^$SEG$ ]] || die_usage "remote name number $n in --remotes has unsafe characters (not shown)"
+scripts/release/tag_and_release.sh:103: [$RE_GH $RE_GL $RE_GT $n $spec] [[ $spec =~ $RE_GH || $spec =~ $RE_GL || $spec =~ $RE_GT ]] || die_usage "bad --release spec number $n (expected github:REMOTE:OWNER/REPO, gitlab:REMOTE:GROUP/.
+scripts/release/tag_and_release.sh:105: [$REMOTES $n $rr] case " $REMOTES " in *" $rr "*) ;; *) die_usage "--release spec number $n names remote '$rr' that is not in --remotes" ;; esac
+scripts/release/tag_and_release.sh:108: [$NET_TIMEOUT] [[ $NET_TIMEOUT =~ ^[1-9][0-9]{0,5}$ ]] || die_usage "RELEASE_NET_TIMEOUT must be a positive whole number of seconds (the value is not shown)"
+scripts/release/tag_and_release.sh:113: [$( $*] fail() { FAILS=$((FAILS + 1)); printf 'FAIL %s\n' "$*"; }
+scripts/release/tag_and_release.sh:114: [$( $*] gap()  { GAPS=$((GAPS + 1));  printf 'GAP %s\n' "$*"; }
+scripts/release/tag_and_release.sh:115: [$*] abort() { printf 'ABORT %s\n' "$*"; printf 'RESULT: FAIL fails=1 gaps=0 (aborted before any write)\n'; exit 1; }
+scripts/release/tag_and_release.sh:124: [$( ${TMPDIR] RUNDIR="$(mktemp -d "${TMPDIR:-/tmp}/tar_run.XXXXXX")" || { printf 'tag_and_release: cannot create a temp directory\n' >&2; exit 2; }
+scripts/release/tag_and_release.sh:127: [$EXTERR] exec 3>&2 2>"$EXTERR"
+scripts/release/tag_and_release.sh:129: [$EXTERR] [ -f "$EXTERR" ] && rc_redact_cut 2000 mark <"$EXTERR" >&3
+scripts/release/tag_and_release.sh:131: [$RUNDIR] rmdir -- "$RUNDIR" 2>/dev/null || printf 'tag_and_release: WARNING the temp directory %s is not empty and was kept\n' "$RUNDIR" >&3
+scripts/release/tag_and_release.sh:140: [-] else HAVE_TIMEOUT=0; printf 'tag_and_release: WARNING timeout(1) not found; network commands are not time-bounded\n' >&3; fi
+scripts/release/tag_and_release.sh:145: [$2 $HAVE_TIMEOUT] if [ "$HAVE_TIMEOUT" -eq 1 ] && { [ "$2" -eq 124 ] || [ "$2" -eq 137 ]; }; then printf 'timeout'
+scripts/release/tag_and_release.sh:146: [$1] else printf '%s' "$1" | rc_err_class; fi
+scripts/release/tag_and_release.sh:149: [$1 $2 $3] withheld() { printf '(%s exit %s, reason class: %s; %s'"'"'s own message is withheld (it can carry a credential); run the same command by hand to read it)' "$1"
+scripts/release/tag_and_release.sh:151: [$1 $2] own1() { printf '%s\n' "$1" | grep -m 1 '^release_publish_gitea: ' | rc_redact_cut "$2"; }
+scripts/release/tag_and_release.sh:153: [$1] oid() { if [[ ${1:-} =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then printf '%s' "$1"; elif [ -z "${1:-}" ]; then printf -- '-'; else printf 'NOT-AN-OBJECT-ID'; fi; }
+scripts/release/tag_and_release.sh:154: [$( $DRY $SHA $TAG] printf '== %s start tag=%s sha=%s dry_run=%s\n' "$(date -Is)" "$TAG" "$SHA" "$DRY"
+scripts/release/tag_and_release.sh:157: [-] git rev-parse --git-dir >/dev/null 2>&1 || abort "not inside a git repository"
+scripts/release/tag_and_release.sh:158: [$( $SHA] FULL="$(git rev-parse -q --verify "$SHA^{commit}" 2>/dev/null)" || abort "SHA $SHA is not a commit here"
+scripts/release/tag_and_release.sh:160: [$( $SHA] [ "$(git rev-parse HEAD)" = "$SHA" ] || abort "HEAD $(git rev-parse HEAD) != $SHA"
+scripts/release/tag_and_release.sh:161: [$(] [ -z "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ] || abort "working tree is not clean"
+scripts/release/tag_and_release.sh:165: [$r] git remote get-url "$r" >/dev/null 2>&1 || abort "remote $r is not configured"
+scripts/release/tag_and_release.sh:168: [$( $frc $r $x_fetch] [ "$frc" -eq 0 ] || abort "fetch of $r main failed $(withheld git "$frc" "$(xcls "$x_fetch" "$frc")")"
+scripts/release/tag_and_release.sh:171: [$SHA $r $t] git merge-base --is-ancestor "$t" "$SHA" || abort "$r main $t is not an ancestor of $SHA (main moved; merge the new main into the release commit and re-review)"
+scripts/release/tag_and_release.sh:177: [$SHA $TAG ${FIRST] *) abort "the first '## ' heading of CHANGELOG.md at $SHA is not '$TAG ...' (got: ${FIRST:-<none>})" ;;
+scripts/release/tag_and_release.sh:179: [$0 $NOTES $SHA $TAG] git show "$SHA:CHANGELOG.md" | TAG="$TAG" awk 'BEGIN{t=ENVIRON["TAG"];on=0} /^## /{if(on)exit; h=substr($0,4); if(h==t||index(h,t" ")==1)on=1} on{print}' > "$NO
+scripts/release/tag_and_release.sh:180: [$NOTES $SHA $TAG] [ -s "$NOTES" ] || abort "no release notes for $TAG at $SHA"
+scripts/release/tag_and_release.sh:183: [-] [ -f scripts/badges/compute_badges.sh ] || abort "scripts/badges/compute_badges.sh absent (use --no-badge-check only where the repository has no badge computer)
+scripts/release/tag_and_release.sh:184: [$SHA] bash scripts/badges/compute_badges.sh --check >/dev/null 2>&1 || abort "compute_badges.sh --check fails at $SHA"
+scripts/release/tag_and_release.sh:190: [$( $TAG] [ "$(git cat-file -t "refs/tags/$TAG")" = tag ] || abort "local $TAG is a lightweight tag; refusing to reuse it"
+scripts/release/tag_and_release.sh:191: [$( $SHA $TAG] [ "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$SHA" ] || abort "local $TAG points at $(git rev-parse "refs/tags/$TAG^{commit}"), not $SHA"
+scripts/release/tag_and_release.sh:199: [$( $r $ro] [ "$(oid "$ro")" != NOT-AN-OBJECT-ID ] || abort "$r answered a tag object id that is not an object id (the answer is not shown)"
+scripts/release/tag_and_release.sh:202: [$LOCAL_TAG_EXISTS $TAG $r $ro] [ "$LOCAL_TAG_EXISTS" -eq 1 ] || abort "$r already has $TAG ($ro) but no local tag exists; fetch that tag and check it, never re-create it"
+scripts/release/tag_and_release.sh:203: [$( $TAG $r $ro] [ "$ro" = "$(git rev-parse "refs/tags/$TAG")" ] || abort "$r has a different $TAG object ($ro); never replaced (§11.4.113)"
+scripts/release/tag_and_release.sh:208: [$REMOTES $SHA $TAG $r ${RMAIN ${RTAG] for r in $REMOTES; do printf 'PLAN push --atomic %s %s:refs/heads/main refs/tags/%s (remote main %s, remote tag %s)\n' "$r" "$SHA" "$TAG" "${RMAIN[$r]}" "${RTAG
+scripts/release/tag_and_release.sh:209: [$spec ${RELEASES] for spec in "${RELEASES[@]+"${RELEASES[@]}"}"; do printf 'PLAN release %s\n' "$spec"; done
+scripts/release/tag_and_release.sh:210: [-] printf 'RESULT: OK dry-run (no tag created, nothing pushed)\n'
+scripts/release/tag_and_release.sh:215: [$MESSAGE $SHA $TAG] git tag -a "$TAG" -m "$MESSAGE" "$SHA" || abort "git tag failed"
+scripts/release/tag_and_release.sh:216: [$SHA $TAG] printf 'TAG created %s -> %s\n' "$TAG" "$SHA"
+scripts/release/tag_and_release.sh:218: [$SHA $TAG] printf 'TAG reused %s -> %s (resume)\n' "$TAG" "$SHA"
+scripts/release/tag_and_release.sh:225: [$( $1 $TAG] out="$(net ls-remote "$1" refs/heads/main "refs/tags/$TAG" "refs/tags/$TAG^{}" 2>/dev/null)" || { printf 'ERR ERR ERR'; return 1; }
+scripts/release/tag_and_release.sh:226: [$( $1 $2 $out] m="$(printf '%s\n' "$out" | awk -F '\t' '$2=="refs/heads/main"{print $1; exit}')"
+scripts/release/tag_and_release.sh:227: [$( $1 $2 $TAG $out] o="$(printf '%s\n' "$out" | awk -F '\t' -v t="refs/tags/$TAG" '$2==t{print $1; exit}')"
+scripts/release/tag_and_release.sh:228: [$( $1 $2 $TAG $out] p="$(printf '%s\n' "$out" | awk -F '\t' -v t="refs/tags/$TAG^{}" '$2==t{print $1; exit}')"
+scripts/release/tag_and_release.sh:229: [$( $m $o $p] printf '%s %s %s' "$(oid "$m")" "$(oid "$o")" "$(oid "$p")"
+scripts/release/tag_and_release.sh:235: [$r] if is_ok "$r"; then OK[$r]=1; printf 'PUSH %s already OK (skipped)\n' "$r"; continue; fi
+scripts/release/tag_and_release.sh:240: [$r] printf 'PUSH %s atomic ok\n' "$r"
+scripts/release/tag_and_release.sh:242: [$r] printf 'PUSH %s: server has no atomic push; main first, tag only after main reads back\n' "$r"
+scripts/release/tag_and_release.sh:246: [$( $r $trc $x_tagpush] [ "$trc" -eq 0 ] || printf 'PUSH %s tag push failed %s\n' "$r" "$(withheld git "$trc" "$(xcls "$x_tagpush" "$trc")")"
+scripts/release/tag_and_release.sh:248: [$( $mrc $r $x_main] printf 'PUSH %s main push failed; tag NOT pushed %s\n' "$r" "$(withheld git "$mrc" "$(xcls "$x_main" "$mrc")")"
+scripts/release/tag_and_release.sh:250: [$SHA $r] printf 'PUSH %s main push failed; tag NOT pushed (main does not read back as %s)\n' "$r" "$SHA"
+scripts/release/tag_and_release.sh:253: [$( $prc $r $x_push] printf 'PUSH %s failed %s\n' "$r" "$(withheld git "$prc" "$(xcls "$x_push" "$prc")")"
+scripts/release/tag_and_release.sh:257: [-] printf '== ls-remote verify\n'
+scripts/release/tag_and_release.sh:260: [$SHA $TAGOBJ $r $s] if [ "$s" = "$SHA $TAGOBJ $SHA" ]; then OK[$r]=1; printf 'VERIFY %s OK main=%s tag=%s\n' "$r" "$SHA" "$TAGOBJ"
+scripts/release/tag_and_release.sh:261: [$SHA $TAGOBJ $r $s] else unset 'OK[$r]'; fail "VERIFY $r MISMATCH main/tagobj/peeled=$s expected=$SHA/$TAGOBJ/$SHA"; fi
+scripts/release/tag_and_release.sh:270: [$r $spec ${OK] if [ -z "${OK[$r]:-}" ]; then fail "RELEASE $spec not attempted: remote $r is not OK"; continue; fi
+scripts/release/tag_and_release.sh:273: [$spec] if ! command -v gh >/dev/null 2>&1 || ! nt gh auth status >/dev/null 2>&1; then gap "RELEASE $spec SKIPPED-NO-TOKEN (gh not authenticated)"; continue; fi
+scripts/release/tag_and_release.sh:276: [$id $spec $target] if [ -z "$id" ]; then gap "RELEASE $spec NOT-ACCESSIBLE (gh api repos/$target failed; not released there)"; continue; fi
+scripts/release/tag_and_release.sh:277: [$id $spec ${GH_SEEN] if [ -n "${GH_SEEN[$id]:-}" ]; then printf 'RELEASE %s same repository id %s as %s (deduplicated)\n' "$spec" "$id" "${GH_SEEN[$id]}"; continue; fi
+scripts/release/tag_and_release.sh:279: [$TAG $spec $target] if nt gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"; continue; fi
+scripts/release/tag_and_release.sh:281: [$TAG $spec $target] && nt gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s CREATED\n' "$spec"
+scripts/release/tag_and_release.sh:282: [$spec] else fail "RELEASE $spec create failed"; fi ;;
+scripts/release/tag_and_release.sh:284: [$spec] if ! command -v glab >/dev/null 2>&1 || ! nt glab auth status >/dev/null 2>&1; then gap "RELEASE $spec SKIPPED-NO-TOKEN (glab not authenticated)"; continue; fi
+scripts/release/tag_and_release.sh:285: [$TAG $spec $target] if nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"; continue; fi
+scripts/release/tag_and_release.sh:288: [$TAG $spec $target] && nt glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s CREATED\n' "$spec"
+scripts/release/tag_and_release.sh:289: [$spec] else fail "RELEASE $spec create failed"; fi ;;
+scripts/release/tag_and_release.sh:301: [$spec] 0) printf 'RELEASE %s CREATED-OR-UPDATED\n' "$spec" ;;
+scripts/release/tag_and_release.sh:302: [$spec $x_gitea] 3) if printf '%s\n' "$x_gitea" | grep -q '^SKIPPED-NO-TOKEN:'; then gap "RELEASE $spec SKIPPED-NO-TOKEN (gitea token variable not set)"
+scripts/release/tag_and_release.sh:303: [$gmsg $spec] else fail "RELEASE $spec REFUSED rc=3 (configuration or precondition: $gmsg)"; fi ;;
+scripts/release/tag_and_release.sh:304: [$gmsg $rc $spec] *) fail "RELEASE $spec failed rc=$rc: $gmsg" ;;
+scripts/release/tag_and_release.sh:312: [$r ${OK] if [ -n "${OK[$r]:-}" ]; then printf 'INFO %s: tag pushed only (no platform release requested)\n' "$r"
+scripts/release/tag_and_release.sh:313: [$r] else printf 'INFO %s: no platform release requested; the push to this remote is NOT OK (see the lines above)\n' "$r"; fi
+scripts/release/tag_and_release.sh:317: [$(] printf '== %s end\n' "$(date -Is)"
+scripts/release/tag_and_release.sh:318: [$FAILS $GAPS] if [ "$FAILS" -gt 0 ]; then printf 'RESULT: FAIL fails=%d gaps=%d (re-run the same command to resume)\n' "$FAILS" "$GAPS"; exit 1; fi
+scripts/release/tag_and_release.sh:319: [$GAPS] if [ "$GAPS" -gt 0 ]; then printf 'RESULT: GAPS fails=0 gaps=%d\n' "$GAPS"; exit 5; fi
+scripts/release/tag_and_release.sh:320: [-] printf 'RESULT: OK fails=0 gaps=0\n'; exit 0
+== scripts/release/derive_release_facts.sh: 54 print/write sites
+scripts/release/derive_release_facts.sh:31: [$1 $2 $DIE_FD] die() { printf 'derive_release_facts: %s\n' "$1" >&"$DIE_FD"; exit "$2"; }
+scripts/release/derive_release_facts.sh:34: [$( ${BASH_SOURCE] . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/redact_cut.sh" || die "cannot load redact_cut.sh" 3
+scripts/release/derive_release_facts.sh:38: [$# $2] --base) [ $# -ge 2 ] || die "--base needs a value" 2; BASE="$2"; shift 2 ;;
+scripts/release/derive_release_facts.sh:39: [$# $2] --prev-tag) [ $# -ge 2 ] || die "--prev-tag needs a value" 2; PREV="$2"; shift 2 ;;
+scripts/release/derive_release_facts.sh:40: [$# $2] --remotes) [ $# -ge 2 ] || die "--remotes needs a value" 2; REMOTES="$2"; shift 2 ;;
+scripts/release/derive_release_facts.sh:41: [$# $2] --today) [ $# -ge 2 ] || die "--today needs a value" 2; TODAY="$2"; shift 2 ;;
+scripts/release/derive_release_facts.sh:43: [$1] *) if [[ $1 =~ ^--?[A-Za-z][A-Za-z0-9-]{0,40}$ ]]; then die "unknown argument: $1" 2
+scripts/release/derive_release_facts.sh:44: [-] else die "unknown argument (not shown: it is not shaped like an option)" 2; fi ;;
+scripts/release/derive_release_facts.sh:47: [$BASE $PREV] [ -n "$BASE" ] && [ -n "$PREV" ] || die "--base and --prev-tag are required" 2
+scripts/release/derive_release_facts.sh:50: [$BASE] [[ $BASE =~ ^[A-Za-z0-9][A-Za-z0-9._/~^-]{0,199}$ ]] || die "--base is not a revision name of [A-Za-z0-9._/~^-] (the value is not shown)" 2
+scripts/release/derive_release_facts.sh:51: [$PREV] [[ $PREV =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$ ]] || die "--prev-tag has unsafe characters (the value is not shown)" 2
+scripts/release/derive_release_facts.sh:54: [$( $_n $_r] _n=$((_n + 1)); [[ $_r =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$ ]] || die "remote name number $_n in --remotes has unsafe characters (not shown)" 2
+scripts/release/derive_release_facts.sh:56: [$TODAY] printf '%s' "$TODAY" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || die "--today must be YYYY-MM-DD" 2
+scripts/release/derive_release_facts.sh:57: [-] command -v sqlite3 >/dev/null 2>&1 || die "sqlite3 is required" 3
+scripts/release/derive_release_facts.sh:58: [$( $BASE] B="$(git rev-parse -q --verify "$BASE^{commit}")" || die "base $BASE is not a commit" 3
+scripts/release/derive_release_facts.sh:59: [$( $PREV] P="$(git rev-parse -q --verify "refs/tags/$PREV^{commit}")" || die "tag $PREV not found" 3
+scripts/release/derive_release_facts.sh:60: [$( ${TMPDIR] DBDIR="$(mktemp -d "${TMPDIR:-/tmp}/rf_db.XXXXXX")" || die "cannot create a temp dir" 3
+scripts/release/derive_release_facts.sh:65: [$DBDIR $EXTERR] EXTERR="$DBDIR/exterr"; exec 3>&2 2>"$EXTERR"; DIE_FD=3
+scripts/release/derive_release_facts.sh:66: [$DB $DBDIR $EXTERR $_f] cleanup() { [ -f "$EXTERR" ] && rc_redact_cut 2000 mark <"$EXTERR" >&3; for _f in "$DB" "$DB-shm" "$DB-wal" "$DB-journal" "$DBDIR/out" "$DBDIR/qfail" "$EXTERR";
+scripts/release/derive_release_facts.sh:69: [$B $DB] git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
+scripts/release/derive_release_facts.sh:73: [$1 $DB $QFAIL] q() { sqlite3 -readonly -batch -noheader "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
+scripts/release/derive_release_facts.sh:76: [$1 $DB $QFAIL] qa() { sqlite3 -readonly -batch -noheader -ascii "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
+scripts/release/derive_release_facts.sh:78: [$1 $2] kv() { printf '%s=%s\n' "$1" "$2"; }
+scripts/release/derive_release_facts.sh:81: [$DBDIR] exec 4>&1 >"$DBDIR/out"
+scripts/release/derive_release_facts.sh:82: [$B] kv base "$B"
+scripts/release/derive_release_facts.sh:83: [$( $P $PREV] kv prev_tag "$PREV"; kv prev_tag_object "$(git rev-parse "refs/tags/$PREV")"; kv prev_tag_commit "$P"
+scripts/release/derive_release_facts.sh:84: [$( $P $PREV_DATE] PREV_DATE="$(git log -1 --format=%cs "$P")"; kv prev_tag_date "$PREV_DATE"
+scripts/release/derive_release_facts.sh:85: [$( $B $P] kv commits_since_prev "$(git rev-list --count "$P..$B")"
+scripts/release/derive_release_facts.sh:86: [$( $B $P] kv shortstat_since_prev "$(git diff --shortstat "$P" "$B" | sed 's/^ *//')"
+scripts/release/derive_release_facts.sh:87: [$( $B $P] kv merges_since_prev "$(git rev-list --merges --count "$P..$B")"
+scripts/release/derive_release_facts.sh:88: [$B $QFAIL] git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"
+scripts/release/derive_release_facts.sh:89: [$( $0 $B] kv changelog_first_heading "$(git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
+scripts/release/derive_release_facts.sh:90: [$( $DB] kv db_sha256 "$(sha256sum "$DB" | cut -d' ' -f1)"
+scripts/release/derive_release_facts.sh:93: [$(] kv items_total "$(q "select count(*) from items")"
+scripts/release/derive_release_facts.sh:94: [$( $O] kv items_open "$(q "select count(*) from items where $O")"
+scripts/release/derive_release_facts.sh:95: [$(] kv items_fixed "$(q "select count(*) from items where current_location='Fixed'")"
+scripts/release/derive_release_facts.sh:103: [-] END { for (k in n) printf "%s\036%s\036%s\035", k, n[k], ids[k] }' |
+scripts/release/derive_release_facts.sh:105: [$1 $k $n] kv "$1[$k]" "$n"
+scripts/release/derive_release_facts.sh:107: [$( $1 $idl $k] kv "$1_ids[$k]" "$(printf '%s' "$idl" | sort -V | tr '\n' ' ' | sed 's/ $//')"
+scripts/release/derive_release_facts.sh:112: [$( $O] kv open_severity_raw_spellings "$(q "select distinct coalesce(severity,'none') from items where $O order by 1" | tr '\n' ' ' | sed 's/ $//')"
+scripts/release/derive_release_facts.sh:114: [$( $O] kv open_items_with_any_state "$(q "select count(*) from items where $O and (reproduction_state!='UNSET' or investigation_state!='UNSET')")"
+scripts/release/derive_release_facts.sh:115: [$(] kv reopened_ids "$(ids "select atm_id from items where status='Reopened'")"
+scripts/release/derive_release_facts.sh:122: [$( $body] due="$(printf '%s\n' "$body" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\([^[:space:]]*\).*/\1/p')"
+scripts/release/derive_release_facts.sh:123: [$due] if printf '%s' "$due" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+scripts/release/derive_release_facts.sh:129: [$1] sv() { printf '%s\n' $1 | sed '/^$/d' | sort -V | tr '\n' ' ' | sed 's/ $//'; }
+scripts/release/derive_release_facts.sh:131: [$OVER $PROV] kv provisional_ids "$PROV"; kv overdue_ids "$OVER"
+scripts/release/derive_release_facts.sh:133: [$PREV_DATE] printf '%s' "$PREV_DATE" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || die "tag date $PREV_DATE is not YYYY-MM-DD" 3
+scripts/release/derive_release_facts.sh:135: [$VER] kv verified_since_prev_ids "$VER"
+scripts/release/derive_release_facts.sh:136: [$1] words() { printf '%s\n' "$1" | wc -w | tr -d ' '; }
+scripts/release/derive_release_facts.sh:137: [$( $OVER $PROV $VER] kv count_line "$(words "$VER") verified + $(words "$PROV") provisional ($(words "$OVER") overdue)"
+scripts/release/derive_release_facts.sh:147: [$n $r ${list] kv "unmerged_refs_count[$r]" "$n"; kv "unmerged_refs[$r]" "${list# }"
+scripts/release/derive_release_facts.sh:151: [$B $QFAIL] grep -q '^changelog$' "$QFAIL" && printf 'derive_release_facts: CHANGELOG.md is missing at the base %s; no facts printed\n' "$B" >&3
+scripts/release/derive_release_facts.sh:152: [$QFAIL] grep -q '^query$' "$QFAIL" && printf 'derive_release_facts: a tracker query failed (the sqlite3 error is printed after this line); no facts printed\n' >&3
+scripts/release/derive_release_facts.sh:155: [$DBDIR] cat -- "$DBDIR/out"
+== scripts/release_publish_gitea.sh: 48 print/write sites
+scripts/release_publish_gitea.sh:40: [$1 $2 $DIE_FD ${rc] die() { local rc="$2"; printf 'release_publish_gitea: %s\n' "$1" >&"$DIE_FD"; exit "${rc:-2}"; }
+scripts/release_publish_gitea.sh:43: [$( ${BASH_SOURCE] . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release/redact_cut.sh" || die "cannot load release/redact_cut.sh" 3
+scripts/release_publish_gitea.sh:46: [$1 $2] need_val() { [ "$1" -ge 2 ] || die "option $2 needs a value" 2; }
+scripts/release_publish_gitea.sh:60: [$1] *) if [[ $1 =~ ^--?[A-Za-z][A-Za-z0-9-]{0,40}$ ]]; then die "unknown argument: $1" 2
+scripts/release_publish_gitea.sh:61: [-] else die "unknown argument (not shown: it is not shaped like an option)" 2; fi ;;
+scripts/release_publish_gitea.sh:65: [$TAG] [ -n "$TAG" ] || die "--tag is required" 2
+scripts/release_publish_gitea.sh:66: [$TAG] printf '%s' "$TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' || die "tag has unsafe characters: refusing" 2
+scripts/release_publish_gitea.sh:67: [$REPO] printf '%s' "$REPO" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || die "repo must be OWNER/REPO" 2
+scripts/release_publish_gitea.sh:68: [$REPO] case "$REPO" in *..*|./*|*/.) die "repo has dot segments: refusing" 2 ;; esac
+scripts/release_publish_gitea.sh:69: [$TOKEN_VAR] printf '%s' "$TOKEN_VAR" | grep -Eq '^[A-Z_][A-Z0-9_]*$' || die "--token-var must be an env var NAME" 2
+scripts/release_publish_gitea.sh:72: [$BASE_URL] if printf '%s' "$BASE_URL" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/?$'; then SCHEME_OK=1; PROTO='=https'
+scripts/release_publish_gitea.sh:73: [$BASE_URL] elif printf '%s' "$BASE_URL" | grep -Eq '^http://(127\.0\.0\.1|localhost|\[::1\]):[0-9]{1,5}/?$'; then SCHEME_OK=1; PROTO='=http'; fi
+scripts/release_publish_gitea.sh:74: [$SCHEME_OK] [ "$SCHEME_OK" -eq 1 ] || die "base URL must be https://host[:port] (or http://127.0.0.1|localhost|[::1]:port for tests), no userinfo, no path" 2
+scripts/release_publish_gitea.sh:76: [-] command -v jq >/dev/null 2>&1 || die "jq is required" 3
+scripts/release_publish_gitea.sh:77: [-] command -v curl >/dev/null 2>&1 || die "curl is required" 3
+scripts/release_publish_gitea.sh:78: [$TAG] git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 || die "tag $TAG does not exist in this repository" 3
+scripts/release_publish_gitea.sh:87: [$TOKEN_VAR] printf 'SKIPPED-NO-TOKEN: env var %s is not set; nothing was published\n' "$TOKEN_VAR" >&2
+scripts/release_publish_gitea.sh:91: [-] die "token has characters outside [A-Za-z0-9._~+/=-] or a bad length: refusing" 3
+scripts/release_publish_gitea.sh:96: [$( ${TMPDIR] W="$(mktemp -d "${TMPDIR:-/tmp}/rpg.XXXXXX")" || die "cannot create a temp dir" 3
+scripts/release_publish_gitea.sh:98: [$W ${W] cleanup() { [ -n "${W:-}" ] && [ -d "$W" ] && { [ -f "$W/ext.err" ] && rc_redact_cut 2000 mark <"$W/ext.err" >&3; rm -f -- "$W/body.txt" "$W/payload.json" "$W/r
+scripts/release_publish_gitea.sh:106: [$W] exec 3>&2 2>"$W/ext.err"; DIE_FD=3
+scripts/release_publish_gitea.sh:110: [$NOTES_FILE] [ -r "$NOTES_FILE" ] || die "notes file is not readable (the path is not shown)" 3
+scripts/release_publish_gitea.sh:113: [$TAG $W] printf 'Release %s\n' "$TAG" > "$W/body.txt"
+scripts/release_publish_gitea.sh:115: [-] [ -r CHANGELOG.md ] || die "CHANGELOG.md not found; use --notes-file or --generic-notes" 3
+scripts/release_publish_gitea.sh:124: [$W] ' CHANGELOG.md > "$W/body.txt"
+scripts/release_publish_gitea.sh:125: [$TAG $W] [ -s "$W/body.txt" ] || die "no CHANGELOG.md section headed '## $TAG' or '## [$TAG]'; use --notes-file or --generic-notes" 3
+scripts/release_publish_gitea.sh:131: [$W $b $c $d $n $p $t] '{tag_name:$t,name:$n,body:$b,target_commitish:$c,draft:$d,prerelease:$p}' > "$W/payload.json" \
+scripts/release_publish_gitea.sh:132: [-] || die "could not build the payload" 3
+scripts/release_publish_gitea.sh:135: [$( $BASE_URL $REPO $TAG $TARGET $W] printf 'DRY-RUN: would publish %s on %s/%s (target %s, notes %s bytes)\n' "$TAG" "$BASE_URL" "$REPO" "$TARGET" "$(wc -c < "$W/body.txt")"
+scripts/release_publish_gitea.sh:147: [$W] : >"$W/code.out"
+scripts/release_publish_gitea.sh:148: [$( $? $BASE_URL $REPO $W $_rpg_tok $p ${args] x_curl="$(printf 'header = "Authorization: token %s"\n' "$_rpg_tok" | curl "${args[@]}" "$BASE_URL/api/v1/repos/$REPO$p" 2>&1 >"$W/code.out")"; crc=$?
+scripts/release_publish_gitea.sh:150: [$( $crc $x_curl] if [ "$crc" -eq 28 ]; then cls=timeout; else cls="$(printf '%s' "$x_curl" | rc_err_class)"; fi
+scripts/release_publish_gitea.sh:151: [$cls $crc] printf 'release_publish_gitea: network/request failure (curl exit %s, reason class: %s; curl'"'"'s own message is withheld (it can carry a credential))\n' "$crc
+scripts/release_publish_gitea.sh:154: [$( $W] API_CODE="$(cat "$W/code.out" 2>/dev/null)"
+scripts/release_publish_gitea.sh:156: [$API_CODE] [[ $API_CODE =~ ^[0-9]{3}$ ]] || { printf 'release_publish_gitea: the HTTP status curl reported is not a number (not shown)\n' >&3; return 1; }
+scripts/release_publish_gitea.sh:157: [$( $W] API_BODY="$(cat "$W/resp.out" 2>/dev/null)"
+scripts/release_publish_gitea.sh:162: [$id] printf '%s' "$id" | grep -Eq '^[0-9]+$' || die "unexpected release id in API response" 4
+scripts/release_publish_gitea.sh:164: [$API_CODE] [ "$API_CODE" = "200" ] || die "update failed: HTTP $API_CODE" 4
+scripts/release_publish_gitea.sh:165: [$BASE_URL $REPO $TAG $id] printf 'UPDATED release %s (id %s) on %s/%s\n' "$TAG" "$id" "$BASE_URL" "$REPO"
+scripts/release_publish_gitea.sh:170: [$( $API_BODY] 200) update_release "$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)" ;;
+scripts/release_publish_gitea.sh:174: [$( $API_BODY] 201) NEWID="$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)"
+scripts/release_publish_gitea.sh:176: [$BASE_URL $NEWID $REPO] printf '%s' "$NEWID" | grep -Eq '^[0-9]+$' || die "release created but the API returned no numeric id; check it on $BASE_URL/$REPO" 4
+scripts/release_publish_gitea.sh:177: [$BASE_URL $NEWID $REPO $TAG] printf 'CREATED release %s (id %s) on %s/%s\n' "$TAG" "$NEWID" "$BASE_URL" "$REPO" ;;
+scripts/release_publish_gitea.sh:180: [$API_CODE] [ "$API_CODE" = "200" ] || die "release exists (409) but cannot be read back: HTTP $API_CODE" 4
+scripts/release_publish_gitea.sh:181: [$( $API_BODY] update_release "$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)" ;;
+scripts/release_publish_gitea.sh:182: [$API_CODE] *) die "create failed: HTTP $API_CODE" 4 ;;
+scripts/release_publish_gitea.sh:184: [$API_CODE] 401|403) die "authentication/permission failure: HTTP $API_CODE (token scope write:repository needed)" 4 ;;
+scripts/release_publish_gitea.sh:185: [$API_CODE] *) die "unexpected HTTP $API_CODE while looking up the release" 4 ;;
+== scripts/release/redact_cut.sh: 6 print/write sites
+scripts/release/redact_cut.sh:71: [$re ${BASH_REMATCH] if [[ ${1:-} =~ $re ]]; then printf '%s://%s%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+scripts/release/redact_cut.sh:72: [-] else printf '<url not shown>'; fi
+scripts/release/redact_cut.sh:83: [$n] case "$n" in ''|*[!0-9]*) printf 'rc_redact_cut: byte count must be a number\n' >&2; return 2 ;; esac
+scripts/release/redact_cut.sh:130: [-] if (used + length(out) <= max) { printf "%s", out; used += length(out); next }
+scripts/release/redact_cut.sh:131: [-] printf "%s", substr(out, 1, max - used); dropped += length(out) - (max - used); used = max
+scripts/release/redact_cut.sh:133: [-] END { if (dropped > 0 && mark != "") printf "\n(truncated: %d more bytes not shown)\n", dropped }'
+RESULT: sites=195 control_failures=0

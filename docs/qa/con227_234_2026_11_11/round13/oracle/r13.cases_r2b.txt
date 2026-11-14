@@ -1,0 +1,2 @@
+CAUGHT	R14b_set_a_bash_env	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING unmodelled construct, refused: ${BASH_ENV:=$PWD/evil.sh}: the operator := (:= and = assign; @, / and t
+CAUGHT	R14c_ctrl_bash_env_named_assignment	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING interpreter or exec wrapper not on the allow-list: tag_and_release.sh:4 bash (via -) | key=4efb11d4

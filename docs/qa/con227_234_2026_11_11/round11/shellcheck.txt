@@ -1,0 +1,3 @@
+# shellcheck version: 0.11.0 -S warning
+# files: scripts/release/derive_release_facts.sh scripts/release/redact_cut.sh scripts/release/tag_and_release.sh scripts/release_publish_gitea.sh tests/release/env_allow.sh tests/release/test_channel_census.sh tests/release/test_derive_release_facts.sh tests/release/test_publish_gitea.sh tests/release/test_redact_cut.sh tests/release/test_release_tooling_mutations.sh tests/release/test_tag_and_release.sh docs/qa/con227_234_2026_11_11/round11/probe_sendenv_leak_sshd.sh
+rc=0

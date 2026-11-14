@@ -1,0 +1,87 @@
+# round-4 class census, head before commit, 2026-11-11T18:15:41+01:00
+## needles
+positive needle 'rc_redact_cut' per file:
+scripts/release/tag_and_release.sh:4
+scripts/release/redact_cut.sh:4
+scripts/release/derive_release_facts.sh:1
+scripts/release_publish_gitea.sh:2
+negative needle 'ZZNOSUCHNEEDLE' per file:
+scripts/release/tag_and_release.sh:0
+scripts/release/derive_release_facts.sh:0
+scripts/release/redact_cut.sh:0
+scripts/release_publish_gitea.sh:0
+
+## stderr redirections (2>) outside comments
+scripts/release/tag_and_release.sh:109:exec 3>&2 2>"$EXTERR"
+scripts/release/tag_and_release.sh:113:  rmdir -- "$RUNDIR" 2>/dev/null || printf 'tag_and_release: WARNING the temp directory %s is not empty and was kept\n' "$RUNDIR" >&3
+scripts/release/tag_and_release.sh:123:git rev-parse --git-dir >/dev/null 2>&1 || abort "not inside a git repository"
+scripts/release/tag_and_release.sh:124:FULL="$(git rev-parse -q --verify "$SHA^{commit}" 2>/dev/null)" || abort "SHA $SHA is not a commit here"
+scripts/release/tag_and_release.sh:127:[ -z "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ] || abort "working tree is not clean"
+scripts/release/tag_and_release.sh:131:  git remote get-url "$r" >/dev/null 2>&1 || abort "remote $r is not configured"
+scripts/release/tag_and_release.sh:133:  ferr="$(git fetch -q --no-tags "$r" refs/heads/main 2>&1 >/dev/null)"; frc=$?
+scripts/release/tag_and_release.sh:144:FIRST="$(git show "$SHA:CHANGELOG.md" 2>/dev/null | awk '/^## /{print substr($0,4); exit}')"
+scripts/release/tag_and_release.sh:154:  bash scripts/badges/compute_badges.sh --check >/dev/null 2>&1 || abort "compute_badges.sh --check fails at $SHA"
+scripts/release/tag_and_release.sh:168:  ro="$(git ls-remote "$r" "refs/tags/$TAG" 2>/dev/null | awk '$2=="refs/tags/'"$TAG"'"{print $1}')" || true
+scripts/release/tag_and_release.sh:194:  out="$(git ls-remote "$1" refs/heads/main "refs/tags/$TAG" "refs/tags/$TAG^{}" 2>/dev/null)" || { printf 'ERR ERR ERR'; return 1; }
+scripts/release/tag_and_release.sh:205:  perr="$(git push --atomic "$r" "$SHA:refs/heads/main" "refs/tags/$TAG:refs/tags/$TAG" 2>&1 >/dev/null)"; prc=$?
+scripts/release/tag_and_release.sh:210:    merr="$(git push "$r" "$SHA:refs/heads/main" 2>&1 >/dev/null)"; mrc=$?
+scripts/release/tag_and_release.sh:212:      terr="$(git push "$r" "refs/tags/$TAG:refs/tags/$TAG" 2>&1 >/dev/null)" || printf 'PUSH %s tag push failed: %s\n' "$r" "$(oneline "$terr" 300)"
+scripts/release/tag_and_release.sh:239:      if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then gap "RELEASE $spec SKIPPED-NO-TOKEN (gh not authenticated)"; continue; fi
+scripts/release/tag_and_release.sh:240:      id="$(gh api "repos/$target" --jq .id 2>/dev/null)" || id=""
+scripts/release/tag_and_release.sh:244:      if gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"; continue; fi
+scripts/release/tag_and_release.sh:245:      if gh release create "$TAG" -R "$target" "${PRE_GH[@]+"${PRE_GH[@]}"}" --verify-tag --title "$PRE_TITLE" --notes-file "$NOTES" >/dev/null 2>&1 \
+scripts/release/tag_and_release.sh:246:         && gh release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s CREATED\n' "$spec"
+scripts/release/tag_and_release.sh:249:      if ! command -v glab >/dev/null 2>&1 || ! glab auth status >/dev/null 2>&1; then gap "RELEASE $spec SKIPPED-NO-TOKEN (glab not authenticated)"; continue; fi
+scripts/release/tag_and_release.sh:250:      if glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s already exists (kept)\n' "$spec"; continue; fi
+scripts/release/tag_and_release.sh:252:      if glab release create "$TAG" -R "$target" --ref "$SHA" --name "$PRE_TITLE" --notes-file "$NOTES" >/dev/null 2>&1 \
+scripts/release/tag_and_release.sh:253:         && glab release view "$TAG" -R "$target" >/dev/null 2>&1; then printf 'RELEASE %s CREATED\n' "$spec"
+scripts/release/tag_and_release.sh:259:      gerr="$(bash scripts/release_publish_gitea.sh "${args[@]}" 2>&1 >/dev/null)"; rc=$?
+scripts/release/derive_release_facts.sh:48:command -v sqlite3 >/dev/null 2>&1 || die "sqlite3 is required" 3
+scripts/release/derive_release_facts.sh:56:EXTERR="$DBDIR/exterr"; exec 3>&2 2>"$EXTERR"; DIE_FD=3
+scripts/release/derive_release_facts.sh:60:git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
+scripts/release/derive_release_facts.sh:79:git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"
+scripts/release_publish_gitea.sh:72:command -v jq >/dev/null 2>&1 || die "jq is required" 3
+scripts/release_publish_gitea.sh:73:command -v curl >/dev/null 2>&1 || die "curl is required" 3
+scripts/release_publish_gitea.sh:74:git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 || die "tag $TAG does not exist in this repository" 3
+scripts/release_publish_gitea.sh:78:unset "$TOKEN_VAR" 2>/dev/null || true
+scripts/release_publish_gitea.sh:91:cleanup() { [ -n "${W:-}" ] && [ -d "$W" ] && { [ -f "$W/ext.err" ] && rc_redact_cut 2000 mark <"$W/ext.err" >&3; rm -f -- "$W/body.txt" "$W/payload.json" "$W/curl.cfg" "$W/resp.out" "$W/err.out" "$W/ext.err"; rmdir -- "$W" 2>/dev/null; }; }
+scripts/release_publish_gitea.sh:99:exec 3>&2 2>"$W/ext.err"; DIE_FD=3
+scripts/release_publish_gitea.sh:142:  API_CODE="$(curl "${args[@]}" "$BASE_URL/api/v1/repos/$REPO$p" 2>"$W/err.out")" || {
+scripts/release_publish_gitea.sh:146:  API_BODY="$(cat "$W/resp.out" 2>/dev/null)"
+scripts/release_publish_gitea.sh:159:  200) update_release "$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)" ;;
+scripts/release_publish_gitea.sh:163:      201) NEWID="$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)"
+scripts/release_publish_gitea.sh:170:        update_release "$(printf '%s' "$API_BODY" | jq -r '.id // empty' 2>/dev/null)" ;;
+
+## temp file / dir creation
+scripts/release_publish_gitea.sh:89:W="$(mktemp -d "${TMPDIR:-/tmp}/rpg.XXXXXX")" || die "cannot create a temp dir" 3
+scripts/release/tag_and_release.sh:106:RUNDIR="$(mktemp -d "${TMPDIR:-/tmp}/tar_run.XXXXXX")" || { printf 'tag_and_release: cannot create a temp directory\n' >&2; exit 2; }
+scripts/release/derive_release_facts.sh:51:DBDIR="$(mktemp -d "${TMPDIR:-/tmp}/rf_db.XXXXXX")" || die "cannot create a temp dir" 3
+
+## files written with > or >> (not /dev/null, not &N)
+scripts/release_publish_gitea.sh:99:exec 3>&2 2>"$W/ext.err"; DIE_FD=3
+scripts/release_publish_gitea.sh:106:  printf 'Release %s\n' "$TAG" > "$W/body.txt"
+scripts/release_publish_gitea.sh:117:  ' CHANGELOG.md > "$W/body.txt"
+scripts/release_publish_gitea.sh:124:  '{tag_name:$t,name:$n,body:$b,target_commitish:$c,draft:$d,prerelease:$p}' > "$W/payload.json" \
+scripts/release_publish_gitea.sh:134:( umask 077; printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$W/curl.cfg" )
+scripts/release_publish_gitea.sh:142:  API_CODE="$(curl "${args[@]}" "$BASE_URL/api/v1/repos/$REPO$p" 2>"$W/err.out")" || {
+scripts/release/tag_and_release.sh:109:exec 3>&2 2>"$EXTERR"
+scripts/release/tag_and_release.sh:149:git show "$SHA:CHANGELOG.md" | TAG="$TAG" awk 'BEGIN{t=ENVIRON["TAG"];on=0} /^## /{if(on)exit; h=substr($0,4); if(h==t||index(h,t" ")==1)on=1} on{print}' > "$NOTES"
+scripts/release/derive_release_facts.sh:56:EXTERR="$DBDIR/exterr"; exec 3>&2 2>"$EXTERR"; DIE_FD=3
+scripts/release/derive_release_facts.sh:60:git show "$B:docs/workable_items.db" >"$DB" 2>/dev/null && [ -s "$DB" ] || die "no docs/workable_items.db at $B" 3
+scripts/release/derive_release_facts.sh:64:q() { sqlite3 -readonly -batch -noheader "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
+scripts/release/derive_release_facts.sh:67:qa() { sqlite3 -readonly -batch -noheader -ascii "$DB" "$1" || { echo query >>"$QFAIL"; return 1; }; }
+scripts/release/derive_release_facts.sh:72:exec 4>&1 >"$DBDIR/out"
+scripts/release/derive_release_facts.sh:79:git cat-file -e "$B:CHANGELOG.md" 2>/dev/null || echo changelog >>"$QFAIL"
+
+## head -c / cut -c (cutting outside the helper)
+scripts/release/derive_release_facts.sh:80:kv changelog_first_heading "$(git show "$B:CHANGELOG.md" | awk '/^## /{print substr($0,4); exit}' | cut -c1-120)"
+
+## xtrace guards
+scripts/release/tag_and_release.sh:49:set +x
+scripts/release_publish_gitea.sh:30:set +x
+scripts/release/derive_release_facts.sh:27:set +x
+
+## GIT_TRACE_REDACT
+scripts/release/derive_release_facts.sh:29:GIT_TRACE_REDACT=1; export GIT_TRACE_REDACT
+scripts/release/tag_and_release.sh:51:GIT_TRACE_REDACT=1; export GIT_TRACE_REDACT   # git redacts credentials in any trace an operator turned on
+scripts/release_publish_gitea.sh:32:GIT_TRACE_REDACT=1; export GIT_TRACE_REDACT

@@ -1,0 +1,38 @@
+# GREEN on the fixed scripts of this vehicle. Run 2026-11-11T16:00:03+01:00, nice -n 10.
+== test_tag_and_release
+rc=0
+RESULT: pass=76 fail=0
+== test_derive_release_facts
+rc=0
+RESULT: pass=43 fail=0
+== test_render_release_entry
+rc=0
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=19 fail=0
+== test_publish_gitea
+rc=0
+RESULT pass=32 fail=0
+== test_render_release_entry with RRE_FACTS (facts of derive_release_facts.sh --base 24bdca78 --prev-tag helixconstitution-v73.3 --today 2026-11-11)
+derive rc=0
+PASS shipped template renders from real facts
+RESULT: pass=20 fail=0
+== test_release_tooling_mutations
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS T2 killed (FAIL C16 exit 0 (got '1', want '0'))
+PASS T3 killed (FAIL C15 different-object abort)
+PASS T4 killed (FAIL C13 dirty tree exit 1 (got '0', want '1'))
+PASS T6 killed (FAIL C14 HEAD!=SHA exit 1 (got '0', want '1'))
+PASS T5 killed (FAIL C18 gitea missing token is a GAP (exit 5) (got '0', want '5'))
+PASS D1 killed (FAIL D1: closed on the tag date is not verified since it (missing line: verified_since_prev_ids=T-006))
+PASS D5 killed (FAIL D5: UNSET reproduction with a set investigation state counts (missing line: open_items_with_any_state=5))
+PASS O1 killed (FAIL C21 userinfo not printed)
+PASS O2 killed (FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1'))
+PASS O3 killed (FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0))
+PASS O4 killed (FAIL CON-228 [closure_date]: missing column exits 3 (got 0))
+PASS O7 killed (FAIL CON-228 [body_md]: missing column exits 3 (got 0))
+PASS O5 killed (FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines))
+PASS O6 killed (FAIL CON-231 a status/severity value the template does not render is refused (0: ))
+RESULT: killed=14 survived=0 stale=0 control_failures=0
+rc=0

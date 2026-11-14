@@ -1,0 +1,10 @@
+=== test_redact_cut (merged tree, main 581a2939 + vehicle/fix227 round 5, one suite at a time, private TMPDIR)
+RESULT: pass=122 fail=0
+=== test_derive_release_facts (merged tree, main 581a2939 + vehicle/fix227 round 5, one suite at a time, private TMPDIR)
+RESULT: pass=63 fail=0
+=== test_render_release_entry (merged tree, main 581a2939 + vehicle/fix227 round 5, one suite at a time, private TMPDIR)
+RESULT: pass=19 fail=0
+=== test_tag_and_release (merged tree, main 581a2939 + vehicle/fix227 round 5, one suite at a time, private TMPDIR)
+RESULT: pass=189 fail=0
+=== test_publish_gitea (merged tree, main 581a2939 + vehicle/fix227 round 5, one suite at a time, private TMPDIR)
+RESULT pass=81 fail=0

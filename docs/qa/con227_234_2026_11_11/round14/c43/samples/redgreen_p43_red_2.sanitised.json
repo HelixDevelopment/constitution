@@ -1,0 +1,105 @@
+{
+ "elapsed": 6.07,
+ "leftover": [],
+ "rc": 1,
+ "samples": [
+  {
+   "argv": [
+    "sleep",
+    "1.43"
+   ],
+   "env_count": 210,
+   "pgid": 542911,
+   "ppid": 544583,
+   "test_names": [
+    "GH_TOKEN",
+    "GITLAB_TOKEN",
+    "GIT_CONFIG_VALUE_0",
+    "M3W_GITEA_TOKEN",
+    "XYZ_TOKEN",
+    "_rpg_tok"
+   ]
+  },
+  {
+   "argv": [
+    "rc-clean-env",
+    "/home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r14.zTVh/repo/scripts/release/tag_and_release.sh",
+    "--tag",
+    "fixture-v9.1",
+    "--sha",
+    "6fbb337e2b2a5da19997010880a6fc66216d2042",
+    "--remotes",
+    "r1 r2",
+    "--no-badge-check",
+    "--dry-run"
+   ],
+   "env_count": 0,
+   "pgid": 542911,
+   "ppid": 544583,
+   "test_names": []
+  },
+  {
+   "argv": [
+    "timeout",
+    "-k",
+    "10",
+    "4",
+    "git",
+    "-c",
+    "http.lowSpeedLimit=1000",
+    "-c",
+    "http.lowSpeedTime=60",
+    "fetch",
+    "-q",
+    "--no-tags",
+    "r1",
+    "refs/heads/main"
+   ],
+   "env_count": 12,
+   "pgid": 547205,
+   "ppid": 547191,
+   "test_names": []
+  },
+  {
+   "argv": [
+    "git",
+    "-c",
+    "http.lowSpeedLimit=1000",
+    "-c",
+    "http.lowSpeedTime=60",
+    "fetch",
+    "-q",
+    "--no-tags",
+    "r1",
+    "refs/heads/main"
+   ],
+   "env_count": 12,
+   "pgid": 547205,
+   "ppid": 547205,
+   "test_names": []
+  },
+  {
+   "argv": [
+    "/usr/lib/git-core/git",
+    "remote-http",
+    "r1",
+    "http://127.0.0.1:33171/zzauth43542911.git"
+   ],
+   "env_count": 16,
+   "pgid": 547205,
+   "ppid": 547254,
+   "test_names": []
+  },
+  {
+   "argv": [
+    "/usr/lib/git-core/git-remote-http",
+    "r1",
+    "http://127.0.0.1:33171/zzauth43542911.git"
+   ],
+   "env_count": 16,
+   "pgid": 547205,
+   "ppid": 547285,
+   "test_names": []
+  }
+ ]
+}

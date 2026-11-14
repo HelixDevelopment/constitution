@@ -1,0 +1,2 @@
+CAUGHT	O70_sort_long_option_alone	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1		FINDING sort that can run a command: fx.sh:3 (the long option --compress-program=git (--compress-program and i
+CAUGHT	O71_sort_long_options_spill	gate_rc=1/1	bash_rc=0	leak=214	ctrl=1		FINDING sort that can run a command: fx.sh:3 (the long option --buffer-size=1k (--compress-program and its pre

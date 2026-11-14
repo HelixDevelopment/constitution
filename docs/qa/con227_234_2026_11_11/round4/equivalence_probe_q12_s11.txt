@@ -1,0 +1,9 @@
+# probe 2026-11-11T17:42:20Z; GNU bash, version 5.3.9(1)-release (x86_64-pc-linux-gnu)
+# question: without the explicit HUP/TERM traps (mutants Q12, S11), does the EXIT trap still remove the run directory?
+mode=traps sig=TERM rc=143 output=[started cleanup-ran ] leftover=0
+mode=traps sig=HUP rc=129 output=[started cleanup-ran ] leftover=0
+mode=none sig=TERM rc=143 output=[started cleanup-ran ] leftover=0
+/bin/bash: line 15: 218781 Hangup                     bash "$P/p.sh" "$T" "$mode" > "$T.out" 2>&1
+mode=none sig=HUP rc=129 output=[started cleanup-ran ] leftover=0
+# control: a directory created without any EXIT trap is left (proves the leftover count can see a file)
+control leftover=1

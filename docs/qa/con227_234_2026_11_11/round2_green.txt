@@ -1,0 +1,18 @@
+== test_derive_release_facts
+RESULT: pass=47 fail=0
+== test_render_release_entry
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=19 fail=0
+== test_tag_and_release
+PASS C1 RESULT OK
+PASS C2 RESULT FAIL
+PASS C18 SKIPPED-NO-TOKEN gap
+PASS C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1)
+PASS C22 SKIPPED-NO-TOKEN gap
+RESULT: pass=84 fail=0
+== test_publish_gitea
+PASS missing token -> SKIPPED-NO-TOKEN rc=3
+RESULT pass=32 fail=0
+== verify-manifest
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=25 py/fixture=14 py/member=24 runall/entry=9 sh/entry=356 sh/excluded=25 sh/fixture=111 sh/member=303 total=887
+RESULT: MANIFEST-OK

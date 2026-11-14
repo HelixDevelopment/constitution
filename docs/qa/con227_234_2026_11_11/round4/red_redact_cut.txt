@@ -1,0 +1,82 @@
+PASS K1 plain text untouched
+PASS K2 URL without userinfo or credential parameter untouched
+PASS K3 scp-style git@host:path untouched
+PASS K4 mail address untouched
+PASS K5 non-credential query parameter untouched
+PASS U1 basic userinfo
+FAIL U2 raw '/' in the password (git 2.53 prints it verbatim) (leaked: ZZU2; output: fatal: unable to access 'https://u:ab/ZZU2@host.invalid/r/': URL rejected: Port number was not a decimal number)
+PASS U3 raw '@' in the password
+FAIL U4 raw space in the password (leaked: ZZU4; output: fatal: 'https://u:ab ZZU4@h/r')
+PASS U5 raw '?' and '#' in the password
+PASS U6 raw quote in the password
+PASS U7 percent-encoded password
+PASS U8 two URLs on one line
+PASS U9 colon in the user part
+PASS U10 userinfo longer than 64 bytes (300)
+PASS U11 ssh:// scheme
+PASS U12 git:// scheme
+PASS U13 ftp:// scheme
+PASS U14 svn+ssh:// scheme
+PASS U15 http:// scheme
+PASS U16 upper-case scheme
+PASS U17 user only, no password
+FAIL U18 scheme-less user:password@host:path (leaked: ZZU18; output: fatal: 'u:ZZU18@host:path')
+PASS U19 the host part is kept
+FAIL Q-access_token query value (leaked: ZZQVaccess_token; output: fatal: 'https://host.invalid/r?x=1&access_token=ZZQVaccess_token&y=2')
+FAIL Q-token query value (leaked: ZZQVtoken; output: fatal: 'https://host.invalid/r?x=1&token=ZZQVtoken&y=2')
+FAIL Q-private_token query value (leaked: ZZQVprivate_token; output: fatal: 'https://host.invalid/r?x=1&private_token=ZZQVprivate_token&y=2')
+FAIL Q-private-token query value (leaked: ZZQVprivate-token; output: fatal: 'https://host.invalid/r?x=1&private-token=ZZQVprivate-token&y=2')
+FAIL Q-key query value (leaked: ZZQVkey; output: fatal: 'https://host.invalid/r?x=1&key=ZZQVkey&y=2')
+FAIL Q-api_key query value (leaked: ZZQVapi_key; output: fatal: 'https://host.invalid/r?x=1&api_key=ZZQVapi_key&y=2')
+FAIL Q-apikey query value (leaked: ZZQVapikey; output: fatal: 'https://host.invalid/r?x=1&apikey=ZZQVapikey&y=2')
+FAIL Q-password query value (leaked: ZZQVpassword; output: fatal: 'https://host.invalid/r?x=1&password=ZZQVpassword&y=2')
+FAIL Q-passwd query value (leaked: ZZQVpasswd; output: fatal: 'https://host.invalid/r?x=1&passwd=ZZQVpasswd&y=2')
+FAIL Q-pwd query value (leaked: ZZQVpwd; output: fatal: 'https://host.invalid/r?x=1&pwd=ZZQVpwd&y=2')
+FAIL Q-secret query value (leaked: ZZQVsecret; output: fatal: 'https://host.invalid/r?x=1&secret=ZZQVsecret&y=2')
+FAIL Q-client_secret query value (leaked: ZZQVclient_secret; output: fatal: 'https://host.invalid/r?x=1&client_secret=ZZQVclient_secret&y=2')
+FAIL Q-sig query value (leaked: ZZQVsig; output: fatal: 'https://host.invalid/r?x=1&sig=ZZQVsig&y=2')
+FAIL Q-signature query value (leaked: ZZQVsignature; output: fatal: 'https://host.invalid/r?x=1&signature=ZZQVsignature&y=2')
+FAIL Q-auth query value (leaked: ZZQVauth; output: fatal: 'https://host.invalid/r?x=1&auth=ZZQVauth&y=2')
+FAIL Q-X-Amz-Signature query value (leaked: ZZQVX-Amz-Signature; output: fatal: 'https://host.invalid/r?x=1&X-Amz-Signature=ZZQVX-Amz-Signature&y=2')
+FAIL Q-X-Amz-Credential query value (leaked: ZZQVX-Amz-Credential; output: fatal: 'https://host.invalid/r?x=1&X-Amz-Credential=ZZQVX-Amz-Credential&y=2')
+FAIL Q-X-Amz-Security-Token query value (leaked: ZZQVX-Amz-Security-Token; output: fatal: 'https://host.invalid/r?x=1&X-Amz-Security-Token=ZZQVX-Amz-Security-Token&y=2')
+FAIL Q-refresh_token query value (leaked: ZZQVrefresh_token; output: fatal: 'https://host.invalid/r?x=1&refresh_token=ZZQVrefresh_token&y=2')
+FAIL Q-id_token query value (leaked: ZZQVid_token; output: fatal: 'https://host.invalid/r?x=1&id_token=ZZQVid_token&y=2')
+FAIL Q-session query value (leaked: ZZQVsession; output: fatal: 'https://host.invalid/r?x=1&session=ZZQVsession&y=2')
+FAIL Q-jwt query value (leaked: ZZQVjwt; output: fatal: 'https://host.invalid/r?x=1&jwt=ZZQVjwt&y=2')
+FAIL Q-upper Access_Token (leaked: ZZQUP; output: https://h/r?Access_Token=ZZQUP)
+FAIL Q-first parameter (leaked: ZZQF; output: https://h/r?token=ZZQF)
+FAIL Q-form outside a URL (leaked: ZZQFORM; output: error: password=ZZQFORM rejected)
+FAIL Q-fragment value (leaked: ZZQFRAG; output: https://h/r#access_token=ZZQFRAG)
+FAIL Q-other parameters kept (got 'https://h/r?a=1&token=ZZX&b=2', want 'https://h/r?a=1&token=<redacted>&b=2')
+FAIL A1 Authorization: Basic (leaked: ZZA1; output: => Send header: Authorization: Basic ZZA1)
+FAIL A2 Authorization: Bearer (leaked: ZZA2; output: > Authorization: Bearer ZZA2)
+FAIL A3 authorization lower case (leaked: ZZA3; output: authorization: token ZZA3)
+FAIL A4 PRIVATE-TOKEN header (leaked: ZZA4; output: > PRIVATE-TOKEN: ZZA4)
+FAIL A5 X-Gitlab-Token header (leaked: ZZA5; output: X-Gitlab-Token: ZZA5)
+FAIL A6 X-Api-Key header (leaked: ZZA6; output: X-Api-Key: ZZA6)
+FAIL A7 Cookie header (leaked: ZZA7; output: > Cookie: session=ZZA7)
+FAIL A8 Proxy-Authorization header (leaked: ZZA8; output: Proxy-Authorization: Basic ZZA8)
+FAIL A9 bare Bearer token in prose (leaked: ZZA9; output: server said: use Bearer ZZA9 next time)
+FAIL T1 GitHub classic token (leaked: ZZT1; output: x ghp_ZZT1aaaaaaaaaaaaaaaaaaaaaaaaaaaa y)
+FAIL T2 GitHub fine-grained token (leaked: ZZT2; output: x github_pat_ZZT2aaaaaaaaaaaaaaaaaaaaaa y)
+FAIL T3 GitLab token (leaked: ZZT3; output: x glpat-ZZT3aaaaaaaaaaaaaaaaaa y)
+FAIL L1 invalid UTF-8 byte under a UTF-8 caller locale (leaked: https://u:ÈZZL1@h/r)
+PASS L2 NUL byte in the password
+PASS L3 several lines each redacted
+PASS L4 CRLF line end
+PASS C1 redact first, then cut
+PASS C2 budget is exact
+PASS C3 '@' near the cut at offset 1990
+PASS C3 '@' near the cut at offset 1995
+PASS C3 '@' near the cut at offset 1998
+PASS C3 '@' near the cut at offset 2000
+PASS C3 '@' near the cut at offset 2003
+PASS C4 a 100000-byte line is processed within 20 s
+PASS C5 secret at the end of a 100000-byte line
+FAIL C6 a truncated flush says so (got 'zzzzzzzzzz', want '(truncated: 41 more bytes not shown)')
+PASS C7 an untruncated flush has no marker
+PASS C8 empty input prints nothing
+PASS C9 a missing byte count is refused
+PASS C10 a non-numeric byte count is refused
+RESULT: pass=37 fail=44

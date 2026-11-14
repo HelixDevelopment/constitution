@@ -1,0 +1,55 @@
+PASS missing token -> SKIPPED-NO-TOKEN rc=3
+PASS create
+PASS notes = exactly the tag's section (no vNEXT, no other tag)
+PASS flags and tag sent
+PASS re-run updates
+PASS PATCH goes to /releases/<id>
+PASS flags last-write-wins
+PASS bad token -> rc=4
+PASS token not echoed (control: server rejected with 401 above)
+PASS unsafe tag refused
+PASS missing tag refused
+PASS base URL refused: http://evil.example
+PASS base URL refused: http://localhost:@example.invalid
+PASS base URL refused: http://127.0.0.1:1@example.invalid
+PASS base URL refused: http://127.0.0.1:80/x
+PASS base URL refused: https://user@host.example
+PASS trailing --tag does not hang (rc 2)
+PASS trailing --repo does not hang (rc 2)
+PASS repo dot segments refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS hostile/short token refused
+PASS no changelog -> refused
+PASS no matching section -> refused (never publishes Unreleased)
+PASS --generic-notes
+PASS 200 KB notes publish (no argv limit)
+PASS big body delivered intact
+PASS dry-run names the target
+PASS argv instrument sees the request (control needle found)
+PASS token absent from curl argv
+PASS curl runs with -q (no curlrc)
+PASS no redirects, protocol allow-list
+PASS curl failure reported (control, rc 4)
+PASS curl stderr: no secret printed
+PASS curl stderr: redacted to the last '@' of the line (positive needle)
+PASS git warning does not fail the run (control)
+PASS git stderr flushed redacted (positive needle)
+PASS git stderr: no secret printed
+PASS run dir census: success run (control rc 0)
+PASS run dir is created under TMPDIR (control needle)
+PASS nothing left in TMPDIR after a success
+PASS nothing left in TMPDIR after a curl failure (err.out removed)
+PASS nothing left in TMPDIR after a refusal
+PASS TERM: the publisher ends non-zero (rc 130)
+PASS TERM: nothing left in TMPDIR
+PASS TERM: no secret printed
+tests/release/test_publish_gitea.sh: line 153: 3125509 Hangup                     ( TMPDIR="$PT" PATH="$SH5:$PATH" M3W_GITEA_TOKEN=$T exec bash "$S" --tag rel-1 --base-url "$URL" < /dev/null ) > "$W/sig.out" 2>&1
+PASS HUP: the publisher ends non-zero (rc 129)
+PASS HUP: nothing left in TMPDIR
+PASS HUP: no secret printed
+FAIL non-numeric created id rc=0 CREATED release rel-1 (id ) on http://127.0.0.1:56533/Helix/constitution
+PASS server-controlled id not printed
+FAIL Authorization header value printed
+FAIL Authorization header line not seen: release_publish_gitea: network/request failure: > Authorization: token ZZHDRSECRET
+RESULT pass=50 fail=3

@@ -1,0 +1,7 @@
+golden_netgate	0/0	NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 sites=128 findings_lines=0 both_paths=identical
+lint	0/0	CENSUS invocations=128 rows=124 secret_lines=13 findings=0 both_paths=identical
+shellcheck	0	version: 0.11.0 files=12 output_lines=0
+pyright	0	0 errors, 0 warnings, 0 informations
+verify_manifest	0	RESULT: MANIFEST-OK
+gate_ledger_ratchet	0	LEDGER: unimplemented=394 baseline=394 fails=0
+DONE

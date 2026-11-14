@@ -1,0 +1,25 @@
+PROBE sendenv sshd port=60553 sshd=OpenSSH_10.2p1 Ubuntu-2ubuntu3.8, OpenSSL 3.5.5 27 Jan 2026 ssh=OpenSSH_10.2p1 Ubuntu-2ubuntu3.8, OpenSSL 3.5.5 27 Jan 2026
+CASE round10 (working tree of /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/fix227_r10.7wY1/repo):
+  Connection from 127.0.0.1 port 43086 on 127.0.0.1 port 60553 rdomain ""
+  Accepted publickey for milosvasic from 127.0.0.1 port 43086 ssh2: ED25519 SHA256:tAdRTWoFS3rXcoSevIsNqe1VX+Ou5+1huMRSJ3Z6PMY
+  debug2: Setting env 0: LANG=C.UTF-8
+  debug2: Setting env 1: LC_ALL=C
+  script: ABORT the first '## ' heading of CHANGELOG.md at 739d575c955abef7840df267b1702b7805527a47 is not 'zzv10 ...' (got: Unreleased — 2026-11-11 — v73.4 release-tooling review follow-ups CON-227 to CON-234: surviving mutants killed, derive_release_facts fails closed, gitea exit 3 split, renderer refuses unrendered status/severity values, waiver and FINAL-QA wording) RESULT: FAIL fails=1 gaps=0 (aborted before any write) rc=1 
+CASE round9 (9d2171e4):
+  Connection from 127.0.0.1 port 43088 on 127.0.0.1 port 60553 rdomain ""
+  Accepted publickey for milosvasic from 127.0.0.1 port 43088 ssh2: ED25519 SHA256:tAdRTWoFS3rXcoSevIsNqe1VX+Ou5+1huMRSJ3Z6PMY
+  debug2: Setting env 0: LC_TIME=0123456789abcdef0123456789abcdef01234567
+  debug2: Setting env 1: NO_COLOR=ZZFAKENC10
+  debug2: Setting env 2: COLORTERM=ZZFAKECT10
+  debug2: Setting env 3: LC_X=ZZFAKEHX100123456789abcdef0123456789abcdef01234567
+  debug2: Setting env 4: LANG=C.UTF-8
+  debug2: Setting env 5: LC_ALL=C
+  debug2: Setting env 6: LC_ZZ=user:ZZFAKEPW10@host
+  debug2: Setting env 7: ZZSENDX10=ZZFAKESX10
+  script: ABORT the first '## ' heading of CHANGELOG.md at f86f4b97674d4e929d84ded5fdcb332a9db8ad99 is not 'zzv10 ...' (got: Unreleased — 2026-11-11 — v73.4 release-tooling review follow-ups CON-227 to CON-234: surviving mutants killed, derive_release_facts fails closed, gitea exit 3 split, renderer refuses unrendered status/severity values, waiver and FINAL-QA wording) RESULT: FAIL fails=1 gaps=0 (aborted before any write) rc=1 
+PASS control needle: sshd logs the env it receives (LANG=C.UTF-8, round 10)
+PASS round 10 sends no ZZFAKE marker and no hex token (LC_ZZ LC_X LANGX COLORTERM NO_COLOR ZZSENDX10 refused by name, LC_TIME dropped by the locale grammar; LANGUAGE is no SendEnv name, so ssh sends it in neither round)
+PASS round 9 sends LC_ZZ=user:ZZFAKEPW10@host (the RED the probe must see)
+PASS round 9 sends LC_TIME=<40-hex token> (F8: a bare token left the host)
+PASS round 9 sends ZZSENDX10 (a pattern only the run-time reader knows)
+VERDICT=0
