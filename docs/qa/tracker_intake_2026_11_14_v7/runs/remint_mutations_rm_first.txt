@@ -1,0 +1,12 @@
+$ env -i PATH=... HOME=<scratch> TMPDIR=<scratch> LANG=C.UTF-8 REMINT_IDS_MUT_JOBS=2 REMINT_IDS_MUT_ONLY=RM1,...,RM8 (before the RM6 case was added) bash tests/workable_items/test_remint_ids_mutations.sh (under systemd-run --user --scope -p TasksMax=2000, nice -n 10)
+PASS control: unmutated copy passes the suite (RESULT: pass=457 fail=0)
+PASS RM1 verify re-render branch: landed body compared with the vehicle body itself: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS RM2 slots: the reopen Evidence bullet is not a slot: rc=1 first-failure=R7-F3: verify PASS: the legacy bullets, Evidence included, are engine slots: rc=1 wan
+PASS RM3 slots: Obsolete-Details is not a slot: rc=1 first-failure=R7-F3: verify PASS: the Obsolete-Details line is an engine slot: rc=1 want=0: MISMATC
+PASS RM4 planner: every map pair goes to the rewriter (R5-2 reverted): rc=1 first-failure=R5-2: FAST-FORWARD: a base path naming an own id that does not move is not refused: r
+PASS RM5 cmd_plan: a refused plan carries no refusal: rc=1 first-failure=R4-9: plan refuses a vehicle with a non-empty -wal: rc=0 want=1: NOTE the plan stoppe
+FAIL RM6 planner: body conflict test ignores template meta lines: rc=0 first-failure=
+PASS RM7 verify: a landed body without a heading line is not checked: rc=1 first-failure=R5-1: verify FAIL on a heading that does not name the landed title: rc=0 want=1: RESU
+PASS RM8 verify no-re-render branch ignores template meta lines: rc=1 first-failure=R7-F3: verify FAIL on an altered template meta line when nothing re-renders: rc=0 wan
+RESULT: mutants=8 FAILED
+rc=1

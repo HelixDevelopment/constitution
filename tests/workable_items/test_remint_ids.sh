@@ -260,6 +260,11 @@ W close "$(id 5)" --db docs/b.db --status obsolete --evidence "$EV"
 W obsolete-details "$(id 5)" --db docs/b.db --since 2026-11-13 --reason duplicate-of --superseding "$(id 1)" --evidence "$EV"
 W close "$(id 6)" --db docs/b.db --status obsolete --evidence "$EV"
 W obsolete-details "$(id 6)" --db docs/b.db --since 2026-11-13 --reason duplicate-of --superseding "$(id 2)" --evidence "$EV"
+# round 7 (F2): the base items get a fixed past created_at. The engine writes created_at to the second, and
+# a close rewrites it to the current second (CON-339); without this the vehicle's close of base item 3
+# changed created_at only when it fell in a later second than the base add, so the CON-339 note and KNOWN
+# line came and went with the host's timing (reproduced: tools/created_at_repro.sh of the round-7 pack)
+fx_sql "$repo/docs/b.db" "update items set created_at='2026-02-03 04:05:06' where atm_id in ($(for k in 1 2 3 4 5 6 7 8; do printf "'%s'," "$(id $k)"; done | sed 's/,$//'))"
 cpdb b v; cpdb b t
 # the fixture instrument checks itself: an edit that matches no row, and the real database, are setup errors
 ( fx_sql "$repo/docs/b.db" "update items set title='x' where atm_id='NO-SUCH-ID'" ) >/dev/null 2>&1; rc=$?
@@ -1153,6 +1158,36 @@ xp "R5-1: verify FAIL: a re-render replaced the target's authored body" 1 "^MISM
 # the main landing (a description re-render on one side, a severity on the other) is compared, never KNOWN
 xp "R5-1: verify of the main landing" 0 '^RESULT: PASS mode=REPLAY' verify --plan "$tmp/plan.json" "${PLAN[@]}" --db docs/r_after.db
 grep -q "body_md not compared" "$tmp/out" && bad "R5-1: the main landing's body is compared" "$(grep 'body_md' "$tmp/out" | tr '\n' '|' | cut -c1-300)" || ok "R5-1: the main landing's body is compared"
+# ---- (11) round 7 (F3): each slot list entry and the no-re-render comparison are load-bearing ----
+# (RM8) when nothing re-renders, a template meta line (Type, Severity, ...) is text the landing must keep
+cpdb rba rbm; fx_sql "$repo/docs/rbm.db" "update items set body_md = replace(body_md, '**Type:** Task', '**Type:** Bug') where atm_id=?" "$(id 8)"
+xp "R7-F3: verify FAIL on an altered template meta line when nothing re-renders" 1 "^MISMATCH $(id 8) body_md: the target's text outside the engine slots is not kept\$" verify --plan "$tmp/pba.json" "${PBA[@]}" --db docs/rbm.db
+# (RM6) a target hand edit of a template meta line is text outside the engine slots: a re-render over it is a
+# CONFLICT (a re-render would replace the edited line with the column value)
+cpdb ba tbm; fx_sql "$repo/docs/tbm.db" "update items set body_md = replace(body_md, '**Type:** Task', '**Type:** Task (kept as Task by the target)') where atm_id=?" "$(id 8)"
+xp "R7-F3: a re-render over a target edit of a template meta line is a CONFLICT" 1 "^CONFLICT $(id 8): the target changed the body outside the engine slots and the vehicle's update re-renders it" plan --vehicle-db docs/vbx.db --base-db docs/ba.db --target-db docs/tbm.db --out "$tmp/pbm.json"
+# (RM3) the vehicle rewrites the Obsolete-Details line of an item the target renamed: a slot edit, never a loss
+cpdb ba vbo6; W obsolete-details "$(id 6)" --db docs/vbo6.db --since 2026-11-12 --reason superseded-by-later-mandate --superseding none --evidence "$EV"
+cpdb ba tbo6; W update --id "$(id 6)" --db docs/tbo6.db --location Fixed --title "Remint base item 6, renamed by the target"
+P6=(--vehicle-db docs/vbo6.db --base-db docs/ba.db --target-db docs/tbo6.db)
+xp "R7-F3: plan (--resolve vehicle) of an Obsolete-Details rewrite on an item the target renamed" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 steps=1 ' plan "${P6[@]}" --out "$tmp/p6.json" --resolve "$(id 6)=vehicle"
+cpdb tbo6 rbo6
+xp "R7-F3: replay of the Obsolete-Details rewrite" 0 '^RESULT: APPLIED steps=1' replay --plan "$tmp/p6.json" --apply --engine "$wi" --db docs/rbo6.db
+xp "R7-F3: verify PASS: the Obsolete-Details line is an engine slot" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/p6.json" "${P6[@]}" --db docs/rbo6.db
+same "R7-F3: the landed Obsolete-Details line is the vehicle's" "$(q "$repo/docs/rbo6.db" "select body_md from items where atm_id=?" "$(id 6)" | grep '^\*\*Obsolete-Details:\*\*')" "$(q "$repo/docs/vbo6.db" "select body_md from items where atm_id=?" "$(id 6)" | grep '^\*\*Obsolete-Details:\*\*')"
+# (RM2) a legacy multi-line Reopened-Details block (By/On/Reason/Evidence bullets, the pre-1.2.1 engine shape
+# kept in real bodies) is consumed by the vehicle's reopen; the target only renamed the item
+cpdb ba bl
+LEG=$'**Reopened-Details:**\n- **By:** AI\n- **On:** 2026-10-01\n- **Reason:** legacy reopen\n- **Evidence:** docs/qa/x.txt\n'
+fx_sql "$repo/docs/bl.db" "update items set body_md = replace(body_md, '**Status:**', ?) where atm_id=?" "${LEG}**Status:**" "$(id 5)"
+cpdb bl vbl; W reopen --id "$(id 5)" --db docs/vbl.db --why design-reconsidered --who AI --when 2026-11-13 --incident "$EV"
+cpdb bl tbl; W update --id "$(id 5)" --db docs/tbl.db --location Fixed --title "Remint base item 5, renamed by the target"
+PL=(--vehicle-db docs/vbl.db --base-db docs/bl.db --target-db docs/tbl.db)
+xp "R7-F3: plan (--resolve vehicle) of a reopen over a legacy bulleted block" 0 '^RESULT: PLAN mode=REPLAY own=0 base_changes=1 ' plan "${PL[@]}" --out "$tmp/pl.json" --resolve "$(id 5)=vehicle"
+cpdb tbl rbl5
+xp "R7-F3: replay of the reopen over a legacy bulleted block" 0 '^RESULT: APPLIED ' replay --plan "$tmp/pl.json" --apply --engine "$wi" --db docs/rbl5.db
+xp "R7-F3: verify PASS: the legacy bullets, Evidence included, are engine slots" 0 '^RESULT: PASS mode=REPLAY .* known=0$' verify --plan "$tmp/pl.json" "${PL[@]}" --db docs/rbl5.db
+same "R7-F3: the fixture's target body carries the legacy Evidence bullet" "$(q "$repo/docs/tbl.db" "select body_md from items where atm_id=?" "$(id 5)" | grep -c '^- \*\*Evidence:\*\* docs/qa/x.txt$')" "1"
 # R5-2: a path naming an own id is refused only when the map moves that id
 mkdir -p "$repo/docs/qa/$(id 9)" && printf 'red\n' >"$repo/docs/qa/$(id 9)/red.txt" || exit 2
 cpdb b vpi; W add Task Low --db docs/vpi.db --id "$(id 9)" --title "Remint own item for the identity map" --description "$D Own item." --created-by Claude

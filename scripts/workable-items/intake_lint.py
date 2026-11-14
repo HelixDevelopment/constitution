@@ -134,12 +134,30 @@ SECTION_MARKERS = [
     ("Acceptance criteria", re.compile(r"^\*\*Acceptance criteria:\*\*", re.M)),
     ("Parent / links", re.compile(r"^Parent / links:", re.M)),
 ]
-# Credential shapes (section 11.4.10). The set matches the independent reviewer's 18-pattern scan of
-# 2026-11-13; every member has a positive and a negative control needle in selfcheck().
-_SECRET_KEYS = (r"(?:pass(?:word|wd|phrase)|client[_-]?secret|secret[_-]?key|api[_-]?key|access[_-]?key|private[_-]?key"
-                r"|(?:auth|access|refresh|bearer|session)[_-]?token)")
+# Credential shapes (section 11.4.10). Every member has a positive and a negative control needle in
+# selfcheck(). The keyed class (round 7, review finding F1) is enumerated and measured member by member by
+# docs/qa/tracker_intake_2026_11_14_v7/tools/secret_class_census.py; its rule and its honest boundary are
+# docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md section L. A surface is read in its NFKC form, so a
+# full-width colon or equals sign, or full-width letters, read as their ASCII forms (SECRET_NFKC).
+SECRET_NFKC = True
+# strong keys: any value of 8 or more characters
+_SECRET_KEYS = (r"(?:pass(?:word|wd|phrase)|client[_.-]?secret|secret[_.-]?key|api[_.-]?key|access[_.-]?key|private[_.-]?key"
+                r"|credentials?|(?:auth|access|refresh|bearer|session|api|id|oauth|app)[_.-]?token)")
+# generic keys: after an unquoted colon, a value with a letter and a digit (prose writes "Token: ...")
 _SECRET_KEYS_GENERIC = r"(?:secret|token)"
+# short keys: a value with a letter and a digit, never a path; an unquoted colon value is not read (the
+# "PASS: case_x" label of a test report)
+_SECRET_KEYS_SHORT = r"(?:pwd|pass|auth)"
 _SECRET_KEY_ANY = "(?:" + _SECRET_KEYS + "|" + _SECRET_KEYS_GENERIC + ")"
+# where a strong or generic key may start: anywhere, so a prefix joined by "_" (DB_PASSWORD), "-"
+# (X-Api-Key), "." (app.password) or by nothing (PGPASSWORD) is read; a short key needs a character
+# that is not a letter or digit before it (bypass, oauth are words, not keys)
+_KEY_LEAD = r"(?:\b|_|(?<=[A-Za-z0-9.-]))"
+_SHORT_LEAD = r"(?<![A-Za-z0-9])"
+# the key may be quoted, also with an escaped quote (JSON written inside a string)
+_KQ = r"(?:\\?[\"'`])?"
+# a value with a letter and a digit
+_LD = r"(?=[^\s'\"`,;<]*[0-9])(?=[^\s'\"`,;<]*[A-Za-z])"
 SECRET_PATTERNS = [
     ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA)[0-9A-Z]{16}\b")),
     ("aws-secret-assign", re.compile(r"(?i)aws_?secret_?access_?key\s*[:=]\s*['\"]?[A-Za-z0-9/+]{40}")),
@@ -153,27 +171,53 @@ SECRET_PATTERNS = [
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+")),
     ("slack-token", re.compile(r"\bxox[abposre]-[A-Za-z0-9-]{10,}\b")),
     ("openai-anthropic-key", re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}\b")),
-    # a URL that carries a password in its user-info part, of any length; a reference ($VAR, <x>, {x}, %X%)
-    # or a mask (*, x) is not a value (round 6, R5-3)
-    ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:(?![$<{%*]|[xX]+@)[^/\s@]+@")),
+    # a URL that carries a password in its user-info part, of any length, "/" inside it too, the user name
+    # may be empty (redis://:pw@h); a reference ($VAR, <x>, {x}, %X%) or a mask (*, x) is not a value, and
+    # digits followed by "/" or the end are a port, not a password (round 7, F1)
+    ("url-userinfo-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]*:(?![$<{%*]|[xX]+@|\d+(?:[/\s]|$))[^\s@]+@")),
     ("bearer-token", re.compile(r"(?i)authorization:\s*(?:bearer|token)\s+[A-Za-z0-9._~+/=-]{20,}")),
-    # keyed credential assignments (round 6, R5-3): the class is key name x key quoting x separator x
-    # value quoting. Key names: see _SECRET_KEYS (strong) and _SECRET_KEYS_GENERIC; the key may be quoted
-    # (JSON, Python, YAML) and may carry a prefix joined by "_" (DB_PASSWORD) or "-" (X-Api-Key); the
-    # separators are ":=", "=>", ":" and "="; the value is quoted or unquoted, 8 or more characters, and
-    # neither a reference nor a mask. The inventory is docs/qa/tracker_intake_2026_11_14_v6/class_inventory.md.
+    # keyed credential assignments: key name x key lead x key quoting x separator x value quoting x value
+    # kind. The separators are ":=", "=>", ":" and "="; a value is 8 or more characters and neither a
+    # reference nor a mask.
     ("password-assign", re.compile(
-        r"(?i)(?:\b|_)" + _SECRET_KEY_ANY + r"[\"']?\s*(?::=|=>|:|=)\s*[\"'](?![$<{%])(?![xX*.#-]+[\"'])[^\"'\s]{8,}[\"']")),
-    # an unquoted "=", ":=" or "=>" assignment (shell, env file, URL query, Perl or Ruby hash)
+        r"(?i)" + _KEY_LEAD + _SECRET_KEY_ANY + _KQ + r"\s*(?::=|=>|:|=)\s*\\?([\"'`])(?![$<{%])(?![xX*.#-]+\\?\1)[^\"'`\s\\]{8,}\\?\1")),
+    # a quoted value with a space in it, after a strong key (a passphrase)
+    ("password-assign-spaced", re.compile(
+        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + _KQ + r"\s*(?::=|=>|:|=)\s*\\?([\"'`])(?![$<{%])(?=[^\"'`\\\n]*[ \t])(?![xX*.#\s-]+\\?\1)[^\"'`\\\n]{8,}\\?\1")),
+    # an unquoted "=", ":=" or "=>" assignment (shell, env file, URL query, Perl or Ruby hash); a value
+    # starting with ">" is the second half of "=>"
     ("password-assign-unquoted", re.compile(
-        r"(?i)(?:\b|_)" + _SECRET_KEY_ANY + r"[\"']?\s*(?::=|=>|=)\s*(?![$<{%'\"`(\[])(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
+        r"(?i)" + _KEY_LEAD + _SECRET_KEY_ANY + _KQ + r"\s*(?::=|=>|=)\s*(?![$<{%'\"`(\[\\>])(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
     # an unquoted ":" (YAML, an HTTP header such as X-Api-Key, a log line): any value after a strong key;
-    # after the generic keys "secret" and "token" only a value that holds a letter and a digit, since
-    # prose writes "Token: ..." with a word after it
+    # after the generic keys "secret" and "token" only a value that holds a letter and a digit
     ("password-colon-unquoted", re.compile(
-        r"(?i)(?:\b|_)" + _SECRET_KEYS + r"[\"']?\s*:(?!=)\s*(?![$<{%'\"`(\[])(?![xX*.#-]+(?:[\s,;]|$))[^\s'\"`,;]{8,}")),
+        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + _KQ + r"\s*:(?!=)\s*(?![$<{%'\"`(\[\\])(?![xX*.#-]+(?:[\s,;]|$))[^\s'\"`,;]{8,}")),
     ("secret-colon-unquoted", re.compile(
-        r"(?i)(?:\b|_)" + _SECRET_KEYS_GENERIC + r"[\"']?\s*:(?!=)\s*(?![$<{%'\"`(\[])(?=[^\s'\"`,;]*[0-9])(?=[^\s'\"`,;]*[A-Za-z])[^\s'\"`,;]{8,}")),
+        r"(?i)" + _KEY_LEAD + _SECRET_KEYS_GENERIC + _KQ + r"\s*:(?!=)\s*(?![$<{%'\"`(\[\\])" + _LD + r"[^\s'\"`,;]{8,}")),
+    # a short key (MYSQL_PWD, DB_PASS, REDIS_AUTH, a Docker "auth" entry): "=", ":=", "=>" with or without
+    # quotes, ":" with quotes
+    ("short-key-assign", re.compile(
+        r"(?i)" + _SHORT_LEAD + _SECRET_KEYS_SHORT + _KQ + r"\s*(?:(?::=|=>|=)\s*\\?[\"'`]?|:(?!=)\s*\\?[\"'`])(?![$<{%/~.>])"
+        + _LD + r"[^\s'\"`,;\\]{8,}")),
+    # a --flag followed by a space and the value (mysql --password X): any value after a strong key,
+    # a letter and a digit after a generic or short key; an upper-case placeholder (--password PASSWORD)
+    # is not a value
+    ("password-flag-space", re.compile(
+        r"(?i)(?<![\w-])--[\w.-]*?(?:" + _SECRET_KEYS + r"(?=\s)|(?:" + _SECRET_KEYS_GENERIC + "|" + _SECRET_KEYS_SHORT
+        + r")(?=\s+\\?[\"'`]?" + _LD + r"))\s+\\?[\"'`]?(?![$<{%(\[-])(?!(?-i:[A-Z][A-Z0-9_]*)(?:[\s'\"`]|$))"
+        r"(?![xX*.#-]+(?:[\s'\"`]|$))[^\s'\"`]{8,}")),
+    # a strong key, whitespace, and a value with a letter and a digit (fish "set -x DB_PASSWORD X")
+    ("password-space", re.compile(
+        r"(?i)" + _KEY_LEAD + _SECRET_KEYS + r"[ \t]+(?![$<{%'\"`(\[\\/~-])" + _LD + r"[^\s'\"`,;]{8,}")),
+    # netrc: machine H login U password P, any value
+    ("password-netrc", re.compile(
+        r"(?i)\blogin\s+\S+\s+pass(?:word|wd)\s+(?![$<{%'\"`])(?![xX*.#-]+(?:\s|$))\S{8,}")),
+    # an XML element named by a key (<password>P</password>, <db_password type="x">P</db_password>): any
+    # value after a strong key, a letter and a digit after a generic or short key
+    ("xml-credential-element", re.compile(
+        r"(?i)<([\w.-]*?" + _SECRET_KEYS + r")(?:\s[^<>]*)?>\s*(?![$<{%])(?![xX*.#-]+\s*<)[^<>\s]{8,}\s*</\1\s*>"
+        r"|<((?:[\w.-]*?" + _SECRET_KEYS_GENERIC + r")|(?:[\w.-]*[_.-])?" + _SECRET_KEYS_SHORT + r")(?:\s[^<>]*)?>\s*(?![$<{%])"
+        r"(?=[^<>\s]*[0-9])(?=[^<>\s]*[A-Za-z])[^<>\s]{8,}\s*</\2\s*>")),
     ("basic-auth", re.compile(r"(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}")),
     ("stripe-key", re.compile(r"\b[rs]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
     ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
@@ -552,6 +596,17 @@ def surfaces(r, rendered):
         yield "rendered:" + fname, line
 
 
+def secret_hits(text):
+    """(pattern name, match) for every SECRET pattern found in text, read in its NFKC form when
+    SECRET_NFKC is set (round 7, F1). The leak scan of the evidence pack calls this function, so the two
+    scans read one class; the match is for its caller to mask, never to print."""
+    t = unicodedata.normalize("NFKC", text) if SECRET_NFKC else text
+    for name, pat in SECRET_PATTERNS:
+        m = pat.search(t)
+        if m:
+            yield name, m.group(0)
+
+
 def scan_surfaces(r, rendered):
     """SECRET, EPHEMERAL and CONTROL-CHAR over every surface: one finding per (code, pattern)."""
     hits = {}
@@ -564,9 +619,8 @@ def scan_surfaces(r, rendered):
             hits[key][1].append(surface)
 
     for surface, text in surfaces(r, rendered):
-        for name, pat in SECRET_PATTERNS:
-            if pat.search(text):
-                hit("SECRET", name, surface)
+        for name, _ in secret_hits(text):
+            hit("SECRET", name, surface)
         # an "(ephemeral" note exempts its own line only
         for line in text.split("\n"):
             if "(ephemeral" in line:
@@ -976,6 +1030,12 @@ def secret_needles():
         ("password-assign-unquoted", "DB_PASS" + "WORD=" + v8, "DB_PASS" + "WORD=" + v8[:7]),
         ("password-colon-unquoted", "pass" + "word: " + v8, "pass" + "word: " + v8[:7]),
         ("secret-colon-unquoted", "tok" + "en: " + v8, "tok" + "en: " + "Zqzqzqzq"),
+        ("password-assign-spaced", "pass" + "word = '" + "ab cd ef" + "'", "pass" + "word = '" + "ab cd e" + "'"),
+        ("short-key-assign", "DB_PA" + "SS=" + v8, "DB_PA" + "SS=" + v8[:7]),
+        ("password-flag-space", "--pass" + "word " + v8, "--pass" + "word " + v8[:7]),
+        ("password-space", "pass" + "word " + v8, "pass" + "word " + v8[:7]),
+        ("password-netrc", "login u pass" + "word " + "abcdefgh", "login u pass" + "word " + "abcdefg"),
+        ("xml-credential-element", "<pass" + "word>" + v8 + "</pass" + "word>", "<pass" + "word>" + v8[:7] + "</pass" + "word>"),
         ("basic-auth", "Authorization: " + "Basic " + a * 8, "Authorization: " + "Basic " + a * 7),
         ("stripe-key", "s" + "k_" + "live_" + a * 20, "s" + "k_" + "live_" + a * 19),
         ("npm-token", "np" + "m_" + a * 36, "np" + "m_" + a * 35),

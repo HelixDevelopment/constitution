@@ -24,7 +24,9 @@
 #   ASCII fast path, the earliest character, unquoted assignments and their reference-value guard,
 #   Basic auth, non-ASCII ids, second location rows, the -wal sidecar, URI quoting; LN4 and LN5 remapped
 #   onto the round-6 key list); the LS-mutants cover the round-6 keyed-credential shape class (key quoting,
-#   each separator, colon values, masks, references, header keys, URL user-info, the Token scheme); S1 mutates the
+#   each separator, colon values, masks, references, header keys, URL user-info, the Token scheme; O17, LV5, LN5,
+#   LS1, LS2, LS4, LS6, LS7, LS9, LS11 and LS12 remapped onto the round-7 text); the LR-mutants cover each rule
+#   round 7 added to close the secret-shape class (class_inventory.md section L of the round-7 pack); S1 mutates the
 #   suite's own cleanup (round-2 review R2-10).
 # ENV   INTAKE_LINT_MUT_JOBS  parallel mutants (default 3)
 #       INTAKE_LINT_MUT_ONLY  run only the mutants whose id is listed (comma separated)
@@ -69,7 +71,7 @@ mutants=(
   'O14 PROBABLY accepted as a verdict|L|yes|            elif verdict not in DUP_VERDICTS:|||            elif verdict not in DUP_VERDICTS | {"PROBABLY"}:'
   'O15 embeddings call foreign ids own|L|no|            ns = "foreign" if ref in fids else|||            ns = "own" if ref in fids else'
   'O16 BODY-SYNC check off|L|yes|        for p in body_problems(r):|||        for p in []:'
-  'O17 SECRET prints the matched string|L|no|                hit("SECRET", name, surface)|||                hit("SECRET", name, surface, pat.search(text).group(0))'
+  $'O17 SECRET prints the matched string (remapped onto secret_hits, round 7)|L|no|for name, _ in secret_hits(text):\\n            hit("SECRET", name, surface)|||for name, _ in secret_hits(text):\\n            hit("SECRET", name, surface, _)'
   'O18 FOREIGN-STALE check off|L|yes|        for f in sorted(fids - named):|||        for f in []:'
   'O19 a crash exits 0|L|no|        print("BLIND: the lint crashed (%s: %s): no verdict" % (type(e).__name__, str(e)[:200]), file=sys.stderr)\n        return 3|||        print("BLIND: the lint crashed (%s: %s): no verdict" % (type(e).__name__, str(e)[:200]), file=sys.stderr)\n        return 0'
   'C2 mktemp mixed suffix lower bound 4 to 5|L|yes|[A-Za-z0-9]{4,12}|||[A-Za-z0-9]{5,12}'
@@ -148,25 +150,25 @@ mutants=(
   'LV2 rendered docs not scanned by default with --repo-root (round-4 reviewer)|L|no|        rendered_dir = a.rendered or (os.path.join(a.repo_root, "docs") if a.repo_root else None)|||        rendered_dir = a.rendered'
   'LV3 item_history.reason not a scanned surface (round-4 reviewer)|L|yes|            if name not in ("atm_id", "id") and v is not None:|||            if name not in ("atm_id", "id", "reason") and v is not None:'
   'LV4 rendered: a non-item ## heading does not end the item section (round-4 reviewer)|L|no|                    cur = hm.group(1) if hm else None|||                    cur = hm.group(1) if hm else cur'
-  'LV5 SECRET: pattern anchored at the surface start (round-4 reviewer)|L|yes|            if pat.search(text):\n                hit("SECRET"|||            if pat.match(text):\n                hit("SECRET"'
+  $'LV5 SECRET: pattern anchored at the surface start (round-4 reviewer; remapped onto secret_hits)|L|yes|        m = pat.search(t)|||        m = pat.match(t)'
   'LV6 load: a second location row dropped (round-4 reviewer, mapped)|L|no|        if i in items:  # a second location row is linted too|||        if False:  # a second location row is linted too'
   'LN1 CONTROL-CHAR: format characters (Cf) not reported|L|yes|        if CONTROL_CHAR.match(ch) or unicodedata.category(ch) == "Cf":|||        if CONTROL_CHAR.match(ch):'
   'LN2 CONTROL-CHAR: every text read through the ASCII class|L|yes|    if text.isascii():\n        cm = CONTROL_CHAR.search(text)|||    if True:\n        cm = CONTROL_CHAR.search(text)'
   'LN3 CONTROL-CHAR: the last character reported, not the earliest|L|no|    for ch in text:\n        if CONTROL_CHAR.match(ch) or|||    for ch in reversed(text):\n        if CONTROL_CHAR.match(ch) or'
   $'LN4 SECRET: the password key family not read (remapped onto the round-6 key list)|L|yes|r"(?:pass(?:word|wd|phrase)|client|||r"(?:client'
-  $'LN5 SECRET: a reference value ($VAR, <placeholder>) reported as a secret (remapped onto the round-6 unquoted assignment)|L|no|(?::=|=>|=)\\s*(?![$<{%\'\\"`(\\[])|||(?::=|=>|=)\\s*'
-  $'LS1 SECRET: a quoted key (JSON) not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"\\s*(?::=|=>|:|=)\\s*[\\"\']'
-  $'LS2 SECRET: the quoted value after a colon not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"[\\"\']?\\s*(?::=|=>|=)\\s*[\\"\']'
+  $'LN5 SECRET: a reference value ($VAR, <placeholder>) reported as a secret (remapped onto the round-7 unquoted assignment)|L|no|(?::=|=>|=)\\s*(?![$<{%\'\\"`(\\[\\\\>])|||(?::=|=>|=)\\s*(?![>])'
+  $'LS1 SECRET: a quoted key (JSON) not read (remapped onto _KQ)|L|no|_KQ = r"(?:\\\\?[\\"\'`])?"|||_KQ = r""'
+  $'LS2 SECRET: the quoted value after a colon not read (remapped)|L|no|(?::=|=>|:|=)\\s*\\\\?([\\"\'`])(?![$<{%])(?![xX*.#-]+\\\\?\\1)|||(?::=|=>|=)\\s*\\\\?([\\"\'`])(?![$<{%])(?![xX*.#-]+\\\\?\\1)'
   $'LS3 SECRET: an unquoted colon value after a strong key not read|L|yes|[^\\s\'\\"`,;]{8,}")),\\n    ("secret-colon|||[^\\s\'\\"`,;]{80,}")),\\n    ("secret-colon'
-  $'LS4 SECRET: a generic-key colon value read without a digit (too broad)|L|yes|(?=[^\\s\'\\"`,;]*[0-9])|||'
+  $'LS4 SECRET: a generic-key colon value read without a digit (too broad; remapped onto _LD)|L|yes|_LD = r"(?=[^\\s\'\\"`,;<]*[0-9])(?=[^\\s\'\\"`,;<]*[A-Za-z])"|||_LD = r"(?=[^\\s\'\\"`,;<]*[A-Za-z])"'
   $'LS5 SECRET: a masked colon value reported|L|no|(?![xX*.#-]+(?:[\\s,;]|$))|||'
-  $'LS6 SECRET: a short URL user-info password not read|L|yes|(?![$<{%*]|[xX]+@)[^/\\s@]+@|||(?![$<{%*]|[xX]+@)[^/\\s@]{6,}@'
-  $'LS7 SECRET: a URL user-info reference reported|L|yes|(?![$<{%*]|[xX]+@)|||'
+  $'LS6 SECRET: a short URL user-info password not read (remapped)|L|yes|(?![$<{%*]|[xX]+@|\\d+(?:[/\\s]|$))[^\\s@]+@|||(?![$<{%*]|[xX]+@|\\d+(?:[/\\s]|$))[^\\s@]{6,}@'
+  $'LS7 SECRET: a URL user-info reference reported (remapped)|L|yes|(?![$<{%*]|[xX]+@|\\d+(?:[/\\s]|$))|||(?!\\d+(?:[/\\s]|$))'
   $'LS8 SECRET: Authorization: Token not read|L|no|(?:bearer|token)\\s+|||(?:bearer)\\s+'
-  $'LS9 SECRET: the => separator of a quoted value not read|L|no|r"[\\"\']?\\s*(?::=|=>|:|=)\\s*[\\"\']|||r"[\\"\']?\\s*(?::=|:|=)\\s*[\\"\']'
+  $'LS9 SECRET: the => separator of a quoted value not read (remapped)|L|no|(?::=|=>|:|=)\\s*\\\\?([\\"\'`])(?![$<{%])(?![xX*.#-]+\\\\?\\1)|||(?::=|:|=)\\s*\\\\?([\\"\'`])(?![$<{%])(?![xX*.#-]+\\\\?\\1)'
   $'LS10 SECRET: the := separator of an unquoted value not read|L|no|(?::=|=>|=)\\s*(?![$<{%\'|||(?:=>|=)\\s*(?![$<{%\''
-  $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read|L|no|(?:\\b|_)" + _SECRET_KEYS + r"[\\"\']?\\s*:(?!=)|||(?:^|\\s|_)" + _SECRET_KEYS + r"[\\"\']?\\s*:(?!=)'
-  $'LS12 SECRET: a masked quoted value reported|L|no|(?![xX*.#-]+[\\"\'])|||'
+  $'LS11 SECRET: a header key after a hyphen (X-Api-Key) not read (remapped onto _KEY_LEAD)|L|no|_KEY_LEAD = r"(?:\\b|_|(?<=[A-Za-z0-9.-]))"|||_KEY_LEAD = r"(?:^|(?<=\\s)|_)"'
+  $'LS12 SECRET: a masked quoted value reported (remapped)|L|no|(?![xX*.#-]+\\\\?\\1)|||'
   'LN6 SECRET: Authorization: Basic not reported|L|yes|(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{8,}|||(?i)authorization:\s*basic\s+[A-Za-z0-9+/=]{80,}'
   'LN7 XREF-DANGLING: an id in non-ASCII digits not reported|L|yes|state_text(r)) if not u.group(1).isascii()}):|||state_text(r)) if False}):'
   'LN8 a second location row not linted|L|no|                for e in extras.get(r["id"], ()):|||                for e in ():'
@@ -175,6 +177,25 @@ mutants=(
   'LN11 a non-empty -wal sidecar read|L|no|    if os.path.isfile(wal) and os.path.getsize(wal) > 0:\n        raise Blind(|||    if False:\n        raise Blind('
   'LN12 the database path read as URI syntax|L|no|urllib.parse.quote(os.path.abspath(db))|||os.path.abspath(db)'
   'S1 suite cleanup refusal not an error|S|no|    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2\n    exit 2|||    echo "CLEANUP REFUSED: temp dir left behind: $tmp" >&2'
+  $'LR1 SECRET: a key joined to a prefix by nothing (PGPASSWORD) not read|L|no|_KEY_LEAD = r"(?:\\b|_|(?<=[A-Za-z0-9.-]))"|||_KEY_LEAD = r"(?:\\b|_)"'
+  $'LR2 SECRET: the NFKC form not read (full-width separators and letters)|L|no|SECRET_NFKC = True|||SECRET_NFKC = False'
+  $'LR3 SECRET: the second half of a fat arrow read as a value|L|no|(?![$<{%\'\\"`(\\[\\\\>])|||(?![$<{%\'\\"`(\\[\\\\])'
+  $'LR4 SECRET: a backtick-quoted value not read|L|no|\\\\?([\\"\'`])(?![$<{%])(?![xX|||\\\\?([\\"\'])(?![$<{%])(?![xX'
+  $'LR5 SECRET: an escaped closing quote (JSON in a string) not read|L|no|[^\\"\'`\\s\\\\]{8,}\\\\?\\1")),|||[^\\"\'`\\s\\\\]{8,}\\1")),'
+  $'LR6 SECRET: a short key read inside a word (bypass, oauth)|L|no|_SHORT_LEAD = r"(?<![A-Za-z0-9])"|||_SHORT_LEAD = r""'
+  $'LR7 SECRET: a short key with a quoted colon value (Docker auth) not read|L|no||:(?!=)\\s*\\\\?[\\"\'`])(?![$<{%/~.>])|||)(?![$<{%/~.>])'
+  $'LR8 SECRET: a path after a short key read as a value|L|no|(?![$<{%/~.>])|||(?![$<{%])'
+  $'LR9 SECRET: an upper-case flag placeholder (--password PASSWORD) read as a value|L|no|(?!(?-i:[A-Z][A-Z0-9_]*)(?:[\\s\'\\"`]|$))|||'
+  $'LR10 SECRET: a netrc password keyword not read|L|no|\\blogin\\s+\\S+\\s+pass(?:word|wd)\\s+|||\\blogin\\s+\\S+\\s+passwd\\s+'
+  $'LR11 SECRET: an XML element named by a strong key not read|L|no|r"(?i)<([\\w.-]*?" + _SECRET_KEYS + r")|||r"(?i)<(nomatchxml" + _SECRET_KEYS + r")'
+  $'LR12 SECRET: an XML element named by a generic key not read|L|no|r"|<((?:[\\w.-]*?" + _SECRET_KEYS_GENERIC|||r"|<((?:(?!)" + _SECRET_KEYS_GENERIC'
+  $'LR13 SECRET: a quoted value with a space (a passphrase) not read|L|no|\\\\?([\\"\'`])(?![$<{%])(?=[|||\\\\?([\\"\'`])(?!)(?=['
+  $'LR14 SECRET: a strong key, whitespace and a value (fish set) not read|L|no|_SECRET_KEYS + r"[ \\t]+(?!|||_SECRET_KEYS + r"[ \\t]+(?!.)(?!'
+  $'LR15 SECRET: a URL with an empty user name (redis://:pw@h) not read|L|no|://[^/\\s:@]*:|||://[^/\\s:@]+:'
+  $'LR16 SECRET: a URL password with a slash in it not read|L|no|[^\\s@]+@")),|||[^/\\s@]+@")),'
+  $'LR17 SECRET: a URL port and path read as a password|L|no||\\d+(?:[/\\s]|$))|||)'
+  $'LR18 SECRET: the round-7 key names (credentials, *_token) not read|L|no|r"|credentials?|(?:auth|access|refresh|bearer|session|api|id|oauth|app)[_.-]?token)")|||r")")'
+  $'LR19 SECRET: a dot-joined strong key (api.key) not read|L|no|api[_.-]?key|||api[_-]?key'
 )
 
 mkcopy() { # mkcopy <src> <dest> <old> <new>  (\n in old/new is a newline)

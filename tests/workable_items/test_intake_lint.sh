@@ -410,6 +410,12 @@ secrets=(
   'password-colon-unquoted|"pass" + "word: " + "Zq7Zq7Zq"|"pass" + "word: " + "Zq7Zq7Z"'
   'secret-colon-unquoted|"tok" + "en: " + "Zq7Zq7Zq"|"tok" + "en: " + "Zqzqzqzq"'
   'basic-auth|"Authorization: " + "Basic " + "a" * 8|"Authorization: " + "Basic " + "a" * 7'
+  'password-assign-spaced|"pass" + "word = \"" + "ab cd ef" + "\""|"pass" + "word = \"" + "ab cd e" + "\""'
+  'short-key-assign|"DB_PA" + "SS=" + "Zq7Zq7Zq"|"DB_PA" + "SS=" + "Zq7Zq7Z"'
+  'password-flag-space|"--pass" + "word " + "Zq7Zq7Zq"|"--pass" + "word " + "Zq7Zq7Z"'
+  'password-space|"pass" + "word " + "Zq7Zq7Zq"|"pass" + "word " + "Zq7Zq7Z"'
+  'password-netrc|"login u pass" + "word " + "abcdefgh"|"login u pass" + "word " + "abcdefg"'
+  'xml-credential-element|"<pass" + "word>" + "Zq7Zq7Zq" + "</pass" + "word>"|"<pass" + "word>" + "Zq7Zq7Z" + "</pass" + "word>"'
 )
 for s in "${secrets[@]}"; do
   pname=${s%%|*}; rest=${s#*|}; pos=${rest%%|*}; neg=${rest#*|}
@@ -419,7 +425,7 @@ for s in "${secrets[@]}"; do
   mkfixture "$tmp/sn$n.db" "rows[\"FX-002\"][\"description\"] = G + \"\\nvalue \" + ($neg) + \" end\"" || { bad "SECRET negative $pname" "fixture build failed"; continue; }
   expect_silent "SECRET negative needle $pname" SECRET --db "$tmp/sn$n.db" "${F[@]}"
 done
-# round 6 (R5-3): the whole keyed-credential shape class, one fabricated positive per member (key name x
+# round 6 (R5-3) and round 7 (F1): the keyed-credential shape class, one fabricated positive per member (key name x
 # key quoting x separator x value quoting, headers, URL query and user-info); the expected pattern is named
 shapes=(
   'json-quoted-key|password-assign|"{\"pass" + "word\": \"" + "Zq7Zq7Zq" + "\"}"'
@@ -438,6 +444,29 @@ shapes=(
   'url-short-password|url-userinfo-password|"https://u:" + "pw@h/r"'
   'authorization-token|bearer-token|"Authorization: " + "Token " + "a" * 20'
   'secret-key-colon|password-colon-unquoted|"SECRET" + "_KEY: " + "Zq7Zq7Zq"'
+  'pg-joined-prefix|password-assign-unquoted|"PG" + "PASS" + "WORD=" + "Zq7Zq7Zq"'
+  'export-joined-quoted|password-assign|"export PG" + "PASS" + "WORD=" + chr(39) + "Zq7Zq7Zq" + chr(39)'
+  'mysql-pwd|short-key-assign|"MYSQL_" + "PWD=" + "Zq7Zq7Zq"'
+  'db-pass|short-key-assign|"DB_" + "PASS=" + "Zq7Zq7Zq"'
+  'redis-auth|short-key-assign|"REDIS_" + "AUTH=" + "Zq7Zq7Zq"'
+  'docker-auth-json|short-key-assign|"{\"au" + "th\": \"" + "Zq7Zq7Zq" + "\"}"'
+  'cli-flag-space|password-flag-space|"mysql --pass" + "word " + "corrhorsebat" + " -h db"'
+  'cli-flag-token|password-flag-space|"tool --tok" + "en " + "Zq7Zq7Zq"'
+  'fish-set-space|password-space|"set -x DB_PASS" + "WORD " + "Zq7Zq7Zq"'
+  'netrc-letters|password-netrc|"machine h1 login u1 pass" + "word " + "corrhorsebat"'
+  'xml-element|xml-credential-element|"<pass" + "word>" + "corrhorsebat" + "</pass" + "word>"'
+  'xml-attr-generic|xml-credential-element|"<db_tok" + "en type=\"x\">" + "Zq7Zq7Zq" + "</db_tok" + "en>"'
+  'xml-short|xml-credential-element|"<pw" + "d>" + "Zq7Zq7Zq" + "</pw" + "d>"'
+  'quoted-with-space|password-assign-spaced|"pass" + "word = \"" + "correct horse 7bat" + "\""'
+  'url-slash-password|url-userinfo-password|"https://u1:" + "ab/" + "Zq7Zq7Zq" + "@h/x"'
+  'url-empty-user|url-userinfo-password|"redis://" + ":" + "Zq7Zq7Zq" + "@h:6379/0"'
+  'fullwidth-colon|password-colon-unquoted|"pass" + "word\uff1a" + "Zq7Zq7Zq"'
+  'fullwidth-letters|password-assign-unquoted|"\uff30\uff21\uff33\uff33" + "WORD=" + "Zq7Zq7Zq"'
+  'backtick-value|password-assign|"pass" + "word = `" + "Zq7Zq7Zq" + "`"'
+  'escaped-json|password-assign|"{\\\"pass" + "word\\\": \\\"" + "Zq7Zq7Zq" + "\\\"}"'
+  'api-key-dot|password-assign-unquoted|"api" + ".key=" + "Zq7Zq7Zq"'
+  'oauth-token|password-colon-unquoted|"oauth_" + "token: " + "corrhorsebat"'
+  'credentials-key|password-colon-unquoted|"credent" + "ials: " + "corrhorsebat"'
 )
 for s in "${shapes[@]}"; do
   sname=${s%%|*}; rest=${s#*|}; pname=${rest%%|*}; pos=${rest#*|}
@@ -445,7 +474,8 @@ for s in "${shapes[@]}"; do
   mkfixture "$tmp/sh$n.db" "rows[\"FX-002\"][\"description\"] = G + \"\\nvalue \" + ($pos) + \" end\"" || { bad "SECRET shape $sname" "fixture build failed"; continue; }
   expect "SECRET shape $sname" 1 "^FINDING SECRET FX-002 $pname on description,body_md\$" --db "$tmp/sh$n.db" "${F[@]}"
 done
-# and the negatives of that class: prose, references, masks and a key that is not a credential key
+# and the negatives of that class: prose, references, masks and a key that is not a credential key; round 7
+# (F1): words that end in a short key, a test-report label, a placeholder, a port, the halves of "=>"
 nshapes=(
   'prose-token|"Tok" + "en: obtained from the host at run time"'
   'prose-password|"Pass" + "word: none"'
@@ -456,6 +486,18 @@ nshapes=(
   'not-a-key|"api_" + "key_file: /etc/app/k.pem"'
   'passwordless|"pass" + "wordless: enabled_for_all"'
   'url-masked-userinfo|"https://u:" + "****@h/r"'
+  'bypass-word|"by" + "pass=" + "Zq7Zq7Zq"'
+  'oauth-word|"o" + "auth=" + "Zq7Zq7Zq"'
+  'pass-test-label|"PA" + "SS: case_one_" + "a1b2"'
+  'auth-letters|"au" + "th=" + "requiredx"'
+  'pwd-path|"pw" + "d=/srv/" + "u1/app"'
+  'flag-placeholder|"mysql --pass" + "word " + "PASS" + "WORD_X"'
+  'fat-arrow-short|"pass" + "word=>" + "Zq7Zq7Z"'
+  'fat-arrow-reference|"pass" + "word => $" + "{DB_PW}"'
+  'url-port-path|"https://" + "h:8080/" + "a/@b"'
+  'xml-reference|"<pass" + "word>$" + "{DB_PW}</pass" + "word>"'
+  'space-letters|"the pass" + "word manager stores it"'
+  'token-space-generic|"tok" + "en " + "Zq7Zq7Zq"'
 )
 for s in "${nshapes[@]}"; do
   sname=${s%%|*}; neg=${s#*|}

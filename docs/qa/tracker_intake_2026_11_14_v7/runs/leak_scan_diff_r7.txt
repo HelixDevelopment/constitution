@@ -1,0 +1,22 @@
+$ python3 -I docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py --diff 02126123 (staged round-7 change only)
+control needles: PASS (one fake of each of the 37 secret kinds and the 3 identity kinds found; a plain line not reported)
+HIT docs/qa/tracker_intake_2026_11_14_v7/README.md line=66 kind=url-cred len=26 prefix='https:'
+HIT docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md line=38 kind=lint:password-assign-spaced len=24 prefix='PASSWO'
+HIT docs/qa/tracker_intake_2026_11_14_v7/class_inventory.md line=65 kind=assignment len=16 prefix='Token:'
+HIT docs/qa/tracker_intake_2026_11_14_v7/remint/fix227/plan.json line=935 kind=url-cred len=26 prefix='https:'
+HIT docs/qa/tracker_intake_2026_11_14_v7/remint/main-replay/plan.json line=935 kind=url-cred len=26 prefix='https:'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=19 kind=assignment len=15 prefix='SECRET'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=98 kind=assignment len=15 prefix='SECRET'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=112 kind=assignment len=22 prefix='SECRET'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=117 kind=assignment len=22 prefix='SECRET'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=133 kind=lint:password-flag-space len=20 prefix='--pass'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=139 kind=lint:url-userinfo-password len=12 prefix='redis:'
+HIT docs/qa/tracker_intake_2026_11_14_v7/runs/lint_mutations.txt line=141 kind=assignment len=24 prefix='passwo'
+HIT docs/qa/tracker_intake_2026_11_14_v7/tools/leak_scan.py line=87 kind=lint:password-assign-spaced len=39 prefix='privat'
+HIT scripts/workable-items/intake_lint.py line=175 kind=lint:url-userinfo-password len=12 prefix='redis:'
+HIT scripts/workable-items/intake_lint.py line=203 kind=lint:password-flag-space len=20 prefix='--pass'
+HIT tests/workable_items/test_intake_lint_mutations.sh line=153 kind=assignment len=15 prefix='SECRET'
+HIT tests/workable_items/test_intake_lint_mutations.sh line=188 kind=lint:password-flag-space len=20 prefix='--pass'
+HIT tests/workable_items/test_intake_lint_mutations.sh line=194 kind=lint:url-userinfo-password len=12 prefix='redis:'
+RESULT: secret_hits=18 identity_hits=0 pre_existing=0 binary_skipped=0
+rc=0

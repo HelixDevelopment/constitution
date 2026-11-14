@@ -31,7 +31,8 @@
 #   MISMATCH, which run 5 had counted killed only through a flaky case). ROV-mutants: the round-5
 #   reviewer's mutants (ROV1..ROV10) verbatim, except ROV3 (the clause without its line continuation), and
 #   ROVFIX, the round-5 defect R5-1 put back (a field-only update passes the target's description).
-#   S-mutants: the suite's own fixture instrument (fx_sql).
+#   RM-mutants: the round-6 reviewer's mutants (RM1..RM8) verbatim; RM2, RM3, RM6 and RM8 are killed by the
+#   round-7 cases of section (11) of the suite. S-mutants: the suite's own fixture instrument (fx_sql).
 # ENV   WORKABLE_ITEMS        path of the workable-items engine binary (default: the tracked
 #                             scripts/workable-items/bin/workable-items; exit 2 when not executable)
 #       REMINT_IDS_MUT_JOBS   parallel mutants (default 3)
@@ -62,6 +63,14 @@ case "$jobs" in ''|*[!0-9]*|0) echo "setup: REMINT_IDS_MUT_JOBS must be a positi
 # Escapes in old/new: \n is a newline, \\n is a literal backslash-n (as written in Python source).
 # id | target (T tool, S suite) | old ||| new   (old and new are split at the first "|||")
 mutants=(
+  'RM1 verify re-render branch: landed body compared with the vehicle body itself|T|unslotted(r["body_md"], i, True)), fset)|||unslotted(v["body_md"], i, True)), fset)'
+  'RM2 slots: the reopen Evidence bullet is not a slot|T|(?:By|On|Reason|Evidence):|||(?:By|On|Reason):'
+  'RM3 slots: Obsolete-Details is not a slot|T|"**Reopened-Details:**",\n                 "**Obsolete-Details:**")|||"**Reopened-Details:**",)'
+  'RM4 planner: every map pair goes to the rewriter (R5-2 reverted)|T|rewr = Rewriter({o: n for o, n in m.items() if o != n}, prefix)|||rewr = Rewriter(dict(m), prefix)'
+  'RM5 cmd_plan: a refused plan carries no refusal|T|"refusals": [str(e)]|||"refusals": []'
+  'RM6 planner: body conflict test ignores template meta lines|T|if rerender and res is None and unslotted(t["body_md"], i) != unslotted(b["body_md"], i):|||if rerender and res is None and unslotted(t["body_md"], i, True) != unslotted(b["body_md"], i, True):'
+  'RM7 verify: a landed body without a heading line is not checked|T|if heads and heads[0] not in|||if len(heads) > 1 and heads[0] not in'
+  'RM8 verify no-re-render branch ignores template meta lines|T|if unslotted(r["body_md"], i) != unslotted(t["body_md"], i):|||if unslotted(r["body_md"], i, True) != unslotted(t["body_md"], i, True):'
   'RC1 verify: obsolete_details values not compared|T|        if norm(want[c]) != norm(got[c]):\n            bad.append("%s obsolete_details.%s|||        if False:\n            bad.append("%s obsolete_details.%s'
   'RC2 verify: own status not compared|T|"body_md", "atm_id", "created_at", "last_modified"]]|||"body_md", "atm_id", "created_at", "last_modified", "status"]]'
   'RC3 verify: Opened history row not required|T|    if own_item and not any(h["event_type"] == "Opened" for h in r_new):|||    if False:'
