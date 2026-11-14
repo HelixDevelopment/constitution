@@ -176,6 +176,7 @@ against a forge.
 
 #### Open follow-ups (not fixed in round 5)
 
+- `SYNC-R5-OPEN-5`: two mutants, M70 and M73, count as killed only because a suite TIMED OUT (`by hardening(timeout)`), not because an assertion failed. M70 also left its engine running for about 3 hours after the mutation run: `tests/sync/test_hardening.sh` (line 569, and line 236) wraps the engine in `timeout 120` without `-k`, so an engine that does not end on SIGTERM survives the suite. Found at clean-up after the commit; the leftover was ours (uid, cmdline under this scratch tree, checked) and was killed by pid. Fix (`timeout -k`, and an assertion that kills both mutants) not made in round 5.
 - `SYNC-R5-OPEN-1`: a follow-pin does not read `submodule.<name>.update=none` (RV4-10).
 - `SYNC-R5-OPEN-3`: a standard output closed before the run ends gives Python's exit 120 (no traceback, reports
   written); a caller reads 120 as BLIND (`green/sigpipe_probe.txt`).
