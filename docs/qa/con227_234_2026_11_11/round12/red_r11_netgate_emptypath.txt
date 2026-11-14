@@ -1,0 +1,58 @@
+MISS  CTRL_NEG_clean                     want_rc=0 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    CTRL_POS_plain_curl                want_rc=1 rc=1 :: FINDING network command outside rc_net: CTRL_POS_plain_curl.sh:3 curl (via -) | curl -s https://h.invalid/x | NETGATE invocations=1 network_through_rc_net=0 findings=1
+MISS  CTRL_POS_plain_git                 want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G01_coproc                         want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G02_dq_cmdword                     want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G03_sq_cmdword                     want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G04_backslash_cmdword              want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G05_awk_multiline_system           want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G05b_awk_multiline_system_stdin    want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G05c_awk_oneline_system            want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G06_sed_e_cmd                      want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G07_sed_s_e_flag                   want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G08_sort_compress_prog             want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G09_sqlite_system                  want_rc=1 rc=0 :: NETGATE invocations=1 network_through_rc_net=0 findings=0
+MISS  G10_absent_netcmd_aria2c           want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G11_command_p                      want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G12_time_p                         want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G13_trap_sq                        want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G14_trap_dq                        want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G15_alias                          want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G16_relative_path                  want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    G17_abs_path_git                   want_rc=1 rc=1 :: FINDING unclassified command (default deny): G17_abs_path_git.sh:3 /usr/bin/git | /usr/bin/git fetch origin | NETGATE invocations=1 network_through_rc_net=0 findings=1
+MISS  G18_wget                           want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    G19_jq_free                        want_rc=0 rc=0 :: NETGATE invocations=1 network_through_rc_net=0 findings=0
+MISS  G20_heredoc_to_awk_system          want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G21_git_via_gitdashcmd             want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G22_python_via_absent_name         want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G23_cmd_after_redirection          want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G24_fd_redirect_prefix             want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G25_env_assign_then_quoted         want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G26_brace_group_newline            want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G27_case_inline                    want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G28_rcnet_tempenv_secret           want_rc=0 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G29_xargs_git                      want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G30_env_git                        want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G31_nice_git                       want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    G32_timeout_git                    want_rc=1 rc=1 :: FINDING network command outside rc_net: G32_timeout_git.sh:3 timeout (via -) | timeout 10 git fetch origin | NETGATE invocations=1 network_through_rc_net=0 findings=1
+MISS  G33_exec_git                       want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G34_builtin_command_git            want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    G35_eval_git                       want_rc=1 rc=1 :: FINDING eval: G35_eval_git.sh:3 in - | eval 'git fetch origin' | NETGATE invocations=0 network_through_rc_net=0 findings=1
+MISS  G36_var_cmd                        want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G37_bash_c                         want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G38_ssh                            want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G39_subst_in_dq                    want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    G40_bare_glab                      want_rc=1 rc=1 :: FINDING network command outside rc_net: G40_bare_glab.sh:3 glab (via -) | glab release view x | NETGATE invocations=1 network_through_rc_net=0 findings=1
+OK    G41_bare_gh                        want_rc=1 rc=1 :: FINDING network command outside rc_net: G41_bare_gh.sh:3 gh (via -) | gh api repos/x | NETGATE invocations=1 network_through_rc_net=0 findings=1
+MISS  G42_bare_socat                     want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G43_bare_lftp                      want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G44_dq_var_cmd                     want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+MISS  G45_curl_after_redir               want_rc=1 rc=2 :: NETGATE invocations=0 network_through_rc_net=0 findings=0 | BLIND: no invocation found
+OK    REAL_SCRIPTS                       want_rc=0 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+MISS  RM30                               want_rc=1 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+MISS  RM30b                              want_rc=1 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+MISS  RM31                               want_rc=1 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+MISS  RM32                               want_rc=1 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+MISS  RM33                               want_rc=1 rc=0 :: NETGATE invocations=17 network_through_rc_net=11 findings=0
+OK    RM34                               want_rc=1 rc=1 :: FINDING unclassified command (default deny): tag_and_release.sh:196 /usr/bin/git | /usr/bin/git fetch -q --no-tags "$r" refs/heads/main >/dev/null 2>&1 || : | NETGATE invocations=18 network_through_rc_net=11 findings=1
+SUMMARY cases=57 expected=9 unexpected=48

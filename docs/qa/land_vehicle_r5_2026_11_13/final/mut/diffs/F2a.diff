@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F2a)
+@@ -693,7 +693,7 @@
+     f=${meta#*$'\t'}; read -r _sm _ty dsha <<<"${meta%%$'\t'*}"
+     { [ "$_ty" = blob ] && tracker_path "$f"; } || continue
+     g cat-file blob "$dsha" > "$blob" || die 1 "cannot read $f at main"
+-    if id_seen_in_file "$key" "$num" "$blob"; then
++    if false; then
+       die 1 "the mint command printed $id but $id already appears in ${f//[[:cntrl:]]/?} before the mint: the id is not new; refusing; nothing was landed"
+     fi
+   done

@@ -1,0 +1,8 @@
+# RED: the round-7 publisher suite against the round-6 publisher and helper (git 2765038f, 2026-11-12T11:45:03Z)
+FAIL 29 L1 L2: FINDING grep: 'A.TOKEN' is not on the allow-list (and holds a marker) FINDING grep: 'BAD-NAME' is not on the allow-list (and holds a marker) FINDING grep: 'npm_config_//h.invalid/:_authToken' is not on the allow-list (and holds a marker) FINDING grep: 'BASE_URL' is not on the allow-list 
+FAIL 31 --token-var BASH_ENV: rc 3 SKIPPED-NO-TOKEN: env var BASH_ENV is not set; nothing was published
+FAIL 31 --token-var SHELLOPTS: rc 3 release_publish_gitea: token has characters outside [A-Za-z0-9._~+/=-] or a bad length: refusing
+FAIL 31 --token-var IFS: rc 3 release_publish_gitea: token has characters outside [A-Za-z0-9._~+/=-] or a bad length: refusing
+FAIL L1 external command before rc_env_clean: FINDING release_publish_gitea.sh loads redact_cut.sh but never calls rc_env_clean
+FAIL L1 needle: a date inserted at line 2 is not found
+RESULT pass=130 fail=6

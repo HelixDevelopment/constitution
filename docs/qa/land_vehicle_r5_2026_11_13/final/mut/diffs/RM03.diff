@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (RM03)
+@@ -453,7 +453,7 @@
+   local pat
+   for pat in "${TRACKER_PATS[@]}"; do
+     # shellcheck disable=SC2053 # pattern match on purpose
+-    [[ "$1" == $pat ]] && return 0
++    [[ "$1" == "$pat" ]] && return 0
+   done
+   return 1
+ }

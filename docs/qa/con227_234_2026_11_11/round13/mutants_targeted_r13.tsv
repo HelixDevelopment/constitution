@@ -1,0 +1,105 @@
+GN1	1	1	match	FAIL netgate misses git in backticks (rc 1): FINDING unmodelled construct, refused: a backquote command substitution (use $( )): ng.sh:2 in - | key=1a32d876 NET
+GN3	1	5	match	FAIL netgate misses git through an untrusted nt (rc 1): FINDING network command outside rc_net: ng.sh:2 timeout (via -) | key=1b2a3424 NETGATE layer=analyser in
+GN2	1	42	match	FAIL netgate rc=1: FINDING PIN a site that is not on the pin: derive_release_facts.sh:62 git via rc_net class FINDING key feb7dd5a FINDING PIN a site that is no
+GN4	1	8	match	FAIL netgate misses a command in a variable (rc 1): FINDING a write to a name that is not on the name list of the pin (G, assign): ng.sh:2 | key=05150ec4 NETGAT
+NR6	1	3	match	FAIL netgate control G06_sed_e_cmd: want a finding 'sed that can run a command or is not on the pin: G06_sed_e_cmd.sh:3 (the e command (it runs a command or ope
+NR1	1	6	match	FAIL netgate control G16_relative_path: want a finding 'command word the gate cannot classify (a path): G16_relative_path.sh:3 ./bin/git in -', rc 1: FINDING un
+NR7	1	3	match	FAIL netgate control G07_sed_s_e_flag: want a finding 'sed that can run a command or is not on the pin: G07_sed_s_e_flag.sh:3 (the s///e flag (it runs a command
+NR10	1	5	match	FAIL netgate misses awk running a command (rc 1): FINDING awk that can run a command or is not on the pin: ng.sh:2 (a awk program that is not on the whitelist o
+NR11	1	3	match	FAIL netgate control CI38_awk_print_pipe: want a finding 'awk that can run a command or is not on the pin: CI38_awk_print_pipe.sh:3 (a pipe to or from a command
+NR14	1	6	match	FAIL netgate control CI06_path_tempenv: want a finding 'a write to PATH (prefix; it changes how a command is found, run or loaded): CI06_path_tempenv.sh:3', rc 
+NR28	1	2	match	FAIL netgate control CI23_arith_quoted: want a finding 'a quoted command substitution in arithmetic (it is evaluated): CI23_arith_quoted.sh:3 in -', rc 1: FINDI
+NR17	1	3	match	FAIL netgate control CI45_nt_assign: want a finding 'command word the gate cannot classify (expansion in command position): CI45_nt_assign.sh:3 "$@" in nt', rc 
+NR30	1	1	match	FAIL lint misses a script the parser cannot read (rc 0): CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+GN5	1	4	match	FAIL netgate misses an unknown command (default deny) (rc 0): NETGATE layer=analyser invocations=1 network_through_rc_net=0 findings=0 
+GN6	1	11	match	FAIL netgate misses git under env (rc 0): NETGATE layer=analyser invocations=1 network_through_rc_net=0 findings=0 
+NR2	1	3	match	FAIL netgate control G13_trap_sq: want a finding 'network command outside rc_net: G13_trap_sq.sh:3 git (via -)', rc 0: NETGATE layer=analyser invocations=1 netw
+NR3	1	3	match	FAIL netgate control G01_coproc: want a finding 'unmodelled construct, refused: coproc: G01_coproc.sh:3 in -', rc 1: FINDING network command outside rc_net: G01
+NR4	1	3	match	FAIL netgate control G15_alias: want a finding 'builtin alias is not on the closed list of builtins the release scripts use (it can run, define or look up a c',
+NR5	1	6	match	FAIL netgate control G11_command_p: want a finding 'builtin command other than command -v NAME: G11_command_p.sh:3', rc 0: NETGATE layer=analyser invocations=1 
+NR8	1	2	match	FAIL netgate control O70_sort_long_option_alone: want a finding 'sort that can run a command or is not on the pin: O70_sort_long_option_alone.sh:3 (an argument 
+NR9	1	5	match	FAIL netgate control G09_sqlite_system: want a finding 'sqlite3 that can run a command or is not on the pin: G09_sqlite_system.sh:3 (-safe is not the first argu
+NR12	1	2	match	FAIL netgate control CI70_exec_unknown_opt: want a finding 'builtin exec with the option -z: CI70_exec_unknown_opt.sh:3', rc 1: FINDING builtin exec of a comman
+NR13	1	3	match	FAIL netgate control R22_source_same_basename: want a finding 'builtin . other than the exact forms of SOURCE_OK at the top level of a script (round 13, R22): R
+NR15	1	3	match	FAIL netgate control CI19_let_subscript: want a finding 'builtin let is not on the closed list of builtins the release scripts use (it can run, define or look u
+NR16	1	7	match	FAIL netgate control CI20_cond_subscript: want a finding 'unmodelled construct, refused: [[ ]] outside the closed grammar: the operator -v: CI20_cond_subscript.
+NR18	1	4	match	FAIL netgate control CI18_unset_f: want a finding 'builtin unset other than unset -v NAME... or unset 'NAME[SUBSCRIPT]': CI18_unset_f.sh:3', rc 0: NETGATE layer
+NR19	1	7	match	FAIL netgate control CI16_set_x: want a finding 'builtin set other than +f +x -f -u: CI16_set_x.sh:3', rc 0: NETGATE layer=analyser invocations=1 network_throug
+NR20	1	3	match	FAIL netgate control CI03_prompt_expansion: want a finding 'unmodelled construct, refused: ${y@P}: the operator @ (:= and = assign; @, / and the others are not 
+NR21	1	3	match	FAIL netgate control O68_funsub_unquoted: want a finding 'unmodelled construct, refused: ${ command; } substitution (bash 5.3): a command list inside a paramete
+NR22	1	5	match	FAIL netgate control CI04_dev_tcp: want a finding 'unmodelled construct, refused: a redirection to a device file other than /dev/null (/dev/tcp and /dev/udp ope
+NR23	1	8	match	FAIL netgate control CI10_declare_n: want a finding 'builtin declare other than declare -A NAME: CI10_declare_n.sh:3', rc 0: NETGATE layer=analyser invocations=
+NR23b	1	39	match	FAIL lint rc=1: 
+NR24	1	3	match	FAIL netgate control CI08_hash_p: want a finding 'builtin hash is not on the closed list of builtins the release scripts use (it can run, define or look up a co
+NR25	1	5	match	FAIL netgate misses eval (rc 2): NETGATE layer=analyser invocations=0 network_through_rc_net=0 findings=0 BLIND: no invocation found 
+NR26	1	4	match	FAIL netgate control CI13_mapfile_callback: want a finding 'builtin mapfile is not on the closed list of builtins the release scripts use (it can run, define or
+NR27	1	4	match	FAIL netgate control CI14_compgen_c: want a finding 'builtin compgen other than compgen -e or compgen -A function (-C, -F, -W and -X run code): CI14_compgen_c.s
+NR29	1	5	match	FAIL netgate control CI21_assign_subscript: want a finding 'a subscript of the indexed array a outside the arithmetic grammar (it is evaluated): CI21_assign_sub
+NR32	1	1	match	FAIL lint depends on the host PATH (rc 0/2): BLIND: no invocation found in the scripts 
+NR33	1	83	match	FAIL lint depends on the host PATH (rc 0/1): FINDING stale row (table line 13): derive_release_facts.sh awk key=30f58115 FINDING stale row (table line 14): deri
+MR5x	1	3	match	FAIL netgate control MR5a_LD_LIBRARY_PATH_prefix: want a finding 'a write to LD_LIBRARY_PATH (prefix; it changes how a command is found, run or loaded): MR5a_LD
+MR6x	1	2	match	FAIL netgate control D6_sqlite_nonce: want a finding 'sqlite3 that can run a command or is not on the pin: D6_sqlite_nonce.sh:3 (the option -nonce (not on SQLIT
+MR7x	1	2	match	FAIL netgate control D7_awk_attached_f: want a finding 'awk that can run a command or is not on the pin: D7_awk_attached_f.sh:3 (the option -f/dev/stdin (only -
+MR8x	1	8	match	FAIL netgate rc=1: FINDING builtin read of a word that is not a plain name: derive_release_facts.sh:110 | key=be7388a5 FINDING builtin read of a word that is no
+MR10x	1	2	match	FAIL netgate control MR10a_shopt_extdebug: want a finding 'builtin shopt other than shopt -s execfail: MR10a_shopt_extdebug.sh:3', rc 0: NETGATE layer=analyser 
+MR10y	1	7	match	FAIL netgate control CI16_set_x: want a finding 'builtin set other than +f +x -f -u: CI16_set_x.sh:3', rc 1: FINDING builtin set other than +f +x -f -o -u extde
+MS1	1	2	match	FAIL C53 netgate rc=1: FINDING sqlite3 that can run a command or is not on the pin: derive_release_facts.sh:79 (-safe is not the first argument (an option that 
+PN1	1	2	match	FAIL netgate pin: a trailing space on one line (same normalised key, other bytes) (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 f
+PN2	1	1	match	FAIL netgate pin: a trailing space on one line (same normalised key, other bytes) (rc 1): FINDING PIN tag_and_release.sh differs from the pin (sha256 c0eba29780
+PN3	1	1	match	FAIL netgate pin: a file that is not on the pin (rc 1): FINDING PIN a site that is not on the pin: ngc.sh:2 timeout via rc_net class network-through-rc_net key 
+PN4	1	1	match	FAIL netgate pin: a file of the pin that was not given (rc 1): FINDING PIN a site of the pin that the analyser does not find: release_publish_gitea.sh:92 sed vi
+PN5	1	1	match	FAIL netgate pin: a site row removed from the pin (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 
+PN6	1	1	match	FAIL netgate pin: a site row the analyser does not find (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 
+PN8	1	1	match	FAIL netgate pin: a pin with no rows (rc 1): FINDING PIN a file that is not on the pin: derive_release_facts.sh FINDING PIN a file that is not on the pin: redac
+PN7	1	2	match	FAIL netgate pin: an unreadable pin (rc 1): FINDING PIN a file that is not on the pin: derive_release_facts.sh FINDING PIN a file that is not on the pin: redact
+PN9	1	1	match	FAIL netgate pin: a row the gate does not know (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 
+PN10	1	1	match	FAIL netgate pin: a number field that is not a number (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 
+PN11	1	1	match	FAIL netgate pin: netgate without --pin rc 1
+PN12	1	2	match	FAIL netgate pin: pin-regen with a finding (rc 0): PIN-REGEN rows=1470 files=4 sites=129 programs=14 names=145 
+PN14	1	1	match	FAIL netgate pin: the analyser alone with an unreadable pin (the name and program lists come from the pin) (rc 1): FINDING sed that can run a command or is not 
+PN15	1	3	match	FAIL netgate pin: the committed pin differs from pin-regen (rc 0/0): run pin-diff and review (PIN-REGEN rows=1468 files=4 sites=128 programs=14 names=145)
+PN16	1	2	match	FAIL netgate pin: the committed pin differs from pin-regen (rc 0/0): run pin-diff and review (PIN-REGEN rows=1468 files=4 sites=128 programs=14 names=145)
+PN17	1	1	match	FAIL netgate pin: pin-diff of a changed copy (rc 0): 0 text lines
+PN18	1	2	match	FAIL netgate pin: a site row removed from the pin (rc 0): NETGATE layer=pin+analyser invocations=128 network_through_rc_net=51 findings=0 
+PN19	1	1	match	FAIL netgate pin: pin-regen BLIND (rc 0): PIN-REGEN rows=4 files=1 sites=0 programs=0 names=1 
+AN1	1	2	match	FAIL netgate control O66_arith_increment: want a finding 'unmodelled construct, refused: arithmetic outside the closed grammar: ++ (an increment assigns): O66_a
+AN2	1	3	match	FAIL netgate control O19_indirect_default_assign: want a finding 'unmodelled construct, refused: ${!n:=1}: an indirect expansion of n (only the validated names 
+AN3	1	3	match	FAIL netgate control R31_gawk_inet_via_v: want a finding 'awk that can run a command or is not on the pin: R31_gawk_inet_via_v.sh:3 (an awk -v value with inet o
+AN4	1	2	match	FAIL netgate control O62_awk_pinned_operand_inet: want a finding 'awk that can run a command or is not on the pin: O62_awk_pinned_operand_inet.sh:3 (the operand
+AN5	1	8	match	FAIL netgate control CP01_sed_ranges_r12shape: want a finding 'sed that can run a command or is not on the pin: CP01_sed_ranges_r12shape.sh:3 (a sed program tha
+AN6	1	3	match	FAIL netgate control G28_rcnet_tempenv_secret_r12shape: want a finding 'a write to a name that is not on the name list of the pin (ZZTOKEN, prefix): G28_rcnet_t
+AN8	1	3	match	FAIL netgate control O22_call_before_definition: want a finding 'a function called before its definition (bash would run a program or a builtin of that name): O
+AN7	1	2	match	FAIL netgate control O23_duplicate_definition: want a finding 'a function defined twice in one process (the later one replaces it at run time): O23_duplicate_de
+AN9	1	4	match	FAIL netgate control R04_func_in_subshell: want a finding 'a function defined outside the top level (in a function, a compound command, a subshell or a substitu
+AN10	1	4	match	FAIL netgate control CI33_builtin_named_function: want a finding 'a function named like a builtin or a program (it changes what the name runs): CI33_builtin_nam
+AN11	1	4	match	FAIL netgate control R11_wait_p_PATH: want a finding 'unmodelled construct, refused: & (a background job runs past the statement that started it): R11_wait_p_PA
+AN12	1	3	match	FAIL netgate control CI60_pipe_amp: want a finding 'unmodelled construct, refused: |& (a pipe of standard error): CI60_pipe_amp.sh:3 in -', rc 1: FINDING networ
+AN13	1	3	match	FAIL netgate control CI57_function_kw: want a finding 'unmodelled construct, refused: the function keyword (a definition is NAME() { ... } at the top level): CI
+AN14	1	3	match	FAIL netgate control CI52_procsubst: want a finding 'unmodelled construct, refused: a process substitution that is not the target of a redirection: CI52_procsub
+AN15	1	2	match	FAIL netgate control O08_locale_string_comsub: want a finding 'unmodelled construct, refused: $"..." (a locale translation of a string): O08_locale_string_comsu
+AN17	1	2	match	FAIL netgate control O01_old_arith_PATH: want a finding 'unmodelled construct, refused: $[ ... ] (the old arithmetic expansion): O01_old_arith_PATH.sh:3 in -', 
+AN18	1	3	match	FAIL netgate control CI54_for_arith: want a finding 'unmodelled construct, refused: for (( ... )) (an arithmetic loop): CI54_for_arith.sh:3 in -', rc 1: FINDING
+AN20	1	2	match	FAIL netgate control O20_arith_name_holds_assignment: want a finding 'a value that is not a number written to n, which is read in arithmetic in the top level (i
+AN21	1	2	match	FAIL netgate control O58_fd_name_written_text: want a finding 'a value that is not a file descriptor number written to FD, which is a redirection target (a file
+AN22	1	8	match	FAIL netgate control G20_heredoc_to_awk_system: want a finding 'unmodelled construct, refused: the redirection operator <<: G20_heredoc_to_awk_system.sh:3 in -'
+AN23	1	2	match	FAIL netgate control O44_exec_fd5: want a finding 'unmodelled construct, refused: a redirection of file descriptor 5: O44_exec_fd5.sh:3 in -', rc 0: NETGATE lay
+AN24	1	3	match	FAIL netgate control CP08_exec_redirections_r12shape: want a finding 'unmodelled construct, refused: a {name} redirection (it assigns the name): CP08_exec_redir
+AN25	1	9	match	FAIL netgate control CI24_printf_v_subscript: want a finding 'builtin printf with a format that is not a static string, or with an option (-v writes a name): CI
+AN26	1	3	match	FAIL netgate control CI63_trap_dashdash: want a finding 'builtin trap other than trap ACTION SIGNAL... with a static action and a signal of EXIT, HUP, INT, TERM
+AN27	1	4	match	FAIL netgate control CI73_shopt_o_xtrace: want a finding 'builtin shopt other than shopt -s execfail: CI73_shopt_o_xtrace.sh:3', rc 0: NETGATE layer=analyser in
+AN28	1	2	match	FAIL netgate control O50_IFS_dynamic: want a finding 'a write to IFS (assign; it changes how a command is found, run or loaded): O50_IFS_dynamic.sh:3', rc 0: NE
+AN29	1	4	match	FAIL netgate control G33_exec_git: want a finding 'builtin exec of a command not on ALLOW_EXEC: G33_exec_git.sh:3', rc 1: FINDING interpreter or exec wrapper no
+AN30	1	2	match	FAIL netgate control O64_builtin_builtin: want a finding 'builtin builtin of a word that is not a builtin of the closed list: O64_builtin_builtin.sh:3', rc 0: N
+AN31	1	2	match	FAIL netgate control O38_read_a: want a finding 'builtin read with the option -a (only -r and -d): O38_read_a.sh:3', rc 1: FINDING a write to a name that is not
+AN32	1	3	match	FAIL netgate control CI55_select: want a finding 'unmodelled construct, refused: select: CI55_select.sh:3 in -', rc 1: FINDING network command outside rc_net: C
+AN33	1	2	match	FAIL netgate control O16_CDPATH: want a finding 'a write to CDPATH (assign; it changes how a command is found, run or loaded): O16_CDPATH.sh:3', rc 1: FINDING a
+AN34	1	2	match	FAIL netgate control O72_GCONV_prefix_other: want a finding 'a write to GCONV_ZZ (prefix; it changes how a command is found, run or loaded): O72_GCONV_prefix_ot
+AN35	1	3	match	FAIL netgate control O51_export_BASH_ENV: want a finding 'a write to BASH_ENV (export; it changes how a command is found, run or loaded): O51_export_BASH_ENV.sh
+AN36	1	7	match	FAIL lint misses a script the parser cannot read (rc 0): CENSUS invocations=128 rows=124 secret_lines=13 findings=0
+AN37	1	2	match	FAIL netgate control O73_heredoc_body_read: want a finding 'network command outside rc_net: O73_heredoc_body_read.sh:4 git (via -)', rc 1: FINDING unmodelled co
+AN38	1	7	match	FAIL netgate control CI03_prompt_expansion: want a finding 'unmodelled construct, refused: ${y@P}: the operator @ (:= and = assign; @, / and the others are not 
+AN39	1	4	match	FAIL netgate control MR5a_LD_LIBRARY_PATH_prefix: want a finding 'a write to LD_LIBRARY_PATH (prefix; it changes how a command is found, run or loaded): MR5a_LD
+AN40	1	1	match	FAIL netgate prints the line text or no key (rc 1, marker printed: 1)
+AN41	1	1	match	FAIL lint misses a new token line, printed by its key only (O2) (rc 1): FINDING secret reference with no secret-ref or allowed row: release_publish_gitea.sh:213
+AN42	1	1	match	FAIL lint misses a new command with no row, printed by its key only (O2) (rc 1): FINDING no row: release_publish_gitea.sh:213 curl key=d1bde9a3 | curl -q http:/
+PRESCREEN-DONE

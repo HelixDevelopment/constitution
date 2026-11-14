@@ -1,0 +1,7 @@
+name	rc	result
+F1h	0	RESULT pass=80 fail=0 (round-5 cases only)
+F4	0	RESULT pass=80 fail=0 (round-5 cases only)
+F13	0	RESULT pass=80 fail=0 (round-5 cases only)
+N1a	0	RESULT pass=80 fail=0 (round-5 cases only)
+N1b	0	RESULT pass=80 fail=0 (round-5 cases only)
+X4	0	RESULT pass=80 fail=0 (round-5 cases only)

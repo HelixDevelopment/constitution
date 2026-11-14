@@ -1,0 +1,7 @@
+# RED CON-232: the old test file (git show 24bdca78:tests/release/test_render_release_entry.sh, placed beside the suite) run without RRE_FACTS
+rc=0
+RESULT: pass=15 fail=0
+SKIP lines: 0
+# RED CON-231: new test on unfixed renderer
+FAIL CON-231 a status/severity value the template does not render is refused (0: )
+RESULT: pass=18 fail=1

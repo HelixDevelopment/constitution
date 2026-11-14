@@ -1,0 +1,10 @@
+[
+ {
+  "name": "O68_funsub_unquoted",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=${ git fetch origin; }\n"
+ },
+ {
+  "name": "O69_valuesub_unquoted",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=${| git fetch origin; }\n"
+ }
+]

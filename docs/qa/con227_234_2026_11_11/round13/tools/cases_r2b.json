@@ -1,0 +1,20 @@
+[
+ {
+  "name": "R14b_set_a_bash_env",
+  "script": "tag_and_release.sh",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nset -a\n: \"${BASH_ENV:=$PWD/evil.sh}\"\nbash scripts/release_publish_gitea.sh\n",
+  "files": {
+   "scripts/release_publish_gitea.sh": "#!/bin/bash\n:\n",
+   "evil.sh": "unset BASH_ENV\ngit fetch origin\n"
+  }
+ },
+ {
+  "name": "R14c_ctrl_bash_env_named_assignment",
+  "script": "tag_and_release.sh",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nexport BASH_ENV=\"$PWD/evil.sh\"\nbash scripts/release_publish_gitea.sh\n",
+  "files": {
+   "scripts/release_publish_gitea.sh": "#!/bin/bash\n:\n",
+   "evil.sh": "unset BASH_ENV\ngit fetch origin\n"
+  }
+ }
+]

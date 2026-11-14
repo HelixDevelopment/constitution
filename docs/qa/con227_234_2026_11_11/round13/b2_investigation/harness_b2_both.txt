@@ -1,0 +1,20 @@
+=== run 1: transient service (soft 1024, the standing run's environment)
+env: nofile_soft=1024 nofile_hard=524288 tasksmax=3000
+FAIL B2 killed, but not by its property /N2/ (FAIL K6 marker with a dirty environment was taken as clean or re-executed: rc=0)
+RESULT: killed=0 survived=1 equivalent=0 stale=0 control_failures=0 inconclusive=0
+harness_rc=1
+=== run 1: scope (soft 524288, the shell's limit)
+env: nofile_soft=524288 nofile_hard=524288 tasksmax=3000
+PASS B2 killed by its property (FAIL K8 N2 loop guard: rc 124 ( ))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0
+harness_rc=0
+=== run 2: transient service (soft 1024, the standing run's environment)
+env: nofile_soft=1024 nofile_hard=524288 tasksmax=3000
+FAIL B2 killed, but not by its property /N2/ (FAIL K6 marker with a dirty environment was taken as clean or re-executed: rc=0)
+RESULT: killed=0 survived=1 equivalent=0 stale=0 control_failures=0 inconclusive=0
+harness_rc=1
+=== run 2: scope (soft 524288, the shell's limit)
+env: nofile_soft=524288 nofile_hard=524288 tasksmax=3000
+PASS B2 killed by its property (FAIL K8 N2 loop guard: rc 124 ( ))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0 inconclusive=0
+harness_rc=0

@@ -1,0 +1,20 @@
+BYPASS	R06_allow_exec_comment	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R07_allow_exec_same_line	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+NO-LEAK	R14_set_a_bash_env	gate_rc=0/0	bash_rc=timeout	leak=0	ctrl=1		
+BYPASS	R24_getopts_dashdash_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R25_let_comma_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R26_declare_i_value_assigns_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R30_subscript_assigns_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R32_arith_expansion_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R33_cond_eq_assigns_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R42_set_k_PATH_in_args	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+CAUGHT	R27_cond_eq_literal_subscript	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING a quoted command substitution inside [[ ]] (an operand is evaluated as arithmetic): fx.sh:3 in - | [[ 
+BYPASS	R28_int_var_literal_assignment	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+CAUGHT	R29_cond_v_literal_subscript	gate_rc=1/1	bash_rc=1	leak=1	ctrl=1		FINDING a quoted command substitution inside [[ ]] (an operand is evaluated as arithmetic): fx.sh:3 in - | [[ 
+BYPASS	R31_gawk_inet_via_v	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+CAUGHT	R43_heredoc_delim_paren_in_comsub	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING parse error (the gate refuses what it cannot read): fx.sh:7: here-document 'EOF' ended by the end of t
+CAUGHT	R93_ctrl_ansi_c_command_word	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING command word the gate cannot classify (quoted or escaped): fx.sh:3 $'\x67it' in - | $'\x67it' fetch or
+CAUGHT	R94_ctrl_dev_tcp	gate_rc=1/1	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	FINDING a /dev/tcp or /dev/udp redirection (bash opens a network connection itself): fx.sh:3 in - | exec 3<>/d
+CAUGHT	R95_ctrl_printf_v_separate_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to PATH (it changes how a command is found or run): fx.sh:3 | printf -v PATH %s "$PWD/evil"
+CAUGHT	R96_ctrl_sed_e_command	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING sed that can run a command: fx.sh:3 (the e command (it runs a command or opens a file)) | sed '1e git 
+CAUGHT	R97_ctrl_prefix_PATH	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING assignment to PATH (it changes how a command is found or run): fx.sh:3 | PATH="$PWD/evil" cat /dev/nul

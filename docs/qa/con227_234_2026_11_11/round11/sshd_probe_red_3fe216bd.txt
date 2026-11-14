@@ -1,0 +1,226 @@
+PROBE11 probed=3fe216bdcacf0f3a88d2cea2cca82a0cf1b80908 OpenSSH_10.2p1 Ubuntu-2ubuntu3.8, OpenSSL 3.5.5 27 Jan 2026 OpenSSH_10.2p1 Ubuntu-2ubuntu3.8, OpenSSL 3.5.5 27 Jan 2026
+server A: Port 38087 AcceptEnv LANG LC_* ZZ* 
+server B: Port 36709 (no AcceptEnv)
+CASE A C1   LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 39542 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: ZZLEAKA=ZZFAKE-A-leak
+    debug2: Setting env 1: LANG=C.UTF-8
+    debug2: Setting env 2: LC_ALL=C
+CASE A C2   LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 39554 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: ZZLEAKB=ZZFAKE-B-leak
+    debug2: Setting env 1: LANG=C.UTF-8
+    debug2: Setting env 2: LC_ALL=C
+CASE A C3   LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 39568 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: ZZLEAKC=ZZFAKE-C-leak
+    debug2: Setting env 1: LANG=C.UTF-8
+    debug2: Setting env 2: LC_ALL=C
+CASE A C5   LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 39582 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: ZZLEAKE=ZZFAKE-E-leak
+    debug2: Setting env 2: LC_ALL=C
+CASE A C6   CLEAN lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 39594 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C7   CLEAN lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56174 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    Accepted publickey for milosvasic from 127.0.0.1 port 56176 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C8   CLEAN lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56192 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    Accepted publickey for milosvasic from 127.0.0.1 port 56204 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C9   LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56212 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: ZZLEAKI=ZZFAKE-I-leak
+    debug2: Setting env 2: LC_ALL=C
+CASE A C11  CLEAN lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56226 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C12  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56242 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: ZZLEAKK=ZZFAKE-K-leak
+    debug2: Setting env 2: LC_ALL=C
+    Accepted publickey for milosvasic from 127.0.0.1 port 56250 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C13  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56252 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: ZZLEAKH=ZZFAKE-H-leak
+    debug2: Setting env 2: LC_ALL=C
+    Accepted publickey for milosvasic from 127.0.0.1 port 56256 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C14  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56266 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+    debug2: Setting env 2: ZZLEAKN=ZZFAKE-N-leak
+CASE A C15  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56274 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+    debug2: Setting env 2: ZZLEAKO=ZZFAKE-O-leak
+CASE A C16  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56286 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+    debug2: Setting env 2: ZZLEAKP=ZZFAKE-P-leak
+CASE A C4m  CLEAN lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 56296 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: LC_ALL=C
+CASE A C4w  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 55438 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: ZZLEAKD=ZZFAKE-D-leak
+    debug2: Setting env 1: LANG=C.UTF-8
+    debug2: Setting env 2: LC_ALL=C
+CASE A C4s  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 55450 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: ZZLEAKD=ZZFAKE-D-leak
+    debug2: Setting env 1: LANG=C.UTF-8
+    debug2: Setting env 2: LC_ALL=C
+CASE A C10  LEAK  lc_all_c=yes caller_lang=arrived script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 55464 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Setting env 0: LANG=C.UTF-8
+    debug2: Setting env 1: ZZLEAKJ=ZZFAKE-J-leak
+    debug2: Setting env 2: LC_ALL=C
+CASE B C1   LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49154 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request ZZLEAKA: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C2   LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49164 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request ZZLEAKB: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C3   LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49168 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request ZZLEAKC: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C5   LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49180 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request ZZLEAKE: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C6   CLEAN lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49190 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C7   CLEAN lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49202 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    Accepted publickey for milosvasic from 127.0.0.1 port 49210 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C8   CLEAN lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49214 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    Accepted publickey for milosvasic from 127.0.0.1 port 49216 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C9   LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 49226 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request ZZLEAKI: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C11  CLEAN lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40778 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C12  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40782 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request ZZLEAKK: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+    Accepted publickey for milosvasic from 127.0.0.1 port 40790 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C13  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40806 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request ZZLEAKH: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+    Accepted publickey for milosvasic from 127.0.0.1 port 40810 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C14  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40826 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+    debug2: Ignoring env request ZZLEAKN: disallowed name
+CASE B C15  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40832 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+    debug2: Ignoring env request ZZLEAKO: disallowed name
+CASE B C16  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40844 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+    debug2: Ignoring env request ZZLEAKP: disallowed name
+CASE B C4m  CLEAN lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40858 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C4w  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40870 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request ZZLEAKD: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C4s  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40876 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request ZZLEAKD: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+CASE B C10  LEAK  lc_all_c=n/a caller_lang=absent script=rc=1
+    Accepted publickey for milosvasic from 127.0.0.1 port 40880 ssh2: ED25519 SHA256:DDDbT6l1u2kLDafzo7sAZ0BhOKp8+LCQppzenC3eZu8
+    debug2: Ignoring env request GIT_PROTOCOL: disallowed name
+    debug2: Ignoring env request LANG: disallowed name
+    debug2: Ignoring env request ZZLEAKJ: disallowed name
+    debug2: Ignoring env request LC_ALL: disallowed name
+SUMMARY cases=36 clean=10 leak=26 blind=0

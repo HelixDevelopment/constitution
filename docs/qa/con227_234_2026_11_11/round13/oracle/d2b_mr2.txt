@@ -1,0 +1,2 @@
+CAUGHT	D2b_mapfile_C_attached	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING mapfile with a callback or an argument the gate cannot read (-C runs a command): fx.sh:3 | mapfile -Cg
+BYPASS	D2b_mapfile_C_attached	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		

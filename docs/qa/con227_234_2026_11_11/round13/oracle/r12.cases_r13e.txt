@@ -1,0 +1,2 @@
+NO-LEAK	O72_GCONV_prefix_other	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+CAUGHT	O73_heredoc_body_read	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:4 git (via -) | list: $(git ls-remote origin)

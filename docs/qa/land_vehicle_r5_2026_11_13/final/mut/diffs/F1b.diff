@@ -1,0 +1,11 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1b)
+@@ -1178,7 +1178,7 @@
+     [ "$PREFLIGHT_BLOCKED" -eq 0 ] || die 1 "preflight refused $PREFLIGHT_BLOCKED remote(s) (non-fast-forward, unreadable or without main); nothing was pushed (see $EVIDENCE_DIR/publish.md)"
+     die 1 "one or more remotes FAIL (see $EVIDENCE_DIR/publish.md)"
+   fi
+-  [ "$now" = "$local_main" ] || die 1 "clone main moved during publish ($local_main was checked and pushed; main is now ${now:-none}): the new commits were NOT published; run publish again to check them"
++  true || die 1 "clone main moved during publish ($local_main was checked and pushed; main is now ${now:-none}): the new commits were NOT published; run publish again to check them"
+   log "published to all ${#R_NAMES[@]} remotes"
+ }
+ 

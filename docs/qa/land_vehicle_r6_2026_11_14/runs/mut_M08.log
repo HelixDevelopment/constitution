@@ -1,0 +1,96 @@
+PASS R6-C0 control needle: the remotes file holds the token 9 times and a traced shell that reads it prints it (2 lines)
+PASS R6-C-shellopts tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C-bashenv tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C-bashx tracing from the caller: prepare and publish exit 0, all 9 landed, 0 output lines and 0 evidence files hold the credential
+PASS R6-C4 an exported function git from the environment never runs (prepare exits 0)
+PASS R6-C4b a function git defined by a BASH_ENV file never runs (prepare exits 0)
+PASS R6-C4 control: the exported function runs in a plain bash
+PASS R6-C5-dashO nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-C5-bashopts nocasematch from the caller: a mint writing docs/TRACKER.FAKE is still refused (tracker path docs/tracker.fake) (rc=1)
+PASS R6-A1-emptykey a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1-continued a vehicle commit with a folded Roadmap-Item value is refused at prepare (rc=1)
+PASS R6-A1 control: git parses the folded form as the single trailer CON-931
+PASS R6-A1p prepare exits 0
+PASS R6-A1p a folded trailer committed after prepare is refused at publish (rc=1)
+PASS R6-A1p nothing was pushed
+PASS R6-A2 folded: CON-777 on a continuation line of a vehicle trailer makes CON-777 not new (rc=1)
+PASS R6-A2 case: a lower-case 'roadmap-item: con-777' makes CON-777 not new (rc=1)
+PASS R6-A2 spacing: 'Roadmap-Item  :   CON-0777' makes CON-777 not new (rc=1)
+PASS R6-A2 mention: 'see CON-777' in a subject makes CON-777 not new (rc=1)
+PASS R6-A2 control: with the same vehicle, CON-778 is new and accepted
+FAIL R6-B tip: the vehicle tip's tracker file holds CON-777: not new (rc=0, want rc=1 and /CON-777 already appears in docs/items/a\.md in vehicle commit [0-9a-f]+/)
+    | land_vehicle: step 1: bundle sha256 OK (6641a745b7df51441af971173730a57b1e640219f27d7a19abc3272a33f9f02f), copied to the clone
+    | land_vehicle: step 2: newest main across 9 remotes = 5fb9cd6f2c837937650a7afc32e1670845d2df90
+    | land_vehicle: step 1b: bundle verified, head d0334faed580ce3facaef66b2e838287f2649d37 found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head d0334faed580ce3facaef66b2e838287f2649d37 -> d3a6ab65f21bbb320caa105185967f2342404203 (tree equality: <W>/tmp/lvtest.obQ7rE/r6btip/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 796db4950af9d27e8b572eacd4bc419159d7b350, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd <W>/tmp/lvtest.obQ7rE/r6btip/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   <W>/mut/M08.sh publish --workdir <W>/tmp/lvtest.obQ7rE/r6btip/work --remotes-file <W>/tmp/lvtest.obQ7rE/r6btip/remotes.txt --evidence-dir <W>/tmp/lvtest.obQ7rE/r6btip/ev
+FAIL R6-B removed: a vehicle commit added CON-777 and a later one removed it: not new (rc=0, want rc=1 and /CON-777 already appears in docs/items/a\.md in vehicle commit [0-9a-f]+/)
+    | land_vehicle: step 1: bundle sha256 OK (e419c5864e0cf284eda407e2c7bd3b64b1c768b735491ba64adbc822e0bc3934), copied to the clone
+    | land_vehicle: step 2: newest main across 9 remotes = 1a154fa14d54a1e4c47a7c185cb9b6308856cb6a
+    | land_vehicle: step 1b: bundle verified, head 21a81ff2b6cd299da652a3c2545234f798e041fd found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head 21a81ff2b6cd299da652a3c2545234f798e041fd -> a92686601aa7a19d8d2bf40c3423eba53c621e7c (tree equality: <W>/tmp/lvtest.obQ7rE/r6brem/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = 1db600b9401e4fe2da3334f0b484083f9974a3f7, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd <W>/tmp/lvtest.obQ7rE/r6brem/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   <W>/mut/M08.sh publish --workdir <W>/tmp/lvtest.obQ7rE/r6brem/work --remotes-file <W>/tmp/lvtest.obQ7rE/r6brem/remotes.txt --evidence-dir <W>/tmp/lvtest.obQ7rE/r6brem/ev
+FAIL R6-B case: the vehicle tracker holds con-0777: not new (rc=0, want rc=1 and /CON-777 already appears in docs/items/a\.md in vehicle commit/)
+    | land_vehicle: step 1: bundle sha256 OK (5b4c97e614f82c480241031f2106f4a4b8dc3a62019dee53d3dd6e1dc9da8a5d), copied to the clone
+    | land_vehicle: step 2: newest main across 9 remotes = b9141bb7f4efce40ba756cbc61f528c6af79ed9e
+    | land_vehicle: step 1b: bundle verified, head 03a06c5de80bbfc65b8909b31e2247223a52c49b found as refs/heads/vehicle
+    | land_vehicle: step 3: tracker id = CON-777
+    | land_vehicle: step 4: vehicle head 03a06c5de80bbfc65b8909b31e2247223a52c49b -> e12d829c0c4198b02c87c9bb5f8492daa0f92984 (tree equality: <W>/tmp/lvtest.obQ7rE/r6blow/ev/tree_equality.tsv)
+    | land_vehicle: step 5: vehicle merged onto main (merge commit)
+    | 
+    | land_vehicle: prepare done. main = c13effd465c5732c37939c528c22e871dd29f629, item CON-777.
+    | Run these derived-file steps NOW in the clone (not run by this script; heavy):
+    |   cd <W>/tmp/lvtest.obQ7rE/r6blow/work/constitution
+    |   <workable-items engine> export --no-formats --out-dir docs
+    |   scripts/run_full_suite.sh --sync-guide
+    |   scripts/run_full_suite.sh --verify-manifest
+    |   <workable-items engine> validate
+    |   git status --short; git diff --stat
+    |   git add -A && git commit -m "chore(docs): regenerate derived files" -m "Roadmap-Item: CON-777"   # only if something changed
+    | Then publish (fast-forward only, all remotes, read-back):
+    |   <W>/mut/M08.sh publish --workdir <W>/tmp/lvtest.obQ7rE/r6blow/work --remotes-file <W>/tmp/lvtest.obQ7rE/r6blow/remotes.txt --evidence-dir <W>/tmp/lvtest.obQ7rE/r6blow/ev
+PASS R6-B control: the vehicle tracker holds CON-776 only, CON-777 is new and accepted, the vehicle file landed
+PASS R6-B case at main: the tracker at main holds con-777: not new (rc=1)
+PASS R6-D1 prepare exits 0
+PASS R6-D1 local main reset to the prepared base, never published: verify exits 1 (rc=1)
+PASS R6-D2 prepare exits 0
+PASS R6-D2 prepared but not published: verify exits 1, verify.md names the landed head and 9 rows 'FAIL | no'
+PASS R6-D2 publish exits 0
+PASS R6-D2 control: after publish, verify exits 0 with 9 rows 'PASS | yes'
+PASS R6-D3 verify refuses a prepare state that no longer matches the refs (rc=2)
+PASS R6-F the clone path swapped for a symlink during git init: prepare exits 1 (rc=1)
+PASS R6-F nothing was written outside the workdir and no remote moved (control: the shim did swap the path)
+PASS R6-G1 prepare exits 0
+PASS R6-G1 control: with that config git rewrites the push URL of origin to the decoy
+PASS R6-G1 pushInsteadOf rewrites origin's push URL: publish refuses before any push (rc=2)
+PASS R6-G1 no remote and not the decoy received anything
+PASS R6-G3 encoding ISO-8859-1 kept, message bytes equal except the id, header lines equal except parent
+PASS SH2-R6 every push of the round-6 cases is plain
+
+RESULT pass=37 fail=3 (round-6 cases only)

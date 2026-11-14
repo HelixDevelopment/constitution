@@ -1,0 +1,10 @@
+--- land_vehicle.sh
++++ land_vehicle.sh (F1f)
+@@ -521,7 +521,6 @@
+ # or unreadable); the remote is checked first, in this shell (not in a subshell)
+ RMAIN=""
+ remote_main() {
+-  assert_remote "$1"
+   RMAIN=$({ g ls-remote --refs "${R_NAMES[$1]}" refs/heads/main 2>>"$ERRLOG" || true; } \
+     | awk '$2 == "refs/heads/main" {print $1}')
+ }

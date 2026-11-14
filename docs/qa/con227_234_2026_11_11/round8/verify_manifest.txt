@@ -1,0 +1,2 @@
+census: go/entry=5 js/excluded=5 py/entry=10 py/excluded=30 py/fixture=14 py/member=24 runall/entry=9 sh/entry=360 sh/excluded=27 sh/fixture=111 sh/member=313 total=908
+RESULT: MANIFEST-OK

@@ -1,0 +1,4 @@
+#!/bin/sh
+# decisive-experiment shim: widens the life of every git started with this PATH by 0.6 s
+sleep 0.6
+exec /usr/bin/git "$@"

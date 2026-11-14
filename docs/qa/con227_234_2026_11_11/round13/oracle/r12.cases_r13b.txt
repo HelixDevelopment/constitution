@@ -1,0 +1,3 @@
+NO-LEAK	O65_awk_v_escape	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O66_arith_increment	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
+NO-LEAK	O67_indirect_plain	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		

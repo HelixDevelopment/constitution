@@ -1,0 +1,83 @@
+# Mutation run, round 4. Full run on the round-4 working tree (2026-11-11), then the four survivors re-run alone after adding helper cases C11 and C12 and recording Q12 and S11 as equivalent.
+## full run (60 mutants)
+PASS control tag_and_release.sh passes its suite
+PASS control derive_release_facts.sh passes its suite
+PASS control render_release_entry.py passes its suite
+PASS control release_publish_gitea.sh passes its suite
+PASS control redact_cut.sh passes its suite
+PASS T2 killed (FAIL C16 exit 0 (got '1', want '0'))
+PASS T3 killed (FAIL C15 different-object abort)
+PASS T4 killed (FAIL C13 dirty tree exit 1 (got '0', want '1'))
+PASS T6 killed (FAIL C14 HEAD!=SHA exit 1 (got '0', want '1'))
+PASS T5 killed (FAIL C18 SKIPPED-NO-TOKEN gap)
+PASS D1 killed (FAIL D1: closed on the tag date is not verified since it (missing line: verified_since_prev_ids=T-006))
+PASS D5 killed (FAIL D5: UNSET reproduction with a set investigation state counts (missing line: open_items_with_any_state=5))
+PASS O1 killed (FAIL C21 userinfo not printed)
+PASS O2 killed (FAIL C19 gitea rc 3 without SKIPPED-NO-TOKEN is a FAIL (exit 1) (got '5', want '1'))
+PASS O3 killed (FAIL CON-228 [reproduction_state]: missing column exits 3 (got 0))
+PASS O4 killed (FAIL CON-228 [closure_date]: missing column exits 3 (got 0))
+PASS O7 killed (FAIL CON-228 [body_md]: missing column exits 3 (got 0))
+PASS O5 killed (FAIL CON-228 [reproduction_state]: no partial facts on stdout (got 23 lines))
+PASS O6 killed (FAIL CON-231 a status/severity value the template does not render is refused (0: ))
+PASS F1 killed (FAIL C21b long message: secret prefix not printed)
+PASS R2 killed (FAIL C20b gitea rc 3 with the token mid-line is a FAIL (exit 1) (got '5', want '1'))
+PASS R5 killed (FAIL temp files removed (8 left))
+PASS R6 killed (FAIL C26 gitea legs (all rcs): nothing left in TMPDIR (got '8', want '0'))
+PASS F6 killed (FAIL F6: no CHANGELOG.md at the base exits 3 (got 0))
+PASS N1 killed (FAIL Q-two credential parameters on one line (leaked: ZZQT2; output: https://h/r?token=<redacted>&x=1&secret=ZZQT2))
+PASS N2 killed (FAIL C1 redact first, then cut (got 'https://<redacted>@h/r', want 'https://<red'))
+PASS N4 killed (FAIL F6: the refusal is the script's own line naming CHANGELOG.md)
+PASS P1 killed (FAIL C21c push stderr: no secret printed (raw @ and second URL included))
+PASS P2 killed (FAIL C1 redact first, then cut (got 'https://SECR', want 'https://<red'))
+PASS P3 killed (FAIL U3 raw '@' in the password (leaked: ZZU3; output: https://<redacted>@ZZU3@h/r))
+PASS P4 killed (FAIL curl stderr: no secret printed)
+PASS P5 killed (FAIL C21d exit-time stderr flush: no secret)
+PASS P6 killed (FAIL C24 no head -c in the three scripts (only rc_redact_cut cuts) (got '1', want '0'))
+PASS P7 killed (FAIL C21 userinfo not printed)
+PASS P8 killed (FAIL C21c (G8) no 'tag pushed only' after a failed push)
+PASS P9 killed (FAIL G1-class: the warning is printed, redacted (positive needle))
+PASS P10 killed (FAIL git stderr flushed redacted)
+PASS Q1 killed (FAIL U1 basic userinfo (leaked: ZZU1; output: fatal: 'https://u:ZZU1@h/r'))
+PASS Q2 killed (FAIL U10 userinfo longer than 64 bytes (300) (leaked: ZZU10 LLLLLLLLLL; output: https://u:ZZU10LLLLLLLLLLLLLLLLLLLLLLLLL)
+PASS Q3 killed (FAIL C1 RESULT OK (got 'tag_and_release: WARNING', want 'RESULT: OK'))
+PASS Q4 killed (FAIL C21d exit-time stderr flush: no secret)
+PASS Q5 killed (FAIL git stderr flushed redacted)
+PASS Q6 killed (FAIL G1-class: the warning is printed, redacted (positive needle))
+PASS Q7 killed (FAIL C1 RESULT OK (got 'tag_and_release: WARNING', want 'RESULT: OK'))
+PASS Q8 killed (FAIL C26 fetch failure: nothing left in TMPDIR (got '2', want '0'))
+PASS Q9 killed (FAIL C1 RESULT OK (got 'tag_and_release: WARNING', want 'RESULT: OK'))
+PASS Q10 killed (FAIL left in TMPDIR after a success: 2)
+PASS Q11 killed (FAIL U11 ssh:// scheme (leaked: ZZU11; output: ssh://u:ZZU11@host:22/r))
+FAIL Q12 SURVIVED (RESULT pass=53 fail=0)
+PASS S1 killed (FAIL A1 Authorization: Basic (leaked: ZZA1; output: => Send header: Authorization: Basic ZZA1))
+PASS S2 killed (FAIL A9 bare Bearer token in prose (leaked: ZZA9; output: server said: use Bearer ZZA9 next time))
+PASS S3 killed (FAIL U18 scheme-less user:password@host:path (leaked: ZZU18; output: fatal: 'u:ZZU18@host:path'))
+PASS S4 killed (FAIL Q-access_token query value (leaked: ZZQVaccess_token; output: fatal: 'https://host.invalid/r?x=1&access_token=ZZQVa)
+PASS S5 killed (FAIL Q-X-Amz-Signature query value (leaked: ZZQVX-Amz-Signature; output: fatal: 'https://host.invalid/r?x=1&X-Amz-Signat)
+PASS S6 killed (FAIL T1 GitHub classic token (leaked: ZZT1; output: x ghp_ZZT1aaaaaaaaaaaaaaaaaaaaaaaaaaaa y))
+FAIL S7 SURVIVED (RESULT: pass=131 fail=0)
+FAIL S8 SURVIVED (RESULT: pass=131 fail=0)
+PASS S9 killed (FAIL C6 a truncated flush says so (got 'zzzzzzzzzz', want '(truncated: 41 more bytes not shown)'))
+PASS S10 killed (FAIL C1 RESULT OK (got 'tag_and_release: WARNING', want 'RESULT: OK'))
+FAIL S11 SURVIVED (RESULT: pass=131 fail=0)
+PASS S12 killed (FAIL C28 the fallback push failure carries git's reason)
+PASS S13 killed (FAIL C26 git runs with GIT_TRACE_REDACT=1 even when the caller set 0)
+PASS S14 killed (FAIL non-numeric created id rc=0 CREATED release rel-1 (id ) on http://127.0.0.1:44089/Helix/constitution)
+PASS S15 killed (FAIL K1 plain text untouched (got '', want 'no url here ZZNEG'))
+PASS S16 killed (FAIL U18 scheme-less user:password@host:path (leaked: ZZU18; output: fatal: 'u:ZZU18@host:path'))
+RESULT: killed=56 survived=4 stale=0 control_failures=0
+
+## after the change: S7 and S8 killed by new helper cases; Q12 and S11 equivalent (probe: equivalence_probe_q12_s11.txt)
+PASS S7 killed (FAIL C11 the byte budget holds under a UTF-8 caller locale (got '800', want '400'))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0
+PASS S8 killed (FAIL C12 NUL bytes are dropped from the output (got '1', want '0'))
+RESULT: killed=1 survived=0 equivalent=0 stale=0 control_failures=0
+PASS Q12 equivalent, survives as recorded (evidence: docs/qa/con227_234_2026_11_11/round4/equivalence_probe_q12_s11.txt)
+RESULT: killed=0 survived=0 equivalent=1 stale=0 control_failures=0
+PASS S11 equivalent, survives as recorded (evidence: docs/qa/con227_234_2026_11_11/round4/equivalence_probe_q12_s11.txt)
+RESULT: killed=0 survived=0 equivalent=1 stale=0 control_failures=0
+
+## combined: killed=58 survived=0 equivalent=2 stale=0 control_failures=0 (the full run was not repeated after this change)
+
+## after the run: harness isolation
+The full run above leaked 137 mutant run directories into the shared TMPDIR; see threat_model.md section 5. Fixed in the harness (private TMPDIR per suite run); `--only S10` after the fix: killed, shared TMPDIR count unchanged (144 before, 144 after)

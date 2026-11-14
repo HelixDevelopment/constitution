@@ -1,0 +1,7 @@
+== S_A13 verify exit codes (LIVE git)
+no clone: rc=2 :: ERROR: no clone at /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.Y2yExs/a13/work/constitution (run prepare first)
+after prepare, before publish (all remotes behind): rc=1
+after publish: rc=0 :: land_vehicle: read-back evidence: /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.Y2yExs/a13/ev/verify.md
+state removed: rc=2 :: ERROR: no prepare state in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/lander_r4_scen.8XgP/tmp/scen.Y2yExs/a13/work/constitution (run prepare first)
+wrong URL for m3w: rc=2 :: ERROR: remote 'm3w' fetch URL in the clone differs from --remotes-file; nothing was pushed or read
+== scenarios done

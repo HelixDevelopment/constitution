@@ -1,0 +1,14 @@
+[
+ {
+  "name": "O65_awk_v_escape",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nawk -vt='\\151net' '$2==t{print $1; exit}' /dev/null\n"
+ },
+ {
+  "name": "O66_arith_increment",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nx=1\n: $((x++))\n"
+ },
+ {
+  "name": "O67_indirect_plain",
+  "body": "#!/usr/bin/env bash\nrc_net git status\nn=PATH\necho \"${!n}\"\n"
+ }
+]

@@ -1,0 +1,10 @@
+== S_A11a first vehicle commit (real id) already on github main (LIVE git)
+prepare rc=0 :: land_vehicle: step 2: newest main across 9 remotes = 8d6638464a5a6880f48e1febd452bcc8e34428b9
+tree_equality rows: 1 (only the unpushed commit is re-committed)
+publish rc=0; at main 9/9
+== S_A11b first vehicle commit with a PLACEHOLDER trailer already on github main
+prepare rc=0 :: 
+publish rc=0; at main 9/9 :: 
+control needle: grep -c of the string 'feat: one' over the same files: 9 (expect 9)
+remotes whose main now carries the placeholder trailer CON-PENDING-early: 9/9 (1 before publish)
+== scenarios done

@@ -14,6 +14,10 @@
 #           test-named file is excluded only with `override: reason: <category>: <why>`. The excluded
 #           set is pinned by config/full_suite_excluded.lock (accept a change with
 #           --verify-manifest --accept-excluded-change <reviewer>).
+docs/qa/land_vehicle_r4_2026_11_13/tools/mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven mutant generator (usage: mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; writes mutated copies, a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r4_2026_11_13/tools/reviewer_mutants_r4.py	py	excluded	-	-	-	override: reason: tool: argv-driven reviewer mutant generator (usage: reviewer_mutants_r4.py <src> <outdir>) of the land_vehicle round-4 review evidence; a standalone run without arguments fails; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/edit_tests_r5.py	py	excluded	-	-	-	override: reason: tool: one-shot editor of tests/release/test_land_vehicle.sh (usage: edit_tests_r5.py <test file> <helpers file> <r5 section file>), kept as round-5 evidence; running it would edit a test file; not a test
+docs/qa/land_vehicle_r5_2026_11_13/tools/mk_mutant_table.py	py	excluded	-	-	-	override: reason: tool: argv-driven table builder (usage: mk_mutant_table.py <index.tsv> <notes.tsv> <out.md> <results.tsv>...) of the round-5 mutant evidence; a standalone run without arguments fails; not a test
 docs/research/quality/solutions/poc/sol01_status_custody/test_sol01.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol02_verdict_coverage/test_sol02.sh	sh	entry	default	bash	-	auto
 docs/research/quality/solutions/poc/sol03_needled_measurement/test_sol03.sh	sh	entry	default	bash	-	auto
@@ -902,8 +906,16 @@ tests/prompts/test_setup_prompt_round5_stops.sh	sh	member	default	-	tests/prompt
 tests/prompts/test_setup_prompt_round5_stops_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7.sh	sh	member	default	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
 tests/prompts/test_setup_prompt_round7_mutants.sh	sh	member	heavy	-	tests/prompts/run_all.sh	auto: run by tests/prompts/run_all.sh
+tests/release/channel_census.py	py	excluded	-	-	-	reason: oracle: channel census instrument and lint run by tests/release/test_channel_census.sh and case L1 of the tag, publisher and derive suites; tested (control-needled) by test_channel_census.sh
+tests/release/env_allow.sh	sh	excluded	-	-	-	reason: library: shell library sourced (through $HERE) by the tag, publisher and derive suites and the mutation harness: allow-list, dirty entries, hup_ignored and its control; not a test entry point
+tests/release/env_census.py	py	excluded	-	-	-	reason: tool: runtime environment census (recorders and check) run by the tag, publisher and derive suites (C48, case 29, L2); not a test entry point
+tests/release/net_probe.py	py	excluded	-	-	-	reason: tool: process and network probe run by tests/release/test_tag_and_release.sh (cases C41, C43, C44); not a test entry point
+tests/release/test_channel_census.sh	sh	entry	default	bash	-	auto
 tests/release/test_derive_release_facts.sh	sh	entry	default	bash	-	auto
+tests/release/test_land_vehicle.sh	sh	entry	default	bash	-	auto
 tests/release/test_publish_gitea.sh	sh	entry	default	bash	-	auto
+tests/release/test_redact_cut.sh	sh	entry	default	bash	-	auto
+tests/release/test_release_tooling_mutations.sh	sh	entry	heavy	bash	-	auto
 tests/release/test_render_release_entry.sh	sh	entry	default	bash	-	auto
 tests/release/test_tag_and_release.sh	sh	entry	default	bash	-	auto
 tests/sync/run_all.sh	runall	entry	default	runall-members	-	auto: covers 5 heavy member(s)

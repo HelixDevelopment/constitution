@@ -1,0 +1,26 @@
+BYPASS	R01_jobs_x	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R02_builtin_jobs_x	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R03_func_defined_after_use	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R04_func_in_subshell	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R05_func_in_dead_branch	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R06_allow_exec_comment	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R07_allow_exec_same_line	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R08_printf_v_attached_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R09_arith_assign_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R10_param_default_assign_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R11_wait_p_PATH	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R12_wait_p_subscript	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R13_printf_v_attached_subscript	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+NO-LEAK	R14_set_a_bash_env	gate_rc=0/0	bash_rc=timeout	leak=0	ctrl=1		
+BYPASS	R15_heredoc_delim_continuation	gate_rc=0/0	bash_rc=127	leak=1	ctrl=1		
+BYPASS	R16_heredoc_body_in_comsub	gate_rc=0/0	bash_rc=127	leak=1	ctrl=1		
+BYPASS	R17_sqlite_separator_eats_safe	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R18_sqlite_nullvalue_eats_safe	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R19_gawk_inet_computed	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+BYPASS	R20_gawk_inet_octal_escape	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+BYPASS	R21_gawk_inet_operand	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1	LOOPBACK-CONNECT 'accepted'	
+BYPASS	R22_source_same_basename	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+BYPASS	R23_cond_procsubst	gate_rc=0/0	bash_rc=0	leak=1	ctrl=1		
+CAUGHT	R90_ctrl_plain_git	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:3 git (via -) | git fetch origin
+CAUGHT	R91_ctrl_comment_continuation	gate_rc=1/1	bash_rc=0	leak=1	ctrl=1		FINDING network command outside rc_net: fx.sh:4 git (via -) | git fetch origin
+NO-LEAK	R92_ctrl_neg_clean	gate_rc=0/0	bash_rc=0	leak=0	ctrl=1		
