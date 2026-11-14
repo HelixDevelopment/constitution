@@ -1,0 +1,151 @@
+== sync-integration (sandbox /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/syncfix6.gk0k/tmp/helix-sync-test.GFzBO1)
+  ok   fresh clone: exit 0
+  ok   fresh clone: verdict CURRENT
+  ok   discovery: 4 repositories
+  ok   discovery: nested inner found
+  ok   control needle ok
+  ok   own-org detected for libs/a
+  ok   third-party detected for vendor/t
+  ok   pin at-main for libs/a
+  ok   fetch ran once per remote (4)
+  ok   behind: exit 3
+  ok   behind: verdict
+  ok   root behind by 1
+  ok   libs/a pin behind-main
+  ok   check changed nothing (root)
+  ok   check changed nothing (libs/a)
+  ok   tsv has 5 lines (header + 4)
+  ok   dry-run: exit 3 (refs already fetched)
+  ok   dry-run: no fetch in the shim log
+  ok   dry-run: no change
+  ok   no-fetch: no fetch in the shim log
+  ok   no-fetch: sees only already-fetched refs (behind 1)
+  ok   apply: exit 3 (libs/a pin still behind: not fully current)
+  ok   apply: verdict UPDATES-AVAILABLE
+  ok   apply: root at upstream main
+  ok   apply: root result updated
+  ok   apply: libs/a unchanged without --advance-pins
+  ok   apply: libs/a still reported behind
+  ok   apply: root on branch main still
+  ok   apply: exactly one merge, and it is --ff-only
+  ok   advance-pins: exit 0
+  ok   advance-pins: libs/a at upstream main
+  ok   advance-pins: gitlink staged in root
+  ok   advance-pins: no commit created
+  ok   advance-pins: third-party untouched
+  ok   advance-pins: third-party behind is informational (current)
+  ok   advance-third-party: vendor/t advanced
+  ok   idempotent: exit 4 (staged pins await the user's commit)
+  ok   idempotent: staged pins reported
+  ok   idempotent: no write attempted
+  ok   idempotent: root unchanged
+  ok   idempotent: index unchanged
+  ok   idempotent: no repo updated
+  ok   follow: exit 0
+  ok   follow: libs/a followed root's new gitlink
+  ok   follow: inner followed libs/a's new gitlink
+  ok   follow: tree clean after follow
+  ok   dirty child: not followed
+  ok   dirty child: reason recorded
+  ok   dirty child: edit kept
+  ok   dirty: exit 4
+  ok   dirty: reason dirty-tree
+  ok   dirty: blocked by the precondition
+  ok   dirty: no write was attempted
+  ok   dirty: root not moved
+  ok   dirty: local edit kept
+  ok   merge in progress: exit 4
+  ok   merge in progress: reason
+  ok   index.lock: exit 4
+  ok   index.lock: root not moved
+  ok   local ahead: exit 4
+  ok   local ahead: reason
+  ok   diverged: exit 4
+  ok   diverged: reason local-diverged
+  ok   diverged: local commit kept
+  ok   root on topic: exit 4
+  ok   root on topic: reason
+  ok   two remotes linear: exit 0
+  ok   two remotes linear: newest main wins
+  ok   two remotes linear: mirror state is measured against the head before the run (equal)
+  ok   two remotes diverged: exit 4
+  ok   two remotes diverged: upstreams-diverged
+  ok   two remotes diverged: nothing moved
+  ok   pin not on main: exit 4
+  ok   pin not on main: state
+  ok   pin unfetchable: state
+  ok   pin unfetchable: exit 4
+  ok   uninitialised: state
+  ok   uninitialised: not attention by default
+  ok   uninitialised + --strict-pins: exit 4
+  ok   no mode: exit 2
+  ok   --out inside the work tree: exit 2
+  ok   --out inside: nothing written
+  ok   --root not a top level: exit 2
+  ok   --root outside any work tree: exit 2
+  ok   untracked: exit 4
+  ok   untracked: reason dirty-tree
+  ok   untracked: root not moved
+  ok   untracked: file kept
+  ok   submodule on branch: root moved
+  ok   submodule on branch: not moved
+  ok   submodule on branch: still on topic
+  ok   submodule on branch: reason recorded
+  ok   submodule on branch: reason kept-on-branch:follow-pin
+  ok   submodule on main: ff to upstream main
+  ok   submodule on main: exit 4 (parent gitlink modified)
+  ok   submodule on main: reason gitlink-modified:libs/a
+  ok   submodule on main: nothing staged in the parent
+  ok   topic root + advance-pins: exit 4
+  ok   topic root: index untouched
+  ok   topic root: still on topic
+  ok   topic root: libs/a reported parent-not-integrated
+  ok   feature/main pin: not-on-main
+  ok   main gone upstream: remote state no-main
+  ok   main gone upstream: exit 4
+  ok   main gone upstream: reason upstream-branch-gone:origin
+  ok   main gone upstream: refs/remotes/origin/main kept
+  ok   broken gitfile: exit 6
+  ok   broken gitfile: verdict BLIND
+  ok   broken gitfile: libs/a blind
+  ok   broken gitfile: pin state unreadable
+  ok   broken gitfile: the no-answer is git's exit 128
+  ok   broken gitfile: reason pin-unreadable
+  ok   broken gitfile: the blind row is printed under --quiet
+  ok   broken gitfile: the root is current (the control below is about a real current row)
+  ok   broken gitfile: a current row is not printed under --quiet (control)
+  ok   unknown extension: exit 6
+  ok   unknown extension: libs/a blind
+  ok   unknown extension: pin state unreadable
+  ok   unknown extension: a no-answer is recorded
+  ok   unknown extension: the blind row is printed under --quiet
+  ok   symlinked submodule: pin state not-a-directory
+  ok   symlinked submodule: reason pin-not-a-directory
+  ok   symlinked submodule: attention
+  ok   symlinked submodule: exit 4
+  ok   follow then blocked: libs/a at the new pin
+  ok   follow then blocked: it was not there before
+  ok   follow then blocked: followed
+  ok   follow then blocked: head_after is the real head
+  ok   follow then blocked: moved
+  ok   follow then blocked: attention, never updated
+  ok   follow then blocked: reason unreachable:origin
+  ok   follow then blocked: exit 4
+  ok   advance-pins, submodule on branch: not moved
+  ok   advance-pins, submodule on branch: still on topic
+  ok   advance-pins, submodule on branch: action recorded
+  ok   advance-pins, submodule on branch: reason kept-on-branch:advance-pin
+  ok   advance-pins, submodule on branch: nothing staged
+  ok   advance-pins, submodule on branch: exit 4
+  ok   advance-pins control (detached): starts at the recorded pin
+  ok   advance-pins control (detached): starts detached
+  ok   advance-pins control (detached): advanced
+  ok   advance-pins control (detached): staged
+  ok   follow blocked: the new pin is not present in the child (precondition)
+  ok   follow blocked: the parent moved to the new pin
+  ok   follow blocked: libs/a stays where it was
+  ok   follow blocked: libs/a failed
+  ok   follow blocked: one follow-blocked action
+  ok   follow blocked: exit 1
+  ok   follow blocked: verdict FAILED
+sync-integration: PASS 149 FAIL 0

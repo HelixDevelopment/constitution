@@ -233,7 +233,7 @@ print(buf.decode("utf-8", "replace"))
 print("DRIVER exit", os.waitstatus_to_exitcode(st))
 PY
 # the concurrent writer stages the new gitlink right after discovery read the index (call 1)
-PATH="$SB/bad:$PATH" timeout 120 python3 -I "$SB/drive.py" bash "$SX_ENGINE" --apply --interactive --root "$W" --out "$SB/out/m37" \
+PATH="$SB/bad:$PATH" timeout -k 10 120 python3 -I "$SB/drive.py" bash "$SX_ENGINE" --apply --interactive --root "$W" --out "$SB/out/m37" \
   >"$SB/m37.txt" 2>&1
 SX_JSON="$SB/out/m37/sync_report.json"
 eq "M37: the concurrent staging happened (control needle)" "$new" "$(git -C "$W" ls-files -s libs/a | awk '{print $2}')"
@@ -566,7 +566,9 @@ has "M70: a symlink to a report of ours: named as not ours" "was not written by 
 eq "M70: the symlink is still a symlink" "yes" "$([ -L "$SB/o15a/sync_report.json" ] && echo yes || echo no)"
 eq "M70: the report it points at is unchanged" "same" "$(cmp -s "$SB/o15real.json.before" "$SB/o15real/sync_report.json" && echo same || echo changed)"
 mkfifo "$SB/o15b/sync_report.json"
-out="$(PATH="$SB/shim:$PATH" timeout 120 bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15b" 2>&1)"; rc=$?
+# M70 dies by ASSERTION at the symlink case above (it overwrites the symlink); here an engine without the type
+# check would block on the FIFO, so the call is bounded (timeout -k: TERM, then KILL 10 s later)
+out="$(PATH="$SB/shim:$PATH" timeout -k 10 30 bash "$SX_ENGINE" --check --no-fetch --root "$W" --out "$SB/o15b" 2>&1)"; rc=$?
 eq "M70: a FIFO at the report path: usage exit 2 (124 = the engine blocked on it)" 2 "$rc"
 eq "M70: the FIFO is still a FIFO" "yes" "$([ -p "$SB/o15b/sync_report.json" ] && echo yes || echo no)"
 # control: the same engine reuses the directory that holds the real report (a regular file it wrote)

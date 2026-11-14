@@ -23,6 +23,9 @@
 #                   first '@'; round 5: anchors follow the linear _strip_line / the SAFE_CONFIG with core.askPass=) · NO-REFMAP · PRUNE-IN-FETCH · MIRROR-REFSPEC · FORCED-TAGS (fetch_args made unsafe)
 #                   review round 3 (the reviewer's mutants, verbatim): X01-STATUS-OK128 · X02-DIRECT-MERGE ·
 #                   X02B-DIRECT-MERGE-RECORDED · X04-OR-TRUE · X05-WINDOW-48 · X06-OK-ALL · X07-HOOKS-OVERRIDE
+#                   round 6 (RV5-1 signal point, re-anchored KILL-ATTR / KILLPG-ELSE / KILLPG-REBIND / KILLPG-SIG9):
+#                   KILLPG-SIGKILL-ONLY · KILLPG-ORDER-REVERSED · KILLPG-SIGINT · KILLPG-SIG-REBOUND ·
+#                   SELECT-OUTSIDE · WAITID-OUTSIDE · UPDATE-STRATEGY-OK-128 · CONFIG-WRITE-SHAPE
 #                   round 4 (own static shapes of the same classes): KILLPG-OR · KILLPG-NOT · KILLPG-GE1 ·
 #                   KILLPG-EXTRA-TERM · KILLPG-ELSE · KILLPG-REBIND · KILLPG-OWN-GROUP (getpgid(0)) · KILLPG-SIG9 ·
 #                   NO-NEW-SESSION · OK-128-AT-READ (bounded but not the oracle's) · OK-TWO · WANT-DROPPED ·
@@ -169,8 +172,8 @@ case_ KILLPG-ELSEWHERE 1 py 'def now_utc():' 'def _k():
 
 
 def now_utc():'
-case_ KILL-ATTR 1 py '        proc_kill_group(p)
-' '        proc_kill_group(p)
+case_ KILL-ATTR 1 py '        ended_by = proc_kill_group(p, WRITE_KILL_GRACE if level == 0 else KILL_GRACE)
+' '        ended_by = proc_kill_group(p, WRITE_KILL_GRACE if level == 0 else KILL_GRACE)
         p.kill()
 '
 case_ SECOND-CHOKE-CALL 1 py 'def now_utc():' 'def _c():
@@ -214,15 +217,33 @@ case_ KILLPG-OR 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 
 case_ KILLPG-NOT 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if not (isinstance(pgid, int) and pgid > 1 and pgid == p.pid):'
 case_ KILLPG-GE1 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid >= 1 and pgid == p.pid:'
 case_ KILLPG-EXTRA-TERM 1 py 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' 'if isinstance(pgid, int) and pgid > 1 and pgid == p.pid and pgid != 2:'
-case_ KILLPG-ELSE 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
-        try:' '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
-        pass
-    else:
-        try:'
-case_ KILLPG-REBIND 1 py '    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '    pgid = 1
-    if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:'
+case_ KILLPG-ELSE 1 py '        if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
+            try:' '        if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:
+            pass
+        else:
+            try:'
+case_ KILLPG-REBIND 1 py '        if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:' '        pgid = 1
+        if isinstance(pgid, int) and pgid > 1 and pgid == p.pid:'
 case_ KILLPG-OWN-GROUP 1 py '        pgid = os.getpgid(p.pid)' '        pgid = os.getpgid(0)'
-case_ KILLPG-SIG9 1 py '            os.killpg(pgid, signal.SIGKILL)' '            os.killpg(pgid, 9)'
+case_ KILLPG-SIG9 1 py '    for sig in (signal.SIGTERM, signal.SIGKILL):' '    for sig in (signal.SIGTERM, 9):'
+# round 6 (RV5-1): the signal point sends SIGTERM, then SIGKILL, nothing else, in that order, from one loop
+case_ KILLPG-SIGKILL-ONLY 1 py '    for sig in (signal.SIGTERM, signal.SIGKILL):' '    for sig in (signal.SIGKILL,):'
+case_ KILLPG-ORDER-REVERSED 1 py '    for sig in (signal.SIGTERM, signal.SIGKILL):' '    for sig in (signal.SIGKILL, signal.SIGTERM):'
+case_ KILLPG-SIGINT 1 py '                os.killpg(pgid, sig)' '                os.killpg(pgid, signal.SIGINT)'
+case_ KILLPG-SIG-REBOUND 1 py '                os.killpg(pgid, sig)' '                sig = signal.SIGKILL
+                os.killpg(pgid, sig)'
+case_ SELECT-OUTSIDE 1 py 'def now_utc():' 'def _s():
+    return select.select([], [], [], 0)
+
+
+def now_utc():'
+case_ WAITID-OUTSIDE 1 py 'def now_utc():' 'def _w(pid):
+    return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+
+
+def now_utc():'
+case_ UPDATE-STRATEGY-OK-128 1 py '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1))' '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1, 128))'
+case_ CONFIG-WRITE-SHAPE 1 py '    cf = r.run(repo, ["config", "-z", "--get-regexp", r"^submodule\..*\.update$"], ok=(0, 1))' '    cf = r.run(repo, ["config", "-z", "--unset-all", r"^submodule\..*\.update$"], ok=(0, 1))'
 case_ NO-NEW-SESSION 1 py 'stderr=subprocess.PIPE, env=env, start_new_session=True)' 'stderr=subprocess.PIPE, env=env, start_new_session=False)'
 case_ OK-128-AT-READ 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 128))'
 case_ OK-TWO 1 py '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0,))' '    res = r.run(repo, ["ls-files", "-s", "-z"], ok=(0, 2))'

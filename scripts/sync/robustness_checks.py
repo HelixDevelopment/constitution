@@ -746,13 +746,14 @@ def c_no_upstream_main_blocks(box):
 
 # ───────────────────────── RV4-8 / RV4-11 / RV4-12 / RV4-13 / RV4-15 ─────────────────────────
 def c_lock_symlink(box):
-    """V13 / P42: the lock path is a symbolic link to a file that does not exist: exit 7, the target never made."""
+    """V13 / P42: the lock path is a symbolic link to a file that does not exist: the lock cannot be opened, which is
+    not "another run" (review round 6, RV5-2): FAILED exit 1 with its own message; the target is never made."""
     r_url, r_seed = box.bare("HelixDevelopment", "solo")
     work = box.clone(r_url, "w")
     target = box.p("LOCK_TARGET_CREATED")
     os.symlink(target, os.path.join(work, ".git", "helix-sync-upstreams.lock"))
     rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
-    ok("lock_symlink.exit_7", rc == 7, "rc=%s" % rc)
+    ok("lock_symlink.exit_1", rc == 1 and "cannot open the run lock" in se, "rc=%s" % rc)
     ok("lock_symlink.target_not_created", not os.path.exists(target))
     # P27 (round 5): the same link planted at a SUBMODULE's lock (its git common dir), taken by lock_repositories
     work2, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
@@ -760,11 +761,11 @@ def c_lock_symlink(box):
     target2 = box.p("SUB_LOCK_TARGET_CREATED")
     os.symlink(target2, os.path.join(common, "helix-sync-upstreams.lock"))
     rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work2, "--quiet")
-    ok("lock_symlink.submodule_exit_7", rc == 7, "rc=%s" % rc)
+    ok("lock_symlink.submodule_exit_1", rc == 1 and "cannot open the run lock" in se, "rc=%s" % rc)
     ok("lock_symlink.submodule_target_not_created", not os.path.exists(target2))
     os.unlink(os.path.join(common, "helix-sync-upstreams.lock"))  # control: without the link the run proceeds
     rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work2, "--quiet")
-    ok("lock_symlink.control_no_link_runs", rc != 7, "rc=%s" % rc)
+    ok("lock_symlink.control_no_link_runs", rc not in (1, 7), "rc=%s" % rc)
 
 
 def c_lock_overlap(box):
@@ -896,6 +897,405 @@ def c_outside_parent(box):
     ok("outside_parent.attention", "pin-outside-parent" in a.get("reasons", []), a.get("reasons"))
 
 
+# ───────────────────────── review round 6 (RV5-1 .. RV5-10) ─────────────────────────
+MARKER = "helix-sync-upstreams.write-in-progress"
+
+
+def slow_tree(box, n, smudge, root_name="slowroot"):
+    """A root whose upstream adds ``n`` files under a smudge filter the USER configured in the working clone (the
+    git-lfs shape; fixture: the filter command, e.g. 'sleep 2; cat'). Returns (work, before, target)."""
+    r_url, r_seed = box.bare("HelixDevelopment", root_name)
+    work = box.clone(r_url, "w_" + root_name)
+    with open(os.path.join(r_seed, ".gitattributes"), "w") as f:
+        f.write("*.slow filter=slow\n")
+    for i in range(n):
+        with open(os.path.join(r_seed, "f%d.slow" % i), "w") as f:
+            f.write("payload %d\n" % i)
+    box.git(r_seed, "add", ".")
+    box.git(r_seed, "commit", "-q", "-m", "slow files")
+    box.git(r_seed, "push", "-q", "origin", "HEAD:main")
+    box.git(work, "config", "filter.slow.smudge", smudge)
+    box.git(work, "config", "filter.slow.clean", "cat")
+    return work, box.git(work, "rev-parse", "HEAD"), box.git(r_seed, "rev-parse", "HEAD")
+
+
+def c_write_outlives_deadline(box):
+    """RV5-1 (deadline member). A fast-forward whose checkout takes ~8 s (4 files x 2 s smudge) starts with a run
+    deadline of 4 s: the write must FINISH (never killed by the deadline), git must clean up, the post-write verify
+    must still run (final reads after the deadline), the move must be recorded and the marker removed."""
+    work, before, target = slow_tree(box, 4, "sleep 2; cat")
+    rc, so, se, rep, t = box.run("--apply", "--root", work, "--deadline", "4", "--quiet", timeout=300)
+    root = rec(rep, ".")
+    gitdir = os.path.join(work, ".git")
+    ok("write_deadline.control_slow", t >= 7, "%.1fs" % t)
+    ok("write_deadline.head_at_target", box.git(work, "rev-parse", "HEAD") == target)
+    ok("write_deadline.no_index_lock", not os.path.exists(os.path.join(gitdir, "index.lock")))
+    ok("write_deadline.tree_clean", box.git(work, "status", "--porcelain=v1") == "",
+       box.git(work, "status", "--porcelain=v1")[:300])
+    ok("write_deadline.move_recorded", root.get("moved") is True and root.get("head_after") == target,
+       "moved %s head_after %s" % (root.get("moved"), root.get("head_after")))
+    ok("write_deadline.not_unresolved", not [x for x in root.get("reasons", []) if x.startswith("unresolved")],
+       root.get("reasons"))
+    ok("write_deadline.applied", rc == 0 and root.get("result") == "updated", "rc=%s result=%s" % (rc, root.get("result")))
+    ok("write_deadline.marker_removed", not os.path.exists(os.path.join(gitdir, MARKER)))
+
+
+def c_write_timeout_term_first(box):
+    """RV5-1 (the bounded member). --write-timeout 3 against a ~8 s checkout: the write is ended, by SIGTERM first
+    (git removes its own index.lock), reported write-killed with recovery steps (FAILED, exit 1), and the
+    write-in-progress marker stays, so the NEXT run attributes the leftovers to the killed write instead of blaming
+    the user; after the user recovers, an --apply clears the marker."""
+    work, before, target = slow_tree(box, 4, "sleep 2; cat")
+    gitdir = os.path.join(work, ".git")
+    rc, so, se, rep, t = box.run("--apply", "--root", work, "--write-timeout", "3", timeout=300)
+    root = rec(rep, ".")
+    ok("write_timeout.failed_exit_1", rc == 1 and (rep or {}).get("verdict") == "FAILED", "rc=%s" % rc)
+    ok("write_timeout.ended_before_finish", t < 30, "%.1fs" % t)
+    ok("write_timeout.reason_write_killed", "write-killed:fast-forward" in root.get("reasons", []), root.get("reasons"))
+    acts = [a for a in root.get("actions", []) if a.get("op") == "fast-forward"]
+    ok("write_timeout.term_sufficed", bool(acts) and "SIGTERM" in str(acts[-1].get("error", "")), acts)
+    ok("write_timeout.no_index_lock_after_term", not os.path.exists(os.path.join(gitdir, "index.lock")))
+    ok("write_timeout.head_not_moved", box.git(work, "rev-parse", "HEAD") == before)
+    ok("write_timeout.recovery_steps", any("write-killed" in s and "stash" in s for s in (rep or {}).get("next_steps", [])),
+       (rep or {}).get("next_steps"))
+    ok("write_timeout.recovery_printed", "recovery" in se, se[-400:])
+    ok("write_timeout.marker_kept", os.path.exists(os.path.join(gitdir, MARKER)))
+    dirty = box.git(work, "status", "--porcelain=v1") != ""
+    ok("write_timeout.control_leftovers_present", dirty)
+    # the next run: the leftovers are attributed to the killed write, never plain dirty-tree / in-progress
+    rc2, so2, se2, rep2, _ = box.run("--apply", "--root", work, "--quiet", timeout=300)
+    r2 = rec(rep2, ".")
+    reasons = r2.get("reasons", [])
+    ok("write_timeout.rerun_attributes", "write-interrupted-earlier:fast-forward" in reasons, reasons)
+    ok("write_timeout.rerun_no_plain_dirty_tree", "dirty-tree" not in reasons and "dirty-tree-since-write-interrupted"
+       in reasons, reasons)
+    ok("write_timeout.rerun_attention_not_moved", rc2 == 4 and box.git(work, "rev-parse", "HEAD") == before,
+       "rc=%s" % rc2)
+    # the user recovers as the steps say (stash the leftovers), then an --apply clears the marker and integrates
+    box.git(work, "stash", "push", "-q", "--include-untracked", "-m", "helix-sync-write-killed")
+    box.git(work, "config", "filter.slow.smudge", "cat")
+    rc3, so3, se3, rep3, _ = box.run("--apply", "--root", work, "--quiet", timeout=300)
+    ok("write_timeout.recovered_apply", rc3 == 0 and box.git(work, "rev-parse", "HEAD") == target, "rc=%s" % rc3)
+    ok("write_timeout.marker_cleared", not os.path.exists(os.path.join(gitdir, MARKER)))
+    ok("write_timeout.marker_clear_noted", "write-marker-cleared" in str(rec(rep3, ".").get("notes")),
+       rec(rep3, ".").get("notes"))
+
+
+def c_write_timeout_kill_after_grace(box):
+    """RV5-1: a write whose smudge filter ignores SIGTERM (trap '' TERM) is still ended within the bound: git itself
+    ends on SIGTERM (its own handler), the group is then swept with SIGKILL; the report names the signal that ended
+    git and lists any lock left behind. (A leader that ignores SIGTERM itself, ended by SIGKILL after the grace
+    period, is proven by the unit test RoundSix / KillGroup: git cannot be made to ignore it.)"""
+    work, before, target = slow_tree(box, 3, "trap '' TERM; sleep 4; cat", "slowkill")
+    rc, so, se, rep, t = box.run("--apply", "--root", work, "--write-timeout", "2", "--quiet", timeout=300)
+    root = rec(rep, ".")
+    acts = [a for a in root.get("actions", []) if a.get("op") == "fast-forward"]
+    ok("write_kill.failed_exit_1", rc == 1, "rc=%s" % rc)
+    ok("write_kill.reason", "write-killed:fast-forward" in root.get("reasons", []), root.get("reasons"))
+    ok("write_kill.named_signal", bool(acts) and ("SIGKILL" in str(acts[-1].get("error")) or
+                                                    "SIGTERM" in str(acts[-1].get("error"))), acts)
+    ok("write_kill.locks_listed_when_left", (not os.path.exists(os.path.join(work, ".git", "index.lock")))
+       or "index.lock" in str(acts[-1].get("locks_left") if acts else ""), acts)
+    ok("write_kill.bounded", t < 90, "%.1fs" % t)
+
+
+def c_marker_after_success(box):
+    """RV5-1: an ordinary successful fast-forward leaves no write-in-progress marker behind."""
+    r_url, r_seed = box.bare("HelixDevelopment", "solo")
+    work = box.clone(r_url, "w")
+    box.commit(r_seed, "upstream moves")
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet")
+    ok("marker_success.applied", rc == 0, "rc=%s" % rc)
+    ok("marker_success.no_marker", not os.path.exists(os.path.join(work, ".git", MARKER)))
+
+
+def c_stale_marker_on_clean_current_tree(box):
+    """RV5-1 / Q09. A marker left by an earlier run whose write left nothing (the tree is clean and current, so this
+    run writes nothing that would replace the marker): --check keeps it and says so; --apply removes it and notes it;
+    neither blames the user nor blocks the repository."""
+    r_url, r_seed = box.bare("HelixDevelopment", "stale")
+    work = box.clone(r_url, "w")
+    marker = os.path.join(work, ".git", MARKER)
+    with open(marker, "w") as f:
+        json.dump({"op": "fast-forward", "target": "0" * 40, "run_id": "earlier", "started": "2026-11-14T00:00:00Z"}, f)
+    rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    root = rec(rep, ".")
+    ok("stale_marker.check_keeps", os.path.exists(marker))
+    ok("stale_marker.check_notes_present", "write-marker-present" in str(root.get("notes")), root.get("notes"))
+    ok("stale_marker.check_not_blocked", rc == 0 and not [x for x in root.get("reasons", []) if "write-" in x],
+       "rc=%s %s" % (rc, root.get("reasons")))
+    rc, so, se, rep, _ = box.run("--apply", "--no-fetch", "--root", work, "--quiet")
+    root = rec(rep, ".")
+    ok("stale_marker.apply_clears", not os.path.exists(marker))
+    ok("stale_marker.apply_notes_cleared", "write-marker-cleared:fast-forward-left-nothing" in str(root.get("notes")),
+       root.get("notes"))
+    ok("stale_marker.apply_current", rc == 0, "rc=%s" % rc)
+
+
+def c_switch_at_merge(box):
+    """RV5-4 / reviewer R01. Fixture: the user switches the root to a new branch at the moment the merge call starts
+    (after every pre-write re-read). git's merge then moves the NEW branch; the post-write verify must see that the
+    branch changed and report it (FAILED, exit 1), never as this run's update."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet", path_prefix=box.shim(),
+                                 env=race_env(box, "switch-branch", "merge@" + os.path.realpath(work), work))
+    root = rec(rep, ".")
+    ok("switch_at_merge.fired", os.path.exists(box.p("mark")))
+    ok("switch_at_merge.reported", "branch-changed-during-write" in json.dumps(root.get("actions")), root.get("actions"))
+    ok("switch_at_merge.not_updated", rc == 1 and root.get("result") == "failed", "rc=%s %s" % (rc, root.get("result")))
+
+
+def pin_behind_tree(box):
+    """root upstream does not move; the child's upstream moved (S2): the pin is behind main (--advance-pins)."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    box.git(work, "fetch", "-q", "origin")
+    box.git(work, "update-ref", "refs/remotes/origin/main", r1)
+    box.git(r_seed, "push", "-q", "-f", "origin", r1 + ":main")
+    return work, s1, s2, r1
+
+
+def c_sigterm_during_pin_checkout(box):
+    """RV5-4 / reviewer R14 + R21. SIGTERM arrives inside the advance-pin's checkout: the write finishes as ONE write
+    (child at S2, parent index staged at S2 by the final 'add', the action verified), exit 8."""
+    work, s1, s2, r1 = pin_behind_tree(box)
+    sub = os.path.realpath(os.path.join(work, "libs/a"))
+    rc, so, se, rep, _ = box.run("--apply", "--advance-pins", "--root", work, "--quiet", path_prefix=box.shim(),
+                                 env=race_env(box, "sigterm-parent", "checkout@" + sub, work))
+    t_end = time.monotonic() + 20
+    while not os.path.exists(box.p("mark.signalled")) and time.monotonic() < t_end:
+        time.sleep(0.2)
+    staged = box.git(work, "ls-files", "-s", "libs/a").split()[1]
+    pin = [a for a in rec(rep, "libs/a").get("actions") or [] if a.get("op") == "advance-pin"]
+    ok("sigterm_pin.signalled", os.path.exists(box.p("mark.signalled")))
+    ok("sigterm_pin.exit_8", rc == 8, "rc=%s" % rc)
+    ok("sigterm_pin.child_at_s2", box.git(sub, "rev-parse", "HEAD") == s2)
+    ok("sigterm_pin.index_staged_s2", staged == s2, "staged %s s1 %s s2 %s" % (staged, s1, s2))
+    ok("sigterm_pin.action_verified", bool(pin) and "why" not in pin[-1] and pin[-1].get("staged_rc") == 0, pin)
+
+
+def c_marker_after_inspection(box):
+    """RV5-4 / reviewer R29. Fixture: the user starts 'git bisect' (BISECT_LOG appears) after inspection, before the
+    write: the write-time re-check must see it; the root is NOT fast-forwarded under a running bisect (exit 4)."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet", path_prefix=box.shim(),
+                                 env=race_env(box, "touch-file", "fetch@" + work, work,
+                                              SXR_FILE=os.path.join(".git", "BISECT_LOG")))
+    root = rec(rep, ".")
+    ok("marker_inspect.fired", os.path.exists(os.path.join(work, ".git", "BISECT_LOG")))
+    ok("marker_inspect.root_not_moved", box.git(work, "rev-parse", "HEAD") == r1)
+    ok("marker_inspect.attention", rc == 4 and "write-blocked:tree-changed-before-write" in root.get("reasons", []),
+       "rc=%s %s" % (rc, root.get("reasons")))
+
+
+def c_wrote_then_other_moved(box):
+    """RV5-4 / reviewer R36 + R37. The engine fast-forwards the root, then the user commits on top (fixture: the
+    shim commits at the child's follow-pin checkout). The head moved, but not to what this run wrote: attention
+    (exit 4, head-changed-during-run, changed_by_other), never 'updated'."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    env = race_env(box, "commit", "checkout@" + os.path.realpath(os.path.join(work, "libs/a")), work)
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet", path_prefix=box.shim(), env=env)
+    user = open(box.p("mark.sha")).read().strip() if os.path.exists(box.p("mark.sha")) else None
+    root = rec(rep, ".")
+    ok("wrote_then_other.fired", user is not None and box.git(work, "rev-parse", "HEAD^") == r2)
+    ok("wrote_then_other.reason", "head-changed-during-run" in root.get("reasons", []), root.get("reasons"))
+    ok("wrote_then_other.changed_by_other", root.get("changed_by_other") is True)
+    ok("wrote_then_other.attention", rc == 4 and root.get("result") == "attention", "rc=%s %s" % (rc, root.get("result")))
+
+
+def c_staged_gitlink_root_behind(box):
+    """RV5-3. The user staged a new gitlink for libs/a in the root; the root's fast-forward changes libs/a. The
+    write must be blocked BEFORE git (write-blocked:gitlink-staged-would-change, attention exit 4), the stage kept.
+    Control: the same stage with a fast-forward that does not touch libs/a moves the root and keeps the stage."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    sub = os.path.join(work, "libs/a")
+    with open(os.path.join(sub, "USER"), "w") as f:
+        f.write("u\n")
+    box.git(sub, "add", "USER")
+    box.git(sub, "commit", "-q", "-m", "user work")
+    u = box.git(sub, "rev-parse", "HEAD")
+    box.git(work, "add", "libs/a")
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet")
+    root = rec(rep, ".")
+    ok("staged_root.attention_exit_4", rc == 4, "rc=%s %s" % (rc, root.get("actions")))
+    ok("staged_root.blocked_before_write", "write-blocked:gitlink-staged-would-change" in root.get("reasons", []),
+       root.get("reasons"))
+    ok("staged_root.root_not_moved", box.git(work, "rev-parse", "HEAD") == r1)
+    ok("staged_root.stage_kept", u in box.git(work, "ls-files", "-s", "libs/a"))
+    # control: the fast-forward does not touch libs/a
+    a_url, a2 = box.bare("HelixDevelopment", "a2")
+    r_url2, r_seed2 = box.bare("HelixDevelopment", "root2")
+    box.add_sub(r_seed2, a_url, "libs/a")
+    work2 = box.clone(r_url2, "p2")
+    r22 = box.commit(r_seed2, "root2: other file")
+    sub2 = os.path.join(work2, "libs/a")
+    with open(os.path.join(sub2, "USER"), "w") as f:
+        f.write("u\n")
+    box.git(sub2, "add", "USER")
+    box.git(sub2, "commit", "-q", "-m", "user work")
+    u2 = box.git(sub2, "rev-parse", "HEAD")
+    box.git(work2, "add", "libs/a")
+    rc2, so2, se2, rep2, _ = box.run("--apply", "--root", work2, "--quiet")
+    ok("staged_root.control_moved", box.git(work2, "rev-parse", "HEAD") == r22, "rc=%s" % rc2)
+    ok("staged_root.control_stage_kept", u2 in box.git(work2, "ls-files", "-s", "libs/a"))
+
+
+def c_lock_open_error(box):
+    """RV5-2. A lock that cannot be OPENED (read-only submodule git dir, no lock file yet; read-only root git dir) is
+    not 'another sync run': its own message, FAILED exit 1. Control: writable, the run proceeds."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    gd = box.git(os.path.join(work, "libs/a"), "rev-parse", "--path-format=absolute", "--git-common-dir")
+    lock = os.path.join(gd, "helix-sync-upstreams.lock")
+    if os.path.exists(lock):
+        os.unlink(lock)
+    os.chmod(gd, 0o555)
+    try:
+        rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    finally:
+        os.chmod(gd, 0o755)
+    ok("lock_open.sub_exit_1", rc == 1, "rc=%s" % rc)
+    ok("lock_open.sub_own_message", "cannot open the run lock" in se and "another sync run" not in se, se[-300:])
+    rlock = os.path.join(work, ".git", "helix-sync-upstreams.lock")
+    if os.path.exists(rlock):
+        os.unlink(rlock)
+    os.chmod(os.path.join(work, ".git"), 0o555)
+    try:
+        rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    finally:
+        os.chmod(os.path.join(work, ".git"), 0o755)
+    ok("lock_open.root_exit_1", rc == 1, "rc=%s" % rc)
+    ok("lock_open.root_own_message", "cannot open the run lock" in se and "another sync run" not in se, se[-300:])
+    rc, so, se, rep, _ = box.run("--check", "--no-fetch", "--root", work, "--quiet")
+    ok("lock_open.control_runs", rc not in (1, 7), "rc=%s" % rc)
+
+
+def c_ctrl_c_at_prompt(box):
+    """RV5-5. Ctrl-C at an --interactive prompt (a real pty is the controlling terminal) ends the run promptly:
+    exit 8, nothing moved; it never waits for Enter."""
+    import pty
+    import select as _select
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    argv, o = box.engine_argv("--apply", "--interactive", "--root", work)
+    argv += ["--out", o]
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvpe(argv[0], argv, dict(box.env))
+    buf = b""
+
+    def drain(sec, until=None):
+        nonlocal buf
+        end = time.monotonic() + sec
+        while time.monotonic() < end:
+            if until and until in buf:
+                return
+            r, _, _ = _select.select([fd], [], [], 0.2)
+            if r:
+                try:
+                    c = os.read(fd, 4096)
+                except OSError:
+                    return
+                if not c:
+                    return
+                buf += c
+    drain(30, b"[y/N]")
+    ok("ctrl_c.prompted", b"[y/N]" in buf, buf[-200:])
+    os.write(fd, b"\x03")
+    t0 = time.monotonic()
+    code, done = None, False
+    while time.monotonic() - t0 < 15:
+        drain(0.5)
+        wpid, st = os.waitpid(pid, os.WNOHANG)
+        if wpid:
+            code, done = os.waitstatus_to_exitcode(st), True
+            break
+    dt = time.monotonic() - t0
+    if not done:
+        os.kill(pid, signal.SIGKILL)  # our own child (pty.fork), one pid, never a group
+        os.waitpid(pid, 0)
+    ok("ctrl_c.ends_without_enter", done and dt < 10, "done=%s %.1fs" % (done, dt))
+    ok("ctrl_c.exit_8", code == 8, "code=%s" % code)
+    ok("ctrl_c.nothing_moved", box.git(work, "rev-parse", "HEAD") == r1 and
+       box.git(os.path.join(work, "libs/a"), "rev-parse", "HEAD") == s1)
+
+
+def c_update_none_not_followed(box):
+    """RV5-7 / SYNC-R5-OPEN-1. A child whose submodule.<name>.update is 'none' (in .git/config) is never checked out
+    by the engine: the root fast-forwards, the child stays, and the report says why (not silently followed)."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    box.git(work, "config", "submodule.libs/a.update", "none")
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet")
+    a = rec(rep, "libs/a")
+    ok("update_none.root_moved", box.git(work, "rev-parse", "HEAD") == r2, "rc=%s" % rc)
+    ok("update_none.child_not_followed", box.git(os.path.join(work, "libs/a"), "rev-parse", "HEAD") == s1)
+    ok("update_none.reason", "not-followed:update-none" in a.get("reasons", []), a.get("reasons"))
+    ok("update_none.attention", rc == 4, "rc=%s" % rc)
+    # .gitmodules form (update = none committed upstream; name != path)
+    # the upstream itself commits update = rebase in .gitmodules (R3): the root fast-forwards to R3, the child
+    # (pinned S2 there) is not checked out by the engine
+    work2, a_seed2, r_seed2, s12, s22, r12, r22 = pinned_tree(Box2(box))
+    box.git(r_seed2, "config", "--file", ".gitmodules", "submodule.libs/a.update", "rebase")
+    box.git(r_seed2, "add", ".gitmodules")
+    box.git(r_seed2, "commit", "-q", "-m", "root: R3 update = rebase")
+    box.git(r_seed2, "push", "-q", "origin", "HEAD:main")
+    r32 = box.git(r_seed2, "rev-parse", "HEAD")
+    rc2, so2, se2, rep2, _ = box.run("--apply", "--root", work2, "--quiet")
+    a2 = rec(rep2, "libs/a")
+    ok("update_none.gitmodules_root_moved", box.git(work2, "rev-parse", "HEAD") == r32, "rc=%s" % rc2)
+    ok("update_none.gitmodules_rebase_not_followed", box.git(os.path.join(work2, "libs/a"), "rev-parse", "HEAD") == s12,
+       "rc=%s %s" % (rc2, a2.get("actions")))
+    ok("update_none.gitmodules_reason", "not-followed:update-rebase" in a2.get("reasons", []), a2.get("reasons"))
+    # control: no update setting, the child follows
+    work3, a_seed3, r_seed3, s13, s23, r13, r23 = pinned_tree(Box2(box, "3"))
+    rc3, so3, se3, rep3, _ = box.run("--apply", "--root", work3, "--quiet")
+    ok("update_none.control_follows", rc3 == 0 and box.git(os.path.join(work3, "libs/a"), "rev-parse", "HEAD") == s23,
+       "rc=%s" % rc3)
+
+
+class Box2:
+    """A second fixture namespace inside the same sandbox (other remote / clone names)."""
+    def __init__(self, box, tag="2"):
+        self._b, self._t = box, tag
+
+    def __getattr__(self, n):
+        return getattr(self._b, n)
+
+    def bare(self, org, name):
+        return self._b.bare(org, name + self._t)
+
+    def clone(self, url, name):
+        return self._b.clone(url, name + self._t)
+
+
+def c_interrupted_fetch_labels(box):
+    """RV5-6. SIGTERM at the root's fetch (--jobs 1): the remotes whose fetch was refused are 'not-fetched-
+    interrupted', never 'unreachable' (no remote was contacted) and never 'no-upstream-main'."""
+    work, a_seed, r_seed, s1, s2, r1, r2 = pinned_tree(box)
+    rc, so, se, rep, _ = box.run("--check", "--jobs", "1", "--root", work, "--quiet", path_prefix=box.shim(),
+                                 env=race_env(box, "sigterm-parent", "fetch@" + work, work))
+    reasons = sum((x.get("reasons", []) for x in (rep or {}).get("repos", [])), [])
+    fetch = [m.get("fetch") for x in (rep or {}).get("repos", []) for m in x.get("remotes", [])]
+    ok("interrupted_labels.exit_8", rc == 8, "rc=%s" % rc)
+    ok("interrupted_labels.no_unreachable", not [x for x in reasons if x.startswith("unreachable:")], reasons)
+    ok("interrupted_labels.no_no_upstream", not [x for x in reasons if x.startswith("no-upstream-")], reasons)
+    ok("interrupted_labels.labelled", "not-fetched-interrupted" in fetch, fetch)
+
+
+def c_blind_beats_failed(box):
+    """SYNC-R5-OPEN-5 / M73 by an assertion (not a timeout). The merge fails (the user edits a file the
+    fast-forward changes at the merge call: rc 1, failed) and then the final head read answers garbage (fixture:
+    the shim prints a non-object-id and exits 0). A failure judged next to a call with no answer is BLIND (exit 6)."""
+    r_url, r_seed = box.bare("HelixDevelopment", "solo")
+    work = box.clone(r_url, "w")
+    box.commit(r_seed, "upstream edits README", fname="README")
+    rc, so, se, rep, _ = box.run("--apply", "--root", work, "--quiet", path_prefix=box.shim(),
+                                 env=race_env(box, "touch-file", "merge@" + work, work, SXR_FILE="README",
+                                              SXR_GARBAGE_AFTER="rev-parse"))
+    root = rec(rep, ".")
+    ok("blind_failed.fired", os.path.exists(box.p("mark")))
+    ok("blind_failed.malformed_recorded", "unresolved:rev-parse:malformed-output" in root.get("reasons", []),
+       root.get("reasons"))
+    ok("blind_failed.blind_exit_6", rc == 6 and root.get("result") == "blind", "rc=%s %s" % (rc, root.get("result")))
+
+
 CHECKS = [
     ("race_commit", c_race_commit_detached_sub), ("race_switch", c_race_switch_root_branch),
     ("race_sub_branch", c_race_branch_in_sub), ("race_control", c_race_control_commit_on_main),
@@ -915,6 +1315,14 @@ CHECKS = [
     ("out_lost", c_out_lost_after_write), ("default_out_symlink", c_default_out_inside_tree),
     ("default_out_relative", c_default_out_relative), ("unsafe_path", c_unsafe_gitlink_paths),
     ("outside_parent", c_outside_parent),
+    # review round 6
+    ("write_deadline", c_write_outlives_deadline), ("write_timeout", c_write_timeout_term_first),
+    ("write_kill", c_write_timeout_kill_after_grace), ("marker_success", c_marker_after_success),
+    ("switch_at_merge", c_switch_at_merge), ("sigterm_pin", c_sigterm_during_pin_checkout),
+    ("marker_inspect", c_marker_after_inspection), ("wrote_then_other", c_wrote_then_other_moved),
+    ("staged_root", c_staged_gitlink_root_behind), ("lock_open", c_lock_open_error), ("ctrl_c", c_ctrl_c_at_prompt),
+    ("update_none", c_update_none_not_followed), ("interrupted_labels", c_interrupted_fetch_labels),
+    ("blind_failed", c_blind_beats_failed), ("stale_marker", c_stale_marker_on_clean_current_tree),
 ]
 
 

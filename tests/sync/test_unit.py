@@ -474,9 +474,15 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         def killpg(pg, sig):
             calls.append((pg, sig))
             if (child_pid is not None and type(pg) is int and pg == child_pid and pg > 1
-                    and sig == E.signal.SIGKILL and os.getpgid(child_pid) == child_pid):
+                    and sig in (E.signal.SIGTERM, E.signal.SIGKILL) and os.getpgid(child_pid) == child_pid):
                 os.killpg(pg, sig)
-        ns = types.SimpleNamespace(getpgid=getpgid, killpg=killpg)
+
+        def waitid(idtype, pid, options):  # a real child is asked for real; a made-up pid counts as ended
+            if child_pid is not None and pid == child_pid:
+                return os.waitid(idtype, pid, options)
+            return object()
+        ns = types.SimpleNamespace(getpgid=getpgid, killpg=killpg, waitid=waitid, P_PID=os.P_PID, WEXITED=os.WEXITED,
+                                   WNOHANG=os.WNOHANG, WNOWAIT=os.WNOWAIT)
         F.os = ns
         self.assertIs(F.proc_kill_group.__globals__["os"], ns)  # the patch took before it is used
         return F, calls
@@ -486,13 +492,13 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         child = types.SimpleNamespace(pid=4242)
         for value in (1, 0, -1, "4242", True, False, None, 4243, 4242.0, 2 ** 70):
             F, calls = self.patched(lambda pid, v=value: v)
-            F.proc_kill_group(child)
+            F.proc_kill_group(child, 1)
             self.assertEqual(calls, [], "getpgid -> %r" % (value,))
 
     def test_pid_one_is_never_signalled(self):
         import types
         F, calls = self.patched(lambda pid: 1)
-        F.proc_kill_group(types.SimpleNamespace(pid=1))
+        F.proc_kill_group(types.SimpleNamespace(pid=1), 1)
         self.assertEqual(calls, [])
 
     def test_getpgid_error_sends_nothing(self):
@@ -501,14 +507,14 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         def boom(pid):
             raise ProcessLookupError("gone")
         F, calls = self.patched(boom)
-        F.proc_kill_group(types.SimpleNamespace(pid=4242))
+        F.proc_kill_group(types.SimpleNamespace(pid=4242), 1)
         self.assertEqual(calls, [])
 
-    def test_own_group_is_signalled_exactly_once_with_sigkill(self):  # the positive case of the patched copy
+    def test_own_group_gets_sigterm_then_sigkill(self):  # the positive case of the patched copy (review round 6)
         import types
         F, calls = self.patched(lambda pid: pid)
-        F.proc_kill_group(types.SimpleNamespace(pid=4242))
-        self.assertEqual(calls, [(4242, E.signal.SIGKILL)])
+        self.assertEqual(F.proc_kill_group(types.SimpleNamespace(pid=4242), 1), "SIGTERM")
+        self.assertEqual(calls, [(4242, E.signal.SIGTERM), (4242, E.signal.SIGKILL)])
 
     def test_killpg_error_is_swallowed(self):
         import types
@@ -516,10 +522,11 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
 
         def killpg(pg, sig):
             raise ProcessLookupError("already gone")
-        F.os = types.SimpleNamespace(getpgid=lambda pid: pid, killpg=killpg)
-        F.proc_kill_group(types.SimpleNamespace(pid=4242))  # must not raise
+        F.os = types.SimpleNamespace(getpgid=lambda pid: pid, killpg=killpg, waitid=lambda *a: None, P_PID=os.P_PID,
+                                     WEXITED=os.WEXITED, WNOHANG=os.WNOHANG, WNOWAIT=os.WNOWAIT)
+        self.assertIsNone(F.proc_kill_group(types.SimpleNamespace(pid=4242), 1))  # must not raise
 
-    def test_real_child_in_its_own_session_ends_with_sigkill(self):  # real positive control
+    def test_real_child_in_its_own_session_ends_with_sigterm(self):  # real positive control (review round 6)
         import subprocess
         p = subprocess.Popen(["sleep", "30"], start_new_session=True, stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -527,8 +534,27 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
             self.assertGreater(p.pid, 1)
             self.assertEqual(os.getpgid(p.pid), p.pid)  # its own group, which this test owns
             F, calls = self.patched(os.getpgid, child_pid=p.pid)
-            F.proc_kill_group(p)
-            self.assertEqual(calls, [(p.pid, E.signal.SIGKILL)])
+            self.assertEqual(F.proc_kill_group(p, 5), "SIGTERM")
+            self.assertEqual(calls, [(p.pid, E.signal.SIGTERM), (p.pid, E.signal.SIGKILL)])
+            # never reaped by proc_kill_group (WNOWAIT): the exit status is still there, and it is SIGTERM's
+            self.assertEqual(p.wait(timeout=10), -E.signal.SIGTERM)
+        finally:
+            if p.poll() is None:
+                p.kill()  # our own child, by pid
+                p.wait(timeout=10)
+
+    def test_real_child_that_ignores_sigterm_ends_with_sigkill_after_grace(self):  # review round 6, RV5-1
+        import subprocess
+        import time as t_
+        p = subprocess.Popen(["sh", "-c", "trap '' TERM; exec sleep 30"], start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            t_.sleep(0.3)  # the trap is installed
+            F, calls = self.patched(os.getpgid, child_pid=p.pid)
+            t0 = t_.monotonic()
+            self.assertEqual(F.proc_kill_group(p, 1), "SIGKILL")
+            self.assertGreaterEqual(t_.monotonic() - t0, 0.9)  # the grace period was waited
+            self.assertEqual(calls, [(p.pid, E.signal.SIGTERM), (p.pid, E.signal.SIGKILL)])
             self.assertEqual(p.wait(timeout=10), -E.signal.SIGKILL)
         finally:
             if p.poll() is None:
@@ -542,7 +568,7 @@ class KillGroup(unittest.TestCase):  # review round 3, F5 / X04 (§11.4.263): no
         try:
             self.assertNotEqual(os.getpgid(p.pid), p.pid)
             F, calls = self.patched(os.getpgid, child_pid=p.pid)
-            F.proc_kill_group(p)
+            F.proc_kill_group(p, 5)
             self.assertEqual(calls, [])
             self.assertIsNone(p.poll())  # still running: nothing was sent
         finally:
@@ -655,8 +681,9 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
     def tree(self, branch):
         import tempfile
         root = E.Repo("/nonexistent/root", ".", 0, None)
+        self.root_gitdir = tempfile.mkdtemp(prefix="sync_unit_rootgitdir.")
         root.rec.update(initialised=True, branch="main", local_vs_target="equal", upstream_state="same",
-                        head_before=SHA)
+                        head_before=SHA, _gitdir=self.root_gitdir)
         c = E.Repo("/nonexistent/root/libs/a", "libs/a", 1, root)
         self.gitdir = tempfile.mkdtemp(prefix="sync_unit_gitdir.")
         c.rec.update(initialised=True, branch=branch, own_org=True, head_before=SHA, target="b" * 40,
@@ -665,7 +692,9 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
         return root, c
 
     def tearDown(self):
-        os.rmdir(self.gitdir)  # made by mkdtemp in tree(), always empty
+        # made by mkdtemp in tree(); empty again: every write-in-progress marker was removed (review round 6, RV5-1)
+        os.rmdir(self.gitdir)
+        os.rmdir(self.root_gitdir)
 
     @staticmethod
     def make_answer(branch):
@@ -706,6 +735,49 @@ class Integrate(unittest.TestCase):  # review round 3, F3: --advance-pins never 
         writes = [a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS]
         self.assertEqual(writes, [("checkout", "--quiet", "--detach", "b" * 40), ("add", "--", "libs/a")])
         self.assertNotIn("kept_on_branch", c.rec)
+
+    def test_marker_unwritable_blocks_the_write(self):  # RV5-1 (round 6): no marker, no write
+        r = scripted_runner(self.make_answer(None))
+        root, c = self.tree(None)
+        os.chmod(self.gitdir, 0o555)
+        try:
+            E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
+        finally:
+            os.chmod(self.gitdir, 0o755)
+        self.assertIn({"op": "none", "why": "blocked:write-marker-unwritable", "for": "advance-pin"}, c.rec["actions"])
+        self.assertEqual([a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS], [])
+
+    def test_stage_pin_ended_by_its_limit_is_write_killed(self):  # RV5-1 (round 6): the parent's 'add' half
+        inner = self.make_answer(None)
+
+        def answer(repo, a):
+            if a[:1] == ["add"]:
+                return "timeout", None, "", ""  # what proc_run_git returns when the write's own limit ended it
+            return inner(repo, a)
+        r = scripted_runner(answer)
+        root, c = self.tree(None)
+        E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
+        pin = [x for x in c.rec["actions"] if x.get("op") == "advance-pin"]
+        self.assertEqual(pin[-1].get("why"), "write-killed:stage-pin")
+        self.assertEqual((root.rec.get("write_killed"), root.rec.get("failed"), c.rec.get("failed")),
+                         ("stage-pin", True, True))
+        self.assertIn("write-killed:stage-pin", E.reasons_for(root.rec, False, "main"))
+        self.assertEqual(E.read_marker(self.root_gitdir), "stage-pin")  # kept: the next run attributes leftovers
+        self.assertIsNone(E.read_marker(self.gitdir))  # the child's checkout answered: its marker is gone
+        E.clear_marker(self.root_gitdir)
+
+    def test_a_stop_starts_no_write(self):  # RR40 (round 6): after a stop integrate starts no write, says why
+        r = scripted_runner(self.make_answer(None))
+        root, c = self.tree(None)
+        E.STOP_REQUESTED.set()
+        try:
+            E.integrate(r, [root, c], "main", True, False, False, {"integrate": True, "pins": True})
+        finally:
+            E.STOP_REQUESTED.clear()
+        self.assertIn({"op": "none", "why": "interrupted"}, c.rec["actions"])
+        self.assertIn({"op": "none", "why": "interrupted"}, root.rec["actions"])
+        self.assertEqual([a for _, a in r.seen if a[0] in E.WRITE_SUBCOMMANDS], [])
+        self.assertEqual([a for _, a in r.seen if a[:1] == ("status",)], [])  # not even the pre-write re-read
 
     def test_head_after_is_read_for_every_repository(self):  # F2: never a copy of head_before
         r, c = self.run_integrate("topic")
@@ -1000,6 +1072,201 @@ class RoundFive(unittest.TestCase):
         self.assertEqual(E.url_org_segments("git@github.com:HelixDevelopment/x.git"), ["HelixDevelopment"])
         self.assertEqual(E.url_org_segments("host:org/x"), ["org"])
         self.assertEqual(E.url_org_segments("/abs/org/x"), ["abs", "org"])
+
+
+class RoundSix(unittest.TestCase):  # review round 6 (RV5-1 .. RV5-7)
+    def limits_runner(self, deadline_in, F=None):
+        """A real Runner whose spawn point records (args, limit, level) and answers exit 0."""
+        F = F or fresh_engine("sync_engine_r6_limits")
+        seen = []
+
+        def spawn(git_bin, repo, args, env, limit, level=1):
+            F.check_git_args(args)
+            seen.append((tuple(args), limit, level))
+            return "exit", 0, "", ""
+        F.proc_run_git = spawn
+        r = F.Runner("/nonexistent/git", 7, F.time.monotonic() + deadline_in, 1234)
+        return F, r, seen
+
+    def test_write_has_its_own_limit_not_the_deadline(self):  # RV5-1: a write never gets min(timeout, deadline)
+        F, r, seen = self.limits_runner(2)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True)
+        self.assertTrue(res.answered)
+        self.assertEqual(seen[-1], (("merge", "--ff-only", SHA), 1234, 0))
+
+    def test_no_process_starts_after_a_second_signal(self):  # RR39 (round 6): a final read is refused BEFORE spawn
+        F, r, seen = self.limits_runner(10)
+        F.STOP_REQUESTED.set()
+        F.HARD_STOP.set()
+        res = r.run("/r", ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=True)
+        self.assertEqual((res.answered, res.why, seen, r.calls), (False, "interrupted", [], 0))
+        F.HARD_STOP.clear()  # control: after the FIRST signal only, a final read still runs
+        res = r.run("/r", ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=True)
+        self.assertEqual((res.answered, len(seen)), (True, 1))
+
+    def test_write_never_starts_after_the_deadline(self):
+        F, r, seen = self.limits_runner(-1)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0,), write=True)
+        self.assertEqual((res.answered, res.why, seen), (False, "deadline", []))
+
+    def test_second_half_of_a_write_and_final_reads_run_after_the_deadline(self):
+        F, r, seen = self.limits_runner(-1)
+        self.assertTrue(r.run("/p", ["add", "--", "libs/a"], ok=(0,), write=True, final=True).answered)
+        self.assertEqual(seen[-1][1:], (1234, 0))
+        self.assertTrue(r.run("/p", ["rev-parse", "--verify", "-q", "HEAD^{commit}"], ok=(0, 1), final=True).answered)
+        self.assertEqual(seen[-1][1:], (10, 2))  # at most 10 seconds once the deadline has passed
+        self.assertFalse(r.run("/p", ["remote"], ok=(0,)).answered)  # an ordinary read is still refused
+
+    def test_ordinary_read_keeps_the_deadline_bound(self):
+        F, r, seen = self.limits_runner(30)
+        r.run("/p", ["remote"], ok=(0,))
+        self.assertLessEqual(seen[-1][1], 30)
+        self.assertGreater(seen[-1][1], 20)
+
+    def test_write_killed_by_its_limit_is_a_known_failure(self):
+        F = fresh_engine("sync_engine_r6_wk")
+        F.proc_run_git = lambda *a, **k: ("timeout", None, "", "timeout after 3s; ended by SIGTERM")
+        r = F.Runner("/nonexistent/git", 7, F.time.monotonic() + 600, 3)
+        res = r.run("/r", ["merge", "--ff-only", SHA], ok=(0, 1, 128), write=True)
+        self.assertEqual((res.answered, res.why), (False, "write-killed"))
+        self.assertEqual(r.unresolved_for("/r"), [])  # never an unknown state: the write's end is known
+        res = r.run("/r", ["remote"], ok=(0,))  # a READ timeout stays a no-answer (control)
+        self.assertEqual(r.unresolved_for("/r"), ["remote:timeout"])
+
+    def fake_git(self, body):
+        import tempfile
+        d = tempfile.mkdtemp(prefix="sync_unit_r6.")
+        fake = os.path.join(d, "git")
+        with open(fake, "w", encoding="utf-8") as fh:
+            fh.write("#!/bin/sh\n" + body + "\n")
+        os.chmod(fake, 0o700)
+        self.addCleanup(self.rm_fake, d, fake)
+        return d, fake
+
+    @staticmethod
+    def rm_fake(d, fake):
+        os.unlink(fake)
+        os.rmdir(d)
+
+    def test_a_stop_signal_never_ends_a_write(self):  # level 0 ignores STOP_REQUESTED and HARD_STOP
+        F = fresh_engine("sync_engine_r6_stop")
+        d, fake = self.fake_git("sleep 1; exit 0")
+        F.STOP_REQUESTED.set()
+        F.HARD_STOP.set()
+        self.assertEqual(F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30, 0)[:2], ("exit", 0))
+        self.assertEqual(F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 30, 1)[0], "interrupted")
+
+    def test_write_limit_ends_the_call_with_sigterm_first(self):  # a real child: SIGTERM ends `sleep`
+        F = fresh_engine("sync_engine_r6_term")
+        d, fake = self.fake_git("exec sleep 30")
+        kind, code, out, err = F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 1, 0)
+        self.assertEqual(kind, "timeout")
+        self.assertIn("ended by SIGTERM", err)
+
+    def test_write_gets_the_long_grace_a_read_the_short_one(self):  # RV5-1 (Q17): grace per level
+        F = fresh_engine("sync_engine_r6_grace")
+        d, fake = self.fake_git("exec sleep 30")
+        real, graces = F.proc_kill_group, []
+
+        def recorder(p, grace):
+            graces.append(grace)
+            return real(p, grace)
+        F.proc_kill_group = recorder
+        F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 1, 0)   # level 0: a write
+        F.proc_run_git(fake, d, ["status"], {"PATH": "/usr/bin:/bin"}, 1, 1)   # level 1: a read
+        self.assertEqual(graces, [F.WRITE_KILL_GRACE, F.KILL_GRACE])
+        self.assertGreater(F.WRITE_KILL_GRACE, F.KILL_GRACE)
+
+    def test_config_read_shapes(self):  # RV5-7: exactly two new read-only shapes
+        ok = (["config", "-z", "--get-regexp", "^submodule\\\\..*\\\\.update$"],
+              ["config", "--file", ".gitmodules", "-z", "--get-regexp", "x"])
+        for a in ok:
+            E.check_git_args(a)
+        for a in (["config", "--file", "/etc/passwd", "-z", "--get-regexp", "x"],
+                  ["config", "-z", "--get-regexp", "x", "y"], ["config", "-z", "core.x", "v"],
+                  ["config", "--file", ".gitmodules", "-z", "submodule.a.url", "x"],
+                  ["config", "--file", ".gitmodules", "-z", "--get-regexp", "x", "y"]):
+            with self.assertRaises(E.GitRefused, msg=a):
+                E.check_git_args(a)
+
+    def test_update_strategies(self):
+        gm = ("submodule.libs/a.path\nlibs/a\0submodule.libs/a.update\nnone\0submodule.b.path\nb\0"
+              "submodule.c.path\nc\0submodule.c.update\n!true\0submodule.d.path\nd\0")
+        cf = "submodule.b.update\nRebase\0submodule.libs/a.update\ncheckout\0"
+
+        def answer(repo, a):
+            return "exit", 0, gm if "--file" in a else cf, ""
+        r = scripted_runner(answer)
+        self.assertEqual(E.update_strategies(r, "/p"),
+                         {"libs/a": "checkout", "b": "rebase", "c": "command", "d": "checkout"})
+        r = scripted_runner(lambda repo, a: ("exit", 1, "", ""))  # no .gitmodules, nothing configured
+        self.assertEqual(E.update_strategies(r, "/p"), {})
+        r = scripted_runner(lambda repo, a: ("signal", 9, "", ""))  # no answer: never "checkout"
+        self.assertIsNone(E.update_strategies(r, "/p"))
+
+    def test_write_marker_round_trip(self):
+        import tempfile
+        d = tempfile.mkdtemp(prefix="sync_unit_marker.")
+        try:
+            self.assertIsNone(E.read_marker(d))
+            self.assertTrue(E.write_marker(d, "fast-forward", SHA, "r1"))
+            self.assertEqual(E.read_marker(d), "fast-forward")
+            E.clear_marker(d)
+            self.assertIsNone(E.read_marker(d))
+            E.clear_marker(d)  # absent: no error
+            with open(os.path.join(d, E.WRITE_MARKER), "w") as fh:
+                fh.write("{garbage")
+            self.assertEqual(E.read_marker(d), "unknown")  # unreadable is never "no marker"
+            os.unlink(os.path.join(d, E.WRITE_MARKER))
+            os.symlink("/nonexistent/x", os.path.join(d, E.WRITE_MARKER))
+            self.assertFalse(E.write_marker(d, "fast-forward", SHA, "r1"))  # never written through a link
+            self.assertEqual(E.read_marker(d), "unknown")
+            os.unlink(os.path.join(d, E.WRITE_MARKER))
+            self.assertFalse(E.write_marker("", "fast-forward", SHA, "r1"))  # no git dir: no write
+            open(os.path.join(d, "index.lock"), "w").close()
+            self.assertEqual(E.locks_left(d, "main"), ["index.lock"])
+            os.unlink(os.path.join(d, "index.lock"))
+        finally:
+            os.rmdir(d)
+
+    def test_marker_attribution_reasons(self):
+        rec = {"initialised": True, "kind": "root", "branch": "main", "dirty": True, "in_progress": ["index.lock"],
+               "write_interrupted_earlier": "fast-forward", "upstream_state": "linear"}
+        reasons = E.reasons_for(rec, False, "main")
+        self.assertIn("write-interrupted-earlier:fast-forward", reasons)
+        self.assertIn("dirty-tree-since-write-interrupted", reasons)
+        self.assertIn("in-progress-since-write-interrupted:index.lock", reasons)
+        self.assertNotIn("dirty-tree", reasons)
+        rec.update(dirty=False, in_progress=[])  # a marker that left nothing is not a reason
+        self.assertEqual([x for x in E.reasons_for(rec, False, "main") if "write" in x], [])
+
+    def test_prompt_ends_on_a_stop_signal(self):  # RV5-5: the wait is never a blocking read
+        import time as t_
+        F = fresh_engine("sync_engine_r6_tty")
+        master, slave = os.openpty()
+        try:
+            tty = object.__new__(F.Tty)
+            tty.fd = slave
+            F.STOP_REQUESTED.set()
+            import threading as th_
+            got = []
+            w = th_.Thread(target=lambda: got.append(tty.ask("Proceed?")), daemon=True)
+            t0 = t_.monotonic()
+            w.start()
+            w.join(3)  # bounded: an engine that waits for Enter fails this ASSERTION, never by the suite timeout (Q12)
+            ended = not w.is_alive()
+            if not ended:
+                os.write(master, b"\n")  # release the waiting prompt so the test process can end
+                w.join(5)
+            self.assertTrue(ended, "the prompt did not end on the stop signal")
+            self.assertEqual(got, [False])
+            self.assertLess(t_.monotonic() - t0, 2)
+            F.STOP_REQUESTED.clear()
+            os.write(master, b"y\n")  # control: an answer is still read
+            self.assertTrue(tty.ask("Proceed?"))
+        finally:
+            os.close(master)
+            os.close(slave)
 
 
 if __name__ == "__main__":

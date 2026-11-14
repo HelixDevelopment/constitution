@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-14T00:00:00Z |
+| Last modified | 2026-11-14T18:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Reference for every option, state, reason, exit code, report field, integration point and safety property of the sync-all-upstreams engine. |
 | Authority | Constitution §2.1, §11.4.10, §11.4.37, §11.4.50, §11.4.71, §11.4.84, §11.4.113, §11.4.164, §11.4.233(G), §11.4.263, §11.4.273, §11.4.288(D), §12. The canonical text wins where this manual and the constitution disagree. |
@@ -60,8 +60,9 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 | `--strict-pins` | Absent / uninitialised submodules count as attention. |
 | `--own-org ORG` | Own organisation (repeatable). Default: `vasic-digital`, `HelixDevelopment`. |
 | `--jobs N` | Parallel fetches. Clamped to `1 .. min(8, cpus/2)`. |
-| `--timeout S` | Seconds per network git call (a local call gets `max(S, 60)`); on expiry the call's own process group is killed (never pgid ≤ 1, §11.4.263), the pipes are closed and git is reaped with a 5 s limit; a grandchild that escaped the group and still holds a pipe is not waited for (reading stops as soon as git itself has exited). |
-| `--deadline S` | Seconds for the whole run; a call that would start after it is not run: a fetch is reported `not-fetched-deadline`, a local call makes its repository `unresolved`. |
+| `--timeout S` | Seconds per network git call (a local call gets `max(S, 60)`); on expiry the call's own process group gets SIGTERM, then SIGKILL if it has not ended 5 s later (never pgid ≤ 1, §11.4.263), the pipes are closed and git is reaped with a 5 s limit; it never applies to a write (see `--write-timeout`); a grandchild that escaped the group and still holds a pipe is not waited for (reading stops as soon as git itself has exited). |
+| `--deadline S` | Seconds for the whole run; a call that would start after it is not run: a fetch is reported `not-fetched-deadline`, a local call makes its repository `unresolved`. A write never starts after it; a write that started before it is never ended by it. The final head reads still run after it (at most 10 s each). |
+| `--write-timeout S` | Seconds a single write (`merge --ff-only`, `checkout --detach`, `add`) may run (default 3600, a positive integer). Neither `--timeout`, `--deadline` nor a stop signal ends a write. Only this limit does: SIGTERM to the write's process group first (git then removes its own lock files), SIGKILL only if it has not ended 30 s later. Such a write is `write-killed:<op>` (FAILED, blocking); the report records the lock files left (`locks_left`) and the next steps print the recovery (see Safety properties). A smudge filter or a very large checkout can need more than the default. |
 | `--max-depth N` | Submodule recursion depth (default 32); cycles are cut. |
 | `--out DIR` | Evidence directory. It is resolved (symbolic links followed) and must lie outside the project work tree, and it must be writable: it is created and probed with a real temporary file BEFORE anything else happens; either failure is exit 2 with nothing done. Default `$XDG_CACHE_HOME/helix_sync_upstreams/<project>-<run-id>/` (`~/.cache` when unset), checked the same way (a cache directory that is a link into the project is refused; a relative `XDG_CACHE_HOME` or `HOME` without `--out` is refused). A `sync_report.json` or `sync_report.tsv` already there is replaced only when it is a regular file that this engine wrote; anything else (your own file, a symbolic link, a FIFO, a directory) is refused with exit 2 and left as it is. |
 | `--run-id ID` | `[A-Za-z0-9._-]{1,80}`; default `<UTC time>-<pid>`. |
@@ -129,7 +130,9 @@ Related: [user guide](../guides/sync_upstreams_user_guide.md) · [FAQ](../faq/sy
 
 **Remote state** (`repos[].remotes[].state`): `equal`, `behind`, `ahead`, `diverged` (relative to the head
 before the run), `no-main` (the remote has no `<branch>`), `unreachable` (fetch failed or timed out),
-`not-fetched-deadline` (the run deadline passed before its fetch), `invalid-name` (never passed to git).
+`not-fetched-deadline` (the run deadline passed before its fetch), `not-fetched-interrupted` (a stop signal
+arrived before its fetch answered: never `unreachable`), `unknown` (no read of the remote answered),
+`invalid-name` (never passed to git).
 `fetch` is `ok`, `failed`, `timeout`, `deadline`, `no-answer` (killed by a signal, an undeclared exit status:
 the repository is also `blind`) or `tag-rejected` (git refused to move an existing tag that changed upstream;
 the branches were fetched, the tag is kept, and the repository needs attention). `fetch_failure` labels a
@@ -176,7 +179,10 @@ empty or odd output; the repository is never integrated), `ignored-file-would-be
 `upstream-branch-gone:<remote>`, `kept-on-branch:<follow-pin|advance-pin>` (a submodule on a local branch was
 left on it), `gitlink-staged:<path>` (the index records a gitlink for `<path>` that HEAD's tree does not: a pin
 someone staged and did not commit, an earlier `--advance-pins` run included; it is never written over and does not
-hold back the rest of the repository), `head-changed-during-run`, `write-blocked:<why>`, always
+hold back the rest of the repository), `head-changed-during-run`, `write-blocked:<why>`,
+`write-killed:<op>`, `write-interrupted-earlier:<op>` with `dirty-tree-since-write-interrupted` /
+`in-progress-since-write-interrupted:<name>` (an earlier run's write did not end normally),
+`not-followed:update-<none|merge|rebase|command|other>`, always
 `pin-not-a-directory`, `pin-cycle`, `pin-unreadable`, `pin-unsafe-path`, `pin-outside-parent`, and with `--strict-pins`
 `pin-absent`, `pin-uninitialised`.
 
@@ -192,14 +198,14 @@ hold back the rest of the repository), `head-changed-during-run`, `write-blocked
 | Exit | Verdict | When |
 |---|---|---|
 | 0 | `CURRENT` / `APPLIED` | Nothing behind, nothing needs attention. |
-| 1 | `FAILED` | An integration step failed. |
+| 1 | `FAILED` | An integration step failed, a write was ended by its `--write-timeout` (`write-killed:<op>`), or a run lock could not be opened or taken for a reason that is NOT another run (a read-only git directory, for example: `cannot open the run lock`); nothing is fetched or changed in that last case. |
 | 2 | usage | Bad arguments; `--out` (or the default evidence directory) inside the work tree, not writable when the run starts, or holding a report file this engine did not write; a relative cache directory; no terminal for `--interactive`. Nothing was done. Evidence that cannot be written at the END of a run (after a write) is exit 1, never 2; every move is then printed. |
 | 3 | `UPDATES-AVAILABLE` | Something is behind (check, dry-run, or still behind after apply: a declined prompt, or a pin without `--advance-pins`). |
 | 4 | `ATTENTION` | At least one reason above. |
 | 5 | `INCONCLUSIVE` | A local git call ran out of time (`--timeout`) or a call would have started after the `--deadline`, and nothing else gave no answer; those repositories are `unresolved`. Re-run with a larger `--timeout` / `--deadline`. |
 | 6 | `BLIND` | The control needle failed, the root or its git directory could not be read (also: the start directory holds a `.git` git cannot read, exit 128), a submodule could not be read, or a git call gave no answer for any other reason (killed by a signal, an exit status its call site does not declare, malformed output, refused, not runnable); those repositories are `blind`. Investigate before re-running. |
 | 7 | `LOCKED` | Another sync run holds the lock of this root or of a repository of this tree; nothing was fetched or changed. |
-| 8 | `INTERRUPTED` | A stop signal (SIGTERM, SIGINT, SIGHUP) arrived. Calls in flight that only read were stopped; a write in flight was finished, never cut; the heads were read again (at most 10 s each; a second signal stops that too) and the report says what moved. Re-run. |
+| 8 | `INTERRUPTED` | A stop signal (SIGTERM, SIGINT, SIGHUP) arrived. Calls in flight that only read were stopped; a write in flight was finished, never cut (a stop signal never ends a write; only `--write-timeout` does); the heads were read again (at most 10 s each; a second signal stops that too) and the report says what moved. Re-run. |
 
 Precedence: `INTERRUPTED` > `BLIND` > `FAILED` > `INCONCLUSIVE` > `ATTENTION` > `UPDATES-AVAILABLE` > `CURRENT`.
 `sync_step_lib.sh` maps 0/3/4/1/5/7/6/8 to `CURRENT`/`UPDATES-AVAILABLE`/`ATTENTION`/`FAILED`/
@@ -280,11 +286,28 @@ an identical hash (§11.4.50); the test suites check this with N=3 runs.
   `docs/qa/sync_upstreams_2026_11_13_r5/green/redaction_timing.txt`; other hosts UNCONFIRMED). A line with
   `scheme://` loses everything up to its last `@`, which can remove more than the userinfo (fail-safe). Per-call timeout, run deadline, depth limit, `jobs` ceiling ≤ 8 (§12.6, §12.12).
 * Stop signals: SIGTERM, SIGINT and SIGHUP are handled. The handler only sets a flag; a call that only reads is
-  stopped (its own process group killed, §11.4.263), no new call starts, a write in flight is finished, the
+  stopped (its own process group gets SIGTERM, then SIGKILL after 5 s, §11.4.263), no new call starts, a write in flight is finished, the
   heads are read again and the report is written (exit 8). A second signal also stops those final reads.
   SIGKILL (or the kernel's OOM killer) cannot be handled: a git call in flight then runs on in its own
   session until git's own timeouts end it (the example systemd unit's default `KillMode=control-group` kills
   it with the unit).
+* Writes and their limit (review round 6): before each write the engine writes a marker
+  `helix-sync-upstreams.write-in-progress` (run id, operation, target) into the repository's git directory and
+  removes it when git ended the write with a status. A write is ended only by `--write-timeout`, SIGTERM first
+  (measured: git removes `index.lock` on SIGTERM, not on SIGKILL), SIGKILL 30 s later; it is then
+  `write-killed:<op>`, FAILED. A marker found by a later run means a write did not end normally (its limit,
+  SIGKILL, OOM, power loss): leftovers in that repository are reported `write-interrupted-earlier:<op>`,
+  `dirty-tree-since-write-interrupted`, `in-progress-since-write-interrupted:<name>` (blocking, never blamed on
+  you); with no leftovers an `--apply` run removes the marker (`notes`: `write-marker-cleared:…`). Recovery
+  of a write-killed repository, printed in the next steps: make sure no git process runs in it; look at
+  `git status`; remove a stale `index.lock` only when no git process runs; save what is there with
+  `git stash push --include-untracked -m helix-sync-write-killed`; re-run with a larger `--write-timeout`.
+* Staged gitlinks of the repository being moved (review round 6): a fast-forward or pin write is refused
+  (`blocked:gitlink-staged-would-change`) when the index stages a gitlink that differs from HEAD and the
+  target commit would change that path; an unanswered read of the staged gitlinks is `unresolved:staged-gitlinks`.
+* Submodule update strategy (review round 6): a pin is advanced or followed only for a submodule whose
+  `submodule.<name>.update` (read from `.gitmodules` and the repository config) is `checkout`; `none`,
+  `merge`, `rebase` or a `!command` give `not-followed:update-<strategy>` (attention) and nothing is checked out.
 * Locks: one per repository of the tree (see Run order), never per project only.
 
 ## Tests and gate
@@ -341,8 +364,8 @@ fetch is not limited in the disk it takes (git's own). Evidence directories unde
 characters is removed only where it appears inside a URL (userinfo) or in a token or header shape, not
 when git quotes it alone (a short value would also match ordinary words). A child whose parent moves to a
 pin the child cannot fetch is reported `failed` after the parent has already moved; holding the parent
-back until every child can follow is an open design question, not implemented. A follow-pin does not read
-`submodule.<name>.update=none` (open item). A stdout closed before the run ends (a pipe into `true`)
+back until every child can follow is an open design question, not implemented. A follow-pin and an advance-pin read
+`submodule.<name>.update` (review round 6, see Safety properties). A stdout closed before the run ends (a pipe into `true`)
 was measured: no traceback, both report files written, but the exit status is Python's 120 (not one of the
 engine's codes; a caller reads it as `BLIND`) with `BrokenPipeError` on stderr (open item `SYNC-R5-OPEN-3`,
 `docs/qa/sync_upstreams_2026_11_13_r5/green/sigpipe_probe.txt`). Behaviour against real forges (ssh keys, rate limits, large repositories) is

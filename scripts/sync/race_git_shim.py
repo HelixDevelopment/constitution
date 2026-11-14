@@ -15,6 +15,8 @@ Environment (all set by the test; no action without SXR_ACTION and SXR_ON):
   SXR_FILE    touch-file: the work-tree file (relative to SXR_TARGET) that is overwritten
   SXR_LOG     optional: every call appends '<subcommand>\t<realpath of -C directory>\t<before|after>' (after =
               the action has already fired), so a test can see which calls the engine STARTED after it
+  SXR_GARBAGE_AFTER  optional '<subcommand>': a call of that subcommand started after the action fired prints a
+              non-object-id and exits 0 (a malformed answer), without running git
   SXR_HANG_AFTER  optional '<subcommand>:<seconds>': a call of that subcommand started after the action fired
               sleeps first (a git that hangs after a stop); the engine's own timeout kills it
 Safety: sigterm-parent signals ONLY the parent process (one pid, never a group), and only after reading its
@@ -98,6 +100,11 @@ def main(argv):
         h_sub, _, h_sec = hang.partition(":")
         if sub == h_sub:
             time.sleep(float(h_sec))
+    garbage = os.environ.get("SXR_GARBAGE_AFTER", "")
+    if garbage and sub == garbage and os.environ.get("SXR_MARK") and os.path.exists(os.environ["SXR_MARK"]):
+        sys.stdout.write("not-an-object-id\n")  # a git that answers garbage after the action fired
+        sys.stdout.flush()
+        os._exit(0)
     if on and action and repo and sub:
         want_sub, _, want_repo = on.partition("@")
         if sub == want_sub and os.path.realpath(repo) == os.path.realpath(want_repo):

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-11-12 |
-| Last modified | 2026-11-13T20:26:13Z |
+| Last modified | 2026-11-14T18:30:00Z |
 | Status | draft (pending independent review) |
 | Status summary | Questions raised while designing, building and testing `scripts/sync/sync_all_upstreams.sh`, with the answers the engine gives. |
 | Authority | Constitution §11.4.84, §11.4.113, §11.4.233(G), §11.4.288(D). The canonical text wins where this FAQ and the constitution disagree. |
@@ -62,13 +62,17 @@ lock that repository, before it fetches or changes anything. Each lock lives in 
 and is released by the kernel when a run ends or dies, so there is no stale lock to clean up.
 
 **9. A remote hangs. Will the run hang?**
-No. Each network call has `--timeout` (its whole process group is killed on expiry) and the run has
+No. Each network call has `--timeout` (on expiry its whole process group gets SIGTERM, then SIGKILL 5 s
+later) and the run has
 `--deadline`. A fetch that times out is reported `unreachable`; a local git call that runs out of time
 makes the run `INCONCLUSIVE` (exit 5) and that repository `unresolved`. A git call that gives no answer
 for any other reason (killed by a signal, an exit status its call site does not expect, malformed
 output) makes the run `BLIND` (exit 6) and that repository `blind`. In both cases the repository is not
 moved and nothing is concluded about it. A grandchild that escapes the process group is not waited for
-once git itself has exited; a call that times out is reaped with a 5 s limit.
+once git itself has exited; a call that times out is reaped with a 5 s limit. A WRITE is different: it is
+never ended by `--timeout`, `--deadline` or a stop signal (half a checkout is worse than a late one), only by
+`--write-timeout` (default 3600 s; SIGTERM first so git removes its lock files, SIGKILL 30 s later). A
+write ended that way is `write-killed:<op>` (FAILED); the next steps print the recovery.
 
 **10. Why is the evidence not in my project?**
 So the run never changes your work tree. `--out` inside the work tree is refused (exit 2). An `--out` directory
@@ -104,3 +108,19 @@ printed even with `--quiet`. Fix or re-initialise the submodule yourself, then r
 **16. Is it tested against GitHub or GitLab?**
 Not yet. The tests use real git against real bare repositories in scratch directories, without network.
 Real forges (ssh keys, rate limits, large repositories) are UNCONFIRMED until run by the operator.
+
+**17. My remotes need my own ssh setup (a key, a port, a jump host). The engine ignores `GIT_SSH_COMMAND`.**
+Yes: a `GIT_SSH_COMMAND` from your environment is replaced by the engine's own
+(`ssh -o BatchMode=yes -o ConnectTimeout=10`), so a run never waits for a password. Two ways keep your setup:
+(a) put it in `~/.ssh/config` (a `Host` entry with `IdentityFile`, `Port`, `ProxyJump`): the engine runs plain
+`ssh`, which reads that file; (b) set `core.sshCommand` in the repository (`git -C <repo> config core.sshCommand
+"ssh -i ~/.ssh/id_work -o BatchMode=yes"`) or in your global git config: the engine then uses it and reports
+`repos[].ssh = "core.sshCommand"` (tests/sync/test_hardening.sh). Keep `-o BatchMode=yes` in it: an ssh you
+configure may prompt on its own terminal. Real forges are UNCONFIRMED until the operator runs it (question 16).
+
+**18. Will a run fetch anything if I just pull the constitution?**
+No. The defaults are `off` for `scripts/setup.sh` and `offline` (`--check --no-fetch`) for the post-update hook,
+so nothing is fetched or changed unless you opt in (`--sync-upstreams=check|apply|ask`,
+`CONSTITUTION_SYNC_CHECK=fetch`). This is what the code on this revision does. An operator decision of
+2026-11-14 (relayed, not verbatim) moves the defaults to on, online and bounded; that change is separate work
+and is not made in this revision, so until it lands the answer above stays true.

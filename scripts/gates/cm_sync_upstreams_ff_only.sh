@@ -15,8 +15,10 @@
 #          (os.path.join, subprocess.Popen, ...); a bare module name (an alias, a module passed on) is
 #          refused, so os.system, subprocess.call, sys.modules, ... cannot appear in any spelling;
 #       c. ONE SPAWN POINT, ONE SIGNAL POINT (review round 2, I-2): subprocess.Popen / DEVNULL / PIPE /
-#          TimeoutExpired may appear ONLY inside proc_run_git, and os.killpg / os.getpgid / signal.SIGKILL ONLY
-#          inside proc_kill_group (scoped by the nearest enclosing def, so a nested def or lambda does not
+#          TimeoutExpired may appear ONLY inside proc_run_git, and os.killpg / os.getpgid / signal.SIGKILL /
+#          os.waitid ONLY inside proc_kill_group (signal.SIGTERM also in proc_on_stop_signals; select.select also
+#          in Tty.ask, the prompt that a stop signal must end; review round 6) (scoped by the nearest enclosing
+#          def, so a nested def or lambda does not
 #          count); Popen and killpg appear only as the function of a call (never bound to a name, passed to
 #          map(), stored, ...); proc_run_git is referenced exactly once (called from Runner.run) and
 #          proc_kill_group exactly once (called from proc_run_git); no `.kill` / `.terminate` / `.send_signal`
@@ -28,9 +30,11 @@
 #          except __name__, no definition that shadows a module or one of those names;
 #       e. the ONE Popen's argv is git_argv(git_bin, repo, checked), `checked` bound exactly once before it from
 #          check_git_args(args), the parameter `args` never rebound; no shell / executable / preexec_fn / args /
-#          ** keyword; start_new_session=True; the ONE killpg is EXACTLY os.killpg(pgid, signal.SIGKILL), `pgid`
-#          bound exactly once as `pgid = os.getpgid(p.pid)`, and its nearest `if` (only a try may stand between)
-#          is a direct statement of proc_kill_group whose test is EXACTLY the conjunction
+#          ** keyword; start_new_session=True; the ONE killpg is EXACTLY os.killpg(pgid, sig), `sig` bound only
+#          by the ONE loop `for sig in (signal.SIGTERM, signal.SIGKILL):` (SIGTERM first, then SIGKILL; review
+#          round 6, RV5-1) that is a direct statement of proc_kill_group(p, grace), `pgid` bound exactly once as
+#          `pgid = os.getpgid(p.pid)`, and its nearest `if` (only a try may stand between) is a direct statement
+#          of that loop whose test is EXACTLY the conjunction
 #          `isinstance(pgid, int) and pgid > 1 and pgid == p.pid` in any order (no `or`, no `not`, no constant, no
 #          fourth term; review round 3, X04: `pgid > 1 or True` passed the old "has pgid > 1" test) (§11.4.263);
 #       f. every git call site (`<x>.run(repo, ARGS, ok=...)` and `g_out(r, repo, ARGS, ok=...)`) passes a literal
@@ -139,6 +143,12 @@ SITES = [
     ("probe_child", "['rev-parse', '--show-toplevel']", (0,), "ABS_PATH_RE", "blind"),
     ("index_gitlinks", "['ls-files', '-s', '-z']", (0,), "-", "blind"),
     ("head_gitlinks", "['ls-tree', '-r', '-z', 'HEAD']", (0,), "-", "blind"),
+    # review round 6 (RV5-3): the gitlinks of the write's target tree, read at write time
+    ("tree_gitlinks", "['ls-tree', '-r', '-z', target]", (0,), "-", "blind"),
+    # review round 6 (RV5-7): the submodule update strategy, read only when a checkout is about to happen
+    ("update_strategies", "['config', '--file', '.gitmodules', '-z', '--get-regexp', "
+     "'^submodule\\\\..*\\\\.(path|update)$']", (0, 1), "-", "blind"),
+    ("update_strategies", "['config', '-z', '--get-regexp', '^submodule\\\\..*\\\\.update$']", (0, 1), "-", "blind"),
     ("read_branch", "['symbolic-ref', '--short', '-q', 'HEAD']", (0, 1), "-", "blind"),
     ("inspect_local", "['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD', "
      "'--git-common-dir']", (0,), "THREE_ABS_PATHS_RE", "blind"),
@@ -229,8 +239,10 @@ MODULES = {"argparse", "concurrent.futures", "datetime", "fcntl", "hashlib", "js
            "signal", "subprocess", "sys", "tempfile", "threading", "time"}
 ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "datetime.datetime.now",
          "datetime.timezone.utc", "fcntl.LOCK_EX", "fcntl.LOCK_NB", "fcntl.flock", "hashlib.sha256", "json.dumps",
-         "json.load", "os.O_CREAT", "os.O_NOCTTY", "os.O_NOFOLLOW", "os.O_RDWR", "os.close", "os.cpu_count",
+         "json.load", "json.loads", "os.O_CREAT", "os.O_NOCTTY", "os.O_NOFOLLOW", "os.O_RDWR", "os.close", "os.cpu_count",
          "os.environ", "os.environ.get", "os.fdopen", "os.fsync", "os.getcwd", "os.getpgid", "os.getpid", "os.killpg",
+         "os.O_RDONLY", "os.O_WRONLY", "os.O_TRUNC", "os.waitid", "os.P_PID", "os.WEXITED", "os.WNOHANG", "os.WNOWAIT",
+         "time.sleep",
          "os.lstat", "os.makedirs", "os.open", "os.path.basename", "os.path.dirname", "os.path.exists",
          "os.path.expanduser", "os.path.isabs", "os.path.isdir", "os.path.isfile", "os.path.join", "os.path.lexists",
          "os.path.realpath", "os.read", "os.replace", "os.sep", "os.unlink", "os.write", "re.compile", "re.match",
@@ -241,10 +253,14 @@ ALLOW = {"argparse.ArgumentParser", "concurrent.futures.ThreadPoolExecutor", "da
 # the ONE spawn point and the ONE signal point: these names may appear only inside the named function
 SCOPED = {"subprocess.Popen": "proc_run_git", "subprocess.DEVNULL": "proc_run_git", "subprocess.PIPE": "proc_run_git",
           "subprocess.TimeoutExpired": "proc_run_git", "os.killpg": "proc_kill_group",
-          "os.getpgid": "proc_kill_group", "signal.SIGKILL": "proc_kill_group", "select.select": "proc_run_git",
+          "os.getpgid": "proc_kill_group", "signal.SIGKILL": "proc_kill_group",
+          # review round 6: the prompt waits in select so a stop signal ends it (RV5-5)
+          "select.select": ("proc_run_git", "Tty.ask"),
+          # review round 6 (RV5-1): SIGTERM first, the child never reaped while the group is signalled
+          "os.waitid": "proc_kill_group", "os.WNOWAIT": "proc_kill_group", "time.sleep": "proc_kill_group",
           # the ONE place that installs signal handlers (review round 4, RV4-5): the handler only sets a flag
           "signal.signal": "proc_on_stop_signals", "signal.SIGINT": "proc_on_stop_signals",
-          "signal.SIGTERM": "proc_on_stop_signals", "signal.SIGHUP": "proc_on_stop_signals"}
+          "signal.SIGTERM": ("proc_on_stop_signals", "proc_kill_group"), "signal.SIGHUP": "proc_on_stop_signals"}
 CALL_ONLY = {"subprocess.Popen", "os.killpg", "signal.signal"}
 BANNED_NAMES = {"getattr", "setattr", "delattr", "eval", "exec", "compile", "__import__", "globals", "vars",
                 "locals", "breakpoint", "__builtins__", "importlib", "builtins"}
@@ -265,6 +281,16 @@ def enclosing_def(node):
         cur = parent[cur]
         if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             return cur
+    return None
+
+
+def qualname(d):
+    """'name' for a module-level def, 'Class.name' for a method of a module-level class, else None."""
+    if d in tree.body:
+        return d.name
+    c = parent.get(d)
+    if isinstance(c, ast.ClassDef) and c in tree.body:
+        return "%s.%s" % (c.name, d.name)
     return None
 
 
@@ -301,8 +327,9 @@ for node in ast.walk(tree):
                 fails.append("module use %s is not on the allow-list (line %d)" % (name, node.lineno))
             elif name in SCOPED:
                 d = enclosing_def(node)
-                if not isinstance(d, ast.FunctionDef) or d.name != SCOPED[name] or d not in tree.body:
-                    fails.append("%s used outside %s (line %d)" % (name, SCOPED[name], node.lineno))
+                allowed = SCOPED[name] if isinstance(SCOPED[name], tuple) else (SCOPED[name],)
+                if not isinstance(d, ast.FunctionDef) or qualname(d) not in allowed:
+                    fails.append("%s used outside %s (line %d)" % (name, " / ".join(allowed), node.lineno))
                 if name in CALL_ONLY and not is_called(cur):
                     fails.append("%s used as a value, not called (line %d)" % (name, node.lineno))
     elif isinstance(node, ast.Attribute):
@@ -405,15 +432,23 @@ elif pkg is not None:
     # §11.4.263, exact shape (review round 3, X04: `pgid > 1 or True` passed a "test contains pgid > 1" check)
     K = kills[0]
     pv = [x.arg for x in pkg.args.args]
-    pv = pv[0] if len(pv) == 1 else None
+    pv = pv[0] if len(pv) == 2 and pv[1] == "grace" else None
     if pv is None:
-        fails.append("proc_kill_group does not take exactly one parameter (the child process)")
+        fails.append("proc_kill_group does not take exactly (child process, grace)")
     pb = [n for n in ast.walk(pkg) if "pgid" in bound_names(n)]
     want_bind = "pgid = os.getpgid(%s.pid)" % pv
     if len(pb) != 1 or not isinstance(pb[0], ast.Assign) or ast.unparse(pb[0]) != want_bind:
         fails.append("pgid is not bound exactly once, as `%s`, in proc_kill_group (§11.4.263)" % want_bind)
-    if ast.unparse(K) != "os.killpg(pgid, signal.SIGKILL)":
-        fails.append("the signal call is %s, not exactly os.killpg(pgid, signal.SIGKILL) (§11.4.263)" % ast.unparse(K))
+    if ast.unparse(K) != "os.killpg(pgid, sig)":
+        fails.append("the signal call is %s, not exactly os.killpg(pgid, sig) (§11.4.263)" % ast.unparse(K))
+    # `sig` is bound only by the ONE loop over exactly (SIGTERM, SIGKILL), a direct statement of proc_kill_group
+    sb = [n for n in ast.walk(pkg) if "sig" in bound_names(n)]
+    loop = sb[0] if len(sb) == 1 else None
+    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name) and loop.target.id == "sig"
+            and ast.unparse(loop.iter) == "(signal.SIGTERM, signal.SIGKILL)" and loop in pkg.body
+            and not loop.orelse):
+        fails.append("`sig` is not bound only by `for sig in (signal.SIGTERM, signal.SIGKILL):` in proc_kill_group "
+                     "(SIGTERM first, then SIGKILL; review round 6)")
     guard, cur = None, K
     while cur in parent:
         cur, child = parent[cur], cur
@@ -426,8 +461,9 @@ elif pkg is not None:
     terms = sorted(["isinstance(pgid, int)", "pgid > 1", "pgid == %s.pid" % pv])
     if not isinstance(guard, ast.If):
         fails.append("os.killpg is not in the body of an `if` (found %s before any `if`) (§11.4.263)" % guard)
-    elif parent.get(guard) is not pkg:
-        fails.append("the `if` guarding os.killpg is not a direct statement of proc_kill_group (§11.4.263)")
+    elif not (isinstance(parent.get(guard), ast.For) and parent[guard] in pkg.body and guard in parent[guard].body):
+        fails.append("the `if` guarding os.killpg is not a direct statement of the signal loop of proc_kill_group "
+                     "(§11.4.263)")
     elif not (isinstance(guard.test, ast.BoolOp) and isinstance(guard.test.op, ast.And)
               and sorted(ast.unparse(v) for v in guard.test.values) == terms):
         fails.append("the guard of os.killpg is `%s`, not exactly `%s` (§11.4.263)"
