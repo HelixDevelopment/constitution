@@ -40,8 +40,9 @@
 #   default 3, at least 1), JEV_PROJECT (the project named in a lease; default the basename of the git top level of the
 #   working directory, else null), LLMCTL_TENANT_ID (the tenant key llmctl puts in front of its own unit names),
 #   JEV_STATE_DIR / JEV_HOME (state), CMA_PROVIDERS_DIR (endpoint cache dir), LLMCTL_GATEWAY_URL / LLMCTL_CACERT (default
-#   from the `llmctl decide status --json` registry, else https://127.0.0.1:8095; https:// only), JEV_NOW_EPOCH (clock
-#   seam, ONLY with JEV_TEST=1).
+#   from the `llmctl decide status --json` registry, else https://127.0.0.1:8095; https:// only), JEV_NOW_FILE /
+#   JEV_NOW_EPOCH (clock seams, ONLY with JEV_TEST=1: an advancing clock read from a file, else a fixed clock; see
+#   "THE CLOCK" below).
 #
 # Round 7 (structural, review of eb29803b: NF-1, NF-2, NF-3; inventory docs/qa/jev_s3s4_20261112/round7/inventory.md):
 # * THE WHOLE CONTRACT TABLE (NF-1). capacity_read checks every row of the §11.4.291(C) table (CONTRACT_TABLE: schema,
@@ -60,7 +61,8 @@
 #   answer read after them; a further start (JEV_PLACE_MAX > 1) reads a fresh answer after a ticket. No `llmctl start`
 #   follows a registry change without a capacity read in between. A profile is stopped or start-tried at most once per
 #   acquire (STOP_TRIED, START_TRIED), so every loop is bounded.
-# * MARK TTL AND FLOOR (NF-3). A starting / stopping mark whose process is alive is cleared only after MARK_TTL = the
+# * MARK TTL AND FLOOR (NF-3). A starting / stopping mark whose process is alive is cleared only once the mark itself
+#   (its `at`, stamped when the mark is written, see THE CLOCK, round 8) is older than MARK_TTL = the
 #   start/stop timeout + 2 s (timeout's kill-after) + RETRIES x JEV_LOCK_TIMEOUT (the record waits) + 30 s: the longest
 #   a live marker holds it, with slack. Clearing a mark also sets the set's health to `pending` at the current observation
 #   counter (a floor): an answer read before the clear never judges the set (a start that completed with its record lost
@@ -164,7 +166,28 @@ RTMO="${JEV_LLMCTL_TIMEOUT:-20}"; STMO="${JEV_LLMCTL_START_TIMEOUT:-300}"
 TTL_DEFAULT="${JEV_LEASE_TTL:-900}"; LOCK_TMO="${JEV_LOCK_TIMEOUT:-10}"; MAXN="${JEV_PLACE_MAX:-1}"
 CADENCE="${JEV_REEVAL_CADENCE:-300}"; RETRIES="${JEV_RECORD_RETRIES:-3}"; STALE_MAX=3
 TENANT="${LLMCTL_TENANT_ID:-}"
-NOW="$(date +%s)"; [ "${JEV_TEST:-}" != "1" ] || NOW="${JEV_NOW_EPOCH:-$NOW}"
+# round 8 (review R7-A): THE CLOCK. NOW is read again by with_lock each time it takes the lease lock (clock_refresh), so
+# every age-bearing field (a mark's `at`, a lease's `heartbeat_at`, `started_at`, `health.at`, `start_failed.at`,
+# `stop_failed.at`, `stop_owed.at`, `mark_cleared.at`, `gone.at`, the placement record's `evaluated_at`) is stamped with
+# the time it is WRITTEN, and every age (MARK_TTL, a lease TTL) is judged at the time of the decision. Every one of
+# them is written or judged under the lock, and no llmctl call runs under it (R4-3), so a locked section is short. Before
+# round 8 NOW was read once at process start: a mark set after a disposal stop or a slow capacity read carried an `at`
+# that was already old, and an observer cleared the mark of a LIVE starter early (R7-A).
+# Test seams (ONLY with JEV_TEST=1, review r6 n6-1): JEV_NOW_FILE (a file holding an epoch, read on EVERY refresh: a
+# clock the test advances, e.g. from the stub llmctl during a start), else JEV_NOW_EPOCH (a fixed clock).
+clock_now() {
+  local t; t="$(date +%s)"
+  if [ "${JEV_TEST:-}" = "1" ]; then
+    if [ -n "${JEV_NOW_FILE:-}" ]; then t="$(head -c 32 "$JEV_NOW_FILE" 2>/dev/null | tr -dc '0-9')"
+    elif [ -n "${JEV_NOW_EPOCH:-}" ]; then t="$JEV_NOW_EPOCH"; fi
+  fi
+  printf '%s\n' "$t"
+}
+clock_refresh() {
+  NOW="$(clock_now)"
+  case "$NOW" in ''|*[!0-9]*) echo "jev-place: the clock could not be read (JEV_NOW_FILE unreadable or not an epoch; config error)" >&2; exit 2 ;; esac
+}
+clock_refresh
 for n in "$RTMO" "$STMO" "$TTL_DEFAULT" "$LOCK_TMO" "$MAXN" "$CADENCE" "$RETRIES"; do case "$n" in ''|*[!0-9]*) echo "jev-place: numeric setting expected, got '$n' (config error)" >&2; exit 2 ;; esac; done
 [ "$RETRIES" -ge 1 ] || { echo "jev-place: JEV_RECORD_RETRIES must be at least 1 (config error)" >&2; exit 2; }
 # round 7 (NF-3): the longest a LIVE process holds a starting / stopping mark: the bounded llmctl call (STMO + the 2 s
@@ -464,7 +487,8 @@ reap_locked() { # drops dead holders from every set (caller holds the lock); nev
     fi
   done < <(jq -r '.sets | to_entries[] | .key as $p | .value.leases[]? | [$p, (.holder // ""), (.pid // "null"), (.heartbeat_at // 0), (.ttl // 0), (.pid_start // "null")] | map(tostring) | join("\u001f")' <<<"$cur")
   # a `stopping` or `starting` mark is cleared when its process is gone (pid + start time) or the mark is older than
-  # MARK_TTL, the longest a LIVE marker can hold it (§11.4.291(J)); the set is then judged like any other set by an
+  # MARK_TTL (age of the mark's own `at`, stamped when it was written: round 8, R7-A), the longest a LIVE marker can
+  # hold it (§11.4.291(J)); the set is then judged like any other set by an
   # observation NEWER than the clearing: round 7 (NF-3) records the current observation counter as the set's floor
   # (state pending), as finish_start_locked does, so an answer read before the clearing (it may predate the start the
   # dead marker made) never judges the set (no false endpoint_gone)
@@ -485,6 +509,9 @@ reap_locked() { # drops dead holders from every set (caller holds the lock); nev
 with_lock() { # with_lock <fn> args... -> rc 4 on lock timeout. The function must not run llmctl (R4-3).
   exec 9>>"$LOCK"
   if ! flock -w "$LOCK_TMO" 9; then exec 9>&-; return 4; fi
+  # round 8 (R7-A): the time of THIS locked section, read after the lock is taken (a lock wait is not counted as the
+  # time a mark or a lease is written)
+  clock_refresh
   local rc=0; "$@" || rc=$?
   flock -u 9; exec 9>&-
   return "$rc"

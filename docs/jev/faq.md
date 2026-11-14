@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T19:01:19Z |
+| Last modified | 2026-11-14T23:09:27Z |
 | Status | active |
 | Status summary | Short answers to recurring questions, each tied to the source that settles it. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -129,4 +129,4 @@ No longer only per question type: `jev-thresholds.json` also has `per_endpoint["
 Another session changed the lease registry (started, stopped, joined or released a model) between this acquire's capacity read and its start, three times in a row. Since round 7 a start is decided only on a capacity answer read after the last registry change (the token is the registry's generation counter plus the sha256 of `leases.json`, checked at the plan and again at the start mark). A stale answer is read again; after three stale reads nothing is started and the route falls back. It means heavy contention, not a fault; the next acquire tries again.
 
 **29. Why does a held model stay unrouted for a while after its starter died?**
-Clearing a dead starter's mark sets the set's health to `pending` at the current observation counter (a floor): only an observation that begins after the clear may judge the set, so a capacity answer read before the start finished can never mark a running model gone. A live starter's mark is kept for `MARK_TTL` (the start/stop timeout + 2 s + retries × lock timeout + 30 s). Run `status` or the next `acquire` to observe the set.
+Clearing a dead starter's mark sets the set's health to `pending` at the current observation counter (a floor): only an observation that begins after the clear may judge the set, so a capacity answer read before the start finished can never mark a running model gone. A live starter's mark is kept until the mark itself is older than `MARK_TTL` (the start/stop timeout + 2 s + retries × lock timeout + 30 s). The age counts from the mark's own `at`, stamped when the mark is written (round 8; up to round 7 it was stamped at the producer's process start, so a mark set late in a long acquire could be cleared while its starter was still running). Run `status` or the next `acquire` to observe the set.

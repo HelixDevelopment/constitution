@@ -1,5 +1,12 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-14 — Jev S3/S4 round 8 (CON-PENDING-JEV): fixes for the independent review of `c811d0cd` (NO-GO, R7-A to R7-G); gate-logic evidence only, PROVISIONAL
+
+- R7-A (host safety): `scripts/jev/jev-place.sh` read the clock once at process start, so a starting mark set late in a long acquire carried an old `at` and an observer could clear a LIVE starter's mark (then release its lease and stop the model during its start, or let a second session start another model). `with_lock` now reads the clock after it takes the lock, so every age-bearing field is stamped when it is written. Test-only clock seam `JEV_NOW_FILE` (advanced by the stub llmctl). The round-7 entry's sentence on the mark lifetime held only for a mark set at the start of its acquire.
+- New suite `tests/jev/test_s4_round8.sh` (P91 to P98): the reviewer's two clock probes scaled down (RED 19 failures on `c811d0cd`, GREEN 47 / 0), the advancing-clock rows, and rows killing the reviewer mutants OWN01, OWN02, OWN03, OWN07, OWN10, OWN12 (P95 uses a crafted state, defence in depth).
+- Standing mutants: 110 (round-7 set rebuilt, OWN01 to OWN12, five clock mutants): 106 killed, 4 equivalent, 0 survivors (`docs/qa/jev_s3s4_20261112/round8/mutants.md`).
+- R7-B: the §11.4.291 canon refinement note gains one dated clause (flagged for the independent review; the Revision header is left to the lander), and the FAQ, troubleshooting and governance guide say the mark's age counts from its own `at`. R7-D: a tracked-item draft for O6-1. R7-G: a separate note on the stale llmctl ref in `helix-deps.yaml`. A control-needled census of the stale-clock class found two fail-closed sites outside this item (draft item).
+
 ## Unreleased — 2026-11-13 — CON-299 Jev S3/S4 round 7 (structural, past R_max 5 under the standing operator decision of 2026-11-11): fixes for the independent review of `eb29803b` (NO-GO, NF-1 to NF-3, T6-1, T6-2, observation O6-1, nits N6-a to N6-e)
 
 - Why a round 7: the standing operator decision of 2026-11-11 (rounds past `R_max` = 5 continue until GO, each with a fresh structural fixer and a fresh reviewer) is the §11.4.276(E)(3) decision for this item. Classes first (`docs/qa/jev_s3s4_20261112/round7/inventory.md`: every row of the (C) contract table, every path from a capacity read to `llmctl start`, every place a mark is cleared), then RED, then the fixes.

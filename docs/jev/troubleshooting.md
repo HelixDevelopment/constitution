@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 5 |
+| Revision | 6 |
 | Created | 2026-10-23 |
-| Last modified | 2026-11-13T17:36:01Z |
+| Last modified | 2026-11-14T23:09:27Z |
 | Status | active |
 | Status summary | Symptom, cause, action, and the command that shows which it is. |
 | Authority | Constitution §11.4.279–§11.4.286. The canonical anchor texts and the scripts govern where this document and they disagree. |
@@ -105,7 +105,7 @@ Related: [governance guide](governance-guide.md) · [bootstrap reference](bootst
 | `acquire` logs `endpoint_gone: the unit of <p> is gone ...` and exits 5 | A held set's own unit disappeared (crashed, or stopped outside the producer) | Every lease of that set is released (the holders are named), the route moves to the fallback, and the producer does not restart the profile in the same call (no restart loop, §11.4.291(J)(6)); a constitution-started set is disposed with one bounded `llmctl stop`. The next acquire evaluates the profile afresh. A session whose lease was released gets exit 3 from `heartbeat` and must `acquire` again. |
 | Verdict `undetermined`, reason_code `stale_answer` | The lease registry changed (another session started, stopped, joined or released) between this acquire's capacity read and its plan, or between the plan and the start mark, `STALE_MAX` (3) times in a row | Round 7 freshness rule: a start is decided only on a capacity answer read after the last registry change (token = generation + sha256 of `leases.json`). A stale answer is read again; after 3 stale reads the acquire starts nothing and routes to the fallback. Retry later; it is a sign of heavy contention, not a fault. |
 | `acquire` logs `candidate <p>: not started: the lease of <holder> on <q>, taken by this acquire, is gone` | With `JEV_PLACE_MAX` > 1, the lease this acquire took on its first start was released (or the set dropped) before the next start | Round 7: a further start needs the lease this acquire took; nothing more is started. Expected when a `release` runs concurrently. |
-| `reap` logs `cleared the starting mark of <p> ...` and the set is not routed yet | The starter died (or its mark is older than `MARK_TTL`); round 7 sets the set's health to `pending` at the current observation counter (a floor) | The set is judged by the next observation that begins after the clear; an older capacity answer can never mark it gone. Run `status` or the next `acquire`. |
+| `reap` logs `cleared the starting mark of <p> ...` and the set is not routed yet | The starter died (or its mark is older than `MARK_TTL`, counted from the mark's own `at`, stamped when the mark was written: round 8); round 7 sets the set's health to `pending` at the current observation counter (a floor) | The set is judged by the next observation that begins after the clear; an older capacity answer can never mark it gone. Run `status` or the next `acquire`. |
 | `heartbeat` exits 3 | The holder holds no lease (released, reaped, released because its endpoint is gone, or never taken) | A lease is never assumed: route locally only after a new `acquire`. |
 | `acquire` exits 2: `lease TTL ... is not greater than the re-evaluation cadence` | `--ttl` (or `JEV_LEASE_TTL`) is not greater than `JEV_REEVAL_CADENCE` (default 300 s) + `JEV_LLMCTL_TIMEOUT` (default 20 s) | A config error (§11.4.291(J)(1)): raise the TTL or lower the cadence. |
 | `acquire` exits 5 with event `gateway_refused` | The gateway URL (from `LLMCTL_GATEWAY_URL`, the llmctl registry, or the default) is not `https://` or is malformed | Only `https://` is registered: the key `LLMCTL_API_KEY` never goes over plain HTTP. When no gateway is listed, or `llmctl decide status` fails, the default `https://127.0.0.1:8095` is applied and logged. |

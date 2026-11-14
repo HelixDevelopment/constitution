@@ -1,0 +1,1 @@
+FATAL: committed constitution_index.yaml diverges from a fresh generate — diverged field(s): ["generated_from: sub-field(s) differ: ['source_sha256']"]
